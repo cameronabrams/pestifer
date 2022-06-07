@@ -1,0 +1,19 @@
+colvar {
+  name %NAME%
+  distance {
+    group1 { 
+      atomNumbers { %I% }
+    }
+    group2 {
+      atomNumbers { %J% }
+    }
+  }
+}
+
+harmonic {
+  colvars %NAME%
+  forceConstant 20.0
+  centers %R0%         # initial distance
+  targetCenters 2.0  # final distance
+  targetNumSteps %TARGETNUMSTEPS%
+} 

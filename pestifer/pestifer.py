@@ -265,11 +265,11 @@ def WriteHeaders(fp,charmm_topologies,local_topologies,pdbaliases):
 #             streamfilesnames.append(t)
 #     return streamfilesnames
 
-if __name__=='__main__':
+#if __name__=='__main__':
+def main():
     seed=random.randint(0,100000)
-
     parser=argparse.ArgumentParser()
-    print('cfapdbparse.py {} / python {}'.format(date.today(),sys.version.replace('\n',' ').split(' ')[0]))
+    print('pestifer.py {} / python {}'.format(date.today(),sys.version.replace('\n',' ').split(' ')[0]))
     i=1
     Molecules=[]
     Mut=[]
@@ -630,4 +630,6 @@ ind=`indent $nesting_level "#"`
     fp.close()
     os.system('chmod 744 {}'.format(postscriptname))
 
+def cli():
+    main()
     
