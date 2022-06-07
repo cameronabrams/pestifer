@@ -6,26 +6,28 @@
 """
 
 import sys
-# import operator
-import argparse
+import argparse as ap
 import os
+import shutil
 import random
 import math
+import logging
 from datetime import date, datetime
-from molecule import Molecule
-from cleavage import Cleavage
-from mutation import Mutation
-from ssbond import SSBond
-from graft import Graft
-from crot import Crot
-from attach import Attach
-from link import Link
-from deletion import Deletion
-from missing import Missing
-from modsfile import ModsFile
-from atom import _PDBAtomNameDict_
-from residue import Residue, _PDBResName123_, _pdb_glycans_, _pdb_ions_, _ResNameDict_PDB_to_CHARMM_, _ResNameDict_CHARMM_to_PDB_, get_residue
-from util import *
+
+from pestifer.molecule import Molecule
+from pestifer.cleavage import Cleavage
+from pestifer.mutation import Mutation
+from pestifer.ssbond import SSBond
+from pestifer.graft import Graft
+from pestifer.crot import Crot
+from pestifer.attach import Attach
+from pestifer.link import Link
+from pestifer.deletion import Deletion
+from pestifer.missing import Missing
+from pestifer.modsfile import ModsFile
+from pestifer.atom import _PDBAtomNameDict_
+from pestifer.residue import Residue, _PDBResName123_, _pdb_glycans_, _pdb_ions_, _ResNameDict_PDB_to_CHARMM_, _ResNameDict_CHARMM_to_PDB_, get_residue
+from pestifer.util import *
 
 def WritePostMods(fp,psf,pdb,PostMod,Loops,GlycanSegs):
     """ Writes TcL/VMD commands that encode modifications once the
@@ -268,7 +270,7 @@ def WriteHeaders(fp,charmm_topologies,local_topologies,pdbaliases):
 #if __name__=='__main__':
 def main():
     seed=random.randint(0,100000)
-    parser=argparse.ArgumentParser()
+    parser=ap.ArgumentParser()
     print('pestifer.py {} / python {}'.format(date.today(),sys.version.replace('\n',' ').split(' ')[0]))
     i=1
     Molecules=[]
@@ -466,14 +468,14 @@ def main():
     ''' Generate the psfgen TcL script '''
     psfgen_fp=open(psfgen,'w')
     psfgen_fp.write('### This is an automatically generated psfgen input file\n')
-    psfgen_fp.write('### created using cfapdbparse.py on {} at {}\n'.format(date.today(),datetime.now().strftime('%H:%M:%S')))
-    psfgen_fp.write('### cfapdbparse.py is part of the psfgen repository\n')
+    psfgen_fp.write('### created using pestifer.py on {} at {}\n'.format(date.today(),datetime.now().strftime('%H:%M:%S')))
+    psfgen_fp.write('### pestifer.py is part of the psfgen repository\n')
     psfgen_fp.write('### github.com:cameronabrams/psfgen/scripts\n')
     psfgen_fp.write('### questions to cfa22@drexel.edu\n')
     psfgen_fp.write('### command: python3 '+' '.join(sys.argv)+'\n')
     WriteHeaders(psfgen_fp,CTopo,LocTopo,PDBAliases)
     Loops=Base.WritePsfgenInput(psfgen_fp,prefix=prefix)
-    ''' PostMods are commands that operation on the PSF/PDB pair generated above, and are included in the
+    ''' PostMods are commands that operate on the PSF/PDB pair generated above, and are included in the
         TcL script for psfgen.  These are typically commands that alter coordinates, like centering, rotating, and
         adjusting dihedrals to ease future minimization.  The PSF itself is not modified.
         Regardless of whether any modifications are done or not, this will always write 
@@ -498,6 +500,7 @@ def main():
     print('Run the script {} to complete the build.'.format(postscriptname))
     print('After running {}, "read CURRPSF CURRPDB CURRCFG < .tmpvar" will set those variables.'.format(postscriptname))
     print('cfapdbpyparse ends.')
+
     fp=open(postscriptname,'w')
     fp.write(r'#!/bin/bash'+'\n')
     fp.write('# {}: completes the build of {}\n'.format(postscriptname,currpsf))
@@ -630,6 +633,48 @@ ind=`indent $nesting_level "#"`
     fp.close()
     os.system('chmod 744 {}'.format(postscriptname))
 
+def solvate():
+    pass
+
+def equilibrate():
+    pass
+
+def pack_for_production():
+    pass
+
+def do_topogromacs():
+    pass
+
+def _main():
+    parser=ap.ArgumentParser()
+    parser.add_argument('config',help='input configuration file (yaml)')
+    parser.add_argument('-l',help='log file name',default='pestifer.log')
+    parser.add_argument('--loglevel',default='info',help='logging level (info)')
+    args=parser.parse_args()
+
+    loglevel=args.loglevel
+    loglevel_numeric=getattr(logging, loglevel.upper())
+    if os.path.exists(args.log):
+        shutil.copyfile(args.log,args.log+'.bak')
+    logging.basicConfig(filename=args.log,filemode='w',format='%(asctime)s %(message)s',level=loglevel_numeric)
+    logging.info('pestifer runtime begins.')
+
+    # options=read_file(args.config)
+    # fetch PDBs
+    # for each parse/relaxation task
+    #   read molecules, build working PDB files
+    #   generate mkpsf.tcl
+    #   run psfgen
+    #   run mods
+    #   run namd
+    # solvation
+    # relaxation/equilibration
+    # prep for production
+    # (opt) topogromacs
+
+    logging.info('pestifer runtime ends.')
+
 def cli():
-    main()
+
+    _main()
     
