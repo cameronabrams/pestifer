@@ -10,7 +10,7 @@ if {![info exists TCL_DIR]} {
 
 source ${TCL_DIR}/list_handlers.tcl
 
-load ${TCL_DIR}/bondstruct_module/lib/bondstruct.so cfa_bondstruct
+load ${TCL_DIR}/modules/lib/bondstruct.so cfa_bondstruct
 
 set il [list 0 1 2 3]
 set bondcount 0
