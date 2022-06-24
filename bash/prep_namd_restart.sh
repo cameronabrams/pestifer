@@ -68,6 +68,16 @@ done
 
 cfgext=`echo $RECONF| awk -F. '{print $NF}'`
 REOUTNAME=`echo $RECONF | sed s/".${cfgext}//"`
+FILES=($RECONF)
+
+for pfile in `grep -i ^parameters $CONF | awk '{print $NF}'`; do
+   FILES+=($pfile)
+done
+FILES+=(`grep -i ^structure $CONF|awk '{print $NF}'`)
+FILES+=(`grep -i ^coordinates $CONF|awk '{print $NF}'`)
+FILES+=(`grep -i ^colvarsconfig $CONF|awk '{print $NF}'`)
+FILES+=(`grep -iw ^tmdfile $CONF|awk '{print $NF}'`)
+FILES+=(`grep -iw ^tmdfile2 $CONF|awk '{print $NF}'`)
 
 if [[ "$quiet" != "0" ]]; then
     banner
@@ -87,6 +97,8 @@ if [ ! -f $LOG ] ; then
     exit 1
 fi
 HAS_LANGEVIN_THERMOSTAT=`grep -c "LANGEVIN DYNAMICS ACTIVE" $LOG`
+# Info: LANGEVIN TEMPERATURE   310
+LANGEVIN_TEMPERATURE=`grep "Info: LANGEVIN TEMPERATURE" $LOG | awk '{print $NF}'`
 HAS_LANGEVIN_BAROSTAT=`grep -c "LANGEVIN PISTON PRESSURE CONTROL ACTIVE" $LOG`
 CURRENT_ENSEMBLE="unknown"
 if [[ "$HAS_LANGEVIN_THERMOSTAT" == "1" ]]; then
@@ -160,14 +172,20 @@ if [ ! -z "${tmdon}" ]; then
 fi
 
 RESINFILENAME=""
+REINITVELS="no"
 for suf in coor vel xsc; do
     if [ -f ${lastout}.restart.${suf} ]; then
         RESINFILENAME=".restart"
     elif [ -f ${lastout}.${suf} ]; then
         RESINFILENAME=""
     else
-        echo "Error: Last checkpoint file ${lastout}.restart.${suf} or ${lastout}.${suf} not found."
-        exit 1
+        echo "Last checkpoint file ${lastout}.restart.${suf} or ${lastout}.${suf} not found."
+        if [[ $suf == "vel" ]]; then
+           REINITVELS="yes"
+        else
+           echo "Error."
+           exit 1
+        fi
     fi
     if [ -f ${REOUTNAME}.restart.${suf} ]; then
         echo "Error: Next checkpoint ${REOUTNAME}.restart.${suf} already exists."
@@ -185,8 +203,8 @@ cat $CONF | sed '/^#/d' | sed '/^$/d' | sed '/^firsttimestep/d' | \
             sed '/^outputName/ c outputName \$outputname' | \
             sed '/^outputname/ c outputname \$outputname' | \
             sed '4 i bincoordinates '${lastout}${RESINFILENAME}'.coor' | \
-            sed '5 i binvelocities '${lastout}${RESINFILENAME}'.vel' | \
-            sed '6 i extendedsystem '${lastout}${RESINFILENAME}'.xsc' | \
+            sed '5 i extendedsystem '${lastout}${RESINFILENAME}'.xsc' | \
+            sed '6 i set outputname '$REOUTNAME | \
             sed '/^run/ i firsttimestep '$stepsrun | \
             sed '/^run/ c run '$stepsleft | \
             sed '/^numsteps/ c run '$stepsleft > $RECONF
@@ -194,10 +212,22 @@ if [[ $CURRENT_ENSEMBLE == "npt" ]] && [[ $ENSEMBLE == "nvt" ]]; then
     cat $RECONF | sed 's/^\<langevinpiston\>.*/langevinpiston off/' > tmp
     mv tmp $RECONF
 fi
+if [[ $REINITVELS == "yes" ]]; then 
+    cat $RECONF | sed '3 i temperature '$LANGEVIN_TEMPERATURE > tmp
+    mv tmp $RECONF
+else
+    cat $RECONF | sed '5 i binvelocities '${lastout}${RESINFILENAME}'.vel' > tmp
+    mv tmp $RECONF
+fi
 if [ ! -z "${tmdon}" ]; then
     if [ -z "${tmdinitialrmsd_inconf}" ]; then
         cat $RECONF | sed '/tmd on/ a tmdinitialrmsd '${tmdinitialrmsd} > tmp
         mv tmp $RECONF
     fi
-fi	
+fi
+FILES+=(`grep -i ^bincoordinates $RECONF|awk '{print $NF}'`)
+FILES+=(`grep -i ^binvelocities $RECONF|awk '{print $NF}'`)
+FILES+=(`grep -i ^extendedsystem $RECONF|awk '{print $NF}'`)
+
+echo ${FILES[@]} > ${RECONF}.files
 echo "Created restart config $RECONF"
