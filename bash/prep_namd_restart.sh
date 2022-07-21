@@ -142,7 +142,7 @@ else
     stepsleft=$(($stepsrequested-$stepsrun))
     stepsleft=$(($stepsleft+$USERADDSTEPS))
 fi
-lastout=`grep "set outputname" $CONF | grep -v \# | awk '{print $3}' | sed 's/;$//'`
+lastout=`grep "set outputname" $CONF | tail -1 | grep -v \# | awk '{print $3}' | sed 's/;$//'`
 if [ -z "${lastout}" ]; then
     lastout=`grep -i ^outputname $CONF | awk '{print $2}' | sed 's/;$//'`
     if [ -z "${lastout}" ]; then
