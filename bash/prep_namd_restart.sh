@@ -174,9 +174,9 @@ fi
 RESINFILENAME=""
 REINITVELS="no"
 for suf in coor vel xsc; do
-    if [ -f ${lastout}.restart.${suf} ] ; then
+    if [ -f "${lastout}.restart.${suf}" ] ; then
         RESINFILENAME=".restart"
-    elif [ -f ${lastout}.${suf} ] ; then
+    elif [ -f "${lastout}.${suf}" ] ; then
         RESINFILENAME=""
     else
         echo "Last checkpoint file ${lastout}.restart.${suf} or ${lastout}.${suf} not found."
