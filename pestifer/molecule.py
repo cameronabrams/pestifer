@@ -1,17 +1,17 @@
-from atom import Atom, _PDBAtomNameDict_
-from ssbond import SSBond
-from missing import Missing
-from link import Link
-from biomolecule import Biomolecule
-from segment import Segment, _seg_typedict_byresname_
-from chain import Chain
-from seqadv import Seqadv
-from mutation import Mutation
-from residue import Residue, _PDBResName123_, _pdb_glycans_, _pdb_ions_, _ResNameDict_PDB_to_CHARMM_, _ResNameDict_CHARMM_to_PDB_, get_residue
-from revdat import RevDat, FmtDat
+from pestifer.atom import Atom, _PDBAtomNameDict_
+from pestifer.ssbond import SSBond
+from pestifer.missing import Missing
+from pestifer.link import Link
+from pestifer.biomolecule import Biomolecule
+from pestifer.segment import Segment, _seg_typedict_byresname_
+from pestifer.chain import Chain
+from pestifer.seqadv import Seqadv
+from pestifer.mutation import Mutation
+from pestifer.residue import Residue, _PDBResName123_, _pdb_glycans_, _pdb_ions_, _ResNameDict_PDB_to_CHARMM_, _ResNameDict_CHARMM_to_PDB_, get_residue
+from pestifer.revdat import RevDat, FmtDat
 from CifFile import ReadCif
-from cifutil import *
-from moldata import MolData
+from pestifer.cifutil import *
+from pestifer.moldata import MolData
 _molidcounter_=0
 class Molecule:
     def load(self,fp):

@@ -1,4 +1,4 @@
-from molecule import Molecule
+from pestifer.molecule import Molecule
 
 def get_ra(mystr):
     if mystr[-1].isalpha():

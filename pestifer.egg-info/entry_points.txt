@@ -1,0 +1,2 @@
+[console_scripts]
+pestifer = pestifer.pestifer:cli

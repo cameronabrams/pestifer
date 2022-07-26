@@ -1,12 +1,12 @@
-from mutation import Mutation
-from ssbond import SSBond
-from graft import Graft
-from crot import Crot
-from attach import Attach
-from link import Link
-from deletion import Deletion
-from cleavage import Cleavage
-from missing import Missing
+from pestifer.mutation import Mutation
+from pestifer.ssbond import SSBond
+from pestifer.graft import Graft
+from pestifer.crot import Crot
+from pestifer.attach import Attach
+from pestifer.link import Link
+from pestifer.deletion import Deletion
+from pestifer.cleavage import Cleavage
+from pestifer.missing import Missing
 
 ModTypes={'mutations':Mutation,'grafts':Graft,'deletions':Deletion,'crotations':Crot,'attachments':Attach,'links':Link,'ssbonds':SSBond,'cleavages':Cleavage,'missing':Missing}
 comment_chars=['#','%']

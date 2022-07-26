@@ -1,4 +1,4 @@
-from moldata import MolData
+from pestifer.moldata import MolData
 
 """ biomolecule.py -- handling all biological assemblies in a PDB/mmCIF file """
 class Biomolecule:

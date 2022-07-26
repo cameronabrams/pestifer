@@ -8,7 +8,7 @@ make: *** No rule to make target 'all'.  Stop.
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
-# Make data base, printed on Thu Jul 21 12:49:36 2022
+# Make data base, printed on Tue Jul 26 12:51:08 2022
 
 # Variables
 
@@ -85,13 +85,15 @@ GSETTINGS_SCHEMA_DIR = /home/cfa/anaconda3/envs/py39/share/glib-2.0/schemas
 # default
 MAKE_HOST := x86_64-suse-linux-gnu
 # environment
-PATH = /home/cfa/research/HTPolyNet/mh-cl/src:/usr/local/gromacs/bin:/home/cfa/research/HTPolyNet/mh-cl/src:/home/cfa/anaconda3/envs/py39/bin:/home/cfa/anaconda3/condabin:/home/cfa/research/HTPolyNet/mh-cl/src:/usr/lib64/mpi/gcc/openmpi/bin:/usr/local/cuda-11.3/bin:/home/cfa/.local/bin:/home/cfa/bin:/usr/local/bin:/usr/bin:/bin:/usr/lib/mit/sbin
+PATH = /home/cfa/research/HTPolyNet/mh-cl/src:/usr/local/gromacs/bin:/home/cfa/research/HTPolyNet/mh-cl/src:/home/cfa/anaconda3/envs/mol-env/bin:/home/cfa/anaconda3/condabin:/home/cfa/research/HTPolyNet/mh-cl/src:/usr/lib64/mpi/gcc/openmpi/bin:/usr/local/cuda-11.3/bin:/home/cfa/.local/bin:/home/cfa/bin:/usr/local/bin:/usr/bin:/bin:/usr/lib/mit/sbin
+# environment
+_PRE_AMBERTOOLS_PERL5LIB = /home/cfa/anaconda3/envs/py39/lib/perl/mm_pbsa
 # environment
 LESSKEY = /etc/lesskey.bin
 # environment
 XCURSOR_THEME = breeze_cursors
 # environment
-SESSION_MANAGER = local/panacea:@/tmp/.ICE-unix/3158,unix/panacea:/tmp/.ICE-unix/3158
+SESSION_MANAGER = local/panacea:@/tmp/.ICE-unix/3188,unix/panacea:/tmp/.ICE-unix/3188
 # environment
 XDG_RUNTIME_DIR = /run/user/1000
 # environment
@@ -103,7 +105,7 @@ UBUNTU_MENUPROXY = 1
 # environment
 JAVA_BINDIR = /usr/lib64/jvm/jre-11-openjdk/bin
 # environment
-CONDA_PREFIX = /home/cfa/anaconda3/envs/py39
+CONDA_PREFIX = /home/cfa/anaconda3/envs/mol-env
 # environment
 ELECTRON_RUN_AS_NODE = 1
 # environment
@@ -119,7 +121,7 @@ NAMD2 = /home/cfa/namd/NAMD_2.14_Source/Linux-x86_64-g++/namd2
 # environment
 XDG_SESSION_DESKTOP = KDE
 # environment
-SSH_AUTH_SOCK = /tmp/ssh-lFxTMLvaTXoY/agent.2886
+SSH_AUTH_SOCK = /tmp/ssh-wQ1A8cTSjO3e/agent.2918
 # automatic
 %F = $(notdir $%)
 # environment
@@ -127,7 +129,7 @@ DISPLAY = :0
 # environment
 CONDA_EXE = /home/cfa/anaconda3/bin/conda
 # environment
-TMUX_PANE = %6
+TMUX_PANE = %5
 # environment
 GTK_IM_MODULE = ibus
 # environment
@@ -143,7 +145,7 @@ XDG_SEAT = seat0
 # environment
 QT_AUTO_SCREEN_SCALE_FACTOR = 0
 # environment
-SSH_AGENT_PID = 3075
+SSH_AGENT_PID = 3105
 # environment
 PKG_CONFIG_PATH = /usr/local/gromacs/lib64/pkgconfig
 # environment
@@ -167,7 +169,7 @@ LESSCLOSE = lessclose.sh %s %s
 # environment
 VSCODE_CLI = 1
 # environment
-PERL5LIB = /home/cfa/anaconda3/envs/py39/lib/perl/mm_pbsa
+PERL5LIB = /home/cfa/anaconda3/envs/mol-env/lib/perl/mm_pbsa:/home/cfa/anaconda3/envs/py39/lib/perl/mm_pbsa
 # environment
 VSCODE_CODE_CACHE_PATH = /home/cfa/.config/Code/CachedData/3b889b090b5ad5793f524b5d1d39fda662b96a2a
 # environment
@@ -177,7 +179,7 @@ G_FILENAME_ENCODING = @locale,UTF-8,ISO-8859-15,CP1252
 # environment
 APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = 1
 # environment
-CONDA_PROMPT_MODIFIER = (py39) 
+CONDA_PROMPT_MODIFIER = (mol-env) 
 # environment
 KDE_FULL_SESSION = true
 # environment
@@ -199,7 +201,7 @@ XDG_VTNR = 7
 # environment
 MAKELEVEL := 0
 # environment
-CONDA_DEFAULT_ENV = py39
+CONDA_DEFAULT_ENV = mol-env
 # environment
 SSH_ASKPASS = /usr/lib/ssh/ssh-askpass
 # environment
@@ -219,7 +221,6 @@ XKEYSYMDB = /usr/X11R6/lib/X11/XKeysymDB
 # environment
 SHLVL = 4
 # environment
- 
 JRE_HOME = /usr/lib64/jvm/java-11-openjdk-11
 # environment
 WINDOWMANAGER = /usr/bin/startplasma-x11
@@ -228,9 +229,9 @@ LESS_ADVANCED_PREPROCESSOR = no
 # environment
 JAVA_HOME = /usr/lib64/jvm/jre-11-openjdk
 # environment
-XDG_SESSION_ID = 2
+XDG_SESSION_ID = 4
 # environment
-AMBERHOME = /home/cfa/anaconda3/envs/py39
+AMBERHOME = /home/cfa/anaconda3/envs/mol-env
 # environment
 USER = cfa
 # environment
@@ -256,7 +257,7 @@ MAKE_COMMAND := make
 # environment
 PROFILEREAD = true
 # environment
-OLDPWD = /home/cfa
+OLDPWD = /home/cfa/Git
 # default
 .VARIABLES := 
 # environment
@@ -280,11 +281,11 @@ MFLAGS = -pqrR
 # environment
 MAIL = /var/spool/mail/cfa
 # environment
-SHELL_SESSION_ID = 8f2b7db2f61a4a328f81d7de6c14cc7d
+SHELL_SESSION_ID = aac195fbb8bd46e2be2f487d6d3e0e2d
 # automatic
 +D = $(patsubst %/,%,$(dir $+))
 # environment
-TMUX = /run/tmux/1000/default,3700,0
+TMUX = /run/tmux/1000/default,3803,0
 # environment
 GDK_BACKEND = x11
 # automatic
@@ -294,6 +295,7 @@ GTK2_MODULES = unity-gtk-module
 # environment
 KDE_SESSION_UID = 1000
 # environment
+ 
 GSETTINGS_SCHEMA_DIR_CONDA_BACKUP = 
 # environment
 COLORFGBG = 15;0
@@ -348,7 +350,7 @@ SDL_AUDIODRIVER = pulse
 # default
 .RECIPEPREFIX := 
 # environment
-GPG_TTY = /dev/pts/8
+GPG_TTY = /dev/pts/3
 # environment
 LANG = C
 # environment
@@ -356,13 +358,13 @@ TERM = screen
 # environment
 QT_SYSTEM_DIR = /usr/share/desktop-data
 # environment
-VSCODE_PID = 5151
+VSCODE_PID = 22955
 # environment
 _CE_CONDA = 
 # environment
 HOST = panacea
 # variable set hash-table stats:
-# Load=174/1024=17%, Rehash=0, Collisions=18/196=9%
+# Load=175/1024=17%, Rehash=0, Collisions=18/197=9%
 
 # Pattern-specific Variable Values
 
@@ -370,9 +372,9 @@ HOST = panacea
 
 # Directories
 
-# . (device 2065, inode 2455502781): 15 files, no impossibilities.
+# . (device 2065, inode 2455502781): 16 files, no impossibilities.
 
-# 15 files, no impossibilities in 1 directories.
+# 16 files, no impossibilities in 1 directories.
 
 # Implicit Rules
 
@@ -422,12 +424,12 @@ GNUmakefile:
 
 # No general ('VPATH' variable) search path.
 
-# strcache buffers: 1 (0) / strings = 23 / storage = 202 B / avg = 8 B
-# current buf: size = 8162 B / used = 202 B / count = 23 / avg = 8 B
+# strcache buffers: 1 (0) / strings = 24 / storage = 220 B / avg = 9 B
+# current buf: size = 8162 B / used = 220 B / count = 24 / avg = 9 B
 
-# strcache performance: lookups = 26 / hit rate = 11%
+# strcache performance: lookups = 27 / hit rate = 11%
 # hash-table stats:
-# Load=23/8192=0%, Rehash=0, Collisions=1/26=4%
-# Finished Make data base on Thu Jul 21 12:49:36 2022
+# Load=24/8192=0%, Rehash=0, Collisions=1/27=4%
+# Finished Make data base on Tue Jul 26 12:51:08 2022
 
  

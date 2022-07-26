@@ -1,5 +1,5 @@
-from segment import _seg_typedict_byresname_
-from residue import get_residue,get_atom
+from pestifer.segment import _seg_typedict_byresname_
+from pestifer.residue import get_residue,get_atom
 
 class Link:
     def __init__(self,pdbrecord=None,cifdict=None):

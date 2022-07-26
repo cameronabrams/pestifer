@@ -7,6 +7,7 @@
 
 import sys
 import argparse as ap
+import yaml
 import os
 import shutil
 import random
@@ -28,6 +29,9 @@ from pestifer.modsfile import ModsFile
 from pestifer.atom import _PDBAtomNameDict_
 from pestifer.residue import Residue, _PDBResName123_, _pdb_glycans_, _pdb_ions_, _ResNameDict_PDB_to_CHARMM_, _ResNameDict_CHARMM_to_PDB_, get_residue
 from pestifer.util import *
+from pestifer.rcsb import get_pdb_file
+
+logger=logging.getLogger(__name__)
 
 def WritePostMods(fp,psf,pdb,PostMod,Loops,GlycanSegs):
     """ Writes TcL/VMD commands that encode modifications once the
@@ -645,11 +649,16 @@ def pack_for_production():
 def do_topogromacs():
     pass
 
+def read_config(cfgfile:str) -> dict:
+    with open(cfgfile,'r') as f:
+        basedict=yaml.safe_load(f)
+    return basedict
+
 def _main():
     parser=ap.ArgumentParser()
     parser.add_argument('config',help='input configuration file (yaml)')
-    parser.add_argument('-l',help='log file name',default='pestifer.log')
-    parser.add_argument('--loglevel',default='info',help='logging level (info)')
+    parser.add_argument('-log',help='log file name',default='pestifer.log')
+    parser.add_argument('--loglevel',default='debug',help='logging level (info)')
     args=parser.parse_args()
 
     loglevel=args.loglevel
@@ -657,9 +666,44 @@ def _main():
     if os.path.exists(args.log):
         shutil.copyfile(args.log,args.log+'.bak')
     logging.basicConfig(filename=args.log,filemode='w',format='%(asctime)s %(message)s',level=loglevel_numeric)
-    logging.info('pestifer runtime begins.')
+    logger.info('pestifer runtime begins.')
 
-    # options=read_file(args.config)
+    options=read_config(args.config)
+    logger.debug(f'options: {options}')
+    psfgen=options.get('psfgen_script_name','mkpsf.tcl')
+    CTopo=['top_all36_prot.rtf','top_all35_ethers.rtf','top_all36_cgenff.rtf','top_all36_lipid.rtf',
+           'top_all36_na.rtf','stream/carb/toppar_all36_carb_glycopeptide.str']
+    CTopo.extend(options.get('extra_standard_charmm_topology_files',[]))
+    # default local topologies: these are specially modified charmm str files that get rid of things that PSFGEN can't handle
+    LocTopo=['top_all36_carb.rtf','toppar_water_ions.str']
+    LocTopo.extend(options.get('extra_local_topology_files',[]))
+    StdParamFiles=['par_all36_prot.prm','par_all36_carb.prm','par_all36_lipid.prm','par_all36_na.prm','par_all36_cgenff.prm','stream/carb/toppar_all36_carb_glycopeptide.str']
+    StdParamFiles.extend(options.get('extra_standard_parameter_files',[]))
+    LocalParamFiles=['toppar_water_ions.str']
+    LocalParamFiles.extend(options.get('extra_local_parameter_files',[]))
+    PDBAliases=['residue HIS HSD','atom ILE CD1 CD','residue NAG BGNA','atom BGNA C7 C',
+                        'atom BGNA O7 O','atom BGNA C8 CT','atom BGNA N2 N','residue SIA ANE5',
+                        'atom ANE5 C10 C','atom ANE5 C11 CT','atom ANE5 N5 N','atom ANE5 O1A O11',
+                        'atom ANE5 O1B O12','atom ANE5 O10 O','atom VCG C01 C1','atom VCG C01 C1','atom VCG C02 C2',
+                        'atom VCG C03 C3','atom VCG C04 C4','atom VCG C05 C5','atom VCG C06 C6','atom VCG C07 C7',
+                        'atom VCG C08 C8','atom VCG C09 C9','residue EIC LIN']
+    PDBAliases.extend(options.get('extra_pdb_aliases',[]))
+
+    logger.debug(f'{len(options["BuildSteps"])} build steps')
+    nBuildSteps=len(options['BuildSteps'])
+    for i in range(nBuildSteps):
+        logger.debug(f'step {i}: {options["BuildSteps"][i]}')
+    
+    if not 'SourcePDB' in options:
+        raise Exception(f'No \"SourcePDB\" in {args.config}')
+    
+    source_pdb=options['SourcePDB']
+    if not os.path.exists(f'{source_pdb}.pdb'):
+        pdb_file=get_pdb_file(source_pdb)
+        logger.debug(f'downloaded {pdb_file}')
+    else:
+        logger.debug(f'{source_pdb}.pdb found; no download necessary')
+        
     # fetch PDBs
     # for each parse/relaxation task
     #   read molecules, build working PDB files
@@ -672,7 +716,7 @@ def _main():
     # prep for production
     # (opt) topogromacs
 
-    logging.info('pestifer runtime ends.')
+    logger.info('pestifer runtime ends.')
 
 def cli():
 

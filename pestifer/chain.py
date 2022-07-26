@@ -1,5 +1,5 @@
 import operator
-from segment import Segment, _seg_typedict_byresname_, _segname_second_character_
+from pestifer.segment import Segment, _seg_typedict_byresname_, _segname_second_character_
 class Chain:
     def __init__(self,r=None,parent_molecule=None,source_chainID='',cleavage_chainID=''):
         ''' source_chainID is this chain's chain ID in an input PDB file 

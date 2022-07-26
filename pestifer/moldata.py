@@ -1,13 +1,13 @@
 from os import kill
-from atom import Atom, _PDBAtomNameDict_
-from ssbond import SSBond
-from missing import Missing
-from link import Link
-from chain import Chain
-from seqadv import Seqadv
-from mutation import Mutation
-from residue import Residue, _PDBResName123_, _pdb_glycans_, _pdb_ions_, _ResNameDict_PDB_to_CHARMM_, _ResNameDict_CHARMM_to_PDB_, get_residue, get_atom
-from segment import Segment, _seg_typedict_byresname_
+from pestifer.atom import Atom, _PDBAtomNameDict_
+from pestifer.ssbond import SSBond
+from pestifer.missing import Missing
+from pestifer.link import Link
+from pestifer.chain import Chain
+from pestifer.seqadv import Seqadv
+from pestifer.mutation import Mutation
+from pestifer.residue import Residue, _PDBResName123_, _pdb_glycans_, _pdb_ions_, _ResNameDict_PDB_to_CHARMM_, _ResNameDict_CHARMM_to_PDB_, get_residue, get_atom
+from pestifer.segment import Segment, _seg_typedict_byresname_
 
 def _recursiveDelDown(R,L,r):
     for rd in r.down:

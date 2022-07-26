@@ -1,5 +1,5 @@
-from molecule import Molecule
-import sel
+from pestifer.molecule import Molecule
+import pestifer.sel as sel
 
 def get_ra(mystr):
     if mystr[-1].isalpha():

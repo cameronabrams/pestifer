@@ -1,4 +1,4 @@
-from residue import _PDBResName123_
+from pestifer.residue import _PDBResName123_
 
 class Mutation:
     def __init__(self,commandlinerecord='',seqadv=''):
