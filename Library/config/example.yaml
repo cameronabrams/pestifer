@@ -1,0 +1,26 @@
+Title: SARS-CoV-2 Spike
+SourcePDB: 7df3
+BiologicalAssembly: 1
+ModPDBs:
+  - 2wah
+  - 4byh
+  - 4b7i
+Temperature: 310
+BuildSteps:
+  - mods:
+      - glycans.yaml
+    smdclose: True
+    relax_steps: 10000
+  - mods:
+      - cleavage.yaml
+    relax_steps: 10000
+  - solv_stage_steps:
+    - 100
+    - 200
+    - 400
+    - 800
+    - 20000
+OutputName: my_7df3
+NAMD2: /home/cfa/namd/NAMD_2.14_Source/Linux-x86_64-g++/namd2
+CHARMRUN: /home/cfa/namd/NAMD_2.14_Source/Linux-x86_64-g++/charmun
+VMD: /usr/local/bin/vmd

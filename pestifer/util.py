@@ -39,25 +39,3 @@ def namd_instructions(fp,cfgname,psf,coor,outname,logname,
     fp.write('   exit 1\n')
     fp.write('fi\n')
     
-# def MrgCmdLineAndFileContents(cl_list,filename,typ):
-#     if filename!='':
-#         with open(filename,'r') as f:
-#            for l in f:
-#                if l[0]!='#':
-#                    cl_list.append(typ(l))
-#     return cl_list
-
-# def DictFromString(string):
-#     #print('parsing {}'.format(string))
-#     my_dict = {}
-#     if len(string)>0:
-#         items=string.split(',')
-#         for i in items:
-#             kv=i.split('=')
-#             k=kv[0]
-#             v=kv[1]
-#             my_dict[k]=v
-#     return my_dict
-
-# def DefOrDict(d,varname,default):
-#     return default if varname not in d else d[varname]

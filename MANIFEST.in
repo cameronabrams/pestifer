@@ -1,5 +1,3 @@
 include README.md
-include bash/*.sh
-include tcl/*.tcl
-include charmm/*
-include templates/*
+include Scripts
+include Library

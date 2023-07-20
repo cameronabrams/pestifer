@@ -44,7 +44,7 @@ def compile_TcL_modules(sources):
                                     'Makefile for the {0} library. '
                                 'Error status: {1}'.format(output_lib, stderr))
 
-TcL_module_sources=['tcl/modules/src/bondstruct.c']
+TcL_module_sources=['Scripts/tcl/modules/src/bondstruct.c']
 
 setup(name='pestifer')
 

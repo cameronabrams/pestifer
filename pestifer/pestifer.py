@@ -108,8 +108,7 @@ def WritePostMods(fp,psf,pdb,PostMod,Loops,GlycanSegs):
                 fp.write(f'lay_loop $molid {l.replica_chainID} {the_list} {lay_cycles}\n')
 
         
-    if DefOrDict(PostMod,'do_multiflex_mc',False):
-        # TODO: convert all to dict.get
+    if PostMod.get('do_multiflex_mc',False):
         nc=1000
         rcut=4.0
         sigma=1.8
@@ -496,9 +495,9 @@ def main():
     temperature=310
     if 'NAMD_params' in PostMod:
         p=PostMod['NAMD_params']
-        nummin=DefOrDict(p,'nummin',nummin)
-        numsteps=DefOrDict(p,'numsteps',numsteps)
-        temperature=DefOrDict(p,'temperature',temperature)
+        nummin=p.get('nummin',nummin)
+        numsteps=p.get('numsteps',numsteps)
+        temperature=p.get('temperature',temperature)
     currpdb=post_pdb
     currpsf=Base.psf_outfile
     print('Run the script {} to complete the build.'.format(postscriptname))
@@ -559,8 +558,8 @@ ind=`indent $nesting_level "#"`
         target_numsteps=20000
         if 'preclose_params' in PostMod:
             p=PostMod['preclose_params']
-            temperature_close=DefOrDict(p,'temperature_close',temperature_close)
-            target_numsteps=DefOrDict(p,'target_numsteps',target_numsteps)
+            temperature_close=p.get('temperature_close',temperature_close)
+            target_numsteps=p.get('target_numsteps',target_numsteps)
         fp.write('cat > close_these.inp << EOF\n')
         for l in sorted(Loops, key=lambda x: len(x.residues)):
             if (l.term=='None' and len(l.residues)>2):
@@ -670,26 +669,6 @@ def _main():
 
     options=read_config(args.config)
     logger.debug(f'options: {options}')
-    psfgen=options.get('psfgen_script_name','mkpsf.tcl')
-    CTopo=['top_all36_prot.rtf','top_all35_ethers.rtf','top_all36_cgenff.rtf','top_all36_lipid.rtf',
-           'top_all36_na.rtf','stream/carb/toppar_all36_carb_glycopeptide.str']
-    CTopo.extend(options.get('extra_standard_charmm_topology_files',[]))
-    # default local topologies: these are specially modified charmm str files that get rid of things that PSFGEN can't handle
-    LocTopo=['top_all36_carb.rtf','toppar_water_ions.str']
-    LocTopo.extend(options.get('extra_local_topology_files',[]))
-    StdParamFiles=['par_all36_prot.prm','par_all36_carb.prm','par_all36_lipid.prm','par_all36_na.prm','par_all36_cgenff.prm','stream/carb/toppar_all36_carb_glycopeptide.str']
-    StdParamFiles.extend(options.get('extra_standard_parameter_files',[]))
-    LocalParamFiles=['toppar_water_ions.str']
-    LocalParamFiles.extend(options.get('extra_local_parameter_files',[]))
-    PDBAliases=['residue HIS HSD','atom ILE CD1 CD','residue NAG BGNA','atom BGNA C7 C',
-                        'atom BGNA O7 O','atom BGNA C8 CT','atom BGNA N2 N','residue SIA ANE5',
-                        'atom ANE5 C10 C','atom ANE5 C11 CT','atom ANE5 N5 N','atom ANE5 O1A O11',
-                        'atom ANE5 O1B O12','atom ANE5 O10 O','atom VCG C01 C1','atom VCG C01 C1','atom VCG C02 C2',
-                        'atom VCG C03 C3','atom VCG C04 C4','atom VCG C05 C5','atom VCG C06 C6','atom VCG C07 C7',
-                        'atom VCG C08 C8','atom VCG C09 C9','residue EIC LIN']
-    PDBAliases.extend(options.get('extra_pdb_aliases',[]))
-
-    logger.debug(f'{len(options["BuildSteps"])} build steps')
     nBuildSteps=len(options['BuildSteps'])
     for i in range(nBuildSteps):
         logger.debug(f'step {i}: {options["BuildSteps"][i]}')

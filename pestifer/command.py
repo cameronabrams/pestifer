@@ -3,7 +3,7 @@ import subprocess
 logger=logging.getLogger(__name__)
 
 class Command:
-    linelen=55
+    divider_line_length=55
     def __init__(self,command,**options):
         self.command=command
         self.options=options
@@ -17,9 +17,9 @@ class Command:
         if process.returncode!=0 and not process.returncode in ignore_codes:
             logger.error(f'Returncode: {process.returncode}')
             if len(out)>0:
-                logger.error('stdout buffer follows\n'+'*'*self.linelen+'\n'+out+'\n'+'*'*self.linelen)
+                logger.error('stdout buffer follows\n'+'*'*self.divider_line_length+'\n'+out+'\n'+'*'*self.divider_line_length)
             if len(err)>0:
-                logger.error('stderr buffer follows\n'+'*'*self.linelen+'\n'+err+'\n'+'*'*self.linelen)
+                logger.error('stderr buffer follows\n'+'*'*self.divider_line_length+'\n'+err+'\n'+'*'*self.divider_line_length)
             raise subprocess.SubprocessError(f'Command "{self.c}" failed with returncode {process.returncode}')
         else:
             # logger.info(f'Returncode: {process.returncode}.')
@@ -29,7 +29,7 @@ class Command:
                     logger.info(f'Returncode: {process.returncode}, but another error was detected:')
                     logger.error(msg)
                     if len(out)>0:
-                        logger.error('stdout buffer follows\n'+'*'*self.linelen+'\n'+out+'\n'+'*'*self.linelen)
+                        logger.error('stdout buffer follows\n'+'*'*self.divider_line_length+'\n'+out+'\n'+'*'*self.divider_line_length)
                     if len(err)>0:
-                        logger.error('stderr buffer follows\n'+'*'*self.linelen+'\n'+err+'\n'+'*'*self.linelen)
+                        logger.error('stderr buffer follows\n'+'*'*self.divider_line_length+'\n'+err+'\n'+'*'*self.divider_line_length)
         return out,err
