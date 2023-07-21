@@ -70,10 +70,10 @@ class ResourceManager:
             logger.warning(f'{self.namd2}: Not found.')
         self.charmrun=useroptions.get('CHARMRUN',None)
         if not os.path.isfile(self.charmrun):
-            logger.warning(f'No valid location for charmrun provided.')        
+            logger.warning(f'{self.charmrun}: Not found.')        
         self.vmd=useroptions.get('VMD',None)
         if not os.path.isfile(self.vmd):
-            logger.warning(f'No valid location for vmd provided.')
+            logger.warning(f'{self.vmd}: Not found.')
         
     def __str__(self):
         msg=f'Resources path is "{self.ResourcesPath}"\n'
