@@ -24,3 +24,4 @@ OutputName: my_7df3
 NAMD2: /home/cfa/namd/NAMD_2.14_Source/Linux-x86_64-g++/namd2
 CHARMRUN: /home/cfa/namd/NAMD_2.14_Source/Linux-x86_64-g++/charmun
 VMD: /usr/local/bin/vmd
+CHARMMDIR: /home/cfa/charmm

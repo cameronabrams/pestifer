@@ -1,4 +1,4 @@
-StdCharmTopo:
+StdCharmmTopo:
   - top_all36_prot.rtf
   - top_all35_ethers.rtf
   - top_all36_cgenff.rtf
@@ -6,7 +6,7 @@ StdCharmTopo:
   - top_all36_na.rtf
   - stream/carb/toppar_all36_carb_glycopeptide.str
 
-StdCharmParam:
+StdCharmmParam:
   - par_all36_prot.prm
   - par_all36_carb.prm
   - par_all36_lipid.prm
@@ -14,11 +14,11 @@ StdCharmParam:
   - par_all36_cgenff.prm
   - stream/carb/toppar_all36_carb_glycopeptide.str
 
-LocalCharmTopo:
+LocalCharmmTopo:
   - top_all36_carb.rtf
   - toppar_water_ions.str
 
-LocalCharmParam:
+LocalCharmmParam:
   - toppar_water_ions.str
 
 PDBAliases:
@@ -50,3 +50,7 @@ PDBAliases:
 
 psfgen_script_name: mkpsf.tcl
 
+NAMD2: /usr/local/bin/namd2
+VMD: /usr/local/bin/vmd
+CHARMRUN: /usr/local/bin/charmrun
+CHARMMDIR: $(HOME)/charmm

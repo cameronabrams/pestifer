@@ -1,4 +1,4 @@
-# just so we can maybe do a dynamics install, to compile stuff in c
+# just so we can maybe do a dynamic install, to compile stuff in c
 
 from setuptools import setup
 from distutils.errors import DistutilsSetupError
@@ -7,7 +7,6 @@ import os
 import subprocess
 
 def compile_TcL_modules(sources):
-    print(f'{__name__}')
     if sources is None or not isinstance(sources, (list, tuple)):
         raise DistutilsSetupError(f'{sources} must be a list or tuple of *.c files')
     sources = list(sources)
@@ -41,10 +40,10 @@ def compile_TcL_modules(sources):
     distutils_logger.debug(stdout)
     if stderr:
         raise DistutilsSetupError('An ERROR occured while running the '
-                                    'Makefile for the {0} library. '
+                                    'Makefile for the {0} resource. '
                                 'Error status: {1}'.format(output_lib, stderr))
 
-TcL_module_sources=['Scripts/tcl/modules/src/bondstruct.c']
+TcL_module_sources=['pestifer/Resources/tcl/modules/src/bondstruct.c']
 
 setup(name='pestifer')
 
