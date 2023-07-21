@@ -12,60 +12,15 @@ from pestifer.revdat import RevDat, FmtDat
 from CifFile import ReadCif
 from pestifer.cifutil import *
 from pestifer.moldata import MolData
-_molidcounter_=0
 class Molecule:
-    def load(self,fp):
-        global _molidcounter_
-        self.molid=_molidcounter_
-        self.molid_varname='m{}'.format(self.molid)
-        #print('#### Registered instance of {:s} as molid {:d} with variable name {:s}'.format(self.pdb,self.molid,self.molid_varname))
-        self.psfgen_loadstr='mol new {} waitfor all\nset {} [molinfo top get id]\n'.format(self.pdb,self.molid_varname)
-        if self.cif!=None:
-            # need to renumber and rechain to user specs
-            self.psfgen_loadstr+='set ciftmp [atomselect ${} all]\n'.format(self.molid_varname)
-            self.psfgen_loadstr+='$ciftmp set chain [list {}]\n'.format(" ".join([_.chainID for _ in self.Atoms]))
-            self.psfgen_loadstr+='$ciftmp set resid [list {}]\n'.format(" ".join([str(_.resseqnum) for _ in self.Atoms]))
-        _molidcounter_+=1
-        fp.write(self.psfgen_loadstr+'\n')
-        return self.molid
-    def ReadPDB(self,pdb):
-        with open(pdb) as pdbfile:
-            for line in pdbfile:
-                self.RawPDB.append(line)
-                key=line[:6].strip()
-                if key in self.md.PDBClonables:
-                    self.md.Parse(line)
-                elif key == 'REMARK':
-                    if line[7:10]=='465':
-                        self.md.Parse(line)
-                    else:
-                        self.ParseRemark(line)
-                elif key == 'TITLE':
-                    self.ParseTitle(line)
-                elif key == 'KEYWDS':
-                    self.ParseKeywords(line)
-                elif key == 'MASTER':
-                    self.ParseMasterRecord(line)
-                elif key == 'HEADER':
-                    self.ParseHeader(line)
-                elif key == 'MDLTYP':
-                    self.ParseModelType(line)
-                elif key == 'DBREF':
-                    self.ParseDBRef(line)
-                elif key == 'SEQRES':
-                    self.ParseSeqRes(line)
-                elif key == 'REVDAT':
-                    self.ParseRevisionDate(line)
-                elif key == 'EXPDTA':
-                    self.ParseExpDta(line)
-                else:
-                    self.unusedKeys.add(key)
-
+    _molidcounter=0
     def __init__(self,pdb=None,cif=None,userMods={},requestedBiologicalAssembly=None):
-        self.source='RCSB' # default assume this is an actual PDB or CIF file from the RCSB
+        self.molid=Molecule._molidcounter
+        Molecule._molidcounter+=1
+        self.source='RCSB'
         self.source_format='CIF' if cif!=None else 'PDB'
         self.molid=-1
-        self.molid_varname='UNREGISTERED'
+        # self.molid_varname='UNREGISTERED'
         self.md=MolData(userMods=userMods,parent_molecule=self)
         self.RawPDB=[]
         self.keywords=[]
@@ -100,6 +55,44 @@ class Molecule:
             self.source='CHARMM'
         self.md.MakeConstructs()
         self.MakeBiomolecules(requestedBiologicalAssembly=requestedBiologicalAssembly)
+
+
+
+
+    def ReadPDB(self,pdb):
+        with open(pdb) as pdbfile:
+            for line in pdbfile:
+                self.RawPDB.append(line)
+                key=line[:6].strip()
+                if key in self.md.PDBClonables:
+                    self.md.Parse(line)
+                elif key == 'REMARK':
+                    if line[7:10]=='465':
+                        self.md.Parse(line)
+                    else:
+                        self.ParseRemark(line)
+                elif key == 'TITLE':
+                    self.ParseTitle(line)
+                elif key == 'KEYWDS':
+                    self.ParseKeywords(line)
+                elif key == 'MASTER':
+                    self.ParseMasterRecord(line)
+                elif key == 'HEADER':
+                    self.ParseHeader(line)
+                elif key == 'MDLTYP':
+                    self.ParseModelType(line)
+                elif key == 'DBREF':
+                    self.ParseDBRef(line)
+                elif key == 'SEQRES':
+                    self.ParseSeqRes(line)
+                elif key == 'REVDAT':
+                    self.ParseRevisionDate(line)
+                elif key == 'EXPDTA':
+                    self.ParseExpDta(line)
+                else:
+                    self.unusedKeys.add(key)
+
+
     def summarize(self,indent=' '*4):
         print('File: {}, Source: {}, Source format: {}'.format(self.pdb if self.source_format=='PDB' else self.cif,self.source,self.source_format))
         print('{}Title: {}'.format(indent,self.Title))

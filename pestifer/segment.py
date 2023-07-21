@@ -47,7 +47,7 @@ class Run:
         ins1='' if r1.insertion ==' ' else r1.insertion
         return '{} {} {}{} to {}{}'.format(self.typ,self.replica_chainID,r0.resseqnum,ins0,r1.resseqnum,ins1)
     def caco_str(self):
-        return 'coord {} {}{} N [cacoIn_nOut {}{} {} 0]\n'.format(self.replica_chainID,self.residues[0].resseqnum,self.residues[0].insertion,
+        return 'coord {} {}{} N [cacoIn_nOut {}{} {} 0]'.format(self.replica_chainID,self.residues[0].resseqnum,self.residues[0].insertion,
         self.previous.residues[-1].resseqnum,self.previous.residues[-1].insertion,self.replica_chainID)
     def heal_str(self):
         rll=self.residues[-2]
@@ -243,13 +243,13 @@ class Segment:
 #        return Loops
 
     def psfgen_stanza(self,includeTerminalLoops=False,tmat=None):
-        stanzastr=''
+        stanza=[]
         my_chainID=self.get_chainID()
         rep_chainID=tmat.get_replica_chainID(my_chainID)
         rep_segname=self.segname# .replace(my_chainID,rep_chainID,1)
         #print(f'#### writing stanza for chain {rep_chainID} (source {my_chainID}) segname {rep_segname} type {self.segtype}')
         if tmat==None:
-            print('ERROR: write_psfgen_stanza needs a tmat!')
+            print('ERROR: psfgen_stanza needs a tmat!')
             exit()
         if self.segtype=='PROTEIN':
             if self.graft!='' or self.attach!='':
@@ -266,21 +266,22 @@ class Segment:
                     for d in self.deletions:
                         if r0.ri() <= d.resseqnumi <= r1.ri():
                             delstr+=' and not resid {}'.format(d.resseqnumi)
-                    stanzastr+='set mysel [atomselect ${} "protein and chain {} and resid {} to {} {}"]\n'.format(self.get_molecule().molid_varname,
-                                self.parent_chain.source_chainID,r0.ri(),r1.ri(),delstr)
+                    stanza.append('set mysel [atomselect ${} "protein and chain {} and resid {} to {} {}"]\n'.format(self.get_molecule().molid_varname,
+                                self.parent_chain.source_chainID,r0.ri(),r1.ri(),delstr))
+
                     if not tmat.isidentity():
-                         stanzastr+=sel.backup('mysel')
-                         stanzastr+='$mysel move {}\n'.format(tmat.OneLiner())
+                         stanza.extend(sel.backup('mysel'))
+                         stanza.append('$mysel move {}'.format(tmat.OneLiner()))
                     ''' tmat transformation '''
-                    stanzastr+='$mysel writepdb {}\n'.format(ss.pdb_str())
+                    stanza.append('$mysel writepdb {}'.format(ss.pdb_str()))
                     if not tmat.isidentity():
-                         stanzastr+=sel.restore('mysel')
+                         stanza.extend(sel.restore('mysel'))
                     self.pdbfiles.append(ss.pdb_str())
             ''' PART 2:  Build segment stanza '''
-            stanzastr+='segment {} {{\n'.format(rep_segname)
+            stanza.append('segment {} {{\n'.format(rep_segname))
             for i,ss in enumerate(self.Runs):
                 if ss.typ=='FRAGMENT':
-                    stanzastr+='   pdb {}\n'.format(ss.pdb_str())
+                    stanza.append('   pdb {}\n'.format(ss.pdb_str()))
                 elif ss.typ=='LOOP':
                     if (i==0 or i==(len(self.Runs)-1)) and not includeTerminalLoops:
                         ''' shunt this if this is a terminal loop and includeTerminalLoops is False '''
@@ -295,7 +296,7 @@ class Segment:
                                     break
                             if take_it:
                                 nm=ResnameCharmify(rr.name)
-                                stanzastr+='   residue {}{} {} {}\n'.format(rr.resseqnum,rr.insertion,nm,tmat.get_replica_chainID(rr.chainID))
+                                stanza.append('   residue {}{} {} {}\n'.format(rr.resseqnum,rr.insertion,nm,tmat.get_replica_chainID(rr.chainID)))
                         ss.sacrins='0'
                         if len(ss.residues)>3:
                             ''' modeled-in loops longer than three residues need extra processing to relax long bonds. 
@@ -303,17 +304,18 @@ class Segment:
                                 can be used to slice the bonding continuity of the segment '''
                             rr=ss.residues[-1]
                             ss.sacrins='A' if rr.insertion == '' or rr.insertion == ' ' else chr(ord(rr.insertion)+1)
-                            stanzastr+='   residue {}{} {} {}\n'.format(rr.resseqnum,ss.sacrins,'GLY',tmat.get_replica_chainID(rr.chainID))
+                            stanza.append('   residue {}{} {} {}'.format(rr.resseqnum,ss.sacrins,'GLY',tmat.get_replica_chainID(rr.chainID)))
             ''' PART 2.1:  Include mutations '''
             #print('### {} mutations'.format(len(self.mutations)))
             for m in self.mutations:
-                stanzastr+=m.psfgen_segment_str()
-            stanzastr+='}\n'
+                stanza.append(m.psfgen_segment_str())
+            stanza.append('}') # end of segment
+
             ''' PART 3:  Issue coordinate-setting commands '''
             ''' coordpdb calls '''
             for ss in self.Runs:
                 if ss.typ=='FRAGMENT':
-                    stanzastr+='coordpdb {} {}\n'.format(ss.pdb_str(),rep_segname)
+                    stanza.append('coordpdb {} {}'.format(ss.pdb_str(),rep_segname))
             ''' caco calls '''
             for i in range(0,len(self.Runs)):
                 ss=self.Runs[i]
@@ -321,7 +323,7 @@ class Segment:
                     if (i==0 or i==(len(self.Runs)-1)) and not includeTerminalLoops:
                         pass
                     else:
-                        stanzastr+=ss.caco_str()
+                        stanza.append(ss.caco_str())
             ''' slice calls '''
             for i in range(0,len(self.Runs)):
                 ss=self.Runs[i]
@@ -337,13 +339,14 @@ class Segment:
                                 nter='PROP'
                             if rname=='GLY':
                                 nter='GLYP'
-                            stanzastr+='## Slicing segment at sacrificial glycine to make CTER-NTER\n'
-                            stanzastr+='patch CTER {}:{}{}\n'.format(rep_segname,ss.residues[-1].resseqnum,ss.residues[-1].insertion)
-                            stanzastr+='## making residue {}{} an nter with patch {}\n'.format(rname,nextres.ri(),nter)
-                            stanzastr+='patch {} {}:{}\n'.format(nter,rep_segname,nextres.ri())
-                            stanzastr+='delatom {} {}{}\n'.format(rep_segname,ss.residues[-1].resseqnum,ss.sacrins)
-            return stanzastr,Loops
+                            stanza.append('## Slicing segment at sacrificial glycine to make CTER-NTER')
+                            stanza.append('patch CTER {}:{}{}'.format(rep_segname,ss.residues[-1].resseqnum,ss.residues[-1].insertion))
+                            stanza.append('## making residue {}{} an nter with patch {}\n'.format(rname,nextres.ri(),nter))
+                            stanza.append('patch {} {}:{}\n'.format(nter,rep_segname,nextres.ri()))
+                            stanza.append('delatom {} {}{}\n'.format(rep_segname,ss.residues[-1].resseqnum,ss.sacrins))
+            return stanza,Loops
         elif self.segtype=='GLYCAN':
+            # TODO: stanzstr->stanza[]
             stanzastr=''
             if self.graft!='':
                 ''' this is a segment with an associated graft '''

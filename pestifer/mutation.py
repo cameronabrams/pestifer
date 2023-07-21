@@ -61,7 +61,7 @@ class Mutation:
     def mutationStr(self):
         return f'{self.chainID}_{self.orig_1}{self.resseqnumi}{self.new_1}'
     def psfgen_segment_str(self):
-        return '   mutate {} {}\n'.format(self.resseqnumi,self.new) if self.chainID!='*' else ''
+        return '   mutate {} {}'.format(self.resseqnumi,self.new) if self.chainID!='*' else ''
 
 if __name__=='__main__':
     str1='C_L981AF'
