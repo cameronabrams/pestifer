@@ -83,23 +83,23 @@ class Graft:
         return self.molecule.load(fp)
 
     def transform(self,base):
-        a=''
-        a+='set ref [atomselect ${} "chain {} and resid {} and noh"]\n'.format(base.molid_varname,self.target_chain,self.target_res)
-        a+='set gra [atomselect ${} "chain {} and resid {} and noh"]\n'.format(self.molecule.molid_varname,self.source_chain,self.source_res1)
-        a+='set tra [atomselect ${} "chain {} and resid {} to {}"]\n'.format(self.molecule.molid_varname,self.source_chain,self.source_res1,self.source_res2)
-        a+=r'if { [$ref num] != [$gra num] } {'+'\n'
-        a+='    vmdcon -warn "psfgen: warning: target and graft alignment references are not congruent"\n'
-        a+='}\n'
-        a+=sel.backup('tra')
-        a+='$tra move [measure fit $gra $ref]\n'
+        a=[]
+        a.append('set ref [atomselect ${} "chain {} and resid {} and noh"]'.format(base.molid_varname,self.target_chain,self.target_res))
+        a.append('set gra [atomselect ${} "chain {} and resid {} and noh"]'.format(self.molecule.molid_varname,self.source_chain,self.source_res1))
+        a.append('set tra [atomselect ${} "chain {} and resid {} to {}"]'.format(self.molecule.molid_varname,self.source_chain,self.source_res1,self.source_res2))
+        a.append(r'if { [$ref num] != [$gra num] } {')
+        a.append('    vmdcon -warn "psfgen: warning: target and graft alignment references are not congruent"')
+        a.append('}')
+        a.extend(sel.backup('tra'))
+        a.append('$tra move [measure fit $gra $ref]')
         self.resid_dict={}
         for r in self.source_segment.residues:
             self.resid_dict[r.resseqnum]=r.resseqnum+self.desired_offset
-        a+=sel.residshift('tra',self.desired_offset)
+        a.extend(sel.residshift('tra',self.desired_offset))
         self.transformed_pdb='{}-{}_{}_to_{}-GRAFT.pdb'.format(self.ingraft_chainID,self.source_chain,self.source_res1+self.desired_offset,self.source_res2+self.desired_offset)
-        a+=sel.charmm_namify('tra')
-        a+='$tra writepdb {}\n'.format(self.transformed_pdb)
-        a+=sel.restore('tra')
+        a.extend(sel.charmm_namify('tra'))
+        a.append('$tra writepdb {}\n'.format(self.transformed_pdb))
+        a.extend(sel.restore('tra'))
         self.transform_commands=a
         return a
  

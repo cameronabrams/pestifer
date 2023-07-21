@@ -1,10 +1,6 @@
 Title: SARS-CoV-2 Spike
 SourcePDB: 7df3
 BiologicalAssembly: 1
-ModPDBs:
-  - 2wah
-  - 4byh
-  - 4b7i
 Temperature: 310
 BuildSteps:
   - mods:

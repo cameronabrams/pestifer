@@ -1,13 +1,6 @@
-"""
-    Parses PDB/mmCIF file(s) to build input Tcl file for VMD/psfgen
-    Cameron F Abrams
-    cfa22@drexel.edu
-
-"""
 
 import sys
 import argparse as ap
-import yaml
 import os
 import shutil
 import random
@@ -15,21 +8,24 @@ import math
 import logging
 from datetime import date, datetime
 
-from pestifer.molecule import Molecule
-from pestifer.cleavage import Cleavage
-from pestifer.mutation import Mutation
-from pestifer.ssbond import SSBond
-from pestifer.graft import Graft
-from pestifer.crot import Crot
-from pestifer.attach import Attach
-from pestifer.link import Link
-from pestifer.deletion import Deletion
-from pestifer.missing import Missing
-from pestifer.modsfile import ModsFile
-from pestifer.atom import _PDBAtomNameDict_
-from pestifer.residue import Residue, _PDBResName123_, _pdb_glycans_, _pdb_ions_, _ResNameDict_PDB_to_CHARMM_, _ResNameDict_CHARMM_to_PDB_, get_residue
-from pestifer.util import *
-from pestifer.rcsb import get_pdb_file
+from .controller import Controller
+
+
+# from pestifer.molecule import Molecule
+# from pestifer.cleavage import Cleavage
+# from pestifer.mutation import Mutation
+# from pestifer.ssbond import SSBond
+# from pestifer.graft import Graft
+# from pestifer.crot import Crot
+# from pestifer.attach import Attach
+# from pestifer.link import Link
+# from pestifer.deletion import Deletion
+# from pestifer.missing import Missing
+# from pestifer.modsfile import ModsFile
+# from pestifer.atom import _PDBAtomNameDict_
+# from pestifer.residue import Residue, _PDBResName123_, _pdb_glycans_, _pdb_ions_, _ResNameDict_PDB_to_CHARMM_, _ResNameDict_CHARMM_to_PDB_, get_residue
+# from pestifer.util import *
+# from pestifer.rcsb import get_pdb_file
 
 logger=logging.getLogger(__name__)
 
@@ -648,11 +644,6 @@ def pack_for_production():
 def do_topogromacs():
     pass
 
-def read_config(cfgfile:str) -> dict:
-    with open(cfgfile,'r') as f:
-        basedict=yaml.safe_load(f)
-    return basedict
-
 def _main():
     parser=ap.ArgumentParser()
     parser.add_argument('config',help='input configuration file (yaml)')
@@ -667,23 +658,17 @@ def _main():
     logging.basicConfig(filename=args.log,filemode='w',format='%(asctime)s %(message)s',level=loglevel_numeric)
     logger.info('pestifer runtime begins.')
 
-    options=read_config(args.config)
-    logger.debug(f'options: {options}')
-    nBuildSteps=len(options['BuildSteps'])
-    for i in range(nBuildSteps):
-        logger.debug(f'step {i}: {options["BuildSteps"][i]}')
+    C=Controller(args.config)
+    C.report()
     
-    if not 'SourcePDB' in options:
-        raise Exception(f'No \"SourcePDB\" in {args.config}')
-    
-    source_pdb=options['SourcePDB']
-    if not os.path.exists(f'{source_pdb}.pdb'):
-        pdb_file=get_pdb_file(source_pdb)
-        logger.debug(f'downloaded {pdb_file}')
-    else:
-        logger.debug(f'{source_pdb}.pdb found; no download necessary')
+    # source_pdb=options['SourcePDB']
+    # if not os.path.exists(f'{source_pdb}.pdb'):
+    #     pdb_file=get_pdb_file(source_pdb)
+    #     logger.debug(f'downloaded {pdb_file}')
+    # else:
+    #     logger.debug(f'{source_pdb}.pdb found; no download necessary')
         
-    # fetch PDBs
+    # # fetch PDBs
     # for each parse/relaxation task
     #   read molecules, build working PDB files
     #   generate mkpsf.tcl

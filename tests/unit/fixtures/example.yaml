@@ -1,0 +1,3 @@
+Title: TestUserConfig
+CHARMMDIR: $(HOME)/my_charmm
+NAMD2: /alt/path/to/namd2

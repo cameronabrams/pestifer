@@ -18,15 +18,8 @@ from pestifer import Resources
 
 excludes=['__pycache__','__init__.py']
 
-def replace(data, match, repl):
-    if isinstance(data, (dict, list)):
-        for k, v in (data.items() if isinstance(data, dict) else enumerate(data)):
-            if v == match:
-                data[k] = repl
-            replace(v, match, repl)
-
 class ResourceManager:
-    def __init__(self,**kwargs):
+    def __init__(self):
         fullname=Resources.__file__
         self.ResourcesPath=os.path.dirname(fullname)
         l_elements=glob.glob(self.ResourcesPath+'/*')
@@ -60,36 +53,26 @@ class ResourceManager:
         else:
             raise(Exception,f'platform {plat} not recognized')
 
-    def ApplyUserOptions(self,**options):
-        vars={'HOME':self.user_home}
-        for v,r in vars.items():
-            replace(options,r'$('+v+r')',r)
-        
-        self.system_charmmdir=options.get('CHARMDIR',None)
+    def ApplyUserOptions(self,useroptions):
+        self.system_charmmdir=useroptions.get('CHARMMDIR',None)
+        # print(self.system_charmmdir)
         if not os.path.isdir(self.system_charmmdir):
-            logger.fatal('Your configuration indicates the charmm force-field files are located in {self.system_charmmdir}, but this directory is not found.')
+            logger.warning(f'Your configuration indicates the charmm force-field files are located in {self.system_charmmdir}, but this directory is not found.')
         charmm_toppardir=os.path.join(self.system_charmmdir,'toppar')
         self.system_charmm_toppardir=None
         if os.path.isdir(charmm_toppardir):
             self.system_charmm_toppardir=charmm_toppardir
         else:
-            logger.fatal(f'No directory "toppar" detected in {self.system_charmmdir}')
+            logger.warning(f'No directory "toppar/" detected in {self.system_charmmdir}')
 
-        namd2_path=options.get('NAMD2',None)
-        if os.path.isfile(namd2_path):
-            self.namd2=namd2_path
-        else:
-            logger.warning(f'No valid location for namd2 provided.')
-        charmrun_path=options.get('CHARMRUN',None)
-        if os.path.isfile(charmrun_path):
-            self.charmrun=charmrun_path
-        else:
-            logger.warning(f'No valid location for charmrun provided.')
-        
-        vmd_path=options.get('VMD',None)
-        if os.path.isfile(vmd_path):
-            self.vmd_location=vmd_path
-        else:
+        self.namd2=useroptions.get('NAMD2',None)
+        if not os.path.isfile(self.namd2):
+            logger.warning(f'{self.namd2}: Not found.')
+        self.charmrun=useroptions.get('CHARMRUN',None)
+        if not os.path.isfile(self.charmrun):
+            logger.warning(f'No valid location for charmrun provided.')        
+        self.vmd=useroptions.get('VMD',None)
+        if not os.path.isfile(self.vmd):
             logger.warning(f'No valid location for vmd provided.')
         
     def __str__(self):

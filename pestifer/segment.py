@@ -1,3 +1,6 @@
+import logging
+logger=logging.getLogger(__name__)
+
 from pestifer.residue import  ResnameCharmify,_PDBResName123_, _pdb_glycans_, _pdb_ligands_, _pdb_ions_, _ResNameDict_PDB_to_CHARMM_, _ResNameDict_CHARMM_to_PDB_
 _seg_typedict_byresname_={'HOH':'WATER'}
 _seg_typedict_byresname_.update({k:'ION' for k in _pdb_ions_})
@@ -189,65 +192,12 @@ class Segment:
                         self.Runs[ri].add_residue(r)
         self.Runs[ri].term='C'
         return Loops
-    
-#    def subsegments(self,source_chainID,replica_chainID):
-#        self.subsegbounds=[]
-#        Loops=[]
-#        curr=SubsegmentBounds() # bounds as indices in self.residues[]
-#        for i,r in enumerate(self.residues):
-#            if len(r.atoms)>0:  # a residue with no atoms is part of an unresolved loop of missing residues
-#                if curr.typ=='NONE':
-#                    curr.typ='FRAGMENT'
-#                    curr.l=i
-#                    curr.r=i
-#                elif curr.typ=='LOOP':
-#                    self.subsegbounds.append(curr)
-#                    curr=SubsegmentBounds(i,i,'FRAGMENT','NULL')
-#                elif curr.typ=='FRAGMENT':
-#                    curr.r=i
-#            else:
-#                if curr.typ=='NONE':
-#                    curr.typ='LOOP'
-#                    curr.l=i
-#                    curr.r=i
-#                elif curr.typ=='FRAGMENT':
-#                    self.subsegbounds.append(curr)
-#                    curr=SubsegmentBounds(i,i,'LOOP','NULL')
-#                elif curr.typ=='LOOP':
-#                    curr.r=i
-#        self.subsegbounds.append(curr)
-#        lst=-1
-#        for j,b in enumerate(self.subsegbounds):
-#            if b.typ=='FRAGMENT':
-#                b.d=Fragment(source_chainID,replica_chainID,self.residues[b.l].resseqnum,self.residues[b.l].insertion,self.residues[b.r].resseqnum,self.residues[b.r].insertion)
-#                lst=b.r
-#            elif b.typ=='LOOP':
-#                L=Loop(source_chainID,replica_chainID,self.residues[lst].resseqnum,self.residues[lst].insertion,self.residues[b.l])
-#                for i in range(b.l+1,b.r+1):
-#                    L.add_residue(self.residues[i])
-#                Loops.append(L)
-#                b.d=Loops[-1]
-#                if j==0 or j==len(self.subsegbounds)-1:
-#                    b.d.term=False # not a terminated loop (this is an end!)
-#                else:
-#                    b.d.term=True
-#                #print('{} {} {} {} {}'.format(j,b.d.chainID,b.d.residues[0].resseqnum,b.d.residues[-1].resseqnum,'terminated' if b.d.term else 'not terminated'))
-#        for j,b in enumerate(self.subsegbounds):
-#            if b.typ=='LOOP':
-#                b.d.nextfragntermresid='0'
-#                if b.d.term:  # should be a terminated loop (has a frag c-terminal to it)
-                    # look ahead
-#                    b.d.nextfragntermresid=self.subsegbounds[j+1].d.resseqnum1
-#                    b.d.nextfragnterminsertion=self.subsegbounds[j+1].d.insertion1
-#                    b.d.nextfragntermresname=self.residues[self.subsegbounds[j+1].l].name
-#        return Loops
 
     def psfgen_stanza(self,includeTerminalLoops=False,tmat=None):
         stanza=[]
         my_chainID=self.get_chainID()
         rep_chainID=tmat.get_replica_chainID(my_chainID)
-        rep_segname=self.segname# .replace(my_chainID,rep_chainID,1)
-        #print(f'#### writing stanza for chain {rep_chainID} (source {my_chainID}) segname {rep_segname} type {self.segtype}')
+        rep_segname=self.segname
         if tmat==None:
             print('ERROR: psfgen_stanza needs a tmat!')
             exit()
@@ -347,21 +297,22 @@ class Segment:
             return stanza,Loops
         elif self.segtype=='GLYCAN':
             # TODO: stanzstr->stanza[]
-            stanzastr=''
+            stanza=[]
             if self.graft!='':
                 ''' this is a segment with an associated graft '''
                 g=self.graft
                 g.ingraft_segname=self.segname # graft inherits segname
                 g.ingraft_chainID=self.parent_chain.chainID
-                stanzastr+=g.transform(self.parent_chain.parent_molecule)
+                stanza.extend(g.transform(self.parent_chain.parent_molecule))
                 self.pdbfiles.append(g.transformed_pdb)
                 ''' g.transformed_pdb is now the file with inputs! '''
-                stanzastr+=r'segment {} {{'.format(rep_segname)+'\n'
-                stanzastr+='     pdb {}\n'.format(g.transformed_pdb)
-                stanzastr+='}\n'
-                stanzastr+='coordpdb {} {}\n'.format(g.transformed_pdb,rep_segname)
+                stanza.append(r'segment {} {{'.format(rep_segname))
+                stanza.append('     pdb {}'.format(g.transformed_pdb))
+                stanza.append('}')
+                stanza.append('coordpdb {} {}'.format(g.transformed_pdb,rep_segname))
             elif self.attach!='':
                 ''' this is a segment from another molecule to be attached '''
+                logger.info('Attachments are not yet implemented.')
                 pass
             else:
                 ''' this is an existing glycan segment that will not be overwritten with a graft '''
@@ -369,19 +320,19 @@ class Segment:
                 pdb=f.pdb_str()
                 self.pdbfiles.append(pdb)
                 #print('#### segment {}'.format(self.segname))
-                stanzastr+='set mysel [atomselect ${} "chain {} and resid {} to {}"]\n'.format(self.get_molecule().molid_varname,self.parent_chain.source_chainID,self.residues[0].resseqnum,self.residues[-1].resseqnum)
+                stanza.append('set mysel [atomselect ${} "chain {} and resid {} to {}"]'.format(self.get_molecule().molid_varname,self.parent_chain.source_chainID,self.residues[0].resseqnum,self.residues[-1].resseqnum))
                 if not tmat.isidentity():
-                     stanzastr+=sel.backup('mysel')
-                     stanzastr+='$mysel move {}\n'.format(tmat.OneLiner())
-                stanzastr+=sel.charmm_namify('mysel')
-                stanzastr+='$mysel writepdb {}\n'.format(pdb)
+                     stanza.extend(sel.backup('mysel'))
+                     stanza.append('$mysel move {}'.format(tmat.OneLiner()))
+                stanza.extend(sel.charmm_namify('mysel'))
+                stanza.append('$mysel writepdb {}'.format(pdb))
                 if not tmat.isidentity():
-                     stanzastr+=sel.restore('mysel')
-                stanzastr+='segment {} {{\n'.format(rep_segname)
-                stanzastr+='    pdb {}\n'.format(pdb)
-                stanzastr+='}\n'
-                stanzastr+='coordpdb {} {}\n'.format(pdb,rep_segname)
-            return stanzastr,[]
+                     stanza.append(sel.restore('mysel'))
+                stanza.append('segment {} {{'.format(rep_segname))
+                stanza.append('    pdb {}'.format(pdb))
+                stanza.append('}')
+                stanza.append('coordpdb {} {}'.format(pdb,rep_segname))
+            return stanza,[]
 #        elif self.segtype == 'LIGAND':
 #            # working here
 #            pass

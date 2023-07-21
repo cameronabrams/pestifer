@@ -15,7 +15,6 @@ from .atom import _PDBAtomNameDict_
 from .residue import _ResNameDict_PDB_to_CHARMM_
 from .molecule import Molecule
 
-_molidcounter_=0
 class Psfgen:
     def __init__(self,resman:ResourceManager,**options):
         if not resman:
@@ -53,17 +52,16 @@ class Psfgen:
         self.script.append(f'mol top ${molid_varname}')
         self.script.append('#### BEGIN SEGMENTS ####')
         Loops=[]
+        """ For each BIOMT transformation in the requested biological assembly """
         for t in mol.activeBiologicalAssembly.biomt:
+            # Identify and construct segments
             Segments=t.md.MakeSegments()
             for s in Segments:
+                # Generate the psfgen script stanza for this segment
                 stanza,loops=s.psfgen_stanza(includeTerminalLoops=self.md.userMods['includeTerminalLoops'],tmat=t)
                 Loops.extend(loops) # psfgen postprocessing needs loop info
                 ''' CONSTRUCTION IN PROGRESS '''
                 self.script.extend(stanza)
-        pass
-
-    # def addline(self,line):
-    #     self.script.append(line)
 
     def run(self):
         if self.script[-1]!='exit':
