@@ -1,0 +1,15 @@
+Mutations:
+  - chainID: A
+    resseqnum: 151
+    origresname: ALA
+    newresname:  CYS
+  - shortcode: D:MET,301,CYS
+  - chainID: B
+    resseqnum: 152
+    origresname: PHE
+    newresname:  TYR
+  - chainID: C
+    resseqnum: 154
+    insertion: A
+    origresname: THR
+    newresname:  SER
