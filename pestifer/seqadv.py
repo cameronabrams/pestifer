@@ -1,3 +1,11 @@
+"""
+
+.. module:: seqdv
+   :synopsis: Manages SEQADV records in PDB files
+   
+.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
+
+"""
 class Seqadv:
     def __init__(self,pdbrecord):
         if len(pdbrecord)>0:
@@ -19,13 +27,30 @@ class Seqadv:
                 self.dbSeq=''
             self.conflict=pdbrecord[49:70].strip()
     def pdb_line(self):
-        return f'{self.record_name:6s} {self.idCode:3s} {self.rawresName:>3s} {self.chainID:1s} {self.seqNum:>4d}{self.iCode:1s} {self.database:>4s} {self.dbAccession:9s} {self.dbRes:3s} {self.dbSeqraw:5s} {self.conflict:21s}'
-    def Clone(self,chain=''):
-        if len(chain)==1:
-            newSeqadv=Seqadv(pdbrecord=self.pdb_line())
-            newSeqadv.chainID=chain
-            newSeqadv.pdbrecord=newSeqadv.pdb_line()
-            return newSeqadv
+        return f'{self.record_name:6s} {self.idCode:3s} {self.rawresName:>3s} {self.chainID:1s} {self.seqNum:>4d}{self.iCode:1s} {self.database:>4s} {self.dbAccession:9s} {self.dbRes:3s} {self.dbSeqraw:5s} {self.conflict:21s}          '
+    def clone(self,chain):
+        newSeqadv=Seqadv(pdbrecord=self.pdb_line())
+        newSeqadv.chainID=chain
+        newSeqadv.pdbrecord=newSeqadv.pdb_line()
+        return newSeqadv
+    def __eq__(self,other):
+        result=True
+        result&=self.pdbrecord==other.pdbrecord
+        result&=self.record_name==other.record_name
+        result&=self.idCode==other.idCode
+        result&=self.rawresName==other.rawresName
+        result&=self.resName==other.resName
+        result&=self.chainID==other.chainID
+        result&=self.seqNum==other.seqNum
+        result&=self.iCode==other.iCode
+        result&=self.database==other.database
+        result&=self.dbAccession==other.dbAccession
+        result&=self.dbRes==other.dbRes
+        result&=self.dbSeqraw==other.dbSeqraw
+        result&=self.dbSeq==other.dbSeq
+        result&=self.conflict==other.conflict
+        return result
+
     def printshort(self):
         return '{}-{}{}{}'.format(self.chainID,self.resName,self.seqNum,self.dbRes)
     def __str__(self):
@@ -52,19 +77,3 @@ class Seqadv:
                              self.dbSeq,
                              self.conflict)
 
-if __name__=='__main__':
-    pr1='SEQADV 4ZMJ ASN G  332  UNP  Q2N0S6    THR   330 ENGINEERED MUTATION            '       
-    pr2='SEQADV 4ZMJ CYS G  501  UNP  Q2N0S6    ALA   498 ENGINEERED MUTATION            '
-    pr3='SEQADV 4ZMJ ARG G  508  UNP  Q2N0S6              EXPRESSION TAG                 '
-    pr4='SEQADV 4ZMJ ARG G  509  UNP  Q2N0S6              EXPRESSION TAG                 '
-    s1=Seqadv(pdbrecord=pr1)
-    s2=Seqadv(pdbrecord=pr2)
-    s3=Seqadv(pdbrecord=pr3)
-    s4=Seqadv(pdbrecord=pr4)
-
-    print(str(s1))
-    print(pr1)
-    print(s1.pdb_line())
-
-    s5=s1.Copy(chain='F')
-    print(str(s5))
