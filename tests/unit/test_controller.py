@@ -8,14 +8,13 @@
 """
 
 import unittest
-import importlib.resources
 import platform
 import os
 from pestifer.controller import Controller
 
 class TestController(unittest.TestCase):
     def setUp(self):
-        self.userinputs=str(importlib.resources.files('tests.unit').joinpath(f'fixtures/example.yaml'))
+        self.userinputs='example.yaml'
         plat=platform.system()
         if plat=='Linux':
             self.user_home=os.environ['HOME']

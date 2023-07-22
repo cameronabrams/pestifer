@@ -16,7 +16,8 @@ from pestifer.resources import ResourceManager
 
 class ConfigTest(unittest.TestCase):
     def setUp(self):
-        self.userinputs=str(importlib.resources.files('tests.unit').joinpath(f'fixtures/example.yaml'))
+        # print('setUp is here',os.getcwd())
+        self.userinputs='example.yaml'
         plat=platform.system()
         if plat=='Linux':
             self.user_home=os.environ['HOME']
@@ -50,6 +51,7 @@ class ConfigTest(unittest.TestCase):
             'SearchReplace':'replaced!!!'
         }
     def test_replace(self):
+        # print('test_replace here',os.getcwd())
         for s,r in self.replacements.items():
             replace(self.starting_dict,s,r)
         self.assertEqual(self.starting_dict,self.expected_dict)
@@ -59,4 +61,16 @@ class ConfigTest(unittest.TestCase):
         d=c.data
         expected_charmmdir=os.path.join(self.user_home,'my_charmm')
         self.assertEqual(d['CHARMMDIR'],expected_charmmdir)
+    def test_modreads(self):
+        r=ResourceManager()
+        c=Config(self.userinputs,r)
+        d=c.data
+        expected_results={'Query':'All good!','AnotherQuery':'Yep still good'}
+        test_results={'Query':'NotFound','AnotherQuery':'NotFound'}
+        for step in d['BuildSteps']:
+            if 'mods' in step:
+                for mod in step['mods']:
+                    test_results.update(mod)
+        self.assertDictEqual(test_results,expected_results)
+        
         

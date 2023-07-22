@@ -34,10 +34,22 @@ def replace(data,match,repl):
 class Config:
     def __init__(self,userconfigfilename,resman:ResourceManager):
         defaultconfigfilename=os.path.join(resman.resource_paths['config'],'defaults.yaml')
+        """ Read the system default config file """
         with open(defaultconfigfilename,'r') as f:
             self.data=yaml.safe_load(f)
+        """ Read the user-specified config file """
         with open(userconfigfilename,'r') as f:
             self.data.update(yaml.safe_load(f))
+        """ Read any modfiles """
+        if 'BuildSteps' in self.data:
+            for step in self.data['BuildSteps']:
+                if 'mods' in step:
+                    resolved_mods=[]
+                    for modfile in step['mods']:
+                        with open(modfile,"r") as f:
+                            resolved_mods.append(yaml.safe_load(f))
+                    step['mods']=resolved_mods
+        """ Perform any variable substitions at leaves """
         vars={'HOME':resman.user_home}
         for v,r in vars.items():
             replace(self.data,v,r)
