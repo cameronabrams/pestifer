@@ -1,6 +1,6 @@
 """
 
-.. module:: psfgen
+.. module:: sel
    :synopsis: functions for generating TcL/VMD atomselect commands
    
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>

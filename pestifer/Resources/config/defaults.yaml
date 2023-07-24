@@ -48,6 +48,69 @@ PDBAliases:
   - atom VCG C09 C9
   - residue EIC LIN
 
+PDB_to_CHARMM_Resnames:
+  HIS: HSE
+  ZN: ZN2
+  HOH: TIP3
+  CL: CLA
+  NAG: BGNA
+  MAN: AMAN
+  BMA: BMAN
+  FUC: AFUC
+  GAL: BGAL
+  SIA: ANE5AC
+  ANE5: ANE5AC
+  EIC: LIN
+  VCG: VCG
+
+PDB_1char_to_3char_Resnames:
+  A: ALA
+  R: ARG
+  N: ASN
+  D: ASP
+  C: CYS
+  Q: GLN
+  E: GLU
+  G: GLY
+  H: HSE
+  I: ILE
+  L: LEU
+  K: LYS
+  M: MET
+  F: PHE
+  P: PRO
+  S: SER
+  T: THR
+  W: TRP
+  Y: TYR
+  V: VAL
+
+PDB_Ions:
+  - LIT
+  - SOD
+  - MG
+  - POT
+  - CAL
+  - RUB
+  - CES
+  - BAR
+  - ZN
+  - CAD
+  - CL
+
+PDB_Glycans:
+  - BMA
+  - FUC
+  - GAL
+  - MAN
+  - NAG
+  - SIA
+  - ANE5
+
+PDB_Ligands:
+  - EIC
+  - VCG
+
 psfgen_script_name: mkpsf.tcl
 
 NAMD2: /usr/local/bin/namd2

@@ -1,40 +1,47 @@
-"""
 
-.. module:: residue
-   :synopsis: Manages residues
-   
-.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
-"""
-from .mods import CloneableMod,Atom,Missing
+def ResnameCharmify(nm):
+    return _ResNameDict_PDB_to_CHARMM_[nm] if nm in _ResNameDict_PDB_to_CHARMM_ else nm
 
-class Residue(CloneableMod):
-    req_attr=['resseqnum','insertion','name','chainID']
-    opt_attr=['atoms','up','down','uplink','downlink']
-    @classmethod
-    def from_atom(cls,a:Atom):
-        input_dict={
-            'resseqnum':a.resseqnum,
-            'insertion':a.insertion,
-            'name':a.resname,
-            'chainID':a.chainID,
-            'atoms':[a]
-        }
-        input_dict['resseqnumi']=f'{a.resseqnum}{a.insertion}'
-        inst=cls(input_dict)
-        return inst
-    @classmethod
-    def from_missing(cls,m:Missing):
-        input_dict={
-            'resseqnum':m.resseqnum,
-            'insertion':m.insertion,
-            'name':m.resname,
-            'chainID':m.chainID
-        }
-        input_dict['resseqnumi']=f'{m.resseqnum}{m.insertion}'
-        input_dict['atoms']=[]
-        inst=cls(input_dict)
-        return inst
+class Residue:
+    def __init__(self,a=None,m=None,molid='*'):
+        ''' initializing with an atom '''
+        if a!=None:
+            self.resseqnum=a.resseqnum
+            self.insertion=a.insertion
+            self.name=a.resname
+            self.chainID=a.chainID
+#            self.source_chainID=a.chainID
+            self.atoms=[a]
+            self.up=[]
+            self.down=[]
+            self.uplink=[]
+            self.downlink=[]
+        elif m!=None:
+            ''' initializing as a missing residue '''
+            self.resseqnum=m.resseqnum
+            self.name=m.resname
+            self.insertion=m.insertion
+            self.chainID=m.chainID
+#            self.source_chainID=m.chainID
+            self.biomt='*'
+            self.atoms=[]
+            self.up=[]
+            self.down=[]
+            self.uplink=[]
+            self.downlink=[]
+        else:
+            self.resseqnum=0
+            self.insertion=' '
+            self.name='UNK'
+            self.chainID='UNK'
+#            self.source_chainID
+            self.atoms=[]
+            self.up=[]
+            self.down=[]
+            self.uplink=[]
+            self.downlink=[]
+        self.resseqnumi=f'{self.resseqnum}{self.insertion}'
     def __lt__(self,other):
         if self.resseqnum<other.resseqnum:
             return True
@@ -47,9 +54,14 @@ class Residue(CloneableMod):
                 return ord(self.insertion)<ord(other.insertion)
             else:
                 return False
-    def add_atom(self,a:Atom):
-        if self.resseqnum==a.resseqnum and self.name==a.resname and self.chainID==a.chainID and self.insertion==a.insertion:
+    def add_atom(self,a):
+        if self.resseqnum==a.resseqnum and self.name==a.resname and self.chainID==a.chainID:
             self.atoms.append(a)
+    def residue_shift(self,resseqnumshift):
+        self.resseqnum+=resseqnumshift
+        for a in self.Atoms:
+            a.resseqnum+=resseqnumshift
+        pass
     def set_chainID(self,chainID):
         self.chainID=chainID
         for a in self.atoms:
@@ -67,6 +79,22 @@ class Residue(CloneableMod):
     def ri(self):
         ins0='' if self.insertion==' ' else self.insertion
         return f'{self.resseqnum}{ins0}'
+    def set_connections(self):
+        pass
+    def __str__(self):
+        return '{}-{}{}'.format(self.chainID,self.name,self.resseqnum)
+    def printshort(self):
+        return str(self)
+    def str_full(self):
+        if len(self.atoms)==0:
+            atstr='MISSING'
+        else:
+            atser=[]
+            for a in self.atoms:
+                atser.append(a.serial)
+            atstr='{:d} - {:d}'.format(min(atser),max(atser))
+        return '[{}] RESIDUE {} {} {:d} {}'.format(self.biomt,self.chainID,self.name,self.resseqnum,atstr)
+
     def get_down_group(self):
         res=[]
         for d in self.down:
@@ -74,7 +102,6 @@ class Residue(CloneableMod):
             res.extend(d.get_down_group())
         return res
 
-""" 
 def get_residue(R,chainID,resseqnum,insertion=' '):
     candidates=[]
     #print(f'Searching list of {len(R)} residues for c {chainID} r {resseqnum}')
@@ -101,4 +128,11 @@ def get_atom(R,chainID,resseqnum,atname,insertion=' '):
 #    print('Error: resid {} not found in chain {}'.format(resseqnum,chainID))
     return ''
 
-"""
+if __name__=='__main__':
+    r1=Residue()
+    r1.resseqnum=381
+    r1.insertion=' '
+    r2=Residue()
+    r2.resseqnum=381
+    r2.insertion='A'
+    print(r2<r1)

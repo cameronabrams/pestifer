@@ -8,28 +8,30 @@ class Command:
         self.command=command
         self.options=options
         self.c=f'{self.command} '+' '.join([f'-{k} {v}' for k,v in self.options.items()])
-        
+        self.stdout=''
+        self.stderr=''
+
     def run(self,override=(),ignore_codes=[],quiet=True):
         if not quiet:
             logger.debug(f'{self.c}')
         process=subprocess.Popen(self.c,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
-        out,err=process.communicate()
+        self.stdout,self.stderr=process.communicate()
         if process.returncode!=0 and not process.returncode in ignore_codes:
             logger.error(f'Returncode: {process.returncode}')
-            if len(out)>0:
-                logger.error('stdout buffer follows\n'+'*'*self.divider_line_length+'\n'+out+'\n'+'*'*self.divider_line_length)
-            if len(err)>0:
-                logger.error('stderr buffer follows\n'+'*'*self.divider_line_length+'\n'+err+'\n'+'*'*self.divider_line_length)
+            if len(self.stdout)>0:
+                logger.error('stdout buffer follows\n'+'*'*self.divider_line_length+'\n'+self.stdout+'\n'+'*'*self.divider_line_length)
+            if len(self.stderr)>0:
+                logger.error('stderr buffer follows\n'+'*'*self.divider_line_length+'\n'+self.stderr+'\n'+'*'*self.divider_line_length)
             raise subprocess.SubprocessError(f'Command "{self.c}" failed with returncode {process.returncode}')
         else:
             # logger.info(f'Returncode: {process.returncode}.')
             if len(override)==2:
                 needle,msg=override
-                if needle in out or needle in err:
+                if needle in self.stdout or needle in self.stderr:
                     logger.info(f'Returncode: {process.returncode}, but another error was detected:')
                     logger.error(msg)
-                    if len(out)>0:
-                        logger.error('stdout buffer follows\n'+'*'*self.divider_line_length+'\n'+out+'\n'+'*'*self.divider_line_length)
-                    if len(err)>0:
-                        logger.error('stderr buffer follows\n'+'*'*self.divider_line_length+'\n'+err+'\n'+'*'*self.divider_line_length)
-        return out,err
+                    if len(self.stdout)>0:
+                        logger.error('stdout buffer follows\n'+'*'*self.divider_line_length+'\n'+self.stdout+'\n'+'*'*self.divider_line_length)
+                    if len(self.stderr)>0:
+                        logger.error('stderr buffer follows\n'+'*'*self.divider_line_length+'\n'+self.stderr+'\n'+'*'*self.divider_line_length)
+        return 0

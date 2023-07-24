@@ -8,7 +8,6 @@
 """
 
 import unittest
-import importlib.resources
 import platform
 import os
 from pestifer.config import Config, replace
@@ -72,5 +71,17 @@ class ConfigTest(unittest.TestCase):
                 for mod in step['mods']:
                     test_results.update(mod)
         self.assertDictEqual(test_results,expected_results)
-        
-        
+    def test_resids(self):
+        r=ResourceManager()
+        c=Config(self.userinputs,r)
+        d=c.data
+        self.assertEqual(d['PDB_1char_to_3char_Resnames']['S'],'SER')
+        self.assertEqual(d['PDB_to_CHARMM_Resnames']['NAG'],'BGNA')
+    def test_seqtypes(self):
+        r=ResourceManager()
+        c=Config(self.userinputs,r)
+        d=c.data
+        self.assertEqual(d['Segtypes_by_Resnames']['HOH'],'WATER')
+        self.assertEqual(d['Segtypes_by_Resnames']['NAG'],'GLYCAN')
+        self.assertEqual(d['Segtypes_by_Resnames']['BGNA'],'GLYCAN')
+        self.assertEqual(d['Segtypes_by_Resnames']['PRO'],'PROTEIN')

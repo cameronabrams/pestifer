@@ -37,6 +37,18 @@ class Config:
         """ Read the system default config file """
         with open(defaultconfigfilename,'r') as f:
             self.data=yaml.safe_load(f)
+            ### generate reversible dictionaries
+            self.data['CHARMM_to_PDB_Resnames']={v:k for k,v in self.data['PDB_to_CHARMM_Resnames'].items()}
+            self.data['PDB_3char_to_1char_Resnames']={v:k for k,v in self.data['PDB_1char_to_3char_Resnames'].items()}
+            self.data['Segtypes_by_Resnames']={'HOH':'WATER'}
+            self.data['Segtypes_by_Resnames'].update({k:'ION' for k in self.data['PDB_Ions']})
+            self.data['Segtypes_by_Resnames'].update({k:'GLYCAN' for k in self.data['PDB_Glycans']})
+            self.data['Segtypes_by_Resnames'].update({self.data['PDB_to_CHARMM_Resnames'][k]:'GLYCAN' for k in self.data['PDB_Glycans']})
+            self.data['Segtypes_by_Resnames'].update({k:'LIGAND' for k in self.data['PDB_Ligands']})
+            self.data['Segtypes_by_Resnames'].update({self.data['PDB_to_CHARMM_Resnames'][k]:'LIGAND' for k in self.data['PDB_Ligands']})
+            self.data['Segtypes_by_Resnames'].update({k:'PROTEIN' for k in self.data['PDB_1char_to_3char_Resnames'].values()})
+            self.data['Segtypes_by_Resnames'].update({k:'PROTEIN' for k in ['HIS','HSE','HSD']})
+            self.data['Segname_Second_Character']={'PROTEIN':'','ION':'I','WATER':'W','GLYCAN':'G','LIGAND':'L','OTHER':'O'}
         """ Read the user-specified config file """
         with open(userconfigfilename,'r') as f:
             self.data.update(yaml.safe_load(f))
