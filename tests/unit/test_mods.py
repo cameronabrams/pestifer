@@ -1,6 +1,52 @@
-from pestifer.mods import ModsContainer, Atom,Mutation, Missing, Seqadv, SSBond
+from pestifer.mods import ModsContainer, BaseMod,Atom,Mutation, Missing, Seqadv, SSBond, Crot
 import unittest
+import pytest
 
+class TestBaseMod(unittest.TestCase):
+    def test1(self):
+        # required attributes are not in mutual exclusives
+        class tbm(BaseMod):
+            req_attr=['R1','R2','R3']
+            opt_attr=['O1','O2']
+            alt_attr=[('R1','O2')] # wrong!
+        with pytest.raises(AssertionError) as E:
+            a=tbm({'R1':1,'R2':2,'R3':3})
+        self.assertEqual(E.type,AssertionError)
+    def test2(self):
+        # all required attributes have values
+        class tbm(BaseMod):
+            req_attr=['R1','R2','R3']
+        with pytest.raises(AssertionError) as E:
+            a=tbm({'R1':1,'R2':2})
+        self.assertEqual(E.type,AssertionError)
+    def test3(self):
+        # all mutual exclusivity requirements are met
+        class tbm(BaseMod):
+            req_attr=['R1','R2','R3']
+            opt_attr=['O1','O2']
+            alt_attr=[('O1','O2')]
+        with pytest.raises(AssertionError) as E:
+            a=tbm({'R1':1,'R2':2,'R3':3,'O1':4,'O2':5})
+        self.assertEqual(E.type,AssertionError)
+    def test4(self):
+        # all attributes with limited set of possible values have valid values
+        class tbm(BaseMod):
+            req_attr=['R1','R2','R3']
+            opt_attr=['O1','O2']
+            alt_attr=[('O1','O2')]
+            attr_choices={'R1':[7,8,9]}
+        with pytest.raises(AssertionError) as E:
+            a=tbm({'R1':1,'R2':2,'R3':3})
+        self.assertEqual(E.type,AssertionError)
+    def test5(self):
+        # for each optional attribute present, all required dependent attributes are also present
+        class tbm(BaseMod):
+            req_attr=['R1','R2','R3']
+            opt_attr=['O1','O2']
+            opt_attr_deps={'O1':['O2']}
+        with pytest.raises(AssertionError) as E:
+            a=tbm({'R1':1,'R2':2,'R3':3,'O1':4})
+        self.assertEqual(E.type,AssertionError)
 class TestMutation(unittest.TestCase):
     def setUp(self):
         self.input_dict={
@@ -175,3 +221,52 @@ class TestSSBond(unittest.TestCase):
         ss2=SSBond.clone(ss,chainID2='X')
         self.assertEqual(ss.chainID1,ss2.chainID1)
         self.assertEqual(ss2.chainID2,'X')
+
+class TestCrot(unittest.TestCase):
+    def test_phi(self):
+        for t in ['PHI','PSI','OMEGA']:
+            cr=Crot.from_shortcode(f'{t},A,123,124,180.0')
+            self.assertEqual(cr.angle,t)
+            self.assertEqual(cr.chainID,'A')
+            self.assertEqual(cr.resseqnum1,123)
+            self.assertEqual(cr.resseqnum2,124)
+            self.assertEqual(cr.degrees,180.0)
+    def test_chi(self):
+        for t in ['CHI1','CHI2']:
+            cr=Crot.from_shortcode(f'{t},A,123,180.0')
+            self.assertEqual(cr.angle,t)
+            self.assertEqual(cr.chainID,'A')
+            self.assertEqual(cr.resseqnum1,123)
+            self.assertEqual(cr.resseqnum2,-1)
+            self.assertEqual(cr.degrees,180.0)
+    def test_glycan(self):
+        cr=Crot.from_shortcode('GLYCAN,S,123,N,1123,O1,180.0')
+        self.assertEqual(cr.angle,'GLYCAN')
+        self.assertEqual(cr.segname,'S')
+        self.assertEqual(cr.resseqnum1,123)
+        self.assertEqual(cr.atom1,'N')
+        self.assertEqual(cr.resseqnum2,1123)
+        self.assertEqual(cr.atom2,'O1')
+        self.assertEqual(cr.degrees,180.0)
+    def test_link(self):
+        cr=Crot.from_shortcode('LINK,S,123,N,T,1123,O1,180.0')
+        self.assertEqual(cr.angle,'LINK')
+        self.assertEqual(cr.segname1,'S')
+        self.assertEqual(cr.segname2,'T')
+        self.assertEqual(cr.resseqnum1,123)
+        self.assertEqual(cr.atom1,'N')
+        self.assertEqual(cr.resseqnum2,1123)
+        self.assertEqual(cr.atom2,'O1')
+        self.assertEqual(cr.degrees,180.0)
+    def test_angleijk(self):
+        cr=Crot.from_shortcode('ANGLEIJK,S,123,N,T,1123,O1,1123,C1,180.0')
+        self.assertEqual(cr.angle,'ANGLEIJK')
+        self.assertEqual(cr.segnamei,'S')
+        self.assertEqual(cr.segnamejk,'T')
+        self.assertEqual(cr.resseqnumi,123)
+        self.assertEqual(cr.atomi,'N')
+        self.assertEqual(cr.resseqnumj,1123)
+        self.assertEqual(cr.atomj,'O1')
+        self.assertEqual(cr.resseqnumk,1123)
+        self.assertEqual(cr.atomk,'C1')
+        self.assertEqual(cr.degrees,180.0)

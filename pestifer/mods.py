@@ -18,15 +18,35 @@
 import yaml
 # from .seqadv import Seqadv
 class BaseMod:
+    # list of required attribute labels
     req_attr=[]
+    # list of optional attribute labels
     opt_attr=[]
+    # list of 2-tuples of attribute labels for mutually exclusive attributes
     alt_attr=[]
+    # dictionary of lists of value choices for any attribute, keyed on attribute label
+    attr_choices={}
+    # dictionary of lists of labels of attributes that are required if the optional attributes whose labels key this dictionary are present 
+    opt_attr_deps={}
     def __init__(self,input_dict={}):
+        # mutually exclusive attribute labels should not appear in the list of required attributes
+        assert all([(not x in self.req_attr and not y in self.req_attr) for x,y in self.alt_attr]),"Mutually exclusive attributes should not appear in the required list"
         for k,v in input_dict.items():
             if k in self.req_attr or k in self.opt_attr:
                 self.__dict__[k]=v
-        assert all([att in self.__dict__.keys() for att in self.req_attr])
-        assert all([(x[0] in self.__dict__.keys() or x[1] in self.__dict__.keys()) for x in self.alt_attr])
+        # all required attributes have values
+        assert all([att in self.__dict__.keys() for att in self.req_attr]),f"Not all required attributes have values {self.__dict__}"
+        # all mutual-exclusivity requirements are met
+        assert all([
+            ((x[0] in self.__dict__.keys() and not x[1] in self.__dict__.keys()) or 
+             (x[1] in self.__dict__.keys() and not x[0] in self.__dict__.keys()) or not (x[0] in self.__dict__.keys() or x[1] in self.__dict__.keys()))
+            for x in self.alt_attr]),"Mutual exclusivity requirements unmet"
+        # all attributes with limited set of possible values have valid values
+        assert all([self.__dict__[x] in choices for x,choices in self.attr_choices.items()]),"Invalid choices in one or more attributes"
+        # for each optional attribute present, all required dependent attributes are also present
+        for oa,dp in self.opt_attr_deps.items():
+            if oa in self.__dict__.keys():
+                assert all([x in self.__dict__.keys() for x in dp]),"Dependent required attributes of optional attributes not present"
     def __eq__(self,other):
         test_list=[self.__dict__[k]==other.__dict__[k] for k in self.req_attr]
         for k in self.opt_attr:
@@ -79,7 +99,6 @@ class Seqadv(CloneableMod):
 class Mutation(CloneableMod):
     req_attr=['chainID','origresname','newresname']
     opt_attr=['resseqnum','resseqnumi','insertion']
-    alt_attr=[('resseqnum','insertion')]
 
     @classmethod
     def from_seqdav(cls,sq:Seqadv):
@@ -155,6 +174,153 @@ class Missing(CloneableMod):
     def psfgen_lines(self):
         return ['     residue {} {}{} {}'.format(self.resname,self.resseqnum,self.insertion,self.chainID)]
 
+class Crot(CloneableMod):
+    req_attr=['angle','degrees']
+    opt_attr=['chainID','resseqnum1','resseqnum2','segname','atom1','atom2','segname1','segname2','segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk']
+    attr_choices={'angle':['PHI','PSI','OMEGA','CHI1','CHI2','GLYCAN','LINK','ANGLEIJK']}
+    opt_attr_deps={
+        'PHI':['chainID','resseqnum1','resseqnum2'],
+        'PSI':['chainID','resseqnum1','resseqnum2'],
+        'OMEGA':['chainID','resseqnum1','resseqnum2'],
+        'CHI1':['chainID','resseqnum1'],
+        'CHI2':['chainID','resseqnum1'],
+        'GLYCAN':['segname','resseqnum1','atom1','resseqnum2','atom2'],
+        'LINK':['segname1','segname2','resseqnum1','atom1','resseqnum2','atom2'],
+        'ANGLEIJK':['segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk']
+        }
+    @classmethod
+    def from_shortcode(cls,shortcode):
+        dat=shortcode.split(',')
+        input_dict={}
+        input_dict['angle']=dat[0].upper()
+        if input_dict['angle']=='PHI' or input_dict['angle']=='PSI' or input_dict['angle']=='OMEGA':
+            # this is a backbone torsion, so we need both an owner
+            # residue and a residue indicating the end of the 
+            # set of residues that will be reoriented by the
+            # rotation
+            input_dict['chainID']=dat[1]
+            input_dict['resseqnum1']=int(dat[2])
+            input_dict['resseqnum2']=int(dat[3])
+            input_dict['degrees']=float(dat[4])
+        elif input_dict['angle']=='CHI1' or input_dict['angle']=='CHI2':
+            input_dict['chainID']=dat[1]
+            input_dict['resseqnum1']=int(dat[2])
+            input_dict['resseqnum2']=-1
+            input_dict['degrees']=float(dat[3])
+        elif input_dict['angle']=='GLYCAN':
+            input_dict['segname']=dat[1]
+            input_dict['resseqnum1']=int(dat[2])
+            input_dict['atom1']=dat[3]
+            input_dict['resseqnum2']=int(dat[4])
+            input_dict['atom2']=dat[5]
+            input_dict['degrees']=float(dat[6])
+        elif input_dict['angle']=='LINK':
+            input_dict['segname1']=dat[1]
+            input_dict['resseqnum1']=int(dat[2])
+            input_dict['atom1']=dat[3]
+            input_dict['segname2']=dat[4]
+            input_dict['resseqnum2']=int(dat[5])
+            input_dict['atom2']=dat[6]
+            input_dict['degrees']=float(dat[7])
+        elif input_dict['angle']=='ANGLEIJK':
+            input_dict['segnamei']=dat[1]
+            input_dict['resseqnumi']=int(dat[2])
+            input_dict['atomi']=dat[3]
+            input_dict['segnamejk']=dat[4]
+            input_dict['resseqnumj']=int(dat[5])
+            input_dict['atomj']=dat[6]
+            input_dict['resseqnumk']=int(dat[7])
+            input_dict['atomk']=dat[8]
+            input_dict['degrees']=float(dat[9])
+        inst=cls(input_dict)
+        return inst
+    
+    def to_shortcode(self):
+        if 'shortcode' in self.__dict__:
+            return
+        ret=[f'{self.angle}']
+        if self.angle=='PHI' or self.angle=='PSI' or self.angle=='OMEGA':
+            # this is a backbone torsion, so we need both an owner
+            # residue and a residue indicating the end of the 
+            # set of residues that will be reoriented by the
+            # rotation
+            ret.append(f'{self.chainID}')
+            ret.append(f'{self.resseqnum1}')
+            ret.append(f'{self.resseqnum2}')
+            ret.append(f'{self.degrees:.4f}')
+        elif self.angle=='CHI1' or self.angle=='CHI2':
+            ret.append(f'{self.chainID}')
+            ret.append(f'{self.resseqnum1}')
+            ret.append(f'-1')
+            ret.append(f'{self.degrees:.4f}')
+        elif self.angle=='GLYCAN':
+            ret.append(f'{self.segname}')
+            ret.append(f'{self.resseqnum1}')
+            ret.append(f'{self.atom1}')
+            ret.append(f'{self.resseqnum2}')
+            ret.append(f'{self.atom2}')
+            ret.append(f'{self.degrees:.4f}')
+        elif self.angle=='LINK':
+            ret.append(f'{self.segname1}')
+            ret.append(f'{self.resseqnum1}')
+            ret.append(f'{self.atom1}')
+            ret.append(f'{self.segname2}')
+            ret.append(f'{self.resseqnum2}')
+            ret.append(f'{self.atom2}')
+            ret.append(f'{self.degrees:.4f}')
+        elif self.angle=='ANGLEIJK':
+            ret.append(f'{self.segnamei}')
+            ret.append(f'{self.resseqnumi}')
+            ret.append(f'{self.atomi}')
+            ret.append(f'{self.segnamejk}')
+            ret.append(f'{self.resseqnumj}')
+            ret.append(f'{self.atomj}')
+            ret.append(f'{self.resseqnumk}')
+            ret.append(f'{self.atomk}')
+            ret.append(f'{self.degrees:.4f}')
+        self.shortcode=','.join(ret)
+    
+    def __str__(self):
+        self.to_shortcode()
+        return self.shortcode
+        
+    def psfgen_lines(self,**kwargs):
+        molid=kwargs.get('molid','top')
+        endIsCterm=kwargs.get('endIsCterm',False)
+        retlines=[]
+        if self.angle in ['PHI','PSI','OMEGA']:  # this is a backbone bond
+            retlines.append('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,self.chainID,self.resseqnum1))
+            retlines.append('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,self.chainID,self.resseqnum2))
+            if endIsCterm:
+                retlines.append('Crot_{}_toCterm $r1 $r2 {} {} {}'.format(self.angle.lower(),self.chainID,molid,self.degrees))
+            else:
+                retlines.append('Crot_{} $r1 $r2 {} {} {}'.format(self.angle.lower(),self.chainID,molid,self.degrees))
+        elif self.angle in ['CHI1','CHI2']:  # this is a side-chain bond
+            retlines.append('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,self.chainID,self.resseqnum1))
+            retlines.append('SCrot_{} $r1 {} {} {}'.format(self.angle.lower(),self.chainID,molid,self.degrees))
+        elif self.angle=='GLYCAN':  # intra-glycan rotation
+            retlines.append('set sel [atomselect {} "segname {}"]'.format(molid,self.segname))
+            retlines.append('set i [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname,self.resseqnum1,self.atom1))
+            retlines.append('set j [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname,self.resseqnum2,self.atom2))
+            retlines.append('genbondrot {} $sel $i $j {}'.format(molid,self.degrees))
+        elif self.angle=='LINK': # ASN-GLYcan rotation
+            retlines.append('set sel [atomselect {} "segname {} {}"]'.format(molid,self.segname1,self.segname2))
+            retlines.append('set i [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname1,self.resseqnum1,self.atom1))
+            retlines.append('set j [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname2,self.resseqnum2,self.atom2))
+            retlines.append('genbondrot {} $sel $i $j {}'.format(molid,self.degrees))
+        elif self.angle=='ANGLEIJK':
+            retlines.extend([
+                'set rotsel [atomselect {} "segname {}"]'.format(molid,self.segnamejk),
+                'set ri [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamei,self.resseqnumi,self.atomi),
+                'set rj [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamejk,self.resseqnumj,self.atomj),
+                'set rk [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamejk,self.resseqnumk,self.atomk),
+                'set rij [vecsub $ri $rj]',
+                'set rjk [vecsub $rj $rk]',
+                'set cijk [veccross $rij $rjk]',
+                '$rotsel move [trans center $rj origin $rj axis $cijk {} degrees]'.format(self.degrees)
+            ])
+        return retlines
+    
 class Atom(CloneableMod):
     req_attr=['recordname','serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
     opt_attr=['segname','empty','link']
