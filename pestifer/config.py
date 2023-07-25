@@ -52,15 +52,14 @@ class Config:
         """ Read the user-specified config file """
         with open(userconfigfilename,'r') as f:
             self.data.update(yaml.safe_load(f))
-        """ Read any modfiles """
+        """ Read any mods or modfiles """
         if 'BuildSteps' in self.data:
             for step in self.data['BuildSteps']:
-                if 'mods' in step:
-                    resolved_mods=[]
-                    for modfile in step['mods']:
-                        with open(modfile,"r") as f:
-                            resolved_mods.append(yaml.safe_load(f))
-                    step['mods']=resolved_mods
+                if 'mods' in step: # either a dictionary or a file containing a dictionary
+                    val=step['mods']
+                    if type(val)==str and (val.endswith('yaml') or val.endswith('yml')):
+                        with open(val,"r") as f:
+                            step['mods']=yaml.safe_load(f)
         """ Perform any variable substitions at leaves """
         vars={'HOME':resman.user_home}
         for v,r in vars.items():

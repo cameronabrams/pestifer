@@ -75,6 +75,8 @@ class CloneableMod(BaseMod):
 class Seqadv(CloneableMod):
     req_attr=['idCode','resname','chainID','resseqnum','insertion']
     opt_attr=['database','dbAccession','dbRes','dbSeq','conflict']
+    yaml_header='Seqadv'
+    PDB_keyword='SEQADV'
 
     @classmethod
     def from_pdbrecord(cls,pdbrecord):
@@ -99,7 +101,7 @@ class Seqadv(CloneableMod):
 class Mutation(CloneableMod):
     req_attr=['chainID','origresname','newresname']
     opt_attr=['resseqnum','resseqnumi','insertion']
-
+    yaml_header='Mutations'
     @classmethod
     def from_seqdav(cls,sq:Seqadv):
         if not 'MUTATION' in sq.conflict:
@@ -141,6 +143,8 @@ class Mutation(CloneableMod):
 class Missing(CloneableMod):
     req_attr=['resname','resseqnum','insertion','chainID']
     opt_attr=['model']
+    yaml_header='Missing'
+    PDB_keyword='REMARK,465'
 
     @classmethod
     def from_pdbrecord(cls,pdbrecord):
@@ -188,6 +192,7 @@ class Crot(CloneableMod):
         'LINK':['segname1','segname2','resseqnum1','atom1','resseqnum2','atom2'],
         'ANGLEIJK':['segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk']
         }
+    yaml_header='Crotations'
     @classmethod
     def from_shortcode(cls,shortcode):
         dat=shortcode.split(',')
@@ -324,6 +329,9 @@ class Crot(CloneableMod):
 class Atom(CloneableMod):
     req_attr=['recordname','serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
     opt_attr=['segname','empty','link']
+    yaml_header='Atoms'
+    PDB_keyword='ATOM'
+
     @classmethod
     def from_pdbrecord(cls,pdbrecord):
         input_dict={
@@ -393,9 +401,14 @@ class Atom(CloneableMod):
                 10*' '+'{:>2s}'.format(self.elem)+'{:2s}'.format(self.charge)
         return pdbline
 
+class Hetatm(Atom):
+    PDB_keyword='HETATM'
+
 class SSBond(CloneableMod):
     req_attr=['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
     opt_attr=['serial_number','resname1','resname2','sym1','sym2','length']
+    yaml_header='SSBonds'
+    PDB_keyword='SSBOND'
 
     @classmethod
     def from_pdbrecord(cls,pdbrecord):
@@ -478,34 +491,41 @@ class SSBond(CloneableMod):
         return ['patch DISU {}:{} {}:{}'.format(self.chainID1,self.resseqnum1,self.chainID2,self.resseqnum2)]
 
 class Link(CloneableMod):
+    yaml_header='Links'
+    PDB_keyword='LINK'
     pass
 
-ModTypes={
-    'Mutations':Mutation,
-    'Seqadv':Seqadv,
-    # 'Grafts':Graft,
-    # 'Deletions':Deletion,
-    # 'Crotations':Crot,
-    # 'Attachments':Attach,
-    # 'Links':Link,
-    'SSbonds':SSBond,
-    # 'Cleavages':Cleavage,
-    'Missing':Missing,
-    'Atoms':Atom
-}
-
-class ModsContainer:
-    def __init__(self,input_dict):
-        self.M=[]
-        for k,v in input_dict.items():
-            if k in ModTypes:
-                self.M.append(ModTypes[k](v))
-    def update(self,input_dict):
-        for k,v in input_dict.items():
-            if k in ModTypes:
-                self.M.append(ModTypes[k](v))
-    def dump(self):
-        retstr=''
-        for m in self.M:
-            retstr+=m.dump()
-        return retstr
+ModOtherKeywords=['Title','Author','Notes']
+ModTypesContainer=[
+    Atom, Hetatm, SSBond, Link, Seqadv, Missing, Mutation, Crot
+]
+class ModTypesRegistry:
+    by_yaml={}
+    by_pdb_key={}
+    for t in ModTypesContainer:
+        if 'yaml_header' in t.__dict__:
+            by_yaml[t.yaml_header]=t
+        if 'PDB_keyword' in t.__dict__:
+            by_pdb_key[t.PDB_keyword]=t
+    @classmethod
+    def modtype(cls,hdr):
+        if hdr in cls.by_yaml:
+            return cls.by_yaml[hdr]
+        if hdr in cls.by_pdb_key:
+            return cls.by_pdb_key[hdr]
+        return None 
+# class ModsContainer:
+#     def __init__(self,input_dict):
+#         self.M=[]
+#         for k,v in input_dict.items():
+#             if k in ModTypes:
+#                 self.M.append(ModTypes[k](v))
+#     def update(self,input_dict):
+#         for k,v in input_dict.items():
+#             if k in ModTypes:
+#                 self.M.append(ModTypes[k](v))
+#     def dump(self):
+#         retstr=''
+#         for m in self.M:
+#             retstr+=m.dump()
+#         return retstr

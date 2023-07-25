@@ -1,4 +1,5 @@
-from pestifer.mods import ModsContainer, BaseMod,Atom,Mutation, Missing, Seqadv, SSBond, Crot
+from pestifer.mods import BaseMod,Atom,Mutation, Missing, Seqadv, SSBond, Crot
+from pestifer.mods import ModTypesRegistry as mtr
 import unittest
 import pytest
 
@@ -270,3 +271,6 @@ class TestCrot(unittest.TestCase):
         self.assertEqual(cr.resseqnumk,1123)
         self.assertEqual(cr.atomk,'C1')
         self.assertEqual(cr.degrees,180.0)
+
+def test_mtr():
+    assert(mtr.modtype('ATOM')==Atom)

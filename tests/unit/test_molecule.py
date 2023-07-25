@@ -6,7 +6,7 @@ class TestMolecule(unittest.TestCase):
     def setUp(self):
         return super().setUp()
     def test_molecule(self):
-        m=Molecule.from_pdb(pdb_code='1gc1')
+        m=Molecule.from_rcsb(pdb_code='1gc1')
         self.assertEqual(m.pdb_code,'1gc1')
         c=Command('wc -l 1gc1.pdb')
         c.run()

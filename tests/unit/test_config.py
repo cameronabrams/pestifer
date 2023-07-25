@@ -10,6 +10,7 @@
 import unittest
 import platform
 import os
+import pytest
 from pestifer.config import Config, replace
 from pestifer.resources import ResourceManager
 
@@ -64,12 +65,19 @@ class ConfigTest(unittest.TestCase):
         r=ResourceManager()
         c=Config(self.userinputs,r)
         d=c.data
-        expected_results={'Query':'All good!','AnotherQuery':'Yep still good'}
+        expected_results={
+            'Query':'All good!',
+            'AnotherQuery':'Yep still good',
+            'Mutations':
+                [
+                {'chainID':'A','resseqnum':123,'newresname':'ARG'},
+                'G,555,PHE'
+                ]
+                }
         test_results={'Query':'NotFound','AnotherQuery':'NotFound'}
         for step in d['BuildSteps']:
             if 'mods' in step:
-                for mod in step['mods']:
-                    test_results.update(mod)
+                test_results.update(step['mods'])
         self.assertDictEqual(test_results,expected_results)
     def test_resids(self):
         r=ResourceManager()
