@@ -61,6 +61,7 @@ class ConfigTest(unittest.TestCase):
         d=c.data
         expected_charmmdir=os.path.join(self.user_home,'my_charmm')
         self.assertEqual(d['CHARMMDIR'],expected_charmmdir)
+
     def test_modreads(self):
         r=ResourceManager()
         c=Config(self.userinputs,r)

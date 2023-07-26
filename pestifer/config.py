@@ -64,6 +64,7 @@ class Config:
         vars={'HOME':resman.user_home}
         for v,r in vars.items():
             replace(self.data,v,r)
+
     def __str__(self):
         return yaml.dump(self.data)        
     

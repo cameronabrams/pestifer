@@ -9,12 +9,127 @@
 import urllib.request
 import os
 import logging
+import yaml
 
 from .mods import ModTypesRegistry as mtr
+from pestifer import Resources
 
 logger=logging.getLogger(__name__)
 
 BASE_URL='https://files.rcsb.org/download'
+
+
+def PDB_List(arg,d=','):
+    return [x.strip() for x in arg.split(d)]
+
+def func(obj, param, param_values):
+    setattr(obj, param, param_values)
+    return obj
+
+class PDBRecord:
+
+    def __init__(self,input_dict):
+        self.__dict__.update(input_dict)
+
+    @classmethod
+    def base_parse(cls,pdbrecord,record_format,typemap):
+        input_dict={}
+        fields=record_format.get('fields',{})
+        for k,v in fields.items():
+            typestring,byte_range=v
+            typ=typemap[typestring]
+            # print(typestring,typ)
+            input_dict[k]=typ(pdbrecord[byte_range[0]-1:byte_range[1]])
+            if typ==str:
+                input_dict[k]=input_dict[k].strip()
+        return input_dict
+
+    @classmethod
+    def new(cls,pdbrecord,record_format,typemap):
+        input_dict=cls.base_parse(pdbrecord,record_format,typemap)
+        if input_dict:
+            inst=cls(input_dict)
+            return inst
+        return None
+
+    def update_2(self,pdbrecord,record_format,typemap):
+        """ type-2 update of existing parsed record 
+            if there is only one field in addition to
+            'continuation', then it is assumed this field is a strict continuation; if not, each line is a distinct record """
+        if not 'continuation' in record_format['fields']:
+            logging.fatal(f'A type-2 pdb record must have a continuation field')
+        input_dict=PDBRecord.base_parse(pdbrecord,record_format,typemap)
+        for k in input_dict.keys():
+            if not type(self.__dict__[k])==list:
+                self.__dict__[k]=[self.__dict__[k],input_dict[k]]
+            else:
+                self.__dict__[k].append(input_dict[k])
+
+
+
+class PDBParser:
+    previous_key=None
+    # keys_encountered=[]
+    parsed={}
+    mappers={'Integer':int,'String':str,'Float':float,'List':PDB_List}
+    def __init__(self,**options):
+        self.pdb_code=options.get('PDBcode','')
+        self.overwrite=options.get('overwrite',False)
+        pdb_format_file=os.path.join(
+            os.path.dirname(Resources.__file__),
+            'config','pdb_format.yaml')
+        if os.path.exists(pdb_format_file):
+            with open(pdb_format_file,'r') as f:
+                self.pdb_format_dict=yaml.safe_load(f)
+        for map,d in self.pdb_format_dict['delimiters'].items():
+            if not map in self.mappers:
+                self.mappers[map]=func(PDB_List,'d',d)
+        # print(self.mappers)
+    # def get_record_format(self,key):
+    #     for rf in self.pdb_format_dict['record_formats']:
+    #         if rf['key']==key:
+    #             return rf
+    #     return {}
+            
+    def fetch(self):
+        self.filename=f'{self.pdb_code}.pdb'
+        target_url=os.path.join(BASE_URL,self.filename)
+        if not os.path.exists(self.filename) or self.overwrite:
+            try:
+                urllib.request.urlretrieve(target_url,self.filename)
+            except:
+                logger.warning(f'Could not fetch {self.filename}')
+
+    def read(self):
+        self.pdb_lines=[]
+        with open(self.filename,'r') as f:
+            self.pdb_lines=f.read().split('\n')
+            if self.pdb_lines[-1]=='':
+                self.pdb_lines=self.pdb_lines[:-1]
+    def close_record(self,key):
+        pass
+    def parseline(self,line):
+        key=line[:6].strip()
+        record_format=self.pdb_format_dict['record_formats'][key]
+
+    def parse(self,**options):
+        for l in self.pdb_lines:
+            key=l[:6].strip()
+            record_format=self.pdb_format_dict['record_formats'][key]
+            # print(key,record_format)
+            record_type=record_format['type']
+            if record_type==1: # one-time-single-line
+                # print(key,record_format)
+                if key in self.parsed:
+                    logger.fatal(f'PDB record type {key} can appear only once in a PDB file.')
+                self.parsed[key]=PDBRecord.new(l,record_format,self.mappers)
+            elif record_type==2:
+                if key!=self.previous_key:
+                    self.parsed[key]=PDBRecord.new(l,record_format,self.mappers)
+                    self.previous_key=key
+                else:
+                    self.parsed[key].update_2(l,record_format,self.mappers)
+            
 
 class MolData:
     captures=['ATOM','LINK','SSBOND','SEQADV','REMARK,465']
@@ -111,43 +226,14 @@ class MolMeta:
                beg=end+1
         return retstr
 
-class PDBParser:
-    parseables=[]
-    def __init__(self,**options):
-        self.pdb_code=options.get('PDBcode','')
-        self.pdb_lines=[]
+# class PDBRecord:
+#     lines=[]
+#     def __init__(self,pdbrecord:str):
+#         key=pdbrecord[:6].strip()
+#         subkey=pdbrecord[7:10].strip()
+#         assert (subkey=='' or subkey.isdigit())
 
-    def fetch(self):
-        filename=f'{self.pdb_code}.pdb'
-        target_url=os.path.join(BASE_URL,filename)
-        self.pdb_lines=[]
-        try:
-            urllib.request.urlretrieve(target_url,filename)
-            with open(filename,'r') as f:
-                self.pdb_lines=f.read().split('\n')
-                if self.pdb_lines[-1]=='':
-                    self.pdb_lines=self.pdb_lines[:-1]
-        except:
-            logger.warning(f'Could not fetch {filename}')
 
-        return filename
-    
-    def parse(self,**options):
-        d=MolData(mods=options.get('mods',{}))
-        m=MolMeta()
-        for l in self.pdb_lines:
-            key=l[:6].strip()
-            if key=="REMARK":
-                token=l[7:10].strip()
-                if token.isdigit():
-                    key=f'{key},{token}'
-            if key in MolData.captures:
-                d.parse_line(key,l)
-            elif key in MolMeta.captures:
-                m.parse_line(key,l)
-            else:
-                logger.info(f'pdbrecord "{key}" is not parseable')
 
-        return m,d
 
         
