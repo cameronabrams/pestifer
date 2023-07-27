@@ -11,6 +11,36 @@ def test_pdbformat():
     expected_sections=['record_types', 'delimiters', 'record_formats']
     assert(all([x in p.pdb_format_dict.keys() for x in expected_sections]))
 
+def test_custom_formats():
+    p=PDBParser(PDBcode='test',pdb_format_file='test_pdb_format.yaml')
+    p.fetch()
+    p.read()
+    p.parse()
+    assert 'MYREC1' in p.parsed
+    assert 'MYREC2' in p.parsed
+    assert p.parsed['MYREC1'][0].cussword=='FUCK'
+    assert p.parsed['MYREC1'][0].residue.resName=='RRR'
+    assert p.parsed['MYREC1'][0].residue.chainID=='C'
+    assert p.parsed['MYREC1'][0].residue.seqNum==1111
+    assert p.parsed['MYREC1'][0].residue.iCode=='I'
+    assert p.parsed['MYREC2'][0].cussword=='SHIT'
+    assert p.parsed['MYREC2'][0].residue.resName=='XXX'
+    assert p.parsed['MYREC2'][0].residue.chainID=='D'
+    assert p.parsed['MYREC2'][0].residue.seqNum==2222
+    assert p.parsed['MYREC2'][0].residue.iCode=='J'
+    assert len(p.parsed['SITE'])==4
+    assert p.parsed['SITE'][0].siteID=='AC1'
+    assert p.parsed['SITE'][0].residue1.resName=='HIS'
+    assert len(p.parsed['SITE'][0].residues)==3
+    assert len(p.parsed['SITE'][1].residues)==5
+    assert len(p.parsed['SITE'][2].residues)==5
+    assert len(p.parsed['SITE'][3].residues)==11
+    for s in p.parsed['SITE']:
+        assert s.numRes==len(s.residues)
+    s=p.parsed['SITE'][3]
+    expected_resnames=['HIS','HIS','HIS','HIS','LEU','THR','THR','TRP','HOH','HOH','HOH']
+    assert expected_resnames==[r.resName for r in s.residues]
+
 def test_parse():
     p=PDBParser(PDBcode='4zmj')
     p.fetch()
@@ -52,26 +82,40 @@ def test_parse():
     print(p.parsed['REVDAT'][0].records)
     assert p.parsed['REVDAT'][0].records==['COMPND', 'REMARK', 'HETNAM', 'LINK', 'SITE', 'ATOM']
     assert len(p.parsed['SEQADV'])==10
-    assert p.parsed['SEQADV'][0].resName=='ASN'
-    assert p.parsed['SEQADV'][0].chainID=='G'
-    assert p.parsed['SEQADV'][0].seqNum==332
-    assert p.parsed['SEQADV'][0].iCode==''
+    assert p.parsed['SEQADV'][0].residue.resName=='ASN'
+    assert p.parsed['SEQADV'][0].residue.chainID=='G'
+    assert p.parsed['SEQADV'][0].residue.seqNum==332
+    assert p.parsed['SEQADV'][0].residue.iCode==''
     assert p.parsed['SEQADV'][0].database=='UNP'
     assert p.parsed['SEQADV'][0].dbAccession=='Q2N0S6'
     assert p.parsed['SEQADV'][0].dbRes=='THR'
     assert p.parsed['SEQADV'][0].dbSeq==330
     assert p.parsed['SEQADV'][0].conflict=='ENGINEERED MUTATION'
     assert len(p.parsed['SSBOND'])==11
-    assert p.parsed['SSBOND'][2].chainID1=='G'
-    assert p.parsed['SSBOND'][2].seqNum1==126
-    assert p.parsed['SSBOND'][2].chainID2=='G'
-    assert p.parsed['SSBOND'][2].seqNum2==196
+    assert p.parsed['SSBOND'][2].residue1.chainID=='G'
+    assert p.parsed['SSBOND'][2].residue1.seqNum==126
+    assert p.parsed['SSBOND'][2].residue2.chainID=='G'
+    assert p.parsed['SSBOND'][2].residue2.seqNum==196
+    assert len(p.parsed['SEQRES'][0].resNames)==481
+    assert len(p.parsed['SEQRES'][1].resNames)==153
+    expected_seq='ALA GLU ASN LEU TRP VAL THR VAL TYR TYR GLY'.split()
+    assert p.parsed['SEQRES'][0].resNames[:len(expected_seq)]==expected_seq
+    "ATOM   4519  OD2 ASP B 664     -15.056 125.079  66.899  1.00142.18           O  "
+    assert p.parsed['ATOM'][0].residue.resName=='LEU'
+    assert p.parsed['ATOM'][-1].name=='OD2'
+    assert p.parsed['ATOM'][0].serial==1
+    assert p.parsed['ATOM'][-1].serial==4519
+    assert p.parsed['ATOM'][-1].residue.resName=='ASP'
+    assert len(p.parsed['TER'])==2
+    assert p.parsed['TER'][0].residue.resName=='VAL'
+    assert p.parsed['TER'][0].residue.chainID=='G'
+    assert p.parsed['TER'][0].residue.seqNum==505
+    assert p.parsed['TER'][0].residue.iCode==''
 
-
-
-
-
-
+    assert p.parsed['TER'][1].residue.resName=='ASP'
+    assert p.parsed['TER'][1].residue.chainID=='B'
+    assert p.parsed['TER'][1].residue.seqNum==664
+    assert p.parsed['TER'][1].residue.iCode==''
 
 def test_moldata():
     r=ResourceManager()

@@ -1,0 +1,54 @@
+record_types:
+  1: one-time-single-line
+  2: one-time-multiple-line
+  3: multiple-times-one-line
+  4: multiple-times-multiple-lines
+  5: grouping
+  6: other
+delimiters: # below are defaults; already hard-coded
+  CList: ","
+  SList: ";"
+  WList: " "
+custom_formats:
+  Residue10:
+    resName: [String,[1,3]]
+    chainID: [String,[5,5]]
+    seqNum:  [Integer,[6,9]]
+    iCode:   [String,[10,10]]
+  Residue11:
+    resName: [String,[1,3]]
+    chainID: [String,[5,5]]
+    seqNum:  [Integer,[7,10]]
+    iCode:   [String,[11,11]]
+record_formats:
+  MYREC1:
+    type: 3
+    fields:
+      cussword: [String,[8,11]]
+      residue: [Residue10,[13,22]]
+  MYREC2:
+    type: 3
+    fields:
+      cussword: [String,[8,11]]
+      residue: [Residue11,[13,23]]
+  SITE:
+    type: 4
+    fields:
+      seqNum: [Integer,[8,10]]
+      siteID: [String,[12,14]]
+      numRes: [Integer,[16,17]]
+      residue1: [Residue10,[19,28]]
+      residue2: [Residue10,[30,39]]
+      residue3: [Residue10,[41,50]]
+      residue4: [Residue10,[52,61]]
+    determinants:
+      - siteID
+      - numRes
+    concatenate:
+      residues:
+        - residue1
+        - residue2
+        - residue3
+        - residue4
+    continues:
+      - residues
