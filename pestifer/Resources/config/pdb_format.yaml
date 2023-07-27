@@ -34,6 +34,8 @@ record_formats:
       repDate: [String,[12,20]]
       idCode: [String,[22,25]]
       ridCodes: [WList,[32,75]]
+    continues:
+      - ridCodes
   TITLE:
     type: 2
     fields:
@@ -117,17 +119,23 @@ record_formats:
     fields:
       continuation: [String,[9,10]]
       authorList: [SList,[11,79]]
+    continues:
+      - authorList
   CAVEAT:
     type: 2
     fields:
       continuation: [String,[9,10]]
       idCode: [String,[12,15]]
       comment: [String,[20,79]]
+    continues:
+      - comment
   COMPND:
     type: 2
     fields:
       continuation: [String,[9,10]]
       compound: [SList,[11,80]]
+    continues:
+      - compound
     tokens:
       compound:
         MOL_ID: 
@@ -164,21 +172,29 @@ record_formats:
     fields:
       continuation: [String,[9,10]]
       technique: [SList,[11,79]]
+    continues:
+      - technique
   MDLTYP:
     type: 2
     fields: 
       continuation: [String,[9,10]]
       comment: [SList,[11,80]]
+    continues:
+      - comment
   KEYWDS:
     type: 2
     fields:
       continuation: [String,[9,10]]
       keywds: [CList,[11,79]]
+    continues:
+      - keywds
   SOURCE:
     type: 2
     fields:
       continuation: [String,[9,10]]
       srcName: [SList,[11,79]]
+    continues:
+      - srcName
     tokens:
       srcName:
         MOL_ID:
@@ -290,6 +306,8 @@ record_formats:
     fields: 
       continuation: [String,[9,10]]
       idCodes: [WList,[12,80]]
+    continues:
+      - idCodes
   SPRSDE:
     type: 2
     fields:
@@ -297,6 +315,8 @@ record_formats:
       sprsdeDate: [String,[12,20]]
       idCode: [String,[22,25]]
       sidCodes: [WList,[32,75]]
+    continues:
+      - sidCodes
   ANISOU:
     type: 3
     fields:
@@ -482,6 +502,8 @@ record_formats:
       records: [WList,[40,66]]
     allowed:
       modType: [0,1]
+    continues:
+      - records
   SEQADV:
     type: 3
     fields:
@@ -595,18 +617,22 @@ record_formats:
     type: 6
     fields:
       text: [String,[13,79]]
-    LStrings:
+    subrecords:
       text:
         key: [String,[13,16]]
-        subrecords:
+        subrecord_formats:
           AUTH:
             fields:
               continuation: [String,[17,18]]
               authorList: [CList,[20,79]]
+            continues:
+              - authorList
           TITL:
             fields:
               continuation: [String,[17,18]]
               title: [String,[20,79]]
+            continues:
+              - title
           REF:
             fields:
               continuation: [String,[17,18]]
@@ -615,10 +641,14 @@ record_formats:
               volume: [String,[52,55]]
               page: [String,[57,61]]
               year: [Integer,[63,66]]
+            continues:
+              - pubName
           PUBL:
             fields:
               continuation: [String,[17,18]]
               pub: [String,[20,70]]
+            continues:
+              - pub
           REFN:
             fields:
               issnORessn: [String,[36,39]]
@@ -648,16 +678,22 @@ record_formats:
             fields:
               continuation: [String,[17,18]]
               authorList: [CList,[20,79]]
+            continues:
+              - authorList
             associated_to: EFER
           TITL:
             fields:
               continuation: [String,[17,18]]
-              title: [String,[20.79]]
+              title: [String,[20,79]]
+            continues:
+              - title
             associated_to: EFER
           EDIT:
             fields:
               continuation: [String,[17,18]]
               editorList: [String,[20,79]]
+            continues:
+              - editorList
             associated_to: EFER
           REF:
             fields:
@@ -675,11 +711,15 @@ record_formats:
                   volume: [String,[52,55]]
                   page: [String,[57,61]]
                   year: [Integer,[63,66]]
+                continues:
+                  - pubName
             associated_to: EFER
           PUBL:
             fields:
               continuation: [String,[17,18]]
               pub: [String,[20,70]]
+            continues:
+              - pub
             associated_to: EFER
           REFN:
             fields:

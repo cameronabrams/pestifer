@@ -79,7 +79,6 @@ def test_parse():
     assert len(p.parsed['LINK'])==25
     assert not 'MODRES' in p.parsed
     assert len(p.parsed['REVDAT'])==6
-    print(p.parsed['REVDAT'][0].records)
     assert p.parsed['REVDAT'][0].records==['COMPND', 'REMARK', 'HETNAM', 'LINK', 'SITE', 'ATOM']
     assert len(p.parsed['SEQADV'])==10
     assert p.parsed['SEQADV'][0].residue.resName=='ASN'
@@ -116,6 +115,12 @@ def test_parse():
     assert p.parsed['TER'][1].residue.chainID=='B'
     assert p.parsed['TER'][1].residue.seqNum==664
     assert p.parsed['TER'][1].residue.iCode==''
+
+    for x in p.parsed['JRNL']:
+        print(str(x))
+    assert len(p.parsed['JRNL'].AUTH)==10
+
+    assert len(p.parsed['REMARK'])==649 # unparsed remarks
 
 def test_moldata():
     r=ResourceManager()

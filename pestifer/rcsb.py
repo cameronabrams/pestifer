@@ -81,6 +81,8 @@ class BaseRecord:
         for v in self.__dict__.values():
             isempty&=(v=='')
         return isempty
+    def __str__(self):
+        return ';'.join([f'{k}:[{v}]' for k,v in self.__dict__.items()])
 
 class PDBRecord(BaseRecord):
     @classmethod
@@ -135,6 +137,20 @@ class PDBRecord(BaseRecord):
                         if input_dict[f]:
                             input_dict[cfield].append(input_dict[f])
                         # del input_dict[f]
+            subrecords=record_format.get('subrecords',{})
+            for srf,srecfmtwkey in subrecords.items():
+                assert type(input_dict[srf])==str
+                typestring,byte_range=srecfmtwkey['key']
+                typ=typemap[typestring]
+                fieldstring=pdbrecord[byte_range[0]-1:byte_range[1]].strip()
+                key=typ(fieldstring)
+                srf=srecfmtwkey['subrecord_formats'][key]
+                print(key,srf.get('continues',[]))
+                if not key in input_dict:
+                    input_dict[key]=PDBRecord.new(pdbrecord,srf,typemap)
+                else:
+                    newrec=PDBRecord.new(pdbrecord,srf,typemap)
+                    input_dict[key].merge(newrec,srf)
             inst=cls(input_dict)
             return inst
         return None
@@ -185,7 +201,6 @@ class PDBRecord(BaseRecord):
                     current_parent_toknames[tokname]=ntokname
     def merge(self,other,record_format):
         continues=self.__dict__ if (not 'continues' in record_format or not record_format['continues']) else record_format['continues']
-        # print(kwargs)
         # print(continues)
         # print(self.__dict__)
         for cfield in continues:
@@ -210,6 +225,7 @@ class PDBParser:
     previous_key=None
     previous_record_format={}
     last_parsed_3=None
+    last_parsed_5=None
     # keys_encountered=[]
     parsed={}
     mappers={'Integer':int,'String':str,'Float':float}
@@ -315,13 +331,16 @@ class PDBParser:
             elif record_type==5:
                 if not key in self.parsed:
                     self.parsed[key]=[]
-                    self.last_parsed_3=None
-                parsed_record=PDBRecord.new(l,record_format,self.mappers,continue_on=self.last_parsed_3)
-                if parsed_record!=self.last_parsed_3:
+                    self.last_parsed_5=None
+                parsed_record=PDBRecord.new(l,record_format,self.mappers,continue_on=self.last_parsed_5)
+                if parsed_record!=self.last_parsed_5:
                     self.parsed[key].append(parsed_record)
-                self.last_parsed_3=self.parsed[key][-1]
+                self.last_parsed_5=self.parsed[key][-1]
             elif record_type==6:
-                pass
+                parsed_record=PDBRecord.new(l,record_format,self.mappers)
+                if not key in self.parsed:
+                    self.parsed[key]=[]
+                self.parsed[key].append(parsed_record)
             
 
 class MolData:
