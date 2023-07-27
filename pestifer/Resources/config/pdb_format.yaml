@@ -5,7 +5,7 @@ record_types:
   4: multiple-times-multiple-lines
   5: grouping
   6: other
-delimiters:
+delimiters: # below are defaults; already hard-coded
   CList: ","
   SList: ";"
   WList: " "
@@ -145,6 +145,9 @@ record_formats:
         OTHER_DETAILS: 
           type: String
           associated_to: MOL_ID
+        A_FAKE_TOKEN:
+          type: String
+          associated_to: MOL_ID
   EXPDTA:
     type: 2
     fields:
@@ -233,6 +236,9 @@ record_formats:
           type: String
           associated_to: MOL_ID
         EXPRESSION_SYSTEM_VARIANT:
+          type: String
+          associated_to: MOL_ID
+        EXPRESSION_SYSTEM_CELL:
           type: String
           associated_to: MOL_ID
         EXPRESSION_SYSTEM_CELL_LINE:
@@ -486,10 +492,7 @@ record_formats:
       modDate: [String,[14,22]]
       modId: [String,[24,27]]
       modType: [Integer,[32,32]]
-      record1: [String,[40,45]]
-      record2: [String,[47,52]]
-      record3: [String,[54,59]]
-      record4: [String,[61,66]]
+      records: [WList,[40,66]]
     allowed:
       modType: [0,1]
   SEQADV:
@@ -518,7 +521,7 @@ record_formats:
       endResName: [String,[29,31]]
       endChainID: [String,[33,33]]
       endSeqNum: [Integer,[34,37]]
-      endICode: [String,[38.38]]
+      endICode: [String,[38,38]]
       sense: [Integer,[39,40]]
       curAtom: [String,[42,45]]
       curResName: [String,[46,48]]

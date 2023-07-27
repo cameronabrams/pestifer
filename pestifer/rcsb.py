@@ -18,13 +18,24 @@ logger=logging.getLogger(__name__)
 
 BASE_URL='https://files.rcsb.org/download'
 
+class Listparser:
+    def __init__(self,d=','):
+        self.d=d
+    def parse(self,string):
+        if self.d==None:
+            return [x for x in string.split() if x.strip()!='']
+        else:
+            return [x.strip() for x in string.split(self.d) if x.strip()!='']
+    
+def list_parse(obj,d):
+    return obj(d).parse
 
-def PDB_List(arg,d=','):
-    return [x.strip() for x in arg.split(d)]
-
-def func(obj, param, param_values):
-    setattr(obj, param, param_values)
-    return obj
+ListParsers={
+    'CList':list_parse(Listparser,','),
+    'SList':list_parse(Listparser,';'),
+    'WList':list_parse(Listparser,None),
+    'DList':list_parse(Listparser,':')
+}
 
 class PDBRecord:
 
@@ -33,21 +44,44 @@ class PDBRecord:
 
     @classmethod
     def base_parse(cls,pdbrecord,record_format,typemap):
+        while len(pdbrecord)<80:
+            pdbrecord+=' '
         input_dict={}
         fields=record_format.get('fields',{})
+        allowed_values=record_format.get('allowed',{})
         for k,v in fields.items():
             typestring,byte_range=v
             typ=typemap[typestring]
+            assert byte_range[1]<=len(pdbrecord)
+            # using columns beginning with "1" not "0"
+            fieldstring=pdbrecord[byte_range[0]-1:byte_range[1]].strip()
             # print(typestring,typ)
-            input_dict[k]=typ(pdbrecord[byte_range[0]-1:byte_range[1]])
+            input_dict[k]='' if fieldstring=='' else typ(fieldstring)
             if typ==str:
                 input_dict[k]=input_dict[k].strip()
+            if typestring in allowed_values:
+                assert input_dict[k] in allowed_values[typestring]
         return input_dict
 
     @classmethod
-    def new(cls,pdbrecord,record_format,typemap):
+    def new(cls,pdbrecord,record_format,typemap,**kwargs):
         input_dict=cls.base_parse(pdbrecord,record_format,typemap)
         if input_dict:
+            continue_on=kwargs.get('continue_on',None)
+            if continue_on:
+                continuation=input_dict.get('continuation','')
+                if continuation!='':
+                    # this is a continuation record
+                    for attr in continue_on.__dict__.keys():
+                        cont_attr=input_dict.get(attr,'')
+                        if cont_attr!='':
+                            if type(continue_on.__dict__[attr])!=list:
+                                continue_on.__dict__[attr]=[continue_on.__dict__[attr]]
+                            if type(cont_attr)==list:
+                                continue_on.__dict__[attr].extend(cont_attr)
+                            else:
+                                continue_on.__dict__[attr].append(cont_attr)
+                    return continue_on
             inst=cls(input_dict)
             return inst
         return None
@@ -60,18 +94,54 @@ class PDBRecord:
             logging.fatal(f'A type-2 pdb record must have a continuation field')
         input_dict=PDBRecord.base_parse(pdbrecord,record_format,typemap)
         for k in input_dict.keys():
-            if not type(self.__dict__[k])==list:
-                self.__dict__[k]=[self.__dict__[k],input_dict[k]]
+            # just add to the end of the string
+            if type(self.__dict__[k])==str:
+                self.__dict__[k]+=' '+input_dict[k]
             else:
-                self.__dict__[k].append(input_dict[k])
+                if not type(self.__dict__[k])==list:
+                    self.__dict__[k]=[self.__dict__[k]]
+                if type(input_dict[k])==list:
+                    self.__dict__[k].extend(input_dict[k])
+                else:
+                    self.__dict__[k].append(input_dict[k])
 
+    def parse_tokens(self,record_format,typemap):
+        if not 'tokens' in record_format:
+            return
+        attr_w_tokens=record_format['tokens']
+        # print(attr_w_tokens)
+        self.tokens={}
+        current_parent_toknames={}
+        for a in attr_w_tokens.keys():
+            obj=self.__dict__[a] # expect to be a list
+            assert type(obj)==list
+            self.tokens[a]={}
+            tdict=attr_w_tokens[a]
+            for pt in self.__dict__[a]:
+                toks=[x.strip() for x in pt.split(':')]
+                assert len(toks)==2,f'Malformed token string {pt}'
+                tokname,tokvalue=[x.strip() for x in pt.split(':')]
+                assert tokname in tdict.keys(),f'Unrecognized token {tokname}'
+                typ=typemap[tdict[tokname]['type']]
+                if 'associated_to' in tdict[tokname]:
+                    parent_tokname=tdict[tokname]['associated_to']
+                    asstokname=current_parent_toknames[parent_tokname]
+                    self.tokens[a][asstokname][tokname]=typ(tokvalue)
 
+                else:
+                    tokvalue=typ(tokvalue)
+                    ntokname=f'{tokname}.{tokvalue}'
+                    self.tokens[a][ntokname]={}
+                    current_parent_toknames[tokname]=ntokname
 
 class PDBParser:
     previous_key=None
+    previous_record_format={}
+    last_parsed_3=None
     # keys_encountered=[]
     parsed={}
-    mappers={'Integer':int,'String':str,'Float':float,'List':PDB_List}
+    mappers={'Integer':int,'String':str,'Float':float}
+    mappers.update(ListParsers)
     def __init__(self,**options):
         self.pdb_code=options.get('PDBcode','')
         self.overwrite=options.get('overwrite',False)
@@ -83,7 +153,7 @@ class PDBParser:
                 self.pdb_format_dict=yaml.safe_load(f)
         for map,d in self.pdb_format_dict['delimiters'].items():
             if not map in self.mappers:
-                self.mappers[map]=func(PDB_List,'d',d)
+                self.mappers[map]=Listparser(d).parse
         # print(self.mappers)
     # def get_record_format(self,key):
     #     for rf in self.pdb_format_dict['record_formats']:
@@ -126,9 +196,23 @@ class PDBParser:
             elif record_type==2:
                 if key!=self.previous_key:
                     self.parsed[key]=PDBRecord.new(l,record_format,self.mappers)
+                    if self.previous_key:
+                        # print(self.previous_key)
+                        self.parsed[self.previous_key].parse_tokens(self.previous_record_format,self.mappers)
                     self.previous_key=key
+                    self.previous_record_format=record_format
                 else:
                     self.parsed[key].update_2(l,record_format,self.mappers)
+            elif record_type==3:
+                if not key in self.parsed:
+                    self.parsed[key]=[]
+                    self.last_parsed_3=None
+                parsed_record=PDBRecord.new(l,record_format,self.mappers,continue_on=self.last_parsed_3)
+                if parsed_record==self.last_parsed_3:
+                    pass
+                else:
+                    self.parsed[key].append(parsed_record)
+                self.last_parsed_3=self.parsed[key][-1]
             
 
 class MolData:

@@ -1,7 +1,9 @@
 HEADER    VIRAL PROTEIN                           04-MAY-15   4ZMJ              
-TITLE     CRYSTAL STRUCTURE OF LIGAND-FREE BG505 SOSIP.664 HIV-1 ENV TRIMER     
+TITLE     CRYSTAL STRUCTURE OF LIGAND-FREE BG505 SOSIP.664 HIV-1 ENV TRIMER
+TITLE    2 THIS IS A FAKE EXTRA LINE 
+TITLE    3 THIS IS ANOTHER FAKE EXTRA LINE     
 COMPND    MOL_ID: 1;                                                            
-COMPND   2 MOLECULE: ENVELOPE GLYCOPROTEIN GP160;                               
+COMPND   2 MOLECULE: ENVELOPE GLYCOPROTEIN GP160; A_FAKE_TOKEN: A_FAKE_VALUE              
 COMPND   3 CHAIN: G;                                                            
 COMPND   4 ENGINEERED: YES;                                                     
 COMPND   5 MUTATION: YES;                                                       
