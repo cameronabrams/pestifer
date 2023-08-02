@@ -1,3 +1,5 @@
+# Every construct below is exposed in a dictionary Config.defs via
+# ConfigGetParam(label)
 StdCharmmTopo:
   - top_all36_prot.rtf
   - top_all35_ethers.rtf

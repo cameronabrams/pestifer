@@ -11,62 +11,83 @@ import os
 import platform
 import glob
 from pathlib import Path
-# import importlib.resources as pkg_resources
 logger=logging.getLogger(__name__)
+
 from pestifer import Resources # subpackage data
-# print(pkg_resources.files(Resources))
 
 excludes=['__pycache__','__init__.py']
 
 class ResourceManager:
-    # def __init__(ResourceManager):
-    # fullname=Resources.__file__
-    ResourcesRoot=os.path.dirname(Resources.__file__)
-    ResourceFullPaths=glob.glob(ResourcesRoot+'/*')
-    ResourcePaths={}
-    for l in ResourceFullPaths:
-        bn=os.path.basename(l)
-        if not bn in excludes:
-            ResourcePaths[bn]=l
-    System={}
-    System['platform']=platform.system()
-    if System['platform']=='Linux':
-        System['user_home']=os.environ['HOME']
-    elif System['platform']=='Windows':
-        System['user_home']=os.environ['HOMEPATH']
-    elif System['platform']=='Darwin':
-        System['user_home']=os.environ['HOME']
-    else:
-        raise(Exception,f'platform {System["platform"]} not recognized')
-    @classmethod
-    def ApplyUserOptions(ResourceManager,useroptions):
-        ResourceManager.system_charmmdir=useroptions.get('CHARMMDIR',None)
-        # print(ResourceManager.system_charmmdir)
-        if not os.path.isdir(ResourceManager.system_charmmdir):
-            logger.warning(f'Your configuration indicates the charmm force-field files are located in {ResourceManager.system_charmmdir}, but this directory is not found.')
-        charmm_toppardir=os.path.join(ResourceManager.system_charmmdir,'toppar')
-        ResourceManager.system_charmm_toppardir=None
-        if os.path.isdir(charmm_toppardir):
-            ResourceManager.system_charmm_toppardir=charmm_toppardir
+    def __init__(self):
+        self.Root=os.path.dirname(Resources.__file__)
+
+    def setup(self):
+        ResourceFullPaths=glob.glob(self.Root+'/*')
+        self.ResourcePaths={}
+        for l in ResourceFullPaths:
+            bn=os.path.basename(l)
+            if not bn in excludes:
+                self.ResourcePaths[bn]=l
+        self.Platform=platform.system()
+        if self.Platform=='Linux':
+            self.UserHome=os.environ['HOME']
+        elif self.Platform=='Windows':
+            self.UserHome=os.environ['HOMEPATH']
+        elif self.Platform=='Darwin':
+            self.UserHome=os.environ['HOME']
         else:
-            logger.warning(f'No directory "toppar/" detected in {ResourceManager.system_charmmdir}')
+            raise(Exception,f'platform {self.Platform} not recognized')
 
-        ResourceManager.namd2=useroptions.get('NAMD2',None)
-        if not os.path.isfile(ResourceManager.namd2):
-            logger.warning(f'{ResourceManager.namd2}: Not found.')
-        ResourceManager.charmrun=useroptions.get('CHARMRUN',None)
-        if not os.path.isfile(ResourceManager.charmrun):
-            logger.warning(f'{ResourceManager.charmrun}: Not found.')        
-        ResourceManager.vmd=useroptions.get('VMD',None)
-        if not os.path.isfile(ResourceManager.vmd):
-            logger.warning(f'{ResourceManager.vmd}: Not found.')
+    def ApplyUserOptions(self,useroptions):
+        self.system_charmmdir=useroptions.get('CHARMMDIR','')
+        # print(self.system_charmmdir)
+        if not os.path.isdir(self.system_charmmdir):
+            logger.warning(f'Your configuration indicates the charmm force-field files are located in {self.system_charmmdir}, but this directory is not found.')
+        charmm_toppardir=os.path.join(self.system_charmmdir,'toppar')
+        self.system_charmm_toppardir=None
+        if os.path.isdir(charmm_toppardir):
+            self.system_charmm_toppardir=charmm_toppardir
+        else:
+            logger.warning(f'No directory "toppar/" detected in {self.system_charmmdir}')
 
-    def __str__():
-        msg=f'Resources root is "{ResourceManager.ResourcesRoot}"\n'
-        for k,v in ResourceManager.ResourcePaths.items():
+        self.namd2=useroptions.get('NAMD2','')
+        if not os.path.isfile(self.namd2):
+            logger.warning(f'{self.namd2}: Not found.')
+        self.charmrun=useroptions.get('CHARMRUN','')
+        if not os.path.isfile(self.charmrun):
+            logger.warning(f'{self.charmrun}: Not found.')        
+        self.vmd=useroptions.get('VMD','')
+        if not os.path.isfile(self.vmd):
+            logger.warning(f'{self.vmd}: Not found.')
+
+    def __str__(self):
+        msg=f'Resources root is "{self.Root}"\n'
+        for k,v in self.ResourcePaths.items():
             msg+=f'    {k:>20s}: {v}'
-        msg+=f'System-wide CHARMM force-field files at {ResourceManager.system_charmm_toppardir}'
-        msg+=f'CHARMRUN at {ResourceManager.charmrun}'
-        msg+=f'NAMD2 at {ResourceManager.namd2}'
-        msg+=f'VMD at {ResourceManager.vmd}'
+        msg+=f'System-wide CHARMM force-field files at {self.system_charmm_toppardir}'
+        msg+=f'CHARMRUN at {self.charmrun}'
+        msg+=f'NAMD2 at {self.namd2}'
+        msg+=f'VMD at {self.vmd}'
         return msg
+
+TheResourceManager=ResourceManager()
+
+def ResourcesSetup():
+    TheResourceManager.setup()
+    return TheResourceManager
+
+def ResourcesApplyUserOptions(useroptions):
+    TheResourceManager.ApplyUserOptions(useroptions)
+    return TheResourceManager
+
+def ResourcesGet(attr):
+    return TheResourceManager.__dict__.get(attr,None)
+
+def ResourcesGetPath(key):
+    return TheResourceManager.ResourcePaths.get(key,None)
+
+import yaml
+def ResourcesInfo():
+    msg='# YAML dump of ResourceManager\n'
+    msg+=yaml.dump(TheResourceManager.__dict__)
+    return msg

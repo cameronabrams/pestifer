@@ -9,30 +9,28 @@
 
 import unittest
 
-from pestifer.resourcemanager import ResourceManager as RM
-from pestifer.resourcemanager import excludes
-from pestifer import Resources
+from pestifer.resourcemanager import ResourceManager, ResourcesSetup, ResourcesApplyUserOptions, ResourcesGet, ResourcesInfo
+
 import os
-import glob
+import platform
 
 class ResourceManagerTest(unittest.TestCase):
     def test_RM2(self):
-        self.assertEqual(RM.ResourcesRoot,os.path.dirname(Resources.__file__))
-    def test_RM3(self):
-        m=glob.glob(os.path.dirname(Resources.__file__)+'/*')
-        self.assertEqual(RM.ResourceFullPaths,m)
-    def test_RM4(self):
-        config_path=[x for x in RM.ResourceFullPaths if 'config' in x][0]
-        self.assertEqual(RM.ResourcePaths['config'],config_path)
-    def test_RM5(self):
-        self.assertEqual(len(RM.ResourceDirs),2)
-    def test_RM5(self):
-        self.assertTrue('platform' in RM.System)
-        self.assertTrue('user_home' in RM.System)
-    # def setUp(self):
-    #     self.expected_subdirs=['bash','charmm','config','tcl','templates']
-    #     self.expected_tcl_lib='tcl/modules/lib/bondstruct.so'
-
+        user_options={
+            'CHARMMDIR':'/home/cfa/charmm',
+            'CHARMRUN':'/usr/local/bin/charmrun',
+            'NAMD2':'/usr/local/bin/namd2',
+            'VMD':'/usr/local/bin/vmd',
+        }
+        c=ResourcesSetup()
+        ResourcesApplyUserOptions(user_options)
+        self.assertTrue(type(c)==ResourceManager)
+        namd2=ResourcesGet('namd2')
+        self.assertEqual(namd2,user_options['NAMD2'])
+        plat=ResourcesGet('Platform')
+        self.assertEqual(plat,platform.system())
+        # print(ResourcesInfo())
+        # self.assertTrue(False)
     # def test_libraries(self):
     #     """test_libraries test to see if installed resources has the expected top-level 
     #     subdirectories

@@ -10,22 +10,24 @@ import logging
 logger=logging.getLogger(__name__)
 from .command import Command
 import os
-from .resourcemanager import ResourceManager as RM
+from .config import Config
+from .resourcemanager import ResourcesGetPath as RGP
+from .resourcemanager import ResourcesGet as RG
 from .molecule import Molecule
 
 class Psfgen:
     def __init__(self,**options):
         self.script_name=options.get('psfgen_script_name','my_mkpsf.tcl')
         self.script=['#### BEGIN HEADER ####']
-        self.script.append(f'source {RM.resource_paths["tcl"]}/modules/src/loopmc.tcl')
-        self.script.append(f'source {RM.resource_paths["tcl"]}/vmdrc.tcl')
+        self.script.append(f'source {RGP("tcl")}/modules/src/loopmc.tcl')
+        self.script.append(f'source {RGP("tcl")}/vmdrc.tcl')
         self.script.append('package require psfgen')
         self.script.append('psfcontxt mixedcase')
         for t in options['StdCharmmTopo']:
-            ft=os.path.join(RM.system_charmm_toppardir,t)
+            ft=os.path.join(RG('system_charmm_toppardir'),t)
             self.script.append(f'topology {ft}')
         for lt in options['LocalCharmmTopo']:
-            ft=os.path.join(RM.resource_paths['charmm'],lt)
+            ft=os.path.join(RG('charmm'),lt)
             self.script.append(f'topology {ft}')
         for pdba in options['PDBAliases']:
             self.script.append(pdba)

@@ -10,7 +10,7 @@ from pidibble.pdbparse import PDBParser
 from .mods import *
 from .chain import Chain
 from .residue import Residue,ResidueList
-from .config import Config
+from .config import ConfigGetParam
 
 class Molecule:
     _molcounter=0
@@ -50,7 +50,7 @@ class Molecule:
         self._MakeChains()
 
     def _MakeResidues(self):
-        segtype_by_resname=Config.defs['Segtypes_by_Resnames']
+        segtype_by_resname=ConfigGetParam('Segtypes_by_Resnames')
         ''' make residues from atoms '''
         R=[]
         a=self.Atoms[0]

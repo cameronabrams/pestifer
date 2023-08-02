@@ -1,13 +1,12 @@
 import unittest
 from pestifer.molecule import Molecule
-from pestifer.config import Config
+from pestifer.config import ConfigSetup
 from pestifer.resourcemanager import ResourceManager
 class TestMolecule(unittest.TestCase):
     def setUp(self):
         return super().setUp()
     def test_molecule(self):
-        self.resman=ResourceManager()
-        self.config=Config('',self.resman)
+        self.config=ConfigSetup('')
         m=Molecule.from_rcsb(pdb_code='1gc1')
         self.assertEqual(m.pdb_code,'1gc1')
         self.assertEqual(len(m.Atoms),7877)
@@ -25,3 +24,7 @@ class TestMolecule(unittest.TestCase):
         self.assertEqual(len(glycanres),15)
         g0=glycanres[0]
         self.assertEqual(g0.name,'NAG')
+    def test_chains(self):
+        self.config=ConfigSetup('')
+        m=Molecule.from_rcsb(pdb_code='4tvp')
+        self.assertEqual(len(m.Chains),8)

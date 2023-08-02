@@ -2,7 +2,7 @@ import operator
 # from pestifer.segment import Segment, _seg_typedict_byresname_, _segname_second_character_
 from pestifer.mods import CloneableMod
 from pestifer.residue import ResidueList
-from pestifer.config import Config
+from pestifer.config import ConfigGetParam
 
 class Chain(CloneableMod):
     req_attr=['chainID']
@@ -14,7 +14,7 @@ class Chain(CloneableMod):
         super().__init__(input_dict)
         self.residues=ResidueList([])
         self.Segments=[]
-        self.subCounter={k:0 for k in Config.defs['Segname_chars'].keys()}
+        self.subCounter={k:0 for k in ConfigGetParam('Segname_chars').keys()}
         self.parent_molecule=parent_molecule
 
     @classmethod
@@ -71,7 +71,7 @@ class Chain(CloneableMod):
         ''' group residues by connectivity '''
         owners=[]
         for i,r in enumerate(self.residues):
-            if Config.defs['Segtypes_by_Resnames'][r.name]=='PROTEIN' and len(r.down)>0:
+            if ConfigGetParam('Segtypes_by_Resnames')[r.name]=='PROTEIN' and len(r.down)>0:
                 owners.append([r,i])
         for oi in owners:
             o,i=oi

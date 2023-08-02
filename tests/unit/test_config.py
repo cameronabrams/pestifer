@@ -11,8 +11,8 @@ import unittest
 import platform
 import os
 import pytest
-from pestifer.config import Config, replace
-from pestifer.resourcemanager import ResourceManager
+from pestifer.config import ConfigSetup, replace, ConfigGetParam
+from pestifer.resourcemanager import ResourcesGet
 
 class A:
     d={}
@@ -71,14 +71,14 @@ class ConfigTest(unittest.TestCase):
             replace(self.starting_dict,s,r)
         self.assertEqual(self.starting_dict,self.expected_dict)
     def test_config(self):
-        c=Config(self.userinputs)
-        d=c.user_data
+        c=ConfigSetup(self.userinputs)
+        d=c.defs
         expected_charmmdir=os.path.join(self.user_home,'my_charmm')
         self.assertEqual(d['CHARMMDIR'],expected_charmmdir)
 
     def test_modreads(self):
-        c=Config(self.userinputs)
-        d=c.user_data
+        c=ConfigSetup(self.userinputs)
+        d=c.defs
         expected_results={
             'Query':'All good!',
             'AnotherQuery':'Yep still good',
@@ -94,14 +94,32 @@ class ConfigTest(unittest.TestCase):
                 test_results.update(step['mods'])
         self.assertDictEqual(test_results,expected_results)
     def test_resids(self):
-        c=Config(self.userinputs)
-        d=Config.defs
+        c=ConfigSetup(self.userinputs)
+        d=c.defs
         self.assertEqual(d['PDB_1char_to_3char_Resnames']['S'],'SER')
         self.assertEqual(d['PDB_to_CHARMM_Resnames']['NAG'],'BGNA')
     def test_seqtypes(self):
-        c=Config(self.userinputs)
-        d=Config.defs
+        c=ConfigSetup(self.userinputs)
+        d=c.defs
         self.assertEqual(d['Segtypes_by_Resnames']['HOH'],'WATER')
         self.assertEqual(d['Segtypes_by_Resnames']['NAG'],'GLYCAN')
         self.assertEqual(d['Segtypes_by_Resnames']['BGNA'],'GLYCAN')
         self.assertEqual(d['Segtypes_by_Resnames']['PRO'],'PROTEIN')
+    def test_resources(self):
+        c=ConfigSetup(self.userinputs)
+        namd2=ResourcesGet('namd2')
+        self.assertEqual(namd2,c.defs['NAMD2'])
+        plat=ResourcesGet('Platform')
+        self.assertEqual(plat,platform.system())
+
+    def test_globality(self):
+        c=ConfigSetup(self.userinputs)
+        p=ConfigGetParam('BuildSteps')
+        self.assertTrue(type(p)==list)
+        self.assertEqual(len(p),3)
+        p=ConfigGetParam('CHARMM_to_PDB_Resnames')
+        self.assertTrue(type(p)==dict)
+        self.assertEqual(p['AFUC'],'FUC')
+        p=ConfigGetParam('PDB_to_CHARMM_Resnames')
+        self.assertTrue(type(p)==dict)
+        self.assertEqual(p['FUC'],'AFUC')
