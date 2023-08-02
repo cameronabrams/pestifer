@@ -12,7 +12,21 @@ import platform
 import os
 import pytest
 from pestifer.config import Config, replace
-from pestifer.resources import ResourceManager
+from pestifer.resourcemanager import ResourceManager
+
+class A:
+    d={}
+    def __init__(self,idict,**cdict):
+        self.d=idict
+        self.d.update(**cdict)
+        A.d.update(**cdict)
+
+class ClassTest(unittest.TestCase):
+    def test_1(self):
+        a=A({'a':1,'b':2},c=3,d=4)
+        self.assertEqual(A.d['c'],3)
+        b=A({},c=6)
+        self.assertEqual(A.d['c'],6)
 
 class ConfigTest(unittest.TestCase):
     def setUp(self):
@@ -34,15 +48,7 @@ class ConfigTest(unittest.TestCase):
             'NestyMcNestface':{'level1':{'level2':{'ALIST':'$(VAR6)'}},'level1-str':'$(VAR5)'},
             'SearchReplace': '$(VAR7)!!!'
         }
-        self.replacements={
-            'VARIABLE1':'SomeIntegers',
-            'VARIABLE3':3,
-            'VARIABLE2':'word',
-            'VARIABLE4':0.99,
-            'VAR5':'A string',
-            'VAR6': ['this','is','a','list'],
-            'VAR7': 'replaced'
-        }
+
         self.expected_dict={
             'SomeIntegers':[1,2,3],
             'SomeWords':{'subdata':['word','hello']},
@@ -52,20 +58,27 @@ class ConfigTest(unittest.TestCase):
         }
     def test_replace(self):
         # print('test_replace here',os.getcwd())
-        for s,r in self.replacements.items():
+        replacements={
+            'VARIABLE1':'SomeIntegers',
+            'VARIABLE3':3,
+            'VARIABLE2':'word',
+            'VARIABLE4':0.99,
+            'VAR5':'A string',
+            'VAR6': ['this','is','a','list'],
+            'VAR7': 'replaced'
+        }
+        for s,r in replacements.items():
             replace(self.starting_dict,s,r)
         self.assertEqual(self.starting_dict,self.expected_dict)
     def test_config(self):
-        r=ResourceManager()
-        c=Config(self.userinputs,r)
-        d=c.data
+        c=Config(self.userinputs)
+        d=c.user_data
         expected_charmmdir=os.path.join(self.user_home,'my_charmm')
         self.assertEqual(d['CHARMMDIR'],expected_charmmdir)
 
     def test_modreads(self):
-        r=ResourceManager()
-        c=Config(self.userinputs,r)
-        d=c.data
+        c=Config(self.userinputs)
+        d=c.user_data
         expected_results={
             'Query':'All good!',
             'AnotherQuery':'Yep still good',
@@ -81,15 +94,13 @@ class ConfigTest(unittest.TestCase):
                 test_results.update(step['mods'])
         self.assertDictEqual(test_results,expected_results)
     def test_resids(self):
-        r=ResourceManager()
-        c=Config(self.userinputs,r)
-        d=c.data
+        c=Config(self.userinputs)
+        d=Config.defs
         self.assertEqual(d['PDB_1char_to_3char_Resnames']['S'],'SER')
         self.assertEqual(d['PDB_to_CHARMM_Resnames']['NAG'],'BGNA')
     def test_seqtypes(self):
-        r=ResourceManager()
-        c=Config(self.userinputs,r)
-        d=c.data
+        c=Config(self.userinputs)
+        d=Config.defs
         self.assertEqual(d['Segtypes_by_Resnames']['HOH'],'WATER')
         self.assertEqual(d['Segtypes_by_Resnames']['NAG'],'GLYCAN')
         self.assertEqual(d['Segtypes_by_Resnames']['BGNA'],'GLYCAN')

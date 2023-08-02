@@ -111,9 +111,17 @@ PDB_Ligands:
   - EIC
   - VCG
 
-psfgen_script_name: mkpsf.tcl
+Segname_chars:
+  PROTEIN: ''
+  ION: I
+  WATER: W
+  GLYCAN: G
+  LIGAND: L
+  OTHER: O
 
-NAMD2: /usr/local/bin/namd2
-VMD: /usr/local/bin/vmd
-CHARMRUN: /usr/local/bin/charmrun
-CHARMMDIR: $(HOME)/charmm
+User_defaults:
+  psfgen_script_name: mkpsf.tcl
+  NAMD2: /usr/local/bin/namd2
+  VMD: /usr/local/bin/vmd
+  CHARMRUN: /usr/local/bin/charmrun
+  CHARMMDIR: $(HOME)/charmm

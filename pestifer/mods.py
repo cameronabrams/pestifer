@@ -15,63 +15,9 @@
 # from pestifer.deletion import Deletion
 # from pestifer.cleavage import Cleavage
 # from pestifer.missing import Missing
-import yaml
-# from .seqadv import Seqadv
-class BaseMod:
-    # list of required attribute labels
-    req_attr=[]
-    # list of optional attribute labels
-    opt_attr=[]
-    # list of 2-tuples of attribute labels for mutually exclusive attributes
-    alt_attr=[]
-    # dictionary of lists of value choices for any attribute, keyed on attribute label
-    attr_choices={}
-    # dictionary of lists of labels of attributes that are required if the optional attributes whose labels key this dictionary are present 
-    opt_attr_deps={}
-    def __init__(self,input_dict={}):
-        # mutually exclusive attribute labels should not appear in the list of required attributes
-        assert all([(not x in self.req_attr and not y in self.req_attr) for x,y in self.alt_attr]),"Mutually exclusive attributes should not appear in the required list"
-        for k,v in input_dict.items():
-            if k in self.req_attr or k in self.opt_attr:
-                self.__dict__[k]=v
-        # all required attributes have values
-        assert all([att in self.__dict__.keys() for att in self.req_attr]),f"Not all required attributes have values {self.__dict__}"
-        # all mutual-exclusivity requirements are met
-        assert all([
-            ((x[0] in self.__dict__.keys() and not x[1] in self.__dict__.keys()) or 
-             (x[1] in self.__dict__.keys() and not x[0] in self.__dict__.keys()) or not (x[0] in self.__dict__.keys() or x[1] in self.__dict__.keys()))
-            for x in self.alt_attr]),"Mutual exclusivity requirements unmet"
-        # all attributes with limited set of possible values have valid values
-        assert all([self.__dict__[x] in choices for x,choices in self.attr_choices.items()]),"Invalid choices in one or more attributes"
-        # for each optional attribute present, all required dependent attributes are also present
-        for oa,dp in self.opt_attr_deps.items():
-            if oa in self.__dict__.keys():
-                assert all([x in self.__dict__.keys() for x in dp]),"Dependent required attributes of optional attributes not present"
-    def __eq__(self,other):
-        test_list=[self.__dict__[k]==other.__dict__[k] for k in self.req_attr]
-        for k in self.opt_attr:
-            if k in self.__dict__ and k in other.__dict__:
-                test_list.append(self.__dict__[k]==other.__dict__[k])
-        return all(test_list)
-    def dump(self):
-        retdict={}
-        retdict['instanceOf']=type(self).__name__
-        retdict.update(self.__dict__)
-        return yaml.dump(retdict)
-    def inlist(self,a_list):
-        for s in a_list:
-            if s==self:
-                return True
-        return False
+from pidibble.pdbrecord import PDBRecord
+from .basemod import CloneableMod,ModList,CloneableModList
 
-class CloneableMod(BaseMod):
-    @classmethod
-    def clone(cls,inst,**options):
-        input_dict={k:v for k,v in inst.__dict__.items() if k in inst.req_attr}
-        input_dict.update({k:v for k,v in inst.__dict__.items() if k in inst.opt_attr})
-        input_dict.update(options)
-        return cls(input_dict)
-    
 class Seqadv(CloneableMod):
     req_attr=['idCode','resname','chainID','resseqnum','insertion']
     opt_attr=['database','dbAccession','dbRes','dbSeq','conflict']
@@ -79,31 +25,50 @@ class Seqadv(CloneableMod):
     PDB_keyword='SEQADV'
 
     @classmethod
-    def from_pdbrecord(cls,pdbrecord):
-        dbseqraw=pdbrecord[43:48].strip()
+    def from_pdbrecord(cls,pdbrecord:PDBRecord):
+        """from_pdbrecord generates a CloneableMod Seqadv from a SEQADV PDBRecord
+
+        :param pdbrecord: a SEQADV PDBRecord
+        :type pdbrecord: PDBRecord
+        :return: a Seqadv CloneableMod
+        :rtype: Seqadv
+
+        SEQADV
+              idCode: 1GC1
+             residue: resName: GLY; chainID: G; seqNum: 79; iCode: 
+            database: UNP
+         dbAccession: P04578
+               dbRes: 
+               dbSeq: 
+            conflict: EXPRESSION TAG
+
+        """
         input_dict={
-            'idCode':pdbrecord[7:11],
-            'resname':pdbrecord[12:15].strip(),
-            'chainID':pdbrecord[16:17],
-            'resseqnum':int(pdbrecord[18:22]),
-            'insertion':pdbrecord[22:23],
-            'database':pdbrecord[24:28],
-            'dbAccession':pdbrecord[29:38],
-            'dbRes':pdbrecord[39:42].strip(),
-            'dbSeq':int(dbseqraw) if dbseqraw.isdigit() else -1,
-            'conflict':pdbrecord[49:70].strip()
+            'idCode':pdbrecord.idCode,
+            'resname':pdbrecord.residue.resName,
+            'chainID':pdbrecord.residue.chainID,
+            'resseqnum':pdbrecord.residue.seqNum,
+            'insertion':pdbrecord.residue.iCode,
+            'database':pdbrecord.database,
+            'dbAccession':pdbrecord.dbAccession,
+            'dbRes':pdbrecord.dbRes,
+            'dbSeq':pdbrecord.dbSeq,
+            'conflict':pdbrecord.conflict
         }
         inst=cls(input_dict)
         return inst
     def pdb_line(self):
         return f'SEQADV {self.idCode:3s} {self.resname:>3s} {self.chainID:1s} {self.resseqnum:>4d}{self.insertion:1s} {self.database:>4s} {self.dbAccession:9s} {self.dbRes:3s} {self.dbSeq:>5d} {self.conflict:21s}          '
-    
+
+class SeqAdvList(CloneableModList):
+    pass
+
 class Mutation(CloneableMod):
     req_attr=['chainID','origresname','newresname']
     opt_attr=['resseqnum','resseqnumi','insertion']
     yaml_header='Mutations'
     @classmethod
-    def from_seqdav(cls,sq:Seqadv):
+    def from_seqadv(cls,sq:Seqadv):
         if not 'MUTATION' in sq.conflict:
             return None
         input_dict={}
@@ -140,20 +105,23 @@ class Mutation(CloneableMod):
          lines=['    mutate {self.resseqnumi} {self.newresname}']
          return lines
 
+class MutationList(CloneableModList):
+    pass
+
 class Missing(CloneableMod):
     req_attr=['resname','resseqnum','insertion','chainID']
     opt_attr=['model']
     yaml_header='Missing'
-    PDB_keyword='REMARK,465'
+    PDB_keyword='REMARK.465'
 
     @classmethod
-    def from_pdbrecord(cls,pdbrecord):
+    def from_pdbrecord(cls,pdbrecord:PDBRecord):
         input_dict={
-            'model':pdbrecord[13:14].strip(),
-            'resname':pdbrecord[15:18].strip(),
-            'chainID':pdbrecord[19:20],
-            'resseqnum':int(pdbrecord[21:26]),
-            'insertion':pdbrecord[26:27]
+            'model':pdbrecord.modelNum,
+            'resname':pdbrecord.resName,
+            'chainID':pdbrecord.chainID,
+            'resseqnum':pdbrecord.seqNum,
+            'insertion':pdbrecord.iCode
         }
         inst=cls(input_dict)
         return inst
@@ -161,8 +129,13 @@ class Missing(CloneableMod):
     @classmethod
     def from_cifdict(cls,cifdict):
         ic=cifdict['pdb_ins_code']
+        mn=cifdict['pdb_model_num']
+        if type(mn)==str and mn.isdigit:
+            nmn=int(mn)
+        else:
+            nmn=0
         input_dict={
-            'model':int(cifdict['pdb_model_num']),
+            'model':nmn,
             'resname':cifdict['auth_comp_id'],
             'chainID':cifdict['auth_asym_id'],
             'resseqnum':int(cifdict['auth_seq_id']),
@@ -172,11 +145,15 @@ class Missing(CloneableMod):
         return inst
 
     def pdb_line(self):
-        return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>5d}{:1s}'.format(self.record_name,
-        self.code,self.rawmodel,self.rawresname,self.chainID,self.resseqnum,self.insertion)
+        record_name,code=Missing.PDB_keyword.split(',')
+        return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>5d}{:1s}'.format(record_name,
+        code,self.model,self.resname,self.chainID,self.resseqnum,self.insertion)
 
     def psfgen_lines(self):
         return ['     residue {} {}{} {}'.format(self.resname,self.resseqnum,self.insertion,self.chainID)]
+
+class MissingList(CloneableModList):
+    pass
 
 class Crot(CloneableMod):
     req_attr=['angle','degrees']
@@ -325,31 +302,33 @@ class Crot(CloneableMod):
                 '$rotsel move [trans center $rj origin $rj axis $cijk {} degrees]'.format(self.degrees)
             ])
         return retlines
-    
+
+class CrotList(CloneableModList):
+    pass
+
 class Atom(CloneableMod):
-    req_attr=['recordname','serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
+    req_attr=['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
     opt_attr=['segname','empty','link']
     yaml_header='Atoms'
     PDB_keyword='ATOM'
 
     @classmethod
-    def from_pdbrecord(cls,pdbrecord):
+    def from_pdbrecord(cls,pdbrecord:PDBRecord):
         input_dict={
-            'recordname':pdbrecord[:6],
-            'serial':int(pdbrecord[6:11]),
-            'name':pdbrecord[12:16].strip(),
-            'altloc':pdbrecord[16:17],
-            'resname':pdbrecord[17:21].strip(),
-            'chainID':pdbrecord[21:22],
-            'resseqnum':int(pdbrecord[22:26]),
-            'insertion':pdbrecord[26:27],
-            'x':float(pdbrecord[30:38]),
-            'y':float(pdbrecord[38:46]),
-            'z':float(pdbrecord[46:54]),
-            'occ':float(pdbrecord[54:60]),
-            'beta':float(pdbrecord[60:66]),
-            'elem':pdbrecord[76:78].strip(),
-            'charge':pdbrecord[78:80].strip()
+            'serial':pdbrecord.serial,
+            'name':pdbrecord.name,
+            'altloc':pdbrecord.altLoc,
+            'resname':pdbrecord.residue.resName,
+            'chainID':pdbrecord.residue.chainID,
+            'resseqnum':pdbrecord.residue.seqNum,
+            'insertion':pdbrecord.residue.iCode,
+            'x':pdbrecord.x,
+            'y':pdbrecord.y,
+            'z':pdbrecord.z,
+            'occ':pdbrecord.occupancy,
+            'beta':pdbrecord.tempFactor,
+            'elem':pdbrecord.element,
+            'charge':pdbrecord.charge
         }
         input_dict['segname']=input_dict['chainID']
         input_dict['link']='None'
@@ -401,6 +380,9 @@ class Atom(CloneableMod):
                 10*' '+'{:>2s}'.format(self.elem)+'{:2s}'.format(self.charge)
         return pdbline
 
+class AtomList(CloneableModList):
+    pass
+
 class Hetatm(Atom):
     PDB_keyword='HETATM'
 
@@ -411,20 +393,36 @@ class SSBond(CloneableMod):
     PDB_keyword='SSBOND'
 
     @classmethod
-    def from_pdbrecord(cls,pdbrecord):
+    def from_pdbrecord(cls,pdbrecord:PDBRecord):
+        """from_pdbrecord generates a CloneableMod SSBond from a PDBRecord
+
+        :param pdbrecord: an SSBOND PDBRecord
+        :type pdbrecord: PDBRecord
+        :return: a new SSBond instance
+        :rtype: SSBond
+
+        SSBOND
+              serNum: 1
+            residue1: resName: CYS; chainID: G; seqNum: 119; iCode: 
+            residue2: resName: CYS; chainID: G; seqNum: 205; iCode: 
+                sym1: 1555
+                sym2: 1555
+              length: 2.04
+
+        """
         input_dict={
-            'serial_number':int(pdbrecord[7:10]),
-            'resname1':pdbrecord[11:14].strip(),
-            'chainID1':pdbrecord[15:16].strip(),
-            'resseqnum1':int(pdbrecord[17:21]),
-            'insertion1':pdbrecord[21:22],
-            'resname2':pdbrecord[25:28].strip(),
-            'chainID2':pdbrecord[29:30].strip(),
-            'resseqnum2':int(pdbrecord[31:35]),
-            'insertion2':pdbrecord[35:36],
-            'sym1':pdbrecord[59:65].strip(),
-            'sym2':pdbrecord[66:72].strip(),
-            'length':float(pdbrecord[73:78])
+            'serial_number':pdbrecord.serNum,
+            'resname1':pdbrecord.residue1.resName,
+            'chainID1':pdbrecord.residue1.chainID,
+            'resseqnum1':pdbrecord.residue1.seqNum,
+            'insertion1':pdbrecord.residue1.iCode,
+            'resname2':pdbrecord.residue2.resName,
+            'chainID2':pdbrecord.residue2.chainID,
+            'resseqnum2':pdbrecord.residue2.seqNum,
+            'insertion2':pdbrecord.residue2.iCode,
+            'sym1':pdbrecord.sym1,
+            'sym2':pdbrecord.sym2,
+            'length':pdbrecord.length
         }
         inst=cls(input_dict)
         return inst
@@ -490,42 +488,77 @@ class SSBond(CloneableMod):
     def psfgen_lines(self):
         return ['patch DISU {}:{} {}:{}'.format(self.chainID1,self.resseqnum1,self.chainID2,self.resseqnum2)]
 
+class SSBondList(CloneableModList):
+    pass
+
 class Link(CloneableMod):
     yaml_header='Links'
     PDB_keyword='LINK'
-    pass
-
-ModOtherKeywords=['Title','Author','Notes']
-ModTypesContainer=[
-    Atom, Hetatm, SSBond, Link, Seqadv, Missing, Mutation, Crot
-]
-class ModTypesRegistry:
-    by_yaml={}
-    by_pdb_key={}
-    for t in ModTypesContainer:
-        if 'yaml_header' in t.__dict__:
-            by_yaml[t.yaml_header]=t
-        if 'PDB_keyword' in t.__dict__:
-            by_pdb_key[t.PDB_keyword]=t
+    req_attr=['name1','chainID1','resseqnum1','iCode1','name2','chainID2','resseqnum2','iCode2']
+    opt_attr=['altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance']    
     @classmethod
-    def modtype(cls,hdr):
-        if hdr in cls.by_yaml:
-            return cls.by_yaml[hdr]
-        if hdr in cls.by_pdb_key:
-            return cls.by_pdb_key[hdr]
-        return None 
-# class ModsContainer:
-#     def __init__(self,input_dict):
-#         self.M=[]
-#         for k,v in input_dict.items():
-#             if k in ModTypes:
-#                 self.M.append(ModTypes[k](v))
-#     def update(self,input_dict):
-#         for k,v in input_dict.items():
-#             if k in ModTypes:
-#                 self.M.append(ModTypes[k](v))
-#     def dump(self):
-#         retstr=''
-#         for m in self.M:
-#             retstr+=m.dump()
-#         return retstr
+    def from_pdbrecord(cls,pdbrecord:PDBRecord):
+        input_dict={
+            'name1': pdbrecord.name1,
+            'altloc1':pdbrecord.altLoc1,
+            'resname1':pdbrecord.residue1.resName,
+            'chainID1':pdbrecord.residue1.chainID,
+            'resseqnum1':pdbrecord.residue1.seqNum,
+            'iCode1':pdbrecord.residue1.iCode,
+            'name2': pdbrecord.name2,
+            'altloc2':pdbrecord.altLoc2,
+            'resname2':pdbrecord.residue2.resName,
+            'chainID2':pdbrecord.residue2.chainID,
+            'resseqnum2':pdbrecord.residue2.seqNum,
+            'iCode2':pdbrecord.residue2.iCode,
+            'sym1':pdbrecord.sym1,
+            'sym2':pdbrecord.sym2,
+            'link_distance':pdbrecord.length
+        }
+        inst=cls(input_dict)
+        inst.segname1=inst.chainID1
+        inst.segname2=inst.chainID2
+        inst.residue1=None
+        inst.residue2=None
+        inst.atom1=None
+        inst.atom2=None
+        inst.empty=False
+        return inst
+    @classmethod
+    def from_cifdict(cls,cifdict):
+        d=cifdict
+        input_dict={}
+        input_dict['name1']=d['ptnr1_label_atom_id']
+        al=d['pdbx_ptnr1_label_alt_id']
+        input_dict['altloc1']=' ' if al=='?' else al
+        input_dict['resname1']=d['ptnr1_auth_comp_id']
+        input_dict['chainID1']=d['ptnr1_auth_asym_id']
+        input_dict['resseqnum1']=int(d['ptnr1_auth_seq_id'])
+        ic=d['pdbx_ptnr1_pdb_ins_code']
+        input_dict['icode1']=' ' if ic=='?' else ic
+        input_dict['name2']=d['ptnr2_label_atom_id']
+        al=d['pdbx_ptnr2_label_alt_id']
+        input_dict['altloc2']=' ' if al=='?' else al
+        input_dict['resname2']=d['ptnr2_auth_comp_id']
+        input_dict['chainID2']=d['ptnr2_auth_asym_id']
+        input_dict['resseqnum2']=int(d['ptnr2_auth_seq_id'])
+        ic=d['pdbx_ptnr2_pdb_ins_code']
+        input_dict['icode2']=' ' if ic=='?' else ic
+        input_dict['sym1']=d['ptnr1_symmetry']
+        input_dict['sym2']=d['ptnr2_symmetry']
+        input_dict['link_distance']=float(d['pdbx_dist_value'])
+        input_dict['segname1']=input_dict['chainID1']
+        input_dict['segname2']=input_dict['chainID2']
+        input_dict['residue1']=None
+        input_dict['residue2']=None
+        input_dict['atom1']=None
+        input_dict['atom2']=None
+        input_dict['empty']=False
+        return cls(input_dict)
+
+
+class LinkList(ModList):
+    """LinkList not THAT kind of link-list
+
+    """
+    pass

@@ -10,27 +10,22 @@ import logging
 logger=logging.getLogger(__name__)
 from .command import Command
 import os
-from .resources import ResourceManager
-from .atom import _PDBAtomNameDict_
-from .residue import _ResNameDict_PDB_to_CHARMM_
+from .resourcemanager import ResourceManager as RM
 from .molecule import Molecule
 
 class Psfgen:
-    def __init__(self,resman:ResourceManager,**options):
-        if not resman:
-            logger.fatal(f'Cannot use psfgen without a resource manager.')
-        self.resman=resman
+    def __init__(self,**options):
         self.script_name=options.get('psfgen_script_name','my_mkpsf.tcl')
         self.script=['#### BEGIN HEADER ####']
-        self.script.append(f'source {resman.resource_paths["tcl"]}/modules/src/loopmc.tcl')
-        self.script.append(f'source {resman.resource_paths["tcl"]}/vmdrc.tcl')
+        self.script.append(f'source {RM.resource_paths["tcl"]}/modules/src/loopmc.tcl')
+        self.script.append(f'source {RM.resource_paths["tcl"]}/vmdrc.tcl')
         self.script.append('package require psfgen')
         self.script.append('psfcontxt mixedcase')
         for t in options['StdCharmmTopo']:
-            ft=os.path.join(resman.system_charmm_toppardir,t)
+            ft=os.path.join(RM.system_charmm_toppardir,t)
             self.script.append(f'topology {ft}')
         for lt in options['LocalCharmmTopo']:
-            ft=os.path.join(resman.resource_paths['charmm'],lt)
+            ft=os.path.join(RM.resource_paths['charmm'],lt)
             self.script.append(f'topology {ft}')
         for pdba in options['PDBAliases']:
             self.script.append(pdba)
@@ -68,5 +63,5 @@ class Psfgen:
             self.script.append('exit')
         with open(self.script_name,'w') as f:
             f.write('\n'.join(self.script))
-        c=Command(f'{self.resman.vmd_location} -dispdev text -e {self.script_name}')
+        c=Command(f'{self.RM.vmd_location} -dispdev text -e {self.script_name}')
         c.run()

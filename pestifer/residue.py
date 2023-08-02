@@ -6,11 +6,14 @@
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
-from .mods import CloneableMod,Atom,Missing
+from .mods import *
 
 class Residue(CloneableMod):
     req_attr=['resseqnum','insertion','name','chainID']
     opt_attr=['atoms','up','down','uplink','downlink']
+    def __init__(self,input_dict):
+        super().__init__(input_dict)
+        self.segtype=''
     @classmethod
     def from_atom(cls,a:Atom):
         input_dict={
@@ -18,7 +21,7 @@ class Residue(CloneableMod):
             'insertion':a.insertion,
             'name':a.resname,
             'chainID':a.chainID,
-            'atoms':[a]
+            'atoms':AtomList([a])
         }
         input_dict['resseqnumi']=f'{a.resseqnum}{a.insertion}'
         inst=cls(input_dict)
@@ -32,7 +35,7 @@ class Residue(CloneableMod):
             'chainID':m.chainID
         }
         input_dict['resseqnumi']=f'{m.resseqnum}{m.insertion}'
-        input_dict['atoms']=[]
+        input_dict['atoms']=AtomList([])
         inst=cls(input_dict)
         return inst
     def __lt__(self,other):
@@ -50,6 +53,8 @@ class Residue(CloneableMod):
     def add_atom(self,a:Atom):
         if self.resseqnum==a.resseqnum and self.name==a.resname and self.chainID==a.chainID and self.insertion==a.insertion:
             self.atoms.append(a)
+            return True
+        return False
     def set_chainID(self,chainID):
         self.chainID=chainID
         for a in self.atoms:
@@ -74,31 +79,10 @@ class Residue(CloneableMod):
             res.extend(d.get_down_group())
         return res
 
-""" 
-def get_residue(R,chainID,resseqnum,insertion=' '):
-    candidates=[]
-    #print(f'Searching list of {len(R)} residues for c {chainID} r {resseqnum}')
-    for r in R:
-        if r.chainID==chainID and r.resseqnum==resseqnum:
-            candidates.append(r)
-    if len(candidates)==1:
-        return candidates[0]
-    else:
-        for r in candidates:
-            if r.insertion==insertion:
-                return r
-    return None
-
-def get_atom(R,chainID,resseqnum,atname,insertion=' '):
-#    print('get_atom() searching for {} in resid {} chain {}'.format(atname,resseqnum,chainID))
-    for r in R:
-        if r.chainID==chainID and r.resseqnum==resseqnum and r.insertion==insertion:
-            for a in r.atoms:
-                if a.name==atname:
-#                    print('returning',a)
-                    return a
-#            print('Error: no atom named {} found in {}{} of chain {}'.format(at.name,r.resseqnum,r.name,r.chainID))
-#    print('Error: resid {} not found in chain {}'.format(resseqnum,chainID))
-    return ''
-
-"""
+class ResidueList(ModList):
+    def get_residue(self,**fields):
+        return self.get(**fields)
+    def get_atom(self,atname,**fields):
+        S=('atoms',{'name':atname})
+        return self.get_attr(S,**fields)
+    

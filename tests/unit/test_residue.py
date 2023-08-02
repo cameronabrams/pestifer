@@ -1,40 +1,27 @@
 import unittest
 from pestifer.residue import Residue
 from pestifer.mods import Atom, Missing
+from pestifer.molecule import Molecule
 
 class TestResidue(unittest.TestCase):
     def setUp(self):
-        self.pdbrecord='REMARK 465     GLU G   185A  '
-        pr1='ATOM    981  N   GLU G 164A     10.462 130.792 -22.224  1.00 70.92           N  '
-        pr2='ATOM    984  O   GLU G 164A     10.462 130.792 -22.224  1.00 70.92           N  '
-        pr3='ATOM    984  O   GLU G 164      10.462 130.792 -22.224  1.00 70.92           N  '
-        pr4='ATOM    984  O   GLU G 165      10.462 130.792 -22.224  1.00 70.92           N  '
-        pr5='ATOM    984  O   GLU G 165A     10.462 130.792 -22.224  1.00 70.92           N  '
-        self.missing=Missing.from_pdbrecord(self.pdbrecord)
-        self.atom1=Atom.from_pdbrecord(pdbrecord=pr1)
-        self.atom2=Atom.from_pdbrecord(pdbrecord=pr2)
-        self.atom3=Atom.from_pdbrecord(pdbrecord=pr3)
-        self.atom4=Atom.from_pdbrecord(pdbrecord=pr4)
-        self.atom5=Atom.from_pdbrecord(pdbrecord=pr5)
         return super().setUp()
     def test_from_atom(self):
-        res=Residue.from_atom(self.atom1)
-        self.assertEqual(res.resseqnum,self.atom1.resseqnum)
-        self.assertEqual(len(res.atoms),1)
-        res.add_atom(self.atom2)
-        self.assertEqual(len(res.atoms),2)
-        res.add_atom(self.atom3)
-        self.assertEqual(len(res.atoms),2)
-    def test_ordinality(self):
-        res1=Residue.from_atom(self.atom3)
-        res2=Residue.from_atom(self.atom4)
-        res3=Residue.from_atom(self.atom5)
-        self.assertTrue(res1<res2)
-        self.assertTrue(res2<res3)
-    def test_set_chainid(self):
-        res=Residue.from_atom(self.atom1)
-        res.add_atom(self.atom2)
-        res.set_chainID('X')
-        self.assertEqual(res.chainID,'X')
-        for i in range(len(res.atoms)):
-            self.assertEqual(res.atoms[i].chainID,'X')
+        m=Molecule.from_rcsb(pdb_code='1gc1')
+        residues=[]
+        a=m.Atoms[0]
+        r=Residue.from_atom(a)
+        self.assertEqual(a.chainID,r.chainID)
+        residues.append(r)
+        for a in m.Atoms[1:]:
+            if not any([x.add_atom(a) for x in residues]):
+                r=Residue.from_atom(a)
+                residues.append(r)
+        self.assertEqual(len(residues),1538)
+
+    def test_residuelist(self):
+        m=Molecule.from_rcsb(pdb_code='6m0j')
+        r=m.Residues.get_residue(resseqnum=427,chainID='A')
+        self.assertEqual(r.name,'ASP')
+        a=m.Residues.get_atom(atname='OD2',resseqnum=427,chainID='A')
+        self.assertEqual(a.serial,3302)

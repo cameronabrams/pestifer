@@ -1,67 +1,77 @@
 import operator
-from pestifer.segment import Segment, _seg_typedict_byresname_, _segname_second_character_
-class Chain:
-    def __init__(self,r=None,parent_molecule=None,source_chainID='',cleavage_chainID=''):
+# from pestifer.segment import Segment, _seg_typedict_byresname_, _segname_second_character_
+from pestifer.mods import CloneableMod
+from pestifer.residue import ResidueList
+from pestifer.config import Config
+
+class Chain(CloneableMod):
+    req_attr=['chainID']
+    opt_attr=['residues','source_chainID','cleavage_chainID','parent_molecule']
+    def __init__(self,input_dict,parent_molecule=None):
         ''' source_chainID is this chain's chain ID in an input PDB file 
             cleavage_chainID is this chain's local chainID prior to 
             any cleavage. '''
-        self.residues=[]
+        super().__init__(input_dict)
+        self.residues=ResidueList([])
         self.Segments=[]
-        self.subCounter={}
-        self.subCounter['GLYCAN']=0
-        self.subCounter['LIGAND']=0
-        self.subCounter['PROTEIN']=0
-        self.subCounter['ION']=0
-        self.subCounter['WATER']=0
-        if r!=None:
-            self.chainID=r.chainID
-            self.residues=[r]
-            if source_chainID!=None:
-                self.source_chainID=source_chainID
-            else:
-                self.source_chainID=r.chainID
+        self.subCounter={k:0 for k in Config.defs['Segname_chars'].keys()}
         self.parent_molecule=parent_molecule
-        if cleavage_chainID!=None:
-            self.cleavage_chainID=cleavage_chainID
-        else:
-            self.cleavage_chainID=self.chainID
+
+    @classmethod
+    def from_residue(cls,r,parent_molecule=None):
+        input_dict={
+            'chainID':r.chainID,
+            'residues':ResidueList([r])
+        }
+        return cls(input_dict,parent_molecule)
+        #     if source_chainID!=None:
+        #         self.source_chainID=source_chainID
+        #     else:
+        #         self.source_chainID=r.chainID
+        # self.parent_molecule=parent_molecule
+        # if cleavage_chainID!=None:
+        #     self.cleavage_chainID=cleavage_chainID
+        # else:
+        #     self.cleavage_chainID=self.chainID
 
     def get_molid(self):
         return self.parent_molecule.molid
 
     def add_residue(self,r):
-        if len(self.residues)==0:
-            self.residues=[r]
-            self.chainID=r.chainID
-        elif self.chainID==r.chainID:
+        if self.chainID==r.chainID:
             self.residues.append(r)
+            return True
+        return False
+
     def sort_residues(self):
-        ''' sort list of residues by resseqnum '''
-        sorted_residues=sorted(self.residues,key=operator.attrgetter('resseqnum','insertion'))
-        self.residues=sorted_residues
-        mn=99999
-        mx=-99999
-        mnr=''
-        mxr=''
-        self.Nterm=''
-        self.Cterm=''
-        for r in self.residues:
-            if _seg_typedict_byresname_[r.name]=='PROTEIN':
-                if r.resseqnum<mn:
-                    mn=r.resseqnum
-                    mnr=r
-                if r.resseqnum>mx:
-                    mx=r.resseqnum
-                    mxr=r
-#        if mnr=='' or mxr=='':
-#            print('Note, no protein residues found chain {}'.format(self.chainID))
-        self.Nterm=mnr
-        self.Cterm=mxr
+        self.residues.sort(by=['resseqnum','insertion'])
+
+    # def sort_residues(self):
+    #     ''' sort list of residues by resseqnum '''
+    #     sorted_residues=list(sorted(self.residues,key=operator.attrgetter('resseqnum','insertion')))
+    #     self.residues=sorted_residues
+        # mn=99999
+        # mx=-99999
+        # mnr=''
+        # mxr=''
+        # self.Nterm=''
+        # self.Cterm=''
+        # for r in self.residues:
+        #     if r.segtype=='PROTEIN':
+        #         if r.resseqnum<mn:
+        #             mn=r.resseqnum
+        #             mnr=r
+        #         if r.resseqnum>mx:
+        #             mx=r.resseqnum
+        #             mxr=r
+        # self.Nterm=mnr
+        # self.Cterm=mxr
+
     def group_residues(self):
         ''' group residues by connectivity '''
         owners=[]
         for i,r in enumerate(self.residues):
-            if _seg_typedict_byresname_[r.name]=='PROTEIN' and len(r.down)>0:
+            if Config.defs['Segtypes_by_Resnames'][r.name]=='PROTEIN' and len(r.down)>0:
                 owners.append([r,i])
         for oi in owners:
             o,i=oi
@@ -77,7 +87,7 @@ class Chain:
         protein_resid=[]
         other_resid=[]
         for r in self.residues:
-            if _seg_typedict_byresname_[r.name]=='PROTEIN':
+            if r.segtype=='PROTEIN':
                 protein_resid.append(r.resseqnum)
             else:
                 other_resid.append(r.resseqnum)
@@ -113,7 +123,7 @@ class Chain:
             are derived from the parent chain names. '''
         Segments=[]
         for r in self.residues:
-            thissegtype=_seg_typedict_byresname_[r.name]
+            thissegtype=r.segtype
             if Segments==[]:
                 Segments.append(Segment(r,subcounter=self.nextSubCounter(thissegtype),parent_chain=self))
             else:
@@ -227,28 +237,5 @@ class Chain:
             r.chainID=newchainID
             for a in r.atoms:
                 a.chainID=newchainID
-
-if __name__=='__main__':
-    # testing
-    class Mock:
-        def __init__(self,rsn=0,ic='',rn='',chainID='A'):
-            self.resseqnum=rsn
-            self.name=rn
-            self.insertion=ic
-            self.chainID=chainID
-        def __str__(self):
-            return '{}_{}{}{}'.format(self.chainID,self.name,self.resseqnum,self.insertion)
-    someresids=[101,103,102,105,101,105,106,101]
-    someics   =['A','' ,'' ,'' ,'' ,'A','' ,'B']
-    C=Chain()
-    for r,i in zip(someresids,someics):
-        C.add_residue(Mock(rsn=r,ic=i,rn='ALA'))
-    print('Unsorted:')
-    for r in C.residues:
-        print(str(r))
-    C.sort_residues()
-    print('Sorted:')
-    for r in C.residues:
-        print(str(r))
 
     
