@@ -65,6 +65,10 @@ PDB_to_CHARMM_Resnames:
   EIC: LIN
   VCG: VCG
 
+PDB_to_CHARMM_Atomnames:
+  CL: CLA
+  O: OH2
+
 PDB_1char_to_3char_Resnames:
   A: ALA
   R: ARG
@@ -99,6 +103,7 @@ PDB_Ions:
   - ZN
   - CAD
   - CL
+  - SO4
 
 PDB_Glycans:
   - BMA

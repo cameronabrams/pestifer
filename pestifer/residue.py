@@ -7,12 +7,16 @@
 
 """
 from .mods import *
+from .config import ConfigGetParam
 
 class Residue(CloneableMod):
-    req_attr=['resseqnum','insertion','name','chainID']
+    req_attr=['resseqnum','insertion','name','chainID','segtype']
     opt_attr=['atoms','up','down','uplink','downlink']
+    _counter=0
     def __init__(self,input_dict):
         super().__init__(input_dict)
+        self.index=Residue._counter
+        Residue._counter+=1
         self.segtype=''
     @classmethod
     def from_atom(cls,a:Atom):
@@ -21,7 +25,8 @@ class Residue(CloneableMod):
             'insertion':a.insertion,
             'name':a.resname,
             'chainID':a.chainID,
-            'atoms':AtomList([a])
+            'atoms':AtomList([a]),
+            'segtype':ConfigGetParam('Segtypes_by_Resnames').get(a.resname,'OTHER')
         }
         input_dict['resseqnumi']=f'{a.resseqnum}{a.insertion}'
         inst=cls(input_dict)
@@ -32,7 +37,8 @@ class Residue(CloneableMod):
             'resseqnum':m.resseqnum,
             'insertion':m.insertion,
             'name':m.resname,
-            'chainID':m.chainID
+            'chainID':m.chainID,
+            'segtype':ConfigGetParam('Segtypes_by_Resnames').get(m.resname,'OTHER')
         }
         input_dict['resseqnumi']=f'{m.resseqnum}{m.insertion}'
         input_dict['atoms']=AtomList([])
@@ -79,10 +85,28 @@ class Residue(CloneableMod):
             res.extend(d.get_down_group())
         return res
 
-class ResidueList(ModList):
+class ResidueList(CloneableModList):
     def get_residue(self,**fields):
         return self.get(**fields)
     def get_atom(self,atname,**fields):
         S=('atoms',{'name':atname})
         return self.get_attr(S,**fields)
+    def atom_serials(self):
+        serlist=[]
+        for a in self.atoms:
+            serlist.append(a.serial)
+        return serlist
+    def subdivide(self):
+        cd=0
+        divisions=[ResidueList([self[0]])]
+        flag=len(self[0].atoms)>0
+        for i in range(1,len(self)):
+            if (len(self[i].atoms)>0)!=flag:
+                flag=len(self[i].atoms)>0
+                cd+=1
+            divisions[cd].append(self[i])
+        return divisions
+
+
+
     

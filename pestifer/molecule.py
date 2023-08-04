@@ -6,17 +6,22 @@
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
+import logging
 from pidibble.pdbparse import PDBParser
 from .mods import *
-from .chain import Chain
 from .residue import Residue,ResidueList
+from .segment import Segment,SegmentList
 from .config import ConfigGetParam
+from .bioassemb import BioAssemb
+
+logger=logging.getLogger(__name__)
 
 class Molecule:
     _molcounter=0
     def __init__(self):
         self.molid=Molecule._molcounter
         Molecule._molcounter+=1
+
     @classmethod
     def from_rcsb(cls,**options):
         pdb_code=options.get('pdb_code',None)
@@ -44,10 +49,31 @@ class Molecule:
         self.Conflicts=MutationList([Mutation.from_seqadv(Seqadv.from_pdbrecord(p)) for p in co])
         mi=[x for x in pr['REMARK.465'].tables['MISSING']]
         self.Missing=MissingList([Missing.from_pdbrecord(p) for p in mi])
-        li=[x for x in pr['LINK']]
+        li=pr['LINK']
         self.Links=LinkList([Link.from_pdbrecord(p) for p in li])
         self._MakeResidues()
-        self._MakeChains()
+        self._MakeSegments()
+        # self._MakeChains()
+        self._MakeBiologicalAssemblies()
+
+    @classmethod
+    def clone(cls,inst):
+        # nchains=len(inst.Chains)
+        # if nchains>len(inst.available_chainIDs):
+        #     logger.warning(f'There are not enough chain IDs available to clone this molecule')
+        #     return
+        copy=cls()
+        copy.is_clone_of=inst
+        copy.chainID_map=inst.generate_chainIDmap()
+
+    def generate_chainIDmap(self):
+        chainIDmap={}
+        for ch in [x.chainID for x in self.Chains]:
+            nch=self.available_chainIDs[0]
+            chainIDmap[ch]=nch
+            self.claim_chainID(nch)
+        return chainIDmap
+
 
     def _MakeResidues(self):
         segtype_by_resname=ConfigGetParam('Segtypes_by_Resnames')
@@ -67,12 +93,35 @@ class Molecule:
             r.segtype=segtype_by_resname.get(r.name,'')
         self.Residues=ResidueList(R)
 
-    def _MakeChains(self):
-        r=self.Residues[0]
-        c=Chain.from_residue(r,parent_molecule=self)
-        self.Chains=[]
-        self.Chains.append(c)
-        for r in self.Residues[1:]:
-            if not any([x.add_residue(r) for x in self.Chains]):
-                c=Chain.from_residue(r,parent_molecule=self)
-                self.Chains.append(c)
+    def _MakeSegments(self):
+        self.Segments=SegmentList([])
+        protein_res=self.Residues.get(segtype='PROTEIN')
+        protein_chains=[]
+        for r in protein_res:
+            if not r.chainID in protein_chains:
+                protein_chains.append(r.chainID)
+        
+
+
+    # def _MakeChains(self):
+    #     r=self.Residues[0]
+    #     c=Chain.from_residue(r,parent_molecule=self)
+    #     self.Chains=[]
+    #     self.Chains.append(c)
+    #     for r in self.Residues[1:]:
+    #         if not any([x.add_residue(r) for x in self.Chains]):
+    #             c=Chain.from_residue(r,parent_molecule=self)
+    #             self.Chains.append(c)
+
+    def _MakeBiologicalAssemblies(self):
+        self.BioAssemb=[BioAssemb.from_asymmetricUnit()] # 0th BioAssemb is the asymmetric unit
+        # each instance of REMARK.350.BIOMOLECULEn.TRANSFORMm (n, m integers 1, 2, ...)
+        # has one or more transformations.
+        P=self.pdb_entry.parsed
+        barecs=[P[x] for x in P if ('REMARK.350.BIOMOLECULE' in x and 'TRANSFORM' in x)]
+        for rec in barecs:
+            self.BioAssemb.append(BioAssemb.from_PDBRecord(rec))
+
+    # def claim_chainID(self,ch):
+    #     self.claimed_chainIDs.append(ch)
+    #     self.available_chainIDs.remove(ch)

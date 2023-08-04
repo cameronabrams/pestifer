@@ -55,12 +55,13 @@ class Config:
             for v,r in self.defs.get('User_defaults',{}).items():
                 user_defs[v]=r
 
+        # self.available_chainIDs=list('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
+
         """ Read the user-specified config file """
         if userconfigfilename:
            with open(userconfigfilename,'r') as f:
                 # read into instance not class
                 user_defs.update(yaml.safe_load(f))
-        ResourcesApplyUserOptions(user_defs)
         """ Read any mods or modfiles """
         for step in user_defs.get('BuildSteps',[]):
             if 'mods' in step: # either a dictionary or a file containing a dictionary
@@ -73,7 +74,8 @@ class Config:
         vars={'HOME':ResourcesGet('UserHome')}
         for v,r in vars.items():
             replace(self.defs,v,r)
-        
+        ResourcesApplyUserOptions(self.defs)
+        return self
     def __str__(self):
         return yaml.dump(self.data)        
 
@@ -84,7 +86,16 @@ def ConfigSetup(userconfigfilename):
     return TheConfig
 
 def ConfigGetParam(key,subkey=''):
-    param=TheConfig.defs[key]
+    param=TheConfig.defs.get(key,None)
     if subkey and type(param)==dict:
         param=param[subkey]
     return param
+
+# def ConfigClaimChainID(c):
+#     TheConfig.available_chainIDs.remove(c)
+
+# def ConfigChainMap(chains):
+#     map={}
+#     for c in chains:
+#         map[c]=TheConfig.available_chainIDs.pop(0)
+#     return map

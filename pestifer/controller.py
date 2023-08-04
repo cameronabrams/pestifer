@@ -13,8 +13,8 @@ from .config import Config
 from .molecule import Molecule
 
 class Controller:
-    def __init__(self,userconfigfilename):
-        self.config=Config(userconfigfilename)
+    def __init__(self):
+        self.config=Config()
     
     def build_molecules(self):
         self.molecules=[]

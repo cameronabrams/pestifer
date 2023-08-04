@@ -141,7 +141,7 @@ class ModList(list):
     def get(self,**fields):
         R=self.filter(**fields)
         if len(R)==0:
-            return None
+            return []
         elif len(R)==1:
             return R[0]
         else:
@@ -150,12 +150,12 @@ class ModList(list):
         for r in self:
             if r.matches(**fields): break
         else:
-            return None
+            return []
         attr,subfields=S
         assert type(attr)==str
         assert type(subfields)==dict
         if not attr in r.__dict__:
-            return None
+            return []
         L=r.__dict__[attr]
         return L.get(**subfields)
     def sort(self,by=None,reverse=False):
@@ -164,7 +164,44 @@ class ModList(list):
         else:
             key=operator.attrgetter(*by)
             self.L.sort(key=key,reverse=reverse)
-
+    def uniquify(self,fields):
+        # each element must be unique in the sense that no two 
+        # elements have the same values of attributes listed in 
+        # fields[]; returns a map keyed by unique index whose
+        # values are the original values of the attributes listed
+        # in fields; uniqueness is achieved by changing the 
+        # value of the leading field only
+        uMap={}
+        bins={}
+        newbins={}
+        def mkey(item,fields):
+            k=[]
+            for f in fields:
+                k.append(item.__dict__[f])
+            return '['+']***['.join(k)+']'
+        for item in self:
+            k=mkey(item,fields)
+            if not k in bins:
+                bins[k]=[]
+            bins[k].append(item)
+        stillworking=True
+        while stillworking:
+            stillworking=False
+            newbins={}
+            for k,v in bins:
+                if len(v)>1:
+                    stillworking=True
+                    for d in v[1:]:
+                        if not id(d) in uMap:
+                            uMap[id(d)]={k:d.__dict__[k] for k in fields}
+                        # uMap[d.index]={k:d.__dict__[k] for k in fields}
+                        while mkey(d,fields) in bins:
+                            d.__dict__[fields[0]]+=1
+                        newbins[mkey(d,fields)]=[d]
+            if newbins:
+                bins.update(newbins)
+        return uMap
+    
 class CloneableModList(ModList):
     def clone(self,**options):
         R=CloneableModList([])

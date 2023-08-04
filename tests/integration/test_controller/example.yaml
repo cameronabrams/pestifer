@@ -1,4 +1,0 @@
-Title: TestUserConfig
-SourcePDB: 1gc1
-CHARMMDIR: $(HOME)/my_charmm
-NAMD2: /alt/path/to/namd2

@@ -7,23 +7,24 @@ from pestifer.config import ConfigGetParam
 class Chain(CloneableMod):
     req_attr=['chainID']
     opt_attr=['residues','source_chainID','cleavage_chainID','parent_molecule']
-    def __init__(self,input_dict,parent_molecule=None):
+    def __init__(self,input_dict):
         ''' source_chainID is this chain's chain ID in an input PDB file 
             cleavage_chainID is this chain's local chainID prior to 
             any cleavage. '''
         super().__init__(input_dict)
+        if self.parent_molecule:
+            self.parent_molecule.claim_chainID(self.chainID)
         self.residues=ResidueList([])
-        self.Segments=[]
         self.subCounter={k:0 for k in ConfigGetParam('Segname_chars').keys()}
-        self.parent_molecule=parent_molecule
 
     @classmethod
     def from_residue(cls,r,parent_molecule=None):
         input_dict={
             'chainID':r.chainID,
-            'residues':ResidueList([r])
+            'residues':ResidueList([r]),
+            'parent_molecule':parent_molecule
         }
-        return cls(input_dict,parent_molecule)
+        return cls(input_dict)
         #     if source_chainID!=None:
         #         self.source_chainID=source_chainID
         #     else:

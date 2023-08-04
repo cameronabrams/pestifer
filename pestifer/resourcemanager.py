@@ -45,7 +45,7 @@ class ResourceManager:
             logger.warning(f'Your configuration indicates the charmm force-field files are located in {self.system_charmmdir}, but this directory is not found.')
         charmm_toppardir=os.path.join(self.system_charmmdir,'toppar')
         self.system_charmm_toppardir=None
-        if os.path.isdir(charmm_toppardir):
+        if os.path.exists(charmm_toppardir):
             self.system_charmm_toppardir=charmm_toppardir
         else:
             logger.warning(f'No directory "toppar/" detected in {self.system_charmmdir}')

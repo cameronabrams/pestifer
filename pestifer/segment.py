@@ -1,20 +1,7 @@
 import logging
 logger=logging.getLogger(__name__)
-
-from pestifer.residue import  ResnameCharmify,_PDBResName123_, _pdb_glycans_, _pdb_ligands_, _pdb_ions_, _ResNameDict_PDB_to_CHARMM_, _ResNameDict_CHARMM_to_PDB_
-_seg_typedict_byresname_={'HOH':'WATER'}
-_seg_typedict_byresname_.update({k:'ION' for k in _pdb_ions_})
-_seg_typedict_byresname_.update({k:'GLYCAN' for k in _pdb_glycans_})
-_seg_typedict_byresname_.update({_ResNameDict_PDB_to_CHARMM_[k]:'GLYCAN' for k in _pdb_glycans_})
-_seg_typedict_byresname_.update({k:'LIGAND' for k in _pdb_ligands_})
-_seg_typedict_byresname_.update({_ResNameDict_PDB_to_CHARMM_[k]:'LIGAND' for k in _pdb_ligands_})
-_seg_typedict_byresname_.update({k:'PROTEIN' for k in _PDBResName123_.values()})
-_seg_typedict_byresname_['HIS']='PROTEIN'
-_seg_typedict_byresname_['HSE']='PROTEIN'
-_seg_typedict_byresname_['HSD']='PROTEIN'
-_segname_second_character_={'PROTEIN':'','ION':'I','WATER':'W','GLYCAN':'G','LIGAND':'L','OTHER':'O'}
-import pestifer.sel as sel
-
+from .basemod import CloneableMod, CloneableModList
+from .config import ConfigGetParam
 #class SubsegmentBounds:
 #    def __init__(self,l=-1,r=-1,typ='NONE',d=''):
 #        self.l=l
@@ -22,67 +9,67 @@ import pestifer.sel as sel
 #        self.typ=typ
 #        self.d=d
 
-class Run:
-    def __init__(self,r,replica_chainID,previous=None,next=None):
-        self.chainID=r.chainID
-        self.replica_chainID=replica_chainID
-        self.segname=r.segname
-        self.residues=[r]
-        self.term='None' # 'N' if r[0] is an N-terminus, 'C' if r[-1] is a C-terminus
-        self.previous=previous
-        self.next=next
-        self.typ='FRAGMENT' if len(r.atoms)>0 else 'LOOP'
-    def add_residue(self,r):
-        if r.chainID==self.chainID and r.segname==self.segname:
-            self.residues.append(r)
-        else:
-            print(f'Error: cannot add residue with chainID {r.chainID} and segname {r.segname} to Run initialized with {self.chainID} and {self.segname}')
-    def pdb_str(self):
-        r0=self.residues[0]
-        r1=self.residues[-1]
-        ins0='' if r0.insertion ==' ' else r0.insertion
-        ins1='' if r1.insertion ==' ' else r1.insertion
-        return '{}_{}{}_to_{}{}.pdb'.format(self.replica_chainID,r0.resseqnum,ins0,r1.resseqnum,ins1)
-    def __str__(self):
-        r0=self.residues[0]
-        r1=self.residues[-1]
-        ins0='' if r0.insertion ==' ' else r0.insertion
-        ins1='' if r1.insertion ==' ' else r1.insertion
-        return '{} {} {}{} to {}{}'.format(self.typ,self.replica_chainID,r0.resseqnum,ins0,r1.resseqnum,ins1)
-    def caco_str(self):
-        return 'coord {} {}{} N [cacoIn_nOut {}{} {} 0]'.format(self.replica_chainID,self.residues[0].resseqnum,self.residues[0].insertion,
-        self.previous.residues[-1].resseqnum,self.previous.residues[-1].insertion,self.replica_chainID)
-    def heal_str(self):
-        rll=self.residues[-2]
-        rl=self.residues[-1]
-        rr=self.next.residues[0]
-        rrr=self.next.residues[1]
-        return 'patch HEAL {c}:{ll} {c}:{l} {c}:{r} {c}:{rr}\n'.format(c=self.replica_chainID,
-                            ll=rll.ri(),l=rl.ri(),r=rr.ri(),rr=rrr.ri())
-    def input_str(self):
-        rl=self.residues[-1]
-        rr=self.next.residues[0]
-        return '{} {} {}\n'.format(self.replica_chainID,rl.ri(),rr.ri())
+# class Run:
+#     def __init__(self,r,replica_chainID,previous=None,next=None):
+#         self.chainID=r.chainID
+#         self.replica_chainID=replica_chainID
+#         self.segname=r.segname
+#         self.residues=[r]
+#         self.term='None' # 'N' if r[0] is an N-terminus, 'C' if r[-1] is a C-terminus
+#         self.previous=previous
+#         self.next=next
+#         self.typ='FRAGMENT' if len(r.atoms)>0 else 'LOOP'
+#     def add_residue(self,r):
+#         if r.chainID==self.chainID and r.segname==self.segname:
+#             self.residues.append(r)
+#         else:
+#             print(f'Error: cannot add residue with chainID {r.chainID} and segname {r.segname} to Run initialized with {self.chainID} and {self.segname}')
+#     def pdb_str(self):
+#         r0=self.residues[0]
+#         r1=self.residues[-1]
+#         ins0='' if r0.insertion ==' ' else r0.insertion
+#         ins1='' if r1.insertion ==' ' else r1.insertion
+#         return '{}_{}{}_to_{}{}.pdb'.format(self.replica_chainID,r0.resseqnum,ins0,r1.resseqnum,ins1)
+#     def __str__(self):
+#         r0=self.residues[0]
+#         r1=self.residues[-1]
+#         ins0='' if r0.insertion ==' ' else r0.insertion
+#         ins1='' if r1.insertion ==' ' else r1.insertion
+#         return '{} {} {}{} to {}{}'.format(self.typ,self.replica_chainID,r0.resseqnum,ins0,r1.resseqnum,ins1)
+#     def caco_str(self):
+#         return 'coord {} {}{} N [cacoIn_nOut {}{} {} 0]'.format(self.replica_chainID,self.residues[0].resseqnum,self.residues[0].insertion,
+#         self.previous.residues[-1].resseqnum,self.previous.residues[-1].insertion,self.replica_chainID)
+#     def heal_str(self):
+#         rll=self.residues[-2]
+#         rl=self.residues[-1]
+#         rr=self.next.residues[0]
+#         rrr=self.next.residues[1]
+#         return 'patch HEAL {c}:{ll} {c}:{l} {c}:{r} {c}:{rr}\n'.format(c=self.replica_chainID,
+#                             ll=rll.ri(),l=rl.ri(),r=rr.ri(),rr=rrr.ri())
+#     def input_str(self):
+#         rl=self.residues[-1]
+#         rr=self.next.residues[0]
+#         return '{} {} {}\n'.format(self.replica_chainID,rl.ri(),rr.ri())
 
-class Fragment:
-    ''' a set of contiguous residues with no gaps that can be loaded into a psfgen
-        segment stanza by invoking a pdb file 
-    '''
-    def __init__(self,source_chainID,replica_chainID,resseqnum1,insertion1,resseqnum2,insertion2):
-        self.source_chainID=source_chainID
-        self.replica_chainID=replica_chainID
-        self.resseqnum1=resseqnum1
-        self.resseqnum2=resseqnum2
-        self.insertion1=insertion1
-        self.insertion2=insertion2
-    def pdb_str(self):
-        ins1='' if self.insertion1==' ' else self.insertion1
-        ins2='' if self.insertion2==' ' else self.insertion2
-        return '{}_{}{}_to_{}{}.pdb'.format(self.replica_chainID,self.resseqnum1,ins1,self.resseqnum2,ins2)
-    def __str__(self):
-        ins1='' if self.insertion1==' ' else self.insertion1
-        ins2='' if self.insertion2==' ' else self.insertion2
-        return 'FRAGMENT: {} {}{} to {}{}'.format(self.replica_chainID,self.resseqnum1,ins1,self.resseqnum2,ins2)
+# class Fragment:
+#     ''' a set of contiguous residues with no gaps that can be loaded into a psfgen
+#         segment stanza by invoking a pdb file 
+#     '''
+#     def __init__(self,source_chainID,replica_chainID,resseqnum1,insertion1,resseqnum2,insertion2):
+#         self.source_chainID=source_chainID
+#         self.replica_chainID=replica_chainID
+#         self.resseqnum1=resseqnum1
+#         self.resseqnum2=resseqnum2
+#         self.insertion1=insertion1
+#         self.insertion2=insertion2
+#     def pdb_str(self):
+#         ins1='' if self.insertion1==' ' else self.insertion1
+#         ins2='' if self.insertion2==' ' else self.insertion2
+#         return '{}_{}{}_to_{}{}.pdb'.format(self.replica_chainID,self.resseqnum1,ins1,self.resseqnum2,ins2)
+#     def __str__(self):
+#         ins1='' if self.insertion1==' ' else self.insertion1
+#         ins2='' if self.insertion2==' ' else self.insertion2
+#         return 'FRAGMENT: {} {}{} to {}{}'.format(self.replica_chainID,self.resseqnum1,ins1,self.resseqnum2,ins2)
 
 #class Loop:
 #    ''' a set of contiguous residues from REMARK 465 pdb entries; i.e., they
@@ -103,42 +90,64 @@ class Fragment:
 #    def caco_str(self):
 #        return 'coord {} {} N [cacoIn_nOut {} {} 0]\n'.format(self.replica_chainID,self.residues[0].resseqnum,self.resseqnum0,self.replica_chainID)
 
-class Segment:
-    """A class for holding all information necessary to generate a segment stanza in psfgen.
+class Segment(CloneableMod):
+    req_attr=['segtype','segname','residues','parent_molecule']
+    opt_attr=['mutations','deletions','grafts']
 
-       Class instance attributes:
-       * segname: name of segment
-       * parent_chain: chain to which segment belongs
-       * segtype: 'PROTEIN' or 'GLYCAN', determined by _seg_typedict_byresname_ global
-       * residues: list of residues
-       * mutations: list of mutations
-       * graft: graft designation; if set, will contain instructions on how to build segment from a graft
-       
-       """
-    def __init__(self,r,parent_chain=None,subcounter=''):
-        """Initializes a segment instance by passing in first residue of segment"""
-        self.parent_chain=parent_chain
-        self.segtype=_seg_typedict_byresname_[r.name]
-        if self.segtype=='PROTEIN':
-            self.segname=r.chainID
-        else:
-            self.segname=r.chainID+_segname_second_character_[_seg_typedict_byresname_[r.name]]+subcounter
-        self.residues=[r]
-        self.mutations=[]
-        self.deletions=[]
-        self.graft=''
-        self.rootres=''
-        self.attach=''
-        self.pdbfiles=[]
-        self.Runs=[]
-        if self.segtype=='GLYCAN':
-            if len(r.up)==0:
-                print('ERROR: {}:{}{} has no uplink in PDB file.  You may need to add one to a user-link input.'.format(self.segname,r.name,r.resseqnum))
-                exit()
-            self.rootres=r.up[0]
-        r.segname=self.segname
-        for a in r.atoms:
-            a.segname=self.segname
+    @classmethod
+    def from_residue_list(cls,Residues,parent_molecule):
+        if len(Residues)==0:
+            return None
+        apparent_chainID=Residues[0].chainID
+        apparent_segtype=Residues[0].segtype
+        myRes=Residues.clone()
+        uMap=myRes.uniquify(['resseqnum','insertion'])
+        myRes.sort()
+        subsegments=myRes.subdivide()
+        olc=ConfigGetParam('Segname_chars').get(apparent_segtype)
+        input_dict={
+            'segtype': apparent_segtype,
+            'segname': f'{apparent_chainID}{olc}',
+            'residues': Residues,
+            'parent_molecule': parent_molecule
+        }
+        inst=cls(input_dict)
+        inst.uMap=uMap
+        return inst
+    
+    def psfgen_atomselect(self):
+        serial_list=self.residues.atom_serials()
+        restr=f'set {self.segname}_sel [atomselect {self.parent_molecule.molid} serial '+' '.join(serial_list)+' ]'
+        return restr
+
+class SegmentList(CloneableModList):
+    pass
+    # def __init__(self,r,parent_chain=None,subcounter=''):
+    #     """Initializes a segment instance by passing in first residue of segment"""
+    #     self.parent_chain=parent_chain
+    #     self.segtype=_seg_typedict_byresname_[r.name]
+    #     if self.segtype=='PROTEIN':
+    #         self.segname=r.chainID
+    #     else:
+    #         self.segname=r.chainID+_segname_second_character_[_seg_typedict_byresname_[r.name]]+subcounter
+    #     self.residues=[r]
+    #     self.mutations=[]
+    #     self.deletions=[]
+    #     self.graft=''
+    #     self.rootres=''
+    #     self.attach=''
+    #     self.pdbfiles=[]
+    #     self.Runs=[]
+    #     if self.segtype=='GLYCAN':
+    #         if len(r.up)==0:
+    #             print('ERROR: {}:{}{} has no uplink in PDB file.  You may need to add one to a user-link input.'.format(self.segname,r.name,r.resseqnum))
+    #             exit()
+    #         self.rootres=r.up[0]
+    #     r.segname=self.segname
+    #     for a in r.atoms:
+    #         a.segname=self.segname
+
+class OldSegment:
     def get_chainID(self):
         return self.parent_chain.source_chainID
     def get_molecule(self):

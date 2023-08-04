@@ -1,0 +1,9 @@
+Title: TestUserConfig
+CHARMMDIR: $(HOME)/charmm
+BuildSteps:
+  - mods:
+      Mutations:
+        - chainID: A
+          resseqnum: 123
+          newresname: ARG
+        - G,555,PHE

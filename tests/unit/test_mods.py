@@ -1,5 +1,5 @@
 from pestifer.mods import Atom,Mutation, Missing, Seqadv, SSBond, Crot
-from pestifer.basemod import BaseMod
+from pestifer.basemod import BaseMod, ModList
 from pidibble.pdbparse import PDBParser
 import unittest
 import pytest
@@ -80,6 +80,13 @@ class TestBaseMod(unittest.TestCase):
         self.assertFalse(bm3==bm1)
         self.assertFalse(bm3<bm1)
         self.assertFalse(bm1<bm3)
+
+    def test_uniquify(self):
+        L=ModList([])
+        class tbm(BaseMod):
+            req_attr=['a','b']
+        # make a 200-element random list with a b all random from 0 to 9
+        # TODO: get this working
 
 class TestMutation(unittest.TestCase):
     def setUp(self):

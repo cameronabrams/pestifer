@@ -1,7 +1,6 @@
 import unittest
 from pestifer.molecule import Molecule
 from pestifer.config import ConfigSetup
-from pestifer.resourcemanager import ResourceManager
 class TestMolecule(unittest.TestCase):
     def setUp(self):
         return super().setUp()
@@ -16,7 +15,6 @@ class TestMolecule(unittest.TestCase):
         self.assertEqual(len(m.Missing),28)
         self.assertEqual(len(m.Links),15)
         self.assertEqual(len(m.Residues),1566)
-        self.assertEqual(len(m.Chains),8)
         self.assertEqual(m.Residues[0].segtype,'PROTEIN')
         waterres=[r for r in m.Residues if r.segtype=='WATER']
         self.assertEqual(len(waterres),603)
@@ -24,7 +22,8 @@ class TestMolecule(unittest.TestCase):
         self.assertEqual(len(glycanres),15)
         g0=glycanres[0]
         self.assertEqual(g0.name,'NAG')
-    def test_chains(self):
+
+    def test_bioassemb(self):
         self.config=ConfigSetup('')
-        m=Molecule.from_rcsb(pdb_code='4tvp')
-        self.assertEqual(len(m.Chains),8)
+        m=Molecule.from_rcsb(pdb_code='4zmj')
+        self.assertEqual(2,len(m.BioAssemb))
