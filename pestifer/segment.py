@@ -91,8 +91,8 @@ from .config import ConfigGetParam
 #        return 'coord {} {} N [cacoIn_nOut {} {} 0]\n'.format(self.replica_chainID,self.residues[0].resseqnum,self.resseqnum0,self.replica_chainID)
 
 class Segment(CloneableMod):
-    req_attr=['segtype','segname','residues','parent_molecule']
-    opt_attr=['mutations','deletions','grafts']
+    req_attr=['segtype','segname','residues','parent_molecule','subsegments']
+    opt_attr=['mutations','deletions','grafts','attachments']
 
     @classmethod
     def from_residue_list(cls,Residues,parent_molecule):
@@ -101,18 +101,21 @@ class Segment(CloneableMod):
         apparent_chainID=Residues[0].chainID
         apparent_segtype=Residues[0].segtype
         myRes=Residues.clone()
-        uMap=myRes.uniquify(['resseqnum','insertion'])
+        if apparent_segtype=='PROTEIN':
+            assert myRes.puniq(['resseqnum','insertion'])
+        else:
+            myRes.uniquify(['resseqnum','insertion'])
         myRes.sort()
-        subsegments=myRes.subdivide()
+        subsegments=myRes.binary_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
         olc=ConfigGetParam('Segname_chars').get(apparent_segtype)
         input_dict={
             'segtype': apparent_segtype,
             'segname': f'{apparent_chainID}{olc}',
             'residues': Residues,
-            'parent_molecule': parent_molecule
+            'parent_molecule': parent_molecule,
+            'subsegments':subsegments
         }
         inst=cls(input_dict)
-        inst.uMap=uMap
         return inst
     
     def psfgen_atomselect(self):

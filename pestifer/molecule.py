@@ -52,6 +52,7 @@ class Molecule:
         li=pr['LINK']
         self.Links=LinkList([Link.from_pdbrecord(p) for p in li])
         self._MakeResidues()
+        self._MakeLinks()
         self._MakeSegments()
         # self._MakeChains()
         self._MakeBiologicalAssemblies()
@@ -93,13 +94,33 @@ class Molecule:
             r.segtype=segtype_by_resname.get(r.name,'')
         self.Residues=ResidueList(R)
 
+    def _MakeLinks(self):
+        """for each Link, apply res1.linkTo(res2) 
+        """
+        for link in self.Links:
+            link.residue1=self.Residues.get(chainID=link.chainID1,resseqnum=link.resseqnum1)
+            link.residue2=self.Residues.get(chainID=link.chainID2,resseqnum=link.resseqnum2)
+            a1=self.Atoms.get(chainID=link.chainID1,resseqnum=link.resseqnum1,name=link.name1)
+            if hasattr(a1,'len'):
+                a1=a1.get(altloc=link.altloc1)
+            link.atom1=a1
+            a2=self.Atoms.get(chainID=link.chainID2,resseqnum=link.resseqnum2,name=link.name2)
+            if hasattr(a1,'len'):
+                a2=a2.get(altloc=link.altloc2)
+            link.atom2=a2
+            link.residue1.linkTo(link.residue2,link)
+
     def _MakeSegments(self):
         self.Segments=SegmentList([])
+        # make a single segment for each protein chain
         protein_res=self.Residues.get(segtype='PROTEIN')
         protein_chains=[]
         for r in protein_res:
             if not r.chainID in protein_chains:
                 protein_chains.append(r.chainID)
+        for pc in protein_chains:
+            pc_res=self.Residues.get(segtype='PROTEIN',chain=pc)
+            self.Segments.append(Segment.from_residue_list(pc_res,parent_molecule=self))
         
 
 

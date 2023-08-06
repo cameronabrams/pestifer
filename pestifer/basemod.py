@@ -72,7 +72,12 @@ class BaseMod:
         lt_list=[self.__dict__[k]<other.__dict__[k] for k in attr if hasattr(self.__dict__[k],'__lt__')]
         le_list=[self.__dict__[k]<=other.__dict__[k] for k in attr if hasattr(self.__dict__[k],'__lt__')]
         return all(le_list) and any(lt_list)
-
+    def __pkey(self,fields=[]):
+        if not fields:
+            return tuple([self.__dict__.values()])
+        return tuple([x for k,x in self.__dict__.items() if k in fields])
+    def phash(self,fields=[]):
+        return hash(self.__pkey(fields))
     def matches(self,**fields):
         # non strict match -- returns true if all key:val pairs in fields
         # match the corresponding key:val pairs in self.__dict__
@@ -100,6 +105,13 @@ class CloneableMod(BaseMod):
         input_dict.update(options)
         x=self.__class__(input_dict)
         return x
+
+class StateBound(BaseMod):
+    req_attr=['state','bounds']
+    def increment_rightbound(self):
+        self.bounds[1]+=1
+    def pstr(self):
+        return f'{self.state}({self.bounds[1]-self.bounds[0]+1})'
 
 class ModList(list):
     def __init__(self,data):
@@ -164,44 +176,55 @@ class ModList(list):
         else:
             key=operator.attrgetter(*by)
             self.L.sort(key=key,reverse=reverse)
-    def uniquify(self,fields):
+    def binnify(self,fields=[]):
+        bins={}
+        for item in self:
+            key=item.phash(fields)
+            if not key in bins:
+                bins[key]=[]
+            bins[key].append(item)
+        return bins
+    def puniq(self,fields):
+        bins=self.binnify(fields)
+        return len(bins)==len(self)
+    def puniquify(self,fields,new_attr_name='_ORIGINAL_'):
         # each element must be unique in the sense that no two 
         # elements have the same values of attributes listed in 
         # fields[]; returns a map keyed by unique index whose
         # values are the original values of the attributes listed
         # in fields; uniqueness is achieved by changing the 
         # value of the leading field only
-        uMap={}
-        bins={}
-        newbins={}
-        def mkey(item,fields):
-            k=[]
-            for f in fields:
-                k.append(item.__dict__[f])
-            return '['+']***['.join(k)+']'
-        for item in self:
-            k=mkey(item,fields)
-            if not k in bins:
-                bins[k]=[]
-            bins[k].append(item)
+        bins=self.binnify(fields)
         stillworking=True
         while stillworking:
             stillworking=False
-            newbins={}
-            for k,v in bins:
+            for k,v in bins.items():
                 if len(v)>1:
                     stillworking=True
                     for d in v[1:]:
-                        if not id(d) in uMap:
-                            uMap[id(d)]={k:d.__dict__[k] for k in fields}
-                        # uMap[d.index]={k:d.__dict__[k] for k in fields}
-                        while mkey(d,fields) in bins:
+                        if not new_attr_name in d.__dict__:
+                            d.__dict__[new_attr_name]={k:d.__dict__[k] for k in fields}
+                        while d.phash(fields) in bins:
                             d.__dict__[fields[0]]+=1
-                        newbins[mkey(d,fields)]=[d]
-            if newbins:
-                bins.update(newbins)
-        return uMap
-    
+            if stillworking: 
+                bins=self.binnify(fields)
+        assert(self.puniq(fields))
+    def state_bounds(self,state_func):
+        if len(self)==0:
+            return []
+        slices=[]
+        for i,item in enumerate(self):
+            if not slices:
+                slices.append(StateBound({'state':state_func(item),'bounds':[i,i]}))
+                continue
+            state=state_func(item)
+            last_state=slices[-1].state
+            if state==last_state:
+                slices[-1].increment_rightbound()
+            else:
+                slices.append(StateBound({'state':state_func(item),'bounds':[i,i]}))
+        return slices
+
 class CloneableModList(ModList):
     def clone(self,**options):
         R=CloneableModList([])

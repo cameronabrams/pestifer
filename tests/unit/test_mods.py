@@ -1,5 +1,5 @@
 from pestifer.mods import Atom,Mutation, Missing, Seqadv, SSBond, Crot
-from pestifer.basemod import BaseMod, ModList
+from pestifer.basemod import BaseMod, ModList, StateBound
 from pidibble.pdbparse import PDBParser
 import unittest
 import pytest
@@ -85,8 +85,49 @@ class TestBaseMod(unittest.TestCase):
         L=ModList([])
         class tbm(BaseMod):
             req_attr=['a','b']
-        # make a 200-element random list with a b all random from 0 to 9
-        # TODO: get this working
+        L.append(tbm({'a':1,'b':1})) # 0
+        L.append(tbm({'a':1,'b':1})) # 1
+        L.append(tbm({'a':2,'b':1})) # 2
+        L.append(tbm({'a':3,'b':1})) # 3
+        L.append(tbm({'a':4,'b':1})) # 4
+        L.append(tbm({'a':4,'b':1})) # 5
+        L.append(tbm({'a':4,'b':1})) # 6
+        L.append(tbm({'a':1,'b':1})) # 7
+        L.puniquify(['a'])
+        self.assertEqual(L[0].a,1)
+        self.assertTrue(not hasattr(L[0],'_ORIGINAL_'))
+        self.assertEqual(L[1].a,5)
+        self.assertTrue(hasattr(L[1],'_ORIGINAL_'))
+        self.assertEqual(L[1]._ORIGINAL_['a'],1)        
+        self.assertEqual(L[5].a,6)
+        self.assertTrue(hasattr(L[5],'_ORIGINAL_'))
+        self.assertEqual(L[5]._ORIGINAL_['a'],4)        
+        self.assertEqual(L[6].a,7)
+        self.assertTrue(hasattr(L[6],'_ORIGINAL_'))
+        self.assertEqual(L[6]._ORIGINAL_['a'],4)        
+        self.assertEqual(L[7].a,8)
+        self.assertTrue(hasattr(L[7],'_ORIGINAL_'))
+        self.assertEqual(L[7]._ORIGINAL_['a'],1)        
+
+    def test_statebounds(self):
+        L=ModList([])
+        class tbm(BaseMod):
+            req_attr=['a','b']
+        L.append(tbm({'a':[],'b':1})) # 0
+        L.append(tbm({'a':[],'b':1})) # 1
+        L.append(tbm({'a':[2,3,4],'b':1})) # 2
+        L.append(tbm({'a':[5,6],'b':1})) # 3
+        L.append(tbm({'a':[7,8,9,10],'b':1})) # 4
+        L.append(tbm({'a':[],'b':1})) # 5
+        L.append(tbm({'a':[11,12],'b':1})) # 6
+        L.append(tbm({'a':[13],'b':1})) # 7
+        b=L.state_bounds(lambda x: 'RESOLVED' if len(x.a)>0 else 'MISSING')
+        self.assertEqual(b[0],StateBound({'state':'MISSING','bounds':[0,1]}))    
+        self.assertEqual(b[1],StateBound({'state':'RESOLVED','bounds':[2,4]}))   
+        self.assertEqual(b[2],StateBound({'state':'MISSING','bounds':[5,5]}))
+        self.assertEqual(b[3],StateBound({'state':'RESOLVED','bounds':[6,7]}))
+        r=[c.pstr() for c in b]
+        self.assertEqual(r,['MISSING(2)','RESOLVED(3)','MISSING(1)','RESOLVED(2)'])
 
 class TestMutation(unittest.TestCase):
     def setUp(self):

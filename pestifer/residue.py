@@ -18,6 +18,11 @@ class Residue(CloneableMod):
         self.index=Residue._counter
         Residue._counter+=1
         self.segtype=''
+        self.down=[]
+        self.downlink=[]
+        self.up=[]
+        self.uplink=[]
+
     @classmethod
     def from_atom(cls,a:Atom):
         input_dict={
