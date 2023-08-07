@@ -187,13 +187,14 @@ class ModList(list):
     def puniq(self,fields):
         bins=self.binnify(fields)
         return len(bins)==len(self)
-    def puniquify(self,fields,new_attr_name='_ORIGINAL_'):
+    def puniquify(self,fields,new_attr_name='_ORIGINAL_',make_common=[]):
         # each element must be unique in the sense that no two 
         # elements have the same values of attributes listed in 
         # fields[]; returns a map keyed by unique index whose
         # values are the original values of the attributes listed
         # in fields; uniqueness is achieved by changing the 
         # value of the leading field only
+        assert not any([x in fields for x in make_common])
         bins=self.binnify(fields)
         stillworking=True
         while stillworking:
@@ -209,6 +210,13 @@ class ModList(list):
             if stillworking: 
                 bins=self.binnify(fields)
         assert(self.puniq(fields))
+        use_common={k:self[0].__dict__[k] for k in make_common}
+        if use_common:
+            for s in self:
+                if not new_attr_name in s.__dict__:
+                    s.__dict__[new_attr_name]={}
+                s.__dict__[new_attr_name].update({k:s.__dict__[k] for k in make_common})
+                s.__dict__.update(use_common)
     def state_bounds(self,state_func):
         if len(self)==0:
             return []

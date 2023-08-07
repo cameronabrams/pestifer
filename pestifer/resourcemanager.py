@@ -10,7 +10,6 @@ import logging
 import os
 import platform
 import glob
-from pathlib import Path
 logger=logging.getLogger(__name__)
 
 from pestifer import Resources # subpackage data

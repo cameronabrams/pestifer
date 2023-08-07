@@ -89,6 +89,11 @@ class Residue(CloneableMod):
             res.append(d)
             res.extend(d.get_down_group())
         return res
+    def resname_charmify(self):
+        m=ConfigGetParam('PDB_to_CHARMM_Resnames')
+        if self.name in m:
+            return m[self.name]
+        return self.nam
 
 class ResidueList(CloneableModList):
     def get_residue(self,**fields):
@@ -101,17 +106,4 @@ class ResidueList(CloneableModList):
         for a in self.atoms:
             serlist.append(a.serial)
         return serlist
-    def subdivide(self):
-        cd=0
-        divisions=[ResidueList([self[0]])]
-        flag=len(self[0].atoms)>0
-        for i in range(1,len(self)):
-            if (len(self[i].atoms)>0)!=flag:
-                flag=len(self[i].atoms)>0
-                cd+=1
-            divisions[cd].append(self[i])
-        return divisions
-
-
-
     

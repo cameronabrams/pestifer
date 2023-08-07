@@ -65,15 +65,14 @@ class Molecule:
         #     return
         copy=cls()
         copy.is_clone_of=inst
-        copy.chainID_map=inst.generate_chainIDmap()
 
-    def generate_chainIDmap(self):
-        chainIDmap={}
-        for ch in [x.chainID for x in self.Chains]:
-            nch=self.available_chainIDs[0]
-            chainIDmap[ch]=nch
-            self.claim_chainID(nch)
-        return chainIDmap
+    # def generate_chainIDmap(self):
+    #     chainIDmap={}
+    #     for ch in [x.chainID for x in self.Chains]:
+    #         nch=self.available_chainIDs[0]
+    #         chainIDmap[ch]=nch
+    #         self.claim_chainID(nch)
+    #     return chainIDmap
 
 
     def _MakeResidues(self):

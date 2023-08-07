@@ -2,6 +2,7 @@ import logging
 logger=logging.getLogger(__name__)
 from .basemod import CloneableMod, CloneableModList
 from .config import ConfigGetParam
+import pestifer.sel as sel
 #class SubsegmentBounds:
 #    def __init__(self,l=-1,r=-1,typ='NONE',d=''):
 #        self.l=l
@@ -102,22 +103,59 @@ class Segment(CloneableMod):
         apparent_segtype=Residues[0].segtype
         myRes=Residues.clone()
         if apparent_segtype=='PROTEIN':
+            # a protein segment must have unique residue numbers
             assert myRes.puniq(['resseqnum','insertion'])
+            # a protein segment may not have more than one protein chain
+            assert all([x.chainID==myRes[0].chainID for x in myRes])
         else:
-            myRes.uniquify(['resseqnum','insertion'])
+            myRes.puniquify(fields=['resseqnum','insertion'],make_common=['chainID'])
         myRes.sort()
-        subsegments=myRes.binary_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
+        subsegments=myRes.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
         olc=ConfigGetParam('Segname_chars').get(apparent_segtype)
         input_dict={
             'segtype': apparent_segtype,
             'segname': f'{apparent_chainID}{olc}',
-            'residues': Residues,
+            'residues': myRes,
             'parent_molecule': parent_molecule,
             'subsegments':subsegments
         }
         inst=cls(input_dict)
         return inst
     
+    def psfgen_stanza(self):
+        if self.segtype=='PROTEIN':
+            return self.protein_stanza()
+        elif self.segtype=='GLYCAN':
+            return self.glycan_stanza()
+        else:
+            return ''
+        
+    def protein_stanza(self,tmat,replica_chains={}):
+        the_chainID=replica_chains.get(self.residues[0].chainID,self.residues[0].chainID)
+        stanza=f'### BEGIN SEGMENT {self.segname} ###\n'
+        for i,b in enumerate(self.subsegments):
+            if b.state=='RESOLVED':
+                selname=f'${self.segname}_{i}'
+                run=self.residues[b.bounds[0]:b.bounds[1]+1]
+                b.pdb=f'PROTEIN_{the_chainID}_{run[0].resseqnum}{run[0].insertion}_to_{run[1].resseqnum}{run[1].insertion}.pdb'
+                serial_list=run.atom_serials()
+                stanza+=f'set {selname} [atomselect {self.parent_molecule.molid} serial '+' '.join(serial_list)+' ]\n'
+                if replica_chains:
+                    chainIDs=[the_chainID for x in serial_list]
+                    stanza+=f'${selname} set chain [list {" ".join(chainIDs)}]\n'                        
+                if not tmat.isidentity():
+                    stanza.extend(sel.backup(f'{self.segname}_{i}'))
+                    stanza.append(f'${selname} move {tmat.OneLiner()}\n')
+                stanza+=f'${selname} writepdb {b.pdb}'
+        for b in self.subsegments:
+            if b.state=='RESOLVED':
+                stanza+=f'    pdb {b.pdb}\n'
+            elif b.state=='MISSING':
+                for r in self.residues[b.bounds[0]:b.bounds[1]+1]:
+                    stanza+=f'    residue {r.resseqnum}{r.insertion} {r.resname_charmify()} {the_chainID}\n'
+        stanza+=f'### END SEGMENT {self.segname} ###\n'
+        return stanza
+
     def psfgen_atomselect(self):
         serial_list=self.residues.atom_serials()
         restr=f'set {self.segname}_sel [atomselect {self.parent_molecule.molid} serial '+' '.join(serial_list)+' ]'

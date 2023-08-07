@@ -109,6 +109,25 @@ class TestBaseMod(unittest.TestCase):
         self.assertTrue(hasattr(L[7],'_ORIGINAL_'))
         self.assertEqual(L[7]._ORIGINAL_['a'],1)        
 
+    def test_uniquify_commonize(self):
+        L=ModList([])
+        class tbm(BaseMod):
+            req_attr=['a','b']
+        L.append(tbm({'a':1,'b':0})) # 0
+        L.append(tbm({'a':1,'b':2})) # 1
+        L.append(tbm({'a':2,'b':4})) # 2
+        L.append(tbm({'a':3,'b':6})) # 3
+        L.append(tbm({'a':4,'b':7})) # 4
+        L.append(tbm({'a':4,'b':9})) # 5
+        L.append(tbm({'a':4,'b':11})) # 6
+        L.append(tbm({'a':1,'b':13})) # 7
+        L.puniquify(['a'],make_common=['b'])
+        self.assertTrue(all([x.b==0 for x in L]))
+        self.assertEqual(L[1]._ORIGINAL_['b'],2)
+        self.assertEqual(L[2]._ORIGINAL_['b'],4)
+        self.assertEqual(L[3]._ORIGINAL_['b'],6)
+        
+
     def test_statebounds(self):
         L=ModList([])
         class tbm(BaseMod):
