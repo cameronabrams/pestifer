@@ -19,14 +19,17 @@ class BaseMod:
     attr_choices={}
     # dictionary of lists of labels of attributes that are required if the optional attributes whose labels key this dictionary are present 
     opt_attr_deps={}
+    # list of attributes that are IGNORED for all comparisons
+    ignore_attr=[]
     def __init__(self,input_dict={}):
+        # print(f'b {input_dict}')
         # mutually exclusive attribute labels should not appear in the list of required attributes
         assert all([(not x in self.req_attr and not y in self.req_attr) for x,y in self.alt_attr]),"Mutually exclusive attributes should not appear in the required list"
         for k,v in input_dict.items():
             if k in self.req_attr or k in self.opt_attr:
                 self.__dict__[k]=v
         # all required attributes have values
-        assert all([att in self.__dict__.keys() for att in self.req_attr]),f"Not all required attributes have values {self.__dict__}"
+        assert all([att in self.__dict__.keys() for att in self.req_attr]),f"Not all required attributes have values\nRequired: {self.req_attr}\nProvided: {list(self.__dict__.keys())}"
         # all mutual-exclusivity requirements are met
         assert all([
             ((x[0] in self.__dict__.keys() and not x[1] in self.__dict__.keys()) or 
@@ -38,6 +41,7 @@ class BaseMod:
         for oa,dp in self.opt_attr_deps.items():
             if oa in self.__dict__.keys():
                 assert all([x in self.__dict__.keys() for x in dp]),"Dependent required attributes of optional attributes not present"
+
     def __eq__(self,other):
         """__eq__ == operator for BaseMods.  A and B are considered equal if they have the same values for all required attributes and for any *common* optional attributes.
         """
@@ -46,7 +50,12 @@ class BaseMod:
         if not self.__class__==other.__class__:
             return False
         attr_list=self.req_attr+[x for x in self.opt_attr if (x in other.__dict__ and x in self.__dict__)]
+        # print(attr_list)
+        for x in self.ignore_attr:
+            if x in attr_list:
+                attr_list.remove(x)
         test_list=[self.__dict__[k]==other.__dict__[k] for k in attr_list]
+        # print(test_list)
         return all(test_list)
     def __lt__(self,other):
         """__lt__ < operator for BaseMods.  A<B if all required and *common* optional attributes of A are less than or equal to those of B AND *at least one* such attribute of A is *strictly less than* its counterpart in B.
@@ -56,6 +65,9 @@ class BaseMod:
         if not self.__class__==other.__class__:
             return False
         attr_list=self.req_attr+[x for x in self.opt_attr if (x in other.__dict__ and x in self.__dict__)]
+        for x in self.ignore_attr:
+            if x in attr_list:
+                attr_list.remove(x)
         lt_list=[self.__dict__[k]<other.__dict__[k] for k in attr_list if hasattr(self.__dict__[k],'__lt__')]
         le_list=[self.__dict__[k]<=other.__dict__[k] for k in attr_list if hasattr(self.__dict__[k],'__lt__')]
         return all(le_list) and any(lt_list)
@@ -66,6 +78,9 @@ class BaseMod:
         if not self.__class__==other.__class__:
             return False
         attr_list=self.req_attr+[x for x in self.opt_attr if (x in other.__dict__ and x in self.__dict__)]
+        for x in self.ignore_attr:
+            if x in attr_list:
+                attr_list.remove(x)
         le_list=[self.__dict__[k]<=other.__dict__[k] for k in attr_list if hasattr(self.__dict__[k],'__lt__')]
         return all(le_list)
     def weak_lt(self,other,attr=[]):
@@ -99,15 +114,47 @@ class BaseMod:
         return False
 
 class CloneableMod(BaseMod):
+    opt_attr=BaseMod.opt_attr+['clone_of']
     def clone(self,**options):
         input_dict={k:v for k,v in self.__dict__.items() if k in self.req_attr}
         input_dict.update({k:v for k,v in self.__dict__.items() if k in self.opt_attr})
         input_dict.update(options)
+        input_dict['clone_of']=self
         x=self.__class__(input_dict)
         return x
+    def is_clone(self):
+        return 'clone_of' in self.__dict__
+    def get_original(self):
+        return self.clone_of
+    
+class AncestorAwareMod(CloneableMod):
+    opt_attr=CloneableMod.req_attr+['ancestor_obj']
+    ignore_attr=CloneableMod.ignore_attr+['ancestor_obj']
+    # def claim_object(self,obj,stamp):
+    #     if hasattr(obj,'__dict__'):
+    #         obj.__dict__['ancestor_obj']=stamp
+    #         obj.claim_descendants(stamp)
+    #     elif hasattr(obj,'len'): # a dict with AncestorAwareMods in the values or a list of AncestorAwareMods
+    #         if type(obj)==dict:
+    #             for subattr,subobj in obj.__dict__.items():
+    #                 self.claim_object(subobj,stamp)
+    #         else: #assume list
+    #             for subobj in obj:
+    #                 self.claim_object(subobj,stamp)
+    
+    def claim_self(self,stamp,level):
+        self.__dict__['ancestor_obj']=stamp
 
-class StateBound(BaseMod):
-    req_attr=['state','bounds']
+    def claim_descendants(self,stamp,level):
+        self.claim_self(stamp,level+1)
+        for attr,obj in self.__dict__.items():
+            if attr!='ancestor_obj':
+                if hasattr(obj,'__dict__'):
+                    obj.claim_descendants(stamp,level+1)
+                    
+
+class StateInterval(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['state','bounds']
     def increment_rightbound(self):
         self.bounds[1]+=1
     def pstr(self):
@@ -145,6 +192,9 @@ class ModList(list):
         self.L.remove(item)
     def clear(self):
         self.L.clear()
+    def pop(self,idx):
+        item=self.L.pop(idx)
+        return item
     def filter(self,**fields):
         retlist=self.__class__([])
         for r in self:
@@ -220,22 +270,32 @@ class ModList(list):
     def state_bounds(self,state_func):
         if len(self)==0:
             return []
-        slices=[]
+        slices=StateIntervalList([])
         for i,item in enumerate(self):
             if not slices:
-                slices.append(StateBound({'state':state_func(item),'bounds':[i,i]}))
+                slices.append(StateInterval({'state':state_func(item),'bounds':[i,i]}))
                 continue
             state=state_func(item)
             last_state=slices[-1].state
             if state==last_state:
                 slices[-1].increment_rightbound()
             else:
-                slices.append(StateBound({'state':state_func(item),'bounds':[i,i]}))
+                slices.append(StateInterval({'state':state_func(item),'bounds':[i,i]}))
         return slices
 
 class CloneableModList(ModList):
     def clone(self,**options):
-        R=CloneableModList([])
+        R=self.__class__([])
         for item in self:
             R.append(item.clone(**options))
         return R
+
+class AncestorAwareModList(CloneableModList):
+    def claim_descendants(self,stamp,level):
+        for obj in self:
+            if hasattr(obj,'__dict__'):
+                obj.__dict__['ancestor_obj']=stamp
+                obj.claim_descendants(stamp,level)
+
+class StateIntervalList(AncestorAwareModList):
+    pass

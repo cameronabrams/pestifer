@@ -16,21 +16,21 @@
 # from pestifer.cleavage import Cleavage
 # from pestifer.missing import Missing
 from pidibble.pdbrecord import PDBRecord
-from .basemod import CloneableMod,ModList,CloneableModList
+from .basemod import AncestorAwareMod,AncestorAwareModList
 
-class Seqadv(CloneableMod):
-    req_attr=['idCode','resname','chainID','resseqnum','insertion']
-    opt_attr=['database','dbAccession','dbRes','dbSeq','conflict']
+class Seqadv(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['idCode','resname','chainID','resseqnum','insertion']
+    opt_attr=AncestorAwareMod.opt_attr+['database','dbAccession','dbRes','dbSeq','conflict']
     yaml_header='Seqadv'
     PDB_keyword='SEQADV'
 
     @classmethod
     def from_pdbrecord(cls,pdbrecord:PDBRecord):
-        """from_pdbrecord generates a CloneableMod Seqadv from a SEQADV PDBRecord
+        """from_pdbrecord generates a AncestorAwareMod Seqadv from a SEQADV PDBRecord
 
         :param pdbrecord: a SEQADV PDBRecord
         :type pdbrecord: PDBRecord
-        :return: a Seqadv CloneableMod
+        :return: a Seqadv AncestorAwareMod
         :rtype: Seqadv
 
         SEQADV
@@ -60,12 +60,12 @@ class Seqadv(CloneableMod):
     def pdb_line(self):
         return f'SEQADV {self.idCode:3s} {self.resname:>3s} {self.chainID:1s} {self.resseqnum:>4d}{self.insertion:1s} {self.database:>4s} {self.dbAccession:9s} {self.dbRes:3s} {self.dbSeq:>5d} {self.conflict:21s}          '
 
-class SeqAdvList(CloneableModList):
+class SeqAdvList(AncestorAwareModList):
     pass
 
-class Mutation(CloneableMod):
-    req_attr=['chainID','origresname','newresname']
-    opt_attr=['resseqnum','resseqnumi','insertion']
+class Mutation(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['chainID','origresname','newresname']
+    opt_attr=AncestorAwareMod.opt_attr+['resseqnum','resseqnumi','insertion']
     yaml_header='Mutations'
     @classmethod
     def from_seqadv(cls,sq:Seqadv):
@@ -105,12 +105,12 @@ class Mutation(CloneableMod):
          lines=['    mutate {self.resseqnumi} {self.newresname}']
          return lines
 
-class MutationList(CloneableModList):
+class MutationList(AncestorAwareModList):
     pass
 
-class Missing(CloneableMod):
-    req_attr=['resname','resseqnum','insertion','chainID']
-    opt_attr=['model']
+class Missing(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['resname','resseqnum','insertion','chainID']
+    opt_attr=AncestorAwareMod.opt_attr+['model']
     yaml_header='Missing'
     PDB_keyword='REMARK.465'
 
@@ -152,14 +152,16 @@ class Missing(CloneableMod):
     def psfgen_lines(self):
         return ['     residue {} {}{} {}'.format(self.resname,self.resseqnum,self.insertion,self.chainID)]
 
-class MissingList(CloneableModList):
+class MissingList(AncestorAwareModList):
     pass
 
-class Crot(CloneableMod):
-    req_attr=['angle','degrees']
-    opt_attr=['chainID','resseqnum1','resseqnum2','segname','atom1','atom2','segname1','segname2','segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk']
-    attr_choices={'angle':['PHI','PSI','OMEGA','CHI1','CHI2','GLYCAN','LINK','ANGLEIJK']}
-    opt_attr_deps={
+class Crot(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['angle','degrees']
+    opt_attr=AncestorAwareMod.opt_attr+['chainID','resseqnum1','resseqnum2','segname','atom1','atom2','segname1','segname2','segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk']
+    attr_choices=AncestorAwareMod.attr_choices.copy()
+    attr_choices.update({'angle':['PHI','PSI','OMEGA','CHI1','CHI2','GLYCAN','LINK','ANGLEIJK']})
+    opt_attr_deps=AncestorAwareMod.opt_attr_deps.copy()
+    opt_attr_deps.update({
         'PHI':['chainID','resseqnum1','resseqnum2'],
         'PSI':['chainID','resseqnum1','resseqnum2'],
         'OMEGA':['chainID','resseqnum1','resseqnum2'],
@@ -168,7 +170,7 @@ class Crot(CloneableMod):
         'GLYCAN':['segname','resseqnum1','atom1','resseqnum2','atom2'],
         'LINK':['segname1','segname2','resseqnum1','atom1','resseqnum2','atom2'],
         'ANGLEIJK':['segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk']
-        }
+        })
     yaml_header='Crotations'
     @classmethod
     def from_shortcode(cls,shortcode):
@@ -303,12 +305,12 @@ class Crot(CloneableMod):
             ])
         return retlines
 
-class CrotList(CloneableModList):
+class CrotList(AncestorAwareModList):
     pass
 
-class Atom(CloneableMod):
-    req_attr=['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
-    opt_attr=['segname','empty','link']
+class Atom(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
+    opt_attr=AncestorAwareMod.opt_attr+['segname','empty','link']
     yaml_header='Atoms'
     PDB_keyword='ATOM'
 
@@ -380,21 +382,21 @@ class Atom(CloneableMod):
                 10*' '+'{:>2s}'.format(self.elem)+'{:2s}'.format(self.charge)
         return pdbline
 
-class AtomList(CloneableModList):
+class AtomList(AncestorAwareModList):
     pass
 
 class Hetatm(Atom):
     PDB_keyword='HETATM'
 
-class SSBond(CloneableMod):
-    req_attr=['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
-    opt_attr=['serial_number','resname1','resname2','sym1','sym2','length']
+class SSBond(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
+    opt_attr=AncestorAwareMod.opt_attr+['serial_number','resname1','resname2','sym1','sym2','length']
     yaml_header='SSBonds'
     PDB_keyword='SSBOND'
 
     @classmethod
     def from_pdbrecord(cls,pdbrecord:PDBRecord):
-        """from_pdbrecord generates a CloneableMod SSBond from a PDBRecord
+        """from_pdbrecord generates a AncestorAwareMod SSBond from a PDBRecord
 
         :param pdbrecord: an SSBOND PDBRecord
         :type pdbrecord: PDBRecord
@@ -488,14 +490,14 @@ class SSBond(CloneableMod):
     def psfgen_lines(self):
         return ['patch DISU {}:{} {}:{}'.format(self.chainID1,self.resseqnum1,self.chainID2,self.resseqnum2)]
 
-class SSBondList(CloneableModList):
+class SSBondList(AncestorAwareModList):
     pass
 
-class Link(CloneableMod):
+class Link(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['name1','chainID1','resseqnum1','iCode1','name2','chainID2','resseqnum2','iCode2']
+    opt_attr=AncestorAwareMod.opt_attr+['altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance']    
     yaml_header='Links'
     PDB_keyword='LINK'
-    req_attr=['name1','chainID1','resseqnum1','iCode1','name2','chainID2','resseqnum2','iCode2']
-    opt_attr=['altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance']    
     @classmethod
     def from_pdbrecord(cls,pdbrecord:PDBRecord):
         input_dict={
@@ -556,9 +558,5 @@ class Link(CloneableMod):
         input_dict['empty']=False
         return cls(input_dict)
 
-
-class LinkList(ModList):
-    """LinkList not THAT kind of link-list
-
-    """
-    pass
+    def __str__(self):
+        return f'{self.chainID1}{self.resname1}{self.resseqnum1}{self.iCode1}-{self.chainID2}{self.resname2}{self.resseqnum2}{self.iCode2}'

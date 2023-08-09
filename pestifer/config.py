@@ -11,6 +11,7 @@ import logging
 logger=logging.getLogger(__name__)
 import yaml
 from .resourcemanager import ResourcesSetup, ResourcesApplyUserOptions, ResourcesGet
+from .util import special_update
 
 def replace(data,match,repl):
     """Recursive value search-and-replace; data is either list or dictionary; nesting is ok
@@ -60,8 +61,12 @@ class Config:
         """ Read the user-specified config file """
         if userconfigfilename:
            with open(userconfigfilename,'r') as f:
-                # read into instance not class
-                user_defs.update(yaml.safe_load(f))
+                user_dict=yaml.safe_load(f)
+                # do not allow 'User_defaults' key in a user-supplied yaml file
+                if 'User_defaults' in user_dict:
+                    logger.warning(f'Key "User_defaults" detected in user-supplied config file {userconfigfilename} is ignored.')
+                    del user_dict['User_defaults']
+                user_defs.update(user_dict)
         """ Read any mods or modfiles """
         for step in user_defs.get('BuildSteps',[]):
             if 'mods' in step: # either a dictionary or a file containing a dictionary
@@ -69,7 +74,8 @@ class Config:
                 if type(val)==str and (val.endswith('yaml') or val.endswith('yml')):
                     with open(val,"r") as f:
                         step['mods']=yaml.safe_load(f)
-        self.defs.update(user_defs)
+        """ special_update appends to any list or dict values in the first arg """
+        self.defs=special_update(self.defs,user_defs)
         """ Perform any variable substitions at leaves """
         vars={'HOME':ResourcesGet('UserHome')}
         for v,r in vars.items():

@@ -126,6 +126,14 @@ Segname_chars:
   LIGAND: L
   OTHER: O
 
+Sacrificial_residue:
+# add a glycine to the end of any loop of missing residues
+# longer than 3 residues
+  name: GLY
+  min_loop_length: 3
+
+Include_terminal_loops: False
+
 User_defaults:
   psfgen_script_name: mkpsf.tcl
   NAMD2: /usr/local/bin/namd2

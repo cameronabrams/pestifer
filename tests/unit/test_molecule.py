@@ -2,33 +2,34 @@ import unittest
 from pestifer.molecule import Molecule
 from pestifer.config import ConfigSetup
 class TestMolecule(unittest.TestCase):
-    def setUp(self):
-        return super().setUp()
+
     def test_molecule(self):
         self.config=ConfigSetup('')
         m=Molecule.from_rcsb(pdb_code='1gc1')
+        au=m.asymmetric_unit
         self.assertEqual(m.pdb_code,'1gc1')
-        self.assertEqual(len(m.Atoms),7877)
-        self.assertEqual(len(m.SSBonds),14)
-        self.assertEqual(len(m.Mutations),2)
-        self.assertEqual(len(m.Conflicts),1)
-        self.assertEqual(len(m.Missing),28)
-        self.assertEqual(len(m.Links),15)
-        self.assertEqual(len(m.Residues),1566)
-        self.assertEqual(m.Residues[0].segtype,'PROTEIN')
-        waterres=[r for r in m.Residues if r.segtype=='WATER']
+        self.assertEqual(len(au.Atoms),7877)
+        self.assertEqual(len(au.SSBonds),14)
+        self.assertEqual(len(au.Mutations),2)
+        self.assertEqual(len(au.Conflicts),1)
+        self.assertEqual(len(au.Missings),28)
+        self.assertEqual(len(au.Links),15)
+        self.assertEqual(len(au.Residues),1566)
+        r0=au.Residues[0]
+        self.assertEqual(r0.name,'THR')
+        self.assertEqual(r0.segtype,'PROTEIN')
+        waterres=[r for r in au.Residues if r.segtype=='WATER']
         self.assertEqual(len(waterres),603)
-        glycanres=[r for r in m.Residues if r.segtype=='GLYCAN']
+        glycanres=[r for r in au.Residues if r.segtype=='GLYCAN']
         self.assertEqual(len(glycanres),15)
         g0=glycanres[0]
         self.assertEqual(g0.name,'NAG')
 
-
-
     def test_links(self):
         self.config=ConfigSetup('')
         m=Molecule.from_rcsb(pdb_code='4zmj')
-        l=m.Links[0]
+        au=m.asymmetric_unit
+        l=au.Links[0]
         self.assertEqual(l.residue1.segtype,'PROTEIN')
         self.assertEqual(l.residue1.name,'ASN')
         self.assertEqual(l.residue1.chainID,'G')
@@ -45,7 +46,7 @@ class TestMolecule(unittest.TestCase):
         self.assertTrue(l.residue1 in l.residue2.up)
         self.assertTrue(l in l.residue1.downlink)
         self.assertTrue(l in l.residue2.uplink)
-        l=m.Links[-1]
+        l=au.Links[-1]
         self.assertEqual(l.residue1.segtype,'GLYCAN')
         self.assertEqual(l.residue1.name,'NAG')
         self.assertEqual(l.residue1.chainID,'D')
@@ -62,4 +63,17 @@ class TestMolecule(unittest.TestCase):
     def test_bioassemb(self):
         self.config=ConfigSetup('')
         m=Molecule.from_rcsb(pdb_code='4zmj')
-        self.assertEqual(2,len(m.BioAssemb))
+        self.assertEqual(1,len(m.biological_assemblies))
+    
+    def test_ancestry(self):
+        self.config=ConfigSetup('')
+        m=Molecule.from_rcsb(pdb_code='4zmj')
+        # m=Molecule.from_rcsb(pdb_code='2y29')
+        au=m.asymmetric_unit
+        auao=au.ancestor_obj
+        self.assertEqual(auao,m)
+        for s in au.Segments:
+            print(str(s))
+            sao=s.ancestor_obj
+            self.assertEqual(sao,m)
+            self.assertEqual(sao.molid,0)

@@ -9,12 +9,12 @@
 import logging
 logger=logging.getLogger(__name__)
 
-from .config import Config
+from .config import ConfigSetup
 from .molecule import Molecule
 
 class Controller:
-    def __init__(self):
-        self.config=Config()
+    def __init__(self,userconfigfilename):
+        self.config=ConfigSetup(userconfigfilename)
     
     def build_molecules(self):
         self.molecules=[]

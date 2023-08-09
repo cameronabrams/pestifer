@@ -1,8 +1,10 @@
 import logging
 logger=logging.getLogger(__name__)
-from .basemod import CloneableMod, CloneableModList
+from .basemod import CloneableMod, CloneableModList, AncestorAwareMod, AncestorAwareModList
 from .config import ConfigGetParam
+from .residue import ResidueList
 import pestifer.sel as sel
+from .util import isidentity, reduce_intlist
 #class SubsegmentBounds:
 #    def __init__(self,l=-1,r=-1,typ='NONE',d=''):
 #        self.l=l
@@ -91,12 +93,12 @@ import pestifer.sel as sel
 #    def caco_str(self):
 #        return 'coord {} {} N [cacoIn_nOut {} {} 0]\n'.format(self.replica_chainID,self.residues[0].resseqnum,self.resseqnum0,self.replica_chainID)
 
-class Segment(CloneableMod):
-    req_attr=['segtype','segname','residues','parent_molecule','subsegments']
-    opt_attr=['mutations','deletions','grafts','attachments']
+class Segment(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments']
+    opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname']
 
     @classmethod
-    def from_residue_list(cls,Residues,parent_molecule):
+    def from_residue_list(cls,Residues):
         if len(Residues)==0:
             return None
         apparent_chainID=Residues[0].chainID
@@ -115,13 +117,16 @@ class Segment(CloneableMod):
         input_dict={
             'segtype': apparent_segtype,
             'segname': f'{apparent_chainID}{olc}',
+            'chainID': apparent_chainID,
             'residues': myRes,
-            'parent_molecule': parent_molecule,
             'subsegments':subsegments
         }
         inst=cls(input_dict)
         return inst
     
+    def __str__(self):
+        return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
+
     def psfgen_stanza(self):
         if self.segtype=='PROTEIN':
             return self.protein_stanza()
@@ -131,38 +136,118 @@ class Segment(CloneableMod):
             return ''
         
     def protein_stanza(self,tmat,replica_chains={}):
+        parent_molecule=self.ancestor_obj
         the_chainID=replica_chains.get(self.residues[0].chainID,self.residues[0].chainID)
+        sac_rd=ConfigGetParam('Sacrificial_residue')
+        sac_r=sac_rd['name']
+        sac_n=sac_rd['min_loop_length']
         stanza=f'### BEGIN SEGMENT {self.segname} ###\n'
         for i,b in enumerate(self.subsegments):
             if b.state=='RESOLVED':
-                selname=f'${self.segname}_{i}'
-                run=self.residues[b.bounds[0]:b.bounds[1]+1]
-                b.pdb=f'PROTEIN_{the_chainID}_{run[0].resseqnum}{run[0].insertion}_to_{run[1].resseqnum}{run[1].insertion}.pdb'
-                serial_list=run.atom_serials()
-                stanza+=f'set {selname} [atomselect {self.parent_molecule.molid} serial '+' '.join(serial_list)+' ]\n'
+                selname=f'{self.psfgen_segname}'
+                run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
+                b.pdb=f'PROTEIN_{the_chainID}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
+                serial_list=run.atom_serials(as_type=int)
+                vmd_red_list=reduce_intlist(serial_list)
+                stanza+=f'set {selname} [atomselect {parent_molecule.molid} "serial {vmd_red_list}"]\n'
+                # stanza+=f'set {selname} [atomselect {parent_molecule.molid} "serial '+' '.join(serial_list)+'"]\n'
                 if replica_chains:
                     chainIDs=[the_chainID for x in serial_list]
                     stanza+=f'${selname} set chain [list {" ".join(chainIDs)}]\n'                        
-                if not tmat.isidentity():
-                    stanza.extend(sel.backup(f'{self.segname}_{i}'))
-                    stanza.append(f'${selname} move {tmat.OneLiner()}\n')
-                stanza+=f'${selname} writepdb {b.pdb}'
+                if not isidentity(tmat):
+                    stanza+=sel.backup(f'{selname}')
+                    stanza+=f'${selname} move {tmat.OneLiner()}\n'
+                    stanza+=sel.restore(f'{selname}')
+                stanza+=f'${selname} writepdb {b.pdb}\n'
+        stanza+=f'segment {self.segname} '+'{\n'
+        print(len(self.subsegments),type(self.subsegments))
+        if not ConfigGetParam('Include_terminal_loops'):
+            if self.subsegments[0].state=='MISSING':
+                Nterminal_missing_subsegment=self.subsegments.pop(0)
+                logger.info(f'Since terminal loops are not included, ignoring {str(Nterminal_missing_subsegment)}')
+            if self.subsegments[-1].state=='MISSING':
+                Cterminal_missing_subsegment=self.subsegments.pop(-1)
+                logger.info(f'Since terminal loops are not included, ignoring {str(Cterminal_missing_subsegment)}')
         for b in self.subsegments:
             if b.state=='RESOLVED':
                 stanza+=f'    pdb {b.pdb}\n'
             elif b.state=='MISSING':
                 for r in self.residues[b.bounds[0]:b.bounds[1]+1]:
                     stanza+=f'    residue {r.resseqnum}{r.insertion} {r.resname_charmify()} {the_chainID}\n'
-        stanza+=f'### END SEGMENT {self.segname} ###\n'
+                if (b.bounds[1]-b.bounds[0])>(sac_n-1):
+                    lrr=self.residues[b.bounds[1]]
+                    sac_resseqnum=lrr.resseqnum
+                    sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
+                    assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {the_chainID} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_r}'
+                    stanza+=f'    residue {sac_resseqnum}{sac_insertion} {sac_r} {the_chainID}\n'
+        stanza+='}\n'
+        for b in self.subsegments:
+            if b.state=='RESOLVED':
+                stanza+=f'coordpdb {b.pdb} {self.segname}\n'
+        for b in self.subsegments:
+            if b.state=='MISSING':
+                # will issue the atom-reorienting command to join the C-terminus of prior run to N-terminus of this one, which is model-built using guesscoord
+                if (self.subsegments.index(b)==0 or self.subsegments.index(b)==(len(self.subsegments)-1)) and not ConfigGetParam('Include_terminal_loops'):
+                    # this is a terminal loop and we are not including terminal loops
+                    pass
+                else:
+                    # not terminal OR we ARE including terminal loops
+                    if self.subsegments.index(b)>0:
+                        # this is either interior OR C-terminal to be included
+                        this_run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
+                        prior_b=self.subsegments[self.subsegments.index(b)-1]
+                        prior_run=ResidueList(self.residues[prior_b.bounds[0]:prior_b.bounds[1]+1])
+                        stanza+=f'{this_run.caco_str(prior_run)}\n'
+        stanza+=f'### END SEGMENT {self.psfgen_segname} ###\n'
         return stanza
 
-    def psfgen_atomselect(self):
-        serial_list=self.residues.atom_serials()
-        restr=f'set {self.segname}_sel [atomselect {self.parent_molecule.molid} serial '+' '.join(serial_list)+' ]'
-        return restr
+    # def psfgen_atomselect(self):
+    #     serial_list=self.residues.atom_serials()
+    #     restr=f'set {self.segname}_sel [atomselect {parent_molecule.molid} serial '+' '.join(serial_list)+' ]'
+    #     return restr
 
-class SegmentList(CloneableModList):
-    pass
+class SegmentList(AncestorAwareModList):
+    counters_by_segtype={}
+    def append(self,item:Segment):
+        olc=ConfigGetParam('Segname_chars').get(item.segtype)
+        itemkey=f'{item.chainID}{olc}'
+        if not itemkey in self.counters_by_segtype:
+            self.counters_by_segtype[itemkey]=0
+        self.counters_by_segtype[itemkey]+=1
+        if item.segtype=='PROTEIN':
+            item.psfgen_segname=item.segname
+        else:
+            item.psfgen_segname=f'{itemkey}{self.counters_by_segtype[itemkey]:03d}'
+        super().append(item)
+
+    @classmethod
+    def from_residues(cls,residues:ResidueList):
+        tmp_counters={}
+        Slist=[]
+        protein_res=residues.get(segtype='PROTEIN')
+        protein_chains=[]
+        for r in protein_res:
+            if not r.chainID in protein_chains:
+                protein_chains.append(r.chainID)
+        
+        for pc in protein_chains:
+            pc_res=residues.get(segtype='PROTEIN',chainID=pc)
+            thisSeg=Segment.from_residue_list(pc_res)
+            olc=ConfigGetParam('Segname_chars').get(thisSeg.segtype)
+            itemkey=f'{thisSeg.chainID}{olc}'
+            if not itemkey in tmp_counters:
+                tmp_counters[itemkey]=0
+            tmp_counters[itemkey]+=1
+            if thisSeg.segtype=='PROTEIN':
+                thisSeg.psfgen_segname=thisSeg.segname
+            else:
+                thisSeg.psfgen_segname=f'{itemkey}{tmp_counters[itemkey]:03d}'
+            Slist.append(thisSeg)
+
+        # TODO: Water, ligand, glycan, etc
+
+        return cls(Slist)
+
     # def __init__(self,r,parent_chain=None,subcounter=''):
     #     """Initializes a segment instance by passing in first residue of segment"""
     #     self.parent_chain=parent_chain
@@ -269,12 +354,12 @@ class OldSegment:
                     stanza.append('set mysel [atomselect ${} "protein and chain {} and resid {} to {} {}"]\n'.format(self.get_molecule().molid_varname,
                                 self.parent_chain.source_chainID,r0.ri(),r1.ri(),delstr))
 
-                    if not tmat.isidentity():
+                    if not isidentity(tmat):
                          stanza.extend(sel.backup('mysel'))
                          stanza.append('$mysel move {}'.format(tmat.OneLiner()))
                     ''' tmat transformation '''
                     stanza.append('$mysel writepdb {}'.format(ss.pdb_str()))
-                    if not tmat.isidentity():
+                    if not isidentity(tmat):
                          stanza.extend(sel.restore('mysel'))
                     self.pdbfiles.append(ss.pdb_str())
             ''' PART 2:  Build segment stanza '''

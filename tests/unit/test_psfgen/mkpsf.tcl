@@ -54,8 +54,8 @@ set ANAMEDICT(CL) CLA
 set ANAMEDICT(O) OH2
 #### END HEADER ####
 mol new 1gc1 waitfor all
-set m2 [molinfo top get id]
-mol top $m2
+set m3 [molinfo top get id]
+mol top $m3
 #### BEGIN SEGMENTS ####
 #### END SEGMENTS ####
 exit
