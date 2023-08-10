@@ -8,6 +8,7 @@ from .basemod import AncestorAwareMod, AncestorAwareModList
 
 class BiomT(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['index','tmat']
+    opt_attr=AncestorAwareMod.opt_attr+['chainIDmap']
     @classmethod
     def from_rot_trans(cls,RotMat:np.ndarray,TransVec:np.ndarray,index):
         tmat=np.array([[1, 0, 0, 0],[0, 1, 0, 0],[0, 0, 1, 0]],dtype=float)

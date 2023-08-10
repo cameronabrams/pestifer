@@ -4,11 +4,11 @@ from pestifer.mods import *
 
 class TestController(unittest.TestCase):
     def test_controller(self):
-        c=Controller('user_config.yaml')
-        self.assertEqual(c.config.defs['Title'],'Test User Config')
-        self.assertEqual(c.config.defs['SourcePDB'],'4zmj')
-        self.assertEqual(len(c.build_steps),1)
-        s=c.build_steps[0]
+        C=Controller('user_config.yaml').build_molecules()
+        self.assertEqual(C.config.defs['Title'],'Test User Config')
+        self.assertEqual(C.config.defs['Source']['pdb'],'4zmj')
+        self.assertEqual(len(C.build_steps),1)
+        s=C.build_steps[0]
         self.assertEqual(s.solvate,False)
         self.assertTrue('Mutations' in s.mods)
         self.assertEqual(len(s.mods['Mutations']),4)
@@ -39,6 +39,20 @@ class TestController(unittest.TestCase):
         self.assertEqual(sd.resseqnum1,345)
         self.assertEqual(sd.resseqnum2,543)
 
+        baseMol=C.molecules['4zmj']
+        self.assertEqual(baseMol.molid,0)
+        self.assertEqual(baseMol.active_biological_assembly.index,1)
+        b=baseMol.active_biological_assembly
+        self.assertEqual(b.index,1)
+        self.assertEqual(len(b.biomt),3)
+        t1=b.biomt[0]
+        self.assertEqual(t1.chainIDmap,{})
+        t2=b.biomt[1]
+        self.assertEqual(t2.chainIDmap,{'A': 'E', 'B': 'F', 'C': 'H', 'D': 'I', 'G': 'J'})
+        t3=b.biomt[2]
+        self.assertEqual(t3.chainIDmap,{'A': 'K', 'B': 'L', 'C': 'M', 'D': 'N', 'G': 'O'})
+        with open('molout.tcl','w') as f:
+            f.write(baseMol.write_TcL())
         # self.assertEqual(m['resseqnum'],151)
         # self.assertEqual(m['origresname'],'ALA')
         # self.assertEqual(m['newresname'],'CYS')

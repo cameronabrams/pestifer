@@ -11,7 +11,7 @@ logger=logging.getLogger(__name__)
 
 class AsymmetricUnit(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['Atoms','Residues','SSBonds','Mutations','Conflicts','Missings','Links']
-    opt_attr=AncestorAwareMod.opt_attr+['Segments']
+    opt_attr=AncestorAwareMod.opt_attr+['Segments','chainIDs']
     @classmethod
     def from_pdb(cls,pr:dict):
         Atoms=AtomList([Atom.from_pdbrecord(p) for p in pr['ATOM']])
@@ -41,6 +41,8 @@ class AsymmetricUnit(AncestorAwareMod):
         else:
             Links=LinkList([])
         Segments=SegmentList.from_residues(Residues)
+        chainIDs=list(set([x.chainID for x in Residues]))
+        chainIDs.sort()
         input_dict={
             'Atoms':Atoms,
             'Residues':Residues,
@@ -49,6 +51,7 @@ class AsymmetricUnit(AncestorAwareMod):
             'Conflicts':Conflicts,
             'Missings':Missings,
             'Links':Links,
-            'Segments':Segments
+            'Segments':Segments,
+            'chainIDs':chainIDs
         }
         return cls(input_dict)

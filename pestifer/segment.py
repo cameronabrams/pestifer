@@ -9,7 +9,14 @@ from .util import isidentity, reduce_intlist
 
 class Segment(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments']
-    opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname']
+    opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname','config_params']
+
+    def __init__(self,input_dict):
+        parm_dict={}
+        for p in ['Include_terminal_loops','Fix_engineered_mutations','Fix_conflicts','Sacrificial_residue']:
+            parm_dict[p]=ConfigGetParam(p)
+        input_dict['config_params']=parm_dict
+        super().__init__(input_dict)
 
     @classmethod
     def from_residue_list(cls,Residues):
@@ -41,21 +48,26 @@ class Segment(AncestorAwareMod):
     def __str__(self):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
 
-    def psfgen_stanza(self,tmat,replica_chains={}):
+    def write_TcL(self,transform):
+
         if self.segtype=='PROTEIN':
-            return self.protein_stanza(tmat,replica_chains)
+            return self.protein_stanza(transform)
         elif self.segtype=='GLYCAN':
-            return self.glycan_stanza(tmat,replica_chains)
+            return self.glycan_stanza(transform)
         else:
-            return self.generic_stanza(tmat,replica_chains)
+            return self.generic_stanza(transform)
         
-    def protein_stanza(self,tmat,replica_chains={}):
+    def protein_stanza(self,transform):
         parent_molecule=self.ancestor_obj
-        the_chainID=replica_chains.get(self.residues[0].chainID,self.residues[0].chainID)
-        sac_rd=ConfigGetParam('Sacrificial_residue',default={})
-        include_terminal_loops=ConfigGetParam('Include_terminal_loops',default=False)
-        fix_engineered_muations=ConfigGetParam('Fix_engineered_mutations',default=False)
-        fix_conflicts=ConfigGetParam('Fix_conflicts',False)
+        the_chainID=self.residues[0].chainID
+        chainIDmap=transform.chainIDmap
+        tmat=transform.tmat
+        rep_chainID=chainIDmap.get(the_chainID,the_chainID)
+        seglabel=self.psfgen_segname # protein, so should just be letter
+        if rep_chainID!=the_chainID:
+            print(f'relabeling chain {the_chainID} to {rep_chainID} in {seglabel}')
+            seglabel=f'{rep_chainID}' # first byte is chain ID
+        sac_rd=self.config_params['Sacrificial_residue']
         sac_r=sac_rd['name']
         sac_n=sac_rd['min_loop_length']
         stanza=f'### BEGIN SEGMENT {self.segname} ###\n'
@@ -63,23 +75,22 @@ class Segment(AncestorAwareMod):
             if b.state=='RESOLVED':
                 selname=f'{self.psfgen_segname}'
                 run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
-                b.pdb=f'PROTEIN_{the_chainID}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
+                b.pdb=f'PROTEIN_{rep_chainID}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
                 # TODO: account for any deletions
                 serial_list=run.atom_serials(as_type=int)
                 vmd_red_list=reduce_intlist(serial_list)
                 stanza+=f'set {selname} [atomselect {parent_molecule.molid} "serial {vmd_red_list}"]\n'
-                # stanza+=f'set {selname} [atomselect {parent_molecule.molid} "serial '+' '.join(serial_list)+'"]\n'
-                if replica_chains:
-                    chainIDs=[the_chainID for x in serial_list]
-                    stanza+=f'${selname} set chain [list {" ".join(chainIDs)}]\n'                        
+                if rep_chainID!=the_chainID:
+                    stanza+=f'${selname} set chain {rep_chainID}\n'                        
                 if not isidentity(tmat):
-                    stanza+=sel.backup(f'{selname}')
-                    stanza+=f'${selname} move {tmat.OneLiner()}\n'
-                    stanza+=sel.restore(f'{selname}')
+                    stanza+=sel.backup(f'{selname}')+'\n'
+                    stanza+=f'${selname} move {transform.write_TcL()}\n'
                 stanza+=f'${selname} writepdb {b.pdb}\n'
-        stanza+=f'segment {self.segname} '+'{\n'
-        print(len(self.subsegments),type(self.subsegments))
-        if not include_terminal_loops:
+                if not isidentity(tmat):
+                    stanza+=sel.restore(f'{selname}')+'\n'
+        stanza+=f'segment {seglabel} '+'{\n'
+        # print(len(self.subsegments),type(self.subsegments))
+        if not self.config_params['Include_terminal_loops']:
             if self.subsegments[0].state=='MISSING':
                 Nterminal_missing_subsegment=self.subsegments.pop(0)
                 logger.info(f'Since terminal loops are not included, ignoring {str(Nterminal_missing_subsegment)}')
@@ -102,7 +113,7 @@ class Segment(AncestorAwareMod):
         stanza+='}\n'
         for b in self.subsegments:
             if b.state=='RESOLVED':
-                stanza+=f'coordpdb {b.pdb} {self.segname}\n'
+                stanza+=f'coordpdb {b.pdb} {seglabel}\n'
         for b in self.subsegments:
             if b.state=='MISSING':
                 # will issue the atom-reorienting command to join the C-terminus of prior run to N-terminus of this one, which is model-built using guesscoord
@@ -116,8 +127,8 @@ class Segment(AncestorAwareMod):
                         this_run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
                         prior_b=self.subsegments[self.subsegments.index(b)-1]
                         prior_run=ResidueList(self.residues[prior_b.bounds[0]:prior_b.bounds[1]+1])
-                        stanza+=f'{this_run.caco_str(prior_run)}\n'
-        stanza+=f'### END SEGMENT {self.psfgen_segname} ###\n'
+                        stanza+=f'{this_run.caco_str(prior_run,seglabel)}\n'
+        stanza+=f'### END SEGMENT {seglabel} ###\n'
         return stanza
 
     # def psfgen_atomselect(self):
@@ -275,7 +286,7 @@ class OldSegment:
 
                     if not isidentity(tmat):
                          stanza.extend(sel.backup('mysel'))
-                         stanza.append('$mysel move {}'.format(tmat.OneLiner()))
+                         stanza.append('$mysel move {}'.format(tmat.write_TcL()))
                     ''' tmat transformation '''
                     stanza.append('$mysel writepdb {}'.format(ss.pdb_str()))
                     if not isidentity(tmat):
@@ -377,7 +388,7 @@ class OldSegment:
                 stanza.append('set mysel [atomselect ${} "chain {} and resid {} to {}"]'.format(self.get_molecule().molid_varname,self.parent_chain.source_chainID,self.residues[0].resseqnum,self.residues[-1].resseqnum))
                 if not tmat.isidentity():
                      stanza.extend(sel.backup('mysel'))
-                     stanza.append('$mysel move {}'.format(tmat.OneLiner()))
+                     stanza.append('$mysel move {}'.format(tmat.write_TcL()))
                 stanza.extend(sel.charmm_namify('mysel'))
                 stanza.append('$mysel writepdb {}'.format(pdb))
                 if not tmat.isidentity():
@@ -398,7 +409,7 @@ class OldSegment:
             stanzastr+=sel.charmm_namify('mysel')
             if not tmat.isidentity():
                  stanzastr+=sel.backup('mysel')
-                 stanzastr+='$mysel move {}\n'.format(tmat.OneLiner())
+                 stanzastr+='$mysel move {}\n'.format(tmat.write_TcL())
             stanzastr+='$mysel writepdb {}\n'.format(pdb)
             if not tmat.isidentity():
                  stanzastr+=sel.restore('mysel')

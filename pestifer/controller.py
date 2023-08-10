@@ -15,6 +15,7 @@ logger=logging.getLogger(__name__)
 from .config import ConfigSetup
 from .molecule import Molecule
 from .basemod import BaseMod
+from .chainids import ChainIDManager
 from .util import special_update
 
 def modparse(input_dict,mod_classes):
@@ -61,6 +62,7 @@ class BuildStep(BaseMod):
 class Controller:
     def __init__(self,userconfigfilename):
         self.config=ConfigSetup(userconfigfilename)
+        self.chainIDmanager=ChainIDManager()
         self.build_steps=[]
         self.register_mod_classes()
         if 'BuildSteps' in self.config.defs:
@@ -76,13 +78,13 @@ class Controller:
         self.molecules={}
         source_dict=self.config.defs.get('Source',{})
         if not source_dict:
-            return
+            return self
         basePDB=source_dict.get('pdb','')
         if not basePDB:
-            return
-        biological_assembly_index=source_dict.get('biological_assembly',1)
-        self.molecules[basePDB]=Molecule.from_pdb(pdb_code=basePDB).activate_biological_assembly(biological_assembly_index)
-
+            return self
+        biological_assembly_index=source_dict.get('biological_assembly',-1)
+        self.molecules[basePDB]=Molecule.from_rcsb(pdb_code=basePDB).activate_biological_assembly(biological_assembly_index,self.chainIDmanager)
+        return self
 
     # def report(self):
 

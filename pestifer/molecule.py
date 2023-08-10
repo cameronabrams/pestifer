@@ -16,7 +16,7 @@ logger=logging.getLogger(__name__)
 
 class Molecule(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['molid','pdb_code','asymmetric_unit','biological_assemblies','pdb_entry']
-    # opt_attr=[]
+    opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
     def __init__(self,input_dict):
         Molecule._molcounter+=1
@@ -40,13 +40,30 @@ class Molecule(AncestorAwareMod):
         inst.biological_assemblies.claim_descendants(inst,0)
         return inst
     
-    def activate_biological_assembly(self,index):
+    def activate_biological_assembly(self,index,chainIDmanager):
         biological_assembly=[x for x in self.biological_assemblies if x.index==index]
         assert biological_assembly!=[],f'No biological assembly "{index}" found.'
         assert len(biological_assembly)==1,f'No unique biological assembly "{index}" found.'
         self.active_biological_assembly=biological_assembly[0]
         logger.info(f'Activating biological assembly {self.active_biological_assembly.name} (idx {index})')
-        # take the asymmetric unit and do your magic
+        ba=self.active_biological_assembly
+        auChainIDs=self.asymmetric_unit.chainIDs
+        ba.biomt[0].chainIDmap={}
+        for biomt in ba.biomt[1:]:
+            biomt.chainIDmap=chainIDmanager.generate_map(auChainIDs)            
+        return self
         
-
+    def write_TcL(self):
+        au=self.asymmetric_unit
+        ba=self.active_biological_assembly
+        collect_bytes=''
+        for biomt in ba.biomt:
+            collect_bytes+=f'####### TRANSFORM {biomt.index} BEGINS #####\n'
+            collect_bytes+=f'# The following mappings of A.U. chains to chains is used:\n'
+            for k,v in biomt.chainIDmap.items():
+                collect_bytes+=f'#   {k}: {v}\n'
+            for segment in au.Segments:
+                collect_bytes+=segment.write_TcL(biomt)
+            collect_bytes+=f'####### TRANSFORM {biomt.index} ENDS ######\n'
+        return collect_bytes
 

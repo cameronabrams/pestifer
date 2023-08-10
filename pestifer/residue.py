@@ -125,11 +125,10 @@ class ResidueList(AncestorAwareModList):
             for a in res.atoms:
                 serlist.append(as_type(a.serial))
         return serlist
-    def caco_str(self,upstream_reslist):
+    def caco_str(self,upstream_reslist,seglabel):
         r0=self[0]
         ur=upstream_reslist[-1]
-        return 'coord {} {}{} N [cacoIn_nOut {}{} {} 0]'.format(r0.chainID,r0.resseqnum,r0.insertion,
-        ur.resseqnum,ur.insertion,ur.chainID)
+        return 'coord {} {}{} N [cacoIn_nOut {}{} {} 0]'.format(seglabel,r0.resseqnum,r0.insertion,ur.resseqnum,ur.insertion,seglabel)
 
 class LinkList(AncestorAwareModList):
     def update_residues_atoms(self,residues:ResidueList,atoms:AtomList):

@@ -1,9 +1,9 @@
 ### BEGIN SEGMENT G ###
-set G [atomselect 8 "serial 1 to 1174"]
+set G [atomselect 0 "serial 1 to 1174"]
 $G writepdb PROTEIN_G_34_to_185.pdb
-set G [atomselect 8 "serial 1175 to 2795"]
+set G [atomselect 0 "serial 1175 to 2795"]
 $G writepdb PROTEIN_G_187_to_398.pdb
-set G [atomselect 8 "serial 2796 to 3543"]
+set G [atomselect 0 "serial 2796 to 3543"]
 $G writepdb PROTEIN_G_411_to_505.pdb
 segment G {
     pdb PROTEIN_G_34_to_185.pdb
@@ -39,9 +39,9 @@ coord G 185A N [cacoIn_nOut 185 G 0]
 coord G 400 N [cacoIn_nOut 398 G 0]
 ### END SEGMENT G ###
 ### BEGIN SEGMENT B ###
-set B [atomselect 8 "serial 3545 to 3722"]
+set B [atomselect 0 "serial 3545 to 3722"]
 $B writepdb PROTEIN_B_521_to_547.pdb
-set B [atomselect 8 "serial 3723 to 4519"]
+set B [atomselect 0 "serial 3723 to 4519"]
 $B writepdb PROTEIN_B_569_to_664.pdb
 segment B {
     pdb PROTEIN_B_521_to_547.pdb

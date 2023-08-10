@@ -12,14 +12,14 @@ def backup(selname):
     attr=['x','y','z','resid','resname','name']
     for a in attr:
        ret.append('set {}_orig_{} [${} get {}]'.format(selname,a,selname,a))
-    return ret
+    return '\n'.join(ret)
 
 def restore(selname):
     ret=[]
     attr=['x','y','z','resid','resname','name']
     for a in attr:
        ret.append('${} set {} ${}_orig_{}'.format(selname,a,selname,a))
-    return ret
+    return '\n'.join(ret)
 
 def residshift(selname,shift):
     ret=[]
@@ -28,7 +28,7 @@ def residshift(selname,shift):
     ret.append('     lappend new_resid [expr $oldresid + {:d}]'.format(shift))
     ret.append(r'}')
     ret.append('${} set resid $new_resid'.format(selname))
-    return ret
+    return '\n'.join(ret)
 
 ''' charmm_namify converts commonly found atom and residue names in PDB files to their 
     appropriate charmm names -- this is only used for NON-PROTEIN SEGMENTS.  In atom.py, you
@@ -55,4 +55,4 @@ def charmm_namify(selname,iswater=False):
     ret.append('${} set name $new_name').format(selname)
     if iswater=='WATER':
         ret.append('${} set name OH2').format(selname)
-    return ret
+    return '\n'.join(ret)
