@@ -1,97 +1,11 @@
 import logging
 logger=logging.getLogger(__name__)
-from .basemod import CloneableMod, CloneableModList, AncestorAwareMod, AncestorAwareModList
+from .basemod import AncestorAwareMod, AncestorAwareModList
 from .config import ConfigGetParam
 from .residue import ResidueList
 import pestifer.sel as sel
 from .util import isidentity, reduce_intlist
-#class SubsegmentBounds:
-#    def __init__(self,l=-1,r=-1,typ='NONE',d=''):
-#        self.l=l
-#        self.r=r
-#        self.typ=typ
-#        self.d=d
 
-# class Run:
-#     def __init__(self,r,replica_chainID,previous=None,next=None):
-#         self.chainID=r.chainID
-#         self.replica_chainID=replica_chainID
-#         self.segname=r.segname
-#         self.residues=[r]
-#         self.term='None' # 'N' if r[0] is an N-terminus, 'C' if r[-1] is a C-terminus
-#         self.previous=previous
-#         self.next=next
-#         self.typ='FRAGMENT' if len(r.atoms)>0 else 'LOOP'
-#     def add_residue(self,r):
-#         if r.chainID==self.chainID and r.segname==self.segname:
-#             self.residues.append(r)
-#         else:
-#             print(f'Error: cannot add residue with chainID {r.chainID} and segname {r.segname} to Run initialized with {self.chainID} and {self.segname}')
-#     def pdb_str(self):
-#         r0=self.residues[0]
-#         r1=self.residues[-1]
-#         ins0='' if r0.insertion ==' ' else r0.insertion
-#         ins1='' if r1.insertion ==' ' else r1.insertion
-#         return '{}_{}{}_to_{}{}.pdb'.format(self.replica_chainID,r0.resseqnum,ins0,r1.resseqnum,ins1)
-#     def __str__(self):
-#         r0=self.residues[0]
-#         r1=self.residues[-1]
-#         ins0='' if r0.insertion ==' ' else r0.insertion
-#         ins1='' if r1.insertion ==' ' else r1.insertion
-#         return '{} {} {}{} to {}{}'.format(self.typ,self.replica_chainID,r0.resseqnum,ins0,r1.resseqnum,ins1)
-#     def caco_str(self):
-#         return 'coord {} {}{} N [cacoIn_nOut {}{} {} 0]'.format(self.replica_chainID,self.residues[0].resseqnum,self.residues[0].insertion,
-#         self.previous.residues[-1].resseqnum,self.previous.residues[-1].insertion,self.replica_chainID)
-#     def heal_str(self):
-#         rll=self.residues[-2]
-#         rl=self.residues[-1]
-#         rr=self.next.residues[0]
-#         rrr=self.next.residues[1]
-#         return 'patch HEAL {c}:{ll} {c}:{l} {c}:{r} {c}:{rr}\n'.format(c=self.replica_chainID,
-#                             ll=rll.ri(),l=rl.ri(),r=rr.ri(),rr=rrr.ri())
-#     def input_str(self):
-#         rl=self.residues[-1]
-#         rr=self.next.residues[0]
-#         return '{} {} {}\n'.format(self.replica_chainID,rl.ri(),rr.ri())
-
-# class Fragment:
-#     ''' a set of contiguous residues with no gaps that can be loaded into a psfgen
-#         segment stanza by invoking a pdb file 
-#     '''
-#     def __init__(self,source_chainID,replica_chainID,resseqnum1,insertion1,resseqnum2,insertion2):
-#         self.source_chainID=source_chainID
-#         self.replica_chainID=replica_chainID
-#         self.resseqnum1=resseqnum1
-#         self.resseqnum2=resseqnum2
-#         self.insertion1=insertion1
-#         self.insertion2=insertion2
-#     def pdb_str(self):
-#         ins1='' if self.insertion1==' ' else self.insertion1
-#         ins2='' if self.insertion2==' ' else self.insertion2
-#         return '{}_{}{}_to_{}{}.pdb'.format(self.replica_chainID,self.resseqnum1,ins1,self.resseqnum2,ins2)
-#     def __str__(self):
-#         ins1='' if self.insertion1==' ' else self.insertion1
-#         ins2='' if self.insertion2==' ' else self.insertion2
-#         return 'FRAGMENT: {} {}{} to {}{}'.format(self.replica_chainID,self.resseqnum1,ins1,self.resseqnum2,ins2)
-
-#class Loop:
-#    ''' a set of contiguous residues from REMARK 465 pdb entries; i.e., they
-#        are missing from the base pdb file but present in the construct.  They
-#        must be included in a psfgen segment stanza via the 'residue' invocation.
-#    '''
-#    def __init__(self,source_chainID,replica_chainID,resseqnum0,insertion0,r):
-#        self.source_chainID=source_chainID
-#        self.replica_chainID=replica_chainID
-#        self.resseqnum0=resseqnum0
-#        self.insertion0=insertion0
-#        self.residues=[r]
-#        self.term='UNSET'
-#    def add_residue(self,r):
-#        self.residues.append(r)
-#    def __str__(self):
-#        return 'LOOP: {} ({}{})-[{}{} to {}{}]'.format(self.replica_chainID,self.resseqnum0,self.insertion0,self.residues[0].resseqnum,self.residues[0].insertion,self.residues[-1].resseqnum,self.residues[-1].insertion)
-#    def caco_str(self):
-#        return 'coord {} {} N [cacoIn_nOut {} {} 0]\n'.format(self.replica_chainID,self.residues[0].resseqnum,self.resseqnum0,self.replica_chainID)
 
 class Segment(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments']
@@ -127,18 +41,21 @@ class Segment(AncestorAwareMod):
     def __str__(self):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
 
-    def psfgen_stanza(self):
+    def psfgen_stanza(self,tmat,replica_chains={}):
         if self.segtype=='PROTEIN':
-            return self.protein_stanza()
+            return self.protein_stanza(tmat,replica_chains)
         elif self.segtype=='GLYCAN':
-            return self.glycan_stanza()
+            return self.glycan_stanza(tmat,replica_chains)
         else:
-            return ''
+            return self.generic_stanza(tmat,replica_chains)
         
     def protein_stanza(self,tmat,replica_chains={}):
         parent_molecule=self.ancestor_obj
         the_chainID=replica_chains.get(self.residues[0].chainID,self.residues[0].chainID)
-        sac_rd=ConfigGetParam('Sacrificial_residue')
+        sac_rd=ConfigGetParam('Sacrificial_residue',default={})
+        include_terminal_loops=ConfigGetParam('Include_terminal_loops',default=False)
+        fix_engineered_muations=ConfigGetParam('Fix_engineered_mutations',default=False)
+        fix_conflicts=ConfigGetParam('Fix_conflicts',False)
         sac_r=sac_rd['name']
         sac_n=sac_rd['min_loop_length']
         stanza=f'### BEGIN SEGMENT {self.segname} ###\n'
@@ -147,6 +64,7 @@ class Segment(AncestorAwareMod):
                 selname=f'{self.psfgen_segname}'
                 run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
                 b.pdb=f'PROTEIN_{the_chainID}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
+                # TODO: account for any deletions
                 serial_list=run.atom_serials(as_type=int)
                 vmd_red_list=reduce_intlist(serial_list)
                 stanza+=f'set {selname} [atomselect {parent_molecule.molid} "serial {vmd_red_list}"]\n'
@@ -161,7 +79,7 @@ class Segment(AncestorAwareMod):
                 stanza+=f'${selname} writepdb {b.pdb}\n'
         stanza+=f'segment {self.segname} '+'{\n'
         print(len(self.subsegments),type(self.subsegments))
-        if not ConfigGetParam('Include_terminal_loops'):
+        if not include_terminal_loops:
             if self.subsegments[0].state=='MISSING':
                 Nterminal_missing_subsegment=self.subsegments.pop(0)
                 logger.info(f'Since terminal loops are not included, ignoring {str(Nterminal_missing_subsegment)}')
@@ -180,6 +98,7 @@ class Segment(AncestorAwareMod):
                     sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
                     assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {the_chainID} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_r}'
                     stanza+=f'    residue {sac_resseqnum}{sac_insertion} {sac_r} {the_chainID}\n'
+        # TODO: mutations
         stanza+='}\n'
         for b in self.subsegments:
             if b.state=='RESOLVED':

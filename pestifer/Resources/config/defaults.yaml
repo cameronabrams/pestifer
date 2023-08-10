@@ -133,6 +133,8 @@ Sacrificial_residue:
   min_loop_length: 3
 
 Include_terminal_loops: False
+Fix_engineered_mutations: True
+Fix_conflicts: True
 
 User_defaults:
   psfgen_script_name: mkpsf.tcl

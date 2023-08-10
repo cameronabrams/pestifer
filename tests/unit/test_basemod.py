@@ -147,7 +147,7 @@ class TestAncestorAwareMod(unittest.TestCase):
         self.assertEqual(c.obj2,b)
         self.assertFalse('ancestor_obj' in a.__dict__) # no one has claimed him yet!
         self.assertFalse('ancestor_obj' in b.__dict__) # no one has claimed her yet!
-        c.claim_descendants(c)
+        c.claim_descendants(c,0)
         self.assertEqual(a.ancestor_obj,c)
         self.assertEqual(b.ancestor_obj,c)
 

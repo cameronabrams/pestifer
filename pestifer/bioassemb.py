@@ -42,9 +42,15 @@ class BiomTList(AncestorAwareModList):
         return cls(L)
 
 class BioAssemb(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['name','chainIDs','biomt']
+    _index=1 # start at 1
+    req_attr=AncestorAwareMod.req_attr+['name','chainIDs','biomt','index']
     ''' Container for handling info for "REMARK 350 BIOMOLECULE: #" stanzas in RCSB PDB files
         or _pdbx_struct blocks in mmCIF files '''
+    def __init__(self,input_dict):
+        input_dict['index']=BioAssemb._index
+        BioAssemb._index+=1
+        super().__init__(input_dict)
+
     @classmethod
     def from_pdbrecord(cls,pdbrecord):
         rs=pdbrecord.key.split('.')

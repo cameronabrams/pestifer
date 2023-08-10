@@ -1,0 +1,29 @@
+Title: Test User Config
+Source: 
+  pdb: 4zmj
+  biological_assembly: 1
+BuildSteps:
+  - solvate: False
+    mods:
+      ModFiles:
+        - example_modfile.yaml
+        - another_example_modfile.yaml
+      Mutations:
+        - chainID: A
+          resseqnum: 151
+          origresname: ALA
+          newresname:  CYS
+        - shortcode: D:MET,301,CYS
+        - chainID: B
+          resseqnum: 152
+          origresname: PHE
+          newresname:  TYR
+        - chainID: C
+          resseqnum: 154
+          insertion: A
+          origresname: THR
+          newresname:  SER
+    smdclose: True 
+    relax_steps:
+      - 1000
+OutputName: Test

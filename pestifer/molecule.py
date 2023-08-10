@@ -39,3 +39,14 @@ class Molecule(AncestorAwareMod):
         inst.asymmetric_unit.claim_descendants(inst,0)
         inst.biological_assemblies.claim_descendants(inst,0)
         return inst
+    
+    def activate_biological_assembly(self,index):
+        biological_assembly=[x for x in self.biological_assemblies if x.index==index]
+        assert biological_assembly!=[],f'No biological assembly "{index}" found.'
+        assert len(biological_assembly)==1,f'No unique biological assembly "{index}" found.'
+        self.active_biological_assembly=biological_assembly[0]
+        logger.info(f'Activating biological assembly {self.active_biological_assembly.name} (idx {index})')
+        # take the asymmetric unit and do your magic
+        
+
+

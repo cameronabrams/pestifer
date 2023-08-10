@@ -24,7 +24,7 @@ class AsymmetricUnit(AncestorAwareMod):
         Residues=ResidueList.from_atoms(Atoms)+ResidueList.from_missing(Missings)
         # Residues.sort()
         # print(f'Residues {len(Residues)}')
-        if 'SSBonds' in pr:
+        if 'SSBOND' in pr:
             SSBonds=SSBondList([SSBond.from_pdbrecord(p) for p in pr['SSBOND']])
         else:
             SSBonds=SSBondList([])

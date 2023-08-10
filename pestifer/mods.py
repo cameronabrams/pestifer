@@ -387,6 +387,7 @@ class AtomList(AncestorAwareModList):
 
 class Hetatm(Atom):
     PDB_keyword='HETATM'
+    yaml_header='Hetatoms'
 
 class SSBond(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
@@ -493,6 +494,13 @@ class SSBond(AncestorAwareMod):
 class SSBondList(AncestorAwareModList):
     pass
 
+class SSBondDelete(SSBond):
+    yaml_header='SSBondsDelete'
+    pass
+
+class SSBondDeleteList(SSBondList):
+    pass
+
 class Link(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['name1','chainID1','resseqnum1','iCode1','name2','chainID2','resseqnum2','iCode2']
     opt_attr=AncestorAwareMod.opt_attr+['altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance']    
@@ -560,3 +568,4 @@ class Link(AncestorAwareMod):
 
     def __str__(self):
         return f'{self.chainID1}{self.resname1}{self.resseqnum1}{self.iCode1}-{self.chainID2}{self.resname2}{self.resseqnum2}{self.iCode2}'
+

@@ -91,8 +91,8 @@ def ConfigSetup(userconfigfilename):
     TheConfig.setup(userconfigfilename)
     return TheConfig
 
-def ConfigGetParam(key,subkey=''):
-    param=TheConfig.defs.get(key,None)
+def ConfigGetParam(key,subkey='',default=None):
+    param=TheConfig.defs.get(key,default)
     if subkey and type(param)==dict:
         param=param[subkey]
     return param
