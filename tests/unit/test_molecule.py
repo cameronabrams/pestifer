@@ -77,3 +77,25 @@ class TestMolecule(unittest.TestCase):
             sao=s.ancestor_obj
             self.assertEqual(sao,m)
             self.assertEqual(sao.molid,0)
+
+    def test_adjust_serials(self):
+        self.config=ConfigSetup('')
+        m=Molecule.from_rcsb(pdb_code='4zmj')
+        # m=Molecule.from_rcsb(pdb_code='2y29')
+        au=m.asymmetric_unit
+        self.assertTrue(hasattr(au,'Ters'))
+        ters=au.Ters
+        self.assertEqual(len(ters),2)
+        atom_serials=[x.serial for x in au.Atoms]
+        orig_atom_serials=[]
+        for a in au.Atoms:
+            if '_ORIGINAL_' in a.__dict__:
+                orig_atom_serials.append(a._ORIGINAL_['serial'])
+            else:
+                orig_atom_serials.append(a.serial)
+        self.assertEqual(len(atom_serials),4856)
+        self.assertEqual(len(orig_atom_serials),4856)
+        self.assertFalse(all([x==y for x,y in zip(atom_serials,orig_atom_serials)]))
+        genuine_atoms=[au.Atoms.get(serial=x.serial) for x in ters]
+        self.assertEqual(len(genuine_atoms),2)
+        self.assertEqual(atom_serials[-1],4856)

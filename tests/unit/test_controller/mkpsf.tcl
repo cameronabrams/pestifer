@@ -59,10 +59,13 @@ mol top $m0
 ############################## TRANSFORM 0 BEGINS ##############################
 ############################### BEGIN SEGMENT G ################################
 set G [atomselect 0 "serial 1 to 1174"]
+############ Atom with serial 1174 in PDB needs serial 1174 for VMD ############
 $G writepdb PROTEIN_G_34_to_185.pdb
 set G [atomselect 0 "serial 1175 to 2795"]
+############ Atom with serial 2795 in PDB needs serial 2795 for VMD ############
 $G writepdb PROTEIN_G_187_to_398.pdb
 set G [atomselect 0 "serial 2796 to 3543"]
+############ Atom with serial 3543 in PDB needs serial 3543 for VMD ############
 $G writepdb PROTEIN_G_411_to_505.pdb
 segment G {
     pdb PROTEIN_G_34_to_185.pdb
@@ -98,9 +101,11 @@ coord G 185A N [cacoIn_nOut 185 G 0]
 coord G 400 N [cacoIn_nOut 398 G 0]
 ################################ END SEGMENT G #################################
 ############################### BEGIN SEGMENT B ################################
-set B [atomselect 0 "serial 3545 to 3722"]
+set B [atomselect 0 "serial 3544 to 3721"]
+############ Atom with serial 3722 in PDB needs serial 3721 for VMD ############
 $B writepdb PROTEIN_B_521_to_547.pdb
-set B [atomselect 0 "serial 3723 to 4519"]
+set B [atomselect 0 "serial 3722 to 4518"]
+############ Atom with serial 4519 in PDB needs serial 4518 for VMD ############
 $B writepdb PROTEIN_B_569_to_664.pdb
 segment B {
     pdb PROTEIN_B_521_to_547.pdb
@@ -153,6 +158,7 @@ patch DISU B:598 B:604
 #   G: J
 ############################### BEGIN SEGMENT J ################################
 set G [atomselect 0 "serial 1 to 1174"]
+############ Atom with serial 1174 in PDB needs serial 1174 for VMD ############
 $G set chain J
 set G_orig_x [$G get x]
 set G_orig_y [$G get y]
@@ -169,6 +175,7 @@ $G set resid $G_orig_resid
 $G set resname $G_orig_resname
 $G set name $G_orig_name
 set G [atomselect 0 "serial 1175 to 2795"]
+############ Atom with serial 2795 in PDB needs serial 2795 for VMD ############
 $G set chain J
 set G_orig_x [$G get x]
 set G_orig_y [$G get y]
@@ -185,6 +192,7 @@ $G set resid $G_orig_resid
 $G set resname $G_orig_resname
 $G set name $G_orig_name
 set G [atomselect 0 "serial 2796 to 3543"]
+############ Atom with serial 3543 in PDB needs serial 3543 for VMD ############
 $G set chain J
 set G_orig_x [$G get x]
 set G_orig_y [$G get y]
@@ -202,28 +210,28 @@ $G set resname $G_orig_resname
 $G set name $G_orig_name
 segment J {
     pdb PROTEIN_J_34_to_185.pdb
-    residue 185A GLU G
-    residue 185B ASN G
-    residue 185C GLN G
-    residue 185D GLY G
-    residue 185E ASN G
-    residue 185F ARG G
-    residue 185G SER G
-    residue 185H ASN G
-    residue 185I ASN G
+    residue 185A GLU J
+    residue 185B ASN J
+    residue 185C GLN J
+    residue 185D GLY J
+    residue 185E ASN J
+    residue 185F ARG J
+    residue 185G SER J
+    residue 185H ASN J
+    residue 185I ASN J
     residue 185J GLY G
     pdb PROTEIN_J_187_to_398.pdb
-    residue 400 THR G
-    residue 401 SER G
-    residue 402 VAL G
-    residue 403 GLN G
-    residue 404 GLY G
-    residue 405 SER G
-    residue 406 ASN G
-    residue 407 SER G
-    residue 408 THR G
-    residue 409 GLY G
-    residue 410 SER G
+    residue 400 THR J
+    residue 401 SER J
+    residue 402 VAL J
+    residue 403 GLN J
+    residue 404 GLY J
+    residue 405 SER J
+    residue 406 ASN J
+    residue 407 SER J
+    residue 408 THR J
+    residue 409 GLY J
+    residue 410 SER J
     residue 410A GLY G
     pdb PROTEIN_J_411_to_505.pdb
 }
@@ -234,7 +242,8 @@ coord J 185A N [cacoIn_nOut 185 J 0]
 coord J 400 N [cacoIn_nOut 398 J 0]
 ################################ END SEGMENT J #################################
 ############################### BEGIN SEGMENT F ################################
-set B [atomselect 0 "serial 3545 to 3722"]
+set B [atomselect 0 "serial 3544 to 3721"]
+############ Atom with serial 3722 in PDB needs serial 3721 for VMD ############
 $B set chain F
 set B_orig_x [$B get x]
 set B_orig_y [$B get y]
@@ -250,7 +259,8 @@ $B set z $B_orig_z
 $B set resid $B_orig_resid
 $B set resname $B_orig_resname
 $B set name $B_orig_name
-set B [atomselect 0 "serial 3723 to 4519"]
+set B [atomselect 0 "serial 3722 to 4518"]
+############ Atom with serial 4519 in PDB needs serial 4518 for VMD ############
 $B set chain F
 set B_orig_x [$B get x]
 set B_orig_y [$B get y]
@@ -268,27 +278,27 @@ $B set resname $B_orig_resname
 $B set name $B_orig_name
 segment F {
     pdb PROTEIN_F_521_to_547.pdb
-    residue 548 ILE B
-    residue 549 VAL B
-    residue 550 GLN B
-    residue 551 GLN B
-    residue 552 GLN B
-    residue 553 SER B
-    residue 554 ASN B
-    residue 555 LEU B
-    residue 556 LEU B
-    residue 557 ARG B
-    residue 558 ALA B
-    residue 559 PRO B
-    residue 560 GLU B
-    residue 561 ALA B
-    residue 562 GLN B
-    residue 563 GLN B
-    residue 564 HSE B
-    residue 565 LEU B
-    residue 566 LEU B
-    residue 567 LYS B
-    residue 568 LEU B
+    residue 548 ILE F
+    residue 549 VAL F
+    residue 550 GLN F
+    residue 551 GLN F
+    residue 552 GLN F
+    residue 553 SER F
+    residue 554 ASN F
+    residue 555 LEU F
+    residue 556 LEU F
+    residue 557 ARG F
+    residue 558 ALA F
+    residue 559 PRO F
+    residue 560 GLU F
+    residue 561 ALA F
+    residue 562 GLN F
+    residue 563 GLN F
+    residue 564 HSE F
+    residue 565 LEU F
+    residue 566 LEU F
+    residue 567 LYS F
+    residue 568 LEU F
     residue 568A GLY B
     pdb PROTEIN_F_569_to_664.pdb
 }
@@ -317,6 +327,7 @@ patch DISU F:598 F:604
 #   G: O
 ############################### BEGIN SEGMENT O ################################
 set G [atomselect 0 "serial 1 to 1174"]
+############ Atom with serial 1174 in PDB needs serial 1174 for VMD ############
 $G set chain O
 set G_orig_x [$G get x]
 set G_orig_y [$G get y]
@@ -333,6 +344,7 @@ $G set resid $G_orig_resid
 $G set resname $G_orig_resname
 $G set name $G_orig_name
 set G [atomselect 0 "serial 1175 to 2795"]
+############ Atom with serial 2795 in PDB needs serial 2795 for VMD ############
 $G set chain O
 set G_orig_x [$G get x]
 set G_orig_y [$G get y]
@@ -349,6 +361,7 @@ $G set resid $G_orig_resid
 $G set resname $G_orig_resname
 $G set name $G_orig_name
 set G [atomselect 0 "serial 2796 to 3543"]
+############ Atom with serial 3543 in PDB needs serial 3543 for VMD ############
 $G set chain O
 set G_orig_x [$G get x]
 set G_orig_y [$G get y]
@@ -366,28 +379,28 @@ $G set resname $G_orig_resname
 $G set name $G_orig_name
 segment O {
     pdb PROTEIN_O_34_to_185.pdb
-    residue 185A GLU G
-    residue 185B ASN G
-    residue 185C GLN G
-    residue 185D GLY G
-    residue 185E ASN G
-    residue 185F ARG G
-    residue 185G SER G
-    residue 185H ASN G
-    residue 185I ASN G
+    residue 185A GLU O
+    residue 185B ASN O
+    residue 185C GLN O
+    residue 185D GLY O
+    residue 185E ASN O
+    residue 185F ARG O
+    residue 185G SER O
+    residue 185H ASN O
+    residue 185I ASN O
     residue 185J GLY G
     pdb PROTEIN_O_187_to_398.pdb
-    residue 400 THR G
-    residue 401 SER G
-    residue 402 VAL G
-    residue 403 GLN G
-    residue 404 GLY G
-    residue 405 SER G
-    residue 406 ASN G
-    residue 407 SER G
-    residue 408 THR G
-    residue 409 GLY G
-    residue 410 SER G
+    residue 400 THR O
+    residue 401 SER O
+    residue 402 VAL O
+    residue 403 GLN O
+    residue 404 GLY O
+    residue 405 SER O
+    residue 406 ASN O
+    residue 407 SER O
+    residue 408 THR O
+    residue 409 GLY O
+    residue 410 SER O
     residue 410A GLY G
     pdb PROTEIN_O_411_to_505.pdb
 }
@@ -398,7 +411,8 @@ coord O 185A N [cacoIn_nOut 185 O 0]
 coord O 400 N [cacoIn_nOut 398 O 0]
 ################################ END SEGMENT O #################################
 ############################### BEGIN SEGMENT L ################################
-set B [atomselect 0 "serial 3545 to 3722"]
+set B [atomselect 0 "serial 3544 to 3721"]
+############ Atom with serial 3722 in PDB needs serial 3721 for VMD ############
 $B set chain L
 set B_orig_x [$B get x]
 set B_orig_y [$B get y]
@@ -414,7 +428,8 @@ $B set z $B_orig_z
 $B set resid $B_orig_resid
 $B set resname $B_orig_resname
 $B set name $B_orig_name
-set B [atomselect 0 "serial 3723 to 4519"]
+set B [atomselect 0 "serial 3722 to 4518"]
+############ Atom with serial 4519 in PDB needs serial 4518 for VMD ############
 $B set chain L
 set B_orig_x [$B get x]
 set B_orig_y [$B get y]
@@ -432,27 +447,27 @@ $B set resname $B_orig_resname
 $B set name $B_orig_name
 segment L {
     pdb PROTEIN_L_521_to_547.pdb
-    residue 548 ILE B
-    residue 549 VAL B
-    residue 550 GLN B
-    residue 551 GLN B
-    residue 552 GLN B
-    residue 553 SER B
-    residue 554 ASN B
-    residue 555 LEU B
-    residue 556 LEU B
-    residue 557 ARG B
-    residue 558 ALA B
-    residue 559 PRO B
-    residue 560 GLU B
-    residue 561 ALA B
-    residue 562 GLN B
-    residue 563 GLN B
-    residue 564 HSE B
-    residue 565 LEU B
-    residue 566 LEU B
-    residue 567 LYS B
-    residue 568 LEU B
+    residue 548 ILE L
+    residue 549 VAL L
+    residue 550 GLN L
+    residue 551 GLN L
+    residue 552 GLN L
+    residue 553 SER L
+    residue 554 ASN L
+    residue 555 LEU L
+    residue 556 LEU L
+    residue 557 ARG L
+    residue 558 ALA L
+    residue 559 PRO L
+    residue 560 GLU L
+    residue 561 ALA L
+    residue 562 GLN L
+    residue 563 GLN L
+    residue 564 HSE L
+    residue 565 LEU L
+    residue 566 LEU L
+    residue 567 LYS L
+    residue 568 LEU L
     residue 568A GLY B
     pdb PROTEIN_L_569_to_664.pdb
 }

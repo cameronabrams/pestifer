@@ -79,9 +79,13 @@ class Segment(AncestorAwareMod):
                 run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
                 b.pdb=f'PROTEIN_{rep_chainID}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
                 # TODO: account for any deletions
-                serial_list=run.atom_serials(as_type=int)
+                serial_list=run.atom_serials(as_type=int) # "serial" in pdb-ese is "index" in vmd-ese
+                at=parent_molecule.asymmetric_unit.Atoms.get(serial=serial_list[-1])
+                assert at.resseqnum==run[-1].resseqnum
                 vmd_red_list=reduce_intlist(serial_list)
                 B.addline(f'set {selname} [atomselect {parent_molecule.molid} "serial {vmd_red_list}"]')
+                if hasattr(at,'_ORIGINAL_'):
+                    B.comment(f'Atom with serial {at._ORIGINAL_["serial"]} in PDB needs serial {at.serial} for VMD')
                 if rep_chainID!=the_chainID:
                     B.addline(f'${selname} set chain {rep_chainID}')                        
                 if not isidentity(tmat):
@@ -104,7 +108,7 @@ class Segment(AncestorAwareMod):
                 B.addline(f'    pdb {b.pdb}')
             elif b.state=='MISSING':
                 for r in self.residues[b.bounds[0]:b.bounds[1]+1]:
-                    B.addline(f'    residue {r.resseqnum}{r.insertion} {r.resname_charmify()} {the_chainID}')
+                    B.addline(f'    residue {r.resseqnum}{r.insertion} {r.resname_charmify()} {seglabel}')
                 if (b.bounds[1]-b.bounds[0])>(sac_n-1):
                     lrr=self.residues[b.bounds[1]]
                     sac_resseqnum=lrr.resseqnum
@@ -133,11 +137,6 @@ class Segment(AncestorAwareMod):
                         B.addline(f'{this_run.caco_str(prior_run,seglabel)}')
         B.comment(f'END SEGMENT {seglabel}')
         return B.byte_collector
-
-    # def psfgen_atomselect(self):
-    #     serial_list=self.residues.atom_serials()
-    #     restr=f'set {self.segname}_sel [atomselect {parent_molecule.molid} serial '+' '.join(serial_list)+' ]'
-    #     return restr
 
 class SegmentList(AncestorAwareModList):
     counters_by_segtype={}

@@ -385,7 +385,28 @@ class Atom(AncestorAwareMod):
         return pdbline
 
 class AtomList(AncestorAwareModList):
-    pass
+    def adjustSerials(self,Ters):
+        ignored_serials=[x.serial for x in Ters]
+        if not ignored_serials:
+            return
+        orig_atom_serials=[x.serial for x in self]
+        assert all([not x in orig_atom_serials for x in ignored_serials])
+        offending_serial_idx=[]
+        cidx=0
+        for i in range(len(orig_atom_serials)-1):
+            if orig_atom_serials[i]<ignored_serials[cidx]<orig_atom_serials[i+1]:
+                offending_serial_idx.append(i+1)
+                cidx+=1
+                if cidx==len(ignored_serials):
+                    break
+        for s in offending_serial_idx:
+            for i in range(s,len(orig_atom_serials)):
+                orig_atom_serials[i]-=1
+        for a,s in zip(self,orig_atom_serials):
+            if not '_ORIGINAL_' in a.__dict__:
+                a._ORIGINAL_={}
+            a._ORIGINAL_['serial']=a.serial
+            a.serial=s
 
 class Hetatm(Atom):
     PDB_keyword='HETATM'
@@ -591,3 +612,20 @@ class Link(AncestorAwareMod):
     def __str__(self):
         return f'{self.chainID1}{self.resname1}{self.resseqnum1}{self.iCode1}-{self.chainID2}{self.resname2}{self.resseqnum2}{self.iCode2}'
 
+class Ter(AncestorAwareMod):
+    req_attr=['serial','resname','chainID','resseqnum','insertion']
+    yaml_header='Terminals'
+    @classmethod
+    def from_pdbrecord(cls,pdbrecord):
+        input_dict={
+            'serial':pdbrecord.serial,
+            'resname':pdbrecord.residue.resName,
+            'chainID':pdbrecord.residue.chainID,
+            'resseqnum':pdbrecord.residue.seqNum,
+            'insertion':pdbrecord.residue.iCode
+        }
+        inst=cls(input_dict)
+        return inst
+    
+class TerList(AncestorAwareModList):
+    pass
