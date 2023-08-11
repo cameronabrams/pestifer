@@ -219,7 +219,7 @@ segment J {
     residue 185G SER J
     residue 185H ASN J
     residue 185I ASN J
-    residue 185J GLY G
+    residue 185J GLY J
     pdb PROTEIN_J_187_to_398.pdb
     residue 400 THR J
     residue 401 SER J
@@ -232,7 +232,7 @@ segment J {
     residue 408 THR J
     residue 409 GLY J
     residue 410 SER J
-    residue 410A GLY G
+    residue 410A GLY J
     pdb PROTEIN_J_411_to_505.pdb
 }
 coordpdb PROTEIN_J_34_to_185.pdb J
@@ -299,7 +299,7 @@ segment F {
     residue 566 LEU F
     residue 567 LYS F
     residue 568 LEU F
-    residue 568A GLY B
+    residue 568A GLY F
     pdb PROTEIN_F_569_to_664.pdb
 }
 coordpdb PROTEIN_F_521_to_547.pdb F
@@ -388,7 +388,7 @@ segment O {
     residue 185G SER O
     residue 185H ASN O
     residue 185I ASN O
-    residue 185J GLY G
+    residue 185J GLY O
     pdb PROTEIN_O_187_to_398.pdb
     residue 400 THR O
     residue 401 SER O
@@ -401,7 +401,7 @@ segment O {
     residue 408 THR O
     residue 409 GLY O
     residue 410 SER O
-    residue 410A GLY G
+    residue 410A GLY O
     pdb PROTEIN_O_411_to_505.pdb
 }
 coordpdb PROTEIN_O_34_to_185.pdb O
@@ -468,7 +468,7 @@ segment L {
     residue 566 LEU L
     residue 567 LYS L
     residue 568 LEU L
-    residue 568A GLY B
+    residue 568A GLY L
     pdb PROTEIN_L_569_to_664.pdb
 }
 coordpdb PROTEIN_L_521_to_547.pdb L

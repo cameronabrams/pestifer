@@ -114,7 +114,7 @@ class Segment(AncestorAwareMod):
                     sac_resseqnum=lrr.resseqnum
                     sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
                     assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {the_chainID} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_r}'
-                    B.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_r} {the_chainID}')
+                    B.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_r} {seglabel}')
         for mod in mods:
             pass
         B.addline('}')
