@@ -146,3 +146,8 @@ class LinkList(AncestorAwareModList):
             link.atom2=a2
             link.residue1.linkTo(link.residue2,link)
         return self
+    def write_TcL(self,transform,mods):
+        collect_bytes=''
+        for l in self:
+            collect_bytes+=l.write_TcL(transform,mods)
+        return collect_bytes

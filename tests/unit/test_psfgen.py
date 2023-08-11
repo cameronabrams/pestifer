@@ -12,10 +12,10 @@ class TestPsfgen(unittest.TestCase):
         self.assertEqual(p.script_name,n)
         p.write()
         self.assertTrue(os.path.isfile(p.script_name))
-    def test_mol(self):
+    def test_write_mol(self):
         c=ConfigSetup('example.yaml')
         m=Molecule.from_rcsb(pdb_code='1gc1')
-        p=Psfgen()
+        p=Psfgen(c.resman)
         p.describe_molecule(m)
         p.write()
         C=Command(f'grep -c "END PESTIFER" {p.script_name}')

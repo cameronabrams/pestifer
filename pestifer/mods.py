@@ -18,6 +18,7 @@
 from pidibble.pdbrecord import PDBRecord
 from .basemod import AncestorAwareMod,AncestorAwareModList
 from .config import ConfigGetParam
+from .stringthings import ByteCollector
 
 class Seqadv(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['idCode','resname','chainID','resseqnum','insertion']
@@ -490,21 +491,21 @@ class SSBond(AncestorAwareMod):
                 '{:6.2f}'.format(self.length)
         return pdbline
     
-    def write_TcL(self,transform):
+    def write_TcL(self,transform,mods):
         chainIDmap=transform.chainIDmap 
         # ok since these are only going to reference protein segments; protein segment names are the chain IDs
-        c1=chainIDmap.get(c1,c1)
-        c2=chainIDmap.get(c2,c2)
+        c1=chainIDmap.get(self.chainID1,self.chainID1)
+        c2=chainIDmap.get(self.chainID2,self.chainID2)
         r1=self.resseqnum1
         r2=self.resseqnum2
-        return f'patch DISU {c1}:{r1} {c2}:{r2}\n'
+        return f'patch DISU {c1}:{r1} {c2}:{r2}'
 
 class SSBondList(AncestorAwareModList):
-    def write_TcL(self,transform):
-        collect_bytes=''
+    def write_TcL(self,transform,mods):
+        B=ByteCollector()
         for s in self:
-            collect_bytes+=s.write_TcL(transform)
-        return collect_bytes
+            B.addline(s.write_TcL(transform,mods))
+        return B.byte_collector
 
 class SSBondDelete(SSBond):
     yaml_header='SSBondsDelete'
@@ -578,12 +579,13 @@ class Link(AncestorAwareMod):
         input_dict['empty']=False
         return cls(input_dict)
 
-    def write_TcL(self,transform):
+    def write_TcL(self,transform,mods):
         if self.resname1=='ASN' and ConfigGetParam('Segtypes_by_Resnames')[self.resname1]=='GLYCAN':
             chainIDmap=transform.chainIDmap
             seg1=chainIDmap(self.segname1)
             seg2=transform.segname_by_type_map['GLYCAN'](self.segname2)
             return f'patch NGLB {seg1}:{self.resseqnum1}{self.icode1} {seg2}:{self.resseqnum2}{self.icode2}'
+        return ''
 
 
     def __str__(self):

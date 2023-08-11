@@ -1,9 +1,9 @@
-#### BEGIN PESTIFER PSFGEN ####
-#### BEGIN HEADER ####
+############################ BEGIN PESTIFER PSFGEN #############################
+################################# BEGIN HEADER #################################
 source /home/cfa/Git/pestifer/pestifer/Resources/tcl/modules/src/loopmc.tcl
 source /home/cfa/Git/pestifer/pestifer/Resources/tcl/vmdrc.tcl
 package require psfgen
-psfcontxt mixedcase
+psfcontext mixedcase
 topology /home/cfa/charmm/toppar/top_all36_prot.rtf
 topology /home/cfa/charmm/toppar/top_all35_ethers.rtf
 topology /home/cfa/charmm/toppar/top_all36_cgenff.rtf
@@ -12,31 +12,31 @@ topology /home/cfa/charmm/toppar/top_all36_na.rtf
 topology /home/cfa/charmm/toppar/stream/carb/toppar_all36_carb_glycopeptide.str
 topology /home/cfa/Git/pestifer/pestifer/Resources/charmm/top_all36_carb.rtf
 topology /home/cfa/Git/pestifer/pestifer/Resources/charmm/toppar_water_ions.str
-residue HIS HSD
-atom ILE CD1 CD
-residue NAG BGNA
-atom BGNA C7 C
-atom BGNA O7 O
-atom BGNA C8 CT
-atom BGNA N2 N
-residue SIA ANE5
-atom ANE5 C10 C
-atom ANE5 C11 CT
-atom ANE5 N5 N
-atom ANE5 O1A O11
-atom ANE5 O1B O12
-atom ANE5 O10 O
-atom VCG C01 C1
-atom VCG C01 C1
-atom VCG C02 C2
-atom VCG C03 C3
-atom VCG C04 C4
-atom VCG C05 C5
-atom VCG C06 C6
-atom VCG C07 C7
-atom VCG C08 C8
-atom VCG C09 C9
-residue EIC LIN
+pdbalias residue HIS HSD
+pdbalias atom ILE CD1 CD
+pdbalias residue NAG BGNA
+pdbalias atom BGNA C7 C
+pdbalias atom BGNA O7 O
+pdbalias atom BGNA C8 CT
+pdbalias atom BGNA N2 N
+pdbalias residue SIA ANE5
+pdbalias atom ANE5 C10 C
+pdbalias atom ANE5 C11 CT
+pdbalias atom ANE5 N5 N
+pdbalias atom ANE5 O1A O11
+pdbalias atom ANE5 O1B O12
+pdbalias atom ANE5 O10 O
+pdbalias atom VCG C01 C1
+pdbalias atom VCG C01 C1
+pdbalias atom VCG C02 C2
+pdbalias atom VCG C03 C3
+pdbalias atom VCG C04 C4
+pdbalias atom VCG C05 C5
+pdbalias atom VCG C06 C6
+pdbalias atom VCG C07 C7
+pdbalias atom VCG C08 C8
+pdbalias atom VCG C09 C9
+pdbalias residue EIC LIN
 set RESDICT(HIS) HSE
 set RESDICT(ZN) ZN2
 set RESDICT(HOH) TIP3
@@ -52,13 +52,12 @@ set RESDICT(EIC) LIN
 set RESDICT(VCG) VCG
 set ANAMEDICT(CL) CLA
 set ANAMEDICT(O) OH2
-#### END HEADER ####
+################################## END HEADER ##################################
 mol new 4zmj waitfor all
 set m0 [molinfo top get id]
 mol top $m0
-####### TRANSFORM 0 BEGINS #####
-# The following mappings of A.U. chains to chains is used:
-### BEGIN SEGMENT G ###
+############################## TRANSFORM 0 BEGINS ##############################
+############################### BEGIN SEGMENT G ################################
 set G [atomselect 0 "serial 1 to 1174"]
 $G writepdb PROTEIN_G_34_to_185.pdb
 set G [atomselect 0 "serial 1175 to 2795"]
@@ -97,8 +96,8 @@ coordpdb PROTEIN_G_187_to_398.pdb G
 coordpdb PROTEIN_G_411_to_505.pdb G
 coord G 185A N [cacoIn_nOut 185 G 0]
 coord G 400 N [cacoIn_nOut 398 G 0]
-### END SEGMENT G ###
-### BEGIN SEGMENT B ###
+################################ END SEGMENT G #################################
+############################### BEGIN SEGMENT B ################################
 set B [atomselect 0 "serial 3545 to 3722"]
 $B writepdb PROTEIN_B_521_to_547.pdb
 set B [atomselect 0 "serial 3723 to 4519"]
@@ -132,16 +131,27 @@ segment B {
 coordpdb PROTEIN_B_521_to_547.pdb B
 coordpdb PROTEIN_B_569_to_664.pdb B
 coord B 548 N [cacoIn_nOut 547 B 0]
-### END SEGMENT B ###
-####### TRANSFORM 0 ENDS ######
-####### TRANSFORM 1 BEGINS #####
-# The following mappings of A.U. chains to chains is used:
+################################ END SEGMENT B #################################
+patch DISU G:54 G:74
+patch DISU G:119 G:205
+patch DISU G:126 G:196
+patch DISU G:131 G:157
+patch DISU G:218 G:247
+patch DISU G:228 G:239
+patch DISU G:296 G:331
+patch DISU G:378 G:445
+patch DISU G:385 G:418
+patch DISU G:501 B:605
+patch DISU B:598 B:604
+############################### TRANSFORM 0 ENDS ###############################
+############################## TRANSFORM 1 BEGINS ##############################
+################ The following mappings of A.U. chains is used: ################
 #   A: E
 #   B: F
 #   C: H
 #   D: I
 #   G: J
-### BEGIN SEGMENT G ###
+############################### BEGIN SEGMENT J ################################
 set G [atomselect 0 "serial 1 to 1174"]
 $G set chain J
 set G_orig_x [$G get x]
@@ -222,8 +232,8 @@ coordpdb PROTEIN_J_187_to_398.pdb J
 coordpdb PROTEIN_J_411_to_505.pdb J
 coord J 185A N [cacoIn_nOut 185 J 0]
 coord J 400 N [cacoIn_nOut 398 J 0]
-### END SEGMENT J ###
-### BEGIN SEGMENT B ###
+################################ END SEGMENT J #################################
+############################### BEGIN SEGMENT F ################################
 set B [atomselect 0 "serial 3545 to 3722"]
 $B set chain F
 set B_orig_x [$B get x]
@@ -285,16 +295,27 @@ segment F {
 coordpdb PROTEIN_F_521_to_547.pdb F
 coordpdb PROTEIN_F_569_to_664.pdb F
 coord F 548 N [cacoIn_nOut 547 F 0]
-### END SEGMENT F ###
-####### TRANSFORM 1 ENDS ######
-####### TRANSFORM 2 BEGINS #####
-# The following mappings of A.U. chains to chains is used:
+################################ END SEGMENT F #################################
+patch DISU J:54 J:74
+patch DISU J:119 J:205
+patch DISU J:126 J:196
+patch DISU J:131 J:157
+patch DISU J:218 J:247
+patch DISU J:228 J:239
+patch DISU J:296 J:331
+patch DISU J:378 J:445
+patch DISU J:385 J:418
+patch DISU J:501 F:605
+patch DISU F:598 F:604
+############################### TRANSFORM 1 ENDS ###############################
+############################## TRANSFORM 2 BEGINS ##############################
+################ The following mappings of A.U. chains is used: ################
 #   A: K
 #   B: L
 #   C: M
 #   D: N
 #   G: O
-### BEGIN SEGMENT G ###
+############################### BEGIN SEGMENT O ################################
 set G [atomselect 0 "serial 1 to 1174"]
 $G set chain O
 set G_orig_x [$G get x]
@@ -375,8 +396,8 @@ coordpdb PROTEIN_O_187_to_398.pdb O
 coordpdb PROTEIN_O_411_to_505.pdb O
 coord O 185A N [cacoIn_nOut 185 O 0]
 coord O 400 N [cacoIn_nOut 398 O 0]
-### END SEGMENT O ###
-### BEGIN SEGMENT B ###
+################################ END SEGMENT O #################################
+############################### BEGIN SEGMENT L ################################
 set B [atomselect 0 "serial 3545 to 3722"]
 $B set chain L
 set B_orig_x [$B get x]
@@ -438,7 +459,24 @@ segment L {
 coordpdb PROTEIN_L_521_to_547.pdb L
 coordpdb PROTEIN_L_569_to_664.pdb L
 coord L 548 N [cacoIn_nOut 547 L 0]
-### END SEGMENT L ###
-####### TRANSFORM 2 ENDS ######
+################################ END SEGMENT L #################################
+patch DISU O:54 O:74
+patch DISU O:119 O:205
+patch DISU O:126 O:196
+patch DISU O:131 O:157
+patch DISU O:218 O:247
+patch DISU O:228 O:239
+patch DISU O:296 O:331
+patch DISU O:378 O:445
+patch DISU O:385 O:418
+patch DISU O:501 L:605
+patch DISU L:598 L:604
+############################### TRANSFORM 2 ENDS ###############################
+
+guesscoord
+regenerate angles dihedrals
+writepsf cmap step1.psf
+writepdb step1.pdb
 exit
-#### END PESTIFER PSFGEN ####
+############################# END PESTIFER PSFGEN ##############################
+######################## Thank you for using pestifer! #########################

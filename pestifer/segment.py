@@ -5,6 +5,7 @@ from .config import ConfigGetParam
 from .residue import ResidueList
 import pestifer.sel as sel
 from .util import isidentity, reduce_intlist
+from .stringthings import ByteCollector
 
 
 class Segment(AncestorAwareMod):
@@ -58,6 +59,7 @@ class Segment(AncestorAwareMod):
             return self.generic_stanza(transform,mods)
         
     def protein_stanza(self,transform,mods):
+        B=ByteCollector()
         parent_molecule=self.ancestor_obj
         the_chainID=self.residues[0].chainID
         chainIDmap=transform.chainIDmap
@@ -65,12 +67,12 @@ class Segment(AncestorAwareMod):
         rep_chainID=chainIDmap.get(the_chainID,the_chainID)
         seglabel=self.psfgen_segname # protein, so should just be letter
         if rep_chainID!=the_chainID:
-            print(f'relabeling chain {the_chainID} to {rep_chainID} in {seglabel}')
+            logger.info(f'relabeling chain {the_chainID} to {rep_chainID} in {seglabel}')
             seglabel=f'{rep_chainID}' # first byte is chain ID
         sac_rd=self.config_params['Sacrificial_residue']
         sac_r=sac_rd['name']
         sac_n=sac_rd['min_loop_length']
-        stanza=f'### BEGIN SEGMENT {self.segname} ###\n'
+        B.comment(f'BEGIN SEGMENT {seglabel}')
         for i,b in enumerate(self.subsegments):
             if b.state=='RESOLVED':
                 selname=f'{self.psfgen_segname}'
@@ -79,16 +81,16 @@ class Segment(AncestorAwareMod):
                 # TODO: account for any deletions
                 serial_list=run.atom_serials(as_type=int)
                 vmd_red_list=reduce_intlist(serial_list)
-                stanza+=f'set {selname} [atomselect {parent_molecule.molid} "serial {vmd_red_list}"]\n'
+                B.addline(f'set {selname} [atomselect {parent_molecule.molid} "serial {vmd_red_list}"]')
                 if rep_chainID!=the_chainID:
-                    stanza+=f'${selname} set chain {rep_chainID}\n'                        
+                    B.addline(f'${selname} set chain {rep_chainID}')                        
                 if not isidentity(tmat):
-                    stanza+=sel.backup(f'{selname}')+'\n'
-                    stanza+=f'${selname} move {transform.write_TcL()}\n'
-                stanza+=f'${selname} writepdb {b.pdb}\n'
+                    B.addline(sel.backup(f'{selname}'))
+                    B.addline(f'${selname} move {transform.write_TcL()}')
+                B.addline(f'${selname} writepdb {b.pdb}')
                 if not isidentity(tmat):
-                    stanza+=sel.restore(f'{selname}')+'\n'
-        stanza+=f'segment {seglabel} '+'{\n'
+                    B.addline(sel.restore(f'{selname}'))
+        B.addline(f'segment {seglabel} '+'{')
         # print(len(self.subsegments),type(self.subsegments))
         if not self.config_params['Include_terminal_loops']:
             if self.subsegments[0].state=='MISSING':
@@ -99,22 +101,22 @@ class Segment(AncestorAwareMod):
                 logger.info(f'Since terminal loops are not included, ignoring {str(Cterminal_missing_subsegment)}')
         for b in self.subsegments:
             if b.state=='RESOLVED':
-                stanza+=f'    pdb {b.pdb}\n'
+                B.addline(f'    pdb {b.pdb}')
             elif b.state=='MISSING':
                 for r in self.residues[b.bounds[0]:b.bounds[1]+1]:
-                    stanza+=f'    residue {r.resseqnum}{r.insertion} {r.resname_charmify()} {the_chainID}\n'
+                    B.addline(f'    residue {r.resseqnum}{r.insertion} {r.resname_charmify()} {the_chainID}')
                 if (b.bounds[1]-b.bounds[0])>(sac_n-1):
                     lrr=self.residues[b.bounds[1]]
                     sac_resseqnum=lrr.resseqnum
                     sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
                     assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {the_chainID} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_r}'
-                    stanza+=f'    residue {sac_resseqnum}{sac_insertion} {sac_r} {the_chainID}\n'
+                    B.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_r} {the_chainID}')
         for mod in mods:
             pass
-        stanza+='}\n'
+        B.addline('}')
         for b in self.subsegments:
             if b.state=='RESOLVED':
-                stanza+=f'coordpdb {b.pdb} {seglabel}\n'
+                B.addline(f'coordpdb {b.pdb} {seglabel}')
         for b in self.subsegments:
             if b.state=='MISSING':
                 # will issue the atom-reorienting command to join the C-terminus of prior run to N-terminus of this one, which is model-built using guesscoord
@@ -128,9 +130,9 @@ class Segment(AncestorAwareMod):
                         this_run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
                         prior_b=self.subsegments[self.subsegments.index(b)-1]
                         prior_run=ResidueList(self.residues[prior_b.bounds[0]:prior_b.bounds[1]+1])
-                        stanza+=f'{this_run.caco_str(prior_run,seglabel)}\n'
-        stanza+=f'### END SEGMENT {seglabel} ###\n'
-        return stanza
+                        B.addline(f'{this_run.caco_str(prior_run,seglabel)}')
+        B.comment(f'END SEGMENT {seglabel}')
+        return B.byte_collector
 
     # def psfgen_atomselect(self):
     #     serial_list=self.residues.atom_serials()
@@ -179,10 +181,10 @@ class SegmentList(AncestorAwareModList):
 
         return cls(Slist)
 
-    def write_TcL(self,transform):
+    def write_TcL(self,transform,mods):
         collect_bytes=''
         for seg in self:
-            collect_bytes+=seg.write_TcL(transform)
+            collect_bytes+=seg.write_TcL(transform,mods)
         return collect_bytes
     
     # def __init__(self,r,parent_chain=None,subcounter=''):

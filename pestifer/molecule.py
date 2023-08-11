@@ -11,6 +11,7 @@ from pidibble.pdbparse import PDBParser
 from .basemod import AncestorAwareMod
 from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList
+from .stringthings import my_logger,ByteCollector
 
 logger=logging.getLogger(__name__)
 
@@ -52,19 +53,20 @@ class Molecule(AncestorAwareMod):
         for biomt in ba.biomt[1:]:
             biomt.chainIDmap=chainIDmanager.generate_map(auChainIDs)            
         return self
-        
+    
     def write_TcL(self,mods):
+        B=ByteCollector()
         au=self.asymmetric_unit
         ba=self.active_biological_assembly
-        collect_bytes=''
         for biomt in ba.biomt:
-            collect_bytes+=f'####### TRANSFORM {biomt.index} BEGINS #####\n'
-            collect_bytes+=f'# The following mappings of A.U. chains to chains is used:\n'
-            for k,v in biomt.chainIDmap.items():
-                collect_bytes+=f'#   {k}: {v}\n'
-            collect_bytes+=au.Segments.write_TcL(biomt,mods)
-            collect_bytes+=au.SSBonds.write_TcL(biomt,mods)
-            collect_bytes+=au.Links.write_TcL(biomt)
-            collect_bytes+=f'####### TRANSFORM {biomt.index} ENDS ######\n'
-        return collect_bytes
+            B.comment(f'TRANSFORM {biomt.index} BEGINS')
+            if biomt.chainIDmap:
+                B.comment('The following mappings of A.U. chains is used:')
+                for k,v in biomt.chainIDmap.items():
+                    B.addline(f'#   {k}: {v}')
+            B.write(au.Segments.write_TcL(biomt,mods))
+            B.write(au.SSBonds.write_TcL(biomt,mods))
+            B.write(au.Links.write_TcL(biomt,mods))
+            B.comment(f'TRANSFORM {biomt.index} ENDS')
+        return B.byte_collector
 

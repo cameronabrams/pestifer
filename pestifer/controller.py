@@ -36,7 +36,7 @@ def modparse(input_dict,mod_classes):
     return retdict
 
 class BuildStep(BaseMod):
-    req_attr=BaseMod.req_attr+['solvate','mods']
+    req_attr=BaseMod.req_attr+['solvate','mods','output']
     opt_attr=BaseMod.opt_attr+['smdclose','relax_steps']
     def __init__(self,input_dict):
         if not 'solvate' in input_dict:
@@ -75,8 +75,8 @@ class Controller:
         self.psfgen=Psfgen(self.config.resman)
         self.register_mod_classes()
         if 'BuildSteps' in self.config.defs:
-            for stage in self.config.defs['BuildSteps']:
-                self.build_steps.append(BuildStep(stage).resolve_mods(self.mod_classes))
+            for step in self.config.defs['BuildSteps']:
+                self.build_steps.append(BuildStep(step).resolve_mods(self.mod_classes))
     
     def register_mod_classes(self):
         self.mod_classes={}
@@ -104,15 +104,16 @@ class Controller:
     def do(self):
         self.check()
         self.build_molecules()
+        self.psfgen.beginscript()
         for code,mol in self.molecules.items():
             self.psfgen.set_molecule(mol)
         for step in self.build_steps:
             main_pdb=self.config.defs['Source'].get('pdb',None)
             self.psfgen.describe_molecule(self.molecules[main_pdb],step.mods)
-            self.psfgen.transform_postmods(step['output'])
+            self.psfgen.transform_postmods(step.output)
         self.psfgen.global_postmods()
-        self.psfgen.write()
-
+        self.psfgen.endscript()
+        # TODO: run VMD!
     def check(self):
         assert type(self.config.defs)==dict
         assert 'Source' in self.config.defs
