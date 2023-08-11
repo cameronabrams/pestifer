@@ -17,6 +17,7 @@ from .molecule import Molecule
 from .basemod import BaseMod
 from .chainids import ChainIDManager
 from .util import special_update
+from .psfgen import Psfgen
 
 def modparse(input_dict,mod_classes):
     retdict={}
@@ -58,12 +59,20 @@ class BuildStep(BaseMod):
         replace_mods=special_update(replace_mods,from_userconfig)
         self.mods=replace_mods
         return self
+    
+    def my_pdbs(self):
+        pdbs=[]
+        for name,mod in self.mods.items():
+            if hasattr(mod,'Source'):
+                pdbs.append(mod.Source['pdb'])
+        return pdbs
 
 class Controller:
     def __init__(self,userconfigfilename):
         self.config=ConfigSetup(userconfigfilename)
         self.chainIDmanager=ChainIDManager()
         self.build_steps=[]
+        self.psfgen=Psfgen(self.config.resman)
         self.register_mod_classes()
         if 'BuildSteps' in self.config.defs:
             for stage in self.config.defs['BuildSteps']:
@@ -84,7 +93,32 @@ class Controller:
             return self
         biological_assembly_index=source_dict.get('biological_assembly',-1)
         self.molecules[basePDB]=Molecule.from_rcsb(pdb_code=basePDB).activate_biological_assembly(biological_assembly_index,self.chainIDmanager)
+        # TODO: gather any supplemental molecules
+        for step in self.build_steps:
+            pdbs_from_step=step.my_pdbs()
+            for p in pdbs_from_step:
+                if not p in self.molecules:
+                    self.molecules[p]=Molecule.from_rcsb(pdb_code=p)
         return self
+    
+    def do(self):
+        self.check()
+        self.build_molecules()
+        for code,mol in self.molecules.items():
+            self.psfgen.set_molecule(mol)
+        for step in self.build_steps:
+            main_pdb=self.config.defs['Source'].get('pdb',None)
+            self.psfgen.describe_molecule(self.molecules[main_pdb],step.mods)
+            self.psfgen.transform_postmods(step['output'])
+        self.psfgen.global_postmods()
+        self.psfgen.write()
+
+    def check(self):
+        assert type(self.config.defs)==dict
+        assert 'Source' in self.config.defs
+        assert 'pdb' in self.config.defs['Source']
+        assert self.config.defs['Source'].get('pdb',None)
+        assert self.config.defs['Source'].get('biological_assembly',None)
 
     # def report(self):
 

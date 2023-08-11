@@ -26,4 +26,6 @@ BuildSteps:
     smdclose: True 
     relax_steps:
       - 1000
-OutputName: Test
+    output:
+      psf: step1.psf
+      pdb: step1.pdb

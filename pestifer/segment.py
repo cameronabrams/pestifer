@@ -48,16 +48,16 @@ class Segment(AncestorAwareMod):
     def __str__(self):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
 
-    def write_TcL(self,transform):
+    def write_TcL(self,transform,mods):
 
         if self.segtype=='PROTEIN':
-            return self.protein_stanza(transform)
+            return self.protein_stanza(transform,mods)
         elif self.segtype=='GLYCAN':
-            return self.glycan_stanza(transform)
+            return self.glycan_stanza(transform,mods)
         else:
-            return self.generic_stanza(transform)
+            return self.generic_stanza(transform,mods)
         
-    def protein_stanza(self,transform):
+    def protein_stanza(self,transform,mods):
         parent_molecule=self.ancestor_obj
         the_chainID=self.residues[0].chainID
         chainIDmap=transform.chainIDmap
@@ -109,7 +109,8 @@ class Segment(AncestorAwareMod):
                     sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
                     assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {the_chainID} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_r}'
                     stanza+=f'    residue {sac_resseqnum}{sac_insertion} {sac_r} {the_chainID}\n'
-        # TODO: mutations
+        for mod in mods:
+            pass
         stanza+='}\n'
         for b in self.subsegments:
             if b.state=='RESOLVED':
@@ -178,6 +179,12 @@ class SegmentList(AncestorAwareModList):
 
         return cls(Slist)
 
+    def write_TcL(self,transform):
+        collect_bytes=''
+        for seg in self:
+            collect_bytes+=seg.write_TcL(transform)
+        return collect_bytes
+    
     # def __init__(self,r,parent_chain=None,subcounter=''):
     #     """Initializes a segment instance by passing in first residue of segment"""
     #     self.parent_chain=parent_chain

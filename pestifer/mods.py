@@ -17,6 +17,7 @@
 # from pestifer.missing import Missing
 from pidibble.pdbrecord import PDBRecord
 from .basemod import AncestorAwareMod,AncestorAwareModList
+from .config import ConfigGetParam
 
 class Seqadv(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['idCode','resname','chainID','resseqnum','insertion']
@@ -488,11 +489,22 @@ class SSBond(AncestorAwareMod):
                 '{:>7s}'.format(self.sym2)+\
                 '{:6.2f}'.format(self.length)
         return pdbline
-    def psfgen_lines(self):
-        return ['patch DISU {}:{} {}:{}'.format(self.chainID1,self.resseqnum1,self.chainID2,self.resseqnum2)]
+    
+    def write_TcL(self,transform):
+        chainIDmap=transform.chainIDmap 
+        # ok since these are only going to reference protein segments; protein segment names are the chain IDs
+        c1=chainIDmap.get(c1,c1)
+        c2=chainIDmap.get(c2,c2)
+        r1=self.resseqnum1
+        r2=self.resseqnum2
+        return f'patch DISU {c1}:{r1} {c2}:{r2}\n'
 
 class SSBondList(AncestorAwareModList):
-    pass
+    def write_TcL(self,transform):
+        collect_bytes=''
+        for s in self:
+            collect_bytes+=s.write_TcL(transform)
+        return collect_bytes
 
 class SSBondDelete(SSBond):
     yaml_header='SSBondsDelete'
@@ -526,7 +538,7 @@ class Link(AncestorAwareMod):
             'link_distance':pdbrecord.length
         }
         inst=cls(input_dict)
-        inst.segname1=inst.chainID1
+        inst.segname1=inst.chainID1 # this will change!!
         inst.segname2=inst.chainID2
         inst.residue1=None
         inst.residue2=None
@@ -565,6 +577,14 @@ class Link(AncestorAwareMod):
         input_dict['atom2']=None
         input_dict['empty']=False
         return cls(input_dict)
+
+    def write_TcL(self,transform):
+        if self.resname1=='ASN' and ConfigGetParam('Segtypes_by_Resnames')[self.resname1]=='GLYCAN':
+            chainIDmap=transform.chainIDmap
+            seg1=chainIDmap(self.segname1)
+            seg2=transform.segname_by_type_map['GLYCAN'](self.segname2)
+            return f'patch NGLB {seg1}:{self.resseqnum1}{self.icode1} {seg2}:{self.resseqnum2}{self.icode2}'
+
 
     def __str__(self):
         return f'{self.chainID1}{self.resname1}{self.resseqnum1}{self.iCode1}-{self.chainID2}{self.resname2}{self.resseqnum2}{self.iCode2}'

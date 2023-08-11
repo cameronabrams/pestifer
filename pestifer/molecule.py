@@ -53,7 +53,7 @@ class Molecule(AncestorAwareMod):
             biomt.chainIDmap=chainIDmanager.generate_map(auChainIDs)            
         return self
         
-    def write_TcL(self):
+    def write_TcL(self,mods):
         au=self.asymmetric_unit
         ba=self.active_biological_assembly
         collect_bytes=''
@@ -62,8 +62,9 @@ class Molecule(AncestorAwareMod):
             collect_bytes+=f'# The following mappings of A.U. chains to chains is used:\n'
             for k,v in biomt.chainIDmap.items():
                 collect_bytes+=f'#   {k}: {v}\n'
-            for segment in au.Segments:
-                collect_bytes+=segment.write_TcL(biomt)
+            collect_bytes+=au.Segments.write_TcL(biomt,mods)
+            collect_bytes+=au.SSBonds.write_TcL(biomt,mods)
+            collect_bytes+=au.Links.write_TcL(biomt)
             collect_bytes+=f'####### TRANSFORM {biomt.index} ENDS ######\n'
         return collect_bytes
 

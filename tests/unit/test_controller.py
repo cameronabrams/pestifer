@@ -51,11 +51,13 @@ class TestController(unittest.TestCase):
         self.assertEqual(t2.chainIDmap,{'A': 'E', 'B': 'F', 'C': 'H', 'D': 'I', 'G': 'J'})
         t3=b.biomt[2]
         self.assertEqual(t3.chainIDmap,{'A': 'K', 'B': 'L', 'C': 'M', 'D': 'N', 'G': 'O'})
-        with open('molout.tcl','w') as f:
-            f.write(baseMol.write_TcL())
+        # with open('molout.tcl','w') as f:
+        #     f.write(baseMol.write_TcL())
         # self.assertEqual(m['resseqnum'],151)
         # self.assertEqual(m['origresname'],'ALA')
         # self.assertEqual(m['newresname'],'CYS')
         # m=s.mods['Mutations'][1]
         # self.assertTrue('shortcode' in m)
-
+    def test_controller_do(self):
+        C=Controller('user_config.yaml')
+        C.do()

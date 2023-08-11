@@ -28,8 +28,24 @@ class AsymmetricUnit(AncestorAwareMod):
             SSBonds=SSBondList([SSBond.from_pdbrecord(p) for p in pr['SSBOND']])
         else:
             SSBonds=SSBondList([])
+
         if 'SEQADV' in pr:
-            sa=[x for x in pr['SEQADV'] if 'MUTATION' in x.conflict]
+            ''' These are possible conflict keywords
+            - Cloning artifact
+            - Expression tag
+            - Conflict
+            - Engineered
+            - Variant 
+            - Insertion
+            - Deletion
+            - Microheterogeneity
+            - Chromophore
+            '''
+            unresolved_sa=[x for x in pr['SEQADV'] if not ('ENGINEERED' in x.conflict or 'CONFLICT' in x.conflict)]
+            logger.warning('The following SEQADV records are not handled:')
+            for r in unresolved_sa:
+                logger.warning(f'{r.conflict}')
+            sa=[x for x in pr['SEQADV'] if 'ENGINEERED' in x.conflict]
             Mutations=MutationList([Mutation.from_seqadv(Seqadv.from_pdbrecord(p)) for p in sa])
             co=[x for x in pr['SEQADV'] if 'CONFLICT' in x.conflict]
             Conflicts=MutationList([Mutation.from_seqadv(Seqadv.from_pdbrecord(p)) for p in co])
@@ -41,6 +57,7 @@ class AsymmetricUnit(AncestorAwareMod):
         else:
             Links=LinkList([])
         Segments=SegmentList.from_residues(Residues)
+        # TODO: Maybe have segments "claim" associated Mutations and Conflicts
         chainIDs=list(set([x.chainID for x in Residues]))
         chainIDs.sort()
         input_dict={
