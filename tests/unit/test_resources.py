@@ -8,10 +8,7 @@
 """
 
 import unittest
-
-from pestifer.resourcemanager import ResourceManager, ResourcesSetup, ResourcesApplyUserOptions, ResourcesGet, ResourcesInfo
-
-import os
+from pestifer.resourcemanager import ResourceManager, ResourcesSetup, ResourcesApplyUserOptions, ResourcesGet
 import platform
 
 class ResourceManagerTest(unittest.TestCase):

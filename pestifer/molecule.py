@@ -81,8 +81,11 @@ class Molecule(AncestorAwareMod):
             B.banner('The following mappings of A.U. chains is used:')
             for k,v in biomt.chainIDmap.items():
                 B.comment(f'{k}: {v}')
+            B.banner('SEGMENTS FOLLOW')
             B.write(au.Segments.write_TcL(biomt,allmods))
+            B.banner('DISU PATCHES FOLLOW')
             B.write(au.SSBonds.write_TcL(biomt,allmods))
+            B.banner('LINK PATCHES FOLLOW')
             B.write(au.Links.write_TcL(biomt,allmods))
             B.banner(f'TRANSFORM {biomt.index} ENDS')
         return B.byte_collector

@@ -7,9 +7,10 @@ logger=logging.getLogger(__name__)
 from .basemod import AncestorAwareMod, AncestorAwareModList
 
 class BiomT(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['index','tmat','chainIDmap','segname_by_type_map']
+    req_attr=AncestorAwareMod.req_attr+['index','tmat','chainIDmap','segnamemap','segname_by_type_map']
     def __init__(self,input_dict):
         input_dict['chainIDmap']={}
+        input_dict['segnamemap']={}
         input_dict['segname_by_type_map']={}
         super().__init__(input_dict)
     @classmethod

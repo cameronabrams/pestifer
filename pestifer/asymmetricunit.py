@@ -1,11 +1,8 @@
 import logging
-# from pidibble.pdbparse import PDBParser
-# from .basemod import BaseMod
 from .mods import *
-from .residue import Residue,ResidueList,LinkList
-from .segment import Segment,SegmentList
-from .config import ConfigGetParam
-from .basemod import CloneableMod,AncestorAwareMod
+from .residue import ResidueList,AtomList,Atom,Hetatm,Ter,TerList
+from .segment import SegmentList
+from .basemod import AncestorAwareMod
 
 logger=logging.getLogger(__name__)
 
@@ -27,8 +24,6 @@ class AsymmetricUnit(AncestorAwareMod):
         else:
             Missings=MissingList([])
         Residues=ResidueList.from_atoms(Atoms)+ResidueList.from_missing(Missings)
-        # Residues.sort()
-        # print(f'Residues {len(Residues)}')
         if 'SSBOND' in pr:
             SSBonds=SSBondList([SSBond.from_pdbrecord(p) for p in pr['SSBOND']])
         else:
@@ -47,7 +42,7 @@ class AsymmetricUnit(AncestorAwareMod):
             - Chromophore
             '''
             unresolved_sa=[x for x in pr['SEQADV'] if not ('ENGINEERED' in x.conflict or 'CONFLICT' in x.conflict)]
-            logger.info('The following SEQADV records are not handled:')
+            logger.info('The following SEQADV record types found in input are not handled:')
             for r in unresolved_sa:
                 logger.info(f'{r.conflict}')
             sa=[x for x in pr['SEQADV'] if 'ENGINEERED' in x.conflict]
@@ -58,11 +53,11 @@ class AsymmetricUnit(AncestorAwareMod):
             Mutations=MutationList([])
             Conflicts=MutationList([])
         if 'LINK' in pr:
-            Links=LinkList([Link.from_pdbrecord(p) for p in pr['LINK']]).update_residues_atoms(Residues,Atoms)
+            Links=LinkList([Link.from_pdbrecord(p) for p in pr['LINK']])
+            Residues.update_links(Links,Atoms)
         else:
             Links=LinkList([])
         Segments=SegmentList.from_residues(Residues)
-        # TODO: Maybe have segments "claim" associated Mutations and Conflicts
         chainIDs=list(set([x.chainID for x in Residues]))
         chainIDs.sort()
         input_dict={

@@ -1,20 +1,11 @@
 """
 
 .. module:: mods
-   :synopsis: Manages all modifications
+   :synopsis: Manages all modifications that can be encoded in PDB/mmCIF files or user-specified
    
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
-# from pestifer.mutation import Mutation
-# from pestifer.ssbond import SSBond
-# from pestifer.graft import Graft
-# from pestifer.crot import Crot
-# from pestifer.attach import Attach
-# from pestifer.link import Link
-# from pestifer.deletion import Deletion
-# from pestifer.cleavage import Cleavage
-# from pestifer.missing import Missing
 from pidibble.pdbrecord import PDBRecord
 from .basemod import AncestorAwareMod,AncestorAwareModList
 from .config import ConfigGetParam
@@ -34,16 +25,6 @@ class Seqadv(AncestorAwareMod):
         :type pdbrecord: PDBRecord
         :return: a Seqadv AncestorAwareMod
         :rtype: Seqadv
-
-        SEQADV
-              idCode: 1GC1
-             residue: resName: GLY; chainID: G; seqNum: 79; iCode: 
-            database: UNP
-         dbAccession: P04578
-               dbRes: 
-               dbSeq: 
-            conflict: EXPRESSION TAG
-
         """
         input_dict={
             'idCode':pdbrecord.idCode,
@@ -349,108 +330,6 @@ class Crot(AncestorAwareMod):
 class CrotList(AncestorAwareModList):
     pass
 
-class Atom(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
-    opt_attr=AncestorAwareMod.opt_attr+['segname','empty','link']
-    yaml_header='Atoms'
-    PDB_keyword='ATOM'
-
-    @classmethod
-    def from_pdbrecord(cls,pdbrecord:PDBRecord):
-        input_dict={
-            'serial':pdbrecord.serial,
-            'name':pdbrecord.name,
-            'altloc':pdbrecord.altLoc,
-            'resname':pdbrecord.residue.resName,
-            'chainID':pdbrecord.residue.chainID,
-            'resseqnum':pdbrecord.residue.seqNum,
-            'insertion':pdbrecord.residue.iCode,
-            'x':pdbrecord.x,
-            'y':pdbrecord.y,
-            'z':pdbrecord.z,
-            'occ':pdbrecord.occupancy,
-            'beta':pdbrecord.tempFactor,
-            'elem':pdbrecord.element,
-            'charge':pdbrecord.charge
-        }
-        input_dict['segname']=input_dict['chainID']
-        input_dict['link']='None'
-        input_dict['empty']=False
-        inst=cls(input_dict)
-        return inst
-    @classmethod
-    def from_cifdict(cls,cifdict):
-        al=cifdict['label_alt_id']
-        ic=cifdict['pdbx_pdb_ins_code']
-        c=cifdict['pdbx_formal_charge']
-        input_dict={
-            'recordname':'ATOM',
-            'serial':int(cifdict['id']),
-            'name':cifdict['auth_atom_id'],
-            'altloc':' ' if al=='.' else al,
-            'resname':cifdict['auth_comp_id'],
-            'chainID':cifdict['auth_asym_id'],
-            'resseqnum':int(cifdict['auth_seq_id']),
-            'insertion':' ' if ic=='?' else ic,
-            'x':float(cifdict['cartn_x']),
-            'y':float(cifdict['cartn_y']),
-            'z':float(cifdict['cartn_z']),
-            'occ':float(cifdict['occupancy']),
-            'beta':float(cifdict['b_iso_or_equiv']),
-            'elem':cifdict['type_symbol'],
-            'charge':0.0 if c=='?' else float(c)
-        }
-        input_dict['segname']=input_dict['chainID']
-        input_dict['link']='None'
-        input_dict['empty']=False
-        inst=cls(input_dict)
-        return inst
-    
-    def pdb_line(self):
-        pdbline='{:<6s}'.format(self.recordname)+\
-                '{:5d}'.format(self.serial)+' '+\
-                '{:<4s}'.format(' '+self.name if len(self.name)<4 else self.name)+\
-                '{:1s}'.format(self.altloc)+\
-                '{:<4s}'.format(self.resname)+\
-                '{:1s}'.format(self.chainID)+\
-                '{:4d}'.format(self.resseqnum)+\
-                '{:1s}'.format(self.insertion)+'   '+\
-                '{:8.3f}'.format(self.x)+\
-                '{:8.3f}'.format(self.y)+\
-                '{:8.3f}'.format(self.z)+\
-                '{:6.2f}'.format(self.occ)+\
-                '{:6.2f}'.format(self.beta)+\
-                10*' '+'{:>2s}'.format(self.elem)+'{:2s}'.format(self.charge)
-        return pdbline
-
-class AtomList(AncestorAwareModList):
-    def adjustSerials(self,Ters):
-        ignored_serials=[x.serial for x in Ters]
-        if not ignored_serials:
-            return
-        orig_atom_serials=[x.serial for x in self]
-        assert all([not x in orig_atom_serials for x in ignored_serials])
-        offending_serial_idx=[]
-        cidx=0
-        for i in range(len(orig_atom_serials)-1):
-            if orig_atom_serials[i]<ignored_serials[cidx]<orig_atom_serials[i+1]:
-                offending_serial_idx.append(i+1)
-                cidx+=1
-                if cidx==len(ignored_serials):
-                    break
-        for s in offending_serial_idx:
-            for i in range(s,len(orig_atom_serials)):
-                orig_atom_serials[i]-=1
-        for a,s in zip(self,orig_atom_serials):
-            if not '_ORIGINAL_' in a.__dict__:
-                a._ORIGINAL_={}
-            a._ORIGINAL_['serial']=a.serial
-            a.serial=s
-
-class Hetatm(Atom):
-    PDB_keyword='HETATM'
-    yaml_header='Hetatoms'
-
 class SSBond(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
     opt_attr=AncestorAwareMod.opt_attr+['serial_number','resname1','resname2','sym1','sym2','length']
@@ -580,7 +459,6 @@ class SSBondList(AncestorAwareModList):
             if right:
                 self.remove(right)
 
-
 class SSBondDelete(SSBond):
     yaml_header='SSBondsDelete'
 
@@ -595,7 +473,7 @@ class SSBondDeleteList(SSBondList):
         return False
 
 class Link(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['name1','chainID1','resseqnum1','iCode1','name2','chainID2','resseqnum2','iCode2']
+    req_attr=AncestorAwareMod.req_attr+['name1','chainID1','resseqnum1','insertion1','name2','chainID2','resseqnum2','insertion2']
     opt_attr=AncestorAwareMod.opt_attr+['altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance']    
     yaml_header='Links'
     PDB_keyword='LINK'
@@ -607,19 +485,19 @@ class Link(AncestorAwareMod):
             'resname1':pdbrecord.residue1.resName,
             'chainID1':pdbrecord.residue1.chainID,
             'resseqnum1':pdbrecord.residue1.seqNum,
-            'iCode1':pdbrecord.residue1.iCode,
+            'insertion1':pdbrecord.residue1.iCode,
             'name2': pdbrecord.name2,
             'altloc2':pdbrecord.altLoc2,
             'resname2':pdbrecord.residue2.resName,
             'chainID2':pdbrecord.residue2.chainID,
             'resseqnum2':pdbrecord.residue2.seqNum,
-            'iCode2':pdbrecord.residue2.iCode,
+            'insertion2':pdbrecord.residue2.iCode,
             'sym1':pdbrecord.sym1,
             'sym2':pdbrecord.sym2,
             'link_distance':pdbrecord.length
         }
         inst=cls(input_dict)
-        inst.segname1=inst.chainID1 # this will change!!
+        inst.segname1=inst.chainID1
         inst.segname2=inst.chainID2
         inst.residue1=None
         inst.residue2=None
@@ -667,24 +545,35 @@ class Link(AncestorAwareMod):
             return f'patch NGLB {seg1}:{self.resseqnum1}{self.icode1} {seg2}:{self.resseqnum2}{self.icode2}'
         return ''
 
-
     def __str__(self):
         return f'{self.chainID1}{self.resname1}{self.resseqnum1}{self.iCode1}-{self.chainID2}{self.resname2}{self.resseqnum2}{self.iCode2}'
 
-class Ter(AncestorAwareMod):
-    req_attr=['serial','resname','chainID','resseqnum','insertion']
-    yaml_header='Terminals'
-    @classmethod
-    def from_pdbrecord(cls,pdbrecord):
-        input_dict={
-            'serial':pdbrecord.serial,
-            'resname':pdbrecord.residue.resName,
-            'chainID':pdbrecord.residue.chainID,
-            'resseqnum':pdbrecord.residue.seqNum,
-            'insertion':pdbrecord.residue.iCode
-        }
-        inst=cls(input_dict)
-        return inst
-    
-class TerList(AncestorAwareModList):
+class LinkList(AncestorAwareModList):
+    def write_TcL(self,transform,mods):
+        B=ByteCollector()
+        for l in self:
+            linkline=l.write_TcL(transform,mods)
+            if linkline:
+                B.addline(linkline)
+        return str(B)
+
+class Graft(AncestorAwareMod):
+    yaml_header='Grafts'
+    pass
+
+class GraftList(AncestorAwareModList):
+    pass
+
+class Insertion(AncestorAwareMod):
+    yaml_header='Insertions'
+    pass
+
+class InsertionList(AncestorAwareModList):
+    pass
+
+class Cleavage(AncestorAwareMod):
+    yaml_header='Cleavages'
+    pass
+
+class CleavageList(AncestorAwareModList):
     pass

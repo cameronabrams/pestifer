@@ -63,6 +63,7 @@ mol top $m0
 # C: C
 # D: D
 # G: G
+############################### SEGMENTS FOLLOW ################################
 ############################### BEGIN SEGMENT G ################################
 set G01 [atomselect 0 "serial 1 to 1174"]
 ############ Atom with serial 1174 in PDB needs serial 1174 for VMD ############
@@ -165,6 +166,7 @@ patch NTER B:569
 delatom B 568A
 ############## Restoring A.U. state for all resolved subsegments ###############
 ################################ END SEGMENT B #################################
+############################# DISU PATCHES FOLLOW ##############################
 patch DISU G:54 G:74
 patch DISU G:119 G:205
 patch DISU G:126 G:196
@@ -175,6 +177,7 @@ patch DISU G:296 G:331
 patch DISU G:378 G:445
 patch DISU G:385 G:418
 patch DISU B:598 B:604
+############################# LINK PATCHES FOLLOW ##############################
 ############################### TRANSFORM 0 ENDS ###############################
 ############################## TRANSFORM 1 BEGINS ##############################
 ################ The following mappings of A.U. chains is used: ################
@@ -183,6 +186,7 @@ patch DISU B:598 B:604
 # C: H
 # D: I
 # G: J
+############################### SEGMENTS FOLLOW ################################
 ############################### BEGIN SEGMENT J ################################
 set G00 [atomselect 0 "serial 1 to 1174"]
 ############ Atom with serial 1174 in PDB needs serial 1174 for VMD ############
@@ -365,6 +369,7 @@ $B02 set resid $B02_orig_resid
 $B02 set resname $B02_orig_resname
 $B02 set name $B02_orig_name
 ################################ END SEGMENT F #################################
+############################# DISU PATCHES FOLLOW ##############################
 patch DISU J:54 J:74
 patch DISU J:119 J:205
 patch DISU J:126 J:196
@@ -375,6 +380,7 @@ patch DISU J:296 J:331
 patch DISU J:378 J:445
 patch DISU J:385 J:418
 patch DISU F:598 F:604
+############################# LINK PATCHES FOLLOW ##############################
 ############################### TRANSFORM 1 ENDS ###############################
 ############################## TRANSFORM 2 BEGINS ##############################
 ################ The following mappings of A.U. chains is used: ################
@@ -383,6 +389,7 @@ patch DISU F:598 F:604
 # C: M
 # D: N
 # G: O
+############################### SEGMENTS FOLLOW ################################
 ############################### BEGIN SEGMENT O ################################
 set G00 [atomselect 0 "serial 1 to 1174"]
 ############ Atom with serial 1174 in PDB needs serial 1174 for VMD ############
@@ -565,6 +572,7 @@ $B02 set resid $B02_orig_resid
 $B02 set resname $B02_orig_resname
 $B02 set name $B02_orig_name
 ################################ END SEGMENT L #################################
+############################# DISU PATCHES FOLLOW ##############################
 patch DISU O:54 O:74
 patch DISU O:119 O:205
 patch DISU O:126 O:196
@@ -575,6 +583,7 @@ patch DISU O:296 O:331
 patch DISU O:378 O:445
 patch DISU O:385 O:418
 patch DISU L:598 L:604
+############################# LINK PATCHES FOLLOW ##############################
 ############################### TRANSFORM 2 ENDS ###############################
 
 guesscoord

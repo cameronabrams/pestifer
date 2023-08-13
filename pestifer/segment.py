@@ -8,7 +8,6 @@ import pestifer.sel as sel
 from .util import isidentity, reduce_intlist
 from .stringthings import ByteCollector
 
-
 class Segment(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments']
     opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname','config_params']
@@ -51,7 +50,6 @@ class Segment(AncestorAwareMod):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
 
     def write_TcL(self,transform,mods):
-
         if self.segtype=='PROTEIN':
             return self.protein_stanza(transform,mods)
         elif self.segtype=='GLYCAN':
@@ -70,6 +68,7 @@ class Segment(AncestorAwareMod):
         if rep_chainID!=the_chainID:
             logger.info(f'relabeling chain {the_chainID} to {rep_chainID} in {seglabel}')
             seglabel=f'{rep_chainID}' # first byte is chain ID
+        transform.segnamemap[self.psfgen_segname,seglabel]
         sac_rd=self.config_params['Sacrificial_residue']
         sac_r=sac_rd['name']
         sac_n=sac_rd['min_loop_length']
@@ -80,7 +79,7 @@ class Segment(AncestorAwareMod):
         for i,b in enumerate(self.subsegments):
             if b.state=='RESOLVED':
                 """ for a resolved subsegment, generate its pdb file """
-                b.selname=f'{self.psfgen_segname}{i:02d}'
+                b.selname=f'{seglabel}{i:02d}'
                 run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
                 b.pdb=f'PROTEIN_{rep_chainID}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
                 # TODO: account for any deletions?  Maybe better at the residue stage...
@@ -90,7 +89,8 @@ class Segment(AncestorAwareMod):
                 vmd_red_list=reduce_intlist(serial_list)
                 B.addline(f'set {b.selname} [atomselect {parent_molecule.molid} "serial {vmd_red_list}"]')
                 if hasattr(at,'_ORIGINAL_'):
-                    B.banner(f'Atom with serial {at._ORIGINAL_["serial"]} in PDB needs serial {at.serial} for VMD')
+                    if at._ORIGINAL_["serial"]!=at.serial:
+                        B.banner(f'Atom with serial {at._ORIGINAL_["serial"]} in PDB needs serial {at.serial} for VMD')
                 """ Relabel chain ID and request coordinate transformation """
                 if rep_chainID!=the_chainID:
                     B.addline(sel.backup(f'{b.selname}'))
@@ -121,9 +121,15 @@ class Segment(AncestorAwareMod):
                     B.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_r} {seglabel}')
         if self.config_params['Fix_engineered_mutations']:
             for m in Mutations:
-                B.addline(m.write_TcL())
+                if m.source=='SEQADV':
+                    if self.config_params['Fix_engineered_mutations']:
+                        B.comment('Below reverts an engineered mutation:')
+                        B.addline(m.write_TcL())
+                else:
+                    B.addline(m.write_TL())
         if self.config_params['Fix_conflicts']:
             for m in Conflicts:
+                B.comment('Below reverts a database conflict:')
                 B.addline(m.write_TcL())
         B.addline('}')
         B.banner('Coordinate-specification commands')
@@ -185,35 +191,29 @@ class SegmentList(AncestorAwareModList):
     def from_residues(cls,residues:ResidueList):
         tmp_counters={}
         Slist=[]
-        protein_res=residues.get(segtype='PROTEIN')
-        protein_chains=[]
-        for r in protein_res:
-            if not r.chainID in protein_chains:
-                protein_chains.append(r.chainID)
-        
-        for pc in protein_chains:
-            pc_res=residues.get(segtype='PROTEIN',chainID=pc)
-            thisSeg=Segment.from_residue_list(pc_res)
-            olc=ConfigGetParam('Segname_chars').get(thisSeg.segtype)
-            itemkey=f'{thisSeg.chainID}{olc}'
-            if not itemkey in tmp_counters:
-                tmp_counters[itemkey]=0
-            tmp_counters[itemkey]+=1
-            if thisSeg.segtype=='PROTEIN':
-                thisSeg.psfgen_segname=thisSeg.segname
-            else:
-                thisSeg.psfgen_segname=f'{itemkey}{tmp_counters[itemkey]:03d}'
-            Slist.append(thisSeg)
-
-        # TODO: Water, ligand, glycan, etc
+        for stype in ['PROTEIN','WATER','ION','GLYCAN','LIGAND','OTHER']:
+            res=residues.get(segtype=stype)
+            for chainID in res.unique_chainIDs():
+                c_res=residues.get(segtype=stype,chainID=chainID)
+                thisSeg=Segment.from_residue_list(c_res)
+                olc=ConfigGetParam('Segname_chars').get(thisSeg.segtype)
+                if thisSeg.segtype=='PROTEIN':
+                    thisSeg.psfgen_segname=thisSeg.segname
+                else:
+                    thisSeg.psfgen_segname=f'{itemkey}{tmp_counters[itemkey]:03d}'
+                itemkey=f'{thisSeg.chainID}{olc}'
+                if not itemkey in tmp_counters:
+                    tmp_counters[itemkey]=0
+                tmp_counters[itemkey]+=1
+                Slist.append(thisSeg)
 
         return cls(Slist)
 
     def write_TcL(self,transform,mods):
-        collect_bytes=''
+        B=ByteCollector()
         for seg in self:
-            collect_bytes+=seg.write_TcL(transform,mods)
-        return collect_bytes
+            B.addline(seg.write_TcL(transform,mods))
+        return str(B)
     
     # def __init__(self,r,parent_chain=None,subcounter=''):
     #     """Initializes a segment instance by passing in first residue of segment"""

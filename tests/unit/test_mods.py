@@ -1,4 +1,4 @@
-from pestifer.mods import Atom,Mutation, Missing, Seqadv, SSBond, Crot
+from pestifer.mods import Mutation, Missing, Seqadv, SSBond, Crot
 from pidibble.pdbparse import PDBParser
 import unittest
 # import pytest
