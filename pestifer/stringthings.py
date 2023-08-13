@@ -1,24 +1,30 @@
 """
 
 .. module:: stringthings
-   :synopsis: defines a specially-formatted logging method (silly)
+   :synopsis: defines a byte-collector for convenient script writing
    
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
 import pandas as pd
-_ANGSTROM_='Ångström'
+# _ANGSTROM_='Ångström'
 class ByteCollector:
-    def __init__(self):
+    def __init__(self,comment_char='#'):
+        self.comment_char=comment_char
         self.byte_collector=''
     def write(self,msg):
         self.byte_collector+=msg
     def addline(self,msg,end='\n'):
         self.byte_collector+=f'{msg}{end}'
+    def comment(self,msg,end='\n'):
+        comment_line=f'{self.comment_char} {msg}'
+        self.addline(comment_line,end=end)
     def log(self,msg):
         my_logger(msg,self.addline)
-    def comment(self,msg):
+    def banner(self,msg):
         my_logger(msg,self.addline,fill='#',width=80)
+    def __str__(self):
+        return self.byte_collector
 
 def my_logger(msg,logf,width=67,fill='*',sep=', ',just='^'):
     fmt=r'{'+r':'+fill+just+f'{width}'+r'}'

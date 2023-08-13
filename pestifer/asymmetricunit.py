@@ -47,9 +47,9 @@ class AsymmetricUnit(AncestorAwareMod):
             - Chromophore
             '''
             unresolved_sa=[x for x in pr['SEQADV'] if not ('ENGINEERED' in x.conflict or 'CONFLICT' in x.conflict)]
-            logger.warning('The following SEQADV records are not handled:')
+            logger.info('The following SEQADV records are not handled:')
             for r in unresolved_sa:
-                logger.warning(f'{r.conflict}')
+                logger.info(f'{r.conflict}')
             sa=[x for x in pr['SEQADV'] if 'ENGINEERED' in x.conflict]
             Mutations=MutationList([Mutation.from_seqadv(Seqadv.from_pdbrecord(p)) for p in sa])
             co=[x for x in pr['SEQADV'] if 'CONFLICT' in x.conflict]

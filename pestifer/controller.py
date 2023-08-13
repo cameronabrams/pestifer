@@ -19,19 +19,22 @@ from .chainids import ChainIDManager
 from .util import special_update
 from .psfgen import Psfgen
 
-def modparse(input_dict,mod_classes):
+def modparse(input_dict,mod_classes,modlist_classes):
     retdict={}
     for hdr,entries in input_dict.items():
-        Cls=[cls for name,cls in mod_classes.items() if cls.yaml_header==hdr]
-        assert len(Cls)==1,f'Cannot resolve {hdr} from available mod classes {[cls.yaml_header for cls in mod_classes.values()]}'
-        cls=Cls[0]
+        class_name=[name for name,cls in mod_classes.items() if cls.yaml_header==hdr][0]
+        cls=mod_classes[class_name]
+        LCls=modlist_classes.get(f'{class_name}List',list)
         for entry in entries:
             if 'shortcode' in entry:
                 newmod=cls.from_shortcode(entry['shortcode'])
             else:
+                entry['source']='USER'
                 newmod=cls(entry) # mods by default initialize from dicts
             if not hdr in retdict:
-                retdict[hdr]=[]
+                # print(f'new modlist type {LCls} for class {class_name}')
+                # print(f'mod_classes {mod_classes}')
+                retdict[hdr]=LCls([])
             retdict[hdr].append(newmod)
     return retdict
 
@@ -45,17 +48,17 @@ class BuildStep(BaseMod):
             input_dict['mods']={}
         super().__init__(input_dict)
 
-    def resolve_mods(self,mod_classes):
+    def resolve_mods(self,mod_classes,modlist_classes):
         replace_mods={}
         mod_dict=self.mods.copy()
         for modfile in mod_dict.get('ModFiles',[]):
             with open(modfile,'r') as f:
                 raw=yaml.safe_load(f)
-                from_file=modparse(raw,mod_classes)
+                from_file=modparse(raw,mod_classes,modlist_classes)
                 replace_mods=special_update(replace_mods,from_file)
         if 'ModFiles' in mod_dict:
             del mod_dict['ModFiles']
-        from_userconfig=modparse(mod_dict,mod_classes)
+        from_userconfig=modparse(mod_dict,mod_classes,modlist_classes)
         replace_mods=special_update(replace_mods,from_userconfig)
         self.mods=replace_mods
         return self
@@ -74,14 +77,20 @@ class Controller:
         self.build_steps=[]
         self.psfgen=Psfgen(self.config.resman)
         self.register_mod_classes()
+        self.register_modlist_classes()
         if 'BuildSteps' in self.config.defs:
             for step in self.config.defs['BuildSteps']:
-                self.build_steps.append(BuildStep(step).resolve_mods(self.mod_classes))
+                self.build_steps.append(BuildStep(step).resolve_mods(self.mod_classes,self.modlist_classes))
     
     def register_mod_classes(self):
         self.mod_classes={}
         for name,cls in inspect.getmembers(sys.modules['pestifer.mods'], lambda x: inspect.isclass(x) and (x.__module__=='pestifer.mods') and 'List' not in x.__name__):
             self.mod_classes[name]=cls
+
+    def register_modlist_classes(self):
+        self.modlist_classes={}
+        for name,cls in inspect.getmembers(sys.modules['pestifer.mods'], lambda x: inspect.isclass(x) and (x.__module__=='pestifer.mods') and 'List' in x.__name__):
+            self.modlist_classes[name]=cls
 
     def build_molecules(self):
         self.molecules={}

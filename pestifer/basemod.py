@@ -96,12 +96,12 @@ class BaseMod:
     def matches(self,**fields):
         # non strict match -- returns true if all key:val pairs in fields
         # match the corresponding key:val pairs in self.__dict__
-        acc=True
         for k,v in fields.items():
             if not k in self.__dict__:
                 return False
-            acc&=(v==self.__dict__[k])
-        return acc
+            if v!=self.__dict__[k]:
+                return False
+        return True
     def dump(self):
         retdict={}
         retdict['instanceOf']=type(self).__name__

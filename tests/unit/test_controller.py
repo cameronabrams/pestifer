@@ -3,7 +3,7 @@ from pestifer.controller import Controller
 from pestifer.mods import *
 
 class TestController(unittest.TestCase):
-    def test_controller(self):
+    def test_controller_base(self):
         C=Controller('user_config.yaml').build_molecules()
         self.assertEqual(C.config.defs['Title'],'Test User Config')
         self.assertEqual(C.config.defs['Source']['pdb'],'4zmj')
@@ -12,6 +12,14 @@ class TestController(unittest.TestCase):
         self.assertEqual(s.solvate,False)
         self.assertTrue('Mutations' in s.mods)
         self.assertEqual(len(s.mods['Mutations']),4)
+        self.assertTrue(type(s.mods['Mutations']),MutationList)
+        sublist=s.mods.get('Mutations',MutationList([]))
+        for m in sublist:
+            print(str(m))
+        res=sublist.filter(chainID='A')
+        self.assertEqual(len(res),2)
+        self.assertTrue(hasattr(res,'__len__'))
+        self.assertEqual(type(sublist),MutationList)
         self.assertEqual(s.smdclose,True)
         self.assertEqual(s.relax_steps,[1000])
         m=s.mods['Mutations'][0]

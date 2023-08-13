@@ -1,8 +1,9 @@
 import logging
 logger=logging.getLogger(__name__)
 from .basemod import AncestorAwareMod, AncestorAwareModList
+from .mods import MutationList
 from .config import ConfigGetParam
-from .residue import ResidueList
+from .residue import Residue,ResidueList
 import pestifer.sel as sel
 from .util import isidentity, reduce_intlist
 from .stringthings import ByteCollector
@@ -72,28 +73,30 @@ class Segment(AncestorAwareMod):
         sac_rd=self.config_params['Sacrificial_residue']
         sac_r=sac_rd['name']
         sac_n=sac_rd['min_loop_length']
-        B.comment(f'BEGIN SEGMENT {seglabel}')
+        Mutations=mods.get('Mutations',MutationList([])).get(chainID=the_chainID)
+        Conflicts=mods.get('Conflicts',MutationList([])).get(chainID=the_chainID)
+
+        B.banner(f'BEGIN SEGMENT {seglabel}')
         for i,b in enumerate(self.subsegments):
             if b.state=='RESOLVED':
-                selname=f'{self.psfgen_segname}'
+                """ for a resolved subsegment, generate its pdb file """
+                b.selname=f'{self.psfgen_segname}{i:02d}'
                 run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
                 b.pdb=f'PROTEIN_{rep_chainID}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
                 # TODO: account for any deletions
-                serial_list=run.atom_serials(as_type=int) # "serial" in pdb-ese is "index" in vmd-ese
+                serial_list=run.atom_serials(as_type=int)
                 at=parent_molecule.asymmetric_unit.Atoms.get(serial=serial_list[-1])
                 assert at.resseqnum==run[-1].resseqnum
                 vmd_red_list=reduce_intlist(serial_list)
-                B.addline(f'set {selname} [atomselect {parent_molecule.molid} "serial {vmd_red_list}"]')
+                B.addline(f'set {b.selname} [atomselect {parent_molecule.molid} "serial {vmd_red_list}"]')
                 if hasattr(at,'_ORIGINAL_'):
-                    B.comment(f'Atom with serial {at._ORIGINAL_["serial"]} in PDB needs serial {at.serial} for VMD')
+                    B.banner(f'Atom with serial {at._ORIGINAL_["serial"]} in PDB needs serial {at.serial} for VMD')
+                """ Relabel chain ID and request coordinate transformation """
                 if rep_chainID!=the_chainID:
-                    B.addline(f'${selname} set chain {rep_chainID}')                        
-                if not isidentity(tmat):
-                    B.addline(sel.backup(f'{selname}'))
-                    B.addline(f'${selname} move {transform.write_TcL()}')
-                B.addline(f'${selname} writepdb {b.pdb}')
-                if not isidentity(tmat):
-                    B.addline(sel.restore(f'{selname}'))
+                    B.addline(sel.backup(f'{b.selname}'))
+                    B.addline(f'${b.selname} set chain {rep_chainID}')                 
+                    B.addline(f'${b.selname} move {transform.write_TcL()}')
+                B.addline(f'${b.selname} writepdb {b.pdb}')
         B.addline(f'segment {seglabel} '+'{')
         # print(len(self.subsegments),type(self.subsegments))
         if not self.config_params['Include_terminal_loops']:
@@ -114,10 +117,16 @@ class Segment(AncestorAwareMod):
                     sac_resseqnum=lrr.resseqnum
                     sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
                     assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {the_chainID} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_r}'
+                    b.sacres=Residue({'name':sac_r,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':'PROTEIN'})
                     B.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_r} {seglabel}')
-        for mod in mods:
-            pass
+        if self.config_params['Fix_engineered_mutations']:
+            for m in Mutations:
+                B.addline(m.write_TcL())
+        if self.config_params['Fix_conflicts']:
+            for m in Conflicts:
+                B.addline(m.write_TcL())
         B.addline('}')
+        B.banner('Coordinate-specification commands')
         for b in self.subsegments:
             if b.state=='RESOLVED':
                 B.addline(f'coordpdb {b.pdb} {seglabel}')
@@ -134,9 +143,29 @@ class Segment(AncestorAwareMod):
                         this_run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
                         prior_b=self.subsegments[self.subsegments.index(b)-1]
                         prior_run=ResidueList(self.residues[prior_b.bounds[0]:prior_b.bounds[1]+1])
+                        B.banner(f'Seeding orientation of model-built loop starting at {str(this_run[0])}')
                         B.addline(f'{this_run.caco_str(prior_run,seglabel)}')
-        B.comment(f'END SEGMENT {seglabel}')
-        return B.byte_collector
+        B.banner('Intra-segmental terminal patches')
+        for i,b in enumerate(self.subsegments):
+            if b.state=='MISSING' and i>0 and hasattr(b,'sacres'):
+                Cterm=self.residues[b.bounds[1]]
+                B.addline(f'patch CTER {seglabel}:{Cterm.resseqnum}{Cterm.insertion}')
+                nextb=self.subsegments[i+1]
+                Nterm=self.residues[nextb.bounds[0]]
+                patchname='NTER'
+                if Nterm.name=='PRO':
+                    patchname='PROP'
+                elif Nterm.name=='GLY':
+                    patchname='GLYP'
+                B.addline(f'patch {patchname} {seglabel}:{Nterm.resseqnum}{Nterm.insertion}')
+                B.addline(f'delatom {seglabel} {b.sacres.resseqnum}{b.sacres.insertion}')
+        B.banner('Restoring A.U. state for all resolved subsegments')
+        for b in self.subsegments:
+            if b.state=='RESOLVED':
+                if not isidentity(tmat) or rep_chainID!=the_chainID:
+                    B.addline(sel.restore(f'{b.selname}'))
+        B.banner(f'END SEGMENT {seglabel}')
+        return str(B)
 
 class SegmentList(AncestorAwareModList):
     counters_by_segtype={}

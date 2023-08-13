@@ -51,7 +51,7 @@ class Residue(AncestorAwareMod):
         inst=cls(input_dict)
         return inst
     def __str__(self):
-        return f'{self.chainID}{self.name}{self.resseqnum}{self.insertion}'
+        return f'{self.chainID}-{self.name}{self.resseqnum}{self.insertion}'
     def __lt__(self,other):
         if self.resseqnum<other.resseqnum:
             return True

@@ -14,7 +14,7 @@ BuildSteps:
           origresname: ALA
           newresname:  CYS
         - shortcode: D:MET,301,CYS
-        - chainID: B
+        - chainID: A
           resseqnum: 152
           origresname: PHE
           newresname:  TYR

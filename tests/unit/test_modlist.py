@@ -7,6 +7,7 @@
 
 """
 from pestifer.basemod import ModList, BaseMod, CloneableMod, CloneableModList
+from pestifer.mods import MutationList,Mutation
 import unittest
 import random
 
@@ -180,4 +181,21 @@ class TestModList(unittest.TestCase):
         random.shuffle(L)
         # can we assume the list must change order?
         self.assertFalse(all([x.c<=y.c for x,y in zip(L[:-1],L[1:])]))
+
+class TestMutationList(unittest.TestCase):
+    def test_mutation_list(self):
+        L=MutationList([])
+        c=L.get(chainID='A')
+        self.assertEqual(len(c),0)
+        for i in range(10):
+            L.append(Mutation.from_shortcode(f'{chr(ord("A")+i)}:PHE,{123+i},TYR'))
+        self.assertEqual(len(L),10)
+        self.assertTrue(type(L),MutationList)
+        m=L[0]
+        self.assertEqual(m.chainID,'A')
+        m=L[-1]
+        self.assertEqual(m.chainID,'J')
+        subl=L.get(chainID='J')
+        self.assertEqual(hasattr(subl,'len'),False)
+        self.assertEqual(type(subl),Mutation)
 

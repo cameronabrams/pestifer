@@ -9,14 +9,14 @@
 
 def backup(selname):
     ret=[]
-    attr=['x','y','z','resid','resname','name']
+    attr=['chain','x','y','z','resid','resname','name']
     for a in attr:
        ret.append('set {}_orig_{} [${} get {}]'.format(selname,a,selname,a))
     return '\n'.join(ret)
 
 def restore(selname):
     ret=[]
-    attr=['x','y','z','resid','resname','name']
+    attr=['chain','x','y','z','resid','resname','name']
     for a in attr:
        ret.append('${} set {} ${}_orig_{}'.format(selname,a,selname,a))
     return '\n'.join(ret)
@@ -31,8 +31,7 @@ def residshift(selname,shift):
     return '\n'.join(ret)
 
 ''' charmm_namify converts commonly found atom and residue names in PDB files to their 
-    appropriate charmm names -- this is only used for NON-PROTEIN SEGMENTS.  In atom.py, you
-    must put an associated entry in the global _PDBAtomNameDict_ in order for this to work. '''
+    appropriate charmm names -- this is only used for NON-PROTEIN SEGMENTS. '''
 def charmm_namify(selname,iswater=False):
     ret=[]
     ret.append('set new_resname [list]')

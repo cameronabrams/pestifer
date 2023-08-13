@@ -25,8 +25,8 @@ class Psfgen:
         self.B=ByteCollector()
 
     def beginscript(self):
-        self.B.comment('BEGIN PESTIFER PSFGEN')
-        self.B.comment('BEGIN HEADER')
+        self.B.banner('BEGIN PESTIFER PSFGEN')
+        self.B.banner('BEGIN HEADER')
         self.B.addline(f'source {self.tcl_path}/modules/src/loopmc.tcl')
         self.B.addline(f'source {self.tcl_path}/vmdrc.tcl')
         self.B.addline('package require psfgen')
@@ -43,13 +43,13 @@ class Psfgen:
             self.B.addline(f'set RESDICT({k}) {v}')
         for k,v in ConfigGetParam('PDB_to_CHARMM_Atomnames').items():
             self.B.addline(f'set ANAMEDICT({k}) {v}')
-        self.B.comment('END HEADER')
+        self.B.banner('END HEADER')
 
     def endscript(self):
         with open(self.script_name,'w') as f:
             self.B.addline('exit')
-            self.B.comment('END PESTIFER PSFGEN')
-            self.B.comment('Thank you for using pestifer!')
+            self.B.banner('END PESTIFER PSFGEN')
+            self.B.banner('Thank you for using pestifer!')
             f.write(self.B.byte_collector)
 
     def cleanfiles(self):

@@ -66,20 +66,24 @@ class SeqAdvList(AncestorAwareModList):
     pass
 
 class Mutation(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['chainID','origresname','newresname']
-    opt_attr=AncestorAwareMod.opt_attr+['resseqnum','resseqnumi','insertion']
+    req_attr=AncestorAwareMod.req_attr+['chainID','origresname','resseqnum','insertion','newresname','source']
+    opt_attr=AncestorAwareMod.opt_attr+['resseqnumi']
     yaml_header='Mutations'
+    def __init__(self,input_dict):
+        if not 'insertion' in input_dict:
+            input_dict['insertion']=''
+        super().__init__(input_dict)
     @classmethod
     def from_seqadv(cls,sq:Seqadv):
-        if not 'MUTATION' in sq.conflict:
-            return None
-        input_dict={}
-        input_dict['chainID']=sq.chainID
-        input_dict['origresname']=sq.resname
-        input_dict['newresname']=sq.dbRes
-        input_dict['resseqnum']=sq.resseqnum
-        input_dict['insertion']=sq.insertion
-        input_dict['resseqnumi']=f'{sq.resseqnum}{sq.insertion}'
+        input_dict={
+            'chainID':sq.chainID,
+            'origresname':sq.resname,
+            'newresname':sq.dbRes,
+            'resseqnum':sq.resseqnum,
+            'insertion':sq.insertion,
+            'resseqnumi':f'{sq.resseqnum}{sq.insertion}',
+            'source':'SEQADV'
+        }
         inst=cls(input_dict)
         return inst
     
@@ -92,20 +96,23 @@ class Mutation(AncestorAwareMod):
             'chainID':s1[0],
             'origresname':s2[0],
             'resseqnumi':s2[1],
-            'newresname':s2[2]
+            'newresname':s2[2],
+            'source':'USER'
         }
         if not input_dict['resseqnumi'][-1].isdigit():
             input_dict['insertion']=input_dict['resseqnumi'][-1]
             input_dict['resseqnum']=int(input_dict['resseqnumi'][:-1])
         else:
-            input_dict['insertion']=' '
+            input_dict['insertion']=''
             input_dict['resseqnum']=int(input_dict['resseqnumi'])
         inst=cls(input_dict)
         return inst
 
-    def psfgen_lines(self):
-         lines=['    mutate {self.resseqnumi} {self.newresname}']
-         return lines
+    def __str__(self):
+        return f'{self.chainID}:{self.origresname}{self.resseqnum}{self.insertion}{self.newresname}'
+
+    def write_TcL(self):
+         return f'    mutate {self.resseqnumi} {self.newresname}'
 
 class MutationList(AncestorAwareModList):
     pass
@@ -150,9 +157,6 @@ class Missing(AncestorAwareMod):
         record_name,code=Missing.PDB_keyword.split(',')
         return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>5d}{:1s}'.format(record_name,
         code,self.model,self.resname,self.chainID,self.resseqnum,self.insertion)
-
-    def psfgen_lines(self):
-        return ['     residue {} {}{} {}'.format(self.resname,self.resseqnum,self.insertion,self.chainID)]
 
 class MissingList(AncestorAwareModList):
     pass
@@ -512,7 +516,7 @@ class SSBond(AncestorAwareMod):
                 '{:6.2f}'.format(self.length)
         return pdbline
     
-    def write_TcL(self,transform,mods):
+    def write_TcL(self,transform):
         chainIDmap=transform.chainIDmap 
         # ok since these are only going to reference protein segments; protein segment names are the chain IDs
         c1=chainIDmap.get(self.chainID1,self.chainID1)
@@ -523,17 +527,37 @@ class SSBond(AncestorAwareMod):
 
 class SSBondList(AncestorAwareModList):
     def write_TcL(self,transform,mods):
+        undo_SSBonds=mods.get('SSBondDelete',SSBondDeleteList([]))
         B=ByteCollector()
         for s in self:
-            B.addline(s.write_TcL(transform,mods))
+            if undo_SSBonds.is_deleted(s,transform):
+                continue
+            B.addline(s.write_TcL(transform))
+        for s in mods.get('SSBonds',[]):
+            B.addline(s.writeTcL(transform))
         return B.byte_collector
+    def prune_mutations(self,Mutations):
+        for m in Mutations:
+            left=self.get(chainID1=m.chainID,resseqnum1=m.resseqnum)
+            if left:
+                self.remove(left)
+            right=self.get(chainID2=m.chainID,resseqnum2=m.resseqnum)
+            if right:
+                self.remove(right)
+
 
 class SSBondDelete(SSBond):
     yaml_header='SSBondsDelete'
-    pass
 
 class SSBondDeleteList(SSBondList):
-    pass
+    def is_deleted(self,a_SSBond,transform):
+        if self.get(
+            chainID1=transform.chainIDmap[a_SSBond.chainID1],
+            chainID2=transform.chainIDmap[a_SSBond.chainID2],
+            resseqnum1=a_SSBond.resseqnum1,
+            resseqnum2=a_SSBond.resseqnum2):
+            return True
+        return False
 
 class Link(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['name1','chainID1','resseqnum1','iCode1','name2','chainID2','resseqnum2','iCode2']

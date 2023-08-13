@@ -57,16 +57,22 @@ mol new 4zmj waitfor all
 set m0 [molinfo top get id]
 mol top $m0
 ############################## TRANSFORM 0 BEGINS ##############################
+################ The following mappings of A.U. chains is used: ################
+# A: A
+# B: B
+# C: C
+# D: D
+# G: G
 ############################### BEGIN SEGMENT G ################################
-set G [atomselect 0 "serial 1 to 1174"]
+set G01 [atomselect 0 "serial 1 to 1174"]
 ############ Atom with serial 1174 in PDB needs serial 1174 for VMD ############
-$G writepdb PROTEIN_G_34_to_185.pdb
-set G [atomselect 0 "serial 1175 to 2795"]
+$G01 writepdb PROTEIN_G_34_to_185.pdb
+set G03 [atomselect 0 "serial 1175 to 2795"]
 ############ Atom with serial 2795 in PDB needs serial 2795 for VMD ############
-$G writepdb PROTEIN_G_187_to_398.pdb
-set G [atomselect 0 "serial 2796 to 3543"]
+$G03 writepdb PROTEIN_G_187_to_398.pdb
+set G05 [atomselect 0 "serial 2796 to 3543"]
 ############ Atom with serial 3543 in PDB needs serial 3543 for VMD ############
-$G writepdb PROTEIN_G_411_to_505.pdb
+$G05 writepdb PROTEIN_G_411_to_505.pdb
 segment G {
     pdb PROTEIN_G_34_to_185.pdb
     residue 185A GLU G
@@ -93,20 +99,33 @@ segment G {
     residue 410 SER G
     residue 410A GLY G
     pdb PROTEIN_G_411_to_505.pdb
+    mutate 332 THR
+    mutate 501 ALA
 }
+###################### Coordinate-specification commands #######################
 coordpdb PROTEIN_G_34_to_185.pdb G
 coordpdb PROTEIN_G_187_to_398.pdb G
 coordpdb PROTEIN_G_411_to_505.pdb G
+######## Seeding orientation of model-built loop starting at G-GLU185A #########
 coord G 185A N [cacoIn_nOut 185 G 0]
+######### Seeding orientation of model-built loop starting at G-THR400 #########
 coord G 400 N [cacoIn_nOut 398 G 0]
+####################### Intra-segmental terminal patches #######################
+patch CTER G:185I
+patch NTER G:187
+delatom G 185J
+patch CTER G:410
+patch NTER G:411
+delatom G 410A
+############## Restoring A.U. state for all resolved subsegments ###############
 ################################ END SEGMENT G #################################
 ############################### BEGIN SEGMENT B ################################
-set B [atomselect 0 "serial 3544 to 3721"]
+set B01 [atomselect 0 "serial 3544 to 3721"]
 ############ Atom with serial 3722 in PDB needs serial 3721 for VMD ############
-$B writepdb PROTEIN_B_521_to_547.pdb
-set B [atomselect 0 "serial 3722 to 4518"]
+$B01 writepdb PROTEIN_B_521_to_547.pdb
+set B03 [atomselect 0 "serial 3722 to 4518"]
 ############ Atom with serial 4519 in PDB needs serial 4518 for VMD ############
-$B writepdb PROTEIN_B_569_to_664.pdb
+$B03 writepdb PROTEIN_B_569_to_664.pdb
 segment B {
     pdb PROTEIN_B_521_to_547.pdb
     residue 548 ILE B
@@ -132,10 +151,19 @@ segment B {
     residue 568 LEU B
     residue 568A GLY B
     pdb PROTEIN_B_569_to_664.pdb
+    mutate 559 ILE
+    mutate 605 THR
 }
+###################### Coordinate-specification commands #######################
 coordpdb PROTEIN_B_521_to_547.pdb B
 coordpdb PROTEIN_B_569_to_664.pdb B
+######### Seeding orientation of model-built loop starting at B-ILE548 #########
 coord B 548 N [cacoIn_nOut 547 B 0]
+####################### Intra-segmental terminal patches #######################
+patch CTER B:568
+patch NTER B:569
+delatom B 568A
+############## Restoring A.U. state for all resolved subsegments ###############
 ################################ END SEGMENT B #################################
 patch DISU G:54 G:74
 patch DISU G:119 G:205
@@ -146,68 +174,52 @@ patch DISU G:228 G:239
 patch DISU G:296 G:331
 patch DISU G:378 G:445
 patch DISU G:385 G:418
-patch DISU G:501 B:605
 patch DISU B:598 B:604
 ############################### TRANSFORM 0 ENDS ###############################
 ############################## TRANSFORM 1 BEGINS ##############################
 ################ The following mappings of A.U. chains is used: ################
-#   A: E
-#   B: F
-#   C: H
-#   D: I
-#   G: J
+# A: E
+# B: F
+# C: H
+# D: I
+# G: J
 ############################### BEGIN SEGMENT J ################################
-set G [atomselect 0 "serial 1 to 1174"]
+set G00 [atomselect 0 "serial 1 to 1174"]
 ############ Atom with serial 1174 in PDB needs serial 1174 for VMD ############
-$G set chain J
-set G_orig_x [$G get x]
-set G_orig_y [$G get y]
-set G_orig_z [$G get z]
-set G_orig_resid [$G get resid]
-set G_orig_resname [$G get resname]
-set G_orig_name [$G get name]
-$G move { { -0.5 -0.866025 0.0 107.18  } { 0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
-$G writepdb PROTEIN_J_34_to_185.pdb
-$G set x $G_orig_x
-$G set y $G_orig_y
-$G set z $G_orig_z
-$G set resid $G_orig_resid
-$G set resname $G_orig_resname
-$G set name $G_orig_name
-set G [atomselect 0 "serial 1175 to 2795"]
+set G00_orig_chain [$G00 get chain]
+set G00_orig_x [$G00 get x]
+set G00_orig_y [$G00 get y]
+set G00_orig_z [$G00 get z]
+set G00_orig_resid [$G00 get resid]
+set G00_orig_resname [$G00 get resname]
+set G00_orig_name [$G00 get name]
+$G00 set chain J
+$G00 move { { -0.5 -0.866025 0.0 107.18  } { 0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
+$G00 writepdb PROTEIN_J_34_to_185.pdb
+set G02 [atomselect 0 "serial 1175 to 2795"]
 ############ Atom with serial 2795 in PDB needs serial 2795 for VMD ############
-$G set chain J
-set G_orig_x [$G get x]
-set G_orig_y [$G get y]
-set G_orig_z [$G get z]
-set G_orig_resid [$G get resid]
-set G_orig_resname [$G get resname]
-set G_orig_name [$G get name]
-$G move { { -0.5 -0.866025 0.0 107.18  } { 0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
-$G writepdb PROTEIN_J_187_to_398.pdb
-$G set x $G_orig_x
-$G set y $G_orig_y
-$G set z $G_orig_z
-$G set resid $G_orig_resid
-$G set resname $G_orig_resname
-$G set name $G_orig_name
-set G [atomselect 0 "serial 2796 to 3543"]
+set G02_orig_chain [$G02 get chain]
+set G02_orig_x [$G02 get x]
+set G02_orig_y [$G02 get y]
+set G02_orig_z [$G02 get z]
+set G02_orig_resid [$G02 get resid]
+set G02_orig_resname [$G02 get resname]
+set G02_orig_name [$G02 get name]
+$G02 set chain J
+$G02 move { { -0.5 -0.866025 0.0 107.18  } { 0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
+$G02 writepdb PROTEIN_J_187_to_398.pdb
+set G04 [atomselect 0 "serial 2796 to 3543"]
 ############ Atom with serial 3543 in PDB needs serial 3543 for VMD ############
-$G set chain J
-set G_orig_x [$G get x]
-set G_orig_y [$G get y]
-set G_orig_z [$G get z]
-set G_orig_resid [$G get resid]
-set G_orig_resname [$G get resname]
-set G_orig_name [$G get name]
-$G move { { -0.5 -0.866025 0.0 107.18  } { 0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
-$G writepdb PROTEIN_J_411_to_505.pdb
-$G set x $G_orig_x
-$G set y $G_orig_y
-$G set z $G_orig_z
-$G set resid $G_orig_resid
-$G set resname $G_orig_resname
-$G set name $G_orig_name
+set G04_orig_chain [$G04 get chain]
+set G04_orig_x [$G04 get x]
+set G04_orig_y [$G04 get y]
+set G04_orig_z [$G04 get z]
+set G04_orig_resid [$G04 get resid]
+set G04_orig_resname [$G04 get resname]
+set G04_orig_name [$G04 get name]
+$G04 set chain J
+$G04 move { { -0.5 -0.866025 0.0 107.18  } { 0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
+$G04 writepdb PROTEIN_J_411_to_505.pdb
 segment J {
     pdb PROTEIN_J_34_to_185.pdb
     residue 185A GLU J
@@ -234,48 +246,72 @@ segment J {
     residue 410 SER J
     residue 410A GLY J
     pdb PROTEIN_J_411_to_505.pdb
+    mutate 332 THR
+    mutate 501 ALA
 }
+###################### Coordinate-specification commands #######################
 coordpdb PROTEIN_J_34_to_185.pdb J
 coordpdb PROTEIN_J_187_to_398.pdb J
 coordpdb PROTEIN_J_411_to_505.pdb J
+######## Seeding orientation of model-built loop starting at G-GLU185A #########
 coord J 185A N [cacoIn_nOut 185 J 0]
+######### Seeding orientation of model-built loop starting at G-THR400 #########
 coord J 400 N [cacoIn_nOut 398 J 0]
+####################### Intra-segmental terminal patches #######################
+patch CTER J:185I
+patch NTER J:187
+delatom J 185J
+patch CTER J:410
+patch NTER J:411
+delatom J 410A
+############## Restoring A.U. state for all resolved subsegments ###############
+$G00 set chain $G00_orig_chain
+$G00 set x $G00_orig_x
+$G00 set y $G00_orig_y
+$G00 set z $G00_orig_z
+$G00 set resid $G00_orig_resid
+$G00 set resname $G00_orig_resname
+$G00 set name $G00_orig_name
+$G02 set chain $G02_orig_chain
+$G02 set x $G02_orig_x
+$G02 set y $G02_orig_y
+$G02 set z $G02_orig_z
+$G02 set resid $G02_orig_resid
+$G02 set resname $G02_orig_resname
+$G02 set name $G02_orig_name
+$G04 set chain $G04_orig_chain
+$G04 set x $G04_orig_x
+$G04 set y $G04_orig_y
+$G04 set z $G04_orig_z
+$G04 set resid $G04_orig_resid
+$G04 set resname $G04_orig_resname
+$G04 set name $G04_orig_name
 ################################ END SEGMENT J #################################
 ############################### BEGIN SEGMENT F ################################
-set B [atomselect 0 "serial 3544 to 3721"]
+set B00 [atomselect 0 "serial 3544 to 3721"]
 ############ Atom with serial 3722 in PDB needs serial 3721 for VMD ############
-$B set chain F
-set B_orig_x [$B get x]
-set B_orig_y [$B get y]
-set B_orig_z [$B get z]
-set B_orig_resid [$B get resid]
-set B_orig_resname [$B get resname]
-set B_orig_name [$B get name]
-$B move { { -0.5 -0.866025 0.0 107.18  } { 0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
-$B writepdb PROTEIN_F_521_to_547.pdb
-$B set x $B_orig_x
-$B set y $B_orig_y
-$B set z $B_orig_z
-$B set resid $B_orig_resid
-$B set resname $B_orig_resname
-$B set name $B_orig_name
-set B [atomselect 0 "serial 3722 to 4518"]
+set B00_orig_chain [$B00 get chain]
+set B00_orig_x [$B00 get x]
+set B00_orig_y [$B00 get y]
+set B00_orig_z [$B00 get z]
+set B00_orig_resid [$B00 get resid]
+set B00_orig_resname [$B00 get resname]
+set B00_orig_name [$B00 get name]
+$B00 set chain F
+$B00 move { { -0.5 -0.866025 0.0 107.18  } { 0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
+$B00 writepdb PROTEIN_F_521_to_547.pdb
+set B02 [atomselect 0 "serial 3722 to 4518"]
 ############ Atom with serial 4519 in PDB needs serial 4518 for VMD ############
-$B set chain F
-set B_orig_x [$B get x]
-set B_orig_y [$B get y]
-set B_orig_z [$B get z]
-set B_orig_resid [$B get resid]
-set B_orig_resname [$B get resname]
-set B_orig_name [$B get name]
-$B move { { -0.5 -0.866025 0.0 107.18  } { 0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
-$B writepdb PROTEIN_F_569_to_664.pdb
-$B set x $B_orig_x
-$B set y $B_orig_y
-$B set z $B_orig_z
-$B set resid $B_orig_resid
-$B set resname $B_orig_resname
-$B set name $B_orig_name
+set B02_orig_chain [$B02 get chain]
+set B02_orig_x [$B02 get x]
+set B02_orig_y [$B02 get y]
+set B02_orig_z [$B02 get z]
+set B02_orig_resid [$B02 get resid]
+set B02_orig_resname [$B02 get resname]
+set B02_orig_name [$B02 get name]
+$B02 set chain F
+$B02 move { { -0.5 -0.866025 0.0 107.18  } { 0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
+$B02 writepdb PROTEIN_F_569_to_664.pdb
 segment F {
     pdb PROTEIN_F_521_to_547.pdb
     residue 548 ILE F
@@ -301,10 +337,33 @@ segment F {
     residue 568 LEU F
     residue 568A GLY F
     pdb PROTEIN_F_569_to_664.pdb
+    mutate 559 ILE
+    mutate 605 THR
 }
+###################### Coordinate-specification commands #######################
 coordpdb PROTEIN_F_521_to_547.pdb F
 coordpdb PROTEIN_F_569_to_664.pdb F
+######### Seeding orientation of model-built loop starting at B-ILE548 #########
 coord F 548 N [cacoIn_nOut 547 F 0]
+####################### Intra-segmental terminal patches #######################
+patch CTER F:568
+patch NTER F:569
+delatom F 568A
+############## Restoring A.U. state for all resolved subsegments ###############
+$B00 set chain $B00_orig_chain
+$B00 set x $B00_orig_x
+$B00 set y $B00_orig_y
+$B00 set z $B00_orig_z
+$B00 set resid $B00_orig_resid
+$B00 set resname $B00_orig_resname
+$B00 set name $B00_orig_name
+$B02 set chain $B02_orig_chain
+$B02 set x $B02_orig_x
+$B02 set y $B02_orig_y
+$B02 set z $B02_orig_z
+$B02 set resid $B02_orig_resid
+$B02 set resname $B02_orig_resname
+$B02 set name $B02_orig_name
 ################################ END SEGMENT F #################################
 patch DISU J:54 J:74
 patch DISU J:119 J:205
@@ -315,68 +374,52 @@ patch DISU J:228 J:239
 patch DISU J:296 J:331
 patch DISU J:378 J:445
 patch DISU J:385 J:418
-patch DISU J:501 F:605
 patch DISU F:598 F:604
 ############################### TRANSFORM 1 ENDS ###############################
 ############################## TRANSFORM 2 BEGINS ##############################
 ################ The following mappings of A.U. chains is used: ################
-#   A: K
-#   B: L
-#   C: M
-#   D: N
-#   G: O
+# A: K
+# B: L
+# C: M
+# D: N
+# G: O
 ############################### BEGIN SEGMENT O ################################
-set G [atomselect 0 "serial 1 to 1174"]
+set G00 [atomselect 0 "serial 1 to 1174"]
 ############ Atom with serial 1174 in PDB needs serial 1174 for VMD ############
-$G set chain O
-set G_orig_x [$G get x]
-set G_orig_y [$G get y]
-set G_orig_z [$G get z]
-set G_orig_resid [$G get resid]
-set G_orig_resname [$G get resname]
-set G_orig_name [$G get name]
-$G move { { -0.5 0.866025 0.0 -107.18  } { -0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
-$G writepdb PROTEIN_O_34_to_185.pdb
-$G set x $G_orig_x
-$G set y $G_orig_y
-$G set z $G_orig_z
-$G set resid $G_orig_resid
-$G set resname $G_orig_resname
-$G set name $G_orig_name
-set G [atomselect 0 "serial 1175 to 2795"]
+set G00_orig_chain [$G00 get chain]
+set G00_orig_x [$G00 get x]
+set G00_orig_y [$G00 get y]
+set G00_orig_z [$G00 get z]
+set G00_orig_resid [$G00 get resid]
+set G00_orig_resname [$G00 get resname]
+set G00_orig_name [$G00 get name]
+$G00 set chain O
+$G00 move { { -0.5 0.866025 0.0 -107.18  } { -0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
+$G00 writepdb PROTEIN_O_34_to_185.pdb
+set G02 [atomselect 0 "serial 1175 to 2795"]
 ############ Atom with serial 2795 in PDB needs serial 2795 for VMD ############
-$G set chain O
-set G_orig_x [$G get x]
-set G_orig_y [$G get y]
-set G_orig_z [$G get z]
-set G_orig_resid [$G get resid]
-set G_orig_resname [$G get resname]
-set G_orig_name [$G get name]
-$G move { { -0.5 0.866025 0.0 -107.18  } { -0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
-$G writepdb PROTEIN_O_187_to_398.pdb
-$G set x $G_orig_x
-$G set y $G_orig_y
-$G set z $G_orig_z
-$G set resid $G_orig_resid
-$G set resname $G_orig_resname
-$G set name $G_orig_name
-set G [atomselect 0 "serial 2796 to 3543"]
+set G02_orig_chain [$G02 get chain]
+set G02_orig_x [$G02 get x]
+set G02_orig_y [$G02 get y]
+set G02_orig_z [$G02 get z]
+set G02_orig_resid [$G02 get resid]
+set G02_orig_resname [$G02 get resname]
+set G02_orig_name [$G02 get name]
+$G02 set chain O
+$G02 move { { -0.5 0.866025 0.0 -107.18  } { -0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
+$G02 writepdb PROTEIN_O_187_to_398.pdb
+set G04 [atomselect 0 "serial 2796 to 3543"]
 ############ Atom with serial 3543 in PDB needs serial 3543 for VMD ############
-$G set chain O
-set G_orig_x [$G get x]
-set G_orig_y [$G get y]
-set G_orig_z [$G get z]
-set G_orig_resid [$G get resid]
-set G_orig_resname [$G get resname]
-set G_orig_name [$G get name]
-$G move { { -0.5 0.866025 0.0 -107.18  } { -0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
-$G writepdb PROTEIN_O_411_to_505.pdb
-$G set x $G_orig_x
-$G set y $G_orig_y
-$G set z $G_orig_z
-$G set resid $G_orig_resid
-$G set resname $G_orig_resname
-$G set name $G_orig_name
+set G04_orig_chain [$G04 get chain]
+set G04_orig_x [$G04 get x]
+set G04_orig_y [$G04 get y]
+set G04_orig_z [$G04 get z]
+set G04_orig_resid [$G04 get resid]
+set G04_orig_resname [$G04 get resname]
+set G04_orig_name [$G04 get name]
+$G04 set chain O
+$G04 move { { -0.5 0.866025 0.0 -107.18  } { -0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
+$G04 writepdb PROTEIN_O_411_to_505.pdb
 segment O {
     pdb PROTEIN_O_34_to_185.pdb
     residue 185A GLU O
@@ -403,48 +446,72 @@ segment O {
     residue 410 SER O
     residue 410A GLY O
     pdb PROTEIN_O_411_to_505.pdb
+    mutate 332 THR
+    mutate 501 ALA
 }
+###################### Coordinate-specification commands #######################
 coordpdb PROTEIN_O_34_to_185.pdb O
 coordpdb PROTEIN_O_187_to_398.pdb O
 coordpdb PROTEIN_O_411_to_505.pdb O
+######## Seeding orientation of model-built loop starting at G-GLU185A #########
 coord O 185A N [cacoIn_nOut 185 O 0]
+######### Seeding orientation of model-built loop starting at G-THR400 #########
 coord O 400 N [cacoIn_nOut 398 O 0]
+####################### Intra-segmental terminal patches #######################
+patch CTER O:185I
+patch NTER O:187
+delatom O 185J
+patch CTER O:410
+patch NTER O:411
+delatom O 410A
+############## Restoring A.U. state for all resolved subsegments ###############
+$G00 set chain $G00_orig_chain
+$G00 set x $G00_orig_x
+$G00 set y $G00_orig_y
+$G00 set z $G00_orig_z
+$G00 set resid $G00_orig_resid
+$G00 set resname $G00_orig_resname
+$G00 set name $G00_orig_name
+$G02 set chain $G02_orig_chain
+$G02 set x $G02_orig_x
+$G02 set y $G02_orig_y
+$G02 set z $G02_orig_z
+$G02 set resid $G02_orig_resid
+$G02 set resname $G02_orig_resname
+$G02 set name $G02_orig_name
+$G04 set chain $G04_orig_chain
+$G04 set x $G04_orig_x
+$G04 set y $G04_orig_y
+$G04 set z $G04_orig_z
+$G04 set resid $G04_orig_resid
+$G04 set resname $G04_orig_resname
+$G04 set name $G04_orig_name
 ################################ END SEGMENT O #################################
 ############################### BEGIN SEGMENT L ################################
-set B [atomselect 0 "serial 3544 to 3721"]
+set B00 [atomselect 0 "serial 3544 to 3721"]
 ############ Atom with serial 3722 in PDB needs serial 3721 for VMD ############
-$B set chain L
-set B_orig_x [$B get x]
-set B_orig_y [$B get y]
-set B_orig_z [$B get z]
-set B_orig_resid [$B get resid]
-set B_orig_resname [$B get resname]
-set B_orig_name [$B get name]
-$B move { { -0.5 0.866025 0.0 -107.18  } { -0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
-$B writepdb PROTEIN_L_521_to_547.pdb
-$B set x $B_orig_x
-$B set y $B_orig_y
-$B set z $B_orig_z
-$B set resid $B_orig_resid
-$B set resname $B_orig_resname
-$B set name $B_orig_name
-set B [atomselect 0 "serial 3722 to 4518"]
+set B00_orig_chain [$B00 get chain]
+set B00_orig_x [$B00 get x]
+set B00_orig_y [$B00 get y]
+set B00_orig_z [$B00 get z]
+set B00_orig_resid [$B00 get resid]
+set B00_orig_resname [$B00 get resname]
+set B00_orig_name [$B00 get name]
+$B00 set chain L
+$B00 move { { -0.5 0.866025 0.0 -107.18  } { -0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
+$B00 writepdb PROTEIN_L_521_to_547.pdb
+set B02 [atomselect 0 "serial 3722 to 4518"]
 ############ Atom with serial 4519 in PDB needs serial 4518 for VMD ############
-$B set chain L
-set B_orig_x [$B get x]
-set B_orig_y [$B get y]
-set B_orig_z [$B get z]
-set B_orig_resid [$B get resid]
-set B_orig_resname [$B get resname]
-set B_orig_name [$B get name]
-$B move { { -0.5 0.866025 0.0 -107.18  } { -0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
-$B writepdb PROTEIN_L_569_to_664.pdb
-$B set x $B_orig_x
-$B set y $B_orig_y
-$B set z $B_orig_z
-$B set resid $B_orig_resid
-$B set resname $B_orig_resname
-$B set name $B_orig_name
+set B02_orig_chain [$B02 get chain]
+set B02_orig_x [$B02 get x]
+set B02_orig_y [$B02 get y]
+set B02_orig_z [$B02 get z]
+set B02_orig_resid [$B02 get resid]
+set B02_orig_resname [$B02 get resname]
+set B02_orig_name [$B02 get name]
+$B02 set chain L
+$B02 move { { -0.5 0.866025 0.0 -107.18  } { -0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
+$B02 writepdb PROTEIN_L_569_to_664.pdb
 segment L {
     pdb PROTEIN_L_521_to_547.pdb
     residue 548 ILE L
@@ -470,10 +537,33 @@ segment L {
     residue 568 LEU L
     residue 568A GLY L
     pdb PROTEIN_L_569_to_664.pdb
+    mutate 559 ILE
+    mutate 605 THR
 }
+###################### Coordinate-specification commands #######################
 coordpdb PROTEIN_L_521_to_547.pdb L
 coordpdb PROTEIN_L_569_to_664.pdb L
+######### Seeding orientation of model-built loop starting at B-ILE548 #########
 coord L 548 N [cacoIn_nOut 547 L 0]
+####################### Intra-segmental terminal patches #######################
+patch CTER L:568
+patch NTER L:569
+delatom L 568A
+############## Restoring A.U. state for all resolved subsegments ###############
+$B00 set chain $B00_orig_chain
+$B00 set x $B00_orig_x
+$B00 set y $B00_orig_y
+$B00 set z $B00_orig_z
+$B00 set resid $B00_orig_resid
+$B00 set resname $B00_orig_resname
+$B00 set name $B00_orig_name
+$B02 set chain $B02_orig_chain
+$B02 set x $B02_orig_x
+$B02 set y $B02_orig_y
+$B02 set z $B02_orig_z
+$B02 set resid $B02_orig_resid
+$B02 set resname $B02_orig_resname
+$B02 set name $B02_orig_name
 ################################ END SEGMENT L #################################
 patch DISU O:54 O:74
 patch DISU O:119 O:205
@@ -484,7 +574,6 @@ patch DISU O:228 O:239
 patch DISU O:296 O:331
 patch DISU O:378 O:445
 patch DISU O:385 O:418
-patch DISU O:501 L:605
 patch DISU L:598 L:604
 ############################### TRANSFORM 2 ENDS ###############################
 
