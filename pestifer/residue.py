@@ -129,6 +129,30 @@ class ResidueList(AncestorAwareModList):
         r0=self[0]
         ur=upstream_reslist[-1]
         return 'coord {} {}{} N [cacoIn_nOut {}{} {} 0]'.format(seglabel,r0.resseqnum,r0.insertion,ur.resseqnum,ur.insertion,seglabel)
+    def resrange(self,rngrec):
+        subR=self.get(chainID=rngrec.chainID)
+        subR.sort()
+        r1=rngrec.resseqnum1
+        i1=rngrec.insertion1
+        r2=rngrec.resseqnum2
+        i2=rngrec.insertion2
+        R1=subR.get(resseqnum=r1,insertion=i1)
+        if R1:
+            R2=subR.get(resseqnum=r2,insertion=i2)
+            if R2:
+                idx1=subR.index(R1)
+                idx2=subR.index(R2)
+                assert idx2>=idx1
+                for j in range(idx1,idx2+1):
+                    yield self[j]
+        return []
+    def do_deletions(self,Deletions):
+        delete_us=[]
+        for d in Deletions:
+            for dr in self.resrange(d):
+                delete_us.append(dr)
+        for d in delete_us:
+            self.remove(d)
 
 class LinkList(AncestorAwareModList):
     def update_residues_atoms(self,residues:ResidueList,atoms:AtomList):

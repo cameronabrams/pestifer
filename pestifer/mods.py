@@ -117,6 +117,41 @@ class Mutation(AncestorAwareMod):
 class MutationList(AncestorAwareModList):
     pass
 
+class Deletion(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
+    opt_attr=AncestorAwareMod.opt_attr+['model']
+    yaml_header='Deletions'
+
+    @classmethod
+    def from_shortcode(cls,shortcode):
+        # C_R1-R2 or C_R
+        p1=shortcode.split('_')
+        input_dict={}
+        input_dict['chainID']=p1[0]
+        p2=p1[1].split('-')
+        ri1=p2[0]
+        if ri1[-1].isalpha():
+            input_dict['resseqnum1']=int(ri1[:-1])
+            input_dict['insertion1']=ri1[-1]
+        else:
+            input_dict['resseqnum1']=int(ri1)
+            input_dict['insertion1']=''
+        if len(p2)>1:
+            ri2=p2[1]
+            if ri2[-1].isalpha():
+                input_dict['resseqnum2']=int(ri2[:-1])
+                input_dict['insertion2']=ri2[-1]
+            else:
+                input_dict['resseqnum2']=int(ri2)
+                input_dict['insertion2']=''
+        else:
+            input_dict['resseqnum2']=input_dict['resseqnum1']
+            input_dict['insertion2']=input_dict['insertion1']
+        return cls(input_dict)
+
+class DeletionList(AncestorAwareModList):
+    pass
+
 class Missing(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['resname','resseqnum','insertion','chainID']
     opt_attr=AncestorAwareMod.opt_attr+['model']

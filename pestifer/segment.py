@@ -83,7 +83,7 @@ class Segment(AncestorAwareMod):
                 b.selname=f'{self.psfgen_segname}{i:02d}'
                 run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
                 b.pdb=f'PROTEIN_{rep_chainID}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
-                # TODO: account for any deletions
+                # TODO: account for any deletions?  Maybe better at the residue stage...
                 serial_list=run.atom_serials(as_type=int)
                 at=parent_molecule.asymmetric_unit.Atoms.get(serial=serial_list[-1])
                 assert at.resseqnum==run[-1].resseqnum
