@@ -65,6 +65,8 @@ class FileCollector(list):
     def __iter__(self):
         for f in self.file_collection:
             yield f
+    def __len__(self):
+        return len(self.file_collection)
     def append(self,item):
         self.file_collection.append(item)
     def extend(self,a_list):
@@ -74,3 +76,5 @@ class FileCollector(list):
         for f in self:
             if os.path.exists(f):
                 os.remove(f)
+            else:
+                logger.debug(f'{f}: not found.')

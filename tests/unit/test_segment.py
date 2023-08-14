@@ -2,7 +2,6 @@ import unittest
 from pestifer.molecule import Molecule
 from pestifer.config import ConfigSetup
 from pestifer.chainids import ChainIDManager
-import numpy as np
 class TestSegment(unittest.TestCase):
 
     def test_segment(self):
@@ -10,12 +9,7 @@ class TestSegment(unittest.TestCase):
         chainIDmanager=ChainIDManager()
         m=Molecule(source='4zmj').activate_biological_assembly(1,chainIDmanager)
         au=m.asymmetric_unit
-        ba=m.active_biological_assembly
         protein_segments=[x for x in au.Segments if x.segtype=='PROTEIN']
-        transform=ba.biomt[0]
-        with open('psfgentest.tcl','w') as f:
-            for s in protein_segments:
-                f.write(s.protein_stanza(transform,{}))
         self.assertTrue(len(protein_segments),2)
         expected_set_of_chainIDs={'G','B','A','D','C'}
         self.assertEqual(set(au.chainIDs),expected_set_of_chainIDs)

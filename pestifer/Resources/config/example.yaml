@@ -1,28 +1,40 @@
-Title: SARS-CoV-2 Spike
-SourcePDB: 7df3
-BiologicalAssembly: 1
-Temperature: 310
-BuildSteps:
-  - solvate: False
-    mods:
-      - glycans.yaml
-    smdclose: True
-    relax_steps: 
-      - 10000
-  - solvate: False
-    mods:
-      - cleavage.yaml
-    relax_steps: 
-      - 10000
-  - solvate: True
-    relax_steps:
-      - 100
-      - 200
-      - 400
-      - 800
-      - 20000
-OutputName: my_7df3
-NAMD2: /home/cfa/namd/NAMD_2.14_Source/Linux-x86_64-g++/namd2
-CHARMRUN: /home/cfa/namd/NAMD_2.14_Source/Linux-x86_64-g++/charmrun
+title: Example Build
+steps:
+  - name: step1
+    source:
+      pdb: 7df3
+      biological_assembly: 1
+      chains: all
+    tasks:
+      - build:
+          mods:
+            - glycans.yaml
+      - smdclose:
+      - relax:
+          nsteps: 10000
+          temperature: 310
+  - name: cleave
+    source: step1
+    tasks:
+      - build:
+          mods:
+            - cleavage.yaml
+      - relax:
+          nsteps: 10000
+          temperature: 310
+  - name: solvate
+    source: cleave
+    tasks:
+      - solvate:
+      - relax_series:
+          temperature: 310
+          nsteps:
+            - 100
+            - 200
+            - 400
+            - 800
+            - 20000
+NAMD2: $(HOME)/namd/NAMD_2.14_Source/Linux-x86_64-g++/namd2
+CHARMRUN: $(HOME)/namd/NAMD_2.14_Source/Linux-x86_64-g++/charmrun
 VMD: /usr/local/bin/vmd
-CHARMMDIR: /home/cfa/charmm
+CHARMMDIR: $(HOME)/charmm

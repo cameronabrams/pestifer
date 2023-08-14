@@ -1,5 +1,9 @@
-# Every construct below is exposed in a dictionary Config.defs via
-# ConfigGetParam(label)
+# pestifer; default configuration file
+#
+# you probably to not want to edit this file directly
+#
+# Cameron F. Abrams, cfa22@drexel.edu
+#
 StdCharmmTopo:
   - top_all36_prot.rtf
   - top_all35_ethers.rtf
