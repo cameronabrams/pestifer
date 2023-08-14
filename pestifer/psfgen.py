@@ -12,19 +12,18 @@ from .command import Command
 import os
 from .config import ConfigGetParam
 from .molecule import Molecule
-from .stringthings import ByteCollector
 
 class Psfgen:
-    def __init__(self,resources,post_build_directives={}):
+    def __init__(self,resources,byte_collector,post_build_directives={}):
         self.resources=resources
         self.tcl_path=resources.ResourcePaths['tcl']
         self.package_charmmdir=resources.ResourcePaths['charmm']
         self.system_charmm_toppardir=resources.system_charmm_toppardir
         self.post_build_directives=post_build_directives
-        self.script_name=ConfigGetParam('psfgen_script_name')
-        self.B=ByteCollector()
+        self.B=byte_collector
 
     def beginscript(self):
+        self.B.reset()
         self.B.banner('BEGIN PESTIFER PSFGEN')
         self.B.banner('BEGIN HEADER')
         self.B.addline(f'source {self.tcl_path}/modules/src/loopmc.tcl')
@@ -46,22 +45,16 @@ class Psfgen:
         self.B.banner('END HEADER')
 
     def endscript(self):
-        with open(self.script_name,'w') as f:
-            self.B.addline('exit')
-            self.B.banner('END PESTIFER PSFGEN')
-            self.B.banner('Thank you for using pestifer!')
-            f.write(self.B.byte_collector)
-
-    def cleanfiles(self):
-        if os.path.exists(self.script_name):
-            os.remove(self.script_name)
+        self.B.addline('exit')
+        self.B.banner('END PESTIFER PSFGEN')
+        self.B.banner('Thank you for using pestifer!')
 
     def set_molecule(self,mol):
-        molid_varname=f'm{mol.molid}'
-        self.B.addline(f'mol new {mol.pdb_code} waitfor all')
-        self.B.addline(f'set {molid_varname} [molinfo top get id]')
+        mol.molid_varname=f'm{mol.molid}'
+        self.B.addline(f'mol new {mol.source}.pdb waitfor all')
+        self.B.addline(f'set {mol.molid_varname} [molinfo top get id]')
         
-    def describe_molecule(self,mol:Molecule,mods):
+    def describe_molecule(self,mol:Molecule,mods,file_collector=None):
         # if mol.cif:
         #     # need to renumber and rechain to user specs
         #     self.B.addline(f'set ciftmp [atomselect ${molid_varname} all]')
@@ -69,20 +62,26 @@ class Psfgen:
         #     self.script+'$ciftmp set resid [list {}]').format(" ".join([str(_.resseqnum) for _ in self.Atoms]))
         molid_varname=f'm{mol.molid}'
         self.B.addline(f'mol top ${molid_varname}')
-        self.B.addline(mol.write_TcL(mods))
+        mol.write_TcL(self.B,mods,file_collector=file_collector)
 
-    def transform_postmods(self,outputs):
+    def transform_postmods(self,basename,file_collector=None):
         self.B.addline('guesscoord')
         self.B.addline('regenerate angles dihedrals')
-        psf=outputs['psf']
-        pdb=outputs['pdb']
+        psf=f'{basename}.psf'
+        pdb=f'{basename}.pdb'
         self.B.addline(f'writepsf cmap {psf}')
         self.B.addline(f'writepdb {pdb}')
 
-    def global_postmods(self):
+    def global_postmods(self,file_collector=None):
         pass
 
-    def run(self):
-        c=Command(f'{self.resources.vmd} -dispdev text -e {self.script_name}')
-        o,e=c.run()
-        return o,e
+    def writescript(self,basename):
+        self.scriptname=f'{basename}.tcl'
+        with open(self.scriptname,'w') as f:
+            f.write(str(self.B))
+
+    def runscript(self):
+        assert hasattr(self,'scriptname'),f'No scriptname set.'
+        c=Command(f'{self.resources.vmd} -dispdev text -e {self.scriptname}')
+        c.run()
+        return c.stdout,c.stderr

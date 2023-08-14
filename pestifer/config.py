@@ -56,8 +56,6 @@ class Config:
             for v,r in self.defs.get('User_defaults',{}).items():
                 user_defs[v]=r
 
-        # self.available_chainIDs=list('ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz')
-
         """ Read the user-specified config file """
         if userconfigfilename:
            with open(userconfigfilename,'r') as f:

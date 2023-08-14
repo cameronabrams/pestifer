@@ -3,11 +3,11 @@ from pestifer.molecule import Molecule
 from pestifer.config import ConfigSetup
 class TestMolecule(unittest.TestCase):
 
-    def test_molecule(self):
+    def test_molecule_au(self):
         self.config=ConfigSetup('')
-        m=Molecule.from_rcsb(pdb_code='1gc1')
+        m=Molecule(source='1gc1')
         au=m.asymmetric_unit
-        self.assertEqual(m.pdb_code,'1gc1')
+        self.assertEqual(m.source,'1gc1')
         self.assertEqual(len(au.Atoms),7877)
         self.assertEqual(len(au.SSBonds),14)
         self.assertEqual(len(au.Mutations),2)
@@ -25,9 +25,9 @@ class TestMolecule(unittest.TestCase):
         g0=glycanres[0]
         self.assertEqual(g0.name,'NAG')
 
-    def test_links(self):
+    def test_molecule_links(self):
         self.config=ConfigSetup('')
-        m=Molecule.from_rcsb(pdb_code='4zmj')
+        m=Molecule(source='4zmj')
         au=m.asymmetric_unit
         l=au.Links[0]
         self.assertEqual(l.residue1.segtype,'PROTEIN')
@@ -60,14 +60,14 @@ class TestMolecule(unittest.TestCase):
         self.assertEqual(l.atom2.name,'C1')
         self.assertEqual(l.atom2.altloc,'')
 
-    def test_bioassemb(self):
+    def test_molecule_bioassemb(self):
         self.config=ConfigSetup('')
-        m=Molecule.from_rcsb(pdb_code='4zmj')
+        m=Molecule(source='4zmj')
         self.assertEqual(1,len(m.biological_assemblies))
     
-    def test_ancestry(self):
+    def test_molecule_ancestry(self):
         self.config=ConfigSetup('')
-        m=Molecule.from_rcsb(pdb_code='4zmj')
+        m=Molecule(source='4zmj',reset_counter=True)
         # m=Molecule.from_rcsb(pdb_code='2y29')
         au=m.asymmetric_unit
         auao=au.ancestor_obj
@@ -78,9 +78,9 @@ class TestMolecule(unittest.TestCase):
             self.assertEqual(sao,m)
             self.assertEqual(sao.molid,0)
 
-    def test_adjust_serials(self):
+    def test_molecule_adjust_serials(self):
         self.config=ConfigSetup('')
-        m=Molecule.from_rcsb(pdb_code='4zmj')
+        m=Molecule(source='4zmj')
         # m=Molecule.from_rcsb(pdb_code='2y29')
         au=m.asymmetric_unit
         self.assertTrue(hasattr(au,'Ters'))

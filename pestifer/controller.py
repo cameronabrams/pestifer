@@ -8,6 +8,7 @@
 """
 import inspect
 import sys
+import os
 import yaml
 import logging
 logger=logging.getLogger(__name__)
@@ -18,6 +19,7 @@ from .basemod import BaseMod
 from .chainids import ChainIDManager
 from .util import special_update
 from .psfgen import Psfgen
+from .stringthings import FileCollector, ByteCollector
 
 def modparse(input_dict,mod_classes,modlist_classes):
     retdict={}
@@ -26,27 +28,23 @@ def modparse(input_dict,mod_classes,modlist_classes):
         cls=mod_classes[class_name]
         LCls=modlist_classes.get(f'{class_name}List',list)
         for entry in entries:
-            if 'shortcode' in entry:
-                newmod=cls.from_shortcode(entry['shortcode'])
-            else:
-                entry['source']='USER'
-                newmod=cls(entry) # mods by default initialize from dicts
+            assert type(entry) in [dict,str]
+            newmod=cls(entry)
+            newmod.source='USER'
             if not hdr in retdict:
-                # print(f'new modlist type {LCls} for class {class_name}')
-                # print(f'mod_classes {mod_classes}')
                 retdict[hdr]=LCls([])
             retdict[hdr].append(newmod)
     return retdict
 
 class BuildStep(BaseMod):
-    req_attr=BaseMod.req_attr+['solvate','mods','output']
-    opt_attr=BaseMod.opt_attr+['smdclose','relax_steps']
+    req_attr=BaseMod.req_attr+['name','source','mods','task','pdbs']
     def __init__(self,input_dict):
-        if not 'solvate' in input_dict:
-            input_dict['solvate']=False
         if not 'mods' in input_dict:
             input_dict['mods']={}
+        if not 'pdbs' in input_dict:
+            input_dict['pdbs']=[]
         super().__init__(input_dict)
+        self.chainIDmanager=ChainIDManager()
 
     def resolve_mods(self,mod_classes,modlist_classes):
         replace_mods={}
@@ -61,21 +59,30 @@ class BuildStep(BaseMod):
         from_userconfig=modparse(mod_dict,mod_classes,modlist_classes)
         replace_mods=special_update(replace_mods,from_userconfig)
         self.mods=replace_mods
+        for name,mod in self.mods.items():
+            if hasattr(mod,'source'):
+                if 'pdb' in mod.source:
+                    self.pdbs.append(mod.source['pdb'])
         return self
     
-    def my_pdbs(self):
-        pdbs=[]
-        for name,mod in self.mods.items():
-            if hasattr(mod,'Source'):
-                pdbs.append(mod.Source['pdb'])
-        return pdbs
+    def injest_molecules(self):
+        self.molecules={}
+        if type(self.source)==dict:
+            basePDB=self.source.get('pdb',None)
+            baseBA=self.source.get('biological_assembly',None)
+        elif type(self.source)==str:
+            basePDB=self.source
+            baseBA=0
+        self.molecules[basePDB]=Molecule(source=basePDB).activate_biological_assembly(baseBA,self.chainIDmanager)
+        self.base_molecule=self.molecules[basePDB]
+        for p in self.pdbs:
+            self.molecules[p]=Molecule(source=p)
+        return self
 
 class Controller:
     def __init__(self,userconfigfilename):
         self.config=ConfigSetup(userconfigfilename)
-        self.chainIDmanager=ChainIDManager()
         self.build_steps=[]
-        self.psfgen=Psfgen(self.config.resman)
         self.register_mod_classes()
         self.register_modlist_classes()
         if 'BuildSteps' in self.config.defs:
@@ -92,45 +99,22 @@ class Controller:
         for name,cls in inspect.getmembers(sys.modules['pestifer.mods'], lambda x: inspect.isclass(x) and (x.__module__=='pestifer.mods') and 'List' in x.__name__):
             self.modlist_classes[name]=cls
 
-    def build_molecules(self):
-        self.molecules={}
-        source_dict=self.config.defs.get('Source',{})
-        if not source_dict:
-            return self
-        basePDB=source_dict.get('pdb','')
-        if not basePDB:
-            return self
-        biological_assembly_index=source_dict.get('biological_assembly',-1)
-        self.molecules[basePDB]=Molecule.from_rcsb(pdb_code=basePDB).activate_biological_assembly(biological_assembly_index,self.chainIDmanager)
-        # TODO: gather any supplemental molecules
-        for step in self.build_steps:
-            pdbs_from_step=step.my_pdbs()
-            for p in pdbs_from_step:
-                if not p in self.molecules:
-                    self.molecules[p]=Molecule.from_rcsb(pdb_code=p)
-        return self
-    
-    def do(self):
+    def do(self,**kwargs):
         self.check()
-        self.build_molecules()
-        self.psfgen.beginscript()
-        for code,mol in self.molecules.items():
-            self.psfgen.set_molecule(mol)
+        fc=FileCollector()
+        bc=ByteCollector()
+        pg=Psfgen(self.config.resman,bc)
         for step in self.build_steps:
-            main_pdb=self.config.defs['Source'].get('pdb',None)
-            self.psfgen.describe_molecule(self.molecules[main_pdb],step.mods)
-            self.psfgen.transform_postmods(step.output)
-        self.psfgen.global_postmods()
-        self.psfgen.endscript()
-        # TODO: run VMD!
+            step.injest_molecules()
+            pg.beginscript()
+            pg.describe_molecule(step.base_molecule,step.mods,file_collector=fc)
+            pg.transform_postmods(step.output,file_collector=fc)
+            pg.global_postmods()
+            pg.endscript()
+            pg.writescript(step.name)
+            o,e=pg.runscript()
+            if kwargs.get('clean_up',False): fc.flush()
+
     def check(self):
-        assert type(self.config.defs)==dict
-        assert 'Source' in self.config.defs
-        assert 'pdb' in self.config.defs['Source']
-        assert self.config.defs['Source'].get('pdb',None)
-        assert self.config.defs['Source'].get('biological_assembly',None)
-
-    # def report(self):
-
-    #     print(str(self.config))
-    #     print(str(self.resman))
+        stepnames=list(set([x.name for x in self.steps]))
+        assert len(stepnames)==len(self.steps),f'Please use unique step names in your BuildSteps section'

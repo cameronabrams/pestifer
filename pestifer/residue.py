@@ -13,17 +13,21 @@ from .mods import AncestorAwareModList,AncestorAwareMod
 class Ter(AncestorAwareMod):
     req_attr=['serial','resname','chainID','resseqnum','insertion']
     yaml_header='Terminals'
-    @classmethod
-    def from_pdbrecord(cls,pdbrecord):
-        input_dict={
-            'serial':pdbrecord.serial,
-            'resname':pdbrecord.residue.resName,
-            'chainID':pdbrecord.residue.chainID,
-            'resseqnum':pdbrecord.residue.seqNum,
-            'insertion':pdbrecord.residue.iCode
-        }
-        inst=cls(input_dict)
-        return inst
+    def __init__(self,input_obj):
+        if type(input_obj)==dict:
+            super().__init__(input_obj)
+        elif type(input_obj)==PDBRecord:
+            pdbrecord=input_obj
+            input_dict={
+                'serial':pdbrecord.serial,
+                'resname':pdbrecord.residue.resName,
+                'chainID':pdbrecord.residue.chainID,
+                'resseqnum':pdbrecord.residue.seqNum,
+                'insertion':pdbrecord.residue.iCode
+            }
+            super().__init__(input_dict)
+        else:
+            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
     
 class TerList(AncestorAwareModList):
     pass
@@ -34,56 +38,59 @@ class Atom(AncestorAwareMod):
     yaml_header='Atoms'
     PDB_keyword='ATOM'
 
-    @classmethod
-    def from_pdbrecord(cls,pdbrecord:PDBRecord):
-        input_dict={
-            'serial':pdbrecord.serial,
-            'name':pdbrecord.name,
-            'altloc':pdbrecord.altLoc,
-            'resname':pdbrecord.residue.resName,
-            'chainID':pdbrecord.residue.chainID,
-            'resseqnum':pdbrecord.residue.seqNum,
-            'insertion':pdbrecord.residue.iCode,
-            'x':pdbrecord.x,
-            'y':pdbrecord.y,
-            'z':pdbrecord.z,
-            'occ':pdbrecord.occupancy,
-            'beta':pdbrecord.tempFactor,
-            'elem':pdbrecord.element,
-            'charge':pdbrecord.charge
-        }
-        input_dict['segname']=input_dict['chainID']
-        input_dict['link']='None'
-        input_dict['empty']=False
-        inst=cls(input_dict)
-        return inst
-    @classmethod
-    def from_cifdict(cls,cifdict):
-        al=cifdict['label_alt_id']
-        ic=cifdict['pdbx_pdb_ins_code']
-        c=cifdict['pdbx_formal_charge']
-        input_dict={
-            'recordname':'ATOM',
-            'serial':int(cifdict['id']),
-            'name':cifdict['auth_atom_id'],
-            'altloc':' ' if al=='.' else al,
-            'resname':cifdict['auth_comp_id'],
-            'chainID':cifdict['auth_asym_id'],
-            'resseqnum':int(cifdict['auth_seq_id']),
-            'insertion':' ' if ic=='?' else ic,
-            'x':float(cifdict['cartn_x']),
-            'y':float(cifdict['cartn_y']),
-            'z':float(cifdict['cartn_z']),
-            'occ':float(cifdict['occupancy']),
-            'beta':float(cifdict['b_iso_or_equiv']),
-            'elem':cifdict['type_symbol'],
-            'charge':0.0 if c=='?' else float(c)
-        }
-        input_dict['segname']=input_dict['chainID']
-        input_dict['link']='None'
-        input_dict['empty']=False
-        inst=cls(input_dict)
-        return inst
+    def __init__(self,input_obj):
+        if type(input_obj)==dict:
+            super().__init__(input_obj)
+        elif type(input_obj)==PDBRecord:
+            pdbrecord=input_obj
+            input_dict={
+                'serial':pdbrecord.serial,
+                'name':pdbrecord.name,
+                'altloc':pdbrecord.altLoc,
+                'resname':pdbrecord.residue.resName,
+                'chainID':pdbrecord.residue.chainID,
+                'resseqnum':pdbrecord.residue.seqNum,
+                'insertion':pdbrecord.residue.iCode,
+                'x':pdbrecord.x,
+                'y':pdbrecord.y,
+                'z':pdbrecord.z,
+                'occ':pdbrecord.occupancy,
+                'beta':pdbrecord.tempFactor,
+                'elem':pdbrecord.element,
+                'charge':pdbrecord.charge
+            }
+            input_dict['segname']=input_dict['chainID']
+            input_dict['link']='None'
+            input_dict['empty']=False
+            super().__init__(input_dict)
+        elif type(input_obj)==CIFdict:
+            cifdict=input_obj
+            al=cifdict['label_alt_id']
+            ic=cifdict['pdbx_pdb_ins_code']
+            c=cifdict['pdbx_formal_charge']
+            input_dict={
+                'recordname':'ATOM',
+                'serial':int(cifdict['id']),
+                'name':cifdict['auth_atom_id'],
+                'altloc':' ' if al=='.' else al,
+                'resname':cifdict['auth_comp_id'],
+                'chainID':cifdict['auth_asym_id'],
+                'resseqnum':int(cifdict['auth_seq_id']),
+                'insertion':' ' if ic=='?' else ic,
+                'x':float(cifdict['cartn_x']),
+                'y':float(cifdict['cartn_y']),
+                'z':float(cifdict['cartn_z']),
+                'occ':float(cifdict['occupancy']),
+                'beta':float(cifdict['b_iso_or_equiv']),
+                'elem':cifdict['type_symbol'],
+                'charge':0.0 if c=='?' else float(c)
+            }
+            input_dict['segname']=input_dict['chainID']
+            input_dict['link']='None'
+            input_dict['empty']=False
+            super().__init__(input_dict)
+        else:
+            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
     
     def pdb_line(self):
         pdbline='{:<6s}'.format(self.recordname)+\
@@ -134,8 +141,35 @@ class Residue(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['resseqnum','insertion','name','chainID','segtype']
     opt_attr=AncestorAwareMod.opt_attr+['atoms','up','down','uplink','downlink','resseqnumi']
     _counter=0
-    def __init__(self,input_dict):
-        super().__init__(input_dict)
+    def __init__(self,input_obj):
+        if type(input_obj)==dict:
+            super().__init__(input_obj)
+        elif type(input_obj) in [Atom,Hetatm]:
+            a=input_obj
+            input_dict={
+                'resseqnum':a.resseqnum,
+                'insertion':a.insertion,
+                'name':a.resname,
+                'chainID':a.chainID,
+                'atoms':AtomList([a]),
+                'segtype':ConfigGetParam('Segtypes_by_Resnames').get(a.resname,'OTHER'),
+                'resseqnumi':f'{a.resseqnum}{a.insertion}'
+            }
+            super().__init__(input_dict)
+        elif type(input_obj)==Missing:
+            m=input_obj
+            input_dict={
+                'resseqnum':m.resseqnum,
+                'insertion':m.insertion,
+                'name':m.resname,
+                'chainID':m.chainID,
+                'segtype':ConfigGetParam('Segtypes_by_Resnames').get(m.resname,'OTHER')
+            }
+            input_dict['resseqnumi']=f'{m.resseqnum}{m.insertion}'
+            input_dict['atoms']=AtomList([])
+            super().__init__(input_dict)
+        else:
+            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
         self.index=Residue._counter
         Residue._counter+=1
         self.down=[]
@@ -143,33 +177,6 @@ class Residue(AncestorAwareMod):
         self.up=[]
         self.uplink=[]
 
-    @classmethod
-    def from_atom(cls,a:Atom):
-        # print(a.resname,ConfigGetParam('Segtypes_by_Resnames').get(a.resname,'OTHER'))
-        input_dict={
-            'resseqnum':a.resseqnum,
-            'insertion':a.insertion,
-            'name':a.resname,
-            'chainID':a.chainID,
-            'atoms':AtomList([a]),
-            'segtype':ConfigGetParam('Segtypes_by_Resnames').get(a.resname,'OTHER'),
-            'resseqnumi':f'{a.resseqnum}{a.insertion}'
-        }
-        inst=cls(input_dict)
-        return inst
-    @classmethod
-    def from_missing(cls,m:Missing):
-        input_dict={
-            'resseqnum':m.resseqnum,
-            'insertion':m.insertion,
-            'name':m.resname,
-            'chainID':m.chainID,
-            'segtype':ConfigGetParam('Segtypes_by_Resnames').get(m.resname,'OTHER')
-        }
-        input_dict['resseqnumi']=f'{m.resseqnum}{m.insertion}'
-        input_dict['atoms']=AtomList([])
-        inst=cls(input_dict)
-        return inst
     def __str__(self):
         return f'{self.chainID}-{self.name}{self.resseqnum}{self.insertion}'
     def __lt__(self,other):
@@ -219,21 +226,23 @@ class Residue(AncestorAwareMod):
         return self.name
 
 class ResidueList(AncestorAwareModList):
-    @classmethod
-    def from_atoms(cls,atoms:AtomList):
-        if not atoms:
-            return cls([])
-        R=[]
-        for a in atoms:
-            for r in R[::-1]:
-                if r.add_atom(a):
-                    break
-            else:
-                R.append(Residue.from_atom(a))
-        return cls(R)
-    @classmethod
-    def from_missing(cls,missing:MissingList):
-        return cls([Residue.from_missing(m) for m in missing])
+    def __init__(self,input_obj):
+        if type(input_obj)==list:
+            super().__init__(input_obj)
+        elif type(input_obj)==AtomList:
+            atoms=input_obj
+            R=[]
+            for a in atoms:
+                for r in R[::-1]:
+                    if r.add_atom(a):
+                        break
+                else:
+                    R.append(Residue(a))
+            super().__init__(R)
+        elif type(input_obj)==MissingList:
+            R=[Residue(m) for m in input_obj]
+            super().__init__(R)
+
     def get_residue(self,**fields):
         return self.get(**fields)
     def get_atom(self,atname,**fields):

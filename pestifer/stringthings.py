@@ -1,16 +1,21 @@
 """
 
 .. module:: stringthings
-   :synopsis: defines a byte-collector for convenient script writing
+   :synopsis: defines a byte-collector for convenient script writing and a file-collector for convenient clean-up
    
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
 import pandas as pd
+import logging
+logger=logging.getLogger(__name__)
+import os
 # _ANGSTROM_='Ångström'
 class ByteCollector:
     def __init__(self,comment_char='#'):
         self.comment_char=comment_char
+        self.byte_collector=''
+    def reset(self):
         self.byte_collector=''
     def write(self,msg):
         self.byte_collector+=msg
@@ -54,3 +59,18 @@ def my_logger(msg,logf,width=67,fill='*',sep=', ',just='^'):
             outstr=ll+ln+rr
             logf(fmt.format(outstr))
         
+class FileCollector(list):
+    def __init__(self):
+        self.file_collection=[]
+    def __iter__(self):
+        for f in self.file_collection:
+            yield f
+    def append(self,item):
+        self.file_collection.append(item)
+    def extend(self,a_list):
+        self.file_collection.extend(a_list)
+    def flush(self):
+        logger.debug(f'Flushing file collector: {len(self.file_collection)} files.')
+        for f in self:
+            if os.path.exists(f):
+                os.remove(f)

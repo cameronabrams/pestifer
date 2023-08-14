@@ -8,22 +8,22 @@ class TestResidue(unittest.TestCase):
         return super().setUp()
     def test_from_atom(self):
         self.config=ConfigSetup('')
-        m=Molecule.from_rcsb(pdb_code='1gc1')
+        m=Molecule(source='1gc1')
         au=m.asymmetric_unit
         residues=[]
         a=au.Atoms[0]
-        r=Residue.from_atom(a)
+        r=Residue(a)
         self.assertEqual(a.chainID,r.chainID)
         residues.append(r)
         for a in au.Atoms[1:]:
             if not any([x.add_atom(a) for x in residues]):
-                r=Residue.from_atom(a)
+                r=Residue(a)
                 residues.append(r)
         self.assertEqual(len(residues),1538)
 
     def test_segtypes(self):
         self.config=ConfigSetup('')
-        m=Molecule.from_rcsb(pdb_code='4tvp')
+        m=Molecule(source='4tvp')
         au=m.asymmetric_unit
         p=au.Residues.get(segtype='PROTEIN')
         pc=[]
@@ -64,7 +64,7 @@ class TestResidue(unittest.TestCase):
 
     def test_residuelist(self):
         self.config=ConfigSetup('')
-        m=Molecule.from_rcsb(pdb_code='6m0j')
+        m=Molecule(source='6m0j')
         au=m.asymmetric_unit
         r=au.Residues.get_residue(resseqnum=427,chainID='A')
         self.assertEqual(r.name,'ASP')

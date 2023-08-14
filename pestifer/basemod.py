@@ -203,7 +203,7 @@ class ModList(list):
     def get(self,**fields):
         R=self.filter(**fields)
         if len(R)==0:
-            return []
+            return self.__class__([])
         elif len(R)==1:
             return R[0]
         else:
@@ -212,12 +212,12 @@ class ModList(list):
         for r in self:
             if r.matches(**fields): break
         else:
-            return []
+            return self.__class__([])
         attr,subfields=S
         assert type(attr)==str
         assert type(subfields)==dict
         if not attr in r.__dict__:
-            return []
+            return self.__class__([])
         L=r.__dict__[attr]
         return L.get(**subfields)
     def sort(self,by=None,reverse=False):
@@ -268,9 +268,9 @@ class ModList(list):
                 s.__dict__[new_attr_name].update({k:s.__dict__[k] for k in make_common})
                 s.__dict__.update(use_common)
     def state_bounds(self,state_func):
-        if len(self)==0:
-            return []
         slices=StateIntervalList([])
+        if len(self)==0:
+            return slices
         for i,item in enumerate(self):
             if not slices:
                 slices.append(StateInterval({'state':state_func(item),'bounds':[i,i]}))

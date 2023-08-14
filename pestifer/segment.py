@@ -12,53 +12,73 @@ class Segment(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments']
     opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname','config_params']
 
-    def __init__(self,input_dict):
+    def __init__(self,input_obj):
         parm_dict={}
         for p in ['Include_terminal_loops','Fix_engineered_mutations','Fix_conflicts','Sacrificial_residue']:
             parm_dict[p]=ConfigGetParam(p)
+        if type(input_obj)==dict:
+            input_dict=input_obj
+        elif type(input_obj)==Residue:
+            res=input_obj
+            apparent_chainID=res.chainID
+            apparent_segtype=res.segtype
+            myRes=ResidueList([])
+            myRes.append(res.clone())
+            subsegments=myRes.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
+            olc=ConfigGetParam('Segname_chars').get(apparent_segtype)
+            input_dict={
+                'segtype': apparent_segtype,
+                'segname': f'{apparent_chainID}{olc}',
+                'chainID': apparent_chainID,
+                'residues': myRes,
+                'subsegments':subsegments
+            }
+        elif type(input_obj)==ResidueList:
+            Residues=input_obj
+            apparent_chainID=Residues[0].chainID
+            apparent_segtype=Residues[0].segtype
+            myRes=Residues.clone()
+            if apparent_segtype=='PROTEIN':
+                # a protein segment must have unique residue numbers
+                assert myRes.puniq(['resseqnum','insertion'])
+                # a protein segment may not have more than one protein chain
+                assert all([x.chainID==myRes[0].chainID for x in myRes])
+            else:
+                myRes.puniquify(fields=['resseqnum','insertion'],make_common=['chainID'])
+            myRes.sort()
+            subsegments=myRes.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
+            olc=ConfigGetParam('Segname_chars').get(apparent_segtype)
+            input_dict={
+                'segtype': apparent_segtype,
+                'segname': f'{apparent_chainID}{olc}',
+                'chainID': apparent_chainID,
+                'residues': myRes,
+                'subsegments':subsegments
+            }
+        else:
+            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
         input_dict['config_params']=parm_dict
         super().__init__(input_dict)
 
-    @classmethod
-    def from_residue_list(cls,Residues):
-        if len(Residues)==0:
-            return None
-        apparent_chainID=Residues[0].chainID
-        apparent_segtype=Residues[0].segtype
-        myRes=Residues.clone()
-        if apparent_segtype=='PROTEIN':
-            # a protein segment must have unique residue numbers
-            assert myRes.puniq(['resseqnum','insertion'])
-            # a protein segment may not have more than one protein chain
-            assert all([x.chainID==myRes[0].chainID for x in myRes])
-        else:
-            myRes.puniquify(fields=['resseqnum','insertion'],make_common=['chainID'])
-        myRes.sort()
-        subsegments=myRes.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
-        olc=ConfigGetParam('Segname_chars').get(apparent_segtype)
-        input_dict={
-            'segtype': apparent_segtype,
-            'segname': f'{apparent_chainID}{olc}',
-            'chainID': apparent_chainID,
-            'residues': myRes,
-            'subsegments':subsegments
-        }
-        inst=cls(input_dict)
-        return inst
-    
     def __str__(self):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
 
-    def write_TcL(self,transform,mods):
+    def write_TcL(self,B:ByteCollector,transform,mods,file_collector=None):
         if self.segtype=='PROTEIN':
-            return self.protein_stanza(transform,mods)
+            self.protein_stanza(B,transform,mods,file_collector=file_collector)
         elif self.segtype=='GLYCAN':
-            return self.glycan_stanza(transform,mods)
+            self.glycan_stanza(B,transform,mods,file_collector=file_collector)
         else:
-            return self.generic_stanza(transform,mods)
-        
-    def protein_stanza(self,transform,mods):
-        B=ByteCollector()
+            self.generic_stanza(B,transform,mods,file_collector=file_collector)
+    
+    def glycan_stanza(self,B,transform,mods,file_collector=None):
+        B.banner(f'Not generating segment {self.segname} ({self.segtype})')
+        B.banner('GLYCANS ARE NOT YET IMPLEMENTED')
+    
+    def generic_stanza(self,B,transform,mods,file_collector=None):
+        B.banner(f'Not generating generic segment {self.segname} ({self.segtype})')
+
+    def protein_stanza(self,B:ByteCollector,transform,mods,file_collector=None):
         parent_molecule=self.ancestor_obj
         the_chainID=self.residues[0].chainID
         chainIDmap=transform.chainIDmap
@@ -68,12 +88,12 @@ class Segment(AncestorAwareMod):
         if rep_chainID!=the_chainID:
             logger.info(f'relabeling chain {the_chainID} to {rep_chainID} in {seglabel}')
             seglabel=f'{rep_chainID}' # first byte is chain ID
-        transform.segnamemap[self.psfgen_segname,seglabel]
+        transform.segnamemap[self.psfgen_segname]=seglabel
         sac_rd=self.config_params['Sacrificial_residue']
         sac_r=sac_rd['name']
         sac_n=sac_rd['min_loop_length']
-        Mutations=mods.get('Mutations',MutationList([])).get(chainID=the_chainID)
-        Conflicts=mods.get('Conflicts',MutationList([])).get(chainID=the_chainID)
+        Mutations=mods.get('Mutations',MutationList([])).filter(chainID=the_chainID)
+        Conflicts=mods.get('Conflicts',MutationList([])).filter(chainID=the_chainID)
 
         B.banner(f'BEGIN SEGMENT {seglabel}')
         for i,b in enumerate(self.subsegments):
@@ -82,12 +102,13 @@ class Segment(AncestorAwareMod):
                 b.selname=f'{seglabel}{i:02d}'
                 run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
                 b.pdb=f'PROTEIN_{rep_chainID}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
+                file_collector.append(b.pdb)
                 # TODO: account for any deletions?  Maybe better at the residue stage...
                 serial_list=run.atom_serials(as_type=int)
                 at=parent_molecule.asymmetric_unit.Atoms.get(serial=serial_list[-1])
                 assert at.resseqnum==run[-1].resseqnum
                 vmd_red_list=reduce_intlist(serial_list)
-                B.addline(f'set {b.selname} [atomselect {parent_molecule.molid} "serial {vmd_red_list}"]')
+                B.addline(f'set {b.selname} [atomselect ${parent_molecule.molid_varname} "serial {vmd_red_list}"]')
                 if hasattr(at,'_ORIGINAL_'):
                     if at._ORIGINAL_["serial"]!=at.serial:
                         B.banner(f'Atom with serial {at._ORIGINAL_["serial"]} in PDB needs serial {at.serial} for VMD')
@@ -171,7 +192,6 @@ class Segment(AncestorAwareMod):
                 if not isidentity(tmat) or rep_chainID!=the_chainID:
                     B.addline(sel.restore(f'{b.selname}'))
         B.banner(f'END SEGMENT {seglabel}')
-        return str(B)
 
 class SegmentList(AncestorAwareModList):
     counters_by_segtype={}
@@ -187,33 +207,45 @@ class SegmentList(AncestorAwareModList):
             item.psfgen_segname=f'{itemkey}{self.counters_by_segtype[itemkey]:03d}'
         super().append(item)
 
-    @classmethod
-    def from_residues(cls,residues:ResidueList):
-        tmp_counters={}
-        Slist=[]
-        for stype in ['PROTEIN','WATER','ION','GLYCAN','LIGAND','OTHER']:
-            res=residues.get(segtype=stype)
-            for chainID in res.unique_chainIDs():
-                c_res=residues.get(segtype=stype,chainID=chainID)
-                thisSeg=Segment.from_residue_list(c_res)
-                olc=ConfigGetParam('Segname_chars').get(thisSeg.segtype)
-                if thisSeg.segtype=='PROTEIN':
-                    thisSeg.psfgen_segname=thisSeg.segname
-                else:
-                    thisSeg.psfgen_segname=f'{itemkey}{tmp_counters[itemkey]:03d}'
-                itemkey=f'{thisSeg.chainID}{olc}'
-                if not itemkey in tmp_counters:
-                    tmp_counters[itemkey]=0
-                tmp_counters[itemkey]+=1
-                Slist.append(thisSeg)
+    def __init__(self,input_obj):
+        if type(input_obj)==ResidueList:
+            super().__init__([])
+            residues=input_obj
+            tmp_counters={}
+            for stype in ['PROTEIN','WATER','ION','GLYCAN','LIGAND','OTHER']:
+                res=residues.get(segtype=stype)
+                for chainID in res.unique_chainIDs():
+                    c_res=residues.get(segtype=stype,chainID=chainID)
+                    thisSeg=Segment(c_res)
+                    olc=ConfigGetParam('Segname_chars').get(thisSeg.segtype)
+                    if thisSeg.segtype=='PROTEIN':
+                        thisSeg.psfgen_segname=thisSeg.segname
+                    else:
+                        thisSeg.psfgen_segname=f'{itemkey}{tmp_counters[itemkey]:03d}'
+                    itemkey=f'{thisSeg.chainID}{olc}'
+                    if not itemkey in tmp_counters:
+                        tmp_counters[itemkey]=0
+                    tmp_counters[itemkey]+=1
+                    self.append(thisSeg)
+            
+        else:
+            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
 
-        return cls(Slist)
-
-    def write_TcL(self,transform,mods):
-        B=ByteCollector()
+    def collect_working_files(self):
+        working_files=[]
         for seg in self:
-            B.addline(seg.write_TcL(transform,mods))
-        return str(B)
+            for subseg in seg.subsegments:
+                if hasattr(subseg,'pdb'):
+                    logger.debug(f'wf: {subseg.pdb}')
+                    working_files.append(subseg.pdb)
+
+        return working_files
+    
+    def write_TcL(self,B:ByteCollector,transform,mods,file_collector=None):
+        for seg in self:
+            B.comment(f'Writing seg {seg.segname}')
+            seg.write_TcL(B,transform,mods,file_collector=file_collector)
+            B.comment(f'Done with seg {seg.segname}')
     
     # def __init__(self,r,parent_chain=None,subcounter=''):
     #     """Initializes a segment instance by passing in first residue of segment"""

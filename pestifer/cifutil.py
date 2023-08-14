@@ -1,3 +1,10 @@
+
+class CIFobject:
+    pass
+
+class CIFdict(dict):
+    pass
+
 def CIFMakeStructs(db):
     structs={}
     for k in db.keys():

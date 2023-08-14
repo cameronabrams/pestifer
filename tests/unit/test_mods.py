@@ -1,5 +1,7 @@
 from pestifer.mods import Mutation, Missing, Seqadv, SSBond, Crot
+from pestifer.cifutil import CIFdict
 from pidibble.pdbparse import PDBParser
+from pestifer.bioassemb import BiomT
 import unittest
 # import pytest
 
@@ -11,7 +13,7 @@ class TestMutation(unittest.TestCase):
             'newresname':'TYR',
             'resseqnum':'123',
             'insertion':'A',
-            'resseqnumi':'123A'
+            'source':'USER'
         }
         self.shortcode='A:PHE,123A,TYR'
         return super().setUp()
@@ -19,7 +21,7 @@ class TestMutation(unittest.TestCase):
         m=Mutation(self.input_dict)
         self.assertTrue(type(m)==Mutation)
     def test_shortcode(self):
-        m=Mutation.from_shortcode(self.shortcode)
+        m=Mutation(self.shortcode)
         self.assertTrue(m.chainID=='A' and m.resseqnumi=='123A')
     def test_clone(self):
         m=Mutation(self.input_dict)
@@ -30,54 +32,36 @@ class TestMutation(unittest.TestCase):
         newchainid=chr((ord(m.chainID)+1)%26)
         n=Mutation.clone(m,chainID=newchainid)
         self.assertTrue(n.chainID==newchainid and n.resseqnum==m.resseqnum)
-"""  
-REMARK 465                                                                      
-REMARK 465   M RES C SSSEQI                                                     
-REMARK 465     VAL A    44                                                      
-REMARK 465     TRP A    45                                                      
-REMARK 465     LYS A    46                                                      
-REMARK 465     GLU A    47                                                      
-REMARK 465     ALA A    48                                                      
-REMARK 465     ASN A   317                                                      
-REMARK 465     GLY A   318                                                      
-REMARK 465     GLY A   319                                                      
-REMARK 465     SER A   320                                                      
-REMARK 465     GLY A   321                                                      
-REMARK 465     SER A   322                                                      
-REMARK 465     GLY A   323                                                      
-REMARK 465     GLY A   324                                                      
-REMARK 465     GLY A   457A                                                     
-REMARK 465     GLY A   457B
-"""
+
 class TestMissing(unittest.TestCase):
     def setUp(self):
-        self.cifdict={
+        self.cifdict=CIFdict({
             'pdb_ins_code':'?',
             'pdb_model_num':'1',
             'auth_comp_id':'GLU',
             'auth_asym_id':'G',
             'auth_seq_id':'185'
-        }
+        })
         return super().setUp()
     def test_pdbrecord(self):
         p=PDBParser(PDBcode='4i53').parse()
         self.assertTrue('REMARK.465' in p.parsed)
         r=p.parsed['REMARK.465'].tables['MISSING'][0]
-        m=Missing.from_pdbrecord(r)
+        m=Missing(r)
         self.assertEqual(m.model,'')
         self.assertEqual(m.resname,'VAL')
         self.assertEqual(m.chainID,'A')
         self.assertEqual(m.resseqnum,44)
         self.assertEqual(m.insertion,'')
         r=p.parsed['REMARK.465'].tables['MISSING'][14]
-        m=Missing.from_pdbrecord(r)
+        m=Missing(r)
         self.assertEqual(m.model,'')
         self.assertEqual(m.resname,'GLY')
         self.assertEqual(m.chainID,'A')
         self.assertEqual(m.resseqnum,457)
         self.assertEqual(m.insertion,'B')
     def test_cifdict(self):
-        m=Missing.from_cifdict(self.cifdict)
+        m=Missing(self.cifdict)
         self.assertEqual(m.model,1)
         self.assertEqual(m.resname,'GLU')
         self.assertEqual(m.chainID,'G')
@@ -184,22 +168,16 @@ class TestSSBond(unittest.TestCase):
     #     self.assertEqual(ss.sym2,'2655')
     #     self.assertEqual(ss.length,2.04)
     def test_shortcode(self):
-        ss=SSBond.from_shortcode('D_378-B_379')
+        ss=SSBond('D_378-B_379')
         self.assertEqual(ss.chainID1,'D')
         self.assertEqual(ss.chainID2,'B')
         self.assertEqual(ss.resseqnum1,378)
         self.assertEqual(ss.resseqnum2,379)
     def test_psfgen(self):
-        ss=SSBond.from_shortcode('D_378-B_379')
-        self.assertEqual(ss.psfgen_lines(),['patch DISU D:378 B:379'])
-    # def test_pdbline(self):
-    #     ss=SSBond.from_pdbrecord(self.pdbline2)
-    #     self.assertEqual(ss.pdb_line(),self.pdbline2)
-    # def test_clone(self):
-    #     ss=SSBond.from_pdbrecord(self.pdbline2)
-    #     ss2=SSBond.clone(ss,chainID2='X')
-    #     self.assertEqual(ss.chainID1,ss2.chainID1)
-    #     self.assertEqual(ss2.chainID2,'X')
+        ss=SSBond('D_378-B_379')
+        transform=BiomT()
+        transform.chainIDmap={'D':'D','B':'B'}
+        self.assertEqual(ss.write_TcL(transform),'patch DISU D:378 B:379')
 
 class TestCrot(unittest.TestCase):
     def test_phi(self):

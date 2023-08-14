@@ -48,13 +48,13 @@ class TestController(unittest.TestCase):
         self.assertEqual(sd.resseqnum2,543)
 
         baseMol=C.molecules['4zmj']
-        self.assertEqual(baseMol.molid,0)
+        self.assertEqual(baseMol.molid,1)
         self.assertEqual(baseMol.active_biological_assembly.index,1)
         b=baseMol.active_biological_assembly
         self.assertEqual(b.index,1)
         self.assertEqual(len(b.biomt),3)
         t1=b.biomt[0]
-        self.assertEqual(t1.chainIDmap,{})
+        self.assertEqual(t1.chainIDmap,{'A': 'A', 'B': 'B', 'C': 'C', 'D': 'D', 'G': 'G'})
         t2=b.biomt[1]
         self.assertEqual(t2.chainIDmap,{'A': 'E', 'B': 'F', 'C': 'H', 'D': 'I', 'G': 'J'})
         t3=b.biomt[2]
@@ -68,4 +68,4 @@ class TestController(unittest.TestCase):
         # self.assertTrue('shortcode' in m)
     def test_controller_do(self):
         C=Controller('user_config.yaml')
-        C.do()
+        C.do(clean_up=True)

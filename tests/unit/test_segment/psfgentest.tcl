@@ -1,10 +1,10 @@
-### BEGIN SEGMENT G ###
-set G [atomselect 0 "serial 1 to 1174"]
-$G writepdb PROTEIN_G_34_to_185.pdb
-set G [atomselect 0 "serial 1175 to 2795"]
-$G writepdb PROTEIN_G_187_to_398.pdb
-set G [atomselect 0 "serial 2796 to 3543"]
-$G writepdb PROTEIN_G_411_to_505.pdb
+############################### BEGIN SEGMENT G ################################
+set G01 [atomselect 1 "serial 1 to 1174"]
+$G01 writepdb PROTEIN_G_34_to_185.pdb
+set G03 [atomselect 1 "serial 1175 to 2795"]
+$G03 writepdb PROTEIN_G_187_to_398.pdb
+set G05 [atomselect 1 "serial 2796 to 3543"]
+$G05 writepdb PROTEIN_G_411_to_505.pdb
 segment G {
     pdb PROTEIN_G_34_to_185.pdb
     residue 185A GLU G
@@ -32,17 +32,30 @@ segment G {
     residue 410A GLY G
     pdb PROTEIN_G_411_to_505.pdb
 }
+###################### Coordinate-specification commands #######################
 coordpdb PROTEIN_G_34_to_185.pdb G
 coordpdb PROTEIN_G_187_to_398.pdb G
 coordpdb PROTEIN_G_411_to_505.pdb G
+######## Seeding orientation of model-built loop starting at G-GLU185A #########
 coord G 185A N [cacoIn_nOut 185 G 0]
+######### Seeding orientation of model-built loop starting at G-THR400 #########
 coord G 400 N [cacoIn_nOut 398 G 0]
-### END SEGMENT G ###
-### BEGIN SEGMENT B ###
-set B [atomselect 0 "serial 3545 to 3722"]
-$B writepdb PROTEIN_B_521_to_547.pdb
-set B [atomselect 0 "serial 3723 to 4519"]
-$B writepdb PROTEIN_B_569_to_664.pdb
+####################### Intra-segmental terminal patches #######################
+patch CTER G:185I
+patch NTER G:187
+delatom G 185J
+patch CTER G:410
+patch NTER G:411
+delatom G 410A
+############## Restoring A.U. state for all resolved subsegments ###############
+################################ END SEGMENT G #################################
+############################### BEGIN SEGMENT B ################################
+set B01 [atomselect 1 "serial 3544 to 3721"]
+############ Atom with serial 3722 in PDB needs serial 3721 for VMD ############
+$B01 writepdb PROTEIN_B_521_to_547.pdb
+set B03 [atomselect 1 "serial 3722 to 4518"]
+############ Atom with serial 4519 in PDB needs serial 4518 for VMD ############
+$B03 writepdb PROTEIN_B_569_to_664.pdb
 segment B {
     pdb PROTEIN_B_521_to_547.pdb
     residue 548 ILE B
@@ -69,7 +82,14 @@ segment B {
     residue 568A GLY B
     pdb PROTEIN_B_569_to_664.pdb
 }
+###################### Coordinate-specification commands #######################
 coordpdb PROTEIN_B_521_to_547.pdb B
 coordpdb PROTEIN_B_569_to_664.pdb B
+######### Seeding orientation of model-built loop starting at B-ILE548 #########
 coord B 548 N [cacoIn_nOut 547 B 0]
-### END SEGMENT B ###
+####################### Intra-segmental terminal patches #######################
+patch CTER B:568
+patch NTER B:569
+delatom B 568A
+############## Restoring A.U. state for all resolved subsegments ###############
+################################ END SEGMENT B #################################

@@ -17,34 +17,40 @@ from .config import ConfigGetParam
 logger=logging.getLogger(__name__)
 
 class Molecule(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['molid','pdb_code','asymmetric_unit','biological_assemblies','pdb_entry']
+    req_attr=AncestorAwareMod.req_attr+['molid','source','asymmetric_unit','biological_assemblies','pdb_entry']
     opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
-    def __init__(self,input_dict):
-        Molecule._molcounter+=1
-        super().__init__(input_dict)
-
-    @classmethod
-    def from_rcsb(cls,**options):
-        pdb_code=options.get('pdb_code',None)
-        if not pdb_code:
-            return None
-        p_struct=PDBParser(PDBcode=pdb_code).parse().parsed
+    def __init__(self,**options):
+        reset=options.get('reset_counter',False)
+        if reset:
+            Molecule._molcounter=0
+        else:
+            Molecule._molcounter+=1
+        source=options.get('source',None)
+        if not source:
+            input_dict={
+                'molid': Molecule._molcounter,
+                'source': None,
+                'pdb_entry': None,
+                'asymmetric_unit': None,
+                'biological_assemblies': None
+            }
+            super().__init__(input_dict)
+        p_struct=PDBParser(PDBcode=source).parse().parsed
         input_dict={
             'molid': Molecule._molcounter,
-            'pdb_code': pdb_code,
+            'source': source,
             'pdb_entry': p_struct,
-            'asymmetric_unit': AsymmetricUnit.from_pdb(p_struct),
-            'biological_assemblies': BioAssembList.from_pdb(p_struct)
+            'asymmetric_unit': AsymmetricUnit(p_struct),
+            'biological_assemblies': BioAssembList(p_struct,reset=True)
         }
-        inst=cls(input_dict)
-        inst.asymmetric_unit.claim_descendants(inst,0)
-        inst.biological_assemblies.claim_descendants(inst,0)
-        return inst
+        super().__init__(input_dict)
+        self.asymmetric_unit.claim_descendants(self,0)
+        self.biological_assemblies.claim_descendants(self,0)
     
     def activate_biological_assembly(self,index,chainIDmanager):
         biological_assembly=[x for x in self.biological_assemblies if x.index==index]
-        assert biological_assembly!=[],f'No biological assembly "{index}" found.'
+        assert biological_assembly!=[],f'No biological assembly "{index:d}" found.'
         assert len(biological_assembly)==1,f'No unique biological assembly "{index}" found.'
         self.active_biological_assembly=biological_assembly[0]
         logger.info(f'Activating biological assembly {self.active_biological_assembly.name} (idx {index})')
@@ -55,9 +61,8 @@ class Molecule(AncestorAwareMod):
             biomt.chainIDmap=chainIDmanager.generate_map(auChainIDs)            
         return self
     
-    def write_TcL(self,user_mods):
+    def write_TcL(self,B:ByteCollector,user_mods,file_collector=None):
         # TODO: merge the A.U.'s mods into the mods passed in from config
-        B=ByteCollector()
         au=self.asymmetric_unit
         ba=self.active_biological_assembly
         allmods=user_mods.copy()
@@ -67,9 +72,9 @@ class Molecule(AncestorAwareMod):
             allmods['Conflicts']=MutationList([])
         for k in ba.biomt[0].chainIDmap.keys():
             if au.Mutations:
-                allmods['Mutations'].extend(au.Mutations.get(chainID=k))
+                allmods['Mutations'].extend(au.Mutations.filter(chainID=k))
             if au.Conflicts:
-                allmods['Conflicts'].extend(au.Conflicts.get(chainID=k))
+                allmods['Conflicts'].extend(au.Conflicts.filter(chainID=k))
         # TODO: Delete any SSBonds or Links that contain residues that are mutated
         au.SSBonds.prune_mutations(user_mods.get('Mutations',MutationList([])))
         if ConfigGetParam('Fix_engineered_mutations'):
@@ -82,11 +87,11 @@ class Molecule(AncestorAwareMod):
             for k,v in biomt.chainIDmap.items():
                 B.comment(f'{k}: {v}')
             B.banner('SEGMENTS FOLLOW')
-            B.write(au.Segments.write_TcL(biomt,allmods))
+            au.Segments.write_TcL(B,biomt,allmods,file_collector=file_collector)
             B.banner('DISU PATCHES FOLLOW')
             B.write(au.SSBonds.write_TcL(biomt,allmods))
             B.banner('LINK PATCHES FOLLOW')
             B.write(au.Links.write_TcL(biomt,allmods))
             B.banner(f'TRANSFORM {biomt.index} ENDS')
-        return B.byte_collector
+        return 0
 
