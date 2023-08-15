@@ -12,7 +12,7 @@ from .basemod import AncestorAwareMod
 from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList
 from .stringthings import ByteCollector
-from .mods import MutationList
+from .mods import MutationList, apply_psf_info
 from .config import ConfigGetParam
 logger=logging.getLogger(__name__)
 
@@ -27,6 +27,7 @@ class Molecule(AncestorAwareMod):
         else:
             Molecule._molcounter+=1
         source=options.get('source',None)
+        use_psf=options.get('use_psf',None)
         if not source:
             input_dict={
                 'molid': Molecule._molcounter,
@@ -37,6 +38,10 @@ class Molecule(AncestorAwareMod):
             }
             super().__init__(input_dict)
         p_struct=PDBParser(PDBcode=source).parse().parsed
+        if use_psf:
+            apply_psf_info(p_struct,f'{source}.psf')
+        # if os.path.exists(f'{source}.psf'):
+        #     apply_psf_info(p_struct,f'{source}.psf')
         input_dict={
             'molid': Molecule._molcounter,
             'source': source,

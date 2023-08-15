@@ -3,7 +3,9 @@ from .molecule import Molecule
 from .chainids import ChainIDManager
 from .util import special_update
 import yaml
+import os
 import sys
+import shutil
 import inspect
 import logging
 logger=logging.getLogger(__name__)
@@ -50,18 +52,21 @@ class TaskList(ModList):
             task.prior.next=task
         assert len(task.__dict__)==4,f'Attempting to append a task that has already been appended?'
         taskname=[x for x in task.__dict__.keys() if not x in ['owner','prior','next']][0]
-        assert taskname in ['build','relax','relax_series','smdclose','solvate']
+        assert taskname in ['build','relax','relax_series','smdclose','solvate','terminate_step']
         if   taskname=='build':        taskfunc=self.do_build
         elif taskname=='relax':        taskfunc=self.do_relax
         elif taskname=='relax_series': taskfunc=self.do_relax_series
         elif taskname=='solvate':      taskfunc=self.do_solvate
         elif taskname=='smdclose':     taskfunc=self.do_smdclose
+        elif taskname=='terminate_step':     taskfunc=self.terminate_step
         else:
             taskfunc=self.no_func
         task.taskname=taskname
         task.taskfunc=taskfunc
-        task.basename=f'{self.owner.name}-{task.taskname}'
-
+        if taskname=='terminate_step':
+            task.basename=f'{self.owner.name}'
+        else:
+            task.basename=f'{self.owner.name}-{task.taskname}'
         ''' resolve mods '''
         specs=self.__dict__[taskname]        
         modlist=specs.get('mods',[])
@@ -89,9 +94,11 @@ class TaskList(ModList):
         
     def do_build(self,task):
         specs=task.build
+        logger.debug(f'do_build: specs {specs}')
         base_molecule=self.owner.base_molecule
         pg=self.psfgen
         pg.beginscript(task.basename)
+        pg.topo_aliases()
         pg.describe_molecule(base_molecule,specs['mods'])
         pg.transform_postmods()
         pg.global_postmods()
@@ -120,6 +127,12 @@ class TaskList(ModList):
         logger.debug(f'do_relax_series: specs {specs}')
         pass
 
+    def do_terminate_step(self,task):
+        prior_basename=task.prior.basename
+        logger.debug(f'do_terminate_step')
+        for ext in ['.psf','.pdb']:
+            shutil.copyfile(f'{prior_basename}{ext}',f'{task.basename}{ext}')
+
     def do_tasks(self):
         for task in self:
             task.taskfunc(task)
@@ -140,18 +153,22 @@ class Step(BaseMod):
         self.tasklist=TaskList([])
         for tdict in self.tasks:
             self.tasklist.append(Task(tdict,owner=self))
+        self.tasklist.append(Task({'terminate_step':None},owner=self))
         self.tasks_resolved=True
         return self
 
     def injest_molecules(self):
         self.molecules={}
+        psf_exists=False
         if type(self.source)==dict:
             basePDB=self.source.get('pdb',None)
             baseBA=self.source.get('biological_assembly',None)
         elif type(self.source)==str:
             basePDB=self.source
+            assert os.path.exists(f'{basePDB}.pdb')
+            psf_exists=os.path.exists(f'{basePDB}.psf')
             baseBA=0
-        self.molecules[basePDB]=Molecule(source=basePDB).activate_biological_assembly(baseBA,self.chainIDmanager)
+        self.molecules[basePDB]=Molecule(source=basePDB,use_psf=psf_exists).activate_biological_assembly(baseBA,self.chainIDmanager)
         self.base_molecule=self.molecules[basePDB]
         for p in self.pdbs:
             self.molecules[p]=Molecule(source=p)

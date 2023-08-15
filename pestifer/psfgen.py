@@ -31,6 +31,11 @@ class Psfgen:
         self.B.addline(f'source {self.tcl_path}/modules/src/loopmc.tcl')
         self.B.addline(f'source {self.tcl_path}/vmdrc.tcl')
         self.B.addline('package require psfgen')
+
+    def load_project(self,basename):
+        self.B.addline(f'readpsf {basename}.psf pdb {basename}.pdb')
+
+    def topo_aliases(self):
         self.B.addline('psfcontext mixedcase')
         for t in ConfigGetParam('StdCharmmTopo'):
             ft=os.path.join(self.system_charmm_toppardir,t)

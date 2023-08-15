@@ -6,6 +6,7 @@
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
+import os
 import logging
 logger=logging.getLogger(__name__)
 from pidibble.pdbrecord import PDBRecord
@@ -589,3 +590,15 @@ class Cleavage(AncestorAwareMod):
 
 class CleavageList(AncestorAwareModList):
     pass
+
+def apply_psf_info(p_struct,psf):
+    if os.path.exists(psf):
+        with open(psf,'r') as f:
+            psf_lines=f.read().split('\n')
+    metadata_lines=[x for x in psf_lines if x.startswith('REMARKS')]
+    for ml in metadata_lines:
+        words=ml.split()
+        if ' '.join(words[1:3])=='patch DISU':
+            pass
+            # add a new SSBOND record to p_struct
+        # elif ...
