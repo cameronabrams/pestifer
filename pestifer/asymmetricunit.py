@@ -10,6 +10,7 @@ class AsymmetricUnit(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['Atoms','Residues','SSBonds','Mutations','Conflicts','Missings','Links']
     opt_attr=AncestorAwareMod.opt_attr+['Ters','Segments','chainIDs']
     def __init__(self,pr:dict):
+        # minimal pr has ATOMS
         Atoms=AtomList([Atom(p) for p in pr['ATOM']])
         if 'HETATM' in pr:
             Atoms.extend([Hetatm(p) for p in pr['HETATM']])

@@ -1,6 +1,6 @@
 title: Example Build
 steps:
-  - name: step1
+  - name: generate
     source:
       pdb: 7df3
       biological_assembly: 1
@@ -14,7 +14,7 @@ steps:
           nsteps: 10000
           temperature: 310
   - name: cleave
-    source: step1
+    source: generate
     tasks:
       - build:
           mods:

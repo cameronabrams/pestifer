@@ -12,17 +12,19 @@ from .command import Command
 import os
 from .config import ConfigGetParam
 from .molecule import Molecule
-
+from .stringthings import ByteCollector, FileCollector, my_logger
 class Psfgen:
-    def __init__(self,resources,byte_collector,post_build_directives={}):
+    def __init__(self,resources,post_build_directives={}):
         self.resources=resources
         self.tcl_path=resources.ResourcePaths['tcl']
         self.package_charmmdir=resources.ResourcePaths['charmm']
         self.system_charmm_toppardir=resources.system_charmm_toppardir
         self.post_build_directives=post_build_directives
-        self.B=byte_collector
+        self.B=ByteCollector()
+        self.F=FileCollector()
 
-    def beginscript(self):
+    def beginscript(self,basename='mypsfgen'):
+        self.basename=basename
         self.B.reset()
         self.B.banner('BEGIN PESTIFER PSFGEN')
         self.B.banner('BEGIN HEADER')
@@ -54,7 +56,7 @@ class Psfgen:
         self.B.addline(f'mol new {mol.source}.pdb waitfor all')
         self.B.addline(f'set {mol.molid_varname} [molinfo top get id]')
         
-    def describe_molecule(self,mol:Molecule,mods,file_collector=None):
+    def describe_molecule(self,mol:Molecule,mods):
         # if mol.cif:
         #     # need to renumber and rechain to user specs
         #     self.B.addline(f'set ciftmp [atomselect ${molid_varname} all]')
@@ -62,21 +64,21 @@ class Psfgen:
         #     self.script+'$ciftmp set resid [list {}]').format(" ".join([str(_.resseqnum) for _ in self.Atoms]))
         molid_varname=f'm{mol.molid}'
         self.B.addline(f'mol top ${molid_varname}')
-        mol.write_TcL(self.B,mods,file_collector=file_collector)
+        mol.write_TcL(self.B,mods,file_collector=self.F)
 
-    def transform_postmods(self,basename,file_collector=None):
+    def transform_postmods(self):
         self.B.addline('guesscoord')
         self.B.addline('regenerate angles dihedrals')
-        psf=f'{basename}.psf'
-        pdb=f'{basename}.pdb'
+        psf=f'{self.basename}.psf'
+        pdb=f'{self.basename}.pdb'
         self.B.addline(f'writepsf cmap {psf}')
         self.B.addline(f'writepdb {pdb}')
 
-    def global_postmods(self,file_collector=None):
+    def global_postmods(self):
         pass
 
-    def writescript(self,basename):
-        self.scriptname=f'{basename}.tcl'
+    def writescript(self):
+        self.scriptname=f'{self.basename}.tcl'
         with open(self.scriptname,'w') as f:
             f.write(str(self.B))
 
@@ -84,4 +86,18 @@ class Psfgen:
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         c=Command(f'{self.resources.vmd} -dispdev text -e {self.scriptname}')
         c.run()
-        return c.stdout,c.stderr
+        self.logname=f'{self.basename}.log'
+        with open(self.logname,'w') as f:
+            my_logger(f'STDOUT from "{c.command}"',f.write)
+            f.write(c.stdout+'\n')
+            my_logger(f'STDERR from "{c.command}"',f.write)
+            f.writE(c.stderr+'\n')
+            my_logger(f'END OF LOG',f.write)
+    
+    def cleanup(self):
+        cleanup=self.post_build_directives.get('cleanup',False)
+        if cleanup:
+            logger.info(f'Post-execution clean-up: {len(self.F)} files removed.')
+            for file in self.F:
+                if os.path.exists(file):
+                    os.remove(file)

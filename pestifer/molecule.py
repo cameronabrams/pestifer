@@ -17,7 +17,7 @@ from .config import ConfigGetParam
 logger=logging.getLogger(__name__)
 
 class Molecule(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['molid','source','asymmetric_unit','biological_assemblies','pdb_entry']
+    req_attr=AncestorAwareMod.req_attr+['molid','source','asymmetric_unit','biological_assemblies','parsed_struct']
     opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
     def __init__(self,**options):
@@ -31,7 +31,7 @@ class Molecule(AncestorAwareMod):
             input_dict={
                 'molid': Molecule._molcounter,
                 'source': None,
-                'pdb_entry': None,
+                'parsed_struct': None,
                 'asymmetric_unit': None,
                 'biological_assemblies': None
             }
@@ -40,7 +40,7 @@ class Molecule(AncestorAwareMod):
         input_dict={
             'molid': Molecule._molcounter,
             'source': source,
-            'pdb_entry': p_struct,
+            'parsed_struct': p_struct,
             'asymmetric_unit': AsymmetricUnit(p_struct),
             'biological_assemblies': BioAssembList(p_struct,reset=True)
         }
@@ -58,7 +58,7 @@ class Molecule(AncestorAwareMod):
         auChainIDs=self.asymmetric_unit.chainIDs
         ba.biomt[0].chainIDmap={c:c for c in auChainIDs}
         for biomt in ba.biomt[1:]:
-            biomt.chainIDmap=chainIDmanager.generate_map(auChainIDs)            
+            biomt.chainIDmap=chainIDmanager.generate_next_map(auChainIDs)            
         return self
     
     def write_TcL(self,B:ByteCollector,user_mods,file_collector=None):
@@ -75,12 +75,13 @@ class Molecule(AncestorAwareMod):
                 allmods['Mutations'].extend(au.Mutations.filter(chainID=k))
             if au.Conflicts:
                 allmods['Conflicts'].extend(au.Conflicts.filter(chainID=k))
-        # TODO: Delete any SSBonds or Links that contain residues that are mutated
         au.SSBonds.prune_mutations(user_mods.get('Mutations',MutationList([])))
         if ConfigGetParam('Fix_engineered_mutations'):
             au.SSBonds.prune_mutations(au.Mutations)
+            # au.Links.prune_mutations(au.Conflicts) # problematic?
         if ConfigGetParam('Fix_conflicts'):
             au.SSBonds.prune_mutations(au.Conflicts)
+            # au.Links.prune_mutations(au.Conflicts) # problematic?
         for biomt in ba.biomt:
             B.banner(f'TRANSFORM {biomt.index} BEGINS')
             B.banner('The following mappings of A.U. chains is used:')
@@ -93,5 +94,4 @@ class Molecule(AncestorAwareMod):
             B.banner('LINK PATCHES FOLLOW')
             B.write(au.Links.write_TcL(biomt,allmods))
             B.banner(f'TRANSFORM {biomt.index} ENDS')
-        return 0
 
