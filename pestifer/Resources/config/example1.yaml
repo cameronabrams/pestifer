@@ -1,0 +1,13 @@
+title: Example Build 1
+steps:
+  - name: generate
+    source:
+      pdb: 7df3
+      biological_assembly: 1
+      chains: all
+    tasks:
+      - build: # source does not include a psf, so the first task must be a build
+NAMD2: $(HOME)/namd/NAMD_2.14_Source/Linux-x86_64-g++/namd2
+CHARMRUN: $(HOME)/namd/NAMD_2.14_Source/Linux-x86_64-g++/charmrun
+VMD: /usr/local/bin/vmd
+CHARMMDIR: $(HOME)/charmm

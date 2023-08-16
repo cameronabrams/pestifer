@@ -1,7 +1,8 @@
-from pestifer.mods import Mutation, Missing, Seqadv, SSBond, Crot
+from pestifer.mods import Mutation, Missing, Seqadv, SSBond, Crot, Link
 from pestifer.cifutil import CIFdict
 from pidibble.pdbparse import PDBParser
 from pestifer.bioassemb import BiomT
+from pestifer.config import ConfigGetParam,ConfigSetup
 import unittest
 # import pytest
 
@@ -227,3 +228,21 @@ class TestCrot(unittest.TestCase):
         self.assertEqual(cr.resseqnumk,1123)
         self.assertEqual(cr.atomk,'C1')
         self.assertEqual(cr.degrees,180.0)
+
+class TestLink(unittest.TestCase):
+    def test_link_create(self):
+        self.config=ConfigSetup('')
+        input_dict={
+            'name1': 'NH',
+            'resname1':'ASN',
+            'chainID1':'A',
+            'resseqnum1':1,
+            'insertion1':'',
+            'name2': 'C6',
+            'resname2':'AMAN',
+            'chainID2':'A',
+            'resseqnum2':2,
+            'insertion2':'',}
+        l=Link(input_dict)
+        self.assertEqual(l.segtype1,'PROTEIN')
+        self.assertEqual(l.segtype2,'GLYCAN')

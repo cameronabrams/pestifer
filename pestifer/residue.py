@@ -215,10 +215,14 @@ class Residue(AncestorAwareMod):
         return f'{self.resseqnum}{ins0}'
     def get_down_group(self):
         res=[]
-        for d in self.down:
+        lin=[]
+        for d,dl in zip(self.down,self.downlink):
             res.append(d)
-            res.extend(d.get_down_group())
-        return res
+            lin.append(dl)
+            tres,tlin=self.get_down_group(self.down)
+            res.extend(tres)
+            lin.extend(tlin)
+        return res,lin
     def resname_charmify(self):
         m=ConfigGetParam('PDB_to_CHARMM_Resnames')
         if self.name in m:

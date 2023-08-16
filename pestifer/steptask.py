@@ -36,6 +36,8 @@ def modparse(input_dict):
     return retdict
 
 class Task(BaseMod):
+    req_attr=BaseMod.req_attr+['owner','prior','next']
+    opt_attr=BaseMod.opt_attr+['build','relax','relax_series','smdclose','solvate','terminate_step']
     def __init__(self,input_dict,owner=None):
         input_dict.update({
             'owner':owner,
@@ -50,26 +52,29 @@ class TaskList(ModList):
         if len(self)>0:
             task.prior=self[-1]
             task.prior.next=task
-        assert len(task.__dict__)==4,f'Attempting to append a task that has already been appended?'
-        taskname=[x for x in task.__dict__.keys() if not x in ['owner','prior','next']][0]
-        assert taskname in ['build','relax','relax_series','smdclose','solvate','terminate_step']
-        if   taskname=='build':        taskfunc=self.do_build
-        elif taskname=='relax':        taskfunc=self.do_relax
-        elif taskname=='relax_series': taskfunc=self.do_relax_series
-        elif taskname=='solvate':      taskfunc=self.do_solvate
-        elif taskname=='smdclose':     taskfunc=self.do_smdclose
-        elif taskname=='terminate_step':     taskfunc=self.terminate_step
+        assert len(task.__dict__)==4,f'Attempting to append a task that has already been appended? {task.__dict__}'
+        taskname=[x for x in task.__dict__.keys() if not x in task.req_attr][0]
+        logging.debug(f'Appending task "{taskname}" to step {task.owner.name}')
+        assert taskname in task.opt_attr #['build','relax','relax_series','smdclose','solvate','terminate_step']
+        if   taskname=='build':           taskfunc=self.do_build
+        elif taskname=='relax':           taskfunc=self.do_relax
+        elif taskname=='relax_series':    taskfunc=self.do_relax_series
+        elif taskname=='solvate':         taskfunc=self.do_solvate
+        elif taskname=='smdclose':        taskfunc=self.do_smdclose
+        elif taskname=='terminate_step':  taskfunc=self.do_terminate_step
         else:
             taskfunc=self.no_func
         task.taskname=taskname
         task.taskfunc=taskfunc
         if taskname=='terminate_step':
-            task.basename=f'{self.owner.name}'
+            task.basename=f'{task.owner.name}'
         else:
-            task.basename=f'{self.owner.name}-{task.taskname}'
+            task.basename=f'{task.owner.name}-{task.taskname}'
         ''' resolve mods '''
-        specs=self.__dict__[taskname]        
-        modlist=specs.get('mods',[])
+        task.specs={} if not task.__dict__[taskname] else task.__dict__[taskname]
+        logger.debug(f'Step: {task.owner.name} Task: {taskname} Specs: {task.specs}')
+        # logger.debug(f'task attributes: '+ ','.join([f'{k}:{v}' for k,v in task.__dict__.items()]))
+        modlist=task.specs.get('mods',[])
         if modlist:
             for m in modlist:
                 if type(m)==str and (m.endswith('.yaml') or m.endswith('.yml')):
@@ -84,47 +89,45 @@ class TaskList(ModList):
                     replace_mods=special_update(replace_mods,from_userconfig)
                 else:
                     logger.warning(f'Mod list element {m} ignored.')
-            specs['mods']=replace_mods
-            for name,mod in specs['mods'].items():
+            task.specs['mods']=replace_mods
+            for name,mod in task.specs['mods'].items():
                 if hasattr(mod,'source'):
                     if 'pdb' in mod.source:
                         self.pdbs.append(mod.source['pdb'])
-            specs['mods_resolved']=True
+            task.specs['mods_resolved']=True
         super().append(task)
         
     def do_build(self,task):
-        specs=task.build
-        logger.debug(f'do_build: specs {specs}')
-        base_molecule=self.owner.base_molecule
-        pg=self.psfgen
+        mod_dict=task.specs.get('mods',{})
+        remove_generated_pdb_files=task.specs.get('cleanup',False)
+        # logger.debug(f'do_build: specs {specs}')
+        base_molecule=task.owner.base_molecule
+        pg=task.owner.psfgen
         pg.beginscript(task.basename)
         pg.topo_aliases()
-        pg.describe_molecule(base_molecule,specs['mods'])
+        pg.set_molecule(base_molecule)
+        pg.describe_molecule(base_molecule,mod_dict)
         pg.transform_postmods()
         pg.global_postmods()
         pg.endscript()
         pg.writescript()
-        o,e=pg.runscript()
-        pg.cleanup()
+        pg.runscript()
+        pg.cleanup(cleanup=remove_generated_pdb_files)
     
     def do_solvate(self,task):
-        specs=task.solvate
-        logger.debug(f'do_solvate: specs {specs}')
+        logger.debug(f'do_solvate: specs {task.specs}')
         pass
 
     def do_smdclose(self,task):
-        specs=task.smdclose
-        logger.debug(f'do_smdclose: specs {specs}')
+        logger.debug(f'do_smdclose: specs {task.specs}')
         pass
 
     def do_relax(self,task):
-        specs=task.relax
-        logger.debug(f'do_relax: specs {specs}')
+        logger.debug(f'do_relax: specs {task.specs}')
         pass
 
     def do_relax_series(self,task):
-        specs=task.relax_series
-        logger.debug(f'do_relax_series: specs {specs}')
+        logger.debug(f'do_relax_series: specs {task.specs}')
         pass
 
     def do_terminate_step(self,task):
@@ -146,10 +149,11 @@ class Step(BaseMod):
         self.chainIDmanager=ChainIDManager()
         self.tasks_resolved=False
     
-    def resolve_tasks(self):
+    def resolve_tasks(self,psfgen):
         assert type(self.tasks)==list
-        assert len(self.tasks)>1
+        assert len(self.tasks)>0
         assert type(self.tasks[0])==dict
+        self.psfgen=psfgen
         self.tasklist=TaskList([])
         for tdict in self.tasks:
             self.tasklist.append(Task(tdict,owner=self))
@@ -174,3 +178,5 @@ class Step(BaseMod):
             self.molecules[p]=Molecule(source=p)
         return self
 
+    def do_tasks(self):
+        self.tasklist.do_tasks()

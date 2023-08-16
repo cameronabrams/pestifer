@@ -53,6 +53,8 @@ PDBAliases:
   - atom VCG C08 C8
   - atom VCG C09 C9
   - residue EIC LIN
+  - residue MAN AMAN
+  - residue BMA BMAN
 
 PDB_to_CHARMM_Resnames:
   HIS: HSE

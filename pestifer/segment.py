@@ -60,6 +60,9 @@ class Segment(AncestorAwareMod):
         input_dict['config_params']=parm_dict
         super().__init__(input_dict)
 
+    def has_graft(self,modlist):
+        return False
+
     def __str__(self):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
 
@@ -72,11 +75,44 @@ class Segment(AncestorAwareMod):
             self.generic_stanza(B,transform,mods,file_collector=file_collector)
     
     def glycan_stanza(self,B,transform,mods,file_collector=None):
-        B.banner(f'Not generating segment {self.segname} ({self.segtype})')
-        B.banner('GLYCANS ARE NOT YET IMPLEMENTED')
+        if self.has_graft(mods.get('Grafts',[])):
+            B.comment('Glycan grafts not yet implemented.')
+        else:
+            self.generic_stanza(B,transform,mods,file_collector=file_collector)
     
     def generic_stanza(self,B,transform,mods,file_collector=None):
-        B.banner(f'Not generating generic segment {self.segname} ({self.segtype})')
+        assert len(self.subsegments)==1,'No missing atoms allowed in generic stanza'
+        parent_molecule=self.ancestor_obj
+        the_chainID=self.residues[0].chainID
+        chainIDmap=transform.chainIDmap
+        rep_chainID=chainIDmap.get(the_chainID,the_chainID)
+        seglabel=self.psfgen_segname
+        if rep_chainID!=the_chainID:
+            seglabel=f'{rep_chainID}{seglabel[1:]}' # first byte is chain ID
+            logger.info(f'relabeling chain {the_chainID} to {rep_chainID} in {self.psfgen_segname} -> {seglabel}')
+        transform.register_mapping(self.segtype,the_chainID,seglabel)
+
+        B.banner(f'BEGIN SEGMENT {seglabel}')
+        B.comment(f'This segment is referenced as chain {the_chainID} in the input structure')
+        serial_list=self.residues.atom_serials(as_type=int)
+        vmd_red_list=reduce_intlist(serial_list)
+        pdb=f'GENERIC_{seglabel}.pdb'
+        selname=seglabel
+        file_collector.append(pdb)
+        B.addline(f'set {selname} [atomselect ${parent_molecule.molid_varname} "serial {vmd_red_list}"]')
+        if rep_chainID!=the_chainID:
+            B.addline(sel.backup(f'{selname}'))
+            B.addline(f'${selname} set chain {rep_chainID}')                 
+            B.addline(f'${selname} move {transform.write_TcL()}')
+        B.addline(f'${selname} writepdb {pdb}')
+        B.addline(f'segment {seglabel} '+'{')
+        B.addline(f'    pdb {pdb}')
+        B.addline('}')
+        B.addline(f'coordpdb {pdb} {seglabel}')
+        if rep_chainID!=the_chainID:
+            B.banner(f'Restoring A.U. state for {seglabel}')
+            B.addline(sel.restore(f'{selname}'))
+        B.banner(f'END SEGMENT {seglabel}')
 
     def protein_stanza(self,B:ByteCollector,transform,mods,file_collector=None):
         parent_molecule=self.ancestor_obj
@@ -87,8 +123,9 @@ class Segment(AncestorAwareMod):
         seglabel=self.psfgen_segname # protein, so should just be letter
         if rep_chainID!=the_chainID:
             logger.info(f'relabeling chain {the_chainID} to {rep_chainID} in {seglabel}')
-            seglabel=f'{rep_chainID}' # first byte is chain ID
-        transform.segnamemap[self.psfgen_segname]=seglabel
+            seglabel=f'{rep_chainID}'# protein segment names are chainIDs
+        transform.register_mapping(self.segtype,the_chainID,seglabel)
+
         sac_rd=self.config_params['Sacrificial_residue']
         sac_r=sac_rd['name']
         sac_n=sac_rd['min_loop_length']
@@ -194,40 +231,30 @@ class Segment(AncestorAwareMod):
         B.banner(f'END SEGMENT {seglabel}')
 
 class SegmentList(AncestorAwareModList):
-    counters_by_segtype={}
+    # counters_by_segtype={}
     def append(self,item:Segment):
         olc=ConfigGetParam('Segname_chars').get(item.segtype)
         itemkey=f'{item.chainID}{olc}'
         if not itemkey in self.counters_by_segtype:
-            self.counters_by_segtype[itemkey]=0
+            self.counters_by_segtype[itemkey]=1
         self.counters_by_segtype[itemkey]+=1
         if item.segtype=='PROTEIN':
             item.psfgen_segname=item.segname
         else:
-            item.psfgen_segname=f'{itemkey}{self.counters_by_segtype[itemkey]:03d}'
+            item.psfgen_segname=f'{itemkey}{self.counters_by_segtype[itemkey]:02d}'
         super().append(item)
 
     def __init__(self,input_obj):
+        self.counters_by_segtype={}
         if type(input_obj)==ResidueList:
             super().__init__([])
             residues=input_obj
-            tmp_counters={}
             for stype in ['PROTEIN','WATER','ION','GLYCAN','LIGAND','OTHER']:
                 res=residues.get(segtype=stype)
                 for chainID in res.unique_chainIDs():
                     c_res=residues.get(segtype=stype,chainID=chainID)
                     thisSeg=Segment(c_res)
-                    olc=ConfigGetParam('Segname_chars').get(thisSeg.segtype)
-                    if thisSeg.segtype=='PROTEIN':
-                        thisSeg.psfgen_segname=thisSeg.segname
-                    else:
-                        thisSeg.psfgen_segname=f'{itemkey}{tmp_counters[itemkey]:03d}'
-                    itemkey=f'{thisSeg.chainID}{olc}'
-                    if not itemkey in tmp_counters:
-                        tmp_counters[itemkey]=0
-                    tmp_counters[itemkey]+=1
-                    self.append(thisSeg)
-            
+                    self.append(thisSeg)            
         else:
             logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
 
@@ -238,7 +265,6 @@ class SegmentList(AncestorAwareModList):
                 if hasattr(subseg,'pdb'):
                     logger.debug(f'wf: {subseg.pdb}')
                     working_files.append(subseg.pdb)
-
         return working_files
     
     def write_TcL(self,B:ByteCollector,transform,mods,file_collector=None):
@@ -247,6 +273,12 @@ class SegmentList(AncestorAwareModList):
             seg.write_TcL(B,transform,mods,file_collector=file_collector)
             B.comment(f'Done with seg {seg.segname}')
     
+    def get_segment_of_residue(self,residue):
+        for S in self:
+            if residue in S.residues:
+                return S
+        return None
+
     # def __init__(self,r,parent_chain=None,subcounter=''):
     #     """Initializes a segment instance by passing in first residue of segment"""
     #     self.parent_chain=parent_chain

@@ -1,5 +1,5 @@
-Title: Test User Config
-BuildSteps:
+title: Test User Config
+steps:
   - name: step1
     source:
        pdb: 4zmj
@@ -7,32 +7,33 @@ BuildSteps:
     mods:
     tasks:
       - build:
-      - smdclose:
-      - relax:
-          nsteps: 999
-    # mods:
-    #   ModFiles:
-    #     - example_modfile.yaml
-    #     - another_example_modfile.yaml
-    #   Mutations:
-    #     - chainID: A
-    #       resseqnum: 151
-    #       origresname: ALA
-    #       newresname:  CYS
-    #     - D:MET,301,CYS
-    #     - chainID: A
-    #       resseqnum: 152
-    #       origresname: PHE
-    #       newresname:  TYR
-    #     - chainID: C
-    #       resseqnum: 154
-    #       insertion: A
-    #       origresname: THR
-    #       newresname:  SER
-  - name: step2
-    source: step1
-    mods:
-    tasks:
-      - solvate:
-      - relax:
-          nsteps: 1000
+          cleanup: False
+  #     - smdclose:
+  #     - relax:
+  #         nsteps: 999
+  #   # mods:
+  #   #   ModFiles:
+  #   #     - example_modfile.yaml
+  #   #     - another_example_modfile.yaml
+  #   #   Mutations:
+  #   #     - chainID: A
+  #   #       resseqnum: 151
+  #   #       origresname: ALA
+  #   #       newresname:  CYS
+  #   #     - D:MET,301,CYS
+  #   #     - chainID: A
+  #   #       resseqnum: 152
+  #   #       origresname: PHE
+  #   #       newresname:  TYR
+  #   #     - chainID: C
+  #   #       resseqnum: 154
+  #   #       insertion: A
+  #   #       origresname: THR
+  #   #       newresname:  SER
+  # - name: step2
+  #   source: step1
+  #   mods:
+  #   tasks:
+  #     - solvate:
+  #     - relax:
+  #         nsteps: 1000

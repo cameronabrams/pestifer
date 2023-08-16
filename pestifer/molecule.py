@@ -10,7 +10,7 @@ import logging
 from pidibble.pdbparse import PDBParser
 from .basemod import AncestorAwareMod
 from .asymmetricunit import AsymmetricUnit
-from .bioassemb import BioAssembList
+from .bioassemb import BioAssembList,BioAssemb
 from .stringthings import ByteCollector
 from .mods import MutationList, apply_psf_info
 from .config import ConfigGetParam
@@ -47,18 +47,23 @@ class Molecule(AncestorAwareMod):
             'source': source,
             'parsed_struct': p_struct,
             'asymmetric_unit': AsymmetricUnit(p_struct),
-            'biological_assemblies': BioAssembList(p_struct,reset=True)
+            'biological_assemblies': BioAssembList(p_struct)#,reset=True)
         }
         super().__init__(input_dict)
         self.asymmetric_unit.claim_descendants(self,0)
         self.biological_assemblies.claim_descendants(self,0)
     
     def activate_biological_assembly(self,index,chainIDmanager):
-        biological_assembly=[x for x in self.biological_assemblies if x.index==index]
-        assert biological_assembly!=[],f'No biological assembly "{index:d}" found.'
-        assert len(biological_assembly)==1,f'No unique biological assembly "{index}" found.'
-        self.active_biological_assembly=biological_assembly[0]
-        logger.info(f'Activating biological assembly {self.active_biological_assembly.name} (idx {index})')
+        if index==0 or len(self.biological_assemblies)==0: # we will use the unadulterated A.U. as the B.A.
+            self.active_biological_assembly=BioAssemb(self.asymmetric_unit)
+            if index!=0:
+                logger.warning(f'No biological assemblies specified in input structure.  Using A.U.; ignoring your request of B.A. "{index}"')
+        else:
+            biological_assembly=[x for x in self.biological_assemblies if x.index==index]
+            assert biological_assembly!=[],f'No biological assembly "{index:d}" found.'
+            assert len(biological_assembly)==1,f'No unique biological assembly "{index}" found.'
+            self.active_biological_assembly=biological_assembly[0]
+            logger.info(f'Activating biological assembly {self.active_biological_assembly.name} (idx {index})')
         ba=self.active_biological_assembly
         auChainIDs=self.asymmetric_unit.chainIDs
         ba.biomt[0].chainIDmap={c:c for c in auChainIDs}
@@ -83,6 +88,7 @@ class Molecule(AncestorAwareMod):
         au.SSBonds.prune_mutations(user_mods.get('Mutations',MutationList([])))
         if ConfigGetParam('Fix_engineered_mutations'):
             au.SSBonds.prune_mutations(au.Mutations)
+            au.Links.prune_mutations(au.Mutations,au.Segments)
             # au.Links.prune_mutations(au.Conflicts) # problematic?
         if ConfigGetParam('Fix_conflicts'):
             au.SSBonds.prune_mutations(au.Conflicts)
@@ -95,8 +101,8 @@ class Molecule(AncestorAwareMod):
             B.banner('SEGMENTS FOLLOW')
             au.Segments.write_TcL(B,biomt,allmods,file_collector=file_collector)
             B.banner('DISU PATCHES FOLLOW')
-            B.write(au.SSBonds.write_TcL(biomt,allmods))
+            au.SSBonds.write_TcL(B,biomt,allmods)
             B.banner('LINK PATCHES FOLLOW')
-            B.write(au.Links.write_TcL(biomt,allmods))
+            au.Links.write_TcL(B,biomt,allmods)
             B.banner(f'TRANSFORM {biomt.index} ENDS')
 

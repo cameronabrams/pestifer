@@ -6,9 +6,10 @@ from pidibble.baserecord import BaseRecord
 import logging
 logger=logging.getLogger(__name__)
 from .basemod import AncestorAwareMod, AncestorAwareModList
+from .asymmetricunit import AsymmetricUnit
 
 class BiomT(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['index','tmat','chainIDmap','segnamemap','segname_by_type_map']
+    req_attr=AncestorAwareMod.req_attr+['index','tmat','chainIDmap','segname_by_type_map']
     
     def __init__(self,*input_objs):
         if len(input_objs)==3:
@@ -27,9 +28,13 @@ class BiomT(AncestorAwareMod):
             'index':index
         }
         input_dict['chainIDmap']={}
-        input_dict['segnamemap']={}
         input_dict['segname_by_type_map']={}
         super().__init__(input_dict)
+
+    def register_mapping(self,segtype,chainID,seglabel):
+        if not segtype in self.segname_by_type_map:
+            self.segname_by_type_map[segtype]={}
+        self.segname_by_type_map[segtype][chainID]=seglabel
 
     def write_TcL(self):
         retstr=r'{ '
@@ -44,9 +49,15 @@ class BiomT(AncestorAwareMod):
         return np.array_equal(self.tmat,other.tmat)
 
 class BiomTList(AncestorAwareModList):
-    def __init__(self,pdbrecord):
-        M,T=get_symm_ops(pdbrecord)
-        L=[BiomT(m,t,i) for i,(m,t) in enumerate(zip(M,T))]
+    def __init__(self,*args):
+        L=[]
+        if len(args)==1:
+            if type(args[0])==PDBRecord or type(args[0])==BaseRecord:
+                pdbrecord=args[0]
+                M,T=get_symm_ops(pdbrecord)
+                L=[BiomT(m,t,i) for i,(m,t) in enumerate(zip(M,T))]
+        else:
+            L=[BiomT()]
         super().__init__(L)
 
 class BioAssemb(AncestorAwareMod):
@@ -64,6 +75,15 @@ class BioAssemb(AncestorAwareMod):
                 'chainIDs':pdbrecord.header,
                 'biomt':BiomTList(pdbrecord) 
             }
+        elif type(input_obj)==AsymmetricUnit:
+            au=input_obj
+            input_dict={
+                'name':'A.U.',
+                'chainIDs':au.chainIDs,
+                'biomt':BiomTList()
+            }
+        else:
+            logger.warning(f'Cannot initialize {type(self)} from object of type {type(input_obj)}')
         input_dict['index']=BioAssemb._index
         BioAssemb._index+=1
         super().__init__(input_dict)
@@ -72,8 +92,11 @@ class BioAssemb(AncestorAwareMod):
         cls._index=1
 
 class BioAssembList(AncestorAwareModList):
-    def __init__(self,p_struct,reset=False):
-        barecs=[p_struct[x] for x in p_struct if ('REMARK.350.BIOMOLECULE' in x and 'TRANSFORM' in x)]
+    def __init__(self,*obj):
         BioAssemb.reset_index()
-        B=[BioAssemb(rec) for rec in barecs]
+        B=[]
+        if len(obj)==1:
+            p_struct=obj[0]
+            barecs=[p_struct[x] for x in p_struct if ('REMARK.350.BIOMOLECULE' in x and 'TRANSFORM' in x)]
+            B=[BioAssemb(rec) for rec in barecs]
         super().__init__(B)

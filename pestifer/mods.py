@@ -14,7 +14,7 @@ from pidibble.baserecord import BaseRecord
 from .cifutil import CIFdict
 from .basemod import AncestorAwareMod,AncestorAwareModList
 from .config import ConfigGetParam
-from .stringthings import ByteCollector
+from .stringthings import ByteCollector, split_ri
 
 class Seqadv(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['idCode','resname','chainID','resseqnum','insertion']
@@ -438,32 +438,30 @@ class SSBond(AncestorAwareMod):
                 '{:6.2f}'.format(self.length)
         return pdbline
     
-    def write_TcL(self,transform):
+    def write_TcL(self,B:ByteCollector,transform):
         chainIDmap=transform.chainIDmap 
         # ok since these are only going to reference protein segments; protein segment names are the chain IDs
         c1=chainIDmap.get(self.chainID1,self.chainID1)
         c2=chainIDmap.get(self.chainID2,self.chainID2)
         r1=self.resseqnum1
         r2=self.resseqnum2
-        return f'patch DISU {c1}:{r1} {c2}:{r2}'
+        B.addline(f'patch DISU {c1}:{r1} {c2}:{r2}')
 
 class SSBondList(AncestorAwareModList):
-    def write_TcL(self,transform,mods):
+    def write_TcL(self,B:ByteCollector,transform,mods):
         undo_SSBonds=mods.get('SSBondDelete',SSBondDeleteList([]))
-        B=ByteCollector()
         for s in self:
             if undo_SSBonds.is_deleted(s,transform):
                 continue
-            B.addline(s.write_TcL(transform))
+            s.write_TcL(B,transform)
         for s in mods.get('SSBonds',[]):
-            B.addline(s.writeTcL(transform))
-        return B.byte_collector
+            s.writeTcL(B,transform)
     def prune_mutations(self,Mutations):
         for m in Mutations:
-            left=self.get(chainID1=m.chainID,resseqnum1=m.resseqnum)
+            left=self.get(chainID1=m.chainID,resseqnum1=m.resseqnum,insertion1=m.insertion)
             if left:
                 self.remove(left)
-            right=self.get(chainID2=m.chainID,resseqnum2=m.resseqnum)
+            right=self.get(chainID2=m.chainID,resseqnum2=m.resseqnum,insertion2=m.insertion)
             if right:
                 self.remove(right)
 
@@ -482,40 +480,32 @@ class SSBondDeleteList(SSBondList):
 
 class Link(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['name1','chainID1','resseqnum1','insertion1','name2','chainID2','resseqnum2','insertion2']
-    opt_attr=AncestorAwareMod.opt_attr+['altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance','segname1','segname2','residue1','residue2','atom1','atom2','empty']    
+    opt_attr=AncestorAwareMod.opt_attr+['altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance','segname1','segname2','residue1','residue2','atom1','atom2','empty','segtype1','segtype2']    
     yaml_header='Links'
     PDB_keyword='LINK'
 
     def __init__(self,input_obj):
-        if type(input_obj)==dict:
-            super().__init__(input_obj)
-        elif type(input_obj)==PDBRecord:
+        if type(input_obj)==PDBRecord:
             pdbrecord=input_obj
             input_dict={
                 'name1': pdbrecord.name1,
-                'altloc1':pdbrecord.altLoc1,
                 'resname1':pdbrecord.residue1.resName,
                 'chainID1':pdbrecord.residue1.chainID,
                 'resseqnum1':pdbrecord.residue1.seqNum,
                 'insertion1':pdbrecord.residue1.iCode,
                 'name2': pdbrecord.name2,
-                'altloc2':pdbrecord.altLoc2,
                 'resname2':pdbrecord.residue2.resName,
                 'chainID2':pdbrecord.residue2.chainID,
                 'resseqnum2':pdbrecord.residue2.seqNum,
                 'insertion2':pdbrecord.residue2.iCode,
+                'altloc2':pdbrecord.altLoc2,
+                'altloc1':pdbrecord.altLoc1,
                 'sym1':pdbrecord.sym1,
                 'sym2':pdbrecord.sym2,
                 'link_distance':pdbrecord.length,
                 'segname1':pdbrecord.residue1.chainID,
                 'segname2':pdbrecord.residue2.chainID,
-                'residue1':None,
-                'residue2':None,
-                'atom1':None,
-                'atom2':None,
-                'empty':False
-            }
-            super().__init__(input_dict)
+                }
         elif type(input_obj)==CIFdict:
             d=input_obj
             input_dict={}
@@ -526,7 +516,7 @@ class Link(AncestorAwareMod):
             input_dict['chainID1']=d['ptnr1_auth_asym_id']
             input_dict['resseqnum1']=int(d['ptnr1_auth_seq_id'])
             ic=d['pdbx_ptnr1_pdb_ins_code']
-            input_dict['icode1']=' ' if ic=='?' else ic
+            input_dict['insertion1']=' ' if ic=='?' else ic
             input_dict['name2']=d['ptnr2_label_atom_id']
             al=d['pdbx_ptnr2_label_alt_id']
             input_dict['altloc2']=' ' if al=='?' else al
@@ -534,41 +524,90 @@ class Link(AncestorAwareMod):
             input_dict['chainID2']=d['ptnr2_auth_asym_id']
             input_dict['resseqnum2']=int(d['ptnr2_auth_seq_id'])
             ic=d['pdbx_ptnr2_pdb_ins_code']
-            input_dict['icode2']=' ' if ic=='?' else ic
+            input_dict['insertion2']=' ' if ic=='?' else ic
             input_dict['sym1']=d['ptnr1_symmetry']
             input_dict['sym2']=d['ptnr2_symmetry']
             input_dict['link_distance']=float(d['pdbx_dist_value'])
             input_dict['segname1']=input_dict['chainID1']
             input_dict['segname2']=input_dict['chainID2']
-            input_dict['residue1']=None
-            input_dict['residue2']=None
-            input_dict['atom1']=None
-            input_dict['atom2']=None
-            input_dict['empty']=False
-            super().__init__(input_dict)
+        elif type(input_obj)==dict:
+            input_dict=input_obj
         else:
             logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
+        input_dict.update({
+                'residue1':None,
+                'residue2':None,
+                'atom1':None,
+                'atom2':None,
+                'empty':False,
+                'segtype1':ConfigGetParam('Segtypes_by_Resnames')[input_dict['resname1']],
+                'segtype2':ConfigGetParam('Segtypes_by_Resnames')[input_dict['resname2']],
+            })
+        super().__init__(input_dict)
 
-    def write_TcL(self,transform,mods):
-        if self.resname1=='ASN' and ConfigGetParam('Segtypes_by_Resnames')[self.resname1]=='GLYCAN':
+    def write_TcL(self,B:ByteCollector,transform,mods):
+        if self.resname1=='ASN' and self.segtype2=='GLYCAN':
             chainIDmap=transform.chainIDmap
-            seg1=chainIDmap(self.segname1)
-            seg2=transform.segname_by_type_map['GLYCAN'](self.segname2)
-            return f'patch NGLB {seg1}:{self.resseqnum1}{self.icode1} {seg2}:{self.resseqnum2}{self.icode2}'
-        # TODO: handle all the others
-        return ''
-
+            seg1=chainIDmap[self.segname1]
+            seg2=transform.segname_by_type_map['GLYCAN'][self.segname2]
+            B.addline(f'patch NGLB {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
+        else:
+            # this is likely an intra-glycan linkage
+            if self.name2=='C1' and self.segtype1=='GLYCAN':
+                seg1=transform.segname_by_type_map['GLYCAN'][self.segname1]
+                seg2=transform.segname_by_type_map['GLYCAN'][self.segname2]
+                B.addline(f'set cn {self.name1[1]}')
+                B.addline(f'set abi [axeq {self.resseqnum2} 0 {self.chainID2} {self.name2} {self.resseqnum1}]')
+                B.addline(f'set abj [axeq {self.resseqnum1} 0 {self.chainID1} {self.name1} -1]')
+                if self.name1=='O6':
+                    B.addline('if { $abi == "a" } { set abi A }')
+                    B.addline('if { $abi == "b" } { set abi B }')
+                    B.addline('if { $abj == "b" } { set abj T }')
+                B.addline('set pres "1$cn$abi$abj"')
+                B.addline(f'patch $pres {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum1}{self.insertion2}')
+            elif self.name1=='C1' and self.segtype2=='GLYCAN':
+                seg1=transform.segname_by_type_map['GLYCAN'][self.segname1]
+                seg2=transform.segname_by_type_map['GLYCAN'][self.segname2]
+                cmdj=f'[axeq {self.resseqnum2} 0 {self.chainID2} {self.name2} {self.resseqnum1}]'
+                cmdi=f'[axeq {self.resseqnum1} 0 {self.chainID1} {self.name1} -1]'
+                B.addline(f'patch 1{self.name2[1]:1s}{cmdi}{cmdj} {seg2}:{self.resseqnum2}{self.insertion2} {seg1}:{self.resseqnum1}{self.insertion1}')
+            elif self.name1=='O6' and self.name2=='C2':
+                seg1=transform.segname_by_type_map['GLYCAN'][self.segname1]
+                seg2=transform.segname_by_type_map['GLYCAN'][self.segname2]
+                B.addline(f'patch SA26AT {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
+            else:
+                logger.warning(f'Could not identify patch for link: {str(self)}')
+                B.comment(f'No patch found for {str(self)}')
+        
     def __str__(self):
-        return f'{self.chainID1}{self.resname1}{self.resseqnum1}{self.iCode1}-{self.chainID2}{self.resname2}{self.resseqnum2}{self.iCode2}'
+        return f'{self.chainID1}{self.resname1}{self.resseqnum1}{self.insertion1}-{self.chainID2}{self.resname2}{self.resseqnum2}{self.insertion2}'
+    
+    def prune_mutations(self,Mutations,Segments):
+        for m in Mutations:
+            rlist,llist=[],[]
+            left=self.get(chainID1=m.chainID,resseqnum1=m.resseqnum,insertion1=m.insertion)
+            right=self.get(chainID2=m.chainID,resseqnum2=m.resseqnum,insertion2=m.insertion)
+            if left:  # left is a link in which this mutation is the left member
+                self.remove(left)
+                # remove downstream residues!
+                rlist,llist=left.residue2.get_down_group()
+            elif right: # right is a link in which this mutation is the right member (should be very rare)
+                self.remove(right)
+                rlist,llist=left.residue2.get_down_group()
+            if rlist and llist:
+                logger.debug(f'Deleting residues down from and including {str(rlist[0])} due to a mutation')
+                S=Segments.get_segment_of_residue(rlist[0])
+                for r in rlist:
+                    S.residues.remove(r)
+                if len(S.residues)==0:
+                    Segments.remove(S)
+                for l in llist:
+                    self.remove(l)
 
 class LinkList(AncestorAwareModList):
-    def write_TcL(self,transform,mods):
-        B=ByteCollector()
+    def write_TcL(self,B:ByteCollector,transform,mods):
         for l in self:
-            linkline=l.write_TcL(transform,mods)
-            if linkline:
-                B.addline(linkline)
-        return str(B)
+            l.write_TcL(B,transform,mods)
 
 class Graft(AncestorAwareMod):
     yaml_header='Grafts'
@@ -599,6 +638,11 @@ def apply_psf_info(p_struct,psf):
     for ml in metadata_lines:
         words=ml.split()
         if ' '.join(words[1:3])=='patch DISU':
-            pass
+            c1,r1i=words[3].split(':')
+            c2,r2i=words[4].split(':')
+            r1,i1=split_ri(r1i)
+            r2,i2=split_ri(r2i)
+            p_struct['SSBONDS'].append(SSBond({'chainID1':c1,'chainID2':c2,'resseqnum1':r1,'resseqnum2':r2,'insertion1':i1,'insertion2':i2}))
+        # elif ' '.join(words[1:3])=='patch '
             # add a new SSBOND record to p_struct
         # elif ...

@@ -96,11 +96,10 @@ class Psfgen:
             my_logger(f'STDOUT from "{c.command}"',f.write)
             f.write(c.stdout+'\n')
             my_logger(f'STDERR from "{c.command}"',f.write)
-            f.writE(c.stderr+'\n')
+            f.write(c.stderr+'\n')
             my_logger(f'END OF LOG',f.write)
     
-    def cleanup(self):
-        cleanup=self.post_build_directives.get('cleanup',False)
+    def cleanup(self,cleanup=False):
         if cleanup:
             logger.info(f'Post-execution clean-up: {len(self.F)} files removed.')
             for file in self.F:

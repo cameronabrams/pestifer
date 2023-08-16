@@ -10,16 +10,17 @@ import logging
 logger=logging.getLogger(__name__)
 
 from .config import ConfigSetup
+from .psfgen import Psfgen
 from .steptask import Step
 class Controller:
     def __init__(self,userconfigfilename):
         self.config=ConfigSetup(userconfigfilename)
+        self.psfgen=Psfgen(self.config.resman)
         self.steps=[]
-        self.register_mod_classes()
-        self.register_modlist_classes()
         if 'steps' in self.config.defs:
             for step in self.config.defs['steps']:
-                self.steps.append(Step(step).resolve_tasks())
+                self.steps.append(Step(step).resolve_tasks(self.psfgen))
+        logger.debug(f'Controller will execute {len(self.steps)} step(s).')
 
     def do_steps(self,**kwargs):
         self.check()

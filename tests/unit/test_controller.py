@@ -68,4 +68,4 @@ class TestController(unittest.TestCase):
         # self.assertTrue('shortcode' in m)
     def test_controller_do(self):
         C=Controller('user_config.yaml')
-        C.do(clean_up=True)
+        C.do_steps()

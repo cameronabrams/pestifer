@@ -12,7 +12,8 @@ logger=logging.getLogger(__name__)
 import os
 # _ANGSTROM_='Ångström'
 class ByteCollector:
-    def __init__(self,comment_char='#'):
+    def __init__(self,comment_char='#',line_length=80):
+        self.line_length=line_length
         self.comment_char=comment_char
         self.byte_collector=''
     def reset(self):
@@ -23,7 +24,18 @@ class ByteCollector:
         self.byte_collector+=f'{msg}{end}'
     def comment(self,msg,end='\n'):
         comment_line=f'{self.comment_char} {msg}'
-        self.addline(comment_line,end=end)
+        comment_words=comment_line.split()
+        comment_lines=['']
+        current_line_idx=0
+        for word in comment_words:
+            test_line=' '.join(comment_lines[current_line_idx].split()+[word])
+            if len(test_line)>self.line_length:
+                comment_lines.append(f'{self.comment_char} {word}')
+                current_line_idx+=1
+            else:
+                comment_lines[current_line_idx]=test_line
+        for line in comment_lines:
+            self.addline(line,end=end)
     def log(self,msg):
         my_logger(msg,self.addline)
     def banner(self,msg):
@@ -78,3 +90,12 @@ class FileCollector(list):
                 os.remove(f)
             else:
                 logger.debug(f'{f}: not found.')
+
+def split_ri(ri):
+    if ri[-1].isdigit(): # there is no insertion code
+        r=int(ri)
+        i=''
+    else:
+        r=int(ri[:-1])
+        i=ri[-1]
+    return r,i
