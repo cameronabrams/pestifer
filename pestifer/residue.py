@@ -140,6 +140,7 @@ class Hetatm(Atom):
 class Residue(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['resseqnum','insertion','name','chainID','segtype']
     opt_attr=AncestorAwareMod.opt_attr+['atoms','up','down','uplink','downlink','resseqnumi']
+    ignore_attr=AncestorAwareMod.ignore_attr+['atoms','up','down','uplink','downlink','resseqnumi']
     _counter=0
     def __init__(self,input_obj):
         if type(input_obj)==dict:
@@ -219,7 +220,8 @@ class Residue(AncestorAwareMod):
         for d,dl in zip(self.down,self.downlink):
             res.append(d)
             lin.append(dl)
-            tres,tlin=self.get_down_group(self.down)
+            logger.debug(f'{str(self)}->{str(d)}')
+            tres,tlin=d.get_down_group()
             res.extend(tres)
             lin.extend(tlin)
         return res,lin
@@ -264,10 +266,10 @@ class ResidueList(AncestorAwareModList):
             for a in res.atoms:
                 serlist.append(as_type(a.serial))
         return serlist
-    def caco_str(self,upstream_reslist,seglabel):
+    def caco_str(self,upstream_reslist,seglabel,molid_varname):
         r0=self[0]
         ur=upstream_reslist[-1]
-        return 'coord {} {}{} N [cacoIn_nOut {}{} {} 0]'.format(seglabel,r0.resseqnum,r0.insertion,ur.resseqnum,ur.insertion,seglabel)
+        return f'coord {seglabel} {r0.resseqnum}{r0.insertion} N [cacoIn_nOut {ur.resseqnum}{ur.insertion} {seglabel} ${molid_varname}]'
     def resrange(self,rngrec):
         subR=self.get(chainID=rngrec.chainID)
         subR.sort()

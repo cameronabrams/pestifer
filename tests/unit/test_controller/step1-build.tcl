@@ -106,13 +106,20 @@ segment G {
     mutate 501 ALA
 }
 ###################### Coordinate-specification commands #######################
+# Subsegment [0] is a resolved run
 coordpdb PROTEIN_G_34_to_185.pdb G
+# Subsegment [2] is a resolved run
 coordpdb PROTEIN_G_187_to_398.pdb G
+# Subsegment [4] is a resolved run
 coordpdb PROTEIN_G_411_to_505.pdb G
-######## Seeding orientation of model-built loop starting at G-GLU185A #########
-coord G 185A N [cacoIn_nOut 185 G 0]
-######### Seeding orientation of model-built loop starting at G-THR400 #########
-coord G 400 N [cacoIn_nOut 398 G 0]
+# Subsegment [1]/5 is a missing loop
+# ...attached to subsegment 0
+# Seeding orientation of model-built loop starting at G-GLU185A from G-ASN185
+coord G 185A N [cacoIn_nOut 185 G $m1])
+# Subsegment [3]/5 is a missing loop
+# ...attached to subsegment 2
+# Seeding orientation of model-built loop starting at G-THR400 from G-ASN398
+coord G 400 N [cacoIn_nOut 398 G $m1])
 ####################### Intra-segmental terminal patches #######################
 patch CTER G:185I
 patch NTER G:187
@@ -162,10 +169,14 @@ segment B {
     mutate 605 THR
 }
 ###################### Coordinate-specification commands #######################
+# Subsegment [0] is a resolved run
 coordpdb PROTEIN_B_521_to_547.pdb B
+# Subsegment [2] is a resolved run
 coordpdb PROTEIN_B_569_to_664.pdb B
-######### Seeding orientation of model-built loop starting at B-ILE548 #########
-coord B 548 N [cacoIn_nOut 547 B 0]
+# Subsegment [1]/3 is a missing loop
+# ...attached to subsegment 0
+# Seeding orientation of model-built loop starting at B-ILE548 from B-GLY547
+coord B 548 N [cacoIn_nOut 547 B $m1])
 ####################### Intra-segmental terminal patches #######################
 patch CTER B:568
 patch NTER B:569
@@ -195,17 +206,6 @@ segment CG02 {
 coordpdb GENERIC_CG02.pdb CG02
 ############################### END SEGMENT CG02 ###############################
 # Done with seg CG
-# Writing seg DG
-############################## BEGIN SEGMENT DG02 ##############################
-# This segment is referenced as chain D in the input structure
-set DG02 [atomselect $m1 "serial 4619 to 4646"]
-$DG02 writepdb GENERIC_DG02.pdb
-segment DG02 {
-    pdb GENERIC_DG02.pdb
-}
-coordpdb GENERIC_DG02.pdb DG02
-############################### END SEGMENT DG02 ###############################
-# Done with seg DG
 # Writing seg GG
 ############################## BEGIN SEGMENT GG02 ##############################
 # This segment is referenced as chain G in the input structure
@@ -248,7 +248,6 @@ patch NGLB G:262 AG02:1
 patch NGLB G:276 GG02:608
 patch NGLB G:295 GG02:619
 patch NGLB G:301 GG02:620
-patch NGLB G:332 DG02:1
 patch NGLB G:339 GG02:609
 patch NGLB G:355 GG02:610
 patch NGLB G:363 GG02:611
@@ -291,11 +290,6 @@ set abi [axeq 2 0 C C1 1]
 set abj [axeq 1 0 C O4 -1]
 set pres "1$cn$abi$abj"
 patch $pres CG02:1 CG02:1
-set cn 4
-set abi [axeq 2 0 D C1 1]
-set abj [axeq 1 0 D O4 -1]
-set pres "1$cn$abi$abj"
-patch $pres DG02:1 DG02:1
 ############################### TRANSFORM 0 ENDS ###############################
 ############################## TRANSFORM 1 BEGINS ##############################
 ################ The following mappings of A.U. chains is used: ################
@@ -372,13 +366,20 @@ segment J {
     mutate 501 ALA
 }
 ###################### Coordinate-specification commands #######################
+# Subsegment [0] is a resolved run
 coordpdb PROTEIN_J_34_to_185.pdb J
+# Subsegment [2] is a resolved run
 coordpdb PROTEIN_J_187_to_398.pdb J
+# Subsegment [4] is a resolved run
 coordpdb PROTEIN_J_411_to_505.pdb J
-######## Seeding orientation of model-built loop starting at G-GLU185A #########
-coord J 185A N [cacoIn_nOut 185 J 0]
-######### Seeding orientation of model-built loop starting at G-THR400 #########
-coord J 400 N [cacoIn_nOut 398 J 0]
+# Subsegment [1]/5 is a missing loop
+# ...attached to subsegment 0
+# Seeding orientation of model-built loop starting at G-GLU185A from G-ASN185
+coord J 185A N [cacoIn_nOut 185 J $m1])
+# Subsegment [3]/5 is a missing loop
+# ...attached to subsegment 2
+# Seeding orientation of model-built loop starting at G-THR400 from G-ASN398
+coord J 400 N [cacoIn_nOut 398 J $m1])
 ####################### Intra-segmental terminal patches #######################
 patch CTER J:185I
 patch NTER J:187
@@ -467,10 +468,14 @@ segment F {
     mutate 605 THR
 }
 ###################### Coordinate-specification commands #######################
+# Subsegment [0] is a resolved run
 coordpdb PROTEIN_F_521_to_547.pdb F
+# Subsegment [2] is a resolved run
 coordpdb PROTEIN_F_569_to_664.pdb F
-######### Seeding orientation of model-built loop starting at B-ILE548 #########
-coord F 548 N [cacoIn_nOut 547 F 0]
+# Subsegment [1]/3 is a missing loop
+# ...attached to subsegment 0
+# Seeding orientation of model-built loop starting at B-ILE548 from B-GLY547
+coord F 548 N [cacoIn_nOut 547 F $m1])
 ####################### Intra-segmental terminal patches #######################
 patch CTER F:568
 patch NTER F:569
@@ -548,34 +553,6 @@ $HG02 set resname $HG02_orig_resname
 $HG02 set name $HG02_orig_name
 ############################### END SEGMENT HG02 ###############################
 # Done with seg CG
-# Writing seg DG
-############################## BEGIN SEGMENT IG02 ##############################
-# This segment is referenced as chain D in the input structure
-set IG02 [atomselect $m1 "serial 4619 to 4646"]
-set IG02_orig_chain [$IG02 get chain]
-set IG02_orig_x [$IG02 get x]
-set IG02_orig_y [$IG02 get y]
-set IG02_orig_z [$IG02 get z]
-set IG02_orig_resid [$IG02 get resid]
-set IG02_orig_resname [$IG02 get resname]
-set IG02_orig_name [$IG02 get name]
-$IG02 set chain I
-$IG02 move { { -0.5 -0.866025 0.0 107.18  } { 0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
-$IG02 writepdb GENERIC_IG02.pdb
-segment IG02 {
-    pdb GENERIC_IG02.pdb
-}
-coordpdb GENERIC_IG02.pdb IG02
-######################## Restoring A.U. state for IG02 #########################
-$IG02 set chain $IG02_orig_chain
-$IG02 set x $IG02_orig_x
-$IG02 set y $IG02_orig_y
-$IG02 set z $IG02_orig_z
-$IG02 set resid $IG02_orig_resid
-$IG02 set resname $IG02_orig_resname
-$IG02 set name $IG02_orig_name
-############################### END SEGMENT IG02 ###############################
-# Done with seg DG
 # Writing seg GG
 ############################## BEGIN SEGMENT JG02 ##############################
 # This segment is referenced as chain G in the input structure
@@ -652,7 +629,6 @@ patch NGLB J:262 EG02:1
 patch NGLB J:276 JG02:608
 patch NGLB J:295 JG02:619
 patch NGLB J:301 JG02:620
-patch NGLB J:332 IG02:1
 patch NGLB J:339 JG02:609
 patch NGLB J:355 JG02:610
 patch NGLB J:363 JG02:611
@@ -695,11 +671,6 @@ set abi [axeq 2 0 C C1 1]
 set abj [axeq 1 0 C O4 -1]
 set pres "1$cn$abi$abj"
 patch $pres HG02:1 HG02:1
-set cn 4
-set abi [axeq 2 0 D C1 1]
-set abj [axeq 1 0 D O4 -1]
-set pres "1$cn$abi$abj"
-patch $pres IG02:1 IG02:1
 ############################### TRANSFORM 1 ENDS ###############################
 ############################## TRANSFORM 2 BEGINS ##############################
 ################ The following mappings of A.U. chains is used: ################
@@ -776,13 +747,20 @@ segment O {
     mutate 501 ALA
 }
 ###################### Coordinate-specification commands #######################
+# Subsegment [0] is a resolved run
 coordpdb PROTEIN_O_34_to_185.pdb O
+# Subsegment [2] is a resolved run
 coordpdb PROTEIN_O_187_to_398.pdb O
+# Subsegment [4] is a resolved run
 coordpdb PROTEIN_O_411_to_505.pdb O
-######## Seeding orientation of model-built loop starting at G-GLU185A #########
-coord O 185A N [cacoIn_nOut 185 O 0]
-######### Seeding orientation of model-built loop starting at G-THR400 #########
-coord O 400 N [cacoIn_nOut 398 O 0]
+# Subsegment [1]/5 is a missing loop
+# ...attached to subsegment 0
+# Seeding orientation of model-built loop starting at G-GLU185A from G-ASN185
+coord O 185A N [cacoIn_nOut 185 O $m1])
+# Subsegment [3]/5 is a missing loop
+# ...attached to subsegment 2
+# Seeding orientation of model-built loop starting at G-THR400 from G-ASN398
+coord O 400 N [cacoIn_nOut 398 O $m1])
 ####################### Intra-segmental terminal patches #######################
 patch CTER O:185I
 patch NTER O:187
@@ -871,10 +849,14 @@ segment L {
     mutate 605 THR
 }
 ###################### Coordinate-specification commands #######################
+# Subsegment [0] is a resolved run
 coordpdb PROTEIN_L_521_to_547.pdb L
+# Subsegment [2] is a resolved run
 coordpdb PROTEIN_L_569_to_664.pdb L
-######### Seeding orientation of model-built loop starting at B-ILE548 #########
-coord L 548 N [cacoIn_nOut 547 L 0]
+# Subsegment [1]/3 is a missing loop
+# ...attached to subsegment 0
+# Seeding orientation of model-built loop starting at B-ILE548 from B-GLY547
+coord L 548 N [cacoIn_nOut 547 L $m1])
 ####################### Intra-segmental terminal patches #######################
 patch CTER L:568
 patch NTER L:569
@@ -952,34 +934,6 @@ $MG02 set resname $MG02_orig_resname
 $MG02 set name $MG02_orig_name
 ############################### END SEGMENT MG02 ###############################
 # Done with seg CG
-# Writing seg DG
-############################## BEGIN SEGMENT NG02 ##############################
-# This segment is referenced as chain D in the input structure
-set NG02 [atomselect $m1 "serial 4619 to 4646"]
-set NG02_orig_chain [$NG02 get chain]
-set NG02_orig_x [$NG02 get x]
-set NG02_orig_y [$NG02 get y]
-set NG02_orig_z [$NG02 get z]
-set NG02_orig_resid [$NG02 get resid]
-set NG02_orig_resname [$NG02 get resname]
-set NG02_orig_name [$NG02 get name]
-$NG02 set chain N
-$NG02 move { { -0.5 0.866025 0.0 -107.18  } { -0.866025 -0.5 0.0 185.64121  } { 0.0 0.0 1.0 0.0  } { 0 0 0 1 } }
-$NG02 writepdb GENERIC_NG02.pdb
-segment NG02 {
-    pdb GENERIC_NG02.pdb
-}
-coordpdb GENERIC_NG02.pdb NG02
-######################## Restoring A.U. state for NG02 #########################
-$NG02 set chain $NG02_orig_chain
-$NG02 set x $NG02_orig_x
-$NG02 set y $NG02_orig_y
-$NG02 set z $NG02_orig_z
-$NG02 set resid $NG02_orig_resid
-$NG02 set resname $NG02_orig_resname
-$NG02 set name $NG02_orig_name
-############################### END SEGMENT NG02 ###############################
-# Done with seg DG
 # Writing seg GG
 ############################## BEGIN SEGMENT OG02 ##############################
 # This segment is referenced as chain G in the input structure
@@ -1056,7 +1010,6 @@ patch NGLB O:262 KG02:1
 patch NGLB O:276 OG02:608
 patch NGLB O:295 OG02:619
 patch NGLB O:301 OG02:620
-patch NGLB O:332 NG02:1
 patch NGLB O:339 OG02:609
 patch NGLB O:355 OG02:610
 patch NGLB O:363 OG02:611
@@ -1099,11 +1052,6 @@ set abi [axeq 2 0 C C1 1]
 set abj [axeq 1 0 C O4 -1]
 set pres "1$cn$abi$abj"
 patch $pres MG02:1 MG02:1
-set cn 4
-set abi [axeq 2 0 D C1 1]
-set abj [axeq 1 0 D O4 -1]
-set pres "1$cn$abi$abj"
-patch $pres NG02:1 NG02:1
 ############################### TRANSFORM 2 ENDS ###############################
 guesscoord
 regenerate angles dihedrals

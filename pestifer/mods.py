@@ -582,32 +582,39 @@ class Link(AncestorAwareMod):
     def __str__(self):
         return f'{self.chainID1}{self.resname1}{self.resseqnum1}{self.insertion1}-{self.chainID2}{self.resname2}{self.resseqnum2}{self.insertion2}'
     
-    def prune_mutations(self,Mutations,Segments):
-        for m in Mutations:
-            rlist,llist=[],[]
-            left=self.get(chainID1=m.chainID,resseqnum1=m.resseqnum,insertion1=m.insertion)
-            right=self.get(chainID2=m.chainID,resseqnum2=m.resseqnum,insertion2=m.insertion)
-            if left:  # left is a link in which this mutation is the left member
-                self.remove(left)
-                # remove downstream residues!
-                rlist,llist=left.residue2.get_down_group()
-            elif right: # right is a link in which this mutation is the right member (should be very rare)
-                self.remove(right)
-                rlist,llist=left.residue2.get_down_group()
-            if rlist and llist:
-                logger.debug(f'Deleting residues down from and including {str(rlist[0])} due to a mutation')
-                S=Segments.get_segment_of_residue(rlist[0])
-                for r in rlist:
-                    S.residues.remove(r)
-                if len(S.residues)==0:
-                    Segments.remove(S)
-                for l in llist:
-                    self.remove(l)
+
 
 class LinkList(AncestorAwareModList):
     def write_TcL(self,B:ByteCollector,transform,mods):
         for l in self:
             l.write_TcL(B,transform,mods)
+
+    def prune_mutations(self,Mutations,Segments):
+        for m in Mutations:
+            rlist,llist=[],[]
+            left=self.get(chainID1=m.chainID,resseqnum1=m.resseqnum,insertion1=m.insertion)
+            right=self.get(chainID2=m.chainID,resseqnum2=m.resseqnum,insertion2=m.insertion)
+            if left:  # this is a link in which this mutation is the left member
+                self.remove(left) # get rid of this link
+                # we need to remove residue2 and everything downstream
+                # remove downstream residues!
+                rlist,llist=left.residue2.get_down_group()
+                rlist.insert(0,left.residue2)
+            elif right: # this is a link in which this mutation is the right member (should be very rare)
+                self.remove(right)
+                rlist,llist=right.residue2.get_down_group()
+                rlist.insert(0,right.residue2)
+            if rlist and llist:
+                # logger.debug(f'Deleting residues down from and including {str(rlist[0])} due to a mutation')
+                S=Segments.get_segment_of_residue(rlist[0])
+                for r in rlist:
+                    # logger.debug(f'...{str(r)}')
+                    S.residues.remove(r)
+                if len(S.residues)==0:
+                    logger.debug(f'All residues of {S.psfgen_segname} are deleted; {S.psfgen_segname} is deleted')
+                    Segments.remove(S)
+                for l in llist:
+                    self.remove(l)
 
 class Graft(AncestorAwareMod):
     yaml_header='Grafts'

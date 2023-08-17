@@ -157,7 +157,8 @@ class TestBaseModList(unittest.TestCase):
         L=ModList([])
         class tbm(BaseMod):
             req_attr=['a','b'] # by default, BaseMod.req_attr is [], so this is ok
-        L.append(tbm({'a':1,'b':1})) # 0
+        a_mod=tbm({'a':1,'b':1})
+        L.append(a_mod) # 0
         L.append(tbm({'a':1,'b':1})) # 1
         L.append(tbm({'a':2,'b':1})) # 2
         L.append(tbm({'a':3,'b':1})) # 3
@@ -179,7 +180,8 @@ class TestBaseModList(unittest.TestCase):
         self.assertEqual(L[6]._ORIGINAL_['a'],4)        
         self.assertEqual(L[7].a,8)
         self.assertTrue(hasattr(L[7],'_ORIGINAL_'))
-        self.assertEqual(L[7]._ORIGINAL_['a'],1)        
+        self.assertEqual(L[7]._ORIGINAL_['a'],1)
+        self.assertTrue(a_mod in L)
 
     def test_uniquify_commonize(self):
         L=ModList([])

@@ -8,6 +8,8 @@
 """
 import operator
 import yaml
+import logging
+logger=logging.getLogger(__name__)
 class BaseMod:
     # list of required attribute labels
     req_attr=[]
@@ -47,15 +49,21 @@ class BaseMod:
         """
         if not other:
             return False
+        if id(self)==id(other):
+            return True
         if not self.__class__==other.__class__:
             return False
         attr_list=self.req_attr+[x for x in self.opt_attr if (x in other.__dict__ and x in self.__dict__)]
-        # print(attr_list)
         for x in self.ignore_attr:
             if x in attr_list:
                 attr_list.remove(x)
-        test_list=[self.__dict__[k]==other.__dict__[k] for k in attr_list]
-        # print(test_list)
+        logger.debug(f'Equality test for class {str(self.__class__)}: attributes considered are {attr_list}')
+        test_list=[]
+        for k in attr_list:
+            # if type(self.__dict__[k])==str or not hasattr(self.__dict__[k],'__setitem__'):
+            test_list.append(self.__dict__[k]==other.__dict__[k])
+            # else:
+            #     logger.debug(f'Ignoring container-like attribute {k} in comparison of two {str(self.__class__)} instances')
         return all(test_list)
     def __lt__(self,other):
         """__lt__ < operator for BaseMods.  A<B if all required and *common* optional attributes of A are less than or equal to those of B AND *at least one* such attribute of A is *strictly less than* its counterpart in B.
@@ -175,6 +183,8 @@ class ModList(list):
         return self
     def __delitem__(self,index):
         del self.L[index]
+    def __contains__(self,item):
+        return item in self.L
     def __eq__(self,other):
         return all([x==y for x,y in zip(self.L,other.L)])
     def __len__(self):
