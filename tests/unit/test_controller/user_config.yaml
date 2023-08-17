@@ -6,8 +6,12 @@ steps:
        biological_assembly: 1
     mods:
     tasks:
-      - build:
+      - psfgen:
           cleanup: False
+      - layloops:
+          cycles: 200
+      # - eatass:
+      #     asses: 99
   #     - smdclose:
   #     - relax:
   #         nsteps: 999

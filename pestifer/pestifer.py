@@ -88,7 +88,7 @@ def WritePostMods(fp,psf,pdb,PostMod,Loops,GlycanSegs):
             fp.write('$a move [transaxis y [expr -1 * $t] rad]\n')
             if logdcd:
                 fp.write('$la move [transaxis z [expr -1 * $p] rad\n')
-                fp.write('$la move [transaxis y [expr -1 & $t] rad\n')
+                fp.write('$la move [transaxis y [expr -1 * $t] rad\n')
     for crot in PostMod['Crot']:
         fp.write(crot.psfgen_str(molid=r'$molid',endIsCterm=('do_preclose_min_smd' in PostMod and PostMod['do_preclose_min_smd'])))
         if logdcd:

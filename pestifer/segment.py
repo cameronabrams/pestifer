@@ -61,8 +61,13 @@ class Segment(AncestorAwareMod):
         super().__init__(input_dict)
 
     def has_graft(self,modlist):
+        if not modlist:
+            return False
+        for g in modlist:
+            if g.segname==self.psfgen_segname:
+                return True
         return False
-
+    
     def __str__(self):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
 
@@ -184,7 +189,8 @@ class Segment(AncestorAwareMod):
                         B.comment('Below reverts an engineered mutation:')
                         B.addline(m.write_TcL())
                 else:
-                    B.addline(m.write_TL())
+                    B.comment('Below is a user-specified mutation:')
+                    B.addline(m.write_TcL())
         if self.config_params['Fix_conflicts']:
             for m in Conflicts:
                 B.comment('Below reverts a database conflict:')

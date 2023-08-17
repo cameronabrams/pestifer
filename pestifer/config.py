@@ -65,13 +65,13 @@ class Config:
                     logger.warning(f'Key "User_defaults" detected in user-supplied config file {userconfigfilename} is ignored.')
                     del user_dict['User_defaults']
                 user_defs.update(user_dict)
-        """ Read any mods or modfiles """
-        for step in user_defs.get('BuildSteps',[]):
-            if 'mods' in step: # either a dictionary or a file containing a dictionary
-                val=step['mods']
-                if type(val)==str and (val.endswith('yaml') or val.endswith('yml')):
-                    with open(val,"r") as f:
-                        step['mods']=yaml.safe_load(f)
+        # """ Read any mods or modfiles """
+        # for step in user_defs.get('BuildSteps',[]):
+        #     if 'mods' in step: # either a dictionary or a file containing a dictionary
+        #         val=step['mods']
+        #         if type(val)==str and (val.endswith('yaml') or val.endswith('yml')):
+        #             with open(val,"r") as f:
+        #                 step['mods']=yaml.safe_load(f)
         """ special_update appends to any list or dict values in the first arg """
         self.defs=special_update(self.defs,user_defs)
         """ Perform any variable substitions at leaves """

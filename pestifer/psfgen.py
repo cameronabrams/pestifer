@@ -13,27 +13,115 @@ import os
 from .config import ConfigGetParam
 from .molecule import Molecule
 from .stringthings import ByteCollector, FileCollector, my_logger
-class Psfgen:
-    def __init__(self,resources,post_build_directives={}):
+
+class VMDScript:
+    def __init__(self,resources):
         self.resources=resources
         self.tcl_path=resources.ResourcePaths['tcl']
+        self.vmd_startup=os.path.join(resources.ResourcePaths['tcl'],'pestifer-vmd.tcl')
         self.package_charmmdir=resources.ResourcePaths['charmm']
         self.system_charmm_toppardir=resources.system_charmm_toppardir
-        self.post_build_directives=post_build_directives
         self.B=ByteCollector()
         self.F=FileCollector()
+    def addline(self,data):
+        self.B.addline(data)
 
-    def beginscript(self,basename='mypsfgen'):
+    def beginscript(self,basename='myvmd'):
         self.basename=basename
         self.B.reset()
-        self.B.banner('BEGIN PESTIFER PSFGEN')
+        self.B.banner('BEGIN PESTIFER VMD SCRIPT')
         self.B.banner('BEGIN HEADER')
-        self.B.addline(f'source {self.tcl_path}/modules/src/loopmc.tcl')
-        self.B.addline(f'source {self.tcl_path}/vmdrc.tcl')
-        self.B.addline('package require psfgen')
+        self.B.addline(f'source {self.tcl_path}/pestifer-vmd.tcl')
+        # self.B.addline(f'source {self.tcl_path}/modules/src/loopmc.tcl')
+        # self.B.addline(f'source {self.tcl_path}/vmdrc.tcl')
+    def endscript(self):
+        self.B.addline('exit')
+        self.B.banner('END PESTIFER VMD SCRIPT')
+        self.B.banner('Thank you for using pestifer!')
+    def set_molecule(self,mol):
+        mol.molid_varname=f'm{mol.molid}'
+        self.B.addline(f'mol new {mol.source}.pdb waitfor all')
+        self.B.addline(f'set {mol.molid_varname} [molinfo top get id]')
 
-    def load_project(self,basename):
-        self.B.addline(f'readpsf {basename}.psf pdb {basename}.pdb')
+    def load_psf_pdb(self,*objs,new_molid_varname='mX'):
+        if len(objs)==1:
+            basename=objs[0]
+            pdb=f'{basename}.pdb'
+            psf=f'{basename}.psf'
+        else:
+            psf,pdb=objs
+        self.B.addline(f'mol new {psf}')
+        self.B.addline(f'mol addfile {pdb} waitfor all')
+        self.B.addline(f'set {new_molid_varname} [molinfo top get id]')
+
+    def write_pdb(self,basename,molid_varname):
+        self.B.addline(f'set X [atomselect ${molid_varname} all]')
+        self.B.addline(f'$X writepdb {basename}.pdb')
+
+    def center_molecule(self,mol,specs):
+        self.B.banner('Centering molecule')
+        self.B.addline(f'set a [atomselect ${mol.molid_varname} all]')
+        self.B.addline(f'set or [measure center $a weight mass]')
+        self.B.addline(f'$a moveby [vescale -i $or]')
+        self.B.addline(f'$a delete')
+
+    def reset_molecule_orientation(self,mol,specs):
+        selspec=specs.get('selspec',{})
+        if not selspec:
+            return
+        group1=selspec.get('group1','')
+        group2=selspec.get('group2','')
+        if not group1 or not group2:
+            return
+        self.B.banner('Resetting molecule orientation')
+        self.B.addline(f'set g1 [measure center [atomselect ${mol.molid_varname} "protein and {group1}] weight mass]')
+        self.B.addline(f'set g2 [measure center [atomselect ${mol.molid_varname} "protein and {group2}] weight mass]')
+        self.B.addline('set pi 3.1415928')
+        self.B.addline('set dv [vecsub $g1 $g2]')
+        self.B.addline('set d [veclength $dv]')
+        self.B.addline('set cp [expr [lindex $dv 0]/$d]')
+        self.B.addline('set sp [expr [lindex $dv 1]/$d]')
+        self.B.addline('set p [expr acos($cp)]')
+        self.B.addline('if { [expr $sp < 0.0] } {')
+        self.B.addline('    set p [expr 2*$pi-$p]')
+        self.B.addline('}')
+        self.B.addline('set ct [exr [lindex $dv 2]/$d]')
+        self.B.addline('set t [expr acos($ct)]')
+        self.B.addline(f'set a [atomselect ${mol.molid_varname} all]')
+        self.B.addline('$a move [transaxis z [expr -1 * $p] rad]')
+        self.B.addline('$a move [transaxis y [expr -1 * $t] rad]')
+        self.B.addline('$a delete')
+        self.B.banner('Done resetting molecule orientation')
+
+    def writescript(self):
+        self.scriptname=f'{self.basename}.tcl'
+        with open(self.scriptname,'w') as f:
+            f.write(str(self.B))
+
+    def runscript(self):
+        assert hasattr(self,'scriptname'),f'No scriptname set.'
+        c=Command(f'{self.resources.vmd} -dispdev text -starup {self.tcl_path}/pestifer-vmd.tcl -e {self.scriptname} -args -respath {self.tcl_path}')
+        c.run()
+        self.logname=f'{self.basename}.log'
+        with open(self.logname,'w') as f:
+            my_logger(f'STDOUT from "{c.command}"',f.write)
+            f.write(c.stdout+'\n')
+            my_logger(f'STDERR from "{c.command}"',f.write)
+            f.write(c.stderr+'\n')
+            my_logger(f'END OF LOG',f.write)
+    
+    def cleanup(self,cleanup=False):
+        if cleanup:
+            logger.info(f'Post-execution clean-up: {len(self.F)} files removed.')
+            for file in self.F:
+                if os.path.exists(file):
+                    os.remove(file)
+
+class Psfgen(VMDScript):
+
+    def beginscript(self,basename='mypsfgen'):
+        super().beginscript(basename=basename)
+        self.B.addline('package require psfgen')
 
     def topo_aliases(self):
         self.B.addline('psfcontext mixedcase')
@@ -51,15 +139,13 @@ class Psfgen:
             self.B.addline(f'set ANAMEDICT({k}) {v}')
         self.B.banner('END HEADER')
 
-    def endscript(self):
-        self.B.addline('exit')
-        self.B.banner('END PESTIFER PSFGEN')
-        self.B.banner('Thank you for using pestifer!')
-
-    def set_molecule(self,mol):
-        mol.molid_varname=f'm{mol.molid}'
-        self.B.addline(f'mol new {mol.source}.pdb waitfor all')
-        self.B.addline(f'set {mol.molid_varname} [molinfo top get id]')
+    def load_project(self,*objs):
+        if len(objs)==1:
+            basename=objs[0]
+            self.B.addline(f'readpsf {basename}.psf pdb {basename}.pdb')
+        else:
+            psf,pdb=objs
+            self.B.addline(f'readpsf {psf} pdb {pdb}')
         
     def describe_molecule(self,mol:Molecule,mods):
         # if mol.cif:
@@ -78,30 +164,3 @@ class Psfgen:
         pdb=f'{self.basename}.pdb'
         self.B.addline(f'writepsf cmap {psf}')
         self.B.addline(f'writepdb {pdb}')
-
-    def global_postmods(self):
-        pass
-
-    def writescript(self):
-        self.scriptname=f'{self.basename}.tcl'
-        with open(self.scriptname,'w') as f:
-            f.write(str(self.B))
-
-    def runscript(self):
-        assert hasattr(self,'scriptname'),f'No scriptname set.'
-        c=Command(f'{self.resources.vmd} -dispdev text -e {self.scriptname}')
-        c.run()
-        self.logname=f'{self.basename}.log'
-        with open(self.logname,'w') as f:
-            my_logger(f'STDOUT from "{c.command}"',f.write)
-            f.write(c.stdout+'\n')
-            my_logger(f'STDERR from "{c.command}"',f.write)
-            f.write(c.stderr+'\n')
-            my_logger(f'END OF LOG',f.write)
-    
-    def cleanup(self,cleanup=False):
-        if cleanup:
-            logger.info(f'Post-execution clean-up: {len(self.F)} files removed.')
-            for file in self.F:
-                if os.path.exists(file):
-                    os.remove(file)

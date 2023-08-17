@@ -1,3 +1,9 @@
+import inspect
+import sys
+import logging
+import importlib
+logger=logging.getLogger(__name__)
+
 def vmd_instructions(fp,script,logname='tmp.log',args='',msg=''):
     fp.write('echo "VMD) script={} log={} msg: {}"\n'.format(script,logname,msg))
     if args!='':
@@ -88,3 +94,33 @@ def reduce_intlist(L):
     if inrun:
         ret+=f'{r}'
     return ret
+
+def inspect_classes(module,key=' ',use_yaml_headers_as_keys=False):
+    importlib.import_module(module)
+    if key!=' ':
+        nonkey_classes={}
+        for name,cls in inspect.getmembers(sys.modules[module], lambda x: inspect.isclass(x) and (x.__module__==module) and key not in x.__name__):
+            if use_yaml_headers_as_keys:
+                nkey=cls.yaml_header
+            else:
+                nkey=name
+            nonkey_classes[nkey]=cls
+        key_classes={}
+        for name,cls in inspect.getmembers(sys.modules[module], lambda x: inspect.isclass(x) and (x.__module__==module) and key in x.__name__):
+            if use_yaml_headers_as_keys:
+                nkey=cls.yaml_header
+            else:
+                nkey=name
+            key_classes[nkey]=cls
+        return nonkey_classes,key_classes
+    else:
+        classes={}
+        logger.debug(f'module {module}')
+        logger.debug(f'sys.modules: {list[sys.modules.keys()]}')
+        for name,cls in inspect.getmembers(sys.modules[module], lambda x: inspect.isclass(x) and (x.__module__==module)):
+            if use_yaml_headers_as_keys:
+                nkey=cls.yaml_header
+            else:
+                nkey=name
+            classes[nkey]=cls
+        return classes

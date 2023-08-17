@@ -4,76 +4,32 @@ from .chainids import ChainIDManager
 from .util import special_update
 import yaml
 import os
-import sys
-import shutil
-import inspect
 import logging
 logger=logging.getLogger(__name__)
-    
-def inspect_mod_classes():
-    mod_classes={}
-    for name,cls in inspect.getmembers(sys.modules['pestifer.mods'], lambda x: inspect.isclass(x) and (x.__module__=='pestifer.mods') and 'List' not in x.__name__):
-        mod_classes[name]=cls
-    modlist_classes={}
-    for name,cls in inspect.getmembers(sys.modules['pestifer.mods'], lambda x: inspect.isclass(x) and (x.__module__=='pestifer.mods') and 'List' in x.__name__):
-        modlist_classes[name]=cls
-    return mod_classes,modlist_classes
-
-def modparse(input_dict):
-    mod_classes,modlist_classes=inspect_mod_classes()
-    retdict={}
-    for hdr,entries in input_dict.items():
-        class_name=[name for name,cls in mod_classes.items() if cls.yaml_header==hdr][0]
-        cls=mod_classes[class_name]
-        LCls=modlist_classes.get(f'{class_name}List',list)
-        for entry in entries:
-            assert type(entry) in [dict,str]
-            newmod=cls(entry)
-            newmod.source='USER'
-            if not hdr in retdict:
-                retdict[hdr]=LCls([])
-            retdict[hdr].append(newmod)
-    return retdict
-
-class Task(BaseMod):
-    req_attr=BaseMod.req_attr+['owner','prior','next']
-    opt_attr=BaseMod.opt_attr+['build','relax','relax_series','smdclose','solvate','terminate_step']
-    def __init__(self,input_dict,owner=None):
-        input_dict.update({
-            'owner':owner,
-            'prior':None,
-            'next':None
-        })
-        assert len(input_dict)==4
-        super().__init__(input_dict)
+from .util import inspect_classes
 
 class TaskList(ModList):
-    def append(self,task:Task):
+    def __init__(self,data):
+        super().__init__(data)
+        self.mod_classes,self.modlist_classes=inspect_classes('pestifer.mods','List')
+        self.task_classes=inspect_classes('pestifer.tasks',use_yaml_headers_as_keys=True)
+    def append(self,taskdict:dict,owner_step=None):
+        taskname=list(taskdict.keys())[0]
+        assert taskname in self.task_classes,f'Task "{taskname}" is not recognized; currently implemented tasks are {",".join(self.task_classes)}'
+        cls=self.task_classes[taskname]
+        task=cls(taskdict)
+        task.owner=owner_step
         if len(self)>0:
             task.prior=self[-1]
             task.prior.next=task
-        assert len(task.__dict__)==4,f'Attempting to append a task that has already been appended? {task.__dict__}'
-        taskname=[x for x in task.__dict__.keys() if not x in task.req_attr][0]
+        # [x for x in task.__dict__.keys() if not x in task.req_attr][0]
         logging.debug(f'Appending task "{taskname}" to step {task.owner.name}')
-        assert taskname in task.opt_attr #['build','relax','relax_series','smdclose','solvate','terminate_step']
-        if   taskname=='build':           taskfunc=self.do_build
-        elif taskname=='relax':           taskfunc=self.do_relax
-        elif taskname=='relax_series':    taskfunc=self.do_relax_series
-        elif taskname=='solvate':         taskfunc=self.do_solvate
-        elif taskname=='smdclose':        taskfunc=self.do_smdclose
-        elif taskname=='terminate_step':  taskfunc=self.do_terminate_step
-        else:
-            taskfunc=self.no_func
-        task.taskname=taskname
-        task.taskfunc=taskfunc
+        logging.debug(f' -> task specs: {task.specs}')
         if taskname=='terminate_step':
             task.basename=f'{task.owner.name}'
         else:
             task.basename=f'{task.owner.name}-{task.taskname}'
         ''' resolve mods '''
-        task.specs={} if not task.__dict__[taskname] else task.__dict__[taskname]
-        logger.debug(f'Step: {task.owner.name} Task: {taskname} Specs: {task.specs}')
-        # logger.debug(f'task attributes: '+ ','.join([f'{k}:{v}' for k,v in task.__dict__.items()]))
         modlist=task.specs.get('mods',[])
         if modlist:
             for m in modlist:
@@ -81,11 +37,11 @@ class TaskList(ModList):
                     modfile=m
                     with open(modfile,'r') as f:
                         raw=yaml.safe_load(f)
-                        from_file=modparse(raw)
+                        from_file=self.modparse(raw)
                         replace_mods=special_update(replace_mods,from_file)
                 elif type(m)==dict:
                     mod_dict=m
-                    from_userconfig=modparse(mod_dict)
+                    from_userconfig=self.modparse(mod_dict)
                     replace_mods=special_update(replace_mods,from_userconfig)
                 else:
                     logger.warning(f'Mod list element {m} ignored.')
@@ -96,50 +52,27 @@ class TaskList(ModList):
                         self.pdbs.append(mod.source['pdb'])
             task.specs['mods_resolved']=True
         super().append(task)
-        
-    def do_build(self,task):
-        mod_dict=task.specs.get('mods',{})
-        remove_generated_pdb_files=task.specs.get('cleanup',False)
-        # logger.debug(f'do_build: specs {specs}')
-        base_molecule=task.owner.base_molecule
-        pg=task.owner.psfgen
-        pg.beginscript(task.basename)
-        pg.topo_aliases()
-        pg.set_molecule(base_molecule)
-        pg.describe_molecule(base_molecule,mod_dict)
-        pg.transform_postmods()
-        pg.global_postmods()
-        pg.endscript()
-        pg.writescript()
-        pg.runscript()
-        pg.cleanup(cleanup=remove_generated_pdb_files)
-    
-    def do_solvate(self,task):
-        logger.debug(f'do_solvate: specs {task.specs}')
-        pass
-
-    def do_smdclose(self,task):
-        logger.debug(f'do_smdclose: specs {task.specs}')
-        pass
-
-    def do_relax(self,task):
-        logger.debug(f'do_relax: specs {task.specs}')
-        pass
-
-    def do_relax_series(self,task):
-        logger.debug(f'do_relax_series: specs {task.specs}')
-        pass
-
-    def do_terminate_step(self,task):
-        prior_basename=task.prior.basename
-        logger.debug(f'do_terminate_step')
-        for ext in ['.psf','.pdb']:
-            shutil.copyfile(f'{prior_basename}{ext}',f'{task.basename}{ext}')
 
     def do_tasks(self):
         for task in self:
-            task.taskfunc(task)
+            task.do()
 
+    def modparse(self,input_dict):
+        mod_classes,modlist_classes=self.inspect_classes('pestifer.mods','List')
+        retdict={}
+        for hdr,entries in input_dict.items():
+            class_name=[name for name,cls in mod_classes.items() if cls.yaml_header==hdr][0]
+            cls=mod_classes[class_name]
+            LCls=modlist_classes.get(f'{class_name}List',list)
+            for entry in entries:
+                assert type(entry) in [dict,str]
+                newmod=cls(entry)
+                newmod.source='USER'
+                if not hdr in retdict:
+                    retdict[hdr]=LCls([])
+                retdict[hdr].append(newmod)
+        return retdict
+    
 class Step(BaseMod):
     req_attr=BaseMod.req_attr+['name','source','tasks','pdbs']
     def __init__(self,input_dict):
@@ -149,15 +82,16 @@ class Step(BaseMod):
         self.chainIDmanager=ChainIDManager()
         self.tasks_resolved=False
     
-    def resolve_tasks(self,psfgen):
+    def resolve_tasks(self,psfgen,vmdtcl):
         assert type(self.tasks)==list
         assert len(self.tasks)>0
         assert type(self.tasks[0])==dict
         self.psfgen=psfgen
+        self.vmdtcl=vmdtcl
         self.tasklist=TaskList([])
         for tdict in self.tasks:
-            self.tasklist.append(Task(tdict,owner=self))
-        self.tasklist.append(Task({'terminate_step':None},owner=self))
+            self.tasklist.append(tdict,owner_step=self)
+        self.tasklist.append({'terminate_step':None},owner_step=self)
         self.tasks_resolved=True
         return self
 
