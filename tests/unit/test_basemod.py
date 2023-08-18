@@ -201,6 +201,28 @@ class TestBaseModList(unittest.TestCase):
         self.assertEqual(L[2]._ORIGINAL_['b'],4)
         self.assertEqual(L[3]._ORIGINAL_['b'],6)
 
+    def test_map_attr(self):
+        map={
+            1:'okImappedyou.',
+            2:'okImappedyou..',
+            3:'okImappedyou...',
+            5:'okImappedyou......',
+            7:'okImappedyou.......',
+            9:'okImappedyou........'
+        }
+        class tbm(BaseMod):
+            req_attr=['a','b','c']
+        L=ModList([])
+        L.append(tbm({'a':1,'b':2,'c':'mapme1'}))
+        L.append(tbm({'a':2,'b':2,'c':'mapme3'}))
+        L.append(tbm({'a':3,'b':4,'c':'mapme7'}))
+        L.append(tbm({'a':5,'b':2,'c':'mapme8'}))
+        L.append(tbm({'a':7,'b':6,'c':'mapme2'}))
+        L.append(tbm({'a':9,'b':2,'c':'mapme1'}))
+        L.map_attr('c','a',map)
+        self.assertEqual(L[0].c,'okImappedyou.')
+
+
     def test_state_interval_computation(self):
         L=ModList([])
         class tbm(BaseMod):

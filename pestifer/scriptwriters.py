@@ -14,14 +14,11 @@ from .molecule import Molecule
 from .stringthings import ByteCollector, FileCollector, my_logger
 import datetime
 
-class VMD:
-    def __init__(self,resources,config):
-        self.resources=resources
-        self.tcl_path=resources.resource_paths['tcl']
-        self.vmd_startup=os.path.join(self.tcl_path,config['vmd_startup_script'])
-        self.default_script=config['default_vmd_script']
+class Scriptwriter:
+    def __init__(self):
         self.B=ByteCollector()
         self.F=FileCollector()
+        self.default_script='pestifer-script.tcl'
 
     def addline(self,data):
         self.B.addline(data)
@@ -33,8 +30,15 @@ class VMD:
         else:
             self.basename=os.path.splitext(self.default_script)[0]
         self.B.reset()
-        self.B.banner(f'PESTIFER VMD SCRIPT {self.basename}.tcl')
+        self.B.banner(f'PESTIFER SCRIPT {self.basename}.tcl')
         self.B.banner(f'Created {timestampstr}')
+
+class VMD(Scriptwriter):
+    def __init__(self,config):
+        self.tcl_path=config.tcl_path
+        self.vmd_startup=config.vmd_startup_script
+        self.default_script=config['vmd_scriptname']
+        super().__init__()
 
     def endscript(self):
         self.B.addline('exit')
@@ -122,10 +126,10 @@ class VMD:
 
 class Psfgen(VMD):
     def __init__(self,resources,config):
-        super().__init(resources,config)
-        self.pestifer_charmmpath=resources.resource_paths['charmm']
-        self.user_charmm_topparpath=config['user_charmm_toppardirpath']
-        self.default_script=config['default_psfgen_script']
+        super().__init__(resources,config)
+        self.pestifer_charmmpath=config.charmm_toppar_path
+        self.user_charmm_topparpath=config.user_charmm_toppar_path
+        self.default_script=config['psfgen_scriptname']
 
     def beginscript(self,basename=None):
         super().beginscript(basename=basename)
@@ -156,11 +160,6 @@ class Psfgen(VMD):
             self.B.addline(f'readpsf {psf} pdb {pdb}')
         
     def describe_molecule(self,mol:Molecule,mods):
-        # if mol.cif:
-        #     # need to renumber and rechain to user specs
-        #     self.B.addline(f'set ciftmp [atomselect ${molid_varname} all]')
-        #     self.B.addline('$ciftmp set chain [list {}]').format(" ".join([_.chainID for _ in mol.Atoms]))
-        #     self.script+'$ciftmp set resid [list {}]').format(" ".join([str(_.resseqnum) for _ in self.Atoms]))
         molid_varname=f'm{mol.molid}'
         self.B.addline(f'mol top ${molid_varname}')
         mol.write_TcL(self.B,mods,file_collector=self.F)
@@ -173,11 +172,8 @@ class Psfgen(VMD):
         self.B.addline(f'writepsf cmap {psf}')
         self.B.addline(f'writepdb {pdb}')
 
-class NAMD2:
-    def __init__(self,resources,config):
-        self.resources=resources
-        self.templates_path=resources.resource_paths['templates']
-        # self.vmd_startup=os.path.join(self.tcl_path,config['vmd_startup_script'])
-        self.default_script=config['default_namd2_confg']
-        self.B=ByteCollector()
-        self.F=FileCollector()
+class NAMD2(Scriptwriter):
+    def __init__(self,config):
+        self.templates_path=config.namd_template_path
+        self.default_script=config['namd2_configname']
+        super().__init__()

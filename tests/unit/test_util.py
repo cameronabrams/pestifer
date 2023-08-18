@@ -1,5 +1,6 @@
 from pestifer.util import *
 import unittest
+from pestifer.tasks import *
 
 class TestUtil(unittest.TestCase):
     def test_special_update(self):
@@ -21,3 +22,36 @@ class TestUtil(unittest.TestCase):
         l.remove(75)
         L=reduce_intlist(l)
         self.assertEqual(L,'0 to 22 24 to 72 76 to 99')
+    def test_inspect_classes(self):
+        cls=inspect_classes('pestifer.tasks',use_yaml_headers_as_keys=True)
+        self.assertTrue(cls['psfgen'],PsfgenTask)
+
+    def test_replace(self):
+        starting_dict={
+            'SomeIntegers':[1,2,'$(VARIABLE3)'],
+            'SomeWords':{'subdata':['$(VARIABLE2)','hello']},
+            'YetMoreData':[0.1,'$(VARIABLE4)'],
+            'NestyMcNestface':{'level1':{'level2':{'ALIST':'$(VAR6)'}},'level1-str':'$(VAR5)'},
+            'SearchReplace': '$(VAR7)!!!'
+        }
+
+        expected_dict={
+            'SomeIntegers':[1,2,3],
+            'SomeWords':{'subdata':['word','hello']},
+            'YetMoreData':[0.1,0.99],
+            'NestyMcNestface':{'level1':{'level2':{'ALIST':['this','is','a','list']}},'level1-str':'A string'},
+            'SearchReplace':'replaced!!!'
+        }
+
+        replacements={
+            'VARIABLE1':'SomeIntegers',
+            'VARIABLE3':3,
+            'VARIABLE2':'word',
+            'VARIABLE4':0.99,
+            'VAR5':'A string',
+            'VAR6': ['this','is','a','list'],
+            'VAR7': 'replaced'
+        }
+        for s,r in replacements.items():
+            replace(starting_dict,s,r)
+        self.assertEqual(starting_dict,expected_dict)

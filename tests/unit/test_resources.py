@@ -19,19 +19,7 @@ class ResourceManagerTest(unittest.TestCase):
             'NAMD2':'/usr/local/bin/namd2',
             'VMD':'/usr/local/bin/vmd',
         }
-        r=ResourceManager(user_options)
+        r=ResourceManager().ApplyUserOptions(user_options)
         self.assertEqual(r.namd2,user_options['NAMD2'])
-        self.assertEqual(r.plat,platform.system())
-        # print(ResourcesInfo())
-        # self.assertTrue(False)
-    # def test_libraries(self):
-    #     """test_libraries test to see if installed resources has the expected top-level 
-    #     subdirectories
-    #     """
-    #     s1=set(self.expected_subdirs)
-    #     s2=set(RM.resource_paths)
-    #     self.assertEqual(s1,s2)
-
-    # def test_bondstruct_so(self):
-    #     self.assertTrue(any([self.expected_tcl_lib in str(fn) for fn in RM.files]))
+        self.assertEqual(r.platform,platform.system())
 

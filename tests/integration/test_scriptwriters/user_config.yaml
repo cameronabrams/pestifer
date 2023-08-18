@@ -21,4 +21,4 @@ steps:
       - relax:
           nsteps: 1000
 
-CHARMMPATH: $(HOME)/test_charmm
+CHARMMPATH: test_charmm

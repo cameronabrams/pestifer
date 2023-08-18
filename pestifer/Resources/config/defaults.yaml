@@ -134,13 +134,13 @@ Segname_chars:
 
 User_defaults:
   vmd_startup: pestifer-vmd.tcl
-  default_vmd_script: vmd.tcl
-  default_psfgen_script: psfgen.tcl
-  default_namd2_config: namd2.tcl
-  NAMD2: /usr/local/bin/namd2
-  VMD: /usr/local/bin/vmd
-  CHARMRUN: /usr/local/bin/charmrun
-  CHARMMPATH: $(HOME)/charmm
+  vmd_scriptname: vmd.tcl
+  psfgen_scriptname: psfgen.tcl
+  namd2_configname: namd2.tcl
+  namd2: /usr/local/bin/namd2
+  vmd: /usr/local/bin/vmd
+  charmrun: /usr/local/bin/charmrun
+  charmm_path: $(HOME)/charmm
   Sacrificial_residue:
     name: GLY
     min_loop_length: 3

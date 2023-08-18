@@ -10,18 +10,16 @@ import logging
 logger=logging.getLogger(__name__)
 
 from .config import Config
-from .resourcemanager import ResourceManager
 from .scriptwriters import Psfgen,VMD,NAMD2
 from .steptask import Step
 
 class Controller:
     def __init__(self,userconfigfilename):
-        self.resman=ResourceManager()
-        self.config=Config(self.resman,userconfigfilename)
+        self.config=Config(userconfigfilename)
         self.scriptwriters={
-            'psfgen': Psfgen(self.resman,self.config),
-            'vmd':    VMD(self.resman,self.config),
-            'namd2':  NAMD2(self.resman,self.config)
+            'psfgen': Psfgen(self.config),
+            'vmd':    VMD(self.config),
+            'namd2':  NAMD2(self.config)
         }
         self.steps=[]
         if 'steps' in self.config.defs:

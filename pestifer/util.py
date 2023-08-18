@@ -4,6 +4,10 @@ import logging
 import importlib
 logger=logging.getLogger(__name__)
 
+import shutil
+def is_tool(name):
+    return shutil.which(name) is not None
+
 def vmd_instructions(fp,script,logname='tmp.log',args='',msg=''):
     fp.write('echo "VMD) script={} log={} msg: {}"\n'.format(script,logname,msg))
     if args!='':

@@ -21,7 +21,7 @@ class AsymmetricUnit(AncestorAwareMod):
                 'Missings':MissingList([]),
                 'Links':LinkList([]),
                 'Ters':TerList([]),
-                'Segments':SegmentList(ResidueList([])),
+                'Segments':SegmentList({},ResidueList([])),
                 'chainIDs':[]
             }
         else:

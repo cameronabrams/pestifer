@@ -254,7 +254,7 @@ class SegmentList(AncestorAwareModList):
         super().append(item)
 
     def __init__(self,config,input_obj):
-        self.config={k:config[k] for k in Segment.config_attr}
+        self.config={k:config.get(k,'no-config') for k in Segment.config_attr}
         self.counters_by_segtype={}
         if type(input_obj)==ResidueList:
             super().__init__([])
