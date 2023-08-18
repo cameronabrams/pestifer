@@ -9,18 +9,24 @@
 import logging
 logger=logging.getLogger(__name__)
 
-from .config import ConfigSetup
-from .psfgen import Psfgen,VMDScript
+from .config import Config
+from .resourcemanager import ResourceManager
+from .scriptwriters import Psfgen,VMD,NAMD2
 from .steptask import Step
+
 class Controller:
     def __init__(self,userconfigfilename):
-        self.config=ConfigSetup(userconfigfilename)
-        self.psfgen=Psfgen(self.config.resman) # handler for psfgen scripts
-        self.vmdtcl=VMDScript(self.config.resman) # handler for general (non-psfgen) vmd scripts
+        self.resman=ResourceManager()
+        self.config=Config(self.resman,userconfigfilename)
+        self.scriptwriters={
+            'psfgen': Psfgen(self.resman,self.config),
+            'vmd':    VMD(self.resman,self.config),
+            'namd2':  NAMD2(self.resman,self.config)
+        }
         self.steps=[]
         if 'steps' in self.config.defs:
             for stepdict in self.config.defs['steps']:
-                self.steps.append(Step(stepdict).resolve_tasks(self.psfgen,self.vmdtcl))
+                self.steps.append(Step(stepdict).resolve_tasks(self.config,self.scriptwriters))
         logger.debug(f'Controller will execute {len(self.steps)} step(s).')
 
     def do_steps(self,**kwargs):

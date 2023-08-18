@@ -6,6 +6,7 @@
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
+# TODO: adapt these into the scriptwriters module
 
 def backup(selname):
     ret=[]

@@ -1,6 +1,6 @@
 import unittest
 from pestifer.molecule import Molecule
-from pestifer.config import ConfigSetup
+from pestifer.config import Config
 class TestMolecule(unittest.TestCase):
 
     def test_molecule_au(self):

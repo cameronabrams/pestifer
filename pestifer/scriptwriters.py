@@ -10,34 +10,37 @@ import logging
 logger=logging.getLogger(__name__)
 from .command import Command
 import os
-from .config import ConfigGetParam
 from .molecule import Molecule
 from .stringthings import ByteCollector, FileCollector, my_logger
+import datetime
 
-class VMDScript:
-    def __init__(self,resources):
+class VMD:
+    def __init__(self,resources,config):
         self.resources=resources
-        self.tcl_path=resources.ResourcePaths['tcl']
-        self.vmd_startup=os.path.join(resources.ResourcePaths['tcl'],'pestifer-vmd.tcl')
-        self.package_charmmdir=resources.ResourcePaths['charmm']
-        self.system_charmm_toppardir=resources.system_charmm_toppardir
+        self.tcl_path=resources.resource_paths['tcl']
+        self.vmd_startup=os.path.join(self.tcl_path,config['vmd_startup_script'])
+        self.default_script=config['default_vmd_script']
         self.B=ByteCollector()
         self.F=FileCollector()
+
     def addline(self,data):
         self.B.addline(data)
 
-    def beginscript(self,basename='myvmd'):
-        self.basename=basename
+    def newscript(self,basename=None):
+        timestampstr=datetime.datetime.today().ctime()
+        if basename:
+            self.basename=basename
+        else:
+            self.basename=os.path.splitext(self.default_script)[0]
         self.B.reset()
-        self.B.banner('BEGIN PESTIFER VMD SCRIPT')
-        self.B.banner('BEGIN HEADER')
-        self.B.addline(f'source {self.tcl_path}/pestifer-vmd.tcl')
-        # self.B.addline(f'source {self.tcl_path}/modules/src/loopmc.tcl')
-        # self.B.addline(f'source {self.tcl_path}/vmdrc.tcl')
+        self.B.banner(f'PESTIFER VMD SCRIPT {self.basename}.tcl')
+        self.B.banner(f'Created {timestampstr}')
+
     def endscript(self):
         self.B.addline('exit')
         self.B.banner('END PESTIFER VMD SCRIPT')
         self.B.banner('Thank you for using pestifer!')
+
     def set_molecule(self,mol):
         mol.molid_varname=f'm{mol.molid}'
         self.B.addline(f'mol new {mol.source}.pdb waitfor all')
@@ -58,14 +61,14 @@ class VMDScript:
         self.B.addline(f'set X [atomselect ${molid_varname} all]')
         self.B.addline(f'$X writepdb {basename}.pdb')
 
-    def center_molecule(self,mol,specs):
+    def center_molecule(self,mol:Molecule):
         self.B.banner('Centering molecule')
         self.B.addline(f'set a [atomselect ${mol.molid_varname} all]')
         self.B.addline(f'set or [measure center $a weight mass]')
         self.B.addline(f'$a moveby [vescale -i $or]')
         self.B.addline(f'$a delete')
 
-    def reset_molecule_orientation(self,mol,specs):
+    def reset_molecule_orientation(self,mol:Molecule,specs):
         selspec=specs.get('selspec',{})
         if not selspec:
             return
@@ -100,7 +103,7 @@ class VMDScript:
 
     def runscript(self):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
-        c=Command(f'{self.resources.vmd} -dispdev text -starup {self.tcl_path}/pestifer-vmd.tcl -e {self.scriptname} -args -respath {self.tcl_path}')
+        c=Command(f'{self.resources.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args -respath {self.tcl_path}')
         c.run()
         self.logname=f'{self.basename}.log'
         with open(self.logname,'w') as f:
@@ -117,25 +120,30 @@ class VMDScript:
                 if os.path.exists(file):
                     os.remove(file)
 
-class Psfgen(VMDScript):
+class Psfgen(VMD):
+    def __init__(self,resources,config):
+        super().__init(resources,config)
+        self.pestifer_charmmpath=resources.resource_paths['charmm']
+        self.user_charmm_topparpath=config['user_charmm_toppardirpath']
+        self.default_script=config['default_psfgen_script']
 
-    def beginscript(self,basename='mypsfgen'):
+    def beginscript(self,basename=None):
         super().beginscript(basename=basename)
         self.B.addline('package require psfgen')
 
     def topo_aliases(self):
         self.B.addline('psfcontext mixedcase')
-        for t in ConfigGetParam('StdCharmmTopo'):
+        for t in self.config['StdCharmmTopo']:
             ft=os.path.join(self.system_charmm_toppardir,t)
             self.B.addline(f'topology {ft}')
-        for lt in ConfigGetParam('LocalCharmmTopo'):
+        for lt in self.config['LocalCharmmTopo']:
             ft=os.path.join(self.package_charmmdir,lt)
             self.B.addline(f'topology {ft}')
-        for pdba in ConfigGetParam('PDBAliases'):
+        for pdba in self.config['PDBAliases']:
             self.B.addline(f'pdbalias {pdba}')
-        for k,v in ConfigGetParam('PDB_to_CHARMM_Resnames').items():
+        for k,v in self.config['PDB_to_CHARMM_Resnames'].items():
             self.B.addline(f'set RESDICT({k}) {v}')
-        for k,v in ConfigGetParam('PDB_to_CHARMM_Atomnames').items():
+        for k,v in self.config['PDB_to_CHARMM_Atomnames'].items():
             self.B.addline(f'set ANAMEDICT({k}) {v}')
         self.B.banner('END HEADER')
 
@@ -164,3 +172,12 @@ class Psfgen(VMDScript):
         pdb=f'{self.basename}.pdb'
         self.B.addline(f'writepsf cmap {psf}')
         self.B.addline(f'writepdb {pdb}')
+
+class NAMD2:
+    def __init__(self,resources,config):
+        self.resources=resources
+        self.templates_path=resources.resource_paths['templates']
+        # self.vmd_startup=os.path.join(self.tcl_path,config['vmd_startup_script'])
+        self.default_script=config['default_namd2_confg']
+        self.B=ByteCollector()
+        self.F=FileCollector()

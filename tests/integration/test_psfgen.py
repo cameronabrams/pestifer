@@ -2,7 +2,7 @@ import unittest
 from pestifer.command import Command
 from pestifer.molecule import Molecule
 from pestifer.psfgen import Psfgen
-from pestifer.config import ConfigSetup, ConfigGetParam
+from pestifer.config import Config
 from pestifer.chainids import ChainIDManager
 
 import os

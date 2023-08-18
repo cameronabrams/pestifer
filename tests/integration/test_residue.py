@@ -1,6 +1,6 @@
 import unittest
 from pestifer.residue import Residue
-from pestifer.config import ConfigSetup
+from pestifer.config import Config
 from pestifer.molecule import Molecule
 
 class TestResidue(unittest.TestCase):

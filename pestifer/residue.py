@@ -7,7 +7,7 @@
 
 """
 from .mods import *
-from .config import ConfigGetParam
+# from .config import ConfigGetParam
 from .mods import AncestorAwareModList,AncestorAwareMod
 
 class Ter(AncestorAwareMod):
@@ -153,7 +153,7 @@ class Residue(AncestorAwareMod):
                 'name':a.resname,
                 'chainID':a.chainID,
                 'atoms':AtomList([a]),
-                'segtype':ConfigGetParam('Segtypes_by_Resnames').get(a.resname,'OTHER'),
+                'segtype':'UNSET',
                 'resseqnumi':f'{a.resseqnum}{a.insertion}'
             }
             super().__init__(input_dict)
@@ -164,7 +164,7 @@ class Residue(AncestorAwareMod):
                 'insertion':m.insertion,
                 'name':m.resname,
                 'chainID':m.chainID,
-                'segtype':ConfigGetParam('Segtypes_by_Resnames').get(m.resname,'OTHER')
+                'segtype':'UNSET'
             }
             input_dict['resseqnumi']=f'{m.resseqnum}{m.insertion}'
             input_dict['atoms']=AtomList([])
@@ -225,11 +225,11 @@ class Residue(AncestorAwareMod):
             res.extend(tres)
             lin.extend(tlin)
         return res,lin
-    def resname_charmify(self):
-        m=ConfigGetParam('PDB_to_CHARMM_Resnames')
-        if self.name in m:
-            return m[self.name]
-        return self.name
+    # def resname_charmify(self):
+    #     m=ConfigGetParam('PDB_to_CHARMM_Resnames')
+    #     if self.name in m:
+    #         return m[self.name]
+    #     return self.name
 
 class ResidueList(AncestorAwareModList):
     def __init__(self,input_obj):
@@ -309,4 +309,5 @@ class ResidueList(AncestorAwareModList):
             link.atom2=a2
             link.residue1.linkTo(link.residue2,link)
         return self
-
+    def apply_segtypes(self,map):
+        self.map_attr('segtype','name',map)

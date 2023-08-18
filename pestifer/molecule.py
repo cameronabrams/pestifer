@@ -13,11 +13,10 @@ from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList,BioAssemb
 from .stringthings import ByteCollector
 from .mods import MutationList, apply_psf_info
-from .config import ConfigGetParam
 logger=logging.getLogger(__name__)
 
 class Molecule(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['molid','source','asymmetric_unit','biological_assemblies','parsed_struct']
+    req_attr=AncestorAwareMod.req_attr+['config','molid','source','asymmetric_unit','biological_assemblies','parsed_struct']
     opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
     def __init__(self,**options):
@@ -28,8 +27,10 @@ class Molecule(AncestorAwareMod):
             Molecule._molcounter+=1
         source=options.get('source',None)
         use_psf=options.get('use_psf',None)
+        config=options.get('config',None)
         if not source:
             input_dict={
+                'config': config,
                 'molid': Molecule._molcounter,
                 'source': None,
                 'parsed_struct': None,
@@ -43,10 +44,11 @@ class Molecule(AncestorAwareMod):
         # if os.path.exists(f'{source}.psf'):
         #     apply_psf_info(p_struct,f'{source}.psf')
         input_dict={
+            'config': config,
             'molid': Molecule._molcounter,
             'source': source,
             'parsed_struct': p_struct,
-            'asymmetric_unit': AsymmetricUnit(p_struct),
+            'asymmetric_unit': AsymmetricUnit(p_struct,config),
             'biological_assemblies': BioAssembList(p_struct)#,reset=True)
         }
         super().__init__(input_dict)
@@ -72,9 +74,9 @@ class Molecule(AncestorAwareMod):
         return self
     
     def write_TcL(self,B:ByteCollector,user_mods,file_collector=None):
-        # TODO: merge the A.U.'s mods into the mods passed in from config
         au=self.asymmetric_unit
         ba=self.active_biological_assembly
+        config=self.config
         allmods=user_mods.copy()
         if not 'Mutations' in allmods:
             allmods['Mutations']=MutationList([])
@@ -85,13 +87,16 @@ class Molecule(AncestorAwareMod):
                 allmods['Mutations'].extend(au.Mutations.filter(chainID=k))
             if au.Conflicts:
                 allmods['Conflicts'].extend(au.Conflicts.filter(chainID=k))
-        au.SSBonds.prune_mutations(user_mods.get('Mutations',MutationList([])))
-        if ConfigGetParam('Fix_engineered_mutations'):
+        user_mutations=user_mods.get('Mutations',MutationList([]))
+        au.SSBonds.prune_mutations(user_mutations)
+        au.Links.prune_mutations(user_mutations,au.Segments)
+        if config['Fix_engineered_mutations']:
             au.SSBonds.prune_mutations(au.Mutations)
             au.Links.prune_mutations(au.Mutations,au.Segments)
             # au.Links.prune_mutations(au.Conflicts) # problematic?
-        if ConfigGetParam('Fix_conflicts'):
+        if config['Fix_conflicts']:
             au.SSBonds.prune_mutations(au.Conflicts)
+            au.Links.prune_mutations(au.Conflict,au.Segments)
             # au.Links.prune_mutations(au.Conflicts) # problematic?
         for biomt in ba.biomt:
             B.banner(f'TRANSFORM {biomt.index} BEGINS')

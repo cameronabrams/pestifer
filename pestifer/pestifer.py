@@ -4,270 +4,38 @@ import argparse as ap
 import os
 import shutil
 import random
-import math
 import logging
+logger=logging.getLogger(__name__)
 from datetime import date, datetime
 
 from .controller import Controller
 
 
-# from pestifer.molecule import Molecule
-# from pestifer.cleavage import Cleavage
-# from pestifer.mutation import Mutation
-# from pestifer.ssbond import SSBond
-# from pestifer.graft import Graft
-# from pestifer.crot import Crot
-# from pestifer.attach import Attach
-# from pestifer.link import Link
-# from pestifer.deletion import Deletion
-# from pestifer.missing import Missing
-# from pestifer.modsfile import ModsFile
-# from pestifer.atom import _PDBAtomNameDict_
-# from pestifer.residue import Residue, _PDBResName123_, _pdb_glycans_, _pdb_ions_, _ResNameDict_PDB_to_CHARMM_, _ResNameDict_CHARMM_to_PDB_, get_residue
-# from pestifer.util import *
-# from pestifer.rcsb import get_pdb_file
 
-logger=logging.getLogger(__name__)
+def _main():
+    parser=ap.ArgumentParser()
+    parser.add_argument('config',help='input configuration file (yaml)')
+    parser.add_argument('-log',help='log file name',default='pestifer.log')
+    parser.add_argument('--loglevel',default='debug',help='logging level (info)')
+    args=parser.parse_args()
 
-def WritePostMods(fp,psf,pdb,PostMod,Loops,GlycanSegs):
-    """ Writes TcL/VMD commands that encode modifications once the
-        the base psfgen structure has been written.  'PostMods' include
-        things like commands to center the protein, relax model-built loops, etc.
-    """
-    logfile=''
-    logevery=1
-    lobsavevery=-1
+    loglevel=args.loglevel
+    loglevel_numeric=getattr(logging, loglevel.upper())
+    if os.path.exists(args.log):
+        shutil.copyfile(args.log,args.log+'.bak')
+    logging.basicConfig(filename=args.log,filemode='w',format='%(asctime)s %(message)s',level=loglevel_numeric)
+    logger.info(f'pestifer runtime begins')
 
-    if 'log_dcd_file' in PostMod:
-        logfile=PostMod['log_dcd_file']
-    if 'log_every' in PostMod:
-        logevery=PostMod['log_every']
-    if 'log_save_every' in PostMod:
-        logsaveevery=PostMod['log_save_every']
-    logdcd=len(logfile)>0
-    if 'lay_cycles' in PostMod:
-        lay_cycles=PostMod['lay_cycles']
-
-    prefix=pdb[:]
-    prefix=prefix.replace('.pdb','')
-    fp.write('### Post modifications follow:\n')
-    fp.write('mol delete top\n')
-    fp.write('mol new {}\n'.format(psf))
-    fp.write('set molid [molinfo top get id]\n')
-    fp.write('mol addfile {}\n'.format(pdb))
-    if logdcd:
-        fp.write('### logging enabled\n')
-        fp.write('mol new {}\n'.format(psf))
-        fp.write('mol addfile {}\n'.format(pdb))
-        fp.write('set logid [molinfo top get id]\n')
-        fp.write('mol top $molid\n')
-    else:
-        fp.write('set logid -1\n')
-    if 'center_protein' in PostMod and PostMod['center_protein']:
-        fp.write('set a [atomselect $molid "all"]\n')
-        fp.write('set or [measure center $a weight mass]\n')
-        fp.write('$a moveby [vecscale -1 $or]\n')
-        if logdcd:
-            fp.write('set la [atomselect $logid "all"]\n')
-            fp.write('$la moveby [vecscale -1 $or]\n')
-        if 'reorient_protein' in PostMod and PostMod['reorient_protein']:
-            fp.write('set ca [measure center [atomselect $molid "protein and {}"] weight mass]\n'.format(PostMod['reorselstr'][0]))
-            fp.write('set cb [measure center [atomselect $molid "protein and {}"] weight mass]\n'.format(PostMod['reorselstr'][1]))
-            fp.write('set pi 3.415928\n')
-            fp.write('set dv [vecsub $ca $cb]\n')
-            fp.write('set d [veclength $dv]\n')
-            fp.write('set cp [expr [lindex $dv 0]/$d]\n')
-            fp.write('set sp [expr [lindex $dv 1]/$d]\n')
-            fp.write('set p [expr acos($cp)]\n')
-            fp.write('if {[expr $sp < 0.0]} {\n')
-            fp.write('  set p [expr 2*$pi-$p]\n')
-            fp.write('}\n')
-            fp.write('set ct [expr [lindex $dv 2]/$d]\n')
-            fp.write('set t [expr acos($ct)]\n')
-            fp.write('$a move [transaxis z [expr -1 * $p] rad]\n')
-            fp.write('$a move [transaxis y [expr -1 * $t] rad]\n')
-            if logdcd:
-                fp.write('$la move [transaxis z [expr -1 * $p] rad\n')
-                fp.write('$la move [transaxis y [expr -1 * $t] rad\n')
-    for crot in PostMod['Crot']:
-        fp.write(crot.psfgen_str(molid=r'$molid',endIsCterm=('do_preclose_min_smd' in PostMod and PostMod['do_preclose_min_smd'])))
-        if logdcd:
-            fp.write('log_addframe $molid $logid\n')
-    if 'do_preclose_min_smd' in PostMod and PostMod['do_preclose_min_smd']:
-        lay_cycles=100
-        if 'preclose_params' in PostMod:
-            p=PostMod['preclose_params']
-            lay_cycles=lay_cycles if 'lay_cycles' not in p else p['lay_cycles']
-        for l in sorted(Loops, key=lambda x: len(x.residues)):
-            if (l.term and len(l.residues)>2):
-                the_list='[list '+' '.join([f'{r.resseqnum}{r.insertion}' for r in l.residues])+']'
-                fp.write(f'lay_loop $molid {l.replica_chainID} {the_list} {lay_cycles}\n')
-
-        
-    if PostMod.get('do_multiflex_mc',False):
-        nc=1000
-        rcut=4.0
-        sigma=1.8
-        epsilon=0.5
-        cutoff=math.pow(2,(1./6.))*sigma
-        shift=epsilon
-        mctemperature=3.0
-        mck=10.0
-        dstop=2.0
-        sstop=2.0
-        maxanglestep=60.0 # degrees
-        do_loops = 0
-        do_gly = 1
-        if 'multiflex_mc_params' in PostMod:
-            p=PostMod['multiflex_mc_params']
-            nc=nc if 'maxcycles' not in p else p['maxcycles']
-            rcut=rcut if 'rcut' not in p else p['rcut']
-            sigma=sigma if 'sigma' not in p else p['sigma']
-            epsilon=epsilon if 'epsilon' not in p else p['epsilon']
-            shift=shift if 'shift' not in p else p['shift']
-            cutoff=cutoff if 'cutoff' not in p else p['cutoff']
-            mctemperature=mctemperature if 'temperature' not in p else p['temperature']
-            mck=mck if 'k' not in p else p['k']
-            dstop=dstop if 'dstop' not in p else p['dstop']
-            sstop=sstop if 'sstop' not in p else p['sstop']
-            maxanglestep=maxanglestep if 'maxanglestep' not in p else p['maxanglestep']
-            do_loops=do_loops if 'loops' not in p else p['loops']
-            do_gly=do_gly if 'gly' not in p else p['gly']
-        fp.write('set mcp [dict create]\n')
-        fp.write('dict set mcp nc {}\n'.format(nc))
-        fp.write('dict set mcp cellsize {}\n'.format(rcut))
-        fp.write('dict set mcp ljsigma {}\n'.format(sigma))
-        fp.write('dict set mcp ljepsilon {}\n'.format(epsilon))
-        fp.write('dict set mcp ljcutoff {}\n'.format(cutoff))
-        fp.write('dict set mcp ljshift {}\n'.format(shift))
-        fp.write('dict set mcp temperature {}\n'.format(mctemperature))
-        fp.write('dict set mcp mck {}\n'.format(mck))
-        fp.write('dict set mcp dstop {}\n'.format(dstop))
-        fp.write('dict set mcp sstop {}\n'.format(sstop))
-        fp.write('dict set mcp maxanglestep {}\n'.format(maxanglestep))
-        fp.write('set bg [atomselect $molid "noh"]\n')
-        fp.write('set fa {}\n')
-        fp.write('set i {}\n')
-        fp.write('set j {}\n')
- #       fp.write('set loopindex 0\n')
- #       fp.write('set loops {\n')
-        # build rotsel as as all atom indices in selection with rotatable bonds
-        #  that is all atoms in all residues except for the C and O of last residue in each loop
-        rotsel=''
-        if len(Loops)>0 and do_loops == 1:
-            loopsel_substr=[]
-            fa_substr=[]
-            ca_substr=[]
-            c_substr=[]
-            #Loops.sort(key=lambda l: len(l.residues))
-            for l in Loops:
-                if l.term and len(l.residues)>1:
- #                   fp.write('{{ {} {} {} }}\n'.format(l.replica_chainID,l.residues[0].resseqnum,l.residues[-1].resseqnum))
-                    loopsel_substr.append(' (chain {} and resid {} to {} and not (resid {} and name C O) )'.format(l.replica_chainID,l.residues[0].resseqnum,l.residues[-1].resseqnum,l.residues[-1].resseqnum))
-                    fa_substr.append(' (chain {} and resid {} and name CA) '.format(l.replica_chainID,l.residues[0].resseqnum))
-                    ca_substr.append(' (chain {} and resid {} and name CA) '.format(l.replica_chainID,l.residues[-1].resseqnum))
-                    c_substr.append(' (chain {} and resid {} and name C) '.format(l.replica_chainID,l.residues[-1].resseqnum))
-            loopsel=' or '.join(loopsel_substr)
-            fa_sel=' or '.join(fa_substr)
-            ca_sel=' or '.join(ca_substr)
-            c_sel=' or '.join(c_substr)
-            loopsel='(protein and ('+loopsel+'))'
-            fa_sel='(protein and ('+fa_sel+'))'
-            ca_sel='(protein and ('+ca_sel+'))'
-            c_sel='(protein and ('+c_sel+'))'
-            fp.write('set lfa [[atomselect $molid "{}"] get index]\n'.format(fa_sel))
-            fp.write('set lca [[atomselect $molid "{}"] get index]\n'.format(ca_sel))
-            fp.write('set lc [[atomselect $molid "{}"] get index]\n'.format(c_sel))
-            fp.write(r'set fa [list {*}$fa {*}$lfa]'+'\n')
-            fp.write(r'set i [list {*}$i {*}$lca]'+'\n')
-            fp.write(r'set j [list {*}$j {*}$lc]'+'\n')
-            rotsel=loopsel
-            
-        if len(GlycanSegs)>0 and do_gly == 1:
-            glysel='(segname '+' '.join(GlycanSegs)+')'
-            fp.write('set gra {}\n')
-            fp.write('set gi {}\n')
-            fp.write('set gj {}\n')
-            fp.write('set glycan_segs [list '+' '.join(GlycanSegs)+']\n')
-            fp.write('set ng [llength $glycan_segs]\n')
-            fp.write('foreach g $glycan_segs {\n')
-            fp.write('   set sel [atomselect $molid "segname $g"]\n')
-            fp.write('   set rid [$sel get resid]\n')
-            fp.write('   set root [lindex [lsort -unique -real $rid] 0]\n')
-            fp.write('   lappend gra [[atomselect $molid "segname $g and name C1 and resid $root"] get index]\n')
-            fp.write('   lappend gi -1\n')
-            fp.write('   lappend gj -1\n')
-            fp.write('}\n')
-            fp.write(r'set fa [list {*}$fa {*}$gra]'+'\n')
-            fp.write(r'set i [list {*}$i {*}$gi]'+'\n')
-            fp.write(r'set j [list {*}$j {*}$gj]'+'\n')
-
-        if len(rotsel)>0:
-            rotsel = rotsel+' or '+glysel
-        else:
-            rotsel=glysel
-
-        fp.write('set rotsel [atomselect $molid "{}"]\n'.format(rotsel))
-        fp.write('dict set atomind fa $fa\n')
-        fp.write('dict set atomind i $i\n')
-        fp.write('dict set atomind j $j\n')
-        fp.write('do_multiflex_mc $molid $rotsel atomind mcp [irand_dom 1000 9999] $logid {} {}\n'.format(logevery,logsaveevery))
+    C=Controller(args.config)
+    C.do_steps()
     
-    new_pdb_out=prefix+'_mod.pdb'
-    fp.write('$a writepdb {}\n'.format(new_pdb_out))
-    if logdcd:
-        fp.write('set loga [atomselect $logid all]\n')
-        fp.write('animate write dcd {} waitfor all sel $loga $logid\n'.format(logfile))
-        fp.write('mol delete $logid\n')
-    return new_pdb_out
+    logger.info('pestifer runtime ends.')
 
-def CommonPSFGENheader(fp,charmm_topologies,local_topologies):
-    for t in charmm_topologies:
-        fp.write('topology $TOPPARDIR/{}\n'.format(t))
-    for t in local_topologies:
-        fp.write('topology $LOCAL_TOPPARDIR/{}\n'.format(t))
+def cli():
 
-def WriteHeaders(fp,charmm_topologies,local_topologies,pdbaliases):
-    fp.write('#### BEGIN HEADER\n')
-    fp.write('if {![info exists PSFGEN_BASEDIR]} {\n'+\
-	  '    if {[info exists env(PSFGEN_BASEDIR)]} {\n'+\
-	  '        set PSFGEN_BASEDIR $env(PSFGEN_BASEDIR)\n'+\
-	  '    } else {\n'+\
-	  '        set PSFGEN_BASEDIR $env(HOME)/research/psfgen\n'+\
-	  '    }\n'+\
-	  '}\n'+
-          'set LOCAL_TOPPARDIR $PSFGEN_BASEDIR/charmm\n')
-    fp.write('if {![info exists CHARMM_TOPPARDIR]} {\n'+\
-	  '    if {[info exists env(CHARMM_TOPPARDIR)]} {\n'+\
-	  '        set TOPPARDIR $env(CHARMM_TOPPARDIR)\n'+\
-	  '    } else {\n'+\
-	  '        set TOPPARDIR $env(HOME)/charmm/toppar\n'+\
-	  '    }\n'+\
-	  '}\n')
-    fp.write('source ${PSFGEN_BASEDIR}/src/loopmc.tcl\n')
-    fp.write('source ${PSFGEN_BASEDIR}/scripts/vmdrc.tcl\n')
-    fp.write('package require psfgen\n')
-    fp.write('psfcontext mixedcase\n')
-    CommonPSFGENheader(fp,charmm_topologies,local_topologies)
-    #print(pdbaliases)
-    for al in pdbaliases:
-        fp.write('pdbalias {}\n'.format(al))
-    for k,v in _ResNameDict_PDB_to_CHARMM_.items():
-        fp.write('set RESDICT({}) {}\n'.format(k,v))
-    for k,v in _PDBAtomNameDict_.items():
-        fp.write('set ANAMEDICT({}) {}\n'.format(k,v))
-    fp.write('#### END HEADER\n')
-
-
-# def GetStreamFileNames(giventopos):
-#     streamfilesnames=[]
-#     for t in giventopos:
-#         if t[-3:] == 'str':
-#             streamfilesnames.append(t)
-#     return streamfilesnames
-
-#if __name__=='__main__':
-def main():
+    _main()
+    
+def old_main():
     seed=random.randint(0,100000)
     parser=ap.ArgumentParser()
     print('pestifer.py {} / python {}'.format(date.today(),sys.version.replace('\n',' ').split(' ')[0]))
@@ -643,46 +411,3 @@ def pack_for_production():
 
 def do_topogromacs():
     pass
-
-def _main():
-    parser=ap.ArgumentParser()
-    parser.add_argument('config',help='input configuration file (yaml)')
-    parser.add_argument('-log',help='log file name',default='pestifer.log')
-    parser.add_argument('--loglevel',default='debug',help='logging level (info)')
-    args=parser.parse_args()
-
-    loglevel=args.loglevel
-    loglevel_numeric=getattr(logging, loglevel.upper())
-    if os.path.exists(args.log):
-        shutil.copyfile(args.log,args.log+'.bak')
-    logging.basicConfig(filename=args.log,filemode='w',format='%(asctime)s %(message)s',level=loglevel_numeric)
-    logger.info('pestifer runtime begins.')
-
-    C=Controller(args.config)
-    C.report()
-    
-    # source_pdb=options['SourcePDB']
-    # if not os.path.exists(f'{source_pdb}.pdb'):
-    #     pdb_file=get_pdb_file(source_pdb)
-    #     logger.debug(f'downloaded {pdb_file}')
-    # else:
-    #     logger.debug(f'{source_pdb}.pdb found; no download necessary')
-        
-    # # fetch PDBs
-    # for each parse/relaxation task
-    #   read molecules, build working PDB files
-    #   generate mkpsf.tcl
-    #   run psfgen
-    #   run mods
-    #   run namd
-    # solvation
-    # relaxation/equilibration
-    # prep for production
-    # (opt) topogromacs
-
-    logger.info('pestifer runtime ends.')
-
-def cli():
-
-    _main()
-    

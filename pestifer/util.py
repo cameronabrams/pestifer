@@ -124,3 +124,22 @@ def inspect_classes(module,key=' ',use_yaml_headers_as_keys=False):
                 nkey=name
             classes[nkey]=cls
         return classes
+    
+def replace(data,match,repl):
+    """Recursive value search-and-replace; data is either list or dictionary; nesting is ok
+
+    :param data: list or dict
+    :type data: list or dict
+    :param match: replacement string; expected to be found as $(val) in values
+    :type match: str
+    :param repl: replacement
+    :type repl: *
+    """
+    match_str=r'$('+match+r')'
+    if isinstance(data,(dict,list)):
+        for k,v in (data.items() if isinstance(data,dict) else enumerate(data)):
+            if v==match_str:
+                data[k]=repl
+            elif type(v)==str and match_str in v:
+                data[k]=data[k].replace(match_str,repl)
+            replace(v,match,repl)

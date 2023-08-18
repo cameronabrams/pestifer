@@ -25,7 +25,8 @@ class AsymmetricUnit(AncestorAwareMod):
                 'chainIDs':[]
             }
         else:
-            pr=objs[0]
+            config=objs[0]
+            pr=objs[1]
             assert type(pr)==dict
             # minimal pr has ATOMS
             Atoms=AtomList([Atom(p) for p in pr['ATOM']])
@@ -41,6 +42,7 @@ class AsymmetricUnit(AncestorAwareMod):
             else:
                 Missings=MissingList([])
             Residues=ResidueList(Atoms)+ResidueList(Missings)
+            Residues.apply_segtypes(config['Segtypes_by_Resnames'])
             if 'SSBOND' in pr:
                 SSBonds=SSBondList([SSBond(p) for p in pr['SSBOND']])
             else:

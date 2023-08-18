@@ -120,6 +120,10 @@ class BaseMod:
             if s==self:
                 return True
         return False
+    def map_attr(self,mapped_attr,key_attr,map):
+        key=self.__dict__[key_attr]
+        val=map[key]
+        self.__dict__[mapped_attr]=val
 
 class CloneableMod(BaseMod):
     opt_attr=BaseMod.opt_attr+['clone_of']
@@ -292,6 +296,10 @@ class ModList(list):
             else:
                 slices.append(StateInterval({'state':state_func(item),'bounds':[i,i]}))
         return slices
+    def map_attr(self,mapped_attr,key_attr,map):
+        for item in self:
+            item.map_attr(mapped_attr,key_attr,map)
+
 
 class CloneableModList(ModList):
     def clone(self,**options):

@@ -8,7 +8,7 @@
 """
 
 import unittest
-from pestifer.resourcemanager import ResourceManager, ResourcesSetup, ResourcesApplyUserOptions, ResourcesGet
+from pestifer.resourcemanager import ResourceManager
 import platform
 
 class ResourceManagerTest(unittest.TestCase):
@@ -19,13 +19,9 @@ class ResourceManagerTest(unittest.TestCase):
             'NAMD2':'/usr/local/bin/namd2',
             'VMD':'/usr/local/bin/vmd',
         }
-        c=ResourcesSetup()
-        ResourcesApplyUserOptions(user_options)
-        self.assertTrue(type(c)==ResourceManager)
-        namd2=ResourcesGet('namd2')
-        self.assertEqual(namd2,user_options['NAMD2'])
-        plat=ResourcesGet('Platform')
-        self.assertEqual(plat,platform.system())
+        r=ResourceManager(user_options)
+        self.assertEqual(r.namd2,user_options['NAMD2'])
+        self.assertEqual(r.plat,platform.system())
         # print(ResourcesInfo())
         # self.assertTrue(False)
     # def test_libraries(self):

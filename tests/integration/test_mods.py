@@ -2,7 +2,7 @@ from pestifer.mods import Mutation, Missing, Seqadv, SSBond, Crot, Link
 from pestifer.cifutil import CIFdict
 from pidibble.pdbparse import PDBParser
 from pestifer.bioassemb import BiomT
-from pestifer.config import ConfigGetParam,ConfigSetup
+from pestifer.config import Config
 import unittest
 # import pytest
 

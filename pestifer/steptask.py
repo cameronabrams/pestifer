@@ -82,12 +82,14 @@ class Step(BaseMod):
         self.chainIDmanager=ChainIDManager()
         self.tasks_resolved=False
     
-    def resolve_tasks(self,psfgen,vmdtcl):
+    def resolve_tasks(self,config,scriptwriters):
         assert type(self.tasks)==list
         assert len(self.tasks)>0
         assert type(self.tasks[0])==dict
-        self.psfgen=psfgen
-        self.vmdtcl=vmdtcl
+        self.config=config
+        self.psfgen=scriptwriters['psfgen']
+        self.vmdtcl=scriptwriters['vmd']
+        self.namd2=scriptwriters['namd2']
         self.tasklist=TaskList([])
         for tdict in self.tasks:
             self.tasklist.append(tdict,owner_step=self)
@@ -106,10 +108,10 @@ class Step(BaseMod):
             assert os.path.exists(f'{basePDB}.pdb')
             psf_exists=os.path.exists(f'{basePDB}.psf')
             baseBA=0
-        self.molecules[basePDB]=Molecule(source=basePDB,use_psf=psf_exists).activate_biological_assembly(baseBA,self.chainIDmanager)
+        self.molecules[basePDB]=Molecule(config=self.config,source=basePDB,use_psf=psf_exists).activate_biological_assembly(baseBA,self.chainIDmanager)
         self.base_molecule=self.molecules[basePDB]
         for p in self.pdbs:
-            self.molecules[p]=Molecule(source=p)
+            self.molecules[p]=Molecule(config=self.config,source=p)
         return self
 
     def do_tasks(self):

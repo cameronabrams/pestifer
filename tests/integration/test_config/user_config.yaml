@@ -1,0 +1,24 @@
+title: Test User Config
+steps:
+  - name: step1
+    source:
+       pdb: 4zmj
+       biological_assembly: 1
+    mods:
+    tasks:
+      - psfgen:
+          cleanup: False
+      - layloops:
+          cycles: 200
+      - smdclose:
+      - relax:
+          nsteps: 999
+  - name: step2
+    source: step1
+    mods:
+    tasks:
+      - solvate:
+      - relax:
+          nsteps: 1000
+
+CHARMM: test_charmm

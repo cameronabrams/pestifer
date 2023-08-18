@@ -11,8 +11,9 @@ import unittest
 import platform
 import os
 import pytest
-from pestifer.config import ConfigSetup, replace, ConfigGetParam
-from pestifer.resourcemanager import ResourcesGet
+from pestifer.config import Config
+from pestifer.resourcemanager import ResourceManager
+from pestifer.util import replace
 
 class A:
     d={}
@@ -24,14 +25,12 @@ class A:
 class ClassTest(unittest.TestCase):
     def test_1(self):
         a=A({'a':1,'b':2},c=3,d=4)
-        self.assertEqual(A.d['c'],3)
+        self.assertEqual(A.c['c'],3)
         b=A({},c=6)
-        self.assertEqual(A.d['c'],6)
+        self.assertEqual(A.c['c'],6)
 
 class ConfigTest(unittest.TestCase):
     def setUp(self):
-        # print('setUp is here',os.getcwd())
-        self.userinputs='example.yaml'
         plat=platform.system()
         if plat=='Linux':
             self.user_home=os.environ['HOME']
@@ -71,55 +70,32 @@ class ConfigTest(unittest.TestCase):
             replace(self.starting_dict,s,r)
         self.assertEqual(self.starting_dict,self.expected_dict)
     def test_config(self):
-        c=ConfigSetup(self.userinputs)
-        d=c.defs
-        expected_charmmdir=os.path.join(self.user_home,'my_charmm')
-        self.assertEqual(d['CHARMMDIR'],expected_charmmdir)
+        c=Config(self.userinputs)
+        expected_charmmdir=os.path.join(self.user_home,'test_charmm')
+        self.assertEqual(c['CHARMMDIR'],expected_charmmdir)
 
-    def test_modreads(self):
-        c=ConfigSetup(self.userinputs)
-        d=c.defs
-        expected_results={
-            'Query':'All good!',
-            'AnotherQuery':'Yep still good',
-            'Mutations':
-                [
-                {'chainID':'A','resseqnum':123,'newresname':'ARG'},
-                'G,555,PHE'
-                ]
-                }
-        test_results={'Query':'NotFound','AnotherQuery':'NotFound'}
-        for step in d['BuildSteps']:
-            if 'mods' in step:
-                test_results.update(step['mods'])
-        self.assertDictEqual(test_results,expected_results)
     def test_resids(self):
-        c=ConfigSetup(self.userinputs)
-        d=c.defs
-        self.assertEqual(d['PDB_1char_to_3char_Resnames']['S'],'SER')
-        self.assertEqual(d['PDB_to_CHARMM_Resnames']['NAG'],'BGNA')
+        c=Config(self.userinputs)
+        self.assertEqual(c['PDB_1char_to_3char_Resnames']['S'],'SER')
+        self.assertEqual(c['PDB_to_CHARMM_Resnames']['NAG'],'BGNA')
     def test_seqtypes(self):
-        c=ConfigSetup(self.userinputs)
-        d=c.defs
-        self.assertEqual(d['Segtypes_by_Resnames']['HOH'],'WATER')
-        self.assertEqual(d['Segtypes_by_Resnames']['NAG'],'GLYCAN')
-        self.assertEqual(d['Segtypes_by_Resnames']['BGNA'],'GLYCAN')
-        self.assertEqual(d['Segtypes_by_Resnames']['PRO'],'PROTEIN')
+        c=Config(self.userinputs)
+        self.assertEqual(c['Segtypes_by_Resnames']['HOH'],'WATER')
+        self.assertEqual(c['Segtypes_by_Resnames']['NAG'],'GLYCAN')
+        self.assertEqual(c['Segtypes_by_Resnames']['BGNA'],'GLYCAN')
+        self.assertEqual(c['Segtypes_by_Resnames']['PRO'],'PROTEIN')
     def test_resources(self):
-        c=ConfigSetup(self.userinputs)
-        namd2=ResourcesGet('namd2')
+        c=Config(self.userinputs)
+        r=ResourceManager(c)
+        namd2=r.namd2
         self.assertEqual(namd2,c.defs['NAMD2'])
-        plat=ResourcesGet('Platform')
+        plat=r.Platform
         self.assertEqual(plat,platform.system())
 
-    def test_globality(self):
-        c=ConfigSetup(self.userinputs)
-        p=ConfigGetParam('BuildSteps')
+    def test_dictlikeness(self):
+        c=Config(self.userinputs)
+        p=c.get('AssHat','Cannot find an asshat')
+        self.AssertEqual(p,'Cannot find an asshat')
+        p=c.get('steps')
         self.assertTrue(type(p)==list)
         self.assertEqual(len(p),3)
-        p=ConfigGetParam('CHARMM_to_PDB_Resnames')
-        self.assertTrue(type(p)==dict)
-        self.assertEqual(p['AFUC'],'FUC')
-        p=ConfigGetParam('PDB_to_CHARMM_Resnames')
-        self.assertTrue(type(p)==dict)
-        self.assertEqual(p['FUC'],'AFUC')

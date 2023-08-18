@@ -1,6 +1,6 @@
 import unittest
 from pestifer.molecule import Molecule
-from pestifer.config import ConfigSetup
+from pestifer.config import Config
 from pestifer.chainids import ChainIDManager
 class TestSegment(unittest.TestCase):
 

@@ -2,7 +2,7 @@ import logging
 logger=logging.getLogger(__name__)
 from .basemod import AncestorAwareMod, AncestorAwareModList
 from .mods import MutationList
-from .config import ConfigGetParam
+# from .config import ConfigGetParam
 from .residue import Residue,ResidueList
 import pestifer.sel as sel
 from .util import isidentity, reduce_intlist
@@ -11,11 +11,10 @@ from .stringthings import ByteCollector
 class Segment(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments']
     opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname','config_params']
+    config_attr=['Include_terminal_loops','Fix_engineered_mutations','Fix_conflicts','Sacrificial_residue','Segname_chars']
 
-    def __init__(self,input_obj):
-        parm_dict={}
-        for p in ['Include_terminal_loops','Fix_engineered_mutations','Fix_conflicts','Sacrificial_residue']:
-            parm_dict[p]=ConfigGetParam(p)
+    def __init__(self,parm_dict,input_obj):
+        assert all([x in parm_dict for x in self.config_attr])
         if type(input_obj)==dict:
             input_dict=input_obj
         elif type(input_obj)==Residue:
@@ -25,10 +24,10 @@ class Segment(AncestorAwareMod):
             myRes=ResidueList([])
             myRes.append(res.clone())
             subsegments=myRes.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
-            olc=ConfigGetParam('Segname_chars').get(apparent_segtype)
+            # olc=ConfigGetParam('Segname_chars').get(apparent_segtype)
             input_dict={
                 'segtype': apparent_segtype,
-                'segname': f'{apparent_chainID}{olc}',
+                'segname': apparent_chainID,
                 'chainID': apparent_chainID,
                 'residues': myRes,
                 'subsegments':subsegments
@@ -47,10 +46,10 @@ class Segment(AncestorAwareMod):
                 myRes.puniquify(fields=['resseqnum','insertion'],make_common=['chainID'])
             myRes.sort()
             subsegments=myRes.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
-            olc=ConfigGetParam('Segname_chars').get(apparent_segtype)
+            # olc=ConfigGetParam('Segname_chars').get(apparent_segtype)
             input_dict={
                 'segtype': apparent_segtype,
-                'segname': f'{apparent_chainID}{olc}',
+                'segname': apparent_chainID,
                 'chainID': apparent_chainID,
                 'residues': myRes,
                 'subsegments':subsegments
@@ -240,20 +239,22 @@ class Segment(AncestorAwareMod):
         B.banner(f'END SEGMENT {seglabel}')
 
 class SegmentList(AncestorAwareModList):
+
     # counters_by_segtype={}
     def append(self,item:Segment):
-        olc=ConfigGetParam('Segname_chars').get(item.segtype)
+        olc=self.config['Segname_chars'](item.segtype)
         itemkey=f'{item.chainID}{olc}'
         if not itemkey in self.counters_by_segtype:
             self.counters_by_segtype[itemkey]=1
         self.counters_by_segtype[itemkey]+=1
         if item.segtype=='PROTEIN':
-            item.psfgen_segname=item.segname
+            item.psfgen_segname=itemkey
         else:
             item.psfgen_segname=f'{itemkey}{self.counters_by_segtype[itemkey]:02d}'
         super().append(item)
 
-    def __init__(self,input_obj):
+    def __init__(self,config,input_obj):
+        self.config={k:config[k] for k in Segment.config_attr}
         self.counters_by_segtype={}
         if type(input_obj)==ResidueList:
             super().__init__([])
@@ -262,7 +263,7 @@ class SegmentList(AncestorAwareModList):
                 res=residues.get(segtype=stype)
                 for chainID in res.unique_chainIDs():
                     c_res=residues.get(segtype=stype,chainID=chainID)
-                    thisSeg=Segment(c_res)
+                    thisSeg=Segment(self.config,c_res)
                     self.append(thisSeg)            
         else:
             logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
