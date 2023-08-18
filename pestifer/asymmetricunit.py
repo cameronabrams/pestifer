@@ -62,6 +62,7 @@ class AsymmetricUnit(AncestorAwareMod):
                 Conflicts=MutationList([])
             if 'LINK' in pr:
                 Links=LinkList([Link(p) for p in pr['LINK']])
+                Links.apply_segtypes(config['Segtypes_by_Resnames'])
                 Residues.update_links(Links,Atoms)
             else:
                 Links=LinkList([])

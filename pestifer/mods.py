@@ -540,8 +540,8 @@ class Link(AncestorAwareMod):
                 'atom1':None,
                 'atom2':None,
                 'empty':False,
-                'segtype1':ConfigGetParam('Segtypes_by_Resnames')[input_dict['resname1']],
-                'segtype2':ConfigGetParam('Segtypes_by_Resnames')[input_dict['resname2']],
+                'segtype1':'UNSET',
+                'segtype2':'UNSET',
             })
         super().__init__(input_dict)
 
@@ -615,6 +615,10 @@ class LinkList(AncestorAwareModList):
                     Segments.remove(S)
                 for l in llist:
                     self.remove(l)
+
+    def apply_segtypes(self,map):
+        self.map_attr('segtype1','resname1',map)
+        self.map_attr('segtype2','resname2',map)
 
 class Graft(AncestorAwareMod):
     yaml_header='Grafts'

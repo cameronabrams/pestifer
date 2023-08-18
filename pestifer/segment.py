@@ -203,7 +203,7 @@ class Segment(AncestorAwareMod):
         for b in self.subsegments:
             if b.state=='MISSING':
                 # will issue the atom-reorienting command to join the C-terminus of prior run to N-terminus of this one, which is model-built using guesscoord
-                if (self.subsegments.index(b)==0 or self.subsegments.index(b)==(len(self.subsegments)-1)) and not ConfigGetParam('Include_terminal_loops'):
+                if (self.subsegments.index(b)==0 or self.subsegments.index(b)==(len(self.subsegments)-1)) and not self.config_params['Include_terminal_loops']:
                     # this is a terminal loop and we are not including terminal loops
                     pass
                 else:
