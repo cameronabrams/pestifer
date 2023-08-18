@@ -35,6 +35,7 @@ class Scriptwriter:
 
 class VMD(Scriptwriter):
     def __init__(self,config):
+        self.config=config
         self.tcl_path=config.tcl_path
         self.vmd_startup=config.vmd_startup_script
         self.default_script=config['vmd_scriptname']
@@ -107,7 +108,7 @@ class VMD(Scriptwriter):
 
     def runscript(self):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
-        c=Command(f'{self.resources.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args -respath {self.tcl_path}')
+        c=Command(f'{self.config["vmd"]} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args -respath {self.tcl_path}')
         c.run()
         self.logname=f'{self.basename}.log'
         with open(self.logname,'w') as f:
@@ -125,23 +126,23 @@ class VMD(Scriptwriter):
                     os.remove(file)
 
 class Psfgen(VMD):
-    def __init__(self,resources,config):
-        super().__init__(resources,config)
+    def __init__(self,config):
+        super().__init__(config)
         self.pestifer_charmmpath=config.charmm_toppar_path
         self.user_charmm_topparpath=config.user_charmm_toppar_path
         self.default_script=config['psfgen_scriptname']
 
-    def beginscript(self,basename=None):
-        super().beginscript(basename=basename)
+    def newscript(self,basename=None):
+        super().newscript(basename=basename)
         self.B.addline('package require psfgen')
 
     def topo_aliases(self):
         self.B.addline('psfcontext mixedcase')
         for t in self.config['StdCharmmTopo']:
-            ft=os.path.join(self.system_charmm_toppardir,t)
+            ft=os.path.join(self.user_charmm_topparpath,t)
             self.B.addline(f'topology {ft}')
         for lt in self.config['LocalCharmmTopo']:
-            ft=os.path.join(self.package_charmmdir,lt)
+            ft=os.path.join(self.pestifer_charmmpath,lt)
             self.B.addline(f'topology {ft}')
         for pdba in self.config['PDBAliases']:
             self.B.addline(f'pdbalias {pdba}')
@@ -174,6 +175,7 @@ class Psfgen(VMD):
 
 class NAMD2(Scriptwriter):
     def __init__(self,config):
+        self.config=config
         self.templates_path=config.namd_template_path
         self.default_script=config['namd2_configname']
         super().__init__()

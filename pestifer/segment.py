@@ -11,7 +11,7 @@ from .stringthings import ByteCollector
 class Segment(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments']
     opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname','config_params']
-    config_attr=['Include_terminal_loops','Fix_engineered_mutations','Fix_conflicts','Sacrificial_residue','Segname_chars']
+    config_attr=['Include_terminal_loops','Fix_engineered_mutations','Fix_conflicts','Sacrificial_residue','Segname_chars','PDB_to_CHARMM_Resnames']
 
     def __init__(self,parm_dict,input_obj):
         assert all([x in parm_dict for x in self.config_attr])
@@ -173,7 +173,8 @@ class Segment(AncestorAwareMod):
                 B.addline(f'    pdb {b.pdb}')
             elif b.state=='MISSING':
                 for r in self.residues[b.bounds[0]:b.bounds[1]+1]:
-                    B.addline(f'    residue {r.resseqnum}{r.insertion} {r.resname_charmify()} {seglabel}')
+                    rname=self.resname_charmify.get(r.name,r.name)
+                    B.addline(f'    residue {r.resseqnum}{r.insertion} {rname} {seglabel}')
                 if (b.bounds[1]-b.bounds[0])>(sac_n-1):
                     lrr=self.residues[b.bounds[1]]
                     sac_resseqnum=lrr.resseqnum
@@ -242,7 +243,7 @@ class SegmentList(AncestorAwareModList):
 
     # counters_by_segtype={}
     def append(self,item:Segment):
-        olc=self.config['Segname_chars'](item.segtype)
+        olc=self.config['Segname_chars'][item.segtype]
         itemkey=f'{item.chainID}{olc}'
         if not itemkey in self.counters_by_segtype:
             self.counters_by_segtype[itemkey]=1
@@ -251,6 +252,7 @@ class SegmentList(AncestorAwareModList):
             item.psfgen_segname=itemkey
         else:
             item.psfgen_segname=f'{itemkey}{self.counters_by_segtype[itemkey]:02d}'
+        item.resname_charmify=self.config['PDB_to_CHARMM_Resnames']
         super().append(item)
 
     def __init__(self,config,input_obj):

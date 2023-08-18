@@ -45,7 +45,7 @@ class PsfgenTask(Task):
         mod_dict=self.specs.get('mods',{})
         base_molecule=self.owner.base_molecule
         pg=self.owner.psfgen
-        pg.beginscript(self.basename)
+        pg.newscript(self.basename)
         pg.topo_aliases()
         pg.set_molecule(base_molecule)
         pg.describe_molecule(base_molecule,mod_dict)
@@ -66,7 +66,7 @@ class LayloopsTask(Task):
         vt=self.owner.vmdtcl
         mol=self.owner.base_molecule
         logger.debug(f'layloops: inputs: {psf} {pdb}')
-        vt.beginscript(self.basename)
+        vt.newscript(self.basename)
         vt.load_psf_pdb(psf,pdb,new_molid_varname='mLL')
         cycles=self.specs.get('cycles',100)
         sac_n=self.specs.get('min_loop_length',4)

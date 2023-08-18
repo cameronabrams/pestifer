@@ -119,8 +119,6 @@ def inspect_classes(module,key=' ',use_yaml_headers_as_keys=False):
         return nonkey_classes,key_classes
     else:
         classes={}
-        logger.debug(f'module {module}')
-        logger.debug(f'sys.modules: {list[sys.modules.keys()]}')
         for name,cls in inspect.getmembers(sys.modules[module], lambda x: inspect.isclass(x) and (x.__module__==module)):
             if use_yaml_headers_as_keys:
                 nkey=cls.yaml_header

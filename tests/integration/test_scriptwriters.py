@@ -8,8 +8,8 @@ from pestifer.chainids import ChainIDManager
 import os
 class TestPsfgen(unittest.TestCase):
     def test_header(self):
-        c=Config('user_config.yaml')
-        n=c['default_psfgen_script']
+        c=Config()
+        n=c['psfgen_scriptname']
         p=Psfgen(c)
         self.assertEqual(p.default_script,n)
         p.newscript()
@@ -22,7 +22,7 @@ class TestPsfgen(unittest.TestCase):
         self.assertTrue(os.path.isfile('testing.tcl'))
         os.remove(p.basename+'.tcl')
         self.assertFalse(os.path.exists('testing.tcl'))
-    def test_write_mol(self):
+    # def test_write_mol(self):
     #     c=ConfigSetup('example.yaml')
     #     chainIDmanager=ChainIDManager()
     #     m=Molecule(source='1gc1').activate_biological_assembly(1,chainIDmanager)

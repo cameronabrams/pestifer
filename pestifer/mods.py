@@ -13,7 +13,6 @@ from pidibble.pdbrecord import PDBRecord
 from pidibble.baserecord import BaseRecord
 from .cifutil import CIFdict
 from .basemod import AncestorAwareMod,AncestorAwareModList
-# from .config import ConfigGetParam
 from .stringthings import ByteCollector, split_ri
 
 class Seqadv(AncestorAwareMod):

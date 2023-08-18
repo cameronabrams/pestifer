@@ -4,11 +4,8 @@ from pestifer.config import Config
 from pestifer.molecule import Molecule
 
 class TestResidue(unittest.TestCase):
-    def setUp(self):
-        return super().setUp()
     def test_from_atom(self):
-        self.config=ConfigSetup('')
-        m=Molecule(source='1gc1')
+        m=Molecule(source='1gc1',config=Config())
         au=m.asymmetric_unit
         residues=[]
         a=au.Atoms[0]
@@ -22,8 +19,7 @@ class TestResidue(unittest.TestCase):
         self.assertEqual(len(residues),1538)
 
     def test_segtypes(self):
-        self.config=ConfigSetup('')
-        m=Molecule(source='4tvp')
+        m=Molecule(source='4tvp',config=Config())
         au=m.asymmetric_unit
         p=au.Residues.get(segtype='PROTEIN')
         pc=[]
@@ -63,8 +59,7 @@ class TestResidue(unittest.TestCase):
         self.assertEqual(oc,[])
 
     def test_residuelist(self):
-        self.config=ConfigSetup('')
-        m=Molecule(source='6m0j')
+        m=Molecule(source='6m0j',config=Config())
         au=m.asymmetric_unit
         r=au.Residues.get_residue(resseqnum=427,chainID='A')
         self.assertEqual(r.name,'ASP')

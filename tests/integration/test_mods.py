@@ -3,7 +3,6 @@ from pestifer.cifutil import CIFdict
 from pidibble.pdbparse import PDBParser
 from pestifer.bioassemb import BiomT
 from pestifer.config import Config
-from pestifer.resourcemanager import ResourceManager
 from pestifer.stringthings import ByteCollector
 import unittest
 # import pytest
@@ -138,8 +137,7 @@ class TestCrot(unittest.TestCase):
 
 class TestLink(unittest.TestCase):
     def test_link_create(self):
-        self.resman=ResourceManager()
-        self.config=Config(self.resman,'user_config.yaml')
+        self.config=Config('user_config.yaml')
         input_dict={
             'name1': 'NH',
             'resname1':'ASN',
@@ -152,7 +150,7 @@ class TestLink(unittest.TestCase):
             'resseqnum2':2,
             'insertion2':'',}
         l=Link(input_dict)
-        l.map_attr('segtype1','resname1',self.config['Segtypes_by_Resnames'])
-        l.map_attr('segtype2','resname2',self.config['Segtypes_by_Resnames'])
+        l.map_attr('segtype1','resname1',self.config.segtype_resname_map)
+        l.map_attr('segtype2','resname2',self.config.segtype_resname_map)
         self.assertEqual(l.segtype1,'PROTEIN')
         self.assertEqual(l.segtype2,'GLYCAN')

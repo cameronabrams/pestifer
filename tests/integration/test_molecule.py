@@ -4,8 +4,9 @@ from pestifer.config import Config
 class TestMolecule(unittest.TestCase):
 
     def test_molecule_au(self):
-        self.config=ConfigSetup('')
-        m=Molecule(source='1gc1')
+        c=Config()
+        self.assertTrue(hasattr(c,'defs'))
+        m=Molecule(config=c,source='1gc1')
         au=m.asymmetric_unit
         self.assertEqual(m.source,'1gc1')
         self.assertEqual(len(au.Atoms),7877)
@@ -26,8 +27,7 @@ class TestMolecule(unittest.TestCase):
         self.assertEqual(g0.name,'NAG')
 
     def test_molecule_links(self):
-        self.config=ConfigSetup('')
-        m=Molecule(source='4zmj')
+        m=Molecule(source='4zmj',config=Config())
         au=m.asymmetric_unit
         l=au.Links[0]
         self.assertEqual(l.residue1.segtype,'PROTEIN')
@@ -61,14 +61,11 @@ class TestMolecule(unittest.TestCase):
         self.assertEqual(l.atom2.altloc,'')
 
     def test_molecule_bioassemb(self):
-        self.config=ConfigSetup('')
-        m=Molecule(source='4zmj')
+        m=Molecule(source='4zmj',config=Config())
         self.assertEqual(1,len(m.biological_assemblies))
     
     def test_molecule_ancestry(self):
-        self.config=ConfigSetup('')
-        m=Molecule(source='4zmj',reset_counter=True)
-        # m=Molecule.from_rcsb(pdb_code='2y29')
+        m=Molecule(source='4zmj',reset_counter=True,config=Config())
         au=m.asymmetric_unit
         auao=au.ancestor_obj
         self.assertEqual(auao,m)
@@ -79,9 +76,7 @@ class TestMolecule(unittest.TestCase):
             self.assertEqual(sao.molid,0)
 
     def test_molecule_adjust_serials(self):
-        self.config=ConfigSetup('')
-        m=Molecule(source='4zmj')
-        # m=Molecule.from_rcsb(pdb_code='2y29')
+        m=Molecule(source='4zmj',config=Config())
         au=m.asymmetric_unit
         self.assertTrue(hasattr(au,'Ters'))
         ters=au.Ters

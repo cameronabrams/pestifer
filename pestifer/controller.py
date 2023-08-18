@@ -28,11 +28,11 @@ class Controller:
         logger.debug(f'Controller will execute {len(self.steps)} step(s).')
 
     def do_steps(self,**kwargs):
-        self.check()
+        self._check()
         for step in self.steps:
             step.injest_molecules()
             step.do_tasks()
 
-    def check(self):
+    def _check(self):
         stepnames=list(set([x.name for x in self.steps]))
         assert len(stepnames)==len(self.steps),f'Please use unique step names in your "steps" section'

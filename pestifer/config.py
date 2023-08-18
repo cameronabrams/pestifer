@@ -43,14 +43,18 @@ class ResourceManager:
 
 class Config(dict):
     executables=['namd2','charmrun','vmd']
-    def __init__(self,userconfigfilename):
+    def __init__(self,*objs):
         self.resman=ResourceManager()
         self._readmainconfig()
+        if len(objs)==1:
+            userconfigfilename=objs[0]
+        else:
+            userconfigfilename=None
+
         self._readuserconfig(userconfigfilename)
         # append/update any container-like values, rather than overwriting
-        self.defs=special_update(self.defs,self.user_defaults)
         self._builddicts()
-
+        
         vars={'HOME':self.resman.user_home}
         for v,r in vars.items():
             replace(self.defs,v,r)
@@ -80,18 +84,25 @@ class Config(dict):
         assert os.path.exists(mainconfigfilename),f'Main configuration file {mainconfigfilename} not found.  Your installation of pestifer is corrupt.'
         with open(mainconfigfilename,'r') as f:
             self.defs=yaml.safe_load(f)
-        self.user_defaults=self.defs.get('User_defaults',{})
+        self.defaults=self.defs['User_defaults']
+        del self.defs['User_defaults']
 
     def _readuserconfig(self,userconfigfilename):
+        user_dict={}
         if userconfigfilename:
            with open(userconfigfilename,'r') as f:
-                self.user_dict=yaml.safe_load(f)
-                tmp=self.user_defaults.copy()
-                tmp.update(self.user_dict)
-                self.user_dict=tmp
+                user_dict=yaml.safe_load(f)
+        tmp=self.defaults.copy()
+        tmp.update(user_dict)
+        special_update(self.defs,tmp)
+        self.user_dict={}
 
     def __getitem__(self,key):
         return self.defs[key]
+        # this will make bool give false if defs is empty, but a config is more than defs even though I want to getitem to access defs so...
+
+    def __bool__(self):
+        return True
     
     def get(self,key,default):
         if key in self.defs:

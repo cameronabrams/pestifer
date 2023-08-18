@@ -19,26 +19,20 @@ class Molecule(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['config','molid','source','asymmetric_unit','biological_assemblies','parsed_struct']
     opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
-    def __init__(self,**options):
+    def __init__(self,source=None,config=None,**options):
         reset=options.get('reset_counter',False)
         if reset:
             Molecule._molcounter=0
         else:
             Molecule._molcounter+=1
-        source=options.get('source',None)
-        use_psf=options.get('use_psf',None)
-        config=options.get('config',None)
+        if not config:
+            logger.warning('Molecule initialized without config.')
         if not source:
-            input_dict={
-                'config': config,
-                'molid': Molecule._molcounter,
-                'source': None,
-                'parsed_struct': None,
-                'asymmetric_unit': None,
-                'biological_assemblies': None
-            }
-            super().__init__(input_dict)
-        p_struct=PDBParser(PDBcode=source).parse().parsed
+            logger.debug('Molecule initialized without source.')
+            p_struct=None
+        else:
+            p_struct=PDBParser(PDBcode=source).parse().parsed
+        use_psf=options.get('use_psf',None)
         if use_psf:
             apply_psf_info(p_struct,f'{source}.psf')
         # if os.path.exists(f'{source}.psf'):
@@ -96,7 +90,7 @@ class Molecule(AncestorAwareMod):
             # au.Links.prune_mutations(au.Conflicts) # problematic?
         if config['Fix_conflicts']:
             au.SSBonds.prune_mutations(au.Conflicts)
-            au.Links.prune_mutations(au.Conflict,au.Segments)
+            au.Links.prune_mutations(au.Conflicts,au.Segments)
             # au.Links.prune_mutations(au.Conflicts) # problematic?
         for biomt in ba.biomt:
             B.banner(f'TRANSFORM {biomt.index} BEGINS')

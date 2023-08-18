@@ -11,7 +11,7 @@ class AsymmetricUnit(AncestorAwareMod):
     opt_attr=AncestorAwareMod.opt_attr+['Ters','Segments','chainIDs']
     def __init__(self,*objs):
         if len(objs)==0:
-            # return an empty AU
+            logger.debug('Generating an empty A.U.')
             input_dict={
                 'Atoms':AtomList([]),
                 'Residues':ResidueList([]),
@@ -25,8 +25,8 @@ class AsymmetricUnit(AncestorAwareMod):
                 'chainIDs':[]
             }
         else:
-            config=objs[0]
-            pr=objs[1]
+            config=objs[1]
+            pr=objs[0]
             assert type(pr)==dict
             # minimal pr has ATOMS
             Atoms=AtomList([Atom(p) for p in pr['ATOM']])
@@ -42,7 +42,8 @@ class AsymmetricUnit(AncestorAwareMod):
             else:
                 Missings=MissingList([])
             Residues=ResidueList(Atoms)+ResidueList(Missings)
-            Residues.apply_segtypes(config['Segtypes_by_Resnames'])
+            if config!=None:
+                Residues.apply_segtypes(config['Segtypes_by_Resnames'])
             if 'SSBOND' in pr:
                 SSBonds=SSBondList([SSBond(p) for p in pr['SSBOND']])
             else:
@@ -62,11 +63,12 @@ class AsymmetricUnit(AncestorAwareMod):
                 Conflicts=MutationList([])
             if 'LINK' in pr:
                 Links=LinkList([Link(p) for p in pr['LINK']])
-                Links.apply_segtypes(config['Segtypes_by_Resnames'])
+                if config!=None:
+                    Links.apply_segtypes(config['Segtypes_by_Resnames'])
                 Residues.update_links(Links,Atoms)
             else:
                 Links=LinkList([])
-            Segments=SegmentList(Residues)
+            Segments=SegmentList(config,Residues)
             chainIDs=list(set([x.chainID for x in Residues]))
             logger.debug(f'ChainIDs in A.U.: {",".join(chainIDs)}')
             chainIDs.sort()
