@@ -13,6 +13,7 @@ import os
 from .molecule import Molecule
 from .stringthings import ByteCollector, FileCollector, my_logger
 import datetime
+import shutil
 
 class Scriptwriter:
     def __init__(self):
@@ -40,6 +41,18 @@ class VMD(Scriptwriter):
         self.vmd_startup=config.vmd_startup_script
         self.default_script=config['vmd_scriptname']
         super().__init__()
+
+    def usescript(self,scriptbasename):
+        scriptname=os.path.join(self.tcl_path,f'scripts/{scriptbasename}.tcl')
+        timestampstr=datetime.datetime.today().ctime()
+        if not os.path.exists(scriptname):
+            raise FileNotFoundError(f'Pestifer script {scriptbasename}.tcl is not found.')
+        self.B.banner(f'Injested from {scriptbasename}, {timestampstr}')
+        self.B.injest_file(scriptname)
+
+    def loadmodule(self,modulename):
+        procname=os.path.join(self.tcl_path,f'proc/{modulename}.tcl')
+        self.B.addline(f'source {procname}')
 
     def endscript(self):
         self.B.addline('exit')
@@ -106,9 +119,9 @@ class VMD(Scriptwriter):
         with open(self.scriptname,'w') as f:
             f.write(str(self.B))
 
-    def runscript(self):
+    def runscript(self,**options):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
-        c=Command(f'{self.config["vmd"]} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args -respath {self.tcl_path}')
+        c=Command(f'{self.config["vmd"]} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args -respath {self.tcl_path}',**options)
         c.run()
         self.logname=f'{self.basename}.log'
         with open(self.logname,'w') as f:
@@ -178,4 +191,5 @@ class NAMD2(Scriptwriter):
         self.config=config
         self.templates_path=config.namd_template_path
         self.default_script=config['namd2_configname']
+        self.max_cpu_count=os.cpu_count()
         super().__init__()

@@ -18,7 +18,7 @@ steps:
     mods:
     tasks:
       - solvate:
-      - relax:
-          nsteps: 1000
+      # - relax:
+      #     nsteps: 1000
 
 CHARMMPATH: test_charmm

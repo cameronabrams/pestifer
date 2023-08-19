@@ -26,7 +26,10 @@ class Task(BaseMod):
         super().__init__(input_dict)
 
     def priors(self):
-        prior_basename=self.prior.basename
+        if self.prior:
+            prior_basename=self.prior.basename
+        else:
+            prior_basename=self.owner.basename
         return [f'{prior_basename}{ext}' for ext in self.__class__.exts]
     
     def pass_thru(self):
@@ -84,6 +87,7 @@ class LayloopsTask(Task):
                                 act_chainID=biomt.chainIDmap[chainID]
                                 vt.addline(f'lay_loop $mLL {act_chainID} {tcllist} {cycles}')
         vt.write_pdb(self.basename,'mLL')
+        shutil.copy(psf,f'{self.basename}.psf')
         vt.endscript()
         vt.writescript()
         vt.runscript()
@@ -93,7 +97,14 @@ class SolvateTask(Task):
     yaml_header='solvate'
     opt_attr=Task.opt_attr+[yaml_header]
     def do(self):
-        logger.debug(f'solvate: specs {self.specs}')
+        logger.info(f'Solvate task initiated')
+        vt=self.owner.vmdtcl
+        vt.newscript(self.basename)
+        vt.usescript('solv')
+        vt.writescript()
+        psf,pdb=self.priors()
+        logger.debug(f'solvate: inputs {psf} {pdb} to {vt.basename}.tcl')
+        vt.runscript(o=self.basename,pdb=pdb,psf=psf)
 
 class SMDcloseTask(Task):
     yaml_header='smdclose'

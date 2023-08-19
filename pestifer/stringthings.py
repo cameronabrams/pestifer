@@ -22,6 +22,9 @@ class ByteCollector:
         self.byte_collector+=msg
     def addline(self,msg,end='\n'):
         self.byte_collector+=f'{msg}{end}'
+    def injest_file(self,filename):
+        with open(filename,'r') as f:
+            self.byte_collector+=f.read()
     def comment(self,msg,end='\n'):
         comment_line=f'{self.comment_char} {msg}'
         comment_words=comment_line.split()

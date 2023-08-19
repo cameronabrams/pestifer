@@ -101,15 +101,18 @@ class Step(BaseMod):
         self.molecules={}
         psf_exists=False
         if type(self.source)==dict:
-            basePDB=self.source.get('pdb',None)
-            baseBA=self.source.get('biological_assembly',None)
+            self.basename=self.source.get('pdb',None)
+            bioassemb=self.source.get('biological_assembly',None)
         elif type(self.source)==str:
-            basePDB=self.source
-            assert os.path.exists(f'{basePDB}.pdb')
-            psf_exists=os.path.exists(f'{basePDB}.psf')
-            baseBA=0
-        self.molecules[basePDB]=Molecule(config=self.config,source=basePDB,use_psf=psf_exists).activate_biological_assembly(baseBA,self.chainIDmanager)
-        self.base_molecule=self.molecules[basePDB]
+            self.basename=self.source
+            assert os.path.exists(f'{self.basename}.pdb')
+            self.pdb=f'{self.basename}.pdb'
+            psf_exists=os.path.exists(f'{self.basename}.psf')
+            if psf_exists:
+                self.psf=f'{self.basename}.psf'
+            bioassemb=0
+        self.molecules[self.basename]=Molecule(config=self.config,source=self.basename,use_psf=psf_exists).activate_biological_assembly(bioassemb,self.chainIDmanager)
+        self.base_molecule=self.molecules[self.basename]
         for p in self.pdbs:
             self.molecules[p]=Molecule(config=self.config,source=p)
         return self
