@@ -19,7 +19,9 @@ class Scriptwriter:
     def __init__(self):
         self.B=ByteCollector()
         self.F=FileCollector()
-        self.default_script='pestifer-script.tcl'
+        self.default_ext='.tcl'
+        self.default_script=f'pestifer-script{self.default_ext}'
+        self.scriptname=self.default_script
 
     def addline(self,data):
         self.B.addline(data)
@@ -30,17 +32,22 @@ class Scriptwriter:
             self.basename=basename
         else:
             self.basename=os.path.splitext(self.default_script)[0]
+        self.scriptname=f'{self.basename}{self.default_ext}'
         self.B.reset()
-        self.B.banner(f'PESTIFER SCRIPT {self.basename}.tcl')
+        self.B.banner(f'pestifer: {self.basename}{self.default_ext}')
         self.B.banner(f'Created {timestampstr}')
+
+    def writescript(self):
+        with open(self.scriptname,'w') as f:
+            f.write(str(self.B))
 
 class VMD(Scriptwriter):
     def __init__(self,config):
+        super().__init__()
         self.config=config
         self.tcl_path=config.tcl_path
         self.vmd_startup=config.vmd_startup_script
         self.default_script=config['vmd_scriptname']
-        super().__init__()
 
     def usescript(self,scriptbasename):
         scriptname=os.path.join(self.tcl_path,f'scripts/{scriptbasename}.tcl')
@@ -114,11 +121,6 @@ class VMD(Scriptwriter):
         self.B.addline('$a delete')
         self.B.banner('Done resetting molecule orientation')
 
-    def writescript(self):
-        self.scriptname=f'{self.basename}.tcl'
-        with open(self.scriptname,'w') as f:
-            f.write(str(self.B))
-
     def runscript(self,**options):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         c=Command(f'{self.config["vmd"]} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args -respath {self.tcl_path}',**options)
@@ -188,8 +190,36 @@ class Psfgen(VMD):
 
 class NAMD2(Scriptwriter):
     def __init__(self,config):
+        super().__init__()
         self.config=config
         self.templates_path=config.namd_template_path
-        self.default_script=config['namd2_configname']
+        self.default_basename=config['namd2_configbasename']
         self.max_cpu_count=os.cpu_count()
-        super().__init__()
+        self.default_ext='.namd'
+        self.default_script=f'{self.default_basename}{self.default_ext}'
+        
+    def newscript(self,basename=None):
+        super().newscript(basename)
+        self.scriptname=f'{basename}{self.default_ext}'
+        self.addline('NAMD2 script')
+
+    def writescript(self,params):
+        for k,v in params.items():
+            if type(v)==list:
+                for val in v:
+                    self.addline(f'{k} {val}')
+            else:
+                self.addline(f'{k} {v}')
+        super().writescript()
+
+    def runscript(self):
+        assert hasattr(self,'scriptname'),f'No scriptname set.'
+        c=Command(f'{self.config["charmrun"]} +p {self.max_cpu_count} {self.config["namd2"]} {self.scriptname}')
+        c.run()
+        self.logname=f'{self.basename}.log'
+        with open(self.logname,'w') as f:
+            my_logger(f'STDOUT from "{c.command}"',f.write)
+            f.write(c.stdout+'\n')
+            my_logger(f'STDERR from "{c.command}"',f.write)
+            f.write(c.stderr+'\n')
+            my_logger(f'END OF LOG',f.write)

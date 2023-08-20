@@ -69,7 +69,7 @@ class Config(dict):
 
         self.vmd_startup_script=os.path.join(self.resman.resource_paths['tcl'],self.defs.get('vmd_startup','pestifer-vmd.tcl'))
         self.tcl_path=self.resman.resource_paths['tcl']
-        self.namd_template_path=self.resman.resource_paths['templates']
+        # self.namd_template_path=self.resman.resource_paths['templates']
         self.charmm_toppar_path=self.resman.resource_paths['charmm']
         self.user_charmm_path=self.defs['charmm_path']
         self.user_charmm_toppar_path=os.path.join(self.user_charmm_path,'toppar')
@@ -85,13 +85,19 @@ class Config(dict):
         with open(mainconfigfilename,'r') as f:
             self.defs=yaml.safe_load(f)
         self.defaults=self.defs['User_defaults']
+        self.namd_params=self.defs['Namd_defaults']
         del self.defs['User_defaults']
+        del self.defs['Namd_defaults']
 
     def _readuserconfig(self,userconfigfilename):
         user_dict={}
         if userconfigfilename:
            with open(userconfigfilename,'r') as f:
                 user_dict=yaml.safe_load(f)
+        namd_params=user_dict.get('Namd_params',{})
+        special_update(self.namd_params,namd_params)
+        if namd_params:
+            del user_dict('Namd_params')
         tmp=self.defaults.copy()
         tmp.update(user_dict)
         special_update(self.defs,tmp)
@@ -127,7 +133,6 @@ class Config(dict):
         self.defs['Segtypes_by_Resnames'].update({self.defs['PDB_to_CHARMM_Resnames'][k]:'LIGAND' for k in self.defs['PDB_Ligands']})
         self.defs['Segtypes_by_Resnames'].update({k:'PROTEIN' for k in self.defs['PDB_1char_to_3char_Resnames'].values()})
         self.defs['Segtypes_by_Resnames'].update({k:'PROTEIN' for k in ['HIS','HSE','HSD']})
-
 
     def __str__(self):
         return yaml.dump(self)        

@@ -136,14 +136,62 @@ User_defaults:
   vmd_startup: pestifer-vmd.tcl
   vmd_scriptname: vmd.tcl
   psfgen_scriptname: psfgen.tcl
-  namd2_configname: namd2.tcl
-  namd2: /usr/local/bin/namd2
   vmd: /usr/local/bin/vmd
-  charmrun: /usr/local/bin/charmrun
   charmm_path: $(HOME)/charmm
+  namd2: /usr/local/bin/namd2
+  charmrun: /usr/local/bin/charmrun
+  namd2_configbasename: namd2in
   Sacrificial_residue:
     name: GLY
     min_loop_length: 3
   Include_terminal_loops: False
   Fix_engineered_mutations: True
   Fix_conflicts: True
+
+Namd_defaults:
+  generic:
+    paraTypeCharm: on
+    exclude: scaled1-4
+    1-4scaling: 1.9
+    cutoff: 10.0
+    switching: on
+    switchdist: 9.0
+    pairlistdist: 11.5
+  vacuum:
+    nonbondedFreq: 1
+    fullElectFrequency: 2
+    stepspercycle: 4
+    dielectric: 80
+    timestep: 1.0
+    rigidbonds: none
+  solvated:
+    timestep: 2.0
+    rigidbonds: all
+    nonbondedFreq: 1
+    fullElectFrequency: 2
+    stepspercycle: 10
+    PME: on 
+    pmegridspacing: 1.0
+  thermostat:
+    langevin: on 
+    langevinDamping: 5
+    langevinTemp: $temperature
+    langevinHydrogen: no 
+  barostat:
+    langevinpiston: on 
+    langevinpistontarger: $pressure
+    langevinpistonperiod: 200
+    langevinpistondcay: 100
+    langevinpistontemp: $temperature
+    usegrouppressure: yes
+    useflexiblecell: no
+  mustset:
+    - structure
+    - coordinates
+    - parameters
+    - seed
+    - outputName
+    - outputEnergies
+    - dcdfreq
+    - restartfreq
+    - temperature
