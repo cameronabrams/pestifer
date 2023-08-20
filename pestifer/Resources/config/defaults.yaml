@@ -152,7 +152,7 @@ Namd_defaults:
   generic:
     paraTypeCharm: on
     exclude: scaled1-4
-    1-4scaling: 1.9
+    1-4scaling: 1.0
     cutoff: 10.0
     switching: on
     switchdist: 9.0

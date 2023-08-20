@@ -15,17 +15,32 @@ from .stringthings import ByteCollector, FileCollector, my_logger
 import datetime
 import shutil
 
-class Scriptwriter:
+class Filewriter:
     def __init__(self):
         self.B=ByteCollector()
-        self.F=FileCollector()
-        self.default_ext='.tcl'
-        self.default_script=f'pestifer-script{self.default_ext}'
-        self.scriptname=self.default_script
+
+    def newfile(self,filename):
+        self.filename=filename
+        self.B.reset()
+
+    def injest_file(self,filename):
+        self.B.injest_file(filename)
 
     def addline(self,data):
         self.B.addline(data)
 
+    def writefile(self):
+        with open(self.filename,'w') as f:
+            f.write(str(self.B))
+
+class Scriptwriter(Filewriter):
+    def __init__(self):
+        self.F=FileCollector()
+        self.default_ext='.tcl'
+        self.default_script=f'pestifer-script{self.default_ext}'
+        self.scriptname=self.default_script
+        super().__init__()
+    
     def newscript(self,basename=None):
         timestampstr=datetime.datetime.today().ctime()
         if basename:
@@ -33,13 +48,12 @@ class Scriptwriter:
         else:
             self.basename=os.path.splitext(self.default_script)[0]
         self.scriptname=f'{self.basename}{self.default_ext}'
-        self.B.reset()
+        self.newfile(self.scriptname)
         self.B.banner(f'pestifer: {self.basename}{self.default_ext}')
         self.B.banner(f'Created {timestampstr}')
 
     def writescript(self):
-        with open(self.scriptname,'w') as f:
-            f.write(str(self.B))
+        self.writefile()
 
 class VMD(Scriptwriter):
     def __init__(self,config):
@@ -55,7 +69,7 @@ class VMD(Scriptwriter):
         if not os.path.exists(scriptname):
             raise FileNotFoundError(f'Pestifer script {scriptbasename}.tcl is not found.')
         self.B.banner(f'Injested from {scriptbasename}, {timestampstr}')
-        self.B.injest_file(scriptname)
+        self.injest_file(scriptname)
 
     def loadmodule(self,modulename):
         procname=os.path.join(self.tcl_path,f'proc/{modulename}.tcl')
@@ -121,7 +135,7 @@ class VMD(Scriptwriter):
         self.B.addline('$a delete')
         self.B.banner('Done resetting molecule orientation')
 
-    def runscript(self,**options):
+    def runscript(self,*args,**options):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         c=Command(f'{self.config["vmd"]} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args -respath {self.tcl_path}',**options)
         c.run()
@@ -150,9 +164,9 @@ class Psfgen(VMD):
     def newscript(self,basename=None):
         super().newscript(basename=basename)
         self.B.addline('package require psfgen')
+        self.B.addline('psfcontext mixedcase')
 
     def topo_aliases(self):
-        self.B.addline('psfcontext mixedcase')
         for t in self.config['StdCharmmTopo']:
             ft=os.path.join(self.user_charmm_topparpath,t)
             self.B.addline(f'topology {ft}')
@@ -180,13 +194,14 @@ class Psfgen(VMD):
         self.B.addline(f'mol top ${molid_varname}')
         mol.write_TcL(self.B,mods,file_collector=self.F)
 
-    def transform_postmods(self):
+    def complete(self,statename):
         self.B.addline('guesscoord')
         self.B.addline('regenerate angles dihedrals')
-        psf=f'{self.basename}.psf'
-        pdb=f'{self.basename}.pdb'
+        psf=f'{statename}.psf'
+        pdb=f'{statename}.pdb'
         self.B.addline(f'writepsf cmap {psf}')
         self.B.addline(f'writepdb {pdb}')
+        return {'psf':psf,'pdb':pdb}
 
 class NAMD2(Scriptwriter):
     def __init__(self,config):

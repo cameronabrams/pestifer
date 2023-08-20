@@ -94,6 +94,9 @@ class Config(dict):
         if userconfigfilename:
            with open(userconfigfilename,'r') as f:
                 user_dict=yaml.safe_load(f)
+        self.tasks=user_dict.get('tasks',{})
+        if 'tasks' in user_dict:
+            del user_dict['tasks']
         namd_params=user_dict.get('Namd_params',{})
         special_update(self.namd_params,namd_params)
         if namd_params:

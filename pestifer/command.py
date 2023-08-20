@@ -4,10 +4,11 @@ logger=logging.getLogger(__name__)
 
 class Command:
     divider_line_length=55
-    def __init__(self,command,**options):
+    def __init__(self,command,*args,**options):
         self.command=command
+        self.args=args
         self.options=options
-        self.c=f'{self.command} '+' '.join([f'-{k} {v}' for k,v in self.options.items()])
+        self.c=f'{self.command} '+' '.join(args)+' '.join([f'-{k} {v}' for k,v in self.options.items()])
         self.stdout=''
         self.stderr=''
 

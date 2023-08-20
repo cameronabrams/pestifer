@@ -104,4 +104,53 @@ class Molecule(AncestorAwareMod):
             B.banner('LINK PATCHES FOLLOW')
             au.Links.write_TcL(B,biomt,allmods)
             B.banner(f'TRANSFORM {biomt.index} ENDS')
+    
+    def write_loop_lines(self,writer,cycles=100,sac_n=4):
+        ba=self.active_biological_assembly
+        au=self.asymmetric_unit
+        for S in au.Segments:
+            chainID=S.chainID
+            if S.segtype=='PROTEIN':
+                for b in S.subsegments:
+                    if b.state=='MISSING':
+                        if (b.bounds[1]-b.bounds[0])>(sac_n-1):
+                            reslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
+                            tcllist='[list '+' '.join(reslist)+']'
+                            for biomt in ba.biomt:
+                                act_chainID=biomt.chainIDmap[chainID]
+                                writer.addline(f'lay_loop $mLL {act_chainID} {tcllist} {cycles}')
+    
+    def write_gaps(self,writer,sac_n=4):
+        ba=self.active_biological_assembly
+        au=self.asymmetric_unit
+        for S in au.Segments:
+            chainID=S.chainID
+            if S.segtype=='PROTEIN':
+                for i,b in enumerate(S.subsegments):
+                    if b.state=='MISSING':
+                        if (b.bounds[1]-b.bounds[0])>(sac_n-1) and i<(len(S.subsegments)-1):
 
+                            reslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
+                            nextrun=S.subsegments[i+1]
+                            assert nextrun.state=='RESOLVED'
+                            for biomt in ba.biomt:
+                                act_chainID=biomt.chainIDmap[chainID]
+                                writer.addline(f'{act_chainID} {reslist[-1].name}{reslist[-1].insertion} {nextrun.reslist[0].name}{nextrun.reslist[0].insertion}')
+
+    def write_heal_patches(self,writer,sac_n=4):
+        ba=self.active_biological_assembly
+        au=self.asymmetric_unit
+        for S in au.Segments:
+            chainID=S.chainID
+            if S.segtype=='PROTEIN':
+                for i,b in enumerate(S.subsegments):
+                    if b.state=='MISSING':
+                        if (b.bounds[1]-b.bounds[0])>(sac_n-1) and i<(len(S.subsegments)-1):
+                            llres=S.residues[b.bounds[1]-1]
+                            lres=S.residues[b.bounds[1]]
+                            nextb=S.subsegments[i+1]
+                            rres=S.residues[nextb.bounds[0]]
+                            rrres=S.residues[nextb.bounds[0]+1]
+                            for biomt in ba.biomt:
+                                act_chainID=biomt.chainIDmap[chainID]
+                                writer.addline(f'patch HEAL {act_chainID}:{llres.resseqnum}{llres.insertion}{act_chainID}:{lres.resseqnum}{lres.insertion}{act_chainID}:{rres.resseqnum}{rres.insertion}{act_chainID}:{rrres.resseqnum}{rrres.insertion}')
