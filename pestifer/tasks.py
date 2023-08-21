@@ -9,27 +9,28 @@ from .chainids import ChainIDManager
 from .colvars import *
 
 class Task(BaseMod):
-    req_attr=BaseMod.req_attr+['index','prior','specs','taskname','writers','config']
+    req_attr=BaseMod.req_attr+['specs','index','prior','writers','config']
     yaml_header='generic_task'
     default_specs={}
     exts=['.psf','.pdb','.coor','.xst']
     _taskcount=0
-    def __init__(self,input_dict,config,writers,prior):
-        assert len(input_dict)==1
-        taskname=list(input_dict.keys())[0]
-        specval=list(input_dict.values())[0]
-        specs={} if not specval else specval
+    def __init__(self,input_dict,taskname,config,writers,prior):
+        specs=input_dict.copy()
         for k,v in self.__class__.default_specs.items():
             if not k in specs:
                 specs[k]=v
-        input_dict.update({
+        input_dict = {
             'index':Task._taskcount,
             'config':config,
-            'writer': writers,
+            'writers': writers,
             'prior':prior,
             'specs':specs,
             'taskname':taskname
-        })
+        }
+        logger.debug(f'task init {input_dict}')
+        for k,v in specs.items():
+            if not v or (type(v)==str and v.lower()=='none'):
+                specs[k]={}
         super().__init__(input_dict)
         Task._taskcount+=1
 
@@ -84,13 +85,15 @@ class Task(BaseMod):
 
 class PsfgenTask(Task):
     yaml_header='psfgen'
-    req_attr=Task.req_attr+['source']
-    opt_attr=Task.opt_attr+['mods','ligation','cleanup']
-    default_specs={'cleanup':False,'mods':None,'ligation':None}
+    # opt_attr=Task.opt_attr+['source','mods','ligation','cleanup']
+    default_specs={'cleanup':False,'mods':{},'ligation':None}
     statefiles={}
-    def __init__(self):
+    def __init__(self,input_dict,taskname,config,writers,prior):
+        # logger.debug(f'Psfgentask args {args}')
+
+        super().__init__(input_dict,taskname,config,writers,prior)
+        logger.debug(f'Psfgentask  {self.__dict__}')
         self.chainIDmanager=ChainIDManager()
-        super().__init__()
 
     def do(self):
         self.modparse()
@@ -267,15 +270,18 @@ class PsfgenTask(Task):
                     retdict[hdr]=LCls([])
                 retdict[hdr].append(newmod)
         self.specs['mods']=retdict
+        # TODO: gather names of all aux pdb files
+        self.pdbs=[]
 
     def injest_molecules(self):
         self.molecules={}
         psf_exists=False
-        if type(self.source)==dict:
-            self.basename=self.source.get('rcsb',None)
-            bioassemb=self.source.get('biological_assembly',None)
+        specs=self.specs
+        if type(specs['source'])==dict:
+            self.basename=specs['source'].get('rcsb',None)
+            bioassemb=specs['source'].get('biological_assembly',None)
         elif type(self.source)==str:
-            self.basename=self.source
+            self.basename=specs['source']
             assert os.path.exists(f'{self.basename}.pdb')
             self.pdb=f'{self.basename}.pdb'
             psf_exists=os.path.exists(f'{self.basename}.psf')

@@ -207,7 +207,6 @@ class NAMD2(Scriptwriter):
     def __init__(self,config):
         super().__init__()
         self.config=config
-        self.templates_path=config.namd_template_path
         self.default_basename=config['namd2_configbasename']
         self.max_cpu_count=os.cpu_count()
         self.default_ext='.namd'

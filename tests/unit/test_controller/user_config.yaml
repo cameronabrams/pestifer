@@ -16,8 +16,8 @@ tasks:
       nsteps: 1000
   # - psfgen: 
   #     mods: cleave.yaml
-  - solvate:
-  - relax:
-      nsteps: 1000
+  # - solvate:
+  # - relax:
+  #     nsteps: 1000
 
-charmm_path: test_charmm
+# charmm_path: test_charmm

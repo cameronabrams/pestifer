@@ -76,7 +76,7 @@ class Config(dict):
         self.has_charmm=True
         if not os.path.exists(self.user_charmm_toppar_path):
             logger.warning(f'You have not specified the location where you keep your CHARMM force-field/topology files.')
-            logger.warning(f'Also, the default location where I expect to find them, {self.user_defaults["charmm_path"]}, seems not to exist.')
+            logger.warning(f'Also, the default location where I expect to find them, {self.defaults["charmm_path"]}, seems not to exist.')
             self.has_charmm=False
 
     def _readmainconfig(self):
@@ -100,7 +100,7 @@ class Config(dict):
         namd_params=user_dict.get('Namd_params',{})
         special_update(self.namd_params,namd_params)
         if namd_params:
-            del user_dict('Namd_params')
+            del user_dict['Namd_params']
         tmp=self.defaults.copy()
         tmp.update(user_dict)
         special_update(self.defs,tmp)

@@ -11,7 +11,8 @@ logger=logging.getLogger(__name__)
 
 from .config import Config
 from .scriptwriters import Filewriter,Psfgen,VMD,NAMD2
-from .tasks import Task
+from .tasks import *
+from .util import *
 
 class Controller:
     def __init__(self,userconfigfilename):
@@ -22,10 +23,17 @@ class Controller:
             'namd2':  NAMD2(self.config),
             'data':   Filewriter()
         }
+        task_classes=inspect_classes('pestifer.tasks')
         self.tasks=[]
         prior_task=None
         for taskdict in self.config.tasks:
-            this_task=Task(taskdict,self.config,self.writers,prior_task)
+            assert len(taskdict)==1
+            taskname=list(taskdict.keys())[0]
+            specval=list(taskdict.values())[0]
+            specs={} if not specval else specval.copy()
+            class_name=[name for name,cls in task_classes.items() if cls.yaml_header==taskname][0]
+            Cls=task_classes[class_name]
+            this_task=Cls(specs,taskname,self.config,self.writers,prior_task)
             self.tasks.append(this_task)
             prior_task=this_task
 

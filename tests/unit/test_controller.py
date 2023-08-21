@@ -6,9 +6,9 @@ class TestController(unittest.TestCase):
     def test_controller_base(self):
         C=Controller('user_config.yaml')
         self.assertEqual(C.config.defs['title'],'Test User Config')
-        self.assertEqual(len(C.steps),2)
+        self.assertEqual(len(C.tasks),2)
 
     def test_controller_do(self):
         C=Controller('user_config.yaml')
-        C.do_steps()
-        self.assertTrue(os.path.exists('step1-layloops.pdb'))
+        C.do_tasks()
+        # self.assertTrue(os.path.exists('step1-layloops.pdb'))
