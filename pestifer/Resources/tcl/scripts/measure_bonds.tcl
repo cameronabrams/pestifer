@@ -4,43 +4,59 @@
 # appends that distance to the lines
 # writes all lines back out to file
 
-# first argument is PSF, second is PDB or COOR, third is name of input file
 vmdcon -info "measure_bonds.tcl: args: $argv"
-if { [llength $argv] != 4 } {
-    vmdcon -error "measure_bonds.tcl expects four positional arguments:\n        psf coor infile-to-be-modified fixed-pdb"
-    exit 1
+for { set i 0 } { $i < [llength $argv] } { incr i } {
+    if { [lindex $argv $i] == "-pdb"} {
+       incr i
+       set coor [lindex $argv $i]
+    }
+    if { [lindex $argv $i] == "-psf"} {
+       incr i
+       set psf [lindex $argv $i]
+    }
+    if { [lindex $argv $i] == "-o"} {
+       incr i
+       set fixed [lindex $argv $i]
+    }
+    if { [lindex $argv $i] == "-i"} {
+       incr i
+       set infile [lindex $argv $i]
+    }
 }
-set psf [lindex $argv 0]
-set coor [lindex $argv 1]
-set infile [lindex $argv 2]
-set fixed [lindex $argv 3]
 
 mol new $psf
 mol addfile $coor
 set a [atomselect top "all"]
 $a set occupancy 0
+set ca [atomselect top "name CA"]
+$ca set occupancy 1
 
 set fp [open $infile "r"]
 set lines [split [read $fp] \n]
 close $fp
+set RES0 {}
 set RES1 {}
 set RES2 {}
 set CH {}
 foreach l $lines {
-    if { [llength $l] > 0 } {
+    if { [llength $l] == 4 } {
        lappend CH [lindex $l 0]
-       lappend RES1 [lindex $l 1]
-       lappend RES2 [lindex $l 2]
+       lappend RES0 [lindex $l 1]
+       lappend RES1 [lindex $l 2]
+       lappend RES2 [lindex $l 3]
     }
 }
 puts "CH $CH"
+puts "RES0 $RES0"
 puts "RES1 $RES1"
 puts "RES2 $RES2"
 
 set bl {}
 set CC {}
 set NN {}
-foreach c $CH i $RES1 j $RES2 {
+foreach c $CH h $RES0 i $RES1 j $RES2 {
+    set labelus [atomselect top "chain $c and resid $h to $i"]
+    $labelus set occupancy 0
     set ci [string index $i end]
     if {[string is alpha $ci]} {
         set resid [string range $i 0 end-1]
@@ -59,7 +75,6 @@ foreach c $CH i $RES1 j $RES2 {
     puts "resid $j on chain $c has [$theN num] Ns with serial [$theN get serial]"
     set ii [$theC get index]
     set jj [$theN get index]
-    $theN set occupancy 1
     lappend bl [measure bond [list $ii $jj]]
     lappend CC [$theC get serial]
     lappend NN [$theN get serial]

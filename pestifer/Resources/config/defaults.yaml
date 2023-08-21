@@ -150,7 +150,7 @@ User_defaults:
 
 Namd_defaults:
   generic:
-    paraTypeCharm: on
+    paraTypeCharmm: on
     exclude: scaled1-4
     1-4scaling: 1.0
     cutoff: 10.0

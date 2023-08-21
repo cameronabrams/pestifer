@@ -57,7 +57,7 @@ class BaseMod:
         for x in self.ignore_attr:
             if x in attr_list:
                 attr_list.remove(x)
-        logger.debug(f'Equality test for class {str(self.__class__)}: attributes considered are {attr_list}')
+        # logger.debug(f'Equality test for class {str(self.__class__)}: attributes considered are {attr_list}')
         test_list=[]
         for k in attr_list:
             # if type(self.__dict__[k])==str or not hasattr(self.__dict__[k],'__setitem__'):

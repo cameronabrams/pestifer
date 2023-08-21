@@ -9,7 +9,7 @@ from .chainids import ChainIDManager
 from .colvars import *
 
 class Task(BaseMod):
-    req_attr=BaseMod.req_attr+['specs','index','prior','writers','config']
+    req_attr=BaseMod.req_attr+['specs','index','prior','writers','config','taskname']
     yaml_header='generic_task'
     default_specs={}
     exts=['.psf','.pdb','.coor','.xst']
@@ -27,232 +27,252 @@ class Task(BaseMod):
             'specs':specs,
             'taskname':taskname
         }
-        logger.debug(f'task init {input_dict}')
         for k,v in specs.items():
             if not v or (type(v)==str and v.lower()=='none'):
                 specs[k]={}
         super().__init__(input_dict)
         Task._taskcount+=1
+        self.subtaskcount=0
+        self.statevars={}
 
-    def prior_statefiles(self):
-        if not self.prior: return {}
-        return self.prior.statefiles
-    
-    def pass_thru(self):
-        for fn in self.priors().values():
-            if os.path.exists(fn):
-                bn,ext=os.path.splitext(fn)
-                shutil.copyfile(fn,f'{self.basename}{ext}')
-            else:
-                logger.debug(f'Task {self.index} ({self.taskname}): prior task\'s {fn} not found')
+    def update_statefile(self,key,filename,mode='strict'):
+        if os.path.exists(filename):
+            self.statevars[key]=filename
         else:
-            logger.debug(f'Task {self.index} ({self.taskname}) empty passthru')
+            if mode=='strict':
+                raise FileNotFoundError(f'{filename} not found')
+
+    def next_basename(self,*obj):
+        label=''
+        if len(obj)==1 and len(obj[0])>0:
+            label=f'-{obj[0]}'
+        basename=f'{self.index:02d}-{self.subtaskcount:02d}-{self.taskname}{label}'
+        self.subtaskcount+=1
+        return basename
     
-    def relax(self,basename):
-        specs=self.specs
-        temperature=specs.get('temperature',300)
-        outputbasename=f'{basename}-relaxed'
-        nsteps=specs.get('nsteps',1000)
-        psf=self.statefiles['psf']
-        pdb=self.statefiles['pdb']
-        coor=self.statefile.get('coor',None)
-        params={'structure':psf}
-        if coor:
-            params['coordinates']=coor
-        else:
-            params['coordinates']=pdb
-        params.update({'tcl':[f'set temperature {temperature}']})
-        charmmpar=self.config['StdCharmmParam']
-        params['parameters']=charmmpar
+    # def pass_thru(self):
+    #     for fn in self.priors().values():
+    #         if os.path.exists(fn):
+    #             bn,ext=os.path.splitext(fn)
+    #             shutil.copyfile(fn,f'{self.basename}{ext}')
+        #     else:
+        #         logger.debug(f'Task {self.index} ({self.taskname}): prior task\'s {fn} not found')
+        # else:
+        #     logger.debug(f'Task {self.index} ({self.taskname}) empty passthru')
+            
+    def coor_to_pdb(self,basename):
+        vm=self.writers['vmd']
+        vm.newscript(f'{basename}-coor2pdb')
+        vm.usescript('namdbin2pdb')
+        vm.writescript()
+        psf=self.statevars['psf']
+        coor=self.statevars['coor']
+        vm.runscript(psf=psf,coor=coor,pdb=f'{basename}.pdb')
+        self.update_statefile('pdb',f'{basename}.pdb')
+
+    def pdb_to_coor(self,basename):
+        vm=self.writers['vmd']
+        vm.newscript(f'{basename}-pdb2coor')
+        vm.usescript('pdb2namdbin')
+        vm.writescript()
+        psf=self.statevars['psf']
+        pdb=self.statevars['pdb']
+        vm.runscript(psf=psf,pdb=pdb,coor=f'{basename}.coor')
+        self.update_statefile('coor',f'{basename}.coor')
+
+    def is_periodic(self,cell,xsc):
+        if cell and os.path.exists(cell):
+            with open(cell,'r') as f:
+                lines=f.read().split('\n')
+            check=True
+            check&=(lines[0].startswith('cellbasisvector'))
+            check&=(lines[1].startswith('cellbasisvector'))
+            check&=(lines[2].startswith('cellbasisvector'))
+            check&=(lines[3].startswith('cellorigin'))
+            if check:
+                return True
+        if xsc and os.path.exists(xsc):
+            with open(xsc,'r') as f:
+                lines=f.read().split('\n')
+            specline=lines[2]
+            specfields=list(map(float,specline.split()))
+            check=all([x>0 for x in specfields[1:]])
+            if check:
+                return True
+        return False
+
+    def minimize(self,specs):
         namd_params=self.config.namd_params
-        params.update(namd_params['generic'])
-        params.update(namd_params['vacuum'])
-        params.update(namd_params['thermostat'])           
-        params['outputName']=f'{outputbasename}'
-        params['firsttimestep']=0
-        params['run']=nsteps
+        temperature=specs.get('temperature',None)
+        basename=self.next_basename('minimize')
+        nminsteps=specs.get('nminsteps',1000)
+        dcdfreq=specs.get('dcdfreq',0)
         na=self.writers['namd2']
+        if not temperature:
+            temperature=namd_params['generic'].get('temperature',311)
+        psf=self.statevars['psf']
+        pdb=self.statevars['pdb']
+        coor=self.statevars.get('coor',None)
+        vel=self.statevars.get('vel',None)
+        xsc=self.statevars.get('xsc',None)
+        cell=self.statevars.get('cell',None)
+        self.statevars['periodic']=self.is_periodic(cell,xsc)
+        params={}
+        params['tcl']=[f'set temperature {temperature}']
+        params['structure']=psf
+        params['coordinates']=pdb
+        if coor:
+            params['bincoordinates']=coor
+        if vel:
+            params['binvelocities']=vel
+        else:
+            params['temperature']='$temperature'
+        if xsc:
+            params['extendedSystem']=xsc
+        params['parameters']=na.user_charmmparfiles+na.pestifer_charmmparfiles
+        params.update(namd_params['generic'])
+
+        if self.statevars['periodic']:
+            params.update(namd_params['solvated'])
+            if cell:
+                params['tcl'].append(f'source {self.statevars["cell"]}')
+        else:
+            params.update(namd_params['vacuum'])
+        params.update(namd_params['thermostat'])           
+        params['outputName']=f'{basename}'
+        if dcdfreq:
+            params['dcdfreq']=dcdfreq
+        params['firsttimestep']=0
+        if nminsteps:
+            params['minimize']=nminsteps
         na.newscript(basename)
         na.writescript(params)
         na.runscript()
-        self.statefiles['coor']=f'{outputbasename}.coor'
-        vm=self.writers['vmd']
-        vm.newscript(f'{outputbasename}-coor2pdb')
-        vm.usescript('namdbin2pdb')
-        psf=self.statefiles['psf']
-        vm.runscript(psf,f'{outputbasename}.coor',f'{outputbasename}.pdb')
-        self.statefiles['pdb']=f'{outputbasename}.pdb'
+        self.update_statefile('coor',f'{basename}.coor')
+        self.update_statefile('xsc',f'{basename}.xsc',mode='permissive')
+        if cell:
+            del self.statevars['cell']
+        self.coor_to_pdb(basename)
+
+    def relax(self,specs,label=None):
+        namd_params=self.config.namd_params
+        temperature=specs.get('temperature',None)
+        pressure=specs.get('pressure',None)
+        if not temperature:
+            temperature=namd_params['generic'].get('temperature',311)
+        if label==None:
+            basename=self.next_basename('relax')
+        else:
+            basename=self.next_basename(label)
+        nminsteps=specs.get('nminsteps',1000)
+        nsteps=specs.get('nsteps',1000)
+        dcdfreq=specs.get('dcdfreq',0)
+        xstfreq=specs.get('xstfreq',0)
+        na=self.writers['namd2']
+        psf=self.statevars['psf']
+        pdb=self.statevars['pdb']
+        params={}
+        params['structure']=psf
+        params['coordinates']=pdb
+        coor=self.statevars.get('coor',None)
+        vel=self.statevars.get('vel',None)
+        xsc=self.statevars.get('xsc',None)
+        self.statevars['periodic']=self.is_periodic(None,xsc)
+        if coor:
+            params['bincoordinates']=coor
+        if vel:
+            params['binvelocities']=vel
+        params.update({'tcl':[f'set temperature {temperature}']})
+        params['temperature']='$temperature'
+        params['parameters']=na.user_charmmparfiles+na.pestifer_charmmparfiles
+        params.update(namd_params['generic'])
+        if xsc:
+            params['extendedSystem']=xsc
+            if xstfreq:
+                params['xstfreq']=xstfreq
+        if self.statevars['periodic']:
+            params.update(namd_params['solvated'])
+        else:
+            params.update(namd_params['vacuum'])
+        params.update(namd_params['thermostat'])
+        if pressure:
+            params['tcl'].append(f'set pressure {pressure}')
+            params.update(namd_params['barostat'])
+        params['outputName']=f'{basename}'
+        if dcdfreq:
+            params['dcdfreq']=dcdfreq
+        params['firsttimestep']=0
+        if nminsteps:
+            params['minimize']=nminsteps
+        params['run']=nsteps
+        na.newscript(basename)
+        na.writescript(params)
+        na.runscript()
+        self.update_statefile('coor',f'{basename}.coor')
+        self.update_statefile('vel',f'{basename}.vel')
+        self.update_statefile('xsc',f'{basename}.xsc',mode='permissive')
+        self.coor_to_pdb(basename)
 
 class PsfgenTask(Task):
     yaml_header='psfgen'
     # opt_attr=Task.opt_attr+['source','mods','ligation','cleanup']
-    default_specs={'cleanup':False,'mods':{},'ligation':None}
-    statefiles={}
+    default_specs={'cleanup':False,'mods':{},'layloops':{},'minimize':{'nsteps':1000}}
     def __init__(self,input_dict,taskname,config,writers,prior):
         # logger.debug(f'Psfgentask args {args}')
-
         super().__init__(input_dict,taskname,config,writers,prior)
-        logger.debug(f'Psfgentask  {self.__dict__}')
+        # logger.debug(f'Psfgentask  {self.__dict__}')
         self.chainIDmanager=ChainIDManager()
+        self.mods=self.specs['mods']
 
     def do(self):
+        if self.prior:
+            logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
+            self.statevars=self.prior.statevars.copy()
+        logger.debug('Parsing modifications')
         self.modparse()
+        logger.debug('Injesting molecule(s)')
         self.injest_molecules()
-        basename=f'{self.index:02d}-{self.taskname}'
-        self.psfgen(basename)
-        self.ligate(f'{basename}-ligate')
-        self.relax(f'{basename}-relax')
+        self.statevars['base_molecule']=self.base_molecule
+        logger.debug('Running first psfgen')
+        self.psfgen()
+        logger.debug('Declashing loops')
+        self.declash_loops(self.specs['declash'])
+        logger.debug('Minimizing')
+        self.minimize(self.specs['minimize'])
 
-    def psfgen(self,basename):
+    def psfgen(self):
+        basename=self.next_basename('build')
         pg=self.writers['psfgen']
         pg.newscript(basename)
         pg.topo_aliases()
         pg.set_molecule(self.base_molecule)
-        pg.describe_molecule(self.base_molecule,self.mod_dict)
-        self.statefiles.update(pg.complete())
+        pg.describe_molecule(self.base_molecule,self.mods)
+        pg.complete(basename)
         pg.endscript()
         pg.writescript()
         pg.runscript()
+        self.update_statefile('pdb',f'{basename}.pdb')
+        self.update_statefile('psf',f'{basename}.psf')
         pg.cleanup(cleanup=self.specs['cleanup'])
 
-    def ligate(self,basename):
-        if not 'ligation' in self.specs:
-            return
-        specs=self.specs['ligation']
-        self.layloops(specs,f'{basename}-lay')
-        self.steerends(specs,f'{basename}-steer')
-        self.connect(specs,f'{basename}-connect')
-
-    def layloops(self,specs,basename):
+    def declash_loops(self,specs):
+        basename=self.next_basename('declash')
         mol=self.base_molecule
+        if not mol.has_loops():
+            return
         vt=self.writers['vmd']
-        psf=self.statefiles['psf']
-        pdb=self.statefiles['pdb']
+        psf=self.statevars['psf']
+        pdb=self.statevars['pdb']
         vt.newscript(basename)
         vt.load_psf_pdb(psf,pdb,new_molid_varname='mLL')
-        cycles=specs.get('cycles',100)
+        cycles=specs.get('maxcycles',100)
         sac_n=specs.get('min_loop_length',4)
         mol.write_loop_lines(vt,cycles=cycles,sac_n=sac_n)
-        self.statefiles['pdb']=f'{basename}-layed.pdb'
-        vt.write_pdb(self.statefiles['pdb'],'mLL')
+        vt.write_pdb(basename,'mLL')
         vt.endscript()
         vt.writescript()
         vt.runscript()
-
-    def steerends(self,specs,basename):
-        self.write_gaps(specs,f'{basename}-gaps')
-        self.measure_distances(specs,f'{basename}-measure')
-        self.do_steered_md(specs,f'{basename}-smd')
-    
-    def write_gaps(self,basename):
-        mol=self.base_molecule
-        datafile=f'{basename}-gaps.inp'
-        writer=self.writers['data']
-        writer.newfile(datafile)
-        mol.write_gaps(writer)
-        writer.writefile()
-        self.statefiles['datafile']=datafile
-
-    def measure_distances(self,specs,basename):
-        vm=self.writers['vmd']
-        vm.newscript(basename)
-        psf=self.statefiles['psf']
-        pdb=self.statefiles['pdb']
-        vm.usescript('measure_bonds')
-        vm.writescript()
-        datafile=self.statefiles['data']
-        self.statefiles['fixedref']=f'{basename}-fixedref.pdb'
-        vm.runscript(psf,pdb,datafile,self.statefiles['fixedref'])
-        with open(datafile,'r') as f:
-            datalines=f.read().split('\n')
-        gaps=[]
-        for line in datalines:
-            data=line.split()
-            thisgap={
-                'chainID':data[0],
-                'serial_i':int(data[1]),
-                'serial_j':int(data[2]),
-                'distance':float(data[3])
-            }
-            gaps.append(thisgap)
-        self.specs['gaps']=gaps
-
-    def do_steered_md(self,specs,basename):
-        smdspecs=specs.get('smdclose',{})
-        nsteps=smdspecs.get('nsteps',1000)
-        temperature=smdspecs.get('temperature',310)
-        writer=self.writers['data']
-        writer.newfile('cv.inp')
-        for i,g in enumerate(self.specs['gaps']):
-            g['name']=f'GAP{i:02d}'
-            declare_distance_cv_atoms(g,writer)
-        for i,g in enumerate(self.specs['gaps']):
-            g['k']=smdspecs.get('force_constant',20.0)
-            g['targ_distance']=smdspecs.get('target_distance',2.0)
-            g['targ_numsteps']=nsteps
-            declare_harmonic_distance_bias(g,writer)
-        writer.writefile()
-        psf=self.statefiles['psf']
-        pdb=self.statefiles['pdb']
-
-        params={'structure':psf,'coordinates':pdb}
-        params.update({'tcl':[f'set temperature {temperature}']})
-        charmmpar=self.config['StdCharmmParam']
-        params['parameters']=charmmpar
-        namd_params=self.config.namd_params
-        params.update(namd_params['generic'])
-        params.update(namd_params['vacuum'])
-        params.update(namd_params['thermostat'])
-        extras={
-            'fixedatoms':'on',
-            'fixedatomsfile':self.statefiles['fixedref'],
-            'fixedatomscol': 'O',
-            'colvars': 'on',
-            'colvarsconfig': 'cv.inp'
-        }
-        params.update(extras)
-        params['outputName']=f'{basename}-steered'
-        params['firsttimestep']=0
-        params['run']=nsteps
-        na=self.writers['namd2']
-        na.newscript(basename)
-        na.writescript(params)
-        na.runscript()
-        self.statefiles['coor']=f'{basename}-steered.coor'
-        vm=self.writers['vmd']
-        vm.newscript(f'{basename}-coor2pdb')
-        vm.usescript('namdbin2pdb')
-        psf=self.statefiles['psf']
-        vm.runscript(psf,f'{basename}-steered.coor',f'{basename}-steered.pdb')
-        self.statefiles['pdb']=f'{basename}-steered.pdb'
-
-    def connect(self,specs,basename):
-        self.write_heal_patches(specs,f'{basename}-heal-patches')
-        self.heal_gaps(specs,f'{basename}-heal-gaps')
-
-    def write_heal_patches(self,specs,basename):
-        mol=self.base_molecule
-        datafile=f'{basename}.inp'
-        writer=self.writers['data']
-        writer.newfile(datafile)
-        mol.write_heal_patches(writer)
-        writer.writefile()
-        self.statefiles['datafile']=datafile
-
-    def heal_gaps(self,specs,basename):
-        vm=self.writers['psfgen']
-        vm.newscript(f'{basename}-loop-closure')
-        topfile=os.path.join(self.config.charmm_toppar_path,'mylink.top')
-        vm.addline(f'topology {topfile}')
-        vm.usescript('loop_closure')
-        vm.writescript()
-        patchfile=self.statefiles['datafile']
-        psf=self.statefiles['psf']
-        pdb=self.statefiles['pdb']
-        outputbasename=f'{basename}-healed'
-        vm.runscript(psf,pdb,patchfile,f'{outputbasename}.psf',f'{outputbasename}.pdb')
-        self.statefiles['psf']=f'{outputbasename}.psf'
-        self.statefiles['pdb']=f'{outputbasename}.pdb'
+        self.update_statefile('pdb',f'{basename}.pdb')
 
     def modparse(self):
         mod_classes,modlist_classes=inspect_classes('pestifer.mods','List')
@@ -293,29 +313,184 @@ class PsfgenTask(Task):
         for p in self.pdbs:
             self.molecules[p]=Molecule(config=self.config,source=p)
 
+class LigateTask(Task):
+    yaml_header='ligate'
+    # opt_attr=Task.opt_attr+['source','mods','ligation','cleanup']
+    default_specs={'steer':{},'connect':{},'minimize':{}}
+    statevars={}
+    def __init__(self,input_dict,taskname,config,writers,prior):
+        # logger.debug(f'Psfgentask args {args}')
+        super().__init__(input_dict,taskname,config,writers,prior)
+        # logger.debug(f'Psfgentask  {self.__dict__}')
+
+    def do(self):
+        if self.prior:
+            logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
+            self.statevars=self.prior.statevars.copy()
+        self.base_molecule=self.statevars['base_molecule']
+        if not self.base_molecule.has_loops():
+            logger.info('No loops. Ligation bypassed.')
+            return
+        logger.debug('Steering loop ends')
+        self.steerends(self.specs['steer'])
+        logger.debug('Connecting loops')
+        self.connect(self.specs['connect'])
+        logger.debug('Minimizing')
+        self.minimize(self.specs['minimize'])
+
+    def steerends(self,specs):
+        logger.debug('...Writing gaps')
+        self.write_gaps()
+        logger.debug('...Measuring gap distances')
+        self.measure_distances()
+        logger.debug('...Doing steered MD')
+        self.do_steered_md(specs)
+    
+    def write_gaps(self):
+        basename=self.next_basename('gaps')
+        mol=self.base_molecule
+        datafile=f'{basename}.inp'
+        writer=self.writers['data']
+        writer.newfile(datafile)
+        mol.write_gaps(writer)
+        writer.writefile()
+        self.update_statefile('data',datafile)
+
+    def measure_distances(self):
+        basename=self.next_basename('measure')
+        vm=self.writers['vmd']
+        vm.newscript(basename)
+        psf=self.statevars['psf']
+        pdb=self.statevars['pdb']
+        vm.usescript('measure_bonds')
+        vm.writescript()
+        datafile=self.statevars['data']
+        vm.runscript(psf=psf,pdb=pdb,i=datafile,o=f'{basename}.pdb')
+        self.update_statefile('fixedref',f'{basename}.pdb')
+        with open(datafile,'r') as f:
+            datalines=f.read().split('\n')
+        gaps=[]
+        for line in datalines:
+            if len(line)>0:
+                # logger.debug(f'parsing distance line {line}')
+                data=line.split()
+                thisgap={
+                    'chainID':data[0],
+                    'serial_i':int(data[1]),
+                    'serial_j':int(data[2]),
+                    'distance':float(data[3])
+                }
+                gaps.append(thisgap)
+        self.specs['gaps']=gaps
+
+    def do_steered_md(self,specs):
+        basename=self.next_basename('steer')
+        nsteps=specs.get('nsteps',1000)
+        dcdfreq=specs.get('dcdfreq',0)
+        temperature=specs.get('temperature',310)
+        writer=self.writers['data']
+        writer.newfile(f'{basename}-cv.inp')
+        for i,g in enumerate(self.specs['gaps']):
+            g['name']=f'GAP{i:02d}'
+            declare_distance_cv_atoms(g,writer)
+        for i,g in enumerate(self.specs['gaps']):
+            g['k']=specs.get('force_constant',20.0)
+            g['targ_distance']=specs.get('target_distance',2.0)
+            g['targ_numsteps']=nsteps
+            declare_harmonic_distance_bias(g,writer)
+        writer.writefile()
+        psf=self.statevars['psf']
+        pdb=self.statevars['pdb']
+        na=self.writers['namd2']
+        params={'structure':psf,'coordinates':pdb}
+        params.update({'tcl':[f'set temperature {temperature}']})
+        params['temperature']='$temperature'
+        params['parameters']=na.user_charmmparfiles+na.pestifer_charmmparfiles
+        namd_params=self.config.namd_params
+        params.update(namd_params['generic'])
+        params.update(namd_params['vacuum'])
+        params.update(namd_params['thermostat'])
+
+        params['outputName']=f'{basename}'
+        if dcdfreq:
+            params['dcdfreq']=dcdfreq
+        params['firsttimestep']=0
+        extras={
+            'fixedatoms':'on',
+            'fixedatomsfile':self.statevars['fixedref'],
+            'fixedatomscol': 'O',
+            'colvars': 'on',
+            'colvarsconfig': f'{basename}-cv.inp'
+        }
+        params.update(extras)
+        params['run']=nsteps
+        na.newscript(basename)
+        na.writescript(params)
+        na.runscript()
+        self.update_statefile('coor',f'{basename}.coor')
+        self.update_statefile('vel',f'{basename}.vel')
+        self.coor_to_pdb(basename)
+
+    def connect(self,specs):
+        self.write_connect_patches(specs)
+        self.connect_gaps(specs)
+
+    def write_connect_patches(self,specs):
+        basename=self.next_basename('gap_patches')
+        mol=self.base_molecule
+        datafile=f'{basename}.inp'
+        writer=self.writers['data']
+        writer.newfile(datafile)
+        mol.write_connect_patches(writer)
+        writer.writefile()
+        self.update_statefile('data',datafile)
+
+    def connect_gaps(self,specs):
+        basename=self.next_basename('heal')
+        pg=self.writers['psfgen']
+        pg.newscript(basename)
+        topfile=os.path.join(self.config.charmm_toppar_path,'mylink.top')
+        pg.addline(f'topology {topfile}')
+        pg.topo_aliases()
+        pg.usescript('loop_closure')
+        pg.writescript()
+        patchfile=self.statevars['data']
+        psf=self.statevars['psf']
+        pdb=self.statevars['pdb']
+        pg.runscript(psf=psf,pdb=pdb,p=patchfile,o=basename,files=f'{basename}-deleteus.inp')
+        self.update_statefile('psf',f'{basename}.psf')
+        self.update_statefile('pdb',f'{basename}.pdb')
+        if 'vel' in self.statevars:
+            del self.statevars['vel']
+        pg.cleanup(cleanup=specs.get('cleanup',False),files=f'{basename}-deleteus.inp')
+        self.pdb_to_coor(basename)
+
 class SolvateTask(Task):
     yaml_header='solvate'
     opt_attr=Task.opt_attr+[yaml_header]
+    default_specs={'solvate':{},'autoionize':{},'minimize':{'nminsteps':100}}
     def do(self):
         logger.info(f'Solvate task initiated')
-        self.statefiles=self.prior_statefiles()
-        basename=f'{self.index:02d}-{self.taskname}'
+        self.statevars=self.prior.statevars.copy()
+        basename=self.next_basename()
         vt=self.writers['vmd']
         vt.newscript(basename)
         vt.usescript('solv')
         vt.writescript()
-        psf=self.statefiles['psf']
-        pdb=self.statefiles['pdb']
+        psf=self.statevars['psf']
+        pdb=self.statevars['pdb']
         logger.debug(f'solvate: inputs {psf} {pdb} to {vt.basename}.tcl')
         vt.runscript(o=basename,pdb=pdb,psf=psf)
-        self.statefiles['pdb']=f'{basename}.pdb'
-        self.statefiles['psf']=f'{basename}.psf'
+        self.update_statefile('cell',f'{basename}_cell.tcl')
+        self.update_statefile('psf',f'{basename}.psf')
+        self.update_statefile('pdb',f'{basename}.pdb')
+        basename=self.next_basename('minimize')
+        self.minimize(self.specs['minimize'])
 
 class RelaxTask(Task):
     yaml_header='relax'
     opt_attr=Task.opt_attr+[yaml_header]
     def do(self):
-        self.statefiles=self.prior_statefiles()
-        basename=f'{self.index:02d}-{self.taskname}'
-        self.relax(basename)
+        self.statevars=self.prior.statevars.copy()
+        self.relax(self.specs,label='')
 

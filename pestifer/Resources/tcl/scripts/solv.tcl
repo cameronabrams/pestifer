@@ -12,6 +12,7 @@ set pdb "empty.pdb"
 set psf "empty.psf"
 set outpre "ionized"
 set cubic 0
+set cellfile "cell.inp"
 
 for { set i 0 } { $i < [llength $argv] } { incr i } {
     if { [lindex $argv $i] == "-pad" } {
@@ -35,7 +36,6 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
     }
 }
 
-# set outputname1 ${outpre}
 if { ! [file exists $psf] } {
    vmdcon -err "${scriptname}: $psf not found."
    exit
@@ -87,12 +87,12 @@ autoionize -psf ${outbasename}_water.psf -pdb ${outbasename}_water.pdb -neutrali
 
 # generate an input file for the first solvated MD simulation
 # namd config file
-set fp [open "cell.inp" "w"]
+set fp [open "${outbasename}_cell.tcl" "w"]
 puts $fp "cellbasisvector1 [lindex $basisvec 0] 0 0"
 puts $fp "cellbasisvector2 0 [lindex $basisvec 1] 0"
 puts $fp "cellbasisvector3 0 0 [lindex $basisvec 2]"
 puts $fp "cellorigin $origin"
 close $fp
-vmdcon -info "${scriptname}: Generated cell.inp."
+vmdcon -info "${scriptname}: Generated ${outputbasename}_cell.tcl."
 
 quit

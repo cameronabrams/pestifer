@@ -220,7 +220,7 @@ class Residue(AncestorAwareMod):
         for d,dl in zip(self.down,self.downlink):
             res.append(d)
             lin.append(dl)
-            logger.debug(f'{str(self)}->{str(d)}')
+            # logger.debug(f'{str(self)}->{str(d)}')
             tres,tlin=d.get_down_group()
             res.extend(tres)
             lin.extend(tlin)

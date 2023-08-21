@@ -15,7 +15,7 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
     }
 }
 mol new $psf
-mol addfile $namdbin waitfor all
+mol addfile $pdb waitfor all
 set a [atomselect top all]
-$a writepdb $pdb
+$a writenamdbin $namdbin
 exit

@@ -6,7 +6,7 @@ proc checknum { num msg } {
 }
 # A very simple Metropolis algorithm to alter conformation of raw model-built
 # loops to minimize clashes
-proc lay_loop { molid c loop maxcycles } {
+proc declash_loop { molid c loop maxcycles } {
   set nr [llength $loop]
   set loopsel [atomselect $molid "chain $c and resid [join $loop]"]
   set residue_numbers [[atomselect $molid "[$loopsel text] and name CA"] get residue]

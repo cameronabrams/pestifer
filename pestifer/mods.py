@@ -610,7 +610,7 @@ class LinkList(AncestorAwareModList):
                     # logger.debug(f'...{str(r)}')
                     S.residues.remove(r)
                 if len(S.residues)==0:
-                    logger.debug(f'All residues of {S.psfgen_segname} are deleted; {S.psfgen_segname} is deleted')
+                    # logger.debug(f'All residues of {S.psfgen_segname} are deleted; {S.psfgen_segname} is deleted')
                     Segments.remove(S)
                 for l in llist:
                     self.remove(l)

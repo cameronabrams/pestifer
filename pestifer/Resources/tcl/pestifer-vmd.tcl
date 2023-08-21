@@ -8,6 +8,6 @@ for { set a 0 } { $a < [llength $argv] } { incr a } {
 }
 source ${RESPATH}/proc/axeq.tcl
 source ${RESPATH}/proc/crot.tcl
-source ${RESPATH}/proc/layloop.tcl
+source ${RESPATH}/proc/declashloop.tcl
 source ${RESPATH}/proc/checkpierce.tcl
 source ${RESPATH}/proc/dcdlog.tcl

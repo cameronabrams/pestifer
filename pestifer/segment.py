@@ -164,10 +164,10 @@ class Segment(AncestorAwareMod):
         if not self.config_params['Include_terminal_loops']:
             if self.subsegments[0].state=='MISSING':
                 Nterminal_missing_subsegment=self.subsegments.pop(0)
-                logger.info(f'Since terminal loops are not included, ignoring {str(Nterminal_missing_subsegment)}')
+                # logger.info(f'Since terminal loops are not included, ignoring {str(Nterminal_missing_subsegment)}')
             if self.subsegments[-1].state=='MISSING':
                 Cterminal_missing_subsegment=self.subsegments.pop(-1)
-                logger.info(f'Since terminal loops are not included, ignoring {str(Cterminal_missing_subsegment)}')
+                # logger.info(f'Since terminal loops are not included, ignoring {str(Cterminal_missing_subsegment)}')
         for b in self.subsegments:
             if b.state=='RESOLVED':
                 B.addline(f'    pdb {b.pdb}')

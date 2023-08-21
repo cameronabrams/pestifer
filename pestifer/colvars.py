@@ -16,7 +16,7 @@ def declare_distance_cv_atoms(data,writer):
 
 def declare_harmonic_distance_bias(data,writer,**options):
     name=data['name']
-    k=data['force_constant']
+    k=data['k']
     init_distance=data['distance']
     targ_distance=data['targ_distance']
     targ_numsteps=data['targ_numsteps']

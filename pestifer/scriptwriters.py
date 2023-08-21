@@ -147,12 +147,25 @@ class VMD(Scriptwriter):
             f.write(c.stderr+'\n')
             my_logger(f'END OF LOG',f.write)
     
-    def cleanup(self,cleanup=False):
+    def cleanup(self,cleanup=False,files=None):
         if cleanup:
-            logger.info(f'Post-execution clean-up: {len(self.F)} files removed.')
+            nremoved=0
             for file in self.F:
                 if os.path.exists(file):
                     os.remove(file)
+                    nremoved+=1
+            if files:
+                with open(files,'r') as f:
+                    filelist=f.read().split()
+                    if filelist[-1]=='':
+                        filelist=filelist[:-1]
+                    for file in filelist:
+                        if os.path.exists(file):
+                            os.remove(file)
+                            nremoved+=1
+                os.remove(files)
+                nremoved+=1
+            logger.info(f'Post-execution clean-up: {nremoved} files removed.')
 
 class Psfgen(VMD):
     def __init__(self,config):
@@ -201,7 +214,6 @@ class Psfgen(VMD):
         pdb=f'{statename}.pdb'
         self.B.addline(f'writepsf cmap {psf}')
         self.B.addline(f'writepdb {pdb}')
-        return {'psf':psf,'pdb':pdb}
 
 class NAMD2(Scriptwriter):
     def __init__(self,config):
@@ -211,19 +223,26 @@ class NAMD2(Scriptwriter):
         self.max_cpu_count=os.cpu_count()
         self.default_ext='.namd'
         self.default_script=f'{self.default_basename}{self.default_ext}'
-        
+        self.user_charmmparfiles=[os.path.join(self.config.user_charmm_toppar_path,x) for x in self.config['StdCharmmParam']]
+        self.pestifer_charmmparfiles=[os.path.join(self.config.charmm_toppar_path,x) for x in self.config['LocalCharmmParam']]
     def newscript(self,basename=None):
         super().newscript(basename)
         self.scriptname=f'{basename}{self.default_ext}'
-        self.addline('NAMD2 script')
+        self.B.banner('NAMD2 script')
 
     def writescript(self,params):
         for k,v in params.items():
             if type(v)==list:
                 for val in v:
-                    self.addline(f'{k} {val}')
+                    if k=='tcl':
+                        self.addline(val)
+                    else:
+                        self.addline(f'{k} {val}')
             else:
-                self.addline(f'{k} {v}')
+                if k=='tcl':
+                    self.addline(v)
+                else:
+                    self.addline(f'{k} {v}')
         super().writescript()
 
     def runscript(self):
