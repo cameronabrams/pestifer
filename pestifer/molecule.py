@@ -105,6 +105,16 @@ class Molecule(AncestorAwareMod):
             au.Links.write_TcL(B,biomt,allmods)
             B.banner(f'TRANSFORM {biomt.index} ENDS')
     
+    def get_chainmaps(self):
+        ba=self.active_biological_assembly
+        maps={}
+        for biomt in ba.biomt:
+            for oc,mc in biomt.chainIDmap.items():
+                if not oc in maps:
+                    maps[oc]=[]
+                maps[oc].append({'biomt':biomt.index,'mappedchain':mc})
+        return maps
+    
     def has_loops(self):
         nloops=0
         au=self.asymmetric_unit

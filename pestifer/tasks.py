@@ -3,6 +3,7 @@ import logging
 logger=logging.getLogger(__name__)
 import shutil
 import os
+import yaml
 from .util import inspect_classes
 from .molecule import Molecule
 from .chainids import ChainIDManager
@@ -12,7 +13,7 @@ class Task(BaseMod):
     req_attr=BaseMod.req_attr+['specs','index','prior','writers','config','taskname']
     yaml_header='generic_task'
     default_specs={}
-    exts=['.psf','.pdb','.coor','.xst']
+    exts=['.psf','.pdb','.coor','.xsc']
     _taskcount=0
     def __init__(self,input_dict,taskname,config,writers,prior):
         specs=input_dict.copy()
@@ -164,7 +165,7 @@ class Task(BaseMod):
             basename=self.next_basename('relax')
         else:
             basename=self.next_basename(label)
-        nminsteps=specs.get('nminsteps',1000)
+        nminsteps=specs.get('nminsteps',0)
         nsteps=specs.get('nsteps',1000)
         dcdfreq=specs.get('dcdfreq',0)
         xstfreq=specs.get('xstfreq',0)
@@ -215,18 +216,16 @@ class Task(BaseMod):
 
 class PsfgenTask(Task):
     yaml_header='psfgen'
-    # opt_attr=Task.opt_attr+['source','mods','ligation','cleanup']
     default_specs={'cleanup':False,'mods':{},'layloops':{},'minimize':{'nsteps':1000}}
     def __init__(self,input_dict,taskname,config,writers,prior):
-        # logger.debug(f'Psfgentask args {args}')
         super().__init__(input_dict,taskname,config,writers,prior)
-        # logger.debug(f'Psfgentask  {self.__dict__}')
         self.chainIDmanager=ChainIDManager()
         self.mods=self.specs['mods']
 
     def do(self):
+        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
         if self.prior:
-            logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
+            logger.debug(f'... prior {self.prior.taskname}')
             self.statevars=self.prior.statevars.copy()
         logger.debug('Parsing modifications')
         self.modparse()
@@ -315,15 +314,13 @@ class PsfgenTask(Task):
 
 class LigateTask(Task):
     yaml_header='ligate'
-    # opt_attr=Task.opt_attr+['source','mods','ligation','cleanup']
     default_specs={'steer':{},'connect':{},'minimize':{}}
     statevars={}
     def __init__(self,input_dict,taskname,config,writers,prior):
-        # logger.debug(f'Psfgentask args {args}')
         super().__init__(input_dict,taskname,config,writers,prior)
-        # logger.debug(f'Psfgentask  {self.__dict__}')
 
     def do(self):
+        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
         if self.prior:
             logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
             self.statevars=self.prior.statevars.copy()
@@ -372,7 +369,6 @@ class LigateTask(Task):
         gaps=[]
         for line in datalines:
             if len(line)>0:
-                # logger.debug(f'parsing distance line {line}')
                 data=line.split()
                 thisgap={
                     'chainID':data[0],
@@ -470,27 +466,50 @@ class SolvateTask(Task):
     opt_attr=Task.opt_attr+[yaml_header]
     default_specs={'solvate':{},'autoionize':{},'minimize':{'nminsteps':100}}
     def do(self):
-        logger.info(f'Solvate task initiated')
         self.statevars=self.prior.statevars.copy()
         basename=self.next_basename()
+        logger.info(f'Solvate task {self.index} initiated with basename {basename}')
         vt=self.writers['vmd']
         vt.newscript(basename)
         vt.usescript('solv')
         vt.writescript()
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
-        logger.debug(f'solvate: inputs {psf} {pdb} to {vt.basename}.tcl')
         vt.runscript(o=basename,pdb=pdb,psf=psf)
         self.update_statefile('cell',f'{basename}_cell.tcl')
         self.update_statefile('psf',f'{basename}.psf')
         self.update_statefile('pdb',f'{basename}.pdb')
-        basename=self.next_basename('minimize')
+        for oldext in ['coor','vel','xsc']:
+            if oldext in self.statevars:
+                del self.statevars[oldext]
         self.minimize(self.specs['minimize'])
 
 class RelaxTask(Task):
     yaml_header='relax'
     opt_attr=Task.opt_attr+[yaml_header]
     def do(self):
+        logger.info(f'Task {self.taskname} {self.index} initiated')
         self.statevars=self.prior.statevars.copy()
         self.relax(self.specs,label='')
 
+class TerminateTask(Task):
+    yaml_header='terminate'
+    opt_attr=Task.opt_attr+[yaml_header]
+    default_specs={'final-basename':'final','chainmapfile':'chainmaps.yaml','statefile':'states.yaml'}
+    def do(self):
+        logger.info(f'Task {self.taskname} {self.index} initiated')
+        self.statevars=self.prior.statevars.copy()
+        for ext in self.exts:
+            aext=ext[1:]
+            if aext in self.statevars:
+                ffile=f'{self.specs["final-basename"]}{ext}'
+                shutil.copy(self.statevar[aext],ffile)
+                self.update_statefile(aext,ffile)
+        bm=self.statevars.get('base_molecule',None)
+        if bm:
+            maps=bm.get_chainmaps()
+            with open(self.specs['chainmapfile'],'w') as f:
+                yaml.dump(maps,f)
+            del self.statevars['base_molecule']
+        with open(self.specs["statefile"],'w') as f:
+            yaml.dump(self.statevars,f)

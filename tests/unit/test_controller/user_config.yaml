@@ -28,3 +28,4 @@ tasks:
         nminsteps: 1000
   - relax:
       nsteps: 1000
+      dcdfreq: 100

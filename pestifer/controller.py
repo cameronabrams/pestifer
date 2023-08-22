@@ -36,6 +36,7 @@ class Controller:
             this_task=Cls(specs,taskname,self.config,self.writers,prior_task)
             self.tasks.append(this_task)
             prior_task=this_task
+        self.tasks.append(TerminateTask({},'terminate',self.config,self.writers,prior_task))
 
         logger.debug(f'Controller will execute {len(self.tasks)} task(s).')
 
