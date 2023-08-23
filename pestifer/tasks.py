@@ -4,10 +4,12 @@ logger=logging.getLogger(__name__)
 import shutil
 import os
 import yaml
-from .util import inspect_classes
+import numpy as np
+from .util import inspect_classes, is_periodic
 from .molecule import Molecule
 from .chainids import ChainIDManager
 from .colvars import *
+from .stringthings import FileCollector
 
 class Task(BaseMod):
     req_attr=BaseMod.req_attr+['specs','index','prior','writers','config','taskname']
@@ -35,6 +37,7 @@ class Task(BaseMod):
         Task._taskcount+=1
         self.subtaskcount=0
         self.statevars={}
+        self.FC=FileCollector()
 
     def update_statefile(self,key,filename,mode='strict'):
         if os.path.exists(filename):
@@ -50,16 +53,6 @@ class Task(BaseMod):
         basename=f'{self.index:02d}-{self.subtaskcount:02d}-{self.taskname}{label}'
         self.subtaskcount+=1
         return basename
-    
-    # def pass_thru(self):
-    #     for fn in self.priors().values():
-    #         if os.path.exists(fn):
-    #             bn,ext=os.path.splitext(fn)
-    #             shutil.copyfile(fn,f'{self.basename}{ext}')
-        #     else:
-        #         logger.debug(f'Task {self.index} ({self.taskname}): prior task\'s {fn} not found')
-        # else:
-        #     logger.debug(f'Task {self.index} ({self.taskname}) empty passthru')
             
     def coor_to_pdb(self,basename):
         vm=self.writers['vmd']
@@ -81,27 +74,6 @@ class Task(BaseMod):
         vm.runscript(psf=psf,pdb=pdb,coor=f'{basename}.coor')
         self.update_statefile('coor',f'{basename}.coor')
 
-    def is_periodic(self,cell,xsc):
-        if cell and os.path.exists(cell):
-            with open(cell,'r') as f:
-                lines=f.read().split('\n')
-            check=True
-            check&=(lines[0].startswith('cellbasisvector'))
-            check&=(lines[1].startswith('cellbasisvector'))
-            check&=(lines[2].startswith('cellbasisvector'))
-            check&=(lines[3].startswith('cellorigin'))
-            if check:
-                return True
-        if xsc and os.path.exists(xsc):
-            with open(xsc,'r') as f:
-                lines=f.read().split('\n')
-            specline=lines[2]
-            specfields=list(map(float,specline.split()))
-            check=all([x>0 for x in specfields[1:]])
-            if check:
-                return True
-        return False
-
     def minimize(self,specs):
         namd_params=self.config.namd_params
         temperature=specs.get('temperature',None)
@@ -117,7 +89,7 @@ class Task(BaseMod):
         vel=self.statevars.get('vel',None)
         xsc=self.statevars.get('xsc',None)
         cell=self.statevars.get('cell',None)
-        self.statevars['periodic']=self.is_periodic(cell,xsc)
+        self.statevars['periodic']=is_periodic(cell,xsc)
         params={}
         params['tcl']=[f'set temperature {temperature}']
         params['structure']=psf
@@ -178,7 +150,7 @@ class Task(BaseMod):
         coor=self.statevars.get('coor',None)
         vel=self.statevars.get('vel',None)
         xsc=self.statevars.get('xsc',None)
-        self.statevars['periodic']=self.is_periodic(None,xsc)
+        self.statevars['periodic']=is_periodic(None,xsc)
         if coor:
             params['bincoordinates']=coor
         if vel:
@@ -197,6 +169,8 @@ class Task(BaseMod):
             params.update(namd_params['vacuum'])
         params.update(namd_params['thermostat'])
         if pressure:
+            if not self.statevars['periodic']:
+                raise Exception(f'Cannot use barostat on a system without PBCs')
             params['tcl'].append(f'set pressure {pressure}')
             params.update(namd_params['barostat'])
         params['outputName']=f'{basename}'
@@ -230,14 +204,16 @@ class PsfgenTask(Task):
         logger.debug('Parsing modifications')
         self.modparse()
         logger.debug('Injesting molecule(s)')
-        self.injest_molecules()
+        self.injest_molecules(self.specs['source'])
         self.statevars['base_molecule']=self.base_molecule
         logger.debug('Running first psfgen')
         self.psfgen()
-        logger.debug('Declashing loops')
-        self.declash_loops(self.specs['declash'])
+        if self.base_molecule.has_loops():
+            logger.debug('Declashing loops')
+            self.declash_loops(self.specs.get('declash',{}))
         logger.debug('Minimizing')
         self.minimize(self.specs['minimize'])
+        logger.info(f'Task {self.taskname} {self.index:02d} complete')
 
     def psfgen(self):
         basename=self.next_basename('build')
@@ -292,22 +268,13 @@ class PsfgenTask(Task):
         # TODO: gather names of all aux pdb files
         self.pdbs=[]
 
-    def injest_molecules(self):
+    def injest_molecules(self,specs):
         self.molecules={}
         psf_exists=False
-        specs=self.specs
-        if type(specs['source'])==dict:
-            self.basename=specs['source'].get('rcsb',None)
-            bioassemb=specs['source'].get('biological_assembly',None)
-        elif type(self.source)==str:
-            self.basename=specs['source']
-            assert os.path.exists(f'{self.basename}.pdb')
-            self.pdb=f'{self.basename}.pdb'
-            psf_exists=os.path.exists(f'{self.basename}.psf')
-            if psf_exists:
-                self.psf=f'{self.basename}.psf'
-            bioassemb=0
-        self.molecules[self.basename]=Molecule(config=self.config,source=self.basename,use_psf=psf_exists).activate_biological_assembly(bioassemb,self.chainIDmanager)
+        self.basename=specs.get('rcsb',None)
+        bioassemb=specs.get('biological_assembly',0)
+        excludes=specs.get('exclude',{})
+        self.molecules[self.basename]=Molecule(config=self.config,source=self.basename,excludes=excludes,use_psf=psf_exists).activate_biological_assembly(bioassemb,self.chainIDmanager)
         self.base_molecule=self.molecules[self.basename]
         for p in self.pdbs:
             self.molecules[p]=Molecule(config=self.config,source=p)
@@ -334,6 +301,7 @@ class LigateTask(Task):
         self.connect(self.specs['connect'])
         logger.debug('Minimizing')
         self.minimize(self.specs['minimize'])
+        logger.info(f'Task {self.taskname} {self.index:02d} complete')
 
     def steerends(self,specs):
         logger.debug('...Writing gaps')
@@ -445,20 +413,19 @@ class LigateTask(Task):
         basename=self.next_basename('heal')
         pg=self.writers['psfgen']
         pg.newscript(basename)
+        pg.topo_aliases()
         topfile=os.path.join(self.config.charmm_toppar_path,'mylink.top')
         pg.addline(f'topology {topfile}')
-        pg.topo_aliases()
         pg.usescript('loop_closure')
         pg.writescript()
         patchfile=self.statevars['data']
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
-        pg.runscript(psf=psf,pdb=pdb,p=patchfile,o=basename,files=f'{basename}-deleteus.inp')
+        pg.runscript(psf=psf,pdb=pdb,p=patchfile,o=basename)
         self.update_statefile('psf',f'{basename}.psf')
         self.update_statefile('pdb',f'{basename}.pdb')
         if 'vel' in self.statevars:
             del self.statevars['vel']
-        pg.cleanup(cleanup=specs.get('cleanup',False),files=f'{basename}-deleteus.inp')
         self.pdb_to_coor(basename)
 
 class SolvateTask(Task):
@@ -468,7 +435,7 @@ class SolvateTask(Task):
     def do(self):
         self.statevars=self.prior.statevars.copy()
         basename=self.next_basename()
-        logger.info(f'Solvate task {self.index} initiated with basename {basename}')
+        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
         vt=self.writers['vmd']
         vt.newscript(basename)
         vt.usescript('solv')
@@ -483,27 +450,29 @@ class SolvateTask(Task):
             if oldext in self.statevars:
                 del self.statevars[oldext]
         self.minimize(self.specs['minimize'])
+        logger.info(f'Task {self.taskname} {self.index:02d} complete')
 
 class RelaxTask(Task):
     yaml_header='relax'
     opt_attr=Task.opt_attr+[yaml_header]
     def do(self):
-        logger.info(f'Task {self.taskname} {self.index} initiated')
+        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
         self.statevars=self.prior.statevars.copy()
         self.relax(self.specs,label='')
+        logger.info(f'Task {self.taskname} {self.index:02d} complete')
 
 class TerminateTask(Task):
     yaml_header='terminate'
     opt_attr=Task.opt_attr+[yaml_header]
-    default_specs={'final-basename':'final','chainmapfile':'chainmaps.yaml','statefile':'states.yaml'}
+    default_specs={'basename':'final','chainmapfile':'chainmaps.yaml','statefile':'states.yaml'}
     def do(self):
-        logger.info(f'Task {self.taskname} {self.index} initiated')
+        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
         self.statevars=self.prior.statevars.copy()
-        for ext in self.exts:
+        for ext in self.exts+['.vel']:
             aext=ext[1:]
             if aext in self.statevars:
-                ffile=f'{self.specs["final-basename"]}{ext}'
-                shutil.copy(self.statevar[aext],ffile)
+                ffile=f'{self.specs["basename"]}{ext}'
+                shutil.copy(self.statevars[aext],ffile)
                 self.update_statefile(aext,ffile)
         bm=self.statevars.get('base_molecule',None)
         if bm:
@@ -513,3 +482,4 @@ class TerminateTask(Task):
             del self.statevars['base_molecule']
         with open(self.specs["statefile"],'w') as f:
             yaml.dump(self.statevars,f)
+        logger.info(f'Task {self.taskname} {self.index:02d} complete')

@@ -294,6 +294,7 @@ class ResidueList(AncestorAwareModList):
                 delete_us.append(dr)
         for d in delete_us:
             self.remove(d)
+
     def update_links(self,Links:LinkList,atoms:AtomList):
         for link in Links:
             link.residue1=self.get(chainID=link.chainID1,resseqnum=link.resseqnum1,insertion=link.insertion1)

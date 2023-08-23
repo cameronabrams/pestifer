@@ -262,7 +262,7 @@ class SegmentList(AncestorAwareModList):
             super().__init__([])
             residues=input_obj
             for stype in ['PROTEIN','WATER','ION','GLYCAN','LIGAND','OTHER']:
-                res=residues.get(segtype=stype)
+                res=residues.filter(segtype=stype)
                 for chainID in res.unique_chainIDs():
                     c_res=residues.get(segtype=stype,chainID=chainID)
                     thisSeg=Segment(self.config,c_res)

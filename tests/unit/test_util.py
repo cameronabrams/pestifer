@@ -1,6 +1,7 @@
 from pestifer.util import *
 import unittest
 from pestifer.tasks import *
+import os
 
 class TestUtil(unittest.TestCase):
     def test_special_update(self):
@@ -55,3 +56,8 @@ class TestUtil(unittest.TestCase):
         for s,r in replacements.items():
             replace(starting_dict,s,r)
         self.assertEqual(starting_dict,expected_dict)
+    
+    def test_is_periodic(self):
+        self.assertFalse(is_periodic(None,'no.xsc'))
+        self.assertTrue(is_periodic(None,'yes.xsc'))
+        self.assertTrue(is_periodic('yes_cell.tcl',None))

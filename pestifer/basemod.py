@@ -217,11 +217,36 @@ class ModList(list):
     def get(self,**fields):
         R=self.filter(**fields)
         if len(R)==0:
-            return self.__class__([])
+            return None
         elif len(R)==1:
             return R[0]
         else:
             return R
+    def prune(self,objlist=[],attr_maps=[]):
+        """ given a list of objects and a list of mappings of my element attributes to 
+            the foreign object attributes, delete any of my elements whose attribute
+            values match the mapped foreign object attributes """
+        acc_list=self.__class__([])
+        for obj in objlist:
+            for m in attr_maps:
+                thru_dict={}
+                for myattrlabel,objattrlabel in m.items():
+                    thru_dict[myattrlabel]=obj.__dict__[objattrlabel]
+                acc_list.extend(self.filter(**thru_dict))
+        for item in acc_list:
+            if item in self:
+                self.remove(item)
+    def prune_exclusions(self,**kwargs):
+        acc_list=self.__class__([])
+        for k,v in kwargs.items():
+            for item in v:
+                thru_dict={k:item}
+                acc_list.extend(self.filter(**thru_dict))
+        # logger.debug(f'pruning out {len(acc_list)} items')
+        for item in acc_list:
+            if item in self:
+                self.remove(item)
+        return acc_list
     def get_attr(self,S:tuple,**fields):
         for r in self:
             if r.matches(**fields): break

@@ -1,3 +1,11 @@
+"""
+
+.. module:: asymmetricunit
+   :synopsis: defines the Asymmetricunit class
+   
+.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
+
+"""
 import logging
 from .mods import *
 from .residue import ResidueList,AtomList,Atom,Hetatm,Ter,TerList
@@ -27,6 +35,8 @@ class AsymmetricUnit(AncestorAwareMod):
         else:
             config=objs[1]
             pr=objs[0]
+            excludes=objs[2]
+            logger.debug(f'excludes: {excludes}')
             assert type(pr)==dict
             # minimal pr has ATOMS
             Atoms=AtomList([Atom(p) for p in pr['ATOM']])
@@ -42,13 +52,17 @@ class AsymmetricUnit(AncestorAwareMod):
             else:
                 Missings=MissingList([])
             Residues=ResidueList(Atoms)+ResidueList(Missings)
+            thru_dict={'name':excludes.get('resnames',[]),'chainID':excludes.get('chains',[])}
+            logger.debug(f'Exclusions: {thru_dict}')
+            ignored_residues=Residues.prune_exclusions(**thru_dict)
             if config!=None:
                 Residues.apply_segtypes(config['Segtypes_by_Resnames'])
             if 'SSBOND' in pr:
                 SSBonds=SSBondList([SSBond(p) for p in pr['SSBOND']])
             else:
                 SSBonds=SSBondList([])
-
+            thru_dict={'resseqnum1':[x.resseqnum for x in ignored_residues],'resseqnum2':[x.resseqnum for x in ignored_residues]}
+            SSBonds.prune(objlist=ignored_residues,attr_maps=[{'chainID1':'chainID','resseqnum1':'resseqnum','insertion1':'insertion'},{'chainID2':'chainID','resseqnum2':'resseqnum','insertion2':'insertion'}])
             if 'SEQADV' in pr:
                 unresolved_sa=[x for x in pr['SEQADV'] if not ('ENGINEERED' in x.conflict or 'CONFLICT' in x.conflict)]
                 logger.info('The following SEQADV record types found in input are not handled:')
@@ -63,6 +77,7 @@ class AsymmetricUnit(AncestorAwareMod):
                 Conflicts=MutationList([])
             if 'LINK' in pr:
                 Links=LinkList([Link(p) for p in pr['LINK']])
+                Links.prune(objlist=ignored_residues,attr_maps=[{'chainID1':'chainID','resseqnum1':'resseqnum','insertion1':'insertion'},{'chainID2':'chainID','resseqnum2':'resseqnum','insertion2':'insertion'}])
                 if config!=None:
                     Links.apply_segtypes(config['Segtypes_by_Resnames'])
                 Residues.update_links(Links,Atoms)

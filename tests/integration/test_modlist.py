@@ -185,7 +185,7 @@ class TestModList(unittest.TestCase):
 class TestMutationList(unittest.TestCase):
     def test_mutation_list(self):
         L=MutationList([])
-        c=L.get(chainID='A')
+        c=L.filter(chainID='A')
         self.assertEqual(len(c),0)
         for i in range(10):
             L.append(Mutation(f'{chr(ord("A")+i)}:PHE,{123+i},TYR'))
@@ -195,7 +195,7 @@ class TestMutationList(unittest.TestCase):
         self.assertEqual(m.chainID,'A')
         m=L[-1]
         self.assertEqual(m.chainID,'J')
-        subl=L.get(chainID='J')
-        self.assertEqual(hasattr(subl,'len'),False)
-        self.assertEqual(type(subl),Mutation)
+        subl=L.filter(chainID='J')
+        self.assertEqual(hasattr(subl,'__len__'),True)
+        self.assertEqual(type(subl),MutationList)
 

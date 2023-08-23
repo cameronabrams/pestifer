@@ -23,9 +23,11 @@ StdCharmmParam:
 LocalCharmmTopo:
   - top_all36_carb.rtf
   - toppar_water_ions.str
+  - toppar_all36_moreions.str
 
 LocalCharmmParam:
   - toppar_water_ions.str
+  - toppar_all36_moreions.str
 
 PDBAliases:
   - residue HIS HSD
@@ -55,6 +57,9 @@ PDBAliases:
   - residue EIC LIN
   - residue MAN AMAN
   - residue BMA BMAN
+  - residue HOH TIP3
+  - atom TIP3 O OH2
+  - residue PO4 H2PO4
 
 PDB_to_CHARMM_Resnames:
   HIS: HSE
@@ -68,6 +73,7 @@ PDB_to_CHARMM_Resnames:
   GAL: BGAL
   SIA: ANE5AC
   ANE5: ANE5AC
+  H2PO: H2PO4
   EIC: LIN
   VCG: VCG
 
@@ -110,6 +116,7 @@ PDB_Ions:
   - CAD
   - CL
   - SO4
+  - PO4
 
 PDB_Glycans:
   - BMA
@@ -179,9 +186,9 @@ Namd_defaults:
     langevinHydrogen: no 
   barostat:
     langevinpiston: on 
-    langevinpistontarger: $pressure
+    langevinpistontarget: $pressure
     langevinpistonperiod: 200
-    langevinpistondcay: 100
+    langevinpistondecay: 100
     langevinpistontemp: $temperature
     usegrouppressure: yes
     useflexiblecell: no

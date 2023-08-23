@@ -11,18 +11,23 @@ def _main():
     parser=ap.ArgumentParser()
     parser.add_argument('config',help='input configuration file (yaml)')
     parser.add_argument('-log',help='log file name',default='pestifer.log')
-    parser.add_argument('--loglevel',default='debug',help='logging level (info)')
+    parser.add_argument('--loglevel',default='info',help='logging level (info)')
     args=parser.parse_args()
 
     loglevel=args.loglevel
     loglevel_numeric=getattr(logging, loglevel.upper())
     if os.path.exists(args.log):
         shutil.copyfile(args.log,args.log+'.bak')
-    logging.basicConfig(filename=args.log,filemode='w',format='%(asctime)s %(message)s',level=loglevel_numeric)
+    logging.basicConfig(filename=args.log,filemode='w',format='%(asctime)s %(name)s %(message)s',level=loglevel_numeric)
+    console=logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    formatter=logging.Formatter('%(levelname)s> %(message)s')
+    console.setFormatter(formatter)
+    logging.getLogger('').addHandler(console)
     logger.info(f'pestifer runtime begins')
 
     C=Controller(args.config)
-    C.do_steps()
+    C.do_tasks()
     
     logger.info('pestifer runtime ends.')
 

@@ -36,9 +36,11 @@ class Controller:
             this_task=Cls(specs,taskname,self.config,self.writers,prior_task)
             self.tasks.append(this_task)
             prior_task=this_task
-        self.tasks.append(TerminateTask({},'terminate',self.config,self.writers,prior_task))
+        if len(self.tasks)==0 or not self.tasks[-1].taskname=='terminate':
+            logger.debug('Adding default terminate task')
+            self.tasks.append(TerminateTask({},'terminate',self.config,self.writers,prior_task))
 
-        logger.debug(f'Controller will execute {len(self.tasks)} task(s).')
+        logger.info(f'Controller will execute {len(self.tasks)} task(s).')
 
     def do_tasks(self):
         for task in self.tasks:

@@ -1,4 +1,5 @@
 # just so we can maybe do a dynamic install, to compile stuff in c
+# not currently used
 
 from setuptools import setup
 from distutils.errors import DistutilsSetupError

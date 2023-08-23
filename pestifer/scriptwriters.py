@@ -68,8 +68,9 @@ class VMD(Scriptwriter):
         timestampstr=datetime.datetime.today().ctime()
         if not os.path.exists(scriptname):
             raise FileNotFoundError(f'Pestifer script {scriptbasename}.tcl is not found.')
-        self.B.banner(f'Injested from {scriptbasename}, {timestampstr}')
+        self.B.banner(f'Begin {scriptbasename}, {timestampstr}')
         self.injest_file(scriptname)
+        self.B.banner(f'End {scriptbasename}')
 
     def loadmodule(self,modulename):
         procname=os.path.join(self.tcl_path,f'proc/{modulename}.tcl')

@@ -150,7 +150,7 @@ class TestLink(unittest.TestCase):
             'resseqnum2':2,
             'insertion2':'',}
         l=Link(input_dict)
-        l.map_attr('segtype1','resname1',self.config.segtype_resname_map)
-        l.map_attr('segtype2','resname2',self.config.segtype_resname_map)
+        l.map_attr('segtype1','resname1',self.config['Segtypes_by_Resnames'])
+        l.map_attr('segtype2','resname2',self.config['Segtypes_by_Resnames'])
         self.assertEqual(l.segtype1,'PROTEIN')
         self.assertEqual(l.segtype2,'GLYCAN')

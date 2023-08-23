@@ -2,12 +2,36 @@ import inspect
 import sys
 import logging
 import importlib
+import os
 logger=logging.getLogger(__name__)
 
 import shutil
 def is_tool(name):
     return shutil.which(name) is not None
-    
+
+def is_periodic(cell,xsc):
+    if cell and os.path.exists(cell):
+        with open(cell,'r') as f:
+            lines=f.read().split('\n')
+        if len(lines)<4:
+            return False
+        check=True
+        check&=(lines[0].startswith('cellbasisvector'))
+        check&=(lines[1].startswith('cellbasisvector'))
+        check&=(lines[2].startswith('cellbasisvector'))
+        check&=(lines[3].startswith('cellorigin'))
+        return check
+    if xsc and os.path.exists(xsc):
+        with open(xsc,'r') as f:
+            lines=f.read().split('\n')
+        specline=lines[1]
+        specfields=specline.split()
+        reqdfieldlabels='a_x a_y a_z b_x b_y b_z c_x c_y c_z'.split()
+        check=all([x in specfields for x in reqdfieldlabels])
+        return check
+    return False
+
+
 def special_update(dict1,dict2):
     for k,v in dict2.items():
         ov=dict1.get(k,None)

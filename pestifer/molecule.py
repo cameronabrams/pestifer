@@ -19,7 +19,7 @@ class Molecule(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['config','molid','source','asymmetric_unit','biological_assemblies','parsed_struct']
     opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
-    def __init__(self,source=None,config=None,**options):
+    def __init__(self,source=None,config=None,excludes={},**options):
         reset=options.get('reset_counter',False)
         if reset:
             Molecule._molcounter=0
@@ -42,7 +42,7 @@ class Molecule(AncestorAwareMod):
             'molid': Molecule._molcounter,
             'source': source,
             'parsed_struct': p_struct,
-            'asymmetric_unit': AsymmetricUnit(p_struct,config),
+            'asymmetric_unit': AsymmetricUnit(p_struct,config,excludes),
             'biological_assemblies': BioAssembList(p_struct)#,reset=True)
         }
         super().__init__(input_dict)

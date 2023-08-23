@@ -1,4 +1,33 @@
 # pyproject.toml
 [build-system]
-requires = ["setuptools>=61.0.0", "wheel"]
-build-backend = "setuptools.build_meta"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+[project]
+name = "pestifer"
+version = "0.0.1"
+authors = [
+  { name="Cameron F Abrams", email="cfa22@drexel.edu" },
+]
+description = "A NAMD topology/coordinate input builder"
+readme = "README.md"
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: POSIX :: Linux",
+]
+dependencies = [
+    "numpy>=1.24",
+    "pyyaml>=6",
+    "pidibble",
+    "pandas",
+    "pycifrw"
+]
+[project.urls]
+"Source" = "https://github.com/cameronabrams/pestifer"
+"Documentation" = "https://pestifer.readthedocs.io/en/latest/"
+"Bug Tracker" = "https://github.com/cameronabrams/pestifer/issues"
+[tool.pytest.ini_options]
+log_cli = true
+[project.scripts]
+pestifer = "pestifer.pestifer:cli"

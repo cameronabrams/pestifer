@@ -1,7 +1,7 @@
 for { set i 0 } { $i < [llength $argv] } { incr i } {
     if { [lindex $argv $i] == "-pdb"} {
        incr i
-       set coor [lindex $argv $i]
+       set pdb [lindex $argv $i]
     }
     if { [lindex $argv $i] == "-psf"} {
        incr i
@@ -15,31 +15,12 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
        incr i
        set patchfile [lindex $argv $i]
     }
-    if { [lindex $argv $i] == "-files"} {
-       incr i
-       set filelistfile [lindex $argv $i]
-    }
 }
 
 set outpsf ${outbasename}.psf
 set outpdb ${outbasename}.pdb
 
-mol new $psf
-mol addfile $coor
-set m0 [molinfo top get id]
-
-set segnames [lsort -unique [[atomselect $m0 "all"] get segname]]
-
-set pdbnames [list]
-
-foreach s $segnames {
-    [atomselect top "segname $s"] writepdb SEG$s.pdb
-    segment $s {
-        pdb SEG$s.pdb
-    }
-    coordpdb SEG$s.pdb $s
-    lappend pdbnames SEG$s.pdb
-}
+readpsf $psf pdb $pdb
 
 source $patchfile
 
@@ -48,9 +29,4 @@ guesscoord
 
 writepsf $outpsf
 writepdb $outpdb
-set fp [open $filelistfile "w"]
-foreach fn $pdbnames {
-    puts $fp "$fn"
-}
-close $fp
 exit
