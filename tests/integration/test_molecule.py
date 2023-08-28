@@ -1,6 +1,8 @@
 import unittest
 from pestifer.molecule import Molecule
 from pestifer.config import Config
+from pestifer.chainids import ChainIDManager
+
 class TestMolecule(unittest.TestCase):
 
     def test_molecule_au(self):
@@ -63,7 +65,29 @@ class TestMolecule(unittest.TestCase):
     def test_molecule_bioassemb(self):
         m=Molecule(source='4zmj',config=Config())
         self.assertEqual(1,len(m.biological_assemblies))
-    
+        m.activate_biological_assembly(1,ChainIDManager())
+        ba=m.active_biological_assembly
+        self.assertEqual(len(ba.transforms),3)
+        cm=ba.transforms[0].chainIDmap
+        self.assertEqual(cm['G'],'G')
+        self.assertTrue(ba.transforms[0].is_identity())
+        cm=ba.transforms[1].chainIDmap
+        self.assertEqual(cm['G'],'J')
+        cm=ba.transforms[2].chainIDmap
+        self.assertEqual(cm['G'],'O')
+        m=Molecule(source='4tvp',config=Config(),excludes={'chains':['H','L','E','D'],'resnames':['PO4']})
+        self.assertEqual(1,len(m.biological_assemblies))
+        m.activate_biological_assembly(1,ChainIDManager())
+        ba=m.active_biological_assembly
+        self.assertEqual(len(ba.transforms),3)
+        cm=ba.transforms[0].chainIDmap
+        self.assertEqual(cm['G'],'G')
+        self.assertTrue(ba.transforms[0].is_identity())
+        cm=ba.transforms[1].chainIDmap
+        self.assertEqual(cm['G'],'U')
+        cm=ba.transforms[2].chainIDmap
+        self.assertEqual(cm['G'],'k')
+
     def test_molecule_ancestry(self):
         m=Molecule(source='4zmj',reset_counter=True,config=Config())
         au=m.asymmetric_unit

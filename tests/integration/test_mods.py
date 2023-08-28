@@ -1,7 +1,7 @@
 from pestifer.mods import Mutation, Missing, Seqadv, SSBond, Crot, Link
 from pestifer.cifutil import CIFdict
 from pidibble.pdbparse import PDBParser
-from pestifer.bioassemb import BiomT
+from pestifer.bioassemb import Transform
 from pestifer.config import Config
 from pestifer.stringthings import ByteCollector
 import unittest
@@ -81,7 +81,7 @@ class TestSSBond(unittest.TestCase):
     def test_psfgen(self):
         B=ByteCollector()
         ss=SSBond('D_378-B_379')
-        transform=BiomT()
+        transform=Transform()
         transform.chainIDmap={'D':'D','B':'E'}
         ss.write_TcL(B,transform)
         self.assertEqual(str(B),'patch DISU D:378 E:379\n')

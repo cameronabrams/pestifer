@@ -563,7 +563,7 @@ class Link(AncestorAwareMod):
                     B.addline('if { $abi == "b" } { set abi B }')
                     B.addline('if { $abj == "b" } { set abj T }')
                 B.addline('set pres "1$cn$abi$abj"')
-                B.addline(f'patch $pres {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum1}{self.insertion2}')
+                B.addline(f'patch $pres {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
             elif self.name1=='C1' and self.segtype2=='GLYCAN':
                 seg1=transform.segname_by_type_map['GLYCAN'][self.segname1]
                 seg2=transform.segname_by_type_map['GLYCAN'][self.segname2]

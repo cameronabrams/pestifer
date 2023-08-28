@@ -43,7 +43,7 @@ class Molecule(AncestorAwareMod):
             'source': source,
             'parsed_struct': p_struct,
             'asymmetric_unit': AsymmetricUnit(p_struct,config,excludes),
-            'biological_assemblies': BioAssembList(p_struct)#,reset=True)
+            'biological_assemblies': BioAssembList(p_struct)
         }
         super().__init__(input_dict)
         self.asymmetric_unit.claim_descendants(self,0)
@@ -55,16 +55,10 @@ class Molecule(AncestorAwareMod):
             if index!=0:
                 logger.warning(f'No biological assemblies specified in input structure.  Using A.U.; ignoring your request of B.A. "{index}"')
         else:
-            biological_assembly=[x for x in self.biological_assemblies if x.index==index]
-            assert biological_assembly!=[],f'No biological assembly "{index:d}" found.'
-            assert len(biological_assembly)==1,f'No unique biological assembly "{index}" found.'
-            self.active_biological_assembly=biological_assembly[0]
+            self.active_biological_assembly=self.biological_assemblies.get(index=index)
+            assert self.activate_biological_assembly!=None,f'No biological assembly "{index:d}" found.'
             logger.info(f'Activating biological assembly {self.active_biological_assembly.name} (idx {index})')
-        ba=self.active_biological_assembly
-        auChainIDs=self.asymmetric_unit.chainIDs
-        ba.biomt[0].chainIDmap={c:c for c in auChainIDs}
-        for biomt in ba.biomt[1:]:
-            biomt.chainIDmap=chainIDmanager.generate_next_map(auChainIDs)            
+        self.active_biological_assembly.activate(self.asymmetric_unit,chainIDmanager)
         return self
     
     def write_TcL(self,B:ByteCollector,user_mods,file_collector=None):
@@ -76,7 +70,7 @@ class Molecule(AncestorAwareMod):
             allmods['Mutations']=MutationList([])
         if not 'Conflicts' in allmods:
             allmods['Conflicts']=MutationList([])
-        for k in ba.biomt[0].chainIDmap.keys():
+        for k in ba.transforms[0].chainIDmap.keys():
             if au.Mutations:
                 allmods['Mutations'].extend(au.Mutations.filter(chainID=k))
             if au.Conflicts:
@@ -92,27 +86,27 @@ class Molecule(AncestorAwareMod):
             au.SSBonds.prune_mutations(au.Conflicts)
             au.Links.prune_mutations(au.Conflicts,au.Segments)
             # au.Links.prune_mutations(au.Conflicts) # problematic?
-        for biomt in ba.biomt:
-            B.banner(f'TRANSFORM {biomt.index} BEGINS')
+        for transform in ba.transforms:
+            B.banner(f'TRANSFORM {transform.index} BEGINS')
             B.banner('The following mappings of A.U. chains is used:')
-            for k,v in biomt.chainIDmap.items():
+            for k,v in transform.chainIDmap.items():
                 B.comment(f'{k}: {v}')
             B.banner('SEGMENTS FOLLOW')
-            au.Segments.write_TcL(B,biomt,allmods,file_collector=file_collector)
+            au.Segments.write_TcL(B,transform,allmods,file_collector=file_collector)
             B.banner('DISU PATCHES FOLLOW')
-            au.SSBonds.write_TcL(B,biomt,allmods)
+            au.SSBonds.write_TcL(B,transform,allmods)
             B.banner('LINK PATCHES FOLLOW')
-            au.Links.write_TcL(B,biomt,allmods)
-            B.banner(f'TRANSFORM {biomt.index} ENDS')
+            au.Links.write_TcL(B,transform,allmods)
+            B.banner(f'TRANSFORM {transform.index} ENDS')
     
     def get_chainmaps(self):
         ba=self.active_biological_assembly
         maps={}
-        for biomt in ba.biomt:
-            for oc,mc in biomt.chainIDmap.items():
+        for transform in ba.transforms:
+            for oc,mc in transform.chainIDmap.items():
                 if not oc in maps:
                     maps[oc]=[]
-                maps[oc].append({'biomt':biomt.index,'mappedchain':mc})
+                maps[oc].append({'transform':transform.index,'mappedchain':mc})
         return maps
     
     def has_loops(self):
@@ -137,8 +131,8 @@ class Molecule(AncestorAwareMod):
                         if (b.bounds[1]-b.bounds[0])>(sac_n-1):
                             reslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
                             tcllist='[list '+' '.join(reslist)+']'
-                            for biomt in ba.biomt:
-                                act_chainID=biomt.chainIDmap[chainID]
+                            for transform in ba.transforms:
+                                act_chainID=transform.chainIDmap[chainID]
                                 writer.addline(f'declash_loop $mLL {act_chainID} {tcllist} {cycles}')
     
     def write_gaps(self,writer,sac_n=4):
@@ -155,8 +149,8 @@ class Molecule(AncestorAwareMod):
                             bpp=S.subsegments[i+1]
                             nreslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[bpp.bounds[0]:bpp.bounds[1]+1]]
                             assert bpp.state=='RESOLVED'
-                            for biomt in ba.biomt:
-                                act_chainID=biomt.chainIDmap[chainID]
+                            for transform in ba.transforms:
+                                act_chainID=transform.chainIDmap[chainID]
                                 writer.addline(f'{act_chainID} {reslist[0]} {reslist[-1]} {nreslist[0]}')
 
     def write_connect_patches(self,writer,sac_n=4):
@@ -173,6 +167,6 @@ class Molecule(AncestorAwareMod):
                             nextb=S.subsegments[i+1]
                             rres=S.residues[nextb.bounds[0]]
                             rrres=S.residues[nextb.bounds[0]+1]
-                            for biomt in ba.biomt:
-                                act_chainID=biomt.chainIDmap[chainID]
+                            for transform in ba.transforms:
+                                act_chainID=transform.chainIDmap[chainID]
                                 writer.addline(f'patch HEAL {act_chainID}:{llres.resseqnum}{llres.insertion} {act_chainID}:{lres.resseqnum}{lres.insertion} {act_chainID}:{rres.resseqnum}{rres.insertion} {act_chainID}:{rrres.resseqnum}{rrres.insertion}')

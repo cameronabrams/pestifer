@@ -1,3 +1,6 @@
+import logging
+logger=logging.getLogger(__name__)
+
 class ChainIDManager:
     def __init__(self):
         U=[chr(i) for i in range(ord('A'),ord('A')+26)]
@@ -6,18 +9,32 @@ class ChainIDManager:
         self.OrderedSupply=U+L+D
         self.Used=set()
     
-    def generate_next_map(self,chainIDs):
+    def generate_next_map(self,chainIDs,active_chains=[]):
         assert len(chainIDs)<=len(self.OrderedSupply),f'Not enough available chainIDs'
         myMap={}
-        for c in chainIDs:
+        activeChainIDs=chainIDs.copy()
+        if active_chains:
+            inactive_chains=[x for x in activeChainIDs if not x in active_chains]
+            for i in inactive_chains:
+                activeChainIDs.remove(i)
+        for c in activeChainIDs:
             if c in self.OrderedSupply:
                 self.OrderedSupply.remove(c)
                 self.Used.add(c)
-        for c in chainIDs:
+        for c in activeChainIDs:
             p=self.OrderedSupply.pop(0)
             self.Used.add(p)
             myMap[c]=p
         return myMap
+    
+    def thru_map(self,chainIDs,active_chains=[]):
+        activeChainIDs=chainIDs.copy()
+        logger.debug(f'generating thru_map from {activeChainIDs} with actives {active_chains}')
+        if active_chains:
+            inactive_chains=[x for x in activeChainIDs if not x in active_chains]
+            for i in inactive_chains:
+                activeChainIDs.remove(i)
+        return {c:c for c in activeChainIDs}
     
     def cleavage_daughter_chainID(self,chainID):
         assert 1<=len(self.OrderedSupply),f'Not enough available chainIDs'
