@@ -34,7 +34,7 @@ class TerList(AncestorAwareModList):
 
 class Atom(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
-    opt_attr=AncestorAwareMod.opt_attr+['segname','empty','link']
+    opt_attr=AncestorAwareMod.opt_attr+['segname','empty','link','recordname']
     yaml_header='Atoms'
     PDB_keyword='ATOM'
 
@@ -59,6 +59,10 @@ class Atom(AncestorAwareMod):
                 'elem':pdbrecord.element,
                 'charge':pdbrecord.charge
             }
+            if hasattr(pdbrecord,'cif_chainID'):
+                input_dict['cif_chainID']=pdbrecord.cif_chainID
+            if hasattr(pdbrecord,'cif_seqNum'):
+                input_dict['cif_seqNum']=pdbrecord.cif_seqNum
             input_dict['segname']=input_dict['chainID']
             input_dict['link']='None'
             input_dict['empty']=False

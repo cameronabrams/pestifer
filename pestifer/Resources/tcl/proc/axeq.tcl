@@ -55,7 +55,7 @@ proc axeq { ose_resid molid chain in_name c1_resid } {
          set ligand_axeq($rn) "b"
 	      set ligand_axeq($ln) "b"
 	   }
-      puts "axeq ring atom $rn has forp $forp($rn) and bakp $bakp($rn) and ligand $ln bondlength [veclength $ligvec] ligpdot $ligpdot axeq $ligand_axeq($rn)"
+      # puts "axeq ring atom $rn has forp $forp($rn) and bakp $bakp($rn) and ligand $ln bondlength [veclength $ligvec] ligpdot $ligpdot axeq $ligand_axeq($rn)"
    }
    return $ligand_axeq($in_name)
 }

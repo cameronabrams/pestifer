@@ -8,6 +8,7 @@
 """
 import logging
 from pidibble.pdbparse import PDBParser
+from mmcif.io.IoAdapterCore import IoAdapterCore
 from .basemod import AncestorAwareMod
 from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList,BioAssemb
@@ -16,7 +17,7 @@ from .mods import MutationList, apply_psf_info
 logger=logging.getLogger(__name__)
 
 class Molecule(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['config','molid','source','asymmetric_unit','biological_assemblies','parsed_struct']
+    req_attr=AncestorAwareMod.req_attr+['config','molid','source','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
     opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
     def __init__(self,source=None,config=None,excludes={},**options):
@@ -31,7 +32,14 @@ class Molecule(AncestorAwareMod):
             logger.debug('Molecule initialized without source.')
             p_struct=None
         else:
-            p_struct=PDBParser(PDBcode=source).parse().parsed
+            if config['rcsb_file_format']=='PDB':
+                p_struct=PDBParser(PDBcode=source).parse().parsed
+            elif config['rcsb_file_format']=='mmCIF':
+                fetcher=PDBParser(PDBcode=source,input_format='mmCIF')
+                fetcher.fetch()
+                io=IoAdapterCore()
+                l_dc=io.readFile(f'{source}.cif')
+                p_struct=l_dc[0]
         use_psf=options.get('use_psf',None)
         if use_psf:
             apply_psf_info(p_struct,f'{source}.psf')
@@ -39,6 +47,7 @@ class Molecule(AncestorAwareMod):
         #     apply_psf_info(p_struct,f'{source}.psf')
         input_dict={
             'config': config,
+            'rcsb_file_format': config['rcsb_file_format'],
             'molid': Molecule._molcounter,
             'source': source,
             'parsed_struct': p_struct,

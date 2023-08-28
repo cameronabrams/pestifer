@@ -3,7 +3,22 @@ class CIFobject:
     pass
 
 class CIFdict(dict):
-    pass
+    def __init__(self,Obj,idx):
+        self.data={c:Obj.getValue(c,idx) for c in Obj.getAttributeList()}
+
+    def __getitem__(self,key):
+        return self.data[key]
+        # this will make bool give false if data is empty...
+
+    def __bool__(self):
+        return True
+    
+    def get(self,key,default):
+        if key in self.data:
+            return self.data[key]
+        else:
+            return default
+
 
 def CIFMakeStructs(db):
     structs={}

@@ -13,7 +13,6 @@ import os
 from .molecule import Molecule
 from .stringthings import ByteCollector, FileCollector, my_logger
 import datetime
-import shutil
 
 class Filewriter:
     def __init__(self):
@@ -62,6 +61,7 @@ class VMD(Scriptwriter):
         self.tcl_path=config.tcl_path
         self.vmd_startup=config.vmd_startup_script
         self.default_script=config['vmd_scriptname']
+        self.rcsb_file_format=config['rcsb_file_format']
 
     def usescript(self,scriptbasename):
         scriptname=os.path.join(self.tcl_path,f'scripts/{scriptbasename}.tcl')
@@ -83,8 +83,22 @@ class VMD(Scriptwriter):
 
     def set_molecule(self,mol):
         mol.molid_varname=f'm{mol.molid}'
-        self.B.addline(f'mol new {mol.source}.pdb waitfor all')
+        ext='.pdb' if self.rcsb_file_format=='PDB' else '.cif'
+        self.B.addline(f'mol new {mol.source}{ext} waitfor all')
         self.B.addline(f'set {mol.molid_varname} [molinfo top get id]')
+        # TODO: renumber resids to conform to the actual sequence
+        # if self.rcsb_file_format=='mmCIF':
+        #     # resids are wrong; chains are wrong
+        #     au=mol.asymmetric_unit
+        #     cif_chainIDs=set([x.cif_chainID for x in au.Atoms])
+        #     for ccID in cif_chainIDs:
+        #         res=au.Atoms.filter(cif_chainID=ccID)
+        #         act_chainIDs=[x.chainID for x in res]
+        #         act_resids=[str(x.resseqnum) for x in res]
+        #         vmdccID=f'{ccID}1' if len(ccID)>1 else ccID
+        #         self.B.addline(f'set tmp [atomselect ${mol.molid_varname} "chain {vmdccID}"]')
+        #         self.B.addline(f'$tmp set chain [ list {" ".join(act_chainIDs)} ]')
+        #         self.B.addline(f'$tmp set resid [ list {" ".join(act_resids)} ]')
 
     def load_psf_pdb(self,*objs,new_molid_varname='mX'):
         if len(objs)==1:

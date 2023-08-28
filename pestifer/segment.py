@@ -217,7 +217,7 @@ class Segment(AncestorAwareMod):
                         B.comment(f'...attached to subsegment {self.subsegments.index(prior_b)}')
                         prior_run=ResidueList(self.residues[prior_b.bounds[0]:prior_b.bounds[1]+1])
                         B.comment(f'Seeding orientation of model-built loop starting at {str(this_run[0])} from {str(prior_run[-1])}')
-                        B.addline(f'{this_run.caco_str(prior_run,seglabel,parent_molecule.molid_varname)})')
+                        B.addline(f'{this_run.caco_str(prior_run,seglabel,parent_molecule.molid_varname)}')
         B.banner('Intra-segmental terminal patches')
         for i,b in enumerate(self.subsegments):
             if b.state=='MISSING' and i>0 and hasattr(b,'sacres'):

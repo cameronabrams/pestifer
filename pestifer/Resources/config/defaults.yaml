@@ -154,6 +154,7 @@ User_defaults:
   Include_terminal_loops: False
   Fix_engineered_mutations: True
   Fix_conflicts: True
+  rcsb_file_format: PDB # or mmCIF
 
 Namd_defaults:
   generic:
