@@ -1,24 +1,21 @@
-
+from pidibble.pdbparse import PDBParser
+from mmcif.io.IoAdapterCore import IoAdapterCore
+from collections import UserDict
 class CIFobject:
     pass
 
-class CIFdict(dict):
-    def __init__(self,Obj,idx):
-        self.data={c:Obj.getValue(c,idx) for c in Obj.getAttributeList()}
-
-    def __getitem__(self,key):
-        return self.data[key]
-        # this will make bool give false if data is empty...
-
-    def __bool__(self):
-        return True
-    
-    def get(self,key,default):
-        if key in self.data:
-            return self.data[key]
+class CIFdict(UserDict):
+    def __init__(self,Obj,idx,lowercase=True):
+        if lowercase:
+            data={c.lower():Obj.getValue(c,idx) for c in Obj.getAttributeList()}
         else:
-            return default
+            data={c:Obj.getValue(c,idx) for c in Obj.getAttributeList()}
 
+        super().__init__(data)
+
+def CIFload(pdb_id):
+    PDBParser(PDBcode=pdb_id,input_format='mmCIF').fetch()
+    return IoAdapterCore().readFile(f'{pdb_id}.cif')[0]
 
 def CIFMakeStructs(db):
     structs={}

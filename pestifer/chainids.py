@@ -2,13 +2,20 @@ import logging
 logger=logging.getLogger(__name__)
 
 class ChainIDManager:
-    def __init__(self):
+    def __init__(self,format='PDB'):
+        self.format=format
         U=[chr(i) for i in range(ord('A'),ord('A')+26)]
-        L=[chr(i) for i in range(ord('a'),ord('a')+26)]
-        D=[str(i) for i in range(10)]
-        self.OrderedSupply=U+L+D
+        if format=='PDB':
+            L=[chr(i) for i in range(ord('a'),ord('a')+26)]
+            D=[str(i) for i in range(10)]
+            self.OrderedSupply=U+L+D
+        elif format=='mmCIF':
+            self.OrderedSupply=[]
+            for a in ['']+U:
+                for b in U:
+                    self.OrderedSupply.append(b+a)
         self.Used=set()
-    
+
     def generate_next_map(self,chainIDs,active_chains=[]):
         assert len(chainIDs)<=len(self.OrderedSupply),f'Not enough available chainIDs'
         myMap={}

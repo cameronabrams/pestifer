@@ -10,6 +10,7 @@ import logging
 logger=logging.getLogger(__name__)
 from .command import Command
 import os
+from .util import reduce_intlist
 from .molecule import Molecule
 from .stringthings import ByteCollector, FileCollector, my_logger
 import datetime
@@ -86,19 +87,29 @@ class VMD(Scriptwriter):
         ext='.pdb' if self.rcsb_file_format=='PDB' else '.cif'
         self.B.addline(f'mol new {mol.source}{ext} waitfor all')
         self.B.addline(f'set {mol.molid_varname} [molinfo top get id]')
-        # TODO: renumber resids to conform to the actual sequence
-        # if self.rcsb_file_format=='mmCIF':
-        #     # resids are wrong; chains are wrong
-        #     au=mol.asymmetric_unit
-        #     cif_chainIDs=set([x.cif_chainID for x in au.Atoms])
-        #     for ccID in cif_chainIDs:
-        #         res=au.Atoms.filter(cif_chainID=ccID)
-        #         act_chainIDs=[x.chainID for x in res]
-        #         act_resids=[str(x.resseqnum) for x in res]
-        #         vmdccID=f'{ccID}1' if len(ccID)>1 else ccID
-        #         self.B.addline(f'set tmp [atomselect ${mol.molid_varname} "chain {vmdccID}"]')
-        #         self.B.addline(f'$tmp set chain [ list {" ".join(act_chainIDs)} ]')
-        #         self.B.addline(f'$tmp set resid [ list {" ".join(act_resids)} ]')
+        if self.rcsb_file_format=='mmCIF':
+            # VMD appends a "1" to any two-letter chain ID from a CIF file,
+            # so let's undo that
+            # also, CIF HETATM records have a "." for residue number, which
+            # VMD interprets as 0, so we'll replace that with the residue numbers
+            # assigned by pestifer when it reads in the cif file
+            au=mol.asymmetric_unit
+            residues=au.Residues
+            uCIDs=residues.unique_chainIDs()
+            self.B.comment('Resetting chains and resids for this CIF-source molecule')
+            for c in uCIDs:
+                chain=residues.filter(chainID=c)
+                resids=[]
+                for x in chain:
+                    resids.extend([str(y.resseqnum) for y in x.atoms])
+                residlist=' '.join(resids)
+                serials=chain.atom_serials(as_type=int)
+                vmd_red_list=reduce_intlist(serials)
+                self.B.addline(f'set a [atomselect ${mol.molid_varname} "serial {vmd_red_list}"]')
+                self.B.addline(f'$a set chain {c}')
+                self.B.addline(f'$a set resid [ list {residlist} ]')
+                self.B.addline(f'$a delete')
+            self.B.comment('Done.')
 
     def load_psf_pdb(self,*objs,new_molid_varname='mX'):
         if len(objs)==1:

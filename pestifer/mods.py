@@ -17,11 +17,12 @@ from .stringthings import ByteCollector, split_ri
 
 class Seqadv(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['idCode','resname','chainID','resseqnum','insertion']
-    opt_attr=AncestorAwareMod.opt_attr+['database','dbAccession','dbRes','dbSeq','conflict']
+    opt_attr=AncestorAwareMod.opt_attr+['database','dbAccession','dbRes','dbSeq','conflict','pdbx_auth_seq_num', 'pdbx_ordinal']
     attr_choices=AncestorAwareMod.attr_choices.copy()
     attr_choices.update({'conflict':['ENGINEERED','ENGINEERED MUTATION','CONFLICT']})
     yaml_header='Seqadv'
     PDB_keyword='SEQADV'
+    mmCIF_name='struct_ref_seq_dif'
     ''' These are possible conflict keywords
         - Cloning artifact
         - Expression tag
@@ -51,6 +52,22 @@ class Seqadv(AncestorAwareMod):
                 'conflict':pdbrecord.conflict
             }
             super().__init__(input_dict)
+        elif type(input_obj)==CIFdict:
+            cd=input_obj
+            input_dict={
+                'idCode':cd['pdbx_pdb_id_code'],
+                'resname':cd['mon_id'],
+                'chainID':cd['pdbx_pdb_strand_id'], # author
+                'resseqnum':cd['seq_num'], # mmcif
+                'insertion':cd['pdbx_pdb_ins_code'], # author
+                'database':cd['pdbx_seq_db_name'],
+                'dbAccession':cd['pdbx_seq_db_accession_code'],
+                'dbRes':cd['db_mon_id'],
+                'dbSeq':cd['pdbx_seq_db_seq_num'], # author
+                'conflict':cd['details'].upper(),
+                'pdbx_auth_seq_num':cd['pdbx_auth_seq_num'], # author
+                'pdbx_ordinal':cd['pdbx_ordinal']
+            }
         else:
             logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
 
@@ -62,7 +79,7 @@ class SeqAdvList(AncestorAwareModList):
 
 class Mutation(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID','origresname','resseqnum','insertion','newresname','source']
-    opt_attr=AncestorAwareMod.opt_attr+['resseqnumi']
+    opt_attr=AncestorAwareMod.opt_attr+['pdbx_auth_seq_num']
     yaml_header='Mutations'
     def __init__(self,input_obj):
         if type(input_obj)==dict:
@@ -74,14 +91,15 @@ class Mutation(AncestorAwareMod):
         elif type(input_obj)==Seqadv:
             sq=input_obj
             input_dict={
-                'chainID':sq.chainID,
+                'chainID':sq.chainID, # author
                 'origresname':sq.resname,
                 'newresname':sq.dbRes,
-                'resseqnum':sq.resseqnum,
+                'resseqnum':sq.resseqnum, # mmcif
                 'insertion':sq.insertion,
-                'resseqnumi':f'{sq.resseqnum}{sq.insertion}',
                 'source':'SEQADV'
             }
+            if hasattr(sq,'pdbx_auth_seq_num'):
+                input_dict['pdbx_auth_seq_num']=sq.__dict__['pdbx_auth_seq_num']
             super().__init__(input_dict)
         elif type(input_obj)==str:
             ### shortcode format: c:nnn,rrr,mmm
@@ -91,19 +109,16 @@ class Mutation(AncestorAwareMod):
             ### mmm: new resname
             s1=input_obj.split(':')
             s2=s1[1].split(',')
+            ri=s2[1]
+            r,i=split_ri(ri)
             input_dict={
-                'chainID':s1[0],
+                'chainID':s1[0], # assume author
                 'origresname':s2[0],
-                'resseqnumi':s2[1],
+                'resseqnum':int(r), # assume author!
+                'insertion':i,
                 'newresname':s2[2],
                 'source':'USER'
             }
-            if not input_dict['resseqnumi'][-1].isdigit():
-                input_dict['insertion']=input_dict['resseqnumi'][-1]
-                input_dict['resseqnum']=int(input_dict['resseqnumi'][:-1])
-            else:
-                input_dict['insertion']=''
-                input_dict['resseqnum']=int(input_dict['resseqnumi'])
             super().__init__(input_dict)
         else:
             logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
@@ -111,7 +126,11 @@ class Mutation(AncestorAwareMod):
         return f'{self.chainID}:{self.origresname}{self.resseqnum}{self.insertion}{self.newresname}'
 
     def write_TcL(self):
-         return f'    mutate {self.resseqnumi} {self.newresname}'
+        if hasattr(self,'pdbx_auth_seq_num'): # mmCIF!
+            return f'    mutate {self.resseqnum} {self.newresname}'
+        else:
+            resseqnumi=f'{self.resseqnum}{self.insertion}'
+            return f'    mutate {resseqnumi} {self.newresname}'
 
 class MutationList(AncestorAwareModList):
     pass
@@ -156,10 +175,10 @@ class DeletionList(AncestorAwareModList):
 
 class Missing(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['resname','resseqnum','insertion','chainID']
-    opt_attr=AncestorAwareMod.opt_attr+['model']
+    opt_attr=AncestorAwareMod.opt_attr+['model','id','auth_asym_id','auth_comp_id','auth_seq_id']
     yaml_header='Missing'
     PDB_keyword='REMARK.465'
-
+    mmCIF_name='pdbx_unobs_or_zero_occ_residues'
     def __init__(self,input_obj):
         if type(input_obj)==dict:
             super().__init__(input_obj)
@@ -175,19 +194,22 @@ class Missing(AncestorAwareMod):
             }
             super().__init__(input_dict)
         elif type(input_obj)==CIFdict:
-            cifdict=input_obj
-            ic=cifdict['pdb_ins_code']
-            mn=cifdict['pdb_model_num']
+            cd=input_obj
+            ic=cd['pdb_ins_code']
+            mn=cd['pdb_model_num']
             if type(mn)==str and mn.isdigit:
                 nmn=int(mn)
             else:
-                nmn=0
+                nmn=1
             input_dict={
                 'model':nmn,
-                'resname':cifdict['auth_comp_id'],
-                'chainID':cifdict['auth_asym_id'],
-                'resseqnum':int(cifdict['auth_seq_id']),
-                'insertion':' ' if ic=='?' else ic
+                'resname':cd['label_comp_id'],
+                'chainID':cd['label_asym_id'],
+                'resseqnum':int(cd['label_seq_id']),
+                'insertion':' ' if ic=='?' else ic,
+                'auth_asym_id':cd['auth_asym_id'],
+                'auth_comp_id':cd['auth_comp_id'],
+                'auth_seq_id':int(cd['auth_seq_id']),
             }
             super().__init__(input_dict)
         else:

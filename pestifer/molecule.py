@@ -8,7 +8,7 @@
 """
 import logging
 from pidibble.pdbparse import PDBParser
-from mmcif.io.IoAdapterCore import IoAdapterCore
+from .cifutil import CIFload
 from .basemod import AncestorAwareMod
 from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList,BioAssemb
@@ -35,11 +35,7 @@ class Molecule(AncestorAwareMod):
             if config['rcsb_file_format']=='PDB':
                 p_struct=PDBParser(PDBcode=source).parse().parsed
             elif config['rcsb_file_format']=='mmCIF':
-                fetcher=PDBParser(PDBcode=source,input_format='mmCIF')
-                fetcher.fetch()
-                io=IoAdapterCore()
-                l_dc=io.readFile(f'{source}.cif')
-                p_struct=l_dc[0]
+                p_struct=CIFload(source)
         use_psf=options.get('use_psf',None)
         if use_psf:
             apply_psf_info(p_struct,f'{source}.psf')

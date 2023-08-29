@@ -11,6 +11,7 @@ from .mods import *
 from .residue import ResidueList,AtomList,Atom,Hetatm,Ter,TerList
 from .segment import SegmentList
 from .basemod import AncestorAwareMod
+from mmcif.api.PdbxContainers import DataContainer
 
 logger=logging.getLogger(__name__)
 
@@ -37,8 +38,15 @@ class AsymmetricUnit(AncestorAwareMod):
             pr=objs[0]
             excludes=objs[2]
             logger.debug(f'excludes: {excludes}')
-            if config.rcsb_file_type=='PDB':
-                assert type(pr)==dict
+            Missings=MissingList([])
+            SSBonds=SSBondList([])
+            Mutations=MutationList([])
+            Conflicts=MutationList([])
+            Links=LinkList([])
+            Ters=TerList([]) # no TER records in an mmCIF file!
+            unresolved_sa=set()
+            if type(pr)==dict: # PDB format
+                assert config.rcsb_file_format=='PDB'
                 # minimal pr has ATOMS
                 Atoms=AtomList([Atom(p) for p in pr['ATOM']])
                 if 'HETATM' in pr:
@@ -46,53 +54,27 @@ class AsymmetricUnit(AncestorAwareMod):
                 if 'TER' in pr:
                     Ters=TerList([Ter(p) for  p in pr['TER']])
                     Atoms.adjustSerials(Ters) # VMD (1) ignors TERs and (2) *computes and assigns* serials
-                else:
-                    Ters=TerList([])
                 if 'REMARK.465' in pr:
                     Missings=MissingList([Missing(p) for p in pr['REMARK.465'].tables['MISSING']])
-                else:
-                    Missings=MissingList([])
-                Residues=ResidueList(Atoms)+ResidueList(Missings)
-                thru_dict={'name':excludes.get('resnames',[]),'chainID':excludes.get('chains',[])}
-                logger.debug(f'Exclusions: {thru_dict}')
-                ignored_residues=Residues.prune_exclusions(**thru_dict)
-                if config!=None:
-                    Residues.apply_segtypes(config['Segtypes_by_Resnames'])
                 if 'SSBOND' in pr:
-                    SSBonds=SSBondList([SSBond(p) for p in pr['SSBOND']])
-                else:
-                    SSBonds=SSBondList([])
-                thru_dict={'resseqnum1':[x.resseqnum for x in ignored_residues],'resseqnum2':[x.resseqnum for x in ignored_residues]}
-                SSBonds.prune(objlist=ignored_residues,attr_maps=[{'chainID1':'chainID','resseqnum1':'resseqnum','insertion1':'insertion'},{'chainID2':'chainID','resseqnum2':'resseqnum','insertion2':'insertion'}])
+                    SSBonds=SSBondList([SSBond(p) for p in pr['SSBOND']])  
                 if 'SEQADV' in pr:
-                    unresolved_sa=[x for x in pr['SEQADV'] if not ('ENGINEERED' in x.conflict or 'CONFLICT' in x.conflict)]
-                    if len(unresolved_sa)>0:
-                        logger.info('The following SEQADV record types found in input are not handled:')
-                    for r in unresolved_sa:
-                        logger.info(f'{r.conflict}')
+                    unresolved_sa=set([x.conflict for x in pr['SEQADV'] if not ('ENGINEERED' in x.conflict or 'CONFLICT' in x.conflict)])
                     sa=[x for x in pr['SEQADV'] if 'ENGINEERED' in x.conflict]
                     Mutations=MutationList([Mutation(Seqadv(p)) for p in sa])
                     co=[x for x in pr['SEQADV'] if 'CONFLICT' in x.conflict]
                     Conflicts=MutationList([Mutation(Seqadv(p)) for p in co])
-                else:
-                    Mutations=MutationList([])
-                    Conflicts=MutationList([])
                 if 'LINK' in pr:
                     Links=LinkList([Link(p) for p in pr['LINK']])
-                    Links.prune(objlist=ignored_residues,attr_maps=[{'chainID1':'chainID','resseqnum1':'resseqnum','insertion1':'insertion'},{'chainID2':'chainID','resseqnum2':'resseqnum','insertion2':'insertion'}])
-                    if config!=None:
-                        Links.apply_segtypes(config['Segtypes_by_Resnames'])
-                    Residues.update_links(Links,Atoms)
-                else:
-                    Links=LinkList([])
-            else:
+            elif type(pr)==DataContainer: # mmCIF format
+                assert config.rcsb_file_format=='mmCIF'
                 # TODO: do cif parsing; each mod __init__ needs to have a branch for type(obj)==CIFdict
+                # mods that need this are "Atom", "Mutation", "Missing", "SSBond", and "Link"
                 obj=pr.getObj('atom_site')
                 Atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
                 obj=pr.getObj('struct_ref_seq_dif')
                 mutdicts=[]
                 condicts=[]
-                unresolved_sa=set()
                 for i in range(len(obj)):
                     details=obj.getValue('details',i).upper()
                     if details=='ENGINEERED MUTATION':
@@ -114,8 +96,26 @@ class AsymmetricUnit(AncestorAwareMod):
                         ssdicts.append(CIFdict(obj,i))
                     elif conn_type_id=='covale':
                         lndicts.append(CIFdict(obj,i))
-                SSbonds=SSBondList([SSBond(x) for x in ssdicts])
+                SSBonds=SSBondList([SSBond(x) for x in ssdicts])
                 Links=LinkList([Link(x) for x in lndicts])
+            if len(unresolved_sa)>0:
+                logger.info('The following SEQADV record types found in input are not handled:')
+            for r in unresolved_sa:
+                logger.info(r)
+            
+            Residues=ResidueList(Atoms)+ResidueList(Missings)
+            Residues.map_chainIDs()
+            thru_dict={'name':excludes.get('resnames',[]),'chainID':excludes.get('chains',[])}
+            logger.debug(f'Exclusions: {thru_dict}')
+            ignored_residues=Residues.prune_exclusions(**thru_dict)
+            if config!=None:
+                Residues.apply_segtypes(config['Segtypes_by_Resnames'])
+            SSBonds.prune(objlist=ignored_residues,attr_maps=[{'chainID1':'chainID','resseqnum1':'resseqnum','insertion1':'insertion'},{'chainID2':'chainID','resseqnum2':'resseqnum','insertion2':'insertion'}])
+            Links.prune(objlist=ignored_residues,attr_maps=[{'chainID1':'chainID','resseqnum1':'resseqnum','insertion1':'insertion'},{'chainID2':'chainID','resseqnum2':'resseqnum','insertion2':'insertion'}])
+            if config!=None:
+                Links.apply_segtypes(config['Segtypes_by_Resnames'])
+            Residues.update_links(Links,Atoms)
+
             Segments=SegmentList(config,Residues)
             chainIDs=list(set([x.chainID for x in Residues]))
             logger.debug(f'ChainIDs in A.U.: {",".join(chainIDs)}')

@@ -34,9 +34,10 @@ class TerList(AncestorAwareModList):
 
 class Atom(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
-    opt_attr=AncestorAwareMod.opt_attr+['segname','empty','link','recordname']
+    opt_attr=AncestorAwareMod.opt_attr+['segname','empty','link','recordname','auth_seq_id','auth_comp_id','auth_asym_id','auth_atom_id']
     yaml_header='Atoms'
     PDB_keyword='ATOM'
+    mmCIF_name='atom_site'
 
     def __init__(self,input_obj):
         if type(input_obj)==dict:
@@ -59,10 +60,6 @@ class Atom(AncestorAwareMod):
                 'elem':pdbrecord.element,
                 'charge':pdbrecord.charge
             }
-            if hasattr(pdbrecord,'cif_chainID'):
-                input_dict['cif_chainID']=pdbrecord.cif_chainID
-            if hasattr(pdbrecord,'cif_seqNum'):
-                input_dict['cif_seqNum']=pdbrecord.cif_seqNum
             input_dict['segname']=input_dict['chainID']
             input_dict['link']='None'
             input_dict['empty']=False
@@ -71,15 +68,17 @@ class Atom(AncestorAwareMod):
             cifdict=input_obj
             al=cifdict['label_alt_id']
             ic=cifdict['pdbx_pdb_ins_code']
-            c=cifdict['pdbx_formal_charge']
+            seq_id=cifdict['label_seq_id']
+            if seq_id=='.':
+                seq_id=cifdict['auth_seq_id']
             input_dict={
                 'recordname':'ATOM',
                 'serial':int(cifdict['id']),
-                'name':cifdict['auth_atom_id'],
+                'name':cifdict['label_atom_id'],
                 'altloc':' ' if al=='.' else al,
-                'resname':cifdict['auth_comp_id'],
-                'chainID':cifdict['auth_asym_id'],
-                'resseqnum':int(cifdict['auth_seq_id']),
+                'resname':cifdict['label_comp_id'],
+                'chainID':cifdict['label_asym_id'],
+                'resseqnum':int(seq_id),
                 'insertion':' ' if ic=='?' else ic,
                 'x':float(cifdict['cartn_x']),
                 'y':float(cifdict['cartn_y']),
@@ -87,7 +86,11 @@ class Atom(AncestorAwareMod):
                 'occ':float(cifdict['occupancy']),
                 'beta':float(cifdict['b_iso_or_equiv']),
                 'elem':cifdict['type_symbol'],
-                'charge':0.0 if c=='?' else float(c)
+                'charge':cifdict['pdbx_formal_charge'],
+                'auth_atom_id':cifdict['auth_atom_id'],
+                'auth_seq_id':cifdict['auth_seq_id'],
+                'auth_comp_id':cifdict['auth_comp_id'],
+                'auth_asym_id':cifdict['auth_asym_id']
             }
             input_dict['segname']=input_dict['chainID']
             input_dict['link']='None'
@@ -143,7 +146,7 @@ class Hetatm(Atom):
 
 class Residue(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['resseqnum','insertion','name','chainID','segtype']
-    opt_attr=AncestorAwareMod.opt_attr+['atoms','up','down','uplink','downlink','resseqnumi']
+    opt_attr=AncestorAwareMod.opt_attr+['atoms','up','down','uplink','downlink','resseqnumi','auth_seq_id','auth_comp_id','auth_asym_id']
     ignore_attr=AncestorAwareMod.ignore_attr+['atoms','up','down','uplink','downlink','resseqnumi']
     _counter=0
     def __init__(self,input_obj):
@@ -160,6 +163,9 @@ class Residue(AncestorAwareMod):
                 'segtype':'UNSET',
                 'resseqnumi':f'{a.resseqnum}{a.insertion}'
             }
+            for cif_xtra in ['auth_seq_id','auth_comp_id','auth_asym_id']:
+                if hasattr(a,cif_xtra):
+                    input_dict[cif_xtra]=a.__dict__[cif_xtra]
             super().__init__(input_dict)
         elif type(input_obj)==Missing:
             m=input_obj
@@ -172,6 +178,9 @@ class Residue(AncestorAwareMod):
             }
             input_dict['resseqnumi']=f'{m.resseqnum}{m.insertion}'
             input_dict['atoms']=AtomList([])
+            for cif_xtra in ['auth_asym_id','auth_comp_id','auth_seq_id']:
+                if hasattr(m,cif_xtra):
+                    input_dict[cif_xtra]=m.__dict__[cif_xtra]
             super().__init__(input_dict)
         else:
             logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
@@ -229,12 +238,7 @@ class Residue(AncestorAwareMod):
             res.extend(tres)
             lin.extend(tlin)
         return res,lin
-    # def resname_charmify(self):
-    #     m=ConfigGetParam('PDB_to_CHARMM_Resnames')
-    #     if self.name in m:
-    #         return m[self.name]
-    #     return self.name
-
+    
 class ResidueList(AncestorAwareModList):
     def __init__(self,input_obj):
         if type(input_obj)==list:
@@ -252,7 +256,14 @@ class ResidueList(AncestorAwareModList):
         elif type(input_obj)==MissingList:
             R=[Residue(m) for m in input_obj]
             super().__init__(R)
-
+    def map_chainIDs(self):
+        self.chainIDmap_cif_to_pdb={}
+        for r in self:
+            if hasattr(r,'auth_asym_id'):
+                aCid=r.auth_asym_id
+                Cid=r.chainID
+                if not Cid in self.chainIDmap_cif_to_pdb:
+                    self.chainIDmap_cif_to_pdb[Cid]=aCid
     def get_residue(self,**fields):
         return self.get(**fields)
     def get_atom(self,atname,**fields):

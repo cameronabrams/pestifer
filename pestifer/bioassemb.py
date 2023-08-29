@@ -80,7 +80,7 @@ class BioAssemb(AncestorAwareMod):
     # req_attr=AncestorAwareMod.req_attr+['name','chainIDs','biomt','index']
     req_attr=AncestorAwareMod.req_attr+['name','transforms','index']
     ''' Container for handling info for "REMARK 350 BIOMOLECULE: #" stanzas in RCSB PDB files '''
-    def __init__(self,input_obj,actual_index=-1):
+    def __init__(self,input_obj):
         if type(input_obj)==dict:
             input_dict=input_obj
         elif type(input_obj)==AsymmetricUnit:
