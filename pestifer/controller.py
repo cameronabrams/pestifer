@@ -17,6 +17,7 @@ from .util import *
 class Controller:
     def __init__(self,userconfigfilename):
         self.config=Config(userconfigfilename)
+        logger.debug(f'New controller: rcsb format {self.config["rcsb_file_format"]}')
         self.writers={
             'psfgen': Psfgen(self.config),
             'vmd':    VMD(self.config),

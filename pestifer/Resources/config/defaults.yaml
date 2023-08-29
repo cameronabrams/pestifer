@@ -76,6 +76,7 @@ PDB_to_CHARMM_Resnames:
   H2PO: H2PO4
   EIC: LIN
   VCG: VCG
+  83G: 83G
 
 PDB_to_CHARMM_Atomnames:
   CL: CLA
@@ -130,6 +131,7 @@ PDB_Glycans:
 PDB_Ligands:
   - EIC
   - VCG
+  - 83G
 
 Segname_chars:
   PROTEIN: ''

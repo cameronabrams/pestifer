@@ -1,37 +1,49 @@
 
 
 import numpy as np
-from pidibble.pdbparse import get_symm_ops, PDBRecord
-from pidibble.baserecord import BaseRecord
+from mmcif.api.PdbxContainers import DataContainer
+from pidibble.pdbparse import get_symm_ops
 import logging
 logger=logging.getLogger(__name__)
+
 from .basemod import AncestorAwareMod, AncestorAwareModList
 from .asymmetricunit import AsymmetricUnit
 from .chainids import ChainIDManager
 
+def build_tmat(RotMat,TransVec):
+    tmat=np.array([[1, 0, 0, 0],[0, 1, 0, 0],[0, 0, 1, 0]],dtype=float)
+    for i in range(3):
+        for j in range(3):
+            tmat[i][j]=RotMat[i][j]
+        tmat[i][3]=TransVec[i]
+    return tmat
+
 class Transform(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['index','tmat','applies_chainIDs','chainIDmap','segname_by_type_map']
     def __init__(self,*input_objs):
-        if len(input_objs)==2:
+        input_dict={
+            'tmat':None,
+            'applies_chainIDs':[],
+            'index':'UNSET'
+        }
+        if len(input_objs)==2: # assume we have a barec from a pdbfile
             barec=input_objs[0]
-            index=input_objs[1]
+            input_dict['index']=input_objs[1]
             RotMat,TransVec=get_symm_ops(barec)
-            applies_chainIDs=barec.header
-        else:
+            input_dict['applies_chainIDs']=barec.header
+            input_dict['tmat']=build_tmat(RotMat,TransVec)
+        elif len(input_objs)==4: # M, V, chains, idx
+            RotMat=input_objs[0]
+            TransVec=input_objs[1]
+            input_dict['applies_chainIDs']=input_objs[2]
+            input_dict['index']=input_objs[3]
+            input_dict['tmat']=build_tmat(RotMat,TransVec)
+        elif len(input_objs)>0 and input_objs[0]=='identity':
+            input_dict['tmat']=build_tmat(RotMat,TransVec)
             RotMat=np.identity(3)
             TransVec=np.zeros(3)
-            index=0
-            applies_chainIDs=[]
-        tmat=np.array([[1, 0, 0, 0],[0, 1, 0, 0],[0, 0, 1, 0]],dtype=float)
-        for i in range(3):
-            for j in range(3):
-                tmat[i][j]=RotMat[i][j]
-            tmat[i][3]=TransVec[i]
-        input_dict={
-            'tmat':tmat,
-            'applies_chainIDs':applies_chainIDs,
-            'index':index
-        }
+            input_dict['index']=0
+            input_dict['applies_chainIDs']=[]
         input_dict['chainIDmap']={}
         input_dict['segname_by_type_map']={}
         super().__init__(input_dict)
@@ -71,8 +83,8 @@ class TransformList(AncestorAwareModList):
             if type(args[0])==AncestorAwareModList:
                 for idx,item in enumerate(args[0]):
                     L.append(Transform(item,idx))
-        else:
-            L=[Transform()]
+            elif args[0]=='identity':
+                L=[Transform('identity')]
         super().__init__(L)
 
 class BioAssemb(AncestorAwareMod):
@@ -86,10 +98,12 @@ class BioAssemb(AncestorAwareMod):
         elif type(input_obj)==AsymmetricUnit:
             input_dict={
                 'name':'A.U.',
-                'transforms':TransformList()
+                'transforms':TransformList('identity')
             }
         elif type(input_obj)==AncestorAwareModList:
             input_dict={'transforms':TransformList(input_obj)}
+        elif type(input_obj)==TransformList:
+            input_dict={'transforms':input_obj}
         else:
             logger.warning(f'Cannot initialize {type(self)} from object of type {type(input_obj)}')
         if 'name' not in input_dict:
@@ -109,36 +123,69 @@ class BioAssemb(AncestorAwareMod):
 class BioAssembList(AncestorAwareModList):
     def __init__(self,*obj):
         BioAssemb.reset_index()
+
         B=[]
         if len(obj)==1:
             p_struct=obj[0] # whole darn thing
-            # extract any ba records
-            bareclabels=[x for x in p_struct if ('REMARK.350.BIOMOLECULE' in x and 'TRANSFORM' in x)]
-            tr={}
-            for lab in bareclabels:
-                fs=lab.split('.')
-                assert fs[0]=='REMARK'
-                assert fs[1]=='350'
-                assert 'BIOMOLECULE' in fs[2]
-                assert 'TRANSFORM' in fs[3]
-                banumber=int(fs[2][11:])
-                trnumber=int(fs[3][9:])
-                if not banumber in tr:
-                    tr[banumber]=[]
-                tr[banumber].append(trnumber)
-            for ba,trs in tr.items():
-                reclist=AncestorAwareModList([])
-                savhdr=[]
-                for t in trs:
-                    if f'REMARK.350.BIOMOLECULE{ba}.TRANSFORM{t}' in p_struct:
-                        barec=p_struct[f'REMARK.350.BIOMOLECULE{ba}.TRANSFORM{t}']
-                        if hasattr(barec,'header'):
-                            savhdr=barec.header
-                        else:
-                            barec.header=savhdr
-                        reclist.append(barec)
-                        logger.debug(f'BA {ba} header {barec.header}')
-                        logger.debug(barec.pstr())
-                B.append(BioAssemb(reclist,actual_index=ba))
-            logger.debug(f'There are {len(B)} biological assemblies')
+            if type(p_struct)==dict:
+                # extract any ba records
+                bareclabels=[x for x in p_struct if ('REMARK.350.BIOMOLECULE' in x and 'TRANSFORM' in x)]
+                tr={}
+                for lab in bareclabels:
+                    fs=lab.split('.')
+                    assert fs[0]=='REMARK'
+                    assert fs[1]=='350'
+                    assert 'BIOMOLECULE' in fs[2]
+                    assert 'TRANSFORM' in fs[3]
+                    banumber=int(fs[2][11:])
+                    trnumber=int(fs[3][9:])
+                    if not banumber in tr:
+                        tr[banumber]=[]
+                    tr[banumber].append(trnumber)
+                for ba,trs in tr.items():
+                    reclist=AncestorAwareModList([])
+                    savhdr=[]
+                    for t in trs:
+                        if f'REMARK.350.BIOMOLECULE{ba}.TRANSFORM{t}' in p_struct:
+                            barec=p_struct[f'REMARK.350.BIOMOLECULE{ba}.TRANSFORM{t}']
+                            if hasattr(barec,'header'):
+                                savhdr=barec.header
+                            else:
+                                barec.header=savhdr
+                            reclist.append(barec)
+                            logger.debug(f'BA {ba} header {barec.header}')
+                            logger.debug(barec.pstr())
+                    B.append(BioAssemb(reclist,actual_index=ba))
+                logger.debug(f'There are {len(B)} biological assemblies')
+            elif type(p_struct)==DataContainer:
+                Assemblies=p_struct.getObj('pdbx_struct_assembly')
+                gen=p_struct.getObj('pdbx_struct_assembly_gen')
+                oper=p_struct.getObj('pdbx_struct_oper_list')
+                for ba_idx in range(len(Assemblies)):
+                    assemb_id=Assemblies.getValue('id',ba_idx)
+                    this_gen_idx=gen.selectIndices(assemb_id,'assembly_id')[0]
+                    this_opers=gen.getValue('oper_expression',this_gen_idx).split(',')
+                    this_asyms=gen.getValue('asym_id_list',this_gen_idx).split(',')
+                    idx=0
+                    transforms=TransformList()
+                    # logger.debug(f'Expecting {len(this_opers)} transforms')
+                    for k,opere in enumerate(this_opers):
+                        oper_idx=oper.selectIndices(opere,'id')[0]
+                        m=np.identity(3)
+                        v=np.zeros(3)
+                        for i in range(3):
+                            I=i+1
+                            vlabel=f'vector[{I}]'
+                            v[i]=float(oper.getValue(vlabel,oper_idx))
+                            for j in range(3):
+                                J=j+1
+                                mlabel=f'matrix[{I}][{J}]'
+                                m[i][j]=float(oper.getValue(mlabel,oper_idx))
+                        T=Transform(m,v,this_asyms,idx)
+                        transforms.append(T)
+                        idx+=1
+                        # logger.debug(f'parsed {len(transforms)} transforms for ba {ba_idx}')
+                    BA=BioAssemb(transforms)
+                    B.append(BA)
+                logger.debug(f'There are {len(B)} biological assemblies')
         super().__init__(B)

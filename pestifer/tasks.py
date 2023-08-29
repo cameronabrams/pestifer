@@ -193,7 +193,7 @@ class PsfgenTask(Task):
     default_specs={'cleanup':False,'mods':{},'layloops':{},'minimize':{'nsteps':1000}}
     def __init__(self,input_dict,taskname,config,writers,prior):
         super().__init__(input_dict,taskname,config,writers,prior)
-        self.chainIDmanager=ChainIDManager()
+        self.chainIDmanager=ChainIDManager(format=config['rcsb_file_format'])
         self.mods=self.specs['mods']
 
     def do(self):

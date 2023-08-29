@@ -6,8 +6,11 @@ from mmcif.api.PdbxContainers import DataContainer
 from pestifer.residue import Atom, AtomList, ResidueList
 from pestifer.config import Config
 from pestifer.scriptwriters import VMD
+from pestifer.bioassemb import Transform, TransformList, BioAssemb, BioAssembList
 from pestifer.util import reduce_intlist
 import os
+import numpy as np
+
 class TestCIF(unittest.TestCase):
 
     def test_fetch(self):
@@ -21,6 +24,7 @@ class TestCIF(unittest.TestCase):
         p_struct=CIFload(source)
         os.remove(f'{source}.cif')
         self.assertEqual(type(p_struct),DataContainer)
+        self.assertFalse(type(p_struct)==dict)
 
     def test_dict(self):
         source='8fae'
@@ -64,7 +68,7 @@ class TestCIF(unittest.TestCase):
     def test_vmd(self):
         source='8fae'
         config=Config()
-        config.rcsb_file_format='mmCIF'
+        config['rcsb_file_format']='mmCIF'
         vmd=VMD(config)
         vmd.newscript('testcif')
         vmd.addline(f'mol new {source}.cif')
@@ -118,3 +122,38 @@ class TestCIF(unittest.TestCase):
                 for i,j in zip(rvmd,rcif):
                     self.assertEqual(i,j)
  
+    def test_biomolassemb_cif(self):
+        source='8fae'
+        p_struct=CIFload(source)
+        Assemblies=p_struct.getObj('pdbx_struct_assembly')
+        gen=p_struct.getObj('pdbx_struct_assembly_gen')
+        oper=p_struct.getObj('pdbx_struct_oper_list')
+        BAList=BioAssembList()
+        for i in range(len(Assemblies)):
+            assemb_id=Assemblies.getValue('id',i)
+            self.assertEqual(assemb_id,'1')
+            this_gen_idx=gen.selectIndices(assemb_id,'assembly_id')[0]
+            self.assertEqual(this_gen_idx,0)
+            this_opers=gen.getValue('oper_expression',this_gen_idx).split(',')
+            this_asyms=gen.getValue('asym_id_list',this_gen_idx).split(',')
+            idx=0
+            transforms=TransformList()
+            for k,opere in enumerate(this_opers):
+                oper_idx=oper.selectIndices(opere,'id')[0]
+                self.assertEqual(k,oper_idx)
+                m=np.identity(3)
+                v=np.zeros(3)
+                for i in range(3):
+                    I=i+1
+                    vlabel=f'vector[{I}]'
+                    v[i]=float(oper.getValue(vlabel,oper_idx))
+                    for j in range(3):
+                        J=j+1
+                        mlabel=f'matrix[{I}][{J}]'
+                        m[i][j]=float(oper.getValue(mlabel,oper_idx))
+                T=Transform(m,v,this_asyms,idx)
+                transforms.append(T)
+                idx+=1
+            BA=BioAssemb(transforms)
+            BAList.append(BA)
+        self.assertEqual(len(BAList),1)

@@ -9,6 +9,7 @@
 import operator
 import yaml
 import logging
+from collections import UserList
 logger=logging.getLogger(__name__)
 class BaseMod:
     # list of required attribute labels
@@ -172,43 +173,43 @@ class StateInterval(AncestorAwareMod):
     def pstr(self):
         return f'{self.state}({self.bounds[1]-self.bounds[0]+1})'
 
-class ModList(list):
+class ModList(UserList):
     def __init__(self,data):
-        self.L=data
-    def __iter__(self):
-        for r in self.L:
-            yield r
-    def __getitem__(self,index):
-        return self.L[index]
-    def __setitem__(self,index,value):
-        self.L[index]=value
-    def __add__(self,other):
-        self.L.extend(other.L)
-        return self
-    def __delitem__(self,index):
-        del self.L[index]
-    def __contains__(self,item):
-        return item in self.L
-    def __eq__(self,other):
-        return all([x==y for x,y in zip(self.L,other.L)])
-    def __len__(self):
-        return len(self.L)
-    def index(self,item):
-        for i,x in enumerate(self.L):
-            if item==x:
-                return i
-        raise Exception(ValueError,f'Mod not found in list')
-    def append(self,item):
-        self.L.append(item)
-    def extend(self,items):
-        self.L.extend(items)
-    def remove(self,item):
-        self.L.remove(item)
-    def clear(self):
-        self.L.clear()
-    def pop(self,idx):
-        item=self.L.pop(idx)
-        return item
+        super().__init__(data)
+    # def __iter__(self):
+    #     for r in self.L:
+    #         yield r
+    # def __getitem__(self,index):
+    #     return self.L[index]
+    # def __setitem__(self,index,value):
+    #     self.L[index]=value
+    # def __add__(self,other):
+    #     self.L.extend(other.L)
+    #     return self
+    # def __delitem__(self,index):
+    #     del self.L[index]
+    # def __contains__(self,item):
+    #     return item in self.L
+    # def __eq__(self,other):
+    #     return all([x==y for x,y in zip(self.L,other.L)])
+    # def __len__(self):
+    #     return len(self.L)
+    # def index(self,item):
+    #     for i,x in enumerate(self.L):
+    #         if item==x:
+    #             return i
+    #     raise Exception(ValueError,f'Mod not found in list')
+    # def append(self,item):
+    #     self.L.append(item)
+    # def extend(self,items):
+    #     self.L.extend(items)
+    # def remove(self,item):
+    #     self.L.remove(item)
+    # def clear(self):
+    #     self.L.clear()
+    # def pop(self,idx):
+    #     item=self.L.pop(idx)
+    #     return item
     def filter(self,**fields):
         retlist=self.__class__([])
         for r in self:
@@ -261,10 +262,10 @@ class ModList(list):
         return L.get(**subfields)
     def sort(self,by=None,reverse=False):
         if not by:
-            self.L.sort(reverse=reverse)
+            self.data.sort(reverse=reverse)
         else:
             key=operator.attrgetter(*by)
-            self.L.sort(key=key,reverse=reverse)
+            self.data.sort(key=key,reverse=reverse)
     def binnify(self,fields=[]):
         bins={}
         for item in self:

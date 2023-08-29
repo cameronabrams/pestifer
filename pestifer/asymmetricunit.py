@@ -34,8 +34,8 @@ class AsymmetricUnit(AncestorAwareMod):
                 'chainIDs':[]
             }
         else:
-            config=objs[1]
             pr=objs[0]
+            config=objs[1]
             excludes=objs[2]
             logger.debug(f'excludes: {excludes}')
             Missings=MissingList([])
@@ -46,7 +46,7 @@ class AsymmetricUnit(AncestorAwareMod):
             Ters=TerList([]) # no TER records in an mmCIF file!
             unresolved_sa=set()
             if type(pr)==dict: # PDB format
-                assert config.rcsb_file_format=='PDB'
+                assert config['rcsb_file_format']=='PDB'
                 # minimal pr has ATOMS
                 Atoms=AtomList([Atom(p) for p in pr['ATOM']])
                 if 'HETATM' in pr:
@@ -67,7 +67,7 @@ class AsymmetricUnit(AncestorAwareMod):
                 if 'LINK' in pr:
                     Links=LinkList([Link(p) for p in pr['LINK']])
             elif type(pr)==DataContainer: # mmCIF format
-                assert config.rcsb_file_format=='mmCIF'
+                assert config['rcsb_file_format']=='mmCIF'
                 # TODO: do cif parsing; each mod __init__ needs to have a branch for type(obj)==CIFdict
                 # mods that need this are "Atom", "Mutation", "Missing", "SSBond", and "Link"
                 obj=pr.getObj('atom_site')
@@ -83,8 +83,8 @@ class AsymmetricUnit(AncestorAwareMod):
                         condicts.append(CIFdict(obj,i))
                     else:
                         unresolved_sa.add(details)
-                Mutations=MutationList([Mutation(x) for x in mutdicts])
-                Conflicts=MutationList([Mutation(x) for x in condicts])
+                Mutations=MutationList([Mutation(Seqadv(x)) for x in mutdicts])
+                Conflicts=MutationList([Mutation(Seqadv(x)) for x in condicts])
                 obj=pr.getObj('pdbx_unobs_or_zero_occ_residues')
                 Missings=MissingList([Missing(CIFdict(obj,i)) for i in range(len(obj))])
                 obj=pr.getObj('struct_conn')

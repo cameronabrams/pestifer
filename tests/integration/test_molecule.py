@@ -118,3 +118,14 @@ class TestMolecule(unittest.TestCase):
         genuine_atoms=[au.Atoms.get(serial=x.serial) for x in ters]
         self.assertEqual(len(genuine_atoms),2)
         self.assertEqual(atom_serials[-1],4856)
+
+    def test_molecule_cif(self):
+        source='4zmj'
+        config=Config()
+        config['rcsb_file_format']='mmCIF'
+        m=Molecule(source=source,config=config)
+        au=m.asymmetric_unit
+        m.activate_biological_assembly(1,ChainIDManager(format=config['rcsb_file_format']))
+        self.assertEqual(len(au.Residues),659)
+        ba=m.active_biological_assembly
+        self.assertEqual(len(ba.transforms),3)

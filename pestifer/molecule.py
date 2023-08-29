@@ -35,7 +35,9 @@ class Molecule(AncestorAwareMod):
             if config['rcsb_file_format']=='PDB':
                 p_struct=PDBParser(PDBcode=source).parse().parsed
             elif config['rcsb_file_format']=='mmCIF':
+                logger.debug(f'CIF source {source}')
                 p_struct=CIFload(source)
+                logger.debug(f'p_struct type {type(p_struct)}')
         use_psf=options.get('use_psf',None)
         if use_psf:
             apply_psf_info(p_struct,f'{source}.psf')

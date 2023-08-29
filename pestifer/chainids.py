@@ -3,6 +3,7 @@ logger=logging.getLogger(__name__)
 
 class ChainIDManager:
     def __init__(self,format='PDB'):
+        logger.debug(f'New chainIDmanager, format {format}')
         self.format=format
         U=[chr(i) for i in range(ord('A'),ord('A')+26)]
         if format=='PDB':
@@ -20,6 +21,7 @@ class ChainIDManager:
         assert len(chainIDs)<=len(self.OrderedSupply),f'Not enough available chainIDs'
         myMap={}
         activeChainIDs=chainIDs.copy()
+        # logger.debug(f'generating next map from {activeChainIDs} with actives {active_chains}')
         if active_chains:
             inactive_chains=[x for x in activeChainIDs if not x in active_chains]
             for i in inactive_chains:
@@ -32,6 +34,7 @@ class ChainIDManager:
             p=self.OrderedSupply.pop(0)
             self.Used.add(p)
             myMap[c]=p
+        logger.debug(f'generated next map: {myMap}')
         return myMap
     
     def thru_map(self,chainIDs,active_chains=[]):
