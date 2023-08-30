@@ -49,14 +49,12 @@ proc _Cofactor3 {matrix i j} {
 # of a CA, C, and O.  This is necessary because psfgen does not know
 # how to use IC's to generate de novo the position of the N of
 # a modeled in residue off of a residue with an arbitrary position.
-proc cacoIn_nOut { resid chain molid } {
+proc cacoIn_nOut { resid segname molid } {
   set rn {? ? ?}
 
-  set ca [atomselect $molid "chain $chain and resid $resid and name CA"]
-  set c  [atomselect $molid "chain $chain and resid $resid and name C"]
-  set o  [atomselect $molid "chain $chain and resid $resid and name O"]
-
-#  puts "$molid $chain $resid [$ca get name] [$c get name] [$o get name]"
+  set ca [atomselect $molid "segname $segname and resid $resid and name CA"]
+  set c  [atomselect $molid "segname $segname and resid $resid and name C"]
+  set o  [atomselect $molid "segname $segname and resid $resid and name O"]
 
   set r1 [lindex [$ca get {x y z}] 0]
   set r2 [lindex [$c  get {x y z}] 0]

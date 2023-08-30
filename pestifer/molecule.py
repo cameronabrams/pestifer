@@ -139,13 +139,13 @@ class Molecule(AncestorAwareMod):
                             reslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
                             tcllist='[list '+' '.join(reslist)+']'
                             for transform in ba.transforms:
-                                act_chainID=transform.chainIDmap[chainID]
-                                writer.addline(f'declash_loop $mLL {act_chainID} {tcllist} {cycles}')
+                                act_segID=transform.segname_by_type_map['PROTEIN'][chainID]
+                                writer.addline(f'declash_loop $mLL {act_segID} {tcllist} {cycles}')
     
     def write_gaps(self,writer,sac_n=4):
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
-        writer.addline('# fields: chain loop-begin-res loop-end-res connect-to-res')
+        writer.addline('# fields: segname loop-begin-res loop-end-res connect-to-res')
         for S in au.Segments:
             chainID=S.chainID
             if S.segtype=='PROTEIN':
@@ -157,8 +157,8 @@ class Molecule(AncestorAwareMod):
                             nreslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[bpp.bounds[0]:bpp.bounds[1]+1]]
                             assert bpp.state=='RESOLVED'
                             for transform in ba.transforms:
-                                act_chainID=transform.chainIDmap[chainID]
-                                writer.addline(f'{act_chainID} {reslist[0]} {reslist[-1]} {nreslist[0]}')
+                                act_segID=transform.segname_by_type_map['PROTEIN'][chainID]
+                                writer.addline(f'{act_segID} {reslist[0]} {reslist[-1]} {nreslist[0]}')
 
     def write_connect_patches(self,writer,sac_n=4):
         ba=self.active_biological_assembly
@@ -175,5 +175,5 @@ class Molecule(AncestorAwareMod):
                             rres=S.residues[nextb.bounds[0]]
                             rrres=S.residues[nextb.bounds[0]+1]
                             for transform in ba.transforms:
-                                act_chainID=transform.chainIDmap[chainID]
-                                writer.addline(f'patch HEAL {act_chainID}:{llres.resseqnum}{llres.insertion} {act_chainID}:{lres.resseqnum}{lres.insertion} {act_chainID}:{rres.resseqnum}{rres.insertion} {act_chainID}:{rrres.resseqnum}{rrres.insertion}')
+                                act_segID=transform.segname_by_type_map['PROTEIN'][chainID]
+                                writer.addline(f'patch HEAL {act_segID}:{llres.resseqnum}{llres.insertion} {act_segID}:{lres.resseqnum}{lres.insertion} {act_segID}:{rres.resseqnum}{rres.insertion} {act_segID}:{rrres.resseqnum}{rrres.insertion}')

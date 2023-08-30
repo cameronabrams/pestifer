@@ -66,20 +66,18 @@ class Atom(AncestorAwareMod):
             super().__init__(input_dict)
         elif type(input_obj)==CIFdict:
             cifdict=input_obj
-            al=cifdict['label_alt_id']
-            ic=cifdict['pdbx_pdb_ins_code']
             seq_id=cifdict['label_seq_id']
-            if seq_id=='.':
+            if seq_id=='':
                 seq_id=cifdict['auth_seq_id']
             input_dict={
                 'recordname':'ATOM',
                 'serial':int(cifdict['id']),
                 'name':cifdict['label_atom_id'],
-                'altloc':' ' if al=='.' else al,
+                'altloc':cifdict['label_alt_id'],
                 'resname':cifdict['label_comp_id'],
                 'chainID':cifdict['label_asym_id'],
                 'resseqnum':int(seq_id),
-                'insertion':' ' if ic=='?' else ic,
+                'insertion':cifdict['pdbx_pdb_ins_code'],
                 'x':float(cifdict['cartn_x']),
                 'y':float(cifdict['cartn_y']),
                 'z':float(cifdict['cartn_z']),
@@ -88,7 +86,7 @@ class Atom(AncestorAwareMod):
                 'elem':cifdict['type_symbol'],
                 'charge':cifdict['pdbx_formal_charge'],
                 'auth_atom_id':cifdict['auth_atom_id'],
-                'auth_seq_id':cifdict['auth_seq_id'],
+                'auth_seq_id':int(cifdict['auth_seq_id']),
                 'auth_comp_id':cifdict['auth_comp_id'],
                 'auth_asym_id':cifdict['auth_asym_id']
             }
@@ -256,6 +254,10 @@ class ResidueList(AncestorAwareModList):
         elif type(input_obj)==MissingList:
             R=[Residue(m) for m in input_obj]
             super().__init__(R)
+        elif type(input_obj)==ResidueList:
+            super().__init__(input_obj)
+        else:
+            logger.warning(f'Error: cannot initialize object of type {type(self)} with object of type {type(input_obj)}')
     def map_chainIDs(self):
         self.chainIDmap_cif_to_pdb={}
         for r in self:

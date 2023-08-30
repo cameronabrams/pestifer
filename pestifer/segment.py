@@ -93,7 +93,7 @@ class Segment(AncestorAwareMod):
         seglabel=self.psfgen_segname
         if rep_chainID!=the_chainID:
             seglabel=f'{rep_chainID}{seglabel[1:]}' # first byte is chain ID
-            logger.info(f'relabeling chain {the_chainID} to {rep_chainID} in {self.psfgen_segname} -> {seglabel}')
+            logger.info(f'relabeling chain {the_chainID} to {rep_chainID} in segment {self.psfgen_segname} -> new segment {seglabel}')
         transform.register_mapping(self.segtype,the_chainID,seglabel)
 
         B.banner(f'BEGIN SEGMENT {seglabel}')
@@ -126,7 +126,7 @@ class Segment(AncestorAwareMod):
         rep_chainID=chainIDmap.get(the_chainID,the_chainID)
         seglabel=self.psfgen_segname # protein, so should just be letter
         if rep_chainID!=the_chainID:
-            logger.info(f'relabeling chain {the_chainID} to {rep_chainID} in {seglabel}')
+            logger.info(f'relabeling PROTEIN chain {the_chainID} to {rep_chainID} in segment {seglabel}')
             seglabel=f'{rep_chainID}'# protein segment names are chainIDs
         transform.register_mapping(self.segtype,the_chainID,seglabel)
 
@@ -246,18 +246,21 @@ class SegmentList(AncestorAwareModList):
         olc=self.config['Segname_chars'][item.segtype]
         itemkey=f'{item.chainID}{olc}'
         if not itemkey in self.counters_by_segtype:
-            self.counters_by_segtype[itemkey]=1
+            self.counters_by_segtype[itemkey]=0
         self.counters_by_segtype[itemkey]+=1
         if item.segtype=='PROTEIN':
             item.psfgen_segname=itemkey
         else:
-            item.psfgen_segname=f'{itemkey}{self.counters_by_segtype[itemkey]:02d}'
+            item.psfgen_segname=f'{itemkey}{self.counters_by_segtype[itemkey]:1d}'
+        assert item.psfgen_segname not in self.segnames
+        self.segnames.append(item.psfgen_segname)
         item.resname_charmify=self.config['PDB_to_CHARMM_Resnames']
         super().append(item)
 
     def __init__(self,config,input_obj):
         self.config={k:config.get(k,'no-config') for k in Segment.config_attr}
         self.counters_by_segtype={}
+        self.segnames=[]
         if type(input_obj)==ResidueList:
             super().__init__([])
             residues=input_obj

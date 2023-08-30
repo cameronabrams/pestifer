@@ -1,4 +1,11 @@
+"""
 
+.. module:: pestifer
+   :synopsis: manages command-line interface; sets up logging
+   
+.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
+
+"""
 import argparse as ap
 import os
 import shutil
@@ -14,6 +21,7 @@ def _main():
     parser.add_argument('--loglevel',default='info',help='logging level (info)')
     args=parser.parse_args()
 
+    # Set up logging to both a log file and the console
     loglevel=args.loglevel
     loglevel_numeric=getattr(logging, loglevel.upper())
     if os.path.exists(args.log):
@@ -24,13 +32,12 @@ def _main():
     formatter=logging.Formatter('%(levelname)s> %(message)s')
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
-    logger.info(f'pestifer runtime begins')
 
+    # Set up the Controller and execute tasks
+    logger.info(f'pestifer runtime begins')
     C=Controller(args.config)
-    C.do_tasks()
-    
+    C.do_tasks()    
     logger.info('pestifer runtime ends.')
 
 def cli():
-
     _main()

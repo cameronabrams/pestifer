@@ -17,9 +17,9 @@ from .stringthings import ByteCollector, split_ri
 
 class Seqadv(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['idCode','resname','chainID','resseqnum','insertion']
-    opt_attr=AncestorAwareMod.opt_attr+['database','dbAccession','dbRes','dbSeq','conflict','pdbx_auth_seq_num', 'pdbx_ordinal']
-    attr_choices=AncestorAwareMod.attr_choices.copy()
-    attr_choices.update({'conflict':['ENGINEERED','ENGINEERED MUTATION','CONFLICT']})
+    opt_attr=AncestorAwareMod.opt_attr+['database','dbAccession','dbRes','dbSeq','conflict','pdbx_pdb_strand_id','pdbx_auth_seq_num', 'pdbx_ordinal']
+    # attr_choices=AncestorAwareMod.attr_choices.copy()
+    # attr_choices.update({'conflict':['ENGINEERED','ENGINEERED MUTATION','CONFLICT']})
     yaml_header='Seqadv'
     PDB_keyword='SEQADV'
     mmCIF_name='struct_ref_seq_dif'
@@ -57,16 +57,17 @@ class Seqadv(AncestorAwareMod):
             input_dict={
                 'idCode':cd['pdbx_pdb_id_code'],
                 'resname':cd['mon_id'],
-                'chainID':cd['pdbx_pdb_strand_id'], # author
-                'resseqnum':cd['seq_num'], # mmcif
+                'chainID':'UNSET', # author
+                'resseqnum':int(cd['seq_num']), # mmcif
                 'insertion':cd['pdbx_pdb_ins_code'], # author
                 'database':cd['pdbx_seq_db_name'],
                 'dbAccession':cd['pdbx_seq_db_accession_code'],
                 'dbRes':cd['db_mon_id'],
                 'dbSeq':cd['pdbx_seq_db_seq_num'], # author
                 'conflict':cd['details'].upper(),
-                'pdbx_auth_seq_num':cd['pdbx_auth_seq_num'], # author
-                'pdbx_ordinal':cd['pdbx_ordinal']
+                'pdbx_auth_seq_num':int(cd['pdbx_auth_seq_num']), # author
+                'pdbx_ordinal':cd['pdbx_ordinal'],
+                'pdbx_pdb_strand_id':cd['pdbx_pdb_strand_id']
             }
             super().__init__(input_dict)
         else:
@@ -74,9 +75,25 @@ class Seqadv(AncestorAwareMod):
 
     def pdb_line(self):
         return f'SEQADV {self.idCode:3s} {self.resname:>3s} {self.chainID:1s} {self.resseqnum:>4d}{self.insertion:1s} {self.database:>4s} {self.dbAccession:9s} {self.dbRes:3s} {self.dbSeq:>5d} {self.conflict:21s}          '
+    
+    def assignChainID(self,Residues):
+        # logger.debug(f'Searching {len(Residues)} Residues for auth_chain {self.pdbx_pdb_strand_id} auth_seq {self.pdbx_auth_seq_num}')
+        if hasattr(self,'pdbx_pdb_strand_id') and hasattr(self,'pdbx_auth_seq_num'):
+            myres=Residues.get(
+                auth_asym_id = self.pdbx_pdb_strand_id,
+                auth_seq_id  = self.pdbx_auth_seq_num
+            )
+            if myres!=None:
+                # logger.debug(f'...found residue {myres.name} in {myres.chainID} (auth {myres.auth_asym_id})')
+                self.chainID=myres.chainID
+        # else:
+        #     logger.debug(f'...seqadv {self.conflict} auth {self.pdbx_pdb_strand_id}:{self.pdbx_auth_seq_num} cannot be resolved from current set of residues')
+        # we'll assume that if this residue is not found, then this seqadv is never used anyway
 
-class SeqAdvList(AncestorAwareModList):
-    pass
+class SeqadvList(AncestorAwareModList):
+    def setChainIDs(self,Residues):
+        for s in self:
+            s.assignChainID(Residues)
 
 class Mutation(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID','origresname','resseqnum','insertion','newresname','source']
@@ -196,7 +213,6 @@ class Missing(AncestorAwareMod):
             super().__init__(input_dict)
         elif type(input_obj)==CIFdict:
             cd=input_obj
-            ic=cd['pdb_ins_code']
             mn=cd['pdb_model_num']
             if type(mn)==str and mn.isdigit:
                 nmn=int(mn)
@@ -207,7 +223,7 @@ class Missing(AncestorAwareMod):
                 'resname':cd['label_comp_id'],
                 'chainID':cd['label_asym_id'],
                 'resseqnum':int(cd['label_seq_id']),
-                'insertion':' ' if ic=='?' else ic,
+                'insertion':cd['pdb_ins_code'],
                 'auth_asym_id':cd['auth_asym_id'],
                 'auth_comp_id':cd['auth_comp_id'],
                 'auth_seq_id':int(cd['auth_seq_id']),
@@ -535,28 +551,24 @@ class Link(AncestorAwareMod):
         elif type(input_obj)==CIFdict:
             d=input_obj
             p1_seq_id=d['ptnr1_label_seq_id']
-            if p1_seq_id=='.':
+            if p1_seq_id=='':
                 p1_seq_id=d['ptnr1_auth_seq_id']
             p2_seq_id=d['ptnr2_label_seq_id']
-            if p2_seq_id=='.':
+            if p2_seq_id=='':
                 p2_seq_id=d['ptnr2_auth_seq_id']
             input_dict={}
             input_dict['name1']=d['ptnr1_label_atom_id']
-            al=d['pdbx_ptnr1_label_alt_id']
-            input_dict['altloc1']=' ' if al=='?' else al
+            input_dict['altloc1']=d['pdbx_ptnr1_label_alt_id']
             input_dict['resname1']=d['ptnr1_label_comp_id']
             input_dict['chainID1']=d['ptnr1_label_asym_id']
             input_dict['resseqnum1']=int(p1_seq_id)
-            ic=d['pdbx_ptnr1_pdb_ins_code']
-            input_dict['insertion1']=' ' if ic=='?' else ic
+            input_dict['insertion1']=d['pdbx_ptnr1_pdb_ins_code']
             input_dict['name2']=d['ptnr2_label_atom_id']
-            al=d['pdbx_ptnr2_label_alt_id']
-            input_dict['altloc2']=' ' if al=='?' else al
+            input_dict['altloc2']=d['pdbx_ptnr2_label_alt_id']
             input_dict['resname2']=d['ptnr2_label_comp_id']
             input_dict['chainID2']=d['ptnr2_label_asym_id']
             input_dict['resseqnum2']=int(p2_seq_id)
-            ic=d['pdbx_ptnr2_pdb_ins_code']
-            input_dict['insertion2']=' ' if ic=='?' else ic
+            input_dict['insertion2']=d['pdbx_ptnr2_pdb_ins_code']
             input_dict['sym1']=d['ptnr1_symmetry']
             input_dict['sym2']=d['ptnr2_symmetry']
             input_dict['link_distance']=float(d['pdbx_dist_value'])

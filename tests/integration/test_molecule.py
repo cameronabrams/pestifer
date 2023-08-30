@@ -129,3 +129,6 @@ class TestMolecule(unittest.TestCase):
         self.assertEqual(len(au.Residues),659)
         ba=m.active_biological_assembly
         self.assertEqual(len(ba.transforms),3)
+        self.assertEqual(len(au.Mutations),4)
+        for m in au.Mutations:
+            self.assertTrue(m.chainID in ['A','B'])

@@ -1,13 +1,13 @@
 import unittest
 from pestifer.cifutil import CIFdict, CIFload
 from pidibble.pdbparse import PDBParser
-from mmcif.io.IoAdapterCore import IoAdapterCore
 from mmcif.api.PdbxContainers import DataContainer
 from pestifer.residue import Atom, AtomList, ResidueList
 from pestifer.config import Config
 from pestifer.scriptwriters import VMD
 from pestifer.bioassemb import Transform, TransformList, BioAssemb, BioAssembList
 from pestifer.util import reduce_intlist
+from pestifer.mods import *
 import os
 import numpy as np
 
@@ -157,3 +157,27 @@ class TestCIF(unittest.TestCase):
             BA=BioAssemb(transforms)
             BAList.append(BA)
         self.assertEqual(len(BAList),1)
+
+    def test_seqadv_cif(self):
+        source='4zmj'
+        pr=CIFload(source)
+        obj=pr.getObj('atom_site')
+        Atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
+        obj=pr.getObj('struct_ref_seq_dif')
+        Seqadvs=SeqadvList([Seqadv(CIFdict(obj,i)) for i in range(len(obj))])
+        obj=pr.getObj('pdbx_unobs_or_zero_occ_residues')
+        Missings=MissingList([Missing(CIFdict(obj,i)) for i in range(len(obj))])
+        fromAtoms=ResidueList(Atoms)
+        fromMissings=ResidueList(Missings)
+        Residues=fromAtoms+fromMissings
+        for s in Seqadvs:
+            myres=Residues.get(
+                auth_asym_id = s.pdbx_pdb_strand_id,
+                auth_seq_id  = s.pdbx_auth_seq_num
+            )
+            if not myres:
+                print(s.__dict__)
+                for r in Residues:
+                    if r.auth_asym_id==s.pdbx_pdb_strand_id:
+                        print(f'{r.auth_seq_id} {type(r.auth_seq_id)} {r.auth_seq_id==s.pdbx_auth_seq_num}')
+                self.assertTrue('ENGINEERED' not in s.conflict and 'CONFLICT' not in s.conflict)

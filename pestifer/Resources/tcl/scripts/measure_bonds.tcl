@@ -14,13 +14,17 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
        incr i
        set psf [lindex $argv $i]
     }
-    if { [lindex $argv $i] == "-o"} {
+    if { [lindex $argv $i] == "-opdb"} {
        incr i
        set fixed [lindex $argv $i]
     }
     if { [lindex $argv $i] == "-i"} {
        incr i
        set infile [lindex $argv $i]
+    }
+    if { [lindex $argv $i] == "-o"} {
+       incr i
+       set outfile [lindex $argv $i]
     }
 }
 
@@ -37,16 +41,16 @@ close $fp
 set RES0 {}
 set RES1 {}
 set RES2 {}
-set CH {}
+set SEG {}
 foreach l $lines {
     if { [llength $l] == 4 } {
-       lappend CH [lindex $l 0]
+       lappend SEG [lindex $l 0]
        lappend RES0 [lindex $l 1]
        lappend RES1 [lindex $l 2]
        lappend RES2 [lindex $l 3]
     }
 }
-puts "CH $CH"
+puts "SEG $SEG"
 puts "RES0 $RES0"
 puts "RES1 $RES1"
 puts "RES2 $RES2"
@@ -54,25 +58,25 @@ puts "RES2 $RES2"
 set bl {}
 set CC {}
 set NN {}
-foreach c $CH h $RES0 i $RES1 j $RES2 {
-    set labelus [atomselect top "chain $c and resid $h to $i"]
+foreach seg $SEG h $RES0 i $RES1 j $RES2 {
+    set labelus [atomselect top "segname $seg and resid $h to $i"]
     $labelus set occupancy 0
     set ci [string index $i end]
     if {[string is alpha $ci]} {
         set resid [string range $i 0 end-1]
-        set theC [atomselect top "chain $c and resid $resid and insertion $ci and name C"]
+        set theC [atomselect top "segname $seg and resid $resid and insertion $ci and name C"]
     } else {
-        set theC [atomselect top "chain $c and resid $i and name C"]
+        set theC [atomselect top "segname $seg and resid $i and name C"]
     }
     set ni [string index $j end]
     if {[string is alpha $ni]} {
         set resid [string range $j 0 end-1]
-        set theN [atomselect top "chain $c and resid $resid and insertion $ni and name N"]
+        set theN [atomselect top "segname $seg and resid $resid and insertion $ni and name N"]
     } else {
-        set theN [atomselect top "chain $c and resid $j and name N"]
+        set theN [atomselect top "segname $seg and resid $j and name N"]
     }
-    puts "resid $i on chain $c has [$theC num] Cs with serial [$theC get serial]"
-    puts "resid $j on chain $c has [$theN num] Ns with serial [$theN get serial]"
+    puts "resid $i on segname $seg has [$theC num] Cs with serial [$theC get serial]"
+    puts "resid $j on segname $seg has [$theN num] Ns with serial [$theN get serial]"
     set ii [$theC get index]
     set jj [$theN get index]
     lappend bl [measure bond [list $ii $jj]]
@@ -82,11 +86,12 @@ foreach c $CH h $RES0 i $RES1 j $RES2 {
 puts "CC $CC"
 puts "NN $NN"
 
-set fp [open $infile "w"]
-foreach c $CH i $CC j $NN b $bl {
-    puts $fp "$c $i $j [format %.4f $b]"
+set fp [open $outfile "w"]
+puts $fp "# segname c-serial n-serial distance(A)"
+foreach s $SEG i $CC j $NN b $bl {
+    puts $fp "$s $i $j [format %.4f $b]"
 }
 close $fp
 $a writepdb $fixed
-vmdcon -info "measure_bonds.tcl: $infile modified and $fixed created"
+vmdcon -info "measure_bonds.tcl: $outfile created and $fixed created"
 exit

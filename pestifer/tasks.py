@@ -1,3 +1,11 @@
+"""
+
+.. module:: tasks
+   :synopsis: defines all tasks
+   
+.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
+
+"""
 from .basemod import BaseMod
 import logging
 logger=logging.getLogger(__name__)
@@ -265,7 +273,7 @@ class PsfgenTask(Task):
                     retdict[hdr]=LCls([])
                 retdict[hdr].append(newmod)
         self.specs['mods']=retdict
-        # TODO: gather names of all aux pdb files
+        # TODO: gather names of all aux pdb files for grafts/attachments
         self.pdbs=[]
 
     def injest_molecules(self,specs):
@@ -322,7 +330,9 @@ class LigateTask(Task):
         self.update_statefile('data',datafile)
 
     def measure_distances(self):
+        comment_chars='#!$'
         basename=self.next_basename('measure')
+        resultsfile=f'{basename}.dat'
         vm=self.writers['vmd']
         vm.newscript(basename)
         psf=self.statevars['psf']
@@ -330,16 +340,17 @@ class LigateTask(Task):
         vm.usescript('measure_bonds')
         vm.writescript()
         datafile=self.statevars['data']
-        vm.runscript(psf=psf,pdb=pdb,i=datafile,o=f'{basename}.pdb')
+        vm.runscript(psf=psf,pdb=pdb,i=datafile,opdb=f'{basename}.pdb',o=resultsfile)
         self.update_statefile('fixedref',f'{basename}.pdb')
-        with open(datafile,'r') as f:
+        self.update_statefile('results',resultsfile)
+        with open(resultsfile,'r') as f:
             datalines=f.read().split('\n')
         gaps=[]
         for line in datalines:
-            if len(line)>0:
+            if len(line)>0 and not line[0] in comment_chars:
                 data=line.split()
                 thisgap={
-                    'chainID':data[0],
+                    'segname':data[0],
                     'serial_i':int(data[1]),
                     'serial_j':int(data[2]),
                     'distance':float(data[3])

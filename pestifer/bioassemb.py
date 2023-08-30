@@ -155,7 +155,7 @@ class BioAssembList(AncestorAwareModList):
                             reclist.append(barec)
                             logger.debug(f'BA {ba} header {barec.header}')
                             logger.debug(barec.pstr())
-                    B.append(BioAssemb(reclist,actual_index=ba))
+                    B.append(BioAssemb(reclist))
                 logger.debug(f'There are {len(B)} biological assemblies')
             elif type(p_struct)==DataContainer:
                 Assemblies=p_struct.getObj('pdbx_struct_assembly')

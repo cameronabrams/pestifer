@@ -107,8 +107,10 @@ class BaseMod:
         # match the corresponding key:val pairs in self.__dict__
         for k,v in fields.items():
             if not k in self.__dict__:
+                # logger.debug(f'missing key {k}')
                 return False
             if v!=self.__dict__[k]:
+                # logger.debug(f'wrong value ({self.__dict__[k]}) for key {k}; wanted {v}')
                 return False
         return True
     def dump(self):
@@ -122,9 +124,10 @@ class BaseMod:
                 return True
         return False
     def map_attr(self,mapped_attr,key_attr,map):
-        key=self.__dict__[key_attr]
-        val=map[key]
-        self.__dict__[mapped_attr]=val
+        if map:
+            key=self.__dict__[key_attr]
+            val=map[key]
+            self.__dict__[mapped_attr]=val
 
 class CloneableMod(BaseMod):
     opt_attr=BaseMod.opt_attr+['clone_of']
@@ -323,8 +326,9 @@ class ModList(UserList):
                 slices.append(StateInterval({'state':state_func(item),'bounds':[i,i]}))
         return slices
     def map_attr(self,mapped_attr,key_attr,map):
-        for item in self:
-            item.map_attr(mapped_attr,key_attr,map)
+        if map:
+            for item in self:
+                item.map_attr(mapped_attr,key_attr,map)
 
 
 class CloneableModList(ModList):

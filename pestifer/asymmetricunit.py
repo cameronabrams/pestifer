@@ -42,6 +42,7 @@ class AsymmetricUnit(AncestorAwareMod):
             SSBonds=SSBondList([])
             Mutations=MutationList([])
             Conflicts=MutationList([])
+            Seqadvs=SeqadvList([])
             Links=LinkList([])
             Ters=TerList([]) # no TER records in an mmCIF file!
             unresolved_sa=set()
@@ -59,32 +60,15 @@ class AsymmetricUnit(AncestorAwareMod):
                 if 'SSBOND' in pr:
                     SSBonds=SSBondList([SSBond(p) for p in pr['SSBOND']])  
                 if 'SEQADV' in pr:
-                    unresolved_sa=set([x.conflict for x in pr['SEQADV'] if not ('ENGINEERED' in x.conflict or 'CONFLICT' in x.conflict)])
-                    sa=[x for x in pr['SEQADV'] if 'ENGINEERED' in x.conflict]
-                    Mutations=MutationList([Mutation(Seqadv(p)) for p in sa])
-                    co=[x for x in pr['SEQADV'] if 'CONFLICT' in x.conflict]
-                    Conflicts=MutationList([Mutation(Seqadv(p)) for p in co])
+                    Seqadvs=SeqadvList([Seqadv(p) for p in pr['SEQADV']])
                 if 'LINK' in pr:
                     Links=LinkList([Link(p) for p in pr['LINK']])
             elif type(pr)==DataContainer: # mmCIF format
                 assert config['rcsb_file_format']=='mmCIF'
-                # TODO: do cif parsing; each mod __init__ needs to have a branch for type(obj)==CIFdict
-                # mods that need this are "Atom", "Mutation", "Missing", "SSBond", and "Link"
                 obj=pr.getObj('atom_site')
                 Atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
                 obj=pr.getObj('struct_ref_seq_dif')
-                mutdicts=[]
-                condicts=[]
-                for i in range(len(obj)):
-                    details=obj.getValue('details',i).upper()
-                    if details=='ENGINEERED MUTATION':
-                        mutdicts.append(CIFdict(obj,i))
-                    elif details=='CONFLICT':
-                        condicts.append(CIFdict(obj,i))
-                    else:
-                        unresolved_sa.add(details)
-                Mutations=MutationList([Mutation(Seqadv(x)) for x in mutdicts])
-                Conflicts=MutationList([Mutation(Seqadv(x)) for x in condicts])
+                Seqadvs=SeqadvList([Seqadv(CIFdict(obj,i)) for i in range(len(obj))])
                 obj=pr.getObj('pdbx_unobs_or_zero_occ_residues')
                 Missings=MissingList([Missing(CIFdict(obj,i)) for i in range(len(obj))])
                 obj=pr.getObj('struct_conn')
@@ -98,13 +82,21 @@ class AsymmetricUnit(AncestorAwareMod):
                         lndicts.append(CIFdict(obj,i))
                 SSBonds=SSBondList([SSBond(x) for x in ssdicts])
                 Links=LinkList([Link(x) for x in lndicts])
-            if len(unresolved_sa)>0:
-                logger.info('The following SEQADV record types found in input are not handled:')
-            for r in unresolved_sa:
-                logger.info(r)
-            
-            Residues=ResidueList(Atoms)+ResidueList(Missings)
+            # if len(unresolved_sa)>0:
+            #     logger.info('The following SEQADV record types found in input are not handled:')
+            # for r in unresolved_sa:
+            #     logger.info(r)
+            fromAtoms=ResidueList(Atoms)
+            fromMissings=ResidueList(Missings)
+            # for r in fromMissings:
+            #     logger.debug(f'missing {r.name}{r.resseqnum}{r.insertion} in {r.chainID} (auth {r.auth_comp_id}{r.auth_seq_id} in {r.auth_asym_id})')
+            Residues=fromAtoms+fromMissings
+            logger.debug(f'{len(Residues)} total residues: {len(fromAtoms)} resolved and {len(fromMissings)} unresolved')
             Residues.map_chainIDs()
+            # Update all chainID attributes of Seqadvs
+            Seqadvs.setChainIDs(Residues)
+            Mutations=MutationList([Mutation(s) for s in Seqadvs if 'ENGINEERED' in s.conflict])
+            Conflicts=MutationList([Mutation(s) for s in Seqadvs if 'CONFLICT' in s.conflict])
             thru_dict={'name':excludes.get('resnames',[]),'chainID':excludes.get('chains',[])}
             logger.debug(f'Exclusions: {thru_dict}')
             ignored_residues=Residues.prune_exclusions(**thru_dict)

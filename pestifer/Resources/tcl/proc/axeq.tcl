@@ -6,19 +6,19 @@
 #
 # Cameron Abrams cfa22@drexel.edu
 
-proc axeq { ose_resid molid chain in_name c1_resid } {
-   set resname [[atomselect $molid "resid $ose_resid and chain $chain and name C1"] get resname]
+proc axeq { ose_resid molid segname in_name c1_resid } {
+   set resname [[atomselect $molid "resid $ose_resid and segname $segname and name C1"] get resname]
    if { $c1_resid != -1 } {
-      set nra_sel [atomselect $molid "(resid $ose_resid and chain $chain and not name C1 C2 C3 C4 C5 O5) or (resid $c1_resid and chain $chain and not name C1 C2 C3 C4 C5 O5)"]
+      set nra_sel [atomselect $molid "(resid $ose_resid and segname $segname and not name C1 C2 C3 C4 C5 O5) or (resid $c1_resid and segname $segname and not name C1 C2 C3 C4 C5 O5)"]
    } else {
-      set nra_sel [atomselect $molid "resid $ose_resid and chain $chain and not name C1 C2 C3 C4 C5 O5"]
+      set nra_sel [atomselect $molid "resid $ose_resid and segname $segname and not name C1 C2 C3 C4 C5 O5"]
    }
    set nra_i [$nra_sel get index]
    set nra_n [$nra_sel get name]
    set nra_x [$nra_sel get x]
    set nra_y [$nra_sel get y]
    set nra_z [$nra_sel get z]
-   set ra_sel [atomselect $molid "resid $ose_resid and chain $chain and name C1 C2 C3 C4 C5 O5"]
+   set ra_sel [atomselect $molid "resid $ose_resid and segname $segname and name C1 C2 C3 C4 C5 O5"]
    set ra_i [$ra_sel get index]
    set ra_n [$ra_sel get name]
    set ra_x [$ra_sel get x]

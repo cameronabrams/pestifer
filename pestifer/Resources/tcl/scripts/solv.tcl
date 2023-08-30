@@ -93,6 +93,6 @@ puts $fp "cellbasisvector2 0 [lindex $basisvec 1] 0"
 puts $fp "cellbasisvector3 0 0 [lindex $basisvec 2]"
 puts $fp "cellorigin $origin"
 close $fp
-vmdcon -info "${scriptname}: Generated ${outputbasename}_cell.tcl."
+vmdcon -info "${scriptname}: Generated ${outbasename}_cell.tcl."
 
 quit
