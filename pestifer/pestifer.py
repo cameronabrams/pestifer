@@ -12,6 +12,7 @@ import shutil
 import logging
 logger=logging.getLogger(__name__)
 
+from .banner import banner
 from .controller import Controller
 
 def _main():
@@ -33,6 +34,7 @@ def _main():
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
+    banner(logger.info)
     # Set up the Controller and execute tasks
     logger.info(f'pestifer runtime begins')
     C=Controller(args.config)
