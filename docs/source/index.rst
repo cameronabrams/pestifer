@@ -1,5 +1,5 @@
 Welcome to pestifer's documentation!
-===================================
+====================================
 
 **Pestifer** is a Python package for facilitating the use of the VMD tool ``psfgen``.  
 
