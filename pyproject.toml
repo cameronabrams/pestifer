@@ -4,7 +4,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 [project]
 name = "pestifer"
-version = "0.0.1"
+version = "1.0.1"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
 ]
@@ -21,7 +21,7 @@ dependencies = [
     "pyyaml>=6",
     "pidibble",
     "pandas",
-    "pycifrw"
+    "mmcif"
 ]
 [project.urls]
 "Source" = "https://github.com/cameronabrams/pestifer"

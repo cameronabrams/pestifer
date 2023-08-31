@@ -14,12 +14,12 @@ import platform
 import glob
 from collections import UserDict
 from .util import special_update, replace, is_tool
-from pestifer import Resources # subpackage data
+import PestiferResources
 
 class ResourceManager:
     excludes=['__pycache__','__init__.py']
     def __init__(self):
-        self.root=os.path.dirname(Resources.__file__)
+        self.root=os.path.dirname(PestiferResources.__file__)
         ResourceFullPaths=glob.glob(self.root+'/*')
         self.resource_paths={}
         for l in ResourceFullPaths:

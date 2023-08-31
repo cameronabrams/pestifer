@@ -1,6 +1,6 @@
 # pestifer; default configuration file
 #
-# you probably to not want to edit this file directly
+# you probably do not want to edit this file directly
 #
 # Cameron F. Abrams, cfa22@drexel.edu
 #
@@ -73,7 +73,7 @@ PDB_to_CHARMM_Resnames:
   ZN: ZN2
   HOH: TIP3
   CL: CLA
-  NAG: BGNA
+  NAG: BGLCNA
   MAN: AMAN
   BMA: BMAN
   FUC: AFUC

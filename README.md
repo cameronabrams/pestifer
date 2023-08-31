@@ -15,7 +15,7 @@ Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
 
-* 0.0.1
+* 1.0.1
     * Initial version
 
 ## Meta
