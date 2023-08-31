@@ -14,7 +14,7 @@ import platform
 import glob
 from collections import UserDict
 from .util import special_update, replace, is_tool
-import PestiferResources
+from pestifer import PestiferResources
 
 class ResourceManager:
     excludes=['__pycache__','__init__.py']

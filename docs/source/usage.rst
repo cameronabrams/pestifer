@@ -1,32 +1,12 @@
 Usage
 =====
 
-.. _installation:
-
-Installation
-------------
-
-To use Pestifer, install it from a cloned Github repository:
+Installation of the ``pestifer`` package gives access to the ``pestifer`` command.  Pestifer expects an input configuration file for any run.
 
 .. code-block:: console
 
-   $ git clone git@github.com:cameronabrams/pestifer.git
-   $ cd pestifer
-   $ pip install -e .
+   $ pestifer my_config.yaml
 
-.. To use Pestifer, install it from PyPI:
+So to use pestifer, one really needs to know how to set up the configuration file.
 
-.. .. code-block:: console
-
-..    (.venv) $ pip install pestifer
-
-.. Pidibble is also available via ``conda``: 
-
-.. .. code-block:: console
-
-..    (conda-env) $ conda install -c conda-forge pidibble
-
-Usage Example
--------------
-
-(in progress)
+(more to come)
