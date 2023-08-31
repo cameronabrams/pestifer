@@ -112,15 +112,21 @@ class Config(UserDict):
         return self['Segtypes_by_Resnames'].get(resname,None)
 
     def _builddicts(self,data):
-        data['CHARMM_to_PDB_Resnames']={v:k for k,v in data['PDB_to_CHARMM_Resnames'].items()}
+        data['PDB_to_CHARMM_Resnames']={}
+        data['CHARMM_to_PDB_Resnames']={}
+        for a in data['Psfgen_Aliases']:
+            tok=a.split()
+            if tok[0]=='residue':
+                data['PDB_to_CHARMM_Resnames'][tok[1]]=tok[2]
+                data['CHARMM_to_PDB_Resnames'][tok[2]]=tok[1]
         data['PDB_3char_to_1char_Resnames']={v:k for k,v in data['PDB_1char_to_3char_Resnames'].items()}
-        data['Segtypes_by_Resnames']={'HOH':'WATER'}
-        data['Segtypes_by_Resnames'].update({k:'ION' for k in data['PDB_Ions']})
-        data['Segtypes_by_Resnames'].update({k:'GLYCAN' for k in data['PDB_Glycans']})
-        data['Segtypes_by_Resnames'].update({data['PDB_to_CHARMM_Resnames'][k]:'GLYCAN' for k in data['PDB_Glycans']})
-        data['Segtypes_by_Resnames'].update({k:'LIGAND' for k in data['PDB_Ligands']})
-        data['Segtypes_by_Resnames'].update({data['PDB_to_CHARMM_Resnames'][k]:'LIGAND' for k in data['PDB_Ligands']})
-        data['Segtypes_by_Resnames'].update({k:'PROTEIN' for k in data['PDB_1char_to_3char_Resnames'].values()})
+        data['Segtypes_by_Resnames']={}
+        for segtype in data['Segtypes']:
+            resnames=data.get(segtype,[])
+            for r in resnames:
+                data['Segtypes_by_Resnames'][r]=segtype
+                if r in data['PDB_to_CHARMM_Resnames']:
+                    data['Segtypes_by_Resnames'][data['PDB_to_CHARMM_Resnames'][r]]=segtype
         data['Segtypes_by_Resnames'].update({k:'PROTEIN' for k in ['HIS','HSE','HSD']})
 
     def __str__(self):

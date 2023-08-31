@@ -7,6 +7,7 @@
 
 """
 import pandas as pd
+from collections import UserList
 import logging
 logger=logging.getLogger(__name__)
 import os
@@ -74,25 +75,15 @@ def my_logger(msg,logf,width=67,fill='*',sep=', ',just='^'):
             outstr=ll+ln+rr
             logf(fmt.format(outstr))
         
-class FileCollector(list):
-    def __init__(self):
-        self.file_collection=[]
-    def __iter__(self):
-        for f in self.file_collection:
-            yield f
-    def __len__(self):
-        return len(self.file_collection)
-    def append(self,item):
-        self.file_collection.append(item)
-    def extend(self,a_list):
-        self.file_collection.extend(a_list)
+class FileCollector(UserList):
     def flush(self):
-        logger.debug(f'Flushing file collector: {len(self.file_collection)} files.')
+        logger.debug(f'Flushing file collector: {len(self)} files.')
         for f in self:
             if os.path.exists(f):
                 os.remove(f)
             else:
                 logger.debug(f'{f}: not found.')
+        self.clear()
 
 def split_ri(ri):
     if ri[-1].isdigit(): # there is no insertion code

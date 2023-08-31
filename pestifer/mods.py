@@ -13,7 +13,8 @@ from pidibble.pdbrecord import PDBRecord
 from pidibble.baserecord import BaseRecord
 from .cifutil import CIFdict
 from .basemod import AncestorAwareMod,AncestorAwareModList
-from .stringthings import ByteCollector, split_ri
+from .stringthings import split_ri
+from .scriptwriters import Psfgen
 
 class Seqadv(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['idCode','resname','chainID','resseqnum','insertion']
@@ -86,6 +87,7 @@ class Seqadv(AncestorAwareMod):
             if myres!=None:
                 # logger.debug(f'...found residue {myres.name} in {myres.chainID} (auth {myres.auth_asym_id})')
                 self.chainID=myres.chainID
+                self.residue=myres
         # else:
         #     logger.debug(f'...seqadv {self.conflict} auth {self.pdbx_pdb_strand_id}:{self.pdbx_auth_seq_num} cannot be resolved from current set of residues')
         # we'll assume that if this residue is not found, then this seqadv is never used anyway
@@ -480,24 +482,24 @@ class SSBond(AncestorAwareMod):
                 '{:6.2f}'.format(self.length)
         return pdbline
     
-    def write_TcL(self,B:ByteCollector,transform):
+    def write_TcL(self,W:Psfgen,transform):
         chainIDmap=transform.chainIDmap 
         # ok since these are only going to reference protein segments; protein segment names are the chain IDs
         c1=chainIDmap.get(self.chainID1,self.chainID1)
         c2=chainIDmap.get(self.chainID2,self.chainID2)
         r1=self.resseqnum1
         r2=self.resseqnum2
-        B.addline(f'patch DISU {c1}:{r1} {c2}:{r2}')
+        W.addline(f'patch DISU {c1}:{r1} {c2}:{r2}')
 
 class SSBondList(AncestorAwareModList):
-    def write_TcL(self,B:ByteCollector,transform,mods):
+    def write_TcL(self,W:Psfgen,transform,mods):
         undo_SSBonds=mods.get('SSBondDelete',SSBondDeleteList([]))
         for s in self:
             if undo_SSBonds.is_deleted(s,transform):
                 continue
-            s.write_TcL(B,transform)
+            s.write_TcL(W,transform)
         for s in mods.get('SSBonds',[]):
-            s.writeTcL(B,transform)
+            s.writeTcL(W,transform)
     def prune_mutations(self,Mutations):
         for m in Mutations:
             left=self.get(chainID1=m.chainID,resseqnum1=m.resseqnum,insertion1=m.insertion)
@@ -593,39 +595,40 @@ class Link(AncestorAwareMod):
             })
         super().__init__(input_dict)
 
-    def write_TcL(self,B:ByteCollector,transform,mods):
+    # TODO: Fix segname issues
+    def write_TcL(self,W:Psfgen,transform,mods):
         if self.resname1=='ASN' and self.segtype2=='GLYCAN':
             chainIDmap=transform.chainIDmap
             seg1=chainIDmap[self.segname1]
             seg2=transform.segname_by_type_map['GLYCAN'][self.segname2]
-            B.addline(f'patch NGLB {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
+            W.addline(f'patch NGLB {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
         else:
             # this is likely an intra-glycan linkage
             if self.name2=='C1' and self.segtype1=='GLYCAN':
                 seg1=transform.segname_by_type_map['GLYCAN'][self.segname1]
                 seg2=transform.segname_by_type_map['GLYCAN'][self.segname2]
-                B.addline(f'set cn {self.name1[1]}')
-                B.addline(f'set abi [axeq {self.resseqnum2} 0 {self.chainID2} {self.name2} {self.resseqnum1}]')
-                B.addline(f'set abj [axeq {self.resseqnum1} 0 {self.chainID1} {self.name1} -1]')
+                W.addline(f'set cn {self.name1[1]}')
+                W.addline(f'set abi [axeq {self.resseqnum2} 0 {seg2} {self.name2} {self.resseqnum1}]')
+                W.addline(f'set abj [axeq {self.resseqnum1} 0 {seg1} {self.name1} -1]')
                 if self.name1=='O6':
-                    B.addline('if { $abi == "a" } { set abi A }')
-                    B.addline('if { $abi == "b" } { set abi B }')
-                    B.addline('if { $abj == "b" } { set abj T }')
-                B.addline('set pres "1$cn$abi$abj"')
-                B.addline(f'patch $pres {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
+                    W.addline('if { $abi == "a" } { set abi A }')
+                    W.addline('if { $abi == "b" } { set abi B }')
+                    W.addline('if { $abj == "b" } { set abj T }')
+                W.addline('set pres "1$cn$abi$abj"')
+                W.addline(f'patch $pres {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
             elif self.name1=='C1' and self.segtype2=='GLYCAN':
                 seg1=transform.segname_by_type_map['GLYCAN'][self.segname1]
                 seg2=transform.segname_by_type_map['GLYCAN'][self.segname2]
-                cmdj=f'[axeq {self.resseqnum2} 0 {self.chainID2} {self.name2} {self.resseqnum1}]'
-                cmdi=f'[axeq {self.resseqnum1} 0 {self.chainID1} {self.name1} -1]'
-                B.addline(f'patch 1{self.name2[1]:1s}{cmdi}{cmdj} {seg2}:{self.resseqnum2}{self.insertion2} {seg1}:{self.resseqnum1}{self.insertion1}')
+                cmdj=f'[axeq {self.resseqnum2} 0 {seg2} {self.name2} {self.resseqnum1}]'
+                cmdi=f'[axeq {self.resseqnum1} 0 {seg1} {self.name1} -1]'
+                W.addline(f'patch 1{self.name2[1]:1s}{cmdi}{cmdj} {seg2}:{self.resseqnum2}{self.insertion2} {seg1}:{self.resseqnum1}{self.insertion1}')
             elif self.name1=='O6' and self.name2=='C2':
                 seg1=transform.segname_by_type_map['GLYCAN'][self.segname1]
                 seg2=transform.segname_by_type_map['GLYCAN'][self.segname2]
-                B.addline(f'patch SA26AT {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
+                W.addline(f'patch SA26AT {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
             else:
                 logger.warning(f'Could not identify patch for link: {str(self)}')
-                B.comment(f'No patch found for {str(self)}')
+                W.comment(f'No patch found for {str(self)}')
         
     def __str__(self):
         return f'{self.chainID1}{self.resname1}{self.resseqnum1}{self.insertion1}-{self.chainID2}{self.resname2}{self.resseqnum2}{self.insertion2}'
@@ -633,9 +636,9 @@ class Link(AncestorAwareMod):
 
 
 class LinkList(AncestorAwareModList):
-    def write_TcL(self,B:ByteCollector,transform,mods):
+    def write_TcL(self,W:Psfgen,transform,mods):
         for l in self:
-            l.write_TcL(B,transform,mods)
+            l.write_TcL(W,transform,mods)
 
     def prune_mutations(self,Mutations,Segments):
         for m in Mutations:

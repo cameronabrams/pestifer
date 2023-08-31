@@ -273,7 +273,7 @@ class PsfgenTask(Task):
                     retdict[hdr]=LCls([])
                 retdict[hdr].append(newmod)
         self.specs['mods']=retdict
-        # TODO: gather names of all aux pdb files for grafts/attachments
+        # TODO: gather names of all aux pdb files for
         self.pdbs=[]
 
     def injest_molecules(self,specs):
@@ -282,7 +282,7 @@ class PsfgenTask(Task):
         self.basename=specs.get('rcsb',None)
         bioassemb=specs.get('biological_assembly',0)
         excludes=specs.get('exclude',{})
-        self.molecules[self.basename]=Molecule(config=self.config,source=self.basename,excludes=excludes,use_psf=psf_exists).activate_biological_assembly(bioassemb,self.chainIDmanager)
+        self.molecules[self.basename]=Molecule(config=self.config,source=self.basename,chainIDmanager=self.chainIDmanager,excludes=excludes,use_psf=psf_exists).activate_biological_assembly(bioassemb)
         self.base_molecule=self.molecules[self.basename]
         for p in self.pdbs:
             self.molecules[p]=Molecule(config=self.config,source=p)

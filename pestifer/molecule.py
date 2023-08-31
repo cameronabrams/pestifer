@@ -12,15 +12,16 @@ from .cifutil import CIFload
 from .basemod import AncestorAwareMod
 from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList,BioAssemb
-from .stringthings import ByteCollector
+from .scriptwriters import Psfgen
+from .chainids import ChainIDManager
 from .mods import MutationList, apply_psf_info
 logger=logging.getLogger(__name__)
 
 class Molecule(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['config','molid','source','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
+    req_attr=AncestorAwareMod.req_attr+['config','molid','chainIDmanager','source','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
     opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
-    def __init__(self,source=None,config=None,excludes={},**options):
+    def __init__(self,source=None,config=None,chainIDmanager=None,excludes={},**options):
         reset=options.get('reset_counter',False)
         if reset:
             Molecule._molcounter=0
@@ -43,20 +44,24 @@ class Molecule(AncestorAwareMod):
             apply_psf_info(p_struct,f'{source}.psf')
         # if os.path.exists(f'{source}.psf'):
         #     apply_psf_info(p_struct,f'{source}.psf')
+        if chainIDmanager==None:
+            logger.debug(f'Molecule instantiating its own ChainIDManager')
+            chainIDmanager=ChainIDManager()
         input_dict={
             'config': config,
+            'chainIDmanager':chainIDmanager,
             'rcsb_file_format': config['rcsb_file_format'],
             'molid': Molecule._molcounter,
             'source': source,
             'parsed_struct': p_struct,
-            'asymmetric_unit': AsymmetricUnit(p_struct,config,excludes),
+            'asymmetric_unit': AsymmetricUnit(p_struct,config,chainIDmanager,excludes),
             'biological_assemblies': BioAssembList(p_struct)
         }
         super().__init__(input_dict)
         self.asymmetric_unit.claim_descendants(self,0)
         self.biological_assemblies.claim_descendants(self,0)
     
-    def activate_biological_assembly(self,index,chainIDmanager):
+    def activate_biological_assembly(self,index):
         if index==0 or len(self.biological_assemblies)==0: # we will use the unadulterated A.U. as the B.A.
             self.active_biological_assembly=BioAssemb(self.asymmetric_unit)
             if index!=0:
@@ -65,10 +70,10 @@ class Molecule(AncestorAwareMod):
             self.active_biological_assembly=self.biological_assemblies.get(index=index)
             assert self.activate_biological_assembly!=None,f'No biological assembly "{index:d}" found.'
             logger.info(f'Activating biological assembly {self.active_biological_assembly.name} (idx {index})')
-        self.active_biological_assembly.activate(self.asymmetric_unit,chainIDmanager)
+        self.active_biological_assembly.activate(self.asymmetric_unit,self.chainIDmanager)
         return self
     
-    def write_TcL(self,B:ByteCollector,user_mods,file_collector=None):
+    def write_TcL(self,W:Psfgen,user_mods):
         au=self.asymmetric_unit
         ba=self.active_biological_assembly
         config=self.config
@@ -94,17 +99,17 @@ class Molecule(AncestorAwareMod):
             au.Links.prune_mutations(au.Conflicts,au.Segments)
             # au.Links.prune_mutations(au.Conflicts) # problematic?
         for transform in ba.transforms:
-            B.banner(f'TRANSFORM {transform.index} BEGINS')
-            B.banner('The following mappings of A.U. chains is used:')
+            W.banner(f'TRANSFORM {transform.index} BEGINS')
+            W.banner('The following mappings of A.U. asym ids is used:')
             for k,v in transform.chainIDmap.items():
-                B.comment(f'{k}: {v}')
-            B.banner('SEGMENTS FOLLOW')
-            au.Segments.write_TcL(B,transform,allmods,file_collector=file_collector)
-            B.banner('DISU PATCHES FOLLOW')
-            au.SSBonds.write_TcL(B,transform,allmods)
-            B.banner('LINK PATCHES FOLLOW')
-            au.Links.write_TcL(B,transform,allmods)
-            B.banner(f'TRANSFORM {transform.index} ENDS')
+                W.comment(f'{k}: {v}')
+            W.banner('SEGMENTS FOLLOW')
+            au.Segments.write_TcL(W,transform,allmods)
+            W.banner('DISU PATCHES FOLLOW')
+            au.SSBonds.write_TcL(W,transform,allmods)
+            W.banner('LINK PATCHES FOLLOW')
+            au.Links.write_TcL(W,transform,allmods)
+            W.banner(f'TRANSFORM {transform.index} ENDS')
     
     def get_chainmaps(self):
         ba=self.active_biological_assembly

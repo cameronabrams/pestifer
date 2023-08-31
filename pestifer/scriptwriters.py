@@ -11,7 +11,6 @@ logger=logging.getLogger(__name__)
 from .command import Command
 import os
 from .util import reduce_intlist
-from .molecule import Molecule
 from .stringthings import ByteCollector, FileCollector, my_logger
 import datetime
 
@@ -28,6 +27,12 @@ class Filewriter:
 
     def addline(self,data):
         self.B.addline(data)
+
+    def banner(self,data):
+        self.B.banner(data)
+
+    def comment(self,data):
+        self.B.comment(data)
 
     def writefile(self):
         with open(self.filename,'w') as f:
@@ -49,11 +54,14 @@ class Scriptwriter(Filewriter):
             self.basename=os.path.splitext(self.default_script)[0]
         self.scriptname=f'{self.basename}{self.default_ext}'
         self.newfile(self.scriptname)
-        self.B.banner(f'pestifer: {self.basename}{self.default_ext}')
-        self.B.banner(f'Created {timestampstr}')
+        self.banner(f'pestifer: {self.basename}{self.default_ext}')
+        self.banner(f'Created {timestampstr}')
 
     def writescript(self):
         self.writefile()
+
+    def addfile(self,filename):
+        self.F.append(filename)
 
 class VMD(Scriptwriter):
     def __init__(self,config):
@@ -69,24 +77,24 @@ class VMD(Scriptwriter):
         timestampstr=datetime.datetime.today().ctime()
         if not os.path.exists(scriptname):
             raise FileNotFoundError(f'Pestifer script {scriptbasename}.tcl is not found.')
-        self.B.banner(f'Begin {scriptbasename}, {timestampstr}')
+        self.banner(f'Begin {scriptbasename}, {timestampstr}')
         self.injest_file(scriptname)
-        self.B.banner(f'End {scriptbasename}')
+        self.banner(f'End {scriptbasename}')
 
     def loadmodule(self,modulename):
         procname=os.path.join(self.tcl_path,f'proc/{modulename}.tcl')
-        self.B.addline(f'source {procname}')
+        self.addline(f'source {procname}')
 
     def endscript(self):
-        self.B.addline('exit')
-        self.B.banner('END PESTIFER VMD SCRIPT')
-        self.B.banner('Thank you for using pestifer!')
+        self.addline('exit')
+        self.banner('END PESTIFER VMD SCRIPT')
+        self.banner('Thank you for using pestifer!')
 
     def set_molecule(self,mol):
         mol.molid_varname=f'm{mol.molid}'
         ext='.pdb' if self.rcsb_file_format=='PDB' else '.cif'
-        self.B.addline(f'mol new {mol.source}{ext} waitfor all')
-        self.B.addline(f'set {mol.molid_varname} [molinfo top get id]')
+        self.addline(f'mol new {mol.source}{ext} waitfor all')
+        self.addline(f'set {mol.molid_varname} [molinfo top get id]')
         if self.rcsb_file_format=='mmCIF':
             # VMD appends a "1" to any two-letter chain ID from a CIF file,
             # so let's undo that
@@ -96,7 +104,7 @@ class VMD(Scriptwriter):
             au=mol.asymmetric_unit
             residues=au.Residues
             uCIDs=residues.unique_chainIDs()
-            self.B.comment('Resetting chains and resids for this CIF-source molecule')
+            self.comment('Resetting chains and resids for this CIF-source molecule')
             for c in uCIDs:
                 chain=residues.filter(chainID=c)
                 resids=[]
@@ -105,11 +113,17 @@ class VMD(Scriptwriter):
                 residlist=' '.join(resids)
                 serials=chain.atom_serials(as_type=int)
                 vmd_red_list=reduce_intlist(serials)
-                self.B.addline(f'set a [atomselect ${mol.molid_varname} "serial {vmd_red_list}"]')
-                self.B.addline(f'$a set chain {c}')
-                self.B.addline(f'$a set resid [ list {residlist} ]')
-                self.B.addline(f'$a delete')
-            self.B.comment('Done.')
+                self.addline(f'set a [atomselect ${mol.molid_varname} "serial {vmd_red_list}"]')
+                self.addline(f'$a set chain {c}')
+                self.addline(f'$a set resid [ list {residlist} ]')
+                self.addline(f'$a delete')
+            self.comment('Done.')
+
+    def backup_selection(self,selname,dataholder='data',attributes=['chain','x','y','z','resid','resname','name']):
+        self.addline(f'set {dataholder} [ backup ${selname} [ list {" ".join(attributes)} ] ]')
+    
+    def restore_selection(self,selname,dataholder='data',attributes=['chain','x','y','z','resid','resname','name']):
+        self.addline(f'restore ${selname} [ list {" ".join(attributes)} ]  ${dataholder}')
 
     def load_psf_pdb(self,*objs,new_molid_varname='mX'):
         if len(objs)==1:
@@ -118,22 +132,22 @@ class VMD(Scriptwriter):
             psf=f'{basename}.psf'
         else:
             psf,pdb=objs
-        self.B.addline(f'mol new {psf}')
-        self.B.addline(f'mol addfile {pdb} waitfor all')
-        self.B.addline(f'set {new_molid_varname} [molinfo top get id]')
+        self.addline(f'mol new {psf}')
+        self.addline(f'mol addfile {pdb} waitfor all')
+        self.addline(f'set {new_molid_varname} [molinfo top get id]')
 
     def write_pdb(self,basename,molid_varname):
-        self.B.addline(f'set X [atomselect ${molid_varname} all]')
-        self.B.addline(f'$X writepdb {basename}.pdb')
+        self.addline(f'set X [atomselect ${molid_varname} all]')
+        self.addline(f'$X writepdb {basename}.pdb')
 
-    def center_molecule(self,mol:Molecule):
-        self.B.banner('Centering molecule')
-        self.B.addline(f'set a [atomselect ${mol.molid_varname} all]')
-        self.B.addline(f'set or [measure center $a weight mass]')
-        self.B.addline(f'$a moveby [vescale -i $or]')
-        self.B.addline(f'$a delete')
+    def center_molecule(self,mol):
+        self.banner('Centering molecule')
+        self.addline(f'set a [atomselect ${mol.molid_varname} all]')
+        self.addline(f'set or [measure center $a weight mass]')
+        self.addline(f'$a moveby [vescale -i $or]')
+        self.addline(f'$a delete')
 
-    def reset_molecule_orientation(self,mol:Molecule,specs):
+    def reset_molecule_orientation(self,mol,specs):
         selspec=specs.get('selspec',{})
         if not selspec:
             return
@@ -141,25 +155,25 @@ class VMD(Scriptwriter):
         group2=selspec.get('group2','')
         if not group1 or not group2:
             return
-        self.B.banner('Resetting molecule orientation')
-        self.B.addline(f'set g1 [measure center [atomselect ${mol.molid_varname} "protein and {group1}] weight mass]')
-        self.B.addline(f'set g2 [measure center [atomselect ${mol.molid_varname} "protein and {group2}] weight mass]')
-        self.B.addline('set pi 3.1415928')
-        self.B.addline('set dv [vecsub $g1 $g2]')
-        self.B.addline('set d [veclength $dv]')
-        self.B.addline('set cp [expr [lindex $dv 0]/$d]')
-        self.B.addline('set sp [expr [lindex $dv 1]/$d]')
-        self.B.addline('set p [expr acos($cp)]')
-        self.B.addline('if { [expr $sp < 0.0] } {')
-        self.B.addline('    set p [expr 2*$pi-$p]')
-        self.B.addline('}')
-        self.B.addline('set ct [exr [lindex $dv 2]/$d]')
-        self.B.addline('set t [expr acos($ct)]')
-        self.B.addline(f'set a [atomselect ${mol.molid_varname} all]')
-        self.B.addline('$a move [transaxis z [expr -1 * $p] rad]')
-        self.B.addline('$a move [transaxis y [expr -1 * $t] rad]')
-        self.B.addline('$a delete')
-        self.B.banner('Done resetting molecule orientation')
+        self.banner('Resetting molecule orientation')
+        self.addline(f'set g1 [measure center [atomselect ${mol.molid_varname} "protein and {group1}] weight mass]')
+        self.addline(f'set g2 [measure center [atomselect ${mol.molid_varname} "protein and {group2}] weight mass]')
+        self.addline('set pi 3.1415928')
+        self.addline('set dv [vecsub $g1 $g2]')
+        self.addline('set d [veclength $dv]')
+        self.addline('set cp [expr [lindex $dv 0]/$d]')
+        self.addline('set sp [expr [lindex $dv 1]/$d]')
+        self.addline('set p [expr acos($cp)]')
+        self.addline('if { [expr $sp < 0.0] } {')
+        self.addline('    set p [expr 2*$pi-$p]')
+        self.addline('}')
+        self.addline('set ct [exr [lindex $dv 2]/$d]')
+        self.addline('set t [expr acos($ct)]')
+        self.addline(f'set a [atomselect ${mol.molid_varname} all]')
+        self.addline('$a move [transaxis z [expr -1 * $p] rad]')
+        self.addline('$a move [transaxis y [expr -1 * $t] rad]')
+        self.addline('$a delete')
+        self.banner('Done resetting molecule orientation')
 
     def runscript(self,*args,**options):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
@@ -173,24 +187,10 @@ class VMD(Scriptwriter):
             f.write(c.stderr+'\n')
             my_logger(f'END OF LOG',f.write)
     
-    def cleanup(self,cleanup=False,files=None):
+    def cleanup(self,cleanup=False):
         if cleanup:
-            nremoved=0
-            for file in self.F:
-                if os.path.exists(file):
-                    os.remove(file)
-                    nremoved+=1
-            if files:
-                with open(files,'r') as f:
-                    filelist=f.read().split()
-                    if filelist[-1]=='':
-                        filelist=filelist[:-1]
-                    for file in filelist:
-                        if os.path.exists(file):
-                            os.remove(file)
-                            nremoved+=1
-                os.remove(files)
-                nremoved+=1
+            nremoved=len(self.F)
+            self.F.flush()
             logger.info(f'Post-execution clean-up: {nremoved} files removed.')
 
 class Psfgen(VMD):
@@ -202,44 +202,44 @@ class Psfgen(VMD):
 
     def newscript(self,basename=None):
         super().newscript(basename=basename)
-        self.B.addline('package require psfgen')
-        self.B.addline('psfcontext mixedcase')
+        self.addline('package require psfgen')
+        self.addline('psfcontext mixedcase')
 
     def topo_aliases(self):
         for t in self.config['StdCharmmTopo']:
             ft=os.path.join(self.user_charmm_topparpath,t)
-            self.B.addline(f'topology {ft}')
+            self.addline(f'topology {ft}')
         for lt in self.config['LocalCharmmTopo']:
             ft=os.path.join(self.pestifer_charmmpath,lt)
-            self.B.addline(f'topology {ft}')
-        for pdba in self.config['PDBAliases']:
-            self.B.addline(f'pdbalias {pdba}')
-        for k,v in self.config['PDB_to_CHARMM_Resnames'].items():
-            self.B.addline(f'set RESDICT({k}) {v}')
-        for k,v in self.config['PDB_to_CHARMM_Atomnames'].items():
-            self.B.addline(f'set ANAMEDICT({k}) {v}')
-        self.B.banner('END HEADER')
+            self.addline(f'topology {ft}')
+        for pdba in self.config['Psfgen_Aliases']:
+            self.addline(f'pdbalias {pdba}')
+        # for k,v in self.config['PDB_to_CHARMM_Resnames'].items():
+        #     self.addline(f'set RESDICT({k}) {v}')
+        # for k,v in self.config['PDB_to_CHARMM_Atomnames'].items():
+        #     self.addline(f'set ANAMEDICT({k}) {v}')
+        self.banner('END HEADER')
 
     def load_project(self,*objs):
         if len(objs)==1:
             basename=objs[0]
-            self.B.addline(f'readpsf {basename}.psf pdb {basename}.pdb')
+            self.addline(f'readpsf {basename}.psf pdb {basename}.pdb')
         else:
             psf,pdb=objs
-            self.B.addline(f'readpsf {psf} pdb {pdb}')
+            self.addline(f'readpsf {psf} pdb {pdb}')
         
-    def describe_molecule(self,mol:Molecule,mods):
+    def describe_molecule(self,mol,mods):
         molid_varname=f'm{mol.molid}'
-        self.B.addline(f'mol top ${molid_varname}')
-        mol.write_TcL(self.B,mods,file_collector=self.F)
+        self.addline(f'mol top ${molid_varname}')
+        mol.write_TcL(self,mods)
 
     def complete(self,statename):
-        self.B.addline('guesscoord')
-        self.B.addline('regenerate angles dihedrals')
+        self.addline('guesscoord')
+        self.addline('regenerate angles dihedrals')
         psf=f'{statename}.psf'
         pdb=f'{statename}.pdb'
-        self.B.addline(f'writepsf cmap {psf}')
-        self.B.addline(f'writepdb {pdb}')
+        self.addline(f'writepsf cmap {psf}')
+        self.addline(f'writepdb {pdb}')
 
 class NAMD2(Scriptwriter):
     def __init__(self,config):
@@ -254,7 +254,7 @@ class NAMD2(Scriptwriter):
     def newscript(self,basename=None):
         super().newscript(basename)
         self.scriptname=f'{basename}{self.default_ext}'
-        self.B.banner('NAMD2 script')
+        self.banner('NAMD2 script')
 
     def writescript(self,params):
         for k,v in params.items():

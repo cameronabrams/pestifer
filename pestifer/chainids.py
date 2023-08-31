@@ -17,6 +17,16 @@ class ChainIDManager:
                     self.OrderedSupply.append(b+a)
         self.Used=set()
 
+    def register_asymm_chains(self,chainIDs):
+        logger.debug(f'Registering asymm chains {chainIDs}')
+        for c in chainIDs:
+            self.Used.add(self.OrderedSupply.remove(c))
+
+    def next_chain(self):
+        p=self.OrderedSupply.pop(0)
+        self.Used.add(p)
+        return p
+
     def generate_next_map(self,chainIDs,active_chains=[]):
         assert len(chainIDs)<=len(self.OrderedSupply),f'Not enough available chainIDs'
         myMap={}
@@ -27,13 +37,11 @@ class ChainIDManager:
             for i in inactive_chains:
                 activeChainIDs.remove(i)
         for c in activeChainIDs:
-            if c in self.OrderedSupply:
+            if c in self.OrderedSupply: # should never happen
                 self.OrderedSupply.remove(c)
                 self.Used.add(c)
         for c in activeChainIDs:
-            p=self.OrderedSupply.pop(0)
-            self.Used.add(p)
-            myMap[c]=p
+            myMap[c]=self.next_chain()
         logger.debug(f'generated next map: {myMap}')
         return myMap
     

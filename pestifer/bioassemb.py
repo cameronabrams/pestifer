@@ -69,12 +69,17 @@ class Transform(AncestorAwareMod):
     def __eq__(self,other):
         return np.array_equal(self.tmat,other.tmat)
     
-    def generate_chainIDmap(self,auChainIDs,chainIDmap):
+    def generate_chainIDmap(self,auChainIDs,daughters,chainIDmap):
+        applies_to=self.applies_chainIDs
+        for d,v in daughters.items():
+            if d in self.applies_chainIDs:
+                applies_to.extend(v)
         if self.is_identity():
             logger.debug(f'Identity transform gets a thru map')
-            self.chainIDmap=chainIDmap.thru_map(auChainIDs,self.applies_chainIDs)
+            self.chainIDmap=chainIDmap.thru_map(auChainIDs,applies_to)
         else:
-            self.chainIDmap=chainIDmap.generate_next_map(auChainIDs,self.applies_chainIDs)
+            logger.debug(f'Transform gets a new map')
+            self.chainIDmap=chainIDmap.generate_next_map(auChainIDs,applies_to)
 
 class TransformList(AncestorAwareModList):
     def __init__(self,*args):
@@ -117,8 +122,9 @@ class BioAssemb(AncestorAwareMod):
         cls._index=1
 
     def activate(self,AU:AsymmetricUnit,CM:ChainIDManager):
+        daughters=AU.Segments.daughters
         for T in self.transforms:
-            T.generate_chainIDmap(AU.chainIDs,CM)
+            T.generate_chainIDmap(AU.Segments.segnames,AU.Segments.daughters,CM)
 
 class BioAssembList(AncestorAwareModList):
     def __init__(self,*obj):
@@ -162,29 +168,34 @@ class BioAssembList(AncestorAwareModList):
                 gen=p_struct.getObj('pdbx_struct_assembly_gen')
                 oper=p_struct.getObj('pdbx_struct_oper_list')
                 for ba_idx in range(len(Assemblies)):
+                    logger.debug(f'CIF: Establishing BA {ba_idx}')
                     assemb_id=Assemblies.getValue('id',ba_idx)
-                    this_gen_idx=gen.selectIndices(assemb_id,'assembly_id')[0]
-                    this_opers=gen.getValue('oper_expression',this_gen_idx).split(',')
-                    this_asyms=gen.getValue('asym_id_list',this_gen_idx).split(',')
-                    idx=0
+                    this_gen_idx_list=gen.selectIndices(assemb_id,'assembly_id')
+                    logger.debug(f'BA {ba_idx} points to {len(this_gen_idx_list)} gen indexes')
                     transforms=TransformList()
-                    # logger.debug(f'Expecting {len(this_opers)} transforms')
-                    for k,opere in enumerate(this_opers):
-                        oper_idx=oper.selectIndices(opere,'id')[0]
-                        m=np.identity(3)
-                        v=np.zeros(3)
-                        for i in range(3):
-                            I=i+1
-                            vlabel=f'vector[{I}]'
-                            v[i]=float(oper.getValue(vlabel,oper_idx))
-                            for j in range(3):
-                                J=j+1
-                                mlabel=f'matrix[{I}][{J}]'
-                                m[i][j]=float(oper.getValue(mlabel,oper_idx))
-                        T=Transform(m,v,this_asyms,idx)
-                        transforms.append(T)
-                        idx+=1
-                        # logger.debug(f'parsed {len(transforms)} transforms for ba {ba_idx}')
+                    for this_gen_idx in this_gen_idx_list:
+                        this_oper_list=gen.getValue('oper_expression',this_gen_idx).split(',')
+                        logger.debug(f'BA {ba_idx} gen {this_gen_idx} opers {this_oper_list}')
+                        this_asyms=gen.getValue('asym_id_list',this_gen_idx).split(',')
+                        idx=0
+                        # logger.debug(f'Expecting {len(this_opers)} transforms')
+                        for k,opere in enumerate(this_oper_list):
+                            oper_idx=oper.selectIndices(opere,'id')[0]
+                            logger.debug(f'making tranform from oper {oper_idx}')
+                            m=np.identity(3)
+                            v=np.zeros(3)
+                            for i in range(3):
+                                I=i+1
+                                vlabel=f'vector[{I}]'
+                                v[i]=float(oper.getValue(vlabel,oper_idx))
+                                for j in range(3):
+                                    J=j+1
+                                    mlabel=f'matrix[{I}][{J}]'
+                                    m[i][j]=float(oper.getValue(mlabel,oper_idx))
+                            T=Transform(m,v,this_asyms,idx)
+                            transforms.append(T)
+                            idx+=1
+                    logger.debug(f'parsed {len(transforms)} transforms for ba {ba_idx}')
                     BA=BioAssemb(transforms)
                     B.append(BA)
                 logger.debug(f'There are {len(B)} biological assemblies')

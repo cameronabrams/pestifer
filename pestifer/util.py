@@ -67,6 +67,9 @@ def reduce_intlist(L):
     if not L:
         return ''
     ret=f'{L[0]}'
+    if len(L)==2:
+        ret+=f' {L[1]}'
+        return ret
     inrun=False
     for l,r in zip(L[1:-1],L[2:]):
         adj=(r-l)==1

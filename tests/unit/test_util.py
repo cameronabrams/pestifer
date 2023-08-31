@@ -23,6 +23,9 @@ class TestUtil(unittest.TestCase):
         l.remove(75)
         L=reduce_intlist(l)
         self.assertEqual(L,'0 to 22 24 to 72 76 to 99')
+        l=[1,2]
+        L=reduce_intlist(l)
+        self.assertEqual(L,'1 2')
     def test_inspect_classes(self):
         cls=inspect_classes('pestifer.tasks',use_yaml_headers_as_keys=True)
         self.assertTrue(cls['psfgen'],PsfgenTask)

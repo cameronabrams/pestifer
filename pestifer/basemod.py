@@ -128,6 +128,10 @@ class BaseMod:
             key=self.__dict__[key_attr]
             val=map[key]
             self.__dict__[mapped_attr]=val
+    def set(self,**fields):
+        for k,v in fields.items():
+            if k in self.__dict__:
+                self.__dict__[k]=v
 
 class CloneableMod(BaseMod):
     opt_attr=BaseMod.opt_attr+['clone_of']
@@ -226,6 +230,10 @@ class ModList(UserList):
             return R[0]
         else:
             return R
+    def set(self,**fields):
+        for item in self:
+            item.set(**fields)
+
     def prune(self,objlist=[],attr_maps=[]):
         """ given a list of objects and a list of mappings of my element attributes to 
             the foreign object attributes, delete any of my elements whose attribute

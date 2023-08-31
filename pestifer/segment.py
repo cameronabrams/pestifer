@@ -4,16 +4,15 @@ from .basemod import AncestorAwareMod, AncestorAwareModList
 from .mods import MutationList
 # from .config import ConfigGetParam
 from .residue import Residue,ResidueList
-import pestifer.sel as sel
 from .util import isidentity, reduce_intlist
-from .stringthings import ByteCollector
+from .scriptwriters import Psfgen
 
 class Segment(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments']
+    req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','resname_charmify']
     opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname','config_params']
-    config_attr=['Include_terminal_loops','Fix_engineered_mutations','Fix_conflicts','Sacrificial_residue','Segname_chars','PDB_to_CHARMM_Resnames']
+    config_attr=['Include_terminal_loops','Fix_engineered_mutations','Fix_conflicts','Sacrificial_residue','PDB_to_CHARMM_Resnames']
 
-    def __init__(self,parm_dict,input_obj):
+    def __init__(self,parm_dict,input_obj,segname):
         assert all([x in parm_dict for x in self.config_attr])
         if type(input_obj)==dict:
             input_dict=input_obj
@@ -27,10 +26,12 @@ class Segment(AncestorAwareMod):
             # olc=ConfigGetParam('Segname_chars').get(apparent_segtype)
             input_dict={
                 'segtype': apparent_segtype,
-                'segname': apparent_chainID,
+                'segname': segname,
                 'chainID': apparent_chainID,
                 'residues': myRes,
-                'subsegments':subsegments
+                'subsegments':subsegments,
+                'parent_chain': apparent_chainID,
+                'resname_charmify':parm_dict['PDB_to_CHARMM_Resnames']
             }
         elif type(input_obj)==ResidueList:
             Residues=input_obj
@@ -49,10 +50,12 @@ class Segment(AncestorAwareMod):
             # olc=ConfigGetParam('Segname_chars').get(apparent_segtype)
             input_dict={
                 'segtype': apparent_segtype,
-                'segname': apparent_chainID,
+                'segname': segname,
                 'chainID': apparent_chainID,
                 'residues': myRes,
-                'subsegments':subsegments
+                'subsegments':subsegments,
+                'parent_chain': apparent_chainID,
+                'resname_charmify':parm_dict['PDB_to_CHARMM_Resnames']
             }
         else:
             logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
@@ -70,96 +73,98 @@ class Segment(AncestorAwareMod):
     def __str__(self):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
 
-    def write_TcL(self,B:ByteCollector,transform,mods,file_collector=None):
+    def write_TcL(self,W:Psfgen,transform,mods):
         if self.segtype=='PROTEIN':
-            self.protein_stanza(B,transform,mods,file_collector=file_collector)
+            self.protein_stanza(W,transform,mods)
         elif self.segtype=='GLYCAN':
-            self.glycan_stanza(B,transform,mods,file_collector=file_collector)
+            self.glycan_stanza(W,transform,mods)
         else:
-            self.generic_stanza(B,transform,mods,file_collector=file_collector)
+            self.generic_stanza(W,transform,mods)
     
-    def glycan_stanza(self,B,transform,mods,file_collector=None):
+    def glycan_stanza(self,W,transform,mods):
         if self.has_graft(mods.get('Grafts',[])):
-            B.comment('Glycan grafts not yet implemented.')
+            W.comment('Glycan grafts not yet implemented.')
         else:
-            self.generic_stanza(B,transform,mods,file_collector=file_collector)
+            self.generic_stanza(W,transform,mods)
     
-    def generic_stanza(self,B,transform,mods,file_collector=None):
+    def generic_stanza(self,W,transform,mods):
         assert len(self.subsegments)==1,'No missing atoms allowed in generic stanza'
         parent_molecule=self.ancestor_obj
-        the_chainID=self.residues[0].chainID
         chainIDmap=transform.chainIDmap
-        rep_chainID=chainIDmap.get(the_chainID,the_chainID)
-        seglabel=self.psfgen_segname
-        if rep_chainID!=the_chainID:
-            seglabel=f'{rep_chainID}{seglabel[1:]}' # first byte is chain ID
-            logger.info(f'relabeling chain {the_chainID} to {rep_chainID} in segment {self.psfgen_segname} -> new segment {seglabel}')
-        transform.register_mapping(self.segtype,the_chainID,seglabel)
+        seglabel=self.segname
+        image_seglabel=chainIDmap.get(seglabel,seglabel)
+        not_asymm=image_seglabel!=seglabel
+        # if rep_chainID!=asym_chainID:
+        #     seglabel=f'{rep_chainID}{seglabel[1:]}' # first byte is chain ID
+        #     logger.info(f'relabeling chain {the_chainID} to {rep_chainID} in segment {self.psfgen_segname} -> new segment {seglabel}')
+        transform.register_mapping(self.segtype,image_seglabel,seglabel)
 
-        B.banner(f'BEGIN SEGMENT {seglabel}')
-        B.comment(f'This segment is referenced as chain {the_chainID} in the input structure')
+        W.banner(f'BEGIN SEGMENT {image_seglabel}')
+        W.comment(f'This segment is referenced as chain {seglabel} in the asymmetric unit (possibly after segtype-processing by pestifer)')
         serial_list=self.residues.atom_serials(as_type=int)
         vmd_red_list=reduce_intlist(serial_list)
-        pdb=f'GENERIC_{seglabel}.pdb'
-        selname=seglabel
-        file_collector.append(pdb)
-        B.addline(f'set {selname} [atomselect ${parent_molecule.molid_varname} "serial {vmd_red_list}"]')
-        if rep_chainID!=the_chainID:
-            B.addline(sel.backup(f'{selname}'))
-            B.addline(f'${selname} set chain {rep_chainID}')                 
-            B.addline(f'${selname} move {transform.write_TcL()}')
-        B.addline(f'${selname} writepdb {pdb}')
-        B.addline(f'segment {seglabel} '+'{')
-        B.addline(f'    pdb {pdb}')
-        B.addline('}')
-        B.addline(f'coordpdb {pdb} {seglabel}')
-        if rep_chainID!=the_chainID:
-            B.banner(f'Restoring A.U. state for {seglabel}')
-            B.addline(sel.restore(f'{selname}'))
-        B.banner(f'END SEGMENT {seglabel}')
+        pdb=f'GENERIC_{image_seglabel}.pdb'
+        selname=image_seglabel
+        W.addfile(pdb)
+        W.addline(f'set {selname} [atomselect ${parent_molecule.molid_varname} "serial {vmd_red_list}"]')
+        W.addline(f'${selname} set segname {image_seglabel}')
+        if not_asymm:
+            W.backup_selection(selname)
+            W.addline(f'${selname} set chain {image_seglabel}')                 
+            W.addline(f'${selname} move {transform.write_TcL()}')
+        W.addline(f'${selname} writepdb {pdb}')
+        W.addline(f'segment {image_seglabel} '+'{')
+        W.addline(f'    pdb {pdb}')
+        W.addline('}')
+        W.addline(f'coordpdb {pdb} {image_seglabel}')
+        if not_asymm:
+            W.banner(f'Restoring A.U. state for {seglabel}')
+            W.restore_selection(selname)
+        W.banner(f'END SEGMENT {image_seglabel}')
 
-    def protein_stanza(self,B:ByteCollector,transform,mods,file_collector=None):
+    def protein_stanza(self,W:Psfgen,transform,mods):
         parent_molecule=self.ancestor_obj
-        the_chainID=self.residues[0].chainID
         chainIDmap=transform.chainIDmap
-        tmat=transform.tmat
-        rep_chainID=chainIDmap.get(the_chainID,the_chainID)
-        seglabel=self.psfgen_segname # protein, so should just be letter
-        if rep_chainID!=the_chainID:
-            logger.info(f'relabeling PROTEIN chain {the_chainID} to {rep_chainID} in segment {seglabel}')
-            seglabel=f'{rep_chainID}'# protein segment names are chainIDs
-        transform.register_mapping(self.segtype,the_chainID,seglabel)
+        seglabel=self.segname
+        image_seglabel=chainIDmap.get(seglabel,seglabel)
+        not_asymm=image_seglabel!=seglabel
+        # if rep_chainID!=asym_chainID:
+        #     seglabel=f'{rep_chainID}{seglabel[1:]}' # first byte is chain ID
+        #     logger.info(f'relabeling chain {the_chainID} to {rep_chainID} in segment {self.psfgen_segname} -> new segment {seglabel}')
+        transform.register_mapping(self.segtype,image_seglabel,seglabel)
 
         sac_rd=self.config_params['Sacrificial_residue']
         sac_r=sac_rd['name']
         sac_n=sac_rd['min_loop_length']
-        Mutations=mods.get('Mutations',MutationList([])).filter(chainID=the_chainID)
-        Conflicts=mods.get('Conflicts',MutationList([])).filter(chainID=the_chainID)
+        # intra-segment, no need to use image_seglabel
+        Mutations=mods.get('Mutations',MutationList([])).filter(chainID=seglabel)
+        Conflicts=mods.get('Conflicts',MutationList([])).filter(chainID=seglabel)
 
-        B.banner(f'BEGIN SEGMENT {seglabel}')
+        W.banner(f'BEGIN SEGMENT {image_seglabel}')
         for i,b in enumerate(self.subsegments):
             if b.state=='RESOLVED':
                 """ for a resolved subsegment, generate its pdb file """
-                b.selname=f'{seglabel}{i:02d}'
+                b.selname=f'{image_seglabel}{i:02d}'
                 run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
-                b.pdb=f'PROTEIN_{rep_chainID}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
-                file_collector.append(b.pdb)
+                b.pdb=f'PROTEIN_{image_seglabel}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
+                W.addfile(b.pdb)
                 # TODO: account for any deletions?  Maybe better at the residue stage...
                 serial_list=run.atom_serials(as_type=int)
                 at=parent_molecule.asymmetric_unit.Atoms.get(serial=serial_list[-1])
                 assert at.resseqnum==run[-1].resseqnum
                 vmd_red_list=reduce_intlist(serial_list)
-                B.addline(f'set {b.selname} [atomselect ${parent_molecule.molid_varname} "serial {vmd_red_list}"]')
+                W.addline(f'set {b.selname} [atomselect ${parent_molecule.molid_varname} "serial {vmd_red_list}"]')
+                W.addline(f'${b.selname} set segname {image_seglabel}')
                 if hasattr(at,'_ORIGINAL_'):
                     if at._ORIGINAL_["serial"]!=at.serial:
-                        B.banner(f'Atom with serial {at._ORIGINAL_["serial"]} in PDB needs serial {at.serial} for VMD')
+                        W.banner(f'Atom with serial {at._ORIGINAL_["serial"]} in PDB needs serial {at.serial} for VMD')
                 """ Relabel chain ID and request coordinate transformation """
-                if rep_chainID!=the_chainID:
-                    B.addline(sel.backup(f'{b.selname}'))
-                    B.addline(f'${b.selname} set chain {rep_chainID}')                 
-                    B.addline(f'${b.selname} move {transform.write_TcL()}')
-                B.addline(f'${b.selname} writepdb {b.pdb}')
-        B.addline(f'segment {seglabel} '+'{')
+                if not_asymm:
+                    W.backup_selection(b.selname)
+                    W.addline(f'${b.selname} set chain {image_seglabel}')                 
+                    W.addline(f'${b.selname} move {transform.write_TcL()}')
+                W.addline(f'${b.selname} writepdb {b.pdb}')
+        W.addline(f'segment {image_seglabel} '+'{')
         # print(len(self.subsegments),type(self.subsegments))
         if not self.config_params['Include_terminal_loops']:
             if self.subsegments[0].state=='MISSING':
@@ -170,37 +175,38 @@ class Segment(AncestorAwareMod):
                 # logger.info(f'Since terminal loops are not included, ignoring {str(Cterminal_missing_subsegment)}')
         for b in self.subsegments:
             if b.state=='RESOLVED':
-                B.addline(f'    pdb {b.pdb}')
+                W.addline(f'    pdb {b.pdb}')
             elif b.state=='MISSING':
                 for r in self.residues[b.bounds[0]:b.bounds[1]+1]:
                     rname=self.resname_charmify.get(r.name,r.name)
-                    B.addline(f'    residue {r.resseqnum}{r.insertion} {rname} {seglabel}')
+                    W.addline(f'    residue {r.resseqnum}{r.insertion} {rname} {image_seglabel}')
                 if (b.bounds[1]-b.bounds[0])>(sac_n-1):
                     lrr=self.residues[b.bounds[1]]
                     sac_resseqnum=lrr.resseqnum
                     sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
-                    assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {the_chainID} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_r}'
+                    assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {seglabel} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_r}'
                     b.sacres=Residue({'name':sac_r,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':'PROTEIN'})
-                    B.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_r} {seglabel}')
+                    W.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_r} {image_seglabel}')
         if self.config_params['Fix_engineered_mutations']:
             for m in Mutations:
                 if m.source=='SEQADV':
                     if self.config_params['Fix_engineered_mutations']:
-                        B.comment('Below reverts an engineered mutation:')
-                        B.addline(m.write_TcL())
+                        W.comment('Below reverts an engineered mutation:')
+                        W.addline(m.write_TcL())
                 else:
-                    B.comment('Below is a user-specified mutation:')
-                    B.addline(m.write_TcL())
+                    W.comment('Below is a user-specified mutation:')
+                    W.addline(m.write_TcL())
         if self.config_params['Fix_conflicts']:
             for m in Conflicts:
-                B.comment('Below reverts a database conflict:')
-                B.addline(m.write_TcL())
-        B.addline('}')
-        B.banner('Coordinate-specification commands')
+                W.comment('Below reverts a database conflict:')
+                W.addline(m.write_TcL())
+        W.addline('}')
+        W.banner(f'End segment {image_seglabel}')
+        W.banner('Coordinate-specification commands')
         for b in self.subsegments:
             if b.state=='RESOLVED':
-                B.comment(f'Subsegment {[self.subsegments.index(b)]} is a resolved run')
-                B.addline(f'coordpdb {b.pdb} {seglabel}')
+                W.comment(f'Subsegment {[self.subsegments.index(b)]} is a resolved run')
+                W.addline(f'coordpdb {b.pdb} {image_seglabel}')
         for b in self.subsegments:
             if b.state=='MISSING':
                 # will issue the atom-reorienting command to join the C-terminus of prior run to N-terminus of this one, which is model-built using guesscoord
@@ -211,18 +217,18 @@ class Segment(AncestorAwareMod):
                     # not terminal OR we ARE including terminal loops
                     if self.subsegments.index(b)>0:
                         # this is either interior OR C-terminal to be included
-                        B.comment(f'Subsegment {[self.subsegments.index(b)]}/{len(self.subsegments)} is a missing loop')
+                        W.comment(f'Subsegment {[self.subsegments.index(b)]}/{len(self.subsegments)} is a missing loop')
                         this_run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
                         prior_b=self.subsegments[self.subsegments.index(b)-1]
-                        B.comment(f'...attached to subsegment {self.subsegments.index(prior_b)}')
+                        W.comment(f'...attached to subsegment {self.subsegments.index(prior_b)}')
                         prior_run=ResidueList(self.residues[prior_b.bounds[0]:prior_b.bounds[1]+1])
-                        B.comment(f'Seeding orientation of model-built loop starting at {str(this_run[0])} from {str(prior_run[-1])}')
-                        B.addline(f'{this_run.caco_str(prior_run,seglabel,parent_molecule.molid_varname)}')
-        B.banner('Intra-segmental terminal patches')
+                        W.comment(f'Seeding orientation of model-built loop starting at {str(this_run[0])} from {str(prior_run[-1])}')
+                        W.addline(f'{this_run.caco_str(prior_run,image_seglabel,parent_molecule.molid_varname)}')
+        W.banner('Intra-segmental terminal patches')
         for i,b in enumerate(self.subsegments):
             if b.state=='MISSING' and i>0 and hasattr(b,'sacres'):
                 Cterm=self.residues[b.bounds[1]]
-                B.addline(f'patch CTER {seglabel}:{Cterm.resseqnum}{Cterm.insertion}')
+                W.addline(f'patch CTER {image_seglabel}:{Cterm.resseqnum}{Cterm.insertion}')
                 nextb=self.subsegments[i+1]
                 Nterm=self.residues[nextb.bounds[0]]
                 patchname='NTER'
@@ -230,48 +236,69 @@ class Segment(AncestorAwareMod):
                     patchname='PROP'
                 elif Nterm.name=='GLY':
                     patchname='GLYP'
-                B.addline(f'patch {patchname} {seglabel}:{Nterm.resseqnum}{Nterm.insertion}')
-                B.addline(f'delatom {seglabel} {b.sacres.resseqnum}{b.sacres.insertion}')
-        B.banner('Restoring A.U. state for all resolved subsegments')
+                W.addline(f'patch {patchname} {image_seglabel}:{Nterm.resseqnum}{Nterm.insertion}')
+                W.addline(f'delatom {image_seglabel} {b.sacres.resseqnum}{b.sacres.insertion}')
+        W.banner('Restoring A.U. state for all resolved subsegments')
         for b in self.subsegments:
             if b.state=='RESOLVED':
-                if not isidentity(tmat) or rep_chainID!=the_chainID:
-                    B.addline(sel.restore(f'{b.selname}'))
-        B.banner(f'END SEGMENT {seglabel}')
+                if not_asymm:
+                    W.restore_selection(b.selname)
+        W.banner(f'END SEGMENT {image_seglabel}')
 
 class SegmentList(AncestorAwareModList):
 
     # counters_by_segtype={}
-    def append(self,item:Segment):
-        olc=self.config['Segname_chars'][item.segtype]
-        itemkey=f'{item.chainID}{olc}'
-        if not itemkey in self.counters_by_segtype:
-            self.counters_by_segtype[itemkey]=0
-        self.counters_by_segtype[itemkey]+=1
-        if item.segtype=='PROTEIN':
-            item.psfgen_segname=itemkey
-        else:
-            item.psfgen_segname=f'{itemkey}{self.counters_by_segtype[itemkey]:1d}'
-        assert item.psfgen_segname not in self.segnames
-        self.segnames.append(item.psfgen_segname)
-        item.resname_charmify=self.config['PDB_to_CHARMM_Resnames']
-        super().append(item)
+    # def append(self,item:Segment):
+    #     # olc=self.config['Segname_chars'][item.segtype]
+    #     # itemkey=f'{item.chainID}{olc}'
+    #     if not itemkey in self.counters_by_segtype:
+    #         self.counters_by_segtype[itemkey]=0
+    #     self.counters_by_segtype[itemkey]+=1
+    #     if item.segtype=='PROTEIN':
+    #         item.psfgen_segname=itemkey
+    #     else:
+    #         item.psfgen_segname=f'{itemkey}{self.counters_by_segtype[itemkey]:1d}'
+    #     assert item.psfgen_segname not in self.segnames
+    #     self.segnames.append(item.psfgen_segname)
+    #     item.resname_charmify=self.config['PDB_to_CHARMM_Resnames']
+    #     super().append(item)
 
-    def __init__(self,config,input_obj):
-        self.config={k:config.get(k,'no-config') for k in Segment.config_attr}
-        self.counters_by_segtype={}
-        self.segnames=[]
-        if type(input_obj)==ResidueList:
+    def __init__(self,*objs):
+        if len(objs)==1 and objs[0]==[]:
             super().__init__([])
-            residues=input_obj
-            for stype in ['PROTEIN','WATER','ION','GLYCAN','LIGAND','OTHER']:
-                res=residues.filter(segtype=stype)
-                for chainID in res.unique_chainIDs():
-                    c_res=residues.get(segtype=stype,chainID=chainID)
-                    thisSeg=Segment(self.config,c_res)
-                    self.append(thisSeg)            
-        else:
-            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
+        elif len(objs)==3:
+            config=objs[0]
+            input_obj=objs[1]
+            chainIDmanager=objs[2]
+            self.config={k:config.get(k,'no-config') for k in Segment.config_attr}
+            self.counters_by_segtype={}
+            self.segnames=[]
+            self.daughters={}
+            if type(input_obj)==ResidueList:
+                super().__init__([])
+                residues=input_obj
+                for stype in config['Segtypes']:
+                    self.counters_by_segtype[stype]=0
+                    res=residues.filter(segtype=stype)
+                    for chainID in res.unique_chainIDs():
+                        this_chainID=chainID
+                        c_res=residues.filter(segtype=stype,chainID=this_chainID)
+                        if chainID in self.segnames:
+                            logger.debug(f'chain {chainID} has already been used as a segname')
+                            this_chainID=chainIDmanager.next_chain()
+                            if not chainID in self.daughters:
+                                self.daughters[chainID]=[]
+                            self.daughters[chainID].append(this_chainID)
+                            c_res.set(chainID=this_chainID)
+                            for r in c_res:
+                                r.atoms.set(chainID=this_chainID)
+                        thisSeg=Segment(self.config,c_res,segname=this_chainID)
+                        self.append(thisSeg)
+                        logger.debug(f'Making segments: stype {stype} chainID {chainID} segname {thisSeg.segname}')
+                        self.segnames.append(thisSeg.segname)
+                        self.counters_by_segtype[stype]+=1
+            else:
+                logger.error(f'Cannot initialize {self.__class__} from objects {objs}')
 
     def collect_working_files(self):
         working_files=[]
@@ -282,11 +309,11 @@ class SegmentList(AncestorAwareModList):
                     working_files.append(subseg.pdb)
         return working_files
     
-    def write_TcL(self,B:ByteCollector,transform,mods,file_collector=None):
+    def write_TcL(self,W:Psfgen,transform,mods):
         for seg in self:
-            B.comment(f'Writing seg {seg.segname}')
-            seg.write_TcL(B,transform,mods,file_collector=file_collector)
-            B.comment(f'Done with seg {seg.segname}')
+            W.comment(f'Writing seg {seg.segname}')
+            seg.write_TcL(W,transform,mods)
+            W.comment(f'Done with seg {seg.segname}')
     
     def get_segment_of_residue(self,residue):
         for S in self:

@@ -33,10 +33,11 @@ class AsymmetricUnit(AncestorAwareMod):
                 'Segments':SegmentList({},ResidueList([])),
                 'chainIDs':[]
             }
-        else:
+        else: # p_struct,config,chainIDmanager,excludes
             pr=objs[0]
             config=objs[1]
-            excludes=objs[2]
+            chainIDmanager=objs[2]
+            excludes=objs[3]
             logger.debug(f'excludes: {excludes}')
             Missings=MissingList([])
             SSBonds=SSBondList([])
@@ -45,7 +46,6 @@ class AsymmetricUnit(AncestorAwareMod):
             Seqadvs=SeqadvList([])
             Links=LinkList([])
             Ters=TerList([]) # no TER records in an mmCIF file!
-            unresolved_sa=set()
             if type(pr)==dict: # PDB format
                 assert config['rcsb_file_format']=='PDB'
                 # minimal pr has ATOMS
@@ -92,26 +92,39 @@ class AsymmetricUnit(AncestorAwareMod):
             #     logger.debug(f'missing {r.name}{r.resseqnum}{r.insertion} in {r.chainID} (auth {r.auth_comp_id}{r.auth_seq_id} in {r.auth_asym_id})')
             Residues=fromAtoms+fromMissings
             logger.debug(f'{len(Residues)} total residues: {len(fromAtoms)} resolved and {len(fromMissings)} unresolved')
-            Residues.map_chainIDs()
-            # Update all chainID attributes of Seqadvs
+            # populates a specific mapping of PDB chainID to CIF label_asym_id
+            # This is only meaningful if mmCIF input is used
+            Residues.map_chainIDs_label_to_auth()
+            # initialize the chainID manager
+            chainIDmanager.register_asymm_chains(Residues.unique_chainIDs())
+            # Update all chainID attributes of Seqadvs; this is because
+            # CIF files do not include the asym_id, only the author's chainID
             Seqadvs.setChainIDs(Residues)
+            
             Mutations=MutationList([Mutation(s) for s in Seqadvs if 'ENGINEERED' in s.conflict])
             Conflicts=MutationList([Mutation(s) for s in Seqadvs if 'CONFLICT' in s.conflict])
             thru_dict={'name':excludes.get('resnames',[]),'chainID':excludes.get('chains',[])}
             logger.debug(f'Exclusions: {thru_dict}')
+            # delete residues that are in user-specified exclusions
             ignored_residues=Residues.prune_exclusions(**thru_dict)
             if config!=None:
                 Residues.apply_segtypes(config['Segtypes_by_Resnames'])
-            SSBonds.prune(objlist=ignored_residues,attr_maps=[{'chainID1':'chainID','resseqnum1':'resseqnum','insertion1':'insertion'},{'chainID2':'chainID','resseqnum2':'resseqnum','insertion2':'insertion'}])
-            Links.prune(objlist=ignored_residues,attr_maps=[{'chainID1':'chainID','resseqnum1':'resseqnum','insertion1':'insertion'},{'chainID2':'chainID','resseqnum2':'resseqnum','insertion2':'insertion'}])
+            # delete any disulfides or other bonds in which these deleted
+            # residues appear
+            attr_maps=[{'chainID1':'chainID','resseqnum1':'resseqnum','insertion1':'insertion'},{'chainID2':'chainID','resseqnum2':'resseqnum','insertion2':'insertion'}]
+            SSBonds.prune(objlist=ignored_residues,attr_maps=attr_maps)
+            Links.prune(objlist=ignored_residues,attr_maps=attr_maps)
             if config!=None:
                 Links.apply_segtypes(config['Segtypes_by_Resnames'])
             Residues.update_links(Links,Atoms)
 
-            Segments=SegmentList(config,Residues)
-            chainIDs=list(set([x.chainID for x in Residues]))
-            logger.debug(f'ChainIDs in A.U.: {",".join(chainIDs)}')
-            chainIDs.sort()
+            Segments=SegmentList(config,Residues,chainIDmanager)
+            # this may have altered segnames for some residues.  So it is best
+            # to be sure all mods that are residue-specific are updated
+
+            # chainIDs=Segments.segnames
+            logger.debug(f'Segnames in A.U.: {",".join(Segments.segnames)}')
+            # chainIDs.sort()
             input_dict={
                 'Atoms':Atoms,
                 'Residues':Residues,
@@ -122,6 +135,6 @@ class AsymmetricUnit(AncestorAwareMod):
                 'Missings':Missings,
                 'Links':Links,
                 'Segments':Segments,
-                'chainIDs':chainIDs
+                # 'chainIDs':chainIDs
             }
         super().__init__(input_dict)
