@@ -32,7 +32,7 @@ mol new $psf
 mol addfile $coor
 set a [atomselect top "all"]
 $a set occupancy 0
-set ca [atomselect top "name CA"]
+set ca [atomselect top "name CA or (water) or (glycan and element C O)"]
 $ca set occupancy 1
 
 set fp [open $infile "r"]

@@ -136,15 +136,17 @@ class Molecule(AncestorAwareMod):
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
         for S in au.Segments:
-            chainID=S.chainID
+            # chainID=S.chainID
             if S.segtype=='PROTEIN':
+                asymm_segname=S.segname
                 for b in S.subsegments:
                     if b.state=='MISSING':
                         if (b.bounds[1]-b.bounds[0])>(sac_n-1):
                             reslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
                             tcllist='[list '+' '.join(reslist)+']'
                             for transform in ba.transforms:
-                                act_segID=transform.segname_by_type_map['PROTEIN'][chainID]
+                                cm=transform.chainIDmap
+                                act_segID=cm.get(asymm_segname,asymm_segname)
                                 writer.addline(f'declash_loop $mLL {act_segID} {tcllist} {cycles}')
     
     def write_gaps(self,writer,sac_n=4):
@@ -152,8 +154,9 @@ class Molecule(AncestorAwareMod):
         au=self.asymmetric_unit
         writer.addline('# fields: segname loop-begin-res loop-end-res connect-to-res')
         for S in au.Segments:
-            chainID=S.chainID
+            # chainID=S.chainID
             if S.segtype=='PROTEIN':
+                asymm_segname=S.segname
                 for i,b in enumerate(S.subsegments):
                     if b.state=='MISSING':
                         if (b.bounds[1]-b.bounds[0])>(sac_n-1) and i<(len(S.subsegments)-1):
@@ -162,15 +165,17 @@ class Molecule(AncestorAwareMod):
                             nreslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[bpp.bounds[0]:bpp.bounds[1]+1]]
                             assert bpp.state=='RESOLVED'
                             for transform in ba.transforms:
-                                act_segID=transform.segname_by_type_map['PROTEIN'][chainID]
+                                cm=transform.chainIDmap
+                                act_segID=cm.get(asymm_segname,asymm_segname)
                                 writer.addline(f'{act_segID} {reslist[0]} {reslist[-1]} {nreslist[0]}')
 
     def write_connect_patches(self,writer,sac_n=4):
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
         for S in au.Segments:
-            chainID=S.chainID
+            # chainID=S.chainID
             if S.segtype=='PROTEIN':
+                asymm_segname=S.segname
                 for i,b in enumerate(S.subsegments):
                     if b.state=='MISSING':
                         if (b.bounds[1]-b.bounds[0])>(sac_n-1) and i<(len(S.subsegments)-1):
@@ -180,5 +185,6 @@ class Molecule(AncestorAwareMod):
                             rres=S.residues[nextb.bounds[0]]
                             rrres=S.residues[nextb.bounds[0]+1]
                             for transform in ba.transforms:
-                                act_segID=transform.segname_by_type_map['PROTEIN'][chainID]
+                                cm=transform.chainIDmap
+                                act_segID=cm.get(asymm_segname,asymm_segname)
                                 writer.addline(f'patch HEAL {act_segID}:{llres.resseqnum}{llres.insertion} {act_segID}:{lres.resseqnum}{lres.insertion} {act_segID}:{rres.resseqnum}{rres.insertion} {act_segID}:{rrres.resseqnum}{rrres.insertion}')

@@ -18,6 +18,8 @@ logger=logging.getLogger(__name__)
 class AsymmetricUnit(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['Atoms','Residues','SSBonds','Mutations','Conflicts','Missings','Links']
     opt_attr=AncestorAwareMod.opt_attr+['Ters','Segments','chainIDs']
+    # yaml-label: residue-attr-name
+    excludables={'resnames':'name','chains':'chainID','segtypes':'segtype'}
     def __init__(self,*objs):
         if len(objs)==0:
             logger.debug('Generating an empty A.U.')
@@ -38,7 +40,6 @@ class AsymmetricUnit(AncestorAwareMod):
             config=objs[1]
             chainIDmanager=objs[2]
             excludes=objs[3]
-            logger.debug(f'excludes: {excludes}')
             Missings=MissingList([])
             SSBonds=SSBondList([])
             Mutations=MutationList([])
@@ -46,6 +47,12 @@ class AsymmetricUnit(AncestorAwareMod):
             Seqadvs=SeqadvList([])
             Links=LinkList([])
             Ters=TerList([]) # no TER records in an mmCIF file!
+            # Build the lists of
+            # - Atoms
+            # - Seqadvs (engineered mutations, conflicts, etc.)
+            # - Missing residues
+            # - Disulfides
+            # - Links
             if type(pr)==dict: # PDB format
                 assert config['rcsb_file_format']=='PDB'
                 # minimal pr has ATOMS
@@ -82,49 +89,58 @@ class AsymmetricUnit(AncestorAwareMod):
                         lndicts.append(CIFdict(obj,i))
                 SSBonds=SSBondList([SSBond(x) for x in ssdicts])
                 Links=LinkList([Link(x) for x in lndicts])
-            # if len(unresolved_sa)>0:
-            #     logger.info('The following SEQADV record types found in input are not handled:')
-            # for r in unresolved_sa:
-            #     logger.info(r)
+
+            # Build the list of residues
             fromAtoms=ResidueList(Atoms)
             fromMissings=ResidueList(Missings)
-            # for r in fromMissings:
-            #     logger.debug(f'missing {r.name}{r.resseqnum}{r.insertion} in {r.chainID} (auth {r.auth_comp_id}{r.auth_seq_id} in {r.auth_asym_id})')
             Residues=fromAtoms+fromMissings
+            Residues.apply_segtypes(config.get('Segtypes_by_Resnames',{}))
+            uniques=Residues.uniqattrs(['segtype'],with_counts=True)
             logger.debug(f'{len(Residues)} total residues: {len(fromAtoms)} resolved and {len(fromMissings)} unresolved')
+            logger.debug(f'Segtypes present: {uniques["segtype"]}')
+            # Delete any residues dictated by user-specified exclusions
+            thru_dict={resattr:excludes.get(yaml,[]) for yaml,resattr in self.excludables.items()}
+            logger.debug(f'Exclusions: {thru_dict}')
+            # delete residues that are in user-specified exclusions
+            ignored_residues=Residues.prune_exclusions(**thru_dict)
             # populates a specific mapping of PDB chainID to CIF label_asym_id
             # This is only meaningful if mmCIF input is used
             Residues.map_chainIDs_label_to_auth()
             # initialize the chainID manager
-            chainIDmanager.register_asymm_chains(Residues.unique_chainIDs())
-            # Update all chainID attributes of Seqadvs; this is because
-            # CIF files do not include the asym_id, only the author's chainID
-            Seqadvs.setChainIDs(Residues)
+            chainIDmanager.register_asymm_chains(Residues.uniqattrs(['chainID'])['chainID'])
+            # Give each Seqadv a residue identifier
+            ignored_seqadvs=Seqadvs.assign_residues(Residues)
+            ignored_ssbonds=SSBonds.assign_residues(Residues)
+            more_ignored_residues,ignored_links=Links.assign_residues(Residues)
+            # a deleted link may create a "free" glycan; in this case
+            # we should also delete its residues; problem is that 
+            ignored_residues.extend(more_ignored_residues)
             
-            Mutations=MutationList([Mutation(s) for s in Seqadvs if 'ENGINEERED' in s.conflict])
-            Conflicts=MutationList([Mutation(s) for s in Seqadvs if 'CONFLICT' in s.conflict])
-            thru_dict={'name':excludes.get('resnames',[]),'chainID':excludes.get('chains',[])}
-            logger.debug(f'Exclusions: {thru_dict}')
-            # delete residues that are in user-specified exclusions
-            ignored_residues=Residues.prune_exclusions(**thru_dict)
-            if config!=None:
-                Residues.apply_segtypes(config['Segtypes_by_Resnames'])
-            # delete any disulfides or other bonds in which these deleted
-            # residues appear
-            attr_maps=[{'chainID1':'chainID','resseqnum1':'resseqnum','insertion1':'insertion'},{'chainID2':'chainID','resseqnum2':'resseqnum','insertion2':'insertion'}]
-            SSBonds.prune(objlist=ignored_residues,attr_maps=attr_maps)
-            Links.prune(objlist=ignored_residues,attr_maps=attr_maps)
-            if config!=None:
-                Links.apply_segtypes(config['Segtypes_by_Resnames'])
-            Residues.update_links(Links,Atoms)
+            if excludes:
+                logger.debug(f'Exclusions result in deletion of:')
+                logger.debug(f'    {len(ignored_residues)} residues; {len(Residues)} remain;')
+                logger.debug(f'    {len(ignored_seqadvs)} seqadvs; {len(Seqadvs)} remain;')
+                logger.debug(f'    {len(ignored_ssbonds)} ssbonds; {len(SSBonds)} remain; and')
+                logger.debug(f'    {len(ignored_links)} links; {len(Links)} remain.')
 
             Segments=SegmentList(config,Residues,chainIDmanager)
-            # this may have altered segnames for some residues.  So it is best
+            # this may have altered chainIDs for some residues.  So it is best
             # to be sure all mods that are residue-specific are updated
+            Seqadvs.update_attr_from_obj_attr('chainID','residue','chainID')
+            # we will only conside the impact of mutations on links/ssbonds 
+            # in the context of generating the segment output, where 
+            # - user mods are included, and
+            # - user directives for acting on mutations/conflicts in the input header appear
+            Mutations=MutationList([Mutation(s) for s in Seqadvs if 'ENGINEERED' in s.conflict])
+            Conflicts=MutationList([Mutation(s) for s in Seqadvs if 'CONFLICT' in s.conflict])
 
-            # chainIDs=Segments.segnames
+            SSBonds.update_attr_from_obj_attr('chainID1','residue1','chainID')
+            SSBonds.update_attr_from_obj_attr('chainID2','residue2','chainID')
+            Links.update_attr_from_obj_attr('chainID1','residue1','chainID')
+            Links.update_attr_from_obj_attr('chainID2','residue2','chainID')
             logger.debug(f'Segnames in A.U.: {",".join(Segments.segnames)}')
-            # chainIDs.sort()
+            if Segments.daughters:
+                logger.debug(f'Daughter chains generated: {Segments.daughters}')
             input_dict={
                 'Atoms':Atoms,
                 'Residues':Residues,
@@ -135,6 +151,5 @@ class AsymmetricUnit(AncestorAwareMod):
                 'Missings':Missings,
                 'Links':Links,
                 'Segments':Segments,
-                # 'chainIDs':chainIDs
             }
         super().__init__(input_dict)

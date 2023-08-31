@@ -7,7 +7,6 @@ class TestMolecule(unittest.TestCase):
 
     def test_molecule_au(self):
         c=Config()
-        self.assertTrue(hasattr(c,'defs'))
         m=Molecule(config=c,source='1gc1')
         au=m.asymmetric_unit
         self.assertEqual(m.source,'1gc1')
@@ -18,18 +17,24 @@ class TestMolecule(unittest.TestCase):
         self.assertEqual(len(au.Missings),28)
         self.assertEqual(len(au.Links),15)
         self.assertEqual(len(au.Residues),1566)
+        self.assertEqual(len(au.Segments),13)
         r0=au.Residues[0]
         self.assertEqual(r0.name,'THR')
         self.assertEqual(r0.segtype,'PROTEIN')
-        waterres=[r for r in au.Residues if r.segtype=='WATER']
-        self.assertEqual(len(waterres),603)
+        for st in c['Segtypes']:
+            res=[r for r in au.Residues if r.segtype==st]
+            cbs=0
+            for x in au.Segments:
+                if x.segtype==st:
+                    cbs+=len(x.residues)
+            self.assertEqual(len(res),cbs)
         glycanres=[r for r in au.Residues if r.segtype=='GLYCAN']
-        self.assertEqual(len(glycanres),15)
         g0=glycanres[0]
         self.assertEqual(g0.name,'NAG')
 
     def test_molecule_links(self):
-        m=Molecule(source='4zmj',config=Config())
+        c=Config()
+        m=Molecule(source='4zmj',config=c)
         au=m.asymmetric_unit
         l=au.Links[0]
         self.assertEqual(l.residue1.segtype,'PROTEIN')
@@ -40,7 +45,7 @@ class TestMolecule(unittest.TestCase):
         self.assertEqual(l.atom1.altloc,'')
         self.assertEqual(l.residue2.segtype,'GLYCAN')
         self.assertEqual(l.residue2.name,'NAG')
-        self.assertEqual(l.residue2.chainID,'G')
+        self.assertEqual(l.residue2.chainID,'E')
         self.assertEqual(l.residue2.resseqnum,615)
         self.assertEqual(l.atom2.name,'C1')
         self.assertEqual(l.atom2.altloc,'')
@@ -62,22 +67,28 @@ class TestMolecule(unittest.TestCase):
         self.assertEqual(l.atom2.name,'C1')
         self.assertEqual(l.atom2.altloc,'')
 
-    def test_molecule_bioassemb(self):
-        m=Molecule(source='4zmj',config=Config())
+    def test_molecule_bioassemb_4zmj(self):
+        c=Config()
+        cidm=ChainIDManager()
+        m=Molecule(source='4zmj',config=c,chainIDmanager=cidm)
         self.assertEqual(1,len(m.biological_assemblies))
-        m.activate_biological_assembly(1,ChainIDManager())
+        m.activate_biological_assembly(1)
         ba=m.active_biological_assembly
         self.assertEqual(len(ba.transforms),3)
         cm=ba.transforms[0].chainIDmap
         self.assertEqual(cm['G'],'G')
         self.assertTrue(ba.transforms[0].is_identity())
         cm=ba.transforms[1].chainIDmap
-        self.assertEqual(cm['G'],'J')
+        self.assertEqual(cm['G'],'H')
         cm=ba.transforms[2].chainIDmap
         self.assertEqual(cm['G'],'O')
-        m=Molecule(source='4tvp',config=Config(),excludes={'chains':['H','L','E','D'],'resnames':['PO4']})
+
+    def test_molecule_bioassemb_4tvp(self):
+        c=Config()
+        cidm=ChainIDManager()
+        m=Molecule(source='4tvp',config=c,chainIDmanager=cidm,excludes={'chains':['H','L','E','D'],'resnames':['SO4']})
         self.assertEqual(1,len(m.biological_assemblies))
-        m.activate_biological_assembly(1,ChainIDManager())
+        m.activate_biological_assembly(1)
         ba=m.active_biological_assembly
         self.assertEqual(len(ba.transforms),3)
         cm=ba.transforms[0].chainIDmap
@@ -86,7 +97,7 @@ class TestMolecule(unittest.TestCase):
         cm=ba.transforms[1].chainIDmap
         self.assertEqual(cm['G'],'U')
         cm=ba.transforms[2].chainIDmap
-        self.assertEqual(cm['G'],'k')
+        self.assertEqual(cm['G'],'o')
 
     def test_molecule_ancestry(self):
         m=Molecule(source='4zmj',reset_counter=True,config=Config())
@@ -94,7 +105,6 @@ class TestMolecule(unittest.TestCase):
         auao=au.ancestor_obj
         self.assertEqual(auao,m)
         for s in au.Segments:
-            print(str(s))
             sao=s.ancestor_obj
             self.assertEqual(sao,m)
             self.assertEqual(sao.molid,0)
@@ -123,9 +133,10 @@ class TestMolecule(unittest.TestCase):
         source='4zmj'
         config=Config()
         config['rcsb_file_format']='mmCIF'
-        m=Molecule(source=source,config=config)
+        cidm=ChainIDManager(format=config['rcsb_file_format'])
+        m=Molecule(source=source,config=config,chainIDmanager=cidm)
         au=m.asymmetric_unit
-        m.activate_biological_assembly(1,ChainIDManager(format=config['rcsb_file_format']))
+        m.activate_biological_assembly(1)
         self.assertEqual(len(au.Residues),659)
         ba=m.active_biological_assembly
         self.assertEqual(len(ba.transforms),3)

@@ -258,7 +258,7 @@ class ResidueList(AncestorAwareModList):
             super().__init__(input_obj)
         else:
             logger.warning(f'Error: cannot initialize object of type {type(self)} with object of type {type(input_obj)}')
-    def map_chainIDs(self):
+    def map_chainIDs_label_to_auth(self):
         self.chainIDmap_cif_to_pdb={}
         for r in self:
             if hasattr(r,'auth_asym_id'):
@@ -271,12 +271,12 @@ class ResidueList(AncestorAwareModList):
     def get_atom(self,atname,**fields):
         S=('atoms',{'name':atname})
         return self.get_attr(S,**fields)
-    def unique_chainIDs(self):
-        c=[]
-        for r in self:
-            if not r.chainID in c:
-                c.append(r.chainID)
-        return c
+    # def unique_chainIDs(self):
+    #     c=[]
+    #     for r in self:
+    #         if not r.chainID in c:
+    #             c.append(r.chainID)
+    #     return c
     def atom_serials(self,as_type=str):
         serlist=[]
         for res in self:
@@ -312,20 +312,20 @@ class ResidueList(AncestorAwareModList):
         for d in delete_us:
             self.remove(d)
 
-    def update_links(self,Links:LinkList,atoms:AtomList):
-        for link in Links:
-            link.residue1=self.get(chainID=link.chainID1,resseqnum=link.resseqnum1,insertion=link.insertion1)
-            assert not hasattr(link.residue1,'len'),f'c {link.chainID1} r {link.resseqnum1} i {link.insertion1} returned {len(link.residue1)} residues'
-            link.residue2=self.get(chainID=link.chainID2,resseqnum=link.resseqnum2,insertion=link.insertion2)
-            a1=atoms.get(chainID=link.chainID1,resseqnum=link.resseqnum1,name=link.name1)
-            if hasattr(a1,'len'):
-                a1=a1.get(altloc=link.altloc1)
-            link.atom1=a1
-            a2=atoms.get(chainID=link.chainID2,resseqnum=link.resseqnum2,name=link.name2)
-            if hasattr(a1,'len'):
-                a2=a2.get(altloc=link.altloc2)
-            link.atom2=a2
-            link.residue1.linkTo(link.residue2,link)
-        return self
+    # def update_links(self,Links:LinkList,atoms:AtomList):
+    #     for link in Links:
+    #         link.residue1=self.get(chainID=link.chainID1,resseqnum=link.resseqnum1,insertion=link.insertion1)
+    #         assert not hasattr(link.residue1,'len'),f'c {link.chainID1} r {link.resseqnum1} i {link.insertion1} returned {len(link.residue1)} residues'
+    #         link.residue2=self.get(chainID=link.chainID2,resseqnum=link.resseqnum2,insertion=link.insertion2)
+    #         a1=atoms.get(chainID=link.chainID1,resseqnum=link.resseqnum1,name=link.name1)
+    #         if hasattr(a1,'len'):
+    #             a1=a1.get(altloc=link.altloc1)
+    #         link.atom1=a1
+    #         a2=atoms.get(chainID=link.chainID2,resseqnum=link.resseqnum2,name=link.name2)
+    #         if hasattr(a1,'len'):
+    #             a2=a2.get(altloc=link.altloc2)
+    #         link.atom2=a2
+    #         link.residue1.linkTo(link.residue2,link)
+    #     return self
     def apply_segtypes(self,map):
         self.map_attr('segtype','name',map)

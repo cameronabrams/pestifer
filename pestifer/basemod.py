@@ -132,6 +132,14 @@ class BaseMod:
         for k,v in fields.items():
             if k in self.__dict__:
                 self.__dict__[k]=v
+    def assign_obj_to_attr(self,attr,objList,**matchattr):
+        assert getattr(self,attr)==None
+        adict={k:getattr(self,v) for k,v in matchattr.items()}
+        myObj=objList.get(**adict)
+        if myObj!=None:
+            setattr(self,attr,myObj)
+    def update_attr_from_obj_attr(self,attr,obj,obj_attr):
+        setattr(self,attr,getattr(getattr(self,obj),obj_attr))
 
 class CloneableMod(BaseMod):
     opt_attr=BaseMod.opt_attr+['clone_of']
@@ -150,17 +158,6 @@ class CloneableMod(BaseMod):
 class AncestorAwareMod(CloneableMod):
     opt_attr=CloneableMod.req_attr+['ancestor_obj']
     ignore_attr=CloneableMod.ignore_attr+['ancestor_obj']
-    # def claim_object(self,obj,stamp):
-    #     if hasattr(obj,'__dict__'):
-    #         obj.__dict__['ancestor_obj']=stamp
-    #         obj.claim_descendants(stamp)
-    #     elif hasattr(obj,'len'): # a dict with AncestorAwareMods in the values or a list of AncestorAwareMods
-    #         if type(obj)==dict:
-    #             for subattr,subobj in obj.__dict__.items():
-    #                 self.claim_object(subobj,stamp)
-    #         else: #assume list
-    #             for subobj in obj:
-    #                 self.claim_object(subobj,stamp)
     
     def claim_self(self,stamp,level):
         self.__dict__['ancestor_obj']=stamp
@@ -171,7 +168,6 @@ class AncestorAwareMod(CloneableMod):
             if attr!='ancestor_obj':
                 if hasattr(obj,'__dict__'):
                     obj.claim_descendants(stamp,level+1)
-                    
 
 class StateInterval(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['state','bounds']
@@ -183,40 +179,7 @@ class StateInterval(AncestorAwareMod):
 class ModList(UserList):
     def __init__(self,data):
         super().__init__(data)
-    # def __iter__(self):
-    #     for r in self.L:
-    #         yield r
-    # def __getitem__(self,index):
-    #     return self.L[index]
-    # def __setitem__(self,index,value):
-    #     self.L[index]=value
-    # def __add__(self,other):
-    #     self.L.extend(other.L)
-    #     return self
-    # def __delitem__(self,index):
-    #     del self.L[index]
-    # def __contains__(self,item):
-    #     return item in self.L
-    # def __eq__(self,other):
-    #     return all([x==y for x,y in zip(self.L,other.L)])
-    # def __len__(self):
-    #     return len(self.L)
-    # def index(self,item):
-    #     for i,x in enumerate(self.L):
-    #         if item==x:
-    #             return i
-    #     raise Exception(ValueError,f'Mod not found in list')
-    # def append(self,item):
-    #     self.L.append(item)
-    # def extend(self,items):
-    #     self.L.extend(items)
-    # def remove(self,item):
-    #     self.L.remove(item)
-    # def clear(self):
-    #     self.L.clear()
-    # def pop(self,idx):
-    #     item=self.L.pop(idx)
-    #     return item
+
     def filter(self,**fields):
         retlist=self.__class__([])
         for r in self:
@@ -254,7 +217,7 @@ class ModList(UserList):
             for item in v:
                 thru_dict={k:item}
                 acc_list.extend(self.filter(**thru_dict))
-        # logger.debug(f'pruning out {len(acc_list)} items')
+        logger.debug(f'pruning out {len(acc_list)} items')
         for item in acc_list:
             if item in self:
                 self.remove(item)
@@ -277,6 +240,22 @@ class ModList(UserList):
         else:
             key=operator.attrgetter(*by)
             self.data.sort(key=key,reverse=reverse)
+    def uniqattrs(self,attrs=[],with_counts=False):
+        uattrs={k:[] for k in attrs}
+        for item in self:
+            for a in attrs:
+                v=getattr(item,a)
+                if with_counts:
+                    try:
+                        idx=[x[0] for x in uattrs[a]].index(v)
+                    except:
+                        uattrs[a].append([v,0])
+                        idx=-1
+                    uattrs[a][idx][1]+=1
+                else:
+                    if not v in uattrs[a]:
+                        uattrs[a].append(v)
+        return uattrs
     def binnify(self,fields=[]):
         bins={}
         for item in self:
@@ -314,10 +293,13 @@ class ModList(UserList):
         use_common={k:self[0].__dict__[k] for k in make_common}
         if use_common:
             for s in self:
-                if not new_attr_name in s.__dict__:
-                    s.__dict__[new_attr_name]={}
-                s.__dict__[new_attr_name].update({k:s.__dict__[k] for k in make_common})
-                s.__dict__.update(use_common)
+                # check to see if any updates are needed
+                valcheck=all([s.__dict__[k]==v for k,v in use_common.items()])
+                if not valcheck:
+                    if not new_attr_name in s.__dict__:
+                        s.__dict__[new_attr_name]={}
+                    s.__dict__[new_attr_name].update({k:s.__dict__[k] for k in make_common})
+                    s.__dict__.update(use_common)
     def state_bounds(self,state_func):
         slices=StateIntervalList([])
         if len(self)==0:
@@ -337,7 +319,16 @@ class ModList(UserList):
         if map:
             for item in self:
                 item.map_attr(mapped_attr,key_attr,map)
-
+    def assign_objs_to_attr(self,attr,objList,**matchattr):
+        for s in self:
+            s.assign_obj_to_attr(attr,objList,**matchattr)
+        delete_us=[s for s in self if getattr(s,attr)==None]
+        for s in delete_us:
+            self.remove(s)
+        return self.__class__(delete_us)
+    def update_attr_from_obj_attr(self,attr,obj,obj_attr):
+        for item in self:
+            item.update_attr_from_obj_attr(attr,obj,obj_attr)
 
 class CloneableModList(ModList):
     def clone(self,**options):

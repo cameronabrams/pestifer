@@ -18,9 +18,7 @@ from .scriptwriters import Psfgen
 
 class Seqadv(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['idCode','resname','chainID','resseqnum','insertion']
-    opt_attr=AncestorAwareMod.opt_attr+['database','dbAccession','dbRes','dbSeq','conflict','pdbx_pdb_strand_id','pdbx_auth_seq_num', 'pdbx_ordinal']
-    # attr_choices=AncestorAwareMod.attr_choices.copy()
-    # attr_choices.update({'conflict':['ENGINEERED','ENGINEERED MUTATION','CONFLICT']})
+    opt_attr=AncestorAwareMod.opt_attr+['database','dbAccession','dbRes','dbSeq','conflict','pdbx_pdb_strand_id','pdbx_auth_seq_num','pdbx_ordinal','residue']
     yaml_header='Seqadv'
     PDB_keyword='SEQADV'
     mmCIF_name='struct_ref_seq_dif'
@@ -50,7 +48,8 @@ class Seqadv(AncestorAwareMod):
                 'dbAccession':pdbrecord.dbAccession,
                 'dbRes':pdbrecord.dbRes,
                 'dbSeq':pdbrecord.dbSeq,
-                'conflict':pdbrecord.conflict
+                'conflict':pdbrecord.conflict,
+                'residue':None
             }
             super().__init__(input_dict)
         elif type(input_obj)==CIFdict:
@@ -68,7 +67,8 @@ class Seqadv(AncestorAwareMod):
                 'conflict':cd['details'].upper(),
                 'pdbx_auth_seq_num':int(cd['pdbx_auth_seq_num']), # author
                 'pdbx_ordinal':cd['pdbx_ordinal'],
-                'pdbx_pdb_strand_id':cd['pdbx_pdb_strand_id']
+                'pdbx_pdb_strand_id':cd['pdbx_pdb_strand_id'],
+                'residue':None
             }
             super().__init__(input_dict)
         else:
@@ -77,25 +77,39 @@ class Seqadv(AncestorAwareMod):
     def pdb_line(self):
         return f'SEQADV {self.idCode:3s} {self.resname:>3s} {self.chainID:1s} {self.resseqnum:>4d}{self.insertion:1s} {self.database:>4s} {self.dbAccession:9s} {self.dbRes:3s} {self.dbSeq:>5d} {self.conflict:21s}          '
     
-    def assignChainID(self,Residues):
+    def assign_residue(self,Residues):
         # logger.debug(f'Searching {len(Residues)} Residues for auth_chain {self.pdbx_pdb_strand_id} auth_seq {self.pdbx_auth_seq_num}')
+        assert self.residue==None
         if hasattr(self,'pdbx_pdb_strand_id') and hasattr(self,'pdbx_auth_seq_num'):
-            myres=Residues.get(
-                auth_asym_id = self.pdbx_pdb_strand_id,
-                auth_seq_id  = self.pdbx_auth_seq_num
-            )
-            if myres!=None:
-                # logger.debug(f'...found residue {myres.name} in {myres.chainID} (auth {myres.auth_asym_id})')
-                self.chainID=myres.chainID
-                self.residue=myres
+            self.assign_obj_to_attr('residue',Residues,
+                            auth_asym_id='pdbx_pdb_strand_id',
+                            auth_seq_id='pdbx_auth_seq_num',
+                            insertion='insertion')
+            if self.residue!=None:
+                self.chainID=self.residue.chainID
+        else:
+            self.assign_obj_to_attr('residue',Residues,chainID='chainID',resseqnum='resseqnum',insertion='insertion')
+
+    def update_from_residue(self):
+        assert self.residue!=None
+        self.chainID=self.residue.chainID
         # else:
         #     logger.debug(f'...seqadv {self.conflict} auth {self.pdbx_pdb_strand_id}:{self.pdbx_auth_seq_num} cannot be resolved from current set of residues')
         # we'll assume that if this residue is not found, then this seqadv is never used anyway
 
 class SeqadvList(AncestorAwareModList):
-    def setChainIDs(self,Residues):
+    def assign_residues(self,Residues):
+        delete_us=[]
         for s in self:
-            s.assignChainID(Residues)
+            s.assign_residue(Residues)
+        delete_us=self.__class__([s for s in self if s.residue==None])
+        for s in delete_us:
+            self.remove(s)
+        return delete_us
+    
+    def update_from_residues(self):
+        for s in self:
+            s.update_from_residue()
 
 class Mutation(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID','origresname','resseqnum','insertion','newresname','source']
@@ -111,10 +125,10 @@ class Mutation(AncestorAwareMod):
         elif type(input_obj)==Seqadv:
             sq=input_obj
             input_dict={
-                'chainID':sq.chainID, # author
+                'chainID':sq.chainID,
                 'origresname':sq.resname,
                 'newresname':sq.dbRes,
-                'resseqnum':sq.resseqnum, # mmcif
+                'resseqnum':sq.resseqnum,
                 'insertion':sq.insertion,
                 'source':'SEQADV'
             }
@@ -397,7 +411,7 @@ class CrotList(AncestorAwareModList):
 
 class SSBond(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
-    opt_attr=AncestorAwareMod.opt_attr+['serial_number','resname1','resname2','sym1','sym2','length','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id']
+    opt_attr=AncestorAwareMod.opt_attr+['serial_number','residue1','residue2','resname1','resname2','sym1','sym2','length','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id']
     yaml_header='SSBonds'
     PDB_keyword='SSBOND'
     mmCIF_name='struct_conn'
@@ -418,7 +432,9 @@ class SSBond(AncestorAwareMod):
                 'insertion2':pdbrecord.residue2.iCode,
                 'sym1':pdbrecord.sym1,
                 'sym2':pdbrecord.sym2,
-                'length':pdbrecord.length
+                'length':pdbrecord.length,
+                'residue1':None,
+                'residue2':None
             }
             super().__init__(input_dict)
         elif type(input_obj)==CIFdict:
@@ -436,6 +452,8 @@ class SSBond(AncestorAwareMod):
                 'sym1':d['ptnr1_symmetry'],
                 'sym2':d['ptnr2_symmetry'],
                 'length':float(d['pdbx_dist_value']),
+                'residue1':None,
+                'residue2':None,
                 'ptnr1_auth_asym_id':d['ptnr1_auth_asym_id'],
                 'ptnr2_auth_asym_id':d['ptnr2_auth_asym_id'],
                 'ptnr1_auth_seq_id':d['ptnr1_auth_seq_id'],
@@ -492,6 +510,10 @@ class SSBond(AncestorAwareMod):
         W.addline(f'patch DISU {c1}:{r1} {c2}:{r2}')
 
 class SSBondList(AncestorAwareModList):
+    def assign_residues(self,Residues):
+        ignored_by_ptnr1=self.assign_objs_to_attr('residue1',Residues,resseqnum='resseqnum1',chainID='chainID1',insertion='insertion1')
+        ignored_by_ptnr2=self.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID1',insertion='insertion2')
+        return self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
     def write_TcL(self,W:Psfgen,transform,mods):
         undo_SSBonds=mods.get('SSBondDelete',SSBondDeleteList([]))
         for s in self:
@@ -499,7 +521,7 @@ class SSBondList(AncestorAwareModList):
                 continue
             s.write_TcL(W,transform)
         for s in mods.get('SSBonds',[]):
-            s.writeTcL(W,transform)
+            s.write_TcL(W,transform)
     def prune_mutations(self,Mutations):
         for m in Mutations:
             left=self.get(chainID1=m.chainID,resseqnum1=m.resseqnum,insertion1=m.insertion)
@@ -597,16 +619,16 @@ class Link(AncestorAwareMod):
 
     # TODO: Fix segname issues
     def write_TcL(self,W:Psfgen,transform,mods):
+        chainIDmap=transform.chainIDmap
+        seg1=self.residue1.chainID
+        seg1=chainIDmap.get(seg1,seg1)
+        seg2=self.residue2.chainID
+        seg2=chainIDmap.get(seg2,seg2)
         if self.resname1=='ASN' and self.segtype2=='GLYCAN':
-            chainIDmap=transform.chainIDmap
-            seg1=chainIDmap[self.segname1]
-            seg2=transform.segname_by_type_map['GLYCAN'][self.segname2]
             W.addline(f'patch NGLB {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
         else:
             # this is likely an intra-glycan linkage
             if self.name2=='C1' and self.segtype1=='GLYCAN':
-                seg1=transform.segname_by_type_map['GLYCAN'][self.segname1]
-                seg2=transform.segname_by_type_map['GLYCAN'][self.segname2]
                 W.addline(f'set cn {self.name1[1]}')
                 W.addline(f'set abi [axeq {self.resseqnum2} 0 {seg2} {self.name2} {self.resseqnum1}]')
                 W.addline(f'set abj [axeq {self.resseqnum1} 0 {seg1} {self.name1} -1]')
@@ -617,14 +639,10 @@ class Link(AncestorAwareMod):
                 W.addline('set pres "1$cn$abi$abj"')
                 W.addline(f'patch $pres {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
             elif self.name1=='C1' and self.segtype2=='GLYCAN':
-                seg1=transform.segname_by_type_map['GLYCAN'][self.segname1]
-                seg2=transform.segname_by_type_map['GLYCAN'][self.segname2]
                 cmdj=f'[axeq {self.resseqnum2} 0 {seg2} {self.name2} {self.resseqnum1}]'
                 cmdi=f'[axeq {self.resseqnum1} 0 {seg1} {self.name1} -1]'
                 W.addline(f'patch 1{self.name2[1]:1s}{cmdi}{cmdj} {seg2}:{self.resseqnum2}{self.insertion2} {seg1}:{self.resseqnum1}{self.insertion1}')
             elif self.name1=='O6' and self.name2=='C2':
-                seg1=transform.segname_by_type_map['GLYCAN'][self.segname1]
-                seg2=transform.segname_by_type_map['GLYCAN'][self.segname2]
                 W.addline(f'patch SA26AT {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
             else:
                 logger.warning(f'Could not identify patch for link: {str(self)}')
@@ -636,9 +654,41 @@ class Link(AncestorAwareMod):
 
 
 class LinkList(AncestorAwareModList):
+    def assign_residues(self,Residues):
+        ignored_by_ptnr1=self.assign_objs_to_attr('residue1',Residues,resseqnum='resseqnum1',chainID='chainID1',insertion='insertion1')
+        ignored_by_ptnr2=self.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID2',insertion='insertion2')
+        for link in self:
+            link.residue1.linkTo(link.residue2,link)
+            link.atom1=link.residue1.atoms.get(name=link.name1,altloc=link.altloc1)
+            link.atom2=link.residue2.atoms.get(name=link.name2,altloc=link.altloc2)
+            link.segtype1=link.residue1.segtype
+            link.segtype2=link.residue2.segtype
+        # do cross-assignment to find true orphan links and dangling links
+        orphan_1=ignored_by_ptnr1.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID2',insertion='insertion2')
+        orphan_2=ignored_by_ptnr2.assign_objs_to_attr('residue1',Residues,resseqnum='resseqnum1',chainID='chainID1',insertion='insertion1')
+        orphans=orphan_1+orphan_2
+        rlist=[]
+        for link in ignored_by_ptnr1:
+            rlist,list=link.residue2.get_down_group()
+            rlist.insert(0,link.residue2)
+            for r in rlist:
+                Residues.remove(r)
+        return Residues.__class__(rlist),self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
+    
+    
     def write_TcL(self,W:Psfgen,transform,mods):
         for l in self:
             l.write_TcL(W,transform,mods)
+
+    def remove_orphan_residues(self,Links,Residues):
+        for dl in self:
+            reslist,lnlist=dl.residue2.get_down_group()
+            reslist.insert(0,dl.residue2)
+            for r in reslist:
+                Residues.remove(r)
+            for l in lnlist:
+                Links.remove(l)
+        return reslist,lnlist
 
     def prune_mutations(self,Mutations,Segments):
         for m in Mutations:

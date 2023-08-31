@@ -1,5 +1,4 @@
-! The Healing Patch by Cameron F. Abrams
-! c 2020
+! The Healing Patch by Cameron F. Abrams cfa22@drexel.edu
 !
 ! This patch is used to generate a peptide linkage between 
 ! an existing CTER and an existing NTER.  If such a "break"
@@ -16,10 +15,10 @@
 ! C-terminus of their respective fragments.  For a given
 ! loop, its "next" fragment begins with an NTER.  The 
 ! steered MD moves the CTER toward the NTER holding
-! the two residue's CA's fixed.  Once the two TER's are
+! the NTER's CA's fixed.  Once the two TER's are
 ! close together, the coordinates can be passed through
 ! a special psfgen script that "ligates" the two TER's
-! to form an intact peptide bond.
+! to form an intact peptide bond, by applying this patch.
 !
 PRES HEAL      0.00 
 ATOM 2O   O   -0.51
