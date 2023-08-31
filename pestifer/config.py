@@ -36,6 +36,12 @@ class ResourceManager:
         else:
             raise(Exception,f'platform {self.platform} not recognized')
 
+        CharmmPaths=glob.glob(self.resource_paths['charmm']+'/*')
+        self.resource_paths['charmm']={}
+        for c in CharmmPaths:
+            bn=os.path.basename(c)
+            self.resource_paths['charmm'][bn]=c
+
     def __str__(self):
         msg=f'Pestifer resources are located in "{self.root}"\n'
         for k,v in self.resource_paths.items():
@@ -69,14 +75,12 @@ class Config(UserDict):
                 self.has_executable[x]=True
         self.vmd_startup_script=os.path.join(self.resman.resource_paths['tcl'],self.get('vmd_startup','pestifer-vmd.tcl'))
         self.tcl_path=self.resman.resource_paths['tcl']
-        self.charmm_toppar_path=self.resman.resource_paths['charmm']
-        self.user_charmm_path=self['charmm_path']
+        self.charmm_toppar_path=self.resman.resource_paths['charmm']['toppar']
+        self.charmm_custom_path=self.resman.resource_paths['charmm']['custom']
+        self.user_charmm_path=self.get('outside_charmm_path','UNSET')
         self.user_charmm_toppar_path=os.path.join(self.user_charmm_path,'toppar')
-        self.has_charmm=True
-        if not os.path.exists(self.user_charmm_toppar_path):
-            logger.warning(f'You have not specified the location where you keep your CHARMM force-field/topology files.')
-            logger.warning(f'Also, the default location where I expect to find them, {self.defaults["charmm_path"]}, seems not to exist.')
-            self.has_charmm=False
+        if os.path.exists(self.user_charmm_path) and not os.path.exists(self.user_charmm_toppar_path):
+            logger.warning(f'You have specified the location where you keep your preferred CHARMM force-field/topology files, but no toppar/ directory found there.')
 
     def _readmainconfig(self):
         mainconfigfilename=os.path.join(self.resman.resource_paths['config'],'defaults.yaml')

@@ -196,8 +196,9 @@ class VMD(Scriptwriter):
 class Psfgen(VMD):
     def __init__(self,config):
         super().__init__(config)
-        self.pestifer_charmmpath=config.charmm_toppar_path
-        self.user_charmm_topparpath=config.user_charmm_toppar_path
+        self.pestifer_charmm_toppar_path=config.charmm_toppar_path
+        self.pestifer_charmm_custom_path=config.charmm_custom_path
+        self.user_charmm_toppar_path=config.user_charmm_toppar_path
         self.default_script=config['psfgen_scriptname']
 
     def newscript(self,basename=None):
@@ -207,10 +208,10 @@ class Psfgen(VMD):
 
     def topo_aliases(self):
         for t in self.config['StdCharmmTopo']:
-            ft=os.path.join(self.user_charmm_topparpath,t)
+            ft=os.path.join(self.pestifer_charmm_toppar_path,t)
             self.addline(f'topology {ft}')
-        for lt in self.config['LocalCharmmTopo']:
-            ft=os.path.join(self.pestifer_charmmpath,lt)
+        for lt in self.config['CustomCharmmTopo']:
+            ft=os.path.join(self.pestifer_charmm_custom_path,lt)
             self.addline(f'topology {ft}')
         for pdba in self.config['Psfgen_Aliases']:
             self.addline(f'pdbalias {pdba}')
@@ -249,8 +250,12 @@ class NAMD2(Scriptwriter):
         self.max_cpu_count=os.cpu_count()
         self.default_ext='.namd'
         self.default_script=f'{self.default_basename}{self.default_ext}'
-        self.user_charmmparfiles=[os.path.join(self.config.user_charmm_toppar_path,x) for x in self.config['StdCharmmParam']]
-        self.pestifer_charmmparfiles=[os.path.join(self.config.charmm_toppar_path,x) for x in self.config['LocalCharmmParam']]
+        if not self.config.user_charmm_toppar_path!='UNSET':
+            self.standard_charmmparfiles=[os.path.join(self.config.user_charmm_toppar_path,x) for x in self.config['StdCharmmParam']]
+        else:
+            self.standard_charmmparfiles=[os.path.join(self.config.charmm_toppar_path,x) for x in self.config['StdCharmmParam']]
+        self.custom_charmmparfiles=[os.path.join(self.config.charmm_custom_path,x) for x in self.config['CustomCharmmParam']]
+
     def newscript(self,basename=None):
         super().newscript(basename)
         self.scriptname=f'{basename}{self.default_ext}'

@@ -110,7 +110,7 @@ class Task(BaseMod):
             params['temperature']='$temperature'
         if xsc:
             params['extendedSystem']=xsc
-        params['parameters']=na.user_charmmparfiles+na.pestifer_charmmparfiles
+        params['parameters']=na.standard_charmmparfiles+na.custom_charmmparfiles
         params.update(namd_params['generic'])
 
         if self.statevars['periodic']:
@@ -165,7 +165,7 @@ class Task(BaseMod):
             params['binvelocities']=vel
         params.update({'tcl':[f'set temperature {temperature}']})
         params['temperature']='$temperature'
-        params['parameters']=na.user_charmmparfiles+na.pestifer_charmmparfiles
+        params['parameters']=na.standard_charmmparfiles+na.custom_charmmparfiles
         params.update(namd_params['generic'])
         if xsc:
             params['extendedSystem']=xsc
@@ -380,7 +380,7 @@ class LigateTask(Task):
         params={'structure':psf,'coordinates':pdb}
         params.update({'tcl':[f'set temperature {temperature}']})
         params['temperature']='$temperature'
-        params['parameters']=na.user_charmmparfiles+na.pestifer_charmmparfiles
+        params['parameters']=na.standard_charmmparfiles+na.custom_charmmparfiles
         namd_params=self.config.namd_params
         params.update(namd_params['generic'])
         params.update(namd_params['vacuum'])
@@ -425,7 +425,7 @@ class LigateTask(Task):
         pg=self.writers['psfgen']
         pg.newscript(basename)
         pg.topo_aliases()
-        topfile=os.path.join(self.config.charmm_toppar_path,'mylink.top')
+        topfile=os.path.join(self.config.charmm_custom_path,'mylink.top')
         pg.addline(f'topology {topfile}')
         pg.usescript('loop_closure')
         pg.writescript()
