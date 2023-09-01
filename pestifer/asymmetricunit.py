@@ -54,7 +54,6 @@ class AsymmetricUnit(AncestorAwareMod):
             # - Disulfides
             # - Links
             if type(pr)==dict: # PDB format
-                assert config['rcsb_file_format']=='PDB'
                 # minimal pr has ATOMS
                 Atoms=AtomList([Atom(p) for p in pr['ATOM']])
                 if 'HETATM' in pr:
@@ -71,7 +70,6 @@ class AsymmetricUnit(AncestorAwareMod):
                 if 'LINK' in pr:
                     Links=LinkList([Link(p) for p in pr['LINK']])
             elif type(pr)==DataContainer: # mmCIF format
-                assert config['rcsb_file_format']=='mmCIF'
                 obj=pr.getObj('atom_site')
                 Atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
                 obj=pr.getObj('struct_ref_seq_dif')

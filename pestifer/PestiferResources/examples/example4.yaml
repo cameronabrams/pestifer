@@ -1,0 +1,36 @@
+title: Example 4 HIV-1 Env Trimer 4zmj
+namd2: $(HOME)/namd/NAMD_2.14_Source/Linux-x86_64-g++/namd2
+charmrun: $(HOME)/namd/NAMD_2.14_Source/Linux-x86_64-g++/charmrun
+tasks:
+  - psfgen:
+      source:
+        rcsb: 4zmj
+        biological_assembly: 1
+      declash:
+        maxcycles: 20
+      minimize:
+        nminsteps: 1100
+      cleanup: True
+  - ligate:
+      steer:
+        force_constant: 20.0
+        target_distance: 2.0
+        nsteps: 4000
+        dcdfreq: 100
+      connect:
+        cleanup: True
+      minimize:
+        nminsteps: 1000
+  - relax:
+      nsteps: 2000
+      dcdfreq: 100
+  - solvate:
+      minimize:
+        nminsteps: 1000
+  - relax:
+      nsteps: 1000
+      dcdfreq: 100
+      temperature: 310
+      pressure: 1
+  - terminate:
+      basename: my_4zmj

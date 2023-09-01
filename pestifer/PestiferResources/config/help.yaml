@@ -1,0 +1,29 @@
+help_dicts:
+  title:
+    text: Meaningful title (not really used anywhere)
+  tasks:
+    text: Specifies the tasks to be performed; each is a dictionary with a heading
+    subheadings:
+      source:
+        text: Specifies the source of the initial coordinate file
+        subheadings:
+          rcsb: The 4-character PDB ID of the source
+          biolgical_assembly: integer index of the biological assembly to construct; default is 0, signifying that the asymmetric unit is to be used
+          file_format: either PDB or mmCIF; some entries do not have a PDB-format file.  The main advantage of PDB is that it uses the author-designations for chains by default.  mmCIF is the new "default" format of the PDB.
+          minimze: 
+            text: Specifies the energy minimization to be performed on the output of psfgen
+            subheadings:
+              nminsteps:
+                text: Number of iterations for the energy minimization
+                default: unset
+          excludes:
+            text: Specifies any residues or atoms to exclude from the system
+            subheadings:
+                chains:
+                  text: Specify list of chain IDs to ignore; in PDB-format input, these are typically author-generated, while in mmCIF they are not.  You must use chain IDs that reference your chosen coordinate file input format.
+                resnames:
+                  text: Specify list of resnames to ignore; good for exluding waters or ions.  Resnames must reference your chosen coordinate input file.
+      ligate:
+      relax:
+      solvate:
+      terminate:

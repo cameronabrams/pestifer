@@ -70,7 +70,6 @@ class VMD(Scriptwriter):
         self.tcl_path=config.tcl_path
         self.vmd_startup=config.vmd_startup_script
         self.default_script=config['vmd_scriptname']
-        self.rcsb_file_format=config['rcsb_file_format']
 
     def usescript(self,scriptbasename):
         scriptname=os.path.join(self.tcl_path,f'scripts/{scriptbasename}.tcl')
@@ -92,10 +91,10 @@ class VMD(Scriptwriter):
 
     def set_molecule(self,mol):
         mol.molid_varname=f'm{mol.molid}'
-        ext='.pdb' if self.rcsb_file_format=='PDB' else '.cif'
+        ext='.pdb' if mol.rcsb_file_format=='PDB' else '.cif'
         self.addline(f'mol new {mol.source}{ext} waitfor all')
         self.addline(f'set {mol.molid_varname} [molinfo top get id]')
-        if self.rcsb_file_format=='mmCIF':
+        if mol.rcsb_file_format=='mmCIF':
             # VMD appends a "1" to any two-letter chain ID from a CIF file,
             # so let's undo that
             # also, CIF HETATM records have a "." for residue number, which
@@ -250,6 +249,7 @@ class NAMD2(Scriptwriter):
         self.max_cpu_count=os.cpu_count()
         self.default_ext='.namd'
         self.default_script=f'{self.default_basename}{self.default_ext}'
+        logger.debug(f'Charmm paths: user: {self.config.user_charmm_toppar_path} pestifer {self.config.charmm_toppar_path}')
         if not self.config.user_charmm_toppar_path!='UNSET':
             self.standard_charmmparfiles=[os.path.join(self.config.user_charmm_toppar_path,x) for x in self.config['StdCharmmParam']]
         else:

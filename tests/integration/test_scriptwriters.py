@@ -1,7 +1,7 @@
 import unittest
 from pestifer.command import Command
 from pestifer.molecule import Molecule
-from pestifer.scriptwriters import Psfgen
+from pestifer.scriptwriters import Psfgen, NAMD2
 from pestifer.config import Config
 from pestifer.chainids import ChainIDManager
 
@@ -22,6 +22,13 @@ class TestPsfgen(unittest.TestCase):
         self.assertTrue(os.path.isfile('testing.tcl'))
         os.remove(p.basename+'.tcl')
         self.assertFalse(os.path.exists('testing.tcl'))
+    def test_charmm(self):
+        c=Config()
+        p=NAMD2(c)
+        print(p.standard_charmmparfiles)
+        for x in p.standard_charmmparfiles:
+            self.assertTrue('cfa' in x)
+
     # def test_write_mol(self):
     #     c=ConfigSetup('example.yaml')
     #     chainIDmanager=ChainIDManager()

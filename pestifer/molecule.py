@@ -33,9 +33,10 @@ class Molecule(AncestorAwareMod):
             logger.debug('Molecule initialized without source.')
             p_struct=None
         else:
-            if config['rcsb_file_format']=='PDB':
+            rcsb_file_format=options.get('file_format','PDB')
+            if rcsb_file_format=='PDB':
                 p_struct=PDBParser(PDBcode=source).parse().parsed
-            elif config['rcsb_file_format']=='mmCIF':
+            elif rcsb_file_format=='mmCIF':
                 logger.debug(f'CIF source {source}')
                 p_struct=CIFload(source)
                 logger.debug(f'p_struct type {type(p_struct)}')
@@ -50,7 +51,7 @@ class Molecule(AncestorAwareMod):
         input_dict={
             'config': config,
             'chainIDmanager':chainIDmanager,
-            'rcsb_file_format': config['rcsb_file_format'],
+            'rcsb_file_format': rcsb_file_format,
             'molid': Molecule._molcounter,
             'source': source,
             'parsed_struct': p_struct,

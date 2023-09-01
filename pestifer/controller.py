@@ -18,7 +18,6 @@ class Controller:
     def __init__(self,userconfigfilename):
         # Read in the user configuration file and set up the overall Config
         self.config=Config(userconfigfilename)
-        logger.debug(f'New controller: rcsb format {self.config["rcsb_file_format"]}')
 
         # Set up the file writers
         self.writers={

@@ -28,8 +28,10 @@ class ConfigTest(unittest.TestCase):
 
     def test_config(self):
         c=Config(self.userinputs)
-        expected_charmmdir=os.path.join(self.user_home,'test_charmm')
-        self.assertEqual(c['CHARMMPATH'],expected_charmmdir)
+        expected_charmmdir=os.path.join(self.user_home,'charmm')
+        self.assertEqual(c.user_charmm_path,expected_charmmdir)
+        expected_charmmtoppardir=os.path.join(self.user_home,'charmm','toppar')
+        self.assertEqual(c.user_charmm_toppar_path,expected_charmmtoppardir)
 
     def test_resids(self):
         c=Config(self.userinputs)

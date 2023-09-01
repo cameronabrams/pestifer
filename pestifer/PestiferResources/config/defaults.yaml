@@ -85,10 +85,6 @@ PDB_to_CHARMM_Resnames:
   VCG: VCG
   83G: 83G
 
-# PDB_to_CHARMM_Atomnames:
-#   CL: CLA
-#   O: OH2
-
 PDB_1char_to_3char_Resnames:
   A: ALA
   R: ARG
@@ -180,7 +176,6 @@ User_defaults:
   vmd_scriptname: vmd.tcl
   psfgen_scriptname: psfgen.tcl
   vmd: /usr/local/bin/vmd
-  outside_charmm_path: $(HOME)/charmm
   namd2: /usr/local/bin/namd2
   charmrun: /usr/local/bin/charmrun
   namd2_configbasename: namd2in
@@ -190,7 +185,7 @@ User_defaults:
   Include_terminal_loops: False
   Fix_engineered_mutations: True
   Fix_conflicts: True
-  rcsb_file_format: PDB # or mmCIF
+
 
 Namd_defaults:
   generic:

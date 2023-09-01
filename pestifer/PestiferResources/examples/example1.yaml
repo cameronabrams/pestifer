@@ -1,0 +1,18 @@
+title: BPTI
+namd2: $(HOME)/namd/NAMD_2.14_Source/Linux-x86_64-g++/namd2
+charmrun: $(HOME)/namd/NAMD_2.14_Source/Linux-x86_64-g++/charmrun
+tasks:
+  - psfgen:
+      source:
+        rcsb: 6pti
+      minimize:
+        nminsteps: 1000
+      cleanup: True
+  - solvate:
+      minimize:
+        nminsteps: 1000
+  - relax:
+      temperature: 300
+      pressure: 1
+      nsteps: 1000
+      dcdfreq: 100

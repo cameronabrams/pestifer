@@ -198,10 +198,11 @@ class Task(BaseMod):
 
 class PsfgenTask(Task):
     yaml_header='psfgen'
-    default_specs={'cleanup':False,'mods':{},'layloops':{},'minimize':{'nsteps':1000}}
+    default_specs={'cleanup':False,'mods':{},'minimize':{'nsteps':1000}}
     def __init__(self,input_dict,taskname,config,writers,prior):
         super().__init__(input_dict,taskname,config,writers,prior)
-        self.chainIDmanager=ChainIDManager(format=config['rcsb_file_format'])
+        rcsb_file_format=self.specs['source'].get('file_format','PDB')
+        self.chainIDmanager=ChainIDManager(format=rcsb_file_format)
         self.mods=self.specs['mods']
 
     def do(self):
@@ -280,8 +281,9 @@ class PsfgenTask(Task):
         psf_exists=False
         self.basename=specs.get('rcsb',None)
         bioassemb=specs.get('biological_assembly',0)
+        file_format=specs.get('file_format','PDB')
         excludes=specs.get('exclude',{})
-        self.molecules[self.basename]=Molecule(config=self.config,source=self.basename,chainIDmanager=self.chainIDmanager,excludes=excludes,use_psf=psf_exists).activate_biological_assembly(bioassemb)
+        self.molecules[self.basename]=Molecule(config=self.config,source=self.basename,chainIDmanager=self.chainIDmanager,excludes=excludes,use_psf=psf_exists,rcsb_file_format=file_format).activate_biological_assembly(bioassemb)
         self.base_molecule=self.molecules[self.basename]
         for p in self.pdbs:
             self.molecules[p]=Molecule(config=self.config,source=p)
@@ -380,6 +382,7 @@ class LigateTask(Task):
         params.update({'tcl':[f'set temperature {temperature}']})
         params['temperature']='$temperature'
         params['parameters']=na.standard_charmmparfiles+na.custom_charmmparfiles
+        logger.debug(f'Parameter files: {params["parameters"]}')
         namd_params=self.config.namd_params
         params.update(namd_params['generic'])
         params.update(namd_params['vacuum'])
