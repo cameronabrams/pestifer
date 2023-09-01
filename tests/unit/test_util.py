@@ -64,3 +64,6 @@ class TestUtil(unittest.TestCase):
         self.assertFalse(is_periodic(None,'no.xsc'))
         self.assertTrue(is_periodic(None,'yes.xsc'))
         self.assertTrue(is_periodic('yes_cell.tcl',None))
+
+    def test_get_version(self):
+        self.assertEqual(get_version(),'1.0.1')

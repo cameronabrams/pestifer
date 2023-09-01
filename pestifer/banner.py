@@ -7,7 +7,7 @@
 
 """
 from .stringthings import my_logger
-from .__init__ import PESTIFER_VERSION
+from .util import get_version
 
 banner_message="""
     Pestifer {:s}
@@ -21,6 +21,6 @@ banner_message="""
 
     CHARMM force field files from the MacKerell Lab
     July 22 update
-    """.format(PESTIFER_VERSION)
+    """.format(get_version())
 def banner(logf):
     my_logger(banner_message,logf,fill=' ',just='<')
