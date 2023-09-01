@@ -14,19 +14,19 @@ import numpy as np
 
 class TestBiomT(unittest.TestCase):
     def test_identity(self):
-        bi=Transform()
+        bi=Transform('identity')
         I=np.array([[1, 0, 0, 0],[0, 1, 0, 0],[0, 0, 1, 0]],dtype=float)
         self.assertTrue(np.array_equal(I,bi.tmat))
     def test_actual(self):
         R=np.array([[1, 1, 1],[0, 1, 0],[0, 0, 1]],dtype=float)
         RT=np.array([[1, 1, 1, 5],[0, 1, 0, 4],[0, 0, 1, 3]],dtype=float)
         T=np.array([5, 4, 3],dtype=float)
-        bi=Transform(R,T,-1)
+        bi=Transform(R,T,[],0)
         self.assertTrue(np.array_equal(RT,bi.tmat))
     def test_au(self):
         au=AsymmetricUnit() # empty
         ba=BioAssemb(au)
-        bi=ba.transform[0]
+        bi=ba.transforms[0]
         I=np.array([[1, 0, 0, 0],[0, 1, 0, 0],[0, 0, 1, 0]],dtype=float)
         self.assertTrue(np.array_equal(I,bi.tmat))
 

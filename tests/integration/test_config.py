@@ -34,12 +34,12 @@ class ConfigTest(unittest.TestCase):
     def test_resids(self):
         c=Config(self.userinputs)
         self.assertEqual(c['PDB_1char_to_3char_Resnames']['S'],'SER')
-        self.assertEqual(c['PDB_to_CHARMM_Resnames']['NAG'],'BGNA')
+        self.assertEqual(c['PDB_to_CHARMM_Resnames']['NAG'],'BGLCNA')
     def test_seqtypes(self):
         c=Config(self.userinputs)
         self.assertEqual(c['Segtypes_by_Resnames']['HOH'],'WATER')
         self.assertEqual(c['Segtypes_by_Resnames']['NAG'],'GLYCAN')
-        self.assertEqual(c['Segtypes_by_Resnames']['BGNA'],'GLYCAN')
+        self.assertEqual(c['Segtypes_by_Resnames']['BGLCNA'],'GLYCAN')
         self.assertEqual(c['Segtypes_by_Resnames']['ALA'],'PROTEIN')
         self.assertEqual(c.segtype('PHE'),'PROTEIN')
 

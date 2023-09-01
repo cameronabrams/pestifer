@@ -56,7 +56,7 @@ class TestCIF(unittest.TestCase):
         self.assertEqual(len(atoms),17693)
         residues=ResidueList(atoms)
         self.assertEqual(len(residues),2082)
-        uCIDs=residues.unique_chainIDs()
+        uCIDs=residues.uniqattrs(['chainID'])['chainID']
         print(uCIDs)
         self.assertEqual(len(uCIDs),82)
         nres=0
@@ -76,7 +76,7 @@ class TestCIF(unittest.TestCase):
         obj=p_struct.getObj('atom_site')
         atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
         residues=ResidueList(atoms)
-        uCIDs=residues.unique_chainIDs()
+        uCIDs=residues.uniqattrs(['chainID'])['chainID']
         nres=0
         for c in uCIDs:
             chain=residues.filter(chainID=c)

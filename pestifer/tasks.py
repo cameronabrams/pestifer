@@ -300,7 +300,7 @@ class LigateTask(Task):
             logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
             self.statevars=self.prior.statevars.copy()
         self.base_molecule=self.statevars['base_molecule']
-        if not self.base_molecule.has_loops():
+        if not self.base_molecule.has_loops(min_length=self.specs.get('min_loop_length',4)):
             logger.info('No loops. Ligation bypassed.')
             return
         logger.debug('Steering loop ends')

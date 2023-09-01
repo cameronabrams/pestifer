@@ -173,6 +173,8 @@ class StateInterval(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['state','bounds']
     def increment_rightbound(self):
         self.bounds[1]+=1
+    def num_residues(self):
+        return self.bounds[1]-self.bounds[0]
     def pstr(self):
         return f'{self.state}({self.bounds[1]-self.bounds[0]+1})'
 

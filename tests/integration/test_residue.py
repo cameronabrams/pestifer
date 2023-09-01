@@ -32,19 +32,19 @@ class TestResidue(unittest.TestCase):
         for r in i:
             if not r.chainID in ic:
                 ic.append(r.chainID)
-        self.assertEqual(ic,['G','B','L'])
+        self.assertEqual(ic,['U','V','W'])
         w=au.Residues.filter(segtype='WATER')
         wc=[]
         for r in w:
             if not r.chainID in wc:
                 wc.append(r.chainID)
-        self.assertEqual(wc,['G', 'B', 'L', 'H', 'D', 'E'])
+        self.assertEqual(wc,['X', 'Y', 'Z', 'a', 'b', 'c'])
         g=au.Residues.filter(segtype='GLYCAN')
         gc=[]
         for r in g:
             if not r.chainID in gc:
                 gc.append(r.chainID)
-        self.assertEqual(gc,['A','C','F','I','J','K','M','N','O','P','Q','R','S','T','G','B','H'])
+        self.assertEqual(gc,['A', 'C', 'F', 'I', 'J', 'K', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'd', 'e', 'f'])
         l=au.Residues.filter(segtype='LIGAND')
         lc=[]
         for r in l:

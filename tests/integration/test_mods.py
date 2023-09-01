@@ -1,5 +1,5 @@
 from pestifer.mods import Mutation, Missing, Seqadv, SSBond, Crot, Link
-from pestifer.cifutil import CIFdict
+from pestifer.cifutil import CIFdict, CIFload
 from pidibble.pdbparse import PDBParser
 from pestifer.bioassemb import Transform
 from pestifer.config import Config
@@ -24,7 +24,7 @@ class TestMutation(unittest.TestCase):
         self.assertTrue(type(m)==Mutation)
     def test_shortcode(self):
         m=Mutation(self.shortcode)
-        self.assertTrue(m.chainID=='A' and m.resseqnumi=='123A')
+        self.assertTrue(m.chainID=='A' and m.resseqnum==123 and m.insertion=='A')
     def test_clone(self):
         m=Mutation(self.input_dict)
         n=Mutation.clone(m,chainID=m.chainID)
@@ -37,13 +37,6 @@ class TestMutation(unittest.TestCase):
 
 class TestMissing(unittest.TestCase):
     def setUp(self):
-        self.cifdict=CIFdict({
-            'pdb_ins_code':'?',
-            'pdb_model_num':'1',
-            'auth_comp_id':'GLU',
-            'auth_asym_id':'G',
-            'auth_seq_id':'185'
-        })
         return super().setUp()
     def test_pdbrecord(self):
         p=PDBParser(PDBcode='4i53').parse()
@@ -63,12 +56,14 @@ class TestMissing(unittest.TestCase):
         self.assertEqual(m.resseqnum,457)
         self.assertEqual(m.insertion,'B')
     def test_cifdict(self):
-        m=Missing(self.cifdict)
+        p=CIFload('4i53')
+        obj=p.getObj('pdbx_unobs_or_zero_occ_residues')
+        m=Missing(CIFdict(obj,0))
         self.assertEqual(m.model,1)
-        self.assertEqual(m.resname,'GLU')
-        self.assertEqual(m.chainID,'G')
-        self.assertEqual(m.resseqnum,185)
-        self.assertEqual(m.insertion,' ')
+        self.assertEqual(m.resname,'VAL')
+        self.assertEqual(m.chainID,'A')
+        self.assertEqual(m.resseqnum,1)
+        self.assertEqual(m.insertion,'')
 
 
 class TestSSBond(unittest.TestCase):

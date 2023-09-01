@@ -39,9 +39,9 @@ class Transform(AncestorAwareMod):
             input_dict['index']=input_objs[3]
             input_dict['tmat']=build_tmat(RotMat,TransVec)
         elif len(input_objs)>0 and input_objs[0]=='identity':
-            input_dict['tmat']=build_tmat(RotMat,TransVec)
             RotMat=np.identity(3)
             TransVec=np.zeros(3)
+            input_dict['tmat']=build_tmat(RotMat,TransVec)
             input_dict['index']=0
             input_dict['applies_chainIDs']=[]
         input_dict['chainIDmap']={}

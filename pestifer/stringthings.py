@@ -12,6 +12,26 @@ import logging
 logger=logging.getLogger(__name__)
 import os
 # _ANGSTROM_='Ångström'
+
+from .util import get_version
+
+banner_message="""
+    Pestifer v. {:s}
+    https://github.com/cameronabrams/pestifer
+
+    Cameron F. Abrams
+    cfa22@drexel.edu
+
+    Supported in part by Grants GM100472, AI15407, 
+    and AI178833 from the NIH
+
+    CHARMM force field files from the MacKerell Lab
+    July 22 update
+    """.format(get_version())
+
+def banner(logf):
+    my_logger(banner_message,logf,fill=' ',just='<')
+
 class ByteCollector:
     def __init__(self,comment_char='#',line_length=80):
         self.line_length=line_length

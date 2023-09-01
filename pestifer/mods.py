@@ -634,7 +634,7 @@ class Link(AncestorAwareMod):
                 W.addline(f'set abj [axeq {self.resseqnum1} 0 {seg1} {self.name1} -1]')
                 if self.name1=='O6':
                     W.addline('if { $abi == "a" } { set abi A }')
-                    W.addline('if { $abi == "b" } { set abi B }')
+                    W.addline('if { $abi == "b" } { set abi B; set abj T }')
                     W.addline('if { $abj == "b" } { set abj T }')
                 W.addline('set pres "1$cn$abi$abj"')
                 W.addline(f'patch $pres {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')

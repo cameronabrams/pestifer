@@ -121,18 +121,18 @@ class Molecule(AncestorAwareMod):
                 maps[oc].append({'transform':transform.index,'mappedchain':mc})
         return maps
     
-    def has_loops(self):
+    def has_loops(self,min_length=4):
         nloops=0
         au=self.asymmetric_unit
         for S in au.Segments:
-            chainID=S.chainID
+            # chainID=S.chainID
             if S.segtype=='PROTEIN':
                 for b in S.subsegments:
-                    if b.state=='MISSING':
+                    if b.state=='MISSING' and b.num_residues()>=min_length:
                         nloops+=1
         return nloops
 
-    def write_loop_lines(self,writer,cycles=100,sac_n=4):
+    def write_loop_lines(self,writer,cycles=100,min_length=4):
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
         for S in au.Segments:
@@ -141,7 +141,7 @@ class Molecule(AncestorAwareMod):
                 asymm_segname=S.segname
                 for b in S.subsegments:
                     if b.state=='MISSING':
-                        if (b.bounds[1]-b.bounds[0])>(sac_n-1):
+                        if b.num_residues()>=min_length:
                             reslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
                             tcllist='[list '+' '.join(reslist)+']'
                             for transform in ba.transforms:
@@ -149,7 +149,7 @@ class Molecule(AncestorAwareMod):
                                 act_segID=cm.get(asymm_segname,asymm_segname)
                                 writer.addline(f'declash_loop $mLL {act_segID} {tcllist} {cycles}')
     
-    def write_gaps(self,writer,sac_n=4):
+    def write_gaps(self,writer,min_length=4):
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
         writer.addline('# fields: segname loop-begin-res loop-end-res connect-to-res')
@@ -159,7 +159,7 @@ class Molecule(AncestorAwareMod):
                 asymm_segname=S.segname
                 for i,b in enumerate(S.subsegments):
                     if b.state=='MISSING':
-                        if (b.bounds[1]-b.bounds[0])>(sac_n-1) and i<(len(S.subsegments)-1):
+                        if b.num_residues()>=min_length and i<(len(S.subsegments)-1):
                             reslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
                             bpp=S.subsegments[i+1]
                             nreslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[bpp.bounds[0]:bpp.bounds[1]+1]]
@@ -169,7 +169,7 @@ class Molecule(AncestorAwareMod):
                                 act_segID=cm.get(asymm_segname,asymm_segname)
                                 writer.addline(f'{act_segID} {reslist[0]} {reslist[-1]} {nreslist[0]}')
 
-    def write_connect_patches(self,writer,sac_n=4):
+    def write_connect_patches(self,writer,min_length=4):
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
         for S in au.Segments:
@@ -178,7 +178,7 @@ class Molecule(AncestorAwareMod):
                 asymm_segname=S.segname
                 for i,b in enumerate(S.subsegments):
                     if b.state=='MISSING':
-                        if (b.bounds[1]-b.bounds[0])>(sac_n-1) and i<(len(S.subsegments)-1):
+                        if b.num_residues()>=min_length and i<(len(S.subsegments)-1):
                             llres=S.residues[b.bounds[1]-1]
                             lres=S.residues[b.bounds[1]]
                             nextb=S.subsegments[i+1]

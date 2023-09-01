@@ -12,7 +12,7 @@ import shutil
 import logging
 logger=logging.getLogger(__name__)
 
-from .banner import banner
+from .stringthings import banner
 from .controller import Controller
 
 def _main():
