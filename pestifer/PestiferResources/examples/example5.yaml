@@ -1,6 +1,4 @@
 title: Example 4 HIV-1 Env Trimer 4tvp, Fabs/phosphates removed
-namd2: $(HOME)/namd/NAMD_2.14_Source/Linux-x86_64-g++/namd2
-charmrun: $(HOME)/namd/NAMD_2.14_Source/Linux-x86_64-g++/charmrun
 tasks:
   - psfgen:
       source:

@@ -11,51 +11,52 @@ import unittest
 import platform
 import os
 import yaml
-from pestifer.config import Config
+from pestifer.config import Config, ResourceManager
 
 class ConfigTest(unittest.TestCase):
-    def setUp(self):
-        plat=platform.system()
-        if plat=='Linux':
-            self.user_home=os.environ['HOME']
-        elif plat=='Windows':
-            self.user_home=os.environ['HOMEPATH']
-        elif plat=='Darwin':
-            self.user_home=os.environ['HOME']
-        else:
-            raise(Exception,f'platform {plat} not recognized')
-        self.userinputs='user_config.yaml'
+    def test_resource_manager(self):
+        rm=ResourceManager()
+        for r in ['charmmff','config','examples','tcl']:
+            self.assertTrue(r in rm)
+        for cd in ['custom','toppar']:
+            self.assertTrue(cd in rm['charmmff'])
+            
+    def test_config_nouser(self):
+        c=Config()
+        self.assertTrue('Resources' in c)
+        self.assertEqual(type(c['Resources']),ResourceManager)
+        rr=c['Resources']['tcl']['scripts']
+        print(rr)
+        self.assertEqual(os.path.join(rr,'pestifer-vmd.tcl'),c.vmd_startup_script)
+        self.assertEqual(c.segtype_by_resname('ALA'),'protein')
+        self.assertEqual(c.segtype_by_resname('MAN'),'glycan')
+        self.assertEqual(c.segtype_by_resname('CL'),'ion')
+        self.assertEqual(c.charmmify_resname('MAN'),'AMAN')
+        self.assertEqual(c.charmmify_resname('ALA'),'ALA')
+        self.assertEqual(c.res_123('A'),'ALA')
+        self.assertEqual(c.res_321('PHE'),'F')
 
-    def test_config(self):
-        c=Config(self.userinputs)
-        expected_charmmdir=os.path.join(self.user_home,'charmm')
-        self.assertEqual(c.user_charmm_path,expected_charmmdir)
-        expected_charmmtoppardir=os.path.join(self.user_home,'charmm','toppar')
-        self.assertEqual(c.user_charmm_toppar_path,expected_charmmtoppardir)
-
-    def test_resids(self):
-        c=Config(self.userinputs)
-        self.assertEqual(c['PDB_1char_to_3char_Resnames']['S'],'SER')
-        self.assertEqual(c['PDB_to_CHARMM_Resnames']['NAG'],'BGLCNA')
-    def test_seqtypes(self):
-        c=Config(self.userinputs)
-        self.assertEqual(c['Segtypes_by_Resnames']['HOH'],'WATER')
-        self.assertEqual(c['Segtypes_by_Resnames']['NAG'],'GLYCAN')
-        self.assertEqual(c['Segtypes_by_Resnames']['BGLCNA'],'GLYCAN')
-        self.assertEqual(c['Segtypes_by_Resnames']['ALA'],'PROTEIN')
-        self.assertEqual(c.segtype('PHE'),'PROTEIN')
-
-    def test_dictlikeness(self):
-        c=Config(self.userinputs)
-        p=c.get('AssHat','Cannot find an asshat')
-        self.assertEqual(p,'Cannot find an asshat')
-        p=c.get('steps',[])
-        with open(self.userinputs,'r') as f:
-            d=yaml.safe_load(f)
-        self.assertTrue(type(p)==list)
-        self.assertEqual(p,d['steps'])
-        self.assertEqual(len(p),2)
-
-    def test_boolean(self):
+    def test_config_boolean(self):
         c=Config()
         self.assertTrue(c)
+
+    def test_config_user(self):
+        rm=ResourceManager()
+        configfile=rm['examples']+'/example1.yaml'
+        c=Config(userconfigfile=configfile)
+        self.assertTrue('user' in c)
+        self.assertTrue('tasks' in c['user'])
+        self.assertEqual(len(c['user']['tasks'][0].keys()),1)
+        task1=c['user']['tasks'][0]
+        name,specs=[(x,y) for x,y in task1.items()][0]
+        self.assertEqual(name,'psfgen')
+        self.assertTrue('source' in specs)
+        self.assertEqual(specs['source']['rcsb'],'6pti')
+        self.assertTrue('minimize' in specs)
+        self.assertTrue('cleanup' in specs)
+        task2=c['user']['tasks'][1]
+        name,specs=[(x,y) for x,y in task2.items()][0]
+        self.assertEqual(name,'solvate')
+        task3=c['user']['tasks'][2]
+        name,specs=[(x,y) for x,y in task3.items()][0]
+        self.assertEqual(name,'relax')

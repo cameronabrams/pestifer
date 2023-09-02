@@ -1,0 +1,146 @@
+title:
+  text: Meaningful title
+paths:
+  text: Allows user to specify various paths
+  subheadings:
+    namd2:
+      text: Path for namd2 executable
+      default: /usr/local/bin/namd2
+    vmd:
+      text: Path for vmd executable
+      default: /usr/local/bin/vmd
+    charmrun:
+      text: Path for charmrun executable
+      default: /usr/local/bin/charmrun
+    charmmff:
+      text: Path for standard charmm force-field distribution; note that pestifer comes with the July 2022 distribution included and this is used by default
+tasks:
+  text: Specifies the tasks to be performed; each is a dictionary with a heading
+  subheadings:
+    psfgen:
+      text: Parameters controlling initial psfgen run
+      subheadings:
+        source:
+          text: Specifies the source of the initial coordinate file
+          subheadings:
+            rcsb: 
+              text: The 4-character PDB ID of the source
+            biological_assembly: 
+              text: integer index of the biological assembly to construct; default is 0, signifying that the asymmetric unit is to be used
+              default: 0
+            file_format: 
+              text: either PDB or mmCIF; some entries do not have a PDB-format file.  The main advantage of PDB is that it uses the author-designations for chains by default.  mmCIF is the new "default" format of the PDB.
+              default: PDB
+            exclude:
+              text: Specifies any residues or atoms to exclude from the system
+              subheadings:
+                  chains:
+                    text: Specify list of chain IDs to ignore; in PDB-format input, these are typically author-generated, while in mmCIF they are not.  You must use chain IDs that reference your chosen coordinate file input format.
+                  resnames:
+                    text: Specify list of resnames to ignore; good for exluding waters or ions.  Resnames must reference your chosen coordinate input file.
+        ctrl:
+          text: Parameters that control the psfgen execution
+          subheadings:
+            preligate:
+              text: Parameters controlling model-built loops during psfgen
+              subheadings:
+                sac_res_name: 
+                  text: 3-letter code of residue appended to any sufficiently long model-built loop
+                  default: GLY
+                min_loop_length:
+                  text: Minimum length of model-built loop that triggers the ligation algorithm
+            sequence:
+              text: Parameters controlling sequence modifications based on specifications in the PDB file
+              subheadings:
+                include_terminal_loops:
+                  text: Specifies whether or not N- and C- terminal loops (if unresolved) are built in
+                  default: False
+                fix_engineered_mutations:
+                  text: Specifies whether or not sequence differences w.r.t. a sequence database and which are labeled as "engineered mutation"s are reverted to their database values
+                  default: True 
+                fix_conflicts: 
+                  text: Specifies whether or not sequence differences w.r.t. a sequence database and which are labeled as "conflicts"s are reverted to their database values
+                  default: True 
+        mods:
+          text: Specifies modifications to the sequence or structure in the PDB file
+          subheadings:
+            mutations:
+              text: Single-residue mutations
+        minimize: 
+          text: Specifies the energy minimization to be performed on the output of psfgen
+          subheadings:
+            nminsteps:
+              text: Number of iterations for the energy minimization
+              default: 1000
+        declash:
+          text: Specifies how model-built residues are moved to avoid steric clashes
+          subheadings:
+            maxcycles:
+              text: Maximum number of Metropolis cycles
+              default: 20
+        cleanup:
+          text: Specifies whether or not to delete temporary files generated during psfgen execution
+          default: True
+    ligate:
+      text: Specifies how C-termini of model-built loops are connected back into their protein
+      subheadings:
+        steer:
+          text: Specifies parameters for steered MD to bring C-termini close to their connection points
+          subheadings:
+            force_constant:
+              text: force constant (kcal/mol/Angstrom^2)
+              default: 20
+            target_distant:
+              text: distance (Angstrom) between carbonyl carbon of loop C-terminus and amide nitrogen of connecting residue that steered MD drives to
+              default: 2
+            nsteps:
+              text: number of MD time steps for steeering
+              default: 1000
+            dcdfreq:
+              text: number of time steps between configuration output to DCD file
+              default: 100
+        connect:
+          text: Specifies parameters of the psfgen run that patches in the new backbone bonds
+          subheadings:
+            cleanup:
+              text: Specifies whether or not to clean up temporary files
+              default: True 
+        minimize:
+          text: Specifies the energy minimization to be performed on the output of psfgen
+          subheadings:
+            nminsteps:
+              text: Number of iterations for the energy minimization
+              default: 1000
+    solvate:
+      text: Parameters controlling solvation and ionization
+      subheadings:
+        solvate:
+          text: (unused)
+        autoionize:
+          text: (unused)
+        minimize:
+          text: Specifies the energy minimization to be performed on the output of psfgen
+          subheadings:
+            nminsteps:
+              text: Number of iterations for the energy minimization
+              default: 1000
+    relax:
+      text: Parameters controlling NVT or NPT equilibration
+      subheadings:
+        nsteps:
+          text: Number of MD time steps
+          default: 1000
+        dcdfreq:
+          text: number of time steps between configuration output to DCD file
+          default: 100
+        temperature:
+          text: Temperature (K) for NVT/NPT
+          default: 300
+        pressure:
+          text: Pressure (bar) for NPT; note that NPT can only be peformed on a solvated system
+          default: 1
+    terminate:
+      text: Task that signals end of task list
+      subheadings:
+        basename:
+          text: Desired basename for final psf/pdb files

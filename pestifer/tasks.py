@@ -444,7 +444,7 @@ class LigateTask(Task):
 class SolvateTask(Task):
     yaml_header='solvate'
     opt_attr=Task.opt_attr+[yaml_header]
-    default_specs={'solvate':{},'autoionize':{},'minimize':{'nminsteps':100}}
+    default_specs={'solvate':{},'autoionize':{},'minimize':{'nminsteps':1000}}
     def do(self):
         self.statevars=self.prior.statevars.copy()
         basename=self.next_basename()

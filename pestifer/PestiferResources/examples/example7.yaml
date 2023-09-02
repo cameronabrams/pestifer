@@ -1,7 +1,4 @@
 title: HIV-1 Env Trimer 8fae
-namd2: $(HOME)/namd/NAMD_2.14_Source/Linux-x86_64-g++/namd2
-charmrun: $(HOME)/namd/NAMD_2.14_Source/Linux-x86_64-g++/charmrun
-charmmpath: $(HOME)/charmm
 tasks:
   - psfgen:
       source:
