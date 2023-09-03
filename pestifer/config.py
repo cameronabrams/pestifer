@@ -92,15 +92,11 @@ class Config(UserDict):
             if tok[0]=='residue':
                 self.pdb_to_charmm_resnames[tok[1]]=tok[2]
     
-    def segtype_by_resname(self,resname):
-        sts=self['base']['psfgen']['segtypes']
-        for s,rl in sts.items():
-            if resname in rl['resnames']:
-                return s
-        return 'other'
+    def segtype_of_resname(self):
+        return self['base']['psfgen']['segtypes']['resnames']
     
-    def charmmify_resname(self,pdbname):
-        return self.pdb_to_charmm_resnames.get(pdbname,pdbname)
+    def charmm_resname_of_pdb_resname(self):
+        return self.pdb_to_charmm_resnames
     
     def res_321(self,resname):
         return self['base']['psfgen']['segtypes']['protein']['rescodes'][resname]

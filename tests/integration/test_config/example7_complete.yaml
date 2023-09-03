@@ -5,18 +5,14 @@ paths:
 tasks:
 - psfgen:
     cleanup: true
-    ctrl:
+    loops:
       declash:
         maxcycles: 20
-      preligate:
-        min_loop_length: 4
-        sac_res_name: GLY
-      sequence:
-        fix_conflicts: true
-        fix_engineered_mutations: true
-        include_terminal_loops: false
+      min_loop_length: 4
+      sac_res_name: GLY
     minimize:
       nminsteps: 1000
+    mods: {}
     source:
       biological_assembly: 1
       exclude:
@@ -24,6 +20,10 @@ tasks:
         - 83G
       file_format: mmCIF
       id: 8fae
+      sequence:
+        fix_conflicts: true
+        fix_engineered_mutations: true
+        include_terminal_loops: false
 - ligate:
     connect:
       cleanup: true
@@ -37,18 +37,24 @@ tasks:
 - relax:
     dcdfreq: 100
     ensemble: NVT
+    nminsteps: 0
     nsteps: 1000
     pressure: 1
     temperature: 300
+    xstfreq: 100
 - solvate:
     minimize:
       nminsteps: 1000
 - relax:
     dcdfreq: 100
     ensemble: NPT
+    nminsteps: 0
     nsteps: 1000
     pressure: 1
     temperature: 300
+    xstfreq: 100
 - terminate:
     basename: my_8fae
+    chainmapfile: chainmaps.yaml
+    statefile: states.yaml
 title: HIV-1 Env Trimer 8fae

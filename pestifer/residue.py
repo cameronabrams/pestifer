@@ -7,7 +7,6 @@
 
 """
 from .mods import *
-# from .config import ConfigGetParam
 from .mods import AncestorAwareModList,AncestorAwareMod
 
 class Ter(AncestorAwareMod):

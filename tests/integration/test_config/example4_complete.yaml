@@ -8,19 +8,23 @@ tasks:
     ctrl:
       declash:
         maxcycles: 21
-      preligate:
-        min_loop_length: 4
-        sac_res_name: GLY
+    loops:
+      declash:
+        maxcycles: 20
+      min_loop_length: 4
+      sac_res_name: GLY
+    minimize:
+      nminsteps: 1000
+    mods: {}
+    source:
+      biological_assembly: 1
+      exclude: {}
+      file_format: PDB
+      id: 4zmj
       sequence:
         fix_conflicts: true
         fix_engineered_mutations: true
         include_terminal_loops: false
-    minimize:
-      nminsteps: 1000
-    source:
-      biological_assembly: 1
-      file_format: PDB
-      id: 4zmj
 - ligate:
     connect:
       cleanup: true
@@ -34,18 +38,24 @@ tasks:
 - relax:
     dcdfreq: 100
     ensemble: NVT
+    nminsteps: 0
     nsteps: 2400
     pressure: 1
     temperature: 300
+    xstfreq: 100
 - solvate:
     minimize:
       nminsteps: 1000
 - relax:
     dcdfreq: 100
     ensemble: NPT
+    nminsteps: 0
     nsteps: 1000
     pressure: 1
     temperature: 300
+    xstfreq: 100
 - terminate:
     basename: my_4zmj
+    chainmapfile: chainmaps.yaml
+    statefile: states.yaml
 title: Example 4 HIV-1 Env Trimer 4zmj

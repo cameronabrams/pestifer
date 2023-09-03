@@ -58,7 +58,6 @@ directives:
               - name: exclude
                 text: Specifies any residues or atoms to exclude from the system
                 type: dict
-                required: False
                 directives:
                   - name: chains
                     text: Specify list of chain IDs to ignore; in PDB-format input, these are typically author-generated, while in mmCIF they are not.  You must use chain IDs that reference your chosen coordinate file input format.
@@ -68,22 +67,6 @@ directives:
                     text: Specify list of resnames to ignore; good for exluding waters or ions.  Resnames must reference your chosen coordinate input file.
                     type: list
                     required: False
-          - name: ctrl
-            text: Parameters that control the psfgen execution
-            type: dict
-            directives:
-              - name: preligate
-                text: Parameters controlling model-built loops during psfgen
-                type: dict
-                directives:
-                  - name: sac_res_name 
-                    text: 3-letter code of residue appended to any sufficiently long model-built 
-                    type: str
-                    default: GLY
-                  - name: min_loop_length
-                    text: Minimum length of model-built loop that triggers the ligation algorithm
-                    type: int
-                    default: 4
               - name: sequence
                 text: Parameters controlling sequence modifications based on specifications in the PDB file
                 type: dict
@@ -99,7 +82,19 @@ directives:
                   - name: fix_conflicts 
                     text: Specifies whether or not sequence differences w.r.t. a sequence database and which are labeled as "conflicts"s are reverted to their database values
                     type: bool
-                    default: True
+                    default: True          
+          - name: loops
+            text: Parameters controlling model-built loops during psfgen
+            type: dict
+            directives:
+              - name: sac_res_name 
+                text: 3-letter code of residue appended to any sufficiently long model-built 
+                type: str
+                default: GLY
+              - name: min_loop_length
+                text: Minimum length of model-built loop that triggers the ligation algorithm
+                type: int
+                default: 4
               - name: declash
                 text: Specifies how model-built residues are moved to avoid steric clashes
                 type: dict
@@ -110,12 +105,12 @@ directives:
                     default: 20
           - name: mods
             text: Specifies modifications to the sequence or structure in the PDB file
-            type: list
-            required: False
+            type: dict
             directives:
               - name: mutations
                 text: Single-residue mutations
                 type: list
+                required: False
           - name: minimize 
             text: Specifies the energy minimization to be performed on the output of psfgen
             type: dict
@@ -189,12 +184,20 @@ directives:
             type: str
             choices: [NVT, NPT]
             default: NVT
+          - name: nminsteps
+            text: Number of minimization steps
+            type: int
+            default: 0
           - name: nsteps
             text: Number of MD time steps
             type: int
             default: 1000
           - name: dcdfreq
             text: number of time steps between configuration output to DCD file
+            type: int
+            default: 100
+          - name: xstfreq
+            text: number of time steps between cell size output to DCD file
             type: int
             default: 100
           - name: temperature
@@ -212,3 +215,11 @@ directives:
           - name: basename
             text: Desired basename for final psf/pdb files
             type: str
+          - name: chainmapfile
+            text: Desired name of the file describing all chain mapping
+            type: str
+            default: chainmaps.yaml
+          - name: statefile
+            text: Desired name of the file describing the current state
+            type: str
+            default: states.yaml

@@ -18,44 +18,43 @@ from .mods import MutationList, apply_psf_info
 logger=logging.getLogger(__name__)
 
 class Molecule(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['config','molid','chainIDmanager','source','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
+    req_attr=AncestorAwareMod.req_attr+['molid','chainIDmanager','source','segtype_of_resname','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
     opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
-    def __init__(self,source=None,config=None,chainIDmanager=None,excludes={},**options):
-        reset=options.get('reset_counter',False)
+    def __init__(self,source={},chainIDmanager=None,segtype_of_resname=None,**kwargs):
+        reset=kwargs.get('reset_counter',False)
         if reset:
             Molecule._molcounter=0
         else:
             Molecule._molcounter+=1
-        if not config:
-            logger.warning('Molecule initialized without config.')
         if not source:
             logger.debug('Molecule initialized without source.')
             p_struct=None
         else:
-            rcsb_file_format=options.get('file_format','PDB')
+            rcsb_file_format=source['file_format']
             if rcsb_file_format=='PDB':
                 p_struct=PDBParser(PDBcode=source).parse().parsed
             elif rcsb_file_format=='mmCIF':
                 logger.debug(f'CIF source {source}')
                 p_struct=CIFload(source)
                 logger.debug(f'p_struct type {type(p_struct)}')
-        use_psf=options.get('use_psf',None)
-        if use_psf:
-            apply_psf_info(p_struct,f'{source}.psf')
+        # use_psf=options.get('use_psf',None)
+        # if use_psf:
+        #     apply_psf_info(p_struct,f'{source}.psf')
         # if os.path.exists(f'{source}.psf'):
         #     apply_psf_info(p_struct,f'{source}.psf')
         if chainIDmanager==None:
             logger.debug(f'Molecule instantiating its own ChainIDManager')
             chainIDmanager=ChainIDManager()
         input_dict={
-            'config': config,
+            'source': source,
             'chainIDmanager':chainIDmanager,
+            'segtype_of_resname': segtype_of_resname,
             'rcsb_file_format': rcsb_file_format,
             'molid': Molecule._molcounter,
             'source': source,
             'parsed_struct': p_struct,
-            'asymmetric_unit': AsymmetricUnit(p_struct,config,chainIDmanager,excludes),
+            'asymmetric_unit': AsymmetricUnit(p_struct,segtype_of_resname,chainIDmanager),
             'biological_assemblies': BioAssembList(p_struct)
         }
         super().__init__(input_dict)
@@ -77,7 +76,6 @@ class Molecule(AncestorAwareMod):
     def write_TcL(self,W:Psfgen,user_mods):
         au=self.asymmetric_unit
         ba=self.active_biological_assembly
-        config=self.config
         allmods=user_mods.copy()
         if not 'Mutations' in allmods:
             allmods['Mutations']=MutationList([])
@@ -91,11 +89,11 @@ class Molecule(AncestorAwareMod):
         user_mutations=user_mods.get('Mutations',MutationList([]))
         au.SSBonds.prune_mutations(user_mutations)
         au.Links.prune_mutations(user_mutations,au.Segments)
-        if config['Fix_engineered_mutations']:
+        if self.source['sequence']['fix_engineered_mutations']:
             au.SSBonds.prune_mutations(au.Mutations)
             au.Links.prune_mutations(au.Mutations,au.Segments)
             # au.Links.prune_mutations(au.Conflicts) # problematic?
-        if config['Fix_conflicts']:
+        if self.source['sequence']['fix_conflicts']:
             au.SSBonds.prune_mutations(au.Conflicts)
             au.Links.prune_mutations(au.Conflicts,au.Segments)
             # au.Links.prune_mutations(au.Conflicts) # problematic?

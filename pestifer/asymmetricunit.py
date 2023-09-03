@@ -37,7 +37,7 @@ class AsymmetricUnit(AncestorAwareMod):
             }
         else: # p_struct,config,chainIDmanager,excludes
             pr=objs[0]
-            config=objs[1]
+            segtype_of_resname=objs[1]
             chainIDmanager=objs[2]
             excludes=objs[3]
             Missings=MissingList([])
@@ -92,7 +92,7 @@ class AsymmetricUnit(AncestorAwareMod):
             fromAtoms=ResidueList(Atoms)
             fromMissings=ResidueList(Missings)
             Residues=fromAtoms+fromMissings
-            Residues.apply_segtypes(config.get('Segtypes_by_Resnames',{}))
+            Residues.apply_segtypes(segtype_of_resname)
             uniques=Residues.uniqattrs(['segtype'],with_counts=True)
             logger.debug(f'{len(Residues)} total residues: {len(fromAtoms)} resolved and {len(fromMissings)} unresolved')
             logger.debug(f'Segtypes present: {uniques["segtype"]}')

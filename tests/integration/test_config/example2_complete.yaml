@@ -5,18 +5,14 @@ paths:
 tasks:
 - psfgen:
     cleanup: true
-    ctrl:
+    loops:
       declash:
         maxcycles: 20
-      preligate:
-        min_loop_length: 4
-        sac_res_name: GLY
-      sequence:
-        fix_conflicts: true
-        fix_engineered_mutations: true
-        include_terminal_loops: false
+      min_loop_length: 4
+      sac_res_name: GLY
     minimize:
       nminsteps: 1000
+    mods: {}
     source:
       biological_assembly: 0
       exclude:
@@ -24,13 +20,19 @@ tasks:
         - PO4
       file_format: PDB
       id: 6pti
+      sequence:
+        fix_conflicts: true
+        fix_engineered_mutations: true
+        include_terminal_loops: false
 - solvate:
     minimize:
       nminsteps: 1000
 - relax:
     dcdfreq: 100
     ensemble: NPT
+    nminsteps: 0
     nsteps: 1000
     pressure: 1
     temperature: 300
+    xstfreq: 100
 title: BPTI

@@ -22,14 +22,10 @@ from .stringthings import FileCollector
 class Task(BaseMod):
     req_attr=BaseMod.req_attr+['specs','index','prior','writers','config','taskname']
     yaml_header='generic_task'
-    default_specs={}
-    exts=['.psf','.pdb','.coor','.xsc']
+    exts=['.psf','.pdb','.coor','.xsc'] # extensions of files that can be transferred from one task to the next
     _taskcount=0
     def __init__(self,input_dict,taskname,config,writers,prior):
         specs=input_dict.copy()
-        for k,v in self.__class__.default_specs.items():
-            if not k in specs:
-                specs[k]=v
         input_dict = {
             'index':Task._taskcount,
             'config':config,
@@ -84,13 +80,11 @@ class Task(BaseMod):
 
     def minimize(self,specs):
         namd_params=self.config.namd_params
-        temperature=specs.get('temperature',None)
         basename=self.next_basename('minimize')
-        nminsteps=specs.get('nminsteps',1000)
-        dcdfreq=specs.get('dcdfreq',0)
+        nminsteps=specs['nminsteps']
+        dcdfreq=specs['dcdfreq']
         na=self.writers['namd2']
-        if not temperature:
-            temperature=namd_params['generic'].get('temperature',311)
+        temperature=namd_params['generic']['temperature']
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
         coor=self.statevars.get('coor',None)
@@ -135,20 +129,20 @@ class Task(BaseMod):
             del self.statevars['cell']
         self.coor_to_pdb(basename)
 
+    # TODO: make consistent with helpfile
     def relax(self,specs,label=None):
         namd_params=self.config.namd_params
-        temperature=specs.get('temperature',None)
-        pressure=specs.get('pressure',None)
-        if not temperature:
-            temperature=namd_params['generic'].get('temperature',311)
+        ensemble=specs['ensemble']
+        temperature=specs['temperature']
+        pressure=specs['pressure']
         if label==None:
             basename=self.next_basename('relax')
         else:
             basename=self.next_basename(label)
-        nminsteps=specs.get('nminsteps',0)
-        nsteps=specs.get('nsteps',1000)
-        dcdfreq=specs.get('dcdfreq',0)
-        xstfreq=specs.get('xstfreq',0)
+        nminsteps=specs['nminsteps']
+        nsteps=specs['nsteps']
+        dcdfreq=specs['dcdfreq']
+        xstfreq=specs['xstfreq']
         na=self.writers['namd2']
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
@@ -198,12 +192,11 @@ class Task(BaseMod):
 
 class PsfgenTask(Task):
     yaml_header='psfgen'
-    default_specs={'cleanup':False,'mods':{},'minimize':{'nsteps':1000}}
     def __init__(self,input_dict,taskname,config,writers,prior):
         super().__init__(input_dict,taskname,config,writers,prior)
-        rcsb_file_format=self.specs['source'].get('file_format','PDB')
-        self.chainIDmanager=ChainIDManager(format=rcsb_file_format)
+        self.chainIDmanager=ChainIDManager(format=self.specs['source']['file_format'])
         self.mods=self.specs['mods']
+        self.segtype_of_resname=self.config.segtype_of_resname
 
     def do(self):
         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
@@ -213,13 +206,13 @@ class PsfgenTask(Task):
         logger.debug('Parsing modifications')
         self.modparse()
         logger.debug('Injesting molecule(s)')
-        self.injest_molecules(self.specs['source'])
+        self.injest_molecules(self.specs)
         self.statevars['base_molecule']=self.base_molecule
         logger.debug('Running first psfgen')
         self.psfgen()
         if self.base_molecule.has_loops():
             logger.debug('Declashing loops')
-            self.declash_loops(self.specs.get('declash',{}))
+            self.declash_loops(self.specs['declash'])
         logger.debug('Minimizing')
         self.minimize(self.specs['minimize'])
         logger.info(f'Task {self.taskname} {self.index:02d} complete')
@@ -249,8 +242,8 @@ class PsfgenTask(Task):
         pdb=self.statevars['pdb']
         vt.newscript(basename)
         vt.load_psf_pdb(psf,pdb,new_molid_varname='mLL')
-        cycles=specs.get('maxcycles',100)
-        mol.write_loop_lines(vt,cycles=cycles,min_length=specs.get('min_loop_length',4))
+        cycles=specs['maxcycles']
+        mol.write_loop_lines(vt,cycles=cycles,min_length=specs['min_loop_length'])
         vt.write_pdb(basename,'mLL')
         vt.endscript()
         vt.writescript()
@@ -260,7 +253,7 @@ class PsfgenTask(Task):
     def modparse(self):
         mod_classes,modlist_classes=inspect_classes('pestifer.mods','List')
         retdict={}
-        input_dict=self.specs.get('mods',{})
+        input_dict=self.specs['mods']
         for hdr,entries in input_dict.items():
             class_name=[name for name,cls in mod_classes.items() if cls.yaml_header==hdr][0]
             cls=mod_classes[class_name]
@@ -278,19 +271,14 @@ class PsfgenTask(Task):
 
     def injest_molecules(self,specs):
         self.molecules={}
-        psf_exists=False
-        self.basename=specs.get('rcsb',None)
-        bioassemb=specs.get('biological_assembly',0)
-        file_format=specs.get('file_format','PDB')
-        excludes=specs.get('exclude',{})
-        self.molecules[self.basename]=Molecule(config=self.config,source=self.basename,chainIDmanager=self.chainIDmanager,excludes=excludes,use_psf=psf_exists,rcsb_file_format=file_format).activate_biological_assembly(bioassemb)
-        self.base_molecule=self.molecules[self.basename]
+        self.source_specs=specs['source']
+        self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,chainIDmanager=self.chainIDmanager,segtype_of_resname=self.segtype_of_resname).activate_biological_assembly(self.source_specs['bioassemb'])
+        self.base_molecule=self.molecules[self.source_specs['id']]
         for p in self.pdbs:
-            self.molecules[p]=Molecule(config=self.config,source=p)
+            self.molecules[p]=Molecule(ctrl=self.ctrl_specs,source=p)
 
 class LigateTask(Task):
     yaml_header='ligate'
-    default_specs={'steer':{},'connect':{},'minimize':{}}
     statevars={}
     def __init__(self,input_dict,taskname,config,writers,prior):
         super().__init__(input_dict,taskname,config,writers,prior)
@@ -444,7 +432,6 @@ class LigateTask(Task):
 class SolvateTask(Task):
     yaml_header='solvate'
     opt_attr=Task.opt_attr+[yaml_header]
-    default_specs={'solvate':{},'autoionize':{},'minimize':{'nminsteps':1000}}
     def do(self):
         self.statevars=self.prior.statevars.copy()
         basename=self.next_basename()
@@ -477,7 +464,6 @@ class RelaxTask(Task):
 class TerminateTask(Task):
     yaml_header='terminate'
     opt_attr=Task.opt_attr+[yaml_header]
-    default_specs={'basename':'final','chainmapfile':'chainmaps.yaml','statefile':'states.yaml'}
     def do(self):
         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
         self.statevars=self.prior.statevars.copy()
