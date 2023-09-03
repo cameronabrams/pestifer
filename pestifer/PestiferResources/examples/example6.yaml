@@ -2,38 +2,17 @@ title: HIV-1 Env Trimer 8fad
 tasks:
   - psfgen:
       source:
-        rcsb: 8fad
+        id: 8fad
         file_format: mmCIF
-        biological_assembly: 1
         exclude:
           resnames:
             - 83G
-      mods:
-      declash:
-        maxcycles: 20
-      minimize:
-        nminsteps: 1100
-      cleanup: True
   - ligate:
       steer:
-        force_constant: 20.0
-        target_distance: 2.0
         nsteps: 4000
-        dcdfreq: 100
-      connect:
-        cleanup: True
-      minimize:
-        nminsteps: 1000
   - relax:
-      nsteps: 2000
-      dcdfreq: 100
   - solvate:
-      minimize:
-        nminsteps: 1000
   - relax:
-      nsteps: 1000
-      dcdfreq: 100
-      temperature: 310
-      pressure: 1
+      ensemble: NPT
   - terminate:
       basename: my_8fad

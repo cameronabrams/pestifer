@@ -2,15 +2,7 @@ title: BPTI
 tasks:
   - psfgen:
       source:
-        rcsb: 6pti
-      minimize:
-        nminsteps: 1000
-      cleanup: True
+        id: 6pti
   - solvate:
-      minimize:
-        nminsteps: 1000
   - relax:
-      temperature: 300
-      pressure: 1
-      nsteps: 1000
-      dcdfreq: 100
+      ensemble: NPT

@@ -58,25 +58,20 @@ class Config(UserDict):
                 logger.debug(f'Pestifer uses {bn}: {fn}')
                 data[bn]=yaml.safe_load(f)
         assert 'base' in data
-        assert 'userhelp' in data
+        assert 'help' in data
         if userconfigfile:
             if os.path.exists(userconfigfile):
                 logger.debug(f'Pestifer uses {userconfigfile}: {fn}')
                 with open(userconfigfile,'r') as f:
                     data['user']=yaml.safe_load(f)
-                    self._user_defaults()
+                    # self._user_defaults()
         super().__init__(data)
         self._set_shortcuts()
 
-    def _user_defaults(self):
-        # top-level directives, except for tasks
-        for k,sp in self['userhelp'].items():
-            if k!='tasks':
-                if 'default' in sp.keys():
-                    dv=sp['default']
-                    if not k in self['user']:
-                        self['user'][k]=dv
-
+    # def _user_defaults(self):
+    #     D=self['help']
+    #     U=self['user']
+    #     dwalk(D,U)
 
     def _set_shortcuts(self):
         self.tcl_proc_path=self['Resources']['tcl']['proc']
@@ -112,94 +107,61 @@ class Config(UserDict):
 
     def res_123(self,rescode):
         return self['base']['psfgen']['segtypes']['protein']['invrescodes'][rescode]
-
-#         self.charmm_custom_path=self.resman.resource_paths['charmm']['custom']
-#         self.user_charmm_path=self.get('outside_charmm_path','UNSET')
-#         self.user_charmm_toppar_path=os.path.join(self.user_charmm_path,'toppar')
-# class Config(UserDict):
-#     executables=['namd2','charmrun','vmd']
-#     def __init__(self,*objs):
-#         self.resman=ResourceManager()
-#         data=self._readmainconfig()
-#         if len(objs)==1:
-#             userconfigfilename=objs[0]
-#         else:
-#             userconfigfilename=None
-#         self._readuserconfig(userconfigfilename,data)
-#         self._builddicts(data)
-#         vars={'HOME':self.resman.user_home}
-#         for v,r in vars.items():
-#             replace(data,v,r)
-#         super().__init__(data)
-#         self.direct_attributes()
-
-#     def direct_attributes(self):
-#         self.has_executable={} 
-#         for x in self.executables:
-#             if not is_tool(self[x]):
-#                 logger.warning(f'Executable "{x}" is not found.')
-#                 self.has_executable[x]=False
-#             else:
-#                 self.has_executable[x]=True
-#         self.vmd_startup_script=os.path.join(self.resman.resource_paths['tcl'],self.get('vmd_startup','pestifer-vmd.tcl'))
-#         self.tcl_path=self.resman.resource_paths['tcl']
-#         self.charmm_toppar_path=self.resman.resource_paths['charmm']['toppar']
-#         self.charmm_custom_path=self.resman.resource_paths['charmm']['custom']
-#         self.user_charmm_path=self.get('outside_charmm_path','UNSET')
-#         self.user_charmm_toppar_path=os.path.join(self.user_charmm_path,'toppar')
-#         if os.path.exists(self.user_charmm_path) and not os.path.exists(self.user_charmm_toppar_path):
-#             logger.warning(f'You have specified the location where you keep your preferred CHARMM force-field/topology files, but no toppar/ directory found there.')
-
-#     def _readmainconfig(self):
-#         mainconfigfilename=os.path.join(self.resman.resource_paths['config'],'defaults.yaml')
-#         assert os.path.exists(mainconfigfilename),f'Main configuration file {mainconfigfilename} not found.  Your installation of pestifer is corrupt.'
-#         with open(mainconfigfilename,'r') as f:
-#             data=yaml.safe_load(f)
-#         self.defaults=data['User_defaults']
-#         self.namd_params=data['Namd_defaults']
-#         del data['User_defaults']
-#         del data['Namd_defaults']
-#         return data
-
-#     def _readuserconfig(self,userconfigfilename,data):
-#         user_dict={}
-#         if userconfigfilename:
-#            with open(userconfigfilename,'r') as f:
-#                 user_dict=yaml.safe_load(f)
-#         self.tasks=user_dict.get('tasks',{})
-#         if 'tasks' in user_dict:
-#             del user_dict['tasks']
-#         namd_params=user_dict.get('Namd_params',{})
-#         special_update(self.namd_params,namd_params)
-#         if namd_params:
-#             del user_dict['Namd_params']
-#         tmp=self.defaults.copy()
-#         tmp.update(user_dict)
-#         special_update(data,tmp)
-
-#     def segtype_resname_map(self):
-#         return self['Segtypes_by_Resnames']
     
-#     def segtype(self,resname):
-#         return self['Segtypes_by_Resnames'].get(resname,None)
+def dwalk(D,I):
+    tld=[x['name'] for x in D['directives']]
+    # logger.debug(f'dwalk along {tld} for {I}')
+    for d in tld:
+        tidx=tld.index(d)
+        dx=D['directives'][tidx]
+        # logger.debug(f' d {d}')
+        typ=dx['type']
+        # logger.debug(f'- {d} typ {typ} I {I}')
+        if not d in I:
+            # logger.debug(f' -> not found {d}')
+            if typ in ['str','int','float', 'bool']:
+                if 'default' in dx:
+                    I[d]=dx['default']
+                    # logger.debug(f' ->-> default {d} {I[d]}')
+                elif 'required' in dx:
+                    if dx['required']:
+                        raise Exception(f'Directive {d} requires a value in {I}')
+            elif typ=='dict':
+                if 'required' in dx:
+                    if not dx['required']:
+                        continue
+                I[d]={}
+                dwalk(dx,I[d])
+            elif typ=='list':
+                if 'required' in dx:
+                    if not dx['required']:
+                        continue
+                I[d]=[] # and do nothing else
+        else:
+            if typ=='str' and 'choices' in dx:
+                assert I[d] in dx['choices'],f'Directive {d} must be one of {", ".join(dx["choices"])}'
+            if typ=='dict':
+                dwalk(dx,I[d])
+            elif typ=='list':
+                lwalk(dx,I[d])
 
-#     def _builddicts(self,data):
-#         data['PDB_to_CHARMM_Resnames']={}
-#         data['CHARMM_to_PDB_Resnames']={}
-#         for a in data['Psfgen_Aliases']:
-#             tok=a.split()
-#             if tok[0]=='residue':
-#                 data['PDB_to_CHARMM_Resnames'][tok[1]]=tok[2]
-#                 data['CHARMM_to_PDB_Resnames'][tok[2]]=tok[1]
-#         data['PDB_3char_to_1char_Resnames']={v:k for k,v in data['PDB_1char_to_3char_Resnames'].items()}
-#         data['Segtypes_by_Resnames']={}
-#         for segtype in data['Segtypes']:
-#             resnames=data.get(segtype,[])
-#             for r in resnames:
-#                 data['Segtypes_by_Resnames'][r]=segtype
-#                 if r in data['PDB_to_CHARMM_Resnames']:
-#                     data['Segtypes_by_Resnames'][data['PDB_to_CHARMM_Resnames'][r]]=segtype
-#         data['Segtypes_by_Resnames'].update({k:'PROTEIN' for k in ['HIS','HSE','HSD']})
+def lwalk(D,L):
+    if 'directives' in D:
+        tld=[x['name'] for x in D['directives']]
+        # logger.debug(f'lwalk on {tld}')
+        for item in L:
+            # check this item against its directive
+            itemname=list(item.keys())[0]
+            # logger.debug(f' - item {item}')
+            assert itemname in tld
+            tidx=tld.index(itemname)
+            dx=D['directives'][tidx]
+            typ=dx['type']
+            if typ in ['str','int','float']:
+                pass # don't really expect a list of scalars?
+            elif typ=='dict':
+                if not item[itemname]:
+                    item[itemname]={}
+                dwalk(dx,item[itemname])
+    
 
-#     def __str__(self):
-#         return yaml.dump(self)        

@@ -1,0 +1,51 @@
+paths:
+  charmrun: /usr/local/bin/charmrun
+  namd2: /usr/local/bin/namd2
+  vmd: /usr/local/bin/vmd
+tasks:
+- psfgen:
+    cleanup: true
+    ctrl:
+      declash:
+        maxcycles: 21
+      preligate:
+        min_loop_length: 4
+        sac_res_name: GLY
+      sequence:
+        fix_conflicts: true
+        fix_engineered_mutations: true
+        include_terminal_loops: false
+    minimize:
+      nminsteps: 1000
+    source:
+      biological_assembly: 1
+      file_format: PDB
+      id: 4zmj
+- ligate:
+    connect:
+      cleanup: true
+    minimize:
+      nminsteps: 1000
+    steer:
+      dcdfreq: 100
+      force_constant: 20
+      nsteps: 4200
+      target_distant: 2
+- relax:
+    dcdfreq: 100
+    ensemble: NVT
+    nsteps: 2400
+    pressure: 1
+    temperature: 300
+- solvate:
+    minimize:
+      nminsteps: 1000
+- relax:
+    dcdfreq: 100
+    ensemble: NPT
+    nsteps: 1000
+    pressure: 1
+    temperature: 300
+- terminate:
+    basename: my_4zmj
+title: Example 4 HIV-1 Env Trimer 4zmj

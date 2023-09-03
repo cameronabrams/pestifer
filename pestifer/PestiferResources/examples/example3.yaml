@@ -2,21 +2,12 @@ title: BPTI
 tasks:
   - psfgen:
       source:
-        rcsb: 6pti
-        biological_assembly: 1
+        id: 6pti
         exclude:
           resnames:
             - PO4
-      minimize:
-        nminsteps: 1000
-      cleanup: True
   - solvate:
-      minimize:
-        nminsteps: 1000
   - relax:
-      temperature: 300
-      pressure: 1
-      nsteps: 1000
-      dcdfreq: 100
+      ensemble: NPT
   - terminate:
       basename: my_6pti
