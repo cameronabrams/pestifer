@@ -148,7 +148,7 @@ psfgen:
         - NAG
         - SIA
         - ANE5
-    other:
+    other: {}
 
 # default namd2 configuration settings (grouped)
 namd2:

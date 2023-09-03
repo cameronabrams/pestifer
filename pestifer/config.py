@@ -15,6 +15,11 @@ from collections import UserDict
 # from .util import special_update, replace, is_tool
 from pestifer import PestiferResources
 
+segtype_of_resname={}
+charmm_resname_of_pdb_resname={}
+res_321={}
+res_123={}
+
 class ResourceManager(UserDict):
     excludes=['__pycache__','_archive','bash']
     def __init__(self):
@@ -91,19 +96,18 @@ class Config(UserDict):
             tok=alias.split()
             if tok[0]=='residue':
                 self.pdb_to_charmm_resnames[tok[1]]=tok[2]
-    
-    def segtype_of_resname(self):
-        return self['base']['psfgen']['segtypes']['resnames']
-    
-    def charmm_resname_of_pdb_resname(self):
-        return self.pdb_to_charmm_resnames
-    
-    def res_321(self,resname):
-        return self['base']['psfgen']['segtypes']['protein']['rescodes'][resname]
+        self.segtype_of_resname={}
+        for st in self['base']['psfgen']['segtypes']:
+            res=self['base']['psfgen']['segtypes'][st].get('resnames',[])
+            for r in res:
+                self.segtype_of_resname[r]=st
 
-    def res_123(self,rescode):
-        return self['base']['psfgen']['segtypes']['protein']['invrescodes'][rescode]
-    
+        # globals
+        segtype_of_resname.update(self.segtype_of_resname)
+        charmm_resname_of_pdb_resname.update(self.pdb_to_charmm_resnames)
+        res_123.update(self['base']['psfgen']['segtypes']['protein']['invrescodes'])
+        res_321.update(self['base']['psfgen']['segtypes']['protein']['rescodes'])
+            
 def dwalk(D,I):
     tld=[x['name'] for x in D['directives']]
     # logger.debug(f'dwalk along {tld} for {I}')

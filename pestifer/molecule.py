@@ -18,10 +18,10 @@ from .mods import MutationList, apply_psf_info
 logger=logging.getLogger(__name__)
 
 class Molecule(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['molid','chainIDmanager','source','segtype_of_resname','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
+    req_attr=AncestorAwareMod.req_attr+['molid','chainIDmanager','source','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
     opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
-    def __init__(self,source={},chainIDmanager=None,segtype_of_resname=None,**kwargs):
+    def __init__(self,source={},chainIDmanager=None,*kwargs):
         reset=kwargs.get('reset_counter',False)
         if reset:
             Molecule._molcounter=0
@@ -49,12 +49,11 @@ class Molecule(AncestorAwareMod):
         input_dict={
             'source': source,
             'chainIDmanager':chainIDmanager,
-            'segtype_of_resname': segtype_of_resname,
             'rcsb_file_format': rcsb_file_format,
             'molid': Molecule._molcounter,
             'source': source,
             'parsed_struct': p_struct,
-            'asymmetric_unit': AsymmetricUnit(p_struct,segtype_of_resname,chainIDmanager),
+            'asymmetric_unit': AsymmetricUnit(p_struct,source,chainIDmanager),
             'biological_assemblies': BioAssembList(p_struct)
         }
         super().__init__(input_dict)

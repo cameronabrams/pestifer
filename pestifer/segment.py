@@ -2,18 +2,16 @@ import logging
 logger=logging.getLogger(__name__)
 from .basemod import AncestorAwareMod, AncestorAwareModList
 from .mods import MutationList
-# from .config import ConfigGetParam
+from .config import charmm_resname_of_pdb_resname,segtype_of_resname
 from .residue import Residue,ResidueList
 from .util import isidentity, reduce_intlist
 from .scriptwriters import Psfgen
 
 class Segment(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','resname_charmify']
-    opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname','config_params']
-    config_attr=['Include_terminal_loops','Fix_engineered_mutations','Fix_conflicts','Sacrificial_residue','PDB_to_CHARMM_Resnames']
+    req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','specs']
+    opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname']
 
-    def __init__(self,parm_dict,input_obj,segname):
-        assert all([x in parm_dict for x in self.config_attr])
+    def __init__(self,specs,input_obj,segname):
         if type(input_obj)==dict:
             input_dict=input_obj
         elif type(input_obj)==Residue:
@@ -25,13 +23,13 @@ class Segment(AncestorAwareMod):
             subsegments=myRes.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
             # olc=ConfigGetParam('Segname_chars').get(apparent_segtype)
             input_dict={
+                'specs':specs,
                 'segtype': apparent_segtype,
                 'segname': segname,
                 'chainID': apparent_chainID,
                 'residues': myRes,
                 'subsegments':subsegments,
-                'parent_chain': apparent_chainID,
-                'resname_charmify':parm_dict['PDB_to_CHARMM_Resnames']
+                'parent_chain': apparent_chainID
             }
         elif type(input_obj)==ResidueList:
             Residues=input_obj
@@ -54,19 +52,17 @@ class Segment(AncestorAwareMod):
                             logger.debug(f'    {x.chainID} {x.name} {x.resseqnum}{x.insertion} was {x._ORIGINAL_}')                
             Residues.sort()
             subsegments=Residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
-            # olc=ConfigGetParam('Segname_chars').get(apparent_segtype)
             input_dict={
+                'specs':specs,
                 'segtype': apparent_segtype,
                 'segname': segname,
                 'chainID': apparent_chainID,
                 'residues': Residues,
                 'subsegments':subsegments,
-                'parent_chain': apparent_chainID,
-                'resname_charmify':parm_dict['PDB_to_CHARMM_Resnames']
+                'parent_chain': apparent_chainID
             }
         else:
             logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
-        input_dict['config_params']=parm_dict
         super().__init__(input_dict)
 
     def has_graft(self,modlist):
@@ -140,9 +136,8 @@ class Segment(AncestorAwareMod):
         #     logger.info(f'relabeling chain {the_chainID} to {rep_chainID} in segment {self.psfgen_segname} -> new segment {seglabel}')
         transform.register_mapping(self.segtype,image_seglabel,seglabel)
 
-        sac_rd=self.config_params['Sacrificial_residue']
-        sac_r=sac_rd['name']
-        sac_n=sac_rd['min_loop_length']
+        sac_r=self.specs['loops']['sac_res_name']
+        sac_n=self.specs['loops']['min_loop_length']
         # intra-segment, no need to use image_seglabel
         Mutations=mods.get('Mutations',MutationList([])).filter(chainID=seglabel)
         Conflicts=mods.get('Conflicts',MutationList([])).filter(chainID=seglabel)
@@ -173,7 +168,7 @@ class Segment(AncestorAwareMod):
                 W.addline(f'${b.selname} writepdb {b.pdb}')
         W.addline(f'segment {image_seglabel} '+'{')
         # print(len(self.subsegments),type(self.subsegments))
-        if not self.config_params['Include_terminal_loops']:
+        if not self.specs['include_terminal_loops']:
             if self.subsegments[0].state=='MISSING':
                 Nterminal_missing_subsegment=self.subsegments.pop(0)
                 # logger.info(f'Since terminal loops are not included, ignoring {str(Nterminal_missing_subsegment)}')
@@ -194,16 +189,16 @@ class Segment(AncestorAwareMod):
                     assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {seglabel} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_r}'
                     b.sacres=Residue({'name':sac_r,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':'PROTEIN'})
                     W.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_r} {image_seglabel}')
-        if self.config_params['Fix_engineered_mutations']:
+        if self.specs['fix_engineered_mutations']:
             for m in Mutations:
                 if m.source=='SEQADV':
-                    if self.config_params['Fix_engineered_mutations']:
+                    if self.specs['fix_engineered_mutations']:
                         W.comment('Below reverts an engineered mutation:')
                         W.addline(m.write_TcL())
                 else:
                     W.comment('Below is a user-specified mutation:')
                     W.addline(m.write_TcL())
-        if self.config_params['Fix_conflicts']:
+        if self.specs['fix_conflicts']:
             for m in Conflicts:
                 W.comment('Below asserts a database sequence over actual sequence:')
                 W.addline(m.write_TcL())
@@ -217,7 +212,7 @@ class Segment(AncestorAwareMod):
         for b in self.subsegments:
             if b.state=='MISSING':
                 # will issue the atom-reorienting command to join the C-terminus of prior run to N-terminus of this one, which is model-built using guesscoord
-                if (self.subsegments.index(b)==0 or self.subsegments.index(b)==(len(self.subsegments)-1)) and not self.config_params['Include_terminal_loops']:
+                if (self.subsegments.index(b)==0 or self.subsegments.index(b)==(len(self.subsegments)-1)) and not self.specs['include_terminal_loops']:
                     # this is a terminal loop and we are not including terminal loops
                     pass
                 else:
@@ -258,17 +253,16 @@ class SegmentList(AncestorAwareModList):
         if len(objs)==1 and objs[0]==[]:
             super().__init__([])
         elif len(objs)==3:
-            config=objs[0]
+            seq_spec=objs[0]
             input_obj=objs[1]
             chainIDmanager=objs[2]
-            self.config={k:config.get(k,'no-config') for k in Segment.config_attr}
             self.counters_by_segtype={}
             self.segnames=[]
             self.daughters={}
             if type(input_obj)==ResidueList:
                 super().__init__([])
                 residues=input_obj
-                for stype in config['Segtypes']:
+                for stype in segtype_of_resname:
                     self.counters_by_segtype[stype]=0
                     res=residues.filter(segtype=stype)
                     for chainID in res.uniqattrs(['chainID'])['chainID']:
@@ -284,7 +278,7 @@ class SegmentList(AncestorAwareModList):
                             for r in c_res:
                                 r.atoms.set(chainID=this_chainID)
                             logger.debug(f'{stype} {chainID}->{this_chainID}')
-                        thisSeg=Segment(self.config,c_res,segname=this_chainID)
+                        thisSeg=Segment(seq_spec,c_res,segname=this_chainID)
                         self.append(thisSeg)
                         logger.debug(f'Making segment: stype {stype} chainID {this_chainID} segname {thisSeg.segname}')
                         self.segnames.append(thisSeg.segname)

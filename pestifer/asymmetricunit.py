@@ -12,6 +12,7 @@ from .residue import ResidueList,AtomList,Atom,Hetatm,Ter,TerList
 from .segment import SegmentList
 from .basemod import AncestorAwareMod
 from mmcif.api.PdbxContainers import DataContainer
+from .config import *
 
 logger=logging.getLogger(__name__)
 
@@ -35,11 +36,10 @@ class AsymmetricUnit(AncestorAwareMod):
                 'Segments':SegmentList({},ResidueList([])),
                 'chainIDs':[]
             }
-        else: # p_struct,config,chainIDmanager,excludes
+        else: # p_struct,sourcespec,chainIDmanager,excludes
             pr=objs[0]
-            segtype_of_resname=objs[1]
+            sourcespecs=objs[1]
             chainIDmanager=objs[2]
-            excludes=objs[3]
             Missings=MissingList([])
             SSBonds=SSBondList([])
             Mutations=MutationList([])
@@ -92,11 +92,12 @@ class AsymmetricUnit(AncestorAwareMod):
             fromAtoms=ResidueList(Atoms)
             fromMissings=ResidueList(Missings)
             Residues=fromAtoms+fromMissings
-            Residues.apply_segtypes(segtype_of_resname)
+            Residues.apply_segtype()
             uniques=Residues.uniqattrs(['segtype'],with_counts=True)
             logger.debug(f'{len(Residues)} total residues: {len(fromAtoms)} resolved and {len(fromMissings)} unresolved')
             logger.debug(f'Segtypes present: {uniques["segtype"]}')
             # Delete any residues dictated by user-specified exclusions
+            excludes=sourcespecs['exclude']
             thru_dict={resattr:excludes.get(yaml,[]) for yaml,resattr in self.excludables.items()}
             logger.debug(f'Exclusions: {thru_dict}')
             # delete residues that are in user-specified exclusions
@@ -121,7 +122,8 @@ class AsymmetricUnit(AncestorAwareMod):
                 logger.debug(f'    {len(ignored_ssbonds)} ssbonds; {len(SSBonds)} remain; and')
                 logger.debug(f'    {len(ignored_links)} links; {len(Links)} remain.')
 
-            Segments=SegmentList(config,Residues,chainIDmanager)
+            seq_specs=sourcespecs['sequence']
+            Segments=SegmentList(seq_specs,Residues,chainIDmanager)
             # this may have altered chainIDs for some residues.  So it is best
             # to be sure all mods that are residue-specific are updated
             Seqadvs.update_attr_from_obj_attr('chainID','residue','chainID')

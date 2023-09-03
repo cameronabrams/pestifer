@@ -8,6 +8,7 @@
 """
 from .mods import *
 from .mods import AncestorAwareModList,AncestorAwareMod
+from .config import segtype_of_resname
 
 class Ter(AncestorAwareMod):
     req_attr=['serial','resname','chainID','resseqnum','insertion']
@@ -326,5 +327,5 @@ class ResidueList(AncestorAwareModList):
     #         link.atom2=a2
     #         link.residue1.linkTo(link.residue2,link)
     #     return self
-    def apply_segtypes(self,map):
-        self.map_attr('segtype','name',map)
+    def apply_segtypes(self):
+        self.map_attr('segtype','name',segtype_of_resname)

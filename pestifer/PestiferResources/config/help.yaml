@@ -83,26 +83,26 @@ directives:
                     text: Specifies whether or not sequence differences w.r.t. a sequence database and which are labeled as "conflicts"s are reverted to their database values
                     type: bool
                     default: True          
-          - name: loops
-            text: Parameters controlling model-built loops during psfgen
-            type: dict
-            directives:
-              - name: sac_res_name 
-                text: 3-letter code of residue appended to any sufficiently long model-built 
-                type: str
-                default: GLY
-              - name: min_loop_length
-                text: Minimum length of model-built loop that triggers the ligation algorithm
-                type: int
-                default: 4
-              - name: declash
-                text: Specifies how model-built residues are moved to avoid steric clashes
-                type: dict
-                directives:
-                  - name: maxcycles
-                    text: Maximum number of Metropolis cycles
-                    type: int
-                    default: 20
+                  - name: loops
+                    text: Parameters controlling model-built loops during psfgen
+                    type: dict
+                    directives:
+                      - name: sac_res_name 
+                        text: 3-letter code of residue appended to any sufficiently long model-built 
+                        type: str
+                        default: GLY
+                      - name: min_loop_length
+                        text: Minimum length of model-built loop that triggers the ligation algorithm
+                        type: int
+                        default: 4
+                      - name: declash
+                        text: Specifies how model-built residues are moved to avoid steric clashes
+                        type: dict
+                        directives:
+                          - name: maxcycles
+                            text: Maximum number of Metropolis cycles
+                            type: int
+                            default: 20
           - name: mods
             text: Specifies modifications to the sequence or structure in the PDB file
             type: dict
