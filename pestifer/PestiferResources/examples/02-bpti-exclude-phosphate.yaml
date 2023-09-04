@@ -1,4 +1,4 @@
-title: BPTI
+title: BPTI with phosphate ion excluded
 tasks:
   - psfgen:
       source:
@@ -9,5 +9,3 @@ tasks:
   - solvate:
   - relax:
       ensemble: NPT
-  - terminate:
-      basename: my_6pti

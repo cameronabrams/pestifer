@@ -624,11 +624,11 @@ class Link(AncestorAwareMod):
         seg1=chainIDmap.get(seg1,seg1)
         seg2=self.residue2.chainID
         seg2=chainIDmap.get(seg2,seg2)
-        if self.resname1=='ASN' and self.segtype2=='GLYCAN':
+        if self.resname1=='ASN' and self.segtype2=='glycan':
             W.addline(f'patch NGLB {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
         else:
             # this is likely an intra-glycan linkage
-            if self.name2=='C1' and self.segtype1=='GLYCAN':
+            if self.name2=='C1' and self.segtype1=='glycan':
                 W.addline(f'set cn {self.name1[1]}')
                 W.addline(f'set abi [axeq {self.resseqnum2} 0 {seg2} {self.name2} {self.resseqnum1}]')
                 W.addline(f'set abj [axeq {self.resseqnum1} 0 {seg1} {self.name1} -1]')
@@ -638,7 +638,7 @@ class Link(AncestorAwareMod):
                     W.addline('if { $abj == "b" } { set abj T }')
                 W.addline('set pres "1$cn$abi$abj"')
                 W.addline(f'patch $pres {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
-            elif self.name1=='C1' and self.segtype2=='GLYCAN':
+            elif self.name1=='C1' and self.segtype2=='glycan':
                 cmdj=f'[axeq {self.resseqnum2} 0 {seg2} {self.name2} {self.resseqnum1}]'
                 cmdi=f'[axeq {self.resseqnum1} 0 {seg1} {self.name1} -1]'
                 W.addline(f'patch 1{self.name2[1]:1s}{cmdi}{cmdj} {seg2}:{self.resseqnum2}{self.insertion2} {seg1}:{self.resseqnum1}{self.insertion1}')

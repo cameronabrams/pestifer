@@ -75,10 +75,10 @@ class Transform(AncestorAwareMod):
             if d in self.applies_chainIDs:
                 applies_to.extend(v)
         if self.is_identity():
-            logger.debug(f'Identity transform gets a thru map')
+            logger.debug(f'Identity transform gets a thru map applied to {applies_to}')
             self.chainIDmap=chainIDmap.thru_map(auChainIDs,applies_to)
         else:
-            logger.debug(f'Transform gets a new map')
+            logger.debug(f'Transform gets a new map applied to {applies_to}')
             self.chainIDmap=chainIDmap.generate_next_map(auChainIDs,applies_to)
 
 class TransformList(AncestorAwareModList):

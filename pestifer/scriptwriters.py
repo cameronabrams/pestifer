@@ -74,7 +74,7 @@ class VMD(Scriptwriter):
         self.vmd_startup=config.vmd_startup_script
 
     def usescript(self,scriptbasename):
-        scriptname=os.path.join(self.tcl_script_path,f'scripts/{scriptbasename}.tcl')
+        scriptname=os.path.join(self.tcl_script_path,f'{scriptbasename}.tcl')
         timestampstr=datetime.datetime.today().ctime()
         if not os.path.exists(scriptname):
             raise FileNotFoundError(f'Pestifer script {scriptbasename}.tcl is not found.')
@@ -90,7 +90,7 @@ class VMD(Scriptwriter):
     def set_molecule(self,mol):
         mol.molid_varname=f'm{mol.molid}'
         ext='.pdb' if mol.rcsb_file_format=='PDB' else '.cif'
-        self.addline(f'mol new {mol.source}{ext} waitfor all')
+        self.addline(f'mol new {mol.source["id"]}{ext} waitfor all')
         self.addline(f'set {mol.molid_varname} [molinfo top get id]')
         if mol.rcsb_file_format=='mmCIF':
             # VMD appends a "1" to any two-letter chain ID from a CIF file,

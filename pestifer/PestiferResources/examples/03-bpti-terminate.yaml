@@ -1,4 +1,4 @@
-title: BPTI
+title: BPTI, no phosphate, custom output basename
 tasks:
   - psfgen:
       source:
@@ -9,3 +9,5 @@ tasks:
   - solvate:
   - relax:
       ensemble: NPT
+  - terminate:
+      basename: my_6pti

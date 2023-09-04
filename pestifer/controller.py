@@ -50,18 +50,22 @@ class Controller:
             #      - self.writers: the Controller's filewriters
             #      - prior_task: indentifier of prior task in task list
             Cls=task_classes[class_name]
-            this_task=Cls(specs,taskname,self.config['base'],self.writers,prior_task)
+            this_task=Cls(specs,taskname,self.config,self.writers,prior_task)
             # Append to the task list
             self.tasks.append(this_task)
             prior_task=this_task
         logger.debug(f'last task currently is {self.tasks[1].taskname}')
         # Add a "terminate" task by default if the user has not specified one
         if len(self.tasks)==0 or not self.tasks[-1].taskname=='terminate':
+            specs=self.config.make_default_specs('tasks','terminate')
             logger.debug('Adding default terminate task')
-            self.tasks.append(TerminateTask({},'terminate',self.config['base'],self.writers,prior_task))
+            self.tasks.append(TerminateTask(specs,'terminate',self.config['base'],self.writers,prior_task))
         logger.info(f'Controller will execute {len(self.tasks)} task(s).')
 
     def do_tasks(self):
         # Execute each task in series
         for task in self.tasks:
             task.do()
+
+    def write_complete_config(self,filename='00-complete-user.yaml'):
+        self.config.dump_user(filename=filename)

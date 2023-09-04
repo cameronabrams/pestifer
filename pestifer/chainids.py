@@ -47,11 +47,11 @@ class ChainIDManager:
     
     def thru_map(self,chainIDs,active_chains=[]):
         activeChainIDs=chainIDs.copy()
-        logger.debug(f'generating thru_map from {activeChainIDs} with actives {active_chains}')
         if active_chains:
             inactive_chains=[x for x in activeChainIDs if not x in active_chains]
             for i in inactive_chains:
                 activeChainIDs.remove(i)
+        logger.debug(f'generating thru_map from {activeChainIDs} with actives {activeChainIDs}')
         return {c:c for c in activeChainIDs}
     
     def cleavage_daughter_chainID(self,chainID):

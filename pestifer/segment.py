@@ -2,7 +2,7 @@ import logging
 logger=logging.getLogger(__name__)
 from .basemod import AncestorAwareMod, AncestorAwareModList
 from .mods import MutationList
-from .config import segtype_of_resname
+from .config import segtype_of_resname,charmm_resname_of_pdb_resname
 from .residue import Residue,ResidueList
 from .util import reduce_intlist
 from .scriptwriters import Psfgen
@@ -36,11 +36,13 @@ class Segment(AncestorAwareMod):
             apparent_chainID=Residues[0].chainID
             apparent_segtype=Residues[0].segtype
             # myRes=Residues.clone()
-            if apparent_segtype=='PROTEIN':
+            if apparent_segtype=='protein':
                 # a protein segment must have unique residue numbers
                 assert Residues.puniq(['resseqnum','insertion'])
                 # a protein segment may not have more than one protein chain
                 assert all([x.chainID==Residues[0].chainID for x in Residues])
+                Residues.sort()
+                subsegments=Residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
             else:
                 logger.debug(f'Calling puniqify on residues of segment {segname}')
                 Residues.puniquify(fields=['resseqnum','insertion'],make_common=['chainID'])
@@ -50,8 +52,8 @@ class Segment(AncestorAwareMod):
                     for x in Residues:
                         if hasattr(x,'_ORIGINAL_'):
                             logger.debug(f'    {x.chainID} {x.name} {x.resseqnum}{x.insertion} was {x._ORIGINAL_}')                
-            # Residues.sort()
-            subsegments=Residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
+                subsegments=Residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
+            logger.debug(f'Segment {segname} has {len(Residues)} residues across {len(subsegments)} subsegments')
             input_dict={
                 'specs':specs,
                 'segtype': apparent_segtype,
@@ -77,9 +79,9 @@ class Segment(AncestorAwareMod):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
 
     def write_TcL(self,W:Psfgen,transform,mods):
-        if self.segtype=='PROTEIN':
+        if self.segtype=='protein':
             self.protein_stanza(W,transform,mods)
-        elif self.segtype=='GLYCAN':
+        elif self.segtype=='glycan':
             self.glycan_stanza(W,transform,mods)
         else:
             self.generic_stanza(W,transform,mods)
@@ -148,7 +150,7 @@ class Segment(AncestorAwareMod):
                 """ for a resolved subsegment, generate its pdb file """
                 b.selname=f'{image_seglabel}{i:02d}'
                 run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
-                b.pdb=f'PROTEIN_{image_seglabel}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
+                b.pdb=f'protein_{image_seglabel}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
                 W.addfile(b.pdb)
                 # TODO: account for any deletions?  Maybe better at the residue stage...
                 serial_list=run.atom_serials(as_type=int)
@@ -180,14 +182,14 @@ class Segment(AncestorAwareMod):
                 W.addline(f'    pdb {b.pdb}')
             elif b.state=='MISSING':
                 for r in self.residues[b.bounds[0]:b.bounds[1]+1]:
-                    rname=self.resname_charmify.get(r.name,r.name)
+                    rname=charmm_resname_of_pdb_resname.get(r.name,r.name)
                     W.addline(f'    residue {r.resseqnum}{r.insertion} {rname} {image_seglabel}')
                 if (b.bounds[1]-b.bounds[0])>(sac_n-1):
                     lrr=self.residues[b.bounds[1]]
                     sac_resseqnum=lrr.resseqnum
                     sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
                     assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {seglabel} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_r}'
-                    b.sacres=Residue({'name':sac_r,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':'PROTEIN'})
+                    b.sacres=Residue({'name':sac_r,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':'protein'})
                     W.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_r} {image_seglabel}')
         if self.specs['fix_engineered_mutations']:
             for m in Mutations:
@@ -288,9 +290,10 @@ class SegmentList(AncestorAwareModList):
                             for r in c_res:
                                 r.atoms.set(chainID=this_chainID)
                             logger.debug(f'{stype} {chainID}->{this_chainID}')
+                        num_mis=sum([1 for x in c_res if len(x.atoms)==0])
                         thisSeg=Segment(seq_spec,c_res,segname=this_chainID)
+                        logger.debug(f'Made segment: stype {stype} chainID {this_chainID} segname {thisSeg.segname} ({num_mis} missing) (seq_spec {seq_spec})')
                         self.append(thisSeg)
-                        logger.debug(f'Making segment: stype {stype} chainID {this_chainID} segname {thisSeg.segname}')
                         self.segnames.append(thisSeg.segname)
                         self.counters_by_segtype[stype]+=1
 

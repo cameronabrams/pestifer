@@ -11,8 +11,8 @@ import logging
 logger=logging.getLogger(__name__)
 import yaml
 import glob
+import textwrap
 from collections import UserDict
-# from .util import special_update, replace, is_tool
 from pestifer import PestiferResources
 
 segtype_of_resname={}
@@ -81,6 +81,12 @@ class Config(UserDict):
         U=self['user']
         dwalk(D,U)
 
+    def dump_user(self,filename='complete-user.yaml'):
+        with open(filename,'w') as f:
+            f.write('# Pestifer -- Cameron F. Abrams -- cfa22@drexel.edu\n')
+            f.write('# Dump of complete user config file\n')
+            yaml.dump(self['user'],f)
+
     def _set_shortcuts(self):
         self.namd2=self['user']['paths']['namd2']
         self.charmrun=self['user']['paths']['charmrun']
@@ -118,10 +124,44 @@ class Config(UserDict):
         res_123.update(self['base']['psfgen']['segtypes']['protein']['invrescodes'])
         res_321.update(self['base']['psfgen']['segtypes']['protein']['rescodes'])
 
-            
+
+    def make_default_specs(self,*args):
+        holder={}
+        make_def(self['help']['directives'],holder,*args)
+        return holder
+
+def make_def(L,H,*args):
+    if len(args)==1:
+        name=args[0]
+        try:
+            item_idx=[x["name"] for x in L].index(name)
+        except:
+            raise ValueError(f'{name} is not a recognized directive')
+        item=L[item_idx]
+        for d in item.get("directives",[]):
+            if "default" in d:
+                H[d["name"]]=d["default"]
+            else:
+                H[d["name"]]=None
+        if not "directives" in item:
+            if "default" in item:
+                H[item["name"]]=item["default"]
+            else:
+                H[item["name"]]=None
+    elif len(args)>1:
+        arglist=list(args)
+        nextarg=arglist.pop(0)
+        args=tuple(arglist)
+        try:
+            item_idx=[x["name"] for x in L].index(nextarg)
+        except:
+            raise ValueError(f'{nextarg} is not a recognized directive')
+        item=L[item_idx]
+        make_def(item["directives"],H,*args)
+
 def userhelp(L,logf,*args,end=''):
     if len(args)==0:
-        logf(f'-> help available for {", ".join([dspec["name"] for dspec in L])}{end}')
+        logf(f'    Help available for {", ".join([dspec["name"] for dspec in L])}{end}')
     elif len(args)==1:
         name=args[0]
         try:
@@ -130,7 +170,7 @@ def userhelp(L,logf,*args,end=''):
             raise ValueError(f'{name} is not a recognized directive')
         item=L[item_idx]
         logf(f'{item["name"]}:{end}')
-        logf(f'    {item["text"]}{end}')
+        logf(f'    {textwrap.fill(item["text"],subsequent_indent="      ")}{end}')
         logf(f'    type: {item["type"]}{end}')
         if "default" in item:
             logf(f'    default: {item["default"]}{end}')
@@ -149,7 +189,7 @@ def userhelp(L,logf,*args,end=''):
         except:
             raise ValueError(f'{nextarg} is not a recognized directive')
         item=L[item_idx]
-        logf(f'{nextarg}->')
+        logf(f'{nextarg}->',end='')
         userhelp(item['directives'],logf,*args,end=end)
 
 

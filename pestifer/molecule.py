@@ -119,23 +119,26 @@ class Molecule(AncestorAwareMod):
                 maps[oc].append({'transform':transform.index,'mappedchain':mc})
         return maps
     
-    def has_loops(self,min_length=4):
+    def has_loops(self,min_loop_length=1):
         nloops=0
         au=self.asymmetric_unit
         for S in au.Segments:
             # chainID=S.chainID
-            if S.segtype=='PROTEIN':
+            if S.segtype=='protein':
                 for b in S.subsegments:
-                    if b.state=='MISSING' and b.num_residues()>=min_length:
+                    if b.state=='MISSING' and b.num_residues()>=min_loop_length:
                         nloops+=1
         return nloops
+
+    def num_images(self):
+        return len(self.active_biological_assembly.transforms)
 
     def write_loop_lines(self,writer,cycles=100,min_length=4):
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
         for S in au.Segments:
             # chainID=S.chainID
-            if S.segtype=='PROTEIN':
+            if S.segtype=='protein':
                 asymm_segname=S.segname
                 for b in S.subsegments:
                     if b.state=='MISSING':
@@ -153,7 +156,7 @@ class Molecule(AncestorAwareMod):
         writer.addline('# fields: segname loop-begin-res loop-end-res connect-to-res')
         for S in au.Segments:
             # chainID=S.chainID
-            if S.segtype=='PROTEIN':
+            if S.segtype=='protein':
                 asymm_segname=S.segname
                 for i,b in enumerate(S.subsegments):
                     if b.state=='MISSING':
@@ -172,7 +175,7 @@ class Molecule(AncestorAwareMod):
         au=self.asymmetric_unit
         for S in au.Segments:
             # chainID=S.chainID
-            if S.segtype=='PROTEIN':
+            if S.segtype=='protein':
                 asymm_segname=S.segname
                 for i,b in enumerate(S.subsegments):
                     if b.state=='MISSING':

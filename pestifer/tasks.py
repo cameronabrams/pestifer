@@ -78,10 +78,10 @@ class Task(BaseMod):
         self.update_statefile('coor',f'{basename}.coor')
 
     def minimize(self,specs):
-        namd_params=self.config['namd2']
+        namd_params=self.config['base']['namd2']
         basename=self.next_basename('minimize')
         nminsteps=specs['nminsteps']
-        dcdfreq=namd_params['dcdfreq']
+        dcdfreq=specs['dcdfreq']
         na=self.writers['namd2']
         temperature=namd_params['generic']['temperature']
         psf=self.statevars['psf']
@@ -103,7 +103,7 @@ class Task(BaseMod):
             params['temperature']='$temperature'
         if xsc:
             params['extendedSystem']=xsc
-        params['parameters']=na.standard_charmmparfiles+na.custom_charmmparfiles
+        params['parameters']=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
         params.update(namd_params['generic'])
 
         if self.statevars['periodic']:
@@ -129,7 +129,7 @@ class Task(BaseMod):
         self.coor_to_pdb(basename)
 
     def relax(self,specs,label=None):
-        namd_params=self.config['namd2']
+        namd_params=self.config['base']['namd2']
         ensemble=specs['ensemble']
         temperature=specs['temperature']
         pressure=specs['pressure']
@@ -157,7 +157,7 @@ class Task(BaseMod):
             params['binvelocities']=vel
         params.update({'tcl':[f'set temperature {temperature}']})
         params['temperature']='$temperature'
-        params['parameters']=na.standard_charmmparfiles+na.custom_charmmparfiles
+        params['parameters']=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
         params.update(namd_params['generic'])
         if xsc:
             params['extendedSystem']=xsc
@@ -207,9 +207,10 @@ class PsfgenTask(Task):
         self.statevars['base_molecule']=self.base_molecule
         logger.debug('Running first psfgen')
         self.psfgen()
-        if self.base_molecule.has_loops():
-            logger.debug('Declashing loops')
-            self.declash_loops(self.specs['sequence']['loops']['declash'])
+        nloops=self.base_molecule.has_loops(min_loop_length=self.statevars['min_loop_length'])*self.base_molecule.num_images()
+        if nloops>0:
+            logger.debug(f'Declashing {nloops} loops')
+            self.declash_loops(self.specs['source']['sequence']['loops'])
         logger.debug('Minimizing')
         self.minimize(self.specs['minimize'])
         logger.info(f'Task {self.taskname} {self.index:02d} complete')
@@ -239,7 +240,7 @@ class PsfgenTask(Task):
         pdb=self.statevars['pdb']
         vt.newscript(basename)
         vt.load_psf_pdb(psf,pdb,new_molid_varname='mLL')
-        cycles=specs['maxcycles']
+        cycles=specs['declash']['maxcycles']
         mol.write_loop_lines(vt,cycles=cycles,min_length=specs['min_loop_length'])
         vt.write_pdb(basename,'mLL')
         vt.endscript()
@@ -269,8 +270,9 @@ class PsfgenTask(Task):
     def injest_molecules(self,specs):
         self.molecules={}
         self.source_specs=specs['source']
-        self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,chainIDmanager=self.chainIDmanager,segtype_of_resname=self.segtype_of_resname).activate_biological_assembly(self.source_specs['bioassemb'])
+        self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
         self.base_molecule=self.molecules[self.source_specs['id']]
+        self.statevars['min_loop_length']=self.source_specs['sequence']['loops']['min_loop_length']
         for p in self.pdbs:
             self.molecules[p]=Molecule(ctrl=self.ctrl_specs,source=p)
 
@@ -286,7 +288,7 @@ class LigateTask(Task):
             logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
             self.statevars=self.prior.statevars.copy()
         self.base_molecule=self.statevars['base_molecule']
-        if not self.base_molecule.has_loops(min_length=self.specs['min_loop_length']):
+        if not self.base_molecule.has_loops(min_loop_length=self.statevars['min_loop_length']):
             logger.info('No loops. Ligation bypassed.')
             return
         logger.debug('Steering loop ends')
@@ -365,9 +367,9 @@ class LigateTask(Task):
         params={'structure':psf,'coordinates':pdb}
         params.update({'tcl':[f'set temperature {temperature}']})
         params['temperature']='$temperature'
-        params['parameters']=na.standard_charmmparfiles+na.custom_charmmparfiles
+        params['parameters']=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
         logger.debug(f'Parameter files: {params["parameters"]}')
-        namd_params=self.config['namd2']
+        namd_params=self.config['base']['namd2']
         params.update(namd_params['generic'])
         params.update(namd_params['vacuum'])
         params.update(namd_params['thermostat'])
@@ -411,7 +413,7 @@ class LigateTask(Task):
         pg=self.writers['psfgen']
         pg.newscript(basename)
         pg.topo_aliases()
-        topfile=os.path.join(self.config.charmm_custom_path,'mylink.top')
+        topfile=os.path.join(self.config.charmmff_custom_path,'mylink.top')
         pg.addline(f'topology {topfile}')
         pg.usescript('loop_closure')
         pg.writescript()
