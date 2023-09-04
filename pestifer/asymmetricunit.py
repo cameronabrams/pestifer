@@ -92,7 +92,7 @@ class AsymmetricUnit(AncestorAwareMod):
             fromAtoms=ResidueList(Atoms)
             fromMissings=ResidueList(Missings)
             Residues=fromAtoms+fromMissings
-            Residues.apply_segtype()
+            Residues.apply_segtypes()
             uniques=Residues.uniqattrs(['segtype'],with_counts=True)
             logger.debug(f'{len(Residues)} total residues: {len(fromAtoms)} resolved and {len(fromMissings)} unresolved')
             logger.debug(f'Segtypes present: {uniques["segtype"]}')

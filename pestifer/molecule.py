@@ -21,7 +21,7 @@ class Molecule(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['molid','chainIDmanager','source','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
     opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
-    def __init__(self,source={},chainIDmanager=None,*kwargs):
+    def __init__(self,source={},chainIDmanager=None,**kwargs):
         reset=kwargs.get('reset_counter',False)
         if reset:
             Molecule._molcounter=0
@@ -33,10 +33,10 @@ class Molecule(AncestorAwareMod):
         else:
             rcsb_file_format=source['file_format']
             if rcsb_file_format=='PDB':
-                p_struct=PDBParser(PDBcode=source).parse().parsed
+                p_struct=PDBParser(PDBcode=source['id']).parse().parsed
             elif rcsb_file_format=='mmCIF':
-                logger.debug(f'CIF source {source}')
-                p_struct=CIFload(source)
+                logger.debug(f'CIF source {source["id"]}')
+                p_struct=CIFload(source['id'])
                 logger.debug(f'p_struct type {type(p_struct)}')
         # use_psf=options.get('use_psf',None)
         # if use_psf:

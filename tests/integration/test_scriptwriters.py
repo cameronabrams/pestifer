@@ -9,13 +9,11 @@ import os
 class TestPsfgen(unittest.TestCase):
     def test_header(self):
         c=Config()
-        n=c['psfgen_scriptname']
         p=Psfgen(c)
-        self.assertEqual(p.default_script,n)
         p.newscript()
         p.B.banner('TESTING')
         p.writescript()
-        self.assertTrue(os.path.isfile(p.default_script))
+        self.assertTrue(os.path.isfile('pestifer-script.tcl'))
         p.newscript('testing')
         p.B.banner('TESTING')
         p.writescript()
@@ -25,9 +23,9 @@ class TestPsfgen(unittest.TestCase):
     def test_charmm(self):
         c=Config()
         p=NAMD2(c)
-        print(p.standard_charmmparfiles)
-        for x in p.standard_charmmparfiles:
-            self.assertTrue('cfa' in x)
+        print(p.standard_charmmff_parfiles)
+        for x in p.standard_charmmff_parfiles:
+            self.assertTrue('pestifer/PestiferResources' in x)
 
     # def test_write_mol(self):
     #     c=ConfigSetup('example.yaml')

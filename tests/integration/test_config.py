@@ -11,7 +11,7 @@ import unittest
 import platform
 import os
 import yaml
-from pestifer.config import Config, ResourceManager, dwalk
+from pestifer.config import Config, ResourceManager, userhelp, segtype_of_resname, charmm_resname_of_pdb_resname, res_123, res_321
 
 class ConfigTest(unittest.TestCase):
     def test_resource_manager(self):
@@ -21,24 +21,49 @@ class ConfigTest(unittest.TestCase):
         for cd in ['custom','toppar']:
             self.assertTrue(cd in rm['charmmff'])
             
-    def test_config_nouser(self):
+    def test_config_nouser_globals(self):
         c=Config()
         self.assertTrue('Resources' in c)
         self.assertEqual(type(c['Resources']),ResourceManager)
         rr=c['Resources']['tcl']['scripts']
-        print(rr)
         self.assertEqual(os.path.join(rr,'pestifer-vmd.tcl'),c.vmd_startup_script)
-        self.assertEqual(c.segtype_by_resname('ALA'),'protein')
-        self.assertEqual(c.segtype_by_resname('MAN'),'glycan')
-        self.assertEqual(c.segtype_by_resname('CL'),'ion')
-        self.assertEqual(c.charmmify_resname('MAN'),'AMAN')
-        self.assertEqual(c.charmmify_resname('ALA'),'ALA')
-        self.assertEqual(c.res_123('A'),'ALA')
-        self.assertEqual(c.res_321('PHE'),'F')
+        self.assertEqual(segtype_of_resname['ALA'],'protein')
+        self.assertEqual(segtype_of_resname['MAN'],'glycan')
+        self.assertEqual(segtype_of_resname['CL'],'ion')
+        self.assertEqual(charmm_resname_of_pdb_resname.get('MAN'),'AMAN')
+        self.assertEqual(charmm_resname_of_pdb_resname.get('ALA'),None)
+        self.assertEqual(res_123['A'],'ALA')
+        self.assertEqual(res_321['PHE'],'F')
 
     def test_config_boolean(self):
         c=Config()
         self.assertTrue(c)
+
+    def test_config_help(self):
+        c=Config()
+        with open('help.out','w') as f:
+            L=c['help']['directives']
+            userhelp(L,f.write,end='\n')
+            userhelp(L,f.write,'title',end='\n')
+            userhelp(L,f.write,'paths',end='\n')
+            userhelp(L,f.write,'paths','vmd',end='\n')
+            userhelp(L,f.write,'tasks',end='\n')
+            userhelp(L,f.write,'tasks','psfgen',end='\n')
+            userhelp(L,f.write,'tasks','psfgen','source',end='\n')
+            userhelp(L,f.write,'tasks','psfgen','source','id',end='\n')
+            userhelp(L,f.write,'tasks','psfgen','source','file_format',end='\n')
+            userhelp(L,f.write,'tasks','psfgen','source','sequence',end='\n')
+            userhelp(L,f.write,'tasks','psfgen','source','sequence','fix_conflicts',end='\n')
+            userhelp(L,f.write,'tasks','psfgen','source','sequence','loops',end='\n')
+            userhelp(L,f.write,'tasks','psfgen','source','sequence','loops','min_loop_length',end='\n')
+            userhelp(L,f.write,'tasks','ligate',end='\n')
+            userhelp(L,f.write,'tasks','ligate','steer',end='\n')
+            userhelp(L,f.write,'tasks','solvate',end='\n')
+            userhelp(L,f.write,'tasks','relax',end='\n')
+            userhelp(L,f.write,'tasks','relax','ensemble',end='\n')
+            userhelp(L,f.write,'tasks','terminate',end='\n')
+        self.assertTrue(os.path.isfile('help.out'))
+            
 
     def test_config_user(self):
         rm=ResourceManager()
@@ -51,7 +76,7 @@ class ConfigTest(unittest.TestCase):
         name,specs=[(x,y) for x,y in task1.items()][0]
         self.assertEqual(name,'psfgen')
         self.assertTrue('source' in specs)
-        self.assertEqual(specs['source']['rcsb'],'6pti')
+        self.assertEqual(specs['source']['id'],'6pti')
         self.assertTrue('minimize' in specs)
         self.assertTrue('cleanup' in specs)
         task2=c['user']['tasks'][1]
@@ -65,6 +90,7 @@ class ConfigTest(unittest.TestCase):
         rm=ResourceManager()
         configfile=rm['examples']+'/example1.yaml'
         c=Config(userconfigfile=configfile)
+        self.assertTrue('base' in c)
         self.assertTrue('user' in c)
         self.assertTrue('help' in c)
         H=c['help']
@@ -80,9 +106,8 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(T['default'],'Pestifer')
         U=c['user']
         self.assertTrue('title' in U)
-        self.assertFalse('paths' in U)
+        self.assertTrue('paths' in U)
         self.assertTrue('tasks' in U)
-        dwalk(H,U)
         utitle=U['title']
         self.assertEqual(utitle,'BPTI')
         paths=U['paths']
@@ -119,9 +144,8 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(T['default'],'Pestifer')
         U=c['user']
         self.assertTrue('title' in U)
-        self.assertFalse('paths' in U)
+        self.assertTrue('paths' in U)
         self.assertTrue('tasks' in U)
-        dwalk(H,U)
         utitle=U['title']
         self.assertEqual(utitle,'BPTI')
         paths=U['paths']
@@ -158,9 +182,8 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(T['default'],'Pestifer')
         U=c['user']
         self.assertTrue('title' in U)
-        self.assertFalse('paths' in U)
+        self.assertTrue('paths' in U)
         self.assertTrue('tasks' in U)
-        dwalk(H,U)
         utitle=U['title']
         self.assertEqual(utitle,'BPTI')
         paths=U['paths']
@@ -197,9 +220,8 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(T['default'],'Pestifer')
         U=c['user']
         self.assertTrue('title' in U)
-        self.assertFalse('paths' in U)
+        self.assertTrue('paths' in U)
         self.assertTrue('tasks' in U)
-        dwalk(H,U)
         utitle=U['title']
         self.assertEqual(utitle,'Example 4 HIV-1 Env Trimer 4zmj')
         paths=U['paths']
@@ -236,9 +258,8 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(T['default'],'Pestifer')
         U=c['user']
         self.assertTrue('title' in U)
-        self.assertFalse('paths' in U)
+        self.assertTrue('paths' in U)
         self.assertTrue('tasks' in U)
-        dwalk(H,U)
         utitle=U['title']
         self.assertEqual(utitle,'HIV-1 Env Trimer 4tvp, Fabs and phosphate ions removed')
         paths=U['paths']
@@ -275,9 +296,8 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(T['default'],'Pestifer')
         U=c['user']
         self.assertTrue('title' in U)
-        self.assertFalse('paths' in U)
+        self.assertTrue('paths' in U)
         self.assertTrue('tasks' in U)
-        dwalk(H,U)
         utitle=U['title']
         self.assertEqual(utitle,'HIV-1 Env Trimer 8fad')
         paths=U['paths']
@@ -314,9 +334,8 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(T['default'],'Pestifer')
         U=c['user']
         self.assertTrue('title' in U)
-        self.assertFalse('paths' in U)
+        self.assertTrue('paths' in U)
         self.assertTrue('tasks' in U)
-        dwalk(H,U)
         utitle=U['title']
         self.assertEqual(utitle,'HIV-1 Env Trimer 8fae')
         paths=U['paths']

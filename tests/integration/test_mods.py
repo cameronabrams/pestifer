@@ -2,7 +2,7 @@ from pestifer.mods import Mutation, Missing, Seqadv, SSBond, Crot, Link
 from pestifer.cifutil import CIFdict, CIFload
 from pidibble.pdbparse import PDBParser
 from pestifer.bioassemb import Transform
-from pestifer.config import Config
+from pestifer.config import Config, segtype_of_resname
 from pestifer.stringthings import ByteCollector
 import unittest
 # import pytest
@@ -145,7 +145,7 @@ class TestLink(unittest.TestCase):
             'resseqnum2':2,
             'insertion2':'',}
         l=Link(input_dict)
-        l.map_attr('segtype1','resname1',self.config['Segtypes_by_Resnames'])
-        l.map_attr('segtype2','resname2',self.config['Segtypes_by_Resnames'])
-        self.assertEqual(l.segtype1,'PROTEIN')
-        self.assertEqual(l.segtype2,'GLYCAN')
+        l.map_attr('segtype1','resname1',segtype_of_resname)
+        l.map_attr('segtype2','resname2',segtype_of_resname)
+        self.assertEqual(l.segtype1,'protein')
+        self.assertEqual(l.segtype2,'glycan')

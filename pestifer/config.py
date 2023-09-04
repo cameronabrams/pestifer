@@ -70,15 +70,22 @@ class Config(UserDict):
                 with open(userconfigfile,'r') as f:
                     data['user']=yaml.safe_load(f)
                     # self._user_defaults()
+        else:
+            data['user']={}
         super().__init__(data)
+        self._user_defaults()
         self._set_shortcuts()
 
-    # def _user_defaults(self):
-    #     D=self['help']
-    #     U=self['user']
-    #     dwalk(D,U)
+    def _user_defaults(self):
+        D=self['help']
+        U=self['user']
+        dwalk(D,U)
 
     def _set_shortcuts(self):
+        self.namd2=self['user']['paths']['namd2']
+        self.charmrun=self['user']['paths']['charmrun']
+        self.vmd=self['user']['paths']['vmd']
+        self.tcl_path=self['Resources']['tcl']
         self.tcl_proc_path=self['Resources']['tcl']['proc']
         self.tcl_script_path=self['Resources']['tcl']['scripts']
         self.vmd_startup_script=os.path.join(self.tcl_script_path,'pestifer-vmd.tcl')
@@ -88,7 +95,8 @@ class Config(UserDict):
         if hasattr(self,'user'):
             self.user_charmmff_toppar_path=os.path.join(self['user']['charmff'],'toppar')
         self.namd2_config_defaults=self['base']['namd2']
-        for stn,stspec in self['base']['psfgen']['segtypes'].items():
+        self.segtypes=self['base']['psfgen']['segtypes']
+        for stn,stspec in self.segtypes.items():
             if stspec and 'rescodes' in stspec:
                 self['base']['psfgen']['segtypes'][stn]['invrescodes']={v:k for k,v in stspec['rescodes'].items()}
         self.pdb_to_charmm_resnames={}
@@ -103,11 +111,48 @@ class Config(UserDict):
                 self.segtype_of_resname[r]=st
 
         # globals
-        segtype_of_resname.update(self.segtype_of_resname)
         charmm_resname_of_pdb_resname.update(self.pdb_to_charmm_resnames)
+        for p,c in charmm_resname_of_pdb_resname.items():
+            self.segtype_of_resname[c]=self.segtype_of_resname[p]
+        segtype_of_resname.update(self.segtype_of_resname)
         res_123.update(self['base']['psfgen']['segtypes']['protein']['invrescodes'])
         res_321.update(self['base']['psfgen']['segtypes']['protein']['rescodes'])
+
             
+def userhelp(L,logf,*args,end=''):
+    if len(args)==0:
+        logf(f'-> help available for {", ".join([dspec["name"] for dspec in L])}{end}')
+    elif len(args)==1:
+        name=args[0]
+        try:
+            item_idx=[x["name"] for x in L].index(name)
+        except:
+            raise ValueError(f'{name} is not a recognized directive')
+        item=L[item_idx]
+        logf(f'{item["name"]}:{end}')
+        logf(f'    {item["text"]}{end}')
+        logf(f'    type: {item["type"]}{end}')
+        if "default" in item:
+            logf(f'    default: {item["default"]}{end}')
+        if "choices" in item:
+            logf(f'    allowed values: {", ".join(item["choices"])}{end}')
+        if item.get("required",False):
+            logf(f'    A value is required.{end}')
+        if "directives" in item:
+            userhelp(item["directives"],logf,end=end)
+    else:
+        arglist=list(args)
+        nextarg=arglist.pop(0)
+        args=tuple(arglist)
+        try:
+            item_idx=[x["name"] for x in L].index(nextarg)
+        except:
+            raise ValueError(f'{nextarg} is not a recognized directive')
+        item=L[item_idx]
+        logf(f'{nextarg}->')
+        userhelp(item['directives'],logf,*args,end=end)
+
+
 def dwalk(D,I):
     tld=[x['name'] for x in D['directives']]
     # logger.debug(f'dwalk along {tld} for {I}')

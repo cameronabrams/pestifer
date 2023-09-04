@@ -2,6 +2,12 @@
 # (c) 2023 Cameron F. Abrams, 2023
 #
 # Format description for user configuration file
+#
+# The "name" of any directive may appear as a key whose value is specified by "type"
+# and any dependent "directives".  Values with scalar types should only appear
+# once in any directive set.  Values with list types may have multiple instances
+# of each dependent directive.
+#
 # use "required: True" for scalar values that have no defaults but must be specified
 # use "required: False" for any values that should not be assigned defaults
 #
@@ -43,7 +49,7 @@ directives:
             type: dict
             directives:
               - name: id 
-                text: The 4-character PDB ID of the source
+                text: The 4-character PDB ID of the source or the basename of a local coordinate file (PDB or mmCIF format); pestifer will download from the RCSB if a file is not found
                 type: str
                 required: True
               - name: biological_assembly 
@@ -55,8 +61,11 @@ directives:
                 type: str
                 choices: [PDB, mmCIF]
                 default: PDB
+              - name: psf
+                type: str
+                text: An optional accompanying psf file
               - name: exclude
-                text: Specifies any residues or atoms to exclude from the system
+                text: Specifies any residues or atoms present in the PDB source to exclude from the system
                 type: dict
                 directives:
                   - name: chains
@@ -68,7 +77,7 @@ directives:
                     type: list
                     required: False
               - name: sequence
-                text: Parameters controlling sequence modifications based on specifications in the PDB file
+                text: Parameters controlling sequence modifications based on specifications in the PDB source
                 type: dict
                 directives:
                   - name: include_terminal_loops
@@ -124,7 +133,7 @@ directives:
             type: bool
             default: True
       - name: ligate
-        text: Specifies how C-termini of model-built loops are connected back into their protein
+        text: Specifies how C-termini of modeled loops are connected back to the protein
         type: dict
         directives:
           - name: steer
@@ -147,6 +156,10 @@ directives:
                 text: number of time steps between configuration output to DCD file
                 type: int
                 default: 100
+              - name: temperature
+                text: Temperature used in steered MD run
+                type: float
+                default: 300
           - name: connect
             text: Specifies parameters of the psfgen run that patches in the new backbone bonds
             type: dict
@@ -180,7 +193,7 @@ directives:
         type: dict
         directives:
           - name: ensemble
-            text: Name of ensemble to run in
+            text: Name of ensemble to run in; note that NPT can only be peformed on a solvated system
             type: str
             choices: [NVT, NPT]
             default: NVT

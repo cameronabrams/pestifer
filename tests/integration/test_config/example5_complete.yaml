@@ -39,6 +39,7 @@ tasks:
       force_constant: 20
       nsteps: 4000
       target_distant: 2
+      temperature: 300
 - relax:
     dcdfreq: 100
     ensemble: NVT

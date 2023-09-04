@@ -63,7 +63,6 @@ psfgen:
     - residue NAG BGLCNA
     - residue FUC AFUC
     - residue GAL BGAL
-    - residue H2PO H2PO4
     - residue ANE5 ANE5AC
     - residue SIA ANE5AC
     - residue EIC LIN
@@ -160,6 +159,7 @@ namd2:
     switching: on
     switchdist: 9.0
     pairlistdist: 11.5
+    temperature: 300
   vacuum:
     nonbondedFreq: 1
     fullElectFrequency: 2

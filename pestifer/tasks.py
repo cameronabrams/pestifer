@@ -12,7 +12,6 @@ logger=logging.getLogger(__name__)
 import shutil
 import os
 import yaml
-import numpy as np
 from .util import inspect_classes, is_periodic
 from .molecule import Molecule
 from .chainids import ChainIDManager
@@ -20,7 +19,7 @@ from .colvars import *
 from .stringthings import FileCollector
 
 class Task(BaseMod):
-    req_attr=BaseMod.req_attr+['specs','index','prior','writers','config','taskname']
+    req_attr=BaseMod.req_attr+['specs','config','index','prior','writers','taskname']
     yaml_header='generic_task'
     exts=['.psf','.pdb','.coor','.xsc'] # extensions of files that can be transferred from one task to the next
     _taskcount=0
@@ -28,10 +27,10 @@ class Task(BaseMod):
         specs=input_dict.copy()
         input_dict = {
             'index':Task._taskcount,
-            'config':config,
             'writers': writers,
             'prior':prior,
             'specs':specs,
+            'config':config,
             'taskname':taskname
         }
         for k,v in specs.items():
@@ -79,10 +78,10 @@ class Task(BaseMod):
         self.update_statefile('coor',f'{basename}.coor')
 
     def minimize(self,specs):
-        namd_params=self.config.namd_params
+        namd_params=self.config['namd2']
         basename=self.next_basename('minimize')
         nminsteps=specs['nminsteps']
-        dcdfreq=specs['dcdfreq']
+        dcdfreq=namd_params['dcdfreq']
         na=self.writers['namd2']
         temperature=namd_params['generic']['temperature']
         psf=self.statevars['psf']
@@ -129,9 +128,8 @@ class Task(BaseMod):
             del self.statevars['cell']
         self.coor_to_pdb(basename)
 
-    # TODO: make consistent with helpfile
     def relax(self,specs,label=None):
-        namd_params=self.config.namd_params
+        namd_params=self.config['namd2']
         ensemble=specs['ensemble']
         temperature=specs['temperature']
         pressure=specs['pressure']
@@ -170,7 +168,7 @@ class Task(BaseMod):
         else:
             params.update(namd_params['vacuum'])
         params.update(namd_params['thermostat'])
-        if pressure:
+        if ensemble=='NPT':
             if not self.statevars['periodic']:
                 raise Exception(f'Cannot use barostat on a system without PBCs')
             params['tcl'].append(f'set pressure {pressure}')
@@ -196,7 +194,6 @@ class PsfgenTask(Task):
         super().__init__(input_dict,taskname,config,writers,prior)
         self.chainIDmanager=ChainIDManager(format=self.specs['source']['file_format'])
         self.mods=self.specs['mods']
-        self.segtype_of_resname=self.config.segtype_of_resname
 
     def do(self):
         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
@@ -212,7 +209,7 @@ class PsfgenTask(Task):
         self.psfgen()
         if self.base_molecule.has_loops():
             logger.debug('Declashing loops')
-            self.declash_loops(self.specs['declash'])
+            self.declash_loops(self.specs['sequence']['loops']['declash'])
         logger.debug('Minimizing')
         self.minimize(self.specs['minimize'])
         logger.info(f'Task {self.taskname} {self.index:02d} complete')
@@ -289,7 +286,7 @@ class LigateTask(Task):
             logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
             self.statevars=self.prior.statevars.copy()
         self.base_molecule=self.statevars['base_molecule']
-        if not self.base_molecule.has_loops(min_length=self.specs.get('min_loop_length',4)):
+        if not self.base_molecule.has_loops(min_length=self.specs['min_loop_length']):
             logger.info('No loops. Ligation bypassed.')
             return
         logger.debug('Steering loop ends')
@@ -334,7 +331,7 @@ class LigateTask(Task):
         self.update_statefile('results',resultsfile)
         with open(resultsfile,'r') as f:
             datalines=f.read().split('\n')
-        gaps=[]
+        self.gaps=[]
         for line in datalines:
             if len(line)>0 and not line[0] in comment_chars:
                 data=line.split()
@@ -344,22 +341,21 @@ class LigateTask(Task):
                     'serial_j':int(data[2]),
                     'distance':float(data[3])
                 }
-                gaps.append(thisgap)
-        self.specs['gaps']=gaps
+                self.gaps.append(thisgap)
 
     def do_steered_md(self,specs):
         basename=self.next_basename('steer')
-        nsteps=specs.get('nsteps',1000)
-        dcdfreq=specs.get('dcdfreq',0)
-        temperature=specs.get('temperature',310)
+        nsteps=specs['nsteps']
+        dcdfreq=specs['dcdfreq']
+        temperature=specs['temperature']
         writer=self.writers['data']
         writer.newfile(f'{basename}-cv.inp')
-        for i,g in enumerate(self.specs['gaps']):
+        for i,g in enumerate(self.gaps):
             g['name']=f'GAP{i:02d}'
             declare_distance_cv_atoms(g,writer)
-        for i,g in enumerate(self.specs['gaps']):
-            g['k']=specs.get('force_constant',20.0)
-            g['targ_distance']=specs.get('target_distance',2.0)
+        for i,g in enumerate(self.gaps):
+            g['k']=specs['force_constant']
+            g['targ_distance']=specs['target_distance']
             g['targ_numsteps']=nsteps
             declare_harmonic_distance_bias(g,writer)
         writer.writefile()
@@ -371,7 +367,7 @@ class LigateTask(Task):
         params['temperature']='$temperature'
         params['parameters']=na.standard_charmmparfiles+na.custom_charmmparfiles
         logger.debug(f'Parameter files: {params["parameters"]}')
-        namd_params=self.config.namd_params
+        namd_params=self.config['namd2']
         params.update(namd_params['generic'])
         params.update(namd_params['vacuum'])
         params.update(namd_params['thermostat'])

@@ -2,9 +2,9 @@ import logging
 logger=logging.getLogger(__name__)
 from .basemod import AncestorAwareMod, AncestorAwareModList
 from .mods import MutationList
-from .config import charmm_resname_of_pdb_resname,segtype_of_resname
+from .config import segtype_of_resname
 from .residue import Residue,ResidueList
-from .util import isidentity, reduce_intlist
+from .util import reduce_intlist
 from .scriptwriters import Psfgen
 
 class Segment(AncestorAwareMod):
@@ -50,7 +50,7 @@ class Segment(AncestorAwareMod):
                     for x in Residues:
                         if hasattr(x,'_ORIGINAL_'):
                             logger.debug(f'    {x.chainID} {x.name} {x.resseqnum}{x.insertion} was {x._ORIGINAL_}')                
-            Residues.sort()
+            # Residues.sort()
             subsegments=Residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
             input_dict={
                 'specs':specs,
@@ -259,10 +259,20 @@ class SegmentList(AncestorAwareModList):
             self.counters_by_segtype={}
             self.segnames=[]
             self.daughters={}
+            self.segtype_of_segname={}
             if type(input_obj)==ResidueList:
                 super().__init__([])
                 residues=input_obj
-                for stype in segtype_of_resname:
+                self.segnames_ordered_by_residue_order=[]
+                self.segtypes_ordered=[]
+                for r in residues:
+                    if not r.chainID in self.segnames_ordered_by_residue_order:
+                        self.segnames_ordered_by_residue_order.append(r.chainID)  
+                        self.segtype_of_segname[r.chainID]=r.segtype
+                    if not r.segtype in self.segtypes_ordered:
+                        self.segtypes_ordered.append(r.segtype)
+                        logger.debug(f'catching segtype {r.segtype} segname {r.chainID}')
+                for stype in self.segtypes_ordered:
                     self.counters_by_segtype[stype]=0
                     res=residues.filter(segtype=stype)
                     for chainID in res.uniqattrs(['chainID'])['chainID']:
@@ -283,6 +293,11 @@ class SegmentList(AncestorAwareModList):
                         logger.debug(f'Making segment: stype {stype} chainID {this_chainID} segname {thisSeg.segname}')
                         self.segnames.append(thisSeg.segname)
                         self.counters_by_segtype[stype]+=1
+
+                # assert len(self.segnames)==len(self.segnames_ordered_by_residue_order)
+                # assert all([x in self.segnames for x in self.segnames_ordered_by_residue_order])
+                # self.segnames_ordered_by_config=self.segnames.copy()
+                # self.segnames=self.segnames_ordered_by_residue_order.copy()
             else:
                 logger.error(f'Cannot initialize {self.__class__} from objects {objs}')
 

@@ -67,22 +67,20 @@ class VMD(Scriptwriter):
     def __init__(self,config):
         super().__init__()
         self.config=config
+        self.vmd=config.vmd
         self.tcl_path=config.tcl_path
+        self.tcl_proc_path=config.tcl_proc_path
+        self.tcl_script_path=config.tcl_script_path
         self.vmd_startup=config.vmd_startup_script
-        self.default_script=config['vmd_scriptname']
 
     def usescript(self,scriptbasename):
-        scriptname=os.path.join(self.tcl_path,f'scripts/{scriptbasename}.tcl')
+        scriptname=os.path.join(self.tcl_script_path,f'scripts/{scriptbasename}.tcl')
         timestampstr=datetime.datetime.today().ctime()
         if not os.path.exists(scriptname):
             raise FileNotFoundError(f'Pestifer script {scriptbasename}.tcl is not found.')
         self.banner(f'Begin {scriptbasename}, {timestampstr}')
         self.injest_file(scriptname)
         self.banner(f'End {scriptbasename}')
-
-    def loadmodule(self,modulename):
-        procname=os.path.join(self.tcl_path,f'proc/{modulename}.tcl')
-        self.addline(f'source {procname}')
 
     def endscript(self):
         self.addline('exit')
@@ -146,37 +144,37 @@ class VMD(Scriptwriter):
         self.addline(f'$a moveby [vescale -i $or]')
         self.addline(f'$a delete')
 
-    def reset_molecule_orientation(self,mol,specs):
-        selspec=specs.get('selspec',{})
-        if not selspec:
-            return
-        group1=selspec.get('group1','')
-        group2=selspec.get('group2','')
-        if not group1 or not group2:
-            return
-        self.banner('Resetting molecule orientation')
-        self.addline(f'set g1 [measure center [atomselect ${mol.molid_varname} "protein and {group1}] weight mass]')
-        self.addline(f'set g2 [measure center [atomselect ${mol.molid_varname} "protein and {group2}] weight mass]')
-        self.addline('set pi 3.1415928')
-        self.addline('set dv [vecsub $g1 $g2]')
-        self.addline('set d [veclength $dv]')
-        self.addline('set cp [expr [lindex $dv 0]/$d]')
-        self.addline('set sp [expr [lindex $dv 1]/$d]')
-        self.addline('set p [expr acos($cp)]')
-        self.addline('if { [expr $sp < 0.0] } {')
-        self.addline('    set p [expr 2*$pi-$p]')
-        self.addline('}')
-        self.addline('set ct [exr [lindex $dv 2]/$d]')
-        self.addline('set t [expr acos($ct)]')
-        self.addline(f'set a [atomselect ${mol.molid_varname} all]')
-        self.addline('$a move [transaxis z [expr -1 * $p] rad]')
-        self.addline('$a move [transaxis y [expr -1 * $t] rad]')
-        self.addline('$a delete')
-        self.banner('Done resetting molecule orientation')
+    # def reset_molecule_orientation(self,mol,specs):
+    #     selspec=specs.get('selspec',{})
+    #     if not selspec:
+    #         return
+    #     group1=selspec.get('group1','')
+    #     group2=selspec.get('group2','')
+    #     if not group1 or not group2:
+    #         return
+    #     self.banner('Resetting molecule orientation')
+    #     self.addline(f'set g1 [measure center [atomselect ${mol.molid_varname} "protein and {group1}] weight mass]')
+    #     self.addline(f'set g2 [measure center [atomselect ${mol.molid_varname} "protein and {group2}] weight mass]')
+    #     self.addline('set pi 3.1415928')
+    #     self.addline('set dv [vecsub $g1 $g2]')
+    #     self.addline('set d [veclength $dv]')
+    #     self.addline('set cp [expr [lindex $dv 0]/$d]')
+    #     self.addline('set sp [expr [lindex $dv 1]/$d]')
+    #     self.addline('set p [expr acos($cp)]')
+    #     self.addline('if { [expr $sp < 0.0] } {')
+    #     self.addline('    set p [expr 2*$pi-$p]')
+    #     self.addline('}')
+    #     self.addline('set ct [exr [lindex $dv 2]/$d]')
+    #     self.addline('set t [expr acos($ct)]')
+    #     self.addline(f'set a [atomselect ${mol.molid_varname} all]')
+    #     self.addline('$a move [transaxis z [expr -1 * $p] rad]')
+    #     self.addline('$a move [transaxis y [expr -1 * $t] rad]')
+    #     self.addline('$a delete')
+    #     self.banner('Done resetting molecule orientation')
 
     def runscript(self,*args,**options):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
-        c=Command(f'{self.config["vmd"]} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args -respath {self.tcl_path}',**options)
+        c=Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args -respath {self.tcl_proc_path}',**options)
         c.run()
         self.logname=f'{self.basename}.log'
         with open(self.logname,'w') as f:
@@ -195,10 +193,12 @@ class VMD(Scriptwriter):
 class Psfgen(VMD):
     def __init__(self,config):
         super().__init__(config)
-        self.pestifer_charmm_toppar_path=config.charmm_toppar_path
-        self.pestifer_charmm_custom_path=config.charmm_custom_path
-        self.user_charmm_toppar_path=config.user_charmm_toppar_path
-        self.default_script=config['psfgen_scriptname']
+        self.charmmff_config=config['base']['charmmff']
+        self.psfgen_config=config['base']['psfgen']
+        self.pestifer_charmmff_toppar_path=config.charmmff_toppar_path
+        self.pestifer_charmmff_custom_path=config.charmmff_custom_path
+        self.user_charmmff_toppar_path=config.user_charmmff_toppar_path
+        # self.default_script=config['psfgen_scriptname']
 
     def newscript(self,basename=None):
         super().newscript(basename=basename)
@@ -206,18 +206,14 @@ class Psfgen(VMD):
         self.addline('psfcontext mixedcase')
 
     def topo_aliases(self):
-        for t in self.config['StdCharmmTopo']:
-            ft=os.path.join(self.pestifer_charmm_toppar_path,t)
+        for t in self.charmmff_config['standard']['topologies']:
+            ft=os.path.join(self.pestifer_charmmff_toppar_path,t)
             self.addline(f'topology {ft}')
-        for lt in self.config['CustomCharmmTopo']:
-            ft=os.path.join(self.pestifer_charmm_custom_path,lt)
+        for lt in self.charmmff_config['custom']['topologies']:
+            ft=os.path.join(self.pestifer_charmmff_custom_path,lt)
             self.addline(f'topology {ft}')
-        for pdba in self.config['Psfgen_Aliases']:
+        for pdba in self.psfgen_config['aliases']:
             self.addline(f'pdbalias {pdba}')
-        # for k,v in self.config['PDB_to_CHARMM_Resnames'].items():
-        #     self.addline(f'set RESDICT({k}) {v}')
-        # for k,v in self.config['PDB_to_CHARMM_Atomnames'].items():
-        #     self.addline(f'set ANAMEDICT({k}) {v}')
         self.banner('END HEADER')
 
     def load_project(self,*objs):
@@ -244,17 +240,17 @@ class Psfgen(VMD):
 class NAMD2(Scriptwriter):
     def __init__(self,config):
         super().__init__()
-        self.config=config
-        self.default_basename=config['namd2_configbasename']
+        self.charmmff_config=config['base']['charmmff']
+        self.charmrun=config.charmrun
+        self.namd2=config.namd2
+        self.namd2_config=config['base']['namd2']
         self.max_cpu_count=os.cpu_count()
         self.default_ext='.namd'
-        self.default_script=f'{self.default_basename}{self.default_ext}'
-        logger.debug(f'Charmm paths: user: {self.config.user_charmm_toppar_path} pestifer {self.config.charmm_toppar_path}')
-        if not self.config.user_charmm_toppar_path!='UNSET':
-            self.standard_charmmparfiles=[os.path.join(self.config.user_charmm_toppar_path,x) for x in self.config['StdCharmmParam']]
+        if config.user_charmmff_toppar_path:
+            self.standard_charmmff_parfiles=[os.path.join(config.user_charmmff_toppar_path,x) for x in self.charmmff_config['standard']['parameters']]
         else:
-            self.standard_charmmparfiles=[os.path.join(self.config.charmm_toppar_path,x) for x in self.config['StdCharmmParam']]
-        self.custom_charmmparfiles=[os.path.join(self.config.charmm_custom_path,x) for x in self.config['CustomCharmmParam']]
+            self.standard_charmmff_parfiles=[os.path.join(config.charmmff_toppar_path,x) for x in self.charmmff_config['standard']['parameters']]
+        self.custom_charmmff_parfiles=[os.path.join(config.charmmff_custom_path,x) for x in self.charmmff_config['custom']['parameters']]
 
     def newscript(self,basename=None):
         super().newscript(basename)
@@ -278,7 +274,7 @@ class NAMD2(Scriptwriter):
 
     def runscript(self):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
-        c=Command(f'{self.config["charmrun"]} +p {self.max_cpu_count} {self.config["namd2"]} {self.scriptname}')
+        c=Command(f'{self.charmrun} +p {self.max_cpu_count} {self.namd2} {self.scriptname}')
         c.run()
         self.logname=f'{self.basename}.log'
         with open(self.logname,'w') as f:

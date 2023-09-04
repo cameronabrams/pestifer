@@ -122,7 +122,6 @@ class BioAssemb(AncestorAwareMod):
         cls._index=1
 
     def activate(self,AU:AsymmetricUnit,CM:ChainIDManager):
-        daughters=AU.Segments.daughters
         for T in self.transforms:
             T.generate_chainIDmap(AU.Segments.segnames,AU.Segments.daughters,CM)
 
