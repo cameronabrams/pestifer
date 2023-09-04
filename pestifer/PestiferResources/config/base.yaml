@@ -175,6 +175,7 @@ namd2:
     stepspercycle: 10
     PME: on 
     pmegridspacing: 1.0
+    wrapAll: on
   thermostat:
     langevin: on 
     langevinDamping: 5
