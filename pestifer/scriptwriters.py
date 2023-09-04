@@ -1,7 +1,7 @@
 """
 
 .. module:: psfgen
-   :synopsis: Manages script generation and execution of psfgen under vmd
+   :synopsis: Manages script generation and execution for vmd and namd2
    
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
