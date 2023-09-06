@@ -11,6 +11,7 @@ from collections import UserList
 import logging
 logger=logging.getLogger(__name__)
 import os
+from pestifer.command import Command
 # _ANGSTROM_='Ångström'
 
 from .util import get_version
@@ -104,6 +105,10 @@ class FileCollector(UserList):
             else:
                 logger.debug(f'{f}: not found.')
         self.clear()
+    def tarball(self,basename):
+        filelist=' '.join([x for x in self])
+        c=Command(f'tar zvcf {basename}.tgz {filelist}')
+        c.run()
 
 def split_ri(ri):
     if ri[-1].isdigit(): # there is no insertion code

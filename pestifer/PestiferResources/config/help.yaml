@@ -257,3 +257,12 @@ directives:
             text: Desired name of the file describing the current state
             type: str
             default: states.yaml
+          - name: package
+            text: Task that packages all CHARMM parameter files and pdb/psf/coor/vel/xsc files for a production run
+            type: dict
+            required: False
+            directives:
+              - name: basename
+                text: Desired basename for final tarball
+                type: str
+                default: my_system

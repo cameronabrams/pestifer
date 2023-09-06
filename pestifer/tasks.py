@@ -472,6 +472,11 @@ class TerminateTask(Task):
     def do(self):
         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
         self.statevars=self.prior.statevars.copy()
+        self.writeresults()
+        if 'package' in self.specs:
+            self.package(self.specs['package'])
+
+    def writeresults(self):
         for ext in self.exts+['.vel']:
             aext=ext[1:]
             if aext in self.statevars:
@@ -487,3 +492,20 @@ class TerminateTask(Task):
         with open(self.specs["statefile"],'w') as f:
             yaml.dump(self.statevars,f)
         logger.info(f'Task {self.taskname} {self.index:02d} complete')
+
+    def package(self,specs):
+        logger.debug(f'package specs {specs}')
+        self.statevars=self.prior.statevars.copy()
+        self.FC.clear()
+        na=self.writers['namd2']
+        namd2_params_abs=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
+        for nf in namd2_params_abs:
+            d,n=os.path.split(nf)
+            shutil.copy(nf,n)
+            self.FC.append(n)
+        for ext in self.exts+['.vel']:
+            aext=ext[1:]
+            self.FC.append(self.statevars[aext])
+        self.FC.tarball(specs["basename"])
+
+        

@@ -1,0 +1,15 @@
+title: BPTI, package
+tasks:
+  - psfgen:
+      source:
+        id: 6pti
+        exclude:
+          resnames:
+            - PO4
+  - solvate:
+  - relax:
+      ensemble: NPT
+  - terminate:
+      basename: my_6pti
+  - package:
+      basename: my_6pti

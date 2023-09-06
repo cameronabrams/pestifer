@@ -1,9 +1,9 @@
-"""
+# Author: Cameron F. Abrams <cfa22@drexel.edu>.
+"""Automatic generation of PSF files
 
-.. module:: pestifer
-   :synopsis: manages command-line interface; sets up logging
-   
-.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
+Pestifer is a python package that facilitates the use
+of UIUC's psfgen VMD plug-in for generating PSF files
+for use in MD simulations of biomacromolecules using NAMD.
 
 """
 import argparse as ap
@@ -20,7 +20,6 @@ from .controller import Controller
 from .config import Config,userhelp
 
 def config_help(args):
-
     c=Config()
     if args.no_banner:
         banner(print)
@@ -38,7 +37,6 @@ def config_default(args):
     print(yaml.dump(specs))
 
 def run(args):
-
     # Set up logging to both a log file and the console
     loglevel=args.loglevel
     loglevel_numeric=getattr(logging, loglevel.upper())
