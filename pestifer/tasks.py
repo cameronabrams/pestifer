@@ -458,7 +458,7 @@ class SolvateTask(Task):
         vt.writescript()
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
-        vt.runscript(o=basename,pdb=pdb,psf=psf)
+        vt.runscript(o=basename,pdb=pdb,psf=psf,pad=self.specs['pad'])
         self.update_statefile('cell',f'{basename}_cell.tcl')
         self.update_statefile('psf',f'{basename}.psf')
         self.update_statefile('pdb',f'{basename}.pdb')

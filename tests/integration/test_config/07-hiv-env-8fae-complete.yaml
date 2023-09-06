@@ -52,6 +52,7 @@ tasks:
     minimize:
       dcdfreq: 100
       nminsteps: 1000
+    pad: 10
 - relax:
     dcdfreq: 100
     ensemble: NPT

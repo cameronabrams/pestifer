@@ -1,0 +1,20 @@
+title: HIV-1 Env Trimer 8fad
+tasks:
+  - psfgen:
+      source:
+        id: 8fad
+        file_format: mmCIF
+        exclude:
+          resnames:
+            - 83G
+  - ligate:
+      steer:
+        nsteps: 4000
+  - relax:
+  - solvate:
+  - relax:
+      ensemble: NPT
+  - terminate:
+      basename: my_8fad
+      package:
+        basename: prod_8fad

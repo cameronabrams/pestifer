@@ -127,7 +127,7 @@ class Molecule(AncestorAwareMod):
             # chainID=S.chainID
             if S.segtype=='protein':
                 for b in S.subsegments:
-                    if b.state=='MISSING' and b.num_residues()>=min_loop_length:
+                    if b.state=='MISSING' and b.num_items()>=min_loop_length:
                         nloops+=1
         return nloops
 
@@ -143,7 +143,7 @@ class Molecule(AncestorAwareMod):
                 asymm_segname=S.segname
                 for b in S.subsegments:
                     if b.state=='MISSING':
-                        if b.num_residues()>=min_length:
+                        if b.num_items()>=min_length:
                             reslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
                             tcllist='[list '+' '.join(reslist)+']'
                             for transform in ba.transforms:
@@ -161,7 +161,7 @@ class Molecule(AncestorAwareMod):
                 asymm_segname=S.segname
                 for i,b in enumerate(S.subsegments):
                     if b.state=='MISSING':
-                        if b.num_residues()>=min_length and i<(len(S.subsegments)-1):
+                        if b.num_items()>=min_length and i<(len(S.subsegments)-1):
                             reslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
                             bpp=S.subsegments[i+1]
                             nreslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[bpp.bounds[0]:bpp.bounds[1]+1]]
@@ -180,7 +180,7 @@ class Molecule(AncestorAwareMod):
                 asymm_segname=S.segname
                 for i,b in enumerate(S.subsegments):
                     if b.state=='MISSING':
-                        if b.num_residues()>=min_length and i<(len(S.subsegments)-1):
+                        if b.num_items()>=min_length and i<(len(S.subsegments)-1):
                             llres=S.residues[b.bounds[1]-1]
                             lres=S.residues[b.bounds[1]]
                             nextb=S.subsegments[i+1]

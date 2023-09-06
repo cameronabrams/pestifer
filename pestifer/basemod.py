@@ -1,5 +1,5 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>.
-"""Simple namespace objects with attribute controls
+""" Namespace objects with attribute controls
 
 This module defines the BaseMod class as a derivative of argparse's
 very nice Namespace class, and the ModList class as a derivative
@@ -15,6 +15,9 @@ allow specification of
     * attributes that depend on other attributes;
     * attributes that are ignored for purposes of comparing
       the overall "value" of any instances
+
+A class with methods useful for manipulating lists of instances 
+of BaseMod's or their derivatives is also defined here.
 
 """
 import operator
@@ -89,8 +92,33 @@ class BaseMod(Namespace):
 
     matches(**fields)
         non strict match -- returns true if all key:val pairs in fields
-        match the corresponding key:val pairs in self.__dict__
+        match the corresponding key:val pairs in the calling instance's
+        attributes
 
+    dump()
+        returns a string containing a yaml-format dump of the calling
+        instance as a dictionary (non-recursive)
+
+    inlist(a_list)
+        returns true if the calling instances is an element of a_list
+
+    map_attr(self,mapped_attr,key_attr,map)
+        applies the map dictionary to the value of the key attribute
+        and stores the result in the mapped attribute; if mapped and
+        key attributes are the same, mapping overwrites the attribute
+
+    set(self,**fields)
+        treating fields as attribute-name:value pairs, sets the values
+        of the object attributes named in fields
+
+    assign_obj_to_attr(self,attr,objList,**matchattr)
+        searches the list of objects objList using the matcharr dict
+        of attribute-names:values and if a match is found, sets the
+        value of the attribute attr to be that found object
+
+    update_attr_from_obj_attr(self,attr,obj,obj_attr)
+        sets the value of attr from the value of obj_attr from object
+        obj
     """
     req_attr=[]
     opt_attr=[]
@@ -263,21 +291,82 @@ class BaseMod(Namespace):
             val=map[key]
             self.__dict__[mapped_attr]=val
     def set(self,**fields):
+        """
+        Parameters
+        ----------
+        fields : dict, optional
+            dictionary of attribute-name:value pairs used to set 
+            object attribute values respectively
+        """
         for k,v in fields.items():
             if k in self.__dict__:
                 self.__dict__[k]=v
     def assign_obj_to_attr(self,attr,objList,**matchattr):
+        """ 
+        Parameters
+        ----------
+        attr : str
+            attribute name
+        objList : list
+            list of objects that is searched
+        matchattr : dict
+            attribute:values used in searching the 
+            list of objects
+        """
         assert getattr(self,attr)==None
         adict={k:getattr(self,v) for k,v in matchattr.items()}
         myObj=objList.get(**adict)
         if myObj!=None:
             setattr(self,attr,myObj)
     def update_attr_from_obj_attr(self,attr,obj,obj_attr):
+        """ 
+        Parameters
+        ----------
+        attr : str
+            attribute name
+        obj : object
+            object from which the attribute value is taken
+        obj_attr : str
+            name of attribute in obj that is set to 
+            attr of self
+        """
         setattr(self,attr,getattr(getattr(self,obj),obj_attr))
 
 class CloneableMod(BaseMod):
+    """A class defining a custom namespace that can be cloned 
+    
+    This BaseMod specialization gives instances the ability to
+    be cloned and to remember their source object.  Attribute
+    values can optionally be changed during the cloning
+    operation.  The attribute 'clone_of' is added as an optional 
+    attribute; any BaseMod instance with an attribute named 
+    'clone_of' is interpreted as a clone.
+
+    Methods
+    -------
+    clone(**options)
+        creates a new instance that is a clone of the calling
+        instance; attribute values in the clone can be assigned
+        via **options
+    
+    is_clone()
+        returns True if calling instance is a clone
+
+    get_original()
+        returns value of the 'clone_of' attribute of calling
+        instance
+
+    """
     opt_attr=BaseMod.opt_attr+['clone_of']
     def clone(self,**options):
+        """Generates and returns a clone of the calling instance
+        
+        Parameters
+        ----------
+        options : dict
+            dictionary of attribute-name:value pairs that are 
+            explicitly assigned in the clone
+        """
         input_dict={k:v for k,v in self.__dict__.items() if k in self.req_attr}
         input_dict.update({k:v for k,v in self.__dict__.items() if k in self.opt_attr})
         input_dict.update(options)
@@ -285,18 +374,62 @@ class CloneableMod(BaseMod):
         x=self.__class__(input_dict)
         return x
     def is_clone(self):
+        """Returns True if calling instance is a clone """
         return 'clone_of' in self.__dict__
     def get_original(self):
-        return self.clone_of
-    
+        """Returns identifier of object the calling instance is a clone of 
+        or None if calling instance is not a clone """
+        if self.is_clone():
+            return self.clone_of
+        else:
+            return None
+        
 class AncestorAwareMod(CloneableMod):
+    """A class defining custom, cloneable namespaces that can exists in a hierarchy 
+    
+    In cases where an object instance attribute is *another* object, like a BaseMod or
+    any derivative thereof, one often would like to allow the "child" object to have
+    direct knowledge of its "ancestry".  This class introduces the optional
+    attribute 'ancestor_obj' to the CloneableMod class, and defines methods that
+    allow calling instances to set this attribute.
+
+    Methods
+    -------
+    claim_self(stamp)
+        assigns the value stamp to the attribute ancestor_obj
+
+    claim_descendants(stamp)
+        assigns the value stamp to the ancestor_obj attribute
+        of the calling instance *and* of any attribute objects
+        that are also "ancestor aware" *except* the ancestor_obj
+        (of course, since this is a recursive method)
+    
+    """
     opt_attr=CloneableMod.req_attr+['ancestor_obj']
     ignore_attr=CloneableMod.ignore_attr+['ancestor_obj']
     
     def claim_self(self,stamp):
-        self.__dict__['ancestor_obj']=stamp
+        """Applies the stamp to the calling instance's ancestor_obj
+        attribute 
+        
+        Parameters
+        ----------
+        stamp : obj
+            object assigned to the ancestor_obj attribute
+        """
+        self.ancestor_obj=stamp
+        # self.__dict__['ancestor_obj']=stamp
 
     def claim_descendants(self,stamp):
+        """Recursively instructs calling instance to stamp all of 
+        its descendant objects 
+        
+        Parameters
+        ----------
+        stamp : obj
+            object assigned to all ancestor_obj attributes of any
+            ancestor-aware attributes
+        """
         self.claim_self(stamp)
         for attr_name,obj in self.__dict__.items():
             if not attr_name=='ancestor_obj': # very important! or, could stamp self last?
@@ -305,15 +438,50 @@ class AncestorAwareMod(CloneableMod):
                     obj.claim_descendants(stamp)
 
 class StateInterval(AncestorAwareMod):
+    """A class defining a custom, ancestor-aware namespace that encodes the 
+    state between two bounding values
+    
+    In reference to an arbitrary list, this class defines a construction
+    that assigns a value for 'state' to items in the list inclusively between
+    two indices.  This is an ancestor-aware namespace with the additional
+    attributes 'state' and 'bound'
+
+    Methods
+    -------
+    increment_rightbound()
+        adds one to the value of the position-1 element of the bounds
+        attribute of the calling instance
+
+    num_items()
+        returns a calculated value of the number of items inclusively
+        between the two bounds, assuming we are referring to a container
+        object with sequential indicies
+    
+    pstr()
+        returns a pretty string version of the calling instance
+    
+    """
     req_attr=AncestorAwareMod.req_attr+['state','bounds']
     def increment_rightbound(self):
+        """Increments the position-1 element of the bounds attribute
+        of the calling instance """
         self.bounds[1]+=1
-    def num_residues(self):
-        return self.bounds[1]-self.bounds[0]
+    def num_items(self):
+        """Returns a calculated value of the number of items inclusively
+        between the two bounds, assuming we are referring to a container
+        object with sequential indicies """
+        return self.bounds[1]-self.bounds[0]+1
     def pstr(self):
+        """Returns a pretty string version"""
         return f'{self.state}({self.bounds[1]-self.bounds[0]+1})'
 
 class ModList(UserList):
+    """List of BaseMods or derivatives thereof
+    
+    When collected into lists, BaseMod instances can acquire collective
+    importance that needs to be handled.  This class allows for 
+    
+    """
     def __init__(self,data):
         super().__init__(data)
 

@@ -179,7 +179,7 @@ class Segment(AncestorAwareMod):
                 for r in self.residues[b.bounds[0]:b.bounds[1]+1]:
                     rname=charmm_resname_of_pdb_resname.get(r.name,r.name)
                     W.addline(f'    residue {r.resseqnum}{r.insertion} {rname} {image_seglabel}')
-                if b.num_residues()>=min_loop_length:
+                if b.num_items()>=min_loop_length:
                     lrr=self.residues[b.bounds[1]]
                     sac_resseqnum=lrr.resseqnum
                     sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
