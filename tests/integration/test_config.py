@@ -8,7 +8,7 @@
 """
 
 import unittest
-import platform
+import glob
 import os
 import yaml
 from pestifer.config import Config, ResourceManager, userhelp, segtype_of_resname, charmm_resname_of_pdb_resname, res_123, res_321
@@ -67,7 +67,7 @@ class ConfigTest(unittest.TestCase):
 
     def test_config_user(self):
         rm=ResourceManager()
-        configfile=rm['examples']+'/example1.yaml'
+        configfile=rm['examples']+'/01-bpti.yaml'
         c=Config(userconfigfile=configfile)
         self.assertTrue('user' in c)
         self.assertTrue('tasks' in c['user'])
@@ -86,44 +86,47 @@ class ConfigTest(unittest.TestCase):
         name,specs=[(x,y) for x,y in task3.items()][0]
         self.assertEqual(name,'relax')
 
-    def test_config_help_example1(self):
+    def test_config_help_examples(self):
         rm=ResourceManager()
-        configfile=rm['examples']+'/example1.yaml'
-        c=Config(userconfigfile=configfile)
-        self.assertTrue('base' in c)
-        self.assertTrue('user' in c)
-        self.assertTrue('help' in c)
-        H=c['help']
-        D=H['directives']
-        self.assertEqual(len(D),3)
-        tld=[x['name'] for x in D]
-        self.assertEqual(tld,['title','paths','tasks'])
-        T_idx=tld.index('title')
-        T=D[T_idx]
-        self.assertEqual(T['name'],'title')
-        self.assertEqual(T['type'],'str')
-        self.assertTrue('text' in T)
-        self.assertEqual(T['default'],'Pestifer')
-        U=c['user']
-        self.assertTrue('title' in U)
-        self.assertTrue('paths' in U)
-        self.assertTrue('tasks' in U)
-        utitle=U['title']
-        self.assertEqual(utitle,'BPTI')
-        paths=U['paths']
-        self.assertEqual(paths['namd2'],'/usr/local/bin/namd2')
-        self.assertEqual(paths['charmrun'],'/usr/local/bin/charmrun')
-        self.assertEqual(paths['vmd'],'/usr/local/bin/vmd')
-        self.assertFalse('charmff' in paths)
-        with open('example1_complete.yaml','w') as f:
-            yaml.dump(U,f)
-        tasks=U['tasks']
-        print(tasks)
-        self.assertTrue('psfgen' in tasks[0])
-        specs=tasks[0]['psfgen']
-        self.assertTrue('source' in specs)
-        source_specs=specs['source']
-        self.assertTrue('id' in source_specs)
+        configfiles=glob.glob(rm['examples']+'/*.yaml')
+        for configfile in configfiles:
+            d,n=os.path.split(configfile)
+            b,e=os.path.splitext(n)
+            c=Config(userconfigfile=configfile)
+            self.assertTrue('base' in c)
+            self.assertTrue('user' in c)
+            self.assertTrue('help' in c)
+            H=c['help']
+            D=H['directives']
+            self.assertEqual(len(D),3)
+            tld=[x['name'] for x in D]
+            self.assertEqual(tld,['title','paths','tasks'])
+            T_idx=tld.index('title')
+            T=D[T_idx]
+            self.assertEqual(T['name'],'title')
+            self.assertEqual(T['type'],'str')
+            self.assertTrue('text' in T)
+            self.assertEqual(T['default'],'Pestifer')
+            U=c['user']
+            self.assertTrue('title' in U)
+            self.assertTrue('paths' in U)
+            self.assertTrue('tasks' in U)
+            paths=U['paths']
+            self.assertEqual(paths['namd2'],'/usr/local/bin/namd2')
+            self.assertEqual(paths['charmrun'],'/usr/local/bin/charmrun')
+            self.assertEqual(paths['vmd'],'/usr/local/bin/vmd')
+            self.assertFalse('charmff' in paths)
+            with open(f'{b}-complete.yaml','w') as f:
+                yaml.dump(U,f)
+            tasks=U['tasks']
+            print(tasks)
+            self.assertTrue('psfgen' in tasks[0])
+            specs=tasks[0]['psfgen']
+            self.assertTrue('source' in specs)
+            self.assertTrue('mods' in specs)
+            self.assertTrue('ssbondsdelete' in specs['mods'])
+            source_specs=specs['source']
+            self.assertTrue('id' in source_specs)
 
     def test_config_help_example2(self):
         rm=ResourceManager()

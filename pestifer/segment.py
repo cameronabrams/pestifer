@@ -6,7 +6,7 @@ from .config import segtype_of_resname,charmm_resname_of_pdb_resname
 from .residue import Residue,ResidueList
 from .util import reduce_intlist
 from .scriptwriters import Psfgen
-
+import inspect
 class Segment(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','specs']
     opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname']
@@ -99,13 +99,10 @@ class Segment(AncestorAwareMod):
         seglabel=self.segname
         image_seglabel=chainIDmap.get(seglabel,seglabel)
         is_image=image_seglabel!=seglabel
-        # if rep_chainID!=asym_chainID:
-        #     seglabel=f'{rep_chainID}{seglabel[1:]}' # first byte is chain ID
-        #     logger.info(f'relabeling chain {the_chainID} to {rep_chainID} in segment {self.psfgen_segname} -> new segment {seglabel}')
+
         transform.register_mapping(self.segtype,image_seglabel,seglabel)
 
-        W.banner(f'BEGIN SEGMENT {image_seglabel}')
-        W.comment(f'This segment is referenced as chain {seglabel} in the asymmetric unit (possibly after segtype-processing by pestifer)')
+        W.banner(f'Segment {image_seglabel} begins as image of {seglabel}')
         serial_list=self.residues.atom_serials(as_type=int)
         vmd_red_list=reduce_intlist(serial_list)
         pdb=f'GENERIC_{image_seglabel}.pdb'
@@ -125,26 +122,25 @@ class Segment(AncestorAwareMod):
         if is_image:
             W.banner(f'Restoring A.U. state for {seglabel}')
             W.restore_selection(selname,dataholder=f'{selname}_data')
-        W.banner(f'END SEGMENT {image_seglabel}')
+        W.banner(f'Segment {image_seglabel} ends')
 
-    def protein_stanza(self,W:Psfgen,transform,mods):
+    def protein_stanza(self,W:Psfgen,transform,seqmods):
         parent_molecule=self.ancestor_obj
         chainIDmap=transform.chainIDmap
         seglabel=self.segname
         image_seglabel=chainIDmap.get(seglabel,seglabel)
         is_image=image_seglabel!=seglabel
-        # if rep_chainID!=asym_chainID:
-        #     seglabel=f'{rep_chainID}{seglabel[1:]}' # first byte is chain ID
-        #     logger.info(f'relabeling chain {the_chainID} to {rep_chainID} in segment {self.psfgen_segname} -> new segment {seglabel}')
+
         transform.register_mapping(self.segtype,image_seglabel,seglabel)
 
-        sac_r=self.specs['loops']['sac_res_name']
-        sac_n=self.specs['loops']['min_loop_length']
+        sac_rn=self.specs['loops']['sac_res_name']
+        min_loop_length=self.specs['loops']['min_loop_length']
         # intra-segment, no need to use image_seglabel
-        Mutations=mods.get('Mutations',MutationList([])).filter(chainID=seglabel)
-        Conflicts=mods.get('Conflicts',MutationList([])).filter(chainID=seglabel)
+        seg_engr_mutations=seqmods.engr_mutations.filter(chainID=seglabel)
+        seg_user_mutations=seqmods.user_mutations.filter(chainID=seglabel)
+        seg_conflicts=seqmods.conflicts.filter(chainID=seglabel)
 
-        W.banner(f'BEGIN SEGMENT {image_seglabel}')
+        W.banner(f'Segment {image_seglabel} begins')
         for i,b in enumerate(self.subsegments):
             if b.state=='RESOLVED':
                 """ for a resolved subsegment, generate its pdb file """
@@ -152,9 +148,8 @@ class Segment(AncestorAwareMod):
                 run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
                 b.pdb=f'protein_{image_seglabel}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
                 W.addfile(b.pdb)
-                # TODO: account for any deletions?  Maybe better at the residue stage...
                 serial_list=run.atom_serials(as_type=int)
-                at=parent_molecule.asymmetric_unit.Atoms.get(serial=serial_list[-1])
+                at=parent_molecule.asymmetric_unit.atoms.get(serial=serial_list[-1])
                 assert at.resseqnum==run[-1].resseqnum
                 vmd_red_list=reduce_intlist(serial_list)
                 W.addline(f'set {b.selname} [atomselect ${parent_molecule.molid_varname} "serial {vmd_red_list}"]')
@@ -184,25 +179,23 @@ class Segment(AncestorAwareMod):
                 for r in self.residues[b.bounds[0]:b.bounds[1]+1]:
                     rname=charmm_resname_of_pdb_resname.get(r.name,r.name)
                     W.addline(f'    residue {r.resseqnum}{r.insertion} {rname} {image_seglabel}')
-                if (b.bounds[1]-b.bounds[0])>(sac_n-1):
+                if b.num_residues()>=min_loop_length:
                     lrr=self.residues[b.bounds[1]]
                     sac_resseqnum=lrr.resseqnum
                     sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
-                    assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {seglabel} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_r}'
-                    b.sacres=Residue({'name':sac_r,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':'protein'})
-                    W.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_r} {image_seglabel}')
+                    assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {seglabel} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_rn}'
+                    b.sacres=Residue({'name':sac_rn,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':'protein'})
+                    W.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_rn} {image_seglabel}')
+        for m in seg_user_mutations:
+                W.comment('Below is a user-specified mutation:')
+                W.addline(m.write_TcL())
         if self.specs['fix_engineered_mutations']:
-            for m in Mutations:
-                if m.source=='SEQADV':
-                    if self.specs['fix_engineered_mutations']:
-                        W.comment('Below reverts an engineered mutation:')
-                        W.addline(m.write_TcL())
-                else:
-                    W.comment('Below is a user-specified mutation:')
-                    W.addline(m.write_TcL())
+            for m in seg_engr_mutations:
+                W.comment('Below reverts an engineered mutation:')
+                W.addline(m.write_TcL())
         if self.specs['fix_conflicts']:
-            for m in Conflicts:
-                W.comment('Below asserts a database sequence over actual sequence:')
+            for m in seg_conflicts:
+                W.comment('Below reverts a database conflict back to database value')
                 W.addline(m.write_TcL())
         W.addline('}')
         W.banner(f'End segment {image_seglabel}')
@@ -247,7 +240,7 @@ class Segment(AncestorAwareMod):
             if b.state=='RESOLVED':
                 if is_image:
                     W.restore_selection(b.selname,dataholder=f'{b.selname}_data')
-        W.banner(f'END SEGMENT {image_seglabel}')
+        W.banner(f'Segment {image_seglabel} ends')
 
 class SegmentList(AncestorAwareModList):
 

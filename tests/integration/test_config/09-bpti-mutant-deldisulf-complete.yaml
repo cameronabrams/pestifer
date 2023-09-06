@@ -6,11 +6,22 @@ tasks:
 - psfgen:
     cleanup: true
     minimize:
+      dcdfreq: 100
       nminsteps: 1000
-    mods: {}
+    mods:
+      mutations:
+      - A:T11A
+      - A:PRO,13,ALA
+      - A:K15R
+      - A:MET,52,LEU
+      ssbonds: []
+      ssbondsdelete:
+      - A_5-A_55
     source:
       biological_assembly: 0
-      exclude: {}
+      exclude:
+        resnames:
+        - PO4
       file_format: PDB
       id: 6pti
       sequence:
@@ -24,6 +35,7 @@ tasks:
           sac_res_name: GLY
 - solvate:
     minimize:
+      dcdfreq: 100
       nminsteps: 1000
 - relax:
     dcdfreq: 100
@@ -33,4 +45,8 @@ tasks:
     pressure: 1
     temperature: 300
     xstfreq: 100
-title: BPTI
+- terminate:
+    basename: my_6pti
+    chainmapfile: chainmaps.yaml
+    statefile: states.yaml
+title: BPTI, no phosphate, custom output basename

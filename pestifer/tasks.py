@@ -11,6 +11,7 @@ import logging
 logger=logging.getLogger(__name__)
 import shutil
 import os
+from argparse import Namespace
 import yaml
 from .util import inspect_classes, is_periodic
 from .molecule import Molecule
@@ -193,7 +194,6 @@ class PsfgenTask(Task):
     def __init__(self,input_dict,taskname,config,writers,prior):
         super().__init__(input_dict,taskname,config,writers,prior)
         self.chainIDmanager=ChainIDManager(format=self.specs['source']['file_format'])
-        self.mods=self.specs['mods']
 
     def do(self):
         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
@@ -203,7 +203,7 @@ class PsfgenTask(Task):
         logger.debug('Parsing modifications')
         self.modparse()
         logger.debug('Injesting molecule(s)')
-        self.injest_molecules(self.specs)
+        self.injest_molecules()
         self.statevars['base_molecule']=self.base_molecule
         logger.debug('Running first psfgen')
         self.psfgen()
@@ -250,24 +250,31 @@ class PsfgenTask(Task):
 
     def modparse(self):
         mod_classes,modlist_classes=inspect_classes('pestifer.mods','List')
+        logger.debug(f'mod classes {[c.yaml_header for c in mod_classes.values()]}')
+        logger.debug(f'modlist classes {modlist_classes}')
         retdict={}
         input_dict=self.specs['mods']
+        assert type(input_dict)==dict
+        logger.debug(f'Mods before parsing {input_dict}')
         for hdr,entries in input_dict.items():
-            class_name=[name for name,cls in mod_classes.items() if cls.yaml_header==hdr][0]
+            logger.debug(f'checking for {hdr}')
+            class_name=[name for name,cls in mod_classes.items() if cls.yaml_header.lower()==hdr][0]
             cls=mod_classes[class_name]
             LCls=modlist_classes.get(f'{class_name}List',list)
+            if not hdr in retdict:
+                retdict[hdr]=LCls([])
             for entry in entries:
                 assert type(entry) in [dict,str]
                 newmod=cls(entry)
-                newmod.source='USER'
-                if not hdr in retdict:
-                    retdict[hdr]=LCls([])
+                # newmod.source='USER'
                 retdict[hdr].append(newmod)
-        self.specs['mods']=retdict
+        logger.debug(f'Mods after parsing {retdict}')
+        self.mods=Namespace(**retdict)
         # TODO: gather names of all aux pdb files for
         self.pdbs=[]
 
-    def injest_molecules(self,specs):
+    def injest_molecules(self):
+        specs=self.specs
         self.molecules={}
         self.source_specs=specs['source']
         self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])

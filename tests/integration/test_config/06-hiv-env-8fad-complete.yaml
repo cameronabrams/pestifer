@@ -6,15 +6,19 @@ tasks:
 - psfgen:
     cleanup: true
     minimize:
+      dcdfreq: 100
       nminsteps: 1000
-    mods: {}
+    mods:
+      mutations: []
+      ssbonds: []
+      ssbondsdelete: []
     source:
       biological_assembly: 0
       exclude:
         resnames:
-        - PO4
-      file_format: PDB
-      id: 6pti
+        - 83G
+      file_format: mmCIF
+      id: 8fad
       sequence:
         fix_conflicts: true
         fix_engineered_mutations: true
@@ -24,8 +28,29 @@ tasks:
             maxcycles: 20
           min_loop_length: 4
           sac_res_name: GLY
+- ligate:
+    connect:
+      cleanup: true
+    minimize:
+      dcdfreq: 100
+      nminsteps: 1000
+    steer:
+      dcdfreq: 100
+      force_constant: 20
+      nsteps: 4000
+      target_distance: 2
+      temperature: 300
+- relax:
+    dcdfreq: 100
+    ensemble: NVT
+    nminsteps: 0
+    nsteps: 1000
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
 - solvate:
     minimize:
+      dcdfreq: 100
       nminsteps: 1000
 - relax:
     dcdfreq: 100
@@ -35,4 +60,8 @@ tasks:
     pressure: 1
     temperature: 300
     xstfreq: 100
-title: BPTI
+- terminate:
+    basename: my_8fad
+    chainmapfile: chainmaps.yaml
+    statefile: states.yaml
+title: HIV-1 Env Trimer 8fad

@@ -12,7 +12,7 @@ from .config import segtype_of_resname
 
 class Ter(AncestorAwareMod):
     req_attr=['serial','resname','chainID','resseqnum','insertion']
-    yaml_header='Terminals'
+    yaml_header='terminals'
     def __init__(self,input_obj):
         if type(input_obj)==dict:
             super().__init__(input_obj)
@@ -35,7 +35,7 @@ class TerList(AncestorAwareModList):
 class Atom(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
     opt_attr=AncestorAwareMod.opt_attr+['segname','empty','link','recordname','auth_seq_id','auth_comp_id','auth_asym_id','auth_atom_id']
-    yaml_header='Atoms'
+    yaml_header='atoms'
     PDB_keyword='ATOM'
     mmCIF_name='atom_site'
 
@@ -140,7 +140,7 @@ class AtomList(AncestorAwareModList):
 
 class Hetatm(Atom):
     PDB_keyword='HETATM'
-    yaml_header='Hetatoms'
+    yaml_header='hetatoms'
 
 class Residue(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['resseqnum','insertion','name','chainID','segtype']

@@ -122,8 +122,10 @@ class BioAssemb(AncestorAwareMod):
         cls._index=1
 
     def activate(self,AU:AsymmetricUnit,CM:ChainIDManager):
+        self.chainIDs_used=[]
         for T in self.transforms:
-            T.generate_chainIDmap(AU.Segments.segnames,AU.Segments.daughters,CM)
+            T.generate_chainIDmap(AU.segments.segnames,AU.segments.daughters,CM)
+            self.chainIDs_used.extend(list(T.chainIDmap.keys()))
 
 class BioAssembList(AncestorAwareModList):
     def __init__(self,*obj):

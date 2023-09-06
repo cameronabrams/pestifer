@@ -7,6 +7,7 @@
 
 """
 import logging
+from argparse import Namespace
 from pidibble.pdbparse import PDBParser
 from .cifutil import CIFload
 from .basemod import AncestorAwareMod
@@ -18,7 +19,7 @@ from .mods import MutationList, apply_psf_info
 logger=logging.getLogger(__name__)
 
 class Molecule(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['molid','chainIDmanager','source','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
+    req_attr=AncestorAwareMod.req_attr+['molid','chainIDmanager','sourcespecs','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
     opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
     def __init__(self,source={},chainIDmanager=None,**kwargs):
@@ -47,18 +48,18 @@ class Molecule(AncestorAwareMod):
             logger.debug(f'Molecule instantiating its own ChainIDManager')
             chainIDmanager=ChainIDManager()
         input_dict={
-            'source': source,
+            'sourcespecs': source,
             'chainIDmanager':chainIDmanager,
             'rcsb_file_format': rcsb_file_format,
             'molid': Molecule._molcounter,
-            'source': source,
+            'sourcespecs': source,
             'parsed_struct': p_struct,
-            'asymmetric_unit': AsymmetricUnit(p_struct,source,chainIDmanager),
+            'asymmetric_unit': AsymmetricUnit(parsed=p_struct,sourcespecs=source,chainIDmanager=chainIDmanager),
             'biological_assemblies': BioAssembList(p_struct)
         }
         super().__init__(input_dict)
-        self.asymmetric_unit.claim_descendants(self,0)
-        self.biological_assemblies.claim_descendants(self,0)
+        self.asymmetric_unit.claim_descendants(self)
+        self.biological_assemblies.claim_descendants(self)
     
     def activate_biological_assembly(self,index):
         if index==0 or len(self.biological_assemblies)==0: # we will use the unadulterated A.U. as the B.A.
@@ -72,42 +73,42 @@ class Molecule(AncestorAwareMod):
         self.active_biological_assembly.activate(self.asymmetric_unit,self.chainIDmanager)
         return self
     
-    def write_TcL(self,W:Psfgen,user_mods):
+    def write_TcL(self,W:Psfgen,user_mods=Namespace()):
         au=self.asymmetric_unit
+        segments=au.segments
+        seqmods=au.seqmods
+        topomods=au.topomods
+
+        # Apply user controls
+        if self.sourcespecs['sequence']['fix_engineered_mutations']:
+            topomods.ssbonds.prune_mutations(seqmods.engr_mutations)
+            topomods.links.prune_mutations(seqmods.engr_mutations,segments)
+        if self.sourcespecs['sequence']['fix_conflicts']:
+            topomods.ssbonds.prune_mutations(seqmods.conflicts)
+            topomods.links.prune_mutations(seqmods.conflicts,segments)
+
         ba=self.active_biological_assembly
-        allmods=user_mods.copy()
-        if not 'Mutations' in allmods:
-            allmods['Mutations']=MutationList([])
-        if not 'Conflicts' in allmods:
-            allmods['Conflicts']=MutationList([])
-        for k in ba.transforms[0].chainIDmap.keys():
-            if au.Mutations:
-                allmods['Mutations'].extend(au.Mutations.filter(chainID=k))
-            if au.Conflicts:
-                allmods['Conflicts'].extend(au.Conflicts.filter(chainID=k))
-        user_mutations=user_mods.get('Mutations',MutationList([]))
-        au.SSBonds.prune_mutations(user_mutations)
-        au.Links.prune_mutations(user_mutations,au.Segments)
-        if self.source['sequence']['fix_engineered_mutations']:
-            au.SSBonds.prune_mutations(au.Mutations)
-            au.Links.prune_mutations(au.Mutations,au.Segments)
-            # au.Links.prune_mutations(au.Conflicts) # problematic?
-        if self.source['sequence']['fix_conflicts']:
-            au.SSBonds.prune_mutations(au.Conflicts)
-            au.Links.prune_mutations(au.Conflicts,au.Segments)
-            # au.Links.prune_mutations(au.Conflicts) # problematic?
+        # build the relevant list of user mutations; this should not be necessary
+        # if the user's config file is consistent but it might not be
+        seqmods.user_mutations=MutationList([])
+        if hasattr(user_mods,'mutations'):
+            for k in ba.chainIDs_used:
+                seqmods.user_mutations.extend(user_mods.mutations.filter(chainID=k))
+        topomods.ssbonds.prune_mutations(seqmods.user_mutations)
+        topomods.links.prune_mutations(seqmods.user_mutations,segments)
+
         for transform in ba.transforms:
-            W.banner(f'TRANSFORM {transform.index} BEGINS')
+            W.banner(f'Transform {transform.index} begins')
             W.banner('The following mappings of A.U. asym ids is used:')
             for k,v in transform.chainIDmap.items():
-                W.comment(f'{k}: {v}')
-            W.banner('SEGMENTS FOLLOW')
-            au.Segments.write_TcL(W,transform,allmods)
-            W.banner('DISU PATCHES FOLLOW')
-            au.SSBonds.write_TcL(W,transform,allmods)
-            W.banner('LINK PATCHES FOLLOW')
-            au.Links.write_TcL(W,transform,allmods)
-            W.banner(f'TRANSFORM {transform.index} ENDS')
+                W.comment(f'A.U. chain {k}: Image chain {v}')
+            W.banner('Segments follow')
+            segments.write_TcL(W,transform,seqmods)
+            W.banner('DISU patches follow')
+            topomods.ssbonds.write_TcL(W,transform,user_mods)
+            W.banner('LINK patches follow')
+            topomods.links.write_TcL(W,transform)
+            W.banner(f'Transform {transform.index} ends')
     
     def get_chainmaps(self):
         ba=self.active_biological_assembly
@@ -122,7 +123,7 @@ class Molecule(AncestorAwareMod):
     def has_loops(self,min_loop_length=1):
         nloops=0
         au=self.asymmetric_unit
-        for S in au.Segments:
+        for S in au.segments:
             # chainID=S.chainID
             if S.segtype=='protein':
                 for b in S.subsegments:
@@ -136,7 +137,7 @@ class Molecule(AncestorAwareMod):
     def write_loop_lines(self,writer,cycles=100,min_length=4):
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
-        for S in au.Segments:
+        for S in au.segments:
             # chainID=S.chainID
             if S.segtype=='protein':
                 asymm_segname=S.segname
@@ -154,7 +155,7 @@ class Molecule(AncestorAwareMod):
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
         writer.addline('# fields: segname loop-begin-res loop-end-res connect-to-res')
-        for S in au.Segments:
+        for S in au.segments:
             # chainID=S.chainID
             if S.segtype=='protein':
                 asymm_segname=S.segname
@@ -173,7 +174,7 @@ class Molecule(AncestorAwareMod):
     def write_connect_patches(self,writer,min_length=4):
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
-        for S in au.Segments:
+        for S in au.segments:
             # chainID=S.chainID
             if S.segtype=='protein':
                 asymm_segname=S.segname

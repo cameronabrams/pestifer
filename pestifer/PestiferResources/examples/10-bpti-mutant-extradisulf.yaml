@@ -1,0 +1,19 @@
+title: BPTI, no phosphate, custom output basename
+tasks:
+  - psfgen:
+      source:
+        id: 6pti
+        exclude:
+          resnames:
+            - PO4
+      mods:
+        mutations:
+          - A:T11C
+          - A:V34C
+        ssbonds:
+          - A_11-A_34
+  - solvate:
+  - relax:
+      ensemble: NPT
+  - terminate:
+      basename: my_6pti

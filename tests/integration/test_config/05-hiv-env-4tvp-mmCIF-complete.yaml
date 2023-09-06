@@ -5,17 +5,25 @@ paths:
 tasks:
 - psfgen:
     cleanup: true
-    ctrl:
-      declash:
-        maxcycles: 21
     minimize:
+      dcdfreq: 100
       nminsteps: 1000
-    mods: {}
+    mods:
+      mutations: []
+      ssbonds: []
+      ssbondsdelete: []
     source:
       biological_assembly: 1
-      exclude: {}
-      file_format: PDB
-      id: 4zmj
+      exclude:
+        chains:
+        - C
+        - D
+        - E
+        - F
+        resnames:
+        - SO4
+      file_format: mmCIF
+      id: 4tvp
       sequence:
         fix_conflicts: true
         fix_engineered_mutations: true
@@ -29,23 +37,25 @@ tasks:
     connect:
       cleanup: true
     minimize:
+      dcdfreq: 100
       nminsteps: 1000
     steer:
       dcdfreq: 100
       force_constant: 20
-      nsteps: 4200
-      target_distant: 2
+      nsteps: 4000
+      target_distance: 2
       temperature: 300
 - relax:
     dcdfreq: 100
     ensemble: NVT
     nminsteps: 0
-    nsteps: 2400
+    nsteps: 2000
     pressure: 1
     temperature: 300
     xstfreq: 100
 - solvate:
     minimize:
+      dcdfreq: 100
       nminsteps: 1000
 - relax:
     dcdfreq: 100
@@ -56,7 +66,7 @@ tasks:
     temperature: 300
     xstfreq: 100
 - terminate:
-    basename: my_4zmj
+    basename: my_4tvp
     chainmapfile: chainmaps.yaml
     statefile: states.yaml
-title: Example 4 HIV-1 Env Trimer 4zmj
+title: HIV-1 Env Trimer 4tvp, Fabs and phosphate ions removed

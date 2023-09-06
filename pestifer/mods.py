@@ -15,26 +15,26 @@ from .cifutil import CIFdict
 from .basemod import AncestorAwareMod,AncestorAwareModList
 from .stringthings import split_ri
 from .scriptwriters import Psfgen
+from .config import res_123
+
+def seqadv_details_keyword(text):
+    text=text.lower()
+    keyword_list=Seqadv.attr_choices['typekey']
+    for keyword in keyword_list:
+        if keyword in text:
+            return keyword
+    return '_other_'
 
 class Seqadv(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['idCode','resname','chainID','resseqnum','insertion']
-    opt_attr=AncestorAwareMod.opt_attr+['database','dbAccession','dbRes','dbSeq','conflict','pdbx_pdb_strand_id','pdbx_auth_seq_num','pdbx_ordinal','residue']
-    yaml_header='Seqadv'
+    opt_attr=AncestorAwareMod.opt_attr+['database','dbAccession','dbRes','dbSeq','typekey','pdbx_pdb_strand_id','pdbx_auth_seq_num','pdbx_ordinal','residue']
+    attr_choices=AncestorAwareMod.attr_choices.copy().update({'typekey':['cloning','expression','typekey','engineered','variant','insertion','deletion','microheterogeneity','chromophore','_other_']})
+    yaml_header='seqadvs'
     PDB_keyword='SEQADV'
     mmCIF_name='struct_ref_seq_dif'
-    ''' These are possible conflict keywords
-        - Cloning artifact
-        - Expression tag
-        - Conflict
-        - Engineered
-        - Variant 
-        - Insertion
-        - Deletion
-        - Microheterogeneity
-        - Chromophore
-    '''    
     def __init__(self,input_obj):
         if type(input_obj)==dict:
+            logger.debug(f'naive init of seqadv from {input_obj}')
             super().__init__(input_obj)
         elif type(input_obj)==PDBRecord:
             pdbrecord=input_obj
@@ -48,7 +48,7 @@ class Seqadv(AncestorAwareMod):
                 'dbAccession':pdbrecord.dbAccession,
                 'dbRes':pdbrecord.dbRes,
                 'dbSeq':pdbrecord.dbSeq,
-                'conflict':pdbrecord.conflict,
+                'typekey':seqadv_details_keyword(pdbrecord.conflict),
                 'residue':None
             }
             super().__init__(input_dict)
@@ -64,7 +64,7 @@ class Seqadv(AncestorAwareMod):
                 'dbAccession':cd['pdbx_seq_db_accession_code'],
                 'dbRes':cd['db_mon_id'],
                 'dbSeq':cd['pdbx_seq_db_seq_num'], # author
-                'conflict':cd['details'].upper(),
+                'typekey':seqadv_details_keyword(cd['details']),
                 'pdbx_auth_seq_num':int(cd['pdbx_auth_seq_num']), # author
                 'pdbx_ordinal':cd['pdbx_ordinal'],
                 'pdbx_pdb_strand_id':cd['pdbx_pdb_strand_id'],
@@ -75,7 +75,7 @@ class Seqadv(AncestorAwareMod):
             logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
 
     def pdb_line(self):
-        return f'SEQADV {self.idCode:3s} {self.resname:>3s} {self.chainID:1s} {self.resseqnum:>4d}{self.insertion:1s} {self.database:>4s} {self.dbAccession:9s} {self.dbRes:3s} {self.dbSeq:>5d} {self.conflict:21s}          '
+        return f'SEQADV {self.idCode:3s} {self.resname:>3s} {self.chainID:1s} {self.resseqnum:>4d}{self.insertion:1s} {self.database:>4s} {self.dbAccession:9s} {self.dbRes:3s} {self.dbSeq:>5d} {self.typekey:21s}          '
     
     def assign_residue(self,Residues):
         # logger.debug(f'Searching {len(Residues)} Residues for auth_chain {self.pdbx_pdb_strand_id} auth_seq {self.pdbx_auth_seq_num}')
@@ -94,7 +94,7 @@ class Seqadv(AncestorAwareMod):
         assert self.residue!=None
         self.chainID=self.residue.chainID
         # else:
-        #     logger.debug(f'...seqadv {self.conflict} auth {self.pdbx_pdb_strand_id}:{self.pdbx_auth_seq_num} cannot be resolved from current set of residues')
+        #     logger.debug(f'...seqadv {self.typekey} auth {self.pdbx_pdb_strand_id}:{self.pdbx_auth_seq_num} cannot be resolved from current set of residues')
         # we'll assume that if this residue is not found, then this seqadv is never used anyway
 
 class SeqadvList(AncestorAwareModList):
@@ -114,7 +114,7 @@ class SeqadvList(AncestorAwareModList):
 class Mutation(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID','origresname','resseqnum','insertion','newresname','source']
     opt_attr=AncestorAwareMod.opt_attr+['pdbx_auth_seq_num']
-    yaml_header='Mutations'
+    yaml_header='mutations'
     def __init__(self,input_obj):
         if type(input_obj)==dict:
             if not 'insertion' in input_obj:
@@ -136,23 +136,35 @@ class Mutation(AncestorAwareMod):
                 input_dict['pdbx_auth_seq_num']=sq.__dict__['pdbx_auth_seq_num']
             super().__init__(input_dict)
         elif type(input_obj)==str:
-            ### shortcode format: c:nnn,rrr,mmm
+            ### shortcode format: c:nnn,rrr,mmm or c:A###B
             ### c: chainID
-            ### nnn: old resname
+            ### nnn: old resname, 1-byte rescode allowed
             ### rrr: resseqnum
-            ### mmm: new resname
+            ### mmm: new resname, 1-byte rescode allowed
             s1=input_obj.split(':')
+            chainID=s1[0]
             s2=s1[1].split(',')
-            ri=s2[1]
-            r,i=split_ri(ri)
+            codetype='3' if len(s2)==3 else '1'
+            if codetype=='3':
+                ri=s2[1]
+                r,i=split_ri(ri)
+                orn=s2[0]
+                nrn=s2[2]
+            else:
+                s2=s2[0]
+                orn=res_123[s2[0]]
+                nrn=res_123[s2[-1]]
+                ri=s2[1:-1]
+                r,i=split_ri(ri)
             input_dict={
-                'chainID':s1[0], # assume author
-                'origresname':s2[0],
+                'chainID':chainID, # assume author
+                'origresname':orn,
                 'resseqnum':int(r), # assume author!
                 'insertion':i,
-                'newresname':s2[2],
-                'source':'USER'
+                'newresname':nrn,
+                'source':'USER' # shortcodes are how users indicate mutations
             }
+            logger.debug('user mutation {input_dict}')
             super().__init__(input_dict)
         else:
             logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
@@ -172,7 +184,7 @@ class MutationList(AncestorAwareModList):
 class Deletion(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
     opt_attr=AncestorAwareMod.opt_attr+['model']
-    yaml_header='Deletions'
+    yaml_header='deletions'
 
     def __init__(self,input_obj):
         if type(input_obj)==dict:
@@ -210,7 +222,7 @@ class DeletionList(AncestorAwareModList):
 class Missing(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['resname','resseqnum','insertion','chainID']
     opt_attr=AncestorAwareMod.opt_attr+['model','id','auth_asym_id','auth_comp_id','auth_seq_id']
-    yaml_header='Missing'
+    yaml_header='missings'
     PDB_keyword='REMARK.465'
     mmCIF_name='pdbx_unobs_or_zero_occ_residues'
     def __init__(self,input_obj):
@@ -272,7 +284,7 @@ class Crot(AncestorAwareMod):
         'LINK':['segname1','segname2','resseqnum1','atom1','resseqnum2','atom2'],
         'ANGLEIJK':['segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk']
         })
-    yaml_header='Crotations'
+    yaml_header='crotations'
     @classmethod
     def from_shortcode(cls,shortcode):
         dat=shortcode.split(',')
@@ -412,7 +424,7 @@ class CrotList(AncestorAwareModList):
 class SSBond(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
     opt_attr=AncestorAwareMod.opt_attr+['serial_number','residue1','residue2','resname1','resname2','sym1','sym2','length','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id']
-    yaml_header='SSBonds'
+    yaml_header='ssbonds'
     PDB_keyword='SSBOND'
     mmCIF_name='struct_conn'
     def __init__(self,input_obj):
@@ -483,6 +495,9 @@ class SSBond(AncestorAwareMod):
         else:
             logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
 
+    def __str__(self):
+        return f'{self.chainID1}_{self.resseqnum1}{self.insertion1}-{self.chainID2}_{self.resseqnum2}{self.insertion2}'
+
     def pdb_line(self):
         pdbline='SSBOND'+\
                 '{:4d}'.format(self.serial_number)+\
@@ -515,12 +530,14 @@ class SSBondList(AncestorAwareModList):
         ignored_by_ptnr2=self.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID1',insertion='insertion2')
         return self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
     def write_TcL(self,W:Psfgen,transform,mods):
-        undo_SSBonds=mods.get('SSBondDelete',SSBondDeleteList([]))
         for s in self:
-            if undo_SSBonds.is_deleted(s,transform):
+            if mods.ssbondsdelete.is_deleted(s,transform):
+                W.comment(f'Deleted ssbond: {str(s)}')
                 continue
             s.write_TcL(W,transform)
-        for s in mods.get('SSBonds',[]):
+        # user may have added some ssbonds
+        for s in mods.ssbonds:
+            W.comment(f'Below is a user-added ssbond:')
             s.write_TcL(W,transform)
     def prune_mutations(self,Mutations):
         for m in Mutations:
@@ -532,7 +549,7 @@ class SSBondList(AncestorAwareModList):
                 self.remove(right)
 
 class SSBondDelete(SSBond):
-    yaml_header='SSBondsDelete'
+    yaml_header='ssbondsdelete'
 
 class SSBondDeleteList(SSBondList):
     def is_deleted(self,a_SSBond,transform):
@@ -542,12 +559,18 @@ class SSBondDeleteList(SSBondList):
             resseqnum1=a_SSBond.resseqnum1,
             resseqnum2=a_SSBond.resseqnum2):
             return True
+        if self.get(
+            chainID2=transform.chainIDmap[a_SSBond.chainID1],
+            chainID1=transform.chainIDmap[a_SSBond.chainID2],
+            resseqnum2=a_SSBond.resseqnum1,
+            resseqnum1=a_SSBond.resseqnum2):
+            return True
         return False
 
 class Link(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['name1','chainID1','resseqnum1','insertion1','name2','chainID2','resseqnum2','insertion2']
     opt_attr=AncestorAwareMod.opt_attr+['altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance','segname1','segname2','residue1','residue2','atom1','atom2','empty','segtype1','segtype2','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id','ptnr1_auth_comp_id','ptnr2_auth_comp_id']    
-    yaml_header='Links'
+    yaml_header='links'
     PDB_keyword='LINK'
 
     def __init__(self,input_obj):
@@ -618,7 +641,7 @@ class Link(AncestorAwareMod):
         super().__init__(input_dict)
 
     # TODO: Fix segname issues
-    def write_TcL(self,W:Psfgen,transform,mods):
+    def write_TcL(self,W:Psfgen,transform):
         chainIDmap=transform.chainIDmap
         seg1=self.residue1.chainID
         seg1=chainIDmap.get(seg1,seg1)
@@ -676,9 +699,9 @@ class LinkList(AncestorAwareModList):
         return Residues.__class__(rlist),self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
     
     
-    def write_TcL(self,W:Psfgen,transform,mods):
+    def write_TcL(self,W:Psfgen,transform):
         for l in self:
-            l.write_TcL(W,transform,mods)
+            l.write_TcL(W,transform)
 
     def remove_orphan_residues(self,Links,Residues):
         for dl in self:
@@ -722,21 +745,21 @@ class LinkList(AncestorAwareModList):
         self.map_attr('segtype2','resname2',map)
 
 class Graft(AncestorAwareMod):
-    yaml_header='Grafts'
+    yaml_header='grafts'
     pass
 
 class GraftList(AncestorAwareModList):
     pass
 
 class Insertion(AncestorAwareMod):
-    yaml_header='Insertions'
+    yaml_header='insertions'
     pass
 
 class InsertionList(AncestorAwareModList):
     pass
 
 class Cleavage(AncestorAwareMod):
-    yaml_header='Cleavages'
+    yaml_header='cleavages'
     pass
 
 class CleavageList(AncestorAwareModList):

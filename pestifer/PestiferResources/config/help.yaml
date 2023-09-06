@@ -117,9 +117,17 @@ directives:
             type: dict
             directives:
               - name: mutations
-                text: Single-residue mutations
+                text: Single-residue mutations, expressed as shortcodes; e.g., C:F32A for mutation of Phe 32 on chain C to an Alanine
                 type: list
-                required: False
+              - name: ssbonds
+                text: additional ssbonds, expressed as shortcodes; e.g., C_154-A_298 to add an ssbond between resids 154 of chain C and 298 of chain A.  Note that the indicated residues must by CYS's.  If they are not, you should include each in a mutation shortcode in the mutations list
+                type: list
+              - name: ssbondsdelete
+                text: existing ssbonds to break, expressed as shortcodes' e.g., C_154-A_298 will break the existing ssbond between resids 154 of chain C and 298 of chain A so that each is a reduced CYS.
+                type: list
+              # - name: insertion
+              # - name: deletion
+              # - name: graft
           - name: minimize 
             text: Specifies the energy minimization to be performed on the output of psfgen
             type: dict

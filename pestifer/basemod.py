@@ -1,52 +1,126 @@
-"""
+# Author: Cameron F. Abrams <cfa22@drexel.edu>.
+"""Simple namespace objects with attribute controls
 
-.. module:: basemod
-   :synopsis: defines the BaseMod class and ModList class
-   
-.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
+This module defines the BaseMod class as a derivative of argparse's
+very nice Namespace class, and the ModList class as a derivative
+of collection's UserList.
+
+Attribute controls are enforced using class attributes that 
+allow specification of 
+
+    * attributes that are "required" or "optional";
+    * pairs of attributes that are mutually exclusive;
+    * attributes whose values must be selected from
+      some predefined set of choices;
+    * attributes that depend on other attributes;
+    * attributes that are ignored for purposes of comparing
+      the overall "value" of any instances
 
 """
 import operator
 import yaml
 import logging
+import inspect
 from collections import UserList
 logger=logging.getLogger(__name__)
-class BaseMod:
-    # list of required attribute labels
+from argparse import Namespace
+
+class BaseMod(Namespace):
+    """A class defining a namespace with custom attribute controls.
+
+    Required attributes are those that must have a value assigned
+    upon instance creation.  Optional attributes *may* have a 
+    value assigned but need not.  Any pair of optional attributes
+    can be designated as "mutually exlusive", meaning that if one
+    is assigned a value at instance creation, the other is not
+    allowed to exist.  Values for any attribute can be restricted 
+    to one of given set of values.  Any optional attribute may
+    by assigned other optional attributes that must also have 
+    values in order to have a value.  Finally, any attribute may
+    be designated as silent when relative comparisons between
+    object instances are made.
+    
+    ...
+    
+    Attributes
+    ----------
+    req_attr : list
+        labels of required attributes
+    opt_attr : list
+        labels of optional attributes
+    alt_attr : list
+        pairs of attribute labels in which each pair declares the 
+        two attributes to be mutually exclusive
+    attr_choices : dict
+        lists of value options for any attribute;
+        e.g., {'response':['yes','no','maybe'], ...}
+    opt_attr_deps : dict
+        lists of attributes that are required by optional attributes;
+        e.g., {'flavor':['is_edible','is_flavorable'], ...}
+    ignore_att : list
+        attributes whose values are ignored when comparing instances
+
+
+    Methods
+    -------
+
+    __eq__(other)
+        equality operator for BaseMod instances.  Two instances are considered
+        equal if
+        * they are actually the same instance; or 
+        * they have the same values for all required attributes and for any 
+          common optional attributes.
+    
+    __lt__(other)
+       less than operator for BaseMod instances.  Instance A is less than B if
+       * all required and common optional attributes of A are less than or equal 
+         to those of B; AND
+       * at least one such attribute of A is strictly less than that of B  
+
+    """
     req_attr=[]
-    # list of optional attribute labels
     opt_attr=[]
-    # list of 2-tuples of attribute labels for mutually exclusive attributes
     alt_attr=[]
-    # dictionary of lists of value choices for any attribute, keyed on attribute label
     attr_choices={}
-    # dictionary of lists of labels of attributes that are required if the optional attributes whose labels key this dictionary are present 
     opt_attr_deps={}
-    # list of attributes that are IGNORED for all comparisons
     ignore_attr=[]
     def __init__(self,input_dict={}):
-        # print(f'b {input_dict}')
+        """
+        Parameters
+        ----------
+        input_dict : dict, optional
+            dictionary of input attribute:value pairs
+        """
         # mutually exclusive attribute labels should not appear in the list of required attributes
         assert all([(not x in self.req_attr and not y in self.req_attr) for x,y in self.alt_attr]),"Mutually exclusive attributes should not appear in the required list"
+        prep_dict={}
         for k,v in input_dict.items():
             if k in self.req_attr or k in self.opt_attr:
-                self.__dict__[k]=v
+                prep_dict[k]=v
         # all required attributes have values
-        assert all([att in self.__dict__.keys() for att in self.req_attr]),f"Not all required attributes have values\nRequired: {self.req_attr}\nProvided: {list(self.__dict__.keys())}"
+        assert all([att in prep_dict.keys() for att in self.req_attr]),f"Not all required attributes have values\nRequired: {self.req_attr}\nProvided: {list(prep_dict.keys())}"
         # all mutual-exclusivity requirements are met
         assert all([
-            ((x[0] in self.__dict__.keys() and not x[1] in self.__dict__.keys()) or 
-             (x[1] in self.__dict__.keys() and not x[0] in self.__dict__.keys()) or not (x[0] in self.__dict__.keys() or x[1] in self.__dict__.keys()))
+            ((x[0] in prep_dict.keys() and not x[1] in prep_dict.keys()) or 
+             (x[1] in prep_dict.keys() and not x[0] in prep_dict.keys()) or not (x[0] in prep_dict.keys() or x[1] in prep_dict.keys()))
             for x in self.alt_attr]),"Mutual exclusivity requirements unmet"
         # all attributes with limited set of possible values have valid values
-        assert all([self.__dict__[x] in choices for x,choices in self.attr_choices.items()]),"Invalid choices in one or more attributes"
+        try:
+            assert all([prep_dict[x] in choices for x,choices in self.attr_choices.items()]),"Invalid choices in one or more attributes"
+        except:
+            raise Exception(f'Trouble initializing instance of {self.__class__}')
         # for each optional attribute present, all required dependent attributes are also present
         for oa,dp in self.opt_attr_deps.items():
-            if oa in self.__dict__.keys():
-                assert all([x in self.__dict__.keys() for x in dp]),"Dependent required attributes of optional attributes not present"
+            if oa in prep_dict.keys():
+                assert all([x in prep_dict.keys() for x in dp]),"Dependent required attributes of optional attributes not present"
+        super().__init__(**prep_dict)
 
     def __eq__(self,other):
-        """__eq__ == operator for BaseMods.  A and B are considered equal if they have the same values for all required attributes and for any *common* optional attributes.
+        """
+        Parameters
+        ----------
+        other : BaseMod
+            other BaseMod instance
         """
         if not other:
             return False
@@ -58,16 +132,17 @@ class BaseMod:
         for x in self.ignore_attr:
             if x in attr_list:
                 attr_list.remove(x)
-        # logger.debug(f'Equality test for class {str(self.__class__)}: attributes considered are {attr_list}')
         test_list=[]
         for k in attr_list:
-            # if type(self.__dict__[k])==str or not hasattr(self.__dict__[k],'__setitem__'):
             test_list.append(self.__dict__[k]==other.__dict__[k])
-            # else:
-            #     logger.debug(f'Ignoring container-like attribute {k} in comparison of two {str(self.__class__)} instances')
         return all(test_list)
+    
     def __lt__(self,other):
-        """__lt__ < operator for BaseMods.  A<B if all required and *common* optional attributes of A are less than or equal to those of B AND *at least one* such attribute of A is *strictly less than* its counterpart in B.
+        """
+        Parameters
+        ----------
+        other : BaseMod
+            other BaseMod instance
         """
         if not other:
             return False
@@ -81,7 +156,12 @@ class BaseMod:
         le_list=[self.__dict__[k]<=other.__dict__[k] for k in attr_list if hasattr(self.__dict__[k],'__lt__')]
         return all(le_list) and any(lt_list)
     def __le__(self,other):
-        """ __le__ <= operator for BaseMods """
+        """
+        Parameters
+        ----------
+        other : BaseMod
+            other BaseMod instance
+        """
         if not other:
             return False
         if not self.__class__==other.__class__:
@@ -93,6 +173,14 @@ class BaseMod:
         le_list=[self.__dict__[k]<=other.__dict__[k] for k in attr_list if hasattr(self.__dict__[k],'__lt__')]
         return all(le_list)
     def weak_lt(self,other,attr=[]):
+        """
+        Parameters
+        ----------
+        other : BaseMod
+            other BaseMod instance
+        attr : list, optional
+            attributes used for the less-than comparison
+        """
         lt_list=[self.__dict__[k]<other.__dict__[k] for k in attr if hasattr(self.__dict__[k],'__lt__')]
         le_list=[self.__dict__[k]<=other.__dict__[k] for k in attr if hasattr(self.__dict__[k],'__lt__')]
         return all(le_list) and any(lt_list)
@@ -159,15 +247,16 @@ class AncestorAwareMod(CloneableMod):
     opt_attr=CloneableMod.req_attr+['ancestor_obj']
     ignore_attr=CloneableMod.ignore_attr+['ancestor_obj']
     
-    def claim_self(self,stamp,level):
+    def claim_self(self,stamp):
         self.__dict__['ancestor_obj']=stamp
 
-    def claim_descendants(self,stamp,level):
-        self.claim_self(stamp,level+1)
-        for attr,obj in self.__dict__.items():
-            if attr!='ancestor_obj':
-                if hasattr(obj,'__dict__'):
-                    obj.claim_descendants(stamp,level+1)
+    def claim_descendants(self,stamp):
+        self.claim_self(stamp)
+        for attr_name,obj in self.__dict__.items():
+            if not attr_name=='ancestor_obj': # very important! or, could stamp self last?
+                classes=inspect.getmro(type(obj))
+                if AncestorAwareMod in classes or AncestorAwareModList in classes:
+                    obj.claim_descendants(stamp)
 
 class StateInterval(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['state','bounds']
@@ -340,11 +429,9 @@ class CloneableModList(ModList):
         return R
 
 class AncestorAwareModList(CloneableModList):
-    def claim_descendants(self,stamp,level):
+    def claim_descendants(self,stamp):
         for obj in self:
-            if hasattr(obj,'__dict__'):
-                obj.__dict__['ancestor_obj']=stamp
-                obj.claim_descendants(stamp,level)
+            obj.claim_descendants(stamp)
 
 class StateIntervalList(AncestorAwareModList):
     pass
