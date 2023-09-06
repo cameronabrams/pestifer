@@ -160,6 +160,7 @@ namd2:
     switchdist: 9.0
     pairlistdist: 11.5
     temperature: 300
+    outputenergies: 100
   vacuum:
     nonbondedFreq: 1
     fullElectFrequency: 2

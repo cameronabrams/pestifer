@@ -99,7 +99,7 @@ class VMD(Scriptwriter):
             # VMD interprets as 0, so we'll replace that with the residue numbers
             # assigned by pestifer when it reads in the cif file
             au=mol.asymmetric_unit
-            residues=au.Residues
+            residues=au.residues
             uCIDs=residues.uniqattrs(['chainID'])['chainID']
             self.comment('Resetting chains and resids for this CIF-source molecule')
             for c in uCIDs:

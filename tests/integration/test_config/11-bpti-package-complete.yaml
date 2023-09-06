@@ -1,0 +1,56 @@
+paths:
+  charmrun: /usr/local/bin/charmrun
+  namd2: /usr/local/bin/namd2
+  vmd: /usr/local/bin/vmd
+tasks:
+- psfgen:
+    cleanup: true
+    minimize:
+      dcdfreq: 100
+      nminsteps: 1000
+    mods:
+      mutations: []
+      ssbonds: []
+      ssbondsdelete: []
+    source:
+      biological_assembly: 0
+      exclude:
+        resnames:
+        - PO4
+      file_format: PDB
+      id: 6pti
+      sequence:
+        fix_conflicts: true
+        fix_engineered_mutations: true
+        include_terminal_loops: false
+        loops:
+          declash:
+            maxcycles: 20
+          min_loop_length: 4
+          sac_res_name: GLY
+- solvate:
+    minimize:
+      dcdfreq: 100
+      nminsteps: 1000
+- relax:
+    dcdfreq: 100
+    ensemble: NPT
+    nminsteps: 0
+    nsteps: 1000
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- terminate:
+    basename: my_6pti
+    chainmapfile: chainmaps.yaml
+    package:
+      basename: my_6pti
+      dcdfreq: 100
+      ensemble: NVT
+      nminsteps: 0
+      nsteps: 1000
+      pressure: 1
+      temperature: 300
+      xstfreq: 100
+    statefile: states.yaml
+title: BPTI, package

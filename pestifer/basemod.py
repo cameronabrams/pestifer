@@ -77,6 +77,20 @@ class BaseMod(Namespace):
          to those of B; AND
        * at least one such attribute of A is strictly less than that of B  
 
+    __le__(other)
+       less than or equal to operator for BaseMod instances.  Instance A is less 
+       than or equal to B if
+       * all required and common optional attributes of A are less than or equal 
+         to those of B
+
+    weak_lt(other,attr)
+       "weak" less than operator; only those attributes listed in the attr
+       argument are considered in the comparison
+
+    matches(**fields)
+        non strict match -- returns true if all key:val pairs in fields
+        match the corresponding key:val pairs in self.__dict__
+
     """
     req_attr=[]
     opt_attr=[]
@@ -108,7 +122,7 @@ class BaseMod(Namespace):
         try:
             assert all([prep_dict[x] in choices for x,choices in self.attr_choices.items()]),"Invalid choices in one or more attributes"
         except:
-            raise Exception(f'Trouble initializing instance of {self.__class__}')
+            raise AssertionError(f'Trouble initializing instance of {self.__class__}')
         # for each optional attribute present, all required dependent attributes are also present
         for oa,dp in self.opt_attr_deps.items():
             if oa in prep_dict.keys():
@@ -155,6 +169,7 @@ class BaseMod(Namespace):
         lt_list=[self.__dict__[k]<other.__dict__[k] for k in attr_list if hasattr(self.__dict__[k],'__lt__')]
         le_list=[self.__dict__[k]<=other.__dict__[k] for k in attr_list if hasattr(self.__dict__[k],'__lt__')]
         return all(le_list) and any(lt_list)
+    
     def __le__(self,other):
         """
         Parameters
@@ -185,14 +200,30 @@ class BaseMod(Namespace):
         le_list=[self.__dict__[k]<=other.__dict__[k] for k in attr if hasattr(self.__dict__[k],'__lt__')]
         return all(le_list) and any(lt_list)
     def __pkey(self,fields=[]):
+        """ 
+        Paramters
+        ---------
+        fields : list, optional
+            attributes to be included in the generation of a tuple of values
+        """
         if not fields:
             return tuple([self.__dict__.values()])
         return tuple([x for k,x in self.__dict__.items() if k in fields])
     def phash(self,fields=[]):
+        """ 
+        Parameters
+        ----------
+        fields : list, optional
+            attributes whose values are used to generate the hash of the object
+        """
         return hash(self.__pkey(fields))
     def matches(self,**fields):
-        # non strict match -- returns true if all key:val pairs in fields
-        # match the corresponding key:val pairs in self.__dict__
+        """ 
+        Parameters
+        ----------
+        field : dict, optional
+            attribute:value pairs that are checked against those of the object
+        """
         for k,v in fields.items():
             if not k in self.__dict__:
                 # logger.debug(f'missing key {k}')
@@ -202,16 +233,31 @@ class BaseMod(Namespace):
                 return False
         return True
     def dump(self):
+        """ 
+        """
         retdict={}
         retdict['instanceOf']=type(self).__name__
         retdict.update(self.__dict__)
         return yaml.dump(retdict)
     def inlist(self,a_list):
+        """ 
+        Parameters
+        ----------
+        a_list : list
+            the list of objects checked to see if object is a member
+        """
         for s in a_list:
             if s==self:
                 return True
         return False
     def map_attr(self,mapped_attr,key_attr,map):
+        """ 
+        Parameters
+        ----------
+        mapped_attr : str
+            name of attribute to which map will be applied
+        key_attr
+        """
         if map:
             key=self.__dict__[key_attr]
             val=map[key]

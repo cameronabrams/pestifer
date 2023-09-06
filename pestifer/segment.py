@@ -87,7 +87,7 @@ class Segment(AncestorAwareMod):
             self.generic_stanza(W,transform,mods)
     
     def glycan_stanza(self,W,transform,mods):
-        if self.has_graft(mods.get('Grafts',[])):
+        if self.has_graft([]):
             W.comment('Glycan grafts not yet implemented.')
         else:
             self.generic_stanza(W,transform,mods)

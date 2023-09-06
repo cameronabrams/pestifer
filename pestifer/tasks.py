@@ -129,15 +129,12 @@ class Task(BaseMod):
             del self.statevars['cell']
         self.coor_to_pdb(basename)
 
-    def relax(self,specs,label=None):
+    def namd2prep(self,basename,specs,absolute_paths=True):
         namd_params=self.config['base']['namd2']
         ensemble=specs['ensemble']
         temperature=specs['temperature']
         pressure=specs['pressure']
-        if label==None:
-            basename=self.next_basename('relax')
-        else:
-            basename=self.next_basename(label)
+
         nminsteps=specs['nminsteps']
         nsteps=specs['nsteps']
         dcdfreq=specs['dcdfreq']
@@ -158,7 +155,14 @@ class Task(BaseMod):
             params['binvelocities']=vel
         params.update({'tcl':[f'set temperature {temperature}']})
         params['temperature']='$temperature'
-        params['parameters']=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
+        if absolute_paths:
+            params['parameters']=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
+        else:
+            params['parameters']=[]
+            namd2_params_abs=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
+            for nf in namd2_params_abs:
+                d,n=os.path.split(nf)
+                params['parameters'].append(n)
         params.update(namd_params['generic'])
         if xsc:
             params['extendedSystem']=xsc
@@ -181,8 +185,15 @@ class Task(BaseMod):
         if nminsteps:
             params['minimize']=nminsteps
         params['run']=nsteps
+        return params
+
+    def namd2script(self,basename,params):
+        na=self.writers['namd2']
         na.newscript(basename)
         na.writescript(params)
+
+    def relax(self,basename):
+        na=self.writers['namd2']
         na.runscript()
         self.update_statefile('coor',f'{basename}.coor')
         self.update_statefile('vel',f'{basename}.vel')
@@ -463,7 +474,9 @@ class RelaxTask(Task):
     def do(self):
         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
         self.statevars=self.prior.statevars.copy()
-        self.relax(self.specs,label='')
+        basename=self.next_basename('relax')
+        self.namd2script(basename,self.namd2prep(basename,self.specs))
+        self.relax(basename)
         logger.info(f'Task {self.taskname} {self.index:02d} complete')
 
 class TerminateTask(Task):
@@ -494,18 +507,26 @@ class TerminateTask(Task):
         logger.info(f'Task {self.taskname} {self.index:02d} complete')
 
     def package(self,specs):
-        logger.debug(f'package specs {specs}')
+        if not specs:
+            return
         self.statevars=self.prior.statevars.copy()
         self.FC.clear()
-        na=self.writers['namd2']
-        namd2_params_abs=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
-        for nf in namd2_params_abs:
+        basename=specs["basename"]
+        params=self.namd2prep(basename,specs)
+        local_params=[]
+        for nf in params["parameters"]:
             d,n=os.path.split(nf)
             shutil.copy(nf,n)
+            local_params.append(n)
             self.FC.append(n)
         for ext in self.exts+['.vel']:
             aext=ext[1:]
             self.FC.append(self.statevars[aext])
+        if os.path.exists(self.statevars['vel']):
+            del params['temperature']
+        params['parameters']=local_params
+        self.namd2script(basename,params)
+        self.FC.append(f'{basename}.namd')
         self.FC.tarball(specs["basename"])
 
         

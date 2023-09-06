@@ -17,18 +17,13 @@ from .stringthings import split_ri
 from .scriptwriters import Psfgen
 from .config import res_123
 
-def seqadv_details_keyword(text):
-    text=text.lower()
-    keyword_list=Seqadv.attr_choices['typekey']
-    for keyword in keyword_list:
-        if keyword in text:
-            return keyword
-    return '_other_'
+
 
 class Seqadv(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['idCode','resname','chainID','resseqnum','insertion']
     opt_attr=AncestorAwareMod.opt_attr+['database','dbAccession','dbRes','dbSeq','typekey','pdbx_pdb_strand_id','pdbx_auth_seq_num','pdbx_ordinal','residue']
-    attr_choices=AncestorAwareMod.attr_choices.copy().update({'typekey':['cloning','expression','typekey','engineered','variant','insertion','deletion','microheterogeneity','chromophore','_other_']})
+    attr_choices=AncestorAwareMod.attr_choices.copy()
+    attr_choices.update({'typekey':['cloning','expression','typekey','engineered','variant','insertion','deletion','microheterogeneity','chromophore','_other_']})
     yaml_header='seqadvs'
     PDB_keyword='SEQADV'
     mmCIF_name='struct_ref_seq_dif'
@@ -48,7 +43,7 @@ class Seqadv(AncestorAwareMod):
                 'dbAccession':pdbrecord.dbAccession,
                 'dbRes':pdbrecord.dbRes,
                 'dbSeq':pdbrecord.dbSeq,
-                'typekey':seqadv_details_keyword(pdbrecord.conflict),
+                'typekey':self.seqadv_details_keyword(pdbrecord.conflict),
                 'residue':None
             }
             super().__init__(input_dict)
@@ -64,7 +59,7 @@ class Seqadv(AncestorAwareMod):
                 'dbAccession':cd['pdbx_seq_db_accession_code'],
                 'dbRes':cd['db_mon_id'],
                 'dbSeq':cd['pdbx_seq_db_seq_num'], # author
-                'typekey':seqadv_details_keyword(cd['details']),
+                'typekey':self.seqadv_details_keyword(cd['details']),
                 'pdbx_auth_seq_num':int(cd['pdbx_auth_seq_num']), # author
                 'pdbx_ordinal':cd['pdbx_ordinal'],
                 'pdbx_pdb_strand_id':cd['pdbx_pdb_strand_id'],
@@ -73,6 +68,14 @@ class Seqadv(AncestorAwareMod):
             super().__init__(input_dict)
         else:
             logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
+
+    def seqadv_details_keyword(self,text):
+        text=text.lower()
+        keyword_list=self.__class__.attr_choices['typekey']
+        for keyword in keyword_list:
+            if keyword in text:
+                return keyword
+        return '_other_'
 
     def pdb_line(self):
         return f'SEQADV {self.idCode:3s} {self.resname:>3s} {self.chainID:1s} {self.resseqnum:>4d}{self.insertion:1s} {self.database:>4s} {self.dbAccession:9s} {self.dbRes:3s} {self.dbSeq:>5d} {self.typekey:21s}          '

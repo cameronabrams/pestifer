@@ -266,3 +266,32 @@ directives:
                 text: Desired basename for final tarball
                 type: str
                 default: my_system
+              - name: ensemble
+                text: Name of ensemble to run in; note that NPT can only be peformed on a solvated system
+                type: str
+                choices: [NVT, NPT]
+                default: NVT
+              - name: nminsteps
+                text: Number of minimization steps
+                type: int
+                default: 0
+              - name: nsteps
+                text: Number of MD time steps
+                type: int
+                default: 1000
+              - name: dcdfreq
+                text: number of time steps between configuration output to DCD file
+                type: int
+                default: 100
+              - name: xstfreq
+                text: number of time steps between cell size output to DCD file
+                type: int
+                default: 100
+              - name: temperature
+                text: Temperature (K) for NVT or NPT
+                type: float
+                default: 300
+              - name: pressure
+                text: Pressure (bar) for NPT; note that NPT can only be peformed on a solvated system
+                type: float
+                default: 1

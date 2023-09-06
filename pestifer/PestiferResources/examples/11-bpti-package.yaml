@@ -11,5 +11,5 @@ tasks:
       ensemble: NPT
   - terminate:
       basename: my_6pti
-  - package:
-      basename: my_6pti
+      package:
+        basename: my_6pti
