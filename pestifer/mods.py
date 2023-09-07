@@ -15,6 +15,32 @@
     such as rotation of specific dihedral angles
     4. 'generic' -- anything not in the other three categories.
 
+    seqmods
+    -------
+    * Ter -- This is a representation of a "TER" record from an
+    old-style PDB file. These are tracked in order to modify
+    atom serial numbers, since a TER acquires a unique atom
+    serial number even though it is not an atom.
+    * Seqadv -- A reprentation of any single-point discrepancies
+    between the sequence in the actual structure and a database
+    sequence. Engineered mutations, conflicts, etc.
+    * Mutation -- A point mutation of a particular residue 
+    in a particular chain to a new residue name
+    * Deletion -- deletion of one or more contiguous residues
+    * Substitution -- substitution of one or more contiguous
+    residues with a different block of residues of possibly
+    different length
+
+    topomods
+    --------
+    * SSBond -- a disulfide
+    * Link -- a non-disulfide covalent bond, typically involving 
+    non-protein residues
+
+    coormods
+    --------
+    * Crot -- any of a variety of rotations around certain dihedrals
+
     DOCUMENTATION IN PROGRESS
 
 """
