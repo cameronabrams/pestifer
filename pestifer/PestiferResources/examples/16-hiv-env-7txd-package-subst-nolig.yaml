@@ -1,0 +1,31 @@
+title: HIV-1 Env Trimer 7txd, substitutions, no ligands
+tasks:
+  - psfgen:
+      source:
+        id: 7txd
+        file_format: mmCIF
+        biological_assembly: 1
+      exclude:
+        chains:
+          - G
+          - H
+          - I
+          - J
+          - K
+          - L
+      mods:
+        substitutions:
+          - A:100-162,GGG
+          - C:100-162,GGG
+          - E:100-162,GGG
+  - ligate:
+      steer:
+        nsteps: 1000
+  - relax:
+  - solvate:
+  - relax:
+      ensemble: NPT
+  - terminate:
+      basename: my_7txd
+      package:
+        basename: prod_7txd
