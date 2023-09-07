@@ -5,14 +5,14 @@ tasks:
         id: 7txd
         file_format: mmCIF
         biological_assembly: 1
-      exclude:
-        chains:
-          - G
-          - H
-          - I
-          - J
-          - K
-          - L
+        exclude:
+          chains:
+            - G
+            - H
+            - I
+            - J
+            - K
+            - L
       mods:
         substitutions:
           - A:100-162,GGG

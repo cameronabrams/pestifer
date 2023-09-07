@@ -1,13 +1,23 @@
-"""
+# Author: Cameron F. Abrams <cfa22@drexel.edu
+""" Modifications to sequence, topology, and coordinates
 
-.. module:: mods
-   :synopsis: Manages all modifications that can be encoded in PDB/mmCIF files or user-specified
-   
-.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
+    This module defines several types of modifications (or "mods")
+    and their respective list collections.  
+
+    Mods are classified into four types:
+    1. 'seqmod's are modifications to the amino-acid sequence of a 
+    protein.  These mods are typically applied while pestifer
+    is building its internal representation of the molecule.
+    2. 'topomod's are modifications to the bonding topology, 
+    including disulfides, covalent bonds linking sugars
+    or other non-protein residues, etc.
+    3. 'coormod's are mods to the coordinates of a molecule,
+    such as rotation of specific dihedral angles
+    4. 'generic' -- anything not in the other three categories.
+
+    DOCUMENTATION IN PROGRESS
 
 """
-import os
-from argparse import Namespace
 import logging
 logger=logging.getLogger(__name__)
 from pidibble.pdbrecord import PDBRecord
@@ -824,19 +834,19 @@ class CleavageList(AncestorAwareModList):
     pass
 
 
-def apply_psf_info(p_struct,psf):
-    if os.path.exists(psf):
-        with open(psf,'r') as f:
-            psf_lines=f.read().split('\n')
-    metadata_lines=[x for x in psf_lines if x.startswith('REMARKS')]
-    for ml in metadata_lines:
-        words=ml.split()
-        if ' '.join(words[1:3])=='patch DISU':
-            c1,r1i=words[3].split(':')
-            c2,r2i=words[4].split(':')
-            r1,i1=split_ri(r1i)
-            r2,i2=split_ri(r2i)
-            p_struct['SSBONDS'].append(SSBond({'chainID1':c1,'chainID2':c2,'resseqnum1':r1,'resseqnum2':r2,'insertion1':i1,'insertion2':i2}))
+# def apply_psf_info(p_struct,psf):
+#     if os.path.exists(psf):
+#         with open(psf,'r') as f:
+#             psf_lines=f.read().split('\n')
+#     metadata_lines=[x for x in psf_lines if x.startswith('REMARKS')]
+#     for ml in metadata_lines:
+#         words=ml.split()
+#         if ' '.join(words[1:3])=='patch DISU':
+#             c1,r1i=words[3].split(':')
+#             c2,r2i=words[4].split(':')
+#             r1,i1=split_ri(r1i)
+#             r2,i2=split_ri(r2i)
+#             p_struct['SSBONDS'].append(SSBond({'chainID1':c1,'chainID2':c2,'resseqnum1':r1,'resseqnum2':r2,'insertion1':i1,'insertion2':i2}))
         # elif ' '.join(words[1:3])=='patch '
             # add a new SSBOND record to p_struct
         # elif ...

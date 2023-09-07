@@ -229,7 +229,7 @@ class BaseMod(Namespace):
         return all(le_list) and any(lt_list)
     def __pkey(self,fields=[]):
         """ 
-        Paramters
+        Parameters
         ---------
         fields : list, optional
             attributes to be included in the generation of a tuple of values
@@ -265,8 +265,10 @@ class BaseMod(Namespace):
                 # logger.debug(f'wrong value ({self.__dict__[k]}) for key {k}; wanted {v}')
                 return False
         return True
+    
     def dump(self):
-        """ 
+        """Simple dump of this item's __dict__
+
         Returns
         -------
         str :
@@ -276,6 +278,7 @@ class BaseMod(Namespace):
         retdict['instanceOf']=type(self).__name__
         retdict.update(self.__dict__)
         return yaml.dump(retdict)
+    
     def inlist(self,a_list):
         """ 
         Parameters
@@ -292,18 +295,25 @@ class BaseMod(Namespace):
             if s==self:
                 return True
         return False
+    
     def map_attr(self,mapped_attr,key_attr,map):
-        """ 
+        """Simple cross-attribute mapper
+
         Parameters
         ----------
         mapped_attr : str
-            name of attribute to which map will be applied
-        key_attr
+            name of attribute to which the mapping result 
+            will be applied
+        key_attr : str
+            name of attribute whose value is mapped
+        map : dict
+            the map
         """
         if map:
             key=self.__dict__[key_attr]
             val=map[key]
             self.__dict__[mapped_attr]=val
+
     def set(self,**fields):
         """
         Parameters
@@ -315,8 +325,14 @@ class BaseMod(Namespace):
         for k,v in fields.items():
             if k in self.__dict__:
                 self.__dict__[k]=v
+
     def assign_obj_to_attr(self,attr,objList,**matchattr):
-        """ 
+        """Assigns the single object from objList whose
+        attributes match the matchattr dict to the 
+        calling instances attr attribute, but only if
+        the result of the match-search is valid,
+        otherwise assign None to attr
+
         Parameters
         ----------
         attr : str
@@ -332,8 +348,11 @@ class BaseMod(Namespace):
         myObj=objList.get(**adict)
         if myObj!=None:
             setattr(self,attr,myObj)
+    
     def update_attr_from_obj_attr(self,attr,obj,obj_attr):
-        """ 
+        """Set value of caller's attribute from another
+        attribute of a separate object
+
         Parameters
         ----------
         attr : str
@@ -342,7 +361,7 @@ class BaseMod(Namespace):
             object from which the attribute value is taken
         obj_attr : str
             name of attribute in obj that is set to 
-            attr of self
+            attr of caller
         """
         setattr(self,attr,getattr(getattr(self,obj),obj_attr))
 
@@ -529,8 +548,8 @@ class ModList(UserList):
         pairs of the fields dictionary
     
     get(**fields):
-        a modified filter() method whose return value depends on how 
-        many items in the calling instance are matches.  If none, 
+        a modified filter() method whose return value depends on how
+        many items in the calling instance are matches.  If none,
         returns None; if one, returns that object; if more than one,
         returns the result of the filter (all the matches collected
         in a new list)
@@ -596,7 +615,40 @@ class ModList(UserList):
         calling instance.  If with_counts is true, each list of
         unique elements becomes a list of tuples of the attribute
         value and the count of its occurence
-        
+    
+    binnify(fields)
+        By making a hash of the attribute values in named in the
+        parameter 'fields', a histogram of all elements of 
+        the calling instance is returned.
+
+    puniq(fields)
+        Returns True if all elements of the calling instance
+        are different.
+
+    puniquify(fields,new_attr_name='_ORIGINAL_',make_common=[])
+        Makes all elements of the calling instance different
+        using a particular attribute "ratcheting" algorithm.
+
+    state_bounds(self,state_func)
+        Returns a new list of StateInterval objects that "reduce"
+        the description of the calling instance into a list of
+        state intervals.
+    
+    map_attr(mapped_attr,key_attr,map)
+        Applies BaseMod::map_attr to each element of calling instance; 
+        BaseMod::map_attr applies the map dictionary to the value of the key attribute
+        and stores the result in the mapped attribute; if mapped and
+        key attributes are the same, mapping overwrites the attribute
+    
+    assign_objs_to_attr(self,attr,objList,**matchattr)
+        searches the objList for the hopefully single instance whose
+        attributes match the matchattr dictionary and assigns
+        that instance to the calling instance's elements one by one
+    
+    update_attr_from_obj_attr(self,attr,obj,obj_attr)
+        sets value of attr attributes of all elements of caller
+        from the value of obj_attr in object obj
+    
     """
     def __init__(self,data):
         """Standard initialization of the UserList """
@@ -829,16 +881,47 @@ class ModList(UserList):
         return bins
     
     def puniq(self,fields):
+        """Simple test that all elements of self are 'unique' among fields 
+        
+        Parameters
+        ----------
+        fields : list
+            attribute names used to build the hash to test for uniqueness
+        
+        Returns
+        -------
+        bool : True if all elements are unique
+        
+        """
         bins=self.binnify(fields)
         return len(bins)==len(self)
     
     def puniquify(self,fields,new_attr_name='_ORIGINAL_',make_common=[]):
-        # each element must be unique in the sense that no two 
-        # elements have the same values of attributes listed in 
-        # fields[]; returns a map keyed by unique index whose
-        # values are the original values of the attributes listed
-        # in fields; uniqueness is achieved by changing the 
-        # value of the leading field only
+        """Systematic attribute altering to make all elements unique
+        
+        There may be a set of attributes for which no two elements may
+        have the exact same set of respective values.  This method 
+        scans the calling instance for such collisions and, if any
+        is found, it adds one to the value of the attributed named
+        in the first element of the 'fields' list (assumes this
+        attribute is numeric!).  This could lead to other collisions
+        so multiple passes through the calling instance are made
+        until there are no more collisions.  Each such value 
+        change results in storing the original values in a new
+        attribute.
+
+        Parameters
+        ----------
+        fields : list
+            attribute names used to build the hash to test for uniqueness
+        new_attr_name : str, optional
+            name given to a new attribute used to store all original 
+            attribute name:value pairs
+        make_common : list
+            list of attribute names that are set to a single set
+            of common values *after* uniquifyin
+
+        """
         assert not any([x in fields for x in make_common])
         bins=self.binnify(fields)
         stillworking=True
@@ -867,6 +950,19 @@ class ModList(UserList):
                     s.__dict__.update(use_common)
     
     def state_bounds(self,state_func):
+        """Reduces calling instance to a list of state intervals 
+        
+        Parameters
+        ----------
+        state_func : method
+            A function that returns the 'state value' of a single 
+            element of the calling instance
+
+        Returns
+        -------
+        list : state intervals
+        
+        """
         slices=StateIntervalList([])
         if len(self)==0:
             return slices
@@ -883,11 +979,39 @@ class ModList(UserList):
         return slices
     
     def map_attr(self,mapped_attr,key_attr,map):
+        """Simple cross-attribute mapper, applied to each element
+        of the calling instance
+        
+        Parameters
+        ----------
+        mapped_attr : str
+            name of attribute to which the mapping result 
+            will be applied
+        key_attr : str
+            name of attribute whose value is mapped
+        map : dict
+            the map
+        """
         if map:
             for item in self:
                 item.map_attr(mapped_attr,key_attr,map)
 
     def assign_objs_to_attr(self,attr,objList,**matchattr):
+        """Assigns the single object from objList whose
+        attributes match the matchattr dict to the 
+        attr attribute of every element in the calling
+        instance; any elements that 
+         
+        Parameters
+        ----------
+        attr : str
+            attribute name
+        objList : list
+            list of objects that is searched
+        matchattr : dict
+            attribute:values used in searching the 
+            list of objects
+        """
         for s in self:
             s.assign_obj_to_attr(attr,objList,**matchattr)
         delete_us=[s for s in self if getattr(s,attr)==None]
@@ -896,20 +1020,72 @@ class ModList(UserList):
         return self.__class__(delete_us)
     
     def update_attr_from_obj_attr(self,attr,obj,obj_attr):
+        """Set value of attribues of all elements of caller
+        from another attribute of a separate object
+
+        Parameters
+        ----------
+        attr : str
+            attribute name
+        obj : object
+            object from which the attribute value is taken
+        obj_attr : str
+            name of attribute in obj that is set to 
+            attr of caller
+        """       
         for item in self:
             item.update_attr_from_obj_attr(attr,obj,obj_attr)
 
 class CloneableModList(ModList):
+    """A class for lists of cloneable mods 
+    
+    Methods
+    -------
+    clone(**options)
+        applies CloneableMod::clone() to each element of the 
+        caller
+    
+    """
     def clone(self,**options):
+        """List cloner
+
+        Parameters
+        ----------
+        options : dict
+            dictionary of attribute-name:value pairs that are 
+            explicitly assigned in the clones
+        
+        Returns
+        -------
+        list :
+            The new list of new cloned objects   
+        """
         R=self.__class__([])
         for item in self:
             R.append(item.clone(**options))
         return R
 
 class AncestorAwareModList(CloneableModList):
+    """A class for lists of ancestor-aware mods 
+    
+    Methods
+    -------
+    claim_descendants(stamp)
+        applies AncestorAwareMod::claim_descendants to all
+        elements of caller
+    """
     def claim_descendants(self,stamp):
+        """Instructs caller to stamp all elements' descendant objects 
+        
+        Parameters
+        ----------
+        stamp : obj
+            object assigned to all ancestor_obj attributes of any
+            ancestor-aware attributes
+        """
         for obj in self:
             obj.claim_descendants(stamp)
 
 class StateIntervalList(AncestorAwareModList):
+    """A class for lists of StateIntervals (stub) """
     pass
