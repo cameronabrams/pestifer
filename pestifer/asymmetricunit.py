@@ -83,8 +83,22 @@ class AsymmetricUnit(AncestorAwareMod):
             fromMissings=ResidueList(missings)
             residues=fromAtoms+fromMissings
             residues.apply_segtypes()
+            # apply seqmods?
+            if hasattr(mods.seqmods,'deletions'):
+                residues.deletion(mods.seqmods.deletions)
+
+            if hasattr(mods.seqmods,'substitutions'):
+                new_seqadv,wearegone=residues.substitutions(mods.seqmods.substitutions)
+                seqadvs.extend(new_seqadv)
+
             uniques=residues.uniqattrs(['segtype'],with_counts=True)
-            logger.debug(f'{len(residues)} total residues: {len(fromAtoms)} resolved and {len(fromMissings)} unresolved')
+            nResolved=sum([1 for x in residues if x.resolved])
+            nUnresolved=sum([1 for x in residues if not x.resolved])
+            logger.debug(f'{len(residues)} total residues: {nResolved} resolved and {nUnresolved} unresolved')
+            if hasattr(mods.seqmods,'deletions'):
+                nResolvedDelete=len(fromAtoms)-nResolved
+                nUnresolvedDelete=len(fromMissings)-nUnresolved
+                logger.debug(f'Deletions removed {nResolvedDelete} resolved and {nUnresolvedDelete} unresolved residues')
             logger.debug(f'Segtypes present: {uniques["segtype"]}')
             # Delete any residues dictated by user-specified exclusions
             excludes=sourcespecs['exclude']
@@ -136,12 +150,14 @@ class AsymmetricUnit(AncestorAwareMod):
                 mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='engineered']))
             if sourcespecs['sequence']['fix_conflicts']:
                 mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='conflict']))
+            mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='user']))
             if hasattr(mods.seqmods,'mutations'):
                mutations.extend(mods.seqmods.mutations)
             mods.seqmods.mutations=mutations
             pruned_ssbonds=ssbonds.prune_mutations(mutations)
             pruned_by_links=links.prune_mutations(mutations,segments)
 
+            # Now any added or deleted ssbonds
             if hasattr(mods.topomods,'ssbonds'):
                 ssbonds.extend(mods.topomods.ssbonds)
             if hasattr(mods.topomods,'ssbondsdelete'):
@@ -149,10 +165,13 @@ class AsymmetricUnit(AncestorAwareMod):
                     if mods.topomods.ssbondsdelete.is_deleted(s):
                         ignored_ssbonds.append(ssbonds.remove(s))
             mods.topomods.ssbonds=ssbonds
+            # Now any added links
             if hasattr(mods.topomods,'links'):
                 links.extend(mods.topomods.links)
             mods.topomods.links=links
             
+
+
             input_dict={
                 'atoms':atoms,
                 'residues':residues,

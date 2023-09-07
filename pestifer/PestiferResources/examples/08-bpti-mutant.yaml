@@ -1,4 +1,4 @@
-title: BPTI, no phosphate, custom output basename
+title: BPTI, no phosphate, some mutations
 tasks:
   - psfgen:
       source:

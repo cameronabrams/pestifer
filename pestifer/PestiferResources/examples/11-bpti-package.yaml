@@ -1,4 +1,4 @@
-title: BPTI, package
+title: BPTI, packaging all inputs for NAMD deployment
 tasks:
   - psfgen:
       source:
@@ -12,4 +12,4 @@ tasks:
   - terminate:
       basename: my_6pti
       package:
-        basename: my_6pti
+        basename: prod_6pti

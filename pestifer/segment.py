@@ -6,7 +6,6 @@ from .config import segtype_of_resname,charmm_resname_of_pdb_resname
 from .residue import Residue,ResidueList
 from .util import reduce_intlist
 from .scriptwriters import Psfgen
-import inspect
 class Segment(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','specs']
     opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname']
@@ -42,7 +41,7 @@ class Segment(AncestorAwareMod):
                 # a protein segment may not have more than one protein chain
                 assert all([x.chainID==Residues[0].chainID for x in Residues])
                 Residues.sort()
-                subsegments=Residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
+                subsegments=Residues.state_bounds(lambda x: 'RESOLVED' if x.resolved else 'MISSING')
             else:
                 logger.debug(f'Calling puniqify on residues of segment {segname}')
                 Residues.puniquify(fields=['resseqnum','insertion'],make_common=['chainID'])
@@ -184,7 +183,7 @@ class Segment(AncestorAwareMod):
                     sac_resseqnum=lrr.resseqnum
                     sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
                     assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {seglabel} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_rn}'
-                    b.sacres=Residue({'name':sac_rn,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':'protein'})
+                    b.sacres=Residue({'name':sac_rn,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':'protein','resolved':False})
                     W.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_rn} {image_seglabel}')
         for m in seg_mutations:
                 W.comment(f'fix {m.typekey}')

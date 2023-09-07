@@ -1,4 +1,4 @@
-title: HIV-1 Env Trimer 4tvp, Fabs and phosphate ions removed
+title: HIV-1 Env Trimer 4tvp, Fabs and sulfate ions removed
 tasks:
   - psfgen:
       source:

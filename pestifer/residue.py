@@ -124,7 +124,7 @@ class Hetatm(Atom):
     yaml_header='hetatoms'
 
 class Residue(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['resseqnum','insertion','name','chainID','segtype']
+    req_attr=AncestorAwareMod.req_attr+['resseqnum','insertion','name','chainID','segtype','resolved']
     opt_attr=AncestorAwareMod.opt_attr+['atoms','up','down','uplink','downlink','resseqnumi','auth_seq_id','auth_comp_id','auth_asym_id']
     ignore_attr=AncestorAwareMod.ignore_attr+['atoms','up','down','uplink','downlink','resseqnumi']
     _counter=0
@@ -140,7 +140,8 @@ class Residue(AncestorAwareMod):
                 'chainID':a.chainID,
                 'atoms':AtomList([a]),
                 'segtype':'UNSET',
-                'resseqnumi':f'{a.resseqnum}{a.insertion}'
+                'resseqnumi':f'{a.resseqnum}{a.insertion}',
+                'resolved':True
             }
             for cif_xtra in ['auth_seq_id','auth_comp_id','auth_asym_id']:
                 if hasattr(a,cif_xtra):
@@ -153,7 +154,8 @@ class Residue(AncestorAwareMod):
                 'insertion':m.insertion,
                 'name':m.resname,
                 'chainID':m.chainID,
-                'segtype':'UNSET'
+                'segtype':'UNSET',
+                'resolved':False
             }
             input_dict['resseqnumi']=f'{m.resseqnum}{m.insertion}'
             input_dict['atoms']=AtomList([])
@@ -171,19 +173,19 @@ class Residue(AncestorAwareMod):
         self.uplink=[]
 
     def __str__(self):
-        return f'{self.chainID}-{self.name}{self.resseqnum}{self.insertion}'
+        rc='' if self.resolved else '*'
+        return f'{self.chainID}-{self.name}{self.resseqnum}{self.insertion}{rc}'
     def __lt__(self,other):
         if self.resseqnum<other.resseqnum:
             return True
         elif self.resseqnum==other.resseqnum:
-            if self.insertion==None and other.insertion==None:
-                return False
-            elif (self.insertion=='' or self.insertion==' ' or self.insertion==None) and other.insertion.isalpha():
-                return True
-            elif self.insertion.isalpha() and other.insertion.isalpha():
-                return ord(self.insertion)<ord(other.insertion)
-            else:
-                return False
+            return self.insertion<other.insertion
+        return False
+    def __le__(self,other):
+        if self<other:
+            return True
+        return self.resseqnum==other.resseqnum and self.insertion==other.insertion
+        
     def add_atom(self,a:Atom):
         if self.resseqnum==a.resseqnum and self.name==a.resname and self.chainID==a.chainID and self.insertion==a.insertion:
             self.atoms.append(a)
@@ -310,6 +312,56 @@ class ResidueList(AncestorAwareModList):
     #     return self
     def apply_segtypes(self):
         self.map_attr('segtype','name',segtype_of_resname)
+    
+    def deletion(self,DL:DeletionList):
+        excised=[]
+        for d in DL:
+            chain=self.get(chainID=d.chainID)
+            r1=chain.get(resseqnum=d.resseqnum1,insertion=d.insertion1)
+            r2=chain.get(resseqnum=d.resseqnum2,insertion=d.insertion2)
+            for r in chain:
+                if r1<=r<=r2:
+                    excised.append(r)
+        for x in excised:
+            self.remove(x)
+            assert not x in self
+        return excised
+
+    def substitutions(self,SL:SubstitutionList):
+        delete_us=[]
+        newseqadv=SeqadvList([]) # for holding single-residue changes for resolved residues
+        for s in SL:
+            subseq=s.subseq
+            currsubidx=0
+            chain=self.get(chainID=s.chainID)
+            r1=chain.get(resseqnum=s.resseqnum1,insertion=s.insertion1)
+            r2=chain.get(resseqnum=s.resseqnum2,insertion=s.insertion2)
+            for r in chain:
+                if r1<=r<=r2:
+                    if currsubidx<len(subseq):
+                        resname=res_123[subseq[currsubidx].upper()]
+                        if r.resolved: # make a new seqadv for this mutation
+                            input_dict={
+                                'idCode':'I doubt I ever use this',
+                                'typekey':'user',
+                                'resname':r.resname,
+                                'chainID':r.chainID,
+                                'resseqnum':r.resseqnum,
+                                'insertion':r.insertion,
+                                'dbRes':resname
+                            }
+                            newseqadv.append(Seqadv(input_dict))
+                        else:  # just change the residue name
+                            r.name=resname
+                        currsubidx+=1
+                    else:
+                        delete_us.append(r)
+            if currsubidx<len(subseq):
+                # we have unsubsituted residue(s) left that must be inserted
+                pass
+        for r in delete_us:
+            self.remove(r)
+        return newseqadv,delete_us
 
 class Missing(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['resname','resseqnum','insertion','chainID']

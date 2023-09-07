@@ -1,4 +1,4 @@
-title: HIV-1 Env Trimer 7txd, deletions
+title: HIV-1 Env Trimer 7txd, substitutions
 tasks:
   - psfgen:
       source:
@@ -6,10 +6,10 @@ tasks:
         file_format: mmCIF
         biological_assembly: 1
       mods:
-        deletions:
-          - A:100-162
-          - C:100-162
-          - E:100-162
+        substitutions:
+          - A:100-162,GGG
+          - C:100-162,GGG
+          - E:100-162,GGG
   - ligate:
       steer:
         nsteps: 1000

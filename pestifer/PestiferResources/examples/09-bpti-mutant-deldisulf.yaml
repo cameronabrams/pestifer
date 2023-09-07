@@ -1,4 +1,4 @@
-title: BPTI, no phosphate, custom output basename
+title: BPTI, no phosphate, some random mutaions plus deletion of one disulfide
 tasks:
   - psfgen:
       source:
@@ -7,9 +7,9 @@ tasks:
           resnames:
             - PO4
       mods:
-        mutations:
-          - A:T11A
-          - A:PRO,13,ALA
+        mutations: # showcasing the two shortcode formats
+          - A:T11A # threonine to alanine at position 11
+          - A:PRO,13,ALA # proline to alanine at position 13
           - A:K15R
           - A:MET,52,LEU
         ssbondsdelete:

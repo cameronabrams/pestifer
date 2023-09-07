@@ -46,7 +46,7 @@ class Seqadv(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['idCode','resname','chainID','resseqnum','insertion']
     opt_attr=AncestorAwareMod.opt_attr+['database','dbAccession','dbRes','dbSeq','typekey','pdbx_pdb_strand_id','pdbx_auth_seq_num','pdbx_ordinal','residue']
     attr_choices=AncestorAwareMod.attr_choices.copy()
-    attr_choices.update({'typekey':['conflict','cloning','expression','typekey','engineered','variant','insertion','deletion','microheterogeneity','chromophore','_other_']})
+    attr_choices.update({'typekey':['conflict','cloning','expression','typekey','engineered','variant','insertion','deletion','microheterogeneity','chromophore','user','_other_']})
     yaml_header='seqadvs'
     modtype='seqmod'
     PDB_keyword='SEQADV'
