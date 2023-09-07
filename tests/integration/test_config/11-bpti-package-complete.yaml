@@ -9,9 +9,11 @@ tasks:
       dcdfreq: 100
       nminsteps: 1000
     mods:
+      deletions: []
       mutations: []
       ssbonds: []
       ssbondsdelete: []
+      substitutions: []
     source:
       biological_assembly: 0
       exclude:
@@ -45,7 +47,7 @@ tasks:
     basename: my_6pti
     chainmapfile: chainmaps.yaml
     package:
-      basename: my_6pti
+      basename: prod_6pti
       dcdfreq: 100
       ensemble: NVT
       nminsteps: 0
@@ -54,4 +56,4 @@ tasks:
       temperature: 300
       xstfreq: 100
     statefile: states.yaml
-title: BPTI, package
+title: BPTI, packaging all inputs for NAMD deployment

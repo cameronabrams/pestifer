@@ -34,8 +34,8 @@ class AsymmetricUnit(AncestorAwareMod):
         else: #
             pr=objs.get('parsed',None)
             sourcespecs=objs.get('sourcespecs',{})
-            mods=objs.get('usermodspecs',Namespace())
-            logger.debug(f'User mods at asymmetric unit: {mods.__dict__}')
+            mods=objs.get('usermodspecs',ModContainer())
+            logger.debug(f'User mods {type(mods)} at asymmetric unit: {mods.__dict__}')
             chainIDmanager=objs.get('chainIDmanager',None)
             missings=MissingList([])
             ssbonds=SSBondList([])
@@ -50,6 +50,7 @@ class AsymmetricUnit(AncestorAwareMod):
                 if 'TER' in pr:
                     ters=TerList([Ter(p) for  p in pr['TER']])
                     atoms.adjustSerials(ters) # VMD (1) ignors TERs and (2) *computes and assigns* serials
+                    mods.seqmods.terminals=ters
                 if 'REMARK.465' in pr:
                     missings=MissingList([Missing(p) for p in pr['REMARK.465'].tables['MISSING']])
                 if 'SSBOND' in pr:
@@ -86,7 +87,6 @@ class AsymmetricUnit(AncestorAwareMod):
             # apply seqmods?
             if hasattr(mods.seqmods,'deletions'):
                 residues.deletion(mods.seqmods.deletions)
-
             if hasattr(mods.seqmods,'substitutions'):
                 new_seqadv,wearegone=residues.substitutions(mods.seqmods.substitutions)
                 seqadvs.extend(new_seqadv)
@@ -152,7 +152,7 @@ class AsymmetricUnit(AncestorAwareMod):
                 mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='conflict']))
             mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='user']))
             if hasattr(mods.seqmods,'mutations'):
-               mutations.extend(mods.seqmods.mutations)
+                mutations.extend(mods.seqmods.mutations)
             mods.seqmods.mutations=mutations
             pruned_ssbonds=ssbonds.prune_mutations(mutations)
             pruned_by_links=links.prune_mutations(mutations,segments)
@@ -170,8 +170,6 @@ class AsymmetricUnit(AncestorAwareMod):
                 links.extend(mods.topomods.links)
             mods.topomods.links=links
             
-
-
             input_dict={
                 'atoms':atoms,
                 'residues':residues,

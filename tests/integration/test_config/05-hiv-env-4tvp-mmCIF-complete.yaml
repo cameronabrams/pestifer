@@ -9,9 +9,11 @@ tasks:
       dcdfreq: 100
       nminsteps: 1000
     mods:
+      deletions: []
       mutations: []
       ssbonds: []
       ssbondsdelete: []
+      substitutions: []
     source:
       biological_assembly: 1
       exclude:
@@ -70,4 +72,4 @@ tasks:
     basename: my_4tvp
     chainmapfile: chainmaps.yaml
     statefile: states.yaml
-title: HIV-1 Env Trimer 4tvp, Fabs and phosphate ions removed
+title: HIV-1 Env Trimer 4tvp, Fabs and sulfate ions removed

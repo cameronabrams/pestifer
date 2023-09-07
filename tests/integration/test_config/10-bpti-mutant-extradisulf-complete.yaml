@@ -9,12 +9,14 @@ tasks:
       dcdfreq: 100
       nminsteps: 1000
     mods:
+      deletions: []
       mutations:
       - A:T11C
       - A:V34C
       ssbonds:
       - A_11-A_34
       ssbondsdelete: []
+      substitutions: []
     source:
       biological_assembly: 0
       exclude:
@@ -48,4 +50,4 @@ tasks:
     basename: my_6pti
     chainmapfile: chainmaps.yaml
     statefile: states.yaml
-title: BPTI, no phosphate, custom output basename
+title: BPTI, no phosphate, introducing a disulfide via mutations

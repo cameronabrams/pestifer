@@ -66,5 +66,14 @@ tasks:
 - terminate:
     basename: my_8fae
     chainmapfile: chainmaps.yaml
+    package:
+      basename: prod_8fae
+      dcdfreq: 100
+      ensemble: NVT
+      nminsteps: 0
+      nsteps: 1000
+      pressure: 1
+      temperature: 300
+      xstfreq: 100
     statefile: states.yaml
-title: HIV-1 Env Trimer 8fae, drug molecule removed
+title: HIV-1 Env Trimer 8fae

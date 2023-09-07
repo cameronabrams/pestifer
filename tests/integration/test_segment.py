@@ -13,9 +13,9 @@ source:
     file_format: PDB
     id: {pdbid}
     sequence:
-    fix_conflicts: true
-    fix_engineered_mutations: true
-    include_terminal_loops: false
+        fix_conflicts: true
+        fix_engineered_mutations: true
+        include_terminal_loops: false
     loops:
         declash:
         maxcycles: 20
@@ -32,11 +32,11 @@ source:
         directive["source"]["biological_assembly"]=1
         m=Molecule(source=directive["source"],chainIDmanager=cidm).activate_biological_assembly(1)
         au=m.asymmetric_unit
-        protein_segments=[x for x in au.Segments if x.segtype=='protein']
+        protein_segments=[x for x in au.segments if x.segtype=='protein']
         self.assertTrue(len(protein_segments),2)
-        expected_set_of_chainIDs={'G','B','A','D','C','E','F'}
-        self.assertEqual(set(au.Segments.segnames),expected_set_of_chainIDs)
-        e=au.Segments.get(segname='E')
+        expected_set_of_chainIDs={'G','B','A','C','E','F'}
+        self.assertEqual(set(au.segments.segnames),expected_set_of_chainIDs)
+        e=au.segments.get(segname='E')
         chk1=all([x.chainID=='E' for x in e.residues])
         self.assertTrue(chk1)
         chk2=[]

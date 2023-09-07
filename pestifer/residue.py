@@ -251,9 +251,9 @@ class ResidueList(AncestorAwareModList):
                     self.chainIDmap_cif_to_pdb[Cid]=aCid
     def get_residue(self,**fields):
         return self.get(**fields)
-    # def get_atom(self,atname,**fields):
-    #     S=('atoms',{'name':atname})
-    #     return self.get_attr(S,**fields)
+    def get_atom(self,atname,**fields):
+        S=('atoms',{'name':atname})
+        return self.get_attr(S,**fields)
     # def unique_chainIDs(self):
     #     c=[]
     #     for r in self:

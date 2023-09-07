@@ -2,7 +2,7 @@ import unittest
 from pestifer.cifutil import CIFdict, CIFload
 from pidibble.pdbparse import PDBParser
 from mmcif.api.PdbxContainers import DataContainer
-from pestifer.residue import Atom, AtomList, ResidueList
+from pestifer.residue import Atom, AtomList, ResidueList, Missing, MissingList
 from pestifer.config import Config
 from pestifer.scriptwriters import VMD
 from pestifer.bioassemb import Transform, TransformList, BioAssemb, BioAssembList

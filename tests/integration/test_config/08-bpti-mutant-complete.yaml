@@ -9,6 +9,7 @@ tasks:
       dcdfreq: 100
       nminsteps: 1000
     mods:
+      deletions: []
       mutations:
       - A:T11A
       - A:PRO,13,ALA
@@ -16,6 +17,7 @@ tasks:
       - A:MET,52,LEU
       ssbonds: []
       ssbondsdelete: []
+      substitutions: []
     source:
       biological_assembly: 0
       exclude:
@@ -49,4 +51,4 @@ tasks:
     basename: my_6pti
     chainmapfile: chainmaps.yaml
     statefile: states.yaml
-title: BPTI, no phosphate, custom output basename
+title: BPTI, no phosphate, some mutations

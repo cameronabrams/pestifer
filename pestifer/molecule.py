@@ -7,7 +7,7 @@
 
 """
 import logging
-from argparse import Namespace
+from .modcontainer import ModContainer
 from pidibble.pdbparse import PDBParser
 from .cifutil import CIFload
 from .basemod import AncestorAwareMod
@@ -22,7 +22,7 @@ class Molecule(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['molid','chainIDmanager','sourcespecs','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
     opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
-    def __init__(self,source={},usermods=Namespace(),chainIDmanager=None,**kwargs):
+    def __init__(self,source={},usermods=None,chainIDmanager=None,**kwargs):
         reset=kwargs.get('reset_counter',False)
         if reset:
             Molecule._molcounter=0
@@ -44,6 +44,9 @@ class Molecule(AncestorAwareMod):
         #     apply_psf_info(p_struct,f'{source}.psf')
         # if os.path.exists(f'{source}.psf'):
         #     apply_psf_info(p_struct,f'{source}.psf')
+        if usermods==None:
+            logger.debug(f'No usermods, making an empty ModContainer')
+            usermods=ModContainer()
         if chainIDmanager==None:
             logger.debug(f'Molecule instantiating its own ChainIDManager')
             chainIDmanager=ChainIDManager()

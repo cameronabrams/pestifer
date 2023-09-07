@@ -13,14 +13,15 @@ tasks:
       mutations: []
       ssbonds: []
       ssbondsdelete: []
-      substitutions: []
+      substitutions:
+      - A:100-162,GGG
+      - C:100-162,GGG
+      - E:100-162,GGG
     source:
       biological_assembly: 1
-      exclude:
-        resnames:
-        - 83G
+      exclude: {}
       file_format: mmCIF
-      id: 8fae
+      id: 7txd
       sequence:
         fix_conflicts: true
         fix_engineered_mutations: true
@@ -39,7 +40,7 @@ tasks:
     steer:
       dcdfreq: 100
       force_constant: 20
-      nsteps: 4000
+      nsteps: 1000
       target_distance: 2
       temperature: 300
 - relax:
@@ -64,7 +65,16 @@ tasks:
     temperature: 300
     xstfreq: 100
 - terminate:
-    basename: my_8fae
+    basename: my_7txd
     chainmapfile: chainmaps.yaml
+    package:
+      basename: prod_7txd
+      dcdfreq: 100
+      ensemble: NVT
+      nminsteps: 0
+      nsteps: 1000
+      pressure: 1
+      temperature: 300
+      xstfreq: 100
     statefile: states.yaml
-title: HIV-1 Env Trimer 8fae, drug molecule removed
+title: HIV-1 Env Trimer 7txd, substitutions

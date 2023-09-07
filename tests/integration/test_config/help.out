@@ -1,4 +1,4 @@
--> help available for title, paths, tasks
+    Help available for title, paths, tasks
 title:
     Meaningful title (optional)
     type: str
@@ -6,70 +6,117 @@ title:
 paths:
     Allows user to specify various paths
     type: dict
--> help available for namd2, charmrun, vmd, charmmff
-paths->vmd:
+    Help available for namd2, charmrun, vmd, charmmff
+paths->
+vmd:
     Path for vmd executable
     type: str
     default: /usr/local/bin/vmd
 tasks:
-    Specifies the tasks to be performed; each is a dictionary with a heading which is a reserved task name
+    Specifies the tasks to be performed; each is a dictionary with a
+      heading which is a reserved task name
     type: list
--> help available for psfgen, ligate, solvate, relax, terminate
-tasks->psfgen:
+    Help available for psfgen, ligate, solvate, relax, terminate
+tasks->
+psfgen:
     Parameters controlling initial psfgen run
     type: dict
--> help available for source, mods, minimize, cleanup
-tasks->psfgen->source:
+    Help available for source, mods, minimize, cleanup
+tasks->
+psfgen->
+source:
     Specifies the source of the initial coordinate file
     type: dict
--> help available for id, biological_assembly, file_format, psf, exclude, sequence
-tasks->psfgen->source->id:
-    The 4-character PDB ID of the source or the basename of a local coordinate file (PDB or mmCIF format); pestifer will download from the RCSB if a file is not found
+    Help available for id, biological_assembly, file_format, psf, exclude, sequence
+tasks->
+psfgen->
+source->
+id:
+    The 4-character PDB ID of the source or the basename of a local
+      coordinate file (PDB or mmCIF format); pestifer will download
+      from the RCSB if a file is not found
     type: str
     A value is required.
-tasks->psfgen->source->file_format:
-    either PDB or mmCIF; some entries do not have a PDB-format file.  The main advantage of PDB is that it uses the author-designations for chains by default.  mmCIF is the new "default" format of the PDB.
+tasks->
+psfgen->
+source->
+file_format:
+    either PDB or mmCIF; some entries do not have a PDB-format file.  The
+      main advantage of PDB is that it uses the author-designations
+      for chains by default.  mmCIF is the new "default" format of the
+      PDB.
     type: str
     default: PDB
     allowed values: PDB, mmCIF
-tasks->psfgen->source->sequence:
-    Parameters controlling sequence modifications based on specifications in the PDB source
+tasks->
+psfgen->
+source->
+sequence:
+    Parameters controlling sequence modifications based on specifications
+      in the PDB source
     type: dict
--> help available for include_terminal_loops, fix_engineered_mutations, fix_conflicts, loops
-tasks->psfgen->source->sequence->fix_conflicts:
-    Specifies whether or not sequence differences w.r.t. a sequence database and which are labeled as "conflicts"s are reverted to their database values
+    Help available for include_terminal_loops, fix_engineered_mutations, fix_conflicts, loops
+tasks->
+psfgen->
+source->
+sequence->
+fix_conflicts:
+    Specifies whether or not sequence differences w.r.t. a sequence
+      database and which are labeled as "conflicts"s are reverted to
+      their database values
     type: bool
     default: True
-tasks->psfgen->source->sequence->loops:
+tasks->
+psfgen->
+source->
+sequence->
+loops:
     Parameters controlling model-built loops during psfgen
     type: dict
--> help available for sac_res_name, min_loop_length, declash
-tasks->psfgen->source->sequence->loops->min_loop_length:
-    Minimum length of model-built loop that triggers the ligation algorithm
+    Help available for sac_res_name, min_loop_length, declash
+tasks->
+psfgen->
+source->
+sequence->
+loops->
+min_loop_length:
+    Minimum length of model-built loop that triggers the ligation
+      algorithm
     type: int
     default: 4
-tasks->ligate:
-    Specifies how C-termini of modeled loops are connected back to the protein
+tasks->
+ligate:
+    Specifies how C-termini of modeled loops are connected back to the
+      protein
     type: dict
--> help available for steer, connect, minimize
-tasks->ligate->steer:
-    Specifies parameters for steered MD to bring C-termini close to their connection points
+    Help available for steer, connect, minimize
+tasks->
+ligate->
+steer:
+    Specifies parameters for steered MD to bring C-termini close to their
+      connection points
     type: dict
--> help available for force_constant, target_distant, nsteps, dcdfreq, temperature
-tasks->solvate:
+    Help available for force_constant, target_distance, nsteps, dcdfreq, temperature
+tasks->
+solvate:
     Parameters controlling solvation and ionization
     type: dict
--> help available for minimize
-tasks->relax:
+    Help available for pad, minimize
+tasks->
+relax:
     Parameters controlling NVT or NPT equilibration
     type: dict
--> help available for ensemble, nminsteps, nsteps, dcdfreq, xstfreq, temperature, pressure
-tasks->relax->ensemble:
-    Name of ensemble to run in; note that NPT can only be peformed on a solvated system
+    Help available for ensemble, nminsteps, nsteps, dcdfreq, xstfreq, temperature, pressure
+tasks->
+relax->
+ensemble:
+    Name of ensemble to run in; note that NPT can only be peformed on a
+      solvated system
     type: str
     default: NVT
     allowed values: NVT, NPT
-tasks->terminate:
+tasks->
+terminate:
     Task that signals end of task list
     type: dict
--> help available for basename, chainmapfile, statefile
+    Help available for basename, chainmapfile, statefile, package

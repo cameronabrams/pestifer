@@ -15,12 +15,12 @@ tasks:
       ssbondsdelete: []
       substitutions: []
     source:
-      biological_assembly: 1
+      biological_assembly: 0
       exclude:
         resnames:
         - 83G
       file_format: mmCIF
-      id: 8fae
+      id: 8fad
       sequence:
         fix_conflicts: true
         fix_engineered_mutations: true
@@ -64,7 +64,16 @@ tasks:
     temperature: 300
     xstfreq: 100
 - terminate:
-    basename: my_8fae
+    basename: my_8fad
     chainmapfile: chainmaps.yaml
+    package:
+      basename: prod_8fad
+      dcdfreq: 100
+      ensemble: NVT
+      nminsteps: 0
+      nsteps: 1000
+      pressure: 1
+      temperature: 300
+      xstfreq: 100
     statefile: states.yaml
-title: HIV-1 Env Trimer 8fae, drug molecule removed
+title: HIV-1 Env Trimer 8fad

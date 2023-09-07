@@ -189,7 +189,7 @@ def userhelp(L,logf,*args,end=''):
         except:
             raise ValueError(f'{nextarg} is not a recognized directive')
         item=L[item_idx]
-        logf(f'{nextarg}->',end='')
+        logf(f'{nextarg}->{end}')
         userhelp(item['directives'],logf,*args,end=end)
 
 
