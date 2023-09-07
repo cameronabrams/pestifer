@@ -123,7 +123,13 @@ directives:
                 text: additional ssbonds, expressed as shortcodes; e.g., C_154-A_298 to add an ssbond between resids 154 of chain C and 298 of chain A.  Note that the indicated residues must by CYS's.  If they are not, you should include each in a mutation shortcode in the mutations list
                 type: list
               - name: ssbondsdelete
-                text: existing ssbonds to break, expressed as shortcodes' e.g., C_154-A_298 will break the existing ssbond between resids 154 of chain C and 298 of chain A so that each is a reduced CYS.
+                text: existing ssbonds to break, expressed as shortcodes; e.g., C_154-A_298 will break the existing ssbond between resids 154 of chain C and 298 of chain A so that each is a reduced CYS.
+                type: list
+              - name: deletions
+                text: residue ranges to delete, expressed as shortcodes; e.g., C:99-101 deletes residues 99 to 101 (inclusive) of chain C
+                type: list
+              - name: substitutions
+                text: residue ranges to replace with a new sequence; e.g., C:99-101,GG replaces residues 99, 100, and 101 of chain C with two glycines
                 type: list
               # - name: insertion
               # - name: deletion

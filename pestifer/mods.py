@@ -7,24 +7,48 @@
 
 """
 import os
+from argparse import Namespace
 import logging
 logger=logging.getLogger(__name__)
 from pidibble.pdbrecord import PDBRecord
-from pidibble.baserecord import BaseRecord
 from .cifutil import CIFdict
 from .basemod import AncestorAwareMod,AncestorAwareModList
 from .stringthings import split_ri
 from .scriptwriters import Psfgen
 from .config import res_123
 
+ModTypes=['seqmod','topomod','coormod','generic']
 
+class Ter(AncestorAwareMod):
+    req_attr=['serial','resname','chainID','resseqnum','insertion']
+    yaml_header='terminals'
+    modtype='seqmod'
+    def __init__(self,input_obj):
+        if type(input_obj)==dict:
+            super().__init__(input_obj)
+        elif type(input_obj)==PDBRecord:
+            pdbrecord=input_obj
+            input_dict={
+                'serial':pdbrecord.serial,
+                'resname':pdbrecord.residue.resName,
+                'chainID':pdbrecord.residue.chainID,
+                'resseqnum':pdbrecord.residue.seqNum,
+                'insertion':pdbrecord.residue.iCode
+            }
+            super().__init__(input_dict)
+        else:
+            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
+    
+class TerList(AncestorAwareModList):
+    pass
 
 class Seqadv(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['idCode','resname','chainID','resseqnum','insertion']
     opt_attr=AncestorAwareMod.opt_attr+['database','dbAccession','dbRes','dbSeq','typekey','pdbx_pdb_strand_id','pdbx_auth_seq_num','pdbx_ordinal','residue']
     attr_choices=AncestorAwareMod.attr_choices.copy()
-    attr_choices.update({'typekey':['cloning','expression','typekey','engineered','variant','insertion','deletion','microheterogeneity','chromophore','_other_']})
+    attr_choices.update({'typekey':['conflict','cloning','expression','typekey','engineered','variant','insertion','deletion','microheterogeneity','chromophore','_other_']})
     yaml_header='seqadvs'
+    modtype='seqmod'
     PDB_keyword='SEQADV'
     mmCIF_name='struct_ref_seq_dif'
     def __init__(self,input_obj):
@@ -115,15 +139,27 @@ class SeqadvList(AncestorAwareModList):
             s.update_from_residue()
 
 class Mutation(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['chainID','origresname','resseqnum','insertion','newresname','source']
+    """A class for handling single-residue mutations
+    
+    Single-residue mutations are handled in psfgen by including a "mutate" directive within
+    a protein segment.  The mutate directive needs only the resid and 3-letter desired
+    residue name at that resid position.  Mutate directives come after all pdb and residue
+    directives in segment, typically.
+
+    Mutations can be inferred directly from coordinate-file metadata or supplied by the
+    user.
+    
+    """
+    req_attr=AncestorAwareMod.req_attr+['chainID','origresname','resseqnum','insertion','newresname','typekey']
     opt_attr=AncestorAwareMod.opt_attr+['pdbx_auth_seq_num']
     yaml_header='mutations'
+    modtype='seqmod'
     def __init__(self,input_obj):
         if type(input_obj)==dict:
             if not 'insertion' in input_obj:
                 input_obj['insertion']=''
-            if not 'source' in input_obj:
-                input_obj['source']='SEQADV'
+            if not 'typekey' in input_obj:
+                input_obj['typekey']='unknown'
             super().__init__(input_obj)
         elif type(input_obj)==Seqadv:
             sq=input_obj
@@ -133,7 +169,7 @@ class Mutation(AncestorAwareMod):
                 'newresname':sq.dbRes,
                 'resseqnum':sq.resseqnum,
                 'insertion':sq.insertion,
-                'source':'SEQADV'
+                'typekey':sq.typekey
             }
             if hasattr(sq,'pdbx_auth_seq_num'):
                 input_dict['pdbx_auth_seq_num']=sq.__dict__['pdbx_auth_seq_num']
@@ -165,9 +201,9 @@ class Mutation(AncestorAwareMod):
                 'resseqnum':int(r), # assume author!
                 'insertion':i,
                 'newresname':nrn,
-                'source':'USER' # shortcodes are how users indicate mutations
+                'typekey':'user' # shortcodes are how users indicate mutations
             }
-            logger.debug('user mutation {input_dict}')
+            logger.debug(f'user mutation {input_dict}')
             super().__init__(input_dict)
         else:
             logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
@@ -184,91 +220,102 @@ class Mutation(AncestorAwareMod):
 class MutationList(AncestorAwareModList):
     pass
 
+class Substitution(AncestorAwareMod):
+    """A class for handling substitutions 
+    
+    A substitution is a user-specified modification in which a sequence of one or
+    more contiguous residues are replaced by one or more residues.
+
+    There are four typical cases for substitutions, provided they are not very long:
+    1. The substitution is fully contained within a resolved run of residues;
+    2. The substitution is fully contained within an unresolved (missing) run of residues;
+    3. The substitution starts in a resolved run and ends in an unresolved run;
+    4. The substitution starts in an unresolves run and ends in a resolved run.
+
+    Very long substitutions (those replacing a lot of residues) could conceivably 
+    span a residue range that contains multiple distinct resolved and unresolved runs,
+    but this will be assumed to be very rare.
+
+    We also denote three types of substitution:
+    1. The difference between the number of residues in the range where the subsitution
+    is made and the length of the substitution is *positive*, meaning residues in the
+    original sequence will be deleted;
+    2. The difference between the number of residues in the range where the subsitution
+    is made and the length of the substitution is *negative*, meaning residues will be
+    *added* to the original sequence;
+    3. There is no difference between the number of residues in the range where the 
+    subsitution is made and the length of the substitution.
+
+    The easiest place to implement a substitution is during the residue/segment
+    build (I think).
+
+    """
+    req_attr=AncestorAwareMod.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2','subseq']
+    yaml_header='substitutions'
+    modtype='seqmod'
+    def __init__(self,input_obj):
+        if type(input_obj)==dict:
+            super().__init__(input_obj)
+        elif type(input_obj)==str:
+            # shortcode format: C:nnn-ccc,abcdef
+            # C -- chainID
+            # nnn -- N-terminal resid of sequence to be replaced
+            # ccc -- C-terminal resid of sequence to be replaced
+            # abcdef -- the 1-byte rescode sequence to be substituted
+            p1=input_obj.split(':')
+            chainID=p1[0]
+            p2=p1[1].split(',')
+            seqrange=p2[0]
+            subseq=p2[1]
+            seq=seqrange.split('-')
+            r1,i1=split_ri(seq[0])
+            r2,i2=split_ri(seq[1])
+            input_dict={
+                'chainID':chainID,
+                'resseqnum1':int(r1),
+                'insertion1':i1,
+                'resseqnum2':int(r2),
+                'insertion2':i2,
+                'subseq':subseq
+            }
+            super().__init__(input_dict)
+        else:
+            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
+
+class SubstitutionList(AncestorAwareModList):
+    pass
+
 class Deletion(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
     opt_attr=AncestorAwareMod.opt_attr+['model']
     yaml_header='deletions'
+    modtype='seqmod'
 
     def __init__(self,input_obj):
         if type(input_obj)==dict:
             super().__init__(input_obj)
         elif type(input_obj)==str:
-            p1=input_obj.split('_')
-            input_dict={}
-            input_dict['chainID']=p1[0]
-            p2=p1[1].split('-')
-            ri1=p2[0]
-            if ri1[-1].isalpha():
-                input_dict['resseqnum1']=int(ri1[:-1])
-                input_dict['insertion1']=ri1[-1]
-            else:
-                input_dict['resseqnum1']=int(ri1)
-                input_dict['insertion1']=''
-            if len(p2)>1:
-                ri2=p2[1]
-                if ri2[-1].isalpha():
-                    input_dict['resseqnum2']=int(ri2[:-1])
-                    input_dict['insertion2']=ri2[-1]
-                else:
-                    input_dict['resseqnum2']=int(ri2)
-                    input_dict['insertion2']=''
-            else:
-                input_dict['resseqnum2']=input_dict['resseqnum1']
-                input_dict['insertion2']=input_dict['insertion1']
+            # shortcode format: C:nnn-ccc
+            # C -- chainID
+            # nnn -- N-terminal resid of sequence to be deleted
+            # ccc -- C-terminal resid of sequence to be deleted
+            p1=input_obj.split(':')
+            chainID=p1[0]
+            seq=p1[1].split('-')
+            r1,i1=split_ri(seq[0])
+            r2,i2=split_ri(seq[1])          
+            input_dict={
+                'chainID':chainID,
+                'resseqnum1':int(r1),
+                'insertion1':i1,
+                'resseqnum2':int(r2),
+                'insertion2':i2
+            }
             super().__init__(input_dict)
         else:
             logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
 
 class DeletionList(AncestorAwareModList):
-    pass
-
-class Missing(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['resname','resseqnum','insertion','chainID']
-    opt_attr=AncestorAwareMod.opt_attr+['model','id','auth_asym_id','auth_comp_id','auth_seq_id']
-    yaml_header='missings'
-    PDB_keyword='REMARK.465'
-    mmCIF_name='pdbx_unobs_or_zero_occ_residues'
-    def __init__(self,input_obj):
-        if type(input_obj)==dict:
-            super().__init__(input_obj)
-            self.model=''
-        elif type(input_obj) in [PDBRecord,BaseRecord]:
-            pdbrecord=input_obj
-            input_dict={
-                'model':pdbrecord.modelNum,
-                'resname':pdbrecord.resName,
-                'chainID':pdbrecord.chainID,
-                'resseqnum':pdbrecord.seqNum,
-                'insertion':pdbrecord.iCode
-            }
-            super().__init__(input_dict)
-        elif type(input_obj)==CIFdict:
-            cd=input_obj
-            mn=cd['pdb_model_num']
-            if type(mn)==str and mn.isdigit:
-                nmn=int(mn)
-            else:
-                nmn=1
-            input_dict={
-                'model':nmn,
-                'resname':cd['label_comp_id'],
-                'chainID':cd['label_asym_id'],
-                'resseqnum':int(cd['label_seq_id']),
-                'insertion':cd['pdb_ins_code'],
-                'auth_asym_id':cd['auth_asym_id'],
-                'auth_comp_id':cd['auth_comp_id'],
-                'auth_seq_id':int(cd['auth_seq_id']),
-            }
-            super().__init__(input_dict)
-        else:
-            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
-            
-    def pdb_line(self):
-        record_name,code=Missing.PDB_keyword.split(',')
-        return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>5d}{:1s}'.format(record_name,
-        code,self.model,self.resname,self.chainID,self.resseqnum,self.insertion)
-
-class MissingList(AncestorAwareModList):
     pass
 
 class Crot(AncestorAwareMod):
@@ -288,6 +335,7 @@ class Crot(AncestorAwareMod):
         'ANGLEIJK':['segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk']
         })
     yaml_header='crotations'
+    modtype='coormod'
     @classmethod
     def from_shortcode(cls,shortcode):
         dat=shortcode.split(',')
@@ -428,6 +476,7 @@ class SSBond(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
     opt_attr=AncestorAwareMod.opt_attr+['serial_number','residue1','residue2','resname1','resname2','sym1','sym2','length','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id']
     yaml_header='ssbonds'
+    modtype='topomod'
     PDB_keyword='SSBOND'
     mmCIF_name='struct_conn'
     def __init__(self,input_obj):
@@ -532,39 +581,42 @@ class SSBondList(AncestorAwareModList):
         ignored_by_ptnr1=self.assign_objs_to_attr('residue1',Residues,resseqnum='resseqnum1',chainID='chainID1',insertion='insertion1')
         ignored_by_ptnr2=self.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID1',insertion='insertion2')
         return self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
-    def write_TcL(self,W:Psfgen,transform,mods):
+    def write_TcL(self,W:Psfgen,transform):
         for s in self:
-            if mods.ssbondsdelete.is_deleted(s,transform):
-                W.comment(f'Deleted ssbond: {str(s)}')
-                continue
+            # if mods.ssbondsdelete.is_deleted(s,transform):
+            #     W.comment(f'Deleted ssbond: {str(s)}')
+            #     continue
             s.write_TcL(W,transform)
         # user may have added some ssbonds
-        for s in mods.ssbonds:
-            W.comment(f'Below is a user-added ssbond:')
-            s.write_TcL(W,transform)
+        # for s in mods.ssbonds:
+        #     W.comment(f'Below is a user-added ssbond:')
+        #     s.write_TcL(W,transform)
     def prune_mutations(self,Mutations):
+        pruned=self.__class__([])
         for m in Mutations:
             left=self.get(chainID1=m.chainID,resseqnum1=m.resseqnum,insertion1=m.insertion)
             if left:
-                self.remove(left)
+                pruned.append(self.remove(left))
             right=self.get(chainID2=m.chainID,resseqnum2=m.resseqnum,insertion2=m.insertion)
             if right:
-                self.remove(right)
-
+                pruned.append(self.remove(right))
+        return pruned
+    
 class SSBondDelete(SSBond):
     yaml_header='ssbondsdelete'
+    modtype='topomod'
 
 class SSBondDeleteList(SSBondList):
-    def is_deleted(self,a_SSBond,transform):
+    def is_deleted(self,a_SSBond):
         if self.get(
-            chainID1=transform.chainIDmap[a_SSBond.chainID1],
-            chainID2=transform.chainIDmap[a_SSBond.chainID2],
+            chainID1=a_SSBond.chainID1,
+            chainID2=a_SSBond.chainID2,
             resseqnum1=a_SSBond.resseqnum1,
             resseqnum2=a_SSBond.resseqnum2):
             return True
         if self.get(
-            chainID2=transform.chainIDmap[a_SSBond.chainID1],
-            chainID1=transform.chainIDmap[a_SSBond.chainID2],
+            chainID2=a_SSBond.chainID1,
+            chainID1=a_SSBond.chainID2,
             resseqnum2=a_SSBond.resseqnum1,
             resseqnum1=a_SSBond.resseqnum2):
             return True
@@ -575,6 +627,7 @@ class Link(AncestorAwareMod):
     opt_attr=AncestorAwareMod.opt_attr+['altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance','segname1','segname2','residue1','residue2','atom1','atom2','empty','segtype1','segtype2','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id','ptnr1_auth_comp_id','ptnr2_auth_comp_id']    
     yaml_header='links'
     PDB_keyword='LINK'
+    modtype='topomod'
 
     def __init__(self,input_obj):
         if type(input_obj)==PDBRecord:
@@ -676,8 +729,6 @@ class Link(AncestorAwareMod):
         
     def __str__(self):
         return f'{self.chainID1}{self.resname1}{self.resseqnum1}{self.insertion1}-{self.chainID2}{self.resname2}{self.resseqnum2}{self.insertion2}'
-    
-
 
 class LinkList(AncestorAwareModList):
     def assign_residues(self,Residues):
@@ -701,7 +752,6 @@ class LinkList(AncestorAwareModList):
                 Residues.remove(r)
         return Residues.__class__(rlist),self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
     
-    
     def write_TcL(self,W:Psfgen,transform):
         for l in self:
             l.write_TcL(W,transform)
@@ -717,6 +767,7 @@ class LinkList(AncestorAwareModList):
         return reslist,lnlist
 
     def prune_mutations(self,Mutations,Segments):
+        pruned={'residues':[],'links':self.__class__([]),'segments':[]}
         for m in Mutations:
             rlist,llist=[],[]
             left=self.get(chainID1=m.chainID,resseqnum1=m.resseqnum,insertion1=m.insertion)
@@ -736,12 +787,13 @@ class LinkList(AncestorAwareModList):
                 S=Segments.get_segment_of_residue(rlist[0])
                 for r in rlist:
                     # logger.debug(f'...{str(r)}')
-                    S.residues.remove(r)
+                    pruned['residues'].append(S.residues.remove(r))
                 if len(S.residues)==0:
                     # logger.debug(f'All residues of {S.psfgen_segname} are deleted; {S.psfgen_segname} is deleted')
-                    Segments.remove(S)
+                    pruned['segments'].append(Segments.remove(S))
                 for l in llist:
-                    self.remove(l)
+                    pruned['links'].append(self.remove(l))
+        return pruned
 
     def apply_segtypes(self,map):
         self.map_attr('segtype1','resname1',map)
@@ -749,6 +801,7 @@ class LinkList(AncestorAwareModList):
 
 class Graft(AncestorAwareMod):
     yaml_header='grafts'
+    modtype='topomod'
     pass
 
 class GraftList(AncestorAwareModList):
@@ -756,6 +809,7 @@ class GraftList(AncestorAwareModList):
 
 class Insertion(AncestorAwareMod):
     yaml_header='insertions'
+    modtype='seqmod'
     pass
 
 class InsertionList(AncestorAwareModList):
@@ -763,10 +817,12 @@ class InsertionList(AncestorAwareModList):
 
 class Cleavage(AncestorAwareMod):
     yaml_header='cleavages'
+    modtype='seqmod'
     pass
 
 class CleavageList(AncestorAwareModList):
     pass
+
 
 def apply_psf_info(p_struct,psf):
     if os.path.exists(psf):

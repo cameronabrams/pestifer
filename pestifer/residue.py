@@ -9,28 +9,9 @@
 from .mods import *
 from .mods import AncestorAwareModList,AncestorAwareMod
 from .config import segtype_of_resname
+from pidibble.baserecord import BaseRecord
 
-class Ter(AncestorAwareMod):
-    req_attr=['serial','resname','chainID','resseqnum','insertion']
-    yaml_header='terminals'
-    def __init__(self,input_obj):
-        if type(input_obj)==dict:
-            super().__init__(input_obj)
-        elif type(input_obj)==PDBRecord:
-            pdbrecord=input_obj
-            input_dict={
-                'serial':pdbrecord.serial,
-                'resname':pdbrecord.residue.resName,
-                'chainID':pdbrecord.residue.chainID,
-                'resseqnum':pdbrecord.residue.seqNum,
-                'insertion':pdbrecord.residue.iCode
-            }
-            super().__init__(input_dict)
-        else:
-            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
-    
-class TerList(AncestorAwareModList):
-    pass
+
 
 class Atom(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
@@ -268,9 +249,9 @@ class ResidueList(AncestorAwareModList):
                     self.chainIDmap_cif_to_pdb[Cid]=aCid
     def get_residue(self,**fields):
         return self.get(**fields)
-    def get_atom(self,atname,**fields):
-        S=('atoms',{'name':atname})
-        return self.get_attr(S,**fields)
+    # def get_atom(self,atname,**fields):
+    #     S=('atoms',{'name':atname})
+    #     return self.get_attr(S,**fields)
     # def unique_chainIDs(self):
     #     c=[]
     #     for r in self:
@@ -329,3 +310,52 @@ class ResidueList(AncestorAwareModList):
     #     return self
     def apply_segtypes(self):
         self.map_attr('segtype','name',segtype_of_resname)
+
+class Missing(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['resname','resseqnum','insertion','chainID']
+    opt_attr=AncestorAwareMod.opt_attr+['model','id','auth_asym_id','auth_comp_id','auth_seq_id']
+    yaml_header='missings'
+    PDB_keyword='REMARK.465'
+    mmCIF_name='pdbx_unobs_or_zero_occ_residues'
+    def __init__(self,input_obj):
+        if type(input_obj)==dict:
+            super().__init__(input_obj)
+            self.model=''
+        elif type(input_obj) in [PDBRecord,BaseRecord]:
+            pdbrecord=input_obj
+            input_dict={
+                'model':pdbrecord.modelNum,
+                'resname':pdbrecord.resName,
+                'chainID':pdbrecord.chainID,
+                'resseqnum':pdbrecord.seqNum,
+                'insertion':pdbrecord.iCode
+            }
+            super().__init__(input_dict)
+        elif type(input_obj)==CIFdict:
+            cd=input_obj
+            mn=cd['pdb_model_num']
+            if type(mn)==str and mn.isdigit:
+                nmn=int(mn)
+            else:
+                nmn=1
+            input_dict={
+                'model':nmn,
+                'resname':cd['label_comp_id'],
+                'chainID':cd['label_asym_id'],
+                'resseqnum':int(cd['label_seq_id']),
+                'insertion':cd['pdb_ins_code'],
+                'auth_asym_id':cd['auth_asym_id'],
+                'auth_comp_id':cd['auth_comp_id'],
+                'auth_seq_id':int(cd['auth_seq_id']),
+            }
+            super().__init__(input_dict)
+        else:
+            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
+            
+    def pdb_line(self):
+        record_name,code=Missing.PDB_keyword.split(',')
+        return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>5d}{:1s}'.format(record_name,
+        code,self.model,self.resname,self.chainID,self.resseqnum,self.insertion)
+
+class MissingList(AncestorAwareModList):
+    pass

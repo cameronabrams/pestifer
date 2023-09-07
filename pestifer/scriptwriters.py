@@ -224,10 +224,10 @@ class Psfgen(VMD):
             psf,pdb=objs
             self.addline(f'readpsf {psf} pdb {pdb}')
         
-    def describe_molecule(self,mol,mods):
+    def describe_molecule(self,mol):
         molid_varname=f'm{mol.molid}'
         self.addline(f'mol top ${molid_varname}')
-        mol.write_TcL(self,mods)
+        mol.write_TcL(self)
 
     def complete(self,statename):
         self.addline('guesscoord')

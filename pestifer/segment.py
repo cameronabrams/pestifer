@@ -124,7 +124,7 @@ class Segment(AncestorAwareMod):
             W.restore_selection(selname,dataholder=f'{selname}_data')
         W.banner(f'Segment {image_seglabel} ends')
 
-    def protein_stanza(self,W:Psfgen,transform,seqmods):
+    def protein_stanza(self,W:Psfgen,transform,mods):
         parent_molecule=self.ancestor_obj
         chainIDmap=transform.chainIDmap
         seglabel=self.segname
@@ -136,9 +136,9 @@ class Segment(AncestorAwareMod):
         sac_rn=self.specs['loops']['sac_res_name']
         min_loop_length=self.specs['loops']['min_loop_length']
         # intra-segment, no need to use image_seglabel
-        seg_engr_mutations=seqmods.engr_mutations.filter(chainID=seglabel)
-        seg_user_mutations=seqmods.user_mutations.filter(chainID=seglabel)
-        seg_conflicts=seqmods.conflicts.filter(chainID=seglabel)
+        seg_mutations=MutationList([])
+        if hasattr(mods.seqmods,'mutations'):
+            seg_mutations=mods.seqmods.mutations.filter(chainID=seglabel)
 
         W.banner(f'Segment {image_seglabel} begins')
         for i,b in enumerate(self.subsegments):
@@ -186,16 +186,8 @@ class Segment(AncestorAwareMod):
                     assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {seglabel} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_rn}'
                     b.sacres=Residue({'name':sac_rn,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':'protein'})
                     W.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_rn} {image_seglabel}')
-        for m in seg_user_mutations:
-                W.comment('Below is a user-specified mutation:')
-                W.addline(m.write_TcL())
-        if self.specs['fix_engineered_mutations']:
-            for m in seg_engr_mutations:
-                W.comment('Below reverts an engineered mutation:')
-                W.addline(m.write_TcL())
-        if self.specs['fix_conflicts']:
-            for m in seg_conflicts:
-                W.comment('Below reverts a database conflict back to database value')
+        for m in seg_mutations:
+                W.comment(f'fix {m.typekey}')
                 W.addline(m.write_TcL())
         W.addline('}')
         W.banner(f'End segment {image_seglabel}')
@@ -317,3 +309,8 @@ class SegmentList(AncestorAwareModList):
             if residue in S.residues:
                 return S
         return None
+
+    def remove(self,item):
+        self.segnames.remove(item.segname)
+        self.counters_by_segtype[self.segtype_of_segname[item.segname]]-=1
+        return super().remove(item)

@@ -1,0 +1,21 @@
+title: HIV-1 Env Trimer 8fae
+tasks:
+  - psfgen:
+      source:
+        id: 8fae
+        file_format: mmCIF
+        biological_assembly: 1
+        exclude:
+          resnames:
+            - 83G
+  - ligate:
+      steer:
+        nsteps: 4000
+  - relax:
+  - solvate:
+  - relax:
+      ensemble: NPT
+  - terminate:
+      basename: my_8fae
+      package:
+        basename: prod_8fae

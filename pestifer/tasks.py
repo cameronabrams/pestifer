@@ -18,6 +18,7 @@ from .molecule import Molecule
 from .chainids import ChainIDManager
 from .colvars import *
 from .stringthings import FileCollector
+from .modcontainer import ModContainer
 
 class Task(BaseMod):
     req_attr=BaseMod.req_attr+['specs','config','index','prior','writers','taskname']
@@ -211,8 +212,6 @@ class PsfgenTask(Task):
         if self.prior:
             logger.debug(f'... prior {self.prior.taskname}')
             self.statevars=self.prior.statevars.copy()
-        logger.debug('Parsing modifications')
-        self.modparse()
         logger.debug('Injesting molecule(s)')
         self.injest_molecules()
         self.statevars['base_molecule']=self.base_molecule
@@ -232,7 +231,7 @@ class PsfgenTask(Task):
         pg.newscript(basename)
         pg.topo_aliases()
         pg.set_molecule(self.base_molecule)
-        pg.describe_molecule(self.base_molecule,self.mods)
+        pg.describe_molecule(self.base_molecule)
         pg.complete(basename)
         pg.endscript()
         pg.writescript()
@@ -259,40 +258,19 @@ class PsfgenTask(Task):
         vt.runscript()
         self.update_statefile('pdb',f'{basename}.pdb')
 
-    def modparse(self):
-        mod_classes,modlist_classes=inspect_classes('pestifer.mods','List')
-        logger.debug(f'mod classes {[c.yaml_header for c in mod_classes.values()]}')
-        logger.debug(f'modlist classes {modlist_classes}')
-        retdict={}
-        input_dict=self.specs['mods']
-        assert type(input_dict)==dict
-        logger.debug(f'Mods before parsing {input_dict}')
-        for hdr,entries in input_dict.items():
-            logger.debug(f'checking for {hdr}')
-            class_name=[name for name,cls in mod_classes.items() if cls.yaml_header.lower()==hdr][0]
-            cls=mod_classes[class_name]
-            LCls=modlist_classes.get(f'{class_name}List',list)
-            if not hdr in retdict:
-                retdict[hdr]=LCls([])
-            for entry in entries:
-                assert type(entry) in [dict,str]
-                newmod=cls(entry)
-                # newmod.source='USER'
-                retdict[hdr].append(newmod)
-        logger.debug(f'Mods after parsing {retdict}')
-        self.mods=Namespace(**retdict)
-        # TODO: gather names of all aux pdb files for
-        self.pdbs=[]
-
     def injest_molecules(self):
         specs=self.specs
         self.molecules={}
         self.source_specs=specs['source']
-        self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
+        self.mods=ModContainer(self.specs['mods'])
+        # self.pdbs=self.mods.report_pdbs()
+        # self.usermod_specs=specs['mods']
+        logger.debug(f'user mods at injest_molecules {self.mods.__dict__}')
+        self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,usermods=self.mods,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
         self.base_molecule=self.molecules[self.source_specs['id']]
         self.statevars['min_loop_length']=self.source_specs['sequence']['loops']['min_loop_length']
-        for p in self.pdbs:
-            self.molecules[p]=Molecule(ctrl=self.ctrl_specs,source=p)
+        # for p in self.pdbs:
+        #     self.molecules[p]=Molecule(source=p)
 
 class LigateTask(Task):
     yaml_header='ligate'

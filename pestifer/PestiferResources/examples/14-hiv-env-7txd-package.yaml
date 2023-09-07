@@ -1,0 +1,19 @@
+title: HIV-1 Env Trimer 7txd
+tasks:
+  - psfgen:
+      source:
+        id: 7txd
+        file_format: mmCIF
+        biological_assembly: 1
+  - ligate:
+      steer:
+        nsteps: 100000
+        temperature: 400
+  - relax:
+  - solvate:
+  - relax:
+      ensemble: NPT
+  - terminate:
+      basename: my_7txd
+      package:
+        basename: prod_7txd

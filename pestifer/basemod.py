@@ -251,6 +251,11 @@ class BaseMod(Namespace):
         ----------
         field : dict, optional
             attribute:value pairs that are checked against those of the object
+        
+        Returns
+        -------
+        bool :
+            True if calling instance attribute values match the fields input
         """
         for k,v in fields.items():
             if not k in self.__dict__:
@@ -262,6 +267,10 @@ class BaseMod(Namespace):
         return True
     def dump(self):
         """ 
+        Returns
+        -------
+        str :
+            yaml-format dump of calling instance
         """
         retdict={}
         retdict['instanceOf']=type(self).__name__
@@ -273,6 +282,11 @@ class BaseMod(Namespace):
         ----------
         a_list : list
             the list of objects checked to see if object is a member
+
+        Returns
+        -------
+        bool :
+            True if calling instance is a member of a_list
         """
         for s in a_list:
             if s==self:
@@ -366,6 +380,11 @@ class CloneableMod(BaseMod):
         options : dict
             dictionary of attribute-name:value pairs that are 
             explicitly assigned in the clone
+        
+        Returns
+        -------
+        obj :
+            The new cloned object
         """
         input_dict={k:v for k,v in self.__dict__.items() if k in self.req_attr}
         input_dict.update({k:v for k,v in self.__dict__.items() if k in self.opt_attr})
@@ -374,11 +393,24 @@ class CloneableMod(BaseMod):
         x=self.__class__(input_dict)
         return x
     def is_clone(self):
-        """Returns True if calling instance is a clone """
+        """
+        Returns
+        -------
+        bool :
+            True if calling instance is a clone
+        """
         return 'clone_of' in self.__dict__
     def get_original(self):
         """Returns identifier of object the calling instance is a clone of 
-        or None if calling instance is not a clone """
+        or None if calling instance is not a clone 
+        
+        Returns
+        -------
+        obj :
+            identifier of object the calling instance is a clone of
+        None :
+            calling instance is not a clone
+        """
         if self.is_clone():
             return self.clone_of
         else:
@@ -469,7 +501,13 @@ class StateInterval(AncestorAwareMod):
     def num_items(self):
         """Returns a calculated value of the number of items inclusively
         between the two bounds, assuming we are referring to a container
-        object with sequential indicies """
+        object with sequential indicies 
+        
+        Returns
+        -------
+        int :
+           rightbound minus leftbound plus 1
+        """
         return self.bounds[1]-self.bounds[0]+1
     def pstr(self):
         """Returns a pretty string version"""
@@ -479,18 +517,136 @@ class ModList(UserList):
     """List of BaseMods or derivatives thereof
     
     When collected into lists, BaseMod instances can acquire collective
-    importance that needs to be handled.  This class allows for 
+    importance that needs to be handled.  This class allows for filtering,
+    sorting, and other functionalities on such lists.
+
+    Methods
+    -------
+
+    filter(**fields):
+        returns a new list (of existing objects in the calling instance)
+        of items with attributes that match the attribute-name:value
+        pairs of the fields dictionary
     
+    get(**fields):
+        a modified filter() method whose return value depends on how 
+        many items in the calling instance are matches.  If none, 
+        returns None; if one, returns that object; if more than one,
+        returns the result of the filter (all the matches collected
+        in a new list)
+    
+    set(**fields):
+        sets the attributes to the values contained in the 
+        attribute-name:value pairs in the fields dict
+
+    prune(self,objlist=[],attr_maps=[])
+        given a list of objects 'objlist' and a list of mappings of 
+        calling instance's element attributes to the foreign object 
+        attributes, delete any of calling instance's elements whose 
+        attribute values match the mapped foreign object attributes
+
+        For example, say calling instance is a list of roadway 
+        intersections, with two road-name attributes, "road_1" and
+        "road_2".  Now say that the foreign list is called 
+        "closed_roads" and is a list of records of roads that have 
+        been closed.  Each record has an attribute named
+        "closed_road".  We can remove any intersection from the
+        calling instance using this calls to prune():
+
+        prune(closed_roads,[
+            {'road_1':'closed_road'},
+            {'road_2':'closed_road'}
+            ])
+
+        Note that there are *two* independent mappings in the list
+        of mappings, and that prune applies them *independently*.
+        Clearly, if either road_1 or road_2 is closed, we want
+        to remove the intersection, but we don't want to make
+        the mistake of only removing interections in which 
+        both road_1 and road_2 have the same name as the 
+        *single* road named by the closed_road object.
+
+    prune_exclusions(**kwargs)
+        given the dictionary of attribute-name:value pairs in kwargs,
+        remove all elements in calling instance matching those
+        values and return them in a new list
+
+        For example, say the calling instance is a list of
+        "balloon" objects, each of which has a "color" attribute.
+        We can prune out all "pink" balloons with this call
+
+        prune(color="pink")
+
+    get_attr(S,**fields)
+        find all elements via matching fields and THEN for one
+        object-list attribute of each element named by the first
+        element of tuple S, return all elements in that object-list
+        attribute matching the dictionary in the second element of
+        S.
+    
+    sort(self,by=None,reverse=False)
+        simple override of the UserList.sort() method; 'by' is a list
+        of attribute names to be used in the __lt__ comparisons
+        necessary to execute the sort
+
+    uniqattrs(attrs=[],with_counts=False)
+        For each attribute named in attrs, return a dictionary keyed
+        on the attribute name and whose values are a list of unique
+        values of that attribute from among all elements in the
+        calling instance.  If with_counts is true, each list of
+        unique elements becomes a list of tuples of the attribute
+        value and the count of its occurence
+        
     """
     def __init__(self,data):
+        """Standard initialization of the UserList """
         super().__init__(data)
 
     def filter(self,**fields):
+        """Creates a returns a new list containing objects
+        whose attributes match the fields dictionary 
+        
+        This method uses the "matches()" instance method
+        of the BaseMod class
+
+        Parameters
+        ----------
+        fields : dict
+            attribute-name:value pairs used to search for
+            'hits' in the calling instance
+        
+        Returns
+        -------
+        list :
+             list of elements matching fields
+        """
         retlist=self.__class__([])
         for r in self:
             if r.matches(**fields): retlist.append(r)
         return retlist
+    
     def get(self,**fields):
+        """Special implementation of filter
+        
+        get returns a single object if there is only one match;
+        if there are multiple matches, all are returned in a list;
+        if there are no matches, None is returned.
+        
+        Parameters
+        ----------
+        fields : dict
+            attribute-name:value pairs used to search for
+            'hits' in the calling instance
+
+        Returns
+        -------
+        None :
+            if no elements matching fields are found in calling instance
+        obj :
+            if one element matching fields is found, this is it
+        list :
+            list of all elements matching fields if more than one matches
+        """
         R=self.filter(**fields)
         if len(R)==0:
             return None
@@ -498,25 +654,64 @@ class ModList(UserList):
             return R[0]
         else:
             return R
+
     def set(self,**fields):
+        """Element attribute-setter
+        
+        Parameters
+        ----------
+        fields : dict
+            attribute-name:value pairs used to set the attributes
+            of the calling instance
+        """
         for item in self:
             item.set(**fields)
 
     def prune(self,objlist=[],attr_maps=[]):
-        """ given a list of objects and a list of mappings of my element attributes to 
-            the foreign object attributes, delete any of my elements whose attribute
-            values match the mapped foreign object attributes """
+        """Attribute-based pruning by referencing and mapping another list  
+        
+        Parameters
+        ----------
+        objlist : list
+            "reference" list of objects whose attributes are consulted to 
+            decide what to prune out of the calling instance
+        attr_maps : list
+            dictionaries used independently to map attribute values of 
+            elements of the reference list to those of the calling instance
+        
+        Returns
+        -------
+
+        list :
+            items removed from calling instance
+        """
         acc_list=self.__class__([])
-        for obj in objlist:
+        for ref_obj in objlist:
             for m in attr_maps:
+                # each map is *independently* used to gather hits
                 thru_dict={}
                 for myattrlabel,objattrlabel in m.items():
-                    thru_dict[myattrlabel]=obj.__dict__[objattrlabel]
+                    thru_dict[myattrlabel]=ref_obj.__dict__[objattrlabel]
                 acc_list.extend(self.filter(**thru_dict))
         for item in acc_list:
-            if item in self:
-                self.remove(item)
+            self.remove(item)
+        return acc_list
+    
     def prune_exclusions(self,**kwargs):
+        """Attribute-based list pruning 
+        
+        Parameters
+        ----------
+        kwargs : dict
+            dictionary of attribute-name:value pairs that define elements
+            to be pruned from the calling instance
+        
+        Returns
+        -------
+
+        list :
+            items removed from calling instance
+        """
         acc_list=self.__class__([])
         for k,v in kwargs.items():
             for item in v:
@@ -527,7 +722,24 @@ class ModList(UserList):
             if item in self:
                 self.remove(item)
         return acc_list
+    
     def get_attr(self,S:tuple,**fields):
+        """Return list of S-matching attributes from among elements matching fields
+         
+        Parameters
+        ----------
+        S : tuple
+            the name of an object-list attribute and dictionary of attribute-name:value
+            pairs used to filter that object-list attribute
+        fields : dict
+            attribute-name:value pairs used to find attributes
+            of the calling instance to which the S-filter is applied
+
+        Returns
+        -------
+        obj, list :
+            result of applying get() to object-list attributes
+        """
         for r in self:
             if r.matches(**fields): break
         else:
@@ -539,13 +751,45 @@ class ModList(UserList):
             return self.__class__([])
         L=r.__dict__[attr]
         return L.get(**subfields)
+    
     def sort(self,by=None,reverse=False):
+        """ ModList sort function, a simple override of UserList.sort() 
+        
+        Parameters
+        ----------
+        by : list, optional
+            names of attributes used to execute __lt__ comparisons between
+            elements of calling instance
+        reverse : bool, optional
+            if true, reverse the sense of the sort
+        """
         if not by:
             self.data.sort(reverse=reverse)
         else:
             key=operator.attrgetter(*by)
             self.data.sort(key=key,reverse=reverse)
+
     def uniqattrs(self,attrs=[],with_counts=False):
+        """Generates a dictionary of list of unique values for each 
+        attribute 
+        
+        Parameters
+        ----------
+        attrs : list
+            names of attributes for which uniqueness is requested
+        with_counts : bool
+            if true, include the counts of occurences of each unique
+            value such that each dictionary value is now a list of
+            tuples, each of which is a concatentation of the unique 
+            value the count of its occurence among all elements
+            in the calling instance
+        
+        Returns
+        -------
+        dict :
+            lists of unique values for each attribute key, or, 
+            if with_counts ins true, list of (value,count)
+        """
         uattrs={k:[] for k in attrs}
         for item in self:
             for a in attrs:
@@ -561,7 +805,21 @@ class ModList(UserList):
                     if not v in uattrs[a]:
                         uattrs[a].append(v)
         return uattrs
+    
     def binnify(self,fields=[]):
+        """Simple binning of all elements by unique hashes of values of fields
+
+        Parameters
+        ----------
+        fields : list
+            attribute names used to build the hash to test for uniqueness
+        
+        Returns
+        -------
+        dict :
+            lists of items for each unique key
+
+        """
         bins={}
         for item in self:
             key=item.phash(fields)
@@ -569,9 +827,11 @@ class ModList(UserList):
                 bins[key]=[]
             bins[key].append(item)
         return bins
+    
     def puniq(self,fields):
         bins=self.binnify(fields)
         return len(bins)==len(self)
+    
     def puniquify(self,fields,new_attr_name='_ORIGINAL_',make_common=[]):
         # each element must be unique in the sense that no two 
         # elements have the same values of attributes listed in 
@@ -605,6 +865,7 @@ class ModList(UserList):
                         s.__dict__[new_attr_name]={}
                     s.__dict__[new_attr_name].update({k:s.__dict__[k] for k in make_common})
                     s.__dict__.update(use_common)
+    
     def state_bounds(self,state_func):
         slices=StateIntervalList([])
         if len(self)==0:
@@ -620,10 +881,12 @@ class ModList(UserList):
             else:
                 slices.append(StateInterval({'state':state_func(item),'bounds':[i,i]}))
         return slices
+    
     def map_attr(self,mapped_attr,key_attr,map):
         if map:
             for item in self:
                 item.map_attr(mapped_attr,key_attr,map)
+
     def assign_objs_to_attr(self,attr,objList,**matchattr):
         for s in self:
             s.assign_obj_to_attr(attr,objList,**matchattr)
@@ -631,6 +894,7 @@ class ModList(UserList):
         for s in delete_us:
             self.remove(s)
         return self.__class__(delete_us)
+    
     def update_attr_from_obj_attr(self,attr,obj,obj_attr):
         for item in self:
             item.update_attr_from_obj_attr(attr,obj,obj_attr)

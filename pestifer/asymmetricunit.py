@@ -9,17 +9,18 @@
 import logging
 from .mods import *
 from argparse import Namespace
-from .residue import ResidueList,AtomList,Atom,Hetatm,Ter,TerList
+from .residue import ResidueList,AtomList,Atom,Hetatm,Ter,TerList,Missing,MissingList
 from .segment import SegmentList
 from .basemod import AncestorAwareMod
+from .modcontainer import ModContainer
 from mmcif.api.PdbxContainers import DataContainer
 from .config import *
 
 logger=logging.getLogger(__name__)
 
 class AsymmetricUnit(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['atoms','residues','seqmods','topomods']
-    opt_attr=AncestorAwareMod.opt_attr+['segments','ignored']
+    req_attr=AncestorAwareMod.req_attr+['atoms','residues','mods']
+    opt_attr=AncestorAwareMod.opt_attr+['segments','ignored','pruned']
     excludables={'resnames':'name','chains':'chainID','segtypes':'segtype'}
     def __init__(self,**objs):
         if len(objs)==0:
@@ -27,24 +28,19 @@ class AsymmetricUnit(AncestorAwareMod):
             input_dict={
                 'atoms':AtomList([]),
                 'residues':ResidueList([]),
-                'seqmods':Namespace(
-                    engr_mutations=MutationList([]),
-                    conflicts=MutationList([]),
-                    ters=TerList([])
-                    ),
-                'topomods':Namespace(
-                    SSBonds=SSBondList([]),
-                    Links=LinkList([])
-                    ),
+                'mods':ModContainer(),
                 'segments':SegmentList({},ResidueList([]))
             }
         else: #
             pr=objs.get('parsed',None)
             sourcespecs=objs.get('sourcespecs',{})
+            mods=objs.get('usermodspecs',Namespace())
+            logger.debug(f'User mods at asymmetric unit: {mods.__dict__}')
             chainIDmanager=objs.get('chainIDmanager',None)
             missings=MissingList([])
-            topomods=Namespace(ssbonds=SSBondList([]),links=LinkList([]))
-            seqmods=Namespace(mutations=MutationList([]),conflicts=MutationList([]),ters=TerList([]))
+            ssbonds=SSBondList([])
+            links=LinkList([])
+            ters=TerList([])
             seqadvs=SeqadvList([])
             if type(pr)==dict: # PDB format
                 # minimal pr has ATOMS
@@ -52,21 +48,22 @@ class AsymmetricUnit(AncestorAwareMod):
                 if 'HETATM' in pr:
                     atoms.extend([Hetatm(p) for p in pr['HETATM']])
                 if 'TER' in pr:
-                    seqmods.ters=TerList([Ter(p) for  p in pr['TER']])
-                    atoms.adjustSerials(seqmods.ters) # VMD (1) ignors TERs and (2) *computes and assigns* serials
+                    ters=TerList([Ter(p) for  p in pr['TER']])
+                    atoms.adjustSerials(ters) # VMD (1) ignors TERs and (2) *computes and assigns* serials
                 if 'REMARK.465' in pr:
                     missings=MissingList([Missing(p) for p in pr['REMARK.465'].tables['MISSING']])
                 if 'SSBOND' in pr:
-                    topomods.ssbonds=SSBondList([SSBond(p) for p in pr['SSBOND']])  
+                    ssbonds=SSBondList([SSBond(p) for p in pr['SSBOND']])  
                 if 'SEQADV' in pr:
                     seqadvs=SeqadvList([Seqadv(p) for p in pr['SEQADV']])
                 if 'LINK' in pr:
-                    topomods.links=LinkList([Link(p) for p in pr['LINK']])
+                    links=LinkList([Link(p) for p in pr['LINK']])
             elif type(pr)==DataContainer: # mmCIF format
                 obj=pr.getObj('atom_site')
                 atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
                 obj=pr.getObj('struct_ref_seq_dif')
                 seqadvs=SeqadvList([Seqadv(CIFdict(obj,i)) for i in range(len(obj))])
+                logger.debug(f'{len(seqadvs)} seqadv detected; typekeys: {[s.typekey for s in seqadvs]}')
                 obj=pr.getObj('pdbx_unobs_or_zero_occ_residues')
                 missings=MissingList([Missing(CIFdict(obj,i)) for i in range(len(obj))])
                 obj=pr.getObj('struct_conn')
@@ -78,8 +75,8 @@ class AsymmetricUnit(AncestorAwareMod):
                         ssdicts.append(CIFdict(obj,i))
                     elif conn_type_id=='covale':
                         lndicts.append(CIFdict(obj,i))
-                topomods.ssbonds=SSBondList([SSBond(x) for x in ssdicts])
-                topomods.links=LinkList([Link(x) for x in lndicts])
+                ssbonds=SSBondList([SSBond(x) for x in ssdicts])
+                links=LinkList([Link(x) for x in lndicts])
 
             # Build the list of residues
             fromAtoms=ResidueList(atoms)
@@ -102,8 +99,8 @@ class AsymmetricUnit(AncestorAwareMod):
             chainIDmanager.register_asymm_chains(residues.uniqattrs(['chainID'])['chainID'])
             # Give each Seqadv a residue identifier
             ignored_seqadvs=seqadvs.assign_residues(residues)
-            ignored_ssbonds=topomods.ssbonds.assign_residues(residues)
-            more_ignored_residues,ignored_links=topomods.links.assign_residues(residues)
+            ignored_ssbonds=ssbonds.assign_residues(residues)
+            more_ignored_residues,ignored_links=links.assign_residues(residues)
             # a deleted link may create a "free" glycan; in this case
             # we should also delete its residues; problem is that 
             ignored_residues.extend(more_ignored_residues)
@@ -112,29 +109,56 @@ class AsymmetricUnit(AncestorAwareMod):
                 logger.debug(f'Exclusions result in deletion of:')
                 logger.debug(f'    {len(ignored_residues)} residues; {len(residues)} remain;')
                 logger.debug(f'    {len(ignored_seqadvs)} seqadvs; {len(seqadvs)} remain;')
-                logger.debug(f'    {len(ignored_ssbonds)} ssbonds; {len(topomods.ssbonds)} remain; and')
-                logger.debug(f'    {len(ignored_links)} links; {len(topomods.links)} remain.')
+                logger.debug(f'    {len(ignored_ssbonds)} ssbonds; {len(ssbonds)} remain; and')
+                logger.debug(f'    {len(ignored_links)} links; {len(links)} remain.')
 
             seq_specs=sourcespecs['sequence']
             segments=SegmentList(seq_specs,residues,chainIDmanager)
             # this may have altered chainIDs for some residues.  So it is best
             # to be sure all mods that are residue-specific are updated
             seqadvs.update_attr_from_obj_attr('chainID','residue','chainID')
-            seqmods.engr_mutations=MutationList([Mutation(s) for s in seqadvs if s.typekey=='engineered'])
-            seqmods.conflicts=MutationList([Mutation(s) for s in seqadvs if s.typekey=='conflict'])
-            topomods.ssbonds.update_attr_from_obj_attr('chainID1','residue1','chainID')
-            topomods.ssbonds.update_attr_from_obj_attr('chainID2','residue2','chainID')
-            topomods.links.update_attr_from_obj_attr('chainID1','residue1','chainID')
-            topomods.links.update_attr_from_obj_attr('chainID2','residue2','chainID')
+            ssbonds.update_attr_from_obj_attr('chainID1','residue1','chainID')
+            ssbonds.update_attr_from_obj_attr('chainID2','residue2','chainID')
+            links.update_attr_from_obj_attr('chainID1','residue1','chainID')
+            links.update_attr_from_obj_attr('chainID2','residue2','chainID')
             logger.debug(f'Segnames in A.U.: {",".join(segments.segnames)}')
             if segments.daughters:
                 logger.debug(f'Daughter chains generated: {segments.daughters}')
+
+            # at this point, we have built the asymmetric unit according to the intention of the 
+            # author of the structure AND the intention of the user in excluding certain parts
+            # of that structure (ligans, ions, chains, etc).  At this point, we should apply
+            # any user-defined modifications
+
+            # First, any request to revert to database sequencing:
+            mutations=MutationList([])
+            if sourcespecs['sequence']['fix_engineered_mutations']:
+                mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='engineered']))
+            if sourcespecs['sequence']['fix_conflicts']:
+                mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='conflict']))
+            if hasattr(mods.seqmods,'mutations'):
+               mutations.extend(mods.seqmods.mutations)
+            mods.seqmods.mutations=mutations
+            pruned_ssbonds=ssbonds.prune_mutations(mutations)
+            pruned_by_links=links.prune_mutations(mutations,segments)
+
+            if hasattr(mods.topomods,'ssbonds'):
+                ssbonds.extend(mods.topomods.ssbonds)
+            if hasattr(mods.topomods,'ssbondsdelete'):
+                for s in ssbonds:
+                    if mods.topomods.ssbondsdelete.is_deleted(s):
+                        ignored_ssbonds.append(ssbonds.remove(s))
+            mods.topomods.ssbonds=ssbonds
+            if hasattr(mods.topomods,'links'):
+                links.extend(mods.topomods.links)
+            mods.topomods.links=links
+            
             input_dict={
                 'atoms':atoms,
                 'residues':residues,
-                'seqmods':seqmods,
-                'topomods':topomods,
+                'mods':mods,
                 'segments':segments,
-                'ignored':Namespace(residues=ignored_residues,links=ignored_links,ssbonds=ignored_ssbonds,seqadv=ignored_seqadvs)
+                'ignored':Namespace(residues=ignored_residues,links=ignored_links,ssbonds=ignored_ssbonds,seqadv=ignored_seqadvs),
+                'pruned':Namespace(ssbonds=pruned_ssbonds,residues=pruned_by_links['residues'],links=pruned_by_links['links'],segments=pruned_by_links['segments'])
             }
         super().__init__(input_dict)

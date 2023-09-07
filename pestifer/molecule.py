@@ -15,14 +15,14 @@ from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList,BioAssemb
 from .scriptwriters import Psfgen
 from .chainids import ChainIDManager
-from .mods import MutationList, apply_psf_info
+from .mods import MutationList, DeletionList, SubstitutionList
 logger=logging.getLogger(__name__)
 
 class Molecule(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['molid','chainIDmanager','sourcespecs','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
     opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
-    def __init__(self,source={},chainIDmanager=None,**kwargs):
+    def __init__(self,source={},usermods=Namespace(),chainIDmanager=None,**kwargs):
         reset=kwargs.get('reset_counter',False)
         if reset:
             Molecule._molcounter=0
@@ -47,14 +47,15 @@ class Molecule(AncestorAwareMod):
         if chainIDmanager==None:
             logger.debug(f'Molecule instantiating its own ChainIDManager')
             chainIDmanager=ChainIDManager()
+        logger.debug(f'user mods at molecule {usermods.__dict__}')
         input_dict={
             'sourcespecs': source,
+            'usermodspecs': usermods,
             'chainIDmanager':chainIDmanager,
             'rcsb_file_format': rcsb_file_format,
             'molid': Molecule._molcounter,
-            'sourcespecs': source,
             'parsed_struct': p_struct,
-            'asymmetric_unit': AsymmetricUnit(parsed=p_struct,sourcespecs=source,chainIDmanager=chainIDmanager),
+            'asymmetric_unit': AsymmetricUnit(parsed=p_struct,sourcespecs=source,usermodspecs=usermods,chainIDmanager=chainIDmanager),
             'biological_assemblies': BioAssembList(p_struct)
         }
         super().__init__(input_dict)
@@ -73,29 +74,18 @@ class Molecule(AncestorAwareMod):
         self.active_biological_assembly.activate(self.asymmetric_unit,self.chainIDmanager)
         return self
     
-    def write_TcL(self,W:Psfgen,user_mods=Namespace()):
+    def write_TcL(self,W:Psfgen):
         au=self.asymmetric_unit
         segments=au.segments
-        seqmods=au.seqmods
-        topomods=au.topomods
-
-        # Apply user controls
-        if self.sourcespecs['sequence']['fix_engineered_mutations']:
-            topomods.ssbonds.prune_mutations(seqmods.engr_mutations)
-            topomods.links.prune_mutations(seqmods.engr_mutations,segments)
-        if self.sourcespecs['sequence']['fix_conflicts']:
-            topomods.ssbonds.prune_mutations(seqmods.conflicts)
-            topomods.links.prune_mutations(seqmods.conflicts,segments)
+        mods=au.mods
 
         ba=self.active_biological_assembly
         # build the relevant list of user mutations; this should not be necessary
         # if the user's config file is consistent but it might not be
-        seqmods.user_mutations=MutationList([])
-        if hasattr(user_mods,'mutations'):
-            for k in ba.chainIDs_used:
-                seqmods.user_mutations.extend(user_mods.mutations.filter(chainID=k))
-        topomods.ssbonds.prune_mutations(seqmods.user_mutations)
-        topomods.links.prune_mutations(seqmods.user_mutations,segments)
+        # mutations=MutationList([])
+        # for k in ba.chainIDs_used:
+        #     if hasattr(mods,'mutations'):
+        #         mutations.extend(mods.mutations.filter(chainID=k))
 
         for transform in ba.transforms:
             W.banner(f'Transform {transform.index} begins')
@@ -103,11 +93,11 @@ class Molecule(AncestorAwareMod):
             for k,v in transform.chainIDmap.items():
                 W.comment(f'A.U. chain {k}: Image chain {v}')
             W.banner('Segments follow')
-            segments.write_TcL(W,transform,seqmods)
+            segments.write_TcL(W,transform,mods)
             W.banner('DISU patches follow')
-            topomods.ssbonds.write_TcL(W,transform,user_mods)
+            mods.topomods.ssbonds.write_TcL(W,transform)
             W.banner('LINK patches follow')
-            topomods.links.write_TcL(W,transform)
+            mods.topomods.links.write_TcL(W,transform)
             W.banner(f'Transform {transform.index} ends')
     
     def get_chainmaps(self):
