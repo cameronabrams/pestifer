@@ -271,6 +271,18 @@ class Mutation(AncestorAwareMod):
     Mutations can be inferred directly from coordinate-file metadata or supplied by the
     user.
     
+    Attributes
+    ----------
+    req_attr: list
+        * chainID: chain identifier
+        * origresname: original (wild-type) residue name
+        * resseqnum: residue sequence position
+        * insertion: residue insertion code
+        * newresname: mutated residue name
+        * typekey: indicates what type of mutation this is
+    opt_attr: list
+        * pdb_auth_seq_num: author's sequence number of the residue (value used in PDB file)
+
     """
     req_attr=AncestorAwareMod.req_attr+['chainID','origresname','resseqnum','insertion','newresname','typekey']
     opt_attr=AncestorAwareMod.opt_attr+['pdbx_auth_seq_num']
@@ -336,6 +348,7 @@ class Mutation(AncestorAwareMod):
         return f'{self.chainID}:{self.origresname}{self.resseqnum}{self.insertion}{self.newresname}'
 
     def write_TcL(self):
+        """Returns the string to be written in a psfgen input file within a segment """
         if hasattr(self,'pdbx_auth_seq_num'): # mmCIF!
             return f'    mutate {self.resseqnum} {self.newresname}'
         else:
@@ -349,30 +362,17 @@ class Substitution(AncestorAwareMod):
     """A class for handling substitutions 
     
     A substitution is a user-specified modification in which a sequence of one or
-    more contiguous residues are replaced by one or more residues.
+    more contiguous residues are replaced by a new sequence of one or more residues.
 
-    There are four typical cases for substitutions, provided they are not very long:
-    1. The substitution is fully contained within a resolved run of residues;
-    2. The substitution is fully contained within an unresolved (missing) run of residues;
-    3. The substitution starts in a resolved run and ends in an unresolved run;
-    4. The substitution starts in an unresolves run and ends in a resolved run.
-
-    Very long substitutions (those replacing a lot of residues) could conceivably 
-    span a residue range that contains multiple distinct resolved and unresolved runs,
-    but this will be assumed to be very rare.
-
-    We also denote three types of substitution:
-    1. The difference between the number of residues in the range where the subsitution
-    is made and the length of the substitution is *positive*, meaning residues in the
-    original sequence will be deleted;
-    2. The difference between the number of residues in the range where the subsitution
-    is made and the length of the substitution is *negative*, meaning residues will be
-    *added* to the original sequence;
-    3. There is no difference between the number of residues in the range where the 
-    subsitution is made and the length of the substitution.
-
-    The easiest place to implement a substitution is during the residue/segment
-    build (I think).
+    Attributes
+    ----------
+    req_attr: list
+        * chainID: chain identifier
+        * resseqnum1: N-terminal resid of sequence to be replaced
+        * insertion1: insertion code of N-terminal residue
+        * resseqnum2: C-terminal resid of sequence to be replaced
+        * insertion2: insertion code of the C-terminal residue
+        * subseq: 1-byte rescode sequence to be substituted in
 
     """
     req_attr=AncestorAwareMod.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2','subseq']
@@ -412,8 +412,23 @@ class SubstitutionList(AncestorAwareModList):
     pass
 
 class Deletion(AncestorAwareMod):
+    """A class for handling deletions 
+    
+    A deletion is a user-specified modification in which a sequence of one or
+    more contiguous residues are deleted.
+
+    Attributes
+    ----------
+    req_attr: list
+        * chainID: chain identifier
+        * resseqnum1: N-terminal resid of sequence to be deleted
+        * insertion1: insertion code of N-terminal residue
+        * resseqnum2: C-terminal resid of sequence to be deleted
+        * insertion2: insertion code of the C-terminal residue
+
+    """
     req_attr=AncestorAwareMod.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
-    opt_attr=AncestorAwareMod.opt_attr+['model']
+    # opt_attr=AncestorAwareMod.opt_attr+['model']
     yaml_header='deletions'
     modtype='seqmod'
 
@@ -445,6 +460,19 @@ class DeletionList(AncestorAwareModList):
     pass
 
 class Crot(AncestorAwareMod):
+    """A class for managing so-called 'C-rotations'
+    
+    A C-rotation is a transformation in which atoms are rotated around a given bond by a given amount.  The "C" 
+    designation means that only the "downstream" atoms of the bond are moved; upstream atoms, along with the atoms
+    of the bond itself, are not moved.  The set of upstream atoms and the set of downstream atoms must naturally
+    have no topological connection *other* than the bond itself.  Typically, this can be used to execute rotation
+    of a backbone look in a C-terminal loop, a side-chain angle, or a glycan angle, usually in the service
+    of reducing steric clashses.  The primary job of this class is to translate the C-rotation shortcodes
+    specified by the user into TcL commands to be incorporated in a psfgen script.
+
+    NOTE: This is currently implemented in the cfapdbparse (2020) format, and has not been thoroughly tested.
+
+    """
     req_attr=AncestorAwareMod.req_attr+['angle','degrees']
     opt_attr=AncestorAwareMod.opt_attr+['chainID','resseqnum1','resseqnum2','segname','atom1','atom2','segname1','segname2','segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk']
     attr_choices=AncestorAwareMod.attr_choices.copy()
@@ -718,14 +746,7 @@ class SSBondList(AncestorAwareModList):
         return self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
     def write_TcL(self,W:Psfgen,transform):
         for s in self:
-            # if mods.ssbondsdelete.is_deleted(s,transform):
-            #     W.comment(f'Deleted ssbond: {str(s)}')
-            #     continue
             s.write_TcL(W,transform)
-        # user may have added some ssbonds
-        # for s in mods.ssbonds:
-        #     W.comment(f'Below is a user-added ssbond:')
-        #     s.write_TcL(W,transform)
     def prune_mutations(self,Mutations):
         pruned=self.__class__([])
         for m in Mutations:
@@ -758,6 +779,22 @@ class SSBondDeleteList(SSBondList):
         return False
 
 class Link(AncestorAwareMod):
+    """A class for handling covalent bonds between residues where at least one residue is non-protein
+    
+    Attributes
+    ----------
+
+    req_attr: list
+    * name1: name of partner-1 residue
+    * chainID1: chain ID of partner-1 residue
+    * resseqnum1: residue sequence number of partner-1 residue
+    * insertion1: insertion code of partner-1 residue
+    * name2: name of partner-2 residue
+    * chainID2: chain ID of partner-2 residue
+    * resseqnum2: residue sequence number of partner-2 residue
+    * insertion2: insertion code of partner-2 residue
+    
+    """
     req_attr=AncestorAwareMod.req_attr+['name1','chainID1','resseqnum1','insertion1','name2','chainID2','resseqnum2','insertion2']
     opt_attr=AncestorAwareMod.opt_attr+['altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance','segname1','segname2','residue1','residue2','atom1','atom2','empty','segtype1','segtype2','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id','ptnr1_auth_comp_id','ptnr2_auth_comp_id']    
     yaml_header='links'
@@ -842,6 +879,24 @@ class Link(AncestorAwareMod):
         super().__init__(input_dict)
 
     def write_TcL(self,W:Psfgen,transform):
+        """Insert the appropriate TcL commands to add this link in a psfgen script
+        
+        Assumes that if one of the two residues is an asparagine and the other is a 
+        from a glycan, this requires an CHARMM NGLB patch
+
+        A 2->6 intraglycan linkage requies the SA26T patch
+
+        Others' patches are named 1xij where x is the carbon number of the upstream monomer,
+        and i and j indicate whether the bond is axial or equatorial.  This is currently
+        determined using the custom 'axeq' TcL procedure.
+
+        Parameters
+        ----------
+        W: Psfgen
+            the psfgen scriptwriter object
+        transform: BiomT
+            the designated transform under which this link is operational; used for its chainIDmap
+        """
         chainIDmap=transform.chainIDmap
         seg1=self.residue1.chainID
         seg1=chainIDmap.get(seg1,seg1)
@@ -850,7 +905,6 @@ class Link(AncestorAwareMod):
         if self.resname1=='ASN' and self.segtype2=='glycan':
             W.addline(f'patch NGLB {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
         else:
-            # this is likely an intra-glycan linkage
             if self.name2=='C1' and self.segtype1=='glycan':
                 W.addline(f'set cn {self.name1[1]}')
                 W.addline(f'set abi [axeq {self.resseqnum2} 0 {seg2} {self.name2} {self.resseqnum1}]')
@@ -875,7 +929,45 @@ class Link(AncestorAwareMod):
         return f'{self.chainID1}{self.resname1}{self.resseqnum1}{self.insertion1}-{self.chainID2}{self.resname2}{self.resseqnum2}{self.insertion2}'
 
 class LinkList(AncestorAwareModList):
+    """A class for handling lists of Links
+
+    Methods
+    -------
+    assign_resiudes(Residues)
+        scans the provided list of residues to assign actual residues to the 'residue1' and 'residue2'
+        attributes of each link; sets the 'atom1' and 'atom2' attributes to point to the actual
+        atoms; sets up the 'up' and 'down' pointers for every link; sets the segtype1 and segtype2
+        attributes of every link; returns list of residues not assigned to links and links to which
+        no residues were assigned.
+
+    write_TcL(W,transform)
+        calls write_TcL for each link
+
+    prune_mutations(Mutations,Segments)
+        Given a list of mutations, removes any links that were declared such that any mutation
+        would make the link chemically impossible.  E.g., mutating an ASN of an N-linked
+        glycosylation site results in loss of the ASN-BGLNA link.
+    
+    apply_segtypes(map)
+        using the resname-to-segtype map provided, set the 'segtype1' and 'seqtype2' attributes
+        of every element.
+                
+    """
     def assign_residues(self,Residues):
+        """Assigns residue and atom pointers to each link; sets up the up and down links of both
+        residues so that linked residue objects can reference one another; flags residues from
+        list of residues passed in that are not assigned to any links
+
+        Arguments
+        ---------
+        Residues: ResidueList
+            List of residues to search in order to make residue assignments
+        
+        Returns
+        -------
+        ResidueList: list of residues from Residues that are not used for any assignments
+
+        """
         ignored_by_ptnr1=self.assign_objs_to_attr('residue1',Residues,resseqnum='resseqnum1',chainID='chainID1',insertion='insertion1')
         ignored_by_ptnr2=self.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID2',insertion='insertion2')
         for link in self:
@@ -900,17 +992,29 @@ class LinkList(AncestorAwareModList):
         for l in self:
             l.write_TcL(W,transform)
 
-    def remove_orphan_residues(self,Links,Residues):
-        for dl in self:
-            reslist,lnlist=dl.residue2.get_down_group()
-            reslist.insert(0,dl.residue2)
-            for r in reslist:
-                Residues.remove(r)
-            for l in lnlist:
-                Links.remove(l)
-        return reslist,lnlist
+    # def remove_orphan_residues(self,Links,Residues):
+    #     for dl in self:
+    #         reslist,lnlist=dl.residue2.get_down_group()
+    #         reslist.insert(0,dl.residue2)
+    #         for r in reslist:
+    #             Residues.remove(r)
+    #         for l in lnlist:
+    #             Links.remove(l)
+    #     return reslist,lnlist
 
     def prune_mutations(self,Mutations,Segments):
+        """Prune off any links and associated objects as a result of mutations
+        
+        Arguments
+        ---------
+        Mutations: MutationList
+            list of mutations
+            
+        Segments: SegmentList
+            list of assembled segments; might need to be modified if pruning gets rid
+            of a whole segment's worth of residues
+        
+        """
         pruned={'residues':[],'links':self.__class__([]),'segments':[]}
         for m in Mutations:
             rlist,llist=[],[]
@@ -941,6 +1045,13 @@ class LinkList(AncestorAwareModList):
         return pruned
 
     def apply_segtypes(self,map):
+        """Apply segtype values to each of the two residues using the map
+        
+        Parameters
+        ----------
+        map: dict
+            map of segtypes for given resnames
+        """
         self.map_attr('segtype1','resname1',map)
         self.map_attr('segtype2','resname2',map)
 

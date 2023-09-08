@@ -1,3 +1,6 @@
+# Author: Cameron F. Abrams <cfa22@drexel.edu>.
+"""Various utility functions good for pestifer
+"""
 import inspect
 import sys
 import logging
@@ -9,6 +12,7 @@ from pestifer import PestiferResources
 import shutil
 
 def get_version():
+    """Queries the packages' pyproject.toml to get the package version"""
     res_path=Path(PestiferResources.__file__).parent
     logger.debug(f'res_path {res_path}')
     res_parent=Path(res_path).parent
@@ -27,9 +31,13 @@ def get_version():
     return version
 
 def is_tool(name):
+    """Checks to see if the object name is an executable"""
     return shutil.which(name) is not None
 
 def is_periodic(cell,xsc):
+    """Checks to see if the contents of the TcL file "cell" or the NAMD XSC
+    output xsc indicate that the current system is periodic 
+    """
     if cell and os.path.exists(cell):
         with open(cell,'r') as f:
             lines=f.read().split('\n')
@@ -51,8 +59,10 @@ def is_periodic(cell,xsc):
         return check
     return False
 
-
 def special_update(dict1,dict2):
+    """Update dict1 with values from dict2 in a "special" way so that
+    any list values are appended rather than overwritten
+    """
     for k,v in dict2.items():
         ov=dict1.get(k,None)
         if not ov:
@@ -68,21 +78,22 @@ def special_update(dict1,dict2):
                 dict1[k]=v # overwrite
     return dict1
 
-def isidentity(t):
-    if t[0][0]==1.0 and t[1][1]==1.0 and t[2][2]==1.0:
-        return True
-    else:
-        return False
 
 def reduce_intlist(L):
-    """reduce_intlist generates a "reduced-byte" representation of a list of integers by collapsing runs of adjacent integers into 'i to j' format. Example:
+    """Generate a "reduced-byte" representation of a list of integers by collapsing 
+    runs of adjacent integers into 'i to j' format. Example:
 
     [1,2,3,4,5,7,8,9,10,12] -> '1 to 5 7 to 10 12'
 
-    :param L: list of integers
-    :type L: list
-    :return: string of reduced-byte representation
-    :rtype: string
+    Parameters
+    ----------
+    L: list
+        list of integers
+    
+    Returns
+    -------
+    str: reduced representation as string
+
     """
     if not L:
         return ''
@@ -106,6 +117,21 @@ def reduce_intlist(L):
     return ret
 
 def inspect_classes(module,key=' ',use_yaml_headers_as_keys=False):
+    """Returns the dictionary of names:classes for classes
+    defined in the given module
+    
+    Optionally, if key is given a value, the function returns
+    two lists: the first comprises classes that do NOT have
+    the key in their names and the second comprises the classes
+    that DO.
+
+    Class names are used as keys in the dictionaries that are 
+    returned, unless use_yaml_headers_as_keys is True; in that
+    case, the string class attribute yaml_header (if the class
+    defines one) is used as the key.  I don't know why I did 
+    that.
+
+    """
     importlib.import_module(module)
     if key!=' ':
         nonkey_classes={}
@@ -136,12 +162,13 @@ def inspect_classes(module,key=' ',use_yaml_headers_as_keys=False):
 def replace(data,match,repl):
     """Recursive value search-and-replace; data is either list or dictionary; nesting is ok
 
-    :param data: list or dict
-    :type data: list or dict
-    :param match: replacement string; expected to be found as $(val) in values
-    :type match: str
-    :param repl: replacement
-    :type repl: *
+    Parameters
+    ----------
+    match: str
+        the string we are looking for in any objects in data
+    repl: str
+        the replacement for the match we are to put into the data
+
     """
     match_str=r'$('+match+r')'
     if isinstance(data,(dict,list)):

@@ -1,10 +1,5 @@
-"""
-
-.. module:: stringthings
-   :synopsis: defines a byte-collector for convenient script writing and a file-collector for convenient clean-up
-   
-.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
-
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+""" Defines the ByteCollector and FileCollector classes
 """
 import pandas as pd
 from collections import UserList
@@ -26,28 +21,112 @@ banner_message="""
     Supported in part by Grants GM100472, AI15407, 
     and AI178833 from the NIH
 
-    CHARMM force field files from the MacKerell Lab
-    July 22 update
+    CHARMM force field files (July 22) from the 
+    MacKerell Lab
     """.format(get_version())
 
 def banner(logf):
     my_logger(banner_message,logf,fill=' ',just='<')
 
 class ByteCollector:
+    """A simple string manager
+    
+    The main object in a ByteCollector instance is a string of bytes (byte_collector).
+    The string can be appended to by anoter string or the contents of a file.
+    The string can have "comments" written to it.
+
+    Attributes
+    ----------
+    byte_collector: str
+       the string
+    
+    line_length: int
+       number of bytes that represents the maximum length of one line of text
+    
+    comment_char: str(1)
+       beginning-of-line character that signals the line is a comment
+
+    Methods
+    -------
+    reset()
+        blanks the string
+    
+    write(msg)
+        appends msg to string
+
+    addline(msg)
+        appends msg to string with a line-end byte
+        
+    injest_file(filename)
+        appends the contents of filename to the string
+    
+    comment(msg)
+        appends the msg as a comment (or multiple comment
+        lines) to the string
+
+    log(msg)
+        uses the auxiliary function my_logger to write
+        a log line to the string
+    
+    banner(msg)
+        uses the auxiliary function my_logger to write
+        a banner line to the string
+    
+    """
     def __init__(self,comment_char='#',line_length=80):
         self.line_length=line_length
         self.comment_char=comment_char
         self.byte_collector=''
+    
     def reset(self):
+        """Resets the string"""
         self.byte_collector=''
+
     def write(self,msg):
+        """Appends msg to the string
+        
+        Parameters
+        ----------
+        msg: str
+           the message
+        """
         self.byte_collector+=msg
+
     def addline(self,msg,end='\n'):
+        """Appends msg to the string as a line
+        
+        Parameters
+        ----------
+        msg: str
+           the message
+        
+        end: str, optional
+            end-of-line byte
+        """
         self.byte_collector+=f'{msg}{end}'
+
     def injest_file(self,filename):
+        """Appends contents of file 'filename' to the string
+        
+        Parameters
+        ----------
+        filename: str
+           the name of the file
+        """
         with open(filename,'r') as f:
             self.byte_collector+=f.read()
+
     def comment(self,msg,end='\n'):
+        """Appends msg as a comment to the string
+        
+        Parameters
+        ----------
+        msg: str
+           the message
+        
+        end: str, optional
+            end-of-line byte
+        """
         comment_line=f'{self.comment_char} {msg}'
         comment_words=comment_line.split()
         comment_lines=['']
@@ -61,14 +140,39 @@ class ByteCollector:
                 comment_lines[current_line_idx]=test_line
         for line in comment_lines:
             self.addline(line,end=end)
+
     def log(self,msg):
         my_logger(msg,self.addline)
+
     def banner(self,msg):
         my_logger(msg,self.addline,fill='#',width=80)
+
     def __str__(self):
         return self.byte_collector
 
 def my_logger(msg,logf,width=67,fill='*',sep=', ',just='^'):
+    """A fancy logger
+    
+    Parameters
+    ----------
+    msg: str, list
+       the message to be logged, either as a single string or a list of strings
+    
+    logf: function
+       writer; e.g., print, f.write, etc.
+
+    width: int, optional
+       linelength in bytes
+
+    fill: str, optional
+       single character used to fill blank spaces
+
+    sep: str, optional
+       single character used in join calls
+
+    just: str, optional
+       format character
+    """
     fmt=r'{'+r':'+fill+just+f'{width}'+r'}'
     ll=' ' if just in ['^','>'] else ''
     rr=' ' if just in ['^','<'] else ''
@@ -97,6 +201,16 @@ def my_logger(msg,logf,width=67,fill='*',sep=', ',just='^'):
             logf(fmt.format(outstr))
         
 class FileCollector(UserList):
+    """A class for handling collections of files
+    
+    Methods
+    -------
+    flush()
+       remove all files in the collection
+       
+    tarball()
+       make a tarball of the collection
+    """
     def flush(self):
         logger.debug(f'Flushing file collector: {len(self)} files.')
         for f in self:
@@ -106,11 +220,30 @@ class FileCollector(UserList):
                 logger.debug(f'{f}: not found.')
         self.clear()
     def tarball(self,basename):
+        """Makes a tarball of the files in the collection
+        
+        Parameters
+        ----------
+        basename: str
+            basename of the resulting tarball
+        """
         filelist=' '.join([x for x in self])
         c=Command(f'tar zvcf {basename}.tgz {filelist}')
         c.run()
 
 def split_ri(ri):
+    """A simple utility function for splitting the integer resid and
+    1-byte insertion code out of a string resid-insertion code
+    concatenation
+    
+    Parameters
+    ----------
+    ri: the supposed resid-insertion concatenation
+    
+    Returns
+    -------
+    tuple(int, str): the integer resid and the 1-byte insertion code or '' if none
+    """
     if ri[-1].isdigit(): # there is no insertion code
         r=int(ri)
         i=''
