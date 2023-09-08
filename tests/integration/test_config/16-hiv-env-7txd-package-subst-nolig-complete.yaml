@@ -1,0 +1,87 @@
+paths:
+  charmrun: /usr/local/bin/charmrun
+  namd2: /usr/local/bin/namd2
+  vmd: /usr/local/bin/vmd
+tasks:
+- psfgen:
+    cleanup: true
+    minimize:
+      dcdfreq: 100
+      nminsteps: 1000
+    mods:
+      deletions: []
+      mutations: []
+      ssbonds: []
+      ssbondsdelete: []
+      substitutions:
+      - A:100-162,GGG
+      - C:100-162,GGG
+      - E:100-162,GGG
+    source:
+      biological_assembly: 1
+      exclude:
+        chains:
+        - G
+        - H
+        - I
+        - J
+        - K
+        - L
+      file_format: mmCIF
+      id: 7txd
+      sequence:
+        fix_conflicts: true
+        fix_engineered_mutations: true
+        include_terminal_loops: false
+        loops:
+          declash:
+            maxcycles: 20
+          min_loop_length: 4
+          sac_res_name: GLY
+- ligate:
+    connect:
+      cleanup: true
+    minimize:
+      dcdfreq: 100
+      nminsteps: 1000
+    steer:
+      dcdfreq: 100
+      force_constant: 20
+      nsteps: 1000
+      target_distance: 2
+      temperature: 300
+- relax:
+    dcdfreq: 100
+    ensemble: NVT
+    nminsteps: 0
+    nsteps: 1000
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- solvate:
+    minimize:
+      dcdfreq: 100
+      nminsteps: 1000
+    pad: 10
+- relax:
+    dcdfreq: 100
+    ensemble: NPT
+    nminsteps: 0
+    nsteps: 1000
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- terminate:
+    basename: my_7txd
+    chainmapfile: chainmaps.yaml
+    package:
+      basename: prod_7txd
+      dcdfreq: 100
+      ensemble: NVT
+      nminsteps: 0
+      nsteps: 1000
+      pressure: 1
+      temperature: 300
+      xstfreq: 100
+    statefile: states.yaml
+title: HIV-1 Env Trimer 7txd, substitutions, no ligands

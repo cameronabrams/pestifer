@@ -91,7 +91,7 @@ source:
         m=Molecule(source=directive["source"])
         au=m.asymmetric_unit
         r=au.residues.get_residue(resseqnum=427,chainID='A')
-        self.assertEqual(r.name,'ASP')
+        self.assertEqual(r.resname,'ASP')
         a=au.residues.get_atom('OD2',resseqnum=427,chainID='A')
         self.assertEqual(a.serial,3302)
 

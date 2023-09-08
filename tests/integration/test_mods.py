@@ -121,7 +121,7 @@ class TestSSBond(unittest.TestCase):
 class TestCrot(unittest.TestCase):
     def test_phi(self):
         for t in ['PHI','PSI','OMEGA']:
-            cr=Crot.from_shortcode(f'{t},A,123,124,180.0')
+            cr=Crot(f'{t},A,123,124,180.0')
             self.assertEqual(cr.angle,t)
             self.assertEqual(cr.chainID,'A')
             self.assertEqual(cr.resseqnum1,123)
@@ -129,14 +129,14 @@ class TestCrot(unittest.TestCase):
             self.assertEqual(cr.degrees,180.0)
     def test_chi(self):
         for t in ['CHI1','CHI2']:
-            cr=Crot.from_shortcode(f'{t},A,123,180.0')
+            cr=Crot(f'{t},A,123,180.0')
             self.assertEqual(cr.angle,t)
             self.assertEqual(cr.chainID,'A')
             self.assertEqual(cr.resseqnum1,123)
             self.assertEqual(cr.resseqnum2,-1)
             self.assertEqual(cr.degrees,180.0)
     def test_glycan(self):
-        cr=Crot.from_shortcode('GLYCAN,S,123,N,1123,O1,180.0')
+        cr=Crot('GLYCAN,S,123,N,1123,O1,180.0')
         self.assertEqual(cr.angle,'GLYCAN')
         self.assertEqual(cr.segname,'S')
         self.assertEqual(cr.resseqnum1,123)
@@ -145,7 +145,7 @@ class TestCrot(unittest.TestCase):
         self.assertEqual(cr.atom2,'O1')
         self.assertEqual(cr.degrees,180.0)
     def test_link(self):
-        cr=Crot.from_shortcode('LINK,S,123,N,T,1123,O1,180.0')
+        cr=Crot('LINK,S,123,N,T,1123,O1,180.0')
         self.assertEqual(cr.angle,'LINK')
         self.assertEqual(cr.segname1,'S')
         self.assertEqual(cr.segname2,'T')
@@ -155,7 +155,7 @@ class TestCrot(unittest.TestCase):
         self.assertEqual(cr.atom2,'O1')
         self.assertEqual(cr.degrees,180.0)
     def test_angleijk(self):
-        cr=Crot.from_shortcode('ANGLEIJK,S,123,N,T,1123,O1,1123,C1,180.0')
+        cr=Crot('ANGLEIJK,S,123,N,T,1123,O1,1123,C1,180.0')
         self.assertEqual(cr.angle,'ANGLEIJK')
         self.assertEqual(cr.segnamei,'S')
         self.assertEqual(cr.segnamejk,'T')

@@ -22,7 +22,8 @@ class Atom(AncestorAwareMod):
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)
-    
+
+    @__init__.register(BaseRecord)
     @__init__.register(PDBRecord)
     def _from_pdbrecord(self,pdbrecord):
         input_dict={
@@ -80,7 +81,7 @@ class Atom(AncestorAwareMod):
     def pdb_line(self):
         pdbline='{:<6s}'.format(self.recordname)+\
                 '{:5d}'.format(self.serial)+' '+\
-                '{:<4s}'.format(' '+self.name if len(self.name)<4 else self.name)+\
+                '{:<4s}'.format(' '+self.resname if len(self.resname)<4 else self.resname)+\
                 '{:1s}'.format(self.altloc)+\
                 '{:<4s}'.format(self.resname)+\
                 '{:1s}'.format(self.chainID)+\
@@ -133,6 +134,7 @@ class EmptyResidue(AncestorAwareMod):
     def __init__(self,input_obj):
         super().__init__(input_obj)
     
+    @__init__.register(BaseRecord)
     @__init__.register(PDBRecord)
     def _from_pdbrecord(self,pdbrecord):
         input_dict={
@@ -176,7 +178,7 @@ class EmptyResidueList(AncestorAwareModList):
     pass
 
 class Residue(EmptyResidue):
-    req_attr=AncestorAwareMod.req_attr+['atoms']
+    req_attr=EmptyResidue.req_attr+['atoms']
     opt_attr=EmptyResidue.opt_attr+['up','down','uplink','downlink']
     ignore_attr=EmptyResidue.ignore_attr+['atoms','up','down','uplink','downlink']
     _counter=0
@@ -232,7 +234,7 @@ class Residue(EmptyResidue):
 
     def __str__(self):
         rc='' if self.resolved else '*'
-        return f'{self.chainID}-{self.name}{self.resseqnum}{self.insertion}{rc}'
+        return f'{self.chainID}-{self.resname}{self.resseqnum}{self.insertion}{rc}'
     def __lt__(self,other):
         if self.resseqnum<other.resseqnum:
             return True
@@ -245,7 +247,7 @@ class Residue(EmptyResidue):
         return self.resseqnum==other.resseqnum and self.insertion==other.insertion
         
     def add_atom(self,a:Atom):
-        if self.resseqnum==a.resseqnum and self.name==a.resname and self.chainID==a.chainID and self.insertion==a.insertion:
+        if self.resseqnum==a.resseqnum and self.resname==a.resname and self.chainID==a.chainID and self.insertion==a.insertion:
             self.atoms.append(a)
             return True
         return False
@@ -364,7 +366,7 @@ class ResidueList(AncestorAwareModList):
     #         link.residue1.linkTo(link.residue2,link)
     #     return self
     def apply_segtypes(self):
-        self.map_attr('segtype','name',segtype_of_resname)
+        self.map_attr('segtype','resname',segtype_of_resname)
     
     def deletion(self,DL:DeletionList):
         excised=[]

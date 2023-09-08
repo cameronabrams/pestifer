@@ -42,7 +42,7 @@ source:
         self.assertEqual(len(au.residues),1566)
         self.assertEqual(len(au.segments),13)
         r0=au.residues[0]
-        self.assertEqual(r0.name,'THR')
+        self.assertEqual(r0.resname,'THR')
         self.assertEqual(r0.segtype,'protein')
         for st in c.segtypes:
             res=[r for r in au.residues if r.segtype==st]
@@ -53,7 +53,7 @@ source:
             self.assertEqual(len(res),cbs)
         glycanres=[r for r in au.residues if r.segtype=='glycan']
         g0=glycanres[0]
-        self.assertEqual(g0.name,'NAG')
+        self.assertEqual(g0.resname,'NAG')
 
     def test_molecule_links(self):
         c=Config()
@@ -62,13 +62,13 @@ source:
         au=m.asymmetric_unit
         l=au.mods.topomods.links[0]
         self.assertEqual(l.residue1.segtype,'protein')
-        self.assertEqual(l.residue1.name,'ASN')
+        self.assertEqual(l.residue1.resname,'ASN')
         self.assertEqual(l.residue1.chainID,'G')
         self.assertEqual(l.residue1.resseqnum,156)
         self.assertEqual(l.atom1.name,'ND2')
         self.assertEqual(l.atom1.altloc,'')
         self.assertEqual(l.residue2.segtype,'glycan')
-        self.assertEqual(l.residue2.name,'NAG')
+        self.assertEqual(l.residue2.resname,'NAG')
         self.assertEqual(l.residue2.chainID,'E')
         self.assertEqual(l.residue2.resseqnum,615)
         self.assertEqual(l.atom2.name,'C1')
@@ -79,13 +79,13 @@ source:
         self.assertTrue(l in l.residue2.uplink)
         l=au.mods.topomods.links[-1]
         self.assertEqual(l.residue1.segtype,'glycan')
-        self.assertEqual(l.residue1.name,'NAG')
+        self.assertEqual(l.residue1.resname,'NAG')
         self.assertEqual(l.residue1.chainID,'C')
         self.assertEqual(l.residue1.resseqnum,1)
         self.assertEqual(l.atom1.name,'O4')
         self.assertEqual(l.atom1.altloc,'')
         self.assertEqual(l.residue2.segtype,'glycan')
-        self.assertEqual(l.residue2.name,'NAG')
+        self.assertEqual(l.residue2.resname,'NAG')
         self.assertEqual(l.residue2.chainID,'C')
         self.assertEqual(l.residue2.resseqnum,2)
         self.assertEqual(l.atom2.name,'C1')
