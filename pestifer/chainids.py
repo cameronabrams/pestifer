@@ -22,6 +22,10 @@ class ChainIDManager:
         for c in chainIDs:
             self.Used.add(self.OrderedSupply.remove(c))
 
+    def receive_chain(self,chainID):
+        self.Used.remove(chainID)
+        self.OrderedSupply.append(chainID) # yes but it won't stay ordered
+
     def next_chain(self):
         p=self.OrderedSupply.pop(0)
         self.Used.add(p)

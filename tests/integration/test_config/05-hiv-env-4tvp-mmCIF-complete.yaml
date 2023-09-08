@@ -18,13 +18,13 @@ tasks:
       biological_assembly: 1
       exclude:
         chains:
-        - C
+        - L
+        - H
         - D
         - E
-        - F
         resnames:
         - SO4
-      file_format: mmCIF
+      file_format: PDB
       id: 4tvp
       sequence:
         fix_conflicts: true

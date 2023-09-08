@@ -8,7 +8,7 @@ tasks:
         exclude:
           resnames:
             - SO4
-          chains:  # important: if PDB format input, these are the author-assigned chains; if mmCIF format input, these are the label_asym_id's!
+          chains:  # mmCIF
             - C
             - D
             - E

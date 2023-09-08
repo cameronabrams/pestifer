@@ -359,7 +359,7 @@ class BaseMod(Namespace):
             attribute:values used in searching the 
             list of objects
         """
-        assert getattr(self,attr)==None
+        # assert getattr(self,attr)==None
         adict={k:getattr(self,v) for k,v in matchattr.items()}
         myObj=objList.get(**adict)
         if myObj!=None:

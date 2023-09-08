@@ -108,6 +108,50 @@ class TerList(AncestorAwareModList):
     pass
 
 class Seqadv(AncestorAwareMod):
+    """A class for handling SEQADV/seq_dif records in input structure files 
+    
+    SEQADV/seq_dif records declare differences between the actual sequence of the molecule and the sequence
+    of its database reference.  This is how authors report things like accidental mutations (conflicts),
+    engineered mutations, and other differences.  These records are residue-specific.
+
+    Attributes
+    ----------
+    req_attr: list
+        * idCode: identification code of the seqadv record
+        * resname: residue name
+        * chainID: chain identifier
+        * resseqnum: sequence number of residue in chain
+        * insertion: insertion code
+        * typekey: reports the type of the seqadv/seq_dif based on the description provided by the author
+    opt_attr: list
+        * database: name of database
+        * dbAccession: accession code of this molecule's sequence in that database
+        * dbRes: name of residue in the database
+        * dbSeq: sequence position of residue in the database
+        * pdbx_pdb_strand_id: (mmCIF format) chain identifier according to author
+        * pdbx_auth_seq_num: (mmCIF format) residue sequence position according to author
+        * pdbx_ordinal: some integer, i don't know
+        * residue: holder for actual residue this seqadv refers to
+
+    Methods
+    -------
+    seqadv_details_keyword(text)
+        returns the typekey for the given text
+    
+    pdb_line()
+        write the seqadv as it would appear in a PDB file
+    
+    assign_residue(Residues)
+        given the list of residues 'Residues', finds
+        the residue that matches the specs of the caller
+        assigns it to the 'residue ' element
+    
+    update_residue()
+        assigns the chainID attribute of the caller to
+        the value of the chainID of the caller's 
+        residue attribute
+    
+    """
     req_attr=AncestorAwareMod.req_attr+['idCode','resname','chainID','resseqnum','insertion','typekey']
     opt_attr=AncestorAwareMod.opt_attr+['database','dbAccession','dbRes','dbSeq','pdbx_pdb_strand_id','pdbx_auth_seq_num','pdbx_ordinal','residue']
     attr_choices=AncestorAwareMod.attr_choices.copy()
@@ -116,9 +160,11 @@ class Seqadv(AncestorAwareMod):
     modtype='seqmod'
     PDB_keyword='SEQADV'
     mmCIF_name='struct_ref_seq_dif'
+
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)
+
     @__init__.register(PDBRecord)
     def _from_pdbrecord(self,pdbrecord):
         input_dict={
@@ -135,6 +181,7 @@ class Seqadv(AncestorAwareMod):
             'residue':None
         }
         super().__init__(input_dict)
+
     @__init__.register(CIFdict)
     def _from_cifdict(self,cd):
         input_dict={
@@ -187,6 +234,19 @@ class Seqadv(AncestorAwareMod):
         # we'll assume that if this residue is not found, then this seqadv is never used anyway
 
 class SeqadvList(AncestorAwareModList):
+    """A class for handling lists of Seqadvs
+    
+    Methods
+    -------
+    assign_residues(Residues):
+        calls assign_residue for each member element
+        and returns a list of residues that were
+        not assigned (out of the list Residues)
+    
+    update_from_residues()
+        calls update_from_residue for each member element
+    
+    """
     def assign_residues(self,Residues):
         delete_us=[]
         for s in self:
@@ -874,7 +934,8 @@ class LinkList(AncestorAwareModList):
                     pruned['residues'].append(S.residues.remove(r))
                 if len(S.residues)==0:
                     # logger.debug(f'All residues of {S.psfgen_segname} are deleted; {S.psfgen_segname} is deleted')
-                    pruned['segments'].append(Segments.remove(S))
+                    Segments.remove(S)
+                    pruned['segments'].append(S)
                 for l in llist:
                     pruned['links'].append(self.remove(l))
         return pruned

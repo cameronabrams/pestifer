@@ -50,7 +50,7 @@ class Segment(AncestorAwareMod):
                     logger.debug(f'{count} residue(s) were affected:')
                     for x in Residues:
                         if hasattr(x,'_ORIGINAL_'):
-                            logger.debug(f'    {x.chainID} {x.name} {x.resseqnum}{x.insertion} was {x._ORIGINAL_}')                
+                            logger.debug(f'    {x.chainID} {x.resname} {x.resseqnum}{x.insertion} was {x._ORIGINAL_}')                
                 subsegments=Residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
             logger.debug(f'Segment {segname} has {len(Residues)} residues across {len(subsegments)} subsegments')
             input_dict={
@@ -176,14 +176,14 @@ class Segment(AncestorAwareMod):
                 W.addline(f'    pdb {b.pdb}')
             elif b.state=='MISSING':
                 for r in self.residues[b.bounds[0]:b.bounds[1]+1]:
-                    rname=charmm_resname_of_pdb_resname.get(r.name,r.name)
+                    rname=charmm_resname_of_pdb_resname.get(r.resname,r.resname)
                     W.addline(f'    residue {r.resseqnum}{r.insertion} {rname} {image_seglabel}')
                 if b.num_items()>=min_loop_length:
                     lrr=self.residues[b.bounds[1]]
                     sac_resseqnum=lrr.resseqnum
                     sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
                     assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {seglabel} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_rn}'
-                    b.sacres=Residue({'name':sac_rn,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':'protein','resolved':False})
+                    b.sacres=Residue({'resname':sac_rn,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':'protein','resolved':False,'atoms':[]})
                     W.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_rn} {image_seglabel}')
         for m in seg_mutations:
                 W.comment(f'fix {m.typekey}')
@@ -220,9 +220,9 @@ class Segment(AncestorAwareMod):
                 nextb=self.subsegments[i+1]
                 Nterm=self.residues[nextb.bounds[0]]
                 patchname='NTER'
-                if Nterm.name=='PRO':
+                if Nterm.resname=='PRO':
                     patchname='PROP'
-                elif Nterm.name=='GLY':
+                elif Nterm.resname=='GLY':
                     patchname='GLYP'
                 W.addline(f'patch {patchname} {image_seglabel}:{Nterm.resseqnum}{Nterm.insertion}')
                 W.addline(f'delatom {image_seglabel} {b.sacres.resseqnum}{b.sacres.insertion}')
@@ -257,7 +257,7 @@ class SegmentList(AncestorAwareModList):
                         self.segtype_of_segname[r.chainID]=r.segtype
                     if not r.segtype in self.segtypes_ordered:
                         self.segtypes_ordered.append(r.segtype)
-                        logger.debug(f'catching segtype {r.segtype} segname {r.chainID}')
+                        logger.debug(f'catching segtype {r.segtype}')
                 for stype in self.segtypes_ordered:
                     self.counters_by_segtype[stype]=0
                     res=residues.filter(segtype=stype)

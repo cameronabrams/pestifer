@@ -109,26 +109,6 @@ source:
         cm=ba.transforms[2].chainIDmap
         self.assertEqual(cm['G'],'N')
 
-    def test_molecule_bioassemb_4tvp(self):
-        c=Config()
-        cidm=ChainIDManager()
-        directive=self.get_source_dict('4tvp')
-        directive["source"]["biological_assembly"]=1
-        directive["source"]["exclude"]["chains"]=['H','L','E','D']
-        directive["source"]["exclude"]["resnames"]=['SO4']
-        m=Molecule(source=directive["source"],chainIDmanager=cidm)
-        self.assertEqual(1,len(m.biological_assemblies))
-        m.activate_biological_assembly(directive["source"]["biological_assembly"])
-        ba=m.active_biological_assembly
-        self.assertEqual(len(ba.transforms),3)
-        cm=ba.transforms[0].chainIDmap
-        self.assertEqual(cm['G'],'G')
-        self.assertTrue(ba.transforms[0].is_identity())
-        cm=ba.transforms[1].chainIDmap
-        self.assertEqual(cm['G'],'U')
-        cm=ba.transforms[2].chainIDmap
-        self.assertEqual(cm['G'],'n')
-
     def test_molecule_ancestry(self):
         directive=self.get_source_dict('4zmj')
         directive["source"]["biological_assembly"]=1

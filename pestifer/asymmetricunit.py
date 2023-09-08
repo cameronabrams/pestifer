@@ -35,8 +35,9 @@ class AsymmetricUnit(AncestorAwareMod):
             pr=objs.get('parsed',None)
             sourcespecs=objs.get('sourcespecs',{})
             mods=objs.get('usermodspecs',ModContainer())
-            logger.debug(f'User mods {type(mods)} at asymmetric unit: {mods.__dict__}')
+            # logger.debug(f'User mods {type(mods)} at asymmetric unit: {mods.__dict__}')
             chainIDmanager=objs.get('chainIDmanager',None)
+            
             missings=EmptyResidueList([])
             ssbonds=SSBondList([])
             links=LinkList([])
@@ -51,12 +52,9 @@ class AsymmetricUnit(AncestorAwareMod):
                 mods.seqmods.terminals=ters
                 if 'REMARK.465' in pr:
                     missings=EmptyResidueList([EmptyResidue(p) for p in pr['REMARK.465'].tables['MISSING']])
-                if 'SSBOND' in pr:
-                    ssbonds=SSBondList([SSBond(p) for p in pr[SSBond.PDB_keyword]])  
-                if 'SEQADV' in pr:
-                    seqadvs=SeqadvList([Seqadv(p) for p in pr[Seqadv.PDB_keyword]])
-                if 'LINK' in pr:
-                    links=LinkList([Link(p) for p in pr[Link.PDB_keyword]])
+                ssbonds=SSBondList([SSBond(p) for p in pr[SSBond.PDB_keyword]])  
+                seqadvs=SeqadvList([Seqadv(p) for p in pr[Seqadv.PDB_keyword]])
+                links=LinkList([Link(p) for p in pr[Link.PDB_keyword]])
             elif type(pr)==DataContainer: # mmCIF format
                 obj=pr.getObj(Atom.mmCIF_name)
                 atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
@@ -153,8 +151,11 @@ class AsymmetricUnit(AncestorAwareMod):
                 mutations.extend(mods.seqmods.mutations)
             mods.seqmods.mutations=mutations
             pruned_ssbonds=ssbonds.prune_mutations(mutations)
-            pruned_by_links=links.prune_mutations(mutations,segments)
-
+            pruned=pruned_by_links=links.prune_mutations(mutations,segments)
+            if hasattr(pruned,'segments'):
+                for s in pruned['segments']:
+                    logger.debug(f'Recovering chainID {s.segname}')
+                    chainIDmanager.receive_chain(s.segname)
             # Now any added or deleted ssbonds
             if hasattr(mods.topomods,'ssbonds'):
                 ssbonds.extend(mods.topomods.ssbonds)
