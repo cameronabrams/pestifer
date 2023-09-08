@@ -41,8 +41,6 @@
     --------
     * Crot -- any of a variety of rotations around certain dihedrals
 
-    DOCUMENTATION IN PROGRESS
-
 """
 import logging
 logger=logging.getLogger(__name__)
@@ -52,82 +50,110 @@ from .basemod import AncestorAwareMod,AncestorAwareModList
 from .stringthings import split_ri
 from .scriptwriters import Psfgen
 from .config import res_123
+from functools import singledispatchmethod
 
 ModTypes=['seqmod','topomod','coormod','generic']
 
 class Ter(AncestorAwareMod):
+    """A class for handing TER records in PDB files
+    
+    Why is this necessary?  TER records are used to indicate
+    'breaks' in the list of ATOM records in a PDB file to signify
+    physical discontinuity of the amino acid chain(s).  The problem
+    we have to solve is that TER records get a unique atom serial
+    number, even though they are not atoms. So in a list of atoms
+    the serial numbers can be discontinuous.  This is not a problem
+    per se, *but* when VMD reads in a PDB file it ignores both
+    TER records *and* the explicit atom serial numbers.  Pidibble
+    by default does not, so to make the atom records VMD-compliant,
+    we have to adjust atom serial numbers, and to do that we
+    have to know where the TER records are.
+    
+    Attributes
+    ----------
+    req_attr: list
+        * serial: (int) atom serial number
+        * resname: (str) residue name
+        * chainID: (str) chain identifier
+        * resseqnum: (int) residue number
+        * insertion: (chr) residue insertion code
+    
+    yaml_header: (str)
+        label used for yaml format input/output
+    
+    modtype: (str)
+        type of mod from among ModTypes
+
+    """
     req_attr=['serial','resname','chainID','resseqnum','insertion']
     yaml_header='terminals'
     modtype='seqmod'
+    PDB_keyword='TER'
+
+    @singledispatchmethod
     def __init__(self,input_obj):
-        if type(input_obj)==dict:
-            super().__init__(input_obj)
-        elif type(input_obj)==PDBRecord:
-            pdbrecord=input_obj
-            input_dict={
-                'serial':pdbrecord.serial,
-                'resname':pdbrecord.residue.resName,
-                'chainID':pdbrecord.residue.chainID,
-                'resseqnum':pdbrecord.residue.seqNum,
-                'insertion':pdbrecord.residue.iCode
-            }
-            super().__init__(input_dict)
-        else:
-            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
+        super().__init__(input_obj)
+    @__init__.register(PDBRecord)
+    def _from_pdbrecord(self,pdbrecord):
+        input_dict={
+            'serial':pdbrecord.serial,
+            'resname':pdbrecord.residue.resName,
+            'chainID':pdbrecord.residue.chainID,
+            'resseqnum':pdbrecord.residue.seqNum,
+            'insertion':pdbrecord.residue.iCode
+        }
+        super().__init__(input_dict)
     
 class TerList(AncestorAwareModList):
     pass
 
 class Seqadv(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['idCode','resname','chainID','resseqnum','insertion']
-    opt_attr=AncestorAwareMod.opt_attr+['database','dbAccession','dbRes','dbSeq','typekey','pdbx_pdb_strand_id','pdbx_auth_seq_num','pdbx_ordinal','residue']
+    req_attr=AncestorAwareMod.req_attr+['idCode','resname','chainID','resseqnum','insertion','typekey']
+    opt_attr=AncestorAwareMod.opt_attr+['database','dbAccession','dbRes','dbSeq','pdbx_pdb_strand_id','pdbx_auth_seq_num','pdbx_ordinal','residue']
     attr_choices=AncestorAwareMod.attr_choices.copy()
     attr_choices.update({'typekey':['conflict','cloning','expression','typekey','engineered','variant','insertion','deletion','microheterogeneity','chromophore','user','_other_']})
     yaml_header='seqadvs'
     modtype='seqmod'
     PDB_keyword='SEQADV'
     mmCIF_name='struct_ref_seq_dif'
+    @singledispatchmethod
     def __init__(self,input_obj):
-        if type(input_obj)==dict:
-            logger.debug(f'naive init of seqadv from {input_obj}')
-            super().__init__(input_obj)
-        elif type(input_obj)==PDBRecord:
-            pdbrecord=input_obj
-            input_dict={
-                'idCode':pdbrecord.idCode,
-                'resname':pdbrecord.residue.resName,
-                'chainID':pdbrecord.residue.chainID,
-                'resseqnum':pdbrecord.residue.seqNum,
-                'insertion':pdbrecord.residue.iCode,
-                'database':pdbrecord.database,
-                'dbAccession':pdbrecord.dbAccession,
-                'dbRes':pdbrecord.dbRes,
-                'dbSeq':pdbrecord.dbSeq,
-                'typekey':self.seqadv_details_keyword(pdbrecord.conflict),
-                'residue':None
-            }
-            super().__init__(input_dict)
-        elif type(input_obj)==CIFdict:
-            cd=input_obj
-            input_dict={
-                'idCode':cd['pdbx_pdb_id_code'],
-                'resname':cd['mon_id'],
-                'chainID':'UNSET', # author
-                'resseqnum':int(cd['seq_num']), # mmcif
-                'insertion':cd['pdbx_pdb_ins_code'], # author
-                'database':cd['pdbx_seq_db_name'],
-                'dbAccession':cd['pdbx_seq_db_accession_code'],
-                'dbRes':cd['db_mon_id'],
-                'dbSeq':cd['pdbx_seq_db_seq_num'], # author
-                'typekey':self.seqadv_details_keyword(cd['details']),
-                'pdbx_auth_seq_num':int(cd['pdbx_auth_seq_num']), # author
-                'pdbx_ordinal':cd['pdbx_ordinal'],
-                'pdbx_pdb_strand_id':cd['pdbx_pdb_strand_id'],
-                'residue':None
-            }
-            super().__init__(input_dict)
-        else:
-            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
+        super().__init__(input_obj)
+    @__init__.register(PDBRecord)
+    def _from_pdbrecord(self,pdbrecord):
+        input_dict={
+            'idCode':pdbrecord.idCode,
+            'resname':pdbrecord.residue.resName,
+            'chainID':pdbrecord.residue.chainID,
+            'resseqnum':pdbrecord.residue.seqNum,
+            'insertion':pdbrecord.residue.iCode,
+            'database':pdbrecord.database,
+            'dbAccession':pdbrecord.dbAccession,
+            'dbRes':pdbrecord.dbRes,
+            'dbSeq':pdbrecord.dbSeq,
+            'typekey':self.seqadv_details_keyword(pdbrecord.conflict),
+            'residue':None
+        }
+        super().__init__(input_dict)
+    @__init__.register(CIFdict)
+    def _from_cifdict(self,cd):
+        input_dict={
+            'idCode':cd['pdbx_pdb_id_code'],
+            'resname':cd['mon_id'],
+            'chainID':'UNSET', # author
+            'resseqnum':int(cd['seq_num']), # mmcif
+            'insertion':cd['pdbx_pdb_ins_code'], # author
+            'database':cd['pdbx_seq_db_name'],
+            'dbAccession':cd['pdbx_seq_db_accession_code'],
+            'dbRes':cd['db_mon_id'],
+            'dbSeq':cd['pdbx_seq_db_seq_num'], # author
+            'typekey':self.seqadv_details_keyword(cd['details']),
+            'pdbx_auth_seq_num':int(cd['pdbx_auth_seq_num']), # author
+            'pdbx_ordinal':cd['pdbx_ordinal'],
+            'pdbx_pdb_strand_id':cd['pdbx_pdb_strand_id'],
+            'residue':None
+        }
+        super().__init__(input_dict)
 
     def seqadv_details_keyword(self,text):
         text=text.lower()
@@ -190,59 +216,62 @@ class Mutation(AncestorAwareMod):
     opt_attr=AncestorAwareMod.opt_attr+['pdbx_auth_seq_num']
     yaml_header='mutations'
     modtype='seqmod'
+
+    @singledispatchmethod
     def __init__(self,input_obj):
-        if type(input_obj)==dict:
-            if not 'insertion' in input_obj:
-                input_obj['insertion']=''
-            if not 'typekey' in input_obj:
-                input_obj['typekey']='unknown'
-            super().__init__(input_obj)
-        elif type(input_obj)==Seqadv:
-            sq=input_obj
-            input_dict={
-                'chainID':sq.chainID,
-                'origresname':sq.resname,
-                'newresname':sq.dbRes,
-                'resseqnum':sq.resseqnum,
-                'insertion':sq.insertion,
-                'typekey':sq.typekey
-            }
-            if hasattr(sq,'pdbx_auth_seq_num'):
-                input_dict['pdbx_auth_seq_num']=sq.__dict__['pdbx_auth_seq_num']
-            super().__init__(input_dict)
-        elif type(input_obj)==str:
-            ### shortcode format: c:nnn,rrr,mmm or c:A###B
-            ### c: chainID
-            ### nnn: old resname, 1-byte rescode allowed
-            ### rrr: resseqnum
-            ### mmm: new resname, 1-byte rescode allowed
-            s1=input_obj.split(':')
-            chainID=s1[0]
-            s2=s1[1].split(',')
-            codetype='3' if len(s2)==3 else '1'
-            if codetype=='3':
-                ri=s2[1]
-                r,i=split_ri(ri)
-                orn=s2[0]
-                nrn=s2[2]
-            else:
-                s2=s2[0]
-                orn=res_123[s2[0]]
-                nrn=res_123[s2[-1]]
-                ri=s2[1:-1]
-                r,i=split_ri(ri)
-            input_dict={
-                'chainID':chainID, # assume author
-                'origresname':orn,
-                'resseqnum':int(r), # assume author!
-                'insertion':i,
-                'newresname':nrn,
-                'typekey':'user' # shortcodes are how users indicate mutations
-            }
-            logger.debug(f'user mutation {input_dict}')
-            super().__init__(input_dict)
+        super().__init__(input_obj)
+        if not hasattr(self,'insertion'):
+            self.insertion=''
+        if not hasattr(self,'typekey'):
+            self.typekey='unknown'
+
+    @__init__.register(Seqadv)
+    def _from_seqadv(self,sq):
+        input_dict={
+            'chainID':sq.chainID,
+            'origresname':sq.resname,
+            'newresname':sq.dbRes,
+            'resseqnum':sq.resseqnum,
+            'insertion':sq.insertion,
+            'typekey':sq.typekey
+        }
+        if hasattr(sq,'pdbx_auth_seq_num'):
+            input_dict['pdbx_auth_seq_num']=sq.__dict__['pdbx_auth_seq_num']
+        super().__init__(input_dict)
+
+    @__init__.register(str)
+    def _from_shortcode(self,shortcode):
+        ### shortcode format: c:nnn,rrr,mmm or c:A###B
+        ### c: chainID
+        ### nnn: old resname, 1-byte rescode allowed
+        ### rrr: resseqnum
+        ### mmm: new resname, 1-byte rescode allowed
+        s1=shortcode.split(':')
+        chainID=s1[0]
+        s2=s1[1].split(',')
+        codetype='3' if len(s2)==3 else '1'
+        if codetype=='3':
+            ri=s2[1]
+            r,i=split_ri(ri)
+            orn=s2[0]
+            nrn=s2[2]
         else:
-            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
+            s2=s2[0]
+            orn=res_123[s2[0]]
+            nrn=res_123[s2[-1]]
+            ri=s2[1:-1]
+            r,i=split_ri(ri)
+        input_dict={
+            'chainID':chainID, # assume author
+            'origresname':orn,
+            'resseqnum':int(r), # assume author!
+            'insertion':i,
+            'newresname':nrn,
+            'typekey':'user' # shortcodes are how users indicate mutations
+        }
+        logger.debug(f'user mutation {input_dict}')
+        super().__init__(input_dict)
+
     def __str__(self):
         return f'{self.chainID}:{self.origresname}{self.resseqnum}{self.insertion}{self.newresname}'
 
@@ -289,34 +318,35 @@ class Substitution(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2','subseq']
     yaml_header='substitutions'
     modtype='seqmod'
+
+    @singledispatchmethod
     def __init__(self,input_obj):
-        if type(input_obj)==dict:
-            super().__init__(input_obj)
-        elif type(input_obj)==str:
-            # shortcode format: C:nnn-ccc,abcdef
-            # C -- chainID
-            # nnn -- N-terminal resid of sequence to be replaced
-            # ccc -- C-terminal resid of sequence to be replaced
-            # abcdef -- the 1-byte rescode sequence to be substituted
-            p1=input_obj.split(':')
-            chainID=p1[0]
-            p2=p1[1].split(',')
-            seqrange=p2[0]
-            subseq=p2[1]
-            seq=seqrange.split('-')
-            r1,i1=split_ri(seq[0])
-            r2,i2=split_ri(seq[1])
-            input_dict={
-                'chainID':chainID,
-                'resseqnum1':int(r1),
-                'insertion1':i1,
-                'resseqnum2':int(r2),
-                'insertion2':i2,
-                'subseq':subseq
-            }
-            super().__init__(input_dict)
-        else:
-            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
+        super().__init__(input_obj)
+
+    @__init__.register(str)
+    def _from_shortcode(self,shortcode):
+        # shortcode format: C:nnn-ccc,abcdef
+        # C -- chainID
+        # nnn -- N-terminal resid of sequence to be replaced
+        # ccc -- C-terminal resid of sequence to be replaced
+        # abcdef -- the 1-byte rescode sequence to be substituted
+        p1=shortcode.split(':')
+        chainID=p1[0]
+        p2=p1[1].split(',')
+        seqrange=p2[0]
+        subseq=p2[1]
+        seq=seqrange.split('-')
+        r1,i1=split_ri(seq[0])
+        r2,i2=split_ri(seq[1])
+        input_dict={
+            'chainID':chainID,
+            'resseqnum1':int(r1),
+            'insertion1':i1,
+            'resseqnum2':int(r2),
+            'insertion2':i2,
+            'subseq':subseq
+        }
+        super().__init__(input_dict)
 
 class SubstitutionList(AncestorAwareModList):
     pass
@@ -327,29 +357,29 @@ class Deletion(AncestorAwareMod):
     yaml_header='deletions'
     modtype='seqmod'
 
+    @singledispatchmethod
     def __init__(self,input_obj):
-        if type(input_obj)==dict:
-            super().__init__(input_obj)
-        elif type(input_obj)==str:
-            # shortcode format: C:nnn-ccc
-            # C -- chainID
-            # nnn -- N-terminal resid of sequence to be deleted
-            # ccc -- C-terminal resid of sequence to be deleted
-            p1=input_obj.split(':')
-            chainID=p1[0]
-            seq=p1[1].split('-')
-            r1,i1=split_ri(seq[0])
-            r2,i2=split_ri(seq[1])          
-            input_dict={
-                'chainID':chainID,
-                'resseqnum1':int(r1),
-                'insertion1':i1,
-                'resseqnum2':int(r2),
-                'insertion2':i2
-            }
-            super().__init__(input_dict)
-        else:
-            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
+        super().__init__(input_obj)
+
+    @__init__.register(str)
+    def _from_shortcode(self,shortcode):
+        # shortcode format: C:nnn-ccc
+        # C -- chainID
+        # nnn -- N-terminal resid of sequence to be deleted
+        # ccc -- C-terminal resid of sequence to be deleted
+        p1=shortcode.split(':')
+        chainID=p1[0]
+        seq=p1[1].split('-')
+        r1,i1=split_ri(seq[0])
+        r2,i2=split_ri(seq[1])          
+        input_dict={
+            'chainID':chainID,
+            'resseqnum1':int(r1),
+            'insertion1':i1,
+            'resseqnum2':int(r2),
+            'insertion2':i2
+        }
+        super().__init__(input_dict)
 
 class DeletionList(AncestorAwareModList):
     pass
@@ -372,8 +402,13 @@ class Crot(AncestorAwareMod):
         })
     yaml_header='crotations'
     modtype='coormod'
-    @classmethod
-    def from_shortcode(cls,shortcode):
+
+    @singledispatchmethod
+    def __init__(self,input_obj):
+        super().__init__(input_obj)
+    
+    @__init__.register(str)
+    def _from_shortcode(self,shortcode):
         dat=shortcode.split(',')
         input_dict={}
         input_dict['angle']=dat[0].upper()
@@ -416,8 +451,7 @@ class Crot(AncestorAwareMod):
             input_dict['resseqnumk']=int(dat[7])
             input_dict['atomk']=dat[8]
             input_dict['degrees']=float(dat[9])
-        inst=cls(input_dict)
-        return inst
+        super().__init__(input_dict)
     
     def to_shortcode(self):
         if 'shortcode' in self.__dict__:
@@ -515,73 +549,78 @@ class SSBond(AncestorAwareMod):
     modtype='topomod'
     PDB_keyword='SSBOND'
     mmCIF_name='struct_conn'
+
+    @singledispatchmethod
     def __init__(self,input_obj):
-        if type(input_obj)==dict:
-            super().__init__(input_obj)
-        elif type(input_obj)==PDBRecord:
-            pdbrecord=input_obj
-            input_dict={
-                'serial_number':pdbrecord.serNum,
-                'resname1':pdbrecord.residue1.resName,
-                'chainID1':pdbrecord.residue1.chainID,
-                'resseqnum1':pdbrecord.residue1.seqNum,
-                'insertion1':pdbrecord.residue1.iCode,
-                'resname2':pdbrecord.residue2.resName,
-                'chainID2':pdbrecord.residue2.chainID,
-                'resseqnum2':pdbrecord.residue2.seqNum,
-                'insertion2':pdbrecord.residue2.iCode,
-                'sym1':pdbrecord.sym1,
-                'sym2':pdbrecord.sym2,
-                'length':pdbrecord.length,
-                'residue1':None,
-                'residue2':None
-            }
-            super().__init__(input_dict)
-        elif type(input_obj)==CIFdict:
-            d=input_obj
-            input_dict={
-                'serial_number':int(d['id'].strip('disulf')),
-                'resname1':'CYS',
-                'resname2':'CYS',
-                'chainID1':d['ptnr1_label_asym_id'],
-                'chainID2':d['ptnr2_label_asym_id'],
-                'resseqnum1':int(d['ptnr1_label_seq_id']),
-                'resseqnum2':int(d['ptnr2_label_seq_id']),
-                'insertion1':d['pdbx_ptnr1_pdb_ins_code'],
-                'insertion2':d['pdbx_ptnr2_pdb_ins_code'],
-                'sym1':d['ptnr1_symmetry'],
-                'sym2':d['ptnr2_symmetry'],
-                'length':float(d['pdbx_dist_value']),
-                'residue1':None,
-                'residue2':None,
-                'ptnr1_auth_asym_id':d['ptnr1_auth_asym_id'],
-                'ptnr2_auth_asym_id':d['ptnr2_auth_asym_id'],
-                'ptnr1_auth_seq_id':d['ptnr1_auth_seq_id'],
-                'ptnr2_auth_seq_id':d['ptnr2_auth_seq_id']
-            }
-            super().__init__(input_dict)
-        elif type(input_obj)==str:
-            #C_RRR-C_RRR
-            s1=input_obj.split('-')
-            r1=s1[0].split('_')
-            r2=s1[1].split('_')
-            input_dict={
-                'serial_number':0,
-                'resname1':'CYS',
-                'resname2':'CYS',
-                'chainID1':r1[0],
-                'chainID2':r2[0],
-                'resseqnum1':int(r1[1]),
-                'resseqnum2':int(r2[1]),
-                'insertion1':'',
-                'insertion2':'',
-                'length':0.0,
-                'sym1':'',
-                'sym2':''
-            }
-            super().__init__(input_dict)
-        else:
-            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
+        super().__init__(input_obj)
+
+    @__init__.register(PDBRecord)
+    def _from_pdbrecord(self,pdbrecord):
+        input_dict={
+            'serial_number':pdbrecord.serNum,
+            'resname1':pdbrecord.residue1.resName,
+            'chainID1':pdbrecord.residue1.chainID,
+            'resseqnum1':pdbrecord.residue1.seqNum,
+            'insertion1':pdbrecord.residue1.iCode,
+            'resname2':pdbrecord.residue2.resName,
+            'chainID2':pdbrecord.residue2.chainID,
+            'resseqnum2':pdbrecord.residue2.seqNum,
+            'insertion2':pdbrecord.residue2.iCode,
+            'sym1':pdbrecord.sym1,
+            'sym2':pdbrecord.sym2,
+            'length':pdbrecord.length,
+            'residue1':None,
+            'residue2':None
+        }
+        super().__init__(input_dict)
+    
+    @__init__.register(CIFdict)
+    def _from_cifdict(self,cd):
+        input_dict={
+            'serial_number':int(cd['id'].strip('disulf')),
+            'resname1':'CYS',
+            'resname2':'CYS',
+            'chainID1':cd['ptnr1_label_asym_id'],
+            'chainID2':cd['ptnr2_label_asym_id'],
+            'resseqnum1':int(cd['ptnr1_label_seq_id']),
+            'resseqnum2':int(cd['ptnr2_label_seq_id']),
+            'insertion1':cd['pdbx_ptnr1_pdb_ins_code'],
+            'insertion2':cd['pdbx_ptnr2_pdb_ins_code'],
+            'sym1':cd['ptnr1_symmetry'],
+            'sym2':cd['ptnr2_symmetry'],
+            'length':float(cd['pdbx_dist_value']),
+            'residue1':None,
+            'residue2':None,
+            'ptnr1_auth_asym_id':cd['ptnr1_auth_asym_id'],
+            'ptnr2_auth_asym_id':cd['ptnr2_auth_asym_id'],
+            'ptnr1_auth_seq_id':cd['ptnr1_auth_seq_id'],
+            'ptnr2_auth_seq_id':cd['ptnr2_auth_seq_id']
+        }
+        super().__init__(input_dict)
+    
+    @__init__.register(str)
+    def _from_shortcode(self,shortcode):
+        # shortcode format: C_RRR-D_SSS
+        # C, D chainIDs
+        # RRR, SSS resids
+        s1=shortcode.split('-')
+        r1=s1[0].split('_')
+        r2=s1[1].split('_')
+        input_dict={
+            'serial_number':0,
+            'resname1':'CYS',
+            'resname2':'CYS',
+            'chainID1':r1[0],
+            'chainID2':r2[0],
+            'resseqnum1':int(r1[1]),
+            'resseqnum2':int(r2[1]),
+            'insertion1':'',
+            'insertion2':'',
+            'length':0.0,
+            'sym1':'',
+            'sym2':''
+        }
+        super().__init__(input_dict)
 
     def __str__(self):
         return f'{self.chainID1}_{self.resseqnum1}{self.insertion1}-{self.chainID2}_{self.resseqnum2}{self.insertion2}'
@@ -665,62 +704,72 @@ class Link(AncestorAwareMod):
     PDB_keyword='LINK'
     modtype='topomod'
 
+    @singledispatchmethod
     def __init__(self,input_obj):
-        if type(input_obj)==PDBRecord:
-            pdbrecord=input_obj
-            input_dict={
-                'name1': pdbrecord.name1,
-                'resname1':pdbrecord.residue1.resName,
-                'chainID1':pdbrecord.residue1.chainID,
-                'resseqnum1':pdbrecord.residue1.seqNum,
-                'insertion1':pdbrecord.residue1.iCode,
-                'name2': pdbrecord.name2,
-                'resname2':pdbrecord.residue2.resName,
-                'chainID2':pdbrecord.residue2.chainID,
-                'resseqnum2':pdbrecord.residue2.seqNum,
-                'insertion2':pdbrecord.residue2.iCode,
-                'altloc2':pdbrecord.altLoc2,
-                'altloc1':pdbrecord.altLoc1,
-                'sym1':pdbrecord.sym1,
-                'sym2':pdbrecord.sym2,
-                'link_distance':pdbrecord.length,
-                'segname1':pdbrecord.residue1.chainID,
-                'segname2':pdbrecord.residue2.chainID,
-                }
-        elif type(input_obj)==CIFdict:
-            d=input_obj
-            p1_seq_id=d['ptnr1_label_seq_id']
-            if p1_seq_id=='':
-                p1_seq_id=d['ptnr1_auth_seq_id']
-            p2_seq_id=d['ptnr2_label_seq_id']
-            if p2_seq_id=='':
-                p2_seq_id=d['ptnr2_auth_seq_id']
-            input_dict={}
-            input_dict['name1']=d['ptnr1_label_atom_id']
-            input_dict['altloc1']=d['pdbx_ptnr1_label_alt_id']
-            input_dict['resname1']=d['ptnr1_label_comp_id']
-            input_dict['chainID1']=d['ptnr1_label_asym_id']
-            input_dict['resseqnum1']=int(p1_seq_id)
-            input_dict['insertion1']=d['pdbx_ptnr1_pdb_ins_code']
-            input_dict['name2']=d['ptnr2_label_atom_id']
-            input_dict['altloc2']=d['pdbx_ptnr2_label_alt_id']
-            input_dict['resname2']=d['ptnr2_label_comp_id']
-            input_dict['chainID2']=d['ptnr2_label_asym_id']
-            input_dict['resseqnum2']=int(p2_seq_id)
-            input_dict['insertion2']=d['pdbx_ptnr2_pdb_ins_code']
-            input_dict['sym1']=d['ptnr1_symmetry']
-            input_dict['sym2']=d['ptnr2_symmetry']
-            input_dict['link_distance']=float(d['pdbx_dist_value'])
-            input_dict['segname1']=input_dict['chainID1']
-            input_dict['segname2']=input_dict['chainID2']
-            input_dict.update({'ptnr1_auth_asym_id':d['ptnr1_auth_asym_id'],
-                'ptnr2_auth_asym_id':d['ptnr2_auth_asym_id'],
-                'ptnr1_auth_seq_id':d['ptnr1_auth_seq_id'],
-                'ptnr2_auth_seq_id':d['ptnr2_auth_seq_id']})
-        elif type(input_obj)==dict:
-            input_dict=input_obj
-        else:
-            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
+        super().__init__(input_obj)
+    
+    @__init__.register(PDBRecord)
+    def _from_pdbrecord(self,pdbrecord):
+        input_dict={
+            'name1': pdbrecord.name1,
+            'resname1':pdbrecord.residue1.resName,
+            'chainID1':pdbrecord.residue1.chainID,
+            'resseqnum1':pdbrecord.residue1.seqNum,
+            'insertion1':pdbrecord.residue1.iCode,
+            'name2': pdbrecord.name2,
+            'resname2':pdbrecord.residue2.resName,
+            'chainID2':pdbrecord.residue2.chainID,
+            'resseqnum2':pdbrecord.residue2.seqNum,
+            'insertion2':pdbrecord.residue2.iCode,
+            'altloc2':pdbrecord.altLoc2,
+            'altloc1':pdbrecord.altLoc1,
+            'sym1':pdbrecord.sym1,
+            'sym2':pdbrecord.sym2,
+            'link_distance':pdbrecord.length,
+            'segname1':pdbrecord.residue1.chainID,
+            'segname2':pdbrecord.residue2.chainID,
+            }
+        input_dict.update({
+                'residue1':None,
+                'residue2':None,
+                'atom1':None,
+                'atom2':None,
+                'empty':False,
+                'segtype1':'UNSET',
+                'segtype2':'UNSET',
+            })
+        super().__init__(input_dict)
+    
+    @__init__.register(CIFdict)
+    def _from_cifdict(self,cd):
+        p1_seq_id=cd['ptnr1_label_seq_id']
+        if p1_seq_id=='':
+            p1_seq_id=cd['ptnr1_auth_seq_id']
+        p2_seq_id=cd['ptnr2_label_seq_id']
+        if p2_seq_id=='':
+            p2_seq_id=cd['ptnr2_auth_seq_id']
+        input_dict={}
+        input_dict['name1']=cd['ptnr1_label_atom_id']
+        input_dict['altloc1']=cd['pdbx_ptnr1_label_alt_id']
+        input_dict['resname1']=cd['ptnr1_label_comp_id']
+        input_dict['chainID1']=cd['ptnr1_label_asym_id']
+        input_dict['resseqnum1']=int(p1_seq_id)
+        input_dict['insertion1']=cd['pdbx_ptnr1_pdb_ins_code']
+        input_dict['name2']=cd['ptnr2_label_atom_id']
+        input_dict['altloc2']=cd['pdbx_ptnr2_label_alt_id']
+        input_dict['resname2']=cd['ptnr2_label_comp_id']
+        input_dict['chainID2']=cd['ptnr2_label_asym_id']
+        input_dict['resseqnum2']=int(p2_seq_id)
+        input_dict['insertion2']=cd['pdbx_ptnr2_pdb_ins_code']
+        input_dict['sym1']=cd['ptnr1_symmetry']
+        input_dict['sym2']=cd['ptnr2_symmetry']
+        input_dict['link_distance']=float(cd['pdbx_dist_value'])
+        input_dict['segname1']=input_dict['chainID1']
+        input_dict['segname2']=input_dict['chainID2']
+        input_dict.update({'ptnr1_auth_asym_id':cd['ptnr1_auth_asym_id'],
+            'ptnr2_auth_asym_id':cd['ptnr2_auth_asym_id'],
+            'ptnr1_auth_seq_id':cd['ptnr1_auth_seq_id'],
+            'ptnr2_auth_seq_id':cd['ptnr2_auth_seq_id']})
         input_dict.update({
                 'residue1':None,
                 'residue2':None,
@@ -732,7 +781,6 @@ class Link(AncestorAwareMod):
             })
         super().__init__(input_dict)
 
-    # TODO: Fix segname issues
     def write_TcL(self,W:Psfgen,transform):
         chainIDmap=transform.chainIDmap
         seg1=self.residue1.chainID
@@ -838,7 +886,9 @@ class LinkList(AncestorAwareModList):
 class Graft(AncestorAwareMod):
     yaml_header='grafts'
     modtype='topomod'
-    pass
+    @singledispatchmethod
+    def __init__(self,input_obj):
+        super().__init__(input_obj)
 
 class GraftList(AncestorAwareModList):
     pass
@@ -846,6 +896,9 @@ class GraftList(AncestorAwareModList):
 class Insertion(AncestorAwareMod):
     yaml_header='insertions'
     modtype='seqmod'
+    @singledispatchmethod
+    def __init__(self,input_obj):
+        super().__init__(input_obj)
     pass
 
 class InsertionList(AncestorAwareModList):
@@ -854,6 +907,9 @@ class InsertionList(AncestorAwareModList):
 class Cleavage(AncestorAwareMod):
     yaml_header='cleavages'
     modtype='seqmod'
+    @singledispatchmethod
+    def __init__(self,input_obj):
+        super().__init__(input_obj)
     pass
 
 class CleavageList(AncestorAwareModList):

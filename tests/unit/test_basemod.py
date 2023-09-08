@@ -1,9 +1,25 @@
 import unittest
 import pytest
-from pestifer.basemod import BaseMod, CloneableMod, AncestorAwareMod, ModList, CloneableModList, AncestorAwareModList, StateInterval, StateIntervalList
+from pestifer.basemod import BaseMod, CloneableMod, AncestorAwareMod, ModList, StateInterval, StateIntervalList
+from argparse import Namespace
 
 class TestBaseMod(unittest.TestCase):
-    def test1(self):
+    def test_basemod_empty(self):
+        a=BaseMod({})
+        self.assertEqual(type(a),BaseMod)
+    def test_basemod_undifferentiated_fromdict(self):
+        b=BaseMod({'a':1,'b':2})
+        self.assertEqual(type(b),BaseMod)
+        self.assertEqual(b.a,1)
+        self.assertEqual(b.b,2)
+    def test_basemod_fromnamespace(self):
+        z=Namespace(a=1,b=2)
+        b=BaseMod(z)
+        self.assertEqual(type(b),BaseMod)
+        self.assertEqual(b.a,1)
+        self.assertEqual(b.b,2)
+
+    def test_basemod_catch_mutuals_notrequired(self):
         # required attributes are not in mutual exclusives
         class tbm(BaseMod):
             req_attr=['R1','R2','R3']
@@ -11,15 +27,18 @@ class TestBaseMod(unittest.TestCase):
             alt_attr=[('R1','O2')] # wrong!
         with pytest.raises(AssertionError) as E:
             a=tbm({'R1':1,'R2':2,'R3':3})
+            print(a.__dict__)
         self.assertEqual(E.type,AssertionError)
-    def test2(self):
+
+    def test_basemod_catch_required(self):
         # all required attributes have values
         class tbm(BaseMod):
             req_attr=['R1','R2','R3']
         with pytest.raises(AssertionError) as E:
             a=tbm({'R1':1,'R2':2})
         self.assertEqual(E.type,AssertionError)
-    def test3(self):
+
+    def test_basemod_mutuals_satisfied(self):
         # all mutual exclusivity requirements are met
         class tbm(BaseMod):
             req_attr=['R1','R2','R3']
@@ -28,7 +47,8 @@ class TestBaseMod(unittest.TestCase):
         with pytest.raises(AssertionError) as E:
             a=tbm({'R1':1,'R2':2,'R3':3,'O1':4,'O2':5})
         self.assertEqual(E.type,AssertionError)
-    def test4(self):
+
+    def test_basemod_choices_met(self):
         # all attributes with limited set of possible values have valid values
         class tbm(BaseMod):
             req_attr=['R1','R2','R3']
@@ -38,7 +58,8 @@ class TestBaseMod(unittest.TestCase):
         with pytest.raises(AssertionError) as E:
             a=tbm({'R1':1,'R2':2,'R3':3})
         self.assertEqual(E.type,AssertionError)
-    def test5(self):
+
+    def test_basemod_optional_dependents_met(self):
         # for each optional attribute present, all required dependent attributes are also present
         class tbm(BaseMod):
             req_attr=['R1','R2','R3']
@@ -48,7 +69,7 @@ class TestBaseMod(unittest.TestCase):
             a=tbm({'R1':1,'R2':2,'R3':3,'O1':4})
         self.assertEqual(E.type,AssertionError)
 
-    def test6(self):
+    def test_basemod_equality(self):
         class tbm(BaseMod):
             req_attr=['a','b']
         id1={'a':1,'b':2}
@@ -58,7 +79,7 @@ class TestBaseMod(unittest.TestCase):
         bm2=tbm(id1)
         self.assertTrue(bm1==bm2)
 
-    def test_binary_logic(self):
+    def test_basemod_relational(self):
         class tbm(BaseMod):
             req_attr=['a','b']
         bm1=tbm({'a':1,'b':2})
@@ -92,7 +113,7 @@ class TestStateInterval(unittest.TestCase):
         self.assertEqual(len(StateInterval.req_attr),2)
 
 class TestCloneableMod(unittest.TestCase):
-    def test_cloneable(self):
+    def test_cloneablemod(self):
         class MyCloneable(CloneableMod):
             req_attr=CloneableMod.req_attr.copy()
             req_attr.extend(['a','b'])
@@ -119,7 +140,7 @@ class TestCloneableMod(unittest.TestCase):
         self.assertEqual(c3.get_original(),c1)
 
 class TestAncestorAwareMod(unittest.TestCase):
-    def test_init_ancestor_aware_mod(self):
+    def test_ancestorawaremod_init(self):
         self.assertEqual(AncestorAwareMod.req_attr,[])
         self.assertEqual(AncestorAwareMod.opt_attr,['ancestor_obj'])
         class MyAncestorAwareMod(AncestorAwareMod):

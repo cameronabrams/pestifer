@@ -1,5 +1,5 @@
 import unittest
-from pestifer.residue import Residue, Missing
+from pestifer.residue import Residue, EmptyResidue
 from pestifer.config import Config
 from pestifer.molecule import Molecule
 from pestifer.cifutil import CIFdict, CIFload
@@ -96,21 +96,21 @@ source:
         self.assertEqual(a.serial,3302)
 
 
-class TestMissing(unittest.TestCase):
+class TestEmptyResidue(unittest.TestCase):
     def setUp(self):
         return super().setUp()
     def test_pdbrecord(self):
         p=PDBParser(PDBcode='4i53').parse()
         self.assertTrue('REMARK.465' in p.parsed)
         r=p.parsed['REMARK.465'].tables['MISSING'][0]
-        m=Missing(r)
+        m=EmptyResidue(r)
         self.assertEqual(m.model,'')
         self.assertEqual(m.resname,'VAL')
         self.assertEqual(m.chainID,'A')
         self.assertEqual(m.resseqnum,44)
         self.assertEqual(m.insertion,'')
         r=p.parsed['REMARK.465'].tables['MISSING'][14]
-        m=Missing(r)
+        m=EmptyResidue(r)
         self.assertEqual(m.model,'')
         self.assertEqual(m.resname,'GLY')
         self.assertEqual(m.chainID,'A')
@@ -119,7 +119,7 @@ class TestMissing(unittest.TestCase):
     def test_cifdict(self):
         p=CIFload('4i53')
         obj=p.getObj('pdbx_unobs_or_zero_occ_residues')
-        m=Missing(CIFdict(obj,0))
+        m=EmptyResidue(CIFdict(obj,0))
         self.assertEqual(m.model,1)
         self.assertEqual(m.resname,'VAL')
         self.assertEqual(m.chainID,'A')

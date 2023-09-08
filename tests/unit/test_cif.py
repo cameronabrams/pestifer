@@ -2,7 +2,7 @@ import unittest
 from pestifer.cifutil import CIFdict, CIFload
 from pidibble.pdbparse import PDBParser
 from mmcif.api.PdbxContainers import DataContainer
-from pestifer.residue import Atom, AtomList, ResidueList, Missing, MissingList
+from pestifer.residue import Atom, AtomList, ResidueList, EmptyResidue, EmptyResidueList
 from pestifer.config import Config
 from pestifer.scriptwriters import VMD
 from pestifer.bioassemb import Transform, TransformList, BioAssemb, BioAssembList
@@ -166,10 +166,10 @@ class TestCIF(unittest.TestCase):
         obj=pr.getObj('struct_ref_seq_dif')
         Seqadvs=SeqadvList([Seqadv(CIFdict(obj,i)) for i in range(len(obj))])
         obj=pr.getObj('pdbx_unobs_or_zero_occ_residues')
-        Missings=MissingList([Missing(CIFdict(obj,i)) for i in range(len(obj))])
+        EmptyResidues=EmptyResidueList([EmptyResidue(CIFdict(obj,i)) for i in range(len(obj))])
         fromAtoms=ResidueList(Atoms)
-        fromMissings=ResidueList(Missings)
-        Residues=fromAtoms+fromMissings
+        fromEmptyResidues=ResidueList(EmptyResidues)
+        Residues=fromAtoms+fromEmptyResidues
         for s in Seqadvs:
             myres=Residues.get(
                 auth_asym_id = s.pdbx_pdb_strand_id,

@@ -10,8 +10,7 @@ from .mods import *
 from .mods import AncestorAwareModList,AncestorAwareMod
 from .config import segtype_of_resname
 from pidibble.baserecord import BaseRecord
-
-
+from functools import singledispatchmethod
 
 class Atom(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
@@ -20,63 +19,63 @@ class Atom(AncestorAwareMod):
     PDB_keyword='ATOM'
     mmCIF_name='atom_site'
 
+    @singledispatchmethod
     def __init__(self,input_obj):
-        if type(input_obj)==dict:
-            super().__init__(input_obj)
-        elif type(input_obj)==PDBRecord:
-            pdbrecord=input_obj
-            input_dict={
-                'serial':pdbrecord.serial,
-                'name':pdbrecord.name,
-                'altloc':pdbrecord.altLoc,
-                'resname':pdbrecord.residue.resName,
-                'chainID':pdbrecord.residue.chainID,
-                'resseqnum':pdbrecord.residue.seqNum,
-                'insertion':pdbrecord.residue.iCode,
-                'x':pdbrecord.x,
-                'y':pdbrecord.y,
-                'z':pdbrecord.z,
-                'occ':pdbrecord.occupancy,
-                'beta':pdbrecord.tempFactor,
-                'elem':pdbrecord.element,
-                'charge':pdbrecord.charge
-            }
-            input_dict['segname']=input_dict['chainID']
-            input_dict['link']='None'
-            input_dict['empty']=False
-            super().__init__(input_dict)
-        elif type(input_obj)==CIFdict:
-            cifdict=input_obj
-            seq_id=cifdict['label_seq_id']
-            if seq_id=='':
-                seq_id=cifdict['auth_seq_id']
-            input_dict={
-                'recordname':'ATOM',
-                'serial':int(cifdict['id']),
-                'name':cifdict['label_atom_id'],
-                'altloc':cifdict['label_alt_id'],
-                'resname':cifdict['label_comp_id'],
-                'chainID':cifdict['label_asym_id'],
-                'resseqnum':int(seq_id),
-                'insertion':cifdict['pdbx_pdb_ins_code'],
-                'x':float(cifdict['cartn_x']),
-                'y':float(cifdict['cartn_y']),
-                'z':float(cifdict['cartn_z']),
-                'occ':float(cifdict['occupancy']),
-                'beta':float(cifdict['b_iso_or_equiv']),
-                'elem':cifdict['type_symbol'],
-                'charge':cifdict['pdbx_formal_charge'],
-                'auth_atom_id':cifdict['auth_atom_id'],
-                'auth_seq_id':int(cifdict['auth_seq_id']),
-                'auth_comp_id':cifdict['auth_comp_id'],
-                'auth_asym_id':cifdict['auth_asym_id']
-            }
-            input_dict['segname']=input_dict['chainID']
-            input_dict['link']='None'
-            input_dict['empty']=False
-            super().__init__(input_dict)
-        else:
-            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
+        super().__init__(input_obj)
+    
+    @__init__.register(PDBRecord)
+    def _from_pdbrecord(self,pdbrecord):
+        input_dict={
+            'serial':pdbrecord.serial,
+            'name':pdbrecord.name,
+            'altloc':pdbrecord.altLoc,
+            'resname':pdbrecord.residue.resName,
+            'chainID':pdbrecord.residue.chainID,
+            'resseqnum':pdbrecord.residue.seqNum,
+            'insertion':pdbrecord.residue.iCode,
+            'x':pdbrecord.x,
+            'y':pdbrecord.y,
+            'z':pdbrecord.z,
+            'occ':pdbrecord.occupancy,
+            'beta':pdbrecord.tempFactor,
+            'elem':pdbrecord.element,
+            'charge':pdbrecord.charge
+        }
+        input_dict['segname']=input_dict['chainID']
+        input_dict['link']='None'
+        input_dict['empty']=False
+        super().__init__(input_dict)
+
+    @__init__.register(CIFdict)
+    def _from_cifdict(self,cifdict):
+        seq_id=cifdict['label_seq_id']
+        if seq_id=='':
+            seq_id=cifdict['auth_seq_id']
+        input_dict={
+            'recordname':'ATOM',
+            'serial':int(cifdict['id']),
+            'name':cifdict['label_atom_id'],
+            'altloc':cifdict['label_alt_id'],
+            'resname':cifdict['label_comp_id'],
+            'chainID':cifdict['label_asym_id'],
+            'resseqnum':int(seq_id),
+            'insertion':cifdict['pdbx_pdb_ins_code'],
+            'x':float(cifdict['cartn_x']),
+            'y':float(cifdict['cartn_y']),
+            'z':float(cifdict['cartn_z']),
+            'occ':float(cifdict['occupancy']),
+            'beta':float(cifdict['b_iso_or_equiv']),
+            'elem':cifdict['type_symbol'],
+            'charge':cifdict['pdbx_formal_charge'],
+            'auth_atom_id':cifdict['auth_atom_id'],
+            'auth_seq_id':int(cifdict['auth_seq_id']),
+            'auth_comp_id':cifdict['auth_comp_id'],
+            'auth_asym_id':cifdict['auth_asym_id']
+        }
+        input_dict['segname']=input_dict['chainID']
+        input_dict['link']='None'
+        input_dict['empty']=False
+        super().__init__(input_dict)
     
     def pdb_line(self):
         pdbline='{:<6s}'.format(self.recordname)+\
@@ -123,48 +122,107 @@ class Hetatm(Atom):
     PDB_keyword='HETATM'
     yaml_header='hetatoms'
 
-class Residue(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['resseqnum','insertion','name','chainID','segtype','resolved']
-    opt_attr=AncestorAwareMod.opt_attr+['atoms','up','down','uplink','downlink','resseqnumi','auth_seq_id','auth_comp_id','auth_asym_id']
-    ignore_attr=AncestorAwareMod.ignore_attr+['atoms','up','down','uplink','downlink','resseqnumi']
-    _counter=0
+class EmptyResidue(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['resname','resseqnum','insertion','chainID','resolved','segtype']
+    opt_attr=AncestorAwareMod.opt_attr+['model','id','auth_asym_id','auth_comp_id','auth_seq_id']
+    yaml_header='missings'
+    PDB_keyword='REMARK.465'
+    mmCIF_name='pdbx_unobs_or_zero_occ_residues'
+
+    @singledispatchmethod
     def __init__(self,input_obj):
-        if type(input_obj)==dict:
-            super().__init__(input_obj)
-        elif type(input_obj) in [Atom,Hetatm]:
-            a=input_obj
-            input_dict={
-                'resseqnum':a.resseqnum,
-                'insertion':a.insertion,
-                'name':a.resname,
-                'chainID':a.chainID,
-                'atoms':AtomList([a]),
-                'segtype':'UNSET',
-                'resseqnumi':f'{a.resseqnum}{a.insertion}',
-                'resolved':True
-            }
-            for cif_xtra in ['auth_seq_id','auth_comp_id','auth_asym_id']:
-                if hasattr(a,cif_xtra):
-                    input_dict[cif_xtra]=a.__dict__[cif_xtra]
-            super().__init__(input_dict)
-        elif type(input_obj)==Missing:
-            m=input_obj
-            input_dict={
-                'resseqnum':m.resseqnum,
-                'insertion':m.insertion,
-                'name':m.resname,
-                'chainID':m.chainID,
-                'segtype':'UNSET',
-                'resolved':False
-            }
-            input_dict['resseqnumi']=f'{m.resseqnum}{m.insertion}'
-            input_dict['atoms']=AtomList([])
-            for cif_xtra in ['auth_asym_id','auth_comp_id','auth_seq_id']:
-                if hasattr(m,cif_xtra):
-                    input_dict[cif_xtra]=m.__dict__[cif_xtra]
-            super().__init__(input_dict)
+        super().__init__(input_obj)
+    
+    @__init__.register(PDBRecord)
+    def _from_pdbrecord(self,pdbrecord):
+        input_dict={
+            'model':pdbrecord.modelNum,
+            'resname':pdbrecord.resName,
+            'chainID':pdbrecord.chainID,
+            'resseqnum':pdbrecord.seqNum,
+            'insertion':pdbrecord.iCode,
+            'resolved':False,
+            'segtype':'UNSET'
+        }
+        super().__init__(input_dict)
+    
+    @__init__.register(CIFdict)
+    def _from_cifdict(self,cd):
+        mn=cd['pdb_model_num']
+        if type(mn)==str and mn.isdigit:
+            nmn=int(mn)
         else:
-            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
+            nmn=1
+        input_dict={
+            'model':nmn,
+            'resname':cd['label_comp_id'],
+            'chainID':cd['label_asym_id'],
+            'resseqnum':int(cd['label_seq_id']),
+            'insertion':cd['pdb_ins_code'],
+            'resolved':False,
+            'segtype':'UNSET',
+            'auth_asym_id':cd['auth_asym_id'],
+            'auth_comp_id':cd['auth_comp_id'],
+            'auth_seq_id':int(cd['auth_seq_id']),
+        }
+        super().__init__(input_dict)
+
+    def pdb_line(self):
+        record_name,code=EmptyResidue.PDB_keyword.split('.')
+        return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>5d}{:1s}'.format(record_name,
+        code,self.model,self.resname,self.chainID,self.resseqnum,self.insertion)
+
+class EmptyResidueList(AncestorAwareModList):
+    pass
+
+class Residue(EmptyResidue):
+    req_attr=AncestorAwareMod.req_attr+['atoms']
+    opt_attr=EmptyResidue.opt_attr+['up','down','uplink','downlink']
+    ignore_attr=EmptyResidue.ignore_attr+['atoms','up','down','uplink','downlink']
+    _counter=0
+
+    @singledispatchmethod
+    def __init__(self,input_obj):
+        super().__init__(input_obj)
+    
+    @__init__.register(Atom)
+    @__init__.register(Hetatm)
+    def _from_atom(self,a):
+        input_dict={
+            'resseqnum':a.resseqnum,
+            'insertion':a.insertion,
+            'resname':a.resname,
+            'chainID':a.chainID,
+            'atoms':AtomList([a]),
+            'segtype':'UNSET',
+            'resolved':True
+        }
+        for cif_xtra in ['auth_seq_id','auth_comp_id','auth_asym_id']:
+            if hasattr(a,cif_xtra):
+                input_dict[cif_xtra]=a.__dict__[cif_xtra]
+        super().__init__(input_dict)
+        self.index=Residue._counter
+        Residue._counter+=1
+        self.down=[]
+        self.downlink=[]
+        self.up=[]
+        self.uplink=[]
+
+    @__init__.register(EmptyResidue)
+    def _from_emptyresidue(self,m):
+        input_dict={
+            'resseqnum':m.resseqnum,
+            'insertion':m.insertion,
+            'resname':m.resname,
+            'chainID':m.chainID,
+            'atoms':AtomList([]),
+            'segtype':'UNSET',
+            'resolved':False
+        }
+        for cif_xtra in ['auth_asym_id','auth_comp_id','auth_seq_id']:
+            if hasattr(m,cif_xtra):
+                input_dict[cif_xtra]=m.__dict__[cif_xtra]
+        super().__init__(input_dict)
         self.index=Residue._counter
         Residue._counter+=1
         self.down=[]
@@ -221,26 +279,27 @@ class Residue(AncestorAwareMod):
         return res,lin
     
 class ResidueList(AncestorAwareModList):
+
+    @singledispatchmethod
     def __init__(self,input_obj):
-        if type(input_obj)==list:
-            super().__init__(input_obj)
-        elif type(input_obj)==AtomList:
-            atoms=input_obj
-            R=[]
-            for a in atoms:
-                for r in R[::-1]:
-                    if r.add_atom(a):
-                        break
-                else:
-                    R.append(Residue(a))
-            super().__init__(R)
-        elif type(input_obj)==MissingList:
-            R=[Residue(m) for m in input_obj]
-            super().__init__(R)
-        elif type(input_obj)==ResidueList:
-            super().__init__(input_obj)
-        else:
-            logger.warning(f'Error: cannot initialize object of type {type(self)} with object of type {type(input_obj)}')
+        super().__init__(input_obj)
+
+    @__init__.register(AtomList)
+    def _from_atomlist(self,atoms):
+        R=[]
+        for a in atoms:
+            for r in R[::-1]:
+                if r.add_atom(a):
+                    break
+            else:
+                R.append(Residue(a))
+        super().__init__(R)
+    
+    @__init__.register(EmptyResidueList)
+    def _from_emptyresiduelist(self,input_list):
+        R=[Residue(m) for m in input_list]
+        super().__init__(R)
+
     def map_chainIDs_label_to_auth(self):
         self.chainIDmap_cif_to_pdb={}
         for r in self:
@@ -254,12 +313,6 @@ class ResidueList(AncestorAwareModList):
     def get_atom(self,atname,**fields):
         S=('atoms',{'name':atname})
         return self.get_attr(S,**fields)
-    # def unique_chainIDs(self):
-    #     c=[]
-    #     for r in self:
-    #         if not r.chainID in c:
-    #             c.append(r.chainID)
-    #     return c
     def atom_serials(self,as_type=str):
         serlist=[]
         for res in self:
@@ -363,51 +416,3 @@ class ResidueList(AncestorAwareModList):
             self.remove(r)
         return newseqadv,delete_us
 
-class Missing(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['resname','resseqnum','insertion','chainID']
-    opt_attr=AncestorAwareMod.opt_attr+['model','id','auth_asym_id','auth_comp_id','auth_seq_id']
-    yaml_header='missings'
-    PDB_keyword='REMARK.465'
-    mmCIF_name='pdbx_unobs_or_zero_occ_residues'
-    def __init__(self,input_obj):
-        if type(input_obj)==dict:
-            super().__init__(input_obj)
-            self.model=''
-        elif type(input_obj) in [PDBRecord,BaseRecord]:
-            pdbrecord=input_obj
-            input_dict={
-                'model':pdbrecord.modelNum,
-                'resname':pdbrecord.resName,
-                'chainID':pdbrecord.chainID,
-                'resseqnum':pdbrecord.seqNum,
-                'insertion':pdbrecord.iCode
-            }
-            super().__init__(input_dict)
-        elif type(input_obj)==CIFdict:
-            cd=input_obj
-            mn=cd['pdb_model_num']
-            if type(mn)==str and mn.isdigit:
-                nmn=int(mn)
-            else:
-                nmn=1
-            input_dict={
-                'model':nmn,
-                'resname':cd['label_comp_id'],
-                'chainID':cd['label_asym_id'],
-                'resseqnum':int(cd['label_seq_id']),
-                'insertion':cd['pdb_ins_code'],
-                'auth_asym_id':cd['auth_asym_id'],
-                'auth_comp_id':cd['auth_comp_id'],
-                'auth_seq_id':int(cd['auth_seq_id']),
-            }
-            super().__init__(input_dict)
-        else:
-            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
-            
-    def pdb_line(self):
-        record_name,code=Missing.PDB_keyword.split(',')
-        return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>5d}{:1s}'.format(record_name,
-        code,self.model,self.resname,self.chainID,self.resseqnum,self.insertion)
-
-class MissingList(AncestorAwareModList):
-    pass

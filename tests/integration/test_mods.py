@@ -1,36 +1,103 @@
-from pestifer.mods import Mutation, Seqadv, SSBond, Crot, Link
+from pestifer.mods import Mutation, Ter, Seqadv, SSBond, Crot, Link
 from pestifer.cifutil import CIFdict, CIFload
 from pidibble.pdbparse import PDBParser
 from pestifer.bioassemb import Transform
 from pestifer.config import Config, segtype_of_resname
 from pestifer.stringthings import ByteCollector
+from pidibble.pdbparse import PDBRecord, PDBParser
+from pestifer.cifutil import CIFload
 import unittest
 # import pytest
 
+class TestTer(unittest.TestCase):
+    def test_ter_fromdict(self):
+        d={'serial':-1,'chainID':'A','resname':'ABC','resseqnum':1,'insertion':''}
+        t=Ter(d)
+        self.assertEqual(type(t),Ter)
+        self.assertEqual(d['serial'],t.serial)
+        self.assertEqual(d['chainID'],t.chainID)
+    def test_ter_frompdbrecord(self):
+        p=PDBParser(PDBcode='4zmj').parse()
+        pr=p.parsed['TER'][0]
+        t=Ter(pr)
+        self.assertEqual(type(t),Ter)
+
+class TestSeqadv(unittest.TestCase):
+    def test_seqadv_fromdict(self):
+        d={a:0 for a in Seqadv.req_attr}
+        d['typekey']='user'
+        s=Seqadv(d)
+        self.assertEqual(type(s),Seqadv)
+        self.assertEqual(d['idCode'],s.idCode)
+    def test_seqadv_frompdbrecord(self):
+        p=PDBParser(PDBcode='4zmj').parse()
+        pr=p.parsed['SEQADV'][0]
+        s=Seqadv(pr)
+        self.assertEqual(type(s),Seqadv)
+    def test_seqadv_fromcifdict(self):
+        p=CIFload('4zmj')
+        obj=p.getObj(Seqadv.mmCIF_name)
+        d=CIFdict(obj,0)
+        s=Seqadv(d)
+        self.assertEqual(type(s),Seqadv)
+
+
 class TestMutation(unittest.TestCase):
-    def setUp(self):
-        self.input_dict={
+    def test_mutation_fromdict(self):
+        input_dict={
             'chainID':'A',
             'origresname':'PHE',
             'newresname':'TYR',
             'resseqnum':'123',
             'insertion':'A',
-            'source':'USER'
+            'typekey':'user'
         }
-        self.shortcode='A:PHE,123A,TYR'
-        return super().setUp()
-    def test_init(self):
-        m=Mutation(self.input_dict)
+        m=Mutation(input_dict)
         self.assertTrue(type(m)==Mutation)
-    def test_shortcode(self):
-        m=Mutation(self.shortcode)
+
+    def test_mutation_fromshortcode(self):
+        c=Config()
+        shortcode='A:PHE,123A,TYR'
+        m=Mutation(shortcode)
         self.assertTrue(m.chainID=='A' and m.resseqnum==123 and m.insertion=='A')
-    def test_clone(self):
-        m=Mutation(self.input_dict)
-        n=Mutation.clone(m,chainID=m.chainID)
+        another_format='A:F11T' #must call Config() to set up the dicts
+        m=Mutation(another_format)
+        self.assertEqual(m.chainID,'A')
+        self.assertEqual(m.origresname,'PHE')
+        self.assertEqual(m.newresname,'THR')
+        self.assertEqual(m.resseqnum,11)
+        self.assertEqual(m.insertion,'')
+
+    def test_mutation_fromseqadv(self):
+        p=PDBParser(PDBcode='4zmj').parse()
+        pr=p.parsed['SEQADV'][0]
+        s=Seqadv(pr)
+        m=Mutation(s)
+        self.assertEqual(type(m),Mutation)
+
+    def test_mutation_clone_exact(self):
+        input_dict={
+            'chainID':'A',
+            'origresname':'PHE',
+            'newresname':'TYR',
+            'resseqnum':'123',
+            'insertion':'A',
+            'typekey':'user'
+        }
+        m=Mutation(input_dict)
+        n=m.clone(chainID=m.chainID)
         self.assertTrue(m==n and not m is n)
-    def test_clone2(self):
-        m=Mutation(self.input_dict)
+        
+    def test_mutation_clone_nonexact(self):
+        input_dict={
+            'chainID':'A',
+            'origresname':'PHE',
+            'newresname':'TYR',
+            'resseqnum':'123',
+            'insertion':'A',
+            'typekey':'user'
+        }
+        m=Mutation(input_dict)
         newchainid=chr((ord(m.chainID)+1)%26)
         n=Mutation.clone(m,chainID=newchainid)
         self.assertTrue(n.chainID==newchainid and n.resseqnum==m.resseqnum)

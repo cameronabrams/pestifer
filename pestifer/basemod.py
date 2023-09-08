@@ -27,6 +27,7 @@ import inspect
 from collections import UserList
 logger=logging.getLogger(__name__)
 from argparse import Namespace
+from functools import singledispatchmethod
 
 class BaseMod(Namespace):
     """A class defining a namespace with custom attribute controls.
@@ -62,7 +63,6 @@ class BaseMod(Namespace):
         e.g., {'flavor':['is_edible','is_flavorable'], ...}
     ignore_att : list
         attributes whose values are ignored when comparing instances
-
 
     Methods
     -------
@@ -126,18 +126,34 @@ class BaseMod(Namespace):
     attr_choices={}
     opt_attr_deps={}
     ignore_attr=[]
-    def __init__(self,input_dict={}):
-        """
+
+    @singledispatchmethod
+    def __init__(self,input_obj):
+        """Default constructor fails; all constructions are argument-type dependent """
+        msg=f'Cannot initialize {self.__class__} from object type {type(input_obj)}'
+        logger.error(msg)
+        raise TypeError(msg)
+
+    @__init__.register(Namespace)
+    def _from_namespace(self,ns):
+        super().__init__(**(ns.__dict__))
+
+    @__init__.register(dict)
+    def _from_dict(self,input_dict):
+        """BaseMod constructor when single positional argument is a dict
         Parameters
         ----------
-        input_dict : dict, optional
+        input_dict : dict
             dictionary of input attribute:value pairs
         """
         # mutually exclusive attribute labels should not appear in the list of required attributes
         assert all([(not x in self.req_attr and not y in self.req_attr) for x,y in self.alt_attr]),"Mutually exclusive attributes should not appear in the required list"
         prep_dict={}
         for k,v in input_dict.items():
-            if k in self.req_attr or k in self.opt_attr:
+            if not self.req_attr and not self.opt_attr:
+                # let's treat an undifferentiated BaseMod like a Namespace
+                prep_dict[k]=v
+            elif k in self.req_attr or k in self.opt_attr:
                 prep_dict[k]=v
         # all required attributes have values
         assert all([att in prep_dict.keys() for att in self.req_attr]),f"Not all required attributes have values\nRequired: {self.req_attr}\nProvided: {list(prep_dict.keys())}"

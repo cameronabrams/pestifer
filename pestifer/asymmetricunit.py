@@ -9,7 +9,7 @@
 import logging
 from .mods import *
 from argparse import Namespace
-from .residue import ResidueList,AtomList,Atom,Hetatm,Ter,TerList,Missing,MissingList
+from .residue import ResidueList,AtomList,Atom,Hetatm,Ter,TerList,EmptyResidue,EmptyResidueList
 from .segment import SegmentList
 from .basemod import AncestorAwareMod
 from .modcontainer import ModContainer
@@ -37,36 +37,34 @@ class AsymmetricUnit(AncestorAwareMod):
             mods=objs.get('usermodspecs',ModContainer())
             logger.debug(f'User mods {type(mods)} at asymmetric unit: {mods.__dict__}')
             chainIDmanager=objs.get('chainIDmanager',None)
-            missings=MissingList([])
+            missings=EmptyResidueList([])
             ssbonds=SSBondList([])
             links=LinkList([])
             ters=TerList([])
             seqadvs=SeqadvList([])
             if type(pr)==dict: # PDB format
                 # minimal pr has ATOMS
-                atoms=AtomList([Atom(p) for p in pr['ATOM']])
-                if 'HETATM' in pr:
-                    atoms.extend([Hetatm(p) for p in pr['HETATM']])
-                if 'TER' in pr:
-                    ters=TerList([Ter(p) for  p in pr['TER']])
-                    atoms.adjustSerials(ters) # VMD (1) ignors TERs and (2) *computes and assigns* serials
-                    mods.seqmods.terminals=ters
+                atoms=AtomList([Atom(p) for p in pr[Atom.PDB_keyword]])
+                atoms.extend([Hetatm(p) for p in pr.get(Hetatm.PDB_keyword,[])])
+                ters=TerList([Ter(p) for  p in pr.get(Ter.PDB_keyword,[])])
+                atoms.adjustSerials(ters)
+                mods.seqmods.terminals=ters
                 if 'REMARK.465' in pr:
-                    missings=MissingList([Missing(p) for p in pr['REMARK.465'].tables['MISSING']])
+                    missings=EmptyResidueList([EmptyResidue(p) for p in pr['REMARK.465'].tables['MISSING']])
                 if 'SSBOND' in pr:
-                    ssbonds=SSBondList([SSBond(p) for p in pr['SSBOND']])  
+                    ssbonds=SSBondList([SSBond(p) for p in pr[SSBond.PDB_keyword]])  
                 if 'SEQADV' in pr:
-                    seqadvs=SeqadvList([Seqadv(p) for p in pr['SEQADV']])
+                    seqadvs=SeqadvList([Seqadv(p) for p in pr[Seqadv.PDB_keyword]])
                 if 'LINK' in pr:
-                    links=LinkList([Link(p) for p in pr['LINK']])
+                    links=LinkList([Link(p) for p in pr[Link.PDB_keyword]])
             elif type(pr)==DataContainer: # mmCIF format
-                obj=pr.getObj('atom_site')
+                obj=pr.getObj(Atom.mmCIF_name)
                 atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
-                obj=pr.getObj('struct_ref_seq_dif')
+                obj=pr.getObj(Seqadv.mmCIF_name)
                 seqadvs=SeqadvList([Seqadv(CIFdict(obj,i)) for i in range(len(obj))])
                 logger.debug(f'{len(seqadvs)} seqadv detected; typekeys: {[s.typekey for s in seqadvs]}')
-                obj=pr.getObj('pdbx_unobs_or_zero_occ_residues')
-                missings=MissingList([Missing(CIFdict(obj,i)) for i in range(len(obj))])
+                obj=pr.getObj(EmptyResidue.mmCIF_name)
+                missings=EmptyResidueList([EmptyResidue(CIFdict(obj,i)) for i in range(len(obj))])
                 obj=pr.getObj('struct_conn')
                 ssdicts=[]
                 lndicts=[]
@@ -81,10 +79,10 @@ class AsymmetricUnit(AncestorAwareMod):
 
             # Build the list of residues
             fromAtoms=ResidueList(atoms)
-            fromMissings=ResidueList(missings)
-            residues=fromAtoms+fromMissings
+            fromEmptyResidues=ResidueList(missings)
+            residues=fromAtoms+fromEmptyResidues
             residues.apply_segtypes()
-            # apply seqmods?
+            # apply seqmods
             if hasattr(mods.seqmods,'deletions'):
                 residues.deletion(mods.seqmods.deletions)
             if hasattr(mods.seqmods,'substitutions'):
@@ -97,7 +95,7 @@ class AsymmetricUnit(AncestorAwareMod):
             logger.debug(f'{len(residues)} total residues: {nResolved} resolved and {nUnresolved} unresolved')
             if hasattr(mods.seqmods,'deletions'):
                 nResolvedDelete=len(fromAtoms)-nResolved
-                nUnresolvedDelete=len(fromMissings)-nUnresolved
+                nUnresolvedDelete=len(fromEmptyResidues)-nUnresolved
                 logger.debug(f'Deletions removed {nResolvedDelete} resolved and {nUnresolvedDelete} unresolved residues')
             logger.debug(f'Segtypes present: {uniques["segtype"]}')
             # Delete any residues dictated by user-specified exclusions
