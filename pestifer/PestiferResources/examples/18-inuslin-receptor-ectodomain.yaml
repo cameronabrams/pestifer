@@ -1,0 +1,19 @@
+title: insulin receptor ectodomain, Fabs removed
+tasks:
+  - psfgen:
+      source:
+        id: 4zxb
+        biological_assembly: 1
+      exclude:
+        chains:
+          - A
+          - B
+          - C
+          - D
+  - solvate:
+  - relax:
+      ensemble: NPT
+  - terminate:
+      basename: my_4zxb
+      package:
+        basename: prod_4zxb

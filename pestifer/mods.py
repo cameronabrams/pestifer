@@ -51,6 +51,7 @@ from .stringthings import split_ri
 from .scriptwriters import Psfgen
 from .config import res_123
 from functools import singledispatchmethod
+from .coord import measure_dihedral, ic_reference_closest
 
 ModTypes=['seqmod','topomod','coormod','generic']
 
@@ -661,6 +662,7 @@ class SSBond(AncestorAwareMod):
             'residue2':None
         }
         super().__init__(input_dict)
+        logger.debug(f'parsed {self}')
     
     @__init__.register(CIFdict)
     def _from_cifdict(self,cd):
@@ -706,12 +708,29 @@ class SSBond(AncestorAwareMod):
             'insertion2':'',
             'length':0.0,
             'sym1':'',
-            'sym2':''
+            'sym2':'',
+            'residue1':None,
+            'residue2':None
         }
         super().__init__(input_dict)
 
     def __str__(self):
-        return f'{self.chainID1}_{self.resseqnum1}{self.insertion1}-{self.chainID2}_{self.resseqnum2}{self.insertion2}'
+        c1=self.chainID1
+        r1=self.resseqnum1
+        i1=self.insertion1
+        if self.residue1:
+            c1=self.residue1.chainID
+            r1=self.residue1.resseqnum
+            i1=self.residue1.insertion
+        c2=self.chainID2
+        r2=self.resseqnum2
+        i2=self.insertion2
+        if self.residue2:
+            c2=self.residue2.chainID
+            r2=self.residue2.resseqnum
+            i2=self.residue2.insertion
+        # return f'{self.chainID1}_{self.resseqnum1}{self.insertion1}-{self.chainID2}_{self.resseqnum2}{self.insertion2}'
+        return f'{c1}_{r1}{i1}-{c2}_{r2}{i2}'
 
     def pdb_line(self):
         pdbline='SSBOND'+\
@@ -733,6 +752,7 @@ class SSBond(AncestorAwareMod):
     def write_TcL(self,W:Psfgen,transform):
         chainIDmap=transform.chainIDmap 
         # ok since these are only going to reference protein segments; protein segment names are the chain IDs
+        logger.debug(f'writing patch for {self}')
         c1=chainIDmap.get(self.chainID1,self.chainID1)
         c2=chainIDmap.get(self.chainID2,self.chainID2)
         r1=self.resseqnum1
@@ -742,7 +762,7 @@ class SSBond(AncestorAwareMod):
 class SSBondList(AncestorAwareModList):
     def assign_residues(self,Residues):
         ignored_by_ptnr1=self.assign_objs_to_attr('residue1',Residues,resseqnum='resseqnum1',chainID='chainID1',insertion='insertion1')
-        ignored_by_ptnr2=self.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID1',insertion='insertion2')
+        ignored_by_ptnr2=self.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID2',insertion='insertion2')
         return self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
     def write_TcL(self,W:Psfgen,transform):
         for s in self:
@@ -836,6 +856,7 @@ class Link(AncestorAwareMod):
                 'segtype2':'UNSET',
             })
         super().__init__(input_dict)
+        logger.debug(f'parsed {self}')
     
     @__init__.register(CIFdict)
     def _from_cifdict(self,cd):
@@ -878,6 +899,116 @@ class Link(AncestorAwareMod):
             })
         super().__init__(input_dict)
 
+    def set_patchname(self):
+        """Determine the charmff patch residue name for this link based on
+        residue names, atom names, and when necessary, 3D geometry of a 
+        particular dihedral angle around the link's bond
+        
+        New Attributes
+        --------------
+        patchname: str
+           charmff pres name
+        
+        patchorder: list
+            [1,2] if residue 1 appears first in the pres listing
+            [2,1] if residue 2 appears first in the pres listing
+        """
+        self.patchname=''
+        self.patchorder=[1,2]
+        logger.debug(f'patch assignment for link {str(self)}')
+        if not self.residue1 and not self.residue2:
+            logger.debug(f'missing residue')
+            logger.debug(f'1 {self.residue1}')
+            logger.debug(f'2 {self.residue2}')
+            return
+        my_res12=[self.residue1,self.residue2]
+        if self.resname1=='ASN' and self.segtype2=='glycan':
+            # N-linked glycosylation site (toppar_all36_carb_glycopeptide)
+            ICmap=[
+                {'ICatomnames':['1CG','1ND2','2C1','2O5'],
+                 'mapping':{'NGLA':168.99,'NGLB':-70.91}}
+            ]
+            self.patchname=ic_reference_closest(my_res12,ICmap)
+        elif self.resname1=='SER' and self.segtype2=='glycan':
+            # O-linked to serine (toppar_all36_carb_glycopeptide)
+            ICmap=[
+                {'ICatomnames':['1CB','1OG','2C1','2O5'],
+                 'mapping':{'SGPA':45.37,'SGPB':19.87}}
+            ]
+            self.patchname=ic_reference_closest(my_res12,ICmap)
+        elif self.resname1=='THR' and self.segtype2=='glycan':
+            # O-linked to serine (toppar_all36_carb_glycopeptide)
+            ICmap=[
+                {'ICatomnames':['1CB','1OG1','2C1','2O5'],
+                 'mapping':{'SGPA':69.9,'SGPB':33.16}}
+            ]
+            self.patchname=ic_reference_closest(my_res12,ICmap)
+        elif self.name2=='C1' and self.segtype2=='glycan' and self.segtype1=='glycan':
+            # all taken from 1xyz pres in top_all36_carb.rtf
+            # including PHI angles of ICs with atoms in both residues
+            if self.name1=='O1': # 1->1 link
+                ICmap=[
+                    {'ICatomnames':'1O5  1C1  1O1  2C1'.split(),
+                     'mapping':{'11aa':103.46,'11ab':121.75,'11bb':-56.58}
+                    },
+                    {'ICatomnames':'1C1  1O1  2C1  2O5'.split(),
+                     'mapping':{'11aa':103.54,'11ab':51.80,'11bb':-79.64}
+                    },
+                    {'atomnames':'1O1  2C1  2O5  2C5'.split(),
+                     'mapping':{'11aa':64.56,'11ab':167.51,'11bb':172.18}}
+                ]
+                self.patchname=ic_reference_closest(my_res12,ICmap)
+            elif self.name1=='O2': # 1->2 link
+                ICmap=[
+                    {'ICatomnames':'1C1  1C2  1O2  2C1'.split(),
+                     'mapping':{'12aa':-132.81,'12ab':115.32,'12ba':-133.78,'12bb':117.14}
+                    },
+                    {'ICatomnames':'1C2  1O2  2C1  2O5'.split(),
+                     'mapping':{'12aa':47.16,'12ab':86.93,'12ba':168.07,'12bb':-168.07}
+                    }
+                ]
+                self.patchname=ic_reference_closest(my_res12,ICmap)
+            elif self.name1=='O3': # 1->3 link
+                ICmap=[
+                    {'ICatomnames':'1C2  1C3  1O3  2C1'.split(),
+                     'mapping':{'13aa':113.19,'13ab':-141.32,'13ba':-131.68,'13bb':-141.32}
+                    },
+                    {'ICatomnames':'1C3  1O3  2C1  2O5'.split(),
+                     'mapping':{'13aa':65.46,'13ab':65.46,'13ba':-100.16,'13bb':-130.16}
+                    }
+                ]
+                self.patchname=ic_reference_closest(my_res12,ICmap)
+            elif self.name1=='O4': # 1->4 link
+                ICmap=[
+                    {'ICatomnames':'1C3  1C4  1O4  2C1'.split(),
+                     'mapping':{'14aa':-86.29,'14ab':72.71,'14ba':-86.3,'14bb':81.86}},
+                    {'ICatomnames':'1C4  1O4  2C1  2O5'.split(),
+                     'mapping':{'14aa':133.57,'14ab':48.64,'14ba':-130.97,'14bb':-130.97}}
+                ]
+                self.patchname=ic_reference_closest(my_res12,ICmap)
+            elif self.name1=='O6': # 1->6 link
+                ICmap=[
+                    {'ICatomnames':'1C6  1O6  2C1  2O5'.split(),
+                     'mapping':{'16AT':71.24,'16BT':-63.49}}
+                ]
+                self.patchname=ic_reference_closest(my_res12,ICmap)
+        elif self.name2=='C2' and self.segtype2=='glycan' and self.segtype1=='glycan':
+            if self.name1=='O6':
+                self.patchname='SA26AT'
+            elif self.name1=='O8':
+                self.patchname='SA28AA'
+            elif self.name1=='O9':
+                self.patchname='SA29AT'
+
+        elif self.name1=='O6' and self.name2=='C2':
+                self.patchname='SA26AT' 
+        elif 'ZN' in self.resname1 and 'HIS' in self.resname2:
+                self.patchname='ZNHD'
+                self.patchorder=[2,1]
+        else:
+            logger.warning(f'Could not identify patch for link: {str(self)}')
+            self.patchname='UNFOUND'
+
     def write_TcL(self,W:Psfgen,transform):
         """Insert the appropriate TcL commands to add this link in a psfgen script
         
@@ -902,31 +1033,17 @@ class Link(AncestorAwareMod):
         seg1=chainIDmap.get(seg1,seg1)
         seg2=self.residue2.chainID
         seg2=chainIDmap.get(seg2,seg2)
-        if self.resname1=='ASN' and self.segtype2=='glycan':
-            W.addline(f'patch NGLB {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
+        if not self.patchname=='UNFOUND':
+            if self.patchorder==[1,2]:
+                W.addline(f'patch {self.patchname} {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
+            elif self.patchorder==[2,1]:
+                W.addline(f'patch {self.patchname} {seg2}:{self.resseqnum2}{self.insertion2} {seg1}:{self.resseqnum1}{self.insertion1}')
         else:
-            if self.name2=='C1' and self.segtype1=='glycan':
-                W.addline(f'set cn {self.name1[1]}')
-                W.addline(f'set abi [axeq {self.resseqnum2} 0 {seg2} {self.name2} {self.resseqnum1}]')
-                W.addline(f'set abj [axeq {self.resseqnum1} 0 {seg1} {self.name1} -1]')
-                if self.name1=='O6':
-                    W.addline('if { $abi == "a" } { set abi A }')
-                    W.addline('if { $abi == "b" } { set abi B; set abj T }')
-                    W.addline('if { $abj == "b" } { set abj T }')
-                W.addline('set pres "1$cn$abi$abj"')
-                W.addline(f'patch $pres {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
-            elif self.name1=='C1' and self.segtype2=='glycan':
-                cmdj=f'[axeq {self.resseqnum2} 0 {seg2} {self.name2} {self.resseqnum1}]'
-                cmdi=f'[axeq {self.resseqnum1} 0 {seg1} {self.name1} -1]'
-                W.addline(f'patch 1{self.name2[1]:1s}{cmdi}{cmdj} {seg2}:{self.resseqnum2}{self.insertion2} {seg1}:{self.resseqnum1}{self.insertion1}')
-            elif self.name1=='O6' and self.name2=='C2':
-                W.addline(f'patch SA26AT {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
-            else:
-                logger.warning(f'Could not identify patch for link: {str(self)}')
-                W.comment(f'No patch found for {str(self)}')
-        
+            logger.warning(f'Could not identify patch for link: {str(self)}')
+            W.comment(f'No patch found for {str(self)}')
+    
     def __str__(self):
-        return f'{self.chainID1}{self.resname1}{self.resseqnum1}{self.insertion1}-{self.chainID2}{self.resname2}{self.resseqnum2}{self.insertion2}'
+        return f'{self.chainID1}_{self.resname1}{self.resseqnum1}{self.insertion1}-{self.chainID2}_{self.resname2}{self.resseqnum2}{self.insertion2}'
 
 class LinkList(AncestorAwareModList):
     """A class for handling lists of Links
@@ -976,6 +1093,8 @@ class LinkList(AncestorAwareModList):
             link.atom2=link.residue2.atoms.get(name=link.name2,altloc=link.altloc2)
             link.segtype1=link.residue1.segtype
             link.segtype2=link.residue2.segtype
+            # TODO: determine patch residue
+            link.set_patchname()
         # do cross-assignment to find true orphan links and dangling links
         orphan_1=ignored_by_ptnr1.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID2',insertion='insertion2')
         orphan_2=ignored_by_ptnr2.assign_objs_to_attr('residue1',Residues,resseqnum='resseqnum1',chainID='chainID1',insertion='insertion1')

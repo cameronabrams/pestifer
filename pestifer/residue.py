@@ -7,7 +7,6 @@
 
 """
 from .mods import *
-from .mods import AncestorAwareModList,AncestorAwareMod
 from .config import segtype_of_resname
 from pidibble.baserecord import BaseRecord
 from functools import singledispatchmethod

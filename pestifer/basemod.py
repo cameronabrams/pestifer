@@ -90,6 +90,11 @@ class BaseMod(Namespace):
        "weak" less than operator; only those attributes listed in the attr
        argument are considered in the comparison
 
+    strhash(fields):
+        generates a string hash of the caller using values of attributes
+        whose names are listed in fields (or all attributes if
+        fields is empty)
+
     matches(**fields)
         non strict match -- returns true if all key:val pairs in fields
         match the corresponding key:val pairs in the calling instance's
@@ -231,6 +236,7 @@ class BaseMod(Namespace):
                 attr_list.remove(x)
         le_list=[self.__dict__[k]<=other.__dict__[k] for k in attr_list if hasattr(self.__dict__[k],'__lt__')]
         return all(le_list)
+    
     def weak_lt(self,other,attr=[]):
         """
         Parameters
@@ -243,24 +249,21 @@ class BaseMod(Namespace):
         lt_list=[self.__dict__[k]<other.__dict__[k] for k in attr if hasattr(self.__dict__[k],'__lt__')]
         le_list=[self.__dict__[k]<=other.__dict__[k] for k in attr if hasattr(self.__dict__[k],'__lt__')]
         return all(le_list) and any(lt_list)
-    def __pkey(self,fields=[]):
+
+    def strhash(self,fields=[]):
         """ 
         Parameters
         ---------
         fields : list, optional
-            attributes to be included in the generation of a tuple of values
+            attributes to be included in the identifier
         """
-        if not fields:
-            return tuple([self.__dict__.values()])
-        return tuple([x for k,x in self.__dict__.items() if k in fields])
-    def phash(self,fields=[]):
-        """ 
-        Parameters
-        ----------
-        fields : list, optional
-            attributes whose values are used to generate the hash of the object
-        """
-        return hash(self.__pkey(fields))
+        if fields:
+            items=sorted([(k,x) for k,x in self.__dict__.items() if k in fields], key=lambda it: it[0])
+        else:
+            items=sorted(self.__dict__.items(), key=lambda it: it[0])
+        result='-'.join([str(x[1]) for x in items if x!=[]])
+        return result
+    
     def matches(self,**fields):
         """ 
         Parameters
@@ -379,6 +382,8 @@ class BaseMod(Namespace):
             name of attribute in obj that is set to 
             attr of caller
         """
+        attr_obj=getattr(self,obj)
+        logger.debug(f'accepting {obj_attr} from {obj} {str(attr_obj)} into {type(self)}({id(self)})')
         setattr(self,attr,getattr(getattr(self,obj),obj_attr))
 
 class CloneableMod(BaseMod):
@@ -665,6 +670,8 @@ class ModList(UserList):
         sets value of attr attributes of all elements of caller
         from the value of obj_attr in object obj
     
+    remove_duplicates(self)
+        removes duplicates
     """
     def __init__(self,data):
         """Standard initialization of the UserList """
@@ -890,18 +897,20 @@ class ModList(UserList):
         """
         bins={}
         for item in self:
-            key=item.phash(fields)
+            key=item.strhash(fields=fields)
             if not key in bins:
                 bins[key]=[]
             bins[key].append(item)
+        for k,v in bins.items():
+            logger.debug(f'binnify: bin {k} has {len(v)} items')
         return bins
     
-    def puniq(self,fields):
+    def puniq(self,fields=[]):
         """Simple test that all elements of self are 'unique' among fields 
         
         Parameters
         ----------
-        fields : list
+        fields : list, optional
             attribute names used to build the hash to test for uniqueness
         
         Returns
@@ -909,10 +918,10 @@ class ModList(UserList):
         bool : True if all elements are unique
         
         """
-        bins=self.binnify(fields)
+        bins=self.binnify(fields=fields)
         return len(bins)==len(self)
     
-    def puniquify(self,fields,new_attr_name='_ORIGINAL_',make_common=[]):
+    def puniquify(self,fields=[],new_attr_name='_ORIGINAL_',make_common=[]):
         """Systematic attribute altering to make all elements unique
         
         There may be a set of attributes for which no two elements may
@@ -928,18 +937,22 @@ class ModList(UserList):
 
         Parameters
         ----------
-        fields : list
-            attribute names used to build the hash to test for uniqueness
+        fields : list, optional
+            attribute names used to build the hash to test for uniqueness;
+            if unset, all attributes are used
         new_attr_name : str, optional
             name given to a new attribute used to store all original 
             attribute name:value pairs
         make_common : list
             list of attribute names that are set to a single set
-            of common values *after* uniquifyin
+            of common values *after* uniquifying
 
         """
         assert not any([x in fields for x in make_common])
-        bins=self.binnify(fields)
+        bins=self.binnify(fields=fields)
+        tmp_fields=fields
+        if not fields:
+            tmp_fields=[x for x in __dict__.keys()]
         stillworking=True
         while stillworking:
             stillworking=False
@@ -948,12 +961,12 @@ class ModList(UserList):
                     stillworking=True
                     for d in v[1:]:
                         if not new_attr_name in d.__dict__:
-                            d.__dict__[new_attr_name]={k:d.__dict__[k] for k in fields}
-                        while d.phash(fields) in bins:
-                            d.__dict__[fields[0]]+=1
+                            d.__dict__[new_attr_name]={k:d.__dict__[k] for k in tmp_fields}
+                        while d.strhash(tmp_fields) in bins:
+                            d.__dict__[tmp_fields[0]]+=1
             if stillworking: 
-                bins=self.binnify(fields)
-        assert(self.puniq(fields))
+                bins=self.binnify(fields=tmp_fields)
+        assert(self.puniq(fields=tmp_fields))
         use_common={k:self[0].__dict__[k] for k in make_common}
         if use_common:
             for s in self:
@@ -1048,9 +1061,22 @@ class ModList(UserList):
         obj_attr : str
             name of attribute in obj that is set to 
             attr of caller
-        """       
+        """
+        logger.debug(f'update_attr_from_obj_attr considers type {type(self)} ({len(self)}) attr {attr} obj {obj} obj_attr {obj_attr}')
         for item in self:
+            # logger.debug(f'-> item {item}')
             item.update_attr_from_obj_attr(attr,obj,obj_attr)
+
+    def remove_duplicates(self,fields=[]):
+        bins=self.binnify(fields=fields)
+        logger.debug(f'remove_duplicates: bin counts {[len(b) for b in bins.values()]}')
+        self.clear()
+        assert len(self)==0
+        for b in bins.values():
+            logger.debug(f'preserving {str(b[0])}')
+            self.append(b[0])
+            for c in b[1:]:
+                logger.debug(f'discarding {str(c)}')
 
 class CloneableModList(ModList):
     """A class for lists of cloneable mods 

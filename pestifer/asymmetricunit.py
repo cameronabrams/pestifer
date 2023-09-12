@@ -52,9 +52,10 @@ class AsymmetricUnit(AncestorAwareMod):
                 mods.seqmods.terminals=ters
                 if 'REMARK.465' in pr:
                     missings=EmptyResidueList([EmptyResidue(p) for p in pr['REMARK.465'].tables['MISSING']])
-                ssbonds=SSBondList([SSBond(p) for p in pr[SSBond.PDB_keyword]])  
-                seqadvs=SeqadvList([Seqadv(p) for p in pr[Seqadv.PDB_keyword]])
-                links=LinkList([Link(p) for p in pr[Link.PDB_keyword]])
+                ssbonds=SSBondList([SSBond(p) for p in pr.get(SSBond.PDB_keyword,[])])  
+                seqadvs=SeqadvList([Seqadv(p) for p in pr.get(Seqadv.PDB_keyword,[])])
+                links=LinkList([Link(p) for p in pr.get(Link.PDB_keyword,[])])
+                links.remove_duplicates(fields=['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']) # some pdb files list links multiple times (2ins, i'm looking at you)
             elif type(pr)==DataContainer: # mmCIF format
                 obj=pr.getObj(Atom.mmCIF_name)
                 atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
@@ -70,7 +71,7 @@ class AsymmetricUnit(AncestorAwareMod):
                     conn_type_id=obj.getValue('conn_type_id',i)
                     if conn_type_id=='disulf':
                         ssdicts.append(CIFdict(obj,i))
-                    elif conn_type_id=='covale':
+                    elif conn_type_id in ['covale','metalc']:
                         lndicts.append(CIFdict(obj,i))
                 ssbonds=SSBondList([SSBond(x) for x in ssdicts])
                 links=LinkList([Link(x) for x in lndicts])
@@ -110,7 +111,11 @@ class AsymmetricUnit(AncestorAwareMod):
             # Give each Seqadv a residue identifier
             ignored_seqadvs=seqadvs.assign_residues(residues)
             ignored_ssbonds=ssbonds.assign_residues(residues)
+            for b in ssbonds:
+                logger.debug(f'after assign_residues {b}')
             more_ignored_residues,ignored_links=links.assign_residues(residues)
+            for b in links:
+                logger.debug(f'after assign_residues {b}')
             # a deleted link may create a "free" glycan; in this case
             # we should also delete its residues; problem is that 
             ignored_residues.extend(more_ignored_residues)

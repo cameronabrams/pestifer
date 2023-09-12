@@ -16,16 +16,9 @@ tasks:
       substitutions: []
     source:
       biological_assembly: 1
-      exclude:
-        chains:
-        - C
-        - D
-        - E
-        - F
-        resnames:
-        - SO4
-      file_format: mmCIF
-      id: 4tvp
+      exclude: {}
+      file_format: PDB
+      id: 2ins
       sequence:
         fix_conflicts: true
         fix_engineered_mutations: true
@@ -35,26 +28,6 @@ tasks:
             maxcycles: 20
           min_loop_length: 4
           sac_res_name: GLY
-- ligate:
-    connect:
-      cleanup: true
-    minimize:
-      dcdfreq: 100
-      nminsteps: 1000
-    steer:
-      dcdfreq: 100
-      force_constant: 20
-      nsteps: 4000
-      target_distance: 2
-      temperature: 300
-- relax:
-    dcdfreq: 100
-    ensemble: NVT
-    nminsteps: 0
-    nsteps: 2000
-    pressure: 1
-    temperature: 300
-    xstfreq: 100
 - solvate:
     minimize:
       dcdfreq: 100
@@ -69,7 +42,16 @@ tasks:
     temperature: 300
     xstfreq: 100
 - terminate:
-    basename: my_4tvp
+    basename: my_2ins
     chainmapfile: chainmaps.yaml
+    package:
+      basename: prod_2ins
+      dcdfreq: 100
+      ensemble: NVT
+      nminsteps: 0
+      nsteps: 1000
+      pressure: 1
+      temperature: 300
+      xstfreq: 100
     statefile: states.yaml
-title: HIV-1 Env Trimer 4tvp, Fabs and sulfate ions removed
+title: hexameric insulin

@@ -1,0 +1,13 @@
+title: hexameric insulin
+tasks:
+  - psfgen:
+      source:
+        id: 2ins
+        biological_assembly: 1
+  - solvate:
+  - relax:
+      ensemble: NPT
+  - terminate:
+      basename: my_2ins
+      package:
+        basename: prod_2ins
