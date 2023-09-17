@@ -154,6 +154,9 @@ class AsymmetricUnit(AncestorAwareMod):
             mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='user']))
             if hasattr(mods.seqmods,'mutations'):
                 mutations.extend(mods.seqmods.mutations)
+            logger.debug(f'mutations')
+            for m in mutations:
+                logger.debug(str(m))
             mods.seqmods.mutations=mutations
             pruned_ssbonds=ssbonds.prune_mutations(mutations)
             pruned=pruned_by_links=links.prune_mutations(mutations,segments)

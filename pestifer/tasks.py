@@ -262,6 +262,7 @@ class PsfgenTask(Task):
         specs=self.specs
         self.molecules={}
         self.source_specs=specs['source']
+        logger.debug(f'user-input modspecs {self.specs["mods"]}')
         self.mods=ModContainer(self.specs['mods'])
         # self.pdbs=self.mods.report_pdbs()
         # self.usermod_specs=specs['mods']
@@ -299,7 +300,7 @@ class LigateTask(Task):
         logger.debug('...Writing gaps')
         self.write_gaps()
         logger.debug('...Measuring gap distances')
-        self.measure_distances()
+        self.measure_distances(specs)
         logger.debug('...Doing steered MD')
         self.do_steered_md(specs)
     
@@ -313,7 +314,8 @@ class LigateTask(Task):
         writer.writefile()
         self.update_statefile('data',datafile)
 
-    def measure_distances(self):
+    def measure_distances(self,specs):
+        receiver_flexible_zone_radius=specs['receiver_flexible_zone_radius']
         comment_chars='#!$'
         basename=self.next_basename('measure')
         resultsfile=f'{basename}.dat'
@@ -324,7 +326,7 @@ class LigateTask(Task):
         vm.usescript('measure_bonds')
         vm.writescript()
         datafile=self.statevars['data']
-        vm.runscript(psf=psf,pdb=pdb,i=datafile,opdb=f'{basename}.pdb',o=resultsfile)
+        vm.runscript(psf=psf,pdb=pdb,i=datafile,opdb=f'{basename}.pdb',o=resultsfile,rfzr=receiver_flexible_zone_radius)
         self.update_statefile('fixedref',f'{basename}.pdb')
         self.update_statefile('results',resultsfile)
         with open(resultsfile,'r') as f:

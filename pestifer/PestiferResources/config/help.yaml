@@ -178,6 +178,10 @@ directives:
                 text: Temperature used in steered MD run
                 type: float
                 default: 300
+              - name: receiver_flexible_zone_radius
+                text: size of zone around receiver N-terminal N in which CA's are not fixed during steered MD
+                type: float
+                default: 0.0 # all fixed by default
           - name: connect
             text: Specifies parameters of the psfgen run that patches in the new backbone bonds
             type: dict

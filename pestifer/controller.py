@@ -54,7 +54,7 @@ class Controller:
             # Append to the task list
             self.tasks.append(this_task)
             prior_task=this_task
-        logger.debug(f'last task currently is {self.tasks[1].taskname}')
+        logger.debug(f'last task currently is {self.tasks[-1].taskname}')
         # Add a "terminate" task by default if the user has not specified one
         if len(self.tasks)==0 or not self.tasks[-1].taskname=='terminate':
             specs=self.config.make_default_specs('tasks','terminate')

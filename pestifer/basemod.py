@@ -383,7 +383,7 @@ class BaseMod(Namespace):
             attr of caller
         """
         attr_obj=getattr(self,obj)
-        logger.debug(f'accepting {obj_attr} from {obj} {str(attr_obj)} into {type(self)}({id(self)})')
+        # logger.debug(f'accepting {obj_attr} from {obj} {str(attr_obj)} into {type(self)}({id(self)})')
         setattr(self,attr,getattr(getattr(self,obj),obj_attr))
 
 class CloneableMod(BaseMod):
@@ -792,7 +792,7 @@ class ModList(UserList):
             for item in v:
                 thru_dict={k:item}
                 acc_list.extend(self.filter(**thru_dict))
-        logger.debug(f'pruning out {len(acc_list)} items')
+        # logger.debug(f'pruning out {len(acc_list)} items')
         for item in acc_list:
             if item in self:
                 self.remove(item)
@@ -901,8 +901,8 @@ class ModList(UserList):
             if not key in bins:
                 bins[key]=[]
             bins[key].append(item)
-        for k,v in bins.items():
-            logger.debug(f'binnify: bin {k} has {len(v)} items')
+        # for k,v in bins.items():
+        #     logger.debug(f'binnify: bin {k} has {len(v)} items')
         return bins
     
     def puniq(self,fields=[]):
@@ -1062,21 +1062,21 @@ class ModList(UserList):
             name of attribute in obj that is set to 
             attr of caller
         """
-        logger.debug(f'update_attr_from_obj_attr considers type {type(self)} ({len(self)}) attr {attr} obj {obj} obj_attr {obj_attr}')
+        # logger.debug(f'update_attr_from_obj_attr considers type {type(self)} ({len(self)}) attr {attr} obj {obj} obj_attr {obj_attr}')
         for item in self:
             # logger.debug(f'-> item {item}')
             item.update_attr_from_obj_attr(attr,obj,obj_attr)
 
     def remove_duplicates(self,fields=[]):
         bins=self.binnify(fields=fields)
-        logger.debug(f'remove_duplicates: bin counts {[len(b) for b in bins.values()]}')
+        # logger.debug(f'remove_duplicates: bin counts {[len(b) for b in bins.values()]}')
         self.clear()
         assert len(self)==0
         for b in bins.values():
-            logger.debug(f'preserving {str(b[0])}')
+            # logger.debug(f'preserving {str(b[0])}')
             self.append(b[0])
-            for c in b[1:]:
-                logger.debug(f'discarding {str(c)}')
+            # for c in b[1:]:
+            #     logger.debug(f'discarding {str(c)}')
 
 class CloneableModList(ModList):
     """A class for lists of cloneable mods 

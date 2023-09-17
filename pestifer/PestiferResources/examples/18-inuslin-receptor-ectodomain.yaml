@@ -4,12 +4,26 @@ tasks:
       source:
         id: 4zxb
         biological_assembly: 1
-      exclude:
-        chains:
-          - A
-          - B
-          - C
-          - D
+        exclude:
+          chains:
+            - A
+            - B
+            - C
+            - D
+        sequence:
+          loops:
+            declash:
+              maxcycles: 0
+      mods:
+        mutations:
+          - E:P753A  # the proline at the end of a chain is problematic, for now
+  - ligate:
+      steer:
+        nsteps: 12000
+        receiver_flexible_zone_radius: 10
+  - relax:
+      ensemble: NVT
+      nsteps: 24000
   - solvate:
   - relax:
       ensemble: NPT

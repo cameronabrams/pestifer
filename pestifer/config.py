@@ -192,7 +192,7 @@ def userhelp(L,logf,*args,end=''):
         logf(f'{nextarg}->{end}')
         userhelp(item['directives'],logf,*args,end=end)
 
-
+# TODO: modify so that helpdict format is not violated by input
 def dwalk(D,I):
     tld=[x['name'] for x in D['directives']]
     # logger.debug(f'dwalk along {tld} for {I}')

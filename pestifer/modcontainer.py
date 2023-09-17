@@ -19,9 +19,11 @@ class ModContainer(Namespace):
                     for entry in input_specs[Cls.yaml_header]:
                         assert type(entry) in [str,dict]
                         prep_dict[modcat].__dict__[Cls.yaml_header].append(Cls(entry))
+                else:
+                    logger.debug(f'No mods for {Cls.yaml_header} found in user input.')
         # already parsed mods can be incorporated
         for yaml_name,parsed_modlist in kwargs.items():
             modtype=[Cls.modtype for name,Cls in self.mod_classes.items() if Cls.yaml_header==yaml_name][0]
             prep_dict[modtype].__dict__[yaml_name]=parsed_modlist
         super().__init__(**prep_dict) 
-        # logger.debug(f'modcontainer dict {self.__dict__}')
+        logger.debug(f'modcontainer dict {self.__dict__}')

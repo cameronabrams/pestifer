@@ -5,6 +5,7 @@
 # writes all lines back out to file
 
 vmdcon -info "measure_bonds.tcl: args: $argv"
+set rfzr 0 ;# receiver flexibility zone radius
 for { set i 0 } { $i < [llength $argv] } { incr i } {
     if { [lindex $argv $i] == "-pdb"} {
        incr i
@@ -25,6 +26,10 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
     if { [lindex $argv $i] == "-o"} {
        incr i
        set outfile [lindex $argv $i]
+    }
+    if { [lindex $argv $i] == "-rfzr"} {
+       incr i
+       set rfzr [lindex $argv $i]
     }
 }
 
@@ -74,6 +79,11 @@ foreach seg $SEG h $RES0 i $RES1 j $RES2 {
         set theN [atomselect top "segname $seg and resid $resid and insertion $ni and name N"]
     } else {
         set theN [atomselect top "segname $seg and resid $j and name N"]
+    }
+    if {[expr $rfzr > 0]} {
+        set theN_idx [$theN get index]
+        set flex_zone [atomselect top "segname $seg and name CA and same residue as (exwithin $rfzr of index $theN_idx)"]
+        $flex_zone set occupancy 0
     }
     puts "resid $i on segname $seg has [$theC num] Cs with serial [$theC get serial]"
     puts "resid $j on segname $seg has [$theN num] Ns with serial [$theN get serial]"

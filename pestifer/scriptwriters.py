@@ -178,9 +178,9 @@ class VMD(Scriptwriter):
         c.run()
         self.logname=f'{self.basename}.log'
         with open(self.logname,'w') as f:
-            my_logger(f'STDOUT from "{c.command}"',f.write)
+            my_logger(f'STDOUT from "{c.c}"',f.write)
             f.write(c.stdout+'\n')
-            my_logger(f'STDERR from "{c.command}"',f.write)
+            my_logger(f'STDERR from "{c.c}"',f.write)
             f.write(c.stderr+'\n')
             my_logger(f'END OF LOG',f.write)
     
