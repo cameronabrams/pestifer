@@ -21,7 +21,7 @@ logger=logging.getLogger(__name__)
 class AsymmetricUnit(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['atoms','residues','mods']
     opt_attr=AncestorAwareMod.opt_attr+['segments','ignored','pruned']
-    excludables={'resnames':'name','chains':'chainID','segtypes':'segtype'}
+    excludables={'resnames':'resname','chains':'chainID','segtypes':'segtype'}
     def __init__(self,**objs):
         if len(objs)==0:
             logger.debug('Generating an empty A.U.')

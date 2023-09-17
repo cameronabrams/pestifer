@@ -66,7 +66,7 @@ class Config(UserDict):
         assert 'help' in data
         if userconfigfile:
             if os.path.exists(userconfigfile):
-                logger.debug(f'Pestifer uses {userconfigfile}: {fn}')
+                logger.debug(f'Pestifer reads user config {userconfigfile}')
                 with open(userconfigfile,'r') as f:
                     data['user']=yaml.safe_load(f)
                     # self._user_defaults()
@@ -192,29 +192,53 @@ def userhelp(L,logf,*args,end=''):
         logf(f'{nextarg}->{end}')
         userhelp(item['directives'],logf,*args,end=end)
 
-# TODO: modify so that helpdict format is not violated by input
 def dwalk(D,I):
+    """Process the user's config-dict I by walking recursively through it 
+       along with the default config-specification dict D
+       
+       I is the dict yaml-read from the user input
+       D is thd config-specification dict yaml-read from the package resources
+    """
+    # get the name of each config directive at this level in this block
     tld=[x['name'] for x in D['directives']]
+    if I==None:
+        raise ValueError(f'Null dictionary found; expected a dict with key(s) {tld} under \'{D["name"]}\'.')
+    ud=list(I.keys())
+    for u in ud:
+        if not u in tld:
+            raise ValueError(f'Directive \'{u}\' invalid; expecting one of {tld} under \'{D["name"]}\'.')
     # logger.debug(f'dwalk along {tld} for {I}')
+    # for each directive name
     for d in tld:
+        # get its index in the list of directive names
         tidx=tld.index(d)
+        # get its dictionary
         dx=D['directives'][tidx]
         # logger.debug(f' d {d}')
+        # get its type
         typ=dx['type']
         # logger.debug(f'- {d} typ {typ} I {I}')
+        # if this directive name does not already have a key in the result
         if not d in I:
             # logger.debug(f' -> not found {d}')
+            # if it is a scalar
             if typ in ['str','int','float', 'bool']:
+                # if it has a default, set it
                 if 'default' in dx:
                     I[d]=dx['default']
                     # logger.debug(f' ->-> default {d} {I[d]}')
+                # if it is flagged as required, die since it is not in the read-in
                 elif 'required' in dx:
                     if dx['required']:
-                        raise Exception(f'Directive {d} requires a value in {I}')
+                        raise Exception(f'Directive \'{d}\' of \'{D["name"]}\' requires a value.')
+            # if it is a dict
             elif typ=='dict':
+                # if it is explicitly tagged as not required, do nothing
                 if 'required' in dx:
                     if not dx['required']:
                         continue
+                # whether required or not, set it as empty and continue the walk,
+                # which will set defaults for all descendants
                 I[d]={}
                 dwalk(dx,I[d])
             elif typ=='list':
@@ -222,12 +246,15 @@ def dwalk(D,I):
                     if not dx['required']:
                         continue
                 I[d]=[] # and do nothing else
+        # this directive does appear in I
         else:
             if typ=='str' and 'choices' in dx:
-                assert I[d] in dx['choices'],f'Directive {d} must be one of {", ".join(dx["choices"])}'
+                assert I[d] in dx['choices'],f'Directive \'{d}\' of \'{dx["name"]}\' must be one of {", ".join(dx["choices"])}'
             if typ=='dict':
+                # process descendants
                 dwalk(dx,I[d])
             elif typ=='list':
+                # process list-item children
                 lwalk(dx,I[d])
 
 def lwalk(D,L):
@@ -238,15 +265,21 @@ def lwalk(D,L):
             # check this item against its directive
             itemname=list(item.keys())[0]
             # logger.debug(f' - item {item}')
-            assert itemname in tld
+            if not itemname in tld:
+                raise ValueError(f'Element \'{itemname}\' of list \'{D["name"]}\' is not valid; expected one of {tld}')
             tidx=tld.index(itemname)
             dx=D['directives'][tidx]
             typ=dx['type']
             if typ in ['str','int','float']:
-                pass # don't really expect a list of scalars?
+                # because a list directive indicates an ordered sequence of tasks and we expect each
+                # task to be a dictionary specifying the task and not a single scalar value,
+                # we will ignore this one
+                logger.debug(f'Warning: Scalar list-element-directive \'{dx}\' in \'{dx["name"]}\' ignored.')
             elif typ=='dict':
                 if not item[itemname]:
                     item[itemname]={}
                 dwalk(dx,item[itemname])
-    
+            else:
+                logger.debug(f'Warning: List-element-directive \'{itemname}\' in \'{dx["name"]}\' ignored.')
+
 

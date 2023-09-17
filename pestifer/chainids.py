@@ -1,7 +1,39 @@
+# Author: Cameron F. Abrams <cfa22@drexel.edu>.
+""" Chain ID manager -- make sure all chains have unique IDs and ID maps are tracked
+"""
+
 import logging
 logger=logging.getLogger(__name__)
 
 class ChainIDManager:
+    """A class for managing chain IDs. 
+    
+    Methods
+    -------
+    __init__(format)
+      initializes the repository of chainIDs depending on format
+       
+    register_asymm_chains(chainIDs)
+      Given the list of chainIDs detected in the asymmetric unit, registers
+       then with the manager
+    
+    receive_chain(chainID)
+      Registers the chainID
+      
+    next_chain()
+      Registers the next available chainID and returns it
+    
+    generate_next_map()
+      Given the original chainIDs, returns a dictionary mapping each 
+      to a new chainID
+    
+    thru_map()
+      Generates an identity map
+      
+    cleavage_daughter_chainID(chainID)
+      returns a single-entry dictionary mapping the chainID to the
+      next available chainID
+    """
     def __init__(self,format='PDB'):
         logger.debug(f'New chainIDmanager, format {format}')
         self.format=format

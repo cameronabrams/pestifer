@@ -4,9 +4,10 @@ tasks:
       source:
         id: 4zmj
         biological_assembly: 1
-      ctrl:
-        declash:
-          maxcycles: 21
+        sequence:
+          loops:
+            declash:
+              maxcycles: 21
   - ligate:
       steer:
         nsteps: 4200

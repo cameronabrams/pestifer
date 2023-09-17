@@ -1,3 +1,6 @@
+# Author: Cameron F. Abrams <cfa22@drexel.edu>.
+""" Some calculations based on atom coordinates
+"""
 import logging
 import numpy as np
 logger=logging.getLogger(__name__)
@@ -69,7 +72,7 @@ def ic_reference_closest(res12,ICmaps):
     for ic in ICmaps:
         value=measure_dihedral(*(ic['atoms']))*180.0/np.pi
         # logger.debug(f'{ic["ICatomnames"]} value {value:.2f}')
-        the_point.append(measure_dihedral(*(ic['atoms']))*180.0/np.pi)
+        the_point.append(value)
         for m,v in ic['mapping'].items():
             if not m in map_points:
                 map_points[m]=[]
