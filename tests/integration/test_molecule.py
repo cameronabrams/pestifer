@@ -17,11 +17,11 @@ source:
         fix_conflicts: true
         fix_engineered_mutations: true
         include_terminal_loops: false
-    loops:
-        declash:
-        maxcycles: 20
-        min_loop_length: 4
-        sac_res_name: GLY
+        loops:
+            declash:
+            maxcycles: 20
+            min_loop_length: 4
+            sac_res_name: GLY
 """
         f=StringIO(source)
         directive=yaml.safe_load(f)

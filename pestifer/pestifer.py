@@ -17,7 +17,7 @@ logger=logging.getLogger(__name__)
 
 from .stringthings import banner, banner_message
 from .controller import Controller
-from .config import Config,userhelp
+from .config import Config
 
 def config_help(args):
     c=Config()
@@ -25,7 +25,7 @@ def config_help(args):
         banner(print)
     print(f'Help on user-provided configuration file format')
     directives=args.directives
-    userhelp(c['base']['directives'],print,*directives)
+    c.console_help(*directives)
 
 def config_default(args):
     c=Config()

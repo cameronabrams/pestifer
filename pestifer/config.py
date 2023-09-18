@@ -1,20 +1,10 @@
-"""
 
-.. module:: config
-   :synopsis: Manages all configuration input and parsing, and access to installed resources
-   
-.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
-
-"""
 import os
 import logging
 logger=logging.getLogger(__name__)
-import yaml
-import glob
-import textwrap
 from collections import UserDict
 from pestifer import PestiferResources
-from .util import special_update
+from ycleptic.yclept import Yclept
 
 segtype_of_resname={}
 charmm_resname_of_pdb_resname={}
@@ -35,10 +25,7 @@ class ResourceManager(UserDict):
                 rn=tk[rootdepth:absdepth]
                 bn=tk[-1]
                 if not bn in ResourceManager.excludes:
-                    # logger.debug(f'{rn} {root}')
                     myset(data,rn,root)
-                    
-        # self._walk(data,[x for x in glob.glob(data['root']+'/*') if os.path.isdir(x)])
         super().__init__(data)
 
 def myset(a_dict,keylist,val):
@@ -50,38 +37,14 @@ def myset(a_dict,keylist,val):
             a_dict[key]={}
         myset(a_dict[key],keylist,val)
 
-class Config(UserDict):
+class Config(Yclept):
     def __init__(self,userconfigfile=''):
-        data={}
-        data['Resources']=ResourceManager()
-        logger.debug(f'Resources {data["Resources"]}')
-        base=os.path.join(data['Resources']['config'],'base.yaml')
-        with open(base,'r') as f:
-            bn=os.path.basename(base)
-            bn=os.path.splitext(bn)[0]
-            logger.debug(f'Pestifer uses {bn}')
-            data[bn]=yaml.safe_load(f)
-        assert 'base' in data
-        # assert 'help' in data
-        data['user']={}
-        if userconfigfile and os.path.exists(userconfigfile):
-            logger.debug(f'Pestifer reads user config {userconfigfile}')
-            with open(userconfigfile,'r') as f:
-                data['user']=yaml.safe_load(f)
-        super().__init__(data)
-        self._user_defaults()
+        r=ResourceManager()
+        logger.debug(f'Resources {r}')
+        basefile=os.path.join(r['config'],'base.yaml')
+        super().__init__(basefile,userconfigfile=userconfigfile)
+        self['Resources']=r
         self._set_shortcuts()
-
-    def _user_defaults(self):
-        D=self['base']
-        U=self['user']
-        dwalk(D,U)
-
-    def dump_user(self,filename='complete-user.yaml'):
-        with open(filename,'w') as f:
-            f.write('# Pestifer -- Cameron F. Abrams -- cfa22@drexel.edu\n')
-            f.write('# Dump of complete user config file\n')
-            yaml.dump(self['user'],f)
 
     def _set_shortcuts(self):
         self.namd2=self['user']['paths']['namd2']
@@ -119,175 +82,3 @@ class Config(UserDict):
         segtype_of_resname.update(self.segtype_of_resname)
         res_123.update(self['user']['psfgen']['segtypes']['protein']['invrescodes'])
         res_321.update(self['user']['psfgen']['segtypes']['protein']['rescodes'])
-
-
-    def make_default_specs(self,*args):
-        holder={}
-        make_def(self['base']['directives'],holder,*args)
-        return holder
-
-def make_def(L,H,*args):
-    if len(args)==1:
-        name=args[0]
-        try:
-            item_idx=[x["name"] for x in L].index(name)
-        except:
-            raise ValueError(f'{name} is not a recognized directive')
-        item=L[item_idx]
-        for d in item.get("directives",[]):
-            if "default" in d:
-                H[d["name"]]=d["default"]
-            else:
-                H[d["name"]]=None
-        if not "directives" in item:
-            if "default" in item:
-                H[item["name"]]=item["default"]
-            else:
-                H[item["name"]]=None
-    elif len(args)>1:
-        arglist=list(args)
-        nextarg=arglist.pop(0)
-        args=tuple(arglist)
-        try:
-            item_idx=[x["name"] for x in L].index(nextarg)
-        except:
-            raise ValueError(f'{nextarg} is not a recognized directive')
-        item=L[item_idx]
-        make_def(item["directives"],H,*args)
-
-def userhelp(L,logf,*args,end=''):
-    if len(args)==0:
-        logf(f'    Help available for {", ".join([dspec["name"] for dspec in L])}{end}')
-    elif len(args)==1:
-        name=args[0]
-        try:
-            item_idx=[x["name"] for x in L].index(name)
-        except:
-            raise ValueError(f'{name} is not a recognized directive')
-        item=L[item_idx]
-        logf(f'{item["name"]}:{end}')
-        logf(f'    {textwrap.fill(item["text"],subsequent_indent="      ")}{end}')
-        logf(f'    type: {item["type"]}{end}')
-        if "default" in item:
-            logf(f'    default: {item["default"]}{end}')
-        if "choices" in item:
-            logf(f'    allowed values: {", ".join(item["choices"])}{end}')
-        if item.get("required",False):
-            logf(f'    A value is required.{end}')
-        if "directives" in item:
-            userhelp(item["directives"],logf,end=end)
-    else:
-        arglist=list(args)
-        nextarg=arglist.pop(0)
-        args=tuple(arglist)
-        try:
-            item_idx=[x["name"] for x in L].index(nextarg)
-        except:
-            raise ValueError(f'{nextarg} is not a recognized directive')
-        item=L[item_idx]
-        logf(f'{nextarg}->{end}')
-        userhelp(item['directives'],logf,*args,end=end)
-
-def dwalk(D,I):
-    """Process the user's config-dict I by walking recursively through it 
-       along with the default config-specification dict D
-       
-       I is the dict yaml-read from the user input
-       D is thd config-specification dict yaml-read from the package resources
-    """
-    # get the name of each config directive at this level in this block
-    assert 'directives' in D # D must contain one or more directives
-    tld=[x['name'] for x in D['directives']]
-    if I==None:
-        raise ValueError(f'Null dictionary found; expected a dict with key(s) {tld} under \'{D["name"]}\'.')
-    ud=list(I.keys())
-    for u in ud:
-        if not u in tld:
-            raise ValueError(f'Directive \'{u}\' invalid; expecting one of {tld} under \'{D["name"]}\'.')
-    # logger.debug(f'dwalk along {tld} for {I}')
-    # for each directive name
-    for d in tld:
-        # get its index in the list of directive names
-        tidx=tld.index(d)
-        # get its dictionary
-        dx=D['directives'][tidx]
-        # logger.debug(f' d {d}')
-        # get its type
-        typ=dx['type']
-        # logger.debug(f'- {d} typ {typ} I {I}')
-        # if this directive name does not already have a key in the result
-        if not d in I:
-            # logger.debug(f' -> not found {d}')
-            # if it is a scalar
-            if typ in ['str','int','float', 'bool']:
-                # if it has a default, set it
-                if 'default' in dx:
-                    I[d]=dx['default']
-                    # logger.debug(f' ->-> default {d} {I[d]}')
-                # if it is flagged as required, die since it is not in the read-in
-                elif 'required' in dx:
-                    if dx['required']:
-                        raise Exception(f'Directive \'{d}\' of \'{D["name"]}\' requires a value.')
-            # if it is a dict
-            elif typ=='dict':
-                # if it is explicitly tagged as not required, do nothing
-                if 'required' in dx:
-                    if not dx['required']:
-                        continue
-                # whether required or not, set it as empty and continue the walk,
-                # which will set defaults for all descendants
-                if 'directives' in dx:
-                    I[d]={}
-                    dwalk(dx,I[d])
-                else:
-                    I[d]=dx.get('default',{})
-            elif typ=='list':
-                if 'required' in dx:
-                    if not dx['required']:
-                        continue
-                I[d]=dx.get('default',[])
-        # this directive does appear in I
-        else:
-            if typ=='str' and 'choices' in dx:
-                # just check the choices that were provided by the user
-                assert I[d] in dx['choices'],f'Directive \'{d}\' of \'{dx["name"]}\' must be one of {", ".join(dx["choices"])}'
-            elif typ=='dict':
-                # process descendants
-                if 'directives' in dx:
-                    dwalk(dx,I[d])
-                else:
-                    special_update(I[d],dx.get('default',{}))
-            elif typ=='list':
-                # process list-item children
-                if 'directives' in dx:
-                    lwalk(dx,I[d])
-                else:
-                    defaults=dx.get('default',[])
-                    I[d]=defaults+I[d]
-
-def lwalk(D,L):
-    assert 'directives' in D
-    tld=[x['name'] for x in D['directives']]
-    # logger.debug(f'lwalk on {tld}')
-    for item in L:
-        # check this item against its directive
-        itemname=list(item.keys())[0]
-        # logger.debug(f' - item {item}')
-        if not itemname in tld:
-            raise ValueError(f'Element \'{itemname}\' of list \'{D["name"]}\' is not valid; expected one of {tld}')
-        tidx=tld.index(itemname)
-        dx=D['directives'][tidx]
-        typ=dx['type']
-        if typ in ['str','int','float']:
-            # because a list directive indicates an ordered sequence of tasks and we expect each
-            # task to be a dictionary specifying the task and not a single scalar value,
-            # we will ignore this one
-            logger.debug(f'Warning: Scalar list-element-directive \'{dx}\' in \'{dx["name"]}\' ignored.')
-        elif typ=='dict':
-            if not item[itemname]:
-                item[itemname]={}
-            dwalk(dx,item[itemname])
-        else:
-            logger.debug(f'Warning: List-element-directive \'{itemname}\' in \'{dx["name"]}\' ignored.')
-
-
