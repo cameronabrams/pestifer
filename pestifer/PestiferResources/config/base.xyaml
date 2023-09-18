@@ -1,0 +1,194 @@
+# pestifer base configuration file
+#
+# you probably do not want to edit this file directly
+#
+# Cameron F. Abrams, cfa22@drexel.edu
+#
+# Default charmm force-field files used in psfgen and namd2
+charmmff:
+  standard:
+    topologies:
+      - top_all36_prot.rtf
+      - top_all35_ethers.rtf
+      - top_all36_cgenff.rtf
+      - top_all36_lipid.rtf
+      - top_all36_carb.rtf
+      - top_all36_na.rtf
+      - stream/carb/toppar_all36_carb_glycopeptide.str
+      - stream/prot/toppar_all36_prot_modify_res.str
+    parameters:
+      - par_all36m_prot.prm
+      - par_all36_carb.prm
+      - par_all36_lipid.prm
+      - par_all36_carb.prm
+      - par_all36_na.prm
+      - par_all36_cgenff.prm
+      - stream/carb/toppar_all36_carb_glycopeptide.str
+      - stream/prot/toppar_all36_prot_modify_res.str
+  custom: # specially modified files required by namd2
+    topologies:
+      - toppar_water_ions.str
+      - toppar_all36_moreions.str
+    parameters:
+      - toppar_water_ions.str
+      - toppar_all36_moreions.str
+
+# Label translations from PDB/mmCIF to charmff
+psfgen:
+  aliases:
+    - atom ILE CD1 CD
+    - atom BGLCNA C7 C
+    - atom BGLCNA O7 O
+    - atom BGLCNA C8 CT
+    - atom BGLCNA N2 N
+    - atom ANE5 C10 C
+    - atom ANE5 C11 CT
+    - atom ANE5 N5 N
+    - atom ANE5 O1A O11
+    - atom ANE5 O1B O12
+    - atom ANE5 O10 O
+    - atom VCG C01 C1
+    - atom VCG C01 C1
+    - atom VCG C02 C2
+    - atom VCG C03 C3
+    - atom VCG C04 C4
+    - atom VCG C05 C5
+    - atom VCG C06 C6
+    - atom VCG C07 C7
+    - atom VCG C08 C8
+    - atom VCG C09 C9
+    - atom TIP3 O OH2
+    - residue HIS HSD
+    - residue PO4 H2PO4
+    - residue MAN AMAN
+    - residue BMA BMAN
+    - residue NAG BGLCNA
+    - residue FUC AFUC
+    - residue GAL BGAL
+    - residue ANE5 ANE5AC
+    - residue SIA ANE5AC
+    - residue EIC LIN
+    - residue HOH TIP3
+    - residue ZN ZN2
+    - residue CL CLA
+  segtypes:
+    protein:
+      resnames:
+        - ALA
+        - ARG
+        - ASN
+        - ASP
+        - CYS
+        - GLN
+        - GLU
+        - GLY
+        - HIS
+        - HSD
+        - HSE
+        - ILE
+        - LEU
+        - LYS
+        - MET
+        - PHE
+        - PRO
+        - SER
+        - THR
+        - TRP
+        - TYR
+        - VAL
+      rescodes:
+        ALA: A
+        ARG: R
+        ASN: N
+        ASP: D
+        CYS: C
+        GLN: Q
+        GLU: E
+        GLY: G
+        HSE: H
+        ILE: I
+        LEU: L
+        LYS: K
+        MET: M
+        PHE: F
+        PRO: P
+        SER: S
+        THR: T
+        TRP: W
+        TYR: Y
+        VAL: V
+    ion:
+      resnames:
+        - LIT
+        - SOD
+        - MG
+        - POT
+        - CAL
+        - RUB
+        - CES
+        - BAR
+        - ZN
+        - CAD
+        - CL
+        - SO4
+        - PO4
+    ligand:
+      resnames:
+        - EIC
+        - VCG
+        - 83G
+    water:
+      resnames:
+        - HOH
+    glycan:
+      resnames:
+        - BMA
+        - FUC
+        - GAL
+        - MAN
+        - NAG
+        - SIA
+        - ANE5
+    other: {}
+
+# default namd2 configuration settings (grouped)
+namd2:
+  generic:
+    paraTypeCharmm: on
+    exclude: scaled1-4
+    1-4scaling: 1.0
+    cutoff: 10.0
+    switching: on
+    switchdist: 9.0
+    pairlistdist: 11.5
+    temperature: 300
+    outputenergies: 100
+  vacuum:
+    nonbondedFreq: 1
+    fullElectFrequency: 2
+    stepspercycle: 4
+    dielectric: 80
+    timestep: 1.0
+    rigidbonds: none
+  solvated:
+    timestep: 2.0
+    rigidbonds: all
+    nonbondedFreq: 1
+    fullElectFrequency: 2
+    stepspercycle: 10
+    PME: on 
+    pmegridspacing: 1.0
+    wrapAll: on
+  thermostat:
+    langevin: on 
+    langevinDamping: 5
+    langevinTemp: $temperature
+    langevinHydrogen: no 
+  barostat:
+    langevinpiston: on 
+    langevinpistontarget: $pressure
+    langevinpistonperiod: 200
+    langevinpistondecay: 100
+    langevinpistontemp: $temperature
+    usegrouppressure: yes
+    useflexiblecell: no

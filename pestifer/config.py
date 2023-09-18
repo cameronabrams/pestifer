@@ -14,6 +14,7 @@ import glob
 import textwrap
 from collections import UserDict
 from pestifer import PestiferResources
+from .util import special_update
 
 segtype_of_resname={}
 charmm_resname_of_pdb_resname={}
@@ -54,30 +55,25 @@ class Config(UserDict):
         data={}
         data['Resources']=ResourceManager()
         logger.debug(f'Resources {data["Resources"]}')
-        l=glob.glob(data['Resources']['config']+'/*.yaml')
-        logger.debug(f'{l}')
-        for fn in l:
-            with open(fn,'r') as f:
-                bn=os.path.basename(fn)
-                bn=os.path.splitext(bn)[0]
-                logger.debug(f'Pestifer uses {bn}: {fn}')
-                data[bn]=yaml.safe_load(f)
+        base=os.path.join(data['Resources']['config'],'base.yaml')
+        with open(base,'r') as f:
+            bn=os.path.basename(base)
+            bn=os.path.splitext(bn)[0]
+            logger.debug(f'Pestifer uses {bn}')
+            data[bn]=yaml.safe_load(f)
         assert 'base' in data
-        assert 'help' in data
-        if userconfigfile:
-            if os.path.exists(userconfigfile):
-                logger.debug(f'Pestifer reads user config {userconfigfile}')
-                with open(userconfigfile,'r') as f:
-                    data['user']=yaml.safe_load(f)
-                    # self._user_defaults()
-        else:
-            data['user']={}
+        # assert 'help' in data
+        data['user']={}
+        if userconfigfile and os.path.exists(userconfigfile):
+            logger.debug(f'Pestifer reads user config {userconfigfile}')
+            with open(userconfigfile,'r') as f:
+                data['user']=yaml.safe_load(f)
         super().__init__(data)
         self._user_defaults()
         self._set_shortcuts()
 
     def _user_defaults(self):
-        D=self['help']
+        D=self['base']
         U=self['user']
         dwalk(D,U)
 
@@ -100,19 +96,19 @@ class Config(UserDict):
         self.user_charmmff_toppar_path=''
         if hasattr(self,'user'):
             self.user_charmmff_toppar_path=os.path.join(self['user']['charmff'],'toppar')
-        self.namd2_config_defaults=self['base']['namd2']
-        self.segtypes=self['base']['psfgen']['segtypes']
+        self.namd2_config_defaults=self['user']['namd2']
+        self.segtypes=self['user']['psfgen']['segtypes']
         for stn,stspec in self.segtypes.items():
             if stspec and 'rescodes' in stspec:
-                self['base']['psfgen']['segtypes'][stn]['invrescodes']={v:k for k,v in stspec['rescodes'].items()}
+                self['user']['psfgen']['segtypes'][stn]['invrescodes']={v:k for k,v in stspec['rescodes'].items()}
         self.pdb_to_charmm_resnames={}
-        for alias in self['base']['psfgen']['aliases']:
+        for alias in self['user']['psfgen']['aliases']:
             tok=alias.split()
             if tok[0]=='residue':
                 self.pdb_to_charmm_resnames[tok[1]]=tok[2]
         self.segtype_of_resname={}
-        for st in self['base']['psfgen']['segtypes']:
-            res=self['base']['psfgen']['segtypes'][st].get('resnames',[])
+        for st in self['user']['psfgen']['segtypes']:
+            res=self['user']['psfgen']['segtypes'][st].get('resnames',[])
             for r in res:
                 self.segtype_of_resname[r]=st
 
@@ -121,13 +117,13 @@ class Config(UserDict):
         for p,c in charmm_resname_of_pdb_resname.items():
             self.segtype_of_resname[c]=self.segtype_of_resname[p]
         segtype_of_resname.update(self.segtype_of_resname)
-        res_123.update(self['base']['psfgen']['segtypes']['protein']['invrescodes'])
-        res_321.update(self['base']['psfgen']['segtypes']['protein']['rescodes'])
+        res_123.update(self['user']['psfgen']['segtypes']['protein']['invrescodes'])
+        res_321.update(self['user']['psfgen']['segtypes']['protein']['rescodes'])
 
 
     def make_default_specs(self,*args):
         holder={}
-        make_def(self['help']['directives'],holder,*args)
+        make_def(self['base']['directives'],holder,*args)
         return holder
 
 def make_def(L,H,*args):
@@ -200,6 +196,7 @@ def dwalk(D,I):
        D is thd config-specification dict yaml-read from the package resources
     """
     # get the name of each config directive at this level in this block
+    assert 'directives' in D # D must contain one or more directives
     tld=[x['name'] for x in D['directives']]
     if I==None:
         raise ValueError(f'Null dictionary found; expected a dict with key(s) {tld} under \'{D["name"]}\'.')
@@ -239,47 +236,58 @@ def dwalk(D,I):
                         continue
                 # whether required or not, set it as empty and continue the walk,
                 # which will set defaults for all descendants
-                I[d]={}
-                dwalk(dx,I[d])
+                if 'directives' in dx:
+                    I[d]={}
+                    dwalk(dx,I[d])
+                else:
+                    I[d]=dx.get('default',{})
             elif typ=='list':
                 if 'required' in dx:
                     if not dx['required']:
                         continue
-                I[d]=[] # and do nothing else
+                I[d]=dx.get('default',[])
         # this directive does appear in I
         else:
             if typ=='str' and 'choices' in dx:
+                # just check the choices that were provided by the user
                 assert I[d] in dx['choices'],f'Directive \'{d}\' of \'{dx["name"]}\' must be one of {", ".join(dx["choices"])}'
-            if typ=='dict':
+            elif typ=='dict':
                 # process descendants
-                dwalk(dx,I[d])
+                if 'directives' in dx:
+                    dwalk(dx,I[d])
+                else:
+                    special_update(I[d],dx.get('default',{}))
             elif typ=='list':
                 # process list-item children
-                lwalk(dx,I[d])
+                if 'directives' in dx:
+                    lwalk(dx,I[d])
+                else:
+                    defaults=dx.get('default',[])
+                    I[d]=defaults+I[d]
 
 def lwalk(D,L):
-    if 'directives' in D:
-        tld=[x['name'] for x in D['directives']]
-        # logger.debug(f'lwalk on {tld}')
-        for item in L:
-            # check this item against its directive
-            itemname=list(item.keys())[0]
-            # logger.debug(f' - item {item}')
-            if not itemname in tld:
-                raise ValueError(f'Element \'{itemname}\' of list \'{D["name"]}\' is not valid; expected one of {tld}')
-            tidx=tld.index(itemname)
-            dx=D['directives'][tidx]
-            typ=dx['type']
-            if typ in ['str','int','float']:
-                # because a list directive indicates an ordered sequence of tasks and we expect each
-                # task to be a dictionary specifying the task and not a single scalar value,
-                # we will ignore this one
-                logger.debug(f'Warning: Scalar list-element-directive \'{dx}\' in \'{dx["name"]}\' ignored.')
-            elif typ=='dict':
-                if not item[itemname]:
-                    item[itemname]={}
-                dwalk(dx,item[itemname])
-            else:
-                logger.debug(f'Warning: List-element-directive \'{itemname}\' in \'{dx["name"]}\' ignored.')
+    assert 'directives' in D
+    tld=[x['name'] for x in D['directives']]
+    # logger.debug(f'lwalk on {tld}')
+    for item in L:
+        # check this item against its directive
+        itemname=list(item.keys())[0]
+        # logger.debug(f' - item {item}')
+        if not itemname in tld:
+            raise ValueError(f'Element \'{itemname}\' of list \'{D["name"]}\' is not valid; expected one of {tld}')
+        tidx=tld.index(itemname)
+        dx=D['directives'][tidx]
+        typ=dx['type']
+        if typ in ['str','int','float']:
+            # because a list directive indicates an ordered sequence of tasks and we expect each
+            # task to be a dictionary specifying the task and not a single scalar value,
+            # we will ignore this one
+            logger.debug(f'Warning: Scalar list-element-directive \'{dx}\' in \'{dx["name"]}\' ignored.')
+        elif typ=='dict':
+            if not item[itemname]:
+                item[itemname]={}
+            dwalk(dx,item[itemname])
+        else:
+            logger.debug(f'Warning: List-element-directive \'{itemname}\' in \'{dx["name"]}\' ignored.')
 
 

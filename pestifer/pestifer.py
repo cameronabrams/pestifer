@@ -25,7 +25,7 @@ def config_help(args):
         banner(print)
     print(f'Help on user-provided configuration file format')
     directives=args.directives
-    userhelp(c['help']['directives'],print,*directives)
+    userhelp(c['base']['directives'],print,*directives)
 
 def config_default(args):
     c=Config()
