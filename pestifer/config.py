@@ -38,11 +38,11 @@ def myset(a_dict,keylist,val):
         myset(a_dict[key],keylist,val)
 
 class Config(Yclept):
-    def __init__(self,userconfigfile=''):
+    def __init__(self,userfile=''):
         r=ResourceManager()
         logger.debug(f'Resources {r}')
         basefile=os.path.join(r['config'],'base.yaml')
-        super().__init__(basefile,userconfigfile=userconfigfile)
+        super().__init__(basefile,userfile=userfile)
         self['Resources']=r
         self._set_shortcuts()
 

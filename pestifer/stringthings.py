@@ -9,10 +9,12 @@ import os
 from pestifer.command import Command
 # _ANGSTROM_='Ångström'
 
-from .util import get_version
+import importlib.metadata
+
+__version__ = importlib.metadata.version("pidibble")
 
 banner_message="""
-    Pestifer v. {:s}
+    Pestifer v {}
     https://github.com/cameronabrams/pestifer
 
     Cameron F. Abrams
@@ -23,7 +25,7 @@ banner_message="""
 
     CHARMM force field files (July 22) from the 
     MacKerell Lab
-    """.format(get_version())
+    """.format(__version__)
 
 def banner(logf):
     my_logger(banner_message,logf,fill=' ',just='<')

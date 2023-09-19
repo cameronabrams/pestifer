@@ -193,8 +193,8 @@ class VMD(Scriptwriter):
 class Psfgen(VMD):
     def __init__(self,config):
         super().__init__(config)
-        self.charmmff_config=config['base']['charmmff']
-        self.psfgen_config=config['base']['psfgen']
+        self.charmmff_config=config['user']['charmmff']
+        self.psfgen_config=config['user']['psfgen']
         self.pestifer_charmmff_toppar_path=config.charmmff_toppar_path
         self.pestifer_charmmff_custom_path=config.charmmff_custom_path
         self.user_charmmff_toppar_path=config.user_charmmff_toppar_path
@@ -240,10 +240,10 @@ class Psfgen(VMD):
 class NAMD2(Scriptwriter):
     def __init__(self,config):
         super().__init__()
-        self.charmmff_config=config['base']['charmmff']
+        self.charmmff_config=config['user']['charmmff']
         self.charmrun=config.charmrun
         self.namd2=config.namd2
-        self.namd2_config=config['base']['namd2']
+        self.namd2_config=config['user']['namd2']
         self.max_cpu_count=os.cpu_count()
         self.default_ext='.namd'
         if config.user_charmmff_toppar_path:

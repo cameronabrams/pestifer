@@ -14,7 +14,9 @@ import yaml
 import glob
 import logging
 logger=logging.getLogger(__name__)
+import importlib.metadata
 
+__version__ = importlib.metadata.version("pestifer")
 from .stringthings import banner, banner_message
 from .controller import Controller
 from .config import Config

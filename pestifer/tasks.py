@@ -80,7 +80,7 @@ class Task(BaseMod):
         self.update_statefile('coor',f'{basename}.coor')
 
     def minimize(self,specs):
-        namd_params=self.config['base']['namd2']
+        namd_params=self.config['user']['namd2']
         basename=self.next_basename('minimize')
         nminsteps=specs['nminsteps']
         dcdfreq=specs['dcdfreq']
@@ -131,7 +131,7 @@ class Task(BaseMod):
         self.coor_to_pdb(basename)
 
     def namd2prep(self,basename,specs,absolute_paths=True):
-        namd_params=self.config['base']['namd2']
+        namd_params=self.config['user']['namd2']
         ensemble=specs['ensemble']
         temperature=specs['temperature']
         pressure=specs['pressure']
@@ -367,7 +367,7 @@ class LigateTask(Task):
         params['temperature']='$temperature'
         params['parameters']=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
         logger.debug(f'Parameter files: {params["parameters"]}')
-        namd_params=self.config['base']['namd2']
+        namd_params=self.config['user']['namd2']
         params.update(namd_params['generic'])
         params.update(namd_params['vacuum'])
         params.update(namd_params['thermostat'])

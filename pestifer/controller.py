@@ -17,7 +17,7 @@ from .util import *
 class Controller:
     def __init__(self,userconfigfilename):
         # Read in the user configuration file and set up the overall Config
-        self.config=Config(userconfigfilename)
+        self.config=Config(userfile=userconfigfilename)
 
         # Set up the file writers
         self.writers={
