@@ -6,9 +6,7 @@ Pestifer is a Python utility for generating atomistic inputs with appropriate to
 ## Installation
 
 ```bash
-git clone git@github.com:cameronabrams/pestifer.git
-cd pestifer
-pip install -e .
+pip install pestifer
 ```
 
 Once installed, the user has access to the main `pestifer` command.
