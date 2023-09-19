@@ -5,6 +5,7 @@ logger=logging.getLogger(__name__)
 from collections import UserDict
 from pestifer import PestiferResources
 from ycleptic.yclept import Yclept
+from ycleptic.yclept import __version__ as __ycleptic_version__
 
 segtype_of_resname={}
 charmm_resname_of_pdb_resname={}
@@ -39,6 +40,7 @@ def myset(a_dict,keylist,val):
 
 class Config(Yclept):
     def __init__(self,userfile=''):
+        logger.info(f'Ycleptic v {__ycleptic_version__}')
         r=ResourceManager()
         logger.debug(f'Resources {r}')
         basefile=os.path.join(r['config'],'base.yaml')

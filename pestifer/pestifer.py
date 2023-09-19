@@ -15,15 +15,14 @@ import glob
 import logging
 logger=logging.getLogger(__name__)
 import importlib.metadata
-
-__version__ = importlib.metadata.version("pestifer")
+__pestifer_version__ = importlib.metadata.version("pestifer")
 from .stringthings import banner, banner_message
 from .controller import Controller
 from .config import Config
 
 def config_help(args):
     c=Config()
-    if args.no_banner:
+    if not args.no_banner:
         banner(print)
     print(f'Help on user-provided configuration file format')
     directives=args.directives
@@ -31,7 +30,7 @@ def config_help(args):
 
 def config_default(args):
     c=Config()
-    if args.no_banner:
+    if not args.no_banner:
         banner(print)
     print(f'Default directive:')
     directives=args.directives
@@ -51,7 +50,7 @@ def run(args):
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
-    if args.no_banner:
+    if not args.no_banner:
         banner(logger.info)
     # Set up the Controller and execute tasks
     logger.info(f'pestifer runtime begins')

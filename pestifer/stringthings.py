@@ -11,7 +11,7 @@ from pestifer.command import Command
 
 import importlib.metadata
 
-__version__ = importlib.metadata.version("pidibble")
+__pestifer_version__ = importlib.metadata.version("pestifer")
 
 banner_message="""
     Pestifer v {}
@@ -25,7 +25,7 @@ banner_message="""
 
     CHARMM force field files (July 22) from the 
     MacKerell Lab
-    """.format(__version__)
+    """.format(__pestifer_version__)
 
 def banner(logf):
     my_logger(banner_message,logf,fill=' ',just='<')

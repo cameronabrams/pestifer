@@ -6,29 +6,8 @@ import sys
 import logging
 import importlib
 import os
-from pathlib import Path
 logger=logging.getLogger(__name__)
-from pestifer import PestiferResources
 import shutil
-
-def get_version():
-    """Queries the packages' pyproject.toml to get the package version"""
-    res_path=Path(PestiferResources.__file__).parent
-    logger.debug(f'res_path {res_path}')
-    res_parent=Path(res_path).parent
-    logger.debug(f'res_parent {res_parent}')
-    package_dir=Path(res_parent).parent
-    pyproject_toml=os.path.join(package_dir,'pyproject.toml')
-    logger.debug(f'pyproject_toml {pyproject_toml}')
-    version='UNKNOWN'
-    if os.path.exists(pyproject_toml):
-        with open(pyproject_toml,'r') as f:
-            data=f.read().split('\n')
-        for line in data:
-            tokens=line.split()
-            if tokens[0]=='version':
-                version=tokens[2].strip('"')
-    return version
 
 def is_tool(name):
     """Checks to see if the object name is an executable"""
