@@ -5,20 +5,23 @@ Installation
 Software Prequisites
 --------------------
 
-The following commands should be in your path: ``vmd``, ``charmrun``, and ``namd2``.
+The commands ``vmd``, ``charmrun``, and ``namd2`` should be in your path.  If you choose to package the results using the ``topogromacs`` plugin, the ``gmx`` executable should also be in your path.
 
 Installation
 ------------
 
-To use Pestifer, install it from a cloned Github repository:
+To use Pestifer, install it from PyPI:
 
 .. code-block:: console
 
-   $ git clone git@github.com:cameronabrams/pestifer.git
-   $ cd pestifer
-   $ pip install -e .
+   $ pip install pestifer
 
-Pestifer is under very active development.
+Pestifer is under very active development.  To get the latest version for PyPI, just update:
+
+.. code-block:: console
+
+   $ pip install -U pestifer
+
 
 .. If you use conda/anaconda, we recommended that you create a separate Python environment running ``HTPolyNet``:
 

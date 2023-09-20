@@ -19,6 +19,7 @@ from .chainids import ChainIDManager
 from .colvars import *
 from .stringthings import FileCollector
 from .modcontainer import ModContainer
+from .command import Command
 
 class Task(BaseMod):
     req_attr=BaseMod.req_attr+['specs','config','index','prior','writers','taskname']
@@ -492,6 +493,7 @@ class TerminateTask(Task):
         self.statevars=self.prior.statevars.copy()
         self.FC.clear()
         basename=specs["basename"]
+        logger.debug(f'packaging for namd2 using basename {basename}')
         params=self.namd2prep(basename,specs)
         local_params=[]
         for nf in params["parameters"]:
@@ -507,6 +509,24 @@ class TerminateTask(Task):
         params['parameters']=local_params
         self.namd2script(basename,params)
         self.FC.append(f'{basename}.namd')
+        if specs["topogromacs"]:
+            logger.debug(f'running topogromacs')
+            with open(f'{basename}_par.inp','w') as f:
+                for pf in params['parameters']:
+                    f.write(f'parameters {pf}\n')
+            vt=self.writers['vmd']
+            vt.newscript(f'{basename}_tg')
+            vt.usescript('tg')
+            vt.writescript()
+            psf=self.statevars['psf']
+            pdb=self.statevars['pdb']
+            inputname=os.path.splitext(self.statevars['coor'])[0]
+            vt.runscript(o=basename,pdb=pdb,psf=psf,i=inputname,parinp=f'{basename}_par.inp',ospf=f'{basename}_tg.psf',opdb=f'{basename}_tg.pdb',top=f'{basename}_topogromacs.top',cellfile=f'{basename}_cell.inp')
+            with open(f'{basename}_cell.inp','r') as f:
+                box=f.read().split()
+            boxstr=' '.join(box)
+            c=Command(f'gmx editconf -f {basename}_tg.pdb -o {basename}_topogromacs.pdb -box {boxstr}')
+            c.run()
+            self.FC.append(f'{basename}_topogromacs.pdb')
+            self.FC.append(f'{basename}_topogromacs.top')
         self.FC.tarball(specs["basename"])
-
-        

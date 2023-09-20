@@ -1,10 +1,5 @@
-"""
-
-.. module:: psfgen
-   :synopsis: Manages script generation and execution for vmd and namd2
-   
-.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
-
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""Scriptwriters
 """
 import logging
 logger=logging.getLogger(__name__)
@@ -13,6 +8,7 @@ import os
 from .util import reduce_intlist
 from .stringthings import ByteCollector, FileCollector, my_logger
 import datetime
+import shutil
 
 class Filewriter:
     def __init__(self):
@@ -251,6 +247,14 @@ class NAMD2(Scriptwriter):
         else:
             self.standard_charmmff_parfiles=[os.path.join(config.charmmff_toppar_path,x) for x in self.charmmff_config['standard']['parameters']]
         self.custom_charmmff_parfiles=[os.path.join(config.charmmff_custom_path,x) for x in self.charmmff_config['custom']['parameters']]
+
+    def write_parcommands(self,filename,fetch=False):
+        with open(filename,'w') as f:
+            for pf in self.standard_charmmff_parfiles+self.custom_charmmff_parfiles:
+                d,bn=os.path.split(pf)
+                if fetch:
+                    shutil.copy(pf,bn)
+                f.write(f'parameters {bn}\n')
 
     def newscript(self,basename=None):
         super().newscript(basename)

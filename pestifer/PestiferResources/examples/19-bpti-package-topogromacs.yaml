@@ -1,0 +1,16 @@
+title: BPTI, packaging all inputs for NAMD deployment
+tasks:
+  - psfgen:
+      source:
+        id: 6pti
+        exclude:
+          resnames:
+            - PO4
+  - solvate:
+  - relax:
+      ensemble: NPT
+  - terminate:
+      basename: my_6pti
+      package:
+        basename: prod_6pti
+        topogromacs: True

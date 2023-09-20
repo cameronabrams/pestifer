@@ -69,11 +69,11 @@ An example YAML configuration file to build the 6PTI system in the psfgen user m
    title: BPTI
    tasks:
       - psfgen:
-            source:
+         source:
             id: 6pti
       - solvate:
       - relax:
-            ensemble: NPT  
+         ensemble: NPT  
 
 This can be run (preferably in a clean directory) via
 
@@ -86,6 +86,8 @@ Or, alternatively, pasting that content into a local file ``myconfig.yaml``:
 .. code-block:: bash
 
    $ pestifer run myconfig.yaml
+
+The first thing ``pestifer`` does with ``run-example`` is to copy the YAML config file for that example into the local directory.  In this case, the file copied is named ``01-bpti.yaml``, and contains what you see above.
 
 Generally, pestifer is instructed to execute a series of ``tasks``.  The first is a ``psfgen`` task, where the experimental coordinates are used with psfgen to generate an initial topology/coordinate file couple. The ``source`` block declares we will use the 6pti entry of the RCSB, and we will generate the default biological assembly (which is the only one for this file). The second task is solvation and ionization. Finally, the system is relaxed at a temperature of 300 K and a pressure of 1 bar.  By default, there is a minimization in the ``psfgen`` task and the ``solvate`` task.
 
@@ -345,7 +347,15 @@ This run will generate a lot of files, but one that is interesting to look at is
          xstfreq: 100
    title: BPTI
 
-That's a lot of stuff!  But it shows you everything that Pestifer needs and does to use psfgen and namd2 to generate this system.  Further updates to the documentation will explain in detail.  For now, I recommend running a few of the 18 examples to showcase some of Pestifer's capabilities.  `Ycleptic <https://pypi.org/project/ycleptic/>`_ is a package I developed for generalizing the use of YAML-format configuration files; using a "base" configuration owned by Pestifer, Ycleptic knows how to interpret a user config file to assign defaults, report errors, etc.
+That's a lot of stuff!  But it shows you everything that Pestifer needs and does to use psfgen and namd2 to generate this system.  
+
+Let's examine a few of the task directives:
+
+* ``psfgen``: this task is the actual generation of the input script for the ``psfgen`` plugin for ``VMD`` and its execution to build the first-pass ``PDB`` and ``PSF`` files. In the original config file, we specify the ``source`` directive via the ``id`` parameter, which is the PDB ID for this system.  Compare that original ``psfgen`` directive to the one that appears in the filled-in version config file.  You see a lot more things you can specify in the ``source`` subdirective, as well as other subdirectives ``cleanup``, ``minimize``, and ``mods``.  The ``cleanup`` directive just removes all temporary PDB files used during the ``psfgen`` run.  ``minimize`` directs the execution of ``namd2`` to energy-minimize the newly generated system (you should always do this, and that is why this happens by default).  If you like you could include the ``minimize`` directive and then provide new values for ``nminsteps`` or ``dcdfreq``.
+* ``solvate``: this task solvates and ionizes the system, using the VMD plugins ``solvate`` and ``autoionize``.  In the filled-in version of ``solvate``, we see that a pad length of 10 angstroms is used and a minimization is also run.  Future releases will permit the specifications of overall ionic strength and the ions themselves, as well as the solvent.
+* ``relax``: this task performs a short NPT equilibration to settle the box size down; the filled-in version shows the default values assigned in the namd2 config file used for the run.
+
+Further updates to the documentation will explain in detail.  For now, I recommend running a few of the 19 examples to showcase some of Pestifer's capabilities.  `Ycleptic <https://pypi.org/project/ycleptic/>`_ is a package I developed for generalizing the use of YAML-format configuration files; using a "base" configuration owned by Pestifer, Ycleptic knows how to interpret a user config file to assign defaults, report errors, etc.
 
 The import output of this build are the PSF/PDB/COOR/VEL/XSC files needed to (re)start namd2; by default, these are ``my_system.pdb`` etc.
 
@@ -353,3 +363,120 @@ The import output of this build are the PSF/PDB/COOR/VEL/XSC files needed to (re
 
    $ ls my_system*
    my_system.coor  my_system.pdb  my_system.psf  my_system.vel  my_system.xsc
+
+Example 2
+---------
+This is the same as Example 1, except we specify that the phosphate ion present in the PDB input file be excluded.
+
+.. code-block:: yaml
+
+   title: BPTI with phosphate ion excluded
+   tasks:
+     - psfgen:
+         source:
+         id: 6pti
+         exclude:
+            resnames:
+               - PO4
+     - solvate:
+     - relax:
+         ensemble: NPT
+
+This exclusion is specified via the ``exclude`` directive under ``source``, and we further specify that it is all residues with a particular name that we are excluding (``PO4``).  We must refer to any resnames to exclude using exactly the same string that refers to them in the PDB input itself.
+
+Example 11
+----------
+This is the same as Example 2, except we introduce a ``terminate`` task with a ``package`` directive.  ``package`` will make a tarball of all necessary input files for a production ``namd2`` run, including the PSF/PDB/COOR/VEL/XSC fileset and all parameter files.
+
+.. code-block:: yaml
+
+   title: BPTI, packaging all inputs for NAMD deployment
+   tasks:
+     - psfgen:
+         source:
+         id: 6pti
+         exclude:
+            resnames:
+               - PO4
+     - solvate:
+     - relax:
+           ensemble: NPT
+     - terminate:
+           basename: my_6pti
+           package:
+           basename: prod_6pti
+
+The name of the tarball generated is ``prod_6pti.tgz`` and its contents are:
+
+.. code-block:: bash
+
+   $ tar ztf prod_6pti.tgz
+   par_all36m_prot.prm
+   par_all36_carb.prm
+   par_all36_lipid.prm
+   par_all36_carb.prm
+   par_all36_na.prm
+   par_all36_cgenff.prm
+   toppar_all36_carb_glycopeptide.str
+   toppar_all36_prot_modify_res.str
+   toppar_water_ions.str
+   toppar_all36_moreions.str
+   01-00-solvate.psf
+   02-00-relax-relax.pdb
+   02-00-relax-relax.coor
+   02-00-relax-relax.xsc
+   02-00-relax-relax.vel
+   prod_6pti.namd
+   $
+
+Carefully consider the contents of the ``namd2`` config file before you run!
+
+Example 19
+----------
+This is the same as Example 11, except we now use ``topogromacs`` to generate Gromacs-compatible input:
+
+.. code-block:: yaml
+
+   title: BPTI, packaging all inputs for NAMD deployment
+   tasks:
+     - psfgen:
+         source:
+         id: 6pti
+         exclude:
+            resnames:
+               - PO4
+     - solvate:
+     - relax:
+         ensemble: NPT
+     - terminate:
+         basename: my_6pti
+         package:
+         basename: prod_6pti
+         topogromacs: True
+
+Inside the tarball, we now see:
+
+.. code-block:: bash
+
+   $ tar ztf prod_6pti.tgz
+   par_all36m_prot.prm
+   par_all36_carb.prm
+   par_all36_lipid.prm
+   par_all36_carb.prm
+   par_all36_na.prm
+   par_all36_cgenff.prm
+   toppar_all36_carb_glycopeptide.str
+   toppar_all36_prot_modify_res.str
+   toppar_water_ions.str
+   toppar_all36_moreions.str
+   01-00-solvate.psf
+   02-00-relax-relax.pdb
+   02-00-relax-relax.coor
+   02-00-relax-relax.xsc
+   02-00-relax-relax.vel
+   prod_6pti.namd
+   prod_6pti_topogromacs.pdb
+   prod_6pti_topogromacs.top
+   $
+
+The files ``prod_6pti_topogromacs.pdb`` and ``prod_6pti_topogromacs.top`` can be used, along with a suitable ``mdp`` file, with ``gmx grompp`` to generate the ``tpr`` file needed to run Gromacs.

@@ -1,17 +1,6 @@
 # topogromacs vmd script
 # cameron f abrams cfa22@drexel.edu
-# 2021
-
-if {![info exists PSFGEN_BASEDIR]} {
-  # see if user set an environment variable
-  if {[info exists env(PSFGEN_BASEDIR)]} {
-      set PSFGEN_BASEDIR $env(PSFGEN_BASEDIR)
-  } else {
-      set PSFGEN_BASEDIR $env(HOME)/research/psfgen
-  }
-}
-
-source $PSFGEN_BASEDIR/scripts/vmdrc.tcl
+# 2023
 
 set PSF none.psf
 set INPUTNAME none-input
@@ -44,13 +33,10 @@ for { set a 0 } { $a < [llength $argv] } { incr a } {
   } elseif { $arg == "-opdb" } {
     incr a
     set PDBOUT [lindex $argv $a]
-  } elseif { $arg == "--alt-namd-config" } {
-    incr a
-    set ALTNAMDCONFIG [lindex $argv $a]
-  } elseif { $arg == "--cell-dim-file" } {
+  } elseif { $arg == "-cellfile" } {
     incr a
     set CELLDIMFILE [lindex $argv $a]
-  } elseif { $arg == "--center-sel-str" } {
+  } elseif { $arg == "-atomsel_center_string" } {
     incr a
     set centerselstr [lindex $argv $a]
   } else {

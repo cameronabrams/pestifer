@@ -587,3 +587,7 @@ directives:
                 text: Pressure (bar) for NPT; note that NPT can only be peformed on a solvated system
                 type: float
                 default: 1
+              - name: topogromacs
+                text: Set to True if you want to use topogromacs to generate Gromacs-compatible PDB and TOP files
+                type: bool
+                default: False

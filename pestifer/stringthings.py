@@ -20,7 +20,7 @@ banner_message="""
     Cameron F. Abrams
     cfa22@drexel.edu
 
-    Supported in part by Grants GM100472, AI15407, 
+    Supported in part by Grants GM100472, AI154071, 
     and AI178833 from the NIH
 
     CHARMM force field files (July 22) from the 
@@ -232,6 +232,7 @@ class FileCollector(UserList):
         filelist=' '.join([x for x in self])
         c=Command(f'tar zvcf {basename}.tgz {filelist}')
         c.run()
+        logger.debug(f'generated tarball {basename}.tgz')
 
 def split_ri(ri):
     """A simple utility function for splitting the integer resid and
