@@ -218,6 +218,8 @@ class PsfgenTask(Task):
         self.statevars['base_molecule']=self.base_molecule
         logger.debug('Running first psfgen')
         self.psfgen()
+        # we now have a full coordinate set, so we can do coormods
+        self.coormods()
         nloops=self.base_molecule.has_loops(min_loop_length=self.statevars['min_loop_length'])*self.base_molecule.num_images()
         if nloops>0:
             logger.debug(f'Declashing {nloops} loops')
@@ -225,6 +227,25 @@ class PsfgenTask(Task):
         logger.debug('Minimizing')
         self.minimize(self.specs['minimize'])
         logger.info(f'Task {self.taskname} {self.index:02d} complete')
+
+    def coormods(self):
+        if self.mods.coormods:
+            molidvar=self.base_molecule.molid_varname
+            ba=self.base_molecule.active_biological_assembly
+            logger.debug(f'performing coormods')
+            basename=self.next_basename('coormods')
+            vm=self.writers['vmd']
+            vm.newscript(basename)
+            psf=self.statevars['psf']
+            pdb=self.statevars['pdb']
+            vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
+            for transform in ba.transforms:
+                self.mods.coormods.crotations.write_TcL(vm,transform)
+            vm.write_pdb(basename,'mCM')
+            vm.endscript()
+            vm.writescript()
+            vm.runscript()
+            self.update_statefile('pdb',f'{basename}.pdb')
 
     def psfgen(self):
         basename=self.next_basename('build')
@@ -267,7 +288,7 @@ class PsfgenTask(Task):
         self.mods=ModContainer(self.specs['mods'])
         # self.pdbs=self.mods.report_pdbs()
         # self.usermod_specs=specs['mods']
-        logger.debug(f'user mods at injest_molecules {self.mods.__dict__}')
+        # logger.debug(f'user mods at injest_molecules {self.mods.__dict__}')
         self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,usermods=self.mods,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
         self.base_molecule=self.molecules[self.source_specs['id']]
         self.statevars['min_loop_length']=self.source_specs['sequence']['loops']['min_loop_length']

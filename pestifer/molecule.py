@@ -83,13 +83,6 @@ class Molecule(AncestorAwareMod):
         mods=au.mods
 
         ba=self.active_biological_assembly
-        # build the relevant list of user mutations; this should not be necessary
-        # if the user's config file is consistent but it might not be
-        # mutations=MutationList([])
-        # for k in ba.chainIDs_used:
-        #     if hasattr(mods,'mutations'):
-        #         mutations.extend(mods.mutations.filter(chainID=k))
-
         for transform in ba.transforms:
             W.banner(f'Transform {transform.index} begins')
             W.banner('The following mappings of A.U. asym ids is used:')
@@ -101,6 +94,7 @@ class Molecule(AncestorAwareMod):
             mods.topomods.ssbonds.write_TcL(W,transform)
             W.banner('LINK patches follow')
             mods.topomods.links.write_TcL(W,transform)
+            mods.coormods.crotations.write_TcL(W,transform,molid=self.molid)
             W.banner(f'Transform {transform.index} ends')
     
     def get_chainmaps(self):

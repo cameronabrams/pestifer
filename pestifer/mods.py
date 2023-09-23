@@ -590,46 +590,46 @@ class Crot(AncestorAwareMod):
     def __str__(self):
         self.to_shortcode()
         return self.shortcode
-        
-    def psfgen_lines(self,**kwargs):
+    
+    def write_TcL(self,W:Psfgen,transform,**kwargs):
+        chainIDmap=transform.chainIDmap
+        the_chainID=chainIDmap.get(self.chainID,self.chainID)
         molid=kwargs.get('molid','top')
         endIsCterm=kwargs.get('endIsCterm',False)
-        retlines=[]
-        if self.angle in ['PHI','PSI','OMEGA']:  # this is a backbone bond
-            retlines.append('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,self.chainID,self.resseqnum1))
-            retlines.append('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,self.chainID,self.resseqnum2))
+        if self.angle in ['PHI','PSI','OMEGA']:
+            W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum1))
+            W.addline('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum2))
             if endIsCterm:
-                retlines.append('Crot_{}_toCterm $r1 $r2 {} {} {}'.format(self.angle.lower(),self.chainID,molid,self.degrees))
+                W.addline('Crot_{}_toCterm $r1 $r2 {} {} {}'.format(self.angle.lower(),the_chainID,molid,self.degrees))
             else:
-                retlines.append('Crot_{} $r1 $r2 {} {} {}'.format(self.angle.lower(),self.chainID,molid,self.degrees))
+                W.addline('Crot_{} $r1 $r2 {} {} {}'.format(self.angle.lower(),the_chainID,molid,self.degrees))
         elif self.angle in ['CHI1','CHI2']:  # this is a side-chain bond
-            retlines.append('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,self.chainID,self.resseqnum1))
-            retlines.append('SCrot_{} $r1 {} {} {}'.format(self.angle.lower(),self.chainID,molid,self.degrees))
+            W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum1))
+            W.addline('SCrot_{} $r1 {} {} {}'.format(self.angle.lower(),the_chainID,molid,self.degrees))
         elif self.angle=='GLYCAN':  # intra-glycan rotation
-            retlines.append('set sel [atomselect {} "segname {}"]'.format(molid,self.segname))
-            retlines.append('set i [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname,self.resseqnum1,self.atom1))
-            retlines.append('set j [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname,self.resseqnum2,self.atom2))
-            retlines.append('genbondrot {} $sel $i $j {}'.format(molid,self.degrees))
+            W.addline('set sel [atomselect {} "segname {}"]'.format(molid,self.segname))
+            W.addline('set i [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname,self.resseqnum1,self.atom1))
+            W.addline('set j [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname,self.resseqnum2,self.atom2))
+            W.addline('genbondrot {} $sel $i $j {}'.format(molid,self.degrees))
         elif self.angle=='LINK': # ASN-GLYcan rotation
-            retlines.append('set sel [atomselect {} "segname {} {}"]'.format(molid,self.segname1,self.segname2))
-            retlines.append('set i [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname1,self.resseqnum1,self.atom1))
-            retlines.append('set j [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname2,self.resseqnum2,self.atom2))
-            retlines.append('genbondrot {} $sel $i $j {}'.format(molid,self.degrees))
+            W.addline('set sel [atomselect {} "segname {} {}"]'.format(molid,self.segname1,self.segname2))
+            W.addline('set i [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname1,self.resseqnum1,self.atom1))
+            W.addline('set j [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname2,self.resseqnum2,self.atom2))
+            W.addline('genbondrot {} $sel $i $j {}'.format(molid,self.degrees))
         elif self.angle=='ANGLEIJK':
-            retlines.extend([
-                'set rotsel [atomselect {} "segname {}"]'.format(molid,self.segnamejk),
-                'set ri [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamei,self.resseqnumi,self.atomi),
-                'set rj [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamejk,self.resseqnumj,self.atomj),
-                'set rk [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamejk,self.resseqnumk,self.atomk),
-                'set rij [vecsub $ri $rj]',
-                'set rjk [vecsub $rj $rk]',
-                'set cijk [veccross $rij $rjk]',
-                '$rotsel move [trans center $rj origin $rj axis $cijk {} degrees]'.format(self.degrees)
-            ])
-        return retlines
+            W.addline('set rotsel [atomselect {} "segname {}"]'.format(molid,self.segnamejk))
+            W.addline('set ri [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamei,self.resseqnumi,self.atomi))
+            W.addline('set rj [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamejk,self.resseqnumj,self.atomj))
+            W.addline('set rk [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamejk,self.resseqnumk,self.atomk))
+            W.addline('set rij [vecsub $ri $rj]')
+            W.addline('set rjk [vecsub $rj $rk]')
+            W.addline('set cijk [veccross $rij $rjk]')
+            W.addline('$rotsel move [trans center $rj origin $rj axis $cijk {} degrees]'.format(self.degrees))
 
 class CrotList(AncestorAwareModList):
-    pass
+    def write_TcL(self,W:Psfgen,transform,**kwargs):
+        for c in self:
+            c.write_TcL(W,transform,**kwargs)
 
 class SSBond(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']

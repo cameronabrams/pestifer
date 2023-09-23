@@ -409,6 +409,9 @@ directives:
               - name: substitutions
                 text: residue ranges to replace with a new sequence; e.g., C:99-101,GG replaces residues 99, 100, and 101 of chain C with two glycines
                 type: list
+              - name: crotations
+                text: dihedral angle rotations to reposition modelled-in protein chains or glycans
+                type: list
               # - name: insertion
               # - name: deletion
               # - name: graft

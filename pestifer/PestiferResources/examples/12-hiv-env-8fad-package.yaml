@@ -7,6 +7,9 @@ tasks:
         exclude:
           resnames:
             - 83G
+      mods:
+        crotations:
+          - phi,F,23,49,-90.0
   - ligate:
       steer:
         nsteps: 4000
