@@ -1,10 +1,5 @@
-"""
-
-.. module:: molecule
-   :synopsis: Manages all molecules
-   
-.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
-
+#Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""A class for handling molecules
 """
 import logging
 from .modcontainer import ModContainer
@@ -15,7 +10,6 @@ from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList,BioAssemb
 from .scriptwriters import Psfgen
 from .chainids import ChainIDManager
-from .mods import MutationList, DeletionList, SubstitutionList
 logger=logging.getLogger(__name__)
 
 class Molecule(AncestorAwareMod):
@@ -94,7 +88,6 @@ class Molecule(AncestorAwareMod):
             mods.topomods.ssbonds.write_TcL(W,transform)
             W.banner('LINK patches follow')
             mods.topomods.links.write_TcL(W,transform)
-            mods.coormods.crotations.write_TcL(W,transform,molid=self.molid)
             W.banner(f'Transform {transform.index} ends')
     
     def get_chainmaps(self):

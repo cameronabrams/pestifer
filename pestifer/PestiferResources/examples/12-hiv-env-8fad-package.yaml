@@ -9,7 +9,8 @@ tasks:
             - 83G
       mods:
         crotations:
-          - phi,F,23,49,-90.0
+          - phi,F,29,43,-90.0
+          - psi,F,29,43,-90.0
   - ligate:
       steer:
         nsteps: 4000

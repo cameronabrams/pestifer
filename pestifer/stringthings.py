@@ -15,10 +15,9 @@ __pestifer_version__ = importlib.metadata.version("pestifer")
 
 banner_message="""
     Pestifer v {}
-    https://github.com/cameronabrams/pestifer
+    https://pestifer.readthedocs.io/en/latest/
 
-    Cameron F. Abrams
-    cfa22@drexel.edu
+    Cameron F. Abrams <cfa22@drexel.edu>
 
     Supported in part by Grants GM100472, AI154071, 
     and AI178833 from the NIH

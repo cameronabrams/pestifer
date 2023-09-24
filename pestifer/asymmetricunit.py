@@ -1,9 +1,5 @@
-"""
-
-.. module:: asymmetricunit
-   :synopsis: defines the Asymmetricunit class
-   
-.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""A class for building the asymmetric unit from a PDB file
 
 """
 import logging

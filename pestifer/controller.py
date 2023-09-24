@@ -1,10 +1,5 @@
-"""
-
-.. module:: controller
-   :synopsis: manages execution of all tasks
-   
-.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
-
+#Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""A controller for the pestifer runtime
 """
 import logging
 logger=logging.getLogger(__name__)

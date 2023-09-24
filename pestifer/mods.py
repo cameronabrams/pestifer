@@ -595,7 +595,7 @@ class Crot(AncestorAwareMod):
         chainIDmap=transform.chainIDmap
         the_chainID=chainIDmap.get(self.chainID,self.chainID)
         molid=kwargs.get('molid','top')
-        endIsCterm=kwargs.get('endIsCterm',False)
+        endIsCterm=kwargs.get('endIsCterm',True)
         if self.angle in ['PHI','PSI','OMEGA']:
             W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum1))
             W.addline('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum2))

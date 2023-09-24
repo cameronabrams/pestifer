@@ -230,7 +230,6 @@ class PsfgenTask(Task):
 
     def coormods(self):
         if self.mods.coormods:
-            molidvar=self.base_molecule.molid_varname
             ba=self.base_molecule.active_biological_assembly
             logger.debug(f'performing coormods')
             basename=self.next_basename('coormods')

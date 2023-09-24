@@ -89,7 +89,6 @@ def run_example(args):
         print(f'No example {number} is found.')
 
 def cli():
-    # _main()
     commands={
         'config-help':config_help,
         'config-default':config_default,

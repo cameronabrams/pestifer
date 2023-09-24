@@ -1,11 +1,15 @@
+#Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""A class for handling Segments
+"""
 import logging
 logger=logging.getLogger(__name__)
 from .basemod import AncestorAwareMod, AncestorAwareModList
 from .mods import MutationList
-from .config import segtype_of_resname,charmm_resname_of_pdb_resname
+from .config import charmm_resname_of_pdb_resname
 from .residue import Residue,ResidueList
 from .util import reduce_intlist
 from .scriptwriters import Psfgen
+
 class Segment(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','specs']
     opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname']
@@ -20,7 +24,6 @@ class Segment(AncestorAwareMod):
             myRes=ResidueList([])
             myRes.append(res)
             subsegments=myRes.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
-            # olc=ConfigGetParam('Segname_chars').get(apparent_segtype)
             input_dict={
                 'specs':specs,
                 'segtype': apparent_segtype,
@@ -34,7 +37,6 @@ class Segment(AncestorAwareMod):
             Residues=input_obj
             apparent_chainID=Residues[0].chainID
             apparent_segtype=Residues[0].segtype
-            # myRes=Residues.clone()
             if apparent_segtype=='protein':
                 # a protein segment must have unique residue numbers
                 assert Residues.puniq(['resseqnum','insertion'])
@@ -163,7 +165,6 @@ class Segment(AncestorAwareMod):
                     W.addline(f'${b.selname} move {transform.write_TcL()}')
                 W.addline(f'${b.selname} writepdb {b.pdb}')
         W.addline(f'segment {image_seglabel} '+'{')
-        # print(len(self.subsegments),type(self.subsegments))
         if not self.specs['include_terminal_loops']:
             if self.subsegments[0].state=='MISSING':
                 Nterminal_missing_subsegment=self.subsegments.pop(0)
@@ -234,7 +235,6 @@ class Segment(AncestorAwareMod):
         W.banner(f'Segment {image_seglabel} ends')
 
 class SegmentList(AncestorAwareModList):
-
     def __init__(self,*objs):
         if len(objs)==1 and objs[0]==[]:
             super().__init__([])
@@ -280,11 +280,6 @@ class SegmentList(AncestorAwareModList):
                         self.append(thisSeg)
                         self.segnames.append(thisSeg.segname)
                         self.counters_by_segtype[stype]+=1
-
-                # assert len(self.segnames)==len(self.segnames_ordered_by_residue_order)
-                # assert all([x in self.segnames for x in self.segnames_ordered_by_residue_order])
-                # self.segnames_ordered_by_config=self.segnames.copy()
-                # self.segnames=self.segnames_ordered_by_residue_order.copy()
             else:
                 logger.error(f'Cannot initialize {self.__class__} from objects {objs}')
 

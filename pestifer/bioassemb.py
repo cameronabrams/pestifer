@@ -1,4 +1,6 @@
-
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""A class for processing biological assemblies
+"""
 
 import numpy as np
 from mmcif.api.PdbxContainers import DataContainer
@@ -11,6 +13,15 @@ from .asymmetricunit import AsymmetricUnit
 from .chainids import ChainIDManager
 
 def build_tmat(RotMat,TransVec):
+    """Builds a 3 x 4 transformation matrix 
+    
+    Parameters
+    ----------
+    RotMat: numpy.ndarray
+        3 x 3 rotation matrix
+    TransVec: numpy.ndarray
+        translation vector
+    """
     tmat=np.array([[1, 0, 0, 0],[0, 1, 0, 0],[0, 0, 1, 0]],dtype=float)
     for i in range(3):
         for j in range(3):

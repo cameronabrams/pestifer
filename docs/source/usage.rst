@@ -30,7 +30,7 @@ There are several subcommands:
    $ pestifer run <config.yaml>
 
 
-``run-example``: there are 18 example systems; to run number four, for example:
+``run-example``: there are 20 example systems; to run number four, for example:
 
 .. code-block:: bash
    
@@ -355,7 +355,7 @@ Let's examine a few of the task directives:
 * ``solvate``: this task solvates and ionizes the system, using the VMD plugins ``solvate`` and ``autoionize``.  In the filled-in version of ``solvate``, we see that a pad length of 10 angstroms is used and a minimization is also run.  Future releases will permit the specifications of overall ionic strength and the ions themselves, as well as the solvent.
 * ``relax``: this task performs a short NPT equilibration to settle the box size down; the filled-in version shows the default values assigned in the namd2 config file used for the run.
 
-Further updates to the documentation will explain in detail.  For now, I recommend running a few of the 19 examples to showcase some of Pestifer's capabilities.  `Ycleptic <https://pypi.org/project/ycleptic/>`_ is a package I developed for generalizing the use of YAML-format configuration files; using a "base" configuration owned by Pestifer, Ycleptic knows how to interpret a user config file to assign defaults, report errors, etc.
+Further updates to the documentation will explain in detail.  For now, I recommend running a few of the examples to showcase some of Pestifer's capabilities.  `Ycleptic <https://pypi.org/project/ycleptic/>`_ is a package I developed for generalizing the use of YAML-format configuration files; using a "base" configuration owned by Pestifer, Ycleptic knows how to interpret a user config file to assign defaults, report errors, etc.
 
 The import output of this build are the PSF/PDB/COOR/VEL/XSC files needed to (re)start namd2; by default, these are ``my_system.pdb`` etc.
 

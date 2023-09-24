@@ -1,10 +1,5 @@
-"""
-
-.. module:: residue
-   :synopsis: Manages residues
-   
-.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
-
+#Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""Atoms and residues
 """
 from .mods import *
 from .config import segtype_of_resname
@@ -349,21 +344,6 @@ class ResidueList(AncestorAwareModList):
         for d in delete_us:
             self.remove(d)
 
-    # def update_links(self,Links:LinkList,atoms:AtomList):
-    #     for link in Links:
-    #         link.residue1=self.get(chainID=link.chainID1,resseqnum=link.resseqnum1,insertion=link.insertion1)
-    #         assert not hasattr(link.residue1,'len'),f'c {link.chainID1} r {link.resseqnum1} i {link.insertion1} returned {len(link.residue1)} residues'
-    #         link.residue2=self.get(chainID=link.chainID2,resseqnum=link.resseqnum2,insertion=link.insertion2)
-    #         a1=atoms.get(chainID=link.chainID1,resseqnum=link.resseqnum1,name=link.name1)
-    #         if hasattr(a1,'len'):
-    #             a1=a1.get(altloc=link.altloc1)
-    #         link.atom1=a1
-    #         a2=atoms.get(chainID=link.chainID2,resseqnum=link.resseqnum2,name=link.name2)
-    #         if hasattr(a1,'len'):
-    #             a2=a2.get(altloc=link.altloc2)
-    #         link.atom2=a2
-    #         link.residue1.linkTo(link.residue2,link)
-    #     return self
     def apply_segtypes(self):
         self.map_attr('segtype','resname',segtype_of_resname)
     
@@ -416,4 +396,3 @@ class ResidueList(AncestorAwareModList):
         for r in delete_us:
             self.remove(r)
         return newseqadv,delete_us
-
