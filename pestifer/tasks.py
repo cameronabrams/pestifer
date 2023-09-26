@@ -183,6 +183,8 @@ class Task(BaseMod):
         params['outputName']=f'{basename}'
         if dcdfreq:
             params['dcdfreq']=dcdfreq
+        if 'restartfreq' in specs:
+            params['restartfreq']=specs['restartfreq']
         params['firsttimestep']=0
         if nminsteps:
             params['minimize']=nminsteps
@@ -262,16 +264,16 @@ class PsfgenTask(Task):
         pg.cleanup(cleanup=self.specs['cleanup'])
 
     def declash_loops(self,specs):
-        basename=self.next_basename('declash')
         mol=self.base_molecule
-        if not mol.has_loops():
+        cycles=specs['declash']['maxcycles']
+        if not mol.has_loops() or not cycles:
             return
+        basename=self.next_basename('declash')
         vt=self.writers['vmd']
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
         vt.newscript(basename)
         vt.load_psf_pdb(psf,pdb,new_molid_varname='mLL')
-        cycles=specs['declash']['maxcycles']
         mol.write_loop_lines(vt,cycles=cycles,min_length=specs['min_loop_length'])
         vt.write_pdb(basename,'mLL')
         vt.endscript()

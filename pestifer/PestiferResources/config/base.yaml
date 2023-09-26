@@ -573,15 +573,19 @@ directives:
               - name: nsteps
                 text: Number of MD time steps
                 type: int
-                default: 1000
+                default: 1000000
               - name: dcdfreq
                 text: number of time steps between configuration output to DCD file
                 type: int
-                default: 100
+                default: 10000
               - name: xstfreq
                 text: number of time steps between cell size output to DCD file
                 type: int
-                default: 100
+                default: 10000
+              - name: restartfreq
+                text: number of timesteps between restart checkpoints
+                type: int
+                default: 10000
               - name: temperature
                 text: Temperature (K) for NVT or NPT
                 type: float

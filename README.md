@@ -12,6 +12,8 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.0.5
+    * enhancements to packaging task
 * 1.0.4
     * support for topogromacs added
 * 1.0.1
