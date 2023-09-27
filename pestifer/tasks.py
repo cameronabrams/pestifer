@@ -151,12 +151,13 @@ class Task(BaseMod):
         vel=self.statevars.get('vel',None)
         xsc=self.statevars.get('xsc',None)
         self.statevars['periodic']=is_periodic(None,xsc)
+        params.update({'tcl':[f'set temperature {temperature}']})
+        params['temperature']='$temperature'
         if coor:
             params['bincoordinates']=coor
         if vel:
             params['binvelocities']=vel
-        params.update({'tcl':[f'set temperature {temperature}']})
-        params['temperature']='$temperature'
+            del params['temperature']
         if absolute_paths:
             params['parameters']=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
         else:
@@ -189,6 +190,8 @@ class Task(BaseMod):
         if nminsteps:
             params['minimize']=nminsteps
         params['run']=nsteps
+        if vel:
+            del params['temperature']
         return params
 
     def namd2script(self,basename,params):
