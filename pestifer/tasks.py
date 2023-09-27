@@ -593,7 +593,7 @@ class TerminateTask(Task):
         for ext in self.exts+['.vel']:
             aext=ext[1:]
             self.FC.append(self.statevars[aext])
-        if os.path.exists(self.statevars['vel']):
+        if os.path.exists(self.statevars['vel']) and 'temperature' in params:
             del params['temperature']
         params['parameters']=local_params
         self.namd2script(basename,params)
