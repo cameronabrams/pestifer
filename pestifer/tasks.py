@@ -296,6 +296,70 @@ class PsfgenTask(Task):
         # for p in self.pdbs:
         #     self.molecules[p]=Molecule(source=p)
 
+class DomainSwapTask(Task):
+    yaml_header='domainswap'
+    statevars={}
+    def __init__(self,input_dict,taskname,config,writers,prior):
+        super().__init__(input_dict,taskname,config,writers,prior)
+
+    def do(self):
+        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
+        if self.prior:
+            logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
+            self.statevars=self.prior.statevars.copy()
+        logger.debug(f'Generating inputs for domain swap')
+        self.make_inputs()
+        logger.debug(f'Running NAMD to execute domain swap')
+        self.namd()
+
+    def make_inputs(self):
+        specs=self.specs
+        basename=self.next_basename('domainswap-prep')
+        vm=self.writers['vmd']
+        vm.newscript(basename)
+        psf=self.statevars['psf']
+        pdb=self.statevars['pdb']
+        vm.usescript('domainswap')
+        vm.writescript()
+        vm.runscript(psf=psf,pdb=pdb,swap_domain_def=','.join(specs['swap_domain_def'].split()),anchor_domain_def=','.join(specs['anchor_domain_def'].split()),chain_swap_pairs=':'.join([','.join(x) for x in specs['chain_directional_swaps']]),force_constant=specs['force_constant'],target_numsteps=specs['target_numsteps'],cv=f'{basename}-cv.inp',refpdb=f'{basename}-ref.pdb')
+        self.update_statefile('cv',f'{basename}-cv.inp')
+
+    def namd(self):
+        basename=self.next_basename('domainswap-steer')
+        specs=self.specs
+        nsteps=specs['target_numsteps']
+        dcdfreq=specs['dcdfreq']
+        temperature=specs['temperature']
+        psf=self.statevars['psf']
+        pdb=self.statevars['pdb']
+        na=self.writers['namd2']
+        params={'structure':psf,'coordinates':pdb}
+        params.update({'tcl':[f'set temperature {temperature}']})
+        params['temperature']='$temperature'
+        params['parameters']=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
+        logger.debug(f'Parameter files: {params["parameters"]}')
+        namd_params=self.config['user']['namd2']
+        params.update(namd_params['generic'])
+        params.update(namd_params['vacuum'])
+        params.update(namd_params['thermostat'])
+
+        params['outputName']=f'{basename}'
+        if dcdfreq:
+            params['dcdfreq']=dcdfreq
+        params['firsttimestep']=0
+        extras={
+            'colvars': 'on',
+            'colvarsconfig': self.statevars['cv']
+        }
+        params.update(extras)
+        params['run']=nsteps
+        na.newscript(basename)
+        na.writescript(params)
+        na.runscript()
+        self.update_statefile('coor',f'{basename}.coor')
+        self.update_statefile('vel',f'{basename}.vel')
+        self.coor_to_pdb(basename)
+        
 class LigateTask(Task):
     yaml_header='ligate'
     statevars={}

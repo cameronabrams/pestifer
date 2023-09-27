@@ -483,6 +483,35 @@ directives:
                 text: Number of iterations for the energy minimization
                 type: int
                 default: 1000
+      - name: domainswap
+        text: Parameters controlling a domain swap
+        type: dict
+        directives:
+          - name: swap_domain_def
+            type: str
+            text: VMD atomselect string for the domain; will be appended with "and chain X" for each chain
+          - name: anchor_domain_def
+            type: str
+            text: VMD atomselect string for the anchor domains; will be appended with "and chain X" for each chain
+          - name: chain_directional_swaps
+            type: list
+            text: list of pairs of directional swaps of chainIDs [[A,B], [B,A]] swaps A and B
+          - name: force_constant
+            type: float
+            text: force constant used in biases for domain-swap CV MD simulation (200)
+            default: 200.0
+          - name: target_numsteps
+            type: int
+            text: number of timesteps to run the biased MD simulation
+            default: 10000
+          - name: dcdfreq
+            type: int
+            text: number of timesteps between dcd output
+            default: 100
+          - name: temperature
+            type: float
+            text: temperature of thermostat in MD run
+            default: 300
       - name: solvate
         text: Parameters controlling solvation and ionization
         type: dict
