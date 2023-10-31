@@ -4,6 +4,7 @@ tasks:
       source:
         id: 7txd
         file_format: mmCIF
+        cif_residue_map_file: cif2user.csv
         biological_assembly: 1
         exclude:
           chains:

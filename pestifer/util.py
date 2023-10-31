@@ -157,3 +157,31 @@ def replace(data,match,repl):
             elif type(v)==str and match_str in v:
                 data[k]=data[k].replace(match_str,repl)
             replace(v,match,repl)
+
+def flatten(current, key, result):
+    """https://stackoverflow.com/questions/24448543/how-to-flatten-a-nested-dictionary
+    
+    Parameters
+    ----------
+    current: dict, or not a dict
+       the current dictionary or the deepest non-dictionary value
+    key:
+       running key
+    result:
+       flattened key and value
+    """
+    if isinstance(current,dict):
+        for k in current:
+            new_key="{0}.{1}".format(key,k) if len(key)>0 else k
+            flatten(current[k],new_key,result)
+    else:
+        result[key]=current
+    return result
+
+def write_residue_map(the_map,filename,valkeys=['chainID','resseqnum','insertion']):
+    flat_map=flatten(the_map,'',{})
+    with open(filename,'w') as f:
+        for k,v in flat_map.items():
+            kl=' '.join(k.split('.'))
+            vl=' '.join([str(v.__dict__[x]) for x in valkeys])
+            f.write(f'{kl} {vl}\n')

@@ -5,6 +5,7 @@ from .mods import *
 from .config import segtype_of_resname
 from pidibble.baserecord import BaseRecord
 from functools import singledispatchmethod
+from argparse import Namespace
 
 class Atom(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
@@ -396,3 +397,13 @@ class ResidueList(AncestorAwareModList):
         for r in delete_us:
             self.remove(r)
         return newseqadv,delete_us
+
+    def cif_residue_map(self):
+        result={}
+        for r in self:
+            if hasattr(r,'auth_asym_id'):
+                if not r.chainID in result:
+                    result[r.chainID]={}
+                if not r.resseqnum in result[r.chainID]:
+                    result[r.chainID][r.resseqnum]=Namespace(resseqnum=r.auth_seq_id,chainID=r.auth_asym_id,insertion=r.insertion)
+        return result

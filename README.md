@@ -12,6 +12,8 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.0.6
+    * `cif_residue_map_file` generated to report mapping between CIF-residue numbering and author residue numbering
 * 1.0.5
     * enhancements to packaging task
 * 1.0.4

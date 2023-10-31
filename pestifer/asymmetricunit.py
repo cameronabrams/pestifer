@@ -11,6 +11,7 @@ from .basemod import AncestorAwareMod
 from .modcontainer import ModContainer
 from mmcif.api.PdbxContainers import DataContainer
 from .config import *
+from .util import write_residue_map
 
 logger=logging.getLogger(__name__)
 
@@ -76,6 +77,8 @@ class AsymmetricUnit(AncestorAwareMod):
             fromAtoms=ResidueList(atoms)
             fromEmptyResidues=ResidueList(missings)
             residues=fromAtoms+fromEmptyResidues
+            if sourcespecs.get('cif_residue_map_file',''):
+                write_residue_map(residues.cif_residue_map(),sourcespecs['cif_residue_map_file'])
             residues.apply_segtypes()
             # apply seqmods
             if hasattr(mods.seqmods,'deletions'):

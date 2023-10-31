@@ -339,6 +339,9 @@ directives:
                 type: str
                 choices: [PDB, mmCIF]
                 default: PDB
+              - name: cif_residue_map_file
+                text: name of output file to contain a mapping of CIF chain-residue number to author chain-residue number-insertion
+                type: str
               - name: psf
                 type: str
                 text: An optional accompanying psf file
