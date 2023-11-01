@@ -5,6 +5,29 @@ proc checknum { num msg } {
     #exit
   }
 }
+
+proc get_phi_psi { r segname molid } {
+   set nn [atomselect $molid "segname $segname and residue [expr $r - 1]"]
+   set phi "NaN"
+   if { [$nn num] > 0 } {
+      set nnc [[atomselect $molid "segname $segname and residue [expr $r - 1] and name C"] get index]
+      set n [[atomselect $molid "segname $segname and residue $r and name N"] get index]
+      set ca [[atomselect $molid "segname $segname and residue $r and name CA"] get index]
+      set c  [[atomselect $molid "segname $segname and residue $r and name C"] get index]
+      set phi [measure dihed [list $nnc $n $ca $c]]
+   }
+   set cc [atomselect $molid "segname $segname and residue [expr $r + 1]"]
+   set psi "NaN"
+   if { [$nn num] > 0 } {
+      set n [[atomselect $molid "segname $segname and residue $r and name N"] get index]
+      set ca [[atomselect $molid "segname $segname and residue $r and name CA"] get index]
+      set c  [[atomselect $molid "segname $segname and residue $r and name C"] get index]
+      set ccn [[atomselect $molid "segname $segname and residue [expr $r + 1] and name N"] get index]
+      set psi [measure dihed [list $n $ca $c $ccn]]
+   }
+   return [list $phi $psi]
+}
+
 # rotates all atoms in chain c-terminal to residue r up to and 
 # including residue rend in chain c around residue r's phi angle 
 # by deg degrees in molecule with id molid.  Recall phi:  (-C)-N--CA-C
@@ -128,4 +151,54 @@ proc Crot_omega { r rend segname molid deg } {
    $rot delete
    $n delete
    $co delete
+}
+
+# fold the run of new residues from r to rend into an alpha helix
+# each phi,psi is 180 deg
+# for alpha helix, phi ~ -60 deg, psi ~ -50
+# Crot angles for phi are -120 and for psi -130
+proc new_alpha { rbegin rend segname molid } {
+   for { set r $rbegin } { $r <= $rend } { incr r } {
+      # puts "phi/psi of $segname $r to alpha helix"
+      Crot_phi_toCterm $r $rend $segname $molid -120
+      if { $r < $rend } {
+         Crot_psi_toCterm $r $rend $segname $molid -130
+      }
+   }
+}
+
+proc wrap_domain { x xlo xhi } {
+   set dsize [expr $xhi - $xlo]
+   if { [expr $x < $xlo] } {
+      set y [expr $x + $dsize]
+   } elseif { [expr $x > $xhi] } {
+      set y [expr $x - $dsize]
+   } else {
+      set y $x
+   }
+   return $y
+}
+
+proc fold_alpha { rbegin rend segname molid } {
+   for { set r $rbegin } { $r <= $rend } { incr r } {
+      set pp [get_phi_psi $r $segname $molid]
+      set phi [lindex $pp 0]
+      set psi [lindex $pp 1]
+      # puts "$r $phi $psi"
+      # flush stdout
+      if { $phi != "NaN "} {
+         set dphi [wrap_domain [expr (-60 - ($phi))] -360.0 360.0]
+         # puts "dphi $dphi"
+         # flush stdout
+         Crot_phi_toCterm $r $rend $segname $molid $dphi
+      }
+      if { $r < $rend } {
+         if { $psi != "NaN"} {
+            set dpsi [wrap_domain [expr (-50 - ($psi))] -360.0 360.0]
+            # puts "dpsi $dpsi"
+            # flush stdout
+            Crot_psi_toCterm $r $rend $segname $molid $dpsi
+         }
+      }
+   }
 }

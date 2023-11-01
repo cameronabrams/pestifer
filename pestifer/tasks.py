@@ -84,6 +84,8 @@ class Task(BaseMod):
         namd_params=self.config['user']['namd2']
         basename=self.next_basename('minimize')
         nminsteps=specs['nminsteps']
+        if not nminsteps:
+            return
         dcdfreq=specs['dcdfreq']
         na=self.writers['namd2']
         temperature=namd_params['generic']['temperature']

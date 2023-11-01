@@ -474,10 +474,10 @@ class Crot(AncestorAwareMod):
     NOTE: This is currently implemented in the cfapdbparse (2020) format, and has not been thoroughly tested.
 
     """
-    req_attr=AncestorAwareMod.req_attr+['angle','degrees']
-    opt_attr=AncestorAwareMod.opt_attr+['chainID','resseqnum1','resseqnum2','segname','atom1','atom2','segname1','segname2','segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk']
+    req_attr=AncestorAwareMod.req_attr+['angle']
+    opt_attr=AncestorAwareMod.opt_attr+['chainID','resseqnum1','resseqnum2','segname','atom1','atom2','segname1','segname2','segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk','degrees']
     attr_choices=AncestorAwareMod.attr_choices.copy()
-    attr_choices.update({'angle':['PHI','PSI','OMEGA','CHI1','CHI2','GLYCAN','LINK','ANGLEIJK']})
+    attr_choices.update({'angle':['PHI','PSI','OMEGA','CHI1','CHI2','GLYCAN','LINK','ANGLEIJK','ALPHA']})
     opt_attr_deps=AncestorAwareMod.opt_attr_deps.copy()
     opt_attr_deps.update({
         'PHI':['chainID','resseqnum1','resseqnum2'],
@@ -487,7 +487,8 @@ class Crot(AncestorAwareMod):
         'CHI2':['chainID','resseqnum1'],
         'GLYCAN':['segname','resseqnum1','atom1','resseqnum2','atom2'],
         'LINK':['segname1','segname2','resseqnum1','atom1','resseqnum2','atom2'],
-        'ANGLEIJK':['segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk']
+        'ANGLEIJK':['segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk'],
+        'ALPHA':['chainID','resseqnum1','resseqnum2']
         })
     yaml_header='crotations'
     modtype='coormod'
@@ -540,6 +541,11 @@ class Crot(AncestorAwareMod):
             input_dict['resseqnumk']=int(dat[7])
             input_dict['atomk']=dat[8]
             input_dict['degrees']=float(dat[9])
+        elif input_dict['angle']=='ALPHA':
+            input_dict['chainID']=dat[1]
+            input_dict['resseqnum1']=int(dat[2])
+            input_dict['resseqnum2']=int(dat[3])
+
         super().__init__(input_dict)
     
     def to_shortcode(self):
@@ -585,6 +591,10 @@ class Crot(AncestorAwareMod):
             ret.append(f'{self.resseqnumk}')
             ret.append(f'{self.atomk}')
             ret.append(f'{self.degrees:.4f}')
+        elif self.angle=='ALPHA':
+            ret.append(f'{self.chainID}')
+            ret.append(f'{self.resseqnum1}')
+            ret.append(f'{self.resseqnum2}')
         self.shortcode=','.join(ret)
     
     def __str__(self):
@@ -625,6 +635,11 @@ class Crot(AncestorAwareMod):
             W.addline('set rjk [vecsub $rj $rk]')
             W.addline('set cijk [veccross $rij $rjk]')
             W.addline('$rotsel move [trans center $rj origin $rj axis $cijk {} degrees]'.format(self.degrees))
+        elif self.angle=='ALPHA':
+            W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum1))
+            W.addline('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum2))
+            if endIsCterm:
+                W.addline('fold_alpha $r1 $r2 {} {}'.format(the_chainID,molid))
 
 class CrotList(AncestorAwareModList):
     def write_TcL(self,W:Psfgen,transform,**kwargs):

@@ -15,6 +15,16 @@ tasks:
             - K
             - L
       mods:
+        crotations:
+          - alpha,B,33,52
+          - alpha,D,32,52
+          - phi,D,34,52,-30
+          - phi,D,33,52,15
+          - psi,D,29,52,-5
+          - alpha,F,33,50
+          - phi,F,32,50,30
+          - phi,F,31,50,45
+          - psi,C,368,378,180
         substitutions:
           - A:100-162,GGG
           - C:100-162,GGG
