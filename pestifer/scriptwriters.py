@@ -128,6 +128,7 @@ class VMD(Scriptwriter):
         self.addline(f'mol new {psf}')
         self.addline(f'mol addfile {pdb} waitfor all')
         self.addline(f'set {new_molid_varname} [molinfo top get id]')
+        self.molid_varname=new_molid_varname
 
     def write_pdb(self,basename,molid_varname):
         self.addline(f'set X [atomselect ${molid_varname} all]')

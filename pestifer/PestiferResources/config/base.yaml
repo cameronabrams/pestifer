@@ -365,6 +365,14 @@ directives:
                     text: Specifies whether or not N- and C- terminal loops (if unresolved) are built in
                     type: bool
                     default: False
+                  - name: build_zero_occupancy_C_termini
+                    text: List of chain identifiers for which you would like zero-occupancy residues at the C-terminus built in
+                    type: list
+                    default: []
+                  - name: build_zero_occupancy_N_termini
+                    text: List of chain identifiers for which you would like zero-occupancy residues at the N-terminus built in
+                    type: list
+                    default: []
                   - name: fix_engineered_mutations
                     text: Specifies whether or not sequence differences w.r.t. a sequence database and which are labeled as "engineered mutation"s are reverted to their database values
                     type: bool

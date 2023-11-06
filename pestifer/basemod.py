@@ -382,7 +382,7 @@ class BaseMod(Namespace):
             name of attribute in obj that is set to 
             attr of caller
         """
-        attr_obj=getattr(self,obj)
+        # attr_obj=getattr(self,obj)
         # logger.debug(f'accepting {obj_attr} from {obj} {str(attr_obj)} into {type(self)}({id(self)})')
         setattr(self,attr,getattr(getattr(self,obj),obj_attr))
 
@@ -534,6 +534,13 @@ class StateInterval(AncestorAwareMod):
     
     """
     req_attr=AncestorAwareMod.req_attr+['state','bounds']
+    opt_attr=AncestorAwareMod.opt_attr+['build']
+    def __init__(self,input_dict):
+        if not 'build' in input_dict:
+            input_dict['build']=False
+        super().__init__(input_dict)
+    def declare_buildable(self):
+        self.build=True
     def increment_rightbound(self):
         """Increments the position-1 element of the bounds attribute
         of the calling instance """

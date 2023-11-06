@@ -14,14 +14,22 @@ tasks:
             - J
             - K
             - L
+        sequence:
+          build_zero_occupancy_C_termini:
+            - B
+            - D
+            - F
       mods:
         crotations:
           - alpha,B,33,52
+          - alpha,B,144,153
           - alpha,D,32,52
+          - alpha,D,144,153
           - phi,D,34,52,-30
           - phi,D,33,52,15
           - psi,D,29,52,-5
           - alpha,F,33,50
+          - alpha,F,144,153
           - phi,F,32,50,30
           - phi,F,31,50,45
           - psi,C,368,378,180

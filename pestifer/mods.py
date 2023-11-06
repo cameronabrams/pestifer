@@ -48,7 +48,7 @@ from pidibble.pdbrecord import PDBRecord
 from .cifutil import CIFdict
 from .basemod import AncestorAwareMod,AncestorAwareModList
 from .stringthings import split_ri
-from .scriptwriters import Psfgen
+from .scriptwriters import Psfgen,VMD
 from .config import res_123
 from functools import singledispatchmethod
 from .coord import measure_dihedral, ic_reference_closest
@@ -601,10 +601,11 @@ class Crot(AncestorAwareMod):
         self.to_shortcode()
         return self.shortcode
     
-    def write_TcL(self,W:Psfgen,transform,**kwargs):
+    def write_TcL(self,W:VMD,transform,**kwargs):
         chainIDmap=transform.chainIDmap
         the_chainID=chainIDmap.get(self.chainID,self.chainID)
-        molid=kwargs.get('molid','top')
+        molid_varname=W.molid_varname
+        molid=f'${molid_varname}'
         endIsCterm=kwargs.get('endIsCterm',True)
         if self.angle in ['PHI','PSI','OMEGA']:
             W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum1))

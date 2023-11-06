@@ -136,6 +136,10 @@ class Segment(AncestorAwareMod):
 
         sac_rn=self.specs['loops']['sac_res_name']
         min_loop_length=self.specs['loops']['min_loop_length']
+        build_all_terminal_loops=self.specs['include_terminal_loops']
+        build_N_terminal_loop=seglabel in self.specs['build_zero_occupancy_N_termini']
+        build_C_terminal_loop=seglabel in self.specs['build_zero_occupancy_C_termini']
+        # first_subseg
         # intra-segment, no need to use image_seglabel
         seg_mutations=MutationList([])
         if hasattr(mods.seqmods,'mutations'):
@@ -164,22 +168,30 @@ class Segment(AncestorAwareMod):
                     W.addline(f'${b.selname} set chain {image_seglabel}')                 
                     W.addline(f'${b.selname} move {transform.write_TcL()}')
                 W.addline(f'${b.selname} writepdb {b.pdb}')
+            elif b.state=='MISSING':
+                if i==0:
+                    if build_N_terminal_loop or build_all_terminal_loops:
+                        b.declare_buildable()
+                elif i==(len(self.subsegments)-1):
+                    if build_C_terminal_loop or build_all_terminal_loops:
+                        b.declare_buildable()
+                else:
+                    b.declare_buildable()
         W.addline(f'segment {image_seglabel} '+'{')
-        if not self.specs['include_terminal_loops']:
-            if self.subsegments[0].state=='MISSING':
-                Nterminal_missing_subsegment=self.subsegments.pop(0)
-                # logger.info(f'Since terminal loops are not included, ignoring {str(Nterminal_missing_subsegment)}')
-            if self.subsegments[-1].state=='MISSING':
-                Cterminal_missing_subsegment=self.subsegments.pop(-1)
-                # logger.info(f'Since terminal loops are not included, ignoring {str(Cterminal_missing_subsegment)}')
+        if self.subsegments[0].state=='MISSING' and not self.subsegments[0].build:
+            Nterminal_missing_subsegment=self.subsegments.pop(0)
+            # logger.info(f'Since terminal loops are not included, ignoring {str(Nterminal_missing_subsegment)}')
+        if self.subsegments[-1].state=='MISSING' and not self.subsegments[-1].build:
+            Cterminal_missing_subsegment=self.subsegments.pop(-1)
+            # logger.info(f'Since terminal loops are not included, ignoring {str(Cterminal_missing_subsegment)}')
         for b in self.subsegments:
             if b.state=='RESOLVED':
                 W.addline(f'    pdb {b.pdb}')
-            elif b.state=='MISSING':
+            elif b.state=='MISSING' and b.build:
                 for r in self.residues[b.bounds[0]:b.bounds[1]+1]:
                     rname=charmm_resname_of_pdb_resname.get(r.resname,r.resname)
                     W.addline(f'    residue {r.resseqnum}{r.insertion} {rname} {image_seglabel}')
-                if b.num_items()>=min_loop_length:
+                if b.num_items()>=min_loop_length and not b in [self.subsegments[0],self.subsegments[-1]]:
                     lrr=self.residues[b.bounds[1]]
                     sac_resseqnum=lrr.resseqnum
                     sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
@@ -197,25 +209,19 @@ class Segment(AncestorAwareMod):
                 W.comment(f'Subsegment {[self.subsegments.index(b)]} is a resolved run')
                 W.addline(f'coordpdb {b.pdb} {image_seglabel}')
         for b in self.subsegments:
-            if b.state=='MISSING':
-                # will issue the atom-reorienting command to join the C-terminus of prior run to N-terminus of this one, which is model-built using guesscoord
-                if (self.subsegments.index(b)==0 or self.subsegments.index(b)==(len(self.subsegments)-1)) and not self.specs['include_terminal_loops']:
-                    # this is a terminal loop and we are not including terminal loops
-                    pass
-                else:
-                    # not terminal OR we ARE including terminal loops
-                    if self.subsegments.index(b)>0:
-                        # this is either interior OR C-terminal to be included
-                        W.comment(f'Subsegment {[self.subsegments.index(b)]}/{len(self.subsegments)} is a missing loop')
-                        this_run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
-                        prior_b=self.subsegments[self.subsegments.index(b)-1]
-                        W.comment(f'...attached to subsegment {self.subsegments.index(prior_b)}')
-                        prior_run=ResidueList(self.residues[prior_b.bounds[0]:prior_b.bounds[1]+1])
-                        W.comment(f'Seeding orientation of model-built loop starting at {str(this_run[0])} from {str(prior_run[-1])}')
-                        W.addline(f'{this_run.caco_str(prior_run,image_seglabel,parent_molecule.molid_varname)}')
+            if b.state=='MISSING' and b.build:
+                if self.subsegments.index(b)>0: # only seed orientation for a loop that is not at the N-terminus
+                    W.comment(f'Subsegment {[self.subsegments.index(b)]}/{len(self.subsegments)} is a missing loop')
+                    this_run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
+                    prior_b=self.subsegments[self.subsegments.index(b)-1]
+                    W.comment(f'...attached to subsegment {self.subsegments.index(prior_b)}')
+                    prior_run=ResidueList(self.residues[prior_b.bounds[0]:prior_b.bounds[1]+1])
+                    W.comment(f'Seeding orientation of model-built loop starting at {str(this_run[0])} from {str(prior_run[-1])}')
+                    W.addline(f'{this_run.caco_str(prior_run,image_seglabel,parent_molecule.molid_varname)}')
         W.banner('Intra-segmental terminal patches')
         for i,b in enumerate(self.subsegments):
-            if b.state=='MISSING' and i>0 and hasattr(b,'sacres'):
+            # only non-terminal loops get the terminal patches
+            if b.state=='MISSING' and 0<i<(len(self.subsegments)-1) and hasattr(b,'sacres'):
                 Cterm=self.residues[b.bounds[1]]
                 W.addline(f'patch CTER {image_seglabel}:{Cterm.resseqnum}{Cterm.insertion}')
                 nextb=self.subsegments[i+1]
