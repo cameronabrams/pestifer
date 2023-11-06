@@ -258,7 +258,7 @@ class PsfgenTask(Task):
         pg=self.writers['psfgen']
         pg.newscript(basename)
         pg.topo_aliases()
-        pg.set_molecule(self.base_molecule)
+        pg.set_molecule(self.base_molecule,altcoords=self.specs['source'].get('altcoords',None))
         pg.describe_molecule(self.base_molecule)
         pg.complete(basename)
         pg.endscript()

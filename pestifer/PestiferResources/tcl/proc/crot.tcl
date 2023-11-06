@@ -28,6 +28,89 @@ proc get_phi_psi { r segname molid } {
    return [list $phi $psi]
 }
 
+# r0 and r1 are ABSOLUTE RESIDUE NUMBERS
+proc brot { molid r0 r1 angle_name rot deg} {
+
+   set cn -1
+   if { $r0 > 0 } {
+      set cn [atomselect $molid "residue [expr $r0-1] and name C"]; checknum [$cn num] "No CN in brot";
+   }
+   set n [atomselect $molid "residue $r0 and name N"] ; checknum [$n num] "No N in brot";
+   set ca [atomselect $molid "residue $r0 and name CA"]; checknum [$ca num] "No CA in brot";
+   set c [atomselect $molid "residue $r0 and name C"] ; checknum [$n num] "No C in brot";
+   set nc [atomselect $molid "residue [expr $r0+1] and name N"] ; checknum [$nc num] "No NC in brot";
+
+   set center -1
+   set ax -1
+
+   if { $angle_name == "phi" } {
+      set pn [lindex [$n get {x y z}] 0]
+      set pc [lindex [$ca get {x y z}] 0]
+      if { $rot == "C" } {
+         set ax [vecsub $pn $pc]
+         set center $pn
+         if { $r0 < $r1 } {
+            set rotators [atomselect $molid "(residue $r0 and not (name N HN HT1 HT2 HT3) ) or (residue > $r0 and residue <= $r1)"]
+         } elseif { $r0 == $r1 } {
+            set rotators [atomselect $molid "residue $r0 and not (name N HN HT1 HT2 HT3)"]
+         } else {
+            puts "Error: You are asking for a C-rot at residue $r0 up to residue $r1 but $r1 is N-terminal to $r0"
+         }
+      } elseif { $rot == "N" } {
+         set ax [vecsub $pc $pn]
+         set center $pc
+         if { $r0 > $r1 } {
+            set rotators [atomselect $molid "(residue $r0 and (name N HN HT1 HT2 HT3)) or (residue < $r0 and residue >= $r1)"]
+         } elseif { $r0 == $r1 } {
+            set rotators [atomselect $molid "residue $r0 and (name N HN HT1 HT2 HT3)"]
+         } else {
+            puts "Error: You are asking for a N-rot at residue $r0 back to residue $r1 but $r1 is C-terminal to $r0"
+         }
+      }
+   } elseif { $angle_name == "psi" } {
+      set pn [lindex [$ca get {x y z}] 0]
+      set pc [lindex [$c get {x y z}] 0]
+      if { $rot == "C" } {
+         set ax [vecsub $pn $pc]
+         set center $pn
+         if { $r0 < $r1 } {
+            set rotators [atomselect $molid "(residue $r0 and (name C O OT1 OT2 OXT) ) or (residue > $r0 and residue <= $r1)"]
+         } elseif { $r0 == $r1 } {
+            set rotators [atomselect $molid "residue $r0 and (name C O OT1 OT2 OXT)"]
+         } else {
+            puts "Error: You are asking for a C-rot at residue $r0 up to residue $r1 but $r1 is N-terminal to $r0"
+         }
+      } elseif { $rot == "N" } {
+         set ax [vecsub $pc $pn]
+         set center $pc
+         if { $r0 > $r1 } {
+            set rotators [atomselect $molid "(residue $r0 and not (name C O OT1 OT2 OXT)) or (residue < $r0 and residue >= $r1)"]
+         } elseif { $r0 == $r1 } {
+            set rotators [atomselect $molid "residue $r0 and not (name C O OT1 OT2 OXT)"]
+         } else {
+            puts "Error: You are asking for a N-rot at residue $r0 back to residue $r1 but $r1 is C-terminal to $r0"
+         }
+      }
+   } elseif { $angle_name == "omega" } {
+      puts "Error: omega rotations not yet implemented."
+   } else {
+      puts "Error: angle name $angle_name not recognized"
+   }
+   if { $center != -1 && $ax != -1 } {
+      $rotators move [trans center $center axis $ax $deg degrees]
+   } else {
+      puts "Error: no rotation performed"
+   }
+   $rotators delete
+   if { $cn != -1 } {
+      $cn delete
+   }
+   $n delete
+   $ca delete
+   $c delete
+   $nc delete
+}
+
 # rotates all atoms in chain c-terminal to residue r up to and 
 # including residue rend in chain c around residue r's phi angle 
 # by deg degrees in molecule with id molid.  Recall phi:  (-C)-N--CA-C

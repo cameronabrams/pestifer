@@ -12,6 +12,8 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.0.9
+    * alternate coordinate files and Cfusions
 * 1.0.8
     * chain-specific control over building in zero-occupancy residues at N and C termini
 * 1.0.7

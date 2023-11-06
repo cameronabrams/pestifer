@@ -4,7 +4,7 @@
 import logging
 logger=logging.getLogger(__name__)
 from .basemod import AncestorAwareMod, AncestorAwareModList
-from .mods import MutationList
+from .mods import MutationList, CfusionList
 from .config import charmm_resname_of_pdb_resname
 from .residue import Residue,ResidueList
 from .util import reduce_intlist
@@ -144,8 +144,13 @@ class Segment(AncestorAwareMod):
         seg_mutations=MutationList([])
         if hasattr(mods.seqmods,'mutations'):
             seg_mutations=mods.seqmods.mutations.filter(chainID=seglabel)
+        seg_Cfusions=CfusionList([])
+        if hasattr(mods.seqmods,'Cfusions'):
+            seg_Cfusions=mods.seqmods.Cfusions.filter(tosegment=seglabel)
 
         W.banner(f'Segment {image_seglabel} begins')
+        for sf in seg_Cfusions:
+            sf.write_pre_segment(W)
         for i,b in enumerate(self.subsegments):
             if b.state=='RESOLVED':
                 """ for a resolved subsegment, generate its pdb file """
@@ -198,6 +203,8 @@ class Segment(AncestorAwareMod):
                     assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {seglabel} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_rn}'
                     b.sacres=Residue({'resname':sac_rn,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':'protein','resolved':False,'atoms':[]})
                     W.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_rn} {image_seglabel}')
+        for cf in seg_Cfusions:
+            cf.write_in_segment(W)
         for m in seg_mutations:
                 W.comment(f'fix {m.typekey}')
                 W.addline(m.write_TcL())
@@ -218,6 +225,8 @@ class Segment(AncestorAwareMod):
                     prior_run=ResidueList(self.residues[prior_b.bounds[0]:prior_b.bounds[1]+1])
                     W.comment(f'Seeding orientation of model-built loop starting at {str(this_run[0])} from {str(prior_run[-1])}')
                     W.addline(f'{this_run.caco_str(prior_run,image_seglabel,parent_molecule.molid_varname)}')
+        for sc in seg_Cfusions:
+            sc.write_post_segment(W)
         W.banner('Intra-segmental terminal patches')
         for i,b in enumerate(self.subsegments):
             # only non-terminal loops get the terminal patches

@@ -30,6 +30,9 @@
     * Substitution -- substitution of one or more contiguous
     residues with a different block of residues of possibly
     different length
+    * Cfusion -- fuse residues from named residue range of named 
+    protein chain of named input coordinate file to C-terminus of 
+    named segment of base molecule
 
     topomods
     --------
@@ -458,6 +461,81 @@ class Deletion(AncestorAwareMod):
         super().__init__(input_dict)
 
 class DeletionList(AncestorAwareModList):
+    pass
+
+class Cfusion(AncestorAwareMod):
+    """A class for handling fusions of residues represented by an existing 
+    coordinate file to the C-termini of base-molecule segments
+    
+    A Cfusion is a user-specified modification which fuses residues from a
+    named residue range of a named protein chain of a named input coordinate 
+    file to the C-terminus of a named segment of base molecule.
+
+    Attributes
+    ----------
+    req_attr: list
+        * sourcefile: name of source coordinate PDB file of fusion
+        * chainID: chainID of the fusion sequence in sourcefile
+        * resseqnum1: N-terminal resid of fusion sequence
+        * insertion1: insertion code of N-terminal residue
+        * resseqnum2: C-terminal resid of fusion sequence
+        * insertion2: insertion code of the C-terminal residue
+        * tosegment: name of segment to which fusion is made
+
+    """
+    req_attr=AncestorAwareMod.req_attr+['sourcefile','chainID','resseqnum1','insertion1','resseqnum2','insertion2','tosegment','id']
+    yaml_header='Cfusions'
+    modtype='seqmod'
+    _Cfusion_counter=0
+    @singledispatchmethod
+    def __init__(self,input_obj):
+        super().__init__(input_obj)
+
+    @__init__.register(str)
+    def _from_shortcode(self,shortcode):
+        # shortcode format: filename:C:nnn-ccc,S
+        # filename -- fusion coordinate filename
+        # C -- chainID
+        # nnn -- N-terminal resid of fusion sequence
+        # ccc -- C-terminal resid of fusion sequence
+        # S -- tosegment, segment in base-molecule the fusion is fused to
+        p1=shortcode.split(':')
+        sourcefile=p1[0]
+        chainID=p1[1]
+        p2=p1[2].split(',')
+        seqrange=p2[0]
+        tosegment=p2[1]
+        seq=seqrange.split('-')
+        r1,i1=split_ri(seq[0])
+        r2,i2=split_ri(seq[1])
+        input_dict={
+            'sourcefile':sourcefile,
+            'chainID':chainID,
+            'resseqnum1':int(r1),
+            'insertion1':i1,
+            'resseqnum2':int(r2),
+            'insertion2':i2,
+            'tosegment':tosegment,
+            'id':Cfusion._Cfusion_counter
+        }
+        Cfusion._Cfusion_counter+=1
+        super().__init__(input_dict)    
+
+    def write_pre_segment(self,W:Psfgen):
+        W.addline(f'set topid [molinfo top get id]')
+        W.addline(f'mol new {self.sourcefile}')
+        W.addline(f'set cfusid [molinfo top get id]')
+        W.addline(f'mol top $topid')
+        W.addline(f'set fusres [atomselect $cfusid "protein and chain {self.chainID} resid {self.resseqnum1}{self.insertion1} to {self.resseqnum2}{self.insertion2}"]')
+        self.segfile=f'Cfusion{self.id}_{self.chainID}_{self.resseqnum1}{self.insertion1}_to_{self.resseqnum2}{self.insertion2}.pdb'
+        W.addline(f'$fusres writepdb {self.segfile}')
+        W.addline(f'delete $cfusid')
+    def write_in_segment(self,W:Psfgen):
+        W.addline (f'    pdb {self.segfile}')
+    def write_post_segment(self,W:Psfgen):
+        W.addline(f'coordpdb {self.segfile} {self.tosegment}')
+
+class CfusionList(AncestorAwareModList):
     pass
 
 class Crot(AncestorAwareMod):

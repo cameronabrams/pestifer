@@ -319,7 +319,7 @@ directives:
     text: Specifies the tasks to be performed; each is a dictionary with a heading which is a reserved task name
     directives:
       - name: psfgen
-        text: Parameters controlling initial psfgen run
+        text: Parameters controlling a psfgen run on an input molecule
         type: dict
         directives:
           - name: source
@@ -344,7 +344,10 @@ directives:
                 type: str
               - name: psf
                 type: str
-                text: An optional accompanying psf file
+                text: An optional accompanying psf file (unused)
+              - name: altcoords
+                type: str
+                text: An optional coordinate file that must be congruent (same atoms; same order) as base PDB file
               - name: exclude
                 text: Specifies any residues or atoms present in the PDB source to exclude from the system
                 type: dict
@@ -354,7 +357,7 @@ directives:
                     type: list
                     required: False
                   - name: resnames
-                    text: Specify list of resnames to ignore; good for exluding waters or ions.  Resnames must reference your chosen coordinate input file.
+                    text: Specify list of resnames to ignore; good for excluding waters or ions or small molecules.  Resnames must reference your chosen coordinate input file.
                     type: list
                     required: False
               - name: sequence
@@ -423,8 +426,10 @@ directives:
               - name: crotations
                 text: dihedral angle rotations to reposition modelled-in protein chains or glycans
                 type: list
+              - name: Cfusion
+                text: fuse residues from named residue range of named protein chain of named input PDB coordinate file to C-terminus of named segment of base molecule
+                type: list
               # - name: insertion
-              # - name: deletion
               # - name: graft
           - name: minimize 
             text: Specifies the energy minimization to be performed on the output of psfgen

@@ -83,11 +83,14 @@ class VMD(Scriptwriter):
         self.banner('END PESTIFER VMD SCRIPT')
         self.banner('Thank you for using pestifer!')
 
-    def set_molecule(self,mol):
+    def set_molecule(self,mol,altcoords=None):
         mol.molid_varname=f'm{mol.molid}'
         ext='.pdb' if mol.rcsb_file_format=='PDB' else '.cif'
         self.addline(f'mol new {mol.sourcespecs["id"]}{ext} waitfor all')
         self.addline(f'set {mol.molid_varname} [molinfo top get id]')
+        if altcoords:
+            self.addline(f'mol addfile {altcoords}')
+            self.addline(f'animate beg 0 end 0 {mol.molid_varname}')
         if mol.rcsb_file_format=='mmCIF':
             # VMD appends a "1" to any two-letter chain ID from a CIF file,
             # so let's undo that
