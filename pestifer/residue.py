@@ -369,8 +369,11 @@ class ResidueList(AncestorAwareModList):
             subseq=s.subseq
             currsubidx=0
             chain=self.get(chainID=s.chainID)
+            assert chain!=None,f'Error: no chain {s.chainID}'
             r1=chain.get(resseqnum=s.resseqnum1,insertion=s.insertion1)
+            assert r1!=None,f'Error: no resseqnum {s.resseqnum1} insertion [{s.insertion1}]'
             r2=chain.get(resseqnum=s.resseqnum2,insertion=s.insertion2)
+            assert r2!=None,f'Error: no resseqnum {s.resseqnum2} insertion [{s.insertion2}]'
             for r in chain:
                 if r1<=r<=r2:
                     if currsubidx<len(subseq):

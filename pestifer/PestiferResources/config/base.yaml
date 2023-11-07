@@ -426,7 +426,7 @@ directives:
               - name: crotations
                 text: dihedral angle rotations to reposition modelled-in protein chains or glycans
                 type: list
-              - name: Cfusion
+              - name: Cfusions
                 text: fuse residues from named residue range of named protein chain of named input PDB coordinate file to C-terminus of named segment of base molecule
                 type: list
               # - name: insertion

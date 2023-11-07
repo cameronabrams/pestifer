@@ -526,7 +526,7 @@ class Cfusion(AncestorAwareMod):
         W.addline(f'mol new {self.sourcefile}')
         W.addline(f'set cfusid [molinfo top get id]')
         W.addline(f'mol top $topid')
-        W.addline(f'set fusres [atomselect $cfusid "protein and chain {self.chainID} resid {self.resseqnum1}{self.insertion1} to {self.resseqnum2}{self.insertion2}"]')
+        W.addline(f'set fusres [atomselect $cfusid "protein and chain {self.chainID} and resid {self.resseqnum1}{self.insertion1} to {self.resseqnum2}{self.insertion2}"]')
         self.segfile=f'Cfusion{self.id}_{self.chainID}_{self.resseqnum1}{self.insertion1}_to_{self.resseqnum2}{self.insertion2}.pdb'
         W.addline(f'$fusres writepdb {self.segfile}')
         W.addline(f'delete $cfusid')
