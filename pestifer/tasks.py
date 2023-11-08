@@ -80,6 +80,19 @@ class Task(BaseMod):
         vm.runscript(psf=psf,pdb=pdb,coor=f'{basename}.coor')
         self.update_statefile('coor',f'{basename}.coor')
 
+    def make_constraint_pdb(self,pdb,specs):
+        apparent_basename,ext=os.path.splitext(os.path.basename(pdb))
+        vm=self.writers['vmd']
+        vm.newscript(f'{apparent_basename}-make-constraint-pdb')
+        vm.usescript('make_constraint_pdb')
+        vm.writescript()
+        logger.debug(f'constraint spec: {specs["atoms"]}')
+        c_pdb=specs.get('consfile','')
+        if not c_pdb:
+            c_pdb=f'{apparent_basename}-constraints.pdb'
+        vm.runscript(pdb=pdb,refpdb=c_pdb,constrained_atoms_def=','.join(specs['atoms'].split()),force_constant=specs.get('k',200))
+        return c_pdb
+
     def minimize(self,specs):
         namd_params=self.config['user']['namd2']
         basename=self.next_basename('minimize')
@@ -91,6 +104,7 @@ class Task(BaseMod):
         temperature=namd_params['generic']['temperature']
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
+        constraints=specs.get('constraints',{})
         coor=self.statevars.get('coor',None)
         vel=self.statevars.get('vel',None)
         xsc=self.statevars.get('xsc',None)
@@ -121,6 +135,12 @@ class Task(BaseMod):
         params['outputName']=f'{basename}'
         if dcdfreq:
             params['dcdfreq']=dcdfreq
+        if constraints:
+            conspdb=self.make_constraint_pdb(pdb,constraints)
+            params['constraints']='on'
+            params['consref']=conspdb
+            params['conskfile']=conspdb
+            params['conskcol']='O'
         params['firsttimestep']=0
         if nminsteps:
             params['minimize']=nminsteps
@@ -138,7 +158,8 @@ class Task(BaseMod):
         ensemble=specs['ensemble']
         temperature=specs['temperature']
         pressure=specs['pressure']
-
+        constraints=specs.get('constraints',{})
+        other_params=specs.get('other_parameters',{})
         nminsteps=specs['nminsteps']
         nsteps=specs['nsteps']
         dcdfreq=specs['dcdfreq']
@@ -188,6 +209,13 @@ class Task(BaseMod):
             params['dcdfreq']=dcdfreq
         if 'restartfreq' in specs:
             params['restartfreq']=specs['restartfreq']
+        if constraints:
+            conspdb=self.make_constraint_pdb(pdb,constraints)
+            params['constraints']='on'
+            params['consref']=conspdb
+            params['conskfile']=conspdb
+            params['conskcol']='O'
+        params.update(other_params)
         params['firsttimestep']=0
         if nminsteps:
             params['minimize']=nminsteps

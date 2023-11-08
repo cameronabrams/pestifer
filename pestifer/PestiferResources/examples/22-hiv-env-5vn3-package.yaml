@@ -1,0 +1,39 @@
+title: HIV-1 Env Trimer 5vn3, excluding sCD4 and Fab chains
+tasks:
+  - psfgen:
+      source:
+        id: 5vn3
+        file_format: PDB
+        biological_assembly: 1
+        exclude:
+          chains:
+            - C
+            - H
+            - L
+            - E
+            - K
+            - N 
+            - F
+            - M
+            - O
+        sequence:
+          loops:
+            declash:
+              maxcycles: 20
+      mods:
+        substitutions:
+          - G:131A-133T,GGG
+          - I:131A-133T,GGG
+          - J:131A-133T,GGG
+  - ligate:
+      steer:
+        nsteps: 1000
+  - relax:
+      nsteps: 2400
+  - solvate:
+  - relax:
+      ensemble: NPT
+  - terminate:
+      basename: my_5vn3
+      package:
+        basename: prod_5vn3

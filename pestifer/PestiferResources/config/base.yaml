@@ -443,6 +443,19 @@ directives:
                 text: Number of time steps between configuration output to DCD file
                 type: int
                 default: 100
+              - name: constraints
+                text: Parameters controlling position constraints
+                type: dict
+                directives:
+                  - name: atoms
+                    text: Atoms to be position-constrained expressed as a VMD atomselection
+                    type: string
+                  - name: k
+                    text: Restraint spring constant in kcal/mol/A^2
+                    type: float
+                  - name: consfile
+                    text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+                    type: string
           - name: cleanup
             text: Specifies whether or not to delete temporary files generated during psfgen execution
             type: bool
@@ -479,6 +492,19 @@ directives:
                 text: size of zone around receiver N-terminal N in which CA's are not fixed during steered MD
                 type: float
                 default: 0.0 # all fixed by default
+              - name: constraints
+                text: Parameters controlling position constraints
+                type: dict
+                directives:
+                  - name: atoms
+                    text: Atoms to be position-constrained expressed as a VMD atomselection
+                    type: string
+                  - name: k
+                    text: Restraint spring constant in kcal/mol/A^2
+                    type: float
+                  - name: consfile
+                    text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+                    type: string
           - name: connect
             text: Specifies parameters of the psfgen run that patches in the new backbone bonds
             type: dict
@@ -528,6 +554,40 @@ directives:
             type: float
             text: temperature of thermostat in MD run
             default: 300
+      - name: membrane_solvate (unimplemented)
+        text: Parameters controlling generating membrane and solvent
+        type: dict
+        directives:
+          - name: initial_box
+            text: dimensions of initial box
+            type: dict
+            directives:
+              - name: Lx
+                text: x-length in Angstroms (if xpad not specified)
+                type: float
+              - name: xpad
+                text: minimal distance from any protein atom to +/- x boundaries
+                type: float
+              - name: y_over_x
+                text: y/x aspect ratio
+                type: float
+              - name: Lz
+                text: z-length in Angstroms
+                type: float
+              - name: zpad
+                text: minimal distance from any protein atom to + z boundary
+                type: float
+          - name: protein
+            text: Parameters describing how protein is oriented wrt membrane
+            type: dict
+            directives:
+              - name: tmchains
+                text: Designations of transmembrane chains as VMD atomselect text
+                type: list
+                default: all
+          - name: bilayer
+            text: Parameters describing the bilayer composition
+            type: dict
       - name: solvate
         text: Parameters controlling solvation and ionization
         type: dict
@@ -548,6 +608,19 @@ directives:
                 text: number of time steps between configuration output to DCD file
                 type: int
                 default: 100
+              - name: constraints
+                text: Parameters controlling position constraints
+                type: dict
+                directives:
+                  - name: atoms
+                    text: Atoms to be position-constrained expressed as a VMD atomselection
+                    type: string
+                  - name: k
+                    text: Restraint spring constant in kcal/mol/A^2
+                    type: float
+                  - name: consfile
+                    text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+                    type: string
       - name: relax
         text: Parameters controlling NVT or NPT equilibration
         type: dict
@@ -581,6 +654,23 @@ directives:
             text: Pressure (bar) for NPT; note that NPT can only be peformed on a solvated system
             type: float
             default: 1
+          - name: constraints
+            text: Parameters controlling position constraints
+            type: dict
+            directives:
+              - name: atoms
+                text: Atoms to be position-constrained expressed as a VMD atomselection
+                type: string
+              - name: k
+                text: Restraint spring constant in kcal/mol/A^2
+                type: float
+              - name: consfile
+                text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+                type: string
+          - name: other_parameters
+            text: dictionary of any other NAMD2 config file parameter-value pairs
+            type: dict
+            default: {}
       - name: terminate
         text: Task that signals end of task list
         type: dict

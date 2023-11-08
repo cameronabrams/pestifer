@@ -90,7 +90,7 @@ class VMD(Scriptwriter):
         self.addline(f'set {mol.molid_varname} [molinfo top get id]')
         if altcoords:
             self.addline(f'mol addfile {altcoords}')
-            self.addline(f'animate beg 0 end 0 {mol.molid_varname}')
+            self.addline(f'animate delete beg 0 end 0 {mol.molid_varname}')
         if mol.rcsb_file_format=='mmCIF':
             # VMD appends a "1" to any two-letter chain ID from a CIF file,
             # so let's undo that

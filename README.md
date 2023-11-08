@@ -12,6 +12,10 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.1.1
+    * position restraints control in minimization and relaxation
+* 1.1.0
+    * other_parameters for any NAMD2 relaxation task
 * 1.0.9
     * alternate coordinate files and Cfusions
 * 1.0.8
