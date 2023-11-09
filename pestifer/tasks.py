@@ -87,7 +87,7 @@ class Task(BaseMod):
         vm.usescript('make_constraint_pdb')
         vm.writescript()
         logger.debug(f'constraint spec: {specs["atoms"]}')
-        c_pdb=specs.get('consfile','')
+        c_pdb=specs.get('consref','')
         if not c_pdb:
             c_pdb=f'{apparent_basename}-constraints.pdb'
         vm.runscript(pdb=pdb,refpdb=c_pdb,constrained_atoms_def=','.join(specs['atoms'].split()),force_constant=specs.get('k',200))
@@ -614,6 +614,8 @@ class TerminateTask(Task):
         basename=specs["basename"]
         logger.debug(f'packaging for namd2 using basename {basename}')
         params=self.namd2prep(basename,specs)
+        if 'constraints' in specs:
+            self.FC.append(params['consref'])
         local_params=[]
         for nf in params["parameters"]:
             d,n=os.path.split(nf)
