@@ -114,16 +114,17 @@ class Task(BaseMod):
         params['tcl']=[f'set temperature {temperature}']
         params['structure']=psf
         params['coordinates']=pdb
+        params.update(namd_params['generic'])
         if coor:
             params['bincoordinates']=coor
         if vel:
             params['binvelocities']=vel
+            del params['temperature']
         else:
             params['temperature']='$temperature'
         if xsc:
             params['extendedSystem']=xsc
         params['parameters']=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
-        params.update(namd_params['generic'])
 
         if self.statevars['periodic']:
             params.update(namd_params['solvated'])
@@ -157,6 +158,7 @@ class Task(BaseMod):
         namd_params=self.config['user']['namd2']
         ensemble=specs['ensemble']
         temperature=specs['temperature']
+        params.update({'tcl':[f'set temperature {temperature}']})
         pressure=specs['pressure']
         constraints=specs.get('constraints',{})
         other_params=specs.get('other_parameters',{})
@@ -168,13 +170,13 @@ class Task(BaseMod):
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
         params={}
+        params.update(namd_params['generic'])
         params['structure']=psf
         params['coordinates']=pdb
         coor=self.statevars.get('coor',None)
         vel=self.statevars.get('vel',None)
         xsc=self.statevars.get('xsc',None)
         self.statevars['periodic']=is_periodic(None,xsc)
-        params.update({'tcl':[f'set temperature {temperature}']})
         params['temperature']='$temperature'
         if coor:
             params['bincoordinates']=coor
@@ -189,7 +191,6 @@ class Task(BaseMod):
             for nf in namd2_params_abs:
                 d,n=os.path.split(nf)
                 params['parameters'].append(n)
-        params.update(namd_params['generic'])
         if xsc:
             params['extendedSystem']=xsc
             if xstfreq:
@@ -220,8 +221,8 @@ class Task(BaseMod):
         if nminsteps:
             params['minimize']=nminsteps
         params['run']=nsteps
-        if vel:
-            del params['temperature']
+        # if vel:
+        #     del params['temperature']
         return params
 
     def namd2script(self,basename,params):
@@ -274,7 +275,7 @@ class PsfgenTask(Task):
             pdb=self.statevars['pdb']
             vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
             for transform in ba.transforms:
-                self.mods.coormods.crotations.write_TcL(vm,transform)
+                self.mods.coormods.crotations.write_TcL(vm,chainIDmap=transform.chainIDmap)
             vm.write_pdb(basename,'mCM')
             vm.endscript()
             vm.writescript()
@@ -578,6 +579,34 @@ class RelaxTask(Task):
         self.namd2script(basename,self.namd2prep(basename,self.specs))
         self.relax(basename)
         logger.info(f'Task {self.taskname} {self.index:02d} complete')
+
+class ManipulateTask(Task):
+    yaml_header='manipulate'
+    opt_attr=Task.opt_attr+[yaml_header]
+    def do(self):
+        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
+        if self.prior:
+            logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
+            self.statevars=self.prior.statevars.copy()
+        self.mods=ModContainer(self.specs['mods'])
+        self.coormods()
+        self.minimize(self.specs['minimize'])
+
+    def coormods(self):
+        if self.mods.coormods:
+            logger.debug(f'performing coormods')
+            basename=self.next_basename('coormods')
+            vm=self.writers['vmd']
+            vm.newscript(basename)
+            psf=self.statevars['psf']
+            pdb=self.statevars['pdb']
+            vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
+            self.mods.coormods.crotations.write_TcL(vm)
+            vm.write_pdb(basename,'mCM')
+            vm.endscript()
+            vm.writescript()
+            vm.runscript()
+            self.update_statefile('pdb',f'{basename}.pdb')
 
 class TerminateTask(Task):
     yaml_header='terminate'

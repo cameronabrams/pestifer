@@ -553,7 +553,7 @@ class Crot(AncestorAwareMod):
 
     """
     req_attr=AncestorAwareMod.req_attr+['angle']
-    opt_attr=AncestorAwareMod.opt_attr+['chainID','resseqnum1','resseqnum2','segname','atom1','atom2','segname1','segname2','segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk','degrees']
+    opt_attr=AncestorAwareMod.opt_attr+['chainID','resseqnum1','resseqnum2','resseqnum3','segname','atom1','atom2','segname1','segname2','segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk','degrees']
     attr_choices=AncestorAwareMod.attr_choices.copy()
     attr_choices.update({'angle':['PHI','PSI','OMEGA','CHI1','CHI2','GLYCAN','LINK','ANGLEIJK','ALPHA']})
     opt_attr_deps=AncestorAwareMod.opt_attr_deps.copy()
@@ -566,7 +566,7 @@ class Crot(AncestorAwareMod):
         'GLYCAN':['segname','resseqnum1','atom1','resseqnum2','atom2'],
         'LINK':['segname1','segname2','resseqnum1','atom1','resseqnum2','atom2'],
         'ANGLEIJK':['segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk'],
-        'ALPHA':['chainID','resseqnum1','resseqnum2']
+        'ALPHA':['chainID','resseqnum1','resseqnum2','resseqnum3']
         })
     yaml_header='crotations'
     modtype='coormod'
@@ -623,6 +623,10 @@ class Crot(AncestorAwareMod):
             input_dict['chainID']=dat[1]
             input_dict['resseqnum1']=int(dat[2])
             input_dict['resseqnum2']=int(dat[3])
+            if len(dat)<5:
+                input_dict['resseqnum3']=input_dict['resseqnum2']
+            else:
+                input_dict['resseqnum3']=int(dat[4])
 
         super().__init__(input_dict)
     
@@ -673,14 +677,14 @@ class Crot(AncestorAwareMod):
             ret.append(f'{self.chainID}')
             ret.append(f'{self.resseqnum1}')
             ret.append(f'{self.resseqnum2}')
+            ret.append(f'{self.resseqnum3}')
         self.shortcode=','.join(ret)
     
     def __str__(self):
         self.to_shortcode()
         return self.shortcode
     
-    def write_TcL(self,W:VMD,transform,**kwargs):
-        chainIDmap=transform.chainIDmap
+    def write_TcL(self,W:VMD,chainIDmap={},**kwargs):
         the_chainID=chainIDmap.get(self.chainID,self.chainID)
         molid_varname=W.molid_varname
         molid=f'${molid_varname}'
@@ -717,13 +721,13 @@ class Crot(AncestorAwareMod):
         elif self.angle=='ALPHA':
             W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum1))
             W.addline('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum2))
-            if endIsCterm:
-                W.addline('fold_alpha $r1 $r2 {} {}'.format(the_chainID,molid))
+            W.addline('set rterm [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum3))
+            W.addline('fold_alpha $r1 $r2 $rterm {}'.format(molid))
 
 class CrotList(AncestorAwareModList):
-    def write_TcL(self,W:Psfgen,transform,**kwargs):
+    def write_TcL(self,W:Psfgen,chainIDmap={},**kwargs):
         for c in self:
-            c.write_TcL(W,transform,**kwargs)
+            c.write_TcL(W,chainIDmap=chainIDmap,**kwargs)
 
 class SSBond(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']

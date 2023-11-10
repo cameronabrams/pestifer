@@ -671,6 +671,42 @@ directives:
             text: dictionary of any other NAMD2 config file parameter-value pairs
             type: dict
             default: {}
+      - name: manipulate
+        text: Direct manipulation of atom positions
+        type: dict
+        directives:
+          - name: mods
+            text: Specifies modifications to the sequence or structure in the current structure
+            type: dict
+            directives:
+              - name: crotations
+                text: dihedral angle rotations to reposition residues
+                type: list
+          - name: minimize 
+            text: Specifies the energy minimization
+            type: dict
+            directives:
+              - name: nminsteps
+                text: Number of iterations for the energy minimization
+                type: int
+                default: 1000
+              - name: dcdfreq
+                text: Number of time steps between configuration output to DCD file
+                type: int
+                default: 100
+              - name: constraints
+                text: Parameters controlling position constraints
+                type: dict
+                directives:
+                  - name: atoms
+                    text: Atoms to be position-constrained expressed as a VMD atomselection
+                    type: string
+                  - name: k
+                    text: Restraint spring constant in kcal/mol/A^2
+                    type: float
+                  - name: consfile
+                    text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+                    type: string        
       - name: terminate
         text: Task that signals end of task list
         type: dict

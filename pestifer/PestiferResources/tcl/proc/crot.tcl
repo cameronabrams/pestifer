@@ -1,114 +1,220 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# TcL procedures for facilitating rotations around bonds
+
+# Wrap x into periodic domain [xlo,xhi]
+proc wrap_domain { x xlo xhi } {
+   set dsize [expr ($xhi) - ($xlo)]
+   if { [expr $x < $xlo] } {
+      set y [expr $x + $dsize]
+   } elseif { [expr $x > $xhi] } {
+      set y [expr $x - $dsize]
+   } else {
+      set y $x
+   }
+   return $y
+}
+
+# Determine whether or not residues q and r are in the same chain
+# Parameters:
+# -----------
+# - q, r: absolute residue numbers
+# - molid: molecule id
+#
+# Returns:
+# --------
+# - 0 if q and r are not in the same chain, or if either q or r is less than zero
+# - 1 if q and r are in the same chain
+proc residues_in_same_chain { molid q r } {
+   if { $q < 0 || $r < 0 } {
+      return 0
+   }
+   set Q [atomselect $molid "residue $q and name CA"]
+   set R [atomselect $molid "residue $r and name CA"]
+   set result 1
+   if { [$Q num]==0 || [$R num]==0 } {
+      set result 0
+   } else {
+      set CQ [$Q get chain]
+      set CR [$R get chain]
+      if { $CQ != $CR } {
+         set result 0
+      }
+   }
+   $Q delete
+   $R delete
+   return $result
+}
+
+# Measure phi, psi, and omega at residue r
+# Parameters:
+# -----------
+# - r: absolute residue number
+# - molid: molecule id
+#
+# Returns:
+# --------
+# - list of phi, psi, and omega values, in that order
+proc get_phi_psi_omega { r molid } {
+   set r_prev [expr $r-1]
+   set r_next [expr $r+1]
+   set phi "NaN"
+   set psi "NaN"
+   set omega "NaN"
+   if { [residues_in_same_chain $molid $r_prev $r] > 0} {
+      set nnc [[atomselect $molid "residue $r_prev and name C"] get index]
+      set n [[atomselect $molid "residue $r and name N"] get index]
+      set ca [[atomselect $molid "residue $r and name CA"] get index]
+      set c  [[atomselect $molid "residue $r and name C"] get index]
+      set phi [measure dihed [list $nnc $n $ca $c]]
+   }
+   if { [residues_in_same_chain $molid $r $r_next] > 0 } {
+      set n [[atomselect $molid "residue $r and name N"] get index]
+      set ca [[atomselect $molid "residue $r and name CA"] get index]
+      set c  [[atomselect $molid "residue $r and name C"] get index]
+      set ccn [[atomselect $molid "residue $r_next and name N"] get index]
+      set ccca [[atomselect $molid "residue $r_next and name CA"] get index]
+      set psi [measure dihed [list $n $ca $c $ccn]]
+      set omega [measure dihed [list $ca $c $ccn $ccca]]
+   }
+   return [list $phi $psi $omega]
+}
+
+# alpha-helix folder
+# Parameters:
+# -----------
+# - rbegin: absolute residue number at beginning of section to be folded
+# - rend: absolute residue number at and of section to be folded
+# - rterm: absolute residue number at end of fragment to which rbegin and rend belong;
+#          residues greater than rend but less than or equal to rterm are not folded
+# - molid: molecule id
+proc fold_alpha { rbegin rend rterm molid } {
+   if { $rbegin < $rend } { # folding from N->C along section
+      vmdcon -info "fold_alpha from $rbegin to $rend including fragment up to $rterm on mol $molid"
+      set direction C
+      set increment 1
+      proc finished { r rend } {
+         return [expr $r > $rend]
+      }
+   } else { # folding from C->N along section
+      vmdcon -info "fold_alpha from $rbegin to $rend including fragment up to $rterm on mol $molid"
+      set direction N
+      set increment -1
+      proc finished { r rend } {
+         return [expr $r < $rend]
+      }
+   }
+   for { set r $rbegin } { [finished $r $rend] == 0 } { incr r $increment } {
+      set pp [get_phi_psi_omega $r $molid]
+      set phi [lindex $pp 0]
+      set psi [lindex $pp 1]
+      set omega [lindex $pp 2]
+      if { [string compare $phi "NaN"] != 0 } {
+         set dphi [wrap_domain [expr (-57 - ($phi))] -180.0 180.0]
+         brot $molid $r $rterm phi $direction $dphi
+      }
+      if {  [string compare $phi "NaN"] != 0 } {
+         set dpsi [wrap_domain [expr (-47 - ($psi))] -180.0 180.0]
+         brot $molid $r $rterm psi $direction $dpsi
+      }
+      if { [string compare $omega "NaN"] != 0} {
+         set domega [wrap_domain [expr (180 - ($omega))] -180.0 180.0]
+         brot $molid $r $rterm omega $direction $domega
+      }
+   }
+}
+
+
+# Generalized bond rotation
+# Parameters
+# ----------
+# - molid: molecule id
+# - r0: absolute residue number of residue in which angle is located
+# - r1: absolute residue number marking the terminus of the rotatable section
+# - angle_name: one of phi, psi, or omega
+# - rot: one of N (rotatable section is N-terminal to bond) or
+#               C (rotatable section is C-terminal to bond)
+# - deg: degrees of the rotation
+#
+# Cases:
+#  r0<r1: rotatable section is C-terminal to bond; by necessity, rot==C
+#  r0>r1: rotatable section is N-terminal to bond; by necessity, rot==N
+#  r0==r1: rotatable section determined by rot
+proc brot { molid r0 r1 angle_name rot deg} {
+   set r_prev [expr $r0-1]
+   set r_next [expr $r0+1]
+   set c_prev -1
+   set n_next -1
+   set ca_next -1
+   set sels [list]
+   if {[residues_in_same_chain $molid $r0 $r_prev]} {
+      set c_prev [atomselect $molid "residue $r_prev and name C"]
+      lappend sels $c_prev
+   }
+   set n [atomselect $molid "residue $r0 and name N"]
+   lappend sels $n
+   set ca [atomselect $molid "residue $r0 and name CA"]
+   lappend sels $ca
+   set c [atomselect $molid "residue $r0 and name C"]
+   lappend sels $c
+   if {[residues_in_same_chain $molid $r0 $r_next]} {
+      set n_next [atomselect $molid "residue $r_next and name N"]
+      lappend sels $n_next
+      set ca_next [atomselect $molid "residue $r_next and name CA"]
+      lappend sels $ca_next
+   }
+   if { $angle_name == "phi" } {
+      set pn [lindex [$n get {x y z}] 0]
+      set pc [lindex [$ca get {x y z}] 0]
+      if { $rot == "C" } { # rotators are c-terminal to the N-CA bond
+         set rotators [atomselect $molid "(residue $r0 and not (name N HN HT1 HT2 HT3) ) or (residue > $r0 and residue <= $r1)"]
+      } elseif { $rot == "N" } { # rotators are n-terminal to the N-CA bond
+         set rotators [atomselect $molid "(residue $r0 and (name N HN HT1 HT2 HT3)) or (residue < $r0 and residue >= $r1)"]
+      }
+   } elseif { $angle_name == "psi" } {
+      set pn [lindex [$ca get {x y z}] 0]
+      set pc [lindex [$c get {x y z}] 0]
+      if { $rot == "C" } { # rotators are c-terminal to the CA-C bond
+         set rotators [atomselect $molid "(residue $r0 and (name C O OT1 OT2 OXT) ) or (residue > $r0 and residue <= $r1)"]
+      } elseif { $rot == "N" } { # rotators are n-terminal the CA-C bond
+         set rotators [atomselect $molid "(residue $r0 and not (name C O OT1 OT2 OXT)) or (residue < $r0 and residue >= $r1)"]
+      }
+   } elseif { $angle_name == "omega" } {
+      set pn [lindex [$c get {x y z}] 0]
+      set pc [lindex [$n_next get {x y z}] 0]
+      if { $rot == "C" } { # rotators are c-terminal to C=N bond
+         set rotators [atomselect $molid "residue > $r0 and residue <= $r1"]
+      } elseif { $rot == "N" } { # rotators are n-terminal the C=N bond
+         set rotators [atomselect $molid "residue <= $r0 and residue >= $r1"]
+      }
+   } elseif { $angle_name == "chi" } {
+      if { $rot == 1 } {
+         set pn [lindex [$ca get {x y z}] 0]
+         set pc [lindex [[atomselect $molid "residue and name CB"] get {x y z}] 0]
+         set rotators [atomselect $molid "residue $r0 and not name N HN CA C O"]
+      } elseif { $rot == 2 } {
+         set pn [lindex [[atomselect $molid "residue and name CB"] get {x y z}] 0]
+         set pc [lindex [[atomselect $molid "residue and name CG"] get {x y z}] 0]
+         set rotators [atomselect $molid "residue $r0 and not name N HN CA CB C O"]
+      }
+   } else {
+      vmdcon -error "angle name $angle_name not recognized"
+   }
+   lappend sels $rotators
+
+   $rotators move [trans bond $pc $pn $deg degrees]
+
+   foreach s $sels {
+      $s delete
+   }
+}
+
 # Chain rotation procedures
 proc checknum { num msg } {
   if { $num == 0 } { 
     puts "$msg"
     #exit
   }
-}
-
-proc get_phi_psi { r segname molid } {
-   set nn [atomselect $molid "segname $segname and residue [expr $r - 1]"]
-   set phi "NaN"
-   if { [$nn num] > 0 } {
-      set nnc [[atomselect $molid "segname $segname and residue [expr $r - 1] and name C"] get index]
-      set n [[atomselect $molid "segname $segname and residue $r and name N"] get index]
-      set ca [[atomselect $molid "segname $segname and residue $r and name CA"] get index]
-      set c  [[atomselect $molid "segname $segname and residue $r and name C"] get index]
-      set phi [measure dihed [list $nnc $n $ca $c]]
-   }
-   set cc [atomselect $molid "segname $segname and residue [expr $r + 1]"]
-   set psi "NaN"
-   if { [$nn num] > 0 } {
-      set n [[atomselect $molid "segname $segname and residue $r and name N"] get index]
-      set ca [[atomselect $molid "segname $segname and residue $r and name CA"] get index]
-      set c  [[atomselect $molid "segname $segname and residue $r and name C"] get index]
-      set ccn [[atomselect $molid "segname $segname and residue [expr $r + 1] and name N"] get index]
-      set psi [measure dihed [list $n $ca $c $ccn]]
-   }
-   return [list $phi $psi]
-}
-
-# r0 and r1 are ABSOLUTE RESIDUE NUMBERS
-proc brot { molid r0 r1 angle_name rot deg} {
-
-   set cn -1
-   if { $r0 > 0 } {
-      set cn [atomselect $molid "residue [expr $r0-1] and name C"]; checknum [$cn num] "No CN in brot";
-   }
-   set n [atomselect $molid "residue $r0 and name N"] ; checknum [$n num] "No N in brot";
-   set ca [atomselect $molid "residue $r0 and name CA"]; checknum [$ca num] "No CA in brot";
-   set c [atomselect $molid "residue $r0 and name C"] ; checknum [$n num] "No C in brot";
-   set nc [atomselect $molid "residue [expr $r0+1] and name N"] ; checknum [$nc num] "No NC in brot";
-
-   set center -1
-   set ax -1
-
-   if { $angle_name == "phi" } {
-      set pn [lindex [$n get {x y z}] 0]
-      set pc [lindex [$ca get {x y z}] 0]
-      if { $rot == "C" } {
-         set ax [vecsub $pn $pc]
-         set center $pn
-         if { $r0 < $r1 } {
-            set rotators [atomselect $molid "(residue $r0 and not (name N HN HT1 HT2 HT3) ) or (residue > $r0 and residue <= $r1)"]
-         } elseif { $r0 == $r1 } {
-            set rotators [atomselect $molid "residue $r0 and not (name N HN HT1 HT2 HT3)"]
-         } else {
-            puts "Error: You are asking for a C-rot at residue $r0 up to residue $r1 but $r1 is N-terminal to $r0"
-         }
-      } elseif { $rot == "N" } {
-         set ax [vecsub $pc $pn]
-         set center $pc
-         if { $r0 > $r1 } {
-            set rotators [atomselect $molid "(residue $r0 and (name N HN HT1 HT2 HT3)) or (residue < $r0 and residue >= $r1)"]
-         } elseif { $r0 == $r1 } {
-            set rotators [atomselect $molid "residue $r0 and (name N HN HT1 HT2 HT3)"]
-         } else {
-            puts "Error: You are asking for a N-rot at residue $r0 back to residue $r1 but $r1 is C-terminal to $r0"
-         }
-      }
-   } elseif { $angle_name == "psi" } {
-      set pn [lindex [$ca get {x y z}] 0]
-      set pc [lindex [$c get {x y z}] 0]
-      if { $rot == "C" } {
-         set ax [vecsub $pn $pc]
-         set center $pn
-         if { $r0 < $r1 } {
-            set rotators [atomselect $molid "(residue $r0 and (name C O OT1 OT2 OXT) ) or (residue > $r0 and residue <= $r1)"]
-         } elseif { $r0 == $r1 } {
-            set rotators [atomselect $molid "residue $r0 and (name C O OT1 OT2 OXT)"]
-         } else {
-            puts "Error: You are asking for a C-rot at residue $r0 up to residue $r1 but $r1 is N-terminal to $r0"
-         }
-      } elseif { $rot == "N" } {
-         set ax [vecsub $pc $pn]
-         set center $pc
-         if { $r0 > $r1 } {
-            set rotators [atomselect $molid "(residue $r0 and not (name C O OT1 OT2 OXT)) or (residue < $r0 and residue >= $r1)"]
-         } elseif { $r0 == $r1 } {
-            set rotators [atomselect $molid "residue $r0 and not (name C O OT1 OT2 OXT)"]
-         } else {
-            puts "Error: You are asking for a N-rot at residue $r0 back to residue $r1 but $r1 is C-terminal to $r0"
-         }
-      }
-   } elseif { $angle_name == "omega" } {
-      puts "Error: omega rotations not yet implemented."
-   } else {
-      puts "Error: angle name $angle_name not recognized"
-   }
-   if { $center != -1 && $ax != -1 } {
-      $rotators move [trans center $center axis $ax $deg degrees]
-   } else {
-      puts "Error: no rotation performed"
-   }
-   $rotators delete
-   if { $cn != -1 } {
-      $cn delete
-   }
-   $n delete
-   $ca delete
-   $c delete
-   $nc delete
 }
 
 # rotates all atoms in chain c-terminal to residue r up to and 
@@ -250,38 +356,3 @@ proc new_alpha { rbegin rend segname molid } {
    }
 }
 
-proc wrap_domain { x xlo xhi } {
-   set dsize [expr $xhi - $xlo]
-   if { [expr $x < $xlo] } {
-      set y [expr $x + $dsize]
-   } elseif { [expr $x > $xhi] } {
-      set y [expr $x - $dsize]
-   } else {
-      set y $x
-   }
-   return $y
-}
-
-proc fold_alpha { rbegin rend segname molid } {
-   for { set r $rbegin } { $r <= $rend } { incr r } {
-      set pp [get_phi_psi $r $segname $molid]
-      set phi [lindex $pp 0]
-      set psi [lindex $pp 1]
-      # puts "$r $phi $psi"
-      # flush stdout
-      if { $phi != "NaN "} {
-         set dphi [wrap_domain [expr (-60 - ($phi))] -360.0 360.0]
-         # puts "dphi $dphi"
-         # flush stdout
-         Crot_phi_toCterm $r $rend $segname $molid $dphi
-      }
-      if { $r < $rend } {
-         if { $psi != "NaN"} {
-            set dpsi [wrap_domain [expr (-50 - ($psi))] -360.0 360.0]
-            # puts "dpsi $dpsi"
-            # flush stdout
-            Crot_psi_toCterm $r $rend $segname $molid $dpsi
-         }
-      }
-   }
-}
