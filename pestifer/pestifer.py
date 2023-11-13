@@ -104,9 +104,9 @@ def cli():
     }
     descs={
         'config-help':'Use this command to get interactive help on config file directives.',
-        'config-default':'This will generate a default config file for you to fill in using a text editor',
+        'config-default':'This will generate a default config file for you to fill in using a text editor.',
         'run-example':'Build one of the examples:\n'+'\n'.join([f'{c:>3d}: {d}' for c,d in list_examples().items()]),
-        'run':'Builds a system'
+        'run':'Build a system'
     }
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
     subparsers=parser.add_subparsers()
