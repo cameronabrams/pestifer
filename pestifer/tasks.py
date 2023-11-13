@@ -45,6 +45,11 @@ class Task(BaseMod):
         self.statevars={}
         self.FC=FileCollector()
 
+    def receive_statefile(self):
+        if self.prior:
+            logger.debug(f'... prior {self.prior.taskname}')
+            self.statevars=self.prior.statevars.copy()
+
     def update_statefile(self,key,filename,mode='strict'):
         if os.path.exists(filename):
             self.statevars[key]=filename
@@ -155,6 +160,7 @@ class Task(BaseMod):
         self.coor_to_pdb(basename)
 
     def namd2prep(self,basename,specs,absolute_paths=True):
+        params={}
         namd_params=self.config['user']['namd2']
         ensemble=specs['ensemble']
         temperature=specs['temperature']
@@ -169,7 +175,6 @@ class Task(BaseMod):
         na=self.writers['namd2']
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
-        params={}
         params.update(namd_params['generic'])
         params['structure']=psf
         params['coordinates']=pdb
@@ -329,6 +334,26 @@ class PsfgenTask(Task):
         self.statevars['min_loop_length']=self.source_specs['sequence']['loops']['min_loop_length']
         # for p in self.pdbs:
         #     self.molecules[p]=Molecule(source=p)
+
+class NAMDTask(Task):
+    yaml_header='namd'
+    statevars={}
+    def __init__(self,input_dict,taskname,config,writers,prior):
+        super().__init__(input_dict,taskname,config,writers,prior)
+
+    def do(self):
+        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
+        if self.prior:
+            logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
+            self.statevars=self.prior.statevars.copy()
+    
+    pass
+
+class RelaxTask(NAMDTask):
+    pass
+
+class MinimizeTask(NAMDTask):
+    pass
 
 class DomainSwapTask(Task):
     yaml_header='domainswap'
@@ -588,11 +613,11 @@ class ManipulateTask(Task):
         if self.prior:
             logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
             self.statevars=self.prior.statevars.copy()
-        self.mods=ModContainer(self.specs['mods'])
-        self.coormods()
+        self.coormods(self.specs['mods'])
         self.minimize(self.specs['minimize'])
 
-    def coormods(self):
+    def coormods(self,specs):
+        self.mods=ModContainer(specs)
         if self.mods.coormods:
             logger.debug(f'performing coormods')
             basename=self.next_basename('coormods')
@@ -607,6 +632,7 @@ class ManipulateTask(Task):
             vm.writescript()
             vm.runscript()
             self.update_statefile('pdb',f'{basename}.pdb')
+            self.pdb_to_coor(basename)
 
 class TerminateTask(Task):
     yaml_header='terminate'

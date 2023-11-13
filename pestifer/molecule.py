@@ -2,6 +2,7 @@
 """A class for handling molecules
 """
 import logging
+import os
 from .modcontainer import ModContainer
 from pidibble.pdbparse import PDBParser
 from .cifutil import CIFload
@@ -58,7 +59,13 @@ class Molecule(AncestorAwareMod):
         super().__init__(input_dict)
         self.asymmetric_unit.claim_descendants(self)
         self.biological_assemblies.claim_descendants(self)
-    
+
+    def set_coords(self,altcoordsfile):
+        nm,ext=os.path.splitext(altcoordsfile)
+        assert ext=='.pdb',f'Alt-coords file must be PDB format'
+        altstruct=PDBParser(PDBcode=nm).parse().parsed
+        self.asymmetric_unit.set_coords(altstruct)
+        
     def activate_biological_assembly(self,index):
         if index==0 or len(self.biological_assemblies)==0: # we will use the unadulterated A.U. as the B.A.
             self.active_biological_assembly=BioAssemb(self.asymmetric_unit)

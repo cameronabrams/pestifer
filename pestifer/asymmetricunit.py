@@ -185,3 +185,18 @@ class AsymmetricUnit(AncestorAwareMod):
                 'pruned':Namespace(ssbonds=pruned_ssbonds,residues=pruned_by_links['residues'],links=pruned_by_links['links'],segments=pruned_by_links['segments'])
             }
         super().__init__(input_dict)
+
+    def set_coords(self,altstruct):
+        atoms=AtomList([Atom(p) for p in altstruct[Atom.PDB_keyword]])
+        atoms.extend([Hetatm(p) for p in altstruct.get(Hetatm.PDB_keyword,[])])
+        ters=TerList([Ter(p) for  p in altstruct.get(Ter.PDB_keyword,[])])
+        atoms.adjustSerials(ters)
+        altRes=ResidueList(atoms)
+        overwrites=[]
+        for ar in altRes:
+            tr=self.residues.get(resname=ar.resname,resseqnum=ar.resseqnum,insertion=ar.insertion,chainID=ar.chainID)
+            if tr:
+                tr.atoms.overwritePositions(ar.atoms)
+                overwrites.append(ar)
+        logger.debug(f'set_coords: {len(overwrites)} residues overwritten')
+

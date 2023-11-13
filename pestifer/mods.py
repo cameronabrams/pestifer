@@ -1116,9 +1116,8 @@ class Link(AncestorAwareMod):
         A 2->6 intraglycan linkage requies the SA26T patch
 
         Others' patches are named 1xij where x is the carbon number of the upstream monomer,
-        and i and j indicate whether the bond is axial or equatorial.  This is currently
-        determined using the custom 'axeq' TcL procedure.
-
+        and i and j indicate whether the bond is axial or equatorial.
+        
         Parameters
         ----------
         W: Psfgen

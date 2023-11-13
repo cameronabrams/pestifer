@@ -89,6 +89,11 @@ class Atom(AncestorAwareMod):
                 '{:6.2f}'.format(self.beta)+\
                 10*' '+'{:>2s}'.format(self.elem)+'{:2s}'.format(self.charge)
         return pdbline
+    
+    def overwritePosition(self,other):
+        self.x=other.x
+        self.y=other.y
+        self.z=other.z
 
 class AtomList(AncestorAwareModList):
     def adjustSerials(self,Ters):
@@ -113,6 +118,10 @@ class AtomList(AncestorAwareModList):
                 a._ORIGINAL_={}
             a._ORIGINAL_['serial']=a.serial
             a.serial=s
+    def overwritePositions(self,other):
+        assert len(self)==len(other),'Error: atom lists not equal length'
+        for sa,oa in zip(self,other):
+            sa.overwritePosition(oa)
 
 class Hetatm(Atom):
     PDB_keyword='HETATM'
@@ -410,3 +419,4 @@ class ResidueList(AncestorAwareModList):
                 if not r.resseqnum in result[r.chainID]:
                     result[r.chainID][r.resseqnum]=Namespace(resseqnum=r.auth_seq_id,chainID=r.auth_asym_id,insertion=r.insertion)
         return result
+    

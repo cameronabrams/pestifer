@@ -89,6 +89,7 @@ class VMD(Scriptwriter):
         self.addline(f'mol new {mol.sourcespecs["id"]}{ext} waitfor all')
         self.addline(f'set {mol.molid_varname} [molinfo top get id]')
         if altcoords:
+            mol.set_coords(altcoords)
             self.addline(f'mol addfile {altcoords}')
             self.addline(f'animate delete beg 0 end 0 {mol.molid_varname}')
         if mol.rcsb_file_format=='mmCIF':
