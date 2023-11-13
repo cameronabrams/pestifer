@@ -669,7 +669,8 @@ class TerminateTask(Task):
         basename=specs["basename"]
         logger.debug(f'packaging for namd2 using basename {basename}')
         params=self.namd2prep(basename,specs)
-        if 'constraints' in specs:
+        constraints=specs.get('constraints',{})
+        if constraints:
             self.FC.append(params['consref'])
         local_params=[]
         for nf in params["parameters"]:

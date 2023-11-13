@@ -7,7 +7,7 @@ proc log_addframe { molid logid } {
      [atomselect $logid all] set z [[atomselect $molid all] get z]
 #     [atomselect $molid all] writepdb "tmp.pdb"
 #     animate read pdb tmp.pdb $logid
-     puts "Molid $molid - logging molecule $logid has [molinfo $logid get numframes] frames."
+     vmdcon -info "Molid $molid - logging molecule $logid has [molinfo $logid get numframes] frames."
 #     exec rm -f tmp.pdb
    }
 }

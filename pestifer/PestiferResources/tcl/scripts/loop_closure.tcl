@@ -1,3 +1,5 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+
 for { set i 0 } { $i < [llength $argv] } { incr i } {
     if { [lindex $argv $i] == "-pdb"} {
        incr i

@@ -1,3 +1,5 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+
 set psf [lindex $argv 0]
 set namdbin [lindex $argv 1]
 mol new $psf

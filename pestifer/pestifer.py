@@ -13,6 +13,7 @@ import shutil
 import yaml
 import glob
 import logging
+import collections
 logger=logging.getLogger(__name__)
 import importlib.metadata
 __pestifer_version__ = importlib.metadata.version("pestifer")
@@ -71,7 +72,7 @@ def list_examples():
             d=yaml.safe_load(f)
             desc=d['title']
             exdict[code]=desc
-    return exdict
+    return collections.OrderedDict(sorted(exdict.items()))
 
 def run_example(args):
     number=args.number
@@ -98,15 +99,21 @@ def cli():
     helps={
         'config-help':'get help on the syntax of input configuration files',
         'config-default':'generate a default input directive',
-        'run-example':'build one of the examples provided: '+'; '.join([f'{c}: {d}' for c,d in list_examples().items()]),
+        'run-example':'build one of the examples provided',
         'run':'build a system using instructions in the config file'
+    }
+    descs={
+        'config-help':'Use this command to get interactive help on config file directives.',
+        'config-default':'This will generate a default config file for you to fill in using a text editor',
+        'run-example':'Build one of the examples:\n'+'\n'.join([f'{c:>3d}: {d}' for c,d in list_examples().items()]),
+        'run':'Builds a system'
     }
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
     subparsers=parser.add_subparsers()
     subparsers.required=True
     command_parsers={}
     for k in commands:
-        command_parsers[k]=subparsers.add_parser(k,help=helps[k])
+        command_parsers[k]=subparsers.add_parser(k,description=descs[k],help=helps[k],formatter_class=ap.RawDescriptionHelpFormatter)
         command_parsers[k].set_defaults(func=commands[k])
         command_parsers[k].add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
         command_parsers[k].add_argument('--loglevel',type=str,default='debug',help='Log level for messages written to diagnostic log (debug|info)')

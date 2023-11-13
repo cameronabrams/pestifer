@@ -92,6 +92,6 @@ proc cacoIn_nOut { resid segname molid } {
   lset rnd 2 [expr [lindex $AMAT 2 0] * [lindex $b 0] + [lindex $AMAT 2 1] * [lindex $b 1] + [lindex $AMAT 2 2] * [lindex $b 2]]
 
   set rn [vecadd $r2 [vecscale $rnd 1.355]]
-
+  vmdcon -info "caco $rn"
   return $rn
 }

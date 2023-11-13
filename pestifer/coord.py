@@ -95,3 +95,36 @@ def ic_reference_closest(res12,ICmaps):
     the_one=[k for (k,v) in sorted(norms.items(),key=lambda x: x[1])][0]
     logger.debug(f'returning {the_one}')
     return the_one
+
+def positionN(res,tmat):
+    """Given residue res, calculate the nominal position of the amide nitrogen
+       in the next residue based on the positions of CA, C, and O.
+       
+    Parameters
+    ----------
+    res: Residue
+    tmat: 4x4 homogeneous transformation matrix
+    
+    Returns
+    -------
+    rN: position of N atom (np.ndarray(3))
+    """
+    CA=res.atoms.get(name='CA')
+    C=res.atoms.get(name='C')
+    O=res.atoms.get(name='O')
+    rCA=np.dot(tmat,np.array([CA.x,CA.y,CA.z,1.0]))[:3]
+    rC=np.dot(tmat,np.array([C.x,C.y,C.z,1.0]))[:3]
+    rO=np.dot(tmat,np.array([O.x,O.y,O.z,1.0]))[:3]
+    R21=rC-rCA
+    r21=R21/np.linalg.norm(R21)
+    R32=rO-rC
+    r32=R32/np.linalg.norm(R32)
+    c=np.cross(r21,r32)
+    mat=np.array([c,r21,r32])
+    b=np.array([0,-np.cos(np.pi/180.0*114.44),np.cos(np.pi/180.0*123.04)])
+    amat=np.linalg.inv(mat)
+    rnd=np.dot(amat,b)
+    rN=rC+rnd*1.355
+    R34=rC-rN
+    logger.debug(f'positionN: C-N bond length {np.linalg.norm(R34):.4f}')
+    return rN

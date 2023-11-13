@@ -1,9 +1,6 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+
 # VMD script for generating solvated/neutralized system from the protein psf/pdb
-#
-# cameron f abrams (c) 2017-2023
-# cfa22@drexel.edu
-# drexel university
-# chemical and biological engineering
 
 set scriptname solv
 

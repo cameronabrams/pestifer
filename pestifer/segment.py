@@ -9,6 +9,7 @@ from .config import charmm_resname_of_pdb_resname
 from .residue import Residue,ResidueList
 from .util import reduce_intlist
 from .scriptwriters import Psfgen
+from .coord import positionN
 
 class Segment(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','specs']
@@ -224,7 +225,7 @@ class Segment(AncestorAwareMod):
                     W.comment(f'...attached to subsegment {self.subsegments.index(prior_b)}')
                     prior_run=ResidueList(self.residues[prior_b.bounds[0]:prior_b.bounds[1]+1])
                     W.comment(f'Seeding orientation of model-built loop starting at {str(this_run[0])} from {str(prior_run[-1])}')
-                    W.addline(f'{this_run.caco_str(prior_run,image_seglabel,parent_molecule.molid_varname)}')
+                    W.addline(f'{this_run.caco_str(prior_run,image_seglabel,parent_molecule.molid_varname,transform.tmat)}')
         for sc in seg_Cfusions:
             sc.write_post_segment(W)
         W.banner('Intra-segmental terminal patches')

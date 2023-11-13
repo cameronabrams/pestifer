@@ -1,6 +1,6 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+
 # topogromacs vmd script
-# cameron f abrams cfa22@drexel.edu
-# 2023
 
 set PSF none.psf
 set INPUTNAME none-input

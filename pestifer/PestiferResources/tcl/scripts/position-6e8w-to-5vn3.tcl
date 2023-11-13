@@ -29,7 +29,7 @@ set mtctr [measure center $mtm]
 
 # orient 3-fold axis of MPER-TM trimer along z
 
-set hd [atomselect $mtmid "resid > 664"]
+set hd [atomselect $mtmid "resid < 664"]
 set tl [atomselect $mtmid "resid > 690"]
 
 set hp [measure center $hd]

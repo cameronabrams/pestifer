@@ -1,3 +1,4 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
 set constrained_atoms_def ""
 set pdb "UNSET"

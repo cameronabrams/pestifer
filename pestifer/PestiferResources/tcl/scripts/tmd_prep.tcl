@@ -1,3 +1,4 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
 # 
 # The purpose of this script is to direct VMD to generate a pdb file
 # for a targeted MD simulation that starts with a system defined using
@@ -32,8 +33,6 @@
 #
 # A full selection of all atoms in the system is then output as the
 # TMD PDB.
-#
-# Cameron Abrams cfa22@drexel.edu
 
 # generates an atomselect string from the command-line shortcode
 # shortcode format is ABC_xxx-yyy/zzz-ggg/....

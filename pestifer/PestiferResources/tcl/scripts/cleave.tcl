@@ -1,3 +1,5 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+
 # cleaves chains
 # not yet implemented -- do not use!
 

@@ -1,3 +1,5 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+
 # measure_bonds.tcl -- 
 # reads lines from input file, each is CHAIN, RES1, RES2
 # measures distance between C on RES1 and N on RES2

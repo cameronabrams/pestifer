@@ -1,3 +1,5 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+
 # This VMD script takes the PSF and namdbin files and
 # generates a PDB format file from the coordinates
 for { set i 0 } { $i < [llength $argv] } { incr i } {

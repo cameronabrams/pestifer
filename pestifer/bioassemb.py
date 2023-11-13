@@ -13,7 +13,7 @@ from .asymmetricunit import AsymmetricUnit
 from .chainids import ChainIDManager
 
 def build_tmat(RotMat,TransVec):
-    """Builds a 3 x 4 transformation matrix 
+    """Builds a 4 x 4 homogeneous transformation matrix 
     
     Parameters
     ----------
@@ -22,7 +22,7 @@ def build_tmat(RotMat,TransVec):
     TransVec: numpy.ndarray
         translation vector
     """
-    tmat=np.array([[1, 0, 0, 0],[0, 1, 0, 0],[0, 0, 1, 0]],dtype=float)
+    tmat=np.identity(4,dtype=float)
     for i in range(3):
         for j in range(3):
             tmat[i][j]=RotMat[i][j]
@@ -60,8 +60,8 @@ class Transform(AncestorAwareMod):
         super().__init__(input_dict)
 
     def is_identity(self):
-        tmat=np.array([[1, 0, 0, 0],[0, 1, 0, 0],[0, 0, 1, 0]],dtype=float)
-        return np.array_equal(tmat,self.tmat)
+        # tmat=np.array([[1, 0, 0, 0],[0, 1, 0, 0],[0, 0, 1, 0],[0, 0, 0, 1]],dtype=float)
+        return np.array_equal(np.identity(4,dtype=float),self.tmat)
 
     def register_mapping(self,segtype,chainID,seglabel):
         if not segtype in self.segname_by_type_map:
@@ -70,12 +70,12 @@ class Transform(AncestorAwareMod):
 
     def write_TcL(self):
         retstr=r'{ '
-        for i in range(3):
+        for i in range(4):
             retstr+=r'{ '
             for j in range(4):
                retstr+='{} '.format(self.tmat[i][j])
             retstr+=r' } '
-        retstr+='{ 0 0 0 1 } }'
+        retstr+=r' }'
         return retstr
     def __eq__(self,other):
         return np.array_equal(self.tmat,other.tmat)

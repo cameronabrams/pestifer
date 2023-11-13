@@ -6,8 +6,6 @@ for { set a 0 } { $a < [llength $argv] } { incr a } {
     set RESPATH [lindex $argv $a]
   }
 }
-source ${RESPATH}/axeq.tcl
-source ${RESPATH}/caco.tcl
 source ${RESPATH}/crot.tcl
 source ${RESPATH}/declashloop.tcl
 source ${RESPATH}/checkpierce.tcl

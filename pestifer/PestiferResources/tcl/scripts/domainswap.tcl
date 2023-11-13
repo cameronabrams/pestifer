@@ -1,3 +1,7 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+
+# A VMD/TcL script to perform a domain-swapping TMD simulation using NAMD colvars
+
 proc repl_w_avg { L } {
     set sum 0.0
     foreach l $L {
@@ -87,14 +91,12 @@ foreach elem $chain_swap_pairs {
 
 foreach c $lefts {
     set swap_domain_sel [atomselect top "chain $c and $swap_domain_def"]
-    # set v1 [atomselect top "protein and chain $c and resid 126 to 196"]
     $swap_domain_sel set occupancy $idx
     set swap_sel($c) $swap_domain_sel
     set swap_idx($c) $idx
     set idx [expr $idx + 1]
 
     set anchor_domain_sel [atomselect top "chain $c and $anchor_domain_def"]
-    # set od [atomselect top "protein and chain $c and resid 210 to 290 320 to 450"]
     $anchor_domain_sel set occupancy $idx
     set anchor_idx($c) $idx
     set anchor_sel($c) $anchor_domain_sel

@@ -6,6 +6,7 @@ from .config import segtype_of_resname
 from pidibble.baserecord import BaseRecord
 from functools import singledispatchmethod
 from argparse import Namespace
+from .coord import positionN
 
 class Atom(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
@@ -325,10 +326,12 @@ class ResidueList(AncestorAwareModList):
             for a in res.atoms:
                 serlist.append(as_type(a.serial))
         return serlist
-    def caco_str(self,upstream_reslist,seglabel,molid_varname):
+    def caco_str(self,upstream_reslist,seglabel,molid_varname,tmat):
         r0=self[0]
         ur=upstream_reslist[-1]
-        return f'coord {seglabel} {r0.resseqnum}{r0.insertion} N [cacoIn_nOut {ur.resseqnum}{ur.insertion} {seglabel} ${molid_varname}]'
+        rN=positionN(ur,tmat)
+        logger.debug(f'caco {rN}')
+        return f'coord {seglabel} {r0.resseqnum}{r0.insertion} N {{{rN[0]:.5f} {rN[1]:.5f} {rN[2]:.5f}}}'
     def resrange(self,rngrec):
         subR=self.get(chainID=rngrec.chainID)
         subR.sort()
