@@ -3,6 +3,14 @@ tasks:
   - psfgen:
       source:
         id: 6pti
+  - md:
+      ensemble: minimize
   - solvate:
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
       ensemble: NPT
+      nsteps: 1000
+  - md:
+      ensemble: NPT
+      nsteps: 1000

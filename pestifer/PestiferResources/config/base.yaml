@@ -247,7 +247,6 @@ directives:
           switching: on
           switchdist: 9.0
           pairlistdist: 11.5
-          temperature: 300
           outputenergies: 100
       - name: vacuum
         type: dict
@@ -290,6 +289,12 @@ directives:
           langevinpistontemp: $temperature
           usegrouppressure: yes
           useflexiblecell: no
+      - name: harmonic
+        type: dict
+        text: parameters governing harmonic constraints; not necessarily NAMD-compatible keywords
+        default:
+          spring_constant: 200
+
   - name: title
     type: str
     text: Meaningful title (optional)
@@ -316,7 +321,7 @@ directives:
         required: False
   - name: tasks
     type: list
-    text: Specifies the tasks to be performed; each is a dictionary with a heading which is a reserved task name
+    text: Specifies the tasks to be performed serially
     directives:
       - name: psfgen
         text: Parameters controlling a psfgen run on an input molecule
@@ -431,31 +436,6 @@ directives:
                 type: list
               # - name: insertion
               # - name: graft
-          - name: minimize 
-            text: Specifies the energy minimization to be performed on the output of psfgen
-            type: dict
-            directives:
-              - name: nminsteps
-                text: Number of iterations for the energy minimization
-                type: int
-                default: 1000
-              - name: dcdfreq
-                text: Number of time steps between configuration output to DCD file
-                type: int
-                default: 100
-              - name: constraints
-                text: Parameters controlling position constraints
-                type: dict
-                directives:
-                  - name: atoms
-                    text: Atoms to be position-constrained expressed as a VMD atomselection
-                    type: string
-                  - name: k
-                    text: Restraint spring constant in kcal/mol/A^2
-                    type: float
-                  - name: consfile
-                    text: Name of constraints PDB file (defaults to basename-constraints.pdb)
-                    type: string
           - name: cleanup
             text: Specifies whether or not to delete temporary files generated during psfgen execution
             type: bool
@@ -468,6 +448,11 @@ directives:
             text: Specifies parameters for steered MD to bring C-termini close to their connection points
             type: dict
             directives:
+              - name: ensemble
+                text: Name of ensemble to run in; note that NPT can only be peformed on a solvated system
+                type: str
+                choices: [minimize, NVT, NPT]
+                default: NVT
               - name: force_constant
                 text: force constant (kcal/mol/Angstrom^2)
                 type: float
@@ -484,10 +469,18 @@ directives:
                 text: number of time steps between configuration output to DCD file
                 type: int
                 default: 100
+              - name: xstfreq
+                text: number of time steps between cell size output to DCD file (only used if ensemble is NPT)
+                type: int
+                default: 100
               - name: temperature
                 text: Temperature used in steered MD run
                 type: float
                 default: 300
+              - name: pressure
+                text: Pressure used in steered MD run (only used if ensemble is NPT)
+                type: float
+                default: 1
               - name: receiver_flexible_zone_radius
                 text: size of zone around receiver N-terminal N in which CA's are not fixed during steered MD
                 type: float
@@ -513,20 +506,8 @@ directives:
                 text: Specifies whether or not to clean up temporary files
                 type: bool
                 default: True 
-          - name: minimize
-            text: Specifies the energy minimization to be performed on the output of psfgen
-            type: dict
-            directives:
-              - name: dcdfreq
-                text: number of time steps between configuration output to DCD file
-                type: int
-                default: 100
-              - name: nminsteps
-                text: Number of iterations for the energy minimization
-                type: int
-                default: 1000
       - name: domainswap
-        text: Parameters controlling a domain swap
+        text: Parameters controlling a domain swap TMD simulation
         type: dict
         directives:
           - name: swap_domain_def
@@ -554,40 +535,6 @@ directives:
             type: float
             text: temperature of thermostat in MD run
             default: 300
-      # - name: membrane_solvate (unimplemented)
-      #   text: Parameters controlling generating membrane and solvent
-      #   type: dict
-      #   directives:
-      #     - name: initial_box
-      #       text: dimensions of initial box
-      #       type: dict
-      #       directives:
-      #         - name: Lx
-      #           text: x-length in Angstroms (if xpad not specified)
-      #           type: float
-      #         - name: xpad
-      #           text: minimal distance from any protein atom to +/- x boundaries
-      #           type: float
-      #         - name: y_over_x
-      #           text: y/x aspect ratio
-      #           type: float
-      #         - name: Lz
-      #           text: z-length in Angstroms
-      #           type: float
-      #         - name: zpad
-      #           text: minimal distance from any protein atom to + z boundary
-      #           type: float
-      #     - name: protein
-      #       text: Parameters describing how protein is oriented wrt membrane
-      #       type: dict
-      #       directives:
-      #         - name: tmchains
-      #           text: Designations of transmembrane chains as VMD atomselect text
-      #           type: list
-      #           default: all
-      #     - name: bilayer
-      #       text: Parameters describing the bilayer composition
-      #       type: dict
       - name: solvate
         text: Parameters controlling solvation and ionization
         type: dict
@@ -596,48 +543,23 @@ directives:
             text: padding value for determining the overall simulation box size (in Angstroms)
             type: float
             default: 10
-          - name: minimize
-            text: Specifies the energy minimization to be performed on the output of psfgen
-            type: dict
-            directives:
-              - name: nminsteps
-                text: Number of iterations for the energy minimization
-                type: int
-                default: 1000
-              - name: dcdfreq
-                text: number of time steps between configuration output to DCD file
-                type: int
-                default: 100
-              - name: constraints
-                text: Parameters controlling position constraints
-                type: dict
-                directives:
-                  - name: atoms
-                    text: Atoms to be position-constrained expressed as a VMD atomselection
-                    type: string
-                  - name: k
-                    text: Restraint spring constant in kcal/mol/A^2
-                    type: float
-                  - name: consfile
-                    text: Name of constraints PDB file (defaults to basename-constraints.pdb)
-                    type: string
-      - name: relax
-        text: Parameters controlling NVT or NPT equilibration
+      - name: md
+        text: Parameters controlling a NAMD run
         type: dict
         directives:
           - name: ensemble
             text: Name of ensemble to run in; note that NPT can only be peformed on a solvated system
             type: str
-            choices: [NVT, NPT]
+            choices: [minimize, NVT, NPT]
             default: NVT
-          - name: nminsteps
-            text: Number of minimization steps
-            type: int
-            default: 0
-          - name: nsteps
-            text: Number of MD time steps
+          - name: minimize
+            text: Number of minimization steps; ignored if ensemble is not 'minimize' (used with the 'minimize' command)
             type: int
             default: 1000
+          - name: nsteps
+            text: Number of MD time steps; ingored if ensemble is 'minimize' (used with the 'run' command)
+            type: int
+            default: 2000
           - name: dcdfreq
             text: number of time steps between configuration output to DCD file
             type: int
@@ -682,31 +604,6 @@ directives:
               - name: crotations
                 text: dihedral angle rotations to reposition residues
                 type: list
-          - name: minimize 
-            text: Specifies the energy minimization
-            type: dict
-            directives:
-              - name: nminsteps
-                text: Number of iterations for the energy minimization
-                type: int
-                default: 1000
-              - name: dcdfreq
-                text: Number of time steps between configuration output to DCD file
-                type: int
-                default: 100
-              - name: constraints
-                text: Parameters controlling position constraints
-                type: dict
-                directives:
-                  - name: atoms
-                    text: Atoms to be position-constrained expressed as a VMD atomselection
-                    type: string
-                  - name: k
-                    text: Restraint spring constant in kcal/mol/A^2
-                    type: float
-                  - name: consfile
-                    text: Name of constraints PDB file (defaults to basename-constraints.pdb)
-                    type: string        
       - name: terminate
         text: Task that signals end of task list
         type: dict

@@ -88,10 +88,13 @@ class VMD(Scriptwriter):
         ext='.pdb' if mol.rcsb_file_format=='PDB' else '.cif'
         self.addline(f'mol new {mol.sourcespecs["id"]}{ext} waitfor all')
         self.addline(f'set {mol.molid_varname} [molinfo top get id]')
+        self.addline(f'set nf [molinfo ${mol.molid_varname} get numframes]')
+        self.addline(r'if { $nf > 1 } { animate delete beg 0 end [expr $nf - 2] $'+mol.molid_varname+r' }')
         if altcoords:
             mol.set_coords(altcoords)
-            self.addline(f'mol addfile {altcoords}')
-            self.addline(f'animate delete beg 0 end 0 {mol.molid_varname}')
+            self.addline(f'mol addfile {altcoords} waitfor all')
+            self.addline(f'set nf [molinfo ${mol.molid_varname} get numframes]')
+            self.addline(r'animate delete beg 0 end [expr $nf - 2] $'+mol.molid_varname+r' }')
         if mol.rcsb_file_format=='mmCIF':
             # VMD appends a "1" to any two-letter chain ID from a CIF file,
             # so let's undo that
@@ -267,18 +270,23 @@ class NAMD2(Scriptwriter):
         self.banner('NAMD2 script')
 
     def writescript(self,params):
+        tailers=['minimize','run','numsteps']
         for k,v in params.items():
-            if type(v)==list:
-                for val in v:
-                    if k=='tcl':
-                        self.addline(val)
-                    else:
-                        self.addline(f'{k} {val}')
-            else:
-                if k=='tcl':
-                    self.addline(v)
+            if k not in tailers:
+                if type(v)==list:
+                    for val in v:
+                        if k=='tcl':
+                            self.addline(val)
+                        else:
+                            self.addline(f'{k} {val}')
                 else:
-                    self.addline(f'{k} {v}')
+                    if k=='tcl':
+                        self.addline(v)
+                    else:
+                        self.addline(f'{k} {v}')
+        for t in tailers:
+            if t in params:
+                self.addline(f'{t} {params[t]}')
         super().writescript()
 
     def runscript(self):

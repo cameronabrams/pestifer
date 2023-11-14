@@ -12,6 +12,8 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.2.0
+    * split all namd subtasks out; now they are level-1 tasks
 * 1.1.3
     * added `manipulate` task
 * 1.1.2

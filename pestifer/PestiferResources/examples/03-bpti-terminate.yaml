@@ -6,8 +6,16 @@ tasks:
         exclude:
           resnames:
             - PO4
+  - md:
+      ensemble: minimize
   - solvate:
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
       ensemble: NPT
+      nsteps: 1000
+  - md:
+      ensemble: NPT
+      nsteps: 1000
   - terminate:
       basename: my_6pti

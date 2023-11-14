@@ -40,7 +40,7 @@ def myset(a_dict,keylist,val):
 
 class Config(Yclept):
     def __init__(self,userfile=''):
-        logger.info(f'Ycleptic v {__ycleptic_version__}')
+        logger.info(f'pestifer uses ycleptic v. {__ycleptic_version__}')
         r=ResourceManager()
         logger.debug(f'Resources {r}')
         basefile=os.path.join(r['config'],'base.yaml')

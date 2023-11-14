@@ -1,0 +1,34 @@
+      # - name: membrane_solvate (unimplemented)
+      #   text: Parameters controlling generating membrane and solvent
+      #   type: dict
+      #   directives:
+      #     - name: initial_box
+      #       text: dimensions of initial box
+      #       type: dict
+      #       directives:
+      #         - name: Lx
+      #           text: x-length in Angstroms (if xpad not specified)
+      #           type: float
+      #         - name: xpad
+      #           text: minimal distance from any protein atom to +/- x boundaries
+      #           type: float
+      #         - name: y_over_x
+      #           text: y/x aspect ratio
+      #           type: float
+      #         - name: Lz
+      #           text: z-length in Angstroms
+      #           type: float
+      #         - name: zpad
+      #           text: minimal distance from any protein atom to + z boundary
+      #           type: float
+      #     - name: protein
+      #       text: Parameters describing how protein is oriented wrt membrane
+      #       type: dict
+      #       directives:
+      #         - name: tmchains
+      #           text: Designations of transmembrane chains as VMD atomselect text
+      #           type: list
+      #           default: all
+      #     - name: bilayer
+      #       text: Parameters describing the bilayer composition
+      #       type: dict

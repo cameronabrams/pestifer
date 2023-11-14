@@ -56,7 +56,8 @@ def run(args):
     # Set up the Controller and execute tasks
     logger.info(f'pestifer runtime begins')
     C=Controller(args.config)
-    C.write_complete_config('00-complete.yaml')
+    c,e=os.path.splitext(args.config)
+    C.write_complete_config(f'{c}-complete.yaml')
     C.do_tasks()    
     logger.info('pestifer runtime ends.')
 
@@ -82,8 +83,9 @@ def run_example(args):
     for ex_yaml in glob.glob(ex_path+'/*.yaml'):
         base=os.path.split(ex_yaml)[1]
         if str(base).startswith(nstr):
-            shutil.copy(ex_yaml,'./')
-            args.config=base
+            rebase=base[len(nstr)+1:]
+            shutil.copy(ex_yaml,f'./{rebase}')
+            args.config=rebase
             run(args)
             break
     else:

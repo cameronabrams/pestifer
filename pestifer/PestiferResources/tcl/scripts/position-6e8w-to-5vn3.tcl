@@ -66,7 +66,7 @@ $mtm move [trans center [measure center $mtm] axis y -2]
 foreach ec {A B D} mc {A B C} {
     set h1r [[atomselect $mtmid "chain $mc and resid 673 and name CA"] get residue]
     set h2r [expr $h1r-13]
-    brot $mtmid $h1r $h2r psi N -30
+    brot $mtmid $h1r $h2r psi N 30
     set j1r [[atomselect $envid "chain $ec and resid 635 and name CA"] get residue]
     set j2r [[atomselect $envid "chain $ec and resid 664 and name CA"] get residue]
     brot $envid $j1r $j2r phi C 10
