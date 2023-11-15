@@ -1,4 +1,4 @@
-    Help available for title, paths, tasks
+    Help available for charmmff, psfgen, namd2, title, paths, tasks
 title:
     Meaningful title (optional)
     type: str
@@ -13,21 +13,20 @@ vmd:
     type: str
     default: /usr/local/bin/vmd
 tasks:
-    Specifies the tasks to be performed; each is a dictionary with a
-      heading which is a reserved task name
+    Specifies the tasks to be performed serially
     type: list
-    Help available for psfgen, ligate, solvate, relax, terminate
+    Help available for psfgen, ligate, domainswap, solvate, md, manipulate, terminate
 tasks->
 psfgen:
-    Parameters controlling initial psfgen run
+    Parameters controlling a psfgen run on an input molecule
     type: dict
-    Help available for source, mods, minimize, cleanup
+    Help available for source, mods, cleanup
 tasks->
 psfgen->
 source:
     Specifies the source of the initial coordinate file
     type: dict
-    Help available for id, biological_assembly, file_format, psf, exclude, sequence
+    Help available for id, biological_assembly, file_format, cif_residue_map_file, psf, altcoords, exclude, sequence
 tasks->
 psfgen->
 source->
@@ -55,7 +54,7 @@ sequence:
     Parameters controlling sequence modifications based on specifications
       in the PDB source
     type: dict
-    Help available for include_terminal_loops, fix_engineered_mutations, fix_conflicts, loops
+    Help available for include_terminal_loops, build_zero_occupancy_C_termini, build_zero_occupancy_N_termini, fix_engineered_mutations, fix_conflicts, loops
 tasks->
 psfgen->
 source->
@@ -89,32 +88,32 @@ ligate:
     Specifies how C-termini of modeled loops are connected back to the
       protein
     type: dict
-    Help available for steer, connect, minimize
+    Help available for steer, connect
 tasks->
 ligate->
 steer:
     Specifies parameters for steered MD to bring C-termini close to their
       connection points
     type: dict
-    Help available for force_constant, target_distance, nsteps, dcdfreq, temperature
+    Help available for ensemble, force_constant, target_distance, nsteps, dcdfreq, xstfreq, temperature, pressure, receiver_flexible_zone_radius, constraints
 tasks->
 solvate:
     Parameters controlling solvation and ionization
     type: dict
-    Help available for pad, minimize
+    Help available for pad
 tasks->
-relax:
-    Parameters controlling NVT or NPT equilibration
+md:
+    Parameters controlling a NAMD run
     type: dict
-    Help available for ensemble, nminsteps, nsteps, dcdfreq, xstfreq, temperature, pressure
+    Help available for ensemble, minimize, nsteps, dcdfreq, xstfreq, temperature, pressure, constraints, other_parameters
 tasks->
-relax->
+md->
 ensemble:
     Name of ensemble to run in; note that NPT can only be peformed on a
       solvated system
     type: str
     default: NVT
-    allowed values: NVT, NPT
+    allowed values: minimize, NVT, NPT
 tasks->
 terminate:
     Task that signals end of task list

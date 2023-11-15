@@ -1,4 +1,4 @@
-title: HIV-1 Env Trimer 8fae
+title: HIV-1 Env Trimer 8fae, drug molecule removed
 tasks:
   - psfgen:
       source:
@@ -8,14 +8,26 @@ tasks:
         exclude:
           resnames:
             - 83G
+  - md:
+      ensemble: minimize
   - ligate:
       steer:
         nsteps: 4000
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
   - solvate:
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
       ensemble: NPT
+      nsteps: 1000
+  - md:
+      ensemble: NPT
+      nsteps: 1000
   - terminate:
       basename: my_8fae
       package:
+        ensemble: NPT
         basename: prod_8fae

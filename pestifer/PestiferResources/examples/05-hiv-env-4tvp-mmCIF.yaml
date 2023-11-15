@@ -13,14 +13,21 @@ tasks:
             - D
             - E
             - F
+  - md:
+      ensemble: minimize
   - ligate:
       steer:
         nsteps: 4000
-  - relax:
+  - md:
+      ensemble: minimize  
+  - md:
+      ensemble: NVT
       nsteps: 2000
       dcdfreq: 100
   - solvate:
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
       ensemble: NPT
   - terminate:
       basename: my_4tvp

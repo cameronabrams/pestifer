@@ -37,14 +37,28 @@ tasks:
           - A:100-162,GGG
           - C:100-162,GGG
           - E:100-162,GGG
+  - md:
+      ensemble: minimize
   - ligate:
       steer:
         nsteps: 1000
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
   - solvate:
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
       ensemble: NPT
+      nsteps: 1000
+  - md:
+      ensemble: NPT
+      nsteps: 2000
   - terminate:
       basename: my_7txd
       package:
+        ensemble: NPT
         basename: prod_7txd

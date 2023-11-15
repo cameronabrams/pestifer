@@ -12,16 +12,30 @@ tasks:
         crotations:
           - psi,B,546,568,-180.0
           - phi,B,547,568,-60.0
+  - md:
+      ensemble: minimize
   - ligate:
       steer:
         nsteps: 4200
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
       nsteps: 2400
   - solvate:
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
       ensemble: NPT
+      nsteps: 1000
+  - md:
+      ensemble: NPT
+      nsteps: 2000
   - terminate:
       basename: my_4zmj
       package:
+        ensemble: NPT
         basename: prod_4zmj
         

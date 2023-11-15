@@ -6,7 +6,7 @@ from collections import UserList
 import logging
 logger=logging.getLogger(__name__)
 import os
-from pestifer.command import Command
+from .command import Command
 # _ANGSTROM_='Ångström'
 
 import importlib.metadata
@@ -14,7 +14,7 @@ import importlib.metadata
 __pestifer_version__ = importlib.metadata.version("pestifer")
 
 banner_message="""
-    Pestifer v {}
+    Pestifer v. {}
     https://pestifer.readthedocs.io/en/latest/
 
     Cameron F. Abrams <cfa22@drexel.edu>

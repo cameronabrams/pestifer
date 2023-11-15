@@ -215,15 +215,21 @@ tasks:
       Cfusions: []
       crotations: []
       deletions: []
-      mutations: []
+      mutations:
+      - E:P753A
       ssbonds: []
       ssbondsdelete: []
       substitutions: []
     source:
-      biological_assembly: 0
-      exclude: {}
+      biological_assembly: 1
+      exclude:
+        chains:
+        - A
+        - B
+        - C
+        - D
       file_format: PDB
-      id: 6pti
+      id: 4zxb
       sequence:
         build_zero_occupancy_C_termini: []
         build_zero_occupancy_N_termini: []
@@ -232,7 +238,7 @@ tasks:
         include_terminal_loops: false
         loops:
           declash:
-            maxcycles: 20
+            maxcycles: 0
           min_loop_length: 4
           sac_res_name: GLY
 - md:
@@ -242,6 +248,40 @@ tasks:
     minimize: 1000
     nsteps: 2000
     other_parameters: &id001 {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- ligate:
+    connect:
+      cleanup: true
+    steer:
+      constraints: {}
+      dcdfreq: 100
+      ensemble: NVT
+      force_constant: 20
+      nsteps: 12000
+      pressure: 1
+      receiver_flexible_zone_radius: 10
+      target_distance: 2
+      temperature: 300
+      xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: minimize
+    minimize: 1000
+    nsteps: 2000
+    other_parameters: *id001
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NVT
+    minimize: 1000
+    nsteps: 24000
+    other_parameters: *id001
     pressure: 1
     temperature: 300
     xstfreq: 100
@@ -260,9 +300,9 @@ tasks:
 - md:
     constraints: {}
     dcdfreq: 100
-    ensemble: NPT
+    ensemble: NVT
     minimize: 1000
-    nsteps: 1000
+    nsteps: 2000
     other_parameters: *id001
     pressure: 1
     temperature: 300
@@ -277,4 +317,30 @@ tasks:
     pressure: 1
     temperature: 300
     xstfreq: 100
-title: BPTI
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NPT
+    minimize: 1000
+    nsteps: 10000
+    other_parameters: *id001
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- terminate:
+    basename: my_4zxb
+    chainmapfile: chainmaps.yaml
+    package:
+      basename: prod_4zxb
+      constraints: {}
+      dcdfreq: 10000
+      ensemble: NPT
+      nminsteps: 0
+      nsteps: 1000000
+      pressure: 1
+      restartfreq: 10000
+      temperature: 300
+      topogromacs: false
+      xstfreq: 10000
+    statefile: states.yaml
+title: insulin receptor ectodomain, Fabs removed

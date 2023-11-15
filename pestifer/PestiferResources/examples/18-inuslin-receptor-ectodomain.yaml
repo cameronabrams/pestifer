@@ -17,17 +17,30 @@ tasks:
       mods:
         mutations:
           - E:P753A  # the proline at the end of a chain is problematic, for now
+  - md:
+      ensemble: minimize
   - ligate:
       steer:
         nsteps: 12000
         receiver_flexible_zone_radius: 10
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
       ensemble: NVT
       nsteps: 24000
   - solvate:
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
       ensemble: NPT
+      nsteps: 1000
+  - md:
+      ensemble: NPT
+      nsteps: 10000
   - terminate:
       basename: my_4zxb
       package:
+        ensemble: NPT
         basename: prod_4zxb

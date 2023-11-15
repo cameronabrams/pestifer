@@ -28,10 +28,10 @@ tasks:
   - ligate:
       steer:
         nsteps: 1000
-  - relax:
+  - md:
       nsteps: 2400
   - solvate:
-  - relax:
+  - md:
       ensemble: NPT
   - terminate:
       basename: my_5vn3

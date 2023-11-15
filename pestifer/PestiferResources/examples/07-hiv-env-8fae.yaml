@@ -8,12 +8,23 @@ tasks:
         exclude:
           resnames:
             - 83G
+  - md:
+      ensemble: minimize
   - ligate:
       steer:
         nsteps: 4000
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
   - solvate:
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
       ensemble: NPT
+      nsteps: 1000
+  - md:
+      ensemble: NPT
+      nsteps: 1000
   - terminate:
       basename: my_8fae

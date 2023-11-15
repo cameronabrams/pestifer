@@ -221,7 +221,9 @@ tasks:
       substitutions: []
     source:
       biological_assembly: 0
-      exclude: {}
+      exclude:
+        resnames:
+        - PO4
       file_format: PDB
       id: 6pti
       sequence:
@@ -260,9 +262,9 @@ tasks:
 - md:
     constraints: {}
     dcdfreq: 100
-    ensemble: NPT
+    ensemble: NVT
     minimize: 1000
-    nsteps: 1000
+    nsteps: 2000
     other_parameters: *id001
     pressure: 1
     temperature: 300
@@ -272,9 +274,35 @@ tasks:
     dcdfreq: 100
     ensemble: NPT
     minimize: 1000
-    nsteps: 1000
+    nsteps: 500
     other_parameters: *id001
     pressure: 1
     temperature: 300
     xstfreq: 100
-title: BPTI
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NPT
+    minimize: 1000
+    nsteps: 1500
+    other_parameters: *id001
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- terminate:
+    basename: my_6pti
+    chainmapfile: chainmaps.yaml
+    package:
+      basename: prod_6pti
+      constraints: {}
+      dcdfreq: 10000
+      ensemble: NPT
+      nminsteps: 0
+      nsteps: 1000000
+      pressure: 1
+      restartfreq: 10000
+      temperature: 300
+      topogromacs: true
+      xstfreq: 10000
+    statefile: states.yaml
+title: BPTI, packaging all inputs for NAMD deployment

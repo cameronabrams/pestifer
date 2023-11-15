@@ -1,4 +1,4 @@
-title: HIV-1 Env Trimer 8fad
+title: HIV-1 Env Trimer 8fad, drug molecule removed
 tasks:
   - psfgen:
       source:
@@ -10,15 +10,27 @@ tasks:
       mods:
         crotations:
           - phi,F,29,43,-90.0
-          - psi,F,29,43,-90.0
+          - psi,F,29,43,-120.0
+  - md:
+      ensemble: minimize
   - ligate:
       steer:
         nsteps: 4000
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
   - solvate:
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
       ensemble: NPT
+      nsteps: 1000
+  - md:
+      ensemble: NPT
+      nsteps: 1000
   - terminate:
       basename: my_8fad
       package:
+        ensemble: NPT
         basename: prod_8fad

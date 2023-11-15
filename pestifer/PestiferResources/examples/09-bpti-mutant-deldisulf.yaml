@@ -14,8 +14,18 @@ tasks:
           - A:MET,52,LEU
         ssbondsdelete:
           - A_5-A_55
+  - md:
+      ensemble: minimize
   - solvate:
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
       ensemble: NPT
+      nsteps: 500
+  - md:
+      ensemble: NPT
+      nsteps: 1500
   - terminate:
       basename: my_6pti

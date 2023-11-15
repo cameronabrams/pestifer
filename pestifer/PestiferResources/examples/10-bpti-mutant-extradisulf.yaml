@@ -12,8 +12,18 @@ tasks:
           - A:V34C
         ssbonds:
           - A_11-A_34  # now ligation!
+  - md:
+      ensemble: minimize
   - solvate:
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
       ensemble: NPT
+      nsteps: 500
+  - md:
+      ensemble: NPT
+      nsteps: 1500
   - terminate:
       basename: my_6pti

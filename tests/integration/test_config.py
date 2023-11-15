@@ -11,7 +11,7 @@ import unittest
 import glob
 import os
 import yaml
-from pestifer.config import Config, ResourceManager, userhelp, segtype_of_resname, charmm_resname_of_pdb_resname, res_123, res_321
+from pestifer.config import Config, ResourceManager, segtype_of_resname, charmm_resname_of_pdb_resname, res_123, res_321
 
 class ConfigTest(unittest.TestCase):
     def test_resource_manager(self):
@@ -42,33 +42,32 @@ class ConfigTest(unittest.TestCase):
     def test_config_help(self):
         c=Config()
         with open('help.out','w') as f:
-            L=c['help']['directives']
-            userhelp(L,f.write,end='\n')
-            userhelp(L,f.write,'title',end='\n')
-            userhelp(L,f.write,'paths',end='\n')
-            userhelp(L,f.write,'paths','vmd',end='\n')
-            userhelp(L,f.write,'tasks',end='\n')
-            userhelp(L,f.write,'tasks','psfgen',end='\n')
-            userhelp(L,f.write,'tasks','psfgen','source',end='\n')
-            userhelp(L,f.write,'tasks','psfgen','source','id',end='\n')
-            userhelp(L,f.write,'tasks','psfgen','source','file_format',end='\n')
-            userhelp(L,f.write,'tasks','psfgen','source','sequence',end='\n')
-            userhelp(L,f.write,'tasks','psfgen','source','sequence','fix_conflicts',end='\n')
-            userhelp(L,f.write,'tasks','psfgen','source','sequence','loops',end='\n')
-            userhelp(L,f.write,'tasks','psfgen','source','sequence','loops','min_loop_length',end='\n')
-            userhelp(L,f.write,'tasks','ligate',end='\n')
-            userhelp(L,f.write,'tasks','ligate','steer',end='\n')
-            userhelp(L,f.write,'tasks','solvate',end='\n')
-            userhelp(L,f.write,'tasks','relax',end='\n')
-            userhelp(L,f.write,'tasks','relax','ensemble',end='\n')
-            userhelp(L,f.write,'tasks','terminate',end='\n')
+            c.console_help(end='\n',write_func=f.write)
+            c.console_help('title',end='\n',write_func=f.write)
+            c.console_help('paths',end='\n',write_func=f.write)
+            c.console_help('paths','vmd',end='\n',write_func=f.write)
+            c.console_help('tasks',end='\n',write_func=f.write)
+            c.console_help('tasks','psfgen',end='\n',write_func=f.write)
+            c.console_help('tasks','psfgen','source',end='\n',write_func=f.write)
+            c.console_help('tasks','psfgen','source','id',end='\n',write_func=f.write)
+            c.console_help('tasks','psfgen','source','file_format',end='\n',write_func=f.write)
+            c.console_help('tasks','psfgen','source','sequence',end='\n',write_func=f.write)
+            c.console_help('tasks','psfgen','source','sequence','fix_conflicts',end='\n',write_func=f.write)
+            c.console_help('tasks','psfgen','source','sequence','loops',end='\n',write_func=f.write)
+            c.console_help('tasks','psfgen','source','sequence','loops','min_loop_length',end='\n',write_func=f.write)
+            c.console_help('tasks','ligate',end='\n',write_func=f.write)
+            c.console_help('tasks','ligate','steer',end='\n',write_func=f.write)
+            c.console_help('tasks','solvate',end='\n',write_func=f.write)
+            c.console_help('tasks','md',end='\n',write_func=f.write)
+            c.console_help('tasks','md','ensemble',end='\n',write_func=f.write)
+            c.console_help('tasks','terminate',end='\n',write_func=f.write)
         self.assertTrue(os.path.isfile('help.out'))
             
 
     def test_config_user(self):
         rm=ResourceManager()
         configfile=rm['examples']+'/01-bpti.yaml'
-        c=Config(userconfigfile=configfile)
+        c=Config(userfile=configfile)
         self.assertTrue('user' in c)
         self.assertTrue('tasks' in c['user'])
         self.assertEqual(len(c['user']['tasks'][0].keys()),1)
@@ -77,14 +76,13 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(name,'psfgen')
         self.assertTrue('source' in specs)
         self.assertEqual(specs['source']['id'],'6pti')
-        self.assertTrue('minimize' in specs)
         self.assertTrue('cleanup' in specs)
         task2=c['user']['tasks'][1]
         name,specs=[(x,y) for x,y in task2.items()][0]
-        self.assertEqual(name,'solvate')
+        self.assertEqual(name,'md')
         task3=c['user']['tasks'][2]
         name,specs=[(x,y) for x,y in task3.items()][0]
-        self.assertEqual(name,'relax')
+        self.assertEqual(name,'solvate')
 
     def test_config_help_examples(self):
         rm=ResourceManager()
@@ -92,15 +90,13 @@ class ConfigTest(unittest.TestCase):
         for configfile in configfiles:
             d,n=os.path.split(configfile)
             b,e=os.path.splitext(n)
-            c=Config(userconfigfile=configfile)
+            c=Config(userfile=configfile)
             self.assertTrue('base' in c)
             self.assertTrue('user' in c)
-            self.assertTrue('help' in c)
-            H=c['help']
-            D=H['directives']
-            self.assertEqual(len(D),3)
+            D=c['base']['directives']
+            self.assertEqual(len(D),6)
             tld=[x['name'] for x in D]
-            self.assertEqual(tld,['title','paths','tasks'])
+            self.assertEqual(tld,['charmmff', 'psfgen', 'namd2', 'title', 'paths', 'tasks'])
             T_idx=tld.index('title')
             T=D[T_idx]
             self.assertEqual(T['name'],'title')

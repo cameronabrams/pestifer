@@ -6,6 +6,7 @@ from collections import UserDict
 from pestifer import PestiferResources
 from ycleptic.yclept import Yclept
 from ycleptic.yclept import __version__ as __ycleptic_version__
+from pidibble.pdbparse import __version__ as __pidibble_version__
 
 segtype_of_resname={}
 charmm_resname_of_pdb_resname={}
@@ -40,7 +41,8 @@ def myset(a_dict,keylist,val):
 
 class Config(Yclept):
     def __init__(self,userfile=''):
-        logger.info(f'pestifer uses ycleptic v. {__ycleptic_version__}')
+        logger.info(f'pestifer uses ycleptic v {__ycleptic_version__}')
+        logger.info(f'pestifer uses pidibble v {__pidibble_version__}')
         r=ResourceManager()
         logger.debug(f'Resources {r}')
         basefile=os.path.join(r['config'],'base.yaml')

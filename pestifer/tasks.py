@@ -267,7 +267,7 @@ class MDTask(BaseTask):
         xstfreq=specs['xstfreq']
 
         constraints=specs.get('constraints',{})
-        other_params=specs.get('other_parameters',{})
+        # other_params=specs.get('other_parameters',{})
         params.update(namd_global_params['generic'])
         params['structure']=psf
         params['coordinates']=pdb
@@ -322,7 +322,7 @@ class MDTask(BaseTask):
             params['consref']=self.statevars['consref']
             params['conskfile']=self.statevars['consref']
             params['conskcol']='O'
-        params.update(other_params)
+        # params.update(other_params)
         params.update(extras)
         params['firsttimestep']=firsttimestep
         if ensemble=='minimize':
@@ -692,12 +692,16 @@ class TerminateTask(MDTask):
 
     def make_package(self):
         specs=self.specs.get('package',{})
+        # logger.debug(f'make_package specs {specs}')
         if not specs:
             return
         self.inherit_state()
         self.FC.clear()  # populate a file collector to make the tarball
         logger.debug(f'Packaging for namd2 using basename {self.basename}')
-        params=self.namd2run(specs,script_only=True,absolute_paths=False)
+        savespecs=self.specs
+        self.specs=specs
+        params=self.namd2run(script_only=True,absolute_paths=False)
+        self.specs=savespecs
         self.FC.append(f'{self.basename}.namd')
         constraints=specs.get('constraints',{})
         if constraints:

@@ -218,12 +218,25 @@ tasks:
       mutations: []
       ssbonds: []
       ssbondsdelete: []
-      substitutions: []
+      substitutions:
+      - G:131A-133T,GGG
+      - I:131A-133T,GGG
+      - J:131A-133T,GGG
     source:
-      biological_assembly: 0
-      exclude: {}
+      biological_assembly: 1
+      exclude:
+        chains:
+        - C
+        - H
+        - L
+        - E
+        - K
+        - N
+        - F
+        - M
+        - O
       file_format: PDB
-      id: 6pti
+      id: 5vn3
       sequence:
         build_zero_occupancy_C_termini: []
         build_zero_occupancy_N_termini: []
@@ -235,12 +248,26 @@ tasks:
             maxcycles: 20
           min_loop_length: 4
           sac_res_name: GLY
+- ligate:
+    connect:
+      cleanup: true
+    steer:
+      constraints: {}
+      dcdfreq: 100
+      ensemble: NVT
+      force_constant: 20
+      nsteps: 1000
+      pressure: 1
+      receiver_flexible_zone_radius: 0.0
+      target_distance: 2
+      temperature: 300
+      xstfreq: 100
 - md:
     constraints: {}
     dcdfreq: 100
-    ensemble: minimize
+    ensemble: NVT
     minimize: 1000
-    nsteps: 2000
+    nsteps: 2400
     other_parameters: &id001 {}
     pressure: 1
     temperature: 300
@@ -250,31 +277,27 @@ tasks:
 - md:
     constraints: {}
     dcdfreq: 100
-    ensemble: minimize
+    ensemble: NPT
     minimize: 1000
     nsteps: 2000
     other_parameters: *id001
     pressure: 1
     temperature: 300
     xstfreq: 100
-- md:
-    constraints: {}
-    dcdfreq: 100
-    ensemble: NPT
-    minimize: 1000
-    nsteps: 1000
-    other_parameters: *id001
-    pressure: 1
-    temperature: 300
-    xstfreq: 100
-- md:
-    constraints: {}
-    dcdfreq: 100
-    ensemble: NPT
-    minimize: 1000
-    nsteps: 1000
-    other_parameters: *id001
-    pressure: 1
-    temperature: 300
-    xstfreq: 100
-title: BPTI
+- terminate:
+    basename: my_5vn3
+    chainmapfile: chainmaps.yaml
+    package:
+      basename: prod_5vn3
+      constraints: {}
+      dcdfreq: 10000
+      ensemble: NVT
+      nminsteps: 0
+      nsteps: 1000000
+      pressure: 1
+      restartfreq: 10000
+      temperature: 300
+      topogromacs: false
+      xstfreq: 10000
+    statefile: states.yaml
+title: HIV-1 Env Trimer 5vn3, excluding sCD4 and Fab chains

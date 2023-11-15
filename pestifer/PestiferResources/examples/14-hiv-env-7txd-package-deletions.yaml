@@ -6,18 +6,42 @@ tasks:
         file_format: mmCIF
         biological_assembly: 1
       mods:
+        crotations:
+          - alpha,B,33,52
+          - alpha,D,32,52
+          - phi,D,34,52,-30
+          - phi,D,33,52,15
+          - psi,D,29,52,-5
+          - alpha,F,33,50
+          - phi,F,32,50,30
+          - phi,F,31,50,45
+          - psi,C,368,378,180
         deletions:
           - A:100-162
           - C:100-162
           - E:100-162
+  - md:
+      ensemble: minimize
   - ligate:
       steer:
         nsteps: 1000
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
   - solvate:
-  - relax:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
       ensemble: NPT
+      nsteps: 1000
+  - md:
+      ensemble: NPT
+      nsteps: 2000
   - terminate:
       basename: my_7txd
       package:
+        ensemble: NPT
         basename: prod_7txd
