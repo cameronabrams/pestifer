@@ -24,7 +24,7 @@ tasks:
       ensemble: minimize
   - ligate:
       steer:
-        nsteps: 1000
+        nsteps: 3000
   - md:
       ensemble: minimize
   - md:

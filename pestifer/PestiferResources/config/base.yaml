@@ -576,6 +576,9 @@ directives:
             text: Pressure (bar) for NPT; note that NPT can only be peformed on a solvated system
             type: float
             default: 1
+          - name: other_parameters
+            text: key:value pairs for other namd2 configuration file statements
+            type: dict
           - name: constraints
             text: Parameters controlling position constraints
             type: dict
@@ -589,10 +592,6 @@ directives:
               - name: consfile
                 text: Name of constraints PDB file (defaults to basename-constraints.pdb)
                 type: string
-          - name: other_parameters
-            text: dictionary of any other NAMD2 config file parameter-value pairs
-            type: dict
-            default: {}
       - name: manipulate
         text: Direct manipulation of atom positions
         type: dict

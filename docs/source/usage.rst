@@ -3,19 +3,19 @@ Usage
 
 Installation of the ``pestifer`` package gives access to the ``pestifer`` command.  The general syntax for invoking ``pestifer`` is
 
-.. code-block:: bash
+.. code-block:: console
 
    $ pestifer <subcommand> <options>
 
 Help with any subcommand can be obtained via
 
-.. code-block:: bash
+.. code-block:: console
 
    $ pestifer <subcommand> --help
 
 General options for all subcommands:
 
-.. code-block:: bash
+.. code-block:: console
 
   --no-banner          turn off the banner
   --loglevel LOGLEVEL  Log level for messages written to diagnostic log (debug|info)
@@ -25,20 +25,25 @@ There are several subcommands:
 
 ``run``: the main subcommand that uses a user's input config file to build a system.
 
-.. code-block:: bash
+.. code-block:: console
 
    $ pestifer run <config.yaml>
 
+Here ``config.yaml`` is the name of the configuration file that describes the build.  The
+best way to learn about the configuration file is to run the examples provided, and
+then you can try to make your own.
 
-``run-example``: there are 20 example systems; to run number four, for example:
+``run-example``: there are 21 example systems; to run number four, for example:
 
-.. code-block:: bash
+.. code-block:: console
    
    $ pestifer run-example 4
 
+(Best to do that in a clean directory.)
+
 ``config-help``: Interactive help in constructing a config file.
 
-.. code-block:: bash
+.. code-block:: console
 
    $ pestifer config-help
    Help on user-provided configuration file format
@@ -58,308 +63,121 @@ There are several subcommands:
       type: dict
       Help available for source, mods, minimize, cleanup
 
-
 Example 1
 ---------
 
-An example YAML configuration file to build the 6PTI system in the psfgen user manual is below:
+An example YAML configuration file to build the 6PTI system described in the 
+in the `psfgen user manual <https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen/ug.pdf>`_ is below:
 
 .. code-block:: yaml
 
-   title: BPTI
-   tasks:
-      - psfgen:
-         source:
-            id: 6pti
-      - solvate:
-      - relax:
-         ensemble: NPT  
+  title: BPTI
+  tasks:
+    - psfgen:
+        source:
+          id: 6pti
+    - md:
+        ensemble: minimize
+    - solvate:
+    - md:
+        ensemble: minimize
+    - md:
+        ensemble: NPT
+        nsteps: 1000
+    - md:
+        ensemble: NPT
+        nsteps: 1000
 
-This can be run (preferably in a clean directory) via
+This build can be performed (preferably in a clean directory) using this command:
 
-.. code-block:: bash
+.. code-block:: console
 
    $ pestifer run-example 1
 
 Or, alternatively, pasting that content into a local file ``myconfig.yaml``:
 
-.. code-block:: bash
+.. code-block:: console
 
    $ pestifer run myconfig.yaml
 
-The first thing ``pestifer`` does with ``run-example`` is to copy the YAML config file for that example into the local directory.  In this case, the file copied is named ``01-bpti.yaml``, and contains what you see above.
+The first thing ``pestifer`` does with ``run-example`` is to copy the YAML config file for that example into the local directory.  In this case, the file copied is named ``bpti.yaml``, and contains what you see above.
 
-Generally, pestifer is instructed to execute a series of ``tasks``.  The first is a ``psfgen`` task, where the experimental coordinates are used with psfgen to generate an initial topology/coordinate file couple. The ``source`` block declares we will use the 6pti entry of the RCSB, and we will generate the default biological assembly (which is the only one for this file). The second task is solvation and ionization. Finally, the system is relaxed at a temperature of 300 K and a pressure of 1 bar.  By default, there is a minimization in the ``psfgen`` task and the ``solvate`` task.
+This file is YAML format; you can think of it as a python ``dict`` with nesting.  ``pestifer`` uses the general-purpose package ``ycleptic`` (`pipy <https://pypi.org/project/pestifer/>`_) to manage its input configurations.  Under ``ycleptic``, the user provides a YAML format file that contains a set of "directives", where a directive is a ``dict`` with a single key and a value of any type, including directives. Here, there are two topmost directives: ``title`` and ``tasks``.  The value of ``title`` is ``BPTI`` and the value of ``tasks`` is a *list*.  Each element in the list of tasks is itself a directive describing a task, and ``pestifer`` executes tasks in the order they appear in the ``tasks`` list.
 
-This run will generate a lot of files, but one that is interesting to look at is ``00-complete.yaml``, which is a "filled-in" version of the config file, showing all defaults:
+For the ``psfgen`` task, we see the directive ``source``.  Its value appears to be yet another subdirective, ``id``, but the value of source is a ``dict`` with several keys, and we specify *only* ``id``, and the others are set to default values.  We can see these other keys and their default values using ``pestifer config-help``: 
 
-.. code-block:: yaml
+.. code-block:: console
 
-   # Ycleptic v 1.0.3.2 -- Cameron F. Abrams -- cfa22@drexel.edu
-   # Dump of complete user config file
-   charmmff:
-      custom:
-         parameters:
-           - toppar_water_ions.str
-           - toppar_all36_moreions.str
-         topologies:
-           - toppar_water_ions.str
-           - toppar_all36_moreions.str
-      standard:
-         parameters:
-           - par_all36m_prot.prm
-           - par_all36_carb.prm
-           - par_all36_lipid.prm
-           - par_all36_carb.prm
-           - par_all36_na.prm
-           - par_all36_cgenff.prm
-           - stream/carb/toppar_all36_carb_glycopeptide.str
-           - stream/prot/toppar_all36_prot_modify_res.str
-         topologies:
-           - top_all36_prot.rtf
-           - top_all35_ethers.rtf
-           - top_all36_cgenff.rtf
-           - top_all36_lipid.rtf
-           - top_all36_carb.rtf
-           - top_all36_na.rtf
-           - stream/carb/toppar_all36_carb_glycopeptide.str
-           - stream/prot/toppar_all36_prot_modify_res.str
-   namd2:
-      barostat:
-         langevinpiston: true
-         langevinpistondecay: 100
-         langevinpistonperiod: 200
-         langevinpistontarget: $pressure
-         langevinpistontemp: $temperature
-         useflexiblecell: false
-         usegrouppressure: true
-      generic:
-         1-4scaling: 1.0
-         cutoff: 10.0
-         exclude: scaled1-4
-         outputenergies: 100
-         pairlistdist: 11.5
-         paraTypeCharmm: true
-         switchdist: 9.0
-         switching: true
-         temperature: 300
-      solvated:
-         PME: true
-         fullElectFrequency: 2
-         nonbondedFreq: 1
-         pmegridspacing: 1.0
-         rigidbonds: all
-         stepspercycle: 10
-         timestep: 2.0
-         wrapAll: true
-      thermostat:
-         langevin: true
-         langevinDamping: 5
-         langevinHydrogen: false
-         langevinTemp: $temperature
-      vacuum:
-         dielectric: 80
-         fullElectFrequency: 2
-         nonbondedFreq: 1
-         rigidbonds: none
-         stepspercycle: 4
-         timestep: 1.0
-   paths:
-      charmrun: /usr/local/bin/charmrun
-      namd2: /usr/local/bin/namd2
-      vmd: /usr/local/bin/vmd
-   psfgen:
-      aliases:
-        - atom ILE CD1 CD
-        - atom BGLCNA C7 C
-        - atom BGLCNA O7 O
-        - atom BGLCNA C8 CT
-        - atom BGLCNA N2 N
-        - atom ANE5 C10 C
-        - atom ANE5 C11 CT
-        - atom ANE5 N5 N
-        - atom ANE5 O1A O11
-        - atom ANE5 O1B O12
-        - atom ANE5 O10 O
-        - atom VCG C01 C1
-        - atom VCG C01 C1
-        - atom VCG C02 C2
-        - atom VCG C03 C3
-        - atom VCG C04 C4
-        - atom VCG C05 C5
-        - atom VCG C06 C6
-        - atom VCG C07 C7
-        - atom VCG C08 C8
-        - atom VCG C09 C9
-        - atom TIP3 O OH2
-        - residue HIS HSD
-        - residue PO4 H2PO4
-        - residue MAN AMAN
-        - residue BMA BMAN
-        - residue NAG BGLCNA
-        - residue FUC AFUC
-        - residue GAL BGAL
-        - residue ANE5 ANE5AC
-        - residue SIA ANE5AC
-        - residue EIC LIN
-        - residue HOH TIP3
-        - residue ZN ZN2
-        - residue CL CLA
-      segtypes:
-         glycan:
-            resnames:
-              - BMA
-              - FUC
-              - GAL
-              - MAN
-              - NAG
-              - SIA
-              - ANE5
-         ion:
-            resnames:
-              - LIT
-              - SOD
-              - MG
-              - POT
-              - CAL
-              - RUB
-              - CES
-              - BAR
-              - ZN
-              - CAD
-              - CL
-              - SO4
-              - PO4
-         ligand:
-            resnames:
-              - EIC
-              - VCG
-              - 83G
-         other:
-            resnames: []
-         protein:
-            invrescodes:
-               A: ALA
-               C: CYS
-               D: ASP
-               E: GLU
-               F: PHE
-               G: GLY
-               H: HSE
-               I: ILE
-               K: LYS
-               L: LEU
-               M: MET
-               N: ASN
-               P: PRO
-               Q: GLN
-               R: ARG
-               S: SER
-               T: THR
-               V: VAL
-               W: TRP
-               Y: TYR
-            rescodes:
-               ALA: A
-               ARG: R
-               ASN: N
-               ASP: D
-               CYS: C
-               GLN: Q
-               GLU: E
-               GLY: G
-               HSE: H
-               ILE: I
-               LEU: L
-               LYS: K
-               MET: M
-               PHE: F
-               PRO: P
-               SER: S
-               THR: T
-               TRP: W
-               TYR: Y
-               VAL: V
-            resnames:
-              - ALA
-              - ARG
-              - ASN
-              - ASP
-              - CYS
-              - GLN
-              - GLU
-              - GLY
-              - HIS
-              - HSD
-              - HSE
-              - ILE
-              - LEU
-              - LYS
-              - MET
-              - PHE
-              - PRO
-              - SER
-              - THR
-              - TRP
-              - TYR
-              - VAL
-         water:
-            resnames:
-              - HOH
-   tasks:
-      - psfgen:
-         cleanup: true
-         minimize:
-            dcdfreq: 100
-            nminsteps: 1000
-         mods:
-            deletions: []
-            mutations: []
-            ssbonds: []
-            ssbondsdelete: []
-            substitutions: []
-         source:
-            biological_assembly: 0
-            exclude: {}
-            file_format: PDB
-            id: 6pti
-            sequence:
-            fix_conflicts: true
-            fix_engineered_mutations: true
-            include_terminal_loops: false
-            loops:
-               declash:
-                  maxcycles: 20
-               min_loop_length: 4
-               sac_res_name: GLY
-      - solvate:
-         minimize:
-            dcdfreq: 100
-            nminsteps: 1000
-         pad: 10
-      - relax:
-         dcdfreq: 100
-         ensemble: NPT
-         nminsteps: 0
-         nsteps: 1000
-         pressure: 1
-         temperature: 300
-         xstfreq: 100
-   title: BPTI
+  $ pestifer config-help tasks psfgen source --no-banner
+  Help on user-provided configuration file format
+  tasks->
+  psfgen->
+  source:
+      Specifies the source of the initial coordinate file
+      type: dict
+      Help available for id, biological_assembly, file_format, cif_residue_map_file, psf, altcoords, exclude, sequence
 
-That's a lot of stuff!  But it shows you everything that Pestifer needs and does to use psfgen and namd2 to generate this system.  
+This tells us that, in addition to `id`, we have the ability to set seven other keys.  Again, using `pestifer config-help` we can learn about these:
 
-Let's examine a few of the task directives:
+.. code-block:: console
 
-* ``psfgen``: this task is the actual generation of the input script for the ``psfgen`` plugin for ``VMD`` and its execution to build the first-pass ``PDB`` and ``PSF`` files. In the original config file, we specify the ``source`` directive via the ``id`` parameter, which is the PDB ID for this system.  Compare that original ``psfgen`` directive to the one that appears in the filled-in version config file.  You see a lot more things you can specify in the ``source`` subdirective, as well as other subdirectives ``cleanup``, ``minimize``, and ``mods``.  The ``cleanup`` directive just removes all temporary PDB files used during the ``psfgen`` run.  ``minimize`` directs the execution of ``namd2`` to energy-minimize the newly generated system (you should always do this, and that is why this happens by default).  If you like you could include the ``minimize`` directive and then provide new values for ``nminsteps`` or ``dcdfreq``.
-* ``solvate``: this task solvates and ionizes the system, using the VMD plugins ``solvate`` and ``autoionize``.  In the filled-in version of ``solvate``, we see that a pad length of 10 angstroms is used and a minimization is also run.  Future releases will permit the specifications of overall ionic strength and the ions themselves, as well as the solvent.
-* ``relax``: this task performs a short NPT equilibration to settle the box size down; the filled-in version shows the default values assigned in the namd2 config file used for the run.
+  $ pestifer config-help tasks psfgen source id --no-banner
+  Help on user-provided configuration file format
+  tasks->
+  psfgen->
+  source->
+  id:
+      The 4-character PDB ID of the source or the basename of a local
+        coordinate file (PDB or mmCIF format); pestifer will download
+        from the RCSB if a file is not found
+      type: str
+      A value is required.
+  $ pestifer config-help tasks psfgen source biological_assembly --no-banner
+  Help on user-provided configuration file format
+  tasks->
+  psfgen->
+  source->
+  biological_assembly:
+      integer index of the biological assembly to construct; default is 0,
+        signifying that the asymmetric unit is to be used
+      type: int
+      default: 0
+  $ pestifer config-help tasks psfgen source file_format --no-banner
+  Help on user-provided configuration file format
+  tasks->
+  psfgen->
+  source->
+  file_format:
+      either PDB or mmCIF; some entries do not have a PDB-format file.  The
+        main advantage of PDB is that it uses the author-designations
+        for chains by default.  mmCIF is the new "default" format of the
+        PDB.
+      type: str
+      default: PDB
+      allowed values: PDB, mmCIF
 
-Further updates to the documentation will explain in detail.  For now, I recommend running a few of the examples to showcase some of Pestifer's capabilities.  `Ycleptic <https://pypi.org/project/ycleptic/>`_ is a package I developed for generalizing the use of YAML-format configuration files; using a "base" configuration owned by Pestifer, Ycleptic knows how to interpret a user config file to assign defaults, report errors, etc.
+And so on.  Let's return to the example.  Immediately after the ``psfgen`` task we declare an ``md`` task, and the subdirective ``ensemble`` is set to ``minimize``.  There are no other subdirectives explicitly listed.  This task will use ``namd2`` to run an energy minimization.  As we did for the ``source`` subdirective of the ``psfgen`` task, let's have a look at the possible subdirectives for an ``md`` task:
 
-The import output of this build are the PSF/PDB/COOR/VEL/XSC files needed to (re)start namd2; by default, these are ``my_system.pdb`` etc.
+.. code-block:: console
 
-.. code-block:: bash
+  $ pestifer config-help tasks md --no-banner
+  Help on user-provided configuration file format
+  tasks->
+  md:
+      Parameters controlling a NAMD run
+      type: dict
+      Help available for ensemble, minimize, nsteps, dcdfreq, xstfreq, temperature, pressure, other_parameters, constraints
+
+By now, you know how to use ``config-help`` to figure out what these subdirectives mean. 
+So let's return again to the example.  After this ``md`` task is the ``solvate`` task.  Notice that it has _no_ subdirectives; only default values are used for any subdirectives. (Currently (v. 1.2.0) the only subdirective is ``pad``.) Then comes another minimization via an ``md`` task, then two sequential NPT equilibrations in yet two more ``md`` tasks.  These "chained-together" NPT runs avoid the common issue that, after solvation, the density of the initial water box is a bit too low, so under pressure control the volume shrinks.  It can shrink so quickly that NAMD's internal data structures for distributing the computational load among processing units becomes invalid, which causes NAMD to die.  The easiest way to reset those internal data structures is just to restart NAMD from the result of the previous run.
+
+Finally, even though it is not explicitly declared here, ``pestifer`` always ends a list of tasks with a special ``terminate`` task, whose main role is to generate some informative output and to provide a set of NAMD input files (PSF, PDB, xsc, coor, and vel) that all have a common base file name.  The default base file name is ``my_system``.
+
+This run will generate a lot of files.  One such file, ``bpti-complete.yaml`` is the fully explicit configuration file implied by the given configuration file and the unstated default values.  It can be instructive to peruse this file to see the totality of what you can specify for ``pestifer``; it is possible to have very close control over the ``psfgen`` script generation by, for example, adding ``pdbalias`` directives.
+
+The outputs of this build are the PSF/PDB/COOR/VEL/XSC files needed to (re)start namd2; by default, these are ``my_system.pdb`` etc.
+
+.. code-block:: console
 
    $ ls my_system*
    my_system.coor  my_system.pdb  my_system.psf  my_system.vel  my_system.xsc
@@ -370,17 +188,25 @@ This is the same as Example 1, except we specify that the phosphate ion present 
 
 .. code-block:: yaml
 
-   title: BPTI with phosphate ion excluded
-   tasks:
-     - psfgen:
-         source:
-         id: 6pti
-         exclude:
+  title: BPTI with phosphate ion excluded
+  tasks:
+    - psfgen:
+        source:
+          id: 6pti
+          exclude:
             resnames:
-               - PO4
-     - solvate:
-     - relax:
-         ensemble: NPT
+              - PO4
+    - md:
+        ensemble: minimize
+    - solvate:
+    - md:
+        ensemble: minimize
+    - md:
+        ensemble: NPT
+        nsteps: 1000
+    - md:
+        ensemble: NPT
+        nsteps: 1000
 
 This exclusion is specified via the ``exclude`` directive under ``source``, and we further specify that it is all residues with a particular name that we are excluding (``PO4``).  We must refer to any resnames to exclude using exactly the same string that refers to them in the PDB input itself.
 
@@ -390,25 +216,36 @@ This is the same as Example 2, except we introduce a ``terminate`` task with a `
 
 .. code-block:: yaml
 
-   title: BPTI, packaging all inputs for NAMD deployment
-   tasks:
-     - psfgen:
-         source:
-         id: 6pti
-         exclude:
+  title: BPTI, packaging all inputs for NAMD deployment
+  tasks:
+    - psfgen:
+        source:
+          id: 6pti
+          exclude:
             resnames:
-               - PO4
-     - solvate:
-     - relax:
-           ensemble: NPT
-     - terminate:
-           basename: my_6pti
-           package:
-           basename: prod_6pti
+              - PO4
+    - md:
+        ensemble: minimize
+    - solvate:
+    - md:
+        ensemble: minimize
+    - md:
+        ensemble: NVT
+    - md:
+        ensemble: NPT
+        nsteps: 500
+    - md:
+        ensemble: NPT
+        nsteps: 1500
+    - terminate:
+        basename: my_6pti
+        package:
+          ensemble: NPT
+          basename: prod_6pti
 
 The name of the tarball generated is ``prod_6pti.tgz`` and its contents are:
 
-.. code-block:: bash
+.. code-block:: console
 
    $ tar ztf prod_6pti.tgz
    par_all36m_prot.prm
@@ -431,52 +268,3 @@ The name of the tarball generated is ``prod_6pti.tgz`` and its contents are:
 
 Carefully consider the contents of the ``namd2`` config file before you run!
 
-Example 19
-----------
-This is the same as Example 11, except we now use ``topogromacs`` to generate Gromacs-compatible input:
-
-.. code-block:: yaml
-
-   title: BPTI, packaging all inputs for NAMD deployment
-   tasks:
-     - psfgen:
-         source:
-         id: 6pti
-         exclude:
-            resnames:
-               - PO4
-     - solvate:
-     - relax:
-         ensemble: NPT
-     - terminate:
-         basename: my_6pti
-         package:
-         basename: prod_6pti
-         topogromacs: True
-
-Inside the tarball, we now see:
-
-.. code-block:: bash
-
-   $ tar ztf prod_6pti.tgz
-   par_all36m_prot.prm
-   par_all36_carb.prm
-   par_all36_lipid.prm
-   par_all36_carb.prm
-   par_all36_na.prm
-   par_all36_cgenff.prm
-   toppar_all36_carb_glycopeptide.str
-   toppar_all36_prot_modify_res.str
-   toppar_water_ions.str
-   toppar_all36_moreions.str
-   01-00-solvate.psf
-   02-00-relax-relax.pdb
-   02-00-relax-relax.coor
-   02-00-relax-relax.xsc
-   02-00-relax-relax.vel
-   prod_6pti.namd
-   prod_6pti_topogromacs.pdb
-   prod_6pti_topogromacs.top
-   $
-
-The files ``prod_6pti_topogromacs.pdb`` and ``prod_6pti_topogromacs.top`` can be used, along with a suitable ``mdp`` file, with ``gmx grompp`` to generate the ``tpr`` file needed to run Gromacs.

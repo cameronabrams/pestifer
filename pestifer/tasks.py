@@ -267,7 +267,7 @@ class MDTask(BaseTask):
         xstfreq=specs['xstfreq']
 
         constraints=specs.get('constraints',{})
-        # other_params=specs.get('other_parameters',{})
+        other_params=specs.get('other_parameters',{})
         params.update(namd_global_params['generic'])
         params['structure']=psf
         params['coordinates']=pdb
@@ -322,7 +322,7 @@ class MDTask(BaseTask):
             params['consref']=self.statevars['consref']
             params['conskfile']=self.statevars['consref']
             params['conskcol']='O'
-        # params.update(other_params)
+        params.update(other_params)
         params.update(extras)
         params['firsttimestep']=firsttimestep
         if ensemble=='minimize':
