@@ -39,13 +39,11 @@ Once installed, the user has access to the main `pestifer` command.
 
 ## Meta
 
-Cameron F. Abrams – cfa22@drexel.edu
+Cameron F. Abrams
 
 Distributed under the MIT license. See ``LICENSE`` for more information.
 
 [https://github.com/cameronabrams](https://github.com/cameronabrams/)
-
-[https://github.com/AbramsGroup](https://github.com/AbramsGroup/)
 
 ## Contributing
 
