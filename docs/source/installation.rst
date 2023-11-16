@@ -16,7 +16,7 @@ To use Pestifer, install it from PyPI:
 
    $ pip install pestifer
 
-Pestifer is under very active development.  To get the latest version for PyPI, just update:
+Pestifer is under very active development.  To get the latest version from PyPI, just update:
 
 .. code-block:: console
 
