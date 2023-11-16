@@ -415,6 +415,7 @@ class PsfgenTask(BaseTask):
     def declash_loops(self,specs):
         mol=self.base_molecule
         cycles=specs['declash']['maxcycles']
+        self.update_statevars('min_loop_length',specs['min_loop_length'])
         if not mol.has_loops() or not cycles:
             return
         self.next_basename('declash')
@@ -424,7 +425,6 @@ class PsfgenTask(BaseTask):
         vt.newscript(self.basename)
         vt.load_psf_pdb(psf,pdb,new_molid_varname='mLL')
         mol.write_loop_lines(vt,cycles=cycles,min_length=specs['min_loop_length'])
-        self.update_statevars('min_loop_length',specs['min_loop_length'])
         vt.write_pdb(self.basename,'mLL')
         vt.endscript()
         vt.writescript()
