@@ -20,6 +20,7 @@ __pestifer_version__ = importlib.metadata.version("pestifer")
 from .stringthings import banner, banner_message
 from .controller import Controller
 from .config import Config
+from .scriptwriters import VMD
 
 def config_help(args):
     c=Config()
@@ -91,24 +92,49 @@ def run_example(args):
     else:
         print(f'No example {number} is found.')
 
+def script(args):
+    scriptname=args.scriptname
+    sp,ss=os.path.splitext(scriptname)
+    c=Config()
+    script_dir=c['Resources']['tcl']['scripts']
+    script_path=os.path.join(script_dir,f'{sp}.tcl')
+    print(f'script_path: {script_path}')
+    if os.path.exists(script_path):
+        vm=VMD(c)
+        vm.newscript(f'local-{sp}')
+        vm.usescript(sp)
+        vm.writescript()
+        vm.runscript()
+    elif os.path.exists(scriptname): # it's local
+        vm=VMD(c)
+        vm.newscript(f'local-{sp}')
+        vm.usescript(sp,local=True)
+        vm.writescript()
+        vm.runscript()
+    else:
+        print(f'{scriptname} is not found.')
+
 def cli():
     commands={
         'config-help':config_help,
         'config-default':config_default,
         'run-example': run_example,
-        'run':run
+        'run':run,
+        'script':script
     }
     helps={
         'config-help':'get help on the syntax of input configuration files',
         'config-default':'generate a default input directive',
         'run-example':'build one of the examples provided',
-        'run':'build a system using instructions in the config file'
+        'run':'build a system using instructions in the config file',
+        'script':'run a single-use special VMD/TcL script'
     }
     descs={
         'config-help':'Use this command to get interactive help on config file directives.',
         'config-default':'This will generate a default config file for you to fill in using a text editor.',
         'run-example':'Build one of the examples:\n'+'\n'.join([f'{c:>3d}: {d}' for c,d in list_examples().items()]),
-        'run':'Build a system'
+        'run':'Build a system',
+        'script':'Run a single-use special VMD/TcL script'
     }
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
     subparsers=parser.add_subparsers()
@@ -125,5 +151,6 @@ def cli():
     command_parsers['run-example'].add_argument('number',type=int,default=None,help='example number')
     command_parsers['config-help'].add_argument('directives',type=str,nargs='*',help='config file directives')
     command_parsers['config-default'].add_argument('directives',type=str,nargs='*',help='config file directives')
+    command_parsers['script'].add_argument('scriptname',type=str,default=None,help='base name (no extension) of tcl script to run')
     args=parser.parse_args()
     args.func(args)
