@@ -114,27 +114,41 @@ def script(args):
     else:
         print(f'{scriptname} is not found.')
 
+def wheretcl(args):
+    c=Config()
+    script_dir=c['Resources']['tcl']['scripts']
+    print(f'Copy-paste one or more of these commands into a VMD session console:')
+    for s_tcl in glob.glob(script_dir+'/*.tcl'):
+        print(f'source {s_tcl}')
+    proc_dir=c['Resources']['tcl']['proc']
+    for p_tcl in glob.glob(proc_dir+'/*.tcl'):
+        print(f'source {p_tcl}')
+
+
 def cli():
     commands={
         'config-help':config_help,
         'config-default':config_default,
         'run-example': run_example,
         'run':run,
-        'script':script
+        'script':script,
+        'wheretcl':wheretcl
     }
     helps={
         'config-help':'get help on the syntax of input configuration files',
         'config-default':'generate a default input directive',
         'run-example':'build one of the examples provided',
         'run':'build a system using instructions in the config file',
-        'script':'run a single-use special VMD/TcL script'
+        'script':'run a single-use special VMD/TcL script',
+        'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD'
     }
     descs={
         'config-help':'Use this command to get interactive help on config file directives.',
         'config-default':'This will generate a default config file for you to fill in using a text editor.',
         'run-example':'Build one of the examples:\n'+'\n'.join([f'{c:>3d}: {d}' for c,d in list_examples().items()]),
         'run':'Build a system',
-        'script':'Run a single-use special VMD/TcL script'
+        'script':'Run a single-use special VMD/TcL script',
+        'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD'
     }
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
     subparsers=parser.add_subparsers()
