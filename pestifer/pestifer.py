@@ -98,17 +98,17 @@ def script(args):
     c=Config()
     script_dir=c['Resources']['tcl']['scripts']
     script_path=os.path.join(script_dir,f'{sp}.tcl')
-    print(f'script_path: {script_path}')
-    if os.path.exists(script_path):
+    if os.path.exists(scriptname): # it's local
+        print(f'Running local script: {scriptname}')
+        vm=VMD(c)
+        vm.basename=sp
+        vm.scriptname=scriptname
+        vm.runscript()
+    elif os.path.exists(script_path):
+        print(f'Running library script: {script_path}')
         vm=VMD(c)
         vm.newscript(f'local-{sp}')
         vm.usescript(sp)
-        vm.writescript()
-        vm.runscript()
-    elif os.path.exists(scriptname): # it's local
-        vm=VMD(c)
-        vm.newscript(f'local-{sp}')
-        vm.usescript(sp,local=True)
         vm.writescript()
         vm.runscript()
     else:

@@ -69,7 +69,7 @@ class VMD(Scriptwriter):
         self.tcl_script_path=config.tcl_script_path
         self.vmd_startup=config.vmd_startup_script
 
-    def usescript(self,scriptbasename,local=False):
+    def usescript(self,scriptbasename,local=False,add_banners=False):
         if not local:
             scriptname=os.path.join(self.tcl_script_path,f'{scriptbasename}.tcl')
         else:
@@ -77,9 +77,11 @@ class VMD(Scriptwriter):
         timestampstr=datetime.datetime.today().ctime()
         if not os.path.exists(scriptname):
             raise FileNotFoundError(f'Pestifer script {scriptbasename}.tcl is not found.')
-        self.banner(f'Begin {scriptbasename}, {timestampstr}')
+        if add_banners:
+            self.banner(f'Begin {scriptbasename}, {timestampstr}')
         self.injest_file(scriptname)
-        self.banner(f'End {scriptbasename}')
+        if add_banners:
+            self.banner(f'End {scriptbasename}')
 
     def endscript(self):
         self.addline('exit')

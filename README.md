@@ -12,6 +12,8 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.2.3
+    * script subcommand handles local scripts
 * 1.2.2
     * added `wheretcl` subcommand
 * 1.2.1
