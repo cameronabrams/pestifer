@@ -174,6 +174,53 @@ class EmptyResidue(AncestorAwareMod):
         }
         super().__init__(input_dict)
 
+    @__init__.register(str)
+    def _from_shortcode(self,shortcode):
+        # i:C:RRR###A
+        # i model number, optional, default 1
+        # C chain ID, optional, default 'A'
+        # RRR one or three-letter residue code
+        # ### integer residue sequence number
+        # A insertion code, optional, default ''
+        tokens=shortcode.split(':')
+        has_modelnum=len(tokens)>2
+        model_idx=-1
+        chain_idx=-1
+        model=1
+        chainID='A'
+        if has_modelnum:
+            model_idx=0
+            model=int(tokens[model_idx])
+        has_chainID=len(tokens)>1
+        if has_chainID:
+            chain_idx=model_idx+1
+            chainID=tokens[chain_idx]
+        res_idx=chain_idx+1
+        resncode=tokens[res_idx]
+        rescode=''
+        ri=''
+        okrescode=True
+        for byte in resncode:
+            if byte.isalpha() and okrescode:
+                rescode=rescode+byte
+            else:
+                okrescode=False
+                ri=ri+byte
+        rescode=rescode.upper()
+        if len(rescode)==1:
+            rescode=res_123[rescode]
+        r,i=split_ri(ri)
+        input_dict={
+            'model':model,
+            'resname':rescode,
+            'chainID':chainID,
+            'resseqnum':r,
+            'insertion':i,
+            'resolved':False,
+            'segtype':'UNSET',
+        }
+        super().__init__(input_dict)
+
     def pdb_line(self):
         record_name,code=EmptyResidue.PDB_keyword.split('.')
         return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>5d}{:1s}'.format(record_name,
@@ -218,6 +265,7 @@ class Residue(EmptyResidue):
     @__init__.register(EmptyResidue)
     def _from_emptyresidue(self,m):
         input_dict={
+            'model':m.model,
             'resseqnum':m.resseqnum,
             'insertion':m.insertion,
             'resname':m.resname,
@@ -236,6 +284,10 @@ class Residue(EmptyResidue):
         self.downlink=[]
         self.up=[]
         self.uplink=[]
+
+    @__init__.register(str)
+    def _from_shortcode(self,shortcode):
+        self.__init__(EmptyResidue(shortcode))
 
     def __str__(self):
         rc='' if self.resolved else '*'
@@ -306,6 +358,13 @@ class ResidueList(AncestorAwareModList):
     def _from_emptyresiduelist(self,input_list):
         R=[Residue(m) for m in input_list]
         super().__init__(R)
+
+    def index(self,R):
+        for i,r in enumerate(self):
+            if r is R:
+                return i
+        else:
+            raise ValueError(f'Residue not found')
 
     def map_chainIDs_label_to_auth(self):
         self.chainIDmap_cif_to_pdb={}
@@ -423,3 +482,19 @@ class ResidueList(AncestorAwareModList):
                     result[r.chainID][r.resseqnum]=Namespace(resseqnum=r.auth_seq_id,chainID=r.auth_asym_id,insertion=r.insertion)
         return result
     
+    def apply_insertions(self,insertions):
+        for ins in insertions:
+            c,r,i=ins.chainID,ins.resseqnum,ins.insertion
+            idx=self.iget(chainID=c,resseqnum=r,insertion=i)
+            logger.debug(f'{r}{i}: {idx}')
+            chainID=self[idx].chainID
+            i='A' if i in [' ',''] else chr(ord(i)+1)
+            # add residues to residue list
+            idx+=1
+            for olc in ins.sequence:
+                shortcode=f'{chainID}:{olc}{r}{i}'
+                new_residue=EmptyResidue(shortcode)
+                new_residue.segtype='PROTEIN'
+                self.insert(idx,new_residue)
+                idx+=1
+                i='A' if i in [' ',''] else chr(ord(i)+1)

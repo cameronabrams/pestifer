@@ -1,8 +1,9 @@
 import unittest
 from pestifer.residue import Residue, EmptyResidue
-from pestifer.config import Config
+from pestifer.config import Config, res_123
 from pestifer.molecule import Molecule
 from pestifer.cifutil import CIFdict, CIFload
+from pestifer.mods import InsertionList, Insertion
 from io import StringIO
 from pidibble.pdbparse import PDBParser
 import yaml
@@ -42,6 +43,16 @@ source:
                 r=Residue(a)
                 residues.append(r)
         self.assertEqual(len(residues),1538)
+
+    def test_from_shortcode(self):
+        c=Config()
+        shortcode='1:C:R525A'
+        R=Residue(shortcode)
+        self.assertEqual(R.chainID,'C')
+        self.assertEqual(R.resseqnum,525)
+        self.assertEqual(R.model,1)
+        self.assertEqual(R.resname,'ARG')
+        self.assertEqual(R.insertion,'A')
 
     def test_segtypes(self):
         c=Config()
@@ -95,6 +106,21 @@ source:
         a=au.residues.get_atom('OD2',resseqnum=427,chainID='A')
         self.assertEqual(a.serial,3302)
 
+    def test_insertions(self):
+        c=Config()
+        directive=self.get_source_dict('6m0j')
+        m=Molecule(source=directive["source"])
+        au=m.asymmetric_unit
+        R=au.residues
+        orig_numres=len(R)
+        I=InsertionList([Insertion('A,427,GRETA')])
+        R.apply_insertions(I)
+        self.assertEqual(len(R),orig_numres+5)
+        for i,n in zip('ABCDE','GRETA'):
+            r=R.get(chainID='A',resseqnum=427,insertion=i)
+            self.assertEqual(r.resname,res_123[n])
+            self.assertEqual(r.resolved,False)
+            self.assertEqual(r.segtype,'PROTEIN')
 
 class TestEmptyResidue(unittest.TestCase):
     def setUp(self):
@@ -125,3 +151,26 @@ class TestEmptyResidue(unittest.TestCase):
         self.assertEqual(m.chainID,'A')
         self.assertEqual(m.resseqnum,1)
         self.assertEqual(m.insertion,'')
+    def test_shortcode(self):
+        c=Config()
+        shortcode='2:X:W427'
+        E=EmptyResidue(shortcode)
+        self.assertEqual(E.model,2)
+        self.assertEqual(E.chainID,'X')
+        self.assertEqual(E.resseqnum,427)
+        self.assertEqual(E.resname,'TRP')
+        self.assertEqual(E.insertion,'')
+        shortcode='Y:S111'
+        E=EmptyResidue(shortcode)
+        self.assertEqual(E.model,1)
+        self.assertEqual(E.chainID,'Y')
+        self.assertEqual(E.resseqnum,111)
+        self.assertEqual(E.resname,'SER')
+        self.assertEqual(E.insertion,'')
+        shortcode='Y666'
+        E=EmptyResidue(shortcode)
+        self.assertEqual(E.model,1) # default
+        self.assertEqual(E.chainID,'A') # default
+        self.assertEqual(E.resseqnum,666)
+        self.assertEqual(E.resname,'TYR')
+        self.assertEqual(E.insertion,'')

@@ -706,6 +706,12 @@ class ModList(UserList):
         for r in self:
             if r.matches(**fields): retlist.append(r)
         return retlist
+
+    def ifilter(self,**fields):
+        retlist=[]
+        for i,r in enumerate(self):
+            if r.matches(**fields): retlist.append(i)
+        return retlist
     
     def get(self,**fields):
         """Special implementation of filter
@@ -736,6 +742,15 @@ class ModList(UserList):
             return R[0]
         else:
             return R
+        
+    def iget(self,**fields):
+        I=self.ifilter(**fields)
+        if len(I)==0:
+            return None
+        elif len(I)==1:
+            return I[0]
+        else:
+            return I
 
     def set(self,**fields):
         """Element attribute-setter
@@ -1136,5 +1151,17 @@ class AncestorAwareModList(CloneableModList):
             obj.claim_descendants(stamp)
 
 class StateIntervalList(AncestorAwareModList):
-    """A class for lists of StateIntervals (stub) """
-    pass
+    """A class for lists of StateIntervals """
+    def insert(self,alien:StateInterval):
+        for cont in self:
+            if alien.bounds[0]>cont.bounds[0] and alien.bounds[1]<cont.bounds[1]:
+                break
+        else:
+            cont=None
+        if cont:
+            i=self.index(cont)+1
+            self.insert(i,alien)
+            self.insert(i+1,StateInterval({'bounds':[alien.bounds[1]+1,cont.bounds[1]],'state':cont.state,'build':cont.build}))
+            cont.bounds[1]=alien.bounds[0]-1
+        else:
+            logger.debug(f'No compatible insertion point for alien interval {str(alien)}')

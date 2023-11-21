@@ -1190,7 +1190,6 @@ class LinkList(AncestorAwareModList):
             link.atom2=link.residue2.atoms.get(name=link.name2,altloc=link.altloc2)
             link.segtype1=link.residue1.segtype
             link.segtype2=link.residue2.segtype
-            # TODO: determine patch residue
             link.set_patchname()
         # do cross-assignment to find true orphan links and dangling links
         orphan_1=ignored_by_ptnr1.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID2',insertion='insertion2')
@@ -1282,12 +1281,35 @@ class GraftList(AncestorAwareModList):
     pass
 
 class Insertion(AncestorAwareMod):
+    """A class for handling insertions of amino acid residues within an otherwise
+    fully resolved chain
+    
+    Attributes
+    ----------
+    req_attr: list
+        * chainID: chain id where insertion is to be made
+        * resseqnum, insertion: resid+ins.code marking position AFTER which 
+          inserted residues are to be inserted
+        * sequence: sequence of one-letter amino acids defining the insertion
+    """
+    req_attr=AncestorAwareMod.req_attr+['chainID','resseqnum','insertion','sequence']
     yaml_header='insertions'
     modtype='seqmod'
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)
-    pass
+    @__init__.register(str)
+    def _from_shortcode(self,shortcode):
+        items=shortcode.split(',')
+        assert len(items)==3,f'Bad insertion shortcode: {shortcode}'
+        r,i=split_ri(items[1])
+        input_dict={
+            'chainID':items[0],
+            'resseqnum':r,
+            'insertion':i,
+            'sequence':items[2]
+        }
+        super().__init__(input_dict)
 
 class InsertionList(AncestorAwareModList):
     pass

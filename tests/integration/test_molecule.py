@@ -5,6 +5,7 @@ from pestifer.chainids import ChainIDManager
 from pestifer.modcontainer import ModContainer
 from io import StringIO
 import yaml
+
 class TestMolecule(unittest.TestCase):
     def get_source_dict(self,pdbid):
         source=f"""

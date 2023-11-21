@@ -1,4 +1,4 @@
-from pestifer.mods import Mutation, Ter, Seqadv, SSBond, Crot, Link
+from pestifer.mods import Mutation, Ter, Seqadv, SSBond, Crot, Link, Insertion
 from pestifer.cifutil import CIFdict, CIFload
 from pidibble.pdbparse import PDBParser
 from pestifer.bioassemb import Transform
@@ -186,3 +186,8 @@ class TestLink(unittest.TestCase):
         l.map_attr('segtype2','resname2',segtype_of_resname)
         self.assertEqual(l.segtype1,'protein')
         self.assertEqual(l.segtype2,'glycan')
+
+class TestInsertion(unittest.TestCase):
+    def test_insertion_create(self):
+        I=Insertion('C,111,GRETA')
+        self.assertEqual(I.chainID,'C')

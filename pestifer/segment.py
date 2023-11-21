@@ -4,7 +4,7 @@
 import logging
 logger=logging.getLogger(__name__)
 from .basemod import AncestorAwareMod, AncestorAwareModList
-from .mods import MutationList, CfusionList
+from .mods import MutationList, CfusionList, InsertionList
 from .config import charmm_resname_of_pdb_resname
 from .residue import Residue,ResidueList
 from .util import reduce_intlist
@@ -148,7 +148,11 @@ class Segment(AncestorAwareMod):
         seg_Cfusions=CfusionList([])
         if hasattr(mods.seqmods,'Cfusions'):
             seg_Cfusions=mods.seqmods.Cfusions.filter(tosegment=seglabel)
-
+        seg_insertions=InsertionList([])
+        if hasattr(mods.seqmods,'insertions'):
+            seg_insertions=mods.seqmods.insertions.filter(chainID=seglabel)
+            self.residues.apply_insertions(seg_insertions)
+            self.subsegments=self.residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
         W.banner(f'Segment {image_seglabel} begins')
         for sf in seg_Cfusions:
             sf.write_pre_segment(W)
