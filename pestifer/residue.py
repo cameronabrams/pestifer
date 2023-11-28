@@ -485,6 +485,7 @@ class ResidueList(AncestorAwareModList):
     def apply_insertions(self,insertions):
         for ins in insertions:
             c,r,i=ins.chainID,ins.resseqnum,ins.insertion
+            inc_code=ins.integer_increment
             idx=self.iget(chainID=c,resseqnum=r,insertion=i)
             logger.debug(f'{r}{i}: {idx}')
             chainID=self[idx].chainID
@@ -492,6 +493,9 @@ class ResidueList(AncestorAwareModList):
             # add residues to residue list
             idx+=1
             for olc in ins.sequence:
+                if inc_code:
+                    r+=1
+                    i=''
                 shortcode=f'{chainID}:{olc}{r}{i}'
                 new_residue=EmptyResidue(shortcode)
                 new_residue.segtype='PROTEIN'

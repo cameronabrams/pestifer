@@ -39,6 +39,7 @@
     * SSBond -- a disulfide
     * Link -- a non-disulfide covalent bond, typically involving 
     non-protein residues
+    * Cleavage -- break a given protein chain into two daughter chains
 
     coormods
     --------
@@ -54,7 +55,7 @@ from .stringthings import split_ri
 from .scriptwriters import Psfgen,VMD
 from .config import res_123
 from functools import singledispatchmethod
-from .coord import measure_dihedral, ic_reference_closest
+from .coord import ic_reference_closest
 
 ModTypes=['seqmod','topomod','coormod','generic']
 
@@ -1288,8 +1289,7 @@ class Insertion(AncestorAwareMod):
     ----------
     req_attr: list
         * chainID: chain id where insertion is to be made
-        * resseqnum, insertion: resid+ins.code marking position AFTER which 
-          inserted residues are to be inserted
+        * resseqnum, insertion: resid+ins.code marking position AFTER which inserted residues are to be inserted
         * sequence: sequence of one-letter amino acids defining the insertion
     """
     req_attr=AncestorAwareMod.req_attr+['chainID','resseqnum','insertion','sequence']
@@ -1300,9 +1300,18 @@ class Insertion(AncestorAwareMod):
         super().__init__(input_obj)
     @__init__.register(str)
     def _from_shortcode(self,shortcode):
+        # C,R,SSS
+        # C: chain ID
+        # R: resid+insertioncode
+        # SSS: one-letter amino acid sequence to insert
         items=shortcode.split(',')
         assert len(items)==3,f'Bad insertion shortcode: {shortcode}'
-        r,i=split_ri(items[1])
+        rescode=items[1]
+        self.integer_increment=False
+        if rescode[-1]=='+':
+            self.integer_increment=True
+            rescode=rescode[:-1]
+        r,i=split_ri(rescode)
         input_dict={
             'chainID':items[0],
             'resseqnum':r,
@@ -1315,6 +1324,7 @@ class InsertionList(AncestorAwareModList):
     pass
 
 class Cleavage(AncestorAwareMod):
+    """A class for handling chain cleavage"""
     yaml_header='cleavages'
     modtype='seqmod'
     @singledispatchmethod

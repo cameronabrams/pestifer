@@ -91,14 +91,14 @@ proc get_phi_psi_omega { r molid } {
 proc fold_alpha { rbegin rend rterm molid } {
    if { $rbegin < $rend } { # folding from N->C along section
       vmdcon -info "fold_alpha from $rbegin to $rend including fragment up to $rterm on mol $molid"
-      set direction C
+      set rotators_side C
       set increment 1
       proc finished { r rend } {
          return [expr $r > $rend]
       }
    } else { # folding from C->N along section
       vmdcon -info "fold_alpha from $rbegin to $rend including fragment up to $rterm on mol $molid"
-      set direction N
+      set rotators_side N
       set increment -1
       proc finished { r rend } {
          return [expr $r < $rend]
@@ -109,18 +109,30 @@ proc fold_alpha { rbegin rend rterm molid } {
       set phi [lindex $pp 0]
       set psi [lindex $pp 1]
       set omega [lindex $pp 2]
+      vmdcon -info "fold_alpha PRE residue $r ($phi,$psi,$omega)"
       if { [string compare $phi "NaN"] != 0 } {
-         set dphi [wrap_domain [expr (-57 - ($phi))] -180.0 180.0]
-         brot $molid $r $rterm phi $direction $dphi
+         set dphi [expr (-57.0 - ($phi))]
+         # set dphi [wrap_domain [expr (-57 - ($phi))] -180.0 180.0]
+         vmdcon -info "-> dphi $dphi"
+         brot $molid $r $rterm phi $rotators_side $dphi
       }
-      if {  [string compare $phi "NaN"] != 0 } {
-         set dpsi [wrap_domain [expr (-47 - ($psi))] -180.0 180.0]
-         brot $molid $r $rterm psi $direction $dpsi
+      if {  [string compare $psi "NaN"] != 0 } {
+         # set dpsi [wrap_domain [expr (-47 - ($psi))] -180.0 180.0]
+         set dpsi [expr (-47.0 - ($psi))]
+         vmdcon -info "-> dpsi $dpsi"
+         brot $molid $r $rterm psi $rotators_side $dpsi
       }
       if { [string compare $omega "NaN"] != 0} {
-         set domega [wrap_domain [expr (180 - ($omega))] -180.0 180.0]
-         brot $molid $r $rterm omega $direction $domega
+         # set domega [wrap_domain [expr (180 - ($omega))] -180.0 180.0]
+         set domega [expr (180.0 - ($omega))]
+         vmdcon -info "-> domega $domega"
+         brot $molid $r $rterm omega $rotators_side $domega
       }
+      set pp [get_phi_psi_omega $r $molid]
+      set phi [lindex $pp 0]
+      set psi [lindex $pp 1]
+      set omega [lindex $pp 2]
+      vmdcon -info "fold_alpha POST residue $r ($phi,$psi,$omega)"
    }
 }
 
@@ -202,7 +214,7 @@ proc brot { molid r0 r1 angle_name rot deg} {
    }
    lappend sels $rotators
 
-   $rotators move [trans bond $pc $pn $deg degrees]
+   $rotators move [trans bond $pn $pc $deg degrees]
 
    foreach s $sels {
       $s delete

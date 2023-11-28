@@ -428,6 +428,9 @@ directives:
               - name: substitutions
                 text: residue ranges to replace with a new sequence; e.g., C:99-101,GG replaces residues 99, 100, and 101 of chain C with two glycines
                 type: list
+              - name: insertions
+                text: sequence of residues to insert C-terminal to a specified residue in a specified chain; e.g., C,123,GRETA inserts the residues Gly123A, Arg123B, Glu123C, Thr123D, and Ala123E immediately C-terminal to residue 123 of chain C; if the resid includes a terminal "+", then inserted resids are incremented as integers
+                type: list
               - name: crotations
                 text: dihedral angle rotations to reposition modelled-in protein chains or glycans
                 type: list

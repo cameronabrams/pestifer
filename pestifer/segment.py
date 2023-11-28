@@ -152,7 +152,7 @@ class Segment(AncestorAwareMod):
         if hasattr(mods.seqmods,'insertions'):
             seg_insertions=mods.seqmods.insertions.filter(chainID=seglabel)
             self.residues.apply_insertions(seg_insertions)
-            self.subsegments=self.residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
+            self.subsegments=self.residues.state_bounds(lambda x: 'MISSING' if (not hasattr(x,'atoms') or len(x.atoms)==0) else 'RESOLVED')
         W.banner(f'Segment {image_seglabel} begins')
         for sf in seg_Cfusions:
             sf.write_pre_segment(W)
