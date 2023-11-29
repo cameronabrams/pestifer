@@ -68,6 +68,7 @@ class VMD(Scriptwriter):
         self.tcl_proc_path=config.tcl_proc_path
         self.tcl_script_path=config.tcl_script_path
         self.vmd_startup=config.vmd_startup_script
+        self.molid_varname='top'
 
     def usescript(self,scriptbasename,local=False,add_banners=False):
         if not local:
@@ -236,7 +237,7 @@ class Psfgen(VMD):
     def describe_molecule(self,mol):
         molid_varname=f'm{mol.molid}'
         self.addline(f'mol top ${molid_varname}')
-        mol.write_TcL(self)
+        mol.write_TcL(self,buildspecs=self.specs['build'])
 
     def complete(self,statename):
         self.addline('guesscoord')

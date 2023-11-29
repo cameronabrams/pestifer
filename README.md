@@ -12,6 +12,8 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.2.6
+    * `cleavage` mod
 * 1.2.5
     * `insertion` mod; corrected bug in `brot` tcl procedure
 * 1.2.3

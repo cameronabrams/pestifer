@@ -534,13 +534,11 @@ class StateInterval(AncestorAwareMod):
     
     """
     req_attr=AncestorAwareMod.req_attr+['state','bounds']
-    opt_attr=AncestorAwareMod.opt_attr+['build']
+    # opt_attr=AncestorAwareMod.opt_attr+['build']
     def __init__(self,input_dict):
-        if not 'build' in input_dict:
-            input_dict['build']=False
         super().__init__(input_dict)
-    def declare_buildable(self):
-        self.build=True
+    # def declare_buildable(self):
+    #     self.build=True
     def increment_rightbound(self):
         """Increments the position-1 element of the bounds attribute
         of the calling instance """

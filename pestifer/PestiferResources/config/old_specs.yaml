@@ -1,0 +1,66 @@
+      - name: ligate
+        text: Specifies how C-termini of modeled loops are connected back to the protein
+        type: dict
+        directives:
+          - name: steer
+            text: Specifies parameters for steered MD to bring C-termini close to their connection points
+            type: dict
+            directives:
+              - name: ensemble
+                text: Name of ensemble to run in; note that NPT can only be peformed on a solvated system
+                type: str
+                choices: [minimize, NVT, NPT]
+                default: NVT
+              - name: force_constant
+                text: force constant (kcal/mol/Angstrom^2)
+                type: float
+                default: 20
+              - name: target_distance
+                text: distance (Angstrom) between carbonyl carbon of loop C-terminus and amide nitrogen of connecting residue that steered MD drives to
+                type: float
+                default: 2
+              - name: nsteps
+                text: number of MD time steps for steering
+                type: int
+                default: 1000
+              - name: dcdfreq
+                text: number of time steps between configuration output to DCD file
+                type: int
+                default: 100
+              - name: xstfreq
+                text: number of time steps between cell size output to DCD file (only used if ensemble is NPT)
+                type: int
+                default: 100
+              - name: temperature
+                text: Temperature used in steered MD run
+                type: float
+                default: 300
+              - name: pressure
+                text: Pressure used in steered MD run (only used if ensemble is NPT)
+                type: float
+                default: 1
+              - name: receiver_flexible_zone_radius
+                text: size of zone around receiver N-terminal N in which CA's are not fixed during steered MD
+                type: float
+                default: 0.0 # all fixed by default
+              - name: constraints
+                text: Parameters controlling position constraints
+                type: dict
+                directives:
+                  - name: atoms
+                    text: Atoms to be position-constrained expressed as a VMD atomselection
+                    type: string
+                  - name: k
+                    text: Restraint spring constant in kcal/mol/A^2
+                    type: float
+                  - name: consfile
+                    text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+                    type: string
+          - name: connect
+            text: Specifies parameters of the psfgen run that patches in the new backbone bonds
+            type: dict
+            directives:
+              - name: cleanup
+                text: Specifies whether or not to clean up temporary files
+                type: bool
+                default: True 

@@ -349,7 +349,13 @@ class PsfgenTask(BaseTask):
     
     Attributes
     ----------
-    yaml_header(str) 
+    yaml_header: str
+        name of task
+    chainIDmanager: ChainIDManager
+        We need a global chain id manager for every distinct psfgen
+        task.  The chain id manager is used to assign chain IDs in the event that segment generation requires new chain IDs.
+    base_molecule: Molecule
+        Pestifer's internal representation of the molecule
 
     Methods
     -------
@@ -366,37 +372,37 @@ class PsfgenTask(BaseTask):
     def do(self):
         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
         self.inherit_state()
-        logger.debug('Injesting molecule(s)')
-        self.injest_molecules()
+        logger.debug('Injesting molecule')
+        self.injest_molecule() # sets self.base_molecule
         self.statevars['base_molecule']=self.base_molecule
         logger.debug('Running first psfgen')
         self.psfgen()
         # we now have a full coordinate set, so we can do coormods
-        self.coormods()
-        min_loop_length=self.specs['source']['sequence']['loops']['min_loop_length']
-        nloops=self.base_molecule.has_loops(min_loop_length=min_loop_length)*self.base_molecule.num_images()
-        if nloops>0:
-            logger.debug(f'Declashing {nloops} loops')
-            self.declash_loops(self.specs['source']['sequence']['loops'])
+        # self.coormods()
+        # min_loop_length=self.specs['source']['sequence']['loops']['min_loop_length']
+        # nloops=self.base_molecule.has_loops(min_loop_length=min_loop_length)*self.base_molecule.num_images()
+        # if nloops>0:
+        #     logger.debug(f'Declashing {nloops} loops')
+        #     self.declash_loops(self.specs['source']['sequence']['loops'])
         logger.info(f'Task {self.taskname} {self.index:02d} complete')
 
-    def coormods(self):
-        if sum([len(x) for x in self.mods.coormods.__dict__.values()])>0:
-            ba=self.base_molecule.active_biological_assembly
-            logger.debug(f'Performing coormods')
-            self.next_basename('coormods')
-            vm=self.writers['vmd']
-            vm.newscript(self.basename)
-            psf=self.statevars['psf']
-            pdb=self.statevars['pdb']
-            vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
-            for transform in ba.transforms:
-                self.mods.coormods.crotations.write_TcL(vm,chainIDmap=transform.chainIDmap)
-            vm.write_pdb(self.basename,'mCM')
-            vm.endscript()
-            vm.writescript()
-            vm.runscript()
-            self.save_state(exts=['pdb'])
+    # def coormods(self):
+    #     if sum([len(x) for x in self.mods.coormods.__dict__.values()])>0:
+    #         ba=self.base_molecule.active_biological_assembly
+    #         logger.debug(f'Performing coormods')
+    #         self.next_basename('coormods')
+    #         vm=self.writers['vmd']
+    #         vm.newscript(self.basename)
+    #         psf=self.statevars['psf']
+    #         pdb=self.statevars['pdb']
+    #         vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
+    #         for transform in ba.transforms:
+    #             self.mods.coormods.crotations.write_TcL(vm,chainIDmap=transform.chainIDmap)
+    #         vm.write_pdb(self.basename,'mCM')
+    #         vm.endscript()
+    #         vm.writescript()
+    #         vm.runscript()
+    #         self.save_state(exts=['pdb'])
 
     def psfgen(self):
         self.next_basename('build')
@@ -412,45 +418,37 @@ class PsfgenTask(BaseTask):
         self.save_state(exts=['psf','pdb'])
         pg.cleanup(cleanup=self.specs['cleanup'])
 
-    def declash_loops(self,specs):
-        mol=self.base_molecule
-        cycles=specs['declash']['maxcycles']
-        self.update_statevars('min_loop_length',specs['min_loop_length'])
-        if not mol.has_loops() or not cycles:
-            return
-        self.next_basename('declash')
-        vt=self.writers['vmd']
-        psf=self.statevars['psf']
-        pdb=self.statevars['pdb']
-        vt.newscript(self.basename)
-        vt.load_psf_pdb(psf,pdb,new_molid_varname='mLL')
-        mol.write_loop_lines(vt,cycles=cycles,min_length=specs['min_loop_length'])
-        vt.write_pdb(self.basename,'mLL')
-        vt.endscript()
-        vt.writescript()
-        vt.runscript()
-        self.save_state(exts=['pdb'])
+    # def declash_loops(self,specs):
+    #     mol=self.base_molecule
+    #     cycles=specs['declash']['maxcycles']
+    #     self.update_statevars('min_loop_length',specs['min_loop_length'])
+    #     if not mol.has_loops() or not cycles:
+    #         return
+    #     self.next_basename('declash')
+    #     vt=self.writers['vmd']
+    #     psf=self.statevars['psf']
+    #     pdb=self.statevars['pdb']
+    #     vt.newscript(self.basename)
+    #     vt.load_psf_pdb(psf,pdb,new_molid_varname='mLL')
+    #     mol.write_loop_lines(vt,cycles=cycles,min_length=specs['min_loop_length'])
+    #     vt.write_pdb(self.basename,'mLL')
+    #     vt.endscript()
+    #     vt.writescript()
+    #     vt.runscript()
+    #     self.save_state(exts=['pdb'])
 
-    def injest_molecules(self):
+    def injest_molecule(self):
         specs=self.specs
-        self.molecules={}
         self.source_specs=specs['source']
         logger.debug(f'User-input modspecs {self.specs["mods"]}')
         self.mods=ModContainer(self.specs['mods'])
-        # self.pdbs=self.mods.report_pdbs()
-        # self.usermod_specs=specs['mods']
-        # logger.debug(f'user mods at injest_molecules {self.mods.__dict__}')
-        self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,usermods=self.mods,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
-        self.base_molecule=self.molecules[self.source_specs['id']]
-        # self.statevars['min_loop_length']=self.source_specs['sequence']['loops']['min_loop_length']
-        # for p in self.pdbs:
-        #     self.molecules[p]=Molecule(source=p)
+        self.base_molecule=Molecule(
+            source=self.source_specs,
+            usermods=self.mods,
+            chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
 
 class DomainSwapTask(MDTask):
     yaml_header='domainswap'
-
-    # def __init__(self,input_dict,taskname,config,writers,prior):
-    #     super().__init__(input_dict,taskname,config,writers,prior)
 
     def do(self):
         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
@@ -483,10 +481,9 @@ class DomainSwapTask(MDTask):
         self.update_statevars('cv',f'{self.basename}-cv.inp',vtype='file')
         
 class LigateTask(MDTask):
+    """A class for handling ligating a C-terminus to an N-terminus via
+    a peptide bond"""
     yaml_header='ligate'
-    # statevars={}
-    # def __init__(self,input_dict,taskname,config,writers,prior):
-    #     super().__init__(input_dict,taskname,config,writers,prior)
 
     def do(self):
         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
@@ -591,7 +588,7 @@ class LigateTask(MDTask):
         pg.topo_aliases()
         topfile=os.path.join(self.config.charmmff_custom_path,'mylink.top')
         pg.addline(f'topology {topfile}')
-        pg.usescript('loop_closure')
+        pg.usescript('patcher')
         pg.writescript()
         patchfile=self.statevars['data']
         psf=self.statevars['psf']
@@ -601,7 +598,6 @@ class LigateTask(MDTask):
 
 class SolvateTask(BaseTask):
     yaml_header='solvate'
-    # opt_attr=Task.opt_attr+[yaml_header]
 
     def do(self):
         self.statevars=self.prior.statevars.copy()
@@ -620,58 +616,65 @@ class SolvateTask(BaseTask):
         self.update_statevars('cell',f'{self.basename}_cell.tcl',vtype='file')
         logger.info(f'Task {self.taskname} {self.index:02d} complete')
 
-# class RelaxTask(MDTask):
-#     yaml_header='relax'
-#     # opt_attr=Task.opt_attr+[yaml_header]
-#     def do(self):
-#         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
-#         self.inherit_state()
-#         self.next_basename('relax')
-#         self.namd2script(basename,self.namd2prep(basename,self.specs))
-#         self.relax(basename)
-#         logger.info(f'Task {self.taskname} {self.index:02d} complete')
-
-# class MinimizeTask(Task):
-#     yaml_header='minimize'
-#     opt_attr=Task.opt_attr+[yaml_header]
-#     def do(self):
-#         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
-#         self.statevars=self.prior.statevars.copy()
-#         basename=self.next_basename('minimize')
-#         self.minimize(basename,self.specs)
-#         logger.info(f'Task {self.taskname} {self.index:02d} complete')
-
 class ManipulateTask(BaseTask):
+    """A class for handling coordinate/topology manipulation 
+       tasks outside of a system-generating psfgen task """
+    
     yaml_header='manipulate'
-    # opt_attr=Task.opt_attr+[yaml_header]
+
     def do(self):
         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
         if self.prior:
             logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
             self.statevars=self.prior.statevars.copy()
-        self.coormods(self.specs['mods'])
-        # self.minimize(self.specs['minimize'])
+        self.mods=ModContainer(self.specs['mods'])
+        self.coormods()
+        self.topomods()
 
-    def coormods(self,specs):
-        self.mods=ModContainer(specs)
-        if self.mods.coormods:
-            logger.debug(f'performing coormods')
-            self.next_basename('coormods')
-            vm=self.writers['vmd']
-            vm.newscript(self.basename)
-            psf=self.statevars['psf']
-            pdb=self.statevars['pdb']
-            vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
-            self.mods.coormods.crotations.write_TcL(vm)
-            vm.write_pdb(self.basename,'mCM')
-            vm.endscript()
-            vm.writescript()
-            vm.runscript()
-            self.save_state(exts=['pdb'])
+    def coormods(self):
+        for modname,modlist in self.mods.yield_modlists_bycat('coormods'):
+            if len(modlist)>0:
+                psf=self.statevars['psf']
+                pdb=self.statevars['pdb']
+                self.next_basename(modname)
+                logger.debug(f'{self.basename}: Performing coormods on {pdb}')
+                datafile=f'{self.basename}.inp'
+                writer=self.writers['data']
+                writer.newfile(datafile)
+                modlist.write_TcL(writer)
+                writer.writefile()
+                self.update_statevars('data',datafile,vtype='file')
+                vm=self.writers['vmd']
+                vm.newscript(self.basename)
+                vm.usescript('coords')
+                vm.writescript()
+                vm.runscript(psf=psf,pdb=pdb,o=self.basename,c=self.statevars['data'])
+                self.save_state(exts=['pdb'])
+
+    def topomods(self):
+        for modname,modlist in self.mods.yield_modlists_bycat('topomods'):
+            if len(modlist)>0:
+                psf=self.statevars['psf']
+                pdb=self.statevars['pdb']
+                self.next_basename(modname)
+                logger.debug(f'{self.basename}: Performing topomods on {pdb}')
+                datafile=f'{self.basename}.inp'
+                writer=self.writers['data']
+                writer.newfile(datafile)
+                modlist.write_TcL(writer)
+                writer.writefile()
+                self.update_statevars('data',datafile,vtype='file')
+                pg=self.writers['psfgen']
+                pg.newscript(self.basename)
+                pg.topo_aliases()
+                pg.usescript('patcher')
+                pg.writescript()
+                pg.runscript(psf=psf,pdb=pdb,p=datafile,o=self.basename)
+                self.save_state(exts=['psf','pdb'])
 
 class TerminateTask(MDTask):
     yaml_header='terminate'
-    # opt_attr=Task.opt_attr+[yaml_header]
+
     def do(self):
         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
         self.inherit_state()
@@ -697,7 +700,7 @@ class TerminateTask(MDTask):
             return
         self.inherit_state()
         self.FC.clear()  # populate a file collector to make the tarball
-        logger.debug(f'Packaging for namd2 using basename {self.basename}')
+        logger.debug(f'{self.basename}: Packaging for namd2')
         savespecs=self.specs
         self.specs=specs
         params=self.namd2run(script_only=True,absolute_paths=False)

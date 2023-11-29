@@ -6,14 +6,13 @@
 
     Mods are classified into four types:
     1. 'seqmod's are modifications to the amino-acid sequence of a 
-    protein.  These mods are typically applied while pestifer
-    is building its internal representation of the molecule.
+    protein.  These mods are incorporated at the residue-list level in pestifer's internal representation of the molecule before it begins parsing segments. Once applied, they can be "deactivated".
     2. 'topomod's are modifications to the bonding topology, 
     including disulfides, covalent bonds linking sugars
-    or other non-protein residues, etc.
+    or other non-protein residues, etc.  These are considered properties of the molecules and are typically implemented via patch residues in a psfgen script.  They are never deactivated.
     3. 'coormod's are mods to the coordinates of a molecule,
-    such as rotation of specific dihedral angles
-    4. 'generic' -- anything not in the other three categories.
+    such as rotation of specific dihedral angles; these are deactivated immediately after being applied.
+    4. 'generic' modifications include anything not in the other three categories.
 
     seqmods
     -------
@@ -33,12 +32,16 @@
     * Cfusion -- fuse residues from named residue range of named 
     protein chain of named input coordinate file to C-terminus of 
     named segment of base molecule
+    * SSBondDelete -- specifies disulfide bonds included in the input molecule that should be deleted.
 
     topomods
     --------
     * SSBond -- a disulfide
     * Link -- a non-disulfide covalent bond, typically involving 
     non-protein residues
+
+    generic
+    -------
     * Cleavage -- break a given protein chain into two daughter chains
 
     coormods
@@ -83,14 +86,14 @@ class Ter(AncestorAwareMod):
         * resseqnum: (int) residue number
         * insertion: (chr) residue insertion code
     
-    yaml_header: (str)
+    yaml_header: str
         label used for yaml format input/output
     
-    modtype: (str)
+    modtype: str
         type of mod from among ModTypes
 
     """
-    req_attr=['serial','resname','chainID','resseqnum','insertion']
+    req_attr=AncestorAwareMod.req_attr+['serial','resname','chainID','resseqnum','insertion']
     yaml_header='terminals'
     modtype='seqmod'
     PDB_keyword='TER'
@@ -352,7 +355,7 @@ class Mutation(AncestorAwareMod):
     def __str__(self):
         return f'{self.chainID}:{self.origresname}{self.resseqnum}{self.insertion}{self.newresname}'
 
-    def write_TcL(self):
+    def write_TcL(self,W:Psfgen):
         """Returns the string to be written in a psfgen input file within a segment """
         if hasattr(self,'pdbx_auth_seq_num'): # mmCIF!
             return f'    mutate {self.resseqnum} {self.newresname}'
@@ -848,24 +851,23 @@ class SSBond(AncestorAwareMod):
                 '{:6.2f}'.format(self.length)
         return pdbline
     
-    def write_TcL(self,W:Psfgen,transform):
-        chainIDmap=transform.chainIDmap 
+    def write_TcL(self,W:Psfgen,chainIDmap={}):
         # ok since these are only going to reference protein segments; protein segment names are the chain IDs
-        logger.debug(f'writing patch for {self}')
+        logger.debug(f'Writing DISU patch for {self}')
         c1=chainIDmap.get(self.chainID1,self.chainID1)
         c2=chainIDmap.get(self.chainID2,self.chainID2)
-        r1=self.resseqnum1
-        r2=self.resseqnum2
-        W.addline(f'patch DISU {c1}:{r1} {c2}:{r2}')
+        r1,i1=self.resseqnum1,self.insertion1
+        r2,i2=self.resseqnum2,self.insertion2
+        W.addline(f'patch DISU {c1}:{r1}{i1} {c2}:{r2}{i2}')
 
 class SSBondList(AncestorAwareModList):
     def assign_residues(self,Residues):
         ignored_by_ptnr1=self.assign_objs_to_attr('residue1',Residues,resseqnum='resseqnum1',chainID='chainID1',insertion='insertion1')
         ignored_by_ptnr2=self.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID2',insertion='insertion2')
         return self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
-    def write_TcL(self,W:Psfgen,transform):
+    def write_TcL(self,W:Psfgen,chainIDmap={}):
         for s in self:
-            s.write_TcL(W,transform)
+            s.write_TcL(W,chainIDmap=chainIDmap)
     def prune_mutations(self,Mutations):
         pruned=self.__class__([])
         for m in Mutations:
@@ -876,10 +878,16 @@ class SSBondList(AncestorAwareModList):
             if right:
                 pruned.append(self.remove(right))
         return pruned
+    def delete_requested(self,deletion_list):
+        ignored=SSBondList([])
+        for s in self:
+            if deletion_list.is_deleted(s):
+                ignored.append(self.remove(s))
+        return ignored
     
 class SSBondDelete(SSBond):
     yaml_header='ssbondsdelete'
-    modtype='topomod'
+    modtype='seqmod'
 
 class SSBondDeleteList(SSBondList):
     def is_deleted(self,a_SSBond):
@@ -1108,7 +1116,7 @@ class Link(AncestorAwareMod):
             logger.warning(f'Could not identify patch for link: {str(self)}')
             self.patchname='UNFOUND'
 
-    def write_TcL(self,W:Psfgen,transform):
+    def write_TcL(self,W:Psfgen,chainIDmap={}):
         """Insert the appropriate TcL commands to add this link in a psfgen script
         
         Assumes that if one of the two residues is an asparagine and the other is a 
@@ -1123,10 +1131,9 @@ class Link(AncestorAwareMod):
         ----------
         W: Psfgen
             the psfgen scriptwriter object
-        transform: BiomT
-            the designated transform under which this link is operational; used for its chainIDmap
+        chainIDmap: dict
+            the designated map from AU chain ID to chain ID in this transform of the AU
         """
-        chainIDmap=transform.chainIDmap
         seg1=self.residue1.chainID
         seg1=chainIDmap.get(seg1,seg1)
         seg2=self.residue2.chainID
@@ -1155,7 +1162,7 @@ class LinkList(AncestorAwareModList):
         attributes of every link; returns list of residues not assigned to links and links to which
         no residues were assigned.
 
-    write_TcL(W,transform)
+    write_TcL(W,chainIDmap)
         calls write_TcL for each link
 
     prune_mutations(Mutations,Segments)
@@ -1204,19 +1211,9 @@ class LinkList(AncestorAwareModList):
                 Residues.remove(r)
         return Residues.__class__(rlist),self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
     
-    def write_TcL(self,W:Psfgen,transform):
+    def write_TcL(self,W:Psfgen,chainIDmap={}):
         for l in self:
-            l.write_TcL(W,transform)
-
-    # def remove_orphan_residues(self,Links,Residues):
-    #     for dl in self:
-    #         reslist,lnlist=dl.residue2.get_down_group()
-    #         reslist.insert(0,dl.residue2)
-    #         for r in reslist:
-    #             Residues.remove(r)
-    #         for l in lnlist:
-    #             Links.remove(l)
-    #     return reslist,lnlist
+            l.write_TcL(W,chainIDmap=chainIDmap)
 
     def prune_mutations(self,Mutations,Segments):
         """Prune off any links and associated objects as a result of mutations
@@ -1227,8 +1224,7 @@ class LinkList(AncestorAwareModList):
             list of mutations
             
         Segments: SegmentList
-            list of assembled segments; might need to be modified if pruning gets rid
-            of a whole segment's worth of residues
+            list of assembled segments; might need to be modified if pruning gets rid of a whole segment's worth of residues
         
         """
         pruned={'residues':[],'links':self.__class__([]),'segments':[]}
@@ -1273,7 +1269,7 @@ class LinkList(AncestorAwareModList):
 
 class Graft(AncestorAwareMod):
     yaml_header='grafts'
-    modtype='topomod'
+    modtype='seqmod'
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)
@@ -1324,31 +1320,54 @@ class InsertionList(AncestorAwareModList):
     pass
 
 class Cleavage(AncestorAwareMod):
-    """A class for handling chain cleavage"""
+    """A class for handling chain cleavage at a peptide bond between two
+    adjacent residues
+    
+    Attributes
+    ----------
+    req_attr: list
+        * chainID: chain ID of the chain to be cleaved
+        * resseqnum1, insertion1: unique resid of residue N-terminal to cleavage
+        * resseqnum2, insertion2: unique resid of residue C-terminal to cleavage (optional; if unspecified and insertion1 is blank, resseqnum2 is assigned resseqnum1+1)
+    """
+    req_attr=AncestorAwareMod.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
     yaml_header='cleavages'
-    modtype='seqmod'
+    modtype='topomod'
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)
-    pass
+    @__init__.register(str)
+    def _from_shortcode(self,shortcode):
+        # C:R1[-R2]
+        tokens=shortcode.split(':')
+        chainID=tokens[0]
+        resrange=tokens[1].split('-')
+        r1,i1=split_ri(resrange[0])
+        if len(resrange)>1:
+            r2,i1=split_ri(resrange[1])
+        else:
+            assert i1==''
+            r2=r1+2
+            i2=''
+        input_dict={
+            'chainID':chainID,
+            'resseqnum1':r1,
+            'insertion1':i1,
+            'resseqnum2':r2,
+            'insertion2':i2,
+        }
+        super().__init__(input_dict)
+    
+    def write_TcL(self,W:Psfgen,chainIDmap={}):
+        logger.debug(f'writing NTER/CTER patches for {self}')
+        chainID=chainIDmap.get(self.chainID,self.chainID)
+        r1,i1=self.resseqnum1,self.insertion1
+        r2,i2=self.resseqnum2,self.insertion2
+        W.addline(f'patch CTER {chainID}:{r1}{i1}')
+        W.addline(f'patch NTER {chainID}:{r2}{i2}')
 
 class CleavageList(AncestorAwareModList):
-    pass
+    def write_TcL(self,W:Psfgen,chainIDmap={}):
+        for item in self:
+            item.write_TcL(W,chainIDmap=chainIDmap)
 
-
-# def apply_psf_info(p_struct,psf):
-#     if os.path.exists(psf):
-#         with open(psf,'r') as f:
-#             psf_lines=f.read().split('\n')
-#     metadata_lines=[x for x in psf_lines if x.startswith('REMARKS')]
-#     for ml in metadata_lines:
-#         words=ml.split()
-#         if ' '.join(words[1:3])=='patch DISU':
-#             c1,r1i=words[3].split(':')
-#             c2,r2i=words[4].split(':')
-#             r1,i1=split_ri(r1i)
-#             r2,i2=split_ri(r2i)
-#             p_struct['SSBONDS'].append(SSBond({'chainID1':c1,'chainID2':c2,'resseqnum1':r1,'resseqnum2':r2,'insertion1':i1,'insertion2':i2}))
-        # elif ' '.join(words[1:3])=='patch '
-            # add a new SSBOND record to p_struct
-        # elif ...

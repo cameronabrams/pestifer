@@ -101,8 +101,8 @@ def inspect_classes(module,key=' ',use_yaml_headers_as_keys=False):
     
     Optionally, if key is given a value, the function returns
     two lists: the first comprises classes that do NOT have
-    the key in their names and the second comprises the classes
-    that DO.
+    the key as a substring in their names and the second 
+    comprises the classes that DO.
 
     Class names are used as keys in the dictionaries that are 
     returned, unless use_yaml_headers_as_keys is True; in that
