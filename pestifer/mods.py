@@ -5,13 +5,13 @@
     and their respective list collections.  
 
     Mods are classified into four types:
-    1. 'seqmod's are modifications to the amino-acid sequence of a 
+    1. 'seqmods's are modifications to the amino-acid sequence of a 
     protein.  These mods are typically applied while pestifer
     is building its internal representation of the molecule.
-    2. 'topomod's are modifications to the bonding topology, 
+    2. 'topomods's are modifications to the bonding topology, 
     including disulfides, covalent bonds linking sugars
     or other non-protein residues, etc.
-    3. 'coormod's are mods to the coordinates of a molecule,
+    3. 'coormods's are mods to the coordinates of a molecule,
     such as rotation of specific dihedral angles
     4. 'generic' -- anything not in the other three categories.
 
@@ -46,6 +46,7 @@
     * Crot -- any of a variety of rotations around certain dihedrals
 
 """
+import os
 import logging
 logger=logging.getLogger(__name__)
 from pidibble.pdbrecord import PDBRecord
@@ -57,7 +58,7 @@ from .config import res_123
 from functools import singledispatchmethod
 from .coord import ic_reference_closest
 
-ModTypes=['seqmod','topomod','coormod','generic']
+ModTypes=['seqmods','topomods','coormods','generics']
 
 class Ter(AncestorAwareMod):
     """A class for handing TER records in PDB files
@@ -92,7 +93,7 @@ class Ter(AncestorAwareMod):
     """
     req_attr=['serial','resname','chainID','resseqnum','insertion']
     yaml_header='terminals'
-    modtype='seqmod'
+    modtype='seqmods'
     PDB_keyword='TER'
 
     @singledispatchmethod
@@ -162,7 +163,7 @@ class Seqadv(AncestorAwareMod):
     attr_choices=AncestorAwareMod.attr_choices.copy()
     attr_choices.update({'typekey':['conflict','cloning','expression','typekey','engineered','variant','insertion','deletion','microheterogeneity','chromophore','user','_other_']})
     yaml_header='seqadvs'
-    modtype='seqmod'
+    modtype='seqmods'
     PDB_keyword='SEQADV'
     mmCIF_name='struct_ref_seq_dif'
 
@@ -292,7 +293,7 @@ class Mutation(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID','origresname','resseqnum','insertion','newresname','typekey']
     opt_attr=AncestorAwareMod.opt_attr+['pdbx_auth_seq_num']
     yaml_header='mutations'
-    modtype='seqmod'
+    modtype='seqmods'
 
     @singledispatchmethod
     def __init__(self,input_obj):
@@ -382,7 +383,7 @@ class Substitution(AncestorAwareMod):
     """
     req_attr=AncestorAwareMod.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2','subseq']
     yaml_header='substitutions'
-    modtype='seqmod'
+    modtype='seqmods'
 
     @singledispatchmethod
     def __init__(self,input_obj):
@@ -435,7 +436,7 @@ class Deletion(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
     # opt_attr=AncestorAwareMod.opt_attr+['model']
     yaml_header='deletions'
-    modtype='seqmod'
+    modtype='seqmods'
 
     @singledispatchmethod
     def __init__(self,input_obj):
@@ -486,7 +487,7 @@ class Cfusion(AncestorAwareMod):
     """
     req_attr=AncestorAwareMod.req_attr+['sourcefile','chainID','resseqnum1','insertion1','resseqnum2','insertion2','tosegment','id']
     yaml_header='Cfusions'
-    modtype='seqmod'
+    modtype='seqmods'
     _Cfusion_counter=0
     @singledispatchmethod
     def __init__(self,input_obj):
@@ -502,6 +503,7 @@ class Cfusion(AncestorAwareMod):
         # S -- tosegment, segment in base-molecule the fusion is fused to
         p1=shortcode.split(':')
         sourcefile=p1[0]
+        assert os.path.exists(sourcefile),f'Cfusion sourcefile {sourcefile} not found.'
         chainID=p1[1]
         p2=p1[2].split(',')
         seqrange=p2[0]
@@ -570,7 +572,7 @@ class Crot(AncestorAwareMod):
         'ALPHA':['chainID','resseqnum1','resseqnum2','resseqnum3']
         })
     yaml_header='crotations'
-    modtype='coormod'
+    modtype='coormods'
 
     @singledispatchmethod
     def __init__(self,input_obj):
@@ -734,7 +736,7 @@ class SSBond(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
     opt_attr=AncestorAwareMod.opt_attr+['serial_number','residue1','residue2','resname1','resname2','sym1','sym2','length','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id']
     yaml_header='ssbonds'
-    modtype='topomod'
+    modtype='topomods'
     PDB_keyword='SSBOND'
     mmCIF_name='struct_conn'
 
@@ -879,7 +881,7 @@ class SSBondList(AncestorAwareModList):
     
 class SSBondDelete(SSBond):
     yaml_header='ssbondsdelete'
-    modtype='topomod'
+    modtype='topomods'
 
 class SSBondDeleteList(SSBondList):
     def is_deleted(self,a_SSBond):
@@ -918,7 +920,7 @@ class Link(AncestorAwareMod):
     opt_attr=AncestorAwareMod.opt_attr+['altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance','segname1','segname2','residue1','residue2','atom1','atom2','empty','segtype1','segtype2','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id','ptnr1_auth_comp_id','ptnr2_auth_comp_id']    
     yaml_header='links'
     PDB_keyword='LINK'
-    modtype='topomod'
+    modtype='topomods'
 
     @singledispatchmethod
     def __init__(self,input_obj):
@@ -1020,6 +1022,7 @@ class Link(AncestorAwareMod):
             logger.debug(f'1 {self.residue1}')
             logger.debug(f'2 {self.residue2}')
             return
+        logger.debug(f'resname1 {self.resname1} segtype2 {self.segtype2}')
         my_res12=[self.residue1,self.residue2]
         if self.resname1=='ASN' and self.segtype2=='glycan':
             # N-linked glycosylation site (toppar_all36_carb_glycopeptide)
@@ -1273,7 +1276,7 @@ class LinkList(AncestorAwareModList):
 
 class Graft(AncestorAwareMod):
     yaml_header='grafts'
-    modtype='topomod'
+    modtype='topomods'
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)
@@ -1294,7 +1297,7 @@ class Insertion(AncestorAwareMod):
     """
     req_attr=AncestorAwareMod.req_attr+['chainID','resseqnum','insertion','sequence']
     yaml_header='insertions'
-    modtype='seqmod'
+    modtype='seqmods'
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)
@@ -1326,7 +1329,7 @@ class InsertionList(AncestorAwareModList):
 class Cleavage(AncestorAwareMod):
     """A class for handling chain cleavage"""
     yaml_header='cleavages'
-    modtype='seqmod'
+    modtype='seqmods'
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)

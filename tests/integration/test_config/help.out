@@ -105,7 +105,7 @@ tasks->
 md:
     Parameters controlling a NAMD run
     type: dict
-    Help available for ensemble, minimize, nsteps, dcdfreq, xstfreq, temperature, pressure, constraints, other_parameters
+    Help available for ensemble, minimize, nsteps, dcdfreq, xstfreq, temperature, pressure, other_parameters, constraints
 tasks->
 md->
 ensemble:

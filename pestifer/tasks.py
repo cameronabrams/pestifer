@@ -17,10 +17,10 @@ import os
 import yaml
 from .util import is_periodic
 from .molecule import Molecule
-from .chainids import ChainIDManager
+from .chainidmanager import ChainIDManager
 from .colvars import *
 from .stringthings import FileCollector
-from .modcontainer import ModContainer
+from .modmanager import ModManager
 from .command import Command
 
 class BaseTask(BaseMod):
@@ -381,22 +381,24 @@ class PsfgenTask(BaseTask):
         logger.info(f'Task {self.taskname} {self.index:02d} complete')
 
     def coormods(self):
-        if sum([len(x) for x in self.mods.coormods.__dict__.values()])>0:
-            ba=self.base_molecule.active_biological_assembly
-            logger.debug(f'Performing coormods')
-            self.next_basename('coormods')
-            vm=self.writers['vmd']
-            vm.newscript(self.basename)
-            psf=self.statevars['psf']
-            pdb=self.statevars['pdb']
-            vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
-            for transform in ba.transforms:
-                self.mods.coormods.crotations.write_TcL(vm,chainIDmap=transform.chainIDmap)
-            vm.write_pdb(self.basename,'mCM')
-            vm.endscript()
-            vm.writescript()
-            vm.runscript()
-            self.save_state(exts=['pdb'])
+        coormods=self.modmanager.get('coormods',{})
+        ba=self.base_molecule.active_biological_assembly
+        if coormods:
+            logger.debug(f'performing coormods')
+            for modtype,modlist in coormods.items():
+                self.next_basename(modtype)
+                vm=self.writers['vmd']
+                vm.newscript(self.basename)
+                psf=self.statevars['psf']
+                pdb=self.statevars['pdb']
+                vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
+                for transform in ba.transforms:
+                    modlist.write_TcL(vm,chainIDmap=transform.chainIDmap)
+                vm.write_pdb(self.basename,'mCM')
+                vm.endscript()
+                vm.writescript()
+                vm.runscript()
+                self.save_state(exts=['pdb'])
 
     def psfgen(self):
         self.next_basename('build')
@@ -436,11 +438,11 @@ class PsfgenTask(BaseTask):
         self.molecules={}
         self.source_specs=specs['source']
         logger.debug(f'User-input modspecs {self.specs["mods"]}')
-        self.mods=ModContainer(self.specs['mods'])
+        self.modmanager=ModManager(self.specs['mods'])
         # self.pdbs=self.mods.report_pdbs()
         # self.usermod_specs=specs['mods']
         # logger.debug(f'user mods at injest_molecules {self.mods.__dict__}')
-        self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,usermods=self.mods,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
+        self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,modmanager=self.modmanager,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
         self.base_molecule=self.molecules[self.source_specs['id']]
         # self.statevars['min_loop_length']=self.source_specs['sequence']['loops']['min_loop_length']
         # for p in self.pdbs:
@@ -643,35 +645,35 @@ class SolvateTask(BaseTask):
 
 class ManipulateTask(BaseTask):
     yaml_header='manipulate'
-    # opt_attr=Task.opt_attr+[yaml_header]
     def do(self):
         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
         if self.prior:
             logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
             self.statevars=self.prior.statevars.copy()
-        self.coormods(self.specs['mods'])
-        # self.minimize(self.specs['minimize'])
+        self.modmanager=ModManager(self.specs['mods'])
+        self.coormods()
 
-    def coormods(self,specs):
-        self.mods=ModContainer(specs)
-        if self.mods.coormods:
+    def coormods(self):
+        coormods=self.modmanager.get('coormods',{})
+        if coormods:
             logger.debug(f'performing coormods')
-            self.next_basename('coormods')
-            vm=self.writers['vmd']
-            vm.newscript(self.basename)
-            psf=self.statevars['psf']
-            pdb=self.statevars['pdb']
-            vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
-            self.mods.coormods.crotations.write_TcL(vm)
-            vm.write_pdb(self.basename,'mCM')
-            vm.endscript()
-            vm.writescript()
-            vm.runscript()
-            self.save_state(exts=['pdb'])
+            for modtype,modlist in coormods.items():
+                self.next_basename(modtype)
+                vm=self.writers['vmd']
+                vm.newscript(self.basename)
+                psf=self.statevars['psf']
+                pdb=self.statevars['pdb']
+                vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
+                modlist.write_TcL(vm)
+                vm.write_pdb(self.basename,'mCM')
+                vm.endscript()
+                vm.writescript()
+                vm.runscript()
+                self.save_state(exts=['pdb'])
 
 class TerminateTask(MDTask):
     yaml_header='terminate'
-    # opt_attr=Task.opt_attr+[yaml_header]
+    
     def do(self):
         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
         self.inherit_state()

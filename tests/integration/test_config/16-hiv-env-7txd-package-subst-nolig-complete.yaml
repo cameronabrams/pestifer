@@ -227,6 +227,7 @@ tasks:
       - phi,F,31,50,45
       - psi,C,368,378,180
       deletions: []
+      insertions: []
       mutations: []
       ssbonds: []
       ssbondsdelete: []
@@ -267,7 +268,7 @@ tasks:
     ensemble: minimize
     minimize: 1000
     nsteps: 2000
-    other_parameters: &id001 {}
+    other_parameters: {}
     pressure: 1
     temperature: 300
     xstfreq: 100
@@ -279,7 +280,7 @@ tasks:
       dcdfreq: 100
       ensemble: NVT
       force_constant: 20
-      nsteps: 1000
+      nsteps: 3000
       pressure: 1
       receiver_flexible_zone_radius: 0.0
       target_distance: 2
@@ -291,7 +292,7 @@ tasks:
     ensemble: minimize
     minimize: 1000
     nsteps: 2000
-    other_parameters: *id001
+    other_parameters: {}
     pressure: 1
     temperature: 300
     xstfreq: 100
@@ -301,7 +302,7 @@ tasks:
     ensemble: NVT
     minimize: 1000
     nsteps: 2000
-    other_parameters: *id001
+    other_parameters: {}
     pressure: 1
     temperature: 300
     xstfreq: 100
@@ -313,7 +314,7 @@ tasks:
     ensemble: minimize
     minimize: 1000
     nsteps: 2000
-    other_parameters: *id001
+    other_parameters: {}
     pressure: 1
     temperature: 300
     xstfreq: 100
@@ -323,7 +324,7 @@ tasks:
     ensemble: NVT
     minimize: 1000
     nsteps: 2000
-    other_parameters: *id001
+    other_parameters: {}
     pressure: 1
     temperature: 300
     xstfreq: 100
@@ -333,7 +334,7 @@ tasks:
     ensemble: NPT
     minimize: 1000
     nsteps: 1000
-    other_parameters: *id001
+    other_parameters: {}
     pressure: 1
     temperature: 300
     xstfreq: 100
@@ -343,7 +344,7 @@ tasks:
     ensemble: NPT
     minimize: 1000
     nsteps: 2000
-    other_parameters: *id001
+    other_parameters: {}
     pressure: 1
     temperature: 300
     xstfreq: 100

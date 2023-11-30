@@ -3,7 +3,7 @@ from pestifer.command import Command
 from pestifer.molecule import Molecule
 from pestifer.scriptwriters import Psfgen, NAMD2
 from pestifer.config import Config
-from pestifer.chainids import ChainIDManager
+from pestifer.chainidmanager import ChainIDManager
 
 import os
 class TestPsfgen(unittest.TestCase):

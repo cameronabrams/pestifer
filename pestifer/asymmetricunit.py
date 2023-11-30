@@ -8,7 +8,7 @@ from argparse import Namespace
 from .residue import ResidueList,AtomList,Atom,Hetatm,Ter,TerList,EmptyResidue,EmptyResidueList
 from .segment import SegmentList
 from .basemod import AncestorAwareMod
-from .modcontainer import ModContainer
+from .modmanager import ModManager
 from mmcif.api.PdbxContainers import DataContainer
 from .config import *
 from .util import write_residue_map
@@ -16,7 +16,7 @@ from .util import write_residue_map
 logger=logging.getLogger(__name__)
 
 class AsymmetricUnit(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['atoms','residues','mods']
+    req_attr=AncestorAwareMod.req_attr+['atoms','residues','modmanager']
     opt_attr=AncestorAwareMod.opt_attr+['segments','ignored','pruned']
     excludables={'resnames':'resname','chains':'chainID','segtypes':'segtype'}
     def __init__(self,**objs):
@@ -25,13 +25,13 @@ class AsymmetricUnit(AncestorAwareMod):
             input_dict={
                 'atoms':AtomList([]),
                 'residues':ResidueList([]),
-                'mods':ModContainer(),
+                'modmanager':ModManager(),
                 'segments':SegmentList({},ResidueList([]))
             }
         else: #
             pr=objs.get('parsed',None)
             sourcespecs=objs.get('sourcespecs',{})
-            mods=objs.get('usermodspecs',ModContainer())
+            modmanager=objs.get('modmanager',ModManager())
             # logger.debug(f'User mods {type(mods)} at asymmetric unit: {mods.__dict__}')
             chainIDmanager=objs.get('chainIDmanager',None)
             
@@ -46,7 +46,8 @@ class AsymmetricUnit(AncestorAwareMod):
                 atoms.extend([Hetatm(p) for p in pr.get(Hetatm.PDB_keyword,[])])
                 ters=TerList([Ter(p) for  p in pr.get(Ter.PDB_keyword,[])])
                 atoms.adjustSerials(ters)
-                mods.seqmods.terminals=ters
+                modmanager.injest(ters)
+                # mods.seqmods.terminals=ters
                 if 'REMARK.465' in pr:
                     missings=EmptyResidueList([EmptyResidue(p) for p in pr['REMARK.465'].tables['MISSING']])
                 ssbonds=SSBondList([SSBond(p) for p in pr.get(SSBond.PDB_keyword,[])])  
@@ -81,20 +82,24 @@ class AsymmetricUnit(AncestorAwareMod):
                 write_residue_map(residues.cif_residue_map(),sourcespecs['cif_residue_map_file'])
             residues.apply_segtypes()
             # apply seqmods
-            if hasattr(mods.seqmods,'deletions'):
-                residues.deletion(mods.seqmods.deletions)
-            if hasattr(mods.seqmods,'substitutions'):
-                new_seqadv,wearegone=residues.substitutions(mods.seqmods.substitutions)
+            seqmods=modmanager.get('seqmods',{})
+            if 'deletions' in seqmods:
+                residues.deletion(seqmods['deletions'])
+            if 'substitutions' in seqmods:
+                new_seqadv,wearegone=residues.substitutions(seqmods['substitutions'])
                 seqadvs.extend(new_seqadv)
 
             uniques=residues.uniqattrs(['segtype'],with_counts=True)
             nResolved=sum([1 for x in residues if x.resolved])
             nUnresolved=sum([1 for x in residues if not x.resolved])
             logger.debug(f'{len(residues)} total residues: {nResolved} resolved and {nUnresolved} unresolved')
-            if hasattr(mods.seqmods,'deletions'):
+            if 'deletions' in seqmods:
                 nResolvedDelete=len(fromAtoms)-nResolved
                 nUnresolvedDelete=len(fromEmptyResidues)-nUnresolved
                 logger.debug(f'Deletions removed {nResolvedDelete} resolved and {nUnresolvedDelete} unresolved residues')
+            if 'insertions' in seqmods:
+                residues.apply_insertions(seqmods['insertions'])
+
             logger.debug(f'Segtypes present: {uniques["segtype"]}')
             # Delete any residues dictated by user-specified exclusions
             excludes=sourcespecs['exclude']
@@ -107,6 +112,8 @@ class AsymmetricUnit(AncestorAwareMod):
             residues.map_chainIDs_label_to_auth()
             # initialize the chainID manager
             chainIDmanager.register_asymm_chains(residues.uniqattrs(['chainID'])['chainID'])
+            logger.debug(f'Used chainIDs {chainIDmanager.Used}')
+
             # Give each Seqadv a residue identifier
             ignored_seqadvs=seqadvs.assign_residues(residues)
             ignored_ssbonds=ssbonds.assign_residues(residues)
@@ -138,48 +145,49 @@ class AsymmetricUnit(AncestorAwareMod):
             logger.debug(f'Segnames in A.U.: {",".join(segments.segnames)}')
             if segments.daughters:
                 logger.debug(f'Daughter chains generated: {segments.daughters}')
+            logger.debug(f'Used chainIDs {chainIDmanager.Used}')
 
             # at this point, we have built the asymmetric unit according to the intention of the 
             # author of the structure AND the intention of the user in excluding certain parts
             # of that structure (ligans, ions, chains, etc).  At this point, we should apply
             # any user-defined modifications
 
-            # First, any request to revert to database sequencing:
+            # First, scan all seqadv's for relevant mutations to apply
             mutations=MutationList([])
             if sourcespecs['sequence']['fix_engineered_mutations']:
                 mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='engineered']))
             if sourcespecs['sequence']['fix_conflicts']:
                 mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='conflict']))
             mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='user']))
-            if hasattr(mods.seqmods,'mutations'):
-                mutations.extend(mods.seqmods.mutations)
-            logger.debug(f'mutations')
+            # Now append these to the modmanager's mutations
+            mutations=modmanager.injest(mutations)
+            logger.debug(f'All mutations')
             for m in mutations:
                 logger.debug(str(m))
-            mods.seqmods.mutations=mutations
             pruned_ssbonds=ssbonds.prune_mutations(mutations)
             pruned=pruned_by_links=links.prune_mutations(mutations,segments)
-            if hasattr(pruned,'segments'):
-                for s in pruned['segments']:
-                    logger.debug(f'Recovering chainID {s.segname}')
-                    chainIDmanager.receive_chain(s.segname)
+            pruned_segments=pruned.get('segments',[])
+            for s in pruned_segments:
+                logger.debug(f'Deactivating chainID {s.segname} because this entire segment was pruned')
+                chainIDmanager.receive_chain(s.segname)
+
             # Now any added or deleted ssbonds
-            if hasattr(mods.topomods,'ssbonds'):
-                ssbonds.extend(mods.topomods.ssbonds)
-            if hasattr(mods.topomods,'ssbondsdelete'):
+            ssbonds=modmanager.injest(ssbonds)
+            ssbonds=modmanager['topomods']['ssbonds']
+            if 'ssbondsdelete' in modmanager['topomods']:
                 for s in ssbonds:
-                    if mods.topomods.ssbondsdelete.is_deleted(s):
+                    if modmanager['topomods']['ssbondsdelete'].is_deleted(s):
                         ignored_ssbonds.append(ssbonds.remove(s))
-            mods.topomods.ssbonds=ssbonds
-            # Now any added links
-            if hasattr(mods.topomods,'links'):
-                links.extend(mods.topomods.links)
-            mods.topomods.links=links
+
+            ssbonds=modmanager.injest(ssbonds,overwrite=True)
+            links=modmanager.injest(links)
             
+            segments.inherit_mods(modmanager)
+
             input_dict={
                 'atoms':atoms,
                 'residues':residues,
-                'mods':mods,
+                'modmanager':modmanager,
                 'segments':segments,
                 'ignored':Namespace(residues=ignored_residues,links=ignored_links,ssbonds=ignored_ssbonds,seqadv=ignored_seqadvs),
                 'pruned':Namespace(ssbonds=pruned_ssbonds,residues=pruned_by_links['residues'],links=pruned_by_links['links'],segments=pruned_by_links['segments'])

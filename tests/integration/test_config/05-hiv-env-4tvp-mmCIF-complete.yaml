@@ -215,6 +215,7 @@ tasks:
       Cfusions: []
       crotations: []
       deletions: []
+      insertions: []
       mutations: []
       ssbonds: []
       ssbondsdelete: []
@@ -248,7 +249,7 @@ tasks:
     ensemble: minimize
     minimize: 1000
     nsteps: 2000
-    other_parameters: &id001 {}
+    other_parameters: {}
     pressure: 1
     temperature: 300
     xstfreq: 100
@@ -272,7 +273,7 @@ tasks:
     ensemble: minimize
     minimize: 1000
     nsteps: 2000
-    other_parameters: *id001
+    other_parameters: {}
     pressure: 1
     temperature: 300
     xstfreq: 100
@@ -282,7 +283,7 @@ tasks:
     ensemble: NVT
     minimize: 1000
     nsteps: 2000
-    other_parameters: *id001
+    other_parameters: {}
     pressure: 1
     temperature: 300
     xstfreq: 100
@@ -294,7 +295,7 @@ tasks:
     ensemble: minimize
     minimize: 1000
     nsteps: 2000
-    other_parameters: *id001
+    other_parameters: {}
     pressure: 1
     temperature: 300
     xstfreq: 100
@@ -304,7 +305,7 @@ tasks:
     ensemble: NPT
     minimize: 1000
     nsteps: 2000
-    other_parameters: *id001
+    other_parameters: {}
     pressure: 1
     temperature: 300
     xstfreq: 100

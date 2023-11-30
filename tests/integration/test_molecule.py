@@ -1,8 +1,8 @@
 import unittest
 from pestifer.molecule import Molecule
 from pestifer.config import Config, segtype_of_resname
-from pestifer.chainids import ChainIDManager
-from pestifer.modcontainer import ModContainer
+from pestifer.chainidmanager import ChainIDManager
+from pestifer.modmanager import ModManager
 from io import StringIO
 import yaml
 
@@ -18,11 +18,6 @@ source:
         fix_conflicts: true
         fix_engineered_mutations: true
         include_terminal_loops: false
-        loops:
-            declash:
-            maxcycles: 20
-            min_loop_length: 4
-            sac_res_name: GLY
 """
         f=StringIO(source)
         directive=yaml.safe_load(f)
@@ -32,14 +27,17 @@ source:
         directive=self.get_source_dict('1gc1')
         m=Molecule(source=directive["source"])
         au=m.asymmetric_unit
-        mods=au.mods
-        topomods=mods.topomods
-        seqmods=mods.seqmods
+        mods=au.modmanager
+        topomods=mods.get('topomods',{})
+        seqmods=mods.get('seqmods',{})
+        ssbonds=topomods.get('ssbonds',[])
+        links=topomods.get('links',[])
+        mutations=seqmods.get('mutations',[])
         self.assertEqual(m.sourcespecs['id'],'1gc1')
         self.assertEqual(len(au.atoms),7877)
-        self.assertEqual(len(topomods.ssbonds),14)
-        self.assertEqual(len(seqmods.mutations),3)
-        self.assertEqual(len(topomods.links),15)
+        self.assertEqual(len(ssbonds),14)
+        self.assertEqual(len(mutations),3)
+        self.assertEqual(len(links),15)
         self.assertEqual(len(au.residues),1566)
         self.assertEqual(len(au.segments),13)
         r0=au.residues[0]
@@ -61,7 +59,8 @@ source:
         directive=self.get_source_dict('4zmj')
         m=Molecule(source=directive["source"])
         au=m.asymmetric_unit
-        l=au.mods.topomods.links[0]
+        links=au.modmanager['topomods']['links']
+        l=links[0]
         self.assertEqual(l.residue1.segtype,'protein')
         self.assertEqual(l.residue1.resname,'ASN')
         self.assertEqual(l.residue1.chainID,'G')
@@ -78,7 +77,7 @@ source:
         self.assertTrue(l.residue1 in l.residue2.up)
         self.assertTrue(l in l.residue1.downlink)
         self.assertTrue(l in l.residue2.uplink)
-        l=au.mods.topomods.links[-1]
+        l=links[-1]
         self.assertEqual(l.residue1.segtype,'glycan')
         self.assertEqual(l.residue1.resname,'NAG')
         self.assertEqual(l.residue1.chainID,'C')
@@ -111,9 +110,10 @@ source:
         self.assertEqual(cm['G'],'N')
 
     def test_molecule_ancestry(self):
+        c=Config()
         directive=self.get_source_dict('4zmj')
         directive["source"]["biological_assembly"]=1
-        m=Molecule(source=directive["source"],usermods=ModContainer(),reset_counter=True)
+        m=Molecule(source=directive["source"],modmanager=ModManager(),reset_counter=True)
         au=m.asymmetric_unit
         auao=au.ancestor_obj
         self.assertEqual(auao,m)
@@ -123,13 +123,12 @@ source:
             self.assertEqual(sao.molid,0)
 
     def test_molecule_adjust_serials(self):
+        c=Config()
         directive=self.get_source_dict('4zmj')
         directive["source"]["biological_assembly"]=1
         m=Molecule(source=directive["source"],reset_counter=True)
         au=m.asymmetric_unit
-        print(au.mods.seqmods)
-        self.assertTrue(hasattr(au.mods.seqmods,'terminals'))
-        ters=au.mods.seqmods.terminals
+        ters=au.modmanager.get('seqmods',{}).get('terminals',[])
         self.assertEqual(len(ters),2)
         atom_serials=[x.serial for x in au.atoms]
         orig_atom_serials=[]
@@ -146,6 +145,7 @@ source:
         self.assertEqual(atom_serials[-1],4856)
 
     def test_molecule_cif(self):
+        c=Config()
         directive=self.get_source_dict('4zmj')
         directive["source"]["biological_assembly"]=1
         directive["source"]["file_format"]="mmCIF"
@@ -156,6 +156,7 @@ source:
         self.assertEqual(len(au.residues),659)
         ba=m.active_biological_assembly
         self.assertEqual(len(ba.transforms),3)
-        self.assertEqual(len(au.mods.seqmods.mutations),4)
-        for m in au.mods.seqmods.mutations:
+        mutations=au.modmanager.get('seqmods',{}).get('mutations',{})
+        self.assertEqual(len(mutations),4)
+        for m in mutations:
             self.assertTrue(m.chainID in ['A','B'])

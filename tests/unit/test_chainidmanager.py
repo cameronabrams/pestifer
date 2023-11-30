@@ -1,5 +1,5 @@
 import unittest
-from pestifer.chainids import ChainIDManager
+from pestifer.chainidmanager import ChainIDManager
 
 class TestChainIDManager(unittest.TestCase):
     def test_pdb(self):

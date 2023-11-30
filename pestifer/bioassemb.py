@@ -10,7 +10,7 @@ logger=logging.getLogger(__name__)
 
 from .basemod import AncestorAwareMod, AncestorAwareModList
 from .asymmetricunit import AsymmetricUnit
-from .chainids import ChainIDManager
+from .chainidmanager import ChainIDManager
 
 def build_tmat(RotMat,TransVec):
     """Builds a 4 x 4 homogeneous transformation matrix 

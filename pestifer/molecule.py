@@ -3,21 +3,21 @@
 """
 import logging
 import os
-from .modcontainer import ModContainer
+from .modmanager import ModManager
 from pidibble.pdbparse import PDBParser
 from .cifutil import CIFload
 from .basemod import AncestorAwareMod
 from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList,BioAssemb
 from .scriptwriters import Psfgen
-from .chainids import ChainIDManager
+from .chainidmanager import ChainIDManager
 logger=logging.getLogger(__name__)
 
 class Molecule(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['molid','chainIDmanager','sourcespecs','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
+    req_attr=AncestorAwareMod.req_attr+['molid','modmanager','chainIDmanager','sourcespecs','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
     opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
-    def __init__(self,source={},usermods=None,chainIDmanager=None,**kwargs):
+    def __init__(self,source={},modmanager=None,chainIDmanager=None,**kwargs):
         reset=kwargs.get('reset_counter',False)
         if reset:
             Molecule._molcounter=0
@@ -39,21 +39,20 @@ class Molecule(AncestorAwareMod):
         #     apply_psf_info(p_struct,f'{source}.psf')
         # if os.path.exists(f'{source}.psf'):
         #     apply_psf_info(p_struct,f'{source}.psf')
-        if usermods==None:
-            logger.debug(f'No usermods, making an empty ModContainer')
-            usermods=ModContainer()
+        if modmanager==None:
+            logger.debug(f'Making an empty ModManager')
+            modmanager=ModManager()
         if chainIDmanager==None:
             logger.debug(f'Molecule instantiating its own ChainIDManager')
             chainIDmanager=ChainIDManager()
-        logger.debug(f'user mods at molecule {usermods.__dict__}')
         input_dict={
             'sourcespecs': source,
-            'usermodspecs': usermods,
+            'modmanager': modmanager,
             'chainIDmanager':chainIDmanager,
             'rcsb_file_format': rcsb_file_format,
             'molid': Molecule._molcounter,
             'parsed_struct': p_struct,
-            'asymmetric_unit': AsymmetricUnit(parsed=p_struct,sourcespecs=source,usermodspecs=usermods,chainIDmanager=chainIDmanager),
+            'asymmetric_unit': AsymmetricUnit(parsed=p_struct,sourcespecs=source,modmanager=modmanager,chainIDmanager=chainIDmanager),
             'biological_assemblies': BioAssembList(p_struct)
         }
         super().__init__(input_dict)
@@ -81,8 +80,9 @@ class Molecule(AncestorAwareMod):
     def write_TcL(self,W:Psfgen):
         au=self.asymmetric_unit
         segments=au.segments
-        mods=au.mods
-
+        topomods=au.modmanager.get('topomods',{})
+        ssbonds=topomods.get('ssbonds',[])
+        links=topomods.get('links',[])
         ba=self.active_biological_assembly
         for transform in ba.transforms:
             W.banner(f'Transform {transform.index} begins')
@@ -90,11 +90,13 @@ class Molecule(AncestorAwareMod):
             for k,v in transform.chainIDmap.items():
                 W.comment(f'A.U. chain {k}: Image chain {v}')
             W.banner('Segments follow')
-            segments.write_TcL(W,transform,mods)
+            segments.write_TcL(W,transform)
             W.banner('DISU patches follow')
-            mods.topomods.ssbonds.write_TcL(W,transform)
+            if ssbonds:
+                ssbonds.write_TcL(W,transform)
             W.banner('LINK patches follow')
-            mods.topomods.links.write_TcL(W,transform)
+            if links:
+                links.write_TcL(W,transform)
             W.banner(f'Transform {transform.index} ends')
     
     def get_chainmaps(self):

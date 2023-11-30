@@ -14,7 +14,7 @@ from .coord import positionN
 class Segment(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','specs']
     opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname']
-
+    inheritable_mods=['mutations','Cfusions','insertions']
     def __init__(self,specs,input_obj,segname):
         if type(input_obj)==dict:
             input_dict=input_obj
@@ -80,21 +80,21 @@ class Segment(AncestorAwareMod):
     def __str__(self):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
 
-    def write_TcL(self,W:Psfgen,transform,mods):
+    def write_TcL(self,W:Psfgen,transform):
         if self.segtype=='protein':
-            self.protein_stanza(W,transform,mods)
+            self.protein_stanza(W,transform)
         elif self.segtype=='glycan':
-            self.glycan_stanza(W,transform,mods)
+            self.glycan_stanza(W,transform)
         else:
-            self.generic_stanza(W,transform,mods)
+            self.generic_stanza(W,transform)
     
-    def glycan_stanza(self,W,transform,mods):
+    def glycan_stanza(self,W,transform):
         if self.has_graft([]):
             W.comment('Glycan grafts not yet implemented.')
         else:
-            self.generic_stanza(W,transform,mods)
+            self.generic_stanza(W,transform)
     
-    def generic_stanza(self,W,transform,mods):
+    def generic_stanza(self,W,transform):
         assert len(self.subsegments)==1,'No missing atoms allowed in generic stanza'
         parent_molecule=self.ancestor_obj
         chainIDmap=transform.chainIDmap
@@ -126,12 +126,15 @@ class Segment(AncestorAwareMod):
             W.restore_selection(selname,dataholder=f'{selname}_data')
         W.banner(f'Segment {image_seglabel} ends')
 
-    def protein_stanza(self,W:Psfgen,transform,mods):
+    def protein_stanza(self,W:Psfgen,transform):
         parent_molecule=self.ancestor_obj
         chainIDmap=transform.chainIDmap
         seglabel=self.segname
         image_seglabel=chainIDmap.get(seglabel,seglabel)
         is_image=image_seglabel!=seglabel
+
+        modmanager=self.modmanager
+        seqmods=modmanager.get('seqmods',{})
 
         transform.register_mapping(self.segtype,image_seglabel,seglabel)
 
@@ -140,19 +143,10 @@ class Segment(AncestorAwareMod):
         build_all_terminal_loops=self.specs['include_terminal_loops']
         build_N_terminal_loop=seglabel in self.specs['build_zero_occupancy_N_termini']
         build_C_terminal_loop=seglabel in self.specs['build_zero_occupancy_C_termini']
-        # first_subseg
-        # intra-segment, no need to use image_seglabel
-        seg_mutations=MutationList([])
-        if hasattr(mods.seqmods,'mutations'):
-            seg_mutations=mods.seqmods.mutations.filter(chainID=seglabel)
-        seg_Cfusions=CfusionList([])
-        if hasattr(mods.seqmods,'Cfusions'):
-            seg_Cfusions=mods.seqmods.Cfusions.filter(tosegment=seglabel)
-        seg_insertions=InsertionList([])
-        if hasattr(mods.seqmods,'insertions'):
-            seg_insertions=mods.seqmods.insertions.filter(chainID=seglabel)
-            self.residues.apply_insertions(seg_insertions)
-            self.subsegments=self.residues.state_bounds(lambda x: 'MISSING' if (not hasattr(x,'atoms') or len(x.atoms)==0) else 'RESOLVED')
+
+        seg_mutations=seqmods.get('mutations',MutationList([]))
+        seg_Cfusions=seqmods.get('Cfusions',CfusionList([]))
+
         W.banner(f'Segment {image_seglabel} begins')
         for sf in seg_Cfusions:
             sf.write_pre_segment(W)
@@ -211,7 +205,7 @@ class Segment(AncestorAwareMod):
         for cf in seg_Cfusions:
             cf.write_in_segment(W)
         for m in seg_mutations:
-                W.comment(f'fix {m.typekey}')
+                W.comment(f'mutation source: {m.typekey}')
                 W.addline(m.write_TcL())
         W.addline('}')
         W.banner(f'End segment {image_seglabel}')
@@ -312,10 +306,10 @@ class SegmentList(AncestorAwareModList):
                     working_files.append(subseg.pdb)
         return working_files
     
-    def write_TcL(self,W:Psfgen,transform,mods):
+    def write_TcL(self,W:Psfgen,transform):
         for seg in self:
             W.comment(f'Writing seg {seg.segname}')
-            seg.write_TcL(W,transform,mods)
+            seg.write_TcL(W,transform)
             W.comment(f'Done with seg {seg.segname}')
     
     def get_segment_of_residue(self,residue):
@@ -328,3 +322,7 @@ class SegmentList(AncestorAwareModList):
         self.segnames.remove(item.segname)
         self.counters_by_segtype[self.segtype_of_segname[item.segname]]-=1
         return super().remove(item)
+
+    def inherit_mods(self,modmanager):
+        for item in self:
+            item.modmanager=modmanager.filter_copy(modtypes=item.inheritable_mods,chainID=item.segname)
