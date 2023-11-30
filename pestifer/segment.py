@@ -3,13 +3,13 @@
 """
 import logging
 logger=logging.getLogger(__name__)
-from .basemod import AncestorAwareMod, AncestorAwareModList, StateInterval, StateIntervalList
-from .mods import MutationList, CfusionList
+from .basemod import AncestorAwareMod, AncestorAwareModList
+from .mods import MutationList, CfusionList, InsertionList
 from .config import charmm_resname_of_pdb_resname
 from .residue import Residue,ResidueList
 from .util import reduce_intlist
 from .scriptwriters import Psfgen
-
+from .coord import positionN
 
 class Segment(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','specs']
@@ -80,21 +80,21 @@ class Segment(AncestorAwareMod):
     def __str__(self):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
 
-    def write_TcL(self,W:Psfgen,transform,mods,buildspecs={}):
+    def write_TcL(self,W:Psfgen,transform,mods):
         if self.segtype=='protein':
-            self.protein_stanza(W,transform,mods,buildspecs)
+            self.protein_stanza(W,transform,mods)
         elif self.segtype=='glycan':
-            self.glycan_stanza(W,transform,mods,buildspecs)
+            self.glycan_stanza(W,transform,mods)
         else:
-            self.generic_stanza(W,transform,mods,buildspecs)
+            self.generic_stanza(W,transform,mods)
     
-    def glycan_stanza(self,W,transform,mods,buildspecs):
+    def glycan_stanza(self,W,transform,mods):
         if self.has_graft([]):
             W.comment('Glycan grafts not yet implemented.')
         else:
-            self.generic_stanza(W,transform,mods,buildspecs)
+            self.generic_stanza(W,transform,mods)
     
-    def generic_stanza(self,W,transform,mods,buildspecs):
+    def generic_stanza(self,W,transform,mods):
         assert len(self.subsegments)==1,'No missing atoms allowed in generic stanza'
         parent_molecule=self.ancestor_obj
         chainIDmap=transform.chainIDmap
@@ -126,7 +126,7 @@ class Segment(AncestorAwareMod):
             W.restore_selection(selname,dataholder=f'{selname}_data')
         W.banner(f'Segment {image_seglabel} ends')
 
-    def protein_stanza(self,W:Psfgen,transform,mods,buildspecs):
+    def protein_stanza(self,W:Psfgen,transform,mods):
         parent_molecule=self.ancestor_obj
         chainIDmap=transform.chainIDmap
         seglabel=self.segname
@@ -135,27 +135,24 @@ class Segment(AncestorAwareMod):
 
         transform.register_mapping(self.segtype,image_seglabel,seglabel)
 
-        termini_specs=buildspecs['termini']
-        gap_specs=buildspecs['gaps']
-
-        sac_rn=gap_specs['temporary_capping']['sac_res_name']
-        min_gap_length=gap_specs['temporary_capping']['trigger_length']
-        build_all_terminal_loops=termini_specs['build_all']
-        build_N_terminal_loop=seglabel in termini_specs['build_N_termini_of_chains']
-        build_C_terminal_loop=seglabel in termini_specs['build_C_termini_of_chains']
+        sac_rn=self.specs['loops']['sac_res_name']
+        min_loop_length=self.specs['loops']['min_loop_length']
+        build_all_terminal_loops=self.specs['include_terminal_loops']
+        build_N_terminal_loop=seglabel in self.specs['build_zero_occupancy_N_termini']
+        build_C_terminal_loop=seglabel in self.specs['build_zero_occupancy_C_termini']
         # first_subseg
         # intra-segment, no need to use image_seglabel
-        # There are some mods that have to be handled right
-        # where the segment stanza is generated in the input file.
-        # - Mutations, since we have to filter by segment for the intra-segment command "residue"
-        # - Cfusions, since we have to extract coordinates from other PDB files and include those pdb files inside the segment stanza
         seg_mutations=MutationList([])
         if hasattr(mods.seqmods,'mutations'):
             seg_mutations=mods.seqmods.mutations.filter(chainID=seglabel)
         seg_Cfusions=CfusionList([])
         if hasattr(mods.seqmods,'Cfusions'):
             seg_Cfusions=mods.seqmods.Cfusions.filter(tosegment=seglabel)
-
+        seg_insertions=InsertionList([])
+        if hasattr(mods.seqmods,'insertions'):
+            seg_insertions=mods.seqmods.insertions.filter(chainID=seglabel)
+            self.residues.apply_insertions(seg_insertions)
+            self.subsegments=self.residues.state_bounds(lambda x: 'MISSING' if (not hasattr(x,'atoms') or len(x.atoms)==0) else 'RESOLVED')
         W.banner(f'Segment {image_seglabel} begins')
         for sf in seg_Cfusions:
             sf.write_pre_segment(W)
@@ -184,15 +181,12 @@ class Segment(AncestorAwareMod):
             elif b.state=='MISSING':
                 if i==0:
                     if build_N_terminal_loop or build_all_terminal_loops:
-                        b.build=True
-                        b.is_capped=False
+                        b.declare_buildable()
                 elif i==(len(self.subsegments)-1):
                     if build_C_terminal_loop or build_all_terminal_loops:
-                        b.build=True
-                        b.is_capped=False
+                        b.declare_buildable()
                 else:
-                    b.build=True
-                    b.is_capped=False if b.num_items()<min_gap_length else True
+                    b.declare_buildable()
         W.addline(f'segment {image_seglabel} '+'{')
         if self.subsegments[0].state=='MISSING' and not self.subsegments[0].build:
             Nterminal_missing_subsegment=self.subsegments.pop(0)
@@ -207,7 +201,7 @@ class Segment(AncestorAwareMod):
                 for r in self.residues[b.bounds[0]:b.bounds[1]+1]:
                     rname=charmm_resname_of_pdb_resname.get(r.resname,r.resname)
                     W.addline(f'    residue {r.resseqnum}{r.insertion} {rname} {image_seglabel}')
-                if b.is_capped:
+                if b.num_items()>=min_loop_length and not b in [self.subsegments[0],self.subsegments[-1]]:
                     lrr=self.residues[b.bounds[1]]
                     sac_resseqnum=lrr.resseqnum
                     sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
@@ -239,10 +233,9 @@ class Segment(AncestorAwareMod):
         for sc in seg_Cfusions:
             sc.write_post_segment(W)
         W.banner('Intra-segmental terminal patches')
-        W.comment('The CTER patch should not be applied to an interal residue (one that has a residue C terminal to itself) because it will destroy atoms in that next residue.  To avoid this, we introduce a sacrificial residue to absorb the destructive power of the CTER patch and once the patch is applied, we delete this residue.  It is only there to "protect" the next residue after the gap.')
         for i,b in enumerate(self.subsegments):
             # only non-terminal loops get the terminal patches
-            if b.state=='MISSING' and b.is_capped:
+            if b.state=='MISSING' and 0<i<(len(self.subsegments)-1) and hasattr(b,'sacres'):
                 Cterm=self.residues[b.bounds[1]]
                 W.addline(f'patch CTER {image_seglabel}:{Cterm.resseqnum}{Cterm.insertion}')
                 nextb=self.subsegments[i+1]

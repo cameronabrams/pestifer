@@ -1,4 +1,4 @@
-# Pestifer 1.2
+# Pestifer 1.0.1
 # (c) 2023 Cameron F. Abrams, 2023
 #
 # Format specification for user configuration file
@@ -294,6 +294,7 @@ directives:
         text: parameters governing harmonic constraints; not necessarily NAMD-compatible keywords
         default:
           spring_constant: 200
+
   - name: title
     type: str
     text: Meaningful title (optional)
@@ -320,7 +321,7 @@ directives:
         required: False
   - name: tasks
     type: list
-    text: Specifies the tasks to be performed in series
+    text: Specifies the tasks to be performed serially
     directives:
       - name: psfgen
         text: Parameters controlling a psfgen run on an input molecule
@@ -352,14 +353,6 @@ directives:
               - name: altcoords
                 type: str
                 text: An optional coordinate file that must be congruent (same atoms; same order) as base PDB file
-              - name: fix_engineered_mutations
-                text: Specifies whether or not sequence differences w.r.t. a sequence database and which are labeled as "engineered mutation"s are reverted to their database values
-                type: bool
-                default: True 
-              - name: fix_conflicts 
-                text: Specifies whether or not sequence differences w.r.t. a sequence database and which are labeled as "conflicts"s are reverted to their database values
-                type: bool
-                default: True
               - name: exclude
                 text: Specifies any residues or atoms present in the PDB source to exclude from the system
                 type: dict
@@ -372,48 +365,52 @@ directives:
                     text: Specify list of resnames to ignore; good for excluding waters or ions or small molecules.  Resnames must reference your chosen coordinate input file.
                     type: list
                     required: False
-          - name: build
-            text: Parameters controlling building-in of zero-occupancy residues
-            type: dict
-            directives:
-              - name: termini
-                text: Parameters controlling building-in of zero-occupancy chain termini
+              - name: sequence
+                text: Parameters controlling sequence modifications based on specifications in the PDB source
                 type: dict
                 directives:
-                  - name: build_all
-                    text: Specifies whether or not all zero-occupancy residues at N- and C- termini are built in
+                  - name: include_terminal_loops
+                    text: Specifies whether or not N- and C- terminal loops (if unresolved) are built in
                     type: bool
                     default: False
-                  - name: build_C_termini_of_chains
-                    text: List of specific chain identifiers for which you would like zero-occupancy residues at the C-terminus built in
+                  - name: build_zero_occupancy_C_termini
+                    text: List of chain identifiers for which you would like zero-occupancy residues at the C-terminus built in
                     type: list
                     default: []
-                  - name: build_N_termini_of_chains
-                    text: List of specific chain identifiers for which you would like zero-occupancy residues at the N-terminus built in
+                  - name: build_zero_occupancy_N_termini
+                    text: List of chain identifiers for which you would like zero-occupancy residues at the N-terminus built in
                     type: list
                     default: []
-              - name: gaps
-                text: Parameters controlling building-in of runs of zero-occupancy residues internal to resolved chains (i.e., "gaps")
-                type: dict
-                directives:
-                  - name: build_all
-                    text: Specifies whether or not to build in all zero-occupancy residues in gaps
+                  - name: fix_engineered_mutations
+                    text: Specifies whether or not sequence differences w.r.t. a sequence database and which are labeled as "engineered mutation"s are reverted to their database values
                     type: bool
-                    default: True
-                  - name: temporary_capping
-                    text: Parameters controlling temporary capping of built-in gap C-termini in preparation for eventual ligation to partner N-termini for sufficiently large gaps; this requires a cleavage that will eventually be healed.
+                    default: True 
+                  - name: fix_conflicts 
+                    text: Specifies whether or not sequence differences w.r.t. a sequence database and which are labeled as "conflicts"s are reverted to their database values
+                    type: bool
+                    default: True          
+                  - name: loops
+                    text: Parameters controlling model-built loops during psfgen
                     type: dict
                     directives:
                       - name: sac_res_name 
-                        text: 3-letter code of sacrificial residue used to cap all c-termini to avoid weird residue termini
+                        text: 3-letter code of residue appended to any sufficiently long model-built 
                         type: str
                         default: GLY
-                      - name: trigger_length
-                        text: Minimum length in residues that signifies a gap whose C-terminus should undergo steering toward its partner N-terminus
+                      - name: min_loop_length
+                        text: Minimum length of model-built loop that triggers the ligation algorithm
                         type: int
                         default: 4
+                      - name: declash
+                        text: Specifies how model-built residues are moved to avoid steric clashes
+                        type: dict
+                        directives:
+                          - name: maxcycles
+                            text: Maximum number of Metropolis cycles
+                            type: int
+                            default: 20
           - name: mods
-            text: User-specified modifications to the sequence or structure beyond what is specified in the PDB/mmCIF file
+            text: Specifies modifications to the sequence or structure in the PDB file
             type: dict
             directives:
               - name: mutations
@@ -434,20 +431,113 @@ directives:
               - name: insertions
                 text: sequence of residues to insert C-terminal to a specified residue in a specified chain; e.g., C,123,GRETA inserts the residues Gly123A, Arg123B, Glu123C, Thr123D, and Ala123E immediately C-terminal to residue 123 of chain C; if the resid includes a terminal "+", then inserted resids are incremented as integers
                 type: list
-              - name: cleavages
-                text: Chain cleavage specifications, "C:R" where C is chain ID and R is residue specification; chain is cleaved between this residue and the next, but both daughter chains retain the same chain ID (for now)
-                type: list
-              - name: rotations
-                text: Independent coordinate transformations involving valence angle bending or dihedral angle rotations
+              - name: crotations
+                text: dihedral angle rotations to reposition modelled-in protein chains or glycans
                 type: list
               - name: Cfusions
                 text: fuse residues from named residue range of named protein chain of named input PDB coordinate file to C-terminus of named segment of base molecule
                 type: list
-              # - name: grafts
+              # - name: insertion
+              # - name: graft
           - name: cleanup
             text: Specifies whether or not to delete temporary files generated during psfgen execution
             type: bool
             default: True
+      - name: ligate
+        text: Specifies how C-termini of modeled loops are connected back to the protein
+        type: dict
+        directives:
+          - name: steer
+            text: Specifies parameters for steered MD to bring C-termini close to their connection points
+            type: dict
+            directives:
+              - name: ensemble
+                text: Name of ensemble to run in; note that NPT can only be peformed on a solvated system
+                type: str
+                choices: [minimize, NVT, NPT]
+                default: NVT
+              - name: force_constant
+                text: force constant (kcal/mol/Angstrom^2)
+                type: float
+                default: 20
+              - name: target_distance
+                text: distance (Angstrom) between carbonyl carbon of loop C-terminus and amide nitrogen of connecting residue that steered MD drives to
+                type: float
+                default: 2
+              - name: nsteps
+                text: number of MD time steps for steeering
+                type: int
+                default: 1000
+              - name: dcdfreq
+                text: number of time steps between configuration output to DCD file
+                type: int
+                default: 100
+              - name: xstfreq
+                text: number of time steps between cell size output to DCD file (only used if ensemble is NPT)
+                type: int
+                default: 100
+              - name: temperature
+                text: Temperature used in steered MD run
+                type: float
+                default: 300
+              - name: pressure
+                text: Pressure used in steered MD run (only used if ensemble is NPT)
+                type: float
+                default: 1
+              - name: receiver_flexible_zone_radius
+                text: size of zone around receiver N-terminal N in which CA's are not fixed during steered MD
+                type: float
+                default: 0.0 # all fixed by default
+              - name: constraints
+                text: Parameters controlling position constraints
+                type: dict
+                directives:
+                  - name: atoms
+                    text: Atoms to be position-constrained expressed as a VMD atomselection
+                    type: string
+                  - name: k
+                    text: Restraint spring constant in kcal/mol/A^2
+                    type: float
+                  - name: consfile
+                    text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+                    type: string
+          - name: connect
+            text: Specifies parameters of the psfgen run that patches in the new backbone bonds
+            type: dict
+            directives:
+              - name: cleanup
+                text: Specifies whether or not to clean up temporary files
+                type: bool
+                default: True 
+      - name: domainswap
+        text: Parameters controlling a domain swap TMD simulation
+        type: dict
+        directives:
+          - name: swap_domain_def
+            type: str
+            text: VMD atomselect string for the domain; will be appended with "and chain X" for each chain
+          - name: anchor_domain_def
+            type: str
+            text: VMD atomselect string for the anchor domains; will be appended with "and chain X" for each chain
+          - name: chain_directional_swaps
+            type: list
+            text: list of pairs of directional swaps of chainIDs [[A,B], [B,A]] swaps A and B
+          - name: force_constant
+            type: float
+            text: force constant used in biases for domain-swap CV MD simulation (200)
+            default: 200.0
+          - name: target_numsteps
+            type: int
+            text: number of timesteps to run the biased MD simulation
+            default: 10000
+          - name: dcdfreq
+            type: int
+            text: number of timesteps between dcd output
+            default: 100
+          - name: temperature
+            type: float
+            text: temperature of thermostat in MD run
+            default: 300
       - name: solvate
         text: Parameters controlling solvation and ionization
         type: dict
@@ -505,76 +595,17 @@ directives:
               - name: consfile
                 text: Name of constraints PDB file (defaults to basename-constraints.pdb)
                 type: string
-          - name: cvbias
-            text: Custom parameters controlling collective-variable biasing
-            type: dict
-            directives:
-              - name: force_constant
-                type: float
-                text: force constant used in biases (200)
-                default: 200.0
-              - name: target_numsteps
-                type: int
-                text: number of timesteps to run the biased MD simulation
-                default: 10000
-              - name: subtype
-                text: Custom subtype of cv biasing to perform
-                type: str
-                choices: [generic, domain_swap, gap_end_steering]
-              - name: generic
-                text: Parameters controlling a generic SMD simulation (only used when subtype is "generic")
-                type: dict
-                directives:
-                  - name: cv_input_file
-                    text: name of existing, user-supplied Colvars module input file
-                    type: str
-              - name: domain_swap
-                text: Parameters controlling a domain swap SMD simulation (only used when subtype is "domain_swap")
-                type: dict
-                directives:
-                  - name: swap_domain_def
-                    type: str
-                    text: VMD atomselect string for the domain; will be appended with "and chain X" for each chain
-                  - name: anchor_domain_def
-                    type: str
-                    text: VMD atomselect string for the anchor domains; will be appended with "and chain X" for each chain
-                  - name: chain_directional_swaps
-                    type: list
-                    text: list of pairs of directional swaps of chainIDs [[A,B], [B,A]] swaps A and B
-              - name: gap_end_steering
-                text: Parameters controlling a gap-end SMD simulation that pulls C-termini of built-in gap residues toward their respective N-termini (only used when subtype is "gap_end_steering")
-                type: dict
-                directives:
-                  - name: receiver_flexible_zone_radius
-                    text: size of zone around receiver N-terminal N in which CA's are not fixed during steered MD
-                    type: float
-                    default: 0.0 # all fixed by default
-                  - name: target_distance
-                    text: distance (Angstroms) between carbonyl carbon of loop C-terminus and amide nitrogen of connecting residue that steered MD drives to
-                    type: float
-                    default: 2
       - name: manipulate
-        text: Direct manipulation of system topology or atom positions
+        text: Direct manipulation of atom positions
         type: dict
         directives:
           - name: mods
-            text: Specifies modifications to the sequence or cartesian atom positions in the current system
+            text: Specifies modifications to the sequence or structure in the current structure
             type: dict
             directives:
-              - name: rotations
+              - name: crotations
                 text: dihedral angle rotations to reposition residues
                 type: list
-              - name: cleavages
-                text: Chain cleavage specifications, "C:R" where C is chain ID and R is residue specification; chain is cleaved between this residue and the next
-                type: list
-          - name: connect
-            type: Parameters specifying how nearby C and N termini are connected to form a continuous polypeptide chain
-            type: dict
-            directives:
-              - name: cleanup
-                text: Specifies whether or not to clean up temporary files
-                type: bool
-                default: True 
       - name: terminate
         text: Task that signals end of task list
         type: dict

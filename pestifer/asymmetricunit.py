@@ -16,7 +16,6 @@ from .util import write_residue_map
 logger=logging.getLogger(__name__)
 
 class AsymmetricUnit(AncestorAwareMod):
-    """A class for building pestifer's representation of the asymmetric unit"""
     req_attr=AncestorAwareMod.req_attr+['atoms','residues','mods']
     opt_attr=AncestorAwareMod.opt_attr+['segments','ignored','pruned']
     excludables={'resnames':'resname','chains':'chainID','segtypes':'segtype'}
@@ -36,7 +35,6 @@ class AsymmetricUnit(AncestorAwareMod):
             # logger.debug(f'User mods {type(mods)} at asymmetric unit: {mods.__dict__}')
             chainIDmanager=objs.get('chainIDmanager',None)
             
-            # construct list of atoms, missing residues, ssbonds, links, ters, and seqadvs
             missings=EmptyResidueList([])
             ssbonds=SSBondList([])
             links=LinkList([])
@@ -88,8 +86,6 @@ class AsymmetricUnit(AncestorAwareMod):
             if hasattr(mods.seqmods,'substitutions'):
                 new_seqadv,wearegone=residues.substitutions(mods.seqmods.substitutions)
                 seqadvs.extend(new_seqadv)
-            if hasattr(mods.seqmods,'insertions'):
-                residues.apply_insertions(mods.seqmods.insertions)
 
             uniques=residues.uniqattrs(['segtype'],with_counts=True)
             nResolved=sum([1 for x in residues if x.resolved])
@@ -145,7 +141,7 @@ class AsymmetricUnit(AncestorAwareMod):
 
             # at this point, we have built the asymmetric unit according to the intention of the 
             # author of the structure AND the intention of the user in excluding certain parts
-            # of that structure (ligands, ions, chains, etc).  At this point, we should apply
+            # of that structure (ligans, ions, chains, etc).  At this point, we should apply
             # any user-defined modifications
 
             # First, any request to revert to database sequencing:
@@ -170,8 +166,10 @@ class AsymmetricUnit(AncestorAwareMod):
             # Now any added or deleted ssbonds
             if hasattr(mods.topomods,'ssbonds'):
                 ssbonds.extend(mods.topomods.ssbonds)
-            if hasattr(mods.seqmods,'ssbondsdelete'):
-                ignored_ssbonds=ssbonds.delete_requested(mods.topomods.ssbondsdelete)
+            if hasattr(mods.topomods,'ssbondsdelete'):
+                for s in ssbonds:
+                    if mods.topomods.ssbondsdelete.is_deleted(s):
+                        ignored_ssbonds.append(ssbonds.remove(s))
             mods.topomods.ssbonds=ssbonds
             # Now any added links
             if hasattr(mods.topomods,'links'):

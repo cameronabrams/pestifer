@@ -1,7 +1,5 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-# coords.tcl 
-# Generic VMD script for altering coordinates
-#
+
 for { set i 0 } { $i < [llength $argv] } { incr i } {
     if { [lindex $argv $i] == "-pdb"} {
        incr i
@@ -15,17 +13,22 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
        incr i
        set outbasename [lindex $argv $i]
     }
-    if { [lindex $argv $i] == "-c"} {
+    if { [lindex $argv $i] == "-p"} {
        incr i
-       set coordfile [lindex $argv $i]
+       set patchfile [lindex $argv $i]
     }
 }
 
+set outpsf ${outbasename}.psf
 set outpdb ${outbasename}.pdb
 
-mol load psf $psf pdb $pdb
+readpsf $psf pdb $pdb
 
-source $coordfile
+source $patchfile
 
-[atomselect top all] writepdb $outpdb
+regenerate angles dihedrals
+guesscoord
+
+writepsf $outpsf
+writepdb $outpdb
 exit
