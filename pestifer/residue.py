@@ -123,6 +123,23 @@ class AtomList(AncestorAwareModList):
         assert len(self)==len(other),'Error: atom lists not equal length'
         for sa,oa in zip(self,other):
             sa.overwritePosition(oa)
+    
+    def apply_psf_resnames(self,psffile):
+        if not os.path.exists(psffile):
+            return
+        with open(psffile,'r') as f:
+            psflines=f.read().split('\n')
+        tokens=[[y.strip() for y in x.split()] for x in psflines]
+        acl=[x for x in tokens if (len(x)==2 and x[1]=='!NATOM')][0]
+        atom_hdr_idx=tokens.index(acl)
+        num_atoms=int(acl[0])
+        assert len(self)==num_atoms,f'PSF file {psffile} has {num_atoms} atoms, but this list has {len(self)}'
+        atomlines=psflines[atom_hdr_idx+1:atom_hdr_idx+num_atoms]
+        for myatom,psfatomline in zip(self,atomlines):
+            resname=psfatomline.split()[3].strip()
+            if myatom.resname!=resname:
+                logger.debug(f'Reassigning resname of atom {myatom.serial} from {myatom.resname} to {resname}')
+                myatom.resname=resname
 
 class Hetatm(Atom):
     PDB_keyword='HETATM'
@@ -503,3 +520,7 @@ class ResidueList(AncestorAwareModList):
                 self.insert(idx,new_residue)
                 idx+=1
                 i='A' if i in [' ',''] else chr(ord(i)+1)
+    
+    def set_chainID(self,chainID):
+        for r in self:
+            r.set_chainID(chainID)

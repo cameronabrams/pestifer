@@ -27,6 +27,7 @@ class Molecule(AncestorAwareMod):
             logger.debug('Molecule initialized without source.')
             p_struct=None
         else:
+            logger.debug('Molecule initialization')
             rcsb_file_format=source['file_format']
             if rcsb_file_format=='PDB':
                 p_struct=PDBParser(PDBcode=source['id']).parse().parsed
@@ -34,6 +35,7 @@ class Molecule(AncestorAwareMod):
                 logger.debug(f'CIF source {source["id"]}')
                 p_struct=CIFload(source['id'])
                 logger.debug(f'p_struct type {type(p_struct)}')
+        psf=kwargs.get('psf','')
         # use_psf=options.get('use_psf',None)
         # if use_psf:
         #     apply_psf_info(p_struct,f'{source}.psf')
@@ -52,7 +54,7 @@ class Molecule(AncestorAwareMod):
             'rcsb_file_format': rcsb_file_format,
             'molid': Molecule._molcounter,
             'parsed_struct': p_struct,
-            'asymmetric_unit': AsymmetricUnit(parsed=p_struct,sourcespecs=source,modmanager=modmanager,chainIDmanager=chainIDmanager),
+            'asymmetric_unit': AsymmetricUnit(parsed=p_struct,sourcespecs=source,modmanager=modmanager,chainIDmanager=chainIDmanager,psf=psf),
             'biological_assemblies': BioAssembList(p_struct)
         }
         super().__init__(input_dict)
@@ -179,3 +181,41 @@ class Molecule(AncestorAwareMod):
                                 cm=transform.chainIDmap
                                 act_segID=cm.get(asymm_segname,asymm_segname)
                                 writer.addline(f'patch HEAL {act_segID}:{llres.resseqnum}{llres.insertion} {act_segID}:{lres.resseqnum}{lres.insertion} {act_segID}:{rres.resseqnum}{rres.insertion} {act_segID}:{rrres.resseqnum}{rrres.insertion}')
+
+    def cleave_chains(self,clv_list):
+        ba=self.activate_biological_assembly
+        au=self.asymmetric_unit
+        cm=self.chainIDmanager
+        topomods=self.modmanager.get('topomods',{})
+        for clv in clv_list:
+            S=au.segments.get(chainID=clv.chainID)
+            if S:
+                DchainID=cm.next_chain()
+                D=S.cleave(clv,DchainID)
+                au.add_segment(D)
+                
+                ssbonds=topomods.get('ssbonds',[])
+                if ssbonds:
+                    for c in ssbonds.filter(chainID1=S.segname):
+                        for d in D.residues.filter(resseqnum=c.resseqnum1,insertion=c.insertion1):
+                            c.chainID1=d.chainID
+                    for c in ssbonds.filter(chainID2=S.segname):
+                        for d in D.residues.filter(resseqnum=c.resseqnum2,insertion=c.insertion2):
+                            c.chainID2=d.chainID
+                links=topomods.get('links',[])
+                if links:
+                    logger.debug(f'Examining {len(links)} links for ones needing chainID update from {S.segname} to {DchainID} due to cleavage')
+                    for c in links.filter(chainID1=S.segname):
+                        logger.debug(f'...link {str(c)}')
+                        for d in D.residues.filter(resseqnum=c.resseqnum1,insertion=c.insertion1):
+                            logger.debug(f'...hit! {c.chainID1}->{d.chainID}')
+                            c.update_residue(1,chainID=d.chainID)
+                    for c in links.filter(chainID2=S.segname):
+                        logger.debug(f'...link {str(c)}')
+                        for d in D.residues.filter(resseqnum=c.resseqnum2,insertion=c.insertion2):
+                            logger.debug(f'...hit! {c.chainID2}->{d.chainID}')
+                            c.update_residue(2,chainID=d.chainID)
+                    for c in links:
+                        logger.debug(str(c))
+            else:
+                logger.debug(f'No segment with chainID {clv.chainID} found; no cleavage performed.')

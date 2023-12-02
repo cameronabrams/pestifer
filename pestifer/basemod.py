@@ -100,6 +100,12 @@ class BaseMod(Namespace):
         match the corresponding key:val pairs in the calling instance's
         attributes
 
+    wildmatch(**fields)
+        non strict match with substring keys -- returns true if all key:val 
+        pairs in fields match the corresponding key:val pairs in the calling 
+        instance's attributes such that the passed-in keys are substrings
+        of the attribute keys
+
     dump()
         returns a string containing a yaml-format dump of the calling
         instance as a dictionary (non-recursive)
@@ -284,6 +290,34 @@ class BaseMod(Namespace):
                 # logger.debug(f'wrong value ({self.__dict__[k]}) for key {k}; wanted {v}')
                 return False
         return True
+    
+    def wildmatch(self,**fields):
+        """ 
+        Parameters
+        ----------
+        field : dict, optional
+            attribute:value pairs that are checked against those of the object, except
+            each attribute name here can match as a substring to any object attribute
+            name
+        
+        Returns
+        -------
+        bool :
+            True if calling instance attribute values match the fields input
+        """
+        for k,v in fields.items():
+            for tk in self.__dict__.keys():
+                if k in tk:  # passed in key is a substring of objects attribute name
+                    logger.debug(f'wildmatch matches key {k} to attr name {tk}')
+                    break
+            else:
+                return False
+            if v!=self.__dict__[tk]:
+                # logger.debug(f'wrong value ({self.__dict__[k]}) for key {k}; wanted {v}')
+                return False
+        return True
+
+
     
     def dump(self):
         """Simple dump of this item's __dict__

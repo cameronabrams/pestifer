@@ -55,7 +55,8 @@ class Controller:
             specs=self.config.make_default_specs('tasks','terminate')
             logger.debug('Adding default terminate task')
             self.tasks.append(TerminateTask(specs,'terminate',self.config['base'],self.writers,prior_task))
-        logger.info(f'Controller will execute {len(self.tasks)} task(s).')
+        ess='s' if len(self.tasks)>1 else ''
+        logger.info(f'Controller will execute {len(self.tasks)} task{ess}.')
 
     def do_tasks(self):
         # Execute each task in series

@@ -99,9 +99,11 @@ directives:
           - atom TIP3 O OH2
           - residue HIS HSD
           - residue PO4 H2PO4
+          - residue H2PO H2PO4
           - residue MAN AMAN
           - residue BMA BMAN
           - residue NAG BGLCNA
+          - residue BGLC BGLCNA
           - residue FUC AFUC
           - residue GAL BGAL
           - residue ANE5 ANE5AC
@@ -189,6 +191,7 @@ directives:
                   - CL
                   - SO4
                   - PO4
+                  - H2PO  # H2PO4 resname
           - name: ligand
             type: dict
             text: Ligand segment specifications
@@ -215,6 +218,7 @@ directives:
                   - NAG
                   - SIA
                   - ANE5
+                  - BGLC
           - name: water
             type: dict
             text: Water segment specifications
@@ -508,7 +512,14 @@ directives:
               - name: cleanup
                 text: Specifies whether or not to clean up temporary files
                 type: bool
-                default: True 
+                default: True
+      - name: cleave
+        text: Parameters controlling cleavage of one or more protein chains
+        type: dict
+        directives:
+          - name: sites
+            type: list
+            text: List of site shortcodes in form C:R1-R2 where C is chain ID, R1 is resid+ins of residue N-terminal to cleavage site, R2 is residue C-terminal to cleavage site
       - name: domainswap
         text: Parameters controlling a domain swap TMD simulation
         type: dict

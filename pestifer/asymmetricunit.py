@@ -34,7 +34,8 @@ class AsymmetricUnit(AncestorAwareMod):
             modmanager=objs.get('modmanager',ModManager())
             # logger.debug(f'User mods {type(mods)} at asymmetric unit: {mods.__dict__}')
             chainIDmanager=objs.get('chainIDmanager',None)
-            
+            psf=objs.get('psf','')
+
             missings=EmptyResidueList([])
             ssbonds=SSBondList([])
             links=LinkList([])
@@ -74,6 +75,8 @@ class AsymmetricUnit(AncestorAwareMod):
                 ssbonds=SSBondList([SSBond(x) for x in ssdicts])
                 links=LinkList([Link(x) for x in lndicts])
 
+            if psf:
+                atoms.apply_psf_resnames(psf)
             # Build the list of residues
             fromAtoms=ResidueList(atoms)
             fromEmptyResidues=ResidueList(missings)
@@ -102,7 +105,7 @@ class AsymmetricUnit(AncestorAwareMod):
 
             logger.debug(f'Segtypes present: {uniques["segtype"]}')
             # Delete any residues dictated by user-specified exclusions
-            excludes=sourcespecs['exclude']
+            excludes=sourcespecs.get('exclude',{})
             thru_dict={resattr:excludes.get(yaml,[]) for yaml,resattr in self.excludables.items()}
             logger.debug(f'Exclusions: {thru_dict}')
             # delete residues that are in user-specified exclusions
@@ -133,7 +136,7 @@ class AsymmetricUnit(AncestorAwareMod):
                 logger.debug(f'    {len(ignored_ssbonds)} ssbonds; {len(ssbonds)} remain; and')
                 logger.debug(f'    {len(ignored_links)} links; {len(links)} remain.')
 
-            seq_specs=sourcespecs['sequence']
+            seq_specs=sourcespecs.get('sequence',{})
             segments=SegmentList(seq_specs,residues,chainIDmanager)
             # this may have altered chainIDs for some residues.  So it is best
             # to be sure all mods that are residue-specific are updated
@@ -154,9 +157,9 @@ class AsymmetricUnit(AncestorAwareMod):
 
             # First, scan all seqadv's for relevant mutations to apply
             mutations=MutationList([])
-            if sourcespecs['sequence']['fix_engineered_mutations']:
+            if seq_specs.get('fix_engineered_mutations',False):
                 mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='engineered']))
-            if sourcespecs['sequence']['fix_conflicts']:
+            if seq_specs.get('fix_conflicts',False):
                 mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='conflict']))
             mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='user']))
             # Now append these to the modmanager's mutations
@@ -193,6 +196,9 @@ class AsymmetricUnit(AncestorAwareMod):
                 'pruned':Namespace(ssbonds=pruned_ssbonds,residues=pruned_by_links['residues'],links=pruned_by_links['links'],segments=pruned_by_links['segments'])
             }
         super().__init__(input_dict)
+
+    def add_segment(self,seg):
+        self.segments.append(seg)
 
     def set_coords(self,altstruct):
         atoms=AtomList([Atom(p) for p in altstruct[Atom.PDB_keyword]])

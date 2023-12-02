@@ -1134,6 +1134,7 @@ class Link(AncestorAwareMod):
         seg1=chainIDmap.get(seg1,seg1)
         seg2=self.residue2.chainID
         seg2=chainIDmap.get(seg2,seg2)
+        logger.debug(f'Link: {self.residue1.chainID}->{seg1}:{self.resseqnum1}{self.insertion1} {self.residue2.chainID}->{seg2}:{self.resseqnum2}{self.insertion2}')
         if not self.patchname=='UNFOUND':
             if self.patchorder==[1,2]:
                 W.addline(f'patch {self.patchname} {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
@@ -1143,6 +1144,22 @@ class Link(AncestorAwareMod):
             logger.warning(f'Could not identify patch for link: {str(self)}')
             W.comment(f'No patch found for {str(self)}')
     
+    def update_residue(self,idx,**fields):
+        if idx==1:
+            if 'chainID' in fields:
+                new_chainID=fields['chainID']
+                if self.chainID1!=new_chainID:
+                    logger.debug(f'updating link residue1 chainID from {self.chainID1} to {new_chainID}')
+                    self.chainID1=new_chainID
+                    self.residue1.set_chainID(new_chainID)
+        elif idx==2:
+            if 'chainID' in fields:
+                new_chainID=fields['chainID']
+                if self.chainID2!=new_chainID:
+                    logger.debug(f'updating link residue2 chainID from {self.chainID2} to {new_chainID}')
+                    self.chainID2=new_chainID
+                    self.residue2.set_chainID(new_chainID)
+
     def __str__(self):
         return f'{self.chainID1}_{self.resname1}{self.resseqnum1}{self.insertion1}-{self.chainID2}_{self.resname2}{self.resseqnum2}{self.insertion2}'
 
@@ -1326,16 +1343,37 @@ class Insertion(AncestorAwareMod):
 class InsertionList(AncestorAwareModList):
     pass
 
-class Cleavage(AncestorAwareMod):
-    """A class for handling chain cleavage"""
+class CleavageSite(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
+    """A class for handling chain cleavage.  Note that this mod is not expected to be part of a ModManager so the yaml_header and modtype attributes are irrelevant"""
     yaml_header='cleavages'
     modtype='seqmods'
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)
-    pass
+    @__init__.register(str)
+    def _from_shortcode(self,shortcode):
+        # C:R1-R2
+        # C: chain ID
+        # R1: resid+insertioncode of N-terminal partner in peptide bond
+        # R2: resid+insertioncode of C-terminal partner in peptide bond
+        items=shortcode.split(':')
+        assert len(items)==2,f'Bad cleavage site shortcode: {shortcode}'
+        chainID=items[0]
+        resrange=items[1]
+        ri1,ri2=resrange.split('-')
+        r1,i1=split_ri(ri1)
+        r2,i2=split_ri(ri2)
+        input_dict={
+            'chainID':chainID,
+            'resseqnum1':r1,
+            'insertion1':i1,
+            'resseqnum2':r2,
+            'insertion2':i2
+        }
+        super().__init__(input_dict)
 
-class CleavageList(AncestorAwareModList):
+class CleavageSiteList(AncestorAwareModList):
     pass
 
 

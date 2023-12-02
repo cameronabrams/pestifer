@@ -46,6 +46,8 @@ class ModManager(UserDict):
             return self._injest_modlist(input_obj,overwrite=overwrite)
         elif type(input_obj)==dict:
             self._injest_moddict(input_obj,overwrite=overwrite)
+        elif type(input_obj)==list and len(input_obj)==0: # a blank call
+            pass
         else:
             raise TypeError(f'Cannot injest object of type {type(input_obj)} into modmanager')
     
@@ -93,3 +95,24 @@ class ModManager(UserDict):
                     assert type(entry) in [str,dict],f'Error: expected mod specification of type str or dict, got {type(entry)}'
                     self[modtype][header].append(Cls(entry))
 
+    def retire(self,modtype):
+        if modtype in self:
+            self.used[modtype]=self[modtype].copy()
+            del self[modtype]
+    
+    def expel(self,expelled_residues):
+        ex=ModManager()
+        for name,Cls in self.mod_classes.items():
+            LCls=self.modlist_classes.get(f'{name}List',list)
+            modtype=Cls.modtype
+            if modtype in self:
+                exl=LCls([])
+                for mod in self[modtype]:
+                    for r in expelled_residues:
+                        matches=mod.wildmatch(resseqnum=r.resseqnum,insertion=r.insertion)
+                        if matches:
+                            exl.append(mod)
+                for mod in exl:
+                    self[modtype].remove(mod)
+                ex.injest(exl)
+        return ex

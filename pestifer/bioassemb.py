@@ -212,3 +212,5 @@ class BioAssembList(AncestorAwareModList):
                     B.append(BA)
                 logger.debug(f'There are {len(B)} biological assemblies')
         super().__init__(B)
+
+

@@ -22,6 +22,7 @@ from .colvars import *
 from .stringthings import FileCollector
 from .modmanager import ModManager
 from .command import Command
+from .mods import CleavageSite, CleavageSiteList
 
 class BaseTask(BaseMod):
     """ A base class for Tasks.
@@ -361,7 +362,7 @@ class PsfgenTask(BaseTask):
     yaml_header='psfgen'
     def __init__(self,input_dict,taskname,config,writers,prior):
         super().__init__(input_dict,taskname,config,writers,prior)
-        self.chainIDmanager=ChainIDManager(format=self.specs['source']['file_format'])
+        self.molecules={}
 
     def do(self):
         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
@@ -374,6 +375,7 @@ class PsfgenTask(BaseTask):
         # we now have a full coordinate set, so we can do coormods
         self.coormods()
         min_loop_length=self.specs['source']['sequence']['loops']['min_loop_length']
+        self.update_statevars('min_loop_length',min_loop_length)
         nloops=self.base_molecule.has_loops(min_loop_length=min_loop_length)*self.base_molecule.num_images()
         if nloops>0:
             logger.debug(f'Declashing {nloops} loops')
@@ -382,6 +384,7 @@ class PsfgenTask(BaseTask):
 
     def coormods(self):
         coormods=self.modmanager.get('coormods',{})
+        logger.debug(f'psfgen task has {len(coormods)} coormods')
         ba=self.base_molecule.active_biological_assembly
         if coormods:
             logger.debug(f'performing coormods')
@@ -405,19 +408,23 @@ class PsfgenTask(BaseTask):
         pg=self.writers['psfgen']
         pg.newscript(self.basename)
         pg.topo_aliases()
-        pg.set_molecule(self.base_molecule,altcoords=self.specs['source'].get('altcoords',None))
+        pg.set_molecule(self.base_molecule,altcoords=self.specs.get('source',{}).get('altcoords',None))
         pg.describe_molecule(self.base_molecule)
         pg.complete(self.basename)
         pg.endscript()
         pg.writescript()
         pg.runscript()
         self.save_state(exts=['psf','pdb'])
-        pg.cleanup(cleanup=self.specs['cleanup'])
+        self.strip_remarks()
+        
+    def strip_remarks(self):
+        pdb=self.statevars['pdb']
+        c=Command(f'grep -v ^REMARK {pdb} > tmp').run()
+        shutil.move('tmp',pdb)
 
     def declash_loops(self,specs):
         mol=self.base_molecule
         cycles=specs['declash']['maxcycles']
-        self.update_statevars('min_loop_length',specs['min_loop_length'])
         if not mol.has_loops() or not cycles:
             return
         self.next_basename('declash')
@@ -435,18 +442,53 @@ class PsfgenTask(BaseTask):
 
     def injest_molecules(self):
         specs=self.specs
-        self.molecules={}
         self.source_specs=specs['source']
         logger.debug(f'User-input modspecs {self.specs["mods"]}')
         self.modmanager=ModManager(self.specs['mods'])
         # self.pdbs=self.mods.report_pdbs()
         # self.usermod_specs=specs['mods']
         # logger.debug(f'user mods at injest_molecules {self.mods.__dict__}')
+        self.chainIDmanager=ChainIDManager(format=self.specs['source']['file_format'])
         self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,modmanager=self.modmanager,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
         self.base_molecule=self.molecules[self.source_specs['id']]
         # self.statevars['min_loop_length']=self.source_specs['sequence']['loops']['min_loop_length']
         # for p in self.pdbs:
         #     self.molecules[p]=Molecule(source=p)
+    def update_molecule(self):
+        """Updates all segments of the base molecule based on the 
+           current coordinate file.  All ssbonds and links are 
+           carried forward. No biological assembly beyond the apparent
+           asymmetric unit is assumed. This should permit generation
+           of a new psfgen script based on this new molecule to 
+           recreate it or modify it.
+        """
+        psf=self.statevars['psf']
+        pdb=self.statevars['pdb']
+        base,ext=os.path.splitext(pdb)
+        source={}
+        source['file_format']='PDB'
+        source['id']=base
+        self.chainIDmanager=ChainIDManager(format=source['file_format'])
+        self.modmanager=ModManager()
+        self.modmanager.injest(self.base_molecule.modmanager.get('topomods',{}).get('ssbonds',[]))
+        self.modmanager.injest(self.base_molecule.modmanager.get('topomods',{}).get('links',[]))
+        updated_molecule=Molecule(source=source,chainIDmanager=self.chainIDmanager,modmanager=self.modmanager,psf=psf).activate_biological_assembly(0)
+        self.molecules[base]=updated_molecule
+        self.base_molecule=updated_molecule
+
+class CleaveTask(PsfgenTask):
+    yaml_header='cleave'
+    def do(self):
+        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
+        self.inherit_state()
+        cleavage_sites=CleavageSiteList([CleavageSite(x) for x in self.specs['sites']])
+        # update base molecule to the point an inferential psfgen call could reproduce it, up to ssbonds and links
+        self.base_molecule=self.statevars['base_molecule']
+        self.update_molecule()
+        self.base_molecule.cleave_chains(cleavage_sites)
+        self.psfgen()
+        # self.save_state(exts=['psf','pdb']) # already done in psfgen()
+        logger.info(f'Task {self.taskname} {self.index:02d} complete')
 
 class DomainSwapTask(MDTask):
     yaml_header='domainswap'

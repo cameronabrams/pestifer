@@ -50,12 +50,9 @@ class ChainIDManager:
         self.Used=set()
 
     def register_asymm_chains(self,chainIDs):
-        logger.debug(f'Registering asymm chains {chainIDs}')
-        logger.debug(f'OrderedSupply {self.OrderedSupply}')
         for c in chainIDs:
             self.OrderedSupply.remove(c)
             self.Used.add(c)
-        logger.debug(f'Used chainIDs {self.Used}')
 
     def receive_chain(self,chainID):
         self.Used.remove(chainID)

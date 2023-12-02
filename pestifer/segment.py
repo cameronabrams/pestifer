@@ -69,6 +69,20 @@ class Segment(AncestorAwareMod):
             logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
         super().__init__(input_dict)
 
+    def cleave(self,clv,daughter_chainID):
+        assert clv.chainID==self.segname
+        assert self.segtype=='protein'
+        r2=self.residues.get(resseqnum=clv.resseqnum2,insertion=clv.insertion2)
+        r2i=self.residues.index(r2)
+        daughter_residues=self.residues[r2i:]
+        parent_residues=self.residues[:r2i]
+        self.residues=parent_residues
+        daughter_residues.set_chainID(daughter_chainID)
+        Dseg=Segment({},daughter_residues,daughter_chainID)
+        Dseg.modmanager=self.modmanager.expel(daughter_residues)
+        Dseg.ancestor_obj=self.ancestor_obj
+        return Dseg
+
     def has_graft(self,modlist):
         if not modlist:
             return False
@@ -138,11 +152,12 @@ class Segment(AncestorAwareMod):
 
         transform.register_mapping(self.segtype,image_seglabel,seglabel)
 
-        sac_rn=self.specs['loops']['sac_res_name']
-        min_loop_length=self.specs['loops']['min_loop_length']
-        build_all_terminal_loops=self.specs['include_terminal_loops']
-        build_N_terminal_loop=seglabel in self.specs['build_zero_occupancy_N_termini']
-        build_C_terminal_loop=seglabel in self.specs['build_zero_occupancy_C_termini']
+        loopspecs=self.specs.get('loops',{})
+        sac_rn=loopspecs.get('sac_res_name','NOSAC')
+        min_loop_length=loopspecs.get('min_loop_length',0)
+        build_all_terminal_loops=self.specs.get('include_terminal_loops',False)
+        build_N_terminal_loop=seglabel in self.specs.get('build_zero_occupancy_N_termini',[])
+        build_C_terminal_loop=seglabel in self.specs.get('build_zero_occupancy_C_termini',[])
 
         seg_mutations=seqmods.get('mutations',MutationList([]))
         seg_Cfusions=seqmods.get('Cfusions',CfusionList([]))
@@ -247,6 +262,7 @@ class Segment(AncestorAwareMod):
                 if is_image:
                     W.restore_selection(b.selname,dataholder=f'{b.selname}_data')
         W.banner(f'Segment {image_seglabel} ends')
+        self.modmanager.retire('seqmods')
 
 class SegmentList(AncestorAwareModList):
     def __init__(self,*objs):
