@@ -128,6 +128,13 @@ class Molecule(AncestorAwareMod):
     def num_images(self):
         return len(self.active_biological_assembly.transforms)
 
+    def num_atoms(self):
+        return len(self.asymmetric_unit.atoms)
+    def num_residues(self):
+        return len(self.asymmetric_unit.residues)
+    def num_segments(self):
+        return len(self.asymmetric_unit.segments)
+    
     def write_loop_lines(self,writer,cycles=100,min_length=4):
         ba=self.active_biological_assembly
         au=self.asymmetric_unit

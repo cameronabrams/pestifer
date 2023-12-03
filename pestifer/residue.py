@@ -310,15 +310,39 @@ class Residue(EmptyResidue):
         rc='' if self.resolved else '*'
         return f'{self.chainID}-{self.resname}{self.resseqnum}{self.insertion}{rc}'
     def __lt__(self,other):
-        if self.resseqnum<other.resseqnum:
+        if type(other)==type(self):
+            o_resseqnum=other.resseqnum
+            o_insertion=other.insertion
+        elif type(other)==str:
+            o_resseqnum,o_insertion=split_ri(other)
+        if self.resseqnum<o_resseqnum:
             return True
-        elif self.resseqnum==other.resseqnum:
-            return self.insertion<other.insertion
+        elif self.resseqnum==o_resseqnum:
+            return self.insertion<o_insertion
+        return False
+    def __gt__(self,other):
+        if type(other)==type(self):
+            o_resseqnum=other.resseqnum
+            o_insertion=other.insertion
+        elif type(other)==str:
+            o_resseqnum,o_insertion=split_ri(other)
+        if self.resseqnum>o_resseqnum:
+            return True
+        elif self.resseqnum==o_resseqnum:
+            return self.insertion>o_insertion
         return False
     def __le__(self,other):
         if self<other:
             return True
-        return self.resseqnum==other.resseqnum and self.insertion==other.insertion
+        return self.same_resid(other)
+    
+    def same_resid(self,other):
+        if type(other)==type(self):
+            o_resseqnum=other.resseqnum
+            o_insertion=other.insertion
+        elif type(other)==str:
+            o_resseqnum,o_insertion=split_ri(other)
+        return self.resseqnum==o_resseqnum and self.insertion==o_insertion
         
     def add_atom(self,a:Atom):
         if self.resseqnum==a.resseqnum and self.resname==a.resname and self.chainID==a.chainID and self.insertion==a.insertion:
@@ -329,6 +353,10 @@ class Residue(EmptyResidue):
         self.chainID=chainID
         for a in self.atoms:
             a.chainID=chainID
+    def set_resseqnum(self,resseqnum):
+        self.resseqnum=resseqnum
+        for a in self.atoms:
+            a.resseqnum=resseqnum
     def linkTo(self,other,link):
         self.down.append(other)
         self.downlink.append(link)

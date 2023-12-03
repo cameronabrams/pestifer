@@ -441,8 +441,9 @@ directives:
               - name: Cfusions
                 text: fuse residues from named residue range of named protein chain of named input PDB coordinate file to C-terminus of named segment of base molecule
                 type: list
-              # - name: insertion
-              # - name: graft
+              - name: grafts
+                text: graft residues from named residue range of named chain of named input PDB coordinate file onto target residue of base molecule
+                type: list
           - name: cleanup
             text: Specifies whether or not to delete temporary files generated during psfgen execution
             type: bool

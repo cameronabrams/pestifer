@@ -235,8 +235,8 @@ class Psfgen(VMD):
             self.addline(f'readpsf {psf} pdb {pdb}')
         
     def describe_molecule(self,mol):
-        molid_varname=f'm{mol.molid}'
-        self.addline(f'mol top ${molid_varname}')
+        self.molid_varname=f'm{mol.molid}'
+        self.addline(f'mol top ${self.molid_varname}')
         mol.write_TcL(self)
 
     def complete(self,statename):

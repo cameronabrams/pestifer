@@ -1323,7 +1323,8 @@ class Graft(AncestorAwareMod):
         assert len(tokens)==2,f'Malformed graft shortcode {shortcode}'
         target=tokens[0].split('_')
         assert len(target)==2,f'Malformed graft target spec {tokens[0]}'
-        chainID,resseqnum,insertion=target[0],split_ri(target[1])
+        chainID,ri=target[0],split_ri(target[1])
+        resseqnum,insertion=ri
         source=tokens[1].split(',')
         assert len(source)==2,f'Malformed graft source spec {tokens[1]}'
         source_pdbid,source_chainresrange_spec=source
@@ -1346,32 +1347,52 @@ class Graft(AncestorAwareMod):
             'source_insertion2':source_insertion2,
             'id':Graft._Graft_counter
         }
+        logger.debug(f'Initializing graft {input_dict}')
         Graft._Graft_counter+=1
+        self.residue=None
         super().__init__(input_dict)
 
     def write_pre_segment(self,W:Psfgen):
         W.comment(f'Graft {self.id}')
-        W.addline(f'set topid [molinfo top get id]')
-        W.addline(f'mol new {self.pdbid}')
+        W.addline(f'set topid [molinfo ${W.molid_varname} get id]')
+        W.addline(f'mol new {self.source_pdbid}')
         W.addline(f'set graftid [molinfo top get id]')
         W.addline(f'mol top $topid')
         W.addline(f'set graftres [atomselect $graftid "chain {self.source_chainID} and (resid {self.source_resseqnum1}{self.source_insertion1} to {self.source_resseqnum2}{self.source_insertion2}) and (not resid {self.source_resseqnum1}{self.source_insertion1})"]')
-        # peform coordinate transformation
-        W.addline(f'set residue [atomselect top "chain {self.chainID} and resid {self.resid}{self.nsertion} and noh"]')
+        # perform coordinate transformation
+        W.addline(f'set residue [atomselect ${W.molid_varname} "chain {self.residue.chainID} and resid {self.residue.resseqnum}{self.residue.insertion} and noh"]')
+        W.addline(f'vmdcon -info "Target residue has [$residue num] atoms"')
+        W.addline(f'set resid [lindex [$residue get resid] 0]')
+        W.addline(f'set insertion [lindex [$residue get insertion] 0]')
         W.addline(f'set source_index_residue [atomselect $graftid "chain {self.source_chainID} and resid {self.source_resseqnum1}{self.source_insertion1} and noh"]')
-        W.addline(f'set graft_trans [trans fit $source_index_residue $residue]')
+        W.addline(f'vmdcon -info "Moving [lindex [$source_index_residue get resname] 0] onto [lindex [$residue get resname] 0]"')
+        W.addline(f'set graft_trans [measure fit $source_index_residue $residue]')
         W.addline(f'$graftres move $graft_trans')
-        self.segfile=f'Graft{self.id}_{self.chainID}_{self.resseqnum1}{self.insertion1}_to_{self.resseqnum2}{self.insertion2}.pdb'
-        # to do: adjust sequence numbers of graft?
+        self.segfile=f'graft{self.id}.pdb'
+        W.addline(f'$graftres set resid [list {" ".join([f"{x.resseqnum}" for x in self.my_residues])}]')
         W.addline(f'$graftres writepdb {self.segfile}')
         W.addline(f'delete $graftid')
     def write_in_segment(self,W:Psfgen):
         W.addline (f'    pdb {self.segfile}')
     def write_post_segment(self,W:Psfgen):
-        W.addline(f'coordpdb {self.segfile} {self.chainID}')        
+        W.addline(f'coordpdb {self.segfile} {self.chainID}')
+    def assign_residue(self,Residues):
+        assert self.residue==None
+        self.assign_obj_to_attr('residue',Residues,chainID='chainID',resseqnum='resseqnum',insertion='insertion')
 
 class GraftList(AncestorAwareModList):
-    pass
+    def assign_residues(self,Residues):
+        logger.debug(f'Assigning residue objects to {len(self)} grafts')
+        delete_us=[]
+        for s in self:
+            logger.debug(f'graft {s.id}')
+            s.assign_residue(Residues)
+            if s.residue:
+                logger.debug(f'-> residue {s.residue.chainID}_{s.residue.resname}{s.residue.resseqnum}{s.residue.insertion}')
+        delete_us=self.__class__([s for s in self if s.residue==None])
+        for s in delete_us:
+            self.remove(s)
+        return delete_us
 
 class Insertion(AncestorAwareMod):
     """A class for handling insertions of amino acid residues within an otherwise

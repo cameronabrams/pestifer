@@ -122,6 +122,7 @@ class Segment(AncestorAwareMod):
         modmanager=self.modmanager
         seqmods=modmanager.get('seqmods',{})
         seg_grafts=seqmods.get('grafts',GraftList([]))
+        # self.injest_grafts(seg_grafts)
 
         transform.register_mapping(self.segtype,image_seglabel,seglabel)
 
@@ -152,6 +153,20 @@ class Segment(AncestorAwareMod):
             W.banner(f'Restoring A.U. state for {seglabel}')
             W.restore_selection(selname,dataholder=f'{selname}_data')
         W.banner(f'Segment {image_seglabel} ends')
+
+    # def injest_grafts(self,G:GraftList):
+    #     """Loads all graft source files and renumbers their residues for incorporation into this segment"""
+    #     next_available_resid=max([x.resseqnum for x in self.residues])+1
+    #     for g in G:
+    #         g.source_seg=g.source_molecule.asymmetric_unit.segments.get(segname=g.source_chainID)
+    #         g.my_residues=ResidueList([])
+    #         for residue in g.source_seg.residues:
+    #             if residue>f'{g.source_resseqnum1}{g.source_insertion1}' and residue<=f'{g.source_resseqnum2}{g.source_insertion2}':
+    #                 g.my_residues.append(residue)
+    #         for r in g.my_residues:
+    #             r.set_resseqnum(next_available_resid)
+    #             next_available_resid+=1
+    #         logger.debug(f'Graft {g.id} in segment {self.segname}: resid {g.my_residues[0].resseqnum}{g.my_residues[0].insertion}-{g.my_residues[-1].resseqnum}{g.my_residues[-1].insertion}')
 
     def protein_stanza(self,W:Psfgen,transform):
         parent_molecule=self.ancestor_obj
@@ -354,4 +369,7 @@ class SegmentList(AncestorAwareModList):
 
     def inherit_mods(self,modmanager):
         for item in self:
-            item.modmanager=modmanager.filter_copy(modtypes=item.inheritable_mods,chainID=item.segname)
+            item.modmanager=modmanager.filter_copy(modnames=item.inheritable_mods,chainID=item.segname)
+            seqmods=item.modmanager.get('seqmods',{})
+            grafts=seqmods.get('grafts',[])
+            logger.debug(f'Inherit mods: seg {item.segname} has {len(grafts)} grafts')

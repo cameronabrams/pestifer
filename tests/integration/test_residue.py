@@ -122,6 +122,20 @@ source:
             self.assertEqual(r.resolved,False)
             self.assertEqual(r.segtype,'PROTEIN')
 
+    def test_relations(self):
+        c=Config()
+        R_low=Residue('1:C:R525')
+        R_hi=Residue('1:C:R525A')
+        self.assertTrue(R_low<R_hi)
+        R_same=Residue('1:C:R525')
+        self.assertTrue(R_low<=R_same)
+        str_hi='525A'
+        self.assertTrue(R_low<str_hi)
+        self.assertTrue(str_hi>R_low)
+        str_same='525'
+        self.assertFalse(R_low<str_same)
+        self.assertTrue(R_low.same_resid(str_same))
+    
 class TestEmptyResidue(unittest.TestCase):
     def setUp(self):
         return super().setUp()

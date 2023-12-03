@@ -28,11 +28,18 @@ class ModManager(UserDict):
 
     def filter_copy(self,modnames=[],**fields):
         result=ModManager()
+        logger.debug(f'ModManager filter_copy modnames {modnames} fields {fields}')
+        self.counts()
         for name,Cls in self.mod_classes.items():
             modtype=Cls.modtype
             header=Cls.yaml_header
+            logger.debug(f'passing {modtype} {header}...')
+            logger.debug(f'1-{header in modnames} 2-{modtype in self}')
+            if modtype in self and header in self[modtype]:
+                logger.debug(f'   3-{header in self[modtype]}')
             if header in modnames and modtype in self and header in self[modtype]:
-                modlist=self[modtype][header].filter(fields)
+                modlist=self[modtype][header].filter(**fields)
+                logger.debug(f'{len(modlist)} filtered from {len(self[modtype][header])} mods')
                 if len(modlist)>0:
                     if not modtype in result:
                         result[modtype]={}
@@ -116,3 +123,13 @@ class ModManager(UserDict):
                     self[modtype].remove(mod)
                 ex.injest(exl)
         return ex
+    
+    def counts(self):
+        for name,Cls in self.mod_classes.items():
+            modtype=Cls.modtype
+            header=Cls.yaml_header
+            this_count=0
+            if modtype in self:
+                if header in self[modtype]:
+                    this_count=len(self[modtype][header])
+            logger.debug(f'{header} {this_count}')

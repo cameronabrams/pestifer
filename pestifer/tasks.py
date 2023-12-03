@@ -445,15 +445,23 @@ class PsfgenTask(BaseTask):
         self.source_specs=specs['source']
         logger.debug(f'User-input modspecs {self.specs["mods"]}')
         self.modmanager=ModManager(self.specs['mods'])
-        # self.pdbs=self.mods.report_pdbs()
-        # self.usermod_specs=specs['mods']
-        # logger.debug(f'user mods at injest_molecules {self.mods.__dict__}')
         self.chainIDmanager=ChainIDManager(format=self.specs['source']['file_format'])
         self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,modmanager=self.modmanager,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
         self.base_molecule=self.molecules[self.source_specs['id']]
-        # self.statevars['min_loop_length']=self.source_specs['sequence']['loops']['min_loop_length']
-        # for p in self.pdbs:
-        #     self.molecules[p]=Molecule(source=p)
+        seqmods=self.modmanager.get('seqmods',{})
+        if 'grafts' in seqmods:
+            Grafts=seqmods['grafts']
+            for g in Grafts:
+                if not g.source_pdbid in self.molecules:
+                    this_source={
+                        'id':g.source_pdbid,
+                        'file_format':'PDB'
+                    }
+                    self.molecules[g.source_pdbid]=Molecule(source=this_source)
+                g.source_molecule=self.molecules[g.source_pdbid]
+        for molid,molecule in self.molecules.items():
+            logger.debug(f'Molecule {molid}: {molecule.num_atoms()} atoms in {molecule.num_residues()} residues; {molecule.num_segments()} segments.')
+
     def update_molecule(self):
         """Updates all segments of the base molecule based on the 
            current coordinate file.  All ssbonds and links are 

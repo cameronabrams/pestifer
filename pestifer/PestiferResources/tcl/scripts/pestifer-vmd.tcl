@@ -11,3 +11,4 @@ source ${RESPATH}/declashloop.tcl
 source ${RESPATH}/checkpierce.tcl
 source ${RESPATH}/dcdlog.tcl
 source ${RESPATH}/saverestore.tcl
+source ${RESPATH}/numbering.tcl
