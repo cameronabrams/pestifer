@@ -4,7 +4,7 @@
 import logging
 logger=logging.getLogger(__name__)
 from .basemod import AncestorAwareMod, AncestorAwareModList
-from .mods import MutationList, CfusionList, InsertionList
+from .mods import MutationList, CfusionList, GraftList
 from .config import charmm_resname_of_pdb_resname
 from .residue import Residue,ResidueList
 from .util import reduce_intlist
@@ -14,7 +14,7 @@ from .coord import positionN
 class Segment(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','specs']
     opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname']
-    inheritable_mods=['mutations','Cfusions','insertions']
+    inheritable_mods=['mutations','Cfusions','grafts']
     def __init__(self,specs,input_obj,segname):
         if type(input_obj)==dict:
             input_dict=input_obj
@@ -74,22 +74,28 @@ class Segment(AncestorAwareMod):
         assert self.segtype=='protein'
         r2=self.residues.get(resseqnum=clv.resseqnum2,insertion=clv.insertion2)
         r2i=self.residues.index(r2)
+        # These two slice operations create *copies* of lists of residues
+        # The original list of residues contains elements that are referenced
+        # by other structures, like links.   
         daughter_residues=self.residues[r2i:]
         parent_residues=self.residues[:r2i]
+        assert daughter_residues[0] is self.residues[r2i]
         self.residues=parent_residues
+        # this set_chainID call must act DEEPLY on structures in the list items
+        # that have chainID attributes AND we have to revisit all links!
         daughter_residues.set_chainID(daughter_chainID)
         Dseg=Segment({},daughter_residues,daughter_chainID)
         Dseg.modmanager=self.modmanager.expel(daughter_residues)
         Dseg.ancestor_obj=self.ancestor_obj
         return Dseg
 
-    def has_graft(self,modlist):
-        if not modlist:
-            return False
-        for g in modlist:
-            if g.segname==self.psfgen_segname:
-                return True
-        return False
+    # def has_graft(self,modlist):
+    #     if not modlist:
+    #         return False
+    #     for g in modlist:
+    #         if g.segname==self.psfgen_segname:
+    #             return True
+    #     return False
     
     def __str__(self):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
@@ -103,10 +109,7 @@ class Segment(AncestorAwareMod):
             self.generic_stanza(W,transform)
     
     def glycan_stanza(self,W,transform):
-        if self.has_graft([]):
-            W.comment('Glycan grafts not yet implemented.')
-        else:
-            self.generic_stanza(W,transform)
+        self.generic_stanza(W,transform)
     
     def generic_stanza(self,W,transform):
         assert len(self.subsegments)==1,'No missing atoms allowed in generic stanza'
@@ -116,9 +119,15 @@ class Segment(AncestorAwareMod):
         image_seglabel=chainIDmap.get(seglabel,seglabel)
         is_image=image_seglabel!=seglabel
 
+        modmanager=self.modmanager
+        seqmods=modmanager.get('seqmods',{})
+        seg_grafts=seqmods.get('grafts',GraftList([]))
+
         transform.register_mapping(self.segtype,image_seglabel,seglabel)
 
         W.banner(f'Segment {image_seglabel} begins as image of {seglabel}')
+        for g in seg_grafts:
+            g.write_pre_segment(W)
         serial_list=self.residues.atom_serials(as_type=int)
         vmd_red_list=reduce_intlist(serial_list)
         pdb=f'GENERIC_{image_seglabel}.pdb'
@@ -133,8 +142,12 @@ class Segment(AncestorAwareMod):
         W.addline(f'${selname} writepdb {pdb}')
         W.addline(f'segment {image_seglabel} '+'{')
         W.addline(f'    pdb {pdb}')
+        for g in seg_grafts:
+            g.write_in_segment(W)
         W.addline('}')
         W.addline(f'coordpdb {pdb} {image_seglabel}')
+        for g in seg_grafts:
+            g.write_post_segment(W)
         if is_image:
             W.banner(f'Restoring A.U. state for {seglabel}')
             W.restore_selection(selname,dataholder=f'{selname}_data')

@@ -17,6 +17,7 @@ class Filewriter:
     def newfile(self,filename):
         self.filename=filename
         self.B.reset()
+        return self
 
     def injest_file(self,filename):
         self.B.injest_file(filename)

@@ -185,3 +185,15 @@ def write_residue_map(the_map,filename,valkeys=['chainID','resseqnum','insertion
             kl=' '.join(k.split('.'))
             vl=' '.join([str(v.__dict__[x]) for x in valkeys])
             f.write(f'{kl} {vl}\n')
+
+def split_list(L,idx):
+    """ Split a list by removing items [idx..end] and returning
+    as a new list. This avoids the shallow copy nature of standard
+    list slicing in python """
+    LCls=type(L)
+    D=LCls([])
+    for i in range(idx,len(L)):
+        D.append(L[i])
+    for d in D:
+        L.remove(d)
+    return D

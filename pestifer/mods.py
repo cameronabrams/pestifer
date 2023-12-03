@@ -32,7 +32,14 @@
     different length
     * Cfusion -- fuse residues from named residue range of named 
     protein chain of named input coordinate file to C-terminus of 
-    named segment of base molecule
+    named segment of base molecule; no coordinate transformations are
+    performed, so the input coordinate file needs to be prepared
+    * Graft -- like a C fusion, but instead of using pre-positioned
+    coordinates in a named input coordinate file, the input coordinates
+    are transformed such that the *first* residue in the graft overlaps
+    spatially with a named residue in the target.  Only the residues
+    in the source that are *not* the first named residue are then fused
+    to the base molecule
 
     topomods
     --------
@@ -53,7 +60,7 @@ from pidibble.pdbrecord import PDBRecord
 from .cifutil import CIFdict
 from .basemod import AncestorAwareMod,AncestorAwareModList
 from .stringthings import split_ri
-from .scriptwriters import Psfgen,VMD
+from .scriptwriters import Psfgen,VMD, Filewriter
 from .config import res_123
 from functools import singledispatchmethod
 from .coord import ic_reference_closest
@@ -1291,12 +1298,77 @@ class LinkList(AncestorAwareModList):
         self.map_attr('segtype1','resname1',map)
         self.map_attr('segtype2','resname2',map)
 
+    def report(self,W:Filewriter):
+        for l in self:
+            W.addline(str(l))
+
 class Graft(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['id','chainID','resseqnum','insertion','source_pdbid','source_chainID','source_resseqnum1','source_insertion1','source_resseqnum2','source_insertion2']
     yaml_header='grafts'
-    modtype='topomods'
+    modtype='seqmods'
+    _Graft_counter=0
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)
+
+    @__init__.register(str)
+    def _from_shortcode(self,shortcode):
+        # target:source
+        # target -- C_RRR  C=chain ID RRR=resid+insertion
+        # source -- ccc,C_RRR-SSS  
+        #  - ccc basename of pdb file or pdb id
+        #  - C chainID in source pdb
+        #  - RRR-SSS resid+insertion range
+        tokens=shortcode.split(':')
+        assert len(tokens)==2,f'Malformed graft shortcode {shortcode}'
+        target=tokens[0].split('_')
+        assert len(target)==2,f'Malformed graft target spec {tokens[0]}'
+        chainID,resseqnum,insertion=target[0],split_ri(target[1])
+        source=tokens[1].split(',')
+        assert len(source)==2,f'Malformed graft source spec {tokens[1]}'
+        source_pdbid,source_chainresrange_spec=source
+        source_chainID,source_resrange_spec=source_chainresrange_spec.split('_')
+        source_resrange=source_resrange_spec.split('-')
+        source_resseqnum1,source_insertion1=split_ri(source_resrange[0])
+        if len(source_resrange)==2:
+            source_resseqnum2,source_insertion2=split_ri(source_resrange[1])
+        else:
+            source_resseqnum2,source_insertion2=source_resseqnum1,source_insertion1
+        input_dict={
+            'chainID':chainID,
+            'resseqnum':resseqnum,
+            'insertion':insertion,
+            'source_pdbid':source_pdbid,
+            'source_chainID':source_chainID,
+            'source_resseqnum1':source_resseqnum1,
+            'source_insertion1':source_insertion1,
+            'source_resseqnum2':source_resseqnum2,
+            'source_insertion2':source_insertion2,
+            'id':Graft._Graft_counter
+        }
+        Graft._Graft_counter+=1
+        super().__init__(input_dict)
+
+    def write_pre_segment(self,W:Psfgen):
+        W.comment(f'Graft {self.id}')
+        W.addline(f'set topid [molinfo top get id]')
+        W.addline(f'mol new {self.pdbid}')
+        W.addline(f'set graftid [molinfo top get id]')
+        W.addline(f'mol top $topid')
+        W.addline(f'set graftres [atomselect $graftid "chain {self.source_chainID} and (resid {self.source_resseqnum1}{self.source_insertion1} to {self.source_resseqnum2}{self.source_insertion2}) and (not resid {self.source_resseqnum1}{self.source_insertion1})"]')
+        # peform coordinate transformation
+        W.addline(f'set residue [atomselect top "chain {self.chainID} and resid {self.resid}{self.nsertion} and noh"]')
+        W.addline(f'set source_index_residue [atomselect $graftid "chain {self.source_chainID} and resid {self.source_resseqnum1}{self.source_insertion1} and noh"]')
+        W.addline(f'set graft_trans [trans fit $source_index_residue $residue]')
+        W.addline(f'$graftres move $graft_trans')
+        self.segfile=f'Graft{self.id}_{self.chainID}_{self.resseqnum1}{self.insertion1}_to_{self.resseqnum2}{self.insertion2}.pdb'
+        # to do: adjust sequence numbers of graft?
+        W.addline(f'$graftres writepdb {self.segfile}')
+        W.addline(f'delete $graftid')
+    def write_in_segment(self,W:Psfgen):
+        W.addline (f'    pdb {self.segfile}')
+    def write_post_segment(self,W:Psfgen):
+        W.addline(f'coordpdb {self.segfile} {self.chainID}')        
 
 class GraftList(AncestorAwareModList):
     pass

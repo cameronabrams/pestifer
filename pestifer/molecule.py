@@ -9,7 +9,7 @@ from .cifutil import CIFload
 from .basemod import AncestorAwareMod
 from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList,BioAssemb
-from .scriptwriters import Psfgen
+from .scriptwriters import Psfgen, Filewriter
 from .chainidmanager import ChainIDManager
 logger=logging.getLogger(__name__)
 
@@ -98,6 +98,9 @@ class Molecule(AncestorAwareMod):
                 ssbonds.write_TcL(W,transform)
             W.banner('LINK patches follow')
             if links:
+                A=Filewriter().newfile('linkreport.txt')
+                links.report(A)
+                A.writefile()
                 links.write_TcL(W,transform)
             W.banner(f'Transform {transform.index} ends')
     
