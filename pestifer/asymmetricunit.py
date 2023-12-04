@@ -9,6 +9,7 @@ from .residue import ResidueList,AtomList,Atom,Hetatm,Ter,TerList,EmptyResidue,E
 from .segment import SegmentList
 from .basemod import AncestorAwareMod
 from .modmanager import ModManager
+from .stringthings import my_logger
 from mmcif.api.PdbxContainers import DataContainer
 from .config import *
 from .util import write_residue_map
@@ -77,21 +78,23 @@ class AsymmetricUnit(AncestorAwareMod):
 
             if psf:
                 atoms.apply_psf_resnames(psf)
+            seqmods=modmanager.get('seqmods',{})
+            grafts=seqmods.get('grafts',GraftList([]))
+            
             # Build the list of residues
             fromAtoms=ResidueList(atoms)
             fromEmptyResidues=ResidueList(missings)
             residues=fromAtoms+fromEmptyResidues
+            # self.injest_grafts(grafts,residues,links)
             if sourcespecs.get('cif_residue_map_file',''):
                 write_residue_map(residues.cif_residue_map(),sourcespecs['cif_residue_map_file'])
             residues.apply_segtypes()
             # apply seqmods
-            seqmods=modmanager.get('seqmods',{})
             if 'deletions' in seqmods:
                 residues.deletion(seqmods['deletions'])
             if 'substitutions' in seqmods:
                 new_seqadv,wearegone=residues.substitutions(seqmods['substitutions'])
                 seqadvs.extend(new_seqadv)
-            grafts=seqmods.get('grafts',GraftList([]))
 
             uniques=residues.uniqattrs(['segtype'],with_counts=True)
             nResolved=sum([1 for x in residues if x.resolved])
@@ -129,21 +132,20 @@ class AsymmetricUnit(AncestorAwareMod):
             # a deleted link may create a "free" glycan; in this case
             # we should also delete its residues; problem is that 
             ignored_residues.extend(more_ignored_residues)
-            ignored_grafts=grafts.assign_residues(residues)
+            ignored_grafts,more_ignored_residues,new_ignored_links=grafts.assign_residues(residues,links)
+            ignored_residues.extend(more_ignored_residues)
+            ignored_links.extend(new_ignored_links)
             
-            if excludes:
+            if excludes or len(ignored_residues+ignored_seqadvs+ignored_ssbonds+ignored_links+ignored_grafts)>0:
                 logger.debug(f'Exclusions result in deletion of:')
                 logger.debug(f'    {len(ignored_residues)} residues; {len(residues)} remain;')
                 logger.debug(f'    {len(ignored_seqadvs)} seqadvs; {len(seqadvs)} remain;')
-                logger.debug(f'    {len(ignored_ssbonds)} ssbonds; {len(ssbonds)} remain; and')
-                logger.debug(f'    {len(ignored_links)} links; {len(links)} remain.')
+                logger.debug(f'    {len(ignored_ssbonds)} ssbonds; {len(ssbonds)} remain;')
+                logger.debug(f'    {len(ignored_links)} links; {len(links)} remain;')
                 logger.debug(f'    {len(ignored_grafts)} grafts; {len(grafts)} remain.')
             
-            nlinks_old=len(links)
-            self.injest_grafts(grafts,links)
-            if len(links)!=nlinks_old:
-                logger.debug(f'Grafts added {len(links)-nlinks_old} links')
-
+            # provide specifications of how to handle sequence issues
+            # implied by PDB input
             seq_specs=sourcespecs.get('sequence',{})
             segments=SegmentList(seq_specs,residues,chainIDmanager)
             # this may have altered chainIDs for some residues.  So it is best
@@ -153,10 +155,16 @@ class AsymmetricUnit(AncestorAwareMod):
             ssbonds.update_attr_from_obj_attr('chainID2','residue2','chainID')
             links.update_attr_from_obj_attr('chainID1','residue1','chainID')
             links.update_attr_from_obj_attr('chainID2','residue2','chainID')
+            grafts.update_attr_from_obj_attr('chainID','residue','chainID')
             logger.debug(f'Segnames in A.U.: {",".join(segments.segnames)}')
             if segments.daughters:
                 logger.debug(f'Daughter chains generated: {segments.daughters}')
             logger.debug(f'Used chainIDs {chainIDmanager.Used}')
+            next_resseqnum=max([x.resseqnum for x in residues])+1
+            for g in grafts:
+                next_resseqnum=g.set_links(next_resseqnum)
+                my_logger(str(g),logger.debug,fill=' ',just='<')
+                links.extend(g.my_links)
 
             # at this point, we have built the asymmetric unit according to the intention of the 
             # author of the structure AND the intention of the user in excluding certain parts
@@ -192,7 +200,7 @@ class AsymmetricUnit(AncestorAwareMod):
 
             ssbonds=modmanager.injest(ssbonds,overwrite=True)
             links=modmanager.injest(links)
-            grafts=modmanager.injest(grafts)
+            grafts=modmanager.injest(grafts,overwrite=True)
             
             segments.inherit_mods(modmanager)
 
@@ -209,22 +217,34 @@ class AsymmetricUnit(AncestorAwareMod):
     def add_segment(self,seg):
         self.segments.append(seg)
 
-    def injest_grafts(self,grafts,links):
+    def injest_grafts(self,grafts,residues,links):
         # For each graft, add its residues beyond the graftpoint and the links involving those residues from the graft molecule as copies!
         # also need to reassign resids to these grafts and update any chainIDs
         for g in grafts:
             graft_chainID=g.chainID
-            residues=self.residues.filter(chainID=graft_chainID)
-            next_available_resid=max([x.resseqnum for x in residues])+1
+            chain_residues=residues.filter(chainID=graft_chainID)
+            # last_chain_residue_idx=residues.index(chain_residues[-1])
+            next_available_resid=max([x.resseqnum for x in chain_residues])+1
+            g_topomods=g.source_molecule.modmanager.get('topomods',{})
+            g_links=g_topomods.get('links',LinkList([]))
             g.source_seg=g.source_molecule.asymmetric_unit.segments.get(segname=g.source_chainID)
+            # build the list of new residues this graft contributes; the index residue is not included!
             g.my_residues=ResidueList([])
             for residue in g.source_seg.residues:
                 if residue>f'{g.source_resseqnum1}{g.source_insertion1}' and residue<=f'{g.source_resseqnum2}{g.source_insertion2}':
+                    residue.set_resseqnum(next_available_resid)
+                    residue.set_chainID(graft_chainID)
+                    next_available_resid+=1
                     g.my_residues.append(residue)
-            for r in g.my_residues:
-                r.set_resseqnum(next_available_resid)
-                next_available_resid+=1
-    #         logger.debug(f'Graft {g.id} in segment {self.segname}: resid {g.my_residues[0].resseqnum}{g.my_residues[0].insertion}-{g.my_residues[-1].resseqnum}{g.my_residues[-1].insertion}')
+            # only injest links that are internal to this set of residues
+            injested_links=0
+            for l in g_links:
+                if l.residue1 in g.my_residues and l.residue2 in g.my_residues:
+                    links.append(l)
+                    injested_links+=1
+            logger.debug(f'Chain {graft_chainID} of raw asymmetric unit injests {len(g.my_residues)} residues and {injested_links} links from graft {g.id}')
+                # residues.insert(last_chain_residue_idx+1,r)
+                # last_chain_residue_idx+=1
 
 
     def set_coords(self,altstruct):

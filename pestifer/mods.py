@@ -1141,12 +1141,16 @@ class Link(AncestorAwareMod):
         seg1=chainIDmap.get(seg1,seg1)
         seg2=self.residue2.chainID
         seg2=chainIDmap.get(seg2,seg2)
-        logger.debug(f'Link: {self.residue1.chainID}->{seg1}:{self.resseqnum1}{self.insertion1} {self.residue2.chainID}->{seg2}:{self.resseqnum2}{self.insertion2}')
+        rsn1=self.residue1.resseqnum
+        rsn2=self.residue2.resseqnum
+        ins1=self.residue1.insertion
+        ins2=self.residue2.insertion
+        logger.debug(f'Link: {self.residue1.chainID}->{seg1}:{rsn1}{ins1} {self.residue2.chainID}->{seg2}:{rsn2}{ins2}')
         if not self.patchname=='UNFOUND':
             if self.patchorder==[1,2]:
-                W.addline(f'patch {self.patchname} {seg1}:{self.resseqnum1}{self.insertion1} {seg2}:{self.resseqnum2}{self.insertion2}')
+                W.addline(f'patch {self.patchname} {seg1}:{rsn1}{ins1} {seg2}:{rsn2}{ins2}')
             elif self.patchorder==[2,1]:
-                W.addline(f'patch {self.patchname} {seg2}:{self.resseqnum2}{self.insertion2} {seg1}:{self.resseqnum1}{self.insertion1}')
+                W.addline(f'patch {self.patchname} {seg2}:{rsn2}{ins2} {seg1}:{rsn1}{ins1}')
         else:
             logger.warning(f'Could not identify patch for link: {str(self)}')
             W.comment(f'No patch found for {str(self)}')
@@ -1158,17 +1162,19 @@ class Link(AncestorAwareMod):
                 if self.chainID1!=new_chainID:
                     logger.debug(f'updating link residue1 chainID from {self.chainID1} to {new_chainID}')
                     self.chainID1=new_chainID
-                    self.residue1.set_chainID(new_chainID)
+                    self.residue1.set(chainID=new_chainID)
         elif idx==2:
             if 'chainID' in fields:
                 new_chainID=fields['chainID']
                 if self.chainID2!=new_chainID:
                     logger.debug(f'updating link residue2 chainID from {self.chainID2} to {new_chainID}')
                     self.chainID2=new_chainID
-                    self.residue2.set_chainID(new_chainID)
+                    self.residue2.set(chainID=new_chainID)
 
     def __str__(self):
-        return f'{self.chainID1}_{self.resname1}{self.resseqnum1}{self.insertion1}-{self.chainID2}_{self.resname2}{self.resseqnum2}{self.insertion2}'
+        if not hasattr(self,'residue1') or not self.residue1 or not hasattr(self,'residue2') or not self.residue2:
+            return f'{self.chainID1}_{self.resname1}{self.resseqnum1}{self.insertion1}-{self.chainID2}_{self.resname2}{self.resseqnum2}{self.insertion2}'
+        return f'{str(self.residue1)}-{str(self.residue2)}'
 
 class LinkList(AncestorAwareModList):
     """A class for handling lists of Links
@@ -1303,7 +1309,7 @@ class LinkList(AncestorAwareModList):
             W.addline(str(l))
 
 class Graft(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['id','chainID','resseqnum','insertion','source_pdbid','source_chainID','source_resseqnum1','source_insertion1','source_resseqnum2','source_insertion2']
+    req_attr=AncestorAwareMod.req_attr+['id','orig_chainID','orig_resseqnum','orig_insertion','source_pdbid','source_chainID','source_resseqnum1','source_insertion1','source_resseqnum2','source_insertion2']
     yaml_header='grafts'
     modtype='seqmods'
     _Graft_counter=0
@@ -1336,9 +1342,9 @@ class Graft(AncestorAwareMod):
         else:
             source_resseqnum2,source_insertion2=source_resseqnum1,source_insertion1
         input_dict={
-            'chainID':chainID,
-            'resseqnum':resseqnum,
-            'insertion':insertion,
+            'orig_chainID':chainID,
+            'orig_resseqnum':resseqnum,
+            'orig_insertion':insertion,
             'source_pdbid':source_pdbid,
             'source_chainID':source_chainID,
             'source_resseqnum1':source_resseqnum1,
@@ -1352,6 +1358,51 @@ class Graft(AncestorAwareMod):
         self.residue=None
         super().__init__(input_dict)
 
+    def activate(self,mol):
+        self.source_molecule=mol
+        g_topomods=self.source_molecule.modmanager.get('topomods',{})
+        g_links=g_topomods.get('links',LinkList([]))
+        self.source_seg=self.source_molecule.asymmetric_unit.segments.get(segname=self.source_chainID)
+        self.my_residues=type(self.source_seg.residues)([])
+        self.index_residue=None
+        for residue in self.source_seg.residues:
+            if residue.same_resid(f'{self.source_resseqnum1}{self.source_insertion1}'):
+                self.index_residue=residue
+            elif residue>f'{self.source_resseqnum1}{self.source_insertion1}' and residue<=f'{self.source_resseqnum2}{self.source_insertion2}':
+                self.my_residues.append(residue)
+        # only injest links that are internal to this set of residues
+        self.my_links=type(g_links)([])
+        for l in g_links:
+            if l.residue1 in self.my_residues and l.residue2 in self.my_residues:
+                self.my_links.append(l)
+            elif l.residue1==self.index_residue and l.residue2 in self.my_residues:
+                self.my_links.append(l)
+            elif l.residue2==self.index_residue and l.residue1 in self.my_residues:
+                self.my_links.append(l)
+        logger.debug(f'Activated graft {self.id}')
+
+    def set_links(self,next_resseqnum):
+        assert self.residue!=None
+        logger.debug(f'Graft {self.id} resolved residue {str(self.residue)}')
+        self.index_residue.set(chainID=self.residue.chainID)
+        self.my_residues.set(chainID=self.residue.chainID)
+        for r in self.my_residues:
+            r.set(resseqnum=next_resseqnum)
+            next_resseqnum+=1
+        for l in self.my_links:
+            if l.residue1==self.index_residue and l.residue2 in self.my_residues:
+                l.residue1=self.residue
+            elif l.residue2==self.index_residue and l.residue1 in self.my_residues:
+                l.residue2=self.residue
+        return next_resseqnum
+    
+    def __str__(self):
+        res=f'Graft {self.id}: index residue {str(self.index_residue)} delivers {len(self.my_residues)} residues to \n'
+        res+=f'  target {str(self.residue)} along with {len(self.my_links)} internal links:\n'
+        for l in self.my_links:
+            res+=f'  -> link {str(l)}\n'
+        return res
+
     def write_pre_segment(self,W:Psfgen):
         W.comment(f'Graft {self.id}')
         W.addline(f'set topid [molinfo ${W.molid_varname} get id]')
@@ -1360,39 +1411,77 @@ class Graft(AncestorAwareMod):
         W.addline(f'mol top $topid')
         W.addline(f'set graftres [atomselect $graftid "chain {self.source_chainID} and (resid {self.source_resseqnum1}{self.source_insertion1} to {self.source_resseqnum2}{self.source_insertion2}) and (not resid {self.source_resseqnum1}{self.source_insertion1})"]')
         # perform coordinate transformation
-        W.addline(f'set residue [atomselect ${W.molid_varname} "chain {self.residue.chainID} and resid {self.residue.resseqnum}{self.residue.insertion} and noh"]')
+        W.addline(f'set residue [atomselect ${W.molid_varname} "chain {self.orig_chainID} and resid {self.orig_resseqnum}{self.orig_insertion} and noh"]')
         W.addline(f'vmdcon -info "Target residue has [$residue num] atoms"')
-        W.addline(f'set resid [lindex [$residue get resid] 0]')
-        W.addline(f'set insertion [lindex [$residue get insertion] 0]')
         W.addline(f'set source_index_residue [atomselect $graftid "chain {self.source_chainID} and resid {self.source_resseqnum1}{self.source_insertion1} and noh"]')
         W.addline(f'vmdcon -info "Moving [lindex [$source_index_residue get resname] 0] onto [lindex [$residue get resname] 0]"')
         W.addline(f'set graft_trans [measure fit $source_index_residue $residue]')
         W.addline(f'$graftres move $graft_trans')
         self.segfile=f'graft{self.id}.pdb'
-        W.addline(f'$graftres set resid [list {" ".join([f"{x.resseqnum}" for x in self.my_residues])}]')
+        new_residlist=[]
+        for y in self.my_residues:
+            new_residlist.extend([f'{y.resseqnum}' for x in y.atoms])
+        W.addline(f'$graftres set resid [list {" ".join(new_residlist)}]')
+        W.addline(f'$graftres set chain {self.my_residues[0].chainID}')
         W.addline(f'$graftres writepdb {self.segfile}')
-        W.addline(f'delete $graftid')
+        W.addline(f'$graftres delete')
     def write_in_segment(self,W:Psfgen):
         W.addline (f'    pdb {self.segfile}')
     def write_post_segment(self,W:Psfgen):
         W.addline(f'coordpdb {self.segfile} {self.chainID}')
+    # def execute_graft(self,target_residue,next_available_resid):
+    #     graft_chainID=self.chainID 
+    #     g_topomods=self.source_molecule.modmanager.get('topomods',{})
+    #     g_links=g_topomods.get('links',LinkList([]))
+    #     source_seg=self.source_molecule.asymmetric_unit.segments.get(segname=self.source_chainID)
+    #     # build the list of new residues this graft contributes; the index residue is not included!
+    #     self.donated_residues=[]
+    #     for residue in source_seg.residues:
+    #         if residue>f'{self.source_resseqnum1}{self.source_insertion1}' and residue<=f'{self.source_resseqnum2}{self.source_insertion2}':
+    #             residue.set_resseqnum(next_available_resid)
+    #             residue.set_chainID(graft_chainID)
+    #             next_available_resid+=1
+    #             self.my_residues.append(residue)
+    #         # only injest links that are internal to this set of residues
+    #     self.donated_links=[]
+    #     for l in g_links:
+    #         if l.residue1 in self.donated_residues and l.residue2 in self.donated_residues:
+    #             links.append(l)
+    #                 injested_links+=1
+
     def assign_residue(self,Residues):
         assert self.residue==None
-        self.assign_obj_to_attr('residue',Residues,chainID='chainID',resseqnum='resseqnum',insertion='insertion')
+        self.assign_obj_to_attr('residue',Residues,chainID='orig_chainID',resseqnum='orig_resseqnum',insertion='orig_insertion')
 
 class GraftList(AncestorAwareModList):
-    def assign_residues(self,Residues):
+    def assign_residues(self,Residues,Links):
         logger.debug(f'Assigning residue objects to {len(self)} grafts')
         delete_us=[]
+        down_group=[]
+        down_links=[]
         for s in self:
             logger.debug(f'graft {s.id}')
             s.assign_residue(Residues)
             if s.residue:
                 logger.debug(f'-> residue {s.residue.chainID}_{s.residue.resname}{s.residue.resseqnum}{s.residue.insertion}')
+                logger.debug(f'   links down to {", ".join([str(x) for x in s.residue.down])}')
+                down_group,down_links=s.residue.get_down_group()
+                logger.debug(f'Target residue down-links to a group of {len(down_group)} residues:')
+                if len(down_group)>0:
+                    for dg in down_group:
+                        logger.debug(f'  removing residue {str(dg)}')
+                        Residues.remove(dg)
+                if len(down_links)>0:
+                    for dl in down_links:
+                        logger.debug(f'  removing link {str(dl)}')
+                        Links.remove(dl)
+                if len(down_group)>1:
+                    s.residue.unlink(down_group[0])
+
         delete_us=self.__class__([s for s in self if s.residue==None])
         for s in delete_us:
             self.remove(s)
-        return delete_us
+        return delete_us,down_group,down_links
 
 class Insertion(AncestorAwareMod):
     """A class for handling insertions of amino acid residues within an otherwise

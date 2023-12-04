@@ -118,9 +118,14 @@ class BaseMod(Namespace):
         and stores the result in the mapped attribute; if mapped and
         key attributes are the same, mapping overwrites the attribute
 
-    set(self,**fields)
+    set(self,shallow=False,**fields)
         treating fields as attribute-name:value pairs, sets the values
-        of the object attributes named in fields
+        of the object attributes named in fields.  If shallow is False,
+        and if there are any
+        attribute objects of self that also have attributes named
+        in fields, their values are also set, and so on down recursively.
+        Also, if any object attribute is a list of objects, any
+        element in this list that has a named attribute is also set.
 
     assign_obj_to_attr(self,attr,objList,**matchattr)
         searches the list of objects objList using the matcharr dict
@@ -317,8 +322,6 @@ class BaseMod(Namespace):
                 return False
         return True
 
-
-    
     def dump(self):
         """Simple dump of this item's __dict__
 
@@ -367,7 +370,7 @@ class BaseMod(Namespace):
             val=map[key]
             self.__dict__[mapped_attr]=val
 
-    def set(self,**fields):
+    def set(self,shallow=False,**fields):
         """
         Parameters
         ----------
@@ -376,8 +379,18 @@ class BaseMod(Namespace):
             object attribute values respectively
         """
         for k,v in fields.items():
+            # first if k is an attribute, set its value
             if k in self.__dict__:
                 self.__dict__[k]=v
+            # if k is an attr of any object of self
+            if not shallow:
+                for sk,sv in self.__dict__.items():
+                    if hasattr(sv,'req_attr') and hasattr(sv,k):
+                        sv.set(**fields)
+                    elif hasattr(sv,'modliststamp'):
+                        for subitem in sv:
+                            if hasattr(subitem,'req_attr') and hasattr(subitem,k):
+                                subitem.set(**fields)
 
     def assign_obj_to_attr(self,attr,objList,**matchattr):
         """Assigns the single object from objList whose
@@ -714,6 +727,7 @@ class ModList(UserList):
     remove_duplicates(self)
         removes duplicates
     """
+    modliststamp=True
     def __init__(self,data):
         """Standard initialization of the UserList """
         super().__init__(data)
@@ -786,7 +800,7 @@ class ModList(UserList):
         else:
             return I
 
-    def set(self,**fields):
+    def set(self,shallow=False,**fields):
         """Element attribute-setter
         
         Parameters
@@ -796,7 +810,7 @@ class ModList(UserList):
             of the calling instance
         """
         for item in self:
-            item.set(**fields)
+            item.set(shallow=shallow,**fields)
 
     def prune(self,objlist=[],attr_maps=[]):
         """Attribute-based pruning by referencing and mapping another list  

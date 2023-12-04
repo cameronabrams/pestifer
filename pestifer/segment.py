@@ -46,14 +46,15 @@ class Segment(AncestorAwareMod):
                 Residues.sort()
                 subsegments=Residues.state_bounds(lambda x: 'RESOLVED' if x.resolved else 'MISSING')
             else:
-                logger.debug(f'Calling puniqify on residues of segment {segname}')
+                logger.debug(f'Calling puniqify on residues of non-protein segment {segname}')
                 Residues.puniquify(fields=['resseqnum','insertion'],make_common=['chainID'])
                 count=sum([1 for x in Residues if hasattr(x,'_ORIGINAL_')])
                 if count>0:
-                    logger.debug(f'{count} residue(s) were affected:')
+                    logger.debug(f'{count} residue(s) were affected by puniquify:')
                     for x in Residues:
                         if hasattr(x,'_ORIGINAL_'):
-                            logger.debug(f'    {x.chainID} {x.resname} {x.resseqnum}{x.insertion} was {x._ORIGINAL_}')                
+                            logger.debug(f'    {x.chainID} {x.resname} {x.resseqnum}{x.insertion} was {x._ORIGINAL_}')
+                # this assumes residues are in a linear sequence?  not really..               
                 subsegments=Residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
             logger.debug(f'Segment {segname} has {len(Residues)} residues across {len(subsegments)} subsegments')
             input_dict={
@@ -83,7 +84,7 @@ class Segment(AncestorAwareMod):
         self.residues=parent_residues
         # this set_chainID call must act DEEPLY on structures in the list items
         # that have chainID attributes AND we have to revisit all links!
-        daughter_residues.set_chainID(daughter_chainID)
+        daughter_residues.set(chainID=daughter_chainID)
         Dseg=Segment({},daughter_residues,daughter_chainID)
         Dseg.modmanager=self.modmanager.expel(daughter_residues)
         Dseg.ancestor_obj=self.ancestor_obj
@@ -293,6 +294,7 @@ class Segment(AncestorAwareMod):
         self.modmanager.retire('seqmods')
 
 class SegmentList(AncestorAwareModList):
+    """A class for creating and handling a list of segments given a complete list of residues for an entire asymmetric unit"""
     def __init__(self,*objs):
         if len(objs)==1 and objs[0]==[]:
             super().__init__([])
@@ -307,6 +309,7 @@ class SegmentList(AncestorAwareModList):
             if type(input_obj)==ResidueList:
                 super().__init__([])
                 residues=input_obj
+                assert all([x.segtype!='UNSET' for x in residues])
                 self.segnames_ordered_by_residue_order=[]
                 self.segtypes_ordered=[]
                 for r in residues:

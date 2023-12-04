@@ -308,7 +308,7 @@ class Residue(EmptyResidue):
 
     def __str__(self):
         rc='' if self.resolved else '*'
-        return f'{self.chainID}-{self.resname}{self.resseqnum}{self.insertion}{rc}'
+        return f'{self.chainID}_{self.resname}{self.resseqnum}{self.insertion}{rc}'
     def __lt__(self,other):
         if type(other)==type(self):
             o_resseqnum=other.resseqnum
@@ -349,14 +349,14 @@ class Residue(EmptyResidue):
             self.atoms.append(a)
             return True
         return False
-    def set_chainID(self,chainID):
-        self.chainID=chainID
-        for a in self.atoms:
-            a.chainID=chainID
-    def set_resseqnum(self,resseqnum):
-        self.resseqnum=resseqnum
-        for a in self.atoms:
-            a.resseqnum=resseqnum
+    # def set_chainID(self,chainID):
+    #     self.chainID=chainID
+    #     for a in self.atoms:
+    #         a.chainID=chainID
+    # def set_resseqnum(self,resseqnum):
+    #     self.resseqnum=resseqnum
+    #     for a in self.atoms:
+    #         a.resseqnum=resseqnum
     def linkTo(self,other,link):
         self.down.append(other)
         self.downlink.append(link)
@@ -549,6 +549,6 @@ class ResidueList(AncestorAwareModList):
                 idx+=1
                 i='A' if i in [' ',''] else chr(ord(i)+1)
     
-    def set_chainID(self,chainID):
-        for r in self:
-            r.set_chainID(chainID)
+    # def set_chainID(self,chainID):
+    #     for r in self:
+    #         r.set_chainID(chainID)

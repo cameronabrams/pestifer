@@ -15,6 +15,7 @@ import shutil
 import os
 # from argparse import Namespace
 import yaml
+from copy import deepcopy
 from .util import is_periodic
 from .molecule import Molecule
 from .chainidmanager import ChainIDManager
@@ -445,20 +446,23 @@ class PsfgenTask(BaseTask):
         self.source_specs=specs['source']
         logger.debug(f'User-input modspecs {self.specs["mods"]}')
         self.modmanager=ModManager(self.specs['mods'])
-        self.chainIDmanager=ChainIDManager(format=self.specs['source']['file_format'])
-        self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,modmanager=self.modmanager,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
-        self.base_molecule=self.molecules[self.source_specs['id']]
         seqmods=self.modmanager.get('seqmods',{})
+        logger.debug(f'Injesting seqmods {seqmods}')
         if 'grafts' in seqmods:
+            logger.debug(f'looking for graft sources to injest')
             Grafts=seqmods['grafts']
             for g in Grafts:
                 if not g.source_pdbid in self.molecules:
+                    logger.debug(f'Injesting graft source {g.source_pdbid}')
                     this_source={
                         'id':g.source_pdbid,
                         'file_format':'PDB'
                     }
                     self.molecules[g.source_pdbid]=Molecule(source=this_source)
-                g.source_molecule=self.molecules[g.source_pdbid]
+                g.activate(deepcopy(self.molecules[g.source_pdbid]))
+        self.chainIDmanager=ChainIDManager(format=self.specs['source']['file_format'])
+        self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,modmanager=self.modmanager,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
+        self.base_molecule=self.molecules[self.source_specs['id']]
         for molid,molecule in self.molecules.items():
             logger.debug(f'Molecule {molid}: {molecule.num_atoms()} atoms in {molecule.num_residues()} residues; {molecule.num_segments()} segments.')
 

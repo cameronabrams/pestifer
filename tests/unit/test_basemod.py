@@ -102,6 +102,30 @@ class TestBaseMod(unittest.TestCase):
         self.assertFalse(bm3<bm1)
         self.assertFalse(bm1<bm3)
 
+    def test_basemod_set(self):
+        class tbm(BaseMod):
+            req_attr=['a','x']
+        class sbm(BaseMod):
+            req_attr=['b','x']
+        L=ModList([sbm({'b':x,'x':x+1}) for x in range(1,10)])
+        A=tbm({'a':1,'x':2})
+        A.sub=sbm({'b':'sub','x':99})
+        A.sublist=L
+        A.set(x=77)
+        self.assertEqual(A.x,77)
+        self.assertEqual(A.sub.x,77)
+        self.assertTrue(all([item.x==77 for item in A.sublist]))
+        L=ModList([sbm({'b':x,'x':x+1}) for x in range(1,10)])
+        A=tbm({'a':1,'x':2})
+        A.sub=sbm({'b':'sub','x':99})
+        A.sublist=L
+        A.set(shallow=True,x=88)
+        self.assertEqual(A.x,88)
+        self.assertEqual(A.sub.x,99) # not set
+        self.assertEqual([item.x for item in A.sublist],list(range(2,11)))
+
+        
+
 class TestStateInterval(unittest.TestCase):
     def test_stateintervals(self):
         s=StateInterval({'state':'no state','bounds':[0,0]})
