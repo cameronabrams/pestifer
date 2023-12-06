@@ -3,19 +3,19 @@
 # TcL procedures for facilitating rotations around bonds
 
 # Wrap x into periodic domain [xlo,xhi]
-proc wrap_domain { x xlo xhi } {
-   set dsize [expr ($xhi) - ($xlo)]
-   if { [expr $x < $xlo] } {
-      set y [expr $x + $dsize]
-   } elseif { [expr $x > $xhi] } {
-      set y [expr $x - $dsize]
-   } else {
-      set y $x
-   }
-   return $y
-}
+# proc wrap_domain { x xlo xhi } {
+#    set dsize [expr ($xhi) - ($xlo)]
+#    if { [expr $x < $xlo] } {
+#       set y [expr $x + $dsize]
+#    } elseif { [expr $x > $xhi] } {
+#       set y [expr $x - $dsize]
+#    } else {
+#       set y $x
+#    }
+#    return $y
+# }
 
-# Determine whether or not residues q and r are in the same chain
+# Determine whether or not Sresidues q and r are in the same chain
 # Parameters:
 # -----------
 # - q, r: absolute residue numbers
@@ -29,14 +29,14 @@ proc residues_in_same_chain { molid q r } {
    if { $q < 0 || $r < 0 } {
       return 0
    }
-   set Q [atomselect $molid "residue $q and name CA"]
-   set R [atomselect $molid "residue $r and name CA"]
+   set Q [atomselect $molid "residue $q"]
+   set R [atomselect $molid "residue $r"]
    set result 1
    if { [$Q num]==0 || [$R num]==0 } {
       set result 0
    } else {
-      set CQ [$Q get chain]
-      set CR [$R get chain]
+      set CQ [lindex [$Q get chain] 0]
+      set CR [lindex [$R get chain] 0]
       if { $CQ != $CR } {
          set result 0
       }
@@ -56,6 +56,11 @@ proc residues_in_same_chain { molid q r } {
 # --------
 # - list of phi, psi, and omega values, in that order
 proc get_phi_psi_omega { r molid } {
+   set protein_check [expr [[atomselect $molid "residue $r and protein"] num]]
+   if { $protein_check == 0 } {
+      vmdcon -info "Residue $r of mol $molid is not protein"
+      return [list "NaN" "NaN" "NaN"]
+   }
    set r_prev [expr $r-1]
    set r_next [expr $r+1]
    set phi "NaN"
@@ -137,7 +142,36 @@ proc fold_alpha { rbegin rend rterm molid } {
 }
 
 
-# Generalized bond rotation
+# Generalized bond rotation for terminal groups
+# Parameters
+# ----------
+# - molid : molecule id
+# - atomsel : atomselection of the group containing the bond to rotate
+# - a[0,1]idx: atom indices of the two bonded atoms defining the bond to rotate
+# - deg: degrees of rotation around bond [0,360]
+proc trot { molid atomsel a0idx a1idx deg} {
+   set all_ids [$atomsel get index]
+   set bonds [$atomsel getbonds]
+   # TODO: identify subset of serials including a1ser and all atoms "downstream"
+   # from it in the terminal group
+   # to do this, tag all atoms whose bonded neighbors are *within* the selection
+   set all_internal_ids [list]
+   foreach ao $all_ids bo $bonds {
+      set is_internal 1
+      foreach ba $bo {
+         set se [lsearch $all_ids $ba]
+         if { se == -1 } {
+            set is_internal 0
+         }
+      }
+      if { $is_internal == 1} {
+         lappend all_internal_ids $ao
+      }
+   }
+
+}
+
+# Generalized bond rotation for proteins
 # Parameters
 # ----------
 # - molid: molecule id

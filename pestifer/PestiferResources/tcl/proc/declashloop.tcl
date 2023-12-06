@@ -1,4 +1,4 @@
-
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
 # A very simple Metropolis algorithm to alter conformation of raw model-built
 # loops to minimize clashes
 proc declash_loop { molid segname loop maxcycles } {
@@ -7,9 +7,9 @@ proc declash_loop { molid segname loop maxcycles } {
   set residue_numbers [[atomselect $molid "[$loopsel text] and name CA"] get residue]
   set env [atomselect $molid "same residue as exwithin 4.0 of (segname $segname and resid [join $loop])"]
   set residuenum_end [lindex $residue_numbers end]
-  puts "DECLASH_LOOP) molid $molid segname $segname loop $loop maxcycles $maxcycles"
-  puts "DECLASH_LOOP) loopsel [$loopsel num] atoms; residue_numbers $residue_numbers"
-  puts "DECLASH_LOOP) env [$env num] atoms"
+  vmdcon -info "DECLASH_LOOP) molid $molid segname $segname loop $loop maxcycles $maxcycles"
+  vmdcon -info "DECLASH_LOOP) loopsel [$loopsel num] atoms; residue_numbers $residue_numbers"
+  vmdcon -info "DECLASH_LOOP) env [$env num] atoms"
   for { set i 0 } { $i < $nr } { incr i } {
     # rotate phi angle and psi angle to minimize number of contacts between residue and 
     # its environment
@@ -17,7 +17,7 @@ proc declash_loop { molid segname loop maxcycles } {
     set residuenum1 [lindex $residue_numbers $i]
     set CON_STRUCT [measure contacts 2.0 $rsel $env]
     set CON [llength [lindex $CON_STRUCT 0]]
-    puts "DECLASH_LOOP) [lindex $loop $i] INIT $CON"
+    vmdcon -info "DECLASH_LOOP) [lindex $loop $i] INIT $CON"
     for { set t 0 } { $t < $maxcycles && $CON > 0 } { incr t } {
       set SAVEPOS [$loopsel get {x y z}]
       set rphi [expr (1-2*rand())*120.0]
@@ -32,7 +32,7 @@ proc declash_loop { molid segname loop maxcycles } {
       if { [expr $TRICON < $CON] } {
         # accept this move
         set CON $TRICON
-        puts "DECLASH_LOOP) ${segname}:[lindex $loop 0]-[lindex $loop $i] $t $CON"
+        vmdcon -info "DECLASH_LOOP) ${segname}:[lindex $loop 0]-[lindex $loop $i] $t $CON"
       } else {
         # reject this move
         $loopsel set {x y z} $SAVEPOS
