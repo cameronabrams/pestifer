@@ -5,7 +5,8 @@
 import logging
 from .mods import *
 from argparse import Namespace
-from .residue import ResidueList,AtomList,Atom,Hetatm,Ter,TerList,EmptyResidue,EmptyResidueList
+from .atom import AtomList,Atom,Hetatm
+from .residue import ResidueList,Ter,TerList,EmptyResidue,EmptyResidueList
 from .segment import SegmentList
 from .basemod import AncestorAwareMod
 from .modmanager import ModManager
