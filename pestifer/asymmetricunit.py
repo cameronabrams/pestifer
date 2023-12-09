@@ -14,6 +14,7 @@ from .stringthings import my_logger
 from mmcif.api.PdbxContainers import DataContainer
 from .config import *
 from .util import write_residue_map
+from .psf import PSFContents
 
 logger=logging.getLogger(__name__)
 
@@ -78,7 +79,8 @@ class AsymmetricUnit(AncestorAwareMod):
                 links=LinkList([Link(x) for x in lndicts])
 
             if psf:
-                atoms.apply_psf_resnames(psf)
+                self.psf=PSFContents(psf)
+                atoms.apply_psf_resnames(self.psf.atoms)
             seqmods=modmanager.get('seqmods',{})
             grafts=seqmods.get('grafts',GraftList([]))
             

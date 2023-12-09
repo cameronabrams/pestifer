@@ -228,7 +228,7 @@ class MDTask(BaseTask):
         self.inherit_state()            
         self.namd2run()
         self.save_state(exts=['coor','vel','xsc'])
-        logger.info(f'Task {self.taskname} {self.index:02d} complete')
+        logger.info(f'Task {self.taskname} ({self.specs["ensemble"]}) {self.index:02d} complete')
 
     def copy_charmmpar_local(self):
         local_names=[]
@@ -381,6 +381,10 @@ class PsfgenTask(BaseTask):
         if nloops>0:
             logger.debug(f'Declashing {nloops} loops')
             self.declash_loops(self.specs['source']['sequence']['loops'])
+        nglycans=self.base_molecule.nglycans()*self.base_molecule.num_images()
+        if nglycans>0:
+            logger.debug(f'Declashing {nglycans} glycans')
+            self.declash_glycans(self.specs['source']['sequence']['glycans'])
         logger.info(f'Task {self.taskname} {self.index:02d} complete')
 
     def coormods(self):
@@ -428,7 +432,7 @@ class PsfgenTask(BaseTask):
         cycles=specs['declash']['maxcycles']
         if not mol.has_loops() or not cycles:
             return
-        self.next_basename('declash')
+        self.next_basename('declash-loops')
         vt=self.writers['vmd']
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
@@ -439,6 +443,21 @@ class PsfgenTask(BaseTask):
         vt.endscript()
         vt.writescript()
         vt.runscript()
+        self.save_state(exts=['pdb'])
+
+    def declash_glycans(self,specs):
+        mol=self.base_molecule
+        cycles=specs['declash']['maxcycles']
+        if not mol.has_glycans() or not cycles:
+            return
+        self.next_basename('declash-glycans')
+        vt=self.writers['vmd']
+        psf=self.statevars['psf']
+        pdb=self.statevars['pdb']
+        vt.newscript(self.basename)
+        vt.usescript('declash-glycans')
+        vt.writescript()
+        vt.runscript(psf=psf,pdb=pdb,o=f'{self.basename}.pdb')
         self.save_state(exts=['pdb'])
 
     def injest_molecules(self):

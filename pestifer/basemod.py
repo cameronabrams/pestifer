@@ -99,7 +99,12 @@ class BaseMod(Namespace):
         non strict match -- returns true if all key:val pairs in fields
         match the corresponding key:val pairs in the calling instance's
         attributes
-
+    
+    allneg(**fields)
+        strict no-match -- returns true if NO key:val pairs in fields
+        match the corresponding key:val pairs in the calling instance's
+        attributes
+    
     wildmatch(**fields)
         non strict match with substring keys -- returns true if all key:val 
         pairs in fields match the corresponding key:val pairs in the calling 
@@ -296,6 +301,26 @@ class BaseMod(Namespace):
                 return False
         return True
     
+    def allneg(self,**fields):
+        """ 
+        Parameters
+        ----------
+        field : dict, optional
+            attribute:value pairs that are checked against those of the object
+        
+        Returns
+        -------
+        bool :
+            True if EXACTLY NONE of the calling instance attribute values match 
+            the fields input
+        """
+        goodfields={}
+        for k,v in fields.items():
+            if k in self.__dict__:
+                goodfields[k]=v
+        if len(goodfields)==0: return True
+        return all([x!=y for x,y in [(goodfields[k],self.__dict__[k]) for k in goodfields.keys()]])
+
     def wildmatch(self,**fields):
         """ 
         Parameters
@@ -622,6 +647,10 @@ class ModList(UserList):
         of items with attributes that match the attribute-name:value
         pairs of the fields dictionary
     
+    negfilter(**fields): 
+        returns a new list of items with attributes that DO NOT match
+        the attribute-name:value pairs in the fields dictionary
+    
     get(**fields):
         a modified filter() method whose return value depends on how
         many items in the calling instance are matches.  If none,
@@ -754,6 +783,13 @@ class ModList(UserList):
         for r in self:
             if r.matches(**fields): retlist.append(r)
         return retlist
+    
+    def negfilter(self,**fields):
+        retlist=self.__class__([])
+        for r in self:
+            if r.allneg(**fields): retlist.append(r)
+        return retlist
+        
 
     def ifilter(self,**fields):
         retlist=[]

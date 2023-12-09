@@ -8,7 +8,7 @@ from functools import singledispatchmethod
 from argparse import Namespace
 from .coord import positionN
 from .atom import *
-from .bond import *
+# from .bond import *
 
 class EmptyResidue(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['resname','resseqnum','insertion','chainID','resolved','segtype']

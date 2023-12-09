@@ -123,6 +123,21 @@ class TestBaseMod(unittest.TestCase):
         self.assertEqual(A.x,88)
         self.assertEqual(A.sub.x,99) # not set
         self.assertEqual([item.x for item in A.sublist],list(range(2,11)))
+    
+    def test_allneg(self):
+        class tbm(BaseMod):
+            req_attr=['a','x']
+        i=tbm({'a':1,'x':2})
+        # j=tbm({'a':2,'x':1})
+        self.assertTrue(i.allneg(a=3,x=1))
+        self.assertFalse(i.allneg(a=3,x=2))
+        L=ModList([tbm({'a':'H','x':x+1}) for x in range(1,10)])+ModList([tbm({'a':'C','x':x+1}) for x in range(1,10)])
+        M=L.negfilter(a='H')
+        self.assertEqual(len(L),18)
+        self.assertEqual(len(M),9)
+        self.assertEqual(M[0].a,'C')
+        self.assertTrue(all([x.a=='C' for x in M]))
+        
 
         
 

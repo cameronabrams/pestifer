@@ -413,6 +413,18 @@ directives:
                             text: Maximum number of Metropolis cycles
                             type: int
                             default: 20
+                  - name: glycans
+                    text: parameters controlling how model-built glycans are adjusted, if present
+                    type: dict
+                    directives:
+                      - name: declash
+                        text: Specifies how glycan residues are moved to avoid steric clashes
+                        type: dict
+                        directives:
+                          - name: maxcycles
+                            text: Maximum number of Metropolis cycles
+                            type: int
+                            default: 20
           - name: mods
             text: Specifies modifications to the sequence or structure in the PDB file
             type: dict

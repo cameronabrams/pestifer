@@ -1309,7 +1309,11 @@ class LinkList(AncestorAwareModList):
             W.addline(str(l))
 
 class Graft(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['id','orig_chainID','orig_resseqnum','orig_insertion','source_pdbid','source_chainID','source_resseqnum1','source_insertion1','source_resseqnum2','source_insertion2']
+    """A class for handling grafts.  A graft refers to a set of residues that are added to the base molecule and sourced from a separate pdb. 
+    The graft's "target" is a residue that is congruent to the "reference" residue in the graft.  The graft is positioned by aligning all of
+    its atoms using a triple on the reference and the same triplet on the target as an alignment generator. The target residue's atoms
+    are replaced by those in the reference and the rest of the reference is incorporated."""
+    req_attr=AncestorAwareMod.req_attr+['id','orig_chainID','orig_resseqnum','orig_insertion','source_pdbid','source_chainID','source_resseqnum1','source_insertion1','source_resseqnum2','source_insertion2','triple']
     yaml_header='grafts'
     modtype='seqmods'
     _Graft_counter=0
@@ -1319,14 +1323,16 @@ class Graft(AncestorAwareMod):
 
     @__init__.register(str)
     def _from_shortcode(self,shortcode):
-        # target:source
+        # target:source:triple
         # target -- C_RRR  C=chain ID RRR=resid+insertion
         # source -- ccc,C_RRR-SSS  
         #  - ccc basename of pdb file or pdb id
         #  - C chainID in source pdb
         #  - RRR-SSS resid+insertion range
+        # triple -- a1name,a2name,a3name
+        #   names of three atoms used to compute alignment move
         tokens=shortcode.split(':')
-        assert len(tokens)==2,f'Malformed graft shortcode {shortcode}'
+        assert len(tokens)==3,f'Malformed graft shortcode {shortcode}'
         target=tokens[0].split('_')
         assert len(target)==2,f'Malformed graft target spec {tokens[0]}'
         chainID,ri=target[0],split_ri(target[1])
@@ -1341,6 +1347,7 @@ class Graft(AncestorAwareMod):
             source_resseqnum2,source_insertion2=split_ri(source_resrange[1])
         else:
             source_resseqnum2,source_insertion2=source_resseqnum1,source_insertion1
+        triple=tokens[2].split(',')
         input_dict={
             'orig_chainID':chainID,
             'orig_resseqnum':resseqnum,
@@ -1351,6 +1358,7 @@ class Graft(AncestorAwareMod):
             'source_insertion1':source_insertion1,
             'source_resseqnum2':source_resseqnum2,
             'source_insertion2':source_insertion2,
+            'triple':triple,
             'id':Graft._Graft_counter
         }
         logger.debug(f'Initializing graft {input_dict}')
@@ -1409,22 +1417,19 @@ class Graft(AncestorAwareMod):
         W.addline(f'mol new {self.source_pdbid}')
         W.addline(f'set graftid [molinfo top get id]')
         W.addline(f'mol top $topid')
-        W.addline(f'set graftres [atomselect $graftid "chain {self.source_chainID} and (resid {self.source_resseqnum1}{self.source_insertion1} to {self.source_resseqnum2}{self.source_insertion2}) and (not resid {self.source_resseqnum1}{self.source_insertion1})"]')
-        # perform coordinate transformation
-        W.addline(f'set residue [atomselect ${W.molid_varname} "chain {self.orig_chainID} and resid {self.orig_resseqnum}{self.orig_insertion} and noh"]')
-        W.addline(f'vmdcon -info "Target residue has [$residue num] atoms"')
-        W.addline(f'set source_index_residue [atomselect $graftid "chain {self.source_chainID} and resid {self.source_resseqnum1}{self.source_insertion1} and noh"]')
-        W.addline(f'vmdcon -info "Moving [lindex [$source_index_residue get resname] 0] onto [lindex [$residue get resname] 0]"')
-        W.addline(f'set graft_trans [measure fit $source_index_residue $residue]')
-        W.addline(f'$graftres move $graft_trans')
+        W.addline(f'set mover_sel [atomselect $graftid "chain {self.source_chainID} and (resid {self.source_resseqnum1}{self.source_insertion1} to {self.source_resseqnum2}{self.source_insertion2}) and (not resid {self.source_resseqnum1}{self.source_insertion1})"]')
+        triple_string=" ".join(self.triple)
+        W.addline(f'set to_triple [atomselect ${W.molid_varname} "chain {self.orig_chainID} and resid {self.orig_resseqnum}{self.orig_insertion} and name {triple_string}"]')
+        W.addline(f'set from_triple [atomselect $graftid "chain {self.source_chainID} and resid {self.source_resseqnum1}{self.source_insertion1} and name {triple_string}"]')
+        W.addline(f'align_triples $to_triple $from_triple $mover_sel')
         self.segfile=f'graft{self.id}.pdb'
         new_residlist=[]
         for y in self.my_residues:
             new_residlist.extend([f'{y.resseqnum}' for x in y.atoms])
-        W.addline(f'$graftres set resid [list {" ".join(new_residlist)}]')
-        W.addline(f'$graftres set chain {self.my_residues[0].chainID}')
-        W.addline(f'$graftres writepdb {self.segfile}')
-        W.addline(f'$graftres delete')
+        W.addline(f'$mover_sel set resid [list {" ".join(new_residlist)}]')
+        W.addline(f'$mover_sel set chain {self.my_residues[0].chainID}')
+        W.addline(f'$mover_sel writepdb {self.segfile}')
+        W.addline(f'$mover_sel delete')
     def write_in_segment(self,W:Psfgen):
         W.addline (f'    pdb {self.segfile}')
     def write_post_segment(self,W:Psfgen):

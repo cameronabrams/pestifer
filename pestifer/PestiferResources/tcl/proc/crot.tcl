@@ -149,26 +149,82 @@ proc fold_alpha { rbegin rend rterm molid } {
 # - atomsel : atomselection of the group containing the bond to rotate
 # - a[0,1]idx: atom indices of the two bonded atoms defining the bond to rotate
 # - deg: degrees of rotation around bond [0,360]
-proc trot { molid atomsel a0idx a1idx deg} {
-   set all_ids [$atomsel get index]
-   set bonds [$atomsel getbonds]
-   # TODO: identify subset of serials including a1ser and all atoms "downstream"
-   # from it in the terminal group
-   # to do this, tag all atoms whose bonded neighbors are *within* the selection
-   set all_internal_ids [list]
-   foreach ao $all_ids bo $bonds {
-      set is_internal 1
-      foreach ba $bo {
-         set se [lsearch $all_ids $ba]
-         if { se == -1 } {
-            set is_internal 0
-         }
-      }
-      if { $is_internal == 1} {
-         lappend all_internal_ids $ao
-      }
-   }
+# proc trot { molid atomsel a0idx a1idx deg} {
+#    set all_ids [$atomsel get index]
+#    set bonds [$atomsel getbonds]
+#    # TODO: identify subset of serials including a1ser and all atoms "downstream"
+#    # from it in the terminal group
+#    # to do this, tag all atoms whose bonded neighbors are *within* the selection
+#    set all_internal_ids [list]
+#    foreach ao $all_ids bo $bonds {
+#       set is_internal 1
+#       foreach ba $bo {
+#          set se [lsearch $all_ids $ba]
+#          if { se == -1 } {
+#             set is_internal 0
+#          }
+#       }
+#       if { $is_internal == 1} {
+#          lappend all_internal_ids $ao
+#       }
+#    }
 
+# }
+
+# Align an atomselection by overlapping one triplet of atoms in that
+# atomselection with a given triplet of atoms
+#
+# Parameters
+# ----------
+#
+# - to_sel: atomselection
+#      The atomselection containing the ordered triplet of atoms to which
+#      the alignment is made
+# - from_sel: atomselection
+#      The atomselection containing the ordered triplet of atoms from
+#      which the alignment is made
+#  - mover_sel: atomselection
+#      The atomselection of all atoms that are moved
+#
+proc hatme { a_vec } {
+   set l [veclength $a_vec]
+   return [vecscale $a_vec [expr 1.0/$l]]
+}
+proc align_triples {to_sel from_sel mover_sel} {
+   set to_   [$to_sel   get {x y z}]
+   set from_ [$from_sel get {x y z}]
+   # translate mover to overlap root atoms
+   set dr [vecsub [lindex $to_ 0] [lindex $from_ 0]]
+   $mover_sel moveby $dr
+   set from_ [$from_sel get {x y z}]
+   # calculate vectors from root to first in the align_to and the mover
+   set to_vec     [vecsub [lindex $to_   0] [lindex $to_   1]]
+   set from_vec   [vecsub [lindex $from_ 0] [lindex $from_ 1]]
+   set to_uvec    [hatme $to_vec  ]
+   set from_uvec  [hatme $from_vec]
+   set axis       [veccross $to_uvec $from_uvec]
+   set ctheta     [vecdot $to_uvec $from_uvec]
+   set theta      [expr -180.0/3.141593*acos($ctheta)]
+   set trans      [trans bond [lindex $to_ 0] [vecadd [lindex $to_ 0] $axis] $theta deg]
+   $mover_sel move $trans
+   # project to two right points into plane orthogonal to 0->1 vector, compute angle between
+   # projected bonds to compute dihedral angle required to rotate the mover right to
+   # the to right
+   set from_      [$from_sel get {x y z}]
+   set from_vec   [vecsub [lindex $from_ 0] [lindex $from_ 1]]
+   set from_uvec  [hatme $from_vec]
+   set to_p       [lindex $to_   2]
+   set from_p     [lindex $from_ 2]
+   set to_pp      [vecsub $to_p   [vecscale [vecdot $to_p   $to_uvec]   $to_uvec  ]]
+   set from_pp    [vecsub $from_p [vecscale [vecdot $from_p $from_uvec] $from_uvec]]
+   set to_opp     [vecsub [lindex $to_ 0] $to_pp]
+   set to_uopp    [hatme $to_opp]
+   set from_opp   [vecsub [lindex $from_ 0] $from_pp]
+   set from_uopp  [hatme $from_opp]
+   set ctheta     [vecdot $to_uopp $from_uopp]
+   set theta      [expr 180.0/3.141593*acos($ctheta)]
+   set trans      [trans bond [lindex $to_ 0] [lindex $to_ 1] $theta deg]
+   $mover_sel move $trans
 }
 
 # Generalized bond rotation for proteins
@@ -261,6 +317,52 @@ proc checknum { num msg } {
     puts "$msg"
     #exit
   }
+}
+
+proc half_traversal {a b iL bL aG} {
+   set ai [lsearch $iL $a]
+   set ab [lindex $bL $a]
+   foreach bi_ $ab {
+      if {$bi_ != $b} {
+         lappend aG $bi_
+         set naG [half_traversal $b_ $a $iL $bL $aG]
+         set aG [list {*}$aG {*}$naG]
+      }
+   }
+   return $aG
+}
+# Determine indices of atoms that move to execute
+# rotation around bond within atomsel
+proc determine_movers_on_rotation { bond atomsel } {
+   set movers [list]
+   set indexlist [$atomsel get index]
+   set bondlist  [$atomsel getbonds]
+   set a [lindex $bond 0]
+   set b [lindex $bond 1]
+   # traverse each atoms's half-tree gathering indices.  
+   # only one traversal should yield an index to a bonded
+   # neighbor that is NOT in the atomselection, meaning
+   # this is the pendant atomselection's connection atom
+   # in the rest of the molecule.  The atoms for which
+   # the half-tree traversal yields the connector is 
+   # roots the half that is non-rotating, meaning all
+   # other atoms in the atomsel are movers.
+   set a_gather [list]
+   set a_gather [half_traversal $a $b $indexlist $bondlist $a_gather]
+   set a_is_left 0
+   foreach a_ $a_gather {
+      set findme [lsearch $indexlist $a_]
+      if {$findme == -1} {
+         set a_is_left 1
+      }
+   }
+   foreach i_ $indexlist {
+      set findme [lsearch $a_gather $i_]
+      if {$findme == -1} {
+         lappend movers $i_
+      }
+   }
+   return $movers
 }
 
 # rotates all atoms in chain c-terminal to residue r up to and 
