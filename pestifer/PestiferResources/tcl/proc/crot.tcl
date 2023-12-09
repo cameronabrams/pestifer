@@ -319,17 +319,17 @@ proc checknum { num msg } {
   }
 }
 
+# Given atom indices a and b of a bonded pair of atoms, a list of atom indices 
+# determining an atomselection and the associated bondlist, accumulate
+# indices on the "a-side" of the a-b bond, assuming that cutting that bond
+# would yield two disconnected fragments
 proc half_traversal {a b iL bL aG} {
    set ai [lsearch $iL $a]
    if {$ai==-1} { return $aG }
    set ab [lindex $bL $ai]
-   # puts "iL $iL"
-   # puts "bL $bL"
-   # puts "ht a $a (idx $ai) ab $ab b $b"
    foreach bi_ $ab {
       if {[lsearch $iL $bi_]!=-1 && $bi_ != $b} {
          if {[lsearch $aG $bi_]==-1} {
-            # puts "appending $bi_"
             lappend aG $bi_
             set aG [half_traversal $bi_ $a $iL $bL $aG]
          }
