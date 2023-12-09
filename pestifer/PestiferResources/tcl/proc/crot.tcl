@@ -321,12 +321,18 @@ proc checknum { num msg } {
 
 proc half_traversal {a b iL bL aG} {
    set ai [lsearch $iL $a]
-   set ab [lindex $bL $a]
+   if {$ai==-1} { return $aG }
+   set ab [lindex $bL $ai]
+   # puts "iL $iL"
+   # puts "bL $bL"
+   # puts "ht a $a (idx $ai) ab $ab b $b"
    foreach bi_ $ab {
-      if {$bi_ != $b} {
-         lappend aG $bi_
-         set naG [half_traversal $b_ $a $iL $bL $aG]
-         set aG [list {*}$aG {*}$naG]
+      if {[lsearch $iL $bi_]!=-1 && $bi_ != $b} {
+         if {[lsearch $aG $bi_]==-1} {
+            # puts "appending $bi_"
+            lappend aG $bi_
+            set aG [half_traversal $bi_ $a $iL $bL $aG]
+         }
       }
    }
    return $aG
@@ -347,7 +353,7 @@ proc determine_movers_on_rotation { bond atomsel } {
    # the half-tree traversal yields the connector is 
    # roots the half that is non-rotating, meaning all
    # other atoms in the atomsel are movers.
-   set a_gather [list]
+   set a_gather $bond
    set a_gather [half_traversal $a $b $indexlist $bondlist $a_gather]
    set a_is_left 0
    foreach a_ $a_gather {
