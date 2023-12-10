@@ -392,40 +392,6 @@ proc determine_movers_on_rotation { bond atomsel } {
    return $movers
 }
 
-proc same_tuple { t1 t2 } {
-   foreach e $t1 {
-      if {[lsearch $t2 $e]==-1} {
-         vmdcon -info "tuple element $e of $t1 not found in $t2"
-         return 0
-      }
-   }
-   foreach e $t2 {
-      if {[lsearch $t1 $e]==-1} {
-         vmdcon -info "tuple element $e of $t2 not found in $t1"
-         return 0
-      }
-   }
-   vmdcon -info "claiming $t1 and $t2 are same tuple"
-   return 1
-}
-
-proc append_tuple { tuple_list tuple } {
-   upvar $tuple_list tL
-   vmdcon -info "appending tuple $tuple"
-   set is_found 0
-   foreach t $tuple_list {
-      if {[same_tuple $t $tuple]==1} {
-         set is_found 1
-         vmdcon -info "correction: tuple $tuple found as $t"
-         break
-      }
-   }
-   if { $is_found == 0 } {
-      vmdcon -info "geniunely appending tuple $tuple"
-      lappend tL $tuple
-   }
-}
-
 proc get_rotatable_bonds { atomsel molid } {
    set element [$atomsel get element]
    set name [$atomsel get name]
@@ -462,9 +428,10 @@ proc get_rotatable_bonds { atomsel molid } {
             set checkR6 [expr (([lsearch $r6i $ai]==-1)||([lsearch $r6i $bi]==-1))]
             vmdcon -info " --> $checkP1 $checkP2 $checkR5 $checkR6"
             if {($checkP1)&&($checkP2)&&($checkR5)&&($checkR6)} {
-               set bo [list $ai $bi]
+               set bo [lsort [list $ai $bi]]
                vmdcon -info "Adding $bo"
-               append_tuple rbonds $bo
+               lappend rbonds $bo
+               set rbonds [lsort -unique $rbonds]
                vmdcon -info "There are now [llength $rbonds] rotatable bonds"
             }
          }
