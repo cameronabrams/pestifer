@@ -426,7 +426,7 @@ proc get_rotatable_bonds { atomsel molid } {
             set checkP2 [expr !(([string equal $a_nm 'C'])&&([string equal $b_nm 'N']))]
             set checkR5 [expr (([lsearch $r5i $ai]==-1)||([lsearch $r5i $bi]==-1))]
             set checkR6 [expr (([lsearch $r6i $ai]==-1)||([lsearch $r6i $bi]==-1))]
-            vmdcon -info " --> $checkP1 $checkP2 $checkR5 $checkR6"
+            # vmdcon -info " --> $checkP1 $checkP2 $checkR5 $checkR6"
             if {($checkP1)&&($checkP2)&&($checkR5)&&($checkR6)} {
                set bo [lsort -integer [list $ai $bi]]
                # vmdcon -info "Adding $bo"
