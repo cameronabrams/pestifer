@@ -410,6 +410,7 @@ proc same_tuple { t1 t2 } {
 }
 
 proc append_tuple { tuple_list tuple } {
+   upvar $tuple_list tL
    vmdcon -info "appending tuple $tuple"
    set is_found 0
    foreach t $tuple_list {
@@ -421,7 +422,7 @@ proc append_tuple { tuple_list tuple } {
    }
    if { $is_found == 0 } {
       vmdcon -info "geniunely appending tuple $tuple"
-      lappend tuple_list $tuple
+      lappend tL $tuple
    }
 }
 
