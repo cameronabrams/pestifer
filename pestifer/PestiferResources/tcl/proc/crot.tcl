@@ -428,6 +428,7 @@ proc get_rotatable_bonds { atomsel molid } {
    set r6 [atomselect $molid "ringsize 6 from ([$atomsel text])"]
    set rbonds [list]
    for {set aidx 0} {$aidx < [llength $iL]} {incr aidx} {
+      set ai [lindex $iL $aidx]
       set a_el [lindex $element $aidx]
       if { [string equal $a_el 'H'] } {
          continue
