@@ -337,12 +337,33 @@ proc half_traversal {a b iL bL aG} {
    }
    return $aG
 }
+
+proc sel_is_pendant { atomsel } {
+   set indexlist [$atomsel get index]
+   set bondlist  [$atomsel getbonds]
+   set outers [list]
+   foreach bonds $bondlist {
+      foreach bond $bonds {
+         if {[lsearch $indexlist $bond]==-1} {
+            if {[lsearch $outers $bond]==-1} {
+               lappend outers $bond
+            }
+         }
+      }
+   }
+   if {[llength $outers]==1} {
+      return 1
+   } else {
+      return 0
+   }
+}
 # Determine indices of atoms that move to execute
 # rotation around bond within atomsel
 proc determine_movers_on_rotation { bond atomsel } {
    set movers [list]
    set indexlist [$atomsel get index]
    set bondlist  [$atomsel getbonds]
+
    set a [lindex $bond 0]
    set b [lindex $bond 1]
    # traverse each atoms's half-tree gathering indices.  
@@ -369,6 +390,90 @@ proc determine_movers_on_rotation { bond atomsel } {
       }
    }
    return $movers
+}
+
+proc same_tuple { t1 t2 } {
+   foreach e $t1 {
+      if {[lsearch $t2 $e]==-1} {
+         return 0
+      }
+   }
+   foreach e $t2 {
+      if {[lsearch $t1 $e]==-1} {
+         return 0
+      }
+   }
+   return 1
+}
+
+proc append_tuple { tuple_list tuple } {
+   set is_found 0
+   foreach t $tuple_list {
+      if {[same_tuple $t $tuple]==1} {
+         set is_found 1
+         break
+      }
+   }
+   if { $is_found == 0 } {
+      lappend tuple_list $tuple
+   }
+}
+
+proc get_rotatable_bonds { atomsel molid } {
+   set element [$atomsel get element]
+   set name [$atomsel get name]
+   set iL [$atomsel get index]
+   set bL [$atomsel getbonds]
+   set r5 [atomselect $molid "ringsize 5 from ([$atomsel text])"]
+   set r6 [atomselect $molid "ringsize 6 from ([$atomsel text])"]
+   set rbonds [list]
+   foreach ai $iL B $bL {
+      foreach bi $B {
+         set checkH  [expr (([lindex $element $ai]!='H')&&([lindex $element $bi]!='H'))]
+         set checkP1 [expr (([lindex $name $ai]!='N')&&([lindex $name $bi]!='C'))]
+         set checkP2 [expr (([lindex $name $ai]!='C')&&([lindex $name $bi]!='N'))]
+         set checkR5 [expr (([lsearch $r5 $ai]==-1)||([lsearch $r5 $bi]==-1))]
+         set checkR6 [expr (([lsearch $r6 $ai]==-1)||([lsearch $r6 $bi]==-1))]
+         if {($checkH)&&($checkP1)&&($checkP2)&&($checkR5)&&($checkR6)} {
+            append_tuple rbonds [list $ai $bi]
+         }
+      }
+   }
+   return rbonds
+}
+proc declash_pendant_sel { atomsel molid maxcycles } {
+   if { [sel_is_pendant $atomsel]==0 } {
+      vmdcon -info "Selection from $molid via [$atomsel text] is not pendant"
+      return
+   }
+   set degs {-120, 120}
+   set environ [atomselect $molid "not ([$atomsel text])"]
+   set rbonds [get_rotatable_bonds $atomsel $molid]
+   set nbonds [llength $rbonds]
+   vmdcon -info "Declash pendant: Pendant has [$atomsel atoms] and $nbonds rotatable bonds"
+   set ncontacts [llength [lindex [measure contacts 1.0 $atomsel $environ] 0]]
+   vmdcon -info "Declash pendant: Pendant has $ncontacts initial atomic clashes"
+   vmdcon -info "Declashing via maximally $maxcycles cycles"
+   for {set i 0} {$i < $maxcycles} {incr i} {
+      set ridx [expr {int(rand()*$nbonds)}]
+      set bo [lindex $rbonds $ridx]
+      set b [[atomselect $molid "index $bo"] get {x y z}]
+      set movers [determine_movers_on_rotation $bo $atomsel]
+      set posn [backup $movers {x y z}]
+      set didx [expr {int(rand()*2)}]
+      set deg [lindex $degx $didx]
+      set tmat [trans center [lindex $b 0] bond [lindex $b 0] [lindex $b 1] $deg degrees]
+      $movers move $tmat
+      set newcontacts [llength [lindex [measure contacts 1.0 $atomsel $environ] 0]]
+      if { $newcontacts >= $ncontacts } {
+         restore $movers $posn
+      } else {
+         set ncontacts $newcontacts
+      }
+      vmdcon -info "  cycle $i bond $b deg $deg ncontacts $ncontacts"
+   }
+
+
 }
 
 # rotates all atoms in chain c-terminal to residue r up to and 
