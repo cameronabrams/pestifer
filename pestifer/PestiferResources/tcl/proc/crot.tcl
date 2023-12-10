@@ -449,7 +449,7 @@ proc declash_pendant_sel { atomsel molid maxcycles } {
       vmdcon -info "Selection from $molid via [$atomsel text] is not pendant"
       return
    }
-   set degs {-120, 120}
+   set degs {-120 120}
    set environ [atomselect $molid "not ([$atomsel text])"]
    vmdcon -info "Declash environ has [$environ num] atoms"
    set rbonds [get_rotatable_bonds $atomsel $molid]
