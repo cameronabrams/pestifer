@@ -428,6 +428,11 @@ proc get_rotatable_bonds { atomsel molid } {
    set r6 [atomselect $molid "ringsize 6 from ([$atomsel text])"]
    set rbonds [list]
    for {set aidx 0} {$aidx < [llength $iL]} {incr aidx} {
+      set a_el [lindex $element $aidx]
+      if { [string equal $a_el 'H'] } {
+         continue
+      }
+      set a_nm [lindex $name $aidx]
       set B [lindex $bL $aidx]
       foreach bi $B {
          set bidx [lsearch $iL $bi]
@@ -435,14 +440,18 @@ proc get_rotatable_bonds { atomsel molid } {
             # assume pendant connection is a rotatable bond
             append_tuple rbonds [list $ai $bi]
          } else {
-            vmdcon -info "a $aidx [lindex $element $aidx] [string equal [lindex $element $aidx] 'H']"
+            set b_el [lindex $element $bidx]
+            if { [string equal $b_el 'H'] } {
+               continue
+            }
+            set b_nm [lindex $name $bidx]
+            vmdcon -info "a $aidx [lindex $element $aidx]"
             vmdcon -info "b $bidx [lindex $element $bidx]"
-            set checkH  [expr (([lindex $element $aidx]!='H')&&([lindex $element $bidx]!='H'))]
-            set checkP1 [expr (([lindex $name $aidx]!='N')&&([lindex $name $bidx]!='C'))]
-            set checkP2 [expr (([lindex $name $aidx]!='C')&&([lindex $name $bidx]!='N'))]
+            set checkP1 [expr (!([string equal $a_nm 'N'])&&([string equal $b_nm 'C']))]
+            set checkP2 [expr (!([string equal $a_nm 'C'])&&([string equal $b_nm 'N']))]
             set checkR5 [expr (([lsearch $r5 $ai]==-1)||([lsearch $r5 $bi]==-1))]
             set checkR6 [expr (([lsearch $r6 $ai]==-1)||([lsearch $r6 $bi]==-1))]
-            if {($checkH)&&($checkP1)&&($checkP2)&&($checkR5)&&($checkR6)} {
+            if {($checkP1)&&($checkP2)&&($checkR5)&&($checkR6)} {
                append_tuple rbonds [list $ai $bi]
             }
          }
