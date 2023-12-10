@@ -448,13 +448,21 @@ proc get_rotatable_bonds { atomsel molid } {
    }
    return $rbonds
 }
+
+proc check_bonds {bonds} {
+   foreach bo $bonds {
+      if {[measure bond $bo]>2.0} {
+         vmdcon -info "warning: bond $bo is too long"
+      }
+   }
+}
 proc declash_pendant_sel { atomsel molid maxcycles } {
    if { [sel_is_pendant $atomsel]==0 } {
       vmdcon -info "Selection from $molid via [$atomsel text] is not pendant"
       return
    }
    set degs {-120 120}
-   set environ [atomselect $molid "not ([$atomsel text])"]
+   set environ [atomselect $molid "all"]
    vmdcon -info "Declash environ has [$environ num] atoms"
    set rbonds [get_rotatable_bonds $atomsel $molid]
    set nbonds [llength $rbonds]
@@ -475,6 +483,7 @@ proc declash_pendant_sel { atomsel molid maxcycles } {
       set deg [lindex $degs $didx]
       set tmat [trans center [lindex $b 0] bond [lindex $b 0] [lindex $b 1] $deg degrees]
       $movers move $tmat
+      check_bonds $rbonds
       set newcontacts [llength [lindex [measure contacts 1.0 $atomsel $environ] 0]]
       if { $newcontacts >= $ncontacts } {
          set deg [expr -1 * ($deg)]
