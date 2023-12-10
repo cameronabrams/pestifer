@@ -445,10 +445,10 @@ proc get_rotatable_bonds { atomsel molid } {
    return $rbonds
 }
 proc declash_pendant_sel { atomsel molid maxcycles } {
-   if { [sel_is_pendant $atomsel]==0 } {
-      vmdcon -info "Selection from $molid via [$atomsel text] is not pendant"
-      return
-   }
+   # if { [sel_is_pendant $atomsel]==0 } {
+   #    vmdcon -info "Selection from $molid via [$atomsel text] is not pendant"
+   #    return
+   # }
    set degs {-120, 120}
    set environ [atomselect $molid "not ([$atomsel text])"]
    set rbonds [get_rotatable_bonds $atomsel $molid]
