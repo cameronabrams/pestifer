@@ -420,7 +420,7 @@ proc get_rotatable_bonds { atomsel molid } {
             # vmdcon -info "Adding $bo"
             lappend rbonds $bo
             set rbonds [lsort -unique $rbonds]
-         } else {
+         } elseif {[llength [lindex $bL $bidx]]>1} {
             set b_el [lindex $element $bidx]
             if { [string equal $b_el 'H'] } {
                continue
@@ -473,7 +473,7 @@ proc declash_pendant_sel { atomsel molid maxcycles } {
       $movers move $tmat
       set newcontacts [llength [lindex [measure contacts 1.0 $atomsel $environ] 0]]
       if { $newcontacts >= $ncontacts } {
-         restore $movers $posn
+         restore $movers {x y z} $posn
       } else {
          set ncontacts $newcontacts
       }
