@@ -446,12 +446,12 @@ proc get_rotatable_bonds { atomsel molid } {
                continue
             }
             set b_nm [lindex $name $bidx]
-            vmdcon -info "a $aidx [lindex $element $aidx]"
-            vmdcon -info "b $bidx [lindex $element $bidx]"
+            vmdcon -info "a $aidx [lindex $element $aidx] -- b $bidx [lindex $element $bidx]"
             set checkP1 [expr (!([string equal $a_nm 'N'])&&([string equal $b_nm 'C']))]
             set checkP2 [expr (!([string equal $a_nm 'C'])&&([string equal $b_nm 'N']))]
             set checkR5 [expr (([lsearch $r5 $ai]==-1)||([lsearch $r5 $bi]==-1))]
             set checkR6 [expr (([lsearch $r6 $ai]==-1)||([lsearch $r6 $bi]==-1))]
+            vmdcon -info " --> $checkP1 $checkP2 $checkR5 $checkR6"
             if {($checkP1)&&($checkP2)&&($checkR5)&&($checkR6)} {
                append_tuple rbonds [list $ai $bi]
             }
