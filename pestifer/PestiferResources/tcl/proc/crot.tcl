@@ -451,9 +451,10 @@ proc declash_pendant_sel { atomsel molid maxcycles } {
    }
    set degs {-120, 120}
    set environ [atomselect $molid "not ([$atomsel text])"]
+   vmdcon -info "Declash environ has [$environ num] atoms"
    set rbonds [get_rotatable_bonds $atomsel $molid]
    set nbonds [llength $rbonds]
-   vmdcon -info "Declash pendant: Pendant has [$atomsel atoms] and $nbonds rotatable bonds"
+   vmdcon -info "Declash pendant: Pendant has [$atomsel num] atoms and $nbonds rotatable bonds"
    set ncontacts [llength [lindex [measure contacts 1.0 $atomsel $environ] 0]]
    vmdcon -info "Declash pendant: Pendant has $ncontacts initial atomic clashes"
    vmdcon -info "Declashing via maximally $maxcycles cycles"
