@@ -470,18 +470,21 @@ proc declash_pendant_sel { atomsel molid maxcycles } {
       set moveridx [determine_movers_on_rotation $bo $atomsel]
       vmdcon -info "  movers $moveridx"
       set movers [atomselect $molid "index $moveridx"]
-      set posn [backup $movers {x y z}]
+      # set posn [backup $movers {x y z}]
       set didx [expr {int(rand()*2)}]
       set deg [lindex $degs $didx]
       set tmat [trans center [lindex $b 0] bond [lindex $b 0] [lindex $b 1] $deg degrees]
       $movers move $tmat
       set newcontacts [llength [lindex [measure contacts 1.0 $atomsel $environ] 0]]
       if { $newcontacts >= $ncontacts } {
-         restore $movers {x y z} $posn
+         set deg [expr -1 * ($deg)]
+         set tmat [trans center [lindex $b 0] bond [lindex $b 0] [lindex $b 1] $deg degrees]
+         $movers move $tmat
+         # restore $movers {x y z} $posn
       } else {
          set ncontacts $newcontacts
       }
-      vmdcon -info "  cycle $i bond $b deg $deg ncontacts $ncontacts"
+      vmdcon -info "  cycle $i bond $bo deg $deg ncontacts $ncontacts"
    }
 }
 
