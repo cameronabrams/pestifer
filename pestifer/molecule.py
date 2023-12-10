@@ -124,6 +124,14 @@ class Molecule(AncestorAwareMod):
                     if b.state=='MISSING' and b.num_items()>=min_loop_length:
                         nloops+=1
         return nloops
+    
+    def nglycans(self):
+        nglycans=0
+        au=self.asymmetric_unit
+        for S in au.segments:
+            if S.segtype=='glycan':
+                nglycans+=1
+        return nglycans
 
     def num_images(self):
         return len(self.active_biological_assembly.transforms)

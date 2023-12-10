@@ -456,7 +456,7 @@ proc check_bonds {bonds} {
       }
    }
 }
-proc declash_pendant_sel { atomsel molid maxcycles } {
+proc declash_pendant_sel { atomsel molid maxcycles clashdist} {
    if { [sel_is_pendant $atomsel]==0 } {
       vmdcon -info "Selection from $molid via [$atomsel text] is not pendant"
       return
@@ -467,7 +467,7 @@ proc declash_pendant_sel { atomsel molid maxcycles } {
    set rbonds [get_rotatable_bonds $atomsel $molid]
    set nbonds [llength $rbonds]
    vmdcon -info "Declash pendant: Pendant has [$atomsel num] atoms and $nbonds rotatable bonds"
-   set ncontacts [llength [lindex [measure contacts 1.0 $atomsel $environ] 0]]
+   set ncontacts [llength [lindex [measure contacts $clashdist $atomsel $environ] 0]]
    vmdcon -info "Declash pendant: Pendant has $ncontacts initial atomic clashes"
    vmdcon -info "Declashing via maximally $maxcycles cycles"
    for {set i 0} {$i < $maxcycles} {incr i} {
@@ -484,7 +484,7 @@ proc declash_pendant_sel { atomsel molid maxcycles } {
       set tmat [trans center [lindex $b 0] bond [lindex $b 0] [lindex $b 1] $deg degrees]
       $movers move $tmat
       check_bonds $rbonds
-      set newcontacts [llength [lindex [measure contacts 1.0 $atomsel $environ] 0]]
+      set newcontacts [llength [lindex [measure contacts $clashdist $atomsel $environ] 0]]
       if { $newcontacts >= $ncontacts } {
          set deg [expr -1 * ($deg)]
          set tmat [trans center [lindex $b 0] bond [lindex $b 0] [lindex $b 1] $deg degrees]

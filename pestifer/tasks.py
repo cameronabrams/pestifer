@@ -24,6 +24,8 @@ from .stringthings import FileCollector
 from .modmanager import ModManager
 from .command import Command
 from .mods import CleavageSite, CleavageSiteList
+from .psf import PSFContents
+import networkx as nx
 
 class BaseTask(BaseMod):
     """ A base class for Tasks.
@@ -390,23 +392,25 @@ class PsfgenTask(BaseTask):
     def coormods(self):
         coormods=self.modmanager.get('coormods',{})
         logger.debug(f'psfgen task has {len(coormods)} coormods')
+        logger.debug(f'{coormods}')
         ba=self.base_molecule.active_biological_assembly
         if coormods:
             logger.debug(f'performing coormods')
             for modtype,modlist in coormods.items():
-                self.next_basename(modtype)
-                vm=self.writers['vmd']
-                vm.newscript(self.basename)
-                psf=self.statevars['psf']
-                pdb=self.statevars['pdb']
-                vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
-                for transform in ba.transforms:
-                    modlist.write_TcL(vm,chainIDmap=transform.chainIDmap)
-                vm.write_pdb(self.basename,'mCM')
-                vm.endscript()
-                vm.writescript()
-                vm.runscript()
-                self.save_state(exts=['pdb'])
+                if len(modlist)>0:
+                    self.next_basename(modtype)
+                    vm=self.writers['vmd']
+                    vm.newscript(self.basename)
+                    psf=self.statevars['psf']
+                    pdb=self.statevars['pdb']
+                    vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
+                    for transform in ba.transforms:
+                        modlist.write_TcL(vm,chainIDmap=transform.chainIDmap)
+                    vm.write_pdb(self.basename,'mCM')
+                    vm.endscript()
+                    vm.writescript()
+                    vm.runscript()
+                    self.save_state(exts=['pdb'])
 
     def psfgen(self):
         self.next_basename('build')
@@ -448,17 +452,33 @@ class PsfgenTask(BaseTask):
     def declash_glycans(self,specs):
         mol=self.base_molecule
         cycles=specs['declash']['maxcycles']
-        if not mol.has_glycans() or not cycles:
+        clashdist=specs['declash']['clashdist']
+        if not mol.nglycans() or not cycles:
             return
         self.next_basename('declash-glycans')
-        vt=self.writers['vmd']
         psf=self.statevars['psf']
+        self.write_glycans(f'{self.basename}-gly')
         pdb=self.statevars['pdb']
+        vt=self.writers['vmd']
         vt.newscript(self.basename)
         vt.usescript('declash-glycans')
         vt.writescript()
-        vt.runscript(psf=psf,pdb=pdb,o=f'{self.basename}.pdb')
+        logger.debug('Declashing glycans...')
+        vt.runscript(psf=psf,pdb=pdb,o=f'{self.basename}.pdb',maxcycles=cycles,clashdist=clashdist,d=f'{self.basename}-gly.tcl')
         self.save_state(exts=['pdb'])
+
+    def write_glycans(self,datafile):
+        psf=self.statevars['psf']
+        struct=PSFContents(psf)
+        glycanatoms=struct.atoms.filter(segtype='glycan')
+        glycangraph=glycanatoms.graph()
+        vt=self.writers['vmd']
+        vt.newscript(datafile)
+        vt.addline('set glycans [list]')
+        for g in nx.connected_components(glycangraph):
+            indices=' '.join([str(x-1) for x in g])
+            vt.addline(f'lappend glycans [list {indices}]')
+        vt.writescript()
 
     def injest_molecules(self):
         specs=self.specs

@@ -425,6 +425,10 @@ directives:
                             text: Maximum number of Metropolis cycles
                             type: int
                             default: 20
+                          - name: clashdist
+                            text: interatomic distance threshold for clashes in Angstroms
+                            type: float
+                            default: 1.5
           - name: mods
             text: Specifies modifications to the sequence or structure in the PDB file
             type: dict

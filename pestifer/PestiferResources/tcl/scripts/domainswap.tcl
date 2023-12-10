@@ -25,7 +25,7 @@ set refpdb "ref.pdb"
 set cvfile "cv.inp"
 set force_constant 200.0
 set target_numsteps 10000
-puts "$argv"
+# puts "$argv"
 
 for { set i 0 } { $i < [llength $argv] } { incr i } {
     if { [lindex $argv $i] == "-pdb"} {
