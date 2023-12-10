@@ -419,11 +419,11 @@ proc get_rotatable_bonds { atomsel molid } {
       foreach bi $B {
          set bidx [lsearch $iL $bi]
          if { $bidx == -1 } { 
-            # assume pendant connection is a rotatable bond
-            set bo [lsort -integer [list $ai $bi]]
-            # vmdcon -info "Adding $bo"
-            lappend rbonds $bo
-            set rbonds [lsort -unique $rbonds]
+            # # assume pendant connection is a rotatable bond
+            # set bo [lsort -integer [list $ai $bi]]
+            # # vmdcon -info "Adding $bo"
+            # lappend rbonds $bo
+            # set rbonds [lsort -unique $rbonds]
          } elseif {[llength [lindex $bL $bidx]]>1} {
             set b_el [lindex $element $bidx]
             if { [string equal $b_el 'H'] } {
