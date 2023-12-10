@@ -461,8 +461,8 @@ proc declash_pendant_sel { atomsel molid maxcycles } {
    for {set i 0} {$i < $maxcycles} {incr i} {
       set ridx [expr {int(rand()*$nbonds)}]
       set bo [lindex $rbonds $ridx]
-      vmdcon -info " $i : rotating bond $bo ($ridx)"
       set b [[atomselect $molid "index $bo"] get {x y z}]
+      vmdcon -info " $i : rotating bond $bo ($ridx) $b"
       set moveridx [determine_movers_on_rotation $bo $atomsel]
       vmdcon -info "  movers $moveridx"
       set movers [atomselect $molid "index $moveridx"]
