@@ -421,18 +421,18 @@ proc get_rotatable_bonds { atomsel molid } {
                continue
             }
             set b_nm [lindex $name $bidx]
-            vmdcon -info "a $aidx $ai $a_el $a_nm -- b $bidx $bi $b_el $b_nm"
+            # vmdcon -info "a $aidx $ai $a_el $a_nm -- b $bidx $bi $b_el $b_nm"
             set checkP1 [expr !(([string equal $a_nm 'N'])&&([string equal $b_nm 'C']))]
             set checkP2 [expr !(([string equal $a_nm 'C'])&&([string equal $b_nm 'N']))]
             set checkR5 [expr (([lsearch $r5i $ai]==-1)||([lsearch $r5i $bi]==-1))]
             set checkR6 [expr (([lsearch $r6i $ai]==-1)||([lsearch $r6i $bi]==-1))]
             vmdcon -info " --> $checkP1 $checkP2 $checkR5 $checkR6"
             if {($checkP1)&&($checkP2)&&($checkR5)&&($checkR6)} {
-               set bo [lsort [list $ai $bi]]
-               vmdcon -info "Adding $bo"
+               set bo [lsort -integer [list $ai $bi]]
+               # vmdcon -info "Adding $bo"
                lappend rbonds $bo
                set rbonds [lsort -unique $rbonds]
-               vmdcon -info "There are now [llength $rbonds] rotatable bonds"
+               # vmdcon -info "There are now [llength $rbonds] rotatable bonds"
             }
          }
       }
@@ -470,8 +470,6 @@ proc declash_pendant_sel { atomsel molid maxcycles } {
       }
       vmdcon -info "  cycle $i bond $b deg $deg ncontacts $ncontacts"
    }
-
-
 }
 
 # rotates all atoms in chain c-terminal to residue r up to and 
