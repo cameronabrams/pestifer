@@ -412,6 +412,10 @@ proc get_rotatable_bonds { atomsel molid } {
       }
       set a_nm [lindex $name $aidx]
       set B [lindex $bL $aidx]
+      # don't consider this atom if it only has one bonded neighbor
+      if {[llength $B]<=1} { 
+         continue
+      }
       foreach bi $B {
          set bidx [lsearch $iL $bi]
          if { $bidx == -1 } { 
