@@ -468,7 +468,7 @@ proc declash_pendant_sel { atomsel molid maxcycles } {
       set movers [atomselect $molid "index $moveridx"]
       set posn [backup $movers {x y z}]
       set didx [expr {int(rand()*2)}]
-      set deg [lindex $degx $didx]
+      set deg [lindex $degs $didx]
       set tmat [trans center [lindex $b 0] bond [lindex $b 0] [lindex $b 1] $deg degrees]
       $movers move $tmat
       set newcontacts [llength [lindex [measure contacts 1.0 $atomsel $environ] 0]]
