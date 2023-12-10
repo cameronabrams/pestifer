@@ -339,6 +339,7 @@ proc half_traversal {a b iL bL aG} {
 }
 
 proc sel_is_pendant { atomsel } {
+   vmdcon -info "checking sel of [$atomsel num] atoms for pendancy"
    set indexlist [$atomsel get index]
    set bondlist  [$atomsel getbonds]
    set outers [list]
@@ -351,6 +352,7 @@ proc sel_is_pendant { atomsel } {
          }
       }
    }
+   vmdcon -info " -> [llength $outers] bond(s) to atoms outside selection"
    if {[llength $outers]==1} {
       return 1
    } else {
@@ -459,7 +461,8 @@ proc declash_pendant_sel { atomsel molid maxcycles } {
       set ridx [expr {int(rand()*$nbonds)}]
       set bo [lindex $rbonds $ridx]
       set b [[atomselect $molid "index $bo"] get {x y z}]
-      set movers [determine_movers_on_rotation $bo $atomsel]
+      set moveridx [determine_movers_on_rotation $bo $atomsel]
+      set movers [atomselect $molid "index $moveridx"]
       set posn [backup $movers {x y z}]
       set didx [expr {int(rand()*2)}]
       set deg [lindex $degx $didx]
