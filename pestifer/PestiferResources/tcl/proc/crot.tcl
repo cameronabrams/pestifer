@@ -460,7 +460,7 @@ proc get_rotatable_bonds { atomsel molid } {
          }
       }
    }
-   return rbonds
+   return $rbonds
 }
 proc declash_pendant_sel { atomsel molid maxcycles } {
    if { [sel_is_pendant $atomsel]==0 } {
