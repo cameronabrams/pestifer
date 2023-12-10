@@ -435,7 +435,7 @@ proc get_rotatable_bonds { atomsel molid } {
             # assume pendant connection is a rotatable bond
             append_tuple rbonds [list $ai $bi]
          } else {
-            vmdcon -info "a $aidx [lindex $element $aidx]"
+            vmdcon -info "a $aidx [lindex $element $aidx] [string equal [lindex $element $aidx] 'H']"
             vmdcon -info "b $bidx [lindex $element $bidx]"
             set checkH  [expr (([lindex $element $aidx]!='H')&&([lindex $element $bidx]!='H'))]
             set checkP1 [expr (([lindex $name $aidx]!='N')&&([lindex $name $bidx]!='C'))]
