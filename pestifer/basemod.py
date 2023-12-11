@@ -448,8 +448,8 @@ class BaseMod(Namespace):
         ----------
         attr : str
             attribute name
-        obj : object
-            object from which the attribute value is taken
+        obj : str
+            name of object from which the attribute value is taken
         obj_attr : str
             name of attribute in obj that is set to 
             attr of caller
@@ -457,6 +457,9 @@ class BaseMod(Namespace):
         # attr_obj=getattr(self,obj)
         # logger.debug(f'accepting {obj_attr} from {obj} {str(attr_obj)} into {type(self)}({id(self)})')
         setattr(self,attr,getattr(getattr(self,obj),obj_attr))
+    
+    def update_attr_from_objlist_elem_attr(self,attr,objlist,index,obj_attr):
+        setattr(self,attr,getattr(getattr(self,objlist)[index],obj_attr))
 
 class CloneableMod(BaseMod):
     """A class defining a custom namespace that can be cloned 
@@ -752,7 +755,11 @@ class ModList(UserList):
     update_attr_from_obj_attr(self,attr,obj,obj_attr)
         sets value of attr attributes of all elements of caller
         from the value of obj_attr in object obj
-    
+
+    update_attr_from_objlist_elem_attr(self,attr,objlist,index,obj_attr)
+        sets value of attr attributes of all elements of caller
+        from the value of obj_attr in index'th element of objlist
+
     remove_duplicates(self)
         removes duplicates
     """
@@ -1172,6 +1179,26 @@ class ModList(UserList):
         for item in self:
             # logger.debug(f'-> item {item}')
             item.update_attr_from_obj_attr(attr,obj,obj_attr)
+
+    def update_attr_from_objlist_elem_attr(self,attr,objlist,index,obj_attr):
+        """Set value of attribues of all elements of caller
+        from another attribute of index'th element objectlist
+
+        Parameters
+        ----------
+        attr : str
+            attribute name
+        objlist : str
+            name of list of objects from which the attribute value of the 
+            index'th element is taken
+        index : int
+            index of element in objlist from which attribute value is taken
+        obj_attr : str
+            name of attribute in objlist[index] that is set to 
+            attr of caller
+        """
+        for item in self: 
+            item.update_attr_from_objlist_elem_attr(attr,objlist,index,obj_attr)
 
     def remove_duplicates(self,fields=[]):
         bins=self.binnify(fields=fields)

@@ -200,6 +200,10 @@ class Residue(EmptyResidue):
         if self<other:
             return True
         return self.same_resid(other)
+    def __ge__(self,other):
+        if self>other:
+            return True
+        return self.same_resid(other)
     
     def same_resid(self,other):
         if type(other)==type(self):

@@ -109,6 +109,13 @@ class BaseTask(BaseMod):
         self.statevars={}
         self.FC=FileCollector()
 
+    def log_message(self,message,**kwargs):
+        extra=''
+        ensemble=kwargs.get('ensemble','')
+        if ensemble:
+            extra+=f' ({ensemble})'
+        logger.info(f'Task {self.index:02d} {self.taskname}{extra} {message}')
+
     def next_basename(self,*obj):
         label=''
         if len(obj)==1 and len(obj[0])>0:
@@ -226,11 +233,11 @@ class MDTask(BaseTask):
     yaml_header='md'
 
     def do(self):
-        logger.info(f'Task {self.taskname} ({self.specs["ensemble"]}) {self.index:02d} initiated')
+        self.log_message('initiated',ensemble=self.specs['ensemble'])
         self.inherit_state()            
         self.namd2run()
         self.save_state(exts=['coor','vel','xsc'])
-        logger.info(f'Task {self.taskname} ({self.specs["ensemble"]}) {self.index:02d} complete')
+        self.log_message('complete',ensemble=self.specs['ensemble'])
 
     def copy_charmmpar_local(self):
         local_names=[]
@@ -368,7 +375,7 @@ class PsfgenTask(BaseTask):
         self.molecules={}
 
     def do(self):
-        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
+        self.log_message('initiated')
         self.inherit_state()
         logger.debug('Injesting molecule(s)')
         self.injest_molecules()
@@ -387,7 +394,7 @@ class PsfgenTask(BaseTask):
         if nglycans>0:
             logger.debug(f'Declashing {nglycans} glycans')
             self.declash_glycans(self.specs['source']['sequence']['glycans'])
-        logger.info(f'Task {self.taskname} {self.index:02d} complete')
+        self.log_message('complete')
 
     def coormods(self):
         coormods=self.modmanager.get('coormods',{})
@@ -463,8 +470,8 @@ class PsfgenTask(BaseTask):
         vt.newscript(self.basename)
         vt.usescript('declash-glycans')
         vt.writescript()
-        logger.debug('Declashing glycans...')
-        vt.runscript(psf=psf,pdb=pdb,o=f'{self.basename}.pdb',maxcycles=cycles,clashdist=clashdist,d=f'{self.basename}-gly.tcl')
+        logger.debug(f'Declashing glycans...watch {self.basename}-gly.log')
+        vt.runscript(psf=psf,pdb=pdb,o=f'{self.basename}.pdb',maxcycles=cycles,clashdist=clashdist,d=f'{self.basename}-gly.tcl',log=f'{self.basename}-gly.log')
         self.save_state(exts=['pdb'])
 
     def write_glycans(self,datafile):
@@ -489,7 +496,7 @@ class PsfgenTask(BaseTask):
                     if not ls in serials:
                         at.is_root=True
                         rp=at.ligands[k]
-                        logger.debug(f'-> Atom {at.name} of {at.chainID} {at.resname}{at.resseqnum}{at.insertion} is the root, bound to atom {rp.name} of {rp.chainID} {rp.resname}{rp.resseqnum}{rp.insertion}')
+                        logger.debug(f'-> Atom {str(at)} is the root, bound to atom {str(rp)}')
             indices=' '.join([str(x.serial-1) for x in g])
             vt.comment(f'Glycan {i}:')
             vt.addline(f'set glycan_idx({i}) [list {indices}]')
@@ -497,15 +504,22 @@ class PsfgenTask(BaseTask):
             vt.addline(f'set movers({i}) [list]')
             for bond in nx.bridges(g):
                 ai,aj=bond
-                if not ai.isH() and not aj.isH():
-                    vt.addline(f'lappend rbonds({i}) [list {ai.serial-1} {aj.serial-1}]')
+                if not (ai.isH() or aj.isH()) and not ai.is_pep(aj):
                     g.remove_edge(ai,aj)
                     S=[g.subgraph(c).copy() for c in nx.connected_components(g)]
+                    assert len(S)==2,f'Bond {ai.serial-1}-{aj.serial-1} when cut makes more than 2 components'
                     for sg in S:
                         is_root=any([x.is_root for x in sg])
                         if not is_root:
-                            mover_indices=" ".join([str(x.serial-1) for x in sg])
-                            vt.addline(f'lappend movers({i}) [list {mover_indices}]')
+                            mover_serials=[x.serial for x in sg]
+                            if ai.serial in mover_serials: mover_serials.remove(ai.serial)
+                            if aj.serial in mover_serials: mover_serials.remove(aj.serial)
+                            if len(mover_serials)>0:
+                                mover_indices=" ".join([str(x-1) for x in mover_serials])
+                                logger.debug(f'{str(ai)}--{str(aj)} is a rotatable bridging bond')
+                                vt.addline(f'lappend rbonds({i}) [list {ai.serial-1} {aj.serial-1}]')
+                                logger.debug(f'  -> movers: {" ".join([str(x) for x in sg])}')
+                                vt.addline(f'lappend movers({i}) [list {mover_indices}]')
                     g.add_edge(ai,aj)
         vt.writescript()
 
@@ -559,7 +573,7 @@ class PsfgenTask(BaseTask):
 class CleaveTask(PsfgenTask):
     yaml_header='cleave'
     def do(self):
-        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
+        self.log_message('initiated')
         self.inherit_state()
         cleavage_sites=CleavageSiteList([CleavageSite(x) for x in self.specs['sites']])
         # update base molecule to the point an inferential psfgen call could reproduce it, up to ssbonds and links
@@ -568,22 +582,20 @@ class CleaveTask(PsfgenTask):
         self.base_molecule.cleave_chains(cleavage_sites)
         self.psfgen()
         # self.save_state(exts=['psf','pdb']) # already done in psfgen()
-        logger.info(f'Task {self.taskname} {self.index:02d} complete')
+        self.log_message('complete')
 
 class DomainSwapTask(MDTask):
     yaml_header='domainswap'
 
-    # def __init__(self,input_dict,taskname,config,writers,prior):
-    #     super().__init__(input_dict,taskname,config,writers,prior)
-
     def do(self):
-        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
+        self.log_message('initiated')
         self.inherit_state()
         logger.debug(f'Generating inputs for domain swap')
         self.make_inputs()
         logger.debug(f'Running NAMD to execute domain swap')
         self.namd2run(baselabel='domainswap-run',extras={'colvars':'on','colvarsconfig':self.statevars['cv']})
         self.save_state(exts=['vel','coor'])
+        self.log_message('complete')
 
     def make_inputs(self):
         specs=self.specs
@@ -608,16 +620,13 @@ class DomainSwapTask(MDTask):
         
 class LigateTask(MDTask):
     yaml_header='ligate'
-    # statevars={}
-    # def __init__(self,input_dict,taskname,config,writers,prior):
-    #     super().__init__(input_dict,taskname,config,writers,prior)
 
     def do(self):
-        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
+        self.log_message('initiated')
         self.inherit_state()
         self.base_molecule=self.statevars['base_molecule']
         if not self.base_molecule.has_loops(min_loop_length=self.statevars['min_loop_length']):
-            logger.info('No loops. Ligation bypassed.')
+            self.log_message('bypassed')
             return
         logger.debug('Storing sequence gaps.')
         self.write_gaps()
@@ -629,7 +638,7 @@ class LigateTask(MDTask):
         logger.debug('Connecting loop C-termini to their partner N-termini')
         self.connect()
         self.save_state(exts=['psf','pdb'])
-        logger.info(f'Task {self.taskname} {self.index:02d} complete')
+        self.log_message('complete')
 
     def write_gaps(self):
         self.next_basename('gaps')
@@ -728,11 +737,11 @@ class SolvateTask(BaseTask):
     # opt_attr=Task.opt_attr+[yaml_header]
 
     def do(self):
+        self.log_message('initiated')
         self.statevars=self.prior.statevars.copy()
         if 'xsc' in self.statevars:
             del self.statevars['xsc']
         self.next_basename()
-        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
         vt=self.writers['vmd']
         vt.newscript(self.basename)
         vt.usescript('solv')
@@ -742,38 +751,18 @@ class SolvateTask(BaseTask):
         vt.runscript(o=self.basename,pdb=pdb,psf=psf,pad=self.specs['pad'])
         self.save_state(exts=['psf','pdb'])
         self.update_statevars('cell',f'{self.basename}_cell.tcl',vtype='file')
-        logger.info(f'Task {self.taskname} {self.index:02d} complete')
-
-# class RelaxTask(MDTask):
-#     yaml_header='relax'
-#     # opt_attr=Task.opt_attr+[yaml_header]
-#     def do(self):
-#         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
-#         self.inherit_state()
-#         self.next_basename('relax')
-#         self.namd2script(basename,self.namd2prep(basename,self.specs))
-#         self.relax(basename)
-#         logger.info(f'Task {self.taskname} {self.index:02d} complete')
-
-# class MinimizeTask(Task):
-#     yaml_header='minimize'
-#     opt_attr=Task.opt_attr+[yaml_header]
-#     def do(self):
-#         logger.info(f'Task {self.taskname} {self.index:02d} initiated')
-#         self.statevars=self.prior.statevars.copy()
-#         basename=self.next_basename('minimize')
-#         self.minimize(basename,self.specs)
-#         logger.info(f'Task {self.taskname} {self.index:02d} complete')
+        self.log_message('complete')
 
 class ManipulateTask(BaseTask):
     yaml_header='manipulate'
     def do(self):
-        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
+        self.log_message('initiated')
         if self.prior:
             logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
             self.statevars=self.prior.statevars.copy()
         self.modmanager=ModManager(self.specs['mods'])
         self.coormods()
+        self.log_message('complete')
 
     def coormods(self):
         coormods=self.modmanager.get('coormods',{})
@@ -797,14 +786,14 @@ class TerminateTask(MDTask):
     yaml_header='terminate'
     
     def do(self):
-        logger.info(f'Task {self.taskname} {self.index:02d} initiated')
+        self.log_message('initiated')
         self.inherit_state()
         self.next_basename()
         self.copy_state(exts=['psf','pdb','coor','xsc','vel'])
         self.write_chainmaps()
         self.write_statefile()
         self.make_package()
-        logger.info(f'Task {self.taskname} {self.index:02d} complete')
+        self.log_message('complete')
 
     def write_chainmaps(self):
         bm=self.statevars.get('base_molecule',None)

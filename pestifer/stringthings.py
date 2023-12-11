@@ -253,3 +253,12 @@ def split_ri(ri):
         r=int(ri[:-1])
         i=ri[-1]
     return r,i
+
+def ri_range(val,split_chars=['-','#']):
+    the_split=[val]
+    for c in split_chars:
+        the_splits=[x.split(c) for x in the_split]
+        the_split=[]
+        for s in the_splits:
+            the_split.extend(s)
+    return [split_ri(x) for x in the_split]

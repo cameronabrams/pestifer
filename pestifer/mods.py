@@ -59,7 +59,7 @@ logger=logging.getLogger(__name__)
 from pidibble.pdbrecord import PDBRecord
 from .cifutil import CIFdict
 from .basemod import AncestorAwareMod,AncestorAwareModList
-from .stringthings import split_ri
+from .stringthings import split_ri, ri_range
 from .scriptwriters import Psfgen,VMD, Filewriter
 from .config import res_123
 from functools import singledispatchmethod
@@ -1313,7 +1313,7 @@ class Graft(AncestorAwareMod):
     The graft's "target" is a residue that is congruent to the "reference" residue in the graft.  The graft is positioned by aligning all of
     its atoms using a triple on the reference and the same triplet on the target as an alignment generator. The target residue's atoms
     are replaced by those in the reference and the rest of the reference is incorporated."""
-    req_attr=AncestorAwareMod.req_attr+['id','orig_chainID','orig_resseqnum','orig_insertion','source_pdbid','source_chainID','source_resseqnum1','source_insertion1','source_resseqnum2','source_insertion2','triple']
+    req_attr=AncestorAwareMod.req_attr+['id','orig_chainID','orig_resseqnum1','orig_insertion1','orig_resseqnum2','orig_insertion2','source_pdbid','source_chainID','source_resseqnum1','source_insertion1','source_resseqnum2','source_insertion2','source_resseqnum3','source_insertion3']
     yaml_header='grafts'
     modtype='seqmods'
     _Graft_counter=0
@@ -1323,47 +1323,69 @@ class Graft(AncestorAwareMod):
 
     @__init__.register(str)
     def _from_shortcode(self,shortcode):
-        # target:source:triple
-        # target -- C_RRR  C=chain ID RRR=resid+insertion
-        # source -- ccc,C_RRR-SSS  
-        #  - ccc basename of pdb file or pdb id
+        # shortcode format: "target:source"
+        # target format:    "C_RRR[-SSS]"
+        #  - C chainID 
+        #  - RRR resid+insertion of first residue in target alignment basis
+        #  - SSS optional resid+insertion of last residue in target alignment basis
+        #    (if not present, only RRR is used)
+        # source format:     "pdbid,C_RRR[#SSS][-TTT]"
+        #  - pdbid basename of pdb file or pdb id
         #  - C chainID in source pdb
-        #  - RRR-SSS resid+insertion range
-        # triple -- a1name,a2name,a3name
-        #   names of three atoms used to compute alignment move
+        #  - RRR resid+insertion of first residue in source alignment basis
+        #  - SSS optional resid+insertion of last residue in target alignment basis
+        #    (if not present, only RRR is used)
+        #  - TTT optional resid+insertion completing RRR-TTT range for entire graft source
+        #    (if not present, only RRR is the entire graft source)
         tokens=shortcode.split(':')
-        assert len(tokens)==3,f'Malformed graft shortcode {shortcode}'
-        target=tokens[0].split('_')
-        assert len(target)==2,f'Malformed graft target spec {tokens[0]}'
-        chainID,ri=target[0],split_ri(target[1])
-        resseqnum,insertion=ri
+        assert len(tokens)==2,f'Malformed graft shortcode {shortcode}'
+        target,source=tokens
+        target_chainID,target_resrange=target.split('_')
+        trr=ri_range(target_resrange)
+        resseqnum1,insertion1=trr[0]
+        if len(trr)>1:
+            resseqnum2,insertion2=trr[1]
+        else:
+            resseqnum2,insertion2=resseqnum1,insertion1
         source=tokens[1].split(',')
-        assert len(source)==2,f'Malformed graft source spec {tokens[1]}'
+        assert len(source)==2,f'Malformed graft spec {shortcode}'
         source_pdbid,source_chainresrange_spec=source
-        source_chainID,source_resrange_spec=source_chainresrange_spec.split('_')
-        source_resrange=source_resrange_spec.split('-')
-        source_resseqnum1,source_insertion1=split_ri(source_resrange[0])
-        if len(source_resrange)==2:
-            source_resseqnum2,source_insertion2=split_ri(source_resrange[1])
+        source_chainID,source_resrange=source_chainresrange_spec.split('_')
+        srr=ri_range(source_resrange)
+        source_resseqnum1,source_insertion1=srr[0]
+        if len(srr)>1:
+            if len(srr)>2:
+                source_resseqnum2,source_insertion2=srr[1]
+                source_resseqnum3,source_insertion3=srr[2]
+            else:
+                if '#' in source_resrange:
+                    source_resseqnum2,source_insertion2=srr[1]
+                    source_resseqnum3,source_insertion3=source_resseqnum2,source_insertion2
+                else:
+                    source_resseqnum3,source_insertion3=srr[1]
+                    source_resseqnum2,source_insertion2=source_resseqnum1,source_insertion1
         else:
             source_resseqnum2,source_insertion2=source_resseqnum1,source_insertion1
-        triple=tokens[2].split(',')
+            source_resseqnum3,source_insertion3=source_resseqnum1,source_insertion1
         input_dict={
-            'orig_chainID':chainID,
-            'orig_resseqnum':resseqnum,
-            'orig_insertion':insertion,
+            'orig_chainID':target_chainID,
+            'orig_resseqnum1':resseqnum1,
+            'orig_insertion1':insertion1,
+            'orig_resseqnum2':resseqnum2,
+            'orig_insertion2':insertion2,
             'source_pdbid':source_pdbid,
             'source_chainID':source_chainID,
             'source_resseqnum1':source_resseqnum1,
             'source_insertion1':source_insertion1,
             'source_resseqnum2':source_resseqnum2,
             'source_insertion2':source_insertion2,
-            'triple':triple,
+            'source_resseqnum3':source_resseqnum3,
+            'source_insertion3':source_insertion3,
             'id':Graft._Graft_counter
         }
         logger.debug(f'Initializing graft {input_dict}')
         Graft._Graft_counter+=1
-        self.residue=None
+        self.residues=None
         super().__init__(input_dict)
 
     def activate(self,mol):
@@ -1371,42 +1393,43 @@ class Graft(AncestorAwareMod):
         g_topomods=self.source_molecule.modmanager.get('topomods',{})
         g_links=g_topomods.get('links',LinkList([]))
         self.source_seg=self.source_molecule.asymmetric_unit.segments.get(segname=self.source_chainID)
-        self.my_residues=type(self.source_seg.residues)([])
-        self.index_residue=None
+        self.mover_residues=type(self.source_seg.residues)([])
+        self.index_residues=type(self.source_seg.residues)([])
         for residue in self.source_seg.residues:
-            if residue.same_resid(f'{self.source_resseqnum1}{self.source_insertion1}'):
-                self.index_residue=residue
-            elif residue>f'{self.source_resseqnum1}{self.source_insertion1}' and residue<=f'{self.source_resseqnum2}{self.source_insertion2}':
-                self.my_residues.append(residue)
-        # only injest links that are internal to this set of residues
+            if residue>=f'{self.source_resseqnum1}{self.source_insertion1}' and residue<=f'{self.source_resseqnum2}{self.source_insertion2}':
+                self.index_residues.append(residue)
+            elif residue>f'{self.source_resseqnum2}{self.source_insertion2}' and residue<=f'{self.source_resseqnum3}{self.source_insertion3}':
+                self.mover_residues.append(residue)
+        # only injest links that are internal to this set of residues or that link to index residues
         self.my_links=type(g_links)([])
         for l in g_links:
-            if l.residue1 in self.my_residues and l.residue2 in self.my_residues:
+            if l.residue1 in self.mover_residues and l.residue2 in self.mover_residues:
                 self.my_links.append(l)
-            elif l.residue1==self.index_residue and l.residue2 in self.my_residues:
+            elif l.residue1 in self.index_residues and l.residue2 in self.mover_residues:
                 self.my_links.append(l)
-            elif l.residue2==self.index_residue and l.residue1 in self.my_residues:
+            elif l.residue2 in self.index_residues and l.residue1 in self.mover_residues:
                 self.my_links.append(l)
         logger.debug(f'Activated graft {self.id}')
 
     def set_links(self,next_resseqnum):
-        assert self.residue!=None
-        logger.debug(f'Graft {self.id} resolved residue {str(self.residue)}')
-        self.index_residue.set(chainID=self.residue.chainID)
-        self.my_residues.set(chainID=self.residue.chainID)
-        for r in self.my_residues:
+        assert self.residues!=None
+        logger.debug(f'Setting links for graft {self.id}')
+        logger.debug(f'-> resolved receiver residues {[str(x) for x in self.residues]}')
+        self.index_residues.set(chainID=self.residues[0].chainID)
+        self.mover_residues.set(chainID=self.residues[0].chainID)
+        for r in self.mover_residues:
             r.set(resseqnum=next_resseqnum)
             next_resseqnum+=1
         for l in self.my_links:
-            if l.residue1==self.index_residue and l.residue2 in self.my_residues:
-                l.residue1=self.residue
-            elif l.residue2==self.index_residue and l.residue1 in self.my_residues:
-                l.residue2=self.residue
+            if l.residue1 in self.index_residues and l.residue2 in self.mover_residues:
+                l.residue1=self.residues[self.index_residues.index(l.residue1)]
+            elif l.residue2 in self.index_residues and l.residue1 in self.mover_residues:
+                l.residue2=self.residues[self.index_residues.index(l.residue2)]
         return next_resseqnum
     
     def __str__(self):
-        res=f'Graft {self.id}: index residue {str(self.index_residue)} delivers {len(self.my_residues)} residues to \n'
-        res+=f'  target {str(self.residue)} along with {len(self.my_links)} internal links:\n'
+        res=f'Graft {self.id}: index residues {[str(x) for x in self.index_residues]} delivers {len(self.mover_residues)} residues to \n'
+        res+=f'  target {[str(x) for x in self.residues]} along with {len(self.my_links)} internal links:\n'
         for l in self.my_links:
             res+=f'  -> link {str(l)}\n'
         return res
@@ -1414,20 +1437,22 @@ class Graft(AncestorAwareMod):
     def write_pre_segment(self,W:Psfgen):
         W.comment(f'Graft {self.id}')
         W.addline(f'set topid [molinfo ${W.molid_varname} get id]')
-        W.addline(f'mol new {self.source_pdbid}')
+        if os.path.exists(f'{self.source_pdbid}.pdb'):
+            W.addline(f'mol new {self.source_pdbid}.pdb')
+        else:
+            W.addline(f'mol new {self.source_pdbid}')
         W.addline(f'set graftid [molinfo top get id]')
         W.addline(f'mol top $topid')
-        W.addline(f'set mover_sel [atomselect $graftid "chain {self.source_chainID} and (resid {self.source_resseqnum1}{self.source_insertion1} to {self.source_resseqnum2}{self.source_insertion2}) and (not resid {self.source_resseqnum1}{self.source_insertion1})"]')
-        triple_string=" ".join(self.triple)
-        W.addline(f'set to_triple [atomselect ${W.molid_varname} "chain {self.orig_chainID} and resid {self.orig_resseqnum}{self.orig_insertion} and name {triple_string}"]')
-        W.addline(f'set from_triple [atomselect $graftid "chain {self.source_chainID} and resid {self.source_resseqnum1}{self.source_insertion1} and name {triple_string}"]')
-        W.addline(f'align_triples $to_triple $from_triple $mover_sel')
+        W.addline(f'set mover_sel [atomselect $graftid "chain {self.source_chainID} and (resid {self.source_resseqnum1}{self.source_insertion1} to {self.source_resseqnum3}{self.source_insertion3}) and (not resid {self.source_resseqnum1}{self.source_insertion1} to {self.source_resseqnum2}{self.source_insertion2})"]')
+        W.addline(f'set to_sel [atomselect ${W.molid_varname} "chain {self.orig_chainID} and resid {self.orig_resseqnum1}{self.orig_insertion1} to {self.orig_resseqnum2}{self.orig_insertion2}"]')
+        W.addline(f'set from_sel [atomselect $graftid "chain {self.source_chainID} and resid {self.source_resseqnum1}{self.source_insertion1} to {self.source_resseqnum2}{self.source_insertion2}"]')
+        W.addline(f'$mover_sel move [measure fit $from_sel $to_sel]')
         self.segfile=f'graft{self.id}.pdb'
         new_residlist=[]
-        for y in self.my_residues:
+        for y in self.mover_residues:
             new_residlist.extend([f'{y.resseqnum}' for x in y.atoms])
         W.addline(f'$mover_sel set resid [list {" ".join(new_residlist)}]')
-        W.addline(f'$mover_sel set chain {self.my_residues[0].chainID}')
+        W.addline(f'$mover_sel set chain {self.mover_residues[0].chainID}')
         W.addline(f'$mover_sel writepdb {self.segfile}')
         W.addline(f'$mover_sel delete')
     def write_in_segment(self,W:Psfgen):
@@ -1446,7 +1471,7 @@ class Graft(AncestorAwareMod):
     #             residue.set_resseqnum(next_available_resid)
     #             residue.set_chainID(graft_chainID)
     #             next_available_resid+=1
-    #             self.my_residues.append(residue)
+    #             self.mover_residues.append(residue)
     #         # only injest links that are internal to this set of residues
     #     self.donated_links=[]
     #     for l in g_links:
@@ -1454,9 +1479,17 @@ class Graft(AncestorAwareMod):
     #             links.append(l)
     #                 injested_links+=1
 
-    def assign_residue(self,Residues):
-        assert self.residue==None
-        self.assign_obj_to_attr('residue',Residues,chainID='orig_chainID',resseqnum='orig_resseqnum',insertion='orig_insertion')
+    def assign_residues(self,Residues):
+        assert self.residues==None
+        logger.debug(f'Assigning receiver residues to graft {self.id}...')
+        this_chain=Residues.filter(chainID=self.orig_chainID)
+        logger.debug(f'...scanning {len(this_chain)} residues for ones to include in graft {self.id} [{self.orig_resseqnum1}{self.orig_insertion1}-{self.orig_resseqnum2}{self.orig_insertion2}]')
+        self.residues=type(Residues)([])
+        for r in this_chain:
+            if r>=f'{self.orig_resseqnum1}{self.orig_insertion1}' and r<=f'{self.orig_resseqnum2}{self.orig_insertion2}':
+                logger.debug(f'{r.resseqnum}{r.insertion} belongs')
+                self.residues.append(r)
+        logger.debug(f'...assigned {len(self.residues)} residues')
 
 class GraftList(AncestorAwareModList):
     def assign_residues(self,Residues,Links):
@@ -1465,25 +1498,30 @@ class GraftList(AncestorAwareModList):
         down_group=[]
         down_links=[]
         for s in self:
-            logger.debug(f'graft {s.id}')
-            s.assign_residue(Residues)
-            if s.residue:
-                logger.debug(f'-> residue {s.residue.chainID}_{s.residue.resname}{s.residue.resseqnum}{s.residue.insertion}')
-                logger.debug(f'   links down to {", ".join([str(x) for x in s.residue.down])}')
-                down_group,down_links=s.residue.get_down_group()
-                logger.debug(f'Target residue down-links to a group of {len(down_group)} residues:')
-                if len(down_group)>0:
-                    for dg in down_group:
-                        logger.debug(f'  removing residue {str(dg)}')
-                        Residues.remove(dg)
-                if len(down_links)>0:
-                    for dl in down_links:
-                        logger.debug(f'  removing link {str(dl)}')
-                        Links.remove(dl)
-                if len(down_group)>1:
-                    s.residue.unlink(down_group[0])
+            logger.debug(f' -> graft {s.id}')
+            s.assign_residues(Residues)
+            if s.residues:
+                logger.debug(f'   -> {len(s.residues)} assigned')
+                term_res=s.residues[-1]
+                if len(term_res.down)>0:
+                    logger.debug(f'-> terminal residue {term_res.chainID}_{term_res.resname}{term_res.resseqnum}{term_res.insertion}')
+                    logger.debug(f'   links down to {", ".join([str(x) for x in term_res.down])}')
+                    down_group,down_links=term_res.get_down_group()
+                    logger.debug(f'Target residue down-links to a group of {len(down_group)} residues:')
+                    if len(down_group)>0:
+                        for dg in down_group:
+                            logger.debug(f'  removing residue {str(dg)}')
+                            Residues.remove(dg)
+                    if len(down_links)>0:
+                        for dl in down_links:
+                            logger.debug(f'  removing link {str(dl)}')
+                            Links.remove(dl)
+                    if len(down_group)>1:
+                        term_res.unlink(down_group[0])
+                else:
+                    logger.debug(f'-> no down-links to destroy.')
 
-        delete_us=self.__class__([s for s in self if s.residue==None])
+        delete_us=self.__class__([s for s in self if s.residues==None])
         for s in delete_us:
             self.remove(s)
         return delete_us,down_group,down_links

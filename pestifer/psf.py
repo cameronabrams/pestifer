@@ -37,10 +37,24 @@ class PSFAtom(AncestorAwareMod):
     
     def __hash__(self):
         return self.serial
+    
+    def __eq__(self,other):
+        return self.serial==other.serial
+
+    def __str__(self):
+        return f'{self.chainID}_{self.resname}{self.resseqnum}{self.insertion}-{self.name}({self.serial})'
 
     def isH(self):
         return self.atomicwt<1.1
-    
+
+    def is_pep(self,other):
+        if not other in self.ligands: return False
+        if self.segtype=='protein' and other.segtype=='protein':
+            n12=[self.name,other.name]
+            if n12==['C','N'] or n12==['N','C']:
+                return True
+        return False
+
     def add_ligand(self,other):
         if not other in self.ligands:
             self.ligands.append(other)
@@ -80,7 +94,17 @@ class PSFBond(AncestorAwareMod):
         }
         super().__init__(input_dict)
         self.is_attachment_site=False
+
+    def __eq__(self,other):
+        return [self.serial1,self.serial2]==[other.serial1,other.serial2] or [self.serial1,self.serial2]==[other.serial2,other.serial1] 
     
+    def is_pep(self):
+        if self.atom1.segtype=='protein' and self.atom2.segtype=='protein':
+            n12=[self.atom1.name,self.atom2.name]
+            if n12==['C','N'] or n12==['N','C']:
+                return True
+        return False
+
 class PSFBondList(AncestorAwareModList):
 
     @singledispatchmethod
@@ -106,8 +130,6 @@ class PSFBondList(AncestorAwareModList):
                         b.atom2=include_only[ok_serials.index(r)]
                         b.atom1.add_ligand(b.atom2)
                         b.atom2.add_ligand(b.atom1)
-                        if b.atom1.segtype!=b.atom2.segtype:
-                            b.is_attachment_site=True
                         B.append(b)
                 else:
                     B.append(PSFBond([l,r]))
@@ -150,11 +172,11 @@ class PSFContents:
 
         # self.setlinks()
     
-    def setlinks(self):
-        logger.debug(f'setting links...')
-        for bond in self.bonds:
-            atom1,atom2=self.atoms.get(serial=bond.serial1),self.atoms.get(serial=bond.serial2)
-            atom1.ligands.add(atom2)
-            atom2.ligands.add(atom1)
-            bond.atom1=atom1
-            bond.atom2=atom2
+    # def setlinks(self):
+    #     logger.debug(f'setting links...')
+    #     for bond in self.bonds:
+    #         atom1,atom2=self.atoms.get(serial=bond.serial1),self.atoms.get(serial=bond.serial2)
+    #         atom1.ligands.add(atom2)
+    #         atom2.ligands.add(atom1)
+    #         bond.atom1=atom1
+    #         bond.atom2=atom2

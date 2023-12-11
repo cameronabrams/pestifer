@@ -158,7 +158,7 @@ class AsymmetricUnit(AncestorAwareMod):
             ssbonds.update_attr_from_obj_attr('chainID2','residue2','chainID')
             links.update_attr_from_obj_attr('chainID1','residue1','chainID')
             links.update_attr_from_obj_attr('chainID2','residue2','chainID')
-            grafts.update_attr_from_obj_attr('chainID','residue','chainID')
+            grafts.update_attr_from_objlist_elem_attr('chainID','residues',0,'chainID')
             logger.debug(f'Segnames in A.U.: {",".join(segments.segnames)}')
             if segments.daughters:
                 logger.debug(f'Daughter chains generated: {segments.daughters}')

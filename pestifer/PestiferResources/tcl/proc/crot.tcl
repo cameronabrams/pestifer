@@ -59,7 +59,7 @@ proc get_phi_psi_omega { r molid } {
    set protein_check [expr [[atomselect $molid "residue $r and protein"] num]]
    if { $protein_check == 0 } {
       vmdcon -info "Residue $r of mol $molid is not protein"
-      return [list "NaN" "NaN" "NaN"]
+      return [list "NaN" "NaN" "NaN"]vmdcon -info
    }
    set r_prev [expr $r-1]
    set r_next [expr $r+1]
@@ -186,46 +186,48 @@ proc fold_alpha { rbegin rend rterm molid } {
 #  - mover_sel: atomselection
 #      The atomselection of all atoms that are moved
 #
-proc hatme { a_vec } {
-   set l [veclength $a_vec]
-   return [vecscale $a_vec [expr 1.0/$l]]
-}
-proc align_triples {to_sel from_sel mover_sel} {
-   set to_   [$to_sel   get {x y z}]
-   set from_ [$from_sel get {x y z}]
-   # translate mover to overlap root atoms
-   set dr [vecsub [lindex $to_ 0] [lindex $from_ 0]]
-   $mover_sel moveby $dr
-   set from_ [$from_sel get {x y z}]
-   # calculate vectors from root to first in the align_to and the mover
-   set to_vec     [vecsub [lindex $to_   0] [lindex $to_   1]]
-   set from_vec   [vecsub [lindex $from_ 0] [lindex $from_ 1]]
-   set to_uvec    [hatme $to_vec  ]
-   set from_uvec  [hatme $from_vec]
-   set axis       [veccross $to_uvec $from_uvec]
-   set ctheta     [vecdot $to_uvec $from_uvec]
-   set theta      [expr -180.0/3.141593*acos($ctheta)]
-   set trans      [trans bond [lindex $to_ 0] [vecadd [lindex $to_ 0] $axis] $theta deg]
-   $mover_sel move $trans
-   # project to two right points into plane orthogonal to 0->1 vector, compute angle between
-   # projected bonds to compute dihedral angle required to rotate the mover right to
-   # the to right
-   set from_      [$from_sel get {x y z}]
-   set from_vec   [vecsub [lindex $from_ 0] [lindex $from_ 1]]
-   set from_uvec  [hatme $from_vec]
-   set to_p       [lindex $to_   2]
-   set from_p     [lindex $from_ 2]
-   set to_pp      [vecsub $to_p   [vecscale [vecdot $to_p   $to_uvec]   $to_uvec  ]]
-   set from_pp    [vecsub $from_p [vecscale [vecdot $from_p $from_uvec] $from_uvec]]
-   set to_opp     [vecsub [lindex $to_ 0] $to_pp]
-   set to_uopp    [hatme $to_opp]
-   set from_opp   [vecsub [lindex $from_ 0] $from_pp]
-   set from_uopp  [hatme $from_opp]
-   set ctheta     [vecdot $to_uopp $from_uopp]
-   set theta      [expr 180.0/3.141593*acos($ctheta)]
-   set trans      [trans bond [lindex $to_ 0] [lindex $to_ 1] $theta deg]
-   $mover_sel move $trans
-}
+# proc hatme { a_vec } {
+#    set l [veclength $a_vec]
+#    return [vecscale $a_vec [expr 1.0/$l]]
+# }
+# proc align_triples {to_sel from_sel mover_sel} {
+#    set to_   [$to_sel   get {x y z}]
+#    set from_ [$from_sel get {x y z}]
+#    # translate mover to overlap root atoms
+#    set dr [vecsub [lindex $to_ 0] [lindex $from_ 0]]
+#    $mover_sel moveby $dr
+#    $from_sel moveby $dr
+#    set from_ [$from_sel get {x y z}]
+#    # calculate vectors from root to first in the align_to and the mover
+#    set to_vec     [vecsub [lindex $to_   0] [lindex $to_   1]]
+#    set from_vec   [vecsub [lindex $from_ 0] [lindex $from_ 1]]
+#    set to_uvec    [hatme $to_vec  ]
+#    set from_uvec  [hatme $from_vec]
+#    set axis       [veccross $to_uvec $from_uvec]
+#    set ctheta     [vecdot $to_uvec $from_uvec]
+#    set theta      [expr -180.0/3.141593*acos($ctheta)]
+#    set trans      [trans bond [lindex $to_ 0] [vecadd [lindex $to_ 0] $axis] $theta deg]
+#    $mover_sel move $trans
+#    $from_sel move $trans
+#    # project to two right points into plane orthogonal to 0->1 vector, compute angle between
+#    # projected bonds to compute dihedral angle required to rotate the mover right to
+#    # the to right
+#    set from_      [$from_sel get {x y z}]
+#    set from_vec   [vecsub [lindex $from_ 0] [lindex $from_ 1]]
+#    set from_uvec  [hatme $from_vec]
+#    set to_p       [lindex $to_   2]
+#    set from_p     [lindex $from_ 2]
+#    set to_pp      [vecsub $to_p   [vecscale [vecdot $to_p   $to_uvec]   $to_uvec  ]]
+#    set from_pp    [vecsub $from_p [vecscale [vecdot $from_p $from_uvec] $from_uvec]]
+#    set to_opp     [vecsub [lindex $to_ 0] $to_pp]
+#    set to_uopp    [hatme $to_opp]
+#    set from_opp   [vecsub [lindex $from_ 0] $from_pp]
+#    set from_uopp  [hatme $from_opp]
+#    set ctheta     [vecdot $to_uopp $from_uopp]
+#    set theta      [expr 180.0/3.141593*acos($ctheta)]
+#    set trans      [trans bond [lindex $to_ 0] [lindex $to_ 1] $theta deg]
+#    $mover_sel move $trans
+# }
 
 # Generalized bond rotation for proteins
 # Parameters
@@ -456,6 +458,7 @@ proc check_bonds {bonds} {
       }
    }
 }
+
 proc declash_pendant_sel { atomsel molid maxcycles clashdist} {
    if { [sel_is_pendant $atomsel]==0 } {
       vmdcon -info "Selection from $molid via [$atomsel text] is not pendant"
@@ -497,15 +500,21 @@ proc declash_pendant_sel { atomsel molid maxcycles clashdist} {
    }
 }
 
-proc declash_pendant {molid indices bonds movers maxcycles clashdist} {
+proc double_log { logf message } {
+   vmdcon -info "$message"
+   puts $logf "$message"
+   flush $logf
+}
+
+proc declash_pendant {molid indices bonds movers maxcycles clashdist logf} {
    set degs {-120 120}
    set atomsel [atomselect $molid "index $indices"]
    set environ [atomselect $molid "all"]
    set nbonds [llength $bonds]
-   vmdcon -info "Declash environ has [$environ num] atoms"
+   double_log $logf  "Declash environ has [$environ num] atoms"
    set ncontacts [llength [lindex [measure contacts $clashdist $atomsel $environ] 0]]
-   vmdcon -info "Declash pendant: Pendant has $ncontacts initial atomic clashes"
-   vmdcon -info "Declashing via maximally $maxcycles cycles"
+   double_log $logf  "Declash pendant: Pendant has $ncontacts initial atomic clashes"
+   double_log $logf  "Declashing via maximally $maxcycles cycles"
    for {set i 0} {$i < $maxcycles} {incr i} {
       set ridx [expr {int(rand()*$nbonds)}]
       set bo [lindex $bonds $ridx]
@@ -513,19 +522,25 @@ proc declash_pendant {molid indices bonds movers maxcycles clashdist} {
       set this_mover [atomselect $molid "index [lindex $movers $ridx]"]
       set didx [expr {int(rand()*2)}]
       set deg [lindex $degs $didx]
-      set tmat [trans center [lindex $b 0] bond [lindex $b 0] [lindex $b 1] $deg degrees]
+      set tmat [trans bond [lindex $b 0] [lindex $b 1] $deg degrees]
       $this_mover move $tmat
       set newcontacts [llength [lindex [measure contacts $clashdist $atomsel $environ] 0]]
       if { $newcontacts >= $ncontacts } {
          set deg [expr -1 * ($deg)]
-         set tmat [trans center [lindex $b 0] bond [lindex $b 0] [lindex $b 1] $deg degrees]
+         set tmat [trans bond [lindex $b 0] [lindex $b 1] $deg degrees]
          $this_mover move $tmat
          # restore $movers {x y z} $posn
       } else {
          set ncontacts $newcontacts
       }
-      vmdcon -info "  cycle $i bond $bo deg $deg ncontacts $ncontacts"
+      double_log $logf  "  cycle $i bond $bo deg $deg ncontacts $ncontacts"
+      $this_mover delete
+      if { $ncontacts == 0 } {
+         break
+      }
    }
+   $environ delete
+   $atomsel delete
 }
 
 # rotates all atoms in chain c-terminal to residue r up to and 
