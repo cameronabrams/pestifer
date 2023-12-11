@@ -469,15 +469,44 @@ class PsfgenTask(BaseTask):
 
     def write_glycans(self,datafile):
         psf=self.statevars['psf']
+        logger.debug(f'Injesting {psf}')
         struct=PSFContents(psf)
+        logger.debug(f'Making graph structure of glycan atoms...')
         glycanatoms=struct.atoms.filter(segtype='glycan')
         glycangraph=glycanatoms.graph()
         vt=self.writers['vmd']
         vt.newscript(datafile)
-        vt.addline('set glycans [list]')
-        for g in nx.connected_components(glycangraph):
-            indices=' '.join([str(x-1) for x in g])
-            vt.addline(f'lappend glycans [list {indices}]')
+        G=[glycangraph.subgraph(c).copy() for c in nx.connected_components(glycangraph)]
+        logger.debug(f'Preparing declash input for {len(G)} glycans')
+        vt.addline(f'set nglycans {len(G)}')
+        for i,g in enumerate(G):
+            logger.debug(f'Glycan {i} has {len(g)} atoms')
+            serials=[x.serial for x in g]
+            for at in g:
+                at.is_root=False
+                lig_ser=[x.serial for x in at.ligands]
+                for k,ls in enumerate(lig_ser):
+                    if not ls in serials:
+                        at.is_root=True
+                        rp=at.ligands[k]
+                        logger.debug(f'-> Atom {at.name} of {at.chainID} {at.resname}{at.resseqnum}{at.insertion} is the root, bound to atom {rp.name} of {rp.chainID} {rp.resname}{rp.resseqnum}{rp.insertion}')
+            indices=' '.join([str(x.serial-1) for x in g])
+            vt.comment(f'Glycan {i}:')
+            vt.addline(f'set glycan_idx({i}) [list {indices}]')
+            vt.addline(f'set rbonds({i}) [list]')
+            vt.addline(f'set movers({i}) [list]')
+            for bond in nx.bridges(g):
+                ai,aj=bond
+                if not ai.isH() and not aj.isH():
+                    vt.addline(f'lappend rbonds({i}) [list {ai.serial-1} {aj.serial-1}]')
+                    g.remove_edge(ai,aj)
+                    S=[g.subgraph(c).copy() for c in nx.connected_components(g)]
+                    for sg in S:
+                        is_root=any([x.is_root for x in sg])
+                        if not is_root:
+                            mover_indices=" ".join([str(x.serial-1) for x in sg])
+                            vt.addline(f'lappend movers({i}) [list {mover_indices}]')
+                    g.add_edge(ai,aj)
         vt.writescript()
 
     def injest_molecules(self):

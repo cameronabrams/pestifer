@@ -35,10 +35,14 @@ mol addfile $pdb waitfor all
 set a [atomselect top all]
 set molid [molinfo top get id]
 source $datafile
-vmdcon -info "Declashing [llength $glycans] glycans; clashdist $clashdist; maxcycles $maxcycles"
-foreach glycan $glycans {
-    set gsel [atomselect $molid "index $glycan"]
-    declash_pendant_sel $gsel $molid $maxcycles $clashdist
+vmdcon -info "Declashing $nglycans glycans; clashdist $clashdist; maxcycles $maxcycles"
+for {set i 0} {$i<$nglycans} {incr i} {
+    vmdcon -info "Glycan $i has [llength $glycan_idx($i)] atoms and [llength $rbonds($i)] rotatable bonds"
+    declash_pendant $molid $glycan_idx($i) $rbonds($i) $movers($i) $maxcycles $clashdist
 }
+# foreach glycan $glycans {
+#     set gsel [atomselect $molid "index $glycan"]
+#     declash_pendant_sel $gsel $molid $maxcycles $clashdist
+# }
 $a writepdb ${outpdb}
 exit

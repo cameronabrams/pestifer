@@ -29,7 +29,7 @@ class PSFAtom(AncestorAwareMod):
             'charge':float(tokens[6]),
             'atomicwt':float(tokens[7])
         }
-        self.ligands=set()
+        self.ligands=[]
         super().__init__(input_dict)
         if len(segtype_of_resname)==0:
             c=Config()
@@ -37,6 +37,13 @@ class PSFAtom(AncestorAwareMod):
     
     def __hash__(self):
         return self.serial
+
+    def isH(self):
+        return self.atomicwt<1.1
+    
+    def add_ligand(self,other):
+        if not other in self.ligands:
+            self.ligands.append(other)
 
 class PSFAtomList(AncestorAwareModList):
     @singledispatchmethod
@@ -52,11 +59,11 @@ class PSFAtomList(AncestorAwareModList):
 
     def graph(self):
         g=nx.Graph()
-        sers=[x.serial for x in self]
+        my_serials=[x.serial for x in self]
         for a in self:
             for l in a.ligands:
-                if l.serial in sers:
-                    g.add_edge(a.serial,l.serial)
+                if l.serial in my_serials:
+                    g.add_edge(a,l)
         return g
 
 class PSFBond(AncestorAwareMod):
@@ -72,6 +79,7 @@ class PSFBond(AncestorAwareMod):
             'serial2':pair[1]
         }
         super().__init__(input_dict)
+        self.is_attachment_site=False
     
 class PSFBondList(AncestorAwareModList):
 
@@ -96,8 +104,10 @@ class PSFBondList(AncestorAwareModList):
                         b=PSFBond([l,r])
                         b.atom1=include_only[ok_serials.index(l)]
                         b.atom2=include_only[ok_serials.index(r)]
-                        b.atom1.ligands.add(b.atom2)
-                        b.atom2.ligands.add(b.atom1)
+                        b.atom1.add_ligand(b.atom2)
+                        b.atom2.add_ligand(b.atom1)
+                        if b.atom1.segtype!=b.atom2.segtype:
+                            b.is_attachment_site=True
                         B.append(b)
                 else:
                     B.append(PSFBond([l,r]))

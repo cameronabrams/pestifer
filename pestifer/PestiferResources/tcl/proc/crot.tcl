@@ -497,6 +497,37 @@ proc declash_pendant_sel { atomsel molid maxcycles clashdist} {
    }
 }
 
+proc declash_pendant {molid indices bonds movers maxcycles clashdist} {
+   set degs {-120 120}
+   set atomsel [atomselect $molid "index $indices"]
+   set environ [atomselect $molid "all"]
+   set nbonds [llength $bonds]
+   vmdcon -info "Declash environ has [$environ num] atoms"
+   set ncontacts [llength [lindex [measure contacts $clashdist $atomsel $environ] 0]]
+   vmdcon -info "Declash pendant: Pendant has $ncontacts initial atomic clashes"
+   vmdcon -info "Declashing via maximally $maxcycles cycles"
+   for {set i 0} {$i < $maxcycles} {incr i} {
+      set ridx [expr {int(rand()*$nbonds)}]
+      set bo [lindex $bonds $ridx]
+      set b [[atomselect $molid "index $bo"] get {x y z}]
+      set this_mover [atomselect $molid "index [lindex $movers $ridx]"]
+      set didx [expr {int(rand()*2)}]
+      set deg [lindex $degs $didx]
+      set tmat [trans center [lindex $b 0] bond [lindex $b 0] [lindex $b 1] $deg degrees]
+      $this_mover move $tmat
+      set newcontacts [llength [lindex [measure contacts $clashdist $atomsel $environ] 0]]
+      if { $newcontacts >= $ncontacts } {
+         set deg [expr -1 * ($deg)]
+         set tmat [trans center [lindex $b 0] bond [lindex $b 0] [lindex $b 1] $deg degrees]
+         $this_mover move $tmat
+         # restore $movers {x y z} $posn
+      } else {
+         set ncontacts $newcontacts
+      }
+      vmdcon -info "  cycle $i bond $bo deg $deg ncontacts $ncontacts"
+   }
+}
+
 # rotates all atoms in chain c-terminal to residue r up to and 
 # including residue rend in chain c around residue r's phi angle 
 # by deg degrees in molecule with id molid.  Recall phi:  (-C)-N--CA-C
