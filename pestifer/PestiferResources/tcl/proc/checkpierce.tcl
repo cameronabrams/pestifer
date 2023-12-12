@@ -1,11 +1,24 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+
+# Check for pierced rings
+#
+# Parameters
+# ----------
+# molid - the molecule id
+# ringsize - desired ringsize for identifying rings
+# TOL - tolerance in A
 proc check_pierced_rings { molid ringsize TOL } {
+  # select all atoms in rings
   set r6 [atomselect $molid "ringsize $ringsize from all"]
   set r6i [$r6 get index]
+  # make a mapping of atom index to internal index
   set i 0
   foreach ii $r6i {
     set r6o($ii) $i
     incr i
   }
+  # get all x, y, and z positions of ring atoms
   set r6x [$r6 get x]
   set r6y [$r6 get y]
   set r6z [$r6 get z]

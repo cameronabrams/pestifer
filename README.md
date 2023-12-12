@@ -12,6 +12,8 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.2.9
+    * improved declashing
 * 1.2.8
     * `grafts` for adding glycans
 * 1.2.7

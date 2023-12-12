@@ -511,10 +511,12 @@ class PsfgenTask(BaseTask):
                     for sg in S:
                         is_root=any([x.is_root for x in sg])
                         if not is_root:
-                            mover_serials=[x.serial for x in sg]
-                            if ai.serial in mover_serials: mover_serials.remove(ai.serial)
-                            if aj.serial in mover_serials: mover_serials.remove(aj.serial)
-                            if len(mover_serials)>0:
+                            if ai in sg:
+                                sg.remove_node(ai)
+                            if aj in sg:
+                                sg.remove_node(aj)
+                            if len(sg)>1 or (len(sg)==1 and not [x for x in sg.nodes][0].isH()):
+                                mover_serials=[x.serial for x in sg]
                                 mover_indices=" ".join([str(x-1) for x in mover_serials])
                                 logger.debug(f'{str(ai)}--{str(aj)} is a rotatable bridging bond')
                                 vt.addline(f'lappend rbonds({i}) [list {ai.serial-1} {aj.serial-1}]')

@@ -35,15 +35,15 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
     }
 }
 
+set logf [open $logfilename "w"]
 mol new $psf
 mol addfile $pdb waitfor all
 set a [atomselect top all]
 set molid [molinfo top get id]
 source $datafile
-vmdcon -info "Declashing $nglycans glycans; clashdist $clashdist; maxcycles $maxcycles"
-set logf [open $logfilename "w"]
+double_log $logf "Declashing $nglycans glycans; clashdist $clashdist; maxcycles $maxcycles"
 for {set i 0} {$i<$nglycans} {incr i} {
-    vmdcon -info "Glycan $i has [llength $glycan_idx($i)] atoms and [llength $rbonds($i)] rotatable bonds"
+    double_log $logf "Glycan $i has [llength $glycan_idx($i)] atoms and [llength $rbonds($i)] rotatable bonds"
     declash_pendant $molid $glycan_idx($i) $rbonds($i) $movers($i) $maxcycles $clashdist $logf
 }
 
