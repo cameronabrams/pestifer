@@ -558,14 +558,27 @@ directives:
             type: int
             text: number of timesteps to run the biased MD simulation
             default: 10000
+          - name: nsteps
+            type: int
+            text: number of timesteps to run the biased MD simulation
+            default: 10000
           - name: dcdfreq
             type: int
             text: number of timesteps between dcd output
+            default: 100
+          - name: xstfreq
+            text: number of time steps between cell size output to DCD file
+            type: int
             default: 100
           - name: temperature
             type: float
             text: temperature of thermostat in MD run
             default: 300
+          - name: ensemble
+            type: str
+            text: ensemble in which MD is run [NVT]
+            choices: [minimize, NVT, NPT]
+            default: NVT
       - name: solvate
         text: Parameters controlling solvation and ionization
         type: dict

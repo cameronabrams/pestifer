@@ -269,7 +269,8 @@ class MDTask(BaseTask):
         self.statevars['periodic']=is_periodic(cell,xsc)
 
         temperature=specs['temperature']
-        pressure=specs['pressure']
+        if ensemble=='NPT':
+            pressure=specs['pressure']
         params['tcl']=[]
         params['tcl'].append(f'set temperature {temperature}')
 

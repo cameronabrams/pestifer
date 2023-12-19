@@ -57,7 +57,7 @@ def run(args):
     # Set up the Controller and execute tasks
     logger.info(f'pestifer runtime begins')
     C=Controller(args.config)
-    c,e=os.path.splitext(args.config)
+    c,e=os.path.splitext(os.path.basename(args.config))
     C.write_complete_config(f'{c}-complete.yaml')
     C.do_tasks()    
     logger.info('pestifer runtime ends.')
