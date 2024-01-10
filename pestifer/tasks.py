@@ -13,7 +13,6 @@ import logging
 logger=logging.getLogger(__name__)
 import shutil
 import os
-# from argparse import Namespace
 import yaml
 from copy import deepcopy
 from .util import is_periodic
@@ -357,7 +356,8 @@ class MDTask(BaseTask):
         return params
 
 class PsfgenTask(BaseTask):
-    """ A class for handling invocations of psfgen
+    """ A class for handling invocations of psfgen which create a molecule from a base PDB/mmCIF file
+    or from a PSF file generated previously by psfgen
     
     Attributes
     ----------
@@ -545,9 +545,12 @@ class PsfgenTask(BaseTask):
                     }
                     self.molecules[g.source_pdbid]=Molecule(source=this_source)
                 g.activate(deepcopy(self.molecules[g.source_pdbid]))
-        self.chainIDmanager=ChainIDManager(format=self.specs['source']['file_format'])
-        self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,modmanager=self.modmanager,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
-        self.base_molecule=self.molecules[self.source_specs['id']]
+        if 'id' in self.source_specs: # this is a build from a base PDB/mmCIF file
+            self.chainIDmanager=ChainIDManager(format=self.source_specs['file_format'])
+            self.molecules[self.source_specs['id']]=Molecule(source=self.source_specs,modmanager=self.modmanager,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
+            self.base_molecule=self.molecules[self.source_specs['id']]
+        elif 'psf' in self.source_specs: # this is a build from a previous psfgen'ed system
+            pass
         for molid,molecule in self.molecules.items():
             logger.debug(f'Molecule {molid}: {molecule.num_atoms()} atoms in {molecule.num_residues()} residues; {molecule.num_segments()} segments.')
 

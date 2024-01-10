@@ -12,6 +12,8 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.3.0
+    * Support for reading from already-build PSF/PDB systems
 * 1.2.9
     * improved declashing and domain-swapping
 * 1.2.8

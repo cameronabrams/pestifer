@@ -2,6 +2,7 @@
 """PSF file processing
 """
 from .basemod import *
+from .mods import SSBond,SSBondList,Link,LinkList
 from functools import singledispatchmethod
 from .stringthings import split_ri
 from .config import segtype_of_resname, Config
@@ -137,12 +138,13 @@ class PSFBondList(AncestorAwareModList):
         super().__init__(B)
 
 class PSFContents:
-    def __init__(self,filename,include_solvent=False):
+    def __init__(self,filename,include_solvent=False,parse_topology=False):
         logger.debug(f'Reading {filename}...')
         with open(filename,'r') as f:
             psflines=f.read().split('\n')
         logger.debug(f'{len(psflines)} lines...')
         self.token_idx={}
+        self.patches={}
         for i,l in enumerate(psflines):
             toktst=[x.strip() for x in l.split()]
             if len(toktst)>=2 and toktst[1][0]=='!':
@@ -150,33 +152,34 @@ class PSFContents:
                 if token_name[-1]==':':
                     token_name=token_name[:-1]
                 self.token_idx[token_name]=i
+            elif len(toktst)>1 and toktst[0]=="REMARKS":
+                remark_type=toktst[1]
+                if remark_type=='patch':
+                    patch_type=toktst[2]
+                    if patch_type not in ['NTER','CTER']:
+                        if not patch_type in self.patches:
+                            self.patches[patch_type]=[]
+                        self.patches[patch_type].append(toktst[3:])
         self.token_lines={}
         for (k,l0),l1 in zip(self.token_idx.items(),list(self.token_idx.values())[1:]+[len(psflines)]):
             fl=l0+1
             ll=l1-1
             self.token_lines[k]=psflines[fl:ll]
-        logger.debug(f'{len(self.token_lines)} tokensets')
+        logger.debug(f'{len(self.token_lines)} tokensets:')
+        logger.debug(f'{", ".join([x for x in self.token_lines.keys()])}')
         self.atoms=PSFAtomList(self.token_lines['ATOM'])
         logger.debug(f'{len(self.atoms)} total atoms...')
-        if not include_solvent:
-            logger.debug('filtering out solvent...')
-            protein=self.atoms.get(segtype='protein')
-            glycan=self.atoms.get(segtype='glycan')
-            self.atoms=protein
-            self.atoms.extend(glycan)
-            self.bonds=PSFBondList(self.token_lines['BOND'],include_only=self.atoms)
-            logger.debug(f'...{len(self.atoms)} atoms...')
-        else:
-            self.bonds=PSFBondList(self.token_lines['BOND'])
-        logger.debug(f'...{len(self.bonds)} bonds...')
-
-        # self.setlinks()
-    
-    # def setlinks(self):
-    #     logger.debug(f'setting links...')
-    #     for bond in self.bonds:
-    #         atom1,atom2=self.atoms.get(serial=bond.serial1),self.atoms.get(serial=bond.serial2)
-    #         atom1.ligands.add(atom2)
-    #         atom2.ligands.add(atom1)
-    #         bond.atom1=atom1
-    #         bond.atom2=atom2
+        self.ssbonds=SSBondList([SSBond(L) for L in self.patches.get('DISU',[])])
+        self.links=LinkList([])
+        for patchtype,patchlist in self.patches.items():
+            if patchtype in Link.allowed_patchnames:
+                for patch in patchlist:
+                    self.links.append(Link([patchtype]+patch))
+        if parse_topology:
+            logger.debug(f'Parsing all topology information in {filename}...This may take a while.')
+            nonsolvent_atoms=self.atoms.get(segtype='protein')+self.atoms.get(segtype='glycan')
+            self.bonds=PSFBondList(self.token_lines['BOND'],include_only=(nonsolvent_atoms if not include_solvent else []))
+            logger.debug(f'Parsed {len(self.bonds)} bonds...')
+            # self.angles=PSFAngleList(self.token_lines['THETA'],include_only=(nonsolvent_atoms if not include_solvent else []))
+            # self.dihedrals=PSFDihedralList(self.token_lines['PHI'],include_only=(nonsolvent_atoms if not include_solvent else []))
+            

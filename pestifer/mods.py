@@ -822,6 +822,30 @@ class SSBond(AncestorAwareMod):
         }
         super().__init__(input_dict)
 
+    @__init__.register(list)
+    def _from_patchlist(self,L):
+        s1,ri1=L[0].split(':')
+        s2,ri2=L[1].split(':')
+        r1,i1=split_ri(ri1)
+        r2,i2=split_ri(ri2)
+        input_dict={
+            'serial_number':0,
+            'resname1':'CYS',
+            'resname2':'CYS',
+            'chainID1':s1,
+            'chainID2':s2,
+            'resseqnum1':r1,
+            'resseqnum2':r2,
+            'insertion1':i1,
+            'insertion2':i2,
+            'length':0.0,
+            'sym1':'',
+            'sym2':'',
+            'residue1':None,
+            'residue2':None
+        }
+        super().__init__(input_dict)
+
     def __str__(self):
         c1=self.chainID1
         r1=self.resseqnum1
@@ -923,12 +947,12 @@ class Link(AncestorAwareMod):
     * insertion2: insertion code of partner-2 residue
     
     """
-    req_attr=AncestorAwareMod.req_attr+['name1','chainID1','resseqnum1','insertion1','name2','chainID2','resseqnum2','insertion2']
-    opt_attr=AncestorAwareMod.opt_attr+['altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance','segname1','segname2','residue1','residue2','atom1','atom2','empty','segtype1','segtype2','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id','ptnr1_auth_comp_id','ptnr2_auth_comp_id']    
+    req_attr=AncestorAwareMod.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
+    opt_attr=AncestorAwareMod.opt_attr+['name1','name2','altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance','segname1','segname2','residue1','residue2','atom1','atom2','empty','segtype1','segtype2','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id','ptnr1_auth_comp_id','ptnr2_auth_comp_id']    
     yaml_header='links'
     PDB_keyword='LINK'
     modtype='topomods'
-
+    allowed_patchnames=['NGLA','NGLB','SGPA','SGPB','11aa','11ab','11bb','12aa','12ab','12ba','12bb','13aa','13ab','13ba','13bb','14aa','14ab','14ba','14bb','16AT','16BT','SA26AT','SA28AA','SA29AT','ZNHD']
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)
@@ -1007,7 +1031,32 @@ class Link(AncestorAwareMod):
             })
         super().__init__(input_dict)
 
-    def set_patchname(self):
+    @__init__.register(list)
+    def _from_patchlist(self,L):
+        s1,ri1=L[1].split(':')
+        s2,ri2=L[2].split(':')
+        r1,i1=split_ri(ri1)
+        r2,i2=split_ri(ri2)
+        input_dict={
+            'chainID1':s1,
+            'resseqnum1':r1,
+            'insertion1':i1,
+            'chainID2':s2,
+            'resseqnum2':r2,
+            'insertion2':i2,
+            'residue1':None,
+            'residue2':None,
+            'atom1':None,
+            'atom2':None,
+            'empty':False,
+            'segtype1':'UNSET',
+            'segtype2':'UNSET',
+        }
+        super().__init__(input_dict)
+        self.patchname=L[0]
+
+
+    def set_patchname(self,force=False):
         """Determine the charmff patch residue name for this link based on
         residue names, atom names, and when necessary, 3D geometry of a 
         particular dihedral angle around the link's bond
@@ -1021,6 +1070,9 @@ class Link(AncestorAwareMod):
             [1,2] if residue 1 appears first in the pres listing
             [2,1] if residue 2 appears first in the pres listing
         """
+        if len(self.patchname)>0 and not force:
+            logger.debug(f'Patchname for {str(self)} already set to {self.patchname}')
+            return
         self.patchname=''
         self.patchorder=[1,2]
         logger.debug(f'patch assignment for link {str(self)}')

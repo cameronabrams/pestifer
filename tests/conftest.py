@@ -1,13 +1,8 @@
-"""
+#Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
-.. module:: conftest.py
-   :synopsis: pytest configuration
-   
-.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
-
-"""
 import pytest
 import os
+
 @pytest.fixture(autouse=True)
 def change_test_dir(request, monkeypatch):
     """Causes each test to run in the directory in which the module is found **or** a subdirectory with the same base name as the module

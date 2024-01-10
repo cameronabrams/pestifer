@@ -37,7 +37,7 @@ class AsymmetricUnit(AncestorAwareMod):
             modmanager=objs.get('modmanager',ModManager())
             # logger.debug(f'User mods {type(mods)} at asymmetric unit: {mods.__dict__}')
             chainIDmanager=objs.get('chainIDmanager',None)
-            psf=objs.get('psf','')
+            psf=objs.get('psf',None)
 
             missings=EmptyResidueList([])
             ssbonds=SSBondList([])
@@ -80,7 +80,14 @@ class AsymmetricUnit(AncestorAwareMod):
 
             if psf:
                 self.psf=PSFContents(psf)
+                assert len(self.psf.atoms)==len(atoms),f'Error: psf file {psf} has wrong number of atoms {len(self.psf.atoms)}, expected {len(atoms)}'
                 atoms.apply_psf_resnames(self.psf.atoms)
+                ssbonds.extend(self.psf.ssbonds)
+                links.extend(self.psf.links)
+                if len(self.psf.ssbonds)>0:
+                    logger.debug(f'PSF file {psf} identifies {len(self.psf.ssbonds)} ssbonds; total ssbonds now {len(ssbonds)}')
+                if len(self.psf.links)>0:
+                    logger.debug(f'PSF file {psf} identifies {len(self.psf.links)} links; total links now {len(links)}')
             seqmods=modmanager.get('seqmods',{})
             grafts=seqmods.get('grafts',GraftList([]))
             

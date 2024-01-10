@@ -18,6 +18,7 @@ class Molecule(AncestorAwareMod):
     opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
     _molcounter=0
     def __init__(self,source={},modmanager=None,chainIDmanager=None,**kwargs):
+        psf=None
         reset=kwargs.get('reset_counter',False)
         if reset:
             Molecule._molcounter=0
@@ -28,19 +29,31 @@ class Molecule(AncestorAwareMod):
             p_struct=None
         else:
             logger.debug('Molecule initialization')
-            rcsb_file_format=source['file_format']
-            if rcsb_file_format=='PDB':
-                p_struct=PDBParser(PDBcode=source['id']).parse().parsed
-            elif rcsb_file_format=='mmCIF':
-                logger.debug(f'CIF source {source["id"]}')
-                p_struct=CIFload(source['id'])
-                logger.debug(f'p_struct type {type(p_struct)}')
-        psf=kwargs.get('psf','')
-        # use_psf=options.get('use_psf',None)
-        # if use_psf:
-        #     apply_psf_info(p_struct,f'{source}.psf')
-        # if os.path.exists(f'{source}.psf'):
-        #     apply_psf_info(p_struct,f'{source}.psf')
+            if 'id' in source or 'prebuilt' in source:
+                if 'id' in source:
+                    logger.debug(f'Molecule initialization from file {source["id"]}.{source["file_format"]}')
+                    rcsb_file_format=source['file_format']
+                    if rcsb_file_format=='PDB':
+                        p_struct=PDBParser(PDBcode=source['id']).parse().parsed
+                    elif rcsb_file_format=='mmCIF':
+                        logger.debug(f'CIF source {source["id"]}')
+                        p_struct=CIFload(source['id'])
+                else:
+                    psf=source['prebuilt']['psf']
+                    pdb=source['prebuilt']['pdb']
+                    logger.debug(f'Using prebuilt psf {psf} and pdb {pdb}')
+                    pdb_pseudocode,ext=os.path.splitext(pdb)
+                    p_struct=PDBParser(PDBcode=pdb_pseudocode).parse().parsed
+
+            else:
+                logger.debug(f'No "id" specified; initializing an empty molecule')
+                p_struct=None
+        # psf=kwargs.get('psf','')
+        # # use_psf=options.get('use_psf',None)
+        # # if use_psf:
+        # #     apply_psf_info(p_struct,f'{source}.psf')
+        # # if os.path.exists(f'{source}.psf'):
+        # #     apply_psf_info(p_struct,f'{source}.psf')
         if modmanager==None:
             logger.debug(f'Making an empty ModManager')
             modmanager=ModManager()
