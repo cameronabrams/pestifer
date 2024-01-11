@@ -103,6 +103,9 @@ class EmptyResidue(AncestorAwareMod):
         }
         super().__init__(input_dict)
 
+    def __str__(self):
+        return f'{self.chainID}_{self.resname}{self.resseqnum}{self.insertion}*'
+
     def pdb_line(self):
         record_name,code=EmptyResidue.PDB_keyword.split('.')
         return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>5d}{:1s}'.format(record_name,
@@ -172,25 +175,29 @@ class Residue(EmptyResidue):
         self.__init__(EmptyResidue(shortcode))
 
     def __str__(self):
-        rc='' if self.resolved else '*'
-        return f'{self.chainID}_{self.resname}{self.resseqnum}{self.insertion}{rc}'
+        return super().__str__()[0:-1] # strip off the "*"
+
     def __lt__(self,other):
-        if type(other)==type(self):
+        if hasattr(other,'resseqnum') and hasattr(other,'insertion'):
             o_resseqnum=other.resseqnum
             o_insertion=other.insertion
         elif type(other)==str:
             o_resseqnum,o_insertion=split_ri(other)
+        else:
+            raise Exception(f'I do not know how to make something of type {type(other)} a residue')
         if self.resseqnum<o_resseqnum:
             return True
         elif self.resseqnum==o_resseqnum:
             return self.insertion<o_insertion
         return False
     def __gt__(self,other):
-        if type(other)==type(self):
+        if hasattr(other,'resseqnum') and hasattr(other,'insertion'):
             o_resseqnum=other.resseqnum
             o_insertion=other.insertion
         elif type(other)==str:
             o_resseqnum,o_insertion=split_ri(other)
+        else:
+            raise Exception(f'I do not know how to make something of type {type(other)} a residue')
         if self.resseqnum>o_resseqnum:
             return True
         elif self.resseqnum==o_resseqnum:
@@ -413,7 +420,8 @@ class ResidueList(AncestorAwareModList):
                     i=''
                 shortcode=f'{chainID}:{olc}{r}{i}'
                 new_residue=EmptyResidue(shortcode)
-                new_residue.segtype='PROTEIN'
+                new_residue.atoms=AtomList([])
+                new_residue.segtype='protein'
                 self.insert(idx,new_residue)
                 idx+=1
                 i='A' if i in [' ',''] else chr(ord(i)+1)

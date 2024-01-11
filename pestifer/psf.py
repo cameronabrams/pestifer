@@ -172,7 +172,7 @@ class PSFContents:
         self.ssbonds=SSBondList([SSBond(L) for L in self.patches.get('DISU',[])])
         self.links=LinkList([])
         for patchtype,patchlist in self.patches.items():
-            if patchtype in Link.allowed_patchnames:
+            if patchtype in Link.patch_atomnames:
                 for patch in patchlist:
                     self.links.append(Link([patchtype]+patch))
         if parse_topology:

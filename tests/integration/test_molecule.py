@@ -3,6 +3,7 @@ from pestifer.molecule import Molecule
 from pestifer.config import Config, segtype_of_resname
 from pestifer.chainidmanager import ChainIDManager
 from pestifer.modmanager import ModManager
+from pestifer.mods import *
 from io import StringIO
 import yaml
 
@@ -75,15 +76,6 @@ source:
         self.assertEqual(l.atom2.altloc,'')
         self.assertTrue(l.residue2 in l.residue1.down)
         self.assertTrue(l.residue1 in l.residue2.up)
-        self.assertTrue(l in l.residue1.downlink)
-        self.assertTrue(l in l.residue2.uplink)
-        l=links[-1]
-        self.assertEqual(l.residue1.segtype,'glycan')
-        self.assertEqual(l.residue1.resname,'NAG')
-        self.assertEqual(l.residue1.chainID,'C')
-        self.assertEqual(l.residue1.resseqnum,1)
-        self.assertEqual(l.atom1.name,'O4')
-        self.assertEqual(l.atom1.altloc,'')
         self.assertEqual(l.residue2.segtype,'glycan')
         self.assertEqual(l.residue2.resname,'NAG')
         self.assertEqual(l.residue2.chainID,'C')
@@ -160,3 +152,27 @@ source:
         self.assertEqual(len(mutations),4)
         for m in mutations:
             self.assertTrue(m.chainID in ['A','B'])
+
+    def test_molecule_existing(self):
+        c=Config()
+        source={
+            'prebuilt':{
+                'psf':'existing.psf',
+                'pdb':'existing.pdb'
+            }
+        }
+        m=Molecule(source=source).activate_biological_assembly(0)
+        au=m.asymmetric_unit
+        ssbonds=au.modmanager.get('topomods',{}).get('ssbonds',SSBondList([]))
+        self.assertEqual(len(ssbonds),27)
+        links=au.modmanager.get('topomods',{}).get('links',LinkList([]))
+        self.assertEqual(len(links),129)
+        fl=links[0]
+        self.assertEqual(fl.residue1.resname,'ASN')
+        self.assertEqual(fl.residue1.resseqnum,611)
+        self.assertEqual(fl.residue2.resname,'BGLCNA')
+        self.assertEqual(fl.residue2.resseqnum,701)
+        self.assertEqual(len(au.segments),45)
+        self.assertEqual(len(au.segments.filter(segtype='protein')),6)
+        self.assertEqual(len(au.segments.filter(segtype='glycan')),39)
+

@@ -952,7 +952,33 @@ class Link(AncestorAwareMod):
     yaml_header='links'
     PDB_keyword='LINK'
     modtype='topomods'
-    allowed_patchnames=['NGLA','NGLB','SGPA','SGPB','11aa','11ab','11bb','12aa','12ab','12ba','12bb','13aa','13ab','13ba','13bb','14aa','14ab','14ba','14bb','16AT','16BT','SA26AT','SA28AA','SA29AT','ZNHD']
+    patch_atomnames={
+        'NGLA':['ND2','C1'],
+        'NGLB':['ND2','C1'],
+        'SGPA':['OG','C1'],
+        'SGPB':['OG','C1'],
+        '11aa':['O1','C1'],
+        '11ab':['O1','C1'],
+        '11bb':['O1','C1'],
+        '12aa':['O2','C1'],
+        '12ab':['O2','C1'],
+        '12ba':['O2','C1'],
+        '12bb':['O2','C1'],
+        '13aa':['O3','C1'],
+        '13ab':['O3','C1'],
+        '13ba':['O3','C1'],
+        '13bb':['O3','C1'],
+        '14aa':['O4','C1'],
+        '14ab':['O4','C1'],
+        '14ba':['O4','C1'],
+        '14bb':['O4','C1'],
+        '16AT':['O6','C1'],
+        '16BT':['O6','C1'],
+        'SA26AT':['O6','C2'],
+        'SA28AA':['O8','C2'],
+        'SA29AT':['O9','C2'],
+        'ZNHD':['NE2','ZN']
+    }
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)
@@ -1054,7 +1080,11 @@ class Link(AncestorAwareMod):
         }
         super().__init__(input_dict)
         self.patchname=L[0]
-
+        self.patchorder=[1,2] # default
+        self.name1=Link.patch_atomnames[self.patchname][0]
+        self.name2=Link.patch_atomnames[self.patchname][1]
+        self.altloc1=''
+        self.altloc2=''
 
     def set_patchname(self,force=False):
         """Determine the charmff patch residue name for this link based on
@@ -1070,7 +1100,7 @@ class Link(AncestorAwareMod):
             [1,2] if residue 1 appears first in the pres listing
             [2,1] if residue 2 appears first in the pres listing
         """
-        if len(self.patchname)>0 and not force:
+        if hasattr(self,'patchname') and len(self.patchname)>0 and not force:
             logger.debug(f'Patchname for {str(self)} already set to {self.patchname}')
             return
         self.patchname=''
@@ -1164,6 +1194,7 @@ class Link(AncestorAwareMod):
         elif self.name1=='O6' and self.name2=='C2':
                 self.patchname='SA26AT' 
         elif 'ZN' in self.resname1 and 'HIS' in self.resname2:
+                # links in PDB files involving Zn usually list the Zn atom first, but the patch has it second
                 self.patchname='ZNHD'
                 self.patchorder=[2,1]
         else:
@@ -1270,6 +1301,10 @@ class LinkList(AncestorAwareModList):
         """
         ignored_by_ptnr1=self.assign_objs_to_attr('residue1',Residues,resseqnum='resseqnum1',chainID='chainID1',insertion='insertion1')
         ignored_by_ptnr2=self.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID2',insertion='insertion2')
+        if hasattr(self,'patchname') and len(self.patchname)>0:
+            # this link was most likely created when reading in patch records from a set of REMARKS in a pre-built psf file.
+            # we need to get the precise atom names for this patch
+            pass
         for link in self:
             link.residue1.linkTo(link.residue2,link)
             link.atom1=link.residue1.atoms.get(name=link.name1,altloc=link.altloc1)

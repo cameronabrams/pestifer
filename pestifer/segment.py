@@ -330,11 +330,12 @@ class SegmentList(AncestorAwareModList):
                             this_chainID=chainIDmanager.next_chain()
                             if not chainID in self.daughters:
                                 self.daughters[chainID]=[]
+                            logger.debug(f'{stype} {chainID}->{this_chainID}')
                             self.daughters[chainID].append(this_chainID)
                             c_res.set(chainID=this_chainID)
                             for r in c_res:
+                                logger.debug(f' {r.chainID} {r.resseqnum} {type(r)}')
                                 r.atoms.set(chainID=this_chainID)
-                            logger.debug(f'{stype} {chainID}->{this_chainID}')
                         num_mis=sum([1 for x in c_res if len(x.atoms)==0])
                         thisSeg=Segment(seq_spec,c_res,segname=this_chainID)
                         logger.debug(f'Made segment: stype {stype} chainID {this_chainID} segname {thisSeg.segname} ({num_mis} missing) (seq_spec {seq_spec})')
