@@ -565,18 +565,22 @@ class PsfgenTask(BaseTask):
            of a new psfgen script based on this new molecule to 
            recreate it or modify it.
         """
+        # get the key of the base_molecule
+        base_key='UNSET'
+        for k,v in self.molecules:
+            if v==self.base_molecule:
+                base_key=k
+        assert base_key!='UNSET',f'Cannot update a non-existent base molecule'
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
-        base,ext=os.path.splitext(pdb)
-        source={}
-        source['file_format']='PDB'
-        source['id']=base
-        self.chainIDmanager=ChainIDManager(format=source['file_format'])
-        self.modmanager=ModManager()
-        self.modmanager.injest(self.base_molecule.modmanager.get('topomods',{}).get('ssbonds',[]))
-        self.modmanager.injest(self.base_molecule.modmanager.get('topomods',{}).get('links',[]))
-        updated_molecule=Molecule(source=source,chainIDmanager=self.chainIDmanager,modmanager=self.modmanager,psf=psf).activate_biological_assembly(0)
-        self.molecules[base]=updated_molecule
+        source={
+            'prebuilt': {
+                'psf':psf,
+                'pdb':pdb
+            }
+        }
+        updated_molecule=Molecule(source=source,chainIDmanager=self.chainIDmanager,modmanager=self.modmanager).activate_biological_assembly(0)
+        self.molecules[base_key]=updated_molecule
         self.base_molecule=updated_molecule
 
 class CleaveTask(PsfgenTask):
