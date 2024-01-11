@@ -18,6 +18,15 @@ proc checknum { num msg } {
   }
 }
 
+# returns -1 if x is negative, 1 otherwise
+proc sign { x } {
+    if { $x < 0 } {
+        return -1
+    } else {
+        return 1
+    }
+}
+
 # returns the unit vector of an input vector
 proc hatvec { a_vec } {
    set l [veclength $a_vec]

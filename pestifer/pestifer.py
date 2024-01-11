@@ -94,25 +94,27 @@ def run_example(args):
 
 def script(args):
     scriptname=args.scriptname
-    sp,ss=os.path.splitext(scriptname)
+    scriptbase=os.path.basename(scriptname)
+    sp,ss=os.path.splitext(scriptbase)
     c=Config()
-    script_dir=c['Resources']['tcl']['scripts']
-    script_path=os.path.join(script_dir,f'{sp}.tcl')
     if os.path.exists(scriptname): # it's local
         print(f'Running local script: {scriptname}')
         vm=VMD(c)
         vm.basename=sp
         vm.scriptname=scriptname
         vm.runscript()
-    elif os.path.exists(script_path):
-        print(f'Running library script: {script_path}')
-        vm=VMD(c)
-        vm.newscript(f'local-{sp}')
-        vm.usescript(sp)
-        vm.writescript()
-        vm.runscript()
-    else:
-        print(f'{scriptname} is not found.')
+    else: # assume user is referring to a library script
+        script_dir=c['Resources']['tcl']['scripts']
+        script_path=os.path.join(script_dir,f'{sp}.tcl')
+        if os.path.exists(script_path):
+            print(f'Running library script: {script_path}')
+            vm=VMD(c)
+            vm.newscript(f'local-{sp}')
+            vm.usescript(sp)
+            vm.writescript()
+            vm.runscript()
+        else:
+            print(f'{scriptname} is not found.')
 
 def wheretcl(args):
     c=Config()
@@ -165,6 +167,6 @@ def cli():
     command_parsers['run-example'].add_argument('number',type=int,default=None,help='example number')
     command_parsers['config-help'].add_argument('directives',type=str,nargs='*',help='config file directives')
     command_parsers['config-default'].add_argument('directives',type=str,nargs='*',help='config file directives')
-    command_parsers['script'].add_argument('scriptname',type=str,default=None,help='base name (no extension) of tcl script to run')
+    command_parsers['script'].add_argument('scriptname',type=str,default=None,help='name of VMD/TcL script to run')
     args=parser.parse_args()
     args.func(args)
