@@ -1,5 +1,5 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
-"""A controller for the pestifer runtime
+""" A controller for the pestifer runtime
 """
 import logging
 logger=logging.getLogger(__name__)
@@ -10,6 +10,9 @@ from .tasks import *
 from .util import *
 
 class Controller:
+    """ A class for controlling the execution of `Tasks`.
+    
+    """
     def __init__(self,userconfigfilename):
         # Read in the user configuration file and set up the overall Config
         self.config=Config(userfile=userconfigfilename)

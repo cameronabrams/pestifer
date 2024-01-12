@@ -32,55 +32,55 @@ class BaseTask(BaseMod):
     Attributes
     ----------
     req_attr: list
-        * specs: dictionary of specifications; under 'directives' in yaml
-        * writers: dictionary of FileWriters
-        * prior: name of prior task in sequence
-        * index: unique integer index of task in run
-        * config: access to the run config
-        * taskname: caller-supplied name of task
+        * `specs`: dictionary of specifications; under '`directives`' in yaml
+        * `writers`: dictionary of `FileWriters`
+        * `prior`: name of prior task in sequence
+        * `index`: unique integer index of task in run
+        * `config`: access to the run config
+        * `taskname`: caller-supplied name of task
     
-    subtaskcount: int
+    `subtaskcount`: int
         a count of subtasks in the task
     
-    basename: string
+    `basename`: string
         a basename used in file-naming conventions for the task
 
-    statevars: dict
+    `statevars`: dict
         dictionary that captures the current state of the run
 
-    FC: FileCollector
+    `FC`: `FileCollector`
         a structure for tracking files created by the task
 
     Methods
     -------
 
-    next_basename(*obj):
+    `next_basename(*obj)`:
         determines the next basename based on the task index, subtask
         label (obj[0]) and a subtask count
 
-    coor_to_pdb():
+    `coor_to_pdb()`:
         Generates and executes a VMD script to generate a new PDB
         file from an existing psf and coor file.
     
-    pdb_to_coor(): 
+    `pdb_to_coor()`: 
         Generates and executes a VMD script to generate a new coor
         file from an existing psf and PDB file.
     
-    make_constraint_pdb(dict): 
+    `make_constraint_pdb(dict)`: 
         Generates and executes a VMD script (based on the built-in
         make_constraint_pdb script) that generates a PDB file with 
         the appropriate attribute-tagging based on the directives in 
         the input dict.
 
-    inherit_state(): 
+    `inherit_state()`: 
         copies the statevar dict from the previous task onto this
         task's statevar dict
 
-    save_state(list): 
+    `save_state(list)`: 
         Based on the current basename, stores the current names of 
         all files whose extension types are in the list
     
-    update_statevars(key,value): 
+    `update_statevars(key,value)`: 
         Updates this task's statevars dict subject to some controls.
 
     """
@@ -216,16 +216,16 @@ class MDTask(BaseTask):
     
     Attributes
     ----------
-    yaml_header(str):
+    `yaml_header(str)`:
         the name used to declare this task in an input yaml file
 
     Methods
     -------
     
-    do():
+    `do()`:
         Inherits state and performs namd2 run based on specs; updates run state
 
-    namd2run(): 
+    `namd2run()`: 
         Generates the NAMD2 config file based on specs and then executes NAMD2
 
     """
@@ -566,11 +566,12 @@ class PsfgenTask(BaseTask):
            recreate it or modify it.
         """
         # get the key of the base_molecule
-        base_key='UNSET'
+        logger.debug(f'{self.taskname} has {len(self.molecules)} entries in its molecules dict')
+        base_key='base'
         for k,v in self.molecules:
             if v==self.base_molecule:
                 base_key=k
-        assert base_key!='UNSET',f'Cannot update a non-existent base molecule'
+        # assert base_key!='UNSET',f'Cannot update a non-existent base molecule'
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
         source={
@@ -579,7 +580,11 @@ class PsfgenTask(BaseTask):
                 'pdb':pdb
             }
         }
-        updated_molecule=Molecule(source=source,chainIDmanager=self.chainIDmanager,modmanager=self.modmanager).activate_biological_assembly(0)
+        if hasattr(self,'chainIDManager') and hasattr(self,'modmanager'):
+            updated_molecule=Molecule(source=source,chainIDmanager=self.chainIDmanager,modmanager=self.modmanager).activate_biological_assembly(0)
+        else:
+            updated_molecule=Molecule(source=source).activate_biological_assembly(0)
+
         self.molecules[base_key]=updated_molecule
         self.base_molecule=updated_molecule
 
