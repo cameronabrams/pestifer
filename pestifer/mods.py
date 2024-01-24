@@ -1086,6 +1086,36 @@ class Link(AncestorAwareMod):
         self.altloc1=''
         self.altloc2=''
 
+    @__init__.register(str)
+    def _from_shortcode(self,shortcode):
+        I,J=shortcode.split('-')
+        s1,ri1,a1=I.split('_')
+        r1,i1=split_ri(ri1)
+        s2,ri2,a2=J.split('_')
+        r2,i2=split_ri(ri2)
+        input_dict={
+            'chainID1':s1,
+            'resseqnum1':r1,
+            'insertion1':i1,
+            'name1':a1,
+            'chainID2':s2,
+            'resseqnum2':r2,
+            'insertion2':i2,
+            'name2':a2,
+            'residue1':None,
+            'residue2':None,
+            'atom1':None,
+            'atom2':None,
+            'empty':False,
+            'segtype1':'UNSET',
+            'segtype2':'UNSET',
+        }
+        super().__init__(input_dict)
+        self.patchname=''
+        self.patchorder=[1,2] # default
+        self.altloc1=''
+        self.altloc2=''
+
     def set_patchname(self,force=False):
         """Determine the charmff patch residue name for this link based on
         residue names, atom names, and when necessary, 3D geometry of a 
@@ -1311,6 +1341,11 @@ class LinkList(AncestorAwareModList):
             link.atom2=link.residue2.atoms.get(name=link.name2,altloc=link.altloc2)
             link.segtype1=link.residue1.segtype
             link.segtype2=link.residue2.segtype
+            # shortcodes don't provide resnames, so set them here
+            if not hasattr(link,'resname1'):
+                link.resname1=link.residue1.resname
+            if not hasattr(link,'resname2'):
+                link.resname2=link.residue2.resname
             link.set_patchname()
         # do cross-assignment to find true orphan links and dangling links
         orphan_1=ignored_by_ptnr1.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID2',insertion='insertion2')

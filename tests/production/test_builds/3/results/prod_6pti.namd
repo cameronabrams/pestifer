@@ -1,0 +1,53 @@
+########################### pestifer: prod_6pti.namd ###########################
+####################### Created Tue Jan 23 10:02:51 2024 #######################
+################################# NAMD2 script #################################
+set temperature 300
+set pressure 1
+paraTypeCharmm True
+exclude scaled1-4
+1-4scaling 1.0
+cutoff 10.0
+switching True
+switchdist 9.0
+pairlistdist 11.5
+outputenergies 100
+structure 02-00-solvate.psf
+coordinates 08-00-md-NPT.pdb
+bincoordinates 08-00-md-NPT.coor
+binvelocities 08-00-md-NPT.vel
+parameters par_all36m_prot.prm
+parameters par_all36_carb.prm
+parameters par_all36_lipid.prm
+parameters par_all36_carb.prm
+parameters par_all36_na.prm
+parameters par_all36_cgenff.prm
+parameters toppar_all36_carb_glycopeptide.str
+parameters toppar_all36_prot_modify_res.str
+parameters toppar_water_ions.str
+parameters toppar_all36_moreions.str
+extendedSystem 08-00-md-NPT.xsc
+xstfreq 10000
+timestep 2.0
+rigidbonds all
+nonbondedFreq 1
+fullElectFrequency 2
+stepspercycle 10
+PME True
+pmegridspacing 1.0
+wrapAll True
+langevin True
+langevinDamping 5
+langevinTemp $temperature
+langevinHydrogen False
+langevinpiston True
+langevinpistontarget $pressure
+langevinpistonperiod 200
+langevinpistondecay 100
+langevinpistontemp $temperature
+usegrouppressure True
+useflexiblecell False
+outputName prod_6pti
+dcdfreq 10000
+restartfreq 10000
+firsttimestep 7000
+run 1000000

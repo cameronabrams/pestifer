@@ -1,0 +1,63 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+# 
+# Simple build of solvated HIV-1 Env SOSIP ectodomain trimer 4tvp
+#
+# Notes:
+#   - Missing protein is built-in
+#   - Sulfate ion and Fab chains are excluded
+#   - mmCIF input file requires careful attention to chainIDs and
+#     residue numbers
+#   - Fine-tuning ramachandran rotations performed at N-terminus of HN1
+#     to avoid steric clashes when building in these missing residues
+#   - A four-phase NPT equilibration is used to settle the density
+#   - A production tarball is generated: prod_4tvp.tgz
+#
+title: HIV-1 Env Trimer 4tvp, Fabs and sulfate ions removed
+tasks:
+  - psfgen:
+      source:
+        id: 4tvp
+        file_format: mmCIF
+        biological_assembly: 1
+        exclude:
+          resnames:
+            - SO4
+          chains:  # mmCIF
+            - C
+            - D
+            - E
+            - F
+  - md:
+      ensemble: minimize
+  - ligate:
+      steer:
+        nsteps: 4000
+  - md:
+      ensemble: minimize  
+  - md:
+      ensemble: NVT
+      nsteps: 2000
+  - solvate:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - terminate:
+      basename: my_4tvp
+      package:
+        ensemble: NPT
+        basename: prod_4tvp

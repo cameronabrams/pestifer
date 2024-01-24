@@ -12,6 +12,9 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.3.2
+    * allow for user-defined links in the config file
+    * all example builds now have tests in the test suite
 * 1.3.1
     * bug fixes for cleaving
 * 1.3.0

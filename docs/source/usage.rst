@@ -1,7 +1,7 @@
 Usage
 =====
 
-Installation of the ``pestifer`` package gives access to the ``pestifer`` command.  The general syntax for invoking ``pestifer`` is
+Installation of pestifer gives access to the ``pestifer`` command.  The general syntax for invoking ``pestifer`` is
 
 .. code-block:: console
 
@@ -33,7 +33,7 @@ Here ``config.yaml`` is the name of the configuration file that describes the bu
 best way to learn about the configuration file is to run the examples provided, and
 then you can try to make your own.
 
-``run-example``: there are 21 example systems; to run number four, for example:
+``run-example``: there are 12 example systems; to run number four, for example:
 
 .. code-block:: console
    

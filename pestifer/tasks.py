@@ -842,7 +842,8 @@ class TerminateTask(MDTask):
         for n in local_params:
             self.FC.append(n)
         for ext in ['psf','pdb','coor','xsc','vel']:
-            self.FC.append(self.statevars[ext])
+            if ext in self.statevars:
+                self.FC.append(self.statevars[ext])
 
         if specs["topogromacs"]:
             logger.debug(f'running topogromacs')

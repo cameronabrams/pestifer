@@ -1,0 +1,67 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+# 
+# Simple build of solvated dimeric insulin receptor ectodomain
+#
+# Notes:
+#   - Missing protein is built-in
+#   - Fab chains are excluded
+#   - Declashing is turned off
+#   - A four-phase NPT equilibration is used to settle the density
+#   - A production tarball is generated: prod_5vn3.tgz
+#
+title: insulin receptor ectodomain, Fabs removed
+tasks:
+  - psfgen:
+      source:
+        id: 4zxb
+        biological_assembly: 1
+        exclude:
+          chains:
+            - A
+            - B
+            - C
+            - D
+        sequence:
+          loops:
+            declash:
+              maxcycles: 0
+      mods:
+        mutations:
+          - E:P753A  # the proline at the end of a chain is problematic, for now
+        crotations: # some fine-tuning to ease ligation
+          - psi,E,661,693,60
+          - phi,E,662,693,60
+  - md:
+      ensemble: minimize
+  - ligate:
+      steer:
+        nsteps: 12000
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+      nsteps: 24000
+  - solvate:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - terminate:
+      basename: my_4zxb
+      package:
+        ensemble: NPT
+        basename: prod_4zxb

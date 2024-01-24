@@ -1,0 +1,72 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+# 
+# Simple build of solvated HIV-1 Env trimer 5vn3
+#
+# Notes:
+#   - Missing protein is built-in
+#   - Fab and sCD4 chains excluded
+#   - Missing V1/2 residues in each gp120 replaced with GGG
+#   - A four-phase NPT equilibration is used to settle the density
+#   - A production tarball is generated: prod_5vn3.tgz
+#
+title: HIV-1 Env Trimer 5vn3, excluding sCD4 and Fab chains, with Gly3 stubs replacing missing v1/2
+tasks:
+  - psfgen:
+      source:
+        id: 5vn3
+        file_format: PDB
+        biological_assembly: 1
+        exclude:
+          chains:
+            - C
+            - H
+            - L
+            - E
+            - K
+            - N 
+            - F
+            - M
+            - O
+        sequence:
+          loops:
+            declash:
+              maxcycles: 20
+      mods:
+        substitutions:
+          - G:131A-133T,GGG
+          - I:131A-133T,GGG
+          - J:131A-133T,GGG
+  - md:
+      ensemble: minimize
+  - ligate:
+      steer:
+        nsteps: 3000
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+      nsteps: 2400
+  - solvate:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - terminate:
+      basename: my_5vn3
+      package:
+        ensemble: NPT
+        basename: prod_5vn3

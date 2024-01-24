@@ -35,7 +35,6 @@ class AsymmetricUnit(AncestorAwareMod):
             pr=objs.get('parsed',None)
             sourcespecs=objs.get('sourcespecs',{})
             modmanager=objs.get('modmanager',ModManager())
-            # logger.debug(f'User mods {type(mods)} at asymmetric unit: {mods.__dict__}')
             chainIDmanager=objs.get('chainIDmanager',None)
             psf=objs.get('psf',None)
 
@@ -48,10 +47,13 @@ class AsymmetricUnit(AncestorAwareMod):
                 # minimal pr has ATOMS
                 atoms=AtomList([Atom(p) for p in pr[Atom.PDB_keyword]])
                 atoms.extend([Hetatm(p) for p in pr.get(Hetatm.PDB_keyword,[])])
+                atoms.sort(by=['serial'])
                 ters=TerList([Ter(p) for  p in pr.get(Ter.PDB_keyword,[])])
-                atoms.adjustSerials(ters)
+                if len(ters)>0:
+                    logger.debug(f'{len(ters)} TER records require adjusting atom serial numbers')
+                atoms.reserialize()
+                # atoms.adjustSerials(ters)
                 modmanager.injest(ters)
-                # mods.seqmods.terminals=ters
                 if 'REMARK.465' in pr:
                     missings=EmptyResidueList([EmptyResidue(p) for p in pr['REMARK.465'].tables['MISSING']])
                 ssbonds=SSBondList([SSBond(p) for p in pr.get(SSBond.PDB_keyword,[])])  
@@ -90,7 +92,10 @@ class AsymmetricUnit(AncestorAwareMod):
                     logger.debug(f'PSF file {psf} identifies {len(self.psf.links)} links; total links now {len(links)}')
             seqmods=modmanager.get('seqmods',{})
             grafts=seqmods.get('grafts',GraftList([]))
-            
+
+            userlinks=modmanager.get('topomods',{}).get('links',LinkList([]))
+            links.extend(userlinks)
+
             # Build the list of residues
             fromAtoms=ResidueList(atoms)
             fromEmptyResidues=ResidueList(missings)
@@ -191,8 +196,9 @@ class AsymmetricUnit(AncestorAwareMod):
             # Now append these to the modmanager's mutations
             mutations=modmanager.injest(mutations)
             logger.debug(f'All mutations')
+            mutations.sort(by=['typekey'])
             for m in mutations:
-                logger.debug(str(m))
+                logger.debug(str(m)+' '+m.typekey)
             pruned_ssbonds=ssbonds.prune_mutations(mutations)
             pruned=pruned_by_links=links.prune_mutations(mutations,segments)
             pruned_segments=pruned.get('segments',[])
@@ -209,7 +215,7 @@ class AsymmetricUnit(AncestorAwareMod):
                         ignored_ssbonds.append(ssbonds.remove(s))
 
             ssbonds=modmanager.injest(ssbonds,overwrite=True)
-            links=modmanager.injest(links)
+            links=modmanager.injest(links,overwrite=True)
             grafts=modmanager.injest(grafts,overwrite=True)
             
             segments.inherit_mods(modmanager)
@@ -261,7 +267,8 @@ class AsymmetricUnit(AncestorAwareMod):
         atoms=AtomList([Atom(p) for p in altstruct[Atom.PDB_keyword]])
         atoms.extend([Hetatm(p) for p in altstruct.get(Hetatm.PDB_keyword,[])])
         ters=TerList([Ter(p) for  p in altstruct.get(Ter.PDB_keyword,[])])
-        atoms.adjustSerials(ters)
+        atoms.reserialize()
+        # atoms.adjustSerials(ters)
         altRes=ResidueList(atoms)
         overwrites=[]
         for ar in altRes:

@@ -6,7 +6,7 @@ __pycache__/
 *$py.class
 .idea/
 *tmp*
-*/results
+*/results/
 .vscode/
 # C extensions
 *.so

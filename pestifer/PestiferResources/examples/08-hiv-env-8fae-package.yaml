@@ -1,0 +1,55 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+# 
+# Simple build of solvated HIV-1 Env trimer 8fae
+#
+# Notes:
+#   - Missing protein is built-in
+#   - Drug molecule (resname 83G) is removed
+#   - mmCIF input file requires careful attention to chainIDs and
+#     residue numbers
+#   - A four-phase NPT equilibration is used to settle the density
+#   - A production tarball is generated: prod_8fae.tgz
+#
+title: HIV-1 Env Trimer 8fae, drug molecule removed
+tasks:
+  - psfgen:
+      source:
+        id: 8fae
+        file_format: mmCIF
+        biological_assembly: 1
+        exclude:
+          resnames:
+            - 83G
+  - md:
+      ensemble: minimize
+  - ligate:
+      steer:
+        nsteps: 4000
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - solvate:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - terminate:
+      basename: my_8fae
+      package:
+        ensemble: NPT
+        basename: prod_8fae

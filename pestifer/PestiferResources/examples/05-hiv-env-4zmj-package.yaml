@@ -1,0 +1,60 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+# 
+# Simple build of solvated HIV-1 Env SOSIP ectodomain trimer 4zmj
+#
+# Notes:
+#   - Missing protein is built-in
+#   - Fine-tuning ramachandran rotations performed at N-terminus of HN1
+#     to avoid steric clashes when building in these missing residues
+#   - A four-phase NPT equilibration is used to settle the density
+#   - A production tarball is generated: prod_4zmj.tgz
+#
+title: HIV-1 Env Trimer 4zmj
+tasks:
+  - psfgen:
+      source:
+        id: 4zmj
+        biological_assembly: 1
+        sequence:
+          loops:
+            declash:
+              maxcycles: 20
+      mods:
+        crotations:
+          - psi,B,546,568,-180.0
+          - phi,B,547,568,-60.0
+  - md:
+      ensemble: minimize
+  - ligate:
+      steer:
+        nsteps: 4200
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+      nsteps: 2400
+  - solvate:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - terminate:
+      basename: my_4zmj
+      package:
+        ensemble: NPT
+        basename: prod_4zmj
+        

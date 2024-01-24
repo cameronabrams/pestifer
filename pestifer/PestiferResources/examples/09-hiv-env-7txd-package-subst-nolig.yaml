@@ -1,0 +1,87 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+# 
+# Simple build of solvated HIV-1 Env trimer 7txd
+#
+# Notes:
+#   - Missing protein is built-in
+#   - mmCIF input file requires careful attention to chainIDs and
+#     residue numbers
+#   - Fab and sCD4 chains excluded
+#   - zero-occupancy residues at C-terminus of each gp41 are built
+#     and folded into an alpha-helix
+#   - Missing V1/2 residues in each gp120 replaced with GGG
+#   - A four-phase NPT equilibration is used to settle the density
+#   - A production tarball is generated: prod_7txd.tgz
+#
+title: HIV-1 Env Trimer 7txd, substitutions, no ligands
+tasks:
+  - psfgen:
+      source:
+        id: 7txd
+        file_format: mmCIF
+        cif_residue_map_file: cif2user.csv
+        biological_assembly: 1
+        exclude:
+          chains:
+            - G
+            - H
+            - I
+            - J
+            - K
+            - L
+        sequence:
+          build_zero_occupancy_C_termini:
+            - B
+            - D
+            - F
+      mods:
+        crotations:
+          - alpha,B,33,52
+          - alpha,B,144,153
+          - alpha,D,32,52
+          - alpha,D,144,153
+          - phi,D,34,52,-30
+          - phi,D,33,52,15
+          - psi,D,29,52,-5
+          - alpha,F,33,50
+          - alpha,F,144,153
+          - phi,F,32,50,30
+          - phi,F,31,50,45
+          - psi,C,368,378,180
+        substitutions:
+          - A:100-162,GGG
+          - C:100-162,GGG
+          - E:100-162,GGG
+  - md:
+      ensemble: minimize
+  - ligate:
+      steer:
+        nsteps: 3000
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - solvate:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - terminate:
+      basename: my_7txd
+      package:
+        ensemble: NPT
+        basename: prod_7txd

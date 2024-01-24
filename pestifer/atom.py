@@ -4,6 +4,7 @@
 from .mods import *
 from pidibble.baserecord import BaseRecord
 from functools import singledispatchmethod
+from .util import reduce_intlist
 
 class Atom(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
@@ -94,28 +95,50 @@ class Atom(AncestorAwareMod):
         self.z=other.z
 
 class AtomList(AncestorAwareModList):
+    def reserialize(self):
+        serial=1
+        for a in self:
+            a.serial=serial
+            serial+=1
+            
     def adjustSerials(self,Ters):
         ignored_serials=[x.serial for x in Ters]
         if not ignored_serials:
             return
-        orig_atom_serials=[x.serial for x in self]
-        assert all([not x in orig_atom_serials for x in ignored_serials])
-        offending_serial_idx=[]
-        cidx=0
-        for i in range(len(orig_atom_serials)-1):
-            if orig_atom_serials[i]<ignored_serials[cidx]<orig_atom_serials[i+1]:
-                offending_serial_idx.append(i+1)
-                cidx+=1
-                if cidx==len(ignored_serials):
-                    break
-        for s in offending_serial_idx:
-            for i in range(s,len(orig_atom_serials)):
-                orig_atom_serials[i]-=1
-        for a,s in zip(self,orig_atom_serials):
-            if not '_ORIGINAL_' in a.__dict__:
-                a._ORIGINAL_={}
-            a._ORIGINAL_['serial']=a.serial
-            a.serial=s
+        logger.debug(f'These serials must be deleted: {ignored_serials}')
+        ril=reduce_intlist([x.serial for x in self])
+        logger.debug(f'Prior to ignore, serials populate {ril}')
+        for a in self:
+            try:
+                n=next(x[0] for x in enumerate(ignored_serials) if x[1] > a.serial)
+            except StopIteration:
+                pass
+            if n>0:
+                if not '_ORIGINAL_' in a.__dict__:
+                    a._ORIGINAL_={}
+                a._ORIGINAL_['serial']=a.serial
+                a.serial-=n
+                logger.debug(f'Atom orig serial {a._ORIGINAL_["serial"]} to {a.serial}')
+
+        # orig_atom_serials=[x.serial for x in self]
+        # assert all([not x in orig_atom_serials for x in ignored_serials])
+        # offending_serial_idx=[]
+        # cidx=0
+        # for i in range(len(orig_atom_serials)-1):
+        #     if orig_atom_serials[i]<ignored_serials[cidx]<orig_atom_serials[i+1]:
+        #         offending_serial_idx.append(i+1)
+        #         cidx+=1
+        #         if cidx==len(ignored_serials):
+        #             break
+        # for s in offending_serial_idx:
+        #     for i in range(s,len(orig_atom_serials)):
+        #         orig_atom_serials[i]-=1
+        # for a,s in zip(self,orig_atom_serials):
+        #     if not '_ORIGINAL_' in a.__dict__:
+        #         a._ORIGINAL_={}
+        #     a._ORIGINAL_['serial']=a.serial
+        #     a.serial=s
+
     def overwritePositions(self,other):
         assert len(self)==len(other),'Error: atom lists not equal length'
         for sa,oa in zip(self,other):

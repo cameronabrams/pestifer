@@ -1,0 +1,40 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+# 
+# Simple build of solvated hexameric insulin 2ins
+#
+# Notes:
+#   - A four-phase NPT equilibration is used to settle the density
+#   - A production tarball is generated: prod_2ins.tgz
+#
+title: hexameric insulin
+tasks:
+  - psfgen:
+      source:
+        id: 2ins
+        biological_assembly: 1
+  - md:
+      ensemble: minimize
+  - solvate:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - terminate:
+      basename: my_2ins
+      package:
+        ensemble: NPT
+        basename: prod_2ins

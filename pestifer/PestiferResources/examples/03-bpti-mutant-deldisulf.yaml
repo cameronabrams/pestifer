@@ -1,0 +1,55 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+# 
+# Simple build of solvated BPTI 
+#
+# Notes:
+#   - The phospate ion is excluded
+#   - All crystal waters are retained
+#   - Some selected mutations are performed, showcasing two 
+#     shortcode formats
+#   - A disulfide is removed
+#   - A four-phase NPT equilibration is used to settle the density
+#   - A production tarball is generated: prod_6pti.tgz
+#
+title: BPTI, no phosphate, some random mutations plus deletion of one disulfide
+tasks:
+  - psfgen:
+      source:
+        id: 6pti
+        exclude:
+          resnames:
+            - PO4
+      mods:
+        mutations: # showcasing the two shortcode formats
+          - A:T11A # threonine to alanine at position 11
+          - A:PRO,13,ALA # proline to alanine at position 13
+          - A:K15R
+          - A:MET,52,LEU
+        ssbondsdelete:
+          - A_5-A_55
+  - md:
+      ensemble: minimize
+  - solvate:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - terminate:
+      basename: my_6pti
+      package:
+        ensemble: NPT
+        basename: prod_6pti

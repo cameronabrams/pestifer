@@ -451,6 +451,9 @@ directives:
               - name: ssbondsdelete
                 text: existing ssbonds to break, expressed as shortcodes; e.g., C_154-A_298 will break the existing ssbond between resids 154 of chain C and 298 of chain A so that each is a reduced CYS.
                 type: list
+              - name: links
+                text: additional generic bonds, expressed as shortcodes; e.g., C_154_N-A_298_M to add a link between atom N of resid 154 of chain C and atom M of resid 298 of chain A.
+                type: list
               - name: deletions
                 text: residue ranges to delete, expressed as shortcodes; e.g., C:99-101 deletes residues 99 to 101 (inclusive) of chain C
                 type: list

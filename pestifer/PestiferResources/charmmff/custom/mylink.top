@@ -9,6 +9,9 @@
 ! atoms and IC's defined for guesscoord to put back 
 ! an O and an HN  to yield the correct peptide bond topology.
 !
+! Note that this patch will not work if either residue is
+! a proline!
+!
 ! Why is The Healing Patch necessary?  I used steered MD
 ! to build missing loops into models, and these
 ! loops are added with CTER's at their ends off the
@@ -23,11 +26,11 @@
 PRES HEAL      0.00 
 ATOM 2O   O   -0.51
 ATOM 2C   C   0.51
-ATOM 3HN  H   0.31
+ATOM 3HN  H   0.31  ! no, not for proline!!
 ATOM 3N   NH1 -0.47
 BOND 2C 3N
 BOND 2C 2O
-BOND 3N 3HN   
+BOND 3N 3HN   ! no, will not work for proline!!
 DELETE ATOM 2OT1
 DELETE ATOM 2OT2
 DELETE ATOM 3HT1

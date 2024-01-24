@@ -192,6 +192,7 @@ class Segment(AncestorAwareMod):
         seg_Cfusions=seqmods.get('Cfusions',CfusionList([]))
 
         W.banner(f'Segment {image_seglabel} begins')
+        logger.debug(f'Segment {image_seglabel} begins')
         for sf in seg_Cfusions:
             sf.write_pre_segment(W)
         for i,b in enumerate(self.subsegments):
@@ -202,7 +203,13 @@ class Segment(AncestorAwareMod):
                 b.pdb=f'protein_{image_seglabel}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
                 W.addfile(b.pdb)
                 serial_list=run.atom_serials(as_type=int)
+                logger.debug(f'Last atom has serial {serial_list[-1]}')
                 at=parent_molecule.asymmetric_unit.atoms.get(serial=serial_list[-1])
+                if hasattr(at,'__len__'):
+                    for a in at:
+                        logger.debug(f'whoops: {a.chainID} {a.resseqnum} {a.name} is {a.serial}')
+                    raise Exception(f'More than one atom with serial {serial_list[-1]}??')
+                logger.debug(f'here it is {at.serial} {at.resname} {at.name}')
                 assert at.resseqnum==run[-1].resseqnum
                 vmd_red_list=reduce_intlist(serial_list)
                 W.addline(f'set {b.selname} [atomselect ${parent_molecule.molid_varname} "serial {vmd_red_list}"]')
