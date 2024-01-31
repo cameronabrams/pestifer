@@ -25,6 +25,13 @@ from .command import Command
 from .mods import CleavageSite, CleavageSiteList
 from .psf import PSFContents
 import networkx as nx
+import pandas as pd
+import matplotlib.pyplot as plt 
+import matplotlib.cm as cm
+from scipy.constants import physical_constants
+g_per_amu=physical_constants['atomic mass constant'][0]*1000
+A_per_cm=1.e8
+A3_per_cm3=A_per_cm**3
 
 class BaseTask(BaseMod):
     """ A base class for Tasks.
@@ -34,7 +41,7 @@ class BaseTask(BaseMod):
     req_attr: list
         * `specs`: dictionary of specifications; under '`directives`' in yaml
         * `writers`: dictionary of `FileWriters`
-        * `prior`: name of prior task in sequence
+        * `prior`: identifier of prior task in sequence
         * `index`: unique integer index of task in run
         * `config`: access to the run config
         * `taskname`: caller-supplied name of task
@@ -347,6 +354,11 @@ class MDTask(BaseTask):
         na.writescript(params)
         if not script_only:
             na.runscript()
+            inherited_etitles=[]
+            if self.prior and self.prior.taskname=='md' and hasattr(self.prior,'mdlog'):
+                inherited_etitles=self.prior.mdlog.etitles
+                logger.debug(f'Offering these etitles: {inherited_etitles}')
+            self.mdlog=na.getlog(inherited_etitles=inherited_etitles)
             if ensemble!='minimize':
                 self.update_statevars('firsttimestep',firsttimestep+nsteps)
             else:
@@ -354,6 +366,45 @@ class MDTask(BaseTask):
             if cell: # this is a use-once statevar
                 del self.statevars['cell']
         return params
+
+class MDPlotTask(BaseTask):
+    yaml_header='mdplot'
+    def do(self):
+        self.log_message('initiated')
+        self.inherit_state()            
+        datasources=[]
+        root=self.prior
+        while root.prior!=None and root.prior.taskname=='md':
+            if hasattr(root.prior,'mdlog'):
+                datasources.append(root.prior.mdlog.edata)
+            root=root.prior
+        logger.debug(f'concatenating energy-like data from {len(datasources)} logs')
+        data=pd.concat(datasources[::-1])
+        savedata=self.specs.get('savedata',None)
+        if savedata:
+            logger.debug(f'Saving energy-like data to {savedata}.')
+            data.to_csv(savedata,header=True,index=False)
+        traces=self.specs.get('traces',[])
+        basename=self.specs.get('basename','myplot')
+        for trace in traces:
+            figsize=self.specs.get('figsize',(9,6))
+            key=trace.upper()
+            fig,ax=plt.subplots(1,1,figsize=figsize)
+            unitspec=self.specs.get('units',{}).get(trace,'*')
+            if unitspec=='*':
+                units=1.0
+            else:
+                if unitspec=='g_per_cc':
+                    # units='g_per_amu_A3_per_cm3'
+                    units=g_per_amu*A3_per_cm3
+                else:
+                    logger.debug(f'Unitspec "{unitspec}" not recognized.')
+                    units=1.0
+            ax.plot(data['TS'],data[key]*units,label=key.title())
+            ax.set_xlabel('time step')
+            ax.set_ylabel(key.title()+' ('+unitspec+')')
+            plt.savefig(f'{basename}-{trace}.png',bbox_inches='tight')
+        self.log_message('complete')
 
 class PsfgenTask(BaseTask):
     """ A class for handling invocations of psfgen which create a molecule from a base PDB/mmCIF file

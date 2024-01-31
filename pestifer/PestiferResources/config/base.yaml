@@ -542,6 +542,31 @@ directives:
                 text: Specifies whether or not to clean up temporary files
                 type: bool
                 default: True
+      - name: mdplot
+        text: Generate plot(s) from previous md tasks with same psf
+        type: dict
+        directives:
+          - name: savedata
+            type: str
+            text: name of CSV file to save all energy-like data
+          - name: figsize
+            type: list
+            text: size of matplotlib figure
+            default: [9,6]
+          - name: traces
+            type: list
+            text: List of energy-like quantities to plot vs timestep
+            default:
+              - density
+          - name: units
+            type: dict
+            text: user-specified units for plots (if other than NAMD standard units)
+            default:
+              density: g_per_cc
+          - name: basename
+            type: str
+            text: Baseame of image file(s) to generate
+            default: myplot
       - name: cleave
         text: Parameters controlling cleavage of one or more protein chains
         type: dict

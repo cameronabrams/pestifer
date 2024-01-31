@@ -33,6 +33,13 @@ in the `psfgen user manual <https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen/
     - md:
         ensemble: NPT
         nsteps: 1600
+    - mdplot:
+        savedata: solvated.csv
+        traces:
+          - density
+        units:
+          density: g_per_cc
+        basename: solvated        
     - terminate:
         basename: my_6pti
         package:
@@ -121,6 +128,12 @@ And so on.  Let's return to the example.  Immediately after the ``psfgen`` task 
 
 By now, you know how to use ``config-help`` to figure out what these subdirectives mean. 
 So let's return again to the example.  After this ``md`` task is the ``solvate`` task.  Notice that it has no subdirectives; only default values are used for any subdirectives. (Currently (v. 1.3.2) the only subdirective is ``pad``.) Then comes another minimization via an ``md`` task, then an NVT equilibration, and then a series of progressively longer NPT equilibrations in yet more ``md`` tasks.  These "chained-together" NPT runs avoid the common issue that, after solvation, the density of the initial water box is a bit too low, so under pressure control the volume shrinks.  It can shrink so quickly that NAMD's internal data structures for distributing the computational load among processing units becomes invalid, which causes NAMD to die.  The easiest way to reset those internal data structures is just to restart NAMD from the result of the previous run.
+
+The ``mdplot`` task generates a plot of system density (in g/cc) vs time step for the series of MD simulations that occur after solvation.  This is a quick way to check that enough NPT equilibration has been performed.  For this example, the plot looks like this:
+
+.. figure:: pics/solvated-density.png
+
+    Density vs. timestep for the BPTI system post-solvation.
 
 Finally, we see a ``terminate`` task, whose main role is to generate some informative output and to provide a set of NAMD input files (PSF, PDB, xsc, coor, and vel) that all have a common base file name.  The ``package`` subdirective creates a tarball of all required input files to execute a NAMD run, ready for transfer to the HPC resource of your choice.
 

@@ -6,6 +6,7 @@ logger=logging.getLogger(__name__)
 from .command import Command
 import os
 from .util import reduce_intlist
+from .namdlog import NAMDLog
 from .stringthings import ByteCollector, FileCollector, my_logger
 import datetime
 import shutil
@@ -310,3 +311,6 @@ class NAMD2(Scriptwriter):
             my_logger(f'STDERR from "{c.command}"',f.write)
             f.write(c.stderr+'\n')
             my_logger(f'END OF LOG',f.write)
+
+    def getlog(self,inherited_etitles=[]):
+        return NAMDLog(self.logname,inherited_etitles=inherited_etitles).energy()
