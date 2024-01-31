@@ -21,10 +21,9 @@ def do_it(exnumber):
 
 def cleanup():
     logs=set(glob('*.log'))
-    tarballs=set(glob('*.tgz'))
     images=set(glob('*.png'))
     data=set(glob('*.csv'))
-    nonlogs=list(set(glob('*')) - logs - tarballs - images - data)
+    nonlogs=list(set(glob('*')) - logs - images - data)
     for n in nonlogs:
         os.remove(n)
 
