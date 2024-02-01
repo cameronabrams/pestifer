@@ -78,7 +78,7 @@ proc overlay_protomers { molid protomer_chains resids } {
     for {set i 1} { $i < [llength $protomer_chains] } { incr i } {
         set c [lindex $protomer_chains $i]
         set p [atomselect $molid "(protein or glycan) and chain $c"]
-        set pga [atomselect $molid "($p text) and resid $resids"]
+        set pga [atomselect $molid "(protein or glycan) and chain $c and resid $resids"]
         $p move [measure fit $pga $r_p1]
     }
 }
