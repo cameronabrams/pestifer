@@ -1,5 +1,21 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
 
+proc format_tmat { tmat biomtnum } {
+    set result [list]
+    set rownum 1
+    foreach row [lrange $tmat 0 end-1] {
+        set rowstr "REMARK 350   BIOMT[format %1d $rownum][format %4d $biomtnum]"
+        foreach elem [lrange $row 0 end-1] {
+            set rowstr "$rowstr[format %10.6f $elem]"
+        }
+        set le [lindex $row end]
+        set rowstr "$rowstr[format %16.6f $le]"
+        lappend result $rowstr
+        incr rownum
+    }
+    return [join $result \n]
+}
+
 # make_au_from_aligning
 #
 # This procedure will generate a new PDB file containing a asymmetric
