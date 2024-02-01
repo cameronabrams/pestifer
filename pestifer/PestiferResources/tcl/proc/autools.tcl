@@ -13,7 +13,7 @@
 #
 # Arguments:
 #  - molid : molecule ID
-#  - subunit_chains: list of chains by subunit; first entry signifies
+#  - protomer_chains: list of chains by subunit; first entry signifies
 #    the base chain(s).
 #  - resids: string of resid range description for an atomselection
 #    to use as an alignment basis
@@ -34,13 +34,13 @@
 #   and the file "my_au.pdb" will contain the BIOMT transformations
 #   in REMARK 350 records and all atoms for chain A, B.
 #
-proc make_au_from_aligning { molid subunit_chains resids outpdb } {
+proc make_au_from_aligning { molid protomer_chains resids outpdb } {
     set tmats [list]
-    set c1 [lindex $subunit_chains 0]
+    set c1 [lindex $protomer_chains 0]
     set savepdb [atomselect $molid "(protein or glycan) and chain $c1"]
     set r_p1 [atomselect $molid "(protein or glycan) and chain $c1 and resid $resids"]
-    for {set i 1} { $i < [llength $subunit_chains] } { incr i } {
-        set c [lindex $subunit_chains $i]
+    for {set i 1} { $i < [llength $protomer_chains] } { incr i } {
+        set c [lindex $protomer_chains $i]
         set p [atomselect $molid "(protein or glycan) and chain $c and resid $resids"]
         set tmat [measure fit $r_p1 $p]
         lappend tmats $tmat
@@ -73,10 +73,10 @@ proc make_au_from_aligning { molid subunit_chains resids outpdb } {
 }
 
 proc overlay_protomers { molid protomer_chains resid } {
-    set c1 [lindex $subunit_chains 0]
+    set c1 [lindex $protomer_chains 0]
     set r_p1 [atomselect $molid "(protein or glycan) and chain $c1 and resid $resids"]
-    for {set i 1} { $i < [llength $subunit_chains] } { incr i } {
-        set c [lindex $subunit_chains $i]
+    for {set i 1} { $i < [llength $protomer_chains] } { incr i } {
+        set c [lindex $protomer_chains $i]
         set p [atomselect $molid "(protein or glycan) and chain $c"]
         set pga [atomselect $molid "($p text) and resid $resids"]
         $p move [measure fit $pga $r_p1]
