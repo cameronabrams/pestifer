@@ -12,6 +12,8 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.3.4
+    * new TcL procs for asymmetric unit generation from non-symmetric assemblies
 * 1.3.3
     * `NAMDLog` class introduced for parsing NAMD2-generated log files
     * `mdplot` task for generating plots of various energy-like quantities vs timestep

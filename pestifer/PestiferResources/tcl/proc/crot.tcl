@@ -2,18 +2,7 @@
 #
 # TcL procedures for facilitating rotations around bonds
 
-# Wrap x into periodic domain [xlo,xhi]
-# proc wrap_domain { x xlo xhi } {
-#    set dsize [expr ($xhi) - ($xlo)]
-#    if { [expr $x < $xlo] } {
-#       set y [expr $x + $dsize]
-#    } elseif { [expr $x > $xhi] } {
-#       set y [expr $x - $dsize]
-#    } else {
-#       set y $x
-#    }
-#    return $y
-# }
+
 
 # Determine whether or not Sresidues q and r are in the same chain
 # Parameters:
@@ -117,18 +106,15 @@ proc fold_alpha { rbegin rend rterm molid } {
       vmdcon -info "fold_alpha PRE residue $r ($phi,$psi,$omega)"
       if { [string compare $phi "NaN"] != 0 } {
          set dphi [expr (-57.0 - ($phi))]
-         # set dphi [wrap_domain [expr (-57 - ($phi))] -180.0 180.0]
          vmdcon -info "-> dphi $dphi"
          brot $molid $r $rterm phi $rotators_side $dphi
       }
       if {  [string compare $psi "NaN"] != 0 } {
-         # set dpsi [wrap_domain [expr (-47 - ($psi))] -180.0 180.0]
          set dpsi [expr (-47.0 - ($psi))]
          vmdcon -info "-> dpsi $dpsi"
          brot $molid $r $rterm psi $rotators_side $dpsi
       }
       if { [string compare $omega "NaN"] != 0} {
-         # set domega [wrap_domain [expr (180 - ($omega))] -180.0 180.0]
          set domega [expr (180.0 - ($omega))]
          vmdcon -info "-> domega $domega"
          brot $molid $r $rterm omega $rotators_side $domega

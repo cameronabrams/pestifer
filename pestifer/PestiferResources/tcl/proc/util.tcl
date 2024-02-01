@@ -32,3 +32,16 @@ proc hatvec { a_vec } {
    set l [veclength $a_vec]
    return [vecscale $a_vec [expr 1.0/$l]]
 }
+
+# Wrap x into periodic domain [xlo,xhi]
+proc wrap_domain { x xlo xhi } {
+   set dsize [expr ($xhi) - ($xlo)]
+   if { [expr $x < $xlo] } {
+      set y [expr $x + $dsize]
+   } elseif { [expr $x > $xhi] } {
+      set y [expr $x - $dsize]
+   } else {
+      set y $x
+   }
+   return $y
+}

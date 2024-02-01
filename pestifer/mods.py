@@ -698,17 +698,19 @@ class Crot(AncestorAwareMod):
         the_chainID=chainIDmap.get(self.chainID,self.chainID)
         molid_varname=W.molid_varname
         molid=f'${molid_varname}'
-        endIsCterm=kwargs.get('endIsCterm',True)
+        # endIsCterm=kwargs.get('endIsCterm',True)
         if self.angle in ['PHI','PSI','OMEGA']:
             W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum1))
             W.addline('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum2))
-            if endIsCterm:
-                W.addline('Crot_{}_toCterm $r1 $r2 {} {} {}'.format(self.angle.lower(),the_chainID,molid,self.degrees))
-            else:
-                W.addline('Crot_{} $r1 $r2 {} {} {}'.format(self.angle.lower(),the_chainID,molid,self.degrees))
+            W.addline(f'brot {molid} $r1 $r2 {self.angle.lower()} C {self.degrees}')
+            # if endIsCterm:
+            #     W.addline('Crot_{}_toCterm $r1 $r2 {} {} {}'.format(self.angle.lower(),the_chainID,molid,self.degrees))
+            # else:
+            #     W.addline('Crot_{} $r1 $r2 {} {} {}'.format(self.angle.lower(),the_chainID,molid,self.degrees))
         elif self.angle in ['CHI1','CHI2']:  # this is a side-chain bond
             W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum1))
-            W.addline('SCrot_{} $r1 {} {} {}'.format(self.angle.lower(),the_chainID,molid,self.degrees))
+            W.addline(f'brot {molid} $r1 -1 {self.angle[:-1].lower()} {self.angle[-1]} {self.degrees}')
+            # W.addline('SCrot_{} $r1 {} {}'.format(self.angle.lower(),molid,self.degrees))
         elif self.angle=='GLYCAN':  # intra-glycan rotation
             W.addline('set sel [atomselect {} "segname {}"]'.format(molid,self.segname))
             W.addline('set i [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname,self.resseqnum1,self.atom1))
