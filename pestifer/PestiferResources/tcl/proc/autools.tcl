@@ -72,7 +72,7 @@ proc make_au_from_aligning { molid protomer_chains resids outpdb } {
     file delete tmp.pdb autmp.pdb
 }
 
-proc overlay_protomers { molid protomer_chains resid } {
+proc overlay_protomers { molid protomer_chains resids } {
     set c1 [lindex $protomer_chains 0]
     set r_p1 [atomselect $molid "(protein or glycan) and chain $c1 and resid $resids"]
     for {set i 1} { $i < [llength $protomer_chains] } { incr i } {
