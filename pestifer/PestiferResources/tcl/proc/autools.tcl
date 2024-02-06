@@ -91,10 +91,13 @@ proc make_au_from_aligning { molid protomer_chains resids outpdb } {
 proc overlay_protomers { molid protomer_chains resids } {
     set c1 [lindex $protomer_chains 0]
     set r_p1 [atomselect $molid "(protein or glycan) and chain $c1 and resid $resids"]
+    set rmsd [list]
     for {set i 1} { $i < [llength $protomer_chains] } { incr i } {
         set c [lindex $protomer_chains $i]
         set p [atomselect $molid "(protein or glycan) and chain $c"]
         set pga [atomselect $molid "(protein or glycan) and chain $c and resid $resids"]
         $p move [measure fit $pga $r_p1]
+        lappend rmsd [measure rmsd $pga $r_pi]
     }
+    return $rmsd
 }

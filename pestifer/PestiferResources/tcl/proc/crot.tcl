@@ -3,7 +3,6 @@
 # TcL procedures for facilitating rotations around bonds
 
 
-
 # Determine whether or not Sresidues q and r are in the same chain
 # Parameters:
 # -----------
@@ -126,8 +125,6 @@ proc fold_alpha { rbegin rend rterm molid } {
       vmdcon -info "fold_alpha POST residue $r ($phi,$psi,$omega)"
    }
 }
-
-
 
 # Generalized bond rotation for proteins
 # Parameters

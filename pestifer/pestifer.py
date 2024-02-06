@@ -92,40 +92,46 @@ def run_example(args):
     else:
         print(f'No example {number} is found.')
 
-def script(args):
-    scriptname=args.scriptname
-    scriptbase=os.path.basename(scriptname)
-    sp,ss=os.path.splitext(scriptbase)
-    c=Config()
-    if os.path.exists(scriptname): # it's local
-        print(f'Running local script: {scriptname}')
-        vm=VMD(c)
-        vm.basename=sp
-        vm.scriptname=scriptname
-        vm.runscript()
-    else: # assume user is referring to a library script
-        script_dir=c['Resources']['tcl']['scripts']
-        script_path=os.path.join(script_dir,f'{sp}.tcl')
-        if os.path.exists(script_path):
-            print(f'Running library script: {script_path}')
-            vm=VMD(c)
-            vm.newscript(f'local-{sp}')
-            vm.usescript(sp)
-            vm.writescript()
-            vm.runscript()
-        else:
-            print(f'{scriptname} is not found.')
+# def script(args):
+#     scriptname=args.scriptname
+#     scriptbase=os.path.basename(scriptname)
+#     sp,ss=os.path.splitext(scriptbase)
+#     c=Config()
+#     if os.path.exists(scriptname): # it's local
+#         print(f'Running local script: {scriptname}')
+#         vm=VMD(c)
+#         vm.basename=sp
+#         vm.scriptname=scriptname
+#         vm.runscript()
+#     else: # assume user is referring to a library script
+#         script_dir=c['Resources']['tcl']['scripts']
+#         script_path=os.path.join(script_dir,f'{sp}.tcl')
+#         if os.path.exists(script_path):
+#             print(f'Running library script: {script_path}')
+#             vm=VMD(c)
+#             vm.newscript(f'local-{sp}')
+#             vm.usescript(sp)
+#             vm.writescript()
+#             vm.runscript()
+#         else:
+#             print(f'{scriptname} is not found.')
 
 def wheretcl(args):
     c=Config()
     script_dir=c['Resources']['tcl']['scripts']
-    print(f'Copy-paste one or more of these commands into a VMD session console:')
-    for s_tcl in glob.glob(script_dir+'/*.tcl'):
-        print(f'source {s_tcl}')
     proc_dir=c['Resources']['tcl']['proc']
-    for p_tcl in glob.glob(proc_dir+'/*.tcl'):
-        print(f'source {p_tcl}')
-
+    if args.startup_script_path:
+        print(c.vmd_startup_script)
+    if args.script_dir:
+        print(script_dir)
+    if args.proc_dir:
+        print(proc_dir)
+    if args.verbose:
+        print(f'Copy-paste one or more of these commands into a VMD session console:')
+        for s_tcl in glob.glob(script_dir+'/*.tcl'):
+            print(f'source {s_tcl}')
+        for p_tcl in glob.glob(proc_dir+'/*.tcl'):
+            print(f'source {p_tcl}')
 
 def cli():
     commands={
@@ -133,7 +139,7 @@ def cli():
         'config-default':config_default,
         'run-example': run_example,
         'run':run,
-        'script':script,
+        # 'script':script,
         'wheretcl':wheretcl
     }
     helps={
@@ -141,7 +147,7 @@ def cli():
         'config-default':'generate a default input directive',
         'run-example':'build one of the examples provided',
         'run':'build a system using instructions in the config file',
-        'script':'run a single-use special VMD/TcL script',
+        # 'script':'run a single-use special VMD/TcL script',
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD'
     }
     descs={
@@ -149,7 +155,7 @@ def cli():
         'config-default':'This will generate a default config file for you to fill in using a text editor.',
         'run-example':'Build one of the examples:\n'+'\n'.join([f'{c:>3d}: {d}' for c,d in list_examples().items()]),
         'run':'Build a system',
-        'script':'Run a single-use special VMD/TcL script',
+        # 'script':'Run a single-use special VMD/TcL script',
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD'
     }
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
@@ -167,6 +173,10 @@ def cli():
     command_parsers['run-example'].add_argument('number',type=int,default=None,help='example number')
     command_parsers['config-help'].add_argument('directives',type=str,nargs='*',help='config file directives')
     command_parsers['config-default'].add_argument('directives',type=str,nargs='*',help='config file directives')
-    command_parsers['script'].add_argument('scriptname',type=str,default=None,help='name of VMD/TcL script to run')
+    # command_parsers['script'].add_argument('scriptname',type=str,default=None,help='name of VMD/TcL script to run')
+    command_parsers['wheretcl'].add_argument('--startup-script-path',default=False,action='store_true',help='print full path of VMD startup script used by pestifer')
+    command_parsers['wheretcl'].add_argument('--script-dir',default=False,action='store_true',help='print full path of directory of VMD scripts')
+    command_parsers['wheretcl'].add_argument('--proc-dir',default=False,action='store_true',help='print full path of directory of VMD/TcL procedure library')
+    command_parsers['wheretcl'].add_argument('--verbose',default=False,action='store_true',help='print a long message describing all TcL files available')
     args=parser.parse_args()
     args.func(args)
