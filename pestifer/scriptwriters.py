@@ -229,7 +229,14 @@ class Psfgen(VMD):
             self.addline(f'topology {ft}')
         for pdba in self.psfgen_config['aliases']:
             self.addline(f'pdbalias {pdba}')
-        self.banner('END HEADER')
+
+    def atomselect_macros(self):
+        for segtypename,segtyperec in self.psfgen_config['segtypes'].items():
+            logger.debug(f'Searching base record of segtype {segtypename} for resname atomselect macro')
+            logger.debug(', '.join(segtyperec.keys()))
+            if segtyperec.get('macro',False)==True:
+                new_macro='resname '+' '.join(segtyperec['resnames'])
+                self.addline(f'update_atomselect_macro {segtypename} "{new_macro}" 0')
 
     def load_project(self,*objs):
         if len(objs)==1:

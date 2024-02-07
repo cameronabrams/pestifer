@@ -68,6 +68,15 @@ class Config(Yclept):
         for stn,stspec in self.segtypes.items():
             if stspec and 'rescodes' in stspec:
                 self['user']['psfgen']['segtypes'][stn]['invrescodes']={v:k for k,v in stspec['rescodes'].items()}
+            if stspec and 'resnames' in stspec:
+                initresnames=stspec['resnames']
+                for r in initresnames:
+                    if len(r)>4:
+                        rabbrv=r[:4]
+                        # print(r,rabbrv)
+                        if not rabbrv in stspec['resnames']:
+                            stspec['resnames'].append(rabbrv)
+                            logger.debug(f'Adding abbreviated resname {rabbrv} to resnames for segtype {stn}')
         self.pdb_to_charmm_resnames={}
         for alias in self['user']['psfgen']['aliases']:
             tok=alias.split()

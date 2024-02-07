@@ -45,3 +45,37 @@ proc wrap_domain { x xlo xhi } {
    }
    return $y
 }
+proc getpbc { pad } {
+   if {![info exists pad]} {
+   set pad 0.1
+   }
+   set sel [atomselect top all]
+   $sel frame 0
+   set mm [measure minmax $sel]
+   set ll [lindex $mm 0]
+   set ur [lindex $mm 1]
+   set sp [vecsub $ur $ll]
+   puts "cellBasisVector1   [expr [lindex $sp 0] + $pad] 0.0 0.0"
+   puts "cellBasisVector2   0.0 [expr [lindex $sp 1] + $pad] 0.0"
+   puts "cellBasisVector3   0.0 0.0 [expr [lindex $sp 2] + $pad]"
+   puts "cellOrigin         [measure center $sel]"
+   return "cellBasisVector1   [expr [lindex $sp 0] + $pad] 0.0 0.0\ncellBasisVector2   0.0 [expr [lindex $sp 1] + $pad] 0.0\ncellBasisVector3   0.0 0.0 [expr [lindex $sp 2] + $pad]\ncellOrigin         [measure center $sel]"
+}
+
+proc update_atomselect_macro { macro_name new_value overwrite } {
+   catch { atomselect macro $macro_name } results options
+   set code [dict get $options -code]
+   set existing_macro ""
+   if { $code == 0 } {
+      set existing_macro $results
+   }
+   if {$overwrite == 1} {
+      atomselect macro $macro_name $new_value
+   } else {
+      if {$existing_macro != ""} {
+         atomselect macro $macro_name "($existing_macro) or ($new_value)"
+      } else {
+         atomselect macro $macro_name $new_value
+      }
+   }
+}

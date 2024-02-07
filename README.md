@@ -12,6 +12,9 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.3.5
+    * transferance of atomselect macros from YAML input to any VMD script
+    * `inittcl` subcommand makes this transfer; needs only to be run one time post-installation
 * 1.3.4
     * new TcL procs for asymmetric unit generation from non-symmetric assemblies
     * `pestifer_init` TcL proc provided in docs for user VMD startup script

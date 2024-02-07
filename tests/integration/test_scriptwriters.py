@@ -26,6 +26,25 @@ class TestPsfgen(unittest.TestCase):
         print(p.standard_charmmff_parfiles)
         for x in p.standard_charmmff_parfiles:
             self.assertTrue('pestifer/PestiferResources' in x)
+    def test_atomselect_macros(self):
+        c=Config()
+        p=Psfgen(c)
+        if os.path.exists('atomselect_macros.tcl'):
+            os.remove('atomselect_macros.tcl')
+        p.newfile('atomselect_macros.tcl')
+        p.addline('# this is a test -- should write atomselect macros')
+        p.atomselect_macros()
+        p.writefile()
+        with open('atomselect_macros.tcl','r') as f:
+            lines=f.read().split('\n')
+        nmacros=0
+        for l in lines:
+            if len(l)==0:
+                continue
+            w=l.split()
+            if w[0]=='atomselect' and w[1]=='macro':
+                nmacros+=1
+        self.assertEqual(nmacros,3)
 
     # def test_write_mol(self):
     #     c=ConfigSetup('example.yaml')
