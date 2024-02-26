@@ -131,6 +131,7 @@ class Segment(AncestorAwareMod):
         for g in seg_grafts:
             g.write_pre_segment(W)
         serial_list=self.residues.atom_serials(as_type=int)
+        resid_list=self.residues.atom_resseqnums(as_type=int)
         vmd_red_list=reduce_intlist(serial_list)
         pdb=f'GENERIC_{image_seglabel}.pdb'
         selname=image_seglabel
@@ -141,6 +142,7 @@ class Segment(AncestorAwareMod):
             W.backup_selection(selname,dataholder=f'{selname}_data')
             W.addline(f'${selname} set chain {image_seglabel}')                 
             W.addline(f'${selname} move {transform.write_TcL()}')
+        W.addline(f'${selname} set resid [list {" ".join([str(x) for x in resid_list])}]')
         W.addline(f'${selname} writepdb {pdb}')
         W.addline(f'segment {image_seglabel} '+'{')
         W.addline(f'    pdb {pdb}')

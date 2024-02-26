@@ -13,6 +13,8 @@ Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
 * 1.3.5
+    * bugfix:
+      * renumbering of author resids in non-protein segments if user adds protein residues by insertion that may conflict
     * transferance of atomselect macros from YAML input to any VMD script
     * `inittcl` subcommand makes this transfer; needs only to be run one time post-installation
 * 1.3.4

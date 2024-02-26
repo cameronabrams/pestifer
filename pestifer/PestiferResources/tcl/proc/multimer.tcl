@@ -54,13 +54,16 @@ proc opening_angles { sel_list } {
     return [vecscale [sector_angles $points] [expr 180.0/$pi]]
 }
 
-proc opening_angles_trace { molid refchains refresids } {
+proc opening_angles_trace { molid selstrings {ignoreH 1} } {
     set sel_list [list]
-    foreach c $refchains {
-        lappend sel_list [atomselect $molid "chain $c and resid $refresids"]
+    foreach selstr $selstrings {
+        if { $ignoreH == 1 } {
+            set selstr "($selstr) and noh"
+        }
+        lappend sel_list [ atomselect $molid $selstr ]
     }
     set numframes [molinfo $molid get numframes]
-    puts "molid $molid has $numframes frames"
+    vmdcon -info "molid $molid has $numframes frames"
     set results [list]
     for {set i 0} {$i<$numframes} {incr i} {
         foreach s $sel_list {
@@ -70,4 +73,52 @@ proc opening_angles_trace { molid refchains refresids } {
         lappend results $angles
     }
     return $results
+}
+
+proc rotation_matrices_trace { molid selstrings {ignoreH 1} } {
+    set sel_list [list]
+    foreach selstr $selstrings {
+        if { $ignoreH == 1 } {
+            set selstr "($selstr) and noh"
+        }
+        lappend sel_list [ atomselect $molid $selstr ]
+    }
+    set numframes [molinfo $molid get numframes]
+    vmdcon -info "molid $molid has $numframes frames"
+    set results [list]
+    for {set i 0} {$i<$numframes} {incr i} {
+        foreach s $sel_list {
+            $s frame $i
+        }
+        set rotmats [rotation_matrices $sel_list]
+        lappend results [regsub -all "\{|\}" $rotmats ""]
+    }
+    return $results
+}
+
+proc rotation_matrices { sel_list } {
+    set pi [expr acos(-1.0)]
+    # set angles [list]
+    set rotmats [list]
+    for { set i 0 } { $i < [llength $sel_list] } { incr i } {
+        if { [expr $i + 1] == [llength $sel_list] } {
+            set j 0
+        } else {
+            set j [expr $i + 1]
+        }
+        set selA [lindex $sel_list $i]
+        set selB [lindex $sel_list $j]
+        if { [$selA num] != [$selB num] } {
+            vmdcon -error "[$selA text] ([$selA num] atoms) not conrugent with [$selB text] ([$selB num] atoms)"
+        } else {
+            set tmat [measure fit $selA $selB]
+            set cosTheta [lindex [lindex $tmat 0] 0]
+            set r33 [list [lrange [lindex $tmat 0] 0 2] [lrange [lindex $tmat 1] 0 2] [lrange [lindex $tmat 2] 0 2] ]
+            set fl_r33 [regsub -all "\{|\}" $r33 ""]
+            lappend rotmats $fl_r33
+            # lappend angles [expr acos($cosTheta)*180.0/$pi]
+        }
+    }
+    # return $angles
+    return $rotmats
 }

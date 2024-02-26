@@ -121,6 +121,8 @@ class AsymmetricUnit(AncestorAwareMod):
                 logger.debug(f'Deletions removed {nResolvedDelete} resolved and {nUnresolvedDelete} unresolved residues')
             if 'insertions' in seqmods:
                 residues.apply_insertions(seqmods['insertions'])
+            logger.debug(f'Renumbering residues')
+            residues.renumber(links)
 
             logger.debug(f'Segtypes present: {uniques["segtype"]}')
             # Delete any residues dictated by user-specified exclusions
@@ -140,10 +142,10 @@ class AsymmetricUnit(AncestorAwareMod):
             ignored_seqadvs=seqadvs.assign_residues(residues)
             ignored_ssbonds=ssbonds.assign_residues(residues)
             for b in ssbonds:
-                logger.debug(f'after assign_residues {b}')
+                logger.debug(f'ssbonds after assign_residues {b}')
             more_ignored_residues,ignored_links=links.assign_residues(residues)
             for b in links:
-                logger.debug(f'after assign_residues {b}')
+                logger.debug(f'links after assign_residues {b}')
             # a deleted link may create a "free" glycan; in this case
             # we should also delete its residues; problem is that 
             ignored_residues.extend(more_ignored_residues)

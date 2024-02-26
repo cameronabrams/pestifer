@@ -254,6 +254,11 @@ def split_ri(ri):
         i=ri[-1]
     return r,i
 
+def join_ri(resseqnum,insertion):
+    if insertion=='':
+        return resseqnum
+    return f'{resseqnum}{insertion}'
+
 def ri_range(val,split_chars=['-','#']):
     the_split=[val]
     for c in split_chars:

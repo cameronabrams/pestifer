@@ -12,14 +12,17 @@ class Command:
         self.stdout=''
         self.stderr=''
 
-    def run(self,override=(),ignore_codes=[],quiet=True):
+    def run(self,override=(),ignore_codes=[],quiet=True,progress=False):
         if not quiet:
             logger.debug(f'{self.c}')
         # This runs the command
         process=subprocess.Popen(self.c,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
         # Here is where I can institute a progress indicator
+        if progress:
+            pass # not yet implemented
+        else:
         # This holds execution of Python until the command exits
-        self.stdout,self.stderr=process.communicate()
+            self.stdout,self.stderr=process.communicate()
         if process.returncode!=0 and not process.returncode in ignore_codes:
             logger.error(f'Returncode: {process.returncode}')
             if len(self.stdout)>0:

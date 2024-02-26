@@ -6,6 +6,7 @@ from .config import segtype_of_resname
 from pidibble.baserecord import BaseRecord
 from functools import singledispatchmethod
 from argparse import Namespace
+from .stringthings import join_ri
 from .coord import positionN
 from .atom import *
 # from .bond import *
@@ -234,6 +235,7 @@ class Residue(EmptyResidue):
     #     for a in self.atoms:
     #         a.resseqnum=resseqnum
     def linkTo(self,other,link):
+        assert type(other)==type(self),f'type of other is {type(other)}; expected {type(self)}'
         self.down.append(other)
         self.downlink.append(link)
         other.up.append(self)
@@ -306,6 +308,12 @@ class ResidueList(AncestorAwareModList):
             for a in res.atoms:
                 serlist.append(as_type(a.serial))
         return serlist
+    def atom_resseqnums(self,as_type=str):
+        rlist=[]
+        for res in self:
+            for a in res.atoms:
+                rlist.append(as_type(a.resseqnum))
+        return rlist
     def caco_str(self,upstream_reslist,seglabel,molid_varname,tmat):
         r0=self[0]
         ur=upstream_reslist[-1]
@@ -409,11 +417,11 @@ class ResidueList(AncestorAwareModList):
             c,r,i=ins.chainID,ins.resseqnum,ins.insertion
             inc_code=ins.integer_increment
             idx=self.iget(chainID=c,resseqnum=r,insertion=i)
-            logger.debug(f'{r}{i}: {idx}')
             chainID=self[idx].chainID
-            i='A' if i in [' ',''] else chr(ord(i)+1)
+            logger.debug(f'insertion begins after {r}{i} which is index {idx} in reslist, chain {chainID}')
             # add residues to residue list
             idx+=1
+            i='A' if i in [' ',''] else chr(ord(i)+1)
             for olc in ins.sequence:
                 if inc_code:
                     r+=1
@@ -423,9 +431,65 @@ class ResidueList(AncestorAwareModList):
                 new_residue.atoms=AtomList([])
                 new_residue.segtype='protein'
                 self.insert(idx,new_residue)
+                logger.debug(f'insertion of new empty residue {shortcode}')
                 idx+=1
                 i='A' if i in [' ',''] else chr(ord(i)+1)
     
+    def renumber(self,links):
+        """The possibility exists that empty residues added have resseqnums that conflict with existing resseqnums on the same chain if those resseqnums are in a different segtype (e.g., glycan).  This method will privilege protein residues in such conflicts, and it will renumber non-protein residues, updating any resseqnum records in links """
+        protein_residues=self.get(segtype='protein')
+        min_protein_resseqnum=min([x.resseqnum for x in protein_residues])
+        max_protein_resseqnum=max([x.resseqnum for x in protein_residues])
+        non_protein_residues=ResidueList([])
+        for p in self:
+            if p.segtype!='protein':
+                non_protein_residues.append(p)
+        logger.debug(f'There are {len(protein_residues)} (resseqnums {min_protein_resseqnum} to {max_protein_resseqnum}) protein residues and {len(non_protein_residues)} non-protein residues')
+        assert len(self)==(len(protein_residues)+len(non_protein_residues))
+        non_protein_residues_in_conflict=ResidueList([])
+        for np in non_protein_residues:
+            logger.debug(f'looking for conflict among protein for chain [{np.chainID}] resseqnum [{np.resseqnum}] insertion [{np.insertion}]')
+            tst=protein_residues.get(chainID=np.chainID,resseqnum=np.resseqnum,insertion=np.insertion)
+            if tst:
+                logger.debug(f'found it!')
+                non_protein_residues_in_conflict.append(np)
+        for npc in non_protein_residues_in_conflict:
+            non_protein_residues.remove(npc)
+        logger.debug(f'There are {len(non_protein_residues_in_conflict)} non-protein residues with resseqnums that conflict with protein residues')
+        max_unused_resseqnum=max([max([x.resseqnum for x in protein_residues]),max([x.resseqnum for x in non_protein_residues])])+1
+        newtst=self.get(resseqnum=max_unused_resseqnum)
+        assert newtst==None
+        mapper_by_chain={}
+        for npc in non_protein_residues_in_conflict:
+            c=npc.chainID
+            if not c in mapper_by_chain:
+                mapper_by_chain[c]={}
+            old=join_ri(npc.resseqnum,npc.insertion)
+            new=max_unused_resseqnum
+            mapper_by_chain[c][old]=new
+            max_unused_resseqnum+=1
+            npc.resseqnum=new
+            npc.insertion=''
+            for a in npc.atoms:
+                a.resseqnum=new
+                a.insertion=''
+            logger.debug(f'New resid: {c} {old} -> {new}')
+        if mapper_by_chain:
+            logger.debug(f'Remapping resids in links')
+            for l in links:
+                if l.chainID1 in mapper_by_chain:
+                    old=join_ri(l.resseqnum1,l.insertion1)
+                    if old in mapper_by_chain[l.chainID1]:
+                        l.resseqnum1=mapper_by_chain[l.chainID1][old]
+                        l.insertion1=''
+                        logger.debug(f' remapped 1eft: {l.chainID1} {old} -> {l.resseqnum1}')
+                if l.chainID2 in mapper_by_chain:
+                    old=join_ri(l.resseqnum2,l.insertion2)
+                    if old in mapper_by_chain[l.chainID2]:
+                        l.resseqnum2=mapper_by_chain[l.chainID2][old]
+                        l.insertion2=''
+                        logger.debug(f' remapped right: {l.chainID2} {old} -> {l.resseqnum2}')
+
     # def set_chainID(self,chainID):
     #     for r in self:
     #         r.set_chainID(chainID)

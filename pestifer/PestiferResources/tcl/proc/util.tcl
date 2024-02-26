@@ -79,3 +79,43 @@ proc update_atomselect_macro { macro_name new_value overwrite } {
       }
    }
 }
+
+proc resequence { badsel goodsel } {
+   if {[$badsel num] != [$goodsel num]} {
+      vmdcon -info "Cannot resequence; selections have differing numbers of atoms"
+      return $badsel
+   }
+   set badresids [lsort -unique -integer [$badsel get resid]]
+   set goodresids [lsort -unique -integer [$goodsel get resid]]
+   foreach br $badresids gr $goodresids {
+      if { $br != $gr } {
+         vmdcon info "Cannot resequence; selections do not have the same set of resids"
+         return $badsel
+      }
+   }
+   set badidx [$badsel get index]
+   set goods [$goodsel get {resname resid insertion name}]
+   set goodpos [$goodsel get {x y z}]
+   set badsav [$badsel get {resname resid insertion name}]
+   set badpos [$badsel get {x y z}]
+
+   set badovr [list]
+   foreach g $goods gp $goodpos ba $badsav {
+      set resid [lindex $g 1]
+      set insertion [lindex $g 2]
+      set name [lindex $g 3]
+      for { set idx 0 } { $idx < [llength $badsav] } { incr idx } {
+         set b [lindex $badsav $idx]
+         if { $resid == [lindex $b 1] && $insertion == [lindex $b 2] && $name == [lindex $b 3] } {
+            vmdcon -info "bad atom $ba overwritten by good atom $g"
+            lappend badovr $gp
+            break
+         }
+      }
+   }
+   if { [llength $badovr] != [llength $goods ] } {
+      vmdcon -info "Error: bad selection could not inherit all good data"
+      return $badsel
+   }
+   return $badpos
+}
