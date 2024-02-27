@@ -32,6 +32,8 @@ set sources [glob "${RESPATH}/*.tcl"]
 
 foreach s $sources {
   source $s
+  vmdcon -info "Sourcing $s"
+  
   if {$quiet == 0} {
     vmdcon -info "Sourcing $s"
   }
