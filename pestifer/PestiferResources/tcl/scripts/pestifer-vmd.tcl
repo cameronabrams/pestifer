@@ -25,7 +25,8 @@ if {$RESPATH=="."} {
   }
 }
 
-vmdcon -info "Command [join $argv ' ']"
+set cmdstr [join $argv " "]
+vmdcon -info "Command $cmdstr"
 
 set sources [glob "${RESPATH}/*.tcl"]
 
