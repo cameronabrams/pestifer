@@ -25,6 +25,8 @@ if {$RESPATH=="."} {
   }
 }
 
+vmdcon -info "Command [join $argv ' ']"
+
 set sources [glob "${RESPATH}/*.tcl"]
 
 foreach s $sources {
