@@ -18,6 +18,9 @@ for { set a 0 } { $a < [llength $argv] } { incr a } {
     set quiet 0
   }
 }
+
+vmdcon -info "RESPATH: $RESPATH"
+
 if {$RESPATH=="."} {
   set RESPATH [exec pestifer wheretcl --proc-dir]
   if {$quiet == 0} {
@@ -29,6 +32,7 @@ set cmdstr [join $argv " "]
 vmdcon -info "Command $cmdstr"
 
 set sources [glob "${RESPATH}/*.tcl"]
+vmdcon -info "Sources: $sources"
 
 foreach s $sources {
   source $s
