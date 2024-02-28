@@ -456,7 +456,8 @@ class ResidueList(AncestorAwareModList):
         for npc in non_protein_residues_in_conflict:
             non_protein_residues.remove(npc)
         logger.debug(f'There are {len(non_protein_residues_in_conflict)} non-protein residues with resseqnums that conflict with protein residues')
-        max_unused_resseqnum=max([max([x.resseqnum for x in protein_residues]),max([x.resseqnum for x in non_protein_residues])])+1
+
+        max_unused_resseqnum=max([max([x.resseqnum for x in protein_residues]),0 if len(non_protein_residues)==0 else max([x.resseqnum for x in non_protein_residues])])+1
         newtst=self.get(resseqnum=max_unused_resseqnum)
         assert newtst==None
         mapper_by_chain={}

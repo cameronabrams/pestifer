@@ -29,32 +29,28 @@ class Molecule(AncestorAwareMod):
             p_struct=None
         else:
             logger.debug('Molecule initialization')
-            if 'id' in source or 'prebuilt' in source:
-                if 'id' in source:
+            file_format=source.get('file_format','PDB')
+            if source.get('id',{}) or source.get('prebuilt',{}) or source.get('alphafold',{}):
+                if source.get('id',{}):
                     logger.debug(f'Molecule initialization from file {source["id"]}.{source["file_format"]}')
-                    rcsb_file_format=source['file_format']
-                    if rcsb_file_format=='PDB':
+                    if file_format=='PDB':
                         p_struct=PDBParser(PDBcode=source['id']).parse().parsed
-                    elif rcsb_file_format=='mmCIF':
+                    elif file_format=='mmCIF':
                         logger.debug(f'CIF source {source["id"]}')
                         p_struct=CIFload(source['id'])
-                else:
+                elif source.get('prebuilt',{}):
+                    logger.debug(f'prebuilt rec [{source["prebuilt"]}]')
                     psf=source['prebuilt']['psf']
                     pdb=source['prebuilt']['pdb']
-                    rcsb_file_format='PDB'
                     logger.debug(f'Using prebuilt psf {psf} and pdb {pdb}')
                     pdb_pseudocode,ext=os.path.splitext(pdb)
                     p_struct=PDBParser(PDBcode=pdb_pseudocode).parse().parsed
-
+                elif source.get('alphafold',{}):
+                    ac=source['alphafold']
+                    p_struct=PDBParser(alphafold=ac).parse().parsed
             else:
-                logger.debug(f'No "id" specified; initializing an empty molecule')
+                logger.debug(f'None of "id", "prebuilt", or "alphafold" specified; initializing an empty molecule')
                 p_struct=None
-        # psf=kwargs.get('psf','')
-        # # use_psf=options.get('use_psf',None)
-        # # if use_psf:
-        # #     apply_psf_info(p_struct,f'{source}.psf')
-        # # if os.path.exists(f'{source}.psf'):
-        # #     apply_psf_info(p_struct,f'{source}.psf')
         if modmanager==None:
             logger.debug(f'Making an empty ModManager')
             modmanager=ModManager()
@@ -65,7 +61,7 @@ class Molecule(AncestorAwareMod):
             'sourcespecs': source,
             'modmanager': modmanager,
             'chainIDmanager':chainIDmanager,
-            'rcsb_file_format': rcsb_file_format,
+            'rcsb_file_format': file_format,
             'molid': Molecule._molcounter,
             'parsed_struct': p_struct,
             'asymmetric_unit': AsymmetricUnit(parsed=p_struct,sourcespecs=source,modmanager=modmanager,chainIDmanager=chainIDmanager,psf=psf),
@@ -80,7 +76,7 @@ class Molecule(AncestorAwareMod):
         assert ext=='.pdb',f'Alt-coords file must be PDB format'
         altstruct=PDBParser(PDBcode=nm).parse().parsed
         self.asymmetric_unit.set_coords(altstruct)
-        
+
     def activate_biological_assembly(self,index):
         if index==0 or len(self.biological_assemblies)==0: # we will use the unadulterated A.U. as the B.A.
             self.active_biological_assembly=BioAssemb(self.asymmetric_unit)
@@ -92,7 +88,7 @@ class Molecule(AncestorAwareMod):
             logger.info(f'Activating biological assembly {self.active_biological_assembly.name} (idx {index})')
         self.active_biological_assembly.activate(self.asymmetric_unit,self.chainIDmanager)
         return self
-    
+
     def write_TcL(self,W:Psfgen):
         au=self.asymmetric_unit
         segments=au.segments
@@ -117,7 +113,7 @@ class Molecule(AncestorAwareMod):
                 A.writefile()
                 links.write_TcL(W,transform)
             W.banner(f'Transform {transform.index} ends')
-    
+
     def get_chainmaps(self):
         ba=self.active_biological_assembly
         maps={}
@@ -127,7 +123,7 @@ class Molecule(AncestorAwareMod):
                     maps[oc]=[]
                 maps[oc].append({'transform':transform.index,'mappedchain':mc})
         return maps
-    
+
     def has_loops(self,min_loop_length=1):
         nloops=0
         au=self.asymmetric_unit
@@ -138,7 +134,7 @@ class Molecule(AncestorAwareMod):
                     if b.state=='MISSING' and b.num_items()>=min_loop_length:
                         nloops+=1
         return nloops
-    
+
     def nglycans(self):
         nglycans=0
         au=self.asymmetric_unit
@@ -156,7 +152,7 @@ class Molecule(AncestorAwareMod):
         return len(self.asymmetric_unit.residues)
     def num_segments(self):
         return len(self.asymmetric_unit.segments)
-    
+
     def write_loop_lines(self,writer,cycles=100,min_length=4):
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
@@ -173,7 +169,7 @@ class Molecule(AncestorAwareMod):
                                 cm=transform.chainIDmap
                                 act_segID=cm.get(asymm_segname,asymm_segname)
                                 writer.addline(f'declash_loop $mLL {act_segID} {tcllist} {cycles}')
-    
+
     def write_gaps(self,writer,min_length=4):
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
@@ -225,7 +221,7 @@ class Molecule(AncestorAwareMod):
                 DchainID=cm.next_chain()
                 D=S.cleave(clv,DchainID)
                 au.add_segment(D)
-                
+
                 ssbonds=topomods.get('ssbonds',[])
                 if ssbonds:
                     for c in ssbonds.filter(chainID1=S.segname):

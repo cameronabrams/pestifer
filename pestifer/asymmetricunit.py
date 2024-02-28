@@ -91,9 +91,10 @@ class AsymmetricUnit(AncestorAwareMod):
                 if len(self.psf.links)>0:
                     logger.debug(f'PSF file {psf} identifies {len(self.psf.links)} links; total links now {len(links)}')
             seqmods=modmanager.get('seqmods',{})
+            topomods=modmanager.get('topomods',{})
             grafts=seqmods.get('grafts',GraftList([]))
 
-            userlinks=modmanager.get('topomods',{}).get('links',LinkList([]))
+            userlinks=topomods.get('links',LinkList([]))
             links.extend(userlinks)
 
             # Build the list of residues
@@ -210,10 +211,11 @@ class AsymmetricUnit(AncestorAwareMod):
 
             # Now any added or deleted ssbonds
             ssbonds=modmanager.injest(ssbonds)
-            ssbonds=modmanager['topomods']['ssbonds']
-            if 'ssbondsdelete' in modmanager['topomods']:
+            topomods=modmanager.get('topomods',{})
+            ssbonds=topomods.get('ssbonds',SSBondList([]))
+            if 'ssbondsdelete' in topomods:
                 for s in ssbonds:
-                    if modmanager['topomods']['ssbondsdelete'].is_deleted(s):
+                    if topomods['ssbondsdelete'].is_deleted(s):
                         ignored_ssbonds.append(ssbonds.remove(s))
 
             ssbonds=modmanager.injest(ssbonds,overwrite=True)

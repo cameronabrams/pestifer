@@ -12,6 +12,10 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.3.6
+    * bugfix:
+      * `runscript` sources TcL proc files with dependencies in proc files that aren't yet sourced; fixed that
+    * `alphafold` source directive added to permit download of models from the AlphaFold database by accession code
 * 1.3.5
     * bugfix:
       * renumbering of author resids in non-protein segments if user adds protein residues by insertion that may conflict

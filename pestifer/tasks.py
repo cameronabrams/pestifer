@@ -598,12 +598,14 @@ class PsfgenTask(BaseTask):
                 g.activate(deepcopy(self.molecules[g.source_pdbid]))
         self.chainIDmanager=ChainIDManager(format=self.source_specs['file_format'])
         self.base_molecule=Molecule(source=self.source_specs,modmanager=self.modmanager,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
-        if 'id' in self.source_specs:
+        if self.source_specs.get('id',{}):
             key=self.source_specs['id']
-        elif 'prebuilt' in self.source_specs:
+        elif self.source_specs.get('prebuilt',{}):
             key=f'{self.source_specs["prebuilt"]["psf"]}-{self.source_specs["prebuilt"]["pdb"]}'
+        elif self.source_specs.get('alphafold',{}):
+            key=f'{self.source_specs["alphafold"]}'
         else:
-            raise Exception(f'The "source" directive of "psfgen" must have either "id" or "prebuilt"')
+            raise Exception(f'The "source" directive of "psfgen" must have "id" , "prebuilt", or "alphafold"')
         self.molecules[key]=self.base_molecule
         for molid,molecule in self.molecules.items():
             logger.debug(f'Molecule "{molid}": {molecule.num_atoms()} atoms in {molecule.num_residues()} residues; {molecule.num_segments()} segments.')

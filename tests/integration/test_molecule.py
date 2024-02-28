@@ -23,6 +23,21 @@ source:
         f=StringIO(source)
         directive=yaml.safe_load(f)
         return directive
+    def get_source_dict_alphafold(self,ac):
+        source=f"""
+source:
+    biological_assembly: 0
+    exclude: {{}}
+    file_format: PDB
+    alphafold: {ac}
+    sequence:
+        fix_conflicts: true
+        fix_engineered_mutations: true
+        include_terminal_loops: false
+"""
+        f=StringIO(source)
+        directive=yaml.safe_load(f)
+        return directive
     def test_molecule_au(self):
         c=Config()
         directive=self.get_source_dict('1gc1')
@@ -54,6 +69,26 @@ source:
         glycanres=[r for r in au.residues if r.segtype=='glycan']
         g0=glycanres[0]
         self.assertEqual(g0.resname,'NAG')
+
+    def test_molecule_alphafold(self):
+        c=Config()
+        ac='O46077'
+        directive=self.get_source_dict_alphafold(ac)
+        m=Molecule(source=directive["source"])
+        au=m.asymmetric_unit
+        self.assertEqual(len(au.atoms),3230)
+        self.assertEqual(len(au.residues),397)
+        mods=au.modmanager
+        topomods=mods.get('topomods',{})
+        seqmods=mods.get('seqmods',{})
+        print(seqmods)
+        os.remove(f'{ac}.pdb')
+        os.remove(f'{ac}.json')
+        self.assertEqual(len(topomods),0)
+        self.assertEqual(len(seqmods),1)
+        self.assertTrue('terminals' in seqmods)
+        self.assertEqual(len(seqmods['terminals']),1)
+
 
     def test_molecule_links(self):
         c=Config()

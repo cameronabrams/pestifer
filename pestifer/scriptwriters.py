@@ -93,11 +93,16 @@ class VMD(Scriptwriter):
     def set_molecule(self,mol,altcoords=None):
         mol.molid_varname=f'm{mol.molid}'
         ext='.pdb' if mol.rcsb_file_format=='PDB' else '.cif'
-        if 'id' in mol.sourcespecs:
+        if mol.sourcespecs.get('id',{}):
             self.addline(f'mol new {mol.sourcespecs["id"]}{ext} waitfor all')
-        elif 'prebuilt' in mol.sourcespecs:
+        elif mol.sourcespecs.get('prebuilt',{}):
             pdb=mol.sourcespecs['prebuilt']['pdb']
             self.addline(f'mol new {pdb} waitfor all')
+        elif mol.sourcespecs.get('alphafold',{}):
+            pdb=f'{mol.sourcespecs["alphafold"]}.pdb'
+            self.addline(f'mol new {pdb} waitfor all')
+        else:
+            raise Exception(f'Molecule specs has none of "id", "prebuilt", or "alphafold"')
         self.addline(f'set {mol.molid_varname} [molinfo top get id]')
         self.addline(f'set nf [molinfo ${mol.molid_varname} get numframes]')
         self.addline(r'if { $nf > 1 } { animate delete beg 0 end [expr $nf - 2] $'+mol.molid_varname+r' }')
