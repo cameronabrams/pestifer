@@ -19,7 +19,6 @@ for { set a 0 } { $a < [llength $argv] } { incr a } {
   }
 }
 
-vmdcon -info "RESPATH: $RESPATH"
 
 if {$RESPATH=="."} {
   set RESPATH [exec pestifer wheretcl --proc-dir]
@@ -33,8 +32,17 @@ set sources [glob "${RESPATH}/*.tcl"]
 if {$quiet == 0} {
   vmdcon -info "Sourcing ${RESPATH}/util.tcl"
 }
+# must source this first
 source ${RESPATH}/util.tcl
-sources.remove("${RESPATH}/util.tcl")
+# now remove it from the globbed list; vmd does not have "lremove"
+set lidx [lsearch $sources "${RESPATH}/util.tcl"]
+set tmp_sources [list]
+for {set i 0} {$i < [llength $sources]} {incr i} {
+  if {$i != $lidx} {
+    lappend tmp_sources [lindex $sources $i]
+  }
+}
+set sources $tmp_sources
 
 foreach s $sources {
   source $s
