@@ -28,16 +28,16 @@ if {$RESPATH=="."} {
   }
 }
 
-set cmdstr [join $argv " "]
-vmdcon -info "Command $cmdstr"
-
 set sources [glob "${RESPATH}/*.tcl"]
-vmdcon -info "Sources: $sources"
+
+if {$quiet == 0} {
+  vmdcon -info "Sourcing ${RESPATH}/util.tcl"
+}
+source ${RESPATH}/util.tcl
+sources.remove("${RESPATH}/util.tcl")
 
 foreach s $sources {
   source $s
-  vmdcon -info "Sourcing $s"
-  
   if {$quiet == 0} {
     vmdcon -info "Sourcing $s"
   }
