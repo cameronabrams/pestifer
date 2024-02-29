@@ -12,9 +12,10 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.3.8
+    * bugfix: spurious code in `pestiver-vmd.tcl`
 * 1.3.7
-    * bugfix:
-      * fixed a spurious hard-coded path in `macros.tcl`
+    * bugfix: fixed a spurious hard-coded path in `macros.tcl`
 * 1.3.6
     * bugfix:
       * `runscript` sources TcL proc files with dependencies in proc files that aren't yet sourced; fixed that
