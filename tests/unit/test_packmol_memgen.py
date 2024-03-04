@@ -26,6 +26,7 @@ class TestCondaCheck(unittest.TestCase):
 class TestPackmolMemgenAvailable(unittest.TestCase):
     def test_packmolmemgenavailable(self):
         c=Config()
+        # this is specific to MY installation
         self.assertEqual(c['user']['packmol_memgen']['available'],True)
         self.assertEqual(c['user']['packmol_memgen']['local'],False)
         self.assertEqual(c['user']['packmol_memgen']['venv'],'pmmg')
