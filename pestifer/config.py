@@ -4,6 +4,7 @@ import logging
 logger=logging.getLogger(__name__)
 from collections import UserDict
 from pestifer import PestiferResources
+from pestifer.condacheck import CondaCheck
 from ycleptic.yclept import Yclept
 from ycleptic.yclept import __version__ as __ycleptic_version__
 from pidibble.pdbparse import __version__ as __pidibble_version__
@@ -48,6 +49,7 @@ class Config(Yclept):
         basefile=os.path.join(r['config'],'base.yaml')
         super().__init__(basefile,userfile=userfile)
         self['Resources']=r
+        self['Conda']=CondaCheck()
         self._set_shortcuts()
 
     def _set_shortcuts(self):
@@ -95,3 +97,30 @@ class Config(Yclept):
         segtype_of_resname.update(self.segtype_of_resname)
         res_123.update(self['user']['psfgen']['segtypes']['protein']['invrescodes'])
         res_321.update(self['user']['psfgen']['segtypes']['protein']['rescodes'])
+
+        self.check_packmol_memgen()
+
+    def check_packmol_memgen(self):
+        self['user']['packmol_memgen']['available']=False
+        has_conda=os.environ.get('CONDA_EXE',None)
+        if not has_conda:
+            logger.debug(f'You do not have any conda environments.  Packmol-memgen is unavailable.')
+            return
+        ok_numpy_version=self['user']['packmol_memgen'].get('ok_numpy_version','1.19.5')
+        if self['Conda'].has_conda:
+            local_numpy_version=self['Conda'].get_package_version(self['Conda'].current_conda_env,'numpy')
+            if local_numpy_version<=ok_numpy_version:
+                logger.debug(f'Current active env is ok for packmol-memgen')
+                self['user']['packmol_memgen']['available']=True
+                self['user']['packmol_memgen']['local']=True
+            else:
+                for env in self['Conda'].conda_envs:
+                    remote_numpy_version=self['Conda'].get_package_version(env,'numpy')
+                    if remote_numpy_version<=ok_numpy_version:
+                        logger.debug(f'Conda env "{env}" is suitable for packmol-memgen.')
+                    self['user']['packmol_memgen']['available']=True
+                    self['user']['packmol_memgen']['local']=False
+                    self['user']['packmol_memgen']['venv']=env[0]
+        else:
+            logger.debug(f'There is no suitable conda environment in which to run packmol-memgen.')
+            logger.debug('Packmol-memgen is unavailable')

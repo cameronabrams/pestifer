@@ -377,6 +377,13 @@ directives:
                 type: list
                 text: Unrecognized residue names
                 default: []
+  - name: packmol_memgen
+    type: dict
+    text: packmol-memgen specifications; packmol-memgen must run in a conda virtual environment in which numpy is 1.19.5 or lower
+    directives:
+      - name: venv
+        type: text
+        text: name conda virtual environment capable of running packmol-memgen
   - name: namd2
     type: dict
     text: NAMD2 specifications
@@ -439,7 +446,6 @@ directives:
         text: parameters governing harmonic constraints; not necessarily NAMD-compatible keywords
         default:
           spring_constant: 200
-
   - name: title
     type: str
     text: Meaningful title (optional)

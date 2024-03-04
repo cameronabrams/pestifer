@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 #
 # Utility procs for VMD/Psfgen TcL scripts
-#
+# This script must be the first sourced in all vmd invocations!
 
 # Logs a message to both the VMD console and to an open
 # log file
