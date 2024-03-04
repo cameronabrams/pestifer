@@ -12,8 +12,10 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.3.9:
+    * added `include_C_termini` boolean to `declash` directives; set to `False` to prevent C-terminal insertions from undergoing automatic declashing
 * 1.3.8
-    * bugfix: spurious code in `pestiver-vmd.tcl`
+    * bugfix: spurious code in `pestifer-vmd.tcl`
 * 1.3.7
     * bugfix: fixed a spurious hard-coded path in `macros.tcl`
 * 1.3.6

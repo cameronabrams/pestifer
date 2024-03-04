@@ -501,7 +501,7 @@ class PsfgenTask(BaseTask):
         pdb=self.statevars['pdb']
         vt.newscript(self.basename)
         vt.load_psf_pdb(psf,pdb,new_molid_varname='mLL')
-        mol.write_loop_lines(vt,cycles=cycles,min_length=specs['min_loop_length'])
+        mol.write_loop_lines(vt,cycles=cycles,min_length=specs['min_loop_length'],include_c_termini=specs['declash']['include_C_termini'])
         vt.write_pdb(self.basename,'mLL')
         vt.endscript()
         vt.writescript()

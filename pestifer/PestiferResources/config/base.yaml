@@ -564,6 +564,10 @@ directives:
                             text: Maximum number of Metropolis cycles
                             type: int
                             default: 20
+                          - name: include_C_termini
+                            text: Flag to indicate if model-built C-terminal loops should be declashed
+                            type: bool
+                            default: True
                   - name: glycans
                     text: parameters controlling how model-built glycans are adjusted, if present
                     type: dict

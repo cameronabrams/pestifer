@@ -153,22 +153,29 @@ class Molecule(AncestorAwareMod):
     def num_segments(self):
         return len(self.asymmetric_unit.segments)
 
-    def write_loop_lines(self,writer,cycles=100,min_length=4):
+    def write_loop_lines(self,writer,cycles=100,**options): #min_length=4):
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
+        min_length=options.get('min_length',4)
+        include_c_termini=options.get('include_c_termini',False)
         for S in au.segments:
             # chainID=S.chainID
             if S.segtype=='protein':
                 asymm_segname=S.segname
+                n_subsegs=len(S.subsegments)
                 for b in S.subsegments:
-                    if b.state=='MISSING':
-                        if b.num_items()>=min_length:
-                            reslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
-                            tcllist='[list '+' '.join(reslist)+']'
-                            for transform in ba.transforms:
-                                cm=transform.chainIDmap
-                                act_segID=cm.get(asymm_segname,asymm_segname)
-                                writer.addline(f'declash_loop $mLL {act_segID} {tcllist} {cycles}')
+                    is_c_terminus=(S.subsegments.index(b)==(n_subsegs-1))
+                    is_processible=b.state=='MISSING' and b.num_items()>=min_length
+                    if is_processible and (not include_c_termini) and is_c_terminus:
+                        logger.debug(f'A.U. C-terminal loop {b.pstr()} declashing is skipped')
+                        is_processible=False
+                    if is_processible:
+                        reslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
+                        tcllist='[list '+' '.join(reslist)+']'
+                        for transform in ba.transforms:
+                            cm=transform.chainIDmap
+                            act_segID=cm.get(asymm_segname,asymm_segname)
+                            writer.addline(f'declash_loop $mLL {act_segID} {tcllist} {cycles}')
 
     def write_gaps(self,writer,min_length=4):
         ba=self.active_biological_assembly
