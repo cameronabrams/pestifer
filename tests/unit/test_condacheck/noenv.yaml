@@ -1,0 +1,3 @@
+tasks:
+  - packmol_memgen:
+      lipid: DPPC

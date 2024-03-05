@@ -75,7 +75,7 @@ class Config(Yclept):
                 for r in initresnames:
                     if len(r)>4:
                         rabbrv=r[:4]
-                        # print(r,rabbrv)
+                        # logger.debug(r,rabbrv)
                         if not rabbrv in stspec['resnames']:
                             stspec['resnames'].append(rabbrv)
                             logger.debug(f'Adding abbreviated resname {rabbrv} to resnames for segtype {stn}')
@@ -98,29 +98,56 @@ class Config(Yclept):
         res_123.update(self['user']['psfgen']['segtypes']['protein']['invrescodes'])
         res_321.update(self['user']['psfgen']['segtypes']['protein']['rescodes'])
 
-        self.check_packmol_memgen()
-
-    def check_packmol_memgen(self):
-        self['user']['packmol_memgen']['available']=False
-        has_conda=os.environ.get('CONDA_EXE',None)
-        if not has_conda:
-            logger.debug(f'You do not have any conda environments.  Packmol-memgen is unavailable.')
-            return
-        ok_numpy_version=self['user']['packmol_memgen'].get('ok_numpy_version','1.19.5')
-        if self['Conda'].has_conda:
-            local_numpy_version=self['Conda'].get_package_version(self['Conda'].current_conda_env,'numpy')
-            if local_numpy_version<=ok_numpy_version:
-                logger.debug(f'Current active env is ok for packmol-memgen')
-                self['user']['packmol_memgen']['available']=True
-                self['user']['packmol_memgen']['local']=True
-            else:
-                for env in self['Conda'].conda_envs:
-                    remote_numpy_version=self['Conda'].get_package_version(env,'numpy')
-                    if remote_numpy_version<=ok_numpy_version:
-                        logger.debug(f'Conda env "{env}" is suitable for packmol-memgen.')
-                    self['user']['packmol_memgen']['available']=True
-                    self['user']['packmol_memgen']['local']=False
-                    self['user']['packmol_memgen']['venv']=env[0]
+        packmol_memgen_task_specs='packmol_memgen' in [list(x.keys())[0] for x in self['user']['tasks']]
+        if packmol_memgen_task_specs:
+            if not self.check_ambertools():
+                raise Exception(f'You have a "packmol_memgen" task but ambertools is not available.')
         else:
-            logger.debug(f'There is no suitable conda environment in which to run packmol-memgen.')
-            logger.debug('Packmol-memgen is unavailable')
+            self['user']['ambertools']['is_unnecessary']=True
+
+    def check_ambertools(self):
+        self['user']['ambertools']['available']=False
+        ok_numpy_version=self['user']['ambertools'].get('ok_numpy_version','1.19.5')
+        if not self['Conda'].has_conda:
+            logger.debug(f'You do not have any conda environments.  Ambertools is not available.  Please install ambertools in a conda environment in which numpy<={ok_numpy_version}')
+            return False
+        explicit_env=self['user']['ambertools'].get('venv',None)
+        if explicit_env!=None:
+            logger.debug(f'Checking explicitly named conda env {explicit_env} for numpy<=1.19.5 and ambertools')
+            if self['Conda'].env_exists(explicit_env):
+                explicit_env_numpy_version=self['Conda'].get_package_version(explicit_env,'numpy')
+                explicit_env_ambertools_version=self['Conda'].get_package_version(explicit_env,'ambertools',from_list=True)
+                if explicit_env_numpy_version!=None and explicit_env_numpy_version<'1.19.5' and explicit_env_ambertools_version!=None:
+                    self['user']['ambertools']['available']=True
+                    self['user']['ambertools']['local']=False
+                    return True
+            else:
+                logger.debug(f'Warning: Explicitly named conda env {explicit_env}  not found.')
+        logger.debug(f'No valid ambertools env available.  Searching all conda envs.')
+        local_numpy_version=self['Conda'].get_package_version(self['Conda'].current_conda_env,'numpy')
+        if local_numpy_version<=ok_numpy_version:
+            logger.debug(f'Active env has numpy version {local_numpy_version}')
+            ambertools_version=self['Conda'].get_package_version(self['Conda'].current_conda_env,'ambertools',from_list=True)
+            if ambertools_version!=None:
+                self['user']['ambertools']['available']=True
+                self['user']['ambertools']['local']=True
+                return True
+            else:
+                logger.debug(f'Ambertools is not installed in active conda env {self["Conda"].current_conda_env}')
+        else:
+            for env in self['Conda'].conda_envs:
+                if env[0]!=self['Conda'].current_conda_env:
+                    logger.debug(f'Checking conda env {env[0]} for numpy and ambertools')
+                    remote_numpy_version=self['Conda'].get_package_version(env[0],'numpy')
+                    if remote_numpy_version!=None and remote_numpy_version<=ok_numpy_version:
+                        logger.debug(f'Non-active env {env[0]} has numpy version {local_numpy_version}')
+                        ambertools_version=self['Conda'].get_package_version(env[0],'ambertools',from_list=True)
+                        logger.debug(f'Non-active env {env[0]} claims ambertools version "{ambertools_version}"')
+                        if ambertools_version!=None:
+                            self['user']['ambertools']['available']=True
+                            self['user']['ambertools']['local']=False
+                            self['user']['ambertools']['venv']=env[0]
+                            return True
+                        else:
+                            logger.debug(f'Ambertools is not installed in conda env {env[0]}')
+        return False

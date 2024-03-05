@@ -377,13 +377,13 @@ directives:
                 type: list
                 text: Unrecognized residue names
                 default: []
-  - name: packmol_memgen
+  - name: ambertools
     type: dict
-    text: packmol-memgen specifications; packmol-memgen must run in a conda virtual environment in which numpy is 1.19.5 or lower
+    text: ambertools specifications; ambertools must be installed in a conda virtual environment in which numpy is version 1.19.5 or lower
     directives:
       - name: venv
         type: text
-        text: name conda virtual environment capable of running packmol-memgen
+        text: name conda virtual environment containing ambertools
   - name: namd2
     type: dict
     text: NAMD2 specifications
@@ -776,6 +776,13 @@ directives:
             text: padding value for determining the overall simulation box size (in Angstroms)
             type: float
             default: 10
+      - name: packmol_memgen
+        text: Parameters controlling packmol-memgen to generate a bilayer embedding
+        type: dict
+        directives:
+          - name: lipid
+            text: packmol-memgen argument for -L
+            type: str
       - name: md
         text: Parameters controlling a NAMD run
         type: dict
