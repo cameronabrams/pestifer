@@ -191,11 +191,11 @@ proc brot { molid r0 r1 angle_name rot deg} {
    } elseif { $angle_name == "chi" } {
       if { $rot == 1 } {
          set pn [lindex [$ca get {x y z}] 0]
-         set pc [lindex [[atomselect $molid "residue and name CB"] get {x y z}] 0]
+         set pc [lindex [[atomselect $molid "residue $r0 and name CB"] get {x y z}] 0]
          set rotators [atomselect $molid "residue $r0 and not name N HN CA C O"]
       } elseif { $rot == 2 } {
-         set pn [lindex [[atomselect $molid "residue and name CB"] get {x y z}] 0]
-         set pc [lindex [[atomselect $molid "residue and name CG"] get {x y z}] 0]
+         set pn [lindex [[atomselect $molid "residue $r0 and name CB"] get {x y z}] 0]
+         set pc [lindex [[atomselect $molid "residue $r0 and name CG"] get {x y z}] 0]
          set rotators [atomselect $molid "residue $r0 and not name N HN CA CB C O"]
       }
    } else {
