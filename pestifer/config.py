@@ -5,6 +5,7 @@ logger=logging.getLogger(__name__)
 from collections import UserDict
 from pestifer import PestiferResources
 from .command import CondaCheck
+from .stringthings import my_logger
 from ycleptic.yclept import Yclept
 from ycleptic.yclept import __version__ as __ycleptic_version__
 from pidibble.pdbparse import __version__ as __pidibble_version__
@@ -42,14 +43,15 @@ def myset(a_dict,keylist,val):
 
 class Config(Yclept):
     def __init__(self,userfile=''):
-        logger.info(f'{__package__} uses ycleptic v {__ycleptic_version__}')
-        logger.info(f'{__package__} uses pidibble v {__pidibble_version__}')
+        logger.info(f'ycleptic {__ycleptic_version__}')
+        logger.info(f'pidibble {__pidibble_version__}')
         r=ResourceManager()
         logger.debug(f'Resources {r}')
         basefile=os.path.join(r['config'],'base.yaml')
         super().__init__(basefile,userfile=userfile)
         self['Resources']=r
         self['Conda']=CondaCheck()
+        my_logger(self['Conda'].info(),logger.info,just='<',frame='*',fill='')
         self._set_shortcuts()
 
     def _set_shortcuts(self):
@@ -73,7 +75,7 @@ class Config(Yclept):
             if stspec and 'resnames' in stspec:
                 initresnames=stspec['resnames']
                 for r in initresnames:
-                    if len(r)>4:
+                    if len(r)>4 and r.isalnum():
                         rabbrv=r[:4]
                         # logger.debug(r,rabbrv)
                         if not rabbrv in stspec['resnames']:

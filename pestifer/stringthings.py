@@ -151,7 +151,7 @@ class ByteCollector:
     def __str__(self):
         return self.byte_collector
 
-def my_logger(msg,logf,width=67,fill='*',sep=', ',just='^'):
+def my_logger(msg,logf,width=67,fill='*',sep=', ',just='^',frame=''):
     """A fancy logger
     
     Parameters
@@ -175,8 +175,12 @@ def my_logger(msg,logf,width=67,fill='*',sep=', ',just='^'):
        format character
     """
     fmt=r'{'+r':'+fill+just+f'{width}'+r'}'
+    if frame:
+        ffmt=r'{'+r':'+frame+just+f'{width}'+r'}'
     ll=' ' if just in ['^','>'] else ''
     rr=' ' if just in ['^','<'] else ''
+    if frame:
+        logf(ffmt.format(frame))
     if type(msg)==list:
         rr=' ' if ' ' not in sep else ''
         lnlst=[]
@@ -200,7 +204,9 @@ def my_logger(msg,logf,width=67,fill='*',sep=', ',just='^'):
         for ln in lns:
             outstr=ll+ln+rr
             logf(fmt.format(outstr))
-        
+    if frame:
+        logf(ffmt.format(frame))
+            
 class FileCollector(UserList):
     """A class for handling collections of files
     

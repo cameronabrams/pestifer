@@ -31,10 +31,9 @@ class CondaCheck:
             self.init_shell=os.path.join(f'{self.conda_root}','etc','profile.d','conda.sh')
 
     def info(self):
-        print(f'Conda root: {self.conda_root}')
-        print(f'Active env: {self.active_env}')
-        print(f'Envs: {self.conda_envs}')
-        print(f'Init shell: {self.init_shell}')
+        if not self.conda_root:
+            return f'No conda environments available.  Some functionality may not be available.'
+        return f'Conda root: {self.conda_root}\nActive env: {self.active_env}\nEnvs: {self.conda_envs}\nInit shell: {self.init_shell}'
 
     def env_exists(self,envname):
         return envname in self.conda_envs
