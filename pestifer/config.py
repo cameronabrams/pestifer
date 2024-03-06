@@ -4,7 +4,7 @@ import logging
 logger=logging.getLogger(__name__)
 from collections import UserDict
 from pestifer import PestiferResources
-from pestifer.condacheck import CondaCheck
+from .condacheck import CondaCheck
 from ycleptic.yclept import Yclept
 from ycleptic.yclept import __version__ as __ycleptic_version__
 from pidibble.pdbparse import __version__ as __pidibble_version__
@@ -42,8 +42,8 @@ def myset(a_dict,keylist,val):
 
 class Config(Yclept):
     def __init__(self,userfile=''):
-        logger.info(f'pestifer uses ycleptic v {__ycleptic_version__}')
-        logger.info(f'pestifer uses pidibble v {__pidibble_version__}')
+        logger.info(f'{__package__} uses ycleptic v {__ycleptic_version__}')
+        logger.info(f'{__package__} uses pidibble v {__pidibble_version__}')
         r=ResourceManager()
         logger.debug(f'Resources {r}')
         basefile=os.path.join(r['config'],'base.yaml')

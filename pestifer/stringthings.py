@@ -14,7 +14,7 @@ import importlib.metadata
 __pestifer_version__ = importlib.metadata.version("pestifer")
 
 banner_message="""
-    Pestifer v. {}
+    {} v. {}
     https://pestifer.readthedocs.io/en/latest/
 
     Cameron F. Abrams <cfa22@drexel.edu>
@@ -24,7 +24,7 @@ banner_message="""
 
     CHARMM force field files (July 22) from the 
     MacKerell Lab
-    """.format(__pestifer_version__)
+    """.format(__package__.title(),__pestifer_version__)
 
 def banner(logf):
     my_logger(banner_message,logf,fill=' ',just='<')

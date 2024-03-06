@@ -60,6 +60,16 @@ tasks:
   - md:
       ensemble: NPT
       nsteps: 1600
+  - md:
+      ensemble: NPT
+      nsteps: 13200
+  - mdplot:
+      savedata: solvated.csv
+      traces:
+        - density
+      units:
+        density: g_per_cc
+      basename: solvated
   - terminate:
       basename: my_4zxb
       package:

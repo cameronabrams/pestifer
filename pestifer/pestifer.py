@@ -14,13 +14,14 @@ import yaml
 import glob
 import logging
 import collections
-logger=logging.getLogger(__name__)
 import importlib.metadata
 __pestifer_version__ = importlib.metadata.version("pestifer")
 from .stringthings import banner, banner_message
 from .controller import Controller
 from .config import Config
 from .scriptwriters import Psfgen
+
+logger=logging.getLogger(__name__)
 
 def config_help(args):
     c=Config()
@@ -39,7 +40,7 @@ def config_default(args):
     specs=c.make_default_specs(*directives)
     print(yaml.dump(specs))
 
-def run(args):
+def run(args,**kwargs):
     # Set up logging to both a log file and the console
     loglevel=args.loglevel
     loglevel_numeric=getattr(logging, loglevel.upper())
@@ -55,12 +56,12 @@ def run(args):
     if not args.no_banner:
         banner(logger.info)
     # Set up the Controller and execute tasks
-    logger.info(f'pestifer runtime begins')
+    logger.info(f'{__package__} runtime begins')
     C=Controller(args.config)
     c,e=os.path.splitext(os.path.basename(args.config))
     C.write_complete_config(f'{c}-complete.yaml')
     C.do_tasks()    
-    logger.info('pestifer runtime ends.')
+    logger.info(f'{__package__} runtime ends.')
 
 def list_examples():
     c=Config()
@@ -76,21 +77,19 @@ def list_examples():
             exdict[code]=desc
     return collections.OrderedDict(sorted(exdict.items()))
 
-def run_example(args):
+def run_example(args,**kwargs):
     number=args.number
     nstr=f'{number:02d}'
     c=Config()
     ex_path=c['Resources']['examples']
-    for ex_yaml in glob.glob(ex_path+'/*.yaml'):
-        base=os.path.split(ex_yaml)[1]
-        if str(base).startswith(nstr):
-            rebase=base[len(nstr)+1:]
-            shutil.copy(ex_yaml,f'./{rebase}')
-            args.config=rebase
-            run(args)
-            break
-    else:
-        print(f'No example {number} is found.')
+    ex_yaml=glob.glob(ex_path+f'/{nstr}*.yaml')
+    assert len(ex_yaml)==1,f'No example {number} found'
+    ex_yaml=ex_yaml[0]
+    base=os.path.split(ex_yaml)[1]
+    rebase=base[len(nstr)+1:]
+    shutil.copy(ex_yaml,f'./{rebase}')
+    args.config=rebase
+    run(args,**kwargs)
 
 # def script(args):
 #     scriptname=args.scriptname

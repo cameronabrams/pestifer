@@ -11,18 +11,18 @@ class CondaCheck:
         self.has_conda=os.environ.get('CONDA_EXE',None)
         self.current_conda_env=None
         if not self.has_conda:
-            logger.debug(f'No conda detected')
+            logger.info(f'No conda detected')
         else:
             self.conda_prefix=os.environ.get('CONDA_PREFIX',None)
             if not self.conda_prefix:
                 self.conda_prefix='/'.join(self.has_conda.split('/')[:-2])
-                logger.debug('You are not running pestifer in a conda environment, but conda was detected on your system.')
+                logger.debug('You are not running {__package__} in a conda environment, but conda was detected on your system.')
             else:
                 if 'envs' in self.conda_prefix:
                     self.current_conda_env=self.conda_prefix.split('/')[-1]
                 else:
                     self.current_conda_env='base'
-                logger.debug(f'Pestifer is running in conda environment "{self.current_conda_env}"')
+                logger.info(f'{__package__} is running in conda environment "{self.current_conda_env}"')
 
             self.base_conda_prefix=os.environ.get('CONDA_PREFIX_1',self.conda_prefix)
             self.init_shell=f'{self.base_conda_prefix}/etc/profile.d/conda.sh'

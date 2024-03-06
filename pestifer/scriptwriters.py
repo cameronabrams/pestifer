@@ -52,7 +52,7 @@ class Scriptwriter(Filewriter):
             self.basename=os.path.splitext(self.default_script)[0]
         self.scriptname=f'{self.basename}{self.default_ext}'
         self.newfile(self.scriptname)
-        self.banner(f'pestifer: {self.basename}{self.default_ext}')
+        self.banner(f'{__package__}: {self.basename}{self.default_ext}')
         self.banner(f'Created {timestampstr}')
 
     def writescript(self):
@@ -87,8 +87,8 @@ class VMD(Scriptwriter):
 
     def endscript(self):
         self.addline('exit')
-        self.banner('END PESTIFER VMD SCRIPT')
-        self.banner('Thank you for using pestifer!')
+        self.banner(f'END {__package__.upper()} VMD SCRIPT')
+        self.banner(f'Thank you for using {__package__}!')
 
     def set_molecule(self,mol,altcoords=None):
         mol.molid_varname=f'm{mol.molid}'
