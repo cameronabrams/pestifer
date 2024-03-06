@@ -13,7 +13,7 @@ Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
 * 1.4.0:
-    * `packmol_memgen` integration
+    * `packmol-memgen` integration from AmberTools
 * 1.3.9:
     * added `include_C_termini` boolean to `declash` directives; set to `False` to prevent C-terminal insertions from undergoing automatic declashing
 * 1.3.8
