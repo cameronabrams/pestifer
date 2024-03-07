@@ -12,10 +12,12 @@ logger=logging.getLogger(__name__)
 class CondaCheck:
     """Class for interfacing with conda environments"""
     def __init__(self):
-        self.conda_root=os.environ.get('CONDA_ROOT',None)
-        if not self.conda_root:
+        self.conda_exe=os.environ.get('CONDA_EXE',None)
+        if not self.conda_exe:
             logger.info(f'No conda detected')
         else:
+            # expect conda executable to be in $(CONDA_ROOT)/bin/conda
+            self.conda_root=os.path.split(os.path.split(self.conda_exe)[0])[0]
             self.active_env=os.environ.get('CONDA_DEFAULT_ENV',None)
             check_result=subprocess.run('conda info --json',shell=True, executable='/bin/bash',check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
             stdout=check_result.stdout.decode('utf-8')
@@ -29,6 +31,8 @@ class CondaCheck:
                 for env in conda_envs[1:]:
                     self.conda_envs.append(os.path.split(env)[-1])
             self.init_shell=os.path.join(f'{self.conda_root}','etc','profile.d','conda.sh')
+            assert os.path.exists(self.init_shell)
+
 
     def info(self):
         if not self.conda_root:
@@ -41,23 +45,25 @@ class CondaCheck:
     def get_package_version(self,envname,pkgname,from_list=False):
         try:
             if envname!=self.active_env:
+                logging.debug(f'Checking version of {pkgname} in non-active environment {envname}')
                 if not from_list:
-                    check_result=subprocess.run(f"""source {self.init_shell}
-                    conda activate {envname}
-                    python -c 'import {pkgname}; print({pkgname}.__version__)'""",
-                    shell=True, executable='/bin/bash', check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
-                    results=check_result.stdout.decode('utf-8').split('\n')
+                    pcs=subprocess.Popen(f"source {self.init_shell}\nconda activate {envname}\npython -c 'import {pkgname}; print({pkgname}.__version__)'",
+                    shell=True, executable='/bin/bash',stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+                    stdout,stderr=pcs.communicate()
+                    results=stdout.split('\n')
                     return results[0]
                 else:
-                    check_result=subprocess.run(f"""source {self.init_shell}
-                    conda activate {envname}
-                    conda list {pkgname}""",
-                    shell=True, executable='/bin/bash', check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+                    c=f'source {self.init_shell}\nconda activate {envname}\nconda list {pkgname}'
+                    logger.debug(f'Issuing {c}')
+                    check_result=subprocess.run(c,shell=True,executable='/bin/bash',check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
                     results=check_result.stdout.decode('utf-8').split('\n')
+                    err=check_result.stderr.decode('utf-8').split('\n')
                     if results[-2][0]!='#':
                         version=results[-2].split()[1]
                         return version
                     else:
+                        logger.debug(f'so {results}')
+                        logger.debug(f'se {err}')
                         logger.debug(f'Could not determine version of {pkgname} in env {envname} via "conda list"')
                         return None
             else:
@@ -65,7 +71,7 @@ class CondaCheck:
                     from importlib.metadata import version
                     return version(pkgname)
                 else:
-                    check_result=subprocess.run(f"""conda list {pkgname}""",
+                    check_result=subprocess.run(f'conda list {pkgname}',
                     shell=True, executable='/bin/bash', check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
                     results=check_result.stdout.decode('utf-8').split('\n')
                     if results[-2][0]!='#':
@@ -74,20 +80,26 @@ class CondaCheck:
                     else:
                         logger.debug(f'Could not determine version of {pkgname} in env {envname} via "conda list"')
                         return None                    
-        except:
+        except Exception as e:
+            logger.debug(f'{e}')
             logger.debug(f'Could not determine version of {pkgname} in env {envname}')
             return None
 
     def condafy(self,command,env=None):
-        command_lines=command.split('\n')
-        bare_command=command_lines[-1]
         if not env or not self.env_exists(env) or env==self.active_env:
-            logger.debug(f'not setting env {env} {self.env_exists(env)} {self.active_env}')
-            return bare_command
-        return f"""source {self.init_shell}
-        conda activate {env}
-        {bare_command}"""
-
+            return command
+        commands=command.split('\n')
+        if len(commands)>1:
+            if commands[0]==f'source {self.init_shell}':
+                logger.debug(f'You are trying to condafy a command list that is already condafied.')
+                if commands[1]==f'conda activate {env}':
+                    logger.debug(f'You have also specified the environment that is already specified in this condafied command.')
+                else:
+                    commands[1]=f'conda activate {env}'
+        else:
+            commands=[f'source {self.init_shell}',f'conda activate {env}']+commands 
+        return '\n'.join(commands)
+    
 class Command:
     divider_line_length=55
     def __init__(self,command,*args,**options):

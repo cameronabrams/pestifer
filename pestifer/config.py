@@ -143,7 +143,7 @@ class Config(Yclept):
                     remote_numpy_version=self['Conda'].get_package_version(env,'numpy')
                     if remote_numpy_version!=None and remote_numpy_version<=ok_numpy_version:
                         logger.debug(f'Non-active env {env} has numpy version {local_numpy_version}')
-                        ambertools_version=self['Conda'].get_package_version(env[0],'ambertools',from_list=True)
+                        ambertools_version=self['Conda'].get_package_version(env,'ambertools',from_list=True)
                         logger.debug(f'Non-active env {env} claims ambertools version "{ambertools_version}"')
                         if ambertools_version!=None:
                             self['user']['ambertools']['available']=True
