@@ -19,7 +19,7 @@ from .util import is_periodic
 from .molecule import Molecule
 from .chainidmanager import ChainIDManager
 from .colvars import *
-from .stringthings import FileCollector
+from .stringthings import FileCollector,get_boxsize_from_packmolmemgen
 from .modmanager import ModManager
 from .command import Command
 from .mods import CleavageSite, CleavageSiteList
@@ -962,6 +962,9 @@ class PackmolMemgenTask(BaseTask):
         if 'xsc' in self.statevars:
             del self.statevars['xsc']
         self.next_basename()
+        boxinfo=get_boxsize_from_packmolmemgen()
+        with open(f'{self.basename}_cell.tcl','w') as f:
+            f.write(boxinfo)
         pg=self.writers['psfgen']
         pg.newscript(self.basename)
         pg.topo_aliases()

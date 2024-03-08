@@ -805,11 +805,11 @@ directives:
                 default: []
   - name: ambertools
     type: dict
-    text: ambertools specifications; ambertools must be installed in a conda virtual environment in which numpy is version 1.19.5 or lower
+    text: ambertools specifications; ambertools must either be patched and compiled from source, or be installed in a conda virtual environment in which numpy is version 1.19.5 or lower
     directives:
       - name: venv
         type: text
-        text: name conda virtual environment containing ambertools
+        text: name conda virtual environment containing ambertools and numpy <= 1.19.5
   - name: namd2
     type: dict
     text: NAMD2 specifications
@@ -1207,10 +1207,10 @@ directives:
         type: dict
         directives:
           - name: lipids
-            text: value for -l LIP1:LIP2//LIP3
+            text: value for --lipids LIP1:LIP2//LIP3
             type: str
           - name: ratio
-            text: value for -r R1:T2//R3
+            text: value for --ratio R1:T2//R3
             type: str
           - name: solvents
             text: value for --solvents SOL1:SOL2
@@ -1233,6 +1233,10 @@ directives:
           - name: leaflet
             text: argument for --leaflet
             type: float
+          - name: nottrim
+            text: skips H-trimming
+            type: bool
+            default: True
           - name: notprotonate
             text: skips protonation
             type: bool
