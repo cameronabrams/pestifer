@@ -29,6 +29,7 @@ import pandas as pd
 import matplotlib.pyplot as plt 
 import matplotlib.cm as cm
 from scipy.constants import physical_constants
+from itertools import product
 g_per_amu=physical_constants['atomic mass constant'][0]*1000
 A_per_cm=1.e8
 A3_per_cm3=A_per_cm**3
@@ -809,7 +810,7 @@ class SolvateTask(BaseTask):
 
     def do(self):
         self.log_message('initiated')
-        self.statevars=self.prior.statevars.copy()
+        self.inherit_state()
         if 'xsc' in self.statevars:
             del self.statevars['xsc']
         self.next_basename()
@@ -830,7 +831,7 @@ class ManipulateTask(BaseTask):
         self.log_message('initiated')
         if self.prior:
             logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
-            self.statevars=self.prior.statevars.copy()
+            self.inherit_state()
         self.modmanager=ModManager(self.specs['mods'])
         self.coormods()
         self.log_message('complete')
@@ -919,3 +920,56 @@ class TerminateTask(MDTask):
             self.FC.append(f'{self.basename}_topogromacs.pdb')
             self.FC.append(f'{self.basename}_topogromacs.top')
         self.FC.tarball(specs["basename"])
+
+class PackmolMemgenTask(BaseTask):
+    """ A class for handling invocations of packmol-memgen
+    
+    Attributes
+    ----------
+    yaml_header(str) 
+
+    Methods
+    -------
+    do(): 
+        Based on specs, reads in input PDB/mmCIF file, generates parsed Molecule instances, generates
+        the psfgen script, and executes VMD to perform the psfgen run.
+
+    """
+    yaml_header='packmol_memgen'
+    def __init__(self,input_dict,taskname,config,writers,prior):
+        super().__init__(input_dict,taskname,config,writers,prior)
+        self.has_conda=config['Conda'].conda_root!=None
+        assert config['user']['ambertools']['available']
+        self.env=None
+        if not config['user']['ambertools']['local']:
+            self.env=self['user']['ambertools']['venv']
+
+    def do(self):
+        self.log_message('initiated')
+        self.inherit_state()
+        psf=self.statevars.get('psf',None)
+        pdb=self.statevars.get('pdb',None)
+        if pdb!=None:
+            # TODO: do stuff
+            addpdb=None
+            pass
+        else:
+            # TODO: make a fresh membrane-only system
+            addpdb=None
+            pass
+        # TODO: generate cell.tcl file from packmol data
+        # process output pdb to get new psf and pdb
+        if 'xsc' in self.statevars:
+            del self.statevars['xsc']
+        self.next_basename()
+        pg=self.writers['psfgen']
+        pg.newscript(self.basename)
+        pg.topo_aliases()
+        pg.usescript('memb')
+        pg.writescript()
+        pg.runscript(psf=psf,pdb=pdb,addpdb=addpdb,o=self.basename)
+        self.save_state(exts=['psf','pdb'])
+        self.update_statevars('cell',f'{self.basename}_cell.tcl',vtype='file')
+        self.log_message('complete')
+
+

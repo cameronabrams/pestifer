@@ -7,6 +7,7 @@ import logging
 logger=logging.getLogger(__name__)
 import os
 from .command import Command
+from itertools import product
 # _ANGSTROM_='Ångström'
 
 import importlib.metadata
@@ -273,3 +274,21 @@ def ri_range(val,split_chars=['-','#']):
         for s in the_splits:
             the_split.extend(s)
     return [split_ri(x) for x in the_split]
+
+def get_boxsize_from_packmolmemgen(logname='packmol-memgen.log'):
+    res=''
+    extract_keys=[''.join(x) for x in product(['x_','y_','z_'],['min','max','len'])]
+    boxinfo={}
+    with open(logname,'r') as f:
+        log=f.read().split('\n')
+        for l in log:
+            tok=l.split()
+            if len(tok)>0:
+                if tok[0] in extract_keys:
+                    boxinfo[tok[0]]=float(tok[2])
+    if boxinfo:
+        res =f'cellBasisVector1 {boxinfo["x_len"]} 0 0\n'
+        res+=f'cellBasisVector2 0 {boxinfo["y_len"]} 0\n'
+        res+=f'cellBasisVector3 0 0 {boxinfo["z_len"]}\n'
+        res+=f'cellOrigin {boxinfo["x_min"]} {boxinfo["y_min"]} {boxinfo["z_min"]}'
+    return res

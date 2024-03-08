@@ -119,3 +119,8 @@ proc resequence { badsel goodsel } {
    }
    return $badpos
 }
+
+proc letter_up { c } {
+   scan $c %c i
+   return [binary format c* [expr $i + 1]]
+}
