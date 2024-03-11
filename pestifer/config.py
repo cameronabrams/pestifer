@@ -58,7 +58,9 @@ class Config(Yclept):
         self.namd2=self['user']['paths']['namd2']
         self.charmrun=self['user']['paths']['charmrun']
         self.vmd=self['user']['paths']['vmd']
-        self.tcl_path=self['Resources']['tcl']
+        # self.tcl_path=self['Resources']['tcl']
+        self.tcl_root=os.path.join(self['Resources']['root'],'tcl')
+        self.tcl_pkg_path=self['Resources']['tcl']['pkg']
         self.tcl_proc_path=self['Resources']['tcl']['proc']
         self.tcl_script_path=self['Resources']['tcl']['scripts']
         self.vmd_startup_script=os.path.join(self.tcl_script_path,'pestifer-vmd.tcl')

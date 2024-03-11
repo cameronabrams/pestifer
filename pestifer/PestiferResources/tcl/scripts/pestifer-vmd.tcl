@@ -5,44 +5,41 @@
 # This name of this file is set to the vmd_startup_script attribute
 # of the Config instance of a pestifer run, by default (config.py)
 #
-set RESPATH "."
+set PESTIFER_TCLROOT "."
 set quiet 1
 for { set a 0 } { $a < [llength $argv] } { incr a } {
   set arg [lindex $argv $a]
-  if { $arg == "-respath" } {
+  if { $arg == "--tcl-root" } {
     incr a
-    set RESPATH [lindex $argv $a]
+    set PESTIFER_TCLROOT [lindex $argv $a]
   }
-  if { $arg == "-verbose" } {
+  if { $arg == "--verbose" } {
     incr a
     set quiet 0
   }
 }
 
-
-if {$RESPATH=="."} {
-  set RESPATH [exec pestifer wheretcl --proc-dir]
+if {$PESTIFER_TCLROOT=="."} {
+  set PESTIFER_TCLROOT [exec pestifer wheretcl --root]
   if {$quiet == 0} {
-    vmdcon -info "No RESPATH passed in; detected $RESPATH"
+    vmdcon -info "No PESTIFER_TCLROOT passed in; detected $PESTIFER_TCLROOT"
   }
 }
 
-set sources [glob "${RESPATH}/*.tcl"]
+set PESTIFER_TCLPKG ${PESTIFER_TCLROOT}/pkg
+set packages [glob -type d $PESTIFER_TCLPKG]
+foreach pkg $packages {
+  lappend auto_path $pkg
+}
 
-if {$quiet == 0} {
-  vmdcon -info "Sourcing ${RESPATH}/util.tcl"
-}
-# must source this first
-source ${RESPATH}/util.tcl
-# now remove it from the globbed list; vmd does not have "lremove"
-set lidx [lsearch $sources "${RESPATH}/util.tcl"]
-set tmp_sources [list]
-for {set i 0} {$i < [llength $sources]} {incr i} {
-  if {$i != $lidx} {
-    lappend tmp_sources [lindex $sources $i]
-  }
-}
-set sources $tmp_sources
+package require PestiferUtil
+namespace import PestiferUtil::*
+
+# these should all be put into packages
+
+set PESTIFER_TCLPROC ${PESTIFER_TCLROOT}/proc
+
+set sources [glob "${PESTIFER_TCLPROC}/*.tcl"]
 
 foreach s $sources {
   source $s

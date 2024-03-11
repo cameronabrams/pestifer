@@ -130,20 +130,32 @@ def inittcl(args):
 
 def wheretcl(args):
     c=Config()
+    assert 'tcl' in c['Resources'],f'No tcl found in resources -- this is a bad {__package__} installation'
+    tcl_root=os.path.join(c['Resources']['root'],'tcl')
     script_dir=c['Resources']['tcl']['scripts']
     proc_dir=c['Resources']['tcl']['proc']
+    pkg_dir=c['Resources']['tcl']['pkg']
+    if args.root:
+        assert os.path.exists(args.root)
+        print(tcl_root)
     if args.startup_script_path:
+        assert os.path.exists(c.vmd_startup_script)
         print(c.vmd_startup_script)
     if args.script_dir:
+        assert os.path.exists(args.script_dir)
         print(script_dir)
     if args.proc_dir:
+        assert os.path.exists(args.proc_dir)
         print(proc_dir)
-    if args.verbose:
-        print(f'Copy-paste one or more of these commands into a VMD session console:')
-        for s_tcl in glob.glob(script_dir+'/*.tcl'):
-            print(f'source {s_tcl}')
-        for p_tcl in glob.glob(proc_dir+'/*.tcl'):
-            print(f'source {p_tcl}')
+    if args.pkg_dir:
+        assert os.path.exists(args.pkg_dir)
+        print(pkg_dir)
+    # if args.verbose:
+    #     print(f'Copy-paste one or more of these commands into a VMD session console:')
+    #     for s_tcl in glob.glob(script_dir+'/*.tcl'):
+    #         print(f'source {s_tcl}')
+    #     for p_tcl in glob.glob(proc_dir+'/*.tcl'):
+    #         print(f'source {p_tcl}')
 
 def cli():
     commands={
@@ -190,9 +202,10 @@ def cli():
     command_parsers['config-default'].add_argument('directives',type=str,nargs='*',help='config file directives')
     # command_parsers['script'].add_argument('scriptname',type=str,default=None,help='name of VMD/TcL script to run')
     command_parsers['wheretcl'].add_argument('--startup-script-path',default=False,action='store_true',help='print full path of VMD startup script used by pestifer')
-    command_parsers['wheretcl'].add_argument('--script-dir',default=False,action='store_true',help='print full path of directory of VMD scripts')
-    command_parsers['wheretcl'].add_argument('--proc-dir',default=False,action='store_true',help='print full path of directory of VMD/TcL procedure library')
-    command_parsers['wheretcl'].add_argument('--verbose',default=False,action='store_true',help='print a long message describing all TcL files available')
+    command_parsers['wheretcl'].add_argument('--script-dir',default=False,action='store_true',help='print full path of directory of Pestifer\'s VMD scripts')
+    command_parsers['wheretcl'].add_argument('--proc-dir',default=False,action='store_true',help='print full path of directory of Pestifer\'s VMD/TcL procedure library')
+    command_parsers['wheretcl'].add_argument('--pkg-dir',default=False,action='store_true',help='print full path of directory of Pestifer\'s VMD/TcL package library')
+    command_parsers['wheretcl'].add_argument('--root',default=False,action='store_true',help='print full path of  Pestifer\'s root TcL directory')
     command_parsers['inittcl'].add_argument('--force',default=False,action='store_true',help='force overwrite of any package-resident tcl files inittcl generates')
     args=parser.parse_args()
     args.func(args)

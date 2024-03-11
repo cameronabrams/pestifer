@@ -957,7 +957,6 @@ class PackmolMemgenTask(BaseTask):
             # TODO: make a fresh membrane-only system
             addpdb=None
             pass
-        # TODO: generate cell.tcl file from packmol data
         # process output pdb to get new psf and pdb
         if 'xsc' in self.statevars:
             del self.statevars['xsc']

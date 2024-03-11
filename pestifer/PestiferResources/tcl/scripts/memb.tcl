@@ -7,12 +7,13 @@ set scriptname memb
 
 set pdb ""
 set psf ""
-set outpre "parameterized"
+set addpdb ""
+set outbasename "memb-parameterized"
 
 for { set i 0 } { $i < [llength $argv] } { incr i } {
-    if { [lindex $argv $i] == "-pdb"} {
+    if { [lindex $argv $i] == "-psf"} {
        incr i
-       set pdb [lindex $argv $i]
+       set psf [lindex $argv $i]
     }
     if { [lindex $argv $i] == "-pdb"} {
        incr i
@@ -26,6 +27,11 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
        incr i
        set outbasename [lindex $argv $i]
     }
+}
+
+if { ! [file exists $addpdb] } {
+   vmdcon -err "${scriptname}: $addpdb not found."
+   exit
 }
 
 # if no pdb and/or no psf, we must be processing a membrane-only addpdb

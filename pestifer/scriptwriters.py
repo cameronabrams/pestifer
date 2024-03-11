@@ -66,7 +66,7 @@ class VMD(Scriptwriter):
         super().__init__()
         self.config=config
         self.vmd=config.vmd
-        self.tcl_path=config.tcl_path
+        self.tcl_root=config.tcl_root
         self.tcl_proc_path=config.tcl_proc_path
         self.tcl_script_path=config.tcl_script_path
         self.vmd_startup=config.vmd_startup_script
@@ -81,6 +81,8 @@ class VMD(Scriptwriter):
             raise FileNotFoundError(f'Pestifer script {scriptbasename}.tcl is not found.')
         if add_banners:
             self.banner(f'Begin {scriptbasename}, {timestampstr}')
+        self.addline('package require SavRes')
+        self.addline('namespace import SavRes::*')
         self.injest_file(scriptname)
         if add_banners:
             self.banner(f'End {scriptbasename}')
@@ -194,7 +196,7 @@ class VMD(Scriptwriter):
 
     def runscript(self,*args,**options):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
-        c=Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args -respath {self.tcl_proc_path}',**options)
+        c=Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}',**options)
         c.run()
         self.logname=f'{self.basename}.log'
         with open(self.logname,'w') as f:

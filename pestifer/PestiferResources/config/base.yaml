@@ -1206,69 +1206,94 @@ directives:
         text: Parameters controlling packmol-memgen to generate a bilayer embedding
         type: dict
         directives:
-          - name: lipids
-            text: value for --lipids LIP1:LIP2//LIP3
-            type: str
-          - name: ratio
-            text: value for --ratio R1:T2//R3
-            type: str
-          - name: solvents
-            text: value for --solvents SOL1:SOL2
-            type: str
-          - name: solvent_ratio
-            text: value for --solvent_ratio
-            type: str
-          - name: dist
-            text: argument for --dist
-            type: float 
-          - name: dist_wat
-            text: argument for --dist_wat
-            type: float
-          - name: distxy_fix
-            text: argument for --distxy_fix
-            type: float
-          - name: dims
-            text: box dimensions (A)
-            type: list
-          - name: leaflet
-            text: argument for --leaflet
-            type: float
-          - name: nottrim
-            text: skips H-trimming
-            type: bool
-            default: True
-          - name: notprotonate
-            text: skips protonation
-            type: bool
-            default: True
-          - name: noprogress
-            text: skips progress bar
-            type: bool
-            default: True
-          - name: charmm
-            text: output in CHARMM format
-            type: bool
-            default: True
-          - name: preoriented
-            text: True if protein is preoriented (pestifer will do this)
-            type: bool
-            default: True
-          - name: n_ter
-            text: in or out; N-termini are usually 'in' for membrane proteins
-            type: str
-            options: ['in','out']
-            default: 'in'
-          - name: salt
-            text: whether to add salt or not, 0.15M KCl by default
-            type: bool
-            default: False
-          - name: salt_c
-            text: name of salt cation (if other than K+)
-            type: str
-            options: ['K+','Na+','Ca2+','Mg2+']
-          - name: saltcon
-            text: salt concentration in M
-            type: float
+          - name: preorient
+            text: parameters controlling preorientation
+            type: dict
+            directives:
+              - name: z_head_group
+                text: VMD atomselect string defining head-group of z-axis
+                type: str
+              - name: z_tail_group
+                text: VMD atomselect string defining tail-group of z-axis
+                type: str
+              - name: z_ref_group
+                text: VMD atomselect string defining a center of mass at a specific z
+                type: dict
+                directive:
+                  - name: z_value
+                    type: float
+                    text: value of z at COM of this group (default 0)
+                    default: 0.0
+                  - name: text
+                    text: the atomselect text
+                    type: str
+          - name: command_options
+            text: command-line options for packmol-memgen
+            type: dict
+            directives: 
+              - name: lipids
+                text: value for --lipids LIP1:LIP2//LIP3
+                type: str
+              - name: ratio
+                text: value for --ratio R1:T2//R3
+                type: str
+              - name: solvents
+                text: value for --solvents SOL1:SOL2
+                type: str
+              - name: solvent_ratio
+                text: value for --solvent_ratio
+                type: str
+              - name: dist
+                text: argument for --dist
+                type: float 
+              - name: dist_wat
+                text: argument for --dist_wat
+                type: float
+              - name: distxy_fix
+                text: argument for --distxy_fix
+                type: float
+              - name: dims
+                text: box dimensions (A)
+                type: list
+              - name: leaflet
+                text: argument for --leaflet
+                type: float
+              - name: nottrim
+                text: skips H-trimming
+                type: bool
+                default: True
+              - name: notprotonate
+                text: skips protonation
+                type: bool
+                default: True
+              - name: noprogress
+                text: skips progress bar
+                type: bool
+                default: True
+              - name: charmm
+                text: output in CHARMM format
+                type: bool
+                default: True
+              - name: preoriented
+                text: True if protein is preoriented; z=0 plane is assumed to be membrane midplane!
+                type: bool
+                default: True
+              - name: n_ter
+                text: in or out; N-termini are usually 'in' for membrane proteins
+                type: str
+                options: ['in','out']
+                default: 'in'
+              - name: salt
+                text: whether to add salt or not, 0.15M KCl by default
+                type: bool
+                default: False
+              - name: salt_c
+                text: name of salt cation (if other than K+)
+                type: str
+                options: ['K+','Na+','Ca2+','Mg2+']
+              - name: saltcon
+                text: salt concentration in M
+                type: float
       - name: md
         text: Parameters controlling a NAMD run
         type: dict
