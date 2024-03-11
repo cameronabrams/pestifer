@@ -1,15 +1,15 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """Scriptwriters
 """
+import os
+import datetime
+import shutil
 import logging
 logger=logging.getLogger(__name__)
 from .command import Command
-import os
 from .util import reduce_intlist
 from .namdlog import NAMDLog
 from .stringthings import ByteCollector, FileCollector, my_logger
-import datetime
-import shutil
 
 class Filewriter:
     def __init__(self):
@@ -70,6 +70,17 @@ class VMD(Scriptwriter):
         self.tcl_proc_path=config.tcl_proc_path
         self.tcl_script_path=config.tcl_script_path
         self.vmd_startup=config.vmd_startup_script
+        self.defaultTcLpackages=['SavRes']
+
+    def newscript(self,basename=None,packages=[]):
+        super().newscript(basename=basename)
+        self.packages=self.defaultTcLpackages.copy()
+        for p in packages:
+            if not p in self.packages:
+                self.packages.append(p)
+        for p in self.packages:
+            self.addline(f'package require {p}')
+            self.addline(f'namespace import {p}::*')
 
     def usescript(self,scriptbasename,local=False,add_banners=False):
         if not local:
@@ -81,8 +92,6 @@ class VMD(Scriptwriter):
             raise FileNotFoundError(f'Pestifer script {scriptbasename}.tcl is not found.')
         if add_banners:
             self.banner(f'Begin {scriptbasename}, {timestampstr}')
-        self.addline('package require SavRes')
-        self.addline('namespace import SavRes::*')
         self.injest_file(scriptname)
         if add_banners:
             self.banner(f'End {scriptbasename}')
@@ -222,8 +231,8 @@ class Psfgen(VMD):
         self.user_charmmff_toppar_path=config.user_charmmff_toppar_path
         # self.default_script=config['psfgen_scriptname']
 
-    def newscript(self,basename=None):
-        super().newscript(basename=basename)
+    def newscript(self,basename=None,packages=[]):
+        super().newscript(basename=basename,packages=packages)
         self.addline('package require psfgen')
         self.addline('psfcontext mixedcase')
 

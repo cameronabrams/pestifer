@@ -10,3 +10,5 @@
 
 package ifneeded SavRes 1.0 [list source [file join $dir savres.tcl]]
 package ifneeded PestiferUtil 1.0 [list source [file join $dir util.tcl]]
+package ifneeded PestiferCRot 1.0 [list source [file join $dir crot.tcl]]
+package ifneeded PestiferDeclash 1.0 [list source [file join $dir declash.tcl]]

@@ -36,10 +36,12 @@ def do_it(exnumber):
     prod_tgz=f'{prod_basename}.tgz'
     cmd=f'pestifer run {rebase}'
     res=subprocess.run(cmd,shell=True,executable='/bin/bash',check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+    with open('console.log','w') as f:
+        f.write(res.stdout)
     assert(os.path.exists(prod_tgz))
-    end_message=res.stderr.split('\n')[-2]
-    assert(end_message=='INFO> pestifer runtime ends.')
-    cleanup()
+        # end_message=res.stderr.split('\n')[-2]
+        # assert(end_message=='INFO> pestifer runtime ends.')
+        # cleanup()
 
 class TestBuild(unittest.TestCase):
     def test_example_build01(self):

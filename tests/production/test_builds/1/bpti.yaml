@@ -1,0 +1,50 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+# 
+# Simple build of solvated BPTI (mimics psfgen user manual)
+#
+# Notes:
+#   - The phospate ion and all crystal waters are retained
+#   - A four-phase NPT equilibration is used to settle the density
+#   - A production tarball is generated: prod_6pti.tgz
+#
+title: BPTI
+tasks:
+  - psfgen:
+      source:
+        id: 6pti
+  - md:
+      ensemble: minimize
+  - solvate:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - md:
+      ensemble: NPT
+      nsteps: 13200
+  - mdplot:
+      savedata: solvated.csv
+      traces:
+        - density
+      units:
+        density: g_per_cc
+      basename: solvated
+  - terminate:
+      basename: my_6pti
+      package:
+        ensemble: NPT
+        basename: prod_6pti

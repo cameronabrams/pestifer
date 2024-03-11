@@ -460,7 +460,7 @@ class PsfgenTask(BaseTask):
                 if len(modlist)>0:
                     self.next_basename(modtype)
                     vm=self.writers['vmd']
-                    vm.newscript(self.basename)
+                    vm.newscript(self.basename,packages=['PestiferCRot'])
                     psf=self.statevars['psf']
                     pdb=self.statevars['pdb']
                     vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
@@ -475,7 +475,7 @@ class PsfgenTask(BaseTask):
     def psfgen(self):
         self.next_basename('build')
         pg=self.writers['psfgen']
-        pg.newscript(self.basename)
+        pg.newscript(self.basename,packages=['PestiferCRot'])
         pg.topo_aliases()
         pg.set_molecule(self.base_molecule,altcoords=self.specs.get('source',{}).get('altcoords',None))
         pg.describe_molecule(self.base_molecule)
@@ -500,7 +500,7 @@ class PsfgenTask(BaseTask):
         vt=self.writers['vmd']
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
-        vt.newscript(self.basename)
+        vt.newscript(self.basename,packages=['PestiferDeclash'])
         vt.load_psf_pdb(psf,pdb,new_molid_varname='mLL')
         mol.write_loop_lines(vt,cycles=cycles,min_length=specs['min_loop_length'],include_c_termini=specs['declash']['include_C_termini'])
         vt.write_pdb(self.basename,'mLL')

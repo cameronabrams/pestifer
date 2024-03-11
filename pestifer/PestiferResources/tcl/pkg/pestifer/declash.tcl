@@ -1,8 +1,15 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+
+package provide PestiferDeclash 1.0
+
+namespace eval ::PestiferDeclash:: {
+    namespace export *
+}
+
 #
 # A very simple Metropolis algorithm to alter conformation of raw model-built
 # protein gap loops to minimize clashes
-proc declash_loop { molid segname loop maxcycles } {
+proc PestiferDeclash::declash_loop { molid segname loop maxcycles } {
   set nr [llength $loop]
   set loopsel [atomselect $molid "segname $segname and resid [join $loop]"]
   set residue_numbers [[atomselect $molid "[$loopsel text] and name CA"] get residue]
@@ -56,7 +63,6 @@ proc declash_loop { molid segname loop maxcycles } {
 # movers: list of lists of movable atoms per rotatable bond
 # maxcycles: maximum number of MC cycles (one bond rotation per)
 # clashdist: distance threshold for designating whether two atoms "clash" (A)
-# logf: open file for logging messages
 #
 # indices, bonds, and movers must be determined outside this procedure
 # The MC loop terminates either when the maximum number of iterations is
@@ -64,16 +70,16 @@ proc declash_loop { molid segname loop maxcycles } {
 #
 # If used correctly, this procedure can supersede the declash_loop procedure
 #
-proc declash_pendant {molid indices bonds movers maxcycles clashdist logf} {
+proc PestiferDeclash::declash_pendant { molid indices bonds movers maxcycles clashdist } {
    set degs {-120 -60 60 120 180}
    set atomsel [atomselect $molid "noh and index $indices"]
    set environ [atomselect $molid "noh"]
    set nbonds [llength $bonds]
-   double_log $logf  "Declash environ has [$environ num] atoms"
+   vmdcon -info "Declash environ has [$environ num] atoms"
    set ncontacts [llength [lindex [measure contacts $clashdist $atomsel $environ] 0]]
-   double_log $logf  "Declash pendant: Pendant has $ncontacts initial atomic clashes"
+   vmdcon -info "Declash pendant: Pendant has $ncontacts initial atomic clashes"
    if {$ncontacts > 0} {
-      double_log $logf  "Declashing via maximally $maxcycles cycles"
+      vmdcon -info "Declashing via maximally $maxcycles cycles"
       for {set i 0} {$i < $maxcycles} {incr i} {
          set ridx [expr {int(rand()*$nbonds)}]
          set bo [lindex $bonds $ridx]
@@ -91,7 +97,7 @@ proc declash_pendant {molid indices bonds movers maxcycles clashdist logf} {
          } else {
             set ncontacts $newcontacts
          }
-         double_log $logf  "  cycle $i bond $bo deg $deg ncontacts $ncontacts"
+         vmdcon -info "  cycle $i bond $bo deg $deg ncontacts $ncontacts"
          $this_mover delete
          if { $ncontacts == 0 } {
             break

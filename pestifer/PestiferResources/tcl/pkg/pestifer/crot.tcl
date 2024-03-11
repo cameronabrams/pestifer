@@ -1,6 +1,11 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 #
 # TcL procedures for facilitating rotations around bonds
+package provide PestiferCRot 1.0
+
+namespace eval ::PestiferCRot:: {
+    namespace export *
+}
 
 
 # Determine whether or not Sresidues q and r are in the same chain
@@ -13,7 +18,7 @@
 # --------
 # - 0 if q and r are not in the same chain, or if either q or r is less than zero
 # - 1 if q and r are in the same chain
-proc residues_in_same_chain { molid q r } {
+proc PestiferCRot::residues_in_same_chain { molid q r } {
    if { $q < 0 || $r < 0 } {
       return 0
    }
@@ -43,7 +48,7 @@ proc residues_in_same_chain { molid q r } {
 # Returns:
 # --------
 # - list of phi, psi, and omega values, in that order
-proc get_phi_psi_omega { r molid } {
+proc PestiferCRot::get_phi_psi_omega { r molid } {
    set protein_check [expr [[atomselect $molid "residue $r and protein"] num]]
    if { $protein_check == 0 } {
       vmdcon -info "Residue $r of mol $molid is not protein"
@@ -81,7 +86,7 @@ proc get_phi_psi_omega { r molid } {
 # - rterm: absolute residue number at end of fragment to which rbegin and rend belong;
 #          residues greater than rend but less than or equal to rterm are not folded
 # - molid: molecule id
-proc fold_alpha { rbegin rend rterm molid } {
+proc PestiferCRot::fold_alpha { rbegin rend rterm molid } {
    if { $rbegin < $rend } { # folding from N->C along section
       vmdcon -info "fold_alpha from $rbegin to $rend including fragment up to $rterm on mol $molid"
       set rotators_side C
@@ -141,7 +146,7 @@ proc fold_alpha { rbegin rend rterm molid } {
 #  r0<r1: rotatable section is C-terminal to bond; by necessity, rot==C
 #  r0>r1: rotatable section is N-terminal to bond; by necessity, rot==N
 #  r0==r1: rotatable section determined by rot
-proc brot { molid r0 r1 angle_name rot deg} {
+proc PestiferCRot::brot { molid r0 r1 angle_name rot deg} {
    set r_prev [expr $r0-1]
    set r_next [expr $r0+1]
    set c_prev -1
@@ -228,7 +233,7 @@ proc brot { molid r0 r1 angle_name rot deg} {
 # of the built residue.  That means, when we use psfgen to build
 # the raw loop from residue i to j inclusive, it is the CA-C bond
 # residue j that is non-natural in length.
-proc Crot_phi { r rend segname molid deg } {
+proc PestiferCRot::Crot_phi { r rend segname molid deg } {
    set rot [atomselect $molid "((residue $r and not name N and not name HN) or (residue > $r and residue < $rend) or (residue $rend and not name C and not name O)) and segname $segname"]; checknum [$rot num] "no rot in Crot_phi";
    set n [atomselect $molid "residue $r and name N"] ; checknum [$n num] "No N in Crot_phi";
    set ca [atomselect $molid "residue $r and name CA"]; checknum [$ca num] "No CA in Crot_phi";
@@ -242,7 +247,7 @@ proc Crot_phi { r rend segname molid deg } {
 }
 
 # same as above, but treats last residue as C-terminus
-proc Crot_phi_toCterm { r rend segname molid deg } {
+proc PestiferCRot::Crot_phi_toCterm { r rend segname molid deg } {
    set rot [atomselect $molid "((residue $r and not name N and not name HN) or (residue > $r and residue <= $rend)) and segname $segname"]; checknum [$rot num] "no rot in Crot_phi";
    set n [atomselect $molid "residue $r and name N"] ; checknum [$n num] "No N in Crot_phi";
    set ca [atomselect $molid "residue $r and name CA"]; checknum [$ca num] "No CA in Crot_phi";
@@ -255,7 +260,7 @@ proc Crot_phi_toCterm { r rend segname molid deg } {
    $n delete
 }
 
-proc Crot_psi { r rend segname molid deg } {
+proc PestiferCRot::Crot_psi { r rend segname molid deg } {
    set rot [atomselect $molid "((residue $r and name O) or (residue > $r and residue < $rend) or (residue $rend and not name C and not name O)) and segname $segname"]; checknum [$rot num] "no rot in Crot_psi";
    set ca [atomselect $molid "residue $r and name CA"]; checknum [$ca num] "No CA in Crot_psi";
    set co [atomselect $molid "residue $r and name C"] ; checknum [$co num] "No C in Crot_psi";
@@ -268,7 +273,7 @@ proc Crot_psi { r rend segname molid deg } {
    $co delete
 }
 
-proc Crot_psi_toCterm { r rend segname molid deg } {
+proc PestiferCRot::Crot_psi_toCterm { r rend segname molid deg } {
    set rot [atomselect $molid "((residue $r and name O) or (residue > $r and residue <= $rend)) and segname $segname"]; checknum [$rot num] "no rot in Crot_psi";
    set ca [atomselect $molid "residue $r and name CA"]; checknum [$ca num] "No CA in Crot_psi";
    set co [atomselect $molid "residue $r and name C"] ; checknum [$co num] "No C in Crot_psi";
@@ -283,7 +288,7 @@ proc Crot_psi_toCterm { r rend segname molid deg } {
 
 # rotate the side chain of global residue r in mol molid around
 # chi1 by deg degrees
-proc SCrot_chi1 { r molid deg } {
+proc PestiferCRot::SCrot_chi1 { r molid deg } {
    set rot [atomselect $molid "residue $r and not name N HN CA CB HA C O"]; checknum [$rot num] "no rot in SCrot_chi1";
    set ca [atomselect $molid "residue $r and name CA"]; checknum [$ca num] "no CA in SCrot_chi1";
    set cb [atomselect $molid "residue $r and name CB"]; checknum [$cb num] "no CB in SCrot_chi1";
@@ -298,7 +303,7 @@ proc SCrot_chi1 { r molid deg } {
 
 # rotate the side chain of residue r of chain c in mol molid around
 # chi2 by deg degrees
-proc SCrot_chi2 { r molid deg } {
+proc PestiferCRot::SCrot_chi2 { r molid deg } {
    set rot [atomselect $molid "residue $r and not name N HN CA CB HA C O HB1 HB2"]; checknum [$rot num] "no rot in SCrot_chi1";
    set cb [atomselect $molid "residue $r and name CB"]; checknum [$cb num] "no CB in SCrot_chi1";
    set cg [atomselect $molid "residue $r and name CG"]; checknum [$cg num] "no CG in SCrot_chi1";
@@ -311,7 +316,7 @@ proc SCrot_chi2 { r molid deg } {
    $cg delete
 }
 
-proc Crot_psi_special { r rend segname molid deg } {
+proc PestiferCRot::Crot_psi_special { r rend segname molid deg } {
    set rot [atomselect $molid "((residue > $r and residue < $rend) or (residue $rend and not name C and not name O)) and segname $segname"]; checknum [$rot num] "no rot in Crot_psi";
    set ca [atomselect $molid "residue $r and name CA"]; checknum [$ca num] "No CA in Crot_psi";
    set co [atomselect $molid "residue $r and name C"] ; checknum [$co num] "No C in Crot_psi";
@@ -327,7 +332,7 @@ proc Crot_psi_special { r rend segname molid deg } {
 # rotates all residues C-terminal to "r" up to and including "rend" 
 # (EXCEPT NOT C or O in rend) around the peptide bond between "r" and
 # "r"+1.
-proc Crot_omega { r rend segname molid deg } {
+proc PestiferCRot::Crot_omega { r rend segname molid deg } {
    set rot [atomselect $molid "((residue > $r and residue < $rend) or (residue $rend and not name C and not name O)) and segname $segname"]; checknum [$rot num] "no rot in Crot_omega";
    set co [atomselect $molid "residue $r and name C"] ; checknum [$co num] "No C in Crot_omega";
    set n [atomselect $molid "residue [expr $r + 1] and name N"] ; checknum [$n num] "No N in Crot_omega";
@@ -344,7 +349,7 @@ proc Crot_omega { r rend segname molid deg } {
 # each phi,psi is 180 deg
 # for alpha helix, phi ~ -60 deg, psi ~ -50
 # Crot angles for phi are -120 and for psi -130
-proc new_alpha { rbegin rend segname molid } {
+proc PestiferCRot::new_alpha { rbegin rend segname molid } {
    for { set r $rbegin } { $r <= $rend } { incr r } {
       # puts "phi/psi of $segname $r to alpha helix"
       Crot_phi_toCterm $r $rend $segname $molid -120

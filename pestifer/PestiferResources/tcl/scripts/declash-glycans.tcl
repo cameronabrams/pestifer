@@ -1,6 +1,10 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
 # A VMD/TcL script to adjust all glycan dihedrals to eliminate steric clashes
+package require PestiferDeclash
+namespace import {
+    PestiferDeclash::*
+}
 set clashdist 2.0
 set maxcycles 100
 set logfilename "declash-glycans.log"
