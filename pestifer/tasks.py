@@ -138,37 +138,50 @@ class BaseTask(BaseMod):
     def coor_to_pdb(self):
         vm=self.writers['vmd']
         vm.newscript(f'{self.basename}-coor2pdb')
-        vm.usescript('namdbin2pdb')
-        vm.writescript()
         psf=self.statevars['psf']
         coor=self.statevars['coor']
-        vm.runscript(psf=psf,coor=coor,pdb=f'{self.basename}.pdb')
+        vm.addline(f'namdbin2pdb {psf} {coor} {self.basename}.pdb')
+        vm.writescript()
+        vm.runscript()
 
     def pdb_to_coor(self):
         vm=self.writers['vmd']
         vm.newscript(f'{self.basename}-pdb2coor')
-        vm.usescript('pdb2namdbin')
-        vm.writescript()
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
-        vm.runscript(psf=psf,pdb=pdb,coor=f'{self.basename}.coor')
+        vm.addline(f'pdb2namdbin {psf} {pdb} {self.basename}.coor')
+        vm.writescript()
+        vm.runscript()
+
+    def check_pierced_rings(self):
+        vm=self.writers['vmd']
+        vm.newscript(f'{self.basename}-piercecheck',packages=['PestiferPierce'])
+        psf=self.statevars['psf']
+        pdb=self.statevars['pdb']
+        vm.addline(f'mol new {psf}')
+        vm.addline(f'mol addfile {pdb} waitfor all')
+        vm.addline(f'check_pierced_rings 0 6 1.5')
+        vm.addline(f'check_pierced_rings 0 5 1.5')
+        vm.writescript()
+        vm.runscript()
 
     def make_constraint_pdb(self,specs,statekey='consref'):
         vm=self.writers['vmd']
         pdb=self.statevars['pdb']
         force_constant=specs.get('k',self.config['user']['namd2']['harmonic']['spring_constant'])
-        vm.newscript(f'{self.basename}-make-constraint-pdb')
-        vm.usescript('make_constraint_pdb')
-        vm.writescript()
+        constrained_atoms_def=','.join(specs['atoms'].split())
         logger.debug(f'constraint spec: {specs["atoms"]}')
         c_pdb=specs.get('consref','')
         if not c_pdb:
             c_pdb=f'{self.basename}-constraints.pdb'
-        vm.runscript(
-            pdb=pdb,
-            refpdb=c_pdb,
-            constrained_atoms_def=','.join(specs['atoms'].split()),
-            force_constant=force_constant)
+        vm.newscript(f'{self.basename}-make-constraint-pdb')
+        vm.addline(f'mol new {pdb}')
+        vm.addline(f'set a [atomselect top all]')
+        vm.addline(f'$a set occupancy 0.0')
+        vm.addline(f'set c [atomselect top "{constrained_atoms_def}"]')
+        vm.addline(f'$c set occupancy {force_constant}')
+        vm.addline(f'$a writepdb {c_pdb}')
+        vm.writescript()
         self.update_statevars(statekey,c_pdb,mode='file')
     
     def inherit_state(self):
@@ -468,7 +481,6 @@ class PsfgenTask(BaseTask):
                         modlist.write_TcL(vm,chainIDmap=transform.chainIDmap)
                     vm.write_pdb(self.basename,'mCM')
                     vm.endscript()
-                    vm.writescript()
                     vm.runscript()
                     self.save_state(exts=['pdb'])
 
@@ -481,7 +493,6 @@ class PsfgenTask(BaseTask):
         pg.describe_molecule(self.base_molecule)
         pg.complete(self.basename)
         pg.endscript()
-        pg.writescript()
         pg.runscript()
         self.save_state(exts=['psf','pdb'])
         self.strip_remarks()
@@ -505,7 +516,6 @@ class PsfgenTask(BaseTask):
         mol.write_loop_lines(vt,cycles=cycles,min_length=specs['min_loop_length'],include_c_termini=specs['declash']['include_C_termini'])
         vt.write_pdb(self.basename,'mLL')
         vt.endscript()
-        vt.writescript()
         vt.runscript()
         self.save_state(exts=['pdb'])
 
@@ -516,29 +526,36 @@ class PsfgenTask(BaseTask):
         if not mol.nglycans() or not cycles:
             return
         self.next_basename('declash-glycans')
+        outpdb=f'{self.basename}.pdb'
         psf=self.statevars['psf']
-        self.write_glycans(f'{self.basename}-gly')
         pdb=self.statevars['pdb']
         vt=self.writers['vmd']
-        vt.newscript(self.basename)
-        vt.usescript('declash-glycans')
-        vt.writescript()
-        logger.debug(f'Declashing glycans...watch {self.basename}-gly.log')
-        vt.runscript(psf=psf,pdb=pdb,o=f'{self.basename}.pdb',maxcycles=cycles,clashdist=clashdist,d=f'{self.basename}-gly.tcl',log=f'{self.basename}-gly.log')
+        vt.newscript(self.basename,packages=['PestiferDeclash'])
+        vt.addline(f'mol new {psf}')
+        vt.addline(f'mol addfile {pdb} waitfor all')
+        vt.addline(f'set a [atomselect top all]')
+        vt.addline(f'set molid [molinfo top get id]')
+        nglycan=self.write_glycans(vt)
+        vt.addline(f'vmdcon -info "Declashing $nglycans glycans; clashdist {clashdist}; maxcycles {cycles}"')
+        vt.addline(r'for {set i 0} {$i<$nglycans} {incr i} {')
+        vt.addline(f'   declash_pendant $molid $glycan_idx($i) $rbonds($i) $movers($i) {cycles} {clashdist}')
+        vt.addline(r'}')
+        vt.addline(f'$a writepdb {outpdb}')
+        vt.endscript()
+        logger.debug(f'Declashing {nglycan} glycans')
+        vt.runscript()
         self.save_state(exts=['pdb'])
 
-    def write_glycans(self,datafile):
+    def write_glycans(self,fw):
         psf=self.statevars['psf']
         logger.debug(f'Injesting {psf}')
         struct=PSFContents(psf)
         logger.debug(f'Making graph structure of glycan atoms...')
         glycanatoms=struct.atoms.filter(segtype='glycan')
         glycangraph=glycanatoms.graph()
-        vt=self.writers['vmd']
-        vt.newscript(datafile)
         G=[glycangraph.subgraph(c).copy() for c in nx.connected_components(glycangraph)]
         logger.debug(f'Preparing declash input for {len(G)} glycans')
-        vt.addline(f'set nglycans {len(G)}')
+        fw.addline(f'set nglycans {len(G)}')
         for i,g in enumerate(G):
             logger.debug(f'Glycan {i} has {len(g)} atoms')
             serials=[x.serial for x in g]
@@ -551,10 +568,10 @@ class PsfgenTask(BaseTask):
                         rp=at.ligands[k]
                         logger.debug(f'-> Atom {str(at)} is the root, bound to atom {str(rp)}')
             indices=' '.join([str(x.serial-1) for x in g])
-            vt.comment(f'Glycan {i}:')
-            vt.addline(f'set glycan_idx({i}) [list {indices}]')
-            vt.addline(f'set rbonds({i}) [list]')
-            vt.addline(f'set movers({i}) [list]')
+            fw.comment(f'Glycan {i}:')
+            fw.addline(f'set glycan_idx({i}) [list {indices}]')
+            fw.addline(f'set rbonds({i}) [list]')
+            fw.addline(f'set movers({i}) [list]')
             for bond in nx.bridges(g):
                 ai,aj=bond
                 if not (ai.isH() or aj.isH()) and not ai.is_pep(aj):
@@ -572,11 +589,11 @@ class PsfgenTask(BaseTask):
                                 mover_serials=[x.serial for x in sg]
                                 mover_indices=" ".join([str(x-1) for x in mover_serials])
                                 logger.debug(f'{str(ai)}--{str(aj)} is a rotatable bridging bond')
-                                vt.addline(f'lappend rbonds({i}) [list {ai.serial-1} {aj.serial-1}]')
+                                fw.addline(f'lappend rbonds({i}) [list {ai.serial-1} {aj.serial-1}]')
                                 logger.debug(f'  -> movers: {" ".join([str(x) for x in sg])}')
-                                vt.addline(f'lappend movers({i}) [list {mover_indices}]')
+                                fw.addline(f'lappend movers({i}) [list {mover_indices}]')
                     g.add_edge(ai,aj)
-        vt.writescript()
+        return len(G)
 
     def injest_molecules(self):
         specs=self.specs
@@ -677,7 +694,7 @@ class DomainSwapTask(MDTask):
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
         vm.usescript('domainswap')
-        vm.writescript()
+        vm.endscript()
         vm.runscript(
             psf=psf,
             pdb=pdb,
@@ -723,18 +740,19 @@ class LigateTask(MDTask):
         self.update_statevars('data',datafile,vtype='file')
 
     def measure_distances(self,specs):
-        receiver_flexible_zone_radius=specs['receiver_flexible_zone_radius']
         comment_chars='#!$'
         self.next_basename('measure')
-        resultsfile=f'{self.basename}.dat'
         vm=self.writers['vmd']
         vm.newscript(self.basename)
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
-        vm.usescript('measure_bonds')
-        vm.writescript()
         datafile=self.statevars['data']
-        vm.runscript(psf=psf,pdb=pdb,i=datafile,opdb=f'{self.basename}.pdb',o=resultsfile,rfzr=receiver_flexible_zone_radius)
+        opdb=f'{self.basename}.pdb'
+        receiver_flexible_zone_radius=specs.get('receiver_flexible_zone_radius',0.0)
+        resultsfile=f'{self.basename}.dat'
+        vm.addline(f'measure_bonds {psf} {pdb} {datafile} {opdb} {resultsfile} {receiver_flexible_zone_radius} ')
+        vm.writescript()
+        vm.runscript()
         self.update_statevars('fixedref',f'{self.basename}.pdb',vtype='file')
         self.update_statevars('results',resultsfile,vtype='file')
         with open(resultsfile,'r') as f:
@@ -793,15 +811,17 @@ class LigateTask(MDTask):
         self.next_basename('heal')
         pg=self.writers['psfgen']
         pg.newscript(self.basename)
-        pg.topo_aliases()
+        # pg.topo_aliases()
         topfile=os.path.join(self.config.charmmff_custom_path,'mylink.top')
         pg.addline(f'topology {topfile}')
-        pg.usescript('loop_closure')
-        pg.writescript()
+        # pg.usescript('loop_closure')
         patchfile=self.statevars['data']
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
-        pg.runscript(psf=psf,pdb=pdb,p=patchfile,o=self.basename)
+        pg.load_project(self,psf,pdb)
+        pg.addline(f'source {patchfile}')
+        pg.writescript(self.basename,guesscoord=True,regenerate=True)
+        pg.runscript()
         self.save_state(exts=['psf','pdb'])
 
 class SolvateTask(BaseTask):
@@ -931,8 +951,7 @@ class PackmolMemgenTask(BaseTask):
     Methods
     -------
     do(): 
-        Based on specs, reads in input PDB/mmCIF file, generates parsed Molecule instances, generates
-        the psfgen script, and executes VMD to perform the psfgen run.
+        Based on specs, executes packmol-memgen
 
     """
     yaml_header='packmol_memgen'

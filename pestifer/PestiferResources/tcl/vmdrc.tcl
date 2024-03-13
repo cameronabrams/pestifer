@@ -1,10 +1,13 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 #
-# General VMD startup script for pestifer
+# General VMD startup script for pestifer-managed VMD sessions or
+# VMD sessions in initiated with the statement
 #
-# This name of this file is set to the vmd_startup_script attribute
-# of the Config instance of a pestifer run, by default (config.py)
+# source [pestifer_init]
 #
+# and run in a conda environment in which pestifer is installed
+# 
+
 set PESTIFER_TCLROOT "."
 set quiet 1
 for { set a 0 } { $a < [llength $argv] } { incr a } {
@@ -26,24 +29,18 @@ if {$PESTIFER_TCLROOT=="."} {
   }
 }
 
+# set up package path
 set PESTIFER_TCLPKG ${PESTIFER_TCLROOT}/pkg
 set packages [glob -type d $PESTIFER_TCLPKG]
 foreach pkg $packages {
   lappend auto_path $pkg
 }
 
+# import the PestiferUtil general purpose package
 package require PestiferUtil
 namespace import PestiferUtil::*
 
-# these should all be put into packages
-
-set PESTIFER_TCLPROC ${PESTIFER_TCLROOT}/proc
-
-set sources [glob "${PESTIFER_TCLPROC}/*.tcl"]
-
-foreach s $sources {
-  source $s
-  if {$quiet == 0} {
-    vmdcon -info "Sourcing $s"
-  }
+# source the current atomselect macro definitions
+if {[file exists ${PESTIFER_TCLROOT}/macros.tcl]} {
+  source ${PESTIFER_TCLROOT}/macros.tcl
 }

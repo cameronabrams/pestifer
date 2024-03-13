@@ -14,6 +14,7 @@ from .stringthings import ByteCollector, FileCollector, my_logger
 class Filewriter:
     def __init__(self):
         self.B=ByteCollector()
+        self.is_written=False
 
     def newfile(self,filename):
         self.filename=filename
@@ -32,9 +33,13 @@ class Filewriter:
     def comment(self,data):
         self.B.comment(data)
 
-    def writefile(self):
-        with open(self.filename,'w') as f:
-            f.write(str(self.B))
+    def writefile(self,force=False):
+        if not self.is_written or force:
+            with open(self.filename,'w') as f:
+                f.write(str(self.B))
+            self.is_written=True
+        else:
+            logger.debug(f'{self.filename} has already been written')
 
 class Scriptwriter(Filewriter):
     def __init__(self):
@@ -70,14 +75,10 @@ class VMD(Scriptwriter):
         self.tcl_proc_path=config.tcl_proc_path
         self.tcl_script_path=config.tcl_script_path
         self.vmd_startup=config.vmd_startup_script
-        self.defaultTcLpackages=['SavRes']
 
     def newscript(self,basename=None,packages=[]):
         super().newscript(basename=basename)
-        self.packages=self.defaultTcLpackages.copy()
-        for p in packages:
-            if not p in self.packages:
-                self.packages.append(p)
+        self.packages=packages
         for p in self.packages:
             self.addline(f'package require {p}')
             self.addline(f'namespace import {p}::*')
@@ -96,10 +97,12 @@ class VMD(Scriptwriter):
         if add_banners:
             self.banner(f'End {scriptbasename}')
 
-    def endscript(self):
-        self.addline('exit')
+    def writescript(self):
+        if not self.has_statement('exit'):
+            self.addline('exit')
         self.banner(f'END {__package__.upper()} VMD SCRIPT')
         self.banner(f'Thank you for using {__package__}!')
+        super().writescript()
 
     def set_molecule(self,mol,altcoords=None):
         mol.molid_varname=f'm{mol.molid}'
@@ -140,10 +143,10 @@ class VMD(Scriptwriter):
                 residlist=' '.join(resids)
                 serials=chain.atom_serials(as_type=int)
                 vmd_red_list=reduce_intlist(serials)
-                self.addline(f'set a [atomselect ${mol.molid_varname} "serial {vmd_red_list}"]')
-                self.addline(f'$a set chain {c}')
-                self.addline(f'$a set resid [ list {residlist} ]')
-                self.addline(f'$a delete')
+                self.addline(f'set TMP [atomselect ${mol.molid_varname} "serial {vmd_red_list}"]')
+                self.addline(f'$TMP set chain {c}')
+                self.addline(f'$TMP set resid [ list {residlist} ]')
+                self.addline(f'$TMP delete')
             self.comment('Done.')
 
     def backup_selection(self,selname,dataholder='data',attributes=['chain','x','y','z','resid','resname','name']):
@@ -165,15 +168,16 @@ class VMD(Scriptwriter):
         self.molid_varname=new_molid_varname
 
     def write_pdb(self,basename,molid_varname):
-        self.addline(f'set X [atomselect ${molid_varname} all]')
-        self.addline(f'$X writepdb {basename}.pdb')
+        self.addline(f'set TMP [atomselect ${molid_varname} all]')
+        self.addline(f'$TMP writepdb {basename}.pdb')
+        self.addline(f'$TMP delete')
 
     def center_molecule(self,mol):
         self.banner('Centering molecule')
-        self.addline(f'set a [atomselect ${mol.molid_varname} all]')
-        self.addline(f'set or [measure center $a weight mass]')
-        self.addline(f'$a moveby [vescale -i $or]')
-        self.addline(f'$a delete')
+        self.addline(f'set TMP [atomselect ${mol.molid_varname} all]')
+        self.addline(f'set or [measure center $TMP weight mass]')
+        self.addline(f'$TMP moveby [vescale -1 $or]')
+        self.addline(f'$TMP delete')
 
     # def reset_molecule_orientation(self,mol,specs):
     #     selspec=specs.get('selspec',{})
@@ -235,8 +239,6 @@ class Psfgen(VMD):
         super().newscript(basename=basename,packages=packages)
         self.addline('package require psfgen')
         self.addline('psfcontext mixedcase')
-
-    def topo_aliases(self):
         for t in self.charmmff_config['standard']['topologies']:
             ft=os.path.join(self.pestifer_charmmff_toppar_path,t)
             self.addline(f'topology {ft}')
@@ -247,6 +249,10 @@ class Psfgen(VMD):
             self.addline(f'pdbalias {pdba}')
 
     def atomselect_macros(self):
+        """Converts all resnames in the base config by segtype into updated atomselect macros
+        This is usually only done one time, or whenever developer updates base config
+        The command 'inittcl' is the only way this method is ever called
+        """
         for segtypename,segtyperec in self.psfgen_config['segtypes'].items():
             logger.debug(f'Searching base record of segtype {segtypename} for resname atomselect macro')
             logger.debug(', '.join(segtyperec.keys()))
@@ -267,13 +273,16 @@ class Psfgen(VMD):
         self.addline(f'mol top ${self.molid_varname}')
         mol.write_TcL(self)
 
-    def complete(self,statename):
-        self.addline('guesscoord')
-        self.addline('regenerate angles dihedrals')
+    def writescript(self,statename,guesscoord=True,regenerate=True):
+        if guesscoord:
+            self.addline('guesscoord')
+        if regenerate:
+            self.addline('regenerate angles dihedrals')
         psf=f'{statename}.psf'
         pdb=f'{statename}.pdb'
         self.addline(f'writepsf cmap {psf}')
         self.addline(f'writepdb {pdb}')
+        super().writescript()
 
 class NAMD2(Scriptwriter):
     def __init__(self,config):

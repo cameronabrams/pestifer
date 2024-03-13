@@ -1,6 +1,10 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 #
+package provide PestiferPierce 1.0
 
+namespace eval ::PestiferPierce:: {
+    namespace export *
+}
 # Check for pierced rings
 #
 # Parameters
@@ -8,7 +12,7 @@
 # molid - the molecule id
 # ringsize - desired ringsize for identifying rings
 # TOL - tolerance in A
-proc check_pierced_rings { molid ringsize TOL } {
+proc PestiferPierce::check_pierced_rings { molid ringsize TOL } {
   # select all atoms in rings
   set r6 [atomselect $molid "ringsize $ringsize from all"]
   set r6i [$r6 get index]

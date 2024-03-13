@@ -16,7 +16,7 @@ res_321={}
 res_123={}
 
 class ResourceManager(UserDict):
-    excludes=['__pycache__','_archive','bash']
+    excludes=['__pycache__','_archive','bash'] # exclude from top-level resources
     def __init__(self):
         data={}
         data['root']=os.path.dirname(PestiferResources.__file__)

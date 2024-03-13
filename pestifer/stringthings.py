@@ -107,6 +107,41 @@ class ByteCollector:
         """
         self.byte_collector+=f'{msg}{end}'
 
+    def lastline(self,end='\n',exclude='#'):
+        """Returns last line in the string
+        
+        Parameters
+        ----------
+        end: str, optional
+            end-of-line byte
+        exclude: str, optional
+            comment byte
+        """
+        lines=[x for x in self.byte_collector.split(end) if (len(x)>0 and not x.startswith(exclude))]
+        if len(lines)>0:
+            return lines[-1]
+        else:
+            return None
+    
+    def has_statement(self,statement,end='\n',exclude='#'):
+        """Determines if a particular statement is on at least one non-comment line
+        
+        Parameters
+        ----------
+        statement: str
+            the statement; e.g., 'exit'
+        end: str, optional
+            end-of-line byte
+        exclude: str, optional
+            comment byte
+        """
+        lines=[x for x in self.byte_collector.split(end) if (len(x)>0 and not x.startswith(exclude))]
+        if len(lines)>0:
+            for l in lines:
+                if statement in l:
+                    return True
+        return False
+    
     def injest_file(self,filename):
         """Appends contents of file 'filename' to the string
         

@@ -3,6 +3,14 @@
 # procedures for computing geometrical features of multimers
 #
 #
+package provide PestiferMultimer 1.0
+
+namespace eval ::PestiferMultimer:: {
+    namespace export *
+}
+
+
+
 # Compute and return geometric center of a collection of points
 proc centroid { points } {
     set C {0 0 0}
@@ -21,12 +29,12 @@ proc centroid { points } {
 # vertex_list : list of points (VMD vectors)
 # Returns:
 # vector of angles in radians
-proc sector_angles { vertex_list } {
+proc PestiferMultimer::sector_angles { vertex_list } {
     set C [centroid $vertex_list]
     set Cx [list]
     foreach p $vertex_list {
         set this_pC [vecsub $p $C]
-        lappend Cx [vecscale $this_pC [expr 1.0/[veclength $this_pC]]]
+        lappend Cx [vecnorm $this_pC]
     }
     set ang_list [list]
     set N [llength $vertex_list]
@@ -45,16 +53,16 @@ proc sector_angles { vertex_list } {
     return $ang_list
 }
 
-proc opening_angles { sel_list } {
+proc PestiferMultimer::opening_angles { sel_list } {
     set pi [expr acos(-1.0)]
     set points [list]
     foreach sel $sel_list {
         lappend points [measure center $sel]
     }
-    return [vecscale [sector_angles $points] [expr 180.0/$pi]]
+    return [vecscale [PestiferMultimer::sector_angles $points] [expr 180.0/$pi]]
 }
 
-proc opening_angles_trace { molid selstrings {ignoreH 1} } {
+proc PestiferMultimer::opening_angles_trace { molid selstrings {ignoreH 1} } {
     set sel_list [list]
     foreach selstr $selstrings {
         if { $ignoreH == 1 } {
@@ -69,13 +77,13 @@ proc opening_angles_trace { molid selstrings {ignoreH 1} } {
         foreach s $sel_list {
             $s frame $i
         }
-        set angles [opening_angles $sel_list]
+        set angles [PestiferMultimer::opening_angles $sel_list]
         lappend results $angles
     }
     return $results
 }
 
-proc rotation_matrices_trace { molid selstrings {ignoreH 1} } {
+proc PestiferMultimer::rotation_matrices_trace { molid selstrings {ignoreH 1} } {
     set sel_list [list]
     foreach selstr $selstrings {
         if { $ignoreH == 1 } {
@@ -90,15 +98,14 @@ proc rotation_matrices_trace { molid selstrings {ignoreH 1} } {
         foreach s $sel_list {
             $s frame $i
         }
-        set rotmats [rotation_matrices $sel_list]
+        set rotmats [PestiferMultimer::rotation_matrices $sel_list]
         lappend results [regsub -all "\{|\}" $rotmats ""]
     }
     return $results
 }
 
-proc rotation_matrices { sel_list } {
+proc PestiferMultimer::rotation_matrices { sel_list } {
     set pi [expr acos(-1.0)]
-    # set angles [list]
     set rotmats [list]
     for { set i 0 } { $i < [llength $sel_list] } { incr i } {
         if { [expr $i + 1] == [llength $sel_list] } {
@@ -116,9 +123,7 @@ proc rotation_matrices { sel_list } {
             set r33 [list [lrange [lindex $tmat 0] 0 2] [lrange [lindex $tmat 1] 0 2] [lrange [lindex $tmat 2] 0 2] ]
             set fl_r33 [regsub -all "\{|\}" $r33 ""]
             lappend rotmats $fl_r33
-            # lappend angles [expr acos($cosTheta)*180.0/$pi]
         }
     }
-    # return $angles
     return $rotmats
 }

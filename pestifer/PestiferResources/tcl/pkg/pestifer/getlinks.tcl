@@ -1,8 +1,14 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 #
-# Use VMD to detect glycan-based linkages
+# Use VMD to detect glycan-based linkages and SS bonds; output them in YAML format for a pestifer input file
 #
-proc getssbonds { molid } {
+package provide PestiferGetLinks 1.0
+
+namespace eval ::PestiferGetLinks:: {
+    namespace export *
+}
+
+proc PestiferGetLinks::getssbonds { molid } {
     set sg [atomselect $molid "name SG"]
     set sg_ndx [$sg get index]
     set sg_ch [$sg get chain]
@@ -45,7 +51,7 @@ proc getssbonds { molid } {
     return $ssbonds
 }
 
-proc getlinks { molid } {
+proc PestiferGetLinks::getlinks { molid } {
     set gc1 [atomselect $molid "glycan and name C1"]
     set gc1_ndx [$gc1 get index]
     set gc1_ch [$gc1 get chain]

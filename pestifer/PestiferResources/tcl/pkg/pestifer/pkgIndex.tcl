@@ -8,7 +8,10 @@
 # script is sourced, the variable $dir must contain the
 # full path name of this file's directory.
 
-package ifneeded SavRes 1.0 [list source [file join $dir savres.tcl]]
 package ifneeded PestiferUtil 1.0 [list source [file join $dir util.tcl]]
 package ifneeded PestiferCRot 1.0 [list source [file join $dir crot.tcl]]
 package ifneeded PestiferDeclash 1.0 [list source [file join $dir declash.tcl]]
+package ifneeded PestiferAUTools 1.0 [list source [file join $dir autools.tcl]]
+package ifneeded PestiferGetLinks 1.0 [list source [file join $dir getlinks.tcl]]
+package ifneeded PestiferMultimer 1.0 [list source [file join $dir multimer.tcl]]
+package ifneeded PestiferPierce 1.0 [list source [file join $dir checkpierce.tcl]]

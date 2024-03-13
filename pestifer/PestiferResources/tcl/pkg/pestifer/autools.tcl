@@ -1,4 +1,9 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
+package provide PestiferAUTools 1.0
+
+namespace eval ::PestiferAUTools:: {
+    namespace export *
+}
 
 proc format_tmat { tmat biomtnum } {
     set result [list]
@@ -50,7 +55,7 @@ proc format_tmat { tmat biomtnum } {
 #   and the file "my_au.pdb" will contain the BIOMT transformations
 #   in REMARK 350 records and all atoms for chain A, B.
 #
-proc make_au_from_aligning { molid protomer_chains resids outpdb } {
+proc PestiferAUTools::make_au_from_aligning { molid protomer_chains resids outpdb } {
     set tmats [list]
     set c1 [lindex $protomer_chains 0]
     set savepdb [atomselect $molid "(protein or glycan) and chain $c1"]
@@ -88,7 +93,7 @@ proc make_au_from_aligning { molid protomer_chains resids outpdb } {
     file delete tmp.pdb autmp.pdb
 }
 
-proc overlay_protomers { molid protomer_chains resids } {
+proc PestiferAUTools::overlay_protomers { molid protomer_chains resids } {
     set c1 [lindex $protomer_chains 0]
     set r_p1 [atomselect $molid "(protein or glycan) and chain $c1 and resid $resids"]
     set rmsd [list]
