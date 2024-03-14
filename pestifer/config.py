@@ -47,28 +47,41 @@ class Config(Yclept):
         logger.info(f'pidibble {__pidibble_version__}')
         r=ResourceManager()
         logger.debug(f'Resources {r}')
+        # resolve full pathname of YCleptic base config for this application
         basefile=os.path.join(r['config'],'base.yaml')
+        assert os.path.exists(basefile)
         super().__init__(basefile,userfile=userfile)
+
         self['Resources']=r
         self['Conda']=CondaCheck()
         my_logger(self['Conda'].info(),logger.info,just='<',frame='*',fill='')
         self._set_shortcuts()
 
     def _set_shortcuts(self):
+
         self.namd2=self['user']['paths']['namd2']
+        assert os.access(self.namd2,os.X_OK)
         self.charmrun=self['user']['paths']['charmrun']
+        assert os.access(self.charmrun,os.X_OK)
         self.vmd=self['user']['paths']['vmd']
-        # self.tcl_path=self['Resources']['tcl']
+        assert os.access(self.vmd,os.X_OK)
+
         self.tcl_root=os.path.join(self['Resources']['root'],'tcl')
+        assert os.path.exists(self.tcl_root)
         self.tcl_pkg_path=self['Resources']['tcl']['pkg']
-        self.tcl_proc_path=self['Resources']['tcl']['proc']
+        assert os.path.exists(self.tcl_pkg_path)
         self.tcl_script_path=self['Resources']['tcl']['scripts']
-        self.vmd_startup_script=os.path.join(self.tcl_script_path,'pestifer-vmd.tcl')
+        assert os.path.exists(self.tcl_script_path)
+        self.vmd_startup_script=os.path.join(self.tcl_root,'vmdrc.tcl')
+        assert os.path.exists(self.vmd_startup_script)
         self.charmmff_toppar_path=self['Resources']['charmmff']['toppar']
+        assert os.path.exists(self.charmmff_toppar_path)
         self.charmmff_custom_path=self['Resources']['charmmff']['custom']
+        assert os.path.exists(self.charmmff_custom_path)
         self.user_charmmff_toppar_path=''
         if hasattr(self,'user'):
             self.user_charmmff_toppar_path=os.path.join(self['user']['charmff'],'toppar')
+            assert os.path.exists(self.user_charmmff_toppar_path)
         self.namd2_config_defaults=self['user']['namd2']
         self.segtypes=self['user']['psfgen']['segtypes']
         for stn,stspec in self.segtypes.items():

@@ -184,7 +184,7 @@ proc PestiferUtil::restore { atomsel attributes data } {
 
 proc PestiferUtil::namdbin2pdb { psf coor pdb } {
    mol new $psf
-   mol addfile $namdbin waitfor all
+   mol addfile $coor waitfor all
    set a [atomselect top all]
    $a writepdb $pdb
 }
@@ -273,9 +273,9 @@ proc PestiferUtil::measure_bonds { psf coor infile fixedpdb outfile rfzr } {
     vmdcon -info "NN $NN"
 
     set fp [open $outfile "w"]
-    vmdcon -info $fp "# segname c-serial n-serial distance(A)"
+    puts $fp "# segname c-serial n-serial distance(A)"
     foreach s $SEG i $CC j $NN b $bl {
-        vmdcon -info $fp "$s $i $j [format %.4f $b]"
+        puts $fp "$s $i $j [format %.4f $b]"
     }
     close $fp
     $a writepdb $fixedpdb

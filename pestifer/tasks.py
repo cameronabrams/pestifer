@@ -27,9 +27,10 @@ from .psf import PSFContents
 import networkx as nx
 import pandas as pd
 import matplotlib.pyplot as plt 
-import matplotlib.cm as cm
+# import matplotlib.cm as cm
 from scipy.constants import physical_constants
-from itertools import product
+# from itertools import product
+
 g_per_amu=physical_constants['atomic mass constant'][0]*1000
 A_per_cm=1.e8
 A3_per_cm3=A_per_cm**3
@@ -75,10 +76,9 @@ class BaseTask(BaseMod):
         file from an existing psf and PDB file.
     
     `make_constraint_pdb(dict)`: 
-        Generates and executes a VMD script (based on the built-in
-        make_constraint_pdb script) that generates a PDB file with 
-        the appropriate attribute-tagging based on the directives in 
-        the input dict.
+        Generates and executes a VMD script that generates a PDB file 
+        with the appropriate attribute-tagging based on the directives 
+        in the input dict.
 
     `inherit_state()`: 
         copies the statevar dict from the previous task onto this
@@ -94,7 +94,6 @@ class BaseTask(BaseMod):
     """
     req_attr=BaseMod.req_attr+['specs','config','index','prior','writers','taskname']
     yaml_header='generic_task'
-    # exts=['.psf','.pdb','.coor','.xsc'] # extensions of files that can be transferred from one task to the next
     _taskcount=0
 
     def __init__(self,input_dict,taskname,config,writers,prior):
@@ -246,6 +245,11 @@ class MDTask(BaseTask):
     `do()`:
         Inherits state and performs namd2 run based on specs; updates run state
 
+    `copy_charmmpar_local()`:abbr:
+        Copies all charmm parameter files from pestifer's resource library to
+        the current working directory; returns the list of file names that
+        were copied
+
     `namd2run()`: 
         Generates the NAMD2 config file based on specs and then executes NAMD2
 
@@ -382,6 +386,8 @@ class MDTask(BaseTask):
         return params
 
 class MDPlotTask(BaseTask):
+    """ A class for making plots of energy-like quantities from a series of one or more NAMD 
+        runs """
     yaml_header='mdplot'
     def do(self):
         self.log_message('initiated')
@@ -392,7 +398,7 @@ class MDPlotTask(BaseTask):
             if hasattr(root.prior,'mdlog'):
                 datasources.append(root.prior.mdlog.edata)
             root=root.prior
-        logger.debug(f'concatenating energy-like data from {len(datasources)} logs')
+        logger.debug(f'concatenating energy-like data from {len(datasources)} sequential logs')
         data=pd.concat(datasources[::-1])
         savedata=self.specs.get('savedata',None)
         if savedata:
@@ -480,7 +486,7 @@ class PsfgenTask(BaseTask):
                     for transform in ba.transforms:
                         modlist.write_TcL(vm,chainIDmap=transform.chainIDmap)
                     vm.write_pdb(self.basename,'mCM')
-                    vm.endscript()
+                    vm.writescript()
                     vm.runscript()
                     self.save_state(exts=['pdb'])
 
@@ -488,11 +494,9 @@ class PsfgenTask(BaseTask):
         self.next_basename('build')
         pg=self.writers['psfgen']
         pg.newscript(self.basename,packages=['PestiferCRot'])
-        pg.topo_aliases()
         pg.set_molecule(self.base_molecule,altcoords=self.specs.get('source',{}).get('altcoords',None))
         pg.describe_molecule(self.base_molecule)
-        pg.complete(self.basename)
-        pg.endscript()
+        pg.writescript(self.basename)
         pg.runscript()
         self.save_state(exts=['psf','pdb'])
         self.strip_remarks()
@@ -506,6 +510,7 @@ class PsfgenTask(BaseTask):
         mol=self.base_molecule
         cycles=specs['declash']['maxcycles']
         if not mol.has_loops() or not cycles:
+            logger.debug(f'Loop declashing is intentionally not done.')
             return
         self.next_basename('declash-loops')
         vt=self.writers['vmd']
@@ -515,7 +520,7 @@ class PsfgenTask(BaseTask):
         vt.load_psf_pdb(psf,pdb,new_molid_varname='mLL')
         mol.write_loop_lines(vt,cycles=cycles,min_length=specs['min_loop_length'],include_c_termini=specs['declash']['include_C_termini'])
         vt.write_pdb(self.basename,'mLL')
-        vt.endscript()
+        vt.writescript()
         vt.runscript()
         self.save_state(exts=['pdb'])
 
@@ -524,6 +529,7 @@ class PsfgenTask(BaseTask):
         cycles=specs['declash']['maxcycles']
         clashdist=specs['declash']['clashdist']
         if not mol.nglycans() or not cycles:
+            logger.debug(f'Glycan declashing is intentionally not done.')
             return
         self.next_basename('declash-glycans')
         outpdb=f'{self.basename}.pdb'
@@ -535,21 +541,21 @@ class PsfgenTask(BaseTask):
         vt.addline(f'mol addfile {pdb} waitfor all')
         vt.addline(f'set a [atomselect top all]')
         vt.addline(f'set molid [molinfo top get id]')
-        nglycan=self.write_glycans(vt)
+        nglycan=self._write_glycans(vt)
         vt.addline(f'vmdcon -info "Declashing $nglycans glycans; clashdist {clashdist}; maxcycles {cycles}"')
         vt.addline(r'for {set i 0} {$i<$nglycans} {incr i} {')
         vt.addline(f'   declash_pendant $molid $glycan_idx($i) $rbonds($i) $movers($i) {cycles} {clashdist}')
         vt.addline(r'}')
         vt.addline(f'$a writepdb {outpdb}')
-        vt.endscript()
+        vt.writescript()
         logger.debug(f'Declashing {nglycan} glycans')
         vt.runscript()
         self.save_state(exts=['pdb'])
 
-    def write_glycans(self,fw):
+    def _write_glycans(self,fw):
         psf=self.statevars['psf']
         logger.debug(f'Injesting {psf}')
-        struct=PSFContents(psf)
+        struct=PSFContents(psf,parse_topology=True)
         logger.debug(f'Making graph structure of glycan atoms...')
         glycanatoms=struct.atoms.filter(segtype='glycan')
         glycangraph=glycanatoms.graph()
@@ -560,7 +566,6 @@ class PsfgenTask(BaseTask):
             logger.debug(f'Glycan {i} has {len(g)} atoms')
             serials=[x.serial for x in g]
             for at in g:
-                at.is_root=False
                 lig_ser=[x.serial for x in at.ligands]
                 for k,ls in enumerate(lig_ser):
                     if not ls in serials:
@@ -579,7 +584,7 @@ class PsfgenTask(BaseTask):
                     S=[g.subgraph(c).copy() for c in nx.connected_components(g)]
                     assert len(S)==2,f'Bond {ai.serial-1}-{aj.serial-1} when cut makes more than 2 components'
                     for sg in S:
-                        is_root=any([x.is_root for x in sg])
+                        is_root=any([hasattr(x,'is_root') for x in sg])
                         if not is_root:
                             if ai in sg:
                                 sg.remove_node(ai)
@@ -694,7 +699,7 @@ class DomainSwapTask(MDTask):
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
         vm.usescript('domainswap')
-        vm.endscript()
+        vm.writescript()
         vm.runscript(
             psf=psf,
             pdb=pdb,
@@ -818,7 +823,7 @@ class LigateTask(MDTask):
         patchfile=self.statevars['data']
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
-        pg.load_project(self,psf,pdb)
+        pg.load_project(psf,pdb)
         pg.addline(f'source {patchfile}')
         pg.writescript(self.basename,guesscoord=True,regenerate=True)
         pg.runscript()
@@ -869,7 +874,6 @@ class ManipulateTask(BaseTask):
                 vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
                 modlist.write_TcL(vm)
                 vm.write_pdb(self.basename,'mCM')
-                vm.endscript()
                 vm.writescript()
                 vm.runscript()
                 self.save_state(exts=['pdb'])

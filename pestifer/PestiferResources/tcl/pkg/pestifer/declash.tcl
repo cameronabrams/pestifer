@@ -5,7 +5,8 @@ package provide PestiferDeclash 1.0
 namespace eval ::PestiferDeclash:: {
     namespace export *
 }
-
+package require PestiferCRot
+namespace import PestiferCRot::*
 #
 # A very simple Metropolis algorithm to alter conformation of raw model-built
 # protein gap loops to minimize clashes

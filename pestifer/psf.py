@@ -35,6 +35,7 @@ class PSFAtom(AncestorAwareMod):
         if len(segtype_of_resname)==0:
             c=Config()
         self.segtype=segtype_of_resname[self.resname]
+        logger.debug(f'Assigned segtype {self.segtype} to PSFAtom serial {self.serial}')
     
     def __hash__(self):
         return self.serial
@@ -60,6 +61,9 @@ class PSFAtom(AncestorAwareMod):
         if not other in self.ligands:
             self.ligands.append(other)
 
+    def add_attr(self,attrname,attrval):
+        self.__dict__[attrname]=attrval
+
 class PSFAtomList(AncestorAwareModList):
     @singledispatchmethod
     def __init__(self,input_obj):
@@ -71,6 +75,10 @@ class PSFAtomList(AncestorAwareModList):
         for line in lines:
             A.append(PSFAtom(line))
         super().__init__(A)
+
+    def add_attr(self,attrname,attrval):
+        for item in self:
+            item.add_attr(attrname,attrval)
 
     def graph(self):
         g=nx.Graph()

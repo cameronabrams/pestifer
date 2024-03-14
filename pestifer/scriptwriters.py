@@ -19,6 +19,7 @@ class Filewriter:
     def newfile(self,filename):
         self.filename=filename
         self.B.reset()
+        self.is_written=False
         return self
 
     def injest_file(self,filename):
@@ -32,6 +33,9 @@ class Filewriter:
 
     def comment(self,data):
         self.B.comment(data)
+
+    def has_statement(self,statement):
+        return self.B.has_statement(statement)
 
     def writefile(self,force=False):
         if not self.is_written or force:
@@ -72,7 +76,7 @@ class VMD(Scriptwriter):
         self.config=config
         self.vmd=config.vmd
         self.tcl_root=config.tcl_root
-        self.tcl_proc_path=config.tcl_proc_path
+        self.tcl_pkg_path=config.tcl_pkg_path
         self.tcl_script_path=config.tcl_script_path
         self.vmd_startup=config.vmd_startup_script
 
@@ -96,6 +100,9 @@ class VMD(Scriptwriter):
         self.injest_file(scriptname)
         if add_banners:
             self.banner(f'End {scriptbasename}')
+
+    # def has_statement(self,statement):
+    #     return super().has_statement(statement)
 
     def writescript(self):
         if not self.has_statement('exit'):
@@ -261,6 +268,9 @@ class Psfgen(VMD):
                 self.addline(f'update_atomselect_macro {segtypename} "{new_macro}" 0')
 
     def load_project(self,*objs):
+        logger.debug(f'load_project called with {len(objs)} arguments')
+        for _ in objs:
+            logger.debug(f'   {_}')
         if len(objs)==1:
             basename=objs[0]
             self.addline(f'readpsf {basename}.psf pdb {basename}.pdb')
