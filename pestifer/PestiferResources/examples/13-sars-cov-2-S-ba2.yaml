@@ -1,0 +1,123 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+# 
+# BA.2 SARS-CoV-2 Spike
+#
+# Notes:
+#   - Glycans are grafted from prototypical structures
+#   - Chains are cleaved at the furin cleavage sites
+#
+title: BA.2 SARS-CoV-2 Spike
+tasks:
+  - psfgen:
+      source:
+        id: 7xix
+        file_format: PDB
+        biological_assembly: 1
+        sequence:
+          loops:
+            declash:
+              maxcycles: 20
+          glycans:
+            declash:
+              maxcycles: 500
+      mods:
+        grafts:
+          - A_1304:4b7i,C_1-8 # 61
+          - B_1304:4b7i,C_1-8
+          - C_1304:4b7i,C_1-8
+          - A_1305:4b7i,C_1-8 # 122
+          - B_1305:4b7i,C_1-8
+          - C_1305:4b7i,C_1-8
+          - A_1306:4b7i,C_1-8 # 165
+          - B_1306:4b7i,C_1-8 # 165
+          - C_1306:4b7i,C_1-8 # 165
+          - A_1301:2wah,C_1-9 # 234
+          - B_1301:2wah,C_1-9 # 234
+          - C_1301:2wah,C_1-9 # 234
+          - A_1307:4byh,C_1-10 # 282
+          - B_1307:4byh,C_1-10 # 282
+          - C_1307:4byh,C_1-10 # 282
+          - A_1302:4byh,C_1-10 # 331
+          - B_1302:4byh,C_1-10 # 331
+          - C_1302:4byh,C_1-10 # 331
+          - A_1303:4byh,C_1-10 # 343
+          - B_1303:4byh,C_1-10 # 343
+          - C_1303:4byh,C_1-10 # 343
+          - A_1308:4b7i,C_1-8 # 603
+          - B_1308:4b7i,C_1-8 # 603
+          - C_1308:4b7i,C_1-8 # 603
+          - D_1-2:4byh,C_1#2-10 # 616
+          - J_1-2:4byh,C_1#2-10 # 616
+          - P_1-2:4byh,C_1#2-10 # 616
+          - A_1309:4b7i,C_1-8 # 657
+          - B_1309:4b7i,C_1-8 # 657
+          - C_1309:4b7i,C_1-8 # 657
+          - E_1-2:2wah,C_1#2-9 # 709
+          - K_1-2:2wah,C_1#2-9 # 709
+          - Q_1-2:2wah,C_1#2-9 # 709
+          - F_1-2:4b7i,C_1#2-8 # 717
+          - L_1-2:4b7i,C_1#2-8 # 717
+          - R_1-2:4b7i,C_1#2-8 # 717
+          - G_1-2:2wah,C_1#2-9 # 801
+          - M_1-2:2wah,C_1#2-9 # 801
+          - S_1-2:2wah,C_1#2-9 # 801
+          - A_1310:4b7i,C_1-8 # 1074
+          - B_1310:4b7i,C_1-8 # 1074
+          - C_1310:4b7i,C_1-8 # 1074
+          - H_1-2:4byh,C_1#2-10 # 1098
+          - N_1-2:4byh,C_1#2-10 # 1098
+          - T_1-2:4byh,C_1#2-10 # 1098
+          - I_1-2:2wah,C_1#2-9 # 1134
+          - O_1-2:2wah,C_1#2-9 # 1134
+          - U_1-2:2wah,C_1#2-9 # 1134
+  - md:
+      ensemble: minimize
+  - ligate:
+      steer:
+        nsteps: 4000
+  - md:
+      ensemble: minimize
+  - cleave:
+      sites:
+        - A:685-686
+        - B:685-686
+        - C:685-686
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - solvate:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - md:
+      ensemble: NPT
+      nsteps: 13200
+  - mdplot:
+      savedata: solvated.csv
+      traces:
+        - density
+      units:
+        density: g_per_cc
+      basename: solvated
+  - terminate:
+      basename: my_7xix
+      package:
+        basename: prod_7xix
+        nsteps: 10000000
+        ensemble: NPT
