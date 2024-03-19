@@ -25,7 +25,7 @@ proc PestiferUtil::checknum { num msg } {
 }
 
 # returns -1 if x is negative, 1 otherwise
-proc PestiferUtil::sign { x } {
+proc PestiferUtil::mysign { x } {
     if { $x < 0 } {
         return -1
     } else {
