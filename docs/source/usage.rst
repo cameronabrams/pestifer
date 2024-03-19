@@ -82,24 +82,24 @@ If you want to use any of the procs defined in those files in your own VMD scrip
 
 .. code-block:: tcl
 
-   proc pestifer_init { } {
-      set status 0
-      if {[catch {exec which pestifer} results options]} {
-         set details [dict get $options -errorcode]
-         if {[lindex $details 0] eq "CHILDSTATUS"} {
-            set status [lindex $details 2]
+      proc pestifer_init { } {
+         set status 0
+         if {[catch {exec which pestifer} results options]} {
+            set details [dict get $options -errorcode]
+            if {[lindex $details 0] eq "CHILDSTATUS"} {
+               set status [lindex $details 2]
+            } else {
+               return -options $options -level 0 $results
+            }
+         }
+         if { $status == 0 } {
+            set pestifer_tcl_root [exec pestifer wheretcl --root]
+            vmdcon -info "Source ${pestifer_tcl_root}/vmdrc.tcl"
+            return ${pestifer_tcl_root}/vmdrc.tcl
          } else {
-            return -options $options -level 0 $results
+            vmdcon -info "Pestifer is not available in your current environment."
          }
       }
-      if { $status == 0 } {
-         set script_dir [exec pestifer wheretcl --script-dir]
-         vmdcon -info "Sourcing ${script_dir}/pestifer-vmd.tcl"
-         return ${script_dir}/pestifer-vmd.tcl
-      } else {
-         vmdcon -info "Pestifer is not available in your current environment."
-      }
-   }
 
 Then, you can use it in a source command in any VMD script or TcL session you like:
 
