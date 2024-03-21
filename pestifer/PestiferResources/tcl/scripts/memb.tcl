@@ -49,7 +49,7 @@ if { $pdb != "" && $psf != "" } {
 }
 
 mol new $addpdb waitfor all
-set add_molid [molinfo top get molid]
+set add_molid [molinfo top get id]
 set waters [atomselect $add_molid "water"]
 set ions [atomselect $add_molid "ion"]
 set lipids [atomselect $add_molid "lipid"]
@@ -76,8 +76,3 @@ foreach chain $input_chains {
     }
     coordpdb ${nc}_tmp.pdb $chain
 }
-
-regenerate angles dihedrals
-writepsf cmap ${outbasename}.psf
-writepdb ${outbasename}.pdb
-exit

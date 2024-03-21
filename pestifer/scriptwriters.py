@@ -104,8 +104,8 @@ class VMD(Scriptwriter):
     # def has_statement(self,statement):
     #     return super().has_statement(statement)
 
-    def writescript(self):
-        if not self.has_statement('exit'):
+    def writescript(self,force_exit=False):
+        if not self.has_statement('exit') or force_exit:
             self.addline('exit')
         self.banner(f'END {__package__.upper()} VMD SCRIPT')
         self.banner(f'Thank you for using {__package__}!')
@@ -283,7 +283,7 @@ class Psfgen(VMD):
         self.addline(f'mol top ${self.molid_varname}')
         mol.write_TcL(self)
 
-    def writescript(self,statename,guesscoord=True,regenerate=True):
+    def writescript(self,statename,guesscoord=True,regenerate=True,force_exit=False):
         if guesscoord:
             self.addline('guesscoord')
         if regenerate:
@@ -292,7 +292,7 @@ class Psfgen(VMD):
         pdb=f'{statename}.pdb'
         self.addline(f'writepsf cmap {psf}')
         self.addline(f'writepdb {pdb}')
-        super().writescript()
+        super().writescript(force_exit=force_exit)
 
 class NAMD2(Scriptwriter):
     def __init__(self,config):

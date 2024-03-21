@@ -1030,7 +1030,7 @@ class PackmolMemgenTask(BaseTask):
         pg=self.writers['psfgen']
         pg.newscript(self.basename)
         pg.usescript('memb')
-        pg.writescript(self.basename)
+        pg.writescript(self.basename,guesscoord=False,regenerate=True,force_exit=True)
         pg.runscript(psf=psf,pdb=pdb,addpdb=addpdb,o=self.basename)
 
     def membrane_embed(self,pdb,zgroups,zval=0.0,outpdb='embed.pdb'):
