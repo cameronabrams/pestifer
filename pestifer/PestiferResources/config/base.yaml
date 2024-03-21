@@ -928,6 +928,9 @@ directives:
                 text: integer index of the biological assembly to construct; default is 0, signifying that the asymmetric unit is to be used
                 type: int
                 default: 0
+              - name: model
+                text: model number to use if there are multiple models in the file
+                type: int
               - name: file_format
                 text: either PDB or mmCIF; some entries do not have a PDB-format file.  The main advantage of PDB is that it uses the author-designations for chains by default.  mmCIF is the new "default" format of the PDB.
                 type: str

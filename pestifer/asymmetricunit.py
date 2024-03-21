@@ -45,10 +45,15 @@ class AsymmetricUnit(AncestorAwareMod):
             seqadvs=SeqadvList([])
             if type(pr)==dict: # PDB format
                 # minimal pr has ATOMS
-                atoms=AtomList([Atom(p) for p in pr[Atom.PDB_keyword]])
-                atoms.extend([Hetatm(p) for p in pr.get(Hetatm.PDB_keyword,[])])
+                if 'model' in sourcespecs:
+                    atoms=AtomList([Atom(p) for p in pr[Atom.PDB_keyword] if p.model==sourcespecs['model']])
+                    atoms.extend([Hetatm(p) for p in pr.get(Hetatm.PDB_keyword,[]) if p.model==sourcespecs['model']])
+                    ters=TerList([Ter(p) for  p in pr.get(Ter.PDB_keyword,[]) if p.model==sourcespecs['model']])
+                else:
+                    atoms=AtomList([Atom(p) for p in pr[Atom.PDB_keyword]])
+                    atoms.extend([Hetatm(p) for p in pr.get(Hetatm.PDB_keyword,[])])
+                    ters=TerList([Ter(p) for  p in pr.get(Ter.PDB_keyword,[])])
                 atoms.sort(by=['serial'])
-                ters=TerList([Ter(p) for  p in pr.get(Ter.PDB_keyword,[])])
                 if len(ters)>0:
                     logger.debug(f'{len(ters)} TER records require adjusting atom serial numbers')
                 atoms.reserialize()

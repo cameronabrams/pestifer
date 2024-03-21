@@ -5,13 +5,18 @@
 # Membrane-embedded build of HIV-1 gp41 MPER-TM trimer (6e8w)
 #
 # Notes:
-#   - packmol-memgen is used
+#   - packmol-memgen is used, so you must have a conda environment available
+#     in which to run it.  This environment must have a numpy version less 
+#     than 1.20 (until the packmol-memgen developers patch it).  You need not
+#     have this environment active when you invoke pestifer; pestifer will
+#     activate it only when it needs to run packmol-memgen.
 #
 title: 6e8w
 tasks:
   - psfgen:
       source:
         id: 6e8w
+        model: 15 # last frame
   - md:
       ensemble: minimize
   - packmol_memgen:

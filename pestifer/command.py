@@ -102,7 +102,7 @@ class CondaCheck:
     
 class Command:
     divider_line_length=55
-    def __init__(self,command,*args,**options):
+    def __init__(self,command:str,*args,**options):
         self.command=command
         self.args=args
         self.options=options
@@ -115,6 +115,7 @@ class Command:
         if Condaspec!=None:
             self.c=Condaspec.condafy(self.c,env=env)
             self.is_condafied=True
+            logger.debug(f'Condafied to {self.c}')
         return self.run(override=kwargs.get('override',()),ignore_codes=kwargs.get('ignore_codes',[]),quiet=kwargs.get('quiet',True),progress=kwargs.get('progress',False))
 
     def run(self,override=(),ignore_codes=[],quiet=True,progress=False):

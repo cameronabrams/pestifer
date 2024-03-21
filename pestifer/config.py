@@ -123,19 +123,28 @@ class Config(Yclept):
             self['user']['ambertools']['is_unnecessary']=True
 
     def check_ambertools(self):
-        self['user']['ambertools']['available']=False
-        amberhome=os.environ.get('AMBERHOME',None)
-        if amberhome!=None:
-            logger.debug(f'AMBERHOME is set to "{amberhome}". It is assumed you have a working AmberTools installation.')
-            self['user']['ambertools']['available']=True
-            self['user']['ambertools']['local']=True
-            return True
-        ok_numpy_version=self['user']['ambertools'].get('ok_numpy_version','1.19.5') # for unpatched packmol-memgen
         if not self['Conda'].conda_root:
             logger.debug(f'You do not have any conda environments, and AMBERHOME is not set.')
             logger.debug(f'We recommend you create a new conda environment in which numpy<={ok_numpy_version} and ambertools==21.12')
             return False
+        self['user']['ambertools']['available']=False
+        amberhome=os.environ.get('AMBERHOME',None)
+        ok_numpy_version=self['user']['ambertools'].get('ok_numpy_version','1.19.5') # for unpatched packmol-memgen
         explicit_env=self['user']['ambertools'].get('venv',None)
+        # if no explicit env for running ambertools is specified, check the active environment first
+        if amberhome!=None and explicit_env==None:
+            active_env=self['Conda'].active_env
+            logger.debug(f'Active environment is "{active_env}" and you have not specified an explicit environment for ambertools.')
+            logger.debug(f'Checking "{active_env}" for allowable version of numpy')
+            explicit_env_numpy_version=self['Conda'].get_package_version(active_env,'numpy')
+            explicit_env_ambertools_version=self['Conda'].get_package_version(active_env,'ambertools',from_list=True)
+            if explicit_env_numpy_version!=None and explicit_env_numpy_version<='1.19.5' and explicit_env_ambertools_version!=None:
+                self['user']['ambertools']['available']=True
+                self['user']['ambertools']['local']=True
+                logger.debug(f'numpy v. {explicit_env_numpy_version} detected')
+                logger.debug(f'ambertools v. {explicit_env_ambertools_version} detected')
+                return True
+        # if active environment can't run ambertools and the explicit env is specified
         if explicit_env!=None:
             logger.debug(f'Checking explicitly named conda env {explicit_env} for numpy<={ok_numpy_version} and ambertools')
             if self['Conda'].env_exists(explicit_env):
@@ -144,36 +153,28 @@ class Config(Yclept):
                 if explicit_env_numpy_version!=None and explicit_env_numpy_version<='1.19.5' and explicit_env_ambertools_version!=None:
                     self['user']['ambertools']['available']=True
                     self['user']['ambertools']['local']=False
+                    logger.debug(f'numpy v. {explicit_env_numpy_version} detected')
+                    logger.debug(f'ambertools v. {explicit_env_ambertools_version} detected')
                     return True
                 else:
                     logger.debug(f'Conda env {explicit_env} is not compatible with ambertools')
             else:
                 logger.debug(f'Warning: Explicitly named conda env {explicit_env}  not found.')
+        # explicit env is not compatible with ambertools, so scan all available environments
         logger.debug(f'Searching all conda envs for an ambertools-compatible env...')
-        local_numpy_version=self['Conda'].get_package_version(self['Conda'].active_env,'numpy')
-        if local_numpy_version<=ok_numpy_version:
-            logger.debug(f'Active env {self["Conda"].active_env} has numpy version {local_numpy_version}')
-            ambertools_version=self['Conda'].get_package_version(self['Conda'].active_env,'ambertools',from_list=True)
-            if ambertools_version!=None:
-                self['user']['ambertools']['available']=True
-                self['user']['ambertools']['local']=True
-                return True
-            else:
-                logger.debug(f'Ambertools is not installed in active conda env {self["Conda"].active_env}')
-        else:
-            for env in self['Conda'].conda_envs:
-                if env!=self['Conda'].active_env: # since we already examined it
-                    logger.debug(f'Checking non-active conda env {env} for numpy<={ok_numpy_version} and ambertools')
-                    remote_numpy_version=self['Conda'].get_package_version(env,'numpy')
-                    if remote_numpy_version!=None and remote_numpy_version<=ok_numpy_version:
-                        logger.debug(f'Non-active env {env} has numpy version {local_numpy_version}')
-                        ambertools_version=self['Conda'].get_package_version(env,'ambertools',from_list=True)
-                        logger.debug(f'Non-active env {env} ambertools version "{ambertools_version}"')
-                        if ambertools_version!=None:
-                            self['user']['ambertools']['available']=True
-                            self['user']['ambertools']['local']=False
-                            self['user']['ambertools']['venv']=env
-                            return True
+        for env in self['Conda'].conda_envs:
+            if env!=self['Conda'].active_env: # since we already examined it
+                logger.debug(f'Checking non-active conda env {env} for numpy<={ok_numpy_version} and ambertools')
+                remote_numpy_version=self['Conda'].get_package_version(env,'numpy')
+                if remote_numpy_version!=None and remote_numpy_version<=ok_numpy_version:
+                    logger.debug(f'Non-active env {env} has numpy version {remote_numpy_version}')
+                    ambertools_version=self['Conda'].get_package_version(env,'ambertools',from_list=True)
+                    logger.debug(f'Non-active env {env} ambertools version "{ambertools_version}"')
+                    if ambertools_version!=None:
+                        self['user']['ambertools']['available']=True
+                        self['user']['ambertools']['local']=False
+                        self['user']['ambertools']['venv']=env
+                        return True
         logger.debug(f'Ambertools is not available.')
         logger.debug(f'We recommend you create a new conda environment in which numpy<={ok_numpy_version} and ambertools==21.12')
         logger.debug(f'In your future config files, indicate this environment under "ambertools"->"venv".')

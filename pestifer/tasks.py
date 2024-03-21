@@ -965,7 +965,8 @@ class PackmolMemgenTask(BaseTask):
         assert config['user']['ambertools']['available']
         self.env=None
         if not config['user']['ambertools']['local']:
-            self.env=self['user']['ambertools']['venv']
+            self.env=config['user']['ambertools']['venv']
+            logger.debug(f'task will use conda env {self.env}')
 
     def do(self):
         self.log_message('initiated')
@@ -986,6 +987,7 @@ class PackmolMemgenTask(BaseTask):
                 assert 'z_value' in posp['z_ref_group']
                 self.membrane_embed(pdb,[posp['z_head_group'],posp['z_tail_group'],posp['z_ref_group']['text']],posp['z_ref_group']['z_value'],outpdb=f'{self.basename}.pdb')
                 self.save_state(exts=['pdb'])
+                pdb=self.statevars.get('pdb',None)
             pm_args.extend(['--pdb',pdb])
 
         self.next_basename('memgen')
@@ -993,7 +995,9 @@ class PackmolMemgenTask(BaseTask):
         pm_args.extend(['--output',outpdb])
 
         for k,v in self.specs['command_options'].items():
-            if not type(k)==bool:
+            if type(v)==list and len(v)==0:
+                continue
+            if not type(v)==bool:
                 pm_args.append(f'--{k}')
                 if type(v)==list:
                     vv=' '.join([str(x) for x in v])
@@ -1002,8 +1006,11 @@ class PackmolMemgenTask(BaseTask):
             else:
                 if v:
                     pm_args.append(f'--{k}')
+        logger.debug(f'Passing {pm_args}')
+        pm_args=['packmol-memgen']+pm_args
         assert any([x in pm_args for x in pm_req_oneof]),f'Expect one of {pm_req_oneof} for packmol-memgen'
-        cmd=Command(['packmol-memgen']+pm_args)
+        cmd=Command(' '.join([str(_) for _ in pm_args]))
+        logger.debug(f'calling condarun on env {self.env}')
         cmd.condarun(env=self.env,Condaspec=self.config['Conda'])
         # process output pdb to get new psf and pdb
         if 'xsc' in self.statevars:
@@ -1023,7 +1030,7 @@ class PackmolMemgenTask(BaseTask):
         pg=self.writers['psfgen']
         pg.newscript(self.basename)
         pg.usescript('memb')
-        pg.writescript()
+        pg.writescript(self.basename)
         pg.runscript(psf=psf,pdb=pdb,addpdb=addpdb,o=self.basename)
 
     def membrane_embed(self,pdb,zgroups,zval=0.0,outpdb='embed.pdb'):
@@ -1036,8 +1043,10 @@ class PackmolMemgenTask(BaseTask):
         vm.addline(f'set HEAD [atomselect top "{ztopg}"]')
         vm.addline(f'set TAIL [atomselect top "{zbotg}"]')
         vm.addline(f'set REF  [atomselect top "{zrefg}"]')
-        vm.addline(f'set VEC [vecsub [measure $HEAD center] [measure $TAIL center]]')
-        vm.addline('orient $TMP $VEC {0 0 1}')
+        vm.addline(f'vmdcon -info "[measure center $HEAD]"')
+        vm.addline(f'vmdcon -info "[measure center $TAIL]"')
+        vm.addline(f'set VEC [vecsub [measure center $HEAD] [measure center $TAIL]]')
+        vm.addline('$TMP move [orient $TMP $VEC {0 0 1}]')
         vm.addline(f'set COM [measure center $TMP]')
         vm.addline(f'$TMP moveby [vecscale $COM -1]')
         vm.addline(f'set REFZ [lindex [measure center $REF] 2]')
