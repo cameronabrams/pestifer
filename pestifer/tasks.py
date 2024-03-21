@@ -972,29 +972,77 @@ class PackmolMemgenTask(BaseTask):
         self.inherit_state()
         psf=self.statevars.get('psf',None)
         pdb=self.statevars.get('pdb',None)
+        pm_args=[]
+        pm_req_oneof=['--dims']
         if pdb!=None:
-            # TODO: do stuff
-            addpdb=None
-            pass
-        else:
-            # TODO: make a fresh membrane-only system
-            addpdb=None
-            pass
+            pm_req_oneof.append('--dist')
+            if 'embed' in self.specs:
+                self.next_basename('embed')
+                posp=self.specs['embed']
+                assert 'z_head_group' in posp
+                assert 'z_tail_group' in posp
+                assert 'z_ref_group' in posp
+                assert 'text' in posp['z_ref_group']
+                assert 'z_value' in posp['z_ref_group']
+                self.membrane_embed(pdb,[posp['z_head_group'],posp['z_tail_group'],posp['z_ref_group']['text']],posp['z_ref_group']['z_value'],outpdb=f'{self.basename}.pdb')
+                self.save_state(exts=['pdb'])
+            pm_args.extend(['--pdb',pdb])
+
+        self.next_basename('memgen')
+        outpdb=f'{self.basename}.pdb'
+        pm_args.extend(['--output',outpdb])
+
+        for k,v in self.specs['command_options'].items():
+            if not type(k)==bool:
+                pm_args.append(f'--{k}')
+                if type(v)==list:
+                    vv=' '.join([str(x) for x in v])
+                    v=vv
+                pm_args.append(v)
+            else:
+                if v:
+                    pm_args.append(f'--{k}')
+        assert any([x in pm_args for x in pm_req_oneof]),f'Expect one of {pm_req_oneof} for packmol-memgen'
+        cmd=Command(['packmol-memgen']+pm_args)
+        cmd.condarun(env=self.env,Condaspec=self.config['Conda'])
         # process output pdb to get new psf and pdb
         if 'xsc' in self.statevars:
             del self.statevars['xsc']
-        self.next_basename()
+
+        self.next_basename('psfgen')
+
         boxinfo=get_boxsize_from_packmolmemgen()
         with open(f'{self.basename}_cell.tcl','w') as f:
             f.write(boxinfo)
-        pg=self.writers['psfgen']
-        pg.newscript(self.basename)
-        pg.topo_aliases()
-        pg.usescript('memb')
-        pg.writescript()
-        pg.runscript(psf=psf,pdb=pdb,addpdb=addpdb,o=self.basename)
+        self.psfgen(psf=psf,pdb=pdb,addpdb=outpdb)
         self.save_state(exts=['psf','pdb'])
         self.update_statevars('cell',f'{self.basename}_cell.tcl',vtype='file')
         self.log_message('complete')
 
+    def psfgen(self,psf,pdb,addpdb):
+        pg=self.writers['psfgen']
+        pg.newscript(self.basename)
+        pg.usescript('memb')
+        pg.writescript()
+        pg.runscript(psf=psf,pdb=pdb,addpdb=addpdb,o=self.basename)
+
+    def membrane_embed(self,pdb,zgroups,zval=0.0,outpdb='embed.pdb'):
+        logger.debug(f'zgroups {zgroups}')
+        ztopg,zbotg,zrefg=zgroups
+        vm=self.writers['vmd']
+        vm.newscript(self.basename,packages=['Orient'])
+        vm.addline(f'mol new {pdb}')
+        vm.addline(f'set TMP [atomselect top all]')
+        vm.addline(f'set HEAD [atomselect top "{ztopg}"]')
+        vm.addline(f'set TAIL [atomselect top "{zbotg}"]')
+        vm.addline(f'set REF  [atomselect top "{zrefg}"]')
+        vm.addline(f'set VEC [vecsub [measure $HEAD center] [measure $TAIL center]]')
+        vm.addline('orient $TMP $VEC {0 0 1}')
+        vm.addline(f'set COM [measure center $TMP]')
+        vm.addline(f'$TMP moveby [vecscale $COM -1]')
+        vm.addline(f'set REFZ [lindex [measure center $REF] 2]')
+        vm.addline(f'$TMP moveby [list 0 0 [expr {zval}-($REFZ)]]')
+        vm.addline(f'$TMP writepdb {outpdb}')
+        vm.writescript()
+        vm.runscript()
 

@@ -1206,7 +1206,7 @@ directives:
         text: Parameters controlling packmol-memgen to generate a bilayer embedding
         type: dict
         directives:
-          - name: preorient
+          - name: embed
             text: parameters controlling preorientation
             type: dict
             directives:

@@ -1,0 +1,56 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+# 
+# Membrane-embedded build of HIV-1 gp41 MPER-TM trimer (6e8w)
+#
+# Notes:
+#   - packmol-memgen is used
+#
+title: 6e8w
+tasks:
+  - psfgen:
+      source:
+        id: 6e8w
+  - md:
+      ensemble: minimize
+  - packmol_memgen:
+      embed:
+        z_head_group: "protein and resid 667"
+        z_tail_group: "protein and resid 710"
+        z_ref_group: 
+          text: "protein and resid 696"
+          z_value: 0.0
+      command_options:
+        dist: 15
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - md:
+      ensemble: NPT
+      nsteps: 13200
+  - mdplot:
+      savedata: solvated.csv
+      traces:
+        - density
+      units:
+        density: g_per_cc
+      basename: solvated
+  - terminate:
+      basename: my_6e8w
+      package:
+        ensemble: NPT
+        basename: prod_6e8w
