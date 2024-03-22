@@ -45,7 +45,7 @@ if { $pdb != "" && $psf != "" } {
    set init_model [atomselect top all]
    set init_chains [lsort -unique [$init_model get chain]]
    set next_available_chain [letter_up [lindex $init_chains end]]
-   set init_molid [molinfo top get molid]
+   set init_molid [molinfo top get id]
 }
 
 mol new $addpdb waitfor all
@@ -67,7 +67,7 @@ foreach ic $input_chains {
 }
 
 foreach chain $input_chains {
-    set tsel [atomselect $m1 "chain $chain"]
+    set tsel [atomselect $add_molid "chain $chain"]
     set nc $new_chain($chain)
     $tsel set chain $nc
     $tsel writepdb "${nc}_tmp.pdb"
