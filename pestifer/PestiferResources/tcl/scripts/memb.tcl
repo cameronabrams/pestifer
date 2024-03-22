@@ -56,10 +56,11 @@ set lipids [atomselect $add_molid "lipid"]
 set apparent_insert [atomselect $add_molid "not water and not ion and not lipid"]
 
 if { $init_model != "" } {
-   vmdcon -info "init_model: [$init_model num] atoms; apparent insert: [$apparent_insert num] atoms"
+   vmdcon -info "init_model: [$init_model num] atoms"
+   vmdcon -info "apparent insert: [$apparent_insert num] atoms"
 }
 
-set a [atomselect $add_molid "water or ion or lipid"]
+set a [atomselect $add_molid "not (protein or glycan)"]
 set input_chains [lsort -unique [$a get chain]]
 foreach ic $input_chains {
    set new_chain($ic) $next_available_chain
@@ -67,12 +68,12 @@ foreach ic $input_chains {
 }
 
 foreach chain $input_chains {
-    set tsel [atomselect $add_molid "chain $chain"]
+    set tsel [atomselect $add_molid "chain $chain and not (protein or glycan)"]
     set nc $new_chain($chain)
     $tsel set chain $nc
     $tsel writepdb "${nc}_tmp.pdb"
     segment $nc {
         pdb ${nc}_tmp.pdb
     }
-    coordpdb ${nc}_tmp.pdb $chain
+    coordpdb ${nc}_tmp.pdb $nc
 }
