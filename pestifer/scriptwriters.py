@@ -186,6 +186,10 @@ class VMD(Scriptwriter):
         self.addline(f'$TMP moveby [vescale -1 $or]')
         self.addline(f'$TMP delete')
 
+    def shift_coords(self,factors):
+        self.banner('Shifting')
+        
+
     # def reset_molecule_orientation(self,mol,specs):
     #     selspec=specs.get('selspec',{})
     #     if not selspec:

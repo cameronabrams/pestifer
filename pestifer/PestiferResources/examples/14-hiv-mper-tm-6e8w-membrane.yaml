@@ -28,34 +28,43 @@ tasks:
           z_value: 0.0
       command_options:
         dist: 15
-#   - md:
-#       ensemble: minimize
-#   - md:
-#       ensemble: NVT
-#   - md:
-#       ensemble: NPT
-#       nsteps: 200
-#   - md:
-#       ensemble: NPT
-#       nsteps: 400
-#   - md:
-#       ensemble: NPT
-#       nsteps: 800
-#   - md:
-#       ensemble: NPT
-#       nsteps: 1600
-#   - md:
-#       ensemble: NPT
-#       nsteps: 13200
-#   - mdplot:
-#       savedata: solvated.csv
-#       traces:
-#         - density
-#       units:
-#         density: g_per_cc
-#       basename: solvated
-#   - terminate:
-#       basename: my_6e8w
-#       package:
-#         ensemble: NPT
-#         basename: prod_6e8w
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - md:
+      ensemble: NPT
+      nsteps: 3200
+  - md:
+      ensemble: NPT
+      nsteps: 6400
+  - md:
+      ensemble: NPT
+      nsteps: 12800
+  - md:
+      ensemble: NPT
+      nsteps: 25600
+  - mdplot:
+      savedata: solvated.csv
+      traces:
+        - density
+      units:
+        density: g_per_cc
+      basename: solvated
+  - terminate:
+      basename: my_6e8w
+      package:
+        ensemble: NPT
+        basename: prod_6e8w

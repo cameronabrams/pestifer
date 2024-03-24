@@ -146,9 +146,8 @@ class BaseTask(BaseMod):
     def pdb_to_coor(self):
         vm=self.writers['vmd']
         vm.newscript(f'{self.basename}-pdb2coor')
-        psf=self.statevars['psf']
         pdb=self.statevars['pdb']
-        vm.addline(f'pdb2namdbin {psf} {pdb} {self.basename}.coor')
+        vm.addline(f'pdb2namdbin {pdb} {self.basename}.coor')
         vm.writescript()
         vm.runscript()
 
@@ -1013,18 +1012,32 @@ class PackmolMemgenTask(BaseTask):
         logger.debug(f'calling condarun on env {self.env}')
         cmd.condarun(env=self.env,Condaspec=self.config['Conda'])
         # process output pdb to get new psf and pdb
+        self.save_state(exts=['pdb'])
         if 'xsc' in self.statevars:
             del self.statevars['xsc']
 
+        self.next_basename('shift')
+        cellstr,boxinfo=get_boxsize_from_packmolmemgen()
+        self.shift_coords(outpdb,[0.5*boxinfo["x_len"],0.5*boxinfo["y_len"],0.5*boxinfo["z_len"]])
+        self.save_state(exts=['pdb'])
         self.next_basename('psfgen')
-
-        boxinfo=get_boxsize_from_packmolmemgen()
         with open(f'{self.basename}_cell.tcl','w') as f:
-            f.write(boxinfo)
+            f.write(cellstr)
         self.psfgen(psf=psf,pdb=pdb,addpdb=outpdb)
         self.save_state(exts=['psf','pdb'])
         self.update_statevars('cell',f'{self.basename}_cell.tcl',vtype='file')
         self.log_message('complete')
+
+    def shift_coords(self,pdb,shift):
+        sh_str=' '.join([str(x) for x in shift])
+        vm=self.writers['vmd']
+        vm.newscript(self.basename)
+        vm.addline(f'mol new {pdb}')
+        vm.addline(f'set TMP [atomselect top all]')
+        vm.addline(f'$TMP moveby [list {sh_str}]')
+        vm.addline(f'$TMP writepdb {self.basename}.pdb')
+        vm.writescript()
+        vm.runscript()
 
     def psfgen(self,psf,pdb,addpdb):
         pg=self.writers['psfgen']

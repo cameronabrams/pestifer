@@ -126,6 +126,9 @@ proc PestiferUtil::resequence { badsel goodsel } {
 }
 
 proc PestiferUtil::letter_up { c } {
+   if { $c == "Z" } {
+      return "a"
+   }
    scan $c %c i
    return [binary format c* [expr $i + 1]]
 }
@@ -189,9 +192,8 @@ proc PestiferUtil::namdbin2pdb { psf coor pdb } {
    $a writepdb $pdb
 }
 
-proc PestiferUtil::pdb2namdbin { psf pdb coor } {
-   mol new $psf
-   mol addfile $pdb waitfor all
+proc PestiferUtil::pdb2namdbin { pdb coor } {
+   mol new $pdb      
    set a [atomselect top all]
    $a writenamdbin $coor
 }
