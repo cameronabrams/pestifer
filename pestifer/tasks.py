@@ -1016,10 +1016,10 @@ class PackmolMemgenTask(BaseTask):
         if 'xsc' in self.statevars:
             del self.statevars['xsc']
 
-        self.next_basename('shift')
+        # self.next_basename('shift')
         cellstr,boxinfo=get_boxsize_from_packmolmemgen()
-        self.shift_coords(outpdb,[0.5*boxinfo["x_len"],0.5*boxinfo["y_len"],0.5*boxinfo["z_len"]])
-        self.save_state(exts=['pdb'])
+        # self.shift_coords(outpdb,[0.5*boxinfo["x_len"],0.5*boxinfo["y_len"],0.5*boxinfo["z_len"]])
+        # self.save_state(exts=['pdb'])
         self.next_basename('psfgen')
         with open(f'{self.basename}_cell.tcl','w') as f:
             f.write(cellstr)

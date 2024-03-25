@@ -322,8 +322,11 @@ def get_boxsize_from_packmolmemgen(logname='packmol-memgen.log'):
                 if tok[0] in extract_keys:
                     boxinfo[tok[0]]=float(tok[2])
     if boxinfo:
+        ox=0.5*(boxinfo["x_max"]-boxinfo["x_min"])
+        oy=0.5*(boxinfo["y_max"]-boxinfo["y_min"])
+        oz=0.5*(boxinfo["z_max"]-boxinfo["z_min"])
         res =f'cellBasisVector1 {boxinfo["x_len"]} 0 0\n'
         res+=f'cellBasisVector2 0 {boxinfo["y_len"]} 0\n'
         res+=f'cellBasisVector3 0 0 {boxinfo["z_len"]}\n'
-        res+=f'cellOrigin {0.5*boxinfo["x_len"]} {0.5*boxinfo["y_len"]} {0.5*boxinfo["z_len"]}'
+        res+=f'cellOrigin {ox} {oy} {oz}'
     return res,boxinfo
