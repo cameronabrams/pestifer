@@ -31,12 +31,13 @@
 !
 ! Notes to developer only: residue PVCL2 has been temporarily removed (not tested for LJ-PME)
 
-set nat ?NATC
-set app
+!P! = commented out by Cameron F. Abrams for pestifer
+!P! set nat ?NATC
+!P! set app
 !We're exploiting what is arguably a bug in the parser. On the left hand side,
 !the quotes have proirity, so NAT is correctly substituted. On the right hand
 !side, the ? has priority and NATC" (sic) is not a valid substitution...
-if "@NAT" ne "?NATC" if @nat ne 0 set app append
+!P! if "@NAT" ne "?NATC" if @nat ne 0 set app append
 
 read rtf card @app
 * cholesterol residues
