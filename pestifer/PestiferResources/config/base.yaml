@@ -1,7 +1,7 @@
-# Pestifer 1.0.1
-# (c) 2023 Cameron F. Abrams, 2023
+# Pestifer 1.4.0
+# (c) 2023-2024 Cameron F. Abrams, cfa22@drexel.edu
 #
-# Format specification for user configuration file
+# Ycleptic-format specification for YAML configuration file
 #
 # The "name" of any directive may appear as a key whose value is specified by "type"
 # and any dependent "directives".  Values with scalar types should only appear

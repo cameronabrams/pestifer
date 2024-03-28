@@ -10,7 +10,8 @@
 !specified below
 !
 
-set chol_model 1 !2 for original Suits et al. model
+!! = Commented out by CFA for pestifer
+!! set chol_model 1 !2 for original Suits et al. model
 
 !
 !1) Revised model of Lim et al.  This contains a number of NBFIXes that
@@ -31,14 +32,14 @@ set chol_model 1 !2 for original Suits et al. model
 !
 
 !test "append"
-set nat ?NATC
-set app
+!!set nat ?NATC
+!!set app
 !We're exploiting what is arguably a bug in the parser. On the left hand side,
 !the quotes have priority, so NAT is correctly substituted. On the right hand
 !side, the ? has priority and NATC" (sic) is not a valid substitution...
-if "@NAT" ne "?NATC" if @nat ne 0 set app append
+!!if "@NAT" ne "?NATC" if @nat ne 0 set app append
 
-if chol_model eq 1 then
+!!if chol_model eq 1 then
 
 ! reference
 ! Lim, J.B., Rogaski, B. and Klauda, J.B.. "Update of the Cholesterol Force Field 

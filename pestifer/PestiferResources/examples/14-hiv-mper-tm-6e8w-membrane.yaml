@@ -12,6 +12,12 @@
 #     activate it only when it needs to run packmol-memgen.
 #
 title: 6e8w
+charmmff:
+  standard:
+    topologies:
+      - stream/lipid/toppar_all36_lipid_cholesterol.str
+    parameters:
+      - stream/lipid/toppar_all36_lipid_cholesterol.str
 tasks:
   - psfgen:
       source:
@@ -27,9 +33,13 @@ tasks:
           text: "protein and resid 696"
           z_value: 0.0
       command_options:
-        dist: 15
+        dist: 18
+        lipids: POPC:CHL1
+        ratio: 0.67:0.33
   - md:
       ensemble: minimize
+      other_parameters:
+        wrapall: on
   - md:
       ensemble: NVT
   - md:
@@ -56,6 +66,9 @@ tasks:
   - md:
       ensemble: NPT
       nsteps: 25600
+  - md:
+      ensemble: NPT
+      nsteps: 51200
   - mdplot:
       savedata: solvated.csv
       traces:

@@ -328,5 +328,6 @@ def get_boxsize_from_packmolmemgen(logname='packmol-memgen.log'):
         res =f'cellBasisVector1 {boxinfo["x_len"]} 0 0\n'
         res+=f'cellBasisVector2 0 {boxinfo["y_len"]} 0\n'
         res+=f'cellBasisVector3 0 0 {boxinfo["z_len"]}\n'
-        res+=f'cellOrigin {ox} {oy} {oz}'
+        res+=f'cellOrigin 0 0 0'
+        # res+=f'cellOrigin {ox} {oy} {oz}'
     return res,boxinfo

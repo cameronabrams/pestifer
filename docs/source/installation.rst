@@ -23,6 +23,10 @@ Pestifer is under very active development.  To get the latest version from PyPI,
    $ pip install -U pestifer
 
 
+.. You must edit this file:
+.. ~/anaconda3/envs/pmmg/lib/python3.8/site-packages/packmol_memgen/lib/pdbremix/v3numpy.py
+.. and change instances of ``np.float`` to ``np.float64``
+
 .. If you use conda/anaconda, we recommended that you create a separate Python environment running ``HTPolyNet``:
 
 .. .. code-block:: console
