@@ -38,6 +38,7 @@ tasks:
         ratio: 0.67:0.33
   - md:
       ensemble: minimize
+      minimize: 5000
       other_parameters:
         wrapall: on
   - md:
