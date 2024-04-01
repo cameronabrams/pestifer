@@ -22,7 +22,8 @@ proc PestiferPierce::check_pierced_rings { molid ringsize TOL } {
     set r6o($ii) $i
     incr i
   }
-  # get all x, y, and z positions of ring atoms
+  # get all x, y, and z positions of ring atoms; we will assume that rings are not
+  # broken across PBC
   set r6x [$r6 get x]
   set r6y [$r6 get y]
   set r6z [$r6 get z]
@@ -45,7 +46,7 @@ proc PestiferPierce::check_pierced_rings { molid ringsize TOL } {
       lappend this_rr [list $x $y $z]
     }
     #puts "this_rr $this_rr"
-    set this_com [list [ladd $this_rx] [ladd $this_ry] [ladd $this_rz]]
+    set this_com [list [vecsum $this_rx] [vecsum $this_ry] [vecsum $this_rz]]
     set this_com [vecscale $this_com [expr 1./$ringsize]]
     set this_b12 [vecsub [lindex $this_rr 0] [lindex $this_rr 1]]
     set this_b23 [vecsub [lindex $this_rr 1] [lindex $this_rr 3]]
@@ -53,7 +54,7 @@ proc PestiferPierce::check_pierced_rings { molid ringsize TOL } {
     set lc123 [veclength $c123]
     set chat123 [vecscale $c123 [expr 1.0/$lc123]]
     #puts "ring $this_ri : $this_com : $chat123"
-    set neigh [atomselect $molid "(protein or glycan) and same residue as (exwithin 4.0 of index $this_ri)"]
+    set neigh [atomselect $molid "same residue as (exwithin 4.0 of index $this_ri)"]
     set nb [$neigh getbonds]
     set na [$neigh get index]
     set nax [$neigh get x]

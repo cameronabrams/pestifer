@@ -1297,6 +1297,18 @@ directives:
               - name: saltcon
                 text: salt concentration in M
                 type: float
+              - name: nloop
+                text: number of GENCAN loops
+                type: int
+              - name: nloop_all
+                text: numer of loops for altogether packing
+                type: int
+              - name: tolerance
+                text: clash detection tolerance
+                type: float
+              - name: random
+                text: reinitialize RNG
+                type: bool
       - name: md
         text: Parameters controlling a NAMD run
         type: dict

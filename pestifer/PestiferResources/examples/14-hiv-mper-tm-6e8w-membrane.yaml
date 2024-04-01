@@ -36,6 +36,9 @@ tasks:
         dist: 18
         lipids: POPC:CHL1
         ratio: 0.67:0.33
+        nloop: 200
+        nloop_all: 200
+        random: true
   - md:
       ensemble: minimize
       minimize: 5000
