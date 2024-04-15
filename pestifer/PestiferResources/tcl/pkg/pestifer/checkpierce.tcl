@@ -12,6 +12,11 @@ namespace eval ::PestiferPierce:: {
 # molid - the molecule id
 # ringsize - desired ringsize for identifying rings
 # TOL - tolerance in A
+#
+# Note: this procedure does not use PBCs; it is really meant for
+# checking pierced rings in proteins in which the entire protein
+# is centered in a periodic image.  TODO: fix this
+# 
 proc PestiferPierce::check_pierced_rings { molid ringsize TOL } {
   # select all atoms in rings
   set r6 [atomselect $molid "ringsize $ringsize from all"]
