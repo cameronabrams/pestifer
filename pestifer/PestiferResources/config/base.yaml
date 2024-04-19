@@ -1113,7 +1113,7 @@ directives:
                     text: Restraint spring constant in kcal/mol/A^2
                     type: float
                   - name: consfile
-                    text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+                    text: Name of constraints PDB file to generate (defaults to basename-constraints.pdb)
                     type: string
           - name: connect
             text: Specifies parameters of the psfgen run that patches in the new backbone bonds

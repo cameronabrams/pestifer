@@ -167,7 +167,8 @@ class BaseTask(BaseMod):
         vm=self.writers['vmd']
         pdb=self.statevars['pdb']
         force_constant=specs.get('k',self.config['user']['namd2']['harmonic']['spring_constant'])
-        constrained_atoms_def=','.join(specs['atoms'].split())
+        # constrained_atoms_def=','.join(specs['atoms'].split())
+        constrained_atoms_def=specs.get('atoms','all')
         logger.debug(f'constraint spec: {specs["atoms"]}')
         c_pdb=specs.get('consref','')
         if not c_pdb:
@@ -180,6 +181,7 @@ class BaseTask(BaseMod):
         vm.addline(f'$c set occupancy {force_constant}')
         vm.addline(f'$a writepdb {c_pdb}')
         vm.writescript()
+        vm.runscript()
         self.update_statevars(statekey,c_pdb,mode='file')
     
     def inherit_state(self):

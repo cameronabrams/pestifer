@@ -55,8 +55,10 @@ class AsymmetricUnit(AncestorAwareMod):
                     ters=TerList([Ter(p) for  p in pr.get(Ter.PDB_keyword,[])])
                 atoms.sort(by=['serial'])
                 if len(ters)>0:
-                    logger.debug(f'{len(ters)} TER records require adjusting atom serial numbers')
-                atoms.reserialize()
+                    lnonemptyters=len([x for x in ters if x.serial!=None])
+                    logger.debug(f'{lnonemptyters} TER records require adjusting atom serial numbers')
+                    if lnonemptyters>0:
+                        atoms.reserialize()
                 # atoms.adjustSerials(ters)
                 modmanager.injest(ters)
                 if 'REMARK.465' in pr:

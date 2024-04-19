@@ -12,6 +12,8 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.4.1:
+    * support for empty TER records
 * 1.4.0:
     * `packmol-memgen` integration
 * 1.3.9:

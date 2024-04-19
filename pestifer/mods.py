@@ -19,8 +19,9 @@
     -------
     * Ter -- This is a representation of a "TER" record from an
     old-style PDB file. These are tracked in order to modify
-    atom serial numbers, since a TER acquires a unique atom
-    serial number even though it is not an atom.
+    atom serial numbers, since a TER can acquire a unique atom
+    serial number even though it is not an atom.  TER's 
+    can also be "empty", as in just TER on a line by itself.
     * Seqadv -- A reprentation of any single-point discrepancies
     between the sequence in the actual structure and a database
     sequence. Engineered mutations, conflicts, etc.
@@ -73,14 +74,14 @@ class Ter(AncestorAwareMod):
     Why is this necessary?  TER records are used to indicate
     'breaks' in the list of ATOM records in a PDB file to signify
     physical discontinuity of the amino acid chain(s).  The problem
-    we have to solve is that TER records get a unique atom serial
-    number, even though they are not atoms. So in a list of atoms
-    the serial numbers can be discontinuous.  This is not a problem
-    per se, *but* when VMD reads in a PDB file it ignores both
-    TER records *and* the explicit atom serial numbers.  Pidibble
-    by default does not, so to make the atom records VMD-compliant,
-    we have to adjust atom serial numbers, and to do that we
-    have to know where the TER records are.
+    we have to solve is that sometimes a TER record gets a unique 
+    atom serial number, even though they are not atoms. So in a list 
+    of atoms the sequence of serial numbers can be discontinuous.
+    This is not a problem per se, *but* when VMD reads in a PDB file 
+    it ignores both TER records *and* the explicit atom serial numbers.
+    Pidibble by default does not, so to make the atom records 
+    VMD-compliant, we have to adjust atom serial numbers, and to do 
+    that we have to know where any non-empty TER records are.
     
     Attributes
     ----------
@@ -108,13 +109,23 @@ class Ter(AncestorAwareMod):
         super().__init__(input_obj)
     @__init__.register(PDBRecord)
     def _from_pdbrecord(self,pdbrecord):
-        input_dict={
-            'serial':pdbrecord.serial,
-            'resname':pdbrecord.residue.resName,
-            'chainID':pdbrecord.residue.chainID,
-            'resseqnum':pdbrecord.residue.seqNum,
-            'insertion':pdbrecord.residue.iCode
-        }
+        if not pdbrecord.serial:
+            # this TER is empty
+            input_dict={
+                'serial':None,
+                'resname':None,
+                'chainID':None,
+                'resseqnum':None,
+                'insertion':None
+            }
+        else:
+            input_dict={
+                'serial':pdbrecord.serial,
+                'resname':pdbrecord.residue.resName,
+                'chainID':pdbrecord.residue.chainID,
+                'resseqnum':pdbrecord.residue.seqNum,
+                'insertion':pdbrecord.residue.iCode
+            }
         super().__init__(input_dict)
     
 class TerList(AncestorAwareModList):
