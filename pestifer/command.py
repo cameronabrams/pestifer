@@ -8,7 +8,7 @@ import os
 from io import StringIO
 import json
 logger=logging.getLogger(__name__)
-
+# /home/cfa/anaconda3/envs/mol-env/lib/python3.10/site-packages/packmol_memgen/lib/pdbremix/v3numpy.py
 class CondaCheck:
     """Class for interfacing with conda environments"""
     def __init__(self):

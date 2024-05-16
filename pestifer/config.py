@@ -125,7 +125,7 @@ class Config(Yclept):
     def check_ambertools(self):
         if not self['Conda'].conda_root:
             logger.debug(f'You do not have any conda environments, and AMBERHOME is not set.')
-            logger.debug(f'We recommend you create a new conda environment in which numpy<={ok_numpy_version} and ambertools==21.12')
+            logger.debug(f'We recommend you create a new conda environment and install ambertools in it')
             return False
         self['user']['ambertools']['available']=False
         amberhome=os.environ.get('AMBERHOME',None)
@@ -135,6 +135,8 @@ class Config(Yclept):
         if amberhome!=None and explicit_env==None:
             active_env=self['Conda'].active_env
             logger.debug(f'Active environment is "{active_env}" and you have not specified an explicit environment for ambertools.')
+            # TODO: from packmol_memgen import module_path
+            # TODO: check/patch module_path/pdbremix/v3numpy.py
             logger.debug(f'Checking "{active_env}" for allowable version of numpy')
             explicit_env_numpy_version=self['Conda'].get_package_version(active_env,'numpy')
             explicit_env_ambertools_version=self['Conda'].get_package_version(active_env,'ambertools',from_list=True)

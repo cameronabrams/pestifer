@@ -809,7 +809,7 @@ directives:
     directives:
       - name: venv
         type: text
-        text: name conda virtual environment containing ambertools and numpy <= 1.19.5
+        text: name of conda virtual environment in which user wishes to run ambertools, distinct from pestifer execution environment
   - name: namd2
     type: dict
     text: NAMD2 specifications
@@ -1107,7 +1107,7 @@ directives:
                 type: dict
                 directives:
                   - name: atoms
-                    text: Atoms to be position-constrained expressed as a VMD atomselection
+                    text: Atoms to be position-constrained expressed as a VMD atomselection string
                     type: string
                   - name: k
                     text: Restraint spring constant in kcal/mol/A^2
