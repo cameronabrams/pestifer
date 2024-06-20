@@ -848,13 +848,20 @@ tasks:
       grafts: []
       insertions: []
       links: []
-      mutations: []
+      mutations:
+      - A:T11A
+      - A:PRO,13,ALA
+      - A:K15R
+      - A:MET,52,LEU
       ssbonds: []
-      ssbondsdelete: []
+      ssbondsdelete:
+      - A_5-A_55
       substitutions: []
     source:
       biological_assembly: 0
-      exclude: {}
+      exclude:
+        resnames:
+        - PO4
       file_format: PDB
       id: 6pti
       prebuilt: {}
@@ -984,4 +991,4 @@ tasks:
       topogromacs: false
       xstfreq: 10000
     statefile: states.yaml
-title: BPTI
+title: BPTI, no phosphate, some random mutations plus deletion of one disulfide

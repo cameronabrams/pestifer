@@ -845,7 +845,55 @@ tasks:
       Cfusions: []
       crotations: []
       deletions: []
-      grafts: []
+      grafts:
+      - A_1304:4b7i,C_1-8
+      - B_1304:4b7i,C_1-8
+      - C_1304:4b7i,C_1-8
+      - A_1305:4b7i,C_1-8
+      - B_1305:4b7i,C_1-8
+      - C_1305:4b7i,C_1-8
+      - A_1306:4b7i,C_1-8
+      - B_1306:4b7i,C_1-8
+      - C_1306:4b7i,C_1-8
+      - A_1301:2wah,C_1-9
+      - B_1301:2wah,C_1-9
+      - C_1301:2wah,C_1-9
+      - A_1307:4byh,C_1-10
+      - B_1307:4byh,C_1-10
+      - C_1307:4byh,C_1-10
+      - A_1302:4byh,C_1-10
+      - B_1302:4byh,C_1-10
+      - C_1302:4byh,C_1-10
+      - A_1303:4byh,C_1-10
+      - B_1303:4byh,C_1-10
+      - C_1303:4byh,C_1-10
+      - A_1308:4b7i,C_1-8
+      - B_1308:4b7i,C_1-8
+      - C_1308:4b7i,C_1-8
+      - D_1-2:4byh,C_1#2-10
+      - J_1-2:4byh,C_1#2-10
+      - P_1-2:4byh,C_1#2-10
+      - A_1309:4b7i,C_1-8
+      - B_1309:4b7i,C_1-8
+      - C_1309:4b7i,C_1-8
+      - E_1-2:2wah,C_1#2-9
+      - K_1-2:2wah,C_1#2-9
+      - Q_1-2:2wah,C_1#2-9
+      - F_1-2:4b7i,C_1#2-8
+      - L_1-2:4b7i,C_1#2-8
+      - R_1-2:4b7i,C_1#2-8
+      - G_1-2:2wah,C_1#2-9
+      - M_1-2:2wah,C_1#2-9
+      - S_1-2:2wah,C_1#2-9
+      - A_1310:4b7i,C_1-8
+      - B_1310:4b7i,C_1-8
+      - C_1310:4b7i,C_1-8
+      - H_1-2:4byh,C_1#2-10
+      - N_1-2:4byh,C_1#2-10
+      - T_1-2:4byh,C_1#2-10
+      - I_1-2:2wah,C_1#2-9
+      - O_1-2:2wah,C_1#2-9
+      - U_1-2:2wah,C_1#2-9
       insertions: []
       links: []
       mutations: []
@@ -853,10 +901,10 @@ tasks:
       ssbondsdelete: []
       substitutions: []
     source:
-      biological_assembly: 0
+      biological_assembly: 1
       exclude: {}
       file_format: PDB
-      id: 6pti
+      id: 7xix
       prebuilt: {}
       reserved_chainIDmaps: {}
       sequence:
@@ -867,7 +915,7 @@ tasks:
         glycans:
           declash:
             clashdist: 1.5
-            maxcycles: 20
+            maxcycles: 500
         include_terminal_loops: false
         loops:
           declash:
@@ -879,6 +927,55 @@ tasks:
     constraints: {}
     dcdfreq: 100
     ensemble: minimize
+    minimize: 1000
+    nsteps: 2000
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- ligate:
+    connect:
+      cleanup: true
+    steer:
+      constraints: {}
+      dcdfreq: 100
+      ensemble: NVT
+      force_constant: 20
+      nsteps: 4000
+      pressure: 1
+      receiver_flexible_zone_radius: 0.0
+      target_distance: 2
+      temperature: 300
+      xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: minimize
+    minimize: 1000
+    nsteps: 2000
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- cleave:
+    sites:
+    - A:685-686
+    - B:685-686
+    - C:685-686
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: minimize
+    minimize: 1000
+    nsteps: 2000
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NVT
     minimize: 1000
     nsteps: 2000
     other_parameters: {}
@@ -969,19 +1066,19 @@ tasks:
     units:
       density: g_per_cc
 - terminate:
-    basename: my_6pti
+    basename: my_7xix
     chainmapfile: chainmaps.yaml
     package:
-      basename: prod_6pti
+      basename: prod_7xix
       constraints: {}
       dcdfreq: 10000
       ensemble: NPT
       nminsteps: 0
-      nsteps: 1000000
+      nsteps: 10000000
       pressure: 1
       restartfreq: 10000
       temperature: 300
       topogromacs: false
       xstfreq: 10000
     statefile: states.yaml
-title: BPTI
+title: BA.2 SARS-CoV-2 Spike

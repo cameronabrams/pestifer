@@ -853,10 +853,10 @@ tasks:
       ssbondsdelete: []
       substitutions: []
     source:
-      biological_assembly: 0
+      biological_assembly: 1
       exclude: {}
       file_format: PDB
-      id: 6pti
+      id: 2ins
       prebuilt: {}
       reserved_chainIDmaps: {}
       sequence:
@@ -969,10 +969,10 @@ tasks:
     units:
       density: g_per_cc
 - terminate:
-    basename: my_6pti
+    basename: my_2ins
     chainmapfile: chainmaps.yaml
     package:
-      basename: prod_6pti
+      basename: prod_2ins
       constraints: {}
       dcdfreq: 10000
       ensemble: NPT
@@ -984,4 +984,4 @@ tasks:
       topogromacs: false
       xstfreq: 10000
     statefile: states.yaml
-title: BPTI
+title: hexameric insulin

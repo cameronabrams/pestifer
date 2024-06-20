@@ -853,10 +853,17 @@ tasks:
       ssbondsdelete: []
       substitutions: []
     source:
-      biological_assembly: 0
-      exclude: {}
-      file_format: PDB
-      id: 6pti
+      biological_assembly: 1
+      exclude:
+        chains:
+        - C
+        - D
+        - E
+        - F
+        resnames:
+        - SO4
+      file_format: mmCIF
+      id: 4tvp
       prebuilt: {}
       reserved_chainIDmaps: {}
       sequence:
@@ -879,6 +886,40 @@ tasks:
     constraints: {}
     dcdfreq: 100
     ensemble: minimize
+    minimize: 1000
+    nsteps: 2000
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- ligate:
+    connect:
+      cleanup: true
+    steer:
+      constraints: {}
+      dcdfreq: 100
+      ensemble: NVT
+      force_constant: 20
+      nsteps: 4000
+      pressure: 1
+      receiver_flexible_zone_radius: 0.0
+      target_distance: 2
+      temperature: 300
+      xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: minimize
+    minimize: 1000
+    nsteps: 2000
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NVT
     minimize: 1000
     nsteps: 2000
     other_parameters: {}
@@ -969,10 +1010,10 @@ tasks:
     units:
       density: g_per_cc
 - terminate:
-    basename: my_6pti
+    basename: my_4tvp
     chainmapfile: chainmaps.yaml
     package:
-      basename: prod_6pti
+      basename: prod_4tvp
       constraints: {}
       dcdfreq: 10000
       ensemble: NPT
@@ -984,4 +1025,4 @@ tasks:
       topogromacs: false
       xstfreq: 10000
     statefile: states.yaml
-title: BPTI
+title: HIV-1 Env Trimer 4tvp, Fabs and sulfate ions removed

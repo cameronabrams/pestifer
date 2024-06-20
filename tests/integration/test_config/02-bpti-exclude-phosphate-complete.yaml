@@ -1,3 +1,5 @@
+ambertools:
+  is_unnecessary: true
 charmmff:
   custom:
     parameters:
@@ -96,9 +98,11 @@ psfgen:
   - atom TIP3 O OH2
   - residue HIS HSD
   - residue PO4 H2PO4
+  - residue H2PO H2PO4
   - residue MAN AMAN
   - residue BMA BMAN
   - residue NAG BGLCNA
+  - residue BGLC BGLCNA
   - residue FUC AFUC
   - residue GAL BGAL
   - residue ANE5 ANE5AC
@@ -109,15 +113,167 @@ psfgen:
   - residue CL CLA
   segtypes:
     glycan:
+      macro: true
       resnames:
-      - BMA
-      - FUC
-      - GAL
-      - MAN
+      - BGC
+      - MAL
+      - GLC
+      - NDG
+      - SGN
+      - 4YS
       - NAG
+      - GCS
+      - GCU
+      - QUI
+      - OLI
+      - BMA
+      - MAN
+      - BEM
+      - MAV
+      - RAM
+      - TYV
+      - AHR
+      - ARA
+      - GLA
+      - GAL
+      - NGA
+      - ADA
+      - GL0
+      - GUP
+      - GUL
+      - LGU
+      - ALT
+      - WOO
+      - ALL
+      - TAL
+      - IDO
+      - IDS
+      - FUL
+      - FUC
+      - LYX
+      - ABE
+      - XYP
+      - LXC
+      - XYS
+      - XYL
+      - PAR
+      - RIB
+      - DIG
+      - COL
+      - BAC
+      - API
+      - FRU
+      - TAG
+      - SOR
+      - PSI
+      - DHA
+      - KDN
+      - KDO
+      - NEU
       - SIA
+      - MUR
+      - GMH
+      - AGLC
+      - BGLC
+      - AALT
+      - BALT
+      - AALL
+      - BALL
+      - AGAL
+      - BGAL
+      - AGUL
+      - BGUL
+      - AIDO
+      - BIDO
+      - AMAN
+      - BMAN
+      - ATAL
+      - BTAL
+      - AXYL
+      - BXYL
+      - AFUC
+      - BFUC
+      - ARHM
+      - BRHM
+      - AGLCA
+      - BGLCA
+      - BGLCA0
+      - AIDOA
+      - BIDOA
+      - AGLCNA
+      - BGLCNA
+      - BGLCN0
+      - AGALNA
+      - BGALNA
+      - ANE5AC
+      - BNE5AC
+      - ABEQ
+      - ARHMOA
+      - MGLYOL
+      - MERYOL
+      - DTHROL
+      - LTHROL
+      - MRIBOL
+      - DARAOL
+      - LARAOL
+      - MXYLOL
+      - MALLOL
+      - DALTOL
+      - LALTOL
+      - DGLUOL
+      - LGLUOL
+      - DMANOL
+      - LMANOL
+      - DGULOL
+      - LGULOL
+      - DIDIOL
+      - LIDIOL
+      - MGALOL
+      - ALLOSE
+      - PSICOS
+      - INI1
+      - INI2
+      - INI3
+      - INI4
+      - INI5
+      - ADEO
+      - BDEO
+      - ARIB
+      - BRIB
+      - AARB
+      - BARB
+      - ALYF
+      - BLYF
+      - AXYF
+      - BXYF
+      - AFRU
+      - BFRU
       - ANE5
+      - BNE5
+      - MGLY
+      - MERY
+      - DTHR
+      - LTHR
+      - MRIB
+      - DARA
+      - LARA
+      - MXYL
+      - MALL
+      - DALT
+      - LALT
+      - DGLU
+      - LGLU
+      - DMAN
+      - LMAN
+      - DGUL
+      - LGUL
+      - DIDI
+      - LIDI
+      - MGAL
+      - ALLO
+      - PSIC
     ion:
+      macro: true
       resnames:
       - LIT
       - SOD
@@ -132,11 +288,484 @@ psfgen:
       - CL
       - SO4
       - PO4
+      - H2PO
     ligand:
+      macro: true
       resnames:
       - EIC
       - VCG
       - 83G
+    lipid:
+      macro: true
+      resnames:
+      - 23SM
+      - 2HEX
+      - 2PTE
+      - 3HEX
+      - ABLIPA
+      - ABLIPB
+      - ACHO
+      - ACTF
+      - ADR
+      - ADRP
+      - ALIN
+      - ALINP
+      - APPC
+      - ARA
+      - ARAN
+      - ARANP
+      - ARAP
+      - ASM
+      - BCLIPA
+      - BCLIPB
+      - BCLIPC
+      - BEH
+      - BEHP
+      - BSM
+      - BTE1
+      - BTE2
+      - BUTA
+      - C6DHPC
+      - C7DHPC
+      - CER160
+      - CER180
+      - CER181
+      - CER2
+      - CER200
+      - CER220
+      - CER240
+      - CER241
+      - CER3E
+      - CHAPS
+      - CHAPSO
+      - CHL1
+      - CHM1
+      - CHNS
+      - CHOL
+      - CHSD
+      - CHSP
+      - CJLIPA
+      - CTLIPA
+      - CYFOS3
+      - CYFOS4
+      - CYFOS5
+      - CYFOS6
+      - CYFOS7
+      - CYSF
+      - CYSG
+      - CYSL
+      - CYSP
+      - DAPA
+      - DAPE
+      - DAPG
+      - DAPS
+      - DCPC
+      - DDA
+      - DDAO
+      - DDAOP
+      - DDAP
+      - DDMG
+      - DDOPC
+      - DDOPE
+      - DDOPS
+      - DDPC
+      - DEPA
+      - DEPC
+      - DEPE
+      - DEPG
+      - DEPS
+      - DGLA
+      - DGLAP
+      - DGPA
+      - DGPC
+      - DGPE
+      - DGPG
+      - DGPS
+      - DHA
+      - DHAP
+      - DHPCE
+      - DIHE
+      - DIPA
+      - DIPE
+      - DLiPC
+      - DLIPC
+      - DLiPE
+      - DLIPE
+      - DLiPI
+      - DMP
+      - DMPCE
+      - DMPEE
+      - DMPI
+      - DMPI13
+      - DMPI14
+      - DMPI15
+      - DMPI24
+      - DMPI25
+      - DMPI2A
+      - DMPI2B
+      - DMPI2C
+      - DMPI2D
+      - DMPI33
+      - DMPI34
+      - DMPI35
+      - DNPA
+      - DNPC
+      - DNPE
+      - DNPG
+      - DNPS
+      - DOMG
+      - DOPCE
+      - DOPEE
+      - DOPP1
+      - DOPP2
+      - DOPP3
+      - DPA
+      - DPAP
+      - DPPEE
+      - DPPGK
+      - DPT
+      - DPTP
+      - DTPA
+      - DUPC
+      - DXPC
+      - DXPE
+      - DYPA
+      - DYPC
+      - DYPE
+      - DYPG
+      - DYPS
+      - ECLIPA
+      - ECLIPB
+      - ECLIPC
+      - EDA
+      - EDAP
+      - EICO
+      - EICOP
+      - EPA
+      - EPAP
+      - EPEN
+      - ERG
+      - ERU
+      - ERUP
+      - ETA
+      - ETAC
+      - ETAM
+      - ETAP
+      - ETE
+      - ETEP
+      - ETHE
+      - FOIS11
+      - FOIS9
+      - FOS10
+      - FOS12
+      - FOS13
+      - FOS14
+      - FOS15
+      - FOS16
+      - GH2F
+      - GLA
+      - GLAP
+      - GLPH
+      - GLYC
+      - GLYM
+      - GPC
+      - HEPT
+      - HEXA
+      - HPA
+      - HPAP
+      - HPLIPA
+      - HPLIPB
+      - HTA
+      - HTAP
+      - IPAC
+      - IPPC
+      - KPLIPA
+      - KPLIPB
+      - KPLIPC
+      - LAPAO
+      - LAPAOP
+      - LAU
+      - LAUP
+      - LDAO
+      - LDAOP
+      - LIGN
+      - LIGNP
+      - LILIPA
+      - LIN
+      - LINP
+      - LLPA
+      - LLPC
+      - LLPE
+      - LLPS
+      - LMPG
+      - LNACL1
+      - LNACL2
+      - LNBCL1
+      - LNBCL2
+      - LNCCL1
+      - LNCCL2
+      - LNDCL1
+      - LNDCL2
+      - LOACL1
+      - LOACL2
+      - LOCCL1
+      - LOCCL2
+      - LPC12
+      - LPC14
+      - LPPG
+      - LSM
+      - LYSM
+      - MAS
+      - MBUT
+      - MCLIPA
+      - MEA
+      - MEAP
+      - MEEF
+      - MP_1
+      - MP_2
+      - MPRO
+      - MSO4
+      - MYR
+      - MYRO
+      - MYROP
+      - MYRP
+      - NC4
+      - NC5
+      - NDEC
+      - NER
+      - NERP
+      - NGLIPA
+      - NGLIPB
+      - NGLIPC
+      - NHEX
+      - NSM
+      - OLE
+      - OLEP
+      - OSM
+      - OYPE
+      - PAL
+      - PALIPA
+      - PALIPB
+      - PALIPC
+      - PALIPD
+      - PALIPE
+      - PALO
+      - PALOP
+      - PALP
+      - PC
+      - PDAG
+      - PDOPC
+      - PDOPE
+      - PENT
+      - PGHG
+      - PhPC
+      - PLPA
+      - PLPC
+      - PLPE
+      - PLPG
+      - PLPI
+      - PLPI13
+      - PLPI14
+      - PLPI15
+      - PLPI24
+      - PLPI25
+      - PLPI2A
+      - PLPI2B
+      - PLPI2C
+      - PLPI2D
+      - PLPI33
+      - PLPI34
+      - PLPI35
+      - PLPS
+      - PMCL1
+      - PMCL2
+      - PMPE
+      - PMPG
+      - PMSPE
+      - PMSPG
+      - PNPI
+      - PNPI13
+      - PNPI14
+      - PNPI15
+      - PNPI24
+      - PNPI25
+      - PNPI2A
+      - PNPI2B
+      - PNPI2C
+      - PNPI2D
+      - PNPI33
+      - PNPI34
+      - PNPI35
+      - POPCE
+      - POPEE
+      - POPI
+      - POPI13
+      - POPI14
+      - POPI15
+      - POPI24
+      - POPI25
+      - POPI2A
+      - POPI2B
+      - POPI2C
+      - POPI2D
+      - POPI33
+      - POPI34
+      - POPI35
+      - POPP1
+      - POPP2
+      - POPP3
+      - PPPE
+      - PRPE
+      - PSM
+      - PVCL2
+      - PVPE
+      - PVPG
+      - PYPE
+      - PYPG
+      - PYPI
+      - QMPE
+      - SAPA
+      - SAPE
+      - SAPG
+      - SAPI
+      - SAPI13
+      - SAPI14
+      - SAPI15
+      - SAPI24
+      - SAPI25
+      - SAPI2A
+      - SAPI2B
+      - SAPI2C
+      - SAPI2D
+      - SAPI33
+      - SAPI34
+      - SAPI35
+      - SAPS
+      - SDA
+      - SDAP
+      - SDPA
+      - SDPE
+      - SDPG
+      - SDPS
+      - SDS
+      - SELIPA
+      - SELIPB
+      - SELIPC
+      - SFLIPA
+      - SITO
+      - SLPA
+      - SLPC
+      - SLPE
+      - SLPG
+      - SLPS
+      - SOPA
+      - SOPE
+      - SOPG
+      - SOPS
+      - SSM
+      - STE
+      - STEP
+      - STIG
+      - TAG
+      - TEA
+      - TETD
+      - THA
+      - THAP
+      - THCHL
+      - THDPPC
+      - TIPA
+      - TLCL1
+      - TLCL2
+      - TMCL1
+      - TMCL2
+      - TOCL1
+      - TOCL2
+      - TPA
+      - TPAP
+      - TPG
+      - TPT
+      - TPTP
+      - TRI
+      - TRIP
+      - TRIPAO
+      - TRPAOP
+      - TSPC
+      - TTA
+      - TTAP
+      - TYCL1
+      - TYCL2
+      - UDAO
+      - UDAOP
+      - UFOS10
+      - VCLIPA
+      - VCLIPB
+      - VCLIPC
+      - VCLIPD
+      - VCLIPE
+      - YOPA
+      - YOPC
+      - YOPE
+      - YOPG
+      - YOPS
+      - YPLIPA
+      - YPLIPB
+      - ABLI
+      - BCLI
+      - C6DH
+      - C7DH
+      - CER1
+      - CER3
+      - CHAP
+      - CJLI
+      - CTLI
+      - CYFO
+      - DDOP
+      - DHPC
+      - DLiP
+      - DLIP
+      - DMPC
+      - DMPE
+      - DOPC
+      - DOPE
+      - DOPP
+      - DPPE
+      - DPPG
+      - ECLI
+      - FOIS
+      - FOS1
+      - HPLI
+      - KPLI
+      - LAPA
+      - LILI
+      - LNAC
+      - LNBC
+      - LNCC
+      - LNDC
+      - LOAC
+      - LOCC
+      - LPC1
+      - MCLI
+      - NGLI
+      - PALI
+      - PDOP
+      - PMCL
+      - PMSP
+      - POPC
+      - POPE
+      - POPP
+      - PVCL
+      - SELI
+      - SFLI
+      - THCH
+      - THDP
+      - TLCL
+      - TMCL
+      - TOCL
+      - TRPA
+      - TYCL
+      - UFOS
+      - VCLI
+      - YPLI
     other:
       resnames: []
     protein:
@@ -161,6 +790,7 @@ psfgen:
         V: VAL
         W: TRP
         Y: TYR
+      macro: false
       rescodes:
         ALA: A
         ARG: R
@@ -215,7 +845,9 @@ tasks:
       Cfusions: []
       crotations: []
       deletions: []
+      grafts: []
       insertions: []
+      links: []
       mutations: []
       ssbonds: []
       ssbondsdelete: []
@@ -227,14 +859,21 @@ tasks:
         - PO4
       file_format: PDB
       id: 6pti
+      prebuilt: {}
+      reserved_chainIDmaps: {}
       sequence:
         build_zero_occupancy_C_termini: []
         build_zero_occupancy_N_termini: []
         fix_conflicts: true
         fix_engineered_mutations: true
+        glycans:
+          declash:
+            clashdist: 1.5
+            maxcycles: 20
         include_terminal_loops: false
         loops:
           declash:
+            include_C_termini: true
             maxcycles: 20
           min_loop_length: 4
           sac_res_name: GLY
@@ -263,9 +902,9 @@ tasks:
 - md:
     constraints: {}
     dcdfreq: 100
-    ensemble: NPT
+    ensemble: NVT
     minimize: 1000
-    nsteps: 1000
+    nsteps: 2000
     other_parameters: {}
     pressure: 1
     temperature: 300
@@ -275,9 +914,76 @@ tasks:
     dcdfreq: 100
     ensemble: NPT
     minimize: 1000
-    nsteps: 1000
+    nsteps: 200
     other_parameters: {}
     pressure: 1
     temperature: 300
     xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NPT
+    minimize: 1000
+    nsteps: 400
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NPT
+    minimize: 1000
+    nsteps: 800
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NPT
+    minimize: 1000
+    nsteps: 1600
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NPT
+    minimize: 1000
+    nsteps: 13200
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- mdplot:
+    basename: solvated
+    figsize:
+    - 9
+    - 6
+    savedata: solvated.csv
+    traces:
+    - density
+    - density
+    units:
+      density: g_per_cc
+- terminate:
+    basename: my_6pti
+    chainmapfile: chainmaps.yaml
+    package:
+      basename: prod_6pti
+      constraints: {}
+      dcdfreq: 10000
+      ensemble: NPT
+      nminsteps: 0
+      nsteps: 1000000
+      pressure: 1
+      restartfreq: 10000
+      temperature: 300
+      topogromacs: false
+      xstfreq: 10000
+    statefile: states.yaml
 title: BPTI with phosphate ion excluded

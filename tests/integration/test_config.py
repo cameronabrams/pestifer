@@ -25,8 +25,7 @@ class ConfigTest(unittest.TestCase):
         c=Config()
         self.assertTrue('Resources' in c)
         self.assertEqual(type(c['Resources']),ResourceManager)
-        rr=c['Resources']['tcl']['scripts']
-        self.assertEqual(os.path.join(rr,'pestifer-vmd.tcl'),c.vmd_startup_script)
+        self.assertEqual(os.path.join(c.tcl_root,'vmdrc.tcl'),c.vmd_startup_script)
         self.assertEqual(segtype_of_resname['ALA'],'protein')
         self.assertEqual(segtype_of_resname['MAN'],'glycan')
         self.assertEqual(segtype_of_resname['CL'],'ion')
@@ -84,6 +83,27 @@ class ConfigTest(unittest.TestCase):
         name,specs=[(x,y) for x,y in task3.items()][0]
         self.assertEqual(name,'solvate')
 
+    def test_config_task_source(self):
+        rm=ResourceManager()
+        configfile=os.path.join(rm['examples'],'05-hiv-env-4zmj-package.yaml')
+        c=Config(userfile=configfile)
+        self.assertTrue('user' in c)
+        self.assertTrue('tasks' in c['user'])
+        self.assertEqual(len(c['user']['tasks'][0].keys()),1)
+        task1=c['user']['tasks'][0]
+        name,specs=[(x,y) for x,y in task1.items()][0]
+        self.assertEqual(name,'psfgen')
+        self.assertTrue('source' in specs)
+        self.assertEqual(specs['source']['id'],'4zmj')
+        self.assertTrue('cleanup' in specs)
+        sourcespecs=specs['source']
+        self.assertTrue('reserved_chainIDmaps' in sourcespecs)
+        resm=sourcespecs['reserved_chainIDmaps']
+        self.assertTrue('G' in resm)
+        self.assertTrue('B' in resm)
+        self.assertTrue(resm['G']==['H','J'])
+        self.assertTrue(resm['B']==['C','D'])
+
     def test_config_help_examples(self):
         rm=ResourceManager()
         configfiles=glob.glob(rm['examples']+'/*.yaml')
@@ -94,9 +114,9 @@ class ConfigTest(unittest.TestCase):
             self.assertTrue('base' in c)
             self.assertTrue('user' in c)
             D=c['base']['directives']
-            self.assertEqual(len(D),6)
+            self.assertEqual(len(D),7)
             tld=[x['name'] for x in D]
-            self.assertEqual(tld,['charmmff', 'psfgen', 'namd2', 'title', 'paths', 'tasks'])
+            self.assertEqual(tld,['charmmff', 'psfgen', 'ambertools', 'namd2', 'title', 'paths', 'tasks'])
             T_idx=tld.index('title')
             T=D[T_idx]
             self.assertEqual(T['name'],'title')

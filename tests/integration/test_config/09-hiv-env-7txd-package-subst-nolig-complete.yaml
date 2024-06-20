@@ -843,7 +843,19 @@ tasks:
     cleanup: true
     mods:
       Cfusions: []
-      crotations: []
+      crotations:
+      - alpha,B,33,52
+      - alpha,B,144,153
+      - alpha,D,32,52
+      - alpha,D,144,153
+      - phi,D,34,52,-30
+      - phi,D,33,52,15
+      - psi,D,29,52,-5
+      - alpha,F,33,50
+      - alpha,F,144,153
+      - phi,F,32,50,30
+      - phi,F,31,50,45
+      - psi,C,368,378,180
       deletions: []
       grafts: []
       insertions: []
@@ -851,16 +863,30 @@ tasks:
       mutations: []
       ssbonds: []
       ssbondsdelete: []
-      substitutions: []
+      substitutions:
+      - A:100-162,GGG
+      - C:100-162,GGG
+      - E:100-162,GGG
     source:
-      biological_assembly: 0
-      exclude: {}
-      file_format: PDB
-      id: 6pti
+      biological_assembly: 1
+      cif_residue_map_file: cif2user.csv
+      exclude:
+        chains:
+        - G
+        - H
+        - I
+        - J
+        - K
+        - L
+      file_format: mmCIF
+      id: 7txd
       prebuilt: {}
       reserved_chainIDmaps: {}
       sequence:
-        build_zero_occupancy_C_termini: []
+        build_zero_occupancy_C_termini:
+        - B
+        - D
+        - F
         build_zero_occupancy_N_termini: []
         fix_conflicts: true
         fix_engineered_mutations: true
@@ -879,6 +905,40 @@ tasks:
     constraints: {}
     dcdfreq: 100
     ensemble: minimize
+    minimize: 1000
+    nsteps: 2000
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- ligate:
+    connect:
+      cleanup: true
+    steer:
+      constraints: {}
+      dcdfreq: 100
+      ensemble: NVT
+      force_constant: 20
+      nsteps: 3000
+      pressure: 1
+      receiver_flexible_zone_radius: 0.0
+      target_distance: 2
+      temperature: 300
+      xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: minimize
+    minimize: 1000
+    nsteps: 2000
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NVT
     minimize: 1000
     nsteps: 2000
     other_parameters: {}
@@ -969,10 +1029,10 @@ tasks:
     units:
       density: g_per_cc
 - terminate:
-    basename: my_6pti
+    basename: my_7txd
     chainmapfile: chainmaps.yaml
     package:
-      basename: prod_6pti
+      basename: prod_7txd
       constraints: {}
       dcdfreq: 10000
       ensemble: NPT
@@ -984,4 +1044,4 @@ tasks:
       topogromacs: false
       xstfreq: 10000
     statefile: states.yaml
-title: BPTI
+title: HIV-1 Env Trimer 7txd, substitutions, no ligands

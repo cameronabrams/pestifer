@@ -843,20 +843,28 @@ tasks:
     cleanup: true
     mods:
       Cfusions: []
-      crotations: []
+      crotations:
+      - psi,E,661,693,60
+      - phi,E,662,693,60
       deletions: []
       grafts: []
       insertions: []
       links: []
-      mutations: []
+      mutations:
+      - E:P753A
       ssbonds: []
       ssbondsdelete: []
       substitutions: []
     source:
-      biological_assembly: 0
-      exclude: {}
+      biological_assembly: 1
+      exclude:
+        chains:
+        - A
+        - B
+        - C
+        - D
       file_format: PDB
-      id: 6pti
+      id: 4zxb
       prebuilt: {}
       reserved_chainIDmaps: {}
       sequence:
@@ -872,7 +880,7 @@ tasks:
         loops:
           declash:
             include_C_termini: true
-            maxcycles: 20
+            maxcycles: 0
           min_loop_length: 4
           sac_res_name: GLY
 - md:
@@ -881,6 +889,40 @@ tasks:
     ensemble: minimize
     minimize: 1000
     nsteps: 2000
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- ligate:
+    connect:
+      cleanup: true
+    steer:
+      constraints: {}
+      dcdfreq: 100
+      ensemble: NVT
+      force_constant: 20
+      nsteps: 12000
+      pressure: 1
+      receiver_flexible_zone_radius: 0.0
+      target_distance: 2
+      temperature: 300
+      xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: minimize
+    minimize: 1000
+    nsteps: 2000
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NVT
+    minimize: 1000
+    nsteps: 24000
     other_parameters: {}
     pressure: 1
     temperature: 300
@@ -969,10 +1011,10 @@ tasks:
     units:
       density: g_per_cc
 - terminate:
-    basename: my_6pti
+    basename: my_4zxb
     chainmapfile: chainmaps.yaml
     package:
-      basename: prod_6pti
+      basename: prod_4zxb
       constraints: {}
       dcdfreq: 10000
       ensemble: NPT
@@ -984,4 +1026,4 @@ tasks:
       topogromacs: false
       xstfreq: 10000
     statefile: states.yaml
-title: BPTI
+title: insulin receptor ectodomain, Fabs removed

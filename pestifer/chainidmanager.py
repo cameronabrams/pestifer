@@ -10,15 +10,14 @@ class ChainIDManager:
     
     Methods
     -------
-    __init__(format)
+    __init__(format, reserved_maps)
       initializes the repository of chainIDs depending on format
        
-    register_asymm_chains(chainIDs)
-      Given the list of chainIDs detected in the asymmetric unit, registers
-       then with the manager
+    register_chains(chainIDs)
+      Registers the list of chainIDs with the manager
     
-    receive_chain(chainID)
-      Registers the chainID
+    unregister_chain(chainID)
+      Unregisters the chainID
       
     next_chain()
       Registers the next available chainID and returns it
@@ -34,37 +33,90 @@ class ChainIDManager:
       returns a single-entry dictionary mapping the chainID to the
       next available chainID
     """
-    def __init__(self,format='PDB'):
+    def __init__(self,format='PDB',reserved_maps={}):
         logger.debug(f'New chainIDmanager, format {format}')
         self.format=format
+        self.reserved_maps=reserved_maps
+        self.ReservedUnused=[]
         U=[chr(i) for i in range(ord('A'),ord('A')+26)]
         if format=='PDB':
+            # use all possible 1-byte upper- and lowercase, and single digits
             L=[chr(i) for i in range(ord('a'),ord('a')+26)]
             D=[str(i) for i in range(10)]
-            self.OrderedSupply=U+L+D
+            self.Unused=U+L+D
         elif format=='mmCIF':
-            self.OrderedSupply=[]
+            # use all possible 1- and 2-byte uppercase
+            self.Unused=[]
             for a in ['']+U:
                 for b in U:
-                    self.OrderedSupply.append(b+a)
+                    self.Unused.append(b+a)
+        for k,v in self.reserved_maps.items():
+            for mc in [k]+v:
+                assert mc in self.Unused,f'Error: reserved map chainID {mc} is not available in the Unused set'
+                self.Unused.remove(mc)
+                self.ReservedUnused.append(mc)
         self.Used=set()
 
-    def register_asymm_chains(self,chainIDs):
+    def register_chains(self,chainIDs):
+        """ Registers all chains detected in the list chainIDs with the manager 
+        
+        Parameters:
+        -----------
+        chainIDs : list
+           List of chainIDs (each is a 1 or 2-byte str) to register
+        """
         for c in chainIDs:
-            self.OrderedSupply.remove(c)
+            if c in self.Unused:
+                self.Unused.remove(c)
+            elif c in self.ReservedUnused:
+                self.ReservedUnused.remove(c)
+            else:
+                raise ValueError(f'chainID {c} is not available for registry')
             self.Used.add(c)
 
-    def receive_chain(self,chainID):
+    def unregister_chain(self,chainID):
+        """ Unregister the single chainID with the manager 
+        
+        Paramter:
+        ---------
+        chainID : str
+           1- or 2-byte chainID to unregister
+        """
         self.Used.remove(chainID)
-        self.OrderedSupply.append(chainID) # yes but it won't stay ordered
+        is_reserved=any([chainID in self.reserved_maps.keys()]+[chainID in v for v in self.reserved_maps.values()])
+        if is_reserved:
+            self.ReservedUnused.append(chainID)
+        else:
+            self.Unused.append(chainID)
 
-    def next_chain(self):
-        p=self.OrderedSupply.pop(0)
+    def next_unused_chainID(self):
+        p=self.Unused.pop(0)
         self.Used.add(p)
         return p
+    
+    def next_reserved_chainID(self,key):
+        assert key in self.reserved_maps,f'Key chainID {key} not a key in the prescribed reserve maps'
+        mapsto=self.reserved_maps[key]
+        assert any([x in self.ReservedUnused for x in mapsto]),f'mapped key {key} has no daughters available'
+        for c in mapsto:
+            if c in self.ReservedUnused:
+                self.ReservedUnused.remove(c)
+                self.Used.add(c)
+                return c
+        return None
+        
+    def is_already_reserved(self,tst):
+        for k,v in self.reserved_maps.items():
+            if tst in v:
+                return True
+        return False
 
     def generate_next_map(self,chainIDs,active_chains=[]):
-        assert len(chainIDs)<=len(self.OrderedSupply),f'Not enough available chainIDs'
+        """ Generate a map identifying new chainIDs for each existing chainID
+            in the list chainIDs.  If active_chains is not empty, then 
+            it must list a subset of the chainIDs considered actually active
+        """
+        assert len(chainIDs)<=len(self.Unused),f'Not enough available chainIDs'
         myMap={}
         activeChainIDs=chainIDs.copy()
         # logger.debug(f'generating next map from {activeChainIDs} with actives {active_chains}')
@@ -72,13 +124,13 @@ class ChainIDManager:
             inactive_chains=[x for x in activeChainIDs if not x in active_chains]
             for i in inactive_chains:
                 activeChainIDs.remove(i)
+        assert not (any([c in self.Unused for c in activeChainIDs]) or any([c in self.ReservedUnused for c in activeChainIDs]))
         for c in activeChainIDs:
-            if c in self.OrderedSupply: # should never happen
-                self.OrderedSupply.remove(c)
-                self.Used.add(c)
-        for c in activeChainIDs:
-            myMap[c]=self.next_chain()
-        logger.debug(f'generated next map: {myMap}')
+            if c in self.reserved_maps:
+                myMap[c]=self.next_reserved_chainID(c)
+            else:
+                myMap[c]=self.next_unused_chainID()
+        logger.debug(f'generated next chainID map: {myMap}')
         return myMap
     
     def thru_map(self,chainIDs,active_chains=[]):
@@ -91,8 +143,8 @@ class ChainIDManager:
         return {c:c for c in activeChainIDs}
     
     def cleavage_daughter_chainID(self,chainID):
-        assert 1<=len(self.OrderedSupply),f'Not enough available chainIDs'
-        assert chainID in self.OrderedSupply,f'Parent chain {chainID} was never claimed'
-        p=self.OrderedSupply.pop(0)
+        assert 1<=len(self.Unused),f'Not enough available chainIDs'
+        assert chainID in self.Unused,f'Parent chain {chainID} was never claimed'
+        p=self.Unused.pop(0)
         self.Used.add(p)
         return {chainID: p}

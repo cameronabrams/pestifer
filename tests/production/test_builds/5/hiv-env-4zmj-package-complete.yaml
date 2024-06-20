@@ -1,3 +1,5 @@
+# Ycleptic v 1.0.5.1 -- Cameron F. Abrams -- cfa22@drexel.edu
+# Dump of complete user config file
 ambertools:
   is_unnecessary: true
 charmmff:
@@ -843,7 +845,9 @@ tasks:
     cleanup: true
     mods:
       Cfusions: []
-      crotations: []
+      crotations:
+      - psi,B,546,568,-180.0
+      - phi,B,547,568,-60.0
       deletions: []
       grafts: []
       insertions: []
@@ -853,12 +857,18 @@ tasks:
       ssbondsdelete: []
       substitutions: []
     source:
-      biological_assembly: 0
+      biological_assembly: 1
       exclude: {}
       file_format: PDB
-      id: 6pti
+      id: 4zmj
       prebuilt: {}
-      reserved_chainIDmaps: {}
+      reserved_chainIDmaps:
+        B:
+        - C
+        - D
+        G:
+        - H
+        - J
       sequence:
         build_zero_occupancy_C_termini: []
         build_zero_occupancy_N_termini: []
@@ -867,7 +877,7 @@ tasks:
         glycans:
           declash:
             clashdist: 1.5
-            maxcycles: 20
+            maxcycles: 0
         include_terminal_loops: false
         loops:
           declash:
@@ -881,6 +891,40 @@ tasks:
     ensemble: minimize
     minimize: 1000
     nsteps: 2000
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- ligate:
+    connect:
+      cleanup: true
+    steer:
+      constraints: {}
+      dcdfreq: 100
+      ensemble: NVT
+      force_constant: 20
+      nsteps: 4200
+      pressure: 1
+      receiver_flexible_zone_radius: 0.0
+      target_distance: 2
+      temperature: 300
+      xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: minimize
+    minimize: 1000
+    nsteps: 2000
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NVT
+    minimize: 1000
+    nsteps: 2400
     other_parameters: {}
     pressure: 1
     temperature: 300
@@ -969,10 +1013,10 @@ tasks:
     units:
       density: g_per_cc
 - terminate:
-    basename: my_6pti
+    basename: my_4zmj
     chainmapfile: chainmaps.yaml
     package:
-      basename: prod_6pti
+      basename: prod_4zmj
       constraints: {}
       dcdfreq: 10000
       ensemble: NPT
@@ -984,4 +1028,4 @@ tasks:
       topogromacs: false
       xstfreq: 10000
     statefile: states.yaml
-title: BPTI
+title: HIV-1 Env Trimer 4zmj

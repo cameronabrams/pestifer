@@ -928,6 +928,9 @@ directives:
                 text: integer index of the biological assembly to construct; default is 0, signifying that the asymmetric unit is to be used
                 type: int
                 default: 0
+              - name: reserved_chainIDmaps
+                type: dict
+                text: dictionary keyed by chain IDs in the asymmetric unit with values that are lists of chain ID's for symmetry-related chains in other units of the biological assembly
               - name: model
                 text: model number to use if there are multiple models in the file
                 type: int

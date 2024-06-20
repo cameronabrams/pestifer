@@ -1,5 +1,7 @@
 ambertools:
-  is_unnecessary: true
+  available: true
+  local: false
+  venv: pmmg
 charmmff:
   custom:
     parameters:
@@ -18,6 +20,7 @@ charmmff:
     - par_all36_cgenff.prm
     - stream/carb/toppar_all36_carb_glycopeptide.str
     - stream/prot/toppar_all36_prot_modify_res.str
+    - stream/lipid/toppar_all36_lipid_cholesterol.str
     topologies:
     - top_all36_prot.rtf
     - top_all35_ethers.rtf
@@ -27,6 +30,7 @@ charmmff:
     - top_all36_na.rtf
     - stream/carb/toppar_all36_carb_glycopeptide.str
     - stream/prot/toppar_all36_prot_modify_res.str
+    - stream/lipid/toppar_all36_lipid_cholesterol.str
 namd2:
   barostat:
     langevinpiston: true
@@ -856,7 +860,8 @@ tasks:
       biological_assembly: 0
       exclude: {}
       file_format: PDB
-      id: 6pti
+      id: 6e8w
+      model: 15
       prebuilt: {}
       reserved_chainIDmaps: {}
       sequence:
@@ -885,15 +890,36 @@ tasks:
     pressure: 1
     temperature: 300
     xstfreq: 100
-- solvate:
-    pad: 10
+- packmol_memgen:
+    command_options:
+      charmm: true
+      dims: []
+      dist: 18
+      lipids: POPC:CHL1
+      n_ter: in
+      nloop: 200
+      nloop_all: 200
+      noprogress: true
+      notprotonate: true
+      nottrim: true
+      preoriented: true
+      random: true
+      ratio: 0.67:0.33
+      salt: false
+    embed:
+      z_head_group: protein and resid 667
+      z_ref_group:
+        text: protein and resid 696
+        z_value: 0.0
+      z_tail_group: protein and resid 710
 - md:
     constraints: {}
     dcdfreq: 100
     ensemble: minimize
-    minimize: 1000
+    minimize: 5000
     nsteps: 2000
-    other_parameters: {}
+    other_parameters:
+      wrapall: true
     pressure: 1
     temperature: 300
     xstfreq: 100
@@ -952,7 +978,47 @@ tasks:
     dcdfreq: 100
     ensemble: NPT
     minimize: 1000
-    nsteps: 13200
+    nsteps: 3200
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NPT
+    minimize: 1000
+    nsteps: 6400
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NPT
+    minimize: 1000
+    nsteps: 12800
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NPT
+    minimize: 1000
+    nsteps: 25600
+    other_parameters: {}
+    pressure: 1
+    temperature: 300
+    xstfreq: 100
+- md:
+    constraints: {}
+    dcdfreq: 100
+    ensemble: NPT
+    minimize: 1000
+    nsteps: 51200
     other_parameters: {}
     pressure: 1
     temperature: 300
@@ -969,10 +1035,10 @@ tasks:
     units:
       density: g_per_cc
 - terminate:
-    basename: my_6pti
+    basename: my_6e8w
     chainmapfile: chainmaps.yaml
     package:
-      basename: prod_6pti
+      basename: prod_6e8w
       constraints: {}
       dcdfreq: 10000
       ensemble: NPT
@@ -984,4 +1050,4 @@ tasks:
       topogromacs: false
       xstfreq: 10000
     statefile: states.yaml
-title: BPTI
+title: 6e8w

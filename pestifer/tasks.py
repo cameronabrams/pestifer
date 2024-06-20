@@ -620,7 +620,7 @@ class PsfgenTask(BaseTask):
                     }
                     self.molecules[g.source_pdbid]=Molecule(source=this_source)
                 g.activate(deepcopy(self.molecules[g.source_pdbid]))
-        self.chainIDmanager=ChainIDManager(format=self.source_specs['file_format'])
+        self.chainIDmanager=ChainIDManager(format=self.source_specs['file_format'],reserved_maps=self.source_specs.get('reserved_chainIDmaps',{}))
         self.base_molecule=Molecule(source=self.source_specs,modmanager=self.modmanager,chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
         if self.source_specs.get('id',{}):
             key=self.source_specs['id']

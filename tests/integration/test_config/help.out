@@ -1,4 +1,4 @@
-    Help available for charmmff, psfgen, namd2, title, paths, tasks
+    Help available for charmmff, psfgen, ambertools, namd2, title, paths, tasks
 title:
     Meaningful title (optional)
     type: str
@@ -15,7 +15,7 @@ vmd:
 tasks:
     Specifies the tasks to be performed serially
     type: list
-    Help available for psfgen, ligate, domainswap, solvate, md, manipulate, terminate
+    Help available for psfgen, ligate, mdplot, cleave, domainswap, solvate, packmol_memgen, md, manipulate, terminate
 tasks->
 psfgen:
     Parameters controlling a psfgen run on an input molecule
@@ -26,7 +26,7 @@ psfgen->
 source:
     Specifies the source of the initial coordinate file
     type: dict
-    Help available for id, biological_assembly, file_format, cif_residue_map_file, psf, altcoords, exclude, sequence
+    Help available for prebuilt, id, alphafold, biological_assembly, reserved_chainIDmaps, model, file_format, cif_residue_map_file, exclude, sequence
 tasks->
 psfgen->
 source->
@@ -35,7 +35,6 @@ id:
       coordinate file (PDB or mmCIF format); pestifer will download
       from the RCSB if a file is not found
     type: str
-    A value is required.
 tasks->
 psfgen->
 source->
@@ -54,7 +53,7 @@ sequence:
     Parameters controlling sequence modifications based on specifications
       in the PDB source
     type: dict
-    Help available for include_terminal_loops, build_zero_occupancy_C_termini, build_zero_occupancy_N_termini, fix_engineered_mutations, fix_conflicts, loops
+    Help available for include_terminal_loops, build_zero_occupancy_C_termini, build_zero_occupancy_N_termini, fix_engineered_mutations, fix_conflicts, loops, glycans
 tasks->
 psfgen->
 source->

@@ -143,7 +143,7 @@ class AsymmetricUnit(AncestorAwareMod):
             # This is only meaningful if mmCIF input is used
             residues.map_chainIDs_label_to_auth()
             # initialize the chainID manager
-            chainIDmanager.register_asymm_chains(residues.uniqattrs(['chainID'])['chainID'])
+            chainIDmanager.register_chains(residues.uniqattrs(['chainID'])['chainID'])
             logger.debug(f'Used chainIDs {chainIDmanager.Used}')
 
             # Give each Seqadv a residue identifier
@@ -213,8 +213,8 @@ class AsymmetricUnit(AncestorAwareMod):
             pruned=pruned_by_links=links.prune_mutations(mutations,segments)
             pruned_segments=pruned.get('segments',[])
             for s in pruned_segments:
-                logger.debug(f'Deactivating chainID {s.segname} because this entire segment was pruned')
-                chainIDmanager.receive_chain(s.segname)
+                logger.debug(f'Unregistering chainID {s.segname} because this entire segment was pruned')
+                chainIDmanager.unregister_chain(s.segname)
 
             # Now any added or deleted ssbonds
             ssbonds=modmanager.injest(ssbonds)
