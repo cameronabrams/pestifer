@@ -334,7 +334,7 @@ class SegmentList(AncestorAwareModList):
                     for chainID in res.uniqattrs(['chainID'])['chainID']:
                         this_chainID=chainID
                         c_res=res.filter(chainID=this_chainID)
-                        if chainID in self.segnames or chainIDmanager.is_already_reserved(chainID):
+                        if chainID in self.segnames:
                             # if this chainID was already used by a previously identified segment
                             logger.debug(f'chainID {chainID} is either already in use or reserved for a mapping')
                             this_chainID=chainIDmanager.next_unused_chainID()

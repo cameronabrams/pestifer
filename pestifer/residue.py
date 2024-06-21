@@ -226,10 +226,12 @@ class Residue(EmptyResidue):
             self.atoms.append(a)
             return True
         return False
-    # def set_chainID(self,chainID):
-    #     self.chainID=chainID
-    #     for a in self.atoms:
-    #         a.chainID=chainID
+
+    def set_chainID(self,chainID):
+        self.chainID=chainID
+        for a in self.atoms:
+            a.chainID=chainID
+
     # def set_resseqnum(self,resseqnum):
     #     self.resseqnum=resseqnum
     #     for a in self.atoms:
@@ -491,6 +493,7 @@ class ResidueList(AncestorAwareModList):
                         l.insertion2=''
                         logger.debug(f' remapped right: {l.chainID2} {old} -> {l.resseqnum2}')
 
-    # def set_chainID(self,chainID):
-    #     for r in self:
-    #         r.set_chainID(chainID)
+    def remap_chainIDs(self,the_map):
+        for r in self:
+            if r.chainID in the_map:
+                r.set_chainID(the_map[r.chainID])

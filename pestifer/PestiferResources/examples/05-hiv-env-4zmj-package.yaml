@@ -5,10 +5,14 @@
 # Simple build of solvated HIV-1 Env SOSIP ectodomain trimer 4zmj
 #
 # Notes:
+#   - Chain G produces daughter chains H and J upon BIOMT transformation to build trimer
+#   - Chain B produces daughter chains C and D upon BIOMT transformation to build trimer
+#   - Existing chains C and D (these are glycans) are assigned new chainIDs
+#   - All glycans are assigned chainIDs that are not shared with any protein
 #   - Missing protein is built-in
 #   - Fine-tuning ramachandran rotations performed at N-terminus of HN1
 #     to avoid steric clashes when building in these missing residues
-#   - A four-phase NPT equilibration is used to settle the density
+#   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_4zmj.tgz
 #
 title: HIV-1 Env Trimer 4zmj

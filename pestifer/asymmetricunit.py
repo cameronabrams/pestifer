@@ -142,9 +142,22 @@ class AsymmetricUnit(AncestorAwareMod):
             # populates a specific mapping of PDB chainID to CIF label_asym_id
             # This is only meaningful if mmCIF input is used
             residues.map_chainIDs_label_to_auth()
+
+            # do any initial remapping of chainIDs
+            if chainIDmanager.remap:
+                residues.remap_chainIDs(chainIDmanager.remap)
+                seqadvs.map_attr('chainID','chainID',chainIDmanager.remap)
+                ssbonds.map_attr('chainID1','chainID1',chainIDmanager.remap)
+                ssbonds.map_attr('chainID2','chainID2',chainIDmanager.remap)
+                links.map_attr('chainID1','chainID1',chainIDmanager.remap)
+                links.map_attr('chainID2','chainID2',chainIDmanager.remap)
+                grafts.map_attr('chainID','chainID',chainIDmanager.remap)
+
             # initialize the chainID manager
-            chainIDmanager.register_chains(residues.uniqattrs(['chainID'])['chainID'])
-            logger.debug(f'Used chainIDs {chainIDmanager.Used}')
+            self.reserved_chainID_conflicts=chainIDmanager.register_chains(residues.uniqattrs(['chainID'])['chainID'])
+            logger.debug(f'Used chainIDs: {chainIDmanager.Used}')
+            if len(self.reserved_chainID_conflicts)>0:
+                logger.debug(f'ChainIDs that conflict with reserve requests: {self.reserved_chainID_conflicts}')
 
             # Give each Seqadv a residue identifier
             ignored_seqadvs=seqadvs.assign_residues(residues)
@@ -168,7 +181,20 @@ class AsymmetricUnit(AncestorAwareMod):
                 logger.debug(f'    {len(ignored_ssbonds)} ssbonds; {len(ssbonds)} remain;')
                 logger.debug(f'    {len(ignored_links)} links; {len(links)} remain;')
                 logger.debug(f'    {len(ignored_grafts)} grafts; {len(grafts)} remain.')
-            
+
+            # alter chainIDs of any residues that conflict with reserved chainIDs
+            self.reserved_chainID_remap={}
+            if len(self.reserved_chainID_conflicts)>0:
+                self.reserved_chainID_remap={k:chainIDmanager.next_unused_chainID() for k in self.reserved_chainID_conflicts}
+                residues.remap_chainIDs(self.reserved_chainID_remap)
+                logger.debug(f'After chainID remapping due to reserved conflicts, used chainIDs are {chainIDmanager.Used}')
+                # update all residue-specific mods with chainIDs
+                seqadvs.update_attr_from_obj_attr('chainID','residue','chainID')
+                ssbonds.update_attr_from_obj_attr('chainID1','residue1','chainID')
+                ssbonds.update_attr_from_obj_attr('chainID2','residue2','chainID')
+                links.update_attr_from_obj_attr('chainID1','residue1','chainID')
+                links.update_attr_from_obj_attr('chainID2','residue2','chainID')
+                grafts.update_attr_from_objlist_elem_attr('chainID','residues',0,'chainID')
             # provide specifications of how to handle sequence issues
             # implied by PDB input
             seq_specs=sourcespecs.get('sequence',{})

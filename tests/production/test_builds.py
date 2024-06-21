@@ -41,7 +41,7 @@ def do_it(exnumber):
     assert(os.path.exists(prod_tgz))
         # end_message=res.stderr.split('\n')[-2]
         # assert(end_message=='INFO> pestifer runtime ends.')
-        # cleanup()
+    cleanup()
 
 class TestBuild(unittest.TestCase):
     def test_example_build01(self):

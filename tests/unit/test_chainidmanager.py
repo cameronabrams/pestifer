@@ -49,6 +49,12 @@ class TestChainIDManager(unittest.TestCase):
         d=cm.next_reserved_chainID('A')
         self.assertEqual(d,'Q')
 
+    def test_remap_chainIDs(self):
+        cm=ChainIDManager()
+        self.assertTrue(cm.remap=={})
+        cm=ChainIDManager(remap={'A':'X','B':'Y','C':'Z'})
+        self.assertEqual(cm.remap['A'],'X')
+        
     def test_generate_next_map(self):
         cm=ChainIDManager(reserved_maps={'A':['G','Q'],'B':['H','R']})
         cm.register_chains(['A','B'])

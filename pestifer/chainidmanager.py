@@ -33,9 +33,10 @@ class ChainIDManager:
       returns a single-entry dictionary mapping the chainID to the
       next available chainID
     """
-    def __init__(self,format='PDB',reserved_maps={}):
+    def __init__(self,format='PDB',remap={},reserved_maps={}):
         logger.debug(f'New chainIDmanager, format {format}')
         self.format=format
+        self.remap=remap
         self.reserved_maps=reserved_maps
         self.ReservedUnused=[]
         U=[chr(i) for i in range(ord('A'),ord('A')+26)]
@@ -51,12 +52,15 @@ class ChainIDManager:
                 for b in U:
                     self.Unused.append(b+a)
         for k,v in self.reserved_maps.items():
-            for mc in [k]+v:
+            assert k in self.Unused,f'Error: reserved map key chainID {k} is not available in the Unused set'
+            for mc in v: # only put image chainIDs in ReservedUnused
                 assert mc in self.Unused,f'Error: reserved map chainID {mc} is not available in the Unused set'
                 self.Unused.remove(mc)
                 self.ReservedUnused.append(mc)
+                # at this point, the keys in reserved_maps are also elements in Unused
         self.Used=set()
 
+    _init_registration=False
     def register_chains(self,chainIDs):
         """ Registers all chains detected in the list chainIDs with the manager 
         
@@ -64,16 +68,29 @@ class ChainIDManager:
         -----------
         chainIDs : list
            List of chainIDs (each is a 1 or 2-byte str) to register
+
+        Returns:
+        --------
+        reserved_conflicts : list
+           List of chainIDs that were attempted to be registered but were already
+           named in the reserved maps.  This means that a currently existing chainID
+           has been requested to be assigned to a transformed subunit in a 
+           biological assembly that is built from BIOMT operations. So the chainIDs
+           in this list must be changed to available unused chainIDs by the caller.
         """
+        assert not self._init_registration,f'Error: cannot register chains twice'
+        self._init_registration=True
+        reserved_conflicts=[]
         for c in chainIDs:
-            if c in self.Unused:
+            if c in self.ReservedUnused:
+                reserved_conflicts.append(c)
+            elif c in self.Unused:
                 self.Unused.remove(c)
-            elif c in self.ReservedUnused:
-                self.ReservedUnused.remove(c)
+                self.Used.add(c)
             else:
                 raise ValueError(f'chainID {c} is not available for registry')
-            self.Used.add(c)
-
+        return reserved_conflicts
+    
     def unregister_chain(self,chainID):
         """ Unregister the single chainID with the manager 
         
@@ -83,7 +100,7 @@ class ChainIDManager:
            1- or 2-byte chainID to unregister
         """
         self.Used.remove(chainID)
-        is_reserved=any([chainID in self.reserved_maps.keys()]+[chainID in v for v in self.reserved_maps.values()])
+        is_reserved=any([chainID in v for v in self.reserved_maps.values()])
         if is_reserved:
             self.ReservedUnused.append(chainID)
         else:
