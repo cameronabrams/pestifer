@@ -218,14 +218,13 @@ class Molecule(AncestorAwareMod):
                                 writer.addline(f'patch HEAL {act_segID}:{llres.resseqnum}{llres.insertion} {act_segID}:{lres.resseqnum}{lres.insertion} {act_segID}:{rres.resseqnum}{rres.insertion} {act_segID}:{rrres.resseqnum}{rrres.insertion}')
 
     def cleave_chains(self,clv_list):
-        ba=self.activate_biological_assembly
         au=self.asymmetric_unit
         cm=self.chainIDmanager
         topomods=self.modmanager.get('topomods',{})
         for clv in clv_list:
             S=au.segments.get(chainID=clv.chainID)
             if S:
-                DchainID=cm.next_chain()
+                DchainID=cm.next_unused_chainID()
                 D=S.cleave(clv,DchainID)
                 au.add_segment(D)
 

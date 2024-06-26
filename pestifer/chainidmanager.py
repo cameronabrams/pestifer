@@ -63,18 +63,29 @@ class ChainIDManager:
                 # at this point, the keys in transform_reserves are also elements in Unused
         self.Used=set()
 
+    def sandbag(self,i_chainIDs):
+        """ moves all chainIDs in i_chainIDs to end of Unused so they are not popped too early."""
+        assert all([x in self.Unused for x in i_chainIDs]),f'Cannot sandbag since at least one initial chainID is not found in Unused -- bug!'
+        logger.debug(f'Sandbagging chains {i_chainIDs}')
+        for c in i_chainIDs:
+            self.Unused.remove(c)
+            self.Unused.append(c)
+
     def check(self,proposed_chainID):
         hold_chainID=proposed_chainID
         if hold_chainID in self.remap.values():
             logger.debug(f'proposed chainID {hold_chainID} is already reserved as a user-map')
-            hold_chainID=self.next_unused_chainID()
-            logger.debug(f'counter-proposed chainID is {hold_chainID}')
+            if hold_chainID in self.remap.keys():
+                logger.debug('but it is also a key, so...')
+                logger.debug(f'proposed chainID {hold_chainID} is user-mapped to chainID {self.remap[hold_chainID]}')
+                hold_chainID=self.remap[hold_chainID]    
         elif hold_chainID in self.remap.keys():
             logger.debug(f'proposed chainID {hold_chainID} is user-mapped to chainID {self.remap[hold_chainID]}')
             hold_chainID=self.remap[hold_chainID]
         else:
-            logger.debug(f'proposed chainID {hold_chainID} does not collide with any predefined transform reserves')
-        
+            logger.debug(f'proposed chainID {hold_chainID} does not collide with any predefined chainID user maps')
+        # hold_chainID has not yet been claimed
+        #         
         # caller may not propose a chainID that the user has reserved for transforms
         if hold_chainID in self.ReservedUnused:
             logger.debug(f'chainID {hold_chainID} (orig {proposed_chainID}) is reserved for the product of an asymmetric-unit transform')
@@ -122,12 +133,6 @@ class ChainIDManager:
                 return c
         return None
         
-    def is_already_reserved(self,tst):
-        for k,v in self.transform_reserves.items():
-            if tst in v:
-                return True
-        return False
-
     def generate_next_map(self,chainIDs,active_chains=[]):
         """ Generate a map identifying new chainIDs for each existing chainID
             in the list chainIDs.  If active_chains is not empty, then 
@@ -159,9 +164,7 @@ class ChainIDManager:
         logger.debug(f'generating thru_map from {activeChainIDs} with actives {activeChainIDs}')
         return {c:c for c in activeChainIDs}
     
-    def cleavage_daughter_chainID(self,chainID):
-        assert 1<=len(self.Unused),f'Not enough available chainIDs'
-        assert chainID in self.Unused,f'Parent chain {chainID} was never claimed'
-        p=self.Unused.pop(0)
-        self.Used.add(p)
-        return {chainID: p}
+    # def cleavage_daughter_chainID(self,chainID):
+    #     assert 1<=len(self.Unused),f'Not enough available chainIDs'
+    #     assert chainID in self.Unused,f'Parent chain {chainID} was never claimed'
+    #     return {chainID: self.next_unused_chainID()}

@@ -8,7 +8,7 @@
 #   - Missing protein is built-in
 #   - Fab chains are excluded
 #   - Declashing is turned off
-#   - A four-phase NPT equilibration is used to settle the density
+#   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_5vn3.tgz
 #
 title: insulin receptor ectodomain, Fabs removed

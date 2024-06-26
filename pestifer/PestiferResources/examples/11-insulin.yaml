@@ -5,7 +5,7 @@
 # Simple build of solvated hexameric insulin 2ins
 #
 # Notes:
-#   - A four-phase NPT equilibration is used to settle the density
+#   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_2ins.tgz
 #
 title: hexameric insulin

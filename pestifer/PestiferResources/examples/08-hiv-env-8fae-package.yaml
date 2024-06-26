@@ -22,6 +22,12 @@ tasks:
         exclude:
           resnames:
             - 83G
+        remap_chainIDs:
+          B: G
+          D: H
+          E: I
+          A: B
+          F: D
   - md:
       ensemble: minimize
   - ligate:

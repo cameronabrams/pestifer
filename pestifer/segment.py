@@ -318,25 +318,27 @@ class SegmentList(AncestorAwareModList):
             if type(input_obj)==ResidueList:
                 super().__init__([])
                 residues=input_obj
+                # all residues have their segtypes set
                 assert all([x.segtype!='UNSET' for x in residues])
-                self.segnames_ordered_by_residue_order=[]
                 self.segtypes_ordered=[]
                 for r in residues:
-                    if not r.chainID in self.segnames_ordered_by_residue_order:
-                        self.segnames_ordered_by_residue_order.append(r.chainID)  
+                    if not r.chainID in self.segtype_of_segname:
                         self.segtype_of_segname[r.chainID]=r.segtype
                     if not r.segtype in self.segtypes_ordered:
                         self.segtypes_ordered.append(r.segtype)
                 logger.debug(f'Generating segments from list of {len(residues)} residues; segtypes detected: {self.segtypes_ordered}')
+                initial_chainIDs=list(self.segtype_of_segname.keys())
+                chainIDmanager.sandbag(initial_chainIDs)
                 for stype in self.segtypes_ordered:
                     self.counters_by_segtype[stype]=0
                     res=residues.filter(segtype=stype)
                     orig_chainIDs=res.uniqattrs(['chainID'])['chainID']
                     logger.debug(f'Processing {len(res)} residues of segtype {stype} in {len(orig_chainIDs)} unique chainIDs')
-                    for chainID in orig_chainIDs:
+                    orig_res_groups={chainID: res.filter(chainID=chainID) for chainID in orig_chainIDs}
+                    for chainID,c_res in orig_res_groups.items():
                         this_chainID=chainID
-                        c_res=res.filter(chainID=this_chainID)
-                        logger.debug(f'-> origninal chainID {chainID} in {len(c_res)} residues')
+                        # c_res=res.filter(chainID=this_chainID)
+                        logger.debug(f'-> original chainID {chainID} in {len(c_res)} residues')
                         this_chainID=chainIDmanager.check(this_chainID)
                         if this_chainID != chainID:
                             logger.debug(f'{len(c_res)} residues with original chainID {chainID} and segtype {stype} are assigned new chainID {this_chainID}')

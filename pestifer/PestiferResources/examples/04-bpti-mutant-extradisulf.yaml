@@ -8,7 +8,7 @@
 #   - The phospate ion is excluded
 #   - All crystal waters are retained
 #   - A new disulfide is introduced via mutation
-#   - A four-phase NPT equilibration is used to settle the density
+#   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_6pti.tgz
 #
 title: BPTI, no phosphate, introducing a disulfide via mutations

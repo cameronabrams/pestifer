@@ -10,7 +10,7 @@
 #   - Some selected mutations are performed, showcasing two 
 #     shortcode formats
 #   - A disulfide is removed
-#   - A four-phase NPT equilibration is used to settle the density
+#   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_6pti.tgz
 #
 title: BPTI, no phosphate, some random mutations plus deletion of one disulfide
