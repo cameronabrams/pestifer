@@ -21,7 +21,7 @@ tasks:
       source:
         id: 4zmj
         biological_assembly: 1
-        reserved_chainIDmaps:
+        transform_reserves:
           G: [H,J]
           B: [C,D]
         sequence:

@@ -11,7 +11,7 @@
 #     residue numbers
 #   - Fine-tuning ramachandran rotations performed at N-terminus of HN1
 #     to avoid steric clashes when building in these missing residues
-#   - A four-phase NPT equilibration is used to settle the density
+#   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_4tvp.tgz
 #
 title: HIV-1 Env Trimer 4tvp, Fabs and sulfate ions removed

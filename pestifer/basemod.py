@@ -905,7 +905,7 @@ class ModList(UserList):
             for item in v:
                 thru_dict={k:item}
                 acc_list.extend(self.filter(**thru_dict))
-        # logger.debug(f'pruning out {len(acc_list)} items')
+        logger.debug(f'pruning out {len(acc_list)} items')
         for item in acc_list:
             if item in self:
                 self.remove(item)

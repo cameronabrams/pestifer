@@ -1,6 +1,5 @@
 HEADER    PROTEINASE INHIBITOR (TRYPSIN)          13-MAY-87   6PTI              
-TITLE     STRUCTURE OF FORM III CRYSTALS OF BOVINE PANCREATIC TRYPSIN           
-TITLE    2 INHIBITOR                                                            
+TITLE     STRUCTURE OF FORM III CRYSTALS OF BOVINE PANCREATIC TRYPSIN INHIBITOR 
 COMPND    MOL_ID: 1;                                                            
 COMPND   2 MOLECULE: PANCREATIC TRYPSIN INHIBITOR PRECURSOR;                    
 COMPND   3 CHAIN: A;                                                            
@@ -12,13 +11,13 @@ SOURCE   4 ORGANISM_TAXID: 9913
 KEYWDS    PROTEINASE INHIBITOR (TRYPSIN)                                        
 EXPDTA    X-RAY DIFFRACTION                                                     
 AUTHOR    A.WLODAWER                                                            
+REVDAT   4   05-JUN-24 6PTI    1       REMARK                                   
 REVDAT   3   24-FEB-09 6PTI    1       VERSN                                    
 REVDAT   2   16-JAN-88 6PTI    1       JRNL                                     
 REVDAT   1   16-OCT-87 6PTI    0                                                
-JRNL        AUTH   A.WLODAWER,J.NACHMAN,G.L.GILLILAND,W.GALLAGHER,              
-JRNL        AUTH 2 C.WOODWARD                                                   
-JRNL        TITL   STRUCTURE OF FORM III CRYSTALS OF BOVINE                     
-JRNL        TITL 2 PANCREATIC TRYPSIN INHIBITOR.                                
+JRNL        AUTH   A.WLODAWER,J.NACHMAN,G.L.GILLILAND,W.GALLAGHER,C.WOODWARD    
+JRNL        TITL   STRUCTURE OF FORM III CRYSTALS OF BOVINE PANCREATIC TRYPSIN  
+JRNL        TITL 2 INHIBITOR.                                                   
 JRNL        REF    J.MOL.BIOL.                   V. 198   469 1987              
 JRNL        REFN                   ISSN 0022-2836                               
 JRNL        PMID   2448484                                                      
@@ -26,21 +25,20 @@ JRNL        DOI    10.1016/0022-2836(87)90294-4
 REMARK   1                                                                      
 REMARK   1 REFERENCE 1                                                          
 REMARK   1  AUTH   A.WLODAWER,J.WALTER,R.HUBER,L.SJOLIN                         
-REMARK   1  TITL   STRUCTURE OF BOVINE PANCREATIC TRYPSIN INHIBITOR.            
-REMARK   1  TITL 2 RESULTS OF JOINT NEUTRON AND X-RAY REFINEMENT OF             
-REMARK   1  TITL 3 CRYSTAL FORM II                                              
+REMARK   1  TITL   STRUCTURE OF BOVINE PANCREATIC TRYPSIN INHIBITOR. RESULTS OF 
+REMARK   1  TITL 2 JOINT NEUTRON AND X-RAY REFINEMENT OF CRYSTAL FORM II        
 REMARK   1  REF    J.MOL.BIOL.                   V. 180   307 1984              
 REMARK   1  REFN                   ISSN 0022-2836                               
 REMARK   1 REFERENCE 2                                                          
 REMARK   1  AUTH   A.WLODAWER,J.DEISENHOFER,R.HUBER                             
-REMARK   1  TITL   COMPARISON OF TWO HIGHLY REFINED STRUCTURES OF               
-REMARK   1  TITL 2 BOVINE PANCREATIC TRYPSIN INHIBITOR                          
+REMARK   1  TITL   COMPARISON OF TWO HIGHLY REFINED STRUCTURES OF BOVINE        
+REMARK   1  TITL 2 PANCREATIC TRYPSIN INHIBITOR                                 
 REMARK   1  REF    J.MOL.BIOL.                   V. 193   145 1987              
 REMARK   1  REFN                   ISSN 0022-2836                               
 REMARK   1 REFERENCE 3                                                          
 REMARK   1  AUTH   J.WALTER,R.HUBER                                             
-REMARK   1  TITL   PANCREATIC TRYPSIN INHIBITOR. A NEW CRYSTAL FORM             
-REMARK   1  TITL 2 AND ITS ANALYSIS                                             
+REMARK   1  TITL   PANCREATIC TRYPSIN INHIBITOR. A NEW CRYSTAL FORM AND ITS     
+REMARK   1  TITL 2 ANALYSIS                                                     
 REMARK   1  REF    J.MOL.BIOL.                   V. 167   911 1983              
 REMARK   1  REFN                   ISSN 0022-2836                               
 REMARK   2                                                                      
@@ -75,7 +73,7 @@ REMARK   3   FREE R VALUE TEST SET COUNT   (NO CUTOFF) : NULL
 REMARK   3   TOTAL NUMBER OF REFLECTIONS   (NO CUTOFF) : NULL                   
 REMARK   3                                                                      
 REMARK   3  NUMBER OF NON-HYDROGEN ATOMS USED IN REFINEMENT.                    
-REMARK   3   PROTEIN ATOMS            : 458                                     
+REMARK   3   PROTEIN ATOMS            : 445                                     
 REMARK   3   NUCLEIC ACID ATOMS       : 0                                       
 REMARK   3   HETEROGEN ATOMS          : 5                                       
 REMARK   3   SOLVENT ATOMS            : 73                                      
@@ -126,9 +124,10 @@ REMARK   3   SIDE-CHAIN ANGLE              (A**2) : NULL  ; NULL
 REMARK   3                                                                      
 REMARK   3  OTHER REFINEMENT REMARKS: NULL                                      
 REMARK   4                                                                      
-REMARK   4 6PTI COMPLIES WITH FORMAT V. 3.15, 01-DEC-08                         
+REMARK   4 6PTI COMPLIES WITH FORMAT V. 3.30, 13-JUL-11                         
 REMARK 100                                                                      
 REMARK 100 THIS ENTRY HAS BEEN PROCESSED BY BNL.                                
+REMARK 100 THE DEPOSITION ID IS D_1000179857.                                   
 REMARK 200                                                                      
 REMARK 200 EXPERIMENTAL DETAILS                                                 
 REMARK 200  EXPERIMENT TYPE                : X-RAY DIFFRACTION                  
@@ -255,7 +254,7 @@ REMARK 465   M RES C SSSEQI
 REMARK 465     ALA A    58                                                      
 REMARK 470                                                                      
 REMARK 470 MISSING ATOM                                                         
-REMARK 470 THE FOLLOWING RESIDUES HAVE MISSING ATOMS(M=MODEL NUMBER;            
+REMARK 470 THE FOLLOWING RESIDUES HAVE MISSING ATOMS (M=MODEL NUMBER;           
 REMARK 470 RES=RESIDUE NAME; C=CHAIN IDENTIFIER; SSEQ=SEQUENCE NUMBER;          
 REMARK 470 I=INSERTION CODE):                                                   
 REMARK 470   M RES CSSEQI  ATOMS                                                
@@ -332,8 +331,8 @@ REMARK 500 (M=MODEL NUMBER; RES=RESIDUE NAME; C=CHAIN IDENTIFIER;
 REMARK 500 SSEQ=SEQUENCE NUMBER; I=INSERTION CODE).                             
 REMARK 500                                                                      
 REMARK 500  M RES CSSEQI        RMS     TYPE                                    
-REMARK 500    ARG A  17         0.08    SIDE_CHAIN                              
-REMARK 500    ARG A  39         0.11    SIDE_CHAIN                              
+REMARK 500    ARG A  17         0.08    SIDE CHAIN                              
+REMARK 500    ARG A  39         0.11    SIDE CHAIN                              
 REMARK 500                                                                      
 REMARK 500 REMARK: NULL                                                         
 REMARK 500                                                                      
@@ -341,7 +340,7 @@ REMARK 500 GEOMETRY AND STEREOCHEMISTRY
 REMARK 500 SUBTOPIC: MAIN CHAIN PLANARITY                                       
 REMARK 500                                                                      
 REMARK 500 THE FOLLOWING RESIDUES HAVE A PSEUDO PLANARITY                       
-REMARK 500 TORSION, C(I) - CA(I) - N(I+1) - O(I), GREATER                       
+REMARK 500 TORSION ANGLE, C(I) - CA(I) - N(I+1) - O(I), GREATER                 
 REMARK 500 10.0 DEGREES. (M=MODEL NUMBER; RES=RESIDUE NAME;                     
 REMARK 500 C=CHAIN IDENTIFIER; SSEQ=SEQUENCE NUMBER;                            
 REMARK 500 I=INSERTION CODE).                                                   
@@ -931,5 +930,5 @@ CONECT  461  460
 CONECT  462  460                                                                
 CONECT  463  460                                                                
 CONECT  464  460                                                                
-MASTER      332    0    1    2    3    0    3    6  536    1   11    5          
+MASTER      332    0    1    2    3    0    3    6  523    1   11    5          
 END                                                                             

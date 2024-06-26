@@ -11,7 +11,7 @@
 #     residue numbers
 #   - Fine-tuning ramachandran rotations performed to avoid steric
 #     clashes when building in missing residues
-#   - A four-phase NPT equilibration is used to settle the density
+#   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_8fad.tgz
 #
 title: HIV-1 Env Trimer 8fad, drug molecule removed

@@ -327,26 +327,32 @@ class SegmentList(AncestorAwareModList):
                         self.segtype_of_segname[r.chainID]=r.segtype
                     if not r.segtype in self.segtypes_ordered:
                         self.segtypes_ordered.append(r.segtype)
-                        logger.debug(f'catching segtype {r.segtype}')
+                logger.debug(f'Generating segments from list of {len(residues)} residues; segtypes detected: {self.segtypes_ordered}')
                 for stype in self.segtypes_ordered:
                     self.counters_by_segtype[stype]=0
                     res=residues.filter(segtype=stype)
-                    for chainID in res.uniqattrs(['chainID'])['chainID']:
+                    orig_chainIDs=res.uniqattrs(['chainID'])['chainID']
+                    logger.debug(f'Processing {len(res)} residues of segtype {stype} in {len(orig_chainIDs)} unique chainIDs')
+                    for chainID in orig_chainIDs:
                         this_chainID=chainID
                         c_res=res.filter(chainID=this_chainID)
-                        if chainID in self.segnames:
-                            # if this chainID was already used by a previously identified segment
-                            logger.debug(f'chainID {chainID} is either already in use or reserved for a mapping')
-                            this_chainID=chainIDmanager.next_unused_chainID()
+                        logger.debug(f'-> origninal chainID {chainID} in {len(c_res)} residues')
+                        this_chainID=chainIDmanager.check(this_chainID)
+                        if this_chainID != chainID:
+                            logger.debug(f'{len(c_res)} residues with original chainID {chainID} and segtype {stype} are assigned new chainID {this_chainID}')
                             if not chainID in self.daughters:
                                 self.daughters[chainID]=[]
-                            logger.debug(f'Drawing a new chainID for segment type {stype} chain {chainID} -> {this_chainID}')
                             self.daughters[chainID].append(this_chainID)
-                            c_res.set(chainID=this_chainID)
-                            for r in c_res:
-                                logger.debug(f' {r.chainID} {r.resseqnum} {r.resname}')
-                                r.atoms.set(chainID=this_chainID)
+                            c_res.set_chainIDs(this_chainID)
                             self.segtype_of_segname[this_chainID]=stype
+                            if stype=='protein':
+                                if chainID in seq_spec['build_zero_occupancy_C_termini']:
+                                    logger.debug(f'-> appending new chainID {this_chainID} to build_zero_occupancy_C_termini due to member {chainID}')
+                                    seq_spec['build_zero_occupancy_C_termini'].insert(seq_spec['build_zero_occupancy_C_termini'].index(chainID),this_chainID)
+                                if chainID in seq_spec['build_zero_occupancy_N_termini']:
+                                    logger.debug(f'-> appending new chainID {this_chainID} to build_zero_occupancy_N_termini due to member {chainID}')
+                                    seq_spec['build_zero_occupancy_N_termini'].insert(seq_spec['build_zero_occupancy_N_termini'].index(chainID),this_chainID)
+                                # seq_spec['build_zero_occupancy_C_termini'].remove(chainID)
                         num_mis=sum([1 for x in c_res if len(x.atoms)==0])
                         thisSeg=Segment(seq_spec,c_res,segname=this_chainID)
                         logger.debug(f'Made segment: stype {stype} chainID {this_chainID} segname {thisSeg.segname} ({num_mis} missing) (seq_spec {seq_spec})')

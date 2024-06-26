@@ -928,12 +928,16 @@ directives:
                 text: integer index of the biological assembly to construct; default is 0, signifying that the asymmetric unit is to be used
                 type: int
                 default: 0
-              - name: reserved_chainIDmaps
+              - name: transform_reserves
                 type: dict
                 text: dictionary keyed by chain IDs in the asymmetric unit with values that are lists of chain ID's for symmetry-related chains in other units of the biological assembly
               - name: remap_chainIDs
                 type: dict
                 text: dictionary mapping of chainIDs in structure input to new chainIDs
+              - name: reserialize
+                type: bool
+                text: If true, resets the serial numbers of all atoms based on their order in the input structure file -- use with caution!!
+                default: False
               - name: model
                 text: model number to use if there are multiple models in the file
                 type: int

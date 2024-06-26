@@ -53,7 +53,10 @@ class AsymmetricUnit(AncestorAwareMod):
                     atoms=AtomList([Atom(p) for p in pr[Atom.PDB_keyword]])
                     atoms.extend([Hetatm(p) for p in pr.get(Hetatm.PDB_keyword,[])])
                     ters=TerList([Ter(p) for  p in pr.get(Ter.PDB_keyword,[])])
-                atoms.sort(by=['serial'])
+                if sourcespecs.get('reserialize',False):
+                    atoms.reserialize()
+                else:
+                    atoms.sort(by=['serial'])
                 if len(ters)>0:
                     lnonemptyters=len([x for x in ters if x.serial!=None])
                     logger.debug(f'{lnonemptyters} TER records require adjusting atom serial numbers')
@@ -91,18 +94,26 @@ class AsymmetricUnit(AncestorAwareMod):
                 self.psf=PSFContents(psf)
                 assert len(self.psf.atoms)==len(atoms),f'Error: psf file {psf} has wrong number of atoms {len(self.psf.atoms)}, expected {len(atoms)}'
                 atoms.apply_psf_resnames(self.psf.atoms)
+                # note we expect that there are NO ssbonds or links in the pdb file
+                # if we are also using a psf file
                 ssbonds.extend(self.psf.ssbonds)
                 links.extend(self.psf.links)
                 if len(self.psf.ssbonds)>0:
                     logger.debug(f'PSF file {psf} identifies {len(self.psf.ssbonds)} ssbonds; total ssbonds now {len(ssbonds)}')
                 if len(self.psf.links)>0:
                     logger.debug(f'PSF file {psf} identifies {len(self.psf.links)} links; total links now {len(links)}')
+            
+            # at this point the modmanager is holding all mods that are in 
+            # the input file but NOT in the PDB/mmCIF/psf file.
             seqmods=modmanager.get('seqmods',{})
             topomods=modmanager.get('topomods',{})
             grafts=seqmods.get('grafts',GraftList([]))
 
             userlinks=topomods.get('links',LinkList([]))
             links.extend(userlinks)
+            # TODO -- same as above but for ssbonds
+            userssbonds=topomods.get('ssbonds',SSBondList([]))
+            ssbonds.extend(userssbonds)
 
             # Build the list of residues
             fromAtoms=ResidueList(atoms)
@@ -143,22 +154,6 @@ class AsymmetricUnit(AncestorAwareMod):
             # This is only meaningful if mmCIF input is used
             residues.map_chainIDs_label_to_auth()
 
-            # do any initial remapping of chainIDs
-            if chainIDmanager.remap:
-                residues.remap_chainIDs(chainIDmanager.remap)
-                seqadvs.map_attr('chainID','chainID',chainIDmanager.remap)
-                ssbonds.map_attr('chainID1','chainID1',chainIDmanager.remap)
-                ssbonds.map_attr('chainID2','chainID2',chainIDmanager.remap)
-                links.map_attr('chainID1','chainID1',chainIDmanager.remap)
-                links.map_attr('chainID2','chainID2',chainIDmanager.remap)
-                grafts.map_attr('chainID','chainID',chainIDmanager.remap)
-
-            # initialize the chainID manager
-            self.reserved_chainID_conflicts=chainIDmanager.register_chains(residues.uniqattrs(['chainID'])['chainID'])
-            logger.debug(f'Used chainIDs: {chainIDmanager.Used}')
-            if len(self.reserved_chainID_conflicts)>0:
-                logger.debug(f'ChainIDs that conflict with reserve requests: {self.reserved_chainID_conflicts}')
-
             # Give each Seqadv a residue identifier
             ignored_seqadvs=seqadvs.assign_residues(residues)
             ignored_ssbonds=ssbonds.assign_residues(residues)
@@ -182,25 +177,13 @@ class AsymmetricUnit(AncestorAwareMod):
                 logger.debug(f'    {len(ignored_links)} links; {len(links)} remain;')
                 logger.debug(f'    {len(ignored_grafts)} grafts; {len(grafts)} remain.')
 
-            # alter chainIDs of any residues that conflict with reserved chainIDs
-            self.reserved_chainID_remap={}
-            if len(self.reserved_chainID_conflicts)>0:
-                self.reserved_chainID_remap={k:chainIDmanager.next_unused_chainID() for k in self.reserved_chainID_conflicts}
-                residues.remap_chainIDs(self.reserved_chainID_remap)
-                logger.debug(f'After chainID remapping due to reserved conflicts, used chainIDs are {chainIDmanager.Used}')
-                # update all residue-specific mods with chainIDs
-                seqadvs.update_attr_from_obj_attr('chainID','residue','chainID')
-                ssbonds.update_attr_from_obj_attr('chainID1','residue1','chainID')
-                ssbonds.update_attr_from_obj_attr('chainID2','residue2','chainID')
-                links.update_attr_from_obj_attr('chainID1','residue1','chainID')
-                links.update_attr_from_obj_attr('chainID2','residue2','chainID')
-                grafts.update_attr_from_objlist_elem_attr('chainID','residues',0,'chainID')
             # provide specifications of how to handle sequence issues
             # implied by PDB input
             seq_specs=sourcespecs.get('sequence',{})
             segments=SegmentList(seq_specs,residues,chainIDmanager)
-            # this may have altered chainIDs for some residues.  So it is best
-            # to be sure all mods that are residue-specific are updated
+            # this may have altered chainIDs for some residues.  So we must
+            # be sure all mods that are chainID-specific but
+            # not inheritable by segments are updated
             seqadvs.update_attr_from_obj_attr('chainID','residue','chainID')
             ssbonds.update_attr_from_obj_attr('chainID1','residue1','chainID')
             ssbonds.update_attr_from_obj_attr('chainID2','residue2','chainID')
@@ -211,6 +194,7 @@ class AsymmetricUnit(AncestorAwareMod):
             if segments.daughters:
                 logger.debug(f'Daughter chains generated: {segments.daughters}')
             logger.debug(f'Used chainIDs {chainIDmanager.Used}')
+            # promote sequence numbers in any grafts to avoid collisions
             next_resseqnum=max([x.resseqnum for x in residues])+1
             for g in grafts:
                 next_resseqnum=g.set_links(next_resseqnum)
@@ -219,7 +203,7 @@ class AsymmetricUnit(AncestorAwareMod):
 
             # at this point, we have built the asymmetric unit according to the intention of the 
             # author of the structure AND the intention of the user in excluding certain parts
-            # of that structure (ligans, ions, chains, etc).  At this point, we should apply
+            # of that structure (ligands, ions, chains, etc).  At this point, we should apply
             # any user-defined modifications
 
             # First, scan all seqadv's for relevant mutations to apply
@@ -243,7 +227,7 @@ class AsymmetricUnit(AncestorAwareMod):
                 chainIDmanager.unregister_chain(s.segname)
 
             # Now any added or deleted ssbonds
-            ssbonds=modmanager.injest(ssbonds)
+            # ssbonds=modmanager.injest(ssbonds)
             topomods=modmanager.get('topomods',{})
             ssbonds=topomods.get('ssbonds',SSBondList([]))
             if 'ssbondsdelete' in topomods:
@@ -251,6 +235,7 @@ class AsymmetricUnit(AncestorAwareMod):
                     if topomods['ssbondsdelete'].is_deleted(s):
                         ignored_ssbonds.append(ssbonds.remove(s))
 
+            # finalize the modmanager
             ssbonds=modmanager.injest(ssbonds,overwrite=True)
             links=modmanager.injest(links,overwrite=True)
             grafts=modmanager.injest(grafts,overwrite=True)

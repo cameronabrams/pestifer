@@ -80,26 +80,27 @@ class Transform(AncestorAwareMod):
     def __eq__(self,other):
         return np.array_equal(self.tmat,other.tmat)
     
-    def remap_chains(self,chainmap):
-        new_applies_chainIDs=[]
-        for c in self.applies_chainIDs:
-            if c in chainmap:
-                new_applies_chainIDs.append(chainmap[c])
-            else:
-                new_applies_chainIDs.append(c)
-        self.applies_chainIDs=new_applies_chainIDs
+    # def remap_chains(self,chainmap):
+    #     new_applies_chainIDs=[]
+    #     for c in self.applies_chainIDs:
+    #         if c in chainmap:
+    #             new_applies_chainIDs.append(chainmap[c])
+    #         else:
+    #             new_applies_chainIDs.append(c)
+    #     self.applies_chainIDs=new_applies_chainIDs
 
-    def generate_chainIDmap(self,auChainIDs,daughters,chainIDmap):
+    def generate_chainIDmap(self,auChainIDs,daughters,CM):
         applies_to=self.applies_chainIDs
         for d,v in daughters.items():
             if d in self.applies_chainIDs:
                 applies_to.extend(v)
+        logger.debug(f'Transform applies to {applies_to}')
         if self.is_identity():
             logger.debug(f'Identity transform gets a thru map applied to {applies_to}')
-            self.chainIDmap=chainIDmap.thru_map(auChainIDs,applies_to)
+            self.chainIDmap=CM.thru_map(auChainIDs,applies_to)
         else:
             logger.debug(f'Transform gets a new map applied to {applies_to}')
-            self.chainIDmap=chainIDmap.generate_next_map(auChainIDs,applies_to)
+            self.chainIDmap=CM.generate_next_map(auChainIDs,applies_to)
 
 class TransformList(AncestorAwareModList):
     def __init__(self,*args):
@@ -112,11 +113,11 @@ class TransformList(AncestorAwareModList):
                 L=[Transform('identity')]
         super().__init__(L)
 
-    def remap_chains(self,chainmap):
-        if not chainmap:
-            return
-        for t in self:
-            t.remap_chains(chainmap)
+    # def remap_chains(self,chainmap):
+    #     if not chainmap:
+    #         return
+    #     for t in self:
+    #         t.remap_chains(chainmap)
 
 class BioAssemb(AncestorAwareMod):
     _index=1 # start at 1
@@ -148,11 +149,11 @@ class BioAssemb(AncestorAwareMod):
         cls._index=1
 
     def activate(self,AU:AsymmetricUnit,CM:ChainIDManager):
-        self.chainIDs_used=[]
-        self.transforms.remap_chains(AU.reserved_chainID_remap)
+        # self.chainIDs_used=[]
+        # self.transforms.remap_chains(AU.reserved_chainID_remap)
         for T in self.transforms:
             T.generate_chainIDmap(AU.segments.segnames,AU.segments.daughters,CM)
-            self.chainIDs_used.extend(list(T.chainIDmap.keys()))
+            # self.chainIDs_used.extend(list(T.chainIDmap.keys()))
 
 class BioAssembList(AncestorAwareModList):
     def __init__(self,*obj):

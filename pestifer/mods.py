@@ -960,6 +960,9 @@ class SSBondList(AncestorAwareModList):
             if right:
                 pruned.append(self.remove(right))
         return pruned
+    def map_attr(self,mapped_attr,key_attr,map):
+        logger.debug(f'Mapping {mapped_attr} {key_attr} in {len(self)} SSBonds using map {map}')
+        super().map_attr(mapped_attr,key_attr,map)
     
 class SSBondDelete(SSBond):
     yaml_header='ssbondsdelete'

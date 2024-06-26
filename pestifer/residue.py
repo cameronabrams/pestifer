@@ -493,6 +493,10 @@ class ResidueList(AncestorAwareModList):
                         l.insertion2=''
                         logger.debug(f' remapped right: {l.chainID2} {old} -> {l.resseqnum2}')
 
+    def set_chainIDs(self,chainID):
+        for r in self:
+            r.set_chainID(chainID)
+
     def remap_chainIDs(self,the_map):
         for r in self:
             if r.chainID in the_map:

@@ -622,7 +622,7 @@ class PsfgenTask(BaseTask):
                 g.activate(deepcopy(self.molecules[g.source_pdbid]))
         self.chainIDmanager=ChainIDManager(
             format=self.source_specs['file_format'],
-            reserved_maps=self.source_specs.get('reserved_chainIDmaps',{}),
+            transform_reserves=self.source_specs.get('transform_reserves',{}),
             remap=self.source_specs.get('remap_chainIDs',{}))
         self.base_molecule=Molecule(source=self.source_specs,
                                     modmanager=self.modmanager,

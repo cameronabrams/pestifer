@@ -6,22 +6,25 @@ import logging
 logger=logging.getLogger(__name__)
 
 class ChainIDManager:
-    """A class for managing chain IDs. 
+    """A class for managing chainIDs.  Allows for users to request changes to chainIDs, assign specific chainIDs to transformed subunits, and prevents duplicate usage.
     
     Methods
     -------
-    __init__(format, reserved_maps)
-      initializes the repository of chainIDs depending on format
+    __init__(format, transform_reserves)
+      initializes the repository of chainIDs depending on format (PDB or mmCIF)
        
-    register_chains(chainIDs)
-      Registers the list of chainIDs with the manager
+    check(chainID)
+      checks to see if proposed chainID is available, and if so, registers it and returns it.  If not, counters proposal with next available chainID, registers that and returns it.
     
     unregister_chain(chainID)
       Unregisters the chainID
       
-    next_chain()
-      Registers the next available chainID and returns it
+    next_unused_chainID()
+      Registers the next available non-reserved chainID and returns it
     
+    next_reserved_chainID(key)
+      Registers and returns the next available chainID reserved to key
+
     generate_next_map()
       Given the original chainIDs, returns a dictionary mapping each 
       to a new chainID
@@ -33,11 +36,11 @@ class ChainIDManager:
       returns a single-entry dictionary mapping the chainID to the
       next available chainID
     """
-    def __init__(self,format='PDB',remap={},reserved_maps={}):
+    def __init__(self,format='PDB',remap={},transform_reserves={}):
         logger.debug(f'New chainIDmanager, format {format}')
         self.format=format
         self.remap=remap
-        self.reserved_maps=reserved_maps
+        self.transform_reserves=transform_reserves
         self.ReservedUnused=[]
         U=[chr(i) for i in range(ord('A'),ord('A')+26)]
         if format=='PDB':
@@ -51,46 +54,43 @@ class ChainIDManager:
             for a in ['']+U:
                 for b in U:
                     self.Unused.append(b+a)
-        for k,v in self.reserved_maps.items():
-            assert k in self.Unused,f'Error: reserved map key chainID {k} is not available in the Unused set'
+        for k,v in self.transform_reserves.items():
+            assert k in self.Unused,f'Error: transform-reserved map key chainID {k} is not available in the Unused set'
             for mc in v: # only put image chainIDs in ReservedUnused
-                assert mc in self.Unused,f'Error: reserved map chainID {mc} is not available in the Unused set'
+                assert mc in self.Unused,f'Error: transform-reserved map chainID {mc} is not available in the Unused set'
                 self.Unused.remove(mc)
                 self.ReservedUnused.append(mc)
-                # at this point, the keys in reserved_maps are also elements in Unused
+                # at this point, the keys in transform_reserves are also elements in Unused
         self.Used=set()
 
-    _init_registration=False
-    def register_chains(self,chainIDs):
-        """ Registers all chains detected in the list chainIDs with the manager 
+    def check(self,proposed_chainID):
+        hold_chainID=proposed_chainID
+        if hold_chainID in self.remap.values():
+            logger.debug(f'proposed chainID {hold_chainID} is already reserved as a user-map')
+            hold_chainID=self.next_unused_chainID()
+            logger.debug(f'counter-proposed chainID is {hold_chainID}')
+        elif hold_chainID in self.remap.keys():
+            logger.debug(f'proposed chainID {hold_chainID} is user-mapped to chainID {self.remap[hold_chainID]}')
+            hold_chainID=self.remap[hold_chainID]
+        else:
+            logger.debug(f'proposed chainID {hold_chainID} does not collide with any predefined transform reserves')
         
-        Parameters:
-        -----------
-        chainIDs : list
-           List of chainIDs (each is a 1 or 2-byte str) to register
+        # caller may not propose a chainID that the user has reserved for transforms
+        if hold_chainID in self.ReservedUnused:
+            logger.debug(f'chainID {hold_chainID} (orig {proposed_chainID}) is reserved for the product of an asymmetric-unit transform')
+            hold_chainID=self.next_unused_chainID()
+            logger.debug(f'counter-proposed chainID is {hold_chainID}')
+        elif hold_chainID in self.Used:
+            logger.debug(f'chainID {hold_chainID} (orig {proposed_chainID}) is already used')
+            hold_chainID=self.next_unused_chainID()
+            logger.debug(f'counter-proposed chainID is {hold_chainID}')
+        else:
+            logger.debug(f'registering chainID {hold_chainID}')
+            self.Unused.remove(hold_chainID)
+            self.Used.add(hold_chainID)
 
-        Returns:
-        --------
-        reserved_conflicts : list
-           List of chainIDs that were attempted to be registered but were already
-           named in the reserved maps.  This means that a currently existing chainID
-           has been requested to be assigned to a transformed subunit in a 
-           biological assembly that is built from BIOMT operations. So the chainIDs
-           in this list must be changed to available unused chainIDs by the caller.
-        """
-        assert not self._init_registration,f'Error: cannot register chains twice'
-        self._init_registration=True
-        reserved_conflicts=[]
-        for c in chainIDs:
-            if c in self.ReservedUnused:
-                reserved_conflicts.append(c)
-            elif c in self.Unused:
-                self.Unused.remove(c)
-                self.Used.add(c)
-            else:
-                raise ValueError(f'chainID {c} is not available for registry')
-        return reserved_conflicts
-    
+        return hold_chainID
+
     def unregister_chain(self,chainID):
         """ Unregister the single chainID with the manager 
         
@@ -100,7 +100,7 @@ class ChainIDManager:
            1- or 2-byte chainID to unregister
         """
         self.Used.remove(chainID)
-        is_reserved=any([chainID in v for v in self.reserved_maps.values()])
+        is_reserved=any([chainID in v for v in self.transform_reserves.values()])
         if is_reserved:
             self.ReservedUnused.append(chainID)
         else:
@@ -112,8 +112,8 @@ class ChainIDManager:
         return p
     
     def next_reserved_chainID(self,key):
-        assert key in self.reserved_maps,f'Key chainID {key} not a key in the prescribed reserve maps'
-        mapsto=self.reserved_maps[key]
+        assert key in self.transform_reserves,f'Key chainID {key} not a key in the prescribed reserve maps'
+        mapsto=self.transform_reserves[key]
         assert any([x in self.ReservedUnused for x in mapsto]),f'mapped key {key} has no daughters available'
         for c in mapsto:
             if c in self.ReservedUnused:
@@ -123,7 +123,7 @@ class ChainIDManager:
         return None
         
     def is_already_reserved(self,tst):
-        for k,v in self.reserved_maps.items():
+        for k,v in self.transform_reserves.items():
             if tst in v:
                 return True
         return False
@@ -143,7 +143,7 @@ class ChainIDManager:
                 activeChainIDs.remove(i)
         assert not (any([c in self.Unused for c in activeChainIDs]) or any([c in self.ReservedUnused for c in activeChainIDs]))
         for c in activeChainIDs:
-            if c in self.reserved_maps:
+            if c in self.transform_reserves:
                 myMap[c]=self.next_reserved_chainID(c)
             else:
                 myMap[c]=self.next_unused_chainID()
