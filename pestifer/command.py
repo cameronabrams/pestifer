@@ -7,24 +7,37 @@ import subprocess
 import os
 from io import StringIO
 import json
+import shutil
+from glob import glob
+
 logger=logging.getLogger(__name__)
-# /home/cfa/anaconda3/envs/mol-env/lib/python3.10/site-packages/packmol_memgen/lib/pdbremix/v3numpy.py
+
 class CondaCheck:
     """Class for interfacing with conda environments"""
     def __init__(self):
         self.conda_exe=os.environ.get('CONDA_EXE',None)
+        assert os.access(self.conda_exe,os.X_OK)
         if not self.conda_exe:
-            logger.info(f'No conda detected')
+            logger.info(f'Shell environment variable CONDA_EXE is not set')
+            logger.info(f'No conda found')
         else:
-            # expect conda executable to be in $(CONDA_ROOT)/bin/conda
-            self.conda_root=os.path.split(os.path.split(self.conda_exe)[0])[0]
-            self.active_env=os.environ.get('CONDA_DEFAULT_ENV',None)
-            check_result=subprocess.run('conda info --json',shell=True, executable='/bin/bash',check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+            logger.debug(f'conda executable: {self.conda_exe}')
+            check_result=subprocess.run(f'{self.conda_exe} info --json',
+                                        shell=True, 
+                                        executable='/bin/bash',
+                                        check=True,
+                                        stdout=subprocess.PIPE,
+                                        stderr=subprocess.PIPE)
             stdout=check_result.stdout.decode('utf-8')
             with StringIO(stdout) as f:
                 self.conda_info=json.load(f)
+
+            self.conda_root=self.conda_info['root_prefix']
+            self.conda_root_writable=self.conda_info['root_writable']
+            self.active_env=self.conda_info.get('active_prefix_name',None)
             if not self.active_env:
-                logger.debug('You are not running {__package__} in a conda environment, but conda was detected on your system.')
+                logger.debug(f'You are not running {__package__} in a conda environment, but conda was detected on your system.')
+
             conda_envs=self.conda_info.get('envs',[])
             self.conda_envs=['base']
             if len(conda_envs)>1:
@@ -33,7 +46,80 @@ class CondaCheck:
             self.init_shell=os.path.join(f'{self.conda_root}','etc','profile.d','conda.sh')
             assert os.path.exists(self.init_shell)
 
+    def env_lib_dir(self,env):
+        if env=='base':
+            edir=os.path.join(self.conda_root,'lib')
+        else:
+            edir=os.path.join(self.conda_root,'envs',env,'lib')
+        return edir
 
+    def env_python_dir(self,env):
+        libdir=self.env_lib_dir(env)
+        trial=glob(os.path.join(libdir,'python3*'))
+        for t in trial:
+            if not os.path.islink(t):
+                break
+        return t        
+
+    def env_python_site_packages_dir(self,env):
+        pdir=self.env_python_dir(env)
+        pspdir=os.path.join(pdir,'site-packages')
+        assert os.path.isdir(pspdir),f'No dir {pspdir} found'
+        return pspdir
+
+    def check_packmol_memgen_pdbremix(self,env):
+        pspdir=self.env_python_site_packages_dir(env)
+        pmlib=os.path.join(pspdir,'packmol_memgen','lib','pdbremix')
+        if os.path.exists(pmlib):
+            the_bad_file=os.path.join(pmlib,'v3numpy.py')
+            assert os.path.exists(the_bad_file),f'{the_bad_file}: not found.'
+            with open(the_bad_file,'r') as f:
+                file_contents=f.read()
+            test_result=file_contents.find('dtype=np.float64')
+            if test_result==-1:
+                logger.debug(f'env {env} has an unpatched version of packmol-memgen')
+                return 'UNPATCHED'
+            return 'PATCHED'
+        return 'UNFOUND'
+
+    def patch_packmol_memgen_pdbremix(self,env):
+        if self.check_packmol_memgen_pdbremix(env)=='UNPATCHED':
+            pspdir=self.env_python_site_packages_dir(env)
+            pmlib=os.path.join(pspdir,'packmol_memgen','lib','pdbremix')
+            CWD=os.getcwd()
+            os.chdir(pmlib)
+            the_bad_file='v3numpy.py'
+            with open(the_bad_file,'r') as f:
+                file_contents=f.read()
+            patched_result=file_contents.replace('dtype=np.float','dtype=np.float64')
+            shutil.copy(the_bad_file,'v3numpy.py_orig')
+            with open(the_bad_file,'w') as f:
+                f.write('# patched by pestifer\n')
+                f.write(patched_result)
+            os.chdir(CWD)
+
+    def restore_packmol_memgen_pdbremix(self,env):
+        if self.check_packmol_memgen_pdbremix(env)=='PATCHED':
+            pspdir=self.env_python_site_packages_dir(env)
+            pmlib=os.path.join(pspdir,'packmol_memgen','lib','pdbremix')
+            CWD=os.getcwd()
+            os.chdir(pmlib)
+            assert os.path.exists('v3numpy.py_orig')
+            shutil.move('v3numpy.py_orig','v3numpy.py')
+            os.chdir(CWD)
+
+    def check_envs(self):
+        result={'good':[],'bad':[],'none':[]}
+        for e in self.conda_envs:
+            check_result=self.check_packmol_memgen_pdbremix(e)
+            if check_result=='UNPATCHED':
+                result['bad'].append(e)
+            elif check_result=='PATCHED':
+                result['good'].append(e)
+            else:
+                result['none'].append(e)
+        return result
+    
     def info(self):
         if not self.conda_root:
             return f'No conda environments available.  Some functionality may not be available.'

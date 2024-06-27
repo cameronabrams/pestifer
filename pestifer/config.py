@@ -123,61 +123,62 @@ class Config(Yclept):
             self['user']['ambertools']['is_unnecessary']=True
 
     def check_ambertools(self):
+        def error_message():
+            my_logger(f'Based on your inputs, this instance of {__package__}\nrequires the ambertools package,\nbut no conda environments were detected.\nTo use ambertools, {__package__} requires it to be installed via conda.\nWe recommend you create a new conda environment\nand install ambertools and {__package__} in it, and run {__package__} with it activated.\nIn your future {__package__} config files, indicate this environment under "ambertools"->"venv".',logger.debug)
+
         if not self['Conda'].conda_root:
-            logger.debug(f'You do not have any conda environments, and AMBERHOME is not set.')
-            logger.debug(f'We recommend you create a new conda environment and install ambertools in it')
+            error_message()
             return False
-        self['user']['ambertools']['available']=False
-        amberhome=os.environ.get('AMBERHOME',None)
-        ok_numpy_version=self['user']['ambertools'].get('ok_numpy_version','1.19.5') # for unpatched packmol-memgen
-        explicit_env=self['user']['ambertools'].get('venv',None)
-        # if no explicit env for running ambertools is specified, check the active environment first
-        if amberhome!=None and explicit_env==None:
+        at_specs=self['user']['ambertools']
+        at_specs['available']=False
+        explicit_ambertools_venv=at_specs.get('venv',None)
+        patch_ambertools=at_specs.get('patch_packmol_memgen_pdbremix',False)
+        # if no explicit env for running ambertools is specified, 
+        # check the active environment first
+        if explicit_ambertools_venv==None:
             active_env=self['Conda'].active_env
-            logger.debug(f'Active environment is "{active_env}" and you have not specified an explicit environment for ambertools.')
-            # TODO: from packmol_memgen import module_path
-            # TODO: check/patch module_path/pdbremix/v3numpy.py
-            logger.debug(f'Checking "{active_env}" for allowable version of numpy')
-            explicit_env_numpy_version=self['Conda'].get_package_version(active_env,'numpy')
             explicit_env_ambertools_version=self['Conda'].get_package_version(active_env,'ambertools',from_list=True)
-            if explicit_env_numpy_version!=None and explicit_env_numpy_version<='1.19.5' and explicit_env_ambertools_version!=None:
-                self['user']['ambertools']['available']=True
-                self['user']['ambertools']['local']=True
-                logger.debug(f'numpy v. {explicit_env_numpy_version} detected')
+            if explicit_env_ambertools_version!=None:
+                at_specs['available']=True
+                at_specs['local']=True
                 logger.debug(f'ambertools v. {explicit_env_ambertools_version} detected')
+                if patch_ambertools:
+                    self['Conda'].patch_packmol_memgen_pdbremix(active_env)
+                    logger.warning(f'I just now patched packmol_memgen pdbremix in the active environment {active_env}!!')
                 return True
+            logger.debug(f'No ambertools package found in active environment {active_env}.')
         # if active environment can't run ambertools and the explicit env is specified
-        if explicit_env!=None:
-            logger.debug(f'Checking explicitly named conda env {explicit_env} for numpy<={ok_numpy_version} and ambertools')
-            if self['Conda'].env_exists(explicit_env):
-                explicit_env_numpy_version=self['Conda'].get_package_version(explicit_env,'numpy')
-                explicit_env_ambertools_version=self['Conda'].get_package_version(explicit_env,'ambertools',from_list=True)
-                if explicit_env_numpy_version!=None and explicit_env_numpy_version<='1.19.5' and explicit_env_ambertools_version!=None:
-                    self['user']['ambertools']['available']=True
-                    self['user']['ambertools']['local']=False
-                    logger.debug(f'numpy v. {explicit_env_numpy_version} detected')
-                    logger.debug(f'ambertools v. {explicit_env_ambertools_version} detected')
+        else:
+            logger.debug(f'Checking explicitly named conda env {explicit_ambertools_venv} for ambertools...')
+            if self['Conda'].env_exists(explicit_ambertools_venv):
+                explicit_env_ambertools_version=self['Conda'].get_package_version(explicit_ambertools_venv,'ambertools',from_list=True)
+                if explicit_env_ambertools_version!=None:
+                    at_specs['available']=True
+                    at_specs['local']=False
+                    logger.debug(f'...ambertools v. {explicit_env_ambertools_version} detected')
+                    if patch_ambertools:
+                        self['Conda'].patch_packmol_memgen_pdbremix(explicit_ambertools_venv)
+                        logger.warning(f'I just now patched packmol_memgen pdbremix in the specified environment {explicit_ambertools_venv}!!')
                     return True
                 else:
-                    logger.debug(f'Conda env {explicit_env} is not compatible with ambertools')
+                    logger.debug(f'No ambertools package found in specified environment {explicit_ambertools_venv}.')
             else:
-                logger.debug(f'Warning: Explicitly named conda env {explicit_env}  not found.')
-        # explicit env is not compatible with ambertools, so scan all available environments
-        logger.debug(f'Searching all conda envs for an ambertools-compatible env...')
+                logger.debug(f'Warning: No specified conda environment "{explicit_ambertools_venv}" found.')
+        logger.debug(f'No ambertools found after checking active/specified environment, so')
+        logger.debug(f'searching all available non-active conda envs for ambertools...')
         for env in self['Conda'].conda_envs:
             if env!=self['Conda'].active_env: # since we already examined it
-                logger.debug(f'Checking non-active conda env {env} for numpy<={ok_numpy_version} and ambertools')
-                remote_numpy_version=self['Conda'].get_package_version(env,'numpy')
-                if remote_numpy_version!=None and remote_numpy_version<=ok_numpy_version:
-                    logger.debug(f'Non-active env {env} has numpy version {remote_numpy_version}')
-                    ambertools_version=self['Conda'].get_package_version(env,'ambertools',from_list=True)
+                logger.debug(f'Checking non-active conda env {env} for ambertools...')
+                ambertools_version=self['Conda'].get_package_version(env,'ambertools',from_list=True)
+                if ambertools_version!=None:
                     logger.debug(f'Non-active env {env} ambertools version "{ambertools_version}"')
-                    if ambertools_version!=None:
-                        self['user']['ambertools']['available']=True
-                        self['user']['ambertools']['local']=False
-                        self['user']['ambertools']['venv']=env
-                        return True
-        logger.debug(f'Ambertools is not available.')
-        logger.debug(f'We recommend you create a new conda environment in which numpy<={ok_numpy_version} and ambertools==21.12')
-        logger.debug(f'In your future config files, indicate this environment under "ambertools"->"venv".')
+                    at_specs['available']=True
+                    at_specs['local']=False
+                    at_specs['venv']=env
+                    if patch_ambertools:
+                        self['Conda'].patch_packmol_memgen_pdbremix(env)
+                        logger.warning(f'I just now patched packmol_memgen pdbremix in the environment {env}!!')
+                    return True
+        logger.debug(f'No ambertools found in any conda environment.')
+        error_message()
         return False

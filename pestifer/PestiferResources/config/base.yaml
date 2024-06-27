@@ -805,11 +805,15 @@ directives:
                 default: []
   - name: ambertools
     type: dict
-    text: ambertools specifications; ambertools must either be patched and compiled from source, or be installed in a conda virtual environment in which numpy is version 1.19.5 or lower
+    text: ambertools specifications
     directives:
       - name: venv
         type: text
-        text: name of conda virtual environment in which user wishes to run ambertools, distinct from pestifer execution environment
+        text: if set, name of conda virtual environment in which user wishes to run ambertools, distinct from pestifer execution environment; otherwise ambertools is run in the same environment that pestifer is
+      - name: patch_packmol_memgen_pdbremix
+        type: bool
+        text: If ambertools is available in venv and the pdbremix module of packmol_memgen contains the "np.float" syntax error, patch it
+        default: True
   - name: namd2
     type: dict
     text: NAMD2 specifications
