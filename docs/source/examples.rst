@@ -353,7 +353,7 @@ Pestifer understands how to build a system using any chosen biomolecular assembl
         source:
           id: 4zmj
           biological_assembly: 1
-          reserved_chainIDmaps:
+          transform_reserves:
             G: [H,J]
             B: [C,D]
           sequence:

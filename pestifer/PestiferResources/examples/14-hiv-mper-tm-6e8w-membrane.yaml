@@ -5,6 +5,8 @@
 # Membrane-embedded build of HIV-1 gp41 MPER-TM trimer (6e8w)
 #
 # Notes:
+#   - Topology and parameters for cholesterol are not loaded by default, so
+#     we explicitly declare them here
 #   - packmol-memgen is used, so you must have a conda environment available
 #     in which to run it.  This environment must have a patched version of
 #     packmol-memgen to get rid of an old numpy error.  You need not
