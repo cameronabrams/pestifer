@@ -5,7 +5,7 @@ Installation
 Software Prequisites
 --------------------
 
-The commands ``vmd``, ``charmrun``, and ``namd2`` should be in your path.  If you choose to package the results using the ``topogromacs`` plugin, the ``gmx`` executable should also be in your path.
+The commands ``vmd``, ``charmrun``, and ``namd2`` should be in your path.  If you choose to package the results using the ``topogromacs`` plugin, the ``gmx`` executable should also be in your path.  To build membrane systems by integration with ``packmol_memgen``, you must have the ``ambertools`` package installed (preferable via ``conda``).
 
 Installation
 ------------

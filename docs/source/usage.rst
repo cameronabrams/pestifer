@@ -38,7 +38,7 @@ Here ``config.yaml`` is the name of the configuration file that describes the bu
 best way to learn about the configuration file is to run the examples provided, and
 then you can try to make your own.
 
-``run-example``: there are 12 example systems; to run number four, for example:
+``run-example``: there are 13 example systems; to run number four, for example:
 
 .. code-block:: console
    
@@ -48,11 +48,18 @@ then you can try to make your own.
 
 ``config-help``: Interactive help in constructing a config file.
 
+Because it uses ``ycleptic``, ``pestifer`` has a built-in interactive system for help generating YAML-format input configurarion files.  
+
 .. code-block:: console
 
    $ pestifer config-help
    Help on user-provided configuration file format
        Help available for charmmff, psfgen, namd2, title, paths, tasks
+
+This shows that there are six top-level directives expected in a config file.  We can dig down on any one of them:
+
+.. code-block:: console
+
    $ pestifer config-help tasks
    Help on user-provided configuration file format
    tasks:
@@ -60,6 +67,11 @@ then you can try to make your own.
          heading which is a reserved task name
       type: list
       Help available for psfgen, ligate, solvate, relax, terminate
+
+Continuing to drill down is easy -- just add the next directive to the command line:
+
+.. code-block:: console
+
    $ pestifer config-help tasks psfgen
    Help on user-provided configuration file format
    tasks->
@@ -107,3 +119,4 @@ Then, you can use it in a source command in any VMD script or TcL session you li
 
    source [pestifer_init]
 
+This of course requires that your VMD session was launched from a shell running a python virtual environment in which pestifer is installed.
