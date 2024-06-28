@@ -1223,8 +1223,15 @@ directives:
         text: Parameters controlling packmol-memgen to generate a bilayer embedding
         type: dict
         directives:
+          - name: ionmap
+            text: map of ion names in packmol-memgen to ion names in CHARMM
+            type: dict
+            default:
+              "Cl-": CLA
+              "K+": POT
+              "Na+": SOD
           - name: embed
-            text: parameters controlling preorientation
+            text: parameters controlling preorientation (embedding)
             type: dict
             directives:
               - name: z_head_group
@@ -1308,6 +1315,10 @@ directives:
                 text: name of salt cation (if other than K+)
                 type: str
                 options: ['K+','Na+','Ca2+','Mg2+']
+              - name: salt_a
+                text: name of salt anion (if other than Cl-)
+                type: str
+                options: ['Cl-','Br-','I-','F-']
               - name: saltcon
                 text: salt concentration in M
                 type: float

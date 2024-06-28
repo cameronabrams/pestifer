@@ -1,7 +1,7 @@
 # Pestifer
 > Automatic NAMD System Input Builder
 
-Pestifer is a Python utility for generating atomistic inputs with appropriate topology and parameter files required for molecular dynamics simulations using NAMD.  It is intended as a fully automated system builder requiring as inputs only the PDB codes of biomolecular structures and a handful of customization parameters.  Pestifer primarily works as a front end for VMD's `psfgen` utility.
+Pestifer is a fully automated system builder, requiring as inputs only biomolecular structures (e.g., PDB IDs, PDB files, mmCIF files, alphafold IDs) and a handful of customization parameters, to generate NAMD-compatible input files (PSF, PDB).  It is basically a front end for VMD's `psfgen` utility.
 
 ## Installation
 
@@ -12,6 +12,8 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.4.3:
+    * bugfix: change packmol-memgen's weird ion names to be CHARMM-compatible
 * 1.4.2:
     * explicit chain mapping in config file
 * 1.4.1:

@@ -97,6 +97,8 @@ class CondaCheck:
                 f.write('# patched by pestifer\n')
                 f.write(patched_result)
             os.chdir(CWD)
+            return True
+        return False
 
     def restore_packmol_memgen_pdbremix(self,env):
         if self.check_packmol_memgen_pdbremix(env)=='PATCHED':

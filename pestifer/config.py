@@ -143,8 +143,8 @@ class Config(Yclept):
                 at_specs['local']=True
                 logger.debug(f'ambertools v. {explicit_env_ambertools_version} detected')
                 if patch_ambertools:
-                    self['Conda'].patch_packmol_memgen_pdbremix(active_env)
-                    logger.warning(f'I just now patched packmol_memgen pdbremix in the active environment {active_env}!!')
+                    if self['Conda'].patch_packmol_memgen_pdbremix(active_env):
+                        logger.warning(f'I just now patched packmol_memgen pdbremix in the active environment {active_env}!!')
                 return True
             logger.debug(f'No ambertools package found in active environment {active_env}.')
         # if active environment can't run ambertools and the explicit env is specified

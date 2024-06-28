@@ -1022,11 +1022,18 @@ class PackmolMemgenTask(BaseTask):
         self.save_state(exts=['pdb'])
         if 'xsc' in self.statevars:
             del self.statevars['xsc']
+        
+        # convert bad ion names to good ion names in outpdb
+        ionmap=self.specs.get('ionmap',{}) #{'Cl-':'CLA','Na+':'SOD','K+':'POT'}
+        if ionmap:
+            with open(outpdb,'r') as f:
+                probe=f.read()
+            for i,j in ionmap.items():
+                probe=probe.replace(i,j)
+            with open(outpdb,'w') as f:
+                f.write(probe)
 
-        # self.next_basename('shift')
         cellstr,boxinfo=get_boxsize_from_packmolmemgen()
-        # self.shift_coords(outpdb,[0.5*boxinfo["x_len"],0.5*boxinfo["y_len"],0.5*boxinfo["z_len"]])
-        # self.save_state(exts=['pdb'])
         self.next_basename('psfgen')
         with open(f'{self.basename}_cell.tcl','w') as f:
             f.write(cellstr)
