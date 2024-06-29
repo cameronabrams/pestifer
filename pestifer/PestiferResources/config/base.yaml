@@ -1,4 +1,4 @@
-# Pestifer 1.4.0
+# Pestifer 1.4.3
 # (c) 2023-2024 Cameron F. Abrams, cfa22@drexel.edu
 #
 # Ycleptic-format specification for YAML configuration file
@@ -810,10 +810,6 @@ directives:
       - name: venv
         type: text
         text: if set, name of conda virtual environment in which user wishes to run ambertools, distinct from pestifer execution environment; otherwise ambertools is run in the same environment that pestifer is
-      - name: patch_packmol_memgen_pdbremix
-        type: bool
-        text: If ambertools is available in venv and the pdbremix module of packmol_memgen contains the "np.float" syntax error, patch it
-        default: True
   - name: namd2
     type: dict
     text: NAMD2 specifications

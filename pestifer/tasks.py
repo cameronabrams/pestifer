@@ -404,7 +404,11 @@ class MDPlotTask(BaseTask):
         savedata=self.specs.get('savedata',None)
         if savedata:
             logger.debug(f'Saving energy-like data to {savedata}.')
-            data.to_csv(savedata,header=True,index=False)
+            try:
+                data.to_csv(savedata,header=True,index=False)
+            except:
+                logger.debug(f'For some reason, could not write a dataframe to csv')
+                logger.debug(data.iloc[:3,:].to_string())
         traces=self.specs.get('traces',[])
         basename=self.specs.get('basename','myplot')
         for trace in traces:

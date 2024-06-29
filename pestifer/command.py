@@ -82,33 +82,33 @@ class CondaCheck:
             return 'PATCHED'
         return 'UNFOUND'
 
-    def patch_packmol_memgen_pdbremix(self,env):
-        if self.check_packmol_memgen_pdbremix(env)=='UNPATCHED':
-            pspdir=self.env_python_site_packages_dir(env)
-            pmlib=os.path.join(pspdir,'packmol_memgen','lib','pdbremix')
-            CWD=os.getcwd()
-            os.chdir(pmlib)
-            the_bad_file='v3numpy.py'
-            with open(the_bad_file,'r') as f:
-                file_contents=f.read()
-            patched_result=file_contents.replace('dtype=np.float','dtype=np.float64')
-            shutil.copy(the_bad_file,'v3numpy.py_orig')
-            with open(the_bad_file,'w') as f:
-                f.write('# patched by pestifer\n')
-                f.write(patched_result)
-            os.chdir(CWD)
-            return True
-        return False
+    # def patch_packmol_memgen_pdbremix(self,env):
+    #     if self.check_packmol_memgen_pdbremix(env)=='UNPATCHED':
+    #         pspdir=self.env_python_site_packages_dir(env)
+    #         pmlib=os.path.join(pspdir,'packmol_memgen','lib','pdbremix')
+    #         CWD=os.getcwd()
+    #         os.chdir(pmlib)
+    #         the_bad_file='v3numpy.py'
+    #         with open(the_bad_file,'r') as f:
+    #             file_contents=f.read()
+    #         patched_result=file_contents.replace('dtype=np.float','dtype=np.float64')
+    #         shutil.copy(the_bad_file,'v3numpy.py_orig')
+    #         with open(the_bad_file,'w') as f:
+    #             f.write('# patched by pestifer\n')
+    #             f.write(patched_result)
+    #         os.chdir(CWD)
+    #         return True
+    #     return False
 
-    def restore_packmol_memgen_pdbremix(self,env):
-        if self.check_packmol_memgen_pdbremix(env)=='PATCHED':
-            pspdir=self.env_python_site_packages_dir(env)
-            pmlib=os.path.join(pspdir,'packmol_memgen','lib','pdbremix')
-            CWD=os.getcwd()
-            os.chdir(pmlib)
-            assert os.path.exists('v3numpy.py_orig')
-            shutil.move('v3numpy.py_orig','v3numpy.py')
-            os.chdir(CWD)
+    # def restore_packmol_memgen_pdbremix(self,env):
+    #     if self.check_packmol_memgen_pdbremix(env)=='PATCHED':
+    #         pspdir=self.env_python_site_packages_dir(env)
+    #         pmlib=os.path.join(pspdir,'packmol_memgen','lib','pdbremix')
+    #         CWD=os.getcwd()
+    #         os.chdir(pmlib)
+    #         assert os.path.exists('v3numpy.py_orig')
+    #         shutil.move('v3numpy.py_orig','v3numpy.py')
+    #         os.chdir(CWD)
 
     def check_envs(self):
         result={'good':[],'bad':[],'none':[]}
