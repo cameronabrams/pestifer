@@ -112,6 +112,9 @@ def positionN(res,tmat):
     CA=res.atoms.get(name='CA')
     C=res.atoms.get(name='C')
     O=res.atoms.get(name='O')
+    if not O:
+        logger.debug(f'Is this a C-terminus?')
+        O=res.atoms.get(name='OT1')
     rCA=np.dot(tmat,np.array([CA.x,CA.y,CA.z,1.0]))[:3]
     rC=np.dot(tmat,np.array([C.x,C.y,C.z,1.0]))[:3]
     rO=np.dot(tmat,np.array([O.x,O.y,O.z,1.0]))[:3]

@@ -120,7 +120,7 @@ source:
             r=R.get(chainID='A',resseqnum=427,insertion=i)
             self.assertEqual(r.resname,res_123[n])
             self.assertEqual(r.resolved,False)
-            self.assertEqual(r.segtype,'PROTEIN')
+            self.assertEqual(r.segtype,'protein')
 
     def test_relations(self):
         c=Config()

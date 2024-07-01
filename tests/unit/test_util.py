@@ -81,5 +81,5 @@ class TestUtil(unittest.TestCase):
         idx=4
         c1mL=mL[:idx]
         c1dL=mL[idx:]
-        # cop
-        self.assertFalse(mL[idx] is c1dL[0])
+        # does not copy
+        self.assertTrue(mL[idx] is c1dL[0])

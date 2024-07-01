@@ -22,7 +22,6 @@ class TestTCL(unittest.TestCase):
         vmd.addline(f'[atomselect top "name CA"] writepdb bad.pdb')
         vmd.addline(f'restore $a $attributes $data')
         vmd.addline(f'[atomselect top "name CA"] writepdb good.pdb')
-        vmd.endscript()
         vmd.writescript()
         vmd.runscript()
         p=PDBParser(PDBcode='bad').parse()
@@ -56,7 +55,6 @@ class TestTCL(unittest.TestCase):
         vmd.addline(f'[atomselect top "name CA"] writepdb bad.pdb')
         vmd.restore_selection('a')
         vmd.addline(f'[atomselect top "name CA"] writepdb good.pdb')
-        vmd.endscript()
         vmd.writescript()
         vmd.runscript()
         p=PDBParser(PDBcode='bad').parse()
@@ -74,4 +72,4 @@ class TestTCL(unittest.TestCase):
         self.assertTrue(goodchk)
         goody=[a.y for a in goodatoms]
         goodchk=all([x==y for x,y in zip(oy,goody)])
-        self.assertTrue(goodchk)        
+        self.assertTrue(goodchk)

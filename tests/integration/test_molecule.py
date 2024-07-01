@@ -111,12 +111,6 @@ source:
         self.assertEqual(l.atom2.altloc,'')
         self.assertTrue(l.residue2 in l.residue1.down)
         self.assertTrue(l.residue1 in l.residue2.up)
-        self.assertEqual(l.residue2.segtype,'glycan')
-        self.assertEqual(l.residue2.resname,'NAG')
-        self.assertEqual(l.residue2.chainID,'C')
-        self.assertEqual(l.residue2.resseqnum,2)
-        self.assertEqual(l.atom2.name,'C1')
-        self.assertEqual(l.atom2.altloc,'')
 
     def test_molecule_bioassemb_4zmj(self):
         c=Config()

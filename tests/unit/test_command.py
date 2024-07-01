@@ -45,24 +45,18 @@ class TestCondaCheck(unittest.TestCase):
         real_numpy_version=str(numpy.__version__)
         test_numpy_version=c.get_package_version(c.active_env,'numpy')
         self.assertEqual(real_numpy_version,test_numpy_version)
-        test_ambertools_version=c.get_package_version(c.active_env,'ambertools',from_list=True)
-        self.assertEqual(test_ambertools_version,'23.3')
+        test_numpy_version=c.get_package_version(c.active_env,'numpy',from_list=True)
+        self.assertEqual(real_numpy_version,test_numpy_version)
 
 class TestAmbertools(unittest.TestCase):
-    def test_ambertools_available_by_env_search(self):
-        c=Config('noenv.yaml')
-        # this is specific to MY installation
-        self.assertEqual(c['user']['ambertools']['available'],True)
-        self.assertEqual(c['user']['ambertools']['local'],False)
-        self.assertEqual(c['user']['ambertools']['venv'],'pmmg')
-    
-    def test_ambertools_available_by_explicit_env(self):
+    def test_ambertools_available(self):
         c=Config('env.yaml')
         # this is specific to MY installation
         self.assertEqual(c['user']['ambertools']['available'],True)
-        self.assertEqual(c['user']['ambertools']['local'],False)
-        self.assertEqual(c['user']['ambertools']['venv'],'pmmg')
-
+        self.assertEqual(c['user']['ambertools']['local'],True)
+        test_ambertools_version=float(c['Conda'].get_package_version(c['Conda'].active_env,'ambertools',from_list=True))
+        self.assertTrue(test_ambertools_version>=23.6)
+    
     def test_no_ambertools(self):
         c=Config()
         self.assertFalse('available' in c['user']['ambertools'])

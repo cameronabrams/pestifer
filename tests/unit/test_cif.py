@@ -97,7 +97,6 @@ class TestCIF(unittest.TestCase):
             vmd.addline(f'puts "COUNTS [$b num] {len(serials)}"')
             vmd.addline(f'puts "RESIDS && $resids && {residlist}"')
             nres+=len(chain)
-        vmd.endscript()
         vmd.writescript()
         vmd.runscript()
         with open('testcif.log','r') as f:

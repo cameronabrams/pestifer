@@ -21,29 +21,28 @@ class TestChainIDManager(unittest.TestCase):
 
     def test_register(self):
         cm=ChainIDManager()
-        cm.register_chains(['A','B','x'])
+        for c in ['A','B','x']:
+            cm.check(c)
         self.assertTrue(not any([x in cm.Unused for x in ['A','B','x']]))
         for c in ['A','B','x']:
             self.assertTrue(c in cm.Used)
 
     def test_unregister(self):
         cm=ChainIDManager()
-        cm.register_chains(['A','B','x'])
+        for c in ['A','B','x']:
+            cm.check(c)
         cm.unregister_chain('A')
         self.assertFalse('A' in cm.Used)
         for c in ['B','x']:
             self.assertTrue(c in cm.Used)
 
     def test_reserved(self):
-        cm=ChainIDManager(reserved_maps={'A':['G','Q'],'B':['H','R']})
-        self.assertEqual(cm.ReservedUnused,['A','G','Q','B','H','R'])
-        cm.register_chains(['A','B'])
+        cm=ChainIDManager(transform_reserves={'A':['G','Q'],'B':['H','R']})
+        self.assertEqual(cm.ReservedUnused,['G','Q','H','R'])
+        cm.check('A')
+        cm.check('B')
         c=cm.next_unused_chainID()
         self.assertEqual(c,'C')
-        self.assertTrue(cm.is_already_reserved('G'))
-        self.assertTrue(cm.is_already_reserved('Q'))
-        self.assertTrue(cm.is_already_reserved('H'))
-        self.assertTrue(cm.is_already_reserved('R'))
         d=cm.next_reserved_chainID('A')
         self.assertEqual(d,'G')
         d=cm.next_reserved_chainID('A')
@@ -56,8 +55,9 @@ class TestChainIDManager(unittest.TestCase):
         self.assertEqual(cm.remap['A'],'X')
         
     def test_generate_next_map(self):
-        cm=ChainIDManager(reserved_maps={'A':['G','Q'],'B':['H','R']})
-        cm.register_chains(['A','B'])
+        cm=ChainIDManager(transform_reserves={'A':['G','Q'],'B':['H','R']})
+        cm.check('A')
+        cm.check('B')
         nm=cm.generate_next_map(['A','B'])
         self.assertEqual(nm['A'],'G')
         self.assertEqual(nm['B'],'H')

@@ -67,20 +67,22 @@ class CondaCheck:
         assert os.path.isdir(pspdir),f'No dir {pspdir} found'
         return pspdir
 
-    def check_packmol_memgen_pdbremix(self,env):
-        pspdir=self.env_python_site_packages_dir(env)
-        pmlib=os.path.join(pspdir,'packmol_memgen','lib','pdbremix')
-        if os.path.exists(pmlib):
-            the_bad_file=os.path.join(pmlib,'v3numpy.py')
-            assert os.path.exists(the_bad_file),f'{the_bad_file}: not found.'
-            with open(the_bad_file,'r') as f:
-                file_contents=f.read()
-            test_result=file_contents.find('dtype=np.float64')
-            if test_result==-1:
-                logger.debug(f'env {env} has an unpatched version of packmol-memgen')
-                return 'UNPATCHED'
-            return 'PATCHED'
-        return 'UNFOUND'
+    # def check_packmol_memgen_pdbremix(self,env):
+    #     pspdir=self.env_python_site_packages_dir(env)
+    #     pmlib=os.path.join(pspdir,'packmol_memgen','lib','pdbremix')
+    #     if os.path.exists(pmlib):
+    #         the_bad_file=os.path.join(pmlib,'v3numpy.py')
+    #         assert os.path.exists(the_bad_file),f'{the_bad_file}: not found.'
+    #         with open(the_bad_file,'r') as f:
+    #             file_contents=f.read()
+    #         pos_result=file_contents.find('dtype=np.float')
+    #         neg_result=file_contents.find('dtype=np.float64')
+    #         if pos_result!=-1 and neg_result==-1:
+    #             logger.debug(f'venv {env} has an unpatched version of packmol-memgen/pdbremix')
+    #             logger.debug(f'You should update this environment to support ambertools 23.6 or better')
+    #             return 'UNPATCHED'
+    #         return 'PATCHED'
+    #     return 'UNFOUND'
 
     # def patch_packmol_memgen_pdbremix(self,env):
     #     if self.check_packmol_memgen_pdbremix(env)=='UNPATCHED':

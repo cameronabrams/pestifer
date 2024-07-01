@@ -32,7 +32,7 @@ class TestPSF(unittest.TestCase):
             y=f'{fss.resseqnum2}{fss.insertion2}'
             self.assertEqual(p[4],f'{x}:{y}')
 
-        for patchtype in Link.allowed_patchnames:
+        for patchtype in Link.patch_atomnames.keys():
             c=Command(f'grep REMARKS {source} | grep patch| grep -c {patchtype}')
             c.run(ignore_codes=[1])
             expected=int(c.stdout)

@@ -65,11 +65,15 @@ class ChainIDManager:
 
     def sandbag(self,i_chainIDs):
         """ moves all chainIDs in i_chainIDs to end of Unused so they are not popped too early."""
-        assert all([x in self.Unused for x in i_chainIDs]),f'Cannot sandbag since at least one initial chainID is not found in Unused -- bug!'
-        logger.debug(f'Sandbagging chains {i_chainIDs}')
+        logger.debug(f'Sandbagging: unused chains: {self.Unused}')
+        assert all([(x in self.Unused) or (x in self.ReservedUnused) for x in i_chainIDs]),f'Cannot sandbag since at least one initial chainID is not found in Unused or ReservedUnusued -- bug!'
         for c in i_chainIDs:
-            self.Unused.remove(c)
-            self.Unused.append(c)
+            if c in self.Unused:
+                logger.debug(f'Sandbagging unused chainID {c}')
+                self.Unused.remove(c)
+                self.Unused.append(c)
+            else:
+                logger.debug(f'Not sandbagging chainID {c} since it is reserved for a transform')
 
     def check(self,proposed_chainID):
         hold_chainID=proposed_chainID

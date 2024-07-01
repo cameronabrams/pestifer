@@ -450,10 +450,10 @@ class ResidueList(AncestorAwareModList):
         assert len(self)==(len(protein_residues)+len(non_protein_residues))
         non_protein_residues_in_conflict=ResidueList([])
         for np in non_protein_residues:
-            logger.debug(f'looking for conflict among protein for chain [{np.chainID}] resseqnum [{np.resseqnum}] insertion [{np.insertion}]')
+            # logger.debug(f'looking for conflict among protein for chain [{np.chainID}] resseqnum [{np.resseqnum}] insertion [{np.insertion}]')
             tst=protein_residues.get(chainID=np.chainID,resseqnum=np.resseqnum,insertion=np.insertion)
             if tst:
-                logger.debug(f'found it!')
+                # logger.debug(f'found it!')
                 non_protein_residues_in_conflict.append(np)
         for npc in non_protein_residues_in_conflict:
             non_protein_residues.remove(npc)

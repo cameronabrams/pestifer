@@ -66,7 +66,8 @@ class AsymmetricUnit(AncestorAwareMod):
                 modmanager.injest(ters)
                 if 'REMARK.465' in pr:
                     missings=EmptyResidueList([EmptyResidue(p) for p in pr['REMARK.465'].tables['MISSING']])
-                ssbonds=SSBondList([SSBond(p) for p in pr.get(SSBond.PDB_keyword,[])])  
+                ssbonds=SSBondList([SSBond(p) for p in pr.get(SSBond.PDB_keyword,[])])
+                logger.debug(f'PDB yields {len(ssbonds)} ssbonds')
                 seqadvs=SeqadvList([Seqadv(p) for p in pr.get(Seqadv.PDB_keyword,[])])
                 links=LinkList([Link(p) for p in pr.get(Link.PDB_keyword,[])])
                 links.remove_duplicates(fields=['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']) # some pdb files list links multiple times (2ins, i'm looking at you)
@@ -226,10 +227,8 @@ class AsymmetricUnit(AncestorAwareMod):
                 logger.debug(f'Unregistering chainID {s.segname} because this entire segment was pruned')
                 chainIDmanager.unregister_chain(s.segname)
 
-            # Now any added or deleted ssbonds
-            # ssbonds=modmanager.injest(ssbonds)
+            # Now any explicitly deleted ssbonds
             topomods=modmanager.get('topomods',{})
-            ssbonds=topomods.get('ssbonds',SSBondList([]))
             if 'ssbondsdelete' in topomods:
                 for s in ssbonds:
                     if topomods['ssbondsdelete'].is_deleted(s):

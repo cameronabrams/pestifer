@@ -12,11 +12,11 @@ class TestPsfgen(unittest.TestCase):
         p=Psfgen(c)
         p.newscript()
         p.B.banner('TESTING')
-        p.writescript()
+        p.writescript('test-state')
         self.assertTrue(os.path.isfile('pestifer-script.tcl'))
         p.newscript('testing')
         p.B.banner('TESTING')
-        p.writescript()
+        p.writescript('test-state')
         self.assertTrue(os.path.isfile('testing.tcl'))
         os.remove(p.basename+'.tcl')
         self.assertFalse(os.path.exists('testing.tcl'))
@@ -32,7 +32,7 @@ class TestPsfgen(unittest.TestCase):
         if os.path.exists('atomselect_macros.tcl'):
             os.remove('atomselect_macros.tcl')
         p.newfile('atomselect_macros.tcl')
-        p.addline('# this is a test -- should write atomselect macros')
+        p.addline('# this is a test -- should write four update_atomselect_macro commands')
         p.atomselect_macros()
         p.writefile()
         with open('atomselect_macros.tcl','r') as f:
@@ -42,9 +42,9 @@ class TestPsfgen(unittest.TestCase):
             if len(l)==0:
                 continue
             w=l.split()
-            if w[0]=='atomselect' and w[1]=='macro':
+            if w[0]=='update_atomselect_macro':
                 nmacros+=1
-        self.assertEqual(nmacros,3)
+        self.assertEqual(nmacros,4)
 
     # def test_write_mol(self):
     #     c=ConfigSetup('example.yaml')

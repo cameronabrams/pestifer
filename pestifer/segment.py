@@ -328,6 +328,7 @@ class SegmentList(AncestorAwareModList):
                         self.segtypes_ordered.append(r.segtype)
                 logger.debug(f'Generating segments from list of {len(residues)} residues; segtypes detected: {self.segtypes_ordered}')
                 initial_chainIDs=list(self.segtype_of_segname.keys())
+                logger.debug(f'ChainIDs detected: {initial_chainIDs}')
                 chainIDmanager.sandbag(initial_chainIDs)
                 for stype in self.segtypes_ordered:
                     self.counters_by_segtype[stype]=0

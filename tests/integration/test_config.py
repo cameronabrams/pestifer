@@ -97,8 +97,8 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(specs['source']['id'],'4zmj')
         self.assertTrue('cleanup' in specs)
         sourcespecs=specs['source']
-        self.assertTrue('reserved_chainIDmaps' in sourcespecs)
-        resm=sourcespecs['reserved_chainIDmaps']
+        self.assertTrue('transform_reserves' in sourcespecs)
+        resm=sourcespecs['transform_reserves']
         self.assertTrue('G' in resm)
         self.assertTrue('B' in resm)
         self.assertTrue(resm['G']==['H','J'])

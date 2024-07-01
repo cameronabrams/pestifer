@@ -98,6 +98,9 @@ class AtomList(AncestorAwareModList):
     def reserialize(self):
         serial=1
         for a in self:
+            if not '_ORIGINAL_' in a.__dict__:
+                a._ORIGINAL_={}
+            a._ORIGINAL_['serial']=a.serial
             a.serial=serial
             serial+=1
             
