@@ -4,13 +4,13 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 [project]
 name = "pestifer"
-version = "1.4.3"
+version = "1.4.4"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
 ]
 description = "A NAMD topology/coordinate input builder"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
