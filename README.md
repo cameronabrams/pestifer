@@ -12,9 +12,12 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
+* 1.4.4:
 * 1.4.3:
     * update ambertools version requirement to 23.6; no more packmol-memgen/pdbremix error
-    * bugfix: change packmol-memgen's weird ion names to be CHARMM-compatible
+    * bugfixes: 
+      * change packmol-memgen's weird ion names to be CHARMM-compatible
+      * allow for N-atom position calculation for residues added to a C-terminus (atom name OT1 vs O)
 * 1.4.2:
     * explicit chain mapping in config file
 * 1.4.1:
