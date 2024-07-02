@@ -26,7 +26,7 @@ psfgen->
 source:
     Specifies the source of the initial coordinate file
     type: dict
-    Help available for prebuilt, id, alphafold, biological_assembly, reserved_chainIDmaps, model, file_format, cif_residue_map_file, exclude, sequence
+    Help available for prebuilt, id, alphafold, biological_assembly, transform_reserves, remap_chainIDs, reserialize, model, file_format, cif_residue_map_file, exclude, sequence
 tasks->
 psfgen->
 source->

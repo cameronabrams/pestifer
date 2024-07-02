@@ -860,7 +860,8 @@ tasks:
       file_format: PDB
       id: 4zmj
       prebuilt: {}
-      reserved_chainIDmaps: {}
+      remap_chainIDs: {}
+      reserialize: false
       sequence:
         build_zero_occupancy_C_termini: []
         build_zero_occupancy_N_termini: []
@@ -877,6 +878,13 @@ tasks:
             maxcycles: 20
           min_loop_length: 4
           sac_res_name: GLY
+      transform_reserves:
+        B:
+        - C
+        - D
+        G:
+        - H
+        - J
 - md:
     constraints: {}
     dcdfreq: 100

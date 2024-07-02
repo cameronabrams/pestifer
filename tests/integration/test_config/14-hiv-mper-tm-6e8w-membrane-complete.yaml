@@ -1,7 +1,6 @@
 ambertools:
   available: true
-  local: false
-  venv: pmmg
+  local: true
 charmmff:
   custom:
     parameters:
@@ -863,7 +862,8 @@ tasks:
       id: 6e8w
       model: 15
       prebuilt: {}
-      reserved_chainIDmaps: {}
+      remap_chainIDs: {}
+      reserialize: false
       sequence:
         build_zero_occupancy_C_termini: []
         build_zero_occupancy_N_termini: []
@@ -880,6 +880,7 @@ tasks:
             maxcycles: 20
           min_loop_length: 4
           sac_res_name: GLY
+      transform_reserves: {}
 - md:
     constraints: {}
     dcdfreq: 100
@@ -912,6 +913,10 @@ tasks:
         text: protein and resid 696
         z_value: 0.0
       z_tail_group: protein and resid 710
+    ionmap:
+      Cl-: CLA
+      K+: POT
+      Na+: SOD
 - md:
     constraints: {}
     dcdfreq: 100
