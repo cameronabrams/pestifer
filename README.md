@@ -13,6 +13,7 @@ Once installed, the user has access to the main `pestifer` command.
 
 ## Release History
 * 1.4.4:
+    * now includes Tcllib 2.0
 * 1.4.3:
     * update ambertools version requirement to 23.6; no more packmol-memgen/pdbremix error
     * bugfixes: 
