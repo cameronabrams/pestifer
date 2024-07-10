@@ -23,11 +23,13 @@
 ! a special psfgen script that "ligates" the two TER's
 ! to form an intact peptide bond, by applying this patch.
 !
-PRES HEAL      0.00 
-ATOM 2O   O   -0.51
-ATOM 2C   C   0.51
-ATOM 3HN  H   0.31  ! no, not for proline!!
-ATOM 3N   NH1 -0.47
+PRES HEAL         0.00 
+ATOM 2O   O      -0.51
+ATOM 2C   C       0.51
+ATOM 3HN  H       0.31  ! no, not for proline!!
+ATOM 3N   NH1    -0.47
+ATOM 3CA  CT1     0.07
+ATOM 3HA  HB1     0.09
 BOND 2C 3N
 BOND 2C 2O
 BOND 3N 3HN   ! no, will not work for proline!!

@@ -9,11 +9,13 @@ Pestifer is a fully automated system builder, requiring as inputs only biomolecu
 pip install pestifer
 ```
 
-Once installed, the user has access to the main `pestifer` command.
+Once installed, the user has access to the main `pestifer` command.  I recommend that `pestifer` be installed in a virtual environment in which ambertools>=23.6 is available.
 
 ## Release History
 * 1.4.4:
     * now includes Tcllib 2.0
+    * bugfixes:
+      * the `HEAL` patch neglected to set the charges on the C-terminal CA and HB correctly, leading to slight charging for systems where loops are ligated in.  This is fixed.
 * 1.4.3:
     * update ambertools version requirement to 23.6; no more packmol-memgen/pdbremix error
     * bugfixes: 
