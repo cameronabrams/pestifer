@@ -173,7 +173,7 @@ class CondaCheck:
                         return None                    
         except Exception as e:
             logger.debug(f'{e}')
-            logger.debug(f'Could not determine version of {pkgname} in env {envname}')
+            logger.debug(f'Could not determine version of {pkgname} in env {env}')
             return None
 
     def condafy(self,command,env=None):
