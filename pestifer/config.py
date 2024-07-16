@@ -1,3 +1,4 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
 import os
 import logging
@@ -7,8 +8,7 @@ from pestifer import PestiferResources
 from .command import CondaCheck
 from .stringthings import my_logger
 from ycleptic.yclept import Yclept
-from ycleptic.yclept import __version__ as __ycleptic_version__
-from pidibble.pdbparse import __version__ as __pidibble_version__
+from importlib.metadata import version
 
 segtype_of_resname={}
 charmm_resname_of_pdb_resname={}
@@ -42,9 +42,10 @@ def myset(a_dict,keylist,val):
         myset(a_dict[key],keylist,val)
 
 class Config(Yclept):
-    def __init__(self,userfile=''):
-        logger.info(f'ycleptic {__ycleptic_version__}')
-        logger.info(f'pidibble {__pidibble_version__}')
+    def __init__(self,userfile='',**kwargs):
+        vrep=f"""ycleptic v. {version("ycleptic")}
+pidibble v. {version("pidibble")}"""
+        my_logger(vrep,logger.info,just='<',frame='*',fill='')
         r=ResourceManager()
         logger.debug(f'Resources {r}')
         # resolve full pathname of YCleptic base config for this application
@@ -55,9 +56,9 @@ class Config(Yclept):
         self['Resources']=r
         self['Conda']=CondaCheck()
         my_logger(self['Conda'].info(),logger.info,just='<',frame='*',fill='')
-        self._set_shortcuts()
+        self._set_shortcuts(**kwargs)
 
-    def _set_shortcuts(self):
+    def _set_shortcuts(self,**kwargs):
 
         self.namd2=self['user']['paths']['namd2']
         assert os.access(self.namd2,os.X_OK)
@@ -116,7 +117,23 @@ class Config(Yclept):
         res_321.update(self['user']['psfgen']['segtypes']['protein']['rescodes'])
 
         packmol_memgen_task_specs='packmol_memgen' in [list(x.keys())[0] for x in self['user']['tasks']]
-        if packmol_memgen_task_specs:
+        if packmol_memgen_task_specs or kwargs.get('memgen_test',False):
+            import packmol_memgen as pmmg
+            import packmol_memgen.lib.charmmlipid2amber as cla
+            import pandas as pd
+            pmmfile=os.path.join(os.path.split(pmmg.__file__)[0],'data','memgen.parm')
+
+            if os.path.exists(pmmfile):
+                df=pd.read_csv(pmmfile,sep='\s+',header=22)
+                self['user']['ambertools']['memgen_parm_df']=df
+                logger.debug(f'memgen_parm database has {df.shape[0]} entries')
+            
+            cladir=os.path.split(cla.__file__)[0]
+            clafile=os.path.join(cladir,'charmmlipid2amber.csv')
+            if os.path.exists(clafile):
+                df=pd.read_csv(clafile,header=1,skiprows=0)
+                self['user']['ambertools']['charmmlipid2amber_df']=df
+                logger.debug(f'charmmlipid2amber database has {df.shape[0]} entries')
             if not self.check_ambertools():
                 raise Exception(f'You have a "packmol_memgen" task but ambertools is not available.')
         else:
@@ -133,15 +150,15 @@ class Config(Yclept):
         at_specs['available']=False
         explicit_ambertools_venv=at_specs.get('venv',None)
         # patch_ambertools=at_specs.get('patch_packmol_memgen_pdbremix',False)
-        # if no explicit env for running ambertools is specified, 
+        # if no explicit env for running ambertools is specified,
         # check the active environment first
         if explicit_ambertools_venv==None:
             active_env=self['Conda'].active_env
-            explicit_env_ambertools_version=self['Conda'].get_package_version(active_env,'ambertools',from_list=True)
+            explicit_env_ambertools_version=self['Conda'].get_package_version('ambertools',env=active_env,from_list=True)
             if explicit_env_ambertools_version!=None:
                 at_specs['available']=True
                 at_specs['local']=True
-                logger.debug(f'ambertools v. {explicit_env_ambertools_version} detected')
+                logger.debug(f'ambertools v. {explicit_env_ambertools_version}')
                 # if patch_ambertools:
                 #     if self['Conda'].patch_packmol_memgen_pdbremix(active_env):
                 #         logger.warning(f'I just now patched packmol_memgen pdbremix in the active environment {active_env}!!')

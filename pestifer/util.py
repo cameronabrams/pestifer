@@ -197,3 +197,73 @@ def split_list(L,idx):
     for d in D:
         L.remove(d)
     return D
+
+def pdb_search_replace(pdbfile,mapdict):
+    """ perform a straight-up search replace on the
+    contents of pdbfile """
+    with open(pdbfile,'r') as f:
+        probe=f.read()
+    for i,j in mapdict.items():
+        probe=probe.replace(i,j)
+    with open(pdbfile,'w') as f:
+        f.write(probe)
+
+def pdb_charmify(pdbfile,moltype_maps,outfile=None):
+    """ Using the charmmlipid2amber input data, convert any specific amber-style
+    lipids in pdbfile to charmm-style.  This is done by direct byte-level
+    string manipulations.  """
+    with open(pdbfile,'r') as f:
+        probelines=f.read().split('\n')
+    nres={}
+    for lip in moltype_maps.keys():
+        nres[lip]=1
+    nat=0
+    parsedlines=[]
+    for rec in probelines:
+        # logger.debug(rec)
+        if not rec.startswith('ATOM') and not rec.startswith('HETATM'):
+            # logger.debug(f'skipping {rec}')
+            parsedlines.append(rec)
+            continue
+        for lip,atdf in moltype_maps.items():
+            for i,atom in atdf.iterrows():
+                badlab=atom['replace']
+                spc=[]
+                for i,c in enumerate(badlab):
+                    if c==' ':
+                        spc.append(i)
+                ll=len(badlab)
+                mind=ll+1
+                mini=-1
+                for i in range(len(spc)):
+                    d=abs(spc[i]-ll/2)
+                    if d < mind:
+                        mind=d
+                        mini=spc[i]
+                badlab2=badlab[:mini]+' '+badlab[mini:-1]
+                # logger.debug(f'[{badlab}] or [{badlab2}]')
+                goodlab=atom['search'] # we are inverting charmmlipid2amber!
+                if rec.find(badlab)!=-1 or rec.find(badlab2)!=-1:
+                    # logger.debug(f'{rec}')
+                    # rec=rec.replace(badlab,goodlab)
+                    nat+=1
+                    chain=rec[21]
+                    residstr=rec[22:26]
+                    tokens=goodlab.split()
+                    correct_atom_name=tokens[0].strip()
+                    correct_residue_name=tokens[1].strip()
+                    # logger.debug(f'{lip} {nat} {chain} {residstr}')
+                    # write in the correct atom name and residue name
+                    rec=rec[:12]+'{:>4s} '.format(correct_atom_name)+'{:.4s} '.format(correct_residue_name)+chain+'{: 4d}'.format(int(nres[lip]))+rec[26:]
+                    # logger.debug(f'{rec}')
+                    if nat==atdf.shape[0]:
+                        nat=0
+                        nres[lip]+=1
+                # else:
+                #     logger.debug(f'{badlab} not found in {rec}')
+        parsedlines.append(rec)
+    assert len(probelines)==len(parsedlines)
+    if not outfile:
+        outfile=pdbfile
+    with open(outfile,'w') as f:
+        f.write('\n'.join(parsedlines))

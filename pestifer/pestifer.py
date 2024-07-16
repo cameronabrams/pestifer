@@ -77,7 +77,7 @@ def list_examples():
             exdict[code]=desc
     return collections.OrderedDict(sorted(exdict.items()))
 
-def run_example(args,**kwargs):
+def fetch_example(args,**kwargs):
     number=args.number
     nstr=f'{number:02d}'
     c=Config()
@@ -88,32 +88,11 @@ def run_example(args,**kwargs):
     base=os.path.split(ex_yaml)[1]
     rebase=base[len(nstr)+1:]
     shutil.copy(ex_yaml,f'./{rebase}')
-    args.config=rebase
-    run(args,**kwargs)
+    return rebase
 
-# def script(args):
-#     scriptname=args.scriptname
-#     scriptbase=os.path.basename(scriptname)
-#     sp,ss=os.path.splitext(scriptbase)
-#     c=Config()
-#     if os.path.exists(scriptname): # it's local
-#         print(f'Running local script: {scriptname}')
-#         vm=VMD(c)
-#         vm.basename=sp
-#         vm.scriptname=scriptname
-#         vm.runscript()
-#     else: # assume user is referring to a library script
-#         script_dir=c['Resources']['tcl']['scripts']
-#         script_path=os.path.join(script_dir,f'{sp}.tcl')
-#         if os.path.exists(script_path):
-#             print(f'Running library script: {script_path}')
-#             vm=VMD(c)
-#             vm.newscript(f'local-{sp}')
-#             vm.usescript(sp)
-#             vm.writescript()
-#             vm.runscript()
-#         else:
-#             print(f'{scriptname} is not found.')
+def run_example(args,**kwargs):
+    args.config=fetch_example(args,**kwargs)
+    run(args,**kwargs)
 
 def inittcl(args):
     c=Config()
@@ -161,6 +140,7 @@ def cli():
     commands={
         'config-help':config_help,
         'config-default':config_default,
+        'fetch-example': fetch_example,
         'run-example': run_example,
         'run':run,
         # 'script':script,
@@ -170,6 +150,7 @@ def cli():
     helps={
         'config-help':'get help on the syntax of input configuration files',
         'config-default':'generate a default input directive',
+        'fetch-example':'copy the example\'s YAML config file to the CWD',
         'run-example':'build one of the examples provided',
         'run':'build a system using instructions in the config file',
         # 'script':'run a single-use special VMD/TcL script',
@@ -179,6 +160,7 @@ def cli():
     descs={
         'config-help':'Use this command to get interactive help on config file directives.',
         'config-default':'This will generate a default config file for you to fill in using a text editor.',
+        'fetch-example':'Fetch YAML config for one of the examples:\n'+'\n'.join([f'{c:>3d}: {d}' for c,d in list_examples().items()]),
         'run-example':'Build one of the examples:\n'+'\n'.join([f'{c:>3d}: {d}' for c,d in list_examples().items()]),
         'run':'Build a system',
         # 'script':'Run a single-use special VMD/TcL script',
@@ -197,6 +179,7 @@ def cli():
         command_parsers[k].add_argument('--diag',type=str,default='pestifer_diagnostics.log',help='diagnostic log file')
     
     command_parsers['run'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
+    command_parsers['fetch-example'].add_argument('number',type=int,default=None,help='example number')
     command_parsers['run-example'].add_argument('number',type=int,default=None,help='example number')
     command_parsers['config-help'].add_argument('directives',type=str,nargs='*',help='config file directives')
     command_parsers['config-default'].add_argument('directives',type=str,nargs='*',help='config file directives')

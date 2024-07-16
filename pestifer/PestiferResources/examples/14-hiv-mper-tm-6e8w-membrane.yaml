@@ -7,11 +7,8 @@
 # Notes:
 #   - Topology and parameters for cholesterol are not loaded by default, so
 #     we explicitly declare them here
-#   - packmol-memgen is used, so you must have a conda environment available
-#     in which to run it.  This environment must have a patched version of
-#     packmol-memgen to get rid of an old numpy error.  You need not
-#     have this environment active when you invoke pestifer; pestifer will
-#     activate it only when it needs to run packmol-memgen.
+#   - packmol-memgen is used.  A functional packmol-memgen is available if ambertools
+#     >= 23.6 is installed.
 #
 title: 6e8w
 charmmff:
@@ -38,8 +35,8 @@ tasks:
         dist: 18
         lipids: POPC:CHL1
         ratio: 0.67:0.33
-        nloop: 200
-        nloop_all: 200
+        # nloop: 200
+        # nloop_all: 200
         random: true
   - md:
       ensemble: minimize

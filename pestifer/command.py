@@ -132,18 +132,19 @@ class CondaCheck:
     def env_exists(self,envname):
         return envname in self.conda_envs
     
-    def get_package_version(self,envname,pkgname,from_list=False):
+    def get_package_version(self,pkgname,env=None,from_list=False):
+        if not env: env=self.active_env
         try:
-            if envname!=self.active_env:
-                logging.debug(f'Checking version of {pkgname} in non-active environment {envname}')
+            if env!=self.active_env:
+                logging.debug(f'Checking version of {pkgname} in non-active environment {env}')
                 if not from_list:
-                    pcs=subprocess.Popen(f"source {self.init_shell}\nconda activate {envname}\npython -c 'import {pkgname}; print({pkgname}.__version__)'",
+                    pcs=subprocess.Popen(f"source {self.init_shell}\nconda activate {env}\npython -c 'import {pkgname}; print({pkgname}.__version__)'",
                     shell=True, executable='/bin/bash',stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
                     stdout,stderr=pcs.communicate()
                     results=stdout.split('\n')
                     return results[0]
                 else:
-                    c=f'source {self.init_shell}\nconda activate {envname}\nconda list {pkgname}'
+                    c=f'source {self.init_shell}\nconda activate {env}\nconda list {pkgname}'
                     logger.debug(f'Issuing {c}')
                     check_result=subprocess.run(c,shell=True,executable='/bin/bash',check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
                     results=check_result.stdout.decode('utf-8').split('\n')
@@ -154,7 +155,7 @@ class CondaCheck:
                     else:
                         logger.debug(f'so {results}')
                         logger.debug(f'se {err}')
-                        logger.debug(f'Could not determine version of {pkgname} in env {envname} via "conda list"')
+                        logger.debug(f'Could not determine version of {pkgname} in env {env} via "conda list"')
                         return None
             else:
                 if not from_list:
@@ -168,7 +169,7 @@ class CondaCheck:
                         version=results[-2].split()[1]
                         return version
                     else:
-                        logger.debug(f'Could not determine version of {pkgname} in env {envname} via "conda list"')
+                        logger.debug(f'Could not determine version of {pkgname} in env {env} via "conda list"')
                         return None                    
         except Exception as e:
             logger.debug(f'{e}')

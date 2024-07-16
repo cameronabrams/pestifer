@@ -15,7 +15,7 @@ import shutil
 import os
 import yaml
 from copy import deepcopy
-from .util import is_periodic
+from .util import is_periodic, pdb_search_replace, pdb_charmify
 from .molecule import Molecule
 from .chainidmanager import ChainIDManager
 from .colvars import *
@@ -972,6 +972,8 @@ class PackmolMemgenTask(BaseTask):
     def __init__(self,input_dict,taskname,config,writers,prior):
         super().__init__(input_dict,taskname,config,writers,prior)
         self.has_conda=config['Conda'].conda_root!=None
+        self.memgen_parm=config['user']['ambertools'].get('packmol_memgen_parmfile',None)
+        logger.debug(f'packmol_memgen task custom memgen.parm: {self.memgen_parm}')
         assert config['user']['ambertools']['available']
         self.env=None
         if not config['user']['ambertools']['local']:
@@ -983,6 +985,43 @@ class PackmolMemgenTask(BaseTask):
         self.inherit_state()
         psf=self.statevars.get('psf',None)
         pdb=self.statevars.get('pdb',None)
+
+        lipidnames=self.specs['command_options'].get('lipids',['POPC'])
+        leafs=lipidnames.split('//')
+        lipids=[]
+        for leaf in leafs:
+            leaflips=leaf.split(':')
+            for ll in leaflips:
+                if not ll in lipids:
+                    lipids.append(ll)
+        memgen_parm=self.config['user']['ambertools'].get('memgen_parm_df',pd.DataFrame())
+        if not memgen_parm.empty:
+            charmmlipids=memgen_parm[memgen_parm['CHARMM']=='Y']['#NAME'].to_list()
+            logger.debug(f'memgen uses CHARMM versions of {", ".join(charmmlipids)}')
+
+        lipiddf=self.config['user']['ambertools'].get('charmmlipid2amber_df',pd.DataFrame())
+        perlip_df={}
+        if not lipiddf.empty:
+            for lip in lipids:
+                if not lip in charmmlipids:
+                    perlip_df[lip]=lipiddf[lipiddf['search'].str.contains(lip)]
+                    logger.debug(f'For lipid {lip}, charmmlipid2amber database has {perlip_df[lip].shape[0]} entries')
+
+        customlipids=self.specs.get('custom_lipid_parms',{})
+        custom_lipid_parms_df=pd.DataFrame()
+        for culip,cuparms in customlipids.items():
+            if culip in lipids:
+                logger.debug(f'Lipid {culip} has custom parameters for a local memgen.parm file')
+                this_lipid_parm_row=memgen_parm[memgen_parm['#NAME']==culip].to_dict()
+                for cuparm_name,cuparm_value in cuparms.items():
+                    this_lipid_parm_row[cuparm_name]=cuparm_value
+                custom_lipid_parms_df=pd.concat([custom_lipid_parms_df,pd.DataFrame(this_lipid_parm_row)])
+        memgen_parm_outname=''
+        if not custom_lipid_parms_df.empty:
+            self.next_basename('custom_lipids')
+            memgen_parm_outname=f'{self.basename}_memgen.parm'
+            custom_lipid_parms_df.to_csv(memgen_parm_outname,sep=' ',index=False)
+
         pm_args=[]
         pm_req_oneof=['--dims']
         if pdb!=None:
@@ -1016,6 +1055,9 @@ class PackmolMemgenTask(BaseTask):
             else:
                 if v:
                     pm_args.append(f'--{k}')
+        if memgen_parm_outname:
+            pm_args.append('--memgen_parm')
+            pm_args.append(memgen_parm_outname)
         logger.debug(f'Passing {pm_args}')
         pm_args=['packmol-memgen']+pm_args
         assert any([x in pm_args for x in pm_req_oneof]),f'Expect one of {pm_req_oneof} for packmol-memgen'
@@ -1030,12 +1072,10 @@ class PackmolMemgenTask(BaseTask):
         # convert bad ion names to good ion names in outpdb
         ionmap=self.specs.get('ionmap',{}) #{'Cl-':'CLA','Na+':'SOD','K+':'POT'}
         if ionmap:
-            with open(outpdb,'r') as f:
-                probe=f.read()
-            for i,j in ionmap.items():
-                probe=probe.replace(i,j)
-            with open(outpdb,'w') as f:
-                f.write(probe)
+            pdb_search_replace(outpdb,ionmap)
+
+        if perlip_df:
+            pdb_charmify(outpdb,perlip_df)
 
         cellstr,boxinfo=get_boxsize_from_packmolmemgen()
         self.next_basename('psfgen')

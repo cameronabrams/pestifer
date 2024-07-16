@@ -43,9 +43,9 @@ class TestCondaCheck(unittest.TestCase):
     def test_getpackageversion(self):
         c=CondaCheck()
         real_numpy_version=str(numpy.__version__)
-        test_numpy_version=c.get_package_version(c.active_env,'numpy')
+        test_numpy_version=c.get_package_version('numpy')
         self.assertEqual(real_numpy_version,test_numpy_version)
-        test_numpy_version=c.get_package_version(c.active_env,'numpy',from_list=True)
+        test_numpy_version=c.get_package_version('numpy',from_list=True)
         self.assertEqual(real_numpy_version,test_numpy_version)
 
 class TestAmbertools(unittest.TestCase):
@@ -54,7 +54,7 @@ class TestAmbertools(unittest.TestCase):
         # this is specific to MY installation
         self.assertEqual(c['user']['ambertools']['available'],True)
         self.assertEqual(c['user']['ambertools']['local'],True)
-        test_ambertools_version=float(c['Conda'].get_package_version(c['Conda'].active_env,'ambertools',from_list=True))
+        test_ambertools_version=float(c['Conda'].get_package_version('ambertools',env=c['Conda'].active_env,from_list=True))
         self.assertTrue(test_ambertools_version>=23.6)
     
     def test_no_ambertools(self):

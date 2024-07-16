@@ -14,12 +14,13 @@
 ! Submited by Sam Tonddast-Navaei of U. Cincinnati. Advised by Russell Devane  
 !
 
-set nat ?NATC
-set app
+!P! = Commented out by CFA for pestifer
+!P! set nat ?NATC
+!P! set app
 !We're exploiting what is arguably a bug in the parser. On the left hand side,
 !the quotes have proirity, so NAT is correctly substituted. On the right hand
 !side, the ? has priority and NATC" (sic) is not a valid substitution...
-if "@NAT" ne "?NATC" if @nat ne 0 set app append
+!P! if "@NAT" ne "?NATC" if @nat ne 0 set app append
 
 read rtf card @app
 * cer/sm residues

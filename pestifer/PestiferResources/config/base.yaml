@@ -1247,6 +1247,16 @@ directives:
                   - name: text
                     text: the atomselect text
                     type: str
+          - name: custom_lipid_parms
+            text: custom parameters for lipids to overwrite packmol-memgen memgen.parm defaults
+            type: dict
+            directives:
+              - name: PSM
+                text: custom parameters for N-palmitoyl-D-erythro-sphingosylphosphorylcholine
+                type: dict
+                default:
+                  APL_FF: 64
+                  CHARMM: Y                                                                       
           - name: command_options
             text: command-line options for packmol-memgen
             type: dict
@@ -1294,6 +1304,10 @@ directives:
                 text: output in CHARMM format
                 type: bool
                 default: True
+              - name: parametrize
+                text: parameterize the output using tleap
+                type: bool
+                default: False
               - name: preoriented
                 text: True if protein is preoriented; z=0 plane is assumed to be membrane midplane!
                 type: bool

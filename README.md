@@ -12,6 +12,12 @@ pip install pestifer
 Once installed, the user has access to the main `pestifer` command.  I recommend that `pestifer` be installed in a virtual environment in which ambertools>=23.6 is available.
 
 ## Release History
+* 1.4.6:
+    * pidibble dependency updated to 1.1.8
+* 1.4.5:
+    * added `fetch-example` subcommand that just copies the example YAML file to the CWD
+    * bugfixes:
+      * since packmol-memgen sometimes translates the insert, cannot use packmol's input coordinates to psfgen the resulting embedded system
 * 1.4.4:
     * now includes Tcllib 2.0
     * bugfixes:
