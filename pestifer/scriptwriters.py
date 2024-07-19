@@ -101,9 +101,6 @@ class VMD(Scriptwriter):
         if add_banners:
             self.banner(f'End {scriptbasename}')
 
-    # def has_statement(self,statement):
-    #     return super().has_statement(statement)
-
     def writescript(self,force_exit=False):
         if not self.has_statement('exit') or force_exit:
             self.addline('exit')
@@ -189,46 +186,18 @@ class VMD(Scriptwriter):
     def shift_coords(self,factors):
         self.banner('Shifting')
         
-
-    # def reset_molecule_orientation(self,mol,specs):
-    #     selspec=specs.get('selspec',{})
-    #     if not selspec:
-    #         return
-    #     group1=selspec.get('group1','')
-    #     group2=selspec.get('group2','')
-    #     if not group1 or not group2:
-    #         return
-    #     self.banner('Resetting molecule orientation')
-    #     self.addline(f'set g1 [measure center [atomselect ${mol.molid_varname} "protein and {group1}] weight mass]')
-    #     self.addline(f'set g2 [measure center [atomselect ${mol.molid_varname} "protein and {group2}] weight mass]')
-    #     self.addline('set pi 3.1415928')
-    #     self.addline('set dv [vecsub $g1 $g2]')
-    #     self.addline('set d [veclength $dv]')
-    #     self.addline('set cp [expr [lindex $dv 0]/$d]')
-    #     self.addline('set sp [expr [lindex $dv 1]/$d]')
-    #     self.addline('set p [expr acos($cp)]')
-    #     self.addline('if { [expr $sp < 0.0] } {')
-    #     self.addline('    set p [expr 2*$pi-$p]')
-    #     self.addline('}')
-    #     self.addline('set ct [exr [lindex $dv 2]/$d]')
-    #     self.addline('set t [expr acos($ct)]')
-    #     self.addline(f'set a [atomselect ${mol.molid_varname} all]')
-    #     self.addline('$a move [transaxis z [expr -1 * $p] rad]')
-    #     self.addline('$a move [transaxis y [expr -1 * $t] rad]')
-    #     self.addline('$a delete')
-    #     self.banner('Done resetting molecule orientation')
-
     def runscript(self,*args,**options):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
-        c=Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}',**options)
-        c.run()
         self.logname=f'{self.basename}.log'
-        with open(self.logname,'w') as f:
-            my_logger(f'STDOUT from "{c.c}"',f.write)
-            f.write(c.stdout+'\n')
-            my_logger(f'STDERR from "{c.c}"',f.write)
-            f.write(c.stderr+'\n')
-            my_logger(f'END OF LOG',f.write)
+        logger.debug(f'Log file: {self.logname}')
+        c=Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}',**options)
+        c.run(logfile=self.logname)
+        # with open(self.logname,'w') as f:
+        #     my_logger(f'STDOUT from "{c.c}"',f.write)
+        #     f.write(c.stdout+'\n')
+        #     my_logger(f'STDERR from "{c.c}"',f.write)
+        #     f.write(c.stderr+'\n')
+        #     my_logger(f'END OF LOG',f.write)
     
     def cleanup(self,cleanup=False):
         if cleanup:
@@ -349,14 +318,14 @@ class NAMD2(Scriptwriter):
     def runscript(self):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         c=Command(f'{self.charmrun} +p {self.max_cpu_count} {self.namd2} {self.scriptname}')
-        c.run()
         self.logname=f'{self.basename}.log'
-        with open(self.logname,'w') as f:
-            my_logger(f'STDOUT from "{c.command}"',f.write)
-            f.write(c.stdout+'\n')
-            my_logger(f'STDERR from "{c.command}"',f.write)
-            f.write(c.stderr+'\n')
-            my_logger(f'END OF LOG',f.write)
+        c.run(logfile=self.logname)
+        # with open(self.logname,'w') as f:
+        #     my_logger(f'STDOUT from "{c.command}"',f.write)
+        #     f.write(c.stdout+'\n')
+        #     my_logger(f'STDERR from "{c.command}"',f.write)
+        #     f.write(c.stderr+'\n')
+        #     my_logger(f'END OF LOG',f.write)
 
     def getlog(self,inherited_etitles=[]):
         return NAMDLog(self.logname,inherited_etitles=inherited_etitles).energy()

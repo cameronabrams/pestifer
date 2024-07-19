@@ -14,6 +14,7 @@ Once installed, the user has access to the main `pestifer` command.  I recommend
 ## Release History
 * 1.4.6:
     * pidibble dependency updated to 1.1.8
+    * expanded integration of `packmol-memgen`
 * 1.4.5:
     * added `fetch-example` subcommand that just copies the example YAML file to the CWD
     * bugfixes:

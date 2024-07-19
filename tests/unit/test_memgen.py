@@ -2,7 +2,7 @@
 
 from pestifer.config import Config
 import os
-from pestifer.util import pdb_charmify
+from pestifer.util import pdb_charmify,pdb_charmify_parmed
 
 def test_memgen_charmify():
     c=Config(memgen_test=True)
@@ -14,3 +14,12 @@ def test_memgen_charmify():
     assert len(mdf['PSM'])==127
     pdb_charmify(pdbfile,mdf,outfile='test-out.pdb')
 
+def test_memgen_charmify_parmed():
+    c=Config(memgen_test=True)
+    pdbfile='test.pdb'
+    assert os.path.exists(pdbfile)
+    df=c['user']['ambertools']['charmmlipid2amber_df']
+    assert df.shape[0]==7162
+    mdf={'PSM':df[df['search'].str.contains('PSM')]}
+    assert len(mdf['PSM'])==127
+    pdb_charmify_parmed(pdbfile,mdf,outfile='test-out.pdb')

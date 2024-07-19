@@ -8,6 +8,8 @@ import importlib
 import os
 logger=logging.getLogger(__name__)
 import shutil
+import parmed as pmd
+
 
 def is_tool(name):
     """Checks to see if the object name is an executable"""
@@ -208,16 +210,36 @@ def pdb_search_replace(pdbfile,mapdict):
     with open(pdbfile,'w') as f:
         f.write(probe)
 
-def pdb_charmify(pdbfile,moltype_maps,outfile=None):
+def pdb_charmify_parmed(pdbfile,moltype_maps,outfile=None):
+    """ Using the charmmlipid2amber input data, convert any specific amber-style
+    lipids in pdbfile to charmm-style.  This is done using parmed. THIS CURRENTLY DOES NOT WORK. """
+    assert os.path.exists(pdbfile),f'{pdbfile}: not found'
+    logger.debug(f'Charmifiying {pdbfile} using {len(moltype_maps)} inverse charmmlipid2amber maps')
+    pdb=pmd.read_PDB(pdbfile)
+    for lip,atdf in moltype_maps.items():
+        logger.debug(f'...{lip}')
+        for i,atom in atdf.iterrows():
+            badatom,badresname=[x.strip() for x in atom['replace'].split()]
+            goodatom,goodresname=[x.strip() for x in atom['search'].split()]
+            for atom in pdb:
+                if atom.name==badatom and atom.residue.name==badresname:
+                    atom.name=goodatom
+                    atom.residue.name=goodresname
+    if not outfile or os.path.exists(outfile):
+        outfile=pdbfile
+        pdb.save(outfile,overwrite=True)    
+    else:
+        pdb.save(outfile)
+    logger.debug(f'Wrote {outfile}')
+
+def pdb_singlemolecule_charmify(pdbfile,moltype_map,outfile=None,molname=''):
     """ Using the charmmlipid2amber input data, convert any specific amber-style
     lipids in pdbfile to charmm-style.  This is done by direct byte-level
     string manipulations.  """
+    if not molname:
+        molname=os.path.splitext(pdbfile)[0]
     with open(pdbfile,'r') as f:
         probelines=f.read().split('\n')
-    nres={}
-    for lip in moltype_maps.keys():
-        nres[lip]=1
-    nat=0
     parsedlines=[]
     for rec in probelines:
         # logger.debug(rec)
@@ -225,42 +247,38 @@ def pdb_charmify(pdbfile,moltype_maps,outfile=None):
             # logger.debug(f'skipping {rec}')
             parsedlines.append(rec)
             continue
-        for lip,atdf in moltype_maps.items():
-            for i,atom in atdf.iterrows():
-                badlab=atom['replace']
-                spc=[]
-                for i,c in enumerate(badlab):
-                    if c==' ':
-                        spc.append(i)
-                ll=len(badlab)
-                mind=ll+1
-                mini=-1
-                for i in range(len(spc)):
-                    d=abs(spc[i]-ll/2)
-                    if d < mind:
-                        mind=d
-                        mini=spc[i]
-                badlab2=badlab[:mini]+' '+badlab[mini:-1]
-                # logger.debug(f'[{badlab}] or [{badlab2}]')
-                goodlab=atom['search'] # we are inverting charmmlipid2amber!
-                if rec.find(badlab)!=-1 or rec.find(badlab2)!=-1:
-                    # logger.debug(f'{rec}')
-                    # rec=rec.replace(badlab,goodlab)
-                    nat+=1
-                    chain=rec[21]
-                    residstr=rec[22:26]
-                    tokens=goodlab.split()
-                    correct_atom_name=tokens[0].strip()
-                    correct_residue_name=tokens[1].strip()
-                    # logger.debug(f'{lip} {nat} {chain} {residstr}')
-                    # write in the correct atom name and residue name
-                    rec=rec[:12]+'{:>4s} '.format(correct_atom_name)+'{:.4s} '.format(correct_residue_name)+chain+'{: 4d}'.format(int(nres[lip]))+rec[26:]
-                    # logger.debug(f'{rec}')
-                    if nat==atdf.shape[0]:
-                        nat=0
-                        nres[lip]+=1
-                # else:
-                #     logger.debug(f'{badlab} not found in {rec}')
+        for i,atom in moltype_map.iterrows():
+            badlab=atom['replace']
+            spc=[]
+            for i,c in enumerate(badlab):
+                if c==' ':
+                    spc.append(i)
+            ll=len(badlab)
+            mind=ll+1
+            mini=-1
+            for i in range(len(spc)):
+                d=abs(spc[i]-ll/2)
+                if d < mind:
+                    mind=d
+                    mini=spc[i]
+            badlab2=badlab[:mini]+' '+badlab[mini:-1]
+            # logger.debug(f'[{badlab}] or [{badlab2}]')
+            goodlab=atom['search'] # we are inverting charmmlipid2amber!
+            if rec.find(badlab)!=-1 or rec.find(badlab2)!=-1:
+                # logger.debug(f'{rec}')
+                # rec=rec.replace(badlab,goodlab)
+                chain=rec[21]
+                residstr=rec[22:26]
+                tokens=goodlab.split()
+                correct_atom_name=tokens[0].strip()
+                correct_residue_name=tokens[1].strip()
+                # logger.debug(f'{lip} {nat} {chain} {residstr}')
+                # write in the correct atom name and residue name
+                rec=rec[:12]+'{:>4s} '.format(correct_atom_name)+'{:.4s} '.format(correct_residue_name)+chain+'{: 4d}'.format(1)+rec[26:]
+                # logger.debug(f'{rec}')
+
+            # else:
+            #     logger.debug(f'{badlab} not found in {rec}')
         parsedlines.append(rec)
     assert len(probelines)==len(parsedlines)
     if not outfile:

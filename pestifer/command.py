@@ -5,6 +5,8 @@
 import logging
 import subprocess
 import os
+import atexit
+import signal
 from io import StringIO
 import json
 import shutil
@@ -66,51 +68,6 @@ class CondaCheck:
         pspdir=os.path.join(pdir,'site-packages')
         assert os.path.isdir(pspdir),f'No dir {pspdir} found'
         return pspdir
-
-    # def check_packmol_memgen_pdbremix(self,env):
-    #     pspdir=self.env_python_site_packages_dir(env)
-    #     pmlib=os.path.join(pspdir,'packmol_memgen','lib','pdbremix')
-    #     if os.path.exists(pmlib):
-    #         the_bad_file=os.path.join(pmlib,'v3numpy.py')
-    #         assert os.path.exists(the_bad_file),f'{the_bad_file}: not found.'
-    #         with open(the_bad_file,'r') as f:
-    #             file_contents=f.read()
-    #         pos_result=file_contents.find('dtype=np.float')
-    #         neg_result=file_contents.find('dtype=np.float64')
-    #         if pos_result!=-1 and neg_result==-1:
-    #             logger.debug(f'venv {env} has an unpatched version of packmol-memgen/pdbremix')
-    #             logger.debug(f'You should update this environment to support ambertools 23.6 or better')
-    #             return 'UNPATCHED'
-    #         return 'PATCHED'
-    #     return 'UNFOUND'
-
-    # def patch_packmol_memgen_pdbremix(self,env):
-    #     if self.check_packmol_memgen_pdbremix(env)=='UNPATCHED':
-    #         pspdir=self.env_python_site_packages_dir(env)
-    #         pmlib=os.path.join(pspdir,'packmol_memgen','lib','pdbremix')
-    #         CWD=os.getcwd()
-    #         os.chdir(pmlib)
-    #         the_bad_file='v3numpy.py'
-    #         with open(the_bad_file,'r') as f:
-    #             file_contents=f.read()
-    #         patched_result=file_contents.replace('dtype=np.float','dtype=np.float64')
-    #         shutil.copy(the_bad_file,'v3numpy.py_orig')
-    #         with open(the_bad_file,'w') as f:
-    #             f.write('# patched by pestifer\n')
-    #             f.write(patched_result)
-    #         os.chdir(CWD)
-    #         return True
-    #     return False
-
-    # def restore_packmol_memgen_pdbremix(self,env):
-    #     if self.check_packmol_memgen_pdbremix(env)=='PATCHED':
-    #         pspdir=self.env_python_site_packages_dir(env)
-    #         pmlib=os.path.join(pspdir,'packmol_memgen','lib','pdbremix')
-    #         CWD=os.getcwd()
-    #         os.chdir(pmlib)
-    #         assert os.path.exists('v3numpy.py_orig')
-    #         shutil.move('v3numpy.py_orig','v3numpy.py')
-    #         os.chdir(CWD)
 
     def check_envs(self):
         result={'good':[],'bad':[],'none':[]}
@@ -207,18 +164,38 @@ class Command:
             self.c=Condaspec.condafy(self.c,env=env)
             self.is_condafied=True
             logger.debug(f'Condafied to {self.c}')
-        return self.run(override=kwargs.get('override',()),ignore_codes=kwargs.get('ignore_codes',[]),quiet=kwargs.get('quiet',True),progress=kwargs.get('progress',False))
+        return self.run(override=kwargs.get('override',()),ignore_codes=kwargs.get('ignore_codes',[]),quiet=kwargs.get('quiet',True),progress=kwargs.get('progress',False),logfile=kwargs.get('logfile',None))
 
-    def run(self,override=(),ignore_codes=[],quiet=True,progress=False):
+    def run(self,logfile=None,override=(),ignore_codes=[],quiet=True,progress=False):
         if not quiet:
             logger.debug(f'{self.c}')
-        # This runs the command
+        log=None
+        if not logfile:
+            logger.debug(f'no logfile specified for {self.c}')
+        else:
+            if os.path.exists(logfile):
+                nlogs=len(glob(f'%{logfile}'))
+                shutil.move(logfile,f'%{logfile}-{nlogs+1}%')
+            log=open(logfile,'w')
         process=subprocess.Popen(self.c,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
-        # Here is where I can institute a progress indicator
-        # if progress:
-        #     pass # not yet implemented
-        # else:
-        # # This holds execution of Python until the command exits
+        global pid
+        pid = process.pid
+        def kill_child():
+            if pid is None:
+                pass
+            else:
+                try:
+                    os.kill(pid, signal.SIGTERM)
+                except:
+                    pass
+        atexit.register(kill_child)
+        while True:
+            output = process.stdout.readline()
+            if log: log.write(output)
+            if output == '' and process.poll() is not None:
+                break
+        if logfile:
+                logger.debug(f'Log written to {logfile}')
         self.stdout,self.stderr=process.communicate()
         if process.returncode!=0 and not process.returncode in ignore_codes:
             logger.error(f'Returncode: {process.returncode}')
@@ -234,7 +211,7 @@ class Command:
                 if needle in self.stdout or needle in self.stderr:
                     logger.info(f'Returncode: {process.returncode}, but another error was detected:')
                     logger.error(msg)
-                    if len(self.stdout)>0:
+                    if len(self.stdout)>0 and needle in self.stdout:
                         logger.error('stdout buffer follows\n'+'*'*self.divider_line_length+'\n'+self.stdout+'\n'+'*'*self.divider_line_length)
-                    if len(self.stderr)>0:
+                    if len(self.stderr)>0 and needle in self.stderr:
                         logger.error('stderr buffer follows\n'+'*'*self.divider_line_length+'\n'+self.stderr+'\n'+'*'*self.divider_line_length)

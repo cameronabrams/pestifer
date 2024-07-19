@@ -15,7 +15,7 @@ import shutil
 import os
 import yaml
 from copy import deepcopy
-from .util import is_periodic, pdb_search_replace, pdb_charmify
+from .util import is_periodic, pdb_search_replace, pdb_singlemolecule_charmify, pdb_charmify_parmed
 from .molecule import Molecule
 from .chainidmanager import ChainIDManager
 from .colvars import *
@@ -27,9 +27,7 @@ from .psf import PSFContents
 import networkx as nx
 import pandas as pd
 import matplotlib.pyplot as plt 
-# import matplotlib.cm as cm
 from scipy.constants import physical_constants
-# from itertools import product
 
 g_per_amu=physical_constants['atomic mass constant'][0]*1000
 A_per_cm=1.e8
@@ -106,9 +104,6 @@ class BaseTask(BaseMod):
             'config':config,
             'taskname':taskname
         }
-        # for k,v in specs.items():
-        #     if not v or (type(v)==str and v.lower()=='none'):
-        #         specs[k]={}
         super().__init__(input_dict)
         BaseTask._taskcount+=1
         self.subtaskcount=0
@@ -167,7 +162,6 @@ class BaseTask(BaseMod):
         vm=self.writers['vmd']
         pdb=self.statevars['pdb']
         force_constant=specs.get('k',self.config['user']['namd2']['harmonic']['spring_constant'])
-        # constrained_atoms_def=','.join(specs['atoms'].split())
         constrained_atoms_def=specs.get('atoms','all')
         logger.debug(f'constraint spec: {specs["atoms"]}')
         c_pdb=specs.get('consref','')
@@ -420,7 +414,6 @@ class MDPlotTask(BaseTask):
                 units=1.0
             else:
                 if unitspec=='g_per_cc':
-                    # units='g_per_amu_A3_per_cm3'
                     units=g_per_amu*A3_per_cm3
                 else:
                     logger.debug(f'Unitspec "{unitspec}" not recognized.')
@@ -429,6 +422,7 @@ class MDPlotTask(BaseTask):
             ax.set_xlabel('time step')
             ax.set_ylabel(key.title()+' ('+unitspec+')')
             plt.savefig(f'{basename}-{trace}.png',bbox_inches='tight')
+            plt.clf()
         self.log_message('complete')
 
 class PsfgenTask(BaseTask):
@@ -1058,12 +1052,32 @@ class PackmolMemgenTask(BaseTask):
         if memgen_parm_outname:
             pm_args.append('--memgen_parm')
             pm_args.append(memgen_parm_outname)
+        # We will not let packmol-memgen run packmol.  Instead, we keep the PDB files it extracted from its 
+        # own data and then process the ones that are not in CHARMM-compatible format using the charmmlipid2amber
+        # database in reverse
+        if '--keep' not in pm_args:
+            pm_args.append('--keep')
+        if '--notrun' not in pm_args:
+            pm_args.append('--notrun')
         logger.debug(f'Passing {pm_args}')
         pm_args=['packmol-memgen']+pm_args
         assert any([x in pm_args for x in pm_req_oneof]),f'Expect one of {pm_req_oneof} for packmol-memgen'
         cmd=Command(' '.join([str(_) for _ in pm_args]))
-        logger.debug(f'calling condarun on env {self.env}')
         cmd.condarun(env=self.env,Condaspec=self.config['Conda'])
+        assert os.path.exists('packmol.inp'),f'packmol-memgen exited, but packmol.inp is not found.'
+        for lip in perlip_df.keys():
+            assert os.path.exists(f'{lip}.pdb') # this means packmol-memgen extracted its copy and put it here
+            pestifer_pdb=os.path.join(self.config.charmmff_pdb_path,f'{lip}.pdb')
+            if os.path.exists(pestifer_pdb):
+                logger.debug(f'Using pestifer\'s own {lip}.pdb')
+                shutil.copy(pestifer_pdb,'./')
+            else:
+                logger.debug(f'No {pestifer_pdb} found.')
+                logger.debug(f'Charmifying lipid template {lip}')
+                pdb_singlemolecule_charmify(f'{lip}.pdb',perlip_df[lip])
+        cmd=Command('packmol < packmol.inp')
+        cmd.condarun(env=self.env,Condaspec=self.config['Conda'],ignore_codes=[173],logfile=f'{self.basename}-packmol.log')
+
         # process output pdb to get new psf and pdb
         self.save_state(exts=['pdb'])
         if 'xsc' in self.statevars:
@@ -1073,9 +1087,6 @@ class PackmolMemgenTask(BaseTask):
         ionmap=self.specs.get('ionmap',{}) #{'Cl-':'CLA','Na+':'SOD','K+':'POT'}
         if ionmap:
             pdb_search_replace(outpdb,ionmap)
-
-        if perlip_df:
-            pdb_charmify(outpdb,perlip_df)
 
         cellstr,boxinfo=get_boxsize_from_packmolmemgen()
         self.next_basename('psfgen')

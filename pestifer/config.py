@@ -79,6 +79,8 @@ pidibble v. {version("pidibble")}"""
         assert os.path.exists(self.charmmff_toppar_path)
         self.charmmff_custom_path=self['Resources']['charmmff']['custom']
         assert os.path.exists(self.charmmff_custom_path)
+        self.charmmff_pdb_path=self['Resources']['charmmff']['pdb']
+        assert os.path.exists(self.charmmff_pdb_path)
         self.user_charmmff_toppar_path=''
         if hasattr(self,'user'):
             self.user_charmmff_toppar_path=os.path.join(self['user']['charmff'],'toppar')
