@@ -6,7 +6,7 @@ from collections import UserList
 import logging
 logger=logging.getLogger(__name__)
 import os
-from .command import Command
+import subprocess
 from itertools import product
 # _ANGSTROM_='Ångström'
 
@@ -271,8 +271,12 @@ class FileCollector(UserList):
             basename of the resulting tarball
         """
         filelist=' '.join([x for x in self])
-        c=Command(f'tar zvcf {basename}.tgz {filelist}')
-        c.run()
+        subprocess.run(f'tar zvcf {basename}.tgz {filelist}',
+                        shell=True, 
+                        executable='/bin/bash',
+                        check=True,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE)
         logger.debug(f'generated tarball {basename}.tgz')
 
 def split_ri(ri):

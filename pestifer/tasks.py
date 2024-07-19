@@ -1059,12 +1059,14 @@ class PackmolMemgenTask(BaseTask):
             pm_args.append('--keep')
         if '--notrun' not in pm_args:
             pm_args.append('--notrun')
+        pm_args.append(f'--log {self.basename}-packmol-memgen.log')
+        pm_args.append(f'--packlog {self.basename}-packmol')
         logger.debug(f'Passing {pm_args}')
         pm_args=['packmol-memgen']+pm_args
         assert any([x in pm_args for x in pm_req_oneof]),f'Expect one of {pm_req_oneof} for packmol-memgen'
         cmd=Command(' '.join([str(_) for _ in pm_args]))
-        cmd.condarun(env=self.env,Condaspec=self.config['Conda'])
-        assert os.path.exists('packmol.inp'),f'packmol-memgen exited, but packmol.inp is not found.'
+        cmd.condarun(env=self.env,Condaspec=self.config['Conda'],logfile=f'{self.basename}-packmol-memgen.log')
+        assert os.path.exists(f'{self.basename}-packmol.inp'),f'packmol-memgen exited, but {self.basename}-packmol.inp is not found.'
         for lip in perlip_df.keys():
             assert os.path.exists(f'{lip}.pdb') # this means packmol-memgen extracted its copy and put it here
             pestifer_pdb=os.path.join(self.config.charmmff_pdb_path,f'{lip}.pdb')
@@ -1075,7 +1077,7 @@ class PackmolMemgenTask(BaseTask):
                 logger.debug(f'No {pestifer_pdb} found.')
                 logger.debug(f'Charmifying lipid template {lip}')
                 pdb_singlemolecule_charmify(f'{lip}.pdb',perlip_df[lip])
-        cmd=Command('packmol < packmol.inp')
+        cmd=Command(f'packmol < {self.basename}-packmol.inp')
         cmd.condarun(env=self.env,Condaspec=self.config['Conda'],ignore_codes=[173],logfile=f'{self.basename}-packmol.log')
 
         # process output pdb to get new psf and pdb

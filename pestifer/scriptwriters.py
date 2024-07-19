@@ -8,7 +8,7 @@ import logging
 logger=logging.getLogger(__name__)
 from .command import Command
 from .util import reduce_intlist
-from .namdlog import NAMDLog
+from .namdlog import NAMDLog, NAMDProgress
 from .stringthings import ByteCollector, FileCollector, my_logger
 
 class Filewriter:
@@ -319,7 +319,7 @@ class NAMD2(Scriptwriter):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         c=Command(f'{self.charmrun} +p {self.max_cpu_count} {self.namd2} {self.scriptname}')
         self.logname=f'{self.basename}.log'
-        c.run(logfile=self.logname)
+        c.run(logfile=self.logname,progress=NAMDProgress())
         # with open(self.logname,'w') as f:
         #     my_logger(f'STDOUT from "{c.command}"',f.write)
         #     f.write(c.stdout+'\n')

@@ -11,6 +11,8 @@ from io import StringIO
 import json
 import shutil
 from glob import glob
+from .progress import PestiferProgress
+from .stringthings import ByteCollector
 
 logger=logging.getLogger(__name__)
 
@@ -164,9 +166,9 @@ class Command:
             self.c=Condaspec.condafy(self.c,env=env)
             self.is_condafied=True
             logger.debug(f'Condafied to {self.c}')
-        return self.run(override=kwargs.get('override',()),ignore_codes=kwargs.get('ignore_codes',[]),quiet=kwargs.get('quiet',True),progress=kwargs.get('progress',False),logfile=kwargs.get('logfile',None))
+        return self.run(override=kwargs.get('override',()),ignore_codes=kwargs.get('ignore_codes',[]),quiet=kwargs.get('quiet',True),progress=kwargs.get('progress',None),logfile=kwargs.get('logfile',None))
 
-    def run(self,logfile=None,override=(),ignore_codes=[],quiet=True,progress=False):
+    def run(self,logfile=None,override=(),ignore_codes=[],quiet=True,progress=None):
         if not quiet:
             logger.debug(f'{self.c}')
         log=None
@@ -177,9 +179,13 @@ class Command:
                 nlogs=len(glob(f'%{logfile}'))
                 shutil.move(logfile,f'%{logfile}-{nlogs+1}%')
             log=open(logfile,'w')
+        if progress:
+            logger.debug(f'PestiferProgress initiated')
+            bytes=ByteCollector()
+            pp=PestiferProgress(progress.init_f,progress.meas_f,progress.comp_f)
         process=subprocess.Popen(self.c,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
         global pid
-        pid = process.pid
+        pid=process.pid
         def kill_child():
             if pid is None:
                 pass
@@ -190,10 +196,13 @@ class Command:
                     pass
         atexit.register(kill_child)
         while True:
-            output = process.stdout.readline()
+            output=process.stdout.readline()
             if log: log.write(output)
-            if output == '' and process.poll() is not None:
+            if output=='' and process.poll() is not None:
                 break
+            if progress: 
+                bytes.write(output)
+                pp.go(bytes.byte_collector)
         if logfile:
                 logger.debug(f'Log written to {logfile}')
         self.stdout,self.stderr=process.communicate()
