@@ -8,7 +8,8 @@ import logging
 logger=logging.getLogger(__name__)
 from .command import Command
 from .util import reduce_intlist
-from .namdlog import NAMDLog, NAMDProgress
+from .namdlog import NAMDLog
+from .progress import NAMDProgress, PsfgenProgress
 from .stringthings import ByteCollector, FileCollector, my_logger
 
 class Filewriter:
@@ -192,12 +193,6 @@ class VMD(Scriptwriter):
         logger.debug(f'Log file: {self.logname}')
         c=Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}',**options)
         c.run(logfile=self.logname)
-        # with open(self.logname,'w') as f:
-        #     my_logger(f'STDOUT from "{c.c}"',f.write)
-        #     f.write(c.stdout+'\n')
-        #     my_logger(f'STDERR from "{c.c}"',f.write)
-        #     f.write(c.stderr+'\n')
-        #     my_logger(f'END OF LOG',f.write)
     
     def cleanup(self,cleanup=False):
         if cleanup:
@@ -267,6 +262,13 @@ class Psfgen(VMD):
         self.addline(f'writepdb {pdb}')
         super().writescript(force_exit=force_exit)
 
+    def runscript(self,*args,**options):
+        assert hasattr(self,'scriptname'),f'No scriptname set.'
+        self.logname=f'{self.basename}.log'
+        logger.debug(f'Log file: {self.logname}')
+        c=Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}',**options)
+        c.run(logfile=self.logname,progress=PsfgenProgress(timer_format='\x1b[94mpsfgen\x1b[39m time: %(elapsed)s'))
+    
 class NAMD2(Scriptwriter):
     def __init__(self,config):
         super().__init__()
@@ -319,13 +321,7 @@ class NAMD2(Scriptwriter):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         c=Command(f'{self.charmrun} +p {self.max_cpu_count} {self.namd2} {self.scriptname}')
         self.logname=f'{self.basename}.log'
-        c.run(logfile=self.logname,progress=NAMDProgress())
-        # with open(self.logname,'w') as f:
-        #     my_logger(f'STDOUT from "{c.command}"',f.write)
-        #     f.write(c.stdout+'\n')
-        #     my_logger(f'STDERR from "{c.command}"',f.write)
-        #     f.write(c.stderr+'\n')
-        #     my_logger(f'END OF LOG',f.write)
+        c.run(logfile=self.logname,progress=NAMDProgress(timer_format='\x1b[33mnamd\x1b[39m time: %(elapsed)s'))
 
     def getlog(self,inherited_etitles=[]):
         return NAMDLog(self.logname,inherited_etitles=inherited_etitles).energy()

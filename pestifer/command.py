@@ -11,7 +11,8 @@ from io import StringIO
 import json
 import shutil
 from glob import glob
-from .progress import PestiferProgress
+# from .progress import PestiferProgress
+import time
 from .stringthings import ByteCollector
 
 logger=logging.getLogger(__name__)
@@ -70,23 +71,12 @@ class CondaCheck:
         pspdir=os.path.join(pdir,'site-packages')
         assert os.path.isdir(pspdir),f'No dir {pspdir} found'
         return pspdir
-
-    def check_envs(self):
-        result={'good':[],'bad':[],'none':[]}
-        for e in self.conda_envs:
-            check_result=self.check_packmol_memgen_pdbremix(e)
-            if check_result=='UNPATCHED':
-                result['bad'].append(e)
-            elif check_result=='PATCHED':
-                result['good'].append(e)
-            else:
-                result['none'].append(e)
-        return result
     
     def info(self):
         if not self.conda_root:
             return f'No conda environments available.  Some functionality may not be available.'
-        return f'Conda root: {self.conda_root}\nActive env: {self.active_env}\nEnvs: {self.conda_envs}\nInit shell: {self.init_shell}'
+        return f'Conda root: {self.conda_root}\nActive env: {self.active_env}'
+        # return f'Conda root: {self.conda_root}\nActive env: {self.active_env}\nEnvs: {self.conda_envs}\nInit shell: {self.init_shell}'
 
     def env_exists(self,envname):
         return envname in self.conda_envs
@@ -179,10 +169,9 @@ class Command:
                 nlogs=len(glob(f'%{logfile}'))
                 shutil.move(logfile,f'%{logfile}-{nlogs+1}%')
             log=open(logfile,'w')
-        if progress:
-            logger.debug(f'PestiferProgress initiated')
+        if progress and not progress.unmeasured:
             bytes=ByteCollector()
-            pp=PestiferProgress(progress.init_f,progress.meas_f,progress.comp_f)
+            # pp=PestiferProgress(progress.init_f,progress.meas_f,progress.comp_f)
         process=subprocess.Popen(self.c,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
         global pid
         pid=process.pid
@@ -195,14 +184,32 @@ class Command:
                 except:
                     pass
         atexit.register(kill_child)
+        otally=0
+        ttally=0
+        t2tally=0
+        ncalls=0
         while True:
+            b=time.process_time_ns()
             output=process.stdout.readline()
+            e=time.process_time_ns()
+            ncalls+=1
+            ttally+=(e-b)/1.e6
+            otally+=len(output)
             if log: log.write(output)
             if output=='' and process.poll() is not None:
                 break
-            if progress: 
-                bytes.write(output)
-                pp.go(bytes.byte_collector)
+            if progress:
+                if not progress.unmeasured:
+                    bytes.write(output)
+                    progress.go(bytes.byte_collector)
+                else:
+                    b=time.process_time_ns()
+                    progress.go()
+                    e=time.process_time_ns()
+                    t2tally+=(e-b)/1.e6
+                    # logger.debug(f'{len(output):>5d} B {otally:>9,d} B {ttally/ncalls:>12.6f} ms/readline call {t2tally/ncalls:>12.6f} ms/pbar call')
+        if progress:
+            print()
         if logfile:
                 logger.debug(f'Log written to {logfile}')
         self.stdout,self.stderr=process.communicate()

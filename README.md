@@ -13,10 +13,11 @@ Once installed, the user has access to the main `pestifer` command.  I recommend
 
 ## Release History
 * 1.4.6:
+    * progress bars enabled for NAMD, psfgen, and packmol
     * pidibble dependency updated to 1.1.8
     * expanded integration of `packmol-memgen`
 * 1.4.5:
-    * added `fetch-example` subcommand that just copies the example YAML file to the CWD
+    * added `fetch-example` subcommand that just copies the respective example YAML file to the CWD
     * bugfixes:
       * since packmol-memgen sometimes translates the insert, cannot use packmol's input coordinates to psfgen the resulting embedded system
 * 1.4.4:

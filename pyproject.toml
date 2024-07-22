@@ -22,7 +22,8 @@ dependencies = [
     "pidibble>=1.1.8",
     "pandas",
     "ycleptic>=1.0.5",
-    "mmcif"
+    "mmcif",
+    "progressbar2"
 ]
 [project.urls]
 "Source" = "https://github.com/cameronabrams/pestifer"

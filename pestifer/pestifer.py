@@ -12,11 +12,13 @@ import os
 import shutil
 import yaml
 import glob
+import time
+import datetime
 import logging
 import collections
 import importlib.metadata
 __pestifer_version__ = importlib.metadata.version("pestifer")
-from .stringthings import banner, banner_message
+from .stringthings import banner, banner_message, enhanced_banner_message
 from .controller import Controller
 from .config import Config
 from .scriptwriters import Psfgen
@@ -53,15 +55,21 @@ def run(args,**kwargs):
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
+    if args.big_banner:
+        print(enhanced_banner_message)
     if not args.no_banner:
         banner(logger.info)
     # Set up the Controller and execute tasks
-    logger.info(f'{__package__} runtime begins')
+    begin_time=time.time()
+    logger.info(f'{__package__} runtime begins.')
+    if not args.config.endswith('.yaml'): args.config+='.yaml'
     C=Controller(args.config)
     c,e=os.path.splitext(os.path.basename(args.config))
     C.write_complete_config(f'{c}-complete.yaml')
     C.do_tasks()    
-    logger.info(f'{__package__} runtime ends.')
+    end_time=time.time()
+    elapsed_time_s=datetime.timedelta(seconds=(end_time-begin_time))
+    logger.info(f'{__package__} runtime ends. Elapsed runtime {str(elapsed_time_s)}.')
 
 def list_examples():
     c=Config()
@@ -175,6 +183,7 @@ def cli():
         command_parsers[k]=subparsers.add_parser(k,description=descs[k],help=helps[k],formatter_class=ap.RawDescriptionHelpFormatter)
         command_parsers[k].set_defaults(func=commands[k])
         command_parsers[k].add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
+        command_parsers[k].add_argument('--big-banner',default=False,action='store_true',help='turn on the kick-ass banner')
         command_parsers[k].add_argument('--loglevel',type=str,default='debug',help='Log level for messages written to diagnostic log (debug|info)')
         command_parsers[k].add_argument('--diag',type=str,default='pestifer_diagnostics.log',help='diagnostic log file')
     

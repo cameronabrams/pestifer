@@ -23,6 +23,7 @@ from .stringthings import FileCollector,get_boxsize_from_packmolmemgen
 from .modmanager import ModManager
 from .command import Command
 from .mods import CleavageSite, CleavageSiteList
+from .progress import PackmolProgress
 from .psf import PSFContents
 import networkx as nx
 import pandas as pd
@@ -1078,7 +1079,7 @@ class PackmolMemgenTask(BaseTask):
                 logger.debug(f'Charmifying lipid template {lip}')
                 pdb_singlemolecule_charmify(f'{lip}.pdb',perlip_df[lip])
         cmd=Command(f'packmol < {self.basename}-packmol.inp')
-        cmd.condarun(env=self.env,Condaspec=self.config['Conda'],ignore_codes=[173],logfile=f'{self.basename}-packmol.log')
+        cmd.condarun(env=self.env,Condaspec=self.config['Conda'],ignore_codes=[173],logfile=f'{self.basename}-packmol.log',progress=PackmolProgress(timer_format='\x1b[36mpackmol\x1b[39m time: %(elapsed)s'))
 
         # process output pdb to get new psf and pdb
         self.save_state(exts=['pdb'])
@@ -1090,7 +1091,7 @@ class PackmolMemgenTask(BaseTask):
         if ionmap:
             pdb_search_replace(outpdb,ionmap)
 
-        cellstr,boxinfo=get_boxsize_from_packmolmemgen()
+        cellstr,boxinfo=get_boxsize_from_packmolmemgen(logname=f'{self.basename}-packmol-memgen.log')
         self.next_basename('psfgen')
         with open(f'{self.basename}_cell.tcl','w') as f:
             f.write(cellstr)
