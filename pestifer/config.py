@@ -52,22 +52,22 @@ pidibble v. {version("pidibble")}"""
         basefile=os.path.join(r['config'],'base.yaml')
         assert os.path.exists(basefile)
         super().__init__(basefile,userfile=userfile)
-
         self['Resources']=r
-        if userfile:
-            self['Conda']=CondaCheck()
-            my_logger(self['Conda'].info(),logger.info,just='<',frame='*',fill='')
-            self._set_shortcuts(**kwargs)
+        self['Conda']=CondaCheck()
+        my_logger(self['Conda'].info(),logger.info,just='<',frame='*',fill='')
+        self._set_internal_shortcuts(**kwargs)
+        self._set_external_apps(verify_access=(userfile!=''))
 
-    def _set_shortcuts(self,**kwargs):
-
+    def _set_external_apps(self,verify_access=True):
         self.namd2=self['user']['paths']['namd2']
-        assert os.access(self.namd2,os.X_OK)
         self.charmrun=self['user']['paths']['charmrun']
-        assert os.access(self.charmrun,os.X_OK)
         self.vmd=self['user']['paths']['vmd']
-        assert os.access(self.vmd,os.X_OK)
+        if verify_access:
+            assert os.access(self.charmrun,os.X_OK)
+            assert os.access(self.namd2,os.X_OK)
+            assert os.access(self.vmd,os.X_OK)
 
+    def _set_internal_shortcuts(self,**kwargs):
         self.tcl_root=os.path.join(self['Resources']['root'],'tcl')
         assert os.path.exists(self.tcl_root)
         self.tcl_pkg_path=self['Resources']['tcl']['pkg']
