@@ -76621,6 +76621,8 @@ charmmff:
     - stream/carb/toppar_all36_carb_glycopeptide.str
     - stream/prot/toppar_all36_prot_modify_res.str
     - stream/lipid/toppar_all36_lipid_cholesterol.str
+    - stream/lipid/toppar_all36_lipid_sphingo.str
+    - stream/lipid/toppar_all36_lipid_miscellaneous.str
     topologies:
     - top_all36_prot.rtf
     - top_all35_ethers.rtf
@@ -76631,6 +76633,8 @@ charmmff:
     - stream/carb/toppar_all36_carb_glycopeptide.str
     - stream/prot/toppar_all36_prot_modify_res.str
     - stream/lipid/toppar_all36_lipid_cholesterol.str
+    - stream/lipid/toppar_all36_lipid_sphingo.str
+    - stream/lipid/toppar_all36_lipid_miscellaneous.str
 namd2:
   barostat:
     langevinpiston: true
@@ -77497,15 +77501,15 @@ tasks:
       charmm: true
       dims: []
       dist: 18
-      lipids: POPC:CHL1
+      lipids: CHL1:PSM:POPC//CHL1:POPE:SOPS:SOPE
       n_ter: in
+      nloop: 200
       noprogress: true
       notprotonate: true
       nottrim: true
       parametrize: false
       preoriented: true
-      random: true
-      ratio: 0.67:0.33
+      ratio: 0.4721:0.3554:0.1725//0.4333:0.0889:0.1778:0.3000
       salt: false
     custom_lipid_parms:
       PSM:
@@ -77663,4 +77667,4 @@ tasks:
       topogromacs: false
       xstfreq: 10000
     statefile: states.yaml
-title: 6e8w
+title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in a model viral membrane

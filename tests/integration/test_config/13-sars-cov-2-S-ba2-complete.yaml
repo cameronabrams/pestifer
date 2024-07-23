@@ -1083,4 +1083,4 @@ tasks:
       topogromacs: false
       xstfreq: 10000
     statefile: states.yaml
-title: BA.2 SARS-CoV-2 Spike
+title: BA.2 SARS-CoV-2 Spike 7xix, fully glycosylated using grafts, and cleaved
