@@ -54,9 +54,10 @@ pidibble v. {version("pidibble")}"""
         super().__init__(basefile,userfile=userfile)
 
         self['Resources']=r
-        self['Conda']=CondaCheck()
-        my_logger(self['Conda'].info(),logger.info,just='<',frame='*',fill='')
-        self._set_shortcuts(**kwargs)
+        if userfile:
+            self['Conda']=CondaCheck()
+            my_logger(self['Conda'].info(),logger.info,just='<',frame='*',fill='')
+            self._set_shortcuts(**kwargs)
 
     def _set_shortcuts(self,**kwargs):
 

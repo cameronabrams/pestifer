@@ -23,7 +23,9 @@ dependencies = [
     "pandas",
     "ycleptic>=1.0.5",
     "mmcif",
-    "progressbar2"
+    "progressbar2",
+    "networkx",
+    "parmed"
 ]
 [project.urls]
 "Source" = "https://github.com/cameronabrams/pestifer"

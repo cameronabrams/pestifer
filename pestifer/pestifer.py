@@ -20,7 +20,7 @@ import importlib.metadata
 __pestifer_version__ = importlib.metadata.version("pestifer")
 from .stringthings import banner, banner_message, enhanced_banner_message
 from .controller import Controller
-from .config import Config
+from .config import Config, ResourceManager
 from .scriptwriters import Psfgen
 
 logger=logging.getLogger(__name__)
@@ -52,7 +52,7 @@ def run(args,**kwargs):
     formatter=logging.Formatter('%(levelname)s> %(message)s')
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
-    
+
     if not args.no_banner:
         banner(logger.info)
     # Set up the Controller and execute tasks
@@ -74,8 +74,8 @@ def run(args,**kwargs):
     logger.info(f'{__package__} runtime ends. Elapsed runtime {":".join(str(elapsed_time_s).split()[:3])}.')
 
 def list_examples():
-    c=Config()
-    ex_path=c['Resources']['examples']
+    r=ResourceManager()
+    ex_path=r['examples']
     ex_full_paths=glob.glob(ex_path+'/*.yaml')
     exdict={}
     for e in ex_full_paths:
@@ -90,8 +90,8 @@ def list_examples():
 def fetch_example(args,**kwargs):
     number=args.number
     nstr=f'{number:02d}'
-    c=Config()
-    ex_path=c['Resources']['examples']
+    r=ResourceManager()
+    ex_path=r['examples']
     ex_yaml=glob.glob(ex_path+f'/{nstr}*.yaml')
     assert len(ex_yaml)==1,f'No example {number} found'
     ex_yaml=ex_yaml[0]
@@ -119,11 +119,11 @@ def inittcl(args):
         p.writefile()
 
 def wheretcl(args):
-    c=Config()
-    assert 'tcl' in c['Resources'],f'No tcl found in resources -- this is a bad {__package__} installation'
-    tcl_root=os.path.join(c['Resources']['root'],'tcl')
-    script_dir=c['Resources']['tcl']['scripts']
-    pkg_dir=c['Resources']['tcl']['pkg']
+    r=ResourceManager()
+    assert 'tcl' in r,f'No tcl found in resources -- this is a bad {__package__} installation'
+    tcl_root=os.path.join(r['root'],'tcl')
+    script_dir=r['tcl']['scripts']
+    pkg_dir=r['tcl']['pkg']
     msg=''
     if args.root or args.verbose:
         assert os.path.exists(tcl_root)
@@ -131,10 +131,11 @@ def wheretcl(args):
             msg='Tcl root: '
         print(f'{msg}{tcl_root}')
     if args.startup_script_path or args.verbose:
-        assert os.path.exists(c.vmd_startup_script)
+        vmd_startup_script=os.path.join(tcl_root,'vmdrc.tcl')
+        assert os.path.exists(vmd_startup_script)
         if args.verbose:
             msg='VMD Startup script: '
-        print(f'{msg}{c.vmd_startup_script}')
+        print(f'{msg}{vmd_startup_script}')
     if args.script_dir or args.verbose:
         assert os.path.exists(script_dir)
         if args.verbose:

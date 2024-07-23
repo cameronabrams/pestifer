@@ -23,7 +23,7 @@ for { set a 0 } { $a < [llength $argv] } { incr a } {
 }
 
 if {$PESTIFER_TCLROOT=="."} {
-  set PESTIFER_TCLROOT [exec pestifer wheretcl --root]
+  set PESTIFER_TCLROOT [exec pestifer --no-banner wheretcl --root]
   if {$quiet == 0} {
     vmdcon -info "No PESTIFER_TCLROOT passed in; detected $PESTIFER_TCLROOT"
   }
