@@ -154,7 +154,6 @@ pidibble v. {version("pidibble")}"""
         at_specs=self['user']['ambertools']
         at_specs['available']=False
         explicit_ambertools_venv=at_specs.get('venv',None)
-        # patch_ambertools=at_specs.get('patch_packmol_memgen_pdbremix',False)
         # if no explicit env for running ambertools is specified,
         # check the active environment first
         if explicit_ambertools_venv==None:
@@ -164,9 +163,6 @@ pidibble v. {version("pidibble")}"""
                 at_specs['available']=True
                 at_specs['local']=True
                 logger.debug(f'ambertools v. {explicit_env_ambertools_version}')
-                # if patch_ambertools:
-                #     if self['Conda'].patch_packmol_memgen_pdbremix(active_env):
-                #         logger.warning(f'I just now patched packmol_memgen pdbremix in the active environment {active_env}!!')
                 return True
             logger.debug(f'No ambertools package found in active environment {active_env}.')
         # if active environment can't run ambertools and the explicit env is specified
@@ -178,9 +174,6 @@ pidibble v. {version("pidibble")}"""
                     at_specs['available']=True
                     at_specs['local']=False
                     logger.debug(f'...ambertools v. {explicit_env_ambertools_version} detected')
-                    # if patch_ambertools:
-                    #     self['Conda'].patch_packmol_memgen_pdbremix(explicit_ambertools_venv)
-                    #     logger.warning(f'I just now patched packmol_memgen pdbremix in the specified environment {explicit_ambertools_venv}!!')
                     return True
                 else:
                     logger.debug(f'No ambertools package found in specified environment {explicit_ambertools_venv}.')
@@ -197,9 +190,6 @@ pidibble v. {version("pidibble")}"""
                     at_specs['available']=True
                     at_specs['local']=False
                     at_specs['venv']=env
-                    # if patch_ambertools:
-                    #     self['Conda'].patch_packmol_memgen_pdbremix(env)
-                    #     logger.warning(f'I just now patched packmol_memgen pdbremix in the environment {env}!!')
                     return True
         logger.debug(f'No ambertools found in any conda environment.')
         error_message()
