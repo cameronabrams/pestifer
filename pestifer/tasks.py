@@ -15,7 +15,7 @@ import shutil
 import os
 import yaml
 from copy import deepcopy
-from .util import is_periodic, pdb_search_replace, pdb_singlemolecule_charmify, pdb_charmify_parmed
+from .util import is_periodic, pdb_search_replace, pdb_singlemolecule_charmify
 from .molecule import Molecule
 from .chainidmanager import ChainIDManager
 from .colvars import *
