@@ -8,7 +8,7 @@
 #   - Glycans are grafted from prototypical structures
 #   - Chains are cleaved at the furin cleavage sites
 #
-title: BA.2 SARS-CoV-2 Spike
+title: BA.2 SARS-CoV-2 Spike 7xix, fully glycosylated using grafts, and cleaved
 tasks:
   - psfgen:
       source:

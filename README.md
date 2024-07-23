@@ -9,12 +9,13 @@ Pestifer is a fully automated system builder, requiring as inputs only biomolecu
 pip install pestifer
 ```
 
-Once installed, the user has access to the main `pestifer` command.  I recommend that `pestifer` be installed in a virtual environment in which ambertools>=23.6 is available.
+Once installed, the user has access to the main `pestifer` command. You must have `ambertools>=23.6` to use the `packmol-memgen` integration.
 
 ## Release History
 * 1.4.6:
     * progress bars enabled for NAMD, psfgen, and packmol
-    * pidibble dependency updated to 1.1.8
+    * kick-ass banner option implemented
+    * `pidibble` dependency updated to 1.1.8
     * expanded integration of `packmol-memgen`
 * 1.4.5:
     * added `fetch-example` subcommand that just copies the respective example YAML file to the CWD

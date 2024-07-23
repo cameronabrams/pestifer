@@ -10,7 +10,7 @@
 #   - packmol-memgen is used.  A functional packmol-memgen is available if ambertools
 #     >= 23.6 is installed.
 #
-title: 6e8w
+title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in a model viral membrane
 charmmff:
   standard:
     topologies:

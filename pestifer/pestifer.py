@@ -30,34 +30,29 @@ logging.getLogger("ycleptic").setLevel(logging.WARNING)
 
 def config_help(args):
     c=Config()
-    if not args.no_banner:
-        banner(print)
     print(f'Help on user-provided configuration file format')
     directives=args.directives
     c.console_help(*directives)
 
 def config_default(args):
     c=Config()
-    if not args.no_banner:
-        banner(print)
     print(f'Default directive:')
     directives=args.directives
     specs=c.make_default_specs(*directives)
     print(yaml.dump(specs))
 
 def run(args,**kwargs):
-    # Set up logging to both a log file and the console
-    loglevel=args.loglevel
-    loglevel_numeric=getattr(logging, loglevel.upper())
-    if os.path.exists(args.diag):
-        shutil.copyfile(args.diag,args.diag+'.bak')
-    logging.basicConfig(filename=args.diag,filemode='w',format='%(asctime)s %(name)s %(message)s',level=loglevel_numeric)
+    loglevel_numeric=getattr(logging, args.loglevel.upper())
+    if args.diagnostic_file:
+        if os.path.exists(args.diagnostic_file):
+            shutil.copyfile(args.diagnostic_file,args.diagnostic_file+'.bak')
+        logging.basicConfig(filename=args.diagnostic_file,filemode='w',format='%(asctime)s %(name)s %(message)s',level=loglevel_numeric)
     console=logging.StreamHandler()
     console.setLevel(logging.INFO)
     formatter=logging.Formatter('%(levelname)s> %(message)s')
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
-
+    
     if not args.no_banner:
         banner(logger.info)
     # Set up the Controller and execute tasks
@@ -158,7 +153,6 @@ def cli():
         'fetch-example': fetch_example,
         'run-example': run_example,
         'run':run,
-        # 'script':script,
         'wheretcl':wheretcl,
         'inittcl':inittcl
     }
@@ -168,7 +162,6 @@ def cli():
         'fetch-example':'copy the example\'s YAML config file to the CWD',
         'run-example':'build one of the examples provided',
         'run':'build a system using instructions in the config file',
-        # 'script':'run a single-use special VMD/TcL script',
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
         'inittcl':'initializes macros from config'
     }
@@ -178,21 +171,20 @@ def cli():
         'fetch-example':'Fetch YAML config for one of the examples:\n'+'\n'.join([f'{c:>3d}: {d}' for c,d in list_examples().items()]),
         'run-example':'Build one of the examples:\n'+'\n'.join([f'{c:>3d}: {d}' for c,d in list_examples().items()]),
         'run':'Build a system',
-        # 'script':'Run a single-use special VMD/TcL script',
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
         'inittcl':'initializes macros from config'
     }
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
+    parser.add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
+    parser.add_argument('--kick-ass-banner',default=False,action='store_true',help='turn on the kick-ass banner')
+    parser.add_argument('--loglevel',type=str,default='debug',choices=['info','debug','warning'],help='Log level for messages written to diagnostic log')
+    parser.add_argument('--diagnostic-file',type=str,default='',help='diagnostic log file')
     subparsers=parser.add_subparsers()
     subparsers.required=True
     command_parsers={}
     for k in commands:
         command_parsers[k]=subparsers.add_parser(k,description=descs[k],help=helps[k],formatter_class=ap.RawDescriptionHelpFormatter)
         command_parsers[k].set_defaults(func=commands[k])
-        command_parsers[k].add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
-        command_parsers[k].add_argument('--big-banner',default=False,action='store_true',help='turn on the kick-ass banner')
-        command_parsers[k].add_argument('--loglevel',type=str,default='debug',help='Log level for messages written to diagnostic log (debug|info)')
-        command_parsers[k].add_argument('--diag',type=str,default='pestifer_diagnostics.log',help='diagnostic log file')
     
     command_parsers['run'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
     command_parsers['fetch-example'].add_argument('number',type=int,default=None,help='example number')
@@ -204,9 +196,15 @@ def cli():
     command_parsers['wheretcl'].add_argument('--verbose',default=False,action='store_true',help='print full paths of all TcL resources of Pestifer')
     command_parsers['wheretcl'].add_argument('--script-dir',default=False,action='store_true',help='print full path of directory of Pestifer\'s VMD scripts')
     command_parsers['wheretcl'].add_argument('--pkg-dir',default=False,action='store_true',help='print full path of directory of Pestifer\'s VMD/TcL package library')
-    command_parsers['wheretcl'].add_argument('--root',default=False,action='store_true',help='print full path of  Pestifer\'s root TcL directory')
+    command_parsers['wheretcl'].add_argument('--root',default=False,action='store_true',help='print full path of Pestifer\'s root TcL directory')
     command_parsers['inittcl'].add_argument('--force',default=False,action='store_true',help='force overwrite of any package-resident tcl files inittcl generates')
     args=parser.parse_args()
-    if args.big_banner:
+
+    if args.func in [run,run_example]:
+        args.diagnostic_file='pestifer_diagnostics.log'
+    elif not args.no_banner:
+        banner(print)    
+    if args.kick_ass_banner:
         print(enhanced_banner_message)
+
     args.func(args)
