@@ -158,20 +158,37 @@ class Command:
             logger.debug(f'Condafied to {self.c}')
         return self.run(override=kwargs.get('override',()),ignore_codes=kwargs.get('ignore_codes',[]),quiet=kwargs.get('quiet',True),progress=kwargs.get('progress',None),logfile=kwargs.get('logfile',None))
 
-    def run(self,logfile=None,override=(),ignore_codes=[],quiet=True,progress=None):
+    def run(self,logfile=None,override=(),ignore_codes=[],quiet=True,progress=None,**kwargs):
+        """ runs this Command instance
+        
+        Parameters:
+        -----------
+
+        logfile : str
+            name of log file to write process' stdout and stderr. If None (default), stdout and stderr are retained
+            only in this instance's stdout and stderr attributes.
+        override : tuple
+            tuple composed of a "needle" and a "message".  If the needle is found in the stdout or stderr of
+            the process, the message is displayed and an error is thrown, halting the program.
+        ignore_codes : list
+            a list of integer exit codes that are ignored in addition to 0
+        quiet : boolean
+        progress: PestiferProgress instance (or descendant) 
+            used for progress bar/elapsed time displays
+
+        """
         if not quiet:
             logger.debug(f'{self.c}')
         log=None
         if not logfile:
             logger.debug(f'no logfile specified for {self.c}')
         else:
-            if os.path.exists(logfile):
+            if os.path.exists(logfile) and not kwargs.get('overwrite_logs',False):
                 nlogs=len(glob(f'%{logfile}'))
                 shutil.move(logfile,f'%{logfile}-{nlogs+1}%')
             log=open(logfile,'w')
         if progress and not progress.unmeasured:
             bytes=ByteCollector()
-            # pp=PestiferProgress(progress.init_f,progress.meas_f,progress.comp_f)
         process=subprocess.Popen(self.c,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
         global pid
         pid=process.pid
@@ -188,9 +205,12 @@ class Command:
         ttally=0
         t2tally=0
         ncalls=0
+        self.stdout=''
+        self.stderr=''
         while True:
             b=time.process_time_ns()
             output=process.stdout.readline()
+            self.stdout+=output
             e=time.process_time_ns()
             ncalls+=1
             ttally+=(e-b)/1.e6
@@ -211,8 +231,11 @@ class Command:
         if progress:
             print()
         if logfile:
-                logger.debug(f'Log written to {logfile}')
-        self.stdout,self.stderr=process.communicate()
+            logger.debug(f'Log written to {logfile}')
+        remaining_stdout,self.stderr=process.communicate()
+        # logger.debug(f'stdout [{self.stdout}]')
+        # logger.debug(f'remaining stdout [{remaining_stdout}]')
+        # logger.debug(f'stderr [{self.stderr}]')
         if process.returncode!=0 and not process.returncode in ignore_codes:
             logger.error(f'Returncode: {process.returncode}')
             if len(self.stdout)>0:

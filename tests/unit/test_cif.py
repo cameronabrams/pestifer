@@ -10,6 +10,7 @@ from pestifer.util import reduce_intlist
 from pestifer.mods import *
 import os
 import numpy as np
+import glob
 
 class TestCIF(unittest.TestCase):
 
@@ -101,6 +102,10 @@ class TestCIF(unittest.TestCase):
         vmd.runscript()
         with open('testcif.log','r') as f:
             output=f.read().split('\n')
+        old_logs=glob.glob('%*%')
+        for ol in old_logs:
+            os.remove(ol)
+        self.assertTrue(len(output)>0)
         for l in output:
             if l.startswith('LOOK'):
                 fields=l.split()

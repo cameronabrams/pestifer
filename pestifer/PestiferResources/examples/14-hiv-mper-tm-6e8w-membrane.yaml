@@ -5,7 +5,7 @@
 # Membrane-embedded build of HIV-1 gp41 MPER-TM trimer (6e8w)
 #
 # Notes:
-#   - Topology and parameters for cholesterol are not loaded by default, so
+#   - Topology and parameters for cholesterol, sphingomyelin, and stearates are not loaded by default, so
 #     we explicitly declare them here
 #   - packmol-memgen is used.  A functional packmol-memgen is available if ambertools
 #     >= 23.6 is installed.
@@ -15,8 +15,12 @@ charmmff:
   standard:
     topologies:
       - stream/lipid/toppar_all36_lipid_cholesterol.str
+      - stream/lipid/toppar_all36_lipid_sphingo.str
+      - stream/lipid/toppar_all36_lipid_miscellaneous.str
     parameters:
       - stream/lipid/toppar_all36_lipid_cholesterol.str
+      - stream/lipid/toppar_all36_lipid_sphingo.str
+      - stream/lipid/toppar_all36_lipid_miscellaneous.str
 tasks:
   - psfgen:
       source:
@@ -31,13 +35,19 @@ tasks:
         z_ref_group: 
           text: "protein and resid 696"
           z_value: 0.0
+      custom_lipid_parms:
+        PSM:
+          APL_FF: 60 # original value of 32 is way too low for packmol to work
+          CHARMM: Y  # spoof packmol-memgen into allowing this
+        SOPS:
+          CHARMM: Y  # spoof packmol-memgen into allowing this
+        SOPE:
+          CHARMM: Y  # spoof packmol-memgen into allowing this
       command_options:
         dist: 18
-        lipids: POPC:CHL1
-        ratio: 0.67:0.33
-        # nloop: 200
-        # nloop_all: 200
-        random: true
+        lipids: CHL1:PSM:POPC//CHL1:POPE:SOPS:SOPE
+        ratio: 0.4721:0.3554:0.1725//0.4333:0.0889:0.1778:0.3000
+        nloop: 200
   - md:
       ensemble: minimize
       minimize: 5000

@@ -29,6 +29,7 @@ import networkx as nx
 import pandas as pd
 import matplotlib.pyplot as plt 
 from scipy.constants import physical_constants
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 g_per_amu=physical_constants['atomic mass constant'][0]*1000
 A_per_cm=1.e8

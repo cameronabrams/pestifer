@@ -25,6 +25,9 @@ from .scriptwriters import Psfgen
 
 logger=logging.getLogger(__name__)
 
+logging.getLogger("pidibble").setLevel(logging.WARNING)
+logging.getLogger("ycleptic").setLevel(logging.WARNING)
+
 def config_help(args):
     c=Config()
     if not args.no_banner:
@@ -55,21 +58,25 @@ def run(args,**kwargs):
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
-    if args.big_banner:
-        print(enhanced_banner_message)
     if not args.no_banner:
         banner(logger.info)
     # Set up the Controller and execute tasks
     begin_time=time.time()
     logger.info(f'{__package__} runtime begins.')
-    if not args.config.endswith('.yaml'): args.config+='.yaml'
-    C=Controller(args.config)
-    c,e=os.path.splitext(os.path.basename(args.config))
-    C.write_complete_config(f'{c}-complete.yaml')
+    allowed_extensions=['.yaml','.yml','.y']
+    configname=args.config
+    cbase,cext=os.path.splitext(configname)
+    if not cext:
+        fil=[os.path.exists(f'{cbase}{ext}') for ext in allowed_extensions]
+        if any(fil):
+            iix=fil.index(True)
+            configname=f'{cbase}{allowed_extensions[iix]}'
+    C=Controller(configname)
+    C.write_complete_config(f'{cbase}-complete.yaml')
     C.do_tasks()    
     end_time=time.time()
     elapsed_time_s=datetime.timedelta(seconds=(end_time-begin_time))
-    logger.info(f'{__package__} runtime ends. Elapsed runtime {str(elapsed_time_s)}.')
+    logger.info(f'{__package__} runtime ends. Elapsed runtime {":".join(str(elapsed_time_s).split()[:3])}.')
 
 def list_examples():
     c=Config()
@@ -200,4 +207,6 @@ def cli():
     command_parsers['wheretcl'].add_argument('--root',default=False,action='store_true',help='print full path of  Pestifer\'s root TcL directory')
     command_parsers['inittcl'].add_argument('--force',default=False,action='store_true',help='force overwrite of any package-resident tcl files inittcl generates')
     args=parser.parse_args()
+    if args.big_banner:
+        print(enhanced_banner_message)
     args.func(args)

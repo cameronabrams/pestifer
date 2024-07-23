@@ -120,6 +120,8 @@ pidibble v. {version("pidibble")}"""
 
         packmol_memgen_task_specs='packmol_memgen' in [list(x.keys())[0] for x in self['user']['tasks']]
         if packmol_memgen_task_specs or kwargs.get('memgen_test',False):
+            # let's supress the irritating message that pops up when packmol_memgen is imported
+            logging.getLogger("pmmg_log").setLevel(logging.CRITICAL)
             import packmol_memgen as pmmg
             import packmol_memgen.lib.charmmlipid2amber as cla
             import pandas as pd
