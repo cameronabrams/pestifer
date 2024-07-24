@@ -13,8 +13,9 @@ Once installed, the user has access to the main `pestifer` command. You must hav
 
 ## Release History
 * 1.4.6:
+    * `--config-updates` option for `fetch-example` and `run-example` subcommands implemented
     * progress bars enabled for NAMD, psfgen, and packmol
-    * kick-ass banner option implemented
+    * `--kick-ass-banner` option implemented -- check it out!
     * `pidibble` dependency updated to 1.1.8
     * expanded integration of `packmol-memgen`
 * 1.4.5:

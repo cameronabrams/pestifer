@@ -95,9 +95,22 @@ def fetch_example(args,**kwargs):
     ex_yaml=glob.glob(ex_path+f'/{nstr}*.yaml')
     assert len(ex_yaml)==1,f'No example {number} found'
     ex_yaml=ex_yaml[0]
+    with open(ex_yaml,'r') as f:
+        ex_dict=yaml.safe_load(f)
+    for update in args.config_updates:
+        with open(update,'r') as f:
+            up_dict=yaml.safe_load(f)
+            print(f'ex_dict {ex_dict}')
+            print(f'up_dict {up_dict}')
+            ex_dict.update(up_dict)
+            print(f'ex_dict {ex_dict}')
+    
     base=os.path.split(ex_yaml)[1]
     rebase=base[len(nstr)+1:]
-    shutil.copy(ex_yaml,f'./{rebase}')
+    
+    with open(rebase,'w') as f:
+        yaml.dump(ex_dict,f)
+    # shutil.copy(ex_yaml,f'./{rebase}')
     return rebase
 
 def run_example(args,**kwargs):
@@ -189,7 +202,9 @@ def cli():
     
     command_parsers['run'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
     command_parsers['fetch-example'].add_argument('number',type=int,default=None,help='example number')
+    command_parsers['fetch-example'].add_argument('--config-updates',type=str,nargs='+',default=[],help='yaml files to update example')
     command_parsers['run-example'].add_argument('number',type=int,default=None,help='example number')
+    command_parsers['run-example'].add_argument('--config-updates',type=str,nargs='+',default=[],help='yaml files to update example')
     command_parsers['config-help'].add_argument('directives',type=str,nargs='*',help='config file directives')
     command_parsers['config-default'].add_argument('directives',type=str,nargs='*',help='config file directives')
     # command_parsers['script'].add_argument('scriptname',type=str,default=None,help='name of VMD/TcL script to run')
