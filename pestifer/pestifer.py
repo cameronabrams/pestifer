@@ -71,7 +71,7 @@ def run(args,**kwargs):
     C.do_tasks()    
     end_time=time.time()
     elapsed_time_s=datetime.timedelta(seconds=(end_time-begin_time))
-    logger.info(f'{__package__} runtime ends. Elapsed runtime {":".join(str(elapsed_time_s).split()[:3])}.')
+    logger.info(f'{__package__} runtime ends. Elapsed runtime {time.strftime("%H:%M:%S",time.gmtime(elapsed_time_s.seconds))}.')
 
 def list_examples():
     r=ResourceManager()
