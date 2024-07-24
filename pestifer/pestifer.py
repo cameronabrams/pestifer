@@ -20,7 +20,7 @@ import importlib.metadata
 __pestifer_version__ = importlib.metadata.version("pestifer")
 from .stringthings import banner, banner_message, enhanced_banner_message
 from .controller import Controller
-from .config import Config, ResourceManager
+from .config import Config, ResourceManager, injest_packmol_memgen_databases
 from .scriptwriters import Psfgen
 
 logger=logging.getLogger(__name__)
@@ -159,6 +159,13 @@ def wheretcl(args):
         if args.verbose:
             msg='TcL package directory: '
         print(f'{msg}{pkg_dir}')
+
+def query_pmmg_lipid(lipid_name):
+    lipids,maps=injest_packmol_memgen_databases()
+    lipid_row=lipids[lipids['#NAME']==lipid_name].to_dict(orient='list')
+    for k,v in lipid_row.items():
+        print(f'{k:15s} {v[0]}')
+
 
 def cli():
     commands={

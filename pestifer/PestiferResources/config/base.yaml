@@ -1250,23 +1250,23 @@ directives:
           - name: custom_lipid_parms
             text: custom parameters for lipids to overwrite packmol-memgen memgen.parm defaults and use pdb files local to the pestifer installation if available
             type: dict
-            directives:
-              - name: PSM
-                text: custom parameters for N-palmitoyl-D-erythro-sphingosylphosphorylcholine
-                type: dict
-                default:
-                  APL_FF: 60
-                  CHARMM: Y                                                        
-              - name: SOPS
-                text: custom parameters for 1-palmitoyl-2-lauroyl-sn-glycero-3-phopshoethanolamine
-                type: dict
-                default:
-                  CHARMM: Y                                                        
-              - name: SOPE
-                text: custom parameters for 1-palmitoyl-2-lauroyl-sn-glycero-3-phopshoethanolamine
-                type: dict
-                default:
-                  CHARMM: Y                                                        
+            # directives:
+            #   - name: PSM
+            #     text: custom parameters for N-palmitoyl-D-erythro-sphingosylphosphorylcholine
+            #     type: dict
+            #     default:
+            #       APL_FF: 60
+            #       CHARMM: Y                                                        
+            #   - name: SOPS
+            #     text: custom parameters for 1-palmitoyl-2-lauroyl-sn-glycero-3-phopshoethanolamine
+            #     type: dict
+            #     default:
+            #       CHARMM: Y                                                        
+            #   - name: SOPE
+            #     text: custom parameters for 1-palmitoyl-2-lauroyl-sn-glycero-3-phopshoethanolamine
+            #     type: dict
+            #     default:
+            #       CHARMM: Y                                                        
           - name: command_options
             text: command-line options for packmol-memgen
             type: dict
