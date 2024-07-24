@@ -373,3 +373,12 @@ def get_boxsize_from_packmolmemgen(logname='packmol-memgen.log'):
         res+=f'cellOrigin 0 0 0'
         # res+=f'cellOrigin {ox} {oy} {oz}'
     return res,boxinfo
+
+def oxford(a_list,conjunction='or'):
+    if not a_list: return ''
+    if len(a_list)==1:
+        return a_list[0]
+    elif len(a_list)==2:
+        return f'{a_list[0]} {conjunction} {a_list[1]}'
+    else:
+        return ", ".join(a_list[:-1])+f', {conjunction} {a_list[-1]}'

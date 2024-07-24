@@ -18,7 +18,7 @@ import logging
 import collections
 import importlib.metadata
 __pestifer_version__ = importlib.metadata.version("pestifer")
-from .stringthings import banner, banner_message, enhanced_banner_message
+from .stringthings import banner, banner_message, enhanced_banner_message, oxford
 from .controller import Controller
 from .config import Config, ResourceManager, injest_packmol_memgen_databases
 from .scriptwriters import Psfgen
@@ -197,11 +197,11 @@ def cli():
     }
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
     parser.add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
-    parser.add_argument('--kick-ass-banner',default=False,action='store_true',help='turn on the kick-ass banner')
+    parser.add_argument('--kick-ass-banner',default=False,action='store_true',help=ap.SUPPRESS)
     parser.add_argument('--loglevel',type=str,default='debug',choices=['info','debug','warning'],help='Log level for messages written to diagnostic log')
     parser.add_argument('--diagnostic-file',type=str,default='',help='diagnostic log file')
     subparsers=parser.add_subparsers()
-    subparsers.required=True
+    subparsers.required=False
     command_parsers={}
     for k in commands:
         command_parsers[k]=subparsers.add_parser(k,description=descs[k],help=helps[k],formatter_class=ap.RawDescriptionHelpFormatter)
@@ -223,11 +223,15 @@ def cli():
     command_parsers['inittcl'].add_argument('--force',default=False,action='store_true',help='force overwrite of any package-resident tcl files inittcl generates')
     args=parser.parse_args()
 
-    if args.func in [run,run_example]:
+    if hasattr(args,'func') and args.func in [run,run_example]:
         args.diagnostic_file='pestifer_diagnostics.log'
     elif not args.no_banner:
         banner(print)    
     if args.kick_ass_banner:
         print(enhanced_banner_message)
 
-    args.func(args)
+    if hasattr(args,'func'):
+        args.func(args)
+    else:
+        my_list=oxford(list(commands.keys()))
+        print(f'No subcommand found. Expected one of {my_list}')

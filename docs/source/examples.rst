@@ -52,13 +52,23 @@ This build can be performed (preferably in a clean directory) using this command
 
    $ pestifer run-example 1
 
-Or, alternatively, pasting that content into a local file ``myconfig.yaml``:
+The first thing ``pestifer`` does with ``run-example`` is to copy the YAML config file for that example into the local directory.  In this case, the file copied is named ``bpti.yaml``, and contains what you see above.  Or, alternatively, pasting that content into a local file ``myconfig.yaml``:
 
 .. code-block:: console
 
    $ pestifer run myconfig.yaml
 
-The first thing ``pestifer`` does with ``run-example`` is to copy the YAML config file for that example into the local directory.  In this case, the file copied is named ``bpti.yaml``, and contains what you see above.
+You could also use ``fetch-example`` to get the config file and then run it:
+
+.. code-block:: console
+
+  $ ls
+  $ pestifer fetch-example 1
+  $ ls
+  bpti.yaml
+  $ pestifer run bpti
+
+(If there is no extension on the argument of run, pestifer assumes one of ``.yaml``, ``.yml``, or ``.ym``.)
 
 This file is YAML format; you can think of it as a python ``dict`` with nesting.  ``pestifer`` uses the general-purpose package ``ycleptic`` (`pypi <https://pypi.org/project/pestifer/>`_) to manage its input configurations.  Under ``ycleptic``, the user provides a YAML format file that contains a set of "directives", where a directive is a ``dict`` with a single key and a value of any type, including directives. Here, there are two topmost directives: ``title`` and ``tasks``.  The value of ``title`` is the string ``BPTI`` and the value of ``tasks`` is a *list*.  Each element in the list of tasks is itself a directive describing a task, and ``pestifer`` executes tasks in the order they appear in the ``tasks`` list.
 
@@ -66,7 +76,7 @@ For the ``psfgen`` task, we see the directive ``source``.  Its value appears to 
 
 .. code-block:: console
 
-  $ pestifer config-help tasks psfgen source --no-banner
+  $ pestifer --no-banner config-help tasks psfgen source
   Help on user-provided configuration file format
   tasks->
   psfgen->
@@ -79,7 +89,7 @@ This tells us that, in addition to ``id``, we have the ability to set seven othe
 
 .. code-block:: console
 
-  $ pestifer config-help tasks psfgen source id --no-banner
+  $ pestifer --no-banner config-help tasks psfgen source id 
   Help on user-provided configuration file format
   tasks->
   psfgen->
@@ -90,7 +100,7 @@ This tells us that, in addition to ``id``, we have the ability to set seven othe
         from the RCSB if a file is not found
       type: str
       A value is required.
-  $ pestifer config-help tasks psfgen source biological_assembly --no-banner
+  $ pestifer --no-banner config-help tasks psfgen source biological_assembly
   Help on user-provided configuration file format
   tasks->
   psfgen->
@@ -100,7 +110,7 @@ This tells us that, in addition to ``id``, we have the ability to set seven othe
         signifying that the asymmetric unit is to be used
       type: int
       default: 0
-  $ pestifer config-help tasks psfgen source file_format --no-banner
+  $ pestifer --no-banner config-help tasks psfgen source file_format
   Help on user-provided configuration file format
   tasks->
   psfgen->
@@ -118,7 +128,7 @@ And so on.  Let's return to the example.  Immediately after the ``psfgen`` task 
 
 .. code-block:: console
 
-  $ pestifer config-help tasks md --no-banner
+  $ pestifer --no-banner config-help tasks md
   Help on user-provided configuration file format
   tasks->
   md:
@@ -127,7 +137,7 @@ And so on.  Let's return to the example.  Immediately after the ``psfgen`` task 
       Help available for ensemble, minimize, nsteps, dcdfreq, xstfreq, temperature, pressure, other_parameters, constraints
 
 By now, you know how to use ``config-help`` to figure out what these subdirectives mean. 
-So let's return again to the example.  After this ``md`` task is the ``solvate`` task.  Notice that it has no subdirectives; only default values are used for any subdirectives. (Currently (v. 1.3.2) the only subdirective is ``pad``.) Then comes another minimization via an ``md`` task, then an NVT equilibration, and then a series of progressively longer NPT equilibrations in yet more ``md`` tasks.  These "chained-together" NPT runs avoid the common issue that, after solvation, the density of the initial water box is a bit too low, so under pressure control the volume shrinks.  It can shrink so quickly that NAMD's internal data structures for distributing the computational load among processing units becomes invalid, which causes NAMD to die.  The easiest way to reset those internal data structures is just to restart NAMD from the result of the previous run.
+So let's return again to the example.  After this ``md`` task is the ``solvate`` task.  Notice that it has no subdirectives; only default values are used for any subdirectives. (Currently (v. 1.4.6) the only subdirective is ``pad``.) Then comes another minimization via an ``md`` task, then an NVT equilibration, and then a series of progressively longer NPT equilibrations in yet more ``md`` tasks.  These "chained-together" NPT runs avoid the common issue that, after solvation, the density of the initial water box is a bit too low, so under pressure control the volume shrinks.  It can shrink so quickly that NAMD's internal data structures for distributing the computational load among processing units becomes invalid, which causes NAMD to die.  The easiest way to reset those internal data structures is just to restart NAMD from the result of the previous run.
 
 The ``mdplot`` task generates a plot of system density (in g/cc) vs time step for the series of MD simulations that occur after solvation.  This is a quick way to check that enough NPT equilibration has been performed.  For this example, the plot looks like this:
 
@@ -168,7 +178,7 @@ Where, you may wonder, are the CHARMM parameter files?  ``pestifer`` includes th
   08-00-md-NPT.xsc
   08-00-md-NPT.vel
 
-``prod_6pti.namd`` is the NAMD2 configuration file, and it created with some default values.  Carefully consider its contents before you run!
+``prod_6pti.namd`` is the NAMD2 configuration file, and it created with some default values.  Carefully consider its contents before you run; you will need to edit it!
 
 Example 2: BPTI with Phosphate Ion Deleted
 ------------------------------------------
