@@ -113,12 +113,15 @@ class CondaCheck:
                     return version(pkgname)
                 else:
                     check_result=subprocess.run(f'conda list {pkgname}',
-                    shell=True, executable='/bin/bash', check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+                    shell=True,check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
                     results=check_result.stdout.decode('utf-8').split('\n')
+                    err=check_result.stderr.decode('utf-8').split('\n')
                     if results[-2][0]!='#':
                         version=results[-2].split()[1]
                         return version
                     else:
+                        logger.debug(f'so {results}')
+                        logger.debug(f'se {err}')
                         logger.debug(f'Could not determine version of {pkgname} in env {env} via "conda list"')
                         return None                    
         except Exception as e:
