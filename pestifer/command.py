@@ -30,8 +30,8 @@ class CondaCheck:
             logger.debug(f'conda executable: {self.conda_exe}')
             check_result=subprocess.run(f'{self.conda_exe} info --json',
                                         shell=True, 
-                                        executable='/bin/bash',
-                                        check=True,
+                                        # executable='/bin/bash',
+                                        # check=True,
                                         stdout=subprocess.PIPE,
                                         stderr=subprocess.PIPE)
             stdout=check_result.stdout.decode('utf-8')
