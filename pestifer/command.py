@@ -20,6 +20,7 @@ logger=logging.getLogger(__name__)
 class CondaCheck:
     """Class for interfacing with conda environments"""
     def __init__(self):
+        self.conda_env={k:os.environ[k] for k in os.environ if "CONDA" in k}
         self.conda_exe=os.environ.get('CONDA_EXE',None)
         assert os.access(self.conda_exe,os.X_OK)
         if not self.conda_exe:

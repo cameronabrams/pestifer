@@ -276,7 +276,11 @@ class NAMD2(Scriptwriter):
         self.charmrun=config.charmrun
         self.namd2=config.namd2
         self.namd2_config=config['user']['namd2']
-        self.max_cpu_count=os.cpu_count()
+        slurm_cpu=os.getenv('SLURM_CPUS_PER_TASK')
+        if slurm_cpu:
+            self.max_cpu_count=int(slurm_cpu)
+        else:
+            self.max_cpu_count=os.cpu_count()
         self.default_ext='.namd'
         if config.user_charmmff_toppar_path:
             self.standard_charmmff_parfiles=[os.path.join(config.user_charmmff_toppar_path,x) for x in self.charmmff_config['standard']['parameters']]
