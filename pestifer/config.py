@@ -148,51 +148,50 @@ pidibble v. {version("pidibble")}"""
 
     def check_ambertools(self):
         def error_message():
-            my_logger(f'Based on your inputs, this instance of {__package__}\nrequires the ambertools package,\nbut no conda environments were detected.\nTo use ambertools, {__package__} requires it to be installed via conda.\nWe recommend you create a new conda environment\nand install ambertools and {__package__} in it, and run {__package__} with it activated.\nIn your future {__package__} config files, indicate this environment under "ambertools"->"venv".',logger.debug)
+            my_logger(f'Based on your inputs, this instance of {__package__}\nrequires the ambertools package.\nTo use ambertools, {__package__} requires it to be installed via conda.\nWe recommend you create a new conda environment\nand install ambertools and {__package__} in it, and run {__package__} with it activated.',logger.debug)
 
         if not self['Conda'].conda_root:
             error_message()
             return False
         at_specs=self['user']['ambertools']
         at_specs['available']=False
-        explicit_ambertools_venv=at_specs.get('venv',None)
-        # if no explicit env for running ambertools is specified,
-        # check the active environment first
-        if explicit_ambertools_venv==None:
-            active_env=self['Conda'].active_env
-            explicit_env_ambertools_version=self['Conda'].get_package_version('ambertools',env=active_env,from_list=True)
-            if explicit_env_ambertools_version!=None:
-                at_specs['available']=True
-                at_specs['local']=True
-                logger.debug(f'ambertools v. {explicit_env_ambertools_version}')
-                return True
-            logger.debug(f'No ambertools package found in active environment {active_env}.')
-        # if active environment can't run ambertools and the explicit env is specified
+        active_env=self['Conda'].active_env
+        explicit_env_ambertools_version=self['Conda'].get_package_version('ambertools',env=active_env,from_list=True)
+        if explicit_env_ambertools_version!=None:
+            at_specs['available']=True
+            at_specs['local']=True
+            logger.debug(f'ambertools v. {explicit_env_ambertools_version}')
+            return True
         else:
-            logger.debug(f'Checking explicitly named conda env {explicit_ambertools_venv} for ambertools...')
-            if self['Conda'].env_exists(explicit_ambertools_venv):
-                explicit_env_ambertools_version=self['Conda'].get_package_version(explicit_ambertools_venv,'ambertools',from_list=True)
-                if explicit_env_ambertools_version!=None:
-                    at_specs['available']=True
-                    at_specs['local']=False
-                    logger.debug(f'...ambertools v. {explicit_env_ambertools_version} detected')
-                    return True
-                else:
-                    logger.debug(f'No ambertools package found in specified environment {explicit_ambertools_venv}.')
-            else:
-                logger.debug(f'Warning: No specified conda environment "{explicit_ambertools_venv}" found.')
-        logger.debug(f'No ambertools found after checking active/specified environment, so')
-        logger.debug(f'searching all available non-active conda envs for ambertools...')
-        for env in self['Conda'].conda_envs:
-            if env!=self['Conda'].active_env: # since we already examined it
-                logger.debug(f'Checking non-active conda env {env} for ambertools...')
-                ambertools_version=self['Conda'].get_package_version(env,'ambertools',from_list=True)
-                if ambertools_version!=None:
-                    logger.debug(f'Non-active env {env} ambertools version "{ambertools_version}"')
-                    at_specs['available']=True
-                    at_specs['local']=False
-                    at_specs['venv']=env
-                    return True
-        logger.debug(f'No ambertools found in any conda environment.')
-        error_message()
-        return False
+            error_message()
+            return False
+        # logger.debug(f'No ambertools package found in active environment {active_env}.')
+        # # if active environment can't run ambertools and the explicit env is specified
+        # else:
+        #     logger.debug(f'Checking explicitly named conda env {explicit_ambertools_venv} for ambertools...')
+        #     if self['Conda'].env_exists(explicit_ambertools_venv):
+        #         explicit_env_ambertools_version=self['Conda'].get_package_version(explicit_ambertools_venv,'ambertools',from_list=True)
+        #         if explicit_env_ambertools_version!=None:
+        #             at_specs['available']=True
+        #             at_specs['local']=False
+        #             logger.debug(f'...ambertools v. {explicit_env_ambertools_version} detected')
+        #             return True
+        #         else:
+        #             logger.debug(f'No ambertools package found in specified environment {explicit_ambertools_venv}.')
+        #     else:
+        #         logger.debug(f'Warning: No specified conda environment "{explicit_ambertools_venv}" found.')
+        # logger.debug(f'No ambertools found after checking active/specified environment, so')
+        # logger.debug(f'searching all available non-active conda envs for ambertools...')
+        # for env in self['Conda'].conda_envs:
+        #     if env!=self['Conda'].active_env: # since we already examined it
+        #         logger.debug(f'Checking non-active conda env {env} for ambertools...')
+        #         ambertools_version=self['Conda'].get_package_version(env,'ambertools',from_list=True)
+        #         if ambertools_version!=None:
+        #             logger.debug(f'Non-active env {env} ambertools version "{ambertools_version}"')
+        #             at_specs['available']=True
+        #             at_specs['local']=False
+        #             at_specs['venv']=env
+        #             return True
+        # logger.debug(f'No ambertools found in any conda environment.')
+        # error_message()
+        # return False
