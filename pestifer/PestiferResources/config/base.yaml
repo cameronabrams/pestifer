@@ -1337,6 +1337,10 @@ directives:
         text: Parameters controlling a NAMD run
         type: dict
         directives:
+          - name: vacuum
+            text: if true, namd will run on a single node even if multiple nodes are allocated
+            type: boolean
+            default: False
           - name: ensemble
             text: Name of ensemble to run in; note that NPT can only be peformed on a solvated system
             type: str

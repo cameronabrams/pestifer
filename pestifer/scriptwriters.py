@@ -276,11 +276,11 @@ class NAMD2(Scriptwriter):
         self.charmrun=config.charmrun
         self.namd2=config.namd2
         self.namd2_config=config['user']['namd2']
-        slurm_cpu=os.getenv('SLURM_CPUS_PER_TASK')
-        if slurm_cpu:
-            self.max_cpu_count=int(slurm_cpu)
-        else:
-            self.max_cpu_count=os.cpu_count()
+        try:
+            self.total_cpu_count=int(os.getenv('SLURM_CPUS_ON_NODE'))*int(os.getenv('SLURM_JOB_NUM_NODES'))
+        except:
+            self.total_cpu_count=os.cpu_count()
+        logger.debug(f'{self.total_cpu_count} cpus are available for namd')
         self.default_ext='.namd'
         if config.user_charmmff_toppar_path:
             self.standard_charmmff_parfiles=[os.path.join(config.user_charmmff_toppar_path,x) for x in self.charmmff_config['standard']['parameters']]
@@ -321,9 +321,13 @@ class NAMD2(Scriptwriter):
                 self.addline(f'{t} {params[t]}')
         super().writescript()
 
-    def runscript(self):
+    def runscript(self,**kwargs):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
-        c=Command(f'{self.charmrun} +p {self.max_cpu_count} {self.namd2} {self.scriptname}')
+        if kwargs.get('single_molecule',False):
+            use_cpu_count=self.single_node_cpu_count
+        else:
+            use_cpu_count=self.total_cpu_count
+        c=Command(f'{self.charmrun} +p {use_cpu_count} {self.namd2} {self.scriptname}')
         self.logname=f'{self.basename}.log'
         c.run(logfile=self.logname,progress=NAMDProgress(timer_format='\x1b[33mnamd\x1b[39m time: %(elapsed)s'))
 
