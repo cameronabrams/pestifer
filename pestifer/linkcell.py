@@ -186,9 +186,11 @@ class Linkcell:
         result=p.map(partial(self.populate_par),adf_split)
         p.close()
         p.join()
-        adf=pd.DataFrame()
+        rdf=pd.DataFrame()
         for a in result:
-            adf=pd.concat((adf,a))
+            rdf=pd.concat((rdf,a))
+        logger.debug(f'{rdf.head().to_string()}')
+        adf['linkcell_idx']=rdf['linkcell_idx'].copy()
 
         idx_list=adf[self.atidxlabel].to_list()
         for i in idx_list:
@@ -279,7 +281,7 @@ class Linkcell:
         C=self.cellndx[i]
         for c in self.neighbors_of_cellndx(C):
             retlist.append(self.ldx_of_cellndx(c))
-        assert len(retlist)==27,f'Error: not counting enough neighbor cells'
+        assert len(retlist)==26,f'Error: not counting enough neighbor cells; found {len(retlist)}'
         return retlist
 
     def are_cellndx_neighbors(self,Ci,Cj):

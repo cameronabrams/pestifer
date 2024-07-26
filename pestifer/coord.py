@@ -142,4 +142,7 @@ def coorddf_from_pdb(pdb):
     x=[x.x for x in atlist]
     y=[x.y for x in atlist]
     z=[x.z for x in atlist]
-    return pd.DataFrame({'serial':serial,'x':x,'y':y,'z':z})
+    resname=[x.residue.resName for x in atlist]
+    resid=[x.residue.seqNum for x in atlist]
+    chain=[x.residue.chainID for x in atlist]
+    return pd.DataFrame({'serial':serial,'x':x,'y':y,'z':z,'resname':resname,'resid':resid,'chain':chain})

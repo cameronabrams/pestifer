@@ -7,6 +7,7 @@ from functools import singledispatchmethod
 from .stringthings import split_ri
 from .config import segtype_of_resname, Config
 import networkx as nx 
+import numpy as np
 
 class PSFAtom(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['serial','chainID','resseqnum','insertion','resname','name','type','charge','atomicwt']
@@ -64,6 +65,13 @@ class PSFAtom(AncestorAwareMod):
     def add_attr(self,attrname,attrval):
         self.__dict__[attrname]=attrval
 
+    def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ'],meta_key=[],box=None):
+        self.r=A[A[idx_key]==self.serial][pos_key].to_numpy()[0]
+        # logger.debug(f'atom r {self.r}')
+        self.meta={}
+        for key in meta_key:
+            self.meta[key]=A[A[idx_key]==self.serial][meta_key].values[0]
+
 class PSFAtomList(AncestorAwareModList):
     @singledispatchmethod
     def __init__(self,input_obj):
@@ -88,6 +96,10 @@ class PSFAtomList(AncestorAwareModList):
                 if l.serial in my_serials:
                     g.add_edge(a,l)
         return g
+    
+    def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ'],meta_key=[],box=None):
+        for at in self:
+            at.injest_coordinates(A,idx_key=idx_key,pos_key=pos_key,meta_key=meta_key,box=box)
 
 class PSFBond(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['serial1','serial2']
@@ -113,6 +125,15 @@ class PSFBond(AncestorAwareMod):
             if n12==['C','N'] or n12==['N','C']:
                 return True
         return False
+    
+    def validate_image(self,box):
+        minboxlen=min([box[i][i] for i in [0,1,2]])
+        ri=self.atom1.r
+        rj=self.atom2.r
+        self.COM=0.5*(ri+rj)
+        in_same_img=[np.linalg.norm(ri-self.COM)<(minboxlen/2),np.linalg.norm(rj-self.COM)<(minboxlen/2)]
+        return all(in_same_img)
+    
 
 class PSFBondList(AncestorAwareModList):
 
@@ -150,6 +171,13 @@ class PSFBondList(AncestorAwareModList):
         for b in self:
             g.add_edge(b.serial1,b.serial2)
         return g
+
+    def validate_images(self,box):
+        res=[]
+        for b in self:
+            res.append(b.validate_image(box))
+        return all(res)
+
 
 class PSFContents:
     def __init__(self,filename,include_solvent=False,parse_topology=False):
@@ -191,15 +219,15 @@ class PSFContents:
                     self.links.append(Link([patchtype]+patch))
         if parse_topology:
             logger.debug(f'Parsing all topology information in {filename}...This may take a while.')
-            protein_atoms=self.atoms.get(segtype='protein')
-            glycan_atoms=self.atoms.get(segtype='glycan')
-            nonsolvent_atoms=PSFAtomList([])
-            if protein_atoms: nonsolvent_atoms.extend(protein_atoms)
-            if glycan_atoms: nonsolvent_atoms.extend(glycan_atoms)
-            logger.debug(f'{len(nonsolvent_atoms)} non-solvent atoms')
-            self.bonds=PSFBondList(self.token_lines['BOND'],include_only=(nonsolvent_atoms if not include_solvent else []))
+            self.protein_atoms=self.atoms.get(segtype='protein')
+            self.glycan_atoms=self.atoms.get(segtype='glycan')
+            self.nonsolvent_atoms=PSFAtomList([])
+            if self.protein_atoms: self.nonsolvent_atoms.extend(self.protein_atoms)
+            if self.glycan_atoms: self.nonsolvent_atoms.extend(self.glycan_atoms)
+            logger.debug(f'{len(self.nonsolvent_atoms)} non-solvent atoms')
+            self.bonds=PSFBondList(self.token_lines['BOND'],include_only=(self.nonsolvent_atoms if not include_solvent else []))
             self.G=self.bonds.to_graph()
-            logger.debug(f'Parsed {len(self.bonds)} bonds...')
+            logger.debug(f'Parsed {len(self.bonds)} bonds')
 
             # self.angles=PSFAngleList(self.token_lines['THETA'],include_only=(nonsolvent_atoms if not include_solvent else []))
             # self.dihedrals=PSFDihedralList(self.token_lines['PHI'],include_only=(nonsolvent_atoms if not include_solvent else []))

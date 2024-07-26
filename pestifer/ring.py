@@ -110,8 +110,12 @@ class Ring:
             in_same_img.append(dic<(minboxlen/2))
         return all(in_same_img)
 
-    def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ'],box=None):
+    def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ'],meta_key=[],box=None):
         self.P=np.array(A[A[idx_key].isin(self.idx)][pos_key].values)
+        self.M={}
+        for key in meta_key:
+            self.M[key]=A[A[idx_key].isin(self.idx)][meta_key].values
+            logger.debug(f'{key} {self.M[key]}')
         # logger.debug(f'P {self.P}')
         self.O=np.mean(self.P,axis=0)
         if type(box)==np.ndarray:
@@ -158,14 +162,6 @@ class Ring:
         # n[0]*(x-O[0])+n[1]*(y-O[1])+n[2]*(z-O[2])=0
         # n[0]*x + n[1]*y + n[2]*z - (n[0]*O[0]+n[1]*O[1]+n[2]*O[2]) = 0
         self.d=-np.dot(self.n,self.O)        
-        # self.vP=[]
-        # for v in self.P:
-        #     r=v-self.O
-        #     p=r-np.dot(r,self.n)*self.n
-        #     newv=p+self.O
-        #     self.vP.append(newv)
-        # self.vP=np.array(self.vP)
-        # logger.debug(f'vP {self.vP}')
 
     def treadmill(self):
         """ yield the treadmilled versions of the list """
@@ -264,9 +260,10 @@ class RingList(UserList):
             retlist.extend(item.idx)
         return retlist
 
-    def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ'],box=None):
+    def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ'],meta_key=[],box=None):
+        logger.debug(f'meta key {meta_key}')
         for item in self:
-            item.injest_coordinates(A,idx_key=idx_key,pos_key=pos_key,box=box)
+            item.injest_coordinates(A,idx_key=idx_key,pos_key=pos_key,meta_key=meta_key,box=box)
     
     def filter(self,idxlist):
         retL=RingList([])
