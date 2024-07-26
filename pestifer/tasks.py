@@ -367,7 +367,7 @@ class MDTask(BaseTask):
         na.newscript(self.basename)
         na.writescript(params)
         if not script_only:
-            na.runscript(single_molecule=params['vacuum'])
+            na.runscript(single_molecule=self.statevars['periodic'])
             inherited_etitles=[]
             if self.prior and self.prior.taskname=='md' and hasattr(self.prior,'mdlog'):
                 inherited_etitles=self.prior.mdlog.etitles
@@ -1167,4 +1167,10 @@ class RingCheckTask(BaseTask):
 
     def get_coords(self,pdb):
         from pidibble.pdbparse import PDBParser
-        
+        p=PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()
+        atlist=p.parsed['ATOM']
+        serial=[x.serial for x in atlist]
+        x=[x.x for x in atlist]
+        y=[x.y for x in atlist]
+        z=[x.z for x in atlist]
+        return pd.DataFrame({'serial':serial,'x':x,'y':y,'z':z})
