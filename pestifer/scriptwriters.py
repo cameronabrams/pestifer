@@ -281,9 +281,9 @@ class NAMD2(Scriptwriter):
         self.namd2=config.namd2
         self.namd2_config=config['user']['namd2']
         self.single_node_cpu_count=os.cpu_count()
-        try:
-            self.total_cpu_count=int(os.getenv('SLURM_CPUS_ON_NODE'))*int(os.getenv('SLURM_JOB_NUM_NODES'))
-        except:
+        if config.slurmvars:
+            self.total_cpu_count=int(config.slurmvars['SLURM_NNODES'])*int(config.slurmvars['SLURM_NTASKS_PER_NODE'])
+        else:
             self.total_cpu_count=self.single_node_cpu_count
         logger.debug(f'{self.total_cpu_count} cpus are available for namd')
         self.default_ext='.namd'
