@@ -15,7 +15,7 @@ import shutil
 import os
 import yaml
 from copy import deepcopy
-from .util import is_periodic, pdb_search_replace, pdb_singlemolecule_charmify
+from .util import is_periodic, pdb_search_replace, pdb_singlemolecule_charmify, cell_from_xsc
 from .molecule import Molecule
 from .chainidmanager import ChainIDManager
 from .colvars import *
@@ -332,7 +332,6 @@ class MDTask(BaseTask):
         
         if self.statevars['periodic']:
             params.update(namd_global_params['solvated'])
-
         else:
             params.update(namd_global_params['vacuum'])
         
@@ -368,7 +367,7 @@ class MDTask(BaseTask):
         na.newscript(self.basename)
         na.writescript(params)
         if not script_only:
-            na.runscript(single_molecule=self['specs']['vacuum'])
+            na.runscript(single_molecule=params['vacuum'])
             inherited_etitles=[]
             if self.prior and self.prior.taskname=='md' and hasattr(self.prior,'mdlog'):
                 inherited_etitles=self.prior.mdlog.etitles
@@ -1139,3 +1138,33 @@ class PackmolMemgenTask(BaseTask):
         vm.writescript()
         vm.runscript()
 
+class RingCheckTask(BaseTask):
+    """ A class for checking for pierced rings
+    
+    Attributes
+    ----------
+    yaml_header(str) 
+
+    Methods
+    -------
+    do(): 
+        Based on specs, executes ring piercing check
+
+    """
+    yaml_header='ring_check'
+
+    def do(self):
+        self.log_message('initiated')
+        self.inherit_state()
+        psf=self.statevars.get('psf',None)
+        pdb=self.statevars.get('pdb',None)
+        xsc=self.statevars.get('xsc',None)
+        celldf=cell_from_xsc(xsc)
+        self.gen_rings(psf,pdb)
+
+    def gen_rings(self,psf,pdb):
+        pass
+
+    def get_coords(self,pdb):
+        from pidibble.pdbparse import PDBParser
+        

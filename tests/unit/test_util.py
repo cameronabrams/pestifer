@@ -83,3 +83,8 @@ class TestUtil(unittest.TestCase):
         c1dL=mL[idx:]
         # does not copy
         self.assertTrue(mL[idx] is c1dL[0])
+
+    def test_cell_from_xsc(self):
+        df=cell_from_xsc('test.xsc')
+        self.assertEqual(df['a_x'].to_list()[0],191.901209569)
+        self.assertEqual(df['step'].to_list()[0],7200)
