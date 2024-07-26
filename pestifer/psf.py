@@ -35,7 +35,7 @@ class PSFAtom(AncestorAwareMod):
         if len(segtype_of_resname)==0:
             c=Config()
         self.segtype=segtype_of_resname[self.resname]
-        logger.debug(f'Assigned segtype {self.segtype} to PSFAtom serial {self.serial}')
+        # logger.debug(f'Assigned segtype {self.segtype} to PSFAtom serial {self.serial}')
     
     def __hash__(self):
         return self.serial
@@ -145,6 +145,12 @@ class PSFBondList(AncestorAwareModList):
 
         super().__init__(B)
 
+    def to_graph(self):
+        g=nx.Graph()
+        for b in self:
+            g.add_edge(b.serial1,b.serial2)
+        return g
+
 class PSFContents:
     def __init__(self,filename,include_solvent=False,parse_topology=False):
         logger.debug(f'Reading {filename}...')
@@ -185,9 +191,16 @@ class PSFContents:
                     self.links.append(Link([patchtype]+patch))
         if parse_topology:
             logger.debug(f'Parsing all topology information in {filename}...This may take a while.')
-            nonsolvent_atoms=self.atoms.get(segtype='protein')+self.atoms.get(segtype='glycan')
+            protein_atoms=self.atoms.get(segtype='protein')
+            glycan_atoms=self.atoms.get(segtype='glycan')
+            nonsolvent_atoms=PSFAtomList([])
+            if protein_atoms: nonsolvent_atoms.extend(protein_atoms)
+            if glycan_atoms: nonsolvent_atoms.extend(glycan_atoms)
+            logger.debug(f'{len(nonsolvent_atoms)} non-solvent atoms')
             self.bonds=PSFBondList(self.token_lines['BOND'],include_only=(nonsolvent_atoms if not include_solvent else []))
+            self.G=self.bonds.to_graph()
             logger.debug(f'Parsed {len(self.bonds)} bonds...')
+
             # self.angles=PSFAngleList(self.token_lines['THETA'],include_only=(nonsolvent_atoms if not include_solvent else []))
             # self.dihedrals=PSFDihedralList(self.token_lines['PHI'],include_only=(nonsolvent_atoms if not include_solvent else []))
             

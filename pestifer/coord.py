@@ -131,3 +131,15 @@ def positionN(res,tmat):
     R34=rC-rN
     logger.debug(f'positionN: C-N bond length {np.linalg.norm(R34):.4f}')
     return rN
+
+def coorddf_from_pdb(pdb):
+    import pandas as pd
+    import os
+    from pidibble.pdbparse import PDBParser
+    p=PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()
+    atlist=p.parsed['ATOM']
+    serial=[x.serial for x in atlist]
+    x=[x.x for x in atlist]
+    y=[x.y for x in atlist]
+    z=[x.z for x in atlist]
+    return pd.DataFrame({'serial':serial,'x':x,'y':y,'z':z})

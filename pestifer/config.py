@@ -72,8 +72,20 @@ pidibble v. {version("pidibble")}"""
         self['Resources']=r
         self['Conda']=CondaCheck()
         my_logger(self['Conda'].info(),logger.info,just='<',frame='*',fill='')
+        my_logger(self.cpu_info(),logger.info,just='<',frame='*',fill='')
         self._set_internal_shortcuts(**kwargs)
         self._set_external_apps(verify_access=(userfile!=''))
+
+    def cpu_info(self):
+        slurmvars={k:os.environ[k] for k in os.environ if 'SLURM' in k}
+        local_ncpu=os.cpu_count()
+        retstr=''
+        if slurmvars:
+            for k,v in slurmvars.items():
+                retstr+=f'{k}: {v}\n'
+        else:
+            retstr+=f'Local number of CPUs: {local_ncpu}'
+        return retstr
 
     def _set_external_apps(self,verify_access=True):
         self.namd2=self['user']['paths']['namd2']

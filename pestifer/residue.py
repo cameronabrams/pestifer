@@ -9,7 +9,6 @@ from argparse import Namespace
 from .stringthings import join_ri
 from .coord import positionN
 from .atom import *
-# from .bond import *
 
 class EmptyResidue(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['resname','resseqnum','insertion','chainID','resolved','segtype']

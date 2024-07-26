@@ -9,14 +9,20 @@ import os
 logger=logging.getLogger(__name__)
 import shutil
 import pandas as pd
+import numpy as np
 
 def cell_from_xsc(xsc):
     if xsc and os.path.exists(xsc):
         celldf=pd.read_csv(xsc,skiprows=2,header=None,sep='\s+',index_col=None)
         col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
         celldf.columns=col
-        return celldf
-    return None
+        avec=np.array(celldf.loc[0,['a_x','a_y','a_z']].to_list())
+        bvec=np.array(celldf.loc[0,['b_x','b_y','b_z']].to_list())
+        cvec=np.array(celldf.loc[0,['c_x','c_y','c_z']].to_list())
+        box=np.array([avec,bvec,cvec])
+        orig=np.array(celldf.loc[0,['o_x','o_y','o_z']].to_list())
+        return box,orig
+    return None,None
 
 def is_tool(name):
     """Checks to see if the object name is an executable"""
