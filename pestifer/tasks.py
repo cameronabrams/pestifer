@@ -971,10 +971,8 @@ class PackmolMemgenTask(BaseTask):
         self.memgen_parm=config['user']['ambertools'].get('packmol_memgen_parmfile',None)
         logger.debug(f'packmol_memgen task custom memgen.parm: {self.memgen_parm}')
         assert config['user']['ambertools']['available']
-        self.env=None
-        if not config['user']['ambertools']['local']:
-            self.env=config['user']['ambertools']['venv']
-            logger.debug(f'task will use conda env {self.env}')
+        assert config['user']['ambertools']['local']
+        self.env=None  # triggers run in active conda environment
 
     def do(self):
         self.log_message('initiated')

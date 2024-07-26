@@ -275,7 +275,7 @@ class Psfgen(VMD):
     
 class NAMD2(Scriptwriter):
     def __init__(self,config):
-        super().__init__()
+        super().__init__(config)
         self.charmmff_config=config['user']['charmmff']
         self.charmrun=config.charmrun
         self.namd2=config.namd2
