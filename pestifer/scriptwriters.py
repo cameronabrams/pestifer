@@ -47,7 +47,9 @@ class Filewriter:
             logger.debug(f'{self.filename} has already been written')
 
 class Scriptwriter(Filewriter):
-    def __init__(self):
+    def __init__(self,config):
+        self.config=config
+        self.progress=self.config.progress
         self.F=FileCollector()
         self.default_ext='.tcl'
         self.default_script=f'pestifer-script{self.default_ext}'
@@ -73,8 +75,7 @@ class Scriptwriter(Filewriter):
 
 class VMD(Scriptwriter):
     def __init__(self,config):
-        super().__init__()
-        self.config=config
+        super().__init__(config)
         self.vmd=config.vmd
         self.tcl_root=config.tcl_root
         self.tcl_pkg_path=config.tcl_pkg_path
@@ -267,7 +268,10 @@ class Psfgen(VMD):
         self.logname=f'{self.basename}.log'
         logger.debug(f'Log file: {self.logname}')
         c=Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}',**options)
-        c.run(logfile=self.logname,progress=PsfgenProgress(timer_format='\x1b[94mpsfgen\x1b[39m time: %(elapsed)s'))
+        progress_struct=None
+        if self.progress:
+            progress_struct=PsfgenProgress(timer_format='\x1b[94mpsfgen\x1b[39m time: %(elapsed)s')
+        c.run(logfile=self.logname,progress=progress_struct)
     
 class NAMD2(Scriptwriter):
     def __init__(self,config):
@@ -329,7 +333,10 @@ class NAMD2(Scriptwriter):
             use_cpu_count=self.total_cpu_count
         c=Command(f'{self.charmrun} +p {use_cpu_count} {self.namd2} {self.scriptname}')
         self.logname=f'{self.basename}.log'
-        c.run(logfile=self.logname,progress=NAMDProgress(timer_format='\x1b[33mnamd\x1b[39m time: %(elapsed)s'))
+        progress_struct=None
+        if self.progress:
+            progress_struct=NAMDProgress(timer_format='\x1b[33mnamd\x1b[39m time: %(elapsed)s')
+        c.run(logfile=self.logname,progress=progress_struct)
 
     def getlog(self,inherited_etitles=[]):
         return NAMDLog(self.logname,inherited_etitles=inherited_etitles).energy()

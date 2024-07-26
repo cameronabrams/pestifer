@@ -85,6 +85,7 @@ pidibble v. {version("pidibble")}"""
             assert os.access(self.vmd,os.X_OK)
 
     def _set_internal_shortcuts(self,**kwargs):
+        self.progress=os.getenv('SLURM_JOB_NUM_NODES')!=''
         self.tcl_root=os.path.join(self['Resources']['root'],'tcl')
         assert os.path.exists(self.tcl_root)
         self.tcl_pkg_path=self['Resources']['tcl']['pkg']
