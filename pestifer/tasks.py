@@ -975,6 +975,7 @@ class PackmolMemgenTask(BaseTask):
         assert config['user']['ambertools']['available']
         assert config['user']['ambertools']['local']
         self.env=None  # triggers run in active conda environment
+        self.progress=config.progress
 
     def do(self):
         self.log_message('initiated')
@@ -1080,7 +1081,10 @@ class PackmolMemgenTask(BaseTask):
                 logger.debug(f'Charmifying lipid template {lip}')
                 pdb_singlemolecule_charmify(f'{lip}.pdb',perlip_df[lip])
         cmd=Command(f'packmol < {self.basename}-packmol.inp')
-        cmd.condarun(env=self.env,Condaspec=self.config['Conda'],ignore_codes=[173],logfile=f'{self.basename}-packmol.log',progress=PackmolProgress(timer_format='\x1b[36mpackmol\x1b[39m time: %(elapsed)s'))
+        progress_struct=None
+        if self.progress:
+            progress_struct=PackmolProgress(timer_format='\x1b[36mpackmol\x1b[39m time: %(elapsed)s')
+        cmd.condarun(env=self.env,Condaspec=self.config['Conda'],ignore_codes=[173],logfile=f'{self.basename}-packmol.log',progress=progress_struct)
 
         # process output pdb to get new psf and pdb
         self.save_state(exts=['pdb'])
