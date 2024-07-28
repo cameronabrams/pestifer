@@ -78,7 +78,7 @@ pidibble v. {version("pidibble")}"""
 
     def cpu_info(self):
         self.slurmvars={k:os.environ[k] for k in os.environ if 'SLURM' in k}
-        self.local_ncpu=os.cpu_count()
+        self.local_ncpus=os.cpu_count()
         retstr=''
         if self.slurmvars:
             nnodes=int(self.slurmvars['SLURM_NNODES'])
@@ -86,8 +86,8 @@ pidibble v. {version("pidibble")}"""
             ncpus=nnodes*ntaskspernode
             retstr+=f'SLURM: #nodes {nnodes}; total number of cpus {ncpus}'
         else:
-            retstr+=f'Local number of CPUs: {self.local_ncpu}'
-            ncpus=self.local_ncpu
+            retstr+=f'Local number of CPUs: {self.local_ncpus}'
+            ncpus=self.local_ncpus
         self.ncpus=ncpus
         return retstr
 
