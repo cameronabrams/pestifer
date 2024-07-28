@@ -78,14 +78,17 @@ pidibble v. {version("pidibble")}"""
 
     def cpu_info(self):
         self.slurmvars={k:os.environ[k] for k in os.environ if 'SLURM' in k}
-        local_ncpu=os.cpu_count()
+        self.local_ncpu=os.cpu_count()
         retstr=''
         if self.slurmvars:
-            retstr+='SLURM environment variables:'
-            for k,v in self.slurmvars.items():
-                retstr+=f'{k}: {v}\n'
+            nnodes=int(self.slurmvars['SLURM_NNODES'])
+            ntaskspernode=int(self.slurmvars['SLURM_NTASKS_PER_NODE'])
+            ncpus=nnodes*ntaskspernode
+            retstr+=f'SLURM: #nodes {nnodes}; total number of cpus {ncpus}'
         else:
-            retstr+=f'Local number of CPUs: {local_ncpu}'
+            retstr+=f'Local number of CPUs: {self.local_ncpu}'
+            ncpus=self.local_ncpu
+        self.ncpus=ncpus
         return retstr
 
     def _set_external_apps(self,verify_access=True):

@@ -280,12 +280,9 @@ class NAMD2(Scriptwriter):
         self.charmrun=config.charmrun
         self.namd2=config.namd2
         self.namd2_config=config['user']['namd2']
-        self.single_node_cpu_count=os.cpu_count()
-        if config.slurmvars:
-            self.total_cpu_count=int(config.slurmvars['SLURM_NNODES'])*int(config.slurmvars['SLURM_NTASKS_PER_NODE'])
-        else:
-            self.total_cpu_count=self.single_node_cpu_count
-        logger.debug(f'{self.total_cpu_count} cpus are available for namd')
+        self.local_ncpus=config.local_ncpus
+        self.ncpus=config.ncpus
+        logger.debug(f'{self.ncpus} cpus are available for namd')
         self.default_ext='.namd'
         if config.user_charmmff_toppar_path:
             self.standard_charmmff_parfiles=[os.path.join(config.user_charmmff_toppar_path,x) for x in self.charmmff_config['standard']['parameters']]
@@ -329,9 +326,9 @@ class NAMD2(Scriptwriter):
     def runscript(self,**kwargs):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         if kwargs.get('single_molecule',False):
-            use_cpu_count=self.single_node_cpu_count
+            use_cpu_count=self.local_ncpus
         else:
-            use_cpu_count=self.total_cpu_count
+            use_cpu_count=self.ncpus
         c=Command(f'{self.charmrun} +p {use_cpu_count} {self.namd2} {self.scriptname}')
         self.logname=f'{self.basename}.log'
         progress_struct=None
