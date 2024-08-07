@@ -56,6 +56,7 @@ class TestRingCheck(unittest.TestCase):
         self.assertEqual(p['piercer']['chain'],'S1')
 
     def test_ring_check_coords_4(self):
+        # checks when molecules are in different periodic images
         dir='4'
         pdb=os.path.join(dir,'S2.pdb')
         psf=os.path.join(dir,'S2.psf')

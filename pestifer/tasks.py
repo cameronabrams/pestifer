@@ -556,7 +556,7 @@ class PsfgenTask(BaseTask):
     def _write_glycans(self,fw):
         psf=self.statevars['psf']
         logger.debug(f'Injesting {psf}')
-        struct=PSFContents(psf,parse_topology=True)
+        struct=PSFContents(psf,parse_topology=['bonds'])
         logger.debug(f'Making graph structure of glycan atoms...')
         glycanatoms=struct.atoms.filter(segtype='glycan')
         glycangraph=glycanatoms.graph()
@@ -1165,6 +1165,19 @@ class RingCheckTask(BaseTask):
         pdb=self.statevars.get('pdb',None)
         xsc=self.statevars.get('xsc',None)
         result=ring_check(psf,pdb,xsc)
+        if result:
+            pg=self.writers['psfgen']
+            pg.newscript(self.basename)
+            # pg.topo_aliases()
+            pg.load_project(psf,pdb)
+            for r in result:
+                pg.addline(f'delatom {r["piercee"]["chain"]} {r["piercee"]["resid"]}')
+            pg.writescript(self.basename)
+            pg.runscript()
+            self.save_state(exts=['psf','pdb'])
+        self.log_message('complete')
+
+
 
 
 

@@ -1211,6 +1211,14 @@ directives:
             text: padding value for determining the overall simulation box size (in Angstroms)
             type: float
             default: 10
+      - name: ring_check
+        text: Parameters controlling pierced-ring checks
+        type: dict
+        directives:
+          - name: delete
+            text: which of the piercer or piercee to delete
+            type: string
+            default: piercee 
       - name: packmol_memgen
         text: Parameters controlling packmol-memgen to generate a bilayer embedding
         type: dict
