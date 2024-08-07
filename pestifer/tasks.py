@@ -15,8 +15,7 @@ import shutil
 import os
 import yaml
 from copy import deepcopy
-from .util import is_periodic, pdb_search_replace, pdb_singlemolecule_charmify, cell_from_xsc
-from .coord import coorddf_from_pdb
+from .util import is_periodic, pdb_search_replace, pdb_singlemolecule_charmify
 from .molecule import Molecule
 from .chainidmanager import ChainIDManager
 from .colvars import *
@@ -25,13 +24,12 @@ from .modmanager import ModManager
 from .command import Command
 from .mods import CleavageSite, CleavageSiteList
 from .progress import PackmolProgress
-from .psf import PSFContents
-from .ring import RingList
 import networkx as nx
 import pandas as pd
-import numpy as np
+from .ring import ring_check
 import matplotlib.pyplot as plt 
 from scipy.constants import physical_constants
+from .psf import PSFContents
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 g_per_amu=physical_constants['atomic mass constant'][0]*1000
@@ -1166,12 +1164,7 @@ class RingCheckTask(BaseTask):
         psf=self.statevars.get('psf',None)
         pdb=self.statevars.get('pdb',None)
         xsc=self.statevars.get('xsc',None)
-        self.box,self.orig=cell_from_xsc(xsc)
-        self.coorddf=coorddf_from_pdb(pdb)
-        self.topol=PSFContents(psf)
-        self.Rings=RingList(self.topol.G)
-        self.Rings.injest_coordinates(self.coorddf,idx_key='serial',pos_key=['x','y','z'])
-
+        result=ring_check(psf,pdb,xsc)
 
 
 

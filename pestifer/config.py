@@ -64,7 +64,14 @@ class Config(Yclept):
 pidibble v. {version("pidibble")}"""
         my_logger(vrep,logger.info,just='<',frame='*',fill='')
         r=ResourceManager()
-        logger.debug(f'Resources {r}')
+        logger.debug(f'Resources:')
+        for k,v in r.items():
+            if type(v)!=dict:
+                logger.debug(f'  {k}: {v}')
+            else:
+                logger.debug(f'  {k}:')
+                for kk,vv in v.items():
+                    logger.debug(f'      {kk}: {vv}')
         # resolve full pathname of YCleptic base config for this application
         basefile=os.path.join(r['config'],'base.yaml')
         assert os.path.exists(basefile)
@@ -133,7 +140,7 @@ pidibble v. {version("pidibble")}"""
                         # logger.debug(r,rabbrv)
                         if not rabbrv in stspec['resnames']:
                             stspec['resnames'].append(rabbrv)
-                            logger.debug(f'Adding abbreviated resname {rabbrv} to resnames for segtype {stn}')
+                            # logger.debug(f'Adding abbreviated resname {rabbrv} to resnames for segtype {stn}')
         self.pdb_to_charmm_resnames={}
         for alias in self['user']['psfgen']['aliases']:
             tok=alias.split()

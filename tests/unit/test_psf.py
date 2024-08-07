@@ -5,7 +5,23 @@ from pestifer.command import Command
 from pestifer.mods import *
 
 class TestPSF(unittest.TestCase):
-    def test_read_psf(self):
+
+    def test_psf_bond_eq(self):
+        b1=PSFBond([1,2])
+        b2=PSFBond([2,1])
+        self.assertEqual(b1,b2)
+
+    def test_psf_angle_eq(self):
+        a1=PSFAngle([1,2,3])
+        a2=PSFAngle([3,2,1])
+        self.assertEqual(a1,a2)
+
+    def test_psf_dihedral_eq(self):
+        d1=PSFDihedral([1,2,3,4])
+        d2=PSFDihedral([4,3,2,1])
+        self.assertEqual(d1,d2)
+
+    def test_psf_atomcount(self):
         source='test.psf'
         c=Command(f'grep "\!NATOM" {source}')
         c.run()
@@ -13,9 +29,12 @@ class TestPSF(unittest.TestCase):
         psf=PSFContents(source)
         self.assertEqual(len(psf.atoms),expected_natom)
     
+    def test_psf_ssbondcount(self):
+        source='test.psf'
         c=Command(f'grep REMARKS {source} | grep -c DISU')
         c.run()
         expected_nssbonds=int(c.stdout)
+        psf=PSFContents(source)
         self.assertEqual(len(psf.ssbonds),expected_nssbonds)
         if expected_nssbonds>0:
             c=Command(f'grep REMARKS {source} | grep DISU | head -1')
@@ -32,6 +51,9 @@ class TestPSF(unittest.TestCase):
             y=f'{fss.resseqnum2}{fss.insertion2}'
             self.assertEqual(p[4],f'{x}:{y}')
 
+    def test_psf_linkcount(self):
+        source='test.psf'
+        psf=PSFContents(source)
         for patchtype in Link.patch_atomnames.keys():
             c=Command(f'grep REMARKS {source} | grep patch| grep -c {patchtype}')
             c.run(ignore_codes=[1])
@@ -55,3 +77,64 @@ class TestPSF(unittest.TestCase):
                     x=fss.chainID2
                     y=f'{fss.resseqnum2}{fss.insertion2}'
                     self.assertEqual(p[4],f'{x}:{y}')
+
+    def test_psf_bondcount(self):
+        source='test.psf'
+        psf=PSFContents(source,parse_topology=['bonds'])
+        c=Command(f'grep "\!NBOND" {source}')
+        c.run()
+        expected_nbond=int(c.stdout.strip().split()[0])
+        self.assertTrue(expected_nbond>0)
+        self.assertEqual(len(psf.bonds),expected_nbond)
+        c=Command(f'grep -A1 "\!NBOND" {source} | tail -1')
+        c.run()
+        firstbondline=[int(_) for _ in c.stdout.strip().split()]
+        self.assertEqual(psf.bonds[0].serial1,firstbondline[0])
+        self.assertEqual(psf.bonds[0].serial2,firstbondline[1])
+        self.assertEqual(psf.bonds[1].serial1,firstbondline[2])
+        self.assertEqual(psf.bonds[1].serial2,firstbondline[3])
+        self.assertEqual(psf.bonds[2].serial1,firstbondline[4])
+        self.assertEqual(psf.bonds[2].serial2,firstbondline[5])
+        self.assertEqual(psf.bonds[3].serial1,firstbondline[6])
+        self.assertEqual(psf.bonds[3].serial2,firstbondline[7])
+
+    def test_psf_anglecount(self):
+        source='test.psf'
+        psf=PSFContents(source,parse_topology=['angles'])
+        c=Command(f'grep "\!NTHETA" {source}')
+        c.run()
+        expected_nangle=int(c.stdout.strip().split()[0])
+        self.assertTrue(expected_nangle>0)
+        self.assertEqual(len(psf.angles),expected_nangle)
+        c=Command(f'grep -A1 "\!NTHETA" {source} | tail -1')
+        c.run()
+        firstangleline=[int(_) for _ in c.stdout.strip().split()]
+        self.assertEqual(psf.angles[0].serial1,firstangleline[0])
+        self.assertEqual(psf.angles[0].serial2,firstangleline[1])
+        self.assertEqual(psf.angles[0].serial3,firstangleline[2])
+        self.assertEqual(psf.angles[1].serial1,firstangleline[3])
+        self.assertEqual(psf.angles[1].serial2,firstangleline[4])
+        self.assertEqual(psf.angles[1].serial3,firstangleline[5])
+        self.assertEqual(psf.angles[2].serial1,firstangleline[6])
+        self.assertEqual(psf.angles[2].serial2,firstangleline[7])
+        self.assertEqual(psf.angles[2].serial3,firstangleline[8])
+
+    def test_psf_dihedralcount(self):
+        source='test.psf'
+        psf=PSFContents(source,parse_topology=['dihedrals'])
+        c=Command(f'grep "\!NPHI" {source}')
+        c.run()
+        expected_ndihedral=int(c.stdout.strip().split()[0])
+        self.assertTrue(expected_ndihedral>0)
+        self.assertEqual(len(psf.dihedrals),expected_ndihedral)
+        c=Command(f'grep -A1 "\!NPHI" {source} | tail -1')
+        c.run()
+        firstdihedralline=[int(_) for _ in c.stdout.strip().split()]
+        self.assertEqual(psf.dihedrals[0].serial1,firstdihedralline[0])
+        self.assertEqual(psf.dihedrals[0].serial2,firstdihedralline[1])
+        self.assertEqual(psf.dihedrals[0].serial3,firstdihedralline[2])
+        self.assertEqual(psf.dihedrals[0].serial4,firstdihedralline[3])
+        self.assertEqual(psf.dihedrals[1].serial1,firstdihedralline[4])
+        self.assertEqual(psf.dihedrals[1].serial2,firstdihedralline[5])
+        self.assertEqual(psf.dihedrals[1].serial3,firstdihedralline[6])
+        self.assertEqual(psf.dihedrals[1].serial4,firstdihedralline[7])

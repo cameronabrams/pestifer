@@ -7,9 +7,12 @@ import numpy as np
 
 
 class TestLinkcell(unittest.TestCase):
-    def test_linkcell(self):
+    def test_linkcell_create(self):
         box,orig=cell_from_xsc('test.xsc')
-        LC=Linkcell(box,10.0,origin=orig)
+        sidelengths=np.diagonal(box)
+        ll=orig-0.5*sidelengths
+        ur=orig+0.5*sidelengths
+        LC=Linkcell(np.array([ll,ur]),10.0)
         self.assertEqual(LC.ncells[0],8)
         self.assertEqual(LC.ncells[1],8)
         self.assertEqual(LC.ncells[2],11)
@@ -17,18 +20,25 @@ class TestLinkcell(unittest.TestCase):
     def test_wrap(self):
         box=np.array([[100,0,0],[0,100,0],[0,0,100]],dtype=float)
         orig=np.array([0,0,0],dtype=float)
-        LC=Linkcell(box,10.0,origin=orig)
-        p=np.array([-2,-2,-2])
+        sidelengths=np.diagonal(box)
+        ll=orig-0.5*sidelengths
+        ur=orig+0.5*sidelengths
+        LC=Linkcell(np.array([ll,ur]),10.0)
+        
+        p=np.array([-52,-52,-52])
         pp,bl=LC.wrap_point(p)
-        self.assertEqual(pp[0],98)
-        self.assertEqual(pp[1],98)
-        self.assertEqual(pp[2],98)
+        self.assertEqual(pp[0],48)
+        self.assertEqual(pp[1],48)
+        self.assertEqual(pp[2],48)
         self.assertEqual(bl[0],1)
     
     def test_populate(self):
         from pidibble.pdbparse import PDBParser
         box,orig=cell_from_xsc('test.xsc')
-        LC=Linkcell(box,10.0,origin=orig)
+        sidelengths=np.diagonal(box)
+        ll=orig-0.5*sidelengths
+        ur=orig+0.5*sidelengths
+        LC=Linkcell(np.array([ll,ur]),10.0)
         p=PDBParser(PDBcode='test').parse()
         atlist=p.parsed['ATOM']
         serial=[x.serial for x in atlist]

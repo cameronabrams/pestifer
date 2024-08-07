@@ -33,12 +33,18 @@
 # periodic image!
 #
 import numpy as np
+import os
 from collections import UserList
 from functools import singledispatchmethod
 import networkx as nx
 from copy import deepcopy
 import logging
 logger=logging.getLogger(__name__)
+from .psf import PSFContents,PSFBondList
+from .linkcell import Linkcell
+from .util import cell_from_xsc
+from .coord import coorddf_from_pdb, mic_shift
+from itertools import compress
 
 def lawofcos(a,b):
     """lawofcos return the cosine of the angle defined by vectors a and b if they share a vertex (the LAW OF COSINES)
@@ -114,13 +120,13 @@ class Ring:
         self.P=np.array(A[A[idx_key].isin(self.idx)][pos_key].values)
         self.M={}
         for key in meta_key:
-            self.M[key]=A[A[idx_key].isin(self.idx)][meta_key].values
-            logger.debug(f'{key} {self.M[key]}')
+            self.M[key]=A[A[idx_key].isin(self.idx)][key].values
+            # logger.debug(f'{key} {self.M[key]}')
         # logger.debug(f'P {self.P}')
         self.O=np.mean(self.P,axis=0)
         if type(box)==np.ndarray:
             self.same_image=self.validate_image(box)
-            logger.debug(f'same_image: {self.same_image} in {[box[i][i] for i in [0,1,2]]}')
+            # logger.debug(f'same_image: {self.same_image} in {[box[i][i] for i in [0,1,2]]}')
         # logger.debug(f'O {self.O}')
         iR=Ring(list(range(len(self.idx))))
         a=iR.treadmill()
@@ -191,7 +197,7 @@ class Ring:
             r.P[i]=unwrapf(r.P[i],P,pbc=pbc)
         return r
 
-    def pierced_by(self,P):
+    def pierced_by(self,P,tol=1.e-2):
         """determines if segment with endpoints P[0] and P[1] pierces ring; 
         uses ray projection method and fact that scaled length must be between 
         0 and 1 for a plane intersection
@@ -213,14 +219,14 @@ class Ring:
         t=-1.0
         if denom>1.e-13:
             t=numer/denom # a fraction if P[0] and P[1] are on either side of the plane
-        # logger.debug(f't {t}')
+        # logger.debug(f'{str(self)} b {P} t {t}')
         if 0<t<1:
             # compute point in ring plane that marks intersection with this vector
             # V=P[0]-P[1]
             # P[1]=P[0]-V
             # intersection point = P[0]-t*V
             PP=P[0]-t*V
-            # logger.debug(f'PP {PP}')
+            # logger.debug(f't {t} PP {PP}')
             # determine if PP is inside ring:
             # compute the series of unit-vector cross-products v(i)-PP-v((i+1)%N)
             # sum will have a large component along normal vector if yes, essentially 0 if no
@@ -233,7 +239,7 @@ class Ring:
                 c=np.cross(V1/np.linalg.norm(V1),V2/np.linalg.norm(V2))
                 sumC+=c/np.linalg.norm(c)
             tst=np.dot(self.n,sumC/len(iR.idx))
-            is_inside=np.all(np.isclose([tst],[1.0]))
+            is_inside=np.abs(tst-1.0)<tol
             # logger.debug(f'tst {tst} is_inside {is_inside}')
             return is_inside,PP
         return False,np.ones(3)*np.nan
@@ -261,7 +267,7 @@ class RingList(UserList):
         return retlist
 
     def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ'],meta_key=[],box=None):
-        logger.debug(f'meta key {meta_key}')
+        # logger.debug(f'meta key {meta_key}')
         for item in self:
             item.injest_coordinates(A,idx_key=idx_key,pos_key=pos_key,meta_key=meta_key,box=box)
     
@@ -278,3 +284,52 @@ class RingList(UserList):
 
     def __str__(self):
         return ';'.join([str(x) for x in self])
+    
+
+def ring_check(psf,pdb,xsc):
+    box,orig=cell_from_xsc(xsc)
+    coorddf=coorddf_from_pdb(pdb)
+    sidelengths=np.diagonal(box)
+    ll=orig-0.5*sidelengths
+    ur=orig+0.5*sidelengths
+    LC=Linkcell(np.array([ll,ur]),10.0)
+    LC.populate(coorddf,os.cpu_count())
+    topol=PSFContents(psf,parse_topology=['bonds'])
+    topol.nonsolvent_atoms.injest_coordinates(coorddf,idx_key='serial',pos_key=['x','y','z'],meta_key=['linkcell_idx','resname','resid','chain'],box=box)
+    topol.bonds.validate_images(box)
+    for bond in topol.bonds:
+        bond.oc_ldx=LC.ldx_of_cellndx(LC.cellndx_of_point(bond.COM))
+    Rings=RingList(topol.G)
+    Rings.injest_coordinates(coorddf,idx_key='serial',pos_key=['x','y','z'],meta_key=['linkcell_idx','resname','resid','chain'],box=box)
+    piercing_tally=[]
+    piercespecs=[]
+    for ring in Rings:
+        iat=topol.nonsolvent_atoms.get(serial=ring.idx[0])
+        chain,resid=iat.chainID,iat.resseqnum
+        oc=LC.ldx_of_cellndx(LC.cellndx_of_point(ring.O))
+        # logger.debug(f'ring {str(ring)} center in cell {oc} -- members in {ring.M["linkcell_idx"]}')
+        nc=LC.searchlist_of_ldx(oc)
+        # logger.debug(f'...search for bonds in cells {nc} and {oc}')
+        search_bonds=PSFBondList([])
+        for ldx in nc+[oc]:
+            this_sb=[b for b in topol.bonds if b.oc_ldx==ldx]
+            search_bonds.extend(this_sb)
+        # logger.debug(f'...search will include {len(search_bonds)} bonds')
+        piercings=[]
+        for bond in search_bonds:
+            # logger.debug(f'ring {str(ring)} and bond {bond.serial1}-{bond.serial2}')
+            p,r=ring.pierced_by(np.array([mic_shift(bond.atom1.r,ring.O,box),mic_shift(bond.atom2.r,ring.O,box)]))
+            piercings.append(p)
+        piercing_bonds=list(compress(search_bonds,piercings))
+        if len(piercing_bonds)>0:
+            ringname='- '+ ' -- '.join([str(topol.nonsolvent_atoms.get(serial=x)) for x in ring.idx]) + ' -'
+            logger.debug(f'ring {ringname}:')
+            for b in piercing_bonds:
+                # logger.debug(f'...{b.serial1}--{b.serial2}')
+                ai=topol.nonsolvent_atoms.get(serial=b.serial1)
+                aj=topol.nonsolvent_atoms.get(serial=b.serial2)
+                pchain,presid=ai.chainID,ai.resseqnum
+                piercespecs.append(dict(piercee=dict(chain=chain,resid=resid),piercer=dict(chain=pchain,resid=presid)))
+                logger.debug(f'  pierced by bond [ {str(ai)} -- {str(aj)} ]')
+        piercing_tally.append(any(piercings))
+    return piercespecs

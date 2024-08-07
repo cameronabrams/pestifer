@@ -10,7 +10,7 @@ import numpy as np
 
 class TestRings(unittest.TestCase):
     def test_ringlist(self):
-        self.psf=PSFContents('test.psf',parse_topology=True)
+        self.psf=PSFContents('test.psf',parse_topology=['bonds'])
         self.G=self.psf.bonds.to_graph()
         self.Rings=RingList(self.G)
         logger.debug(f'{len(self.Rings)} rings detected.')
@@ -30,7 +30,7 @@ class TestRings(unittest.TestCase):
     def test_ringlist_coords(self):
         self.box,self.orig=cell_from_xsc('test.xsc')
         self.coorddf=coorddf_from_pdb('test.pdb')
-        self.topol=PSFContents('test.psf',parse_topology=True)
+        self.topol=PSFContents('test.psf',parse_topology=['bonds'])
         self.Rings=RingList(self.topol.G)
         self.Rings.injest_coordinates(self.coorddf,idx_key='serial',pos_key=['x','y','z'],box=self.box)
         self.assertTrue(all([x.same_image for x in self.Rings]))

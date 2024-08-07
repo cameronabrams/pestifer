@@ -68,6 +68,13 @@ if { $cubic == 1 } {
       lset sympad $d [expr 0.5*($maxspan-$thisspan)]
    }
 }
+
+# a note on origin from NAMD docs:
+# cellOrigin $ <$ center of periodic cell (Å) $ >$
+# Acceptable Values: position
+# Default Value: 0 0 0
+# Description: When position rescaling is used to control pressure, this location will remain constant. Also used as the center of the cell for wrapped output coordinates.
+
 foreach d {0 1 2} {
   lset box 0 $d [expr [lindex $minmax 0 $d] - $pad - [lindex $sympad $d]]
   lset box 1 $d [expr [lindex $minmax 1 $d] + $pad + [lindex $sympad $d]]
@@ -91,5 +98,12 @@ puts $fp "cellbasisvector3 0 0 [lindex $basisvec 2]"
 puts $fp "cellorigin $origin"
 close $fp
 vmdcon -info "${scriptname}: Generated ${outbasename}_cell.tcl."
+
+set fp [open "${outbasename}.xsc" "w"]
+puts $fp "#$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z"
+puts $fp "0 [lindex $basisvec 0] 0 0 0 [lindex $basisvec 1] 0 0 0 [lindex $basisvec 2] $origin"
+close $fp
+vmdcon -info "${scriptname}: Generated ${outbasename}.xsc."
+
 
 quit

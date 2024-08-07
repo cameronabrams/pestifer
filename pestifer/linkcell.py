@@ -10,42 +10,48 @@ from functools import partial
 logger=logging.getLogger(__name__)
 
 class Linkcell:
-    """ Handles the link-cell algorithm"""
-    def __init__(self,box,cutoff=10.0,origin=np.array([0,0,0]),atidxlabel='serial',atposlabel=['x','y','z']):
+    """ Handles the link-cell algorithm """
+    def __init__(self,corners=np.array([[0,0,0],[100,100,100]],dtype=float),cutoff=10.0,atidxlabel='serial',atposlabel=['x','y','z']):
         """__init__ Constructor for an empty Linkcell object
 
-        :param box: system box size, defaults to []
-        :type box: list, optional
+        :param corners: lower-left and upper-right corner coordinates for the box
+        :type corners: np.array
         :param cutoff: cutoff distance, defaults to None
         :type cutoff: float, optional
-        :param wrap_point: function used on any 3-D point to wrap it into the central image (provided by HTPolyNet.configuration)
+        :param wrap_point: function used on any 3-D point to wrap it into the central image
         """
-        # if box.shape==(3,3):
-        #     box=np.diagonal(box)
+
         self.cutoff=cutoff
-        self.box=box
-        self.origin=origin
+        # self.box=box # box cell dimensions
+        # self.origin=origin # by NAMD convention, origin is the CENTER of the box
+        self.lower_left_corner,self.upper_right_corner=corners
+        self.sidelengths=self.upper_right_corner-self.lower_left_corner
         self.atidxlabel=atidxlabel
         self.atposlabel=atposlabel
         # number of cells along x, y, and z directions
-        self.ncells=np.floor(np.diagonal(self.box)/self.cutoff).astype(int)
+        self.ncells=np.floor(self.sidelengths/self.cutoff).astype(int)
+        # logger.debug(f'{self.ncells}')
         # dimensions of one cell
-        self.celldim=np.diagonal(box)/self.ncells
+        self.celldim=self.sidelengths/self.ncells
         # 3-d array of lower left corner as a 3-space point, indexed by i,j,k
         # initialized to all zeros, calculated below
         self.cells=np.zeros((*self.ncells,3))
         # 1-d array of (i,j,k) indices indexed by linear cell index (0...ncells-1)
         self.cellndx=np.array(list(product(*[np.arange(x) for x in self.ncells])))
+        # logger.debug(f'{self.cellndx[0]} to {self.cellndx[-1]}')
+        # logger.debug(f'{self.ldx_of_cellndx(self.cellndx[0])} to {self.ldx_of_cellndx(self.cellndx[-1])}')
+        # logger.debug(f'{self.celldim} {len(self.cells)} {len(self.cellndx)}')
         # 3-d array of lower left corner as a 3-space point, indexed by i,j,k
         for t in self.cellndx:
             i,j,k=t
-            self.cells[i,j,k]=self.celldim*np.array([i,j,k])+self.origin
+            self.cells[i,j,k]=self.celldim*np.array([i,j,k])+self.lower_left_corner
+        # logger.debug(f'{self.cellndx[-1]}')
         # set up neighbor lists using linear indices
         self.make_neighborlists()
         logger.debug(f'Linkcell structure: {len(self.cellndx)} cells ({self.ncells}) dim {self.celldim}')
 
     def wrap_point(self,ri):
-        """wrap_point wraps point ri into the central periodic image
+        """wrap_point wraps point ri into the base periodic image
 
         :param ri: a point
         :type ri: np.ndarray(3,float)
@@ -55,11 +61,11 @@ class Linkcell:
         R=ri.copy()
         box_lengths=np.array([0,0,0],dtype=int)
         for i in range(3):
-            while R[i]<self.origin[i]:
-                R[i]+=self.box[i][i]
+            while R[i]<self.lower_left_corner[i]:
+                R[i]+=self.sidelengths[i]
                 box_lengths[i]+=1
-            while R[i]>=(self.origin[i]+self.box[i][i]):
-                R[i]-=self.box[i][i]
+            while R[i]>=self.upper_right_corner[i]:
+                R[i]-=self.sidelengths[i]
                 box_lengths[i]-=1
         return R,box_lengths
 
@@ -72,12 +78,14 @@ class Linkcell:
         :rtype: (int,int,int)
         """
         wrapR,bl=self.wrap_point(R)
+        wrapR-=self.lower_left_corner
         C=np.floor(wrapR*np.reciprocal(self.celldim)).astype(int)
         lowdim=(C<np.zeros(3).astype(int)).astype(int) # will never happen if R is wrapped
         hidim=(C>=self.ncells).astype(int) # could happen if exactly there
         if (any(lowdim) or any(hidim)):
             logger.warning(f'Warning: point {R} maps to out-of-bounds-cell {C} ({self.ncells})')
-            logger.warning(f'box: {self.box}')
+            logger.warning(f'lower-left: {self.lower_left_corner}')
+            logger.warning(f'upper-right: {self.upper_right_corner}')
         C+=lowdim
         C-=hidim
         return C
@@ -130,7 +138,8 @@ class Linkcell:
         :rtype: int
         """
         nc=self.ncells
-        xc=C[0]*nc[1]*nc[2]+C[1]*nc[1]+C[2]
+        xc=C[2]*nc[0]*nc[1]+C[1]*nc[1]+C[0]
+        # xc=C[0]*nc[1]*nc[2]+C[1]*nc[1]+C[2]
         return xc
 
     def cellndx_of_ldx(self,i):
@@ -176,7 +185,7 @@ class Linkcell:
 
         """
         N=adf.shape[0]
-        logger.debug(f'Linkcell: assigning cell indices to {N} atoms in {self.box}...')
+        logger.debug(f'Linkcell: assigning cell indices to {N} atoms in {self.lower_left_corner} -- {self.upper_right_corner}...')
         adf['linkcell_idx']=-1*np.ones(N).astype(int)
         self.memberlists=[[] for _ in range(self.cellndx.shape[0])]
         ess='s' if ncpu>1 else ''
@@ -189,7 +198,7 @@ class Linkcell:
         rdf=pd.DataFrame()
         for a in result:
             rdf=pd.concat((rdf,a))
-        logger.debug(f'{rdf.head().to_string()}')
+        logger.debug(f'\n{rdf.head().to_string()}\n{rdf.tail().to_string()}')
         adf['linkcell_idx']=rdf['linkcell_idx'].copy()
 
         idx_list=adf[self.atidxlabel].to_list()
@@ -218,8 +227,11 @@ class Linkcell:
         """make_neighborlists populates the neighborlist member, one element per cell; each element is the list of neighbors of that cell
         """
         self.neighborlists=[[] for _ in range(self.cellndx.shape[0])]
+        # logger.debug(f'{self.cellndx[-1]}')
         for C in self.cellndx:
             idx=self.ldx_of_cellndx(C)
+            # if any(C>self.cellndx[-1]):
+            # logger.debug(f'{C} {self.cellndx[-1]} {C>self.cellndx[-1]} {idx}')
             for D in self.neighbors_of_cellndx(C):
                 if self.ldx_of_cellndx(D)!=idx:
                     self.neighborlists[idx].append(self.ldx_of_cellndx(D))

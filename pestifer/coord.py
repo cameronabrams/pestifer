@@ -139,10 +139,26 @@ def coorddf_from_pdb(pdb):
     p=PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()
     atlist=p.parsed['ATOM']
     serial=[x.serial for x in atlist]
+    name=[x.name for x in atlist]
     x=[x.x for x in atlist]
     y=[x.y for x in atlist]
     z=[x.z for x in atlist]
+    alt=[x.altLoc for x in atlist]
     resname=[x.residue.resName for x in atlist]
     resid=[x.residue.seqNum for x in atlist]
     chain=[x.residue.chainID for x in atlist]
-    return pd.DataFrame({'serial':serial,'x':x,'y':y,'z':z,'resname':resname,'resid':resid,'chain':chain})
+    ins=[x.residue.iCode for x in atlist]
+    return pd.DataFrame({'serial':serial,'name':name,'x':x,'y':y,'z':z,'resname':resname,'resid':resid,'chain':chain,'altloc':alt,'insertion':ins})
+
+def mic_shift(point,ref,box):
+    hbox=np.diagonal(box)/2
+    cpoint=point.copy()
+    d=cpoint-ref
+    for i in range(3):
+        while d[i]<-hbox[i]:
+            cpoint[i]+=box[i][i]
+            d=cpoint-ref
+        while d[i]>=hbox[i]:
+            cpoint[i]-=box[i][i]
+            d=cpoint-ref
+    return cpoint

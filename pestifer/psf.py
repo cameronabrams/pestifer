@@ -8,6 +8,9 @@ from .stringthings import split_ri
 from .config import segtype_of_resname, Config
 import networkx as nx 
 import numpy as np
+import logging
+
+logger=logging.getLogger(__name__)
 
 class PSFAtom(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['serial','chainID','resseqnum','insertion','resname','name','type','charge','atomicwt']
@@ -70,7 +73,8 @@ class PSFAtom(AncestorAwareMod):
         # logger.debug(f'atom r {self.r}')
         self.meta={}
         for key in meta_key:
-            self.meta[key]=A[A[idx_key]==self.serial][meta_key].values[0]
+            self.meta[key]=A[A[idx_key]==self.serial][key].values[0]
+            # logger.debug(f'{key} {self.meta[key]}')
 
 class PSFAtomList(AncestorAwareModList):
     @singledispatchmethod
@@ -152,18 +156,21 @@ class PSFBondList(AncestorAwareModList):
             tokens=[int(x) for x in line.split()]
             assert len(tokens)%2==0,f'Poorly formatted BOND line in psffile?'
             for l,r in zip(tokens[:-1:2],tokens[1::2]):
-                if len(ok_serials)>0:
-                    if l in ok_serials and r in ok_serials:
-                        # logger.debug(f'admitting {l}-{r}...')
+                if not ok_serials: B.append(PSFBond([l,r]))
+                else:
+                    try:
+                        li=ok_serials.index(l)
+                        ri=ok_serials.index(r)
                         b=PSFBond([l,r])
-                        b.atom1=include_only[ok_serials.index(l)]
-                        b.atom2=include_only[ok_serials.index(r)]
+                        b.atom1=include_only[li]
+                        b.atom2=include_only[ri]
                         b.atom1.add_ligand(b.atom2)
                         b.atom2.add_ligand(b.atom1)
                         B.append(b)
-                else:
-                    B.append(PSFBond([l,r]))
-
+                        if len(B)%1000==0:
+                            logger.debug(f'{len(B)}...')
+                    except:
+                        pass
         super().__init__(B)
 
     def to_graph(self):
@@ -178,9 +185,137 @@ class PSFBondList(AncestorAwareModList):
             res.append(b.validate_image(box))
         return all(res)
 
+class PSFAngle(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['serial1','serial2','serial3']
+    @singledispatchmethod
+    def __init__(self,input_obj):
+        super().__init__(input_obj)
 
+    @__init__.register(list)
+    def _from_psflines(self,triplet):
+        input_dict={
+            'serial1':triplet[0],
+            'serial2':triplet[1],
+            'serial3':triplet[2]
+        }
+        super().__init__(input_dict)
+
+    def __eq__(self,other):
+        return [self.serial1,self.serial2,self.serial3]==[other.serial1,other.serial2,other.serial3] or [self.serial1,self.serial2,self.serial3]==[other.serial3,other.serial2,other.serial1] 
+        
+    def validate_image(self,box):
+        minboxlen=min([box[i][i] for i in [0,1,2]])
+        ri=self.atom1.r
+        rj=self.atom2.r
+        rk=self.atom3.r
+        self.COM=0.5*(ri+rj+rk)
+        in_same_img=[np.linalg.norm(ri-self.COM)<(minboxlen/2),np.linalg.norm(rj-self.COM)<(minboxlen/2),np.linalg.norm(rk-self.COM)<(minboxlen/2)]
+        return all(in_same_img)
+
+class PSFAngleList(AncestorAwareModList):
+
+    @singledispatchmethod
+    def __init__(self,input_obj,**kwargs):
+        super().__init__(input_obj)
+
+    @__init__.register(list)
+    def _from_psflines(self,lines,include_only=PSFAtomList([])):
+        ok_serials=[]
+        if len(include_only)>0:
+            ok_serials=[x.serial for x in include_only]
+            logger.debug(f'only including from among {len(ok_serials)} atom serials...')
+        A=[]
+        for line in lines:
+            tokens=[int(x) for x in line.split()]
+            assert len(tokens)%3==0,f'Poorly formatted THETA line in psffile?'
+            for l,c,r in zip(tokens[:-2:3],tokens[1:-1:3],tokens[2::3]):
+                if len(ok_serials)>0:
+                    if all([_ in ok_serials for _ in [l,c,r]]):
+                        # logger.debug(f'admitting {l}-{r}...')
+                        a=PSFAngle([l,c,r])
+                        a.atom1=include_only[ok_serials.index(l)]
+                        a.atom2=include_only[ok_serials.index(c)]
+                        a.atom3=include_only[ok_serials.index(r)]
+                        A.append(a)
+                else:
+                    A.append(PSFAngle([l,c,r]))
+
+        super().__init__(A)
+
+    def validate_images(self,box):
+        res=[]
+        for a in self:
+            res.append(a.validate_image(box))
+        return all(res)
+
+class PSFDihedral(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['serial1','serial2','serial3','serial4']
+    @singledispatchmethod
+    def __init__(self,input_obj):
+        super().__init__(input_obj)
+
+    @__init__.register(list)
+    def _from_psflines(self,quad):
+        input_dict={
+            'serial1':quad[0],
+            'serial2':quad[1],
+            'serial3':quad[2],
+            'serial4':quad[3]
+        }
+        super().__init__(input_dict)
+
+    def __eq__(self,other):
+        return [self.serial1,self.serial2,self.serial3,self.serial4]==[other.serial1,other.serial2,other.serial3,other.serial4] or [self.serial1,self.serial2,self.serial3,self.serial4]==[other.serial4,other.serial3,other.serial2,other.serial1] 
+        
+    def validate_image(self,box):
+        minboxlen=min([box[i][i] for i in [0,1,2]])
+        ri=self.atom1.r
+        rj=self.atom2.r
+        rk=self.atom3.r
+        rl=self.atom4.r
+        self.COM=0.5*(ri+rj+rk+rl)
+        in_same_img=[np.linalg.norm(ri-self.COM)<(minboxlen/2),np.linalg.norm(rj-self.COM)<(minboxlen/2),np.linalg.norm(rk-self.COM)<(minboxlen/2),np.linalg.norm(rl-self.COM)<(minboxlen/2)]
+        return all(in_same_img)
+
+class PSFDihedralList(AncestorAwareModList):
+
+    @singledispatchmethod
+    def __init__(self,input_obj,**kwargs):
+        super().__init__(input_obj)
+
+    @__init__.register(list)
+    def _from_psflines(self,lines,include_only=PSFAtomList([])):
+        ok_serials=[]
+        if len(include_only)>0:
+            ok_serials=[x.serial for x in include_only]
+            logger.debug(f'only including from among {len(ok_serials)} atom serials...')
+        D=[]
+        for line in lines:
+            tokens=[int(x) for x in line.split()]
+            assert len(tokens)%4==0,f'Poorly formatted PHI line in psffile?'
+            for i,j,k,l in zip(tokens[:-3:4],tokens[1:-2:4],tokens[2:-1:4],tokens[3::4]):
+                if len(ok_serials)>0:
+                    if all([_ in ok_serials for _ in [i,j,k,l]]):
+                        # logger.debug(f'admitting {l}-{r}...')
+                        d=PSFDihedral([i,j,k,l])
+                        d.atom1=include_only[ok_serials.index(i)]
+                        d.atom2=include_only[ok_serials.index(j)]
+                        d.atom3=include_only[ok_serials.index(k)]
+                        d.atom4=include_only[ok_serials.index(l)]
+                        D.append(d)
+                else:
+                    D.append(PSFDihedral([i,j,k,l]))
+
+        super().__init__(D)
+
+    def validate_images(self,box):
+        res=[]
+        for a in self:
+            res.append(a.validate_image(box))
+        return all(res)
+    
 class PSFContents:
-    def __init__(self,filename,include_solvent=False,parse_topology=False):
+    def __init__(self,filename,include_solvent=False,parse_topology=[]):
         logger.debug(f'Reading {filename}...')
         with open(filename,'r') as f:
             psflines=f.read().split('\n')
@@ -221,14 +356,21 @@ class PSFContents:
             logger.debug(f'Parsing all topology information in {filename}...This may take a while.')
             self.protein_atoms=self.atoms.get(segtype='protein')
             self.glycan_atoms=self.atoms.get(segtype='glycan')
+            self.lipid_atoms=self.atoms.get(segtype='lipid')
             self.nonsolvent_atoms=PSFAtomList([])
             if self.protein_atoms: self.nonsolvent_atoms.extend(self.protein_atoms)
             if self.glycan_atoms: self.nonsolvent_atoms.extend(self.glycan_atoms)
+            if self.lipid_atoms: self.nonsolvent_atoms.extend(self.lipid_atoms)
             logger.debug(f'{len(self.nonsolvent_atoms)} non-solvent atoms')
-            self.bonds=PSFBondList(self.token_lines['BOND'],include_only=(self.nonsolvent_atoms if not include_solvent else []))
-            self.G=self.bonds.to_graph()
-            logger.debug(f'Parsed {len(self.bonds)} bonds')
-
-            # self.angles=PSFAngleList(self.token_lines['THETA'],include_only=(nonsolvent_atoms if not include_solvent else []))
-            # self.dihedrals=PSFDihedralList(self.token_lines['PHI'],include_only=(nonsolvent_atoms if not include_solvent else []))
+            if 'bonds' in parse_topology:
+                self.bonds=PSFBondList(self.token_lines['BOND'],include_only=(self.nonsolvent_atoms if not include_solvent else []))
+                logger.debug(f'Creating graph from {len(self.bonds)} bonds...')
+                self.G=self.bonds.to_graph()
+                logger.debug(f'Parsed {len(self.bonds)} bonds.')
+            if 'angles' in parse_topology:
+                self.angles=PSFAngleList(self.token_lines['THETA'],include_only=(self.nonsolvent_atoms if not include_solvent else []))
+            if 'dihedrals' in parse_topology:
+                self.dihedrals=PSFDihedralList(self.token_lines['PHI'],include_only=(self.nonsolvent_atoms if not include_solvent else []))
+            if 'impropers' in parse_topology:
+                self.dihedrals=PSFDihedralList(self.token_lines['IMPHI'],include_only=(self.nonsolvent_atoms if not include_solvent else []))
             
