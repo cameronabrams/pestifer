@@ -1168,9 +1168,9 @@ class RingCheckTask(BaseTask):
         if result:
             pg=self.writers['psfgen']
             pg.newscript(self.basename)
-            # pg.topo_aliases()
             pg.load_project(psf,pdb)
             for r in result:
+                logger.debug(f'Delting chain {r["piercee"]["chain"]} residue {r["piercee"]["resid"]}')
                 pg.addline(f'delatom {r["piercee"]["chain"]} {r["piercee"]["resid"]}')
             pg.writescript(self.basename)
             pg.runscript()
