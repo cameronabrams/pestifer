@@ -896,6 +896,19 @@ directives:
     type: list
     text: Specifies the tasks to be performed serially
     directives:
+      - name: restart
+        text: Restart from specified pdb, psf, and (optionally) xsc files without any further modifications (suitable for directly feeding to md tasks)
+        type: dict
+        directives:
+          - name: psf
+            text: name of psf file (w/optional psf extension)
+            type: str
+          - name: pdb
+            text: name of pdb file (w/optional pdb extension)
+            type: str
+          - name: xsc
+            text: name of xsc file (w/optional xsc extension)
+            type: str
       - name: psfgen
         text: Parameters controlling a psfgen run on an input molecule
         type: dict
@@ -913,6 +926,9 @@ directives:
                     type: str
                   - name: pdb
                     text: name of pdb file (includes pdb extension)
+                    type: str
+                  - name: xsc
+                    text: name of xsc file (includes xsc extension)
                     type: str
               - name: id 
                 text: The 4-character PDB ID of the source or the basename of a local coordinate file (PDB or mmCIF format); pestifer will download from the RCSB if a file is not found

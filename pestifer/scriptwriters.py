@@ -117,7 +117,7 @@ class VMD(Scriptwriter):
             self.addline(f'mol new {mol.sourcespecs["id"]}{ext} waitfor all')
         elif mol.sourcespecs.get('prebuilt',{}):
             pdb=mol.sourcespecs['prebuilt']['pdb']
-            self.addline(f'mol new {pdb} waitfor all')
+            self.addline(f'mol new {pdb} waitfor all autobonds off')
         elif mol.sourcespecs.get('alphafold',{}):
             pdb=f'{mol.sourcespecs["alphafold"]}.pdb'
             self.addline(f'mol new {pdb} waitfor all')

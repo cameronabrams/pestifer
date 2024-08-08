@@ -30,7 +30,7 @@ class Linkcell:
         self.atposlabel=atposlabel
         # number of cells along x, y, and z directions
         self.ncells=np.floor(self.sidelengths/self.cutoff).astype(int)
-        # logger.debug(f'{self.ncells}')
+        logger.debug(f'{self.ncells}')
         # dimensions of one cell
         self.celldim=self.sidelengths/self.ncells
         # 3-d array of lower left corner as a 3-space point, indexed by i,j,k
@@ -38,14 +38,14 @@ class Linkcell:
         self.cells=np.zeros((*self.ncells,3))
         # 1-d array of (i,j,k) indices indexed by linear cell index (0...ncells-1)
         self.cellndx=np.array(list(product(*[np.arange(x) for x in self.ncells])))
-        # logger.debug(f'{self.cellndx[0]} to {self.cellndx[-1]}')
-        # logger.debug(f'{self.ldx_of_cellndx(self.cellndx[0])} to {self.ldx_of_cellndx(self.cellndx[-1])}')
-        # logger.debug(f'{self.celldim} {len(self.cells)} {len(self.cellndx)}')
+        logger.debug(f'{self.cellndx[0]} to {self.cellndx[-1]}')
+        logger.debug(f'{self.ldx_of_cellndx(self.cellndx[0])} to {self.ldx_of_cellndx(self.cellndx[-1])}')
+        logger.debug(f'{self.celldim} {len(self.cells)} {len(self.cellndx)}')
         # 3-d array of lower left corner as a 3-space point, indexed by i,j,k
         for t in self.cellndx:
             i,j,k=t
             self.cells[i,j,k]=self.celldim*np.array([i,j,k])+self.lower_left_corner
-        # logger.debug(f'{self.cellndx[-1]}')
+        logger.debug(f'{self.cellndx[-1]}')
         # set up neighbor lists using linear indices
         self.make_neighborlists()
         logger.debug(f'Linkcell structure: {len(self.cellndx)} cells ({self.ncells}) dim {self.celldim}')
@@ -67,6 +67,9 @@ class Linkcell:
             while R[i]>=self.upper_right_corner[i]:
                 R[i]-=self.sidelengths[i]
                 box_lengths[i]-=1
+        if not np.all(R==R):
+            logger.debug(f'{ri} {self.sidelengths} -> {R}')
+            exit(-1)
         return R,box_lengths
 
     def cellndx_of_point(self,R):
@@ -138,6 +141,7 @@ class Linkcell:
         :rtype: int
         """
         nc=self.ncells
+        # logger.debug(f'{C} {nc}')
         xc=C[2]*nc[0]*nc[1]+C[1]*nc[1]+C[0]
         # xc=C[0]*nc[1]*nc[2]+C[1]*nc[1]+C[2]
         return xc
@@ -161,8 +165,11 @@ class Linkcell:
         :rtype: pandas.DataFrame
         """
         sp=adf[self.atposlabel]
+        logger.debug(f'\n{sp.head()}')
         for i,srow in sp.iterrows():
             ri=srow.values
+            if not np.any(ri==ri):
+                logger.debug(f'{i} {ri}')
             C=self.cellndx_of_point(ri)
             idx=self.ldx_of_cellndx(C)
             adf.loc[i,'linkcell_idx']=idx

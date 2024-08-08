@@ -228,6 +228,17 @@ class BaseTask(BaseMod):
                 copies.append(ffile)
         logger.debug(f'Copy state inherited {", ".join(copies)}')
         
+class RestartTask(BaseTask):
+    yaml_header='restart'
+    def do(self):
+        self.next_basename()
+        exts_actual=[]
+        for ext in ['psf','coor','pdb','xsc']:
+            fname=self.specs.get(ext,'')
+            if fname:
+                shutil.copy(fname,f'{self.basename}.{ext}')
+                exts_actual.append(ext)
+        self.save_state(exts=exts_actual)
 
 class MDTask(BaseTask):
     """ A class for handling all NAMD2 runs
@@ -631,6 +642,9 @@ class PsfgenTask(BaseTask):
             key=self.source_specs['id']
         elif self.source_specs.get('prebuilt',{}):
             key=f'{self.source_specs["prebuilt"]["psf"]}-{self.source_specs["prebuilt"]["pdb"]}'
+            xsc=self.source_specs.get('xsc','')
+            if xsc:
+                self.update_statevars('xsc',xsc)
         elif self.source_specs.get('alphafold',{}):
             key=f'{self.source_specs["alphafold"]}'
         else:
@@ -656,10 +670,12 @@ class PsfgenTask(BaseTask):
         # assert base_key!='UNSET',f'Cannot update a non-existent base molecule'
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
+        xsc=self.statevars.get('xsc','')
         source={
             'prebuilt': {
                 'psf':psf,
-                'pdb':pdb
+                'pdb':pdb,
+                'xsc':xsc
             }
         }
         if hasattr(self,'chainIDManager') and hasattr(self,'modmanager'):

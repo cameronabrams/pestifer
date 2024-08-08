@@ -193,7 +193,7 @@ proc PestiferUtil::namdbin2pdb { psf coor pdb } {
 }
 
 proc PestiferUtil::pdb2namdbin { pdb coor } {
-   mol new $pdb      
+   mol new $pdb waitfor all autobonds off
    set a [atomselect top all]
    $a writenamdbin $coor
 }

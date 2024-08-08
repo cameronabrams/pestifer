@@ -42,6 +42,7 @@ class Molecule(AncestorAwareMod):
                     logger.debug(f'prebuilt rec [{source["prebuilt"]}]')
                     psf=source['prebuilt']['psf']
                     pdb=source['prebuilt']['pdb']
+                    xsc=source['prebuilt'].get('xsc','')
                     logger.debug(f'Using prebuilt psf {psf} and pdb {pdb}')
                     pdb_pseudocode,ext=os.path.splitext(pdb)
                     p_struct=PDBParser(PDBcode=pdb_pseudocode).parse().parsed

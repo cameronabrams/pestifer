@@ -1,4 +1,5 @@
 from pestifer.linkcell import Linkcell
+from pestifer.util import cell_from_xsc
 import unittest
 from pestifer.tasks import *
 import os
@@ -45,7 +46,14 @@ class TestLinkcell(unittest.TestCase):
         x=[x.x for x in atlist]
         y=[x.y for x in atlist]
         z=[x.z for x in atlist]
+        if not all([_==_ for _ in x]):
+            for i,_ in enumerate(x):
+                if not _==_:
+                    logger.debug(f'{atlist[i]}')
+        self.assertTrue(all([_==_ for _ in y]))
+        self.assertTrue(all([_==_ for _ in z]))
         coorddf=pd.DataFrame({'serial':serial,'x':x,'y':y,'z':z})
+        self.assertFalse(coorddf.isnull().values.any())
         LC.populate(coorddf,ncpu=os.cpu_count())
         self.assertEqual(np.round(LC.avg_cell_pop,0),109.0)
         self.assertTrue('linkcell_idx' in coorddf)
