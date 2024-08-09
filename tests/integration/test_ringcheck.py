@@ -24,8 +24,13 @@ class TestRingCheck(unittest.TestCase):
         psf=os.path.join(dir,'S2.psf')
         xsc=os.path.join(dir,'test.xsc')
         result=ring_check(psf,pdb,xsc)
-        self.assertEqual(len(result),1)
+        self.assertEqual(len(result),2)
         p=result[0]
+        self.assertEqual(p['piercee']['resid'],45)
+        self.assertEqual(p['piercee']['chain'],'S2')
+        self.assertEqual(p['piercer']['resid'],595)
+        self.assertEqual(p['piercer']['chain'],'S2')
+        p=result[1]
         self.assertEqual(p['piercee']['resid'],67)
         self.assertEqual(p['piercee']['chain'],'S2')
         self.assertEqual(p['piercer']['resid'],645)
