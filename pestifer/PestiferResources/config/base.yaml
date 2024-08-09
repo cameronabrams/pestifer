@@ -909,6 +909,10 @@ directives:
           - name: xsc
             text: name of xsc file (w/optional xsc extension)
             type: str
+          - name: index
+            text: first task index in the restart
+            type: int
+            default: 0
       - name: psfgen
         text: Parameters controlling a psfgen run on an input molecule
         type: dict

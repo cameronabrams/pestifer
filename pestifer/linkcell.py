@@ -208,14 +208,23 @@ class Linkcell:
         logger.debug(f'\n{rdf.head().to_string()}\n{rdf.tail().to_string()}')
         adf['linkcell_idx']=rdf['linkcell_idx'].copy()
 
-        idx_list=adf[self.atidxlabel].to_list()
-        for i in idx_list:
-            lc_idx=adf[adf[self.atidxlabel]==i]['linkcell_idx'].values[0]
-            try:
-                self.memberlists[lc_idx].append(i)
-            except:
-                logger.debug(f'Linear linkcell index {lc_idx} of atom {i} is out of range.\ncellndx.shape[0] is {self.cellndx.shape[0]}\nThis is a bug.')
-                raise Exception
+        if self.atidxlabel==None:
+            for i,row in adf.iterrows():
+                lc_idx=row['linkcell_idx']
+                try:
+                    self.memberlists[lc_idx].append(i)
+                except:
+                    logger.debug(f'Linear linkcell index {lc_idx} of atom {i} is out of range.\ncellndx.shape[0] is {self.cellndx.shape[0]}\nThis is a bug.')
+                    raise Exception
+        else:
+            idx_list=adf[self.atidxlabel].to_list()
+            for i in idx_list:
+                lc_idx=adf[adf[self.atidxlabel]==i]['linkcell_idx'].values[0]
+                try:
+                    self.memberlists[lc_idx].append(i)
+                except:
+                    logger.debug(f'Linear linkcell index {lc_idx} of atom {i} is out of range.\ncellndx.shape[0] is {self.cellndx.shape[0]}\nThis is a bug.')
+                    raise Exception
 
         idx_list=list(range(len(self.memberlists)))
         p=Pool(processes=ncpu)

@@ -13,6 +13,9 @@ Once installed, the user has access to the main `pestifer` command. You must hav
 
 ## Release History
 * 1.4.6:
+    * pierced ring detection and remediation via the `ring_check` task
+    * `restart` task added
+    * automatic detection of SLURM environment for multi-node MD runs
     * `--config-updates` option for `fetch-example` and `run-example` subcommands implemented
     * progress bars enabled for NAMD, psfgen, and packmol
     * `--kick-ass-banner` option implemented -- check it out!
@@ -25,7 +28,7 @@ Once installed, the user has access to the main `pestifer` command. You must hav
 * 1.4.4:
     * now includes Tcllib 2.0
     * bugfixes:
-      * the `HEAL` patch neglected to set the charges on the C-terminal CA and HB correctly, leading to slight charging for systems where loops are ligated in.  This is fixed.
+      * fixed incorrect charges on the C-terminal CA and HB in the `HEAL` patch
 * 1.4.3:
     * update ambertools version requirement to 23.6; no more packmol-memgen/pdbremix error
     * bugfixes: 
@@ -36,7 +39,7 @@ Once installed, the user has access to the main `pestifer` command. You must hav
 * 1.4.1:
     * support for empty TER records
 * 1.4.0:
-    * `packmol-memgen` integration
+    * initial `packmol-memgen` integration
 * 1.3.9:
     * added `include_C_termini` boolean to `declash` directives; set to `False` to prevent C-terminal insertions from undergoing automatic declashing
 * 1.3.8

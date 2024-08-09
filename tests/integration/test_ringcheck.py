@@ -1,14 +1,8 @@
 import unittest
-from pestifer.linkcell import Linkcell
-from pestifer.ring import RingList, ring_check
-from pestifer.coord import coorddf_from_pdb,mic_shift
-from pestifer.util import cell_from_xsc
-from pestifer.psf import PSFContents,PSFBondList
+from pestifer.ring import ring_check
 import os
 import logging
-from itertools import compress
 logger=logging.getLogger(__name__)
-import numpy as np
 
 class TestRingCheck(unittest.TestCase):
     def test_ring_check_coords_1(self):

@@ -148,7 +148,7 @@ def coorddf_from_pdb(pdb):
     resid=[x.residue.seqNum for x in atlist]
     chain=[x.residue.chainID for x in atlist]
     ins=[x.residue.iCode for x in atlist]
-    return pd.DataFrame({'serial':serial,'name':name,'x':x,'y':y,'z':z,'resname':resname,'resid':resid,'chain':chain,'altloc':alt,'insertion':ins})
+    return pd.DataFrame({'name':name,'x':x,'y':y,'z':z,'resname':resname,'resid':resid,'chain':chain,'altloc':alt,'insertion':ins},index=serial)
 
 def mic_shift(point,ref,box):
     hbox=np.diagonal(box)/2

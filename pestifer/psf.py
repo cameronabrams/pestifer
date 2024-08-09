@@ -3,39 +3,35 @@
 """
 from .basemod import *
 from .mods import SSBond,SSBondList,Link,LinkList
-from functools import singledispatchmethod
+from .coord import mic_shift
 from .stringthings import split_ri
 from .config import segtype_of_resname, Config
 import networkx as nx 
 import numpy as np
+import pandas as pd
 import logging
+from copy import deepcopy
+from argparse import Namespace
 
 logger=logging.getLogger(__name__)
 
-class PSFAtom(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['serial','chainID','resseqnum','insertion','resname','name','type','charge','atomicwt']
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
-
-    @__init__.register(str)
-    def _from_psfatomline(self,atomline):
+class PSFAtom(Namespace):
+    def __init__(self,atomline):
         tokens=[x.strip() for x in atomline.split()]
         assert len(tokens)==9,f'cannot parse psf atomline: {atomline}'
         r,i=split_ri(tokens[2])
-        input_dict={
-            'serial':int(tokens[0]),
-            'chainID':tokens[1],
-            'resseqnum':r,
-            'insertion':i,
-            'resname':tokens[3],
-            'name':tokens[4],
-            'type':tokens[5],
-            'charge':float(tokens[6]),
-            'atomicwt':float(tokens[7])
-        }
+        super().__init__(
+            serial=int(tokens[0]),
+            chainID=tokens[1],
+            resseqnum=r,
+            insertion=i,
+            resname=tokens[3],
+            name=tokens[4],
+            type=tokens[5],
+            charge=float(tokens[6]),
+            atomicwt=float(tokens[7])
+        )
         self.ligands=[]
-        super().__init__(input_dict)
         if len(segtype_of_resname)==0:
             c=Config()
         self.segtype=segtype_of_resname[self.resname]
@@ -68,26 +64,37 @@ class PSFAtom(AncestorAwareMod):
     def add_attr(self,attrname,attrval):
         self.__dict__[attrname]=attrval
 
-    def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ'],meta_key=[],box=None):
-        self.r=A[A[idx_key]==self.serial][pos_key].to_numpy()[0]
+    def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ'],meta_key=[]):
+        if idx_key==None:
+            self.r=A.loc[self.serial][pos_key].to_numpy()[0]
+        else:
+            self.r=A[A[idx_key]==self.serial][pos_key].to_numpy()[0]
         # logger.debug(f'atom r {self.r}')
         self.meta={}
         for key in meta_key:
-            self.meta[key]=A[A[idx_key]==self.serial][key].values[0]
+            if idx_key==None:
+                self.meta[key]=A.loc[self.serial][key].values[0]
+            else:
+                self.meta[key]=A[A[idx_key]==self.serial][key].values[0]
             # logger.debug(f'{key} {self.meta[key]}')
 
-class PSFAtomList(AncestorAwareModList):
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
+    def match(self,**crits):
+        return all([self.__dict__[k]==v for k,v in crits.items()])
 
-    @__init__.register(list)
-    def _from_psflines(self,lines):
-        A=[]
-        for line in lines:
-            A.append(PSFAtom(line))
-        super().__init__(A)
+class PSFAtomList(UserList):
 
+    def __init__(self,atoms):
+        super().__init__(atoms)
+        self.df=pd.DataFrame({'chainID':[x.chainID for x in self],
+                              'resseqnum':[x.resseqnum for x in self],
+                              'insertion':[x.insertion for x in self],
+                              'resname':[x.resname for x in self],
+                              'name':[x.name for x in self],
+                              'type':[x.type for x in self],
+                              'charge':[x.charge for x in self],
+                              'atomicwt':[x.atomicwt for x in self]},
+                              index=[x.serial for x in self])
+        
     def add_attr(self,attrname,attrval):
         for item in self:
             item.add_attr(attrname,attrval)
@@ -101,52 +108,76 @@ class PSFAtomList(AncestorAwareModList):
                     g.add_edge(a,l)
         return g
     
-    def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ'],meta_key=[],box=None):
+    def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ']):
+        if idx_key==None:
+            self.df[pos_key]=A[pos_key]
+            for at,(i,row) in zip(self,self.df.iterrows()):
+                at.r=row[pos_key].to_numpy()[0]
+        else:
+            for at in self:
+                at.injest_coordinates(A,idx_key=idx_key,pos_key=pos_key)
+
+    def get(self,**crits):
+        result=[]
         for at in self:
-            at.injest_coordinates(A,idx_key=idx_key,pos_key=pos_key,meta_key=meta_key,box=box)
+            if at.match(**crits):
+                result.append(at)
+        return type(self)(result)
 
-class PSFBond(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['serial1','serial2']
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
+class PSFTopoElement(Namespace):
+    def __init__(self,idx_list):
+        a_dict={}
+        for i,idx in enumerate(idx_list):
+            a_dict.update({f'serial{i+1}':idx})
+        super().__init__(**a_dict)
+        self.idx_list=idx_list.copy()
 
-    @__init__.register(list)
-    def _from_psflines(self,pair):
-        input_dict={
-            'serial1':pair[0],
-            'serial2':pair[1]
-        }
-        super().__init__(input_dict)
-        self.is_attachment_site=False
+    def __len__(self):
+        return len(self.idx_list)
+    
+    def __str__(self):
+        return '-'.join([str(x) for x in self.idx_list])
+
+    def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ']):
+        if idx_key==None:
+            self.P=np.array(A.loc[self.idx_list][pos_key].values)
+        else:
+            self.P=np.array(A[A[idx_key].isin(self.idx_list)][pos_key].values)
+        self.COM=np.mean(self.P,axis=0)
+
+    def validate_image(self,box):
+        boxlen=np.array([box[i][i] for i in [0,1,2]])
+        in_same_img=np.linalg.norm(self.P-self.COM)<(boxlen/2)
+        self.same_image=np.all(in_same_img)
+        return self.same_image
+    
+    def mic_shift(self,reference_point,box):
+        for i in range(len(self.P)):
+            self.P[i]=mic_shift(self.P[i],reference_point,box)
+        return self
+
+    def copy(self):
+        return deepcopy(self)
+    
+class PSFTopoElementList(UserList):
+    def __init__(self,data):
+        super().__init__(data)
+
+    def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ']):
+        for b in self:
+            b.injest_coordinates(A,idx_key=idx_key,pos_key=pos_key)
+
+    def validate_images(self,box):
+        return all([b.validate_image(box) for b in self])
+    
+class PSFBond(PSFTopoElement):
 
     def __eq__(self,other):
         return [self.serial1,self.serial2]==[other.serial1,other.serial2] or [self.serial1,self.serial2]==[other.serial2,other.serial1] 
     
-    def is_pep(self):
-        if self.atom1.segtype=='protein' and self.atom2.segtype=='protein':
-            n12=[self.atom1.name,self.atom2.name]
-            if n12==['C','N'] or n12==['N','C']:
-                return True
-        return False
-    
-    def validate_image(self,box):
-        minboxlen=min([box[i][i] for i in [0,1,2]])
-        ri=self.atom1.r
-        rj=self.atom2.r
-        self.COM=0.5*(ri+rj)
-        in_same_img=[np.linalg.norm(ri-self.COM)<(minboxlen/2),np.linalg.norm(rj-self.COM)<(minboxlen/2)]
-        return all(in_same_img)
-    
+class PSFBondList(PSFTopoElementList):
 
-class PSFBondList(AncestorAwareModList):
-
-    @singledispatchmethod
-    def __init__(self,input_obj,**kwargs):
-        super().__init__(input_obj)
-
-    @__init__.register(list)
-    def _from_psflines(self,lines,include_only=PSFAtomList([])):
+    def __init__(self,lines,include_only=PSFAtomList([])):
         ok_serials=[]
         if len(include_only)>0:
             ok_serials=[x.serial for x in include_only]
@@ -162,13 +193,9 @@ class PSFBondList(AncestorAwareModList):
                         li=ok_serials.index(l)
                         ri=ok_serials.index(r)
                         b=PSFBond([l,r])
-                        b.atom1=include_only[li]
-                        b.atom2=include_only[ri]
-                        b.atom1.add_ligand(b.atom2)
-                        b.atom2.add_ligand(b.atom1)
                         B.append(b)
                         if len(B)%1000==0:
-                            logger.debug(f'{len(B)}...')
+                            logger.debug(f'{len(B)} psf bonds processed...')
                     except:
                         pass
         super().__init__(B)
@@ -179,47 +206,16 @@ class PSFBondList(AncestorAwareModList):
             g.add_edge(b.serial1,b.serial2)
         return g
 
-    def validate_images(self,box):
-        res=[]
-        for b in self:
-            res.append(b.validate_image(box))
-        return all(res)
 
-class PSFAngle(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['serial1','serial2','serial3']
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
-
-    @__init__.register(list)
-    def _from_psflines(self,triplet):
-        input_dict={
-            'serial1':triplet[0],
-            'serial2':triplet[1],
-            'serial3':triplet[2]
-        }
-        super().__init__(input_dict)
+class PSFAngle(PSFTopoElement):
 
     def __eq__(self,other):
         return [self.serial1,self.serial2,self.serial3]==[other.serial1,other.serial2,other.serial3] or [self.serial1,self.serial2,self.serial3]==[other.serial3,other.serial2,other.serial1] 
-        
-    def validate_image(self,box):
-        minboxlen=min([box[i][i] for i in [0,1,2]])
-        ri=self.atom1.r
-        rj=self.atom2.r
-        rk=self.atom3.r
-        self.COM=0.5*(ri+rj+rk)
-        in_same_img=[np.linalg.norm(ri-self.COM)<(minboxlen/2),np.linalg.norm(rj-self.COM)<(minboxlen/2),np.linalg.norm(rk-self.COM)<(minboxlen/2)]
-        return all(in_same_img)
 
-class PSFAngleList(AncestorAwareModList):
 
-    @singledispatchmethod
-    def __init__(self,input_obj,**kwargs):
-        super().__init__(input_obj)
+class PSFAngleList(PSFTopoElementList):
 
-    @__init__.register(list)
-    def _from_psflines(self,lines,include_only=PSFAtomList([])):
+    def __init__(self,lines,include_only=PSFAtomList([])):
         ok_serials=[]
         if len(include_only)>0:
             ok_serials=[x.serial for x in include_only]
@@ -233,58 +229,19 @@ class PSFAngleList(AncestorAwareModList):
                     if all([_ in ok_serials for _ in [l,c,r]]):
                         # logger.debug(f'admitting {l}-{r}...')
                         a=PSFAngle([l,c,r])
-                        a.atom1=include_only[ok_serials.index(l)]
-                        a.atom2=include_only[ok_serials.index(c)]
-                        a.atom3=include_only[ok_serials.index(r)]
                         A.append(a)
                 else:
                     A.append(PSFAngle([l,c,r]))
-
+            if len(A)%1000==0:
+                logger.debug(f'{len(A)} psf angles processed...')
         super().__init__(A)
 
-    def validate_images(self,box):
-        res=[]
-        for a in self:
-            res.append(a.validate_image(box))
-        return all(res)
-
-class PSFDihedral(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['serial1','serial2','serial3','serial4']
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
-
-    @__init__.register(list)
-    def _from_psflines(self,quad):
-        input_dict={
-            'serial1':quad[0],
-            'serial2':quad[1],
-            'serial3':quad[2],
-            'serial4':quad[3]
-        }
-        super().__init__(input_dict)
-
+class PSFDihedral(PSFTopoElement):
     def __eq__(self,other):
         return [self.serial1,self.serial2,self.serial3,self.serial4]==[other.serial1,other.serial2,other.serial3,other.serial4] or [self.serial1,self.serial2,self.serial3,self.serial4]==[other.serial4,other.serial3,other.serial2,other.serial1] 
-        
-    def validate_image(self,box):
-        minboxlen=min([box[i][i] for i in [0,1,2]])
-        ri=self.atom1.r
-        rj=self.atom2.r
-        rk=self.atom3.r
-        rl=self.atom4.r
-        self.COM=0.5*(ri+rj+rk+rl)
-        in_same_img=[np.linalg.norm(ri-self.COM)<(minboxlen/2),np.linalg.norm(rj-self.COM)<(minboxlen/2),np.linalg.norm(rk-self.COM)<(minboxlen/2),np.linalg.norm(rl-self.COM)<(minboxlen/2)]
-        return all(in_same_img)
 
-class PSFDihedralList(AncestorAwareModList):
-
-    @singledispatchmethod
-    def __init__(self,input_obj,**kwargs):
-        super().__init__(input_obj)
-
-    @__init__.register(list)
-    def _from_psflines(self,lines,include_only=PSFAtomList([])):
+class PSFDihedralList(PSFTopoElementList):
+    def __init__(self,lines,include_only=PSFAtomList([])):
         ok_serials=[]
         if len(include_only)>0:
             ok_serials=[x.serial for x in include_only]
@@ -298,21 +255,12 @@ class PSFDihedralList(AncestorAwareModList):
                     if all([_ in ok_serials for _ in [i,j,k,l]]):
                         # logger.debug(f'admitting {l}-{r}...')
                         d=PSFDihedral([i,j,k,l])
-                        d.atom1=include_only[ok_serials.index(i)]
-                        d.atom2=include_only[ok_serials.index(j)]
-                        d.atom3=include_only[ok_serials.index(k)]
-                        d.atom4=include_only[ok_serials.index(l)]
                         D.append(d)
                 else:
                     D.append(PSFDihedral([i,j,k,l]))
-
+            if len(D)%1000==0:
+                logger.debug(f'{len(D)} psf dihedrals processed...')
         super().__init__(D)
-
-    def validate_images(self,box):
-        res=[]
-        for a in self:
-            res.append(a.validate_image(box))
-        return all(res)
     
 class PSFContents:
     def __init__(self,filename,include_solvent=False,parse_topology=[]):
@@ -344,7 +292,7 @@ class PSFContents:
             self.token_lines[k]=psflines[fl:ll]
         logger.debug(f'{len(self.token_lines)} tokensets:')
         logger.debug(f'{", ".join([x for x in self.token_lines.keys()])}')
-        self.atoms=PSFAtomList(self.token_lines['ATOM'])
+        self.atoms=PSFAtomList([PSFAtom(x) for x in self.token_lines['ATOM']])
         logger.debug(f'{len(self.atoms)} total atoms...')
         self.ssbonds=SSBondList([SSBond(L) for L in self.patches.get('DISU',[])])
         self.links=LinkList([])

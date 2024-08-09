@@ -3,6 +3,7 @@ from pestifer.util import *
 import unittest
 from pestifer.tasks import *
 from pestifer.psf import PSFContents
+from pestifer.coord import coorddf_from_pdb
 import os
 from collections import UserList
 import numpy as np
@@ -10,14 +11,13 @@ import numpy as np
 
 class TestRings(unittest.TestCase):
     def test_ringlist(self):
-        self.psf=PSFContents('test.psf',parse_topology=['bonds'])
-        self.G=self.psf.bonds.to_graph()
-        self.Rings=RingList(self.G)
-        logger.debug(f'{len(self.Rings)} rings detected.')
-        nrings=len(self.Rings)
-        self.assertEqual(nrings,42)
+        psf=PSFContents('test.psf',parse_topology=['bonds'])
+        Rings=RingList(psf.G)
+        logger.debug(f'{len(Rings)} rings detected.')
+        nrings=len(Rings)
+        self.assertEqual(nrings,602)
         nrings_by_size={}
-        for r in self.Rings:
+        for r in Rings:
             s=len(r)
             if not s in nrings_by_size:
                 nrings_by_size[s]=0
@@ -28,9 +28,11 @@ class TestRings(unittest.TestCase):
         self.assertFalse(7 in nrings_by_size)
 
     def test_ringlist_coords(self):
-        self.box,self.orig=cell_from_xsc('test.xsc')
-        self.coorddf=coorddf_from_pdb('test.pdb')
-        self.topol=PSFContents('test.psf',parse_topology=['bonds'])
-        self.Rings=RingList(self.topol.G)
-        self.Rings.injest_coordinates(self.coorddf,idx_key='serial',pos_key=['x','y','z'],box=self.box)
-        self.assertTrue(all([x.same_image for x in self.Rings]))
+        box,orig=cell_from_xsc('test.xsc')
+        coorddf=coorddf_from_pdb('test.pdb')
+        topol=PSFContents('test.psf',parse_topology=['bonds'])
+        self.assertEqual(coorddf.shape[0],len(topol.atoms))
+        Rings=RingList(topol.G)
+        Rings.injest_coordinates(coorddf,idx_key=None,pos_key=['x','y','z'])
+        Rings.validate_images(box)
+        self.assertTrue(all([x.same_image for x in Rings]))

@@ -99,6 +99,8 @@ class BaseTask(BaseMod):
 
     def __init__(self,input_dict,taskname,config,writers,prior):
         specs=input_dict.copy()
+        BaseTask._taskcount=specs.get('index',BaseTask._taskcount)
+        logger.debug(f'Creating task {taskname} with index {BaseTask._taskcount}')
         input_dict = {
             'index':BaseTask._taskcount,
             'writers': writers,
@@ -231,6 +233,7 @@ class BaseTask(BaseMod):
 class RestartTask(BaseTask):
     yaml_header='restart'
     def do(self):
+        self.index=self.specs.get('task_number',0)
         self.next_basename()
         exts_actual=[]
         for ext in ['psf','coor','pdb','xsc']:
