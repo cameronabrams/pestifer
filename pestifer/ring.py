@@ -12,9 +12,9 @@ import logging
 logger=logging.getLogger(__name__)
 from .psf import PSFContents,PSFBondList,PSFTopoElementList,PSFTopoElement
 from .linkcell import Linkcell
-from .util import cell_from_xsc
-from .coord import coorddf_from_pdb, mic_shift
-from itertools import compress
+from .util import cell_from_xsc,countTime
+from .coord import coorddf_from_pdb
+import time
 
 def lawofcos(a,b):
     """lawofcos return the cosine of the angle defined by vectors a and b if they share a vertex (the LAW OF COSINES)
@@ -30,51 +30,51 @@ def lawofcos(a,b):
 
 class Ring(PSFTopoElement):
 
-    def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ']):
-        super().injest_coordinates(A,idx_key=idx_key,pos_key=pos_key)
+    # def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ']):
+    #     super().injest_coordinates(A,idx_key=idx_key,pos_key=pos_key)
         # logger.debug(f'COM {self.COM}')
-        iR=Ring(list(range(len(self.idx_list))))
-        a=iR.treadmill()
-        self.B=[]
-        for i,j in zip(iR.idx_list,next(a)):
-            b=self.P[i]-self.P[j]
-            # logger.debug(f'R-{self.idx[i]}-{self.idx[j]}: {b}')
-            self.B.append(b)
-            # logger.debug(f'R-{self.idx[i]}-{self.idx[j]}: {self.B[-1]}')
-        self.B=np.array(self.B)
-        # logger.debug(f'B {self.B}')
-        # Approximate the normal unit vector of the plane of the ring
-        # by averaging cross-products of all adjacent origin-to-vertex
-        # vectors.  This orients the unit vector such that it is 
-        # in the +z direction in the local coordinate system defined
-        # by the ring with vertices ordered in the counter-clockwise
-        # direction in the plane.
-        iR=Ring(list(range(len(self.idx_list))))
-        a=iR.treadmill()
-        self.C=[]
-        for i,j in zip(iR.idx_list,next(a)):
-            c=np.cross(self.B[i],self.B[j])
-            # logger.debug(f'C-{self.idx[i]}-{self.idx[j]}: {c}')
-            self.C.append(c)
-        self.C=np.array(self.C)
-        # logger.debug(f'C {self.C}')
-        n=np.sum(self.C,axis=0)
-        self.n=n/np.linalg.norm(n)
-        # logger.debug(f'n {self.n}')
-        # compute planarity as average of all
-        # cross-i-cross-i+1 dot products
-        iR=Ring(list(range(len(self.idx_list))))
-        a=iR.treadmill()
-        self.planarity=0
-        for i,j in zip(iR.idx_list,next(a)):
-            ci=self.C[i]
-            cj=self.C[j]
-            self.planarity+=lawofcos(ci,cj)
-        self.planarity/=len(self)
-        # get the d for n-dot-r + d = 0 equation of the plane
-        # n[0]*(x-O[0])+n[1]*(y-O[1])+n[2]*(z-O[2])=0
-        # n[0]*x + n[1]*y + n[2]*z - (n[0]*O[0]+n[1]*O[1]+n[2]*O[2]) = 0
-        self.d=-np.dot(self.n,self.COM)        
+        # iR=Ring(list(range(len(self.idx_list))))
+        # a=iR.treadmill()
+        # self.B=[]
+        # for i,j in zip(iR.idx_list,next(a)):
+        #     b=self.P[i]-self.P[j]
+        #     # logger.debug(f'R-{self.idx[i]}-{self.idx[j]}: {b}')
+        #     self.B.append(b)
+        #     # logger.debug(f'R-{self.idx[i]}-{self.idx[j]}: {self.B[-1]}')
+        # self.B=np.array(self.B)
+        # # logger.debug(f'B {self.B}')
+        # # Approximate the normal unit vector of the plane of the ring
+        # # by averaging cross-products of all adjacent origin-to-vertex
+        # # vectors.  This orients the unit vector such that it is 
+        # # in the +z direction in the local coordinate system defined
+        # # by the ring with vertices ordered in the counter-clockwise
+        # # direction in the plane.
+        # iR=Ring(list(range(len(self.idx_list))))
+        # a=iR.treadmill()
+        # self.C=[]
+        # for i,j in zip(iR.idx_list,next(a)):
+        #     c=np.cross(self.B[i],self.B[j])
+        #     # logger.debug(f'C-{self.idx[i]}-{self.idx[j]}: {c}')
+        #     self.C.append(c)
+        # self.C=np.array(self.C)
+        # # logger.debug(f'C {self.C}')
+        # n=np.sum(self.C,axis=0)
+        # self.n=n/np.linalg.norm(n)
+        # # logger.debug(f'n {self.n}')
+        # # compute planarity as average of all
+        # # cross-i-cross-i+1 dot products
+        # iR=Ring(list(range(len(self.idx_list))))
+        # a=iR.treadmill()
+        # self.planarity=0
+        # for i,j in zip(iR.idx_list,next(a)):
+        #     ci=self.C[i]
+        #     cj=self.C[j]
+        #     self.planarity+=lawofcos(ci,cj)
+        # self.planarity/=len(self)
+        # # get the d for n-dot-r + d = 0 equation of the plane
+        # # n[0]*(x-O[0])+n[1]*(y-O[1])+n[2]*(z-O[2])=0
+        # # n[0]*x + n[1]*y + n[2]*z - (n[0]*O[0]+n[1]*O[1]+n[2]*O[2]) = 0
+        # self.d=-np.dot(self.n,self.COM)        
 
     def treadmill(self):
         """ yield the treadmilled versions of the list """
@@ -86,47 +86,60 @@ class Ring(PSFTopoElement):
         check2=any([self.idx_list==other.idx_list[::-1]]+[self.idx_list==x[::-1] for x in other.treadmill()])
         return check1 or check2
 
-    def pierced_by(self,B,tol=1.e-2):
-        """determines if PSFBond B pierces ring; 
-        uses ray projection method and fact that scaled length must be between 
-        0 and 1 for a plane intersection
+    # @countTime
+    def pierced_by(self,bond,cutoff=3.5,tol=1.e-3):
+        """determines if PSFBond B pierces ring
         """
-        V=B.P[0]-B.P[1]
-        # If these two points are on either side of the ring plane,
-        # then the length of the normal vector from P[0] to the plane
-        # will be less than the length of the vector from P[1] to P[0] projected
-        # onto the plane normal. 
-        denom=np.linalg.norm(np.dot(self.n,V)*self.n) # length of vector from P[1] to P[0] projected onto normal
-        OP=np.dot(self.n,B.P[0]-self.COM)*self.n # normal vector from plane to P[0]
-        numer=np.linalg.norm(OP) # length of normal vector from plane to P[0]
-        # logger.debug(f'numer {numer} denom {denom}')
-        t=-1.0
-        if denom>1.e-13:
-            t=numer/denom # a fraction if P[0] and P[1] are on either side of the plane
-        # logger.debug(f'{str(self)} b {P} t {t}')
-        if 0<t<1:
-            # compute point in ring plane that marks intersection with this vector
-            # V=P[0]-P[1]
-            # P[1]=P[0]-V
-            # intersection point = P[0]-t*V
-            PP=B.P[0]-t*V
-            # logger.debug(f't {t} PP {PP}')
-            # determine if PP is inside ring:
-            # compute the series of unit-vector cross-products v(i)-PP-v((i+1)%N)
-            # sum will have a large component along normal vector if yes, essentially 0 if no
-            iR=Ring(list(range(len(self.idx_list))))
-            a=iR.treadmill()
-            sumC=np.zeros(3)
-            for i,j in zip(iR.idx_list,next(a)):
-                V1=PP-self.P[i]
-                V2=PP-self.P[j]
-                c=np.cross(V1/np.linalg.norm(V1),V2/np.linalg.norm(V2))
-                sumC+=c/np.linalg.norm(c)
-            tst=np.dot(self.n,sumC/len(self))
-            is_inside=np.abs(tst-1.0)<tol
-            # logger.debug(f'tst {tst} is_inside {is_inside}')
-            return is_inside,PP
-        return False,np.ones(3)*np.nan
+
+        # reject if bond COM and ring COM are more than the cutoff from each other
+        # COM=bsrs[['comx','comy','comz']].to_numpy()
+        dist=np.linalg.norm(bond.COM-self.COM)
+        if dist>cutoff:
+            return dict(pierced=False,reason='cutoff')
+
+        # logger.debug(f'PIERCE: B {B.idx_list} R {self.idx_list}')
+        
+        # project all ring points into plane perpendicular to bond at bond midpoint
+        # lbv,rbv=bsrs[['nvpx','nvpy','nvpz']].to_numpy(),bsrs[['nvmx','nvmy','nvmz']].to_numpy()
+        lbv,rbv=bond.radii[0],bond.radii[1]
+        # logger.debug(f'{lbv}')
+        (a,b,c),(aa,bb,cc)=lbv,rbv
+        d,e,f=bond.COM
+        # logger.debug(f'b-com: {[d,e,f]} b-nv {[a,b,c]} {np.linalg.norm(np.array([a,b,c]))} r-com {self.COM} -- d {dist}')
+        projected_ring=[]
+        for p in self.P:
+            x,y,z=p
+            t=a*d-a*x+b*e-b*y+c*f-c*z
+            # logger.debug(f'{[x,y,z]} -> {t}')
+            projected_ring.append(np.array([x+t*a,y+t*b,z+t*c]))
+        projected_ring=np.array(projected_ring)
+        # logger.debug(f'proj ring {projected_ring}')
+        pCOM=np.mean(projected_ring,axis=0)
+        # reject if both bond endpoints are on the same side of the plane
+        dd=np.linalg.norm(self.COM-pCOM)
+        if dd>0.5*np.linalg.norm(bond.P[0]-bond.P[1]):
+            return dict(pierced=False,reason='both bond atoms on same side of ring plane')
+
+        phisum=0.0
+        for i in range(len(projected_ring)):
+            if i+1==len(projected_ring):
+                ip1=0
+            else:
+                ip1=i+1
+            p0=projected_ring[i]
+            p1=projected_ring[ip1]
+            b0=p0-bond.COM
+            b1=p1-bond.COM
+            # logger.debug(f'{i}:{ip1} {b0} {b1}')
+            phi=np.arccos(lawofcos(b0,b1))
+            phisum+=phi
+            # logger.debug(f'{phi} -> {phisum}')
+        diff=phisum-np.pi*2
+        # logger.debug(f'{phisum} {diff} {tol}')
+        if np.abs(diff)<tol:
+            return dict(pierced=True,piercepoint=pCOM,error=np.abs(diff))
+        return dict(pierced=False,reason='non-winding',error=np.abs(diff))
+
 
 class RingList(PSFTopoElementList):
     @singledispatchmethod
@@ -142,56 +155,114 @@ class RingList(PSFTopoElementList):
     def __str__(self):
         return ';'.join([str(x) for x in self])
     
-
-def ring_check(psf,pdb,xsc):
+@countTime
+def ring_check(psf,pdb,xsc,cutoff=10.0,segtypes=['lipid']):
     box,orig=cell_from_xsc(xsc)
     coorddf=coorddf_from_pdb(pdb)
     sidelengths=np.diagonal(box)
     ll=orig-0.5*sidelengths
     ur=orig+0.5*sidelengths
-    LC=Linkcell(np.array([ll,ur]),10.0,atidxlabel=None)
-    LC.populate(coorddf,os.cpu_count())
-    topol=PSFContents(psf,parse_topology=['bonds'])
-    topol.nonsolvent_atoms.injest_coordinates(coorddf,idx_key=None,pos_key=['x','y','z'])
-    topol.bonds.injest_coordinates(coorddf,idx_key=None,pos_key=['x','y','z'])
-    topol.bonds.validate_images(box)
-    for bond in topol.bonds:
-        bond.oc_ldx=LC.ldx_of_cellndx(LC.cellndx_of_point(bond.COM))
+    LC=Linkcell(np.array([ll,ur]),cutoff,atidxlabel=None)
+    # ncpu=os.cpu_count() if coorddf.shape[0]>1000 else 1
+    # LC.populate(coorddf,ncpu,report_info=False,profile=True)
+    topol=PSFContents(psf,parse_topology=['bonds'],topology_segtypes=segtypes)
+    # topol.atoms.make_df()
+    coorddf['segname']=[a.chainID for a in topol.atoms]#.df['chainID']
+    topol.bonds.injest_coordinates(coorddf,pos_key=['x','y','z'],meta_key=['segname','resid'])
+    logger.debug(f'...bond coords')
+    topol.bonds.assign_cell_indexes(LC)
+    logger.debug(f'...bond cell indexes')
     Rings=RingList(topol.G)
     logger.debug(f'{len(Rings)} rings to be analyzed for piercings')
-    Rings.injest_coordinates(coorddf,idx_key=None,pos_key=['x','y','z'])
-    piercing_tally=[]
+    Rings.injest_coordinates(coorddf,pos_key=['x','y','z'],meta_key=['segname','resid'])
+    logger.debug(f'...ring coords')
+    # piercing_tally=[]
     piercespecs=[]
+    bonds_in={}
+    rdict={}
+    dtsum=0.0
+    nr=0
     for iring,ring in enumerate(Rings):
-        iat=topol.nonsolvent_atoms.get(serial=ring.idx_list[0])[0]
-        chain,resid=iat.chainID,iat.resseqnum
+        t1=time.time()
+        # logger.debug(f'Ring {iring} {ring.segname} {ring.resid}...')
         oc=LC.ldx_of_cellndx(LC.cellndx_of_point(ring.COM))
         # logger.debug(f'ring {str(ring)} center in cell {oc} -- members in {ring.M["linkcell_idx"]}')
-        nc=LC.searchlist_of_ldx(oc)
+        searchcells=LC.searchlist_of_ldx(oc)+[oc]
+        # logger.debug(f'searchcells {searchcells}')
+        if not oc in bonds_in:
+            bonds_in[oc]=PSFBondList([])
+            for sc in searchcells:
+                bonds_in[oc].extend(topol.bonds.get(linkcell_idx=sc))
+            # bonds_in[oc]=topol.bonddf.df[topol.bonds.df['linkcell_idx'].isin(searchcells)]
+            # logger.debug(f'cell {oc} has {len(bonds_in[oc])} bonds')
         # logger.debug(f'...search for bonds in cells {nc} and {oc}')
-        search_bonds=PSFBondList([])
-        for ldx in nc+[oc]:
-            this_sb=[b for b in topol.bonds if b.oc_ldx==ldx]
-            search_bonds.extend(this_sb)
-        # logger.debug(f'...search will include {len(search_bonds)} bonds')
-        piercings=[]
+        search_bonds=bonds_in[oc]
+        # logger.debug(f'...search nominally include {len(search_bonds)} bonds')
+        # search_bonds['piercer']=[False]*search_bonds.shape[0]
+        piercing_bonds=PSFBondList([])
         for bond in search_bonds:
-            bc=bond.copy().mic_shift(ring.COM,box)
-            p,r=ring.pierced_by(bc)
-            piercings.append(p)
-        piercing_bonds=list(compress(search_bonds,piercings))
+        # for i in search_bonds.index:
+            # if ring.segname==bond.segname and ring.resid==bond.resid:
+            #     keep[i]=False
+            # elif any([x in ring.idx_list for x in bond.idx_list]):
+            # if not any([x in ring.idx_list for x in search_bonds.loc[i,['i','j']]]):
+            if any([x in ring.idx_list for x in bond.idx_list]):
+                continue
+                # idx,jdx=search_bonds.loc[i,['i','j']]
+                # ri,bli=mic_shift(coorddf.loc[idx,['x','y','z']].to_numpy(),ring.COM,box)
+                # ri,bli=mic_shift(bond.P[0],ring.COM,box)
+                # search_bonds.loc[i,['ix','iy','iz']]=ri
+                # rj,blj=mic_shift(coorddf.loc[jdx,['x','y','z']].to_numpy(),ring.COM,box)
+                # rj,blj=mic_shift(bond.P[1],ring.COM,box)
+                # search_bonds.loc[i,['jx','jy','jz']]=rj
+                # com,blc=mic_shift(bond.COM,ring.COM,box)
+                # search_bonds.loc[i,['comx','comy','comz']]=com
+                # logger.debug(f'{i} {ri} {com}')
+                # vp=ri-com
+                # logger.debug(f'{i} {ri} {com} {vp}')
+                # search_bonds.loc[i,['nvpx','nvpy','nvpz']]=vp/np.linalg.norm(vp)
+                # vm=rj-com
+                # search_bonds.loc[i,['nvmx','nvmy','nvmz']]=vm/np.linalg.norm(vm)
+            test_bond=bond.mic_shift(ring.COM,box)
+            pdict=ring.pierced_by(test_bond)
+            if pdict['pierced']: piercing_bonds.append(test_bond)
+            # pdict=ring.pierced_by(search_bonds.loc[i])
+            # search_bonds.loc[i,'piercer']=pdict['pierced']
+            if 'reason' in pdict:
+                if not pdict['reason'] in rdict:
+                    rdict[pdict['reason']]=0
+                rdict[pdict['reason']]+=1
+                if 'error' in pdict:
+                    if not 'error' in rdict:
+                        rdict['error']=[]
+                    if pdict['error']<1.0:
+                        rdict['error'].append(dict(error=pdict['error'],bond=bond.idx_list,ring=ring.idx_list))
+        t2=time.time()
+        dt=t2-t1
+        dtsum+=dt
+        nr+=1
+        dtav=dtsum/nr
+        if len(Rings)<10 or iring%10==0: logger.debug(f'{dtav:.3f} s per ring, {nr}/{len(Rings)} rings, {dtav*(len(Rings)-nr):.3f} s remaining...')
+        # search_bonds['piercer']=piercings
+        # piercing_bonds=search_bonds[search_bonds['piercer']==True]
         if len(piercing_bonds)>0:
-            ringname='- '+ ' -- '.join([str(topol.nonsolvent_atoms.get(serial=x)) for x in ring.idx_list]) + ' -'
+            ringname='-|- '+ ' -- '.join([str(topol.included_atoms.get(serial=x)[0]) for x in ring.idx_list]) + ' -|-'
             logger.debug(f'ring {ringname}:')
-            for b in piercing_bonds:
-                ai=topol.nonsolvent_atoms.get(serial=b.serial1)[0]
-                aj=topol.nonsolvent_atoms.get(serial=b.serial2)[0]
-                pchain,presid=ai.chainID,ai.resseqnum
-                if chain==pchain and resid==presid:
-                    continue
-                # logger.debug(f'...{b.serial1}--{b.serial2}')
-                piercespecs.append(dict(piercee=dict(chain=chain,resid=resid),piercer=dict(chain=pchain,resid=presid)))
-                logger.debug(f'  pierced by bond [ {str(ai)} -- {str(aj)} ]')
-        piercing_tally.append(any(piercings))
-        logger.debug(f'ring {iring}')
+            for bond in piercing_bonds:
+                piercespecs.append(dict(piercer=dict(segname=bond.segname,resid=bond.resid),piercee=dict(segname=ring.segname,resid=ring.resid)))
+                bondname=' -- '.join([str(topol.included_atoms.get(serial=x)[0]) for x in bond.idx_list])
+                logger.debug(f'  pierced by bond [ {bondname} ]')
+        # piercing_tally.append(any(piercings))
+        # logger.debug(f'ring {iring}')
+    for k,v in rdict.items():
+        if v:
+            if type(v)==list:
+                for e in v:
+                    if type(e)==dict:
+                       for kk,vv in e.items():
+                            logger.debug(f'    {kk}: {vv}')
+                    else:
+                       logger.debug(f'{k}: {v}')
+            else:
+                logger.debug(f'{k}: {v}')
     return piercespecs

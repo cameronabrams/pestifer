@@ -10,49 +10,49 @@ class TestRingCheck(unittest.TestCase):
         pdb=os.path.join(dir,'S2.pdb')
         psf=os.path.join(dir,'S2.psf')
         xsc=os.path.join(dir,'test.xsc')
-        result=ring_check(psf,pdb,xsc)
+        result=ring_check(psf,pdb,xsc,cutoff=10.0)
         self.assertEqual(len(result),1)
         p=result[0]
         self.assertEqual(p['piercee']['resid'],67)
-        self.assertEqual(p['piercee']['chain'],'S2')
+        self.assertEqual(p['piercee']['segname'],'S2')
         self.assertEqual(p['piercer']['resid'],645)
-        self.assertEqual(p['piercer']['chain'],'S2')
+        self.assertEqual(p['piercer']['segname'],'S2')
 
     def test_ring_check_coords_2(self):
         dir='2'
         pdb=os.path.join(dir,'S2.pdb')
         psf=os.path.join(dir,'S2.psf')
         xsc=os.path.join(dir,'test.xsc')
-        result=ring_check(psf,pdb,xsc)
+        result=ring_check(psf,pdb,xsc,cutoff=10.0)
         self.assertEqual(len(result),2)
-        p=result[0]
-        self.assertEqual(p['piercee']['resid'],45)
-        self.assertEqual(p['piercee']['chain'],'S2')
-        self.assertEqual(p['piercer']['resid'],595)
-        self.assertEqual(p['piercer']['chain'],'S2')
         p=result[1]
+        self.assertEqual(p['piercee']['resid'],45)
+        self.assertEqual(p['piercee']['segname'],'S2')
+        self.assertEqual(p['piercer']['resid'],595)
+        self.assertEqual(p['piercer']['segname'],'S2')
+        p=result[0]
         self.assertEqual(p['piercee']['resid'],67)
-        self.assertEqual(p['piercee']['chain'],'S2')
+        self.assertEqual(p['piercee']['segname'],'S2')
         self.assertEqual(p['piercer']['resid'],645)
-        self.assertEqual(p['piercer']['chain'],'S2')
+        self.assertEqual(p['piercer']['segname'],'S2')
 
     def test_ring_check_coords_3(self):
         dir='3'
         pdb=os.path.join(dir,'S2.pdb')
         psf=os.path.join(dir,'S2.psf')
         xsc=os.path.join(dir,'test.xsc')
-        result=ring_check(psf,pdb,xsc)
+        result=ring_check(psf,pdb,xsc,cutoff=10.0)
         self.assertEqual(len(result),2)
         p=result[0]
         self.assertEqual(p['piercee']['resid'],67)
-        self.assertEqual(p['piercee']['chain'],'S2')
+        self.assertEqual(p['piercee']['segname'],'S2')
         self.assertEqual(p['piercer']['resid'],645)
-        self.assertEqual(p['piercer']['chain'],'S2')
+        self.assertEqual(p['piercer']['segname'],'S2')
         p=result[1]
         self.assertEqual(p['piercee']['resid'],243)
-        self.assertEqual(p['piercee']['chain'],'S1')
+        self.assertEqual(p['piercee']['segname'],'S1')
         self.assertEqual(p['piercer']['resid'],529)
-        self.assertEqual(p['piercer']['chain'],'S1')
+        self.assertEqual(p['piercer']['segname'],'S1')
 
     def test_ring_check_coords_4(self):
         # checks when molecules are in different periodic images
@@ -60,10 +60,10 @@ class TestRingCheck(unittest.TestCase):
         pdb=os.path.join(dir,'S2.pdb')
         psf=os.path.join(dir,'S2.psf')
         xsc=os.path.join(dir,'test.xsc')
-        result=ring_check(psf,pdb,xsc)
+        result=ring_check(psf,pdb,xsc,cutoff=10.0)
         self.assertEqual(len(result),1)
         p=result[0]
         self.assertEqual(p['piercee']['resid'],907)
-        self.assertEqual(p['piercee']['chain'],'S1')
+        self.assertEqual(p['piercee']['segname'],'S1')
         self.assertEqual(p['piercer']['resid'],354)
-        self.assertEqual(p['piercer']['chain'],'S2')
+        self.assertEqual(p['piercer']['segname'],'S2')

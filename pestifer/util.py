@@ -10,6 +10,28 @@ logger=logging.getLogger(__name__)
 import shutil
 import pandas as pd
 import numpy as np
+import time
+from functools import wraps
+
+_fntiminginfo={}
+def countTime(fn):
+    @wraps(fn)
+    # global _fntiminginfo
+    def measure_time(*args,**kwargs):
+        keyname=f'{fn.__module__}.{fn.__name__}'
+        if hasattr(fn,'__self__'):#.__class__.__name__=='method':
+            keyname=f'{fn.__module__}.{type(fn.__self__).__name__}.{fn.__name__}'
+        if not keyname in _fntiminginfo:
+            _fntiminginfo[keyname]=dict(ncalls=0,totaltime=0.0,avgtimepercall=0.0)
+        t1=time.time()
+        result=fn(*args, **kwargs)
+        t2=time.time()
+        _fntiminginfo[keyname]['ncalls']+=1
+        _fntiminginfo[keyname]['totaltime']+=t2-t1
+        _fntiminginfo[keyname]['avgtimepercall']=_fntiminginfo[keyname]['totaltime']/_fntiminginfo[keyname]['ncalls']
+        logger.debug(f'{keyname}: {(t2-t1)*1000:.6f} ms; avg {_fntiminginfo[keyname]["avgtimepercall"]*1000:.6f} ms/call; {_fntiminginfo[keyname]["ncalls"]} calls')
+        return result
+    return measure_time
 
 def cell_from_xsc(xsc):
     if xsc and os.path.exists(xsc):

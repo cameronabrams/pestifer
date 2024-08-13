@@ -1183,7 +1183,9 @@ class RingCheckTask(BaseTask):
         psf=self.statevars.get('psf',None)
         pdb=self.statevars.get('pdb',None)
         xsc=self.statevars.get('xsc',None)
-        result=ring_check(psf,pdb,xsc)
+        cutoff=self.specs.get('cutoff',6.5)
+        segtypes=self.specs.get('segtypes',['lipid'])
+        result=ring_check(psf,pdb,xsc,cutoff=cutoff,segtypes=segtypes)
         if result:
             pg=self.writers['psfgen']
             pg.newscript(self.basename)

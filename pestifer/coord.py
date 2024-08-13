@@ -154,11 +154,14 @@ def mic_shift(point,ref,box):
     hbox=np.diagonal(box)/2
     cpoint=point.copy()
     d=cpoint-ref
+    boxlengths=np.zeros(3,dtype=int)
     for i in range(3):
         while d[i]<-hbox[i]:
             cpoint[i]+=box[i][i]
             d=cpoint-ref
+            boxlengths[i]+=1
         while d[i]>=hbox[i]:
             cpoint[i]-=box[i][i]
             d=cpoint-ref
-    return cpoint
+            boxlengths[i]-=1
+    return cpoint,boxlengths

@@ -1238,7 +1238,15 @@ directives:
           - name: delete
             text: which of the piercer or piercee to delete
             type: string
-            default: piercee 
+            default: piercee
+          - name: cutoff
+            text: distance cutoff between bond and ring COM's for checking, Angstroms
+            type: float
+            default: 10.0
+          - name: segtypes
+            text: list of segment types to include in the ring-pierce check
+            type: list
+            default: ['lipid']
       - name: packmol_memgen
         text: Parameters controlling packmol-memgen to generate a bilayer embedding
         type: dict

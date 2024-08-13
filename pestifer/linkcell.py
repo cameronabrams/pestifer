@@ -6,7 +6,10 @@ import logging
 from itertools import product
 from multiprocessing import Pool
 from functools import partial
-
+from .stringthings import my_logger
+from .util import countTime
+import cProfile, pstats, io
+from pstats import SortKey
 logger=logging.getLogger(__name__)
 
 class Linkcell:
@@ -30,7 +33,7 @@ class Linkcell:
         self.atposlabel=atposlabel
         # number of cells along x, y, and z directions
         self.ncells=np.floor(self.sidelengths/self.cutoff).astype(int)
-        logger.debug(f'{self.ncells}')
+        # logger.debug(f'{self.ncells}')
         # dimensions of one cell
         self.celldim=self.sidelengths/self.ncells
         # 3-d array of lower left corner as a 3-space point, indexed by i,j,k
@@ -38,14 +41,14 @@ class Linkcell:
         self.cells=np.zeros((*self.ncells,3))
         # 1-d array of (i,j,k) indices indexed by linear cell index (0...ncells-1)
         self.cellndx=np.array(list(product(*[np.arange(x) for x in self.ncells])))
-        logger.debug(f'{self.cellndx[0]} to {self.cellndx[-1]}')
-        logger.debug(f'{self.ldx_of_cellndx(self.cellndx[0])} to {self.ldx_of_cellndx(self.cellndx[-1])}')
-        logger.debug(f'{self.celldim} {len(self.cells)} {len(self.cellndx)}')
+        # logger.debug(f'{self.cellndx[0]} to {self.cellndx[-1]}')
+        # logger.debug(f'{self.ldx_of_cellndx(self.cellndx[0])} to {self.ldx_of_cellndx(self.cellndx[-1])}')
+        # logger.debug(f'{self.celldim} {len(self.cells)} {len(self.cellndx)}')
         # 3-d array of lower left corner as a 3-space point, indexed by i,j,k
         for t in self.cellndx:
             i,j,k=t
             self.cells[i,j,k]=self.celldim*np.array([i,j,k])+self.lower_left_corner
-        logger.debug(f'{self.cellndx[-1]}')
+        # logger.debug(f'{self.cellndx[-1]}')
         # set up neighbor lists using linear indices
         self.make_neighborlists()
         logger.debug(f'Linkcell structure: {len(self.cellndx)} cells ({self.ncells}) dim {self.celldim}')
@@ -72,6 +75,7 @@ class Linkcell:
             exit(-1)
         return R,box_lengths
 
+    # @countTime
     def cellndx_of_point(self,R):
         """cellndx_of_point returns the (i,j,k) cell index of point R
 
@@ -156,6 +160,7 @@ class Linkcell:
         """
         return self.cellndx[i]
 
+    @countTime
     def populate_par(self,adf):
         """populate_par populate the linkcell structure by setting the "linkcell_idx" attribute of each atom in the coordinates dataframe adf
 
@@ -165,7 +170,7 @@ class Linkcell:
         :rtype: pandas.DataFrame
         """
         sp=adf[self.atposlabel]
-        logger.debug(f'\n{sp.head()}')
+        # logger.debug(f'\n{sp.head()}')
         for i,srow in sp.iterrows():
             ri=srow.values
             if not np.any(ri==ri):
@@ -187,26 +192,35 @@ class Linkcell:
         """
         return [len(mlists[i]) for i in idx_list]
 
-    def populate(self,adf,ncpu=1):
+    @countTime
+    def populate(self,adf,ncpu=1,profile=False,report_info=True):
         """populate Populates linkcell structure
-
         """
+        if profile:
+            pr=cProfile.Profile()
+            pr.enable()
         N=adf.shape[0]
-        logger.debug(f'Linkcell: assigning cell indices to {N} atoms in {self.lower_left_corner} -- {self.upper_right_corner}...')
+        logger.debug(f'Assigning {N} atoms to {len(self.cellndx)} cells')
         adf['linkcell_idx']=-1*np.ones(N).astype(int)
-        self.memberlists=[[] for _ in range(self.cellndx.shape[0])]
         ess='s' if ncpu>1 else ''
-        logger.debug(f'Linkcell assignment will use {ncpu} processor{ess}')
-        p=Pool(processes=ncpu)
-        adf_split=np.array_split(adf,ncpu)
-        result=p.map(partial(self.populate_par),adf_split)
-        p.close()
-        p.join()
-        rdf=pd.DataFrame()
-        for a in result:
-            rdf=pd.concat((rdf,a))
-        logger.debug(f'\n{rdf.head().to_string()}\n{rdf.tail().to_string()}')
+        logger.debug(f'Cell assignment will use {ncpu} processor{ess}')
+        if ncpu>1:
+            p=Pool(processes=ncpu)
+            adf_split=np.array_split(adf,ncpu)
+            result=p.map(partial(self.populate_par),adf_split)
+            p.close()
+            p.join()
+            rdf=pd.DataFrame()
+            for a in result:
+                rdf=pd.concat((rdf,a))
+        else:
+            rdf=self.populate_par(adf)
+        my_logger(rdf,logger.debug,dfoutmode='info',just='<',fill='')
         adf['linkcell_idx']=rdf['linkcell_idx'].copy()
+
+    # @countTime
+    # def make_memberlists(self,adf,ncpu=1,report_info=True):
+        self.memberlists=[[] for _ in range(self.cellndx.shape[0])]
 
         if self.atidxlabel==None:
             for i,row in adf.iterrows():
@@ -226,17 +240,27 @@ class Linkcell:
                     logger.debug(f'Linear linkcell index {lc_idx} of atom {i} is out of range.\ncellndx.shape[0] is {self.cellndx.shape[0]}\nThis is a bug.')
                     raise Exception
 
-        idx_list=list(range(len(self.memberlists)))
-        p=Pool(processes=ncpu)
-        idx_list_split=np.array_split(idx_list,ncpu)
-        result=p.map(partial(self._return_list_lens,mlists=self.memberlists),idx_list_split)
-        p.close()
-        p.join()
-        result=np.array([item for sublist in result for item in sublist])
-        self.avg_cell_pop=result.mean()
-        self.min_cell_pop=int(result.min())
-        self.max_cell_pop=int(result.max())
-        logger.debug(f'Avg/min/max cell pop: {self.avg_cell_pop:>8.3f}/{self.min_cell_pop:>8d}/{self.max_cell_pop:>8d}')
+        if report_info:
+            idx_list=list(range(len(self.memberlists)))
+            p=Pool(processes=ncpu)
+            idx_list_split=np.array_split(idx_list,ncpu)
+            result=p.map(partial(self._return_list_lens,mlists=self.memberlists),idx_list_split)
+            p.close()
+            p.join()
+            result=np.array([item for sublist in result for item in sublist])
+            self.avg_cell_pop=result.mean()
+            self.min_cell_pop=int(result.min())
+            self.max_cell_pop=int(result.max())
+            logger.debug(f'Avg/min/max cell pop: {self.avg_cell_pop:>8.3f}/{self.min_cell_pop:>8d}/{self.max_cell_pop:>8d}')
+        if profile:
+            pr.disable()
+            s = io.StringIO()
+            sortby = SortKey.CUMULATIVE
+            ps = pstats.Stats(pr, stream=s).sort_stats(sortby)
+            ps.print_stats()
+            msg='\n'.join(s.getvalue().split('\n')[:20])
+            my_logger(msg,logger.debug,just='<',fill='')
+
         # logger.debug(f'Linkcell.populate() ends.')
 
     def make_neighborlists(self):
@@ -251,26 +275,25 @@ class Linkcell:
             for D in self.neighbors_of_cellndx(C):
                 if self.ldx_of_cellndx(D)!=idx:
                     self.neighborlists[idx].append(self.ldx_of_cellndx(D))
+    # def make_memberlists(self,cdf):
+    #     """make_memberlists populates the memberlists member, one element per cell; each element is the list of atom indices in that cell 
 
-    def make_memberlists(self,cdf):
-        """make_memberlists populates the memberlists member, one element per cell; each element is the list of atom indices in that cell 
-
-        :param cdf: coordinates data frame
-        :type cdf: pd.DataFrame
-        """
-        self.memberlists=[[] for _ in range(self.cellndx.shape[0])]
-        rdf=cdf[cdf['linkcell_idx']!=-1]
-        # logger.debug(f'Generated {len(self.memberlists)} empty memberlists.')
-        for i,r in rdf.iterrows():
-            cidx=r['linkcell_idx']
-            idx=r['globalIdx']
-            self.memberlists[cidx].append(idx)
-        rl=np.array([len(self.memberlists[i]) for i in range(self.cellndx.shape[0])])
-        assert int(rl.sum())==rdf.shape[0] # check to make sure all atoms are counted
-        avg_cell_pop=rl.mean()
-        min_cell_pop=int(rl.min())
-        max_cell_pop=int(rl.max())
-        logger.debug(f'Avg/min/max cell pop: {avg_cell_pop:>8.3f}/{min_cell_pop:>8d}/{max_cell_pop:>8d}')
+    #     :param cdf: coordinates data frame
+    #     :type cdf: pd.DataFrame
+    #     """
+    #     self.memberlists=[[] for _ in range(self.cellndx.shape[0])]
+    #     rdf=cdf[cdf['linkcell_idx']!=-1]
+    #     # logger.debug(f'Generated {len(self.memberlists)} empty memberlists.')
+    #     for i,r in rdf.iterrows():
+    #         cidx=r['linkcell_idx']
+    #         idx=r['globalIdx']
+    #         self.memberlists[cidx].append(idx)
+    #     rl=np.array([len(self.memberlists[i]) for i in range(self.cellndx.shape[0])])
+    #     assert int(rl.sum())==rdf.shape[0] # check to make sure all atoms are counted
+    #     avg_cell_pop=rl.mean()
+    #     min_cell_pop=int(rl.min())
+    #     max_cell_pop=int(rl.max())
+    #     logger.debug(f'Avg/min/max cell pop: {avg_cell_pop:>8.3f}/{min_cell_pop:>8d}/{max_cell_pop:>8d}')
 
     def neighbors_of_cellndx(self,Ci):
         """neighbors_of_cellndx returns the list of neighbors of cell Ci by their (i,j,k) indices

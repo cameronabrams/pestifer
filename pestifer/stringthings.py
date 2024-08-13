@@ -6,6 +6,7 @@ from collections import UserList
 import logging
 logger=logging.getLogger(__name__)
 import os
+from io import StringIO
 import subprocess
 from itertools import product
 # _ANGSTROM_='Ångström'
@@ -127,7 +128,10 @@ class ByteCollector:
         
         Parameters
         ----------
-        msg: str
+        msg: str            for ln in:
+                outstr=ll+ln+rr
+                logf(fmt.format(outstr))
+
            the message
         """
         self.byte_collector+=msg
@@ -225,7 +229,7 @@ class ByteCollector:
     def __str__(self):
         return self.byte_collector
 
-def my_logger(msg,logf,width=67,fill='*',sep=', ',just='^',frame=''):
+def my_logger(msg,logf,width=67,fill='*',sep=', ',just='^',frame='',**kwargs):
     """A fancy logger
     
     Parameters
@@ -270,7 +274,16 @@ def my_logger(msg,logf,width=67,fill='*',sep=', ',just='^',frame=''):
         outstr=ll+sep.join(lnlst)+' '
         logf(fmt.format(outstr))
     elif type(msg)==pd.DataFrame:
-        for ln in msg.to_string().split('\n'):
+        dfoutmode=kwargs.get('dfoutmode','value')
+        if dfoutmode=='value':
+            lines=msg.to_string().split('\n')
+        elif dfoutmode=='info':
+            buf=StringIO()
+            msg.info(buf=buf)
+            lines=buf.getvalue().split('\n')
+        else:
+            return
+        for ln in lines:
             outstr=ll+ln+rr
             logf(fmt.format(outstr))
     else:
