@@ -176,56 +176,59 @@ class PSFAngle(PSFTopoElement):
         return [self.serial1,self.serial2,self.serial3]==[other.serial1,other.serial2,other.serial3] or [self.serial1,self.serial2,self.serial3]==[other.serial3,other.serial2,other.serial1] 
 
 class PSFAngleList(PSFTopoElementList):
+    @singledispatchmethod
+    def __init__(self,input_data,**kwargs):
+        super().__init__(input_data)
 
-    def __init__(self,lines,include_only=PSFAtomList([])):
-        ok_serials=[]
-        if len(include_only)>0:
-            ok_serials=[x.serial for x in include_only]
-            logger.debug(f'only including from among {len(ok_serials)} atom serials...')
-        A=[]
+    @__init__.register(PSFTopoElementList)
+    def _from_tel(self,input_obj,**kwargs):
+        super().__init__(input_obj)
+
+    @__init__.register(LineList)
+    def _from_list(self,lines,include_serials=[]):
+        B=[]
         for line in lines:
             tokens=[int(x) for x in line.split()]
-            assert len(tokens)%3==0,f'Poorly formatted THETA line in psffile?'
-            for l,c,r in zip(tokens[:-2:3],tokens[1:-1:3],tokens[2::3]):
-                if len(ok_serials)>0:
-                    if all([_ in ok_serials for _ in [l,c,r]]):
-                        # logger.debug(f'admitting {l}-{r}...')
-                        a=PSFAngle([l,c,r])
-                        A.append(a)
-                else:
-                    A.append(PSFAngle([l,c,r]))
-            if len(A)%1000==0:
-                logger.debug(f'{len(A)} psf angles processed...')
-        super().__init__(A)
+            assert len(tokens)%3==0,f'Poorly formatted ANGLE line in psffile?'
+            if not include_serials:
+                for l,m,r in zip(tokens[:-2:3],tokens[1:-1:3],tokens[2::3]):
+                    B.append(PSFAngle([l,m,r]))
+            else:
+                for l,m,r in zip(tokens[:-2:3],tokens[1:-1:3],tokens[2::3]):
+                    if include_serials[l-1] and include_serials[m-1] and include_serials[r-1]:
+                        B.append(PSFBond([l,m,r]))
+        super().__init__(B)
 
 class PSFDihedral(PSFTopoElement):
     def __eq__(self,other):
         return [self.serial1,self.serial2,self.serial3,self.serial4]==[other.serial1,other.serial2,other.serial3,other.serial4] or [self.serial1,self.serial2,self.serial3,self.serial4]==[other.serial4,other.serial3,other.serial2,other.serial1] 
 
 class PSFDihedralList(PSFTopoElementList):
-    def __init__(self,lines,include_only=PSFAtomList([])):
-        ok_serials=[]
-        if len(include_only)>0:
-            ok_serials=[x.serial for x in include_only]
-            logger.debug(f'only including from among {len(ok_serials)} atom serials...')
-        D=[]
+    @singledispatchmethod
+    def __init__(self,input_data,**kwargs):
+        super().__init__(input_data)
+
+    @__init__.register(PSFTopoElementList)
+    def _from_tel(self,input_obj,**kwargs):
+        super().__init__(input_obj)
+
+    @__init__.register(LineList)
+    def _from_list(self,lines,include_serials=[]):
+        B=[]
         for line in lines:
             tokens=[int(x) for x in line.split()]
             assert len(tokens)%4==0,f'Poorly formatted PHI line in psffile?'
-            for i,j,k,l in zip(tokens[:-3:4],tokens[1:-2:4],tokens[2:-1:4],tokens[3::4]):
-                if len(ok_serials)>0:
-                    if all([_ in ok_serials for _ in [i,j,k,l]]):
-                        # logger.debug(f'admitting {l}-{r}...')
-                        d=PSFDihedral([i,j,k,l])
-                        D.append(d)
-                else:
-                    D.append(PSFDihedral([i,j,k,l]))
-            if len(D)%1000==0:
-                logger.debug(f'{len(D)} psf dihedrals processed...')
-        super().__init__(D)
+            if not include_serials:
+                for li,i,j,rj in zip(tokens[:-3:4],tokens[1:-2:4],tokens[2:-1:4],tokens[3::4]):
+                    B.append(PSFDihedral([li,i,j,rj]))
+            else:
+                for li,i,j,rj in zip(tokens[:-3:4],tokens[1:-2:4],tokens[2:-1:4],tokens[3::4]):
+                    if include_serials[li-1] and include_serials[i-1] and include_serials[j-1] and include_serials[rj-1]:
+                        B.append(PSFDihedral([li,i,j,rj]))
+        super().__init__(B)
     
 class PSFContents:
-    def __init__(self,filename,topology_segtypes=['protein','glycan','lipid'],parse_topology=[]):
+    def __init__(self,filename,topology_segtypes=[],parse_topology=[]):
         logger.debug(f'Reading {filename}...')
         with open(filename,'r') as f:
             psflines=f.read().split('\n')
@@ -265,20 +268,22 @@ class PSFContents:
                 for patch in patchlist:
                     self.links.append(Link([patchtype]+patch))
         if parse_topology:
-            self.included_atoms=PSFAtomList([])
-            for segtype in topology_segtypes:
-                self.included_atoms.extend(self.atoms.get(segtype=segtype))
-            include_serials=[x.segtype in topology_segtypes for x in self.atoms]
-            logger.debug(f'Including {include_serials.count(True)}/{len(include_serials)} topologically active atoms ({len(self.included_atoms)})')
+            include_serials=[]
+            if topology_segtypes:
+                self.included_atoms=PSFAtomList([])
+                for segtype in topology_segtypes:
+                    self.included_atoms.extend(self.atoms.get(segtype=segtype))
+                include_serials=[x.segtype in topology_segtypes for x in self.atoms]
+                logger.debug(f'Including {include_serials.count(True)}/{len(include_serials)} topologically active atoms ({len(self.included_atoms)})')
             if 'bonds' in parse_topology:
                 self.bonds=PSFBondList(LineList(self.token_lines['BOND']),include_serials=include_serials)
-                logger.debug(f'Creating graph from {len(self.bonds)} bonds...')
+                # logger.debug(f'Creating graph from {len(self.bonds)} bonds...')
                 self.G=self.bonds.to_graph()
-                logger.debug(f'Parsed {len(self.bonds)} bonds.')
-            # if 'angles' in parse_topology:
-            #     self.angles=PSFAngleList(self.token_lines['THETA'],include_only=(self.nonsolvent_atoms if not include_solvent else []))
-            # if 'dihedrals' in parse_topology:
-            #     self.dihedrals=PSFDihedralList(self.token_lines['PHI'],include_only=(self.nonsolvent_atoms if not include_solvent else []))
-            # if 'impropers' in parse_topology:
-            #     self.dihedrals=PSFDihedralList(self.token_lines['IMPHI'],include_only=(self.nonsolvent_atoms if not include_solvent else []))
+                # logger.debug(f'Parsed {len(self.bonds)} bonds.')
+            if 'angles' in parse_topology:
+                self.angles=PSFAngleList(LineList(self.token_lines['THETA']),include_serials=include_serials)
+            if 'dihedrals' in parse_topology:
+                self.dihedrals=PSFDihedralList(LineList(self.token_lines['PHI']),include_serials=include_serials)
+            if 'impropers' in parse_topology:
+                self.dihedrals=PSFDihedralList(LineList(self.token_lines['IMPHI']),include_serials=include_serials)
             
