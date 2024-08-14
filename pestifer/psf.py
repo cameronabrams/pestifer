@@ -14,6 +14,7 @@ import logging
 from copy import deepcopy
 from argparse import Namespace
 from functools import singledispatchmethod
+from itertools import product
 
 logger=logging.getLogger(__name__)
 
@@ -35,12 +36,17 @@ class PSFTopoElement(Namespace):
     def __str__(self):
         return '-'.join([str(x) for x in self.idx_list])
 
+    def calculate_stuff(self):
+        self.COM=np.mean(self.P,axis=0)
+        self.Radii=self.P-self.COM
+        self.radii=np.array([n/d for n,d in zip(self.Radii,np.linalg.norm(self.Radii,axis=1))])
+        self.B=np.array([p[1]-p[0] for p in product(self.P,repeat=2)]).reshape((len(self.P),len(self.P),3))
+        self.b=np.linalg.norm(self.B.reshape((len(self.P)**2,3)),axis=1).reshape(len(self.P),len(self.P))
+
     def injest_coordinates(self,A,pos_key=['posX','posY','posZ'],meta_key=[]):
         self.P=np.array(A.loc[self.idx_list][pos_key].values)
         if len(self.P)>1:
-            self.COM=np.mean(self.P,axis=0)
-            self.radii=self.P-self.COM
-            self.radii/=np.linalg.norm(self.radii)
+            self.calculate_stuff()
         for k in meta_key:
             self.__dict__[k]=A.loc[self.idx_list[0],k]
 
@@ -54,14 +60,10 @@ class PSFTopoElement(Namespace):
         return self.same_image
     
     def mic_shift(self,reference_point,box):
-        # shifts=[]
         holder=self.copy()
         for i in range(len(self.P)):
             holder.P[i],bl=mic_shift(self.P[i],reference_point,box)
-            # shifts.append(np.any(bl))
-        holder.COM=np.mean(holder.P,axis=0)
-        holder.radii=holder.P-holder.COM
-        holder.radii/=np.linalg.norm(holder.radii)
+        if np.any(bl): holder.calculate_stuff()
         return holder
     
     def copy(self):
@@ -110,11 +112,9 @@ class PSFAtom(PSFTopoElement):
         self.type=tokens[5]
         self.charge=float(tokens[6])
         self.atomicwt=float(tokens[7])
-        # self.ligands=[]
         if len(segtype_of_resname)==0:
             c=Config()
         self.segtype=segtype_of_resname[self.resname]
-        # logger.debug(f'Assigned segtype {self.segtype} to PSFAtom serial {self.serial}')
     
     def __hash__(self):
         return self.serial
@@ -123,93 +123,20 @@ class PSFAtom(PSFTopoElement):
         return self.serial==other.serial
 
     def __str__(self):
-        return f'{self.chainID}_{self.resname}{self.resseqnum}{self.insertion}-{self.name}({self.serial})'
+        return f'{self.chainID}_{self.resname}_{self.resseqnum}{self.insertion}-{self.name}({self.serial})'
 
     def isH(self):
         return self.atomicwt<1.1
-
-    # def is_pep(self,other):
-    #     if not other in self.ligands: return False
-    #     if self.segtype=='protein' and other.segtype=='protein':
-    #         n12=[self.name,other.name]
-    #         if n12==['C','N'] or n12==['N','C']:
-    #             return True
-    #     return False
-
-    # def add_ligand(self,other):
-    #     if not other in self.ligands:
-    #         self.ligands.append(other)
-
-    # def add_attr(self,attrname,attrval):
-    #     self.__dict__[attrname]=attrval
-
-    # def injest_coordinates(self,A,idx_key='globalIdx',pos_key=['posX','posY','posZ'],meta_key=[]):
-    #     if idx_key==None:
-    #         self.r=A.loc[self.serial][pos_key].to_numpy()
-    #     else:
-    #         self.r=A[A[idx_key]==self.serial][pos_key].to_numpy()[0]
-    #     # logger.debug(f'atom r {self.r}')
-    #     self.meta={}
-    #     for key in meta_key:
-    #         if idx_key==None:
-    #             self.meta[key]=A.loc[self.serial][key].values[0]
-    #         else:
-    #             self.meta[key]=A[A[idx_key]==self.serial][key].values[0]
-    #         # logger.debug(f'{key} {self.meta[key]}')
-
 
 class PSFAtomList(PSFTopoElementList):
 
     def __init__(self,atoms):
         super().__init__(atoms)
 
-    # def make_df(self):
-    #     self.df=pd.DataFrame({'chainID':[x.chainID for x in self],
-    #                           'resseqnum':[x.resseqnum for x in self],
-    #                           'insertion':[x.insertion for x in self],
-    #                           'resname':[x.resname for x in self],
-    #                           'name':[x.name for x in self],
-    #                           'type':[x.type for x in self],
-    #                           'charge':[x.charge for x in self],
-    #                           'atomicwt':[x.atomicwt for x in self]},
-    #                           index=[x.serial for x in self])
-        # my_logger(self.df,logger.debug,dfoutmode='info',just='<',fill='')
-        # logger.debug(f'\n{self.df.head()}')
-        
-    # def add_attr(self,attrname,attrval):
-    #     for item in self:
-    #         item.add_attr(attrname,attrval)
-
-    # def graph(self):
-    #     g=nx.Graph()
-    #     my_serials=[x.serial for x in self]
-    #     for a in self:
-    #         for l in a.ligands:
-    #             if l.serial in my_serials:
-    #                 g.add_edge(a,l)
-    #     return g
-    
-    # @countTime
-    # def injest_coordinates(self,A,pos_key=['posX','posY','posZ'],meta_key=[]):
-    #     self.df[pos_key]=A[pos_key]
-    #     for at,(i,row) in zip(self,A.iterrows()):
-    #         at.r=row[pos_key].to_numpy()
-    #         for k in meta_key:
-    #             at.__dict__[k]=row[k]
-
-    
-
 class PSFBond(PSFTopoElement):
 
     def __eq__(self,other):
         return [self.serial1,self.serial2]==[other.serial1,other.serial2] or [self.serial1,self.serial2]==[other.serial2,other.serial1]
-    
-    # def nv(self):
-    #     vp=self.P[0]-self.COM
-    #     vp/=np.linalg.norm(vp)
-    #     vm=self.P[1]-self.COM
-    #     vm/=np.linalg.norm(vp)
-    #     return vp,vm
     
 class PSFBondList(PSFTopoElementList):
     @singledispatchmethod
@@ -243,81 +170,10 @@ class PSFBondList(PSFTopoElementList):
             g.add_edge(b.serial1,b.serial2)
         return g
 
-# class PSFBondDataFrame:
-#     @singledispatchmethod
-#     def __init__(self,input_obj,**kwargs):
-#         pass
-#     @__init__.register(list)
-#     def from_linelist(self,line_list,include_serials=[]):
-#         loc=0
-#         nbond_est=4*len(line_list)
-#         ii=[0]*nbond_est
-#         jj=[0]*nbond_est
-#         for line in line_list:
-#             tokens=[int(x) for x in line.split()]
-#             assert len(tokens)%2==0,f'Poorly formatted BOND line in psffile?'
-#             if not include_serials:
-#                 for l,r in zip(tokens[:-1:2],tokens[1::2]):
-#                     ii[loc]=l
-#                     jj[loc]=r
-#                     loc+=1
-#             else:
-#                 for l,r in zip(tokens[:-1:2],tokens[1::2]):
-#                     if include_serials[l-1] and include_serials[r-1]:
-#                         ii[loc]=l
-#                         jj[loc]=r
-#                         loc+=1
-#         # logger.debug(f'processed {loc} bonds into parallel lists')
-#         ii=ii[:loc]
-#         jj=jj[:loc]
-#         self.df=pd.DataFrame({'i':ii,'j':jj},dtype=int)
-#         # logger.debug(f'dataframe contains {self.df.shape[0]} rows')
-#         # buf=StringIO()
-#         # self.df.info(buf=buf)
-#         # logger.debug(buf.getvalue())
-#     @__init__.register(pd.DataFrame)
-#     def from_dataframe(self,df):
-#         self.df=df
-
-#     @countTime
-#     def injest_coordinates(self,A,pos_key=['posX','posY','posZ'],meta_key=[],iter=1000):
-#         b=A[pos_key]
-#         m=A[meta_key]
-#         self.df[['ix','iy','iz','jx','jy','jz','comx','comy','comz','nvpx','nvpy','nvpz','nvmx','nvmy','nvmz']]=np.zeros(shape=[self.df.shape[0],15],dtype=float)
-#         self.df[meta_key]=[['none']*len(meta_key)]*self.df.shape[0]
-#         for i in self.df.index:
-#             ai,aj=int(self.df.loc[i,'i']),int(self.df.loc[i,'j'])
-#             # ri,rj=b.loc[ai].to_numpy(),b.loc[aj].to_numpy()
-#             # self.df.loc[i,['ix','iy','iz']]=ri
-#             # self.df.loc[i,['jx','jy','jz']]=rj
-#             com=np.mean(np.array([b.loc[ai].to_numpy(),b.loc[aj].to_numpy()]),axis=0)
-#             self.df.loc[i,['comx','comy','comz']]=com
-#             # vp=ri-com
-#             # self.df.loc[i,['nvpx','nvpy','nvpz']]=vp/np.linalg.norm(vp)
-#             # vm=rj-com
-#             # self.df.loc[i,['nvmx','nvmy','nvmz']]=vm/np.linalg.norm(vm)
-#             self.df.loc[i,meta_key]=m.loc[ai]
-#             if i>1 and i%iter==0: logger.debug(f'{i} bond coords populated')
-#         # logger.debug(f'\n{self.df.head()}')
-    
-#     def to_graph(self):
-#         g=nx.Graph()
-#         for i,j in self.df[['i','j']].to_numpy():
-#             g.add_edge(i,j)
-#         return g
-
-#     @countTime
-#     def assign_cell_indexes(self,LC):
-#         self.df['linkcell_idx']=[0]*self.df.shape[0]
-#         for i in self.df.index:
-#             p=self.df.loc[i,['comx','comy','comz']].to_numpy()
-#             self.df.loc[i,'linkcell_idx']=LC.ldx_of_cellndx(LC.cellndx_of_point(p))
-
 class PSFAngle(PSFTopoElement):
 
     def __eq__(self,other):
         return [self.serial1,self.serial2,self.serial3]==[other.serial1,other.serial2,other.serial3] or [self.serial1,self.serial2,self.serial3]==[other.serial3,other.serial2,other.serial1] 
-
 
 class PSFAngleList(PSFTopoElementList):
 
@@ -409,22 +265,13 @@ class PSFContents:
                 for patch in patchlist:
                     self.links.append(Link([patchtype]+patch))
         if parse_topology:
-            # logger.debug(f'Parsing all topology information in {filename}...This may take a while.')
             self.included_atoms=PSFAtomList([])
             for segtype in topology_segtypes:
                 self.included_atoms.extend(self.atoms.get(segtype=segtype))
-            # self.protein_atoms=self.atoms.get(segtype='protein')
-            # self.glycan_atoms=self.atoms.get(segtype='glycan')
-            # self.lipid_atoms=self.atoms.get(segtype='lipid')
-            # if self.protein_atoms: self.nonsolvent_atoms.extend(self.protein_atoms)
-            # if self.glycan_atoms: self.nonsolvent_atoms.extend(self.glycan_atoms)
-            # if self.lipid_atoms: self.nonsolvent_atoms.extend(self.lipid_atoms)
-            # logger.debug(f'{len(self.included_atoms)} topologically included atoms')
             include_serials=[x.segtype in topology_segtypes for x in self.atoms]
-            logger.debug(f'Including {include_serials.count(True)}/{len(include_serials)} topologically active atoms')
+            logger.debug(f'Including {include_serials.count(True)}/{len(include_serials)} topologically active atoms ({len(self.included_atoms)})')
             if 'bonds' in parse_topology:
                 self.bonds=PSFBondList(LineList(self.token_lines['BOND']),include_serials=include_serials)
-                # self.bonddf=PSFBondDataFrame(self.token_lines['BOND'],include_serials=include_serials)
                 logger.debug(f'Creating graph from {len(self.bonds)} bonds...')
                 self.G=self.bonds.to_graph()
                 logger.debug(f'Parsed {len(self.bonds)} bonds.')
