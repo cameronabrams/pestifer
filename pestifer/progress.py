@@ -128,4 +128,8 @@ class PsfgenProgress(PestiferProgress):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)
 
+class RingCheckProgress(PestiferProgress):
+    def __init__(self,**kwargs):
+        super().__init__(**kwargs)
+
 

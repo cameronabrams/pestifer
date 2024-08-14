@@ -23,7 +23,7 @@ from .stringthings import FileCollector,get_boxsize_from_packmolmemgen
 from .modmanager import ModManager
 from .command import Command
 from .mods import CleavageSite, CleavageSiteList
-from .progress import PackmolProgress
+from .progress import PackmolProgress, RingCheckProgress
 import networkx as nx
 import pandas as pd
 from .ring import ring_check
@@ -1183,16 +1183,17 @@ class RingCheckTask(BaseTask):
         psf=self.statevars.get('psf',None)
         pdb=self.statevars.get('pdb',None)
         xsc=self.statevars.get('xsc',None)
-        cutoff=self.specs.get('cutoff',6.5)
+        cutoff=self.specs.get('cutoff',3.5)
         segtypes=self.specs.get('segtypes',['lipid'])
         result=ring_check(psf,pdb,xsc,cutoff=cutoff,segtypes=segtypes)
+        self.next_basename('ring_check')
         if result:
             pg=self.writers['psfgen']
             pg.newscript(self.basename)
             pg.load_project(psf,pdb)
             for r in result:
-                logger.debug(f'Delting chain {r["piercee"]["chain"]} residue {r["piercee"]["resid"]}')
-                pg.addline(f'delatom {r["piercee"]["chain"]} {r["piercee"]["resid"]}')
+                logger.debug(f'Delting segname {r["piercee"]["segname"]} residue {r["piercee"]["resid"]}')
+                pg.addline(f'delatom {r["piercee"]["segname"]} {r["piercee"]["resid"]}')
             pg.writescript(self.basename)
             pg.runscript()
             self.save_state(exts=['psf','pdb'])
