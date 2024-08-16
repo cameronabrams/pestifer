@@ -1,0 +1,6 @@
+charmmff_dir: /home/cfa/Git/pestifer/pestifer/PestiferResources/charmmff/toppar
+lmsd_database: structures.sdf
+mappings:
+  - lmsd_id: LMSP03010003
+    charmm_resname: PSM
+    charmm_topfile: stream/lipid/toppar_all36_lipid_sphingo.str
