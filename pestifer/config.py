@@ -48,7 +48,7 @@ def injest_packmol_memgen_databases():
     import pandas as pd
     pmmfile=os.path.join(os.path.split(pmmg.__file__)[0],'data','memgen.parm')
     if os.path.exists(pmmfile):
-        lipdf=pd.read_csv(pmmfile,sep='\s+',header=22)
+        lipdf=pd.read_csv(pmmfile,sep=r'\s+',header=22)
         logger.debug(f'memgen_parm database has {lipdf.shape[0]} entries')
 
     cladir=os.path.split(cla.__file__)[0]

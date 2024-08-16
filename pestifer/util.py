@@ -35,7 +35,7 @@ def countTime(fn):
 
 def cell_from_xsc(xsc):
     if xsc and os.path.exists(xsc):
-        celldf=pd.read_csv(xsc,skiprows=2,header=None,sep='\s+',index_col=None)
+        celldf=pd.read_csv(xsc,skiprows=2,header=None,sep=r'\s+',index_col=None)
         col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
         celldf.columns=col
         avec=np.array(celldf.loc[0,['a_x','a_y','a_z']].to_list())

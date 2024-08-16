@@ -19,7 +19,7 @@ from .util import is_periodic, pdb_search_replace, pdb_singlemolecule_charmify
 from .molecule import Molecule
 from .chainidmanager import ChainIDManager
 from .colvars import *
-from .stringthings import FileCollector,get_boxsize_from_packmolmemgen
+from .stringthings import FileCollector,get_boxsize_from_packmolmemgen, rescale_packmol_inp_box
 from .modmanager import ModManager
 from .command import Command
 from .mods import CleavageSite, CleavageSiteList
@@ -151,18 +151,6 @@ class BaseTask(BaseMod):
         vm.writescript()
         vm.runscript()
 
-    def check_pierced_rings(self):
-        vm=self.writers['vmd']
-        vm.newscript(f'{self.basename}-piercecheck',packages=['PestiferPierce'])
-        psf=self.statevars['psf']
-        pdb=self.statevars['pdb']
-        vm.addline(f'mol new {psf}')
-        vm.addline(f'mol addfile {pdb} waitfor all')
-        vm.addline(f'check_pierced_rings 0 6 1.5')
-        vm.addline(f'check_pierced_rings 0 5 1.5')
-        vm.writescript()
-        vm.runscript()
-
     def make_constraint_pdb(self,specs,statekey='consref'):
         vm=self.writers['vmd']
         pdb=self.statevars['pdb']
@@ -231,9 +219,10 @@ class BaseTask(BaseMod):
         logger.debug(f'Copy state inherited {", ".join(copies)}')
         
 class RestartTask(BaseTask):
+    """ This task only resets the workflow chain to named values of the psf, pdb, xsc, and coor files """
     yaml_header='restart'
     def do(self):
-        self.index=self.specs.get('task_number',0)
+        self.log_message('initiated')
         self.next_basename()
         exts_actual=[]
         for ext in ['psf','coor','pdb','xsc']:
@@ -242,6 +231,7 @@ class RestartTask(BaseTask):
                 shutil.copy(fname,f'{self.basename}.{ext}')
                 exts_actual.append(ext)
         self.save_state(exts=exts_actual)
+        self.log_message('complete')
 
 class MDTask(BaseTask):
     """ A class for handling all NAMD2 runs
@@ -478,7 +468,7 @@ class PsfgenTask(BaseTask):
             logger.debug(f'Declashing {nloops} loops')
             self.declash_loops(self.specs['source']['sequence']['loops'])
         nglycans=self.base_molecule.nglycans()*self.base_molecule.num_images()
-        if nglycans>0:
+        if nglycans>0 and self.specs['source']['sequence']['glycans']['declash']['maxcycles']>0:
             logger.debug(f'Declashing {nglycans} glycans')
             self.declash_glycans(self.specs['source']['sequence']['glycans'])
         self.log_message('complete')
@@ -572,7 +562,7 @@ class PsfgenTask(BaseTask):
         logger.debug(f'Injesting {psf}')
         struct=PSFContents(psf,parse_topology=['bonds'])
         logger.debug(f'Making graph structure of glycan atoms...')
-        glycanatoms=struct.atoms.filter(segtype='glycan')
+        glycanatoms=struct.atoms.get(segtype='glycan')
         glycangraph=glycanatoms.graph()
         G=[glycangraph.subgraph(c).copy() for c in nx.connected_components(glycangraph)]
         logger.debug(f'Preparing declash input for {len(G)} glycans')
@@ -999,7 +989,10 @@ class PackmolMemgenTask(BaseTask):
         self.inherit_state()
         psf=self.statevars.get('psf',None)
         pdb=self.statevars.get('pdb',None)
-
+        scaledict=self.specs.get('scale_box',{})
+        scale=[]
+        if scaledict:
+            scale=[scaledict['x'],scaledict['y'],scaledict['z']]
         lipidnames=self.specs['command_options'].get('lipids',['POPC'])
         leafs=lipidnames.split('//')
         lipids=[]
@@ -1097,6 +1090,8 @@ class PackmolMemgenTask(BaseTask):
                 logger.debug(f'No {pestifer_pdb} found.')
                 logger.debug(f'Charmifying lipid template {lip}')
                 pdb_singlemolecule_charmify(f'{lip}.pdb',perlip_df[lip])
+        if scale:
+            rescale_packmol_inp_box(f'{self.basename}-packmol.inp',scale)
         cmd=Command(f'packmol < {self.basename}-packmol.inp')
         progress_struct=None
         if self.progress:
@@ -1113,7 +1108,7 @@ class PackmolMemgenTask(BaseTask):
         if ionmap:
             pdb_search_replace(outpdb,ionmap)
 
-        cellstr,boxinfo=get_boxsize_from_packmolmemgen(logname=f'{self.basename}-packmol-memgen.log')
+        cellstr,boxinfo=get_boxsize_from_packmolmemgen(logname=f'{self.basename}-packmol-memgen.log',scale=scale)
         self.next_basename('psfgen')
         with open(f'{self.basename}_cell.tcl','w') as f:
             f.write(cellstr)
@@ -1172,7 +1167,7 @@ class RingCheckTask(BaseTask):
     Methods
     -------
     do(): 
-        Based on specs, executes ring piercing check
+        Based on specs, executes ring piercing check and deletes offending residues
 
     """
     yaml_header='ring_check'
@@ -1185,18 +1180,26 @@ class RingCheckTask(BaseTask):
         xsc=self.statevars.get('xsc',None)
         cutoff=self.specs.get('cutoff',3.5)
         segtypes=self.specs.get('segtypes',['lipid'])
+        delete_these=self.specs.get('delete','piercee')
         result=ring_check(psf,pdb,xsc,cutoff=cutoff,segtypes=segtypes)
-        self.next_basename('ring_check')
         if result:
-            pg=self.writers['psfgen']
-            pg.newscript(self.basename)
-            pg.load_project(psf,pdb)
-            for r in result:
-                logger.debug(f'Delting segname {r["piercee"]["segname"]} residue {r["piercee"]["resid"]}')
-                pg.addline(f'delatom {r["piercee"]["segname"]} {r["piercee"]["resid"]}')
-            pg.writescript(self.basename)
-            pg.runscript()
-            self.save_state(exts=['psf','pdb'])
+            ess='s' if len(result)>1 else ''
+            if delete_these=="none":
+                logger.debug(f'No action taken regarding {len(result)} pierced-ring configuration{ess}')
+                for r in result:
+                    logger.debug(f'  Piercing of {r["piercee"]["segname"]}-{r["piercee"]["resid"]} by {r["piercer"]["segname"]}-{r["piercer"]["resid"]}')
+            else:
+                self.next_basename('ring_check')
+                pg=self.writers['psfgen']
+                pg.newscript(self.basename)
+                pg.load_project(psf,pdb)
+                logger.debug(f'Deleting all {delete_these}s from {len(result)} pierced-ring configuration{ess}')
+                for r in result:
+                    logger.debug(f'   Deleting segname {r[delete_these]["segname"]} residue {r[delete_these]["resid"]}')
+                    pg.addline(f'delatom {r[delete_these]["segname"]} {r[delete_these]["resid"]}')
+                pg.writescript(self.basename)
+                pg.runscript()
+                self.save_state(exts=['psf','pdb'])
         self.log_message('complete')
 
 

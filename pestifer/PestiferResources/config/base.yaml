@@ -1236,9 +1236,10 @@ directives:
         type: dict
         directives:
           - name: delete
-            text: which of the piercer or piercee to delete
+            text: which of the piercer or piercee to delete; if none, no deletions are performed
             type: string
             default: piercee
+            options: ['piercee','piercer','none']
           - name: cutoff
             text: distance cutoff between bond and ring COM's for checking, Angstroms
             type: float
@@ -1342,6 +1343,10 @@ directives:
                 type: str
                 options: ['in','out']
                 default: 'in'
+              - name: notgridvol
+                text: skip grid building for volume estimation, and the calculation is done just by estimating density
+                type: bool
+                default: True
               - name: salt
                 text: whether to add salt or not, 0.15M KCl by default
                 type: bool
@@ -1369,6 +1374,19 @@ directives:
               - name: random
                 text: reinitialize RNG
                 type: bool
+          - name: scale_box
+            text: x, y, z scaling factors for the box size
+            type: dict
+            directives:
+              - name: x
+                text: x-scaling factor for the box size
+                type: float
+              - name: y
+                text: y-scaling factor for the box size
+                type: float
+              - name: z
+                text: z-scaling factor for the box size
+                type: float
       - name: md
         text: Parameters controlling a NAMD run
         type: dict
