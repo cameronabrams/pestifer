@@ -45,6 +45,8 @@ class PSFTopoElement(Namespace):
 
     def injest_coordinates(self,A,pos_key=['posX','posY','posZ'],meta_key=[]):
         self.P=np.array(A.loc[self.idx_list][pos_key].values)
+        if np.any(np.isnan(self.P)):
+            logger.debug(f'nan detected in {self.P}')
         if len(self.P)>1:
             self.calculate_stuff()
         for k in meta_key:
@@ -272,9 +274,11 @@ class PSFContents:
             if topology_segtypes:
                 self.included_atoms=PSFAtomList([])
                 for segtype in topology_segtypes:
-                    self.included_atoms.extend(self.atoms.get(segtype=segtype))
+                    sublist=self.atoms.get(segtype=segtype)
+                    logger.debug(f'{len(sublist)} atoms of segtype {segtype}...')
+                    self.included_atoms.extend(sublist)
                 include_serials=[x.segtype in topology_segtypes for x in self.atoms]
-                logger.debug(f'Including {include_serials.count(True)}/{len(include_serials)} topologically active atoms ({len(self.included_atoms)})')
+                logger.debug(f'Including {include_serials.count(True)}/{len(include_serials)} topologically active atoms ({len(self.included_atoms)}) from segtypes {topology_segtypes}')
             if 'bonds' in parse_topology:
                 self.bonds=PSFBondList(LineList(self.token_lines['BOND']),include_serials=include_serials)
                 # logger.debug(f'Creating graph from {len(self.bonds)} bonds...')
