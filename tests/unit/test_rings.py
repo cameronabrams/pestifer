@@ -10,12 +10,12 @@ import numpy as np
 
 
 class TestRings(unittest.TestCase):
-    def test_ringlist(self):
-        psf=PSFContents('test.psf',parse_topology=['bonds'])
+    def test_ringlist_count(self):
+        psf=PSFContents('test.psf',topology_segtypes=['lipid'],parse_topology=['bonds'])
         Rings=RingList(psf.G)
         logger.debug(f'{len(Rings)} rings detected.')
         nrings=len(Rings)
-        self.assertEqual(nrings,602)
+        self.assertEqual(nrings,560)
         nrings_by_size={}
         for r in Rings:
             s=len(r)
@@ -33,6 +33,6 @@ class TestRings(unittest.TestCase):
         topol=PSFContents('test.psf',parse_topology=['bonds'])
         self.assertEqual(coorddf.shape[0],len(topol.atoms))
         Rings=RingList(topol.G)
-        Rings.injest_coordinates(coorddf,idx_key=None,pos_key=['x','y','z'])
+        Rings.injest_coordinates(coorddf,pos_key=['x','y','z'])
         Rings.validate_images(box)
         self.assertTrue(all([x.same_image for x in Rings]))

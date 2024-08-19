@@ -461,7 +461,8 @@ class PsfgenTask(BaseTask):
         self.psfgen()
         # we now have a full coordinate set, so we can do coormods
         self.coormods()
-        min_loop_length=self.specs['source']['sequence']['loops']['min_loop_length']
+        # min_loop_length=0
+        min_loop_length=self.specs['source'].get('sequence',{}).get('loops',{}).get('min_loop_length',0)
         self.update_statevars('min_loop_length',min_loop_length)
         nloops=self.base_molecule.has_loops(min_loop_length=min_loop_length)*self.base_molecule.num_images()
         if nloops>0:
@@ -872,6 +873,7 @@ class ManipulateTask(BaseTask):
         if self.prior:
             logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
             self.inherit_state()
+        logger.debug(f'manipulate {self.specs["mods"]}')
         self.modmanager=ModManager(self.specs['mods'])
         self.coormods()
         self.log_message('complete')
@@ -883,7 +885,7 @@ class ManipulateTask(BaseTask):
             for modtype,modlist in coormods.items():
                 self.next_basename(modtype)
                 vm=self.writers['vmd']
-                vm.newscript(self.basename)
+                vm.newscript(self.basename,packages=['Orient'])
                 psf=self.statevars['psf']
                 pdb=self.statevars['pdb']
                 vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
@@ -959,6 +961,7 @@ class TerminateTask(MDTask):
             self.FC.append(f'{self.basename}_topogromacs.pdb')
             self.FC.append(f'{self.basename}_topogromacs.top')
         self.FC.tarball(specs["basename"])
+
 
 class PackmolMemgenTask(BaseTask):
     """ A class for handling invocations of packmol-memgen
@@ -1202,6 +1205,10 @@ class RingCheckTask(BaseTask):
                 self.save_state(exts=['psf','pdb'])
         self.log_message('complete')
 
+# class BuildCharmmLipid(BaseTask):
+#     yaml_header='build_charmm_lipid'
+#     def do(self):
+#         charmm_resname=self.specs['resname']
 
 
 

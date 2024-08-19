@@ -1,19 +1,51 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 import networkx as nx
+from collections import UserDict
 from rdkit import Chem
 import yaml
 import os
 import glob
 from .config import ResourceManager
+
 import logging
 logger=logging.getLogger(__name__)
 
+class CharmmMassRecord:
+    def __init__(self,record):
+        tok=record
+        self.com=''
+        tokcom=tok.split('!')
+        if len(tokcom)>1:
+            tok=tokcom[0]
+            self.com='!'.join(tokcom[1:])
+        tokens=[t.strip() for t in tok.split()]
+        self.atom_type=tokens[2]
+        self.atom_mass=float(tokens[3])
+        try:
+            self.atom_element=tokens[4]
+        except:
+            self.atom_element=self.atom_type[0]
+        # logger.debug(f'{self.atom_type} {self.atom_mass} {self.atom_element}')
+
+class CharmmMasses(UserDict):
+    def __init__(self,mList):
+        self.data={}
+        for m in mList:
+            self.data[m.atom_type]=m
+
 class CharmmTopAtom:
-    def __init__(self,atomstring):
+    def __init__(self,atomstring,masses=[]):
         tokens=atomstring.split()
         self.name=tokens[1]
         self.type=tokens[2]
         self.charge=float(tokens[3])
+        self.mass=0.0
+        self.element='?'
+        if masses:
+            atom_massrecord=masses.get(self.type,None)
+            if atom_massrecord:
+                self.mass=atom_massrecord.atom_mass
+                self.element=atom_massrecord.atom_element
         
 class CharmmBond:
     def __init__(self,name1,name2,degree=1):
@@ -21,8 +53,12 @@ class CharmmBond:
         self.name2=name2
         self.degree=degree
 
+class CharmmAtoms(UserDict):
+    def __init__(self,a_list):
+        self.data={a.name:a for a in a_list}
+
 class CharmmTopResi:
-    def __init__(self,blockstring):
+    def __init__(self,blockstring,masses=[]):
         lines=blockstring.split('\n')
         titlecard=lines[0]
         tctokens=titlecard.split()
@@ -67,12 +103,13 @@ class CharmmTopResi:
                     comment=''
                 if not gn in self.atoms_in_group:
                     self.atoms_in_group[gn]=[]
-                at=CharmmTopAtom(atom_string)
+                at=CharmmTopAtom(atom_string,masses=masses)
                 self.atoms_in_group[gn].append(at)
                 self.atoms.append(at)
                 if len(comment.strip())>0:
                     self.comment_strings.append(comment)
                 ai+=1
+        self.atomdict=CharmmAtoms(self.atoms)
         self.bonds=[]
         for bn,bi in enumerate(self.bondcard_idx):
             bondcard=datacards[bi]
@@ -90,17 +127,56 @@ class CharmmTopResi:
     def num_atoms(self):
         return len(self.atoms)
 
-    def to_graph(self):
+    def formula(self):
+        fdict={}
+        sortorder='CHNOP'
+        for a in self.atoms:
+            if a.element!='?':
+                if not a.element in fdict:
+                    fdict[a.element]=0
+                fdict[a.element]+=1
+        if fdict:
+            retstr=''
+            for e in sortorder:
+                if e in fdict:
+                    n='' if fdict[e]==1 else str(fdict[e])
+                    retstr+=f'{e}{n}'
+            for k,v in fdict.items():
+                if not k in sortorder:
+                    n='' if v==1 else str(v)
+                    retstr+=f'{k}{n}'
+        return retstr
+
+    def mass(self):
+        sum=0.0
+        for a in self.atoms:
+            sum+=a.mass
+        return sum
+
+    def to_graph(self,includeH=True):
         g=nx.Graph()
         for b in self.bonds:
-            g.add_edge(b.name1,b.name2)
+            if b.name1.startswith('H') or b.name2.startswith('H'):
+                if includeH:
+                    g.add_edge(b.name1,b.name2)
+            else:
+                g.add_edge(b.name1,b.name2)
         return g
-
-def getResis(topfile):
+    
+def getMasses(topfile):
     R=[]
     with open(topfile,'r') as f:
         lines=f.read().split('\n')
-    # logger.debug(f'{topfile} {len(lines)} lines')
+    masses=[]
+    for i in range(len(lines)):
+        if lines[i].startswith('MASS'):
+            masses.append(CharmmMassRecord(lines[i]))
+    return masses
+
+def getResis(topfile,masses=[]):
+    R=[]
+    with open(topfile,'r') as f:
+        lines=f.read().split('\n')
     residx=[]
     for i in range(len(lines)):
         if lines[i].startswith('RESI'):
@@ -116,7 +192,7 @@ def getResis(topfile):
     # for i in range(len(bufs)):
     #     logger.debug(f'{len(bufs[i])} bytes in resi {i} {bufs[i][:35]}')
     for block in bufs:
-        resi=CharmmTopResi(block)
+        resi=CharmmTopResi(block,masses=masses)
         resi.topfile=topfile
         R.append(resi)
     return R
@@ -126,11 +202,14 @@ def makeBondGraph(mol):
     atoms=[]
     for a in mol.GetAtoms():
         atoms.append(a.GetIdx())
+    # logger.debug(f'{len(atoms)} atoms')
     for bond in mol.GetBonds():
         aid1=atoms[bond.GetBeginAtomIdx()]
         aid2=atoms[bond.GetEndAtomIdx()]
         g2.add_edge(aid1,aid2)
+    # logger.debug(f'returning {g2}')
     return g2,atoms
+
 
 # if __name__=='__main__':
 

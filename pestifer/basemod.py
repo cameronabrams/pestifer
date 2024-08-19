@@ -657,7 +657,7 @@ class ModList(UserList):
     get(**fields):
         a modified filter() method whose return value depends on how
         many items in the calling instance are matches.  If none,
-        returns None; if one, returns that object; if more than one,
+        returns an empty list; if one, returns that object; if more than one,
         returns the result of the filter (all the matches collected
         in a new list)
     
@@ -809,7 +809,7 @@ class ModList(UserList):
         
         get returns a single object if there is only one match;
         if there are multiple matches, all are returned in a list;
-        if there are no matches, None is returned.
+        if there are no matches, an empty list is returned.
         
         Parameters
         ----------
@@ -828,7 +828,7 @@ class ModList(UserList):
         """
         R=self.filter(**fields)
         if len(R)==0:
-            return None
+            return type(self)([])
         elif len(R)==1:
             return R[0]
         else:

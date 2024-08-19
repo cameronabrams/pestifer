@@ -439,6 +439,7 @@ class ResidueList(AncestorAwareModList):
     def renumber(self,links):
         """The possibility exists that empty residues added have resseqnums that conflict with existing resseqnums on the same chain if those resseqnums are in a different segtype (e.g., glycan).  This method will privilege protein residues in such conflicts, and it will renumber non-protein residues, updating any resseqnum records in links """
         protein_residues=self.get(segtype='protein')
+        if len(protein_residues)==0: return
         min_protein_resseqnum=min([x.resseqnum for x in protein_residues])
         max_protein_resseqnum=max([x.resseqnum for x in protein_residues])
         non_protein_residues=ResidueList([])

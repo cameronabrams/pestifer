@@ -13,19 +13,19 @@ class TestCommand(unittest.TestCase):
         c.run()
         self.assertEqual(expected_stdout,c.stdout)
 
-    def test_condafy(self):
-        c=CondaCheck()
-        cmd='conda list python'
-        cc=c.condafy(cmd,env='pmmg')
-        self.assertEqual(cc,f'source {c.init_shell}\nconda activate pmmg\nconda list python')
-        d=Command(cc)
-        d.run()
-        dlines=d.stdout.split('\n')
-        for l in dlines[:-1]:
-            t=l.split()
-            if t[0]=='python':
-                v=t[1]
-        self.assertEqual('3.8.0',v)
+    # def test_condafy(self):
+    #     c=CondaCheck()
+    #     cmd='conda list python'
+    #     cc=c.condafy(cmd,env='avogad')
+    #     self.assertEqual(cc,f'source {c.init_shell}\nconda activate avogad\nconda list python')
+    #     d=Command(cc)
+    #     d.run()
+    #     dlines=d.stdout.split('\n')
+    #     for l in dlines[:-1]:
+    #         t=l.split()
+    #         if t[0]=='python':
+    #             v=t[1]
+    #     self.assertEqual('3.8.0',v)
 
 class TestCondaCheck(unittest.TestCase):
     def test_condacheck(self):

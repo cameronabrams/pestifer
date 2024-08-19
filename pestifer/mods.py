@@ -52,6 +52,7 @@
     coormods
     --------
     * Crot -- any of a variety of rotations around certain dihedrals
+    * reorient -- reorients system
 
 """
 import os
@@ -596,6 +597,42 @@ class Cfusion(AncestorAwareMod):
 
 class CfusionList(AncestorAwareModList):
     pass
+
+class Orient(AncestorAwareMod):
+    req_attr=AncestorAwareMod.req_attr+['axis']
+    opt_attr=AncestorAwareMod.opt_attr+['atom1','atom2']
+    yaml_header='orient'
+    modtype='coormods'
+
+    @singledispatchmethod
+    def __init__(self,input_obj):
+        super().__init__(input_obj)
+    
+    @__init__.register(str)
+    def _from_shortcode(self,shortcode):
+        logger.debug(f'orient shortcode {shortcode}')
+        dat=shortcode.split(',')
+        input_dict=dict(
+            axis=dat[0],
+            atom1=dat[1],
+            atom2=dat[2])
+        super().__init__(input_dict)
+
+    def write_TcL(self,W:VMD):
+        W.addline('set a [atomselect top all]')
+        W.addline(f'set a1 [atomselect top "name {self.atom1}"]')
+        W.addline(f'set v1 [list [$a1 get x] [$a1 get y] [$a1 get z]]')
+        W.addline(f'set a2 [atomselect top "name {self.atom2}"]')
+        W.addline(f'set v2 [list [$a2 get x] [$a2 get y] [$a2 get z]]')
+        W.addline(f'set uv [vecnorm [vecsub $v1 $v2]]')
+        adict=dict(x=r'{1 0 0}',y=r'{0 1 0}',z=r'{0 0 1}')
+        W.addline(f'set A [orient $a $uv {adict[self.axis]}]')
+        W.addline(r'$a move $A')
+
+class OrientList(AncestorAwareModList):
+    def write_TcL(self,W:VMD):
+        for c in self:
+            c.write_TcL(W)
 
 class Crot(AncestorAwareMod):
     """A class for managing so-called 'C-rotations'

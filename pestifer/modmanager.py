@@ -87,6 +87,7 @@ class ModManager(UserDict):
         
     def _injest_moddict(self,moddict,overwrite=False):
         # does nothing if moddict is empty, but let's just be sure
+        logger.debug(f'moddict {moddict}')
         if len(moddict)==0:
             return
         for name,Cls in self.mod_classes.items():
@@ -100,6 +101,7 @@ class ModManager(UserDict):
                     self[modtype][header]=LCls([])
                 for entry in moddict[header]:
                     assert type(entry) in [str,dict],f'Error: expected mod specification of type str or dict, got {type(entry)}'
+                    logger.debug(f'entry {entry}')
                     self[modtype][header].append(Cls(entry))
 
     def retire(self,modtype):

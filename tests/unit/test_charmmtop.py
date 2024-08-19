@@ -1,29 +1,30 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 import unittest
-from pestifer.config import ResourceManager
-from pestifer.charmmtop import getResis
-import glob
-import os
+# from pestifer.config import ResourceManager
+# from pestifer.charmmtop import getResis, makeBondGraph, getMasses, CharmmMasses
+from pestifer.PestiferResources.lmsd.make_database import *
+# import glob
+# import os
 import logging
+# import gzip
+# import networkx as nx
+# import yaml
 logger=logging.getLogger(__name__)
+
+from rdkit.Chem import ForwardSDMolSupplier
+from rdkit import Chem
 
 class TestCHARMMtop(unittest.TestCase):
 
+    def test_resnames(self):
+        DB=LMSDDatabase()
+        DB.yaml_names()
+        
     def test_lipid_charmmtop(self):
-        r=ResourceManager()
-        toppardir=r['charmmff']['toppar']
-        lipidstreamdir=os.path.join(toppardir,'stream/lipid')
-        strlipids=glob.glob(os.path.join(lipidstreamdir,'*.str'))
-        idx=['list' in x for x in strlipids].index(True)
-        strlipids.remove(strlipids[idx])
-        # logger.debug(f'strlipids in {", ".join([os.path.basename(x) for x in strlipids])}')
-        tops=[os.path.join(toppardir,'top_all36_lipid.rtf')]+glob.glob(os.path.join(lipidstreamdir,'*.str'))
+        DB=LMSDDatabase()
+        result=make_charmm_pdb('DPPC',DB)
+        self.assertTrue(result!=-1)
 
-        resis=[]
-        for t in tops:
-            sublist=getResis(t)
-            # logger.debug(f'{os.path.basename(t)} {len(sublist)} RESIs')
-            resis.extend(sublist)
-        logger.debug(f'{len(resis)} RESIs')
-        for r in resis:
-            logger.debug(f'{r.resname}, {r.synonym}, {r.num_atoms()}, {os.path.basename(r.topfile)}')
+    def test_do_psfgen(self):
+        DB=LMSDDatabase()
+        result=do_psfgen('DPPC',DB)

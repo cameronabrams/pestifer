@@ -13,9 +13,11 @@ class Controller:
     """ A class for controlling the execution of `Tasks`.
     
     """
-    def __init__(self,userconfigfilename):
+    def __init__(self,userconfigfilename='',userspecs={}):
         # Read in the user configuration file and set up the overall Config
         self.config=Config(userfile=userconfigfilename)
+        if userspecs:
+            self.config['user'].update(userspecs)
 
         # Set up the file writers
         self.writers={
@@ -30,7 +32,7 @@ class Controller:
         self.tasks=[]
         prior_task=None
         BaseTask._taskcount=0
-        for taskdict in self.config['user']['tasks']:
+        for taskdict in self.config['user'].get('tasks',[]):
             # Each task dictionary has a single keyword (the task name) and a value
             # that comprises the task specifications
             assert len(taskdict)==1
