@@ -145,6 +145,8 @@ class Segment(AncestorAwareMod):
         W.addline(f'${selname} set resid [list {" ".join([str(x) for x in resid_list])}]')
         W.addline(f'${selname} writepdb {pdb}')
         W.addline(f'segment {image_seglabel} '+'{')
+        W.addline(f'    first none')
+        W.addline(f'    last none')
         W.addline(f'    pdb {pdb}')
         for g in seg_grafts:
             g.write_in_segment(W)

@@ -600,7 +600,7 @@ class CfusionList(AncestorAwareModList):
 
 class Orient(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['axis']
-    opt_attr=AncestorAwareMod.opt_attr+['atom1','atom2']
+    opt_attr=AncestorAwareMod.opt_attr+['refatom']
     yaml_header='orient'
     modtype='coormods'
 
@@ -612,23 +612,25 @@ class Orient(AncestorAwareMod):
     def _from_shortcode(self,shortcode):
         logger.debug(f'orient shortcode {shortcode}')
         dat=shortcode.split(',')
-        input_dict=dict(
-            axis=dat[0],
-            atom1=dat[1],
-            atom2=dat[2])
+        input_dict=dict(axis=dat[0])
+        if len(dat)>1:
+            input_dict['refatom']=dat[1]
         super().__init__(input_dict)
 
     def write_TcL(self,W:VMD):
         W.addline('set a [atomselect top all]')
-        W.addline(f'set a1 [atomselect top "name {self.atom1}"]')
-        W.addline(f'set v1 [list [$a1 get x] [$a1 get y] [$a1 get z]]')
-        W.addline(f'set a2 [atomselect top "name {self.atom2}"]')
-        W.addline(f'set v2 [list [$a2 get x] [$a2 get y] [$a2 get z]]')
-        W.addline(f'set uv [vecnorm [vecsub $v1 $v2]]')
+        W.addline('set I [draw principalaxes $a]')
         adict=dict(x=r'{1 0 0}',y=r'{0 1 0}',z=r'{0 0 1}')
-        W.addline(f'set A [orient $a $uv {adict[self.axis]}]')
+        W.addline(f'set A [orient $a [lindex $I 2] {adict[self.axis]}]')
         W.addline(r'$a move $A')
-
+        if hasattr(self,'refatom'):
+            W.addline(r'set com [measure center $a]')
+            W.addline(r'$a moveby [vecscale $com -1]')
+            W.addline(f'set z [[atomselect top "name {self.refatom}"] get z]')
+            W.addline(r'if { $z < 0.0 } {')
+            W.addline(r'   $a move [transaxis x 180 degrees]')
+            W.addline(r'}')
+            
 class OrientList(AncestorAwareModList):
     def write_TcL(self,W:VMD):
         for c in self:

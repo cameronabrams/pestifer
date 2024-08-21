@@ -56,7 +56,7 @@ ATOM H12A HL      0.25 !                   |
 ATOM H12B HL      0.25 !              H11A-C11-H11B
 GROUP                  !                   |
 ATOM C11  CTL2   -0.08 !                   |
-ATcomment_stringsOM H11A HAL2    0.09 !                   |
+ATOM H11A HAL2    0.09 !                   |
 ATOM H11B HAL2    0.09 !         (-) O13  O12
 ATOM P    PL      1.50 !               \ /
 ATOM O13  O2L    -0.78 !                P  (+)

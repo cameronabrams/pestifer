@@ -22,11 +22,13 @@ from .stringthings import banner, banner_message, enhanced_banner_message, oxfor
 from .controller import Controller
 from .config import Config, ResourceManager, injest_packmol_memgen_databases
 from .scriptwriters import Psfgen
+from .charmmtop import make_pdb_database
 
 logger=logging.getLogger(__name__)
 
 logging.getLogger("pidibble").setLevel(logging.WARNING)
 logging.getLogger("ycleptic").setLevel(logging.WARNING)
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 def config_help(args):
     c=Config()
@@ -42,7 +44,12 @@ def config_default(args):
     print(yaml.dump(specs))
 
 def run(args,**kwargs):
-    loglevel_numeric=getattr(logging, args.loglevel.upper())
+    if args.output_dir!='./':
+        exec_dir=os.getcwd()
+        if not os.path.exists(args.output_dir):
+            os.mkdir(args.output_dir)
+        os.chdir(args.outputdir)
+    loglevel_numeric=getattr(logging,args.loglevel.upper())
     if args.diagnostic_file:
         if os.path.exists(args.diagnostic_file):
             shutil.copyfile(args.diagnostic_file,args.diagnostic_file+'.bak')
@@ -72,6 +79,8 @@ def run(args,**kwargs):
     end_time=time.time()
     elapsed_time_s=datetime.timedelta(seconds=(end_time-begin_time))
     logger.info(f'{__package__} runtime ends. Elapsed runtime {time.strftime("%H:%M:%S",time.gmtime(elapsed_time_s.seconds))}.')
+    if args.output_dir!='./':
+        os.chdir(exec_dir)
 
 def list_examples():
     r=ResourceManager()
@@ -119,7 +128,7 @@ def run_example(args,**kwargs):
 
 def inittcl(args):
     c=Config()
-    force=args.force
+    force=args.forceCharmmResiDatabase
     assert 'tcl' in c['Resources'],f'No tcl found in resources -- this is a bad {__package__} installation'
     tcl_root=os.path.join(c['Resources']['root'],'tcl')
     macrofile=os.path.join(tcl_root,'macros.tcl')
@@ -160,11 +169,11 @@ def wheretcl(args):
             msg='TcL package directory: '
         print(f'{msg}{pkg_dir}')
 
-def query_pmmg_lipid(lipid_name):
-    lipids,maps=injest_packmol_memgen_databases()
-    lipid_row=lipids[lipids['#NAME']==lipid_name].to_dict(orient='list')
-    for k,v in lipid_row.items():
-        print(f'{k:15s} {v[0]}')
+# def query_pmmg_lipid(lipid_name):
+#     lipids,maps=injest_packmol_memgen_databases()
+#     lipid_row=lipids[lipids['#NAME']==lipid_name].to_dict(orient='list')
+#     for k,v in lipid_row.items():
+#         print(f'{k:15s} {v[0]}')
 
 
 def cli():
@@ -175,7 +184,8 @@ def cli():
         'run-example': run_example,
         'run':run,
         'wheretcl':wheretcl,
-        'inittcl':inittcl
+        'inittcl':inittcl,
+        'make-lipid-database':make_pdb_database
     }
     helps={
         'config-help':'get help on the syntax of input configuration files',
@@ -184,7 +194,8 @@ def cli():
         'run-example':'build one of the examples provided',
         'run':'build a system using instructions in the config file',
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
-        'inittcl':'initializes macros from config'
+        'inittcl':'initializes macros from config',
+        'make-lipid-database':'scans all CHARMM top files for lipid molecules and makes PDBs that can be used by packmol'
     }
     descs={
         'config-help':'Use this command to get interactive help on config file directives.',
@@ -193,7 +204,8 @@ def cli():
         'run-example':'Build one of the examples:\n'+'\n'.join([f'{c:>3d}: {d}' for c,d in list_examples().items()]),
         'run':'Build a system',
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
-        'inittcl':'initializes macros from config'
+        'inittcl':'initializes macros from config',
+        'make-lipid-database':'makes lipid PDBs (charmm-compatible)'
     }
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
     parser.add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
@@ -208,19 +220,27 @@ def cli():
         command_parsers[k].set_defaults(func=commands[k])
     
     command_parsers['run'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
+    command_parsers['run'].add_argument('--output-dir',type=str,default='./',help='name of output directory relative to CWD')
+    # command_parsers['run'].add_argument('--loglevel',type=str,default='debug',choices=['info','debug','warning'],help='Log level for messages written to diagnostic log')
+    # command_parsers['run'].add_argument('--diagnostic-file',type=str,default='',help='diagnostic log file')
     command_parsers['fetch-example'].add_argument('number',type=int,default=None,help='example number')
     command_parsers['fetch-example'].add_argument('--config-updates',type=str,nargs='+',default=[],help='yaml files to update example')
     command_parsers['run-example'].add_argument('number',type=int,default=None,help='example number')
+    command_parsers['run-example'].add_argument('--output-dir',type=str,default='./',help='name of output directory relative to CWD')
     command_parsers['run-example'].add_argument('--config-updates',type=str,nargs='+',default=[],help='yaml files to update example')
+    # command_parsers['run-example'].add_argument('--loglevel',type=str,default='debug',choices=['info','debug','warning'],help='Log level for messages written to diagnostic log')
+    # command_parsers['run-example'].add_argument('--diagnostic-file',type=str,default='',help='diagnostic log file')
     command_parsers['config-help'].add_argument('directives',type=str,nargs='*',help='config file directives')
     command_parsers['config-default'].add_argument('directives',type=str,nargs='*',help='config file directives')
-    # command_parsers['script'].add_argument('scriptname',type=str,default=None,help='name of VMD/TcL script to run')
     command_parsers['wheretcl'].add_argument('--startup-script-path',default=False,action='store_true',help='print full path of VMD startup script used by pestifer')
     command_parsers['wheretcl'].add_argument('--verbose',default=False,action='store_true',help='print full paths of all TcL resources of Pestifer')
     command_parsers['wheretcl'].add_argument('--script-dir',default=False,action='store_true',help='print full path of directory of Pestifer\'s VMD scripts')
     command_parsers['wheretcl'].add_argument('--pkg-dir',default=False,action='store_true',help='print full path of directory of Pestifer\'s VMD/TcL package library')
     command_parsers['wheretcl'].add_argument('--root',default=False,action='store_true',help='print full path of Pestifer\'s root TcL directory')
     command_parsers['inittcl'].add_argument('--force',default=False,action='store_true',help='force overwrite of any package-resident tcl files inittcl generates')
+    command_parsers['make-lipid-database'].add_argument('--streams',type=str,nargs='+',default=['lipid'],help='list of charmmff streams to scan')
+    command_parsers['make-lipid-database'].add_argument('--loglevel',type=str,default='info',choices=['info','debug','warning'],help='Log level for messages written to console')
+
     args=parser.parse_args()
 
     if hasattr(args,'func') and args.func in [run,run_example]:

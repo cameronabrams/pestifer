@@ -86,7 +86,7 @@ class CondaCheck:
         if not env: env=self.active_env
         try:
             if env!=self.active_env:
-                logging.debug(f'Checking version of {pkgname} in non-active environment {env}')
+                logger.debug(f'Checking version of {pkgname} in non-active environment {env}')
                 if not from_list:
                     pcs=subprocess.Popen(f"source {self.init_shell}\nconda activate {env}\npython -c 'import {pkgname}; print({pkgname}.__version__)'",
                     shell=True, executable='/bin/bash',stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)

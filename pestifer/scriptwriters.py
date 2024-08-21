@@ -284,19 +284,26 @@ class NAMD2(Scriptwriter):
         self.ncpus=config.ncpus
         logger.debug(f'{self.ncpus} cpus are available for namd')
         self.default_ext='.namd'
-        if config.user_charmmff_toppar_path:
-            self.standard_charmmff_parfiles=[os.path.join(config.user_charmmff_toppar_path,x) for x in self.charmmff_config['standard']['parameters']]
-        else:
-            self.standard_charmmff_parfiles=[os.path.join(config.charmmff_toppar_path,x) for x in self.charmmff_config['standard']['parameters']]
-        self.custom_charmmff_parfiles=[os.path.join(config.charmmff_custom_path,x) for x in self.charmmff_config['custom']['parameters']]
+        self.user_charmmff_toppar_path=config.user_charmmff_toppar_path
+        self.charmmff_toppar_path=config.charmmff_toppar_path
+        self.charmmff_custom_path=config.charmmff_custom_path
+        self.update_par()
 
-    def write_parcommands(self,filename,fetch=False):
-        with open(filename,'w') as f:
-            for pf in self.standard_charmmff_parfiles+self.custom_charmmff_parfiles:
-                d,bn=os.path.split(pf)
-                if fetch:
-                    shutil.copy(pf,bn)
-                f.write(f'parameters {bn}\n')
+    def update_par(self):
+        if self.user_charmmff_toppar_path:
+            self.standard_charmmff_parfiles=[os.path.join(self.user_charmmff_toppar_path,x) for x in self.charmmff_config['standard']['parameters']]
+        else:
+            self.standard_charmmff_parfiles=[os.path.join(self.charmmff_toppar_path,x) for x in self.charmmff_config['standard']['parameters']]
+        self.custom_charmmff_parfiles=[os.path.join(self.charmmff_custom_path,x) for x in self.charmmff_config['custom']['parameters']]
+
+
+    # def write_parcommands(self,filename,fetch=False):
+    #     with open(filename,'w') as f:
+    #         for pf in self.standard_charmmff_parfiles+self.custom_charmmff_parfiles:
+    #             d,bn=os.path.split(pf)
+    #             if fetch:
+    #                 shutil.copy(pf,bn)
+    #             f.write(f'parameters {bn}\n')
 
     def newscript(self,basename=None):
         super().newscript(basename)

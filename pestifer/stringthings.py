@@ -431,3 +431,11 @@ def oxford(a_list,conjunction='or'):
         return f'{a_list[0]} {conjunction} {a_list[1]}'
     else:
         return ", ".join(a_list[:-1])+f', {conjunction} {a_list[-1]}'
+    
+def linesplit(line,cchar='!'):
+    if not cchar in line:
+        return line,''
+    idx=line.index(cchar)
+    if idx==0:
+        return '',line[1:]
+    return line[:idx],line[idx+1:]

@@ -306,6 +306,7 @@ class MDTask(BaseTask):
 
         constraints=specs.get('constraints',{})
         other_params=specs.get('other_parameters',{})
+        colvars=specs.get('colvar_specs',{})
         params.update(namd_global_params['generic'])
         params['structure']=psf
         params['coordinates']=pdb
@@ -318,6 +319,7 @@ class MDTask(BaseTask):
             del params['temperature']
         
         na=self.writers['namd2']
+        na.update_par()
         if absolute_paths:
             params['parameters']=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
         else:
@@ -359,6 +361,14 @@ class MDTask(BaseTask):
             params['consref']=self.statevars['consref']
             params['conskfile']=self.statevars['consref']
             params['conskcol']='O'
+        if colvars:
+            writer=self.writers['data']
+            writer.newfile(f'{self.basename}-cv.inp')
+            colvar_writer(colvars,writer,pdb=pdb)
+            writer.writefile()
+            params['colvars']='on'
+            params['colvarsconfig']=f'{self.basename}-cv.inp'
+
         params.update(other_params)
         params.update(extras)
         params['firsttimestep']=firsttimestep
@@ -795,13 +805,13 @@ class LigateTask(MDTask):
         writer=self.writers['data']
         writer.newfile(f'{self.basename}-cv.inp')
         for i,g in enumerate(self.gaps):
-            g['name']=f'GAP{i:02d}'
+            g['colvars']=f'GAP{i:02d}'
             declare_distance_cv_atoms(g,writer)
         for i,g in enumerate(self.gaps):
-            g['k']=specs['force_constant']
+            g['forceConstant']=specs['force_constant']
             g['targ_distance']=specs['target_distance']
             g['targ_numsteps']=specs['nsteps']
-            declare_harmonic_distance_bias(g,writer)
+            declare_single_harmonic_distance_bias(g,writer)
         writer.writefile()
         savespecs=self.specs
         self.specs=specs

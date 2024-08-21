@@ -12,6 +12,8 @@ topology ../toppar/top_all36_lipid.rtf
 topology ../toppar/stream/lipid/toppar_all36_lipid_miscellaneous.str
 
 segment A {
+    first none
+    last none
     pdb SOPE.pdb
 }
 coordpdb SOPE.pdb A 
@@ -28,6 +30,8 @@ topology ../toppar/top_all36_lipid.rtf
 topology ../toppar/stream/lipid/toppar_all36_lipid_miscellaneous.str
 
 segment A {
+    first none
+    last none
     pdb SOPS.pdb
 }
 coordpdb SOPS.pdb A 

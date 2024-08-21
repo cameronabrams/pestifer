@@ -347,7 +347,7 @@ class ResidueList(AncestorAwareModList):
             self.remove(d)
 
     def apply_segtypes(self):
-        logger.debug(f'residuelist:apply_segtypes {segtype_of_resname}')
+        # logger.debug(f'residuelist:apply_segtypes {segtype_of_resname}')
         self.map_attr('segtype','resname',segtype_of_resname)
     
     def deletion(self,DL:DeletionList):
