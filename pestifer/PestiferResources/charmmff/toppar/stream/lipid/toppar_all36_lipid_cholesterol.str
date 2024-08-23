@@ -1751,6 +1751,8 @@ HGA1 CRL1 CTL1   34.500    110.10   22.53   2.179  ! alkane, 3/92
 HGA1 CRL1 CRL1   34.500    110.10   22.53   2.179  ! alkane, 3/92
 CTL1 CRL1 CRL1   53.350    111.00    8.00   2.561  ! alkane, 3/92
 HAL1 CTL1 CRL1   34.500    110.10   22.53   2.179  ! alkane, 3/92
+!added by cfa for pestifer
+HAL3 CRL1 CRL1   34.500    110.10   22.53   2.179  ! alkane, 3/92
 CRL1 CTL1 CTL3   53.350    108.50    8.00   2.561  ! alkane, 3/92
 CRL1 CTL1 CTL2   58.350    113.50   11.16   2.561  ! glycerol
 CEL2 CEL1 CRL2   48.00     126.00   ! 1-butene; from propene, yin,adm jr., 12/95

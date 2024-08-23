@@ -62,7 +62,9 @@ class Config(Yclept):
     def __init__(self,userfile='',**kwargs):
         vrep=f"""ycleptic v. {version("ycleptic")}
 pidibble v. {version("pidibble")}"""
-        my_logger(vrep,logger.info,just='<',frame='*',fill='')
+        quiet=kwargs.get('quiet',False)
+        if not quiet:
+            my_logger(vrep,logger.info,just='<',frame='*',fill='')
         r=ResourceManager()
         logger.debug(f'Resources:')
         for k,v in r.items():
@@ -78,8 +80,11 @@ pidibble v. {version("pidibble")}"""
         super().__init__(basefile,userfile=userfile)
         self['Resources']=r
         self['Conda']=CondaCheck()
-        my_logger(self['Conda'].info(),logger.info,just='<',frame='*',fill='')
-        my_logger(self.cpu_info(),logger.info,just='<',frame='*',fill='')
+        conda_info=self['Conda'].info()
+        cpu_info=self.cpu_info()
+        if not quiet:
+            my_logger(conda_info,logger.info,just='<',frame='*',fill='')
+            my_logger(cpu_info,logger.info,just='<',frame='*',fill='')
         self._set_internal_shortcuts(**kwargs)
         self._set_external_apps(verify_access=(userfile!=''))
 

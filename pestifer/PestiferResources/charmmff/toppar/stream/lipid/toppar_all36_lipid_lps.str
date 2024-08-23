@@ -29097,7 +29097,8 @@ CTL2    CC2O1   200.00  1.522   ! CTL2 CL ; all36 lipid
 OC30P   CC331   340.00  1.4300 !! from CG331  OG303   340.00     1.4300 ! NA DMP, ADM Jr.
 
 !! BCLIPB
-!CC3161  NG3P3   320.00      1.430  ! NC2D1   CC3161   320.00  1.430
+!uncommented by cfa for pestifer
+CC3161  NG3P3   320.00      1.430  ! NC2D1   CC3161   320.00  1.430
 
 !!SELIPC
 !CG321   OC30P   340.0       1.4300 ! CTL2  OSLP   340.0       1.4300 ! from, toppar_all36_gpi.str
@@ -29144,6 +29145,8 @@ H       OH1     CTL1     57.50   115.00                    ! H   OH1 CT1  ; all2
 CL       CTL1     HAL1   50.00   109.50  ! from, par 22 HB   CT1  CC
 CL       CTL1     OH1    75.70   110.10  ! par22 OH1  CT1  CT3; og amol ok
 CL       CTL1     CTL2   52.00   108.00  ! par22 CT3  CT1  CC
+!!! added by CFA for pestifer
+CL       CTL2     CTL1   52.00   108.00  ! par22 CT3  CT1  CC
 
 !!LILIPA
 OC30P    PC       OC30P  80.00   104.30  ! from OG303 PG1 OG303! NA DMP, ADM Jr. !Reorganization: PC and others
@@ -29153,9 +29156,12 @@ OC30P    CC331    HCA3  60.00   109.50 ! from OG303  CG331  HGA3  ! NA DMP, ADM 
 !!BCLIPB
 !CC3162  CC3161   NG3P3  70.00    113.50                  ! CC3162  CC3161  NC2D1    70.00   113.50  ! par22 NH1  CT1  CT1
 CC3263  CC3161   NG3P3  70.00    113.50                  ! CC3162  CC3161  NC2D1    70.00   113.50  ! par22 NH1  CT1  CT1
-!CC3161  CC3161   NG3P3  70.00    113.50                  ! CC3162  CC3161  NC2D1    70.00   113.50  ! par22 NH1  CT1  CT1
-!HCA1    CC3161   NG3P3  48.00    108.00                  ! NC2D1   CC3161  HCA1     48.00   108.00  ! par22 NH1  CT1  HB
-!CC3161  NG3P3    HGP2   30.00    109.50   20.0    2.074  ! CG314  NG3P3  HGP2  30.00  109.50  20.00  2.074 ! methylammonium (KK 03/10/92
+!uncommented by cfa for pestifer
+CC3161  CC3161   NG3P3  70.00    113.50                  ! CC3162  CC3161  NC2D1    70.00   113.50  ! par22 NH1  CT1  CT1
+!uncommented by cfa for pestifer
+HCA1    CC3161   NG3P3  48.00    108.00                  ! NC2D1   CC3161  HCA1     48.00   108.00  ! par22 NH1  CT1  HB
+!uncommented by cfa for pestifer
+CC3161  NG3P3    HGP2   30.00    109.50   20.0    2.074  ! CG314  NG3P3  HGP2  30.00  109.50  20.00  2.074 ! methylammonium (KK 03/10/92
 
 !! SELIPC
 !CG324   CG321    OC30P   75.70    110.10                  ! OSLP CTL2 CTL2   75.700    110.10   ! acetic acid
@@ -29250,25 +29256,31 @@ OC30P    PC       OC30P    CC331      0.1000  2   180.00 ! "
 OC30P    PC       OC30P    CC331      0.1000  3   180.00 ! "
 
 !!! BCLIPB
-!CC3162  CC3161  NG3P3   HGP2      0.1000   3     0.0   ! PROT 0.715->0.10 METHYLAMMONIUM (KK)
-!CC3161  CC3161  NG3P3   HGP2      0.1000   3     0.0   ! PROT 0.715->0.10 METHYLAMMONIUM (KK)
-!HCA1    CC3162  CC3161  NG3P3     0.2000   3     0.0   ! HCA1   CC3162 CC3161 NC2D1    0.20  3     0.0  ! par27 X CTL1 CTL1 X
-!HCA1    CC3161  CC3161  NG3P3     0.2000   3     0.0   ! HCA1   CC3162 CC3161 NC2D1    0.20  3     0.0  ! par27 X CTL1 CTL1 X
-!OC311   CC3162  CC3161  NG3P3     0.2000   3     0.0   ! OC311  CC3162 CC3161 NC2D1    0.20  3     0.0  ! par27 X CTL1 CTL1 X
-!OC301   CC3162  CC3161  NG3P3     0.2000   3     0.0   ! OC311  CC3162 CC3161 NC2D1    0.20  3     0.0  ! par27 X CTL1 CTL1 X
-!OC311   CC3161  CC3161  NG3P3     0.2000   3     0.0   ! OC311  CC3162 CC3161 NC2D1    0.20  3     0.0  ! par27 X CTL1 CTL1 X
-!OC3C61  CC3162  CC3161  NG3P3     0.2000   3     0.0   ! OC3C61 CC3162 CC3161 NC2D1    0.20  3     0.0  ! par27 X CTL1 CTL1 X
-!HCA1    CC3161  NG3P3   HGP2      0.1000   3     0.0   ! HGA2   CG324  NG3P3  HGP2     0.10  3     0.0  ! PROT 0.715->0.10 METHYLAMMONIUM (KK)
-!CC3161  CC3161  CC3161  NG3P3     0.2000   3     0.0   ! NC2D1  CC3161 CC3161 CC3261   0.20  3     0.0  ! par27 X CTL1 CTL1 X
+!uncommented by cfa for pestifer
+CC3162  CC3161  NG3P3   HGP2      0.1000   3     0.0   ! PROT 0.715->0.10 METHYLAMMONIUM (KK)
+!uncommented by cfa for pestifer
+CC3161  CC3161  NG3P3   HGP2      0.1000   3     0.0   ! PROT 0.715->0.10 METHYLAMMONIUM (KK)
+!uncommented by cfa for pestifer
+HCA1    CC3162  CC3161  NG3P3     0.2000   3     0.0   ! HCA1   CC3162 CC3161 NC2D1    0.20  3     0.0  ! par27 X CTL1 CTL1 X
+!uncommented by cfa for pestifer
+HCA1    CC3161  CC3161  NG3P3     0.2000   3     0.0   ! HCA1   CC3162 CC3161 NC2D1    0.20  3     0.0  ! par27 X CTL1 CTL1 X
+OC311   CC3162  CC3161  NG3P3     0.2000   3     0.0   ! OC311  CC3162 CC3161 NC2D1    0.20  3     0.0  ! par27 X CTL1 CTL1 X
+OC301   CC3162  CC3161  NG3P3     0.2000   3     0.0   ! OC311  CC3162 CC3161 NC2D1    0.20  3     0.0  ! par27 X CTL1 CTL1 X
+OC311   CC3161  CC3161  NG3P3     0.2000   3     0.0   ! OC311  CC3162 CC3161 NC2D1    0.20  3     0.0  ! par27 X CTL1 CTL1 X
+OC3C61  CC3162  CC3161  NG3P3     0.2000   3     0.0   ! OC3C61 CC3162 CC3161 NC2D1    0.20  3     0.0  ! par27 X CTL1 CTL1 X
+HCA1    CC3161  NG3P3   HGP2      0.1000   3     0.0   ! HGA2   CG324  NG3P3  HGP2     0.10  3     0.0  ! PROT 0.715->0.10 METHYLAMMONIUM (KK)
+!uncommented by cfa for pestifer
+CC3161  CC3161  CC3161  NG3P3     0.2000   3     0.0   ! NC2D1  CC3161 CC3161 CC3261   0.20  3     0.0  ! par27 X CTL1 CTL1 X
 CC3263  CC3161  NG3P3   HGP2      0.1000   3     0.0   ! PROT 0.715->0.10 METHYLAMMONIUM (KK)
 HCA2    CC3263  CC3161  NG3P3     0.2000   3     0.0   ! HCA1   CC3162 CC3161 NC2D1    0.20  3     0.0  ! par27 X CTL1 CTL1 X
 OC3C61  CC3263  CC3161  NG3P3     0.2000   3     0.0   ! OC3C61 CC3162 CC3161 NC2D1    0.20  3     0.0  ! par27 X CTL1 CTL1 X
 CC3263   OC3C61    CC3162    OC30P    2.44   3    180.0 ! from CC3163 OC3C61 CC3162 OC30P from par_all36_carb.prm
 
 !!! SELIPB
-!CC3161   OC30P    PC       OC30P      1.2000  1   180.00 ! from, par_all36_cgenff, CG321  OG303  PG1    OG303
-!CC3161   OC30P    PC       OC30P      0.1000  2   180.00 ! "
-!CC3161   OC30P    PC       OC30P      0.1000  3   180.00 ! "
+!uncommented by cfa for pestifer
+CC3161   OC30P    PC       OC30P      1.2000  1   180.00 ! from, par_all36_cgenff, CG321  OG303  PG1    OG303
+CC3161   OC30P    PC       OC30P      0.1000  2   180.00 ! "
+CC3161   OC30P    PC       OC30P      0.1000  3   180.00 ! "
 
 !! SELIPC
 !NG3P3    CG324     CG321     OC30P    0.700   1   180.00    ! based on "OG311  CG321  CG324  NG3P3"

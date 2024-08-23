@@ -28,6 +28,7 @@ def colvar_writer(specs,writer,pdb=''):
         assert len(groupspecs['atomNumbers'])>0,f'No atoms in group {groupname}'
 
     distances=specs.get('distances',{})
+    logger.debug(f'distances {distances}')
     for distancename,distancespecs in distances.items():
         for i in range(len(distancespecs['groups'])):
             distancespecs['groups'][i]=groups[distancespecs['groups'][i]]

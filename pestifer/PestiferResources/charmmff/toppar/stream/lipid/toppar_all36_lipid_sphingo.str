@@ -6307,6 +6307,8 @@ NHL    CTL1   OSL     80.000   122.50   ! prot22; NMA Vib Modes (LK); O-C-NH1
 O      C      NHL     80.000   122.50   ! prot22; NMA Vib Modes (LK); O-C-NH1
 HOL    OHL    CTO1    57.500   106.00   ! lip36; glycerol; HOL-OHL-CTL1
 OHL    CTO1   HAL1    45.900   108.89   ! lip36; glycerol; OHL-CTL1-HAL1
+!below added by cfa for pestifer
+!OH1    CTL1   HAL1    45.900   108.89   ! lip36; glycerol; OHL-CTL1-HAL1
 OSL    CTO1   HAL1    45.900   108.89   ! lip36; glycerol; OHL-CTL1-HAL1; rmv nov 2009
 NHL    CTL1   CTO1    70.000   113.50   ! prot22; Alanine Dipeptide ab initio calc's (LK); NH1-CT1-CT1
 NHL    C      CTL2    80.000   116.50   ! prot22; NMA Vib Modes (LK);  NH1-C-CT2
@@ -6322,6 +6324,8 @@ CTL1   NHL    C       50.000   120.00   ! prot22; NMA Vib Modes (LK); CT1 NH1 C
 NHL    CTL3   HAL3    51.500   109.50   ! prot22; NMA crystal (JCS); NH1-CT3-HA
 NHL    CTL1   HAL1    48.000   108.00   ! prot22; Alanine Dipeptide ab initio calc's (LK); NH1-CT1-HB
 HOL    OHL    CTO2    57.500   106.00   ! lip36; glycerol; HOL-OHL-CTL2
+!added by cfa for pestifer
+!H      OH1    CTL1    57.500   106.00   ! lip36; glycerol; HOL-OHL-CTL2
 OHL    CTO2   HAL2    45.900   108.89   ! lip36; glycerol; OHL-CTL2-HAL1
 HAL2   CTO2   CTL1    26.500   110.10   22.53   2.179  ! lip36; alkane, 4/98; HAL2-CTL2-CTL1
 HAL1   CTL1   CTO2    34.500   110.10   22.53   2.179  ! lip36; alkane, 3/92; HAL1-CTL1-CTL2

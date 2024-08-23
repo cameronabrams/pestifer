@@ -246,15 +246,15 @@ class Command:
                 logger.error('stdout buffer follows\n'+'*'*self.divider_line_length+'\n'+self.stdout+'\n'+'*'*self.divider_line_length)
             if len(self.stderr)>0:
                 logger.error('stderr buffer follows\n'+'*'*self.divider_line_length+'\n'+self.stderr+'\n'+'*'*self.divider_line_length)
-            raise subprocess.SubprocessError(f'Command "{self.c}" failed with returncode {process.returncode}')
-        else:
-            # logger.info(f'Returncode: {process.returncode}.')
-            if len(override)==2:
-                needle,msg=override
-                if needle in self.stdout or needle in self.stderr:
-                    logger.info(f'Returncode: {process.returncode}, but another error was detected:')
-                    logger.error(msg)
-                    if len(self.stdout)>0 and needle in self.stdout:
-                        logger.error('stdout buffer follows\n'+'*'*self.divider_line_length+'\n'+self.stdout+'\n'+'*'*self.divider_line_length)
-                    if len(self.stderr)>0 and needle in self.stderr:
-                        logger.error('stderr buffer follows\n'+'*'*self.divider_line_length+'\n'+self.stderr+'\n'+'*'*self.divider_line_length)
+            # raise subprocess.SubprocessError(f'Command "{self.c}" failed with returncode {process.returncode}')
+            return process.returncode
+        if len(override)==2:
+            needle,msg=override
+            if needle in self.stdout or needle in self.stderr:
+                logger.info(f'Returncode: {process.returncode}, but another error was detected:')
+                logger.error(msg)
+                if len(self.stdout)>0 and needle in self.stdout:
+                    logger.error('stdout buffer follows\n'+'*'*self.divider_line_length+'\n'+self.stdout+'\n'+'*'*self.divider_line_length)
+                if len(self.stderr)>0 and needle in self.stderr:
+                    logger.error('stderr buffer follows\n'+'*'*self.divider_line_length+'\n'+self.stderr+'\n'+'*'*self.divider_line_length)
+        return 0

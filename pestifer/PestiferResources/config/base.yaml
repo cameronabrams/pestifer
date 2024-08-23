@@ -472,6 +472,9 @@ directives:
                   - DLiPC
                   - DLiPE
                   - DLiPI
+                  - DLIPC
+                  - DLIPE
+                  - DLIPI
                   - DMP
                   - DMPA
                   - DMPC

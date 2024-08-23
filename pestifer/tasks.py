@@ -96,6 +96,7 @@ class BaseTask(BaseMod):
     req_attr=BaseMod.req_attr+['specs','config','index','prior','writers','taskname']
     yaml_header='generic_task'
     _taskcount=0
+    init_msg_options=['INITIATED','STARTED','BEGUN','SET IN MOTION','KICKED OFF','LIT','SPANKED ON THE BOTTOM']
 
     def __init__(self,input_dict,taskname,config,writers,prior):
         specs=input_dict.copy()
@@ -114,13 +115,20 @@ class BaseTask(BaseMod):
         self.subtaskcount=0
         self.statevars={}
         self.FC=FileCollector()
+        self.result=0
+
+    def do(self):
+        return self.result
 
     def log_message(self,message,**kwargs):
         extra=''
-        ensemble=kwargs.get('ensemble','')
-        if ensemble:
-            extra+=f' ({ensemble})'
-        logger.info(f'Task {self.index:02d} {self.taskname}{extra} {message}')
+        for k,v in kwargs.items():
+            if v:
+                extra+=f' ({k}: {v})'
+        mtoks=[x.strip() for x in [x.upper() for x in message.split()]]
+        if not any([x in self.init_msg_options for x in mtoks]):
+            extra+=f' (result: {self.result})'
+        logger.info(f'Task {self.index:02d} \'{self.taskname}\'{extra} {message}')
 
     def next_basename(self,*obj):
         label=''
@@ -232,6 +240,8 @@ class RestartTask(BaseTask):
                 exts_actual.append(ext)
         self.save_state(exts=exts_actual)
         self.log_message('complete')
+        self.result=0
+        return super().do()
 
 class MDTask(BaseTask):
     """ A class for handling all NAMD2 runs
@@ -259,11 +269,12 @@ class MDTask(BaseTask):
     yaml_header='md'
 
     def do(self):
-        self.log_message('initiated',ensemble=self.specs['ensemble'])
+        self.log_message('initiated',ensemble=self.specs.get('ensemble',None))
         self.inherit_state()            
-        self.namd2run()
-        self.save_state(exts=['coor','vel','xsc'])
-        self.log_message('complete',ensemble=self.specs['ensemble'])
+        self.result=self.namd2run()
+        if self.result==0: self.save_state(exts=['coor','vel','xsc'])
+        self.log_message('complete',ensemble=self.specs.get('ensemble',None))
+        return super().do()
 
     def copy_charmmpar_local(self):
         local_names=[]
@@ -283,6 +294,7 @@ class MDTask(BaseTask):
             self.next_basename(ensemble)
         else:
             self.next_basename(baselabel)
+        
         params={}
         namd_global_params=self.config['user']['namd2']
         psf=self.statevars['psf']
@@ -382,7 +394,9 @@ class MDTask(BaseTask):
         na.newscript(self.basename)
         na.writescript(params)
         if not script_only:
-            na.runscript(single_molecule=(not self.statevars['periodic']))
+            result=na.runscript(single_molecule=(not self.statevars['periodic']))
+            if result!=0:
+                return -1
             inherited_etitles=[]
             if self.prior and self.prior.taskname=='md' and hasattr(self.prior,'mdlog'):
                 inherited_etitles=self.prior.mdlog.etitles
@@ -394,7 +408,7 @@ class MDTask(BaseTask):
                 self.update_statevars('firsttimestep',firsttimestep+specs['minimize'])
             if cell: # this is a use-once statevar
                 del self.statevars['cell']
-        return params
+        return 0
 
 class MDPlotTask(BaseTask):
     """ A class for making plots of energy-like quantities from a series of one or more NAMD 
@@ -440,6 +454,8 @@ class MDPlotTask(BaseTask):
             plt.savefig(f'{basename}-{trace}.png',bbox_inches='tight')
             plt.clf()
         self.log_message('complete')
+        self.result=0
+        return super().do()
 
 class PsfgenTask(BaseTask):
     """ A class for handling invocations of psfgen which create a molecule from a base PDB/mmCIF file
@@ -468,7 +484,9 @@ class PsfgenTask(BaseTask):
         self.injest_molecules()
         self.statevars['base_molecule']=self.base_molecule
         logger.debug('Running first psfgen')
-        self.psfgen()
+        self.result=self.psfgen()
+        if self.result!=0:
+            return super().do()
         # we now have a full coordinate set, so we can do coormods
         self.coormods()
         # min_loop_length=0
@@ -483,6 +501,7 @@ class PsfgenTask(BaseTask):
             logger.debug(f'Declashing {nglycans} glycans')
             self.declash_glycans(self.specs['source']['sequence']['glycans'])
         self.log_message('complete')
+        return super().do()
 
     def coormods(self):
         coormods=self.modmanager.get('coormods',{})
@@ -513,9 +532,12 @@ class PsfgenTask(BaseTask):
         pg.set_molecule(self.base_molecule,altcoords=self.specs.get('source',{}).get('altcoords',None))
         pg.describe_molecule(self.base_molecule)
         pg.writescript(self.basename)
-        pg.runscript()
+        result=pg.runscript()
+        if result!=0:
+            return result
         self.save_state(exts=['psf','pdb'])
         self.strip_remarks()
+        return 0
         
     def strip_remarks(self):
         pdb=self.statevars['pdb']
@@ -700,9 +722,10 @@ class CleaveTask(PsfgenTask):
         self.base_molecule=self.statevars['base_molecule']
         self.update_molecule()
         self.base_molecule.cleave_chains(cleavage_sites)
-        self.psfgen()
+        self.result=self.psfgen()
         # self.save_state(exts=['psf','pdb']) # already done in psfgen()
         self.log_message('complete')
+        return super().do()
 
 class DomainSwapTask(MDTask):
     yaml_header='domainswap'
@@ -713,9 +736,12 @@ class DomainSwapTask(MDTask):
         logger.debug(f'Generating inputs for domain swap')
         self.make_inputs()
         logger.debug(f'Running NAMD to execute domain swap')
-        self.namd2run(baselabel='domainswap-run',extras={'colvars':'on','colvarsconfig':self.statevars['cv']})
+        self.result=self.namd2run(baselabel='domainswap-run',extras={'colvars':'on','colvarsconfig':self.statevars['cv']})
+        if self.result!=0:
+            return super().do()
         self.save_state(exts=['vel','coor'])
         self.log_message('complete')
+        return super().do()
 
     def make_inputs(self):
         specs=self.specs
@@ -753,12 +779,17 @@ class LigateTask(MDTask):
         logger.debug('Measuring gap distances.')
         self.measure_distances(self.specs['steer'])
         logger.debug('Steering loop C-termini toward their partner N-termini')
-        self.do_steered_md(self.specs['steer'])
+        self.result=self.do_steered_md(self.specs['steer'])
+        if self.result!=0:
+            return super().do()
         self.save_state(exts=['coor','vel'])
         logger.debug('Connecting loop C-termini to their partner N-termini')
-        self.connect()
+        self.result=self.connect()
+        if self.result!=0:
+            return super().do()
         self.save_state(exts=['psf','pdb'])
         self.log_message('complete')
+        return super().do()
 
     def write_gaps(self):
         self.next_basename('gaps')
@@ -815,7 +846,7 @@ class LigateTask(MDTask):
         writer.writefile()
         savespecs=self.specs
         self.specs=specs
-        self.namd2run(extras={        
+        result=self.namd2run(extras={        
             'fixedatoms':'on',
             'fixedatomsfile':self.statevars['fixedref'],
             'fixedatomscol': 'O',
@@ -823,10 +854,12 @@ class LigateTask(MDTask):
             'colvarsconfig': f'{self.basename}-cv.inp'
         })
         self.specs=savespecs
+        return result
 
     def connect(self):
         self.write_connect_patches()
-        self.connect_gaps()
+        result=self.connect_gaps()
+        return result
 
     def write_connect_patches(self):
         self.next_basename('gap_patches')
@@ -852,9 +885,11 @@ class LigateTask(MDTask):
         pg.load_project(psf,pdb)
         pg.addline(f'source {patchfile}')
         pg.writescript(self.basename,guesscoord=True,regenerate=True)
-        pg.runscript()
-        self.save_state(exts=['psf','pdb'])
-
+        result=pg.runscript()
+        if result==0:
+            self.save_state(exts=['psf','pdb'])
+        return result
+    
 class SolvateTask(BaseTask):
     yaml_header='solvate'
     # opt_attr=Task.opt_attr+[yaml_header]
@@ -871,10 +906,13 @@ class SolvateTask(BaseTask):
         vt.writescript()
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
-        vt.runscript(o=self.basename,pdb=pdb,psf=psf,pad=self.specs['pad'])
+        self.result=vt.runscript(o=self.basename,pdb=pdb,psf=psf,pad=self.specs['pad'])
+        if self.result!=0:
+            return super().do()
         self.save_state(exts=['psf','pdb'])
         self.update_statevars('cell',f'{self.basename}_cell.tcl',vtype='file')
         self.log_message('complete')
+        return super().do()
 
 class ManipulateTask(BaseTask):
     yaml_header='manipulate'
@@ -885,8 +923,9 @@ class ManipulateTask(BaseTask):
             self.inherit_state()
         logger.debug(f'manipulate {self.specs["mods"]}')
         self.modmanager=ModManager(self.specs['mods'])
-        self.coormods()
+        self.result=self.coormods()
         self.log_message('complete')
+        return super().do()
 
     def coormods(self):
         coormods=self.modmanager.get('coormods',{})
@@ -902,10 +941,13 @@ class ManipulateTask(BaseTask):
                 modlist.write_TcL(vm)
                 vm.write_pdb(self.basename,'mCM')
                 vm.writescript()
-                vm.runscript()
+                result=vm.runscript()
+                if result!=0:
+                    return result
                 self.save_state(exts=['pdb'])
+        return 0
 
-class TerminateTask(MDTask):
+class TerminateTask(MDTask):  #need to inherit for namd2run() method
     yaml_header='terminate'
     
     def do(self):
@@ -915,8 +957,9 @@ class TerminateTask(MDTask):
         self.copy_state(exts=['psf','pdb','coor','xsc','vel'])
         self.write_chainmaps()
         self.write_statefile()
-        self.make_package()
+        self.result=self.make_package()
         self.log_message('complete')
+        return self.result
 
     def write_chainmaps(self):
         bm=self.statevars.get('base_molecule',None)
@@ -930,13 +973,14 @@ class TerminateTask(MDTask):
         specs=self.specs.get('package',{})
         # logger.debug(f'make_package specs {specs}')
         if not specs:
-            return
+            return 0
         self.inherit_state()
         self.FC.clear()  # populate a file collector to make the tarball
         logger.debug(f'Packaging for namd2 using basename {self.basename}')
         savespecs=self.specs
         self.specs=specs
-        params=self.namd2run(script_only=True,absolute_paths=False)
+        params={}
+        result=self.namd2run(script_only=True,absolute_paths=False)
         self.specs=savespecs
         self.FC.append(f'{self.basename}.namd')
         constraints=specs.get('constraints',{})
@@ -971,7 +1015,7 @@ class TerminateTask(MDTask):
             self.FC.append(f'{self.basename}_topogromacs.pdb')
             self.FC.append(f'{self.basename}_topogromacs.top')
         self.FC.tarball(specs["basename"])
-
+        return 0
 
 class PackmolMemgenTask(BaseTask):
     """ A class for handling invocations of packmol-memgen
@@ -1109,8 +1153,9 @@ class PackmolMemgenTask(BaseTask):
         progress_struct=None
         if self.progress:
             progress_struct=PackmolProgress(timer_format='\x1b[36mpackmol\x1b[39m time: %(elapsed)s')
-        cmd.condarun(env=self.env,Condaspec=self.config['Conda'],ignore_codes=[173],logfile=f'{self.basename}-packmol.log',progress=progress_struct)
-
+        self.result=cmd.condarun(env=self.env,Condaspec=self.config['Conda'],ignore_codes=[173],logfile=f'{self.basename}-packmol.log',progress=progress_struct)
+        if self.result!=0:
+            return super().do()
         # process output pdb to get new psf and pdb
         self.save_state(exts=['pdb'])
         if 'xsc' in self.statevars:
@@ -1125,10 +1170,13 @@ class PackmolMemgenTask(BaseTask):
         self.next_basename('psfgen')
         with open(f'{self.basename}_cell.tcl','w') as f:
             f.write(cellstr)
-        self.psfgen(psf=psf,pdb=pdb,addpdb=outpdb)
+        self.result=self.psfgen(psf=psf,pdb=pdb,addpdb=outpdb)
+        if self.result!=0:
+            return super().do()
         self.save_state(exts=['psf','pdb'])
         self.update_statevars('cell',f'{self.basename}_cell.tcl',vtype='file')
         self.log_message('complete')
+        return super().do()
 
     def shift_coords(self,pdb,shift):
         sh_str=' '.join([str(x) for x in shift])
@@ -1146,8 +1194,9 @@ class PackmolMemgenTask(BaseTask):
         pg.newscript(self.basename)
         pg.usescript('memb')
         pg.writescript(self.basename,guesscoord=False,regenerate=True,force_exit=True)
-        pg.runscript(psf=psf,pdb=pdb,addpdb=addpdb,o=self.basename)
-
+        result=pg.runscript(psf=psf,pdb=pdb,addpdb=addpdb,o=self.basename)
+        return result
+    
     def membrane_embed(self,pdb,zgroups,zval=0.0,outpdb='embed.pdb'):
         logger.debug(f'zgroups {zgroups}')
         ztopg,zbotg,zrefg=zgroups
@@ -1194,31 +1243,28 @@ class RingCheckTask(BaseTask):
         cutoff=self.specs.get('cutoff',3.5)
         segtypes=self.specs.get('segtypes',['lipid'])
         delete_these=self.specs.get('delete','piercee')
-        result=ring_check(psf,pdb,xsc,cutoff=cutoff,segtypes=segtypes)
-        if result:
-            ess='s' if len(result)>1 else ''
+        npiercings=ring_check(psf,pdb,xsc,cutoff=cutoff,segtypes=segtypes)
+        if npiercings:
+            ess='s' if len(npiercings)>1 else ''
             if delete_these=="none":
-                logger.debug(f'No action taken regarding {len(result)} pierced-ring configuration{ess}')
-                for r in result:
+                logger.debug(f'No action taken regarding {len(npiercings)} pierced-ring configuration{ess}')
+                for r in npiercings:
                     logger.debug(f'  Piercing of {r["piercee"]["segname"]}-{r["piercee"]["resid"]} by {r["piercer"]["segname"]}-{r["piercer"]["resid"]}')
             else:
                 self.next_basename('ring_check')
                 pg=self.writers['psfgen']
                 pg.newscript(self.basename)
                 pg.load_project(psf,pdb)
-                logger.debug(f'Deleting all {delete_these}s from {len(result)} pierced-ring configuration{ess}')
-                for r in result:
+                logger.debug(f'Deleting all {delete_these}s from {len(npiercings)} pierced-ring configuration{ess}')
+                for r in npiercings:
                     logger.debug(f'   Deleting segname {r[delete_these]["segname"]} residue {r[delete_these]["resid"]}')
                     pg.addline(f'delatom {r[delete_these]["segname"]} {r[delete_these]["resid"]}')
                 pg.writescript(self.basename)
                 pg.runscript()
                 self.save_state(exts=['psf','pdb'])
         self.log_message('complete')
-
-# class BuildCharmmLipid(BaseTask):
-#     yaml_header='build_charmm_lipid'
-#     def do(self):
-#         charmm_resname=self.specs['resname']
+        self.result=0
+        return super().do()
 
 
 

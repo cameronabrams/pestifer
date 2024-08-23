@@ -13,9 +13,9 @@ class Controller:
     """ A class for controlling the execution of `Tasks`.
     
     """
-    def __init__(self,userconfigfilename='',userspecs={}):
+    def __init__(self,userconfigfilename='',userspecs={},**kwargs):
         # Read in the user configuration file and set up the overall Config
-        self.config=Config(userfile=userconfigfilename)
+        self.config=Config(userfile=userconfigfilename,**kwargs)
         if userspecs:
             self.config['user'].update(userspecs)
 
@@ -66,8 +66,14 @@ class Controller:
 
     def do_tasks(self):
         # Execute each task in series
+        task_report={}
         for task in self.tasks:
-            task.do()
+            result=task.do()
+            task_report[task.index]=dict(taskname=task.taskname,taskindex=task.index,result=result)
+            if result!=0:
+                logger.warning(f'Task {task.taskname} failed; controller is aborted.')
+                break
+        return task_report
 
     def write_complete_config(self,filename='00-complete-user.yaml'):
         self.config.dump_user(filename=filename)
