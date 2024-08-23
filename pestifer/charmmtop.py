@@ -11,7 +11,7 @@ import glob
 import os
 import logging
 import shutil
-from itertools import combinations
+from itertools import combinations, compress, pairwise, batched
 import pandas as pd
 from pidibble.pdbparse import PDBParser
 
@@ -101,11 +101,16 @@ class CharmmTopAtomList(UserList):
             atom.serial=len(self)+1
         super().append(atom)
 
+def charmmBonds(card:str,degree=1):
+    result=CharmmBondList([])
+    toks=[x.strip() for x in card.split()][1:]
+    for p in batched(toks,2):
+        result.append(CharmmBond(p,degree=degree))
+    return result
 
 class CharmmBond:
-    def __init__(self,name1,name2,degree=1):
-        self.name1=name1
-        self.name2=name2
+    def __init__(self,names,degree=1):
+        self.name1,self.name2=names
         self.degree=degree
 
     def __eq__(self,other):
@@ -117,11 +122,16 @@ class CharmmBondList(UserList):
     def __init__(self,data):
         self.data=data
 
+def charmmAngles(card:str):
+    result=CharmmAngleList([])
+    toks=[x.strip() for x in card.split()][1:]
+    for p in batched(toks,3):
+        result.append(CharmmAngle(p))
+    return result
+
 class CharmmAngle:
-    def __init__(self,name1,name2,name3):
-        self.name1=name1
-        self.name2=name2
-        self.name3=name3
+    def __init__(self,names):
+        self.name1,self.name2,self.name3=names
 
     def __eq__(self,other):
         r1=self.name2==other.name2
@@ -133,12 +143,16 @@ class CharmmAngleList(UserList):
     def __init__(self,data):
         self.data=data
 
+def charmmDihedrals(card,dihedral_type='proper'):
+    result=CharmmDihedralList([])
+    toks=[x.strip() for x in card.split()][1:]
+    for p in batched(toks,4):
+        result.append(CharmmDihedral(p,dihedral_type=dihedral_type))
+    return result
+
 class CharmmDihedral:
-    def __init__(self,name1,name2,name3,name4,dihedral_type='proper'):
-        self.name1=name1
-        self.name2=name2
-        self.name3=name3
-        self.name4=name4
+    def __init__(self,names,dihedral_type='proper'):
+        self.name1,self.name2,self.name3,self.name4=names
         self.dihedral_type=dihedral_type
 
     """ dihedral atom names are ordered in ICs, so we preserve this here """
@@ -156,7 +170,7 @@ class CharmmDihedralList(UserList):
 class CharmmTopIC:
     def __init__(self,ICstring):
         ICstring,dummy=linesplit(ICstring)
-        toks=[x.strip(' !') for x in ICstring.split()]
+        toks=[x.strip() for x in ICstring.split()]
         data=np.array(list(map(float,toks[5:])))
         if data[0]==0.0 or data[1]==0.0 or data[3]==0.0 or data[4]==0.0:
             logger.debug(f'{toks[1:5]}: missing ic data: {data}')
@@ -169,30 +183,30 @@ class CharmmTopIC:
         else:
             self.dihedral_type='proper'
         if self.dihedral_type=='proper':
-            b0=CharmmBond(self.atoms[0],self.atoms[1])
+            b0=CharmmBond([self.atoms[0],self.atoms[1]])
             b0.length=float(toks[5])
-            b1=CharmmBond(self.atoms[2],self.atoms[3])
+            b1=CharmmBond([self.atoms[2],self.atoms[3]])
             b1.length=float(toks[9])
             self.bonds=CharmmBondList([b0,b1])
-            a1=CharmmAngle(self.atoms[0],self.atoms[1],self.atoms[2])
+            a1=CharmmAngle([self.atoms[0],self.atoms[1],self.atoms[2]])
             a1.degrees=float(toks[6])
-            a2=CharmmAngle(self.atoms[1],self.atoms[2],self.atoms[3])
+            a2=CharmmAngle([self.atoms[1],self.atoms[2],self.atoms[3]])
             a2.degrees=float(toks[8])
             self.angles=CharmmAngleList([a1,a2])
-            self.dihedral=CharmmDihedral(self.atoms[0],self.atoms[1],self.atoms[2],self.atoms[3])
+            self.dihedral=CharmmDihedral([self.atoms[0],self.atoms[1],self.atoms[2],self.atoms[3]])
             self.dihedral.degrees=float(toks[7])
         else:
-            b0=CharmmBond(self.atoms[0],self.atoms[2])
+            b0=CharmmBond([self.atoms[0],self.atoms[2]])
             b0.length=float(toks[5])
-            b1=CharmmBond(self.atoms[2],self.atoms[3])
+            b1=CharmmBond([self.atoms[2],self.atoms[3]])
             b1.length=float(toks[9])
             self.bonds=CharmmBondList([b0,b1])
-            a1=CharmmAngle(self.atoms[0],self.atoms[2],self.atoms[3])
+            a1=CharmmAngle([self.atoms[0],self.atoms[2],self.atoms[3]])
             a1.degrees=float(toks[6])
-            a2=CharmmAngle(self.atoms[1],self.atoms[2],self.atoms[3])
+            a2=CharmmAngle([self.atoms[1],self.atoms[2],self.atoms[3]])
             a2.degrees=float(toks[8])
             self.angles=CharmmAngleList([a1,a2])
-            self.dihedral=CharmmDihedral(self.atoms[0],self.atoms[1],self.atoms[2],self.atoms[3],dihedral_type='improper')
+            self.dihedral=CharmmDihedral([self.atoms[0],self.atoms[1],self.atoms[2],self.atoms[3]],dihedral_type='improper')
             self.dihedral.degrees=float(toks[7])
         self.empty=False
 
@@ -211,99 +225,60 @@ class CharmmTopResi:
         self.blockstring=blockstring
         lines=[x.strip() for x in blockstring.split('\n')]
         titlecard=lines[0]
-        tctokens=titlecard.split()
+        assert titlecard.startswith('RESI'),f'bad title card in RESI: [{titlecard}]'
+        titledata,titlecomment=linesplit(titlecard)
+        tctokens=titledata.split()
         self.resname=tctokens[1]
-        # logger.debug(f'{len(blockstring)} bytes in {len(lines)} lines in resi {self.resname}')
-        if tctokens[2].endswith('!'):
-            self.charge=float(tctokens[2][:-1])
-            tctokens.insert(3,'!')
-        else:
-            self.charge=float(tctokens[2])
-        self.synonym=''
-        if '!' in tctokens:
-            idx=tctokens.index('!')
-            self.synonym=' '.join(tctokens[idx+1:])
+        self.charge=float(tctokens[2])
+        self.synonym=titlecomment.strip()
+
         didx=1
         while lines[didx].startswith('!'): didx+=1
-        datacards=[x.upper() for x in lines[didx:]]
-        # logger.debug(f'{len(datacards)} datacards in resi {self.resname}')
-        self.atomcard_idx=[i for i in range(len(datacards)) if datacards[i].startswith('ATOM')]
-        self.groupcard_idx=[i for i in range(len(datacards)) if datacards[i].startswith('GROU')]
-        self.bondcard_idx=[i for i in range(len(datacards)) if datacards[i].startswith('BOND')]
-        self.doublecard_idx=[i for i in range(len(datacards)) if datacards[i].startswith('DOUB')]
-        self.triplecard_idx=[i for i in range(len(datacards)) if datacards[i].startswith('TRIP')]
-        self.ICcard_idx=[i for i in range(len(datacards)) if datacards[i].startswith('IC')]
+        cards=[x.upper() for x in lines[didx:]]
+        # logger.debug(f'first post-title card {cards[0]}')
+        comments=[]
+        datacards=[]
+        for c in cards:
+            rawcarddata,cardcomment=linesplit(c)
+            carddata=rawcarddata.lstrip().upper()  # no indent, no case-sensitivity
+            if len(carddata)>0:    datacards.append(carddata)
+            if len(cardcomment)>0: comments.append(cardcomment)
+        logger.debug(f'{self.resname}: {len(datacards)} datacards and {len(comments)} comments')
+        isatomgroup=[d.startswith('ATOM') or d.startswith('GROU') for d in datacards]
+        atomgroupcards=compress(datacards,isatomgroup)
         self.atoms=CharmmTopAtomList([])
-        self.atoms_in_group={i:CharmmTopAtomList([]) for i in range(len(self.groupcard_idx))}
-        self.comment_strings=[]
-        if self.atomcard_idx[0]<self.groupcard_idx[0]:
-            gn=-1
-            logger.debug(f'Orphaned atoms outside of group -- we\'ll just make one')
-            ai=self.atomcard_idx[0]
-            while datacards[ai].startswith('ATOM') or datacards[ai].startswith('Atom') or datacards[ai].startswith('!') or len(datacards[ai])==0:
-                if datacards[ai].startswith('!') or len(datacards[ai])==0:
-                    logger.debug(f'non-atom line [{datacards[ai]}]')
-                else:
-                    atomstring,comment=linesplit(datacards[ai])
-                    if not gn in self.atoms_in_group:
-                        self.atoms_in_group[gn]=[]
-                    at=CharmmTopAtom(atomstring,masses=masses)
-                    self.atoms.append(at)
-                    self.atoms_in_group[gn].append(at)
-                    if len(comment.strip())>0:
-                        self.comment_strings.append(comment)
-                ai+=1
-        if self.groupcard_idx:
-            for gn,gi in enumerate(self.groupcard_idx):
-                dummy,comment=linesplit(datacards[gi])
-                if len(comment.strip())>0:
-                    self.comment_strings.append(comment)
-                ai=1
+        self.atoms_in_group={}
+        g=0
+        for card in atomgroupcards:
+            if card.startswith('ATOM'):
+                a=CharmmTopAtom(card,masses=masses)
+                self.atoms.append(a)
+                if not g in self.atoms_in_group:
+                    self.atoms_in_group[g]=CharmmTopAtomList([])
+                self.atoms_in_group[g].append(a)
+            elif card.startswith('GROU'):
+                g+=1
+        # logger.debug(f'{len(self.atoms)} atoms processed in {len(self.atoms_in_group)} groups')
 
-                while datacards[gi+ai].startswith('ATOM') or datacards[gi+ai].startswith('Atom') or datacards[gi+ai].startswith('!') or len(datacards[gi+ai])==0:
-                    if datacards[gi+ai].startswith('!') or len(datacards[gi+ai])==0:
-                        logger.debug(f'non-atom line [{datacards[gi+ai]}]')
-                    else:
-                        atomstring,comment=linesplit(datacards[gi+ai])
-                        if not gn in self.atoms_in_group:
-                            self.atoms_in_group[gn]=[]
-                        at=CharmmTopAtom(atomstring,masses=masses)
-                        self.atoms.append(at)
-                        self.atoms_in_group[gn].append(at)
-                        if len(comment.strip())>0:
-                            self.comment_strings.append(comment)
-                    ai+=1
-        else:
-            for an,ai in enumerate(self.atomcard_idx):
-                atomstring,comment=linesplit(datacards[ai])
-                at=CharmmTopAtom(atomstring,masses=masses)
-                self.atoms.append(at)
-                if len(comment.strip())>0:
-                    self.comment_strings.append(comment)
-                ai+=1
+        isbond=[d.startswith('BOND') for d in datacards]
+        bondcards=compress(datacards,isbond)
         self.bonds=CharmmBondList([])
-        for bn,bi in enumerate(self.bondcard_idx):
-            bondcard=datacards[bi].upper()
-            tokens=bondcard.split()[1:]
-            for n1,n2 in zip(tokens[:-1:2],tokens[1::2]):
-                b=CharmmBond(n1,n2)
-                self.bonds.append(b)
-        for bn,bi in enumerate(self.doublecard_idx):
-            doublecard=datacards[bi].upper()
-            tokens=doublecard.split()[1:]
-            for n1,n2 in zip(tokens[:-1:2],tokens[1::2]):
-                b=CharmmBond(n1,n2,degree=2)
-                self.bonds.append(b)
-        for tn,ti in enumerate(self.triplecard_idx):
-            triplecard=datacards[ti].upper()
-            tokens=triplecard.split()[1:]
-            for n1,n2 in zip(tokens[:-1:2],tokens[1::2]):
-                b=CharmmBond(n1,n2,degree=3)
-                self.bonds.append(b)
+        for card in bondcards:
+            self.bonds.extend(charmmBonds(card))
+        bondcards=None
+        isdouble=[d.startswith('DOUB') for d in datacards]
+        doublecards=compress(datacards,isdouble)
+        for card in doublecards:
+            self.bonds.extend(charmmBonds(card,degree=2))
+        istriple=[d.startswith('TRIP') for d in datacards]
+        triplecards=compress(datacards,istriple)
+        for card in triplecards:
+            self.bonds.extend(charmmBonds(card,degree=3))
+        isIC=[d.startswith('IC') for d in datacards]
+        ICcards=compress(datacards,isIC)
         self.IC=[]
-        for icn,ici in enumerate(self.ICcard_idx):
-            ICcard=datacards[ici]
-            IC=CharmmTopIC(ICcard)
+        for card in ICcards:
+            IC=CharmmTopIC(card)
             self.IC.append(IC)
 
     def num_atoms(self):
@@ -340,6 +315,7 @@ class CharmmTopResi:
         for b in self.bonds:
             node1=b.name1
             node2=b.name2
+            # logger.debug(f'bond {node1} {node2}')
             element1=self.atoms.get_element(node1)
             element2=self.atoms.get_element(node2)
             assert element1!='?',f'no element for atom {node1} in {self.resname}'
@@ -368,7 +344,7 @@ class CharmmTopResi:
             if atom.element!='H':
                 for ic in self.IC:
                     if not ic.empty:
-                        if ic.atoms[1]==atom.name and ic.dihedral_type != 'improper':
+                        if ic.atoms[1]==atom.name and ic.dihedral_type!='improper':
                             refatom=atom
                             refic=ic
             i+=1
@@ -439,7 +415,7 @@ def getResis(topfile,masses=[]):
     for block in bufs:
         resi=CharmmTopResi(block,masses=masses)
         resi.topfile=topfile
-        logger.debug(f'resi {resi.resname} parsed')
+        # logger.debug(f'resi {resi.resname} parsed')
         R.append(resi)
     return R
 
@@ -473,13 +449,13 @@ class CharmmResiDatabase(UserDict):
         self.all_charmm_topology_files=rtftops
         stream_topology_files={}
         for stream in streams:
-            stream_rtfs=glob.glob(os.path.join(self.toppardir,f'*{stream}*.rtf'))
+            stream_rtfs=glob.glob(os.path.join(self.toppardir,f'*{stream}.rtf'))
             streamdir=os.path.join(self.toppardir,f'stream/{stream}')
             stream_strs=glob.glob(os.path.join(streamdir,'*.str'))
-            stream_strs=[x for x in stream_strs if not ('list' in x or 'model' in x or 'lipid_prot' in x)]
-            logger.debug(f'stream strs {stream_strs}')
+            stream_strs=[x for x in stream_strs if not ('cationpi_wyf' in x or 'list' in x or 'model' in x or 'lipid_prot' in x or 'ljpme' in x)]
+            # logger.debug(f'stream strs {stream_strs}')
             stream_topology_files[stream]=stream_rtfs+stream_strs
-            self.all_charmm_topology_files.extend(stream_topology_files[stream])
+            self.all_charmm_topology_files.extend(stream_strs)
             for f in stream_strs: # already got masses from all rtf files
                 M.extend(getMasses(f))
         
@@ -493,9 +469,12 @@ class CharmmResiDatabase(UserDict):
                 sublist=getResis(t,self.M)
                 nfiles+=1
                 for resi in sublist:
-                    resi.charmmtopfile=t
-                    data[stream][resi.resname]=resi
-                    self.charmm_resnames.append(resi.resname)
+                    if resi.resname in self.charmm_resnames:
+                        logger.warning(f'RESI {resi.resname} has already been encountered')
+                    else:
+                        resi.charmmtopfile=t
+                        data[stream][resi.resname]=resi
+                        self.charmm_resnames.append(resi.resname)
 
         super().__init__(data)
         logger.debug(f'{nfiles} CHARMM topology files scanned')
@@ -655,6 +634,8 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     if charmm_topfile is None:
         return -2
     topo=DB.get_topo(resid)
+    # for b in topo.bonds:
+    #     logger.debug(f'{b.name1}-{b.name2}')
     my_logger(f'{os.path.basename(topo.charmmtopfile)}',logger.info,just='^',frame='*',fill='*')
     heads,tails,shortest_paths=head_tail_atoms(topo)
     logger.debug(f'resi {resid} heads {heads} tails {tails} shortest_paths {shortest_paths}')
@@ -726,8 +707,8 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
         loglines=f.read().split('\n')
     for l in loglines:
         if 'Warning: failed to guess coordinates' in l:
-            logger.warning(f'Could not psfgen-build {resid}')
-            return -2
+            logger.warning(f'**** Could not psfgen-build {resid}')
+            return -3
 
     # now run the tasks to minimize, stretch, orient along z, equilibrate, and sample
     tasks=C.tasks
@@ -751,6 +732,8 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     for k,v in result.items():
         logger.debug(f'{k}: {v}')
         if v['result']!=0:
+            with open(f'{resid}-topo.rtf','w') as f:
+                topo.to_file(f)
             return -1
 
     if os.path.exists('99-00-md-NVT.namd'):

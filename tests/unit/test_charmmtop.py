@@ -33,4 +33,6 @@ class TestCHARMMtop(unittest.TestCase):
         logger.debug(f'{heads} {tails} {shortest_paths}')
         dist1=shortest_paths[heads[0]][tails[0]]
         dist2=shortest_paths[heads[0]][tails[1]]
-        logger.debug(f'dist1 {dist1} dist2 {dist2}')
+        # logger.debug(f'dist1 {dist1} dist2 {dist2}')
+        self.assertEqual(dist1,25)
+        self.assertEqual(dist2,26)
