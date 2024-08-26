@@ -1,0 +1,1566 @@
+# Pestifer 1.4.3
+# (c) 2023-2024 Cameron F. Abrams, cfa22@drexel.edu
+#
+# Ycleptic-format specification for YAML configuration file
+#
+# The "name" of any directive may appear as a key whose value is specified by "type"
+# and any dependent "directives".  Values with scalar types should only appear
+# once in any directive set.  Values with list types may have multiple instances
+# of each dependent directive.
+#
+# use "required: True" for scalar values that have no defaults but must be specified
+# use "required: False" for any values that should not be assigned defaults
+#
+directives:
+  - name: charmmff
+    type: dict
+    text: Specifications for charmm force-field parameter and topology files
+    required: True 
+    directives:
+      - name: standard
+        type: dict
+        text: Standard charmmff files
+        required: True 
+        directives:
+          - name: topologies
+            type: list
+            text: Standard charmmff topologies
+            required: True
+            default:
+              - top_all36_prot.rtf
+              - top_all35_ethers.rtf
+              - top_all36_cgenff.rtf
+              - top_all36_lipid.rtf
+              - top_all36_carb.rtf
+              - top_all36_na.rtf
+              - toppar_water_ions.str
+              - stream/carb/toppar_all36_carb_glycopeptide.str
+              - stream/prot/toppar_all36_prot_modify_res.str
+          - name: parameters
+            type: list
+            text: Standard charmmff parameter files
+            required: True
+            default:
+              - par_all36m_prot.prm
+              - par_all36_carb.prm
+              - par_all36_lipid.prm
+              - par_all36_carb.prm
+              - par_all36_na.prm
+              - par_all36_cgenff.prm
+              - toppar_water_ions.str
+              - stream/carb/toppar_all36_carb_glycopeptide.str
+              - stream/prot/toppar_all36_prot_modify_res.str
+      - name: custom
+        type: dict
+        text: Custom charmmff files
+        required: True 
+        directives:
+          - name: topologies
+            type: list
+            text: Custom charmmff topology files
+            default:
+              - toppar_all36_moreions.str
+          - name: parameters
+            type: list
+            text: Custom charmmff parameter files
+            default:
+              - toppar_all36_moreions.str
+  - name: psfgen
+    type: dict
+    text: Specifications for the psfgen plugin
+    required: True
+    directives:
+      - name: aliases
+        type: list
+        text: Psgfen atom and residue aliases
+        required: True 
+        default:
+          - atom ILE CD1 CD
+          - atom BGLCNA C7 C
+          - atom BGLCNA O7 O
+          - atom BGLCNA C8 CT
+          - atom BGLCNA N2 N
+          - atom ANE5 C10 C
+          - atom ANE5 C11 CT
+          - atom ANE5 N5 N
+          - atom ANE5 O1A O11
+          - atom ANE5 O1B O12
+          - atom ANE5 O10 O
+          - atom VCG C01 C1
+          - atom VCG C01 C1
+          - atom VCG C02 C2
+          - atom VCG C03 C3
+          - atom VCG C04 C4
+          - atom VCG C05 C5
+          - atom VCG C06 C6
+          - atom VCG C07 C7
+          - atom VCG C08 C8
+          - atom VCG C09 C9
+          - atom TIP3 O OH2
+          - residue HIS HSD
+          - residue PO4 H2PO4
+          - residue H2PO H2PO4
+          - residue MAN AMAN
+          - residue BMA BMAN
+          - residue NAG BGLCNA
+          - residue BGLC BGLCNA
+          - residue FUC AFUC
+          - residue GAL BGAL
+          - residue ANE5 ANE5AC
+          - residue SIA ANE5AC
+          - residue EIC LIN
+          - residue HOH TIP3
+          - residue ZN ZN2
+          - residue CL CLA
+      - name: segtypes
+        type: dict
+        text: Segment type specifications
+        directives:
+          - name: protein
+            type: dict
+            text: Protein segment type specifications
+            directives:
+              - name: macro
+                type: bool
+                text: Set to true if you want to make this an atomselect macro
+                default: False
+              - name: resnames
+                type: list
+                text: Residue names in proteins
+                default:
+                  - ALA
+                  - ARG
+                  - ASN
+                  - ASP
+                  - CYS
+                  - GLN
+                  - GLU
+                  - GLY
+                  - HIS
+                  - HSD
+                  - HSE
+                  - ILE
+                  - LEU
+                  - LYS
+                  - MET
+                  - PHE
+                  - PRO
+                  - SER
+                  - THR
+                  - TRP
+                  - TYR
+                  - VAL
+              - name: rescodes
+                type: dict
+                text: one-letter residue name codes
+                default:
+                  ALA: A
+                  ARG: R
+                  ASN: N
+                  ASP: D
+                  CYS: C
+                  GLN: Q
+                  GLU: E
+                  GLY: G
+                  HSE: H
+                  ILE: I
+                  LEU: L
+                  LYS: K
+                  MET: M
+                  PHE: F
+                  PRO: P
+                  SER: S
+                  THR: T
+                  TRP: W
+                  TYR: Y
+                  VAL: V
+          - name: ion
+            type: dict
+            text: Ion segment specifications
+            directives:
+              - name: macro
+                type: bool
+                text: Set to true if you want to make this an atomselect macro
+                default: True
+              - name: resnames
+                type: list
+                text: Residue names for ions
+                default:
+                  - LIT
+                  - SOD
+                  - MG
+                  - POT
+                  - CAL
+                  - RUB
+                  - CES
+                  - BAR
+                  - ZN
+                  - CAD
+                  - CL
+                  - SO4
+                  - PO4
+                  - H2PO  # H2PO4 resname
+          - name: ligand
+            type: dict
+            text: Ligand segment specifications
+            directives:
+              - name: macro
+                type: bool
+                text: Set to true if you want to make this an atomselect macro
+                default: True
+              - name: resnames
+                type: list
+                text: Residue names for ligands
+                default:
+                  - EIC
+                  - VCG
+                  - 83G
+          - name: glycan
+            type: dict
+            text: Glycan segment specifications
+            directives:
+              - name: macro
+                type: bool
+                text: Set to true if you want to make this an atomselect macro
+                default: True
+              - name: resnames
+                type: list
+                text: Glycan residue names
+                default:
+                  - BGC
+                  - MAL
+                  - GLC
+                  - NDG
+                  - SGN
+                  - 4YS
+                  - NAG
+                  - GCS
+                  - GCU
+                  - QUI
+                  - OLI
+                  - BMA
+                  - MAN
+                  - BEM
+                  - MAV
+                  - RAM
+                  - TYV
+                  - AHR
+                  - ARA
+                  - GLA
+                  - GAL
+                  - NGA
+                  - ADA
+                  - GL0
+                  - GUP
+                  - GUL
+                  - LGU
+                  - ALT
+                  - WOO
+                  - ALL
+                  - TAL
+                  - IDO
+                  - IDS
+                  - FUL
+                  - FUC
+                  - LYX
+                  - ABE
+                  - XYP
+                  - LXC
+                  - XYS
+                  - XYL
+                  - PAR
+                  - RIB
+                  - DIG
+                  - COL
+                  - BAC
+                  - API
+                  - FRU
+                  - TAG
+                  - SOR
+                  - PSI
+                  - DHA
+                  - KDN
+                  - KDO
+                  - NEU
+                  - SIA
+                  - MUR
+                  - GMH
+                  - AGLC
+                  - BGLC
+                  - AALT
+                  - BALT
+                  - AALL
+                  - BALL
+                  - AGAL
+                  - BGAL
+                  - AGUL
+                  - BGUL
+                  - AIDO
+                  - BIDO
+                  - AMAN
+                  - BMAN
+                  - ATAL
+                  - BTAL
+                  - AXYL
+                  - BXYL
+                  - AFUC
+                  - BFUC
+                  - ARHM
+                  - BRHM
+                  - AGLCA
+                  - BGLCA
+                  - BGLCA0
+                  - AIDOA
+                  - BIDOA
+                  - AGLCNA
+                  - BGLCNA
+                  - BGLCN0
+                  - AGALNA
+                  - BGALNA
+                  - ANE5AC
+                  - BNE5AC
+                  - ABEQ
+                  - ARHMOA
+                  - MGLYOL
+                  - MERYOL
+                  - DTHROL
+                  - LTHROL
+                  - MRIBOL
+                  - DARAOL
+                  - LARAOL
+                  - MXYLOL
+                  - MALLOL
+                  - DALTOL
+                  - LALTOL
+                  - DGLUOL
+                  - LGLUOL
+                  - DMANOL
+                  - LMANOL
+                  - DGULOL
+                  - LGULOL
+                  - DIDIOL
+                  - LIDIOL
+                  - MGALOL
+                  - ALLOSE
+                  - PSICOS
+                  - INI1
+                  - INI2
+                  - INI3
+                  - INI4
+                  - INI5
+                  - ADEO
+                  - BDEO
+                  - ARIB
+                  - BRIB
+                  - AARB
+                  - BARB
+                  - ALYF
+                  - BLYF
+                  - AXYF
+                  - BXYF
+                  - AFRU
+                  - BFRU
+          - name: lipid
+            type: dict
+            text: Lipid segment specifications
+            directives:
+              - name: macro
+                type: bool
+                text: Set to true if you want to make this an atomselect macro
+                default: True
+              - name: resnames
+                type: list
+                text: Lipid residue names
+                default:
+                  - 23SM
+                  - 2HEX
+                  - 2PTE
+                  - 3HEX
+                  - ABLIPA
+                  - ABLIPB
+                  - ACHO
+                  - ACTF
+                  - ADR
+                  - ADRP
+                  - ALIN
+                  - ALINP
+                  - APPC
+                  - ARA
+                  - ARAN
+                  - ARANP
+                  - ARAP
+                  - ASM
+                  - BCLIPA
+                  - BCLIPB
+                  - BCLIPC
+                  - BEH
+                  - BEHP
+                  - BSM
+                  - BTE1
+                  - BTE2
+                  - BUTA
+                  - C6DHPC
+                  - C7DHPC
+                  - CER160
+                  - CER180
+                  - CER181
+                  - CER2
+                  - CER200
+                  - CER220
+                  - CER240
+                  - CER241
+                  - CER3E
+                  - CHAPS
+                  - CHAPSO
+                  - CHL1
+                  - CHM1
+                  - CHNS
+                  - CHOL
+                  - CHSD
+                  - CHSP
+                  - CJLIPA
+                  - CTLIPA
+                  - CYFOS3
+                  - CYFOS4
+                  - CYFOS5
+                  - CYFOS6
+                  - CYFOS7
+                  - CYSF
+                  - CYSG
+                  - CYSL
+                  - CYSP
+                  - DAPA
+                  - DAPC
+                  - DAPE
+                  - DAPG
+                  - DAPS
+                  - DCPC
+                  - DDA
+                  - DDAO
+                  - DDAOP
+                  - DDAP
+                  - DDMG
+                  - DDOPC
+                  - DDOPE
+                  - DDOPS
+                  - DDPC
+                  - DEPA
+                  - DEPC
+                  - DEPE
+                  - DEPG
+                  - DEPS
+                  - DGLA
+                  - DGLAP
+                  - DGPA
+                  - DGPC
+                  - DGPE
+                  - DGPG
+                  - DGPS
+                  - DHA
+                  - DHAP
+                  - DHPCE
+                  - DIHE
+                  - DIPA
+                  - DIPE
+                  - DLIPC
+                  - DLIPE
+                  - DLPA
+                  - DLPC
+                  - DLPE
+                  - DLPG
+                  - DLPS
+                  - DLiPC
+                  - DLiPE
+                  - DLiPI
+                  - DLIPC
+                  - DLIPE
+                  - DLIPI
+                  - DMP
+                  - DMPA
+                  - DMPC
+                  - DMPCE
+                  - DMPE
+                  - DMPEE
+                  - DMPG
+                  - DMPI
+                  - DMPI13
+                  - DMPI14
+                  - DMPI15
+                  - DMPI24
+                  - DMPI25
+                  - DMPI2A
+                  - DMPI2B
+                  - DMPI2C
+                  - DMPI2D
+                  - DMPI33
+                  - DMPI34
+                  - DMPI35
+                  - DMPS
+                  - DNPA
+                  - DNPC
+                  - DNPE
+                  - DNPG
+                  - DNPS
+                  - DOMG
+                  - DOPA
+                  - DOPC
+                  - DOPCE
+                  - DOPE
+                  - DOPEE
+                  - DOPG
+                  - DOPP1
+                  - DOPP2
+                  - DOPP3
+                  - DOPS
+                  - DPA
+                  - DPAP
+                  - DPPA
+                  - DPPC
+                  - DPPE
+                  - DPPEE
+                  - DPPG
+                  - DPPGK
+                  - DPPS
+                  - DPT
+                  - DPTP
+                  - DSPA
+                  - DSPC
+                  - DSPE
+                  - DSPG
+                  - DSPS
+                  - DTPA
+                  - DUPC
+                  - DXPC
+                  - DXPE
+                  - DYPA
+                  - DYPC
+                  - DYPE
+                  - DYPG
+                  - DYPS
+                  - ECLIPA
+                  - ECLIPB
+                  - ECLIPC
+                  - EDA
+                  - EDAP
+                  - EICO
+                  - EICOP
+                  - EPA
+                  - EPAP
+                  - EPEN
+                  - ERG
+                  - ERU
+                  - ERUP
+                  - ETA
+                  - ETAC
+                  - ETAM
+                  - ETAP
+                  - ETE
+                  - ETEP
+                  - ETHE
+                  - FOIS11
+                  - FOIS9
+                  - FOS10
+                  - FOS12
+                  - FOS13
+                  - FOS14
+                  - FOS15
+                  - FOS16
+                  - GH2F
+                  - GLA
+                  - GLAP
+                  - GLPH
+                  - GLYC
+                  - GLYM
+                  - GPC
+                  - HEPT
+                  - HEXA
+                  - HPA
+                  - HPAP
+                  - HPLIPA
+                  - HPLIPB
+                  - HTA
+                  - HTAP
+                  - IPAC
+                  - IPPC
+                  - KPLIPA
+                  - KPLIPB
+                  - KPLIPC
+                  - LAPAO
+                  - LAPAOP
+                  - LAU
+                  - LAUP
+                  - LDAO
+                  - LDAOP
+                  - LIGN
+                  - LIGNP
+                  - LILIPA
+                  - LIN
+                  - LINP
+                  - LLPA
+                  - LLPC
+                  - LLPE
+                  - LLPS
+                  - LMPG
+                  - LNACL1
+                  - LNACL2
+                  - LNBCL1
+                  - LNBCL2
+                  - LNCCL1
+                  - LNCCL2
+                  - LNDCL1
+                  - LNDCL2
+                  - LOACL1
+                  - LOACL2
+                  - LOCCL1
+                  - LOCCL2
+                  - LPC12
+                  - LPC14
+                  - LPPC
+                  - LPPG
+                  - LSM
+                  - LYSM
+                  - MAS
+                  - MBUT
+                  - MCLIPA
+                  - MEA
+                  - MEAP
+                  - MEEF
+                  - MPRO
+                  - MP_1
+                  - MP_2
+                  - MSO4
+                  - MYR
+                  - MYRO
+                  - MYROP
+                  - MYRP
+                  - NC4
+                  - NC5
+                  - NDEC
+                  - NER
+                  - NERP
+                  - NGLIPA
+                  - NGLIPB
+                  - NGLIPC
+                  - NHEX
+                  - NSM
+                  - OLE
+                  - OLEP
+                  - OSM
+                  - OYPE
+                  - PAL
+                  - PALIPA
+                  - PALIPB
+                  - PALIPC
+                  - PALIPD
+                  - PALIPE
+                  - PALO
+                  - PALOP
+                  - PALP
+                  - PC
+                  - PDAG
+                  - PDOPC
+                  - PDOPE
+                  - PENT
+                  - PGHG
+                  - PLPA
+                  - PLPC
+                  - PLPE
+                  - PLPG
+                  - PLPI
+                  - PLPI13
+                  - PLPI14
+                  - PLPI15
+                  - PLPI24
+                  - PLPI25
+                  - PLPI2A
+                  - PLPI2B
+                  - PLPI2C
+                  - PLPI2D
+                  - PLPI33
+                  - PLPI34
+                  - PLPI35
+                  - PLPS
+                  - PMCL1
+                  - PMCL2
+                  - PMPE
+                  - PMPG
+                  - PMSPE
+                  - PMSPG
+                  - PNPI
+                  - PNPI13
+                  - PNPI14
+                  - PNPI15
+                  - PNPI24
+                  - PNPI25
+                  - PNPI2A
+                  - PNPI2B
+                  - PNPI2C
+                  - PNPI2D
+                  - PNPI33
+                  - PNPI34
+                  - PNPI35
+                  - POPA
+                  - POPC
+                  - POPCE
+                  - POPE
+                  - POPEE
+                  - POPG
+                  - POPI
+                  - POPI13
+                  - POPI14
+                  - POPI15
+                  - POPI24
+                  - POPI25
+                  - POPI2A
+                  - POPI2B
+                  - POPI2C
+                  - POPI2D
+                  - POPI33
+                  - POPI34
+                  - POPI35
+                  - POPP1
+                  - POPP2
+                  - POPP3
+                  - POPS
+                  - PPPE
+                  - PRPE
+                  - PSM
+                  - PVCL2
+                  - PVPE
+                  - PVPG
+                  - PYPE
+                  - PYPG
+                  - PYPI
+                  - PhPC
+                  - QMPE
+                  - SAPA
+                  - SAPC
+                  - SAPE
+                  - SAPG
+                  - SAPI
+                  - SAPI13
+                  - SAPI14
+                  - SAPI15
+                  - SAPI24
+                  - SAPI25
+                  - SAPI2A
+                  - SAPI2B
+                  - SAPI2C
+                  - SAPI2D
+                  - SAPI33
+                  - SAPI34
+                  - SAPI35
+                  - SAPS
+                  # - SB3-10
+                  # - SB3-12
+                  # - SB3-14
+                  - SDA
+                  - SDAP
+                  - SDPA
+                  - SDPC
+                  - SDPE
+                  - SDPG
+                  - SDPS
+                  - SDS
+                  - SELIPA
+                  - SELIPB
+                  - SELIPC
+                  - SFLIPA
+                  - SITO
+                  - SLPA
+                  - SLPC
+                  - SLPE
+                  - SLPG
+                  - SLPS
+                  - SOPA
+                  - SOPC
+                  - SOPE
+                  - SOPG
+                  - SOPS
+                  - SSM
+                  - STE
+                  - STEP
+                  - STIG
+                  - TAG
+                  - TEA
+                  - TETD
+                  - THA
+                  - THAP
+                  - THCHL
+                  - THDPPC
+                  - TIPA
+                  - TLCL1
+                  - TLCL2
+                  - TMCL1
+                  - TMCL2
+                  - TOCL1
+                  - TOCL2
+                  - TPA
+                  - TPAP
+                  - TPG
+                  - TPT
+                  - TPTP
+                  - TRI
+                  - TRIP
+                  - TRIPAO
+                  - TRPAOP
+                  - TSPC
+                  - TTA
+                  - TTAP
+                  - TYCL1
+                  - TYCL2
+                  - UDAO
+                  - UDAOP
+                  - UFOS10
+                  - VCLIPA
+                  - VCLIPB
+                  - VCLIPC
+                  - VCLIPD
+                  - VCLIPE
+                  - YOPA
+                  - YOPC
+                  - YOPE
+                  - YOPG
+                  - YOPS
+                  - YPLIPA
+                  - YPLIPB
+          - name: water
+            type: dict
+            text: Water segment specifications
+            directives:
+              - name: resnames
+                type: list
+                text: Water residue names
+                default:
+                  - HOH
+          - name: other
+            type: dict
+            text: Specifications for segments not recognized
+            directives:
+              - name: resnames
+                type: list
+                text: Unrecognized residue names
+                default: []
+  - name: ambertools
+    type: dict
+    text: ambertools specifications
+  - name: namd2
+    type: dict
+    text: NAMD2 specifications
+    directives:
+      - name: generic
+        type: dict
+        text: Generic NAMD2 configuration parameters
+        default:
+          paraTypeCharmm: on
+          exclude: scaled1-4
+          1-4scaling: 1.0
+          cutoff: 10.0
+          switching: on
+          switchdist: 9.0
+          pairlistdist: 11.5
+          outputenergies: 100
+      - name: vacuum
+        type: dict
+        text: NAMD2 parameters for vacuum simulations
+        default:
+          nonbondedFreq: 1
+          fullElectFrequency: 2
+          stepspercycle: 4
+          dielectric: 80
+          timestep: 1.0
+          rigidbonds: none
+      - name: solvated
+        type: dict
+        text: NAMD2 parameters for solvated simulations
+        default:
+          timestep: 2.0
+          rigidbonds: all
+          nonbondedFreq: 1
+          fullElectFrequency: 2
+          stepspercycle: 10
+          PME: on 
+          pmegridspacing: 1.0
+          wrapAll: on
+      - name: thermostat
+        type: dict
+        text: NAMD2 thermostat parameters
+        default:
+          langevin: on 
+          langevinDamping: 5
+          langevinTemp: $temperature
+          langevinHydrogen: no 
+      - name: barostat
+        type: dict
+        text: NAMD2 barostat parameters
+        default:
+          langevinpiston: on 
+          langevinpistontarget: $pressure
+          langevinpistonperiod: 200
+          langevinpistondecay: 100
+          langevinpistontemp: $temperature
+          usegrouppressure: yes
+          useflexiblecell: no
+      - name: harmonic
+        type: dict
+        text: parameters governing harmonic constraints; not necessarily NAMD-compatible keywords
+        default:
+          spring_constant: 200
+  - name: title
+    type: str
+    text: Meaningful title (optional)
+    default: Pestifer
+  - name: paths
+    type: dict
+    text: Allows user to specify various paths
+    directives:
+      - name: namd2
+        type: str
+        text: Path for namd2 executable
+        default: /usr/local/bin/namd2
+      - name: charmrun
+        type: str
+        text: Path for charmrun executable
+        default: /usr/local/bin/charmrun
+      - name: vmd
+        type: str
+        text: Path for vmd executable
+        default: /usr/local/bin/vmd
+      - name: charmmff
+        type: str
+        text: Path for standard charmm force-field distribution; note that pestifer comes with the July 2024 distribution included and this is used by default
+        required: False
+  - name: tasks
+    type: list
+    text: Specifies the tasks to be performed serially
+    directives:
+      - name: restart
+        text: Restart from specified pdb, psf, and (optionally) xsc files without any further modifications (suitable for directly feeding to md tasks)
+        type: dict
+        directives:
+          - name: psf
+            text: name of psf file (w/optional psf extension)
+            type: str
+          - name: pdb
+            text: name of pdb file (w/optional pdb extension)
+            type: str
+          - name: xsc
+            text: name of xsc file (w/optional xsc extension)
+            type: str
+          - name: index
+            text: first task index in the restart
+            type: int
+            default: 0
+      - name: psfgen
+        text: Parameters controlling a psfgen run on an input molecule
+        type: dict
+        directives:
+          - name: source
+            text: Specifies the source of the initial coordinate file
+            type: dict
+            directives:
+              - name: prebuilt
+                text: PSF and PDB file of a previously built system
+                type: dict
+                directives:
+                  - name: psf
+                    text: name of psf file (includes psf extension)
+                    type: str
+                  - name: pdb
+                    text: name of pdb file (includes pdb extension)
+                    type: str
+                  - name: xsc
+                    text: name of xsc file (includes xsc extension)
+                    type: str
+              - name: id 
+                text: The 4-character PDB ID of the source or the basename of a local coordinate file (PDB or mmCIF format); pestifer will download from the RCSB if a file is not found
+                type: str
+              - name: alphafold
+                type: str
+                text: If set, its value signifies an accession code used to download a model from the AlphaFold database. If either prebuilt or id are set, this directive is ignored
+              - name: biological_assembly 
+                text: integer index of the biological assembly to construct; default is 0, signifying that the asymmetric unit is to be used
+                type: int
+                default: 0
+              - name: transform_reserves
+                type: dict
+                text: dictionary keyed by chain IDs in the asymmetric unit with values that are lists of chain ID's for symmetry-related chains in other units of the biological assembly
+              - name: remap_chainIDs
+                type: dict
+                text: dictionary mapping of chainIDs in structure input to new chainIDs
+              - name: reserialize
+                type: bool
+                text: If true, resets the serial numbers of all atoms based on their order in the input structure file -- use with caution!!
+                default: False
+              - name: model
+                text: model number to use if there are multiple models in the file
+                type: int
+              - name: file_format
+                text: either PDB or mmCIF; some entries do not have a PDB-format file.  The main advantage of PDB is that it uses the author-designations for chains by default.  mmCIF is the new "default" format of the PDB.
+                type: str
+                choices: [PDB, mmCIF]
+                default: PDB
+              - name: cif_residue_map_file
+                text: name of output file to contain a mapping of CIF chain-residue number to author chain-residue number-insertion
+                type: str
+              - name: exclude
+                text: Specifies any residues or atoms present in the PDB source to exclude from the system
+                type: dict
+                directives:
+                  - name: chains
+                    text: Specify list of chain IDs to ignore; in PDB-format input, these are typically author-generated, while in mmCIF they are not.  You must use chain IDs that reference your chosen coordinate file input format.
+                    type: list
+                    required: False
+                  - name: resnames
+                    text: Specify list of resnames to ignore; good for excluding waters or ions or small molecules.  Resnames must reference your chosen coordinate input file.
+                    type: list
+                    required: False
+                  - name: resseqnums
+                    text: Specify list of resseqnums to ignore
+                    type: list
+                    required: False
+              - name: sequence
+                text: Parameters controlling sequence modifications based on specifications in the PDB source
+                type: dict
+                directives:
+                  - name: include_terminal_loops
+                    text: Specifies whether or not N- and C- terminal loops (if unresolved) are built in
+                    type: bool
+                    default: False
+                  - name: build_zero_occupancy_C_termini
+                    text: List of chain identifiers for which you would like zero-occupancy residues at the C-terminus built in
+                    type: list
+                    default: []
+                  - name: build_zero_occupancy_N_termini
+                    text: List of chain identifiers for which you would like zero-occupancy residues at the N-terminus built in
+                    type: list
+                    default: []
+                  - name: fix_engineered_mutations
+                    text: Specifies whether or not sequence differences w.r.t. a sequence database and which are labeled as "engineered mutation"s are reverted to their database values
+                    type: bool
+                    default: True 
+                  - name: fix_conflicts 
+                    text: Specifies whether or not sequence differences w.r.t. a sequence database and which are labeled as "conflicts"s are reverted to their database values
+                    type: bool
+                    default: True          
+                  - name: loops
+                    text: Parameters controlling model-built loops during psfgen
+                    type: dict
+                    directives:
+                      - name: sac_res_name 
+                        text: 3-letter code of residue appended to any sufficiently long model-built 
+                        type: str
+                        default: GLY
+                      - name: min_loop_length
+                        text: Minimum length of model-built loop that triggers the ligation algorithm
+                        type: int
+                        default: 4
+                      - name: declash
+                        text: Specifies how model-built residues are moved to avoid steric clashes
+                        type: dict
+                        directives:
+                          - name: maxcycles
+                            text: Maximum number of Metropolis cycles
+                            type: int
+                            default: 20
+                          - name: include_C_termini
+                            text: Flag to indicate if model-built C-terminal loops should be declashed
+                            type: bool
+                            default: True
+                  - name: glycans
+                    text: parameters controlling how model-built glycans are adjusted, if present
+                    type: dict
+                    directives:
+                      - name: declash
+                        text: Specifies how glycan residues are moved to avoid steric clashes
+                        type: dict
+                        directives:
+                          - name: maxcycles
+                            text: Maximum number of Metropolis cycles
+                            type: int
+                            default: 20
+                          - name: clashdist
+                            text: interatomic distance threshold for clashes in Angstroms
+                            type: float
+                            default: 1.5
+          - name: mods
+            text: Specifies modifications to the sequence or structure in the PDB file
+            type: dict
+            directives:
+              - name: mutations
+                text: Single-residue mutations, expressed as shortcodes; e.g., C:F32A for mutation of Phe 32 on chain C to an Alanine
+                type: list
+              - name: ssbonds
+                text: additional ssbonds, expressed as shortcodes; e.g., C_154-A_298 to add an ssbond between resids 154 of chain C and 298 of chain A.  Note that the indicated residues must by CYS's.  If they are not, you should include each in a mutation shortcode in the mutations list
+                type: list
+              - name: ssbondsdelete
+                text: existing ssbonds to break, expressed as shortcodes; e.g., C_154-A_298 will break the existing ssbond between resids 154 of chain C and 298 of chain A so that each is a reduced CYS.
+                type: list
+              - name: links
+                text: additional generic bonds, expressed as shortcodes; e.g., C_154_N-A_298_M to add a link between atom N of resid 154 of chain C and atom M of resid 298 of chain A.
+                type: list
+              - name: deletions
+                text: residue ranges to delete, expressed as shortcodes; e.g., C:99-101 deletes residues 99 to 101 (inclusive) of chain C
+                type: list
+              - name: substitutions
+                text: residue ranges to replace with a new sequence; e.g., C:99-101,GG replaces residues 99, 100, and 101 of chain C with two glycines
+                type: list
+              - name: insertions
+                text: sequence of residues to insert C-terminal to a specified residue in a specified chain; e.g., C,123,GRETA inserts the residues Gly123A, Arg123B, Glu123C, Thr123D, and Ala123E immediately C-terminal to residue 123 of chain C; if the resid includes a terminal "+", then inserted resids are incremented as integers
+                type: list
+              - name: crotations
+                text: dihedral angle rotations to reposition modelled-in protein chains or glycans
+                type: list
+              - name: Cfusions
+                text: fuse residues from named residue range of named protein chain of named input PDB coordinate file to C-terminus of named segment of base molecule
+                type: list
+              - name: grafts
+                text: graft residues from named residue range of named chain of named input PDB coordinate file onto target residue of base molecule
+                type: list
+          - name: cleanup
+            text: Specifies whether or not to delete temporary files generated during psfgen execution
+            type: bool
+            default: True
+      - name: ligate
+        text: Specifies how C-termini of modeled loops are connected back to the protein
+        type: dict
+        directives:
+          - name: steer
+            text: Specifies parameters for steered MD to bring C-termini close to their connection points
+            type: dict
+            directives:
+              - name: ensemble
+                text: Name of ensemble to run in; note that NPT can only be peformed on a solvated system
+                type: str
+                choices: [minimize, NVT, NPT]
+                default: NVT
+              - name: force_constant
+                text: force constant (kcal/mol/Angstrom^2)
+                type: float
+                default: 20
+              - name: target_distance
+                text: distance (Angstrom) between carbonyl carbon of loop C-terminus and amide nitrogen of connecting residue that steered MD drives to
+                type: float
+                default: 2
+              - name: nsteps
+                text: number of MD time steps for steeering
+                type: int
+                default: 1000
+              - name: dcdfreq
+                text: number of time steps between configuration output to DCD file
+                type: int
+                default: 100
+              - name: xstfreq
+                text: number of time steps between cell size output to DCD file (only used if ensemble is NPT)
+                type: int
+                default: 100
+              - name: temperature
+                text: Temperature used in steered MD run
+                type: float
+                default: 300
+              - name: pressure
+                text: Pressure used in steered MD run (only used if ensemble is NPT)
+                type: float
+                default: 1
+              - name: receiver_flexible_zone_radius
+                text: size of zone around receiver N-terminal N in which CA's are not fixed during steered MD
+                type: float
+                default: 0.0 # all fixed by default
+              - name: constraints
+                text: Parameters controlling position constraints
+                type: dict
+                directives:
+                  - name: atoms
+                    text: Atoms to be position-constrained expressed as a VMD atomselection string
+                    type: string
+                  - name: k
+                    text: Restraint spring constant in kcal/mol/A^2
+                    type: float
+                  - name: consfile
+                    text: Name of constraints PDB file to generate (defaults to basename-constraints.pdb)
+                    type: string
+          - name: connect
+            text: Specifies parameters of the psfgen run that patches in the new backbone bonds
+            type: dict
+            directives:
+              - name: cleanup
+                text: Specifies whether or not to clean up temporary files
+                type: bool
+                default: True
+      - name: mdplot
+        text: Generate plot(s) from previous md tasks with same psf
+        type: dict
+        directives:
+          - name: savedata
+            type: str
+            text: name of CSV file to save all energy-like data
+          - name: figsize
+            type: list
+            text: size of matplotlib figure
+            default: [9,6]
+          - name: traces
+            type: list
+            text: List of energy-like quantities to plot vs timestep
+            default:
+              - density
+          - name: units
+            type: dict
+            text: user-specified units for plots (if other than NAMD standard units)
+            default:
+              density: g_per_cc
+          - name: basename
+            type: str
+            text: Baseame of image file(s) to generate
+            default: myplot
+      - name: cleave
+        text: Parameters controlling cleavage of one or more protein chains
+        type: dict
+        directives:
+          - name: sites
+            type: list
+            text: List of site shortcodes in form C:R1-R2 where C is chain ID, R1 is resid+ins of residue N-terminal to cleavage site, R2 is residue C-terminal to cleavage site
+      - name: domainswap
+        text: Parameters controlling a domain swap TMD simulation
+        type: dict
+        directives:
+          - name: swap_domain_def
+            type: str
+            text: VMD atomselect string for the domain; will be appended with "and chain X" for each chain
+          - name: anchor_domain_def
+            type: str
+            text: VMD atomselect string for the anchor domains; will be appended with "and chain X" for each chain
+          - name: chain_directional_swaps
+            type: list
+            text: list of pairs of directional swaps of chainIDs [[A,B], [B,A]] swaps A and B
+          - name: force_constant
+            type: float
+            text: force constant used in biases for domain-swap CV MD simulation (200)
+            default: 200.0
+          - name: target_numsteps
+            type: int
+            text: number of timesteps to run the biased MD simulation
+            default: 10000
+          - name: nsteps
+            type: int
+            text: number of timesteps to run the biased MD simulation
+            default: 10000
+          - name: dcdfreq
+            type: int
+            text: number of timesteps between dcd output
+            default: 100
+          - name: xstfreq
+            text: number of time steps between cell size output to DCD file
+            type: int
+            default: 100
+          - name: temperature
+            type: float
+            text: temperature of thermostat in MD run
+            default: 300
+          - name: ensemble
+            type: str
+            text: ensemble in which MD is run [NVT]
+            choices: [minimize, NVT, NPT]
+            default: NVT
+      - name: solvate
+        text: Parameters controlling solvation and ionization
+        type: dict
+        directives:
+          - name: pad
+            text: padding value for determining the overall simulation box size (in Angstroms)
+            type: float
+            default: 10
+      - name: ring_check
+        text: Parameters controlling pierced-ring checks
+        type: dict
+        directives:
+          - name: delete
+            text: which of the piercer or piercee to delete; if none, no deletions are performed
+            type: string
+            default: piercee
+            options: ['piercee','piercer','none']
+          - name: cutoff
+            text: distance cutoff between bond and ring COM's for checking, Angstroms
+            type: float
+            default: 10.0
+          - name: segtypes
+            text: list of segment types to include in the ring-pierce check
+            type: list
+            default: ['lipid']
+      - name: packmol_memgen
+        text: Parameters controlling packmol-memgen to generate a bilayer embedding
+        type: dict
+        directives:
+          - name: ionmap
+            text: map of ion names in packmol-memgen to ion names in CHARMM
+            type: dict
+            default:
+              "Cl-": CLA
+              "K+": POT
+              "Na+": SOD
+          - name: embed
+            text: parameters controlling preorientation (embedding)
+            type: dict
+            directives:
+              - name: z_head_group
+                text: VMD atomselect string defining head-group of z-axis
+                type: str
+              - name: z_tail_group
+                text: VMD atomselect string defining tail-group of z-axis
+                type: str
+              - name: z_ref_group
+                text: VMD atomselect string defining a center of mass at a specific z
+                type: dict
+                directive:
+                  - name: z_value
+                    type: float
+                    text: value of z at COM of this group (default 0)
+                    default: 0.0
+                  - name: text
+                    text: the atomselect text
+                    type: str
+          - name: custom_lipid_parms
+            text: custom parameters for lipids to overwrite packmol-memgen memgen.parm defaults and use pdb files local to the pestifer installation if available
+            type: dict                                 
+          - name: command_options
+            text: command-line options for packmol-memgen
+            type: dict
+            directives: 
+              - name: lipids
+                text: value for --lipids LIP1:LIP2//LIP3
+                type: str
+              - name: ratio
+                text: value for --ratio R1:T2//R3
+                type: str
+              - name: solvents
+                text: value for --solvents SOL1:SOL2
+                type: str
+              - name: solvent_ratio
+                text: value for --solvent_ratio
+                type: str
+              - name: dist
+                text: argument for --dist
+                type: float 
+              - name: dist_wat
+                text: argument for --dist_wat
+                type: float
+              - name: distxy_fix
+                text: argument for --distxy_fix
+                type: float
+              - name: dims
+                text: box dimensions (A)
+                type: list
+              - name: leaflet
+                text: argument for --leaflet
+                type: float
+              - name: nottrim
+                text: skips H-trimming
+                type: bool
+                default: True
+              - name: notprotonate
+                text: skips protonation
+                type: bool
+                default: True
+              - name: noprogress
+                text: skips progress bar
+                type: bool
+                default: True
+              - name: charmm
+                text: output in CHARMM format
+                type: bool
+                default: True
+              - name: parametrize
+                text: parameterize the output using tleap
+                type: bool
+                default: False
+              - name: preoriented
+                text: True if protein is preoriented; z=0 plane is assumed to be membrane midplane!
+                type: bool
+                default: True
+              - name: n_ter
+                text: in or out; N-termini are usually 'in' for membrane proteins
+                type: str
+                options: ['in','out']
+                default: 'in'
+              - name: notgridvol
+                text: skip grid building for volume estimation, and the calculation is done just by estimating density
+                type: bool
+                default: True
+              - name: salt
+                text: whether to add salt or not, 0.15M KCl by default
+                type: bool
+                default: False
+              - name: salt_c
+                text: name of salt cation (if other than K+)
+                type: str
+                options: ['K+','Na+','Ca2+','Mg2+']
+              - name: salt_a
+                text: name of salt anion (if other than Cl-)
+                type: str
+                options: ['Cl-','Br-','I-','F-']
+              - name: saltcon
+                text: salt concentration in M
+                type: float
+              - name: nloop
+                text: number of GENCAN loops
+                type: int
+              - name: nloop_all
+                text: numer of loops for altogether packing
+                type: int
+              - name: tolerance
+                text: clash detection tolerance
+                type: float
+              - name: random
+                text: reinitialize RNG
+                type: bool
+          - name: scale_box
+            text: x, y, z scaling factors for the box size
+            type: dict
+            directives:
+              - name: x
+                text: x-scaling factor for the box size
+                type: float
+              - name: y
+                text: y-scaling factor for the box size
+                type: float
+              - name: z
+                text: z-scaling factor for the box size
+                type: float
+      - name: md
+        text: Parameters controlling a NAMD run
+        type: dict
+        directives:
+          - name: vacuum
+            text: if true, namd will run on a single node even if multiple nodes are allocated
+            type: boolean
+            default: False
+          - name: ensemble
+            text: Name of ensemble to run in; note that NPT can only be peformed on a solvated system
+            type: str
+            choices: [minimize, NVT, NPT]
+            default: NVT
+          - name: minimize
+            text: Number of minimization steps; ignored if ensemble is not 'minimize' (used with the 'minimize' command)
+            type: int
+            default: 1000
+          - name: nsteps
+            text: Number of MD time steps; ingored if ensemble is 'minimize' (used with the 'run' command)
+            type: int
+            default: 2000
+          - name: dcdfreq
+            text: number of time steps between configuration output to DCD file
+            type: int
+            default: 100
+          - name: xstfreq
+            text: number of time steps between cell size output to DCD file
+            type: int
+            default: 100
+          - name: temperature
+            text: Temperature (K) for NVT or NPT
+            type: float
+            default: 300
+          - name: pressure
+            text: Pressure (bar) for NPT; note that NPT can only be peformed on a solvated system
+            type: float
+            default: 1
+          - name: other_parameters
+            text: key:value pairs for other namd2 configuration file statements
+            type: dict
+          - name: constraints
+            text: Parameters controlling position constraints
+            type: dict
+            directives:
+              - name: atoms
+                text: Atoms to be position-constrained expressed as a VMD atomselection
+                type: string
+              - name: k
+                text: Restraint spring constant in kcal/mol/A^2
+                type: float
+              - name: consfile
+                text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+                type: string
+      - name: manipulate
+        text: Direct manipulation of atom positions
+        type: dict
+        directives:
+          - name: mods
+            text: Specifies modifications to the sequence or structure in the current structure
+            type: dict
+            directives:
+              - name: crotations
+                text: dihedral angle rotations to reposition residues
+                type: list
+      - name: terminate
+        text: Task that signals end of task list
+        type: dict
+        directives:
+          - name: basename
+            text: Desired basename for final psf/pdb files
+            type: str
+            default: my_system
+          - name: chainmapfile
+            text: Desired name of the file describing all chain mapping
+            type: str
+            default: chainmaps.yaml
+          - name: statefile
+            text: Desired name of the file describing the current state
+            type: str
+            default: states.yaml
+          - name: package
+            text: Task that packages all CHARMM parameter files and pdb/psf/coor/vel/xsc files for a production run
+            type: dict
+            required: False
+            directives:
+              - name: basename
+                text: Desired basename for final tarball
+                type: str
+                default: my_system
+              - name: ensemble
+                text: Name of ensemble to run in; note that NPT can only be peformed on a solvated system
+                type: str
+                choices: [NVT, NPT]
+                default: NVT
+              - name: nminsteps
+                text: Number of minimization steps
+                type: int
+                default: 0
+              - name: nsteps
+                text: Number of MD time steps
+                type: int
+                default: 1000000
+              - name: dcdfreq
+                text: number of time steps between configuration output to DCD file
+                type: int
+                default: 10000
+              - name: xstfreq
+                text: number of time steps between cell size output to DCD file
+                type: int
+                default: 10000
+              - name: restartfreq
+                text: number of timesteps between restart checkpoints
+                type: int
+                default: 10000
+              - name: temperature
+                text: Temperature (K) for NVT or NPT
+                type: float
+                default: 300
+              - name: pressure
+                text: Pressure (bar) for NPT; note that NPT can only be peformed on a solvated system
+                type: float
+                default: 1
+              - name: topogromacs
+                text: Set to True if you want to use topogromacs to generate Gromacs-compatible PDB and TOP files
+                type: bool
+                default: False
+              - name: constraints
+                text: Parameters controlling position constraints
+                type: dict
+                directives:
+                  - name: atoms
+                    text: Atoms to be position-constrained expressed as a VMD atomselection
+                    type: string
+                  - name: k
+                    text: Restraint spring constant in kcal/mol/A^2
+                    type: float
+                  - name: consfile
+                    text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+                    type: string

@@ -8,28 +8,29 @@
     config must have a yaml_header member.
 
 """
-from .basemod import BaseMod
 import logging
-logger=logging.getLogger(__name__)
-import shutil
 import os
+import shutil
 import yaml
-from copy import deepcopy
-from .util import is_periodic, pdb_search_replace, pdb_singlemolecule_charmify
-from .molecule import Molecule
-from .chainidmanager import ChainIDManager
-from .colvars import *
-from .stringthings import FileCollector,get_boxsize_from_packmolmemgen, rescale_packmol_inp_box
-from .modmanager import ModManager
-from .command import Command
-from .mods import CleavageSite, CleavageSiteList
-from .progress import PackmolProgress, RingCheckProgress
+import matplotlib.pyplot as plt 
 import networkx as nx
 import pandas as pd
-from .ring import ring_check
-import matplotlib.pyplot as plt 
+from copy import deepcopy
 from scipy.constants import physical_constants
+from .basemod import BaseMod
+from .chainidmanager import ChainIDManager
+from .colvars import *
+from .command import Command
+from .modmanager import ModManager
+from .mods import CleavageSite, CleavageSiteList
+from .molecule import Molecule
+from .stringthings import FileCollector,get_boxsize_from_packmolmemgen, rescale_packmol_inp_box
+from .progress import PackmolProgress, RingCheckProgress
 from .psf import PSFContents
+from .ring import ring_check
+from .util import is_periodic, pdb_search_replace, pdb_singlemolecule_charmify
+
+logger=logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 g_per_amu=physical_constants['atomic mass constant'][0]*1000
@@ -276,17 +277,7 @@ class MDTask(BaseTask):
         self.log_message('complete',ensemble=self.specs.get('ensemble',None))
         return super().do()
 
-    def copy_charmmpar_local(self):
-        local_names=[]
-        na=self.writers['namd2']
-        namd2_params_abs=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
-        for nf in namd2_params_abs:
-            d,n=os.path.split(nf)
-            shutil.copy(nf,n)
-            local_names.append(n)
-        return local_names
-
-    def namd2run(self,baselabel='',absolute_paths=True,extras={},script_only=False):
+    def namd2run(self,baselabel='',extras={},script_only=False):
         specs=self.specs
         logger.debug(f'md task specs {specs}')
         ensemble=specs['ensemble']
@@ -332,14 +323,8 @@ class MDTask(BaseTask):
         
         na=self.writers['namd2']
         na.update_par()
-        if absolute_paths:
-            params['parameters']=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
-        else:
-            params['parameters']=[]
-            namd2_params_abs=na.standard_charmmff_parfiles+na.custom_charmmff_parfiles
-            for nf in namd2_params_abs:
-                d,n=os.path.split(nf)
-                params['parameters'].append(n)
+        self.local_parameter_files=na.copy_charmm_par()
+        params['parameters']=self.local_parameter_files
         
         if xsc or cell:
             if xsc:
@@ -408,6 +393,8 @@ class MDTask(BaseTask):
                 self.update_statevars('firsttimestep',firsttimestep+specs['minimize'])
             if cell: # this is a use-once statevar
                 del self.statevars['cell']
+            if specs.get('remove_parfiles',False):
+                na.remove_charmm_par(params['parameters'])
         return 0
 
 class MDPlotTask(BaseTask):
@@ -535,6 +522,8 @@ class PsfgenTask(BaseTask):
         result=pg.runscript()
         if result!=0:
             return result
+        if self.specs.get('remove_charmmtop',False):
+            pg.remove_charmm_top(pg.topologies)
         self.save_state(exts=['psf','pdb'])
         self.strip_remarks()
         return 0
@@ -980,14 +969,14 @@ class TerminateTask(MDTask):  #need to inherit for namd2run() method
         savespecs=self.specs
         self.specs=specs
         params={}
-        result=self.namd2run(script_only=True,absolute_paths=False)
+        result=self.namd2run(script_only=True)
         self.specs=savespecs
         self.FC.append(f'{self.basename}.namd')
         constraints=specs.get('constraints',{})
         if constraints:
             self.make_constraint_pdb(constraints)
             self.FC.append(self.statevars['consref'])
-        local_params=self.copy_charmmpar_local()
+        local_params=self.local_parameter_files
         for n in local_params:
             self.FC.append(n)
         for ext in ['psf','pdb','coor','xsc','vel']:

@@ -1,0 +1,262 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+import glob
+import logging
+import os
+import shutil
+import numpy as np
+import pandas as pd
+from pidibble.pdbparse import PDBParser
+from .charmmtop import CharmmResiDatabase
+from .controller import Controller
+from .scriptwriters import Psfgen, VMD
+from .stringthings import my_logger
+
+logger=logging.getLogger(__name__)
+
+def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0):
+    charmm_topfile=DB.get_charmm_topfile(resid)
+    if charmm_topfile is None:
+        return -2
+    topo=DB.get_topo(resid)
+    if topo.error_code!=0:
+        topo.show_error(logger.warning)
+        # my_logger(f'Parsing error for {resid}',logger.warning,just='^',frame='!',fill='!') 
+        with open(f'{resid}-topo.rtf','w') as f:
+            topo.to_file(f)
+        # return -1
+
+    # for b in topo.bonds:
+    #     logger.debug(f'{b.name1}-{b.name2}')
+    my_logger(f'{os.path.basename(topo.charmmtopfile)}',logger.info,just='^',frame='*',fill='*')
+    
+    heads,tails,shortest_paths=topo.head_tail_atoms()
+    logger.debug(f'resi {resid} heads {heads} tails {tails} shortest_paths {shortest_paths}')
+    tasklist=[
+            {'restart':{'psf': f'{resid}-init.psf','pdb': f'{resid}-init.pdb'}},
+            {'md': {'ensemble':'minimize','nsteps':0,'minimize':minimize_steps,'dcdfreq':0,'xstfreq':0,'temperature':100}},
+            ]
+    if shortest_paths and any([len(v)>0 for v in shortest_paths.values()]) and heads and tails and len(tails)<3:
+        base_md={'ensemble':'NVT','nsteps':10000,'dcdfreq':100,'xstfreq':100,'temperature':100}
+        groups={}
+        if len(tails)<4:
+            groups={'repeller':{'atomnames': [heads[0]]}}
+        distances={}
+        harmonics={}
+        for i in range(len(tails)):
+            groups[f'tail{i+1}']={'atomnames': [tails[i]]}
+            if len(tails)<4:
+                distances[f'repeller_tail{i+1}']={'groups': ['repeller',f'tail{i+1}']}
+        dists={}
+        for i in range(len(tails)):
+            dists[i]=shortest_paths[heads[0]][tails[i]]*lenfac
+        for i in range(len(tails)):
+            for j in range(i+1,len(tails)):
+                distances[f'tail{i+1}_tail{j+1}']={'groups': [f'tail{i+1}',f'tail{j+1}']}
+                harmonics[f'tail{i+1}_tail{j+1}_attract']={
+                        'colvars': [f'tail{i+1}_tail{j+1}'],
+                        'forceConstant': 10.0,
+                        'distance':[3.0]}
+        if len(tails)<4:
+            name='repeller_tail'+''.join(f'{i+1}' for i in range(len(tails)))
+            colvars=[]               
+            distance=[]
+            for i in range(len(tails)):
+                colvars.append(f'repeller_tail{i+1}')
+                distance.append(dists[i])
+            harmonics[name]={'colvars':colvars,'distance':distance,'forceConstant':10.0}
+        colvar_specs={'groups':groups,'distances':distances,'harmonics':harmonics}
+        base_md['colvar_specs']=colvar_specs
+        assert 'minimize' not in base_md
+        logger.debug(f'base_md {base_md}')
+        tasklist.append({'md':base_md})
+    else:
+        my_logger(f'graph analysis failed on {resid}',logger.warning,just='^',frame='!',fill='!')
+        with open(f'{resid}-topo.rtf','w') as f:
+            topo.to_file(f)
+    if len(heads)>0:
+        tasklist.append({'manipulate':{'mods':{'orient':[f'z,{heads[0]}']}}})
+    tasklist.append({'md':{'ensemble':'NVT','nsteps':sample_steps,'dcdfreq':sample_steps//nsamples,'xstfreq':100,'temperature':sample_temperature,'index':99}})
+
+    C=Controller(userspecs={'tasks':tasklist},quiet=True)
+    # First we de-novo generate a pdb/psf file using seeded internal coordinates
+    W=Psfgen(C.config)
+    if not charmm_topfile in W.charmmff_config['standard']['topologies']:
+        W.charmmff_config['standard']['topologies'].append(charmm_topfile)
+    if charmm_topfile.endswith('detergent.str'):
+        needed=[x for x in DB.all_charmm_topology_files if x.endswith('sphingo.str')][0]
+        W.charmmff_config['standard']['topologies'].append(needed)
+    if charmm_topfile.endswith('initosol.str'):
+        needed=os.path.join(DB.toppardir,'stream/carb/toppar_all36_carb_glycolipid.str')
+        W.charmmff_config['standard']['topologies'].append(needed)
+
+    W.newscript('init')
+    if topo.to_psfgen(W,refic_idx=refic_idx)==-1:
+        my_logger(f'No valid IC\'s for {resid}',logger.warning,just='^',frame='!',fill='!') 
+        with open(f'{resid}-topo.rtf','w') as f:
+            topo.to_file(f)
+        return -1
+    W.writescript(f'{resid}-init')
+    W.runscript()
+    with open('init.log','r') as f:
+        loglines=f.read().split('\n')
+    for l in loglines:
+        if 'Warning: failed to guess coordinates' in l:
+            my_logger(f'psfgen failed for {resid}',logger.warning,just='^',frame='!',fill='!') 
+            with open(f'{resid}-topo.rtf','w') as f:
+                topo.to_file(f)
+            return -3
+
+    # now run the tasks to minimize, stretch, orient along z, equilibrate, and sample
+    tasks=C.tasks
+    for task in tasks:
+        if task.taskname=='md':
+            if charmm_topfile.endswith('str') and not charmm_topfile in task.writers['namd2'].charmmff_config['standard']['parameters']:
+                task.writers['namd2'].charmmff_config['standard']['parameters'].append(charmm_topfile)
+            if charmm_topfile.endswith('sphingo.str'):
+                needed=[x for x in DB.all_charmm_topology_files if x.endswith('lps.str')][0]
+                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
+            if charmm_topfile.endswith('detergent.str'):
+                needed=[x for x in DB.all_charmm_topology_files if x.endswith('sphingo.str')][0]
+                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
+                needed=[x for x in DB.all_charmm_topology_files if x.endswith('cholesterol.str')][0]
+                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
+                needed=os.path.join(DB.toppardir,'stream/carb/toppar_all36_carb_glycolipid.str')
+                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
+            if charmm_topfile.endswith('inositol.str'):
+                needed=os.path.join(DB.toppardir,'stream/carb/toppar_all36_carb_glycolipid.str')
+                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
+            if charmm_topfile.endswith('cardiolipin.str'):
+                needed=os.path.join(DB.toppardir,'stream/lipid/toppar_all36_lipid_bacterial.str')
+                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
+            if charmm_topfile.endswith('lps.str'):
+                needed=os.path.join(DB.toppardir,'stream/carb/toppar_all36_carb_imlab.str')
+                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
+                needed=os.path.join(DB.toppardir,'stream/lipid/toppar_all36_lipid_bacterial.str')
+                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
+
+    result=C.do_tasks()
+    for k,v in result.items():
+        logger.debug(f'{k}: {v}')
+        if v['result']!=0:
+            with open(f'{resid}-topo.rtf','w') as f:
+                topo.to_file(f)
+            return -1
+
+    if os.path.exists('99-00-md-NVT.namd'):
+        with open('99-00-md-NVT.namd','r') as f:
+            lines=f.read().split('\n')
+        par=[]
+        for l in lines:
+            if l.startswith('parameters'):
+                if 'toppar/' in l:
+                    par.append(l.split()[1].split('toppar/')[1])
+        with open('parameters.txt','w') as f:
+            for p in par:
+                f.write(f'{p}\n')
+        
+    # now sample
+    W=VMD(C.config)
+    W.newscript('sample')
+    W.addline(f'mol new {resid}-init.psf')
+    W.addline(f'mol addfile 99-00-md-NVT.dcd waitfor all')
+    W.addline(f'set a [atomselect top all]')
+    W.addline(f'set ref [atomselect top all]')
+    W.addline(f'$ref frame 0')
+    W.addline(f'$ref move [vecscale -1 [measure center $ref]]')
+    W.addline(r'for { set f 0 } { $f < [molinfo top get numframes] } { incr f } {')
+    W.addline( '    $a frame $f')
+    W.addline( '    $a move [measure fit $a $ref]')
+    W.addline(f'    $a writepdb {resid}-[format %02d $f].pdb')
+    W.addline(r'}')
+    W.writescript()
+    W.runscript()
+
+    pdbs=[os.path.basename(x) for x in glob.glob(f'{resid}-??.pdb')]
+    smin=[]
+    smax=[]
+    zmin=[]
+    zmax=[]
+    for pdb in pdbs:
+        p=PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()
+        z=np.array([x.z for x in p.parsed['ATOM']])
+        s=np.array([x.serial for x in p.parsed['ATOM']])
+        zmin_idx=np.argmin(z)
+        zmax_idx=np.argmax(z)
+        smin.append(s[zmin_idx])
+        zmin.append(z[zmin_idx])
+        smax.append(s[zmax_idx])
+        zmax.append(z[zmax_idx])
+    measures=pd.DataFrame({'pdb':pdbs,'bottom_serial':smin,'bottom_z':zmin,'top_serial':smax,'top_z':zmax})
+    measures.to_csv('orientations.dat',header=True,index=False)
+    return 0
+
+def do_cleanup(resname,dirname):
+    cwd=os.getcwd()
+    os.chdir(dirname)
+    files=glob.glob('*')
+    files.remove('init.tcl')
+    files.remove('orientations.dat')
+    files.remove('parameters.txt')
+    files.remove(f'{resname}-init.psf')
+    for f in glob.glob(f'{resname}-*.pdb'):
+        files.remove(f)
+    for f in files:
+        os.remove(f)
+    os.chdir(cwd)
+
+def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup=True,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0):
+    cwd=os.getcwd()
+    successdir=os.path.join(outdir,resi)
+    failuredir=os.path.join(faildir,resi)
+    if (not os.path.exists(successdir)) or force:
+        if os.path.exists(successdir):
+            shutil.rmtree(successdir)
+        if os.path.exists('tmp'): shutil.rmtree('tmp')
+        os.mkdir('tmp')
+        os.chdir('tmp')
+        result=do_psfgen(resi,DB,lenfac=lenfac,minimize_steps=minimize_steps,sample_steps=sample_steps,nsamples=nsamples,sample_temperature=sample_temperature,refic_idx=refic_idx)
+        os.chdir(cwd)
+        if result==0:
+            if cleanup: do_cleanup(resi,'tmp')
+            shutil.move('tmp',os.path.join(outdir,resi))
+        elif result==-2:
+            my_logger(f'RESI {resi} is not found',logger.warning,just='^',frame='*',fill='*') 
+        else:
+            if os.path.exists(failuredir):
+                shutil.rmtree(failuredir)
+            shutil.move('tmp',failuredir)
+    else:
+        logger.info(f'RESI {resi} built previously; use \'--force\' to recalculate')
+
+def make_RESI_database(args):
+    streams=args.streams
+    loglevel_numeric=getattr(logging,args.diagnostic_log_level.upper())
+    if args.diagnostic_log_file:
+        if os.path.exists(args.diagnostic_log_file):
+            shutil.copyfile(args.diagnostic_log_file,args.diagnostic_log_file+'.bak')
+        logging.basicConfig(filename=args.diagnostic_log_file,filemode='w',format='%(asctime)s %(name)s %(message)s',level=loglevel_numeric)
+    console=logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    formatter=logging.Formatter('%(levelname)s> %(message)s')
+    console.setFormatter(formatter)
+    logging.getLogger('').addHandler(console)
+
+    DB=CharmmResiDatabase(streams=streams)
+    outdir=args.output_dir
+    faildir=args.fail_dir
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+    if not os.path.exists(faildir):
+        os.mkdir(faildir)
+    if os.path.exists('tmp'):
+        shutil.rmtree('tmp')
+    resi=args.resi
+    if resi is not None:
+        my_logger(f'RESI {resi}',logger.info,just='^',frame='*',fill='*')
+        do_resi(resi,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
+    else:
+        nresi=len(DB.charmm_resnames)
+        for i,resi in enumerate(DB.charmm_resnames):
+            my_logger(f'RESI {resi} ({i+1}/{nresi})',logger.info,just='^',frame='*',fill='*')
+            do_resi(resi,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
+

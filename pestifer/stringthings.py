@@ -25,7 +25,7 @@ banner_message="""
     Supported in part by Grants GM100472, AI154071, 
     and AI178833 from the NIH
 
-    CHARMM force field files (July 22) from the 
+    CHARMM force field files (July 24) from the 
     MacKerell Lab
     """.format(__package__.title(),__pestifer_version__)
 

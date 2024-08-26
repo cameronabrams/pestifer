@@ -1,0 +1,1015 @@
+* Toplogy and parameter information for water and ions.
+*
+
+!Testcase
+!test_water_ions_non_charmm.inp
+
+! IMPORTANT NOTE: this file contains NBFixes between carboxylates and sodium,
+! which will only apply if the main files containing carboxylate atom types
+! have been read in first!
+
+! Toppar stream file for the SPC water model and ions. 
+! Note that the ions have not been optimized for the non-TIP3P water model.
+
+!references
+!
+!SPC
+!
+!H.J.C. Berendsen, J.P.M. Postma, W.F. van Gunsteren, and J. Hermans,
+!In Intermolecular Forces, edited by B. Pullman (Reidel, Dordrecht,
+!1981), p. 331!
+!
+!IONS
+!
+!Ions from Roux and coworkers
+!
+!Beglov, D. and Roux, B., Finite Representation of an Infinite
+!Bulk System: Solvent Boundary Potential for Computer Simulations,
+!Journal of Chemical Physics, 1994, 100: 9050-9063
+!
+!ZINC
+!
+!Stote, R.H. and Karplus, M. Zinc Binding in Proteins and
+!Solution: A Simple but Accurate Nonbonded Representation, PROTEINS:
+!Structure, Function, and Genetics 23:12-31 (1995)
+
+!test "append" to determine if previous toppar files have been read and
+!add append to "read rtf card" if true
+set nat ?NATC
+set app
+!We're exploiting what is arguably a bug in the parser. On the left hand side,
+!the quotes have priority, so NAT is correctly substituted. On the right hand
+!side, the ? has priority and NATC" (sic) is not a valid substitution...
+if "@NAT" ne "?NATC" if @nat ne 0 set app append
+
+read rtf card @app
+* Topology for water and ions
+*
+31  1
+
+MASS  1   HT    1.00800 H  ! TIPS3P WATER HYDROGEN
+MASS  2   HX    1.00800 H  ! hydroxide hydrogen
+MASS  3   OT   15.99940 O  ! TIPS3P WATER OXYGEN, SPC
+MASS  4   OX   15.99940 O  ! hydroxide oxygen
+MASS  5   LIT   6.94100 LI ! Lithium ion
+MASS  6   SOD  22.98977 NA ! Sodium Ion
+MASS  7   MG   24.30500 MG ! Magnesium Ion
+MASS  8   POT  39.09830 K  ! Potassium Ion
+MASS  9   CAL  40.08000 CA ! Calcium Ion
+MASS  10  RUB  85.46780 RB ! Rubidium Ion
+MASS  11  CES 132.90545 CS ! Cesium Ion
+MASS  12  BAR 137.32700 BA ! Barium Ion
+MASS  13  ZN   65.37000 ZN ! zinc (II) cation
+MASS  14  CAD 112.41100 CD ! cadmium (II) cation
+MASS  15  CLA  35.45000 CL ! Chloride Ion
+
+default first none last none
+
+RESI SPC          0.0000 ! SPC water model, generate using noangle nodihedral
+GROUP
+ATOM OH2  OT     -0.8068
+ATOM H1   HT      0.4034
+ATOM H2   HT      0.4034
+BOND OH2 H1 OH2 H2 H1 H2    ! the last bond is needed for shake
+ANGLE H1 OH2 H2             ! required
+DONOR H1 OH2
+DONOR H2 OH2
+ACCEPTOR OH2
+PATCHING FIRS NONE LAST NONE
+
+RESI OH       -1.00 ! hydroxide ion by adm.jr.
+GROUP
+ATOM O1 OX    -1.32
+ATOM H1 HX     0.32
+BOND O1 H1
+DONOR H1 O1
+ACCEPTOR O1
+
+! Ion parameters from Benoit Roux and Coworkers
+! As of 8/10 new NBFIX terms required
+!
+RESI LIT       1.00 ! Lithium Ion
+GROUP
+ATOM LIT  LIT  1.00
+PATCHING FIRST NONE LAST NONE
+
+RESI SOD       1.00 ! Sodium Ion
+GROUP
+ATOM SOD  SOD  1.00
+PATCHING FIRST NONE LAST NONE
+
+RESI MG        2.00 ! Magnesium Ion
+GROUP
+ATOM MG   MG   2.00
+PATCHING FIRST NONE LAST NONE
+
+RESI POT       1.00 ! Potassium Ion
+GROUP
+ATOM POT   POT 1.00
+PATCHING FIRST NONE LAST NONE
+
+RESI CAL       2.00 ! Calcium Ion
+GROUP
+ATOM CAL  CAL  2.00
+PATCHING FIRST NONE LAST NONE
+
+RESI RUB       1.00 ! Rubidium Ion
+GROUP
+ATOM RUB  RUB  1.00
+PATCHING FIRST NONE LAST NONE
+
+RESI CES       1.00 ! Cesium Ion
+GROUP
+ATOM CES  CES  1.00
+PATCHING FIRST NONE LAST NONE
+
+RESI BAR       2.00 ! Barium Ion
+GROUP
+ATOM BAR  BAR  2.00
+PATCHING FIRST NONE LAST NONE
+
+RESI ZN2       2.00 ! Zinc (II) cation, Roland Stote
+GROUP
+ATOM ZN   ZN   2.00
+PATCHING FIRST NONE LAST NONE
+
+RESI CD2       2.00 ! Cadmium (II) cation
+GROUP
+ATOM CD   CAD  2.00
+PATCHING FIRST NONE LAST NONE
+
+RESI CLA      -1.00 ! Chloride Ion
+GROUP
+ATOM CLA  CLA -1.00
+PATCHING FIRST NONE LAST NONE
+
+END
+
+read para card flex @app
+* Parameters for water and ions
+*
+
+ATOMS
+MASS  1   HT    1.00800 ! TIPS3P WATER HYDROGEN
+MASS  2   HX    1.00800 ! hydroxide hydrogen
+MASS  3   OT   15.99940 ! TIPS3P WATER OXYGEN
+MASS  4   OX   15.99940 ! hydroxide oxygen
+MASS  5   LIT  	6.94100 ! Lithium ion
+MASS  6   SOD  22.98977 ! Sodium Ion
+MASS  7   MG   24.30500 ! Magnesium Ion
+MASS  8   POT  39.09830 ! Potassium Ion
+MASS  9   CAL  40.08000 ! Calcium Ion
+MASS  10  RUB  85.46780 ! Rubidium Ion
+MASS  11  CES 132.90545 ! Cesium Ion
+MASS  12  BAR 137.32700 ! Barium Ion
+MASS  13  ZN   65.37000 ! zinc (II) cation
+MASS  14  CAD 112.41100 ! cadmium (II) cation
+MASS  15  CLA  35.45000 ! Chloride Ion
+
+BONDS
+!
+!V(bond) = Kb(b - b0)**2
+!
+!Kb: kcal/mole/A**2
+!b0: A
+!
+!atom type Kb          b0
+!
+HT    HT      0.0       1.633   ! SPC/(E)
+HT    OT    450.0       1.000   ! SPC/(E)
+OX    HX    545.0       0.9700  ! hydroxide ion
+
+ANGLES
+!
+!V(angle) = Ktheta(Theta - Theta0)**2
+!
+!V(Urey-Bradley) = Kub(S - S0)**2
+!
+!Ktheta: kcal/mole/rad**2
+!Theta0: degrees
+!Kub: kcal/mole/A**2 (Urey-Bradley)
+!S0: A
+!
+!atom types     Ktheta    Theta0   Kub     S0
+!
+HT   OT   HT     55.0      109.47   ! SPC(/E)
+
+DIHEDRALS
+!
+!V(dihedral) = Kchi(1 + cos(n(chi) - delta))
+!
+!Kchi: kcal/mole
+!n: multiplicity
+!delta: degrees
+!
+!atom types             Kchi    n   delta
+!
+
+
+!
+IMPROPER
+!
+!V(improper) = Kpsi(psi - psi0)**2
+!
+!Kpsi: kcal/mole/rad**2
+!psi0: degrees
+!note that the second column of numbers (0) is ignored
+!
+!atom types           Kpsi                   psi0
+!
+
+NONBONDED nbxmod  5 atom cdiel shift vatom vdistance vswitch -
+cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
+
+!SPC
+HT     0.000000  -0.000001     0.0001   !SPC(/E) HYDROGEN PARAMETERS
+OT     0.000000  -0.15529      1.762827 !SPC(/E) OXYGEN PARAMETERS
+
+!for hydroxide
+OX     0.000000  -0.120000     1.700000 ! ALLOW   POL ION
+                ! JG 8/27/89
+HX     0.000000  -0.046000     0.224500 ! ALLOW PEP POL SUL ARO ALC
+                ! same as TIP3P hydrogen, adm jr., 7/20/89
+
+!ions
+LIT      0.0      -0.00233       1.2975  ! Lithium
+                   ! From S Noskov, target ddG(Li-Na) was 23-26.0 kcal/mol (see JPC B, Lamoureux&Roux,2006)
+SOD      0.0       -0.0469    1.41075  ! new CHARMM Sodium 
+                   ! ddG of -18.6 kcal/mol with K+ from S. Noskov
+MG       0.0       -0.0150    1.18500   ! Magnesium
+                   ! B. Roux dA = -441.65
+POT      0.0       -0.0870    1.76375   ! Potassium
+                   ! D. Beglovd and B. Roux, dA=-82.36+2.8 = -79.56 kca/mol
+CAL      0.0       -0.120      1.367    ! Calcium
+                   ! S. Marchand and B. Roux, dA = -384.8 kcal/mol
+RUB      0.0000    -0.15      1.90      ! Rubidium
+                   ! delta A with respect to POT is +6.0 kcal/mol in bulk water
+CES      0.0       -0.1900    2.100     ! Cesium
+                   ! delta A with respect to POT is +12.0 kcal/mol
+BAR      0.0       -0.150     1.890     ! Barium
+                   ! B. Roux, dA = dA[calcium] + 64.2 kcal/mol
+ZN     0.000000  -0.250000     1.090000 ! Zinc
+                   ! RHS March 18, 1990
+CAD    0.000000  -0.120000     1.357000 ! Cadmium
+                   ! S. Marchand and B. Roux, from delta delta G
+CLA      0.0       -0.150      2.27     ! Chloride
+                   ! D. Beglovd and B. Roux, dA=-83.87+4.46 = -79.40 kcal/mol
+
+NBFIX
+!              Emin         Rmin
+!            (kcal/mol)     (A)
+SOD    CLA      -0.083875   3.731 !  From osmotic pressure calibration, J. Phys.Chem.Lett. 1:183-189
+POT    CLA      -0.114236   4.081 !  From osmotic pressure calibration, J. Phys.Chem.Lett. 1:183-189
+END
+
+! The following section contains NBFixes for sodium interacting with
+! carboxylate oxygens of various CHARMM force fields. It will generate
+! level -1 warnings whenever any of these force fields have not been
+! read prior to the current stream file. Since we don't want to force
+! the user to always read all the force fields, we're suppressing the
+! warnings. The only side effect is that you will have "most severe
+! warning was at level 0" at the end of your output. Also note that
+! the user is responsible for reading the current file last if they
+! want the NBFixes to apply. A more elegant solution would require new
+! features to be added to CHARMM.
+! parallel fix, to avoid duplicated messages in the log
+set para
+if ?NUMNODE gt 1 set para node 0
+
+set wrn ?WRNLEV
+! Some versions of CHARMM don't seem to initialize wrnlev...
+if "@WRN" eq "?WRNLEV" set wrn 5
+set bom ?bomlev
+WRNLEV -1 @PARA
+BOMLEV -1 @PARA
+read para card flex append
+* NBFix between carboxylate and sodium
+*
+
+! These NBFixes will only apply if the main files have been read in first!!!
+NBFIX
+SOD    OC       -0.075020   3.190 ! For prot carboxylate groups
+SOD    OCL      -0.075020   3.190 ! For lipid carboxylate groups
+SOD    OC2D2    -0.075020   3.190 ! For carb carboxylate groups
+SOD    OG2D2    -0.075020   3.190 ! For CGenFF carboxylate groups
+END
+BOMLEV @bom @PARA
+WRNLEV @wrn @PARA
+
+return
+
+ev
+WRNLEV -1 @PARA
+BOMLEV -1 @PARA
+read para card flex append
+* NBFix between carboxylate and sodium
+*
+
+! These NBFixes will only apply if the main files have been read in first!!!
+NBFIX
+SOD    OC       -0.075020   3.190 ! For prot carboxylate groups
+SOD    OCL      -0.075020   3.190 ! For lipid carboxylate groups
+SOD    OC2D2    -0.075020   3.190 ! For carb carboxylate groups
+SOD    OG2D2    -0.075020   3.190 ! For CGenFF carboxylate groups
+END
+BOMLEV @bom @PARA
+WRNLEV @wrn @PARA
+
+return
+
+ = 1, nang
+         ia = iangl(i,1)
+         ib = iangl(i,2)
+         ic = iangl(i,3)
+         if (ncon(ic) .gt. 0) then
+            do j = 1, ncon(ic)
+               id = icon(ic,j)
+               if (id .ne. ib) then
+                  ntor = ntor + 1
+                  itor(ntor,1) = ia
+                  itor(ntor,2) = ib
+                  itor(ntor,3) = ic
+                  itor(ntor,4) = id
+                  tcel(ntor,1) = acel(i,1)
+                  tcel(ntor,2) = acel(i,2)
+                  tcel(ntor,3) = acel(i,3)
+                  tcel(ntor,4) = acel(i,3) + cel(ic,j) - 1
+               end if
+            end do
+         end if
+c
+         if (ncon(ia) .gt. 0) then
+            do j = 1, ncon(ia)
+               id = icon(ia,j)
+               if (id .ne. ib) then
+                  ntor = ntor + 1
+                  itor(ntor,1) = id
+                  itor(ntor,2) = ia
+                  itor(ntor,3) = ib
+                  itor(ntor,4) = ic
+                  tcel(ntor,1) = acel(i,1) + cel(ia,j) - 1
+                  tcel(ntor,2) = acel(i,1)
+                  tcel(ntor,3) = acel(i,2)
+                  tcel(ntor,4) = acel(i,3) 
+               end if
+            end do
+         end if   
+      end do
+c
+      do i = 1, ntor-1
+         do k = i+1, ntor
+            skip = .false.
+            skip1 = .false.
+            skip2 = .false.
+            skip3 = .false.
+            skip4 = .false.
+            if ((itor(i,1) .eq. itor(k,1)) .and.
+     $         (tcel(i,1) .eq. tcel(k,1))) skip1 = .true.
+            if ((itor(i,2) .eq. itor(k,2)) .and.
+     $         (tcel(i,2) .eq. tcel(k,2))) skip2 = .true.
+            if ((itor(i,3) .eq. itor(k,3)) .and.
+     $         (tcel(i,3) .eq. tcel(k,3))) skip3 = .true.
+            if ((itor(i,4) .eq. itor(k,4)) .and.
+     $         (tcel(i,4) .eq. tcel(k,4))) skip4 = .true.
+            if (skip1 .and. skip2 .and. skip3 .and. skip4) skip = .true.
+            if (skip) then
+               do l = k, ntor-1
+                  itor(l,1) = itor(l+1,1)
+                  tcel(l,1) = tcel(l+1,1)
+                  itor(l,2) = itor(l+1,2)
+                  tcel(l,2) = tcel(l+1,2)
+                  itor(l,3) = itor(l+1,3)
+                  tcel(l,3) = tcel(l+1,3)
+                  itor(l,4) = itor(l+1,4)
+                  tcel(l,4) = tcel(l+1,4)
+               end do
+               ntor = ntor - 1
+            end if
+         end do
+      end do
+      do i = 1, ntor-1
+         do k = i+1, ntor
+            skip = .false.
+            skip1 = .false.
+            skip2 = .false.
+            skip3 = .false.
+            skip4 = .false.
+            if ((itor(i,1) .eq. itor(k,4)) .and.
+     $         (tcel(i,1) .eq. tcel(k,4))) skip1 = .true.
+            if ((itor(i,2) .eq. itor(k,3)) .and.
+     $         (tcel(i,2) .eq. tcel(k,3))) skip2 = .true.
+            if ((itor(i,3) .eq. itor(k,2)) .and.
+     $         (tcel(i,3) .eq. tcel(k,2))) skip3 = .true.
+            if ((itor(i,4) .eq. itor(k,1)) .and.
+     $         (tcel(i,4) .eq. tcel(k,1))) skip4 = .true.
+            if (skip1 .and. skip2 .and. skip3 .and. skip4) skip = .true.
+            if (skip) then
+               do l = k, ntor-1
+                  itor(l,1) = itor(l+1,1)
+                  tcel(l,1) = tcel(l+1,1)
+                  itor(l,2) = itor(l+1,2)
+                  tcel(l,2) = tcel(l+1,2)
+                  itor(l,3) = itor(l+1,3)
+                  tcel(l,3) = tcel(l+1,3)
+                  itor(l,4) = itor(l+1,4)
+                  tcel(l,4) = tcel(l+1,4)
+               end do
+               ntor = ntor - 1
+            end if
+         end do
+      end do
+
+c
+c     PRINT SECTION
+c
+c
+c     print bonds 
+c
+
+      write(6,'(///,a)')'Bonds inside unit cell'
+      do i = 1,nbnd
+         if (bcel(i,2) .eq. 1) then
+            write(6,200) ibond(i,1),ibond(i,2),bcel(i,1),bcel(i,2)
+         end if
+      end do
+
+      write(6,'(//,a)')'Bonds along XX'
+      do i = 1,nbnd
+         if (bcel(i,2) .eq. 2) then
+            write(6,200)ibond(i,1),ibond(i,2),bcel(i,1),bcel(i,2)
+         end if
+      end do
+      write(6,'(/,a)')'Bonds along YY'
+      do i = 1,nbnd
+         if (bcel(i,2) .eq. 3) then
+            write(6,200)ibond(i,1),ibond(i,2),bcel(i,1),bcel(i,2)
+         end if
+      end do
+      write(6,'(/,a)')'Bonds along XY'
+      do i = 1,nbnd
+         if (bcel(i,2) .eq. 4) then
+            write(6,200)ibond(i,1),ibond(i,2),bcel(i,1),bcel(i,2)
+         end if
+      end do
+ 200  format (2i5,4x,2i3)
+
+c      write(6,*)'Nang=',nang
+
+      do i = 1, 2000
+         celind(i,1) = 0
+         celind(i,2) = 0
+         celind(i,3) = 0
+         celind(i,4) = 0
+         celind(i,5) = 0
+         celind(i,6) = 0
+         celind(i,7) = 0
+         celind(i,8) = 0
+      end do
+                             
+      nprim = 0
+      nxx = 0
+      nxy = 0
+      nyy = 0
+      nxxyy = 0
+      nxxxy = 0
+      nyyxy = 0
+      do i = 1, nang
+         xx = .false.
+         xy = .false.
+         yy = .false.
+         do j = 1, 3
+            if (acel(i,j) .eq. 2) xx = .true.
+            if (acel(i,j) .eq. 3) yy = .true.
+            if (acel(i,j) .eq. 4) xy = .true.
+         end do
+
+         if (.not. xx .and. .not. yy .and. .not. xy) then
+            nprim = nprim + 1
+            celind(nprim,1) = i
+         end if
+
+         if (xx .and. .not. yy .and. .not. xy) then
+            nxx = nxx + 1
+            celind(nxx,2) = i
+         end if
+
+         if (yy .and. .not. xx .and. .not. xy) then
+            nyy = nyy + 1
+            celind(nyy,3) = i
+         end if
+c
+         if (xy .and. .not. xx .and. .not. yy) then
+            nxy = nxy + 1
+            celind(nxy,4) = i
+         end if
+c
+         if (xx .and. yy .and. .not. xy) then
+            nxxyy = nxxyy + 1
+            celind(nxxyy,5) = i
+         end if
+c
+         if (xx .and. .not. yy .and. xy) then
+            nxxxy = nxxxy + 1
+            celind(nxxxy,6) = i
+         end if
+c
+         if (.not. xx .and.  yy .and. xy) then
+            nyyxy = nyyxy + 1
+            celind(nyyxy,7) = i
+         end if
+      end do
+c
+c     print angles
+c
+
+c      write(6,'(///,a)')'Angles inside unit cell'
+c      do i = 1, nprim
+c         indx = celind(i,1)
+c         write(6,201)(iangl(indx,k),k=1,3),(acel(indx,k),k=1,3)
+c      end do
+
+      write(6,'(//,a)')'Angles along XX'
+      do i = 1, nxx
+         indx = celind(i,2)
+         write(6,201)(iangl(indx,k),k=1,3),(acel(indx,k),k=1,3)
+      end do
+      write(6,'(/,a)')'Angles along YY'
+      do i = 1, nyy
+         indx = celind(i,3)
+         write(6,201)(iangl(indx,k),k=1,3),(acel(indx,k),k=1,3)
+      end do
+      write(6,'(/,a)')'Angles along XY'
+      do i = 1, nxy
+         indx = celind(i,4)
+         write(6,201)(iangl(indx,k),k=1,3),(acel(indx,k),k=1,3)
+      end do
+      write(6,'(/,a)')'Angles along XX and YY'
+      do i = 1, nxxyy
+         indx = celind(i,5)
+         write(6,201)(iangl(indx,k),k=1,3),(acel(indx,k),k=1,3)
+      end do
+      write(6,'(/,a)')'Angles along XX and XY'
+      do i = 1, nxxxy
+         indx = celind(i,6)
+         write(6,201)(iangl(indx,k),k=1,3),(acel(indx,k),k=1,3) 
+      end do
+      write(6,'(/,a)')'Angles along YY and XY'
+      do i = 1, nyyxy
+         indx = celind(i,7)
+         write(6,201)(iangl(indx,k),k=1,3),(acel(indx,k),k=1,3)
+      end do
+
+ 201  format (3i5,4x,3i3)
+
+      nang = nang - (nprim+nxx+nyy+nxy+nxxyy+nxxxy+nyyxy)
+
+      if (nang .eq. 0) then
+         write(6,'(/,a)') 'All angles are accounted for'
+      else 
+         write(6,202)'Angles missing: ',nang
+         write(6,'(/,a)')'You have to change the code, print all angles' 
+         write(6,'(a)')'and see which ones are missing'
+      end if
+ 202  format (/,a16,i6)
+
+c      write(6,*)'ntor=',ntor
+
+      do i = 1, 2000
+         celind(i,1) = 0
+         celind(i,2) = 0
+         celind(i,3) = 0
+         celind(i,4) = 0
+         celind(i,5) = 0
+         celind(i,6) = 0
+         celind(i,7) = 0
+         celind(i,8) = 0
+      end do
+
+      nprim = 0
+      nxx = 0
+      nxy = 0
+      nyy = 0
+      nxxyy = 0
+      nxxxy = 0
+      nyyxy = 0
+      nxxyyxy = 0
+      do i = 1, ntor
+         xx = .false.
+         yy = .false.
+         xy = .false.
+         do j = 1, 4
+            if (tcel(i,j) .eq. 2) xx = .true.
+            if (tcel(i,j) .eq. 3) yy = .true.
+            if (tcel(i,j) .eq. 4) xy = .true.
+         end do
+c
+         if (.not. xx .and. .not. yy .and. .not. xy) then
+            nprim = nprim + 1
+            celind(nprim,1) = i
+         end if
+c
+         if (xx .and. .not. yy .and. .not. xy) then 
+            nxx = nxx + 1
+            celind(nxx,2) = i
+         end if
+
+         if (yy .and. .not. xx .and. .not. xy) then
+            nyy = nyy + 1
+            celind(nyy,3) = i
+         end if
+c
+         if (xy .and. .not. xx .and. .not. yy) then
+            nxy = nxy + 1
+            celind(nxy,4) = i
+         end if
+c
+         if (xx .and. yy .and. .not. xy) then
+            nxxyy = nxxyy + 1
+            celind(nxxyy,5) = i
+         end if
+c
+         if (xx .and. .not. yy .and. xy) then
+            nxxxy = nxxxy + 1
+            celind(nxxxy,6) = i
+         end if
+c
+         if (.not. xx .and.  yy .and. xy) then
+            nyyxy = nyyxy + 1
+            celind(nyyxy,7) = i
+         end if
+c
+         if (xx .and.  yy .and. xy) then
+            nxxyyxy = nxxyyxy + 1
+            celind(nxxyyxy,8) = i
+         end if
+      end do
+
+c
+c     print torsions
+c
+
+c      write(6,'(///,a)')'Torsions inside unit cell'
+c      do i = 1, nprim
+c         indx = celind(i,1)
+c         write(6,203)(itor(indx,k),k=1,4),(tcel(indx,k),k=1,4)
+c      end do
+
+      write(6,'(//,a)')'Torsions along XX'
+      do i = 1, nxx
+         indx = celind(i,2)
+         write(6,203)(itor(indx,k),k=1,4),(tcel(indx,k),k=1,4)
+      end do
+      write(6,'(/,a)')'Torsions along YY'
+      do i = 1, nyy
+         indx = celind(i,3)
+         write(6,203)(itor(indx,k),k=1,4),(tcel(indx,k),k=1,4)
+      end do
+      write(6,'(/,a)')'Torsions along XY'
+      do i = 1, nxy
+         indx = celind(i,4)
+         write(6,203)(itor(indx,k),k=1,4),(tcel(indx,k),k=1,4)
+      end do
+      write(6,'(/,a)')'Torsions along XX and YY'
+      do i = 1, nxxyy
+         indx = celind(i,5)
+         write(6,203)(itor(indx,k),k=1,4),(tcel(indx,k),k=1,4)
+      end do
+      write(6,'(/,a)')'Torsions along XX and XY'
+      do i = 1, nxxxy
+         indx = celind(i,6)
+         write(6,203)(itor(indx,k),k=1,4),(tcel(indx,k),k=1,4)
+      end do
+      write(6,'(/,a)')'Torsions along YY and XY'
+      do i = 1, nyyxy
+         indx = celind(i,7)
+         write(6,203)(itor(indx,k),k=1,4),(tcel(indx,k),k=1,4)
+      end do
+      write(6,'(/,a)')'Torsions along XX and XY and XY'
+      do i = 1, nxxyyxy
+         indx = celind(i,8)
+         write(6,203)(itor(indx,k),k=1,4),(tcel(indx,k),k=1,4)
+      end do
+
+ 203  format (4i5,4x,4i3)
+
+      ntor = ntor - (nprim+nxx+nyy+nxy+nxxyy+nxxxy+nyyxy+nxxyyxy)
+
+      if (ntor .eq. 0) then
+         write(6,'(//,a)') 'All torsions are accounted for'
+      else
+         write(6,204)'Torsions missing: ',ntor
+         write(6,'(/,a)')'You have to change the code, print all angles'
+         write(6,'(a)')'and see which ones are missing'
+      end if
+ 204  format (//,a18,i6)
+ 
+      end 
+   613     625     610     626     629     621
+     610     626     634     622     611     603     614     626
+     611     603     619     623     611     627     675     663
+     612     628     616     638     612     628     636     624
+     613     602     610     626     613     625     833     821
+     614     603     611     627     614     603     619     623
+     614     626     629     621     614     626     634     622
+     615     604     620     624     615     604     652     668
+     615     627     675     663     616     628     636     624
+     617     621     629     626     618     602     610     626
+     618     602     613     625     619     603     611     627
+     619     603     614     626     619     623     631     828
+     619     623     807     803     620     604     615     627
+     620     604     652     668     620     624     608     804
+     620     624     632     640     620     624     636     628
+     621     605     601     637     621     605     601     817
+     621     629     626     634     622     630     827     811
+     622     630     827     815     622     630     827     875
+     622     634     626     629     622     658     642     646
+     622     658     642     650     622     658     642     653
+     622     846     842     850     622     846     842     853
+     622     846     842     858     623     631     828     812
+     623     631     828     816     623     631     828     836
+     623     807     803     811     623     807     803     814
+     623     807     803     819     624     608     804     815
+     624     608     804     820     624     608     804     852
+     624     620     604     652     625     833     821     805
+     625     833     821     817     625     833     821     829
+     626     629     621     633     626     634     622     630
+     626     634     622     658     626     634     622     846
+     627     430     422     646     627     615     604     652
+     627     675     663     659     627     675     663     671
+     627     675     663     847     628     636     624     632
+     630     622     658     642     630     622     846     842
+     630     827     811     803     630     827     815     804
+     630     827     875     863     631     623     807     803
+     631     828     816     838     631     828     836     824
+     632     624     608     804     634     622     630     827
+     634     622     658     642     634     622     846     842
+     635     623     631     828     635     623     807     803
+     636     624     608     804     636     624     632     640
+     636     628     616     638     637     601     609     665
+     637     601     817     821     639     625     833     821
+     641     645     661     657     641     645     661     669
+     641     645     661     673     641     649     705     693
+     641     649     705     719     641     649     705     913
+     641     857     861     845     641     857     861     869
+     641     857     861     873     642     650     666     654
+     642     650     666     669     642     650     666     674
+     642     653     665     679     642     653     665     873
+     642     658     622     846     643     651     667     655
+     643     651     667     715     643     654     666     650
+     643     654     666     669     643     654     666     674
+     643     659     663     671     643     659     663     675
+     643     659     663     847     644     655     667     651
+     644     655     667     715     644     660     664     648
+     644     660     664     672     644     660     664     676
+     644     692     708     696     644     692     708     716
+     645     641     649     705     645     641     857     861
+     645     661     669     666     646     642     650     666
+     646     642     653     665     647     463     471     668
+     647     643     651     667     647     643     654     666
+     647     643     659     663     648     664     672     680
+     648     664     676     668     648     844     855     867
+     648     844     860     864     648     844     892     908
+     649     641     645     661     649     641     857     861
+     649     705     693     682     649     705     913     901
+     650     642     653     665     650     666     669     661
+     650     666     674     662     651     643     654     666
+     651     643     659     663     651     667     715     703
+     652     668     656     678     652     668     676     664
+     653     642     650     666     653     665     873     861
+     654     643     651     667     654     643     659     663
+     654     666     669     661     654     666     674     662
+     655     644     660     664     655     644     692     708
+     655     667     715     703     656     668     676     664
+     657     661     669     666     658     622     630     827
+     658     622     846     842     658     642     650     666
+     658     642     653     665     659     643     651     667
+     659     643     654     666     659     663     671     868
+     659     663     847     843     660     644     655     667
+     660     644     692     708     660     664     648     844
+     660     664     672     680     660     664     676     668
+     661     645     641     677     661     645     641     857
+     661     669     666     674     662     670     867     851
+     662     670     867     855     662     670     867     915
+     662     674     666     669     662     698     682     686
+     662     698     682     690     662     698     682     693
+     662     886     882     890     662     886     882     893
+     662     886     882     898     663     671     868     852
+     663     671     868     856     663     671     868     876
+     663     847     843     851     663     847     843     854
+     663     847     843     859     664     648     844     855
+     664     648     844     860     664     648     844     892
+     664     660     644     692     665     609     601     817
+     665     873     861     845     665     873     861     857
+     665     873     861     869     666     669     661     673
+     666     674     662     670     666     674     662     698
+     666     674     662     886     667     470     462     686
+     667     655     644     692     667     715     703     699
+     667     715     703     711     667     715     703     887
+     668     676     664     672     670     662     698     682
+     670     662     886     882     670     867     851     843
+     670     867     855     844     670     867     915     903
+     671     663     847     843     671     868     852     804
+     671     868     856     878     671     868     876     864
+     672     664     648     844     674     662     670     867
+     674     662     698     682     674     662     886     882
+     675     663     671     868     675     663     847     843
+     676     664     648     844     676     664     672     680
+     676     668     656     678     677     641     649     705
+     677     641     857     861     679     665     873     861
+     681     685     701     697     681     685     701     709
+     681     685     701     713     681     689     745     733
+     681     689     745     759     681     689     745     953
+     681     897     901     885     681     897     901     909
+     681     897     901     913     682     690     706     694
+     682     690     706     709     682     690     706     714
+     682     693     705     719     682     693     705     913
+     682     698     662     886     683     691     707     695
+     683     691     707     755     683     694     706     690
+     683     694     706     709     683     694     706     714
+     683     699     703     711     683     699     703     715
+     683     699     703     887     684     695     707     691
+     684     695     707     755     684     700     704     688
+     684     700     704     712     684     700     704     716
+     684     732     748     736     684     732     748     756
+     685     681     689     745     685     681     897     901
+     685     701     709     706     686     682     690     706
+     686     682     693     705     687     503     511     708
+     687     683     691     707     687     683     694     706
+     687     683     699     703     688     704     712     720
+     688     704     716     708     688     884     895     907
+     688     884     900     904     688     884     932     948
+     689     681     685     701     689     681     897     901
+     689     745     733     722     689     745     953     941
+     690     682     693     705     690     706     709     701
+     690     706     714     702     691     683     694     706
+     691     683     699     703     691     707     755     743
+     692     708     696     718     692     708     716     704
+     693     682     690     706     693     705     913     901
+     694     683     691     707     694     683     699     703
+     694     706     709     701     694     706     714     702
+     695     684     700     704     695     684     732     748
+     695     707     755     743     696     708     716     704
+     697     701     709     706     698     662     670     867
+     698     662     886     882     698     682     690     706
+     698     682     693     705     699     683     691     707
+     699     683     694     706     699     703     711     908
+     699     703     887     883     700     684     695     707
+     700     684     732     748     700     704     688     884
+     700     704     712     720     700     704     716     708
+     701     685     681     717     701     685     681     897
+     701     709     706     714     702     710     907     891
+     702     710     907     895     702     710     907     955
+     702     714     706     709     702     738     722     726
+     702     738     722     730     702     738     722     733
+     702     926     922     930     702     926     922     933
+     702     926     922     938     703     711     908     892
+     703     711     908     896     703     711     908     916
+     703     887     883     891     703     887     883     894
+     703     887     883     899     704     688     884     895
+     704     688     884     900     704     688     884     932
+     704     700     684     732     705     649     641     857
+     705     913     901     885     705     913     901     897
+     705     913     901     909     706     709     701     713
+     706     714     702     710     706     714     702     738
+     706     714     702     926     707     510     502     726
+     707     695     684     732     707     755     743     739
+     707     755     743     751     707     755     743     927
+     708     716     704     712     710     702     738     722
+     710     702     926     922     710     907     891     883
+     710     907     895     884     710     907     955     943
+     711     703     887     883     711     908     892     844
+     711     908     896     918     711     908     916     904
+     712     704     688     884     714     702     710     907
+     714     702     738     722     714     702     926     922
+     715     703     711     908     715     703     887     883
+     716     704     688     884     716     704     712     720
+     716     708     696     718     717     681     689     745
+     717     681     897     901     719     705     913     901
+     721     725     741     737     721     725     741     749
+     721     725     741     753     721     729     785     773
+     721     729     785     799     721     729     785     993
+     721     937     941     925     721     937     941     949
+     721     937     941     953     722     730     746     734
+     722     730     746     749     722     730     746     754
+     722     733     745     759     722     733     745     953
+     722     738     702     926     723     731     747     735
+     723     731     747     795     723     734     746     730
+     723     734     746     749     723     734     746     754
+     723     739     743     751     723     739     743     755
+     723     739     743     927     724     735     747     731
+     724     735     747     795     724     740     744     728
+     724     740     744     752     724     740     744     756
+     724     772     788     776     724     772     788     796
+     725     721     729     785     725     721     937     941
+     725     741     749     746     726     722     730     746
+     726     722     733     745     727     543     551     748
+     727     723     731     747     727     723     734     746
+     727     723     739     743     728     744     752     760
+     728     744     756     748     728     924     935     947
+     728     924     940     944     728     924     972     988
+     729     721     725     741     729     721     937     941
+     729     785     773     762     729     785     993     981
+     730     722     733     745     730     746     749     741
+     730     746     754     742     731     723     734     746
+     731     723     739     743     731     747     795     783
+     732     748     736     758     732     748     756     744
+     733     722     730     746     733     745     953     941
+     734     723     731     747     734     723     739     743
+     734     746     749     741     734     746     754     742
+     735     724     740     744     735     724     772     788
+     735     747     795     783     736     748     756     744
+     737     741     749     746     738     702     710     907
+     738     702     926     922     738     722     730     746
+     738     722     733     745     739     723     731     747
+     739     723     734     746     739     743     751     948
+     739     743     927     923     740     724     735     747
+     740     724     772     788     740     744     728     924
+     740     744     752     760     740     744     756     748
+     741     725     721     757     741     725     721     937
+     741     749     746     754     742     750     947     931
+     742     750     947     935     742     750     947     995
+     742     754     746     749     742     778     762     766
+     742     778     762     770     742     778     762     773
+     742     966     962     970     742     966     962     973
+     742     966     962     978     743     751     948     932
+     743     751     948     936     743     751     948     956
+     743     927     923     931     743     927     923     934
+     743     927     923     939     744     728     924     935
+     744     728     924     940     744     728     924     972
+     744     740     724     772     745     689     681     897
+     745     953     941     925     745     953     941     937
+     745     953     941     949     746     749     741     753
+     746     754     742     750     746     754     742     778
+     746     754     742     966     747     550     542     766
+     747     735     724     772     747     795     783     779
+     747     795     783     791     747     795     783     967
+     748     756     744     752     750     742     778     762
+     750     742     966     962     750     947     931     923
+     750     947     935     924     750     947     995     983
+     751     743     927     923     751     948     932     884
+     751     948     936     958     751     948     956     944
+     752     744     728     924     754     742     750     947
+     754     742     778     762     754     742     966     962
+     755     743     751     948     755     743     927     923
+     756     744     728     924     756     744     752     760
+     756     748     736     758     757     721     729     785
+     757     721     937     941     759     745     953     941
+     761     765     781     777     761     765     781     789
+     761     765     781     793     761     977     981     965
+     761     977     981     989     761     977     981     993
+     762     770     786     774     762     770     786     789
+     762     770     786     794     762     773     785     799
+     762     773     785     993     762     778     742     966
+     763     771     787     775     763     774     786     770
+     763     774     786     789     763     774     786     794
+     763     779     783     791     763     779     783     795
+     763     779     783     967     764     775     787     771
+     764     780     784     768     764     780     784     792
+     764     780     784     796     765     761     977     981
+     765     781     789     786     766     762     770     786
+     766     762     773     785     767     583     591     788
+     767     763     771     787     767     763     774     786
+     767     763     779     783     768     784     792     800
+     768     784     796     788     768     964     975     987
+     768     964     980     984     769     761     765     781
+     769     761     977     981     770     762     773     785
+     770     786     789     781     770     786     794     782
+     771     763     774     786     771     763     779     783
+     772     788     776     798     772     788     796     784
+     773     762     770     786     773     785     993     981
+     774     763     771     787     774     763     779     783
+     774     786     789     781     774     786     794     782
+     775     764     780     784     776     788     796     784
+     777     781     789     786     778     742     750     947
+     778     742     966     962     778     762     770     786
+     778     762     773     785     779     763     771     787
+     779     763     774     786     779     783     791     988
+     779     783     967     963     780     764     775     787
+     780     784     768     964     780     784     792     800
+     780     784     796     788     781     765     761     797
+     781     765     761     977     781     789     786     794
+     782     790     987     971     782     790     987     975
+     782     794     786     789     783     791     988     972
+     783     791     988     976     783     791     988     996
+     783     967     963     971     783     967     963     974
+     783     967     963     979     784     768     964     975
+     784     768     964     980     785     729     721     937
+     785     993     981     965     785     993     981     977
+     785     993     981     989     786     789     781     793
+     786     794     782     790     788     796     784     792
+     790     987     971     963     790     987     975     964
+     791     783     967     963     791     988     972     924
+     791     988     976     998     791     988     996     984
+     792     784     768     964     794     782     790     987
+     795     783     791     988     795     783     967     963
+     796     784     768     964     796     784     792     800
+     796     788     776     798     797     761     977     981
+     799     785     993     981     801     805     821     817
+     801     805     821     829     801     805     821     833
+     801     809     865     853     801     809     865     879
+     801     809     865    1073     801    1017    1021    1005
+     801    1017    1021    1029     801    1017    1021    1033
+     802     810     826     814     802     810     826     829
+     802     810     826     834     802     813     825     839
+     802     813     825    1033     803     811     827     815
+     803     811     827     875    

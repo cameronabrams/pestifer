@@ -461,7 +461,7 @@ class ResidueList(AncestorAwareModList):
 
         max_unused_resseqnum=max([max([x.resseqnum for x in protein_residues]),0 if len(non_protein_residues)==0 else max([x.resseqnum for x in non_protein_residues])])+1
         newtst=self.get(resseqnum=max_unused_resseqnum)
-        assert newtst==None
+        assert newtst==[] #None
         mapper_by_chain={}
         for npc in non_protein_residues_in_conflict:
             c=npc.chainID

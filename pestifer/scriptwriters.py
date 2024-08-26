@@ -10,7 +10,7 @@ from .command import Command
 from .util import reduce_intlist
 from .namdlog import NAMDLog
 from .progress import NAMDProgress, PsfgenProgress
-from .stringthings import ByteCollector, FileCollector, my_logger
+from .stringthings import ByteCollector, FileCollector
 
 class Filewriter:
     def __init__(self):
@@ -201,6 +201,18 @@ class VMD(Scriptwriter):
             self.F.flush()
             logger.info(f'Post-execution clean-up: {nremoved} files removed.')
 
+comment_these_out=['set','if','WRNLEV','BOMLEV']
+def copy_charmm_top(sysfile,localfile=''):
+    if localfile=='':
+        localfile=os.path.split(sysfile)[1]
+    with open(sysfile,'r') as f:
+        lines=f.read().split('\n')
+    with open(localfile,'w') as f:
+        for l in lines:
+            is_comment=any([l.startswith(x) for x in comment_these_out])
+            if not is_comment:
+                f.write(l+'\n')
+
 class Psfgen(VMD):
     def __init__(self,config):
         super().__init__(config)
@@ -209,18 +221,41 @@ class Psfgen(VMD):
         self.pestifer_charmmff_toppar_path=config.charmmff_toppar_path
         self.pestifer_charmmff_custom_path=config.charmmff_custom_path
         self.user_charmmff_toppar_path=config.user_charmmff_toppar_path
-        # self.default_script=config['psfgen_scriptname']
+
+    def remove_charmm_top(self,local_files=[]):
+        if local_files:
+            for l in local_files:
+                if os.path.exists(l):
+                    os.remove(l)
+        else:
+            for t in self.charmmff_config['standard']['topologies']+self.charmmff_config['custom']['topologies']:
+                localname=os.path.split(t)[1]
+                if os.path.exists(t):
+                    os.remove(t)
+
+    def fetch_charmm_topologies(self):
+        topology_local=[]
+        for t in self.charmmff_config['standard']['topologies']:
+            ft=os.path.join(self.pestifer_charmmff_toppar_path,t)
+            localname=os.path.split(ft)[1]
+            if not os.path.exists(localname):
+                copy_charmm_top(ft,localname)
+            topology_local.append(localname)
+        for t in self.charmmff_config['custom']['topologies']:
+            ft=os.path.join(self.pestifer_charmmff_custom_path,t)
+            localname=os.path.split(ft)[1]
+            if not os.path.exists(localname):
+                copy_charmm_top(ft,localname)
+            topology_local.append(localname)
+        return topology_local
 
     def newscript(self,basename=None,packages=[]):
         super().newscript(basename=basename,packages=packages)
         self.addline('package require psfgen')
         self.addline('psfcontext mixedcase')
-        for t in self.charmmff_config['standard']['topologies']:
-            ft=os.path.join(self.pestifer_charmmff_toppar_path,t)
-            self.addline(f'topology {ft}')
-        for lt in self.charmmff_config['custom']['topologies']:
-            ft=os.path.join(self.pestifer_charmmff_custom_path,lt)
-            self.addline(f'topology {ft}')
+        self.topologies=self.fetch_charmm_topologies()
+        for t in self.topologies:
+            self.addline(f'topology {t}')
         for pdba in self.psfgen_config['aliases']:
             self.addline(f'pdbalias {pdba}')
 
@@ -296,14 +331,30 @@ class NAMD2(Scriptwriter):
             self.standard_charmmff_parfiles=[os.path.join(self.charmmff_toppar_path,x) for x in self.charmmff_config['standard']['parameters']]
         self.custom_charmmff_parfiles=[os.path.join(self.charmmff_custom_path,x) for x in self.charmmff_config['custom']['parameters']]
 
+    def copy_charmm_par(self):
+        local_names=[]
+        namd2_params_abs=self.standard_charmmff_parfiles+self.custom_charmmff_parfiles
+        for nf in namd2_params_abs:
+            d,n=os.path.split(nf)
+            if not os.path.exists(n):
+                if n.endswith('.str'):
+                    copy_charmm_top(nf,n)
+                else:
+                    shutil.copy(nf,n)
+            local_names.append(n)
+        return local_names
 
-    # def write_parcommands(self,filename,fetch=False):
-    #     with open(filename,'w') as f:
-    #         for pf in self.standard_charmmff_parfiles+self.custom_charmmff_parfiles:
-    #             d,bn=os.path.split(pf)
-    #             if fetch:
-    #                 shutil.copy(pf,bn)
-    #             f.write(f'parameters {bn}\n')
+    def remove_charmm_par(self,local_names=[]):
+        if local_names:
+            for l in local_names:
+                if os.path.exists(l):
+                    os.remove(l)
+        else:
+            namd2_params_abs=self.standard_charmmff_parfiles+self.custom_charmmff_parfiles
+            for nf in namd2_params_abs:
+                d,n=os.path.split(nf)
+                if os.path.exists(n):
+                    os.remove(n)
 
     def newscript(self,basename=None):
         super().newscript(basename)

@@ -1,19 +1,13 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-import networkx as nx
-from collections import UserDict, UserList
-import numpy as np
-from .stringthings import my_logger
-from .config import ResourceManager
-from .controller import Controller
-from .stringthings import linesplit
-from .scriptwriters import Psfgen,VMD
 import glob 
-import os
 import logging
-import shutil
-from itertools import combinations, compress, pairwise, batched
-import pandas as pd
-from pidibble.pdbparse import PDBParser
+import os
+import networkx as nx
+import numpy as np
+from collections import UserDict, UserList
+from itertools import combinations, compress, batched
+from .config import ResourceManager
+from .stringthings import linesplit
 
 logger=logging.getLogger(__name__)
 
@@ -175,7 +169,7 @@ class CharmmTopIC:
         if data[0]==0.0 or data[1]==0.0 or data[3]==0.0 or data[4]==0.0:
             logger.debug(f'{toks[1:5]}: missing ic data: {data}')
             self.empty=True
-            return
+            # return
         self.atoms=toks[1:5]
         if self.atoms[2].startswith('*'):
             self.atoms[2]=self.atoms[2][1:]
@@ -223,6 +217,7 @@ class CharmmTopIC:
 class CharmmTopResi:
     def __init__(self,blockstring,masses=[]):
         self.blockstring=blockstring
+        self.error_code=0
         lines=[x.strip() for x in blockstring.split('\n')]
         titlecard=lines[0]
         assert titlecard.startswith('RESI'),f'bad title card in RESI: [{titlecard}]'
@@ -259,7 +254,7 @@ class CharmmTopResi:
             elif card.startswith('GROU'):
                 g+=1
         # logger.debug(f'{len(self.atoms)} atoms processed in {len(self.atoms_in_group)} groups')
-
+        self.atomdict={a.name:a for a in self.atoms}
         isbond=[d.startswith('BOND') for d in datacards]
         bondcards=compress(datacards,isbond)
         self.bonds=CharmmBondList([])
@@ -277,10 +272,15 @@ class CharmmTopResi:
         isIC=[d.startswith('IC') for d in datacards]
         ICcards=compress(datacards,isIC)
         self.IC=[]
+        ic_atom_names=[]
         for card in ICcards:
             IC=CharmmTopIC(card)
+            ic_atom_names.extend(IC.atoms)
             self.IC.append(IC)
-
+        ic_atom_names=list(set(ic_atom_names))
+        if not all([x in self.atomdict.keys() for x in ic_atom_names]):
+            self.error_code=-5
+        
     def num_atoms(self):
         return len(self.atoms)
 
@@ -331,26 +331,165 @@ class CharmmTopResi:
                 g.nodes[node2]['element']=element2
         return g
     
+    def head_tail_atoms(self):
+        G=self.to_graph(includeH=False)
+        cc=list(nx.chordless_cycles(G))
+        logger.debug(f'cc {cc}')
+        shortest_paths={}
+        heads=[]
+        tails=[]
+        ring_sizes=[len(list(x)) for x in list(cc)]
+        if len(cc)==4 and ring_sizes.count(6)==3 and ring_sizes.count(5)==1: # likely a sterol
+            # identify head as carbon-3 of ring A (to which OH is bound)
+            # identify tail as carbon-16 on ring D
+            ringD=[c for c in cc if len(c)==5][0]
+            logger.debug(f'ringD {ringD}')
+            edge_partner_idx=[]
+            for i in range(len(cc)):
+                ci=cc[i]
+                logger.debug(f'ring {i} {ci}')
+                for j in range(i+1,len(cc)):
+                    cj=cc[j]
+                    shared_nodes_count=0
+                    for ai in ci:
+                        for aj in cj:
+                            if ai==aj:
+                                shared_nodes_count+=1
+                    if shared_nodes_count==2:
+                        edge_partner_idx.append([i,j])
+                                # cc[i].remove(ai)
+                                # cc[j].remove(ai)
+                                # G.remove_node(ai)
+            logger.debug(f'edge_partner_index {edge_partner_idx}')
+            for i in range(len(cc)):
+                nsharededges=0
+                for ep in edge_partner_idx:
+                    if i in ep:
+                        nsharededges+=1
+                logger.debug(f'ring {i} nsharededges {nsharededges} len {len(cc[i])}')
+                if nsharededges==1 and len(cc[i])==6:
+                    ringA=cc[i]
+                elif nsharededges==1 and len(cc[i])==5:
+                    assert ringD==cc[i]
+            logger.debug(f'ringA {ringA}')
+            for a in ringA:
+                for n in nx.neighbors(G,a):
+                    if G.nodes[n]['element']=='O':
+                        heads=[n]
+            paths=[]
+            for a in G.__iter__():
+                paths.append(len(nx.shortest_path(G,a,heads[0])))
+            paths=np.array(paths)
+            l_idx=np.argsort(paths)[-1]
+            tails=[list(G.__iter__())[l_idx]]
+        else:
+            ends=[]
+            for n in G.__iter__():
+                nn=len(list(G.neighbors(n)))
+                if nn==1:
+                    ends.append(n)
+            ecount={}
+            for e in ends:
+                nn=list(G.neighbors(e))[0]
+                if not nn in ecount:
+                    ecount[nn]=[]
+                ecount[nn].append(e)
+            logger.debug(f'ecount {ecount}')
+            for k,v in ecount.items():
+                if len(v)>1:
+                    for vv in v:
+                        ends.remove(vv)
+                    ends.append(k)
+            
+            logger.debug(f'ends {ends}')
+            chain_ends=[]
+            DG=G.to_directed()
+            for n in ends:
+                if G.nodes[n]['element']=='C':
+                    traversed_edges=list(nx.dfs_edges(DG,source=n,depth_limit=4))
+                    logger.debug(f'node {n} traversed_edges {traversed_edges}')
+                    if len(traversed_edges)>=4:
+                        carbon_chain=True
+                        for e in traversed_edges:
+                            a,b=e
+                            if G.nodes[a]['element']!='C' or G.nodes[b]['element']!='C':
+                                carbon_chain=False
+                        if carbon_chain: chain_ends.append(n)
+            logger.debug(f'chain_ends: {chain_ends}')
+            for e in chain_ends:
+                ends.remove(e)
+            logger.debug(f'chain_ends: {chain_ends}')
+            flags=[]
+            for p in combinations(chain_ends,2):
+                n,m=p
+                logger.debug(f'query chain end pair {n} {m}')
+                if len(list(nx.shortest_path(G,n,m)))<7:
+                    logger.debug(f'removing {m} from chain_ends')
+                    flags.append(m)
+            logger.debug(f'flags {flags}')
+            for m in flags:
+                chain_ends.remove(m)
+            logger.debug(f'chain_ends: {chain_ends}')
+            pathlength={}
+            # if 0<len(chain_ends)<3:
+            for e in ends:
+                pathlength[e]={}
+                for c in chain_ends:
+                    pathlength[e][c]=len(list(nx.shortest_path(G,e,c)))
+            logger.debug(f'pathlength {pathlength}')
+            avl=[]
+            en=[]
+            for k,v in pathlength.items():
+                av=0.0
+                if len(v)>0:
+                    for kk,vv in v.items():
+                        av+=vv
+                    if len(v)>0:
+                        avl.append(av/len(v))
+                    en.append(k)
+            if avl:
+                avl=np.array(avl)
+                heads=[en[np.argmax(avl)]]
+            
+            tails=chain_ends
+            shortest_paths=pathlength
+            logger.debug(f'heads {heads} tails {tails} shortest_paths {shortest_paths}')
+        return heads,tails,shortest_paths
+    
     def to_file(self,f):
         f.write(self.blockstring)
 
-    def to_psfgen(self,W):
-        # find the first heavy atom that is atom-i in an IC that is not an improper
+    def show_error(self,buf):
+        if self.error_code==-5:
+            buf(f'{self.resname} references atoms in IC\'s that are not declared at ATOM\'s')
+
+    def to_psfgen(self,W,**kwargs):
+        refic_idx=kwargs.get('refic-idx',0)
+        # find the first heavy atom that is atom-i in an IC w/o H that is not an improper
         refatom=None
+        refic=None
         logger.debug(f'trying to find a reference atom from {len(self.atoms)} atoms in this resi')
         i=0
-        while refatom is None and i<len(self.atoms):
-            atom=self.atoms[i]
-            if atom.element!='H':
-                for ic in self.IC:
-                    if not ic.empty:
-                        if ic.atoms[1]==atom.name and ic.dihedral_type!='improper':
-                            refatom=atom
-                            refic=ic
-            i+=1
+        try:
+            is_proper=[((not x.empty) and (x.dihedral_type=='proper') and (not any([self.atomdict[a].element=='H' for a in x.atoms]))) for x in self.IC]
+        except:
+            logger.warning(f'Could not parse IC\'s')
+            return -1
+        workingIC=list(compress(self.IC,is_proper))
+        for ic in workingIC:
+            logger.debug(f'{str(ic)}')
+        if not workingIC:
+            logger.warning(f'No valid IC for {self.resname}')
+            return -1
+        nWorkingIC=len(workingIC)
+        logger.debug(f'{nWorkingIC}/{len(self.IC)} IC\'s with proper dihedrals and no hydrogens')
+        refic=workingIC[refic_idx]
+        refatom=self.atomdict[refic.atoms[1]]
         if refatom is None:
             logger.debug(f'Unable to identify a reference atom')
             return -1
+        logger.debug(f'refIC is {str(refic)}')
+        logger.debug(f"{[self.atomdict[a].element=='H' for a in refic.atoms]}")
         logger.debug(f'refatom is {refatom.name}')
         W.addline(r'segment A {')
         W.addline(r'    first none')
@@ -361,17 +500,17 @@ class CharmmTopResi:
         W.addline(f'psfset coord A 1 {refatom.name} '+r'{0 0 0}')
         b1a1,b1a2,b1l=refic.bonds[0].name1,refic.bonds[0].name2,refic.bonds[0].length
         partner=b1a1
-        assert b1a1!=refatom.name
-        assert b1a2==refatom.name
+        # assert b1a1!=refatom.name
+        # assert b1a2==refatom.name
         # partner is the first atom in the IC, put along x-axis
         W.addline(f'psfset coord A 1 {partner} '+r'{'+f'{b1l:.5f}'+r' 0 0}')
         a1a1,a1a2,a1a3,a1d=refic.angles[0].name1,refic.angles[0].name2,refic.angles[0].name3,refic.angles[0].degrees
-        assert a1a1==partner
-        assert a1a2==refatom.name,f'{refatom.name} {refic.atoms}: {refic.angles[0].name1} {refic.angles[0].name2} {refic.angles[0].name3}'
-        assert a1a3!=partner
+        # assert a1a1==partner
+        # assert a1a2==refatom.name,f'{refatom.name} {refic.atoms}: {refic.angles[0].name1} {refic.angles[0].name2} {refic.angles[0].name3}'
+        # assert a1a3!=partner
         W.addline(f'set a [expr {a1d}*acos(-1.0)/180.0]')
-        W.addline(r'set x [expr 1.5283*cos($a)]')
-        W.addline(r'set y [expr 1.5283*sin($a)]')
+        W.addline(f'set x [expr {b1l}*cos($a)]')
+        W.addline(f'set y [expr {b1l}*sin($a)]')
         W.addline(f'psfset coord A 1 {a1a3} [list $x $y 0.0]')
         return 0
 
@@ -419,6 +558,7 @@ def getResis(topfile,masses=[]):
         R.append(resi)
     return R
 
+
 def makeBondGraph_rdkit(mol):
     g2=nx.Graph()
     atoms=[]
@@ -451,9 +591,10 @@ class CharmmResiDatabase(UserDict):
         for stream in streams:
             stream_rtfs=glob.glob(os.path.join(self.toppardir,f'*{stream}.rtf'))
             streamdir=os.path.join(self.toppardir,f'stream/{stream}')
-            stream_strs=glob.glob(os.path.join(streamdir,'*.str'))
-            stream_strs=[x for x in stream_strs if not ('cationpi_wyf' in x or 'list' in x or 'model' in x or 'lipid_prot' in x or 'ljpme' in x)]
+            allstream_strs=glob.glob(os.path.join(streamdir,'*.str'))
+            include_strs=[not ('cationpi_wyf' in x or 'list' in x or 'model' in x or 'lipid_prot' in x or 'ljpme' in x or 'llo' in x) for x in allstream_strs]
             # logger.debug(f'stream strs {stream_strs}')
+            stream_strs=list(compress(allstream_strs,include_strs))
             stream_topology_files[stream]=stream_rtfs+stream_strs
             self.all_charmm_topology_files.extend(stream_strs)
             for f in stream_strs: # already got masses from all rtf files
@@ -470,7 +611,8 @@ class CharmmResiDatabase(UserDict):
                 nfiles+=1
                 for resi in sublist:
                     if resi.resname in self.charmm_resnames:
-                        logger.warning(f'RESI {resi.resname} has already been encountered')
+                        logger.warning(f'RESI {resi.resname} declared in {os.path.split(t)[1]} was already declared in {os.path.split(data[stream][resi.resname].charmmtopfile)[1]}')
+
                     else:
                         resi.charmmtopfile=t
                         data[stream][resi.resname]=resi
@@ -503,349 +645,4 @@ class CharmmResiDatabase(UserDict):
                 logger.debug(f'resi {charmm_resid} is not in stream {stream}')
         return None
 
-def head_tail_atoms(topo):
-    G=topo.to_graph(includeH=False)
-    cc=list(nx.chordless_cycles(G))
-    logger.debug(f'cc {cc}')
-    shortest_paths={}
-    heads=[]
-    tails=[]
-    ring_sizes=[len(list(x)) for x in list(cc)]
-    if len(cc)==4 and ring_sizes.count(6)==3 and ring_sizes.count(5)==1: # likely a sterol
-
-        # identify head as carbon-3 of ring A (to which OH is bound)
-        # identify tail as carbon-16 on ring D
-        ringD=[c for c in cc if len(c)==5][0]
-        logger.debug(f'ringD {ringD}')
-        edge_partner_idx=[]
-        for i in range(len(cc)):
-            ci=cc[i]
-            logger.debug(f'ring {i} {ci}')
-            for j in range(i+1,len(cc)):
-                cj=cc[j]
-                shared_nodes_count=0
-                for ai in ci:
-                    for aj in cj:
-                        if ai==aj:
-                            shared_nodes_count+=1
-                if shared_nodes_count==2:
-                    edge_partner_idx.append([i,j])
-                            # cc[i].remove(ai)
-                            # cc[j].remove(ai)
-                            # G.remove_node(ai)
-        logger.debug(f'edge_partner_index {edge_partner_idx}')
-        for i in range(len(cc)):
-            nsharededges=0
-            for ep in edge_partner_idx:
-                if i in ep:
-                    nsharededges+=1
-            logger.debug(f'ring {i} nsharededges {nsharededges} len {len(cc[i])}')
-            if nsharededges==1 and len(cc[i])==6:
-                ringA=cc[i]
-            elif nsharededges==1 and len(cc[i])==5:
-                assert ringD==cc[i]
-        logger.debug(f'ringA {ringA}')
-        for a in ringA:
-            for n in nx.neighbors(G,a):
-                if G.nodes[n]['element']=='O':
-                    heads=[n]
-        paths=[]
-        for a in G.__iter__():
-            paths.append(len(nx.shortest_path(G,a,heads[0])))
-        paths=np.array(paths)
-        l_idx=np.argsort(paths)[-1]
-        tails=[list(G.__iter__())[l_idx]]
-    else:
-        ends=[]
-        for n in G.__iter__():
-            nn=len(list(G.neighbors(n)))
-            if nn==1:
-                ends.append(n)
-        ecount={}
-        for e in ends:
-            nn=list(G.neighbors(e))[0]
-            if not nn in ecount:
-                ecount[nn]=[]
-            ecount[nn].append(e)
-        logger.debug(f'ecount {ecount}')
-        for k,v in ecount.items():
-            if len(v)>1:
-                for vv in v:
-                    ends.remove(vv)
-                ends.append(k)
-        
-        logger.debug(f'ends {ends}')
-        chain_ends=[]
-        DG=G.to_directed()
-        for n in ends:
-            if G.nodes[n]['element']=='C':
-                traversed_edges=list(nx.dfs_edges(DG,source=n,depth_limit=4))
-                logger.debug(f'node {n} traversed_edges {traversed_edges}')
-                if len(traversed_edges)>=4:
-                    carbon_chain=True
-                    for e in traversed_edges:
-                        a,b=e
-                        if G.nodes[a]['element']!='C' or G.nodes[b]['element']!='C':
-                            carbon_chain=False
-                    if carbon_chain: chain_ends.append(n)
-        logger.debug(f'chain_ends: {chain_ends}')
-        for e in chain_ends:
-            ends.remove(e)
-        logger.debug(f'chain_ends: {chain_ends}')
-        flags=[]
-        for p in combinations(chain_ends,2):
-            n,m=p
-            logger.debug(f'query chain end pair {n} {m}')
-            if len(list(nx.shortest_path(G,n,m)))<7:
-                logger.debug(f'removing {m} from chain_ends')
-                flags.append(m)
-        logger.debug(f'flags {flags}')
-        for m in flags:
-            chain_ends.remove(m)
-        logger.debug(f'chain_ends: {chain_ends}')
-        pathlength={}
-        # if 0<len(chain_ends)<3:
-        for e in ends:
-            pathlength[e]={}
-            for c in chain_ends:
-                pathlength[e][c]=len(list(nx.shortest_path(G,e,c)))
-        logger.debug(f'pathlength {pathlength}')
-        avl=[]
-        en=[]
-        for k,v in pathlength.items():
-            av=0.0
-            if len(v)>0:
-                for kk,vv in v.items():
-                    av+=vv
-                if len(v)>0:
-                    avl.append(av/len(v))
-                en.append(k)
-        if avl:
-            avl=np.array(avl)
-            heads=[en[np.argmax(avl)]]
-        
-        tails=chain_ends
-        shortest_paths=pathlength
-        logger.debug(f'heads {heads} tails {tails} shortest_paths {shortest_paths}')
-    return heads,tails,shortest_paths
-
-def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300):
-    charmm_topfile=DB.get_charmm_topfile(resid)
-    if charmm_topfile is None:
-        return -2
-    topo=DB.get_topo(resid)
-    # for b in topo.bonds:
-    #     logger.debug(f'{b.name1}-{b.name2}')
-    my_logger(f'{os.path.basename(topo.charmmtopfile)}',logger.info,just='^',frame='*',fill='*')
-    heads,tails,shortest_paths=head_tail_atoms(topo)
-    logger.debug(f'resi {resid} heads {heads} tails {tails} shortest_paths {shortest_paths}')
-    tasklist=[
-            {'restart':{'psf': f'{resid}-init.psf','pdb': f'{resid}-init.pdb'}},
-            {'md': {'ensemble':'minimize','nsteps':0,'minimize':minimize_steps,'dcdfreq':0,'xstfreq':0,'temperature':100}},
-            ]
-    if shortest_paths and any([len(v)>0 for v in shortest_paths.values()]) and heads and tails and len(tails)<3:
-        base_md={'ensemble':'NVT','nsteps':10000,'dcdfreq':100,'xstfreq':100,'temperature':100}
-        groups={}
-        if len(tails)<4:
-            groups={'repeller':{'atomnames': [heads[0]]}}
-        distances={}
-        harmonics={}
-        for i in range(len(tails)):
-            groups[f'tail{i+1}']={'atomnames': [tails[i]]}
-            if len(tails)<4:
-                distances[f'repeller_tail{i+1}']={'groups': ['repeller',f'tail{i+1}']}
-        dists={}
-        for i in range(len(tails)):
-            dists[i]=shortest_paths[heads[0]][tails[i]]*lenfac
-        for i in range(len(tails)):
-            for j in range(i+1,len(tails)):
-                distances[f'tail{i+1}_tail{j+1}']={'groups': [f'tail{i+1}',f'tail{j+1}']}
-                harmonics[f'tail{i+1}_tail{j+1}_attract']={
-                        'colvars': [f'tail{i+1}_tail{j+1}'],
-                        'forceConstant': 10.0,
-                        'distance':[3.0]}
-        if len(tails)<4:
-            name='repeller_tail'+''.join(f'{i+1}' for i in range(len(tails)))
-            colvars=[]               
-            distance=[]
-            for i in range(len(tails)):
-                colvars.append(f'repeller_tail{i+1}')
-                distance.append(dists[i])
-            harmonics[name]={'colvars':colvars,'distance':distance,'forceConstant':10.0}
-        colvar_specs={'groups':groups,'distances':distances,'harmonics':harmonics}
-        base_md['colvar_specs']=colvar_specs
-        assert 'minimize' not in base_md
-        logger.debug(f'base_md {base_md}')
-        tasklist.append({'md':base_md})
-    else:
-        logger.debug(f'**** Could not analyze structure of resi {resid}')
-    if len(heads)>0:
-        tasklist.append({'manipulate':{'mods':{'orient':[f'z,{heads[0]}']}}})
-    tasklist.append({'md':{'ensemble':'NVT','nsteps':sample_steps,'dcdfreq':sample_steps//nsamples,'xstfreq':100,'temperature':sample_temperature,'index':99}})
-
-    C=Controller(userspecs={'tasks':tasklist},quiet=True)
-    # First we de-novo generate a pdb/psf file using seeded internal coordinates
-    W=Psfgen(C.config)
-    if not charmm_topfile in W.charmmff_config['standard']['topologies']:
-        W.charmmff_config['standard']['topologies'].append(charmm_topfile)
-    if charmm_topfile.endswith('detergent.str'):
-        needed=[x for x in DB.all_charmm_topology_files if x.endswith('sphingo.str')][0]
-        W.charmmff_config['standard']['topologies'].append(needed)
-    if charmm_topfile.endswith('initosol.str'):
-        needed=os.path.join(DB.toppardir,'stream/carb/toppar_all36_carb_glycolipid.str')
-        W.charmmff_config['standard']['topologies'].append(needed)
-
-    W.newscript('init')
-    if topo.to_psfgen(W)==-1:
-        logger.info(f'skipping {resid} -- no ICs')
-        with open(f'{resid}-topo.rtf','w') as f:
-            topo.to_file(f)
-        return -1
-    W.writescript(f'{resid}-init')
-    W.runscript()
-    with open('init.log','r') as f:
-        loglines=f.read().split('\n')
-    for l in loglines:
-        if 'Warning: failed to guess coordinates' in l:
-            logger.warning(f'**** Could not psfgen-build {resid}')
-            return -3
-
-    # now run the tasks to minimize, stretch, orient along z, equilibrate, and sample
-    tasks=C.tasks
-    for task in tasks:
-        if task.taskname=='md':
-            if charmm_topfile.endswith('str') and not charmm_topfile in task.writers['namd2'].charmmff_config['standard']['parameters']:
-                task.writers['namd2'].charmmff_config['standard']['parameters'].append(charmm_topfile)
-            if charmm_topfile.endswith('sphingo.str'):
-                needed=[x for x in DB.all_charmm_topology_files if x.endswith('lps.str')][0]
-                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
-            if charmm_topfile.endswith('detergent.str'):
-                needed=[x for x in DB.all_charmm_topology_files if x.endswith('sphingo.str')][0]
-                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
-                needed=[x for x in DB.all_charmm_topology_files if x.endswith('cholesterol.str')][0]
-                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
-            if charmm_topfile.endswith('inositol.str'):
-                needed=os.path.join(DB.toppardir,'stream/carb/toppar_all36_carb_glycolipid.str')
-                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
-
-    result=C.do_tasks()
-    for k,v in result.items():
-        logger.debug(f'{k}: {v}')
-        if v['result']!=0:
-            with open(f'{resid}-topo.rtf','w') as f:
-                topo.to_file(f)
-            return -1
-
-    if os.path.exists('99-00-md-NVT.namd'):
-        with open('99-00-md-NVT.namd','r') as f:
-            lines=f.read().split('\n')
-        par=[]
-        for l in lines:
-            if l.startswith('parameters'):
-                if 'toppar/' in l:
-                    par.append(l.split()[1].split('toppar/')[1])
-        with open('parameters.txt','w') as f:
-            for p in par:
-                f.write(f'{p}\n')
-        
-    # now sample
-    W=VMD(C.config)
-    W.newscript('sample')
-    W.addline(f'mol new {resid}-init.psf')
-    W.addline(f'mol addfile 99-00-md-NVT.dcd waitfor all')
-    W.addline(f'set a [atomselect top all]')
-    W.addline(f'set ref [atomselect top all]')
-    W.addline(f'$ref frame 0')
-    W.addline(f'$ref move [vecscale -1 [measure center $ref]]')
-    W.addline(r'for { set f 0 } { $f < [molinfo top get numframes] } { incr f } {')
-    W.addline( '    $a frame $f')
-    W.addline( '    $a move [measure fit $a $ref]')
-    W.addline(f'    $a writepdb {resid}-[format %02d $f].pdb')
-    W.addline(r'}')
-    W.writescript()
-    W.runscript()
-
-    pdbs=[os.path.basename(x) for x in glob.glob(f'{resid}-??.pdb')]
-    smin=[]
-    smax=[]
-    zmin=[]
-    zmax=[]
-    for pdb in pdbs:
-        p=PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()
-        z=np.array([x.z for x in p.parsed['ATOM']])
-        s=np.array([x.serial for x in p.parsed['ATOM']])
-        zmin_idx=np.argmin(z)
-        zmax_idx=np.argmax(z)
-        smin.append(s[zmin_idx])
-        zmin.append(z[zmin_idx])
-        smax.append(s[zmax_idx])
-        zmax.append(z[zmax_idx])
-    measures=pd.DataFrame({'pdb':pdbs,'bottom_serial':smin,'bottom_z':zmin,'top_serial':smax,'top_z':zmax})
-    measures.to_csv('orientations.dat',header=True,index=False)
-    return 0
-
-def do_cleanup(resname,dirname):
-    cwd=os.getcwd()
-    os.chdir(dirname)
-    files=glob.glob('*')
-    files.remove('init.tcl')
-    files.remove('orientations.dat')
-    files.remove('parameters.txt')
-    files.remove(f'{resname}-init.psf')
-    for f in glob.glob(f'{resname}-*.pdb'):
-        files.remove(f)
-    for f in files:
-        os.remove(f)
-    os.chdir(cwd)
-
-def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup=True,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300):
-    cwd=os.getcwd()
-    if (not os.path.exists(os.path.join(outdir,resi))) or force:
-        os.mkdir('tmp')
-        os.chdir('tmp')
-        result=do_psfgen(resi,DB,lenfac=lenfac,minimize_steps=minimize_steps,sample_steps=sample_steps,nsamples=nsamples,sample_temperature=sample_temperature)
-        os.chdir(cwd)
-        if result==0:
-            if cleanup: do_cleanup(resi,'tmp')
-            shutil.move('tmp',os.path.join(outdir,resi))
-        elif result==-2:
-            my_logger(f'RESI {resi} is not found',logger.warning,just='^',frame='*',fill='*') 
-        else:
-            if os.path.exists(os.path.join(faildir,resi)):
-                shutil.rmtree(os.path.join(faildir,resi))
-            shutil.move('tmp',os.path.join(faildir,resi))
-    else:
-        logger.info(f'RESI {resi} in {outdir}; use \'--force\' to recalculate')
-
-def make_RESI_database(args):
-    streams=args.streams
-    loglevel_numeric=getattr(logging,args.diagnostic_log_level.upper())
-    if args.diagnostic_log_file:
-        if os.path.exists(args.diagnostic_log_file):
-            shutil.copyfile(args.diagnostic_log_file,args.diagnostic_log_file+'.bak')
-        logging.basicConfig(filename=args.diagnostic_log_file,filemode='w',format='%(asctime)s %(name)s %(message)s',level=loglevel_numeric)
-    console=logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    formatter=logging.Formatter('%(levelname)s> %(message)s')
-    console.setFormatter(formatter)
-    logging.getLogger('').addHandler(console)
-
-    DB=CharmmResiDatabase(streams=streams)
-    outdir=args.output_dir
-    faildir=args.fail_dir
-    if not os.path.exists(outdir):
-        os.mkdir(outdir)
-    if not os.path.exists(faildir):
-        os.mkdir(faildir)
-    if os.path.exists('tmp'):
-        shutil.rmtree('tmp')
-    resi=args.resi
-    if resi is not None:
-        my_logger(f'RESI {resi}',logger.info,just='^',frame='*',fill='*')
-        do_resi(resi,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature)
-    else:
-        nresi=len(DB.charmm_resnames)
-        for i,resi in enumerate(DB.charmm_resnames):
-            my_logger(f'RESI {resi} ({i+1}/{nresi})',logger.info,just='^',frame='*',fill='*')
-            do_resi(resi,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature)
 

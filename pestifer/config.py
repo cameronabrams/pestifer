@@ -4,7 +4,7 @@ import os
 import logging
 logger=logging.getLogger(__name__)
 from collections import UserDict
-from pestifer import PestiferResources
+from . import Resources
 from .command import CondaCheck
 from .stringthings import my_logger
 from ycleptic.yclept import Yclept
@@ -19,7 +19,7 @@ class ResourceManager(UserDict):
     excludes=['__pycache__','_archive','bash'] # exclude from top-level resources
     def __init__(self):
         data={}
-        data['root']=os.path.dirname(PestiferResources.__file__)
+        data['root']=os.path.dirname(Resources.__file__)
         roottk=data['root'].split(os.sep)
         rootdepth=len(roottk)
         for root,dirs,files in os.walk(data['root']):
