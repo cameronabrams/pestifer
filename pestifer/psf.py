@@ -290,4 +290,6 @@ class PSFContents:
                 self.dihedrals=PSFDihedralList(LineList(self.token_lines['PHI']),include_serials=include_serials)
             if 'impropers' in parse_topology:
                 self.dihedrals=PSFDihedralList(LineList(self.token_lines['IMPHI']),include_serials=include_serials)
-            
+    
+    def get_charge(self):
+        return np.sum([x.charge for x in self.atoms])

@@ -41,22 +41,22 @@ def myset(a_dict,keylist,val):
             a_dict[key]={}
         myset(a_dict[key],keylist,val)
 
-def injest_packmol_memgen_databases():
-    logging.getLogger("pmmg_log").setLevel(logging.CRITICAL)
-    import packmol_memgen as pmmg
-    import packmol_memgen.lib.charmmlipid2amber as cla
-    import pandas as pd
-    pmmfile=os.path.join(os.path.split(pmmg.__file__)[0],'data','memgen.parm')
-    if os.path.exists(pmmfile):
-        lipdf=pd.read_csv(pmmfile,sep=r'\s+',header=22)
-        logger.debug(f'memgen_parm database has {lipdf.shape[0]} entries')
+# def injest_packmol_memgen_databases():
+#     logging.getLogger("pmmg_log").setLevel(logging.CRITICAL)
+#     import packmol_memgen as pmmg
+#     import packmol_memgen.lib.charmmlipid2amber as cla
+#     import pandas as pd
+#     pmmfile=os.path.join(os.path.split(pmmg.__file__)[0],'data','memgen.parm')
+#     if os.path.exists(pmmfile):
+#         lipdf=pd.read_csv(pmmfile,sep=r'\s+',header=22)
+#         logger.debug(f'memgen_parm database has {lipdf.shape[0]} entries')
 
-    cladir=os.path.split(cla.__file__)[0]
-    clafile=os.path.join(cladir,'charmmlipid2amber.csv')
-    if os.path.exists(clafile):
-        cladf=pd.read_csv(clafile,header=1,skiprows=0)
-        logger.debug(f'charmmlipid2amber database has {cladf.shape[0]} entries')
-    return lipdf,cladf
+#     cladir=os.path.split(cla.__file__)[0]
+#     clafile=os.path.join(cladir,'charmmlipid2amber.csv')
+#     if os.path.exists(clafile):
+#         cladf=pd.read_csv(clafile,header=1,skiprows=0)
+#         logger.debug(f'charmmlipid2amber database has {cladf.shape[0]} entries')
+#     return lipdf,cladf
 
 class Config(Yclept):
     def __init__(self,userfile='',**kwargs):
@@ -165,15 +165,15 @@ pidibble v. {version("pidibble")}"""
         res_123.update(self['user']['psfgen']['segtypes']['protein']['invrescodes'])
         res_321.update(self['user']['psfgen']['segtypes']['protein']['rescodes'])
 
-        packmol_memgen_task_specs='packmol_memgen' in [list(x.keys())[0] for x in self['user']['tasks']]
-        if packmol_memgen_task_specs or kwargs.get('memgen_test',False):
-            # let's supress the irritating message that pops up when packmol_memgen is imported
-            atools=self['user']['ambertools']
-            atools['memgen_parm_df'],atools['charmmlipid2amber_df']=injest_packmol_memgen_databases()
-            if not self.check_ambertools():
-                raise Exception(f'You have a "packmol_memgen" task but ambertools is not available.')
-        else:
-            self['user']['ambertools']['is_unnecessary']=True
+        # packmol_memgen_task_specs='packmol_memgen' in [list(x.keys())[0] for x in self['user']['tasks']]
+        # if packmol_memgen_task_specs or kwargs.get('memgen_test',False):
+        #     # let's supress the irritating message that pops up when packmol_memgen is imported
+        #     atools=self['user']['ambertools']
+        #     atools['memgen_parm_df'],atools['charmmlipid2amber_df']=injest_packmol_memgen_databases()
+        #     if not self.check_ambertools():
+        #         raise Exception(f'You have a "packmol_memgen" task but ambertools is not available.')
+        # else:
+        #     self['user']['ambertools']['is_unnecessary']=True
 
     def check_ambertools(self):
         def error_message():

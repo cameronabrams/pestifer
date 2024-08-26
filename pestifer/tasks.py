@@ -14,6 +14,7 @@ import shutil
 import yaml
 import matplotlib.pyplot as plt 
 import networkx as nx
+import numpy as np
 import pandas as pd
 from copy import deepcopy
 from scipy.constants import physical_constants
@@ -28,7 +29,7 @@ from .stringthings import FileCollector,get_boxsize_from_packmolmemgen, rescale_
 from .progress import PackmolProgress, RingCheckProgress
 from .psf import PSFContents
 from .ring import ring_check
-from .util import is_periodic, pdb_search_replace, pdb_singlemolecule_charmify
+from .util import is_periodic, cell_from_xsc
 
 logger=logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -293,9 +294,9 @@ class MDTask(BaseTask):
         coor=self.statevars.get('coor',None)
         vel=self.statevars.get('vel',None)
         xsc=self.statevars.get('xsc',None)
-        cell=self.statevars.get('cell',None)
+        # cell=self.statevars.get('cell',None)
         firsttimestep=self.statevars.get('firsttimestep',0)
-        self.statevars['periodic']=is_periodic(cell,xsc)
+        self.statevars['periodic']=is_periodic(xsc)
 
         temperature=specs['temperature']
         if ensemble=='NPT':
@@ -326,11 +327,8 @@ class MDTask(BaseTask):
         self.local_parameter_files=na.copy_charmm_par()
         params['parameters']=self.local_parameter_files
         
-        if xsc or cell:
-            if xsc:
-                params['extendedSystem']=xsc
-            else:
-                params['tcl'].append(f'source {cell}')
+        if xsc:
+            params['extendedSystem']=xsc
             if ensemble=='NPT' and xstfreq:
                 params['xstfreq']=xstfreq
         
@@ -391,8 +389,6 @@ class MDTask(BaseTask):
                 self.update_statevars('firsttimestep',firsttimestep+nsteps)
             else:
                 self.update_statevars('firsttimestep',firsttimestep+specs['minimize'])
-            if cell: # this is a use-once statevar
-                del self.statevars['cell']
             if specs.get('remove_parfiles',False):
                 na.remove_charmm_par(params['parameters'])
         return 0
@@ -886,20 +882,70 @@ class SolvateTask(BaseTask):
     def do(self):
         self.log_message('initiated')
         self.inherit_state()
-        if 'xsc' in self.statevars:
-            del self.statevars['xsc']
         self.next_basename()
-        vt=self.writers['vmd']
-        vt.newscript(self.basename)
-        vt.usescript('solv')
-        vt.writescript()
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
-        self.result=vt.runscript(o=self.basename,pdb=pdb,psf=psf,pad=self.specs['pad'])
+        xsc=self.statevars.get('xsc',None)
+        use_minmax=True
+        if xsc is not None:
+            box,origin=cell_from_xsc(xsc)
+            if box is not None and origin is not None:
+                use_minmax=False
+                basisvec=box.diagonal()
+                LL=origin-0.5*basisvec
+                UR=origin+0.5*basisvec
+        if use_minmax:
+            p=PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()
+            x=np.array([a.x for a in p.parsed['ATOM']])
+            y=np.array([a.y for a in p.parsed['ATOM']])
+            z=np.array([a.z for a in p.parsed['ATOM']])
+            minmax=np.array([[x.min(),y.min(),z.min()],[x.max(),y.max(),z.max()]])
+            spans=minmax[1]-minmax[0]
+            maxspan=spans.max()
+            cubic=self.specs.get('cubic',False)
+            sympad=np.array([0.,0.,0.])
+            if cubic:
+                sympad=0.5*(maxspan-spans)
+            pad=self.specs.get('pad',10.0)
+            LL=minmax[0]-pad-sympad
+            UR=minmax[1]+pad+sympad
+            basisvec=UR-LL
+            origin=0.5*(UR+LL)
+            with open(f'{self.basename}.xsc','w') as f:
+                f.write('#$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z\n')
+                f.write(f'0 {basisvec[0]:.5f} 0 0 0 {basisvec[1]:.5f} 0 0 0 {basisvec[2]:.5f} {" ".join([f"{x:.5f}" for x in origin])}\n')
+
+        ll_tcl=r'{ '+' '.join([str(_) for _ in LL.tolist()])+r' }'
+        ur_tcl=r'{ '+' '.join([str(_) for _ in UR.tolist()])+r' }'
+        box_tcl=r'{ '+ll_tcl+' '+ur_tcl+r' }'
+        vt=self.writers['vmd']
+        vt.newscript(self.basename)
+        # vt.usescript('solv')
+        vt.addline( 'package require solvate')
+        vt.addline( 'package require autoionize')
+        vt.addline( 'psfcontext mixedcase')
+        vt.addline(f'mol new {psf}')
+        vt.addline(f'mol addfile {pdb} waitfor all')
+        vt.addline(f'solvate {psf} {pdb} -minmax {box_tcl} -o {self.basename}_solv')
+        ai_args=[]
+        sc=self.specs.get('salt_con',None)
+        if sc is None:
+            ai_args.append('-neutralize')
+        else:
+            ai_args.append(f'-sc {sc}')
+        cation=self.specs.get('cation',None)
+        if cation is not None:
+            ai_args.append(f'-cation {cation}')
+        anion=self.specs.get('anion',None)
+        if anion is not None:
+            ai_args.append(f'-cation {anion}')
+        vt.addline(f'autoionize -psf {self.basename}_solv.psf -pdb {self.basename}_solv.pdb {" ".join(ai_args)} -o {self.basename}')
+        vt.writescript()
+        self.result=vt.runscript()
         if self.result!=0:
             return super().do()
-        self.save_state(exts=['psf','pdb'])
-        self.update_statevars('cell',f'{self.basename}_cell.tcl',vtype='file')
+        self.save_state(exts=['psf','pdb','xsc'])
+        # self.update_statevars('cell',f'{self.basename}_cell.tcl',vtype='file')
         self.log_message('complete')
         return super().do()
 
@@ -1006,8 +1052,8 @@ class TerminateTask(MDTask):  #need to inherit for namd2run() method
         self.FC.tarball(specs["basename"])
         return 0
 
-class PackmolMemgenTask(BaseTask):
-    """ A class for handling invocations of packmol-memgen
+class BilayerEmbedTask(BaseTask):
+    """ A class for handling embedding proteins into bilayers
     
     Attributes
     ----------
@@ -1016,128 +1062,74 @@ class PackmolMemgenTask(BaseTask):
     Methods
     -------
     do(): 
-        Based on specs, executes packmol-memgen
+        Based on specs, writes a packmol input file to generate a membrane-embedded protein and
+        then runs packmol
 
     """
-    yaml_header='packmol_memgen'
+    yaml_header='bilayer_embed'
     def __init__(self,input_dict,taskname,config,writers,prior):
         super().__init__(input_dict,taskname,config,writers,prior)
         self.has_conda=config['Conda'].conda_root!=None
-        self.memgen_parm=config['user']['ambertools'].get('packmol_memgen_parmfile',None)
-        logger.debug(f'packmol_memgen task custom memgen.parm: {self.memgen_parm}')
-        assert config['user']['ambertools']['available']
-        assert config['user']['ambertools']['local']
+        assert config['user']['ambertools']['available'],'Ambertools not available -- need this for packmol'
+        assert config['user']['ambertools']['local'],'Ambertools not local -- need this for packmol'
         self.env=None  # triggers run in active conda environment
         self.progress=config.progress
+        self.lipid_pdb_path=os.path.join(config.charmm_pdb_path,'lipid')
+        assert os.path.exists(self.lipid_pdb_path),f'No lipid PDB database found -- bad installation!'
 
     def do(self):
         self.log_message('initiated')
         self.inherit_state()
         psf=self.statevars.get('psf',None)
+        pro_psc=PSFContents(psf)
+        pro_charge=pro_psc.get_charge()
         pdb=self.statevars.get('pdb',None)
-        scaledict=self.specs.get('scale_box',{})
         scale=[]
-        if scaledict:
-            scale=[scaledict['x'],scaledict['y'],scaledict['z']]
-        lipidnames=self.specs['command_options'].get('lipids',['POPC'])
-        leafs=lipidnames.split('//')
-        lipids=[]
-        for leaf in leafs:
-            leaflips=leaf.split(':')
+        lipidspec=self.specs.get('lipids','POPC')
+        ratiospec=self.specs.get('ratios','1.0')
+        leaf_lipspec=lipidspec.split('//')
+        leaf_ratiospec=ratiospec.split('//')
+        assert len(leaf_lipspec)==len(leaf_ratiospec),f'lipid names and mole fractions are not congruent'
+        lipid_names=[]
+        leaflet=[]
+        for li,leaf in enumerate(zip(leaf_lipspec,leaf_ratiospec)):
+            lips,mfs=leaf
+            leaflips=lips.split(':')
+            leafmolfracs=list(map(float,mfs.split(':')))
             for ll in leaflips:
-                if not ll in lipids:
-                    lipids.append(ll)
-        memgen_parm=self.config['user']['ambertools'].get('memgen_parm_df',pd.DataFrame())
-        if not memgen_parm.empty:
-            charmmlipids=memgen_parm[memgen_parm['CHARMM']=='Y']['#NAME'].to_list()
-            logger.debug(f'memgen uses CHARMM versions of {", ".join(charmmlipids)}')
+                if not ll in lipid_names:
+                    lipid_names.append(ll)
+            leaflet.append([(name,frac) for name,frac in zip(leaflips,leafmolfracs)])
+        charges=[]
+        for l in lipid_names:
+            lpath=os.path.join(self.lipid_pdb_path,l)
+            assert os.path.exists(lpath),f'No PDB available for lipid {l}'
+            pdb=os.path.join(lpath,f'{l}-00.pdb')
+            shutil.copy(pdb,'./')
+            psf=os.path.join(lpath,f'{l}-init.psf')
+            shutil.copy(psf,f'./{l}.psf')
+            psc=PSFContents(f'./{l}.psf')
+            charges[l]=psc.get_charge()
 
-        lipiddf=self.config['user']['ambertools'].get('charmmlipid2amber_df',pd.DataFrame())
-        perlip_df={}
-        if not lipiddf.empty:
-            for lip in lipids:
-                if not lip in charmmlipids:
-                    perlip_df[lip]=lipiddf[lipiddf['search'].str.contains(lip)]
-                    logger.debug(f'For lipid {lip}, charmmlipid2amber database has {perlip_df[lip].shape[0]} entries')
+        if 'embed' in self.specs:
+            self.next_basename('embed')
+            posp=self.specs['embed']
+            assert 'z_head_group' in posp
+            assert 'z_tail_group' in posp
+            assert 'z_ref_group' in posp
+            assert 'text' in posp['z_ref_group']
+            assert 'z_value' in posp['z_ref_group']
+            self.membrane_embed(pdb,[posp['z_head_group'],posp['z_tail_group'],posp['z_ref_group']['text']],posp['z_ref_group']['z_value'],outpdb=f'{self.basename}.pdb')
+            self.save_state(exts=['pdb'])
+            pdb=self.statevars.get('pdb',None)
 
-        customlipids=self.specs.get('custom_lipid_parms',{})
-        custom_lipid_parms_df=pd.DataFrame()
-        for culip,cuparms in customlipids.items():
-            if culip in lipids:
-                logger.debug(f'Lipid {culip} has custom parameters for a local memgen.parm file')
-                this_lipid_parm_row=memgen_parm[memgen_parm['#NAME']==culip].to_dict()
-                for cuparm_name,cuparm_value in cuparms.items():
-                    this_lipid_parm_row[cuparm_name]=cuparm_value
-                custom_lipid_parms_df=pd.concat([custom_lipid_parms_df,pd.DataFrame(this_lipid_parm_row)])
-        memgen_parm_outname=''
-        if not custom_lipid_parms_df.empty:
-            self.next_basename('custom_lipids')
-            memgen_parm_outname=f'{self.basename}_memgen.parm'
-            custom_lipid_parms_df.to_csv(memgen_parm_outname,sep=' ',index=False)
+        # TODO: 
+        # 1. compute box size
+        # 2. compute leaflet compositions
+        # 3. make the packmol input file
+        # 4. copy required PDB files to CWD
+        # 5. run packmol
 
-        pm_args=[]
-        pm_req_oneof=['--dims']
-        if pdb!=None:
-            pm_req_oneof.append('--dist')
-            if 'embed' in self.specs:
-                self.next_basename('embed')
-                posp=self.specs['embed']
-                assert 'z_head_group' in posp
-                assert 'z_tail_group' in posp
-                assert 'z_ref_group' in posp
-                assert 'text' in posp['z_ref_group']
-                assert 'z_value' in posp['z_ref_group']
-                self.membrane_embed(pdb,[posp['z_head_group'],posp['z_tail_group'],posp['z_ref_group']['text']],posp['z_ref_group']['z_value'],outpdb=f'{self.basename}.pdb')
-                self.save_state(exts=['pdb'])
-                pdb=self.statevars.get('pdb',None)
-            pm_args.extend(['--pdb',pdb])
-
-        self.next_basename('memgen')
-        outpdb=f'{self.basename}.pdb'
-        pm_args.extend(['--output',outpdb])
-
-        for k,v in self.specs['command_options'].items():
-            if type(v)==list and len(v)==0:
-                continue
-            if not type(v)==bool:
-                pm_args.append(f'--{k}')
-                if type(v)==list:
-                    vv=' '.join([str(x) for x in v])
-                    v=vv
-                pm_args.append(v)
-            else:
-                if v:
-                    pm_args.append(f'--{k}')
-        if memgen_parm_outname:
-            pm_args.append('--memgen_parm')
-            pm_args.append(memgen_parm_outname)
-        # We will not let packmol-memgen run packmol.  Instead, we keep the PDB files it extracted from its 
-        # own data and then process the ones that are not in CHARMM-compatible format using the charmmlipid2amber
-        # database in reverse
-        if '--keep' not in pm_args:
-            pm_args.append('--keep')
-        if '--notrun' not in pm_args:
-            pm_args.append('--notrun')
-        pm_args.append(f'--log {self.basename}-packmol-memgen.log')
-        pm_args.append(f'--packlog {self.basename}-packmol')
-        logger.debug(f'Passing {pm_args}')
-        pm_args=['packmol-memgen']+pm_args
-        assert any([x in pm_args for x in pm_req_oneof]),f'Expect one of {pm_req_oneof} for packmol-memgen'
-        cmd=Command(' '.join([str(_) for _ in pm_args]))
-        cmd.condarun(env=self.env,Condaspec=self.config['Conda'],logfile=f'{self.basename}-packmol-memgen.log')
-        assert os.path.exists(f'{self.basename}-packmol.inp'),f'packmol-memgen exited, but {self.basename}-packmol.inp is not found.'
-        for lip in perlip_df.keys():
-            assert os.path.exists(f'{lip}.pdb') # this means packmol-memgen extracted its copy and put it here
-            pestifer_pdb=os.path.join(self.config.charmmff_pdb_path,f'{lip}.pdb')
-            if os.path.exists(pestifer_pdb):
-                logger.debug(f'Using pestifer\'s own {lip}.pdb')
-                shutil.copy(pestifer_pdb,'./')
-            else:
-                logger.debug(f'No {pestifer_pdb} found.')
-                logger.debug(f'Charmifying lipid template {lip}')
-                pdb_singlemolecule_charmify(f'{lip}.pdb',perlip_df[lip])
-        if scale:
-            rescale_packmol_inp_box(f'{self.basename}-packmol.inp',scale)
         cmd=Command(f'packmol < {self.basename}-packmol.inp')
         progress_struct=None
         if self.progress:
@@ -1149,21 +1141,16 @@ class PackmolMemgenTask(BaseTask):
         self.save_state(exts=['pdb'])
         if 'xsc' in self.statevars:
             del self.statevars['xsc']
-        
-        # convert bad ion names to good ion names in outpdb
-        ionmap=self.specs.get('ionmap',{}) #{'Cl-':'CLA','Na+':'SOD','K+':'POT'}
-        if ionmap:
-            pdb_search_replace(outpdb,ionmap)
 
         cellstr,boxinfo=get_boxsize_from_packmolmemgen(logname=f'{self.basename}-packmol-memgen.log',scale=scale)
         self.next_basename('psfgen')
-        with open(f'{self.basename}_cell.tcl','w') as f:
-            f.write(cellstr)
-        self.result=self.psfgen(psf=psf,pdb=pdb,addpdb=outpdb)
+        # with open(f'{self.basename}_cell.tcl','w') as f:
+        #     f.write(cellstr)
+        self.result=self.psfgen(psf=psf,pdb=pdb,addpdb=pdb_from_packmol)
         if self.result!=0:
             return super().do()
-        self.save_state(exts=['psf','pdb'])
-        self.update_statevars('cell',f'{self.basename}_cell.tcl',vtype='file')
+        self.save_state(exts=['psf','pdb','xsc'])
+        # self.update_statevars('cell',f'{self.basename}_cell.tcl',vtype='file')
         self.log_message('complete')
         return super().do()
 

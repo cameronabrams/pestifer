@@ -38,6 +38,8 @@ def cell_from_xsc(xsc):
         celldf=pd.read_csv(xsc,skiprows=2,header=None,sep=r'\s+',index_col=None)
         col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
         celldf.columns=col
+        if len(celldf.columns)<13:
+            return None,None
         avec=np.array(celldf.loc[0,['a_x','a_y','a_z']].to_list())
         bvec=np.array(celldf.loc[0,['b_x','b_y','b_z']].to_list())
         cvec=np.array(celldf.loc[0,['c_x','c_y','c_z']].to_list())
@@ -50,21 +52,10 @@ def is_tool(name):
     """Checks to see if the object name is an executable"""
     return shutil.which(name) is not None
 
-def is_periodic(cell,xsc):
-    """Checks to see if the contents of the TcL file "cell" or the NAMD XSC
+def is_periodic(xsc):
+    """Checks to see if the contents of the NAMD XSC
     output xsc indicate that the current system is periodic 
     """
-    if cell and os.path.exists(cell):
-        with open(cell,'r') as f:
-            lines=f.read().split('\n')
-        if len(lines)<4:
-            return False
-        check=True
-        check&=(lines[0].startswith('cellbasisvector'))
-        check&=(lines[1].startswith('cellbasisvector'))
-        check&=(lines[2].startswith('cellbasisvector'))
-        check&=(lines[3].startswith('cellorigin'))
-        return check
     if xsc and os.path.exists(xsc):
         with open(xsc,'r') as f:
             lines=f.read().split('\n')

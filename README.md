@@ -15,6 +15,7 @@ Once installed, the user has access to the main `pestifer` command. You must hav
 * 1.4.7
     * `build_resi_database` command added
     * CHARMM force field files updated to July 2024
+    * `salt_con`, `anion`, and `cation` specs for solvate now available
 * 1.4.6:
     * pierced ring detection and remediation via the `ring_check` task
     * `restart` task added

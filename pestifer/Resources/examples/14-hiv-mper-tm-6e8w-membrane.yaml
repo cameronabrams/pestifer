@@ -28,26 +28,21 @@ tasks:
         model: 15 # last frame
   - md:
       ensemble: minimize
-  - packmol_memgen:
+  - bilayer_embed:
       embed:
         z_head_group: "protein and resid 667"
         z_tail_group: "protein and resid 710"
         z_ref_group: 
           text: "protein and resid 696"
           z_value: 0.0
-      custom_lipid_parms:
-        PSM:
-          APL_FF: 60 # original value of 32 is way too low for packmol to work
-          CHARMM: Y  # spoof packmol-memgen into allowing this
-        SOPS:
-          CHARMM: Y  # spoof packmol-memgen into allowing this
-        SOPE:
-          CHARMM: Y  # spoof packmol-memgen into allowing this
-      command_options:
-        dist: 18
-        lipids: CHL1:PSM:POPC//CHL1:POPE:SOPS:SOPE
-        ratio: 0.4721:0.3554:0.1725//0.4333:0.0889:0.1778:0.3000
-        nloop: 200
+      xydist: 20
+      zdist: 10
+      lipids: CHL1:PSM:POPC//CHL1:POPE:SOPS:SOPE
+      ratio: 0.4721:0.3554:0.1725//0.4333:0.0889:0.1778:0.3000
+      # nloop: 200
+  - solvate: # allow for explicit specification of cell dimensions
+    - cation: POT
+    - salt_con: 1.0
   - md:
       ensemble: minimize
       minimize: 5000

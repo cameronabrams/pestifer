@@ -1269,6 +1269,17 @@ directives:
             text: padding value for determining the overall simulation box size (in Angstroms)
             type: float
             default: 10
+          - name: salt_con
+            text: salt concentration (M); argument for -sc for autoionize
+            type: float
+          - name: cation
+            text: name of cation
+            type: string
+            options: [SOD, MG, POT, CES, CAL, ZN2]
+          - name: anion
+            text: name of anion
+            type: string
+            options: [CLA]
       - name: ring_check
         text: Parameters controlling pierced-ring checks
         type: dict
@@ -1286,17 +1297,10 @@ directives:
             text: list of segment types to include in the ring-pierce check
             type: list
             default: ['lipid']
-      - name: packmol_memgen
-        text: Parameters controlling packmol-memgen to generate a bilayer embedding
+      - name: bilayer_embed
+        text: Parameters controlling packmol to generate a bilayer embedding
         type: dict
         directives:
-          - name: ionmap
-            text: map of ion names in packmol-memgen to ion names in CHARMM
-            type: dict
-            default:
-              "Cl-": CLA
-              "K+": POT
-              "Na+": SOD
           - name: embed
             text: parameters controlling preorientation (embedding)
             type: dict
@@ -1318,113 +1322,49 @@ directives:
                   - name: text
                     text: the atomselect text
                     type: str
-          - name: custom_lipid_parms
-            text: custom parameters for lipids to overwrite packmol-memgen memgen.parm defaults and use pdb files local to the pestifer installation if available
-            type: dict                                 
-          - name: command_options
-            text: command-line options for packmol-memgen
-            type: dict
-            directives: 
-              - name: lipids
-                text: value for --lipids LIP1:LIP2//LIP3
-                type: str
-              - name: ratio
-                text: value for --ratio R1:T2//R3
-                type: str
-              - name: solvents
-                text: value for --solvents SOL1:SOL2
-                type: str
-              - name: solvent_ratio
-                text: value for --solvent_ratio
-                type: str
-              - name: dist
-                text: argument for --dist
-                type: float 
-              - name: dist_wat
-                text: argument for --dist_wat
-                type: float
-              - name: distxy_fix
-                text: argument for --distxy_fix
-                type: float
-              - name: dims
-                text: box dimensions (A)
-                type: list
-              - name: leaflet
-                text: argument for --leaflet
-                type: float
-              - name: nottrim
-                text: skips H-trimming
-                type: bool
-                default: True
-              - name: notprotonate
-                text: skips protonation
-                type: bool
-                default: True
-              - name: noprogress
-                text: skips progress bar
-                type: bool
-                default: True
-              - name: charmm
-                text: output in CHARMM format
-                type: bool
-                default: True
-              - name: parametrize
-                text: parameterize the output using tleap
-                type: bool
-                default: False
-              - name: preoriented
-                text: True if protein is preoriented; z=0 plane is assumed to be membrane midplane!
-                type: bool
-                default: True
-              - name: n_ter
-                text: in or out; N-termini are usually 'in' for membrane proteins
-                type: str
-                options: ['in','out']
-                default: 'in'
-              - name: notgridvol
-                text: skip grid building for volume estimation, and the calculation is done just by estimating density
-                type: bool
-                default: True
-              - name: salt
-                text: whether to add salt or not, 0.15M KCl by default
-                type: bool
-                default: False
-              - name: salt_c
-                text: name of salt cation (if other than K+)
-                type: str
-                options: ['K+','Na+','Ca2+','Mg2+']
-              - name: salt_a
-                text: name of salt anion (if other than Cl-)
-                type: str
-                options: ['Cl-','Br-','I-','F-']
-              - name: saltcon
-                text: salt concentration in M
-                type: float
-              - name: nloop
-                text: number of GENCAN loops
-                type: int
-              - name: nloop_all
-                text: numer of loops for altogether packing
-                type: int
-              - name: tolerance
-                text: clash detection tolerance
-                type: float
-              - name: random
-                text: reinitialize RNG
-                type: bool
-          - name: scale_box
-            text: x, y, z scaling factors for the box size
-            type: dict
-            directives:
-              - name: x
-                text: x-scaling factor for the box size
-                type: float
-              - name: y
-                text: y-scaling factor for the box size
-                type: float
-              - name: z
-                text: z-scaling factor for the box size
-                type: float
+          - name: lipids
+            text: value for --lipids LIP1:LIP2//LIP3
+            type: str
+          - name: ratio
+            text: value for --ratio R1:R2//R3
+            type: str
+          - name: solvents
+            text: value for --solvents SOL1:SOL2
+            type: str
+          - name: solvent_ratio
+            text: value for --solvent_ratio
+            type: str
+          - name: dims
+            text: box dimensions (A)
+            type: list
+          - name: n_ter
+            text: in or out; N-termini are usually 'in' for membrane proteins
+            type: str
+            options: ['in','out']
+            default: 'in'
+          - name: salt_c
+            text: name of salt cation (if other than K+)
+            type: str
+            options: ['K+','Na+','Ca2+','Mg2+']
+          - name: salt_a
+            text: name of salt anion (if other than Cl-)
+            type: str
+            options: ['Cl-','Br-','I-','F-']
+          - name: saltcon
+            text: salt concentration in M
+            type: float
+          - name: nloop
+            text: number of GENCAN loops
+            type: int
+          - name: nloop_all
+            text: numer of loops for altogether packing
+            type: int
+          - name: tolerance
+            text: clash detection tolerance
+            type: float
+          - name: random
+            text: reinitialize RNG
+            type: bool
       - name: md
         text: Parameters controlling a NAMD run
         type: dict
