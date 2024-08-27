@@ -841,9 +841,6 @@ directives:
                 type: list
                 text: Unrecognized residue names
                 default: []
-  - name: ambertools
-    type: dict
-    text: ambertools specifications
   - name: namd2
     type: dict
     text: NAMD2 specifications
@@ -912,7 +909,7 @@ directives:
     default: Pestifer
   - name: paths
     type: dict
-    text: Allows user to specify various paths
+    text: Allows user to specify absolute paths to required external executables
     directives:
       - name: namd2
         type: str

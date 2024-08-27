@@ -9,7 +9,17 @@ Pestifer is a fully automated system builder, requiring as inputs only biomolecu
 pip install pestifer
 ```
 
-Once installed, the user has access to the main `pestifer` command. You should have `packmol>20.15.0` to use the `bilayer_embed` task.
+Once installed, the user has access to the main `pestifer` command. 
+
+Pestifer also requires access to the following executables:
+
+1. `namd2` and `charmrun`
+2. `vmd`
+3. `packmol`
+
+By default, pestifer looks for these in `/usr/local/bin`.
+
+Pestifer also includes the July 2024 Charmm36 force field.
 
 ## Release History
 * 1.4.7

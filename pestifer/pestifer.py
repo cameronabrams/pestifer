@@ -61,8 +61,6 @@ def run(args,**kwargs):
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
-    if not args.no_banner:
-        banner(logger.info)
     # Set up the Controller and execute tasks
     begin_time=time.time()
     logger.info(f'{__package__} runtime begins.')
