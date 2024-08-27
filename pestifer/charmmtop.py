@@ -275,11 +275,11 @@ class CharmmTopResi:
         ic_atom_names=[]
         for card in ICcards:
             IC=CharmmTopIC(card)
-            ic_atom_names.extend(IC.atoms)
-            self.IC.append(IC)
-        ic_atom_names=list(set(ic_atom_names))
-        if not all([x in self.atomdict.keys() for x in ic_atom_names]):
-            self.error_code=-5
+            if any([x not in self.atomdict.keys() for x in IC.atoms]):
+                self.error_code=-5
+            else:
+                ic_atom_names.extend(IC.atoms)
+                self.IC.append(IC)
         
     def num_atoms(self):
         return len(self.atoms)
@@ -607,14 +607,15 @@ class CharmmResiDatabase(UserDict):
         for stream in streams:
             data[stream]={}
             for t in stream_topology_files[stream]:
+                relt=t.split('toppar/')[1]
                 sublist=getResis(t,self.M)
                 nfiles+=1
                 for resi in sublist:
                     if resi.resname in self.charmm_resnames:
-                        logger.warning(f'RESI {resi.resname} declared in {os.path.split(t)[1]} was already declared in {os.path.split(data[stream][resi.resname].charmmtopfile)[1]}')
+                        logger.warning(f'RESI {resi.resname} declared in {relt} was already declared in {data[stream][resi.resname].charmmtopfile}')
 
                     else:
-                        resi.charmmtopfile=t
+                        resi.charmmtopfile=relt
                         data[stream][resi.resname]=resi
                         self.charmm_resnames.append(resi.resname)
 

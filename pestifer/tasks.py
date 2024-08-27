@@ -29,7 +29,7 @@ from .stringthings import FileCollector,get_boxsize_from_packmolmemgen, rescale_
 from .progress import PackmolProgress, RingCheckProgress
 from .psf import PSFContents
 from .ring import ring_check
-from .util import is_periodic, cell_from_xsc
+from .util import is_periodic, cell_from_xsc, cell_to_xsc
 
 logger=logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -911,9 +911,7 @@ class SolvateTask(BaseTask):
             UR=minmax[1]+pad+sympad
             basisvec=UR-LL
             origin=0.5*(UR+LL)
-            with open(f'{self.basename}.xsc','w') as f:
-                f.write('#$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z\n')
-                f.write(f'0 {basisvec[0]:.5f} 0 0 0 {basisvec[1]:.5f} 0 0 0 {basisvec[2]:.5f} {" ".join([f"{x:.5f}" for x in origin])}\n')
+            cell_to_xsc(np.diag(basisvec),origin,f'{self.basename}.xsc')
 
         ll_tcl=r'{ '+' '.join([str(_) for _ in LL.tolist()])+r' }'
         ur_tcl=r'{ '+' '.join([str(_) for _ in UR.tolist()])+r' }'
@@ -1086,7 +1084,16 @@ class BilayerEmbedTask(BaseTask):
         pdb=self.statevars.get('pdb',None)
         scale=[]
         lipidspec=self.specs.get('lipids','POPC')
-        ratiospec=self.specs.get('ratios','1.0')
+        ratiospec=self.specs.get('mole_fractions','1.0')
+        xydist=self.specs.get('xydist',0.0)
+        zdist=self.specs.get('zdist',0.0)
+        SAPL=self.specs.get('SAPL',60.0)
+        seed=self.specs.get('seed',0.0)
+        tolerance=self.specs.get('tolerance',2.0)
+        prot_rad_buf=self.specs.get('prot_rad_buf',3.0)
+        boxdim=np.array(list(map(float,self.specs.get('dims',[]))))
+        if len(boxdim)==0 and (xydist==0.0 or zdist==0):
+            logger.error(f'You must specify either the full box size via \'dims\' or the buffer distances \'xydist\' and \'zdist\'')
         leaf_lipspec=lipidspec.split('//')
         leaf_ratiospec=ratiospec.split('//')
         assert len(leaf_lipspec)==len(leaf_ratiospec),f'lipid names and mole fractions are not congruent'
@@ -1099,8 +1106,8 @@ class BilayerEmbedTask(BaseTask):
             for ll in leaflips:
                 if not ll in lipid_names:
                     lipid_names.append(ll)
-            leaflet.append([(name,frac) for name,frac in zip(leaflips,leafmolfracs)])
-        charges=[]
+            leaflet.append([dict(name=name,frac=frac) for name,frac in zip(leaflips,leafmolfracs)])
+        lipid_data={}
         for l in lipid_names:
             lpath=os.path.join(self.lipid_pdb_path,l)
             assert os.path.exists(lpath),f'No PDB available for lipid {l}'
@@ -1109,8 +1116,13 @@ class BilayerEmbedTask(BaseTask):
             psf=os.path.join(lpath,f'{l}-init.psf')
             shutil.copy(psf,f'./{l}.psf')
             psc=PSFContents(f'./{l}.psf')
-            charges[l]=psc.get_charge()
+            orients=pd.read_csv(os.path.join(lpath,'orientations.dat'),header=0,index_col=None)
+            with open(os.path.join(lpath,'parameters.txt'),'r') as f:
+                paramlist=f.read().split('\n')
+            ldata={'charge':psc.get_charge(),'parameters':paramlist,'oseries':orients[orients['pdb']==f'{l}-00.pdb'].iloc[0,:]}
+            lipid_data[l]=ldata
 
+        protein_rad=0.0
         if 'embed' in self.specs:
             self.next_basename('embed')
             posp=self.specs['embed']
@@ -1122,14 +1134,68 @@ class BilayerEmbedTask(BaseTask):
             self.membrane_embed(pdb,[posp['z_head_group'],posp['z_tail_group'],posp['z_ref_group']['text']],posp['z_ref_group']['z_value'],outpdb=f'{self.basename}.pdb')
             self.save_state(exts=['pdb'])
             pdb=self.statevars.get('pdb',None)
+            with open(f'{self.basename}-results.yaml','r') as f:
+                embed_results=yaml.safe_load(f)
+            protein_rad=float(embed_results["maxrad"])
+            protein_ll=np.array(list(map(float,embed_results["lower_left"])))
+            protein_ur=np.array(list(map(float,embed_results["upper_right"])))
+            box_ll=protein_ll-np.array([xydist,xydist,zdist])
+            box_ur=protein_ur+np.array([xydist,xydist,zdist])
+            origin=0.5*(box_ur+box_ll)
+            boxdim=box_ur-box_ll
+            mem_area=boxdim[1]*boxdim[2]-np.pi*(protein_rad+prot_rad_buf)**2
+        else:
+            origin=np.zeros(3)
+            box_ll=-0.5*boxdim
+            box_ur=0.5*boxdim
+            mem_area=boxdim[1]*boxdim[2]
 
-        # TODO: 
-        # 1. compute box size
-        # 2. compute leaflet compositions
-        # 3. make the packmol input file
-        # 4. copy required PDB files to CWD
-        # 5. run packmol
+        cell_to_xsc(np.diag(boxdim),origin,f'{self.basename}.xsc')
 
+        tot_lip_mols=mem_area/SAPL
+        for l in leaflet:
+            for liprec in l:
+                liprec["mols"]=np.floor(liprec["frac"]*tot_lip_mols)
+
+        pm=self.writers['data']
+        pm.newfile(f'{self.basename}-packmol.inp')
+
+        packmol_output_pdb=f'{self.basename}.pdb'
+        pm.addline(f'output {packmol_output_pdb}')
+        pm.addline(f'filetype pdb')
+        if seed:
+            pm.addline(f'seed {seed}')
+        pm.addline(f'tolerance {tolerance}')
+        pm.addline(f'structure {pdb}')
+        pm.addline( '  number 1')
+        pm.addline( '  fixed 0. 0. 0. 0. 0. 0.')
+        pm.addline( 'end structure')
+
+        for i,lf in enumerate(leaflet):
+            for ldict in lf:
+                lname=ldict['name']
+                osrs=ldict['oseries']
+                pm.addline(f'structure {lname}-00.pdb')
+                pm.addline(f'   number {ldict["mols"]}')
+                llen=osrs.top_z-osrs.bottom_z
+                if i==0:
+                    pm.addline(f'   inside box {box_ll[0]} {box_ll[1]} {-llen+1} {box_ur[0]} {box_ur[1]} {4.0}')
+                    pm.addline(f'   atoms {osrs.top_serial}')
+                    pm.addline(f'      below plane 0. 0. 1. {-llen+5}')
+                    pm.addline(f'   end atoms')
+                    pm.addline(f'   atoms {osrs.bottom_serial}')
+                    pm.addline(f'      above plane 0. 0. 1. -4.0')
+                    pm.addline(f'   end atoms')
+                else:
+                    pm.addline(f'   inside box {box_ll[0]} {box_ll[1]} {-4.0} {box_ur[0]} {box_ur[1]} {llen-1}')
+                    pm.addline(f'   atoms {osrs.top_serial}')
+                    pm.addline(f'      above plane 0. 0. 1. {llen-4}')
+                    pm.addline(f'   end atoms')
+                    pm.addline(f'   atoms {osrs.bottom_serial}')
+                    pm.addline(f'      below plane 0. 0. 1. 4.0')
+                    pm.addline(f'   end atoms')
+                pm.addline(f'end structure') 
+        pm.writefile()
         cmd=Command(f'packmol < {self.basename}-packmol.inp')
         progress_struct=None
         if self.progress:
@@ -1138,32 +1204,25 @@ class BilayerEmbedTask(BaseTask):
         if self.result!=0:
             return super().do()
         # process output pdb to get new psf and pdb
-        self.save_state(exts=['pdb'])
-        if 'xsc' in self.statevars:
-            del self.statevars['xsc']
-
-        cellstr,boxinfo=get_boxsize_from_packmolmemgen(logname=f'{self.basename}-packmol-memgen.log',scale=scale)
+        self.save_state(exts=['pdb','xsc'])
         self.next_basename('psfgen')
-        # with open(f'{self.basename}_cell.tcl','w') as f:
-        #     f.write(cellstr)
-        self.result=self.psfgen(psf=psf,pdb=pdb,addpdb=pdb_from_packmol)
+        self.result=self.psfgen(psf=psf,pdb=pdb,addpdb=packmol_output_pdb)
         if self.result!=0:
             return super().do()
         self.save_state(exts=['psf','pdb','xsc'])
-        # self.update_statevars('cell',f'{self.basename}_cell.tcl',vtype='file')
         self.log_message('complete')
         return super().do()
 
-    def shift_coords(self,pdb,shift):
-        sh_str=' '.join([str(x) for x in shift])
-        vm=self.writers['vmd']
-        vm.newscript(self.basename)
-        vm.addline(f'mol new {pdb}')
-        vm.addline(f'set TMP [atomselect top all]')
-        vm.addline(f'$TMP moveby [list {sh_str}]')
-        vm.addline(f'$TMP writepdb {self.basename}.pdb')
-        vm.writescript()
-        vm.runscript()
+    # def shift_coords(self,pdb,shift):
+    #     sh_str=' '.join([str(x) for x in shift])
+    #     vm=self.writers['vmd']
+    #     vm.newscript(self.basename)
+    #     vm.addline(f'mol new {pdb}')
+    #     vm.addline(f'set TMP [atomselect top all]')
+    #     vm.addline(f'$TMP moveby [list {sh_str}]')
+    #     vm.addline(f'$TMP writepdb {self.basename}.pdb')
+    #     vm.writescript()
+    #     vm.runscript()
 
     def psfgen(self,psf,pdb,addpdb):
         pg=self.writers['psfgen']
@@ -1177,7 +1236,7 @@ class BilayerEmbedTask(BaseTask):
         logger.debug(f'zgroups {zgroups}')
         ztopg,zbotg,zrefg=zgroups
         vm=self.writers['vmd']
-        vm.newscript(self.basename,packages=['Orient'])
+        vm.newscript(self.basename,packages=['Orient','PestiferUtil'])
         vm.addline(f'mol new {pdb}')
         vm.addline(f'set TMP [atomselect top all]')
         vm.addline(f'set HEAD [atomselect top "{ztopg}"]')
@@ -1186,12 +1245,19 @@ class BilayerEmbedTask(BaseTask):
         vm.addline(f'vmdcon -info "[measure center $HEAD]"')
         vm.addline(f'vmdcon -info "[measure center $TAIL]"')
         vm.addline(f'set VEC [vecsub [measure center $HEAD] [measure center $TAIL]]')
-        vm.addline('$TMP move [orient $TMP $VEC {0 0 1}]')
+        vm.addline( '$TMP move [orient $TMP $VEC {0 0 1}]')
         vm.addline(f'set COM [measure center $TMP]')
         vm.addline(f'$TMP moveby [vecscale $COM -1]')
         vm.addline(f'set REFZ [lindex [measure center $REF] 2]')
         vm.addline(f'$TMP moveby [list 0 0 [expr {zval}-($REFZ)]]')
         vm.addline(f'$TMP writepdb {outpdb}')
+        vm.addline(f'set minmax [measure minmax $TMP')
+        vm.addline(f'set SEL_R [expr max([MaxRad $HEAD],[MaxRad $TAIL],[MaxRad $REF]]')
+        vm.addline(f'set f [open "{self.basename}-results.yaml" "w"]')
+        vm.addline(r'puts $f "maxrad: [format %.5f $SEL_R]')
+        vm.addline(r'puts $f "lower_left: \[ [join [lindex $minmax 0] ,\ ] \]"')
+        vm.addline(r'puts $f "upper_right: \[ [join [lindex $minmax 1] ,\ ] \]"')
+        vm.addline(f'close $f')
         vm.writescript()
         vm.runscript()
 

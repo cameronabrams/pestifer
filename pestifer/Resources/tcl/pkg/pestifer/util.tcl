@@ -285,3 +285,18 @@ proc PestiferUtil::measure_bonds { psf coor infile fixedpdb outfile rfzr } {
     vmdcon -info "   and fixed pdb written to $fixedpdb"
 }
 
+proc PestiferUtil::MaxRad { atomsel } {
+   set com [measure center $atomsel]
+   set cx [lindex $com 0]
+   set cy [lindex $com 1]
+   set maxrad -99.99
+   foreach x [$atomsel get x] y [$atomsel get y] {
+      set dx [expr $x - $cx]
+      set dy [expr $y - $cy]
+      set thisr2 [expr $dx*$dx + $dy*$dy]
+      if { $thisr2 > $maxrad } {
+         set maxrad $thisr2
+      }
+   }
+   return [expr sqrt($maxrad)]
+}

@@ -108,31 +108,32 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
 
     # now run the tasks to minimize, stretch, orient along z, equilibrate, and sample
     tasks=C.tasks
+    par=[]
     for task in tasks:
         if task.taskname=='md':
+            needed=[]
             if charmm_topfile.endswith('str') and not charmm_topfile in task.writers['namd2'].charmmff_config['standard']['parameters']:
                 task.writers['namd2'].charmmff_config['standard']['parameters'].append(charmm_topfile)
             if charmm_topfile.endswith('sphingo.str'):
-                needed=[x for x in DB.all_charmm_topology_files if x.endswith('lps.str')][0]
-                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
+                needed=['stream/carb/toppar_all36_carb_imlab.str']
             if charmm_topfile.endswith('detergent.str'):
-                needed=[x for x in DB.all_charmm_topology_files if x.endswith('sphingo.str')][0]
-                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
-                needed=[x for x in DB.all_charmm_topology_files if x.endswith('cholesterol.str')][0]
-                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
-                needed=os.path.join(DB.toppardir,'stream/carb/toppar_all36_carb_glycolipid.str')
-                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
+                needed=['stream/lipid/toppar_all36_lipid_sphingo.str',
+                        'stream/lipid/toppar_all36_lipid_cholesterol.str',
+                        'stream/carb/toppar_all36_carb_glycolipid.str']
             if charmm_topfile.endswith('inositol.str'):
-                needed=os.path.join(DB.toppardir,'stream/carb/toppar_all36_carb_glycolipid.str')
-                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
+                needed=['stream/carb/toppar_all36_carb_glycolipid.str']
             if charmm_topfile.endswith('cardiolipin.str'):
-                needed=os.path.join(DB.toppardir,'stream/lipid/toppar_all36_lipid_bacterial.str')
+                needed=['stream/lipid/toppar_all36_lipid_bacterial.str']
                 task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
             if charmm_topfile.endswith('lps.str'):
-                needed=os.path.join(DB.toppardir,'stream/carb/toppar_all36_carb_imlab.str')
-                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
-                needed=os.path.join(DB.toppardir,'stream/lipid/toppar_all36_lipid_bacterial.str')
-                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
+                needed=['stream/carb/toppar_all36_carb_imlab.str',
+                        'stream/lipid/toppar_all36_lipid_bacterial.str']
+
+            for n in needed:
+                if n not in task.writers['namd2'].charmmff_config['standard']['parameters']:
+                    task.writers['namd2'].charmmff_config['standard']['parameters'].append(n)
+
+            par=task.writers['namd2'].charmmff_config['standard']['parameters']
 
     result=C.do_tasks()
     for k,v in result.items():
@@ -142,14 +143,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
                 topo.to_file(f)
             return -1
 
-    if os.path.exists('99-00-md-NVT.namd'):
-        with open('99-00-md-NVT.namd','r') as f:
-            lines=f.read().split('\n')
-        par=[]
-        for l in lines:
-            if l.startswith('parameters'):
-                if 'toppar/' in l:
-                    par.append(l.split()[1].split('toppar/')[1])
+    if par:
         with open('parameters.txt','w') as f:
             for p in par:
                 f.write(f'{p}\n')

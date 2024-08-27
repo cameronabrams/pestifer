@@ -48,6 +48,12 @@ def cell_from_xsc(xsc):
         return box,orig
     return None,None
 
+def cell_to_xsc(box,orig,xsc):
+    with open(xsc,'w') as f:
+        f.write('# NAMD extended system configuration output filewritten by pestifer\n')
+        f.write('#$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z\n')
+        f.write(f'0 {" ".join([f"{_:.6f}" for _ in box.reshape((9,)).tolist()])} {" ".join([f"{_:.6f}" for _ in orig])}\n')
+
 def is_tool(name):
     """Checks to see if the object name is an executable"""
     return shutil.which(name) is not None

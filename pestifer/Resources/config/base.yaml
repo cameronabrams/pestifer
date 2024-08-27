@@ -1323,41 +1323,53 @@ directives:
                     text: the atomselect text
                     type: str
           - name: lipids
-            text: value for --lipids LIP1:LIP2//LIP3
+            text: declaration of lipids in each leaflet in the format LIP1:LIP2//LIP3
             type: str
-          - name: ratio
-            text: value for --ratio R1:R2//R3
+          - name: mole_fractions
+            text: declaration of mole fractions of each lipid in each leaflet in the format R1:R2//R3
             type: str
-          - name: solvents
-            text: value for --solvents SOL1:SOL2
-            type: str
-          - name: solvent_ratio
-            text: value for --solvent_ratio
-            type: str
+          # - name: solvents
+          #   text: value for --solvents SOL1:SOL2
+          #   type: str
+          # - name: solvent_ratio
+          #   text: value for --solvent_ratio
+          #   type: str
+          - name: SAPL
+            text: estimate of surface area per lipid (A^2)
+            type: float
+            default: 60.0
           - name: dims
             text: box dimensions (A)
             type: list
+          - name: xydist
+            text: distance from perimeter of protein to box edge in x and y (A)
+            type: float
+            default: 15
+          - name: zdist
+            text: distance from perimeter of protein to box edge in z (A)
+            type: float
+            default: 10
           - name: n_ter
             text: in or out; N-termini are usually 'in' for membrane proteins
             type: str
             options: ['in','out']
             default: 'in'
-          - name: salt_c
-            text: name of salt cation (if other than K+)
-            type: str
-            options: ['K+','Na+','Ca2+','Mg2+']
-          - name: salt_a
-            text: name of salt anion (if other than Cl-)
-            type: str
-            options: ['Cl-','Br-','I-','F-']
-          - name: saltcon
-            text: salt concentration in M
-            type: float
+          # - name: salt_c
+          #   text: name of salt cation (if other than K+)
+          #   type: str
+          #   options: ['K+','Na+','Ca2+','Mg2+']
+          # - name: salt_a
+          #   text: name of salt anion (if other than Cl-)
+          #   type: str
+          #   options: ['Cl-','Br-','I-','F-']
+          # - name: saltcon
+          #   text: salt concentration in M
+          #   type: float
           - name: nloop
             text: number of GENCAN loops
             type: int
           - name: nloop_all
-            text: numer of loops for altogether packing
+            text: number of loops for altogether packing
             type: int
           - name: tolerance
             text: clash detection tolerance
