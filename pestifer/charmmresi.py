@@ -115,7 +115,8 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
             if charmm_topfile.endswith('str') and not charmm_topfile in task.writers['namd2'].charmmff_config['standard']['parameters']:
                 task.writers['namd2'].charmmff_config['standard']['parameters'].append(charmm_topfile)
             if charmm_topfile.endswith('sphingo.str'):
-                needed=['stream/carb/toppar_all36_carb_imlab.str']
+                needed=['stream/carb/toppar_all36_carb_imlab.str',
+                        'stream/lipid/toppar_all36_lipid_lps.str']
             if charmm_topfile.endswith('detergent.str'):
                 needed=['stream/lipid/toppar_all36_lipid_sphingo.str',
                         'stream/lipid/toppar_all36_lipid_cholesterol.str',
@@ -124,7 +125,6 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
                 needed=['stream/carb/toppar_all36_carb_glycolipid.str']
             if charmm_topfile.endswith('cardiolipin.str'):
                 needed=['stream/lipid/toppar_all36_lipid_bacterial.str']
-                task.writers['namd2'].charmmff_config['standard']['parameters'].append(needed)
             if charmm_topfile.endswith('lps.str'):
                 needed=['stream/carb/toppar_all36_carb_imlab.str',
                         'stream/lipid/toppar_all36_lipid_bacterial.str']

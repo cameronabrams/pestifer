@@ -1067,12 +1067,8 @@ class BilayerEmbedTask(BaseTask):
     yaml_header='bilayer_embed'
     def __init__(self,input_dict,taskname,config,writers,prior):
         super().__init__(input_dict,taskname,config,writers,prior)
-        self.has_conda=config['Conda'].conda_root!=None
-        assert config['user']['ambertools']['available'],'Ambertools not available -- need this for packmol'
-        assert config['user']['ambertools']['local'],'Ambertools not local -- need this for packmol'
-        self.env=None  # triggers run in active conda environment
         self.progress=config.progress
-        self.lipid_pdb_path=os.path.join(config.charmm_pdb_path,'lipid')
+        self.lipid_pdb_path=os.path.join(config.charmmff_pdb_path,'lipid')
         assert os.path.exists(self.lipid_pdb_path),f'No lipid PDB database found -- bad installation!'
 
     def do(self):
@@ -1095,7 +1091,11 @@ class BilayerEmbedTask(BaseTask):
         if len(boxdim)==0 and (xydist==0.0 or zdist==0):
             logger.error(f'You must specify either the full box size via \'dims\' or the buffer distances \'xydist\' and \'zdist\'')
         leaf_lipspec=lipidspec.split('//')
+        if len(leaf_lipspec)==1:
+            leaf_lipspec.append(leaf_lipspec[0])
         leaf_ratiospec=ratiospec.split('//')
+        if len(leaf_ratiospec)==1:
+            leaf_ratiospec.append(leaf_ratiospec[0])
         assert len(leaf_lipspec)==len(leaf_ratiospec),f'lipid names and mole fractions are not congruent'
         lipid_names=[]
         leaflet=[]
@@ -1111,10 +1111,10 @@ class BilayerEmbedTask(BaseTask):
         for l in lipid_names:
             lpath=os.path.join(self.lipid_pdb_path,l)
             assert os.path.exists(lpath),f'No PDB available for lipid {l}'
-            pdb=os.path.join(lpath,f'{l}-00.pdb')
-            shutil.copy(pdb,'./')
-            psf=os.path.join(lpath,f'{l}-init.psf')
-            shutil.copy(psf,f'./{l}.psf')
+            lpdb=os.path.join(lpath,f'{l}-00.pdb')
+            shutil.copy(lpdb,'./')
+            lpsf=os.path.join(lpath,f'{l}-init.psf')
+            shutil.copy(lpsf,f'./{l}.psf')
             psc=PSFContents(f'./{l}.psf')
             orients=pd.read_csv(os.path.join(lpath,'orientations.dat'),header=0,index_col=None)
             with open(os.path.join(lpath,'parameters.txt'),'r') as f:
@@ -1153,18 +1153,21 @@ class BilayerEmbedTask(BaseTask):
         cell_to_xsc(np.diag(boxdim),origin,f'{self.basename}.xsc')
 
         tot_lip_mols=mem_area/SAPL
+        total_charge=pro_charge
         for l in leaflet:
             for liprec in l:
-                liprec["mols"]=np.floor(liprec["frac"]*tot_lip_mols)
+                liprec["mols"]=int(np.floor(liprec["frac"]*tot_lip_mols))
+                total_charge+=lipid_data[liprec["name"]]['charge']*liprec["mols"]
 
         pm=self.writers['data']
-        pm.newfile(f'{self.basename}-packmol.inp')
-
+        self.next_basename('packmol')
+        pm.newfile(f'{self.basename}.inp')
         packmol_output_pdb=f'{self.basename}.pdb'
         pm.addline(f'output {packmol_output_pdb}')
         pm.addline(f'filetype pdb')
         if seed:
             pm.addline(f'seed {seed}')
+        pm.addline(f'pbc {" ".join([f"{_:.6f}" for _ in box_ll])} {" ".join([f"{_:.6f}" for _ in box_ur])}')
         pm.addline(f'tolerance {tolerance}')
         pm.addline(f'structure {pdb}')
         pm.addline( '  number 1')
@@ -1174,7 +1177,7 @@ class BilayerEmbedTask(BaseTask):
         for i,lf in enumerate(leaflet):
             for ldict in lf:
                 lname=ldict['name']
-                osrs=ldict['oseries']
+                osrs=lipid_data[lname]['oseries']
                 pm.addline(f'structure {lname}-00.pdb')
                 pm.addline(f'   number {ldict["mols"]}')
                 llen=osrs.top_z-osrs.bottom_z
@@ -1196,11 +1199,11 @@ class BilayerEmbedTask(BaseTask):
                     pm.addline(f'   end atoms')
                 pm.addline(f'end structure') 
         pm.writefile()
-        cmd=Command(f'packmol < {self.basename}-packmol.inp')
+        cmd=Command(f'{self.config.packmol} < {self.basename}.inp')
         progress_struct=None
         if self.progress:
             progress_struct=PackmolProgress(timer_format='\x1b[36mpackmol\x1b[39m time: %(elapsed)s')
-        self.result=cmd.condarun(env=self.env,Condaspec=self.config['Conda'],ignore_codes=[173],logfile=f'{self.basename}-packmol.log',progress=progress_struct)
+        self.result=cmd.run(ignore_codes=[173],logfile=f'{self.basename}-packmol.log',progress=progress_struct)
         if self.result!=0:
             return super().do()
         # process output pdb to get new psf and pdb
@@ -1251,10 +1254,10 @@ class BilayerEmbedTask(BaseTask):
         vm.addline(f'set REFZ [lindex [measure center $REF] 2]')
         vm.addline(f'$TMP moveby [list 0 0 [expr {zval}-($REFZ)]]')
         vm.addline(f'$TMP writepdb {outpdb}')
-        vm.addline(f'set minmax [measure minmax $TMP')
-        vm.addline(f'set SEL_R [expr max([MaxRad $HEAD],[MaxRad $TAIL],[MaxRad $REF]]')
+        vm.addline(f'set minmax [measure minmax $TMP]')
+        vm.addline(f'set SEL_R [expr max([MaxRad $HEAD],[MaxRad $TAIL],[MaxRad $REF])]')
         vm.addline(f'set f [open "{self.basename}-results.yaml" "w"]')
-        vm.addline(r'puts $f "maxrad: [format %.5f $SEL_R]')
+        vm.addline(r'puts $f "maxrad: [format %.5f $SEL_R]"')
         vm.addline(r'puts $f "lower_left: \[ [join [lindex $minmax 0] ,\ ] \]"')
         vm.addline(r'puts $f "upper_right: \[ [join [lindex $minmax 1] ,\ ] \]"')
         vm.addline(f'close $f')

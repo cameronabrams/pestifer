@@ -48,7 +48,8 @@ def run(args,**kwargs):
         exec_dir=os.getcwd()
         if not os.path.exists(args.output_dir):
             os.mkdir(args.output_dir)
-        os.chdir(args.outputdir)
+        shutil.copy(args.config,args.output_dir)
+        os.chdir(args.output_dir)
     loglevel_numeric=getattr(logging,args.diagnostic_log_level.upper())
     if args.diagnostic_log_file:
         if os.path.exists(args.diagnostic_log_file):

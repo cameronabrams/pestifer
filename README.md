@@ -9,10 +9,11 @@ Pestifer is a fully automated system builder, requiring as inputs only biomolecu
 pip install pestifer
 ```
 
-Once installed, the user has access to the main `pestifer` command. You should have `ambertools>=23.6` to use the `bilayer_embed` task since it uses `packmol`.
+Once installed, the user has access to the main `pestifer` command. You should have `packmol>20.15.0` to use the `bilayer_embed` task.
 
 ## Release History
 * 1.4.7
+    * `ambertools` dependency removed
     * `packmol-memgen` integration removed; now use native `bilayer_embed` task
     * `build_resi_database` command added
     * CHARMM force field files updated to July 2024

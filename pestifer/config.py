@@ -1,15 +1,14 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-
 import os
 import logging
-logger=logging.getLogger(__name__)
 from collections import UserDict
-from . import Resources
-from .command import CondaCheck
-from .stringthings import my_logger
-from ycleptic.yclept import Yclept
 from importlib.metadata import version
+from ycleptic.yclept import Yclept
 
+from . import Resources
+from .stringthings import my_logger
+
+logger=logging.getLogger(__name__)
 segtype_of_resname={}
 charmm_resname_of_pdb_resname={}
 res_321={}
@@ -41,23 +40,6 @@ def myset(a_dict,keylist,val):
             a_dict[key]={}
         myset(a_dict[key],keylist,val)
 
-# def injest_packmol_memgen_databases():
-#     logging.getLogger("pmmg_log").setLevel(logging.CRITICAL)
-#     import packmol_memgen as pmmg
-#     import packmol_memgen.lib.charmmlipid2amber as cla
-#     import pandas as pd
-#     pmmfile=os.path.join(os.path.split(pmmg.__file__)[0],'data','memgen.parm')
-#     if os.path.exists(pmmfile):
-#         lipdf=pd.read_csv(pmmfile,sep=r'\s+',header=22)
-#         logger.debug(f'memgen_parm database has {lipdf.shape[0]} entries')
-
-#     cladir=os.path.split(cla.__file__)[0]
-#     clafile=os.path.join(cladir,'charmmlipid2amber.csv')
-#     if os.path.exists(clafile):
-#         cladf=pd.read_csv(clafile,header=1,skiprows=0)
-#         logger.debug(f'charmmlipid2amber database has {cladf.shape[0]} entries')
-#     return lipdf,cladf
-
 class Config(Yclept):
     def __init__(self,userfile='',**kwargs):
         vrep=f"""ycleptic v. {version("ycleptic")}
@@ -79,11 +61,8 @@ pidibble v. {version("pidibble")}"""
         assert os.path.exists(basefile)
         super().__init__(basefile,userfile=userfile)
         self['Resources']=r
-        self['Conda']=CondaCheck()
-        conda_info=self['Conda'].info()
         cpu_info=self.cpu_info()
         if not quiet:
-            my_logger(conda_info,logger.info,just='<',frame='*',fill='')
             my_logger(cpu_info,logger.info,just='<',frame='*',fill='')
         self._set_internal_shortcuts(**kwargs)
         self._set_external_apps(verify_access=(userfile!=''))
@@ -107,10 +86,12 @@ pidibble v. {version("pidibble")}"""
         self.namd2=self['user']['paths']['namd2']
         self.charmrun=self['user']['paths']['charmrun']
         self.vmd=self['user']['paths']['vmd']
+        self.packmol=self['user']['paths']['packmol']
         if verify_access:
             assert os.access(self.charmrun,os.X_OK)
             assert os.access(self.namd2,os.X_OK)
             assert os.access(self.vmd,os.X_OK)
+            assert os.access(self.packmol,os.X_OK)
 
     def _set_internal_shortcuts(self,**kwargs):
         self.progress=len(self.slurmvars)==0
@@ -165,62 +146,3 @@ pidibble v. {version("pidibble")}"""
         res_123.update(self['user']['psfgen']['segtypes']['protein']['invrescodes'])
         res_321.update(self['user']['psfgen']['segtypes']['protein']['rescodes'])
 
-        # packmol_memgen_task_specs='packmol_memgen' in [list(x.keys())[0] for x in self['user']['tasks']]
-        # if packmol_memgen_task_specs or kwargs.get('memgen_test',False):
-        #     # let's supress the irritating message that pops up when packmol_memgen is imported
-        #     atools=self['user']['ambertools']
-        #     atools['memgen_parm_df'],atools['charmmlipid2amber_df']=injest_packmol_memgen_databases()
-        #     if not self.check_ambertools():
-        #         raise Exception(f'You have a "packmol_memgen" task but ambertools is not available.')
-        # else:
-        #     self['user']['ambertools']['is_unnecessary']=True
-
-    def check_ambertools(self):
-        def error_message():
-            my_logger(f'Based on your inputs, this instance of {__package__}\nrequires the ambertools package.\nTo use ambertools, {__package__} requires it to be installed via conda.\nWe recommend you create a new conda environment\nand install ambertools and {__package__} in it, and run {__package__} with it activated.',logger.debug)
-
-        if not self['Conda'].conda_root:
-            error_message()
-            return False
-        at_specs=self['user']['ambertools']
-        at_specs['available']=False
-        active_env=self['Conda'].active_env
-        explicit_env_ambertools_version=self['Conda'].get_package_version('ambertools',env=active_env,from_list=True)
-        if explicit_env_ambertools_version!=None:
-            at_specs['available']=True
-            at_specs['local']=True
-            logger.debug(f'ambertools v. {explicit_env_ambertools_version}')
-            return True
-        else:
-            error_message()
-            return False
-        # logger.debug(f'No ambertools package found in active environment {active_env}.')
-        # # if active environment can't run ambertools and the explicit env is specified
-        # else:
-        #     logger.debug(f'Checking explicitly named conda env {explicit_ambertools_venv} for ambertools...')
-        #     if self['Conda'].env_exists(explicit_ambertools_venv):
-        #         explicit_env_ambertools_version=self['Conda'].get_package_version(explicit_ambertools_venv,'ambertools',from_list=True)
-        #         if explicit_env_ambertools_version!=None:
-        #             at_specs['available']=True
-        #             at_specs['local']=False
-        #             logger.debug(f'...ambertools v. {explicit_env_ambertools_version} detected')
-        #             return True
-        #         else:
-        #             logger.debug(f'No ambertools package found in specified environment {explicit_ambertools_venv}.')
-        #     else:
-        #         logger.debug(f'Warning: No specified conda environment "{explicit_ambertools_venv}" found.')
-        # logger.debug(f'No ambertools found after checking active/specified environment, so')
-        # logger.debug(f'searching all available non-active conda envs for ambertools...')
-        # for env in self['Conda'].conda_envs:
-        #     if env!=self['Conda'].active_env: # since we already examined it
-        #         logger.debug(f'Checking non-active conda env {env} for ambertools...')
-        #         ambertools_version=self['Conda'].get_package_version(env,'ambertools',from_list=True)
-        #         if ambertools_version!=None:
-        #             logger.debug(f'Non-active env {env} ambertools version "{ambertools_version}"')
-        #             at_specs['available']=True
-        #             at_specs['local']=False
-        #             at_specs['venv']=env
-        #             return True
-        # logger.debug(f'No ambertools found in any conda environment.')
-        # error_message()
-        # return False
