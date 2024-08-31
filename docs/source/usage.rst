@@ -115,14 +115,13 @@ Continuing to drill down is easy -- just add the next directive to the command l
 In VMD scripts
 --------------
 
-Pestifer has a pretty handy library of TcL procedures.  If you want to peruse the source, pestifer will tell you where to find them:
+Pestifer has a pretty handy library of TcL packages.  If you want to peruse the source, pestifer will tell you where to find them:
 
 .. code-block:: console
 
-   $ ls `pestifer wheretcl --proc-dir`
-   autools.tcl  checkpierce.tcl  crot.tcl  dcdlog.tcl  declash.tcl  getlinks.tcl  multimer.tcl  numbering.tcl  saverestore.tcl  util.tcl
+   $ pestifer wheretcl --pkg-dir
 
-If you want to use any of the procs defined in those files in your own VMD script, the easiest thing to do is to put this proc definition in your own VMD startup file:
+If you want to use any of the procs defined in those packages in your own VMD script, the easiest thing to do is to put this ``proc`` definition in your own VMD startup file:
 
 .. code-block:: tcl
 
@@ -151,4 +150,4 @@ Then, you can use it in a source command in any VMD script or TcL session you li
 
    source [pestifer_init]
 
-This of course requires that your VMD session was launched from a shell running a python virtual environment in which pestifer is installed.
+This of course requires that your VMD session was launched from a shell running a python virtual environment in which ``pestifer`` is installed.

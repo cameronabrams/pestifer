@@ -7,6 +7,7 @@ logger=logging.getLogger(__name__)
 from .config import Config
 from .scriptwriters import Filewriter,Psfgen,VMD,NAMD2
 from .tasks import *
+from .bilayer import *
 from .util import *
 
 class Controller:
@@ -29,6 +30,8 @@ class Controller:
 
         # set up the task list
         task_classes=inspect_classes('pestifer.tasks')
+        task_classes.update(inspect_classes('pestifer.bilayer'))
+        logger.debug(f'task_classes {task_classes}')
         self.tasks=[]
         prior_task=None
         BaseTask._taskcount=0

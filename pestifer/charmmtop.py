@@ -167,7 +167,7 @@ class CharmmTopIC:
         toks=[x.strip() for x in ICstring.split()]
         data=np.array(list(map(float,toks[5:])))
         if data[0]==0.0 or data[1]==0.0 or data[3]==0.0 or data[4]==0.0:
-            logger.debug(f'{toks[1:5]}: missing ic data: {data}')
+            # logger.debug(f'{toks[1:5]}: missing ic data: {data}')
             self.empty=True
             # return
         self.atoms=toks[1:5]
@@ -576,55 +576,111 @@ def makeBondGraph_rdkit(mol):
     # logger.debug(f'returning {g2}')
     return g2,atoms
 
-
 class CharmmResiDatabase(UserDict):
-    def __init__(self,streams=[]):
+    def __init__(self):  # initialize from standard topology files in the topmost directory
         self.resources=ResourceManager()
         self.toppardir=self.resources['charmmff']['toppar']
+        self.customdir=self.resources['charmmff']['custom']
+        self.toppath=[self.toppardir,self.customdir]
         # get all atom types from standard charmmff topology files
-        rtftops=glob.glob(os.path.join(self.toppardir,'top_*.rtf'))
+        stdtops=glob.glob(os.path.join(self.toppardir,'top_*.rtf'))
+        stdtops=[x for x in stdtops if 'ljpme' not in x]
+        stdtops.extend(glob.glob(os.path.join(self.toppardir,'toppar*.str')))
+        self.all_charmm_topology_files=stdtops
         M=[]
-        for f in rtftops:
+        for f in stdtops:
             M.extend(getMasses(f))
-        self.all_charmm_topology_files=rtftops
-        stream_topology_files={}
-        for stream in streams:
-            stream_rtfs=glob.glob(os.path.join(self.toppardir,f'*{stream}.rtf'))
-            streamdir=os.path.join(self.toppardir,f'stream/{stream}')
-            allstream_strs=glob.glob(os.path.join(streamdir,'*.str'))
-            include_strs=[not ('cationpi_wyf' in x or 'list' in x or 'model' in x or 'lipid_prot' in x or 'ljpme' in x or 'llo' in x) for x in allstream_strs]
-            # logger.debug(f'stream strs {stream_strs}')
-            stream_strs=list(compress(allstream_strs,include_strs))
-            stream_topology_files[stream]=stream_rtfs+stream_strs
-            self.all_charmm_topology_files.extend(stream_strs)
-            for f in stream_strs: # already got masses from all rtf files
-                M.extend(getMasses(f))
         
         self.M=CharmmMasses(M)
-        data={}
         self.charmm_resnames=[]
-        nfiles=0
-        for stream in streams:
-            data[stream]={}
-            for t in stream_topology_files[stream]:
-                relt=t.split('toppar/')[1]
-                sublist=getResis(t,self.M)
-                nfiles+=1
-                for resi in sublist:
-                    if resi.resname in self.charmm_resnames:
-                        logger.warning(f'RESI {resi.resname} declared in {relt} was already declared in {data[stream][resi.resname].charmmtopfile}')
-
-                    else:
-                        resi.charmmtopfile=relt
-                        data[stream][resi.resname]=resi
-                        self.charmm_resnames.append(resi.resname)
+        data={}
+        for f in stdtops:
+            sublist=getResis(f,self.M)
+            for resi in sublist:
+                resi.charmmtopfile=f
+                if f.endswith('.rtf'): # "top_allXX_<streamname>.rtf"
+                    stream=os.path.splitext(os.path.basename(f))[0].split('_')[2]
+                elif f.endswith('.str'): # a stream file in the base directory, most likely toppar_water_ions.str
+                    stream='_'.join(os.path.splitext(os.path.basename(f))[0].split('_')[1:])
+                if not stream in data:
+                    data[stream]={}
+                data[stream][resi.resname]=resi
+                self.charmm_resnames.append(resi.resname)
 
         super().__init__(data)
-        logger.debug(f'{nfiles} CHARMM topology files scanned')
+        logger.debug(f'{len(stdtops)} CHARMM topology files scanned')
+        logger.debug(f'Streams initiated: {" ".join(list(data.keys()))}')
         self.charmm_resnames.sort()
         logger.debug(f'{len(self.charmm_resnames)} RESI\'s parsed')
         logger.debug(f'{len(self.M)} atomic mass records parsed')
-    
+
+    def add_topology(self,topfile,streamnameoverride=''):
+        if not topfile.startswith('/'):
+            for p in self.toppath:
+                top_abs=os.path.join(p,topfile)
+                if os.path.exists(top_abs):
+                    break
+            else:
+                logger.debug(f'{topfile} not found in {self.toppath}')
+                return -1
+        else:
+            top_abs=topfile
+        if top_abs in self.all_charmm_topology_files:
+            logger.debug(f'{topfile} has already been incorporated')
+            return self
+
+        self.all_charmm_topology_files.append(topfile)
+        newM=CharmmMasses(getMasses(topfile))
+        self.M.update(newM)
+        sublist=getResis(topfile,self.M)
+        for resi in sublist:
+            resi.charmmtopfile=topfile
+            if topfile.endswith('.rtf') or (topfile.startswith('stream/') and topfile.endswith('.str')):
+                stream=os.path.splitext(os.path.basename(topfile))[0].split('_')[2] # "toppar_allXX_<streamname>[_YYY].[str,rtf]"
+            else:
+                stream='_'.join(os.path.splitext(os.path.basename(topfile))[0].split('_')[1:])
+            if streamnameoverride is not '':
+                stream=streamnameoverride
+            if not stream in self:
+                self[stream]={}
+            self[stream][resi.resname]=resi
+            self.charmm_resnames.append(resi.resname)
+
+        self.charmm_resnames.sort()
+        logger.debug(f'Appended {len(sublist)} RESI\'s and {len(newM)} mass records')
+        logger.debug(f'Current streams: {" ".join(list(self.keys()))}')
+        return self
+
+    def add_stream(self,streamname):
+        streamdir=os.path.join(self.toppardir,f'stream/{streamname}')
+        if not os.path.exists(streamdir):
+            logger.debug(f'{streamdir} not found')
+            return self
+
+        allstream_strs=glob.glob(os.path.join(streamdir,'*.str'))
+        include_strs=[not ('cationpi_wyf' in x or 'list' in x or 'model' in x or 'lipid_prot' in x or 'ljpme' in x or 'llo' in x) for x in allstream_strs]
+        stream_strs=list(compress(allstream_strs,include_strs))
+        M=[]
+        for f in stream_strs: # already got masses from all rtf files
+            M.extend(getMasses(f))
+        
+        self.M.update(CharmmMasses(M))
+        for t in stream_strs:
+            sublist=getResis(t,self.M)
+            for resi in sublist:
+                if resi.resname in self.charmm_resnames:
+                    logger.warning(f'RESI {resi.resname} is already in the database')
+                else:
+                    relt=t
+                    if 'toppar/' in t:
+                        relt=t.split('toppar/')[1]
+                    resi.charmmtopfile=relt
+                    if not streamname in self:
+                        self[streamname]={}
+                    self[streamname][resi.resname]=resi
+                    self.charmm_resnames.append(resi.resname)
+        return self
+
     def get_charmm_topfile(self,charmm_resid):
         if charmm_resid not in self.charmm_resnames:
             return None

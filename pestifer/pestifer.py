@@ -230,7 +230,7 @@ def cli():
     command_parsers['make-resi-database'].add_argument('--streams',type=str,nargs='+',default=['lipid'],help='list of charmmff streams to scan')
     command_parsers['make-resi-database'].add_argument('--force',default=False,action='store_true',help='force overwrite of any existing molecules in the database')
     command_parsers['make-resi-database'].add_argument('--cleanup',default=True,action=ap.BooleanOptionalAction,help='clean up all working files')
-    command_parsers['make-resi-database'].add_argument('--resi',type=str,default=None,help='regenerate entry for just this RESI')
+    command_parsers['make-resi-database'].add_argument('--resi',nargs='+',type=str,default=[],help='regenerate entry for just these RESIs')
     command_parsers['make-resi-database'].add_argument('--diagnostic-log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
     command_parsers['make-resi-database'].add_argument('--lenfac',type=float,default=1.4,help='this factor times topological distance is the cartesian distance to which you want to stretch a molecule')
     command_parsers['make-resi-database'].add_argument('--minimize-steps',type=int,default=500,help='number of minimization steps immediately after each build')

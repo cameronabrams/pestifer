@@ -13,7 +13,7 @@ from .stringthings import my_logger
 
 logger=logging.getLogger(__name__)
 
-def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0):
+def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0,nOrAtoms=2):
     charmm_topfile=DB.get_charmm_topfile(resid)
     if charmm_topfile is None:
         return -2
@@ -154,13 +154,19 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     W.addline(f'mol new {resid}-init.psf')
     W.addline(f'mol addfile 99-00-md-NVT.dcd waitfor all')
     W.addline(f'set a [atomselect top all]')
+    W.addline(f'set b [atomselect top noh]')
     W.addline(f'set ref [atomselect top all]')
     W.addline(f'$ref frame 0')
+    W.addline(f'set bref [atomselect top noh]')
     W.addline(f'$ref move [vecscale -1 [measure center $ref]]')
+    W.addline(f'$bref move [vecscale -1 [measure center $bref]]')
     W.addline(r'for { set f 0 } { $f < [molinfo top get numframes] } { incr f } {')
     W.addline( '    $a frame $f')
     W.addline( '    $a move [measure fit $a $ref]')
     W.addline(f'    $a writepdb {resid}-[format %02d $f].pdb')
+    W.addline( '    $b frame $f')
+    W.addline( '    $b move [measure fit $b $bref]')
+    W.addline(f'    $b writepdb {resid}-noh-[format %02d $f].pdb')
     W.addline(r'}')
     W.writescript()
     W.runscript()
@@ -174,13 +180,14 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
         p=PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()
         z=np.array([x.z for x in p.parsed['ATOM']])
         s=np.array([x.serial for x in p.parsed['ATOM']])
-        zmin_idx=np.argmin(z)
-        zmax_idx=np.argmax(z)
-        smin.append(s[zmin_idx])
-        zmin.append(z[zmin_idx])
-        smax.append(s[zmax_idx])
-        zmax.append(z[zmax_idx])
-    measures=pd.DataFrame({'pdb':pdbs,'bottom_serial':smin,'bottom_z':zmin,'top_serial':smax,'top_z':zmax})
+        zsort_idx=np.argsort(z)
+        zsorted=z[zsort_idx]
+        ssorted=s[zsort_idx]
+        smin.append(ssorted[0])
+        zmin.append(zsorted[0])
+        smax.append(ssorted[-1])
+        zmax.append(zsorted[-1])
+    measures=pd.DataFrame({'pdb':pdbs,'bottom_z':zmin,'top_z':zmax,'bottom_serial':smin,'top_serial':smax})
     measures.to_csv('orientations.dat',header=True,index=False)
     return 0
 
@@ -235,7 +242,10 @@ def make_RESI_database(args):
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
-    DB=CharmmResiDatabase(streams=streams)
+    DB=CharmmResiDatabase()
+    for stream in streams:
+        DB.add_stream(stream)
+        
     outdir=args.output_dir
     faildir=args.fail_dir
     if not os.path.exists(outdir):
@@ -245,12 +255,13 @@ def make_RESI_database(args):
     if os.path.exists('tmp'):
         shutil.rmtree('tmp')
     resi=args.resi
-    if resi is not None:
-        my_logger(f'RESI {resi}',logger.info,just='^',frame='*',fill='*')
-        do_resi(resi,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
+    if resi is not []:
+        for r in resi:
+            my_logger(f'RESI {r}',logger.info,just='^',frame='*',fill='*')
+            do_resi(r,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
     else:
         nresi=len(DB.charmm_resnames)
-        for i,resi in enumerate(DB.charmm_resnames):
-            my_logger(f'RESI {resi} ({i+1}/{nresi})',logger.info,just='^',frame='*',fill='*')
-            do_resi(resi,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
+        for i,r in enumerate(DB.charmm_resnames):
+            my_logger(f'RESI {r} ({i+1}/{nresi})',logger.info,just='^',frame='*',fill='*')
+            do_resi(r,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
 

@@ -9,12 +9,12 @@ logger=logging.getLogger(__name__)
 from .command import Command
 from .util import reduce_intlist
 from .namdlog import NAMDLog
-from .progress import NAMDProgress, PsfgenProgress
+from .progress import NAMDProgress, PsfgenProgress, PackmolProgress
 from .stringthings import ByteCollector, FileCollector
 
 class Filewriter:
-    def __init__(self):
-        self.B=ByteCollector()
+    def __init__(self,comment_char='#'):
+        self.B=ByteCollector(comment_char=comment_char)
         self.is_written=False
 
     def newfile(self,filename):
@@ -46,7 +46,41 @@ class Filewriter:
         else:
             logger.debug(f'{self.filename} has already been written')
 
-class Scriptwriter(Filewriter):
+class PackmolInputWriter(Filewriter):
+    def __init__(self,config):
+        self.config=config
+        self.progress=self.config.progress
+        self.F=FileCollector()
+        self.default_ext='.inp'
+        self.default_script=f'packmol{self.default_ext}'
+        self.scriptname=self.default_script
+        super().__init__(comment_char='#')
+    
+    def newscript(self,basename=None):
+        timestampstr=datetime.datetime.today().ctime()
+        if basename:
+            self.basename=basename
+        else:
+            self.basename=os.path.splitext(self.default_script)[0]
+        self.scriptname=f'{self.basename}{self.default_ext}'
+        self.newfile(self.scriptname)
+        self.banner(f'{__package__}: {self.basename}{self.default_ext}')
+        self.banner(f'Created {timestampstr}')
+
+    def writescript(self):
+        self.writefile()
+
+    def runscript(self,*args,**options):
+        assert hasattr(self,'scriptname'),f'No scriptname set.'
+        self.logname=f'{self.basename}.log'
+        logger.debug(f'Log file: {self.logname}')
+        cmd=Command(f'{self.config.packmol} < {self.scriptname}')
+        progress_struct=None
+        if self.progress:
+            progress_struct=PackmolProgress(timer_format='\x1b[36mpackmol\x1b[39m time: %(elapsed)s')
+        return cmd.run(ignore_codes=[173],logfile=self.logname,progress=progress_struct)
+
+class TcLScriptwriter(Filewriter):
     def __init__(self,config):
         self.config=config
         self.progress=self.config.progress
@@ -54,7 +88,7 @@ class Scriptwriter(Filewriter):
         self.default_ext='.tcl'
         self.default_script=f'pestifer-script{self.default_ext}'
         self.scriptname=self.default_script
-        super().__init__()
+        super().__init__(comment_char='#')
     
     def newscript(self,basename=None):
         timestampstr=datetime.datetime.today().ctime()
@@ -73,7 +107,7 @@ class Scriptwriter(Filewriter):
     def addfile(self,filename):
         self.F.append(filename)
 
-class VMD(Scriptwriter):
+class VMD(TcLScriptwriter):
     def __init__(self,config):
         super().__init__(config)
         self.vmd=config.vmd
@@ -230,8 +264,8 @@ class Psfgen(VMD):
         else:
             for t in self.charmmff_config['standard']['topologies']+self.charmmff_config['custom']['topologies']:
                 localname=os.path.split(t)[1]
-                if os.path.exists(t):
-                    os.remove(t)
+                if os.path.exists(localname):
+                    os.remove(localname)
 
     def fetch_charmm_topologies(self):
         topology_local=[]
@@ -249,12 +283,19 @@ class Psfgen(VMD):
             topology_local.append(localname)
         return topology_local
 
-    def newscript(self,basename=None,packages=[]):
+    def newscript(self,basename=None,packages=[],additional_topologies=[]):
         super().newscript(basename=basename,packages=packages)
         self.addline('package require psfgen')
         self.addline('psfcontext mixedcase')
         self.topologies=self.fetch_charmm_topologies()
+        for at in additional_topologies:
+            localat=at
+            if '/' in at:
+                localat=os.path.split(at)[1]
+            if not localat in self.topologies:
+                self.topologies.append(localat)
         for t in self.topologies:
+            assert '/' not in t
             self.addline(f'topology {t}')
         for pdba in self.psfgen_config['aliases']:
             self.addline(f'pdbalias {pdba}')
@@ -308,7 +349,7 @@ class Psfgen(VMD):
             progress_struct=PsfgenProgress(timer_format='\x1b[94mpsfgen\x1b[39m time: %(elapsed)s')
         return c.run(logfile=self.logname,progress=progress_struct)
     
-class NAMD2(Scriptwriter):
+class NAMD2(TcLScriptwriter):
     def __init__(self,config):
         super().__init__(config)
         self.charmmff_config=config['user']['charmmff']

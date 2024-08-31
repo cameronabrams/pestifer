@@ -22,13 +22,15 @@ from .basemod import BaseMod
 from .chainidmanager import ChainIDManager
 from .colvars import *
 from .command import Command
+# from .coord import coorddf_from_pdb
 from .modmanager import ModManager
 from .mods import CleavageSite, CleavageSiteList
 from .molecule import Molecule
 from .stringthings import FileCollector,get_boxsize_from_packmolmemgen, rescale_packmol_inp_box
-from .progress import PackmolProgress, RingCheckProgress
+# from .progress import PackmolProgress, RingCheckProgress
 from .psf import PSFContents
 from .ring import ring_check
+# from .scriptwriters import PackmolInputWriter
 from .util import is_periodic, cell_from_xsc, cell_to_xsc
 
 logger=logging.getLogger(__name__)
@@ -1050,219 +1052,7 @@ class TerminateTask(MDTask):  #need to inherit for namd2run() method
         self.FC.tarball(specs["basename"])
         return 0
 
-class BilayerEmbedTask(BaseTask):
-    """ A class for handling embedding proteins into bilayers
-    
-    Attributes
-    ----------
-    yaml_header(str) 
 
-    Methods
-    -------
-    do(): 
-        Based on specs, writes a packmol input file to generate a membrane-embedded protein and
-        then runs packmol
-
-    """
-    yaml_header='bilayer_embed'
-    def __init__(self,input_dict,taskname,config,writers,prior):
-        super().__init__(input_dict,taskname,config,writers,prior)
-        self.progress=config.progress
-        self.lipid_pdb_path=os.path.join(config.charmmff_pdb_path,'lipid')
-        assert os.path.exists(self.lipid_pdb_path),f'No lipid PDB database found -- bad installation!'
-
-    def do(self):
-        self.log_message('initiated')
-        self.inherit_state()
-        psf=self.statevars.get('psf',None)
-        pro_psc=PSFContents(psf)
-        pro_charge=pro_psc.get_charge()
-        pdb=self.statevars.get('pdb',None)
-        scale=[]
-        lipidspec=self.specs.get('lipids','POPC')
-        ratiospec=self.specs.get('mole_fractions','1.0')
-        xydist=self.specs.get('xydist',0.0)
-        zdist=self.specs.get('zdist',0.0)
-        SAPL=self.specs.get('SAPL',60.0)
-        seed=self.specs.get('seed',0.0)
-        tolerance=self.specs.get('tolerance',2.0)
-        prot_rad_buf=self.specs.get('prot_rad_buf',3.0)
-        boxdim=np.array(list(map(float,self.specs.get('dims',[]))))
-        if len(boxdim)==0 and (xydist==0.0 or zdist==0):
-            logger.error(f'You must specify either the full box size via \'dims\' or the buffer distances \'xydist\' and \'zdist\'')
-        leaf_lipspec=lipidspec.split('//')
-        if len(leaf_lipspec)==1:
-            leaf_lipspec.append(leaf_lipspec[0])
-        leaf_ratiospec=ratiospec.split('//')
-        if len(leaf_ratiospec)==1:
-            leaf_ratiospec.append(leaf_ratiospec[0])
-        assert len(leaf_lipspec)==len(leaf_ratiospec),f'lipid names and mole fractions are not congruent'
-        lipid_names=[]
-        leaflet=[]
-        for li,leaf in enumerate(zip(leaf_lipspec,leaf_ratiospec)):
-            lips,mfs=leaf
-            leaflips=lips.split(':')
-            leafmolfracs=list(map(float,mfs.split(':')))
-            for ll in leaflips:
-                if not ll in lipid_names:
-                    lipid_names.append(ll)
-            leaflet.append([dict(name=name,frac=frac) for name,frac in zip(leaflips,leafmolfracs)])
-        lipid_data={}
-        for l in lipid_names:
-            lpath=os.path.join(self.lipid_pdb_path,l)
-            assert os.path.exists(lpath),f'No PDB available for lipid {l}'
-            lpdb=os.path.join(lpath,f'{l}-00.pdb')
-            shutil.copy(lpdb,'./')
-            lpsf=os.path.join(lpath,f'{l}-init.psf')
-            shutil.copy(lpsf,f'./{l}.psf')
-            psc=PSFContents(f'./{l}.psf')
-            orients=pd.read_csv(os.path.join(lpath,'orientations.dat'),header=0,index_col=None)
-            with open(os.path.join(lpath,'parameters.txt'),'r') as f:
-                paramlist=f.read().split('\n')
-            ldata={'charge':psc.get_charge(),'parameters':paramlist,'oseries':orients[orients['pdb']==f'{l}-00.pdb'].iloc[0,:]}
-            lipid_data[l]=ldata
-
-        protein_rad=0.0
-        if 'embed' in self.specs:
-            self.next_basename('embed')
-            posp=self.specs['embed']
-            assert 'z_head_group' in posp
-            assert 'z_tail_group' in posp
-            assert 'z_ref_group' in posp
-            assert 'text' in posp['z_ref_group']
-            assert 'z_value' in posp['z_ref_group']
-            self.membrane_embed(pdb,[posp['z_head_group'],posp['z_tail_group'],posp['z_ref_group']['text']],posp['z_ref_group']['z_value'],outpdb=f'{self.basename}.pdb')
-            self.save_state(exts=['pdb'])
-            pdb=self.statevars.get('pdb',None)
-            with open(f'{self.basename}-results.yaml','r') as f:
-                embed_results=yaml.safe_load(f)
-            protein_rad=float(embed_results["maxrad"])
-            protein_ll=np.array(list(map(float,embed_results["lower_left"])))
-            protein_ur=np.array(list(map(float,embed_results["upper_right"])))
-            box_ll=protein_ll-np.array([xydist,xydist,zdist])
-            box_ur=protein_ur+np.array([xydist,xydist,zdist])
-            origin=0.5*(box_ur+box_ll)
-            boxdim=box_ur-box_ll
-            mem_area=boxdim[1]*boxdim[2]-np.pi*(protein_rad+prot_rad_buf)**2
-        else:
-            origin=np.zeros(3)
-            box_ll=-0.5*boxdim
-            box_ur=0.5*boxdim
-            mem_area=boxdim[1]*boxdim[2]
-
-        cell_to_xsc(np.diag(boxdim),origin,f'{self.basename}.xsc')
-
-        tot_lip_mols=mem_area/SAPL
-        total_charge=pro_charge
-        for l in leaflet:
-            for liprec in l:
-                liprec["mols"]=int(np.floor(liprec["frac"]*tot_lip_mols))
-                total_charge+=lipid_data[liprec["name"]]['charge']*liprec["mols"]
-
-        pm=self.writers['data']
-        self.next_basename('packmol')
-        pm.newfile(f'{self.basename}.inp')
-        packmol_output_pdb=f'{self.basename}.pdb'
-        pm.addline(f'output {packmol_output_pdb}')
-        pm.addline(f'filetype pdb')
-        if seed:
-            pm.addline(f'seed {seed}')
-        pm.addline(f'pbc {" ".join([f"{_:.6f}" for _ in box_ll])} {" ".join([f"{_:.6f}" for _ in box_ur])}')
-        pm.addline(f'tolerance {tolerance}')
-        pm.addline(f'structure {pdb}')
-        pm.addline( '  number 1')
-        pm.addline( '  fixed 0. 0. 0. 0. 0. 0.')
-        pm.addline( 'end structure')
-
-        for i,lf in enumerate(leaflet):
-            for ldict in lf:
-                lname=ldict['name']
-                osrs=lipid_data[lname]['oseries']
-                pm.addline(f'structure {lname}-00.pdb')
-                pm.addline(f'   number {ldict["mols"]}')
-                llen=osrs.top_z-osrs.bottom_z
-                if i==0:
-                    pm.addline(f'   inside box {box_ll[0]} {box_ll[1]} {-llen+1} {box_ur[0]} {box_ur[1]} {4.0}')
-                    pm.addline(f'   atoms {osrs.top_serial}')
-                    pm.addline(f'      below plane 0. 0. 1. {-llen+5}')
-                    pm.addline(f'   end atoms')
-                    pm.addline(f'   atoms {osrs.bottom_serial}')
-                    pm.addline(f'      above plane 0. 0. 1. -4.0')
-                    pm.addline(f'   end atoms')
-                else:
-                    pm.addline(f'   inside box {box_ll[0]} {box_ll[1]} {-4.0} {box_ur[0]} {box_ur[1]} {llen-1}')
-                    pm.addline(f'   atoms {osrs.top_serial}')
-                    pm.addline(f'      above plane 0. 0. 1. {llen-4}')
-                    pm.addline(f'   end atoms')
-                    pm.addline(f'   atoms {osrs.bottom_serial}')
-                    pm.addline(f'      below plane 0. 0. 1. 4.0')
-                    pm.addline(f'   end atoms')
-                pm.addline(f'end structure') 
-        pm.writefile()
-        cmd=Command(f'{self.config.packmol} < {self.basename}.inp')
-        progress_struct=None
-        if self.progress:
-            progress_struct=PackmolProgress(timer_format='\x1b[36mpackmol\x1b[39m time: %(elapsed)s')
-        self.result=cmd.run(ignore_codes=[173],logfile=f'{self.basename}-packmol.log',progress=progress_struct)
-        if self.result!=0:
-            return super().do()
-        # process output pdb to get new psf and pdb
-        self.save_state(exts=['pdb','xsc'])
-        self.next_basename('psfgen')
-        self.result=self.psfgen(psf=psf,pdb=pdb,addpdb=packmol_output_pdb)
-        if self.result!=0:
-            return super().do()
-        self.save_state(exts=['psf','pdb','xsc'])
-        self.log_message('complete')
-        return super().do()
-
-    # def shift_coords(self,pdb,shift):
-    #     sh_str=' '.join([str(x) for x in shift])
-    #     vm=self.writers['vmd']
-    #     vm.newscript(self.basename)
-    #     vm.addline(f'mol new {pdb}')
-    #     vm.addline(f'set TMP [atomselect top all]')
-    #     vm.addline(f'$TMP moveby [list {sh_str}]')
-    #     vm.addline(f'$TMP writepdb {self.basename}.pdb')
-    #     vm.writescript()
-    #     vm.runscript()
-
-    def psfgen(self,psf,pdb,addpdb):
-        pg=self.writers['psfgen']
-        pg.newscript(self.basename)
-        pg.usescript('memb')
-        pg.writescript(self.basename,guesscoord=False,regenerate=True,force_exit=True)
-        result=pg.runscript(psf=psf,pdb=pdb,addpdb=addpdb,o=self.basename)
-        return result
-    
-    def membrane_embed(self,pdb,zgroups,zval=0.0,outpdb='embed.pdb'):
-        logger.debug(f'zgroups {zgroups}')
-        ztopg,zbotg,zrefg=zgroups
-        vm=self.writers['vmd']
-        vm.newscript(self.basename,packages=['Orient','PestiferUtil'])
-        vm.addline(f'mol new {pdb}')
-        vm.addline(f'set TMP [atomselect top all]')
-        vm.addline(f'set HEAD [atomselect top "{ztopg}"]')
-        vm.addline(f'set TAIL [atomselect top "{zbotg}"]')
-        vm.addline(f'set REF  [atomselect top "{zrefg}"]')
-        vm.addline(f'vmdcon -info "[measure center $HEAD]"')
-        vm.addline(f'vmdcon -info "[measure center $TAIL]"')
-        vm.addline(f'set VEC [vecsub [measure center $HEAD] [measure center $TAIL]]')
-        vm.addline( '$TMP move [orient $TMP $VEC {0 0 1}]')
-        vm.addline(f'set COM [measure center $TMP]')
-        vm.addline(f'$TMP moveby [vecscale $COM -1]')
-        vm.addline(f'set REFZ [lindex [measure center $REF] 2]')
-        vm.addline(f'$TMP moveby [list 0 0 [expr {zval}-($REFZ)]]')
-        vm.addline(f'$TMP writepdb {outpdb}')
-        vm.addline(f'set minmax [measure minmax $TMP]')
-        vm.addline(f'set SEL_R [expr max([MaxRad $HEAD],[MaxRad $TAIL],[MaxRad $REF])]')
-        vm.addline(f'set f [open "{self.basename}-results.yaml" "w"]')
-        vm.addline(r'puts $f "maxrad: [format %.5f $SEL_R]"')
-        vm.addline(r'puts $f "lower_left: \[ [join [lindex $minmax 0] ,\ ] \]"')
-        vm.addline(r'puts $f "upper_right: \[ [join [lindex $minmax 1] ,\ ] \]"')
-        vm.addline(f'close $f')
-        vm.writescript()
-        vm.runscript()
 
 class RingCheckTask(BaseTask):
     """ A class for checking for pierced rings
