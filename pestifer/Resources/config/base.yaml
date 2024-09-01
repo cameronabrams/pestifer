@@ -1,7 +1,7 @@
-# Pestifer 1.4.3
+# Pestifer 1.4.7
 # (c) 2023-2024 Cameron F. Abrams, cfa22@drexel.edu
 #
-# Ycleptic-format specification for YAML configuration file
+# Ycleptic-format specification for a user's YAML-format pestifer configuration file
 #
 # The "name" of any directive may appear as a key whose value is specified by "type"
 # and any dependent "directives".  Values with scalar types should only appear
@@ -925,7 +925,7 @@ directives:
         default: /usr/local/bin/vmd
       - name: charmmff
         type: str
-        text: Path for standard charmm force-field distribution; note that pestifer comes with the July 2024 distribution included and this is used by default
+        text: Path for standard charmm force-field distribution; note that pestifer includes the July 2024 distribution by default
         required: False
       - name: packmol
         type: str
@@ -1349,7 +1349,7 @@ directives:
           - name: solvent_mole_fractions
             text: string in form of x_1:x_2:...
             type: str
-            default: 1.0
+            default: '1.0'
           - name: SAPL
             text: estimate of surface area per lipid (A^2)
             type: float

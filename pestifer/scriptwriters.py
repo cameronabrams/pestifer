@@ -49,6 +49,7 @@ class Filewriter:
 
 class PackmolInputWriter(Filewriter):
     def __init__(self,config):
+        super().__init__(comment_char='#')
         self.indent=4*' '
         self.config=config
         self.progress=self.config.progress
@@ -56,7 +57,6 @@ class PackmolInputWriter(Filewriter):
         self.default_ext='.inp'
         self.default_script=f'packmol{self.default_ext}'
         self.scriptname=self.default_script
-        super().__init__(comment_char='#')
     
     def newscript(self,basename=None):
         timestampstr=datetime.datetime.today().ctime()

@@ -308,7 +308,7 @@ class BilayerEmbedTask(BaseTask):
                     specs['within-z-hi']=zlims[1]+0.5*margin
                     specs['below-z-atom']=osrs.top_serial if leaflet is LL else osrs.bottom_serial
                     specs['above-z-atom']=osrs.bottom_serial if leaflet is LL else osrs.top_serial
-                    pm.addline(f'   inside box {box_ll[0]:.3f} {box_ll[1]:.3f} {specs["within-z-lo"]:.3f} {box_ur[0]:.3f} {box_ur[1]:.3f} {specs["within-z-hi"]:.3f}')
+                    pm.addline(f'inside box {box_ll[0]:.3f} {box_ll[1]:.3f} {specs["within-z-lo"]:.3f} {box_ur[0]:.3f} {box_ur[1]:.3f} {specs["within-z-hi"]:.3f}',indents=1)
                     pm.addline(f'atoms {specs["below-z-atom"]}',indents=1)
                     pm.addline(f'below plane 0. 0. 1. {specs["below-z"]:.3f}',indents=2)
                     pm.addline( 'end atoms',indents=1)
@@ -319,7 +319,7 @@ class BilayerEmbedTask(BaseTask):
                     constrain_rotation=180.0 if leaflet is LL else 0.0
                     specs['within-z-lo']=zlims[0]
                     specs['within-z-hi']=zlims[1]
-                    pm.addline(f'   inside box {box_ll[0]:.3f} {box_ll[1]:.3f} {specs["within-z-lo"]:.3f} {box_ur[0]:.3f} {box_ur[1]:.3f} {specs["within-z-hi"]:.3f}')
+                    pm.addline(f'inside box {box_ll[0]:.3f} {box_ll[1]:.3f} {specs["within-z-lo"]:.3f} {box_ur[0]:.3f} {box_ur[1]:.3f} {specs["within-z-hi"]:.3f}',indents=1)
                     pm.addline(f'constrain_rotation x {constrain_rotation} 10.0',indents=1)
                     pm.addline(f'constrain_rotation y {constrain_rotation} 10.0',indents=1)
                 pm.addline(f'nloop {nloop}',indents=1)
