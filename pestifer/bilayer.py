@@ -148,7 +148,6 @@ class BilayerEmbedTask(BaseTask):
         logger.debug(f'box corners ll {box_ll} ur {box_ur}')
         logger.debug(f'membrane area {mem_area}')
         logger.debug(f'box volume {boxV:.3f}')
-        # logger.debug(f'negshift {negshift}')
 
         cell_to_xsc(np.diag(boxdim),origin,f'{self.basename}.xsc')
         self.save_state(exts=['xsc'])
