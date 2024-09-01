@@ -1358,8 +1358,8 @@ directives:
           - name: length_pad
             text: additional length added to longest molecular length when orienting molecules that are parallel to z axis
             type: float
-          - name: water_gcc
-            text: water density in g/cc
+          - name: solution_gcc
+            text: solution density in g/cc
             type: float
             default: 1.0
           # - name: salt_c
