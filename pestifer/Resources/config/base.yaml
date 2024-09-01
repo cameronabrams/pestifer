@@ -1342,12 +1342,14 @@ directives:
           - name: mole_fractions
             text: declaration of mole fractions of each lipid in each leaflet in the format R1:R2//R3
             type: str
-          # - name: solvents
-          #   text: value for --solvents SOL1:SOL2
-          #   type: str
-          # - name: solvent_ratio
-          #   text: value for --solvent_ratio
-          #   type: str
+          - name: solvents
+            text: string in form of SOL1:SOL2:...
+            type: str
+            default: TIP3
+          - name: solvent_mole_fractions
+            text: string in form of x_1:x_2:...
+            type: str
+            default: 1.0
           - name: SAPL
             text: estimate of surface area per lipid (A^2)
             type: float
@@ -1362,17 +1364,17 @@ directives:
             text: solution density in g/cc
             type: float
             default: 1.0
-          # - name: salt_c
-          #   text: name of salt cation (if other than K+)
-          #   type: str
-          #   options: ['K+','Na+','Ca2+','Mg2+']
-          # - name: salt_a
-          #   text: name of salt anion (if other than Cl-)
-          #   type: str
-          #   options: ['Cl-','Br-','I-','F-']
-          # - name: saltcon
-          #   text: salt concentration in M
-          #   type: float
+          - name: cation
+            text: name of salt cation
+            type: str
+            default: POT
+          - name: anion
+            text: name of salt anion
+            type: str
+            default: CLA
+          - name: salt_con
+            text: salt concentration in M
+            type: float
           - name: nloop
             text: number of packmol GENCAN loops for every component
             type: int
