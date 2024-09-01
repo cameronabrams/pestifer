@@ -16,6 +16,7 @@ class Filewriter:
     def __init__(self,comment_char='#'):
         self.B=ByteCollector(comment_char=comment_char)
         self.is_written=False
+        self.indent=''
 
     def newfile(self,filename):
         self.filename=filename
@@ -26,8 +27,8 @@ class Filewriter:
     def injest_file(self,filename):
         self.B.injest_file(filename)
 
-    def addline(self,data):
-        self.B.addline(data)
+    def addline(self,data,indents=0):
+        self.B.addline(indents*self.indent+data)
 
     def banner(self,data):
         self.B.banner(data)
@@ -48,6 +49,7 @@ class Filewriter:
 
 class PackmolInputWriter(Filewriter):
     def __init__(self,config):
+        self.indent=4*' '
         self.config=config
         self.progress=self.config.progress
         self.F=FileCollector()
