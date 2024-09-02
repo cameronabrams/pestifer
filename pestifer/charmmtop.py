@@ -639,7 +639,7 @@ class CharmmResiDatabase(UserDict):
                 stream=os.path.splitext(os.path.basename(topfile))[0].split('_')[2] # "toppar_allXX_<streamname>[_YYY].[str,rtf]"
             else:
                 stream='_'.join(os.path.splitext(os.path.basename(topfile))[0].split('_')[1:])
-            if streamnameoverride is not '':
+            if streamnameoverride != '':
                 stream=streamnameoverride
             if not stream in self:
                 self[stream]={}

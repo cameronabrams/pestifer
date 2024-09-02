@@ -82,6 +82,7 @@ class BilayerEmbedTask(BaseTask):
         seed=self.specs.get('seed',27021972)
         tolerance=self.specs.get('tolerance',2.0)
         solution_gcc=self.specs.get('solution_gcc',1.0)
+        prot_vol_factor=self.specs.get('prot_volume_factor',1.15)
         leaflet_thickness=self.specs.get('leaflet_thickness',22.0)
         nloop=self.specs.get('nloop',200)
         nloop_all=self.specs.get('nloop_all',200)
@@ -216,57 +217,7 @@ class BilayerEmbedTask(BaseTask):
         sg='+' if global_charge>0 else ''
         logger.debug(f'Total charge: {sg}{global_charge:.3f}')
 
-        anion_qtot=cation_qtot=0
-        if sg=='+':
-            anion_qtot=int(global_charge)
-        else:
-            cation_qtot=int(np.abs(global_charge))
 
-        anion_n=int(anion_qtot//np.abs(int(anion_q)))
-        cation_n=int(cation_qtot//np.abs(int(cation_q)))
-        ions={anion_name:{'n':anion_n,'claimed':0},cation_name:{'n':cation_n,'claimed':0}}
-        logger.debug(f'ions {ions}')
-
-        LC=slices['LOWER-CHAMBER']
-        LC['AVAILABLE-VOLUME']=mem_area*(LC['z-hi']-LC['z-lo'])
-        UC=slices['UPPER-CHAMBER']
-        UC['AVAILABLE-VOLUME']=mem_area*(UC['z-hi']-UC['z-lo'])
-        if 'embed' in self.specs:
-            cdf=coorddf_from_pdb(pdb)
-            cl=cdf[cdf['z']<LC['z-hi']][['x','y','z']].to_numpy()
-            if len(cl)>0:
-                logger.debug(f'{len(cl)} embedded protein atoms in the lower chamber')
-                pev=ConvexHull(cl).volume
-                LC['AVAILABLE-VOLUME']-=pev
-            cu=cdf[cdf['z']>UC['z-lo']][['x','y','z']].to_numpy()
-            if len(cu)>0:
-                logger.debug(f'{len(cu)} embedded protein atoms in the upper chamber')
-                pev=ConvexHull(cl).volume
-                UC['AVAILABLE-VOLUME']-=pev
-
-        total_available_volume=LC['AVAILABLE-VOLUME']+UC['AVAILABLE-VOLUME']
-        LC['VOLUME-FRAC']=LC['AVAILABLE-VOLUME']/total_available_volume
-        UC['VOLUME-FRAC']=UC['AVAILABLE-VOLUME']/total_available_volume
-        for chamber in [LC,UC]:
-            chamber['comp']={}
-            for sn,sspec in solvent.items():
-                mass=sspec['mass']
-                x=sspec['mol-frac']
-                chamber['comp'][sn]=int(x*molec_n(mass,solution_gcc,chamber['AVAILABLE-VOLUME']))
-            for ion,ispec in ions.items():
-                chamber['comp'][ion]=int(chamber['VOLUME-FRAC']*ispec['n'])
-                ions[ion]['claimed']+=chamber['comp'][ion]
-
-        for ion in ions:
-            if ions[ion]['n']>ions[ion]['claimed']:
-                ions[ion]['makeup']=ions[ion]['n']-ions[ion]['claimed']
-                nn=ions[ion]['makeup']//2
-                for chamber in [LC,UC]:
-                    chamber['comp'][ion]+=nn
-                if ions[ion]['makeup']%2==1:
-                    LC['comp'][ion]+=1
-
-        logger.debug(f'slices {slices}')
 
         self.next_basename('packmol')
         # first packmol run embeds protein and builds only the bilayer        
@@ -327,8 +278,59 @@ class BilayerEmbedTask(BaseTask):
                 pm.addline(f'end structure')
         pm.writefile()
         self.result=pm.runscript()
+
         if self.result!=0:
             return super().do()
+        anion_qtot=cation_qtot=0
+        if sg=='+':
+            anion_qtot=int(global_charge)
+        else:
+            cation_qtot=int(np.abs(global_charge))
+
+        anion_n=int(anion_qtot//np.abs(int(anion_q)))
+        cation_n=int(cation_qtot//np.abs(int(cation_q)))
+        ions={anion_name:{'n':anion_n,'claimed':0},cation_name:{'n':cation_n,'claimed':0}}
+        logger.debug(f'ions {ions}')
+
+        LC=slices['LOWER-CHAMBER']
+        LC['AVAILABLE-VOLUME']=mem_area*(LC['z-hi']-LC['z-lo'])
+        UC=slices['UPPER-CHAMBER']
+        UC['AVAILABLE-VOLUME']=mem_area*(UC['z-hi']-UC['z-lo'])
+        cdf=coorddf_from_pdb(packmol_output_pdb)
+        cl=cdf[cdf['z']<LC['z-hi']][['x','y','z']].to_numpy()
+        if len(cl)>0:
+            logger.debug(f'{len(cl)} lipid/protein atoms in the lower chamber')
+            pev=ConvexHull(cl).volume#*prot_vol_factor
+            LC['AVAILABLE-VOLUME']-=pev
+        cu=cdf[cdf['z']>UC['z-lo']][['x','y','z']].to_numpy()
+        if len(cu)>0:
+            logger.debug(f'{len(cu)} lipid/protein protein atoms in the upper chamber')
+            pev=ConvexHull(cl).volume#*prot_vol_factor
+            UC['AVAILABLE-VOLUME']-=pev
+
+        total_available_volume=LC['AVAILABLE-VOLUME']+UC['AVAILABLE-VOLUME']
+        LC['VOLUME-FRAC']=LC['AVAILABLE-VOLUME']/total_available_volume
+        UC['VOLUME-FRAC']=UC['AVAILABLE-VOLUME']/total_available_volume
+        for chamber in [LC,UC]:
+            chamber['comp']={}
+            for sn,sspec in solvent.items():
+                mass=sspec['mass']
+                x=sspec['mol-frac']
+                chamber['comp'][sn]=int(x*molec_n(mass,solution_gcc,chamber['AVAILABLE-VOLUME']))
+            for ion,ispec in ions.items():
+                chamber['comp'][ion]=int(chamber['VOLUME-FRAC']*ispec['n'])
+                ions[ion]['claimed']+=chamber['comp'][ion]
+
+        for ion in ions:
+            if ions[ion]['n']>ions[ion]['claimed']:
+                ions[ion]['makeup']=ions[ion]['n']-ions[ion]['claimed']
+                nn=ions[ion]['makeup']//2
+                for chamber in [LC,UC]:
+                    chamber['comp'][ion]+=nn
+                if ions[ion]['makeup']%2==1:
+                    LC['comp'][ion]+=1
+
+        logger.debug(f'slices {slices}')
 
         # second packmol run builds solvent chambers
         pm.newscript(f'{self.basename}')

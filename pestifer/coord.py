@@ -137,7 +137,7 @@ def coorddf_from_pdb(pdb):
     import os
     from pidibble.pdbparse import PDBParser
     p=PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()
-    atlist=p.parsed['ATOM']
+    atlist=p.parsed['ATOM']+p.parsed.get('HETATM',[])
     serial=[x.serial for x in atlist]
     name=[x.name for x in atlist]
     x=[x.x for x in atlist]
