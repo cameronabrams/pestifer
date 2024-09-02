@@ -311,12 +311,16 @@ class BilayerEmbedTask(BaseTask):
         if len(cl)>0:
             # compute the volume excluded as the volume of the complex hull over all
             # coordinates plus a 2-angstrom deep exluded layer along the interface
+            # this will most likely be an overestimate of the excluded volume, since
+            # the protein is likely convex and there are likely convexities 
+            # along the membrane
             logger.debug(f'{len(cl)} lipid/protein atoms in the lower chamber')
             cl_ch=ConvexHull(cl)
             exvol=cl_ch.volume
             exarea=cl_ch.area
             exdepth=LC['z-hi']-low_zedge
             exarea-=mem_area+2*(boxdim[0]+boxdim[1])*exdepth
+            assert exarea>mem_area
             exvol+=exarea*2.0
             LC['AVAILABLE-VOLUME']-=exvol
         cu=cdf[cdf['z']>UC['z-lo']][['x','y','z']].to_numpy()
@@ -327,6 +331,7 @@ class BilayerEmbedTask(BaseTask):
             exarea=cu_ch.area
             exdepth=hi_zedge-UC['z-lo']
             exarea-=mem_area+2*(boxdim[0]+boxdim[1])*exdepth
+            assert exarea>mem_area
             exvol+=exarea*2.0
             UC['AVAILABLE-VOLUME']-=exvol
 
