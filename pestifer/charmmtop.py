@@ -238,7 +238,7 @@ class CharmmTopResi:
             carddata=rawcarddata.lstrip().upper()  # no indent, no case-sensitivity
             if len(carddata)>0:    datacards.append(carddata)
             if len(cardcomment)>0: comments.append(cardcomment)
-        logger.debug(f'{self.resname}: {len(datacards)} datacards and {len(comments)} comments')
+        # logger.debug(f'{self.resname}: {len(datacards)} datacards and {len(comments)} comments')
         isatomgroup=[d.startswith('ATOM') or d.startswith('GROU') for d in datacards]
         atomgroupcards=compress(datacards,isatomgroup)
         self.atoms=CharmmTopAtomList([])

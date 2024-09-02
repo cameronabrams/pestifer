@@ -222,9 +222,10 @@ class BilayerEmbedTask(BaseTask):
         else:
             cation_qtot=int(np.abs(global_charge))
 
-        anion_n=int(anion_qtot/anion_q)
-        cation_n=int(cation_qtot/cation_q)
+        anion_n=int(anion_qtot//np.abs(int(anion_q)))
+        cation_n=int(cation_qtot//np.abs(int(cation_q)))
         ions={anion_name:{'n':anion_n,'claimed':0},cation_name:{'n':cation_n,'claimed':0}}
+        logger.debug(f'ions {ions}')
 
         LC=slices['LOWER-CHAMBER']
         LC['AVAILABLE-VOLUME']=mem_area*(LC['z-hi']-LC['z-lo'])
