@@ -1,4 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# Facilitates reading and parsing of CHARMM RESI and MASS records from rtp and str files
+#
 import glob 
 import logging
 import os
@@ -669,7 +672,7 @@ class CharmmResiDatabase(UserDict):
             sublist=getResis(t,self.M)
             for resi in sublist:
                 if resi.resname in self.charmm_resnames:
-                    logger.warning(f'RESI {resi.resname} is already in the database')
+                    logger.debug(f'RESI {resi.resname} is already in the database')
                 else:
                     relt=t
                     if 'toppar/' in t:

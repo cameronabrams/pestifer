@@ -11,6 +11,7 @@ from scipy.constants import physical_constants, Avogadro
 from scipy.spatial import ConvexHull
 
 from .charmmtop import CharmmResiDatabase
+from .config import segtype_of_resname
 from .coord import coorddf_from_pdb
 from .psf import PSFContents
 from .scriptwriters import PackmolInputWriter
@@ -131,8 +132,8 @@ class BilayerEmbedTask(BaseTask):
             slices['UPPER-CHAMBER']['z-lo']= midplane+leaflet_thickness
             slices['UPPER-CHAMBER']['z-hi']= box_ur[2]
         else:
-            box_ll=-0.5*boxdim
-            box_ur=0.5*boxdim
+            box_ll=np.zeros(3,dtype=float)
+            box_ur=boxdim
             origin=0.5*(box_ur+box_ll)
             mem_area=boxdim[1]*boxdim[2]
             slices['LOWER-CHAMBER']['z-lo']= box_ll[2]
@@ -144,8 +145,7 @@ class BilayerEmbedTask(BaseTask):
             slices['UPPER-CHAMBER']['z-lo']= origin[2]+leaflet_thickness
             slices['UPPER-CHAMBER']['z-hi']= box_ur[2]
 
-        span=box_ur-box_ll
-        boxV=span.prod()
+        boxV=boxdim.prod()
         logger.debug(f'box corners ll {box_ll} ur {box_ur}')
         logger.debug(f'membrane area {mem_area}')
         logger.debug(f'box volume {boxV:.3f}')
@@ -216,8 +216,6 @@ class BilayerEmbedTask(BaseTask):
         logger.debug(f'Slices: {slices}')
         sg='+' if global_charge>0 else ''
         logger.debug(f'Total charge: {sg}{global_charge:.3f}')
-
-
 
         self.next_basename('packmol')
         # first packmol run embeds protein and builds only the bilayer        
@@ -300,46 +298,24 @@ class BilayerEmbedTask(BaseTask):
         # by lipid and/or protein atoms and adjusts the apparent chamber volumes
         # accordingly
         cdf=coorddf_from_pdb(packmol_output_pdb)
-        # 1. find the "edges" where density is 1/2 max density in each chamber
-        h,z=np.histogram(cdf['z'],bins=100)
-        hmax=np.max(h)
-        zmean=np.mean(z)
-        low_zedge=z[:-1][(h<0.5*hmax)*(z[:-1]<zmean)][-1]
-        hi_zedge=z[:-1][(h<0.5*hmax)*(z[:-1]>zmean)][0]
-        logger.debug(f'low zedge {low_zedge} hi_zedge {hi_zedge}')
-        # 2. Get the coordinates for all atoms in the lower chamber
-        cl=cdf[cdf['z']<LC['z-hi']][['x','y','z']].to_numpy()
-        if len(cl)>0:
-            # compute the volume excluded as the volume of the complex hull over all
-            # coordinates plus a 2-angstrom deep exluded layer along the interface
-            # this will most likely be an overestimate of the excluded volume, since
-            # the protein is likely convex and there are likely convexities 
-            # along the membrane
-            logger.debug(f'{len(cl)} lipid/protein atoms in the lower chamber')
-            cl_ch=ConvexHull(cl)
-            exvol=cl_ch.volume*prot_vol_factor
-            # exarea=cl_ch.area
-            # exdepth=LC['z-hi']-low_zedge
-            # exarea-=mem_area+2*(boxdim[0]+boxdim[1])*exdepth
-            # assert exarea>mem_area
-            # exvol+=exarea*2.0
-            LC['AVAILABLE-VOLUME']-=exvol
-        cu=cdf[cdf['z']>UC['z-lo']][['x','y','z']].to_numpy()
-        if len(cu)>0:
-            logger.debug(f'{len(cu)} lipid/protein protein atoms in the upper chamber')
-            cu_ch=ConvexHull(cl)
-            exvol=cu_ch.volume*prot_vol_factor
-            # exarea=cu_ch.area
-            # exdepth=hi_zedge-UC['z-lo']
-            # exarea-=mem_area+2*(boxdim[0]+boxdim[1])*exdepth
-            # assert exarea>mem_area
-            # exvol+=exarea*2.0
-            UC['AVAILABLE-VOLUME']-=exvol
+        cdf['segtype']=[segtype_of_resname[x] for x in cdf['resname']]
+        nxbins=int(boxdim[0]/2.)
+        nybins=int(boxdim[1]/2.)
+        for S in [LC,UC]:
+            slice_atoms=cdf[(cdf['z']<S['z-hi'])&(cdf['z']>S['z-lo'])]
+            logger.debug(f'\n{slice_atoms.head().to_string()}')
+            if slice_atoms.shape[0]>0:
+                nzbins=int((S['z-hi']-S['z-lo'])/2.)
+                binV=boxdim[0]*boxdim[1]*(S['z-hi']-S['z-lo'])/(nxbins*nybins*nzbins)
+                h,edges=np.histogramdd(slice_atoms[['x','y','z']],bins=(nxbins,nybins,nzbins))
+                S['EXCLUDED-VOLUME']=h[h>0.0].shape[0]*binV
+                S['AVAILABLE-VOLUME']-=S['EXCLUDED-VOLUME']
+
+        logger.debug(f'slices {slices}')
 
         total_available_volume=LC['AVAILABLE-VOLUME']+UC['AVAILABLE-VOLUME']
-        LC['VOLUME-FRAC']=LC['AVAILABLE-VOLUME']/total_available_volume
-        UC['VOLUME-FRAC']=UC['AVAILABLE-VOLUME']/total_available_volume
         for chamber in [LC,UC]:
+            chamber['VOLUME-FRAC']=chamber['AVAILABLE-VOLUME']/total_available_volume
             chamber['comp']={}
             for sn,sspec in solvent.items():
                 mass=sspec['mass']

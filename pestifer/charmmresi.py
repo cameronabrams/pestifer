@@ -1,4 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# Facilitates building PDB files of RESI's using ICs, and equilibrating them and generating samples
+#
 import glob
 import logging
 import os
@@ -245,7 +248,7 @@ def make_RESI_database(args):
     DB=CharmmResiDatabase()
     for stream in streams:
         DB.add_stream(stream)
-        
+
     outdir=args.output_dir
     faildir=args.fail_dir
     if not os.path.exists(outdir):
