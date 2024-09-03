@@ -306,6 +306,7 @@ class BilayerEmbedTask(BaseTask):
         zmean=np.mean(z)
         low_zedge=z[:-1][(h<0.5*hmax)*(z[:-1]<zmean)][-1]
         hi_zedge=z[:-1][(h<0.5*hmax)*(z[:-1]>zmean)][0]
+        logger.debug(f'low zedge {low_zedge} hi_zedge {hi_zedge}')
         # 2. Get the coordinates for all atoms in the lower chamber
         cl=cdf[cdf['z']<LC['z-hi']][['x','y','z']].to_numpy()
         if len(cl)>0:
@@ -316,23 +317,23 @@ class BilayerEmbedTask(BaseTask):
             # along the membrane
             logger.debug(f'{len(cl)} lipid/protein atoms in the lower chamber')
             cl_ch=ConvexHull(cl)
-            exvol=cl_ch.volume
-            exarea=cl_ch.area
-            exdepth=LC['z-hi']-low_zedge
-            exarea-=mem_area+2*(boxdim[0]+boxdim[1])*exdepth
-            assert exarea>mem_area
-            exvol+=exarea*2.0
+            exvol=cl_ch.volume*prot_vol_factor
+            # exarea=cl_ch.area
+            # exdepth=LC['z-hi']-low_zedge
+            # exarea-=mem_area+2*(boxdim[0]+boxdim[1])*exdepth
+            # assert exarea>mem_area
+            # exvol+=exarea*2.0
             LC['AVAILABLE-VOLUME']-=exvol
         cu=cdf[cdf['z']>UC['z-lo']][['x','y','z']].to_numpy()
         if len(cu)>0:
             logger.debug(f'{len(cu)} lipid/protein protein atoms in the upper chamber')
             cu_ch=ConvexHull(cl)
-            exvol=cu_ch.volume
-            exarea=cu_ch.area
-            exdepth=hi_zedge-UC['z-lo']
-            exarea-=mem_area+2*(boxdim[0]+boxdim[1])*exdepth
-            assert exarea>mem_area
-            exvol+=exarea*2.0
+            exvol=cu_ch.volume*prot_vol_factor
+            # exarea=cu_ch.area
+            # exdepth=hi_zedge-UC['z-lo']
+            # exarea-=mem_area+2*(boxdim[0]+boxdim[1])*exdepth
+            # assert exarea>mem_area
+            # exvol+=exarea*2.0
             UC['AVAILABLE-VOLUME']-=exvol
 
         total_available_volume=LC['AVAILABLE-VOLUME']+UC['AVAILABLE-VOLUME']

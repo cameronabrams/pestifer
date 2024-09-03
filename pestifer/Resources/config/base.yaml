@@ -1350,6 +1350,10 @@ directives:
             text: string in form of x_1:x_2:...
             type: str
             default: '1.0'
+          - name: prot_vol_factor
+            text: factor >1 by which convex hull volume of incursions into chambers is multiplied to compute excluded volume in each chamber
+            type: float
+            default: 1.15
           - name: SAPL
             text: estimate of surface area per lipid (A^2)
             type: float
