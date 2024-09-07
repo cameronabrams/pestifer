@@ -19,7 +19,20 @@ def gettclinfo(name,line):
     tok=line.split()[namelen+1]
     return int(tok)
 
-
+class NAMDxst:
+    def __init__(self,filename):
+        celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
+        col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
+        celldf.columns=col
+        self.df=celldf
+    def add_file(self,filename):
+        celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
+        col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
+        celldf.columns=col
+        self.df=pd.concat((self.df,celldf))
+    def concat(self,other):
+        self.df=pd.concat((self.df,other.df))
+        
 class NAMDLog:
     groupnames=['ETITLE:','ENERGY:','charmrun>','Charm++>','Info:','TIMING:','WallClock:']
     infonames=['TIMESTEP','NUMBER OF STEPS','RANDOM NUMBER SEED','TOTAL MASS']

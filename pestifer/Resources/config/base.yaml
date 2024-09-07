@@ -1314,6 +1314,10 @@ directives:
                 text: distance from perimeter of protein to box edge in z (A)
                 type: float
                 default: 20
+              - name: protein_radius_scaling
+                text: factor by which to multiply computed protein TM radius to compute membrane excluded area
+                type: float
+                default: 1.01
               - name: n_ter
                 text: in or out; N-termini are usually 'in' for membrane proteins
                 type: str
@@ -1350,14 +1354,14 @@ directives:
             text: string in form of x_1:x_2:...
             type: str
             default: '1.0'
-          - name: prot_vol_factor
-            text: factor >1 by which convex hull volume of incursions into chambers is multiplied to compute excluded volume in each chamber
-            type: float
-            default: 1.15
           - name: SAPL
             text: estimate of surface area per lipid (A^2)
             type: float
             default: 60.0
+          - name: scale_excluded_volume
+            text: scaling factor controlling contribution of non-solvent atoms in calculating available chamber volumes
+            type: float
+            default: 1.0
           - name: dims
             text: box dimensions (A); must be specified for a bilayer-only system
             type: list

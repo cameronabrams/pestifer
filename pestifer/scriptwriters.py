@@ -8,7 +8,7 @@ import logging
 logger=logging.getLogger(__name__)
 from .command import Command
 from .util import reduce_intlist
-from .namdlog import NAMDLog
+from .namdlog import NAMDLog, NAMDxst
 from .progress import NAMDProgress, PsfgenProgress, PackmolProgress
 from .stringthings import ByteCollector, FileCollector
 
@@ -354,6 +354,7 @@ class Psfgen(VMD):
 class NAMD2(TcLScriptwriter):
     def __init__(self,config):
         super().__init__(config)
+        logger.debug(f'progress {self.progress}')
         self.charmmff_config=config['user']['charmmff']
         self.charmrun=config.charmrun
         self.namd2=config.namd2
@@ -440,3 +441,6 @@ class NAMD2(TcLScriptwriter):
 
     def getlog(self,inherited_etitles=[]):
         return NAMDLog(self.logname,inherited_etitles=inherited_etitles).energy()
+
+    def getxst(self):
+        return NAMDxst(f'{self.basename}.xst')

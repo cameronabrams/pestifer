@@ -1,16 +1,29 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """ Defines the ByteCollector and FileCollector classes
 """
-import pandas as pd
-from collections import UserList
 import logging
-logger=logging.getLogger(__name__)
 import os
-from io import StringIO
 import subprocess
-from itertools import product
 import shutil
-# _ANGSTROM_='Ångström'
+
+import numpy as np
+import pandas as pd
+
+from collections import UserList
+from io import StringIO
+from itertools import product
+
+logger=logging.getLogger(__name__)
+
+_SYMBOLS_={
+    'ANGSTROM':'Å',
+    'CUBED':'³',
+    'SQUARED':'²'
+}
+_UNITS_={
+    'SQUARE-ANGSTROMS':f'{_SYMBOLS_["ANGSTROM"]}{_SYMBOLS_["SQUARED"]}',
+    'CUBIC-ANGSTROMS':f'{_SYMBOLS_["ANGSTROM"]}{_SYMBOLS_["CUBED"]}',
+    }
 
 import importlib.metadata
 
@@ -225,18 +238,18 @@ class ByteCollector:
         my_logger(msg,self.addline)
 
     def banner(self,msg):
-        my_logger(msg,self.addline,fill='#',width=80)
+        my_logger(msg,self.addline,fill='#',width=80,just='^')
 
     def __str__(self):
         return self.byte_collector
 
-def my_logger(msg,logf,width=67,fill='*',sep=', ',just='^',frame='',**kwargs):
+def my_logger(msg,logf,width=None,fill='',just='<',frame='',depth=0,**kwargs):
     """A fancy logger
     
     Parameters
     ----------
     msg: str, list
-       the message to be logged, either as a single string or a list of strings
+       the message to be logged, either as a single string, list, or dict
     
     logf: function
        writer; e.g., print, f.write, etc.
@@ -253,44 +266,49 @@ def my_logger(msg,logf,width=67,fill='*',sep=', ',just='^',frame='',**kwargs):
     just: str, optional
        format character
     """
+    if width is None:
+        if logf is print:
+            ts=shutil.get_terminal_size((80,20))
+            width=ts.columns
+        else:
+            width=67
     fmt=r'{'+r':'+fill+just+f'{width}'+r'}'
+    ll=' ' if just in '^>' else ''
+    rr=' ' if just in '^<' else ''
     if frame:
         ffmt=r'{'+r':'+frame+just+f'{width}'+r'}'
-    ll=' ' if just in ['^','>'] else ''
-    rr=' ' if just in ['^','<'] else ''
-    if frame:
         logf(ffmt.format(frame))
     if type(msg)==list:
-        rr=' ' if ' ' not in sep else ''
-        lnlst=[]
         for tok in msg:
-            ll_sofar=sum([len(x) for x in lnlst])
-            test_ll=ll_sofar+len(tok)+len(sep)*(len(lnlst)+1)
-            if test_ll>width-2*(1+len(sep)):
-                outstr=ll+sep.join(lnlst)+sep+rr
-                logf(fmt.format(outstr))
-                lnlst=[tok]
+            my_logger(tok,logf,width=width,fill=fill,just=just,frame=False,depth=depth,kwargs=kwargs)
+    elif type(msg)==dict:
+        for key,value in msg.items():
+            if type(value) in [str,int,float,np.float64,np.int64]:
+                my_logger(f'{key}: {value}',logf,width=width,fill=fill,just=just,frame=False,depth=depth,kwargs=kwargs)
             else:
-                lnlst.append(tok)
-        outstr=ll+sep.join(lnlst)+' '
-        logf(fmt.format(outstr))
+                my_logger(f'{key}:',logf,width=width,fill=fill,just=just,frame=False,depth=depth,kwargs=kwargs)
+                my_logger(value,logf,width=width,fill=fill,just=just,frame=False,depth=depth+1,kwargs=kwargs)
     elif type(msg)==pd.DataFrame:
         dfoutmode=kwargs.get('dfoutmode','value')
         if dfoutmode=='value':
-            lines=msg.to_string().split('\n')
+            my_logger([ll+x+rr for x in msg.to_string().split('\n')],logf,width=width,fill=fill,just=just,frame=False,depth=depth,kwargs=kwargs)
         elif dfoutmode=='info':
             buf=StringIO()
             msg.info(buf=buf)
-            lines=buf.getvalue().split('\n')
+            my_logger([ll+x+rr for x in buf.getvalue().split('\n')],logf,width=width,fill=fill,just=just,frame=False,depth=depth,kwargs=kwargs)
         else:
             return
-        for ln in lines:
-            outstr=ll+ln+rr
-            logf(fmt.format(outstr))
     else:
-        lns=msg.split('\n')
-        for ln in lns:
-            outstr=ll+ln+rr
+        indent=f'{" "*depth*2}' if just=='<' else ''
+        if type(msg)==str:
+            lns=msg.split('\n')
+            if len(lns)>1:
+                my_logger(lns,logf,width=width,fill=fill,just=just,frame=False,depth=depth+1,kwargs=kwargs)
+            else:
+                outstr=indent+ll+f'{msg}'+rr
+                logf(fmt.format(outstr))
+        else:
+            outstr=indent+ll+f'{msg}'+rr
             logf(fmt.format(outstr))
     if frame:
         logf(ffmt.format(frame))

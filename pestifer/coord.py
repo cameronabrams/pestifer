@@ -132,7 +132,7 @@ def positionN(res,tmat):
     logger.debug(f'positionN: C-N bond length {np.linalg.norm(R34):.4f}')
     return rN
 
-def coorddf_from_pdb(pdb):
+def coorddf_from_pdb(pdb,segtypes=False):
     import pandas as pd
     import os
     from pidibble.pdbparse import PDBParser
@@ -148,7 +148,12 @@ def coorddf_from_pdb(pdb):
     resid=[x.residue.seqNum for x in atlist]
     chain=[x.residue.chainID for x in atlist]
     ins=[x.residue.iCode for x in atlist]
-    return pd.DataFrame({'name':name,'x':x,'y':y,'z':z,'resname':resname,'resid':resid,'chain':chain,'altloc':alt,'insertion':ins},index=serial)
+    basedict={'name':name,'x':x,'y':y,'z':z,'resname':resname,'resid':resid,'chain':chain,'altloc':alt,'insertion':ins}
+    if segtypes:
+        from .config import segtype_of_resname, Config
+        if len(segtype_of_resname)==0: c=Config()
+        basedict['segtype']=[segtype_of_resname[x] for x in resname]
+    return pd.DataFrame(basedict,index=serial)
 
 def mic_shift(point,ref,box):
     hbox=np.diagonal(box)/2

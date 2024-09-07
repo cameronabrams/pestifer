@@ -1,17 +1,19 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>.
 """Various utility functions good for pestifer
 """
-import inspect
-import sys
-import logging
 import importlib
+import inspect
+import logging
 import os
-logger=logging.getLogger(__name__)
+import sys
+import time
 import shutil
 import pandas as pd
 import numpy as np
-import time
 from functools import wraps
+from scipy.constants import physical_constants, Avogadro
+
+logger=logging.getLogger(__name__)
 
 _fntiminginfo={}
 def countTime(fn):
@@ -53,6 +55,14 @@ def cell_to_xsc(box,orig,xsc):
         f.write('# NAMD extended system configuration output filewritten by pestifer\n')
         f.write('#$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z\n')
         f.write(f'0 {" ".join([f"{_:.6f}" for _ in box.reshape((9,)).tolist()])} {" ".join([f"{_:.6f}" for _ in orig])}\n')
+
+g_per_amu=physical_constants['atomic mass constant'][0]*1000
+A_per_cm=1.e8
+A3_per_cm3=A_per_cm**3
+cm3_per_A3=1.0/A3_per_cm3
+n_per_mol=Avogadro
+def nmolec_in_cuA(MW_g,density_gcc,volume_A3):
+    return int(np.floor(density_gcc/MW_g*cm3_per_A3*n_per_mol*volume_A3))
 
 def is_tool(name):
     """Checks to see if the object name is an executable"""

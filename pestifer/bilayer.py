@@ -7,26 +7,19 @@ import yaml
 import numpy as np
 import pandas as pd
 
-from scipy.constants import physical_constants, Avogadro
-from scipy.spatial import ConvexHull
-
 from .charmmtop import CharmmResiDatabase
-from .config import segtype_of_resname
 from .coord import coorddf_from_pdb
 from .psf import PSFContents
 from .scriptwriters import PackmolInputWriter
+from .stringthings import _UNITS_, _SYMBOLS_, my_logger
 from .tasks import BaseTask
-from .util import cell_to_xsc
+from .util import cell_to_xsc, nmolec_in_cuA
+
+sA_ =_SYMBOLS_['ANGSTROM']
+sA2_=_UNITS_['SQUARE-ANGSTROMS']
+sA3_=_UNITS_['CUBIC-ANGSTROMS']
 
 logger=logging.getLogger(__name__)
-
-g_per_amu=physical_constants['atomic mass constant'][0]*1000
-A_per_cm=1.e8
-A3_per_cm3=A_per_cm**3
-cm3_per_A3=1.0/A3_per_cm3
-n_per_mol=Avogadro
-def molec_n(MW_g,density_gcc,volume_A3):
-    return np.floor(density_gcc/MW_g*cm3_per_A3*n_per_mol*volume_A3)
 
 class BilayerEmbedTask(BaseTask):
     """ A class for handling embedding proteins into bilayers
@@ -38,7 +31,7 @@ class BilayerEmbedTask(BaseTask):
     Methods
     -------
     do(): 
-        Based on specs, writes a packmol input file to generate a membrane-embedded protein and
+        Based on specs, writes packmol input files to generate a membrane-embedded protein and
         then runs packmol
 
     """
@@ -61,7 +54,8 @@ class BilayerEmbedTask(BaseTask):
         pro_psc=PSFContents(psf)
         pro_charge=pro_psc.get_charge()
         pdb=self.statevars.get('pdb',None)
-        logger.debug(f'BilayerEmbedTask will use psf {psf} and pdb {pdb} as inputs')
+        if psf is not None and pdb is not None:
+            logger.debug(f'BilayerEmbedTask will use psf {psf} and pdb {pdb} as inputs')
 
         self.next_basename('bilayer')
 
@@ -80,18 +74,23 @@ class BilayerEmbedTask(BaseTask):
         salt_con_M=self.specs.get('salt_con',0.0)
 
         SAPL=self.specs.get('SAPL',60.0)
+        scale_excluded_volume=self.specs.get('scale_excluded_volume',1.0)
         seed=self.specs.get('seed',27021972)
         tolerance=self.specs.get('tolerance',2.0)
         solution_gcc=self.specs.get('solution_gcc',1.0)
-        prot_vol_factor=self.specs.get('prot_volume_factor',1.15)
         leaflet_thickness=self.specs.get('leaflet_thickness',22.0)
         nloop=self.specs.get('nloop',200)
         nloop_all=self.specs.get('nloop_all',200)
         boxdim=np.array(list(map(float,self.specs.get('dims',[]))))
 
-        slices={'LOWER-CHAMBER':{},'LOWER-LEAFLET':{},'UPPER-LEAFLET':{},'UPPER-CHAMBER':{}}
-
+        self.slices={'LOWER-CHAMBER':{},'LOWER-LEAFLET':{},'UPPER-LEAFLET':{},'UPPER-CHAMBER':{}}
+        LC=self.slices['LOWER-CHAMBER']
+        LL=self.slices['LOWER-LEAFLET']
+        UL=self.slices['UPPER-LEAFLET']
+        UC=self.slices['UPPER-CHAMBER']
+        
         if 'embed' in self.specs:
+            assert pdb is not None
             # use the protein and embedding specs to size the box
             embed_specs=self.specs['embed']
             prot_rad_scal=embed_specs.get('protein_radius_scaling',1.0)
@@ -119,36 +118,52 @@ class BilayerEmbedTask(BaseTask):
 
             origin=0.5*(box_ur+box_ll)
             boxdim=box_ur-box_ll
-            mem_area=boxdim[1]*boxdim[2]
+            box_area=boxdim[0]*boxdim[1]
             protein_xyarea=np.pi*(protein_rad*prot_rad_scal)**2
-            logger.debug(f'protein radius {protein_rad:.3f} xyarea {protein_xyarea:.3f}')
-            mem_area-=protein_xyarea
-            slices['LOWER-CHAMBER']['z-lo']= box_ll[2]
-            slices['LOWER-CHAMBER']['z-hi']= midplane-leaflet_thickness
-            slices['LOWER-LEAFLET']['z-lo']= midplane-leaflet_thickness
-            slices['LOWER-LEAFLET']['z-hi']= midplane
-            slices['UPPER-LEAFLET']['z-lo']= midplane
-            slices['UPPER-LEAFLET']['z-hi']= midplane+leaflet_thickness
-            slices['UPPER-CHAMBER']['z-lo']= midplane+leaflet_thickness
-            slices['UPPER-CHAMBER']['z-hi']= box_ur[2]
+            logger.debug(f'box area {box_area:.3f} {sA2_}')
+            logger.debug(f'protein radius {protein_rad:.3f} {sA_} xyarea {protein_xyarea:.3f} {sA2_}')
+            mem_area=box_area-protein_xyarea
+            logger.debug(f'protein excludes approx. {np.floor(protein_xyarea/SAPL)} lipids per leaflet')
+            logger.debug(f'actual membrane area {mem_area:.3f} {sA2_}')
+            LC['z-lo']= box_ll[2]
+            LC['z-hi']= midplane-leaflet_thickness
+            LL['z-lo']= midplane-leaflet_thickness
+            LL['z-hi']= midplane
+            UL['z-lo']= midplane
+            UL['z-hi']= midplane+leaflet_thickness
+            UC['z-lo']= midplane+leaflet_thickness
+            UC['z-hi']= box_ur[2]
         else:
             box_ll=np.zeros(3,dtype=float)
             box_ur=boxdim
             origin=0.5*(box_ur+box_ll)
-            mem_area=boxdim[1]*boxdim[2]
-            slices['LOWER-CHAMBER']['z-lo']= box_ll[2]
-            slices['LOWER-CHAMBER']['z-hi']= origin[2]-leaflet_thickness
-            slices['LOWER-LEAFLET']['z-lo']= origin[2]-leaflet_thickness
-            slices['LOWER-LEAFLET']['z-hi']= origin[2]
-            slices['UPPER-LEAFLET']['z-lo']= origin[2]
-            slices['UPPER-LEAFLET']['z-hi']= origin[2]+leaflet_thickness
-            slices['UPPER-CHAMBER']['z-lo']= origin[2]+leaflet_thickness
-            slices['UPPER-CHAMBER']['z-hi']= box_ur[2]
+            box_area=boxdim[0]*boxdim[1]
+            mem_area=box_area
+            LC['z-lo']= box_ll[2]
+            LC['z-hi']= origin[2]-leaflet_thickness
+            LL['z-lo']= origin[2]-leaflet_thickness
+            LL['z-hi']= origin[2]
+            UL['z-lo']= origin[2]
+            UL['z-hi']= origin[2]+leaflet_thickness
+            UC['z-lo']= origin[2]+leaflet_thickness
+            UC['z-hi']= box_ur[2]
+
+        for S in [LC,LL,UL,UC]:
+            S['THICKNESS']=S['z-hi']-S['z-lo']
+            S['INIT-VOLUME']=S['THICKNESS']*box_area
+            S['INIT-NWATEREQUIV']=nmolec_in_cuA(18.0,1.0,S['INIT-VOLUME'])
+        
+        my_logger(self.slices,logger.debug)
 
         boxV=boxdim.prod()
         logger.debug(f'box corners ll {box_ll} ur {box_ur}')
-        logger.debug(f'membrane area {mem_area}')
-        logger.debug(f'box volume {boxV:.3f}')
+        logger.debug(f'box dimensions {boxdim}')
+        logger.debug(f'box area {box_area} {sA2_}; membrane_area {mem_area} {sA2_}')
+        logger.debug(f'box volume {boxV:.3f} {sA3_} (check sum-over-slices: {np.sum(np.array([x['INIT-VOLUME'] for x in self.slices.values()]))} {sA3_}) (or {nmolec_in_cuA(18.0,1.0,boxV)} waters at 1 g/cc)')
+        logger.debug(f'membrane volume {box_area*2*leaflet_thickness:.3f} {sA3_}')
+        logger.debug(f'   lower chamber: {LC["INIT-VOLUME"]} {sA3_}; upper chamber: {UC["INIT-VOLUME"]} {sA3_}')
+        logger.debug(f'due to membrane, expecting {nmolec_in_cuA(18.0,1.0,boxV-(box_area*2*leaflet_thickness))} waters')
+        logger.debug(f'   lower chamber: {LC["INIT-NWATEREQUIV"]}; upper chamber: {UC["INIT-NWATEREQUIV"]}')
 
         cell_to_xsc(np.diag(boxdim),origin,f'{self.basename}.xsc')
         self.save_state(exts=['xsc'])
@@ -166,6 +181,8 @@ class BilayerEmbedTask(BaseTask):
             shutil.copy(solvent_pdb_path,'./')
             solvent[sn]['mass']=RDB['water_ions'][sn].mass()
 
+        my_logger(solvent,logger.debug)
+
         leaf_lipspec=lipid_specstring.split('//')
         leaf_ratiospec=ratio_specstring.split('//')
         assert len(leaf_lipspec)==len(leaf_ratiospec),f'lipid names and mole fractions are not congruent'
@@ -175,17 +192,15 @@ class BilayerEmbedTask(BaseTask):
         
         global_lipid_names=[]
         # build leaflets
-        LL=slices['LOWER-LEAFLET']
-        UL=slices['UPPER-LEAFLET']
         LL['lipids']=[]
         UL['lipids']=[]
-        for li,(leaflet_name,lipid_name_string,lipid_molfrac_string) in enumerate(zip(['LOWER-LEAFLET','UPPER-LEAFLET'],leaf_lipspec,leaf_ratiospec)):
+        for li,(leaflet_name,lipid_name_string,lipid_molfrac_string) in enumerate(zip([LL,UL],leaf_lipspec,leaf_ratiospec)):
             lipid_names=lipid_name_string.split(':')
             lipid_molfracs=list(map(float,lipid_molfrac_string.split(':')))
             assert len(lipid_names)==len(lipid_molfracs),f'lipid names and mole fractions are not congruent'
             for ll in lipid_names:
                 if not ll in global_lipid_names: global_lipid_names.append(ll)
-            slices[leaflet_name]['lipids']=[dict(name=name,frac=frac) for name,frac in zip(lipid_names,lipid_molfracs)]
+            leaflet_name['lipids']=[dict(name=name,frac=frac) for name,frac in zip(lipid_names,lipid_molfracs)]
 
         lipid_data={}
         addl_params=[]
@@ -194,7 +209,6 @@ class BilayerEmbedTask(BaseTask):
             assert os.path.exists(lpath),f'No PDB available for lipid {l}'
             for i in range(10):
                 lpdb=os.path.join(lpath,f'{l}-0{i}.pdb')
-                # lpdb=os.path.join(lpath,f'{l}-noh-0{i}.pdb')
                 shutil.copy(lpdb,'./')
             psc=PSFContents(os.path.join(lpath,f'{l}-init.psf'))
             orients=pd.read_csv(os.path.join(lpath,'orientations.dat'),header=0,index_col=None)
@@ -208,12 +222,12 @@ class BilayerEmbedTask(BaseTask):
 
         tot_lip_mols=mem_area/SAPL
         bilayer_charge=0.0
-        for leafname in ['LOWER-LEAFLET','UPPER-LEAFLET']:
-            for component in slices[leafname]['lipids']:
+        for leafname in [LL,UL]:
+            for component in leafname['lipids']:
                 component['n']=int(np.floor(component['frac']*tot_lip_mols))
                 bilayer_charge+=lipid_data[component['name']]['charge']*component['n']
         global_charge=pro_charge+bilayer_charge
-        logger.debug(f'Slices: {slices}')
+        my_logger(self.slices,logger.debug)
         sg='+' if global_charge>0 else ''
         logger.debug(f'Total charge: {sg}{global_charge:.3f}')
 
@@ -288,39 +302,44 @@ class BilayerEmbedTask(BaseTask):
         anion_n=int(anion_qtot//np.abs(int(anion_q)))
         cation_n=int(cation_qtot//np.abs(int(cation_q)))
         ions={anion_name:{'n':anion_n,'claimed':0},cation_name:{'n':cation_n,'claimed':0}}
-        logger.debug(f'ions {ions}')
+        my_logger(ions,logger.debug)
 
-        LC=slices['LOWER-CHAMBER']
-        LC['AVAILABLE-VOLUME']=mem_area*(LC['z-hi']-LC['z-lo'])
-        UC=slices['UPPER-CHAMBER']
-        UC['AVAILABLE-VOLUME']=mem_area*(UC['z-hi']-UC['z-lo'])
         # computes the volumes in the upper and lower chambers that are occupied
         # by lipid and/or protein atoms and adjusts the apparent chamber volumes
         # accordingly
         cdf=coorddf_from_pdb(packmol_output_pdb)
-        cdf['segtype']=[segtype_of_resname[x] for x in cdf['resname']]
-        nxbins=int(boxdim[0]/2.)
-        nybins=int(boxdim[1]/2.)
+        density_calc_resolution=2. # Angstrom
+        nxbins=int(boxdim[0]/density_calc_resolution)
+        nybins=int(boxdim[1]/density_calc_resolution)
         for S in [LC,UC]:
             slice_atoms=cdf[(cdf['z']<S['z-hi'])&(cdf['z']>S['z-lo'])]
-            logger.debug(f'\n{slice_atoms.head().to_string()}')
+            my_logger(slice_atoms.head(),logger.debug)
+            logger.debug(f'{slice_atoms.shape[0]} atoms')
             if slice_atoms.shape[0]>0:
-                nzbins=int((S['z-hi']-S['z-lo'])/2.)
-                binV=boxdim[0]*boxdim[1]*(S['z-hi']-S['z-lo'])/(nxbins*nybins*nzbins)
-                h,edges=np.histogramdd(slice_atoms[['x','y','z']],bins=(nxbins,nybins,nzbins))
-                S['EXCLUDED-VOLUME']=h[h>0.0].shape[0]*binV
-                S['AVAILABLE-VOLUME']-=S['EXCLUDED-VOLUME']
+                nzbins=int((S['THICKNESS'])/density_calc_resolution)
+                h,edges=np.histogramdd(slice_atoms[['x','y','z']].to_numpy(),bins=(nxbins,nybins,nzbins))
+                binV=boxdim[0]*boxdim[1]*(S['THICKNESS'])/(nxbins*nybins*nzbins)
+                logger.debug(f'bin volume {binV:.3f} {sA3_}')
+                hit_bin_count=h[h>0.0].size
+                logger.debug(f'{hit_bin_count}/{h.size} bins have some atom density')
+                excluded_volume=hit_bin_count*binV
+                logger.debug(f'excluded volume {excluded_volume} {sA3_}')
+                S['EXCLUDED-VOLUME']=excluded_volume
+                S['AVAILABLE-VOLUME']=S['INIT-VOLUME']-S['EXCLUDED-VOLUME']*scale_excluded_volume
+                logger.debug(f'available volume {S["AVAILABLE-VOLUME"]} {sA3_} ({nmolec_in_cuA(18.0,1.0,S["AVAILABLE-VOLUME"])} water-equivs)')
 
-        logger.debug(f'slices {slices}')
+        my_logger(self.slices,logger.debug)
 
         total_available_volume=LC['AVAILABLE-VOLUME']+UC['AVAILABLE-VOLUME']
+        logger.debug(f'total volume available for solvent {total_available_volume:.3f} {sA3_} ({total_available_volume/boxV*100:2f} of box)')
         for chamber in [LC,UC]:
             chamber['VOLUME-FRAC']=chamber['AVAILABLE-VOLUME']/total_available_volume
             chamber['comp']={}
             for sn,sspec in solvent.items():
                 mass=sspec['mass']
                 x=sspec['mol-frac']
-                chamber['comp'][sn]=int(x*molec_n(mass,solution_gcc,chamber['AVAILABLE-VOLUME']))
+                chamber['comp'][sn]=int(x*nmolec_in_cuA(mass,solution_gcc,chamber['AVAILABLE-VOLUME']))
+                logger.debug(f'solvent component {sn}: mass {mass} x {x} n {chamber["comp"][sn]}')
             for ion,ispec in ions.items():
                 chamber['comp'][ion]=int(chamber['VOLUME-FRAC']*ispec['n'])
                 ions[ion]['claimed']+=chamber['comp'][ion]
@@ -334,7 +353,7 @@ class BilayerEmbedTask(BaseTask):
                 if ions[ion]['makeup']%2==1:
                     LC['comp'][ion]+=1
 
-        logger.debug(f'slices {slices}')
+        my_logger(self.slices,logger.debug)
 
         # second packmol run builds solvent chambers
         pm.newscript(f'{self.basename}')

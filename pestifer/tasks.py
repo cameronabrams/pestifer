@@ -387,6 +387,10 @@ class MDTask(BaseTask):
                 inherited_etitles=self.prior.mdlog.etitles
                 logger.debug(f'Offering these etitles: {inherited_etitles}')
             self.mdlog=na.getlog(inherited_etitles=inherited_etitles)
+
+            if os.path.exists(f'{self.basename}.xst'):
+                self.xstlog=na.getxst()
+
             if ensemble!='minimize':
                 self.update_statevars('firsttimestep',firsttimestep+nsteps)
             else:
@@ -403,14 +407,18 @@ class MDPlotTask(BaseTask):
         self.log_message('initiated')
         self.inherit_state()            
         datasources=[]
+        xstsources=[]
         root=self.prior
         while root.prior!=None and root.prior.taskname=='md':
             if hasattr(root.prior,'mdlog'):
                 datasources.append(root.prior.mdlog.edata)
+            if hasattr(root.prior,'xstlog'):
+                xstsources.append(root.prior.xstlog.df)
             root=root.prior
         logger.debug(f'concatenating energy-like data from {len(datasources)} sequential logs')
         data=pd.concat(datasources[::-1])
         savedata=self.specs.get('savedata',None)
+        xstdata=pd.concat(xstsources[::-1])
         if savedata:
             logger.debug(f'Saving energy-like data to {savedata}.')
             try:
@@ -418,6 +426,13 @@ class MDPlotTask(BaseTask):
             except:
                 logger.debug(f'For some reason, could not write a dataframe to csv')
                 logger.debug(data.iloc[:3,:].to_string())
+            logger.debug(f'Saving cell data to xst-{savedata}.')
+            try:
+                xstdata.to_csv(f'xst-{savedata}',header=True,index=False)
+            except:
+                logger.debug(f'For some reason, could not write a dataframe to csv')
+                logger.debug(xstdata.iloc[:3,:].to_string())
+        
         traces=self.specs.get('traces',[])
         basename=self.specs.get('basename','myplot')
         for trace in traces:
@@ -433,7 +448,10 @@ class MDPlotTask(BaseTask):
                 else:
                     logger.debug(f'Unitspec "{unitspec}" not recognized.')
                     units=1.0
-            ax.plot(data['TS'],data[key]*units,label=key.title())
+            if key in data:
+                ax.plot(data['TS'],data[key]*units,label=key.title())
+            elif key in xstdata:
+                ax.plot(xstdata['step'],xstdata[key]*units,label=key.title())
             ax.set_xlabel('time step')
             ax.set_ylabel(key.title()+' ('+unitspec+')')
             plt.savefig(f'{basename}-{trace}.png',bbox_inches='tight')

@@ -1,6 +1,6 @@
 import unittest
 import pytest
-from pestifer.namdlog import NAMDLog,getinfo
+from pestifer.namdlog import NAMDLog,getinfo,NAMDxst
 
 class TestNAMDLog(unittest.TestCase):
     def test_namdlog_init(self):
@@ -35,3 +35,19 @@ class TestNAMDLog(unittest.TestCase):
         line='Info: ATOM DENSITY = 0.100831 atoms/A^3'
         val=getinfo('ATOM DENSITY',line)
         self.assertEqual(val,'0.100831')
+
+class TestNAMDxst(unittest.TestCase):
+    def test_namdxst_class(self):
+        n=NAMDxst('07-00-md-NPT.xst')
+        self.assertFalse(n.df.empty)
+    def test_namdxst_addfile(self):
+        n=NAMDxst('07-00-md-NPT.xst')
+        self.assertFalse(n.df.empty)
+        n.add_file('08-00-md-NPT.xst')
+        self.assertEqual(n.df.shape[0],8)
+    def test_namdxst_concat(self):
+        n=NAMDxst('07-00-md-NPT.xst')
+        self.assertFalse(n.df.empty)
+        n2=NAMDxst('08-00-md-NPT.xst')
+        n.concat(n2)
+        self.assertEqual(n.df.shape[0],8)

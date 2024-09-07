@@ -58,6 +58,7 @@ class Command:
                 shutil.move(logfile,f'%{logfile}-{nlogs+1}%')
             log=open(logfile,'w')
         if progress and not progress.unmeasured:
+            logger.debug(f'progress type {type(progress)}')
             bytes=ByteCollector()
         process=subprocess.Popen(self.c,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
         global pid
