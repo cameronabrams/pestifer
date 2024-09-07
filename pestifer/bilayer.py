@@ -202,9 +202,13 @@ class BilayerEmbedTask(BaseTask):
                 if not ll in global_lipid_names: global_lipid_names.append(ll)
             leaflet_name['lipids']=[dict(name=name,frac=frac) for name,frac in zip(lipid_names,lipid_molfracs)]
 
+        logger.debug(f'leaflets')
+        my_logger(LL,logger.debug)
+        my_logger(UL,logger.debug)
+
         lipid_data={}
         addl_params=[]
-        for l in lipid_names:
+        for l in global_lipid_names:
             lpath=os.path.join(self.lipid_pdb_path,l)
             assert os.path.exists(lpath),f'No PDB available for lipid {l}'
             for i in range(10):
@@ -264,6 +268,7 @@ class BilayerEmbedTask(BaseTask):
                 length=osrs.top_z-osrs.bottom_z
                 zlims=[leaflet['z-lo'],leaflet['z-hi']]
                 avail_depth=zlims[1]-zlims[0]
+                logger.debug(f'{name}: {name}{selp} length {length} {osrs.bottom_serial}-{osrs.top_serial}')
                 if length>avail_depth:
                     specs['below-z']=zlims[0]
                     specs['above-z']=zlims[1]
