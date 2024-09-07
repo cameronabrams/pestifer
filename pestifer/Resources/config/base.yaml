@@ -1209,6 +1209,13 @@ directives:
             text: user-specified units for plots (if other than NAMD standard units)
             default:
               density: g_per_cc
+              a_x: A
+              b_y: A
+              c_z: A
+          - name: legend
+            text: include a legend
+            type: bool
+            default: False
           - name: basename
             type: str
             text: Baseame of image file(s) to generate

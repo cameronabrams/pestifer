@@ -436,7 +436,10 @@ class NAMD2(TcLScriptwriter):
         self.logname=f'{self.basename}.log'
         progress_struct=None
         if self.progress:
+            logger.debug(f'NAMD runscript using progress')
             progress_struct=NAMDProgress(timer_format='\x1b[33mnamd\x1b[39m time: %(elapsed)s')
+        else:
+            logger.debug(f'NAMD runscript NOT using progress')
         return c.run(logfile=self.logname,progress=progress_struct)
 
     def getlog(self,inherited_etitles=[]):

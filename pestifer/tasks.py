@@ -390,6 +390,7 @@ class MDTask(BaseTask):
 
             if os.path.exists(f'{self.basename}.xst'):
                 self.xstlog=na.getxst()
+                logger.debug(f'{self.xstlog.df.shape[0]} xst entries stored')
 
             if ensemble!='minimize':
                 self.update_statevars('firsttimestep',firsttimestep+nsteps)
@@ -416,16 +417,16 @@ class MDPlotTask(BaseTask):
                 xstsources.append(root.prior.xstlog.df)
             root=root.prior
         logger.debug(f'concatenating energy-like data from {len(datasources)} sequential logs')
-        data=pd.concat(datasources[::-1])
+        edata=pd.concat(datasources[::-1])
         savedata=self.specs.get('savedata',None)
         xstdata=pd.concat(xstsources[::-1])
         if savedata:
             logger.debug(f'Saving energy-like data to {savedata}.')
             try:
-                data.to_csv(savedata,header=True,index=False)
+                edata.to_csv(savedata,header=True,index=False)
             except:
                 logger.debug(f'For some reason, could not write a dataframe to csv')
-                logger.debug(data.iloc[:3,:].to_string())
+                logger.debug(edata.iloc[:3,:].to_string())
             logger.debug(f'Saving cell data to xst-{savedata}.')
             try:
                 xstdata.to_csv(f'xst-{savedata}',header=True,index=False)
@@ -434,27 +435,39 @@ class MDPlotTask(BaseTask):
                 logger.debug(xstdata.iloc[:3,:].to_string())
         
         traces=self.specs.get('traces',[])
+        legend=self.specs.get('legend',False)
         basename=self.specs.get('basename','myplot')
         for trace in traces:
+            unitspecs=[]
             figsize=self.specs.get('figsize',(9,6))
-            key=trace.upper()
             fig,ax=plt.subplots(1,1,figsize=figsize)
-            unitspec=self.specs.get('units',{}).get(trace,'*')
-            if unitspec=='*':
-                units=1.0
+            if type(trace)!=list:
+                tracelist=[trace]
             else:
-                if unitspec=='g_per_cc':
-                    units=g_per_amu*A3_per_cm3
-                else:
-                    logger.debug(f'Unitspec "{unitspec}" not recognized.')
+                tracelist=trace
+            for t_i in tracelist:
+                unitspec=self.specs.get('units',{}).get(t_i,'*')
+                if unitspec=='*':
                     units=1.0
-            if key in data:
-                ax.plot(data['TS'],data[key]*units,label=key.title())
-            elif key in xstdata:
-                ax.plot(xstdata['step'],xstdata[key]*units,label=key.title())
+                else:
+                    if unitspec=='g_per_cc':
+                        units=g_per_amu*A3_per_cm3
+                    else:
+                        logger.debug(f'Unitspec "{unitspec}" not recognized.')
+                        units=1.0
+                unitspecs.append(unitspec)
+                if t_i.upper() in edata:
+                    key=t_i.upper()
+                    ax.plot(edata['TS'],edata[key]*units,label=key.title())
+                elif t_i in xstdata:
+                    ax.plot(xstdata['step'],xstdata[t_i]*units,label=t_i)
             ax.set_xlabel('time step')
-            ax.set_ylabel(key.title()+' ('+unitspec+')')
-            plt.savefig(f'{basename}-{trace}.png',bbox_inches='tight')
+            tracename=','.join(tracelist)
+            ax.set_ylabel(tracename+' ('+','.join([_ for _ in unitspecs if _!='*'])+')')
+            if legend:
+                plt.legend()
+            tracename='-'.join(tracelist)
+            plt.savefig(f'{basename}-{tracename}.png',bbox_inches='tight')
             plt.clf()
         self.log_message('complete')
         self.result=0

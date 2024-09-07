@@ -51,7 +51,7 @@ class PestiferProgress:
                     self.bar.update()
 
 class NAMDProgress(PestiferProgress):
-    groupnames=['ENERGY:','Info:','TCL:']
+    groupnames=['ETITLE:','ENERGY:','Info:','TCL:']
     infonames=['FIRST TIMESTEP']
     tclnames=['Running for','Minimizing for']
     def __init__(self,**kwargs):
@@ -63,6 +63,7 @@ class NAMDProgress(PestiferProgress):
         self.groups={}
         self.info={}
         self.tcl={}
+        self.etitles=[]
         loglines=logstring.split('\n')
         for l in loglines:
             if len(l)>0:
@@ -71,6 +72,8 @@ class NAMDProgress(PestiferProgress):
                     if not tok in self.groups:
                         self.groups[tok]=[]
                     self.groups[tok].append(l)
+        for etitle in self.groups.get('ETITLE:',[]):
+            self.etitles.append(etitle)
         for info in self.groups.get('Info:',[]):
             for il in self.infonames:
                 if il in info:
@@ -84,15 +87,18 @@ class NAMDProgress(PestiferProgress):
         if not logstring:
             return self.init_obj
         self.parse_f(logstring)
-        first_step=self.info.get('FIRST TIMESTEP',None)
+        # if self.info: logger.debug(f'info {self.info}')
+        # if self.tcl: logger.debug(f'tcl {self.tcl}')
+        first_step=self.info.get('FIRST TIMESTEP',0)
         num_steps=self.tcl.get('Running for',None)
         nummin_steps=self.tcl.get('Minimizing for',None)
+        estart=len(self.etitles)>0
         if nummin_steps:
             self.init_obj={'first_step':int(first_step) if first_step else 0}
             self.init_obj['num_steps']=nummin_steps
             return self.init_obj
         elif num_steps:
-            if first_step:
+            if first_step or estart:
                 self.init_obj={'first_step':int(first_step)}
                 self.init_obj['num_steps']=num_steps
                 return self.init_obj
