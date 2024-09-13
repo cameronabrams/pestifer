@@ -73,6 +73,10 @@ class BilayerEmbedTask(BaseTask):
         shutil.copy(os.path.join(self.water_ion_pdb_path,f'{anion_name}.pdb'),'./')
         salt_con_M=self.specs.get('salt_con',0.0)
 
+        rotation_pm=self.specs.get('rotation_pm',10.)
+        fuzz_factor=self.specs.get('fuzz_factor',0.5)
+
+
         SAPL=self.specs.get('SAPL',60.0)
         scale_excluded_volume=self.specs.get('scale_excluded_volume',1.0)
         seed=self.specs.get('seed',27021972)
@@ -82,6 +86,7 @@ class BilayerEmbedTask(BaseTask):
         nloop=self.specs.get('nloop',200)
         nloop_all=self.specs.get('nloop_all',200)
         boxdim=np.array(list(map(float,self.specs.get('dims',[]))))
+        # margin_scale=self.specs.get('margin_scale',1.5)
 
         self.slices={'LOWER-CHAMBER':{},'LOWER-LEAFLET':{},'UPPER-LEAFLET':{},'UPPER-CHAMBER':{}}
         LC=self.slices['LOWER-CHAMBER']
@@ -196,7 +201,9 @@ class BilayerEmbedTask(BaseTask):
         UL['lipids']=[]
         for li,(leaflet_name,lipid_name_string,lipid_molfrac_string) in enumerate(zip([LL,UL],leaf_lipspec,leaf_ratiospec)):
             lipid_names=lipid_name_string.split(':')
-            lipid_molfracs=list(map(float,lipid_molfrac_string.split(':')))
+            lipid_molfracs=np.array(list(map(float,lipid_molfrac_string.split(':'))))
+            sumlm=np.sum(lipid_molfracs)
+            lipid_molfracs/=sumlm
             assert len(lipid_names)==len(lipid_molfracs),f'lipid names and mole fractions are not congruent'
             for ll in lipid_names:
                 if not ll in global_lipid_names: global_lipid_names.append(ll)
@@ -214,15 +221,12 @@ class BilayerEmbedTask(BaseTask):
             for i in range(10):
                 lpdb=os.path.join(lpath,f'{l}-0{i}.pdb')
                 shutil.copy(lpdb,'./')
-            psc=PSFContents(os.path.join(lpath,f'{l}-init.psf'))
-            orients=pd.read_csv(os.path.join(lpath,'orientations.dat'),header=0,index_col=None)
-            with open(os.path.join(lpath,'parameters.txt'),'r') as f:
-                paramlist=f.read().split('\n')
-            ldata={'charge':psc.get_charge(),'parameters':paramlist,'odf':orients}
-            for p in paramlist:
+            with open(os.path.join(lpath,'info.yaml'),'r') as f:
+                info=yaml.safe_load(f)
+            for p in info['parameters']:
                 if p.endswith('str') and not p in addl_params:
                     addl_params.append(p)
-            lipid_data[l]=ldata
+            lipid_data[l]=info
 
         tot_lip_mols=mem_area/SAPL
         bilayer_charge=0.0
@@ -255,49 +259,58 @@ class BilayerEmbedTask(BaseTask):
             pm.addline( 'end structure')
 
         for leaflet in [LL,UL]:
-            if leaflet is LL: selp='-05.pdb'
-            else: selp='-08.pdb'
+            selp='-00.pdb'
             for specs in leaflet['lipids']:
                 name=specs['name']
+                info=lipid_data[name]
+                hs=' '.join([f"{x['serial']}" for x in info['reference-atoms']['heads']])
+                ts=' '.join([f"{x['serial']}" for x in info['reference-atoms']['tails']])
                 n=specs['n']
                 pm.addline(f'structure {name}{selp}')
                 pm.addline(f'number {n}',indents=1)
-                odf=lipid_data[name]['odf']
-                # can adjust to pick a random sample maybe
-                osrs=odf[odf['pdb']==f'{name}{selp}'].iloc[0,:]
-                length=osrs.top_z-osrs.bottom_z
-                zlims=[leaflet['z-lo'],leaflet['z-hi']]
-                avail_depth=zlims[1]-zlims[0]
-                logger.debug(f'{name}: {name}{selp} length {length} {osrs.bottom_serial}-{osrs.top_serial}')
-                if length>avail_depth:
-                    specs['below-z']=zlims[0]
-                    specs['above-z']=zlims[1]
-                    margin=length-avail_depth
-                    specs['within-z-lo']=zlims[0]-0.5*margin
-                    specs['within-z-hi']=zlims[1]+0.5*margin
-                    specs['below-z-atom']=osrs.top_serial if leaflet is LL else osrs.bottom_serial
-                    specs['above-z-atom']=osrs.bottom_serial if leaflet is LL else osrs.top_serial
-                    pm.addline(f'inside box {box_ll[0]:.3f} {box_ll[1]:.3f} {specs["within-z-lo"]:.3f} {box_ur[0]:.3f} {box_ur[1]:.3f} {specs["within-z-hi"]:.3f}',indents=1)
-                    pm.addline(f'atoms {specs["below-z-atom"]}',indents=1)
-                    pm.addline(f'below plane 0. 0. 1. {specs["below-z"]:.3f}',indents=2)
+                conformer=[x for x in info['conformers'] if x['pdb']==f'{name}{selp}'][0]
+                length=conformer['head-tail-length']
+                Dz=np.cos(np.deg2rad(rotation_pm))*length
+                fuzz=Dz-length
+                fuzz_out,fuzz_in=fuzz*fuzz_factor,fuzz*(1-fuzz_factor)
+                leaflet_thickness=leaflet['z-hi']-leaflet['z-lo']
+                logger.debug(f'{name}: {name}{selp} length {length} fuzz_in {fuzz_in:.3f} fuzz_out {fuzz_out:.3f}')
+                if length>leaflet_thickness:
+                    if leaflet is LL:
+                        below_plane_z=UL['z-hi']-fuzz_out-length
+                        above_plane_z=UL['z-hi']+fuzz_in
+                        below_plane_atoms=hs
+                        above_plane_atoms=ts
+                    elif leaflet is UL:
+                        below_plane_z=LL['z-lo']-fuzz_in
+                        above_plane_z=LL['z-lo']+fuzz_out+length   
+                        below_plane_atoms=ts
+                        above_plane_atoms=hs
+                    pm.addline(f'inside box {box_ll[0]:.3f} {box_ll[1]:.3f} {box_ll[2]:.3f} {box_ur[0]:.3f} {box_ur[1]:.3f} {box_ur[2]:.3f}',indents=1)
+                    pm.addline(f'atoms {below_plane_atoms}',indents=1)
+                    pm.addline(f'below plane 0. 0. 1. {below_plane_z:.3f}',indents=2)
                     pm.addline( 'end atoms',indents=1)
-                    pm.addline(f'atoms {specs["above-z-atom"]}',indents=1)
-                    pm.addline(f'above plane 0. 0. 1. {specs["above-z"]:.3f}',indents=2)
+                    pm.addline(f'atoms {above_plane_atoms}',indents=1)
+                    pm.addline(f'above plane 0. 0. 1. {above_plane_z:.3f}',indents=2)
                     pm.addline( 'end atoms',indents=1)
                 else:
-                    constrain_rotation=180.0 if leaflet is LL else 0.0
-                    specs['within-z-lo']=zlims[0]
-                    specs['within-z-hi']=zlims[1]
-                    pm.addline(f'inside box {box_ll[0]:.3f} {box_ll[1]:.3f} {specs["within-z-lo"]:.3f} {box_ur[0]:.3f} {box_ur[1]:.3f} {specs["within-z-hi"]:.3f}',indents=1)
-                    pm.addline(f'constrain_rotation x {constrain_rotation} 10.0',indents=1)
-                    pm.addline(f'constrain_rotation y {constrain_rotation} 10.0',indents=1)
+                    if leaflet is LL:
+                        constrain_rotation=180.0
+                    elif leaflet is UL:
+                        constrain_rotation=0.0
+                    inside_z_lo=leaflet['z-lo']
+                    inside_z_hi=leaflet['z-hi']
+                    pm.addline(f'inside box {box_ll[0]:.3f} {box_ll[1]:.3f} {inside_z_lo:.3f} {box_ur[0]:.3f} {box_ur[1]:.3f} {inside_z_hi:.3f}',indents=1)
+                    pm.addline(f'constrain_rotation x {constrain_rotation} {rotation_pm}',indents=1)
+                    pm.addline(f'constrain_rotation y {constrain_rotation} {rotation_pm}',indents=1)
                 pm.addline(f'nloop {nloop}',indents=1)
                 pm.addline(f'end structure')
         pm.writefile()
         self.result=pm.runscript()
-
+        logger.debug(f'first packmol result {self.result}')
         if self.result!=0:
             return super().do()
+        
         anion_qtot=cation_qtot=0
         if sg=='+':
             anion_qtot=int(global_charge)
@@ -320,6 +333,7 @@ class BilayerEmbedTask(BaseTask):
             slice_atoms=cdf[(cdf['z']<S['z-hi'])&(cdf['z']>S['z-lo'])]
             my_logger(slice_atoms.head(),logger.debug)
             logger.debug(f'{slice_atoms.shape[0]} atoms')
+            S['AVAILABLE-VOLUME']=S['INIT-VOLUME']
             if slice_atoms.shape[0]>0:
                 nzbins=int((S['THICKNESS'])/density_calc_resolution)
                 h,edges=np.histogramdd(slice_atoms[['x','y','z']].to_numpy(),bins=(nxbins,nybins,nzbins))
@@ -330,7 +344,7 @@ class BilayerEmbedTask(BaseTask):
                 excluded_volume=hit_bin_count*binV
                 logger.debug(f'excluded volume {excluded_volume} {sA3_}')
                 S['EXCLUDED-VOLUME']=excluded_volume
-                S['AVAILABLE-VOLUME']=S['INIT-VOLUME']-S['EXCLUDED-VOLUME']*scale_excluded_volume
+                S['AVAILABLE-VOLUME']-=S['EXCLUDED-VOLUME']*scale_excluded_volume
                 logger.debug(f'available volume {S["AVAILABLE-VOLUME"]} {sA3_} ({nmolec_in_cuA(18.0,1.0,S["AVAILABLE-VOLUME"])} water-equivs)')
 
         my_logger(self.slices,logger.debug)

@@ -335,6 +335,7 @@ class CharmmTopResi:
         return g
     
     def head_tail_atoms(self):
+        """ Identify head and tail atoms """
         G=self.to_graph(includeH=False)
         cc=list(nx.chordless_cycles(G))
         logger.debug(f'cc {cc}')
@@ -360,10 +361,7 @@ class CharmmTopResi:
                                 shared_nodes_count+=1
                     if shared_nodes_count==2:
                         edge_partner_idx.append([i,j])
-                                # cc[i].remove(ai)
-                                # cc[j].remove(ai)
-                                # G.remove_node(ai)
-            logger.debug(f'edge_partner_index {edge_partner_idx}')
+            # logger.debug(f'edge_partner_index {edge_partner_idx}')
             for i in range(len(cc)):
                 nsharededges=0
                 for ep in edge_partner_idx:
@@ -376,21 +374,25 @@ class CharmmTopResi:
                     assert ringD==cc[i]
             logger.debug(f'ringA {ringA}')
             for a in ringA:
+                # head atom is the hydroxyl O on ringA
                 for n in nx.neighbors(G,a):
                     if G.nodes[n]['element']=='O':
                         heads=[n]
             paths=[]
             for a in G.__iter__():
                 paths.append(len(nx.shortest_path(G,a,heads[0])))
+            # tail is atom furthest away from head
             paths=np.array(paths)
             l_idx=np.argsort(paths)[-1]
             tails=[list(G.__iter__())[l_idx]]
         else:
+            # all atoms with only a single neighbor are "ends"' remember there are no H's here
             ends=[]
             for n in G.__iter__():
                 nn=len(list(G.neighbors(n)))
                 if nn==1:
                     ends.append(n)
+            # for each end-neighbor, determine if any of them are bound to the same neighbor
             ecount={}
             for e in ends:
                 nn=list(G.neighbors(e))[0]
@@ -398,6 +400,8 @@ class CharmmTopResi:
                     ecount[nn]=[]
                 ecount[nn].append(e)
             logger.debug(f'ecount {ecount}')
+            # for any atom that is a common neighbor to two or more "ends", it becomes a new
+            # end and the old ends are removed from the "ends"
             for k,v in ecount.items():
                 if len(v)>1:
                     for vv in v:
@@ -701,8 +705,7 @@ class CharmmResiDatabase(UserDict):
             elem=data.get(charmm_resid,None)
             if elem is not None:
                 return elem
-            else:
-                logger.debug(f'resi {charmm_resid} is not in stream {stream}')
+        logger.debug(f'resi {charmm_resid} is not found in any streams')
         return None
 
 

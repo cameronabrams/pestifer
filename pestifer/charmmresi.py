@@ -6,11 +6,16 @@ import glob
 import logging
 import os
 import shutil
+import yaml
 import numpy as np
-import pandas as pd
+# import pandas as pd
+
+from itertools import product
+
 from pidibble.pdbparse import PDBParser
 from .charmmtop import CharmmResiDatabase
 from .controller import Controller
+from .psf import PSFContents
 from .scriptwriters import Psfgen, VMD
 from .stringthings import my_logger
 
@@ -73,7 +78,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
         logger.debug(f'base_md {base_md}')
         tasklist.append({'md':base_md})
     else:
-        my_logger(f'graph analysis failed on {resid}',logger.warning,just='^',frame='!',fill='!')
+        my_logger(f'graph analysis: {resid} is not recognized as a lipid',logger.warning,just='^',frame='!',fill='!')
         with open(f'{resid}-topo.rtf','w') as f:
             topo.to_file(f)
     if len(heads)>0:
@@ -146,10 +151,10 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
                 topo.to_file(f)
             return -1
 
-    if par:
-        with open('parameters.txt','w') as f:
-            for p in par:
-                f.write(f'{p}\n')
+    # if par:
+    #     with open('parameters.txt','w') as f:
+    #         for p in par:
+    #             f.write(f'{p}\n')
         
     # now sample
     W=VMD(C.config)
@@ -174,24 +179,37 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     W.writescript()
     W.runscript()
 
+    psf=PSFContents(f'{resid}-init.psf')
+    q=psf.get_charge()
+    if np.abs(q)<1.e-3:
+        qstr=0.0
+    else:
+        qstr=float(f'{q:.3f}')
+    psfatoms=psf.atoms
+    info={
+        'parameters':par,
+        'reference-atoms':{
+            'heads':[dict(serial=p.serial,name=p.name) for p in psfatoms if p.name in heads],
+            'tails':[dict(serial=p.serial,name=p.name) for p in psfatoms if p.name in tails],
+            },
+        'charge':qstr,
+        'conformers':[]
+        }
+
     pdbs=[os.path.basename(x) for x in glob.glob(f'{resid}-??.pdb')]
-    smin=[]
-    smax=[]
-    zmin=[]
-    zmax=[]
     for pdb in pdbs:
+        entry={}
         p=PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()
-        z=np.array([x.z for x in p.parsed['ATOM']])
-        s=np.array([x.serial for x in p.parsed['ATOM']])
-        zsort_idx=np.argsort(z)
-        zsorted=z[zsort_idx]
-        ssorted=s[zsort_idx]
-        smin.append(ssorted[0])
-        zmin.append(zsorted[0])
-        smax.append(ssorted[-1])
-        zmax.append(zsorted[-1])
-    measures=pd.DataFrame({'pdb':pdbs,'bottom_z':zmin,'top_z':zmax,'bottom_serial':smin,'top_serial':smax})
-    measures.to_csv('orientations.dat',header=True,index=False)
+        pdbatoms=p.parsed['ATOM']
+        entry['pdb']=pdb
+        head_z=np.array([x.z for x in pdbatoms if x.name in heads])
+        tail_z=np.array([x.z for x in pdbatoms if x.name in tails])
+        length=np.array([np.abs(x-y) for x,y in product(head_z,tail_z)]).max()
+        entry['head-tail-length']=float(f'{length:.3f}')
+        info['conformers'].append(entry)
+
+    with open('info.yaml','w') as f:
+        f.write(yaml.dump(info))
     return 0
 
 def do_cleanup(resname,dirname):
@@ -199,8 +217,8 @@ def do_cleanup(resname,dirname):
     os.chdir(dirname)
     files=glob.glob('*')
     files.remove('init.tcl')
-    files.remove('orientations.dat')
-    files.remove('parameters.txt')
+    files.remove('info.yaml')
+    # files.remove('parameters.txt')
     files.remove(f'{resname}-init.psf')
     for f in glob.glob(f'{resname}-*.pdb'):
         files.remove(f)

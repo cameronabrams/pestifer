@@ -19,7 +19,7 @@ classifiers = [
 dependencies = [
     "numpy>=1.24",
     "pyyaml>=6",
-    "pidibble>=1.2.0",
+    "pidibble>=1.2.1",
     "pandas",
     "ycleptic>=1.0.5",
     "mmcif",

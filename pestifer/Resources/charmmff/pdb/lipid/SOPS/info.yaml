@@ -1,0 +1,42 @@
+charge: -1.0
+conformers:
+- head-tail-length: 30.047
+  pdb: SOPS-00.pdb
+- head-tail-length: 29.565
+  pdb: SOPS-01.pdb
+- head-tail-length: 29.349
+  pdb: SOPS-02.pdb
+- head-tail-length: 29.5
+  pdb: SOPS-03.pdb
+- head-tail-length: 28.925
+  pdb: SOPS-04.pdb
+- head-tail-length: 29.704
+  pdb: SOPS-05.pdb
+- head-tail-length: 29.215
+  pdb: SOPS-06.pdb
+- head-tail-length: 27.784
+  pdb: SOPS-07.pdb
+- head-tail-length: 27.964
+  pdb: SOPS-08.pdb
+- head-tail-length: 27.605
+  pdb: SOPS-09.pdb
+parameters:
+- par_all36m_prot.prm
+- par_all36_carb.prm
+- par_all36_lipid.prm
+- par_all36_carb.prm
+- par_all36_na.prm
+- par_all36_cgenff.prm
+- toppar_water_ions.str
+- stream/carb/toppar_all36_carb_glycopeptide.str
+- stream/prot/toppar_all36_prot_modify_res.str
+- stream/lipid/toppar_all36_lipid_miscellaneous.str
+reference-atoms:
+  heads:
+  - name: N
+    serial: 1
+  tails:
+  - name: C218
+    serial: 81
+  - name: C318
+    serial: 130

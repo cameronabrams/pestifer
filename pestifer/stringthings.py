@@ -283,7 +283,7 @@ def my_logger(msg,logf,width=None,fill='',just='<',frame='',depth=0,**kwargs):
             my_logger(tok,logf,width=width,fill=fill,just=just,frame=False,depth=depth,kwargs=kwargs)
     elif type(msg)==dict:
         for key,value in msg.items():
-            if type(value) in [str,int,float,np.float64,np.int64]:
+            if type(value)==str or not hasattr(value,"__len__"):
                 my_logger(f'{key}: {value}',logf,width=width,fill=fill,just=just,frame=False,depth=depth,kwargs=kwargs)
             else:
                 my_logger(f'{key}:',logf,width=width,fill=fill,just=just,frame=False,depth=depth,kwargs=kwargs)
