@@ -204,7 +204,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
         entry['pdb']=pdb
         head_z=np.array([x.z for x in pdbatoms if x.name in heads])
         tail_z=np.array([x.z for x in pdbatoms if x.name in tails])
-        length=np.array([np.abs(x-y) for x,y in product(head_z,tail_z)]).max()
+        length=np.array([np.abs(x-y) for x,y in product(head_z,tail_z)]).min()
         entry['head-tail-length']=float(f'{length:.3f}')
         info['conformers'].append(entry)
 

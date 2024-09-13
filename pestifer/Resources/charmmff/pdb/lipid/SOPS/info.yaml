@@ -1,24 +1,24 @@
 charge: -1.0
 conformers:
-- head-tail-length: 30.047
+- head-tail-length: 29.287
   pdb: SOPS-00.pdb
-- head-tail-length: 29.565
+- head-tail-length: 28.145
   pdb: SOPS-01.pdb
-- head-tail-length: 29.349
+- head-tail-length: 26.54
   pdb: SOPS-02.pdb
-- head-tail-length: 29.5
+- head-tail-length: 25.98
   pdb: SOPS-03.pdb
-- head-tail-length: 28.925
+- head-tail-length: 24.366
   pdb: SOPS-04.pdb
-- head-tail-length: 29.704
+- head-tail-length: 24.602
   pdb: SOPS-05.pdb
-- head-tail-length: 29.215
+- head-tail-length: 24.769
   pdb: SOPS-06.pdb
-- head-tail-length: 27.784
+- head-tail-length: 24.093
   pdb: SOPS-07.pdb
-- head-tail-length: 27.964
+- head-tail-length: 22.642
   pdb: SOPS-08.pdb
-- head-tail-length: 27.605
+- head-tail-length: 22.098
   pdb: SOPS-09.pdb
 parameters:
 - par_all36m_prot.prm

@@ -1,24 +1,24 @@
 charge: 0.0
 conformers:
-- head-tail-length: 29.152
+- head-tail-length: 29.484
   pdb: POPC-00.pdb
-- head-tail-length: 29.531
+- head-tail-length: 29.61
   pdb: POPC-01.pdb
-- head-tail-length: 29.038
+- head-tail-length: 28.495
   pdb: POPC-02.pdb
-- head-tail-length: 29.037
+- head-tail-length: 28.467
   pdb: POPC-03.pdb
-- head-tail-length: 29.323
+- head-tail-length: 27.934
   pdb: POPC-04.pdb
-- head-tail-length: 29.336
+- head-tail-length: 27.54
   pdb: POPC-05.pdb
-- head-tail-length: 28.919
+- head-tail-length: 26.276
   pdb: POPC-06.pdb
-- head-tail-length: 27.599
+- head-tail-length: 26.539
   pdb: POPC-07.pdb
-- head-tail-length: 26.846
+- head-tail-length: 27.028
   pdb: POPC-08.pdb
-- head-tail-length: 26.384
+- head-tail-length: 26.269
   pdb: POPC-09.pdb
 parameters:
 - par_all36m_prot.prm

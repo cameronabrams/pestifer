@@ -1,24 +1,24 @@
 charge: 0.0
 conformers:
-- head-tail-length: 31.8
+- head-tail-length: 28.752
   pdb: SOPE-00.pdb
-- head-tail-length: 30.051
+- head-tail-length: 28.29
   pdb: SOPE-01.pdb
-- head-tail-length: 30.07
+- head-tail-length: 29.428
   pdb: SOPE-02.pdb
-- head-tail-length: 30.053
+- head-tail-length: 28.586
   pdb: SOPE-03.pdb
-- head-tail-length: 27.851
+- head-tail-length: 27.257
   pdb: SOPE-04.pdb
-- head-tail-length: 26.961
+- head-tail-length: 26.241
   pdb: SOPE-05.pdb
-- head-tail-length: 26.93
+- head-tail-length: 24.779
   pdb: SOPE-06.pdb
-- head-tail-length: 27.223
+- head-tail-length: 24.923
   pdb: SOPE-07.pdb
-- head-tail-length: 25.749
+- head-tail-length: 24.329
   pdb: SOPE-08.pdb
-- head-tail-length: 26.38
+- head-tail-length: 25.116
   pdb: SOPE-09.pdb
 parameters:
 - par_all36m_prot.prm

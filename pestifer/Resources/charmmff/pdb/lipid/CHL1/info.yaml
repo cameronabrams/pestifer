@@ -1,24 +1,24 @@
 charge: 0.0
 conformers:
-- head-tail-length: 16.933
+- head-tail-length: 16.591
   pdb: CHL1-00.pdb
-- head-tail-length: 17.05
+- head-tail-length: 16.713
   pdb: CHL1-01.pdb
-- head-tail-length: 17.158
+- head-tail-length: 16.271
   pdb: CHL1-02.pdb
-- head-tail-length: 16.491
+- head-tail-length: 15.546
   pdb: CHL1-03.pdb
-- head-tail-length: 17.106
+- head-tail-length: 15.686
   pdb: CHL1-04.pdb
-- head-tail-length: 16.794
+- head-tail-length: 15.551
   pdb: CHL1-05.pdb
-- head-tail-length: 16.501
+- head-tail-length: 15.318
   pdb: CHL1-06.pdb
-- head-tail-length: 16.967
+- head-tail-length: 15.796
   pdb: CHL1-07.pdb
-- head-tail-length: 16.576
+- head-tail-length: 16.133
   pdb: CHL1-08.pdb
-- head-tail-length: 16.989
+- head-tail-length: 16.899
   pdb: CHL1-09.pdb
 parameters:
 - par_all36m_prot.prm

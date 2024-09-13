@@ -1,24 +1,24 @@
 charge: 0.0
 conformers:
-- head-tail-length: 28.096
+- head-tail-length: 27.42
   pdb: PSM-00.pdb
-- head-tail-length: 28.15
+- head-tail-length: 26.993
   pdb: PSM-01.pdb
-- head-tail-length: 27.172
+- head-tail-length: 26.051
   pdb: PSM-02.pdb
-- head-tail-length: 26.482
+- head-tail-length: 26.136
   pdb: PSM-03.pdb
-- head-tail-length: 26.108
+- head-tail-length: 25.369
   pdb: PSM-04.pdb
-- head-tail-length: 26.034
+- head-tail-length: 24.457
   pdb: PSM-05.pdb
-- head-tail-length: 27.154
+- head-tail-length: 24.377
   pdb: PSM-06.pdb
-- head-tail-length: 25.249
+- head-tail-length: 23.773
   pdb: PSM-07.pdb
-- head-tail-length: 24.928
+- head-tail-length: 22.905
   pdb: PSM-08.pdb
-- head-tail-length: 25.074
+- head-tail-length: 22.175
   pdb: PSM-09.pdb
 parameters:
 - par_all36m_prot.prm
