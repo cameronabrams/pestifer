@@ -230,8 +230,8 @@ class BilayerEmbedTask(BaseTask):
 
         tot_lip_mols=mem_area/SAPL
         bilayer_charge=0.0
-        for leafname in [LL,UL]:
-            for component in leafname['lipids']:
+        for leaflet in [LL,UL]:
+            for component in leaflet['lipids']:
                 component['n']=int(np.floor(component['frac']*tot_lip_mols))
                 bilayer_charge+=lipid_data[component['name']]['charge']*component['n']
         global_charge=pro_charge+bilayer_charge
@@ -277,13 +277,13 @@ class BilayerEmbedTask(BaseTask):
                 logger.debug(f'{name}: {name}{selp} length {length} fuzz_in {fuzz_in:.3f} fuzz_out {fuzz_out:.3f}')
                 if length>leaflet_thickness:
                     if leaflet is LL:
-                        below_plane_z=UL['z-hi']-fuzz_out-length
-                        above_plane_z=UL['z-hi']+fuzz_in
+                        below_plane_z=leaflet['z-hi']-fuzz_out-length
+                        above_plane_z=leaflet['z-hi']+fuzz_in
                         below_plane_atoms=hs
                         above_plane_atoms=ts
                     elif leaflet is UL:
-                        below_plane_z=LL['z-lo']-fuzz_in
-                        above_plane_z=LL['z-lo']+fuzz_out+length   
+                        below_plane_z=leaflet['z-lo']-fuzz_in
+                        above_plane_z=leaflet['z-lo']+fuzz_out+length   
                         below_plane_atoms=ts
                         above_plane_atoms=hs
                     pm.addline(f'inside box {box_ll[0]:.3f} {box_ll[1]:.3f} {box_ll[2]:.3f} {box_ur[0]:.3f} {box_ur[1]:.3f} {box_ur[2]:.3f}',indents=1)
