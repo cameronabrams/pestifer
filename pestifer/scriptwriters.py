@@ -47,40 +47,7 @@ class Filewriter:
         else:
             logger.debug(f'{self.filename} has already been written')
 
-class PackmolInputWriter(Filewriter):
-    def __init__(self,config):
-        super().__init__(comment_char='#')
-        self.indent=4*' '
-        self.config=config
-        self.progress=self.config.progress
-        self.F=FileCollector()
-        self.default_ext='.inp'
-        self.default_script=f'packmol{self.default_ext}'
-        self.scriptname=self.default_script
-    
-    def newscript(self,basename=None):
-        timestampstr=datetime.datetime.today().ctime()
-        if basename:
-            self.basename=basename
-        else:
-            self.basename=os.path.splitext(self.default_script)[0]
-        self.scriptname=f'{self.basename}{self.default_ext}'
-        self.newfile(self.scriptname)
-        self.banner(f'{__package__}: {self.basename}{self.default_ext}')
-        self.banner(f'Created {timestampstr}')
 
-    def writescript(self):
-        self.writefile()
-
-    def runscript(self,*args,**options):
-        assert hasattr(self,'scriptname'),f'No scriptname set.'
-        self.logname=f'{self.basename}.log'
-        logger.debug(f'Log file: {self.logname}')
-        cmd=Command(f'{self.config.packmol} < {self.scriptname}')
-        progress_struct=None
-        if self.progress:
-            progress_struct=PackmolProgress(timer_format='\x1b[36mpackmol\x1b[39m time: %(elapsed)s')
-        return cmd.run(ignore_codes=[173],logfile=self.logname,progress=progress_struct)
 
 class TcLScriptwriter(Filewriter):
     def __init__(self,config):

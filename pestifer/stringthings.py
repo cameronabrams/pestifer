@@ -457,3 +457,9 @@ def linesplit(line,cchar='!'):
     if idx==0:
         return '',line[1:]
     return line[:idx],line[idx+1:]
+
+def striplist(L):
+    l=[x.strip() for x in L]
+    while '' in l:
+        l.remove('')
+    return l

@@ -24,10 +24,11 @@ Pestifer also includes the July 2024 Charmm36 force field.
 ## Release History
 * 1.4.7
     * `ambertools` dependency removed
-    * `packmol-memgen` integration removed; now use native `bilayer_embed` task
+    * `packmol-memgen` integration removed; now use native `bilayer` task
     * `build_resi_database` command added
     * CHARMM force field files updated to July 2024
     * `salt_con`, `anion`, and `cation` specs for solvate now available
+    * `pidibble` dependency updated to 1.1.9
 * 1.4.6:
     * pierced ring detection and remediation via the `ring_check` task
     * `restart` task added

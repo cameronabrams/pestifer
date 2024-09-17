@@ -7,8 +7,6 @@
 # Notes:
 #   - Topology and parameters for cholesterol, sphingomyelin, and stearates are not loaded by default, so
 #     we explicitly declare them here
-#   - packmol-memgen is used.  A functional packmol-memgen is available if ambertools
-#     >= 23.6 is installed.
 #
 title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in a model viral membrane
 charmmff:
@@ -16,11 +14,15 @@ charmmff:
     topologies:
       - stream/lipid/toppar_all36_lipid_cholesterol.str
       - stream/lipid/toppar_all36_lipid_sphingo.str
+      - stream/lipid/toppar_all36_lipid_lps.str
       - stream/lipid/toppar_all36_lipid_miscellaneous.str
+      - stream/carb/toppar_all36_carb_imlab.str
     parameters:
       - stream/lipid/toppar_all36_lipid_cholesterol.str
       - stream/lipid/toppar_all36_lipid_sphingo.str
+      - stream/lipid/toppar_all36_lipid_lps.str
       - stream/lipid/toppar_all36_lipid_miscellaneous.str
+      - stream/carb/toppar_all36_carb_imlab.str
 tasks:
   - psfgen:
       source:
@@ -28,28 +30,45 @@ tasks:
         model: 15 # last frame
   - md:
       ensemble: minimize
-  - bilayer_embed:
+  - bilayer:
       embed:
+        xydist: 30
+        zdist: 20
+        protein_radius_scaling: 0.9
         z_head_group: "protein and resid 667"
         z_tail_group: "protein and resid 710"
         z_ref_group: 
           text: "protein and resid 696"
           z_value: 0.0
-      xydist: 20
-      zdist: 10
-      lipids: CHL1:PSM:POPC//CHL1:POPE:SOPS:SOPE
-      ratio: 0.4721:0.3554:0.1725//0.4333:0.0889:0.1778:0.3000
-      # nloop: 200
-  - solvate: # allow for explicit specification of cell dimensions
-    - cation: POT
-    - salt_con: 1.0
+      SAPL: 50.0
+      scale_excluded_volume: 0.25 # 
+      # lipids: POPC:CHL1
+      # mole_fractions: 0.5:0.5
+      # lipids: LowerLeaflet//UpperLeaflet
+      lipids: POPE:SOPS:SOPE:CHL1//PSM:POPC:CHL1
+      mole_fractions: 0.09:0.18:0.30:0.43//0.36:0.17:0.47
+      seed: 270272
+      nloop: 1000
+      nloop_all: 1000
   - md:
       ensemble: minimize
       minimize: 5000
-      other_parameters:
-        wrapall: on
+      constraints:
+        k: 10
+        atoms: protein and name CA
+  - ring_check:
   - md:
       ensemble: NVT
+      nsteps: 1000
+      constraints:
+        k: 10
+        atoms: protein and name CA
+  - md:
+      ensemble: NVT
+      nsteps: 1000
+      constraints:
+        k: 1
+        atoms: protein and name CA
   - md:
       ensemble: NPT
       nsteps: 200
@@ -77,13 +96,19 @@ tasks:
   - md:
       ensemble: NPT
       nsteps: 51200
+  - md:
+      ensemble: NPT
+      nsteps: 102400
   - mdplot:
-      savedata: solvated.csv
+      savedata: bilayer.csv
       traces:
         - density
+        - - a_x
+          - b_y
+        - c_z
       units:
         density: g_per_cc
-      basename: solvated
+      basename: bilayer
   - terminate:
       basename: my_6e8w
       package:

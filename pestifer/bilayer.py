@@ -9,8 +9,8 @@ import pandas as pd
 
 from .charmmtop import CharmmResiDatabase
 from .coord import coorddf_from_pdb
+from .packmol import PackmolInputWriter,PackmolLog
 from .psf import PSFContents
-from .scriptwriters import PackmolInputWriter
 from .stringthings import _UNITS_, _SYMBOLS_, my_logger
 from .tasks import BaseTask
 from .util import cell_to_xsc, nmolec_in_cuA
