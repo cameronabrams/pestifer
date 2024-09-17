@@ -71,7 +71,8 @@ pidibble v. {version("pidibble")}"""
         self.slurmvars={k:os.environ[k] for k in os.environ if 'SLURM' in k}
         self.local_ncpus=os.cpu_count()
         retstr=''
-        if self.slurmvars:
+        if self.slurmvars and 'SLURM_NNODES' in self.slurmvars and 'SLURM_NTASKS_PER_NODE' in self.slurmvars:
+            # we are in a batch execution
             nnodes=int(self.slurmvars['SLURM_NNODES'])
             ntaskspernode=int(self.slurmvars['SLURM_NTASKS_PER_NODE'])
             ncpus=nnodes*ntaskspernode
