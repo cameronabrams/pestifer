@@ -62,9 +62,8 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(starting_dict,expected_dict)
     
     def test_is_periodic(self):
-        self.assertFalse(is_periodic(None,'no.xsc'))
-        self.assertTrue(is_periodic(None,'yes.xsc'))
-        self.assertTrue(is_periodic('yes_cell.tcl',None))
+        self.assertFalse(is_periodic('no.xsc'))
+        self.assertTrue(is_periodic('yes.xsc'))
 
     def test_split_list(self):
         mL=[{'a':x,'b':x+1} for x in range(2,12,2)]

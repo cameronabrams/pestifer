@@ -114,9 +114,9 @@ class ConfigTest(unittest.TestCase):
             self.assertTrue('base' in c)
             self.assertTrue('user' in c)
             D=c['base']['directives']
-            self.assertEqual(len(D),7)
+            self.assertEqual(len(D),6)
             tld=[x['name'] for x in D]
-            self.assertEqual(tld,['charmmff', 'psfgen', 'ambertools', 'namd2', 'title', 'paths', 'tasks'])
+            self.assertEqual(tld,['charmmff', 'psfgen', 'namd2', 'title', 'paths', 'tasks'])
             T_idx=tld.index('title')
             T=D[T_idx]
             self.assertEqual(T['name'],'title')

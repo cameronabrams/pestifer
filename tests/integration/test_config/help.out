@@ -1,12 +1,12 @@
-    Help available for charmmff, psfgen, ambertools, namd2, title, paths, tasks
+    Help available for charmmff, psfgen, namd2, title, paths, tasks
 title:
     Meaningful title (optional)
     type: str
     default: Pestifer
 paths:
-    Allows user to specify various paths
+    Allows user to specify absolute paths to required external executables
     type: dict
-    Help available for namd2, charmrun, vmd, charmmff
+    Help available for namd2, charmrun, vmd, charmmff, packmol
 paths->
 vmd:
     Path for vmd executable
@@ -15,7 +15,7 @@ vmd:
 tasks:
     Specifies the tasks to be performed serially
     type: list
-    Help available for psfgen, ligate, mdplot, cleave, domainswap, solvate, packmol_memgen, md, manipulate, terminate
+    Help available for restart, psfgen, ligate, mdplot, cleave, domainswap, solvate, ring_check, bilayer, md, manipulate, terminate
 tasks->
 psfgen:
     Parameters controlling a psfgen run on an input molecule
@@ -99,12 +99,12 @@ tasks->
 solvate:
     Parameters controlling solvation and ionization
     type: dict
-    Help available for pad
+    Help available for pad, salt_con, cation, anion
 tasks->
 md:
     Parameters controlling a NAMD run
     type: dict
-    Help available for ensemble, minimize, nsteps, dcdfreq, xstfreq, temperature, pressure, other_parameters, constraints
+    Help available for vacuum, ensemble, minimize, nsteps, dcdfreq, xstfreq, temperature, pressure, other_parameters, constraints
 tasks->
 md->
 ensemble:

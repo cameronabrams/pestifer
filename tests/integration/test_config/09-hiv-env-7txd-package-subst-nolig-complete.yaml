@@ -1,12 +1,8 @@
-ambertools:
-  is_unnecessary: true
 charmmff:
   custom:
     parameters:
-    - toppar_water_ions.str
     - toppar_all36_moreions.str
     topologies:
-    - toppar_water_ions.str
     - toppar_all36_moreions.str
   standard:
     parameters:
@@ -16,6 +12,7 @@ charmmff:
     - par_all36_carb.prm
     - par_all36_na.prm
     - par_all36_cgenff.prm
+    - toppar_water_ions.str
     - stream/carb/toppar_all36_carb_glycopeptide.str
     - stream/prot/toppar_all36_prot_modify_res.str
     topologies:
@@ -25,6 +22,7 @@ charmmff:
     - top_all36_lipid.rtf
     - top_all36_carb.rtf
     - top_all36_na.rtf
+    - toppar_water_ions.str
     - stream/carb/toppar_all36_carb_glycopeptide.str
     - stream/prot/toppar_all36_prot_modify_res.str
 namd2:
@@ -71,6 +69,7 @@ namd2:
 paths:
   charmrun: /usr/local/bin/charmrun
   namd2: /usr/local/bin/namd2
+  packmol: /usr/local/bin/packmol
   vmd: /usr/local/bin/vmd
 psfgen:
   aliases:
@@ -356,6 +355,7 @@ psfgen:
       - CYSL
       - CYSP
       - DAPA
+      - DAPC
       - DAPE
       - DAPG
       - DAPS
@@ -387,14 +387,26 @@ psfgen:
       - DIHE
       - DIPA
       - DIPE
-      - DLiPC
       - DLIPC
-      - DLiPE
       - DLIPE
+      - DLPA
+      - DLPC
+      - DLPE
+      - DLPG
+      - DLPS
+      - DLiPC
+      - DLiPE
       - DLiPI
+      - DLIPC
+      - DLIPE
+      - DLIPI
       - DMP
+      - DMPA
+      - DMPC
       - DMPCE
+      - DMPE
       - DMPEE
+      - DMPG
       - DMPI
       - DMPI13
       - DMPI14
@@ -408,23 +420,39 @@ psfgen:
       - DMPI33
       - DMPI34
       - DMPI35
+      - DMPS
       - DNPA
       - DNPC
       - DNPE
       - DNPG
       - DNPS
       - DOMG
+      - DOPA
+      - DOPC
       - DOPCE
+      - DOPE
       - DOPEE
+      - DOPG
       - DOPP1
       - DOPP2
       - DOPP3
+      - DOPS
       - DPA
       - DPAP
+      - DPPA
+      - DPPC
+      - DPPE
       - DPPEE
+      - DPPG
       - DPPGK
+      - DPPS
       - DPT
       - DPTP
+      - DSPA
+      - DSPC
+      - DSPE
+      - DSPG
+      - DSPS
       - DTPA
       - DUPC
       - DXPC
@@ -512,6 +540,7 @@ psfgen:
       - LOCCL2
       - LPC12
       - LPC14
+      - LPPC
       - LPPG
       - LSM
       - LYSM
@@ -521,9 +550,9 @@ psfgen:
       - MEA
       - MEAP
       - MEEF
+      - MPRO
       - MP_1
       - MP_2
-      - MPRO
       - MSO4
       - MYR
       - MYRO
@@ -558,7 +587,6 @@ psfgen:
       - PDOPE
       - PENT
       - PGHG
-      - PhPC
       - PLPA
       - PLPC
       - PLPE
@@ -596,8 +624,12 @@ psfgen:
       - PNPI33
       - PNPI34
       - PNPI35
+      - POPA
+      - POPC
       - POPCE
+      - POPE
       - POPEE
+      - POPG
       - POPI
       - POPI13
       - POPI14
@@ -614,6 +646,7 @@ psfgen:
       - POPP1
       - POPP2
       - POPP3
+      - POPS
       - PPPE
       - PRPE
       - PSM
@@ -623,8 +656,10 @@ psfgen:
       - PYPE
       - PYPG
       - PYPI
+      - PhPC
       - QMPE
       - SAPA
+      - SAPC
       - SAPE
       - SAPG
       - SAPI
@@ -644,6 +679,7 @@ psfgen:
       - SDA
       - SDAP
       - SDPA
+      - SDPC
       - SDPE
       - SDPG
       - SDPS
@@ -659,6 +695,7 @@ psfgen:
       - SLPG
       - SLPS
       - SOPA
+      - SOPC
       - SOPE
       - SOPG
       - SOPS
@@ -721,15 +758,9 @@ psfgen:
       - CYFO
       - DDOP
       - DHPC
-      - DLiP
       - DLIP
-      - DMPC
-      - DMPE
-      - DOPC
-      - DOPE
+      - DLiP
       - DOPP
-      - DPPE
-      - DPPG
       - ECLI
       - FOIS
       - FOS1
@@ -750,8 +781,6 @@ psfgen:
       - PDOP
       - PMCL
       - PMSP
-      - POPC
-      - POPE
       - POPP
       - PVCL
       - SELI
@@ -1024,6 +1053,7 @@ tasks:
     figsize:
     - 9
     - 6
+    legend: false
     savedata: solvated.csv
     traces:
     - density

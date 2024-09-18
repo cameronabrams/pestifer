@@ -34,12 +34,12 @@ colvar {
 harmonic {
     name tail1_tail2_attract
     colvars tail1_tail2
-    forceConstant 1.00000
+    forceConstant [1.0]
     centers 4.00000
 }
 harmonic {
     name head1_tail12_repulse
     colvars head1_tail1 head1_tail2
-    forceConstant -1.00000 -1.00000
+    forceConstant [-1.0, -1.0]
     centers 20.00000 20.00000
 }

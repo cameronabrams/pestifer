@@ -1,9 +1,6 @@
 import unittest
-from pestifer.command import Command
-from pestifer.molecule import Molecule
 from pestifer.scriptwriters import Psfgen, NAMD2
 from pestifer.config import Config
-from pestifer.chainidmanager import ChainIDManager
 
 import os
 class TestPsfgen(unittest.TestCase):
@@ -25,7 +22,7 @@ class TestPsfgen(unittest.TestCase):
         p=NAMD2(c)
         print(p.standard_charmmff_parfiles)
         for x in p.standard_charmmff_parfiles:
-            self.assertTrue('pestifer/PestiferResources' in x)
+            self.assertTrue('pestifer/Resources' in x)
     def test_atomselect_macros(self):
         c=Config()
         p=Psfgen(c)

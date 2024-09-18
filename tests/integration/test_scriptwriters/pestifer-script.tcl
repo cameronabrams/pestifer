@@ -1,17 +1,17 @@
 ######################## pestifer: pestifer-script.tcl #########################
-####################### Created Wed Aug 14 15:45:07 2024 #######################
+####################### Created Wed Sep 18 12:09:56 2024 #######################
 package require psfgen
 psfcontext mixedcase
-topology /home/cfa/Git/pestifer/pestifer/PestiferResources/charmmff/toppar/top_all36_prot.rtf
-topology /home/cfa/Git/pestifer/pestifer/PestiferResources/charmmff/toppar/top_all35_ethers.rtf
-topology /home/cfa/Git/pestifer/pestifer/PestiferResources/charmmff/toppar/top_all36_cgenff.rtf
-topology /home/cfa/Git/pestifer/pestifer/PestiferResources/charmmff/toppar/top_all36_lipid.rtf
-topology /home/cfa/Git/pestifer/pestifer/PestiferResources/charmmff/toppar/top_all36_carb.rtf
-topology /home/cfa/Git/pestifer/pestifer/PestiferResources/charmmff/toppar/top_all36_na.rtf
-topology /home/cfa/Git/pestifer/pestifer/PestiferResources/charmmff/toppar/stream/carb/toppar_all36_carb_glycopeptide.str
-topology /home/cfa/Git/pestifer/pestifer/PestiferResources/charmmff/toppar/stream/prot/toppar_all36_prot_modify_res.str
-topology /home/cfa/Git/pestifer/pestifer/PestiferResources/charmmff/custom/toppar_water_ions.str
-topology /home/cfa/Git/pestifer/pestifer/PestiferResources/charmmff/custom/toppar_all36_moreions.str
+topology top_all36_prot.rtf
+topology top_all35_ethers.rtf
+topology top_all36_cgenff.rtf
+topology top_all36_lipid.rtf
+topology top_all36_carb.rtf
+topology top_all36_na.rtf
+topology toppar_water_ions.str
+topology toppar_all36_carb_glycopeptide.str
+topology toppar_all36_prot_modify_res.str
+topology toppar_all36_moreions.str
 pdbalias atom ILE CD1 CD
 pdbalias atom BGLCNA C7 C
 pdbalias atom BGLCNA O7 O

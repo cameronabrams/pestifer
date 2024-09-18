@@ -1,11 +1,12 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-import unittest
+# import unittest
 from pestifer.config import Config
 import os
 import shutil
 from glob import glob
 import subprocess
 import yaml
+import pytest
         
 def cleanup(excl_exts=['log','png','csv']):
     excl=set()
@@ -43,28 +44,45 @@ def do_it(exnumber):
         # assert(end_message=='INFO> pestifer runtime ends.')
     cleanup()
 
-class TestBuild(unittest.TestCase):
-    def test_example_build01(self):
-        do_it(1)
-    def test_example_build02(self):
-        do_it(2)
-    def test_example_build03(self):
-        do_it(3)
-    def test_example_build04(self):
-        do_it(4)
-    def test_example_build05(self):
-        do_it(5)
-    def test_example_build06(self):
-        do_it(6)
-    def test_example_build07(self):
-        do_it(7)
-    def test_example_build08(self):
-        do_it(8)
-    def test_example_build09(self):
-        do_it(9)
-    def test_example_build10(self):
-        do_it(10)
-    def test_example_build11(self):
-        do_it(11)
-    def test_example_build12(self):
-        do_it(12)
+@pytest.mark.slow
+def test_example_build01(self):
+    do_it(1)
+@pytest.mark.slow
+def test_example_build02(self):
+    do_it(2)
+@pytest.mark.slow
+def test_example_build03(self):
+    do_it(3)
+@pytest.mark.slow
+def test_example_build04(self):
+    do_it(4)
+@pytest.mark.slow
+def test_example_build05(self):
+    do_it(5)
+@pytest.mark.slow
+def test_example_build06(self):
+    do_it(6)
+@pytest.mark.slow
+def test_example_build07(self):
+    do_it(7)
+@pytest.mark.slow
+def test_example_build08(self):
+    do_it(8)
+@pytest.mark.slow
+def test_example_build09(self):
+    do_it(9)
+@pytest.mark.slow
+def test_example_build10(self):
+    do_it(10)
+@pytest.mark.slow
+def test_example_build11(self):
+    do_it(11)
+@pytest.mark.slow
+def test_example_build12(self):
+    do_it(12)
+@pytest.mark.slow
+def test_example_build13(self):
+    do_it(13)
+@pytest.mark.slow
+def test_example_build14(self):
+    do_it(14)
