@@ -23,4 +23,5 @@ Contents
    installation
    usage
    examples
+   configurations
 
