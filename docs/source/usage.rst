@@ -26,9 +26,13 @@ General options for all subcommands:
   --loglevel LOGLEVEL  Log level for messages written to diagnostic log (debug|info)
   --diag DIAG          diagnostic log file
 
-There are several subcommands:
+Subcommands
+...........
 
-``run``: the main subcommand that uses a user's input config file to build a system.
+``run`` 
++++++++
+
+Builds a system according to the input configuration file.
 
 .. code-block:: console
 
@@ -38,7 +42,10 @@ Here ``config.yaml`` is the name of the configuration file that describes the bu
 best way to learn about the configuration file is to run the examples provided, and
 then you can try to make your own.
 
-``run-example``: there are 14 example systems; to run number four, for example:
+``run-example``
++++++++++++++++
+
+There are 14 example systems; to run number four, for example:
 
 .. code-block:: console
    
@@ -46,8 +53,10 @@ then you can try to make your own.
 
 (Best to do that in a clean directory.)  
 
-``fetch-example``: like ``run-example`` but only copies the YAML input file needed to run the example to the CWD.  It can be edited, if desired, and then run using the ``run`` subcommand (see above).  If you request help on ``fetch-example``, you will
-see a list of examples:
+``fetch-example``
++++++++++++++++++
+
+Like ``run-example``, except it only copies the YAML input file needed to run the example to the CWD.  It can be edited, if desired, and then run using the ``run`` subcommand (see above).  If you request help on ``fetch-example``, you will see a list of examples:
 
 .. code-block:: console
 
@@ -78,9 +87,10 @@ see a list of examples:
    --config-updates CONFIG_UPDATES [CONFIG_UPDATES ...]
                            yaml files to update example
 
-``config-help``: Interactive help in constructing a config file.
+``config-help``
++++++++++++++++
 
-Because it uses ``ycleptic``, ``pestifer`` has a built-in interactive system for help generating YAML-format input configurarion files.  
+Interactive help in constructing a config file. Because it uses ``ycleptic``, ``pestifer`` has a built-in interactive system for help generating YAML-format input configuration files.  
 
 .. code-block:: console
 
@@ -88,7 +98,7 @@ Because it uses ``ycleptic``, ``pestifer`` has a built-in interactive system for
    Help on user-provided configuration file format
        Help available for charmmff, psfgen, namd2, title, paths, tasks
 
-This shows that there are six top-level directives expected in a config file.  We can dig down on any one of them:
+Each of these topics is a top-level directive allowed in a config file.  We can dig down on any one of them:
 
 .. code-block:: console
 
@@ -98,7 +108,7 @@ This shows that there are six top-level directives expected in a config file.  W
       Specifies the tasks to be performed; each is a dictionary with a
          heading which is a reserved task name
       type: list
-      Help available for psfgen, ligate, solvate, relax, terminate
+      Help available for  restart, psfgen, ligate, mdplot, cleave, domainswap, solvate, ring_check, bilayer, md, manipulate, terminate
 
 Continuing to drill down is easy -- just add the next directive to the command line:
 
@@ -112,8 +122,8 @@ Continuing to drill down is easy -- just add the next directive to the command l
       type: dict
       Help available for source, mods, minimize, cleanup
 
-In VMD scripts
---------------
+Using Pestifer in your own VMD scripts and sessions
+---------------------------------------------------
 
 Pestifer has a pretty handy library of TcL packages.  If you want to peruse the source, pestifer will tell you where to find them:
 

@@ -1,24 +1,24 @@
 charge: -1.0
 conformers:
-- head-tail-length: 29.287
+- head-tail-length: 27.064
   pdb: SOPS-00.pdb
-- head-tail-length: 28.145
+- head-tail-length: 27.175
   pdb: SOPS-01.pdb
-- head-tail-length: 26.54
+- head-tail-length: 25.829
   pdb: SOPS-02.pdb
-- head-tail-length: 25.98
+- head-tail-length: 25.313
   pdb: SOPS-03.pdb
-- head-tail-length: 24.366
+- head-tail-length: 25.807
   pdb: SOPS-04.pdb
-- head-tail-length: 24.602
+- head-tail-length: 25.538
   pdb: SOPS-05.pdb
-- head-tail-length: 24.769
+- head-tail-length: 23.36
   pdb: SOPS-06.pdb
-- head-tail-length: 24.093
+- head-tail-length: 21.611
   pdb: SOPS-07.pdb
-- head-tail-length: 22.642
+- head-tail-length: 22.033
   pdb: SOPS-08.pdb
-- head-tail-length: 22.098
+- head-tail-length: 21.002
   pdb: SOPS-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -30,7 +30,7 @@ parameters:
 - toppar_water_ions.str
 - stream/carb/toppar_all36_carb_glycopeptide.str
 - stream/prot/toppar_all36_prot_modify_res.str
-- stream/lipid/toppar_all36_lipid_miscellaneous.str
+- /home/cfa/Git/pestifer/pestifer/Resources/charmmff/toppar/stream/lipid/toppar_all36_lipid_miscellaneous.str
 reference-atoms:
   heads:
   - name: N

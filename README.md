@@ -17,15 +17,17 @@ Pestifer also requires access to the following executables:
 2. `vmd`
 3. `packmol`
 
-By default, pestifer looks for these in `/usr/local/bin`.
+By default, pestifer looks for these in `/usr/local/bin`.  Specific paths for these can be stipulated in the `paths` directive of your input file.
 
 Pestifer also includes the July 2024 Charmm36 force field.
 
 ## Release History
+* 1.4.8
+    * updated CHARMM lipid PDB files
 * 1.4.7
     * `ambertools` dependency removed
     * `packmol-memgen` integration removed; now use native `bilayer` task
-    * `build_resi_database` command added
+    * `make-resi-database` command added
     * CHARMM force field files updated to July 2024
     * `salt_con`, `anion`, and `cation` specs for solvate now available
     * `pidibble` dependency updated to 1.1.9

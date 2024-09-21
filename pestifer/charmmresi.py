@@ -8,7 +8,6 @@ import os
 import shutil
 import yaml
 import numpy as np
-# import pandas as pd
 
 from itertools import product
 
@@ -21,11 +20,13 @@ from .stringthings import my_logger
 
 logger=logging.getLogger(__name__)
 
-def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0,nOrAtoms=2):
-    charmm_topfile=DB.get_charmm_topfile(resid)
+def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0):
+    topo=DB.get_topo(resid)
+    meta=topo.metadata
+    charmm_topfile,stream,substream=meta['charmmtopfile'],meta['stream'],meta['substream']
+
     if charmm_topfile is None:
         return -2
-    topo=DB.get_topo(resid)
     if topo.error_code!=0:
         topo.show_error(logger.warning)
         # my_logger(f'Parsing error for {resid}',logger.warning,just='^',frame='!',fill='!') 
@@ -35,54 +36,63 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
 
     # for b in topo.bonds:
     #     logger.debug(f'{b.name1}-{b.name2}')
-    my_logger(f'{os.path.basename(topo.charmmtopfile)}',logger.info,just='^',frame='*',fill='*')
+    my_logger(f'{os.path.basename(charmm_topfile)}',logger.info,just='^',frame='*',fill='*')
     
-    heads,tails,shortest_paths=topo.head_tail_atoms()
-    logger.debug(f'resi {resid} heads {heads} tails {tails} shortest_paths {shortest_paths}')
     tasklist=[
             {'restart':{'psf': f'{resid}-init.psf','pdb': f'{resid}-init.pdb'}},
             {'md': {'ensemble':'minimize','nsteps':0,'minimize':minimize_steps,'dcdfreq':0,'xstfreq':0,'temperature':100}},
             ]
-    if shortest_paths and any([len(v)>0 for v in shortest_paths.values()]) and heads and tails and len(tails)<3:
-        base_md={'ensemble':'NVT','nsteps':10000,'dcdfreq':100,'xstfreq':100,'temperature':100}
-        groups={}
-        if len(tails)<4:
-            groups={'repeller':{'atomnames': [heads[0]]}}
-        distances={}
-        harmonics={}
-        for i in range(len(tails)):
-            groups[f'tail{i+1}']={'atomnames': [tails[i]]}
-            if len(tails)<4:
-                distances[f'repeller_tail{i+1}']={'groups': ['repeller',f'tail{i+1}']}
-        dists={}
-        for i in range(len(tails)):
-            dists[i]=shortest_paths[heads[0]][tails[i]]*lenfac
-        for i in range(len(tails)):
-            for j in range(i+1,len(tails)):
-                distances[f'tail{i+1}_tail{j+1}']={'groups': [f'tail{i+1}',f'tail{j+1}']}
-                harmonics[f'tail{i+1}_tail{j+1}_attract']={
-                        'colvars': [f'tail{i+1}_tail{j+1}'],
-                        'forceConstant': 10.0,
-                        'distance':[3.0]}
-        if len(tails)<4:
-            name='repeller_tail'+''.join(f'{i+1}' for i in range(len(tails)))
-            colvars=[]               
-            distance=[]
-            for i in range(len(tails)):
-                colvars.append(f'repeller_tail{i+1}')
-                distance.append(dists[i])
-            harmonics[name]={'colvars':colvars,'distance':distance,'forceConstant':10.0}
-        colvar_specs={'groups':groups,'distances':distances,'harmonics':harmonics}
-        base_md['colvar_specs']=colvar_specs
-        assert 'minimize' not in base_md
-        logger.debug(f'base_md {base_md}')
-        tasklist.append({'md':base_md})
+    heads=[]
+    if stream=='lipid':
+        topo.lipid_annotate()
+        ano=topo.annotation
+        heads,tails,shortest_paths=ano.get('heads',[]),ano.get('tails',[]),ano.get('shortest_paths',{})
+        if substream=='cholesterol':
+            pass
+        elif substream=='detergent':
+            pass
+        else:
+            if shortest_paths and any([len(v)>0 for v in shortest_paths.values()]) and heads and tails: # and len(tails)==2:
+                # run a non-equilibrium MD simulation to bring the tails together to make a 'standard' conformation
+                force_constant=0.2
+                base_md={'ensemble':'NVT','nsteps':10000,'dcdfreq':100,'xstfreq':100,'temperature':100}
+                groups={'repeller':{'atomnames': [heads[0]]}}
+                distances={}
+                harmonics={}
+                for i in range(len(tails)):
+                    groups[f'tail{i+1}']={'atomnames': [tails[i]]}
+                    # if len(tails)<4:
+                    distances[f'repeller_tail{i+1}']={'groups': ['repeller',f'tail{i+1}']}
+                dists={}
+                for i in range(len(tails)):
+                    dists[i]=shortest_paths[heads[0]][tails[i]]*lenfac
+                for i in range(len(tails)):
+                    for j in range(i+1,len(tails)):
+                        distances[f'tail{i+1}_tail{j+1}']={'groups': [f'tail{i+1}',f'tail{j+1}']}
+                        harmonics[f'tail{i+1}_tail{j+1}_attract']={
+                                'colvars': [f'tail{i+1}_tail{j+1}'],
+                                'forceConstant': {force_constant},
+                                'distance':[4.0]}
+                name='repeller_tail'+''.join(f'{i+1}' for i in range(len(tails)))
+                colvars=[]               
+                distance=[]
+                for i in range(len(tails)):
+                    colvars.append(f'repeller_tail{i+1}')
+                    distance.append(dists[i])
+                harmonics[name]={'colvars':colvars,'distance':distance,'forceConstant':force_constant}
+                colvar_specs={'groups':groups,'distances':distances,'harmonics':harmonics}
+                base_md['colvar_specs']=colvar_specs
+                assert 'minimize' not in base_md
+                logger.debug(f'base_md {base_md}')
+                tasklist.append({'md':base_md})
     else:
-        my_logger(f'graph analysis: {resid} is not recognized as a lipid',logger.warning,just='^',frame='!',fill='!')
+        my_logger(f'{resid} is from stream {stream}',logger.debug,just='^',frame='!',fill='!')
         with open(f'{resid}-topo.rtf','w') as f:
             topo.to_file(f)
     if len(heads)>0:
+        # reorient molecule so head is at highest z position if molecule is rotated about its COM
         tasklist.append({'manipulate':{'mods':{'orient':[f'z,{heads[0]}']}}})
+    # do a conformer-generation MD simulation
     tasklist.append({'md':{'ensemble':'NVT','nsteps':sample_steps,'dcdfreq':sample_steps//nsamples,'xstfreq':100,'temperature':sample_temperature,'index':99}})
 
     C=Controller(userspecs={'tasks':tasklist},quiet=True)
@@ -91,7 +101,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     if not charmm_topfile in W.charmmff_config['standard']['topologies']:
         W.charmmff_config['standard']['topologies'].append(charmm_topfile)
     if charmm_topfile.endswith('detergent.str'):
-        needed=[x for x in DB.all_charmm_topology_files if x.endswith('sphingo.str')][0]
+        needed=os.path.join(DB.toppardir,'stream/lipid/toppar_all36_lipid_sphingo.str')
         W.charmmff_config['standard']['topologies'].append(needed)
     if charmm_topfile.endswith('initosol.str'):
         needed=os.path.join(DB.toppardir,'stream/carb/toppar_all36_carb_glycolipid.str')
@@ -150,11 +160,6 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
             with open(f'{resid}-topo.rtf','w') as f:
                 topo.to_file(f)
             return -1
-
-    # if par:
-    #     with open('parameters.txt','w') as f:
-    #         for p in par:
-    #             f.write(f'{p}\n')
         
     # now sample
     W=VMD(C.config)
@@ -179,6 +184,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     W.writescript()
     W.runscript()
 
+    # and now we write the ancillary info file in YAML format
     psf=PSFContents(f'{resid}-init.psf')
     q=psf.get_charge()
     if np.abs(q)<1.e-3:
@@ -218,7 +224,6 @@ def do_cleanup(resname,dirname):
     files=glob.glob('*')
     files.remove('init.tcl')
     files.remove('info.yaml')
-    # files.remove('parameters.txt')
     files.remove(f'{resname}-init.psf')
     for f in glob.glob(f'{resname}-*.pdb'):
         files.remove(f)
@@ -264,8 +269,11 @@ def make_RESI_database(args):
     logging.getLogger('').addHandler(console)
 
     DB=CharmmResiDatabase()
+    active_resnames=[]
     for stream in streams:
         DB.add_stream(stream)
+        active_resnames.extend(list(DB[stream].keys()))
+    active_resnames.sort()
 
     outdir=args.output_dir
     faildir=args.fail_dir
@@ -276,13 +284,13 @@ def make_RESI_database(args):
     if os.path.exists('tmp'):
         shutil.rmtree('tmp')
     resi=args.resi
-    if resi is not []:
+    if resi!=[]:
         for r in resi:
             my_logger(f'RESI {r}',logger.info,just='^',frame='*',fill='*')
             do_resi(r,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
     else:
-        nresi=len(DB.charmm_resnames)
-        for i,r in enumerate(DB.charmm_resnames):
+        nresi=len(active_resnames)
+        for i,r in enumerate(active_resnames):
             my_logger(f'RESI {r} ({i+1}/{nresi})',logger.info,just='^',frame='*',fill='*')
             do_resi(r,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
 

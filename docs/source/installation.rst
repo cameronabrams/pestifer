@@ -5,7 +5,7 @@ Installation
 Software Prequisites
 --------------------
 
-The commands ``vmd``, ``charmrun``, and ``namd2`` should be in your path.  If you choose to package the results using the ``topogromacs`` plugin, the ``gmx`` executable should also be in your path.  To build membrane systems using ``pestifer``'s ``packmol_memgen`` integration, you must have the ``ambertools`` package (v. 23.6 or better) installed (preferable via ``conda``).
+The commands ``vmd``, ``charmrun``, and ``namd2`` should be in your path.  If you choose to package the results using the ``topogromacs`` plugin, the ``gmx`` executable should also be in your path.  To build membrane systems using ``pestifer``'s ``packmol`` integration, you must have ``packmol`` (v. 20.14.3 or better).
 
 Installation
 ------------

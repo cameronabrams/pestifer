@@ -1,24 +1,24 @@
 charge: 0.0
 conformers:
-- head-tail-length: 27.42
+- head-tail-length: 26.938
   pdb: PSM-00.pdb
-- head-tail-length: 26.993
+- head-tail-length: 26.392
   pdb: PSM-01.pdb
-- head-tail-length: 26.051
+- head-tail-length: 26.818
   pdb: PSM-02.pdb
-- head-tail-length: 26.136
+- head-tail-length: 26.651
   pdb: PSM-03.pdb
-- head-tail-length: 25.369
+- head-tail-length: 26.136
   pdb: PSM-04.pdb
-- head-tail-length: 24.457
+- head-tail-length: 24.931
   pdb: PSM-05.pdb
-- head-tail-length: 24.377
+- head-tail-length: 23.467
   pdb: PSM-06.pdb
-- head-tail-length: 23.773
+- head-tail-length: 23.868
   pdb: PSM-07.pdb
-- head-tail-length: 22.905
+- head-tail-length: 24.141
   pdb: PSM-08.pdb
-- head-tail-length: 22.175
+- head-tail-length: 23.026
   pdb: PSM-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -30,7 +30,7 @@ parameters:
 - toppar_water_ions.str
 - stream/carb/toppar_all36_carb_glycopeptide.str
 - stream/prot/toppar_all36_prot_modify_res.str
-- stream/lipid/toppar_all36_lipid_sphingo.str
+- /home/cfa/Git/pestifer/pestifer/Resources/charmmff/toppar/stream/lipid/toppar_all36_lipid_sphingo.str
 - stream/carb/toppar_all36_carb_imlab.str
 - stream/lipid/toppar_all36_lipid_lps.str
 reference-atoms:

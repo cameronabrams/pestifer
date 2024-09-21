@@ -59,6 +59,8 @@ class BilayerEmbedTask(BaseTask):
 
         self.next_basename('bilayer')
 
+        custom_pdb_path=self.specs.get('custom_pdb_path','data')
+
         lipid_specstring=self.specs.get('lipids','POPC')
         ratio_specstring=self.specs.get('mole_fractions','1.0')
         solvent_specstring=self.specs.get('solvents','TIP3')
@@ -216,7 +218,9 @@ class BilayerEmbedTask(BaseTask):
         lipid_data={}
         addl_params=[]
         for l in global_lipid_names:
-            lpath=os.path.join(self.lipid_pdb_path,l)
+            lpath=os.path.join(self.custom_pdb_path,l)
+            if not os.path.exists(lpath):
+                lpath=os.path.join(self.lipid_pdb_path,l)
             assert os.path.exists(lpath),f'No PDB available for lipid {l}'
             for i in range(10):
                 lpdb=os.path.join(lpath,f'{l}-0{i}.pdb')

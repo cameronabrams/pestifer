@@ -751,9 +751,9 @@ directives:
                   - SAPI34
                   - SAPI35
                   - SAPS
-                  # - SB3-10
-                  # - SB3-12
-                  # - SB3-14
+                  - SB3-10
+                  - SB3-12
+                  - SB3-14
                   - SDA
                   - SDAP
                   - SDPA

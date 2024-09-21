@@ -8,7 +8,7 @@ import os
 import networkx as nx
 import numpy as np
 from collections import UserDict, UserList
-from itertools import combinations, compress, batched
+from itertools import compress, batched
 from .config import ResourceManager
 from .stringthings import linesplit
 
@@ -72,6 +72,13 @@ class CharmmTopAtomList(UserList):
             return self[idx]
         except:
             return None
+
+    def get_mass(self,name):
+        a=self.get_atom(name)
+        if a is not None:
+            if hasattr(a,'mass'):
+                return a.mass
+        return 0.0
 
     def get_serial(self,name):
         a=self.get_atom(name)
@@ -166,13 +173,13 @@ class CharmmDihedralList(UserList):
         
 class CharmmTopIC:
     def __init__(self,ICstring):
+        self.empty=False
         ICstring,dummy=linesplit(ICstring)
         toks=[x.strip() for x in ICstring.split()]
         data=np.array(list(map(float,toks[5:])))
         if data[0]==0.0 or data[1]==0.0 or data[3]==0.0 or data[4]==0.0:
             # logger.debug(f'{toks[1:5]}: missing ic data: {data}')
             self.empty=True
-            # return
         self.atoms=toks[1:5]
         if self.atoms[2].startswith('*'):
             self.atoms[2]=self.atoms[2][1:]
@@ -205,7 +212,6 @@ class CharmmTopIC:
             self.angles=CharmmAngleList([a1,a2])
             self.dihedral=CharmmDihedral([self.atoms[0],self.atoms[1],self.atoms[2],self.atoms[3]],dihedral_type='improper')
             self.dihedral.degrees=float(toks[7])
-        self.empty=False
 
     def __str__(self):
         ans=','.join([f'{i+1}{self.atoms[i]}' for i in range(len(self.atoms))])
@@ -215,6 +221,8 @@ class CharmmTopIC:
         ans+=','.join([f'{a.degrees:.4f}' for a in self.angles])
         ans+=':'
         ans+=f'{self.dihedral.degrees}-{self.dihedral.dihedral_type}'
+        if self.empty:
+            ans+='-empty'
         return ans
 
 class CharmmTopResi:
@@ -334,134 +342,188 @@ class CharmmTopResi:
                 g.nodes[node2]['element']=element2
         return g
     
-    def head_tail_atoms(self):
+    def lipid_annotate(self):
         """ Identify head and tail atoms """
-        G=self.to_graph(includeH=False)
-        cc=list(nx.chordless_cycles(G))
-        logger.debug(f'cc {cc}')
-        shortest_paths={}
-        heads=[]
-        tails=[]
-        ring_sizes=[len(list(x)) for x in list(cc)]
-        if len(cc)==4 and ring_sizes.count(6)==3 and ring_sizes.count(5)==1: # likely a sterol
-            # identify head as carbon-3 of ring A (to which OH is bound)
-            # identify tail as carbon-16 on ring D
-            ringD=[c for c in cc if len(c)==5][0]
-            logger.debug(f'ringD {ringD}')
-            edge_partner_idx=[]
-            for i in range(len(cc)):
-                ci=cc[i]
-                logger.debug(f'ring {i} {ci}')
-                for j in range(i+1,len(cc)):
-                    cj=cc[j]
-                    shared_nodes_count=0
-                    for ai in ci:
-                        for aj in cj:
-                            if ai==aj:
-                                shared_nodes_count+=1
-                    if shared_nodes_count==2:
-                        edge_partner_idx.append([i,j])
-            # logger.debug(f'edge_partner_index {edge_partner_idx}')
-            for i in range(len(cc)):
-                nsharededges=0
-                for ep in edge_partner_idx:
-                    if i in ep:
-                        nsharededges+=1
-                logger.debug(f'ring {i} nsharededges {nsharededges} len {len(cc[i])}')
-                if nsharededges==1 and len(cc[i])==6:
-                    ringA=cc[i]
-                elif nsharededges==1 and len(cc[i])==5:
-                    assert ringD==cc[i]
-            logger.debug(f'ringA {ringA}')
-            for a in ringA:
-                # head atom is the hydroxyl O on ringA
-                for n in nx.neighbors(G,a):
-                    if G.nodes[n]['element']=='O':
-                        heads=[n]
-            paths=[]
-            for a in G.__iter__():
-                paths.append(len(nx.shortest_path(G,a,heads[0])))
-            # tail is atom furthest away from head
-            paths=np.array(paths)
-            l_idx=np.argsort(paths)[-1]
-            tails=[list(G.__iter__())[l_idx]]
+        m=self.metadata
+        if m['stream']=='lipid' and m['substream']=='cholesterol':
+            self.sterol_annotate()
+        elif m['stream']=='lipid' and m['substream']=='detergent':
+            self.detergent_annotate()
         else:
-            # all atoms with only a single neighbor are "ends"' remember there are no H's here
-            ends=[]
-            for n in G.__iter__():
-                nn=len(list(G.neighbors(n)))
-                if nn==1:
-                    ends.append(n)
-            # for each end-neighbor, determine if any of them are bound to the same neighbor
-            ecount={}
-            for e in ends:
-                nn=list(G.neighbors(e))[0]
-                if not nn in ecount:
-                    ecount[nn]=[]
-                ecount[nn].append(e)
-            logger.debug(f'ecount {ecount}')
-            # for any atom that is a common neighbor to two or more "ends", it becomes a new
-            # end and the old ends are removed from the "ends"
-            for k,v in ecount.items():
-                if len(v)>1:
-                    for vv in v:
-                        ends.remove(vv)
-                    ends.append(k)
-            
-            logger.debug(f'ends {ends}')
-            chain_ends=[]
-            DG=G.to_directed()
-            for n in ends:
-                if G.nodes[n]['element']=='C':
-                    traversed_edges=list(nx.dfs_edges(DG,source=n,depth_limit=4))
-                    logger.debug(f'node {n} traversed_edges {traversed_edges}')
-                    if len(traversed_edges)>=4:
-                        carbon_chain=True
-                        for e in traversed_edges:
-                            a,b=e
-                            if G.nodes[a]['element']!='C' or G.nodes[b]['element']!='C':
-                                carbon_chain=False
-                        if carbon_chain: chain_ends.append(n)
-            logger.debug(f'chain_ends: {chain_ends}')
-            for e in chain_ends:
-                ends.remove(e)
-            logger.debug(f'chain_ends: {chain_ends}')
-            flags=[]
-            for p in combinations(chain_ends,2):
-                n,m=p
-                logger.debug(f'query chain end pair {n} {m}')
-                if len(list(nx.shortest_path(G,n,m)))<7:
-                    logger.debug(f'removing {m} from chain_ends')
-                    flags.append(m)
-            logger.debug(f'flags {flags}')
-            for m in flags:
-                chain_ends.remove(m)
-            logger.debug(f'chain_ends: {chain_ends}')
-            pathlength={}
-            # if 0<len(chain_ends)<3:
-            for e in ends:
-                pathlength[e]={}
-                for c in chain_ends:
-                    pathlength[e][c]=len(list(nx.shortest_path(G,e,c)))
-            logger.debug(f'pathlength {pathlength}')
-            avl=[]
-            en=[]
-            for k,v in pathlength.items():
-                av=0.0
-                if len(v)>0:
-                    for kk,vv in v.items():
-                        av+=vv
-                    if len(v)>0:
-                        avl.append(av/len(v))
-                    en.append(k)
-            if avl:
-                avl=np.array(avl)
-                heads=[en[np.argmax(avl)]]
-            
-            tails=chain_ends
-            shortest_paths=pathlength
-            logger.debug(f'heads {heads} tails {tails} shortest_paths {shortest_paths}')
-        return heads,tails,shortest_paths
+            self.generic_lipid_annotate()
+    
+    def sterol_annotate(self):
+        self.annotation={}
+        G=self.to_graph(includeH=False)
+        heads=[]
+        for a in G:
+            # head atom is the carbon to which the hydroxyl O is bound
+            for n in nx.neighbors(G,a):
+                if G.nodes[n]['element']=='O':
+                    heads=[a]
+                    break
+        paths=[]
+        for a in G.__iter__():
+            paths.append(len(nx.shortest_path(G,a,heads[0])))
+        # tail is atom furthest away from head
+        paths=np.array(paths)
+        l_idx=np.argsort(paths)[-1]
+        tails=[list(G.__iter__())[l_idx]]
+        logger.debug(f'heads {heads} tails {tails}')    
+        self.annotation['heads']=heads
+        self.annotation['tails']=tails
+
+    def detergent_annotate(self):
+        self.annotation={}
+        G=self.to_graph(includeH=False)
+        # find the bond which, if deleted, produces two fragments such that
+        # 1. one fragment contains only carbons (tail)
+        # 2. the other fragment is as small as possible and contains at least one O (head)
+        minheadsize=1000
+        mindata={}
+        for f in nx.bridges(G):
+            logger.debug(f'f {f}')
+            g=G.copy()
+            g.remove_edge(*f)
+            c=list(nx.connected_components(g))
+            # if len(c)!=2: continue
+            e=[[G.nodes[x]['element'] for x in y] for y in c]
+            logger.debug(f'e {e}')
+            allc=[all([x=='C' for x in y]) for y in e]
+            haso=[any([x=='O' for x in y]) for y in e]
+            logger.debug(f'allc {allc}')
+            logger.debug(f'haso {haso}')
+            if any(allc) and any(haso):
+                tailidx=allc.index(True)
+                headidx=1-tailidx
+                logger.debug(f'tailidx {tailidx} headidx {headidx}')
+                tailsize=len(e[tailidx])
+                headsize=len(e[headidx])
+                logger.debug(f'tailsize {tailsize} headsize {headsize}')
+                if headsize<minheadsize:
+                    minheadsize=headidx
+                    mindata=dict(headg=list(c)[headidx],tailg=list(c)[tailidx])
+        logger.debug(f'mindata {mindata}')
+        headg=list(mindata['headg'])
+        tailg=list(mindata['tailg'])
+        # head reference is heaviest atom in head
+        headmasses=np.array([self.atoms.get_mass(n) for n in headg])
+        headatom=headg[np.argmax(headmasses)]
+        logger.debug(f'headmasses {headmasses} headatom {headatom}')
+
+        self.annotation['heads']=[headatom]
+
+        maxpathlength=-1
+        tailatom=None
+        for ta in tailg:
+            path=nx.shortest_path(G,source=headatom,target=ta)
+            pathlength=len(path)
+            if pathlength>maxpathlength:
+                maxpathlength=pathlength
+                tailatom=ta
+        assert tailatom!=None
+        self.annotation['tails']=[tailatom]
+
+        logger.debug(f'annotation {self.annotation}')
+
+    def generic_lipid_annotate(self):
+        self.annotation={}
+        G=self.to_graph(includeH=False)
+        WG=G.copy()
+
+        # find all carbon chains
+        ctails=[]
+        cbonds=[]
+        hastails=True
+        while hastails:
+            hastails=False
+            maxtailsize=-1
+            result={}
+            for f in nx.bridges(WG):
+                g=WG.copy()
+                g.remove_edge(*f)
+                S=[g.subgraph(c).copy() for c in nx.connected_components(g)]
+                c=list(nx.connected_components(g))
+                if len(c)!=2: continue
+                e=[[G.nodes[x]['element'] for x in y] for y in c]
+                # logger.debug(f'e {e}')
+                allc=[all([x=='C' for x in y]) for y in e]
+                # haso=[any([x=='O' for x in y]) for y in e]
+                # logger.debug(f'allc {allc}')
+                # logger.debug(f'haso {haso}')
+                if any(allc):
+                    tail=c[allc.index(True)]
+                    tailsize=len(tail)
+                    # logger.debug(f'tail {tail} tailsize {tailsize}')
+                    if tailsize>maxtailsize:
+                        result=dict(tail=tail,nontailg=S[allc.index(False)],bond=f)
+                        tailatoms=list(tail)
+                        maxtailsize=tailsize
+            if result:
+                hastails=True
+                # ignore methyls
+                if len(tailatoms)>1:
+                    ctails.append(tailatoms)
+                    cbonds.append(result['bond'])
+                    logger.debug(f'tailatoms {tailatoms}')
+                WG=result['nontailg']
+
+        logger.debug(f'ctails {ctails}')
+        logger.debug(f'cbonds {cbonds}')
+        WG=G.copy()
+
+        # find the ends of all the carbon tails
+        tails=[tail[[len(list(nx.neighbors(G,n))) for n in tail].index(1)] for tail in ctails]
+        logger.debug(f'tailn {tails}')
+        if len(tails)==2: # this is a "standard" lipid with two fatty acid tails
+            queryheads=[k for k,n in WG.nodes.items() if n['element']!='C' and n['element']!='O']
+            logger.debug(f'queryheads {queryheads}')
+            if len(queryheads)==0: # only non-carbons in head are O's
+                queryheads=[k for k,n in WG.nodes.items() if n['element']=='O']
+            maxpathlen=[-1]*len(cbonds)
+            claimedhead=['']*len(cbonds)
+            for nc in queryheads:
+                for i,b in enumerate(cbonds):
+                    path=nx.shortest_path(WG,source=b[0],target=nc)
+                    pathlen=len(path)
+                    if pathlen>maxpathlen[i]:
+                        maxpathlen[i]=pathlen
+                        claimedhead[i]=nc
+            logger.debug(f'claimedhead {claimedhead}')
+            headcontenders=list(set(claimedhead))
+            headvotes=np.array([claimedhead.count(x) for x in headcontenders])
+            heads=[headcontenders[np.argmax(headvotes)]]
+            logger.debug(f'heads {heads}')
+        else:
+            # this could be a wacky multiple-chain lipid with an extended head group
+            # like cardiolipin or one of those bacterial glycolipids
+            OG=WG.copy()
+            for tail in ctails:
+                for atom in tail:
+                    OG.remove_node(atom)
+            mins=len(OG)**2
+            headatom=None
+            for atom in OG:
+                g=OG.copy()
+                g.remove_node(atom)
+                c=[len(x) for x in list(nx.connected_components(g))]
+                while 1 in c:
+                    c.remove(1)
+                c=np.array(c)
+                # logger.debug(f'testing atom {atom} -> {c}')
+                if len(c)>1:
+                    s=c.std()
+                    if s<mins:
+                        # logger.debug(f'c {c} {atom} {s}<{mins}')
+                        headatom=atom
+                        mins=s
+            assert headatom!=None
+            logger.debug(f'headatom {headatom}')
+            heads=[headatom]
+
+        self.annotation['heads']=heads
+        self.annotation['tails']=tails
+        self.annotation['shortest_paths']={head:{tail:len(nx.shortest_path(WG,source=head,target=tail)) for tail in tails} for head in heads}
     
     def to_file(self,f):
         f.write(self.blockstring)
@@ -507,14 +569,9 @@ class CharmmTopResi:
         W.addline(f'psfset coord A 1 {refatom.name} '+r'{0 0 0}')
         b1a1,b1a2,b1l=refic.bonds[0].name1,refic.bonds[0].name2,refic.bonds[0].length
         partner=b1a1
-        # assert b1a1!=refatom.name
-        # assert b1a2==refatom.name
         # partner is the first atom in the IC, put along x-axis
         W.addline(f'psfset coord A 1 {partner} '+r'{'+f'{b1l:.5f}'+r' 0 0}')
         a1a1,a1a2,a1a3,a1d=refic.angles[0].name1,refic.angles[0].name2,refic.angles[0].name3,refic.angles[0].degrees
-        # assert a1a1==partner
-        # assert a1a2==refatom.name,f'{refatom.name} {refic.atoms}: {refic.angles[0].name1} {refic.angles[0].name2} {refic.angles[0].name3}'
-        # assert a1a3!=partner
         W.addline(f'set a [expr {a1d}*acos(-1.0)/180.0]')
         W.addline(f'set x [expr {b1l}*cos($a)]')
         W.addline(f'set y [expr {b1l}*sin($a)]')
@@ -532,7 +589,31 @@ def getMasses(topfile):
     return masses
 
 def getResis(topfile,masses=[]):
+    f,ext=os.path.splitext(os.path.basename(topfile))
+    if not ext in ['.rtf','.str']:
+        logger.debug(f'{topfile} extension \'{ext}\' not recognized')
+        return None
+    ftok=f.split('_')
+    fcontent_type=ftok[0]
+    if not fcontent_type in ['top','toppar']:
+        logger.debug(f'{topfile} content type \'{fcontent_type}\' not recognized')
+        return None
+    stream,substream='',''
+    idx=2 if 'all' in ftok[1] else 1
+    if fcontent_type=='toppar':
+        stream=ftok[idx]
+        if len(ftok)==idx+1:
+            substream=''
+        else:
+            substream=ftok[idx+1]
+        if stream=='water' and substream=='ions':
+            stream='water_ions'
+            substream=''
+    else:
+        stream,substream=ftok[idx],''
+    logger.debug(f'topfile {topfile} stream \'{stream}\' substream \'{substream}\'')
     R=[]
+    metadat=dict(charmmtopfile=topfile,stream=stream,substream=substream)
     with open(topfile,'r') as f:
         lines=f.read().split('\n')
     residx=[]
@@ -550,38 +631,14 @@ def getResis(topfile,masses=[]):
     for i,l in enumerate(lines[residx[-1]:]):
         ll=l.upper()
         if ll.startswith('END'):
-            oldidx=endidx
             endidx=residx[-1]+i
-            # print(topfile,ll,i,residx[-1],endidx,oldidx)
             break
     bufs.append('\n'.join(lines[residx[-1]:endidx]))
-    # logger.debug(f'topfile: {len(bufs)} resis')
-    # for i in range(len(bufs)):
-    #     logger.debug(f'{len(bufs[i])} bytes in resi {i} {bufs[i][:35]}')
     for block in bufs:
         resi=CharmmTopResi(block,masses=masses)
-        resi.topfile=topfile
-        # logger.debug(f'resi {resi.resname} parsed')
+        resi.metadata=metadat
         R.append(resi)
     return R
-
-
-def makeBondGraph_rdkit(mol):
-    g2=nx.Graph()
-    atoms=[]
-    elements=[]
-    for a in mol.GetAtoms():
-        atoms.append(a.GetIdx())
-        elements.append(a.GetSymbol())
-    # logger.debug(f'{len(atoms)} atoms')
-    for bond in mol.GetBonds():
-        aid1=atoms[bond.GetBeginAtomIdx()]
-        aid2=atoms[bond.GetEndAtomIdx()]
-        g2.add_edge(aid1,aid2)
-        g2.nodes[aid1]['element']=elements[bond.GetBeginAtomIdx()]
-        g2.nodes[aid2]['element']=elements[bond.GetEndAtomIdx()]
-    # logger.debug(f'returning {g2}')
-    return g2,atoms
 
 class CharmmResiDatabase(UserDict):
     def __init__(self):  # initialize from standard topology files in the topmost directory
@@ -604,11 +661,7 @@ class CharmmResiDatabase(UserDict):
         for f in stdtops:
             sublist=getResis(f,self.M)
             for resi in sublist:
-                resi.charmmtopfile=f
-                if f.endswith('.rtf'): # "top_allXX_<streamname>.rtf"
-                    stream=os.path.splitext(os.path.basename(f))[0].split('_')[2]
-                elif f.endswith('.str'): # a stream file in the base directory, most likely toppar_water_ions.str
-                    stream='_'.join(os.path.splitext(os.path.basename(f))[0].split('_')[1:])
+                stream,substream=resi.metadata['stream'],resi.metadata['substream']
                 if not stream in data:
                     data[stream]={}
                 data[stream][resi.resname]=resi
@@ -641,11 +694,7 @@ class CharmmResiDatabase(UserDict):
         self.M.update(newM)
         sublist=getResis(topfile,self.M)
         for resi in sublist:
-            resi.charmmtopfile=topfile
-            if topfile.endswith('.rtf') or (topfile.startswith('stream/') and topfile.endswith('.str')):
-                stream=os.path.splitext(os.path.basename(topfile))[0].split('_')[2] # "toppar_allXX_<streamname>[_YYY].[str,rtf]"
-            else:
-                stream='_'.join(os.path.splitext(os.path.basename(topfile))[0].split('_')[1:])
+            stream,substream=resi.metadata['stream'],resi.metadata['substream']
             if streamnameoverride != '':
                 stream=streamnameoverride
             if not stream in self:
@@ -673,18 +722,17 @@ class CharmmResiDatabase(UserDict):
         
         self.M.update(CharmmMasses(M))
         for t in stream_strs:
+            if not t in self.all_charmm_topology_files:
+                self.all_charmm_topology_files.append(t)
             sublist=getResis(t,self.M)
             for resi in sublist:
                 if resi.resname in self.charmm_resnames:
                     logger.debug(f'RESI {resi.resname} is already in the database')
                 else:
-                    relt=t
-                    if 'toppar/' in t:
-                        relt=t.split('toppar/')[1]
-                    resi.charmmtopfile=relt
-                    if not streamname in self:
-                        self[streamname]={}
-                    self[streamname][resi.resname]=resi
+                    stream,substream=resi.metadata['stream'],resi.metadata['substream']
+                    if not stream in self:
+                        self[stream]={}
+                    self[stream][resi.resname]=resi
                     self.charmm_resnames.append(resi.resname)
         return self
 
@@ -694,7 +742,7 @@ class CharmmResiDatabase(UserDict):
         for stream,data in self.items():
             elem=data.get(charmm_resid,None)
             if elem is not None:
-                return elem.charmmtopfile
+                return elem.metadata['charmmtopfile']
         return None
     
     def get_topo(self,charmm_resid):

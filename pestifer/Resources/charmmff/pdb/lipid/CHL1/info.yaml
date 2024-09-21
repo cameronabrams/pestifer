@@ -1,24 +1,24 @@
 charge: 0.0
 conformers:
-- head-tail-length: 16.591
+- head-tail-length: 15.39
   pdb: CHL1-00.pdb
-- head-tail-length: 16.713
+- head-tail-length: 15.771
   pdb: CHL1-01.pdb
-- head-tail-length: 16.271
+- head-tail-length: 15.631
   pdb: CHL1-02.pdb
-- head-tail-length: 15.546
+- head-tail-length: 15.654
   pdb: CHL1-03.pdb
-- head-tail-length: 15.686
+- head-tail-length: 15.541
   pdb: CHL1-04.pdb
-- head-tail-length: 15.551
+- head-tail-length: 15.043
   pdb: CHL1-05.pdb
-- head-tail-length: 15.318
+- head-tail-length: 15.11
   pdb: CHL1-06.pdb
-- head-tail-length: 15.796
+- head-tail-length: 15.202
   pdb: CHL1-07.pdb
-- head-tail-length: 16.133
+- head-tail-length: 15.518
   pdb: CHL1-08.pdb
-- head-tail-length: 16.899
+- head-tail-length: 15.51
   pdb: CHL1-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -30,11 +30,11 @@ parameters:
 - toppar_water_ions.str
 - stream/carb/toppar_all36_carb_glycopeptide.str
 - stream/prot/toppar_all36_prot_modify_res.str
-- stream/lipid/toppar_all36_lipid_cholesterol.str
+- /home/cfa/Git/pestifer/pestifer/Resources/charmmff/toppar/stream/lipid/toppar_all36_lipid_cholesterol.str
 reference-atoms:
   heads:
-  - name: O3
-    serial: 3
+  - name: C3
+    serial: 1
   tails:
   - name: C27
     serial: 71

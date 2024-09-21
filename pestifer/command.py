@@ -86,7 +86,9 @@ class Command:
             ncalls+=1
             ttally+=(e-b)/1.e6
             otally+=len(output)
-            if log: log.write(output)
+            if log: 
+                log.write(output)
+                log.flush()
             if output=='' and process.poll() is not None:
                 break
             if progress:
