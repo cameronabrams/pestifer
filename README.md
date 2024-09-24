@@ -24,6 +24,7 @@ Pestifer also includes the July 2024 Charmm36 force field.
 ## Release History
 * 1.4.8
     * updated CHARMM lipid PDB files
+    * updated `ycleptic` to 1.0.6 to enable interactive help and automatic config documentation
 * 1.4.7
     * `ambertools` dependency removed
     * `packmol-memgen` integration removed; now use native `bilayer` task

@@ -1,18 +1,24 @@
-tasks
------
+``tasks``
+=========
 
-Here we discuss the tasks available for pestifer.
+Specifies the tasks to be performed serially
+
+Subdirectives:
 
 .. toctree::
-  
-  tasks/psfgen
-  tasks/md
-  tasks/manipulate
-  tasks/solvate
-  tasks/cleave
-  tasks/ligate
-  tasks/mdplot
-  tasks/domainswap
-  tasks/ring_check
-  tasks/terminate
-  tasks/restart
+   :maxdepth: 1
+
+   tasks/restart
+   tasks/psfgen
+   tasks/ligate
+   tasks/mdplot
+   tasks/cleave
+   tasks/domainswap
+   tasks/solvate
+   tasks/ring_check
+   tasks/bilayer
+   tasks/md
+   tasks/manipulate
+   tasks/terminate
+
+

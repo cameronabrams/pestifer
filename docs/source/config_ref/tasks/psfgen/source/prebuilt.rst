@@ -1,20 +1,15 @@
-prebuilt 
---------
+``prebuilt``
+============
 
-This directive instructs pestifer to load an existing system which already has minimally a PSF and PDB file, and optionally an XSC file.
+PSF and PDB file of a previously built system
 
-* ``psf``: name of PSF file
-* ``pdb``: name of PDB file
-* ``xsc``: (optional) name of XSC file
+Single-valued parameters:
 
-Example:
+  * ``psf``: name of psf file (includes psf extension)
 
-.. code-block:: yaml
+  * ``pdb``: name of pdb file (includes pdb extension)
 
-    tasks:
-      psfgen:
-        prebuilt:
-          pdb: my_build.pdb
-          psf: my_build.psf
-          xsc: solvated.xsc
-    
+  * ``xsc``: name of xsc file (includes xsc extension)
+
+
+

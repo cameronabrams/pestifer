@@ -11,11 +11,16 @@
 # use "required: True" for scalar values that have no defaults but must be specified
 # use "required: False" for any values that should not be assigned defaults
 #
+docs:
+  title: Configuration File Reference
+  text: "Pestifer uses YAML-format configuration input for executing a build.  There are six unique top-level directives in a configuration file:"
 directives:
   - name: charmmff
     type: dict
     text: Specifications for charmm force-field parameter and topology files
-    required: True 
+    required: True
+    docs:
+      text: "The ``charmff`` directive informs pestifer which CHARMM force-field parameter and topology files are to be used for all psfgen/namd2 executions.  ``standard`` refers to files that are found in the official CHARMMFF release, and are named relative to the topmost ``toppar/`` directory of that release.  ``custom`` refers to files that are not part of the official CHARMMFF release."
     directives:
       - name: standard
         type: dict

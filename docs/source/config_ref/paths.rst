@@ -1,17 +1,19 @@
-paths 
------
+``paths``
+=========
 
-* ``vmd``: absolute pathname for the ``vmd`` executable if not ``\usr\local\bin\vmd``
-* ``namd2``: absolute pathname for the ``namd2`` executable if not ``\usr\local\bin\namd2``
-* ``charmrun``: absolute pathname for the ``charmrun`` executable if not ``\usr\local\bin\charmrun``
-* ``packmol``: absolute pathname for the ``packmol`` executable if not ``\usr\local\bin\packmol``
+Allows user to specify absolute paths to required external executables
 
-Example:
+Single-valued parameters:
 
-.. code-block:: yaml
+  * ``namd2``: Path for namd2 executable (default: /usr/local/bin/namd2)
 
-  paths:
-    vmd: /home/smartypants/opt/vmd/bin/vmd
-    namd2: /home/smartypants/opt/namd/bin/namd2
-    charmrun: /home/smartypants/opt/namd/bin/charmrun
+  * ``charmrun``: Path for charmrun executable (default: /usr/local/bin/charmrun)
+
+  * ``vmd``: Path for vmd executable (default: /usr/local/bin/vmd)
+
+  * ``charmmff``: Path for standard charmm force-field distribution; note that pestifer includes the July 2024 distribution by default
+
+  * ``packmol``: Path to packmol executable (default: /usr/local/bin/packmol)
+
+
 

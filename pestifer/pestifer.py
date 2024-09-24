@@ -34,7 +34,8 @@ def config_help(args):
     c=Config()
     print(f'Help on user-provided configuration file format')
     directives=args.directives
-    c.console_help(*directives)
+    iprompt='pestifer-help: ' if args.interactive else ''
+    c.console_help(directives,interactive_prompt=iprompt,exit=True)
 
 def config_default(args):
     c=Config()
@@ -220,6 +221,7 @@ def cli():
     command_parsers['run-example'].add_argument('--config-updates',type=str,nargs='+',default=[],help='yaml files to update example')
     command_parsers['run-example'].add_argument('--diagnostic-log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
     command_parsers['config-help'].add_argument('directives',type=str,nargs='*',help='config file directives')
+    command_parsers['config-help'].add_argument('--interactive',default=True,action=ap.BooleanOptionalAction,help='use help in interactive mode')
     command_parsers['config-default'].add_argument('directives',type=str,nargs='*',help='config file directives')
     command_parsers['wheretcl'].add_argument('--startup-script-path',default=False,action='store_true',help='print full path of VMD startup script used by pestifer')
     command_parsers['wheretcl'].add_argument('--verbose',default=False,action='store_true',help='print full paths of all TcL resources of Pestifer')
