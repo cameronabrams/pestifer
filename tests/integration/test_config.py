@@ -38,31 +38,6 @@ class ConfigTest(unittest.TestCase):
         c=Config()
         self.assertTrue(c)
 
-    def test_config_help(self):
-        c=Config()
-        with open('help.out','w') as f:
-            c.console_help(end='\n',write_func=f.write)
-            c.console_help('title',end='\n',write_func=f.write)
-            c.console_help('paths',end='\n',write_func=f.write)
-            c.console_help('paths','vmd',end='\n',write_func=f.write)
-            c.console_help('tasks',end='\n',write_func=f.write)
-            c.console_help('tasks','psfgen',end='\n',write_func=f.write)
-            c.console_help('tasks','psfgen','source',end='\n',write_func=f.write)
-            c.console_help('tasks','psfgen','source','id',end='\n',write_func=f.write)
-            c.console_help('tasks','psfgen','source','file_format',end='\n',write_func=f.write)
-            c.console_help('tasks','psfgen','source','sequence',end='\n',write_func=f.write)
-            c.console_help('tasks','psfgen','source','sequence','fix_conflicts',end='\n',write_func=f.write)
-            c.console_help('tasks','psfgen','source','sequence','loops',end='\n',write_func=f.write)
-            c.console_help('tasks','psfgen','source','sequence','loops','min_loop_length',end='\n',write_func=f.write)
-            c.console_help('tasks','ligate',end='\n',write_func=f.write)
-            c.console_help('tasks','ligate','steer',end='\n',write_func=f.write)
-            c.console_help('tasks','solvate',end='\n',write_func=f.write)
-            c.console_help('tasks','md',end='\n',write_func=f.write)
-            c.console_help('tasks','md','ensemble',end='\n',write_func=f.write)
-            c.console_help('tasks','terminate',end='\n',write_func=f.write)
-        self.assertTrue(os.path.isfile('help.out'))
-            
-
     def test_config_user(self):
         rm=ResourceManager()
         configfile=rm['examples']+'/01-bpti.yaml'

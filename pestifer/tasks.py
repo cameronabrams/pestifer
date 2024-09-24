@@ -499,6 +499,7 @@ class PsfgenTask(BaseTask):
         logger.debug('Injesting molecule(s)')
         self.injest_molecules()
         self.statevars['base_molecule']=self.base_molecule
+        logger.debug(f'base mol num images {self.base_molecule.num_images()}')
         logger.debug('Running first psfgen')
         self.result=self.psfgen()
         if self.result!=0:
@@ -509,12 +510,12 @@ class PsfgenTask(BaseTask):
         min_loop_length=self.specs['source'].get('sequence',{}).get('loops',{}).get('min_loop_length',0)
         self.update_statevars('min_loop_length',min_loop_length)
         nloops=self.base_molecule.has_loops(min_loop_length=min_loop_length)*self.base_molecule.num_images()
-        if nloops>0:
+        if nloops>0 and self.specs['source']['sequence']['loops']['declash']['maxcycles']>0:
             logger.debug(f'Declashing {nloops} loops')
             self.declash_loops(self.specs['source']['sequence']['loops'])
         nglycans=self.base_molecule.nglycans()*self.base_molecule.num_images()
         if nglycans>0 and self.specs['source']['sequence']['glycans']['declash']['maxcycles']>0:
-            logger.debug(f'Declashing {nglycans} glycans')
+            logger.debug(f'Declashing {nglycans} glycan segments')
             self.declash_glycans(self.specs['source']['sequence']['glycans'])
         self.log_message('complete')
         return super().do()
@@ -614,6 +615,7 @@ class PsfgenTask(BaseTask):
         struct=PSFContents(psf,parse_topology=['bonds'])
         logger.debug(f'Making graph structure of glycan atoms...')
         glycanatoms=struct.atoms.get(segtype='glycan')
+        logger.debug(f'{len(glycanatoms)} total glycan atoms')
         glycangraph=glycanatoms.graph()
         G=[glycangraph.subgraph(c).copy() for c in nx.connected_components(glycangraph)]
         logger.debug(f'Preparing declash input for {len(G)} glycans')

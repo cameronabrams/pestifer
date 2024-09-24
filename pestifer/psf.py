@@ -117,6 +117,7 @@ class PSFAtom(PSFTopoElement):
         if len(segtype_of_resname)==0:
             c=Config()
         self.segtype=segtype_of_resname[self.resname]
+        self.ligands=[]
     
     def __hash__(self):
         return self.serial
@@ -129,11 +130,26 @@ class PSFAtom(PSFTopoElement):
 
     def isH(self):
         return self.atomicwt<1.1
+    
+    def add_ligand(self,other):
+        if not other in self.ligands:
+            self.ligands.append(other)
+
+    def is_pep(self,other):
+        return (self.type=='C' and other.type=='NH1') or (self.type=='NH1' and other.type=='C')
 
 class PSFAtomList(PSFTopoElementList):
 
     def __init__(self,atoms):
         super().__init__(atoms)
+
+    def graph(self):
+        g=nx.Graph()
+        for a in self:
+            for l in a.ligands:
+                g.add_edge(a,l)
+        logger.debug(f'atomlist graph has {len(g)} nodes')
+        return g
 
 class PSFBond(PSFTopoElement):
 
@@ -162,8 +178,6 @@ class PSFBondList(PSFTopoElementList):
                 for l,r in zip(tokens[:-1:2],tokens[1::2]):
                     if include_serials[l-1] and include_serials[r-1]:
                         B.append(PSFBond([l,r]))
-                        # if len(B)%1000==0:
-                        #     logger.debug(f'{len(B)} psf bonds processed...')
         super().__init__(B)
 
     def to_graph(self):
@@ -262,6 +276,7 @@ class PSFContents:
         logger.debug(f'{len(self.token_lines)} tokensets:')
         logger.debug(f'{", ".join([x for x in self.token_lines.keys()])}')
         self.atoms=PSFAtomList([PSFAtom(x) for x in self.token_lines['ATOM']])
+        self.atomserials=[x.serial for x in self.atoms]
         logger.debug(f'{len(self.atoms)} total atoms...')
         self.ssbonds=SSBondList([SSBond(L) for L in self.patches.get('DISU',[])])
         self.links=LinkList([])
@@ -283,6 +298,9 @@ class PSFContents:
                 self.bonds=PSFBondList(LineList(self.token_lines['BOND']),include_serials=include_serials)
                 # logger.debug(f'Creating graph from {len(self.bonds)} bonds...')
                 self.G=self.bonds.to_graph()
+                logger.debug(f'extending atom instances with ligands...')
+                self.add_ligands()
+                logger.debug(f'done')
                 # logger.debug(f'Parsed {len(self.bonds)} bonds.')
             if 'angles' in parse_topology:
                 self.angles=PSFAngleList(LineList(self.token_lines['THETA']),include_serials=include_serials)
@@ -291,5 +309,17 @@ class PSFContents:
             if 'impropers' in parse_topology:
                 self.dihedrals=PSFDihedralList(LineList(self.token_lines['IMPHI']),include_serials=include_serials)
     
+    def add_ligands(self):
+        assert hasattr(self,'bonds')
+        for i,a in enumerate(self.atoms):
+            a.ligands=[]
+            assert a.serial==i+1
+        for b in self.bonds:
+            i,j=b.serial1,b.serial2
+            aix,ajx=i-1,j-1#self.atomserials.index(i),self.atomserials.index(j)
+            ai,aj=self.atoms[aix],self.atoms[ajx]
+            ai.add_ligand(aj)
+            aj.add_ligand(ai)
+
     def get_charge(self):
         return np.sum([x.charge for x in self.atoms])

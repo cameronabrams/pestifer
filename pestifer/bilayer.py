@@ -166,7 +166,7 @@ class BilayerEmbedTask(BaseTask):
         logger.debug(f'box corners ll {box_ll} ur {box_ur}')
         logger.debug(f'box dimensions {boxdim}')
         logger.debug(f'box area {box_area} {sA2_}; membrane_area {mem_area} {sA2_}')
-        logger.debug(f'box volume {boxV:.3f} {sA3_} (check sum-over-slices: {np.sum(np.array([x['INIT-VOLUME'] for x in self.slices.values()]))} {sA3_}) (or {nmolec_in_cuA(18.0,1.0,boxV)} waters at 1 g/cc)')
+        logger.debug(f'box volume {boxV:.3f} {sA3_} (check sum-over-slices: {np.sum(np.array([x["INIT-VOLUME"] for x in self.slices.values()]))} {sA3_}) (or {nmolec_in_cuA(18.0,1.0,boxV)} waters at 1 g/cc)')
         logger.debug(f'membrane volume {box_area*2*leaflet_thickness:.3f} {sA3_}')
         logger.debug(f'   lower chamber: {LC["INIT-VOLUME"]} {sA3_}; upper chamber: {UC["INIT-VOLUME"]} {sA3_}')
         logger.debug(f'due to membrane, expecting {nmolec_in_cuA(18.0,1.0,boxV-(box_area*2*leaflet_thickness))} waters')

@@ -4,13 +4,13 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 [project]
 name = "pestifer"
-version = "1.4.8"
+version = "1.5.2"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
 ]
 description = "A NAMD topology/coordinate input builder"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 classifiers = [
     "Programming Language :: Python :: 3",
     "License :: OSI Approved :: MIT License",
@@ -21,7 +21,7 @@ dependencies = [
     "pyyaml>=6",
     "pidibble>=1.2.1",
     "pandas",
-    "ycleptic>=1.0.6",
+    "ycleptic>=1.0.7",
     "mmcif",
     "progressbar2",
     "networkx",
