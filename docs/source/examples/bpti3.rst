@@ -1,5 +1,6 @@
 Example 3: BPTI with One Reduced Disulfide and Some Point Mutations
 -------------------------------------------------------------------
+
 Building on Example 2, here we show how to introduce point mutations and how to undo disulfides.  Both of these actions are specified in the ``psfgen`` task under the ``mods`` subdirective:
 
 .. code-block:: yaml

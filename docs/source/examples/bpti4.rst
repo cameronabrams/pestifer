@@ -1,5 +1,6 @@
 Example 4: BPTI with an Extra Disulfide Added
 ---------------------------------------------
+
 Using the ``mods`` subdirective, one can introduce new disulfides into an existing structure.  This example introduces a disulfide linking residues 11 and 34.
 
 .. code-block::  yaml

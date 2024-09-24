@@ -41,10 +41,7 @@ tasks:
           text: "protein and resid 696"
           z_value: 0.0
       SAPL: 50.0
-      scale_excluded_volume: 0.25 # 
-      # lipids: POPC:CHL1
-      # mole_fractions: 0.5:0.5
-      # lipids: LowerLeaflet//UpperLeaflet
+      scale_excluded_volume: 0.25
       lipids: POPE:SOPS:SOPE:CHL1//PSM:POPC:CHL1
       mole_fractions: 0.09:0.18:0.30:0.43//0.36:0.17:0.47
       seed: 270272

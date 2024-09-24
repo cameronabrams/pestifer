@@ -1,8 +1,10 @@
 Example 1: BPTI
 ---------------
 
-An example YAML configuration file to build the 6PTI system described in the 
-in the `psfgen user manual <https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen/ug.pdf>`_ is below:
+The Input Configuration
+=======================
+
+The ``psfgen`` `user manual <https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen/ug.pdf>`_ is a great resource for learning how to use `psfgen`.  A simple example in that manual is a solvation of BPTI starting from its PDB coordinates (PDB ID 6pti).  ``pestifer`` can reproduce this solvation via the input configuration shown below:
 
 .. code-block:: yaml
 
@@ -67,73 +69,156 @@ You could also use ``fetch-example`` to get the config file and then run it:
 
 (If there is no extension on the argument of run, pestifer assumes one of ``.yaml``, ``.yml``, or ``.ym``.)
 
-This file is YAML format; you can think of it as a python ``dict`` with nesting.  ``pestifer`` uses the general-purpose package ``ycleptic`` (`pypi <https://pypi.org/project/ycleptic/>`_) to manage its input configurations.  Under ``ycleptic``, the user provides a YAML format file that contains a set of "directives", where a directive is a ``dict`` with a single key and a value of any type, including directives. Here, there are two topmost directives: ``title`` and ``tasks``.  The value of ``title`` is the string ``BPTI`` and the value of ``tasks`` is a *list*.  Each element in the list of tasks is itself a directive describing a task, and ``pestifer`` executes tasks in the order they appear in the ``tasks`` list.
+``bpti.yaml`` is a YAML-format text file, and the keywords (of course) have particular meanings.  This is also an example of a "minimal" configuration file; ``pestifer`` has many more controls that can be set in a configuration file than are shown here.  Here, this configuration file contains two topmost directives: ``title`` and ``tasks``.  The value of ``title`` is the string ``BPTI`` and the value of ``tasks`` is a *list*.  Each element in the list of tasks is itself a directive describing a task, and ``pestifer`` in general executes tasks in the order they appear in the ``tasks`` list.
 
-For the ``psfgen`` task, we see the directive ``source``.  Its value appears to be yet another subdirective, ``id``, but the value of source is a ``dict`` with several keys, and we specify *only* ``id``, and the others are set to default values.  We can see these other keys and their default values using ``pestifer config-help``: 
+Digression: Interactive Help 
+============================
+
+``pestifer`` uses the general-purpose package ``ycleptic`` (`pypi <https://pypi.org/project/ycleptic/>`_) to manage its input configurations.  A package developer using ``ycleptic`` specifies a "pattern" file describing the configuration file syntax they would like their package to have.  Any package that uses ``ycleptic`` also automatically acquires an iteractive help feature that allows package users to explore the configuration file format specified by the package developers.  Let's use this feature to explore the ``psfgen`` task: 
 
 .. code-block:: console
 
-  $ pestifer --no-banner config-help tasks psfgen source
+  $ pestifer --no-banner config-help tasks
   Help on user-provided configuration file format
-  tasks->
-  psfgen->
+
+  tasks:
+      Specifies the tasks to be performed serially
+
+  base|tasks
+      restart ->
+      psfgen ->
+      ligate ->
+      mdplot ->
+      cleave ->
+      domainswap ->
+      solvate ->
+      ring_check ->
+      bilayer ->
+      md ->
+      manipulate ->
+      terminate ->
+      .. up
+      ! quit
+  pestifer-help:  psfgen
+
+  psfgen:
+      Parameters controlling a psfgen run on an input molecule
+
+  base|tasks->psfgen
+      source ->
+      mods ->
+      cleanup
+      .. up
+      ! quit
+  pestifer-help: source
+
   source:
       Specifies the source of the initial coordinate file
-      type: dict
-      Help available for id, biological_assembly, file_format, cif_residue_map_file, psf, altcoords, exclude, sequence
 
-This tells us that, in addition to ``id``, we have the ability to set seven other keys.  Again, using ``pestifer config-help`` we can learn about these:
+  base|tasks->psfgen->source
+      prebuilt ->
+      id
+      alphafold
+      biological_assembly
+      transform_reserves
+      remap_chainIDs
+      reserialize
+      model
+      file_format
+      cif_residue_map_file
+      exclude ->
+      sequence ->
+      .. up
+      ! quit
+  pestifer-help:  id
 
-.. code-block:: console
-
-  $ pestifer --no-banner config-help tasks psfgen source id 
-  Help on user-provided configuration file format
-  tasks->
-  psfgen->
-  source->
   id:
       The 4-character PDB ID of the source or the basename of a local
         coordinate file (PDB or mmCIF format); pestifer will download
         from the RCSB if a file is not found
-      type: str
-      A value is required.
-  $ pestifer --no-banner config-help tasks psfgen source biological_assembly
-  Help on user-provided configuration file format
-  tasks->
-  psfgen->
-  source->
-  biological_assembly:
-      integer index of the biological assembly to construct; default is 0,
-        signifying that the asymmetric unit is to be used
-      type: int
-      default: 0
-  $ pestifer --no-banner config-help tasks psfgen source file_format
-  Help on user-provided configuration file format
-  tasks->
-  psfgen->
-  source->
-  file_format:
-      either PDB or mmCIF; some entries do not have a PDB-format file.  The
-        main advantage of PDB is that it uses the author-designations
-        for chains by default.  mmCIF is the new "default" format of the
-        PDB.
-      type: str
-      default: PDB
-      allowed values: PDB, mmCIF
 
-And so on.  Let's return to the example.  Immediately after the ``psfgen`` task we declare an ``md`` task, and the subdirective ``ensemble`` is set to ``minimize``.  There are no other subdirectives explicitly listed.  This task will use ``namd2`` to run an energy minimization.  As we did for the ``source`` subdirective of the ``psfgen`` task, let's have a look at the possible subdirectives for an ``md`` task:
+This tells us that, in addition to ``id``, we have the ability to set several other control parameters.  Continuing in this interactive help session:
 
 .. code-block:: console
 
-  $ pestifer --no-banner config-help tasks md
-  Help on user-provided configuration file format
-  tasks->
+  pestifer-help: biological_assembly
+
+  biological_assembly:
+      integer index of the biological assembly to construct; default is 0,
+        signifying that the asymmetric unit is to be used
+      default: 0
+
+  All subdirectives at the same level as 'biological_assembly':
+
+  base|tasks->psfgen->source
+      prebuilt ->
+      id
+      alphafold
+      biological_assembly
+      transform_reserves
+      remap_chainIDs
+      reserialize
+      model
+      file_format
+      cif_residue_map_file
+      exclude ->
+      sequence ->
+      .. up
+      ! quit
+  pestifer-help: 
+
+And so on.  Let's return to the example.  Immediately after the ``psfgen`` task we declare an ``md`` task, and the subdirective ``ensemble`` is set to ``minimize``.  There are no other subdirectives explicitly listed.  This task will use ``namd2`` to run an energy minimization.  As we did for the ``source`` subdirective of the ``psfgen`` task, let's have a look at the possible subdirectives for an ``md`` task.  We can do this by going "up" twice (``source`` to ``psfgen`` to ``tasks``) and then down into the ``md`` task:
+
+.. code-block:: console
+
+  pestifer-help: ..
+
+  base|tasks->psfgen
+      source ->
+      mods ->
+      cleanup
+      .. up
+      ! quit
+  pestifer-help: ..
+
+  base|tasks
+      restart ->
+      psfgen ->
+      ligate ->
+      mdplot ->
+      cleave ->
+      domainswap ->
+      solvate ->
+      ring_check ->
+      bilayer ->
+      md ->
+      manipulate ->
+      terminate ->
+      .. up
+      ! quit
+  pestifer-help: md
+
   md:
       Parameters controlling a NAMD run
-      type: dict
-      Help available for ensemble, minimize, nsteps, dcdfreq, xstfreq, temperature, pressure, other_parameters, constraints
 
-By now, you know how to use ``config-help`` to figure out what these subdirectives mean. 
+  base|tasks->md
+      vacuum
+      ensemble
+      minimize
+      nsteps
+      dcdfreq
+      xstfreq
+      temperature
+      pressure
+      other_parameters
+      constraints ->
+      .. up
+      ! quit
+  pestifer-help:
+
+The Input Configuration (Continued)
+===================================
+
 So let's return again to the example.  After this ``md`` task is the ``solvate`` task.  Notice that it has no subdirectives; only default values are used for any subdirectives. Then comes another minimization via an ``md`` task, then an NVT equilibration, and then a series of progressively longer NPT equilibrations in yet more ``md`` tasks.  These "chained-together" NPT runs avoid the common issue that, after solvation, the density of the initial water box is a bit too low, so under pressure control the volume shrinks.  It can shrink so quickly that NAMD's internal data structures for distributing the computational load among processing units becomes invalid, which causes NAMD to die.  The easiest way to reset those internal data structures is just to restart NAMD from the result of the previous run.
 
 The ``mdplot`` task generates a plot of system density (in g/cc) vs time step for the series of MD simulations that occur after solvation.  This is a quick way to check that enough NPT equilibration has been performed.  For this example, the plot looks like this:

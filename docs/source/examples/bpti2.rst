@@ -41,15 +41,34 @@ Note the ``exclude`` subdirective under ``source``.  You remember how you can le
 
 .. code-block:: console
 
-  $ pestifer config-help tasks psfgen source exclude --no-banner
+  $ pestifer --no-banner config-help tasks psfgen source exclude
   Help on user-provided configuration file format
-  tasks->
-  psfgen->
-  source->
+
   exclude:
       Specifies any residues or atoms present in the PDB source to exclude
         from the system
-      type: dict
-      Help available for chains, resnames
+
+  base|tasks->psfgen->source->exclude
+      chains
+      resnames
+      resseqnums
+      .. up
+      ! quit
+  pestifer-help: resnames
+
+  resnames:
+      Specify list of resnames to ignore; good for excluding waters or ions
+        or small molecules.  Resnames must reference your chosen
+        coordinate input file.
+
+  All subdirectives at the same level as 'resnames':
+
+  base|tasks->psfgen->source->exclude
+      chains
+      resnames
+      resseqnums
+      .. up
+      ! quit
+  pestifer-help:
 
 Each of ``chains`` and ``resnames`` are lists, and in the configuration file above, we have a single-element list for ``resnames`` that indicates the resname ``PO4``, which is how the phosphate ion is labelled in the original PDB file.
