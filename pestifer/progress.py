@@ -1,6 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 import progressbar
 import logging
+from .colors import __plasma__
 from .namdlog import getinfo, gettclinfo
 
 logger=logging.getLogger(__name__)
@@ -8,21 +9,26 @@ class PestiferProgress:
     def __init__(self,**kwargs): #Elapsed Time: %(elapsed)s\x1b[33mColorful example\x1b[39m
         """ Initialize an instance of PestiferProgress 
         """
+        self.name=kwargs.get('name','Elapsed')
+        self.color=__plasma__[kwargs.get('colorno',100)]
         self.max_value=kwargs.get('max_value',progressbar.UnknownLength)
-        self.timer_format=kwargs.get('timer_format','Elapsed time: %(elapsed)s')
+        self.timer_format=kwargs.get('timer_format','time: %(elapsed)s')
         if self.max_value==progressbar.UnknownLength:
             self.unmeasured=True
         else:
             self.unmeasured=False
         self.widgets=kwargs.get('widgets',None)
+        timer_format=f'{self.color}{self.name}{self.color.OFF} {self.timer_format}'
         if not self.widgets:
             if self.max_value==progressbar.UnknownLength:
                 self.widgets=[
-                progressbar.Timer(format=self.timer_format),' ',progressbar.RotatingMarker()]
+                    progressbar.Timer(timer_format),' ',progressbar.RotatingMarker()
+                ]
             else:
                 self.widgets=[
-                        progressbar.Timer(format=self.timer_format),
-                        progressbar.Bar(),' ', progressbar.ETA()]
+                    progressbar.Timer(timer_format),
+                    progressbar.Bar(),' ', progressbar.ETA()
+                ]
         self.initialized=False
         self.init_obj=False
         self.meas_obj=False
@@ -55,7 +61,7 @@ class NAMDProgress(PestiferProgress):
     infonames=['FIRST TIMESTEP']
     tclnames=['Running for','Minimizing for']
     def __init__(self,**kwargs):
-        super().__init__(max_value=200,**kwargs)
+        super().__init__(max_value=200,name='namd',colorno=50,**kwargs)
         self.groups={}
         self.info={}
         self.tcl={}
@@ -128,11 +134,11 @@ class NAMDProgress(PestiferProgress):
     
 class PackmolProgress(PestiferProgress):
     def __init__(self,**kwargs):
-        super().__init__(**kwargs)
+        super().__init__(name='packmol',colorno=150,**kwargs)
 
 class PsfgenProgress(PestiferProgress):
     def __init__(self,**kwargs):
-        super().__init__(**kwargs)
+        super().__init__(name='psfgen',colorno=125,**kwargs)
 
 class RingCheckProgress(PestiferProgress):
     def __init__(self,**kwargs):

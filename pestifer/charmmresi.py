@@ -22,6 +22,7 @@ logger=logging.getLogger(__name__)
 
 def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0):
     topo=DB.get_topo(resid)
+    synonym=topo.synonym
     meta=topo.metadata
     charmm_topfile,stream,substream=meta['charmmtopfile'],meta['stream'],meta['substream']
 
@@ -214,6 +215,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
         entry['head-tail-length']=float(f'{length:.3f}')
         info['conformers'].append(entry)
 
+    info['synonym']=synonym
     with open('info.yaml','w') as f:
         f.write(yaml.dump(info))
     return 0

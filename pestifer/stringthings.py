@@ -299,7 +299,7 @@ def my_logger(msg,logf,width=None,fill='',just='<',frame='',depth=0,**kwargs):
         else:
             return
     else:
-        indent=f'{" "*depth*2}' if just=='<' else ''
+        indent=f'{" "*depth*2}' if just=='<' and not kwargs.get('no_indent',False) else ''
         if type(msg)==str:
             lns=msg.split('\n')
             if len(lns)>1:
@@ -384,32 +384,32 @@ def ri_range(val,split_chars=['-','#']):
             the_split.extend(s)
     return [split_ri(x) for x in the_split]
 
-def get_boxsize_from_packmolmemgen(logname='packmol-memgen.log',scale=[]):
-    res=''
-    extract_keys=[''.join(x) for x in product(['x_','y_','z_'],['min','max','len'])]
-    boxinfo={}
-    with open(logname,'r') as f:
-        log=f.read().split('\n')
-        for l in log:
-            tok=l.split()
-            if len(tok)>0:
-                if tok[0] in extract_keys:
-                    boxinfo[tok[0]]=float(tok[2])
-    if boxinfo:
-        if scale:
-            logger.debug(f'Scaling packmol-memgen\'s box by {scale}')
-            boxinfo['x_len']*=scale[0]
-            boxinfo['y_len']*=scale[1]
-            boxinfo['z_len']*=scale[2]
-        # ox=0.5*(boxinfo["x_max"]-boxinfo["x_min"])
-        # oy=0.5*(boxinfo["y_max"]-boxinfo["y_min"])
-        # oz=0.5*(boxinfo["z_max"]-boxinfo["z_min"])
-        res =f'cellBasisVector1 {boxinfo["x_len"]} 0 0\n'
-        res+=f'cellBasisVector2 0 {boxinfo["y_len"]} 0\n'
-        res+=f'cellBasisVector3 0 0 {boxinfo["z_len"]}\n'
-        res+=f'cellOrigin 0 0 0'
-        # res+=f'cellOrigin {ox} {oy} {oz}'
-    return res,boxinfo
+# def get_boxsize_from_packmolmemgen(logname='packmol-memgen.log',scale=[]):
+#     res=''
+#     extract_keys=[''.join(x) for x in product(['x_','y_','z_'],['min','max','len'])]
+#     boxinfo={}
+#     with open(logname,'r') as f:
+#         log=f.read().split('\n')
+#         for l in log:
+#             tok=l.split()
+#             if len(tok)>0:
+#                 if tok[0] in extract_keys:
+#                     boxinfo[tok[0]]=float(tok[2])
+#     if boxinfo:
+#         if scale:
+#             logger.debug(f'Scaling packmol-memgen\'s box by {scale}')
+#             boxinfo['x_len']*=scale[0]
+#             boxinfo['y_len']*=scale[1]
+#             boxinfo['z_len']*=scale[2]
+#         # ox=0.5*(boxinfo["x_max"]-boxinfo["x_min"])
+#         # oy=0.5*(boxinfo["y_max"]-boxinfo["y_min"])
+#         # oz=0.5*(boxinfo["z_max"]-boxinfo["z_min"])
+#         res =f'cellBasisVector1 {boxinfo["x_len"]} 0 0\n'
+#         res+=f'cellBasisVector2 0 {boxinfo["y_len"]} 0\n'
+#         res+=f'cellBasisVector3 0 0 {boxinfo["z_len"]}\n'
+#         res+=f'cellOrigin 0 0 0'
+#         # res+=f'cellOrigin {ox} {oy} {oz}'
+#     return res,boxinfo
 
 def rescale_packmol_inp_box(fn,scale):
     shutil.copy(fn,f'{fn}-bak')

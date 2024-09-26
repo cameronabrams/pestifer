@@ -76,7 +76,7 @@ class AsymmetricUnit(AncestorAwareMod):
                 atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
                 obj=pr.getObj(Seqadv.mmCIF_name)
                 seqadvs=SeqadvList([Seqadv(CIFdict(obj,i)) for i in range(len(obj))])
-                logger.debug(f'{len(seqadvs)} seqadv detected; typekeys: {[s.typekey for s in seqadvs]}')
+                logger.debug(f'{len(seqadvs)} {type(seqadvs)} seqadv detected; typekeys: {[s.typekey for s in seqadvs]}')
                 obj=pr.getObj(EmptyResidue.mmCIF_name)
                 missings=EmptyResidueList([EmptyResidue(CIFdict(obj,i)) for i in range(len(obj))])
                 obj=pr.getObj('struct_conn')
@@ -130,6 +130,7 @@ class AsymmetricUnit(AncestorAwareMod):
             if 'substitutions' in seqmods:
                 new_seqadv,wearegone=residues.substitutions(seqmods['substitutions'])
                 seqadvs.extend(new_seqadv)
+                logger.debug(f'There are now {len(seqadvs)} seqadv elements in seqadvs ({type(seqadvs)})')
 
             uniques=residues.uniqattrs(['segtype'],with_counts=True)
             nResolved=sum([1 for x in residues if x.resolved])
@@ -173,7 +174,7 @@ class AsymmetricUnit(AncestorAwareMod):
             if excludes or len(ignored_residues+ignored_seqadvs+ignored_ssbonds+ignored_links+ignored_grafts)>0:
                 logger.debug(f'Exclusions result in deletion of:')
                 logger.debug(f'    {len(ignored_residues)} residues; {len(residues)} remain;')
-                logger.debug(f'    {len(ignored_seqadvs)} seqadvs; {len(seqadvs)} remain;')
+                logger.debug(f'    {len(ignored_seqadvs)} seqadvs; {len(seqadvs)} remain; ({type(seqadvs)})')
                 logger.debug(f'    {len(ignored_ssbonds)} ssbonds; {len(ssbonds)} remain;')
                 logger.debug(f'    {len(ignored_links)} links; {len(links)} remain;')
                 logger.debug(f'    {len(ignored_grafts)} grafts; {len(grafts)} remain.')
@@ -185,6 +186,9 @@ class AsymmetricUnit(AncestorAwareMod):
             # this may have altered chainIDs for some residues.  So we must
             # be sure all mods that are chainID-specific but
             # not inheritable by segments are updated
+            for s in seqadvs:
+                if type(s.residue)==ResidueList:
+                    logger.debug(f'{str(s)}')
             seqadvs.update_attr_from_obj_attr('chainID','residue','chainID')
             ssbonds.update_attr_from_obj_attr('chainID1','residue1','chainID')
             ssbonds.update_attr_from_obj_attr('chainID2','residue2','chainID')

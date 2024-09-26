@@ -96,5 +96,13 @@ proc PestiferAxes::get_tilt {molid frame chains1 selstr1 chains2 selstr2} {
     return [expr $tilt_angle * 180/$pi]
 }
 
+proc PestiferAxes::get_tilt_z {molid frame chains1 selstr1} {
+    set trimer_axis [get_axis $molid $frame $chains1 $selstr1]
+    set tilt_dot [vecdot $trimer_axis { 0 0 -1 }]
+    set tilt_angle [expr acos($tilt_dot)]
+    set pi [expr acos(-1)]
+    return [expr $tilt_angle * 180/$pi]
+}
+
 # proc PestiferAxes::draw_axis {molid v} {
 # }

@@ -71,10 +71,10 @@ class Controller:
         # Execute each task in series
         task_report={}
         for task in self.tasks:
-            result=task.do()
-            task_report[task.index]=dict(taskname=task.taskname,taskindex=task.index,result=result)
-            if result!=0:
-                logger.warning(f'Task {task.taskname} failed; controller is aborted.')
+            returned_result=task.do()
+            task_report[task.index]=dict(taskname=task.taskname,taskindex=task.index,result=returned_result)
+            if task.result!=0:
+                logger.warning(f'Task {task.taskname} failed; task.result {task.result} returned result {returned_result} controller is aborted.')
                 break
         return task_report
 

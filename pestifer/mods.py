@@ -24,7 +24,7 @@
     can also be "empty", as in just TER on a line by itself.
     * Seqadv -- A reprentation of any single-point discrepancies
     between the sequence in the actual structure and a database
-    sequence. Engineered mutations, conflicts, etc.
+    sequence. Engineered mutations, conflicts, deletions, etc.
     * Mutation -- A point mutation of a particular residue 
     in a particular chain to a new residue name
     * Deletion -- deletion of one or more contiguous residues
@@ -246,10 +246,14 @@ class Seqadv(AncestorAwareMod):
                             auth_asym_id='pdbx_pdb_strand_id',
                             auth_seq_id='pdbx_auth_seq_num',
                             insertion='insertion')
+            if self.residue==[]:
+                self.residue=None
             if self.residue!=None:
                 self.chainID=self.residue.chainID
         else:
             self.assign_obj_to_attr('residue',Residues,chainID='chainID',resseqnum='resseqnum',insertion='insertion')
+            if self.residue==[]: # failed to find 
+                self.residue=None
 
     def update_from_residue(self):
         assert self.residue!=None

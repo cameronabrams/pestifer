@@ -46,7 +46,7 @@ class Config(Yclept):
 pidibble v. {version("pidibble")}"""
         quiet=kwargs.get('quiet',False)
         if not quiet:
-            my_logger(vrep,logger.info,just='<',frame='*',fill='')
+            my_logger(vrep,logger.info,just='<',frame='*',fill='',no_indent=True)
         r=ResourceManager()
         logger.debug(f'Resources:')
         for k,v in r.items():

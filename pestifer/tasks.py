@@ -16,21 +16,20 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
 import pandas as pd
+
 from copy import deepcopy
 from scipy.constants import physical_constants
+
 from .basemod import BaseMod
 from .chainidmanager import ChainIDManager
 from .colvars import *
 from .command import Command
-# from .coord import coorddf_from_pdb
+from .molecule import Molecule
 from .modmanager import ModManager
 from .mods import CleavageSite, CleavageSiteList
-from .molecule import Molecule
-from .stringthings import FileCollector,get_boxsize_from_packmolmemgen, rescale_packmol_inp_box
-# from .progress import PackmolProgress, RingCheckProgress
 from .psf import PSFContents
 from .ring import ring_check
-# from .scriptwriters import PackmolInputWriter
+from .stringthings import FileCollector
 from .util import is_periodic, cell_from_xsc, cell_to_xsc
 
 logger=logging.getLogger(__name__)
@@ -606,7 +605,7 @@ class PsfgenTask(BaseTask):
         vt.addline(f'$a writepdb {outpdb}')
         vt.writescript()
         logger.debug(f'Declashing {nglycan} glycans')
-        vt.runscript()
+        vt.runscript(progress_title='declash-glycans')
         self.save_state(exts=['pdb'])
 
     def _write_glycans(self,fw):
@@ -745,7 +744,7 @@ class CleaveTask(PsfgenTask):
         self.result=self.psfgen()
         # self.save_state(exts=['psf','pdb']) # already done in psfgen()
         self.log_message('complete')
-        return super().do()
+        return self.result
 
 class DomainSwapTask(MDTask):
     yaml_header='domainswap'
@@ -758,10 +757,10 @@ class DomainSwapTask(MDTask):
         logger.debug(f'Running NAMD to execute domain swap')
         self.result=self.namd2run(baselabel='domainswap-run',extras={'colvars':'on','colvarsconfig':self.statevars['cv']})
         if self.result!=0:
-            return super().do()
+            return self.result
         self.save_state(exts=['vel','coor'])
         self.log_message('complete')
-        return super().do()
+        return self.result
 
     def make_inputs(self):
         specs=self.specs
@@ -801,16 +800,16 @@ class LigateTask(MDTask):
         logger.debug('Steering loop C-termini toward their partner N-termini')
         self.result=self.do_steered_md(self.specs['steer'])
         if self.result!=0:
-            return super().do()
+            return self.result
         self.save_state(exts=['coor','vel'])
         logger.debug('Connecting loop C-termini to their partner N-termini')
         self.result=self.connect()
         if self.result!=0:
-            return super().do()
+            return self.result
         self.save_state(exts=['psf','pdb'])
         self.log_message('complete')
-        return super().do()
-
+        return self.result
+    
     def write_gaps(self):
         self.next_basename('gaps')
         mol=self.base_molecule
@@ -912,7 +911,6 @@ class LigateTask(MDTask):
     
 class SolvateTask(BaseTask):
     yaml_header='solvate'
-    # opt_attr=Task.opt_attr+[yaml_header]
 
     def do(self):
         self.log_message('initiated')
@@ -953,7 +951,6 @@ class SolvateTask(BaseTask):
         box_tcl=r'{ '+ll_tcl+' '+ur_tcl+r' }'
         vt=self.writers['vmd']
         vt.newscript(self.basename)
-        # vt.usescript('solv')
         vt.addline( 'package require solvate')
         vt.addline( 'package require autoionize')
         vt.addline( 'psfcontext mixedcase')
@@ -978,7 +975,6 @@ class SolvateTask(BaseTask):
         if self.result!=0:
             return super().do()
         self.save_state(exts=['psf','pdb','xsc'])
-        # self.update_statevars('cell',f'{self.basename}_cell.tcl',vtype='file')
         self.log_message('complete')
         return super().do()
 

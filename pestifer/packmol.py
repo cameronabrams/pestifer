@@ -46,7 +46,7 @@ class PackmolInputWriter(Filewriter):
         cmd=Command(f'{self.config.packmol} < {self.scriptname}')
         progress_struct=None
         if self.progress:
-            progress_struct=PackmolProgress(timer_format='\x1b[36mpackmol\x1b[39m time: %(elapsed)s')
+            progress_struct=PackmolProgress()
         return cmd.run(ignore_codes=[173],logfile=self.logname,progress=progress_struct)
 
 class PackmolLog:

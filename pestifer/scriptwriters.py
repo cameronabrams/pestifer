@@ -5,12 +5,17 @@ import os
 import datetime
 import shutil
 import logging
-logger=logging.getLogger(__name__)
+
+from .colors import *
+
 from .command import Command
 from .util import reduce_intlist
 from .namdlog import NAMDLog, NAMDxst
-from .progress import NAMDProgress, PsfgenProgress, PackmolProgress
+from .progress import NAMDProgress, PsfgenProgress, PestiferProgress
 from .stringthings import ByteCollector, FileCollector
+
+
+logger=logging.getLogger(__name__)
 
 class Filewriter:
     def __init__(self,comment_char='#'):
@@ -46,8 +51,6 @@ class Filewriter:
             self.is_written=True
         else:
             logger.debug(f'{self.filename} has already been written')
-
-
 
 class TcLScriptwriter(Filewriter):
     def __init__(self,config):
@@ -196,7 +199,11 @@ class VMD(TcLScriptwriter):
         self.logname=f'{self.basename}.log'
         logger.debug(f'Log file: {self.logname}')
         c=Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}',**options)
-        return c.run(logfile=self.logname)
+        progress_struct=None
+        progress_title=options.get('progress_title','')
+        if self.progress and progress_title!='':
+            progress_struct=PestiferProgress(name=progress_title)
+        return c.run(logfile=self.logname,progress=progress_struct)
     
     def cleanup(self,cleanup=False):
         if cleanup:
@@ -315,7 +322,7 @@ class Psfgen(VMD):
         c=Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}',**options)
         progress_struct=None
         if self.progress:
-            progress_struct=PsfgenProgress(timer_format='\x1b[94mpsfgen\x1b[39m time: %(elapsed)s')
+            progress_struct=PsfgenProgress()
         return c.run(logfile=self.logname,progress=progress_struct)
     
 class NAMD2(TcLScriptwriter):
@@ -404,7 +411,7 @@ class NAMD2(TcLScriptwriter):
         progress_struct=None
         if self.progress:
             logger.debug(f'NAMD runscript using progress')
-            progress_struct=NAMDProgress(timer_format='\x1b[33mnamd\x1b[39m time: %(elapsed)s')
+            progress_struct=NAMDProgress()
         else:
             logger.debug(f'NAMD runscript NOT using progress')
         return c.run(logfile=self.logname,progress=progress_struct)
