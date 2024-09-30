@@ -218,7 +218,7 @@ class BilayerEmbedTask(BaseTask):
         lipid_data={}
         addl_params=[]
         for l in global_lipid_names:
-            lpath=os.path.join(self.custom_pdb_path,l)
+            lpath=os.path.join(custom_pdb_path,l)
             if not os.path.exists(lpath):
                 lpath=os.path.join(self.lipid_pdb_path,l)
             assert os.path.exists(lpath),f'No PDB available for lipid {l}'
