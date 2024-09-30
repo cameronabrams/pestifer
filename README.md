@@ -22,6 +22,8 @@ By default, pestifer looks for these in `/usr/local/bin`.  Specific paths for th
 Pestifer includes the July 2024 Charmm36 force field.
 
 ## Release History
+* 1.5.3
+    * bugfix: `custom_pdb_path` bug in `bilayer` fixed
 * 1.5.2
     * glycan graph mistake fixed
     * python dependency updated to >=3.12
