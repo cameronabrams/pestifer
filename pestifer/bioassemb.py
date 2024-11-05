@@ -90,7 +90,7 @@ class Transform(AncestorAwareMod):
     #     self.applies_chainIDs=new_applies_chainIDs
 
     def generate_chainIDmap(self,auChainIDs,daughters,CM):
-        applies_to=self.applies_chainIDs
+        applies_to=self.applies_chainIDs[:]
         for d,v in daughters.items():
             if d in self.applies_chainIDs:
                 applies_to.extend(v)

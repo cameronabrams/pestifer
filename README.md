@@ -22,6 +22,8 @@ By default, pestifer looks for these in `/usr/local/bin`.  Specific paths for th
 Pestifer includes the July 2024 Charmm36 force field.
 
 ## Release History
+* 1.5.4
+    * bugfix: incorrect deletion of image seqmods
 * 1.5.3
     * bugfix: `custom_pdb_path` bug in `bilayer` fixed
 * 1.5.2
@@ -135,7 +137,7 @@ Pestifer includes the July 2024 Charmm36 force field.
 * 1.0.4
     * support for topogromacs added
 * 1.0.1
-    * Initial version
+    * Initial release
 
 ## Meta
 

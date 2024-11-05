@@ -112,7 +112,7 @@ class AsymmetricUnit(AncestorAwareMod):
 
             userlinks=topomods.get('links',LinkList([]))
             links.extend(userlinks)
-            # TODO -- same as above but for ssbonds
+        
             userssbonds=topomods.get('ssbonds',SSBondList([]))
             ssbonds.extend(userssbonds)
 

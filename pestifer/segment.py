@@ -9,7 +9,6 @@ from .config import charmm_resname_of_pdb_resname
 from .residue import Residue,ResidueList
 from .util import reduce_intlist
 from .scriptwriters import Psfgen
-# from .coord import positionN
 
 class Segment(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','specs']
@@ -182,6 +181,7 @@ class Segment(AncestorAwareMod):
 
         modmanager=self.modmanager
         seqmods=modmanager.get('seqmods',{})
+        logger.debug(f'protein_stanza {seglabel}->{image_seglabel} seqmods: {seqmods}')
 
         transform.register_mapping(self.segtype,image_seglabel,seglabel)
 
@@ -193,6 +193,9 @@ class Segment(AncestorAwareMod):
         build_C_terminal_loop=seglabel in self.specs.get('build_zero_occupancy_C_termini',[])
 
         seg_mutations=seqmods.get('mutations',MutationList([]))
+        logger.debug(f'protein_stanza for segname {seglabel}; init mutations:')
+        for m in seg_mutations:
+            logger.debug(str(m))
         seg_Cfusions=seqmods.get('Cfusions',CfusionList([]))
 
         W.banner(f'Segment {image_seglabel} begins')
@@ -302,7 +305,7 @@ class Segment(AncestorAwareMod):
                 if is_image:
                     W.restore_selection(b.selname,dataholder=f'{b.selname}_data')
         W.banner(f'Segment {image_seglabel} ends')
-        self.modmanager.retire('seqmods')
+        # THIS IS BAD self.modmanager.retire('seqmods')
 
 class SegmentList(AncestorAwareModList):
     """A class for creating and handling a list of segments given a complete list of residues for an entire asymmetric unit"""
@@ -344,7 +347,7 @@ class SegmentList(AncestorAwareModList):
                         logger.debug(f'-> original chainID {chainID} in {len(c_res)} residues')
                         this_chainID=chainIDmanager.check(this_chainID)
                         if this_chainID != chainID:
-                            logger.debug(f'{len(c_res)} residues with original chainID {chainID} and segtype {stype} are assigned new chainID {this_chainID}')
+                            logger.debug(f'{len(c_res)} residues with original chainID {chainID} and segtype {stype} are assigned new daughter chainID {this_chainID}')
                             if not chainID in self.daughters:
                                 self.daughters[chainID]=[]
                             self.daughters[chainID].append(this_chainID)
