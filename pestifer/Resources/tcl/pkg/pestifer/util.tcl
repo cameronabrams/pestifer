@@ -300,3 +300,14 @@ proc PestiferUtil::MaxRad { atomsel } {
    }
    return [expr sqrt($maxrad)]
 }
+
+proc PestiferUtil::IsIntersectionEmpty { list1 list2 } {
+
+   foreach elem $list1 {
+      if {[lsearch -exact $list2 $elem] != -1} {
+         return 0
+      }
+   }
+   return 1
+
+}
