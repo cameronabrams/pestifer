@@ -190,6 +190,7 @@ class AsymmetricUnit(AncestorAwareMod):
                 if type(s.residue)==ResidueList:
                     logger.debug(f'{str(s)}')
             seqadvs.update_attr_from_obj_attr('chainID','residue','chainID')
+            seqadvs.map_attr('dbRes','dbRes',{'HIS':'HSD'})
             ssbonds.update_attr_from_obj_attr('chainID1','residue1','chainID')
             ssbonds.update_attr_from_obj_attr('chainID2','residue2','chainID')
             links.update_attr_from_obj_attr('chainID1','residue1','chainID')

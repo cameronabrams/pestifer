@@ -274,7 +274,13 @@ class Psfgen(VMD):
             assert '/' not in t
             self.addline(f'topology {t}')
         for pdba in self.psfgen_config['aliases']:
-            self.addline(f'pdbalias {pdba}')
+            alias_tokens=pdba.split()
+            if alias_tokens[1]=='*': # wild-card for all protein residues
+                for protein_resname in self.psfgen_config['segtypes']['protein']['resnames']:
+                    this_pdba=f'{alias_tokens[0]} {protein_resname} {alias_tokens[2]} {alias_tokens[3]}'
+                    self.addline(f'pdbalias {this_pdba}')
+            else:
+                self.addline(f'pdbalias {pdba}')
 
     def atomselect_macros(self):
         """Converts all resnames in the base config by segtype into updated atomselect macros

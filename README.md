@@ -22,6 +22,9 @@ By default, pestifer looks for these in `/usr/local/bin`.  Specific paths for th
 Pestifer includes the July 2024 Charmm36 force field.
 
 ## Release History
+* 1.5.5
+    * wildcard allowed in pdbalias commands for atom renaming
+    * temporary fix for dbRes HIS in any mutations to be named HSD
 * 1.5.4
     * bugfix: incorrect deletion of image seqmods
 * 1.5.3

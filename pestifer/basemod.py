@@ -392,8 +392,9 @@ class BaseMod(Namespace):
         """
         if map:
             key=self.__dict__[key_attr]
-            val=map[key]
-            self.__dict__[mapped_attr]=val
+            if key in map:
+                val=map[key]
+                self.__dict__[mapped_attr]=val
 
     def set(self,shallow=False,**fields):
         """
