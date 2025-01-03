@@ -1023,8 +1023,9 @@ class DesolvateTask(BaseTask):
         idx_outfile=self.specs['idx_outfile']
         dcd_outfile=self.specs['dcd_outfile']
         dcd_infiles=self.specs['dcd_infiles']
+        dcd_stride=self.specs['dcd_stride']
         progress_struct=PestiferProgress(name='catdcd',track_stdout=False)
-        c=Command(f'{self.catdcd} -i {idx_outfile} -o {dcd_outfile} {" ".join(dcd_infiles)}')
+        c=Command(f'{self.catdcd} -i {idx_outfile} -stride {dcd_stride} -o {dcd_outfile} {" ".join(dcd_infiles)}')
         c.run(progress=progress_struct)
 
 class ManipulateTask(BaseTask):
