@@ -78,18 +78,24 @@ class Command:
         ncalls=0
         self.stdout=''
         self.stderr=''
+        output=''
         while True:
             b=time.process_time_ns()
-            output=process.stdout.readline()
-            self.stdout+=output
+            if not progress or (progress and progress.track_stdout):
+                output=process.stdout.readline()
+                # print(f'{b} {output}')
+                self.stdout+=output
+                otally+=len(output)
+            else:
+                time.sleep(progress.interval_sec)
             e=time.process_time_ns()
             ncalls+=1
             ttally+=(e-b)/1.e6
-            otally+=len(output)
-            if log: 
+            if log and (progress and progress.track_stdout): 
                 log.write(output)
                 log.flush()
             if output=='' and process.poll() is not None:
+                # print(f'breaking after {self.stdout}')
                 break
             if progress:
                 if not progress.unmeasured:

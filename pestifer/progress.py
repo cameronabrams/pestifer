@@ -18,6 +18,8 @@ class PestiferProgress:
         else:
             self.unmeasured=False
         self.widgets=kwargs.get('widgets',None)
+        self.track_stdout=kwargs.get('track_stdout',True)
+        self.interval_sec=kwargs.get('interval_sec',1)
         timer_format=f'{self.color}{self.name}{self.color.OFF} {self.timer_format}'
         if not self.widgets:
             if self.max_value==progressbar.UnknownLength:
@@ -48,6 +50,7 @@ class PestiferProgress:
             if self.init_f(a_string):
                 self.initialized=True
                 self.bar=progressbar.ProgressBar(max_value=self.max_value,widgets=self.widgets)
+                # print('initialized')
         else:
             if self.meas_f(a_string):
                 if not self.unmeasured:

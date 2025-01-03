@@ -16,12 +16,15 @@ Pestifer also requires access to the following executables:
 1. `namd2` and `charmrun`
 2. `vmd`
 3. `packmol`
+4. `catdcd` (for the `desolvate` subcommand)
 
 By default, pestifer looks for these in `/usr/local/bin`.  Specific paths for these can be stipulated in the `paths` directive of your input file.
 
 Pestifer includes the July 2024 Charmm36 force field.
 
 ## Release History
+* 1.5.6
+    * `desolvate` subcommand implemented
 * 1.5.5
     * wildcard allowed in pdbalias commands for atom renaming
     * temporary fix for dbRes HIS in any mutations to be named HSD

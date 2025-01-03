@@ -82,6 +82,22 @@ def run(args,**kwargs):
     if args.output_dir!='./':
         os.chdir(exec_dir)
 
+def desolvate(args,**kwargs):
+    C=Controller(userspecs={'tasks':
+                            [
+                                {'desolvate':{
+                                    'basename':'desolvate',
+                                    'keepatselstr':args.keepatselstr,
+                                    'psf':args.psf,
+                                    'dcd_infiles':args.dcd_infiles,
+                                    'dcd_outfile':args.dcd_outfile,
+                                    'psf_outfile':args.psf_outfile,
+                                    'idx_outfile':args.idx_outfile
+                                   }
+                                }
+                            ]})
+    report=C.do_tasks()
+
 def list_examples():
     r=ResourceManager()
     ex_path=r['examples']
@@ -177,7 +193,8 @@ def cli():
         'run':run,
         'wheretcl':wheretcl,
         'inittcl':inittcl,
-        'make-resi-database':make_RESI_database
+        'make-resi-database':make_RESI_database,
+        'desolvate':desolvate
     }
     helps={
         'config-help':'get help on the syntax of input configuration files',
@@ -187,7 +204,8 @@ def cli():
         'run':'build a system using instructions in the config file',
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
         'inittcl':'initializes macros from config',
-        'make-resi-database':'makes representative psf/pdb files for any CHARMM RESI\'s found in given topology streams'
+        'make-resi-database':'makes representative psf/pdb files for any CHARMM RESI\'s found in given topology streams',
+        'desolvate':'desolvate an existing PSF/DCD'
     }
     descs={
         'config-help':'Use this command to get interactive help on config file directives.',
@@ -197,7 +215,8 @@ def cli():
         'run':'Build a system',
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
         'inittcl':'initializes macros from config',
-        'make-resi-database':'makes representative psf/pdb files for any CHARMM RESI\'s found in given topology streams'
+        'make-resi-database':'makes representative psf/pdb files for any CHARMM RESI\'s found in given topology streams',
+        'desolvate':'desolvate an existing PSF/DCD'
     }
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
     parser.add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
@@ -242,6 +261,12 @@ def cli():
     command_parsers['make-resi-database'].add_argument('--output-dir',type=str,default='data',help='name of output directory relative to CWD')
     command_parsers['make-resi-database'].add_argument('--fail-dir',type=str,default='fails',help='name of output directory for failed runs relative to CWD')
     command_parsers['make-resi-database'].add_argument('--refic-idx',type=int,default=0,help='index of reference IC to use to build a single molecule')
+    command_parsers['desolvate'].add_argument('--psf',type=str,help='name of input PSF file')
+    command_parsers['desolvate'].add_argument('--dcd-infiles',type=str,nargs='+',default=[],help='list of input dcd files in chronological order')
+    command_parsers['desolvate'].add_argument('--keepatselstr',type=str,default='protein or glycan or lipid',help='VMD atomsel string for atoms you want to keep')
+    command_parsers['desolvate'].add_argument('--psf-outfile',type=str,default='dry.psf',help='name of output PSF file to create')
+    command_parsers['desolvate'].add_argument('--dcd-outfile',type=str,default='dry.dcd',help='name of DCD output file to create')
+    command_parsers['desolvate'].add_argument('--idx-outfile',type=str,default='dry.idx',help='name of index file for catdcd to create')
 
     args=parser.parse_args()
 

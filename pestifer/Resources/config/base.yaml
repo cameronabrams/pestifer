@@ -939,6 +939,10 @@ directives:
         type: str
         text: Path to packmol executable
         default: /usr/local/bin/packmol
+      - name: catdcd
+        type: str
+        text: Path to catdcd executable
+        default: /usr/local/bin/catdcd
   - name: tasks
     type: list
     text: Specifies the tasks to be performed serially
@@ -1296,6 +1300,32 @@ directives:
             text: name of anion
             type: string
             options: [CLA]
+      - name: desolvate
+        type: dict
+        text: single-shot desolvation (no inheritance)
+        directives:
+          - name: psf
+            type: str
+            text: name of input PSF file
+          - name: keepatselstr
+            type: str
+            text: VMD atomselect string for atoms you want to keep
+            default: protein or lipid or glycan
+          - name: idx_outfile
+            type: str
+            text: name of output index file for catdcd
+            default: dry.idx
+          - name: psf_oufile
+            type: str
+            text: name of output PSF file
+            default: dry.psf
+          - name: dcd_outfile
+            type: str
+            text: name of output DCD file
+            default: dry.dcd
+          - name: dcd_infiles
+            type: list
+            text: ordered list of names of input DCD files
       - name: ring_check
         text: Parameters controlling pierced-ring checks
         type: dict

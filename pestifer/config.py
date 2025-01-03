@@ -88,11 +88,13 @@ pidibble v. {version("pidibble")}"""
         self.charmrun=self['user']['paths']['charmrun']
         self.vmd=self['user']['paths']['vmd']
         self.packmol=self['user']['paths']['packmol']
+        self.catdcd=self['user']['paths']['catdcd']
         if verify_access:
             assert os.access(self.charmrun,os.X_OK)
             assert os.access(self.namd2,os.X_OK)
             assert os.access(self.vmd,os.X_OK)
             assert os.access(self.packmol,os.X_OK)
+            assert os.access(self.catdcd,os.X_OK)
 
     def _set_internal_shortcuts(self,**kwargs):
         self.progress=len(self.slurmvars)==0
