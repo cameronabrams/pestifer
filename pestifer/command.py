@@ -51,12 +51,14 @@ class Command:
             logger.debug(f'{self.c}')
         log=None
         if not logfile:
-            logger.debug(f'no logfile specified for {self.c}')
+            logger.debug(f'No logfile specified for {self.c}')
         else:
             if os.path.exists(logfile) and not kwargs.get('overwrite_logs',False):
                 nlogs=len(glob(f'%{logfile}'))
                 shutil.move(logfile,f'%{logfile}-{nlogs+1}%')
+                logger.debug(f'Rotating {logfile} to %{logfile}-{nlogs+1}%')
             log=open(logfile,'w')
+            logger.debug(f'Opened {logfile} for writing')
         if progress and not progress.unmeasured:
             logger.debug(f'progress type {type(progress)}')
             bytes=ByteCollector()
@@ -91,7 +93,7 @@ class Command:
             e=time.process_time_ns()
             ncalls+=1
             ttally+=(e-b)/1.e6
-            if log and (progress and progress.track_stdout): 
+            if log and ((not progress) or (progress and progress.track_stdout)): 
                 log.write(output)
                 log.flush()
             if output=='' and process.poll() is not None:
@@ -121,7 +123,6 @@ class Command:
                 logger.error('stdout buffer follows\n'+'*'*self.divider_line_length+'\n'+self.stdout+'\n'+'*'*self.divider_line_length)
             if len(self.stderr)>0:
                 logger.error('stderr buffer follows\n'+'*'*self.divider_line_length+'\n'+self.stderr+'\n'+'*'*self.divider_line_length)
-            # raise subprocess.SubprocessError(f'Command "{self.c}" failed with returncode {process.returncode}')
             return process.returncode
         if len(override)==2:
             needle,msg=override
