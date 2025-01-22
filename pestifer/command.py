@@ -7,8 +7,8 @@ import subprocess
 import os
 import atexit
 import signal
-from io import StringIO
-import json
+# from io import StringIO
+# import json
 import shutil
 from glob import glob
 # from .progress import PestiferProgress
@@ -17,7 +17,6 @@ from .stringthings import ByteCollector
 
 logger=logging.getLogger(__name__)
 
-    
 class Command:
     divider_line_length=55
     def __init__(self,command:str,*args,**options):

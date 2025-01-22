@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 import progressbar
 import logging
-from .colors import __colormaps__,__palette__,__default__
+from .colors import __plasma__
 from .namdlog import getinfo, gettclinfo
 
 logger=logging.getLogger(__name__)
@@ -10,14 +10,7 @@ class PestiferProgress:
         """ Initialize an instance of PestiferProgress 
         """
         self.name=kwargs.get('name','Elapsed')
-        if 'colorno' in kwargs:
-            cmapname=kwargs.get('colormapname','plasma')
-            colormap=__colormaps__[cmapname]
-            self.color=colormap[kwargs.get('colorno',100)]
-        elif 'color' in kwargs:
-            self.color=__palette__.get(kwargs['color'],__default__)
-        else:
-            self.color=__default__
+        self.color=__plasma__[kwargs.get('colorno',100)]
         self.max_value=kwargs.get('max_value',progressbar.UnknownLength)
         self.timer_format=kwargs.get('timer_format','time: %(elapsed)s')
         if self.max_value==progressbar.UnknownLength:
