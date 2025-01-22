@@ -23,7 +23,7 @@ By default, pestifer looks for these in `/usr/local/bin`.  Specific paths for th
 Pestifer includes the July 2024 Charmm36 force field.
 
 ## Release History
-* 1.5.8
+* 1.5.9
     * bugfix: log write suppressed inadvertently if progress bars not used
 * 1.5.6
     * `desolvate` subcommand implemented
