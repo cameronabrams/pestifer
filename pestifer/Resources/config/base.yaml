@@ -936,24 +936,24 @@ directives:
     default: Pestifer
   - name: paths
     type: dict
-    text: Allows user to specify absolute paths to required external executables
+    text: Allows user to specify absolute paths to required external executables if their naked commands are not the ones the user wants to use
     directives:
       - name: namd2
         type: str
         text: Path for namd2 executable
-        default: /usr/local/bin/namd2
+        default: namd2
       - name: namd3
         type: str
         text: Path for namd3 executable
-        default: /usr/local/bin/namd3
+        default: namd3
       - name: charmrun
         type: str
         text: Path for charmrun executable
-        default: /usr/local/bin/charmrun
+        default: charmrun
       - name: vmd
         type: str
         text: Path for vmd executable
-        default: /usr/local/bin/vmd
+        default: vmd
       - name: charmmff
         type: str
         text: Path for standard charmm force-field distribution; note that pestifer includes the July 2024 distribution by default
@@ -961,11 +961,11 @@ directives:
       - name: packmol
         type: str
         text: Path to packmol executable
-        default: /usr/local/bin/packmol
+        default: packmol
       - name: catdcd
         type: str
         text: Path to catdcd executable
-        default: /usr/local/bin/catdcd
+        default: catdcd
   - name: tasks
     type: list
     text: Specifies the tasks to be performed serially
