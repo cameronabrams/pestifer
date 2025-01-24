@@ -337,10 +337,14 @@ class NAMD2(TcLScriptwriter):
         logger.debug(f'progress {self.progress}')
         self.charmmff_config=config['user']['charmmff']
         self.charmrun=config.charmrun
-        self.namd2=config.namd2
-        self.namd2_config=config['user']['namd2']
+        self.namd=config.namd
+        self.namd_type=config.namd_type
+        self.namd_config=config['user']['namd']
         self.local_ncpus=config.local_ncpus
         self.ncpus=config.ncpus
+        self.gpus_allocated=config.gpus_allocated
+        self.ngpus=config.ngpus
+        self.namd_deprecates=config.namd_deprecates
         logger.debug(f'{self.ncpus} cpus are available for namd')
         self.default_ext='.namd'
         self.user_charmmff_toppar_path=config.user_charmmff_toppar_path
@@ -357,8 +361,8 @@ class NAMD2(TcLScriptwriter):
 
     def copy_charmm_par(self):
         local_names=[]
-        namd2_params_abs=self.standard_charmmff_parfiles+self.custom_charmmff_parfiles
-        for nf in namd2_params_abs:
+        namd_params_abs=self.standard_charmmff_parfiles+self.custom_charmmff_parfiles
+        for nf in namd_params_abs:
             d,n=os.path.split(nf)
             if not os.path.exists(n):
                 if n.endswith('.str'):
@@ -374,8 +378,8 @@ class NAMD2(TcLScriptwriter):
                 if os.path.exists(l):
                     os.remove(l)
         else:
-            namd2_params_abs=self.standard_charmmff_parfiles+self.custom_charmmff_parfiles
-            for nf in namd2_params_abs:
+            namd_params_abs=self.standard_charmmff_parfiles+self.custom_charmmff_parfiles
+            for nf in namd_params_abs:
                 d,n=os.path.split(nf)
                 if os.path.exists(n):
                     os.remove(n)
@@ -395,15 +399,15 @@ class NAMD2(TcLScriptwriter):
                         if k=='tcl':
                             self.addline(val)
                         else:
-                            self.addline(f'{k} {val}')
+                            self.addline(f'{self.namd_deprecates.get(k,k)} {val}')
                 else:
                     if k=='tcl':
                         self.addline(v)
                     else:
-                        self.addline(f'{k} {v}')
+                        self.addline(f'{self.namd_deprecates.get(k,k)} {v}')
         for t in tailers:
             if t in params:
-                self.addline(f'{t} {params[t]}')
+                self.addline(f'{self.namd_deprecates.get(t,t)} {params[t]}')
         super().writescript()
 
     def runscript(self,**kwargs):
@@ -412,7 +416,11 @@ class NAMD2(TcLScriptwriter):
             use_cpu_count=self.local_ncpus
         else:
             use_cpu_count=self.ncpus
-        c=Command(f'{self.charmrun} +p {use_cpu_count} {self.namd2} {self.scriptname}')
+        if self.namd_type=='cpu':
+            c=Command(f'{self.charmrun} +p {use_cpu_count} {self.namd} {self.scriptname}')
+        elif self.namd_type=='gpu':
+            use_cpu_count=8 if self.ngpus==1 else (self.ngpus-1)*8 + 8-(self.ngpus-1)
+            c=Command(f'{self.namd3} +p{use_cpu_count} +setcpuaffinity +devices {self.gpus_allocated}')
         self.logname=f'{self.basename}.log'
         progress_struct=None
         if self.progress:

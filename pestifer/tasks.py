@@ -280,7 +280,7 @@ class MDTask(BaseTask):
         self.log_message('complete',ensemble=self.specs.get('ensemble',None))
         return super().do()
 
-    def namd2run(self,baselabel='',extras={},script_only=False):
+    def namdrun(self,baselabel='',extras={},script_only=False):
         specs=self.specs
         logger.debug(f'md task specs {specs}')
         ensemble=specs['ensemble']
@@ -290,7 +290,7 @@ class MDTask(BaseTask):
             self.next_basename(baselabel)
         
         params={}
-        namd_global_params=self.config['user']['namd2']
+        namd_global_params=self.config['user']['namd']
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
         coor=self.statevars.get('coor',None)

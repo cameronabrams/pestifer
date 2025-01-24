@@ -70,6 +70,8 @@ pidibble v. {version("pidibble")}"""
     def cpu_info(self):
         self.slurmvars={k:os.environ[k] for k in os.environ if 'SLURM' in k}
         self.local_ncpus=os.cpu_count()
+        self.gpus_allocated=''
+        self.ngpus=0
         retstr=''
         if self.slurmvars and 'SLURM_NNODES' in self.slurmvars and 'SLURM_NTASKS_PER_NODE' in self.slurmvars:
             # we are in a batch execution
@@ -77,6 +79,9 @@ pidibble v. {version("pidibble")}"""
             ntaskspernode=int(self.slurmvars['SLURM_NTASKS_PER_NODE'])
             ncpus=nnodes*ntaskspernode
             retstr+=f'SLURM: #nodes {nnodes}; total number of cpus {ncpus}'
+            if 'SLURM_JOB_GPUS' in self.slurmvars:
+                self.gpus_allocated=self.slurmvars['SLURM_JOB_GPUS']
+                self.ngpus=len(self.gpus_allocated.split(','))
         else:
             retstr+=f'Local number of CPUs: {self.local_ncpus}'
             ncpus=self.local_ncpus
@@ -84,14 +89,19 @@ pidibble v. {version("pidibble")}"""
         return retstr
 
     def _set_external_apps(self,verify_access=True):
-        self.namd2=self['user']['paths']['namd2']
+        if self['user']['namd']['namd-version']==2:
+            self.namd=self['user']['paths']['namd3']
+        else:
+            self.namd=self['user']['paths']['namd2']
+        self.namd_type=self['user']['namd']['processor-type']
+        self.namd_deprecates=self['user']['namd']['deprecated3']    
         self.charmrun=self['user']['paths']['charmrun']
         self.vmd=self['user']['paths']['vmd']
         self.packmol=self['user']['paths']['packmol']
         self.catdcd=self['user']['paths']['catdcd']
         if verify_access:
             assert os.access(self.charmrun,os.X_OK)
-            assert os.access(self.namd2,os.X_OK)
+            assert os.access(self.namd,os.X_OK)
             assert os.access(self.vmd,os.X_OK)
             assert os.access(self.packmol,os.X_OK)
             assert os.access(self.catdcd,os.X_OK)
