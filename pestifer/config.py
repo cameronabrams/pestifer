@@ -101,7 +101,8 @@ pidibble v. {version("pidibble")}"""
                 if rq in command_alternates:
                     rqalt=command_alternates[rq]
                     self.shell_commands[rq]=self['user']['paths'][rqalt]
-                    assert shutil.which(self.shell_commands[rq]),f'Alternate command {self.shell_commands[rq]} not found.'
+                    if verify_access:
+                        assert shutil.which(self.shell_commands[rq]),f'Alternate command {self.shell_commands[rq]} not found.'
             if verify_access:
                 assert os.access(fullpath,os.X_OK),f'You do not have permission to execute {fullpath}'
         self.namd_type=self['user']['namd']['processor-type']
