@@ -29,8 +29,10 @@
   * residue MAN AMAN
   * residue BMA BMAN
   * residue NAG BGLCNA
+  * residue NDG AGLCNA
   * residue BGLC BGLCNA
   * residue FUC AFUC
+  * residue FUL BFUC
   * residue GAL BGAL
   * residue ANE5 ANE5AC
   * residue SIA ANE5AC

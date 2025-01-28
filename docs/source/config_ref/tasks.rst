@@ -15,6 +15,7 @@ Subdirectives:
    tasks/cleave
    tasks/domainswap
    tasks/solvate
+   tasks/desolvate
    tasks/ring_check
    tasks/bilayer
    tasks/md

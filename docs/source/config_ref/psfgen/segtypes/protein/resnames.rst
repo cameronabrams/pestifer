@@ -10,6 +10,7 @@
   * GLU
   * GLY
   * HIS
+  * HSP
   * HSD
   * HSE
   * ILE

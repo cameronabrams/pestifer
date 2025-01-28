@@ -16,7 +16,7 @@ Subdirectives:
 
    config_ref/charmmff
    config_ref/psfgen
-   config_ref/namd2
+   config_ref/namd
    config_ref/paths
    config_ref/tasks
 
