@@ -166,7 +166,7 @@ class BaseTask(BaseMod):
     def make_constraint_pdb(self,specs,statekey='consref'):
         vm=self.writers['vmd']
         pdb=self.statevars['pdb']
-        force_constant=specs.get('k',self.config['user']['namd2']['harmonic']['spring_constant'])
+        force_constant=specs.get('k',self.config['user']['namd']['harmonic']['spring_constant'])
         constrained_atoms_def=specs.get('atoms','all')
         logger.debug(f'constraint spec: {specs["atoms"]}')
         c_pdb=specs.get('consref','')
@@ -248,7 +248,7 @@ class RestartTask(BaseTask):
         return super().do()
 
 class MDTask(BaseTask):
-    """ A class for handling all NAMD2 runs
+    """ A class for handling all NAMD runs
     
     Attributes
     ----------
@@ -259,15 +259,15 @@ class MDTask(BaseTask):
     -------
     
     `do()`:
-        Inherits state and performs namd2 run based on specs; updates run state
+        Inherits state and performs namd run based on specs; updates run state
 
     `copy_charmmpar_local()`:abbr:
         Copies all charmm parameter files from pestifer's resource library to
         the current working directory; returns the list of file names that
         were copied
 
-    `namd2run()`: 
-        Generates the NAMD2 config file based on specs and then executes NAMD2
+    `namdrun()`: 
+        Generates the NAMD config file based on specs and then executes NAMD
 
     """
     yaml_header='md'
@@ -275,7 +275,7 @@ class MDTask(BaseTask):
     def do(self):
         self.log_message('initiated',ensemble=self.specs.get('ensemble',None))
         self.inherit_state()            
-        self.result=self.namd2run()
+        self.result=self.namdrun()
         if self.result==0: self.save_state(exts=['coor','vel','xsc'])
         self.log_message('complete',ensemble=self.specs.get('ensemble',None))
         return super().do()
@@ -324,7 +324,7 @@ class MDTask(BaseTask):
             params['binvelocities']=vel
             del params['temperature']
         
-        na=self.writers['namd2']
+        na=self.writers['namd']
         na.update_par()
         self.local_parameter_files=na.copy_charmm_par()
         params['parameters']=self.local_parameter_files
@@ -756,7 +756,7 @@ class DomainSwapTask(MDTask):
         logger.debug(f'Generating inputs for domain swap')
         self.make_inputs()
         logger.debug(f'Running NAMD to execute domain swap')
-        self.result=self.namd2run(baselabel='domainswap-run',extras={'colvars':'on','colvarsconfig':self.statevars['cv']})
+        self.result=self.namdrun(baselabel='domainswap-run',extras={'colvars':'on','colvarsconfig':self.statevars['cv']})
         if self.result!=0:
             return self.result
         self.save_state(exts=['vel','coor'])
@@ -866,7 +866,7 @@ class LigateTask(MDTask):
         writer.writefile()
         savespecs=self.specs
         self.specs=specs
-        result=self.namd2run(extras={        
+        result=self.namdrun(extras={        
             'fixedatoms':'on',
             'fixedatomsfile':self.statevars['fixedref'],
             'fixedatomscol': 'O',
@@ -982,7 +982,7 @@ class SolvateTask(BaseTask):
 class DesolvateTask(BaseTask):
     yaml_header='desolvate'
     def do(self):
-        self.catdcd=self.config.catdcd
+        self.catdcd=self.config.shell_commands['catdcd']
         self.do_idx_psf_gen()
         self.do_dcd_prune()
 
@@ -1061,7 +1061,7 @@ class ManipulateTask(BaseTask):
                 self.save_state(exts=['pdb'])
         return 0
 
-class TerminateTask(MDTask):  #need to inherit for namd2run() method
+class TerminateTask(MDTask):  #need to inherit for namdrun() method
     yaml_header='terminate'
     
     def do(self):
@@ -1090,11 +1090,11 @@ class TerminateTask(MDTask):  #need to inherit for namd2run() method
             return 0
         self.inherit_state()
         self.FC.clear()  # populate a file collector to make the tarball
-        logger.debug(f'Packaging for namd2 using basename {self.basename}')
+        logger.debug(f'Packaging for namd using basename {self.basename}')
         savespecs=self.specs
         self.specs=specs
         params={}
-        result=self.namd2run(script_only=True)
+        result=self.namdrun(script_only=True)
         self.specs=savespecs
         self.FC.append(f'{self.basename}.namd')
         constraints=specs.get('constraints',{})

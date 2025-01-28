@@ -855,10 +855,12 @@ directives:
     directives:
       - name: namd-version
         text: version of NAMD to run
+        type: int
         choices: [2, 3]
         default: 3
       - name: processor-type
         text: which processor type to use (cpu or gpu)
+        type: str
         choices: [cpu, gpu]
         default: cpu
       - name: gpu-resident
@@ -936,7 +938,7 @@ directives:
     default: Pestifer
   - name: paths
     type: dict
-    text: Allows user to specify absolute paths to required external executables if their naked commands are not the ones the user wants to use
+    text: Allows user to specify absolute paths to required external executables if the commands are not already in the user's path or the user wants to use versions that are not in their path
     directives:
       - name: namd2
         type: str

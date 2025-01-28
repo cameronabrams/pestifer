@@ -5,7 +5,7 @@ import logging
 logger=logging.getLogger(__name__)
 
 from .config import Config
-from .scriptwriters import Filewriter,Psfgen,VMD,NAMD2
+from .scriptwriters import Filewriter,Psfgen,VMD,NAMD
 from .tasks import *
 from .bilayer import *
 from .util import *
@@ -24,7 +24,7 @@ class Controller:
         self.writers={
             'psfgen': Psfgen(self.config),
             'vmd':    VMD(self.config),
-            'namd2':  NAMD2(self.config),
+            'namd':   NAMD(self.config),
             'data':   Filewriter()
         }
 

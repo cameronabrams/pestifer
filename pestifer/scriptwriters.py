@@ -13,7 +13,7 @@ from .util import reduce_intlist
 from .namdlog import NAMDLog, NAMDxst
 from .progress import NAMDProgress, PsfgenProgress, PestiferProgress
 from .stringthings import ByteCollector, FileCollector
-
+from .config import Config
 
 logger=logging.getLogger(__name__)
 
@@ -80,9 +80,9 @@ class TcLScriptwriter(Filewriter):
         self.F.append(filename)
 
 class VMD(TcLScriptwriter):
-    def __init__(self,config):
+    def __init__(self,config:Config):
         super().__init__(config)
-        self.vmd=config.vmd
+        self.vmd=config.shell_commands['vmd']
         self.tcl_root=config.tcl_root
         self.tcl_pkg_path=config.tcl_pkg_path
         self.tcl_script_path=config.tcl_script_path
@@ -331,13 +331,13 @@ class Psfgen(VMD):
             progress_struct=PsfgenProgress()
         return c.run(logfile=self.logname,progress=progress_struct)
     
-class NAMD2(TcLScriptwriter):
-    def __init__(self,config):
+class NAMD(TcLScriptwriter):
+    def __init__(self,config:Config):
         super().__init__(config)
         logger.debug(f'progress {self.progress}')
         self.charmmff_config=config['user']['charmmff']
-        self.charmrun=config.charmrun
-        self.namd=config.namd
+        self.charmrun=config.shell_commands['charmrun']
+        self.namd=config.shell_commands['namd3']
         self.namd_type=config.namd_type
         self.namd_config=config['user']['namd']
         self.local_ncpus=config.local_ncpus
@@ -387,7 +387,7 @@ class NAMD2(TcLScriptwriter):
     def newscript(self,basename=None):
         super().newscript(basename)
         self.scriptname=f'{basename}{self.default_ext}'
-        self.banner('NAMD2 script')
+        self.banner('NAMD script')
 
     def writescript(self,params):
         logger.debug(f'params: {params}')

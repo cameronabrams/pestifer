@@ -131,8 +131,8 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     for task in tasks:
         if task.taskname=='md':
             needed=[]
-            if charmm_topfile.endswith('str') and not charmm_topfile in task.writers['namd2'].charmmff_config['standard']['parameters']:
-                task.writers['namd2'].charmmff_config['standard']['parameters'].append(charmm_topfile)
+            if charmm_topfile.endswith('str') and not charmm_topfile in task.writers['namd'].charmmff_config['standard']['parameters']:
+                task.writers['namd'].charmmff_config['standard']['parameters'].append(charmm_topfile)
             if charmm_topfile.endswith('sphingo.str'):
                 needed=['stream/carb/toppar_all36_carb_imlab.str',
                         'stream/lipid/toppar_all36_lipid_lps.str']
@@ -149,10 +149,10 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
                         'stream/lipid/toppar_all36_lipid_bacterial.str']
 
             for n in needed:
-                if n not in task.writers['namd2'].charmmff_config['standard']['parameters']:
-                    task.writers['namd2'].charmmff_config['standard']['parameters'].append(n)
+                if n not in task.writers['namd'].charmmff_config['standard']['parameters']:
+                    task.writers['namd'].charmmff_config['standard']['parameters'].append(n)
 
-            par=task.writers['namd2'].charmmff_config['standard']['parameters']
+            par=task.writers['namd'].charmmff_config['standard']['parameters']
 
     result=C.do_tasks()
     for k,v in result.items():

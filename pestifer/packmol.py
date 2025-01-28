@@ -43,7 +43,7 @@ class PackmolInputWriter(Filewriter):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         self.logname=f'{self.basename}.log'
         logger.debug(f'Log file: {self.logname}')
-        cmd=Command(f'{self.config.packmol} < {self.scriptname}')
+        cmd=Command(f'{self.config.shell_commands["packmol"]} < {self.scriptname}')
         progress_struct=None
         if self.progress:
             progress_struct=PackmolProgress()

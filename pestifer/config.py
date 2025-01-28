@@ -1,6 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 import os
 import logging
+import shutil
 from collections import UserDict
 from importlib.metadata import version
 from ycleptic.yclept import Yclept
@@ -65,7 +66,7 @@ pidibble v. {version("pidibble")}"""
         if not quiet:
             my_logger(cpu_info,logger.info,just='<',frame='*',fill='')
         self._set_internal_shortcuts(**kwargs)
-        self._set_external_apps(verify_access=(userfile!=''))
+        self._set_shell_commands(verify_access=(userfile!=''))
 
     def cpu_info(self):
         self.slurmvars={k:os.environ[k] for k in os.environ if 'SLURM' in k}
@@ -88,23 +89,23 @@ pidibble v. {version("pidibble")}"""
         self.ncpus=ncpus
         return retstr
 
-    def _set_external_apps(self,verify_access=True):
-        if self['user']['namd']['namd-version']==2:
-            self.namd=self['user']['paths']['namd3']
-        else:
-            self.namd=self['user']['paths']['namd2']
+    def _set_shell_commands(self,verify_access=True):
+        required_commands=['charmrun','namd3','vmd','catdcd','packmol']
+        command_alternates={'namd3':'namd2'}
+        self.shell_commands={}
+        for rq in required_commands:
+            self.shell_commands[rq]=self['user']['paths'][rq]
+            fullpath=shutil.which(self.shell_commands[rq])
+            if not fullpath:
+                logger.warning(f'{self.shell_commands[rq]}: not found.')
+                if rq in command_alternates:
+                    rqalt=command_alternates[rq]
+                    self.shell_commands[rq]=self['user']['paths'][rqalt]
+                    assert shutil.which(self.shell_commands[rq]),f'Alternate command {self.shell_commands[rq]} not found.'
+            if verify_access:
+                assert os.access(fullpath,os.X_OK),f'You do not have permission to execute {fullpath}'
         self.namd_type=self['user']['namd']['processor-type']
-        self.namd_deprecates=self['user']['namd']['deprecated3']    
-        self.charmrun=self['user']['paths']['charmrun']
-        self.vmd=self['user']['paths']['vmd']
-        self.packmol=self['user']['paths']['packmol']
-        self.catdcd=self['user']['paths']['catdcd']
-        if verify_access:
-            assert os.access(self.charmrun,os.X_OK)
-            assert os.access(self.namd,os.X_OK)
-            assert os.access(self.vmd,os.X_OK)
-            assert os.access(self.packmol,os.X_OK)
-            assert os.access(self.catdcd,os.X_OK)
+        self.namd_deprecates=self['user']['namd']['deprecated3']
 
     def _set_internal_shortcuts(self,**kwargs):
         self.progress=len(self.slurmvars)==0
@@ -126,7 +127,7 @@ pidibble v. {version("pidibble")}"""
         if hasattr(self,'user'):
             self.user_charmmff_toppar_path=os.path.join(self['user']['charmff'],'toppar')
             assert os.path.exists(self.user_charmmff_toppar_path)
-        self.namd2_config_defaults=self['user']['namd2']
+        self.namd_config_defaults=self['user']['namd']
         self.segtypes=self['user']['psfgen']['segtypes']
         for stn,stspec in self.segtypes.items():
             if stspec and 'rescodes' in stspec:
