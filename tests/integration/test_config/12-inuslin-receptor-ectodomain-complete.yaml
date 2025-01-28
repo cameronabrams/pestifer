@@ -25,7 +25,7 @@ charmmff:
     - toppar_water_ions.str
     - stream/carb/toppar_all36_carb_glycopeptide.str
     - stream/prot/toppar_all36_prot_modify_res.str
-namd2:
+namd:
   barostat:
     langevinpiston: true
     langevinpistondecay: 100
@@ -34,6 +34,8 @@ namd2:
     langevinpistontemp: $temperature
     useflexiblecell: false
     usegrouppressure: true
+  deprecated3:
+    1-4scaling: oneFourScaling
   generic:
     1-4scaling: 1.0
     cutoff: 10.0
@@ -43,8 +45,13 @@ namd2:
     paraTypeCharmm: true
     switchdist: 9.0
     switching: true
+  gpu-resident:
+    CUDASOAintegrate: true
+    margin: 4
   harmonic:
     spring_constant: 200
+  namd-version: 3
+  processor-type: cpu
   solvated:
     PME: true
     fullElectFrequency: 2
@@ -67,10 +74,12 @@ namd2:
     stepspercycle: 4
     timestep: 1.0
 paths:
-  charmrun: /usr/local/bin/charmrun
-  namd2: /usr/local/bin/namd2
-  packmol: /usr/local/bin/packmol
-  vmd: /usr/local/bin/vmd
+  catdcd: catdcd
+  charmrun: charmrun
+  namd2: namd2
+  namd3: namd3
+  packmol: packmol
+  vmd: vmd
 psfgen:
   aliases:
   - atom ILE CD1 CD
@@ -101,8 +110,10 @@ psfgen:
   - residue MAN AMAN
   - residue BMA BMAN
   - residue NAG BGLCNA
+  - residue NDG AGLCNA
   - residue BGLC BGLCNA
   - residue FUC AFUC
+  - residue FUL BFUC
   - residue GAL BGAL
   - residue ANE5 ANE5AC
   - residue SIA ANE5AC
@@ -854,6 +865,7 @@ psfgen:
       - GLU
       - GLY
       - HIS
+      - HSP
       - HSD
       - HSE
       - ILE

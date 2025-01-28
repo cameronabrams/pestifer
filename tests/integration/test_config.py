@@ -91,7 +91,7 @@ class ConfigTest(unittest.TestCase):
             D=c['base']['directives']
             self.assertEqual(len(D),6)
             tld=[x['name'] for x in D]
-            self.assertEqual(tld,['charmmff', 'psfgen', 'namd2', 'title', 'paths', 'tasks'])
+            self.assertEqual(tld,['charmmff', 'psfgen', 'namd', 'title', 'paths', 'tasks'])
             T_idx=tld.index('title')
             T=D[T_idx]
             self.assertEqual(T['name'],'title')
@@ -103,9 +103,11 @@ class ConfigTest(unittest.TestCase):
             self.assertTrue('paths' in U)
             self.assertTrue('tasks' in U)
             paths=U['paths']
-            self.assertEqual(paths['namd2'],'/usr/local/bin/namd2')
-            self.assertEqual(paths['charmrun'],'/usr/local/bin/charmrun')
-            self.assertEqual(paths['vmd'],'/usr/local/bin/vmd')
+            self.assertEqual(paths['namd3'],'namd3')
+            self.assertEqual(paths['charmrun'],'charmrun')
+            self.assertEqual(paths['vmd'],'vmd')
+            self.assertEqual(paths['packmol'],'packmol')
+            self.assertEqual(paths['catdcd'],'catdcd')
             self.assertFalse('charmff' in paths)
             with open(f'{b}-complete.yaml','w') as f:
                 yaml.dump(U,f)

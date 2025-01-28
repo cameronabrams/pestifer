@@ -1,5 +1,5 @@
 import unittest
-from pestifer.scriptwriters import Psfgen, NAMD2
+from pestifer.scriptwriters import Psfgen, NAMD
 from pestifer.config import Config
 
 import os
@@ -19,7 +19,7 @@ class TestPsfgen(unittest.TestCase):
         self.assertFalse(os.path.exists('testing.tcl'))
     def test_charmm(self):
         c=Config()
-        p=NAMD2(c)
+        p=NAMD(c)
         print(p.standard_charmmff_parfiles)
         for x in p.standard_charmmff_parfiles:
             self.assertTrue('pestifer/Resources' in x)
