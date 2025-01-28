@@ -23,7 +23,7 @@ By default, pestifer looks for these in `/usr/local/bin`.  Specific paths for th
 Pestifer includes the July 2024 Charmm36 force field.
 
 ## Release History
-* 1.6.0
+* 1.6.1
     * now able to use namd2 or namd3
     * can optionally use GPU-resident namd3
 * 1.5.9
