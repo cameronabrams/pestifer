@@ -4,7 +4,7 @@ Example 1: BPTI
 The Input Configuration
 =======================
 
-The ``psfgen`` `user manual <https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen/ug.pdf>`_ is a great resource for learning how to use `psfgen`.  A simple example in that manual is a solvation of BPTI starting from its PDB coordinates (PDB ID 6pti).  ``pestifer`` can reproduce this solvation via the input configuration shown below:
+The ``psfgen`` `user manual <https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen/ug.pdf>`_ is a great resource for learning how to use ``psfgen``.  A simple example in that manual is a solvation of BPTI starting from its PDB coordinates (PDB ID 6pti).  ``pestifer`` can reproduce this solvation via the input configuration shown below:
 
 .. code-block:: yaml
 
