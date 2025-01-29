@@ -167,7 +167,7 @@ This tells us that, in addition to ``id``, we have the ability to set several ot
       ! quit
   pestifer-help: 
 
-And so on.  Let's return to the example.  Immediately after the ``psfgen`` task we declare an ``md`` task, and the subdirective ``ensemble`` is set to ``minimize``.  There are no other subdirectives explicitly listed.  This task will use ``namd2`` to run an energy minimization.  As we did for the ``source`` subdirective of the ``psfgen`` task, let's have a look at the possible subdirectives for an ``md`` task.  We can do this by going "up" twice (``source`` to ``psfgen`` to ``tasks``) and then down into the ``md`` task:
+And so on.  Let's return to the example.  Immediately after the ``psfgen`` task we declare an ``md`` task, and the subdirective ``ensemble`` is set to ``minimize``.  There are no other subdirectives explicitly listed.  This task will use ``namd3`` to run an energy minimization.  As we did for the ``source`` subdirective of the ``psfgen`` task, let's have a look at the possible subdirectives for an ``md`` task.  We can do this by going "up" twice (``source`` to ``psfgen`` to ``tasks``) and then down into the ``md`` task:
 
 .. code-block:: console
 
@@ -231,7 +231,7 @@ Finally, we see a ``terminate`` task, whose main role is to generate some inform
 
 This run generates a lot of other files.  One such file, ``bpti-complete.yaml`` is the fully explicit configuration file implied by the given configuration file and any default values.  It can be instructive to peruse this file to see the totality of what you can specify for ``pestifer``; it is possible to have very close control over the ``psfgen`` script generation by, for example, adding ``pdbalias`` directives.
 
-The outputs of this build are the PSF/PDB/COOR/VEL/XSC files needed to (re)start namd2; by default, these are ``my_6pti.pdb``, etc.
+The outputs of this build are the PSF/PDB/COOR/VEL/XSC files needed to (re)start namd3; by default, these are ``my_6pti.pdb``, etc.
 
 .. code-block:: console
 
@@ -260,4 +260,4 @@ You should note the presence of CHARMM force-field files in the current director
   08-00-md-NPT.xsc
   08-00-md-NPT.vel
 
-``prod_6pti.namd`` is the NAMD2 configuration file, and it created with some default values.  Carefully consider its contents before you run; you will need to edit it!
+``prod_6pti.namd`` is the namd3 configuration file, and it created with some default values.  Carefully consider its contents before you run; you will need to edit it!
