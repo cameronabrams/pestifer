@@ -79,13 +79,19 @@ pidibble v. {version("pidibble")}"""
             nnodes=int(self.slurmvars['SLURM_NNODES'])
             ntaskspernode=int(self.slurmvars['SLURM_NTASKS_PER_NODE'])
             ncpus=nnodes*ntaskspernode
-            retstr+=f'SLURM: #nodes {nnodes}; total number of cpus {ncpus}'
+            retstr+=f'SLURM: {nnodes} nodes; {ncpus} cpus'
             if 'SLURM_JOB_GPUS' in self.slurmvars:
                 self.gpus_allocated=self.slurmvars['SLURM_JOB_GPUS']
                 self.ngpus=len(self.gpus_allocated.split(','))
+                retstr+f'; {self.ngpus} gpus'
         else:
-            retstr+=f'Local number of CPUs: {self.local_ncpus}'
+            retstr+=f'{self.local_ncpus} cpus'
             ncpus=self.local_ncpus
+            cvd=os.environ.get('CUDA_VISIBLE_DEVICES',None)
+            if cvd:
+                self.ngpus=len(cvd.split(','))
+                retstr+=f'; {self.ngpus} gpus'
+
         self.ncpus=ncpus
         return retstr
 
