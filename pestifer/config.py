@@ -62,20 +62,20 @@ pidibble v. {version("pidibble")}"""
         assert os.path.exists(basefile)
         super().__init__(basefile,userfile=userfile)
         self['Resources']=r
-        cpu_info=self.cpu_info()
+        processor_info=self.processor_info()
         if not quiet:
-            my_logger(cpu_info,logger.info,just='<',frame='*',fill='')
+            my_logger(processor_info,logger.info,just='<',frame='*',fill='')
         self._set_internal_shortcuts(**kwargs)
         self._set_shell_commands(verify_access=(userfile!=''))
 
-    def cpu_info(self):
+    def processor_info(self):
         self.slurmvars={k:os.environ[k] for k in os.environ if 'SLURM' in k}
         self.local_ncpus=os.cpu_count()
         self.gpus_allocated=''
         self.ngpus=0
         retstr=''
         if self.slurmvars and 'SLURM_NNODES' in self.slurmvars and 'SLURM_NTASKS_PER_NODE' in self.slurmvars:
-            # we are in a batch execution
+            # we are in a batch execution managed by slurm
             nnodes=int(self.slurmvars['SLURM_NNODES'])
             ntaskspernode=int(self.slurmvars['SLURM_NTASKS_PER_NODE'])
             ncpus=nnodes*ntaskspernode
