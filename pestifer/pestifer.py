@@ -205,7 +205,7 @@ def cli():
         'run':'build a system using instructions in the config file',
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
         'inittcl':'initializes macros from config',
-        'make-resi-database':ap.SUPPRESS,
+        'make-resi-database':'make reference PDB/PSF files for any CHARMM residue',
         'desolvate':'desolvate an existing PSF/DCD'
     }
     descs={
@@ -216,7 +216,7 @@ def cli():
         'run':'Build a system',
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
         'inittcl':'initializes macros from config',
-        'make-resi-database':ap.SUPPRESS, #'makes representative psf/pdb files for any CHARMM RESI\'s found in given topology streams',
+        'make-resi-database':'makes representative psf/pdb files for any CHARMM RESI\'s found in given topology streams',
         'desolvate':'desolvate an existing PSF/DCD'
     }
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
