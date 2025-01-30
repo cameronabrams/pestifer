@@ -2,11 +2,10 @@
 import os
 import logging
 import shutil
-from collections import UserDict
 from importlib.metadata import version
 from ycleptic.yclept import Yclept
 
-from . import Resources
+from .resourcemanager import ResourceManager
 from .stringthings import my_logger
 
 logger=logging.getLogger(__name__)
@@ -15,53 +14,18 @@ charmm_resname_of_pdb_resname={}
 res_321={}
 res_123={}
 
-class ResourceManager(UserDict):
-    excludes=['__pycache__','_archive','bash'] # exclude from top-level resources
-    def __init__(self):
-        data={}
-        data['root']=os.path.dirname(Resources.__file__)
-        roottk=data['root'].split(os.sep)
-        rootdepth=len(roottk)
-        for root,dirs,files in os.walk(data['root']):
-            tk=root.split(os.sep)
-            absdepth=len(tk)
-            if rootdepth<absdepth<rootdepth+3:
-                rn=tk[rootdepth:absdepth]
-                bn=tk[-1]
-                if not bn in ResourceManager.excludes:
-                    myset(data,rn,root)
-        super().__init__(data)
-
-def myset(a_dict,keylist,val):
-    if len(keylist)==1:
-        a_dict[keylist[0]]=val
-    else:
-        key=keylist.pop(0)
-        if not key in a_dict or type(a_dict[key])==type(val):
-            a_dict[key]={}
-        myset(a_dict[key],keylist,val)
-
 class Config(Yclept):
     def __init__(self,userfile='',**kwargs):
-        vrep=f"""ycleptic v. {version("ycleptic")}
-pidibble v. {version("pidibble")}"""
+        vrep=f'ycleptic v. {version("ycleptic")}\npidibble v. {version("pidibble")}'
+        self.RM=ResourceManager()
         quiet=kwargs.get('quiet',False)
         if not quiet:
             my_logger(vrep,logger.info,just='<',frame='*',fill='',no_indent=True)
-        r=ResourceManager()
-        logger.debug(f'Resources:')
-        for k,v in r.items():
-            if type(v)!=dict:
-                logger.debug(f'  {k}: {v}')
-            else:
-                logger.debug(f'  {k}:')
-                for kk,vv in v.items():
-                    logger.debug(f'      {kk}: {vv}')
+            my_logger(str(self.RM),logger.debug,just='<',frame='*',fill='',no_indent=True)
         # resolve full pathname of YCleptic base config for this application
-        basefile=os.path.join(r['config'],'base.yaml')
+        basefile=self.RM.get_ycleptic_config()
         assert os.path.exists(basefile)
         super().__init__(basefile,userfile=userfile)
-        self['Resources']=r
         processor_info=self.processor_info()
         if not quiet:
             my_logger(processor_info,logger.info,just='<',frame='*',fill='')
@@ -116,19 +80,20 @@ pidibble v. {version("pidibble")}"""
 
     def _set_internal_shortcuts(self,**kwargs):
         self.progress=len(self.slurmvars)==0
-        self.tcl_root=os.path.join(self['Resources']['root'],'tcl')
+        RM=self.RM
+        self.tcl_root=RM.get_tcldir()
         assert os.path.exists(self.tcl_root)
-        self.tcl_pkg_path=self['Resources']['tcl']['pkg']
+        self.tcl_pkg_path=RM.get_tcl_pkgdir()
         assert os.path.exists(self.tcl_pkg_path)
-        self.tcl_script_path=self['Resources']['tcl']['scripts']
+        self.tcl_script_path=RM.get_tcl_scriptsdir()
         assert os.path.exists(self.tcl_script_path)
         self.vmd_startup_script=os.path.join(self.tcl_root,'vmdrc.tcl')
         assert os.path.exists(self.vmd_startup_script)
-        self.charmmff_toppar_path=self['Resources']['charmmff']['toppar']
+        self.charmmff_toppar_path=RM.get_charmmff_toppardir()
         assert os.path.exists(self.charmmff_toppar_path)
-        self.charmmff_custom_path=self['Resources']['charmmff']['custom']
+        self.charmmff_custom_path=RM.get_charmmff_customdir()
         assert os.path.exists(self.charmmff_custom_path)
-        self.charmmff_pdb_path=self['Resources']['charmmff']['pdb']
+        self.charmmff_pdb_path=RM.get_charmmff_pdb_path()
         assert os.path.exists(self.charmmff_pdb_path)
         self.user_charmmff_toppar_path=''
         if hasattr(self,'user'):

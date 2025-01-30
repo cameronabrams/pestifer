@@ -1,0 +1,100 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+import glob
+import os
+from . import Resources
+
+class ResourceManager:
+    base_resources=['charmmff','examples','tcl','ycleptic']
+    ignored_resources=['__pycache__','_archive','bash']
+    def __init__(self):
+        self.resources_path=os.path.dirname(Resources.__file__)
+        self.resource_dirs=[x for x in glob.glob(self.resources_path) if not x in ResourceManager.ignored_resources]
+        assert all([x in  self.resource_dirs for x in ResourceManager.base_resources]),'Error: this installation of pestifer is missing Resources.'
+        self.ycleptic_configdir=os.path.join(self.resources_path,'ycleptic')
+        ycleptic_files=glob.glop(self.ycleptic_configdir)
+        assert len(ycleptic_files)==1,f'Too many config files in {self.ycleptic_configdir}: {ycleptic_files}'
+        self.ycleptic_config=ycleptic_files[0]
+        self.resource_path={}
+        for r in ResourceManager.base_resources:
+            self.resource_path[r]=os.path.join(self.resources_path,r)
+    
+    def __str__(self):
+        retstr='Pestifer Resources are found in these package subdirectories:'
+        for r,p in self.resource_path.items():
+            retstr+=f'{p}\n'
+        return retstr
+
+    def get_ycleptic_config(self):
+        return self.ycleptic_config
+    
+    def get_resource_path(self,r):
+        return self.resource_path.get(r,None)
+    
+    def get_examples_as_list(self,fullpaths=False):
+        epath=self.resource_path['examples']
+        fullnames=glob.glob(epath)
+        fullnames.sort()
+        if fullpaths:
+            return fullnames
+        basenames=[os.path.basename(x) for x in fullnames]
+        basenames.sort()
+        return basenames
+    
+    def get_example_yaml_by_index(self,index):
+        epath=self.resource_path['examples']
+        basenames=self.get_examples_as_list()
+        sindex=f'{index:02d}'
+        for b in basenames:
+            if b.startswith(sindex):
+                break
+        else:
+            return None
+        return os.path.join(epath,b)
+
+    def get_charmmff_toppardir(self):
+        return os.path.join(self.resource_path['charmmff'],'toppar')
+    
+    def get_charmmff_pdbdir(self):
+        return os.path.join(self.resource_path['charmmff'],'pdb')
+    
+    def get_charmmff_pdb_streams_as_list(self):
+        pdbdir=self.get_charmmff_pdbdir()
+        streams_full=[x for x in glob.glob(pdbdir) if os.path.isdir(x)]
+        streams=[os.path.basename(x) for x in streams_full]
+        return streams
+    
+    def get_charmmff_customdir(self):
+        return os.path.join(self.resource_path['charmff'],'custom')
+    
+    def get_charmmff_pdbs_as_dict_by_stream(self):
+        pdbdir=self.get_charmmff_pdbdir()
+        streams=self.get_charmmff_pdb_streams_as_list()
+        pdbdirs_dict={}
+        for stream in streams:
+            streamdir=os.path.join(pdbdir,stream)
+            pdbdirs_full=[x for x in glob.glob(streamdir) if os.path.isdir(x)]
+            pdbdirs=[os.path.basename(x) for x in pdbdirs_full]
+            pdbdirs.sort()
+            pdbdirs_dict[stream]=pdbdirs
+        return pdbdirs_dict
+    
+    def get_charmmff_pdb_path(self,name):
+        D=self.get_charmmff_pdbs_as_dict_by_stream()
+        for s,L in D.items():
+            if name in L:
+                break
+        else:
+            return None
+        return os.path.join(self.get_charmmff_pdbdir,s,name)
+
+    def get_tcldir(self):
+        return self.resource_path['tcl']
+    
+    def get_tcl_pkgdir(self):
+        return os.path.join(self.resource_path['tcl'],'pkg')
+    
+    def get_tcl_scriptsdir(self):
+        return os.path.join(self.resource_path['tcl'],'scripts')
+    
+
+    
