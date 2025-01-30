@@ -1,4 +1,5 @@
 # Author: Cameron F. Abrams, <cfa2@drexel.edu>
+import glob
 import logging
 import os
 import shutil
@@ -8,6 +9,7 @@ import numpy as np
 import pandas as pd
 
 from .charmmtop import CharmmResiDatabase
+from .config import Config
 from .coord import coorddf_from_pdb
 from .packmol import PackmolInputWriter,PackmolLog
 from .psf import PSFContents
@@ -36,10 +38,11 @@ class BilayerEmbedTask(BaseTask):
 
     """
     yaml_header='bilayer'
-    def __init__(self,input_dict,taskname,config,writers,prior):
+    def __init__(self,input_dict,taskname,config:Config,writers,prior):
         super().__init__(input_dict,taskname,config,writers,prior)
         self.progress=config.progress
         self.lipid_pdb_path=os.path.join(config.charmmff_pdb_path,'lipid')
+        self.available_lipids=[os.path.isdir(x) for x in glob.glob(self.lipid_pdb_path)]
         self.water_ion_pdb_path=os.path.join(config.charmmff_pdb_path,'water_ions')
         assert os.path.exists(self.lipid_pdb_path),f'No lipid PDB database found -- bad installation!'
 
@@ -203,6 +206,9 @@ class BilayerEmbedTask(BaseTask):
         UL['lipids']=[]
         for li,(leaflet_name,lipid_name_string,lipid_molfrac_string) in enumerate(zip([LL,UL],leaf_lipspec,leaf_ratiospec)):
             lipid_names=lipid_name_string.split(':')
+            for l in lipid_names:
+                if not l in self.available_lipids:
+                    logger.error(f'Lipid \'{l}\' not available.  You can build it using make-resi-database!')
             lipid_molfracs=np.array(list(map(float,lipid_molfrac_string.split(':'))))
             sumlm=np.sum(lipid_molfracs)
             lipid_molfracs/=sumlm
