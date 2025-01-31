@@ -11,20 +11,13 @@ import unittest
 import glob
 import os
 import yaml
-from pestifer.config import Config, ResourceManager, segtype_of_resname, charmm_resname_of_pdb_resname, res_123, res_321
+from pestifer.config import Config, segtype_of_resname, charmm_resname_of_pdb_resname, res_123, res_321
+from pestifer.resourcemanager import ResourceManager
 
 class ConfigTest(unittest.TestCase):
-    def test_resource_manager(self):
-        rm=ResourceManager()
-        for r in ['charmmff','config','examples','tcl']:
-            self.assertTrue(r in rm)
-        for cd in ['custom','toppar']:
-            self.assertTrue(cd in rm['charmmff'])
             
     def test_config_nouser_globals(self):
         c=Config()
-        self.assertTrue('Resources' in c)
-        self.assertEqual(type(c['Resources']),ResourceManager)
         self.assertEqual(os.path.join(c.tcl_root,'vmdrc.tcl'),c.vmd_startup_script)
         self.assertEqual(segtype_of_resname['ALA'],'protein')
         self.assertEqual(segtype_of_resname['MAN'],'glycan')
@@ -39,8 +32,8 @@ class ConfigTest(unittest.TestCase):
         self.assertTrue(c)
 
     def test_config_user(self):
-        rm=ResourceManager()
-        configfile=rm['examples']+'/01-bpti.yaml'
+        RM=ResourceManager()
+        configfile=RM.get_example_yaml_by_index(1)
         c=Config(userfile=configfile)
         self.assertTrue('user' in c)
         self.assertTrue('tasks' in c['user'])
@@ -59,8 +52,8 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(name,'solvate')
 
     def test_config_task_source(self):
-        rm=ResourceManager()
-        configfile=os.path.join(rm['examples'],'05-hiv-env-4zmj-package.yaml')
+        RM=ResourceManager()
+        configfile=RM.get_example_yaml_by_index(5)
         c=Config(userfile=configfile)
         self.assertTrue('user' in c)
         self.assertTrue('tasks' in c['user'])
@@ -80,8 +73,8 @@ class ConfigTest(unittest.TestCase):
         self.assertTrue(resm['B']==['C','D'])
 
     def test_config_help_examples(self):
-        rm=ResourceManager()
-        configfiles=glob.glob(rm['examples']+'/*.yaml')
+        RM=ResourceManager()
+        configfiles=RM.get_examples_as_list(fullpaths=True)
         for configfile in configfiles:
             d,n=os.path.split(configfile)
             b,e=os.path.splitext(n)

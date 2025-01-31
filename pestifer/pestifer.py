@@ -11,7 +11,6 @@ import textwrap
 import os
 import shutil
 import yaml
-import glob
 import time
 import datetime
 import logging

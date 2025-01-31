@@ -1,17 +1,20 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 import glob
 import os
-from . import Resources
-
+from . import resources
+import logging
+logger=logging.getLogger(__name__)
 class ResourceManager:
     base_resources=['charmmff','examples','tcl','ycleptic']
     ignored_resources=['__pycache__','_archive','bash']
     def __init__(self):
-        self.resources_path=os.path.dirname(Resources.__file__)
-        self.resource_dirs=[x for x in glob.glob(self.resources_path) if not x in ResourceManager.ignored_resources]
-        assert all([x in  self.resource_dirs for x in ResourceManager.base_resources]),'Error: this installation of pestifer is missing Resources.'
+        self.resources_path=os.path.dirname(resources.__file__)
+        self.resource_dirs=[x for x in glob.glob(os.path.join(self.resources_path,'*')) if os.path.isdir(x) and not os.path.basename(x) in ResourceManager.ignored_resources]
+        # self.resource_dirs=[x for x in glob.glob(os.path.join(self.resources_path,'*')) if not os.path.basename(x) in ResourceManager.ignored_resources]
+        # assert all([x in self.resource_dirs for x in ResourceManager.base_resources]),'Error: this installation of pestifer is missing Resources.'
+        assert all([x in [os.path.basename(_) for _ in self.resource_dirs] for x in ResourceManager.base_resources]),f'some resources seem to be missing'
         self.ycleptic_configdir=os.path.join(self.resources_path,'ycleptic')
-        ycleptic_files=glob.glop(self.ycleptic_configdir)
+        ycleptic_files=glob.glob(os.path.join(self.ycleptic_configdir,'*'))
         assert len(ycleptic_files)==1,f'Too many config files in {self.ycleptic_configdir}: {ycleptic_files}'
         self.ycleptic_config=ycleptic_files[0]
         self.resource_path={}
@@ -32,7 +35,7 @@ class ResourceManager:
     
     def get_examples_as_list(self,fullpaths=False):
         epath=self.resource_path['examples']
-        fullnames=glob.glob(epath)
+        fullnames=glob.glob(os.path.join(epath,'*'))
         fullnames.sort()
         if fullpaths:
             return fullnames
@@ -43,6 +46,8 @@ class ResourceManager:
     def get_example_yaml_by_index(self,index):
         epath=self.resource_path['examples']
         basenames=self.get_examples_as_list()
+        logger.debug(epath)
+        logger.debug(epath)
         sindex=f'{index:02d}'
         for b in basenames:
             if b.startswith(sindex):
@@ -59,12 +64,12 @@ class ResourceManager:
     
     def get_charmmff_pdb_streams_as_list(self):
         pdbdir=self.get_charmmff_pdbdir()
-        streams_full=[x for x in glob.glob(pdbdir) if os.path.isdir(x)]
+        streams_full=[x for x in glob.glob(os.path.join(pdbdir,'*')) if os.path.isdir(x)]
         streams=[os.path.basename(x) for x in streams_full]
         return streams
     
     def get_charmmff_customdir(self):
-        return os.path.join(self.resource_path['charmff'],'custom')
+        return os.path.join(self.resource_path['charmmff'],'custom')
     
     def get_charmmff_pdbs_as_dict_by_stream(self):
         pdbdir=self.get_charmmff_pdbdir()
@@ -72,20 +77,21 @@ class ResourceManager:
         pdbdirs_dict={}
         for stream in streams:
             streamdir=os.path.join(pdbdir,stream)
-            pdbdirs_full=[x for x in glob.glob(streamdir) if os.path.isdir(x)]
+            pdbdirs_full=[x for x in glob.glob(os.path.join(streamdir,'*')) if os.path.isdir(x)]
+            raw_pdbs=[os.path.splitext(os.path.basename(x))[0] for x in glob.glob(os.path.join(streamdir,'*')) if x.endswith('.pdb')]
+            raw_pdbs.sort()
             pdbdirs=[os.path.basename(x) for x in pdbdirs_full]
             pdbdirs.sort()
-            pdbdirs_dict[stream]=pdbdirs
+            pdbdirs_dict[stream]=pdbdirs if len(pdbdirs)>0 else raw_pdbs
         return pdbdirs_dict
     
     def get_charmmff_pdb_path(self,name):
         D=self.get_charmmff_pdbs_as_dict_by_stream()
+        logger.debug(f'{D}')
         for s,L in D.items():
             if name in L:
-                break
-        else:
-            return None
-        return os.path.join(self.get_charmmff_pdbdir,s,name)
+                return os.path.join(self.get_charmmff_pdbdir(),s,name)
+        return None        
 
     def get_tcldir(self):
         return self.resource_path['tcl']
@@ -96,5 +102,4 @@ class ResourceManager:
     def get_tcl_scriptsdir(self):
         return os.path.join(self.resource_path['tcl'],'scripts')
     
-
     

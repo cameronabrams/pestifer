@@ -93,7 +93,7 @@ class Config(Yclept):
         assert os.path.exists(self.charmmff_toppar_path)
         self.charmmff_custom_path=RM.get_charmmff_customdir()
         assert os.path.exists(self.charmmff_custom_path)
-        self.charmmff_pdb_path=RM.get_charmmff_pdb_path()
+        self.charmmff_pdb_path=RM.get_charmmff_pdbdir()
         assert os.path.exists(self.charmmff_pdb_path)
         self.user_charmmff_toppar_path=''
         if hasattr(self,'user'):
