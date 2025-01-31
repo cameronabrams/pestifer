@@ -938,7 +938,7 @@ directives:
     default: Pestifer
   - name: paths
     type: dict
-    text: Allows user to specify absolute paths to required external executables if the commands are not already in the user's path or the user wants to use versions that are not in their path
+    text: Allows user to specify absolute paths for certain resources, including external applications
     directives:
       - name: namd2
         type: str
@@ -968,6 +968,9 @@ directives:
         type: str
         text: Path to catdcd executable
         default: catdcd
+      - name: pdb_depot
+        type: str
+        text: Path to a user's collection of PDB files for custom lipids or ligands
   - name: tasks
     type: list
     text: Specifies the tasks to be performed serially

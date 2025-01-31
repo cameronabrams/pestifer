@@ -26,6 +26,7 @@ class Config(Yclept):
         basefile=self.RM.get_ycleptic_config()
         assert os.path.exists(basefile)
         super().__init__(basefile,userfile=userfile)
+        self.RM
         processor_info=self.processor_info()
         if not quiet:
             my_logger(processor_info,logger.info,just='<',frame='*',fill='')
