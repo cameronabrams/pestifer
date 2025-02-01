@@ -94,8 +94,7 @@ class Config(Yclept):
         assert os.path.exists(self.charmmff_toppar_path)
         self.charmmff_custom_path=RM.get_charmmff_customdir()
         assert os.path.exists(self.charmmff_custom_path)
-        self.charmmff_pdb_path=RM.get_charmmff_pdbdir()
-        assert os.path.exists(self.charmmff_pdb_path)
+        self.charmmff_pdb_collection=RM.pdb_collection
         self.user_charmmff_toppar_path=''
         if hasattr(self,'user'):
             self.user_charmmff_toppar_path=os.path.join(self['user']['charmff'],'toppar')
@@ -124,6 +123,8 @@ class Config(Yclept):
             res=self['user']['psfgen']['segtypes'][st].get('resnames',[])
             for r in res:
                 self.segtype_of_resname[r]=st
+        if 'pdb_depot' in self['user']['paths']:
+            RM.pdb_collection.registercollection('user',self['user']['paths'])
 
         # globals
         charmm_resname_of_pdb_resname.update(self.pdb_to_charmm_resnames)

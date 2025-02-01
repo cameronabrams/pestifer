@@ -26,7 +26,6 @@ class TestResourceManager(unittest.TestCase):
         RM=ResourceManager()
         self.assertTrue(os.path.exists(RM.get_charmmff_customdir()))
         self.assertTrue(os.path.exists(RM.get_charmmff_toppardir()))
-        self.assertTrue(os.path.exists(RM.get_charmmff_pdbdir()))
 
     def test_resource_tcl(self):
         RM=ResourceManager()
@@ -36,7 +35,19 @@ class TestResourceManager(unittest.TestCase):
 
     def test_resource_pdb_path(self):
         RM=ResourceManager()
-        t1=RM.get_charmmff_pdb_path('PSM')
+        t1=RM.get_pdb_path('PSM')
         self.assertTrue(t1 != None)
-        t2=RM.get_charmmff_pdb_path('PXM')
+        self.assertTrue(os.path.isfile(t1))
+        t2=RM.get_pdb_path('PSM',index=1)
+        self.assertTrue(t2!=None)
+        self.assertTrue(os.path.isfile(t2))
+        t2=RM.get_pdb_path('PXM')
         self.assertTrue(t2 == None)
+        t3=RM.get_pdb_path('DOPC')
+        self.assertTrue(t3==None)
+        RM.pdb_collection.registercollection('pdb_depot','user')
+        self.assertTrue('user' in RM.pdb_collection.collections)
+        t3=RM.get_pdb_path('DOPC')
+        self.assertTrue(os.path.exists(t3))
+        t3=RM.get_pdb_path('DOPC',5)
+        self.assertTrue(os.path.exists(t3))
