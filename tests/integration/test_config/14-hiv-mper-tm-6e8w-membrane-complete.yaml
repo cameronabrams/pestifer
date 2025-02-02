@@ -959,6 +959,7 @@ tasks:
       zdist: 20
     fuzz_factor: 0.5
     leaflet_thickness: 20.0
+    lipid_conformers: '0'
     lipids: POPE:SOPS:SOPE:CHL1//PSM:POPC:CHL1
     mole_fractions: 0.09:0.18:0.30:0.43//0.36:0.17:0.47
     nloop: 1000

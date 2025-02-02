@@ -17,8 +17,8 @@ Info) Dynamically loaded 3 plugins in directory:
 Info) /usr/local/lib/vmd/plugins/LINUXAMD64/molfile
 .
 1
-/home/cfa/Git/pestifer/pestifer/Resources/tcl/pkg
-/home/cfa/Git/pestifer/pestifer/Resources/tcl/pkg
+/home/cfa/Git/pestifer/pestifer/resources/tcl/pkg
+/home/cfa/Git/pestifer/pestifer/resources/tcl/pkg
 1.0
 Info) Using plugin pdb for structure file 6pti.pdb
 Info) Using plugin pdb for coordinates from file 6pti.pdb

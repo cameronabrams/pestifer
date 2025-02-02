@@ -9,7 +9,7 @@ import networkx as nx
 import numpy as np
 from collections import UserDict, UserList
 from itertools import compress, batched
-from .config import ResourceManager
+from .resourcemanager import ResourceManager
 from .stringthings import linesplit
 
 logger=logging.getLogger(__name__)
@@ -643,8 +643,8 @@ def getResis(topfile,masses=[]):
 class CharmmResiDatabase(UserDict):
     def __init__(self):  # initialize from standard topology files in the topmost directory
         self.resources=ResourceManager()
-        self.toppardir=self.resources['charmmff']['toppar']
-        self.customdir=self.resources['charmmff']['custom']
+        self.toppardir=self.resources.get_charmmff_toppardir()
+        self.customdir=self.resources.get_charmmff_customdir()
         self.toppath=[self.toppardir,self.customdir]
         # get all atom types from standard charmmff topology files
         stdtops=glob.glob(os.path.join(self.toppardir,'top_*.rtf'))

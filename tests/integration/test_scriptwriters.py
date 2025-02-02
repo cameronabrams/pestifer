@@ -22,7 +22,7 @@ class TestPsfgen(unittest.TestCase):
         p=NAMD(c)
         print(p.standard_charmmff_parfiles)
         for x in p.standard_charmmff_parfiles:
-            self.assertTrue('pestifer/Resources' in x)
+            self.assertTrue('pestifer/resources' in x)
     def test_atomselect_macros(self):
         c=Config()
         p=Psfgen(c)

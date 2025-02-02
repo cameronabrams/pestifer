@@ -124,7 +124,7 @@ class Config(Yclept):
             for r in res:
                 self.segtype_of_resname[r]=st
         if 'pdb_depot' in self['user']['paths']:
-            RM.pdb_collection.registercollection('user',self['user']['paths'])
+            RM.pdb_collection.registercollection(self['user']['paths']['pdb_depot'],'user')
 
         # globals
         charmm_resname_of_pdb_resname.update(self.pdb_to_charmm_resnames)
