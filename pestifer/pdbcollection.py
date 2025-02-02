@@ -39,7 +39,7 @@ class PDBInput:
         conformers=self.info.get('conformers',[])
         basename=os.path.basename(self.conformers[index])
         for c in conformers:
-            if c['conformer']==basename:
+            if c['pdb']==basename:
                 return c['head-tail-length']
         return 0.0
 

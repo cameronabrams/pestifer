@@ -197,14 +197,18 @@ class BilayerEmbedTask(BaseTask):
         my_logger(solvent,logger.debug)
 
         leaf_lipspec=lipid_specstring.split('//')
+        logger.debug(f'leaf_lipspec {leaf_lipspec}')
         leaf_ratiospec=ratio_specstring.split('//')
         leaf_conformerspec=conformers_specstring.split('//')
-        if leaf_conformerspec=='0': # no value explicitly specified -- replicate 0's to match pattern
-            if len(leaf_lipspec)>1 or leaf_lipspec.count(':')>0:
+        if leaf_conformerspec==['0']: # no value explicitly specified -- replicate 0's to match pattern
+            if len(leaf_lipspec)>1 or any([x.count(':')>0 for x in leaf_lipspec]):
                 conspec=[]
                 for leaf in leaf_lipspec:
-                    nlipnames=leaf.split(':')
-                    conspec.append(':'.join('0'*nlipnames))
+                    nlipnames=len(leaf.split(':'))
+                    expspec=':'.join('0'*nlipnames)
+                    logger.debug(f'nlipnames {nlipnames} expsepec {expspec}')
+                    conspec.append(expspec)
+                logger.debug(f'{leaf_conformerspec}')
                 leaf_conformerspec=conspec
         else:
             leaf_conformerspec=conformers_specstring.split('//')
@@ -222,10 +226,7 @@ class BilayerEmbedTask(BaseTask):
         UL['lipids']=[]
         for li,(leaflet_name,lipid_name_string,lipid_molfrac_string,lipid_conformer_string) in enumerate(zip([LL,UL],leaf_lipspec,leaf_ratiospec,leaf_conformerspec)):
             lipid_names=lipid_name_string.split(':')
-            for l in lipid_names:
-                if not l in self.available_lipids:
-                    logger.error(f'Lipid \'{l}\' not available.  You can build it using make-resi-database!')
-            lipid_conformers=np.array(list(map(float,lipid_conformer_string.split(':'))))
+            lipid_conformers=np.array(list(map(int,lipid_conformer_string.split(':'))))
             assert len(lipid_names)==len(lipid_conformers),f'lipid names and conformer indices are not congruent within a leaflet specification'
             lipid_molfracs=np.array(list(map(float,lipid_molfrac_string.split(':'))))
             sumlm=np.sum(lipid_molfracs)
