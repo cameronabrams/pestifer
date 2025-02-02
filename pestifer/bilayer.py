@@ -77,8 +77,10 @@ class BilayerEmbedTask(BaseTask):
         anion_q=RDB['water_ions'][anion_name].charge
         assert cation_name in RDB['water_ions'],f'Cation {cation_name} not found in available CHARMM topologies'
         assert anion_name in RDB['water_ions'],f'Anion {anion_name} not found in available CHARMM topologies'
-        shutil.copy(os.path.join(self.water_ion_pdb_path,f'{cation_name}.pdb'),'./')
-        shutil.copy(os.path.join(self.water_ion_pdb_path,f'{anion_name}.pdb'),'./')
+        cation_pdbstruct=self.pdb_collection.get_pdb(cation_name)
+        cation_pdbstruct.checkout()
+        anion_pdbstruct=self.pdb_collection.get_pdb(anion_name)
+        anion_pdbstruct.checkout()
         salt_con_M=self.specs.get('salt_con',0.0)
 
         rotation_pm=self.specs.get('rotation_pm',10.)
@@ -188,9 +190,8 @@ class BilayerEmbedTask(BaseTask):
             assert sn in RDB['water_ions'],f'solvent {sn} is not found in the available CHARMM topologies'
             solvent[sn]={}
             solvent[sn]['mol-frac']=sm
-            solvent_pdb_path=os.path.join(self.water_ion_pdb_path,f'{sn}.pdb')
-            assert os.path.exists(solvent_pdb_path),f'{sn}.pdb is not found'
-            shutil.copy(solvent_pdb_path,'./')
+            solv_pdbstruct=self.pdb_collection.get_pdb(sn)
+            solv_pdbstruct.checkout()
             solvent[sn]['mass']=RDB['water_ions'][sn].mass()
 
         my_logger(solvent,logger.debug)
@@ -198,8 +199,18 @@ class BilayerEmbedTask(BaseTask):
         leaf_lipspec=lipid_specstring.split('//')
         leaf_ratiospec=ratio_specstring.split('//')
         leaf_conformerspec=conformers_specstring.split('//')
+        if leaf_conformerspec=='0': # no value explicitly specified -- replicate 0's to match pattern
+            if len(leaf_lipspec)>1 or leaf_lipspec.count(':')>0:
+                conspec=[]
+                for leaf in leaf_lipspec:
+                    nlipnames=leaf.split(':')
+                    conspec.append(':'.join('0'*nlipnames))
+                leaf_conformerspec=conspec
+        else:
+            leaf_conformerspec=conformers_specstring.split('//')
+
         assert len(leaf_lipspec)==len(leaf_ratiospec),f'lipid names and mole fractions are not congruent'
-        assert len(leaf_lipspec)==len(leaf_conformerspec),f'lipid names and conformer indices are not congruent'
+        assert len(leaf_lipspec)==len(leaf_conformerspec),f'lipid names and conformer indices are not congruent {leaf_lipspec} {leaf_conformerspec}'
         if len(leaf_lipspec)==1:  # symmetrical bilayer
             leaf_lipspec.append(leaf_lipspec[0])
             leaf_ratiospec.append(leaf_ratiospec[0])
