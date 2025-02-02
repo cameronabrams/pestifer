@@ -3,6 +3,7 @@ import glob
 import os
 import yaml
 from pestifer.resourcemanager import ResourceManager
+from pestifer.pdbcollection import PDBInput
 from pestifer import resources
 
 class TestResourceManager(unittest.TestCase):
@@ -35,19 +36,21 @@ class TestResourceManager(unittest.TestCase):
 
     def test_resource_pdb_path(self):
         RM=ResourceManager()
-        t1=RM.get_pdb_path('PSM')
-        self.assertTrue(t1 != None)
-        self.assertTrue(os.path.isfile(t1))
-        t2=RM.get_pdb_path('PSM',index=1)
+        t2=RM.get_pdb('PSM')
         self.assertTrue(t2!=None)
-        self.assertTrue(os.path.isfile(t2))
-        t2=RM.get_pdb_path('PXM')
+        self.assertEqual(type(t2),PDBInput)
+        self.assertTrue(os.path.exists(t2.conformers[0]))
+        self.assertTrue(len(t2.info)>0)
+        self.assertTrue('parameters' in t2.info)
+        self.assertTrue('conformers' in t2.info)
+        self.assertTrue('charge' in t2.info)
+        self.assertTrue('reference-atoms' in t2.info)
+        t2=RM.get_pdb('PXM')
         self.assertTrue(t2 == None)
-        t3=RM.get_pdb_path('DOPC')
+        t3=RM.get_pdb('FAKE')
         self.assertTrue(t3==None)
         RM.pdb_collection.registercollection('pdb_depot','user')
         self.assertTrue('user' in RM.pdb_collection.collections)
-        t3=RM.get_pdb_path('DOPC')
-        self.assertTrue(os.path.exists(t3))
-        t3=RM.get_pdb_path('DOPC',5)
-        self.assertTrue(os.path.exists(t3))
+        t3=RM.get_pdb('FAKE')
+        self.assertEqual(type(t3),PDBInput)
+        self.assertTrue(os.path.exists(t3.conformers[0]))

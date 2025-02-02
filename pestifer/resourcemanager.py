@@ -28,17 +28,8 @@ class ResourceManager:
             retstr+=f'{p}\n'
         return retstr
 
-    def get_pdb_path(self,name,index=0):
-        pdb_path=self.pdb_collection.get_pdb_path(name)
-        if not pdb_path:
-            return None
-        if type(pdb_path)==list:
-            for ex in pdb_path:
-                if ex.endswith(f'{index:02d}.pdb'):
-                    return ex
-            return None
-        else:
-            return os.path.join(pdb_path,f'{name}{index}.pdb')
+    def get_pdb(self,name):
+        return self.pdb_collection.get_pdb(name)
 
     def get_ycleptic_config(self):
         return self.ycleptic_config

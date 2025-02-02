@@ -1414,11 +1414,17 @@ directives:
                     text: the atomselect text
                     type: str
           - name: lipids
-            text: declaration of lipids in each leaflet in the format LIP1:LIP2//LIP3
+            text: declaration of lipids in each leaflet in the format LIP1[:LIP2][//LIP3]
             type: str
+            default: POPC  # a pure POPC bilayer
+          - name: lipid_conformers
+            text: declaration of which conformer index to use for each lipid in the format C1:C2//C3 (defaults to 0)
+            type: str
+            default: '0'
           - name: mole_fractions
             text: declaration of mole fractions of each lipid in each leaflet in the format R1:R2//R3
             type: str
+            default: '1.0'
           - name: solvents
             text: string in form of SOL1:SOL2:...
             type: str

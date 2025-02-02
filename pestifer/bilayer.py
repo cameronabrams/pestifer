@@ -41,10 +41,11 @@ class BilayerEmbedTask(BaseTask):
     def __init__(self,input_dict,taskname,config:Config,writers,prior):
         super().__init__(input_dict,taskname,config,writers,prior)
         self.progress=config.progress
-        self.lipid_pdb_path=os.path.join(config.charmmff_pdb_path,'lipid')
-        self.available_lipids=[os.path.isdir(x) for x in glob.glob(self.lipid_pdb_path)]
-        self.water_ion_pdb_path=os.path.join(config.charmmff_pdb_path,'water_ions')
-        assert os.path.exists(self.lipid_pdb_path),f'No lipid PDB database found -- bad installation!'
+        self.pdb_collection=config.RM.pdb_collection
+        # self.lipid_pdb_path=os.path.join(config.charmmff_pdb_path,'lipid')
+        # self.available_lipids=[os.path.isdir(x) for x in glob.glob(self.lipid_pdb_path)]
+        # self.water_ion_pdb_path=os.path.join(config.charmmff_pdb_path,'water_ions')
+        # assert os.path.exists(self.lipid_pdb_path),f'No lipid PDB database found -- bad installation!'
 
     def do(self):
         self.log_message('initiated')
@@ -62,10 +63,12 @@ class BilayerEmbedTask(BaseTask):
 
         self.next_basename('bilayer')
 
-        custom_pdb_path=self.specs.get('custom_pdb_path','data')
+        # custom_pdb_path=self.specs.get('custom_pdb_path','data')
 
-        lipid_specstring=self.specs.get('lipids','POPC')
-        ratio_specstring=self.specs.get('mole_fractions','1.0')
+        lipid_specstring=self.specs['lipids']
+        ratio_specstring=self.specs['mole_fractions']
+        conformers_specstring=self.specs['lipid_conformers']
+
         solvent_specstring=self.specs.get('solvents','TIP3')
         solv_molfrac_specstring=self.specs.get('solvent_mole_fractions','1.0')
         cation_name=self.specs.get('cation','POT')
@@ -80,7 +83,6 @@ class BilayerEmbedTask(BaseTask):
 
         rotation_pm=self.specs.get('rotation_pm',10.)
         fuzz_factor=self.specs.get('fuzz_factor',0.5)
-
 
         SAPL=self.specs.get('SAPL',60.0)
         scale_excluded_volume=self.specs.get('scale_excluded_volume',1.0)
@@ -195,55 +197,55 @@ class BilayerEmbedTask(BaseTask):
 
         leaf_lipspec=lipid_specstring.split('//')
         leaf_ratiospec=ratio_specstring.split('//')
+        leaf_conformerspec=conformers_specstring.split('//')
         assert len(leaf_lipspec)==len(leaf_ratiospec),f'lipid names and mole fractions are not congruent'
+        assert len(leaf_lipspec)==len(leaf_conformerspec),f'lipid names and conformer indices are not congruent'
         if len(leaf_lipspec)==1:  # symmetrical bilayer
             leaf_lipspec.append(leaf_lipspec[0])
             leaf_ratiospec.append(leaf_ratiospec[0])
+            leaf_conformerspec.append(leaf_conformerspec[0])
         
         global_lipid_names=[]
         # build leaflets
         LL['lipids']=[]
         UL['lipids']=[]
-        for li,(leaflet_name,lipid_name_string,lipid_molfrac_string) in enumerate(zip([LL,UL],leaf_lipspec,leaf_ratiospec)):
+        for li,(leaflet_name,lipid_name_string,lipid_molfrac_string,lipid_conformer_string) in enumerate(zip([LL,UL],leaf_lipspec,leaf_ratiospec,leaf_conformerspec)):
             lipid_names=lipid_name_string.split(':')
             for l in lipid_names:
                 if not l in self.available_lipids:
                     logger.error(f'Lipid \'{l}\' not available.  You can build it using make-resi-database!')
+            lipid_conformers=np.array(list(map(float,lipid_conformer_string.split(':'))))
+            assert len(lipid_names)==len(lipid_conformers),f'lipid names and conformer indices are not congruent within a leaflet specification'
             lipid_molfracs=np.array(list(map(float,lipid_molfrac_string.split(':'))))
             sumlm=np.sum(lipid_molfracs)
             lipid_molfracs/=sumlm
-            assert len(lipid_names)==len(lipid_molfracs),f'lipid names and mole fractions are not congruent'
+            assert len(lipid_names)==len(lipid_molfracs),f'lipid names and mole fractions are not congruent within a leaflet specification'
             for ll in lipid_names:
                 if not ll in global_lipid_names: global_lipid_names.append(ll)
-            leaflet_name['lipids']=[dict(name=name,frac=frac) for name,frac in zip(lipid_names,lipid_molfracs)]
+            leaflet_name['lipids']=[dict(name=name,frac=frac,conformer=conformer) for name,frac,conformer in zip(lipid_names,lipid_molfracs,lipid_conformers)]
 
         logger.debug(f'leaflets')
         my_logger(LL,logger.debug)
         my_logger(UL,logger.debug)
 
         lipid_data={}
-        addl_params=[]
+        addl_streamfiles=[]
         for l in global_lipid_names:
-            lpath=os.path.join(custom_pdb_path,l)
-            if not os.path.exists(lpath):
-                lpath=os.path.join(self.lipid_pdb_path,l)
-            assert os.path.exists(lpath),f'No PDB available for lipid {l}'
-            for i in range(10):
-                lpdb=os.path.join(lpath,f'{l}-0{i}.pdb')
-                shutil.copy(lpdb,'./')
-            with open(os.path.join(lpath,'info.yaml'),'r') as f:
-                info=yaml.safe_load(f)
-            for p in info['parameters']:
-                if p.endswith('str') and not p in addl_params:
-                    addl_params.append(p)
-            lipid_data[l]=info
+            pdbstruct=self.pdb_collection.get_pdb(l)
+            if pdbstruct==None:
+                logger.error(f'No PDB available for lipid {l}')
+            lipid_data[l]=pdbstruct
+            for p in lipid_data[l].get_parameters():
+                if not p in addl_streamfiles:
+                    addl_streamfiles.append(p)
 
         tot_lip_mols=mem_area/SAPL
         bilayer_charge=0.0
         for leaflet in [LL,UL]:
             for component in leaflet['lipids']:
                 component['n']=int(np.floor(component['frac']*tot_lip_mols))
-                bilayer_charge+=lipid_data[component['name']]['charge']*component['n']
+                bilayer_charge+=lipid_data[component['name']].get_charge()*component['n']
+                component['local_name']=lipid_data[component['name']].checkout(index=component['conformer'])
         global_charge=pro_charge+bilayer_charge
         my_logger(self.slices,logger.debug)
         sg='+' if global_charge>0 else ''
@@ -269,22 +271,20 @@ class BilayerEmbedTask(BaseTask):
             pm.addline( 'end structure')
 
         for leaflet in [LL,UL]:
-            selp='-00.pdb'
             for specs in leaflet['lipids']:
                 name=specs['name']
-                info=lipid_data[name]
-                hs=' '.join([f"{x['serial']}" for x in info['reference-atoms']['heads']])
-                ts=' '.join([f"{x['serial']}" for x in info['reference-atoms']['tails']])
+                ref_atoms=lipid_data[name].get_ref_atoms()
+                hs=' '.join([f"{x['serial']}" for x in ref_atoms['heads']])
+                ts=' '.join([f"{x['serial']}" for x in ref_atoms['tails']])
                 n=specs['n']
-                pm.addline(f'structure {name}{selp}')
+                pm.addline(f'structure {specs["local_name"]}')
                 pm.addline(f'number {n}',indents=1)
-                conformer=[x for x in info['conformers'] if x['pdb']==f'{name}{selp}'][0]
-                length=conformer['head-tail-length']
+                length=lipid_data[name].get_ref_length(index=specs['conformer'])
                 Dz=np.cos(np.deg2rad(rotation_pm))*length
                 fuzz=Dz-length
                 fuzz_out,fuzz_in=fuzz*fuzz_factor,fuzz*(1-fuzz_factor)
                 leaflet_thickness=leaflet['z-hi']-leaflet['z-lo']
-                logger.debug(f'{name}: {name}{selp} length {length} fuzz_in {fuzz_in:.3f} fuzz_out {fuzz_out:.3f}')
+                logger.debug(f'{name}: {specs["local_name"]} length {length} fuzz_in {fuzz_in:.3f} fuzz_out {fuzz_out:.3f}')
                 if length>leaflet_thickness:
                     if leaflet is LL:
                         below_plane_z=leaflet['z-hi']-fuzz_out-length
@@ -417,7 +417,7 @@ class BilayerEmbedTask(BaseTask):
         # process output pdb to get new psf and pdb
         self.save_state(exts=['pdb'])
         self.next_basename('psfgen')
-        self.result=self.psfgen(psf=psf,pdb=pdb,addpdb=packmol_output_pdb,additional_topologies=addl_params)
+        self.result=self.psfgen(psf=psf,pdb=pdb,addpdb=packmol_output_pdb,additional_topologies=addl_streamfiles)
         if self.result!=0:
             return super().do()
         self.save_state(exts=['psf','pdb'])
