@@ -7,21 +7,23 @@ for use in MD simulations of biomacromolecules using NAMD.
 
 """
 import argparse as ap
-import textwrap
+import collections
+import datetime
+import importlib.metadata
+import logging
 import os
 import shutil
-import yaml
 import time
-import datetime
-import logging
-import collections
-import importlib.metadata
+import textwrap
+import yaml
+
 __pestifer_version__ = importlib.metadata.version("pestifer")
-from .stringthings import banner, banner_message, enhanced_banner_message, oxford
-from .controller import Controller
 from .config import Config, ResourceManager
-from .scriptwriters import Psfgen
 from .charmmresi import make_RESI_database
+from .controller import Controller
+from .namdrestart import make_namd_restart
+from .scriptwriters import Psfgen
+from .stringthings import banner, banner_message, enhanced_banner_message, oxford
 
 logger=logging.getLogger(__name__)
 
@@ -186,7 +188,8 @@ def cli():
         'wheretcl':wheretcl,
         'inittcl':inittcl,
         'make-resi-database':make_RESI_database,
-        'desolvate':desolvate
+        'desolvate':desolvate,
+        'make-namd-restart':make_namd_restart
     }
     helps={
         'config-help':'get help on the syntax of input configuration files',
@@ -197,7 +200,8 @@ def cli():
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
         'inittcl':'initializes macros from config',
         'make-resi-database':'make reference PDB/PSF files for any CHARMM residue',
-        'desolvate':'desolvate an existing PSF/DCD'
+        'desolvate':'desolvate an existing PSF/DCD',
+        'make-namd-restart':'generate a restart NAMD config file based on current checkpoint'
     }
     descs={
         'config-help':'Use this command to get interactive help on config file directives.',
@@ -208,7 +212,8 @@ def cli():
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
         'inittcl':'initializes macros from config',
         'make-resi-database':'makes representative psf/pdb files for any CHARMM RESI\'s found in given topology streams',
-        'desolvate':'desolvate an existing PSF/DCD'
+        'desolvate':'desolvate an existing PSF/DCD',
+        'make-namd-restart':'generate a restart NAMD config file based on current checkpoint'
     }
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
     parser.add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
@@ -260,6 +265,10 @@ def cli():
     command_parsers['desolvate'].add_argument('--dcd-outfile',type=str,default='dry.dcd',help='name of DCD output file to create (default: %(default)s)')
     command_parsers['desolvate'].add_argument('--idx-outfile',type=str,default='dry.idx',help='name of index file for catdcd to create  (default: %(default)s)')
     command_parsers['desolvate'].add_argument('--dcd-stride',type=int,default=1,help='stride in number of frames for catdcd (default: %(default)s)')
+    command_parsers['make-namd-restart'].add_argument('--log',type=str,help='name of most recent NAMD log')
+    command_parsers['make-namd-restart'].add_argument('--config',type=str,help='name of most recent NAMD config')
+    command_parsers['make-namd-restart'].add_argument('--new-config',type=str,help='name of new NAMD config to create')
+    command_parsers['make-namd-restart'].add_argument('--run',type=int,help='number of time steps to run')
 
     args=parser.parse_args()
 

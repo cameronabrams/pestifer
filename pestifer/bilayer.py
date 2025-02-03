@@ -337,7 +337,7 @@ class BilayerEmbedTask(BaseTask):
         if sg=='+':
             anion_qtot=int(global_charge)
         else:
-            cation_qtot=int(np.abs(global_charge))
+            cation_qtot=int(np.abs(np.round(global_charge)))
 
         anion_n=int(anion_qtot//np.abs(int(anion_q)))
         cation_n=int(cation_qtot//np.abs(int(cation_q)))

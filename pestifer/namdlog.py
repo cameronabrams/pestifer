@@ -34,9 +34,11 @@ class NAMDxst:
         self.df=pd.concat((self.df,other.df))
         
 class NAMDLog:
-    groupnames=['ETITLE:','ENERGY:','charmrun>','Charm++>','Info:','TIMING:','WallClock:']
-    infonames=['TIMESTEP','NUMBER OF STEPS','RANDOM NUMBER SEED','TOTAL MASS']
+    groupnames=['ETITLE:','ENERGY:','charmrun>','Charm++>','Info:','TIMING:','WallClock:','WRITING','TCL:']
+    infonames=['TIMESTEP','FIRST TIMESTEP','NUMBER OF STEPS','RANDOM NUMBER SEED','TOTAL MASS','TOTAL CHARGE','RESTART FILENAME','RESTART FREQUENCY','OUTPUT FILENAME']
+    countnames=['ATOMS','BONDS','ANGLES','DIHEDRALS','IMPROPERS','CROSSTERMS']
     def __init__(self,filename,inherited_etitles=[]):
+        self.successful_run=False
         logger.debug(f'Initiating NAMDLog from {filename}')
         if inherited_etitles:
             logger.debug(f'  Explicit etitles: {inherited_etitles}')
@@ -50,6 +52,7 @@ class NAMDLog:
         logger.debug(f'{filename}: {self.numlines} total lines')
         self.groups={}
         self.info={}
+        self.counts={}
         for l in rawlines:
             if len(l)>0:
                 tok=l.split()[0]
@@ -58,14 +61,39 @@ class NAMDLog:
                         self.groups[tok]=[]
                     self.groups[tok].append(l)
         logger.debug(f'Number of Info: records: {len(self.groups.get("Info:",[]))}')
-        for info in self.groups.get('Info:',[]):
+        info_records=self.groups.get('Info:',[])
+        if len(info_records)==0:
+            return None
+        check_tokens=info_records[0].split()
+        if check_tokens[1]!='NAMD':
+            return None
+        for info in info_records:
             for il in self.infonames:
-                if il in info:
+                if info[6:].startswith(il):
                     logger.debug(f'Getting data for Info: record name {il} from record {info}')
                     self.info[il]=getinfo(il,info)
-
+            for cn in self.countnames:
+                if info.endswith(cn):
+                    tokens=info.split()
+                    if len(tokens)==3 and tokens[1].isdigit():
+                        self.counts[cn]=int(tokens[1])
+        tcl_records=self.groups.get('TCL:',[])
+        for tclr in tcl_records:
+            if tclr[5:].startswith('Running for'):
+                tokens=tclr.split()
+                self.requested_timesteps=int(tokens[3])
+                
         for k,v in self.groups.items():
             logger.debug(f'{filename}: {k} {len(v)} lines')
+
+        self.output_timestep=None
+        self.restart_timestep=None
+        for rmsg in self.groups['WRITING']:
+            tok=rmsg.split()
+            if tok[1]=='COORDINATES' and tok[3]=='OUTPUT':
+                self.output_timestep=int(tok[-1])
+            if tok[1]=='COORDINATES' and tok[3]=='RESTART':
+                self.restart_timestep=int(tok[-1])
     
     def energy(self):
         logger.debug(f'energy() call on log from {self.filename}')
