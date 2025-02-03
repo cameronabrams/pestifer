@@ -1,7 +1,7 @@
 # Pestifer
 > Automatic NAMD System Input Builder
 
-Pestifer is a fully automated system builder, requiring as inputs only biomolecular structures (e.g., PDB IDs, PDB files, mmCIF files, alphafold IDs) and a handful of customization parameters, to generate NAMD-compatible input files (PSF, PDB).  It is basically a front end for VMD's `psfgen` utility.
+Pestifer is a fully automated system builder, requiring as inputs only biomolecular structures (e.g., PDB IDs, PDB files, mmCIF files, alphafold IDs) and a handful of customization parameters, to generate NAMD-compatible input files (PSF, PDB).  It is basically a front end for VMD's `psfgen` utility.  It also has a few handy subcommands for working with NAMD output.
 
 ## Installation
 
@@ -18,11 +18,14 @@ Pestifer also requires access to the following executables:
 3. `packmol`
 4. `catdcd` (for the `desolvate` subcommand)
 
-By default, pestifer looks for these in `/usr/local/bin`.  Specific paths for these can be stipulated in the `paths` directive of your input file.
+By default, pestifer looks for these commands in your path.  Specific paths for these can be stipulated in the `paths` directive of your input file.
 
 Pestifer includes the July 2024 Charmm36 force field.
 
 ## Release History
+* 1.6.4
+    * `make-namd-restart` subcommand enabled
+    * `ycleptic` dependency updated to 1.1.0
 * 1.6.1
     * now able to use namd2 or namd3
     * can optionally use GPU-resident namd3
