@@ -867,7 +867,7 @@ directives:
         type: dict
         text: Configuration parameter(s) required for GPU-resident NAMD3
         default:
-          CUDASOAintegrate: on
+          GPUResident: on
           margin: 4
       - name: deprecated3
         type: dict

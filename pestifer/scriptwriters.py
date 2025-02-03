@@ -342,7 +342,8 @@ class NAMD(TcLScriptwriter):
         self.namd_config=config['user']['namd']
         self.local_ncpus=config.local_ncpus
         self.ncpus=config.ncpus
-        self.gpus_allocated=config.gpus_allocated
+        self.gpu_devices=config.gpu_devices
+        self.slurmvars=config.slurmvars
         self.ngpus=config.ngpus
         self.namd_deprecates=config.namd_deprecates
         logger.debug(f'{self.ncpus} cpus are available for namd')
@@ -405,6 +406,9 @@ class NAMD(TcLScriptwriter):
                         self.addline(v)
                     else:
                         self.addline(f'{self.namd_deprecates.get(k,k)} {v}')
+        if self.namd_type=='gpu':
+            for k,v in self.namd_config['gpu-resident'].items():
+                self.addline(f'{k} {v}')
         for t in tailers:
             if t in params:
                 self.addline(f'{self.namd_deprecates.get(t,t)} {params[t]}')
@@ -412,15 +416,24 @@ class NAMD(TcLScriptwriter):
 
     def runscript(self,**kwargs):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
-        if kwargs.get('single_molecule',False):
+        if kwargs.get('local_execution_only',False):
             use_cpu_count=self.local_ncpus
         else:
             use_cpu_count=self.ncpus
+        if kwargs.get('single_gpu_only',False):
+            use_gpu_count=1
+            use_gpu_devices='0'
+        else:
+            use_gpu_count=self.ngpus
+            use_gpu_devices=self.gpu_devices
         if self.namd_type=='cpu':
             c=Command(f'{self.charmrun} +p {use_cpu_count} {self.namd} {self.scriptname}')
         elif self.namd_type=='gpu':
-            use_cpu_count=8 if self.ngpus==1 else (self.ngpus-1)*8 + 8-(self.ngpus-1)
-            c=Command(f'{self.namd3} +p{use_cpu_count} +setcpuaffinity +devices {self.gpus_allocated}')
+            if len(self.slurmvars)>0:
+                use_cpu_count=8 if use_gpu_count==1 else (use_gpu_count-1)*8 + 8-(use_gpu_count-1)
+            else:
+                use_cpu_count=self.local_ncpus
+            c=Command(f'{self.namd} +p{use_cpu_count} +setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
         self.logname=f'{self.basename}.log'
         progress_struct=None
         if self.progress:

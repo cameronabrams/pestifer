@@ -23,9 +23,10 @@ class ResourceManager:
         self.pdb_collection=PDBCollection(os.path.join(self.resource_path['charmmff'],'pdb'))
 
     def __str__(self):
-        retstr='Pestifer Resources are found in these package subdirectories:'
+        cp=os.path.commonpath(list(self.resource_path.values()))
+        retstr=f'Pestifer resources are found under\n    {cp}\n'
         for r,p in self.resource_path.items():
-            retstr+=f'{p}\n'
+            retstr+=f'        {p.replace(cp+os.sep,"")+os.sep}\n'
         return retstr
 
     def get_pdb(self,name):

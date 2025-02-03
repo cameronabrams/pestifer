@@ -280,7 +280,7 @@ class MDTask(BaseTask):
         self.log_message('complete',ensemble=self.specs.get('ensemble',None))
         return super().do()
 
-    def namdrun(self,baselabel='',extras={},script_only=False):
+    def namdrun(self,baselabel='',extras={},script_only=False,**kwargs):
         specs=self.specs
         logger.debug(f'md task specs {specs}')
         ensemble=specs['ensemble']
@@ -379,7 +379,9 @@ class MDTask(BaseTask):
         na.newscript(self.basename)
         na.writescript(params)
         if not script_only:
-            result=na.runscript(single_molecule=(not self.statevars['periodic']))
+            local_execution_only=not self.statevars['periodic']
+            single_gpu_only=kwargs.get('single_gpu_only',False)
+            result=na.runscript(single_molecule=(not self.statevars['periodic']),local_execution_only=local_execution_only,single_gpu_only=single_gpu_only)
             if result!=0:
                 return -1
             inherited_etitles=[]
@@ -756,7 +758,7 @@ class DomainSwapTask(MDTask):
         logger.debug(f'Generating inputs for domain swap')
         self.make_inputs()
         logger.debug(f'Running NAMD to execute domain swap')
-        self.result=self.namdrun(baselabel='domainswap-run',extras={'colvars':'on','colvarsconfig':self.statevars['cv']})
+        self.result=self.namdrun(baselabel='domainswap-run',extras={'colvars':'on','colvarsconfig':self.statevars['cv']},single_gpu_only=True)
         if self.result!=0:
             return self.result
         self.save_state(exts=['vel','coor'])
@@ -872,7 +874,7 @@ class LigateTask(MDTask):
             'fixedatomscol': 'O',
             'colvars': 'on',
             'colvarsconfig': f'{self.basename}-cv.inp'
-        })
+            },single_gpu_only=True)
         self.specs=savespecs
         return result
 
@@ -1130,8 +1132,6 @@ class TerminateTask(MDTask):  #need to inherit for namdrun() method
             self.FC.append(f'{self.basename}_topogromacs.top')
         self.FC.tarball(specs["basename"])
         return 0
-
-
 
 class RingCheckTask(BaseTask):
     """ A class for checking for pierced rings

@@ -2,6 +2,7 @@
 import os
 import logging
 import shutil
+from GPUtil import getGPUs
 from importlib.metadata import version
 from ycleptic.yclept import Yclept
 
@@ -26,7 +27,6 @@ class Config(Yclept):
         basefile=self.RM.get_ycleptic_config()
         assert os.path.exists(basefile)
         super().__init__(basefile,userfile=userfile)
-        self.RM
         processor_info=self.processor_info()
         if not quiet:
             my_logger(processor_info,logger.info,just='<',frame='*',fill='')
@@ -38,6 +38,7 @@ class Config(Yclept):
         self.local_ncpus=os.cpu_count()
         self.gpus_allocated=''
         self.ngpus=0
+        self.gpu_devices=''
         retstr=''
         if self.slurmvars and 'SLURM_NNODES' in self.slurmvars and 'SLURM_NTASKS_PER_NODE' in self.slurmvars:
             # we are in a batch execution managed by slurm
@@ -46,15 +47,16 @@ class Config(Yclept):
             ncpus=nnodes*ntaskspernode
             retstr+=f'SLURM: {nnodes} nodes; {ncpus} cpus'
             if 'SLURM_JOB_GPUS' in self.slurmvars:
-                self.gpus_allocated=self.slurmvars['SLURM_JOB_GPUS']
+                self.gpu_devices=self.slurmvars['SLURM_JOB_GPUS']
                 self.ngpus=len(self.gpus_allocated.split(','))
                 retstr+f'; {self.ngpus} gpus'
         else:
-            retstr+=f'{self.local_ncpus} cpus'
+            retstr+=f'Local: {self.local_ncpus} cpus'
             ncpus=self.local_ncpus
-            cvd=os.environ.get('CUDA_VISIBLE_DEVICES',None)
-            if cvd:
-                self.ngpus=len(cvd.split(','))
+            gpus=getGPUs()
+            if len(gpus)>0:
+                self.ngpus=len(gpus)
+                self.gpu_devices=','.join([str(x.id) for x in gpus])
                 retstr+=f'; {self.ngpus} gpus'
 
         self.ncpus=ncpus

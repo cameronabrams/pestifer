@@ -54,7 +54,7 @@ class PDBCollection:
     def __init__(self,basepath=''):
         self.collections={}
         self.registercollection(basepath,'base')
-        logger.debug(str(self.collections['base']))
+        # logger.debug(str(self.collections['base']))
     
     def registercollection(self,pathname,pathkey):
         self.collections[pathkey]={}
