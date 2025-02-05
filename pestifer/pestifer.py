@@ -146,7 +146,7 @@ def show_resources(args,**kwargs):
             val=getattr(args,c)
             if val:
                 specs[c]=val
-    if hasattr(args,'pdb_depot'):
+    if args.pdb_depot:
         r.pdb_collection.add_usercollection(userpath=args.pdb_depot)
     r.show(out_stream=print,components=specs)
 

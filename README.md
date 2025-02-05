@@ -14,16 +14,16 @@ Once installed, the user has access to the main `pestifer` command.
 Pestifer also requires access to the following executables:
 
 1. `namd2` and `charmrun`
-2. `vmd`
+2. `vmd` and `catdcd`
 3. `packmol`
-4. `catdcd` (for the `desolvate` subcommand)
 
 By default, pestifer looks for these commands in your path.  Specific paths for these can be stipulated in the `paths` directive of your input file.
 
 Pestifer includes the July 2024 Charmm36 force field.
 
 ## Release History
-* 1.6.4
+* 1.6.4a0
+    * `show-resources` subcommand enabled
     * `make-namd-restart` subcommand enabled
     * `ycleptic` dependency updated to 1.1.0
 * 1.6.1
