@@ -1,0 +1,41 @@
+charge: 0.0
+conformers:
+- head-tail-length: 28.097
+  pdb: DOPC-00.pdb
+- head-tail-length: 27.039
+  pdb: DOPC-01.pdb
+- head-tail-length: 26.323
+  pdb: DOPC-02.pdb
+- head-tail-length: 25.571
+  pdb: DOPC-03.pdb
+- head-tail-length: 24.193
+  pdb: DOPC-04.pdb
+- head-tail-length: 23.553
+  pdb: DOPC-05.pdb
+- head-tail-length: 20.841
+  pdb: DOPC-06.pdb
+- head-tail-length: 20.249
+  pdb: DOPC-07.pdb
+- head-tail-length: 20.776
+  pdb: DOPC-08.pdb
+- head-tail-length: 20.991
+  pdb: DOPC-09.pdb
+parameters:
+- par_all36m_prot.prm
+- par_all36_carb.prm
+- par_all36_lipid.prm
+- par_all36_carb.prm
+- par_all36_na.prm
+- par_all36_cgenff.prm
+- toppar_water_ions.str
+- stream/carb/toppar_all36_carb_glycopeptide.str
+- stream/prot/toppar_all36_prot_modify_res.str
+reference-atoms:
+  heads:
+  - name: N
+    serial: 1
+  tails:
+  - name: C218
+    serial: 88
+  - name: C318
+    serial: 135

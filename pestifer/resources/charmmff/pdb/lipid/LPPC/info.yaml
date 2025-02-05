@@ -1,0 +1,39 @@
+charge: 0.0
+conformers:
+- head-tail-length: 18.275
+  pdb: LPPC-00.pdb
+- head-tail-length: 17.683
+  pdb: LPPC-01.pdb
+- head-tail-length: 17.084
+  pdb: LPPC-02.pdb
+- head-tail-length: 17.647
+  pdb: LPPC-03.pdb
+- head-tail-length: 16.837
+  pdb: LPPC-04.pdb
+- head-tail-length: 17.354
+  pdb: LPPC-05.pdb
+- head-tail-length: 17.774
+  pdb: LPPC-06.pdb
+- head-tail-length: 17.896
+  pdb: LPPC-07.pdb
+- head-tail-length: 17.469
+  pdb: LPPC-08.pdb
+- head-tail-length: 17.241
+  pdb: LPPC-09.pdb
+parameters:
+- par_all36m_prot.prm
+- par_all36_carb.prm
+- par_all36_lipid.prm
+- par_all36_carb.prm
+- par_all36_na.prm
+- par_all36_cgenff.prm
+- toppar_water_ions.str
+- stream/carb/toppar_all36_carb_glycopeptide.str
+- stream/prot/toppar_all36_prot_modify_res.str
+reference-atoms:
+  heads:
+  - name: P
+    serial: 20
+  tails:
+  - name: C312
+    serial: 67

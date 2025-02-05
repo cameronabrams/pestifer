@@ -1,0 +1,41 @@
+charge: 0.0
+conformers:
+- head-tail-length: 23.998
+  pdb: DPPE-00.pdb
+- head-tail-length: 21.193
+  pdb: DPPE-01.pdb
+- head-tail-length: 21.704
+  pdb: DPPE-02.pdb
+- head-tail-length: 22.378
+  pdb: DPPE-03.pdb
+- head-tail-length: 21.378
+  pdb: DPPE-04.pdb
+- head-tail-length: 18.745
+  pdb: DPPE-05.pdb
+- head-tail-length: 20.563
+  pdb: DPPE-06.pdb
+- head-tail-length: 19.154
+  pdb: DPPE-07.pdb
+- head-tail-length: 21.214
+  pdb: DPPE-08.pdb
+- head-tail-length: 22.106
+  pdb: DPPE-09.pdb
+parameters:
+- par_all36m_prot.prm
+- par_all36_carb.prm
+- par_all36_lipid.prm
+- par_all36_carb.prm
+- par_all36_na.prm
+- par_all36_cgenff.prm
+- toppar_water_ions.str
+- stream/carb/toppar_all36_carb_glycopeptide.str
+- stream/prot/toppar_all36_prot_modify_res.str
+reference-atoms:
+  heads:
+  - name: N
+    serial: 1
+  tails:
+  - name: C216
+    serial: 75
+  - name: C316
+    serial: 118

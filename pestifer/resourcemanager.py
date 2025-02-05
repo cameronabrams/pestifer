@@ -29,6 +29,36 @@ class ResourceManager:
             retstr+=f'        {p.replace(cp+os.sep,"")+os.sep}\n'
         return retstr
 
+    def show(self,out_stream=print,components={}):
+        for c,spec in components.items():
+            if not c in self.base_resources:
+                logger.warning(f'{c} is not a base resource; expected one of {", ".join(self.base_resources)}')
+            path=self.get_resource_path(c)
+            if c=='examples':
+                exb=self.get_examples_as_list()
+                out_stream(f'\nExamples:')
+                for e in exb:
+                    out_stream(f'    {e}')
+            elif c=='charmmff':
+                if 'toppar' in spec:
+                    path=self.get_charmmff_toppardir()
+                    with open(os.path.join(path,'00PESTIFER-README.txt'),'r') as f:
+                        msg=f.read()
+                    out_stream(msg)
+                if 'pdb' in spec:
+                    self.pdb_collection.show(out_stream)
+                if 'custom' in spec:
+                    path=self.get_charmmff_customdir()
+                    with open(os.path.join(path,'00PESTIFER-README.txt'),'r') as f:
+                        msg=f.read()
+                    out_stream(msg)
+            elif c=='tcl':
+                path=self.get_tcldir()
+                with open(os.path.join(path,'00PESTIFER-README.txt'),'r') as f:
+                    msg=f.read()
+                out_stream(msg)
+
+
     def get_pdb(self,name):
         return self.pdb_collection.get_pdb(name)
 

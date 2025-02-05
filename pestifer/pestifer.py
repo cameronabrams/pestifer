@@ -138,6 +138,18 @@ def run_example(args,**kwargs):
     args.config=fetch_example(args,**kwargs)
     run(args,**kwargs)
 
+def show_resources(args,**kwargs):
+    r=ResourceManager()
+    specs={}
+    for c in r.base_resources:
+        if hasattr(args,c):
+            val=getattr(args,c)
+            if val:
+                specs[c]=val
+    if hasattr(args,'pdb_depot'):
+        r.pdb_collection.add_usercollection(userpath=args.pdb_depot)
+    r.show(out_stream=print,components=specs)
+
 def inittcl(args):
     c=Config()
     assert os.path.isdir(c.tcl_root)
@@ -189,7 +201,8 @@ def cli():
         'inittcl':inittcl,
         'make-resi-database':make_RESI_database,
         'desolvate':desolvate,
-        'make-namd-restart':make_namd_restart
+        'make-namd-restart':make_namd_restart,
+        'show-resources':show_resources
     }
     helps={
         'config-help':'get help on the syntax of input configuration files',
@@ -201,7 +214,8 @@ def cli():
         'inittcl':'initializes macros from config',
         'make-resi-database':'make reference PDB/PSF files for any CHARMM residue',
         'desolvate':'desolvate an existing PSF/DCD',
-        'make-namd-restart':'generate a restart NAMD config file based on current checkpoint'
+        'make-namd-restart':'generate a restart NAMD config file based on current checkpoint',
+        'show-resources':'display elements of the included pestifer resources'
     }
     descs={
         'config-help':'Use this command to get interactive help on config file directives.',
@@ -213,7 +227,8 @@ def cli():
         'inittcl':'initializes macros from config',
         'make-resi-database':'makes representative psf/pdb files for any CHARMM RESI\'s found in given topology streams',
         'desolvate':'desolvate an existing PSF/DCD',
-        'make-namd-restart':'generate a restart NAMD config file based on current checkpoint'
+        'make-namd-restart':'generate a restart NAMD config file based on current checkpoint',
+        'show-resources':'display elements of the included pestifer resources'
     }
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
     parser.add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
@@ -269,6 +284,10 @@ def cli():
     command_parsers['make-namd-restart'].add_argument('--config',type=str,help='name of most recent NAMD config')
     command_parsers['make-namd-restart'].add_argument('--new-config',type=str,help='name of new NAMD config to create')
     command_parsers['make-namd-restart'].add_argument('--run',type=int,help='number of time steps to run')
+    command_parsers['show-resources'].add_argument('--examples',default=False,action='store_true',help='show system examples')
+    command_parsers['show-resources'].add_argument('--tcl',default=False,action='store_true',help='show description of system TcL scripts and packages')
+    command_parsers['show-resources'].add_argument('--charmmff',type=str,nargs='+',default=[],help='show elements of charmmff-specific resources (\'toppar\', \'custom\', \'pdb\')')
+    command_parsers['show-resources'].add_argument('--pdb-depot',type=str,help='additional collection of PDB files')
 
     args=parser.parse_args()
 

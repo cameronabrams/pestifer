@@ -1,0 +1,41 @@
+charge: -1.0
+conformers:
+- head-tail-length: 18.488
+  pdb: DMPA-00.pdb
+- head-tail-length: 17.93
+  pdb: DMPA-01.pdb
+- head-tail-length: 18.095
+  pdb: DMPA-02.pdb
+- head-tail-length: 17.132
+  pdb: DMPA-03.pdb
+- head-tail-length: 16.76
+  pdb: DMPA-04.pdb
+- head-tail-length: 17.742
+  pdb: DMPA-05.pdb
+- head-tail-length: 18.609
+  pdb: DMPA-06.pdb
+- head-tail-length: 18.815
+  pdb: DMPA-07.pdb
+- head-tail-length: 19.196
+  pdb: DMPA-08.pdb
+- head-tail-length: 17.536
+  pdb: DMPA-09.pdb
+parameters:
+- par_all36m_prot.prm
+- par_all36_carb.prm
+- par_all36_lipid.prm
+- par_all36_carb.prm
+- par_all36_na.prm
+- par_all36_cgenff.prm
+- toppar_water_ions.str
+- stream/carb/toppar_all36_carb_glycopeptide.str
+- stream/prot/toppar_all36_prot_modify_res.str
+reference-atoms:
+  heads:
+  - name: P
+    serial: 1
+  tails:
+  - name: C214
+    serial: 60
+  - name: C314
+    serial: 97

@@ -54,8 +54,18 @@ class PDBCollection:
     def __init__(self,basepath=''):
         self.collections={}
         self.registercollection(basepath,'base')
-        # logger.debug(str(self.collections['base']))
-    
+
+    def show(self,out_stream=print):
+        out_stream('----------------------------------------------------------------------')
+        out_stream('PDB Collections:')
+        for cname,coll in self.collections.items():
+            out_stream(f'\n{cname} collection:')
+            for st,L in coll['streams'].items():
+                out_stream(f'    stream \'{st}\':')
+                for p in L:
+                    out_stream(f'        {p.replace(".pdb","")}')
+        out_stream('----------------------------------------------------------------------')
+
     def registercollection(self,pathname,pathkey):
         self.collections[pathkey]={}
         self.collections[pathkey]['path']=pathname
