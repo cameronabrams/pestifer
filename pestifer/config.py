@@ -49,7 +49,8 @@ class Config(Yclept):
             if 'SLURM_JOB_GPUS' in self.slurmvars:
                 self.gpu_devices=self.slurmvars['SLURM_JOB_GPUS']
                 self.ngpus=len(self.gpus_allocated.split(','))
-                retstr+f'; {self.ngpus} gpus'
+                ess='s' if self.ngpus>1 else ''
+                retstr+f'; {self.ngpus} gpu{ess}'
         else:
             retstr+=f'Local: {self.local_ncpus} cpus'
             ncpus=self.local_ncpus
@@ -57,7 +58,8 @@ class Config(Yclept):
             if len(gpus)>0:
                 self.ngpus=len(gpus)
                 self.gpu_devices=','.join([str(x.id) for x in gpus])
-                retstr+=f'; {self.ngpus} gpus'
+                ess='s' if self.ngpus>1 else ''
+                retstr+=f'; {self.ngpus} gpu{ess}'
 
         self.ncpus=ncpus
         return retstr

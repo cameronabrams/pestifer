@@ -23,6 +23,7 @@ Pestifer includes the July 2024 Charmm36 force field.
 
 ## Release History
 * 1.6.4a0
+    * all lipids in the charmmff topology file `top_all36_lipid.rtf` now have PDBs ready for `packmol`
     * `show-resources` subcommand enabled
     * `make-namd-restart` subcommand enabled
     * `ycleptic` dependency updated to 1.1.0
