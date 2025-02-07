@@ -248,7 +248,7 @@ class BilayerEmbedTask(BaseTask):
                 logger.error(f'No PDB available for lipid {l}')
             lipid_data[l]=pdbstruct
             for p in lipid_data[l].get_parameters():
-                if not p in addl_streamfiles:
+                if p.endswith('.str') and not p in addl_streamfiles:
                     addl_streamfiles.append(p)
 
         tot_lip_mols=mem_area/SAPL

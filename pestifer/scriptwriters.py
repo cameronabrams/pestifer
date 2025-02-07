@@ -257,6 +257,7 @@ class Psfgen(VMD):
             if not os.path.exists(localname):
                 copy_charmm_top(ft,localname)
             topology_local.append(localname)
+        logger.debug(f'local topologies: {topology_local}')
         return topology_local
 
     def newscript(self,basename=None,packages=[],additional_topologies=[]):
