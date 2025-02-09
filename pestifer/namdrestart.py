@@ -102,7 +102,11 @@ class NAMDConfig:
                 newargs.append(n)
         commandline['commandargs']=newargs
 
-def make_namd_restart(log,config,newbasename,run=0,**kwargs):
+def make_namd_restart(args,**kwargs):
+    log=args.log
+    config=args.config
+    newbasename=args.new_base
+    run=args.run
     oldconfig=NAMDConfig(config)
     oldlog=NAMDLog(log)
     output_filename=oldlog.info['OUTPUT FILENAME']
