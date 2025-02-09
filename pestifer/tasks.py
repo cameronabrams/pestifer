@@ -380,7 +380,7 @@ class MDTask(BaseTask):
         na.writescript(params)
         if not script_only:
             local_execution_only=not self.statevars['periodic']
-            single_gpu_only=kwargs.get('single_gpu_only',False)
+            single_gpu_only=kwargs.get('single_gpu_only',False) or constraints
             result=na.runscript(single_molecule=(not self.statevars['periodic']),local_execution_only=local_execution_only,single_gpu_only=single_gpu_only)
             if result!=0:
                 return -1
