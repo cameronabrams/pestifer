@@ -22,6 +22,8 @@ By default, pestifer looks for these commands in your path.  Specific paths for 
 Pestifer includes the July 2024 Charmm36 force field.
 
 ## Release History
+* 1.6.4a2
+    * bugfix: GPU-resident NAMD3 cannot do mulitple-gpu runs with constraints
 * 1.6.4a0
     * all lipids in the charmmff topology file `top_all36_lipid.rtf` now have PDBs ready for `packmol`
     * `show-resources` subcommand enabled
