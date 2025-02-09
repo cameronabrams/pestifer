@@ -3,8 +3,9 @@ name: Release & Upload to PyPI (Hatch)
 on:
   push:
     tags:
-      - "v*"  # Runs when a version tag (e.g., v1.0.0) is pushed
-  workflow_dispatch: True
+      - "v*"
+  workflow_dispatch:
+
 jobs:
   release:
     runs-on: ubuntu-latest
