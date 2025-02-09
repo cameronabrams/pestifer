@@ -4,7 +4,7 @@ on:
   push:
     tags:
       - "v*"  # Runs when a version tag (e.g., v1.0.0) is pushed
-
+  workflow_dispatch: True
 jobs:
   release:
     runs-on: ubuntu-latest
