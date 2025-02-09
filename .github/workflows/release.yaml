@@ -21,6 +21,9 @@ jobs:
       - name: Install Hatch
         run: python -m pip install --upgrade pip hatch
 
+      - name: Clean previous builds
+        run: rm -rf dist/
+        
       - name: Build the package with Hatch
         run: hatch build
 

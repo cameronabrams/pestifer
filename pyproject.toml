@@ -4,7 +4,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 [project]
 name = "pestifer"
-version = "1.6.4a1"
+version = "1.6.4a2"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
 ]
