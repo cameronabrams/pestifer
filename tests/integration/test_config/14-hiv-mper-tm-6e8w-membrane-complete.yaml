@@ -56,7 +56,7 @@ namd:
     switchdist: 9.0
     switching: true
   gpu-resident:
-    CUDASOAintegrate: true
+    GPUResident: true
     margin: 4
   harmonic:
     spring_constant: 200

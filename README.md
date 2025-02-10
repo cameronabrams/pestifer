@@ -21,7 +21,15 @@ By default, pestifer looks for these commands in your path.  Specific paths for 
 
 Pestifer includes the July 2024 Charmm36 force field.
 
+## Documentation
+
+Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
+
 ## Release History
+* 1.7.2
+    * bugfix: correct the detection of whether or not a file is a NAMD log file based on the first two Info: records
+* 1.7.1
+    * `make-namd-restart` enhanced with SLURM script updating
 * 1.6.4a2
     * bugfix: GPU-resident NAMD3 cannot do mulitple-gpu runs with constraints
 * 1.6.4a0

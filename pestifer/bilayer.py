@@ -1,17 +1,11 @@
 # Author: Cameron F. Abrams, <cfa2@drexel.edu>
-import glob
 import logging
-import os
-import shutil
 import yaml
-
 import numpy as np
-import pandas as pd
-
 from .charmmtop import CharmmResiDatabase
 from .config import Config
 from .coord import coorddf_from_pdb
-from .packmol import PackmolInputWriter,PackmolLog
+from .packmol import PackmolInputWriter
 from .psf import PSFContents
 from .stringthings import _UNITS_, _SYMBOLS_, my_logger
 from .tasks import BaseTask
@@ -42,10 +36,6 @@ class BilayerEmbedTask(BaseTask):
         super().__init__(input_dict,taskname,config,writers,prior)
         self.progress=config.progress
         self.pdb_collection=config.RM.pdb_collection
-        # self.lipid_pdb_path=os.path.join(config.charmmff_pdb_path,'lipid')
-        # self.available_lipids=[os.path.isdir(x) for x in glob.glob(self.lipid_pdb_path)]
-        # self.water_ion_pdb_path=os.path.join(config.charmmff_pdb_path,'water_ions')
-        # assert os.path.exists(self.lipid_pdb_path),f'No lipid PDB database found -- bad installation!'
 
     def do(self):
         self.log_message('initiated')
@@ -62,8 +52,6 @@ class BilayerEmbedTask(BaseTask):
             logger.debug(f'BilayerEmbedTask will use psf {psf} and pdb {pdb} as inputs')
 
         self.next_basename('bilayer')
-
-        # custom_pdb_path=self.specs.get('custom_pdb_path','data')
 
         lipid_specstring=self.specs['lipids']
         ratio_specstring=self.specs['mole_fractions']
@@ -95,7 +83,6 @@ class BilayerEmbedTask(BaseTask):
         nloop=self.specs.get('nloop',200)
         nloop_all=self.specs.get('nloop_all',200)
         boxdim=np.array(list(map(float,self.specs.get('dims',[]))))
-        # margin_scale=self.specs.get('margin_scale',1.5)
 
         self.slices={'LOWER-CHAMBER':{},'LOWER-LEAFLET':{},'UPPER-LEAFLET':{},'UPPER-CHAMBER':{}}
         LC=self.slices['LOWER-CHAMBER']

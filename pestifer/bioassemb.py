@@ -8,8 +8,8 @@ from pidibble.pdbparse import get_symm_ops
 import logging
 logger=logging.getLogger(__name__)
 
-from .basemod import AncestorAwareMod, AncestorAwareModList
 from .asymmetricunit import AsymmetricUnit
+from .basemod import AncestorAwareMod, AncestorAwareModList
 from .chainidmanager import ChainIDManager
 
 def build_tmat(RotMat,TransVec):
@@ -60,7 +60,6 @@ class Transform(AncestorAwareMod):
         super().__init__(input_dict)
 
     def is_identity(self):
-        # tmat=np.array([[1, 0, 0, 0],[0, 1, 0, 0],[0, 0, 1, 0],[0, 0, 0, 1]],dtype=float)
         return np.array_equal(np.identity(4,dtype=float),self.tmat)
 
     def register_mapping(self,segtype,chainID,seglabel):
@@ -80,15 +79,6 @@ class Transform(AncestorAwareMod):
     def __eq__(self,other):
         return np.array_equal(self.tmat,other.tmat)
     
-    # def remap_chains(self,chainmap):
-    #     new_applies_chainIDs=[]
-    #     for c in self.applies_chainIDs:
-    #         if c in chainmap:
-    #             new_applies_chainIDs.append(chainmap[c])
-    #         else:
-    #             new_applies_chainIDs.append(c)
-    #     self.applies_chainIDs=new_applies_chainIDs
-
     def generate_chainIDmap(self,auChainIDs,daughters,CM):
         applies_to=self.applies_chainIDs[:]
         for d,v in daughters.items():
@@ -113,15 +103,8 @@ class TransformList(AncestorAwareModList):
                 L=[Transform('identity')]
         super().__init__(L)
 
-    # def remap_chains(self,chainmap):
-    #     if not chainmap:
-    #         return
-    #     for t in self:
-    #         t.remap_chains(chainmap)
-
 class BioAssemb(AncestorAwareMod):
     _index=1 # start at 1
-    # req_attr=AncestorAwareMod.req_attr+['name','chainIDs','biomt','index']
     req_attr=AncestorAwareMod.req_attr+['name','transforms','index']
     ''' Container for handling info for "REMARK 350 BIOMOLECULE: #" stanzas in RCSB PDB files '''
     def __init__(self,input_obj):
@@ -149,16 +132,12 @@ class BioAssemb(AncestorAwareMod):
         cls._index=1
 
     def activate(self,AU:AsymmetricUnit,CM:ChainIDManager):
-        # self.chainIDs_used=[]
-        # self.transforms.remap_chains(AU.reserved_chainID_remap)
         for T in self.transforms:
             T.generate_chainIDmap(AU.segments.segnames,AU.segments.daughters,CM)
-            # self.chainIDs_used.extend(list(T.chainIDmap.keys()))
 
 class BioAssembList(AncestorAwareModList):
     def __init__(self,*obj):
         BioAssemb.reset_index()
-
         B=[]
         if len(obj)==1:
             p_struct=obj[0] # whole darn thing

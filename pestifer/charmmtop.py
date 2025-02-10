@@ -25,7 +25,6 @@ class CharmmMassRecord:
             self.atom_element=tokens[4]
         except:
             self.atom_element=self.atom_type[0]
-        # logger.debug(f'{self.atom_type} {self.atom_mass} {self.atom_element}')
 
 class CharmmMasses(UserDict):
     def __init__(self,mList):

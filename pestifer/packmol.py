@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-
-# utilities for parsing packmol logfiles
-# TODO: utilities for handling packmol input files
+""" Defines the PackmolInputWriter class for generating packmol input files 
+    Defines the PackmolLog class for parsing packmol log files
+"""
 
 import datetime
 import logging

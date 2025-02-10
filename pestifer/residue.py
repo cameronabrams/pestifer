@@ -1,5 +1,5 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
-"""Residues
+""" Defines the EmptyResidue and Residue classes
 """
 from .mods import *
 from .config import segtype_of_resname
@@ -231,10 +231,6 @@ class Residue(EmptyResidue):
         for a in self.atoms:
             a.chainID=chainID
 
-    # def set_resseqnum(self,resseqnum):
-    #     self.resseqnum=resseqnum
-    #     for a in self.atoms:
-    #         a.resseqnum=resseqnum
     def linkTo(self,other,link):
         assert type(other)==type(self),f'type of other is {type(other)}; expected {type(self)}'
         self.down.append(other)

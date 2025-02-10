@@ -252,28 +252,6 @@ def pdb_search_replace(pdbfile,mapdict):
     with open(pdbfile,'w') as f:
         f.write(probe)
 
-# def pdb_charmify_parmed(pdbfile,moltype_maps,outfile=None):
-#     """ Using the charmmlipid2amber input data, convert any specific amber-style
-#     lipids in pdbfile to charmm-style.  This is done using parmed. THIS CURRENTLY DOES NOT WORK. """
-#     assert os.path.exists(pdbfile),f'{pdbfile}: not found'
-#     logger.debug(f'Charmifiying {pdbfile} using {len(moltype_maps)} inverse charmmlipid2amber maps')
-#     pdb=pmd.read_PDB(pdbfile)
-#     for lip,atdf in moltype_maps.items():
-#         logger.debug(f'...{lip}')
-#         for i,atom in atdf.iterrows():
-#             badatom,badresname=[x.strip() for x in atom['replace'].split()]
-#             goodatom,goodresname=[x.strip() for x in atom['search'].split()]
-#             for atom in pdb:
-#                 if atom.name==badatom and atom.residue.name==badresname:
-#                     atom.name=goodatom
-#                     atom.residue.name=goodresname
-#     if not outfile or os.path.exists(outfile):
-#         outfile=pdbfile
-#         pdb.save(outfile,overwrite=True)    
-#     else:
-#         pdb.save(outfile)
-#     logger.debug(f'Wrote {outfile}')
-
 def pdb_singlemolecule_charmify(pdbfile,moltype_map,outfile=None,molname=''):
     """ Using the charmmlipid2amber input data, convert any specific amber-style
     lipids in pdbfile to charmm-style.  This is done by direct byte-level

@@ -1,4 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+""" A class for parsing NAMD log files and xst files
+"""
+
 import pandas as pd
 import numpy as np
 import os
@@ -60,12 +63,14 @@ class NAMDLog:
                     if not tok in self.groups:
                         self.groups[tok]=[]
                     self.groups[tok].append(l)
-        logger.debug(f'Number of Info: records: {len(self.groups.get("Info:",[]))}')
         info_records=self.groups.get('Info:',[])
+        logger.debug(f'Number of Info: records: {len(info_records)}')
         if len(info_records)==0:
             return None
-        check_tokens=info_records[0].split()
-        if check_tokens[1]!='NAMD':
+        check_tokens=[info_records[0].split()[1],info_records[1].split()[1]]
+        logger.debug(f'check_tokens {check_tokens}')
+        if not 'NAMD' in check_tokens:
+            logger.debug(f'{filename} is evidently not a NAMD log')
             return None
         for info in info_records:
             for il in self.infonames:

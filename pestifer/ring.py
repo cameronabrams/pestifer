@@ -1,13 +1,10 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
-"""Rings -- checks for pierced rings based on topology and coordinate information
+""" Defines the Ring class and the ring_check function for detection of pierced rings
 """
 
 import numpy as np
-import os
-from collections import UserList
 from functools import singledispatchmethod
 import networkx as nx
-from copy import deepcopy
 import logging
 logger=logging.getLogger(__name__)
 from .psf import PSFContents,PSFBondList,PSFTopoElementList,PSFTopoElement

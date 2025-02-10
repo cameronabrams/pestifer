@@ -1,5 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-"""Scriptwriters
+""" Defines the Filewriter class and several descendents specialized for writing
+    scripts for VMD, psfgen, and NAMD
 """
 import os
 import datetime

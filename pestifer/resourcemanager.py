@@ -1,4 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+""" Defines the ResourceManager class for managing access to pestifer's built-in resources 
+"""
 import glob
 import os
 from . import resources

@@ -1,4 +1,13 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+""" The Config class:  parsing the config file and creating the Config object 
+
+    Pestifer's user-configuration input uses ycleptic, an enhanced, YAML-based
+    configuration file manager.  The Config object is a descendent of the
+    Yclept class.  It also houses the ResourceManager object, which manages
+    access to the contents of Pestifer's "resources" directory.
+
+"""
+
 import os
 import logging
 import shutil
@@ -26,6 +35,7 @@ class Config(Yclept):
         # resolve full pathname of YCleptic base config for this application
         basefile=self.RM.get_ycleptic_config()
         assert os.path.exists(basefile)
+        # ycleptic's init:
         super().__init__(basefile,userfile=userfile)
         processor_info=self.processor_info()
         if not quiet:

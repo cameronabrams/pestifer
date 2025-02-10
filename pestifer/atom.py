@@ -123,25 +123,6 @@ class AtomList(AncestorAwareModList):
                 a.serial-=n
                 logger.debug(f'Atom orig serial {a._ORIGINAL_["serial"]} to {a.serial}')
 
-        # orig_atom_serials=[x.serial for x in self]
-        # assert all([not x in orig_atom_serials for x in ignored_serials])
-        # offending_serial_idx=[]
-        # cidx=0
-        # for i in range(len(orig_atom_serials)-1):
-        #     if orig_atom_serials[i]<ignored_serials[cidx]<orig_atom_serials[i+1]:
-        #         offending_serial_idx.append(i+1)
-        #         cidx+=1
-        #         if cidx==len(ignored_serials):
-        #             break
-        # for s in offending_serial_idx:
-        #     for i in range(s,len(orig_atom_serials)):
-        #         orig_atom_serials[i]-=1
-        # for a,s in zip(self,orig_atom_serials):
-        #     if not '_ORIGINAL_' in a.__dict__:
-        #         a._ORIGINAL_={}
-        #     a._ORIGINAL_['serial']=a.serial
-        #     a.serial=s
-
     def overwritePositions(self,other):
         assert len(self)==len(other),'Error: atom lists not equal length'
         for sa,oa in zip(self,other):

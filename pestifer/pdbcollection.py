@@ -1,9 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-#
-# Manages the collection of PDB files used as inputs for packmol
-#
-# Collections are subdivided by charmmff 'streams'
-# 
+""" Defines the PDBInput class for representing PDB files used as inputs for packmol
+    Defines the PDBCollection class for managing the collection of said PDBs
+"""
 import os
 import glob
 import logging

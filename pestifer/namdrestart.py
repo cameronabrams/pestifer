@@ -1,4 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+""" Defines the NAMDConfig class for parsing NAMD config files and the make_namd_restart function
+"""
 import glob
 import logging
 import os

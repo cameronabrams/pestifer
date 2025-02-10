@@ -1,5 +1,5 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
-"""A class for handling Segments
+""" Defines the Segment class for generating and managing segments declared for psfgen
 """
 import logging
 logger=logging.getLogger(__name__)

@@ -1,10 +1,5 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>.
-"""Automatic generation of PSF files
-
-Pestifer is a python package that facilitates the use
-of UIUC's psfgen VMD plug-in for generating PSF files
-for use in MD simulations of biomacromolecules using NAMD.
-
+""" Defines all subcommands of the pestifer command
 """
 import argparse as ap
 import collections

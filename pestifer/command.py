@@ -7,11 +7,8 @@ import subprocess
 import os
 import atexit
 import signal
-# from io import StringIO
-# import json
 import shutil
 from glob import glob
-# from .progress import PestiferProgress
 import time
 from .stringthings import ByteCollector
 

@@ -1,5 +1,7 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" A controller for the pestifer runtime
+""" A controller for the pestifer runtime.  Initialization of a Controller object generates
+the configuration, from which the list of tasks is created.  The do_tasks() method executes
+the tasks.
 """
 import logging
 logger=logging.getLogger(__name__)

@@ -1,5 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-"""PSF file processing
+""" Defines the PSFTopoElement class and many descendants
+    Defines the PSFContent class for parsing PSF files
 """
 from .basemod import *
 from .mods import SSBond,SSBondList,Link,LinkList

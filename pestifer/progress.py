@@ -1,4 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+""" Implements progress bar animations for pestifer runs outside of a batch system 
+    (for fun)
+"""
 import progressbar
 import logging
 from .colors import __plasma__
