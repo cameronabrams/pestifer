@@ -1,7 +1,9 @@
+.. _config_ref namd gpu-resident:
+
 ``gpu-resident``
 ----------------
 
-  * ``CUDASOAintegrate``: True
+  * ``GPUResident``: True
   * ``margin``: 4
 
 

@@ -1,3 +1,5 @@
+.. _config_ref charmmff custom:
+
 ``custom``
 ==========
 

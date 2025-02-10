@@ -1,3 +1,5 @@
+.. _config_ref tasks bilayer:
+
 ``bilayer``
 ===========
 
@@ -5,9 +7,11 @@ Parameters controlling packmol to generate a bilayer system
 
 Single-valued parameters:
 
-  * ``lipids``: declaration of lipids in each leaflet in the format LIP1:LIP2//LIP3
+  * ``lipids``: declaration of lipids in each leaflet in the format LIP1[:LIP2][//LIP3] (default: POPC)
 
-  * ``mole_fractions``: declaration of mole fractions of each lipid in each leaflet in the format R1:R2//R3
+  * ``lipid_conformers``: declaration of which conformer index to use for each lipid in the format C1:C2//C3 (defaults to 0) (default: 0)
+
+  * ``mole_fractions``: declaration of mole fractions of each lipid in each leaflet in the format R1:R2//R3 (default: 1.0)
 
   * ``solvents``: string in form of SOL1:SOL2:... (default: TIP3)
 

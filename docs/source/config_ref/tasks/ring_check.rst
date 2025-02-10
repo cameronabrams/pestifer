@@ -1,3 +1,5 @@
+.. _config_ref tasks ring_check:
+
 ``ring_check``
 ==============
 

@@ -1,3 +1,5 @@
+.. _config_ref psfgen segtypes ligand resnames:
+
 ``resnames``
 ------------
 

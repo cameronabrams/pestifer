@@ -1,3 +1,5 @@
+.. _example 1:
+
 Example 1: BPTI
 ---------------
 
@@ -45,6 +47,8 @@ The ``psfgen`` `user manual <https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen
           ensemble: NPT
           basename: prod_6pti
 
+You can check the :ref:`config_ref` for a complete reference to Pestifer config files.
+
 This build can be performed (preferably in a clean directory) using this command:
 
 .. code-block:: console
@@ -69,12 +73,17 @@ You could also use ``fetch-example`` to get the config file and then run it:
 
 (If there is no extension on the argument of run, pestifer assumes one of ``.yaml``, ``.yml``, or ``.ym``.)
 
-``bpti.yaml`` is a YAML-format text file, and the keywords (of course) have particular meanings.  This is also an example of a "minimal" configuration file; ``pestifer`` has many more controls that can be set in a configuration file than are shown here.  Here, this configuration file contains two topmost directives: ``title`` and ``tasks``.  The value of ``title`` is the string ``BPTI`` and the value of ``tasks`` is a *list*.  Each element in the list of tasks is itself a directive describing a task, and ``pestifer`` in general executes tasks in the order they appear in the ``tasks`` list.
+``bpti.yaml`` is a YAML-format text file, and the keywords (of course) have particular meanings.  This is also an example of a "minimal" configuration file; ``pestifer`` has many more controls that can be set in a configuration file than are shown here.  Here, this configuration file contains two topmost directives: ``title`` and :ref:`config_ref tasks`.  The value of ``title`` is the string ``BPTI`` and the value of ``tasks`` is a *list*.  Each element in the list of tasks is itself a directive describing a task, and ``pestifer`` in general executes tasks in the order they appear in the ``tasks`` list.
 
 Digression: Interactive Help 
 ============================
 
-``pestifer`` uses the general-purpose package ``ycleptic`` (`pypi <https://pypi.org/project/ycleptic/>`_) to manage its input configurations.  A package developer using ``ycleptic`` specifies a "pattern" file describing the configuration file syntax they would like their package to have.  Any package that uses ``ycleptic`` also automatically acquires an iteractive help feature that allows package users to explore the configuration file format specified by the package developers.  Let's use this feature to explore the ``psfgen`` task: 
+``pestifer`` uses the general-purpose package ``ycleptic`` (`pypi <https://pypi.org/project/ycleptic/>`_) to manage its input configurations.  A package developer using ``ycleptic`` specifies a "pattern" file describing the configuration file syntax they would like their package to have.  ``ycleptic`` provides two useful features:
+
+1. Automatic generaton of a hierarchical arrangement of RST files for documentation of all configuration parameters; in these pages, this is rooted at :ref:`config_ref`.
+2. Automatic acquisition of a command-line interactive help feature that allows package users to explore the configuration file format specified by the package developers.  
+
+Let's use this second feature to explore the ``psfgen`` task.  (You can visit the :ref:`config_ref tasks psfgen` page to view the same info in the online documentation.) 
 
 .. code-block:: console
 

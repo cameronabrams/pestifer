@@ -1,7 +1,9 @@
+.. _config_ref paths:
+
 ``paths``
 =========
 
-Allows user to specify absolute paths to required external executables if the commands are not already in the user's path or the user wants to use versions that are not in their path
+Allows user to specify absolute paths for certain resources, including external applications
 
 Single-valued parameters:
 
@@ -18,6 +20,8 @@ Single-valued parameters:
   * ``packmol``: Path to packmol executable (default: packmol)
 
   * ``catdcd``: Path to catdcd executable (default: catdcd)
+
+  * ``pdb_depot``: Path to a user's collection of PDB files for custom lipids or ligands
 
 
 

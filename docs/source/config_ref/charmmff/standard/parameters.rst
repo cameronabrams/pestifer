@@ -1,3 +1,5 @@
+.. _config_ref charmmff standard parameters:
+
 ``parameters``
 --------------
 
