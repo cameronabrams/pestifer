@@ -4,11 +4,11 @@
 
 
 project = 'pestifer'
-copyright = '2023-2024, Cameron F. Abrams'
+copyright = '2023-2025, Cameron F. Abrams'
 author = 'cfa22@drexel.edu'
 
-release = '1.6'
-version = '1.6.1'
+release = '1.7'
+version = '1.7.0'
 
 # -- General configuration
 
