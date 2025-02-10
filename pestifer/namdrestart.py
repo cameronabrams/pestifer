@@ -1,8 +1,11 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+import glob
 import logging
 import os
+import shutil
 from .namdlog import NAMDLog
 from .scriptwriters import Filewriter
+from .stringthings import ByteCollector
 
 logger=logging.getLogger(__name__)
 
@@ -52,6 +55,8 @@ class NAMDConfig:
         for command in [x for x in self.lines if x.get('ltype',None)=='command']:
             for arg in command['commandargs']:
                 if arg.startswith('$'):
+                    if arg[1]==r'{' and arg[-1]==r'}':
+                        arg=arg[1:-1]
                     command['varname']=arg[1:]
                     varcited=arg[1:]
                     if not varcited in self.varsdefined:
@@ -109,7 +114,9 @@ def make_namd_restart(args,**kwargs):
     run=args.run
     oldconfig=NAMDConfig(config)
     oldlog=NAMDLog(log)
-    output_filename=oldlog.info['OUTPUT FILENAME']
+    output_filename=oldlog.info.get('OUTPUT FILENAME',None)
+    if not output_filename:
+        logger.error(f'No output filename found in {log}')
     oldconfig.replace_command('outputname',[newbasename])
     if oldlog.success():
         if run==0:
@@ -135,3 +142,15 @@ def make_namd_restart(args,**kwargs):
     oldconfig.replace_command('firsttimestep',[f'{last_timestep}'])
 
     oldconfig.write(f'{newbasename}.namd')
+
+    if len(args.slurm)>0:
+        bc=ByteCollector()
+        bc.injest_file(args.slurm)
+        oldscripts=glob.glob(f'%{args.slurm}%-*')
+        if len(oldscripts)==0:
+            n=1
+        else:
+            n=max([int(x.split('%-')[-1]) for x in oldscripts])+1
+        shutil.copy(args.slurm,f'%{args.slurm}%-{n}')
+        bc.reassign('BASENAME',newbasename) 
+        bc.write_file(args.slurm)

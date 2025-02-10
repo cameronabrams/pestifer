@@ -198,6 +198,44 @@ class ByteCollector:
                     return True
         return False
     
+    def reassign(self,varname,varvalue,style='bash',end='\n'):
+        """Reassigns variable varname to value varvalue if an assignment to varname already
+           exists in the byte_collector """
+        lines=self.byte_collector.split(end)
+        logger.debug(lines)
+        if len(lines)>0:
+            for i,l in enumerate(lines):
+                if len(l) > 0:
+                    if style=='bash':
+                        if l.startswith('export'):
+                            logger.debug(f'{varname} {varvalue} : export assignment {l}')
+                            tokens=l.split()
+                            assignment=tokens[1]
+                            evarname,evarvalue=assignment.split('=')
+                            if evarname==varname:
+                                lines[i]=f'export {varname}={varvalue}'
+                        elif l.startswith(varname) and '=' in l:
+                            lines[i]=f'{varname}={varvalue}'
+                    elif style=='SLURM': # will only replace SLURM variables!
+                        if l.startswith('#SBATCH'):
+                            tokens=l.split()
+                            logger.debug(f'SLURM statement {l}')
+                            if tokens[1].startswith('--'):
+                                assignment=tokens[1][2:]
+                                if not '=' in assignment:
+                                    logger.debug(f'cannot parse SLURM directive {l}')
+                                else:
+                                    svarname,svarvalue=assignment.split('=')
+                                    if svarname==varname:
+                                        lines[i]=f'#SBATCH --{svarname}={varvalue}'
+                            elif tokens[1].startswith('-'):
+                                svarname=tokens[1][1:]
+                                svarvalue=tokens[2]
+                                if svarname==varname:
+                                    lines[i]=f'#SBATCH -{svarname} {varvalue}'
+        self.byte_collector=end.join(lines)
+        logger.debug(self.byte_collector)
+
     def injest_file(self,filename):
         """Appends contents of file 'filename' to the string
         
@@ -208,6 +246,17 @@ class ByteCollector:
         """
         with open(filename,'r') as f:
             self.byte_collector+=f.read()
+
+    def write_file(self,filename):
+        """Writes string to 'filename' 
+        
+        Parameters
+        ----------
+        filename: str
+           the name of the file
+        """
+        with open(filename,'w') as f:
+            f.write(self.byte_collector)
 
     def comment(self,msg,end='\n'):
         """Appends msg as a comment to the string

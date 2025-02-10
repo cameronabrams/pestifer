@@ -17,6 +17,21 @@ class TestStringthings(unittest.TestCase):
         bc.reset()
         bc.comment('this is a multiline comment. What is the deal with potato chips? I mean you\'re crispy, you\'re greasy... just make up your mind, potato chips!')
         self.assertEqual('# this is a multiline comment. What is the deal with potato chips? I mean you\'re\n# crispy, you\'re greasy... just make up your mind, potato chips!\n',str(bc))
+    def test_byte_collector_reassign(self):
+        bc=ByteCollector()
+        bc.injest_file('reassigntest.sh')
+        bc.reassign('MYVAR1',64)
+        bc.reassign('EXMYVAR2',63)
+        bc.reassign('ntasks',8,style='SLURM')
+        bc.reassign('p','debug',style='SLURM')
+        bc.write_file('test.sh')
+        with open('test.sh','r') as f:
+            lines=f.read().split('\n')
+        self.assertTrue('MYVAR1=64' in lines)
+        self.assertTrue('export EXMYVAR2=63' in lines)
+        self.assertTrue('#SBATCH --ntasks=8' in lines)
+        self.assertTrue('#SBATCH -p debug' in lines)
+
     def test_file_collector(self):
         fc=FileCollector()
         fc.append('delete_me.xyz')
