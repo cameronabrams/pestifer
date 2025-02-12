@@ -7,6 +7,8 @@ import numpy as np
 import os
 import logging
 logger=logging.getLogger(__name__)
+from .stringthings import my_logger
+
 def getinfo(name,line):
     parseline=line[len('Info:'):].split()
     while '=' in parseline:
@@ -67,7 +69,11 @@ class NAMDLog:
         logger.debug(f'Number of Info: records: {len(info_records)}')
         if len(info_records)==0:
             return None
-        check_tokens=[info_records[0].split()[1],info_records[1].split()[1]]
+        check_tokens=[]
+        for _ in range(10):
+            tokens=info_records[_].split()
+            if len(tokens)>1:
+                check_tokens.append(tokens[1])
         logger.debug(f'check_tokens {check_tokens}')
         if not 'NAMD' in check_tokens:
             logger.debug(f'{filename} is evidently not a NAMD log')
@@ -127,6 +133,7 @@ class NAMDLog:
         self.edata=pd.DataFrame(edata)
         if 'VOLUME' in self.edata:
             self.edata['DENSITY']=np.reciprocal(self.edata['VOLUME'])*float(self.info['TOTAL MASS'])
+        my_logger(self.edata.head(),logger.debug)
         return self
     
     def success(self):

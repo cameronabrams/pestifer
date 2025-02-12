@@ -27,7 +27,9 @@ Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full d
 
 ## Release History
 * 1.7.2
-    * bugfix: correct the detection of whether or not a file is a NAMD log file based on the first two Info: records
+    * bugfix: 
+        * correct the detection of whether or not a file is a NAMD log file based on the first two Info: records
+        * correct the problem with restarts interfering with mdplot
 * 1.7.1
     * `make-namd-restart` enhanced with SLURM script updating
 * 1.6.4a2

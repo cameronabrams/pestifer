@@ -81,7 +81,6 @@ class Command:
             b=time.process_time_ns()
             if not progress or (progress and progress.track_stdout):
                 output=process.stdout.readline()
-                # print(f'{b} {output}')
                 self.stdout+=output
                 otally+=len(output)
             else:
@@ -93,7 +92,6 @@ class Command:
                 log.write(output)
                 log.flush()
             if output=='' and process.poll() is not None:
-                # print(f'breaking after {self.stdout}')
                 break
             if progress:
                 if not progress.unmeasured:
@@ -104,15 +102,11 @@ class Command:
                     progress.go()
                     e=time.process_time_ns()
                     t2tally+=(e-b)/1.e6
-                    # logger.debug(f'{len(output):>5d} B {otally:>9,d} B {ttally/ncalls:>12.6f} ms/readline call {t2tally/ncalls:>12.6f} ms/pbar call')
         if progress:
             print()
         if logfile:
             logger.debug(f'Log written to {logfile}')
         remaining_stdout,self.stderr=process.communicate()
-        # logger.debug(f'stdout [{self.stdout}]')
-        # logger.debug(f'remaining stdout [{remaining_stdout}]')
-        # logger.debug(f'stderr [{self.stderr}]')
         if process.returncode!=0 and not process.returncode in ignore_codes:
             logger.error(f'Returncode: {process.returncode}')
             if len(self.stdout)>0:

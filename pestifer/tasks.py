@@ -124,6 +124,9 @@ class BaseTask(BaseMod):
     def do(self):
         return self.result
 
+    def __str__(self):
+        return f'{self.index}/{self._taskcount-1} - {self.taskname} [has prior {self.prior!=None}]'
+
     def log_message(self,message,**kwargs):
         extra=''
         for k,v in kwargs.items():
@@ -132,7 +135,7 @@ class BaseTask(BaseMod):
         mtoks=[x.strip() for x in [x.upper() for x in message.split()]]
         if not any([x in self.init_msg_options for x in mtoks]):
             extra+=f' (result: {self.result})'
-        logger.info(f'Task {self.index:02d} \'{self.taskname}\'{extra} {message}')
+        logger.info(f'Task {self.index:02} \'{self.taskname}\'{extra} {message}')
 
     def next_basename(self,*obj):
         label=''
@@ -388,6 +391,7 @@ class MDTask(BaseTask):
             if self.prior and self.prior.taskname=='md' and hasattr(self.prior,'mdlog'):
                 inherited_etitles=self.prior.mdlog.etitles
                 logger.debug(f'Offering these etitles: {inherited_etitles}')
+
             self.mdlog=na.getlog(inherited_etitles=inherited_etitles)
 
             if os.path.exists(f'{self.basename}.xst'):
@@ -411,17 +415,23 @@ class MDPlotTask(BaseTask):
         self.inherit_state()            
         datasources=[]
         xstsources=[]
-        root=self.prior
-        while root.prior!=None and root.prior.taskname=='md':
-            if hasattr(root.prior,'mdlog'):
-                datasources.append(root.prior.mdlog.edata)
-            if hasattr(root.prior,'xstlog'):
-                xstsources.append(root.prior.xstlog.df)
-            root=root.prior
+        mdtaskpointer=self.prior
+        logger.debug(f'self={str(self)}; self.prior={str(self.prior)}')
+        while mdtaskpointer!=None and mdtaskpointer.taskname=='md':
+            logger.debug(f'appending log/xst data from prior task {str(mdtaskpointer)}')
+            if hasattr(mdtaskpointer,'mdlog'):
+                datasources.append(mdtaskpointer.mdlog.edata)
+            else:
+                logger.debug(f'Task {mdtaskpointer.index} has no mdlog.  Is this a bug?')
+            if hasattr(mdtaskpointer,'xstlog'):
+                xstsources.append(mdtaskpointer.xstlog.df)
+            mdtaskpointer=mdtaskpointer.prior
         logger.debug(f'concatenating energy-like data from {len(datasources)} sequential logs')
         edata=pd.concat(datasources[::-1])
         savedata=self.specs.get('savedata',None)
-        xstdata=pd.concat(xstsources[::-1])
+        xstdata=None
+        if len(xstsources)>0: # we instructed the md tasks that only NPT runs write xst files
+            xstdata=pd.concat(xstsources[::-1])
         if savedata:
             logger.debug(f'Saving energy-like data to {savedata}.')
             try:
@@ -429,12 +439,13 @@ class MDPlotTask(BaseTask):
             except:
                 logger.debug(f'For some reason, could not write a dataframe to csv')
                 logger.debug(edata.iloc[:3,:].to_string())
-            logger.debug(f'Saving cell data to xst-{savedata}.')
-            try:
-                xstdata.to_csv(f'xst-{savedata}',header=True,index=False)
-            except:
-                logger.debug(f'For some reason, could not write a dataframe to csv')
-                logger.debug(xstdata.iloc[:3,:].to_string())
+            if xstdata:
+                logger.debug(f'Saving cell data to xst-{savedata}.')
+                try:
+                    xstdata.to_csv(f'xst-{savedata}',header=True,index=False)
+                except:
+                    logger.debug(f'For some reason, could not write a dataframe to csv')
+                    logger.debug(xstdata.iloc[:3,:].to_string())
         
         traces=self.specs.get('traces',[])
         legend=self.specs.get('legend',False)
@@ -461,7 +472,7 @@ class MDPlotTask(BaseTask):
                 if t_i.upper() in edata:
                     key=t_i.upper()
                     ax.plot(edata['TS'],edata[key]*units,label=key.title())
-                elif t_i in xstdata:
+                elif xstdata and t_i in xstdata:
                     ax.plot(xstdata['step'],xstdata[t_i]*units,label=t_i)
             ax.set_xlabel('time step')
             tracename=','.join(tracelist)

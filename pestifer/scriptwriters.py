@@ -446,7 +446,9 @@ class NAMD(TcLScriptwriter):
         return c.run(logfile=self.logname,progress=progress_struct)
 
     def getlog(self,inherited_etitles=[]):
-        return NAMDLog(self.logname,inherited_etitles=inherited_etitles).energy()
+        nl=NAMDLog(self.logname,inherited_etitles=inherited_etitles)
+        nl.energy()
+        return nl
 
     def getxst(self):
         return NAMDxst(f'{self.basename}.xst')
