@@ -23,3 +23,4 @@ Subdirectives:
    config_ref/tasks
 
 
+This documentation was created automatically by `yclept make-doc` from the Ycleptic package (`pypi <https://pypi.org/project/ycleptic/>`_) using `pestifer/resources/ycleptic/base.yaml` as input.
