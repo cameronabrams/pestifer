@@ -15,7 +15,7 @@ Example: Say you have a PSF file ``my_system.psf`` and DCD's generated from sequ
 
 This will generate ``dry.psf`` and ``dry.dcd``, which will hold all frames from the input DCD files stripped of everything but protein and lipid.
 
-For more help with ``pestifer desolvate``:abbr:
+For more help with ``pestifer desolvate``: 
 
 .. code-block:: console
 
