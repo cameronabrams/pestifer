@@ -138,8 +138,23 @@ class TestBaseMod(unittest.TestCase):
         self.assertEqual(M[0].a,'C')
         self.assertTrue(all([x.a=='C' for x in M]))
         
+    def test_swap_attr(self):
+        class tbm(BaseMod):
+            req_attr=['a','x']
+        i=tbm({'a':1,'x':2})
+        i.swap_attr('a','x')
+        self.assertEqual(i.a,2)
+        self.assertEqual(i.x,1)
+        self.assertEqual(i.swapped['a'],'x')
 
-        
+    def test_copy_attr(self):
+        class tbm(BaseMod):
+            req_attr=['a','x']
+        i=tbm({'a':1,'x':2})
+        i.copy_attr('a','x')
+        self.assertEqual(i.a,2)
+        self.assertEqual(i.x,2)
+        self.assertEqual(i.copied_over['a'],1)
 
 class TestStateInterval(unittest.TestCase):
     def test_stateintervals(self):

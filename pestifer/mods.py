@@ -213,14 +213,14 @@ class Seqadv(AncestorAwareMod):
             'idCode':cd['pdbx_pdb_id_code'],
             'resname':cd['mon_id'],
             'chainID':'UNSET', # author
-            'resseqnum':int(cd['seq_num']), # mmcif
+            'resseqnum':int(cd['seq_num']) if cd['seq_num'].isdigit() else cd['seq_num'], # mmcif; will be blank if deletion
             'insertion':cd['pdbx_pdb_ins_code'], # author
             'database':cd['pdbx_seq_db_name'],
             'dbAccession':cd['pdbx_seq_db_accession_code'],
             'dbRes':cd['db_mon_id'],
             'dbSeq':cd['pdbx_seq_db_seq_num'], # author
             'typekey':self.seqadv_details_keyword(cd['details']),
-            'pdbx_auth_seq_num':int(cd['pdbx_auth_seq_num']), # author
+            'pdbx_auth_seq_num':int(cd['pdbx_auth_seq_num']) if cd['pdbx_auth_seq_num'].isdigit() else cd['pdbx_auth_seq_num'], # author
             'pdbx_ordinal':cd['pdbx_ordinal'],
             'pdbx_pdb_strand_id':cd['pdbx_pdb_strand_id'],
             'residue':None
@@ -241,19 +241,20 @@ class Seqadv(AncestorAwareMod):
     def assign_residue(self,Residues):
         # logger.debug(f'Searching {len(Residues)} Residues for auth_chain {self.pdbx_pdb_strand_id} auth_seq {self.pdbx_auth_seq_num}')
         assert self.residue==None
-        if hasattr(self,'pdbx_pdb_strand_id') and hasattr(self,'pdbx_auth_seq_num'):
-            self.assign_obj_to_attr('residue',Residues,
-                            auth_asym_id='pdbx_pdb_strand_id',
-                            auth_seq_id='pdbx_auth_seq_num',
-                            insertion='insertion')
-            if self.residue==[]:
-                self.residue=None
-            if self.residue!=None:
-                self.chainID=self.residue.chainID
-        else:
-            self.assign_obj_to_attr('residue',Residues,chainID='chainID',resseqnum='resseqnum',insertion='insertion')
-            if self.residue==[]: # failed to find 
-                self.residue=None
+        if self.typekey!='deletion':
+            if hasattr(self,'pdbx_pdb_strand_id') and hasattr(self,'pdbx_auth_seq_num'):
+                self.assign_obj_to_attr('residue',Residues,
+                                auth_asym_id='pdbx_pdb_strand_id',
+                                auth_seq_id='pdbx_auth_seq_num',
+                                insertion='insertion')
+                if self.residue==[]:
+                    self.residue=None
+                if self.residue!=None:
+                    self.chainID=self.residue.chainID
+            else:
+                self.assign_obj_to_attr('residue',Residues,chainID='chainID',resseqnum='resseqnum',insertion='insertion')
+                if self.residue==[]: # failed to find 
+                    self.residue=None
 
     def update_from_residue(self):
         assert self.residue!=None
@@ -885,8 +886,8 @@ class SSBond(AncestorAwareMod):
             'residue2':None,
             'ptnr1_auth_asym_id':cd['ptnr1_auth_asym_id'],
             'ptnr2_auth_asym_id':cd['ptnr2_auth_asym_id'],
-            'ptnr1_auth_seq_id':cd['ptnr1_auth_seq_id'],
-            'ptnr2_auth_seq_id':cd['ptnr2_auth_seq_id']
+            'ptnr1_auth_seq_id':int(cd['ptnr1_auth_seq_id']),
+            'ptnr2_auth_seq_id':int(cd['ptnr2_auth_seq_id'])
         }
         super().__init__(input_dict)
     
@@ -987,6 +988,7 @@ class SSBond(AncestorAwareMod):
 
 class SSBondList(AncestorAwareModList):
     def assign_residues(self,Residues):
+        logger.debug(f'SSBonds: Assigning residues from list of {len(Residues)} residues')
         ignored_by_ptnr1=self.assign_objs_to_attr('residue1',Residues,resseqnum='resseqnum1',chainID='chainID1',insertion='insertion1')
         ignored_by_ptnr2=self.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID2',insertion='insertion2')
         return self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
@@ -1139,10 +1141,14 @@ class Link(AncestorAwareMod):
         input_dict['link_distance']=float(cd['pdbx_dist_value'])
         input_dict['segname1']=input_dict['chainID1']
         input_dict['segname2']=input_dict['chainID2']
-        input_dict.update({'ptnr1_auth_asym_id':cd['ptnr1_auth_asym_id'],
+        input_dict.update({
+            'ptnr1_auth_asym_id':cd['ptnr1_auth_asym_id'],
             'ptnr2_auth_asym_id':cd['ptnr2_auth_asym_id'],
-            'ptnr1_auth_seq_id':cd['ptnr1_auth_seq_id'],
-            'ptnr2_auth_seq_id':cd['ptnr2_auth_seq_id']})
+            'ptnr1_auth_comp_id':cd['ptnr1_auth_comp_id'],
+            'ptnr2_auth_comp_id':cd['ptnr2_auth_comp_id'],
+            'ptnr1_auth_seq_id':int(cd['ptnr1_auth_seq_id']),
+            'ptnr2_auth_seq_id':int(cd['ptnr2_auth_seq_id']),
+            })
         input_dict.update({
                 'residue1':None,
                 'residue2':None,
@@ -1426,6 +1432,7 @@ class LinkList(AncestorAwareModList):
         ResidueList: list of residues from Residues that are not used for any assignments
 
         """
+        logger.debug(f'Links: Assigning residues from list of {len(Residues)} residues')
         ignored_by_ptnr1=self.assign_objs_to_attr('residue1',Residues,resseqnum='resseqnum1',chainID='chainID1',insertion='insertion1')
         ignored_by_ptnr2=self.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID2',insertion='insertion2')
         if hasattr(self,'patchname') and len(self.patchname)>0:
@@ -1433,7 +1440,10 @@ class LinkList(AncestorAwareModList):
             # we need to get the precise atom names for this patch
             pass
         for link in self:
-            link.residue1.linkTo(link.residue2,link)
+            try:
+                link.residue1.linkTo(link.residue2,link)
+            except:
+                raise ValueError(f'Bad residue in link')
             link.atom1=link.residue1.atoms.get(name=link.name1,altloc=link.altloc1)
             link.atom2=link.residue2.atoms.get(name=link.name2,altloc=link.altloc2)
             link.segtype1=link.residue1.segtype
@@ -1654,7 +1664,7 @@ class Graft(AncestorAwareMod):
         return res
 
     def write_pre_segment(self,W:Psfgen):
-        W.comment(f'Graft {self.id}')
+        W.comment(f'{str(self)}')
         W.addline(f'set topid [molinfo ${W.molid_varname} get id]')
         if os.path.exists(f'{self.source_pdbid}.pdb'):
             W.addline(f'mol new {self.source_pdbid}.pdb')
@@ -1665,7 +1675,12 @@ class Graft(AncestorAwareMod):
         W.addline(f'set mover_sel [atomselect $graftid "chain {self.source_chainID} and (resid {self.source_resseqnum1}{self.source_insertion1} to {self.source_resseqnum3}{self.source_insertion3}) and (not resid {self.source_resseqnum1}{self.source_insertion1} to {self.source_resseqnum2}{self.source_insertion2})"]')
         W.addline(f'set to_sel [atomselect ${W.molid_varname} "chain {self.orig_chainID} and resid {self.orig_resseqnum1}{self.orig_insertion1} to {self.orig_resseqnum2}{self.orig_insertion2}"]')
         W.addline(f'set from_sel [atomselect $graftid "chain {self.source_chainID} and resid {self.source_resseqnum1}{self.source_insertion1} to {self.source_resseqnum2}{self.source_insertion2}"]')
-        W.addline(f'$mover_sel move [measure fit $from_sel $to_sel]')
+        W.addline(f'vmdcon -info "[$mover_sel num] atoms will move"')
+        W.addline(f'vmdcon -info "    by comparing [$from_sel num] atoms to [$to_sel num] atoms"')
+        W.addline(f'set TT [transidentity]')
+        W.addline(f'set TT [measure fit $from_sel $to_sel]')
+        W.addline(f'vmdcon -info "Homog. trans. matrix: $TT"')
+        W.addline(f'$mover_sel move $TT')
         self.segfile=f'graft{self.id}.pdb'
         new_residlist=[]
         for y in self.mover_residues:
@@ -1700,7 +1715,7 @@ class Graft(AncestorAwareMod):
 
     def assign_residues(self,Residues):
         assert self.residues==None
-        logger.debug(f'Assigning receiver residues to graft {self.id}...')
+        logger.debug(f'Assigning receiver residues to graft {self.id} ({self.orig_resseqnum1}{self.orig_insertion1} to {self.orig_resseqnum2}{self.orig_insertion2})...')
         this_chain=Residues.filter(chainID=self.orig_chainID)
         logger.debug(f'...scanning {len(this_chain)} residues for ones to include in graft {self.id} [{self.orig_resseqnum1}{self.orig_insertion1}-{self.orig_resseqnum2}{self.orig_insertion2}]')
         self.residues=type(Residues)([])

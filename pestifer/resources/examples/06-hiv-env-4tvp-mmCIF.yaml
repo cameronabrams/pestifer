@@ -9,8 +9,6 @@
 #   - Sulfate ion and Fab chains are excluded
 #   - mmCIF input file requires careful attention to chainIDs and
 #     residue numbers
-#   - Fine-tuning ramachandran rotations performed at N-terminus of HN1
-#     to avoid steric clashes when building in these missing residues
 #   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_4tvp.tgz
 #

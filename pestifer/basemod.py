@@ -123,6 +123,15 @@ class BaseMod(Namespace):
         and stores the result in the mapped attribute; if mapped and
         key attributes are the same, mapping overwrites the attribute
 
+    swap_attr(self,attr1,attr2):
+        swaps the values of attr1 and attr2 and adds 'attr1':'attr2'
+        to the 'swapped' attribute dict; this is created if it does
+        not yet exits
+    
+    copy_attr(self,recv_attr,src_attr):
+        copies the value of src_attr to that of recv_attr; stores
+        original value of recv_attr in copied_over member dict
+
     set(self,shallow=False,**fields)
         treating fields as attribute-name:value pairs, sets the values
         of the object attributes named in fields.  If shallow is False,
@@ -396,6 +405,51 @@ class BaseMod(Namespace):
                 val=map[key]
                 self.__dict__[mapped_attr]=val
 
+    def swap_attr(self,attr1,attr2):
+        """Simple attribute value swapper
+        
+        Parameters:
+        ----------
+        attr1 : str
+            name of first attribute in pair to swap
+        attr2 : str
+            name of second attribute in pair to swap
+        """
+        if hasattr(self,attr1) and hasattr(self,attr2):
+            val1=getattr(self,attr1)
+            val2=getattr(self,attr2)
+            setattr(self,attr2,val1)
+            setattr(self,attr1,val2)
+            if not hasattr(self,'swapped'):
+                self.swapped={}
+            self.swapped[attr1]=attr2
+        else:
+            if not hasattr(self,attr1):
+                raise AttributeError(f'attribute 1 {attr1} not found.')
+            if not hasattr(self,attr2):
+                raise AttributeError(f'attribute 2 {attr2} not found.')
+
+    def copy_attr(self,recv_attr,src_attr):
+        """Simple attribute copier 
+        
+        Parameters:
+        ----------
+        recv_attr : str
+            name of receiver attribute; must exist
+        src_attr : str
+            name of source attribute; must exist
+        """
+        if hasattr(self,recv_attr) and hasattr(self,src_attr):
+            if not hasattr(self,'copied_over'):
+                self.copied_over={}
+            self.copied_over[recv_attr]=getattr(self,recv_attr)
+            setattr(self,recv_attr,getattr(self,src_attr))
+        else:
+            if not hasattr(self,recv_attr):
+                raise AttributeError(f'receiving attribute {recv_attr} not found.')
+            if not hasattr(self,src_attr):
+                raise AttributeError(f'source attribute {src_attr} not found.')
+
     def set(self,shallow=False,**fields):
         """
         Parameters
@@ -438,8 +492,11 @@ class BaseMod(Namespace):
         # assert getattr(self,attr)==None
         adict={k:getattr(self,v) for k,v in matchattr.items()}
         myObj=objList.get(**adict)
-        if myObj!=None:
+        if myObj!=None and myObj!=[]:
             setattr(self,attr,myObj)
+        else:
+            logger.debug(f'There may be a bug looking for {matchattr} to assign to {attr}; {adict}')
+            raise ValueError(f'stop')
     
     def update_attr_from_obj_attr(self,attr,obj,obj_attr):
         """Set value of caller's attribute from another
@@ -742,12 +799,18 @@ class ModList(UserList):
         the description of the calling instance into a list of
         state intervals.
     
-    map_attr(mapped_attr,key_attr,map)
+    map_attr(self,mapped_attr,key_attr,map)
         Applies BaseMod::map_attr to each element of calling instance; 
         BaseMod::map_attr applies the map dictionary to the value of the key attribute
         and stores the result in the mapped attribute; if mapped and
         key attributes are the same, mapping overwrites the attribute
     
+    swap_attr(self,attr1,attr2)
+        Applies BaseMod::swap_attr to each element in calling instance
+
+    copy_attr(self,recv_attr,src_attr)
+        Applies BaseMod::copy_attr to each element in calling instance
+
     assign_objs_to_attr(self,attr,objList,**matchattr)
         searches the objList for the hopefully single instance whose
         attributes match the matchattr dictionary and assigns
@@ -1138,6 +1201,33 @@ class ModList(UserList):
         if map:
             for item in self:
                 item.map_attr(mapped_attr,key_attr,map)
+    
+    def swap_attr(self,attr1,attr2):
+        """Simple attribute value swapper, applied to each element
+        of caller
+        
+        Parameters:
+        ----------
+        attr1 : str
+            name of first attribute in pair to swap
+        attr2 : str
+            name of second attribute in pair to swap
+        """        
+        for item in self.data:
+            item.swap_attr(attr1,attr2)
+
+    def copy_attr(self,recv_attr,src_attr):
+        """Simple attribute copier, applied to each element of caller
+        
+        Parameters:
+        ----------
+        recv_attr : str
+            name of receiver attribute; must exist
+        src_attr : str
+            name of source attribute; must exist
+        """
+        for item in self.data:
+            item.copy_attr(recv_attr,src_attr)
 
     def assign_objs_to_attr(self,attr,objList,**matchattr):
         """Assigns the single object from objList whose

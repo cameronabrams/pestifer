@@ -26,6 +26,9 @@ Pestifer includes the July 2024 Charmm36 force field.
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
+* 1.7.3
+    * bugfix:
+        * xst trace for `mdplot` fails if empty
 * 1.7.2
     * bugfix: 
         * correct the detection of whether or not a file is a NAMD log file based on the first two Info: records

@@ -62,10 +62,10 @@ class Atom(AncestorAwareMod):
             'beta':float(cifdict['b_iso_or_equiv']),
             'elem':cifdict['type_symbol'],
             'charge':cifdict['pdbx_formal_charge'],
-            'auth_atom_id':cifdict['auth_atom_id'],
             'auth_seq_id':int(cifdict['auth_seq_id']),
             'auth_comp_id':cifdict['auth_comp_id'],
-            'auth_asym_id':cifdict['auth_asym_id']
+            'auth_asym_id':cifdict['auth_asym_id'],
+            'auth_atom_id':cifdict['auth_atom_id']
         }
         input_dict['segname']=input_dict['chainID']
         input_dict['link']='None'

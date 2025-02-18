@@ -437,14 +437,14 @@ class MDPlotTask(BaseTask):
             try:
                 edata.to_csv(savedata,header=True,index=False)
             except:
-                logger.debug(f'For some reason, could not write a dataframe to csv')
+                logger.debug(f'For some reason, I could not write this dataframe to csv')
                 logger.debug(edata.iloc[:3,:].to_string())
-            if xstdata:
+            if len(xstsources)>0:
                 logger.debug(f'Saving cell data to xst-{savedata}.')
                 try:
                     xstdata.to_csv(f'xst-{savedata}',header=True,index=False)
                 except:
-                    logger.debug(f'For some reason, could not write a dataframe to csv')
+                    logger.debug(f'For some reason, I could not write this dataframe to csv')
                     logger.debug(xstdata.iloc[:3,:].to_string())
         
         traces=self.specs.get('traces',[])

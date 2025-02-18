@@ -13,7 +13,7 @@ tasks:
   - psfgen:
       source:
         id: 7xix
-        file_format: PDB
+        file_format: mmCIF
         biological_assembly: 1
         sequence:
           loops:
