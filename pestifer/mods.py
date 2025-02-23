@@ -212,17 +212,17 @@ class Seqadv(AncestorAwareMod):
         input_dict={
             'idCode':cd['pdbx_pdb_id_code'],
             'resname':cd['mon_id'],
-            'chainID':'UNSET', # author
-            'resseqnum':int(cd['seq_num']) if cd['seq_num'].isdigit() else cd['seq_num'], # mmcif; will be blank if deletion
+            'chainID':cd['pdbx_pdb_strand_id'], # author
+            'resseqnum':int(cd['pdbx_auth_seq_num']) if cd['pdbx_auth_seq_num'].isdigit() else cd['pdbx_auth_seq_num'], # authori
             'insertion':cd['pdbx_pdb_ins_code'], # author
             'database':cd['pdbx_seq_db_name'],
             'dbAccession':cd['pdbx_seq_db_accession_code'],
             'dbRes':cd['db_mon_id'],
             'dbSeq':cd['pdbx_seq_db_seq_num'], # author
             'typekey':self.seqadv_details_keyword(cd['details']),
-            'pdbx_auth_seq_num':int(cd['pdbx_auth_seq_num']) if cd['pdbx_auth_seq_num'].isdigit() else cd['pdbx_auth_seq_num'], # author
+            'label_seq_num':int(cd['seq_num']) if cd['seq_num'].isdigit() else cd['seq_num'], # mmcif; will be blank if deletion
             'pdbx_ordinal':cd['pdbx_ordinal'],
-            'pdbx_pdb_strand_id':cd['pdbx_pdb_strand_id'],
+            'label_pdb_strand_id':'UNSET',
             'residue':None
         }
         super().__init__(input_dict)
@@ -836,7 +836,7 @@ class CrotList(AncestorAwareModList):
 
 class SSBond(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
-    opt_attr=AncestorAwareMod.opt_attr+['serial_number','residue1','residue2','resname1','resname2','sym1','sym2','length','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id']
+    opt_attr=AncestorAwareMod.opt_attr+['serial_number','residue1','residue2','resname1','resname2','sym1','sym2','length','ptnr1_label_asym_id','ptnr2_label_asym_id','ptnr1_label_seq_id','ptnr2_label_seq_id']
     yaml_header='ssbonds'
     modtype='topomods'
     PDB_keyword='SSBOND'
@@ -873,10 +873,10 @@ class SSBond(AncestorAwareMod):
             'serial_number':int(cd['id'].strip('disulf')),
             'resname1':'CYS',
             'resname2':'CYS',
-            'chainID1':cd['ptnr1_label_asym_id'],
-            'chainID2':cd['ptnr2_label_asym_id'],
-            'resseqnum1':int(cd['ptnr1_label_seq_id']),
-            'resseqnum2':int(cd['ptnr2_label_seq_id']),
+            'chainID1':cd['ptnr1_auth_asym_id'],
+            'chainID2':cd['ptnr2_auth_asym_id'],
+            'resseqnum1':int(cd['ptnr1_auth_seq_id']),
+            'resseqnum2':int(cd['ptnr2_auth_seq_id']),
             'insertion1':cd['pdbx_ptnr1_pdb_ins_code'],
             'insertion2':cd['pdbx_ptnr2_pdb_ins_code'],
             'sym1':cd['ptnr1_symmetry'],
@@ -884,10 +884,10 @@ class SSBond(AncestorAwareMod):
             'length':float(cd['pdbx_dist_value']),
             'residue1':None,
             'residue2':None,
-            'ptnr1_auth_asym_id':cd['ptnr1_auth_asym_id'],
-            'ptnr2_auth_asym_id':cd['ptnr2_auth_asym_id'],
-            'ptnr1_auth_seq_id':int(cd['ptnr1_auth_seq_id']),
-            'ptnr2_auth_seq_id':int(cd['ptnr2_auth_seq_id'])
+            'ptnr1_label_asym_id':cd['ptnr1_label_asym_id'],
+            'ptnr2_label_asym_id':cd['ptnr2_label_asym_id'],
+            'ptnr1_label_seq_id':int(cd['ptnr1_label_seq_id']),
+            'ptnr2_label_seq_id':int(cd['ptnr2_label_seq_id'])
         }
         super().__init__(input_dict)
     
@@ -1047,7 +1047,7 @@ class Link(AncestorAwareMod):
     
     """
     req_attr=AncestorAwareMod.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
-    opt_attr=AncestorAwareMod.opt_attr+['name1','name2','altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance','segname1','segname2','residue1','residue2','atom1','atom2','empty','segtype1','segtype2','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id','ptnr1_auth_comp_id','ptnr2_auth_comp_id']    
+    opt_attr=AncestorAwareMod.opt_attr+['name1','name2','altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance','segname1','segname2','residue1','residue2','atom1','atom2','empty','segtype1','segtype2','ptnr1_label_asym_id','ptnr2_label_asym_id','ptnr1_label_seq_id','ptnr2_label_seq_id','ptnr1_label_comp_id','ptnr2_label_comp_id']    
     yaml_header='links'
     PDB_keyword='LINK'
     modtype='topomods'
@@ -1117,24 +1117,18 @@ class Link(AncestorAwareMod):
     
     @__init__.register(CIFdict)
     def _from_cifdict(self,cd):
-        p1_seq_id=cd['ptnr1_label_seq_id']
-        if p1_seq_id=='':
-            p1_seq_id=cd['ptnr1_auth_seq_id']
-        p2_seq_id=cd['ptnr2_label_seq_id']
-        if p2_seq_id=='':
-            p2_seq_id=cd['ptnr2_auth_seq_id']
         input_dict={}
         input_dict['name1']=cd['ptnr1_label_atom_id']
         input_dict['altloc1']=cd['pdbx_ptnr1_label_alt_id']
-        input_dict['resname1']=cd['ptnr1_label_comp_id']
-        input_dict['chainID1']=cd['ptnr1_label_asym_id']
-        input_dict['resseqnum1']=int(p1_seq_id)
+        input_dict['resname1']=cd['ptnr1_auth_comp_id']
+        input_dict['chainID1']=cd['ptnr1_auth_asym_id']
+        input_dict['resseqnum1']=int(cd['ptnr1_auth_seq_id'])
         input_dict['insertion1']=cd['pdbx_ptnr1_pdb_ins_code']
         input_dict['name2']=cd['ptnr2_label_atom_id']
         input_dict['altloc2']=cd['pdbx_ptnr2_label_alt_id']
-        input_dict['resname2']=cd['ptnr2_label_comp_id']
-        input_dict['chainID2']=cd['ptnr2_label_asym_id']
-        input_dict['resseqnum2']=int(p2_seq_id)
+        input_dict['resname2']=cd['ptnr2_auth_comp_id']
+        input_dict['chainID2']=cd['ptnr2_auth_asym_id']
+        input_dict['resseqnum2']=int(cd['ptnr2_auth_seq_id'])
         input_dict['insertion2']=cd['pdbx_ptnr2_pdb_ins_code']
         input_dict['sym1']=cd['ptnr1_symmetry']
         input_dict['sym2']=cd['ptnr2_symmetry']
@@ -1142,12 +1136,12 @@ class Link(AncestorAwareMod):
         input_dict['segname1']=input_dict['chainID1']
         input_dict['segname2']=input_dict['chainID2']
         input_dict.update({
-            'ptnr1_auth_asym_id':cd['ptnr1_auth_asym_id'],
-            'ptnr2_auth_asym_id':cd['ptnr2_auth_asym_id'],
-            'ptnr1_auth_comp_id':cd['ptnr1_auth_comp_id'],
-            'ptnr2_auth_comp_id':cd['ptnr2_auth_comp_id'],
-            'ptnr1_auth_seq_id':int(cd['ptnr1_auth_seq_id']),
-            'ptnr2_auth_seq_id':int(cd['ptnr2_auth_seq_id']),
+            'ptnr1_label_asym_id':cd['ptnr1_label_asym_id'],
+            'ptnr2_label_asym_id':cd['ptnr2_label_asym_id'],
+            'ptnr1_label_comp_id':cd['ptnr1_label_comp_id'],
+            'ptnr2_label_comp_id':cd['ptnr2_label_comp_id'],
+            'ptnr1_label_seq_id':int(cd['ptnr1_label_seq_id']),
+            'ptnr2_label_seq_id':int(cd['ptnr2_label_seq_id']),
             })
         input_dict.update({
                 'residue1':None,

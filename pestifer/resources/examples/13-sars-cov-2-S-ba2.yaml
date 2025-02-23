@@ -13,7 +13,7 @@ tasks:
   - psfgen:
       source:
         id: 7xix
-        file_format: mmCIF
+        file_format: mmCIF  #PDB no longer available at RCSB
         biological_assembly: 1
         sequence:
           loops:
@@ -23,7 +23,7 @@ tasks:
             declash:
               maxcycles: 500
       mods:
-        grafts:
+        grafts: # these are not correct with the mmCIF residue numbering
           - A_1304:4b7i,C_1-8 # 61
           - B_1304:4b7i,C_1-8
           - C_1304:4b7i,C_1-8

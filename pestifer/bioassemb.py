@@ -185,11 +185,12 @@ class BioAssembList(AncestorAwareModList):
                         this_oper_list=gen.getValue('oper_expression',this_gen_idx).split(',')
                         logger.debug(f'BA {ba_idx} gen {this_gen_idx} opers {this_oper_list}')
                         this_asyms=gen.getValue('asym_id_list',this_gen_idx).split(',')
+                        logger.debug(f'asym ids: {this_asyms}')
                         idx=0
                         # logger.debug(f'Expecting {len(this_opers)} transforms')
                         for k,opere in enumerate(this_oper_list):
                             oper_idx=oper.selectIndices(opere,'id')[0]
-                            logger.debug(f'making tranform from oper {oper_idx}')
+                            logger.debug(f'making transform from oper {oper_idx}')
                             m=np.identity(3)
                             v=np.zeros(3)
                             for i in range(3):
@@ -206,7 +207,7 @@ class BioAssembList(AncestorAwareModList):
                     logger.debug(f'parsed {len(transforms)} transforms for ba {ba_idx}')
                     BA=BioAssemb(transforms)
                     B.append(BA)
-                logger.debug(f'There are {len(B)} biological assemblies')
+                logger.debug(f'There '+'is' if len(B)==1 else 'are'+f' {len(B)} biological assembl'+'y' if len(B)==1 else 'ies')
         super().__init__(B)
 
 

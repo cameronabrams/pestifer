@@ -12,7 +12,7 @@ from .atom import *
 
 class EmptyResidue(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['resname','resseqnum','insertion','chainID','resolved','segtype']
-    opt_attr=AncestorAwareMod.opt_attr+['model','id','auth_asym_id','auth_comp_id','auth_seq_id']
+    opt_attr=AncestorAwareMod.opt_attr+['model','id','label_asym_id','label_comp_id','label_seq_id']
     yaml_header='missings'
     PDB_keyword='REMARK.465'
     mmCIF_name='pdbx_unobs_or_zero_occ_residues'
@@ -44,15 +44,15 @@ class EmptyResidue(AncestorAwareMod):
             nmn=1
         input_dict={
             'model':nmn,
-            'resname':cd['label_comp_id'],
-            'chainID':cd['label_asym_id'],
-            'resseqnum':int(cd['label_seq_id']),
+            'resname':cd['auth_comp_id'],
+            'chainID':cd['auth_asym_id'],
+            'resseqnum':int(cd['auth_seq_id']),
             'insertion':cd['pdb_ins_code'],
             'resolved':False,
             'segtype':'UNSET',
-            'auth_asym_id':cd['auth_asym_id'],
-            'auth_comp_id':cd['auth_comp_id'],
-            'auth_seq_id':int(cd['auth_seq_id']),
+            'label_asym_id':cd['label_asym_id'],
+            'label_comp_id':cd['label_comp_id'],
+            'label_seq_id':int(cd['label_seq_id']),
         }
         super().__init__(input_dict)
 
@@ -136,7 +136,7 @@ class Residue(EmptyResidue):
             'segtype':'UNSET',
             'resolved':True
         }
-        for cif_xtra in ['auth_seq_id','auth_comp_id','auth_asym_id']:
+        for cif_xtra in ['label_seq_id','label_comp_id','label_asym_id']:
             if hasattr(a,cif_xtra):
                 input_dict[cif_xtra]=a.__dict__[cif_xtra]
         super().__init__(input_dict)
@@ -159,7 +159,7 @@ class Residue(EmptyResidue):
             'segtype':'UNSET',
             'resolved':False
         }
-        for cif_xtra in ['auth_asym_id','auth_comp_id','auth_seq_id']:
+        for cif_xtra in ['label_asym_id','label_comp_id','label_seq_id']:
             if hasattr(m,cif_xtra):
                 input_dict[cif_xtra]=m.__dict__[cif_xtra]
         super().__init__(input_dict)
@@ -286,14 +286,15 @@ class ResidueList(AncestorAwareModList):
         else:
             raise ValueError(f'Residue not found')
 
-    def map_chainIDs_label_to_auth(self):
-        self.chainIDmap_cif_to_pdb={}
+    def map_chainIDs_auth_to_label(self):
+        self.chainIDmap_auth_to_label={}
         for r in self:
-            if hasattr(r,'auth_asym_id'):
-                aCid=r.auth_asym_id
-                Cid=r.chainID
-                if not Cid in self.chainIDmap_cif_to_pdb:
-                    self.chainIDmap_cif_to_pdb[Cid]=aCid
+            if hasattr(r,'label_asym_id'):
+                label_Cid=r.label_asym_id
+                auth_Cid=r.chainID
+                if not auth_Cid in self.chainIDmap_auth_to_label:
+                    self.chainIDmap_auth_to_label[auth_Cid]=label_Cid
+
     def get_residue(self,**fields):
         return self.get(**fields)
     def get_atom(self,atname,**fields):
@@ -402,11 +403,11 @@ class ResidueList(AncestorAwareModList):
     def cif_residue_map(self):
         result={}
         for r in self:
-            if hasattr(r,'auth_asym_id'):
+            if hasattr(r,'label_asym_id'):
                 if not r.chainID in result:
                     result[r.chainID]={}
                 if not r.resseqnum in result[r.chainID]:
-                    result[r.chainID][r.resseqnum]=Namespace(resseqnum=r.auth_seq_id,chainID=r.auth_asym_id,insertion=r.insertion)
+                    result[r.chainID][r.resseqnum]=Namespace(resseqnum=r.label_seq_id,chainID=r.label_asym_id,insertion=r.insertion)
         return result
     
     def apply_insertions(self,insertions):

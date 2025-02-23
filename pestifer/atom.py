@@ -8,7 +8,7 @@ from .util import reduce_intlist
 
 class Atom(AncestorAwareMod):
     req_attr=AncestorAwareMod.req_attr+['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
-    opt_attr=AncestorAwareMod.opt_attr+['segname','empty','link','recordname','auth_seq_id','auth_comp_id','auth_asym_id','auth_atom_id']
+    opt_attr=AncestorAwareMod.opt_attr+['segname','empty','link','recordname','label_seq_id','label_comp_id','label_asym_id','label_atom_id']
     yaml_header='atoms'
     PDB_keyword='ATOM'
     mmCIF_name='atom_site'
@@ -43,17 +43,14 @@ class Atom(AncestorAwareMod):
 
     @__init__.register(CIFdict)
     def _from_cifdict(self,cifdict):
-        seq_id=cifdict['label_seq_id']
-        if seq_id=='':
-            seq_id=cifdict['auth_seq_id']
         input_dict={
             'recordname':'ATOM',
             'serial':int(cifdict['id']),
-            'name':cifdict['label_atom_id'],
+            'name':cifdict['auth_atom_id'],
             'altloc':cifdict['label_alt_id'],
-            'resname':cifdict['label_comp_id'],
-            'chainID':cifdict['label_asym_id'],
-            'resseqnum':int(seq_id),
+            'resname':cifdict['auth_comp_id'],
+            'chainID':cifdict['auth_asym_id'],
+            'resseqnum':int(cifdict['auth_seq_id']),
             'insertion':cifdict['pdbx_pdb_ins_code'],
             'x':float(cifdict['cartn_x']),
             'y':float(cifdict['cartn_y']),
@@ -62,10 +59,10 @@ class Atom(AncestorAwareMod):
             'beta':float(cifdict['b_iso_or_equiv']),
             'elem':cifdict['type_symbol'],
             'charge':cifdict['pdbx_formal_charge'],
-            'auth_seq_id':int(cifdict['auth_seq_id']),
-            'auth_comp_id':cifdict['auth_comp_id'],
-            'auth_asym_id':cifdict['auth_asym_id'],
-            'auth_atom_id':cifdict['auth_atom_id']
+            'label_seq_id':int(cifdict['label_seq_id']) if cifdict['label_seq_id'].isdigit() else cifdict['label_seq_id'],
+            'label_comp_id':cifdict['label_comp_id'],
+            'label_asym_id':cifdict['label_asym_id'],
+            'label_atom_id':cifdict['label_atom_id']
         }
         input_dict['segname']=input_dict['chainID']
         input_dict['link']='None'

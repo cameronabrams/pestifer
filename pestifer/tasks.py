@@ -472,7 +472,7 @@ class MDPlotTask(BaseTask):
                 if t_i.upper() in edata:
                     key=t_i.upper()
                     ax.plot(edata['TS'],edata[key]*units,label=key.title())
-                elif xstdata and t_i in xstdata:
+                elif len(xstsources)>0 and t_i in xstdata:
                     ax.plot(xstdata['step'],xstdata[t_i]*units,label=t_i)
             ax.set_xlabel('time step')
             tracename=','.join(tracelist)

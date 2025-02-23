@@ -91,28 +91,6 @@ class AsymmetricUnit(AncestorAwareMod):
                 ssbonds=SSBondList([SSBond(x) for x in ssdicts])
                 links=LinkList([Link(x) for x in lndicts])
 
-                # if sourcespecs['cif_id_basis']=='author':
-                #     logger.debug(f'Resetting id attributes from CIF to author...')
-                #     atoms.swap_attr('name','auth_atom_id')
-                #     atoms.swap_attr('resname','auth_comp_id')
-                #     atoms.swap_attr('chainID','auth_asym_id')
-                #     atoms.swap_attr('resseqnum','auth_seq_id')
-                #     seqadvs.swap_attr('resseqnum','pdbx_auth_seq_num')
-                #     missings.swap_attr('resseqnum','auth_seq_id')
-                #     missings.swap_attr('chainID','auth_asym_id')
-                #     missings.swap_attr('resname','auth_comp_id')
-                #     ssbonds.swap_attr('chainID1','ptnr1_auth_asym_id')
-                #     ssbonds.swap_attr('chainID2','ptnr2_auth_asym_id')
-                #     ssbonds.swap_attr('resseqnum1','ptnr1_auth_seq_id')
-                #     ssbonds.swap_attr('resseqnum2','ptnr2_auth_seq_id')
-                #     links.swap_attr('resname1','ptnr1_auth_comp_id')
-                #     links.swap_attr('resname2','ptnr2_auth_comp_id')
-                #     links.swap_attr('resseqnum1','ptnr1_auth_seq_id')
-                #     links.swap_attr('resseqnum2','ptnr2_auth_seq_id')
-                #     links.swap_attr('chainID1','ptnr1_auth_asym_id')
-                #     links.swap_attr('chainID2','ptnr2_auth_asym_id')
-                #     links.copy_attr('segname1','ptnr1_auth_asym_id')
-                #     links.copy_attr('segname2','ptnr2_auth_asym_id')
             if psf:
                 self.psf=PSFContents(psf)
                 assert len(self.psf.atoms)==len(atoms),f'Error: psf file {psf} has wrong number of atoms {len(self.psf.atoms)}, expected {len(atoms)}'
