@@ -20,13 +20,13 @@ import pandas as pd
 from copy import deepcopy
 from scipy.constants import physical_constants
 
-from .basemod import BaseMod
+from .baseobj import BaseObj
 from .chainidmanager import ChainIDManager
 from .colvars import *
 from .command import Command
 from .molecule import Molecule
-from .modmanager import ModManager
-from .mods import CleavageSite, CleavageSiteList
+from .objmanager import ObjManager
+from .objs.cleavagesite import CleavageSite, CleavageSiteList
 from .progress import PestiferProgress
 from .psf import PSFContents
 from .ring import ring_check
@@ -40,7 +40,7 @@ g_per_amu=physical_constants['atomic mass constant'][0]*1000
 A_per_cm=1.e8
 A3_per_cm3=A_per_cm**3
 
-class BaseTask(BaseMod):
+class BaseTask(BaseObj):
     """ A base class for Tasks.
     
     Attributes
@@ -97,7 +97,7 @@ class BaseTask(BaseMod):
         Updates this task's statevars dict subject to some controls.
 
     """
-    req_attr=BaseMod.req_attr+['specs','config','index','prior','writers','taskname']
+    req_attr=BaseObj.req_attr+['specs','config','index','prior','writers','taskname']
     yaml_header='generic_task'
     _taskcount=0
     init_msg_options=['INITIATED','STARTED','BEGUN','SET IN MOTION','KICKED OFF','LIT','SPANKED ON THE BOTTOM']
@@ -675,7 +675,7 @@ class PsfgenTask(BaseTask):
         specs=self.specs
         self.source_specs=specs['source']
         logger.debug(f'User-input modspecs {self.specs["mods"]}')
-        self.modmanager=ModManager(self.specs['mods'])
+        self.modmanager=ObjManager(self.specs['mods'])
         seqmods=self.modmanager.get('seqmods',{})
         logger.debug(f'Injesting seqmods {seqmods}')
         if 'grafts' in seqmods:
@@ -1049,7 +1049,7 @@ class ManipulateTask(BaseTask):
             logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
             self.inherit_state()
         logger.debug(f'manipulate {self.specs["mods"]}')
-        self.modmanager=ModManager(self.specs['mods'])
+        self.modmanager=ObjManager(self.specs['mods'])
         self.result=self.coormods()
         self.log_message('complete')
         return super().do()

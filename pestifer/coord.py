@@ -4,6 +4,7 @@
 import logging
 import numpy as np
 logger=logging.getLogger(__name__)
+
 def measure_dihedral(a1,a2,a3,a4):
     """Measure dihedral angle IN RADIANS of a1->a2--a3->a4"""
     v1=np.array([a1.x,a1.y,a1.z])

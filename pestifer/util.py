@@ -1,6 +1,7 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>.
 """Various utility functions good for pestifer
 """
+import glob
 import importlib
 import inspect
 import logging
@@ -138,6 +139,20 @@ def reduce_intlist(L):
     if inrun:
         ret+=f'{r}'
     return ret
+
+def inspect_package_dir(dirname):
+    mods=glob.glob(f'{dirname}/*.py')
+    for om in mods:
+        if '__init__' in om:
+            mods.remove(om)
+            break
+    obj_classes,objlist_classes={},{}
+    for om in mods:
+        modname=os.path.splitext(os.path.basename(om))[0]
+        x,y=inspect_classes(f'pestifer.objs.{modname}','List')
+        obj_classes.update(x)
+        objlist_classes.update(y)
+    return obj_classes,objlist_classes
 
 def inspect_classes(module,key=' ',use_yaml_headers_as_keys=False):
     """Returns the dictionary of names:classes for classes

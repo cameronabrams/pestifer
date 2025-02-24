@@ -9,7 +9,7 @@ import logging
 logger=logging.getLogger(__name__)
 
 from .asymmetricunit import AsymmetricUnit
-from .basemod import AncestorAwareMod, AncestorAwareModList
+from .baseobj import AncestorAwareObj, AncestorAwareObjList
 from .chainidmanager import ChainIDManager
 
 def build_tmat(RotMat,TransVec):
@@ -29,8 +29,8 @@ def build_tmat(RotMat,TransVec):
         tmat[i][3]=TransVec[i]
     return tmat
 
-class Transform(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['index','tmat','applies_chainIDs','chainIDmap','segname_by_type_map']
+class Transform(AncestorAwareObj):
+    req_attr=AncestorAwareObj.req_attr+['index','tmat','applies_chainIDs','chainIDmap','segname_by_type_map']
     def __init__(self,*input_objs):
         input_dict={
             'tmat':None,
@@ -92,20 +92,20 @@ class Transform(AncestorAwareMod):
             logger.debug(f'Transform gets a new map applied to {applies_to}')
             self.chainIDmap=CM.generate_next_map(auChainIDs,applies_to)
 
-class TransformList(AncestorAwareModList):
+class TransformList(AncestorAwareObjList):
     def __init__(self,*args):
         L=[]
         if len(args)==1:
-            if type(args[0])==AncestorAwareModList:
+            if type(args[0])==AncestorAwareObjList:
                 for idx,item in enumerate(args[0]):
                     L.append(Transform(item,idx))
             elif args[0]=='identity':
                 L=[Transform('identity')]
         super().__init__(L)
 
-class BioAssemb(AncestorAwareMod):
+class BioAssemb(AncestorAwareObj):
     _index=1 # start at 1
-    req_attr=AncestorAwareMod.req_attr+['name','transforms','index']
+    req_attr=AncestorAwareObj.req_attr+['name','transforms','index']
     ''' Container for handling info for "REMARK 350 BIOMOLECULE: #" stanzas in RCSB PDB files '''
     def __init__(self,input_obj):
         if type(input_obj)==dict:
@@ -115,7 +115,7 @@ class BioAssemb(AncestorAwareMod):
                 'name':'A.U.',
                 'transforms':TransformList('identity')
             }
-        elif type(input_obj)==AncestorAwareModList:
+        elif type(input_obj)==AncestorAwareObjList:
             input_dict={'transforms':TransformList(input_obj)}
         elif type(input_obj)==TransformList:
             input_dict={'transforms':input_obj}
@@ -135,7 +135,7 @@ class BioAssemb(AncestorAwareMod):
         for T in self.transforms:
             T.generate_chainIDmap(AU.segments.segnames,AU.segments.daughters,CM)
 
-class BioAssembList(AncestorAwareModList):
+class BioAssembList(AncestorAwareObjList):
     def __init__(self,*obj):
         BioAssemb.reset_index()
         B=[]
@@ -157,7 +157,7 @@ class BioAssembList(AncestorAwareModList):
                         tr[banumber]=[]
                     tr[banumber].append(trnumber)
                 for ba,trs in tr.items():
-                    reclist=AncestorAwareModList([])
+                    reclist=AncestorAwareObjList([])
                     savhdr=[]
                     for t in trs:
                         if f'REMARK.350.BIOMOLECULE{ba}.TRANSFORM{t}' in p_struct:

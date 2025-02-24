@@ -2,15 +2,15 @@
 """ Defines the PSFTopoElement class and many descendants
     Defines the PSFContent class for parsing PSF files
 """
-from .basemod import *
-from .mods import SSBond,SSBondList,Link,LinkList
+from .baseobj import *
+from .objs.ssbond import SSBond,SSBondList
+from .objs.link import Link,LinkList
 from .coord import mic_shift
 from .util import countTime
-from .stringthings import split_ri, my_logger
+from .stringthings import split_ri
 from .config import segtype_of_resname, Config
 import networkx as nx 
 import numpy as np
-import pandas as pd
 import logging
 from copy import deepcopy
 from argparse import Namespace

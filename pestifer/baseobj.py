@@ -1,8 +1,8 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>.
 """ Namespace objects with attribute controls
 
-This module defines the BaseMod class as a derivative of argparse's
-very nice Namespace class, and the ModList class as a derivative
+This objule defines the BaseObj class as a derivative of argparse's
+very nice Namespace class, and the ObjList class as a derivative
 of collection's UserList.
 
 Attribute controls are enforced using class attributes that 
@@ -17,7 +17,7 @@ allow specification of
       the overall "value" of any instances
 
 A class with methods useful for manipulating lists of instances 
-of BaseMod's or their derivatives is also defined here.
+of BaseObj's or their derivatives is also defined here.
 
 """
 import operator
@@ -29,7 +29,7 @@ logger=logging.getLogger(__name__)
 from argparse import Namespace
 from functools import singledispatchmethod
 
-class BaseMod(Namespace):
+class BaseObj(Namespace):
     """A class defining a namespace with custom attribute controls.
 
     Required attributes are those that must have a value assigned
@@ -68,20 +68,20 @@ class BaseMod(Namespace):
     -------
 
     __eq__(other)
-        equality operator for BaseMod instances.  Two instances are considered
+        equality operator for BaseObj instances.  Two instances are considered
         equal if
         * they are actually the same instance; or 
         * they have the same values for all required attributes and for any 
           common optional attributes.
     
     __lt__(other)
-       less than operator for BaseMod instances.  Instance A is less than B if
+       less than operator for BaseObj instances.  Instance A is less than B if
        * all required and common optional attributes of A are less than or equal 
          to those of B; AND
        * at least one such attribute of A is strictly less than that of B  
 
     __le__(other)
-       less than or equal to operator for BaseMod instances.  Instance A is less 
+       less than or equal to operator for BaseObj instances.  Instance A is less 
        than or equal to B if
        * all required and common optional attributes of A are less than or equal 
          to those of B
@@ -170,7 +170,7 @@ class BaseMod(Namespace):
 
     @__init__.register(dict)
     def _from_dict(self,input_dict):
-        """BaseMod constructor when single positional argument is a dict
+        """BaseObj constructor when single positional argument is a dict
         Parameters
         ----------
         input_dict : dict
@@ -181,7 +181,7 @@ class BaseMod(Namespace):
         prep_dict={}
         for k,v in input_dict.items():
             if not self.req_attr and not self.opt_attr:
-                # let's treat an undifferentiated BaseMod like a Namespace
+                # let's treat an undifferentiated BaseObj like a Namespace
                 prep_dict[k]=v
             elif k in self.req_attr or k in self.opt_attr:
                 prep_dict[k]=v
@@ -207,8 +207,8 @@ class BaseMod(Namespace):
         """
         Parameters
         ----------
-        other : BaseMod
-            other BaseMod instance
+        other : BaseObj
+            other BaseObj instance
         """
         if not other:
             return False
@@ -229,8 +229,8 @@ class BaseMod(Namespace):
         """
         Parameters
         ----------
-        other : BaseMod
-            other BaseMod instance
+        other : BaseObj
+            other BaseObj instance
         """
         if not other:
             return False
@@ -248,8 +248,8 @@ class BaseMod(Namespace):
         """
         Parameters
         ----------
-        other : BaseMod
-            other BaseMod instance
+        other : BaseObj
+            other BaseObj instance
         """
         if not other:
             return False
@@ -266,8 +266,8 @@ class BaseMod(Namespace):
         """
         Parameters
         ----------
-        other : BaseMod
-            other BaseMod instance
+        other : BaseObj
+            other BaseObj instance
         attr : list, optional
             attributes used for the less-than comparison
         """
@@ -467,7 +467,7 @@ class BaseMod(Namespace):
                 for sk,sv in self.__dict__.items():
                     if hasattr(sv,'req_attr') and hasattr(sv,k):
                         sv.set(**fields)
-                    elif hasattr(sv,'modliststamp'):
+                    elif hasattr(sv,'objliststamp'):
                         for subitem in sv:
                             if hasattr(subitem,'req_attr') and hasattr(subitem,k):
                                 subitem.set(**fields)
@@ -496,7 +496,7 @@ class BaseMod(Namespace):
             setattr(self,attr,myObj)
         else:
             logger.debug(f'There may be a bug looking for {matchattr} to assign to {attr}; {adict}')
-            raise ValueError(f'stop')
+            # raise ValueError(f'stop')
     
     def update_attr_from_obj_attr(self,attr,obj,obj_attr):
         """Set value of caller's attribute from another
@@ -519,14 +519,14 @@ class BaseMod(Namespace):
     def update_attr_from_objlist_elem_attr(self,attr,objlist,index,obj_attr):
         setattr(self,attr,getattr(getattr(self,objlist)[index],obj_attr))
 
-class CloneableMod(BaseMod):
+class CloneableObj(BaseObj):
     """A class defining a custom namespace that can be cloned 
     
-    This BaseMod specialization gives instances the ability to
+    This BaseObj specialization gives instances the ability to
     be cloned and to remember their source object.  Attribute
     values can optionally be changed during the cloning
     operation.  The attribute 'clone_of' is added as an optional 
-    attribute; any BaseMod instance with an attribute named 
+    attribute; any BaseObj instance with an attribute named 
     'clone_of' is interpreted as a clone.
 
     Methods
@@ -544,7 +544,7 @@ class CloneableMod(BaseMod):
         instance
 
     """
-    opt_attr=BaseMod.opt_attr+['clone_of']
+    opt_attr=BaseObj.opt_attr+['clone_of']
     def clone(self,**options):
         """Generates and returns a clone of the calling instance
         
@@ -589,13 +589,13 @@ class CloneableMod(BaseMod):
         else:
             return None
         
-class AncestorAwareMod(CloneableMod):
+class AncestorAwareObj(CloneableObj):
     """A class defining custom, cloneable namespaces that can exists in a hierarchy 
     
-    In cases where an object instance attribute is *another* object, like a BaseMod or
+    In cases where an object instance attribute is *another* object, like a BaseObj or
     any derivative thereof, one often would like to allow the "child" object to have
     direct knowledge of its "ancestry".  This class introduces the optional
-    attribute 'ancestor_obj' to the CloneableMod class, and defines methods that
+    attribute 'ancestor_obj' to the CloneableObj class, and defines methods that
     allow calling instances to set this attribute.
 
     Methods
@@ -610,8 +610,8 @@ class AncestorAwareMod(CloneableMod):
         (of course, since this is a recursive method)
     
     """
-    opt_attr=CloneableMod.req_attr+['ancestor_obj']
-    ignore_attr=CloneableMod.ignore_attr+['ancestor_obj']
+    opt_attr=CloneableObj.req_attr+['ancestor_obj']
+    ignore_attr=CloneableObj.ignore_attr+['ancestor_obj']
     
     def claim_self(self,stamp):
         """Applies the stamp to the calling instance's ancestor_obj
@@ -639,10 +639,10 @@ class AncestorAwareMod(CloneableMod):
         for attr_name,obj in self.__dict__.items():
             if not attr_name=='ancestor_obj': # very important! or, could stamp self last?
                 classes=inspect.getmro(type(obj))
-                if AncestorAwareMod in classes or AncestorAwareModList in classes:
+                if AncestorAwareObj in classes or AncestorAwareObjList in classes:
                     obj.claim_descendants(stamp)
 
-class StateInterval(AncestorAwareMod):
+class StateInterval(AncestorAwareObj):
     """A class defining a custom, ancestor-aware namespace that encodes the 
     state between two bounding values
     
@@ -666,8 +666,8 @@ class StateInterval(AncestorAwareMod):
         returns a pretty string version of the calling instance
     
     """
-    req_attr=AncestorAwareMod.req_attr+['state','bounds']
-    opt_attr=AncestorAwareMod.opt_attr+['build']
+    req_attr=AncestorAwareObj.req_attr+['state','bounds']
+    opt_attr=AncestorAwareObj.opt_attr+['build']
     def __init__(self,input_dict):
         if not 'build' in input_dict:
             input_dict['build']=False
@@ -693,10 +693,10 @@ class StateInterval(AncestorAwareMod):
         """Returns a pretty string version"""
         return f'{self.state}({self.bounds[1]-self.bounds[0]+1})'
 
-class ModList(UserList):
-    """List of BaseMods or derivatives thereof
+class ObjList(UserList):
+    """List of BaseObjs or derivatives thereof
     
-    When collected into lists, BaseMod instances can acquire collective
+    When collected into lists, BaseObj instances can acquire collective
     importance that needs to be handled.  This class allows for filtering,
     sorting, and other functionalities on such lists.
 
@@ -713,7 +713,7 @@ class ModList(UserList):
         the attribute-name:value pairs in the fields dictionary
     
     get(**fields):
-        a modified filter() method whose return value depends on how
+        a objified filter() method whose return value depends on how
         many items in the calling instance are matches.  If none,
         returns an empty list; if one, returns that object; if more than one,
         returns the result of the filter (all the matches collected
@@ -800,16 +800,16 @@ class ModList(UserList):
         state intervals.
     
     map_attr(self,mapped_attr,key_attr,map)
-        Applies BaseMod::map_attr to each element of calling instance; 
-        BaseMod::map_attr applies the map dictionary to the value of the key attribute
+        Applies BaseObj::map_attr to each element of calling instance; 
+        BaseObj::map_attr applies the map dictionary to the value of the key attribute
         and stores the result in the mapped attribute; if mapped and
         key attributes are the same, mapping overwrites the attribute
     
     swap_attr(self,attr1,attr2)
-        Applies BaseMod::swap_attr to each element in calling instance
+        Applies BaseObj::swap_attr to each element in calling instance
 
     copy_attr(self,recv_attr,src_attr)
-        Applies BaseMod::copy_attr to each element in calling instance
+        Applies BaseObj::copy_attr to each element in calling instance
 
     assign_objs_to_attr(self,attr,objList,**matchattr)
         searches the objList for the hopefully single instance whose
@@ -827,7 +827,7 @@ class ModList(UserList):
     remove_duplicates(self)
         removes duplicates
     """
-    modliststamp=True
+    objliststamp=True
     def __init__(self,data):
         """Standard initialization of the UserList """
         super().__init__(data)
@@ -837,7 +837,7 @@ class ModList(UserList):
         whose attributes match the fields dictionary 
         
         This method uses the "matches()" instance method
-        of the BaseMod class
+        of the BaseObj class
 
         Parameters
         ----------
@@ -1005,7 +1005,7 @@ class ModList(UserList):
         return L.get(**subfields)
     
     def sort(self,by=None,reverse=False):
-        """ ModList sort function, a simple override of UserList.sort() 
+        """ ObjList sort function, a simple override of UserList.sort() 
         
         Parameters
         ----------
@@ -1302,13 +1302,13 @@ class ModList(UserList):
             # for c in b[1:]:
             #     logger.debug(f'discarding {str(c)}')
 
-class CloneableModList(ModList):
-    """A class for lists of cloneable mods 
+class CloneableObjList(ObjList):
+    """A class for lists of cloneable objs 
     
     Methods
     -------
     clone(**options)
-        applies CloneableMod::clone() to each element of the 
+        applies CloneableObj::clone() to each element of the 
         caller
     
     """
@@ -1331,13 +1331,13 @@ class CloneableModList(ModList):
             R.append(item.clone(**options))
         return R
 
-class AncestorAwareModList(CloneableModList):
-    """A class for lists of ancestor-aware mods 
+class AncestorAwareObjList(CloneableObjList):
+    """A class for lists of ancestor-aware objs 
     
     Methods
     -------
     claim_descendants(stamp)
-        applies AncestorAwareMod::claim_descendants to all
+        applies AncestorAwareObj::claim_descendants to all
         elements of caller
     """
     def claim_descendants(self,stamp):
@@ -1352,7 +1352,7 @@ class AncestorAwareModList(CloneableModList):
         for obj in self:
             obj.claim_descendants(stamp)
 
-class StateIntervalList(AncestorAwareModList):
+class StateIntervalList(AncestorAwareObjList):
     """A class for lists of StateIntervals """
     def insert(self,alien:StateInterval):
         for cont in self:

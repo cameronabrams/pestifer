@@ -3,10 +3,11 @@ from pestifer.residue import Residue, EmptyResidue
 from pestifer.config import Config, res_123
 from pestifer.molecule import Molecule
 from pestifer.cifutil import CIFdict, CIFload
-from pestifer.mods import InsertionList, Insertion
+from pestifer.objs.insertion import InsertionList, Insertion
 from io import StringIO
 from pidibble.pdbparse import PDBParser
 import yaml
+
 class TestResidue(unittest.TestCase):
     def get_source_dict(self,pdbid):
         source=f"""
@@ -165,6 +166,7 @@ class TestEmptyResidue(unittest.TestCase):
         self.assertEqual(m.chainID,'A')
         self.assertEqual(m.resseqnum,1)
         self.assertEqual(m.insertion,'')
+        
     def test_shortcode(self):
         c=Config()
         shortcode='2:X:W427'

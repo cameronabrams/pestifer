@@ -1,13 +1,17 @@
 import unittest
+import logging
+logger=logging.getLogger(__name__)
 from pestifer.cifutil import CIFdict, CIFload
 from pidibble.pdbparse import PDBParser
 from mmcif.api.PdbxContainers import DataContainer
-from pestifer.residue import Atom, AtomList, ResidueList, EmptyResidue, EmptyResidueList
+from pestifer.residue import ResidueList, EmptyResidue, EmptyResidueList
+from pestifer.objs.atom import Atom, AtomList
+from pestifer.objs.seqadv import Seqadv, SeqadvList
 from pestifer.config import Config
 from pestifer.scriptwriters import VMD
 from pestifer.bioassemb import Transform, TransformList, BioAssemb, BioAssembList
 from pestifer.util import reduce_intlist
-from pestifer.mods import *
+
 import os
 import numpy as np
 import glob
@@ -16,6 +20,8 @@ class TestCIF(unittest.TestCase):
 
     def test_fetch(self):
         source='8fae'
+        if os.path.exists(f'{source}.cif'):
+            os.remove(f'{source}.cif')
         PDBParser(PDBcode=source,input_format='mmCIF').fetch()
         self.assertTrue(os.path.isfile(f'{source}.cif'))
         os.remove(f'{source}.cif')
@@ -174,14 +180,12 @@ class TestCIF(unittest.TestCase):
         fromAtoms=ResidueList(Atoms)
         fromEmptyResidues=ResidueList(EmptyResidues)
         Residues=fromAtoms+fromEmptyResidues
+        Seqadvs.assign_residues(Residues)
         for s in Seqadvs:
             myres=Residues.get(
-                auth_asym_id = s.pdbx_pdb_strand_id,
-                auth_seq_id  = s.pdbx_auth_seq_num
+                chainID=s.chainID,resseqnum=s.resseqnum
             )
             if not myres:
-                print(s.__dict__)
-                for r in Residues:
-                    if r.auth_asym_id==s.pdbx_pdb_strand_id:
-                        print(f'{r.auth_seq_id} {type(r.auth_seq_id)} {r.auth_seq_id==s.pdbx_auth_seq_num}')
-                self.assertTrue('ENGINEERED' not in s.conflict and 'CONFLICT' not in s.conflict)
+                self.assertTrue('engineered' not in s.typekey and 'conflict' not in s.typekey)
+            else:
+                self.assertTrue('engineered' in s.typekey or 'conflict' not in s.typekey)

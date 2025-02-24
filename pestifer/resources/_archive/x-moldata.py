@@ -1,5 +1,5 @@
 from os import kill
-from pestifer.atom import Atom, _PDBAtomNameDict_
+from pestifer.objs.atom import Atom, _PDBAtomNameDict_
 from pestifer.ssbond import SSBond
 from pestifer.missing import Missing
 from pestifer.link import Link

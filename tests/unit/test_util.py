@@ -3,6 +3,8 @@ import unittest
 from pestifer.tasks import *
 import os
 from collections import UserList
+from pestifer.objs.mutation import Mutation
+from pestifer import objs
 
 class TestUtil(unittest.TestCase):
     def test_special_update(self):
@@ -29,7 +31,12 @@ class TestUtil(unittest.TestCase):
         self.assertEqual(L,'1 2')
     def test_inspect_classes(self):
         cls=inspect_classes('pestifer.tasks',use_yaml_headers_as_keys=True)
-        self.assertTrue(cls['psfgen'],PsfgenTask)
+        self.assertEqual(cls['psfgen'],PsfgenTask)
+
+    def test_inspect_package_dir(self):
+        x,y=inspect_package_dir(os.path.dirname(objs.__file__))
+        self.assertEqual(len(x),17)
+        self.assertEqual(x['Mutation'],Mutation)
 
     def test_replace(self):
         starting_dict={

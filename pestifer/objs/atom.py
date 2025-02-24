@@ -1,14 +1,21 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """Atoms
 """
-from .mods import *
-from pidibble.baserecord import BaseRecord
-from functools import singledispatchmethod
-from .util import reduce_intlist
+import logging
+logger=logging.getLogger(__name__)
 
-class Atom(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
-    opt_attr=AncestorAwareMod.opt_attr+['segname','empty','link','recordname','label_seq_id','label_comp_id','label_asym_id','label_atom_id']
+from functools import singledispatchmethod
+
+from pidibble.baserecord import BaseRecord
+from pidibble.pdbrecord import PDBRecord
+
+from ..baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..cifutil import CIFdict
+from ..util import reduce_intlist
+
+class Atom(AncestorAwareObj):
+    req_attr=AncestorAwareObj.req_attr+['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
+    opt_attr=AncestorAwareObj.opt_attr+['segname','empty','link','recordname','auth_seq_id','auth_comp_id','auth_asym_id','auth_atom_id']
     yaml_header='atoms'
     PDB_keyword='ATOM'
     mmCIF_name='atom_site'
@@ -48,9 +55,9 @@ class Atom(AncestorAwareMod):
             'serial':int(cifdict['id']),
             'name':cifdict['auth_atom_id'],
             'altloc':cifdict['label_alt_id'],
-            'resname':cifdict['auth_comp_id'],
-            'chainID':cifdict['auth_asym_id'],
-            'resseqnum':int(cifdict['auth_seq_id']),
+            'resname':cifdict['label_comp_id'],
+            'chainID':cifdict['label_asym_id'],
+            'resseqnum':cifdict['label_seq_id'],
             'insertion':cifdict['pdbx_pdb_ins_code'],
             'x':float(cifdict['cartn_x']),
             'y':float(cifdict['cartn_y']),
@@ -59,11 +66,18 @@ class Atom(AncestorAwareMod):
             'beta':float(cifdict['b_iso_or_equiv']),
             'elem':cifdict['type_symbol'],
             'charge':cifdict['pdbx_formal_charge'],
-            'label_seq_id':int(cifdict['label_seq_id']) if cifdict['label_seq_id'].isdigit() else cifdict['label_seq_id'],
-            'label_comp_id':cifdict['label_comp_id'],
-            'label_asym_id':cifdict['label_asym_id'],
-            'label_atom_id':cifdict['label_atom_id']
+            'auth_seq_id':cifdict['auth_seq_id'],
+            'auth_comp_id':cifdict['auth_comp_id'],
+            'auth_asym_id':cifdict['auth_asym_id'],
+            'auth_atom_id':cifdict['auth_atom_id']
         }
+        # if the seq id is a dot, we revert to the author designations for seq id and asym id
+        if input_dict['resseqnum']=='.':
+            # logger.debug(f'dot-resseqnum detected in {cifdict}')
+            input_dict['resseqnum']=input_dict['auth_seq_id']
+            # input_dict['chainID']=input_dict['auth_asym_id']
+        input_dict['resseqnum']=int(input_dict['resseqnum'])
+        
         input_dict['segname']=input_dict['chainID']
         input_dict['link']='None'
         input_dict['empty']=False
@@ -91,7 +105,7 @@ class Atom(AncestorAwareMod):
         self.y=other.y
         self.z=other.z
 
-class AtomList(AncestorAwareModList):
+class AtomList(AncestorAwareObjList):
     def reserialize(self):
         serial=1
         for a in self:

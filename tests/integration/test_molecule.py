@@ -2,9 +2,11 @@ import unittest
 from pestifer.molecule import Molecule
 from pestifer.config import Config, segtype_of_resname
 from pestifer.chainidmanager import ChainIDManager
-from pestifer.modmanager import ModManager
-from pestifer.mods import *
+from pestifer.objmanager import ObjManager
+from pestifer.objs.ssbond import SSBondList
+from pestifer.objs.link import LinkList
 from io import StringIO
+import os
 import yaml
 
 class TestMolecule(unittest.TestCase):
@@ -134,7 +136,7 @@ source:
         c=Config()
         directive=self.get_source_dict('4zmj')
         directive["source"]["biological_assembly"]=1
-        m=Molecule(source=directive["source"],modmanager=ModManager(),reset_counter=True)
+        m=Molecule(source=directive["source"],modmanager=ObjManager(),reset_counter=True)
         au=m.asymmetric_unit
         auao=au.ancestor_obj
         self.assertEqual(auao,m)

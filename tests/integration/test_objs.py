@@ -1,4 +1,10 @@
-from pestifer.mods import Mutation, Ter, Seqadv, SSBond, Crot, Link, Insertion
+from pestifer.objs.mutation import Mutation
+from pestifer.objs.ter import Ter
+from pestifer.objs.seqadv import Seqadv
+from pestifer.objs.ssbond import SSBond
+from pestifer.objs.crot import Crot
+from pestifer.objs.link import Link
+from pestifer.objs.insertion import Insertion
 from pestifer.cifutil import CIFdict, CIFload
 from pidibble.pdbparse import PDBParser
 from pestifer.bioassemb import Transform

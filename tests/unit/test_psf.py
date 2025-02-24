@@ -2,7 +2,6 @@
 import unittest
 from pestifer.psf import *
 from pestifer.command import Command
-from pestifer.mods import *
 
 class TestPSF(unittest.TestCase):
 

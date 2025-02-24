@@ -3,24 +3,38 @@
 
 """
 import logging
-from .mods import *
+logger=logging.getLogger(__name__)
+
 from argparse import Namespace
-from .atom import AtomList,Atom,Hetatm
-from .residue import ResidueList,Ter,TerList,EmptyResidue,EmptyResidueList
-from .segment import SegmentList
-from .basemod import AncestorAwareMod
-from .modmanager import ModManager
-from .stringthings import my_logger
 from mmcif.api.PdbxContainers import DataContainer
-from .config import *
+
+from .baseobj import AncestorAwareObj
+from .cifutil import CIFdict
+# from .config import Config
+from .objs.atom import AtomList, Atom, Hetatm
+# from .objs.cfusion import Cfusion,CfusionList
+# from .objs.cleavagesite import CleavageSite,CleavageSiteList
+# from .objs.crot import Crot,CrotList
+# from .objs.deletion import Deletion, DeletionList
+from .objs.graft import Graft, GraftList
+# from .objs.insertion import Insertion, InsertionList
+from .objs.link import Link, LinkList
+from .objs.mutation import Mutation, MutationList
+from .objs.seqadv import Seqadv, SeqadvList
+from .objs.ssbond import SSBond, SSBondList
+# from .objs.ssbonddelete import SSBondDelete, SSBondDeleteListe
+# from .objs.substitution import Substitution, SubstitutionList
+from .objs.ter import Ter, TerList
+from .residue import ResidueList,EmptyResidue,EmptyResidueList
+from .segment import SegmentList
+from .objmanager import ObjManager
+from .stringthings import my_logger
 from .util import write_residue_map
 from .psf import PSFContents
 
-logger=logging.getLogger(__name__)
-
-class AsymmetricUnit(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['atoms','residues','modmanager']
-    opt_attr=AncestorAwareMod.opt_attr+['segments','ignored','pruned']
+class AsymmetricUnit(AncestorAwareObj):
+    req_attr=AncestorAwareObj.req_attr+['atoms','residues','modmanager']
+    opt_attr=AncestorAwareObj.opt_attr+['segments','ignored','pruned']
     excludables={'resnames':'resname','chains':'chainID','segtypes':'segtype'}
     def __init__(self,**objs):
         if len(objs)==0:
@@ -28,13 +42,13 @@ class AsymmetricUnit(AncestorAwareMod):
             input_dict={
                 'atoms':AtomList([]),
                 'residues':ResidueList([]),
-                'modmanager':ModManager(),
+                'modmanager':ObjManager(),
                 'segments':SegmentList({},ResidueList([]))
             }
         else: #
             pr=objs.get('parsed',None)
             sourcespecs=objs.get('sourcespecs',{})
-            modmanager=objs.get('modmanager',ModManager())
+            modmanager=objs.get('modmanager',ObjManager())
             chainIDmanager=objs.get('chainIDmanager',None)
             psf=objs.get('psf',None)
 

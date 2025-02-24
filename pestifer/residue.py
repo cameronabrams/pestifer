@@ -1,18 +1,28 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """ Defines the EmptyResidue and Residue classes
 """
-from .mods import *
-from .config import segtype_of_resname
-from pidibble.baserecord import BaseRecord
-from functools import singledispatchmethod
-from argparse import Namespace
-from .stringthings import join_ri
-from .coord import positionN
-from .atom import *
+import logging
+logger=logging.getLogger(__name__)
 
-class EmptyResidue(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['resname','resseqnum','insertion','chainID','resolved','segtype']
-    opt_attr=AncestorAwareMod.opt_attr+['model','id','label_asym_id','label_comp_id','label_seq_id']
+from argparse import Namespace
+from functools import singledispatchmethod
+
+from pidibble.baserecord import BaseRecord
+from pidibble.pdbrecord import PDBRecord
+
+from .baseobj import AncestorAwareObj, AncestorAwareObjList
+from .cifutil import CIFdict
+from .config import res_123, segtype_of_resname
+from .coord import positionN
+from .objs.atom import Atom, AtomList, Hetatm
+from .objs.seqadv import Seqadv, SeqadvList
+from .objs.deletion import DeletionList
+from .objs.substitution import SubstitutionList
+from .stringthings import join_ri, split_ri
+
+class EmptyResidue(AncestorAwareObj):
+    req_attr=AncestorAwareObj.req_attr+['resname','resseqnum','insertion','chainID','resolved','segtype']
+    opt_attr=AncestorAwareObj.opt_attr+['model','id','auth_asym_id','auth_comp_id','auth_seq_id']
     yaml_header='missings'
     PDB_keyword='REMARK.465'
     mmCIF_name='pdbx_unobs_or_zero_occ_residues'
@@ -44,15 +54,15 @@ class EmptyResidue(AncestorAwareMod):
             nmn=1
         input_dict={
             'model':nmn,
-            'resname':cd['auth_comp_id'],
-            'chainID':cd['auth_asym_id'],
-            'resseqnum':int(cd['auth_seq_id']),
+            'resname':cd['label_comp_id'],
+            'chainID':cd['label_asym_id'],
+            'resseqnum':int(cd['label_seq_id']),
             'insertion':cd['pdb_ins_code'],
             'resolved':False,
             'segtype':'UNSET',
-            'label_asym_id':cd['label_asym_id'],
-            'label_comp_id':cd['label_comp_id'],
-            'label_seq_id':int(cd['label_seq_id']),
+            'auth_asym_id':cd['auth_asym_id'],
+            'auth_comp_id':cd['auth_comp_id'],
+            'auth_seq_id':int(cd['auth_seq_id']),
         }
         super().__init__(input_dict)
 
@@ -111,7 +121,7 @@ class EmptyResidue(AncestorAwareMod):
         return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>5d}{:1s}'.format(record_name,
         code,self.model,self.resname,self.chainID,self.resseqnum,self.insertion)
 
-class EmptyResidueList(AncestorAwareModList):
+class EmptyResidueList(AncestorAwareObjList):
     pass
 
 class Residue(EmptyResidue):
@@ -136,7 +146,7 @@ class Residue(EmptyResidue):
             'segtype':'UNSET',
             'resolved':True
         }
-        for cif_xtra in ['label_seq_id','label_comp_id','label_asym_id']:
+        for cif_xtra in ['auth_seq_id','auth_comp_id','auth_asym_id']:
             if hasattr(a,cif_xtra):
                 input_dict[cif_xtra]=a.__dict__[cif_xtra]
         super().__init__(input_dict)
@@ -159,7 +169,7 @@ class Residue(EmptyResidue):
             'segtype':'UNSET',
             'resolved':False
         }
-        for cif_xtra in ['label_asym_id','label_comp_id','label_seq_id']:
+        for cif_xtra in ['auth_asym_id','auth_comp_id','auth_seq_id']:
             if hasattr(m,cif_xtra):
                 input_dict[cif_xtra]=m.__dict__[cif_xtra]
         super().__init__(input_dict)
@@ -257,7 +267,7 @@ class Residue(EmptyResidue):
             lin.extend(tlin)
         return res,lin
     
-class ResidueList(AncestorAwareModList):
+class ResidueList(AncestorAwareObjList):
 
     @singledispatchmethod
     def __init__(self,input_obj):
@@ -286,14 +296,14 @@ class ResidueList(AncestorAwareModList):
         else:
             raise ValueError(f'Residue not found')
 
-    def map_chainIDs_auth_to_label(self):
-        self.chainIDmap_auth_to_label={}
+    def map_chainIDs_label_to_auth(self):
+        self.chainIDmap_label_to_auth={}
         for r in self:
-            if hasattr(r,'label_asym_id'):
-                label_Cid=r.label_asym_id
-                auth_Cid=r.chainID
-                if not auth_Cid in self.chainIDmap_auth_to_label:
-                    self.chainIDmap_auth_to_label[auth_Cid]=label_Cid
+            if hasattr(r,'auth_asym_id'):
+                label_Cid=r.chainID
+                auth_Cid=r.auth_asym_id
+                if not label_Cid in self.chainIDmap_label_to_auth:
+                    self.chainIDmap_label_to_auth[label_Cid]=auth_Cid
 
     def get_residue(self,**fields):
         return self.get(**fields)

@@ -26,6 +26,9 @@ Pestifer includes the July 2024 Charmm36 force field.
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
+* 1.8.0
+    * new source code structure
+    * mmCIF convention updated
 * 1.7.4
     * bugfix:
         * xst trace for `mdplot` fails if empty

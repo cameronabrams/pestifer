@@ -1,6 +1,5 @@
 import unittest
 from pestifer.controller import Controller
-from pestifer.mods import *
 from pestifer.resourcemanager import ResourceManager
 
 class TestController(unittest.TestCase):

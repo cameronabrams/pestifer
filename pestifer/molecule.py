@@ -3,19 +3,19 @@
 """
 import logging
 import os
-from .modmanager import ModManager
+from .objmanager import ObjManager
 from pidibble.pdbparse import PDBParser
 from .cifutil import CIFload
-from .basemod import AncestorAwareMod
+from .baseobj import AncestorAwareObj
 from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList,BioAssemb
 from .scriptwriters import Psfgen, Filewriter
 from .chainidmanager import ChainIDManager
 logger=logging.getLogger(__name__)
 
-class Molecule(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['molid','modmanager','chainIDmanager','sourcespecs','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
-    opt_attr=AncestorAwareMod.opt_attr+['active_biological_assembly']
+class Molecule(AncestorAwareObj):
+    req_attr=AncestorAwareObj.req_attr+['molid','modmanager','chainIDmanager','sourcespecs','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
+    opt_attr=AncestorAwareObj.opt_attr+['active_biological_assembly']
     _molcounter=0
     def __init__(self,source={},modmanager=None,chainIDmanager=None,**kwargs):
         psf=None
@@ -53,8 +53,8 @@ class Molecule(AncestorAwareMod):
                 logger.debug(f'None of "id", "prebuilt", or "alphafold" specified; initializing an empty molecule')
                 p_struct=None
         if modmanager==None:
-            logger.debug(f'Making an empty ModManager')
-            modmanager=ModManager()
+            logger.debug(f'Making an empty ObjManager')
+            modmanager=ObjManager()
         if chainIDmanager==None:
             logger.debug(f'Molecule instantiating its own ChainIDManager')
             chainIDmanager=ChainIDManager()

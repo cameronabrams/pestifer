@@ -3,24 +3,22 @@
 """
 from pidibble.pdbparse import PDBParser
 from mmcif.io.IoAdapterCore import IoAdapterCore
+from mmcif.api.PdbxContainers import DataContainer
 from collections import UserDict
 
 class CIFdict(UserDict):
     """A class for generating a custom-format dictionary from an mmcif input object"""
-    def __init__(self,Obj,idx,lowercase=True,linkers={'.':{'label_seq_id':'auth_seq_id'}},blankers=[' ','?']):
+    def __init__(self,Obj,idx,lowercase=True,blankers=[' ','?']):
         if lowercase:
             data={c.lower():Obj.getValue(c,idx) for c in Obj.getAttributeList()}
         else:
             data={c:Obj.getValue(c,idx) for c in Obj.getAttributeList()}
         for k,v in data.items():
-            klkey=linkers.get(v,{}).get(k,k)
-            valk=data[klkey]
-            if valk in blankers:
-                valk=''
-            data[klkey]=valk
+            if v in blankers:
+                data[k]=''
         super().__init__(data)
 
-def CIFload(pdb_id):
+def CIFload(pdb_id) -> DataContainer:
     """Downloads (if necessary) and reads in a mmCIF file into an mmcif DataContainer object"""
     # fetch the cif file if not already present
     PDBParser(PDBcode=pdb_id,input_format='mmCIF').fetch()

@@ -3,16 +3,18 @@
 """
 import logging
 logger=logging.getLogger(__name__)
-from .basemod import AncestorAwareMod, AncestorAwareModList
-from .mods import MutationList, CfusionList, GraftList
+from .baseobj import AncestorAwareObj, AncestorAwareObjList
+from .objs.mutation import MutationList
+from .objs.cfusion import CfusionList
+from .objs.graft import GraftList
 from .config import charmm_resname_of_pdb_resname
 from .residue import Residue,ResidueList
 from .util import reduce_intlist
 from .scriptwriters import Psfgen
 
-class Segment(AncestorAwareMod):
-    req_attr=AncestorAwareMod.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','specs']
-    opt_attr=AncestorAwareMod.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname']
+class Segment(AncestorAwareObj):
+    req_attr=AncestorAwareObj.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','specs']
+    opt_attr=AncestorAwareObj.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname']
     inheritable_mods=['mutations','Cfusions','grafts']
     def __init__(self,specs,input_obj,segname):
         if type(input_obj)==dict:
@@ -307,7 +309,7 @@ class Segment(AncestorAwareMod):
         W.banner(f'Segment {image_seglabel} ends')
         # THIS IS BAD self.modmanager.retire('seqmods')
 
-class SegmentList(AncestorAwareModList):
+class SegmentList(AncestorAwareObjList):
     """A class for creating and handling a list of segments given a complete list of residues for an entire asymmetric unit"""
     def __init__(self,*objs):
         if len(objs)==1 and objs[0]==[]:
