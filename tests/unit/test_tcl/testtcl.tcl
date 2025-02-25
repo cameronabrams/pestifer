@@ -1,5 +1,5 @@
 ############################ pestifer: testtcl.tcl #############################
-####################### Created Tue Feb 18 09:23:49 2025 #######################
+####################### Created Tue Feb 25 16:45:47 2025 #######################
 mol new 6pti.pdb
 set a [atomselect top all]
 set data [ backup $a [ list chain x y z resid resname name ] ]

@@ -1,7 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 import logging
 logger=logging.getLogger(__name__)
-import os
 
 from functools import singledispatchmethod
 

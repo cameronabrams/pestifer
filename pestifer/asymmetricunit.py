@@ -8,10 +8,9 @@ logger=logging.getLogger(__name__)
 from argparse import Namespace
 from mmcif.api.PdbxContainers import DataContainer
 
-from .baseobj import AncestorAwareObj
-from .cifutil import CIFdict
-# from .config import Config
 from .atom import AtomList, Atom, Hetatm
+from .baseobj import AncestorAwareObj
+# from .config import Config
 # from .objs.cfusion import Cfusion,CfusionList
 # from .objs.cleavagesite import CleavageSite,CleavageSiteList
 # from .objs.crot import Crot,CrotList
@@ -25,12 +24,13 @@ from .objs.ssbond import SSBond, SSBondList
 # from .objs.ssbonddelete import SSBondDelete, SSBondDeleteListe
 # from .objs.substitution import Substitution, SubstitutionList
 from .objs.ter import Ter, TerList
+from .objmanager import ObjManager
+from .psfutil.psfcontents import PSFContents
 from .residue import ResidueList,EmptyResidue,EmptyResidueList
 from .segment import SegmentList
-from .objmanager import ObjManager
 from .stringthings import my_logger
-from .util import write_residue_map
-from .psfutil.psftopoelement import PSFContents
+from .util.util import write_residue_map
+from .util.cifutil import CIFdict
 
 class AsymmetricUnit(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['atoms','residues','modmanager']

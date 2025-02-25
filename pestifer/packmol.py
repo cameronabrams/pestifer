@@ -8,7 +8,7 @@ import logging
 import os
 
 from .command import Command
-from .progress import PackmolProgress
+from .util.progress import PackmolProgress
 from .scriptwriters import Filewriter
 from .stringthings import FileCollector, striplist
 

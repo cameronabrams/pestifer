@@ -5,7 +5,7 @@ import logging
 import os
 from .objmanager import ObjManager
 from pidibble.pdbparse import PDBParser
-from .cifutil import CIFload
+from .util.cifutil import CIFload
 from .baseobj import AncestorAwareObj
 from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList,BioAssemb

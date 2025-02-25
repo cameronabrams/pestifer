@@ -14,7 +14,9 @@ from .psfutil.psfbond import PSFBondList
 from .psfutil.psfcontents import PSFContents
 from .psfutil.psftopoelement import PSFTopoElementList,PSFTopoElement
 
-from .util import countTime
+from .util.coord import coorddf_from_pdb
+from .util.linkcell import Linkcell
+from .util.util import countTime, cell_from_xsc
 
 logger=logging.getLogger(__name__)
 

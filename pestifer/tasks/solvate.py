@@ -7,7 +7,7 @@ from pidibble.pdbparse import PDBParser
 
 from ..basetask import BaseTask
 
-from ..util import cell_from_xsc, cell_to_xsc
+from ..util.util import cell_from_xsc, cell_to_xsc
 
 class SolvateTask(BaseTask):
     yaml_header='solvate'

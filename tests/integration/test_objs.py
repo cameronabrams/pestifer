@@ -5,13 +5,12 @@ from pestifer.objs.ssbond import SSBond
 from pestifer.objs.crot import Crot
 from pestifer.objs.link import Link
 from pestifer.objs.insertion import Insertion
-from pestifer.cifutil import CIFdict, CIFload
+from pestifer.util.cifutil import CIFdict, CIFload
 from pidibble.pdbparse import PDBParser
 from pestifer.bioassemb import Transform
 from pestifer.config import Config, segtype_of_resname
 from pestifer.stringthings import ByteCollector
-from pidibble.pdbparse import PDBRecord, PDBParser
-from pestifer.cifutil import CIFload
+from pidibble.pdbparse import PDBParser
 import unittest
 # import pytest
 

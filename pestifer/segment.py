@@ -9,7 +9,7 @@ from .objs.cfusion import CfusionList
 from .objs.graft import GraftList
 from .config import charmm_resname_of_pdb_resname
 from .residue import Residue,ResidueList
-from .util import reduce_intlist
+from .util.util import reduce_intlist
 from .scriptwriters import Psfgen
 
 class Segment(AncestorAwareObj):

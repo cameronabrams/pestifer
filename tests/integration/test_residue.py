@@ -2,7 +2,7 @@ import unittest
 from pestifer.residue import Residue, EmptyResidue
 from pestifer.config import Config, res_123
 from pestifer.molecule import Molecule
-from pestifer.cifutil import CIFdict, CIFload
+from pestifer.util.cifutil import CIFdict, CIFload
 from pestifer.objs.insertion import InsertionList, Insertion
 from io import StringIO
 from pidibble.pdbparse import PDBParser

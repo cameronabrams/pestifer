@@ -5,8 +5,8 @@ from functools import singledispatchmethod
 from pidibble.pdbrecord import PDBRecord
 
 from ..baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..cifutil import CIFdict
-from ..coord import ic_reference_closest
+from ..util.cifutil import CIFdict
+from ..util.coord import ic_reference_closest
 from ..scriptwriters import Psfgen, Filewriter
 from ..stringthings import split_ri
 
@@ -141,8 +141,8 @@ class Link(AncestorAwareObj):
             'ptnr2_label_asym_id':cd['ptnr2_label_asym_id'],
             'ptnr1_label_comp_id':cd['ptnr1_label_comp_id'],
             'ptnr2_label_comp_id':cd['ptnr2_label_comp_id'],
-            'ptnr1_label_seq_id':int(cd['ptnr1_label_seq_id']),
-            'ptnr2_label_seq_id':int(cd['ptnr2_label_seq_id']),
+            'ptnr1_label_seq_id':cd['ptnr1_label_seq_id'],
+            'ptnr2_label_seq_id':cd['ptnr2_label_seq_id'],
             })
         input_dict.update({
                 'residue1':None,

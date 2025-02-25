@@ -7,14 +7,13 @@ import datetime
 import shutil
 import logging
 
-from .colors import *
-
 from .command import Command
-from .util import reduce_intlist
-from .util.namdlog import NAMDLog, NAMDxst
-from .progress import NAMDProgress, PsfgenProgress, PestiferProgress
-from .stringthings import ByteCollector, FileCollector
 from .config import Config
+from .stringthings import ByteCollector, FileCollector
+from .util.colors import *
+from .util.namdlog import NAMDLog, NAMDxst
+from .util.progress import NAMDProgress, PsfgenProgress, PestiferProgress
+from .util.util import reduce_intlist
 
 logger=logging.getLogger(__name__)
 

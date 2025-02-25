@@ -947,7 +947,7 @@ tasks:
     source:
       biological_assembly: 1
       exclude: {}
-      file_format: PDB
+      file_format: mmCIF
       id: 7xix
       prebuilt: {}
       remap_chainIDs: {}

@@ -11,7 +11,7 @@ from ..chainidmanager import ChainIDManager
 from ..command import Command
 from ..molecule import Molecule
 from ..objmanager import ObjManager
-from ..psfutil.psftopoelement import PSFContents
+from ..psfutil.psfcontents import PSFContents
 
 logger=logging.getLogger(__name__)
 

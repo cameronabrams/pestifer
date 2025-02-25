@@ -369,6 +369,7 @@ class FileCollector(UserList):
             else:
                 logger.debug(f'{f}: not found.')
         self.clear()
+        
     def tarball(self,basename):
         """Makes a tarball of the files in the collection
         

@@ -1,13 +1,11 @@
+import logging
 from pestifer.ring import RingList
-from pestifer.util import *
 import unittest
-from pestifer.tasks import *
-from pestifer.psfutil.psftopoelement import PSFContents
-from pestifer.coord import coorddf_from_pdb
-import os
-from collections import UserList
-import numpy as np
+from pestifer.psfutil.psfcontents import PSFContents
+from pestifer.util.coord import coorddf_from_pdb
+from pestifer.util.util import cell_from_xsc
 
+logger=logging.getLogger(__name__)
 
 class TestRings(unittest.TestCase):
     def test_ringlist_count(self):

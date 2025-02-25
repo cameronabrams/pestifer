@@ -4,16 +4,17 @@ the configuration, from which the list of tasks is created.  The do_tasks() meth
 the tasks.
 """
 import logging
-logger=logging.getLogger(__name__)
+import os
 
+from .basetask import BaseTask
 from .config import Config
 from .scriptwriters import Filewriter,Psfgen,VMD,NAMD
-from .util import *
+from .tasks.terminate import TerminateTask
+from .util.util import inspect_package_dir
 
 from . import tasks
 
-from .basetask import BaseTask
-from .tasks.terminate import TerminateTask
+logger=logging.getLogger(__name__)
 
 class Controller:
     """ A class for controlling the execution of `Tasks`.
@@ -33,7 +34,7 @@ class Controller:
             'data':   Filewriter()
         }
 
-        task_classes=inspect_package_dir(os.path.dirname(tasks.__file__))
+        task_classes,dum=inspect_package_dir(os.path.dirname(tasks.__file__))
         logger.debug(f'task_classes {task_classes}')
 
         # set up the task list

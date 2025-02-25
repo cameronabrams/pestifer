@@ -1,7 +1,12 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 import unittest
-from pestifer.psfutil.psftopoelement import *
+
 from pestifer.command import Command
+from pestifer.objs.link import Link
+from pestifer.psfutil.psfbond import PSFBond
+from pestifer.psfutil.psfangle import PSFAngle
+from pestifer.psfutil.psfdihedral import PSFDihedral
+from pestifer.psfutil.psfcontents import PSFContents
 
 class TestPSF(unittest.TestCase):
 

@@ -1,7 +1,7 @@
-# Author: Cameron F. Abrams <cfa22@drexel.edu>.
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """ A dictionary object for containing all objs from a task specification
 """
-from .util import inspect_package_dir
+from .util.util import inspect_package_dir
 from collections import UserDict
 import logging
 logger=logging.getLogger(__name__)

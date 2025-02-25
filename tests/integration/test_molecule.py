@@ -97,6 +97,8 @@ source:
         directive=self.get_source_dict('4zmj')
         m=Molecule(source=directive["source"])
         au=m.asymmetric_unit
+        self.assertEqual(len(au.residues),659)
+
         links=au.modmanager['topomods']['links']
         l=links[0]
         self.assertEqual(l.residue1.segtype,'protein')

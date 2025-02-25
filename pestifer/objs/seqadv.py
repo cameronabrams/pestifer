@@ -5,7 +5,7 @@ from functools import singledispatchmethod
 from pidibble.pdbrecord import PDBRecord
 
 from ..baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..cifutil import CIFdict
+from ..util.cifutil import CIFdict
 
 class Seqadv(AncestorAwareObj):
     """A class for handling SEQADV/seq_dif records in input structure files 

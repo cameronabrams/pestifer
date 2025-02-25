@@ -7,7 +7,7 @@ logger=logging.getLogger(__name__)
 
 from ..basetask import BaseTask
 from ..colvars import colvar_writer
-from ..util import is_periodic
+from ..util.util import is_periodic
 
 class MDTask(BaseTask):
     """ A class for handling all NAMD runs

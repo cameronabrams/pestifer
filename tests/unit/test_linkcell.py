@@ -1,12 +1,7 @@
-from pestifer.linkcell import Linkcell
-from pestifer.util import cell_from_xsc
-from pestifer.coord import coorddf_from_pdb
+from pestifer.util.linkcell import Linkcell
+from pestifer.util.util import cell_from_xsc
 import unittest
-from pestifer.tasks import *
-import os
-from collections import UserList
 import numpy as np
-
 
 class TestLinkcell(unittest.TestCase):
     def test_linkcell_create(self):

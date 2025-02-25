@@ -6,7 +6,7 @@ from functools import singledispatchmethod
 from pidibble.pdbrecord import PDBRecord
 
 from ..baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..cifutil import CIFdict
+from ..util.cifutil import CIFdict
 from ..scriptwriters import Psfgen
 from ..stringthings import split_ri
 

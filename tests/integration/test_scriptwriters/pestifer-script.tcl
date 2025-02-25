@@ -1,5 +1,5 @@
 ######################## pestifer: pestifer-script.tcl #########################
-####################### Created Tue Feb 18 09:23:02 2025 #######################
+####################### Created Tue Feb 25 16:45:03 2025 #######################
 package require psfgen
 psfcontext mixedcase
 topology top_all36_prot.rtf

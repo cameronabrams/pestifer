@@ -141,15 +141,16 @@ def reduce_intlist(L):
     return ret
 
 def inspect_package_dir(dirname,key=' ',use_yaml_headers_as_keys=False):
-    mods=glob.glob(f'{dirname}/*.py')
-    for om in mods:
+    modules=glob.glob(f'{dirname}/*.py')
+    packagename=os.path.split(dirname)[-1]
+    for om in modules:
         if '__init__' in om:
-            mods.remove(om)
+            modules.remove(om)
             break
     obj_classes,objlist_classes={},{}
-    for om in mods:
+    for om in modules:
         modname=os.path.splitext(os.path.basename(om))[0]
-        x,y=inspect_classes(f'pestifer.objs.{modname}',key=key,use_yaml_headers_as_keys=use_yaml_headers_as_keys)
+        x,y=inspect_classes(f'pestifer.{packagename}.{modname}',key=key,use_yaml_headers_as_keys=use_yaml_headers_as_keys)
         obj_classes.update(x)
         objlist_classes.update(y)
     return obj_classes,objlist_classes
@@ -195,7 +196,7 @@ def inspect_classes(module,key=' ',use_yaml_headers_as_keys=False):
             else:
                 nkey=name
             classes[nkey]=cls
-        return classes
+        return classes,{}
     
 def replace(data,match,repl):
     """Recursive value search-and-replace; data is either list or dictionary; nesting is ok
