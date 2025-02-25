@@ -8,9 +8,12 @@ logger=logging.getLogger(__name__)
 
 from .config import Config
 from .scriptwriters import Filewriter,Psfgen,VMD,NAMD
-from .tasks import *
-from .bilayer import *
 from .util import *
+
+from . import tasks
+
+from .basetask import BaseTask
+from .tasks.terminate import TerminateTask
 
 class Controller:
     """ A class for controlling the execution of `Tasks`.
@@ -30,10 +33,10 @@ class Controller:
             'data':   Filewriter()
         }
 
-        # set up the task list
-        task_classes=inspect_classes('pestifer.tasks')
-        task_classes.update(inspect_classes('pestifer.bilayer'))
+        task_classes=inspect_package_dir(os.path.dirname(tasks.__file__))
         logger.debug(f'task_classes {task_classes}')
+
+        # set up the task list
         self.tasks=[]
         prior_task=None
         BaseTask._taskcount=0

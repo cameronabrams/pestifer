@@ -9,9 +9,9 @@ from functools import singledispatchmethod
 from pidibble.baserecord import BaseRecord
 from pidibble.pdbrecord import PDBRecord
 
-from ..baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..cifutil import CIFdict
-from ..util import reduce_intlist
+from .baseobj import AncestorAwareObj, AncestorAwareObjList
+from .cifutil import CIFdict
+from .util import reduce_intlist
 
 class Atom(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']

@@ -7,7 +7,7 @@ import numpy as np
 import os
 import logging
 logger=logging.getLogger(__name__)
-from .stringthings import my_logger
+from ..stringthings import my_logger
 
 def getinfo(name,line):
     parseline=line[len('Info:'):].split()

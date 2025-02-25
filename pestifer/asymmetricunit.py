@@ -11,7 +11,7 @@ from mmcif.api.PdbxContainers import DataContainer
 from .baseobj import AncestorAwareObj
 from .cifutil import CIFdict
 # from .config import Config
-from .objs.atom import AtomList, Atom, Hetatm
+from .atom import AtomList, Atom, Hetatm
 # from .objs.cfusion import Cfusion,CfusionList
 # from .objs.cleavagesite import CleavageSite,CleavageSiteList
 # from .objs.crot import Crot,CrotList
@@ -30,7 +30,7 @@ from .segment import SegmentList
 from .objmanager import ObjManager
 from .stringthings import my_logger
 from .util import write_residue_map
-from .psf import PSFContents
+from .psfutil.psftopoelement import PSFContents
 
 class AsymmetricUnit(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['atoms','residues','modmanager']

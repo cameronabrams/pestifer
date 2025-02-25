@@ -1,6 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 import unittest
-from pestifer.psf import *
+from pestifer.psfutil.psftopoelement import *
 from pestifer.command import Command
 
 class TestPSF(unittest.TestCase):

@@ -2,7 +2,7 @@ from pestifer.ring import RingList
 from pestifer.util import *
 import unittest
 from pestifer.tasks import *
-from pestifer.psf import PSFContents
+from pestifer.psfutil.psftopoelement import PSFContents
 from pestifer.coord import coorddf_from_pdb
 import os
 from collections import UserList

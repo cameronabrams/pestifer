@@ -5,7 +5,7 @@ import glob
 import logging
 import os
 import shutil
-from .namdlog import NAMDLog
+from .util.namdlog import NAMDLog
 from .scriptwriters import Filewriter
 from .stringthings import ByteCollector
 

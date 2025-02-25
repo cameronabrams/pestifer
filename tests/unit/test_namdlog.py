@@ -1,6 +1,6 @@
 import unittest
 import pytest
-from pestifer.namdlog import NAMDLog,getinfo,NAMDxst
+from pestifer.util.namdlog import NAMDLog,getinfo,NAMDxst
 
 class TestNAMDLog(unittest.TestCase):
     def test_namdlog_init(self):

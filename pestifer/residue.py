@@ -14,7 +14,7 @@ from .baseobj import AncestorAwareObj, AncestorAwareObjList
 from .cifutil import CIFdict
 from .config import res_123, segtype_of_resname
 from .coord import positionN
-from .objs.atom import Atom, AtomList, Hetatm
+from .atom import Atom, AtomList, Hetatm
 from .objs.seqadv import Seqadv, SeqadvList
 from .objs.deletion import DeletionList
 from .objs.substitution import SubstitutionList

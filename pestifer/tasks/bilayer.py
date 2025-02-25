@@ -1,15 +1,17 @@
 # Author: Cameron F. Abrams, <cfa2@drexel.edu>
 import logging
-import yaml
 import numpy as np
-from .charmmtop import CharmmResiDatabase
-from .config import Config
-from .coord import coorddf_from_pdb
-from .packmol import PackmolInputWriter
-from .psf import PSFContents
-from .stringthings import _UNITS_, _SYMBOLS_, my_logger
-from .tasks import BaseTask
-from .util import cell_to_xsc, nmolec_in_cuA
+import yaml
+
+from ..basetask import BaseTask
+from ..charmmtop import CharmmResiDatabase
+from ..config import Config
+from ..util.coord import coorddf_from_pdb
+from ..packmol import PackmolInputWriter
+from ..psfutil.psfcontents import PSFContents
+from ..util.units import _UNITS_, _SYMBOLS_
+from ..stringthings import my_logger
+from ..util.util import cell_to_xsc, nmolec_in_cuA
 
 sA_ =_SYMBOLS_['ANGSTROM']
 sA2_=_UNITS_['SQUARE-ANGSTROMS']

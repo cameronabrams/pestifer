@@ -16,7 +16,7 @@ class ObjManager(UserDict):
        a single, organized object 
        
     """
-    obj_classes,objlist_classes=inspect_package_dir(os.path.dirname(objs.__file__))
+    obj_classes,objlist_classes=inspect_package_dir(os.path.dirname(objs.__file__),key='List')
     
     def __init__(self,input_specs={}):
         """ 

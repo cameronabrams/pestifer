@@ -5,7 +5,7 @@ from pestifer.cifutil import CIFdict, CIFload
 from pidibble.pdbparse import PDBParser
 from mmcif.api.PdbxContainers import DataContainer
 from pestifer.residue import ResidueList, EmptyResidue, EmptyResidueList
-from pestifer.objs.atom import Atom, AtomList
+from pestifer.atom import Atom, AtomList
 from pestifer.objs.seqadv import Seqadv, SeqadvList
 from pestifer.config import Config
 from pestifer.scriptwriters import VMD

@@ -13,16 +13,6 @@ from io import StringIO
 
 logger=logging.getLogger(__name__)
 
-_SYMBOLS_={
-    'ANGSTROM':'Å',
-    'CUBED':'³',
-    'SQUARED':'²'
-}
-_UNITS_={
-    'SQUARE-ANGSTROMS':f'{_SYMBOLS_["ANGSTROM"]}{_SYMBOLS_["SQUARED"]}',
-    'CUBIC-ANGSTROMS':f'{_SYMBOLS_["ANGSTROM"]}{_SYMBOLS_["CUBED"]}',
-    }
-
 import importlib.metadata
 
 __pestifer_version__ = importlib.metadata.version("pestifer")

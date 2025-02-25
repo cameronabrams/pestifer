@@ -11,7 +11,7 @@ from .colors import *
 
 from .command import Command
 from .util import reduce_intlist
-from .namdlog import NAMDLog, NAMDxst
+from .util.namdlog import NAMDLog, NAMDxst
 from .progress import NAMDProgress, PsfgenProgress, PestiferProgress
 from .stringthings import ByteCollector, FileCollector
 from .config import Config

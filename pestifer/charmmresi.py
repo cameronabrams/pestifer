@@ -14,7 +14,7 @@ from itertools import product
 from pidibble.pdbparse import PDBParser
 from .charmmtop import CharmmResiDatabase
 from .controller import Controller
-from .psf import PSFContents
+from .psfutil.psftopoelement import PSFContents
 from .scriptwriters import Psfgen, VMD
 from .stringthings import my_logger
 

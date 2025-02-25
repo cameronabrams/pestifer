@@ -2,17 +2,21 @@
 """ Defines the Ring class and the ring_check function for detection of pierced rings
 """
 
-import numpy as np
-from functools import singledispatchmethod
-import networkx as nx
 import logging
-logger=logging.getLogger(__name__)
-from .psf import PSFContents,PSFBondList,PSFTopoElementList,PSFTopoElement
-from .linkcell import Linkcell
-from .util import cell_from_xsc,countTime
-from .coord import coorddf_from_pdb
+import networkx as nx
+import numpy as np
 import time
+
+from functools import singledispatchmethod
 from itertools import pairwise
+
+from .psfutil.psfbond import PSFBondList
+from .psfutil.psfcontents import PSFContents
+from .psfutil.psftopoelement import PSFTopoElementList,PSFTopoElement
+
+from .util import countTime
+
+logger=logging.getLogger(__name__)
 
 def lawofcos(a,b):
     """lawofcos return the cosine of the angle defined by vectors a and b if they share a vertex (the LAW OF COSINES)
