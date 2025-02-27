@@ -28,7 +28,7 @@ class Link(AncestorAwareObj):
     
     """
     req_attr=AncestorAwareObj.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
-    opt_attr=AncestorAwareObj.opt_attr+['name1','name2','altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance','segname1','segname2','residue1','residue2','atom1','atom2','empty','segtype1','segtype2','ptnr1_label_asym_id','ptnr2_label_asym_id','ptnr1_label_seq_id','ptnr2_label_seq_id','ptnr1_label_comp_id','ptnr2_label_comp_id']    
+    opt_attr=AncestorAwareObj.opt_attr+['name1','name2','altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance','segname1','segname2','residue1','residue2','atom1','atom2','empty','segtype1','segtype2','ptnr1_label_asym_id','ptnr2_label_asym_id','ptnr1_label_seq_id','ptnr2_label_seq_id','ptnr1_label_comp_id','ptnr2_label_comp_id','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id','ptnr1_auth_comp_id','ptnr2_auth_comp_id']    
     yaml_header='links'
     PDB_keyword='LINK'
     objtype='topomods'
@@ -105,12 +105,12 @@ class Link(AncestorAwareObj):
         # if the seq id is a dot, then we will revert to using the author's labels for this atom
         asym=cd['ptnr1_label_asym_id']
         seq=cd['ptnr1_label_seq_id']
-        aasym=cd['ptnr1_auth_asym_id']
         aseq=cd['ptnr1_auth_seq_id']
         if seq=='.':
-            asym=aasym
             assert len(asym)==1
             seq=int(aseq)
+        else:
+            seq=int(seq)
         input_dict['chainID1']=asym
         input_dict['resseqnum1']=seq
         input_dict['insertion1']=cd['pdbx_ptnr1_pdb_ins_code']
@@ -121,12 +121,12 @@ class Link(AncestorAwareObj):
 
         asym=cd['ptnr2_label_asym_id']
         seq=cd['ptnr2_label_seq_id']
-        aasym=cd['ptnr2_auth_asym_id']
         aseq=cd['ptnr2_auth_seq_id']
         if seq=='.':
-            asym=aasym
             assert len(asym)==1
             seq=int(aseq)
+        else:
+            seq=int(seq)
         input_dict['chainID2']=asym
         input_dict['resseqnum2']=seq
 
@@ -143,6 +143,12 @@ class Link(AncestorAwareObj):
             'ptnr2_label_comp_id':cd['ptnr2_label_comp_id'],
             'ptnr1_label_seq_id':cd['ptnr1_label_seq_id'],
             'ptnr2_label_seq_id':cd['ptnr2_label_seq_id'],
+            'ptnr1_auth_asym_id':cd['ptnr1_auth_asym_id'],
+            'ptnr2_auth_asym_id':cd['ptnr2_auth_asym_id'],
+            'ptnr1_auth_comp_id':cd['ptnr1_auth_comp_id'],
+            'ptnr2_auth_comp_id':cd['ptnr2_auth_comp_id'],
+            'ptnr1_auth_seq_id':int(cd['ptnr1_auth_seq_id']),
+            'ptnr2_auth_seq_id':int(cd['ptnr2_auth_seq_id']),
             })
         input_dict.update({
                 'residue1':None,

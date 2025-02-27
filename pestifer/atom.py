@@ -53,7 +53,7 @@ class Atom(AncestorAwareObj):
         input_dict={
             'recordname':'ATOM',
             'serial':int(cifdict['id']),
-            'name':cifdict['auth_atom_id'],
+            'name':cifdict['label_atom_id'],
             'altloc':cifdict['label_alt_id'],
             'resname':cifdict['label_comp_id'],
             'chainID':cifdict['label_asym_id'],
@@ -77,7 +77,8 @@ class Atom(AncestorAwareObj):
             input_dict['resseqnum']=input_dict['auth_seq_id']
             # input_dict['chainID']=input_dict['auth_asym_id']
         input_dict['resseqnum']=int(input_dict['resseqnum'])
-        
+        if input_dict['auth_seq_id'].isdigit():
+            input_dict['auth_seq_id']=int(input_dict['auth_seq_id'])
         input_dict['segname']=input_dict['chainID']
         input_dict['link']='None'
         input_dict['empty']=False

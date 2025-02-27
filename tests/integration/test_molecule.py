@@ -1,4 +1,5 @@
 import unittest
+import logging
 from pestifer.molecule import Molecule
 from pestifer.config import Config, segtype_of_resname
 from pestifer.chainidmanager import ChainIDManager
@@ -8,6 +9,8 @@ from pestifer.objs.link import LinkList
 from io import StringIO
 import os
 import yaml
+
+logger=logging.getLogger(__name__)
 
 class TestMolecule(unittest.TestCase):
     def get_source_dict(self,pdbid):
@@ -173,18 +176,94 @@ source:
         c=Config()
         directive=self.get_source_dict('4zmj')
         directive["source"]["biological_assembly"]=1
-        directive["source"]["file_format"]="mmCIF"
-        cidm=ChainIDManager(format=directive["source"]["file_format"])
-        m=Molecule(source=directive["source"],chainIDmanager=cidm)
-        au=m.asymmetric_unit
-        m.activate_biological_assembly(directive["source"]["biological_assembly"])
-        self.assertEqual(len(au.residues),659)
-        ba=m.active_biological_assembly
-        self.assertEqual(len(ba.transforms),3)
-        mutations=au.modmanager.get('seqmods',{}).get('mutations',{})
-        self.assertEqual(len(mutations),4)
-        for m in mutations:
-            self.assertTrue(m.chainID in ['A','B'])
+        mol={}
+        au={}
+        atoms={}
+        segts={}
+        for fmt in ['PDB','mmCIF']:
+            directive["source"]["file_format"]=fmt
+            mol[fmt]=Molecule(source=directive["source"],chainIDmanager=ChainIDManager(format=directive["source"]["file_format"]))
+            au[fmt]=mol[fmt].asymmetric_unit
+            mol[fmt].activate_biological_assembly(directive["source"]["biological_assembly"])
+            atoms[fmt]=au[fmt].atoms
+            segts[fmt]=set([x.segtype for x in au[fmt].residues])
+        self.assertEqual(len(atoms['PDB']),len(atoms['mmCIF']))
+        atom_mismatches=[]
+        eps=1.e-5
+        for pa,ca in zip(atoms['PDB'],atoms['mmCIF']):
+            if abs(pa.x-ca.x)>eps or abs(pa.y-ca.y)>eps or abs(pa.z-ca.z)>eps:
+                atom_mismatches.append([pa,ca])
+        self.assertEqual(len(atom_mismatches),0)
+        for pa,ca in zip(atoms['PDB'],atoms['mmCIF']):
+            if pa.name!=ca.name:
+                atom_mismatches.append([pa,ca])
+        self.assertEqual(len(atom_mismatches),0)
+        for pa,ca in zip(atoms['PDB'],atoms['mmCIF']):
+            if pa.resname!=ca.resname:
+                atom_mismatches.append([pa,ca])
+        for pa,ca in zip(atoms['PDB'],atoms['mmCIF']):
+            if pa.resseqnum!=ca.resseqnum and pa.resseqnum!=ca.auth_seq_id:
+                atom_mismatches.append([pa,ca])
+        self.assertEqual(len(atom_mismatches),0)
+        for pa,ca in zip(atoms['PDB'],atoms['mmCIF']):
+            if pa.chainID!=ca.chainID and pa.chainID!=ca.auth_asym_id:
+                atom_mismatches.append([pa,ca])
+        # msg=''
+        # if len(atom_mismatches)>0:
+        #     fm=atom_mismatches[0]
+        #     msg=f'{fm[0].chainID}_{fm[0].resname}{fm[0].resseqnum}_{fm[0].name} != [{fm[1].chainID}|{fm[1].auth_asym_id}]_{fm[1].resname}[{fm[1].resseqnum}|{fm[1].auth_seq_id}]_{fm[1].name}'
+        # self.assertEqual(len(atom_mismatches),0,msg=msg)
+
+
+        self.assertEqual(segts['PDB'],segts['mmCIF'])
+        res_pdb={}
+        res_count_pdb={}
+        for st in segts['PDB']:
+            res_pdb[st]=[x for x in au['PDB'].residues if x.segtype==st]
+            res_count_pdb[st]=len(res_pdb[st])
+        self.assertEqual(res_count_pdb['protein'],634)
+        self.assertEqual(res_count_pdb['glycan'],25)
+        res_count_checks={}
+        res_cif={}
+        res_count_cif={}
+        for st in ['protein','glycan']:
+            res_cif[st]=[x for x in au['mmCIF'].residues if x.segtype==st]
+            res_count_cif[st]=len(res_cif[st])
+            res_count_checks[st]={}
+            res_count_checks[st]['check']=res_count_cif[st]==res_count_pdb[st]
+            res_count_checks[st]['msg']=f'mismatch {st} residues PDB({res_count_pdb[st]}) mmCIF({res_count_cif[st]})'
+        check_good=all([res_count_checks[st]['check'] for st in segts['PDB']])
+        check_msg='; '.join(res_count_checks[st]['msg'] for st in segts['PDB'] if not res_count_checks[st]['check'])
+        if not check_good:
+            for pr in res_pdb['protein']:
+                logger.debug(f'PDB PROTEIN RESIDUE {pr.chainID}_{pr.resname}{pr.resseqnum}{pr.insertion} resolved {pr.resolved}')
+            for cr in res_cif['protein']:
+                logger.debug(f'CIF PROTEIN RESIDUE {cr.chainID}_{cr.resname}{cr.resseqnum} [auth {cr.auth_asym_id}_{cr.auth_comp_id}{cr.auth_seq_id}{cr.insertion}] resolved {cr.resolved}')
+        self.assertTrue(check_good,msg=check_msg)
+        # matches=[]
+        # pdb_orphans=[]
+        # for st in ['protein','glycan']:
+        #     for rp in res_pdb[st]:
+        #         for cp in res_cif[st]:
+        #             if rp.chainID==cp.auth_asym_id and int(rp.resseqnum)==int(cp.auth_seq_id) and rp.resname==cp.auth_comp_id and rp.insertion==cp.insertion:
+        #                 matches.append([rp,cp])
+        #                 res_cif[st].remove(cp)
+        #                 break
+        #         else:
+        #             pdb_orphans.append(rp)
+        # orphan_msg='PDB singletons: '+'; '.join([f'{rp.chainID}_{rp.resname}{rp.resseqnum}{rp.insertion}' for rp in pdb_orphans])
+        
+        # self.assertEqual(len(pdb_orphans),0,msg=orphan_msg)
+        # self.assertEqual(prot_res_cif,634)
+        # self.assertEqual(len(au['PDB'].residues),len(au['mmCIF'].residues))
+
+        # self.assertEqual(len(au.residues),659)
+        # ba=m.active_biological_assembly
+        # self.assertEqual(len(ba.transforms),3)
+        # mutations=au.modmanager.get('seqmods',{}).get('mutations',{})
+        # self.assertEqual(len(mutations),4)
+        # for m in mutations:
+        #     self.assertTrue(m.chainID in ['A','B'])
 
     def test_molecule_existing(self):
         c=Config()

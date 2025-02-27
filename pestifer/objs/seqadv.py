@@ -116,6 +116,9 @@ class Seqadv(AncestorAwareObj):
             'residue':None
         }
         input_dict['resseqnum']=int(input_dict['resseqnum'])
+        input_dict['pdbx_auth_seq_num']=int(input_dict['pdbx_auth_seq_num'])
+        if input_dict['dbSeq'].isdigit():
+            input_dict['dbSeq']=int(input_dict['dbSeq'])
         super().__init__(input_dict)
 
     def seqadv_details_keyword(self,text):

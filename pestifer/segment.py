@@ -333,7 +333,7 @@ class SegmentList(AncestorAwareObjList):
                         self.segtype_of_segname[r.chainID]=r.segtype
                     if not r.segtype in self.segtypes_ordered:
                         self.segtypes_ordered.append(r.segtype)
-                logger.debug(f'Generating segments from list of {len(residues)} residues; segtypes detected: {self.segtypes_ordered}')
+                logger.debug(f'Generating segments from list of {len(residues)} residues. segtypes detected: {self.segtypes_ordered}')
                 initial_chainIDs=list(self.segtype_of_segname.keys())
                 logger.debug(f'ChainIDs detected: {initial_chainIDs}')
                 chainIDmanager.sandbag(initial_chainIDs)

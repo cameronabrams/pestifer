@@ -12,7 +12,7 @@ from ..stringthings import split_ri
 
 class SSBond(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
-    opt_attr=AncestorAwareObj.opt_attr+['serial_number','residue1','residue2','resname1','resname2','sym1','sym2','length','ptnr1_label_asym_id','ptnr2_label_asym_id','ptnr1_label_seq_id','ptnr2_label_seq_id']
+    opt_attr=AncestorAwareObj.opt_attr+['serial_number','residue1','residue2','resname1','resname2','sym1','sym2','length','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id']
     yaml_header='ssbonds'
     objtype='topomods'
     PDB_keyword='SSBOND'
@@ -49,10 +49,10 @@ class SSBond(AncestorAwareObj):
             'serial_number':int(cd['id'].strip('disulf')),
             'resname1':'CYS',
             'resname2':'CYS',
-            'chainID1':cd['ptnr1_auth_asym_id'],
-            'chainID2':cd['ptnr2_auth_asym_id'],
-            'resseqnum1':int(cd['ptnr1_auth_seq_id']),
-            'resseqnum2':int(cd['ptnr2_auth_seq_id']),
+            'chainID1':cd['ptnr1_label_asym_id'],
+            'chainID2':cd['ptnr2_label_asym_id'],
+            'resseqnum1':int(cd['ptnr1_label_seq_id']),
+            'resseqnum2':int(cd['ptnr2_label_seq_id']),
             'insertion1':cd['pdbx_ptnr1_pdb_ins_code'],
             'insertion2':cd['pdbx_ptnr2_pdb_ins_code'],
             'sym1':cd['ptnr1_symmetry'],
@@ -60,10 +60,10 @@ class SSBond(AncestorAwareObj):
             'length':float(cd['pdbx_dist_value']),
             'residue1':None,
             'residue2':None,
-            'ptnr1_label_asym_id':cd['ptnr1_label_asym_id'],
-            'ptnr2_label_asym_id':cd['ptnr2_label_asym_id'],
-            'ptnr1_label_seq_id':int(cd['ptnr1_label_seq_id']),
-            'ptnr2_label_seq_id':int(cd['ptnr2_label_seq_id'])
+            'ptnr1_auth_asym_id':cd['ptnr1_auth_asym_id'],
+            'ptnr2_auth_asym_id':cd['ptnr2_auth_asym_id'],
+            'ptnr1_auth_seq_id':int(cd['ptnr1_auth_seq_id']),
+            'ptnr2_auth_seq_id':int(cd['ptnr2_auth_seq_id'])
         }
         super().__init__(input_dict)
     

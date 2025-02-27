@@ -169,17 +169,23 @@ class AsymmetricUnit(AncestorAwareObj):
             # populates a specific mapping of PDB chainID to CIF label_asym_id
             # This is only meaningful if mmCIF input is used
             residues.map_chainIDs_label_to_auth()
+            logger.debug(f'{len(residues)} residues before assign_residues')
             for r in residues:
-                logger.debug(f'{r.chainID} {r.resname} {r.resseqnum}')
+                if hasattr(r,'label_seq_id'):
+                    logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}')
+                else:
+                    logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}{r.insertion}')
 
             # Give each Seqadv a residue identifier
             ignored_seqadvs=seqadvs.assign_residues(residues)
             ignored_ssbonds=ssbonds.assign_residues(residues)
+            logger.debug(f'{len(ssbonds)} ssbonds after assign_residues')
             for b in ssbonds:
-                logger.debug(f'ssbonds after assign_residues {b}')
+                logger.debug(f'{b}')
             more_ignored_residues,ignored_links=links.assign_residues(residues)
-            for b in links:
-                logger.debug(f'links after assign_residues {b}')
+            logger.debug(f'{len(links)} links after assign_residues')
+            for l in links:
+                logger.debug(f'{l}')
             # a deleted link may create a "free" glycan; in this case
             # we should also delete its residues; problem is that 
             ignored_residues.extend(more_ignored_residues)
@@ -189,11 +195,18 @@ class AsymmetricUnit(AncestorAwareObj):
             
             if excludes or len(ignored_residues+ignored_seqadvs+ignored_ssbonds+ignored_links+ignored_grafts)>0:
                 logger.debug(f'Exclusions result in deletion of:')
-                logger.debug(f'    {len(ignored_residues)} residues; {len(residues)} remain;')
-                logger.debug(f'    {len(ignored_seqadvs)} seqadvs; {len(seqadvs)} remain; ({type(seqadvs)})')
-                logger.debug(f'    {len(ignored_ssbonds)} ssbonds; {len(ssbonds)} remain;')
-                logger.debug(f'    {len(ignored_links)} links; {len(links)} remain;')
-                logger.debug(f'    {len(ignored_grafts)} grafts; {len(grafts)} remain.')
+                logger.debug(f'    {len(ignored_residues)} residues, {len(residues)} remain')
+                logger.debug(f'    {len(ignored_seqadvs)} seqadvs, {len(seqadvs)} remain')
+                logger.debug(f'    {len(ignored_ssbonds)} ssbonds, {len(ssbonds)} remain')
+                logger.debug(f'    {len(ignored_links)} links, {len(links)} remain')
+                logger.debug(f'    {len(ignored_grafts)} grafts, {len(grafts)} remain')
+
+            logger.debug(f'{len(residues)} residues after assign_residues')
+            for r in residues:
+                if hasattr(r,'label_seq_id'):
+                    logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}')
+                else:
+                    logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}{r.insertion}')
 
             # provide specifications of how to handle sequence issues
             # implied by PDB input

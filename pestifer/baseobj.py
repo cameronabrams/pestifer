@@ -28,7 +28,7 @@ from collections import UserList
 logger=logging.getLogger(__name__)
 from argparse import Namespace
 from functools import singledispatchmethod
-
+from .stringthings import my_logger
 class BaseObj(Namespace):
     """A class defining a namespace with custom attribute controls.
 
@@ -495,7 +495,21 @@ class BaseObj(Namespace):
         if myObj!=None and myObj!=[]:
             setattr(self,attr,myObj)
         else:
-            logger.debug(f'There may be a bug looking for {matchattr} to assign to {attr}; {adict}')
+            logger.debug(f'Unable assign attribute \'{attr}\' of \'{type(self).__name__}\'')
+            logger.debug(f'   \'{type(self).__name__}\' instance attributes:')
+            for k,v in self.__dict__.items():
+                logger.debug(f'        {k}: {v} ({type(v).__name__})')
+            logger.debug(f'   matchattr:')
+            for k,v in matchattr.items():
+                logger.debug(f'        {k}: {v} ({type(v).__name__})')
+            logger.debug(f'   adict:')
+            for k,v in adict.items():
+                logger.debug(f'        {k}: {v} ({type(v).__name__})')
+            logger.debug(f'from list of type {type(objList).__name__}')
+            tmp=objList[1]
+            logger.debug(f'    Attributes of type {type(tmp).__name__}:')
+            for k,v in tmp.__dict__.items():
+                logger.debug(f'        {k} ({type(v).__name__})')
             # raise ValueError(f'stop')
     
     def update_attr_from_obj_attr(self,attr,obj,obj_attr):
