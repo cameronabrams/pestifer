@@ -107,7 +107,7 @@ class Link(AncestorAwareObj):
         seq=cd['ptnr1_label_seq_id']
         aseq=cd['ptnr1_auth_seq_id']
         if seq=='.':
-            assert len(asym)==1
+            # assert len(asym)==1
             seq=int(aseq)
         else:
             seq=int(seq)
@@ -123,7 +123,7 @@ class Link(AncestorAwareObj):
         seq=cd['ptnr2_label_seq_id']
         aseq=cd['ptnr2_auth_seq_id']
         if seq=='.':
-            assert len(asym)==1
+            # assert len(asym)==1
             seq=int(aseq)
         else:
             seq=int(seq)
