@@ -946,8 +946,12 @@ directives:
         default: namd2
       - name: namd3
         type: str
-        text: Path for namd3 executable
+        text: Path for namd3 executable, CPU version
         default: namd3
+      - name: namd3gpu
+        type: str
+        text: Path for namd3 executable, GPU version; this must be different from the path for the CPU version if both are to be used in a single Pestifer build
+        default: namd3gpu
       - name: charmrun
         type: str
         text: Path for charmrun executable
@@ -1170,6 +1174,10 @@ directives:
             text: Specifies parameters for steered MD to bring C-termini close to their connection points
             type: dict
             directives:
+              - name: cpu-override
+                text: Override namd3 processor type since GPUresident namd3 cannot handle restraints (yet)
+                type: bool
+                default: True
               - name: ensemble
                 text: Name of ensemble to run in; note that NPT can only be peformed on a solvated system
                 type: str
@@ -1232,6 +1240,14 @@ directives:
         text: Generate plot(s) from previous md tasks with same psf
         type: dict
         directives:
+          - name: existing-logs
+            type: list
+            text: list of existing namd logs, in chronological order, from which data to be plotted is to be extracted
+            default: []
+          - name: existing-xsts
+            type: list
+            text: list of existing namd xst files, in chronological order, from which data to be plotted is to be extracted
+            default: []
           - name: savedata
             type: str
             text: name of CSV file to save all energy-like data
@@ -1248,10 +1264,10 @@ directives:
             type: dict
             text: user-specified units for plots (if other than NAMD standard units)
             default:
-              density: g_per_cc
-              a_x: A
-              b_y: A
-              c_z: A
+              density: g/cc
+              a_x: Å
+              b_y: Å
+              c_z: Å
           - name: legend
             text: include a legend
             type: bool
@@ -1271,6 +1287,10 @@ directives:
         text: Parameters controlling a domain swap TMD simulation
         type: dict
         directives:
+          - name: cpu-override
+            text: revert to cpu version of namd3 since GPUresident namd3 cannot handle restraints (yet)
+            type: bool
+            default: True
           - name: swap_domain_def
             type: str
             text: VMD atomselect string for the domain; will be appended with "and chain X" for each chain
@@ -1486,6 +1506,10 @@ directives:
         text: Parameters controlling a NAMD run
         type: dict
         directives:
+          - name: cpu-override
+            text: revert to cpu version of namd3
+            type: bool
+            default: False
           - name: vacuum
             text: if true, namd will run on a single node even if multiple nodes are allocated
             type: boolean

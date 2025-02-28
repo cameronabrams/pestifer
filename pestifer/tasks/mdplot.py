@@ -7,6 +7,7 @@ import pandas as pd
 
 from ..basetask import BaseTask
 from ..util.units import g_per_amu,A3_per_cm3
+from ..util.namdlog import NAMDLog, NAMDxst
 
 logger=logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -17,20 +18,37 @@ class MDPlotTask(BaseTask):
     yaml_header='mdplot'
     def do(self):
         self.log_message('initiated')
-        self.inherit_state()            
+        self.inherit_state()
         datasources=[]
         xstsources=[]
-        mdtaskpointer=self.prior
-        logger.debug(f'self={str(self)}; self.prior={str(self.prior)}')
-        while mdtaskpointer!=None and mdtaskpointer.taskname=='md':
-            logger.debug(f'appending log/xst data from prior task {str(mdtaskpointer)}')
-            if hasattr(mdtaskpointer,'mdlog'):
-                datasources.append(mdtaskpointer.mdlog.edata)
-            else:
-                logger.debug(f'Task {mdtaskpointer.index} has no mdlog.  Is this a bug?')
-            if hasattr(mdtaskpointer,'xstlog'):
-                xstsources.append(mdtaskpointer.xstlog.df)
-            mdtaskpointer=mdtaskpointer.prior
+        if len(self.specs['existing-logs'])==0 and self.prior and self.prior.taskname=='md':
+            logger.debug(f'Collecting all mdlog.edata tables from upstream md tasks...')
+            mdtaskpointer=self.prior
+            logger.debug(f'self={str(self)}; self.prior={str(self.prior)}')
+            while mdtaskpointer!=None and mdtaskpointer.taskname=='md':
+                logger.debug(f'appending log/xst data from prior task {str(mdtaskpointer)}')
+                if hasattr(mdtaskpointer,'mdlog'):
+                    datasources.append(mdtaskpointer.mdlog.edata)
+                else:
+                    logger.debug(f'Task {mdtaskpointer.index} has no mdlog.  Is this a bug?')
+                if hasattr(mdtaskpointer,'xstlog'):
+                    xstsources.append(mdtaskpointer.xstlog.df)
+                mdtaskpointer=mdtaskpointer.prior
+        else:
+            logger.debug(f'Extracting data from {len(self.specs["existing-logs"])} explicitly named namd logs...')
+            for f in self.specs['existing-logs'][::-1]:
+                l=NAMDLog(f)
+                l.energy()
+                datasources.append(l.edata)
+            if len(self.specs['existing-xsts'])>0:
+                logger.debug(f'Extracting data from {len[self.specs["existing-xsts"]]} explicitly named XST files...')
+            for f in self.specs['existing-xsts'][::-1]:
+                l=NAMDxst(f)
+                xstsources.append(l.df)
+
+        if len(datasources)==0:
+            logger.warning(f'No datasources found for mdplot task.')
+            return -1
         logger.debug(f'concatenating energy-like data from {len(datasources)} sequential logs')
         edata=pd.concat(datasources[::-1])
         savedata=self.specs.get('savedata',None)

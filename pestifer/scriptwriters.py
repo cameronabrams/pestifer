@@ -339,6 +339,7 @@ class NAMD(TcLScriptwriter):
         self.charmmff_config=config['user']['charmmff']
         self.charmrun=config.shell_commands['charmrun']
         self.namd=config.shell_commands['namd3']
+        self.namdgpu=config.shell_commands['namd3gpu']
         self.namd_type=config.namd_type
         self.namd_config=config['user']['namd']
         self.local_ncpus=config.local_ncpus
@@ -391,7 +392,7 @@ class NAMD(TcLScriptwriter):
         self.scriptname=f'{basename}{self.default_ext}'
         self.banner('NAMD script')
 
-    def writescript(self,params):
+    def writescript(self,params,cpu_override=False):
         logger.debug(f'params: {params}')
         tailers=['minimize','run','numsteps']
         for k,v in params.items():
@@ -407,7 +408,7 @@ class NAMD(TcLScriptwriter):
                         self.addline(v)
                     else:
                         self.addline(f'{self.namd_deprecates.get(k,k)} {v}')
-        if self.namd_type=='gpu':
+        if self.namd_type=='gpu' and not cpu_override:
             for k,v in self.namd_config['gpu-resident'].items():
                 self.addline(f'{k} {v}')
         for t in tailers:
@@ -427,14 +428,14 @@ class NAMD(TcLScriptwriter):
         else:
             use_gpu_count=self.ngpus
             use_gpu_devices=self.gpu_devices
-        if self.namd_type=='cpu':
+        if self.namd_type=='cpu' or kwargs.get('cpu_override',False):
             c=Command(f'{self.charmrun} +p {use_cpu_count} {self.namd} {self.scriptname}')
         elif self.namd_type=='gpu':
             if len(self.slurmvars)>0:
                 use_cpu_count=8 if use_gpu_count==1 else (use_gpu_count-1)*8 + 8-(use_gpu_count-1)
             else:
                 use_cpu_count=self.local_ncpus
-            c=Command(f'{self.namd} +p{use_cpu_count} +setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
+            c=Command(f'{self.namdgpu} +p{use_cpu_count} +setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
         self.logname=f'{self.basename}.log'
         progress_struct=None
         if self.progress:

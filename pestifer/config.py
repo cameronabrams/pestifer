@@ -77,6 +77,7 @@ class Config(Yclept):
     def _set_shell_commands(self,verify_access=True):
         required_commands=['charmrun','namd3','vmd','catdcd','packmol']
         command_alternates={'namd3':'namd2'}
+        optional_commands=['namd3gpu']
         self.shell_commands={}
         for rq in required_commands:
             self.shell_commands[rq]=self['user']['paths'][rq]
@@ -91,6 +92,16 @@ class Config(Yclept):
             if verify_access:
                 assert os.access(fullpath,os.X_OK),f'You do not have permission to execute {fullpath}'
         self.namd_type=self['user']['namd']['processor-type']
+        cn='namd3gpu'
+        self.shell_commands[cn]=self['user']['paths'][cn]
+        fullpath=shutil.which(self.shell_commands[cn])
+        if not fullpath:
+            logger.warning(f'{self.shell_commands[cn]}: not found')
+        if self.shell_commands['namd3gpu']==self.shell_commands['namd3']:
+            logger.warning(f'CPU and GPU namd3 have the same path: {self.shell_commands['namd3gpu']}')
+        if self.namd_type=='gpu': # make sure we can run the GPUResident namd3
+            if verify_access:
+                assert os.access(fullpath,os.X_OK),f'You do not have permission to execute {fullpath}'
         self.namd_deprecates=self['user']['namd']['deprecated3']
 
     def _set_internal_shortcuts(self,**kwargs):

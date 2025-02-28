@@ -139,11 +139,13 @@ class MDTask(BaseTask):
             params['run']=nsteps
         
         na.newscript(self.basename)
-        na.writescript(params)
+        cpu_override=specs.get('cpu-override',False)
+        logger.debug(f'CPU-override is {cpu_override}')
+        na.writescript(params,cpu_override=cpu_override)
         if not script_only:
             local_execution_only=not self.statevars['periodic']
             single_gpu_only=kwargs.get('single_gpu_only',False) or constraints
-            result=na.runscript(single_molecule=(not self.statevars['periodic']),local_execution_only=local_execution_only,single_gpu_only=single_gpu_only)
+            result=na.runscript(single_molecule=(not self.statevars['periodic']),local_execution_only=local_execution_only,single_gpu_only=single_gpu_only,cpu_override=cpu_override)
             if result!=0:
                 return -1
             inherited_etitles=[]

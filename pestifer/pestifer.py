@@ -95,6 +95,19 @@ def desolvate(args,**kwargs):
                             ]})
     report=C.do_tasks()
 
+def mdplot(args):
+    C=Controller(userspecs={'tasks':
+                            [
+                                {'mdplot':{
+                                    'existing-logs':args.existing_logs,
+                                    'existing-xsts':args.existing_xsts,
+                                    'savedata':args.savedata,
+                                    'basename':args.basename
+                                 }
+                                }
+                            ]})
+    report=C.do_tasks()
+
 def list_examples():
     r=ResourceManager()
     ex_full_paths=r.get_examples_as_list(fullpaths=True)

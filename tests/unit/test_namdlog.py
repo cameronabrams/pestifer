@@ -1,5 +1,5 @@
+# Author: Cameron F. Abrams
 import unittest
-import pytest
 from pestifer.util.namdlog import NAMDLog,getinfo,NAMDxst
 
 class TestNAMDLog(unittest.TestCase):
