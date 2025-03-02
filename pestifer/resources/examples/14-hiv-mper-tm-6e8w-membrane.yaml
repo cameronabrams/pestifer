@@ -102,7 +102,7 @@ tasks:
         - density
         - - a_x
           - b_y
-        - c_z
+          - c_z
       units:
         density: g_per_cc
       basename: bilayer

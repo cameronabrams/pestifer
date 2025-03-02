@@ -36,12 +36,18 @@ class MDPlotTask(BaseTask):
                 mdtaskpointer=mdtaskpointer.prior
         else:
             logger.debug(f'Extracting data from {len(self.specs["existing-logs"])} explicitly named namd logs...')
+            save_titles=[]
             for f in self.specs['existing-logs'][::-1]:
-                l=NAMDLog(f)
-                l.energy()
+                if not save_titles:
+                    l=NAMDLog(f)
+                    l.energy()
+                    save_titles=l.etitles
+                else:
+                    l=NAMDLog(f,inherited_etitles=save_titles)
+                    l.energy()
                 datasources.append(l.edata)
             if len(self.specs['existing-xsts'])>0:
-                logger.debug(f'Extracting data from {len[self.specs["existing-xsts"]]} explicitly named XST files...')
+                logger.debug(f'Extracting data from {len(self.specs["existing-xsts"])} explicitly named XST files...')
             for f in self.specs['existing-xsts'][::-1]:
                 l=NAMDxst(f)
                 xstsources.append(l.df)

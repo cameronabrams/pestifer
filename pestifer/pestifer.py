@@ -99,13 +99,24 @@ def mdplot(args):
     C=Controller(userspecs={'tasks':
                             [
                                 {'mdplot':{
-                                    'existing-logs':args.existing_logs,
-                                    'existing-xsts':args.existing_xsts,
+                                    'existing-logs':args.logs,
+                                    'existing-xsts':args.xsts,
                                     'savedata':args.savedata,
-                                    'basename':args.basename
-                                 }
+                                    'basename':args.basename,
+                                    'figsize':args.figsize,
+                                    'traces':args.traces,
+                                    'units': {
+                                        'density': 'g/cc',
+                                        'a_x': 'Å',
+                                        'b_y': 'Å',
+                                        'c_z': 'Å',
+                                        }
+                                    }
                                 }
-                            ]})
+                            ]
+                            }
+                            )
+
     report=C.do_tasks()
 
 def list_examples():
@@ -200,17 +211,18 @@ def wheretcl(args):
 
 def cli():
     commands={
-        'config-help':config_help,
-        'config-default':config_default,
+        'run': run,
+        'config-help': config_help,
         'fetch-example': fetch_example,
         'run-example': run_example,
-        'run':run,
-        'wheretcl':wheretcl,
-        'inittcl':inittcl,
-        'make-resi-database':make_RESI_database,
-        'desolvate':desolvate,
-        'make-namd-restart':make_namd_restart,
-        'show-resources':show_resources
+        'desolvate': desolvate,
+        'mdplot':mdplot,
+        'make-namd-restart': make_namd_restart,
+        'show-resources': show_resources,
+        'wheretcl': wheretcl,
+        'inittcl': inittcl,
+        'make-resi-database': make_RESI_database,
+        'config-default': config_default,
     }
     helps={
         'config-help':'get help on the syntax of input configuration files',
@@ -223,7 +235,8 @@ def cli():
         'make-resi-database':'make reference PDB/PSF files for any CHARMM residue',
         'desolvate':'desolvate an existing PSF/DCD',
         'make-namd-restart':'generate a restart NAMD config file based on current checkpoint',
-        'show-resources':'display elements of the included pestifer resources'
+        'show-resources':'display elements of the included pestifer resources',
+        'mdplot':'Extract and plot time-series data from NAMD log and xst files'
     }
     descs={
         'config-help':'Use this command to get interactive help on config file directives.',
@@ -236,7 +249,8 @@ def cli():
         'make-resi-database':'makes representative psf/pdb files for any CHARMM RESI\'s found in given topology streams',
         'desolvate':'desolvate an existing PSF/DCD',
         'make-namd-restart':'generate a restart NAMD config file based on current checkpoint',
-        'show-resources':'display elements of the included pestifer resources'
+        'show-resources':'display elements of the included pestifer resources',
+        'mdplot':'Extract and plot time-series data from NAMD log and xst files'
     }
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
     parser.add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
@@ -247,7 +261,7 @@ def cli():
     subparsers.required=False
     command_parsers={}
     for k in commands:
-        command_parsers[k]=subparsers.add_parser(k,description=descs[k],help=helps[k],formatter_class=ap.RawDescriptionHelpFormatter)
+        command_parsers[k]=subparsers.add_parser(k,description=descs.get(k,''),help=helps.get(k,''),formatter_class=ap.RawDescriptionHelpFormatter)
         command_parsers[k].set_defaults(func=commands[k])
     
     command_parsers['run'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
@@ -297,6 +311,12 @@ def cli():
     command_parsers['show-resources'].add_argument('--tcl',default=False,action='store_true',help='show description of system TcL scripts and packages')
     command_parsers['show-resources'].add_argument('--charmmff',type=str,nargs='+',default=[],help='show elements of charmmff-specific resources (\'toppar\', \'custom\', \'pdb\')')
     command_parsers['show-resources'].add_argument('--pdb-depot',type=str,help='additional collection of PDB files')
+    command_parsers['mdplot'].add_argument('--logs',type=list,default=[],nargs='+',help='list of one more NAMD logs in chronological order')
+    command_parsers['mdplot'].add_argument('--xsts',type=list,default=[],nargs='+',help='list of one more NAMD xsts in chronological order')
+    command_parsers['mdplot'].add_argument('--basename',type=str,default='mdplot',help='basename of output files')
+    command_parsers['mdplot'].add_argument('--savedata',type=str,default='mdplot.csv',help='name of CSV file to save data to')
+    command_parsers['mdplot'].add_argument('--figsize',type=int,nargs=2,default=[9,6],help='figsize')
+    command_parsers['mdplot'].add_argument('--traces',type=list,default=['density'],nargs='+',help='traces to plot')
 
     args=parser.parse_args()
 
