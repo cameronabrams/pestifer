@@ -1,4 +1,4 @@
-.. _config_ref paths:
+.. _docs source config_ref paths:
 
 ``paths``
 =========
@@ -9,7 +9,9 @@ Single-valued parameters:
 
   * ``namd2``: Path for namd2 executable (default: namd2)
 
-  * ``namd3``: Path for namd3 executable (default: namd3)
+  * ``namd3``: Path for namd3 executable, CPU version (default: namd3)
+
+  * ``namd3gpu``: Path for namd3 executable, GPU version; this must be different from the path for the CPU version if both are to be used in a single Pestifer build (default: namd3gpu)
 
   * ``charmrun``: Path for charmrun executable (default: charmrun)
 

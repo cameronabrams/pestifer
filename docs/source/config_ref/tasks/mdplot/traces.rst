@@ -1,4 +1,4 @@
-.. _config_ref tasks mdplot traces:
+.. _docs source config_ref tasks mdplot traces:
 
 ``traces``
 ----------

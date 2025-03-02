@@ -1,4 +1,4 @@
-.. _config_ref tasks restart:
+.. _docs source config_ref tasks restart:
 
 ``restart``
 ===========

@@ -1,4 +1,4 @@
-.. _config_ref tasks psfgen source exclude:
+.. _docs source config_ref tasks psfgen source exclude:
 
 ``exclude``
 ===========

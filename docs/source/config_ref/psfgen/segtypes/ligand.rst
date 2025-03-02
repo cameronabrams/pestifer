@@ -1,4 +1,4 @@
-.. _config_ref psfgen segtypes ligand:
+.. _docs source config_ref psfgen segtypes ligand:
 
 ``ligand``
 ==========

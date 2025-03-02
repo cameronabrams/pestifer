@@ -1,4 +1,4 @@
-.. _config_ref namd barostat:
+.. _docs source config_ref namd barostat:
 
 ``barostat``
 ------------

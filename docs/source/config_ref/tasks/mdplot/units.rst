@@ -1,11 +1,11 @@
-.. _config_ref tasks mdplot units:
+.. _docs source config_ref tasks mdplot units:
 
 ``units``
 ---------
 
-  * ``density``: g_per_cc
-  * ``a_x``: A
-  * ``b_y``: A
-  * ``c_z``: A
+  * ``density``: g/cc
+  * ``a_x``: Å
+  * ``b_y``: Å
+  * ``c_z``: Å
 
 

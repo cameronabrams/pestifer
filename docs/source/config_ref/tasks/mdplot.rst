@@ -1,4 +1,4 @@
-.. _config_ref tasks mdplot:
+.. _docs source config_ref tasks mdplot:
 
 ``mdplot``
 ==========
@@ -20,6 +20,8 @@ Container-like parameters:
 .. toctree::
    :maxdepth: 1
 
+   mdplot/existing-logs
+   mdplot/existing-xsts
    mdplot/figsize
    mdplot/traces
    mdplot/units

@@ -1,4 +1,4 @@
-.. _config_ref tasks mdplot figsize:
+.. _docs source config_ref tasks mdplot figsize:
 
 ``figsize``
 -----------

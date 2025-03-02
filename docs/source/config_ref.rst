@@ -1,4 +1,4 @@
-.. _config_ref:
+.. _docs source config_ref:
 
 Configuration File Reference
 ============================
@@ -9,16 +9,17 @@ Single-valued parameter:
 
   * ``title``: Meaningful title (optional) (default: Pestifer)
 
+
+
 Subdirectives:
 
 .. toctree::
    :maxdepth: 1
 
-   config_ref/charmmff
-   config_ref/psfgen
-   config_ref/namd
-   config_ref/paths
-   config_ref/tasks
+   docs/source/config_ref/charmmff
+   docs/source/config_ref/psfgen
+   docs/source/config_ref/namd
+   docs/source/config_ref/paths
+   docs/source/config_ref/tasks
 
 
-This documentation was created automatically by ``yclept make-doc`` from the Ycleptic package (`pypi <https://pypi.org/project/ycleptic/>`_) using ``pestifer/resources/ycleptic/base.yaml`` as input.

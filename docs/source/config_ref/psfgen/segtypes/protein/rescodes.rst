@@ -1,4 +1,4 @@
-.. _config_ref psfgen segtypes protein rescodes:
+.. _docs source config_ref psfgen segtypes protein rescodes:
 
 ``rescodes``
 ------------

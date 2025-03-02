@@ -1,4 +1,4 @@
-.. _config_ref namd solvated:
+.. _docs source config_ref namd solvated:
 
 ``solvated``
 ------------

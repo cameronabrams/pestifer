@@ -1,4 +1,4 @@
-.. _config_ref tasks domainswap:
+.. _docs source config_ref tasks domainswap:
 
 ``domainswap``
 ==============
@@ -6,6 +6,8 @@
 Parameters controlling a domain swap TMD simulation
 
 Single-valued parameters:
+
+  * ``cpu-override``: revert to cpu version of namd3 since GPUresident namd3 cannot handle restraints (yet) (default: True)
 
   * ``swap_domain_def``: VMD atomselect string for the domain; will be appended with "and chain X" for each chain
 

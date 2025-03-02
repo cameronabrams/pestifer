@@ -1,4 +1,4 @@
-.. _config_ref tasks manipulate mods:
+.. _docs source config_ref tasks manipulate mods:
 
 ``mods``
 ========

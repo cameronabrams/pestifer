@@ -1,4 +1,4 @@
-.. _config_ref tasks ligate connect:
+.. _docs source config_ref tasks ligate connect:
 
 ``connect``
 ===========

@@ -1,4 +1,4 @@
-.. _config_ref charmmff custom:
+.. _docs source config_ref charmmff custom:
 
 ``custom``
 ==========

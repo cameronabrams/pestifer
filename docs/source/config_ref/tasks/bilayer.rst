@@ -1,4 +1,4 @@
-.. _config_ref tasks bilayer:
+.. _docs source config_ref tasks bilayer:
 
 ``bilayer``
 ===========

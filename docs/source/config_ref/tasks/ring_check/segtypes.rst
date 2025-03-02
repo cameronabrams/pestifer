@@ -1,4 +1,4 @@
-.. _config_ref tasks ring_check segtypes:
+.. _docs source config_ref tasks ring_check segtypes:
 
 ``segtypes``
 ------------

@@ -1,4 +1,4 @@
-.. _config_ref psfgen segtypes:
+.. _docs source config_ref psfgen segtypes:
 
 ``segtypes``
 ============

@@ -1,4 +1,4 @@
-.. _config_ref tasks psfgen source sequence loops:
+.. _docs source config_ref tasks psfgen source sequence loops:
 
 ``loops``
 =========

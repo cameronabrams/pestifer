@@ -1,4 +1,4 @@
-.. _config_ref tasks md:
+.. _docs source config_ref tasks md:
 
 ``md``
 ======
@@ -6,6 +6,8 @@
 Parameters controlling a NAMD run
 
 Single-valued parameters:
+
+  * ``cpu-override``: revert to cpu version of namd3 (default: False)
 
   * ``vacuum``: if true, namd will run on a single node even if multiple nodes are allocated (default: False)
 

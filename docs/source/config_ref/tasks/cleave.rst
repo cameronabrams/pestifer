@@ -1,4 +1,4 @@
-.. _config_ref tasks cleave:
+.. _docs source config_ref tasks cleave:
 
 ``cleave``
 ==========

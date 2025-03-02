@@ -1,4 +1,4 @@
-.. _config_ref tasks ligate steer:
+.. _docs source config_ref tasks ligate steer:
 
 ``steer``
 =========
@@ -6,6 +6,8 @@
 Specifies parameters for steered MD to bring C-termini close to their connection points
 
 Single-valued parameters:
+
+  * ``cpu-override``: Override namd3 processor type since GPUresident namd3 cannot handle restraints (yet) (default: True)
 
   * ``ensemble``: Name of ensemble to run in; note that NPT can only be peformed on a solvated system (default: NVT)
 

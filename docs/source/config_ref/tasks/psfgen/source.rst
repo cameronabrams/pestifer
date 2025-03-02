@@ -1,4 +1,4 @@
-.. _config_ref tasks psfgen source:
+.. _docs source config_ref tasks psfgen source:
 
 ``source``
 ==========
@@ -23,7 +23,7 @@ Single-valued parameters:
 
   * ``file_format``: either PDB or mmCIF; some entries do not have a PDB-format file.  The main advantage of PDB is that it uses the author-designations for chains by default.  mmCIF is the new "default" format of the PDB. (default: PDB)
 
-  * ``cif_residue_map_file``: name of output file to contain a mapping of CIF chain-residue number to author chain-residue number-insertion
+  * ``cif_residue_map_file``: name of output file to write a mapping of CIF chain-residue number to author chain-residue number-insertion
 
 
 

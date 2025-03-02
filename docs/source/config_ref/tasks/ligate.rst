@@ -1,4 +1,4 @@
-.. _config_ref tasks ligate:
+.. _docs source config_ref tasks ligate:
 
 ``ligate``
 ==========
