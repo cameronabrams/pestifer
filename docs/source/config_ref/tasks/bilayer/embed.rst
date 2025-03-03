@@ -1,4 +1,4 @@
-.. _docs source config_ref tasks bilayer embed:
+.. _config_ref tasks bilayer embed:
 
 ``embed``
 =========

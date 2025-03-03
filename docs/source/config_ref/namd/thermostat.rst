@@ -1,4 +1,4 @@
-.. _docs source config_ref namd thermostat:
+.. _config_ref namd thermostat:
 
 ``thermostat``
 --------------

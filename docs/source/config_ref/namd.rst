@@ -1,4 +1,4 @@
-.. _docs source config_ref namd:
+.. _config_ref namd:
 
 ``namd``
 ========

@@ -149,6 +149,12 @@ def fetch_example(args,**kwargs):
     base=os.path.split(ex_yaml)[1]
     rebase=base[len(f'{index:02d}')+1:]
     
+    if args.gpu:
+        if not 'namd' in ex_dict:
+            ex_dict['namd']={}
+        ex_dict['namd']['processor-type']='gpu'
+        # ex_dict['paths']['namd3']='namd3gpu'
+
     with open(rebase,'w') as f:
         yaml.dump(ex_dict,f)
     return rebase
@@ -269,10 +275,13 @@ def cli():
     command_parsers['run'].add_argument('--diagnostic-log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
     command_parsers['fetch-example'].add_argument('number',type=int,default=None,help='example number')
     command_parsers['fetch-example'].add_argument('--config-updates',type=str,nargs='+',default=[],help='yaml files to update example')
+    command_parsers['fetch-example'].add_argument('--gpu',default=False,action='store_true',help='force run on GPU')
+
     command_parsers['run-example'].add_argument('number',type=int,default=None,help='example number')
     command_parsers['run-example'].add_argument('--output-dir',type=str,default='./',help='name of output directory relative to CWD')
     command_parsers['run-example'].add_argument('--config-updates',type=str,nargs='+',default=[],help='yaml files to update example')
     command_parsers['run-example'].add_argument('--diagnostic-log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
+    command_parsers['run-example'].add_argument('--gpu',default=False,action='store_true',help='force run on GPU')
     command_parsers['config-help'].add_argument('directives',type=str,nargs='*',help='config file directives')
     command_parsers['config-help'].add_argument('--interactive',default=True,action=ap.BooleanOptionalAction,help='use help in interactive mode')
     command_parsers['config-default'].add_argument('directives',type=str,nargs='*',help='config file directives')

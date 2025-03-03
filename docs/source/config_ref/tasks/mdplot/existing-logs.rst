@@ -1,4 +1,4 @@
-.. _docs source config_ref tasks mdplot existing-logs:
+.. _config_ref tasks mdplot existing-logs:
 
 ``existing-logs``
 -----------------

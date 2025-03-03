@@ -87,7 +87,7 @@ class Segment(AncestorAwareObj):
         # that have chainID attributes AND we have to revisit all links!
         daughter_residues.set(chainID=daughter_chainID)
         Dseg=Segment({},daughter_residues,daughter_chainID)
-        Dseg.modmanager=self.modmanager.expel(daughter_residues)
+        Dseg.objmanager=self.objmanager.expel(daughter_residues)
         Dseg.ancestor_obj=self.ancestor_obj
         return Dseg
 
@@ -121,8 +121,8 @@ class Segment(AncestorAwareObj):
         image_seglabel=chainIDmap.get(seglabel,seglabel)
         is_image=image_seglabel!=seglabel
 
-        modmanager=self.modmanager
-        seqmods=modmanager.get('seqmods',{})
+        objmanager=self.objmanager
+        seqmods=objmanager.get('seq',{})
         seg_grafts=seqmods.get('grafts',GraftList([]))
         # self.injest_grafts(seg_grafts)
 
@@ -181,8 +181,8 @@ class Segment(AncestorAwareObj):
         image_seglabel=chainIDmap.get(seglabel,seglabel)
         is_image=image_seglabel!=seglabel
 
-        modmanager=self.modmanager
-        seqmods=modmanager.get('seqmods',{})
+        objmanager=self.objmanager
+        seqmods=objmanager.get('seq',{})
         logger.debug(f'protein_stanza {seglabel}->{image_seglabel} seqmods: {seqmods}')
 
         transform.register_mapping(self.segtype,image_seglabel,seglabel)
@@ -307,7 +307,7 @@ class Segment(AncestorAwareObj):
                 if is_image:
                     W.restore_selection(b.selname,dataholder=f'{b.selname}_data')
         W.banner(f'Segment {image_seglabel} ends')
-        # THIS IS BAD self.modmanager.retire('seqmods')
+        # THIS IS BAD self.objmanager.retire('seq')
 
 class SegmentList(AncestorAwareObjList):
     """A class for creating and handling a list of segments given a complete list of residues for an entire asymmetric unit"""
@@ -398,9 +398,9 @@ class SegmentList(AncestorAwareObjList):
         self.counters_by_segtype[self.segtype_of_segname[item.segname]]-=1
         return super().remove(item)
 
-    def inherit_mods(self,modmanager):
+    def inherit_mods(self,objmanager):
         for item in self:
-            item.modmanager=modmanager.filter_copy(modnames=item.inheritable_mods,chainID=item.segname)
-            seqmods=item.modmanager.get('seqmods',{})
+            item.objmanager=objmanager.filter_copy(objnames=item.inheritable_mods,chainID=item.segname)
+            seqmods=item.objmanager.get('seq',{})
             grafts=seqmods.get('grafts',[])
             logger.debug(f'Inherit mods: seg {item.segname} has {len(grafts)} grafts')

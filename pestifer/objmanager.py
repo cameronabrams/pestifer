@@ -9,7 +9,7 @@ import os
 
 from . import objs
 
-ObjTypes=['seqobjs','topoobjs','coorobjs','generics']
+ObjCats=['seq','topol','coord','generic']
 
 class ObjManager(UserDict):
     """A class for initializing and collecting all objs into 
@@ -34,19 +34,19 @@ class ObjManager(UserDict):
         # logger.debug(f'ObjManager filter_copy objnames {objnames} fields {fields}')
         self.counts()
         for name,Cls in self.obj_classes.items():
-            objtype=Cls.objtype
+            objcat=Cls.objcat
             header=Cls.yaml_header
-            # logger.debug(f'passing {objtype} {header}...')
-            # logger.debug(f'1-{header in objnames} 2-{objtype in self}')
-            # if objtype in self and header in self[objtype]:
-            #     logger.debug(f'   3-{header in self[objtype]}')
-            if header in objnames and objtype in self and header in self[objtype]:
-                objlist=self[objtype][header].filter(**fields)
-                # logger.debug(f'{len(objlist)} filtered from {len(self[objtype][header])} objs')
+            # logger.debug(f'passing {objcat} {header}...')
+            # logger.debug(f'1-{header in objnames} 2-{objcat in self}')
+            # if objcat in self and header in self[objcat]:
+            #     logger.debug(f'   3-{header in self[objcat]}')
+            if header in objnames and objcat in self and header in self[objcat]:
+                objlist=self[objcat][header].filter(**fields)
+                # logger.debug(f'{len(objlist)} filtered from {len(self[objcat][header])} objs')
                 if len(objlist)>0:
-                    if not objtype in result:
-                        result[objtype]={}
-                    result[objtype][header]=objlist
+                    if not objcat in result:
+                        result[objcat]={}
+                    result[objcat][header]=objlist
         return result
 
     def injest(self,input_obj,overwrite=False):
@@ -65,28 +65,28 @@ class ObjManager(UserDict):
         Cls=type(a_obj)
         objclassident=[x for x,y in self.obj_classes.items() if y==Cls][0]
         LCls=self.objlist_classes.get(f'{objclassident}List',list)
-        objtype=Cls.objtype
-        assert objtype in ObjTypes,f'Objtype {objtype} is not recognized'
+        objcat=Cls.objcat
+        assert objcat in ObjCats,f'Object category {objcat} is not recognized'
         header=Cls.yaml_header
-        if not objtype in self:
-            self[objtype]={}
-        if not header in self[objtype]:
-            self[objtype][header]=LCls([])
-        self[objtype][header].append(a_obj)
+        if not objcat in self:
+            self[objcat]={}
+        if not header in self[objcat]:
+            self[objcat][header]=LCls([])
+        self[objcat][header].append(a_obj)
 
     def _injest_objlist(self,a_objlist,overwrite=False):
         if len(a_objlist)==0: # can handle an empty list...
             return a_objlist  # ...by returning it
         LCls=type(a_objlist)
         Cls=type(a_objlist[0])
-        objtype=Cls.objtype
+        objcat=Cls.objcat
         header=Cls.yaml_header
-        if not objtype in self:
-            self[objtype]={}
-        if overwrite or not header in self[objtype]:
-            self[objtype][header]=LCls([])
-        self[objtype][header].extend(a_objlist)
-        return self[objtype][header]
+        if not objcat in self:
+            self[objcat]={}
+        if overwrite or not header in self[objcat]:
+            self[objcat][header]=LCls([])
+        self[objcat][header].extend(a_objlist)
+        return self[objcat][header]
         
     def _injest_objdict(self,objdict,overwrite=False):
         # does nothing if objdict is empty, but let's just be sure
@@ -94,47 +94,47 @@ class ObjManager(UserDict):
         if len(objdict)==0:
             return
         for name,Cls in self.obj_classes.items():
-            objtype=Cls.objtype
+            objcat=Cls.objcat
             header=Cls.yaml_header
             if header in objdict:
                 LCls=self.objlist_classes.get(f'{name}List',list)
-                if not objtype in self:
-                    self[objtype]={}
-                if overwrite or not header in self[objtype]:
-                    self[objtype][header]=LCls([])
+                if not objcat in self:
+                    self[objcat]={}
+                if overwrite or not header in self[objcat]:
+                    self[objcat][header]=LCls([])
                 for entry in objdict[header]:
                     assert type(entry) in [str,dict],f'Error: expected obj specification of type str or dict, got {type(entry)}'
                     logger.debug(f'entry {entry}')
-                    self[objtype][header].append(Cls(entry))
+                    self[objcat][header].append(Cls(entry))
 
-    def retire(self,objtype):
-        if objtype in self:
-            self.used[objtype]=self[objtype].copy()
-            del self[objtype]
+    def retire(self,objcat):
+        if objcat in self:
+            self.used[objcat]=self[objcat].copy()
+            del self[objcat]
     
     def expel(self,expelled_residues):
         ex=ObjManager()
         for name,Cls in self.obj_classes.items():
             LCls=self.objlist_classes.get(f'{name}List',list)
-            objtype=Cls.objtype
-            if objtype in self:
+            objcat=Cls.objcat
+            if objcat in self:
                 exl=LCls([])
-                for obj in self[objtype]:
+                for obj in self[objcat]:
                     for r in expelled_residues:
                         matches=obj.wildmatch(resseqnum=r.resseqnum,insertion=r.insertion)
                         if matches:
                             exl.append(obj)
                 for obj in exl:
-                    self[objtype].remove(obj)
+                    self[objcat].remove(obj)
                 ex.injest(exl)
         return ex
     
     def counts(self):
         for name,Cls in self.obj_classes.items():
-            objtype=Cls.objtype
+            objcat=Cls.objcat
             header=Cls.yaml_header
             this_count=0
-            if objtype in self:
-                if header in self[objtype]:
-                    this_count=len(self[objtype][header])
+            if objcat in self:
+                if header in self[objcat]:
+                    this_count=len(self[objcat][header])
             logger.debug(f'{header} {this_count}')

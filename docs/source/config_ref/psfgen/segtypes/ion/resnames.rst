@@ -1,4 +1,4 @@
-.. _docs source config_ref psfgen segtypes ion resnames:
+.. _config_ref psfgen segtypes ion resnames:
 
 ``resnames``
 ------------

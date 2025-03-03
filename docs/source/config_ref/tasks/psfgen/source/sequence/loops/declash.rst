@@ -1,4 +1,4 @@
-.. _docs source config_ref tasks psfgen source sequence loops declash:
+.. _config_ref tasks psfgen source sequence loops declash:
 
 ``declash``
 ===========

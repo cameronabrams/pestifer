@@ -71,6 +71,7 @@ class Controller:
             logger.debug('Adding default terminate task')
             self.tasks.append(TerminateTask(specs,'terminate',self.config['base'],self.writers,prior_task))
         ess='s' if len(self.tasks)>1 else ''
+        logger.info(f'Run title: "{self.config["user"]["title"]}"')
         logger.info(f'Controller will execute {len(self.tasks)} task{ess}.')
 
     def do_tasks(self):

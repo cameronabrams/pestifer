@@ -1,4 +1,4 @@
-.. _docs source config_ref namd deprecated3:
+.. _config_ref namd deprecated3:
 
 ``deprecated3``
 ---------------

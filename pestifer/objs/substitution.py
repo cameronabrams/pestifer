@@ -25,7 +25,7 @@ class Substitution(AncestorAwareObj):
     """
     req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2','subseq']
     yaml_header='substitutions'
-    objtype='seqmods'
+    objcat='seq'
 
     @singledispatchmethod
     def __init__(self,input_obj):

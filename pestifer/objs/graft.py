@@ -17,7 +17,8 @@ class Graft(AncestorAwareObj):
     are replaced by those in the reference and the rest of the reference is incorporated."""
     req_attr=AncestorAwareObj.req_attr+['id','orig_chainID','orig_resseqnum1','orig_insertion1','orig_resseqnum2','orig_insertion2','source_pdbid','source_chainID','source_resseqnum1','source_insertion1','source_resseqnum2','source_insertion2','source_resseqnum3','source_insertion3']
     yaml_header='grafts'
-    objtype='seqmods'
+    objcat='seq'
+    
     _Graft_counter=0
     @singledispatchmethod
     def __init__(self,input_obj):

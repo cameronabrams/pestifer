@@ -1,4 +1,4 @@
-.. _docs source config_ref charmmff standard parameters:
+.. _config_ref charmmff standard parameters:
 
 ``parameters``
 --------------

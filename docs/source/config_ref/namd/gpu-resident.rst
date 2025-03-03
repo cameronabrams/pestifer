@@ -1,4 +1,4 @@
-.. _docs source config_ref namd gpu-resident:
+.. _config_ref namd gpu-resident:
 
 ``gpu-resident``
 ----------------

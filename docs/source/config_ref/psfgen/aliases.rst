@@ -1,4 +1,4 @@
-.. _docs source config_ref psfgen aliases:
+.. _config_ref psfgen aliases:
 
 ``aliases``
 -----------

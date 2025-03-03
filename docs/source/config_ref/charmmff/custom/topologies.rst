@@ -1,4 +1,4 @@
-.. _docs source config_ref charmmff custom topologies:
+.. _config_ref charmmff custom topologies:
 
 ``topologies``
 --------------

@@ -14,10 +14,10 @@ from .chainidmanager import ChainIDManager
 logger=logging.getLogger(__name__)
 
 class Molecule(AncestorAwareObj):
-    req_attr=AncestorAwareObj.req_attr+['molid','modmanager','chainIDmanager','sourcespecs','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
+    req_attr=AncestorAwareObj.req_attr+['molid','objmanager','chainIDmanager','sourcespecs','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
     opt_attr=AncestorAwareObj.opt_attr+['active_biological_assembly']
     _molcounter=0
-    def __init__(self,source={},modmanager=None,chainIDmanager=None,**kwargs):
+    def __init__(self,source={},objmanager=None,chainIDmanager=None,**kwargs):
         psf=None
         reset=kwargs.get('reset_counter',False)
         if reset:
@@ -52,20 +52,20 @@ class Molecule(AncestorAwareObj):
             else:
                 logger.debug(f'None of "id", "prebuilt", or "alphafold" specified; initializing an empty molecule')
                 p_struct=None
-        if modmanager==None:
+        if objmanager==None:
             logger.debug(f'Making an empty ObjManager')
-            modmanager=ObjManager()
+            objmanager=ObjManager()
         if chainIDmanager==None:
             logger.debug(f'Molecule instantiating its own ChainIDManager')
             chainIDmanager=ChainIDManager()
         input_dict={
             'sourcespecs': source,
-            'modmanager': modmanager,
+            'objmanager': objmanager,
             'chainIDmanager':chainIDmanager,
             'rcsb_file_format': file_format,
             'molid': Molecule._molcounter,
             'parsed_struct': p_struct,
-            'asymmetric_unit': AsymmetricUnit(parsed=p_struct,sourcespecs=source,modmanager=modmanager,chainIDmanager=chainIDmanager,psf=psf),
+            'asymmetric_unit': AsymmetricUnit(parsed=p_struct,sourcespecs=source,objmanager=objmanager,chainIDmanager=chainIDmanager,psf=psf),
             'biological_assemblies': BioAssembList(p_struct)
         }
         super().__init__(input_dict)
@@ -93,7 +93,7 @@ class Molecule(AncestorAwareObj):
     def write_TcL(self,W:Psfgen):
         au=self.asymmetric_unit
         segments=au.segments
-        topomods=au.modmanager.get('topomods',{})
+        topomods=au.objmanager.get('topol',{})
         ssbonds=topomods.get('ssbonds',[])
         links=topomods.get('links',[])
         ba=self.active_biological_assembly
@@ -221,7 +221,7 @@ class Molecule(AncestorAwareObj):
     def cleave_chains(self,clv_list):
         au=self.asymmetric_unit
         cm=self.chainIDmanager
-        topomods=self.modmanager.get('topomods',{})
+        topomods=self.objmanager.get('topol',{})
         for clv in clv_list:
             S=au.segments.get(chainID=clv.chainID)
             if S:

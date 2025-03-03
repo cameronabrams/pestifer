@@ -1,4 +1,4 @@
-.. _docs source config_ref tasks desolvate:
+.. _config_ref tasks desolvate:
 
 ``desolvate``
 =============

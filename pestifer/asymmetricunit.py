@@ -24,7 +24,7 @@ from .objs.ssbond import SSBond, SSBondList
 # from .objs.ssbonddelete import SSBondDelete, SSBondDeleteListe
 # from .objs.substitution import Substitution, SubstitutionList
 from .objs.ter import Ter, TerList
-from .objmanager import ObjManager
+from .objmanager import ObjManager, ObjCats
 from .psfutil.psfcontents import PSFContents
 from .residue import ResidueList,EmptyResidue,EmptyResidueList
 from .segment import SegmentList
@@ -33,7 +33,7 @@ from .util.util import write_residue_map
 from .util.cifutil import CIFdict
 
 class AsymmetricUnit(AncestorAwareObj):
-    req_attr=AncestorAwareObj.req_attr+['atoms','residues','modmanager']
+    req_attr=AncestorAwareObj.req_attr+['atoms','residues','objmanager']
     opt_attr=AncestorAwareObj.opt_attr+['segments','ignored','pruned']
     excludables={'resnames':'resname','chains':'chainID','segtypes':'segtype'}
     def __init__(self,**objs):
@@ -42,13 +42,13 @@ class AsymmetricUnit(AncestorAwareObj):
             input_dict={
                 'atoms':AtomList([]),
                 'residues':ResidueList([]),
-                'modmanager':ObjManager(),
+                'objmanager':ObjManager(),
                 'segments':SegmentList({},ResidueList([]))
             }
         else: #
             pr=objs.get('parsed',None)
             sourcespecs=objs.get('sourcespecs',{})
-            modmanager=objs.get('modmanager',ObjManager())
+            objmanager=objs.get('objmanager',ObjManager())
             chainIDmanager=objs.get('chainIDmanager',None)
             psf=objs.get('psf',None)
 
@@ -77,7 +77,7 @@ class AsymmetricUnit(AncestorAwareObj):
                     if lnonemptyters>0:
                         atoms.reserialize()
                 # atoms.adjustSerials(ters)
-                modmanager.injest(ters)
+                objmanager.injest(ters)
                 if 'REMARK.465' in pr:
                     missings=EmptyResidueList([EmptyResidue(p) for p in pr['REMARK.465'].tables['MISSING']])
                 ssbonds=SSBondList([SSBond(p) for p in pr.get(SSBond.PDB_keyword,[])])
@@ -118,10 +118,10 @@ class AsymmetricUnit(AncestorAwareObj):
                 if len(self.psf.links)>0:
                     logger.debug(f'PSF file {psf} identifies {len(self.psf.links)} links; total links now {len(links)}')
             
-            # at this point the modmanager is holding all mods that are in 
+            # at this point the objmanager is holding all mods that are in 
             # the input file but NOT in the PDB/mmCIF/psf file.
-            seqmods=modmanager.get('seqmods',{})
-            topomods=modmanager.get('topomods',{})
+            seqmods=objmanager.get('seq',{})
+            topomods=objmanager.get('topol',{})
             grafts=seqmods.get('grafts',GraftList([]))
 
             userlinks=topomods.get('links',LinkList([]))
@@ -142,6 +142,7 @@ class AsymmetricUnit(AncestorAwareObj):
             if 'deletions' in seqmods:
                 residues.deletion(seqmods['deletions'])
             if 'substitutions' in seqmods:
+                logger.debug(f'Applying {len(seqmods["substitutions"])} substitutions...')
                 new_seqadv,wearegone=residues.substitutions(seqmods['substitutions'])
                 seqadvs.extend(new_seqadv)
                 logger.debug(f'There are now {len(seqadvs)} seqadv elements in seqadvs ({type(seqadvs)})')
@@ -248,8 +249,8 @@ class AsymmetricUnit(AncestorAwareObj):
             if seq_specs.get('fix_conflicts',False):
                 mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='conflict']))
             mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='user']))
-            # Now append these to the modmanager's mutations
-            mutations=modmanager.injest(mutations)
+            # Now append these to the objmanager's mutations
+            mutations=objmanager.injest(mutations)
             logger.debug(f'All mutations')
             mutations.sort(by=['typekey'])
             for m in mutations:
@@ -262,23 +263,23 @@ class AsymmetricUnit(AncestorAwareObj):
                 chainIDmanager.unregister_chain(s.segname)
 
             # Now any explicitly deleted ssbonds
-            topomods=modmanager.get('topomods',{})
+            topomods=objmanager.get('topol',{})
             if 'ssbondsdelete' in topomods:
                 for s in ssbonds:
                     if topomods['ssbondsdelete'].is_deleted(s):
                         ignored_ssbonds.append(ssbonds.remove(s))
 
-            # finalize the modmanager
-            ssbonds=modmanager.injest(ssbonds,overwrite=True)
-            links=modmanager.injest(links,overwrite=True)
-            grafts=modmanager.injest(grafts,overwrite=True)
+            # finalize the objmanager
+            ssbonds=objmanager.injest(ssbonds,overwrite=True)
+            links=objmanager.injest(links,overwrite=True)
+            grafts=objmanager.injest(grafts,overwrite=True)
             
-            segments.inherit_mods(modmanager)
+            segments.inherit_mods(objmanager)
 
             input_dict={
                 'atoms':atoms,
                 'residues':residues,
-                'modmanager':modmanager,
+                'objmanager':objmanager,
                 'segments':segments,
                 'ignored':Namespace(residues=ignored_residues,links=ignored_links,ssbonds=ignored_ssbonds,seqadv=ignored_seqadvs),
                 'pruned':Namespace(ssbonds=pruned_ssbonds,residues=pruned_by_links['residues'],links=pruned_by_links['links'],segments=pruned_by_links['segments'])
@@ -296,7 +297,7 @@ class AsymmetricUnit(AncestorAwareObj):
             chain_residues=residues.filter(chainID=graft_chainID)
             # last_chain_residue_idx=residues.index(chain_residues[-1])
             next_available_resid=max([x.resseqnum for x in chain_residues])+1
-            g_topomods=g.source_molecule.modmanager.get('topomods',{})
+            g_topomods=g.source_molecule.objmanager.get('topol',{})
             g_links=g_topomods.get('links',LinkList([]))
             g.source_seg=g.source_molecule.asymmetric_unit.segments.get(segname=g.source_chainID)
             # build the list of new residues this graft contributes; the index residue is not included!
@@ -316,7 +317,6 @@ class AsymmetricUnit(AncestorAwareObj):
             logger.debug(f'Chain {graft_chainID} of raw asymmetric unit injests {len(g.my_residues)} residues and {injested_links} links from graft {g.id}')
                 # residues.insert(last_chain_residue_idx+1,r)
                 # last_chain_residue_idx+=1
-
 
     def set_coords(self,altstruct):
         atoms=AtomList([Atom(p) for p in altstruct[Atom.PDB_keyword]])

@@ -1,4 +1,4 @@
-.. _docs source config_ref charmmff standard:
+.. _config_ref charmmff standard:
 
 ``standard``
 ============

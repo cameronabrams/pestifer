@@ -1,4 +1,4 @@
-.. _docs source config_ref tasks mdplot:
+.. _config_ref tasks mdplot:
 
 ``mdplot``
 ==========

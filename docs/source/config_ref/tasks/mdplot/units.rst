@@ -1,4 +1,4 @@
-.. _docs source config_ref tasks mdplot units:
+.. _config_ref tasks mdplot units:
 
 ``units``
 ---------

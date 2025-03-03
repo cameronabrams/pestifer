@@ -33,13 +33,13 @@ class Ter(AncestorAwareObj):
     yaml_header: (str)
         label used for yaml format input/output
     
-    objtype: (str)
-        type of mod from among ObjTypes
+    objcat: (str)
+        type of mod from among objcats
 
     """
     req_attr=['serial','resname','chainID','resseqnum','insertion']
     yaml_header='terminals'
-    objtype='seqmods'
+    objcat='seq'
     PDB_keyword='TER'
 
     @singledispatchmethod

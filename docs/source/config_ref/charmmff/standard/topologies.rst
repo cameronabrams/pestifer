@@ -1,4 +1,4 @@
-.. _docs source config_ref charmmff standard topologies:
+.. _config_ref charmmff standard topologies:
 
 ``topologies``
 --------------

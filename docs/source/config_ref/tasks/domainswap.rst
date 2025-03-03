@@ -1,4 +1,4 @@
-.. _docs source config_ref tasks domainswap:
+.. _config_ref tasks domainswap:
 
 ``domainswap``
 ==============

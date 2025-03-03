@@ -36,7 +36,7 @@ class Mutation(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['chainID','origresname','resseqnum','insertion','newresname','typekey']
     opt_attr=AncestorAwareObj.opt_attr+['pdbx_auth_seq_num']
     yaml_header='mutations'
-    objtype='seqmods'
+    objcat='seq'
 
     @singledispatchmethod
     def __init__(self,input_obj):

@@ -37,7 +37,7 @@ class Crot(AncestorAwareObj):
         'ALPHA':['chainID','resseqnum1','resseqnum2','resseqnum3']
         })
     yaml_header='crotations'
-    objtype='coormods'
+    objcat='coord'
 
     @singledispatchmethod
     def __init__(self,input_obj):

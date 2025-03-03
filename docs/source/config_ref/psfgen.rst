@@ -1,4 +1,4 @@
-.. _docs source config_ref psfgen:
+.. _config_ref psfgen:
 
 ``psfgen``
 ==========

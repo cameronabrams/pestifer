@@ -1,4 +1,4 @@
-.. _docs source config_ref tasks md constraints:
+.. _config_ref tasks md constraints:
 
 ``constraints``
 ===============

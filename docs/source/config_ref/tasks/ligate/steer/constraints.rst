@@ -1,4 +1,4 @@
-.. _docs source config_ref tasks ligate steer constraints:
+.. _config_ref tasks ligate steer constraints:
 
 ``constraints``
 ===============

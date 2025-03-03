@@ -8,44 +8,8 @@ The Input Configuration
 
 The ``psfgen`` `user manual <https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen/ug.pdf>`_ is a great resource for learning how to use ``psfgen``.  A simple example in that manual is a solvation of BPTI starting from its PDB coordinates (PDB ID 6pti).  ``pestifer`` can reproduce this solvation via the input configuration shown below:
 
-.. code-block:: yaml
-
-  title: BPTI
-  tasks:
-    - psfgen:
-        source:
-          id: 6pti
-    - md:
-        ensemble: minimize
-    - solvate:
-    - md:
-        ensemble: minimize
-    - md:
-        ensemble: NVT
-    - md:
-        ensemble: NPT
-        nsteps: 200
-    - md:
-        ensemble: NPT
-        nsteps: 400
-    - md:
-        ensemble: NPT
-        nsteps: 800
-    - md:
-        ensemble: NPT
-        nsteps: 1600
-    - mdplot:
-        savedata: solvated.csv
-        traces:
-          - density
-        units:
-          density: g_per_cc
-        basename: solvated        
-    - terminate:
-        basename: my_6pti
-        package:
-          ensemble: NPT
-          basename: prod_6pti
+.. literalinclude:: ../../../pestifer/resources/examples/01-bpti.yaml
+    :language: yaml
 
 You can check the :ref:`config_ref` for a complete reference to Pestifer config files.
 

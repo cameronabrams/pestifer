@@ -19,7 +19,7 @@ class ResidueDelete(AncestorAwareObj):
     """
     req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum','insertion']
     yaml_header='residuedeletions'
-    objtype='seqmods'
+    objcat='seq'
 
     @singledispatchmethod
     def __init__(self,input_obj):

@@ -3,7 +3,7 @@ from .ssbond import SSBond, SSBondList
 
 class SSBondDelete(SSBond):
     yaml_header='ssbondsdelete'
-    objtype='topomods'
+    objcat='topol'
 
 class SSBondDeleteList(SSBondList):
     def is_deleted(self,a_SSBond):

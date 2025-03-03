@@ -1,4 +1,4 @@
-.. _docs source config_ref psfgen segtypes lipid:
+.. _config_ref psfgen segtypes lipid:
 
 ``lipid``
 =========

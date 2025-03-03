@@ -43,8 +43,6 @@ tasks:
       savedata: solvated.csv
       traces:
         - density
-      units:
-        density: g_per_cc
       basename: solvated
   - terminate:
       basename: my_6pti

@@ -1,4 +1,4 @@
-.. _docs source config_ref psfgen segtypes ligand resnames:
+.. _config_ref psfgen segtypes ligand resnames:
 
 ``resnames``
 ------------

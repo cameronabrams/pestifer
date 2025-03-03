@@ -103,8 +103,6 @@ tasks:
         - - a_x
           - b_y
           - c_z
-      units:
-        density: g_per_cc
       basename: bilayer
   - terminate:
       basename: my_6e8w

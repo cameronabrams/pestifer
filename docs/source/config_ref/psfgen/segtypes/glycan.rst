@@ -1,4 +1,4 @@
-.. _docs source config_ref psfgen segtypes glycan:
+.. _config_ref psfgen segtypes glycan:
 
 ``glycan``
 ==========

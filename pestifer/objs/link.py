@@ -31,7 +31,8 @@ class Link(AncestorAwareObj):
     opt_attr=AncestorAwareObj.opt_attr+['name1','name2','altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance','segname1','segname2','residue1','residue2','atom1','atom2','empty','segtype1','segtype2','ptnr1_label_asym_id','ptnr2_label_asym_id','ptnr1_label_seq_id','ptnr2_label_seq_id','ptnr1_label_comp_id','ptnr2_label_comp_id','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id','ptnr1_auth_comp_id','ptnr2_auth_comp_id']    
     yaml_header='links'
     PDB_keyword='LINK'
-    objtype='topomods'
+    objcat='topol'
+    
     patch_atomnames={
         'NGLA':['ND2','C1'],
         'NGLB':['ND2','C1'],

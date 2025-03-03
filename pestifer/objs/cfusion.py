@@ -31,8 +31,10 @@ class Cfusion(AncestorAwareObj):
     """
     req_attr=AncestorAwareObj.req_attr+['sourcefile','sourceseg','resseqnum1','insertion1','resseqnum2','insertion2','chainID','id']
     yaml_header='Cfusions'
-    objtype='seqmods'
+    objcat='seq'
+
     _Cfusion_counter=0
+    
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)

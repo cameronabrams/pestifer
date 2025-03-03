@@ -1,4 +1,4 @@
-.. _docs source config_ref psfgen segtypes water:
+.. _config_ref psfgen segtypes water:
 
 ``water``
 =========

@@ -25,7 +25,7 @@ class Deletion(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
     # opt_attr=AncestorAwareObj.opt_attr+['model']
     yaml_header='deletions'
-    objtype='seqmods'
+    objcat='seq'
 
     @singledispatchmethod
     def __init__(self,input_obj):

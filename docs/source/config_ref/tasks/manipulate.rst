@@ -1,4 +1,4 @@
-.. _docs source config_ref tasks manipulate:
+.. _config_ref tasks manipulate:
 
 ``manipulate``
 ==============

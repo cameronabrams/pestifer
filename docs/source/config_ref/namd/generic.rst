@@ -1,4 +1,4 @@
-.. _docs source config_ref namd generic:
+.. _config_ref namd generic:
 
 ``generic``
 -----------

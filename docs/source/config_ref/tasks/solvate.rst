@@ -1,4 +1,4 @@
-.. _docs source config_ref tasks solvate:
+.. _config_ref tasks solvate:
 
 ``solvate``
 ===========

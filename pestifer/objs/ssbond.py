@@ -14,7 +14,7 @@ class SSBond(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
     opt_attr=AncestorAwareObj.opt_attr+['serial_number','residue1','residue2','resname1','resname2','sym1','sym2','length','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id']
     yaml_header='ssbonds'
-    objtype='topomods'
+    objcat='topol'
     PDB_keyword='SSBOND'
     mmCIF_name='struct_conn'
 

@@ -1,4 +1,4 @@
-.. _docs source config_ref paths:
+.. _config_ref paths:
 
 ``paths``
 =========

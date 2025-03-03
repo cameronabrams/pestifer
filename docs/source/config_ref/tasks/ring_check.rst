@@ -1,4 +1,4 @@
-.. _docs source config_ref tasks ring_check:
+.. _config_ref tasks ring_check:
 
 ``ring_check``
 ==============

@@ -1,4 +1,4 @@
-.. _docs source config_ref psfgen segtypes glycan resnames:
+.. _config_ref psfgen segtypes glycan resnames:
 
 ``resnames``
 ------------

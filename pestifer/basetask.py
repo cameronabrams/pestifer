@@ -108,7 +108,7 @@ class BaseTask(BaseObj):
         mtoks=[x.strip() for x in [x.upper() for x in message.split()]]
         if not any([x in self.init_msg_options for x in mtoks]):
             extra+=f' (result: {self.result})'
-        logger.info(f'Task {self.index:02} \'{self.taskname}\'{extra} {message}')
+        logger.info(f'Task {self.index:02} \'{self.taskname}\' {message} {extra}')
 
     def next_basename(self,*obj):
         label=''

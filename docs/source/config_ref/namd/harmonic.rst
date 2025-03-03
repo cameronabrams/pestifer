@@ -1,4 +1,4 @@
-.. _docs source config_ref namd harmonic:
+.. _config_ref namd harmonic:
 
 ``harmonic``
 ------------

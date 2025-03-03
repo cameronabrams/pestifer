@@ -9,9 +9,10 @@ from ..stringthings import split_ri
 
 class CleavageSite(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
-    """A class for handling chain cleavage.  Note that this mod is not expected to be part of a ObjManager so the yaml_header and objtype attributes are irrelevant"""
+    """A class for handling chain cleavage.  Note that this mod is not expected to be part of a ObjManager so the yaml_header and objcat attributes are irrelevant"""
     yaml_header='cleavages'
-    objtype='seqmods'
+    objcat='seq'
+
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)

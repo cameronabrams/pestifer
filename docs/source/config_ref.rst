@@ -1,4 +1,4 @@
-.. _docs source config_ref:
+.. _config_ref:
 
 Configuration File Reference
 ============================
@@ -16,10 +16,10 @@ Subdirectives:
 .. toctree::
    :maxdepth: 1
 
-   docs/source/config_ref/charmmff
-   docs/source/config_ref/psfgen
-   docs/source/config_ref/namd
-   docs/source/config_ref/paths
-   docs/source/config_ref/tasks
+   config_ref/charmmff
+   config_ref/psfgen
+   config_ref/namd
+   config_ref/paths
+   config_ref/tasks
 
 

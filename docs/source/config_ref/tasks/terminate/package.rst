@@ -1,4 +1,4 @@
-.. _docs source config_ref tasks terminate package:
+.. _config_ref tasks terminate package:
 
 ``package``
 ===========

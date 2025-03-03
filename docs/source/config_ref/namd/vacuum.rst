@@ -1,4 +1,4 @@
-.. _docs source config_ref namd vacuum:
+.. _config_ref namd vacuum:
 
 ``vacuum``
 ----------

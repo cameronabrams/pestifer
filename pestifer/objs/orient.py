@@ -10,7 +10,7 @@ class Orient(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['axis']
     opt_attr=AncestorAwareObj.opt_attr+['refatom']
     yaml_header='orient'
-    objtype='coormods'
+    objcat='coord'
 
     @singledispatchmethod
     def __init__(self,input_obj):

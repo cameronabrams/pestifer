@@ -71,7 +71,7 @@ class Seqadv(AncestorAwareObj):
     attr_choices=AncestorAwareObj.attr_choices.copy()
     attr_choices.update({'typekey':['conflict','cloning','expression','typekey','engineered','variant','insertion','deletion','microheterogeneity','chromophore','user','_other_']})
     yaml_header='seqadvs'
-    objtype='seqmods'
+    objcat='seq'
     PDB_keyword='SEQADV'
     mmCIF_name='struct_ref_seq_dif'
 

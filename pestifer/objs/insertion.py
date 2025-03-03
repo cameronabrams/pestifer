@@ -20,7 +20,8 @@ class Insertion(AncestorAwareObj):
     """
     req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum','insertion','sequence']
     yaml_header='insertions'
-    objtype='seqmods'
+    objcat='seq'
+
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)

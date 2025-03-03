@@ -43,6 +43,7 @@ tasks:
   - md:
       ensemble: minimize
   - md:
+      cpu-override: True
       ensemble: NVT
       nsteps: 2400
   - solvate:
@@ -69,8 +70,6 @@ tasks:
       savedata: solvated.csv
       traces:
         - density
-      units:
-        density: g_per_cc
       basename: solvated
   - terminate:
       basename: my_4zmj

@@ -1,4 +1,4 @@
-.. _docs source config_ref psfgen segtypes lipid resnames:
+.. _config_ref psfgen segtypes lipid resnames:
 
 ``resnames``
 ------------

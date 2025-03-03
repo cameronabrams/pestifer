@@ -1,4 +1,4 @@
-.. _docs source config_ref tasks terminate package constraints:
+.. _config_ref tasks terminate package constraints:
 
 ``constraints``
 ===============
