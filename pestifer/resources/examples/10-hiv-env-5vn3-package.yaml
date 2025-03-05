@@ -43,16 +43,16 @@ tasks:
           - phi,I,309,324,-60
           - phi,J,309,324,-60
   - md:
-      # cpu-override: True
+      cpu-override: True
       ensemble: minimize
   - ligate:
       steer:
         nsteps: 3000
   - md:
-      # cpu-override: True
+      cpu-override: True
       ensemble: minimize
   - md:
-      # cpu-override: True
+      cpu-override: True
       ensemble: NVT
       nsteps: 2400
   - solvate:
