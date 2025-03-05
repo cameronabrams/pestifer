@@ -52,8 +52,7 @@ _citation.journal_volume            22
 _citation.language                  ? 
 _citation.page_first                522 
 _citation.page_last                 531 
-_citation.title                     
-'Crystal structure, conformational fixation and entry-related interactions of mature ligand-free HIV-1 Env.' 
+_citation.title                     'Crystal structure, conformational fixation and entry-related interactions of mature ligand-free HIV-1 Env.' 
 _citation.year                      2015 
 _citation.database_id_CSD           ? 
 _citation.pdbx_database_id_DOI      10.1038/nsmb.3051 
@@ -149,14 +148,11 @@ _entity.pdbx_ec
 _entity.pdbx_mutation 
 _entity.pdbx_fragment 
 _entity.details 
-1 polymer     man 'Envelope glycoprotein gp160' 54064.277 1  ? 'T332N, A501C' ? ? 
-2 polymer     man 'Envelope glycoprotein gp160' 17146.482 1  ? 'I559P, T605C' ? ? 
-3 branched    man 
-;alpha-D-mannopyranose-(1-2)-alpha-D-mannopyranose-(1-3)-[alpha-D-mannopyranose-(1-6)]beta-D-mannopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose
-;
-1072.964  1  ? ?              ? ? 
-4 branched    man '2-acetamido-2-deoxy-beta-D-glucopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose' 424.401   2  ? ? ? ? 
-5 non-polymer man 2-acetamido-2-deoxy-beta-D-glucopyranose 221.208   15 ? ?              ? ? 
+1 polymer     man 'Envelope glycoprotein gp160'                                                                                                                                                                             54064.277 1  ? 'T332N, A501C' ? ? 
+2 polymer     man 'Envelope glycoprotein gp160'                                                                                                                                                                             17146.482 1  ? 'I559P, T605C' ? ? 
+3 branched    man 'alpha-D-mannopyranose-(1-2)-alpha-D-mannopyranose-(1-3)-[alpha-D-mannopyranose-(1-6)]beta-D-mannopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose' 1072.964  1  ? ?              ? ? 
+4 branched    man '2-acetamido-2-deoxy-beta-D-glucopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose'                                                                                                                 424.401   2  ? ?              ? ? 
+5 non-polymer man 2-acetamido-2-deoxy-beta-D-glucopyranose                                                                                                                                                                  221.208   15 ? ?              ? ? 
 # 
 loop_
 _entity_poly.entity_id 
@@ -883,10 +879,8 @@ _entity_src_gen.expression_system_id
 _entity_src_gen.plasmid_name 
 _entity_src_gen.plasmid_details 
 _entity_src_gen.pdbx_description 
-1 1 sample 'Biological sequence' 1 481 ? ? env ? ? ? ? ? ? 'Human immunodeficiency virus 1' 11676 ? ? ? ? ? ? ? human 
-'Homo sapiens' 9606 ? ? ? ? ? ? ? ? ? ? ? 'HEK293 GNTI-/-' ? ? Plasmid ? ? ? pVRC8400 ? ? 
-2 1 sample 'Biological sequence' 1 153 ? ? env ? ? ? ? ? ? 'Human immunodeficiency virus 1' 11676 ? ? ? ? ? ? ? human 
-'Homo sapiens' 9606 ? ? ? ? ? ? ? ? ? ? ? 'HEK293 GNTI-/-' ? ? Plasmid ? ? ? pVRC8400 ? ? 
+1 1 sample 'Biological sequence' 1 481 ? ? env ? ? ? ? ? ? 'Human immunodeficiency virus 1' 11676 ? ? ? ? ? ? ? human 'Homo sapiens' 9606 ? ? ? ? ? ? ? ? ? ? ? 'HEK293 GNTI-/-' ? ? Plasmid ? ? ? pVRC8400 ? ? 
+2 1 sample 'Biological sequence' 1 153 ? ? env ? ? ? ? ? ? 'Human immunodeficiency virus 1' 11676 ? ? ? ? ? ? ? human 'Homo sapiens' 9606 ? ? ? ? ? ? ? ? ? ? ? 'HEK293 GNTI-/-' ? ? Plasmid ? ? ? pVRC8400 ? ? 
 # 
 loop_
 _struct_ref.id 
@@ -1651,6 +1645,562 @@ C
 N 
 O 
 S 
+# 
+_pdbx_struct_assembly.id                   1 
+_pdbx_struct_assembly.details              author_and_software_defined_assembly 
+_pdbx_struct_assembly.method_details       PISA 
+_pdbx_struct_assembly.oligomeric_details   hexameric 
+_pdbx_struct_assembly.oligomeric_count     6 
+# 
+_pdbx_struct_assembly_gen.assembly_id       1 
+_pdbx_struct_assembly_gen.oper_expression   1,2,3 
+_pdbx_struct_assembly_gen.asym_id_list      A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T 
+# 
+loop_
+_pdbx_struct_assembly_prop.biol_id 
+_pdbx_struct_assembly_prop.type 
+_pdbx_struct_assembly_prop.value 
+_pdbx_struct_assembly_prop.details 
+1 'ABSA (A^2)' 44090 ? 
+1 MORE         81    ? 
+1 'SSA (A^2)'  82270 ? 
+# 
+loop_
+_pdbx_struct_oper_list.id 
+_pdbx_struct_oper_list.type 
+_pdbx_struct_oper_list.name 
+_pdbx_struct_oper_list.symmetry_operation 
+_pdbx_struct_oper_list.matrix[1][1] 
+_pdbx_struct_oper_list.matrix[1][2] 
+_pdbx_struct_oper_list.matrix[1][3] 
+_pdbx_struct_oper_list.vector[1] 
+_pdbx_struct_oper_list.matrix[2][1] 
+_pdbx_struct_oper_list.matrix[2][2] 
+_pdbx_struct_oper_list.matrix[2][3] 
+_pdbx_struct_oper_list.vector[2] 
+_pdbx_struct_oper_list.matrix[3][1] 
+_pdbx_struct_oper_list.matrix[3][2] 
+_pdbx_struct_oper_list.matrix[3][3] 
+_pdbx_struct_oper_list.vector[3] 
+1 'identity operation'         1_555 x,y,z        1.0000000000  0.0000000000  0.0000000000 0.0000000000    0.0000000000  1.0000000000  0.0000000000 0.0000000000   0.0000000000 0.0000000000 1.0000000000 0.0000000000 
+2 'crystal symmetry operation' 2_775 -y+2,x-y+2,z -0.5000000000 -0.8660254038 0.0000000000 107.1800000000  0.8660254038  -0.5000000000 0.0000000000 185.6412055552 0.0000000000 0.0000000000 1.0000000000 0.0000000000 
+3 'crystal symmetry operation' 3_575 -x+y,-x+2,z  -0.5000000000 0.8660254038  0.0000000000 -107.1800000000 -0.8660254038 -0.5000000000 0.0000000000 185.6412055552 0.0000000000 0.0000000000 1.0000000000 0.0000000000 
+# 
+loop_
+_pdbx_audit_revision_history.ordinal 
+_pdbx_audit_revision_history.data_content_type 
+_pdbx_audit_revision_history.major_revision 
+_pdbx_audit_revision_history.minor_revision 
+_pdbx_audit_revision_history.revision_date 
+1 'Structure model' 1 0 2015-06-24 
+2 'Structure model' 1 1 2015-07-08 
+3 'Structure model' 1 2 2015-07-29 
+4 'Structure model' 1 3 2017-09-27 
+5 'Structure model' 1 4 2019-12-11 
+6 'Structure model' 2 0 2020-07-29 
+# 
+loop_
+_pdbx_audit_revision_details.ordinal 
+_pdbx_audit_revision_details.revision_ordinal 
+_pdbx_audit_revision_details.data_content_type 
+_pdbx_audit_revision_details.provider 
+_pdbx_audit_revision_details.type 
+_pdbx_audit_revision_details.description 
+_pdbx_audit_revision_details.details 
+1 1 'Structure model' repository 'Initial release' ?                          ? 
+2 6 'Structure model' repository Remediation       'Carbohydrate remediation' ? 
+# 
+loop_
+_pdbx_audit_revision_group.ordinal 
+_pdbx_audit_revision_group.revision_ordinal 
+_pdbx_audit_revision_group.data_content_type 
+_pdbx_audit_revision_group.group 
+1  2 'Structure model' 'Database references'        
+2  3 'Structure model' 'Database references'        
+3  4 'Structure model' 'Author supporting evidence' 
+4  4 'Structure model' 'Derived calculations'       
+5  4 'Structure model' 'Source and taxonomy'        
+6  5 'Structure model' 'Author supporting evidence' 
+7  6 'Structure model' 'Atomic model'               
+8  6 'Structure model' 'Data collection'            
+9  6 'Structure model' 'Derived calculations'       
+10 6 'Structure model' 'Structure summary'          
+# 
+loop_
+_pdbx_audit_revision_category.ordinal 
+_pdbx_audit_revision_category.revision_ordinal 
+_pdbx_audit_revision_category.data_content_type 
+_pdbx_audit_revision_category.category 
+1  4 'Structure model' entity_src_gen                
+2  4 'Structure model' pdbx_audit_support            
+3  4 'Structure model' pdbx_struct_oper_list         
+4  5 'Structure model' pdbx_audit_support            
+5  6 'Structure model' atom_site                     
+6  6 'Structure model' chem_comp                     
+7  6 'Structure model' entity                        
+8  6 'Structure model' pdbx_branch_scheme            
+9  6 'Structure model' pdbx_chem_comp_identifier     
+10 6 'Structure model' pdbx_entity_branch            
+11 6 'Structure model' pdbx_entity_branch_descriptor 
+12 6 'Structure model' pdbx_entity_branch_link       
+13 6 'Structure model' pdbx_entity_branch_list       
+14 6 'Structure model' pdbx_entity_nonpoly           
+15 6 'Structure model' pdbx_nonpoly_scheme           
+16 6 'Structure model' pdbx_struct_assembly_gen      
+17 6 'Structure model' struct_asym                   
+18 6 'Structure model' struct_conn                   
+19 6 'Structure model' struct_site                   
+20 6 'Structure model' struct_site_gen               
+# 
+loop_
+_pdbx_refine_tls.pdbx_refine_id 
+_pdbx_refine_tls.id 
+_pdbx_refine_tls.details 
+_pdbx_refine_tls.method 
+_pdbx_refine_tls.origin_x 
+_pdbx_refine_tls.origin_y 
+_pdbx_refine_tls.origin_z 
+_pdbx_refine_tls.T[1][1] 
+_pdbx_refine_tls.T[2][2] 
+_pdbx_refine_tls.T[3][3] 
+_pdbx_refine_tls.T[1][2] 
+_pdbx_refine_tls.T[1][3] 
+_pdbx_refine_tls.T[2][3] 
+_pdbx_refine_tls.L[1][1] 
+_pdbx_refine_tls.L[2][2] 
+_pdbx_refine_tls.L[3][3] 
+_pdbx_refine_tls.L[1][2] 
+_pdbx_refine_tls.L[1][3] 
+_pdbx_refine_tls.L[2][3] 
+_pdbx_refine_tls.S[1][1] 
+_pdbx_refine_tls.S[1][2] 
+_pdbx_refine_tls.S[1][3] 
+_pdbx_refine_tls.S[2][1] 
+_pdbx_refine_tls.S[2][2] 
+_pdbx_refine_tls.S[2][3] 
+_pdbx_refine_tls.S[3][1] 
+_pdbx_refine_tls.S[3][2] 
+_pdbx_refine_tls.S[3][3] 
+'X-RAY DIFFRACTION' 1  ? refined 14.9830  110.9796 20.6844  0.1412  -0.6152 0.1622  -0.7552 0.0536  0.4712  1.7995  1.4188  2.1112 -0.7796 0.3498  1.3449  -0.0268 0.5715  0.9827  -0.4998 -0.2497 -0.4866 -0.7163 0.5125  -0.0763 
+'X-RAY DIFFRACTION' 2  ? refined 16.8138  113.9047 -23.9766 -0.0335 0.0391  0.2990  0.5951  0.3731  -0.1827 0.2816  -0.0110 0.2997 -0.0281 -0.2158 0.0112  0.1346  0.2029  -0.0761 -0.1753 0.1749  -0.2599 -0.2023 0.0586  0.1604  
+'X-RAY DIFFRACTION' 3  ? refined 16.9804  109.6895 5.6335   0.2790  -0.3907 -0.1769 -0.0518 0.4913  0.3737  0.3332  0.0423  0.0313 0.0565  -0.0845 0.0073  -0.0121 0.5562  -0.0450 -0.2447 0.0606  -0.0930 -0.0402 -0.1904 0.1800  
+'X-RAY DIFFRACTION' 4  ? refined 27.3235  101.7650 2.4135   0.4405  -0.0458 -0.3146 -0.1025 0.5150  0.5464  0.0285  0.0865  0.3943 0.0191  -0.0730 -0.0776 0.0023  -0.0750 0.0991  0.0986  0.1875  -0.1893 0.4712  0.0861  0.5150  
+'X-RAY DIFFRACTION' 5  ? refined 24.8590  96.4834  -3.5996  -0.2181 -0.8644 -0.4236 0.1244  0.4747  0.0485  0.1341  0.1179  0.3959 0.0258  -0.0873 0.1852  0.2880  -0.0493 -0.1074 0.2451  0.0512  0.0450  0.3646  0.0282  0.6892  
+'X-RAY DIFFRACTION' 6  ? refined 10.3283  104.6992 30.9633  0.4075  -0.0211 0.3197  -0.1902 0.1520  0.1403  0.1326  0.5631  0.1740 -0.1133 0.0126  -0.0681 -0.0154 -0.2031 -0.1025 0.3395  -0.0156 -0.0748 -0.0658 0.0270  0.2721  
+'X-RAY DIFFRACTION' 7  ? refined 18.0459  108.2936 37.0419  0.7288  0.9668  0.3355  0.1185  -0.0867 -0.2679 0.0084  0.0333  0.0532 -0.0041 -0.0218 0.0203  -0.0199 -0.0008 0.0324  0.0264  -0.0040 0.0050  -0.0097 0.0655  -0.0043 
+'X-RAY DIFFRACTION' 8  ? refined 15.6722  103.2500 45.9796  0.9154  1.0499  0.3813  0.0130  0.1780  0.0343  0.0060  0.0132  0.0225 0.0064  -0.0044 -0.0180 0.0230  -0.0061 0.0531  -0.0332 0.0322  -0.0309 0.0053  -0.0176 0.0034  
+'X-RAY DIFFRACTION' 9  ? refined 14.4360  114.4172 40.1517  1.0164  0.7473  0.6324  -0.2791 0.0699  -0.3420 0.0194  0.0022  0.0352 -0.0031 0.0192  0.0009  0.0080  0.0063  -0.0447 -0.0259 0.0534  -0.0160 0.0593  0.0087  0.0172  
+'X-RAY DIFFRACTION' 10 ? refined 9.4672   121.4393 18.0453  0.4542  0.2626  0.0255  0.4749  0.0825  -0.1096 0.0917  -0.0004 0.4174 0.0044  0.0851  -0.0124 0.0919  0.1547  0.0125  -0.0795 -0.0223 -0.0362 0.0148  0.0231  0.1031  
+'X-RAY DIFFRACTION' 11 ? refined 1.6112   117.1595 30.0860  0.5354  0.3780  0.1926  0.0782  0.0510  -0.0012 0.0002  0.0934  0.0526 0.0017  -0.0104 -0.0359 0.0958  -0.0812 0.0228  -0.1420 -0.1606 0.0882  0.1384  0.0026  -0.0520 
+'X-RAY DIFFRACTION' 12 ? refined 1.7196   114.3403 48.1038  0.2947  0.8160  0.5009  -0.3043 0.2662  0.0135  0.0012  0.0250  0.0151 0.0034  0.0024  0.0183  -0.0513 0.0109  -0.0733 -0.0157 -0.0299 0.0451  -0.0544 -0.0569 -0.0665 
+'X-RAY DIFFRACTION' 13 ? refined -3.2931  98.9629  51.5357  1.2164  1.0090  1.0983  -0.4324 0.2267  0.2116  0.0022  0.0035  0.0037 0.0031  0.0009  0.0029  -0.0810 -0.0908 -0.0630 0.0999  0.0036  -0.0096 -0.1119 -0.0738 0.0000  
+'X-RAY DIFFRACTION' 14 ? refined 10.1041  95.3900  51.9414  1.2269  1.4840  1.0997  -0.3975 0.2263  0.5658  -0.0004 0.0012  0.0065 -0.0002 0.0010  -0.0034 0.0689  0.0286  -0.0122 -0.0346 0.0806  -0.0278 0.0664  -0.0555 -0.0000 
+'X-RAY DIFFRACTION' 15 ? refined 1.1602   100.0308 42.1991  1.2479  0.5836  0.3452  -0.1743 -0.0574 0.2970  0.0218  0.1087  0.1125 -0.0178 -0.0065 -0.0181 -0.1065 -0.0099 -0.1144 -0.1216 0.0249  0.1141  0.0934  0.0811  -0.0560 
+'X-RAY DIFFRACTION' 16 ? refined -12.5781 113.8060 52.2712  0.9975  1.0748  0.8833  0.2443  0.0629  -0.1396 0.0038  0.0056  0.0016 -0.0052 0.0018  -0.0028 0.0273  -0.0118 -0.0370 -0.0398 -0.0654 0.0020  -0.0045 0.0928  0.0000  
+'X-RAY DIFFRACTION' 17 ? refined -16.1391 122.8633 60.6855  0.6655  1.2344  0.7569  0.2870  0.3623  0.1473  0.0005  -0.0002 0.0025 0.0006  -0.0006 -0.0019 0.0172  0.0098  0.0813  0.0021  0.0134  -0.0243 -0.0552 0.0137  -0.0000 
+# 
+loop_
+_pdbx_refine_tls_group.pdbx_refine_id 
+_pdbx_refine_tls_group.id 
+_pdbx_refine_tls_group.refine_tls_id 
+_pdbx_refine_tls_group.beg_auth_asym_id 
+_pdbx_refine_tls_group.beg_auth_seq_id 
+_pdbx_refine_tls_group.beg_label_asym_id 
+_pdbx_refine_tls_group.beg_label_seq_id 
+_pdbx_refine_tls_group.end_auth_asym_id 
+_pdbx_refine_tls_group.end_auth_seq_id 
+_pdbx_refine_tls_group.end_label_asym_id 
+_pdbx_refine_tls_group.end_label_seq_id 
+_pdbx_refine_tls_group.selection 
+_pdbx_refine_tls_group.selection_details 
+'X-RAY DIFFRACTION' 1  1  ? ? ? ? ? ? ? ? ? 
+;chain 'G' and (resid 34 through 114 )
+;
+'X-RAY DIFFRACTION' 2  2  ? ? ? ? ? ? ? ? ? 
+;chain 'G' and (resid 115 through 190 )
+;
+'X-RAY DIFFRACTION' 3  3  ? ? ? ? ? ? ? ? ? 
+;chain 'G' and (resid 191 through 235 )
+;
+'X-RAY DIFFRACTION' 4  4  ? ? ? ? ? ? ? ? ? 
+;chain 'G' and (resid 236 through 353 )
+;
+'X-RAY DIFFRACTION' 5  5  ? ? ? ? ? ? ? ? ? 
+;chain 'G' and (resid 354 through 474 )
+;
+'X-RAY DIFFRACTION' 6  6  ? ? ? ? ? ? ? ? ? 
+;chain 'G' and (resid 475 through 505 )
+;
+'X-RAY DIFFRACTION' 7  7  ? ? ? ? ? ? ? ? ? 
+;chain 'B' and (resid 521 through 526 )
+;
+'X-RAY DIFFRACTION' 8  8  ? ? ? ? ? ? ? ? ? 
+;chain 'B' and (resid 527 through 534 )
+;
+'X-RAY DIFFRACTION' 9  9  ? ? ? ? ? ? ? ? ? 
+;chain 'B' and (resid 535 through 544 )
+;
+'X-RAY DIFFRACTION' 10 10 ? ? ? ? ? ? ? ? ? 
+;chain 'B' and (resid 545 through 572 )
+;
+'X-RAY DIFFRACTION' 11 11 ? ? ? ? ? ? ? ? ? 
+;chain 'B' and (resid 573 through 595 )
+;
+'X-RAY DIFFRACTION' 12 12 ? ? ? ? ? ? ? ? ? 
+;chain 'B' and (resid 596 through 605 )
+;
+'X-RAY DIFFRACTION' 13 13 ? ? ? ? ? ? ? ? ? 
+;chain 'B' and (resid 606 through 615 )
+;
+'X-RAY DIFFRACTION' 14 14 ? ? ? ? ? ? ? ? ? 
+;chain 'B' and (resid 616 through 625 )
+;
+'X-RAY DIFFRACTION' 15 15 ? ? ? ? ? ? ? ? ? 
+;chain 'B' and (resid 626 through 647 )
+;
+'X-RAY DIFFRACTION' 16 16 ? ? ? ? ? ? ? ? ? 
+;chain 'B' and (resid 648 through 657 )
+;
+'X-RAY DIFFRACTION' 17 17 ? ? ? ? ? ? ? ? ? 
+;chain 'B' and (resid 658 through 664 )
+;
+# 
+loop_
+_software.citation_id 
+_software.classification 
+_software.compiler_name 
+_software.compiler_version 
+_software.contact_author 
+_software.contact_author_email 
+_software.date 
+_software.description 
+_software.dependencies 
+_software.hardware 
+_software.language 
+_software.location 
+_software.mods 
+_software.name 
+_software.os 
+_software.os_version 
+_software.type 
+_software.version 
+_software.pdbx_ordinal 
+? refinement        ? ? ? ? ? ? ? ? ? ? ? PHENIX      ? ? ? 1.9_1692 1 
+? 'data scaling'    ? ? ? ? ? ? ? ? ? ? ? HKL-2000    ? ? ? .        2 
+? 'data extraction' ? ? ? ? ? ? ? ? ? ? ? PDB_EXTRACT ? ? ? 3.15     3 
+? 'data reduction'  ? ? ? ? ? ? ? ? ? ? ? HKL-2000    ? ? ? .        4 
+? phasing           ? ? ? ? ? ? ? ? ? ? ? PHENIX      ? ? ? .        5 
+# 
+loop_
+_pdbx_validate_close_contact.id 
+_pdbx_validate_close_contact.PDB_model_num 
+_pdbx_validate_close_contact.auth_atom_id_1 
+_pdbx_validate_close_contact.auth_asym_id_1 
+_pdbx_validate_close_contact.auth_comp_id_1 
+_pdbx_validate_close_contact.auth_seq_id_1 
+_pdbx_validate_close_contact.PDB_ins_code_1 
+_pdbx_validate_close_contact.label_alt_id_1 
+_pdbx_validate_close_contact.auth_atom_id_2 
+_pdbx_validate_close_contact.auth_asym_id_2 
+_pdbx_validate_close_contact.auth_comp_id_2 
+_pdbx_validate_close_contact.auth_seq_id_2 
+_pdbx_validate_close_contact.PDB_ins_code_2 
+_pdbx_validate_close_contact.label_alt_id_2 
+_pdbx_validate_close_contact.dist 
+1 1 O G VAL 36 ? ? OG1 B THR 606 ? ? 2.15 
+2 1 O G THR 50 ? ? NE2 G GLN 103 ? ? 2.16 
+# 
+loop_
+_pdbx_validate_symm_contact.id 
+_pdbx_validate_symm_contact.PDB_model_num 
+_pdbx_validate_symm_contact.auth_atom_id_1 
+_pdbx_validate_symm_contact.auth_asym_id_1 
+_pdbx_validate_symm_contact.auth_comp_id_1 
+_pdbx_validate_symm_contact.auth_seq_id_1 
+_pdbx_validate_symm_contact.PDB_ins_code_1 
+_pdbx_validate_symm_contact.label_alt_id_1 
+_pdbx_validate_symm_contact.site_symmetry_1 
+_pdbx_validate_symm_contact.auth_atom_id_2 
+_pdbx_validate_symm_contact.auth_asym_id_2 
+_pdbx_validate_symm_contact.auth_comp_id_2 
+_pdbx_validate_symm_contact.auth_seq_id_2 
+_pdbx_validate_symm_contact.PDB_ins_code_2 
+_pdbx_validate_symm_contact.label_alt_id_2 
+_pdbx_validate_symm_contact.site_symmetry_2 
+_pdbx_validate_symm_contact.dist 
+1 1 ND2 G ASN 136 ? ? 1_555 O3 G NAG 610 ? ? 5_564 2.16 
+2 1 OG  G SER 187 ? ? 1_555 O  B LEU 660 ? ? 2_774 2.16 
+# 
+loop_
+_pdbx_validate_rmsd_angle.id 
+_pdbx_validate_rmsd_angle.PDB_model_num 
+_pdbx_validate_rmsd_angle.auth_atom_id_1 
+_pdbx_validate_rmsd_angle.auth_asym_id_1 
+_pdbx_validate_rmsd_angle.auth_comp_id_1 
+_pdbx_validate_rmsd_angle.auth_seq_id_1 
+_pdbx_validate_rmsd_angle.PDB_ins_code_1 
+_pdbx_validate_rmsd_angle.label_alt_id_1 
+_pdbx_validate_rmsd_angle.auth_atom_id_2 
+_pdbx_validate_rmsd_angle.auth_asym_id_2 
+_pdbx_validate_rmsd_angle.auth_comp_id_2 
+_pdbx_validate_rmsd_angle.auth_seq_id_2 
+_pdbx_validate_rmsd_angle.PDB_ins_code_2 
+_pdbx_validate_rmsd_angle.label_alt_id_2 
+_pdbx_validate_rmsd_angle.auth_atom_id_3 
+_pdbx_validate_rmsd_angle.auth_asym_id_3 
+_pdbx_validate_rmsd_angle.auth_comp_id_3 
+_pdbx_validate_rmsd_angle.auth_seq_id_3 
+_pdbx_validate_rmsd_angle.PDB_ins_code_3 
+_pdbx_validate_rmsd_angle.label_alt_id_3 
+_pdbx_validate_rmsd_angle.angle_value 
+_pdbx_validate_rmsd_angle.angle_target_value 
+_pdbx_validate_rmsd_angle.angle_deviation 
+_pdbx_validate_rmsd_angle.angle_standard_deviation 
+_pdbx_validate_rmsd_angle.linker_flag 
+1 1 C G ASP 78  ? ? N G PRO 79  ? ? CA G PRO 79  ? ? 128.99 119.30 9.69  1.50 Y 
+2 1 C G ILE 213 ? ? N G PRO 214 ? ? CA G PRO 214 ? ? 110.16 119.30 -9.14 1.50 Y 
+# 
+loop_
+_pdbx_validate_torsion.id 
+_pdbx_validate_torsion.PDB_model_num 
+_pdbx_validate_torsion.auth_comp_id 
+_pdbx_validate_torsion.auth_asym_id 
+_pdbx_validate_torsion.auth_seq_id 
+_pdbx_validate_torsion.PDB_ins_code 
+_pdbx_validate_torsion.label_alt_id 
+_pdbx_validate_torsion.phi 
+_pdbx_validate_torsion.psi 
+1  1 PRO G 43  ? ? -66.28  66.50   
+2  1 SER G 56  ? ? -155.96 89.89   
+3  1 ASP G 57  ? ? 36.45   -154.80 
+4  1 GLU G 64  ? ? 50.86   -115.57 
+5  1 ASN G 67  ? ? 61.81   70.91   
+6  1 TRP G 69  ? ? 55.18   -135.17 
+7  1 HIS G 72  ? ? -141.48 -36.94  
+8  1 ASN G 136 ? ? 54.20   -167.84 
+9  1 ASN G 137 ? ? -149.71 -78.00  
+10 1 THR G 139 ? ? -108.56 -85.38  
+11 1 ASP G 141 ? ? -142.70 -59.39  
+12 1 ASP G 167 ? ? -101.06 -77.49  
+13 1 THR G 198 ? ? -94.83  -61.43  
+14 1 SER G 199 ? ? -142.31 -157.91 
+15 1 GLN G 258 ? ? 71.54   -55.21  
+16 1 GLU G 268 ? ? 60.30   -45.57  
+17 1 PRO G 299 ? ? -79.05  48.72   
+18 1 ILE G 309 ? ? -114.22 72.54   
+19 1 ASN G 356 ? ? -116.72 74.39   
+20 1 ASN G 392 ? ? -164.47 62.88   
+21 1 ASP G 412 ? ? -127.87 -92.01  
+22 1 MET G 426 ? ? -69.42  -176.27 
+23 1 GLN G 428 ? ? 58.41   18.32   
+24 1 THR G 464 ? ? -92.66  -62.90  
+25 1 LEU B 545 ? ? -124.10 -57.72  
+26 1 SER B 546 ? ? 63.06   68.71   
+27 1 TRP B 571 ? ? 76.28   -14.58  
+28 1 CYS B 598 ? ? -121.58 -80.22  
+29 1 SER B 599 ? ? 62.85   -22.04  
+30 1 LEU B 602 ? ? 55.48   -112.84 
+31 1 SER B 615 ? ? 65.63   69.91   
+32 1 ILE B 622 ? ? -123.26 -65.45  
+33 1 GLN B 650 ? ? -111.72 -74.39  
+# 
+loop_
+_pdbx_validate_peptide_omega.id 
+_pdbx_validate_peptide_omega.PDB_model_num 
+_pdbx_validate_peptide_omega.auth_comp_id_1 
+_pdbx_validate_peptide_omega.auth_asym_id_1 
+_pdbx_validate_peptide_omega.auth_seq_id_1 
+_pdbx_validate_peptide_omega.PDB_ins_code_1 
+_pdbx_validate_peptide_omega.label_alt_id_1 
+_pdbx_validate_peptide_omega.auth_comp_id_2 
+_pdbx_validate_peptide_omega.auth_asym_id_2 
+_pdbx_validate_peptide_omega.auth_seq_id_2 
+_pdbx_validate_peptide_omega.PDB_ins_code_2 
+_pdbx_validate_peptide_omega.label_alt_id_2 
+_pdbx_validate_peptide_omega.omega 
+1 1 ASP G 57  ? ? ALA G 58  ? ? 146.93  
+2 1 GLY G 354 ? ? ASN G 355 ? ? -134.45 
+3 1 GLY G 431 ? ? GLN G 432 ? ? 149.35  
+4 1 LEU G 494 ? ? GLY G 495 ? ? 149.23  
+# 
+loop_
+_pdbx_unobs_or_zero_occ_residues.id 
+_pdbx_unobs_or_zero_occ_residues.PDB_model_num 
+_pdbx_unobs_or_zero_occ_residues.polymer_flag 
+_pdbx_unobs_or_zero_occ_residues.occupancy_flag 
+_pdbx_unobs_or_zero_occ_residues.auth_asym_id 
+_pdbx_unobs_or_zero_occ_residues.auth_comp_id 
+_pdbx_unobs_or_zero_occ_residues.auth_seq_id 
+_pdbx_unobs_or_zero_occ_residues.PDB_ins_code 
+_pdbx_unobs_or_zero_occ_residues.label_asym_id 
+_pdbx_unobs_or_zero_occ_residues.label_comp_id 
+_pdbx_unobs_or_zero_occ_residues.label_seq_id 
+1  1 Y 1 G ALA 31  ? A ALA 1   
+2  1 Y 1 G GLU 32  ? A GLU 2   
+3  1 Y 1 G ASN 33  ? A ASN 3   
+4  1 Y 1 G GLU 185 A A GLU 148 
+5  1 Y 1 G ASN 185 B A ASN 149 
+6  1 Y 1 G GLN 185 C A GLN 150 
+7  1 Y 1 G GLY 185 D A GLY 151 
+8  1 Y 1 G ASN 185 E A ASN 152 
+9  1 Y 1 G ARG 185 F A ARG 153 
+10 1 Y 1 G SER 185 G A SER 154 
+11 1 Y 1 G ASN 185 H A ASN 155 
+12 1 Y 1 G ASN 185 I A ASN 156 
+13 1 Y 1 G THR 400 ? A THR 368 
+14 1 Y 1 G SER 401 ? A SER 369 
+15 1 Y 1 G VAL 402 ? A VAL 370 
+16 1 Y 1 G GLN 403 ? A GLN 371 
+17 1 Y 1 G GLY 404 ? A GLY 372 
+18 1 Y 1 G SER 405 ? A SER 373 
+19 1 Y 1 G ASN 406 ? A ASN 374 
+20 1 Y 1 G SER 407 ? A SER 375 
+21 1 Y 1 G THR 408 ? A THR 376 
+22 1 Y 1 G GLY 409 ? A GLY 377 
+23 1 Y 1 G SER 410 ? A SER 378 
+24 1 Y 1 G VAL 506 ? A VAL 474 
+25 1 Y 1 G GLY 507 ? A GLY 475 
+26 1 Y 1 G ARG 508 ? A ARG 476 
+27 1 Y 1 G ARG 509 ? A ARG 477 
+28 1 Y 1 G ARG 510 ? A ARG 478 
+29 1 Y 1 G ARG 511 ? A ARG 479 
+30 1 Y 1 G ARG 512 ? A ARG 480 
+31 1 Y 1 G ARG 513 ? A ARG 481 
+32 1 Y 1 B ALA 512 ? B ALA 1   
+33 1 Y 1 B VAL 513 ? B VAL 2   
+34 1 Y 1 B GLY 514 ? B GLY 3   
+35 1 Y 1 B ILE 515 ? B ILE 4   
+36 1 Y 1 B GLY 516 ? B GLY 5   
+37 1 Y 1 B ALA 517 ? B ALA 6   
+38 1 Y 1 B VAL 518 ? B VAL 7   
+39 1 Y 1 B PHE 519 ? B PHE 8   
+40 1 Y 1 B LEU 520 ? B LEU 9   
+41 1 Y 1 B ILE 548 ? B ILE 37  
+42 1 Y 1 B VAL 549 ? B VAL 38  
+43 1 Y 1 B GLN 550 ? B GLN 39  
+44 1 Y 1 B GLN 551 ? B GLN 40  
+45 1 Y 1 B GLN 552 ? B GLN 41  
+46 1 Y 1 B SER 553 ? B SER 42  
+47 1 Y 1 B ASN 554 ? B ASN 43  
+48 1 Y 1 B LEU 555 ? B LEU 44  
+49 1 Y 1 B LEU 556 ? B LEU 45  
+50 1 Y 1 B ARG 557 ? B ARG 46  
+51 1 Y 1 B ALA 558 ? B ALA 47  
+52 1 Y 1 B PRO 559 ? B PRO 48  
+53 1 Y 1 B GLU 560 ? B GLU 49  
+54 1 Y 1 B ALA 561 ? B ALA 50  
+55 1 Y 1 B GLN 562 ? B GLN 51  
+56 1 Y 1 B GLN 563 ? B GLN 52  
+57 1 Y 1 B HIS 564 ? B HIS 53  
+58 1 Y 1 B LEU 565 ? B LEU 54  
+59 1 Y 1 B LEU 566 ? B LEU 55  
+60 1 Y 1 B LYS 567 ? B LYS 56  
+61 1 Y 1 B LEU 568 ? B LEU 57  
+# 
+_pdbx_audit_support.funding_organization   'National Institutes of Health/National Institute Of Allergy and Infectious Diseases (NIH/NIAID)' 
+_pdbx_audit_support.country                'United States' 
+_pdbx_audit_support.grant_number           ? 
+_pdbx_audit_support.ordinal                1 
+# 
+loop_
+_pdbx_branch_scheme.asym_id 
+_pdbx_branch_scheme.entity_id 
+_pdbx_branch_scheme.mon_id 
+_pdbx_branch_scheme.num 
+_pdbx_branch_scheme.pdb_asym_id 
+_pdbx_branch_scheme.pdb_mon_id 
+_pdbx_branch_scheme.pdb_seq_num 
+_pdbx_branch_scheme.auth_asym_id 
+_pdbx_branch_scheme.auth_mon_id 
+_pdbx_branch_scheme.auth_seq_num 
+_pdbx_branch_scheme.hetero 
+C 3 NAG 1 A NAG 1 G NAG 762  n 
+C 3 NAG 2 A NAG 2 G NAG 763  n 
+C 3 BMA 3 A BMA 3 G BMA 764  n 
+C 3 MAN 4 A MAN 4 G MAN 768  n 
+C 3 MAN 5 A MAN 5 G MAN 769  n 
+C 3 MAN 6 A MAN 6 G MAN 765  n 
+D 4 NAG 1 C NAG 1 G NAG 1197 n 
+D 4 NAG 2 C NAG 2 G NAG 1198 n 
+E 4 NAG 1 D NAG 1 G NAG 1331 n 
+E 4 NAG 2 D NAG 2 G NAG 1332 n 
+# 
+loop_
+_pdbx_chem_comp_identifier.comp_id 
+_pdbx_chem_comp_identifier.type 
+_pdbx_chem_comp_identifier.program 
+_pdbx_chem_comp_identifier.program_version 
+_pdbx_chem_comp_identifier.identifier 
+BMA 'CONDENSED IUPAC CARBOHYDRATE SYMBOL' GMML     1.0 DManpb                         
+BMA 'COMMON NAME'                         GMML     1.0 b-D-mannopyranose              
+BMA 'IUPAC CARBOHYDRATE SYMBOL'           PDB-CARE 1.0 b-D-Manp                       
+BMA 'SNFG CARBOHYDRATE SYMBOL'            GMML     1.0 Man                            
+MAN 'CONDENSED IUPAC CARBOHYDRATE SYMBOL' GMML     1.0 DManpa                         
+MAN 'COMMON NAME'                         GMML     1.0 a-D-mannopyranose              
+MAN 'IUPAC CARBOHYDRATE SYMBOL'           PDB-CARE 1.0 a-D-Manp                       
+MAN 'SNFG CARBOHYDRATE SYMBOL'            GMML     1.0 Man                            
+NAG 'CONDENSED IUPAC CARBOHYDRATE SYMBOL' GMML     1.0 DGlcpNAcb                      
+NAG 'COMMON NAME'                         GMML     1.0 N-acetyl-b-D-glucopyranosamine 
+NAG 'IUPAC CARBOHYDRATE SYMBOL'           PDB-CARE 1.0 b-D-GlcpNAc                    
+NAG 'SNFG CARBOHYDRATE SYMBOL'            GMML     1.0 GlcNAc                         
+# 
+loop_
+_pdbx_entity_branch.entity_id 
+_pdbx_entity_branch.type 
+3 oligosaccharide 
+4 oligosaccharide 
+# 
+loop_
+_pdbx_entity_branch_descriptor.ordinal 
+_pdbx_entity_branch_descriptor.entity_id 
+_pdbx_entity_branch_descriptor.descriptor 
+_pdbx_entity_branch_descriptor.type 
+_pdbx_entity_branch_descriptor.program 
+_pdbx_entity_branch_descriptor.program_version 
+1 3 'DManpa1-2DManpa1-3[DManpa1-6]DManpb1-4DGlcpNAcb1-4DGlcpNAcb1-'                                                                'Glycam Condensed Sequence' GMML       1.0   
+2 3 'WURCS=2.0/3,6,5/[a2122h-1b_1-5_2*NCC/3=O][a1122h-1b_1-5][a1122h-1a_1-5]/1-1-2-3-3-3/a4-b1_b4-c1_c3-d1_c6-f1_d2-e1'            WURCS                       PDB2Glycan 1.1.0 
+3 3 '[]{[(4+1)][b-D-GlcpNAc]{[(4+1)][b-D-GlcpNAc]{[(4+1)][b-D-Manp]{[(3+1)][a-D-Manp]{[(2+1)][a-D-Manp]{}}[(6+1)][a-D-Manp]{}}}}}' LINUCS                      PDB-CARE   ?     
+4 4 DGlcpNAcb1-4DGlcpNAcb1-                                                                                                        'Glycam Condensed Sequence' GMML       1.0   
+5 4 'WURCS=2.0/1,2,1/[a2122h-1b_1-5_2*NCC/3=O]/1-1/a4-b1'                                                                          WURCS                       PDB2Glycan 1.1.0 
+6 4 '[]{[(4+1)][b-D-GlcpNAc]{[(4+1)][b-D-GlcpNAc]{}}}'                                                                             LINUCS                      PDB-CARE   ?     
+# 
+loop_
+_pdbx_entity_branch_link.link_id 
+_pdbx_entity_branch_link.entity_id 
+_pdbx_entity_branch_link.entity_branch_list_num_1 
+_pdbx_entity_branch_link.comp_id_1 
+_pdbx_entity_branch_link.atom_id_1 
+_pdbx_entity_branch_link.leaving_atom_id_1 
+_pdbx_entity_branch_link.entity_branch_list_num_2 
+_pdbx_entity_branch_link.comp_id_2 
+_pdbx_entity_branch_link.atom_id_2 
+_pdbx_entity_branch_link.leaving_atom_id_2 
+_pdbx_entity_branch_link.value_order 
+_pdbx_entity_branch_link.details 
+1 3 2 NAG C1 O1 1 NAG O4 HO4 sing ? 
+2 3 3 BMA C1 O1 2 NAG O4 HO4 sing ? 
+3 3 4 MAN C1 O1 3 BMA O3 HO3 sing ? 
+4 3 5 MAN C1 O1 4 MAN O2 HO2 sing ? 
+5 3 6 MAN C1 O1 3 BMA O6 HO6 sing ? 
+6 4 2 NAG C1 O1 1 NAG O4 HO4 sing ? 
+# 
+loop_
+_pdbx_entity_branch_list.entity_id 
+_pdbx_entity_branch_list.comp_id 
+_pdbx_entity_branch_list.num 
+_pdbx_entity_branch_list.hetero 
+3 NAG 1 n 
+3 NAG 2 n 
+3 BMA 3 n 
+3 MAN 4 n 
+3 MAN 5 n 
+3 MAN 6 n 
+4 NAG 1 n 
+4 NAG 2 n 
+# 
+_pdbx_entity_nonpoly.entity_id   5 
+_pdbx_entity_nonpoly.name        2-acetamido-2-deoxy-beta-D-glucopyranose 
+_pdbx_entity_nonpoly.comp_id     NAG 
 # 
 loop_
 _atom_site.group_PDB 
@@ -11743,624 +12293,4 @@ Q 5 NAG 1 620 1301 NAG NAG G .
 R 5 NAG 1 701 1111 NAG NAG B . 
 S 5 NAG 1 702 1118 NAG NAG B . 
 T 5 NAG 1 703 1137 NAG NAG B . 
-# 
-_pdbx_struct_assembly.id                   1 
-_pdbx_struct_assembly.details              author_and_software_defined_assembly 
-_pdbx_struct_assembly.method_details       PISA 
-_pdbx_struct_assembly.oligomeric_details   hexameric 
-_pdbx_struct_assembly.oligomeric_count     6 
-# 
-_pdbx_struct_assembly_gen.assembly_id       1 
-_pdbx_struct_assembly_gen.oper_expression   1,2,3 
-_pdbx_struct_assembly_gen.asym_id_list      A,B,C,D,E,F,G,H,I,J,K,L,M,N,O,P,Q,R,S,T 
-# 
-loop_
-_pdbx_struct_assembly_prop.biol_id 
-_pdbx_struct_assembly_prop.type 
-_pdbx_struct_assembly_prop.value 
-_pdbx_struct_assembly_prop.details 
-1 'ABSA (A^2)' 44090 ? 
-1 MORE         81    ? 
-1 'SSA (A^2)'  82270 ? 
-# 
-loop_
-_pdbx_struct_oper_list.id 
-_pdbx_struct_oper_list.type 
-_pdbx_struct_oper_list.name 
-_pdbx_struct_oper_list.symmetry_operation 
-_pdbx_struct_oper_list.matrix[1][1] 
-_pdbx_struct_oper_list.matrix[1][2] 
-_pdbx_struct_oper_list.matrix[1][3] 
-_pdbx_struct_oper_list.vector[1] 
-_pdbx_struct_oper_list.matrix[2][1] 
-_pdbx_struct_oper_list.matrix[2][2] 
-_pdbx_struct_oper_list.matrix[2][3] 
-_pdbx_struct_oper_list.vector[2] 
-_pdbx_struct_oper_list.matrix[3][1] 
-_pdbx_struct_oper_list.matrix[3][2] 
-_pdbx_struct_oper_list.matrix[3][3] 
-_pdbx_struct_oper_list.vector[3] 
-1 'identity operation'         1_555 x,y,z        1.0000000000  0.0000000000  0.0000000000 0.0000000000    0.0000000000  
-1.0000000000  0.0000000000 0.0000000000   0.0000000000 0.0000000000 1.0000000000 0.0000000000 
-2 'crystal symmetry operation' 2_775 -y+2,x-y+2,z -0.5000000000 -0.8660254038 0.0000000000 107.1800000000  0.8660254038  
--0.5000000000 0.0000000000 185.6412055552 0.0000000000 0.0000000000 1.0000000000 0.0000000000 
-3 'crystal symmetry operation' 3_575 -x+y,-x+2,z  -0.5000000000 0.8660254038  0.0000000000 -107.1800000000 -0.8660254038 
--0.5000000000 0.0000000000 185.6412055552 0.0000000000 0.0000000000 1.0000000000 0.0000000000 
-# 
-loop_
-_pdbx_audit_revision_history.ordinal 
-_pdbx_audit_revision_history.data_content_type 
-_pdbx_audit_revision_history.major_revision 
-_pdbx_audit_revision_history.minor_revision 
-_pdbx_audit_revision_history.revision_date 
-1 'Structure model' 1 0 2015-06-24 
-2 'Structure model' 1 1 2015-07-08 
-3 'Structure model' 1 2 2015-07-29 
-4 'Structure model' 1 3 2017-09-27 
-5 'Structure model' 1 4 2019-12-11 
-6 'Structure model' 2 0 2020-07-29 
-# 
-loop_
-_pdbx_audit_revision_details.ordinal 
-_pdbx_audit_revision_details.revision_ordinal 
-_pdbx_audit_revision_details.data_content_type 
-_pdbx_audit_revision_details.provider 
-_pdbx_audit_revision_details.type 
-_pdbx_audit_revision_details.description 
-_pdbx_audit_revision_details.details 
-1 1 'Structure model' repository 'Initial release' ?                          ? 
-2 6 'Structure model' repository Remediation       'Carbohydrate remediation' ? 
-# 
-loop_
-_pdbx_audit_revision_group.ordinal 
-_pdbx_audit_revision_group.revision_ordinal 
-_pdbx_audit_revision_group.data_content_type 
-_pdbx_audit_revision_group.group 
-1  2 'Structure model' 'Database references'        
-2  3 'Structure model' 'Database references'        
-3  4 'Structure model' 'Author supporting evidence' 
-4  4 'Structure model' 'Derived calculations'       
-5  4 'Structure model' 'Source and taxonomy'        
-6  5 'Structure model' 'Author supporting evidence' 
-7  6 'Structure model' 'Atomic model'               
-8  6 'Structure model' 'Data collection'            
-9  6 'Structure model' 'Derived calculations'       
-10 6 'Structure model' 'Structure summary'          
-# 
-loop_
-_pdbx_audit_revision_category.ordinal 
-_pdbx_audit_revision_category.revision_ordinal 
-_pdbx_audit_revision_category.data_content_type 
-_pdbx_audit_revision_category.category 
-1  4 'Structure model' entity_src_gen                
-2  4 'Structure model' pdbx_audit_support            
-3  4 'Structure model' pdbx_struct_oper_list         
-4  5 'Structure model' pdbx_audit_support            
-5  6 'Structure model' atom_site                     
-6  6 'Structure model' chem_comp                     
-7  6 'Structure model' entity                        
-8  6 'Structure model' pdbx_branch_scheme            
-9  6 'Structure model' pdbx_chem_comp_identifier     
-10 6 'Structure model' pdbx_entity_branch            
-11 6 'Structure model' pdbx_entity_branch_descriptor 
-12 6 'Structure model' pdbx_entity_branch_link       
-13 6 'Structure model' pdbx_entity_branch_list       
-14 6 'Structure model' pdbx_entity_nonpoly           
-15 6 'Structure model' pdbx_nonpoly_scheme           
-16 6 'Structure model' pdbx_struct_assembly_gen      
-17 6 'Structure model' struct_asym                   
-18 6 'Structure model' struct_conn                   
-19 6 'Structure model' struct_site                   
-20 6 'Structure model' struct_site_gen               
-# 
-loop_
-_pdbx_audit_revision_item.ordinal 
-_pdbx_audit_revision_item.revision_ordinal 
-_pdbx_audit_revision_item.data_content_type 
-_pdbx_audit_revision_item.item 
-1  4 'Structure model' '_entity_src_gen.pdbx_alt_source_flag'      
-2  4 'Structure model' '_pdbx_audit_support.funding_organization'  
-3  4 'Structure model' '_pdbx_struct_oper_list.symmetry_operation' 
-4  5 'Structure model' '_pdbx_audit_support.funding_organization'  
-5  6 'Structure model' '_atom_site.B_iso_or_equiv'                 
-6  6 'Structure model' '_atom_site.Cartn_x'                        
-7  6 'Structure model' '_atom_site.Cartn_y'                        
-8  6 'Structure model' '_atom_site.Cartn_z'                        
-9  6 'Structure model' '_atom_site.auth_asym_id'                   
-10 6 'Structure model' '_atom_site.auth_atom_id'                   
-11 6 'Structure model' '_atom_site.auth_comp_id'                   
-12 6 'Structure model' '_atom_site.auth_seq_id'                    
-13 6 'Structure model' '_atom_site.label_asym_id'                  
-14 6 'Structure model' '_atom_site.label_atom_id'                  
-15 6 'Structure model' '_atom_site.label_comp_id'                  
-16 6 'Structure model' '_atom_site.label_entity_id'                
-17 6 'Structure model' '_atom_site.type_symbol'                    
-18 6 'Structure model' '_chem_comp.name'                           
-19 6 'Structure model' '_chem_comp.type'                           
-20 6 'Structure model' '_entity.formula_weight'                    
-21 6 'Structure model' '_entity.pdbx_description'                  
-22 6 'Structure model' '_entity.pdbx_number_of_molecules'          
-23 6 'Structure model' '_entity.type'                              
-24 6 'Structure model' '_pdbx_struct_assembly_gen.asym_id_list'    
-25 6 'Structure model' '_struct_conn.pdbx_role'                    
-26 6 'Structure model' '_struct_conn.ptnr1_auth_asym_id'           
-27 6 'Structure model' '_struct_conn.ptnr1_auth_seq_id'            
-28 6 'Structure model' '_struct_conn.ptnr1_label_asym_id'          
-29 6 'Structure model' '_struct_conn.ptnr2_auth_asym_id'           
-30 6 'Structure model' '_struct_conn.ptnr2_auth_seq_id'            
-31 6 'Structure model' '_struct_conn.ptnr2_label_asym_id'          
-# 
-loop_
-_pdbx_refine_tls.pdbx_refine_id 
-_pdbx_refine_tls.id 
-_pdbx_refine_tls.details 
-_pdbx_refine_tls.method 
-_pdbx_refine_tls.origin_x 
-_pdbx_refine_tls.origin_y 
-_pdbx_refine_tls.origin_z 
-_pdbx_refine_tls.T[1][1] 
-_pdbx_refine_tls.T[2][2] 
-_pdbx_refine_tls.T[3][3] 
-_pdbx_refine_tls.T[1][2] 
-_pdbx_refine_tls.T[1][3] 
-_pdbx_refine_tls.T[2][3] 
-_pdbx_refine_tls.L[1][1] 
-_pdbx_refine_tls.L[2][2] 
-_pdbx_refine_tls.L[3][3] 
-_pdbx_refine_tls.L[1][2] 
-_pdbx_refine_tls.L[1][3] 
-_pdbx_refine_tls.L[2][3] 
-_pdbx_refine_tls.S[1][1] 
-_pdbx_refine_tls.S[1][2] 
-_pdbx_refine_tls.S[1][3] 
-_pdbx_refine_tls.S[2][1] 
-_pdbx_refine_tls.S[2][2] 
-_pdbx_refine_tls.S[2][3] 
-_pdbx_refine_tls.S[3][1] 
-_pdbx_refine_tls.S[3][2] 
-_pdbx_refine_tls.S[3][3] 
-'X-RAY DIFFRACTION' 1  ? refined 14.9830  110.9796 20.6844  0.1412  -0.6152 0.1622  -0.7552 0.0536  0.4712  1.7995  1.4188  2.1112 
--0.7796 0.3498  1.3449  -0.0268 0.5715  0.9827  -0.4998 -0.2497 -0.4866 -0.7163 0.5125  -0.0763 
-'X-RAY DIFFRACTION' 2  ? refined 16.8138  113.9047 -23.9766 -0.0335 0.0391  0.2990  0.5951  0.3731  -0.1827 0.2816  -0.0110 0.2997 
--0.0281 -0.2158 0.0112  0.1346  0.2029  -0.0761 -0.1753 0.1749  -0.2599 -0.2023 0.0586  0.1604  
-'X-RAY DIFFRACTION' 3  ? refined 16.9804  109.6895 5.6335   0.2790  -0.3907 -0.1769 -0.0518 0.4913  0.3737  0.3332  0.0423  0.0313 
-0.0565  -0.0845 0.0073  -0.0121 0.5562  -0.0450 -0.2447 0.0606  -0.0930 -0.0402 -0.1904 0.1800  
-'X-RAY DIFFRACTION' 4  ? refined 27.3235  101.7650 2.4135   0.4405  -0.0458 -0.3146 -0.1025 0.5150  0.5464  0.0285  0.0865  0.3943 
-0.0191  -0.0730 -0.0776 0.0023  -0.0750 0.0991  0.0986  0.1875  -0.1893 0.4712  0.0861  0.5150  
-'X-RAY DIFFRACTION' 5  ? refined 24.8590  96.4834  -3.5996  -0.2181 -0.8644 -0.4236 0.1244  0.4747  0.0485  0.1341  0.1179  0.3959 
-0.0258  -0.0873 0.1852  0.2880  -0.0493 -0.1074 0.2451  0.0512  0.0450  0.3646  0.0282  0.6892  
-'X-RAY DIFFRACTION' 6  ? refined 10.3283  104.6992 30.9633  0.4075  -0.0211 0.3197  -0.1902 0.1520  0.1403  0.1326  0.5631  0.1740 
--0.1133 0.0126  -0.0681 -0.0154 -0.2031 -0.1025 0.3395  -0.0156 -0.0748 -0.0658 0.0270  0.2721  
-'X-RAY DIFFRACTION' 7  ? refined 18.0459  108.2936 37.0419  0.7288  0.9668  0.3355  0.1185  -0.0867 -0.2679 0.0084  0.0333  0.0532 
--0.0041 -0.0218 0.0203  -0.0199 -0.0008 0.0324  0.0264  -0.0040 0.0050  -0.0097 0.0655  -0.0043 
-'X-RAY DIFFRACTION' 8  ? refined 15.6722  103.2500 45.9796  0.9154  1.0499  0.3813  0.0130  0.1780  0.0343  0.0060  0.0132  0.0225 
-0.0064  -0.0044 -0.0180 0.0230  -0.0061 0.0531  -0.0332 0.0322  -0.0309 0.0053  -0.0176 0.0034  
-'X-RAY DIFFRACTION' 9  ? refined 14.4360  114.4172 40.1517  1.0164  0.7473  0.6324  -0.2791 0.0699  -0.3420 0.0194  0.0022  0.0352 
--0.0031 0.0192  0.0009  0.0080  0.0063  -0.0447 -0.0259 0.0534  -0.0160 0.0593  0.0087  0.0172  
-'X-RAY DIFFRACTION' 10 ? refined 9.4672   121.4393 18.0453  0.4542  0.2626  0.0255  0.4749  0.0825  -0.1096 0.0917  -0.0004 0.4174 
-0.0044  0.0851  -0.0124 0.0919  0.1547  0.0125  -0.0795 -0.0223 -0.0362 0.0148  0.0231  0.1031  
-'X-RAY DIFFRACTION' 11 ? refined 1.6112   117.1595 30.0860  0.5354  0.3780  0.1926  0.0782  0.0510  -0.0012 0.0002  0.0934  0.0526 
-0.0017  -0.0104 -0.0359 0.0958  -0.0812 0.0228  -0.1420 -0.1606 0.0882  0.1384  0.0026  -0.0520 
-'X-RAY DIFFRACTION' 12 ? refined 1.7196   114.3403 48.1038  0.2947  0.8160  0.5009  -0.3043 0.2662  0.0135  0.0012  0.0250  0.0151 
-0.0034  0.0024  0.0183  -0.0513 0.0109  -0.0733 -0.0157 -0.0299 0.0451  -0.0544 -0.0569 -0.0665 
-'X-RAY DIFFRACTION' 13 ? refined -3.2931  98.9629  51.5357  1.2164  1.0090  1.0983  -0.4324 0.2267  0.2116  0.0022  0.0035  0.0037 
-0.0031  0.0009  0.0029  -0.0810 -0.0908 -0.0630 0.0999  0.0036  -0.0096 -0.1119 -0.0738 0.0000  
-'X-RAY DIFFRACTION' 14 ? refined 10.1041  95.3900  51.9414  1.2269  1.4840  1.0997  -0.3975 0.2263  0.5658  -0.0004 0.0012  0.0065 
--0.0002 0.0010  -0.0034 0.0689  0.0286  -0.0122 -0.0346 0.0806  -0.0278 0.0664  -0.0555 -0.0000 
-'X-RAY DIFFRACTION' 15 ? refined 1.1602   100.0308 42.1991  1.2479  0.5836  0.3452  -0.1743 -0.0574 0.2970  0.0218  0.1087  0.1125 
--0.0178 -0.0065 -0.0181 -0.1065 -0.0099 -0.1144 -0.1216 0.0249  0.1141  0.0934  0.0811  -0.0560 
-'X-RAY DIFFRACTION' 16 ? refined -12.5781 113.8060 52.2712  0.9975  1.0748  0.8833  0.2443  0.0629  -0.1396 0.0038  0.0056  0.0016 
--0.0052 0.0018  -0.0028 0.0273  -0.0118 -0.0370 -0.0398 -0.0654 0.0020  -0.0045 0.0928  0.0000  
-'X-RAY DIFFRACTION' 17 ? refined -16.1391 122.8633 60.6855  0.6655  1.2344  0.7569  0.2870  0.3623  0.1473  0.0005  -0.0002 0.0025 
-0.0006  -0.0006 -0.0019 0.0172  0.0098  0.0813  0.0021  0.0134  -0.0243 -0.0552 0.0137  -0.0000 
-# 
-loop_
-_pdbx_refine_tls_group.pdbx_refine_id 
-_pdbx_refine_tls_group.id 
-_pdbx_refine_tls_group.refine_tls_id 
-_pdbx_refine_tls_group.beg_auth_asym_id 
-_pdbx_refine_tls_group.beg_auth_seq_id 
-_pdbx_refine_tls_group.beg_label_asym_id 
-_pdbx_refine_tls_group.beg_label_seq_id 
-_pdbx_refine_tls_group.end_auth_asym_id 
-_pdbx_refine_tls_group.end_auth_seq_id 
-_pdbx_refine_tls_group.end_label_asym_id 
-_pdbx_refine_tls_group.end_label_seq_id 
-_pdbx_refine_tls_group.selection 
-_pdbx_refine_tls_group.selection_details 
-'X-RAY DIFFRACTION' 1  1  ? ? ? ? ? ? ? ? ? 
-;chain 'G' and (resid 34 through 114 )
-;
-'X-RAY DIFFRACTION' 2  2  ? ? ? ? ? ? ? ? ? 
-;chain 'G' and (resid 115 through 190 )
-;
-'X-RAY DIFFRACTION' 3  3  ? ? ? ? ? ? ? ? ? 
-;chain 'G' and (resid 191 through 235 )
-;
-'X-RAY DIFFRACTION' 4  4  ? ? ? ? ? ? ? ? ? 
-;chain 'G' and (resid 236 through 353 )
-;
-'X-RAY DIFFRACTION' 5  5  ? ? ? ? ? ? ? ? ? 
-;chain 'G' and (resid 354 through 474 )
-;
-'X-RAY DIFFRACTION' 6  6  ? ? ? ? ? ? ? ? ? 
-;chain 'G' and (resid 475 through 505 )
-;
-'X-RAY DIFFRACTION' 7  7  ? ? ? ? ? ? ? ? ? 
-;chain 'B' and (resid 521 through 526 )
-;
-'X-RAY DIFFRACTION' 8  8  ? ? ? ? ? ? ? ? ? 
-;chain 'B' and (resid 527 through 534 )
-;
-'X-RAY DIFFRACTION' 9  9  ? ? ? ? ? ? ? ? ? 
-;chain 'B' and (resid 535 through 544 )
-;
-'X-RAY DIFFRACTION' 10 10 ? ? ? ? ? ? ? ? ? 
-;chain 'B' and (resid 545 through 572 )
-;
-'X-RAY DIFFRACTION' 11 11 ? ? ? ? ? ? ? ? ? 
-;chain 'B' and (resid 573 through 595 )
-;
-'X-RAY DIFFRACTION' 12 12 ? ? ? ? ? ? ? ? ? 
-;chain 'B' and (resid 596 through 605 )
-;
-'X-RAY DIFFRACTION' 13 13 ? ? ? ? ? ? ? ? ? 
-;chain 'B' and (resid 606 through 615 )
-;
-'X-RAY DIFFRACTION' 14 14 ? ? ? ? ? ? ? ? ? 
-;chain 'B' and (resid 616 through 625 )
-;
-'X-RAY DIFFRACTION' 15 15 ? ? ? ? ? ? ? ? ? 
-;chain 'B' and (resid 626 through 647 )
-;
-'X-RAY DIFFRACTION' 16 16 ? ? ? ? ? ? ? ? ? 
-;chain 'B' and (resid 648 through 657 )
-;
-'X-RAY DIFFRACTION' 17 17 ? ? ? ? ? ? ? ? ? 
-;chain 'B' and (resid 658 through 664 )
-;
-# 
-loop_
-_software.citation_id 
-_software.classification 
-_software.compiler_name 
-_software.compiler_version 
-_software.contact_author 
-_software.contact_author_email 
-_software.date 
-_software.description 
-_software.dependencies 
-_software.hardware 
-_software.language 
-_software.location 
-_software.mods 
-_software.name 
-_software.os 
-_software.os_version 
-_software.type 
-_software.version 
-_software.pdbx_ordinal 
-? refinement        ? ? ? ? ? ? ? ? ? ? ? PHENIX      ? ? ? 1.9_1692 1 
-? 'data scaling'    ? ? ? ? ? ? ? ? ? ? ? HKL-2000    ? ? ? .        2 
-? 'data extraction' ? ? ? ? ? ? ? ? ? ? ? PDB_EXTRACT ? ? ? 3.15     3 
-? 'data reduction'  ? ? ? ? ? ? ? ? ? ? ? HKL-2000    ? ? ? .        4 
-? phasing           ? ? ? ? ? ? ? ? ? ? ? PHENIX      ? ? ? .        5 
-# 
-loop_
-_pdbx_validate_close_contact.id 
-_pdbx_validate_close_contact.PDB_model_num 
-_pdbx_validate_close_contact.auth_atom_id_1 
-_pdbx_validate_close_contact.auth_asym_id_1 
-_pdbx_validate_close_contact.auth_comp_id_1 
-_pdbx_validate_close_contact.auth_seq_id_1 
-_pdbx_validate_close_contact.PDB_ins_code_1 
-_pdbx_validate_close_contact.label_alt_id_1 
-_pdbx_validate_close_contact.auth_atom_id_2 
-_pdbx_validate_close_contact.auth_asym_id_2 
-_pdbx_validate_close_contact.auth_comp_id_2 
-_pdbx_validate_close_contact.auth_seq_id_2 
-_pdbx_validate_close_contact.PDB_ins_code_2 
-_pdbx_validate_close_contact.label_alt_id_2 
-_pdbx_validate_close_contact.dist 
-1 1 O G VAL 36 ? ? OG1 B THR 606 ? ? 2.15 
-2 1 O G THR 50 ? ? NE2 G GLN 103 ? ? 2.16 
-# 
-loop_
-_pdbx_validate_symm_contact.id 
-_pdbx_validate_symm_contact.PDB_model_num 
-_pdbx_validate_symm_contact.auth_atom_id_1 
-_pdbx_validate_symm_contact.auth_asym_id_1 
-_pdbx_validate_symm_contact.auth_comp_id_1 
-_pdbx_validate_symm_contact.auth_seq_id_1 
-_pdbx_validate_symm_contact.PDB_ins_code_1 
-_pdbx_validate_symm_contact.label_alt_id_1 
-_pdbx_validate_symm_contact.site_symmetry_1 
-_pdbx_validate_symm_contact.auth_atom_id_2 
-_pdbx_validate_symm_contact.auth_asym_id_2 
-_pdbx_validate_symm_contact.auth_comp_id_2 
-_pdbx_validate_symm_contact.auth_seq_id_2 
-_pdbx_validate_symm_contact.PDB_ins_code_2 
-_pdbx_validate_symm_contact.label_alt_id_2 
-_pdbx_validate_symm_contact.site_symmetry_2 
-_pdbx_validate_symm_contact.dist 
-1 1 ND2 G ASN 136 ? ? 1_555 O3 G NAG 610 ? ? 5_564 2.16 
-2 1 OG  G SER 187 ? ? 1_555 O  B LEU 660 ? ? 2_774 2.16 
-# 
-loop_
-_pdbx_validate_rmsd_angle.id 
-_pdbx_validate_rmsd_angle.PDB_model_num 
-_pdbx_validate_rmsd_angle.auth_atom_id_1 
-_pdbx_validate_rmsd_angle.auth_asym_id_1 
-_pdbx_validate_rmsd_angle.auth_comp_id_1 
-_pdbx_validate_rmsd_angle.auth_seq_id_1 
-_pdbx_validate_rmsd_angle.PDB_ins_code_1 
-_pdbx_validate_rmsd_angle.label_alt_id_1 
-_pdbx_validate_rmsd_angle.auth_atom_id_2 
-_pdbx_validate_rmsd_angle.auth_asym_id_2 
-_pdbx_validate_rmsd_angle.auth_comp_id_2 
-_pdbx_validate_rmsd_angle.auth_seq_id_2 
-_pdbx_validate_rmsd_angle.PDB_ins_code_2 
-_pdbx_validate_rmsd_angle.label_alt_id_2 
-_pdbx_validate_rmsd_angle.auth_atom_id_3 
-_pdbx_validate_rmsd_angle.auth_asym_id_3 
-_pdbx_validate_rmsd_angle.auth_comp_id_3 
-_pdbx_validate_rmsd_angle.auth_seq_id_3 
-_pdbx_validate_rmsd_angle.PDB_ins_code_3 
-_pdbx_validate_rmsd_angle.label_alt_id_3 
-_pdbx_validate_rmsd_angle.angle_value 
-_pdbx_validate_rmsd_angle.angle_target_value 
-_pdbx_validate_rmsd_angle.angle_deviation 
-_pdbx_validate_rmsd_angle.angle_standard_deviation 
-_pdbx_validate_rmsd_angle.linker_flag 
-1 1 C G ASP 78  ? ? N G PRO 79  ? ? CA G PRO 79  ? ? 128.99 119.30 9.69  1.50 Y 
-2 1 C G ILE 213 ? ? N G PRO 214 ? ? CA G PRO 214 ? ? 110.16 119.30 -9.14 1.50 Y 
-# 
-loop_
-_pdbx_validate_torsion.id 
-_pdbx_validate_torsion.PDB_model_num 
-_pdbx_validate_torsion.auth_comp_id 
-_pdbx_validate_torsion.auth_asym_id 
-_pdbx_validate_torsion.auth_seq_id 
-_pdbx_validate_torsion.PDB_ins_code 
-_pdbx_validate_torsion.label_alt_id 
-_pdbx_validate_torsion.phi 
-_pdbx_validate_torsion.psi 
-1  1 PRO G 43  ? ? -66.28  66.50   
-2  1 SER G 56  ? ? -155.96 89.89   
-3  1 ASP G 57  ? ? 36.45   -154.80 
-4  1 GLU G 64  ? ? 50.86   -115.57 
-5  1 ASN G 67  ? ? 61.81   70.91   
-6  1 TRP G 69  ? ? 55.18   -135.17 
-7  1 HIS G 72  ? ? -141.48 -36.94  
-8  1 ASN G 136 ? ? 54.20   -167.84 
-9  1 ASN G 137 ? ? -149.71 -78.00  
-10 1 THR G 139 ? ? -108.56 -85.38  
-11 1 ASP G 141 ? ? -142.70 -59.39  
-12 1 ASP G 167 ? ? -101.06 -77.49  
-13 1 THR G 198 ? ? -94.83  -61.43  
-14 1 SER G 199 ? ? -142.31 -157.91 
-15 1 GLN G 258 ? ? 71.54   -55.21  
-16 1 GLU G 268 ? ? 60.30   -45.57  
-17 1 PRO G 299 ? ? -79.05  48.72   
-18 1 ILE G 309 ? ? -114.22 72.54   
-19 1 ASN G 356 ? ? -116.72 74.39   
-20 1 ASN G 392 ? ? -164.47 62.88   
-21 1 ASP G 412 ? ? -127.87 -92.01  
-22 1 MET G 426 ? ? -69.42  -176.27 
-23 1 GLN G 428 ? ? 58.41   18.32   
-24 1 THR G 464 ? ? -92.66  -62.90  
-25 1 LEU B 545 ? ? -124.10 -57.72  
-26 1 SER B 546 ? ? 63.06   68.71   
-27 1 TRP B 571 ? ? 76.28   -14.58  
-28 1 CYS B 598 ? ? -121.58 -80.22  
-29 1 SER B 599 ? ? 62.85   -22.04  
-30 1 LEU B 602 ? ? 55.48   -112.84 
-31 1 SER B 615 ? ? 65.63   69.91   
-32 1 ILE B 622 ? ? -123.26 -65.45  
-33 1 GLN B 650 ? ? -111.72 -74.39  
-# 
-loop_
-_pdbx_validate_peptide_omega.id 
-_pdbx_validate_peptide_omega.PDB_model_num 
-_pdbx_validate_peptide_omega.auth_comp_id_1 
-_pdbx_validate_peptide_omega.auth_asym_id_1 
-_pdbx_validate_peptide_omega.auth_seq_id_1 
-_pdbx_validate_peptide_omega.PDB_ins_code_1 
-_pdbx_validate_peptide_omega.label_alt_id_1 
-_pdbx_validate_peptide_omega.auth_comp_id_2 
-_pdbx_validate_peptide_omega.auth_asym_id_2 
-_pdbx_validate_peptide_omega.auth_seq_id_2 
-_pdbx_validate_peptide_omega.PDB_ins_code_2 
-_pdbx_validate_peptide_omega.label_alt_id_2 
-_pdbx_validate_peptide_omega.omega 
-1 1 ASP G 57  ? ? ALA G 58  ? ? 146.93  
-2 1 GLY G 354 ? ? ASN G 355 ? ? -134.45 
-3 1 GLY G 431 ? ? GLN G 432 ? ? 149.35  
-4 1 LEU G 494 ? ? GLY G 495 ? ? 149.23  
-# 
-loop_
-_pdbx_unobs_or_zero_occ_residues.id 
-_pdbx_unobs_or_zero_occ_residues.PDB_model_num 
-_pdbx_unobs_or_zero_occ_residues.polymer_flag 
-_pdbx_unobs_or_zero_occ_residues.occupancy_flag 
-_pdbx_unobs_or_zero_occ_residues.auth_asym_id 
-_pdbx_unobs_or_zero_occ_residues.auth_comp_id 
-_pdbx_unobs_or_zero_occ_residues.auth_seq_id 
-_pdbx_unobs_or_zero_occ_residues.PDB_ins_code 
-_pdbx_unobs_or_zero_occ_residues.label_asym_id 
-_pdbx_unobs_or_zero_occ_residues.label_comp_id 
-_pdbx_unobs_or_zero_occ_residues.label_seq_id 
-1  1 Y 1 G ALA 31  ? A ALA 1   
-2  1 Y 1 G GLU 32  ? A GLU 2   
-3  1 Y 1 G ASN 33  ? A ASN 3   
-4  1 Y 1 G GLU 185 A A GLU 148 
-5  1 Y 1 G ASN 185 B A ASN 149 
-6  1 Y 1 G GLN 185 C A GLN 150 
-7  1 Y 1 G GLY 185 D A GLY 151 
-8  1 Y 1 G ASN 185 E A ASN 152 
-9  1 Y 1 G ARG 185 F A ARG 153 
-10 1 Y 1 G SER 185 G A SER 154 
-11 1 Y 1 G ASN 185 H A ASN 155 
-12 1 Y 1 G ASN 185 I A ASN 156 
-13 1 Y 1 G THR 400 ? A THR 368 
-14 1 Y 1 G SER 401 ? A SER 369 
-15 1 Y 1 G VAL 402 ? A VAL 370 
-16 1 Y 1 G GLN 403 ? A GLN 371 
-17 1 Y 1 G GLY 404 ? A GLY 372 
-18 1 Y 1 G SER 405 ? A SER 373 
-19 1 Y 1 G ASN 406 ? A ASN 374 
-20 1 Y 1 G SER 407 ? A SER 375 
-21 1 Y 1 G THR 408 ? A THR 376 
-22 1 Y 1 G GLY 409 ? A GLY 377 
-23 1 Y 1 G SER 410 ? A SER 378 
-24 1 Y 1 G VAL 506 ? A VAL 474 
-25 1 Y 1 G GLY 507 ? A GLY 475 
-26 1 Y 1 G ARG 508 ? A ARG 476 
-27 1 Y 1 G ARG 509 ? A ARG 477 
-28 1 Y 1 G ARG 510 ? A ARG 478 
-29 1 Y 1 G ARG 511 ? A ARG 479 
-30 1 Y 1 G ARG 512 ? A ARG 480 
-31 1 Y 1 G ARG 513 ? A ARG 481 
-32 1 Y 1 B ALA 512 ? B ALA 1   
-33 1 Y 1 B VAL 513 ? B VAL 2   
-34 1 Y 1 B GLY 514 ? B GLY 3   
-35 1 Y 1 B ILE 515 ? B ILE 4   
-36 1 Y 1 B GLY 516 ? B GLY 5   
-37 1 Y 1 B ALA 517 ? B ALA 6   
-38 1 Y 1 B VAL 518 ? B VAL 7   
-39 1 Y 1 B PHE 519 ? B PHE 8   
-40 1 Y 1 B LEU 520 ? B LEU 9   
-41 1 Y 1 B ILE 548 ? B ILE 37  
-42 1 Y 1 B VAL 549 ? B VAL 38  
-43 1 Y 1 B GLN 550 ? B GLN 39  
-44 1 Y 1 B GLN 551 ? B GLN 40  
-45 1 Y 1 B GLN 552 ? B GLN 41  
-46 1 Y 1 B SER 553 ? B SER 42  
-47 1 Y 1 B ASN 554 ? B ASN 43  
-48 1 Y 1 B LEU 555 ? B LEU 44  
-49 1 Y 1 B LEU 556 ? B LEU 45  
-50 1 Y 1 B ARG 557 ? B ARG 46  
-51 1 Y 1 B ALA 558 ? B ALA 47  
-52 1 Y 1 B PRO 559 ? B PRO 48  
-53 1 Y 1 B GLU 560 ? B GLU 49  
-54 1 Y 1 B ALA 561 ? B ALA 50  
-55 1 Y 1 B GLN 562 ? B GLN 51  
-56 1 Y 1 B GLN 563 ? B GLN 52  
-57 1 Y 1 B HIS 564 ? B HIS 53  
-58 1 Y 1 B LEU 565 ? B LEU 54  
-59 1 Y 1 B LEU 566 ? B LEU 55  
-60 1 Y 1 B LYS 567 ? B LYS 56  
-61 1 Y 1 B LEU 568 ? B LEU 57  
-# 
-_pdbx_audit_support.funding_organization   
-'National Institutes of Health/National Institute Of Allergy and Infectious Diseases (NIH/NIAID)' 
-_pdbx_audit_support.country                'United States' 
-_pdbx_audit_support.grant_number           ? 
-_pdbx_audit_support.ordinal                1 
-# 
-loop_
-_pdbx_branch_scheme.asym_id 
-_pdbx_branch_scheme.entity_id 
-_pdbx_branch_scheme.mon_id 
-_pdbx_branch_scheme.num 
-_pdbx_branch_scheme.pdb_asym_id 
-_pdbx_branch_scheme.pdb_mon_id 
-_pdbx_branch_scheme.pdb_seq_num 
-_pdbx_branch_scheme.auth_asym_id 
-_pdbx_branch_scheme.auth_mon_id 
-_pdbx_branch_scheme.auth_seq_num 
-_pdbx_branch_scheme.hetero 
-C 3 NAG 1 A NAG 1 G NAG 762  n 
-C 3 NAG 2 A NAG 2 G NAG 763  n 
-C 3 BMA 3 A BMA 3 G BMA 764  n 
-C 3 MAN 4 A MAN 4 G MAN 768  n 
-C 3 MAN 5 A MAN 5 G MAN 769  n 
-C 3 MAN 6 A MAN 6 G MAN 765  n 
-D 4 NAG 1 C NAG 1 G NAG 1197 n 
-D 4 NAG 2 C NAG 2 G NAG 1198 n 
-E 4 NAG 1 D NAG 1 G NAG 1331 n 
-E 4 NAG 2 D NAG 2 G NAG 1332 n 
-# 
-loop_
-_pdbx_chem_comp_identifier.comp_id 
-_pdbx_chem_comp_identifier.type 
-_pdbx_chem_comp_identifier.program 
-_pdbx_chem_comp_identifier.program_version 
-_pdbx_chem_comp_identifier.identifier 
-BMA 'CONDENSED IUPAC CARBOHYDRATE SYMBOL' GMML     1.0 DManpb                         
-BMA 'COMMON NAME'                         GMML     1.0 b-D-mannopyranose              
-BMA 'IUPAC CARBOHYDRATE SYMBOL'           PDB-CARE 1.0 b-D-Manp                       
-BMA 'SNFG CARBOHYDRATE SYMBOL'            GMML     1.0 Man                            
-MAN 'CONDENSED IUPAC CARBOHYDRATE SYMBOL' GMML     1.0 DManpa                         
-MAN 'COMMON NAME'                         GMML     1.0 a-D-mannopyranose              
-MAN 'IUPAC CARBOHYDRATE SYMBOL'           PDB-CARE 1.0 a-D-Manp                       
-MAN 'SNFG CARBOHYDRATE SYMBOL'            GMML     1.0 Man                            
-NAG 'CONDENSED IUPAC CARBOHYDRATE SYMBOL' GMML     1.0 DGlcpNAcb                      
-NAG 'COMMON NAME'                         GMML     1.0 N-acetyl-b-D-glucopyranosamine 
-NAG 'IUPAC CARBOHYDRATE SYMBOL'           PDB-CARE 1.0 b-D-GlcpNAc                    
-NAG 'SNFG CARBOHYDRATE SYMBOL'            GMML     1.0 GlcNAc                         
-# 
-loop_
-_pdbx_entity_branch.entity_id 
-_pdbx_entity_branch.type 
-3 oligosaccharide 
-4 oligosaccharide 
-# 
-loop_
-_pdbx_entity_branch_descriptor.ordinal 
-_pdbx_entity_branch_descriptor.entity_id 
-_pdbx_entity_branch_descriptor.descriptor 
-_pdbx_entity_branch_descriptor.type 
-_pdbx_entity_branch_descriptor.program 
-_pdbx_entity_branch_descriptor.program_version 
-1 3 'DManpa1-2DManpa1-3[DManpa1-6]DManpb1-4DGlcpNAcb1-4DGlcpNAcb1-'                                                                
-'Glycam Condensed Sequence' GMML       1.0   
-2 3 'WURCS=2.0/3,6,5/[a2122h-1b_1-5_2*NCC/3=O][a1122h-1b_1-5][a1122h-1a_1-5]/1-1-2-3-3-3/a4-b1_b4-c1_c3-d1_c6-f1_d2-e1'            
-WURCS                       PDB2Glycan 1.1.0 
-3 3 '[]{[(4+1)][b-D-GlcpNAc]{[(4+1)][b-D-GlcpNAc]{[(4+1)][b-D-Manp]{[(3+1)][a-D-Manp]{[(2+1)][a-D-Manp]{}}[(6+1)][a-D-Manp]{}}}}}' 
-LINUCS                      PDB-CARE   ?     
-4 4 DGlcpNAcb1-4DGlcpNAcb1-                                                                                                        
-'Glycam Condensed Sequence' GMML       1.0   
-5 4 'WURCS=2.0/1,2,1/[a2122h-1b_1-5_2*NCC/3=O]/1-1/a4-b1'                                                                          
-WURCS                       PDB2Glycan 1.1.0 
-6 4 '[]{[(4+1)][b-D-GlcpNAc]{[(4+1)][b-D-GlcpNAc]{}}}'                                                                             
-LINUCS                      PDB-CARE   ?     
-# 
-loop_
-_pdbx_entity_branch_link.link_id 
-_pdbx_entity_branch_link.entity_id 
-_pdbx_entity_branch_link.entity_branch_list_num_1 
-_pdbx_entity_branch_link.comp_id_1 
-_pdbx_entity_branch_link.atom_id_1 
-_pdbx_entity_branch_link.leaving_atom_id_1 
-_pdbx_entity_branch_link.entity_branch_list_num_2 
-_pdbx_entity_branch_link.comp_id_2 
-_pdbx_entity_branch_link.atom_id_2 
-_pdbx_entity_branch_link.leaving_atom_id_2 
-_pdbx_entity_branch_link.value_order 
-_pdbx_entity_branch_link.details 
-1 3 2 NAG C1 O1 1 NAG O4 HO4 sing ? 
-2 3 3 BMA C1 O1 2 NAG O4 HO4 sing ? 
-3 3 4 MAN C1 O1 3 BMA O3 HO3 sing ? 
-4 3 5 MAN C1 O1 4 MAN O2 HO2 sing ? 
-5 3 6 MAN C1 O1 3 BMA O6 HO6 sing ? 
-6 4 2 NAG C1 O1 1 NAG O4 HO4 sing ? 
-# 
-loop_
-_pdbx_entity_branch_list.entity_id 
-_pdbx_entity_branch_list.comp_id 
-_pdbx_entity_branch_list.num 
-_pdbx_entity_branch_list.hetero 
-3 NAG 1 n 
-3 NAG 2 n 
-3 BMA 3 n 
-3 MAN 4 n 
-3 MAN 5 n 
-3 MAN 6 n 
-4 NAG 1 n 
-4 NAG 2 n 
-# 
-_pdbx_entity_nonpoly.entity_id   5 
-_pdbx_entity_nonpoly.name        2-acetamido-2-deoxy-beta-D-glucopyranose 
-_pdbx_entity_nonpoly.comp_id     NAG 
 # 

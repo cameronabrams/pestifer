@@ -33,8 +33,7 @@ _audit_author.pdbx_ordinal
 'Hendrickson, W.A.' 2 
 # 
 _citation.id                        primary 
-_citation.title                     
-'Structure-Based Design and Synthesis of an HIV-1 Entry Inhibitor Exploiting X-Ray and Thermodynamic Characterization.' 
+_citation.title                     'Structure-Based Design and Synthesis of an HIV-1 Entry Inhibitor Exploiting X-Ray and Thermodynamic Characterization.' 
 _citation.journal_abbrev            'ACS Med Chem Lett' 
 _citation.journal_volume            4 
 _citation.page_first                338 
@@ -95,13 +94,11 @@ _entity.pdbx_ec
 _entity.pdbx_mutation 
 _entity.pdbx_fragment 
 _entity.details 
-1 polymer     man 'HIV-1 glycoprotein' 39755.664 2   ? ? ? ? 
-2 non-polymer syn 
-'amino({[(1R,2R)-1-({[(4-chloro-3-fluorophenyl)amino](oxo)acetyl}amino)-2,3-dihydro-1H-inden-2-yl]methyl}amino)methanimi nium' 
-404.846   2   ? ? ? ? 
-3 non-polymer man 2-acetamido-2-deoxy-beta-D-glucopyranose 221.208   13  ? ? ? ? 
-4 non-polymer syn 'FORMIC ACID' 46.025    1   ? ? ? ? 
-5 water       nat water 18.015    259 ? ? ? ? 
+1 polymer     man 'HIV-1 glycoprotein'                                                                                                           39755.664 2   ? ? ? ? 
+2 non-polymer syn 'amino({[(1R,2R)-1-({[(4-chloro-3-fluorophenyl)amino](oxo)acetyl}amino)-2,3-dihydro-1H-inden-2-yl]methyl}amino)methanimi nium' 404.846   2   ? ? ? ? 
+3 non-polymer man 2-acetamido-2-deoxy-beta-D-glucopyranose                                                                                       221.208   13  ? ? ? ? 
+4 non-polymer syn 'FORMIC ACID'                                                                                                                  46.025    1   ? ? ? ? 
+5 water       nat water                                                                                                                          18.015    259 ? ? ? ? 
 # 
 _entity_poly.entity_id                      1 
 _entity_poly.type                           'polypeptide(L)' 
@@ -573,36 +570,30 @@ _chem_comp.name
 _chem_comp.pdbx_synonyms 
 _chem_comp.formula 
 _chem_comp.formula_weight 
-1C1 non-polymer                  . 
-'amino({[(1R,2R)-1-({[(4-chloro-3-fluorophenyl)amino](oxo)acetyl}amino)-2,3-dihydro-1H-inden-2-yl]methyl}amino)methanimi nium' 
-'[amino({[(1R,2R)-1-{[(4-chloro-3- fluorophenyl)carbamoyl]formamido}-2,3-dihydro-1H- inden-2-yl]methyl}amino)methylidene]azanium' 
-'C19 H20 Cl F N5 O2 1' 404.846 
-ALA 'L-peptide linking'          y ALANINE ? 'C3 H7 N O2'           89.093  
-ARG 'L-peptide linking'          y ARGININE ? 'C6 H15 N4 O2 1'       175.209 
-ASN 'L-peptide linking'          y ASPARAGINE ? 'C4 H8 N2 O3'          132.118 
-ASP 'L-peptide linking'          y 'ASPARTIC ACID' ? 'C4 H7 N O4'           133.103 
-CYS 'L-peptide linking'          y CYSTEINE ? 'C3 H7 N O2 S'         121.158 
-FMT non-polymer                  . 'FORMIC ACID' ? 'C H2 O2'              46.025  
-GLN 'L-peptide linking'          y GLUTAMINE ? 'C5 H10 N2 O3'         146.144 
-GLU 'L-peptide linking'          y 'GLUTAMIC ACID' ? 'C5 H9 N O4'           147.129 
-GLY 'peptide linking'            y GLYCINE ? 'C2 H5 N O2'           75.067  
-HIS 'L-peptide linking'          y HISTIDINE ? 'C6 H10 N3 O2 1'       156.162 
-HOH non-polymer                  . WATER ? 'H2 O'                 18.015  
-ILE 'L-peptide linking'          y ISOLEUCINE ? 'C6 H13 N O2'          131.173 
-LEU 'L-peptide linking'          y LEUCINE ? 'C6 H13 N O2'          131.173 
-LYS 'L-peptide linking'          y LYSINE ? 'C6 H15 N2 O2 1'       147.195 
-MET 'L-peptide linking'          y METHIONINE ? 'C5 H11 N O2 S'        149.211 
-NAG 'D-saccharide, beta linking' . 2-acetamido-2-deoxy-beta-D-glucopyranose 
-;N-acetyl-beta-D-glucosamine; 2-acetamido-2-deoxy-beta-D-glucose; 2-acetamido-2-deoxy-D-glucose; 2-acetamido-2-deoxy-glucose; N-ACETYL-D-GLUCOSAMINE
-;
-'C8 H15 N O6'          221.208 
-PHE 'L-peptide linking'          y PHENYLALANINE ? 'C9 H11 N O2'          165.189 
-PRO 'L-peptide linking'          y PROLINE ? 'C5 H9 N O2'           115.130 
-SER 'L-peptide linking'          y SERINE ? 'C3 H7 N O3'           105.093 
-THR 'L-peptide linking'          y THREONINE ? 'C4 H9 N O3'           119.119 
-TRP 'L-peptide linking'          y TRYPTOPHAN ? 'C11 H12 N2 O2'        204.225 
-TYR 'L-peptide linking'          y TYROSINE ? 'C9 H11 N O3'          181.189 
-VAL 'L-peptide linking'          y VALINE ? 'C5 H11 N O2'          117.146 
+1C1 non-polymer                  . 'amino({[(1R,2R)-1-({[(4-chloro-3-fluorophenyl)amino](oxo)acetyl}amino)-2,3-dihydro-1H-inden-2-yl]methyl}amino)methanimi nium' '[amino({[(1R,2R)-1-{[(4-chloro-3- fluorophenyl)carbamoyl]formamido}-2,3-dihydro-1H- inden-2-yl]methyl}amino)methylidene]azanium'                     'C19 H20 Cl F N5 O2 1' 404.846 
+ALA 'L-peptide linking'          y ALANINE                                                                                                                        ?                                                                                                                                                     'C3 H7 N O2'           89.093  
+ARG 'L-peptide linking'          y ARGININE                                                                                                                       ?                                                                                                                                                     'C6 H15 N4 O2 1'       175.209 
+ASN 'L-peptide linking'          y ASPARAGINE                                                                                                                     ?                                                                                                                                                     'C4 H8 N2 O3'          132.118 
+ASP 'L-peptide linking'          y 'ASPARTIC ACID'                                                                                                                ?                                                                                                                                                     'C4 H7 N O4'           133.103 
+CYS 'L-peptide linking'          y CYSTEINE                                                                                                                       ?                                                                                                                                                     'C3 H7 N O2 S'         121.158 
+FMT non-polymer                  . 'FORMIC ACID'                                                                                                                  ?                                                                                                                                                     'C H2 O2'              46.025  
+GLN 'L-peptide linking'          y GLUTAMINE                                                                                                                      ?                                                                                                                                                     'C5 H10 N2 O3'         146.144 
+GLU 'L-peptide linking'          y 'GLUTAMIC ACID'                                                                                                                ?                                                                                                                                                     'C5 H9 N O4'           147.129 
+GLY 'peptide linking'            y GLYCINE                                                                                                                        ?                                                                                                                                                     'C2 H5 N O2'           75.067  
+HIS 'L-peptide linking'          y HISTIDINE                                                                                                                      ?                                                                                                                                                     'C6 H10 N3 O2 1'       156.162 
+HOH non-polymer                  . WATER                                                                                                                          ?                                                                                                                                                     'H2 O'                 18.015  
+ILE 'L-peptide linking'          y ISOLEUCINE                                                                                                                     ?                                                                                                                                                     'C6 H13 N O2'          131.173 
+LEU 'L-peptide linking'          y LEUCINE                                                                                                                        ?                                                                                                                                                     'C6 H13 N O2'          131.173 
+LYS 'L-peptide linking'          y LYSINE                                                                                                                         ?                                                                                                                                                     'C6 H15 N2 O2 1'       147.195 
+MET 'L-peptide linking'          y METHIONINE                                                                                                                     ?                                                                                                                                                     'C5 H11 N O2 S'        149.211 
+NAG 'D-saccharide, beta linking' . 2-acetamido-2-deoxy-beta-D-glucopyranose                                                                                       'N-acetyl-beta-D-glucosamine; 2-acetamido-2-deoxy-beta-D-glucose; 2-acetamido-2-deoxy-D-glucose; 2-acetamido-2-deoxy-glucose; N-ACETYL-D-GLUCOSAMINE' 'C8 H15 N O6'          221.208 
+PHE 'L-peptide linking'          y PHENYLALANINE                                                                                                                  ?                                                                                                                                                     'C9 H11 N O2'          165.189 
+PRO 'L-peptide linking'          y PROLINE                                                                                                                        ?                                                                                                                                                     'C5 H9 N O2'           115.130 
+SER 'L-peptide linking'          y SERINE                                                                                                                         ?                                                                                                                                                     'C3 H7 N O3'           105.093 
+THR 'L-peptide linking'          y THREONINE                                                                                                                      ?                                                                                                                                                     'C4 H9 N O3'           119.119 
+TRP 'L-peptide linking'          y TRYPTOPHAN                                                                                                                     ?                                                                                                                                                     'C11 H12 N2 O2'        204.225 
+TYR 'L-peptide linking'          y TYROSINE                                                                                                                       ?                                                                                                                                                     'C9 H11 N O3'          181.189 
+VAL 'L-peptide linking'          y VALINE                                                                                                                         ?                                                                                                                                                     'C5 H11 N O2'          117.146 
 # 
 _exptl.entry_id          4I53 
 _exptl.method            'X-RAY DIFFRACTION' 
@@ -620,8 +611,7 @@ _exptl_crystal_grow.temp            293
 _exptl_crystal_grow.temp_details    ? 
 _exptl_crystal_grow.pH              6.5 
 _exptl_crystal_grow.pdbx_pH_range   ? 
-_exptl_crystal_grow.pdbx_details    
-'18-20% (w/v) PEG 1500, 0.1 M CaCl2, 0.1 M imidazole pH 6.5, VAPOR DIFFUSION, HANGING DROP, temperature 293K' 
+_exptl_crystal_grow.pdbx_details    '18-20% (w/v) PEG 1500, 0.1 M CaCl2, 0.1 M imidazole pH 6.5, VAPOR DIFFUSION, HANGING DROP, temperature 293K' 
 # 
 _diffrn.id                     1 
 _diffrn.ambient_temp           298 
@@ -784,8 +774,7 @@ _struct.pdbx_model_type_details   ?
 # 
 _struct_keywords.entry_id        4I53 
 _struct_keywords.pdbx_keywords   'VIRAL PROTEIN/INHIBITOR' 
-_struct_keywords.text            
-'HIV, gp120, entry inhibitor, DMJ-II-121, CD4-mimetic, VIRAL PROTEIN-INHIBITOR COMPLEX, C1086, Extracellular' 
+_struct_keywords.text            'HIV, gp120, entry inhibitor, DMJ-II-121, CD4-mimetic, VIRAL PROTEIN-INHIBITOR COMPLEX, C1086, Extracellular' 
 # 
 loop_
 _struct_asym.id 
@@ -1153,6 +1142,260 @@ F
 N  
 O  
 S  
+# 
+loop_
+_pdbx_struct_mod_residue.id 
+_pdbx_struct_mod_residue.label_asym_id 
+_pdbx_struct_mod_residue.label_comp_id 
+_pdbx_struct_mod_residue.label_seq_id 
+_pdbx_struct_mod_residue.auth_asym_id 
+_pdbx_struct_mod_residue.auth_comp_id 
+_pdbx_struct_mod_residue.auth_seq_id 
+_pdbx_struct_mod_residue.PDB_ins_code 
+_pdbx_struct_mod_residue.parent_comp_id 
+_pdbx_struct_mod_residue.details 
+1  A ASN 118 A ASN 234 ? ASN 'GLYCOSYLATION SITE' 
+2  A ASN 146 A ASN 262 ? ASN 'GLYCOSYLATION SITE' 
+3  A ASN 160 A ASN 276 ? ASN 'GLYCOSYLATION SITE' 
+4  A ASN 173 A ASN 289 ? ASN 'GLYCOSYLATION SITE' 
+5  A ASN 207 A ASN 339 ? ASN 'GLYCOSYLATION SITE' 
+6  A ASN 253 A ASN 386 ? ASN 'GLYCOSYLATION SITE' 
+7  A ASN 259 A ASN 392 ? ASN 'GLYCOSYLATION SITE' 
+8  B ASN 118 B ASN 234 ? ASN 'GLYCOSYLATION SITE' 
+9  B ASN 146 B ASN 262 ? ASN 'GLYCOSYLATION SITE' 
+10 B ASN 160 B ASN 276 ? ASN 'GLYCOSYLATION SITE' 
+11 B ASN 173 B ASN 289 ? ASN 'GLYCOSYLATION SITE' 
+12 B ASN 253 B ASN 386 ? ASN 'GLYCOSYLATION SITE' 
+13 B ASN 259 B ASN 392 ? ASN 'GLYCOSYLATION SITE' 
+# 
+loop_
+_pdbx_struct_assembly.id 
+_pdbx_struct_assembly.details 
+_pdbx_struct_assembly.method_details 
+_pdbx_struct_assembly.oligomeric_details 
+_pdbx_struct_assembly.oligomeric_count 
+1 author_and_software_defined_assembly PISA monomeric 1 
+2 author_and_software_defined_assembly PISA monomeric 1 
+# 
+loop_
+_pdbx_struct_assembly_gen.assembly_id 
+_pdbx_struct_assembly_gen.oper_expression 
+_pdbx_struct_assembly_gen.asym_id_list 
+1 1 A,C,D,E,F,G,H,I,J,S 
+2 1 B,K,L,M,N,O,P,Q,R,T 
+# 
+_pdbx_struct_oper_list.id                   1 
+_pdbx_struct_oper_list.type                 'identity operation' 
+_pdbx_struct_oper_list.name                 1_555 
+_pdbx_struct_oper_list.symmetry_operation   x,y,z 
+_pdbx_struct_oper_list.matrix[1][1]         1.0000000000 
+_pdbx_struct_oper_list.matrix[1][2]         0.0000000000 
+_pdbx_struct_oper_list.matrix[1][3]         0.0000000000 
+_pdbx_struct_oper_list.vector[1]            0.0000000000 
+_pdbx_struct_oper_list.matrix[2][1]         0.0000000000 
+_pdbx_struct_oper_list.matrix[2][2]         1.0000000000 
+_pdbx_struct_oper_list.matrix[2][3]         0.0000000000 
+_pdbx_struct_oper_list.vector[2]            0.0000000000 
+_pdbx_struct_oper_list.matrix[3][1]         0.0000000000 
+_pdbx_struct_oper_list.matrix[3][2]         0.0000000000 
+_pdbx_struct_oper_list.matrix[3][3]         1.0000000000 
+_pdbx_struct_oper_list.vector[3]            0.0000000000 
+# 
+_pdbx_struct_special_symmetry.id              1 
+_pdbx_struct_special_symmetry.PDB_model_num   1 
+_pdbx_struct_special_symmetry.auth_asym_id    B 
+_pdbx_struct_special_symmetry.auth_comp_id    HOH 
+_pdbx_struct_special_symmetry.auth_seq_id     602 
+_pdbx_struct_special_symmetry.PDB_ins_code    ? 
+_pdbx_struct_special_symmetry.label_asym_id   T 
+_pdbx_struct_special_symmetry.label_comp_id   HOH 
+_pdbx_struct_special_symmetry.label_seq_id    . 
+# 
+loop_
+_pdbx_audit_revision_history.ordinal 
+_pdbx_audit_revision_history.data_content_type 
+_pdbx_audit_revision_history.major_revision 
+_pdbx_audit_revision_history.minor_revision 
+_pdbx_audit_revision_history.revision_date 
+1 'Structure model' 1 0 2013-05-29 
+2 'Structure model' 1 1 2020-07-29 
+3 'Structure model' 1 2 2021-05-26 
+# 
+loop_
+_pdbx_audit_revision_details.ordinal 
+_pdbx_audit_revision_details.revision_ordinal 
+_pdbx_audit_revision_details.data_content_type 
+_pdbx_audit_revision_details.provider 
+_pdbx_audit_revision_details.type 
+_pdbx_audit_revision_details.description 
+_pdbx_audit_revision_details.details 
+1 1 'Structure model' repository 'Initial release' ?                          ? 
+2 2 'Structure model' repository Remediation       'Carbohydrate remediation' ? 
+# 
+loop_
+_pdbx_audit_revision_group.ordinal 
+_pdbx_audit_revision_group.revision_ordinal 
+_pdbx_audit_revision_group.data_content_type 
+_pdbx_audit_revision_group.group 
+1 2 'Structure model' 'Data collection'      
+2 2 'Structure model' 'Derived calculations' 
+3 2 'Structure model' 'Structure summary'    
+4 3 'Structure model' 'Source and taxonomy'  
+5 3 'Structure model' 'Structure summary'    
+# 
+loop_
+_pdbx_audit_revision_category.ordinal 
+_pdbx_audit_revision_category.revision_ordinal 
+_pdbx_audit_revision_category.data_content_type 
+_pdbx_audit_revision_category.category 
+1 2 'Structure model' chem_comp                 
+2 2 'Structure model' entity                    
+3 2 'Structure model' pdbx_chem_comp_identifier 
+4 2 'Structure model' pdbx_entity_nonpoly       
+5 2 'Structure model' struct_conn               
+6 2 'Structure model' struct_site               
+7 2 'Structure model' struct_site_gen           
+8 3 'Structure model' chem_comp                 
+9 3 'Structure model' entity_src_gen            
+# 
+_software.name             PHENIX 
+_software.classification   refinement 
+_software.version          '(phenix.refine: 1.8_1069)' 
+_software.citation_id      ? 
+_software.pdbx_ordinal     1 
+# 
+_pdbx_validate_rmsd_angle.id                         1 
+_pdbx_validate_rmsd_angle.PDB_model_num              1 
+_pdbx_validate_rmsd_angle.auth_atom_id_1             N 
+_pdbx_validate_rmsd_angle.auth_asym_id_1             A 
+_pdbx_validate_rmsd_angle.auth_comp_id_1             GLU 
+_pdbx_validate_rmsd_angle.auth_seq_id_1              268 
+_pdbx_validate_rmsd_angle.PDB_ins_code_1             ? 
+_pdbx_validate_rmsd_angle.label_alt_id_1             ? 
+_pdbx_validate_rmsd_angle.auth_atom_id_2             CA 
+_pdbx_validate_rmsd_angle.auth_asym_id_2             A 
+_pdbx_validate_rmsd_angle.auth_comp_id_2             GLU 
+_pdbx_validate_rmsd_angle.auth_seq_id_2              268 
+_pdbx_validate_rmsd_angle.PDB_ins_code_2             ? 
+_pdbx_validate_rmsd_angle.label_alt_id_2             ? 
+_pdbx_validate_rmsd_angle.auth_atom_id_3             C 
+_pdbx_validate_rmsd_angle.auth_asym_id_3             A 
+_pdbx_validate_rmsd_angle.auth_comp_id_3             GLU 
+_pdbx_validate_rmsd_angle.auth_seq_id_3              268 
+_pdbx_validate_rmsd_angle.PDB_ins_code_3             ? 
+_pdbx_validate_rmsd_angle.label_alt_id_3             ? 
+_pdbx_validate_rmsd_angle.angle_value                91.65 
+_pdbx_validate_rmsd_angle.angle_target_value         111.00 
+_pdbx_validate_rmsd_angle.angle_deviation            -19.35 
+_pdbx_validate_rmsd_angle.angle_standard_deviation   2.70 
+_pdbx_validate_rmsd_angle.linker_flag                N 
+# 
+loop_
+_pdbx_validate_torsion.id 
+_pdbx_validate_torsion.PDB_model_num 
+_pdbx_validate_torsion.auth_comp_id 
+_pdbx_validate_torsion.auth_asym_id 
+_pdbx_validate_torsion.auth_seq_id 
+_pdbx_validate_torsion.PDB_ins_code 
+_pdbx_validate_torsion.label_alt_id 
+_pdbx_validate_torsion.phi 
+_pdbx_validate_torsion.psi 
+1  1 ASP A 211 ? ? -167.05 110.14  
+2  1 GLN A 258 ? ? 67.80   -55.48  
+3  1 GLU A 268 ? ? -114.57 -154.84 
+4  1 ASN A 276 ? ? -173.37 132.68  
+5  1 LYS A 351 ? ? -53.65  -97.65  
+6  1 HIS A 352 ? ? -22.07  -27.94  
+7  1 PRO A 354 ? ? -13.02  -95.37  
+8  1 THR B 50  ? ? 176.17  170.33  
+9  1 ASP B 57  ? ? -96.59  31.13   
+10 1 GLN B 82  ? ? -155.64 81.56   
+11 1 THR B 90  ? ? -153.98 88.41   
+12 1 GLN B 203 ? ? 179.64  169.78  
+13 1 ASP B 211 ? ? -166.24 106.83  
+14 1 GLN B 258 ? ? 66.57   -59.10  
+15 1 GLU B 268 ? ? -96.82  -112.21 
+16 1 ASN B 276 ? ? -178.63 96.76   
+17 1 PRO B 354 ? ? -12.82  -95.39  
+18 1 LYS B 487 ? ? -166.39 118.61  
+# 
+loop_
+_pdbx_unobs_or_zero_occ_residues.id 
+_pdbx_unobs_or_zero_occ_residues.PDB_model_num 
+_pdbx_unobs_or_zero_occ_residues.polymer_flag 
+_pdbx_unobs_or_zero_occ_residues.occupancy_flag 
+_pdbx_unobs_or_zero_occ_residues.auth_asym_id 
+_pdbx_unobs_or_zero_occ_residues.auth_comp_id 
+_pdbx_unobs_or_zero_occ_residues.auth_seq_id 
+_pdbx_unobs_or_zero_occ_residues.PDB_ins_code 
+_pdbx_unobs_or_zero_occ_residues.label_asym_id 
+_pdbx_unobs_or_zero_occ_residues.label_comp_id 
+_pdbx_unobs_or_zero_occ_residues.label_seq_id 
+1  1 Y 1 A VAL 44  ? A VAL 1   
+2  1 Y 1 A TRP 45  ? A TRP 2   
+3  1 Y 1 A LYS 46  ? A LYS 3   
+4  1 Y 1 A GLU 47  ? A GLU 4   
+5  1 Y 1 A ALA 48  ? A ALA 5   
+6  1 Y 1 A ASN 317 ? A ASN 185 
+7  1 Y 1 A GLY 318 ? A GLY 186 
+8  1 Y 1 A GLY 319 ? A GLY 187 
+9  1 Y 1 A SER 320 ? A SER 188 
+10 1 Y 1 A GLY 321 ? A GLY 189 
+11 1 Y 1 A SER 322 ? A SER 190 
+12 1 Y 1 A GLY 323 ? A GLY 191 
+13 1 Y 1 A GLY 324 ? A GLY 192 
+14 1 Y 1 A GLY 457 A A GLY 322 
+15 1 Y 1 A GLY 457 B A GLY 323 
+16 1 Y 1 A GLN 457 C A GLN 324 
+17 1 Y 1 A SER 457 D A SER 325 
+18 1 Y 1 A ASN 457 E A ASN 326 
+19 1 Y 1 A GLU 457 F A GLU 327 
+20 1 Y 1 A THR 457 G A THR 328 
+21 1 Y 1 A ASN 457 H A ASN 329 
+22 1 Y 1 A LYS 492 ? A LYS 358 
+23 1 Y 1 B VAL 44  ? B VAL 1   
+24 1 Y 1 B TRP 45  ? B TRP 2   
+25 1 Y 1 B LYS 46  ? B LYS 3   
+26 1 Y 1 B GLU 47  ? B GLU 4   
+27 1 Y 1 B ALA 48  ? B ALA 5   
+28 1 Y 1 B ASN 317 ? B ASN 185 
+29 1 Y 1 B GLY 318 ? B GLY 186 
+30 1 Y 1 B GLY 319 ? B GLY 187 
+31 1 Y 1 B SER 320 ? B SER 188 
+32 1 Y 1 B GLY 321 ? B GLY 189 
+33 1 Y 1 B SER 322 ? B SER 190 
+34 1 Y 1 B GLY 323 ? B GLY 191 
+35 1 Y 1 B GLY 324 ? B GLY 192 
+36 1 Y 1 B GLY 457 A B GLY 322 
+37 1 Y 1 B GLY 457 B B GLY 323 
+38 1 Y 1 B GLN 457 C B GLN 324 
+39 1 Y 1 B SER 457 D B SER 325 
+40 1 Y 1 B ASN 457 E B ASN 326 
+41 1 Y 1 B GLU 457 F B GLU 327 
+42 1 Y 1 B THR 457 G B THR 328 
+43 1 Y 1 B ASN 457 H B ASN 329 
+44 1 Y 1 B ILE 491 ? B ILE 357 
+45 1 Y 1 B LYS 492 ? B LYS 358 
+# 
+loop_
+_pdbx_chem_comp_identifier.comp_id 
+_pdbx_chem_comp_identifier.type 
+_pdbx_chem_comp_identifier.program 
+_pdbx_chem_comp_identifier.program_version 
+_pdbx_chem_comp_identifier.identifier 
+NAG 'CONDENSED IUPAC CARBOHYDRATE SYMBOL' GMML     1.0 DGlcpNAcb                      
+NAG 'COMMON NAME'                         GMML     1.0 N-acetyl-b-D-glucopyranosamine 
+NAG 'IUPAC CARBOHYDRATE SYMBOL'           PDB-CARE 1.0 b-D-GlcpNAc                    
+NAG 'SNFG CARBOHYDRATE SYMBOL'            GMML     1.0 GlcNAc                         
+# 
+loop_
+_pdbx_entity_nonpoly.entity_id 
+_pdbx_entity_nonpoly.name 
+_pdbx_entity_nonpoly.comp_id 
+2 'amino({[(1R,2R)-1-({[(4-chloro-3-fluorophenyl)amino](oxo)acetyl}amino)-2,3-dihydro-1H-inden-2-yl]methyl}amino)methanimi nium' 1C1 
+3 2-acetamido-2-deoxy-beta-D-glucopyranose                                                                                       NAG 
+4 'FORMIC ACID'                                                                                                                  FMT 
+5 water                                                                                                                          HOH 
 # 
 loop_
 _atom_site.group_PDB 
@@ -7963,290 +8206,4 @@ T 5 HOH 95  695 244 HOH HOH B .
 T 5 HOH 96  696 254 HOH HOH B . 
 T 5 HOH 97  697 256 HOH HOH B . 
 T 5 HOH 98  698 261 HOH HOH B . 
-# 
-loop_
-_pdbx_struct_mod_residue.id 
-_pdbx_struct_mod_residue.label_asym_id 
-_pdbx_struct_mod_residue.label_comp_id 
-_pdbx_struct_mod_residue.label_seq_id 
-_pdbx_struct_mod_residue.auth_asym_id 
-_pdbx_struct_mod_residue.auth_comp_id 
-_pdbx_struct_mod_residue.auth_seq_id 
-_pdbx_struct_mod_residue.PDB_ins_code 
-_pdbx_struct_mod_residue.parent_comp_id 
-_pdbx_struct_mod_residue.details 
-1  A ASN 118 A ASN 234 ? ASN 'GLYCOSYLATION SITE' 
-2  A ASN 146 A ASN 262 ? ASN 'GLYCOSYLATION SITE' 
-3  A ASN 160 A ASN 276 ? ASN 'GLYCOSYLATION SITE' 
-4  A ASN 173 A ASN 289 ? ASN 'GLYCOSYLATION SITE' 
-5  A ASN 207 A ASN 339 ? ASN 'GLYCOSYLATION SITE' 
-6  A ASN 253 A ASN 386 ? ASN 'GLYCOSYLATION SITE' 
-7  A ASN 259 A ASN 392 ? ASN 'GLYCOSYLATION SITE' 
-8  B ASN 118 B ASN 234 ? ASN 'GLYCOSYLATION SITE' 
-9  B ASN 146 B ASN 262 ? ASN 'GLYCOSYLATION SITE' 
-10 B ASN 160 B ASN 276 ? ASN 'GLYCOSYLATION SITE' 
-11 B ASN 173 B ASN 289 ? ASN 'GLYCOSYLATION SITE' 
-12 B ASN 253 B ASN 386 ? ASN 'GLYCOSYLATION SITE' 
-13 B ASN 259 B ASN 392 ? ASN 'GLYCOSYLATION SITE' 
-# 
-loop_
-_pdbx_struct_assembly.id 
-_pdbx_struct_assembly.details 
-_pdbx_struct_assembly.method_details 
-_pdbx_struct_assembly.oligomeric_details 
-_pdbx_struct_assembly.oligomeric_count 
-1 author_and_software_defined_assembly PISA monomeric 1 
-2 author_and_software_defined_assembly PISA monomeric 1 
-# 
-loop_
-_pdbx_struct_assembly_gen.assembly_id 
-_pdbx_struct_assembly_gen.oper_expression 
-_pdbx_struct_assembly_gen.asym_id_list 
-1 1 A,C,D,E,F,G,H,I,J,S 
-2 1 B,K,L,M,N,O,P,Q,R,T 
-# 
-_pdbx_struct_oper_list.id                   1 
-_pdbx_struct_oper_list.type                 'identity operation' 
-_pdbx_struct_oper_list.name                 1_555 
-_pdbx_struct_oper_list.symmetry_operation   x,y,z 
-_pdbx_struct_oper_list.matrix[1][1]         1.0000000000 
-_pdbx_struct_oper_list.matrix[1][2]         0.0000000000 
-_pdbx_struct_oper_list.matrix[1][3]         0.0000000000 
-_pdbx_struct_oper_list.vector[1]            0.0000000000 
-_pdbx_struct_oper_list.matrix[2][1]         0.0000000000 
-_pdbx_struct_oper_list.matrix[2][2]         1.0000000000 
-_pdbx_struct_oper_list.matrix[2][3]         0.0000000000 
-_pdbx_struct_oper_list.vector[2]            0.0000000000 
-_pdbx_struct_oper_list.matrix[3][1]         0.0000000000 
-_pdbx_struct_oper_list.matrix[3][2]         0.0000000000 
-_pdbx_struct_oper_list.matrix[3][3]         1.0000000000 
-_pdbx_struct_oper_list.vector[3]            0.0000000000 
-# 
-_pdbx_struct_special_symmetry.id              1 
-_pdbx_struct_special_symmetry.PDB_model_num   1 
-_pdbx_struct_special_symmetry.auth_asym_id    B 
-_pdbx_struct_special_symmetry.auth_comp_id    HOH 
-_pdbx_struct_special_symmetry.auth_seq_id     602 
-_pdbx_struct_special_symmetry.PDB_ins_code    ? 
-_pdbx_struct_special_symmetry.label_asym_id   T 
-_pdbx_struct_special_symmetry.label_comp_id   HOH 
-_pdbx_struct_special_symmetry.label_seq_id    . 
-# 
-loop_
-_pdbx_audit_revision_history.ordinal 
-_pdbx_audit_revision_history.data_content_type 
-_pdbx_audit_revision_history.major_revision 
-_pdbx_audit_revision_history.minor_revision 
-_pdbx_audit_revision_history.revision_date 
-1 'Structure model' 1 0 2013-05-29 
-2 'Structure model' 1 1 2020-07-29 
-3 'Structure model' 1 2 2021-05-26 
-# 
-loop_
-_pdbx_audit_revision_details.ordinal 
-_pdbx_audit_revision_details.revision_ordinal 
-_pdbx_audit_revision_details.data_content_type 
-_pdbx_audit_revision_details.provider 
-_pdbx_audit_revision_details.type 
-_pdbx_audit_revision_details.description 
-_pdbx_audit_revision_details.details 
-1 1 'Structure model' repository 'Initial release' ?                          ? 
-2 2 'Structure model' repository Remediation       'Carbohydrate remediation' ? 
-# 
-loop_
-_pdbx_audit_revision_group.ordinal 
-_pdbx_audit_revision_group.revision_ordinal 
-_pdbx_audit_revision_group.data_content_type 
-_pdbx_audit_revision_group.group 
-1 2 'Structure model' 'Data collection'      
-2 2 'Structure model' 'Derived calculations' 
-3 2 'Structure model' 'Structure summary'    
-4 3 'Structure model' 'Source and taxonomy'  
-5 3 'Structure model' 'Structure summary'    
-# 
-loop_
-_pdbx_audit_revision_category.ordinal 
-_pdbx_audit_revision_category.revision_ordinal 
-_pdbx_audit_revision_category.data_content_type 
-_pdbx_audit_revision_category.category 
-1 2 'Structure model' chem_comp                 
-2 2 'Structure model' entity                    
-3 2 'Structure model' pdbx_chem_comp_identifier 
-4 2 'Structure model' pdbx_entity_nonpoly       
-5 2 'Structure model' struct_conn               
-6 2 'Structure model' struct_site               
-7 2 'Structure model' struct_site_gen           
-8 3 'Structure model' chem_comp                 
-9 3 'Structure model' entity_src_gen            
-# 
-loop_
-_pdbx_audit_revision_item.ordinal 
-_pdbx_audit_revision_item.revision_ordinal 
-_pdbx_audit_revision_item.data_content_type 
-_pdbx_audit_revision_item.item 
-1  2 'Structure model' '_chem_comp.name'                         
-2  2 'Structure model' '_chem_comp.type'                         
-3  2 'Structure model' '_entity.pdbx_description'                
-4  2 'Structure model' '_pdbx_entity_nonpoly.name'               
-5  2 'Structure model' '_struct_conn.pdbx_leaving_atom_flag'     
-6  2 'Structure model' '_struct_conn.pdbx_role'                  
-7  2 'Structure model' '_struct_conn.ptnr1_auth_comp_id'         
-8  2 'Structure model' '_struct_conn.ptnr1_auth_seq_id'          
-9  2 'Structure model' '_struct_conn.ptnr1_label_asym_id'        
-10 2 'Structure model' '_struct_conn.ptnr1_label_atom_id'        
-11 2 'Structure model' '_struct_conn.ptnr1_label_comp_id'        
-12 2 'Structure model' '_struct_conn.ptnr1_label_seq_id'         
-13 2 'Structure model' '_struct_conn.ptnr2_auth_comp_id'         
-14 2 'Structure model' '_struct_conn.ptnr2_auth_seq_id'          
-15 2 'Structure model' '_struct_conn.ptnr2_label_asym_id'        
-16 2 'Structure model' '_struct_conn.ptnr2_label_atom_id'        
-17 2 'Structure model' '_struct_conn.ptnr2_label_comp_id'        
-18 2 'Structure model' '_struct_conn.ptnr2_label_seq_id'         
-19 3 'Structure model' '_chem_comp.pdbx_synonyms'                
-20 3 'Structure model' '_entity_src_gen.host_org_common_name'    
-21 3 'Structure model' '_entity_src_gen.pdbx_host_org_cell_line' 
-22 3 'Structure model' '_entity_src_gen.pdbx_host_org_strain'    
-# 
-_software.name             PHENIX 
-_software.classification   refinement 
-_software.version          '(phenix.refine: 1.8_1069)' 
-_software.citation_id      ? 
-_software.pdbx_ordinal     1 
-# 
-_pdbx_validate_rmsd_angle.id                         1 
-_pdbx_validate_rmsd_angle.PDB_model_num              1 
-_pdbx_validate_rmsd_angle.auth_atom_id_1             N 
-_pdbx_validate_rmsd_angle.auth_asym_id_1             A 
-_pdbx_validate_rmsd_angle.auth_comp_id_1             GLU 
-_pdbx_validate_rmsd_angle.auth_seq_id_1              268 
-_pdbx_validate_rmsd_angle.PDB_ins_code_1             ? 
-_pdbx_validate_rmsd_angle.label_alt_id_1             ? 
-_pdbx_validate_rmsd_angle.auth_atom_id_2             CA 
-_pdbx_validate_rmsd_angle.auth_asym_id_2             A 
-_pdbx_validate_rmsd_angle.auth_comp_id_2             GLU 
-_pdbx_validate_rmsd_angle.auth_seq_id_2              268 
-_pdbx_validate_rmsd_angle.PDB_ins_code_2             ? 
-_pdbx_validate_rmsd_angle.label_alt_id_2             ? 
-_pdbx_validate_rmsd_angle.auth_atom_id_3             C 
-_pdbx_validate_rmsd_angle.auth_asym_id_3             A 
-_pdbx_validate_rmsd_angle.auth_comp_id_3             GLU 
-_pdbx_validate_rmsd_angle.auth_seq_id_3              268 
-_pdbx_validate_rmsd_angle.PDB_ins_code_3             ? 
-_pdbx_validate_rmsd_angle.label_alt_id_3             ? 
-_pdbx_validate_rmsd_angle.angle_value                91.65 
-_pdbx_validate_rmsd_angle.angle_target_value         111.00 
-_pdbx_validate_rmsd_angle.angle_deviation            -19.35 
-_pdbx_validate_rmsd_angle.angle_standard_deviation   2.70 
-_pdbx_validate_rmsd_angle.linker_flag                N 
-# 
-loop_
-_pdbx_validate_torsion.id 
-_pdbx_validate_torsion.PDB_model_num 
-_pdbx_validate_torsion.auth_comp_id 
-_pdbx_validate_torsion.auth_asym_id 
-_pdbx_validate_torsion.auth_seq_id 
-_pdbx_validate_torsion.PDB_ins_code 
-_pdbx_validate_torsion.label_alt_id 
-_pdbx_validate_torsion.phi 
-_pdbx_validate_torsion.psi 
-1  1 ASP A 211 ? ? -167.05 110.14  
-2  1 GLN A 258 ? ? 67.80   -55.48  
-3  1 GLU A 268 ? ? -114.57 -154.84 
-4  1 ASN A 276 ? ? -173.37 132.68  
-5  1 LYS A 351 ? ? -53.65  -97.65  
-6  1 HIS A 352 ? ? -22.07  -27.94  
-7  1 PRO A 354 ? ? -13.02  -95.37  
-8  1 THR B 50  ? ? 176.17  170.33  
-9  1 ASP B 57  ? ? -96.59  31.13   
-10 1 GLN B 82  ? ? -155.64 81.56   
-11 1 THR B 90  ? ? -153.98 88.41   
-12 1 GLN B 203 ? ? 179.64  169.78  
-13 1 ASP B 211 ? ? -166.24 106.83  
-14 1 GLN B 258 ? ? 66.57   -59.10  
-15 1 GLU B 268 ? ? -96.82  -112.21 
-16 1 ASN B 276 ? ? -178.63 96.76   
-17 1 PRO B 354 ? ? -12.82  -95.39  
-18 1 LYS B 487 ? ? -166.39 118.61  
-# 
-loop_
-_pdbx_unobs_or_zero_occ_residues.id 
-_pdbx_unobs_or_zero_occ_residues.PDB_model_num 
-_pdbx_unobs_or_zero_occ_residues.polymer_flag 
-_pdbx_unobs_or_zero_occ_residues.occupancy_flag 
-_pdbx_unobs_or_zero_occ_residues.auth_asym_id 
-_pdbx_unobs_or_zero_occ_residues.auth_comp_id 
-_pdbx_unobs_or_zero_occ_residues.auth_seq_id 
-_pdbx_unobs_or_zero_occ_residues.PDB_ins_code 
-_pdbx_unobs_or_zero_occ_residues.label_asym_id 
-_pdbx_unobs_or_zero_occ_residues.label_comp_id 
-_pdbx_unobs_or_zero_occ_residues.label_seq_id 
-1  1 Y 1 A VAL 44  ? A VAL 1   
-2  1 Y 1 A TRP 45  ? A TRP 2   
-3  1 Y 1 A LYS 46  ? A LYS 3   
-4  1 Y 1 A GLU 47  ? A GLU 4   
-5  1 Y 1 A ALA 48  ? A ALA 5   
-6  1 Y 1 A ASN 317 ? A ASN 185 
-7  1 Y 1 A GLY 318 ? A GLY 186 
-8  1 Y 1 A GLY 319 ? A GLY 187 
-9  1 Y 1 A SER 320 ? A SER 188 
-10 1 Y 1 A GLY 321 ? A GLY 189 
-11 1 Y 1 A SER 322 ? A SER 190 
-12 1 Y 1 A GLY 323 ? A GLY 191 
-13 1 Y 1 A GLY 324 ? A GLY 192 
-14 1 Y 1 A GLY 457 A A GLY 322 
-15 1 Y 1 A GLY 457 B A GLY 323 
-16 1 Y 1 A GLN 457 C A GLN 324 
-17 1 Y 1 A SER 457 D A SER 325 
-18 1 Y 1 A ASN 457 E A ASN 326 
-19 1 Y 1 A GLU 457 F A GLU 327 
-20 1 Y 1 A THR 457 G A THR 328 
-21 1 Y 1 A ASN 457 H A ASN 329 
-22 1 Y 1 A LYS 492 ? A LYS 358 
-23 1 Y 1 B VAL 44  ? B VAL 1   
-24 1 Y 1 B TRP 45  ? B TRP 2   
-25 1 Y 1 B LYS 46  ? B LYS 3   
-26 1 Y 1 B GLU 47  ? B GLU 4   
-27 1 Y 1 B ALA 48  ? B ALA 5   
-28 1 Y 1 B ASN 317 ? B ASN 185 
-29 1 Y 1 B GLY 318 ? B GLY 186 
-30 1 Y 1 B GLY 319 ? B GLY 187 
-31 1 Y 1 B SER 320 ? B SER 188 
-32 1 Y 1 B GLY 321 ? B GLY 189 
-33 1 Y 1 B SER 322 ? B SER 190 
-34 1 Y 1 B GLY 323 ? B GLY 191 
-35 1 Y 1 B GLY 324 ? B GLY 192 
-36 1 Y 1 B GLY 457 A B GLY 322 
-37 1 Y 1 B GLY 457 B B GLY 323 
-38 1 Y 1 B GLN 457 C B GLN 324 
-39 1 Y 1 B SER 457 D B SER 325 
-40 1 Y 1 B ASN 457 E B ASN 326 
-41 1 Y 1 B GLU 457 F B GLU 327 
-42 1 Y 1 B THR 457 G B THR 328 
-43 1 Y 1 B ASN 457 H B ASN 329 
-44 1 Y 1 B ILE 491 ? B ILE 357 
-45 1 Y 1 B LYS 492 ? B LYS 358 
-# 
-loop_
-_pdbx_chem_comp_identifier.comp_id 
-_pdbx_chem_comp_identifier.type 
-_pdbx_chem_comp_identifier.program 
-_pdbx_chem_comp_identifier.program_version 
-_pdbx_chem_comp_identifier.identifier 
-NAG 'CONDENSED IUPAC CARBOHYDRATE SYMBOL' GMML     1.0 DGlcpNAcb                      
-NAG 'COMMON NAME'                         GMML     1.0 N-acetyl-b-D-glucopyranosamine 
-NAG 'IUPAC CARBOHYDRATE SYMBOL'           PDB-CARE 1.0 b-D-GlcpNAc                    
-NAG 'SNFG CARBOHYDRATE SYMBOL'            GMML     1.0 GlcNAc                         
-# 
-loop_
-_pdbx_entity_nonpoly.entity_id 
-_pdbx_entity_nonpoly.name 
-_pdbx_entity_nonpoly.comp_id 
-2 'amino({[(1R,2R)-1-({[(4-chloro-3-fluorophenyl)amino](oxo)acetyl}amino)-2,3-dihydro-1H-inden-2-yl]methyl}amino)methanimi nium' 
-1C1 
-3 2-acetamido-2-deoxy-beta-D-glucopyranose                                                                                       
-NAG 
-4 'FORMIC ACID'                                                                                                                  
-FMT 
-5 water                                                                                                                          
-HOH 
 # 

@@ -7,13 +7,13 @@ Info)    Molecular Dynamics', J. Molec. Graphics 1996, 14.1, 33-38.
 Info) -------------------------------------------------------------
 Info) Multithreading available, 16 CPUs.
 Info)   CPU features: SSE2 SSE4.1 AVX AVX2 FMA F16 AVX512F AVX512CD HT 
-Info) Free system memory: 31GB (50%)
+Info) Free system memory: 34GB (54%)
 Info) Creating CUDA device pool and initializing hardware...
 Info) Detected 1 available CUDA accelerator::
 Info) [0] Quadro P4000         14 SM_6.1 1.5 GHz, 7.9GB RAM SP32 KT AE2 ZC
 Info) Detected 1 available TachyonL/OptiX ray tracing accelerator
 Info)   Compiling  OptiX shaders on 1 target GPU...
-Info) Dynamically loaded 3 plugins in directory:
+Info) Dynamically loaded 5 plugins in directory:
 Info) /usr/local/lib/vmd/plugins/LINUXAMD64/molfile
 .
 1

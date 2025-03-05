@@ -78,6 +78,7 @@ paths:
   charmrun: charmrun
   namd2: namd2
   namd3: namd3
+  namd3gpu: namd3gpu
   packmol: packmol
   vmd: vmd
 psfgen:
@@ -928,6 +929,7 @@ tasks:
       transform_reserves: {}
 - md:
     constraints: {}
+    cpu-override: false
     dcdfreq: 100
     ensemble: minimize
     minimize: 1000
@@ -940,6 +942,7 @@ tasks:
     pad: 10
 - md:
     constraints: {}
+    cpu-override: false
     dcdfreq: 100
     ensemble: minimize
     minimize: 1000
@@ -950,6 +953,7 @@ tasks:
     xstfreq: 100
 - md:
     constraints: {}
+    cpu-override: false
     dcdfreq: 100
     ensemble: NVT
     minimize: 1000
@@ -960,6 +964,7 @@ tasks:
     xstfreq: 100
 - md:
     constraints: {}
+    cpu-override: false
     dcdfreq: 100
     ensemble: NPT
     minimize: 1000
@@ -970,6 +975,7 @@ tasks:
     xstfreq: 100
 - md:
     constraints: {}
+    cpu-override: false
     dcdfreq: 100
     ensemble: NPT
     minimize: 1000
@@ -980,6 +986,7 @@ tasks:
     xstfreq: 100
 - md:
     constraints: {}
+    cpu-override: false
     dcdfreq: 100
     ensemble: NPT
     minimize: 1000
@@ -990,6 +997,7 @@ tasks:
     xstfreq: 100
 - md:
     constraints: {}
+    cpu-override: false
     dcdfreq: 100
     ensemble: NPT
     minimize: 1000
@@ -1000,6 +1008,7 @@ tasks:
     xstfreq: 100
 - md:
     constraints: {}
+    cpu-override: false
     dcdfreq: 100
     ensemble: NPT
     minimize: 1000
@@ -1010,6 +1019,8 @@ tasks:
     xstfreq: 100
 - mdplot:
     basename: solvated
+    existing-logs: []
+    existing-xsts: []
     figsize:
     - 9
     - 6
@@ -1019,7 +1030,10 @@ tasks:
     - density
     - density
     units:
-      density: g_per_cc
+      a_x: "\xC5"
+      b_y: "\xC5"
+      c_z: "\xC5"
+      density: g/cc
 - terminate:
     basename: my_6pti
     chainmapfile: chainmaps.yaml
