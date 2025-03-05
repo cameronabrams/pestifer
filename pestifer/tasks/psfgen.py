@@ -63,7 +63,7 @@ class PsfgenTask(BaseTask):
         return super().do()
 
     def coormods(self):
-        coormods=self.objmanager.get('coormods',{})
+        coormods=self.objmanager.get('coord',{})
         logger.debug(f'psfgen task has {len(coormods)} coormods')
         logger.debug(f'{coormods}')
         ba=self.base_molecule.active_biological_assembly

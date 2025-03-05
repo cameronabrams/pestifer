@@ -26,34 +26,42 @@
 PRES HEAL         0.00 
 ATOM 2O   O      -0.51
 ATOM 2C   C       0.51
-ATOM 3HN  H       0.31  ! no, not for proline!!
+ATOM 3HN  H       0.31  ! will not work for if 3 is pro
 ATOM 3N   NH1    -0.47
-ATOM 3CA  CT1     0.07
-ATOM 3HA  HB1     0.09
+ATOM 3CA  CT1     0.07  ! will not work for if 3 is gly
+ATOM 3HA  HB1     0.09  ! will not work for if 3 is gly
 BOND 2C 3N
 BOND 2C 2O
-BOND 3N 3HN   ! no, will not work for proline!!
+BOND 3N 3HN             ! will not work for if 3 is pro
 DELETE ATOM 2OT1
 DELETE ATOM 2OT2
 DELETE ATOM 3HT1
 DELETE ATOM 3HT2
 DELETE ATOM 3HT3
-!the need for the explicit specification of angles and dihedrals in
-!patches linking images has not been tested
-!ANGLE 2C 3N 3CA  2CA 2C 3N   
-!ANGLE 2O 2C 3N   2C  3N 3HN   
-!DIHE 2C  3N  3CA 3C   2C  3N  3CA 3HA  2C  3N  3CA 3CB   
-!DIHE 2HA 2CA 2C  3N   2N  2CA 2C  3N   2CB 2CA 2C  3N   
-!DIHE 2CA 2C  3N  3HN  2CA 2C  3N  3CA   
-!DIHE 2O  2C  3N  3HN  2O  2C  3N  3CA   
-!IMPR 3N 2C 3CA 3HN 2C 2CA 3N 2O
-!CMAP 1C  2N  2CA  2C   2N  2CA  2C  3N  ! former C-terminal residue CMAP
-!CMAP 2C  3N  3CA  3C   3N  3CA  3C  4N  ! former N-terminal residue CMAP
 IC 2N   2CA  2C   3N    0.0000  0.0000 180.0000  0.0000  0.0000
 IC 3N   2CA  *2C  2O    0.0000  0.0000 180.0000  0.0000  0.0000
 IC 2CA  2C   3N   3CA   0.0000  0.0000 180.0000  0.0000  0.0000
 IC 2C   3N   3CA  3C    0.0000  0.0000 180.0000  0.0000  0.0000
 IC 2C   3CA  *3N  3HN   0.0000  0.0000 180.0000  0.0000  0.0000
 
-END
-
+PRES HEXP 0.00
+ATOM 2O   O      -0.51
+ATOM 2C   C       0.51
+ATOM 3HN  H       0.31  ! will not work for if 3 is pro
+ATOM 3N   NH1    -0.47
+ATOM 3CA  CT2     0.02  ! 3 is gly
+ATOM 3HA1 HB2     0.09  ! 3 is gly
+ATOM 3HA2 HB2     0.09  ! 3 is gly
+BOND 2C 3N
+BOND 2C 2O
+BOND 3N 3HN             ! will not work for if 3 is pro
+DELETE ATOM 2OT1
+DELETE ATOM 2OT2
+DELETE ATOM 3HT1
+DELETE ATOM 3HT2
+DELETE ATOM 3HT3
+IC 2N   2CA  2C   3N    0.0000  0.0000 180.0000  0.0000  0.0000
+IC 3N   2CA  *2C  2O    0.0000  0.0000 180.0000  0.0000  0.0000
+IC 2CA  2C   3N   3CA   0.0000  0.0000 180.0000  0.0000  0.0000
+IC 2C   3N   3CA  3C    0.0000  0.0000 180.0000  0.0000  0.0000
+IC 2C   3CA  *3N  3HN   0.0000  0.0000 180.0000  0.0000  0.0000

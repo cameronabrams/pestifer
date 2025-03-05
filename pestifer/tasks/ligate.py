@@ -120,7 +120,7 @@ class LigateTask(MDTask):
         pg=self.writers['psfgen']
         pg.newscript(self.basename)
         # pg.topo_aliases()
-        topfile=os.path.join(self.config.charmmff_custom_path,'mylink.top')
+        topfile=os.path.join(self.config.charmmff_custom_path,'unter.top')
         pg.addline(f'topology {topfile}')
         # pg.usescript('loop_closure')
         patchfile=self.statevars['data']

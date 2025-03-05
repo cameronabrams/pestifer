@@ -35,6 +35,7 @@ tasks:
   - md:
       ensemble: minimize  
   - md:
+      cpu-override: True
       ensemble: NVT
       nsteps: 2000
   - solvate:

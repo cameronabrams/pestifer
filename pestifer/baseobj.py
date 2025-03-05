@@ -1092,8 +1092,9 @@ class ObjList(UserList):
             if not key in bins:
                 bins[key]=[]
             bins[key].append(item)
-        # for k,v in bins.items():
-        #     logger.debug(f'binnify: bin {k} has {len(v)} items')
+        for k,v in bins.items():
+            if len(v)>1:
+                logger.debug(f'binnify: bin {k} has {len(v)} items: {v}')
         return bins
     
     def puniq(self,fields=[]):

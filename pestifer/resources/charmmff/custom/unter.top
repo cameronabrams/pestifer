@@ -1,0 +1,47 @@
+! Undo N and C terminal patches
+
+! very basic cleavage of a peptide bond (only used in testing?)
+PRES CLEV  0.00
+DELETE BOND 1C 2N
+
+! undo CTER patch
+PRES XCTR 0.00
+ATOM C    C       0.51
+ATOM O    O      -0.51
+DELETE ATOM OT1
+DELETE ATOM OT2
+BOND C O
+
+! undo NTER patch
+PRES XNTR 0.00
+ATOM N    NH1    -0.47
+ATOM HN   H       0.31
+ATOM CA   CT1     0.07
+ATOM HA   HB1     0.09
+DELETE ATOM HT1
+DELETE ATOM HT2
+DELETE ATOM HT3
+BOND N HN
+
+! undo GLYP patch
+PRES XGLP
+ATOM N    NH1    -0.47  !     |
+ATOM HN   H       0.31  !     N-H
+ATOM CA   CT2    -0.02  !     |  
+ATOM HA1  HB2     0.09  !     |  
+ATOM HA2  HB2     0.09  ! HA1-CA-HA2
+DELETE ATOM HT1
+DELETE ATOM HT2
+DELETE ATOM HT3
+BOND N HN
+
+! undo PROP patch
+PRES XPRP
+ATOM N    N      -0.29  !     |   \ /
+ATOM CD   CP3     0.00  !     N---CD   HG1  ATOM CA   CP1     0.02
+ATOM CA   CP1     0.02  !     |     /  \
+DELETE ATOM HN1
+DELETE ATOM HN2
+
+END
+

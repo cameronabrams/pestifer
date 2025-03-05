@@ -41,7 +41,7 @@ class Segment(AncestorAwareObj):
             apparent_segtype=Residues[0].segtype
             if apparent_segtype=='protein':
                 # a protein segment must have unique residue numbers
-                assert Residues.puniq(['resseqnum','insertion'])
+                assert Residues.puniq(['resseqnum','insertion']),f'ChainID {apparent_chainID} has duplicate resseqnum-insertion!'
                 # a protein segment may not have more than one protein chain
                 assert all([x.chainID==Residues[0].chainID for x in Residues])
                 Residues.sort()

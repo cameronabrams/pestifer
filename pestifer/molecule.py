@@ -216,7 +216,23 @@ class Molecule(AncestorAwareObj):
                             for transform in ba.transforms:
                                 cm=transform.chainIDmap
                                 act_segID=cm.get(asymm_segname,asymm_segname)
-                                writer.addline(f'patch HEAL {act_segID}:{llres.resseqnum}{llres.insertion} {act_segID}:{lres.resseqnum}{lres.insertion} {act_segID}:{rres.resseqnum}{rres.insertion} {act_segID}:{rrres.resseqnum}{rrres.insertion}')
+                                ll=f'{act_segID}:{llres.resseqnum}{llres.insertion}'
+                                l= f'{act_segID}:{ lres.resseqnum}{ lres.insertion}'
+                                r= f'{act_segID}:{ rres.resseqnum}{ rres.insertion}'
+                                rr=f'{act_segID}:{rrres.resseqnum}{rrres.insertion}'
+                                # undo the C-terminus on the left residue
+                                writer.addline(f'patch XCTR {l}')
+                                # under the N-terminus on the right residue
+                                rname=rres.resname
+                                if rname=='GLY':
+                                    writer.addline(f'patch XGLP {r}')
+                                elif rname=='PRO':
+                                    writer.addline(f'patch XPRP {r}')
+                                else:
+                                    writer.addline(f'patch XNTR {r}')
+                                # re-establish the peptide bond linkage
+                                writer.addline(f'patch LINK {ll} {l} {r} {rr}')
+                                # writer.addline(f'patch HEAL {ll} {l} {r} {rr}')
 
     def cleave_chains(self,clv_list):
         au=self.asymmetric_unit
