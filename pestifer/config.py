@@ -98,7 +98,7 @@ class Config(Yclept):
         if not fullpath:
             logger.warning(f'{self.shell_commands[cn]}: not found')
         if self.shell_commands['namd3gpu']==self.shell_commands['namd3']:
-            logger.warning(f'CPU and GPU namd3 have the same path: {self.shell_commands['namd3gpu']}')
+            logger.warning(f'CPU and GPU namd3 have the same path: {self.shell_commands["namd3gpu"]}')
         if self.namd_type=='gpu': # make sure we can run the GPUResident namd3
             if verify_access:
                 assert os.access(fullpath,os.X_OK),f'You do not have permission to execute {fullpath}'

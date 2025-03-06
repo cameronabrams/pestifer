@@ -4,22 +4,22 @@ from pestifer.baseobj import BaseObj, CloneableObj, AncestorAwareObj, ObjList, S
 from argparse import Namespace
 
 class TestBaseObj(unittest.TestCase):
-    def test_basemod_empty(self):
+    def test_baseobj_empty(self):
         a=BaseObj({})
         self.assertEqual(type(a),BaseObj)
-    def test_basemod_undifferentiated_fromdict(self):
+    def test_baseobj_undifferentiated_fromdict(self):
         b=BaseObj({'a':1,'b':2})
         self.assertEqual(type(b),BaseObj)
         self.assertEqual(b.a,1)
         self.assertEqual(b.b,2)
-    def test_basemod_fromnamespace(self):
+    def test_baseobj_fromnamespace(self):
         z=Namespace(a=1,b=2)
         b=BaseObj(z)
         self.assertEqual(type(b),BaseObj)
         self.assertEqual(b.a,1)
         self.assertEqual(b.b,2)
 
-    def test_basemod_catch_mutuals_notrequired(self):
+    def test_baseobj_catch_mutuals_notrequired(self):
         # required attributes are not in mutual exclusives
         class tbm(BaseObj):
             req_attr=['R1','R2','R3']
@@ -30,7 +30,7 @@ class TestBaseObj(unittest.TestCase):
             print(a.__dict__)
         self.assertEqual(E.type,AssertionError)
 
-    def test_basemod_catch_required(self):
+    def test_baseobj_catch_required(self):
         # all required attributes have values
         class tbm(BaseObj):
             req_attr=['R1','R2','R3']
@@ -38,7 +38,7 @@ class TestBaseObj(unittest.TestCase):
             a=tbm({'R1':1,'R2':2})
         self.assertEqual(E.type,AssertionError)
 
-    def test_basemod_mutuals_satisfied(self):
+    def test_baseobj_mutuals_satisfied(self):
         # all mutual exclusivity requirements are met
         class tbm(BaseObj):
             req_attr=['R1','R2','R3']
@@ -48,7 +48,7 @@ class TestBaseObj(unittest.TestCase):
             a=tbm({'R1':1,'R2':2,'R3':3,'O1':4,'O2':5})
         self.assertEqual(E.type,AssertionError)
 
-    def test_basemod_choices_met(self):
+    def test_baseobj_choices_met(self):
         # all attributes with limited set of possible values have valid values
         class tbm(BaseObj):
             req_attr=['R1','R2','R3']
@@ -59,7 +59,7 @@ class TestBaseObj(unittest.TestCase):
             a=tbm({'R1':1,'R2':2,'R3':3})
         self.assertEqual(E.type,AssertionError)
 
-    def test_basemod_optional_dependents_met(self):
+    def test_baseobj_optional_dependents_met(self):
         # for each optional attribute present, all required dependent attributes are also present
         class tbm(BaseObj):
             req_attr=['R1','R2','R3']
@@ -69,7 +69,7 @@ class TestBaseObj(unittest.TestCase):
             a=tbm({'R1':1,'R2':2,'R3':3,'O1':4})
         self.assertEqual(E.type,AssertionError)
 
-    def test_basemod_equality(self):
+    def test_baseobj_equality(self):
         class tbm(BaseObj):
             req_attr=['a','b']
         id1={'a':1,'b':2}
@@ -79,7 +79,7 @@ class TestBaseObj(unittest.TestCase):
         bm2=tbm(id1)
         self.assertTrue(bm1==bm2)
 
-    def test_basemod_relational(self):
+    def test_baseobj_relational(self):
         class tbm(BaseObj):
             req_attr=['a','b']
         bm1=tbm({'a':1,'b':2})
@@ -102,7 +102,7 @@ class TestBaseObj(unittest.TestCase):
         self.assertFalse(bm3<bm1)
         self.assertFalse(bm1<bm3)
 
-    def test_basemod_set(self):
+    def test_baseobj_set(self):
         class tbm(BaseObj):
             req_attr=['a','x']
         class sbm(BaseObj):

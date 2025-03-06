@@ -13,7 +13,6 @@ tasks:
   - psfgen:
       source:
         id: 7xix
-        file_format: mmCIF  #PDB no longer available at RCSB
         biological_assembly: 1
         sequence:
           loops:

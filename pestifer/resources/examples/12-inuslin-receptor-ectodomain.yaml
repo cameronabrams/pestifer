@@ -28,8 +28,6 @@ tasks:
             declash:
               maxcycles: 0
       mods:
-        mutations:
-          - E:P753A  # the proline at the end of a chain is problematic, for now
         crotations: # some fine-tuning to ease ligation
           - psi,E,661,693,60
           - phi,E,662,693,60

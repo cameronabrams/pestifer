@@ -1,7 +1,7 @@
 """
 
-.. module:: test_modlist
-   :synopsis: tests of the modlist
+.. module:: test_objlist
+   :synopsis: tests of the objlist
    
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 

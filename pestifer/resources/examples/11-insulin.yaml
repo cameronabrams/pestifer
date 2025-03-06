@@ -15,6 +15,7 @@ tasks:
         id: 2ins
         biological_assembly: 1
   - md:
+      cpu-override: True
       ensemble: minimize
   - solvate:
   - md:

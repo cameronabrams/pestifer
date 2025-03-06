@@ -48,12 +48,12 @@ source:
         directive=self.get_source_dict('1gc1')
         m=Molecule(source=directive["source"])
         au=m.asymmetric_unit
-        mods=au.modmanager
-        topomods=mods.get('topomods',{})
-        seqmods=mods.get('seqmods',{})
-        ssbonds=topomods.get('ssbonds',[])
-        links=topomods.get('links',[])
-        mutations=seqmods.get('mutations',[])
+        objs=au.objmanager
+        topol=objs.get('topol',{})
+        seq=objs.get('seq',{})
+        ssbonds=topol.get('ssbonds',[])
+        links=topol.get('links',[])
+        mutations=seq.get('mutations',[])
         self.assertEqual(m.sourcespecs['id'],'1gc1')
         self.assertEqual(len(au.atoms),7877)
         self.assertEqual(len(ssbonds),14)
@@ -83,16 +83,15 @@ source:
         au=m.asymmetric_unit
         self.assertEqual(len(au.atoms),3230)
         self.assertEqual(len(au.residues),397)
-        mods=au.modmanager
-        topomods=mods.get('topomods',{})
-        seqmods=mods.get('seqmods',{})
-        print(seqmods)
+        objs=au.objmanager
+        topol=objs.get('topol',{})
+        seq=objs.get('seq',{})
         os.remove(f'{ac}.pdb')
         os.remove(f'{ac}.json')
-        self.assertEqual(len(topomods),0)
-        self.assertEqual(len(seqmods),1)
-        self.assertTrue('terminals' in seqmods)
-        self.assertEqual(len(seqmods['terminals']),1)
+        self.assertEqual(len(topol),0)
+        self.assertEqual(len(seq),1)
+        self.assertTrue('terminals' in seq)
+        self.assertEqual(len(seq['terminals']),1)
 
 
     def test_molecule_links(self):
@@ -102,7 +101,7 @@ source:
         au=m.asymmetric_unit
         self.assertEqual(len(au.residues),659)
 
-        links=au.modmanager['topomods']['links']
+        links=au.objmanager['topol']['links']
         l=links[0]
         self.assertEqual(l.residue1.segtype,'protein')
         self.assertEqual(l.residue1.resname,'ASN')
@@ -156,7 +155,7 @@ source:
         directive["source"]["biological_assembly"]=1
         m=Molecule(source=directive["source"],reset_counter=True)
         au=m.asymmetric_unit
-        ters=au.modmanager.get('seqmods',{}).get('terminals',[])
+        ters=au.objmanager.get('seq',{}).get('terminals',[])
         self.assertEqual(len(ters),2)
         atom_serials=[x.serial for x in au.atoms]
         orig_atom_serials=[]
@@ -240,30 +239,6 @@ source:
             for cr in res_cif['protein']:
                 logger.debug(f'CIF PROTEIN RESIDUE {cr.chainID}_{cr.resname}{cr.resseqnum} [auth {cr.auth_asym_id}_{cr.auth_comp_id}{cr.auth_seq_id}{cr.insertion}] resolved {cr.resolved}')
         self.assertTrue(check_good,msg=check_msg)
-        # matches=[]
-        # pdb_orphans=[]
-        # for st in ['protein','glycan']:
-        #     for rp in res_pdb[st]:
-        #         for cp in res_cif[st]:
-        #             if rp.chainID==cp.auth_asym_id and int(rp.resseqnum)==int(cp.auth_seq_id) and rp.resname==cp.auth_comp_id and rp.insertion==cp.insertion:
-        #                 matches.append([rp,cp])
-        #                 res_cif[st].remove(cp)
-        #                 break
-        #         else:
-        #             pdb_orphans.append(rp)
-        # orphan_msg='PDB singletons: '+'; '.join([f'{rp.chainID}_{rp.resname}{rp.resseqnum}{rp.insertion}' for rp in pdb_orphans])
-        
-        # self.assertEqual(len(pdb_orphans),0,msg=orphan_msg)
-        # self.assertEqual(prot_res_cif,634)
-        # self.assertEqual(len(au['PDB'].residues),len(au['mmCIF'].residues))
-
-        # self.assertEqual(len(au.residues),659)
-        # ba=m.active_biological_assembly
-        # self.assertEqual(len(ba.transforms),3)
-        # mutations=au.modmanager.get('seqmods',{}).get('mutations',{})
-        # self.assertEqual(len(mutations),4)
-        # for m in mutations:
-        #     self.assertTrue(m.chainID in ['A','B'])
 
     def test_molecule_existing(self):
         c=Config()
@@ -275,9 +250,9 @@ source:
         }
         m=Molecule(source=source).activate_biological_assembly(0)
         au=m.asymmetric_unit
-        ssbonds=au.modmanager.get('topomods',{}).get('ssbonds',SSBondList([]))
+        ssbonds=au.objmanager.get('topol',{}).get('ssbonds',SSBondList([]))
         self.assertEqual(len(ssbonds),27)
-        links=au.modmanager.get('topomods',{}).get('links',LinkList([]))
+        links=au.objmanager.get('topol',{}).get('links',LinkList([]))
         self.assertEqual(len(links),129)
         fl=links[0]
         self.assertEqual(fl.residue1.resname,'ASN')
