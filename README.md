@@ -29,6 +29,7 @@ Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full d
 * 1.8.0
     * new source code structure
     * mmCIF convention updated
+    * `mdplot` subcommand added
 * 1.7.4
     * bugfix:
         * xst trace for `mdplot` fails if empty
@@ -37,7 +38,7 @@ Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full d
         * correct the detection of whether or not a file is a NAMD log file based on the first two Info: records
         * correct the problem with restarts interfering with mdplot
 * 1.7.1
-    * `make-namd-restart` enhanced with SLURM script updating
+    * `make-namd-restart` enhanced with automatic SLURM script updating
 * 1.6.4a2
     * bugfix: GPU-resident NAMD3 cannot do mulitple-gpu runs with constraints
 * 1.6.4a0

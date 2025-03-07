@@ -60,7 +60,7 @@ def run(args,**kwargs):
 
     # Set up the Controller and execute tasks
     begin_time=time.time()
-    logger.info(f'{__package__} runtime begins.')
+    logger.info(f'{__package__} begins.')
     allowed_extensions=['.yaml','.yml','.y']
     configname=args.config
     cbase,cext=os.path.splitext(configname)
@@ -74,7 +74,7 @@ def run(args,**kwargs):
     report=C.do_tasks()
     end_time=time.time()
     elapsed_time_s=datetime.timedelta(seconds=(end_time-begin_time))
-    logger.info(f'{__package__} runtime ends. Elapsed runtime {time.strftime("%H:%M:%S",time.gmtime(elapsed_time_s.seconds))}.')
+    logger.info(f'{__package__} ends. Elapsed time {time.strftime("%H:%M:%S",time.gmtime(elapsed_time_s.seconds))}.')
     if args.output_dir!='./':
         os.chdir(exec_dir)
 
