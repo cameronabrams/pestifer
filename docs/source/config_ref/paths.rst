@@ -3,7 +3,7 @@
 ``paths``
 =========
 
-Allows user to specify absolute paths for certain resources, including external applications
+Allows user to specify paths for certain resources, including external applications
 
 Single-valued parameters:
 

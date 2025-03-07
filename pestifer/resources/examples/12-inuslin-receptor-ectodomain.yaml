@@ -9,7 +9,7 @@
 #   - Fab chains are excluded
 #   - Declashing is turned off
 #   - A five-phase NPT equilibration is used to settle the density
-#   - A production tarball is generated: prod_5vn3.tgz
+#   - A production tarball is generated: prod_4zxb.tgz
 #
 title: insulin receptor ectodomain, Fabs removed
 tasks:
@@ -32,13 +32,16 @@ tasks:
           - psi,E,661,693,60
           - phi,E,662,693,60
   - md:
+      cpu-override: True
       ensemble: minimize
   - ligate:
       steer:
         nsteps: 12000
   - md:
+      cpu-override: True
       ensemble: minimize
   - md:
+      cpu-override: True
       ensemble: NVT
       nsteps: 24000
   - solvate:

@@ -205,7 +205,7 @@ class PsfgenTask(BaseTask):
         self.source_specs=specs['source']
         logger.debug(f'User-input modspecs {self.specs["mods"]}')
         self.objmanager=ObjManager(self.specs['mods'])
-        seqmods=self.objmanager.get('seqmods',{})
+        seqmods=self.objmanager.get('seq',{})
         logger.debug(f'Injesting seqmods {seqmods}')
         if 'grafts' in seqmods:
             logger.debug(f'looking for graft sources to injest')

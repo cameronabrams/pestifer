@@ -1,0 +1,9 @@
+.. _example 14:
+
+Example 14: Trimeric HIV-1 gp41 construct embedded in a model viral lipid bilayer
+---------------------------------------------------------------------------------
+
+.. literalinclude:: ../../../pestifer/resources/examples/14-hiv-mper-tm-6e8w-membrane.yaml
+    :language: yaml
+
+(under construction)

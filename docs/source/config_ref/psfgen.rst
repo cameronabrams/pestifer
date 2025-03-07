@@ -3,7 +3,7 @@
 ``psfgen``
 ==========
 
-Specifications for the psfgen plugin
+This directive allows you to define common macros and other psfgen commands used in all psfgen runs
 
 Container-like parameter:
 

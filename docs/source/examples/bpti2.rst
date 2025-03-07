@@ -1,41 +1,12 @@
+.. _example 2:
+
 Example 2: BPTI with Phosphate Ion Deleted
 ------------------------------------------
+
 This is the same as Example 1, except we delete the phosphate ion.
 
-.. code-block:: yaml
-
-  title: BPTI with phosphate ion excluded
-  tasks:
-    - psfgen:
-        source:
-          id: 6pti
-          exclude:
-            resnames:
-              - PO4
-    - md:
-        ensemble: minimize
-    - solvate:
-    - md:
-        ensemble: minimize
-    - md:
-        ensemble: NVT
-    - md:
-        ensemble: NPT
-        nsteps: 200
-    - md:
-        ensemble: NPT
-        nsteps: 400
-    - md:
-        ensemble: NPT
-        nsteps: 800
-    - md:
-        ensemble: NPT
-        nsteps: 1600
-    - terminate:
-        basename: my_6pti
-        package:
-          ensemble: NPT
-          basename: prod_6pti
+.. literalinclude:: ../../../pestifer/resources/examples/02-bpti-exclude-phosphate.yaml
+    :language: yaml
 
 Note the ``exclude`` subdirective under ``source``.  You remember how you can learn about it?  Using ``config-help``: 
 

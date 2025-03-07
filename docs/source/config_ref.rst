@@ -3,7 +3,7 @@
 Configuration File Reference
 ============================
 
-Pestifer uses YAML-format configuration input for executing a build.  There are six unique top-level directives in a configuration file:
+Pestifer uses YAML-format configuration input for executing a build.  These pages document all YAML directives that can be included in a config file.
 
 Single-valued parameter:
 

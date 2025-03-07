@@ -13,7 +13,7 @@
 #
 docs:
   title: Configuration File Reference
-  text: "Pestifer uses YAML-format configuration input for executing a build.  There are six unique top-level directives in a configuration file:"
+  text: "Pestifer uses YAML-format configuration input for executing a build.  These pages document all YAML directives that can be included in a config file."
 directives:
   - name: charmmff
     type: dict
@@ -73,6 +73,8 @@ directives:
   - name: psfgen
     type: dict
     text: Specifications for the psfgen plugin
+    docs:
+      text: This directive allows you to define common macros and other psfgen commands used in all psfgen runs
     required: True
     directives:
       - name: aliases
@@ -852,6 +854,8 @@ directives:
   - name: namd
     type: dict
     text: NAMD specifications
+    docs:
+      text: These are specifications for NAMD, including default input configuration parameters for various classes of simulations.
     directives:
       - name: namd-version
         text: version of NAMD to run
@@ -938,7 +942,9 @@ directives:
     default: Pestifer
   - name: paths
     type: dict
-    text: Allows user to specify absolute paths for certain resources, including external applications
+    text: Allows user to specify paths for certain resources, including external applications
+    docs:
+      text: Allows user to specify paths for certain resources, including external applications
     directives:
       - name: namd2
         type: str
@@ -977,7 +983,9 @@ directives:
         text: Path to a user's collection of PDB files for custom lipids or ligands
   - name: tasks
     type: list
-    text: Specifies the tasks to be performed serially
+    text: Specifies the tasks to be performed serially in a pestifer run
+    docs:
+      text: These are the types of tasks that can be chained together into a run.
     directives:
       - name: restart
         text: Restart from specified pdb, psf, and (optionally) xsc files without any further modifications (suitable for directly feeding to md tasks)
@@ -1162,10 +1170,6 @@ directives:
               - name: grafts
                 text: graft residues from named residue range of named chain of named input PDB coordinate file onto target residue of base molecule
                 type: list
-          - name: cleanup
-            text: Specifies whether or not to delete temporary files generated during psfgen execution
-            type: bool
-            default: True
       - name: ligate
         text: Specifies how C-termini of modeled loops are connected back to the protein
         type: dict

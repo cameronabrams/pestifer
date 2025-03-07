@@ -93,7 +93,7 @@ class Graft(AncestorAwareObj):
 
     def activate(self,mol):
         self.source_molecule=mol
-        g_topomods=self.source_molecule.modmanager.get('topomods',{})
+        g_topomods=self.source_molecule.objmanager.get('topol',{})
         g_links=g_topomods.get('links',LinkList([]))
         self.source_seg=self.source_molecule.asymmetric_unit.segments.get(segname=self.source_chainID)
         self.mover_residues=type(self.source_seg.residues)([])

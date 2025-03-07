@@ -55,12 +55,14 @@ tasks:
           - C:100-162,GGG
           - E:100-162,GGG
   - md:
+      cpu-override: True
       ensemble: minimize
   - ligate:
       steer:
         temperature: 600
         nsteps: 3000
   - md:
+      cpu-override: True
       ensemble: minimize
   - md:
       cpu-override: True

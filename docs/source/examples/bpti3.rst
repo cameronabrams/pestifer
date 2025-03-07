@@ -1,50 +1,12 @@
+.. _example 3:
+
 Example 3: BPTI with One Reduced Disulfide and Some Point Mutations
 -------------------------------------------------------------------
 
 Building on Example 2, here we show how to introduce point mutations and how to undo disulfides.  Both of these actions are specified in the ``psfgen`` task under the ``mods`` subdirective:
 
-.. code-block:: yaml
-
-  title: BPTI, no phosphate, some random mutations plus deletion of one disulfide
-  tasks:
-    - psfgen:
-        source:
-          id: 6pti
-          exclude:
-            resnames:
-              - PO4
-        mods:
-          mutations: # showcasing the two shortcode formats
-            - A:T11A # threonine to alanine at position 11
-            - A:PRO,13,ALA # proline to alanine at position 13
-            - A:K15R
-            - A:MET,52,LEU
-          ssbondsdelete:
-            - A_5-A_55
-    - md:
-        ensemble: minimize
-    - solvate:
-    - md:
-        ensemble: minimize
-    - md:
-        ensemble: NVT
-    - md:
-        ensemble: NPT
-        nsteps: 200
-    - md:
-        ensemble: NPT
-        nsteps: 400
-    - md:
-        ensemble: NPT
-        nsteps: 800
-    - md:
-        ensemble: NPT
-        nsteps: 1600
-    - terminate:
-        basename: my_6pti
-        package:
-          ensemble: NPT
-          basename: prod_6pti
+.. literalinclude:: ../../../pestifer/resources/examples/03-bpti-mutant-deldisulf.yaml
+    :language: yaml
 
 First, note the ``mutations`` list.  Each element specifies one particular point mutation using a *shortcode*.  There are two allowable shortcodes for a point mutation:
 

@@ -3,7 +3,7 @@
 ``tasks``
 =========
 
-Specifies the tasks to be performed serially
+These are the types of tasks that can be chained together into a run.
 
 Subdirectives:
 

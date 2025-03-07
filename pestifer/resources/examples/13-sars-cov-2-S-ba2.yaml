@@ -22,7 +22,7 @@ tasks:
             declash:
               maxcycles: 500
       mods:
-        grafts: # these are not correct with the mmCIF residue numbering
+        grafts:
           - A_1304:4b7i,C_1-8 # 61
           - B_1304:4b7i,C_1-8
           - C_1304:4b7i,C_1-8
@@ -72,11 +72,13 @@ tasks:
           - O_1-2:2wah,C_1#2-9 # 1134
           - U_1-2:2wah,C_1#2-9 # 1134
   - md:
+      cpu-override: True
       ensemble: minimize
   - ligate:
       steer:
         nsteps: 4000
   - md:
+      cpu-override: True
       ensemble: minimize
   - cleave:
       sites:
@@ -84,8 +86,10 @@ tasks:
         - B:685-686
         - C:685-686
   - md:
+      cpu-override: True
       ensemble: minimize
   - md:
+      cpu-override: True
       ensemble: NVT
   - solvate:
   - md:
