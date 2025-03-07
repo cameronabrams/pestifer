@@ -92,7 +92,7 @@ class MDPlotTask(BaseTask):
                 if unitspec=='*':
                     units=1.0
                 else:
-                    if unitspec=='g_per_cc':
+                    if unitspec in ['g_per_cc','g/cc','g_per_cm3','g/cm3']:
                         units=g_per_amu*A3_per_cm3
                     else:
                         logger.debug(f'Unitspec "{unitspec}" not recognized.')

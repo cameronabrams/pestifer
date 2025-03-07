@@ -4,7 +4,7 @@ import unittest
 import glob
 import os
 
-from pestifer.pestifer import mdplot
+from pestifer.pestifer import mdplot  # this is the subcommand
 from argparse import Namespace
 class Test_MDPlot(unittest.TestCase):
     def test_eplot(self):
@@ -20,11 +20,11 @@ class Test_MDPlot(unittest.TestCase):
         self.assertTrue(os.path.exists('testmdplot-density.png'))
         self.assertTrue(os.path.exists('testmdplot-a_x-b_y-c_z.png'))
         
-        os.remove('states.yaml')
-        os.remove('testmdplot-density.png')
-        os.remove('testsave.csv')
-        os.remove('xst-testsave.csv')
-        os.remove('testmdplot-a_x-b_y-c_z.png')
+        # os.remove('states.yaml')
+        # os.remove('testmdplot-density.png')
+        # os.remove('testsave.csv')
+        # os.remove('xst-testsave.csv')
+        # os.remove('testmdplot-a_x-b_y-c_z.png')
 
 
 
