@@ -885,7 +885,6 @@ psfgen:
       - HOH
 tasks:
 - psfgen:
-    cleanup: true
     mods:
       Cfusions: []
       crotations:
@@ -950,7 +949,7 @@ tasks:
       transform_reserves: {}
 - md:
     constraints: {}
-    cpu-override: false
+    cpu-override: true
     dcdfreq: 100
     ensemble: minimize
     minimize: 1000
@@ -976,7 +975,7 @@ tasks:
       xstfreq: 100
 - md:
     constraints: {}
-    cpu-override: false
+    cpu-override: true
     dcdfreq: 100
     ensemble: minimize
     minimize: 1000

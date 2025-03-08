@@ -885,7 +885,6 @@ psfgen:
       - HOH
 tasks:
 - psfgen:
-    cleanup: true
     mods:
       Cfusions: []
       crotations:
@@ -895,8 +894,7 @@ tasks:
       grafts: []
       insertions: []
       links: []
-      mutations:
-      - E:P753A
+      mutations: []
       ssbonds: []
       ssbondsdelete: []
       substitutions: []
@@ -932,7 +930,7 @@ tasks:
       transform_reserves: {}
 - md:
     constraints: {}
-    cpu-override: false
+    cpu-override: true
     dcdfreq: 100
     ensemble: minimize
     minimize: 1000
@@ -958,7 +956,7 @@ tasks:
       xstfreq: 100
 - md:
     constraints: {}
-    cpu-override: false
+    cpu-override: true
     dcdfreq: 100
     ensemble: minimize
     minimize: 1000
@@ -969,7 +967,7 @@ tasks:
     xstfreq: 100
 - md:
     constraints: {}
-    cpu-override: false
+    cpu-override: true
     dcdfreq: 100
     ensemble: NVT
     minimize: 1000

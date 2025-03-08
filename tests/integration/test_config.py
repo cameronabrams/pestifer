@@ -43,7 +43,6 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(name,'psfgen')
         self.assertTrue('source' in specs)
         self.assertEqual(specs['source']['id'],'6pti')
-        self.assertTrue('cleanup' in specs)
         task2=c['user']['tasks'][1]
         name,specs=[(x,y) for x,y in task2.items()][0]
         self.assertEqual(name,'md')
@@ -63,7 +62,6 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(name,'psfgen')
         self.assertTrue('source' in specs)
         self.assertEqual(specs['source']['id'],'4zmj')
-        self.assertTrue('cleanup' in specs)
         sourcespecs=specs['source']
         self.assertTrue('transform_reserves' in sourcespecs)
         resm=sourcespecs['transform_reserves']

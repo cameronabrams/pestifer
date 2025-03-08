@@ -885,7 +885,6 @@ psfgen:
       - HOH
 tasks:
 - psfgen:
-    cleanup: true
     mods:
       Cfusions: []
       crotations: []
@@ -948,7 +947,7 @@ tasks:
     source:
       biological_assembly: 1
       exclude: {}
-      file_format: mmCIF
+      file_format: PDB
       id: 7xix
       prebuilt: {}
       remap_chainIDs: {}
@@ -972,7 +971,7 @@ tasks:
       transform_reserves: {}
 - md:
     constraints: {}
-    cpu-override: false
+    cpu-override: true
     dcdfreq: 100
     ensemble: minimize
     minimize: 1000
@@ -998,7 +997,7 @@ tasks:
       xstfreq: 100
 - md:
     constraints: {}
-    cpu-override: false
+    cpu-override: true
     dcdfreq: 100
     ensemble: minimize
     minimize: 1000
@@ -1014,7 +1013,7 @@ tasks:
     - C:685-686
 - md:
     constraints: {}
-    cpu-override: false
+    cpu-override: true
     dcdfreq: 100
     ensemble: minimize
     minimize: 1000
@@ -1025,7 +1024,7 @@ tasks:
     xstfreq: 100
 - md:
     constraints: {}
-    cpu-override: false
+    cpu-override: true
     dcdfreq: 100
     ensemble: NVT
     minimize: 1000

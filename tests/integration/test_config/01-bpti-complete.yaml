@@ -885,7 +885,6 @@ psfgen:
       - HOH
 tasks:
 - psfgen:
-    cleanup: true
     mods:
       Cfusions: []
       crotations: []
