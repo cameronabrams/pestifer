@@ -16,8 +16,6 @@ Packages:
     The Linear Algebra package from Hume Integration Software
 - orient
     The Orient package from the VMD folks
-- tcllib
-    The TcLLib package, v 2
 - pestifer
     Several custom packages for use in pestifer (Cameron F. Abrams)
         - PestiferAUTools
