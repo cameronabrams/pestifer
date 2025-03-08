@@ -32,7 +32,7 @@ Subcommands
 -----------
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    subs/config-help
    subs/run

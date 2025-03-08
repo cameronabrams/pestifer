@@ -3,7 +3,7 @@
 psfgen 
 ------
 
-A ``psfgen`` tasks is usually the first task in a ``tasks`` directive.  Its basic functionality is to set up and conduct the first ``psfgen`` run to generate psf and pdb files from a structure file.  Because pestifer imports ``pidibble``, it can also fetch structure files from the RSCB or AlphaFold.
+A ``psfgen`` task is usually the first task in a ``tasks`` directive.  Its basic functionality is to set up and conduct the first ``psfgen`` run to generate psf and pdb files from a structure file.  Because pestifer imports ``pidibble``, it can also fetch structure files from the RSCB or AlphaFold.
 
 An example ``psfgen`` task that fetches and processes the 6PTI structure might look like this:
 
