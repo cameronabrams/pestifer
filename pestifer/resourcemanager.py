@@ -60,7 +60,6 @@ class ResourceManager:
                     msg=f.read()
                 out_stream(msg)
 
-
     def get_pdb(self,name):
         return self.pdb_collection.get_pdb(name)
 

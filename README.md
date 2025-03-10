@@ -19,13 +19,16 @@ Pestifer also requires access to the following executables:
 
 By default, pestifer looks for these commands in your path.  Specific paths for these can be stipulated in the `paths` directive of your input file.
 
-Pestifer includes the July 2024 Charmm36 force field.
+Pestifer includes the [July 2024 Charmm36 force field](https://mackerell.umaryland.edu/charmm_ff.shtml).
 
 ## Documentation
 
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
+* 1.8.1
+    * removal of tcllib from resources (I never used it anyway)
+    * bugfix in slow build tests
 * 1.8.0
     * new source code structure
     * mmCIF convention updated
