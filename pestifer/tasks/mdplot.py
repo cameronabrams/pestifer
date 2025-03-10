@@ -78,6 +78,7 @@ class MDPlotTask(BaseTask):
         
         traces=self.specs.get('traces',[])
         legend=self.specs.get('legend',False)
+        grid=self.specs.get('grid',False)
         basename=self.specs.get('basename','myplot')
         for trace in traces:
             unitspecs=[]
@@ -107,7 +108,9 @@ class MDPlotTask(BaseTask):
             tracename=','.join(tracelist)
             ax.set_ylabel(tracename+' ('+','.join([_ for _ in unitspecs if _!='*'])+')')
             if legend:
-                plt.legend()
+                ax.legend()
+            if grid:
+                ax.grid(True)
             tracename='-'.join(tracelist)
             plt.savefig(f'{basename}-{tracename}.png',bbox_inches='tight')
             plt.clf()

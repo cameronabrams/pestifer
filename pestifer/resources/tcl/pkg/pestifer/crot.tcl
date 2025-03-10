@@ -176,6 +176,7 @@ proc PestiferCRot::brot { molid r0 r1 angle_name rot deg} {
          set rotators [atomselect $molid "(residue $r0 and not (name N HN HT1 HT2 HT3) ) or (residue > $r0 and residue <= $r1)"]
       } elseif { $rot == "N" } { # rotators are n-terminal to the N-CA bond
          set rotators [atomselect $molid "(residue $r0 and (name N HN HT1 HT2 HT3)) or (residue < $r0 and residue >= $r1)"]
+         vmdcon -info "N-term phi brot $r0 to $r1 includes [$rotators num] atoms"
       }
    } elseif { $angle_name == "psi" } {
       set pn [lindex [$ca get {x y z}] 0]
@@ -184,6 +185,7 @@ proc PestiferCRot::brot { molid r0 r1 angle_name rot deg} {
          set rotators [atomselect $molid "(residue $r0 and (name C O OT1 OT2 OXT) ) or (residue > $r0 and residue <= $r1)"]
       } elseif { $rot == "N" } { # rotators are n-terminal the CA-C bond
          set rotators [atomselect $molid "(residue $r0 and not (name C O OT1 OT2 OXT)) or (residue < $r0 and residue >= $r1)"]
+         vmdcon -info "N-term psi brot $r0 to $r1 includes [$rotators num] atoms"
       }
    } elseif { $angle_name == "omega" } {
       set pn [lindex [$c get {x y z}] 0]

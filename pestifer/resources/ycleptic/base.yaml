@@ -1275,6 +1275,10 @@ directives:
           - name: legend
             text: include a legend
             type: bool
+            default: True
+          - name: grid
+            text: include a grid
+            type: bool
             default: False
           - name: basename
             type: str

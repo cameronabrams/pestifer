@@ -160,7 +160,11 @@ class Crot(AncestorAwareObj):
         if self.angle in ['PHI','PSI','OMEGA']:
             W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum1))
             W.addline('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum2))
-            W.addline(f'brot {molid} $r1 $r2 {self.angle.lower()} C {self.degrees}')
+            if self.resseqnum1<=self.resseqnum2:
+                direction='C'
+            else:
+                direction='N'
+            W.addline(f'brot {molid} $r1 $r2 {self.angle.lower()} {direction} {self.degrees}')
             # if endIsCterm:
             #     W.addline('Crot_{}_toCterm $r1 $r2 {} {} {}'.format(self.angle.lower(),the_chainID,molid,self.degrees))
             # else:

@@ -26,6 +26,9 @@ Pestifer includes the [July 2024 Charmm36 force field](https://mackerell.umaryla
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
+* 1.8.2
+    * fixed hard-coded C-direction brot call to detect whether brot is N- or C-terminal
+    * added `--gpu` option for the `run` and `run-example` subcommands
 * 1.8.1
     * removal of tcllib from resources (I never used it anyway)
     * bugfix in slow build tests

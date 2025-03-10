@@ -77,7 +77,6 @@ class Config(Yclept):
     def _set_shell_commands(self,verify_access=True):
         required_commands=['charmrun','namd3','vmd','catdcd','packmol']
         command_alternates={'namd3':'namd2'}
-        optional_commands=['namd3gpu']
         self.shell_commands={}
         for rq in required_commands:
             self.shell_commands[rq]=self['user']['paths'][rq]

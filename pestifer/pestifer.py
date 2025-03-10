@@ -58,6 +58,7 @@ def run(args,**kwargs):
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
+
     # Set up the Controller and execute tasks
     begin_time=time.time()
     logger.info(f'{__package__} begins.')
@@ -70,6 +71,12 @@ def run(args,**kwargs):
             iix=fil.index(True)
             configname=f'{cbase}{allowed_extensions[iix]}'
     C=Controller(configname)
+
+    if args.gpu:
+        if not 'namd' in C.config['user']:
+            C.config['user']={}
+        C.config['user']['namd']['processor-type']='gpu'
+
     C.write_complete_config(f'{cbase}-complete.yaml')
     report=C.do_tasks()
     end_time=time.time()
@@ -149,11 +156,11 @@ def fetch_example(args,**kwargs):
     base=os.path.split(ex_yaml)[1]
     rebase=base[len(f'{index:02d}')+1:]
     
-    if args.gpu:
-        if not 'namd' in ex_dict:
-            ex_dict['namd']={}
-        ex_dict['namd']['processor-type']='gpu'
-        # ex_dict['paths']['namd3']='namd3gpu'
+    # if args.gpu:
+    #     if not 'namd' in ex_dict:
+    #         ex_dict['namd']={}
+    #     ex_dict['namd']['processor-type']='gpu'
+    #     # ex_dict['paths']['namd3']='namd3gpu'
 
     with open(rebase,'w') as f:
         yaml.dump(ex_dict,f)
@@ -273,9 +280,9 @@ def cli():
     command_parsers['run'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
     command_parsers['run'].add_argument('--output-dir',type=str,default='./',help='name of output directory relative to CWD (default: %(default)s)')
     command_parsers['run'].add_argument('--diagnostic-log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
+    command_parsers['run'].add_argument('--gpu',default=False,action='store_true',help='force run on GPU')
     command_parsers['fetch-example'].add_argument('number',type=int,default=None,help='example number')
     command_parsers['fetch-example'].add_argument('--config-updates',type=str,nargs='+',default=[],help='yaml files to update example')
-    command_parsers['fetch-example'].add_argument('--gpu',default=False,action='store_true',help='force run on GPU')
 
     command_parsers['run-example'].add_argument('number',type=int,default=None,help='example number')
     command_parsers['run-example'].add_argument('--output-dir',type=str,default='./',help='name of output directory relative to CWD')
