@@ -342,12 +342,17 @@ class NAMD(TcLScriptwriter):
         self.namdgpu=config.shell_commands['namd3gpu']
         self.namd_type=config.namd_type
         self.namd_config=config['user']['namd']
+        self.namd_version=int(self.namd_config['namd-version'])
+        logger.debug(f'Using NAMD v {self.namd_version}')
         self.local_ncpus=config.local_ncpus
         self.ncpus=config.ncpus
         self.gpu_devices=config.gpu_devices
         self.slurmvars=config.slurmvars
         self.ngpus=config.ngpus
-        self.namd_deprecates=config.namd_deprecates
+        if self.namd_version==2:
+            self.namd_deprecates={}
+        else:
+            self.namd_deprecates=config.namd_deprecates
         logger.debug(f'{self.ncpus} cpus are available for namd')
         self.default_ext='.namd'
         self.user_charmmff_toppar_path=config.user_charmmff_toppar_path

@@ -27,6 +27,7 @@ Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full d
 
 ## Release History
 * 1.8.2
+    * fixed failure to avoid deprecated namd parameters if using namd2
     * fixed hard-coded C-direction brot call to detect whether brot is N- or C-terminal
     * added `--gpu` option for the `run` and `run-example` subcommands
 * 1.8.1
