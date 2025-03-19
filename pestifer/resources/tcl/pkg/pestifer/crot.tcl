@@ -110,16 +110,26 @@ proc PestiferCRot::fold_alpha { rbegin rend rterm molid } {
       vmdcon -info "fold_alpha PRE residue $r ($phi,$psi,$omega)"
       if { [string compare $phi "NaN"] != 0 } {
          set dphi [expr (-57.0 - ($phi))]
+         if { $rotators_side == "N" } {
+            vmdcon -info "dphi negated"
+            set dphi [expr -1*$dphi]
+         }
          vmdcon -info "-> dphi $dphi"
          brot $molid $r $rterm phi $rotators_side $dphi
       }
       if {  [string compare $psi "NaN"] != 0 } {
          set dpsi [expr (-47.0 - ($psi))]
+         if { $rotators_side == "N" } {
+            set dpsi [expr -1*$dpsi]
+         }
          vmdcon -info "-> dpsi $dpsi"
          brot $molid $r $rterm psi $rotators_side $dpsi
       }
       if { [string compare $omega "NaN"] != 0} {
          set domega [expr (180.0 - ($omega))]
+         if { $rotators_side == "N" } {
+            set domega [expr -1*$domega]
+         }
          vmdcon -info "-> domega $domega"
          brot $molid $r $rterm omega $rotators_side $domega
       }

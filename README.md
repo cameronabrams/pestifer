@@ -26,6 +26,8 @@ Pestifer includes the [July 2024 Charmm36 force field](https://mackerell.umaryla
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
+* 1.8.3
+    * fixed bug for growing alpha helices in the N-terminal direction in `crot.tcl`
 * 1.8.2
     * fixed failure to avoid deprecated namd parameters if using namd2
     * fixed hard-coded C-direction brot call to detect whether brot is N- or C-terminal
