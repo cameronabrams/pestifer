@@ -3,8 +3,8 @@ import logging
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
 
-from ..baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..stringthings import split_ri
+from ...baseobj import AncestorAwareObj, AncestorAwareObjList
+from ...stringthings import split_ri
 
 class ResidueDelete(AncestorAwareObj):
     """A class for handling residue deletions
