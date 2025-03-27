@@ -1,0 +1,12 @@
+.github-icon svg,
+.linkedin-icon svg {
+    transition: fill 0.3s;
+}
+
+.github-icon svg:hover {
+    fill: #4078c0;  /* GitHub icon turns blue on hover */
+}
+
+.linkedin-icon svg:hover {
+    fill: #0A66C2;  /* LinkedIn icon turns its official blue on hover */
+}
