@@ -26,6 +26,9 @@ Pestifer includes the [July 2024 Charmm36 force field](https://mackerell.umaryla
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
+* 1.9.0
+    * `transrot` mod enabled for global translations and rotations
+    * `desolvate` subcommand now can output a single pdb file
 * 1.8.3
     * fixed bug for growing alpha helices in the N-terminal direction in `crot.tcl`
 * 1.8.2

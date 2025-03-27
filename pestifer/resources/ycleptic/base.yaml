@@ -1164,6 +1164,9 @@ directives:
               - name: crotations
                 text: dihedral angle rotations to reposition modelled-in protein chains or glycans
                 type: list
+              - name: transrot
+                text: global translations and rotations
+                type: list
               - name: Cfusions
                 text: fuse residues from named residue range of named protein chain of named input PDB coordinate file to C-terminus of named segment of base molecule
                 type: list
@@ -1577,6 +1580,9 @@ directives:
             directives:
               - name: crotations
                 text: dihedral angle rotations to reposition residues
+                type: list
+              - name: transrot
+                text: global translations and rotations
                 type: list
       - name: terminate
         text: Task that signals end of task list

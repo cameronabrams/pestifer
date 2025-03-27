@@ -92,6 +92,7 @@ def desolvate(args,**kwargs):
                                     'basename':'desolvate',
                                     'keepatselstr':args.keepatselstr,
                                     'psf':args.psf,
+                                    'pdb':args.pdb,
                                     'dcd_infiles':args.dcd_infiles,
                                     'dcd_outfile':args.dcd_outfile,
                                     'psf_outfile':args.psf_outfile,
@@ -312,6 +313,7 @@ def cli():
     command_parsers['make-resi-database'].add_argument('--fail-dir',type=str,default='fails',help='name of output directory for failed runs relative to CWD (default: %(default)s)')
     command_parsers['make-resi-database'].add_argument('--refic-idx',type=int,default=0,help='index of reference IC to use to build a single molecule (default: %(default)s)')
     command_parsers['desolvate'].add_argument('--psf',type=str,help='name of input PSF file')
+    command_parsers['desolvate'].add_argument('--pdb',type=str,help='name of input PDB file (optional)')
     command_parsers['desolvate'].add_argument('--dcd-infiles',type=str,nargs='+',default=[],help='list of input dcd files in chronological order')
     command_parsers['desolvate'].add_argument('--keepatselstr',type=str,default='protein or glycan or lipid',help='VMD atomsel string for atoms you want to keep (default: "%(default)s")')
     command_parsers['desolvate'].add_argument('--psf-outfile',type=str,default='dry.psf',help='name of output PSF file to create (default: %(default)s)')

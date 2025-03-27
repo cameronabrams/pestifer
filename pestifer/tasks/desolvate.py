@@ -3,6 +3,7 @@
 from ..basetask import BaseTask
 from ..command import Command
 from ..util.progress import PestiferProgress
+import os
 
 class DesolvateTask(BaseTask):
     yaml_header='desolvate'
@@ -16,13 +17,18 @@ class DesolvateTask(BaseTask):
         # self.inherit_state()
         self.next_basename()
         psf=self.specs['psf']
+        pdb=self.specs['pdb']
         keepatselstr=self.specs['keepatselstr']
         idx_outfile=self.specs['idx_outfile']
         psf_outfile=self.specs['psf_outfile']
+        if pdb:
+            pdb_outfile=os.path.splitext(psf_outfile)[0]+'.pdb'
         vt=self.writers['vmd']
         vt.newscript(self.basename)
         vt.addline( 'package require psfgen')
         vt.addline(f'mol new {psf}')
+        if pdb:
+            vt.addline(f'mol addfile {pdb}')
         vt.addline(f'set keepsel [atomselect top "{keepatselstr}"]')
         vt.addline( 'set keepsegid [lsort -unique [$keepsel get segid]]')
         vt.addline(f'set dumpsel [atomselect top "not ({keepatselstr})"]')
@@ -31,6 +37,8 @@ class DesolvateTask(BaseTask):
         vt.addline(f'set fp [open "{idx_outfile}" "w"]')
         vt.addline( 'puts $fp "[$keepsel get index]"')
         vt.addline( 'close $fp')
+        if pdb:
+            vt.addline(f'$keepsel writepdb {pdb_outfile}')
         vt.addline( 'vmdcon -info "Keeping segids $keepsegid"')
         vt.addline( 'vmdcon -info "Dumping segids $dumpsegid"')
         vt.addline(f'readpsf {psf}')
