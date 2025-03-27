@@ -14,6 +14,7 @@ Here ``config.yaml`` is the name of the configuration file that describes the bu
 Detailed explanation of some *selected* common tasks you can use is below.
 
 .. toctree:: 
+   :maxdepth: 1
 
    runtasks/psfgen
    runtasks/md
@@ -21,6 +22,7 @@ Detailed explanation of some *selected* common tasks you can use is below.
    runtasks/solvate
    runtasks/bilayer
    runtasks/terminate
+   runtasks/cleave
 
 Please consult the Config Reference pages :ref:`config_ref tasks` for a full list of available pestifer run tasks.
 

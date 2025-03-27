@@ -14,11 +14,13 @@ class RestartTask(BaseTask):
         self.log_message('initiated')
         self.next_basename()
         exts_actual=[]
+        self.keepfiles=[]
         for ext in ['psf','coor','pdb','xsc']:
             fname=self.specs.get(ext,'')
             if fname:
                 shutil.copy(fname,f'{self.basename}.{ext}')
                 exts_actual.append(ext)
+                self.keepfiles.append(fname)
         self.save_state(exts=exts_actual)
         self.log_message('complete')
         self.result=0

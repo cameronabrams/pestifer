@@ -34,6 +34,12 @@ class PsfgenTask(BaseTask):
     def __init__(self,input_dict,taskname,config,writers,prior):
         super().__init__(input_dict,taskname,config,writers,prior)
         self.molecules={}
+        self.keepfiles=[]
+        if self.specs['source'].get('prebuilt',{}):
+            self.keepfiles=[self.specs['source']["prebuilt"]["psf"],self.specs['source']["prebuilt"]["pdb"]]
+            xsc=self.specs['source'].get('xsc','')
+            if xsc:
+                self.keepfiles.append(xsc)
 
     def do(self):
         self.log_message('initiated')

@@ -52,7 +52,7 @@ proc PestiferCRot::get_phi_psi_omega { r molid } {
    set protein_check [expr [[atomselect $molid "residue $r and protein"] num]]
    if { $protein_check == 0 } {
       vmdcon -info "Residue $r of mol $molid is not protein"
-      return [list "NaN" "NaN" "NaN"]vmdcon -info
+      return [list "NaN" "NaN" "NaN"]
    }
    set r_prev [expr $r-1]
    set r_next [expr $r+1]

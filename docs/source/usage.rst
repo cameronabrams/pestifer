@@ -44,4 +44,38 @@ Subcommands
    subs/desolvate
    subs/make-namd-restart
    subs/show-resources
+   subs/cleanup
 
+Use in VMD scripts
+------------------
+
+Pestifer provides a library of useful TcL/VMD procs and VMD macro definitions.  If you define the following proc in your `.vmdrc` file, you can access the pestifer library from any VMD script or TcL session.  This proc will automatically source the pestifer library when you start VMD.
+
+.. code-block:: tcl
+
+      proc pestifer_init { } {
+         set status 0
+         if {[catch {exec which pestifer} results options]} {
+            set details [dict get $options -errorcode]
+            if {[lindex $details 0] eq "CHILDSTATUS"} {
+               set status [lindex $details 2]
+            } else {
+               return -options $options -level 0 $results
+            }
+         }
+         if { $status == 0 } {
+            set pestifer_tcl_root [exec pestifer --no-banner wheretcl --root]
+            vmdcon -info "Source ${pestifer_tcl_root}/vmdrc.tcl"
+            source ${pestifer_tcl_root}/vmdrc.tcl
+         } else {
+            vmdcon -info "Pestifer is not available in your current environment."
+         }
+      }
+
+Then, you can use it in a source command in any VMD script or TcL session you like: 
+
+.. code-block:: tcl
+
+   pestifer_init
+
+If you are using VMD to analyze a system generated using pestifer, it is a good idea to initialize VMD's access to pestifer's TcL library.

@@ -13,7 +13,7 @@ class Crot(AncestorAwareObj):
     designation means that only the "downstream" atoms of the bond are moved; upstream atoms, along with the atoms
     of the bond itself, are not moved.  The set of upstream atoms and the set of downstream atoms must naturally
     have no topological connection *other* than the bond itself.  Typically, this can be used to execute rotation
-    of a backbone look in a C-terminal loop, a side-chain angle, or a glycan angle, usually in the service
+    of a backbone look in a C-terminal loop, a side-chain angle, usually in the service
     of reducing steric clashses.  The primary job of this class is to translate the C-rotation shortcodes
     specified by the user into TcL commands to be incorporated in a psfgen script.
 
@@ -23,7 +23,7 @@ class Crot(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['angle']
     opt_attr=AncestorAwareObj.opt_attr+['chainID','resseqnum1','resseqnum2','resseqnum3','segname','atom1','atom2','segname1','segname2','segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk','degrees']
     attr_choices=AncestorAwareObj.attr_choices.copy()
-    attr_choices.update({'angle':['PHI','PSI','OMEGA','CHI1','CHI2','GLYCAN','LINK','ANGLEIJK','ALPHA']})
+    attr_choices.update({'angle':['PHI','PSI','OMEGA','CHI1','CHI2','ANGLEIJK','ALPHA']})
     opt_attr_deps=AncestorAwareObj.opt_attr_deps.copy()
     opt_attr_deps.update({
         'PHI':['chainID','resseqnum1','resseqnum2'],
@@ -31,8 +31,6 @@ class Crot(AncestorAwareObj):
         'OMEGA':['chainID','resseqnum1','resseqnum2'],
         'CHI1':['chainID','resseqnum1'],
         'CHI2':['chainID','resseqnum1'],
-        'GLYCAN':['segname','resseqnum1','atom1','resseqnum2','atom2'],
-        'LINK':['segname1','segname2','resseqnum1','atom1','resseqnum2','atom2'],
         'ANGLEIJK':['segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk'],
         'ALPHA':['chainID','resseqnum1','resseqnum2','resseqnum3']
         })
@@ -62,21 +60,6 @@ class Crot(AncestorAwareObj):
             input_dict['resseqnum1']=int(dat[2])
             input_dict['resseqnum2']=-1
             input_dict['degrees']=float(dat[3])
-        elif input_dict['angle']=='GLYCAN':
-            input_dict['segname']=dat[1]
-            input_dict['resseqnum1']=int(dat[2])
-            input_dict['atom1']=dat[3]
-            input_dict['resseqnum2']=int(dat[4])
-            input_dict['atom2']=dat[5]
-            input_dict['degrees']=float(dat[6])
-        elif input_dict['angle']=='LINK':
-            input_dict['segname1']=dat[1]
-            input_dict['resseqnum1']=int(dat[2])
-            input_dict['atom1']=dat[3]
-            input_dict['segname2']=dat[4]
-            input_dict['resseqnum2']=int(dat[5])
-            input_dict['atom2']=dat[6]
-            input_dict['degrees']=float(dat[7])
         elif input_dict['angle']=='ANGLEIJK':
             input_dict['segnamei']=dat[1]
             input_dict['resseqnumi']=int(dat[2])
@@ -115,21 +98,6 @@ class Crot(AncestorAwareObj):
             ret.append(f'{self.chainID}')
             ret.append(f'{self.resseqnum1}')
             ret.append(f'-1')
-            ret.append(f'{self.degrees:.4f}')
-        elif self.angle=='GLYCAN':
-            ret.append(f'{self.segname}')
-            ret.append(f'{self.resseqnum1}')
-            ret.append(f'{self.atom1}')
-            ret.append(f'{self.resseqnum2}')
-            ret.append(f'{self.atom2}')
-            ret.append(f'{self.degrees:.4f}')
-        elif self.angle=='LINK':
-            ret.append(f'{self.segname1}')
-            ret.append(f'{self.resseqnum1}')
-            ret.append(f'{self.atom1}')
-            ret.append(f'{self.segname2}')
-            ret.append(f'{self.resseqnum2}')
-            ret.append(f'{self.atom2}')
             ret.append(f'{self.degrees:.4f}')
         elif self.angle=='ANGLEIJK':
             ret.append(f'{self.segnamei}')
@@ -172,17 +140,6 @@ class Crot(AncestorAwareObj):
         elif self.angle in ['CHI1','CHI2']:  # this is a side-chain bond
             W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum1))
             W.addline(f'brot {molid} $r1 -1 {self.angle[:-1].lower()} {self.angle[-1]} {self.degrees}')
-            # W.addline('SCrot_{} $r1 {} {}'.format(self.angle.lower(),molid,self.degrees))
-        elif self.angle=='GLYCAN':  # intra-glycan rotation
-            W.addline('set sel [atomselect {} "segname {}"]'.format(molid,self.segname))
-            W.addline('set i [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname,self.resseqnum1,self.atom1))
-            W.addline('set j [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname,self.resseqnum2,self.atom2))
-            W.addline('genbondrot {} $sel $i $j {}'.format(molid,self.degrees))
-        elif self.angle=='LINK': # ASN-GLYcan rotation
-            W.addline('set sel [atomselect {} "segname {} {}"]'.format(molid,self.segname1,self.segname2))
-            W.addline('set i [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname1,self.resseqnum1,self.atom1))
-            W.addline('set j [[atomselect {} "segname {} and resid {} and name {}"] get index]'.format(molid,self.segname2,self.resseqnum2,self.atom2))
-            W.addline('genbondrot {} $sel $i $j {}'.format(molid,self.degrees))
         elif self.angle=='ANGLEIJK':
             W.addline('set rotsel [atomselect {} "segname {}"]'.format(molid,self.segnamejk))
             W.addline('set ri [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamei,self.resseqnumi,self.atomi))

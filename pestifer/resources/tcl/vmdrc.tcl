@@ -8,24 +8,33 @@
 # and run in a conda environment in which pestifer is installed
 # 
 
-set PESTIFER_TCLROOT "."
-set quiet 1
-for { set a 0 } { $a < [llength $argv] } { incr a } {
-  set arg [lindex $argv $a]
-  if { $arg == "--tcl-root" } {
-    incr a
-    set PESTIFER_TCLROOT [lindex $argv $a]
-  }
-  if { $arg == "--verbose" } {
-    incr a
-    set quiet 0
+# we are calling this script at vmd startup so we can pass arguments to it
+global auto_path
+
+if {[info exists argv]} {
+  for { set a 0 } { $a < [llength $argv] } { incr a } {
+    set arg [lindex $argv $a]
+    if { $arg == "--tcl-root" } {
+      incr a
+      set PESTIFER_TCLROOT [lindex $argv $a]
+    }
+    if { $arg == "--verbose" } {
+      incr a
+      set quiet 0
+    }
   }
 }
+global quiet
+if {![info exists quiet]} {
+  vmdcon -debug "No quiet argument passed in; defaulting to 0"
+  set quiet 1
+}
 
-if {$PESTIFER_TCLROOT=="."} {
+global PESTIFER_TCLROOT
+if {![info exists PESTIFER_TCLROOT]} {
   set PESTIFER_TCLROOT [exec pestifer --no-banner wheretcl --root]
   if {$quiet == 0} {
-    vmdcon -info "No PESTIFER_TCLROOT passed in; detected $PESTIFER_TCLROOT"
+    vmdcon -debug "No PESTIFER_TCLROOT passed in; detected $PESTIFER_TCLROOT"
   }
 }
 
@@ -33,6 +42,7 @@ if {$PESTIFER_TCLROOT=="."} {
 set PESTIFER_TCLPKG ${PESTIFER_TCLROOT}/pkg
 set packages [glob -type d $PESTIFER_TCLPKG]
 foreach pkg $packages {
+  vmdcon -debug "Adding $pkg to auto_path"
   lappend auto_path $pkg
 }
 

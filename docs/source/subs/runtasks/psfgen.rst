@@ -40,3 +40,17 @@ For example, a ``psfgen`` task that builds a 6PTI system with two specific point
          - A:T11A # threonine to alanine at position 11, 
          - A:PRO,13,ALA # alternate syntax; proline to alanine at position 13
 
+Below are all the ``mods`` that can be invoked in a ``mods`` directive.  Each of these is described in detail in the Config File reference pages at :ref:`config_ref tasks psfgen mods`.
+
+.. toctree::
+   :maxdepth: 1
+
+   mods/mutations
+   mods/deletions
+   mods/insertions
+   mods/crotations
+   mods/transrot
+   mods/ssbonds
+   mods/links
+   mods/substitutions
+   mods/grafts

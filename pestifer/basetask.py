@@ -110,6 +110,13 @@ class BaseTask(BaseObj):
             extra+=f' (result: {self.result})'
         logger.info(f'Task {self.index:02} \'{self.taskname}\' {message} {extra}')
 
+    def get_keepfiles(self):
+        """ Returns a list of files that should be kept after the task is done """
+        if hasattr(self,'keepfiles'):
+            return self.keepfiles
+        else:   
+            return []
+        
     def next_basename(self,*obj):
         label=''
         if len(obj)==1 and len(obj[0])>0:

@@ -4,6 +4,7 @@
 import argparse as ap
 import collections
 import datetime
+import glob
 import importlib.metadata
 import logging
 import os
@@ -171,6 +172,24 @@ def run_example(args,**kwargs):
     args.config=fetch_example(args,**kwargs)
     run(args,**kwargs)
 
+def cleanup(args,**kwargs):
+    c=Controller(args.config)
+    keepfiles=[args.config,args.diagnostic_log_file]
+    init_task=c.tasks[0]
+    keepfiles+=init_task.get_keepfiles()
+    removed=[]
+    # remove all extension-specific files not in keepfiles
+    for ext in ['.pdb', '.psf', '.yaml','.txt', '.coor',
+                '.vel', '.namd','.xsc', '.dcd', '.xst',
+                '.log', '.prm', '.rtf', '.str', '.tcl',
+                '.BAK', '%']:
+        nokeep=glob.glob(f'*{ext}')
+        for p in nokeep:
+            if p not in keepfiles:
+                removed+=p
+                os.remove(p)
+    logger.debug(f'Files removed: {removed}')
+
 def show_resources(args,**kwargs):
     r=ResourceManager()
     specs={}
@@ -237,6 +256,7 @@ def cli():
         'inittcl': inittcl,
         'make-resi-database': make_RESI_database,
         'config-default': config_default,
+        'cleanup': cleanup,
     }
     helps={
         'config-help':'get help on the syntax of input configuration files',
@@ -250,7 +270,8 @@ def cli():
         'desolvate':'desolvate an existing PSF/DCD',
         'make-namd-restart':'generate a restart NAMD config file based on current checkpoint',
         'show-resources':'display elements of the included pestifer resources',
-        'mdplot':'Extract and plot time-series data from NAMD log and xst files'
+        'mdplot':'Extract and plot time-series data from NAMD log and xst files',
+        'cleanup':'Clean up files from a run (usually for a clean restart)'
     }
     descs={
         'config-help':'Use this command to get interactive help on config file directives.',
@@ -264,7 +285,8 @@ def cli():
         'desolvate':'desolvate an existing PSF/DCD',
         'make-namd-restart':'generate a restart NAMD config file based on current checkpoint',
         'show-resources':'display elements of the included pestifer resources',
-        'mdplot':'Extract and plot time-series data from NAMD log and xst files'
+        'mdplot':'Extract and plot time-series data from NAMD log and xst files',
+        'cleanup':'Clean up files from a run (usually for a clean restart)'
     }
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
     parser.add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
@@ -335,6 +357,7 @@ def cli():
     command_parsers['mdplot'].add_argument('--savedata',type=str,default='mdplot.csv',help='name of CSV file to save data to')
     command_parsers['mdplot'].add_argument('--figsize',type=int,nargs=2,default=[9,6],help='figsize')
     command_parsers['mdplot'].add_argument('--traces',type=list,default=['density'],nargs='+',help='traces to plot')
+    command_parsers['cleanup'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
 
     args=parser.parse_args()
 
