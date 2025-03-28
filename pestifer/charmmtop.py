@@ -688,10 +688,10 @@ class CharmmResiDatabase(UserDict):
             logger.debug(f'{topfile} has already been incorporated')
             return self
 
-        self.all_charmm_topology_files.append(topfile)
-        newM=CharmmMasses(getMasses(topfile))
+        self.all_charmm_topology_files.append(top_abs)
+        newM=CharmmMasses(getMasses(top_abs))
         self.M.update(newM)
-        sublist=getResis(topfile,self.M)
+        sublist=getResis(top_abs,self.M)
         for resi in sublist:
             stream,substream=resi.metadata['stream'],resi.metadata['substream']
             if streamnameoverride != '':

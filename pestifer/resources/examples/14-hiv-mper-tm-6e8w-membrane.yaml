@@ -43,8 +43,35 @@ tasks:
           z_value: 0.0
       SAPL: 50.0
       scale_excluded_volume: 0.25
-      lipids: POPE:SOPS:SOPE:CHL1//PSM:POPC:CHL1
-      mole_fractions: 0.09:0.18:0.30:0.43//0.36:0.17:0.47
+    #   lipids: POPE:SOPS:SOPE:CHL1//PSM:POPC:CHL1
+    #   mole_fractions: 0.09:0.18:0.30:0.43//0.36:0.17:0.47
+      composition:
+        lower_leaflet:
+          - name: POPE
+            frac: 0.09
+            conf: 0
+          - name: POPE
+            frac: 0.09
+            conf: 0
+          - name: SOPS
+            frac: 0.18
+            conf: 0
+          - name: SOPE
+            frac: 0.30
+            conf: 0
+          - name: CHL1
+            frac: 0.43
+            conf: 0
+        upper_leaflet:
+          - name: PSM
+            frac: 0.36
+            conf: 0
+          - name: POPC
+            frac: 0.17
+            conf: 0
+          - name: CHL1
+            frac: 0.47
+            conf: 0
       seed: 270272
       nloop: 1000
       nloop_all: 1000

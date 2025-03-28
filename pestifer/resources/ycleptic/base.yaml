@@ -1456,6 +1456,16 @@ directives:
             text: declaration of mole fractions of each lipid in each leaflet in the format R1:R2//R3
             type: str
             default: '1.0'
+          - name: composition
+            type: dict
+            text: Alternate way of expressing bilayer composition; supercedes 'lipids', 'mole_fractions', and 'lipid_conformers'
+            directives:
+              - name: upper_leaflet
+                type: list
+                text: List of dicts with keys 'name', 'frac', and 'conf' for each lipid species
+              - name: lower_leaflet
+                type: list
+                text: List of dicts with keys 'name', 'frac', and 'conf' for each lipid species
           - name: solvents
             text: string in form of SOL1:SOL2:...
             type: str
