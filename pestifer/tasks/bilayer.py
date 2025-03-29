@@ -34,23 +34,31 @@ def bilayer_stringsplit(input_string,delimiter0='//',delimiter1=':',return_type=
     return np.array(ul),np.array(ll)
 
 class Bilayer:
-    def __init__(self,composition_dict={},lipid_specstring='',ratio_specstring='',conformers_specstring='',leaflet_patch_nlipids=100,pdb_collection=None):
+    def __init__(self,composition_dict={},lipid_specstring='',lipid_ratio_specstring='',lipid_conformers_specstring='',    
+                leaflet_patch_nlipids=100,solvent_specstring='',solvent_ratio_specstring='',solvent_to_lipid_ratio_specstring='',
+                pdb_collection=None):
         self.leaflet_patch_nlipids=leaflet_patch_nlipids
-        self.slices={'LOWER-CHAMBER':{},'LOWER-LEAFLET':{},'UPPER-LEAFLET':{},'UPPER-CHAMBER':{}}
-        self.LC=self.slices['LOWER-CHAMBER']
-        self.LL=self.slices['LOWER-LEAFLET']
-        self.UL=self.slices['UPPER-LEAFLET']
-        self.UC=self.slices['UPPER-CHAMBER']
-        if not composition_dict and not lipid_specstring and not ratio_specstring and not conformers_specstring:
+        self.slices={'lower_chamber':{},'lower_leaflet':{},'upper_leaflet':{},'upper_chamber':{}}
+        self.LC=self.slices['lower_chamber']
+        self.LL=self.slices['lower_leaflet']
+        self.UL=self.slices['upper_leaflet']
+        self.UC=self.slices['upper_chamber']
+        if not composition_dict and not lipid_specstring and not lipid_ratio_specstring and not lipid_conformers_specstring:
             logger.debug('Empty bilayer')
             return
         if not composition_dict:
             ul_lip,ll_lip=bilayer_stringsplit(lipid_specstring)
-            ul_x,ll_x=bilayer_stringsplit(ratio_specstring,return_type=float)
+            ul_x,ll_x=bilayer_stringsplit(lipid_ratio_specstring,return_type=float)
             ul_xs,ll_xs=np.sum(ul_x),np.sum(ll_x)
             ul_x/=ul_xs
             ll_x/=ll_xs
-            ul_c,ll_c=bilayer_stringsplit(conformers_specstring,return_type=int)
+            ul_c,ll_c=bilayer_stringsplit(lipid_conformers_specstring,return_type=int)
+            uc_s,lc_s=bilayer_stringsplit(solvent_specstring)
+            uc_x,lc_x=bilayer_stringsplit(solvent_ratio_specstring,return_type=float)
+            uc_xs,lc_xs=np.sum(uc_x),np.sum(lc_x)
+            uc_x/=uc_xs
+            lc_x/=lc_xs
+            uc_slr,lc_slr=bilayer_stringsplit(solvent_to_lipid_ratio_specstring,return_type=float)
             assert len(ul_lip)==len(ul_x),f'Upper leaflet has {len(ul_lip)} lipids but {len(ul_x)} mole fractions specified'
             assert len(ul_lip)==len(ul_c),f'Upper leaflet has {len(ul_lip)} lipids but {len(ul_c)} conformers specified'
             assert len(ul_x)==len(ul_c),f'Upper leaflet has {len(ul_x)} mole fractions but {len(ul_c)} conformers specified'
@@ -58,6 +66,8 @@ class Bilayer:
             assert len(ll_lip)==len(ll_c),f'Upper leaflet has {len(ul_lip)} lipids but {len(ul_c)} conformers specified'
             assert len(ll_x)==len(ll_c),f'Upper leaflet has {len(ul_x)} mole fractions but {len(ul_c)} conformers specified'
             self.composition={
+                'upper_chamber':[{'name':n,'frac':x,'patn':int(x*leaflet_patch_nlipids*s)} for n,x,s in zip(uc_s,uc_x,uc_slr)],
+                'lower_chamber':[{'name':n,'frac':x,'patn':int(x*leaflet_patch_nlipids*s)} for n,x,s in zip(lc_s,lc_x,lc_slr)],
                 'upper_leaflet':[{'name':n,'frac':x,'conf':c,'patn':int(x*leaflet_patch_nlipids)} for n,x,c in zip(ul_lip,ul_x,ul_c)],
                 'lower_leaflet':[{'name':n,'frac':x,'conf':c,'patn':int(x*leaflet_patch_nlipids)} for n,x,c in zip(ll_lip,ll_x,ll_c)],
             }
@@ -67,6 +77,16 @@ class Bilayer:
                 L=self.composition[l]
                 for d in L:
                     d['patn']=int(d['frac']*leaflet_patch_nlipids)
+            if 'upper_chamber' not in self.composition or 'lower_chamber' not in self.composition:
+                uc_s,lc_s=bilayer_stringsplit(solvent_specstring)
+                uc_x,lc_x=bilayer_stringsplit(solvent_ratio_specstring,return_type=float)
+                uc_xs,lc_xs=np.sum(uc_x),np.sum(lc_x)
+                uc_x/=uc_xs
+                lc_x/=lc_xs
+                if 'upper_chamber' not in self.composition:
+                    self.composition['upper_chamber']=[{'name':n,'frac':x} for n,x in zip(uc_s,uc_x)]
+                if 'lower_chamber' not in self.composition:
+                    self.composition['lower_chamber']=[{'name':n,'frac':x} for n,x in zip(lc_s,lc_x)]
 
         assert 'upper_leaflet' in self.composition,f'Composition spec missing \'upper_leaflet\' directive'
         assert 'lower_leaflet' in self.composition,f'Composition spec missing \'lower_leaflet\' directive'
@@ -76,9 +96,14 @@ class Bilayer:
         assert len(self.composition['lower_leaflet'])>0
         self.LL['lipids']=self.composition['lower_leaflet']
         self.UL['lipids']=self.composition['upper_leaflet']
+        self.UC['solvents']=self.composition['upper_chamber']
+        self.LC['solvents']=self.composition['lower_chamber']
         lipid_names=[x['name'] for x in self.LL['lipids']]
         lipid_names+= [x['name'] for x in self.UL['lipids']]
         self.lipid_names=list(set(lipid_names))
+        solvent_names=[x['name'] for x in self.LC['solvents']]
+        solvent_names+= [x['name'] for x in self.UC['solvents']]
+        self.solvent_names=list(set(solvent_names))
         if pdb_collection is not None:
             self.lipid_data={}
             self.addl_streamfiles=[]
@@ -88,24 +113,32 @@ class Bilayer:
                 for p in self.lipid_data[l].get_parameters():
                     if p.endswith('.str') and not p in self.addl_streamfiles:
                         self.addl_streamfiles.append(p)
-    def set_slice_bounds(self,chamber_thickness=[5.0,5.0],midplane_z=0.0,leaflet_thickness=[22.0,22.0]):
-        global_z_min=midplane_z-chamber_thickness[0]-leaflet_thickness[0]
-        global_z_max=midplane_z+chamber_thickness[1]+leaflet_thickness[1]
-        self.LC['z-lo']= global_z_min
-        self.LC['z-hi']= midplane_z-leaflet_thickness[0]
-        self.LL['z-lo']= midplane_z-leaflet_thickness[0]
-        self.LL['z-hi']= midplane_z
-        self.UL['z-lo']= midplane_z
-        self.UL['z-hi']= midplane_z+leaflet_thickness[1]
-        self.UC['z-lo']= midplane_z+leaflet_thickness[1]
-        self.UC['z-hi']= global_z_max
-        for k,v in self.slices.items():
-            v['THICKNESS']=v['z-hi']-v['z-lo']
+            self.solvent_data={}
+            for s in self.solvent_names:
+                pdbstruct=pdb_collection.get_pdb(s)
+                self.solvent_data[s]=pdbstruct
+                for p in self.solvent_data[s].get_parameters():
+                    if p.endswith('.str') and not p in self.addl_streamfiles:
+                        self.addl_streamfiles.append(p)
 
-    def volumizer(self,lateral_area):
-        for k,v in self.slices.items():
-            v['INIT-VOLUME']=v['THICKNESS']*lateral_area
-            v['INIT-NWATEREQUIV']=nmolec_in_cuA(18.0,1.0,v['INIT-VOLUME'])
+    # def set_slice_bounds(self,chamber_thickness=[5.0,5.0],midplane_z=0.0,leaflet_thickness=[22.0,22.0]):
+    #     global_z_min=midplane_z-chamber_thickness[0]-leaflet_thickness[0]
+    #     global_z_max=midplane_z+chamber_thickness[1]+leaflet_thickness[1]
+    #     self.LC['z-lo']= global_z_min
+    #     self.LC['z-hi']= midplane_z-leaflet_thickness[0]
+    #     self.LL['z-lo']= midplane_z-leaflet_thickness[0]
+    #     self.LL['z-hi']= midplane_z
+    #     self.UL['z-lo']= midplane_z
+    #     self.UL['z-hi']= midplane_z+leaflet_thickness[1]
+    #     self.UC['z-lo']= midplane_z+leaflet_thickness[1]
+    #     self.UC['z-hi']= global_z_max
+    #     for k,v in self.slices.items():
+    #         v['THICKNESS']=v['z-hi']-v['z-lo']
+
+    # def volumizer(self,lateral_area):
+    #     for k,v in self.slices.items():
+    #         v['INIT-VOLUME']=v['THICKNESS']*lateral_area
+    #         v['INIT-NWATEREQUIV']=nmolec_in_cuA(18.0,1.0,v['INIT-VOLUME'])
 
     def build_patch(self,SAPL=60.0,xy_aspect_ratio=1.0):
         patch_area=SAPL*self.leaflet_patch_nlipids
@@ -113,14 +146,46 @@ class Bilayer:
         Ly=xy_aspect_ratio*Lx
         self.patch_ll_corner=np.array([0,0,self.LC['z-lo']])
         self.patch_ur_corner=np.array([Lx,Ly,self.UC['z-hi']])
-        patch_charge=0.0
+        self.LL_charge=sum([x['patn']*self.lipid_data[x['name']].get_charge() for x in self.LL['lipids']])
+        self.UL_charge=sum([x['patn']*self.lipid_data[x['name']].get_charge() for x in self.UL['lipids']])
+        patch_charge=self.LL_charge+self.UL_charge
+        self.patch_charge=patch_charge
+        sg='+' if self.patch_charge>0 else ''
+        logger.debug(f'Total patch charge: {sg}{self.patch_charge:.3f}')
+        anion_qtot=cation_qtot=0
+        if sg=='+':
+            anion_qtot=int(self.patch_charge)
+        else:
+            cation_qtot=int(np.abs(np.round(self.patch_charge)))
         for leaflet in [self.LL,self.UL]:
             for component in leaflet['lipids']:
-                patch_charge+=self.lipid_data[component['name']].get_charge()*component['patn']
                 component['local_name']=self.lipid_data[component['name']].checkout(index=component['conf'])
-        self.patch_charge=patch_charge
-        # sg='+' if global_charge>0 else ''
-        # logger.debug(f'Total charge: {sg}{global_charge:.3f}')
+        self.anion_n=int(anion_qtot//np.abs(int(anion_q)))
+        self.cation_n=int(cation_qtot//np.abs(int(cation_q)))
+        ions={anion_name:{'n':anion_n,'claimed':0},cation_name:{'n':cation_n,'claimed':0}}
+
+    def solvate_patch(self,solvent_specstring,solv_molfrac_specstring,cation_name='POT',cation_q=1,anion_name='CLA',anion_q=-1):
+        solvent_names=solvent_specstring.split(':')
+        solvent_molfracs=np.array(list(map(float,solv_molfrac_specstring.split(':'))))
+        assert len(solvent_names)==len(solvent_molfracs),f'You have specified {len(solvent_names)} solvent names but {len(solvent_molfracs)} mole fractions'
+        self.solvent={}
+        for sn,sm in zip(solvent_names,solvent_molfracs):
+            solvent[sn]={}
+            solvent[sn]['mol-frac']=sm
+            solv_pdbstruct=self.pdb_collection.get_pdb(sn)
+            solv_pdbstruct.checkout()
+            solvent[sn]['mass']=self.RDB['water_ions'][sn].mass()
+
+        anion_qtot=cation_qtot=0
+        if sg=='+':
+            anion_qtot=int(self.patch_charge)
+        else:
+            cation_qtot=int(np.abs(np.round(self.patch_charge)))
+
+        anion_n=int(anion_qtot//np.abs(int(anion_q)))
+        cation_n=int(cation_qtot//np.abs(int(cation_q)))
+        ions={anion_name:{'n':anion_n,'claimed':0},cation_name:{'n':cation_n,'claimed':0}}
+
 
 class BilayerEmbedTask(BaseTask):
     """ A class for handling embedding proteins into bilayers
@@ -180,8 +245,9 @@ class BilayerEmbedTask(BaseTask):
     def build_patch(self):
         self.next_basename('build_patch')
 
-        rotation_pm=self.specs.get('rotation_pm',10.)
-        fuzz_factor=self.specs.get('fuzz_factor',0.5)
+        rotation_pm=self.specs.get('rotation_pm',20.)
+        # fuzz_factor=self.specs.get('fuzz_factor',0.5)
+        half_mid_zgap=self.specs.get('half_mid_zgap',1.0)
 
         SAPL=self.specs.get('SAPL',60.0)
         # scale_excluded_volume=self.specs.get('scale_excluded_volume',1.0)
@@ -189,11 +255,12 @@ class BilayerEmbedTask(BaseTask):
         tolerance=self.specs.get('tolerance',2.0)
         # solution_gcc=self.specs.get('solution_gcc',1.0)
         xy_aspect_ratio=self.specs.get('xy_aspect_ratio',1.0)
-        leaflet_thickness=self.specs.get('leaflet_thickness',22.0)
+        leaflet_thickness=self.specs.get('leaflet_thickness',27.0) # initial value
+        chamber_thickness=self.specs.get('chamber_thickness',10.0)
         nloop=self.specs.get('nloop',200)
         nloop_all=self.specs.get('nloop_all',200)
 
-        self.patch.set_slice_bounds(chamber_thickness=[10.0,10.0],midplane_z=0.0,leaflet_thickness=[leaflet_thickness,leaflet_thickness])
+        self.patch.set_slice_bounds(chamber_thickness=[chamber_thickness,chamber_thickness],midplane_z=0.0,leaflet_thickness=[leaflet_thickness,leaflet_thickness])
         self.patch.build_patch(SAPL=SAPL,xy_aspect_ratio=xy_aspect_ratio)
         pm=PackmolInputWriter(self.config)
         pm.newscript(f'{self.basename}-patch')
@@ -216,22 +283,22 @@ class BilayerEmbedTask(BaseTask):
                 n=specs['patn']
                 pm.addline(f'structure {specs["local_name"]}')
                 pm.addline(f'number {n}',indents=1)
-                length=self.patch.lipid_data[name].get_ref_length(index=specs['conf'])
-                Dz=np.cos(np.deg2rad(rotation_pm))*length
-                fuzz=Dz-length
-                fuzz_out,fuzz_in=fuzz*fuzz_factor,fuzz*(1-fuzz_factor)
+                lipid_length=self.patch.lipid_data[name].get_ref_length(index=specs['conf'])
+                Dz=np.cos(np.deg2rad(rotation_pm))*lipid_length
+                fuzz=Dz-lipid_length # negative
+                lipid_interior_length=lipid_length+2*fuzz-2.0
+                # fuzz_out,fuzz_in=fuzz*fuzz_factor,fuzz*(1-fuzz_factor)
                 leaflet_thickness=leaflet['z-hi']-leaflet['z-lo']
-                logger.debug(f'{name}: {specs["local_name"]} length {length} fuzz_in {fuzz_in:.3f} fuzz_out {fuzz_out:.3f}')
-                if length>leaflet_thickness:
+                logger.debug(f'{name}: {specs["local_name"]} length {lipid_length} lipid interior length {lipid_interior_length:.2f}')
+                if lipid_length>leaflet_thickness:
                     if leaflet is self.patch.LL:
-                        # below_plane_z=leaflet['z-hi']-fuzz_out-length
-                        below_plane_z=leaflet['z-hi']-fuzz*(1+fuzz_factor)-length
-                        above_plane_z=leaflet['z-hi']-fuzz*fuzz_factor
+                        below_plane_z=leaflet['z-hi']-lipid_interior_length-half_mid_zgap
+                        above_plane_z=leaflet['z-hi']-half_mid_zgap
                         below_plane_atoms=hs
                         above_plane_atoms=ts
                     elif leaflet is self.patch.UL:
-                        below_plane_z=leaflet['z-lo']+fuzz*fuzz_factor
-                        above_plane_z=leaflet['z-lo']+fuzz*(1+fuzz_factor)+length   
+                        below_plane_z=leaflet['z-lo']+half_mid_zgap
+                        above_plane_z=leaflet['z-lo']+lipid_interior_length+half_mid_zgap   
                         below_plane_atoms=ts
                         above_plane_atoms=hs
                     pm.addline(f'inside box {self.patch.patch_ll_corner[0]:.3f} {self.patch.patch_ll_corner[1]:.3f} {self.patch.patch_ll_corner[2]:.3f} {self.patch.patch_ur_corner[0]:.3f} {self.patch.patch_ur_corner[1]:.3f} {self.patch.patch_ur_corner[2]:.3f}',indents=1)
