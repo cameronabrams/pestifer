@@ -11,7 +11,8 @@ from ..packmol import PackmolInputWriter
 from ..psfutil.psfcontents import PSFContents
 from ..util.units import _UNITS_, _SYMBOLS_
 from ..stringthings import my_logger
-from ..util.util import cell_to_xsc, nmolec_in_cuA
+from ..util.util import cell_to_xsc
+from ..util.units import cuA_of_nmolec, nmolec_in_cuA
 
 sA_ =_SYMBOLS_['ANGSTROM']
 sA2_=_UNITS_['SQUARE-ANGSTROMS']
@@ -36,7 +37,8 @@ def bilayer_stringsplit(input_string,delimiter0='//',delimiter1=':',return_type=
 class Bilayer:
     def __init__(self,composition_dict={},lipid_specstring='',lipid_ratio_specstring='',lipid_conformers_specstring='',    
                 leaflet_patch_nlipids=100,solvent_specstring='',solvent_ratio_specstring='',solvent_to_lipid_ratio_specstring='',
-                pdb_collection=None):
+                pdb_collection=None,resi_database=None):
+        # leaflet_patch_nlipids is the number of lipids per leaflet in a patch
         self.leaflet_patch_nlipids=leaflet_patch_nlipids
         self.slices={'lower_chamber':{},'lower_leaflet':{},'upper_leaflet':{},'upper_chamber':{}}
         self.LC=self.slices['lower_chamber']
@@ -47,6 +49,7 @@ class Bilayer:
             logger.debug('Empty bilayer')
             return
         if not composition_dict:
+            # old-style bilayer composition specification with memgen-style specstrings
             ul_lip,ll_lip=bilayer_stringsplit(lipid_specstring)
             ul_x,ll_x=bilayer_stringsplit(lipid_ratio_specstring,return_type=float)
             ul_xs,ll_xs=np.sum(ul_x),np.sum(ll_x)
@@ -65,45 +68,54 @@ class Bilayer:
             assert len(ll_lip)==len(ll_x),f'Upper leaflet has {len(ul_lip)} lipids but {len(ul_x)} mole fractions specified'
             assert len(ll_lip)==len(ll_c),f'Upper leaflet has {len(ul_lip)} lipids but {len(ul_c)} conformers specified'
             assert len(ll_x)==len(ll_c),f'Upper leaflet has {len(ul_x)} mole fractions but {len(ul_c)} conformers specified'
-            self.composition={
-                'upper_chamber':[{'name':n,'frac':x,'patn':int(x*leaflet_patch_nlipids*s)} for n,x,s in zip(uc_s,uc_x,uc_slr)],
-                'lower_chamber':[{'name':n,'frac':x,'patn':int(x*leaflet_patch_nlipids*s)} for n,x,s in zip(lc_s,lc_x,lc_slr)],
+            # build the equivalent new-style composition dictionary; 'patn' is the number of molecules for a minimal patch
+            composition_dict={
+                'upper_chamber':[{'name':n,'frac':x,'patn':int(x*leaflet_patch_nlipids*s),'MW':resi_database['water_ions'][n].mass()} for n,x,s in zip(uc_s,uc_x,uc_slr)],
+                'lower_chamber':[{'name':n,'frac':x,'patn':int(x*leaflet_patch_nlipids*s),'MW':resi_database['water_ions'][n].mass()} for n,x,s in zip(lc_s,lc_x,lc_slr)],
                 'upper_leaflet':[{'name':n,'frac':x,'conf':c,'patn':int(x*leaflet_patch_nlipids)} for n,x,c in zip(ul_lip,ul_x,ul_c)],
                 'lower_leaflet':[{'name':n,'frac':x,'conf':c,'patn':int(x*leaflet_patch_nlipids)} for n,x,c in zip(ll_lip,ll_x,ll_c)],
             }
         else:
-            self.composition=composition_dict
+            ul_lip,ll_lip=[x['name'] for x in composition_dict['upper_leaflet']],[x['name'] for x in composition_dict['lower_leaflet']]
+            ul_x,ll_x=[x['frac'] for x in composition_dict['upper_leaflet']],[x['frac'] for x in composition_dict['lower_leaflet']]
+            # new-style bilayer composition specification with composition dictionary
             for l in ['upper_leaflet','lower_leaflet']:
-                L=self.composition[l]
+                L=composition_dict[l]
                 for d in L:
                     d['patn']=int(d['frac']*leaflet_patch_nlipids)
-            if 'upper_chamber' not in self.composition or 'lower_chamber' not in self.composition:
+            # user need not have specified the solvent composition in the upper and lower chambers
+            if 'upper_chamber' not in composition_dict or 'lower_chamber' not in composition_dict:
                 uc_s,lc_s=bilayer_stringsplit(solvent_specstring)
                 uc_x,lc_x=bilayer_stringsplit(solvent_ratio_specstring,return_type=float)
                 uc_xs,lc_xs=np.sum(uc_x),np.sum(lc_x)
                 uc_x/=uc_xs
                 lc_x/=lc_xs
-                if 'upper_chamber' not in self.composition:
-                    self.composition['upper_chamber']=[{'name':n,'frac':x} for n,x in zip(uc_s,uc_x)]
-                if 'lower_chamber' not in self.composition:
-                    self.composition['lower_chamber']=[{'name':n,'frac':x} for n,x in zip(lc_s,lc_x)]
+                if 'upper_chamber' not in composition_dict:
+                    composition_dict['upper_chamber']=[{'name':n,'frac':x,'MW':resi_database['water_ions'][n].mass()} for n,x in zip(uc_s,uc_x)]
+                if 'lower_chamber' not in composition_dict:
+                    composition_dict['lower_chamber']=[{'name':n,'frac':x,'MW':resi_database['water_ions'][n].mass()} for n,x in zip(lc_s,lc_x)]
 
-        assert 'upper_leaflet' in self.composition,f'Composition spec missing \'upper_leaflet\' directive'
-        assert 'lower_leaflet' in self.composition,f'Composition spec missing \'lower_leaflet\' directive'
-        assert type(self.composition['upper_leaflet'])==list,'upper_leaflet is not a list'
-        assert type(self.composition['lower_leaflet'])==list,'lower_leaflet is not a list'
-        assert len(self.composition['upper_leaflet'])>0
-        assert len(self.composition['lower_leaflet'])>0
-        self.LL['lipids']=self.composition['lower_leaflet']
-        self.UL['lipids']=self.composition['upper_leaflet']
-        self.UC['solvents']=self.composition['upper_chamber']
-        self.LC['solvents']=self.composition['lower_chamber']
-        lipid_names=[x['name'] for x in self.LL['lipids']]
-        lipid_names+= [x['name'] for x in self.UL['lipids']]
+            uc_slr,lc_slr=bilayer_stringsplit(solvent_to_lipid_ratio_specstring,return_type=float)
+            for c,slr in zip(['upper_chamber','lower_chamber'],[uc_slr,lc_slr]):
+                L=composition_dict[c]
+                for d in L:
+                    d['patn']=int(d['frac']*leaflet_patch_nlipids*slr)
+
+        # if the bilayer is asymmetric (each leaflet has a unique composition), we cannot assume a priori that
+        # each leaflet in a patch has the same number of lipids.  We set a flag to indicate that the patch is 
+        # asymmetric and that the number of lipids in each leaflet may need to be adjusted after equilibration
+        # and measurment of the pressure profile.
+        ul_lx,ll_lx=[(x['name'],x['frac']) for x in composition_dict['upper_leaflet']],[(x['name'],x['frac']) for x in composition_dict['lower_leaflet']]
+        self.asymmetric=set(ul_lx)!=set(ll_lx)
+        
+        lipid_names=[x['name'] for x in composition_dict['upper_leaflet']]
+        lipid_names+= [x['name'] for x in composition_dict['lower_leaflet']]
         self.lipid_names=list(set(lipid_names))
-        solvent_names=[x['name'] for x in self.LC['solvents']]
-        solvent_names+= [x['name'] for x in self.UC['solvents']]
+        
+        solvent_names=[x['name'] for x in composition_dict['upper_chamber']]
+        solvent_names+= [x['name'] for x in composition_dict['lower_chamber']]
         self.solvent_names=list(set(solvent_names))
+        
         if pdb_collection is not None:
             self.lipid_data={}
             self.addl_streamfiles=[]
@@ -120,6 +132,27 @@ class Bilayer:
                 for p in self.solvent_data[s].get_parameters():
                     if p.endswith('.str') and not p in self.addl_streamfiles:
                         self.addl_streamfiles.append(p)
+
+        self.total_charge=0.0
+        for layer,data in self.slices.items():
+            data['charge']=0.0
+            data['maxlength']=0.0
+            data['composition']=composition_dict[layer]
+            data['avgMW']=0.0
+            data['patn']=0
+            for species in data['composition']:
+                data['patn']+=species['patn']
+                if 'chamber' in layer:
+                    data['charge']+=self.solvent_data[species['name']].get_charge()
+                    data['avgMW']+=species['MW']*species['frac']
+                elif 'leaflet' in layer:
+                    data['charge']+=self.lipid_data[species['name']].get_charge()
+                    for lipid in data:
+                        lipid['reference_length']=self.lipid_data[lipid['name']].get_ref_length(index=lipid['conf'])
+                        if lipid['reference_length']>data['maxlength']:
+                            data['maxlength']=lipid['reference_length']
+                    
+            self.total_charge+=self.layer_charge[layer]
 
     # def set_slice_bounds(self,chamber_thickness=[5.0,5.0],midplane_z=0.0,leaflet_thickness=[22.0,22.0]):
     #     global_z_min=midplane_z-chamber_thickness[0]-leaflet_thickness[0]
@@ -140,16 +173,23 @@ class Bilayer:
     #         v['INIT-VOLUME']=v['THICKNESS']*lateral_area
     #         v['INIT-NWATEREQUIV']=nmolec_in_cuA(18.0,1.0,v['INIT-VOLUME'])
 
-    def build_patch(self,SAPL=60.0,xy_aspect_ratio=1.0):
+    def build_patch(self,SAPL=60.0,xy_aspect_ratio=1.0,midplane_z=0.0):
         patch_area=SAPL*self.leaflet_patch_nlipids
         Lx=np.sqrt(patch_area/xy_aspect_ratio)
         Ly=xy_aspect_ratio*Lx
-        self.patch_ll_corner=np.array([0,0,self.LC['z-lo']])
-        self.patch_ur_corner=np.array([Lx,Ly,self.UC['z-hi']])
-        self.LL_charge=sum([x['patn']*self.lipid_data[x['name']].get_charge() for x in self.LL['lipids']])
-        self.UL_charge=sum([x['patn']*self.lipid_data[x['name']].get_charge() for x in self.UL['lipids']])
-        patch_charge=self.LL_charge+self.UL_charge
-        self.patch_charge=patch_charge
+        self.patch_area=patch_area
+        lcvol=cuA_of_nmolec(self.LC['avgMW'],1.0,self.LC['patn'])
+        ucvol=cuA_of_nmolec(self.UC['avgMW'],1.0,self.UC['patn'])
+        lcdepth=lcvol/self.patch_area
+        ucdepth=ucvol/self.patch_area
+        zmin=midplane_z-self.LL['maxlength']-lcdepth
+        zmax=midplane_z+self.UL['maxlength']+ucdepth
+        self.patch_ll_corner=np.array([0,0,zmin])
+        self.patch_ur_corner=np.array([Lx,Ly,zmax])
+        # self.LL_charge=sum([x['patn']*self.lipid_data[x['name']].get_charge() for x in self.LL['lipids']])
+        # self.UL_charge=sum([x['patn']*self.lipid_data[x['name']].get_charge() for x in self.UL['lipids']])
+        # patch_charge=self.LL_charge+self.UL_charge
+        # self.patch_charge=patch_charge
         sg='+' if self.patch_charge>0 else ''
         logger.debug(f'Total patch charge: {sg}{self.patch_charge:.3f}')
         anion_qtot=cation_qtot=0
@@ -212,8 +252,18 @@ class BilayerEmbedTask(BaseTask):
         lipid_specstring=self.specs.get('lipids','')
         ratio_specstring=self.specs.get('mole_fractions','')
         conformers_specstring=self.specs.get('conformers','')
+        solvent_specstring=self.specs.get('solvents','')
+        solvent_ratio_specstring=self.specs.get('solvent_mole_fractions','')
+        solvent_to_lipid_ratio_specstring=self.specs.get('solvent_to_lipid_ratio','')
         composition_dict=self.specs.get('composition',{})
-        self.patch=Bilayer(composition_dict,lipid_specstring=lipid_specstring,ratio_specstring=ratio_specstring,conformers_specstring=conformers_specstring,pdb_collection=self.pdb_collection)
+        self.patch=Bilayer(composition_dict,
+                            lipid_specstring=lipid_specstring,
+                            ratio_specstring=ratio_specstring,
+                            conformers_specstring=conformers_specstring,
+                            solvent_specstring=solvent_specstring,
+                            solvent_ratio_specstring=solvent_ratio_specstring,
+                            solvent_to_lipid_ratio_specstring=solvent_to_lipid_ratio_specstring,
+                            pdb_collection=self.pdb_collection)
 
     def do(self):
         # TODO: switch from full packmol to the following
@@ -255,8 +305,8 @@ class BilayerEmbedTask(BaseTask):
         tolerance=self.specs.get('tolerance',2.0)
         # solution_gcc=self.specs.get('solution_gcc',1.0)
         xy_aspect_ratio=self.specs.get('xy_aspect_ratio',1.0)
-        leaflet_thickness=self.specs.get('leaflet_thickness',27.0) # initial value
-        chamber_thickness=self.specs.get('chamber_thickness',10.0)
+        # leaflet_thickness=self.specs.get('leaflet_thickness',27.0) # initial value
+        # chamber_thickness=self.specs.get('chamber_thickness',10.0)
         nloop=self.specs.get('nloop',200)
         nloop_all=self.specs.get('nloop_all',200)
 
