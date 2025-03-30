@@ -37,7 +37,7 @@ def bilayer_stringsplit(input_string,delimiter0='//',delimiter1=':',return_type=
 class Bilayer:
     def __init__(self,composition_dict={},lipid_specstring='',lipid_ratio_specstring='',lipid_conformers_specstring='',    
                 leaflet_patch_nlipids=100,solvent_specstring='',solvent_ratio_specstring='',solvent_to_lipid_ratio_specstring='',
-                pdb_collection=None,resi_database=None):
+                neutralizing_salt=['POT','CLA'],pdb_collection=None,resi_database=None):
         # leaflet_patch_nlipids is the number of lipids per leaflet in a patch
         self.leaflet_patch_nlipids=leaflet_patch_nlipids
         self.slices={'lower_chamber':{},'lower_leaflet':{},'upper_leaflet':{},'upper_chamber':{}}
@@ -117,19 +117,12 @@ class Bilayer:
         self.solvent_names=list(set(solvent_names))
         
         if pdb_collection is not None:
-            self.lipid_data={}
+            self.species_data={}
             self.addl_streamfiles=[]
-            for l in self.lipid_names:
+            for l in self.lipid_names+self.solvent_names:
                 pdbstruct=pdb_collection.get_pdb(l)
-                self.lipid_data[l]=pdbstruct
-                for p in self.lipid_data[l].get_parameters():
-                    if p.endswith('.str') and not p in self.addl_streamfiles:
-                        self.addl_streamfiles.append(p)
-            self.solvent_data={}
-            for s in self.solvent_names:
-                pdbstruct=pdb_collection.get_pdb(s)
-                self.solvent_data[s]=pdbstruct
-                for p in self.solvent_data[s].get_parameters():
+                self.species_data[l]=pdbstruct
+                for p in self.species_data[l].get_parameters():
                     if p.endswith('.str') and not p in self.addl_streamfiles:
                         self.addl_streamfiles.append(p)
 
@@ -143,16 +136,39 @@ class Bilayer:
             for species in data['composition']:
                 data['patn']+=species['patn']
                 if 'chamber' in layer:
-                    data['charge']+=self.solvent_data[species['name']].get_charge()
+                    data['charge']+=self.species_data[species['name']].get_charge()
                     data['avgMW']+=species['MW']*species['frac']
                 elif 'leaflet' in layer:
-                    data['charge']+=self.lipid_data[species['name']].get_charge()
+                    data['charge']+=self.species_data[species['name']].get_charge()
                     for lipid in data:
-                        lipid['reference_length']=self.lipid_data[lipid['name']].get_ref_length(index=lipid['conf'])
+                        lipid['reference_length']=self.species_data[lipid['name']].get_ref_length(index=lipid['conf'])
                         if lipid['reference_length']>data['maxlength']:
                             data['maxlength']=lipid['reference_length']
-                    
             self.total_charge+=self.layer_charge[layer]
+
+        if self.total_charge!=0.0:
+            logger.debug(f'Total charge of bilayer is {self.total_charge:.3f} e')
+            cation_name,anion_name=neutralizing_salt
+            if self.total_charge>0.0: # need to include anion
+                ion_name=anion_name
+            else:
+                ion_name=cation_name
+            self.species_data[ion_name]=self.pdb_collection.get_pdb(ion_name)
+            ion_q=self.solvent_data[ion_name].get_charge()
+            ion_patn=int(np.round(np.abs(self.total_charge),0)/np.abs(ion_q))
+            if ion_patn%2==0:
+                lc_ion_patn=ion_patn//2
+                uc_ion_patn=ion_patn//2
+            else:
+                lc_ion_patn=ion_patn//2
+                uc_ion_patn=ion_patn//2+1
+            self.UC['composition'].append({'name':ion_name,'patn':uc_ion_patn})
+            self.LC['composition'].append({'name':ion_name,'patn':lc_ion_patn}) 
+
+        for layer,data in self.slices.items():
+            composition=data['composition']
+            for species in composition:
+                species_name=species['name']
 
     # def set_slice_bounds(self,chamber_thickness=[5.0,5.0],midplane_z=0.0,leaflet_thickness=[22.0,22.0]):
     #     global_z_min=midplane_z-chamber_thickness[0]-leaflet_thickness[0]
