@@ -126,7 +126,7 @@ class BilayerEmbedTask(BaseTask):
             if patch is None:
                 continue
             self.next_basename(f'patch{spec}')
-            specname={self.basename}
+            specname=self.basename
             logger.debug(f'building {specname}')
             patch.build_patch(SAPL=SAPL,xy_aspect_ratio=xy_aspect_ratio,
                               rotation_pm=rotation_pm,
