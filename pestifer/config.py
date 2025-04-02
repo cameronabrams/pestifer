@@ -25,7 +25,7 @@ res_321={}
 res_123={}
 
 class Config(Yclept):
-    def __init__(self,userfile='',quiet=False):
+    def __init__(self,userfile='',userdict={},quiet=False):
         vrep=f'ycleptic v. {version("ycleptic")}\npidibble v. {version("pidibble")}'
         self.RM=ResourceManager()
         if not quiet:
@@ -35,7 +35,7 @@ class Config(Yclept):
         basefile=self.RM.get_ycleptic_config()
         assert os.path.exists(basefile)
         # ycleptic's init:
-        super().__init__(basefile,userfile=userfile)
+        super().__init__(basefile,userfile=userfile,userdict=userdict)
         processor_info=self.processor_info()
         if not quiet:
             my_logger(processor_info,logger.info,just='<',frame='*',fill='')

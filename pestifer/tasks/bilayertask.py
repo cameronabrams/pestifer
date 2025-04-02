@@ -1,6 +1,7 @@
 # Author: Cameron F. Abrams, <cfa2@drexel.edu>
 import logging
-import numpy as np
+
+from copy import deepcopy
 
 from ..bilayer import Bilayer
 from ..basetask import BaseTask
@@ -124,7 +125,8 @@ class BilayerEmbedTask(BaseTask):
         for patch,spec in zip([self.patch,self.patchA,self.patchB],['','A','B']):
             if patch is None:
                 continue
-            specname=f'{self.basename}-patch{spec}'
+            self.next_basename(f'patch{spec}')
+            specname={self.basename}
             logger.debug(f'building {specname}')
             patch.build_patch(SAPL=SAPL,xy_aspect_ratio=xy_aspect_ratio,
                               rotation_pm=rotation_pm,
@@ -148,6 +150,25 @@ class BilayerEmbedTask(BaseTask):
             self.next_basename(f'{specname}-psfgen')
             self.result=self.psfgen(psf='',pdb='',addpdb=packmol_output_pdb,additional_topologies=patch.addl_streamfiles)
             cell_to_xsc(patch.box,patch.origin,f'{specname}-psfgen.xsc')
+            userdict=deepcopy(self.config['user'])
+            userdict['tasks']=[
+                {'restart':dict(psf=f'{specname}-psfgen.psf',pdb=f'{specname}-psfgen.pdb',xsc=f'{specname}-psfgen.xsc')},
+                {'md':dict(ensemble='minimize',minimize=2000)},
+                {'md':dict(ensemble='NVT',nsteps=1000)},
+                {'md':dict(ensemble='NPT',nsteps=200)},
+                {'md':dict(ensemble='NPT',nsteps=400)},
+                {'md':dict(ensemble='NPT',nsteps=800)},
+                {'md':dict(ensemble='NPT',nsteps=1600)},
+                {'md':dict(ensemble='NPT',nsteps=3200)},
+                {'md':dict(ensemble='NPT',nsteps=6400)},
+                {'md':dict(ensemble='NPT',nsteps=12800)},
+                {'md':dict(ensemble='NPT',nsteps=25600)},
+                {'terminate':dict(chainmapfile=f'{specname}-chainmap.yaml',statefile=f'{specname}-state.yaml')}                 
+            ]
+            subconfig=Config(userdict=userdict)
+            subcontroller=Controller(subconfig)
+
+            subcontroller.do_tasks()
 
     # def solvate(self):
     #     solvent_specstring=self.specs.get('solvents','TIP3')
