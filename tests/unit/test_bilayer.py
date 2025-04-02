@@ -1,12 +1,13 @@
 import pytest
-from pestifer.tasks.bilayer import Bilayer,BilayerEmbedTask
+from pestifer.bilayer import Bilayer
+from pestifer.tasks.bilayertask import BilayerEmbedTask
 from pestifer.config import Config
 from pestifer.charmmtop import CharmmResiDatabase
 from pestifer.scriptwriters import Psfgen,VMD,NAMD,Filewriter
 from unittest.mock import patch
 
 def test_bilayer_init_empty():
-    with patch("pestifer.tasks.bilayer.logger.debug") as mock_logger:
+    with patch("pestifer.bilayer.logger.debug") as mock_logger:
         test_bilayer=Bilayer(composition_dict={})
         mock_logger.assert_called_once_with('Empty bilayer')
 
@@ -55,12 +56,12 @@ def test_bilayer_init_memgen_style():
     assert test_bilayer.slices['upper_chamber']['composition'][0]['name'] == 'TIP3'
     assert test_bilayer.slices['upper_chamber']['composition'][0]['frac'] == 1.0
     assert test_bilayer.slices['upper_chamber']['composition'][0]['charge'] == 0.0
-    assert test_bilayer.slices['upper_chamber']['composition'][0]['patn'] == 800
+    assert test_bilayer.slices['upper_chamber']['composition'][0]['patn'] == 3200
     assert test_bilayer.slices['upper_chamber']['composition'][0]['MW'] == 18.0154
     assert test_bilayer.slices['lower_chamber']['composition'][0]['name'] == 'TIP3'
     assert test_bilayer.slices['lower_chamber']['composition'][0]['frac'] == 1.0
     assert test_bilayer.slices['lower_chamber']['composition'][0]['charge'] == 0.0
-    assert test_bilayer.slices['lower_chamber']['composition'][0]['patn'] == 800
+    assert test_bilayer.slices['lower_chamber']['composition'][0]['patn'] == 3200
     assert test_bilayer.slices['lower_chamber']['composition'][0]['MW'] == 18.0154
     assert test_bilayer.asymmetric == True
     test_bilayer=Bilayer(lipid_specstring='POPC:CHL1//POPE:CHL1',lipid_ratio_specstring='0.5:0.5',lipid_conformers_specstring='1:1',pdb_collection=pdb_collection,resi_database=resi_database)
@@ -91,12 +92,12 @@ def test_bilayer_init_memgen_style():
     assert test_bilayer.slices['upper_chamber']['composition'][0]['name'] == 'TIP3'
     assert test_bilayer.slices['upper_chamber']['composition'][0]['frac'] == 1.0
     assert test_bilayer.slices['upper_chamber']['composition'][0]['charge'] == 0.0
-    assert test_bilayer.slices['upper_chamber']['composition'][0]['patn'] == 800
+    assert test_bilayer.slices['upper_chamber']['composition'][0]['patn'] == 3200
     assert test_bilayer.slices['upper_chamber']['composition'][0]['MW'] == 18.0154
     assert test_bilayer.slices['lower_chamber']['composition'][0]['name'] == 'TIP3'
     assert test_bilayer.slices['lower_chamber']['composition'][0]['frac'] == 1.0
     assert test_bilayer.slices['lower_chamber']['composition'][0]['charge'] == 0.0
-    assert test_bilayer.slices['lower_chamber']['composition'][0]['patn'] == 800
+    assert test_bilayer.slices['lower_chamber']['composition'][0]['patn'] == 3200
     assert test_bilayer.slices['lower_chamber']['composition'][0]['MW'] == 18.0154
     assert test_bilayer.asymmetric == True
 
@@ -128,12 +129,12 @@ def test_bilayer_init_memgen_style():
     assert test_bilayer.slices['upper_chamber']['composition'][0]['name'] == 'TIP3'
     assert test_bilayer.slices['upper_chamber']['composition'][0]['frac'] == 1.0
     assert test_bilayer.slices['upper_chamber']['composition'][0]['charge'] == 0.0
-    assert test_bilayer.slices['upper_chamber']['composition'][0]['patn'] == 800
+    assert test_bilayer.slices['upper_chamber']['composition'][0]['patn'] == 3200
     assert test_bilayer.slices['upper_chamber']['composition'][0]['MW'] == 18.0154
     assert test_bilayer.slices['lower_chamber']['composition'][0]['name'] == 'TIP3'
     assert test_bilayer.slices['lower_chamber']['composition'][0]['frac'] == 1.0
     assert test_bilayer.slices['lower_chamber']['composition'][0]['charge'] == 0.0
-    assert test_bilayer.slices['lower_chamber']['composition'][0]['patn'] == 800
+    assert test_bilayer.slices['lower_chamber']['composition'][0]['patn'] == 3200
     assert test_bilayer.slices['lower_chamber']['composition'][0]['MW'] == 18.0154
     assert test_bilayer.slices['upper_chamber']['composition'][1]['name'] == 'POT'
     assert test_bilayer.slices['upper_chamber']['composition'][1]['charge'] == 1.0
@@ -156,7 +157,7 @@ def test_bilayer_build_patch():
     test_bilayer.build_patch()
     assert test_bilayer.patch_ll_corner[0]==pytest.approx(0.0, rel=1e-2)
     assert test_bilayer.patch_ll_corner[1]==pytest.approx(0.0, rel=1e-2)
-    assert test_bilayer.patch_ll_corner[2]==pytest.approx(-31.75, rel=1e-2)
+    assert test_bilayer.patch_ll_corner[2]==pytest.approx(-43.31, rel=1e-2)
 
 def test_bilayer_task_init():
     C=Config()

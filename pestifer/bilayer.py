@@ -42,7 +42,6 @@ class Bilayer:
     def __init__(self,composition_dict={},lipid_specstring='',lipid_ratio_specstring='',lipid_conformers_specstring='',    
                 leaflet_patch_nlipids=100,solvent_specstring='TIP3',solvent_ratio_specstring='1.0',solvent_to_lipid_ratio_specstring='32.0',
                 neutralizing_salt=['POT','CLA'],pdb_collection=None,resi_database=None,symmetrize=None):
-        logger.debug(f'Passed in solvent_specstring \'{solvent_specstring}\' and solvent_ratio_specstring \'{solvent_ratio_specstring}\'')
 
         # leaflet_patch_nlipids is the number of lipids per leaflet in a patch
         self.leaflet_patch_nlipids=leaflet_patch_nlipids
@@ -54,6 +53,7 @@ class Bilayer:
         if not composition_dict and not lipid_specstring and not lipid_ratio_specstring and not lipid_conformers_specstring:
             logger.debug('Empty bilayer')
             return
+        logger.debug(f'Passed in solvent_specstring \'{solvent_specstring}\' and solvent_ratio_specstring \'{solvent_ratio_specstring}\'')
         if not composition_dict:
             # old-style bilayer composition specification with memgen-style specstrings
             ul_lip,ll_lip=bilayer_stringsplit(lipid_specstring,symmetrize=symmetrize)
