@@ -71,7 +71,8 @@ def run(args,**kwargs):
         if any(fil):
             iix=fil.index(True)
             configname=f'{cbase}{allowed_extensions[iix]}'
-    C=Controller(configname)
+    config=Config(userfile=configname,**kwargs)
+    C=Controller(config)
 
     if args.gpu:
         if not 'namd' in C.config['user']:

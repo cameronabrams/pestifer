@@ -25,10 +25,9 @@ res_321={}
 res_123={}
 
 class Config(Yclept):
-    def __init__(self,userfile='',**kwargs):
+    def __init__(self,userfile='',quiet=False):
         vrep=f'ycleptic v. {version("ycleptic")}\npidibble v. {version("pidibble")}'
         self.RM=ResourceManager()
-        quiet=kwargs.get('quiet',False)
         if not quiet:
             my_logger(vrep,logger.info,just='<',frame='*',fill='',no_indent=True)
             my_logger(str(self.RM),logger.debug,just='<',frame='*',fill='',no_indent=True)
@@ -40,7 +39,7 @@ class Config(Yclept):
         processor_info=self.processor_info()
         if not quiet:
             my_logger(processor_info,logger.info,just='<',frame='*',fill='')
-        self._set_internal_shortcuts(**kwargs)
+        self._set_internal_shortcuts()
         self._set_shell_commands(verify_access=(userfile!=''))
 
     def processor_info(self):
@@ -103,7 +102,7 @@ class Config(Yclept):
                 assert os.access(fullpath,os.X_OK),f'You do not have permission to execute {fullpath}'
         self.namd_deprecates=self['user']['namd']['deprecated3']
 
-    def _set_internal_shortcuts(self,**kwargs):
+    def _set_internal_shortcuts(self):
         self.progress=len(self.slurmvars)==0
         RM=self.RM
         self.tcl_root=RM.get_tcldir()

@@ -6,8 +6,10 @@ from ..bilayer import Bilayer
 from ..basetask import BaseTask
 from ..charmmtop import CharmmResiDatabase
 from ..config import Config
+from ..controller import Controller
 from ..packmol import PackmolInputWriter
 from ..psfutil.psfcontents import PSFContents
+from ..util.util import cell_to_xsc
 
 logger=logging.getLogger(__name__)
 
@@ -143,7 +145,10 @@ class BilayerEmbedTask(BaseTask):
             logger.debug(f'{specname} packmol result {self.result}')
             if self.result!=0:
                 return super().do()
-    
+            self.next_basename(f'{specname}-psfgen')
+            self.result=self.psfgen(psf='',pdb='',addpdb=packmol_output_pdb,additional_topologies=patch.addl_streamfiles)
+            cell_to_xsc(patch.box,patch.origin,f'{specname}-psfgen.xsc')
+
     # def solvate(self):
     #     solvent_specstring=self.specs.get('solvents','TIP3')
     #     solv_molfrac_specstring=self.specs.get('solvent_mole_fractions','1.0')

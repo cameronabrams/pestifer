@@ -20,9 +20,8 @@ class Controller:
     """ A class for controlling the execution of `Tasks`.
     
     """
-    def __init__(self,userconfigfilename='',userspecs={},**kwargs):
+    def __init__(self,config,userspecs={},**kwargs):
         # Read in the user configuration file and set up the overall Config
-        self.config=Config(userfile=userconfigfilename,**kwargs)
         if userspecs:
             self.config['user'].update(userspecs)
 
