@@ -80,6 +80,8 @@ class BaseTask(BaseObj):
             index=prior.index+1
         else:
             index=specs.get('index',0)
+        if 'override-taskname' in specs:
+            taskname=specs['override-taskname']
         logger.debug(f'Creating task {taskname} with index {index}')
         input_dict = {
             'index':index,

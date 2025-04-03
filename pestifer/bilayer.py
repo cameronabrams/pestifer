@@ -1,6 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
 import logging
+import os 
 
 import numpy as np
 
@@ -323,3 +324,37 @@ class Bilayer:
                 pm.addline(f'end structure')
         pm.writefile()
 
+    def delete_lipid(self,vm,count,leaflet='upper'):
+        selstr="and z>0.0" if leaflet=='upper' else "and z<0.0"
+        pdb=self.statevars['pdb']
+        psf=self.statevars['psf']
+        basenamepdb,dum=os.path.splitext(pdb)
+        basenamepsf,dum=os.path.splitext(psf)
+        vm.newscript(f'delete-lipid')
+        vm.addline(f'package require psfgen')
+        vm.addline(f'readpsf {psf} pdb {pdb}')
+        vm.addline(f'mol new {psf}')
+        vm.addline(f'mol addfile {pdb}')
+        vm.addline(f'set sel [atomselect top "lipid {selstr}"]')
+        vm.addline(f'set lres [lsort -unique [$sel get residue]]')
+        vm.addline(f'set nres [llength $lres]')
+        vm.addline(f'set indices [list]')
+        vm.addline(r'for {set i 0} {$i < $len} {incr i} {')
+        vm.addline(f'    lappend indices $i')
+        vm.addline(r'}')
+        vm.addline(r'set shuffled_resnums [lsort -integer -command {expr {rand() > 0.5 ? 1 : -1}} $lres]')
+        vm.addline(f'set count {count}')
+        vm.addline(r'set remove_resnums [lrange $shuffled_resnums 0 [expr {$count - 1}]]')
+        vm.addline(r'set remove_sel [atomselect top "residue $remove_resnums"]')
+        vm.addline(r'foreach segname [$remove_sel get segname] resid [$remove_sel get resid] {')
+        vm.addline(r'   delatom $segname $resid')
+        vm.addline(r'}')
+        trim_pdb=basenamepdb+'-trim.pdb'
+        trim_psf=basenamepsf+'-trim.psf'
+        vm.addline(f'writepdb {trim_pdb}')
+        vm.addline(f'writepsf {trim_psf}')
+        vm.addline(f'close')
+        vm.writescript()
+        vm.runscript()
+        self.statevars['pdb']=trim_pdb
+        self.statevars['psf']=trim_psf

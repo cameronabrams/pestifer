@@ -95,11 +95,12 @@ class MDPlotTask(BaseTask):
                 if unitspec=='*':
                     units=1.0
                 else:
-                    if unitspec in ['g_per_cc','g/cc','g_per_cm3','g/cm3']:
-                        units=g_per_amu*A3_per_cm3
-                    else:
-                        logger.debug(f'Unitspec "{unitspec}" not recognized.')
-                        units=1.0
+                    if t_i=='density':
+                        if unitspec in ['g_per_cc','g/cc','g_per_cm3','g/cm3']:
+                            units=g_per_amu*A3_per_cm3
+                        else:
+                            logger.debug(f'Unitspec "{unitspec}" not recognized.')
+                            units=1.0
                 unitspecs.append(unitspec)
                 if t_i.upper() in edata:
                     key=t_i.upper()

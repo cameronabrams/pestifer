@@ -10,7 +10,7 @@ from ..config import Config
 from ..controller import Controller
 from ..packmol import PackmolInputWriter
 from ..psfutil.psfcontents import PSFContents
-from ..util.util import cell_to_xsc
+from ..util.util import cell_to_xsc,cell_from_xsc
 
 logger=logging.getLogger(__name__)
 
@@ -96,8 +96,7 @@ class BilayerEmbedTask(BaseTask):
                 logger.debug(f'BilayerEmbedTask will use psf {self.pro_psf} and pdb {self.pro_pdb} as inputs')
 
         self.build_patch()
-        # self.relax_patch(patch)
-        # self.make_bilayer_from_patch(patch)
+        self.make_bilayer_from_patch()
         # self.embed_protein()
         # self.solvate()
         # self.log_message('complete')
@@ -152,7 +151,7 @@ class BilayerEmbedTask(BaseTask):
             cell_to_xsc(patch.box,patch.origin,f'{self.basename}.xsc')
             userdict=deepcopy(self.config['user'])
             userdict['tasks']=[
-                {'restart':dict(psf=f'{self.basename}.psf',pdb=f'{self.basename}.pdb',xsc=f'{self.basename}.xsc',index=self.index+index)},
+                {'restart':dict(psf=f'{self.basename}.psf',pdb=f'{self.basename}.pdb',xsc=f'{self.basename}.xsc',index=self.index)},
                 {'md':dict(ensemble='minimize',minimize=2000)},
                 {'md':dict(ensemble='NVT',nsteps=1000)},
                 {'md':dict(ensemble='NPT',nsteps=200)},
@@ -163,14 +162,50 @@ class BilayerEmbedTask(BaseTask):
                 {'md':dict(ensemble='NPT',nsteps=6400)},
                 {'md':dict(ensemble='NPT',nsteps=12800)},
                 {'md':dict(ensemble='NPT',nsteps=25600)},
-                {'mdplot':dict(traces=[['a_x','b_y','c_z'],'density'],legend=True,grid=True)},
+                {'mdplot':dict(traces=['density',['a_x','b_y','c_z']],legend=True,grid=True,savedata=f'{self.basename}-traces.csv')},
                 {'terminate':dict(chainmapfile=f'{self.basename}-chainmap.yaml',statefile=f'{self.basename}-state.yaml')}                 
             ]
+            for task in userdict['tasks']:
+                task['override-taskname']=list(task.keys())[0]+f'-patch{spec}'
             subconfig=Config(userdict=userdict)
             subcontroller=Controller(subconfig)
-            subcontroller.tasks[0].index=self.index+50
             subcontroller.do_tasks()
             patch.statevars=subcontroller.tasks[-1].statevars.copy()
+            patch.box,patch.origin=cell_from_xsc(patch.statevars['xsc'])
+            patch.area=patch.box[0][0]*patch.box[1][1]
+
+        if self.patchA is not None and self.patchB is not None:
+            self.next_basename('patch')
+            self.merge_patchAB()
+    
+    def merge_patchAB(self):
+        areadiff=self.patchA.area-self.patchB.area
+        SAPLA=self.patchA.area/self.patchA.leaflet_patch_nlipids
+        SAPLB=self.patchB.area/self.patchB.leaflet_patch_nlipids
+        nA_to_delete=int(areadiff/SAPLA)
+        nB_to_delete=int(areadiff/SAPLB)
+        vm=self.writers['vmd']
+        if nA_to_delete>0:
+            logger.debug(f'patchA has {self.patchA.leaflet_patch_nlipids} lipids; deleting {nA_to_delete} lipids')
+            self.patchA.delete_lipid(vm,nA_to_delete,leaflet='upper')
+            self.patchA.leaflet_patch_nlipids-=nA_to_delete
+        elif nB_to_delete>0:
+            logger.debug(f'patchA has {self.patchA.leaflet_patch_nlipids} lipids; deleting {nA_to_delete} lipids')
+            self.patchB.delete_lipid(vm,nB_to_delete,leaflet='lower')
+            self.patchB.leaflet_patch_nlipids-=nB_to_delete
+        else:
+            logger.debug(f'No lipid deletions necessary to merge patches')
+            
+        pdbA=self.patchA.statevars['pdb']
+        pdbB=self.patchB.statevars['pdb']
+        
+        vm.newscript(f'{self.basename}-merge')
+        vm.addline(f'mol new {pdbA}')
+        vm.addline(f'mol new {pdbB}')
+        vm.addline(f'set upper_leaflet_chamber [atomselect 0 "same residue as "z>0.0"]')
+        vm.addline(f'$upper_leaflet_chamber writepdb {self.basename}-upper.pdb')
+        vm.addline(f'set lower_leaflet_chamber [atomselect 1 "same residue as "z<0.0"]')
+        vm.addline(f'$lower_leaflet_chamber writepdb {self.basename}-lower.pdb')
 
     # def solvate(self):
     #     solvent_specstring=self.specs.get('solvents','TIP3')
