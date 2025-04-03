@@ -854,6 +854,8 @@ psfgen:
         GLN: Q
         GLU: E
         GLY: G
+        HIS: H
+        HSD: H
         HSE: H
         ILE: I
         LEU: L
@@ -906,6 +908,7 @@ tasks:
       ssbonds: []
       ssbondsdelete: []
       substitutions: []
+      transrot: []
     source:
       biological_assembly: 0
       exclude: {}
@@ -947,6 +950,33 @@ tasks:
     SAPL: 50.0
     anion: CLA
     cation: POT
+    composition:
+      lower_leaflet:
+      - conf: 0
+        frac: 0.09
+        name: POPE
+      - conf: 0
+        frac: 0.09
+        name: POPE
+      - conf: 0
+        frac: 0.18
+        name: SOPS
+      - conf: 0
+        frac: 0.3
+        name: SOPE
+      - conf: 0
+        frac: 0.43
+        name: CHL1
+      upper_leaflet:
+      - conf: 0
+        frac: 0.36
+        name: PSM
+      - conf: 0
+        frac: 0.17
+        name: POPC
+      - conf: 0
+        frac: 0.47
+        name: CHL1
     dims: []
     embed:
       n_ter: in
@@ -961,8 +991,8 @@ tasks:
     fuzz_factor: 0.5
     leaflet_thickness: 20.0
     lipid_conformers: '0'
-    lipids: POPE:SOPS:SOPE:CHL1//PSM:POPC:CHL1
-    mole_fractions: 0.09:0.18:0.30:0.43//0.36:0.17:0.47
+    lipids: POPC
+    mole_fractions: '1.0'
     nloop: 1000
     nloop_all: 1000
     scale_excluded_volume: 0.25
@@ -1130,7 +1160,8 @@ tasks:
     figsize:
     - 9
     - 6
-    legend: false
+    grid: false
+    legend: true
     savedata: bilayer.csv
     traces:
     - density

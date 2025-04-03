@@ -31,6 +31,12 @@ class ConfigTest(unittest.TestCase):
         c=Config()
         self.assertTrue(c)
 
+    def test_config_userdict(self):
+        C=Config()
+        ud=C['user']
+        D=Config(userdict=ud)
+        self.assertTrue('user' in D)
+        
     def test_config_user(self):
         RM=ResourceManager()
         configfile=RM.get_example_yaml_by_index(1)

@@ -40,7 +40,6 @@ class Controller:
         # set up the task list
         self.tasks=[]
         prior_task=None
-        BaseTask._taskcount=0
         for taskdict in self.config['user'].get('tasks',[]):
             # Each task dictionary has a single keyword (the task name) and a value
             # that comprises the task specifications

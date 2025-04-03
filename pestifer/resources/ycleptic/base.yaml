@@ -172,6 +172,8 @@ directives:
                   GLN: Q
                   GLU: E
                   GLY: G
+                  HIS: H
+                  HSD: H
                   HSE: H
                   ILE: I
                   LEU: L
@@ -184,6 +186,30 @@ directives:
                   TRP: W
                   TYR: Y
                   VAL: V
+              - name: invrescodes
+                type: dict
+                text: one-letter residue name codes
+                default:
+                  A: ALA
+                  R: ARG
+                  N: ASN
+                  D: ASP
+                  C: CYS
+                  Q: GLN
+                  E: GLU
+                  G: GLY
+                  H: HSE
+                  I: ILE
+                  L: LEU
+                  K: LYS
+                  M: MET
+                  F: PHE
+                  P: PRO
+                  S: SER
+                  T: THR
+                  W: TRP
+                  Y: TYR
+                  V: VAL
           - name: ion
             type: dict
             text: Ion segment specifications

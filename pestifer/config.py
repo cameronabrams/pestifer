@@ -125,8 +125,6 @@ class Config(Yclept):
         self.namd_config_defaults=self['user']['namd']
         self.segtypes=self['user']['psfgen']['segtypes']
         for stn,stspec in self.segtypes.items():
-            if stspec and 'rescodes' in stspec:
-                self['user']['psfgen']['segtypes'][stn]['invrescodes']={v:k for k,v in stspec['rescodes'].items()}
             if stspec and 'resnames' in stspec:
                 initresnames=stspec['resnames']
                 for r in initresnames:

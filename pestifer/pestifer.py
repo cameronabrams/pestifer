@@ -88,7 +88,8 @@ def run(args,**kwargs):
         os.chdir(exec_dir)
 
 def desolvate(args,**kwargs):
-    C=Controller(userspecs={'tasks':
+    config=Config()
+    C=Controller(config,userspecs={'tasks':
                             [
                                 {'desolvate':{
                                     'basename':'desolvate',
@@ -106,7 +107,16 @@ def desolvate(args,**kwargs):
     report=C.do_tasks()
 
 def mdplot(args):
-    C=Controller(userspecs={'tasks':
+    logging.basicConfig(filename='mdplot.log',filemode='w',format='%(asctime)s %(name)s %(message)s',level=logging.DEBUG)
+
+    console=logging.StreamHandler()
+    console.setLevel(logging.DEBUG)
+    formatter=logging.Formatter('%(levelname)s> %(message)s')
+    console.setFormatter(formatter)
+    logging.getLogger('').addHandler(console)
+    config=Config()
+    logger.debug(f'logs {args.logs}')
+    C=Controller(config,userspecs={'tasks':
                             [
                                 {'mdplot':{
                                     'existing-logs':args.logs,
@@ -174,7 +184,8 @@ def run_example(args,**kwargs):
     run(args,**kwargs)
 
 def cleanup(args,**kwargs):
-    c=Controller(args.config)
+    config=Config(args.config)
+    c=Controller(config)
     keepfiles=[args.config,args.diagnostic_log_file]
     init_task=c.tasks[0]
     keepfiles+=init_task.get_keepfiles()
@@ -352,8 +363,8 @@ def cli():
     command_parsers['show-resources'].add_argument('--tcl',default=False,action='store_true',help='show description of system TcL scripts and packages')
     command_parsers['show-resources'].add_argument('--charmmff',type=str,nargs='+',default=[],help='show elements of charmmff-specific resources (\'toppar\', \'custom\', \'pdb\')')
     command_parsers['show-resources'].add_argument('--pdb-depot',type=str,help='additional collection of PDB files')
-    command_parsers['mdplot'].add_argument('--logs',type=list,default=[],nargs='+',help='list of one more NAMD logs in chronological order')
-    command_parsers['mdplot'].add_argument('--xsts',type=list,default=[],nargs='+',help='list of one more NAMD xsts in chronological order')
+    command_parsers['mdplot'].add_argument('--logs',type=str,default=[],nargs='+',help='list of one more NAMD logs in chronological order')
+    command_parsers['mdplot'].add_argument('--xsts',type=str,default=[],nargs='+',help='list of one more NAMD xsts in chronological order')
     command_parsers['mdplot'].add_argument('--basename',type=str,default='mdplot',help='basename of output files')
     command_parsers['mdplot'].add_argument('--savedata',type=str,default='mdplot.csv',help='name of CSV file to save data to')
     command_parsers['mdplot'].add_argument('--figsize',type=int,nargs=2,default=[9,6],help='figsize')

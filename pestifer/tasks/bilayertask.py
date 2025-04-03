@@ -118,11 +118,11 @@ class BilayerEmbedTask(BaseTask):
         xy_aspect_ratio=self.specs.get('xy_aspect_ratio',1.0)
         # leaflet_thickness=self.specs.get('leaflet_thickness',27.0) # initial value
         # chamber_thickness=self.specs.get('chamber_thickness',10.0)
-        nloop=self.specs.get('nloop',200)
-        nloop_all=self.specs.get('nloop_all',200)
+        nloop=self.specs.get('nloop',100)
+        nloop_all=self.specs.get('nloop_all',100)
 
         # we now build the patch, or if asymmetric, two patches
-        for patch,spec in zip([self.patch,self.patchA,self.patchB],['','A','B']):
+        for patch,spec,index in zip([self.patch,self.patchA,self.patchB],['','A','B'],[0,1,2]):
             if patch is None:
                 continue
             self.next_basename(f'patch{spec}')
@@ -147,12 +147,12 @@ class BilayerEmbedTask(BaseTask):
             logger.debug(f'{specname} packmol result {self.result}')
             if self.result!=0:
                 return super().do()
-            self.next_basename(f'{specname}-psfgen')
+            self.next_basename(f'patch{spec}-psfgen')
             self.result=self.psfgen(psf='',pdb='',addpdb=packmol_output_pdb,additional_topologies=patch.addl_streamfiles)
-            cell_to_xsc(patch.box,patch.origin,f'{specname}-psfgen.xsc')
+            cell_to_xsc(patch.box,patch.origin,f'{self.basename}.xsc')
             userdict=deepcopy(self.config['user'])
             userdict['tasks']=[
-                {'restart':dict(psf=f'{specname}-psfgen.psf',pdb=f'{specname}-psfgen.pdb',xsc=f'{specname}-psfgen.xsc')},
+                {'restart':dict(psf=f'{self.basename}.psf',pdb=f'{self.basename}.pdb',xsc=f'{self.basename}.xsc',index=self.index+index)},
                 {'md':dict(ensemble='minimize',minimize=2000)},
                 {'md':dict(ensemble='NVT',nsteps=1000)},
                 {'md':dict(ensemble='NPT',nsteps=200)},
@@ -163,12 +163,14 @@ class BilayerEmbedTask(BaseTask):
                 {'md':dict(ensemble='NPT',nsteps=6400)},
                 {'md':dict(ensemble='NPT',nsteps=12800)},
                 {'md':dict(ensemble='NPT',nsteps=25600)},
-                {'terminate':dict(chainmapfile=f'{specname}-chainmap.yaml',statefile=f'{specname}-state.yaml')}                 
+                {'mdplot':dict(traces=[['a_x','b_y','c_z'],'density'],legend=True,grid=True)},
+                {'terminate':dict(chainmapfile=f'{self.basename}-chainmap.yaml',statefile=f'{self.basename}-state.yaml')}                 
             ]
             subconfig=Config(userdict=userdict)
             subcontroller=Controller(subconfig)
-
+            subcontroller.tasks[0].index=self.index+50
             subcontroller.do_tasks()
+            patch.statevars=subcontroller.tasks[-1].statevars.copy()
 
     # def solvate(self):
     #     solvent_specstring=self.specs.get('solvents','TIP3')

@@ -72,15 +72,17 @@ class BaseTask(BaseObj):
     """
     req_attr=BaseObj.req_attr+['specs','config','index','prior','writers','taskname']
     yaml_header='generic_task'
-    _taskcount=0
     init_msg_options=['INITIATED','STARTED','BEGUN','SET IN MOTION','KICKED OFF','LIT','SPANKED ON THE BOTTOM']
 
     def __init__(self,input_dict,taskname,config,writers,prior):
         specs=input_dict.copy()
-        BaseTask._taskcount=specs.get('index',BaseTask._taskcount)
-        logger.debug(f'Creating task {taskname} with index {BaseTask._taskcount}')
+        if prior:
+            index=prior.index+1
+        else:
+            index=specs.get('index',0)
+        logger.debug(f'Creating task {taskname} with index {index}')
         input_dict = {
-            'index':BaseTask._taskcount,
+            'index':index,
             'writers': writers,
             'prior':prior,
             'specs':specs,
@@ -88,7 +90,6 @@ class BaseTask(BaseObj):
             'taskname':taskname
         }
         super().__init__(input_dict)
-        BaseTask._taskcount+=1
         self.subtaskcount=0
         self.statevars={}
         self.FC=FileCollector()
@@ -98,7 +99,7 @@ class BaseTask(BaseObj):
         return self.result
 
     def __str__(self):
-        return f'{self.index}/{self._taskcount-1} - {self.taskname} [has prior {self.prior!=None}]'
+        return f'{self.index} - {self.taskname} [has prior {self.prior!=None}]'
 
     def log_message(self,message,**kwargs):
         extra=''

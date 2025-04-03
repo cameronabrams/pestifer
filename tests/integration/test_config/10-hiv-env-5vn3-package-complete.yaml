@@ -844,6 +844,8 @@ psfgen:
         GLN: Q
         GLU: E
         GLY: G
+        HIS: H
+        HSD: H
         HSE: H
         ILE: I
         LEU: L
@@ -902,6 +904,7 @@ tasks:
       - G:131A-133T,GGG
       - I:131A-133T,GGG
       - J:131A-133T,GGG
+      transrot: []
     source:
       biological_assembly: 1
       exclude:
@@ -1071,7 +1074,8 @@ tasks:
     figsize:
     - 9
     - 6
-    legend: false
+    grid: false
+    legend: true
     savedata: solvated.csv
     traces:
     - density

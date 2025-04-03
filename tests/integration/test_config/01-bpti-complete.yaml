@@ -844,6 +844,8 @@ psfgen:
         GLN: Q
         GLU: E
         GLY: G
+        HIS: H
+        HSD: H
         HSE: H
         ILE: I
         LEU: L
@@ -896,6 +898,7 @@ tasks:
       ssbonds: []
       ssbondsdelete: []
       substitutions: []
+      transrot: []
     source:
       biological_assembly: 0
       exclude: {}
@@ -1018,7 +1021,8 @@ tasks:
     figsize:
     - 9
     - 6
-    legend: false
+    grid: false
+    legend: true
     savedata: solvated.csv
     traces:
     - density
