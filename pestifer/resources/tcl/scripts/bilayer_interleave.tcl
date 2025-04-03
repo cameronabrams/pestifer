@@ -29,4 +29,5 @@ mol new $pdbB waitfor all
 set lower_source [molinfo top get id]
 
 foreach source { $upper_source $lower_source } {
+
 }
