@@ -1,3 +1,4 @@
+*.dcd
 *.bak
 __defunct__/
 # Byte-compiled / optimized / DLL files
