@@ -4,6 +4,25 @@
 # bilayer created using the upper leaflet of one
 # input bilayer and the lower leaflet of another
 
+proc leaflet_apportionment { molid } {
+   set residue_list [lsort -unique [atomselect $molid "residue"]]
+   set residues(upper) [list]
+   set residues(lower) [list]
+   foreach residue $residue_list {
+      set ressel [atomselect $molid "residue $residue"]
+      set com [measure center $ressel weight mass]
+      set com_z [lindex $com 2]
+      if { $com_z > 0 } {
+         lappend residues(upper) $residue
+      } else {
+         lappend residues(lower) $residue
+      }
+   }
+   set residues(upper) [lsort -unique $residues(upper)]
+   set residues(lower) [lsort -unique $residues(lower)]
+   return $residues
+}
+
 package require PestiferEnviron 1.0
 namespace import ::PestiferEnviron::*
 
@@ -40,18 +59,19 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
    }
 }
 mol new $pdbA waitfor all
-set upper_source [molinfo top get id]
-pbc readxst $xscA -molid $upper_source
+set source(upper) [molinfo top get id]
+pbc readxst $xscA -molid $source(upper)
 mol new $pdbB waitfor all
-set lower_source [molinfo top get id]
-pbc readxst $xscB -molid $lower_source
+set source(lower) [molinfo top get id]
+pbc readxst $xscB -molid $source(lower)
 
-foreach source { $upper_source $lower_source } criterion { "z>0" "z<0" } {
-   set whole [atomselect $source all]
-   set bilayer [atomselect $source "lipid"]
+foreach leaflet { upper lower } {
+   set residues [leaflet_apportionment $source($leaflet)]
+   set whole [atomselect $source($leaflet) all]
+   set bilayer [atomselect $source($leaflet) "lipid"]
    set com [measure center $bilayer weight mass]
    set com_z [lindex $com 2]
    $whole moveby [list 0 0 -$com_z]
-   set leaflet [atomselect $source "same molecule as ($criterion)"]
+   set leaflet_sel [atomselect $source "residue $residues($leaflet)"]
    
 }
