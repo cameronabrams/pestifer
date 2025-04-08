@@ -14,9 +14,9 @@ namespace import ::PestiferEnviron::*
 
 set scriptname memb
 
-set pdb ""  # psf of protein-only system
-set psf ""  # pdb of protein-only system
-set addpdb "" # pdb output of packmol that contains protein and membrane
+set pdb "";  # psf of protein-only system
+set psf "";  # pdb of protein-only system
+set addpdb ""; # pdb output of packmol that contains protein and membrane
 set outbasename "memb-parameterized"
 
 for { set i 0 } { $i < [llength $argv] } { incr i } {
@@ -97,5 +97,7 @@ vmdcon -info "other: [$other num] atoms"
 set maxr_per_seg 1000
 
 write_psfgen $environ_molid $next_available_chain {lipid water ion} {L I W} $maxr_per_seg
+
+regenerate angles dihedrals
 
 # pestifer takes over to write the psf and pdb

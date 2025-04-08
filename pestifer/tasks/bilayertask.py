@@ -429,7 +429,8 @@ class BilayerEmbedTask(BaseTask):
     #     self.log_message('complete')
     #     return super().do()
 
-    def psfgen(self,psf,pdb,addpdb,additional_topologies=[]):
+    def psfgen(self,psf='',pdb='',addpdb='',additional_topologies=[]):
+        logger.debug(f'psfgen {self.basename} {psf} {pdb} {addpdb}')
         pg=self.writers['psfgen']
         pg.newscript(self.basename,additional_topologies=additional_topologies)
         pg.usescript('memb')

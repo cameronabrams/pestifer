@@ -326,7 +326,11 @@ class Psfgen(VMD):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         self.logname=f'{self.basename}.log'
         logger.debug(f'Log file: {self.logname}')
-        c=Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}',**options)
+        clean_options=options.copy()
+        for k,v in options.items():
+            if v=='':
+                clean_options.pop(k)
+        c=Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}',**clean_options)
         progress_struct=None
         if self.progress:
             progress_struct=PsfgenProgress()
