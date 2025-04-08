@@ -80,8 +80,6 @@ class BaseTask(BaseObj):
             index=prior.index+1
         else:
             index=specs.get('index',0)
-        if 'override-taskname' in specs:
-            taskname=specs['override-taskname']
         logger.debug(f'Creating task {taskname} with index {index}')
         input_dict = {
             'index':index,
@@ -96,6 +94,11 @@ class BaseTask(BaseObj):
         self.statevars={}
         self.FC=FileCollector()
         self.result=0
+
+    def override_taskname(self,taskname):
+        """ Override the task name. """
+        logger.debug(f'Overriding task name {self.taskname} to {taskname}')
+        self.taskname=taskname
 
     def do(self):
         return self.result

@@ -5,6 +5,11 @@
 # input bilayer and the lower leaflet of another
 
 proc leaflet_apportionment { molid } {
+   set whole [atomselect $molid all]
+   set bilayer [atomselect $molid "lipid"]
+   set com [measure center $bilayer weight mass]
+   set com_z [lindex $com 2]
+   $whole moveby [list 0 0 -$com_z]
    set residue_list [lsort -unique [atomselect $molid "residue"]]
    set residues(upper) [list]
    set residues(lower) [list]
@@ -60,18 +65,14 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
 }
 mol new $pdbA waitfor all
 set source(upper) [molinfo top get id]
-pbc readxst $xscA -molid $source(upper)
+# pbc readxst $xscA -molid $source(upper)
 mol new $pdbB waitfor all
 set source(lower) [molinfo top get id]
-pbc readxst $xscB -molid $source(lower)
+# pbc readxst $xscB -molid $source(lower)
 
 foreach leaflet { upper lower } {
    set residues [leaflet_apportionment $source($leaflet)]
-   set whole [atomselect $source($leaflet) all]
-   set bilayer [atomselect $source($leaflet) "lipid"]
-   set com [measure center $bilayer weight mass]
-   set com_z [lindex $com 2]
-   $whole moveby [list 0 0 -$com_z]
    set leaflet_sel [atomselect $source "residue $residues($leaflet)"]
-   
+   $leaflet_sel writepdb "${outbasename}-${leaflet}.pdb" 
 }
+exit

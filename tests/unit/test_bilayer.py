@@ -1,4 +1,6 @@
 import pytest
+import os
+import shutil
 from pestifer.bilayer import Bilayer
 from pestifer.tasks.bilayertask import BilayerEmbedTask
 from pestifer.config import Config
@@ -159,7 +161,28 @@ def test_bilayer_build_patch():
     assert test_bilayer.patch_ll_corner[1]==pytest.approx(0.0, rel=1e-2)
     assert test_bilayer.patch_ll_corner[2]==pytest.approx(-43.31, rel=1e-2)
 
-def test_bilayer_task_init():
+def test_bilayer_task_init_symmetric():
+    if os.path.exists('__test_bilayer_task_symmetric'):
+        shutil.rmtree('__test_bilayer_task_symmetric')
+    os.mkdir('__test_bilayer_task_symmetric')
+    os.chdir('__test_bilayer_task_symmetric')
+    C=Config()
+    writers={
+            'psfgen': Psfgen(C),
+            'vmd':    VMD(C),
+            'namd':   NAMD(C),
+            'data':   Filewriter()
+        }
+    idict={'composition':{'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
+        'lower_leaflet': [{'name':'POPC','frac':1.0,'conf':0}]}}
+    BET = BilayerEmbedTask(idict,'test_bilayer_task',C,writers,None)
+    assert BET.taskname == 'test_bilayer_task'
+    result=BET.do()
+    os.chdir('..')
+    assert result==0
+
+
+def test_bilayer_task_init_asymmetric():
     C=Config()
     writers={
             'psfgen': Psfgen(C),

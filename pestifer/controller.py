@@ -43,7 +43,7 @@ class Controller:
         for taskdict in self.config['user'].get('tasks',[]):
             # Each task dictionary has a single keyword (the task name) and a value
             # that comprises the task specifications
-            assert len(taskdict)==1
+            assert len(taskdict)==1, f"Task dictionary {taskdict} must have a single key-value pair"
             taskname=list(taskdict.keys())[0]
             specval=taskdict[taskname]
             logger.debug(f'{taskname}: {specval}')

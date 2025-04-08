@@ -1,7 +1,9 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
 # VMD/psfgen script for creating a new psf/pdb pair for a complete, 
-# membrane-embedded protein pdb and the original protein psf/pdb
+# membrane-embedded protein pdb from packmol and the original protein psf/pdb
+# if a protein psf/pdb is not provided, the script will assume that the script will assume that the
+# input pdb is a membrane-only system
 
 # if referenced using the Psfgen scriptwriter, all common psfgen
 # pre-build commands are invoked automatically
@@ -12,9 +14,9 @@ namespace import ::PestiferEnviron::*
 
 set scriptname memb
 
-set pdb ""
-set psf ""
-set addpdb ""
+set pdb ""  # psf of protein-only system
+set psf ""  # pdb of protein-only system
+set addpdb "" # pdb output of packmol that contains protein and membrane
 set outbasename "memb-parameterized"
 
 for { set i 0 } { $i < [llength $argv] } { incr i } {
@@ -37,7 +39,7 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
 }
 
 if { ! [file exists $addpdb] } {
-   vmdcon -err "${scriptname}: $addpdb not found."
+   vmdcon -err "${scriptname}: packmol output $addpdb not found."
    exit
 }
 
@@ -65,7 +67,12 @@ if { $init_molid == -1 } {
    set insert_min_ser [lindex $insert_ser 0]
    set insert_max_ser [lindex $insert_ser end]
    set insert_from_environ [atomselect $add_molid "serial $insert_min_ser to $insert_max_ser"]
+   # select atoms from the packmol output that are not in the original protein
    set environ [atomselect $add_molid "serial > $insert_max_ser"]
+   # set the coordinates of the protein atoms read in from the psf/pdb
+   # to the coordinates of the atoms in the packmol output
+   # this gets the protein atoms and the membrane atoms in the same
+   # coordinate system, since packmol moves the protein atoms
    $insert_init set {x y z} [$insert_from_environ get {x y z}]
    $insert_init writepdb "insert.pdb"
    readpsf $psf pdb insert.pdb
@@ -90,3 +97,5 @@ vmdcon -info "other: [$other num] atoms"
 set maxr_per_seg 1000
 
 write_psfgen $environ_molid $next_available_chain {lipid water ion} {L I W} $maxr_per_seg
+
+# pestifer takes over to write the psf and pdb

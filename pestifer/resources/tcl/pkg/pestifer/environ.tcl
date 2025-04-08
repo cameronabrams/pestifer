@@ -1,5 +1,5 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
-package provide PestiferEnvrion 1.0
+package provide PestiferEnviron 1.0
 
 namespace eval ::PestiferEnviron:: {
     namespace export *

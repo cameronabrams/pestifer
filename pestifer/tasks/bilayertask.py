@@ -96,7 +96,7 @@ class BilayerEmbedTask(BaseTask):
                 logger.debug(f'BilayerEmbedTask will use psf {self.pro_psf} and pdb {self.pro_pdb} as inputs')
 
         self.build_patch()
-        self.make_bilayer_from_patch()
+        # self.make_bilayer_from_patch()
         # self.embed_protein()
         # self.solvate()
         # self.log_message('complete')
@@ -152,7 +152,7 @@ class BilayerEmbedTask(BaseTask):
             userdict=deepcopy(self.config['user'])
             userdict['tasks']=[
                 {'restart':dict(psf=f'{self.basename}.psf',pdb=f'{self.basename}.pdb',xsc=f'{self.basename}.xsc',index=self.index)},
-                {'md':dict(ensemble='minimize',minimize=2000)},
+                {'md':dict(ensemble='minimize',minimize=3000)},
                 {'md':dict(ensemble='NVT',nsteps=1000)},
                 {'md':dict(ensemble='NPT',nsteps=200)},
                 {'md':dict(ensemble='NPT',nsteps=400)},
@@ -165,10 +165,12 @@ class BilayerEmbedTask(BaseTask):
                 {'mdplot':dict(traces=['density',['a_x','b_y','c_z']],legend=True,grid=True,savedata=f'{self.basename}-traces.csv')},
                 {'terminate':dict(chainmapfile=f'{self.basename}-chainmap.yaml',statefile=f'{self.basename}-state.yaml')}                 
             ]
-            for task in userdict['tasks']:
-                task['override-taskname']=list(task.keys())[0]+f'-patch{spec}'
             subconfig=Config(userdict=userdict)
             subcontroller=Controller(subconfig)
+            for task in subcontroller.tasks:
+                task_key=task.taskname
+                task.override_taskname(task_key+f'-patch{spec}')
+            
             subcontroller.do_tasks()
             patch.statevars=subcontroller.tasks[-1].statevars.copy()
             patch.box,patch.origin=cell_from_xsc(patch.statevars['xsc'])
@@ -177,7 +179,8 @@ class BilayerEmbedTask(BaseTask):
         if self.patchA is not None and self.patchB is not None:
             self.next_basename('patch')
             self.merge_patchAB()
-    
+ 
+
     def merge_patchAB(self):
         areadiff=self.patchA.area-self.patchB.area
         SAPLA=self.patchA.area/self.patchA.leaflet_patch_nlipids
