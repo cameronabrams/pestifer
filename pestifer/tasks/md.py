@@ -149,7 +149,7 @@ class MDTask(BaseTask):
             if result!=0:
                 return -1
             inherited_etitles=[]
-            if self.prior and self.prior.taskname=='md' and hasattr(self.prior,'mdlog'):
+            if self.prior and self.prior.yaml_header=='md' and hasattr(self.prior,'mdlog'):
                 inherited_etitles=self.prior.mdlog.etitles
                 logger.debug(f'Offering these etitles: {inherited_etitles}')
 

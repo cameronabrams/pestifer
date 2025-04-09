@@ -21,19 +21,16 @@ class MDPlotTask(BaseTask):
         self.inherit_state()
         datasources=[]
         xstsources=[]
-        if len(self.specs['existing-logs'])==0 and self.prior and self.prior.taskname=='md':
+        if len(self.specs['existing-logs'])==0 and self.prior:
             logger.debug(f'Collecting all mdlog.edata tables from upstream md tasks...')
-            mdtaskpointer=self.prior
-            logger.debug(f'self={str(self)}; self.prior={str(self.prior)}')
-            while mdtaskpointer!=None and mdtaskpointer.taskname=='md':
-                logger.debug(f'appending log/xst data from prior task {str(mdtaskpointer)}')
-                if hasattr(mdtaskpointer,'mdlog'):
-                    datasources.append(mdtaskpointer.mdlog.edata)
-                else:
-                    logger.debug(f'Task {mdtaskpointer.index} has no mdlog.  Is this a bug?')
-                if hasattr(mdtaskpointer,'xstlog'):
-                    xstsources.append(mdtaskpointer.xstlog.df)
-                mdtaskpointer=mdtaskpointer.prior
+            priortaskpointer=self.prior
+            logger.debug(f'self={str(self)}; self.prior={str(priortaskpointer)}')
+            while priortaskpointer!=None and hasattr(priortaskpointer,'mdlog'):
+                logger.debug(f'appending log/xst data from prior task {str(priortaskpointer)}')
+                datasources.append(priortaskpointer.mdlog.edata)
+                if hasattr(priortaskpointer,'xstlog'):
+                    xstsources.append(priortaskpointer.xstlog.df)
+                priortaskpointer=priortaskpointer.prior
         else:
             logger.debug(f'Extracting data from {len(self.specs["existing-logs"])} explicitly named namd logs...')
             logger.debug(self.specs['existing-logs'])
