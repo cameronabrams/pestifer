@@ -183,6 +183,10 @@ def test_bilayer_task_init_symmetric():
 
 
 def test_bilayer_task_init_asymmetric():
+    if os.path.exists('__test_bilayer_task_asymmetric'):
+        shutil.rmtree('__test_bilayer_task_asymmetric')
+    os.mkdir('__test_bilayer_task_asymmetric')
+    os.chdir('__test_bilayer_task_asymmetric')
     C=Config()
     writers={
             'psfgen': Psfgen(C),
@@ -195,4 +199,5 @@ def test_bilayer_task_init_asymmetric():
     BET = BilayerEmbedTask(idict,'test_bilayer_task',C,writers,None)
     assert BET.taskname == 'test_bilayer_task'
     result=BET.do()
+    os.chdir('..')
     assert result==0
