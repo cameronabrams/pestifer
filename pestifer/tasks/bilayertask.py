@@ -44,20 +44,30 @@ class BilayerEmbedTask(BaseTask):
         conformers_specstring=self.specs.get('conformers','')
         solvent_specstring=self.specs.get('solvents','TIP3')
         solvent_ratio_specstring=self.specs.get('solvent_mole_fractions','1.0')
-        solvent_to_lipid_ratio_specstring=self.specs.get('solvent_to_lipid_ratio','32.0')
+        solvent_to_lipid_ratio=self.specs.get('solvent_to_lipid_ratio',32.0)
         composition_dict=self.specs.get('composition',{})
+        if not composition_dict:
+            composition_dict=specstrings_builddict(lipid_specstring,
+                                                  ratio_specstring,
+                                                  conformers_specstring,
+                                                  solvent_specstring,
+                                                  solvent_ratio_specstring)
+        logger.debug(f'Main composition dict {composition_dict}')
         self.patch=Bilayer(composition_dict,
-                            lipid_specstring=lipid_specstring,
-                            lipid_ratio_specstring=ratio_specstring,
-                            lipid_conformers_specstring=conformers_specstring,
                             solvent_specstring=solvent_specstring,
                             solvent_ratio_specstring=solvent_ratio_specstring,
-                            solvent_to_lipid_ratio_specstring=solvent_to_lipid_ratio_specstring,
+                            solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
                             pdb_collection=self.pdb_collection,resi_database=self.RDB)
+        logger.debug(f'Main composition dict after call {composition_dict}')
         self.patchA=None
         self.patchB=None
         if self.patch.asymmetric:
             logger.debug(f'Patch is asymmetric; generating two symmetric patches')
+            logger.debug(f'Symmetrizing bilayer to upper leaflet')
+            composition_dict['lower_leaflet_saved']=composition_dict['lower_leaflet']
+            composition_dict['lower_chamber_saved']=composition_dict['lower_chamber']
+            composition_dict['lower_leaflet']=composition_dict['upper_leaflet']
+            composition_dict['lower_chamber']=composition_dict['upper_chamber']
             self.patchA=Bilayer(composition_dict,
                             lipid_specstring=lipid_specstring,
                             lipid_ratio_specstring=ratio_specstring,
@@ -65,8 +75,14 @@ class BilayerEmbedTask(BaseTask):
                             solvent_specstring=solvent_specstring,
                             solvent_ratio_specstring=solvent_ratio_specstring,
                             solvent_to_lipid_ratio_specstring=solvent_to_lipid_ratio_specstring,
-                            pdb_collection=self.pdb_collection,resi_database=self.RDB,
-                            symmetrize='upper')
+                            pdb_collection=self.pdb_collection,resi_database=self.RDB)
+            logger.debug(f'Symmetrizing bilayer to lower leaflet')
+            composition_dict['upper_leaflet_saved']=composition_dict['upper_leaflet']
+            composition_dict['upper_chamber_saved']=composition_dict['upper_chamber']
+            composition_dict['lower_leaflet']=composition_dict['lower_leaflet_saved']
+            composition_dict['lower_chamber']=composition_dict['lower_chamber_saved']
+            composition_dict['upper_leaflet']=composition_dict['lower_leaflet']
+            composition_dict['upper_chamber']=composition_dict['lower_chamber']
             self.patchB=Bilayer(composition_dict,
                             lipid_specstring=lipid_specstring,
                             lipid_ratio_specstring=ratio_specstring,
@@ -76,6 +92,8 @@ class BilayerEmbedTask(BaseTask):
                             solvent_to_lipid_ratio_specstring=solvent_to_lipid_ratio_specstring,
                             pdb_collection=self.pdb_collection,resi_database=self.RDB,
                             symmetrize='lower')
+            composition_dict['upper_leaflet']=composition_dict['upper_leaflet_saved']
+            composition_dict['upper_chamber']=composition_dict['upper_chamber_saved']
             self.patch=None
 
 
@@ -174,7 +192,7 @@ class BilayerEmbedTask(BaseTask):
             {'md':dict(ensemble='NPT',nsteps=25600,
                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
             {'mdplot':dict(basename=self.basename,traces=['density',['a_x','b_y','c_z']],legend=True,grid=True,savedata=f'{self.basename}-traces.csv')},
-            {'terminate':dict(chainmapfile=f'{self.basename}-chainmap.yaml',statefile=f'{self.basename}-state.yaml')}                 
+            {'terminate':dict(basename=self.basename,chainmapfile=f'{self.basename}-chainmap.yaml',statefile=f'{self.basename}-state.yaml')}                 
         ]
         subconfig=Config(userdict=userdict)
         subcontroller=Controller(subconfig)

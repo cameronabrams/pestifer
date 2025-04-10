@@ -33,18 +33,19 @@ class TerminateTask(MDTask):  #need to inherit for namdrun() method
 
     def make_package(self):
         specs=self.specs.get('package',{})
+        basename=specs.get('basename','my_system')
         # logger.debug(f'make_package specs {specs}')
         if not specs:
             return 0
         self.inherit_state()
         self.FC.clear()  # populate a file collector to make the tarball
-        logger.debug(f'Packaging for namd using basename {self.basename}')
+        logger.debug(f'Packaging for namd using basename {basename}')
         savespecs=self.specs
         self.specs=specs
         params={}
         result=self.namdrun(script_only=True)
         self.specs=savespecs
-        self.FC.append(f'{self.basename}.namd')
+        self.FC.append(f'{basename}.namd')
         constraints=specs.get('constraints',{})
         if constraints:
             self.make_constraint_pdb(constraints)
@@ -58,23 +59,23 @@ class TerminateTask(MDTask):  #need to inherit for namdrun() method
 
         if specs["topogromacs"]:
             logger.debug(f'running topogromacs')
-            with open(f'{self.basename}_par.inp','w') as f:
+            with open(f'{basename}_par.inp','w') as f:
                 for pf in params['parameters']:
                     f.write(f'parameters {pf}\n')
             vt=self.writers['vmd']
-            vt.newscript(f'{self.basename}_tg')
+            vt.newscript(f'{basename}_tg')
             vt.usescript('tg')
             vt.writescript()
             psf=self.statevars['psf']
             pdb=self.statevars['pdb']
             inputname=os.path.splitext(self.statevars['coor'])[0]
-            vt.runscript(o=self.basename,pdb=pdb,psf=psf,i=inputname,parinp=f'{self.basename}_par.inp',ospf=f'{self.basename}_tg.psf',opdb=f'{self.basename}_tg.pdb',top=f'{self.basename}_topogromacs.top',cellfile=f'{self.basename}_cell.inp')
-            with open(f'{self.basename}_cell.inp','r') as f:
+            vt.runscript(o=basename,pdb=pdb,psf=psf,i=inputname,parinp=f'{basename}_par.inp',ospf=f'{basename}_tg.psf',opdb=f'{basename}_tg.pdb',top=f'{basename}_topogromacs.top',cellfile=f'{basename}_cell.inp')
+            with open(f'{basename}_cell.inp','r') as f:
                 box=f.read().split()
             boxstr=' '.join(box)
-            c=Command(f'gmx editconf -f {self.basename}_tg.pdb -o {self.basename}_topogromacs.pdb -box {boxstr}')
+            c=Command(f'gmx editconf -f {basename}_tg.pdb -o {basename}_topogromacs.pdb -box {boxstr}')
             c.run()
-            self.FC.append(f'{self.basename}_topogromacs.pdb')
-            self.FC.append(f'{self.basename}_topogromacs.top')
+            self.FC.append(f'{basename}_topogromacs.pdb')
+            self.FC.append(f'{basename}_topogromacs.top')
         self.FC.tarball(specs["basename"])
         return 0

@@ -75,4 +75,4 @@ foreach leaflet { upper lower } {
    set leaflet_sel [atomselect $source "residue $residues($leaflet)"]
    $leaflet_sel writepdb "${outbasename}-${leaflet}.pdb" 
 }
-exit
+

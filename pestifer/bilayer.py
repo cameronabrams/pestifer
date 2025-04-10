@@ -13,131 +13,127 @@ sA3_=_UNITS_['CUBIC-ANGSTROMS']
 
 logger=logging.getLogger(__name__)
 
-def bilayer_stringsplit(input_string,delimiter0='//',delimiter1=':',return_type=str,normalize=False,symmetrize=None):
-    """Splits a string into two lists of strings, separated by the first delimiter.
-    The two lists are separated by the second delimiter.
-    The first delimiter is used to split the string into two parts, and the second delimiter
-    is used to split each part into a list of strings.
-    The function returns two lists of strings.
-    If the input string is empty, the function returns two empty lists. """
-    logger.debug(f'Processing \'{input_string}\'')
-    uls,lls=(input_string.split(delimiter0)+[input_string])[:2]
-    ul,ll=uls.split(delimiter1),lls.split(delimiter1)
-    if symmetrize=='upper':
-        ll=ul
-    elif symmetrize=='lower':
-        ul=ll
-    if return_type==str:
-        return ul,ll
-    ul,ll=list(map(return_type,ul)),list(map(return_type,ll))
-    ul,ll=np.array(ul),np.array(ll)
-    if normalize:
-        ul_xs,ll_xs=np.sum(ul),np.sum(ll)
-        if ul_xs>0.0:
-            ul/=ul_xs
-        if ll_xs>0.0:
-            ll/=ll_xs
-    return ul,ll
+class BilayerSpecString:
+    """ A class for handling bilayer specification strings in memgen format """
+    def __init__(self,specstring='',fracstring='',leaflet_delimiter='//',species_delimiter=':'):
+        self.specstring=specstring
+        self.fracstring=fracstring
+        self.leaflet_delimiter=leaflet_delimiter
+        self.species_delimiter=species_delimiter
+        self.extrastrings={}
+        if specstring:
+            Sleft,Sright=(specstring.split(leaflet_delimiter)+[specstring])[:2]
+            Lleft,Lright=Sleft.split(species_delimiter),Sright.split(species_delimiter)
+            nSpleft,nSright=len(Lleft),len(Lright)
+            if fracstring:
+                FSleft,FSright=(fracstring.split(leaflet_delimiter)+[fracstring])[:2]
+                Fleft,Fright=np.array([float(x) for x in FSleft.split(species_delimiter)]),np.array([float(x) for x in FSright.split(species_delimiter)])
+                Fleft/=np.sum(Fleft)
+                Fright/=np.sum(Fright)
+                assert len(Fleft)==nSpleft,f'Left layer has {nSpleft} species but {len(Fleft)} fractions specified'
+                assert len(Fright)==nSright,f'Right layer has {nSright} species but {len(Fright)} fractions specified'
+            else:
+                Fleft=np.array([1.0/nSpleft]*nSpleft)
+                Fright=np.array([1.0/nSright]*nSright)
+            
+            self.left=[dict(name=n,frac=x) for n,x in zip(Lleft,Fleft)]
+            self.right=[dict(name=n,frac=x) for n,x in zip(Lright,Fright)]
+
+    def add_specstring(self,attr_name,specstring='',attr_type=str):
+        if specstring:
+            self.extrastrings[attr_name]=specstring
+            Sleft,Sright=(specstring.split(self.leaflet_delimiter)+[specstring])[:2]
+            Lleft,Lright=[attr_type(x) for x in Sleft.split(self.species_delimiter)],[attr_type(x) for x in Sright.split(self.species_delimiter)]
+            nSpleft,nSright=len(Lleft),len(Lright)
+            
+            if nSpleft==len(self.left):
+                for i in range(nSpleft):
+                    self.left[i][attr_name]=Lleft[i]
+            elif nSpleft==1:
+                for i in range(len(self.left)):
+                    self.left[i][attr_name]=Lleft[0]
+            if nSright==len(self.right):
+                for i in range(nSright):
+                    self.right[i][attr_name]=Lright[i]
+            elif nSright==1:
+                for i in range(len(self.right)):
+                    self.right[i][attr_name]=Lright[0]
+
+def specstrings_builddict(lipid_specstring='',lipid_ratio_specstring='',lipid_conformers_specstring='',    
+                          solvent_specstring='TIP3',solvent_ratio_specstring=''):
+    L=BilayerSpecString(specstring=lipid_specstring,fracstring=lipid_ratio_specstring)
+    L.add_specstring('conf',lipid_conformers_specstring,int)
+    C=BilayerSpecString(specstring=solvent_specstring,fracstring=solvent_ratio_specstring)
+    return {
+        'upper_leaflet':L.left,
+        'lower_leaflet':L.right,
+        'upper_chamber':C.left,
+        'lower_chamber':C.right
+    }
 
 class Bilayer:
-    def __init__(self,composition_dict={},lipid_specstring='',lipid_ratio_specstring='',lipid_conformers_specstring='',    
-                leaflet_patch_nlipids=100,solvent_specstring='TIP3',solvent_ratio_specstring='1.0',solvent_to_lipid_ratio_specstring='32.0',
-                neutralizing_salt=['POT','CLA'],pdb_collection=None,resi_database=None,symmetrize=None):
+    def __init__(self,composition_dict={},leaflet_patch_nlipids=100,solvent_to_key_lipid_ratio=32.0,
+                neutralizing_salt=['POT','CLA'],pdb_collection=None,resi_database=None,solvent_specstring='TIP3',solvent_ratio_specstring='1.0'):
 
         # leaflet_patch_nlipids is the number of lipids per leaflet in a patch
         self.leaflet_patch_nlipids=leaflet_patch_nlipids
+
+        if not composition_dict:
+            logger.debug('Empty bilayer')
+            return
+
+        # complete leaflet entries in composition dictionary with species counts, charges, and MWs
+        for l in ['upper_leaflet','lower_leaflet']:
+            L=composition_dict[l]
+            for d in L:
+                if not 'patn' in d:
+                    d['patn']=int(d['frac']*leaflet_patch_nlipids)
+                if not 'charge' in d:
+                    d['charge']=resi_database['lipid'][d['name']].charge
+                if not 'MW' in d:
+                    d['MW']=resi_database['lipid'][d['name']].mass()
+
+        # user need not have specified the solvent composition in the upper and lower chambers
+        if 'upper_chamber' not in composition_dict or 'lower_chamber' not in composition_dict:
+            logger.debug(f'Provided composition dictionary does not include solvent chamber specifications')
+            logger.debug(f'Using specstrings \'{solvent_specstring}\' and \'{solvent_ratio_specstring}\' to build solvent composition')
+            C=BilayerSpecString(specstring=solvent_specstring,fracstring=solvent_ratio_specstring)
+            if 'upper_chamber' not in composition_dict:
+                composition_dict['upper_chamber']=C.left
+            if 'lower_chamber' not in composition_dict:
+                composition_dict['lower_chamber']=C.right
+
+        # complete chamber entries in composition dictionary with species counts, charges, and MWs
+        for c in ['upper_chamber','lower_chamber']:
+            L=composition_dict[c]
+            for d in L:
+                if not 'patn' in d:
+                    d['patn']=int(d['frac']*leaflet_patch_nlipids*solvent_to_key_lipid_ratio)
+                if not 'charge' in d:
+                    d['charge']=resi_database['water_ions'][d['name']].charge
+                if not 'MW' in d:
+                    d['MW']=resi_database['water_ions'][d['name']].mass()
+
+        # set up some short-cut object labes
         self.slices={'lower_chamber':{},'lower_leaflet':{},'upper_leaflet':{},'upper_chamber':{}}
         self.LC=self.slices['lower_chamber']
         self.LL=self.slices['lower_leaflet']
         self.UL=self.slices['upper_leaflet']
         self.UC=self.slices['upper_chamber']
-        if not composition_dict and not lipid_specstring and not lipid_ratio_specstring and not lipid_conformers_specstring:
-            logger.debug('Empty bilayer')
-            return
-        logger.debug(f'Passed in solvent_specstring \'{solvent_specstring}\' and solvent_ratio_specstring \'{solvent_ratio_specstring}\'')
-        if not composition_dict:
-            # old-style bilayer composition specification with memgen-style specstrings
-            ul_lip,ll_lip=bilayer_stringsplit(lipid_specstring,symmetrize=symmetrize)
-            ul_x,ll_x    =bilayer_stringsplit(lipid_ratio_specstring,return_type=float,normalize=True,symmetrize=symmetrize)
-            ul_c,ll_c    =bilayer_stringsplit(lipid_conformers_specstring,return_type=int,symmetrize=symmetrize)
-            uc_s,lc_s    =bilayer_stringsplit(solvent_specstring,symmetrize=symmetrize)
-            uc_x,lc_x    =bilayer_stringsplit(solvent_ratio_specstring,return_type=float,normalize=True,symmetrize=symmetrize)
-            uc_slr,lc_slr=bilayer_stringsplit(solvent_to_lipid_ratio_specstring,return_type=float,symmetrize=symmetrize)
-            assert len(ul_lip)==len(ul_x),f'Upper leaflet has {len(ul_lip)} lipids but {len(ul_x)} mole fractions specified'
-            assert len(ul_lip)==len(ul_c),f'Upper leaflet has {len(ul_lip)} lipids but {len(ul_c)} conformers specified'
-            assert len(ul_x)==len(ul_c),f'Upper leaflet has {len(ul_x)} mole fractions but {len(ul_c)} conformers specified'
-            assert len(ll_lip)==len(ll_x),f'Upper leaflet has {len(ul_lip)} lipids but {len(ul_x)} mole fractions specified'
-            assert len(ll_lip)==len(ll_c),f'Upper leaflet has {len(ul_lip)} lipids but {len(ul_c)} conformers specified'
-            assert len(ll_x)==len(ll_c),f'Upper leaflet has {len(ul_x)} mole fractions but {len(ul_c)} conformers specified'
-            # build the equivalent new-style composition dictionary; 'patn' is the number of molecules for a minimal patch
-            composition_dict={
-                'upper_chamber':[{'name':n,'frac':x,'patn':int(x*leaflet_patch_nlipids*s),'MW':resi_database['water_ions'][n].mass(),'charge':resi_database['water_ions'][n].charge} for n,x,s in zip(uc_s,uc_x,uc_slr)],
-                'lower_chamber':[{'name':n,'frac':x,'patn':int(x*leaflet_patch_nlipids*s),'MW':resi_database['water_ions'][n].mass(),'charge':resi_database['water_ions'][n].charge} for n,x,s in zip(lc_s,lc_x,lc_slr)],
-                'upper_leaflet':[{'name':n,'frac':x,'conf':c,'patn':int(x*leaflet_patch_nlipids),'charge':resi_database['lipid'][n].charge} for n,x,c in zip(ul_lip,ul_x,ul_c)],
-                'lower_leaflet':[{'name':n,'frac':x,'conf':c,'patn':int(x*leaflet_patch_nlipids),'charge':resi_database['lipid'][n].charge} for n,x,c in zip(ll_lip,ll_x,ll_c)],
-            }
-        else: # composition dictionary is provided
-            logger.debug(f'Composition dictionary for bilayer is provided')
-            ul_lip,ll_lip=[x['name'] for x in composition_dict['upper_leaflet']],[x['name'] for x in composition_dict['lower_leaflet']]
-            ul_x,ll_x=[x['frac'] for x in composition_dict['upper_leaflet']],[x['frac'] for x in composition_dict['lower_leaflet']]
-            # new-style bilayer composition specification with composition dictionary
-            for l in ['upper_leaflet','lower_leaflet']:
-                L=composition_dict[l]
-                for d in L:
-                    if not 'patn' in d:
-                        d['patn']=int(d['frac']*leaflet_patch_nlipids)
-                    if not 'charge' in d:
-                        d['charge']=resi_database['lipid'][d['name']].charge
-                    if not 'MW' in d:
-                        d['MW']=resi_database['lipid'][d['name']].mass()
-            # user need not have specified the solvent composition in the upper and lower chambers
-            if 'upper_chamber' not in composition_dict or 'lower_chamber' not in composition_dict:
-                logger.debug(f'Provided composition dictionary does not include solvent chamber specifications')
-                logger.debug(f'Using specstrings \'{solvent_specstring}\' and \'{solvent_ratio_specstring}\' to build solvent composition')
-                uc_s,lc_s=bilayer_stringsplit(solvent_specstring,symmetrize=symmetrize)
-                uc_x,lc_x=bilayer_stringsplit(solvent_ratio_specstring,return_type=float,normalize=True,symmetrize=symmetrize)
-                if 'upper_chamber' not in composition_dict:
-                    composition_dict['upper_chamber']=[{'name':n,'frac':x,'MW':resi_database['water_ions'][n].mass(),'charge':resi_database['water_ions'][n].charge} for n,x in zip(uc_s,uc_x)]
-                if 'lower_chamber' not in composition_dict:
-                    composition_dict['lower_chamber']=[{'name':n,'frac':x,'MW':resi_database['water_ions'][n].mass(),'charge':resi_database['water_ions'][n].charge} for n,x in zip(lc_s,lc_x)]
-
-            uc_slr,lc_slr=bilayer_stringsplit(solvent_to_lipid_ratio_specstring,return_type=float,symmetrize=symmetrize)
-            for c,slr in zip(['upper_chamber','lower_chamber'],[uc_slr,lc_slr]):
-                L=composition_dict[c]
-                logger.debug(f'{c} {L}')
-                for d,dlr in zip(L,slr):
-                    if not 'patn' in d:
-                        d['patn']=int(d['frac']*leaflet_patch_nlipids*dlr)
-                    if not 'charge' in d:
-                        d['charge']=resi_database['water_ions'][d['name']].charge
-                    if not 'MW' in d:
-                        d['MW']=resi_database['water_ions'][d['name']].mass()
-
-
-        if symmetrize=='upper':
-            logger.debug(f'Symmetrizing bilayer to upper leaflet')
-            composition_dict['lower_leaflet']=composition_dict['upper_leaflet']
-            composition_dict['lower_chamber']=composition_dict['upper_chamber']
-        elif symmetrize=='lower':
-            logger.debug(f'Symmetrizing bilayer to lower leaflet')
-            composition_dict['upper_leaflet']=composition_dict['lower_leaflet']
-            composition_dict['upper_chamber']=composition_dict['lower_chamber']
 
         # if the bilayer is asymmetric (each leaflet has a unique composition), we cannot assume a priori that
         # each leaflet in a patch has the same number of lipids.  We set a flag to indicate that the patch is 
         # asymmetric and that the number of lipids in each leaflet may need to be adjusted after equilibration
         # and measurment of the pressure profile.
-        ul_lx,ll_lx=[(x['name'],x['frac']) for x in composition_dict['upper_leaflet']],[(x['name'],x['frac']) for x in composition_dict['lower_leaflet']]
+        ul_lx,ll_lx=[(x['name'],x['frac']) for x in self.slices['upper_leaflet']],[(x['name'],x['frac']) for x in self.slices['lower_leaflet']]
         self.asymmetric=set(ul_lx)!=set(ll_lx)
-        if symmetrize is not None:
-            assert self.asymmetric==False,f'You have specified a symmetric bilayer but the upper and lower leaflets are not the same: {ul_lx} {ll_lx}'
 
-        lipid_names=[x['name'] for x in composition_dict['upper_leaflet']]
-        lipid_names+= [x['name'] for x in composition_dict['lower_leaflet']]
+        lipid_names=[x['name'] for x in self.slices['upper_leaflet']]
+        lipid_names+= [x['name'] for x in self.slices['lower_leaflet']]
         self.lipid_names=list(set(lipid_names))
         
-        solvent_names=[x['name'] for x in composition_dict['upper_chamber']]
-        solvent_names+= [x['name'] for x in composition_dict['lower_chamber']]
+        solvent_names=[x['name'] for x in self.slices['upper_chamber']]
+        solvent_names+= [x['name'] for x in self.slices['lower_chamber']]
         self.solvent_names=list(set(solvent_names))
         self.species_names=self.lipid_names+self.solvent_names
 
