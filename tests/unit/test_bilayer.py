@@ -307,18 +307,24 @@ def test_bilayer_init_memgen_style():
     assert test_bilayer.asymmetric == True
 
 def test_bilayer_build_patch():
+    if os.path.exists('__test_bilayer_build_patch'):
+        shutil.rmtree('__test_bilayer_build_patch')
+    os.mkdir('__test_bilayer_build_patch')
+    os.chdir('__test_bilayer_build_patch')
     RDB=CharmmResiDatabase()
     RDB.add_stream('lipid')
     RDB.add_topology('toppar_all36_moreions.str',streamnameoverride='water_ions')
     C=Config()
     RM=C.RM
     pdb_collection=RM.pdb_collection
-    test_bilayer=Bilayer(lipid_specstring='POPC:CHL1//POPE:CHL1',lipid_ratio_specstring='0.75:0.25//0.33:0.67',lipid_conformers_specstring='3:4//7:2',pdb_collection=pdb_collection,resi_database=RDB)
+    cdict=specstrings_builddict(lipid_specstring='POPC:CHL1//POPE:CHL1',lipid_ratio_specstring='0.75:0.25//0.33:0.67',lipid_conformers_specstring='3:4//7:2')
+    test_bilayer=Bilayer(composition_dict=cdict,pdb_collection=pdb_collection,resi_database=RDB)
     test_bilayer.build_patch()
     assert test_bilayer.patch_ll_corner[0]==pytest.approx(0.0, rel=1e-2)
     assert test_bilayer.patch_ll_corner[1]==pytest.approx(0.0, rel=1e-2)
     assert test_bilayer.patch_ll_corner[2]==pytest.approx(-43.31, rel=1e-2)
-
+    os.chdir('..')
+    
 def test_bilayer_task_init_symmetric():
     if os.path.exists('__test_bilayer_task_symmetric'):
         shutil.rmtree('__test_bilayer_task_symmetric')
@@ -338,7 +344,6 @@ def test_bilayer_task_init_symmetric():
     result=BET.do()
     os.chdir('..')
     assert result==0
-
 
 def test_bilayer_task_init_asymmetric():
     if os.path.exists('__test_bilayer_task_asymmetric'):

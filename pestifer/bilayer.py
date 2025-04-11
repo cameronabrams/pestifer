@@ -120,20 +120,21 @@ class Bilayer:
         self.LL=self.slices['lower_leaflet']
         self.UL=self.slices['upper_leaflet']
         self.UC=self.slices['upper_chamber']
-
+        for layer,data in self.slices.items():
+            data['composition']=composition_dict[layer]
         # if the bilayer is asymmetric (each leaflet has a unique composition), we cannot assume a priori that
         # each leaflet in a patch has the same number of lipids.  We set a flag to indicate that the patch is 
         # asymmetric and that the number of lipids in each leaflet may need to be adjusted after equilibration
         # and measurment of the pressure profile.
-        ul_lx,ll_lx=[(x['name'],x['frac']) for x in self.slices['upper_leaflet']],[(x['name'],x['frac']) for x in self.slices['lower_leaflet']]
+        ul_lx,ll_lx=[(x['name'],x['frac']) for x in self.slices['upper_leaflet']['composition']],[(x['name'],x['frac']) for x in self.slices['lower_leaflet']['composition']]
         self.asymmetric=set(ul_lx)!=set(ll_lx)
 
-        lipid_names=[x['name'] for x in self.slices['upper_leaflet']]
-        lipid_names+= [x['name'] for x in self.slices['lower_leaflet']]
+        lipid_names=[x['name'] for x in self.slices['upper_leaflet']['composition']]
+        lipid_names+= [x['name'] for x in self.slices['lower_leaflet']['composition']]
         self.lipid_names=list(set(lipid_names))
         
-        solvent_names=[x['name'] for x in self.slices['upper_chamber']]
-        solvent_names+= [x['name'] for x in self.slices['lower_chamber']]
+        solvent_names=[x['name'] for x in self.slices['upper_chamber']['composition']]
+        solvent_names+= [x['name'] for x in self.slices['lower_chamber']['composition']]
         self.solvent_names=list(set(solvent_names))
         self.species_names=self.lipid_names+self.solvent_names
 
