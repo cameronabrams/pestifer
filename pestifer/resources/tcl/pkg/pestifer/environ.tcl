@@ -10,8 +10,10 @@ proc PestiferEnviron::leaflet_apportionment { molid } {
    set bilayer [atomselect $molid "lipid"]
    set com [measure center $bilayer weight mass]
    set com_z [lindex $com 2]
-   $whole moveby [list 0 0 -$com_z]
-   set residue_list [lsort -unique [atomselect $molid "residue"]]
+   vmdcon -info "Bilayer center of mass z coordinate: $com_z"
+   $whole moveby [list 0 0 [expr -1*$com_z]]
+   set residue_list [lsort -unique [$bilayer get residue]]
+   vmdcon -info "Residue list: $residue_list"
    set residues(upper) [list]
    set residues(lower) [list]
    foreach residue $residue_list {
@@ -24,9 +26,11 @@ proc PestiferEnviron::leaflet_apportionment { molid } {
          lappend residues(lower) $residue
       }
    }
-   set residues(upper) [lsort -unique $residues(upper)]
-   set residues(lower) [lsort -unique $residues(lower)]
-   return $residues
+   vmdcon -info "Upper leaflet residues: $residues(upper)"
+   vmdcon -info "Lower leaflet residues: $residues(lower)"
+   set residues(upper) [lsort -unique ${residues(upper)}]
+   set residues(lower) [lsort -unique ${residues(lower)}]
+   return [array get residues]
 }
 
 proc PestiferEnviron::write_psfgen { molid {next_available_chain A} {segtypes {lipid water ion}} {Slet {L I W}} {maxr_per_seg 1000}} {
