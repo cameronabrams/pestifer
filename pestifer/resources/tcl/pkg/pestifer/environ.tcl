@@ -5,6 +5,30 @@ namespace eval ::PestiferEnviron:: {
     namespace export *
 }
 
+proc PestiferEnviron::leaflet_apportionment { molid } {
+   set whole [atomselect $molid all]
+   set bilayer [atomselect $molid "lipid"]
+   set com [measure center $bilayer weight mass]
+   set com_z [lindex $com 2]
+   $whole moveby [list 0 0 -$com_z]
+   set residue_list [lsort -unique [atomselect $molid "residue"]]
+   set residues(upper) [list]
+   set residues(lower) [list]
+   foreach residue $residue_list {
+      set ressel [atomselect $molid "residue $residue"]
+      set com [measure center $ressel weight mass]
+      set com_z [lindex $com 2]
+      if { $com_z > 0 } {
+         lappend residues(upper) $residue
+      } else {
+         lappend residues(lower) $residue
+      }
+   }
+   set residues(upper) [lsort -unique $residues(upper)]
+   set residues(lower) [lsort -unique $residues(lower)]
+   return $residues
+}
+
 proc PestiferEnviron::write_psfgen { molid {next_available_chain A} {segtypes {lipid water ion}} {Slet {L I W}} {maxr_per_seg 1000}} {
     # execute segment and coordpdb stanzas for all atoms in the molid
     foreach segtype $segtypes S $Slet {

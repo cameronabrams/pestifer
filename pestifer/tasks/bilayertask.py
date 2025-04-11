@@ -69,12 +69,9 @@ class BilayerEmbedTask(BaseTask):
             composition_dict['lower_leaflet']=composition_dict['upper_leaflet']
             composition_dict['lower_chamber']=composition_dict['upper_chamber']
             self.patchA=Bilayer(composition_dict,
-                            lipid_specstring=lipid_specstring,
-                            lipid_ratio_specstring=ratio_specstring,
-                            lipid_conformers_specstring=conformers_specstring,
                             solvent_specstring=solvent_specstring,
                             solvent_ratio_specstring=solvent_ratio_specstring,
-                            solvent_to_lipid_ratio_specstring=solvent_to_lipid_ratio_specstring,
+                            solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
                             pdb_collection=self.pdb_collection,resi_database=self.RDB)
             logger.debug(f'Symmetrizing bilayer to lower leaflet')
             composition_dict['upper_leaflet_saved']=composition_dict['upper_leaflet']
@@ -84,14 +81,10 @@ class BilayerEmbedTask(BaseTask):
             composition_dict['upper_leaflet']=composition_dict['lower_leaflet']
             composition_dict['upper_chamber']=composition_dict['lower_chamber']
             self.patchB=Bilayer(composition_dict,
-                            lipid_specstring=lipid_specstring,
-                            lipid_ratio_specstring=ratio_specstring,
-                            lipid_conformers_specstring=conformers_specstring,
                             solvent_specstring=solvent_specstring,
                             solvent_ratio_specstring=solvent_ratio_specstring,
-                            solvent_to_lipid_ratio_specstring=solvent_to_lipid_ratio_specstring,
-                            pdb_collection=self.pdb_collection,resi_database=self.RDB,
-                            symmetrize='lower')
+                            solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
+                            pdb_collection=self.pdb_collection,resi_database=self.RDB)
             composition_dict['upper_leaflet']=composition_dict['upper_leaflet_saved']
             composition_dict['upper_chamber']=composition_dict['upper_chamber_saved']
             self.patch=None
@@ -212,6 +205,8 @@ class BilayerEmbedTask(BaseTask):
         SAPLB=self.patchB.area/self.patchB.leaflet_patch_nlipids
         nA_to_delete=int(areadiff/SAPLA)
         nB_to_delete=int(areadiff/SAPLB)
+        logger.debug(f'Area difference {areadiff:.3f} {sA2_} SAPLA {SAPLA:.3f} {sA2_} SAPLB {SAPLB:.3f} {sA2_}')
+        logger.debug(f'Number of lipids to delete from patchA {nA_to_delete} and patchB {nB_to_delete}')
         vm=self.writers['vmd']
         if nA_to_delete>0:
             logger.debug(f'patchA has {self.patchA.leaflet_patch_nlipids} lipids; deleting {nA_to_delete} lipids')
@@ -223,17 +218,7 @@ class BilayerEmbedTask(BaseTask):
             self.patchB.leaflet_patch_nlipids-=nB_to_delete
         else:
             logger.debug(f'No lipid deletions necessary to merge patches')
-            
-        pdbA=self.patchA.statevars['pdb']
-        pdbB=self.patchB.statevars['pdb']
-        
-        vm.newscript(f'{self.basename}-merge')
-        vm.addline(f'mol new {pdbA}')
-        vm.addline(f'mol new {pdbB}')
-        vm.addline(f'set upper_leaflet_chamber [atomselect 0 "same residue as "z>0.0"]')
-        vm.addline(f'$upper_leaflet_chamber writepdb {self.basename}-upper.pdb')
-        vm.addline(f'set lower_leaflet_chamber [atomselect 1 "same residue as "z<0.0"]')
-        vm.addline(f'$lower_leaflet_chamber writepdb {self.basename}-lower.pdb')
+
 
     # def solvate(self):
     #     solvent_specstring=self.specs.get('solvents','TIP3')

@@ -4,30 +4,6 @@
 # bilayer created using the upper leaflet of one
 # input bilayer and the lower leaflet of another
 
-proc leaflet_apportionment { molid } {
-   set whole [atomselect $molid all]
-   set bilayer [atomselect $molid "lipid"]
-   set com [measure center $bilayer weight mass]
-   set com_z [lindex $com 2]
-   $whole moveby [list 0 0 -$com_z]
-   set residue_list [lsort -unique [atomselect $molid "residue"]]
-   set residues(upper) [list]
-   set residues(lower) [list]
-   foreach residue $residue_list {
-      set ressel [atomselect $molid "residue $residue"]
-      set com [measure center $ressel weight mass]
-      set com_z [lindex $com 2]
-      if { $com_z > 0 } {
-         lappend residues(upper) $residue
-      } else {
-         lappend residues(lower) $residue
-      }
-   }
-   set residues(upper) [lsort -unique $residues(upper)]
-   set residues(lower) [lsort -unique $residues(lower)]
-   return $residues
-}
-
 package require PestiferEnviron 1.0
 namespace import ::PestiferEnviron::*
 
