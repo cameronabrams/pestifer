@@ -184,8 +184,8 @@ class BilayerEmbedTask(BaseTask):
                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
             {'md':dict(ensemble='NPT',nsteps=25600,
                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'mdplot':dict(basename=self.basename,traces=['density',['a_x','b_y','c_z']],legend=True,grid=True,savedata=f'{self.basename}-traces.csv')},
-            {'terminate':dict(basename=self.basename,chainmapfile=f'{self.basename}-chainmap.yaml',statefile=f'{self.basename}-state.yaml')}                 
+            {'mdplot':dict(traces=['density',['a_x','b_y','c_z']],legend=True,grid=True,savedata=f'{self.basename}-traces.csv')},
+            {'terminate':dict(basename=f'equilibrated-patch{spec}',chainmapfile=f'{self.basename}-chainmap.yaml',statefile=f'{self.basename}-state.yaml')}                 
         ]
         subconfig=Config(userdict=userdict)
         subcontroller=Controller(subconfig)
