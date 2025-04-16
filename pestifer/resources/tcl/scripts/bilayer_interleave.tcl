@@ -11,13 +11,36 @@ package require pbctools
 
 set scriptname bilayer_interleave
 
+set propdb ""
+set margin 10.0
+set psfA ""
 set pdbA ""
 set xscA ""
+set psfB ""
 set pdbB ""
 set xscB ""
-set outbasename "bilayer-interleaved"
-
+set outbasename "quilt"
+set npatchx 1
+set npatchy 1
+set dimx 0
+set dimy 0
 for { set i 0 } { $i < [llength $argv] } { incr i } {
+   if { [lindex $argv $i] == "-propdb"} {
+      incr i
+      set propdb [lindex $argv $i]
+   }
+   if { [lindex $argv $i] == "-margin"} {
+      incr i
+      set margin [lindex $argv $i]
+   }
+   if { [lindex $argv $i] == "-psfA"} {
+      incr i
+      set psfA [lindex $argv $i]
+   }
+   if { [lindex $argv $i] == "-psfB"} {
+      incr i
+      set psfB [lindex $argv $i]
+   }
    if { [lindex $argv $i] == "-pdbA"} {
       incr i
       set pdbA [lindex $argv $i]
@@ -34,21 +57,246 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
       incr i
       set xscB [lindex $argv $i]
    }
+   if { [lindex $argv $i] == "-nx"} {
+      incr i
+      set npatchx [lindex $argv $i]
+   }
+   if { [lindex $argv $i] == "-ny"} {
+      incr i
+      set npatchy [lindex $argv $i]
+   }
+   if { [lindex $argv $i] == "-dimx"} {
+      incr i
+      set dimx [lindex $argv $i]
+   }
+   if { [lindex $argv $i] == "-dimy"} {
+      incr i
+      set dimy [lindex $argv $i]
+   }
    if { [lindex $argv $i] == "-o"} {
       incr i
       set outbasename [lindex $argv $i]
    }
 }
-mol new $pdbA waitfor all
-set source(upper) [molinfo top get id]
-# pbc readxst $xscA -molid $source(upper)
-mol new $pdbB waitfor all
-set source(lower) [molinfo top get id]
-# pbc readxst $xscB -molid $source(lower)
 
-foreach leaflet { upper lower } {
-   set residues [leaflet_apportionment $source($leaflet)]
-   set leaflet_sel [atomselect $source "residue $residues($leaflet)"]
-   $leaflet_sel writepdb "${outbasename}-${leaflet}.pdb" 
+set min_sys_Lx 0
+set min_sys_Ly 0
+if { $propdb != "" } {
+   # there is a protein pdb that should determine the box size
+   mol new $propdb waitfor all
+   set prop_molid [molinfo top get id]
+   set pro [atomselect $prop_molid all]
+   set mm [measure minmax $pro]
+   set minx [lindex $mm 0 0]
+   set miny [lindex $mm 0 1]
+   set maxx [lindex $mm 1 0]
+   set maxy [lindex $mm 1 1]
+   set pro_Lx [expr $maxx - $minx]
+   set pro_Ly [expr $maxy - $miny]
+   set min_sys_Lx [expr $pro_Lx + 2*$margin]
+   set min_sys_Ly [expr $pro_Ly + 2*$margin]
+   vmdcon -info "minimum system Lx: $min_sys_Lx"
+   vmdcon -info "minimum system Ly: $min_sys_Ly"
+   mol delete $prop_molid
+} elseif { $dimx > 0 && $dimy > 0 } {
+   # explicit dimensions provided
+   set min_sys_Lx $dimx
+   set min_sys_Ly $dimy
+} elseif { $npatchx > 0 && $npatchy > 0 } {
+   # explicit dimensions provided in number of patchlengths
+   vmdcon -info "x and y dimensions provided in number of patchlengths; x $npatchx, y $npatchy"
+} else {
+   vmdcon -error "No protein pdb or patch dimensions provided"
 }
 
+
+
+
+mol new $psfA 
+mol addfile $pdbA waitfor all
+set source_upper [molinfo top get id]
+pbc readxst $xscA -molid $source_upper
+set boxA [molinfo $source_upper get {a b c}]
+mol new $psfB
+mol addfile $pdbB waitfor all
+set source_lower [molinfo top get id]
+pbc readxst $xscB -molid $source_lower
+set boxB [molinfo $source_lower get {a b c}]
+
+set patch_areaA [expr {[lindex $boxA 0] * [lindex $boxA 1]}]
+set patch_areaB [expr {[lindex $boxB 0] * [lindex $boxB 1]}]
+set patchx [expr max([lindex $boxA 0], [lindex $boxB 0])]
+set patchy [expr max([lindex $boxA 1], [lindex $boxB 1])]
+
+vmdcon -info "patch areaA: $patch_areaA"
+vmdcon -info "patch areaB: $patch_areaB"
+vmdcon -info "patchx: $patchx"
+vmdcon -info "patchy: $patchy"
+
+if {$min_sys_Lx > 0 && $min_sys_Ly > 0} {
+   # this will be true if a protein is used to size the box or if explicit dimensions
+   # are given
+   set npatchx [expr max(1, int($min_sys_Lx / $patchx)+1)]
+   set npatchy [expr max(1, int($min_sys_Ly / $patchy)+1)]
+   vmdcon -info "npatchx x npatchy: $patchx x $npatchy"
+}
+
+set quilt_areaA [expr $patch_areaA * $npatchx * $npatchy]
+set quilt_areaB [expr $patch_areaB * $npatchx * $npatchy]
+vmdcon -info "quilt areaA: $quilt_areaA"
+vmdcon -info "quilt areaB: $quilt_areaB"
+
+catch {set sliced_upper [leaflet_apportionment $source_upper]}
+split_psf $psfA $pdbA $sliced_upper "sliceA"
+catch {set sliced_lower [leaflet_apportionment $source_lower]}
+split_psf $psfB $pdbB $sliced_lower "sliceB"
+
+set upper_patch "sliceA1"
+set lower_patch "sliceB2"
+
+mol delete $source_upper
+mol delete $source_lower
+
+mol new $upper_patch.psf 
+mol addfile $upper_patch.pdb waitfor all
+set sliceAmolid [molinfo top get id]
+set nlipidsA [llength [lsort -unique [[atomselect $sliceAmolid "lipid"] get residue]]]
+mol delete $sliceAmolid
+mol new $lower_patch.psf
+mol addfile $lower_patch.pdb waitfor all
+set sliceBmolid [molinfo top get id]
+set nlipidsB [llength [lsort -unique [[atomselect $sliceBmolid "lipid"] get residue]]]
+mol delete $sliceBmolid
+
+vmdcon -info "nlipidsA: $nlipidsA"
+vmdcon -info "nlipidsB: $nlipidsB"
+# there should be no molecules loaded at this point
+if { [verify_no_mols] != 1} {
+   vmdcon -error "There are still molecules loaded"
+}
+
+set saplA [expr $patch_areaA / $nlipidsA]
+set saplB [expr $patch_areaB / $nlipidsB]
+vmdcon -info "saplA: $saplA"
+vmdcon -info "saplB: $saplB"
+
+set quilt_area_AB [expr $quilt_areaA - $quilt_areaB]
+vmdcon -info "quilt area difference (upper - lower): $quilt_area_AB"
+set nlipids_deleteA 0
+set nlipids_deleteB 0
+if { $quilt_area_AB > 0 } {
+   vmdcon -info "Upper leaflet quilt is larger by $quilt_area_AB"
+   set nlipids_deleteA [expr int($quilt_area_AB / $saplA)]
+   vmdcon -info "Deleting $nlipids_deleteA lipids from upper leaflet quilt"
+   set Lx [lindex $boxA 0]
+   set Ly [lindex $boxA 1]
+} else {
+   vmdcon -info "Lower leaflet quilt is larger by $quilt_area_AB"
+   set nlipids_deleteB [expr int(-$quilt_area_AB / $saplB)]
+   vmdcon -info "Deleting $nlipids_deleteB lipids from lower leaflet quilt"
+   set Lx [lindex $boxB 0]
+   set Ly [lindex $boxB 1]
+}
+
+set next_available_chain A
+for {set nx 0} { $nx < $npatchx } { incr nx } {
+   for {set ny 0} { $ny < $npatchy } { incr ny } {
+      set xoffset [expr $nx * $Lx]
+      set yoffset [expr $ny * $Ly]
+      vmdcon -info "xoffset: $xoffset"
+      vmdcon -info "yoffset: $yoffset"
+      set movevec [list $xoffset $yoffset 0]
+      mol new "${upper_patch}.psf" 
+      mol addfile "${upper_patch}.pdb" waitfor all
+      set molid [molinfo top get id]
+      [atomselect $molid all] moveby $movevec
+      set next_available_chain [write_psfgen $molid $next_available_chain { lipid water ion } { L I W } 1000]
+      mol delete $molid
+      mol new "${lower_patch}.psf" 
+      mol addfile "${lower_patch}.pdb" waitfor all
+      set molid [molinfo top get id]
+      [atomselect $molid all] moveby $movevec
+      set next_available_chain [write_psfgen $molid $next_available_chain { lipid water ion } { L I W } 1000]
+      mol delete $molid
+   }
+}
+# there should be no molecules loaded at this point
+if { [verify_no_mols] != 1} {
+   vmdcon -error "There are still molecules loaded"
+}
+
+set quilt_boxX [expr $Lx * $npatchx]
+set quilt_boxY [expr $Ly * $npatchy]
+set quilt_boxZ [expr {max([lindex $boxA 2],[lindex $boxB 2])}]
+
+regenerate angles dihedrals
+set firstname  "${outbasename}_first_quilting"
+writepsf "${firstname}.psf"
+writepdb "${firstname}.pdb"
+mol new ${firstname}.psf
+mol addfile ${firstname}.pdb waitfor all
+
+set molid [molinfo top get id]
+
+set lipid [atomselect $molid "lipid"]
+set ncom [vecscale -1 [measure center $lipid weight mass]]
+set all [atomselect $molid all]
+$all moveby $ncom
+$all writepdb "${firstname}_centered.pdb"
+
+set fp [open "${firstname}.xsc" "w"]
+puts $fp "# PESTIFER generated xst file"
+puts $fp "#\$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w"
+puts $fp "0 $quilt_boxX 0 0  0 $quilt_boxY 0  0 0 $quilt_boxZ  [lindex $ncom 0] [lindex $ncom 1] [lindex $ncom 2] 0 0 0 0 0 0"
+close $fp
+
+set slicedquilt [leaflet_apportionment $molid]
+
+if { $nlipids_deleteA > 0 } {
+   set u_allres [lindex $slicedquilt 0]
+   set u_l [atomselect $molid "lipid and residue $u_allres"]
+   set u_lres [lsort -unique [$u_l get residue]]
+   set nres [llength $u_lres]
+   set shuffled_resnums [shuffle_list $u_lres]
+   set remove_resnums [lrange $shuffled_resnums 0 [expr {$nlipids_deleteA - 1}]]
+   set remove_sel [atomselect $molid "residue $remove_resnums"]
+} elseif { $nlipids_deleteB > 0} {
+   set l_allres [lindex $slicedquilt 1]
+   set l_l [atomselect $molid "lipid and residue $l_allres"]
+   set l_lres [lsort -unique [$l_l get residue]]
+   set nres [llength $l_lres]
+   set shuffled_resnums [shuffle_list $l_lres]
+   set remove_resnums [lrange $shuffled_resnums 0 [expr {$nlipids_deleteB - 1}]]
+   set remove_sel [atomselect $molid "residue $remove_resnums"]
+} else {
+   vmdcon -info "No lipids to delete"
+   set remove_sel [atomselect $molid "name A_FAKE_NAME"]
+}
+set badseg [$remove_sel get segname]
+set badres [$remove_sel get resid]
+set badname [$remove_sel get name]
+
+mol delete $molid
+if { [verify_no_mols] != 1} {
+   vmdcon -error "There are still molecules loaded"
+}
+resetpsf
+readpsf ${firstname}.psf pdb ${firstname}_centered.pdb
+if { [llength $badseg] > 0 } {
+   foreach seg $badseg res $badres name $badname {
+      delatom $seg $res $name
+   }
+   regenerate angles dihedrals
+}
+
+writepsf "${outbasename}_prelabel.psf"
+writepdb "${outbasename}_prelabel.pdb"
+resetpsf
+mol new ${outbasename}_prelabel.psf
+mol addfile ${outbasename}_prelabel.pdb waitfor all
+set molid [molinfo top get id]
+
+write_psfgen ${molid} U { lipid water ion } { L I W } 1000
+regenerate angles dihedrals
+writepsf "${outbasename}.psf"
+writepdb "${outbasename}.pdb"

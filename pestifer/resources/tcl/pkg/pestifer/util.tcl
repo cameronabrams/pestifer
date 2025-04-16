@@ -9,6 +9,48 @@ namespace eval ::PestiferUtil:: {
     namespace export *
 }
 
+proc PestiferUtil::split_psf {psf pdb residues {prefix "section"}} {
+   set nsections [llength $residues]
+   package require psfgen
+   set section 1
+   foreach x $residues {
+      resetpsf
+      readpsf $psf pdb $pdb
+      set keepsel [atomselect top "residue $x"]
+      set delsel [atomselect top "not residue $x"]
+      catch {
+      foreach seg [$delsel get segname] resid [$delsel get resid] {
+         delatom $seg $resid
+      }}
+      writepsf "${prefix}${section}.psf"
+      writepdb "${prefix}${section}.pdb"
+      vmdcon -info "Wrote ${prefix}${section}.psf and ${prefix}${section}.pdb"
+      set section [expr $section + 1]
+   }
+   resetpsf
+}
+
+proc PestiferUtil::verify_no_mols {} {
+   catch {mol list} rv 
+   if { $rv == "ERROR) No molecules loaded." } {
+      return 1
+   }
+   return 0
+}
+
+proc PestiferUtil::shuffle_list {list} {
+    set n [llength $list]
+    for {set i [expr {$n - 1}]} {$i > 0} {incr i -1} {
+        set j [expr {int(rand() * ($i + 1))}]
+        # Swap elements i and j
+        set temp [lindex $list $i]
+        lset list $i [lindex $list $j]
+        lset list $j $temp
+    }
+    return $list
+}
+
+
 # Logs a message to both the VMD console and to an open
 # log file
 proc PestiferUtil::double_log { logf message } {

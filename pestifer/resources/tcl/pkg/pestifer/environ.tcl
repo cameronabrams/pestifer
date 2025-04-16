@@ -14,23 +14,37 @@ proc PestiferEnviron::leaflet_apportionment { molid } {
    $whole moveby [list 0 0 [expr -1*$com_z]]
    set residue_list [lsort -unique [$bilayer get residue]]
    vmdcon -info "Residue list: $residue_list"
-   set residues(upper) [list]
-   set residues(lower) [list]
+   set residues_upper [list]
+   set residues_lower [list]
    foreach residue $residue_list {
       set ressel [atomselect $molid "residue $residue"]
       set com [measure center $ressel weight mass]
       set com_z [lindex $com 2]
       if { $com_z > 0 } {
-         lappend residues(upper) $residue
+         lappend residues_upper $residue
       } else {
-         lappend residues(lower) $residue
+         lappend residues_lower $residue
       }
    }
-   vmdcon -info "Upper leaflet residues: $residues(upper)"
-   vmdcon -info "Lower leaflet residues: $residues(lower)"
-   set residues(upper) [lsort -unique ${residues(upper)}]
-   set residues(lower) [lsort -unique ${residues(lower)}]
-   return [array get residues]
+   set upperchamber [atomselect $molid "(water or ion) and z > 0"]
+   set urix [lsort -unique [$upperchamber get residue]]
+   foreach residue $urix {
+      lappend residues_upper $residue
+   }
+   set lowerchamber [atomselect $molid "(water or ion) and z < 0"]
+   set lrix [lsort -unique [$lowerchamber get residue]]
+   foreach residue $lrix {
+      lappend residues_lower $residue
+   }
+   $whole moveby [list 0 0 [expr $com_z]]
+
+#    set upper [atomselect $molid "residue ${residues_upper}"]
+#    set lower [atomselect $molid "residue ${residues_lower}"]
+#    puts "[$upper num] upper slice atoms"
+#    puts "[$lower num] lower slice atoms"
+#    set uidx [$upper get index]
+#    set lidx [$lower get index]
+   return [list $residues_upper $residues_lower]
 }
 
 proc PestiferEnviron::write_psfgen { molid {next_available_chain A} {segtypes {lipid water ion}} {Slet {L I W}} {maxr_per_seg 1000}} {
@@ -81,5 +95,5 @@ proc PestiferEnviron::write_psfgen { molid {next_available_chain A} {segtypes {l
             set next_available_chain [letter_up $next_available_chain]
         }
     }
-
+    return $next_available_chain
 }

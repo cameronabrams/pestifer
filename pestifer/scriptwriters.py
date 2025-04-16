@@ -311,15 +311,15 @@ class Psfgen(VMD):
         self.addline(f'mol top ${self.molid_varname}')
         mol.write_TcL(self)
 
-    def writescript(self,statename,guesscoord=True,regenerate=True,force_exit=False):
+    def writescript(self,statename,guesscoord=True,regenerate=True,writepsf=True,writepdb=True,force_exit=False):
         if guesscoord:
             self.addline('guesscoord')
         if regenerate:
             self.addline('regenerate angles dihedrals')
-        psf=f'{statename}.psf'
-        pdb=f'{statename}.pdb'
-        self.addline(f'writepsf cmap {psf}')
-        self.addline(f'writepdb {pdb}')
+        if writepsf:
+            self.addline(f'writepsf cmap {statename}.psf')
+        if writepdb:
+            self.addline(f'writepdb {statename}.pdb')
         super().writescript(force_exit=force_exit)
 
     def runscript(self,*args,**options):

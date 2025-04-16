@@ -3,7 +3,7 @@ import logging
 
 from copy import deepcopy
 
-from ..bilayer import Bilayer
+from ..bilayer import Bilayer, specstrings_builddict
 from ..basetask import BaseTask
 from ..charmmtop import CharmmResiDatabase
 from ..config import Config
@@ -110,7 +110,7 @@ class BilayerEmbedTask(BaseTask):
                 logger.debug(f'BilayerEmbedTask will use psf {self.pro_psf} and pdb {self.pro_pdb} as inputs')
 
         self.build_patch()
-        # self.make_bilayer_from_patch()
+        self.make_bilayer_from_patch()
         # self.embed_protein()
         # self.solvate()
         # self.log_message('complete')
@@ -156,10 +156,6 @@ class BilayerEmbedTask(BaseTask):
             cell_to_xsc(patch.box,patch.origin,f'{self.basename}.xsc')
             patch.area=patch.box[0][0]*patch.box[1][1]
             self.equilibrate_patch(patch,spec)
-
-        if self.patchA is not None and self.patchB is not None:
-            self.next_basename('patch')
-            self.merge_patchAB()
  
     def equilibrate_patch(self,patch,spec):
         logger.debug(f'Patch area before equilibration: {patch.area:.3f} {sA2_}')
@@ -184,7 +180,7 @@ class BilayerEmbedTask(BaseTask):
                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
             {'md':dict(ensemble='NPT',nsteps=25600,
                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'mdplot':dict(traces=['density',['a_x','b_y','c_z']],legend=True,grid=True,savedata=f'{self.basename}-traces.csv')},
+            {'mdplot':dict(traces=['density',['a_x','b_y','c_z']],legend=True,grid=True,savedata=f'{self.basename}-traces.csv',basename=f'equilibrated-patch{spec}')},
             {'terminate':dict(basename=f'equilibrated-patch{spec}',chainmapfile=f'{self.basename}-chainmap.yaml',statefile=f'{self.basename}-state.yaml')}                 
         ]
         subconfig=Config(userdict=userdict)
@@ -199,26 +195,48 @@ class BilayerEmbedTask(BaseTask):
         patch.area=patch.box[0][0]*patch.box[1][1]
         logger.debug(f'Patch area after equilibration: {patch.area:.3f} {sA2_}')
 
-    def merge_patchAB(self):
-        areadiff=self.patchA.area-self.patchB.area
-        SAPLA=self.patchA.area/self.patchA.leaflet_patch_nlipids
-        SAPLB=self.patchB.area/self.patchB.leaflet_patch_nlipids
-        nA_to_delete=int(areadiff/SAPLA)
-        nB_to_delete=int(areadiff/SAPLB)
-        logger.debug(f'Area difference {areadiff:.3f} {sA2_} SAPLA {SAPLA:.3f} {sA2_} SAPLB {SAPLB:.3f} {sA2_}')
-        logger.debug(f'Number of lipids to delete from patchA {nA_to_delete} and patchB {nB_to_delete}')
-        vm=self.writers['vmd']
-        if nA_to_delete>0:
-            logger.debug(f'patchA has {self.patchA.leaflet_patch_nlipids} lipids; deleting {nA_to_delete} lipids')
-            self.patchA.delete_lipid(vm,nA_to_delete,leaflet='upper')
-            self.patchA.leaflet_patch_nlipids-=nA_to_delete
-        elif nB_to_delete>0:
-            logger.debug(f'patchA has {self.patchA.leaflet_patch_nlipids} lipids; deleting {nA_to_delete} lipids')
-            self.patchB.delete_lipid(vm,nB_to_delete,leaflet='lower')
-            self.patchB.leaflet_patch_nlipids-=nB_to_delete
-        else:
-            logger.debug(f'No lipid deletions necessary to merge patches')
+    def make_bilayer_from_patch(self):
+        logger.debug(f'Creating bilayer from patch')
+        self.next_basename('make_bilayer')
+        additional_topologies=[]
+        if self.patch is not None:
+            pdb=self.patch.statevars.get('pdb',None)
+            xsc=self.patch.statevars.get('xsc',None)
+            psf=self.patch.statevars.get('psf',None)
+            pdbA=pdbB=pdb
+            psfA=psfB=psf
+            xscA=xscB=xsc
+        elif self.patchA is not None and self.patchB is not None:
+            psfA=self.patchA.statevars.get('psf',None)
+            pdbA=self.patchA.statevars.get('pdb',None)
+            xscA=self.patchA.statevars.get('xsc',None)
+            psfB=self.patchB.statevars.get('psf',None)
+            pdbB=self.patchB.statevars.get('pdb',None)
+            xscB=self.patchB.statevars.get('xsc',None)
 
+        for patch in [self.patch,self.patchA,self.patchB]:
+            if patch is None:
+                continue
+            additional_topologies+=patch.addl_streamfiles
+        additional_topologies=list(set(additional_topologies))
+        pg=self.writers['psfgen']
+        pg.newscript(self.basename,additional_topologies=additional_topologies)
+        pg.usescript('bilayer_interleave')
+        pg.writescript(self.basename,guesscoord=False,regenerate=False,force_exit=True,writepsf=False,writepdb=False)
+        margin=self.specs.get('embed',{}).get('margin',10.0)
+        if hasattr(self,"pro_pdb"):
+            result=pg.runscript(propdb=self.pro_pdb,margin=margin,psfA=psfA,pdbA=pdbA,psfB=psfB,pdbB=pdbB,xscA=xscA,xscB=xscB,o=self.basename)
+        else:
+            # TODO: use dims
+            dimx,dimy=self.specs.get('dims',(0,0))
+            npatchx,npatchy=self.specs.get('npatch',(0,0))
+            if npatchx!=0 and npatchy!=0:
+                result=pg.runscript(nx=npatchx,ny=npatchy,psfA=psfA,pdbA=pdbA,
+                                    psfB=psfB,pdbB=pdbB,xscA=xscA,xscB=xscB,o=self.basename)
+            elif dimx!=0 and dimy!=0:
+                result=pg.runscript(dimx=dimx,dimy=dimy,psfA=psfA,pdbA=pdbA,
+                                    psfB=psfB,pdbB=pdbB,xscA=xscA,xscB=xscB,o=self.basename)
+        return result
 
     # def solvate(self):
     #     solvent_specstring=self.specs.get('solvents','TIP3')

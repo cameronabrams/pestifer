@@ -89,7 +89,7 @@ class MDTask(BaseTask):
         na=self.writers['namd']
         na.update_par()
         self.local_parameter_files=na.copy_charmm_par()
-        params['parameters']=self.local_parameter_files
+        params['parameters']=list(set(self.local_parameter_files))
         
         if xsc:
             params['extendedSystem']=xsc
