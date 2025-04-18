@@ -1471,7 +1471,7 @@ directives:
                     text: the atomselect text
                     type: str
           - name: lipids
-            text: declaration of lipids in each leaflet in the format LIP1[:LIP2][//LIP3]
+            text: declaration of lipids in each leaflet in the format LIP1[:LIP2][//LIP3] (i.e., memgen format)
             type: str
             default: POPC  # a pure POPC bilayer
           - name: lipid_conformers
@@ -1482,6 +1482,10 @@ directives:
             text: declaration of mole fractions of each lipid in each leaflet in the format R1:R2//R3
             type: str
             default: '1.0'
+          - name: leaflet_nlipids
+            type: int
+            text: number of lipids per leaflet when building initial bilayer patches
+            default: 100
           - name: composition
             type: dict
             text: Alternate way of expressing bilayer composition; supercedes 'lipids', 'mole_fractions', and 'lipid_conformers'
@@ -1501,23 +1505,26 @@ directives:
             type: str
             default: '1.0'
           - name: SAPL
-            text: estimate of surface area per lipid (A^2)
+            text: estimate of surface area per lipid (Å²) for building initial patches
             type: float
             default: 60.0
           - name: leaflet_thickness
-            text: initial value of leaflet thickness (A)
+            text: initial value of leaflet thickness (Å)
             type: float
             default: 20.0
-          - name: scale_excluded_volume
-            text: scaling factor controlling contribution of non-solvent atoms in calculating available chamber volumes
-            type: float
-            default: 1.0
-          - name: fuzz_factor
-            text: when tilted a little from the global-z axis, a long molecule longest z-dimension is lower than its longest overall dimension; this difference is called "fuzz".  When packmol places a long molecule with some reference atoms above a z-plane and other reference atoms below that z-plane, this factor is used to assign the "fuzz" to either side of the planes (this is a terrible explanation; see docs)
-            type: float
-            default: 0.5
+          # - name: scale_excluded_volume
+          #   text: scaling factor controlling contribution of non-solvent atoms in calculating available chamber volumes
+          #   type: float
+          #   default: 1.0
+          # - name: fuzz_factor
+          #   text: when tilted a little from the global-z axis, a long molecule longest z-dimension is lower than its longest overall dimension; this difference is called "fuzz".  When packmol places a long molecule with some reference atoms above a z-plane and other reference atoms below that z-plane, this factor is used to assign the "fuzz" to either side of the planes (this is a terrible explanation; see docs)
+          #   type: float
+          #   default: 0.5
           - name: dims
-            text: box dimensions (A); must be specified for a bilayer-only system
+            text: box dimensions in x, y, and z in Å; must be specified for a bilayer-only system
+            type: list
+          - name: npatch
+            text: box dimensions in number of patches in x and y
             type: list
           - name: length_pad
             text: additional length added to longest molecular length when orienting molecules that are parallel to z axis

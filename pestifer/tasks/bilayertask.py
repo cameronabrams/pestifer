@@ -45,6 +45,7 @@ class BilayerEmbedTask(BaseTask):
         solvent_specstring=self.specs.get('solvents','TIP3')
         solvent_ratio_specstring=self.specs.get('solvent_mole_fractions','1.0')
         solvent_to_lipid_ratio=self.specs.get('solvent_to_lipid_ratio',32.0)
+        leaflet_nlipids=self.specs.get('leaflet_nlipids',100)
         composition_dict=self.specs.get('composition',{})
         if not composition_dict:
             composition_dict=specstrings_builddict(lipid_specstring,
@@ -57,12 +58,13 @@ class BilayerEmbedTask(BaseTask):
                             solvent_specstring=solvent_specstring,
                             solvent_ratio_specstring=solvent_ratio_specstring,
                             solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
+                            leaflet_nlipids=leaflet_nlipids,
                             pdb_collection=self.pdb_collection,resi_database=self.RDB)
         logger.debug(f'Main composition dict after call {composition_dict}')
-        self.patchA=None
-        self.patchB=None
+        self.patchA=None # symmetric patch that will donate its upper leaflet
+        self.patchB=None # symmetric patch that will donate its lower leaflet
         if self.patch.asymmetric:
-            logger.debug(f'Patch is asymmetric; generating two symmetric patches')
+            logger.debug(f'Requested patch is asymmetric; generating two symmetric patches')
             logger.debug(f'Symmetrizing bilayer to upper leaflet')
             composition_dict['lower_leaflet_saved']=composition_dict['lower_leaflet']
             composition_dict['lower_chamber_saved']=composition_dict['lower_chamber']
@@ -72,6 +74,7 @@ class BilayerEmbedTask(BaseTask):
                             solvent_specstring=solvent_specstring,
                             solvent_ratio_specstring=solvent_ratio_specstring,
                             solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
+                            leaflet_nlipids=leaflet_nlipids,
                             pdb_collection=self.pdb_collection,resi_database=self.RDB)
             logger.debug(f'Symmetrizing bilayer to lower leaflet')
             composition_dict['upper_leaflet_saved']=composition_dict['upper_leaflet']
@@ -84,6 +87,7 @@ class BilayerEmbedTask(BaseTask):
                             solvent_specstring=solvent_specstring,
                             solvent_ratio_specstring=solvent_ratio_specstring,
                             solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
+                            leaflet_nlipids=leaflet_nlipids,
                             pdb_collection=self.pdb_collection,resi_database=self.RDB)
             composition_dict['upper_leaflet']=composition_dict['upper_leaflet_saved']
             composition_dict['upper_chamber']=composition_dict['upper_chamber_saved']
@@ -117,25 +121,17 @@ class BilayerEmbedTask(BaseTask):
         return super().do()
 
     def build_patch(self):
-        self.next_basename('build_patch')
-
         rotation_pm=self.specs.get('rotation_pm',10.)
-        # fuzz_factor=self.specs.get('fuzz_factor',0.5)
         half_mid_zgap=self.specs.get('half_mid_zgap',1.0)
-
         SAPL=self.specs.get('SAPL',60.0)
-        # scale_excluded_volume=self.specs.get('scale_excluded_volume',1.0)
         seed=self.specs.get('seed',27021972)
         tolerance=self.specs.get('tolerance',2.0)
-        # solution_gcc=self.specs.get('solution_gcc',1.0)
         xy_aspect_ratio=self.specs.get('xy_aspect_ratio',1.0)
-        # leaflet_thickness=self.specs.get('leaflet_thickness',27.0) # initial value
-        # chamber_thickness=self.specs.get('chamber_thickness',10.0)
         nloop=self.specs.get('nloop',100)
         nloop_all=self.specs.get('nloop_all',100)
 
         # we now build the patch, or if asymmetric, two patches
-        for patch,spec,index in zip([self.patch,self.patchA,self.patchB],['','A','B'],[0,1,2]):
+        for patch,spec in zip([self.patch,self.patchA,self.patchB],['','A','B']):
             if patch is None:
                 continue
             self.next_basename(f'patch{spec}')
@@ -151,53 +147,21 @@ class BilayerEmbedTask(BaseTask):
                                                 half_mid_zgap=half_mid_zgap,
                                                 rotation_pm=rotation_pm,nloop=nloop)
             self.next_basename(f'patch{spec}-psfgen')
-            self.result=self.psfgen(psf='',pdb='',addpdb=packmol_output_pdb,
-                                    additional_topologies=patch.addl_streamfiles)
+            pg=self.writers['psfgen']
+            pg.newscript(self.basename,additional_topologies=patch.addl_streamfiles)
+            pg.usescript('bilayer_patch')
+            pg.writescript(self.basename,guesscoord=False,regenerate=True,force_exit=True)
+            result=pg.runscript(pdb=packmol_output_pdb,o=self.basename)
             cell_to_xsc(patch.box,patch.origin,f'{self.basename}.xsc')
             patch.area=patch.box[0][0]*patch.box[1][1]
-            self.equilibrate_patch(patch,spec)
- 
-    def equilibrate_patch(self,patch,spec):
-        logger.debug(f'Patch area before equilibration: {patch.area:.3f} {sA2_}')
-        userdict=deepcopy(self.config['user'])
-        userdict['tasks']=[
-            {'restart':dict(psf=f'{self.basename}.psf',pdb=f'{self.basename}.pdb',xsc=f'{self.basename}.xsc',index=self.index)},
-            {'md':dict(ensemble='minimize',minimize=1000)},
-            {'md':dict(ensemble='NVT',nsteps=1000)},
-            {'md':dict(ensemble='NPT',nsteps=200,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=400,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=800,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=1600,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=3200,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=6400,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=12800,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=25600,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'mdplot':dict(traces=['density',['a_x','b_y','c_z']],legend=True,grid=True,savedata=f'{self.basename}-traces.csv',basename=f'equilibrated-patch{spec}')},
-            {'terminate':dict(basename=f'equilibrated-patch{spec}',chainmapfile=f'{self.basename}-chainmap.yaml',statefile=f'{self.basename}-state.yaml')}                 
-        ]
-        subconfig=Config(userdict=userdict)
-        subcontroller=Controller(subconfig)
-        for task in subcontroller.tasks:
-            task_key=task.taskname
-            task.override_taskname(task_key+f'-patch{spec}')
-        
-        subcontroller.do_tasks()
-        patch.statevars=subcontroller.tasks[-1].statevars.copy()
-        patch.box,patch.origin=cell_from_xsc(patch.statevars['xsc'])
-        patch.area=patch.box[0][0]*patch.box[1][1]
-        logger.debug(f'Patch area after equilibration: {patch.area:.3f} {sA2_}')
+            patch.statevars['pdb']=f'{self.basename}.pdb'
+            patch.statevars['psf']=f'{self.basename}.psf'
+            patch.statevars['xsc']=f'{self.basename}.xsc'
+            self.next_basename(f'patch{spec}-equilibrate')
+            patch.equilibrate(user_dict=deepcopy(self.config['user']),basename=self.basename,index=self.index,spec=spec)
 
     def make_bilayer_from_patch(self):
         logger.debug(f'Creating bilayer from patch')
-        self.next_basename('make_bilayer')
         additional_topologies=[]
         if self.patch is not None:
             pdb=self.patch.statevars.get('pdb',None)
@@ -225,9 +189,9 @@ class BilayerEmbedTask(BaseTask):
         pg.writescript(self.basename,guesscoord=False,regenerate=False,force_exit=True,writepsf=False,writepdb=False)
         margin=self.specs.get('embed',{}).get('margin',10.0)
         if hasattr(self,"pro_pdb"):
+            # we will eventually embed a protein in here, so send its pdb along to help size the bilayer
             result=pg.runscript(propdb=self.pro_pdb,margin=margin,psfA=psfA,pdbA=pdbA,psfB=psfB,pdbB=pdbB,xscA=xscA,xscB=xscB,o=self.basename)
         else:
-            # TODO: use dims
             dimx,dimy=self.specs.get('dims',(0,0))
             npatchx,npatchy=self.specs.get('npatch',(0,0))
             if npatchx!=0 and npatchy!=0:
@@ -236,6 +200,15 @@ class BilayerEmbedTask(BaseTask):
             elif dimx!=0 and dimy!=0:
                 result=pg.runscript(dimx=dimx,dimy=dimy,psfA=psfA,pdbA=pdbA,
                                     psfB=psfB,pdbB=pdbB,xscA=xscA,xscB=xscB,o=self.basename)
+        self.quilt=Bilayer()
+        self.quilt.addl_streamfiles=additional_topologies
+        self.statevars['pdb']=f'{self.basename}.pdb'
+        self.statevars['psf']=f'{self.basename}.psf'
+        self.statevars['xsc']=f'{self.basename}.xsc'
+        self.quilt.statevars=self.statevars.copy()
+        self.quilt.box,self.quilt.origin=cell_from_xsc(f'{self.basename}.xsc')
+        self.quilt.area=self.quilt.box[0][0]*self.quilt.box[1][1]
+        self.quilt.equilibrate(user_dict=deepcopy(self.config['user']),spec='')
         return result
 
     # def solvate(self):
@@ -466,20 +439,21 @@ class BilayerEmbedTask(BaseTask):
         result=pg.runscript(psf=psf,pdb=pdb,addpdb=addpdb,o=self.basename)
         return result
     
-    def membrane_embed(self,pdb,zgroups,zval,outpdb='embed.pdb'):
+    def membrane_embed(self,pdb,zgroups,zval,outpdb='embed.pdb',fixed_orientation=False):
         logger.debug(f'zgroups {zgroups}')
         ztopg,zbotg,zrefg=zgroups
         vm=self.writers['vmd']
         vm.newscript(self.basename,packages=['Orient','PestiferUtil'])
         vm.addline(f'mol new {pdb}')
         vm.addline(f'set TMP [atomselect top all]')
-        vm.addline(f'set HEAD [atomselect top "{ztopg}"]')
-        vm.addline(f'set TAIL [atomselect top "{zbotg}"]')
         vm.addline(f'set REF  [atomselect top "{zrefg}"]')
-        vm.addline(f'vmdcon -info "[measure center $HEAD]"')
-        vm.addline(f'vmdcon -info "[measure center $TAIL]"')
-        vm.addline(f'set VEC [vecsub [measure center $HEAD] [measure center $TAIL]]')
-        vm.addline( '$TMP move [orient $TMP $VEC {0 0 1}]')
+        if not fixed_orientation:
+            vm.addline(f'set HEAD [atomselect top "{ztopg}"]')
+            vm.addline(f'set TAIL [atomselect top "{zbotg}"]')
+            vm.addline(f'vmdcon -info "[measure center $HEAD]"')
+            vm.addline(f'vmdcon -info "[measure center $TAIL]"')
+            vm.addline(f'set VEC [vecsub [measure center $HEAD] [measure center $TAIL]]')
+            vm.addline( '$TMP move [orient $TMP $VEC {0 0 1}]')
         vm.addline(f'set COM [measure center $TMP]')
         vm.addline(f'$TMP moveby [vecscale $COM -1]')
         vm.addline(f'set REFZ [lindex [measure center $REF] 2]')

@@ -12,6 +12,8 @@ def test_bilayer_init_empty():
     with patch("pestifer.bilayer.logger.debug") as mock_logger:
         test_bilayer=Bilayer(composition_dict={})
         mock_logger.assert_called_once_with('Empty bilayer')
+        assert type(test_bilayer) == Bilayer
+        assert test_bilayer.statevars == {}
 
 def test_bilayer_init_nonempty():
     C=Config()
@@ -337,7 +339,7 @@ def test_bilayer_task_init_symmetric():
             'namd':   NAMD(C),
             'data':   Filewriter()
         }
-    idict={'composition':{'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
+    idict={'npatch':[2,2],'composition':{'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
         'lower_leaflet': [{'name':'POPC','frac':1.0,'conf':0}]}}
     BET = BilayerEmbedTask(idict,'test_bilayer_task',C,writers,None)
     assert BET.taskname == 'test_bilayer_task'
@@ -357,7 +359,7 @@ def test_bilayer_task_init_asymmetric():
             'namd':   NAMD(C),
             'data':   Filewriter()
         }
-    idict={'composition':{'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
+    idict={'npatch':[2,2],'composition':{'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
         'lower_leaflet': [{'name':'POPE','frac':1.0,'conf':0}]}}
     BET = BilayerEmbedTask(idict,'test_bilayer_task',C,writers,None)
     assert BET.taskname == 'test_bilayer_task'

@@ -5,7 +5,10 @@ import os
 
 import numpy as np
 
+from .config import Config
+from .controller import Controller
 from .util.units import _UNITS_, _SYMBOLS_, cuA_of_nmolec
+from .util.util import cell_from_xsc
 
 sA_ =_SYMBOLS_['ANGSTROM']
 sA2_=_UNITS_['SQUARE-ANGSTROMS']
@@ -72,22 +75,24 @@ def specstrings_builddict(lipid_specstring='',lipid_ratio_specstring='',lipid_co
     }
 
 class Bilayer:
-    def __init__(self,composition_dict={},leaflet_patch_nlipids=100,solvent_to_key_lipid_ratio=32.0,
+    def __init__(self,composition_dict={},leaflet_nlipids=100,solvent_to_key_lipid_ratio=32.0,
                 neutralizing_salt=['POT','CLA'],pdb_collection=None,resi_database=None,solvent_specstring='TIP3',solvent_ratio_specstring='1.0'):
 
-        # leaflet_patch_nlipids is the number of lipids per leaflet in a patch
-        self.leaflet_patch_nlipids=leaflet_patch_nlipids
+        self.statevars={}
+
+        # leaflet_nlipids is the number of lipids per leaflet in a patch
+        self.leaflet_nlipids=leaflet_nlipids
 
         if not composition_dict:
             logger.debug('Empty bilayer')
-            return
+            return None
 
         # complete leaflet entries in composition dictionary with species counts, charges, and MWs
         for l in ['upper_leaflet','lower_leaflet']:
             L=composition_dict[l]
             for d in L:
                 if not 'patn' in d:
-                    d['patn']=int(d['frac']*leaflet_patch_nlipids)
+                    d['patn']=int(d['frac']*leaflet_nlipids)
                 if not 'charge' in d:
                     d['charge']=resi_database['lipid'][d['name']].charge
                 if not 'MW' in d:
@@ -108,7 +113,7 @@ class Bilayer:
             L=composition_dict[c]
             for d in L:
                 if not 'patn' in d:
-                    d['patn']=int(d['frac']*leaflet_patch_nlipids*solvent_to_key_lipid_ratio)
+                    d['patn']=int(d['frac']*leaflet_nlipids*solvent_to_key_lipid_ratio)
                 if not 'charge' in d:
                     d['charge']=resi_database['water_ions'][d['name']].charge
                 if not 'MW' in d:
@@ -206,7 +211,7 @@ class Bilayer:
                 logger.debug(f'Checked out {species_name} as {species["local_name"]}')
 
     def build_patch(self,SAPL=60.0,xy_aspect_ratio=1.0,midplane_z=0.0,half_mid_zgap=1.0,solution_gcc=1.0,rotation_pm=10.0):
-        patch_area=SAPL*self.leaflet_patch_nlipids
+        patch_area=SAPL*self.leaflet_nlipids
         Lx=np.sqrt(patch_area/xy_aspect_ratio)
         Ly=xy_aspect_ratio*Lx
         self.patch_area=patch_area
@@ -338,6 +343,48 @@ class Bilayer:
         if result!=0:
             raise Exception(f'Packmol failed with result {result}')
         return packmol_output_pdb
+
+    def equilibrate(self,user_dict={},basename='equilibrate',index=0,spec=''):
+        if user_dict=={}:
+            return
+        psf=self.statevars['psf']
+        pdb=self.statevars['pdb']
+        xsc=self.statevars['xsc']
+        logger.debug(f'Bilayer area before equilibration: {self.area:.3f} {sA2_}')
+        user_dict['tasks']=[
+            {'restart':dict(psf=psf,pdb=pdb,xsc=xsc,index=index)},
+            {'md':dict(ensemble='minimize',minimize=1000)},
+            {'md':dict(ensemble='NVT',nsteps=1000)},
+            {'md':dict(ensemble='NPT',nsteps=200,
+                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
+            {'md':dict(ensemble='NPT',nsteps=400,
+                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
+            {'md':dict(ensemble='NPT',nsteps=800,
+                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
+            {'md':dict(ensemble='NPT',nsteps=1600,
+                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
+            {'md':dict(ensemble='NPT',nsteps=3200,
+                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
+            {'md':dict(ensemble='NPT',nsteps=6400,
+                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
+            {'md':dict(ensemble='NPT',nsteps=12800,
+                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
+            {'md':dict(ensemble='NPT',nsteps=25600,
+                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
+            {'mdplot':dict(traces=['density',['a_x','b_y','c_z']],legend=True,grid=True,savedata=f'{basename}-traces.csv',basename=basename)},
+            {'terminate':dict(basename=basename,chainmapfile=f'{basename}-chainmap.yaml',statefile=f'{basename}-state.yaml')}                 
+        ]
+        subconfig=Config(userdict=user_dict)
+        subcontroller=Controller(subconfig)
+        for task in subcontroller.tasks:
+            task_key=task.taskname
+            task.override_taskname(f'bilayer{spec}-'+task_key)
+        
+        subcontroller.do_tasks()
+        self.statevars=subcontroller.tasks[-1].statevars.copy()
+        self.box,self.origin=cell_from_xsc(self.statevars['xsc'])
+        self.area=self.box[0][0]*self.box[1][1]
+        logger.debug(f'Bilayer area after equilibration: {self.area:.3f} {sA2_}')         
 
     def delete_lipid(self,vm,count,leaflet='upper'):
         selstr="and z>0.0" if leaflet=='upper' else "and z<0.0"

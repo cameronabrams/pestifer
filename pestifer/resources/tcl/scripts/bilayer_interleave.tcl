@@ -244,7 +244,7 @@ set all [atomselect $molid all]
 $all moveby $ncom
 $all writepdb "${firstname}_centered.pdb"
 
-set fp [open "${firstname}.xsc" "w"]
+set fp [open "${outbasename}.xsc" "w"]
 puts $fp "# PESTIFER generated xst file"
 puts $fp "#\$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w"
 puts $fp "0 $quilt_boxX 0 0  0 $quilt_boxY 0  0 0 $quilt_boxZ  [lindex $ncom 0] [lindex $ncom 1] [lindex $ncom 2] 0 0 0 0 0 0"
