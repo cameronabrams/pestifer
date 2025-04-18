@@ -30,7 +30,7 @@ parameters:
 - toppar_water_ions.str
 - stream/carb/toppar_all36_carb_glycopeptide.str
 - stream/prot/toppar_all36_prot_modify_res.str
-- /home/cfa/Git/pestifer/pestifer/Resources/charmmff/toppar/stream/lipid/toppar_all36_lipid_sphingo.str
+- toppar_all36_lipid_sphingo.str
 - stream/carb/toppar_all36_carb_imlab.str
 - stream/lipid/toppar_all36_lipid_lps.str
 reference-atoms:

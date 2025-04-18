@@ -43,6 +43,7 @@ set maxr_per_seg 1000
 set next_available_chain A
 write_psfgen $environ_molid $next_available_chain {lipid water ion} {L I W} $maxr_per_seg
 
+mol delete $environ_molid
 regenerate angles dihedrals
 
 # pestifer takes over to write the psf and pdb

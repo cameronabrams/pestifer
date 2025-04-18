@@ -2,23 +2,27 @@
 
 # VMD/psfgen script for creating a new psf/pdb pair for a
 # bilayer created using the upper leaflet of one
-# input bilayer and the lower leaflet of another
+# input bilayer and the lower leaflet of another, and
+# replicated in x and y to make a "quilt"
 
 package require PestiferEnviron 1.0
 namespace import ::PestiferEnviron::*
 
 package require pbctools
 
-set scriptname bilayer_interleave
+set scriptname bilayer_quilt
 
-set propdb ""
-set margin 10.0
+set propdb ""; # pdb of protein that will eventually be embedded
+set margin 10.0; # Angstroms; min distance from any protein atom to box edge in x and y
+# A = system defining upper leaflet
 set psfA ""
 set pdbA ""
 set xscA ""
+# B = system defining lower leaflet
 set psfB ""
 set pdbB ""
 set xscB ""
+
 set outbasename "quilt"
 set npatchx 1
 set npatchy 1
@@ -108,9 +112,6 @@ if { $propdb != "" } {
 } else {
    vmdcon -error "No protein pdb or patch dimensions provided"
 }
-
-
-
 
 mol new $psfA 
 mol addfile $pdbA waitfor all

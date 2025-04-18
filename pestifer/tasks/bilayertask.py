@@ -46,6 +46,9 @@ class BilayerEmbedTask(BaseTask):
         solvent_ratio_specstring=self.specs.get('solvent_mole_fractions','1.0')
         solvent_to_lipid_ratio=self.specs.get('solvent_to_lipid_ratio',32.0)
         leaflet_nlipids=self.specs.get('leaflet_nlipids',100)
+        cation_name=self.specs.get('cation','POT')
+        anion_name=self.specs.get('anion','CLA')
+        neutralizing_salt=[cation_name,anion_name]
         composition_dict=self.specs.get('composition',{})
         if not composition_dict:
             composition_dict=specstrings_builddict(lipid_specstring,
@@ -55,6 +58,7 @@ class BilayerEmbedTask(BaseTask):
                                                   solvent_ratio_specstring)
         logger.debug(f'Main composition dict {composition_dict}')
         self.patch=Bilayer(composition_dict,
+                            neutralizing_salt=neutralizing_salt,
                             solvent_specstring=solvent_specstring,
                             solvent_ratio_specstring=solvent_ratio_specstring,
                             solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
@@ -71,11 +75,12 @@ class BilayerEmbedTask(BaseTask):
             composition_dict['lower_leaflet']=composition_dict['upper_leaflet']
             composition_dict['lower_chamber']=composition_dict['upper_chamber']
             self.patchA=Bilayer(composition_dict,
-                            solvent_specstring=solvent_specstring,
-                            solvent_ratio_specstring=solvent_ratio_specstring,
-                            solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
-                            leaflet_nlipids=leaflet_nlipids,
-                            pdb_collection=self.pdb_collection,resi_database=self.RDB)
+                                neutralizing_salt=neutralizing_salt,
+                                solvent_specstring=solvent_specstring,
+                                solvent_ratio_specstring=solvent_ratio_specstring,
+                                solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
+                                leaflet_nlipids=leaflet_nlipids,
+                                pdb_collection=self.pdb_collection,resi_database=self.RDB)
             logger.debug(f'Symmetrizing bilayer to lower leaflet')
             composition_dict['upper_leaflet_saved']=composition_dict['upper_leaflet']
             composition_dict['upper_chamber_saved']=composition_dict['upper_chamber']
@@ -84,25 +89,19 @@ class BilayerEmbedTask(BaseTask):
             composition_dict['upper_leaflet']=composition_dict['lower_leaflet']
             composition_dict['upper_chamber']=composition_dict['lower_chamber']
             self.patchB=Bilayer(composition_dict,
-                            solvent_specstring=solvent_specstring,
-                            solvent_ratio_specstring=solvent_ratio_specstring,
-                            solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
-                            leaflet_nlipids=leaflet_nlipids,
-                            pdb_collection=self.pdb_collection,resi_database=self.RDB)
+                                neutralizing_salt=neutralizing_salt,
+                                solvent_specstring=solvent_specstring,
+                                solvent_ratio_specstring=solvent_ratio_specstring,
+                                solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
+                                leaflet_nlipids=leaflet_nlipids,
+                                pdb_collection=self.pdb_collection,resi_database=self.RDB)
             composition_dict['upper_leaflet']=composition_dict['upper_leaflet_saved']
             composition_dict['upper_chamber']=composition_dict['upper_chamber_saved']
             self.patch=None
 
 
     def do(self):
-        # TODO: switch from full packmol to the following
-        # 1. use packmol to build a minimal patch with the desired composition
-        # 2. equilibrate the hell out of that patch
-        # 3. use a modified version of the membrane plugin to generate a full bilayer
-        # 4. minimize and thermalize that bilayer
-        # 5. use psfgen to embed the protein, deleting the bad lipids
-        # 6. use packmol to solvate and ionize (more flexible than vmd/solvate)
-        # 7. profit!
+
         self.log_message('initiated')
         self.inherit_state()
         self.pro_psf=self.statevars.get('psf',None)
@@ -115,7 +114,7 @@ class BilayerEmbedTask(BaseTask):
 
         self.build_patch()
         self.make_bilayer_from_patch()
-        # self.embed_protein()
+        self.embed_protein()
         # self.solvate()
         # self.log_message('complete')
         return super().do()
@@ -145,7 +144,8 @@ class BilayerEmbedTask(BaseTask):
                                                 tolerance=tolerance,
                                                 nloop_all=nloop_all,
                                                 half_mid_zgap=half_mid_zgap,
-                                                rotation_pm=rotation_pm,nloop=nloop)
+                                                rotation_pm=rotation_pm,
+                                                nloop=nloop)
             self.next_basename(f'patch{spec}-psfgen')
             pg=self.writers['psfgen']
             pg.newscript(self.basename,additional_topologies=patch.addl_streamfiles)
@@ -185,7 +185,7 @@ class BilayerEmbedTask(BaseTask):
         additional_topologies=list(set(additional_topologies))
         pg=self.writers['psfgen']
         pg.newscript(self.basename,additional_topologies=additional_topologies)
-        pg.usescript('bilayer_interleave')
+        pg.usescript('bilayer_quilt')
         pg.writescript(self.basename,guesscoord=False,regenerate=False,force_exit=True,writepsf=False,writepdb=False)
         margin=self.specs.get('embed',{}).get('margin',10.0)
         if hasattr(self,"pro_pdb"):
@@ -211,6 +211,36 @@ class BilayerEmbedTask(BaseTask):
         self.quilt.equilibrate(user_dict=deepcopy(self.config['user']),spec='')
         return result
 
+    def embed_protein(self):
+        embed_specs=self.specs.get('embed',None)
+        if embed_specs is None:
+            logger.debug('No embed specs.')
+            return
+        xydist=embed_specs.get('xydist',0.0)
+        zdist=embed_specs.get('zdist',0.0)
+        n_ter=embed_specs.get('n_ter','in')
+        z_head_group=embed_specs.get('z_head_group',None)
+        z_tail_group=embed_specs.get('z_tail_group',None)
+        z_head_group=embed_specs.get('z_head_group',{}).get('text',None)
+        z_value=embed_specs.get('z_ref_group',{}).get('z_value',0.0)
+        self.next_basename('embed')
+        pg=self.writers['psfgen']
+        pg.usescript('bilayer_embed')
+        pg.writescript(self.basename,guesscoord=False,regenerate=True,force_exit=True,writepsf=False,writepdb=False)
+        result=pg.runscript(psf=self.pro_psf,
+                            pdb=self.pro_pdb,
+                            bilayer_psf=self.statevars['psf'],
+                            bilayer_pdb=self.statevars['pdb'],
+                            bilayer_xsc=self.statevars['xsc'],
+                            n_ter=n_ter,
+                            xydist=xydist,zdist=zdist,
+                            z_head_group=z_head_group,
+                            z_tail_group=z_tail_group,
+                            z_value=z_value,
+                            o=self.basename)
+        self.statevars['pdb']=f'{self.basename}.pdb'
+        self.statevars['psf']=f'{self.basename}.psf'
+        self.statevars['xsc']=f'{self.basename}.xsc'
     # def solvate(self):
     #     solvent_specstring=self.specs.get('solvents','TIP3')
     #     solv_molfrac_specstring=self.specs.get('solvent_mole_fractions','1.0')

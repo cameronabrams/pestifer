@@ -1444,15 +1444,15 @@ directives:
                 text: distance from perimeter of protein to box edge in z (A)
                 type: float
                 default: 20
-              - name: protein_radius_scaling
-                text: factor by which to multiply computed protein TM radius to compute membrane excluded area
-                type: float
-                default: 1.01
-              - name: n_ter
-                text: in or out; N-termini are usually 'in' for membrane proteins
-                type: str
-                options: ['in','out']
-                default: 'in'
+              # - name: protein_radius_scaling
+              #   text: factor by which to multiply computed protein TM radius to compute membrane excluded area
+              #   type: float
+              #   default: 1.01
+              # - name: n_ter
+              #   text: in or out; N-termini are usually 'in' for membrane proteins
+              #   type: str
+              #   options: ['in','out']
+              #   default: 'in'
               - name: z_head_group
                 text: VMD atomselect string defining head-group of z-axis
                 type: str
