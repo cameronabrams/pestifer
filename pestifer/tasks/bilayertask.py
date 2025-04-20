@@ -10,7 +10,7 @@ from ..config import Config
 from ..controller import Controller
 from ..packmol import PackmolInputWriter
 from ..psfutil.psfcontents import PSFContents
-from ..util.util import cell_to_xsc,cell_from_xsc
+from ..util.util import cell_to_xsc,cell_from_xsc, protect_str_arg
 from ..util.units import _UNITS_
 
 sA2_=_UNITS_['SQUARE-ANGSTROMS']
@@ -187,7 +187,7 @@ class BilayerEmbedTask(BaseTask):
         pg.newscript(self.basename,additional_topologies=additional_topologies)
         pg.usescript('bilayer_quilt')
         pg.writescript(self.basename,guesscoord=False,regenerate=False,force_exit=True,writepsf=False,writepdb=False)
-        margin=self.specs.get('embed',{}).get('margin',10.0)
+        margin=self.specs.get('embed',{}).get('xydist',10.0)
         if hasattr(self,"pro_pdb"):
             # we will eventually embed a protein in here, so send its pdb along to help size the bilayer
             result=pg.runscript(propdb=self.pro_pdb,margin=margin,psfA=psfA,pdbA=pdbA,psfB=psfB,pdbB=pdbB,xscA=xscA,xscB=xscB,o=self.basename)
@@ -216,12 +216,10 @@ class BilayerEmbedTask(BaseTask):
         if embed_specs is None:
             logger.debug('No embed specs.')
             return
-        xydist=embed_specs.get('xydist',0.0)
         zdist=embed_specs.get('zdist',0.0)
-        n_ter=embed_specs.get('n_ter','in')
         z_head_group=embed_specs.get('z_head_group',None)
         z_tail_group=embed_specs.get('z_tail_group',None)
-        z_head_group=embed_specs.get('z_head_group',{}).get('text',None)
+        z_ref_group=embed_specs.get('z_ref_group',{}).get('text',None)
         z_value=embed_specs.get('z_ref_group',{}).get('z_value',0.0)
         self.next_basename('embed')
         pg=self.writers['psfgen']
@@ -232,10 +230,9 @@ class BilayerEmbedTask(BaseTask):
                             bilayer_psf=self.statevars['psf'],
                             bilayer_pdb=self.statevars['pdb'],
                             bilayer_xsc=self.statevars['xsc'],
-                            n_ter=n_ter,
-                            xydist=xydist,zdist=zdist,
-                            z_head_group=z_head_group,
-                            z_tail_group=z_tail_group,
+                            z_head_group=protect_str_arg(z_head_group),
+                            z_tail_group=protect_str_arg(z_tail_group),
+                            z_ref_group=protect_str_arg(z_ref_group),
                             z_value=z_value,
                             o=self.basename)
         self.statevars['pdb']=f'{self.basename}.pdb'

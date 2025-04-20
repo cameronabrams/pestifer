@@ -353,3 +353,9 @@ proc PestiferUtil::IsIntersectionEmpty { list1 list2 } {
    return 1
 
 }
+
+proc PestiferUtil::deprotect_str_arg { arg } {
+# replaces underscores with spaces
+   set arg [string map { _ " " } $arg]
+   return $arg
+}

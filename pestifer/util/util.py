@@ -93,6 +93,9 @@ def special_update(dict1,dict2):
                 dict1[k]=v # overwrite
     return dict1
 
+def protect_str_arg(arg):
+    # returns arg with spaces replaced with underscores
+    return arg.replace(' ','_')
 
 def reduce_intlist(L):
     """Generate a "reduced-byte" representation of a list of integers by collapsing 
