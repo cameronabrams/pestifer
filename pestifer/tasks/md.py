@@ -38,12 +38,15 @@ class MDTask(BaseTask):
         self.log_message('initiated',ensemble=self.specs.get('ensemble',None))
         self.inherit_state()            
         self.result=self.namdrun()
-        if self.result==0: self.save_state(exts=['coor','vel','xsc'])
+        if self.result==0: 
+            self.save_state(exts=['coor','vel','xsc'])
+            self.update_statevars('charmmff_paramfiles',self.writers['namd'].parameters)
         self.log_message('complete',ensemble=self.specs.get('ensemble',None))
         return super().do()
 
     def namdrun(self,baselabel='',extras={},script_only=False,**kwargs):
         specs=self.specs
+        addl_paramfiles=specs.get('addl_paramfiles',[])
         logger.debug(f'md task specs {specs}')
         ensemble=specs['ensemble']
         if not baselabel:
@@ -58,6 +61,7 @@ class MDTask(BaseTask):
         coor=self.statevars.get('coor',None)
         vel=self.statevars.get('vel',None)
         xsc=self.statevars.get('xsc',None)
+        prior_paramfiles=self.statevars.get('charmmff_paramfiles',[])
         # cell=self.statevars.get('cell',None)
         firsttimestep=self.statevars.get('firsttimestep',0)
         self.statevars['periodic']=is_periodic(xsc)
@@ -85,12 +89,6 @@ class MDTask(BaseTask):
         if vel:
             params['binvelocities']=vel
             del params['temperature']
-        
-        na=self.writers['namd']
-        na.update_par()
-        self.local_parameter_files=na.copy_charmm_par()
-        params['parameters']=list(set(self.local_parameter_files))
-        
         if xsc:
             params['extendedSystem']=xsc
             if ensemble=='NPT' and xstfreq:
@@ -138,10 +136,12 @@ class MDTask(BaseTask):
             assert nsteps>0,f'Error: you must specify how many time steps to run'
             params['run']=nsteps
         
-        na.newscript(self.basename)
+        na=self.writers['namd']
+        na.newscript(self.basename,addl_paramfiles=list(set(addl_paramfiles+prior_paramfiles)))
         cpu_override=specs.get('cpu-override',False)
         logger.debug(f'CPU-override is {cpu_override}')
         na.writescript(params,cpu_override=cpu_override)
+        
         if not script_only:
             local_execution_only=not self.statevars['periodic']
             single_gpu_only=kwargs.get('single_gpu_only',False) or constraints

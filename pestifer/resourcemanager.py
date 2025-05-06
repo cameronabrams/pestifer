@@ -4,7 +4,7 @@
 import glob
 import os
 from . import resources
-from .pdbcollection import PDBCollection
+from .charmffcontent import CHARMFFContent
 
 import logging
 logger=logging.getLogger(__name__)
@@ -22,7 +22,8 @@ class ResourceManager:
         self.resource_path={}
         for r in ResourceManager.base_resources:
             self.resource_path[r]=os.path.join(self.resources_path,r)
-        self.pdb_collection=PDBCollection(os.path.join(self.resource_path['charmmff'],'pdb'))
+        self.charmmff_content=CHARMFFContent(self.resource_path['charmmff'])
+        self.pdb_collection=self.charmmff_content.pdb_collection
 
     def __str__(self):
         cp=os.path.commonpath(list(self.resource_path.values()))

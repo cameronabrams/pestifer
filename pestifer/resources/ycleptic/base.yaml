@@ -20,11 +20,11 @@ directives:
     text: Specifications for charmm force-field parameter and topology files
     required: True
     docs:
-      text: "The ``charmff`` directive informs pestifer which CHARMM force-field parameter and topology files are to be used for all psfgen/namd2 executions.  ``standard`` refers to files that are found in the official CHARMMFF release, and are named relative to the topmost ``toppar/`` directory of that release.  ``custom`` refers to files that are not part of the official CHARMMFF release."
+      text: "The ``charmff`` directive informs pestifer which CHARMM force-field parameter and topology files are to be used for all psfgen/namd3 executions.  ``standard`` refers to files that are found in the official CHARMMFF release, and are named relative to the topmost ``toppar/`` directory of that release.  ``custom`` refers to files that are not part of the official CHARMMFF release."
     directives:
       - name: standard
         type: dict
-        text: Standard charmmff files
+        text: Standard charmmff files under the standard toppar/ directory
         required: True 
         directives:
           - name: topologies
@@ -39,8 +39,8 @@ directives:
               - top_all36_carb.rtf
               - top_all36_na.rtf
               - toppar_water_ions.str
-              - stream/carb/toppar_all36_carb_glycopeptide.str
-              - stream/prot/toppar_all36_prot_modify_res.str
+              - toppar_all36_carb_glycopeptide.str
+              - toppar_all36_prot_modify_res.str
           - name: parameters
             type: list
             text: Standard charmmff parameter files
@@ -53,11 +53,11 @@ directives:
               - par_all36_na.prm
               - par_all36_cgenff.prm
               - toppar_water_ions.str
-              - stream/carb/toppar_all36_carb_glycopeptide.str
-              - stream/prot/toppar_all36_prot_modify_res.str
+              - toppar_all36_carb_glycopeptide.str
+              - toppar_all36_prot_modify_res.str
       - name: custom
         type: dict
-        text: Custom charmmff files
+        text: Custom charmmff files provided as part of pestifer
         required: True 
         directives:
           - name: topologies
@@ -1444,15 +1444,10 @@ directives:
                 text: distance from perimeter of protein to box edge in z (A)
                 type: float
                 default: 20
-              # - name: protein_radius_scaling
-              #   text: factor by which to multiply computed protein TM radius to compute membrane excluded area
-              #   type: float
-              #   default: 1.01
-              # - name: n_ter
-              #   text: in or out; N-termini are usually 'in' for membrane proteins
-              #   type: str
-              #   options: ['in','out']
-              #   default: 'in'
+              - name: margin
+                text: distance from any protein atom in which no lipid atoms are permitted when embedding
+                type: float
+                default: 2.4
               - name: z_head_group
                 text: VMD atomselect string defining head-group of z-axis
                 type: str
@@ -1512,14 +1507,6 @@ directives:
             text: initial value of leaflet thickness (Å)
             type: float
             default: 20.0
-          # - name: scale_excluded_volume
-          #   text: scaling factor controlling contribution of non-solvent atoms in calculating available chamber volumes
-          #   type: float
-          #   default: 1.0
-          # - name: fuzz_factor
-          #   text: when tilted a little from the global-z axis, a long molecule longest z-dimension is lower than its longest overall dimension; this difference is called "fuzz".  When packmol places a long molecule with some reference atoms above a z-plane and other reference atoms below that z-plane, this factor is used to assign the "fuzz" to either side of the planes (this is a terrible explanation; see docs)
-          #   type: float
-          #   default: 0.5
           - name: dims
             text: box dimensions in x, y, and z in Å; must be specified for a bilayer-only system
             type: list
@@ -1597,6 +1584,10 @@ directives:
             text: Pressure (bar) for NPT; note that NPT can only be peformed on a solvated system
             type: float
             default: 1
+          - name: addl_paramfiles
+            type: list
+            text: list of additional parameter files to be included in the NAMD run
+            default: []
           - name: other_parameters
             text: key:value pairs for other namd2 configuration file statements
             type: dict

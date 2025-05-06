@@ -143,9 +143,9 @@ class Bilayer:
         self.solvent_names=list(set(solvent_names))
         self.species_names=self.lipid_names+self.solvent_names
 
+        self.species_data={}
+        self.addl_streamfiles=[]
         if pdb_collection is not None:
-            self.species_data={}
-            self.addl_streamfiles=[]
             for l in self.species_names:
                 logger.debug(f'Getting pdb for {l}')
                 pdbstruct=pdb_collection.get_pdb(l)
@@ -153,6 +153,7 @@ class Bilayer:
                 for p in self.species_data[l].get_parameters():
                     if p.endswith('.str') and not p in self.addl_streamfiles:
                         self.addl_streamfiles.append(p)
+        logger.debug(f'Additional stream files: {self.addl_streamfiles}')
 
         self.total_charge=0.0
         for layer,data in self.slices.items():
@@ -208,7 +209,7 @@ class Bilayer:
             for species in data['composition']:
                 species_name=species['name']
                 species['local_name']=self.species_data[species_name].checkout()
-                logger.debug(f'Checked out {species_name} as {species["local_name"]}')
+                # logger.debug(f'Checked out {species_name} as {species["local_name"]}')
 
     def build_patch(self,SAPL=60.0,xy_aspect_ratio=1.0,midplane_z=0.0,half_mid_zgap=1.0,solution_gcc=1.0,rotation_pm=10.0):
         patch_area=SAPL*self.leaflet_nlipids
@@ -257,7 +258,7 @@ class Bilayer:
         self.patch_ur_corner=np.array([Lx,Ly,zmax])
         # box and origin
         self.box=np.array([[Lx,0,0],[0,Ly,0],[0,0,zmax-zmin]])
-        self.origin=np.array([0.5*Lx,0.5*Ly,0.5*(zmin+zmax)])
+        self.origin=np.array([0,0,zmin])
 
     def write_packmol(self,pm,half_mid_zgap=2.0,rotation_pm=0.0,nloop=100):
         # first patch-specific packmol directives
@@ -353,23 +354,23 @@ class Bilayer:
         logger.debug(f'Bilayer area before equilibration: {self.area:.3f} {sA2_}')
         user_dict['tasks']=[
             {'restart':dict(psf=psf,pdb=pdb,xsc=xsc,index=index)},
-            {'md':dict(ensemble='minimize',minimize=1000)},
-            {'md':dict(ensemble='NVT',nsteps=1000)},
-            {'md':dict(ensemble='NPT',nsteps=200,
+            {'md':dict(ensemble='minimize',minimize=1000,addl_paramfiles=self.addl_streamfiles)},
+            {'md':dict(ensemble='NVT',nsteps=1000,addl_paramfiles=self.addl_streamfiles)},
+            {'md':dict(ensemble='NPT',nsteps=200,addl_paramfiles=self.addl_streamfiles,
                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=400,
+            {'md':dict(ensemble='NPT',nsteps=400,addl_paramfiles=self.addl_streamfiles,
                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=800,
+            {'md':dict(ensemble='NPT',nsteps=800,addl_paramfiles=self.addl_streamfiles,
                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=1600,
+            {'md':dict(ensemble='NPT',nsteps=1600,addl_paramfiles=self.addl_streamfiles,
                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=3200,
+            {'md':dict(ensemble='NPT',nsteps=3200,addl_paramfiles=self.addl_streamfiles,
                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=6400,
+            {'md':dict(ensemble='NPT',nsteps=6400,addl_paramfiles=self.addl_streamfiles,
                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=12800,
+            {'md':dict(ensemble='NPT',nsteps=12800,addl_paramfiles=self.addl_streamfiles,
                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=25600,
+            {'md':dict(ensemble='NPT',nsteps=25600,addl_paramfiles=self.addl_streamfiles,
                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
             {'mdplot':dict(traces=['density',['a_x','b_y','c_z']],legend=True,grid=True,savedata=f'{basename}-traces.csv',basename=basename)},
             {'terminate':dict(basename=basename,chainmapfile=f'{basename}-chainmap.yaml',statefile=f'{basename}-state.yaml')}                 

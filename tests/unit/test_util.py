@@ -4,8 +4,40 @@ from pestifer.tasks.psfgen import *
 import os
 from pestifer.objs.mutation import Mutation
 from pestifer import objs
+from pestifer.command import Command
+from pestifer.util.util import protect_str_arg
+
 
 class TestUtil(unittest.TestCase):
+    def test_str_arg(self):
+        with open('test_str_arg.tcl','w') as f:
+            f.write("""
+pestifer_init
+
+proc abc { arg } {
+    puts "arg: $arg"
+}
+catch {set a "hello world"}
+for { set i 0 } { $i < [llength $argv] } { incr i } {
+   if { [lindex $argv $i] == "-a"} {
+      incr i
+      set a [lindex $argv $i]
+   }
+}
+set a_arg [deprotect_str_arg $a]
+abc $a_arg
+exit
+"""
+                    )
+        arg='abc 123'
+        c=Command(f"vmd -dispdev text -e test_str_arg.tcl -args -a {arg}")
+        c.run()
+        self.assertFalse('abc 123' in c.stdout)
+        c=Command(f"vmd -dispdev text -e test_str_arg.tcl -args -a {protect_str_arg(arg)}")
+        c.run()
+        self.assertTrue('abc 123' in c.stdout)
+        os.remove('test_str_arg.tcl')
+
     def test_special_update(self):
         d1={'A_LIST':[1,2,3],'B_DICT':{'k1':'v1','k2':'v2'},'C_scal':11}
         d2={'A_LIST':[4,5,6],'B_DICT':{'k3':'v3'},'C_scal':12,'D_new':'Hello'}

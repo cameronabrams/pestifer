@@ -211,52 +211,18 @@ class VMD(TcLScriptwriter):
             self.F.flush()
             logger.info(f'Post-execution clean-up: {nremoved} files removed.')
 
-comment_these_out=['set','if','WRNLEV','BOMLEV']
-def copy_charmm_top(sysfile,localfile=''):
-    if localfile=='':
-        localfile=os.path.split(sysfile)[1]
-    with open(sysfile,'r') as f:
-        lines=f.read().split('\n')
-    with open(localfile,'w') as f:
-        for l in lines:
-            is_comment=any([l.startswith(x) for x in comment_these_out])
-            if not is_comment:
-                f.write(l+'\n')
-
 class Psfgen(VMD):
     def __init__(self,config):
         super().__init__(config)
+        self.charmmff=config.RM.charmmff_content
         self.charmmff_config=config['user']['charmmff']
         self.psfgen_config=config['user']['psfgen']
-        self.pestifer_charmmff_toppar_path=config.charmmff_toppar_path
-        self.pestifer_charmmff_custom_path=config.charmmff_custom_path
-        self.user_charmmff_toppar_path=config.user_charmmff_toppar_path
 
-    def remove_charmm_top(self,local_files=[]):
-        if local_files:
-            for l in local_files:
-                if os.path.exists(l):
-                    os.remove(l)
-        else:
-            for t in self.charmmff_config['standard']['topologies']+self.charmmff_config['custom']['topologies']:
-                localname=os.path.split(t)[1]
-                if os.path.exists(localname):
-                    os.remove(localname)
-
-    def fetch_charmm_topologies(self):
+    def fetch_standard_charmm_topologies(self):
         topology_local=[]
-        for t in self.charmmff_config['standard']['topologies']:
-            ft=os.path.join(self.pestifer_charmmff_toppar_path,t)
-            localname=os.path.split(ft)[1]
-            if not os.path.exists(localname):
-                copy_charmm_top(ft,localname)
-            topology_local.append(localname)
-        for t in self.charmmff_config['custom']['topologies']:
-            ft=os.path.join(self.pestifer_charmmff_custom_path,t)
-            localname=os.path.split(ft)[1]
-            if not os.path.exists(localname):
-                copy_charmm_top(ft,localname)
-            topology_local.append(localname)
+        for t in self.charmmff_config['standard']['topologies']+self.charmmff_config['custom']['topologies']:
+            self.charmmff.copy_charmmfile_local(t)
+            topology_local.append(t)
         logger.debug(f'local topologies: {topology_local}')
         return topology_local
 
@@ -264,15 +230,12 @@ class Psfgen(VMD):
         super().newscript(basename=basename,packages=packages)
         self.addline('package require psfgen')
         self.addline('psfcontext mixedcase')
-        self.topologies=self.fetch_charmm_topologies()
+        self.topologies=self.fetch_standard_charmm_topologies()
         for at in additional_topologies:
-            localat=at
-            if '/' in at:
-                localat=os.path.split(at)[1]
-            if not localat in self.topologies:
-                self.topologies.append(localat)
+            self.charmmff.copy_charmmfile_local(at)
+            self.topologies.append(at)
         for t in self.topologies:
-            assert '/' not in t
+            assert os.sep not in t
             self.addline(f'topology {t}')
         for pdba in self.psfgen_config['aliases']:
             alias_tokens=pdba.split()
@@ -340,6 +303,7 @@ class NAMD(TcLScriptwriter):
     def __init__(self,config:Config):
         super().__init__(config)
         logger.debug(f'progress {self.progress}')
+        self.charmmff=config.RM.charmmff_content
         self.charmmff_config=config['user']['charmmff']
         self.charmrun=config.shell_commands['charmrun']
         self.namd=config.shell_commands['namd3']
@@ -359,47 +323,27 @@ class NAMD(TcLScriptwriter):
             self.namd_deprecates=config.namd_deprecates
         logger.debug(f'{self.ncpus} cpus are available for namd')
         self.default_ext='.namd'
-        self.user_charmmff_toppar_path=config.user_charmmff_toppar_path
-        self.charmmff_toppar_path=config.charmmff_toppar_path
-        self.charmmff_custom_path=config.charmmff_custom_path
-        self.update_par()
+    
+    def fetch_standard_charmm_parameters(self):
+        parameters_local=[]
+        for t in list(set(self.charmmff_config['standard']['parameters']+self.charmmff_config['custom']['parameters'])):
+            self.charmmff.copy_charmmfile_local(t)
+            parameters_local.append(t)
+        logger.debug(f'local parameters: {parameters_local}')
+        return parameters_local
 
-    def update_par(self):
-        if self.user_charmmff_toppar_path:
-            self.standard_charmmff_parfiles=[os.path.join(self.user_charmmff_toppar_path,x) for x in self.charmmff_config['standard']['parameters']]
-        else:
-            self.standard_charmmff_parfiles=[os.path.join(self.charmmff_toppar_path,x) for x in self.charmmff_config['standard']['parameters']]
-        self.custom_charmmff_parfiles=[os.path.join(self.charmmff_custom_path,x) for x in self.charmmff_config['custom']['parameters']]
-
-    def copy_charmm_par(self):
-        local_names=[]
-        namd_params_abs=self.standard_charmmff_parfiles+self.custom_charmmff_parfiles
-        for nf in namd_params_abs:
-            d,n=os.path.split(nf)
-            if not os.path.exists(n):
-                if n.endswith('.str'):
-                    copy_charmm_top(nf,n)
-                else:
-                    shutil.copy(nf,n)
-            local_names.append(n)
-        return local_names
-
-    def remove_charmm_par(self,local_names=[]):
-        if local_names:
-            for l in local_names:
-                if os.path.exists(l):
-                    os.remove(l)
-        else:
-            namd_params_abs=self.standard_charmmff_parfiles+self.custom_charmmff_parfiles
-            for nf in namd_params_abs:
-                d,n=os.path.split(nf)
-                if os.path.exists(n):
-                    os.remove(n)
-
-    def newscript(self,basename=None):
+    def newscript(self,basename=None,addl_paramfiles=[]):
         super().newscript(basename)
         self.scriptname=f'{basename}{self.default_ext}'
         self.banner('NAMD script')
+        self.parameters=self.fetch_standard_charmm_parameters()
+        for at in addl_paramfiles:
+            if not at in self.parameters:
+                self.charmmff.copy_charmmfile_local(at)
+                self.parameters.append(at)
+        for p in self.parameters:
+            assert os.sep not in p
+            self.addline(f'parameters {p}')
 
     def writescript(self,params,cpu_override=False):
         logger.debug(f'params: {params}')

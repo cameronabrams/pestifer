@@ -101,7 +101,6 @@ class BilayerEmbedTask(BaseTask):
 
 
     def do(self):
-
         self.log_message('initiated')
         self.inherit_state()
         self.pro_psf=self.statevars.get('psf',None)
@@ -205,6 +204,7 @@ class BilayerEmbedTask(BaseTask):
         self.statevars['pdb']=f'{self.basename}.pdb'
         self.statevars['psf']=f'{self.basename}.psf'
         self.statevars['xsc']=f'{self.basename}.xsc'
+        self.statevars['topologies']=additional_topologies
         self.quilt.statevars=self.statevars.copy()
         self.quilt.box,self.quilt.origin=cell_from_xsc(f'{self.basename}.xsc')
         self.quilt.area=self.quilt.box[0][0]*self.quilt.box[1][1]
@@ -223,6 +223,7 @@ class BilayerEmbedTask(BaseTask):
         z_value=embed_specs.get('z_ref_group',{}).get('z_value',0.0)
         self.next_basename('embed')
         pg=self.writers['psfgen']
+        pg.newscript(self.basename,additional_topologies=self.statevars['topologies'])
         pg.usescript('bilayer_embed')
         pg.writescript(self.basename,guesscoord=False,regenerate=True,force_exit=True,writepsf=False,writepdb=False)
         result=pg.runscript(psf=self.pro_psf,
@@ -238,6 +239,8 @@ class BilayerEmbedTask(BaseTask):
         self.statevars['pdb']=f'{self.basename}.pdb'
         self.statevars['psf']=f'{self.basename}.psf'
         self.statevars['xsc']=f'{self.basename}.xsc'
+        self.quilt.statevars.update(self.statevars)
+        
     # def solvate(self):
     #     solvent_specstring=self.specs.get('solvents','TIP3')
     #     solv_molfrac_specstring=self.specs.get('solvent_mole_fractions','1.0')

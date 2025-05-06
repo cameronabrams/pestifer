@@ -11,6 +11,9 @@
 # package require PestiferEnviron 1.0
 # namespace import ::PestiferEnviron::*
 
+package require Orient
+namespace import ::Orient::*
+
 set scriptname bilayer_embed
 
 set pdb "";  # psf of protein-only system
@@ -102,25 +105,26 @@ if { $z_tail_group == "" && !$no_orient } {
    puts "Error: -z_tail_group argument required if -no_orient is not indicated"
    exit
 }
-if { $z_value == 0.0 } {
-   puts "Error: -z_value argument required"
-   exit
-}
 
 mol new $psf
 mol addfile $pdb waitfor all
-set protein [molinfo top]
+set protein [molinfo top get id]
+vmdcon -info "protein system from $psf and $pdb into molecule $protein"
 
 mol new $bilayer_psf
 mol addfile $bilayer_pdb waitfor all
-set bilayer [molinfo top]
+set bilayer [molinfo top get id]
+vmdcon -info "bilayer system from $bilayer_psf and $bilayer_pdb into molecule $bilayer"
 set bilayer_sel [atomselect $bilayer "all"]
 
-set head [atomselect $bilayer "$z_head_group"]
-set tail [atomselect $bilayer "$z_tail_group"]
+vmdcon -info "selecting \"$z_head_group\" and \"$z_tail_group\" from protein (molecule $protein)"
+set head [atomselect $protein "$z_head_group"]
+set tail [atomselect $protein "$z_tail_group"]
+vmdcon -info "head: [$head num] atoms"
+vmdcon -info "tail: [$tail num] atoms"
 set head_com [measure center $head weight mass]
 set tail_com [measure center $tail weight mass]
-set bilayer_com [measure center $bilayer weight mass]
+set bilayer_com [measure center $bilayer_sel weight mass]
 set bilayer_x [lindex $bilayer_com 0]
 set bilayer_y [lindex $bilayer_com 1]
 set bilayer_z [lindex $bilayer_com 2]
@@ -155,3 +159,16 @@ regenerate angles dihedrals
 writepsf cmap ${outbasename}.psf
 writepdb ${outbasename}.pdb
 
+resetpsf
+mol delete $protein
+mol delete $bilayer
+mol new ${outbasename}.psf
+mol addfile ${outbasename}.pdb waitfor all
+set embedded_system [molinfo top get id]
+set embedded_protein_sel [atomselect ${embedded_system} "protein or glycan"]
+set embedded_protein_minmax [measure minmax $embedded_protein_sel]
+set embedded_protein_min [lindex $embedded_protein_minmax 0]
+set embedded_protein_max [lindex $embedded_protein_minmax 1]
+set embedded_protein_min_z [lindex $embedded_protein_min 2]
+set embedded_protein_max_z [lindex $embedded_protein_max 2]
+set embedded_protein_z_range [expr $embedded_protein_max_z - $embedded_protein_min_z]

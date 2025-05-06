@@ -27,6 +27,7 @@ class PDBInput:
     def checkout(self,index=0):
         basename=os.path.basename(self.conformers[index])
         if not os.path.exists(basename):
+            logger.debug(f'copying {self.conformers[index]} to {basename}')
             shutil.copy(self.conformers[index],basename)
         return basename
 

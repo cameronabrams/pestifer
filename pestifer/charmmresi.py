@@ -131,8 +131,11 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     for task in tasks:
         if task.taskname=='md':
             needed=[]
-            if charmm_topfile.endswith('str') and not charmm_topfile in task.writers['namd'].charmmff_config['standard']['parameters']:
-                task.writers['namd'].charmmff_config['standard']['parameters'].append(charmm_topfile)
+            if 'toppar' in charmm_topfile: 
+                # this is a combined topology/parameter file; charmm_topfile is ABSOLUTE, so we need to add its RELATIVE path to the list of parameter files
+                charmm_topfile_rel=charmm_topfile.replace(DB.toppardir,'')
+                if not charmm_topfile_rel in task.writers['namd'].charmmff_config['standard']['parameters']:
+                    task.writers['namd'].charmmff_config['standard']['parameters'].append(charmm_topfile_rel)
             if charmm_topfile.endswith('sphingo.str'):
                 needed=['stream/carb/toppar_all36_carb_imlab.str',
                         'stream/lipid/toppar_all36_lipid_lps.str']
