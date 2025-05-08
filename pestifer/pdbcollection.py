@@ -20,6 +20,7 @@ class PDBInput:
             info=os.path.join(dir,'info.yaml')
             with open(info,'r') as f:
                 self.info=yaml.safe_load(f)
+            logger.debug(f'loaded info {self.info}')
         elif solo:
             self.conformers=[solo]
             self.info={}
@@ -91,8 +92,10 @@ class PDBCollection:
         c=self.collections.get(collection_name,{})
         s=c.get('streams',{})
         for k,v in s.items():
+            logger.debug(f'looking for {name} in {v}')
             if name in v:
                 fullname=os.path.join(c['path'],k,name)
+                logger.debug(f'found {fullname}')
                 if os.path.isdir(fullname):
                     return PDBInput(dir=fullname,noh=noh)
                 else:
@@ -101,6 +104,7 @@ class PDBCollection:
 
     def get_pdb(self,name,noh=False):
         for colname in self.collections.keys():
+            logger.debug(f'looking for {name} in {colname}')
             res=self.search_collection(colname,name,noh=noh)
             if res:
                 return res

@@ -1,24 +1,24 @@
 charge: 0.0
 conformers:
-- head-tail-length: 28.767
+- head-tail-length: 28.281
   pdb: POPC-00.pdb
-- head-tail-length: 27.744
+- head-tail-length: 28.45
   pdb: POPC-01.pdb
-- head-tail-length: 26.024
+- head-tail-length: 27.892
   pdb: POPC-02.pdb
-- head-tail-length: 23.677
+- head-tail-length: 27.135
   pdb: POPC-03.pdb
-- head-tail-length: 20.481
+- head-tail-length: 25.787
   pdb: POPC-04.pdb
-- head-tail-length: 20.615
+- head-tail-length: 24.736
   pdb: POPC-05.pdb
-- head-tail-length: 21.324
+- head-tail-length: 25.568
   pdb: POPC-06.pdb
-- head-tail-length: 20.513
+- head-tail-length: 24.495
   pdb: POPC-07.pdb
-- head-tail-length: 20.781
+- head-tail-length: 23.962
   pdb: POPC-08.pdb
-- head-tail-length: 20.417
+- head-tail-length: 23.289
   pdb: POPC-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +39,4 @@ reference-atoms:
     serial: 88
   - name: C316
     serial: 131
+synonym: 3-palmitoyl-2-oleoyl-D-glycero-1-Phosphatidylcholine

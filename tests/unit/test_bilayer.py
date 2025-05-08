@@ -340,8 +340,26 @@ def test_bilayer_task_init_symmetric():
             'namd':   NAMD(C),
             'data':   Filewriter()
         }
-    idict={'npatch':[2,2],'composition':{'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
-        'lower_leaflet': [{'name':'POPC','frac':1.0,'conf':0}]}}
+    idict={'bilayer':{
+            'npatch':[2,2],
+            'composition':{
+                'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
+                'lower_leaflet': [{'name':'POPC','frac':1.0,'conf':0}]
+                },
+            'relaxation_protocols':{
+                'patch':[
+                    {'md':{'ensemble':'minimize','nsteps':1000}},
+                    {'md':{'ensemble':'NVT','nsteps':1000}},
+                    {'md':{'ensemble':'NPT','nsteps':1000}},
+                    {'md':{'ensemble':'NPT','nsteps':2000}},
+                    {'md':{'ensemble':'NPT','nsteps':4000}},
+                    {'md':{'ensemble':'NPT','nsteps':8000}}
+                ],
+                'bilayer':[
+                    {'md':{'ensemble':'minimize'}},
+                    {'md':{'ensemble':'NVT','nsteps':1000}},
+                    {'md':{'ensemble':'NPT','nsteps':10000}}
+                ]}}}
     BET = BilayerEmbedTask(idict,'test_bilayer_task',C,writers,None)
     assert BET.taskname == 'test_bilayer_task'
     result=BET.do()
@@ -360,8 +378,27 @@ def test_bilayer_task_init_asymmetric():
             'namd':   NAMD(C),
             'data':   Filewriter()
         }
-    idict={'npatch':[2,2],'composition':{'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
-        'lower_leaflet': [{'name':'POPE','frac':1.0,'conf':0}]}}
+    idict={'bilayer':{
+            'npatch':[2,2],
+            'composition':{
+                'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
+                'lower_leaflet': [{'name':'POPE','frac':1.0,'conf':0}]
+                },
+            'relaxation_protocols':{
+                'patch':[
+                    {'md':{'ensemble':'minimize','nsteps':1000}},
+                    {'md':{'ensemble':'NVT','nsteps':1000}},
+                    {'md':{'ensemble':'NPT','nsteps':1000}},
+                    {'md':{'ensemble':'NPT','nsteps':2000}},
+                    {'md':{'ensemble':'NPT','nsteps':4000}},
+                    {'md':{'ensemble':'NPT','nsteps':8000}}
+                ],
+                'bilayer':[
+                    {'md':{'ensemble':'minimize','nsteps':1000}},
+                    {'md':{'ensemble':'NVT','nsteps':1000}},
+                    {'md':{'ensemble':'NPT','nsteps':1000}},
+                    {'md':{'ensemble':'NPT','nsteps':10000}}
+                ]}}}
     BET = BilayerEmbedTask(idict,'test_bilayer_task',C,writers,None)
     assert BET.taskname == 'test_bilayer_task'
     result=BET.do()
@@ -380,8 +417,30 @@ def test_bilayer_task_init_asymmetric_multicomponent():
             'namd':   NAMD(C),
             'data':   Filewriter()
         }
-    idict={'npatch':[2,2],'composition':{'upper_leaflet': [{'name':'POPC','frac':0.5,'conf':0},{'name':'CHL1','frac':0.5,'conf':0}],
-        'lower_leaflet': [{'name':'PSM','frac':0.5,'conf':0},{'name':'CHL1','frac':0.5,'conf':0}]}}
+    idict={'bilayer':{
+            'npatch':[2,2],
+            'composition':{
+                'upper_leaflet': [
+                    {'name':'POPC','frac':0.5,'conf':0},
+                    {'name':'CHL1','frac':0.5,'conf':0}],
+                'lower_leaflet': [
+                    {'name':'PSM','frac':0.5,'conf':0},
+                    {'name':'CHL1','frac':0.5,'conf':0}]},
+            'relaxation_protocols':{
+                'patch':[
+                    {'md':{'ensemble':'minimize','nsteps':1000}},
+                    {'md':{'ensemble':'NVT','nsteps':1000}},
+                    {'md':{'ensemble':'NPT','nsteps':1000}},
+                    {'md':{'ensemble':'NPT','nsteps':2000}},
+                    {'md':{'ensemble':'NPT','nsteps':4000}},
+                    {'md':{'ensemble':'NPT','nsteps':8000}}
+                ],
+                'bilayer':[
+                    {'md':{'ensemble':'minimize','nsteps':1000}},
+                    {'md':{'ensemble':'NVT','nsteps':1000}},
+                    {'md':{'ensemble':'NPT','nsteps':1000}},
+                    {'md':{'ensemble':'NPT','nsteps':10000}}
+                ]}}}
     BET = BilayerEmbedTask(idict,'test_bilayer_task',C,writers,None)
     assert BET.taskname == 'test_bilayer_task'
     result=BET.do()

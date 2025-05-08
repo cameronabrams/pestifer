@@ -1212,7 +1212,7 @@ directives:
                 type: bool
                 default: True
               - name: ensemble
-                text: Name of ensemble to run in; note that NPT can only be peformed on a solvated system
+                text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                 type: str
                 choices: [minimize, NVT, NPT]
                 default: NVT
@@ -1428,24 +1428,294 @@ directives:
             text: list of segment types to include in the ring-pierce check
             type: list
             default: ['lipid']
-      - name: bilayer
-        text: Parameters controlling packmol to generate a bilayer system
+      - name: make_membrane_system
+        text: Parameters controlling packmol to generate a membrane system with an embedded protein
         type: dict
         directives:
+          - name: bilayer
+            text: Parameters controlling bilayer generation
+            type: dict
+            directives:
+              - name: lipids
+                text: declaration of lipids in each leaflet in memgen format LIP1[:LIP2][//LIP3] where ":" is an intra-leaflet separator and "//" is an inter-leaflet separator
+                type: str
+                default: POPC
+              - name: lipid_conformers
+                text: declaration of which conformer index to use for each lipid in memgen format C1:C2//C3 (defaults to 0); must be congruent with the lipids directive
+                type: str
+                default: '0'
+              - name: mole_fractions
+                text: declaration of mole fractions of each lipid in each leaflet in memgen format R1:R2//R3; must be congruent with the lipids directive
+                type: str
+                default: '1.0'
+              - name: patch_nlipids
+                type: int
+                text: number of lipids per leaflet when building initial bilayer patches
+                default: 100
+              - name: composition
+                type: dict
+                text: Alternate way of expressing bilayer composition; supercedes memgen-format 'lipids', 'mole_fractions', and 'lipid_conformers'
+                directives:
+                  - name: upper_leaflet
+                    type: list
+                    text: List of dicts with keys 'name', 'frac', and 'conf' for each lipid species
+                  - name: lower_leaflet
+                    type: list
+                    text: List of dicts with keys 'name', 'frac', and 'conf' for each lipid species
+              - name: solvents
+                text: string in memgen format SOL1:SOL2:...
+                type: str
+                default: TIP3
+              - name: solvent_mole_fractions
+                text: string in memgen format x_1:x_2:...
+                type: str
+                default: '1.0'
+              - name: SAPL
+                text: estimate of surface area per lipid (Å²) for building initial patches
+                type: float
+                default: 60.0
+              - name: patch_thickness
+                text: initial value of leaflet thickness (Å)
+                type: float
+                default: 20.0
+              - name: dims
+                text: box dimensions in x, y, and z in Å; must be specified for a bilayer-only system
+                type: list
+              - name: npatch
+                text: box dimensions in number of patches in x and y
+                type: list
+              - name: length_pad
+                text: additional length added to longest molecular length when orienting molecules that are parallel to z axis
+                type: float
+              - name: solution_gcc
+                text: solution density in g/cc
+                type: float
+                default: 1.0
+              - name: cation
+                text: name of salt cation
+                type: str
+                default: POT
+              - name: anion
+                text: name of salt anion
+                type: str
+                default: CLA
+              - name: salt_con
+                text: salt concentration in M
+                type: float
+              - name: nloop
+                text: number of packmol GENCAN loops for every component
+                type: int
+              - name: nloop_all
+                text: number of packmol GENCAN loops for altogether packing
+                type: int
+              - name: tolerance
+                text: clash detection tolerance for packmol
+                type: float
+              - name: seed
+                text: RNG seed (optional)
+                type: int
+              - name: relaxation_protocols
+                text: relaxation protocols for the patch and the quilt
+                type: dict
+                directives:
+                  - name: patch
+                    text: patch-specific relaxation protocol
+                    type: list
+                    default:
+                      - md:
+                        ensemble: minimize
+                        nsteps: 1000
+                      - md:
+                        ensemble: NVT
+                        nsteps: 1000
+                        temperature: 300
+                        other_parameters:
+                          useflexiblecell: True
+                          useconstantratio: True
+                      - md:
+                        ensemble: NPT
+                        nsteps: 200
+                        temperature: 300
+                        pressure: 10
+                        other_parameters:
+                          useflexiblecell: True
+                          useconstantratio: True
+                      - md:
+                        ensemble: NPT
+                        nsteps: 200
+                        temperature: 300
+                        pressure: 10
+                        other_parameters:
+                          useflexiblecell: True
+                          useconstantratio: True
+                      - md:
+                        ensemble: NPT
+                        nsteps: 400
+                        temperature: 300
+                        pressure: 10
+                        other_parameters:
+                          useflexiblecell: True
+                          useconstantratio: True
+                      - md:
+                        ensemble: NPT
+                        nsteps: 800
+                        temperature: 300
+                        pressure: 10
+                        other_parameters:
+                          useflexiblecell: True
+                          useconstantratio: True
+                      - md:
+                        ensemble: NPT
+                        nsteps: 1600
+                        temperature: 300
+                        pressure: 10
+                        other_parameters:
+                          useflexiblecell: True
+                          useconstantratio: True
+                      - md:
+                        ensemble: NPT
+                        nsteps: 3200
+                        temperature: 300
+                        pressure: 10
+                        other_parameters:
+                          useflexiblecell: True
+                          useconstantratio: True
+                      - md:
+                        ensemble: NPT
+                        nsteps: 6400
+                        temperature: 300
+                        pressure: 10
+                        other_parameters:
+                          useflexiblecell: True
+                          useconstantratio: True
+                      - md:
+                        ensemble: NPT
+                        nsteps: 12800
+                        temperature: 300
+                        pressure: 10
+                        other_parameters:
+                          useflexiblecell: True
+                          useconstantratio: True
+                      - md:
+                        ensemble: NPT
+                        nsteps: 25600
+                        temperature: 300
+                        pressure: 1
+                        other_parameters:
+                          useflexiblecell: True
+                          useconstantratio: True
+                    directives:
+                      - name: md
+                        text: md task for bilayer relaxation
+                        type: dict
+                        directives:
+                          - name: ensemble
+                            text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
+                            type: str
+                            choices: [minimize, NVT, NPT]
+                            default: minimize
+                          - name: nsteps
+                            text: Number of MD time steps (or minimization steps if 'ensemble' is 'minimize')
+                            type: int
+                            default: 1000
+                          - name: temperature
+                            text: Temperature (K) for NVT or NPT
+                            type: float
+                            default: 300
+                          - name: pressure
+                            text: Pressure (bar) for NPT; note that NPT can only be performed on a solvated system
+                            type: float
+                            default: 1
+                          - name: addl_parmfiles
+                            type: list
+                            text: list of additional parameter files to be included in the NAMD run
+                            default: []
+                          - name: other_parameters 
+                            type: dict
+                            text: key:value pairs for other namd3 configuration file statements
+                            directives:
+                              - name: useflexiblecell
+                                text: flexible cell flag for NPT
+                                type: bool
+                                default: True
+                              - name: useconstantratio
+                                text: constant X:Y ratio for NPT
+                                type: bool
+                                default: True
+                  - name: quilt
+                    text: quilt-specific relaxation protocol; if patch is well-equilibrated and any lipids deleted due to asymmetry are small in number, this is usually much shorter
+                    type: list
+                    default:
+                      - md:
+                        ensemble: minimize
+                        nsteps: 1000
+                      - md:
+                        ensemble: NVT
+                        nsteps: 1000
+                        temperature: 300
+                        other_parameters:
+                          useflexiblecell: True
+                          useconstantratio: True
+                      - md:
+                        ensemble: NPT
+                        nsteps: 25600
+                        temperature: 300
+                        pressure: 1
+                        other_parameters:
+                          useflexiblecell: True
+                          useconstantratio: True
+                    directives:
+                      - name: md
+                        text: md task for bilayer relaxation
+                        type: dict
+                        directives:
+                          - name: ensemble
+                            text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
+                            type: str
+                            choices: [minimize, NVT, NPT]
+                            default: minimize
+                          - name: nsteps
+                            text: Number of MD time steps (or minimization steps if 'ensemble' is 'minimize')
+                            type: int
+                            default: 1000
+                          - name: temperature
+                            text: Temperature (K) for NVT or NPT
+                            type: float
+                            default: 300
+                          - name: pressure
+                            text: Pressure (bar) for NPT; note that NPT can only be performed on a solvated system
+                            type: float
+                            default: 1
+                          - name: addl_parmfiles
+                            type: list
+                            text: list of additional parameter files to be included in the NAMD run
+                            default: []
+                          - name: other_parameters 
+                            type: dict
+                            text: key:value pairs for other namd3 configuration file statements
+                            directives:
+                              - name: useflexiblecell
+                                text: flexible cell flag for NPT
+                                type: bool
+                                default: True
+                              - name: useconstantratio
+                                text: constant X:Y ratio for NPT
+                                type: bool
+                                default: True
           - name: embed
             text: parameters controlling protein embedding
             type: dict
             directives:
               - name: xydist
-                text: distance from perimeter of protein to box edge in x and y (A)
+                text: distance from perimeter of protein to box edge in x and y (Å)
                 type: float
                 default: 15
               - name: zdist
-                text: distance from perimeter of protein to box edge in z (A)
+                text: distance from perimeter of protein to box edge in z (Å)
                 type: float
                 default: 20
               - name: margin
-                text: distance from any protein atom in which no lipid atoms are permitted when embedding
+                text: distance from any protein atom in which no lipid atoms are permitted when embedding (Å)
                 type: float
                 default: 2.4
               - name: z_head_group
@@ -1460,89 +1730,11 @@ directives:
                 directive:
                   - name: z_value
                     type: float
-                    text: value of z at COM of this group (default 0)
+                    text: value of z at COM of this group (default 0) (Å)
                     default: 0.0
                   - name: text
                     text: the atomselect text
                     type: str
-          - name: lipids
-            text: declaration of lipids in each leaflet in the format LIP1[:LIP2][//LIP3] (i.e., memgen format)
-            type: str
-            default: POPC  # a pure POPC bilayer
-          - name: lipid_conformers
-            text: declaration of which conformer index to use for each lipid in the format C1:C2//C3 (defaults to 0)
-            type: str
-            default: '0'
-          - name: mole_fractions
-            text: declaration of mole fractions of each lipid in each leaflet in the format R1:R2//R3
-            type: str
-            default: '1.0'
-          - name: leaflet_nlipids
-            type: int
-            text: number of lipids per leaflet when building initial bilayer patches
-            default: 100
-          - name: composition
-            type: dict
-            text: Alternate way of expressing bilayer composition; supercedes 'lipids', 'mole_fractions', and 'lipid_conformers'
-            directives:
-              - name: upper_leaflet
-                type: list
-                text: List of dicts with keys 'name', 'frac', and 'conf' for each lipid species
-              - name: lower_leaflet
-                type: list
-                text: List of dicts with keys 'name', 'frac', and 'conf' for each lipid species
-          - name: solvents
-            text: string in form of SOL1:SOL2:...
-            type: str
-            default: TIP3
-          - name: solvent_mole_fractions
-            text: string in form of x_1:x_2:...
-            type: str
-            default: '1.0'
-          - name: SAPL
-            text: estimate of surface area per lipid (Å²) for building initial patches
-            type: float
-            default: 60.0
-          - name: leaflet_thickness
-            text: initial value of leaflet thickness (Å)
-            type: float
-            default: 20.0
-          - name: dims
-            text: box dimensions in x, y, and z in Å; must be specified for a bilayer-only system
-            type: list
-          - name: npatch
-            text: box dimensions in number of patches in x and y
-            type: list
-          - name: length_pad
-            text: additional length added to longest molecular length when orienting molecules that are parallel to z axis
-            type: float
-          - name: solution_gcc
-            text: solution density in g/cc
-            type: float
-            default: 1.0
-          - name: cation
-            text: name of salt cation
-            type: str
-            default: POT
-          - name: anion
-            text: name of salt anion
-            type: str
-            default: CLA
-          - name: salt_con
-            text: salt concentration in M
-            type: float
-          - name: nloop
-            text: number of packmol GENCAN loops for every component
-            type: int
-          - name: nloop_all
-            text: number of packmol GENCAN loops for altogether packing
-            type: int
-          - name: tolerance
-            text: clash detection tolerance for packmol
-            type: float
-          - name: seed
-            text: RNG seed (optional)
-            type: int
       - name: md
         text: Parameters controlling a NAMD run
         type: dict
@@ -1556,7 +1748,7 @@ directives:
             type: boolean
             default: False
           - name: ensemble
-            text: Name of ensemble to run in; note that NPT can only be peformed on a solvated system
+            text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
             type: str
             choices: [minimize, NVT, NPT]
             default: NVT
@@ -1581,7 +1773,7 @@ directives:
             type: float
             default: 300
           - name: pressure
-            text: Pressure (bar) for NPT; note that NPT can only be peformed on a solvated system
+            text: Pressure (bar) for NPT; note that NPT can only be performed on a solvated system
             type: float
             default: 1
           - name: addl_paramfiles
@@ -1644,7 +1836,7 @@ directives:
                 type: str
                 default: my_system
               - name: ensemble
-                text: Name of ensemble to run in; note that NPT can only be peformed on a solvated system
+                text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                 type: str
                 choices: [NVT, NPT]
                 default: NVT
@@ -1673,7 +1865,7 @@ directives:
                 type: float
                 default: 300
               - name: pressure
-                text: Pressure (bar) for NPT; note that NPT can only be peformed on a solvated system
+                text: Pressure (bar) for NPT; note that NPT can only be performed on a solvated system
                 type: float
                 default: 1
               - name: topogromacs

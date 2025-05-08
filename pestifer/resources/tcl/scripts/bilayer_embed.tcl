@@ -128,10 +128,13 @@ set bilayer_com [measure center $bilayer_sel weight mass]
 set bilayer_x [lindex $bilayer_com 0]
 set bilayer_y [lindex $bilayer_com 1]
 set bilayer_z [lindex $bilayer_com 2]
-set pro_axis [vecnorm [vecsub $head_com $tail_com]]
 set pro_sel [atomselect $protein "all"]
-set A [orient $pro_sel $pro_axis {0 0 1}]
-$pro_sel move $A
+if { !$no_orient } {
+   vmdcon -info "orienting protein axis to bilayer normal"
+   set pro_axis [vecnorm [vecsub $head_com $tail_com]]
+   set A [orient $pro_sel $pro_axis {0 0 1}]
+   $pro_sel move $A
+}
 set pro_mid_z_ref_sel [atomselect $protein "$z_ref_group"]
 set pro_embed_mid_z [lindex [measure center $pro_mid_z_ref_sel weight mass] 2]
 set pro_com [measure center $pro_sel weight mass]
@@ -164,6 +167,10 @@ mol delete $protein
 mol delete $bilayer
 mol new ${outbasename}.psf
 mol addfile ${outbasename}.pdb waitfor all
+set allatoms [atomselect top "all"]
+set net_charge [vecsum [$allatoms get charge]]
+vmdcon -info "net charge of embedded system before filling: $net_charge"
+
 set embedded_system [molinfo top get id]
 set embedded_protein_sel [atomselect ${embedded_system} "protein or glycan"]
 set embedded_protein_minmax [measure minmax $embedded_protein_sel]
@@ -171,4 +178,9 @@ set embedded_protein_min [lindex $embedded_protein_minmax 0]
 set embedded_protein_max [lindex $embedded_protein_minmax 1]
 set embedded_protein_min_z [lindex $embedded_protein_min 2]
 set embedded_protein_max_z [lindex $embedded_protein_max 2]
-set embedded_protein_z_range [expr $embedded_protein_max_z - $embedded_protein_min_z]
+set fp [open "${outbasename}_embed_prefilling.yaml" "w"]
+puts $fp "embedded_protein_min_z: $embedded_protein_min_z"
+puts $fp "embedded_protein_max_z: $embedded_protein_max_z"
+puts $fp "net_charge: $net_charge"
+puts $fp "prefill_xsc: $bilayer_xsc"
+close $fp

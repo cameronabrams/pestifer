@@ -1,24 +1,24 @@
 charge: 0.0
 conformers:
-- head-tail-length: 27.827
+- head-tail-length: 28.589
   pdb: POPE-00.pdb
-- head-tail-length: 28.428
+- head-tail-length: 27.217
   pdb: POPE-01.pdb
-- head-tail-length: 27.347
+- head-tail-length: 26.715
   pdb: POPE-02.pdb
-- head-tail-length: 26.306
+- head-tail-length: 25.567
   pdb: POPE-03.pdb
-- head-tail-length: 27.292
+- head-tail-length: 23.99
   pdb: POPE-04.pdb
-- head-tail-length: 26.112
+- head-tail-length: 24.832
   pdb: POPE-05.pdb
-- head-tail-length: 26.649
+- head-tail-length: 23.988
   pdb: POPE-06.pdb
-- head-tail-length: 26.761
+- head-tail-length: 23.808
   pdb: POPE-07.pdb
-- head-tail-length: 25.719
+- head-tail-length: 21.782
   pdb: POPE-08.pdb
-- head-tail-length: 25.031
+- head-tail-length: 21.473
   pdb: POPE-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -28,8 +28,8 @@ parameters:
 - par_all36_na.prm
 - par_all36_cgenff.prm
 - toppar_water_ions.str
-- stream/carb/toppar_all36_carb_glycopeptide.str
-- stream/prot/toppar_all36_prot_modify_res.str
+- toppar_all36_carb_glycopeptide.str
+- toppar_all36_prot_modify_res.str
 reference-atoms:
   heads:
   - name: N
@@ -39,3 +39,4 @@ reference-atoms:
     serial: 79
   - name: C316
     serial: 122
+synonym: 3-palmitoyl-2-oleoyl-D-glycero-1-Phosphatidylethanolamine

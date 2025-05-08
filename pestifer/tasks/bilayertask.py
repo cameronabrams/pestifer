@@ -39,17 +39,20 @@ class BilayerEmbedTask(BaseTask):
         self.RDB=CharmmResiDatabase()
         self.RDB.add_stream('lipid')
         self.RDB.add_topology('toppar_all36_moreions.str',streamnameoverride='water_ions')
-        lipid_specstring=self.specs.get('lipids','')
-        ratio_specstring=self.specs.get('mole_fractions','')
-        conformers_specstring=self.specs.get('conformers','')
-        solvent_specstring=self.specs.get('solvents','TIP3')
-        solvent_ratio_specstring=self.specs.get('solvent_mole_fractions','1.0')
-        solvent_to_lipid_ratio=self.specs.get('solvent_to_lipid_ratio',32.0)
-        leaflet_nlipids=self.specs.get('leaflet_nlipids',100)
-        cation_name=self.specs.get('cation','POT')
-        anion_name=self.specs.get('anion','CLA')
+        self.bilayer_specs=self.specs.get('bilayer',{})
+        self.embed_specs=self.specs.get('embed',{})
+        lipid_specstring=self.bilayer_specs.get('lipids','')
+        ratio_specstring=self.bilayer_specs.get('mole_fractions','')
+        conformers_specstring=self.bilayer_specs.get('conformers','')
+        solvent_specstring=self.bilayer_specs.get('solvents','TIP3')
+        solvent_ratio_specstring=self.bilayer_specs.get('solvent_mole_fractions','1.0')
+        solvent_to_lipid_ratio=self.bilayer_specs.get('solvent_to_lipid_ratio',32.0)
+        leaflet_nlipids=self.bilayer_specs.get('leaflet_nlipids',100)
+        cation_name=self.bilayer_specs.get('cation','POT')
+        anion_name=self.bilayer_specs.get('anion','CLA')
         neutralizing_salt=[cation_name,anion_name]
-        composition_dict=self.specs.get('composition',{})
+        composition_dict=self.bilayer_specs.get('composition',{})
+
         if not composition_dict:
             composition_dict=specstrings_builddict(lipid_specstring,
                                                   ratio_specstring,
@@ -119,15 +122,17 @@ class BilayerEmbedTask(BaseTask):
         return super().do()
 
     def build_patch(self):
-        rotation_pm=self.specs.get('rotation_pm',10.)
-        half_mid_zgap=self.specs.get('half_mid_zgap',1.0)
-        SAPL=self.specs.get('SAPL',60.0)
-        seed=self.specs.get('seed',27021972)
-        tolerance=self.specs.get('tolerance',2.0)
-        xy_aspect_ratio=self.specs.get('xy_aspect_ratio',1.0)
-        nloop=self.specs.get('nloop',100)
-        nloop_all=self.specs.get('nloop_all',100)
-
+        logger.debug(f'Bilayer specs: {self.bilayer_specs}')
+        rotation_pm=self.bilayer_specs.get('rotation_pm',10.)
+        half_mid_zgap=self.bilayer_specs.get('half_mid_zgap',1.0)
+        SAPL=self.bilayer_specs.get('SAPL',60.0)
+        seed=self.bilayer_specs.get('seed',27021972)
+        tolerance=self.bilayer_specs.get('tolerance',2.0)
+        xy_aspect_ratio=self.bilayer_specs.get('xy_aspect_ratio',1.0)
+        nloop=self.bilayer_specs.get('nloop',100)
+        nloop_all=self.bilayer_specs.get('nloop_all',100)
+        relaxation_protocols=self.bilayer_specs.get('relaxation_protocols',{})
+        relaxation_protocol=relaxation_protocols.get('patch',{})
         # we now build the patch, or if asymmetric, two patches
         for patch,spec in zip([self.patch,self.patchA,self.patchB],['','A','B']):
             if patch is None:
@@ -157,7 +162,7 @@ class BilayerEmbedTask(BaseTask):
             patch.statevars['psf']=f'{self.basename}.psf'
             patch.statevars['xsc']=f'{self.basename}.xsc'
             self.next_basename(f'patch{spec}-equilibrate')
-            patch.equilibrate(user_dict=deepcopy(self.config['user']),basename=self.basename,index=self.index,spec=spec)
+            patch.equilibrate(user_dict=deepcopy(self.config['user']),basename=self.basename,index=self.index,spec=spec,relaxation_protocol=relaxation_protocol)
 
     def make_bilayer_from_patch(self):
         logger.debug(f'Creating bilayer from patch')
@@ -186,13 +191,13 @@ class BilayerEmbedTask(BaseTask):
         pg.newscript(self.basename,additional_topologies=additional_topologies)
         pg.usescript('bilayer_quilt')
         pg.writescript(self.basename,guesscoord=False,regenerate=False,force_exit=True,writepsf=False,writepdb=False)
-        margin=self.specs.get('embed',{}).get('xydist',10.0)
+        margin=self.embed_specs.get('xydist',10.0)
         if hasattr(self,"pro_pdb"):
             # we will eventually embed a protein in here, so send its pdb along to help size the bilayer
             result=pg.runscript(propdb=self.pro_pdb,margin=margin,psfA=psfA,pdbA=pdbA,psfB=psfB,pdbB=pdbB,xscA=xscA,xscB=xscB,o=self.basename)
         else:
-            dimx,dimy=self.specs.get('dims',(0,0))
-            npatchx,npatchy=self.specs.get('npatch',(0,0))
+            dimx,dimy=self.bilayer_specs.get('dims',(0,0))
+            npatchx,npatchy=self.bilayer_specs.get('npatch',(0,0))
             if npatchx!=0 and npatchy!=0:
                 result=pg.runscript(nx=npatchx,ny=npatchy,psfA=psfA,pdbA=pdbA,
                                     psfB=psfB,pdbB=pdbB,xscA=xscA,xscB=xscB,o=self.basename)
@@ -208,19 +213,18 @@ class BilayerEmbedTask(BaseTask):
         self.quilt.statevars=self.statevars.copy()
         self.quilt.box,self.quilt.origin=cell_from_xsc(f'{self.basename}.xsc')
         self.quilt.area=self.quilt.box[0][0]*self.quilt.box[1][1]
-        self.quilt.equilibrate(user_dict=deepcopy(self.config['user']),spec='')
-        return result
+        relaxation_protocol=self.bilayer_specs.get('relaxation_protocols',{}).get('bilayer',{})
+        self.quilt.equilibrate(user_dict=deepcopy(self.config['user']),spec='',relaxation_protocol=relaxation_protocol)
 
     def embed_protein(self):
-        embed_specs=self.specs.get('embed',None)
-        if embed_specs is None:
+        if not self.embed_specs:
             logger.debug('No embed specs.')
             return
-        zdist=embed_specs.get('zdist',0.0)
-        z_head_group=embed_specs.get('z_head_group',None)
-        z_tail_group=embed_specs.get('z_tail_group',None)
-        z_ref_group=embed_specs.get('z_ref_group',{}).get('text',None)
-        z_value=embed_specs.get('z_ref_group',{}).get('z_value',0.0)
+        zdist=self.embed_specs.get('zdist',0.0)
+        z_head_group=self.embed_specs.get('z_head_group',None)
+        z_tail_group=self.embed_specs.get('z_tail_group',None)
+        z_ref_group=self.embed_specs.get('z_ref_group',{}).get('text',None)
+        z_value=self.embed_specs.get('z_ref_group',{}).get('z_value',0.0)
         self.next_basename('embed')
         pg=self.writers['psfgen']
         pg.newscript(self.basename,additional_topologies=self.statevars['topologies'])
@@ -240,7 +244,8 @@ class BilayerEmbedTask(BaseTask):
         self.statevars['psf']=f'{self.basename}.psf'
         self.statevars['xsc']=f'{self.basename}.xsc'
         self.quilt.statevars.update(self.statevars)
-        
+        return result
+    
     # def solvate(self):
     #     solvent_specstring=self.specs.get('solvents','TIP3')
     #     solv_molfrac_specstring=self.specs.get('solvent_mole_fractions','1.0')

@@ -62,7 +62,6 @@ class MDTask(BaseTask):
         vel=self.statevars.get('vel',None)
         xsc=self.statevars.get('xsc',None)
         prior_paramfiles=self.statevars.get('charmmff_paramfiles',[])
-        # cell=self.statevars.get('cell',None)
         firsttimestep=self.statevars.get('firsttimestep',0)
         self.statevars['periodic']=is_periodic(xsc)
 

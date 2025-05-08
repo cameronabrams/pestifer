@@ -1,24 +1,24 @@
 charge: 0.0
 conformers:
-- head-tail-length: 15.39
+- head-tail-length: 15.515
   pdb: CHL1-00.pdb
-- head-tail-length: 15.771
+- head-tail-length: 15.015
   pdb: CHL1-01.pdb
-- head-tail-length: 15.631
+- head-tail-length: 14.978
   pdb: CHL1-02.pdb
-- head-tail-length: 15.654
+- head-tail-length: 15.116
   pdb: CHL1-03.pdb
-- head-tail-length: 15.541
+- head-tail-length: 15.436
   pdb: CHL1-04.pdb
-- head-tail-length: 15.043
+- head-tail-length: 15.34
   pdb: CHL1-05.pdb
-- head-tail-length: 15.11
+- head-tail-length: 15.216
   pdb: CHL1-06.pdb
-- head-tail-length: 15.202
+- head-tail-length: 15.299
   pdb: CHL1-07.pdb
-- head-tail-length: 15.518
+- head-tail-length: 15.677
   pdb: CHL1-08.pdb
-- head-tail-length: 15.51
+- head-tail-length: 15.412
   pdb: CHL1-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -30,7 +30,7 @@ parameters:
 - toppar_water_ions.str
 - toppar_all36_carb_glycopeptide.str
 - toppar_all36_prot_modify_res.str
-- toppar_all36_lipid_cholesterol.str
+- /home/cfa/Git/pestifer/pestifer/Resources/charmmff/toppar/stream/lipid/toppar_all36_lipid_cholesterol.str
 reference-atoms:
   heads:
   - name: C3
@@ -38,3 +38,4 @@ reference-atoms:
   tails:
   - name: C27
     serial: 71
+synonym: cholesterol v. 2(name to avoid conflict with choline)

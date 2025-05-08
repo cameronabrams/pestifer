@@ -345,34 +345,36 @@ class Bilayer:
             raise Exception(f'Packmol failed with result {result}')
         return packmol_output_pdb
 
-    def equilibrate(self,user_dict={},basename='equilibrate',index=0,spec=''):
+    def equilibrate(self,user_dict={},basename='equilibrate',index=0,spec='',relaxation_protocol=None):
         if user_dict=={}:
             return
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
         xsc=self.statevars['xsc']
         logger.debug(f'Bilayer area before equilibration: {self.area:.3f} {sA2_}')
-        user_dict['tasks']=[
-            {'restart':dict(psf=psf,pdb=pdb,xsc=xsc,index=index)},
-            {'md':dict(ensemble='minimize',minimize=1000,addl_paramfiles=self.addl_streamfiles)},
-            {'md':dict(ensemble='NVT',nsteps=1000,addl_paramfiles=self.addl_streamfiles)},
-            {'md':dict(ensemble='NPT',nsteps=200,addl_paramfiles=self.addl_streamfiles,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=400,addl_paramfiles=self.addl_streamfiles,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=800,addl_paramfiles=self.addl_streamfiles,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=1600,addl_paramfiles=self.addl_streamfiles,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=3200,addl_paramfiles=self.addl_streamfiles,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=6400,addl_paramfiles=self.addl_streamfiles,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=12800,addl_paramfiles=self.addl_streamfiles,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'md':dict(ensemble='NPT',nsteps=25600,addl_paramfiles=self.addl_streamfiles,
-                       other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-            {'mdplot':dict(traces=['density',['a_x','b_y','c_z']],legend=True,grid=True,savedata=f'{basename}-traces.csv',basename=basename)},
+        if not relaxation_protocol:
+            logger.debug('Using hard-coded relaxation protocol!!')
+            relaxation_protocol=[            
+                {'md':dict(ensemble='minimize',minimize=1000,addl_paramfiles=self.addl_streamfiles)},
+                {'md':dict(ensemble='NVT',nsteps=1000,addl_paramfiles=self.addl_streamfiles)},
+                {'md':dict(ensemble='NPT',nsteps=200,addl_paramfiles=self.addl_streamfiles,
+                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
+                {'md':dict(ensemble='NPT',nsteps=400,addl_paramfiles=self.addl_streamfiles,
+                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
+                {'md':dict(ensemble='NPT',nsteps=800,addl_paramfiles=self.addl_streamfiles,
+                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
+                {'md':dict(ensemble='NPT',nsteps=1600,addl_paramfiles=self.addl_streamfiles,
+                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
+                {'md':dict(ensemble='NPT',nsteps=3200,addl_paramfiles=self.addl_streamfiles,
+                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
+                {'md':dict(ensemble='NPT',nsteps=6400,addl_paramfiles=self.addl_streamfiles,
+                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
+                {'md':dict(ensemble='NPT',nsteps=12800,addl_paramfiles=self.addl_streamfiles,
+                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
+                {'md':dict(ensemble='NPT',nsteps=25600,addl_paramfiles=self.addl_streamfiles,
+                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))}]
+        user_dict['tasks']=[{'restart':dict(psf=psf,pdb=pdb,xsc=xsc,index=index)}]+relaxation_protocol+[
+            {'mdplot':dict(traces=['density',['a_x','b_y','c_z'],'pressure'],legend=True,grid=True,savedata=f'{basename}-traces.csv',basename=basename)},
             {'terminate':dict(basename=basename,chainmapfile=f'{basename}-chainmap.yaml',statefile=f'{basename}-state.yaml')}                 
         ]
         subconfig=Config(userdict=user_dict)
