@@ -1,0 +1,15 @@
+.. _config_ref tasks make_membrane_system bilayer relaxation_protocols quilt:
+
+``quilt``
+=========
+
+quilt-specific relaxation protocol; if patch is well-equilibrated and any lipids deleted due to asymmetry are small in number, this is usually much shorter
+
+Subdirective:
+
+.. toctree::
+   :maxdepth: 1
+
+   quilt/md
+
+

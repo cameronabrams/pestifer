@@ -3,7 +3,7 @@
 ``custom``
 ==========
 
-Custom charmmff files
+Custom charmmff files provided as part of pestifer
 
 Container-like parameters:
 

@@ -9,7 +9,9 @@ Single-valued parameters:
 
   * ``savedata``: name of CSV file to save all energy-like data
 
-  * ``legend``: include a legend (default: False)
+  * ``legend``: include a legend (default: True)
+
+  * ``grid``: include a grid (default: False)
 
   * ``basename``: Baseame of image file(s) to generate (default: myplot)
 

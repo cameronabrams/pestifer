@@ -18,5 +18,6 @@ Container-like parameters:
 
    protein/resnames
    protein/rescodes
+   protein/invrescodes
 
 

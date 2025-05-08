@@ -5,9 +5,11 @@
 
 Specifies modifications to the sequence or structure in the current structure
 
-Single-valued parameter:
+Single-valued parameters:
 
   * ``crotations``: dihedral angle rotations to reposition residues
+
+  * ``transrot``: global translations and rotations
 
 
 

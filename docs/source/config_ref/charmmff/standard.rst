@@ -3,7 +3,7 @@
 ``standard``
 ============
 
-Standard charmmff files
+Standard charmmff files under the standard toppar/ directory
 
 Container-like parameters:
 

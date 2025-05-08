@@ -11,6 +11,8 @@
   * ``GLN``: Q
   * ``GLU``: E
   * ``GLY``: G
+  * ``HIS``: H
+  * ``HSD``: H
   * ``HSE``: H
   * ``ILE``: I
   * ``LEU``: L

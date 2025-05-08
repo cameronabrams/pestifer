@@ -9,7 +9,7 @@ Single-valued parameters:
 
   * ``basename``: Desired basename for final tarball (default: my_system)
 
-  * ``ensemble``: Name of ensemble to run in; note that NPT can only be peformed on a solvated system (default: NVT)
+  * ``ensemble``: Name of ensemble to run in; note that NPT can only be performed on a solvated system (default: NVT)
 
   * ``nminsteps``: Number of minimization steps (default: 0)
 
@@ -23,7 +23,7 @@ Single-valued parameters:
 
   * ``temperature``: Temperature (K) for NVT or NPT (default: 300)
 
-  * ``pressure``: Pressure (bar) for NPT; note that NPT can only be peformed on a solvated system (default: 1)
+  * ``pressure``: Pressure (bar) for NPT; note that NPT can only be performed on a solvated system (default: 1)
 
   * ``topogromacs``: Set to True if you want to use topogromacs to generate Gromacs-compatible PDB and TOP files (default: False)
 

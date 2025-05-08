@@ -20,7 +20,7 @@ Detailed explanation of some *selected* common tasks you can use is below.
    runtasks/md
    runtasks/ligate
    runtasks/solvate
-   runtasks/bilayer
+   runtasks/make_membrane_system
    runtasks/terminate
    runtasks/cleave
 

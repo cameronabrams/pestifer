@@ -23,6 +23,8 @@ Single-valued parameters:
 
   * ``crotations``: dihedral angle rotations to reposition modelled-in protein chains or glycans
 
+  * ``transrot``: global translations and rotations
+
   * ``Cfusions``: fuse residues from named residue range of named protein chain of named input PDB coordinate file to C-terminus of named segment of base molecule
 
   * ``grafts``: graft residues from named residue range of named chain of named input PDB coordinate file onto target residue of base molecule

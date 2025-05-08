@@ -9,7 +9,7 @@ Single-valued parameters:
 
   * ``cpu-override``: Override namd3 processor type since GPUresident namd3 cannot handle restraints (yet) (default: True)
 
-  * ``ensemble``: Name of ensemble to run in; note that NPT can only be peformed on a solvated system (default: NVT)
+  * ``ensemble``: Name of ensemble to run in; note that NPT can only be performed on a solvated system (default: NVT)
 
   * ``force_constant``: force constant (kcal/mol/Angstrom^2) (default: 20)
 

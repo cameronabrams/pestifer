@@ -11,7 +11,7 @@ Single-valued parameters:
 
   * ``vacuum``: if true, namd will run on a single node even if multiple nodes are allocated (default: False)
 
-  * ``ensemble``: Name of ensemble to run in; note that NPT can only be peformed on a solvated system (default: NVT)
+  * ``ensemble``: Name of ensemble to run in; note that NPT can only be performed on a solvated system (default: NVT)
 
   * ``minimize``: Number of minimization steps; ignored if ensemble is not 'minimize' (used with the 'minimize' command) (default: 1000)
 
@@ -23,10 +23,18 @@ Single-valued parameters:
 
   * ``temperature``: Temperature (K) for NVT or NPT (default: 300)
 
-  * ``pressure``: Pressure (bar) for NPT; note that NPT can only be peformed on a solvated system (default: 1)
+  * ``pressure``: Pressure (bar) for NPT; note that NPT can only be performed on a solvated system (default: 1)
 
   * ``other_parameters``: key:value pairs for other namd2 configuration file statements
 
+
+
+Container-like parameter:
+
+.. toctree::
+   :maxdepth: 1
+
+   md/addl_paramfiles
 
 
 Subdirective:

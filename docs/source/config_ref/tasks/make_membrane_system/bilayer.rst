@@ -1,0 +1,58 @@
+.. _config_ref tasks make_membrane_system bilayer:
+
+``bilayer``
+===========
+
+Parameters controlling bilayer generation
+
+Single-valued parameters:
+
+  * ``lipids``: declaration of lipids in each leaflet in memgen format LIP1[:LIP2][//LIP3] where ":" is an intra-leaflet separator and "//" is an inter-leaflet separator (default: POPC)
+
+  * ``lipid_conformers``: declaration of which conformer index to use for each lipid in memgen format C1:C2//C3 (defaults to 0); must be congruent with the lipids directive (default: 0)
+
+  * ``mole_fractions``: declaration of mole fractions of each lipid in each leaflet in memgen format R1:R2//R3; must be congruent with the lipids directive (default: 1.0)
+
+  * ``patch_nlipids``: number of lipids per leaflet when building initial bilayer patches (default: 100)
+
+  * ``solvents``: string in memgen format SOL1:SOL2:... (default: TIP3)
+
+  * ``solvent_mole_fractions``: string in memgen format x_1:x_2:... (default: 1.0)
+
+  * ``SAPL``: estimate of surface area per lipid (Å²) for building initial patches (default: 60.0)
+
+  * ``patch_thickness``: initial value of leaflet thickness (Å) (default: 20.0)
+
+  * ``dims``: box dimensions in x, y, and z in Å; must be specified for a bilayer-only system
+
+  * ``npatch``: box dimensions in number of patches in x and y
+
+  * ``length_pad``: additional length added to longest molecular length when orienting molecules that are parallel to z axis
+
+  * ``solution_gcc``: solution density in g/cc (default: 1.0)
+
+  * ``cation``: name of salt cation (default: POT)
+
+  * ``anion``: name of salt anion (default: CLA)
+
+  * ``salt_con``: salt concentration in M
+
+  * ``nloop``: number of packmol GENCAN loops for every component
+
+  * ``nloop_all``: number of packmol GENCAN loops for altogether packing
+
+  * ``tolerance``: clash detection tolerance for packmol
+
+  * ``seed``: RNG seed (optional)
+
+
+
+Subdirectives:
+
+.. toctree::
+   :maxdepth: 1
+
+   bilayer/composition
+   bilayer/relaxation_protocols
+
+

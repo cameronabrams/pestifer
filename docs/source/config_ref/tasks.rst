@@ -19,7 +19,7 @@ Subdirectives:
    tasks/solvate
    tasks/desolvate
    tasks/ring_check
-   tasks/bilayer
+   tasks/make_membrane_system
    tasks/md
    tasks/manipulate
    tasks/terminate
