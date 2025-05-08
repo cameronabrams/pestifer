@@ -381,7 +381,7 @@ class Bilayer:
         subcontroller=Controller(subconfig)
         for task in subcontroller.tasks:
             task_key=task.taskname
-            task.override_taskname(f'bilayer{spec}-'+task_key)
+            task.override_taskname(f'{basename}{spec}-'+task_key)
         
         subcontroller.do_tasks()
         self.statevars=subcontroller.tasks[-1].statevars.copy()

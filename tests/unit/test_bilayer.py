@@ -341,6 +341,7 @@ def test_bilayer_task_init_symmetric():
             'data':   Filewriter()
         }
     idict={'bilayer':{
+            'SAPL': 50,
             'npatch':[2,2],
             'composition':{
                 'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
@@ -379,6 +380,7 @@ def test_bilayer_task_init_asymmetric():
             'data':   Filewriter()
         }
     idict={'bilayer':{
+            'SAPL': 50,
             'npatch':[2,2],
             'composition':{
                 'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
@@ -394,7 +396,7 @@ def test_bilayer_task_init_asymmetric():
                     {'md':{'ensemble':'NPT','nsteps':8000}}
                 ],
                 'bilayer':[
-                    {'md':{'ensemble':'minimize','nsteps':1000}},
+                    {'md':{'ensemble':'minimize','nsteps':2000}},
                     {'md':{'ensemble':'NVT','nsteps':1000}},
                     {'md':{'ensemble':'NPT','nsteps':1000}},
                     {'md':{'ensemble':'NPT','nsteps':10000}}
