@@ -11,8 +11,8 @@ from .command import Command
 from .config import Config
 from .stringthings import ByteCollector, FileCollector
 from .util.colors import *
-from .util.namdlog import NAMDLog, NAMDxst
-from .util.progress import NAMDProgress, PsfgenProgress, PestiferProgress
+from .util.logparsers import NAMDLog, NAMDxst
+from .util.progress import NAMDProgress, PsfgenProgress, PestiferProgress, PackmolProgress
 from .util.util import reduce_intlist
 
 logger=logging.getLogger(__name__)
@@ -405,3 +405,39 @@ class NAMD(TcLScriptwriter):
 
     def getxst(self):
         return NAMDxst(f'{self.basename}.xst')
+
+class PackmolInputWriter(Filewriter):
+    def __init__(self,config):
+        super().__init__(comment_char='#')
+        self.indent=4*' '
+        self.config=config
+        self.progress=self.config.progress
+        self.F=FileCollector()
+        self.default_ext='.inp'
+        self.default_script=f'packmol{self.default_ext}'
+        self.scriptname=self.default_script
+    
+    def newscript(self,basename=None):
+        timestampstr=datetime.datetime.today().ctime()
+        if basename:
+            self.basename=basename
+        else:
+            self.basename=os.path.splitext(self.default_script)[0]
+        self.scriptname=f'{self.basename}{self.default_ext}'
+        self.newfile(self.scriptname)
+        self.banner(f'{__package__}: {self.basename}{self.default_ext}')
+        self.banner(f'Created {timestampstr}')
+
+    def writescript(self):
+        self.writefile()
+
+    def runscript(self,*args,**options):
+        assert hasattr(self,'scriptname'),f'No scriptname set.'
+        self.logname=f'{self.basename}.log'
+        logger.debug(f'Log file: {self.logname}')
+        cmd=Command(f'{self.config.shell_commands["packmol"]} < {self.scriptname}')
+        progress_struct=None
+        if self.progress:
+            progress_struct=PackmolProgress()
+        return cmd.run(ignore_codes=[173],logfile=self.logname,progress=progress_struct)
+    

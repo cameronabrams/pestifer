@@ -8,7 +8,7 @@ from ..basetask import BaseTask
 from ..charmmtop import CharmmResiDatabase
 from ..config import Config
 from ..controller import Controller
-from ..packmol import PackmolInputWriter
+from ..util.packmollog import PackmolInputWriter
 from ..psfutil.psfcontents import PSFContents
 from ..util.util import cell_to_xsc,cell_from_xsc, protect_str_arg
 from ..util.units import _UNITS_

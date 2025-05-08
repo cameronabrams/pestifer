@@ -1,20 +1,16 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" Defines the PackmolInputWriter class for generating packmol input files 
-    Defines the PackmolLog class for parsing packmol log files
+""" Defines the PackmolLog class and NAMDLog classes for parsing 
+    log files
 """
 
-import datetime
 import logging
 import os
 import re
 
 import numpy as np
 import pandas as pd
-
-from .command import Command
-from .util.progress import PackmolProgress
-from .scriptwriters import Filewriter
-from .stringthings import ByteCollector, FileCollector, striplist
+import matplotlib.pyplot as plt
+from ..stringthings import ByteCollector, my_logger
 
 logger=logging.getLogger(__name__)
 
@@ -29,44 +25,9 @@ def get_single(flag,bytes,default='0'):
     substr=bytes[idx:eol].split()[0]
     return substr.strip()
 
-class PackmolInputWriter(Filewriter):
-    def __init__(self,config):
-        super().__init__(comment_char='#')
-        self.indent=4*' '
-        self.config=config
-        self.progress=self.config.progress
-        self.F=FileCollector()
-        self.default_ext='.inp'
-        self.default_script=f'packmol{self.default_ext}'
-        self.scriptname=self.default_script
-    
-    def newscript(self,basename=None):
-        timestampstr=datetime.datetime.today().ctime()
-        if basename:
-            self.basename=basename
-        else:
-            self.basename=os.path.splitext(self.default_script)[0]
-        self.scriptname=f'{self.basename}{self.default_ext}'
-        self.newfile(self.scriptname)
-        self.banner(f'{__package__}: {self.basename}{self.default_ext}')
-        self.banner(f'Created {timestampstr}')
-
-    def writescript(self):
-        self.writefile()
-
-    def runscript(self,*args,**options):
-        assert hasattr(self,'scriptname'),f'No scriptname set.'
-        self.logname=f'{self.basename}.log'
-        logger.debug(f'Log file: {self.logname}')
-        cmd=Command(f'{self.config.shell_commands["packmol"]} < {self.scriptname}')
-        progress_struct=None
-        if self.progress:
-            progress_struct=PackmolProgress()
-        return cmd.run(ignore_codes=[173],logfile=self.logname,progress=progress_struct)
-
 class PackmolLog(ByteCollector):
-    banner_separator='#'*80
-    section_separator='-'*80
+    banner_separator='#'*80  # banners can occur within sections
+    section_separator='-'*80 # file is divided into sections
     def __init__(self):
         super().__init__()
         self.processed_separator_idx=[]
@@ -75,14 +36,26 @@ class PackmolLog(ByteCollector):
         self.metadata={}
         self.gencan={}
 
+    def static(self,filename):
+        logger.debug(f'Initiating PackmolLog from {filename}')
+        with open(filename,'r') as f:
+            rawlines=f.read()
+        self.update(rawlines)
+
     def update(self,bytes):
+        logger.debug(f'Updating PackmolLog with {len(bytes)} bytes')
         self.write(bytes)
+        # check to see if we need to update the parsing
         separator_idx=[0]+[m.start() for m in re.finditer(self.section_separator,self.byte_collector)]
         for i,j in zip(separator_idx[:-1],separator_idx[1:]):
             if i not in self.processed_separator_idx:
                 self.processed_separator_idx.append(i)
                 self.process_section(self.byte_collector[i:j])
     
+    def dump(self,basename='packmol'):
+        logger.debug(f'Dumping PackmolLog to {basename}')
+        self.byte_collector.write_file(f'{basename}.log')
+
     def process_banner(self,bytes):
         if 'Version' in bytes:
             vidx=bytes.index('Version')+len('Version')+1
@@ -287,8 +260,156 @@ class PackmolLog(ByteCollector):
         elif 'Packing solved for molecules of type' in bytes:
             self.process_gencan_success(bytes)
 
-    def finalize(self):
+    def finalize(self,basename='packmol-gencan'):
         self.gencan_df={}
         for k,v in self.gencan.items():
             self.gencan_df[k]=pd.DataFrame(v)
- 
+            self.gencan_df[k].to_csv(f'{basename}_{k}.csv',index=False)
+        fig,ax=plt.subplots(1,len(self.gencan_df),figsize=(4*len(self.gencan_df),4))
+        for i,(k,v) in enumerate(self.gencan_df.items()):
+            if len(v)==0:
+                continue
+            ax[i].plot(v['iteration'],v['function_value_last'],label='Last function value')
+            ax[i].plot(v['iteration'],v['function_value_best'],label='Best function value')
+            ax[i].set_title(f'Molecule type {k}')
+            ax[i].set_xlabel('Iteration')
+            ax[i].set_ylabel('Function value')
+            ax[i].legend()
+            ax[i].set_yscale('log')
+            ax[i].grid(True)
+        plt.tight_layout()
+        plt.savefig(f'{basename}.png')
+
+def getinfo(name,line):
+    parseline=line[len('Info:'):].split()
+    while '=' in parseline:
+        parseline.remove('=')
+    toks=name.split()
+    while len(toks)>0:
+        parseline.remove(toks.pop(0))
+    return parseline[0]
+
+def gettclinfo(name,line):
+    assert name in line
+    namelen=len(name.split())
+    tok=line.split()[namelen+1]
+    return int(tok)
+
+class NAMDxst:
+    def __init__(self,filename):
+        celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
+        col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
+        celldf.columns=col
+        self.df=celldf
+    def add_file(self,filename):
+        celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
+        col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
+        celldf.columns=col
+        self.df=pd.concat((self.df,celldf))
+    def concat(self,other):
+        self.df=pd.concat((self.df,other.df))
+        
+class NAMDLog(ByteCollector):
+    groupnames=['ETITLE:','ENERGY:','charmrun>','Charm++>','Info:','TIMING:','WallClock:','WRITING','TCL:']
+    infonames=['TIMESTEP','FIRST TIMESTEP','NUMBER OF STEPS','RANDOM NUMBER SEED','TOTAL MASS','TOTAL CHARGE','RESTART FILENAME','RESTART FREQUENCY','OUTPUT FILENAME']
+    countnames=['ATOMS','BONDS','ANGLES','DIHEDRALS','IMPROPERS','CROSSTERMS']
+    def __init__(self,filename,inherited_etitles=[]):
+        self.successful_run=False
+        logger.debug(f'Initiating NAMDLog from {filename}')
+        if inherited_etitles:
+            logger.debug(f'  Explicit etitles: {inherited_etitles}')
+        self.filename=filename
+        self.inherited_etitles=inherited_etitles
+        if not os.path.exists(filename):
+            raise FileNotFoundError(f'{filename} not found')
+        with open(filename,'r') as f:
+            rawlines=f.read().split('\n')
+        self.numlines=len(rawlines)
+        logger.debug(f'{filename}: {self.numlines} total lines')
+        self.groups={}
+        self.info={}
+        self.counts={}
+        for l in rawlines:
+            if len(l)>0:
+                tok=l.split()[0]
+                if tok in self.groupnames:
+                    if not tok in self.groups:
+                        self.groups[tok]=[]
+                    self.groups[tok].append(l)
+        info_records=self.groups.get('Info:',[])
+        logger.debug(f'Number of Info: records: {len(info_records)}')
+        if len(info_records)==0:
+            return None
+        check_tokens=[]
+        for _ in range(10):
+            tokens=info_records[_].split()
+            if len(tokens)>1:
+                check_tokens.append(tokens[1])
+        logger.debug(f'check_tokens {check_tokens}')
+        if not 'NAMD' in check_tokens:
+            logger.debug(f'{filename} is evidently not a NAMD log')
+            return None
+        for info in info_records:
+            for il in self.infonames:
+                if info[6:].startswith(il):
+                    logger.debug(f'Getting data for Info: record name {il} from record {info}')
+                    self.info[il]=getinfo(il,info)
+            for cn in self.countnames:
+                if info.endswith(cn):
+                    tokens=info.split()
+                    if len(tokens)==3 and tokens[1].isdigit():
+                        self.counts[cn]=int(tokens[1])
+        tcl_records=self.groups.get('TCL:',[])
+        for tclr in tcl_records:
+            if tclr[5:].startswith('Running for'):
+                tokens=tclr.split()
+                self.requested_timesteps=int(tokens[3])
+                
+        for k,v in self.groups.items():
+            logger.debug(f'{filename}: {k} {len(v)} lines')
+
+        self.output_timestep=None
+        self.restart_timestep=None
+        for rmsg in self.groups['WRITING']:
+            tok=rmsg.split()
+            if tok[1]=='COORDINATES' and tok[3]=='OUTPUT':
+                self.output_timestep=int(tok[-1])
+            if tok[1]=='COORDINATES' and tok[3]=='RESTART':
+                self.restart_timestep=int(tok[-1])
+    
+    def energy(self):
+        logger.debug(f'energy() call on log from {self.filename}')
+        self.etitles=[]
+        if 'ETITLE:' not in self.groups or len(self.groups['ETITLE:'])==0:
+            logger.debug(f'No ETITLE records found in {self.filename}')
+        else:
+            self.etitles=self.groups['ETITLE:'][0].split()[1:]
+        logger.debug(f'{self.etitles}')
+        if not self.etitles:
+            if self.inherited_etitles:
+                self.etitles=self.inherited_etitles
+            else:
+                logger.debug(f'{self.filename} has no ETITLE: records and we are not inheriting any from a previous log.')
+                return self
+        edata={}
+        for e in self.etitles:
+            edata[e]=[]
+        for e in self.groups['ENERGY:']:
+            dtype=float
+            if e=='TS':
+                dtype=int
+            ed=e.split()[1:]
+            for f,d in zip(self.etitles,ed):
+                edata[f].append(dtype(d))
+        self.edata=pd.DataFrame(edata)
+        if 'VOLUME' in self.edata:
+            self.edata['DENSITY']=np.reciprocal(self.edata['VOLUME'])*float(self.info['TOTAL MASS'])
+        my_logger(self.edata.head(),logger.debug)
+        return self
+    
+    def success(self):
+        return len(self.groups['WallClock:'])==1
+    
+
+
+            

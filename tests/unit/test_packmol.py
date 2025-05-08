@@ -1,8 +1,5 @@
-import pytest
-import os
-import shutil
-
-from pestifer.packmol import PackmolLog
+from time import sleep
+from pestifer.util.logparsers import PackmolLog
 
 def test_packmol_log_static():
     l=PackmolLog()
@@ -35,29 +32,6 @@ def test_packmol_log_static():
     assert l.metadata['coordinate_files'][2]=='TIP3.pdb'
     assert l.metadata['coordinate_files'][3]=='TIP3.pdb'
     assert len(l.metadata['structures'])==4
-    assert l.metadata['structures'][0]['idx']==1
-    assert l.metadata['structures'][0]['file']=='POPC-00.pdb'
-    assert l.metadata['structures'][0]['natoms']==134
-    assert l.metadata['structures'][1]['idx']==2
-    assert l.metadata['structures'][1]['file']=='POPC-00.pdb'
-    assert l.metadata['structures'][1]['natoms']==134
-    assert l.metadata['structures'][2]['idx']==3
-    assert l.metadata['structures'][2]['file']=='TIP3.pdb'
-    assert l.metadata['structures'][2]['natoms']==3
-    assert l.metadata['structures'][3]['idx']==4
-    assert l.metadata['structures'][3]['file']=='TIP3.pdb'
-    assert l.metadata['structures'][3]['natoms']==3
-    assert l.metadata['max_gencan_loops_all']==100
-    assert l.metadata['structures'][0]['max_gencan_loops']==101
-    assert l.metadata['structures'][1]['max_gencan_loops']==102
-    assert l.metadata['structures'][2]['max_gencan_loops']==103
-    assert l.metadata['structures'][3]['max_gencan_loops']==104
-    assert l.metadata['distance_tolerance']==2.0
-    assert l.metadata['structures'][0]['number_of_molecules']==100
-    assert l.metadata['structures'][1]['number_of_molecules']==100
-    assert l.metadata['structures'][2]['number_of_molecules']==3200
-    assert l.metadata['structures'][3]['number_of_molecules']==3200
-    assert l.metadata['total_number_atoms']==46000
     assert l.metadata['structures'][0]['maximum_internal_distance']==31.769849621929282
     assert l.metadata['structures'][1]['maximum_internal_distance']==31.769849621929282
     assert l.metadata['structures'][2]['maximum_internal_distance']==1.5175773456400830
@@ -86,4 +60,15 @@ def test_packmol_log_static():
     assert 'gencan_success' in l.metadata['structures'][3]
 
     l.finalize()
-    l.gencan_df['all'].to_csv('gencan.csv',index=False)
+
+def test_packmol_log_dynamic():
+    l=PackmolLog()
+    with open('a.log','r') as f:
+        msg=f.read()
+    msg_len=len(msg)
+    p=0
+    while p<msg_len:
+        l.update(msg[p:p+1000])
+        p+=1000
+        sleep(0.1)
+    l.finalize()

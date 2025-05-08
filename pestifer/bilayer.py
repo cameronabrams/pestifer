@@ -373,6 +373,11 @@ class Bilayer:
                         other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
                 {'md':dict(ensemble='NPT',nsteps=25600,addl_paramfiles=self.addl_streamfiles,
                         other_parameters=dict(useflexiblecell=True,useconstantratio=True))}]
+        else:
+            for stage in relaxation_protocol:
+                specs=stage['md']
+                specs['addl_paramfiles']=self.addl_streamfiles
+                specs['other_parameters']={'useflexiblecell':True,'useconstantratio':True}
         user_dict['tasks']=[{'restart':dict(psf=psf,pdb=pdb,xsc=xsc,index=index)}]+relaxation_protocol+[
             {'mdplot':dict(traces=['density',['a_x','b_y','c_z'],'pressure'],legend=True,grid=True,savedata=f'{basename}-traces.csv',basename=basename)},
             {'terminate':dict(basename=basename,chainmapfile=f'{basename}-chainmap.yaml',statefile=f'{basename}-state.yaml')}                 
