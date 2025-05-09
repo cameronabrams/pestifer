@@ -302,7 +302,6 @@ class Psfgen(VMD):
 class NAMD(TcLScriptwriter):
     def __init__(self,config:Config):
         super().__init__(config)
-        logger.debug(f'progress {self.progress}')
         self.charmmff=config.RM.charmmff_content
         self.charmmff_config=config['user']['charmmff']
         self.charmrun=config.shell_commands['charmrun']
@@ -390,13 +389,15 @@ class NAMD(TcLScriptwriter):
                 use_cpu_count=self.local_ncpus
             c=Command(f'{self.namdgpu} +p{use_cpu_count} +setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
         self.logname=f'{self.basename}.log'
+        self.logparser=NAMDLog()
         progress_struct=None
         if self.progress:
             logger.debug(f'NAMD runscript using progress')
             progress_struct=NAMDProgress()
+            self.logparser.enable_progress_bar(progress_struct)
         else:
             logger.debug(f'NAMD runscript NOT using progress')
-        return c.run(logfile=self.logname,progress=progress_struct)
+        return c.run(logfile=self.logname,logparser=self.logparser)
 
     def getlog(self,inherited_etitles=[]):
         nl=NAMDLog(self.logname,inherited_etitles=inherited_etitles)

@@ -79,7 +79,6 @@ def get_values(flag,bytes,dtype=float):
 class LogParser(ByteCollector):
     def __init__(self):
         super().__init__()
-        # self.lines=[]
 
     def static(self,filename):
         logger.debug(f'Initiating {self.__class__.__name__} from {filename}')
@@ -95,6 +94,20 @@ class LogParser(ByteCollector):
         logger.debug(f'Dumping {self.__class__.__name__} to {basename}')
         self.byte_collector.write_file(f'{basename}.log')
 
+    def measure_progress(self):
+        return 0.0
+    
+    def enable_progress_bar(self,PS=None):
+        if PS is None:
+            self.progress_bar=None
+        else:
+            self.progress_bar=PS
+            self.progress_bar.register_update_function(self.measure_progress)
+
+    def update_progress_bar(self):
+        if self.progress_bar is not None:
+            self.progress_bar.go()
+
 class NAMDLog(LogParser):
     info_key='Info: '
     tcl_key='TCL: '
@@ -102,13 +115,14 @@ class NAMDLog(LogParser):
     etitle_key='ETITLE: '
     struct_sep='*****************************'
     wallclock_key='WallClock: '
-    def __init__(self):
+    def __init__(self,basename='namd-logparser'):
         super().__init__()
         self.line_idx=[0] # byte offsets of lines
         self.processed_line_idx=[]
         self.energy_df=pd.DataFrame()
         self.metadata={}
         self.reading_structure_summary=False
+        self.basename=basename
 
     def process_struct_summ_datum(self,line):
         o=len(self.info_key)
@@ -253,19 +267,20 @@ class NAMDLog(LogParser):
     def success(self):
         return 'wallclock_time' in self.metadata
 
-    def finalize(self,basename='namd3'):
-        self.energy_df.to_csv(f'{basename}-namd3.csv',index=False)
+    def finalize(self):
+        self.energy_df.to_csv(f'{self.basename}-energy.csv',index=False)
 
 class PackmolLog(LogParser):
     banner_separator='#'*80  # banners can occur within sections
     section_separator='-'*80 # file is divided into sections
-    def __init__(self):
+    def __init__(self,basename='packmol-logparser'):
         super().__init__()
         self.processed_separator_idx=[]
         self.processed_sections=[]
         self.processed_banners=[]
         self.metadata={}
         self.gencan={}
+        self.basename=basename
 
     def update(self,bytes):
         super().update(bytes)
@@ -479,11 +494,11 @@ class PackmolLog(LogParser):
         elif 'Packing solved for molecules of type' in bytes:
             self.process_gencan_success(bytes)
 
-    def finalize(self,basename='packmol-gencan'):
+    def finalize(self):
         self.gencan_df={}
         for k,v in self.gencan.items():
             self.gencan_df[k]=pd.DataFrame(v)
-            self.gencan_df[k].to_csv(f'{basename}_{k}.csv',index=False)
+            self.gencan_df[k].to_csv(f'{self.basename}_{k}_packmol.csv',index=False)
         fig,ax=plt.subplots(1,len(self.gencan_df),figsize=(4*len(self.gencan_df),4))
         for i,(k,v) in enumerate(self.gencan_df.items()):
             if len(v)==0:
@@ -497,9 +512,6 @@ class PackmolLog(LogParser):
             ax[i].set_yscale('log')
             ax[i].grid(True)
         plt.tight_layout()
-        plt.savefig(f'{basename}.png')
-
-    
-
+        plt.savefig(f'{self.basename}_packmol.png')
 
             

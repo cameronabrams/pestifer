@@ -34,37 +34,20 @@ class PestiferProgress:
                     progressbar.Bar(),' ', progressbar.ETA()
                 ]
         self.initialized=False
-        self.init_obj=False
-        self.meas_obj=False
+        self.bar=progressbar.ProgressBar(max_value=self.max_value,widgets=self.widgets)
 
-    def init_f(self,a_string=''):
-        self.init_obj=True
-        return self.init_obj
-    def meas_f(self,a_string=''):
-        self.meas_obj=True
-        return self.meas_obj
-    def comp_f(self):
-        return True
+    def register_update_function(self,func):
+        self.comp_f=func
+        self.initialized=True
 
-    def go(self,a_string=''):
-        # if not initialized, attempt to initialize
-        if not self.initialized:
-            if self.init_f(a_string):
-                self.initialized=True
-                self.bar=progressbar.ProgressBar(max_value=self.max_value,widgets=self.widgets)
-                # print('initialized')
+    def go(self):
+        if self.initialized:
+            progress=self.comp_f()
+            self.bar.update(int(progress*self.max_value))
         else:
-            if self.meas_f(a_string):
-                if not self.unmeasured:
-                    progress=self.comp_f()
-                    self.bar.update(int(progress*self.max_value))
-                else:
-                    self.bar.update()
+            self.bar.update()
 
 class NAMDProgress(PestiferProgress):
-    groupnames=['ETITLE:','ENERGY:','Info:','TCL:']
-    infonames=['FIRST TIMESTEP']
-    tclnames=['Running for','Minimizing for']
     def __init__(self,**kwargs):
         super().__init__(max_value=200,name='namd',colorno=50,**kwargs)
     

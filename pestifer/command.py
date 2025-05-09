@@ -2,15 +2,14 @@
 #
 # Class for handling running external commands
 #
-import logging
-import subprocess
-import os
 import atexit
+import logging
+import os
 import signal
 import shutil
+import subprocess
+
 from glob import glob
-import time
-from .stringthings import ByteCollector
 
 logger=logging.getLogger(__name__)
 
@@ -24,7 +23,7 @@ class Command:
         self.stdout=''
         self.stderr=''
 
-    def run(self,logfile=None,override=(),ignore_codes=[],quiet=True,progress=None,**kwargs):
+    def run(self,logfile=None,override=(),ignore_codes=[],quiet=True,logparser=None,**kwargs):
         """ runs this Command instance
         
         Parameters:
@@ -39,8 +38,8 @@ class Command:
         ignore_codes : list
             a list of integer exit codes that are ignored in addition to 0
         quiet : boolean
-        progress: PestiferProgress instance (or descendant) 
-            used for progress bar/elapsed time displays
+        logparser: LogParser instance (or descendant) 
+            used for progress bar/elapsed time displays and log parsing
 
         """
         if not quiet:
@@ -55,9 +54,7 @@ class Command:
                 logger.debug(f'Rotating {logfile} to %{logfile}-{nlogs+1}%')
             log=open(logfile,'w')
             logger.debug(f'Opened {logfile} for writing')
-        if progress and not progress.unmeasured:
-            logger.debug(f'progress type {type(progress)}')
-            bytes=ByteCollector()
+
         process=subprocess.Popen(self.c,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
         global pid
         pid=process.pid
@@ -70,43 +67,34 @@ class Command:
                 except:
                     pass
         atexit.register(kill_child)
-        otally=0
-        ttally=0
-        t2tally=0
-        ncalls=0
         self.stdout=''
         self.stderr=''
         output=''
+
         while True:
-            b=time.process_time_ns()
-            if not progress or (progress and progress.track_stdout):
-                output=process.stdout.readline()
-                self.stdout+=output
-                otally+=len(output)
-            else:
-                time.sleep(progress.interval_sec)
-            e=time.process_time_ns()
-            ncalls+=1
-            ttally+=(e-b)/1.e6
-            if log and ((not progress) or (progress and progress.track_stdout)): 
+            # b=time.process_time_ns()
+            output=process.stdout.readline()
+            self.stdout+=output
+            if logparser:
+                logparser.update(output)
+                logparser.update_progress_bar()
+            # e=time.process_time_ns()
+            # ncalls+=1
+            # ttally+=(e-b)/1.e6
+            if log: 
                 log.write(output)
                 log.flush()
             if output=='' and process.poll() is not None:
                 break
-            if progress:
-                if not progress.unmeasured:
-                    bytes.write(output)
-                    progress.go(bytes.byte_collector)
-                else:
-                    b=time.process_time_ns()
-                    progress.go()
-                    e=time.process_time_ns()
-                    t2tally+=(e-b)/1.e6
-        if progress:
+        if hasattr(logparser,'progress_bar'):
             print()
         if logfile:
             logger.debug(f'Log written to {logfile}')
         remaining_stdout,self.stderr=process.communicate()
+        if logparser:
+            logparser.update(remaining_stdout)
+            if hasattr(logparser,'finalize'):
+                logparser.finalize()
         if process.returncode!=0 and not process.returncode in ignore_codes:
             logger.error(f'Returncode: {process.returncode}')
             if len(self.stdout)>0:
