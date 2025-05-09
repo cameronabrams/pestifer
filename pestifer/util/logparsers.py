@@ -7,25 +7,256 @@ import logging
 import os
 import re
 
-import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
-from ..stringthings import ByteCollector, my_logger
+from ..stringthings import ByteCollector
 
 logger=logging.getLogger(__name__)
 
-def get_single(flag,bytes,default='0'):
-    # logger.debug(f'get_single: {flag} in {bytes}')
+class NAMDxst:
+    def __init__(self,filename):
+        celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
+        col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
+        celldf.columns=col
+        self.df=celldf
+    def add_file(self,filename):
+        celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
+        col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
+        celldf.columns=col
+        self.df=pd.concat((self.df,celldf))
+    def concat(self,other):
+        self.df=pd.concat((self.df,other.df))
+        
+def get_toflag(flag,bytes):
+    try:
+        idx=bytes.index(flag)
+    except ValueError:
+        logger.debug(f'get_toflag: {flag} not found in {bytes}')
+    substr=bytes[:idx]
+    return substr.strip()
+
+def get_toeol(flag,bytes):
     try:
         idx=bytes.index(flag)+len(flag)
     except ValueError:
-        logger.debug(f'get_single: {flag} not found in {bytes}')
-        return default
+        logger.debug(f'get_toeol: {flag} not found in {bytes}')
+        return None
+    if '\n' not in bytes[idx:]:
+        logger.debug(f'get_toeol: no eol in {bytes}')
+        return None
     eol=bytes[idx:].index('\n')+idx
-    substr=bytes[idx:eol].split()[0]
+    substr=bytes[idx:eol]
     return substr.strip()
 
-class PackmolLog(ByteCollector):
+def get_tokens(flag,bytes):
+    # logger.debug(f'get_single: {flag} in {bytes}')
+    toel=get_toeol(flag,bytes)
+    if toel is None:
+        return []
+    return [x.strip() for x in toel.split()]
+
+def get_single(flag,bytes):
+    # logger.debug(f'get_single: {flag} in {bytes}')
+    vals=get_tokens(flag,bytes)
+    if len(vals)==0:
+        return None
+    return vals[0]
+
+def get_values(flag,bytes,dtype=float):
+    # logger.debug(f'get_single: {flag} in {bytes}')
+    vals=get_tokens(flag,bytes)
+    if len(vals)==0:
+        return []
+    rvals=[]
+    for v in vals:
+        try:
+            rvals.append(dtype(v))
+        except ValueError:
+            logger.debug(f'get_single: {flag} in {bytes} failed to convert {v} to {dtype}')
+            return []
+    return rvals
+
+class LogParser(ByteCollector):
+    def __init__(self):
+        super().__init__()
+        # self.lines=[]
+
+    def static(self,filename):
+        logger.debug(f'Initiating {self.__class__.__name__} from {filename}')
+        with open(filename,'r') as f:
+            rawlines=f.read()
+        self.update(rawlines)
+
+    def update(self,bytes):
+        self.write(bytes)
+        logger.debug(f'Updating {self.__class__.__name__} with {len(bytes)} bytes -> {len(self.byte_collector)} bytes collected')
+
+    def dump(self,basename='logparser'):
+        logger.debug(f'Dumping {self.__class__.__name__} to {basename}')
+        self.byte_collector.write_file(f'{basename}.log')
+
+class NAMDLog(LogParser):
+    info_key='Info: '
+    tcl_key='TCL: '
+    energy_key='ENERGY: '
+    etitle_key='ETITLE: '
+    struct_sep='*****************************'
+    wallclock_key='WallClock: '
+    def __init__(self):
+        super().__init__()
+        self.line_idx=[0] # byte offsets of lines
+        self.processed_line_idx=[]
+        self.energy_df=pd.DataFrame()
+        self.metadata={}
+        self.reading_structure_summary=False
+
+    def process_struct_summ_datum(self,line):
+        o=len(self.info_key)
+        if line.endswith('ATOMS\n'):
+            self.metadata['number_of_atoms']=int(get_toflag('ATOMS',line))
+        elif line.endswith('BONDS\n') and not 'RIGID' in line:
+            self.metadata['number_of_bonds']=int(get_toflag('BONDS',line))
+        elif line.endswith('ANGLES\n'):
+            self.metadata['number_of_angles']=int(get_toflag('ANGLES',line))
+        elif line.endswith('DIHEDRALS\n'):
+            self.metadata['number_of_dihedrals']=int(get_toflag('DIHEDRALS',line))
+        elif line.endswith('IMPROPERS\n'):
+            self.metadata['number_of_impropers']=int(get_toflag('IMPROPERS',line))
+        elif line.endswith('CROSSTERMS\n'):
+            self.metadata['number_of_crossterms']=int(get_toflag('CROSSTERMS',line))
+        elif line.endswith('EXCLUSIONS\n'):
+            self.metadata['number_of_exclusions']=int(get_toflag('EXCLUSIONS',line))
+        elif line.endswith('RIGID BONDS\n'):
+            self.metadata['number_of_rigid_bonds']=int(get_toflag('RIGID BONDS',line))
+        elif line.endswith('ATOMS IN LARGEST HYDROGEN GROUP\n'):
+            self.metadata['atoms_in_largest_hydrogen_group']=int(get_toflag('ATOMS IN LARGEST HYDROGEN GROUP',line))
+        elif line.startswith('ATOM DENSITY ='):
+            self.metadata['atom_density']=float(get_single('ATOM DENSITY =',line))
+        elif 'TOTAL MASS =' in line:
+            self.metadata['total_mass']=float(get_single('TOTAL MASS =',line))
+        elif 'TOTAL CHARGE =' in line:
+            self.metadata['total_charge']=float(get_single('TOTAL CHARGE =',line))
+        elif 'MASS DENSITY =' in line:
+            self.metadata['mass_density']=float(get_single('MASS DENSITY =',line))
+
+    def process_info_line(self,line):
+        # logger.debug(f'process_info: {line}')
+        if line.startswith('STRUCTURE SUMMARY:'):
+            self.reading_structure_summary=True
+        if line.startswith(self.struct_sep):
+            self.reading_structure_summary=False
+        if self.reading_structure_summary:
+            self.process_struct_summ_datum(line)
+            return
+        if line.startswith(f'TIMESTEP'):
+            self.metadata['timestep']=float(get_single('TIMESTEP',line))
+        elif 'FIRST TIMESTEP' in line:
+            self.metadata['first_timestep']=int(get_single('FIRST TIMESTEP',line))
+        elif 'NUMBER OF STEPS' in line:
+            logger.debug(f'process_info: {line}')
+            self.metadata['number_of_steps']=int(get_single('NUMBER OF STEPS',line))
+        elif 'RANDOM NUMBER SEED' in line:
+            self.metadata['random_number_seed']=int(get_single('RANDOM NUMBER SEED',line))
+        elif 'RESTART FILENAME' in line:
+            self.metadata['restart_filename']=get_single('RESTART FILENAME',line)
+        elif 'RESTART FREQUENCY' in line:
+            self.metadata['restart_frequency']=int(get_single('RESTART FREQUENCY',line))
+        elif 'OUTPUT FILENAME' in line:
+            self.metadata['output_filename']=get_single('OUTPUT FILENAME',line)
+
+    def process_tcl_line(self,line):
+        if line.startswith('Running for'):
+            self.metadata['running_for']=int(get_single('Running for',line))
+
+    def process_energy_line(self,line):
+        tokens=[x.strip() for x in line.split()]
+        if 'etitle' not in self.metadata or len(tokens)!=len(self.metadata['etitle']):
+            # haven't started recording energy data yet
+            logger.debug(f'process_energy: {line} not enough tokens or energy not started')
+            return
+        tokens[0]=int(tokens[0])
+        for i in range(1,len(tokens)):
+            tokens[i]=float(tokens[i])
+        new_line={k:v for k,v in zip(self.metadata['etitle'],tokens)}
+        if self.energy_df.empty:
+            self.energy_df=pd.DataFrame(new_line,index=[0])
+        else:
+            self.energy_df=pd.concat([self.energy_df,pd.DataFrame(new_line,index=[0])],ignore_index=True)
+
+    def process_energy_title(self,line):
+        tokens=[x.strip() for x in line.split()]
+        if 'etitle' not in self.metadata:
+            self.metadata['etitle']=tokens
+
+    def update(self,bytes):
+        super().update(bytes)
+        last_line_idx=self.line_idx[-1]
+        addl_line_idx=[m.start()+1+last_line_idx for m in re.finditer(os.linesep,self.byte_collector[last_line_idx:])]
+        scan_ldx=[last_line_idx] # in case last line was incomplete in a previous pass
+        if len(addl_line_idx)>1:
+            scan_ldx.extend(addl_line_idx)
+        for i,j in zip(scan_ldx[:-1],scan_ldx[1:]):
+            aline=self.byte_collector[i:j]
+            if i not in self.processed_line_idx:
+                line=self.byte_collector[i:j]
+                self.process_line(line)
+                self.processed_line_idx.append(i)
+        self.line_idx.extend(addl_line_idx)
+        last_line=self.byte_collector[addl_line_idx[-1]:]
+        if last_line.endswith(os.linesep):
+            self.process_line(last_line)
+            self.processed_line_idx.append(addl_line_idx[-1])
+
+    def process_wallclock_line(self,line):
+        tokens=[x.strip() for x in line.split()]
+        self.metadata['wallclock_time']=float(tokens[0])
+
+    def process_line(self,line):
+        assert line.endswith(os.linesep),f'process_line: {line} does not end with os.linesep'
+        if line.startswith(self.info_key):
+            o=len(self.info_key)
+            self.process_info_line(line[o:])
+        elif line.startswith(self.tcl_key):
+            o=len(self.tcl_key)
+            self.process_tcl_line(line[o:])
+        elif line.startswith(self.etitle_key):
+            o=len(self.etitle_key)
+            self.process_energy_title(line[o:])
+        elif line.startswith(self.energy_key):
+            o=len(self.energy_key)
+            self.process_energy_line(line[o:])
+        elif line.startswith(self.wallclock_key):
+            o=len(self.wallclock_key)
+            self.process_wallclock_line(line[o:])
+
+    def measure_progress(self):
+        if 'number_of_steps' not in self.metadata:
+            logger.debug('measure_progress: number_of_steps not in metadata')
+            return 0.0
+        number_of_steps=self.metadata['number_of_steps']
+        if 'first_timestep' not in self.metadata:
+            logger.debug('measure_progress: first_timestep not in metadata')
+            return 0.0
+        first_time_step=self.metadata['first_timestep']
+        if self.energy_df.empty:
+            logger.debug('measure_progress: energy_df is empty')
+            return 0.0
+        if 'running_for' in self.metadata:
+            running_for=self.metadata['running_for']
+            if running_for>0:
+                number_of_steps=running_for
+        last_row=self.energy_df.iloc[-1]
+        most_recent_time_step=last_row['TS']
+        complete_steps=most_recent_time_step-first_time_step
+        return complete_steps/number_of_steps
+    
+    def success(self):
+        return 'wallclock_time' in self.metadata
+
+    def finalize(self,basename='namd3'):
+        self.energy_df.to_csv(f'{basename}-namd3.csv',index=False)
+
+class PackmolLog(LogParser):
     banner_separator='#'*80  # banners can occur within sections
     section_separator='-'*80 # file is divided into sections
     def __init__(self):
@@ -36,25 +267,13 @@ class PackmolLog(ByteCollector):
         self.metadata={}
         self.gencan={}
 
-    def static(self,filename):
-        logger.debug(f'Initiating PackmolLog from {filename}')
-        with open(filename,'r') as f:
-            rawlines=f.read()
-        self.update(rawlines)
-
     def update(self,bytes):
-        logger.debug(f'Updating PackmolLog with {len(bytes)} bytes')
-        self.write(bytes)
-        # check to see if we need to update the parsing
+        super().update(bytes)
         separator_idx=[0]+[m.start() for m in re.finditer(self.section_separator,self.byte_collector)]
         for i,j in zip(separator_idx[:-1],separator_idx[1:]):
             if i not in self.processed_separator_idx:
                 self.processed_separator_idx.append(i)
                 self.process_section(self.byte_collector[i:j])
-    
-    def dump(self,basename='packmol'):
-        logger.debug(f'Dumping PackmolLog to {basename}')
-        self.byte_collector.write_file(f'{basename}.log')
 
     def process_banner(self,bytes):
         if 'Version' in bytes:
@@ -280,135 +499,6 @@ class PackmolLog(ByteCollector):
         plt.tight_layout()
         plt.savefig(f'{basename}.png')
 
-def getinfo(name,line):
-    parseline=line[len('Info:'):].split()
-    while '=' in parseline:
-        parseline.remove('=')
-    toks=name.split()
-    while len(toks)>0:
-        parseline.remove(toks.pop(0))
-    return parseline[0]
-
-def gettclinfo(name,line):
-    assert name in line
-    namelen=len(name.split())
-    tok=line.split()[namelen+1]
-    return int(tok)
-
-class NAMDxst:
-    def __init__(self,filename):
-        celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
-        col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
-        celldf.columns=col
-        self.df=celldf
-    def add_file(self,filename):
-        celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
-        col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
-        celldf.columns=col
-        self.df=pd.concat((self.df,celldf))
-    def concat(self,other):
-        self.df=pd.concat((self.df,other.df))
-        
-class NAMDLog(ByteCollector):
-    groupnames=['ETITLE:','ENERGY:','charmrun>','Charm++>','Info:','TIMING:','WallClock:','WRITING','TCL:']
-    infonames=['TIMESTEP','FIRST TIMESTEP','NUMBER OF STEPS','RANDOM NUMBER SEED','TOTAL MASS','TOTAL CHARGE','RESTART FILENAME','RESTART FREQUENCY','OUTPUT FILENAME']
-    countnames=['ATOMS','BONDS','ANGLES','DIHEDRALS','IMPROPERS','CROSSTERMS']
-    def __init__(self,filename,inherited_etitles=[]):
-        self.successful_run=False
-        logger.debug(f'Initiating NAMDLog from {filename}')
-        if inherited_etitles:
-            logger.debug(f'  Explicit etitles: {inherited_etitles}')
-        self.filename=filename
-        self.inherited_etitles=inherited_etitles
-        if not os.path.exists(filename):
-            raise FileNotFoundError(f'{filename} not found')
-        with open(filename,'r') as f:
-            rawlines=f.read().split('\n')
-        self.numlines=len(rawlines)
-        logger.debug(f'{filename}: {self.numlines} total lines')
-        self.groups={}
-        self.info={}
-        self.counts={}
-        for l in rawlines:
-            if len(l)>0:
-                tok=l.split()[0]
-                if tok in self.groupnames:
-                    if not tok in self.groups:
-                        self.groups[tok]=[]
-                    self.groups[tok].append(l)
-        info_records=self.groups.get('Info:',[])
-        logger.debug(f'Number of Info: records: {len(info_records)}')
-        if len(info_records)==0:
-            return None
-        check_tokens=[]
-        for _ in range(10):
-            tokens=info_records[_].split()
-            if len(tokens)>1:
-                check_tokens.append(tokens[1])
-        logger.debug(f'check_tokens {check_tokens}')
-        if not 'NAMD' in check_tokens:
-            logger.debug(f'{filename} is evidently not a NAMD log')
-            return None
-        for info in info_records:
-            for il in self.infonames:
-                if info[6:].startswith(il):
-                    logger.debug(f'Getting data for Info: record name {il} from record {info}')
-                    self.info[il]=getinfo(il,info)
-            for cn in self.countnames:
-                if info.endswith(cn):
-                    tokens=info.split()
-                    if len(tokens)==3 and tokens[1].isdigit():
-                        self.counts[cn]=int(tokens[1])
-        tcl_records=self.groups.get('TCL:',[])
-        for tclr in tcl_records:
-            if tclr[5:].startswith('Running for'):
-                tokens=tclr.split()
-                self.requested_timesteps=int(tokens[3])
-                
-        for k,v in self.groups.items():
-            logger.debug(f'{filename}: {k} {len(v)} lines')
-
-        self.output_timestep=None
-        self.restart_timestep=None
-        for rmsg in self.groups['WRITING']:
-            tok=rmsg.split()
-            if tok[1]=='COORDINATES' and tok[3]=='OUTPUT':
-                self.output_timestep=int(tok[-1])
-            if tok[1]=='COORDINATES' and tok[3]=='RESTART':
-                self.restart_timestep=int(tok[-1])
-    
-    def energy(self):
-        logger.debug(f'energy() call on log from {self.filename}')
-        self.etitles=[]
-        if 'ETITLE:' not in self.groups or len(self.groups['ETITLE:'])==0:
-            logger.debug(f'No ETITLE records found in {self.filename}')
-        else:
-            self.etitles=self.groups['ETITLE:'][0].split()[1:]
-        logger.debug(f'{self.etitles}')
-        if not self.etitles:
-            if self.inherited_etitles:
-                self.etitles=self.inherited_etitles
-            else:
-                logger.debug(f'{self.filename} has no ETITLE: records and we are not inheriting any from a previous log.')
-                return self
-        edata={}
-        for e in self.etitles:
-            edata[e]=[]
-        for e in self.groups['ENERGY:']:
-            dtype=float
-            if e=='TS':
-                dtype=int
-            ed=e.split()[1:]
-            for f,d in zip(self.etitles,ed):
-                edata[f].append(dtype(d))
-        self.edata=pd.DataFrame(edata)
-        if 'VOLUME' in self.edata:
-            self.edata['DENSITY']=np.reciprocal(self.edata['VOLUME'])*float(self.info['TOTAL MASS'])
-        my_logger(self.edata.head(),logger.debug)
-        return self
-    
-    def success(self):
-        return len(self.groups['WallClock:'])==1
     
 
 

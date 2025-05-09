@@ -1,0 +1,607 @@
+charmrun> namd3 +p 16 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.namd
+Charm++: standalone mode (not using charmrun)
+Charm++> Running in Multicore mode: 16 threads (PEs)
+Charm++> Using recursive bisection (scheme 3) for topology aware partitions
+Converse/Charm++ Commit ID: v80000
+CharmLB> Load balancer assumes all CPUs are same.
+Charm++> Running on 1 hosts (2 sockets x 4 cores x 2 PUs = 16-way SMP)
+Charm++> cpu topology info is gathered in 0.001 seconds.
+CharmLB> Load balancing instrumentation for communication is off.
+Info: NAMD 3.0.1 for Linux-x86_64-multicore
+Info: 
+Info: Please visit http://www.ks.uiuc.edu/Research/namd/
+Info: for updates, documentation, and support information.
+Info: 
+Info: Please cite Phillips et al., J. Chem. Phys. 153:044130 (2020) doi:10.1063/5.0014475
+Info: in all publications reporting results obtained with NAMD.
+Info: 
+Info: Based on Charm++/Converse 80000 for multicore-linux-x86_64
+Info: Built Fri 24 Jan 2025 02:44:47 PM EST by cfa on panacea
+Info: 1 NAMD  3.0.1  Linux-x86_64-multicore  16    panacea  cfa
+Info: Running on 16 processors, 1 nodes, 1 physical nodes.
+Info: CPU topology information available.
+Info: Charm++/Converse parallel runtime startup completed at 0.0149193 s
+CkLoopLib is used in SMP with simple dynamic scheduling (converse-level notification)
+Info: 1104.52 MB of memory in use based on /proc/self/stat
+Info: Configuration file is 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.namd
+Info: Working in the current directory /home/cfa/Git/pestifer/tests/unit/test_bilayer/__test_bilayer_task_asymmetric
+TCL: Suspending until startup complete.
+Info: EXTENDED SYSTEM FILE   05-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.xsc
+Warning: The Langevin gamma parameters differ over the particles,
+Warning: requiring extra work per step to constrain rigid bonds.
+Info: SIMULATION PARAMETERS:
+Info: TIMESTEP               2
+Info: NUMBER OF STEPS        9000
+Info: STEPS PER CYCLE        10
+Info: PERIODIC CELL BASIS 1  68.1242 0 0
+Info: PERIODIC CELL BASIS 2  0 68.1242 0
+Info: PERIODIC CELL BASIS 3  0 0 93.0674
+Info: PERIODIC CELL CENTER   0 0 -48.3004
+Info: WRAPPING ALL CLUSTERS AROUND PERIODIC BOUNDARIES ON OUTPUT.
+Info: LOAD BALANCER  Centralized
+Info: LOAD BALANCING STRATEGY  New Load Balancers -- DEFAULT
+Info: LDB PERIOD             2000 steps
+Info: FIRST LDB TIMESTEP     50
+Info: LAST LDB TIMESTEP     -1
+Info: LDB BACKGROUND SCALING 1
+Info: HOM BACKGROUND SCALING 1
+Info: PME BACKGROUND SCALING 1
+Info: MIN ATOMS PER PATCH    40
+Info: EMPTY PATCH LOAD       40 ATOMS
+Info: VELOCITY FILE          05-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.vel
+Info: CENTER OF MASS MOVING INITIALLY? NO
+Info: DIELECTRIC             1
+Info: EXCLUDE                SCALED ONE-FOUR
+Info: 1-4 ELECTROSTATICS SCALED BY 1
+Info: MODIFIED 1-4 VDW PARAMETERS WILL BE USED
+Info: DCD FILENAME           06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd
+Info: DCD FREQUENCY          100
+Info: DCD FIRST STEP         9100
+Info: DCD FILE WILL CONTAIN UNIT CELL DATA
+Info: XST FILENAME           06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.xst
+Info: XST FREQUENCY          100
+Info: NO VELOCITY DCD OUTPUT
+Info: NO FORCE DCD OUTPUT
+Info: OUTPUT FILENAME        06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT
+Info: BINARY OUTPUT FILES WILL BE USED
+Info: NO RESTART FILE
+Info: SWITCHING ACTIVE
+Info: SWITCHING ON           9
+Info: SWITCHING OFF          10
+Info: PAIRLIST DISTANCE      11.5
+Info: PAIRLIST SHRINK RATE   0.01
+Info: PAIRLIST GROW RATE     0.01
+Info: PAIRLIST TRIGGER       0.3
+Info: PAIRLISTS PER CYCLE    2
+Info: PAIRLISTS ENABLED
+Info: MARGIN                 0.42
+Info: HYDROGEN GROUP CUTOFF  2.5
+Info: PATCH DIMENSION        14.42
+Info: ENERGY OUTPUT STEPS    100
+Info: ENERGY EVALUATION STEPS    100
+Info: OUTPUT ENERGY PRECISION 4
+Info: CROSSTERM ENERGY INCLUDED IN DIHEDRAL
+Info: TIMING OUTPUT STEPS    1000
+Info: LANGEVIN DYNAMICS ACTIVE
+Info: LANGEVIN TEMPERATURE   300
+Info: LANGEVIN USING BBK INTEGRATOR
+Info: LANGEVIN DAMPING COEFFICIENT IS 5 INVERSE PS
+Info: LANGEVIN DYNAMICS NOT APPLIED TO HYDROGENS
+Info: LANGEVIN PISTON PRESSURE CONTROL ACTIVE
+Info:        TARGET PRESSURE IS 1 BAR
+Info:     OSCILLATION PERIOD IS 200 FS
+Info:             DECAY TIME IS 100 FS
+Info:     PISTON TEMPERATURE IS 300 K
+Info:       PRESSURE CONTROL IS GROUP-BASED
+Info:    INITIAL STRAIN RATE IS 4.33973e-06 4.33973e-06 4.33973e-06
+Info:       CELL FLUCTUATION IS ISOTROPIC
+Info: PARTICLE MESH EWALD (PME) ACTIVE
+Info: PME TOLERANCE               1e-06
+Info: PME EWALD COEFFICIENT       0.312341
+Info: PME INTERPOLATION ORDER     4
+Info: PME GRID DIMENSIONS         72 72 96
+Info: PME MAXIMUM GRID SPACING    1
+Info: Attempting to read FFTW data from FFTW_NAMD_3.0.1_Linux-x86_64-multicore.txt
+Info: Optimizing 6 FFT steps.  1... 2... 3... 4... 5... 6...   Done.
+Info: Writing FFTW data to FFTW_NAMD_3.0.1_Linux-x86_64-multicore.txt
+Info: FULL ELECTROSTATIC EVALUATION FREQUENCY      2
+Info: USING VERLET I (r-RESPA) MTS SCHEME.
+Info: C1 SPLITTING OF LONG RANGE ELECTROSTATICS
+Info: PLACING ATOMS IN PATCHES BY HYDROGEN GROUPS
+Info: RIGID BONDS TO HYDROGEN : ALL
+Info:         ERROR TOLERANCE : 1e-08
+Info:          MAX ITERATIONS : 100
+Info: RIGID WATER USING SETTLE ALGORITHM
+Info: RANDOM NUMBER SEED     1746728566
+Info: USE HYDROGEN BONDS?    NO
+Info: COORDINATE PDB         05-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.pdb
+Info: STRUCTURE FILE         00-00-00-05-test_bilayer_task-patchB-equilibrateB-restart.psf
+Info: PARAMETER file: CHARMM format! 
+Info: PARAMETERS             par_all36_lipid.prm
+Info: PARAMETERS             toppar_all36_moreions.str
+Info: PARAMETERS             par_all36_carb.prm
+Info: PARAMETERS             toppar_all36_prot_modify_res.str
+Info: PARAMETERS             toppar_all36_carb_glycopeptide.str
+Info: PARAMETERS             par_all36m_prot.prm
+Info: PARAMETERS             par_all36_na.prm
+Info: PARAMETERS             par_all36_cgenff.prm
+Info: PARAMETERS             toppar_water_ions.str
+Info: USING ARITHMETIC MEAN TO COMBINE L-J SIGMA PARAMETERS
+Info: BINARY COORDINATES     05-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.coor
+Info: FIRST TIMESTEP         9000
+Info: SKIPPING rtf SECTION IN STREAM FILE
+Info: SKIPPING rtf SECTION IN STREAM FILE
+Info: SKIPPING rtf SECTION IN STREAM FILE
+Info: SKIPPING rtf SECTION IN STREAM FILE
+Info: SUMMARY OF PARAMETERS:
+Info: 1171 BONDS
+Info: 4014 ANGLES
+Info: 11822 DIHEDRAL
+Info: 296 IMPROPER
+Info: 20 CROSSTERM
+Info: 362 VDW
+Info: 99 VDW_PAIRS
+Info: 0 NBTHOLE_PAIRS
+Warning: Ignored 6400 bonds with zero force constants.
+Warning: Will get H-H distance in rigid H2O from H-O-H angle.
+Info: TIME FOR READING PSF FILE: 12.8773
+Info: Reading pdb file 05-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.pdb
+Info: TIME FOR READING PDB FILE: 0.117698
+Info: 
+Info: ****************************
+Info: STRUCTURE SUMMARY:
+Info: 44200 ATOMS
+Info: 37600 BONDS
+Info: 54000 ANGLES
+Info: 65800 DIHEDRALS
+Info: 400 IMPROPERS
+Info: 0 CROSSTERMS
+Info: 0 EXCLUSIONS
+Info: 34400 RIGID BONDS
+Info: 98200 DEGREES OF FREEDOM
+Info: 16200 HYDROGEN GROUPS
+Info: 4 ATOMS IN LARGEST HYDROGEN GROUP
+Info: 16200 MIGRATION GROUPS
+Info: 4 ATOMS IN LARGEST MIGRATION GROUP
+Info: TOTAL MASS = 258901 amu
+Info: TOTAL CHARGE = 1.78814e-05 e
+Info: MASS DENSITY = 0.99539 g/cm^3
+Info: ATOM DENSITY = 0.102335 atoms/A^3
+Info: *****************************
+Info: Reading from binary file 05-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.coor
+Info: 
+Info: Entering startup at 14.231 s, 232.489 MB of memory in use
+Info: Startup phase 0 took 0.00112935 s, 232.489 MB of memory in use
+Info: ADDED 157400 IMPLICIT EXCLUSIONS
+Info: Startup phase 1 took 0.103526 s, 232.489 MB of memory in use
+Info: NONBONDED TABLE R-SQUARED SPACING: 0.0625
+Info: NONBONDED TABLE SIZE: 705 POINTS
+Info: INCONSISTENCY IN FAST TABLE ENERGY VS FORCE: 0.000290479 AT 0.251946
+Info: INCONSISTENCY IN SCOR TABLE ENERGY VS FORCE: 0.000178193 AT 9.97184
+Info: ABSOLUTE IMPRECISION IN VDWA TABLE ENERGY: 7.88861e-31 AT 9.99687
+Info: RELATIVE IMPRECISION IN VDWA TABLE ENERGY: 1.10587e-16 AT 9.99687
+Info: INCONSISTENCY IN VDWA TABLE ENERGY VS FORCE: 0.0040507 AT 0.251946
+Info: INCONSISTENCY IN VDWB TABLE ENERGY VS FORCE: 0.00377068 AT 9.07951
+Info: Startup phase 2 took 0.0298443 s, 232.489 MB of memory in use
+Info: Startup phase 3 took 0.0541559 s, 232.489 MB of memory in use
+Info: Startup phase 4 took 0.0559975 s, 232.489 MB of memory in use
+Info: Startup phase 5 took 0.0325545 s, 232.489 MB of memory in use
+Info: PATCH GRID IS 4 (PERIODIC) BY 4 (PERIODIC) BY 6 (PERIODIC)
+Info: PATCH GRID IS 1-AWAY BY 1-AWAY BY 1-AWAY
+Info: Reading from binary file 05-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.vel
+Info: REMOVING COM VELOCITY -0.0383629 0.00590453 -0.00716403
+Info: LARGEST PATCH (22) HAS 509 ATOMS
+Info: TORUS A SIZE 1 USING 0
+Info: TORUS B SIZE 1 USING 0
+Info: TORUS C SIZE 1 USING 0
+Info: TORUS MINIMAL MESH SIZE IS 1 BY 1 BY 1
+Info: Placed 100% of base nodes on same physical node as patch
+Info: Startup phase 6 took 0.0554528 s, 232.489 MB of memory in use
+Info: PME using 15 and 15 processors for FFT and reciprocal sum.
+Info: PME GRID LOCATIONS: 1 2 3 4 5 6 7 8 9 10 ...
+Info: PME TRANS LOCATIONS: 1 2 3 4 5 6 7 8 9 10 ...
+Info: PME USING 1 GRID NODES AND 1 TRANS NODES
+Info: Startup phase 7 took 0.0399913 s, 232.489 MB of memory in use
+Info: Startup phase 8 took 0.00686271 s, 232.489 MB of memory in use
+Info: Startup phase 9 took 0.00426581 s, 232.489 MB of memory in use
+Info: Startup phase 10 took 0.00322481 s, 232.489 MB of memory in use
+Info: Startup phase 11 took 0.00428372 s, 232.489 MB of memory in use
+LDB: Central LB being created...
+Info: Startup phase 12 took 0.0813608 s, 232.489 MB of memory in use
+Info: CREATING 2000 COMPUTE OBJECTS
+Info: useSync: 0 useProxySync: 0
+Info: Startup phase 13 took 0.00958639 s, 232.489 MB of memory in use
+Info: Startup phase 14 took 0.00536462 s, 232.489 MB of memory in use
+Info: Startup phase 15 took 0.000867533 s, 232.489 MB of memory in use
+Info: Finished startup at 14.7195 s, 232.489 MB of memory in use
+
+TCL: Running for 8000 steps
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL         TOTAL3        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:    9000      2613.6320     14975.7400     11119.3304       114.4657         -91906.8986     -1848.7577         0.0000         0.0000     29408.7667         -35523.7215       301.4086    -64932.4881    -35280.5240       301.4086             14.9498        39.4600    431916.7808        14.9498        39.4600
+
+OPENING EXTENDED SYSTEM TRAJECTORY FILE
+LDB: ============= START OF LOAD BALANCING ============== 15.3502
+LDB: ============== END OF LOAD BALANCING =============== 15.3637
+Info: useSync: 0 useProxySync: 0
+LDB: =============== DONE WITH MIGRATION ================ 15.368
+LDB: ============= START OF LOAD BALANCING ============== 17.5421
+LDB: Largest compute 102 load 0.111223 is 9.9% of average load 1.119348
+LDB: Average compute 0.008104 is 0.7% of average load 1.119348
+LDB: Partitioning computes with target load 0.111935
+LDB: Increased migratable compute count from 1824 to 1824
+LDB: Largest unpartitionable compute is 0.023674
+LDB: ============== END OF LOAD BALANCING =============== 17.5797
+Info: useSync: 0 useProxySync: 0
+LDB: =============== DONE WITH MIGRATION ================ 17.8558
+Info: Initial time: 16 CPUs 0.0531577 s/step 0.307626 days/ns 232.489 MB memory
+LDB: ============= START OF LOAD BALANCING ============== 18.3307
+LDB: ============== END OF LOAD BALANCING =============== 18.3437
+Info: useSync: 0 useProxySync: 0
+LDB: =============== DONE WITH MIGRATION ================ 18.3796
+LDB: ============= START OF LOAD BALANCING ============== 19.948
+LDB: Largest compute 186 load 0.086385 is 8.7% of average load 0.991902
+LDB: Average compute 0.007222 is 0.7% of average load 0.991902
+LDB: TIME 19.9726 LOAD: AVG 0.991902 MAX 1.28781  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 None MEM: 232.489 MB
+LDB: TIME 19.9739 LOAD: AVG 0.991902 MAX 0.991942  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 TorusLB MEM: 232.489 MB
+LDB: ============== END OF LOAD BALANCING =============== 20.0041
+Info: useSync: 0 useProxySync: 0
+LDB: =============== DONE WITH MIGRATION ================ 20.1916
+Info: Initial time: 16 CPUs 0.0417419 s/step 0.241562 days/ns 232.489 MB memory
+ENERGY:    9100      2685.8718     14871.2466     11095.0596       113.2448         -91883.9434     -1902.9359         0.0000         0.0000     29451.2403         -35570.2162       301.8440    -65021.4565    -35322.4453       299.8098           -238.8063      -208.5821    431708.4361         0.6484        -0.0587
+
+OPENING COORDINATE DCD FILE
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 9100
+The last position output (seq=9100) takes 0.003 seconds, 232.489 MB of memory in use
+LDB: ============= START OF LOAD BALANCING ============== 22.5514
+LDB: Largest compute 168 load 0.122050 is 9.3% of average load 1.318709
+LDB: Average compute 0.009690 is 0.7% of average load 1.318709
+LDB: TIME 22.5534 LOAD: AVG 1.31871 MAX 1.52906  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 None MEM: 232.489 MB
+LDB: TIME 22.554 LOAD: AVG 1.31871 MAX 1.52906  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 RefineTorusLB MEM: 232.489 MB
+LDB: TIME 22.5561 LOAD: AVG 1.31871 MAX 1.34344  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 RefineTorusLB MEM: 232.489 MB
+LDB: ============== END OF LOAD BALANCING =============== 22.5569
+Info: useSync: 0 useProxySync: 0
+LDB: =============== DONE WITH MIGRATION ================ 22.5589
+Info: Initial time: 16 CPUs 0.0456607 s/step 0.26424 days/ns 232.489 MB memory
+LDB: ============= START OF LOAD BALANCING ============== 24.0264
+LDB: Largest compute 178 load 0.084219 is 7.0% of average load 1.200907
+LDB: Average compute 0.008769 is 0.7% of average load 1.200907
+LDB: TIME 24.0285 LOAD: AVG 1.20091 MAX 1.31192  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 None MEM: 232.489 MB
+LDB: TIME 24.0291 LOAD: AVG 1.20091 MAX 1.31192  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 RefineTorusLB MEM: 232.489 MB
+LDB: TIME 24.0304 LOAD: AVG 1.20091 MAX 1.22132  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 RefineTorusLB MEM: 232.489 MB
+LDB: ============== END OF LOAD BALANCING =============== 24.0313
+Info: useSync: 0 useProxySync: 0
+LDB: =============== DONE WITH MIGRATION ================ 24.0333
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 9200
+The last position output (seq=9200) takes 0.006 seconds, 232.489 MB of memory in use
+Info: Benchmark time: 16 CPUs 0.0295945 s/step 0.171264 days/ns 232.489 MB memory
+ENERGY:    9200      2581.3172     14902.2582     11159.7407       121.0502         -91795.0801     -1917.2621         0.0000         0.0000     29314.2093         -35633.7665       300.4395    -64947.9758    -35382.2066       300.5735              6.8443        21.6791    432374.2551         8.4204         7.7007
+
+Info: Benchmark time: 16 CPUs 0.0372572 s/step 0.215609 days/ns 232.489 MB memory
+Info: Benchmark time: 16 CPUs 0.0303839 s/step 0.175833 days/ns 232.489 MB memory
+ENERGY:    9300      2661.8734     14956.3674     11117.6311       104.8803         -91663.7232     -2040.2648         0.0000         0.0000     29283.0095         -35580.2262       300.1198    -64863.2357    -35353.4080       299.4444            178.7650       197.6093    432006.4790        10.3099        10.6301
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 9300
+The last position output (seq=9300) takes 0.007 seconds, 232.489 MB of memory in use
+Info: Benchmark time: 16 CPUs 0.0281455 s/step 0.162879 days/ns 232.489 MB memory
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 9400
+The last position output (seq=9400) takes 0.006 seconds, 232.489 MB of memory in use
+Info: Benchmark time: 16 CPUs 0.0265689 s/step 0.153755 days/ns 232.489 MB memory
+ENERGY:    9400      2663.5428     14892.9742     11135.9561       124.1167         -91702.1704     -1825.3786         0.0000         0.0000     29178.3198         -35532.6393       299.0468    -64710.9591    -35284.7910       299.7144           -151.3242      -138.4044    433049.8879       -32.4728       -32.7186
+
+Info: Benchmark time: 16 CPUs 0.0264491 s/step 0.153062 days/ns 232.489 MB memory
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 9500
+The last position output (seq=9500) takes 0.006 seconds, 232.489 MB of memory in use
+ENERGY:    9500      2665.2115     14936.3073     11183.2038       121.4161         -91593.7152     -1976.9497         0.0000         0.0000     29208.0449         -35456.4813       299.3515    -64664.5262    -35239.0367       299.6157             17.4331        32.0350    433375.2647         8.3049         8.4888
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 9600
+The last position output (seq=9600) takes 0.008 seconds, 232.489 MB of memory in use
+ENERGY:    9600      2646.3611     15101.9857     11091.3719       125.3876         -91500.0225     -1962.2204         0.0000         0.0000     29280.0589         -35217.0776       300.0895    -64497.1365    -34970.8941       300.6188            101.8291       126.7391    432249.5489         8.8191         8.8680
+
+ENERGY:    9700      2717.9819     14934.4339     11125.1699       109.4476         -91735.1280     -1653.8767         0.0000         0.0000     29342.2494         -35159.7221       300.7269    -64501.9715    -34923.0244       300.7014            168.1980       185.2835    432205.1613        13.7990        13.1470
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 9700
+The last position output (seq=9700) takes 0.005 seconds, 232.489 MB of memory in use
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 9800
+The last position output (seq=9800) takes 0.006 seconds, 232.489 MB of memory in use
+ENERGY:    9800      2646.7342     15039.7196     11108.7947       124.7936         -91878.3514     -1672.2929         0.0000         0.0000     29437.8953         -35192.7067       301.7072    -64630.6021    -34941.6304       301.4523             -3.3971        13.1627    432283.7016       -19.2209       -18.8979
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 9900
+The last position output (seq=9900) takes 0.008 seconds, 232.489 MB of memory in use
+ENERGY:    9900      2694.2489     14923.0408     11088.2116       113.0474         -91814.3300     -1846.1303         0.0000         0.0000     29294.7702         -35547.1414       300.2403    -64841.9116    -35300.4768       300.7228            235.8794       269.9724    433071.6373        47.1453        46.4061
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 10000
+The last position output (seq=10000) takes 0.006 seconds, 232.489 MB of memory in use
+TIMING: 10000  CPU: 35.429, 0.035216/step  Wall: 37.4243, 0.0371906/step, 0.0723151 hours remaining, 232.488873 MB of memory in use.
+PERFORMANCE: 10000  averaging 4.64633 ns/day, 0.0371906 sec/step with standard deviation 0
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL         TOTAL3        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   10000      2692.5001     14983.6524     11089.8880       106.8400         -91327.3895     -2107.7837         0.0000         0.0000     29172.7001         -35389.5926       298.9892    -64562.2927    -35155.3506       299.4356           -167.1533      -148.9921    433709.6441         7.3404         6.8178
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 10100
+ENERGY:   10100      2690.4982     14917.0223     11092.5484       118.6834         -91623.1168     -2046.3129         0.0000         0.0000     29257.6645         -35593.0130       299.8600    -64850.6774    -35343.4959       300.8477             27.9261        45.0435    432886.4771         8.6480         8.3716
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 10200
+ENERGY:   10200      2626.8305     14881.0934     11104.8339       120.2055         -91679.1363     -2008.0523         0.0000         0.0000     29235.0088         -35719.2166       299.6278    -64954.2253    -35477.7431       300.4347            226.4207       259.3577    431419.2659        -7.1793        -7.0744
+
+ENERGY:   10300      2628.0065     15012.6513     11094.2731       114.6701         -91482.7557     -2018.4875         0.0000         0.0000     29162.7839         -35488.8582       298.8876    -64651.6421    -35238.9551       300.2117             30.7011        41.5576    432282.9468         0.1541         1.0732
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 10300
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 10400
+ENERGY:   10400      2632.9778     15080.7517     11149.2156       111.1624         -92133.9157     -1664.0226         0.0000         0.0000     29376.9303         -35446.9005       301.0824    -64823.8308    -35201.3471       301.0237            532.0883       559.4557    431426.1083        -0.3945         0.2616
+
+ENERGY:   10500      2660.9291     15028.4142     11138.0859       128.0485         -92101.3601     -1819.6659         0.0000         0.0000     29278.0636         -35687.4846       300.0691    -64965.5482    -35444.6202       301.0991            104.5928       118.0826    431385.5029         1.2098         0.9102
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 10500
+ENERGY:   10600      2640.7719     15044.1067     11042.4236       114.1307         -91814.9314     -1975.6645         0.0000         0.0000     29137.3351         -35811.8280       298.6268    -64949.1631    -35577.7103       299.4470           -208.7801      -182.8529    430920.3682        -3.2193        -3.1952
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 10600
+ENERGY:   10700      2603.5971     14830.3952     11070.2120       131.5058         -91775.4151     -2010.6331         0.0000         0.0000     29382.8703         -35767.4678       301.1432    -65150.3381    -35501.2400       298.9119            -32.7145        -9.8107    430541.1673         4.0105         3.2562
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 10700
+ENERGY:   10800      2676.2238     15031.8388     11044.7209       123.3894         -91838.8064     -2093.8927         0.0000         0.0000     29246.2324         -35810.2939       299.7428    -65056.5263    -35565.4555       299.8718             26.9730        47.4712    430904.8321        -2.7526        -2.8172
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 10800
+ENERGY:   10900      2642.6876     14765.3026     11040.7368       128.5226         -91939.8333     -1896.4448         0.0000         0.0000     29272.1119         -35986.9166       300.0081    -65259.0285    -35753.8563       299.2720            -30.8417         1.8081    430684.7517         2.9368         2.8293
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 10900
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 11000
+TIMING: 11000  CPU: 71.8069, 0.0363779/step  Wall: 76.6969, 0.0392726/step, 0.0654544 hours remaining, 232.488873 MB of memory in use.
+PERFORMANCE: 11000  averaging 4.51982 ns/day, 0.0382316 sec/step with standard deviation 0.00147221
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL         TOTAL3        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   11000      2665.9798     14803.3902     11030.5434       130.6930         -91845.3902     -2010.3008         0.0000         0.0000     29311.1582         -35913.9264       300.4083    -65225.0846    -35662.6422       298.9863            163.2349       174.4113    430372.6561         9.7659         8.8534
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 11100
+ENERGY:   11100      2682.6059     14720.6217     11057.0336       118.2439         -91747.4088     -2148.6295         0.0000         0.0000     29145.1845         -36172.3486       298.7072    -65317.5332    -35924.8911       298.5523           -294.1367      -273.7301    431748.5279       -16.4012       -16.5441
+
+LDB: ============= START OF LOAD BALANCING ============== 97.8172
+LDB: ============== END OF LOAD BALANCING =============== 97.8182
+Info: useSync: 0 useProxySync: 0
+LDB: =============== DONE WITH MIGRATION ================ 97.8209
+LDB: ============= START OF LOAD BALANCING ============== 99.8035
+LDB: Largest compute 120 load 0.109219 is 8.5% of average load 1.285691
+LDB: Average compute 0.009383 is 0.7% of average load 1.285691
+LDB: TIME 99.8148 LOAD: AVG 1.28569 MAX 1.72913  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 None MEM: 232.489 MB
+LDB: TIME 99.8154 LOAD: AVG 1.28569 MAX 1.72913  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 RefineTorusLB MEM: 232.489 MB
+LDB: TIME 99.8184 LOAD: AVG 1.28569 MAX 1.30816  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 RefineTorusLB MEM: 232.489 MB
+LDB: ============== END OF LOAD BALANCING =============== 99.8214
+Info: useSync: 0 useProxySync: 0
+LDB: =============== DONE WITH MIGRATION ================ 99.8238
+ENERGY:   11200      2691.0590     14770.4729     11075.6001       110.6833         -91950.7535     -1867.4889         0.0000         0.0000     29165.9936         -36004.4336       298.9205    -65170.4272    -35779.2953       297.5858            -31.7018        -0.7891    431020.1570       -23.0565       -22.6856
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 11200
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 11300
+ENERGY:   11300      2618.5867     14866.4434     11033.7201       109.3980         -91765.1249     -2033.4072         0.0000         0.0000     29022.0807         -36148.3032       297.4455    -65170.3839    -35916.9246       298.3652            244.8855       261.5916    431652.3033         2.0636         1.7061
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 11400
+ENERGY:   11400      2668.7445     14840.4722     11039.8314       127.2523         -91729.2638     -1979.8627         0.0000         0.0000     29094.2399         -35938.5861       298.1851    -65032.8261    -35704.8366       298.1431             79.8587        97.1548    432628.3165         9.6596        10.3847
+
+ENERGY:   11500      2658.5888     14794.2002     10990.7098       109.9571         -91921.7662     -1973.4948         0.0000         0.0000     29368.4719         -35973.3333       300.9957    -65341.8052    -35720.7214       298.6977            406.5213       429.3836    431112.6569        19.1328        19.4170
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 11500
+ENERGY:   11600      2677.2431     14812.3732     10999.7725       113.1175         -91645.6357     -2221.9485         0.0000         0.0000     29137.4147         -36127.6633       298.6276    -65265.0780    -35879.2941       298.8093            -79.3260       -55.2414    430824.1679       -13.9508       -14.2834
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 11600
+ENERGY:   11700      2692.1775     14892.4711     11068.7657       131.2403         -91914.8472     -1999.0018         0.0000         0.0000     28954.0386         -36175.1557       296.7482    -65129.1943    -35956.6893       298.0695           -200.2026      -183.6454    430027.5685       -10.1503       -10.8531
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 11700
+ENERGY:   11800      2624.2944     14690.0021     11042.6140       110.0860         -91609.1583     -2110.4233         0.0000         0.0000     29246.8459         -36005.7391       299.7491    -65252.5850    -35758.8835       298.7688             74.2193       116.9573    428974.5351         4.9749         5.0540
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 11800
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 11900
+ENERGY:   11900      2685.3850     14714.5962     11112.1839       105.3862         -91659.8171     -2144.2198         0.0000         0.0000     29107.0319         -36079.4538       298.3162    -65186.4857    -35835.3255       298.3643           -186.4206      -162.8940    428939.7769        -9.5476        -8.9670
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 12000
+TIMING: 12000  CPU: 106.768, 0.0349609/step  Wall: 113.994, 0.0372971/step, 0.0518015 hours remaining, 232.488873 MB of memory in use.
+PERFORMANCE: 12000  averaging 4.55695 ns/day, 0.0379201 sec/step with standard deviation 0.00117254
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL         TOTAL3        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   12000      2616.8537     14822.4316     11044.8053       129.9749         -91547.4587     -2129.4184         0.0000         0.0000     29010.0751         -36052.7367       297.3225    -65062.8118    -35820.6038       298.1953            -14.1010        25.9507    429374.0478       -13.3671       -14.3614
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 12100
+ENERGY:   12100      2635.8881     14737.4506     11070.1070       111.0046         -91670.4682     -2029.2759         0.0000         0.0000     29025.8676         -36119.4262       297.4843    -65145.2937    -35885.9819       298.9501            -45.1481        -8.0393    428994.4799        12.7109        12.9284
+
+ENERGY:   12200      2681.7624     14822.3727     11061.6119       130.0773         -91375.3222     -2325.7864         0.0000         0.0000     29389.6112         -35615.6730       301.2123    -65005.2842    -35381.2935       300.1146            102.5784       124.0680    429614.5487        -8.3619        -8.1613
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 12200
+ENERGY:   12300      2675.2080     14886.9442     10992.6533       128.1345         -91615.8502     -2092.7373         0.0000         0.0000     29326.8444         -35698.8031       300.5690    -65025.6475    -35471.3926       300.1890            307.1423       327.2947    429702.0410        11.0496        11.3709
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 12300
+ENERGY:   12400      2607.4436     14911.4620     11029.0213       100.6752         -91518.8139     -2138.7300         0.0000         0.0000     29269.9111         -35739.0306       299.9855    -65008.9417    -35507.5327       299.8693            176.8423       199.9943    430081.1793        11.3741        11.2710
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 12400
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 12500
+ENERGY:   12500      2655.7017     14738.4987     11028.1513       117.7917         -91636.0170     -2158.2390         0.0000         0.0000     29400.9933         -35853.1193       301.3290    -65254.1126    -35609.4377       299.3370            140.3746       164.1404    430245.7125        31.5181        30.9833
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 12600
+ENERGY:   12600      2664.4001     14802.2165     11015.6255       117.9810         -91584.6827     -2072.9391         0.0000         0.0000     29183.9893         -35873.4093       299.1049    -65057.3986    -35641.3518       299.1005            -61.4293       -23.1425    430287.5023         1.7878         2.4781
+
+ENERGY:   12700      2645.2992     14902.4463     11096.4824       116.8542         -91683.6025     -2013.6108         0.0000         0.0000     29055.1917         -35880.9395       297.7849    -64936.1312    -35638.8255       299.1263           -117.9434       -86.1986    430031.5318        -4.3349        -4.1743
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 12700
+ENERGY:   12800      2646.2897     14762.4702     11094.4555       116.8887         -91675.0654     -2078.3963         0.0000         0.0000     29090.5654         -36042.7922       298.1474    -65133.3576    -35803.1499       299.4063            115.1491       132.8891    429827.0442         3.2641         2.5699
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 12800
+ENERGY:   12900      2696.8644     14947.1505     11080.6997       108.6981         -91617.9825     -2181.4429         0.0000         0.0000     29075.3998         -35890.6130       297.9920    -64966.0128    -35654.6412       298.9305            -92.6520       -63.4906    429610.1832       -20.7999       -20.3596
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 12900
+TIMING: 13000  CPU: 139.196, 0.0324286/step  Wall: 148.503, 0.0345087/step, 0.038343 hours remaining, 232.488873 MB of memory in use.
+PERFORMANCE: 13000  averaging 4.6618 ns/day, 0.0370672 sec/step with standard deviation 0.00195601
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL         TOTAL3        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   13000      2603.7987     14800.0795     11079.0023       119.8459         -91350.5197     -2390.0567         0.0000         0.0000     29059.5852         -36078.2648       297.8299    -65137.8500    -35823.4418       298.9088           -239.4626      -230.2433    430641.9889        -3.8170        -4.5341
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 13000
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 13100
+ENERGY:   13100      2721.6108     14910.2994     11075.4357       115.0684         -91783.2341     -2027.5882         0.0000         0.0000     29009.1018         -35979.3064       297.3125    -64988.4082    -35735.8151       298.4459            108.0128       123.1255    429460.0757        -2.9219        -2.0961
+
+LDB: ============= START OF LOAD BALANCING ============== 168.888
+LDB: ============== END OF LOAD BALANCING =============== 168.89
+Info: useSync: 0 useProxySync: 0
+LDB: =============== DONE WITH MIGRATION ================ 168.893
+LDB: ============= START OF LOAD BALANCING ============== 170.285
+LDB: Largest compute 183 load 0.085750 is 7.1% of average load 1.204785
+LDB: Average compute 0.008804 is 0.7% of average load 1.204785
+LDB: TIME 170.288 LOAD: AVG 1.20478 MAX 1.36711  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 None MEM: 232.489 MB
+LDB: TIME 170.289 LOAD: AVG 1.20478 MAX 1.36711  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 RefineTorusLB MEM: 232.489 MB
+LDB: TIME 170.29 LOAD: AVG 1.20478 MAX 1.22705  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 RefineTorusLB MEM: 232.489 MB
+LDB: ============== END OF LOAD BALANCING =============== 170.291
+Info: useSync: 0 useProxySync: 0
+LDB: =============== DONE WITH MIGRATION ================ 170.294
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 13200
+ENERGY:   13200      2674.5020     14919.8028     11036.0613       124.8595         -91751.0614     -2248.1703         0.0000         0.0000     29221.5907         -36022.4155       299.4903    -65244.0061    -35785.9357       299.1836           -464.0776      -438.6417    429453.4389        -3.5900        -3.5489
+
+ENERGY:   13300      2683.9911     14882.1914     11029.5078       117.7194         -91838.4387     -2180.1077         0.0000         0.0000     29393.5800         -35911.5566       301.2530    -65305.1366    -35663.3215       299.9298             51.7837        71.8714    428772.8117         4.2198         4.2515
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 13300
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 13400
+ENERGY:   13400      2683.1389     14895.2110     11071.1500       128.9969         -91726.2278     -2263.8077         0.0000         0.0000     29312.4531         -35899.0855       300.4215    -65211.5386    -35658.1291       299.6429            171.2282       178.1786    429834.9364        -4.7878        -4.6939
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 13500
+ENERGY:   13500      2570.0627     14930.6660     10972.2093       120.3728         -91784.4206     -2024.4741         0.0000         0.0000     29342.7024         -35872.8815       300.7316    -65215.5838    -35649.2898       300.1501             60.4779        82.1517    428998.5337        22.9875        22.4026
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 13600
+ENERGY:   13600      2626.1040     14923.7554     10923.8885       116.5340         -91705.3091     -2274.6008         0.0000         0.0000     29474.4441         -35915.1838       302.0818    -65389.6280    -35667.6252       300.1895           -182.1878      -169.1122    428709.5325        17.0453        17.1303
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 13700
+ENERGY:   13700      2590.2606     14937.2712     11005.0554       137.6763         -91487.2771     -2459.3402         0.0000         0.0000     29403.1940         -35873.1599       301.3515    -65276.3539    -35628.1943       299.9600           -342.7057      -321.1992    430140.2499        22.2386        22.0496
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 13800
+ENERGY:   13800      2735.7521     14790.9929     11002.7445       110.6886         -91709.6108     -2029.0817         0.0000         0.0000     29274.0152         -35824.4991       300.0276    -65098.5144    -35578.4643       300.4480            122.6703       143.0944    429426.3610       -34.8412       -34.8761
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 13900
+ENERGY:   13900      2641.5922     14948.6063     10998.4903       126.0896         -91643.2902     -2241.8073         0.0000         0.0000     29386.6086         -35783.7104       301.1816    -65170.3190    -35536.2272       299.6313             -9.0785         4.7061    429671.5216       -32.8944       -33.2051
+
+TIMING: 14000  CPU: 167.914, 0.0287173/step  Wall: 178.033, 0.0295304/step, 0.0246087 hours remaining, 232.488873 MB of memory in use.
+PERFORMANCE: 14000  averaging 4.85941 ns/day, 0.0355599 sec/step with standard deviation 0.00377231
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL         TOTAL3        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   14000      2641.1080     14911.3101     11037.5915       126.6417         -91567.8217     -2318.7744         0.0000         0.0000     29150.9095         -36019.0352       298.7659    -65169.9447    -35793.7021       300.1956            187.4271       215.5199    429351.7202       -12.7008       -12.0939
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 14000
+ENERGY:   14100      2676.3693     14863.5668     11006.7185       128.5544         -91815.9951     -2113.1355         0.0000         0.0000     29165.2346         -36088.6869       298.9127    -65253.9215    -35843.9807       299.3516            -74.8841       -48.6212    428092.2557        20.9572        20.8810
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 14100
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 14200
+ENERGY:   14200      2644.2401     14875.1353     10979.7466       126.5002         -91844.2564     -2062.8709         0.0000         0.0000     29149.1213         -36132.3838       298.7476    -65281.5051    -35891.9592       299.1131            181.2597       208.2450    427950.1442        13.2802        13.2901
+
+ENERGY:   14300      2636.2083     14841.0987     10963.7315       112.3778         -91937.3065     -1986.0184         0.0000         0.0000     29264.4366         -36105.4720       299.9294    -65369.9087    -35873.7814       298.8581            122.9804       152.7792    427822.3498       -18.1635       -17.9894
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 14300
+ENERGY:   14400      2638.4594     14822.8133     11056.4240       126.6508         -91988.8492     -1914.0848         0.0000         0.0000     29191.5768         -36067.0098       299.1827    -65258.5866    -35804.2931       299.6679            272.1524       290.2526    429203.0262         6.6104         6.3386
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 14400
+ENERGY:   14500      2611.1023     14960.9276     10995.4764       116.0207         -91798.0568     -2132.5250         0.0000         0.0000     29038.9683         -36208.0865       297.6186    -65247.0549    -35969.9819       298.4194           -136.1550      -105.4181    429059.3715         5.0101         4.4830
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 14500
+ENERGY:   14600      2628.6924     14718.0974     11086.4654       120.9779         -92075.1572     -2055.2791         0.0000         0.0000     29272.4568         -36303.7465       300.0116    -65576.2033    -36077.8112       298.8350             31.7951        64.2355    427829.5629       -10.1493        -9.2709
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 14600
+ENERGY:   14700      2653.4399     14771.3535     11032.5426       121.6218         -92106.9554     -2060.3429         0.0000         0.0000     29237.2370         -36351.1036       299.6507    -65588.3406    -36094.2689       299.4240             21.0937        44.6385    428876.6457         6.1894         6.6873
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 14700
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 14800
+ENERGY:   14800      2708.3155     14813.1991     11025.5980       120.5059         -91625.0028     -2258.9505         0.0000         0.0000     29058.8026         -36157.5322       297.8219    -65216.3348    -35928.9920       298.9801           -153.1994      -122.0786    429280.7843       -14.6125       -14.4346
+
+ENERGY:   14900      2575.7165     14808.2217     11042.2294       111.4169         -91908.4463     -2064.6571         0.0000         0.0000     29314.3567         -36121.1622       300.4410    -65435.5189    -35872.2781       298.5357              5.2164        22.8527    429571.1619        24.2721        24.6922
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 14900
+TIMING: 15000  CPU: 197.23, 0.0293159/step  Wall: 207.858, 0.0298245/step, 0.0165692 hours remaining, 232.488873 MB of memory in use.
+PERFORMANCE: 15000  averaging 4.99364 ns/day, 0.034604 sec/step with standard deviation 0.0041069
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL         TOTAL3        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   15000      2641.2683     14895.7138     11014.1634       111.3288         -91436.8936     -2342.7724         0.0000         0.0000     28911.6435         -36205.5483       296.3137    -65117.1917    -35959.6516       298.8863           -348.2448      -323.4343    429622.4107        -6.8111        -7.1569
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 15000
+ENERGY:   15100      2575.7296     14919.2728     11043.2632       112.8346         -91810.5669     -2073.3518         0.0000         0.0000     29121.6936         -36111.1250       298.4665    -65232.8186    -35871.7653       298.5668            226.8938       235.4767    427966.3560        30.3479        30.5933
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 15100
+LDB: ============= START OF LOAD BALANCING ============== 226.948
+LDB: ============== END OF LOAD BALANCING =============== 226.949
+Info: useSync: 0 useProxySync: 0
+LDB: =============== DONE WITH MIGRATION ================ 226.951
+LDB: ============= START OF LOAD BALANCING ============== 228.401
+LDB: Largest compute 135 load 0.082293 is 6.8% of average load 1.203635
+LDB: Average compute 0.008785 is 0.7% of average load 1.203635
+LDB: TIME 228.404 LOAD: AVG 1.20364 MAX 1.43788  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 None MEM: 232.489 MB
+LDB: TIME 228.405 LOAD: AVG 1.20364 MAX 1.43788  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 RefineTorusLB MEM: 232.489 MB
+LDB: TIME 228.407 LOAD: AVG 1.20364 MAX 1.22575  PROXIES: TOTAL 304 MAXPE 22 MAXPATCH 4 RefineTorusLB MEM: 232.489 MB
+LDB: ============== END OF LOAD BALANCING =============== 228.408
+Info: useSync: 0 useProxySync: 0
+LDB: =============== DONE WITH MIGRATION ================ 228.411
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 15200
+ENERGY:   15200      2619.8318     14870.4548     11051.7663       140.7566         -91625.8440     -2157.6445         0.0000         0.0000     29579.2963         -35521.3828       303.1564    -65100.6790    -35290.8901       300.2493            -75.0590       -55.1201    427436.5991        -5.9066        -6.4479
+
+ENERGY:   15300      2637.8536     14901.5259     11008.5605       113.3214         -91375.3548     -2199.6693         0.0000         0.0000     29155.7820         -35757.9807       298.8158    -64913.7627    -35510.6333       301.0291            171.3436       199.8223    428169.1168       -29.1098       -28.4660
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 15300
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 15400
+ENERGY:   15400      2659.1090     14849.6019     11016.8612       118.1532         -91610.3967     -2196.2283         0.0000         0.0000     29234.8227         -35928.0771       299.6259    -65162.8998    -35678.0603       299.6456            283.3112       307.2878    427200.0661        25.4597        25.6583
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 15500
+ENERGY:   15500      2611.9842     14879.6984     11030.2967       115.8082         -91390.1775     -2447.0217         0.0000         0.0000     29304.3435         -35895.0683       300.3384    -65199.4117    -35653.3851       299.6979            -23.6261         0.8159    427698.7742       -22.2523       -21.8491
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 15600
+ENERGY:   15600      2678.9660     14869.7827     11032.4624       128.1384         -91575.0782     -2369.7731         0.0000         0.0000     29215.6983         -36019.8034       299.4299    -65235.5018    -35773.6940       299.8673           -244.2455      -209.2412    427378.0028        16.7436        16.0313
+
+ENERGY:   15700      2680.1493     15078.1773     11024.9382       121.1715         -91720.2064     -2379.5235         0.0000         0.0000     29155.5202         -36039.7734       298.8131    -65195.2936    -35793.7789       300.5867           -296.7706      -271.5007    428557.1319        22.1737        22.5073
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 15700
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 15800
+ENERGY:   15800      2654.5794     14909.7129     11027.3108       132.0422         -91604.4389     -2266.8898         0.0000         0.0000     29218.0826         -35929.6007       299.4543    -65147.6833    -35661.9202       299.7948            -12.0489         4.1569    428067.9691        14.3968        13.5614
+
+ENERGY:   15900      2612.1870     14853.2595     11067.3870       121.4382         -91944.1512     -2162.3409         0.0000         0.0000     29521.1869         -35931.0335       302.5608    -65452.2204    -35700.0796       299.7427            -60.0286       -31.8528    427902.6000       -25.2668       -24.5803
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 15900
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 16000
+TIMING: 16000  CPU: 225.451, 0.0282213/step  Wall: 236.703, 0.0288452/step, 0.00801254 hours remaining, 232.488873 MB of memory in use.
+PERFORMANCE: 16000  averaging 5.11526 ns/day, 0.0337813 sec/step with standard deviation 0.00433512
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL         TOTAL3        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   16000      2638.2371     14837.3336     11023.6393       122.7768         -91985.9334     -2106.9675         0.0000         0.0000     29148.3149         -36322.5992       298.7393    -65470.9141    -36080.3928       299.2445            -35.7593        -4.2402    428462.0556        31.2321        30.8480
+
+ENERGY:   16100      2575.9886     14911.5203     11057.2048       124.3018         -91942.4253     -2238.3540         0.0000         0.0000     29036.1543         -36475.6094       297.5898    -65511.7637    -36251.5509       298.2292           -334.1094      -320.3839    428734.2278        24.0039        23.7604
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 16100
+ENERGY:   16200      2653.7807     14874.5012     11003.4963       116.6514         -92287.9038     -1897.8797         0.0000         0.0000     29180.7406         -36356.6133       299.0716    -65537.3538    -36120.7852       298.9632             25.1190        40.6944    427944.3396         3.6185         3.2262
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 16200
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 16300
+ENERGY:   16300      2629.5556     15048.2806     11048.2247       104.2933         -91851.6656     -2261.0108         0.0000         0.0000     29249.7257         -36032.5965       299.7786    -65282.3222    -35800.6560       299.6764           -102.1494       -75.8859    428787.8138        -1.7259        -2.2930
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 16400
+ENERGY:   16400      2690.9092     14966.8709     10995.2555       111.3281         -92099.7511     -2088.6606         0.0000         0.0000     29153.6530         -36270.3951       298.7940    -65424.0480    -36024.3856       299.2622            244.7353       280.2684    427516.3833       -29.7682       -29.3089
+
+ENERGY:   16500      2687.0895     14870.0949     10972.7358       119.7001         -92093.5172     -2229.8276         0.0000         0.0000     29283.3189         -36390.4055       300.1229    -65673.7244    -36142.5726       299.7897            -44.4518       -27.7401    427689.2495         8.5856         8.8847
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 16500
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 16600
+ENERGY:   16600      2653.9369     14964.9337     10965.6040       123.7668         -91833.5117     -2262.0463         0.0000         0.0000     29232.3684         -36154.9482       299.6008    -65387.3165    -35930.2627       298.5324           -178.4602      -151.1949    428276.1022        18.7248        19.7005
+
+ENERGY:   16700      2634.8417     14718.4767     10946.8250       129.6254         -91881.1150     -2220.1059         0.0000         0.0000     29491.1407         -36180.3113       302.2529    -65671.4520    -35938.5195       299.6208           -208.0861      -177.4682    429021.1149       -13.1392       -12.9071
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 16700
+ENERGY:   16800      2714.2864     15006.9676     11016.5228       112.8874         -91961.0055     -2062.5159         0.0000         0.0000     29203.9994         -35968.8578       299.3100    -65172.8572    -35739.9592       299.5330            232.0573       266.0754    427724.9314         0.4351         0.6975
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 16800
+ENERGY:   16900      2710.2369     14999.2789     11027.1303       111.7610         -91965.3438     -2040.6261         0.0000         0.0000     29173.9835         -35983.5792       299.0024    -65157.5627    -35748.1469       299.7403            305.4400       343.1662    428244.6623        12.6935        12.8690
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 16900
+TIMING: 17000  CPU: 254.713, 0.0292622/step  Wall: 266.591, 0.0298882/step, 0 hours remaining, 232.488873 MB of memory in use.
+PERFORMANCE: 17000  averaging 5.19002 ns/day, 0.0332947 sec/step with standard deviation 0.00424299
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL         TOTAL3        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   17000      2615.3093     14867.1157     11055.4040       117.3572         -91639.4693     -2339.2427         0.0000         0.0000     29271.8527         -36051.6731       300.0054    -65323.5258    -35813.3223       299.8162           -184.1626      -158.9239    428174.8476       -28.7033       -28.6646
+
+WRITING COORDINATES TO DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd AT STEP 17000
+WRITING EXTENDED SYSTEM TO OUTPUT FILE AT STEP 17000
+CLOSING EXTENDED SYSTEM TRAJECTORY FILE
+WRITING COORDINATES TO OUTPUT FILE AT STEP 17000
+CLOSING COORDINATE DCD FILE 06-00-00-05-test_bilayer_task-patchB-equilibrateB-md-NPT.dcd
+WRITING VELOCITIES TO OUTPUT FILE AT STEP 17000
+The last velocity output (seq=-2) takes 0.001 seconds, 232.489 MB of memory in use
+====================================================
+
+WallClock: 281.382935  CPUTime: 268.385834  Memory: 232.488873 MB
+[Partition 0][Node 0] End of program

@@ -7,7 +7,7 @@ import pandas as pd
 
 from ..basetask import BaseTask
 from ..util.units import g_per_amu,A3_per_cm3
-from ..util.namdlog import NAMDLog, NAMDxst
+from ..util.logparsers import NAMDLog, NAMDxst
 
 logger=logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
