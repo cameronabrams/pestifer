@@ -9,20 +9,20 @@
 #     are not loaded by default, so we explicitly declare them here
 #
 title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in a model viral membrane
-charmmff:
-  standard:
-    topologies:
-      - stream/lipid/toppar_all36_lipid_cholesterol.str
-      - stream/lipid/toppar_all36_lipid_sphingo.str
-      - stream/lipid/toppar_all36_lipid_lps.str
-      - stream/lipid/toppar_all36_lipid_miscellaneous.str
-      - stream/carb/toppar_all36_carb_imlab.str
-    parameters:
-      - stream/lipid/toppar_all36_lipid_cholesterol.str
-      - stream/lipid/toppar_all36_lipid_sphingo.str
-      - stream/lipid/toppar_all36_lipid_lps.str
-      - stream/lipid/toppar_all36_lipid_miscellaneous.str
-      - stream/carb/toppar_all36_carb_imlab.str
+# charmmff:
+#   standard:
+#     topologies:
+#       - toppar_all36_lipid_cholesterol.str
+#       - toppar_all36_lipid_sphingo.str
+#       - toppar_all36_lipid_lps.str
+#       - toppar_all36_lipid_miscellaneous.str
+#       - toppar_all36_carb_imlab.str
+#     parameters:
+#       - toppar_all36_lipid_cholesterol.str
+#       - toppar_all36_lipid_sphingo.str
+#       - toppar_all36_lipid_lps.str
+#       - toppar_all36_lipid_miscellaneous.str
+#       - toppar_all36_carb_imlab.str
 tasks:
   - psfgen:
       source:
@@ -31,7 +31,40 @@ tasks:
   - md:
       cpu-override: True
       ensemble: minimize
-  - bilayer:
+  - make_membrane_system:
+      bilayer:
+        SAPL: 50.0
+        scale_excluded_volume: 0.25
+        composition:
+          lower_leaflet:
+            - name: POPE
+              frac: 0.09
+              conf: 0
+            - name: POPE
+              frac: 0.09
+              conf: 0
+            - name: SOPS
+              frac: 0.18
+              conf: 0
+            - name: SOPE
+              frac: 0.30
+              conf: 0
+            - name: CHL1
+              frac: 0.43
+              conf: 0
+          upper_leaflet:
+            - name: PSM
+              frac: 0.36
+              conf: 0
+            - name: POPC
+              frac: 0.17
+              conf: 0
+            - name: CHL1
+              frac: 0.47
+              conf: 0
+        seed: 270272
+        nloop: 1000
+        nloop_all: 1000
       embed:
         xydist: 30
         zdist: 20
@@ -41,40 +74,6 @@ tasks:
         z_ref_group: 
           text: "protein and resid 696"
           z_value: 0.0
-      SAPL: 50.0
-      scale_excluded_volume: 0.25
-    #   lipids: POPE:SOPS:SOPE:CHL1//PSM:POPC:CHL1
-    #   mole_fractions: 0.09:0.18:0.30:0.43//0.36:0.17:0.47
-      composition:
-        lower_leaflet:
-          - name: POPE
-            frac: 0.09
-            conf: 0
-          - name: POPE
-            frac: 0.09
-            conf: 0
-          - name: SOPS
-            frac: 0.18
-            conf: 0
-          - name: SOPE
-            frac: 0.30
-            conf: 0
-          - name: CHL1
-            frac: 0.43
-            conf: 0
-        upper_leaflet:
-          - name: PSM
-            frac: 0.36
-            conf: 0
-          - name: POPC
-            frac: 0.17
-            conf: 0
-          - name: CHL1
-            frac: 0.47
-            conf: 0
-      seed: 270272
-      nloop: 1000
-      nloop_all: 1000
   - md:
       ensemble: minimize
       minimize: 5000

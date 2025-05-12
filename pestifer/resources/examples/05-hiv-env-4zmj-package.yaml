@@ -70,6 +70,10 @@ tasks:
       savedata: solvated.csv
       traces:
         - density
+        - - a_x
+          - b_y
+          - c_z
+      grid: True
       basename: solvated
   - terminate:
       basename: my_4zmj

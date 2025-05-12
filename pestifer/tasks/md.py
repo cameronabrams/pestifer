@@ -41,6 +41,9 @@ class MDTask(BaseTask):
         if self.result==0: 
             self.save_state(exts=['coor','vel','xsc'])
             self.update_statevars('charmmff_paramfiles',self.writers['namd'].parameters)
+            self.update_statevars('energy-csv',f'{self.basename}-energy.csv',vtype='file')
+        else:
+            raise Exception(f'md task failed: {self.result}')
         self.log_message('complete',ensemble=self.specs.get('ensemble',None))
         return super().do()
 

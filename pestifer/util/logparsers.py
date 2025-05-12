@@ -1,5 +1,5 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" Defines the PackmolLog class and NAMDLog classes for parsing 
+""" Defines the PackmolLog, PsfgenLog, and NAMDLog classes for parsing
     log files
 """
 
@@ -13,20 +13,6 @@ from ..stringthings import ByteCollector
 
 logger=logging.getLogger(__name__)
 
-class NAMDxst:
-    def __init__(self,filename):
-        celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
-        col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
-        celldf.columns=col
-        self.df=celldf
-    def add_file(self,filename):
-        celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
-        col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
-        celldf.columns=col
-        self.df=pd.concat((self.df,celldf))
-    def concat(self,other):
-        self.df=pd.concat((self.df,other.df))
-        
 def get_toflag(flag,bytes):
     try:
         idx=bytes.index(flag)
@@ -79,6 +65,7 @@ def get_values(flag,bytes,dtype=float):
 class LogParser(ByteCollector):
     def __init__(self):
         super().__init__()
+        self.progress=0.0
 
     def static(self,filename):
         logger.debug(f'Initiating {self.__class__.__name__} from {filename}')
@@ -88,14 +75,14 @@ class LogParser(ByteCollector):
 
     def update(self,bytes):
         self.write(bytes)
-        logger.debug(f'Updating {self.__class__.__name__} with {len(bytes)} bytes -> {len(self.byte_collector)} bytes collected')
+        # logger.debug(f'Updating {self.__class__.__name__} with {len(bytes)} bytes -> {len(self.byte_collector)} bytes collected')
 
     def dump(self,basename='logparser'):
         logger.debug(f'Dumping {self.__class__.__name__} to {basename}')
         self.byte_collector.write_file(f'{basename}.log')
 
     def measure_progress(self):
-        return 0.0
+        return self.progress
     
     def enable_progress_bar(self,PS=None):
         if PS is None:
@@ -108,6 +95,20 @@ class LogParser(ByteCollector):
         if self.progress_bar is not None:
             self.progress_bar.go()
 
+class NAMDxst():
+    def __init__(self,filename):
+        celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
+        col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
+        celldf.columns=col
+        self.df=celldf
+    def add_file(self,filename):
+        celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
+        col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
+        celldf.columns=col
+        self.df=pd.concat((self.df,celldf))
+    def concat(self,other):
+        self.df=pd.concat((self.df,other.df))
+        
 class NAMDLog(LogParser):
     info_key='Info: '
     tcl_key='TCL: '
@@ -115,6 +116,7 @@ class NAMDLog(LogParser):
     etitle_key='ETITLE: '
     struct_sep='*****************************'
     wallclock_key='WallClock: '
+    default_etitle='TS,BOND,ANGLE,DIHED,IMPRP,ELECT,VDW,BOUNDARY,MISC,KINETIC,TOTAL,TEMP,POTENTIAL,TOTAL3,TEMPAVG,PRESSURE,GPRESSURE,VOLUME,PRESSAVG,GPRESSAVG'.split(',')
     def __init__(self,basename='namd-logparser'):
         super().__init__()
         self.line_idx=[0] # byte offsets of lines
@@ -126,7 +128,9 @@ class NAMDLog(LogParser):
 
     def process_struct_summ_datum(self,line):
         o=len(self.info_key)
-        if line.endswith('ATOMS\n'):
+        if line.endswith('FIXED ATOMS\n'):
+            self.metadata['number_of_fixed_atoms']=int(get_toflag('FIXED ATOMS',line))
+        elif line.endswith('ATOMS\n'):
             self.metadata['number_of_atoms']=int(get_toflag('ATOMS',line))
         elif line.endswith('BONDS\n') and not 'RIGID' in line:
             self.metadata['number_of_bonds']=int(get_toflag('BONDS',line))
@@ -177,21 +181,28 @@ class NAMDLog(LogParser):
             self.metadata['restart_frequency']=int(get_single('RESTART FREQUENCY',line))
         elif 'OUTPUT FILENAME' in line:
             self.metadata['output_filename']=get_single('OUTPUT FILENAME',line)
-
+        elif 'ENERGY OUTPUT STEPS' in line:
+            self.metadata['energy_output_steps']=int(get_single('ENERGY OUTPUT STEPS',line))
     def process_tcl_line(self,line):
         if line.startswith('Running for'):
             self.metadata['running_for']=int(get_single('Running for',line))
+        elif line.startswith('Minimizing for'):
+            self.metadata['minimizing_for']=int(get_single('Minimizing for',line))
 
     def process_energy_line(self,line):
         tokens=[x.strip() for x in line.split()]
-        if 'etitle' not in self.metadata or len(tokens)!=len(self.metadata['etitle']):
-            # haven't started recording energy data yet
-            logger.debug(f'process_energy: {line} not enough tokens or energy not started')
+        if 'etitle' not in self.metadata:
+            logger.debug(f'no etitle record found yet.')
+            return
+        if len(tokens)!=len(self.metadata['etitle']):
+            logger.debug(f'process_energy: {line} does not enough tokens')
             return
         tokens[0]=int(tokens[0])
         for i in range(1,len(tokens)):
             tokens[i]=float(tokens[i])
         new_line={k:v for k,v in zip(self.metadata['etitle'],tokens)}
+        if 'VOLUME' in new_line:
+            new_line['DENSITY']=self.metadata['total_mass']/new_line['VOLUME']
         if self.energy_df.empty:
             self.energy_df=pd.DataFrame(new_line,index=[0])
         else:
@@ -210,16 +221,16 @@ class NAMDLog(LogParser):
         if len(addl_line_idx)>1:
             scan_ldx.extend(addl_line_idx)
         for i,j in zip(scan_ldx[:-1],scan_ldx[1:]):
-            aline=self.byte_collector[i:j]
             if i not in self.processed_line_idx:
                 line=self.byte_collector[i:j]
                 self.process_line(line)
                 self.processed_line_idx.append(i)
-        self.line_idx.extend(addl_line_idx)
-        last_line=self.byte_collector[addl_line_idx[-1]:]
-        if last_line.endswith(os.linesep):
-            self.process_line(last_line)
-            self.processed_line_idx.append(addl_line_idx[-1])
+        if len(addl_line_idx)>1:
+            self.line_idx.extend(addl_line_idx)
+            last_line=self.byte_collector[addl_line_idx[-1]:]
+            if last_line.endswith(os.linesep):
+                self.process_line(last_line)
+                self.processed_line_idx.append(addl_line_idx[-1])
 
     def process_wallclock_line(self,line):
         tokens=[x.strip() for x in line.split()]
@@ -234,11 +245,20 @@ class NAMDLog(LogParser):
             o=len(self.tcl_key)
             self.process_tcl_line(line[o:])
         elif line.startswith(self.etitle_key):
+            if 'etitle' in self.metadata:
+                logger.debug(f'process_energy_title: {line} already has etitle')
+                return
             o=len(self.etitle_key)
             self.process_energy_title(line[o:])
         elif line.startswith(self.energy_key):
+            if not 'etitle' in self.metadata:
+                logger.debug(f'process_energy: no etitle record found yet')
+                logger.debug(f'process_energy: using default etitle')
+                self.metadata['etitle']=self.default_etitle
             o=len(self.energy_key)
             self.process_energy_line(line[o:])
+            if 'first_timestep' not in self.metadata:
+                self.metadata['first_timestep']=int(self.energy_df.iloc[0]['TS'])
         elif line.startswith(self.wallclock_key):
             o=len(self.wallclock_key)
             self.process_wallclock_line(line[o:])
@@ -259,6 +279,10 @@ class NAMDLog(LogParser):
             running_for=self.metadata['running_for']
             if running_for>0:
                 number_of_steps=running_for
+        elif 'minimizing_for' in self.metadata:
+            minimizing_for=self.metadata['minimizing_for']
+            if minimizing_for>0:
+                number_of_steps=minimizing_for
         last_row=self.energy_df.iloc[-1]
         most_recent_time_step=last_row['TS']
         complete_steps=most_recent_time_step-first_time_step
@@ -269,6 +293,7 @@ class NAMDLog(LogParser):
 
     def finalize(self):
         self.energy_df.to_csv(f'{self.basename}-energy.csv',index=False)
+        return f'{self.basename}-energy.csv'
 
 class PackmolLog(LogParser):
     banner_separator='#'*80  # banners can occur within sections
@@ -296,6 +321,7 @@ class PackmolLog(LogParser):
             vstr=bytes[vidx:].split()[0]
             self.metadata['version']=vstr
             self.phase='initialization'
+            self.progress=0.10
         elif 'Building initial approximation' in bytes:
             self.metadata['initial_approximation']={}
             self.phase='initial_approximation'
@@ -304,11 +330,16 @@ class PackmolLog(LogParser):
             ofstr=bytes[idx:].split()[0]
             self.metadata['initial_objective_function']=float(ofstr)
             self.phase='packing_molecules'
+            self.progress=0.20
         elif 'Packing all molecules together' in bytes:
             self.phase='packing_all_molecules_together'
+            self.progress=0.90
         elif 'Packing molecules of type' in bytes:
             idx=bytes.index('Packing molecules of type')+len('Packing molecules of type')+1
+            
             mtype=bytes[idx:].split()[0]
+            mfrac=mtype/len(self.metadata['structures'])
+            self.progress=0.20+0.60*mfrac
             self.phase=f'packing_molecules_of_type_{mtype}'
             if not 'molecule_types_packed' in self.metadata:
                 self.metadata['molecule_types_packed']=[]
@@ -513,5 +544,79 @@ class PackmolLog(LogParser):
             ax[i].grid(True)
         plt.tight_layout()
         plt.savefig(f'{self.basename}_packmol.png')
+        return f'{self.basename}_packmol.png'
 
-            
+class PsfgenLog(LogParser):
+    info_keys=['Info) ', 'Info: ']
+    psfgen_key='psfgen) '
+    def __init__(self,basename='psfgen-logparser'):
+        super().__init__()
+        self.line_idx=[0] # byte offsets of lines
+        self.processed_line_idx=[]
+        self.metadata={}
+        self.basename=basename
+
+    def update(self,bytes):
+        super().update(bytes)
+        last_line_idx=self.line_idx[-1]
+        addl_line_idx=[m.start()+1+last_line_idx for m in re.finditer(os.linesep,self.byte_collector[last_line_idx:])]
+        scan_ldx=[last_line_idx] # in case last line was incomplete in a previous pass
+        if len(addl_line_idx)>1:
+            scan_ldx.extend(addl_line_idx)
+        for i,j in zip(scan_ldx[:-1],scan_ldx[1:]):
+            if i not in self.processed_line_idx:
+                line=self.byte_collector[i:j]
+                self.process_line(line)
+                self.processed_line_idx.append(i)
+        if len(addl_line_idx)>1:
+            self.line_idx.extend(addl_line_idx)
+            last_line=self.byte_collector[addl_line_idx[-1]:]
+            if last_line.endswith(os.linesep):
+                self.process_line(last_line)
+                self.processed_line_idx.append(addl_line_idx[-1])
+
+    def process_line(self,line):
+        assert line.endswith(os.linesep),f'process_line: {line} does not end with os.linesep'
+        if line.startswith(self.info_keys[0]):
+            o=len(self.info_keys[0])
+            self.process_info_line(line[o:])
+        elif line.startswith(self.info_keys[1]):
+            o=len(self.info_keys[1])
+            self.process_info_line(line[o:])
+        elif line.startswith(self.psfgen_key):
+            o=len(self.psfgen_key)
+            self.process_psfgen_line(line[o:])
+
+    def process_info_line(self,line):
+        if 'Exiting normally' in line:
+            self.metadata['success']=True
+        elif line.startswith('VMD'):
+            tokens=[x.strip() for x in line.split()]
+            if len(tokens)>1:
+                if 'platform' not in self.metadata:
+                    self.metadata['platform']=tokens[2]
+                if 'version' not in self.metadata:
+                    self.metadata['version']=tokens[4]
+
+    def success(self):
+        if 'success' in self.metadata:
+            return self.metadata['success']
+        return False
+
+    def process_psfgen_line(self,line):
+        if line.startswith('total of'):
+            if line.endswith('atoms'):
+                self.metadata['number_of_atoms']=int(get_single('total of',line))
+            elif line.endswith('bonds'):
+                self.metadata['number_of_bonds']=int(get_single('total of',line))
+            elif line.endswith('angles'):
+                self.metadata['number_of_angles']=int(get_single('total of',line))
+            elif line.endswith('dihedrals'):
+                self.metadata['number_of_dihedrals']=int(get_single('total of',line))
+            elif line.endswith('impropers'):
+                self.metadata['number_of_impropers']=int(get_single('total of',line))
+            elif line.endswith('cross-terms'):
+                self.metadata['number_of_cross_terms']=int(get_single('total of',line))
+            elif line.endswith('explicit exclusions'):
+                self.metadata['number_of_exclusions']=int(get_single('total of',line))
+

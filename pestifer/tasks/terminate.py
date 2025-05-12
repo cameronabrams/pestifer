@@ -50,7 +50,7 @@ class TerminateTask(MDTask):  #need to inherit for namdrun() method
         if constraints:
             self.make_constraint_pdb(constraints)
             self.FC.append(self.statevars['consref'])
-        local_params=self.local_parameter_files
+        local_params=self.statevars.get('charmmff_paramfiles',[])
         for n in local_params:
             self.FC.append(n)
         for ext in ['psf','pdb','coor','xsc','vel']:

@@ -28,6 +28,7 @@ Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full d
 ## Release History
 * 1.11.0
     * New bilayer build protocol (in progress)
+    * New NAMD and packmol on-the-fly log parsing
 * 1.10.0
     * Updated the `pestifer_init` TcL script definition to allow the command `pestifer_init` to replace the clunkier `source [pestifer_init]`
     * `cleanup` subcommand added for cleaning up after an aborted run

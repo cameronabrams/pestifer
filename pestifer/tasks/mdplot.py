@@ -1,9 +1,11 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 # 
 
+
 import logging
 import matplotlib.pyplot as plt
 import pandas as pd
+import os
 
 from ..basetask import BaseTask
 from ..util.units import g_per_amu,A3_per_cm3
@@ -14,66 +16,81 @@ logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 class MDPlotTask(BaseTask):
     """ A class for making plots of energy-like quantities from a series of one or more NAMD 
-        runs """
+        runs.  Since NAMD runs are always invoked using a log-parser, a csv file is created that 
+        contains all energy-like data from the run. """
     yaml_header='mdplot'
     def do(self):
+        logger.debug(f'Running {self.__class__.__name__} task with specs {self.specs}')
         self.log_message('initiated')
         self.inherit_state()
-        datasources=[]
-        xstsources=[]
+        nrg=pd.DataFrame()
+        xst=None
         if len(self.specs['existing-logs'])==0 and self.prior:
             logger.debug(f'Collecting all mdlog.edata tables from upstream md tasks...')
             priortaskpointer=self.prior
+            priortasklist=[]
             logger.debug(f'self={str(self)}; self.prior={str(priortaskpointer)}')
-            while priortaskpointer!=None and hasattr(priortaskpointer,'mdlog'):
-                logger.debug(f'appending log/xst data from prior task {str(priortaskpointer)}')
-                datasources.append(priortaskpointer.mdlog.edata)
-                if hasattr(priortaskpointer,'xstlog'):
-                    xstsources.append(priortaskpointer.xstlog.df)
+            while priortaskpointer!=None and priortaskpointer.yaml_header=='md':
+                priortasklist.append(priortaskpointer)
                 priortaskpointer=priortaskpointer.prior
+            priortasklist=priortasklist[::-1]
+            for pt in priortasklist:
+                logger.debug(f'Collecting data from {pt.basename}')
+                csv=pt.statevars.get('energy-csv',None)
+                if csv:
+                    logger.debug(f'Collecting data from {csv}')
+                    try:
+                        newcsv=pd.read_csv(csv,header=0,index_col=None)
+                        logger.debug(f'newcsv shape: {newcsv.shape}')
+                        nrg=pd.concat([nrg,newcsv],ignore_index=True)
+                        logger.debug(f'nrg dataframe shape: {nrg.shape}')
+                    except:
+                        logger.debug(f'For some reason, I could not read this csv file')
+                        logger.debug(f'{csv} does not exist or is not a valid csv file')
+                else:
+                    logger.debug(f'No energy data found for {pt.basename}')
+                xstfile=f'{pt.basename}.xst'
+                if os.path.exists(xstfile):
+                    logger.debug(f'Collecting data from {xstfile}')
+                    try:
+                        if not xst:
+                            xst=NAMDxst(xstfile)
+                        else:
+                            xst.add_file(xstfile)
+                    except:
+                        logger.debug(f'{xstfile} does not exist or is not a valid xst file')
         else:
             logger.debug(f'Extracting data from {len(self.specs["existing-logs"])} explicitly named namd logs...')
             logger.debug(self.specs['existing-logs'])
-            save_titles=[]
-            for f in self.specs['existing-logs'][::-1]:
+            for f in self.specs['existing-logs']:
                 logger.debug(f'Extracting data from {f}')
-                if not save_titles:
-                    l=NAMDLog(f)
-                    l.energy()
-                    save_titles=l.etitles
-                else:
-                    l=NAMDLog(f,inherited_etitles=save_titles)
-                    l.energy()
-                datasources.append(l.edata)
+                apparent_basename=os.path.splitext(os.path.basename(f))[0]
+                l=NAMDLog(basename=apparent_basename)
+                l.static(f)
+                nrg=pd.concat([nrg,l.df])
             if len(self.specs['existing-xsts'])>0:
                 logger.debug(f'Extracting data from {len(self.specs["existing-xsts"])} explicitly named XST files...')
-            for f in self.specs['existing-xsts'][::-1]:
-                l=NAMDxst(f)
-                xstsources.append(l.df)
+            for f in self.specs['existing-xsts']:
+                if not xst:
+                    xst=NAMDxst(f)
+                else:
+                    xst.add_file(f)
 
-        if len(datasources)==0:
-            logger.warning(f'No datasources found for mdplot task.')
-            return -1
-        logger.debug(f'concatenating energy-like data from {len(datasources)} sequential logs')
-        edata=pd.concat(datasources[::-1])
         savedata=self.specs.get('savedata',None)
-        xstdata=None
-        if len(xstsources)>0: # we instructed the md tasks that only NPT runs write xst files
-            xstdata=pd.concat(xstsources[::-1])
         if savedata:
             logger.debug(f'Saving energy-like data to {savedata}.')
             try:
-                edata.to_csv(savedata,header=True,index=False)
+                nrg.to_csv(savedata,header=True,index=False)
             except:
                 logger.debug(f'For some reason, I could not write this dataframe to csv')
-                logger.debug(edata.iloc[:3,:].to_string())
-            if len(xstsources)>0:
+                logger.debug(nrg.iloc[:3,:].to_string())
+            if xst is not None:
                 logger.debug(f'Saving cell data to xst-{savedata}.')
                 try:
-                    xstdata.to_csv(f'xst-{savedata}',header=True,index=False)
+                    xst.df.to_csv(f'xst-{savedata}',header=True,index=False)
                 except:
                     logger.debug(f'For some reason, I could not write this dataframe to csv')
-                    logger.debug(xstdata.iloc[:3,:].to_string())
+                    logger.debug(xst.df.iloc[:3,:].to_string())
         
         traces=self.specs.get('traces',[])
         legend=self.specs.get('legend',False)
@@ -99,11 +116,11 @@ class MDPlotTask(BaseTask):
                             logger.debug(f'Unitspec "{unitspec}" not recognized.')
                             units=1.0
                 unitspecs.append(unitspec)
-                if t_i.upper() in edata:
+                if t_i.upper() in nrg:
                     key=t_i.upper()
-                    ax.plot(edata['TS'],edata[key]*units,label=key.title())
-                elif len(xstsources)>0 and t_i in xstdata:
-                    ax.plot(xstdata['step'],xstdata[t_i]*units,label=t_i)
+                    ax.plot(nrg['TS'],nrg[key]*units,label=key.title())
+                elif xst is not None and t_i in xst.df:
+                    ax.plot(xst.df['step'],xst.df[t_i]*units,label=t_i)
             ax.set_xlabel('time step')
             tracename=','.join(tracelist)
             ax.set_ylabel(tracename+' ('+','.join([_ for _ in unitspecs if _!='*'])+')')

@@ -11,7 +11,7 @@ from .command import Command
 from .config import Config
 from .stringthings import ByteCollector, FileCollector
 from .util.colors import *
-from .util.logparsers import NAMDLog, NAMDxst
+from .util.logparsers import NAMDLog, PackmolLog, PsfgenLog
 from .util.progress import NAMDProgress, PsfgenProgress, PestiferProgress, PackmolProgress
 from .util.util import reduce_intlist
 
@@ -288,6 +288,7 @@ class Psfgen(VMD):
     def runscript(self,*args,**options):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         self.logname=f'{self.basename}.log'
+        self.logparser=PsfgenLog(basename=self.basename)
         logger.debug(f'Log file: {self.logname}')
         clean_options=options.copy()
         for k,v in options.items():
@@ -297,7 +298,8 @@ class Psfgen(VMD):
         progress_struct=None
         if self.progress:
             progress_struct=PsfgenProgress()
-        return c.run(logfile=self.logname,progress=progress_struct)
+            self.logparser.enable_progress_bar(progress_struct)
+        return c.run(logfile=self.logname,logparser=self.logparser)
     
 class NAMD(TcLScriptwriter):
     def __init__(self,config:Config):
@@ -389,7 +391,7 @@ class NAMD(TcLScriptwriter):
                 use_cpu_count=self.local_ncpus
             c=Command(f'{self.namdgpu} +p{use_cpu_count} +setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
         self.logname=f'{self.basename}.log'
-        self.logparser=NAMDLog()
+        self.logparser=NAMDLog(basename=self.basename)
         progress_struct=None
         if self.progress:
             logger.debug(f'NAMD runscript using progress')
@@ -398,14 +400,6 @@ class NAMD(TcLScriptwriter):
         else:
             logger.debug(f'NAMD runscript NOT using progress')
         return c.run(logfile=self.logname,logparser=self.logparser)
-
-    def getlog(self,inherited_etitles=[]):
-        nl=NAMDLog(self.logname,inherited_etitles=inherited_etitles)
-        nl.energy()
-        return nl
-
-    def getxst(self):
-        return NAMDxst(f'{self.basename}.xst')
 
 class PackmolInputWriter(Filewriter):
     def __init__(self,config):
@@ -417,7 +411,7 @@ class PackmolInputWriter(Filewriter):
         self.default_ext='.inp'
         self.default_script=f'packmol{self.default_ext}'
         self.scriptname=self.default_script
-    
+
     def newscript(self,basename=None):
         timestampstr=datetime.datetime.today().ctime()
         if basename:
@@ -435,10 +429,12 @@ class PackmolInputWriter(Filewriter):
     def runscript(self,*args,**options):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         self.logname=f'{self.basename}.log'
+        self.logparser=PackmolLog(basename=self.basename)
         logger.debug(f'Log file: {self.logname}')
         cmd=Command(f'{self.config.shell_commands["packmol"]} < {self.scriptname}')
         progress_struct=None
         if self.progress:
             progress_struct=PackmolProgress()
-        return cmd.run(ignore_codes=[173],logfile=self.logname,progress=progress_struct)
+            self.logparser.enable_progress_bar(progress_struct)
+        return cmd.run(ignore_codes=[173],logfile=self.logname,logparser=self.logparser)
     

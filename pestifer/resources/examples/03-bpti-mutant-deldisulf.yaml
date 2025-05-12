@@ -55,7 +55,11 @@ tasks:
       savedata: solvated.csv
       traces:
         - density
+        - - a_x
+          - b_y
+          - c_z
       basename: solvated
+      grid: True
   - terminate:
       basename: my_6pti
       package:

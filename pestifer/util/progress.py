@@ -42,8 +42,11 @@ class PestiferProgress:
 
     def go(self):
         if self.initialized:
-            progress=self.comp_f()
-            self.bar.update(int(progress*self.max_value))
+            if self.unmeasured:
+                self.bar.update()
+            else:
+                progress=self.comp_f()
+                self.bar.update(int(progress*self.max_value))
         else:
             self.bar.update()
 
@@ -53,7 +56,7 @@ class NAMDProgress(PestiferProgress):
     
 class PackmolProgress(PestiferProgress):
     def __init__(self,**kwargs):
-        super().__init__(name='packmol',colorno=150,**kwargs)
+        super().__init__(max_value=200,name='packmol',colorno=150,**kwargs)
 
 class PsfgenProgress(PestiferProgress):
     def __init__(self,**kwargs):
