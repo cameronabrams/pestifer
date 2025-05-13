@@ -565,6 +565,7 @@ class PackmolLog(LogParser):
             ax[i].grid(True)
         plt.tight_layout()
         plt.savefig(f'{self.basename}_packmol.png')
+        plt.close()
         return f'{self.basename}_packmol.png'
 
 class PsfgenLog(LogParser):

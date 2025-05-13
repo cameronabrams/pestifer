@@ -98,6 +98,7 @@ def test_make_membrane_system_task_init_asymmetric_multicomponent():
             'data':   Filewriter()
         }
     idict={'bilayer':{
+            'SAPL': 50,
             'npatch':[2,2],
             'composition':{
                 'upper_leaflet': [
@@ -110,16 +111,20 @@ def test_make_membrane_system_task_init_asymmetric_multicomponent():
                 'patch':[
                     {'md':{'ensemble':'minimize','nsteps':1000}},
                     {'md':{'ensemble':'NVT','nsteps':1000}},
-                    {'md':{'ensemble':'NPT','nsteps':1000}},
-                    {'md':{'ensemble':'NPT','nsteps':2000}},
-                    {'md':{'ensemble':'NPT','nsteps':4000}},
-                    {'md':{'ensemble':'NPT','nsteps':8000}}
+                    {'md':{'ensemble':'NPT','nsteps':1000,'pressure':10.0}},
+                    {'md':{'ensemble':'NPT','nsteps':2000,'pressure':10.0}},
+                    {'md':{'ensemble':'NPT','nsteps':4000,'pressure':10.0}},
+                    {'md':{'ensemble':'NPT','nsteps':8000,'pressure':10.0}},
+                    {'md':{'ensemble':'NPT','nsteps':16000}},
+                    {'md':{'ensemble':'NPT','nsteps':32000}},
                 ],
                 'bilayer':[
                     {'md':{'ensemble':'minimize','nsteps':1000}},
                     {'md':{'ensemble':'NVT','nsteps':1000}},
-                    {'md':{'ensemble':'NPT','nsteps':1000}},
-                    {'md':{'ensemble':'NPT','nsteps':10000}}
+                    {'md':{'ensemble':'NPT','nsteps':1000,'pressure':10.0}},
+                    {'md':{'ensemble':'NPT','nsteps':10000,'pressure':10.0}},
+                    {'md':{'ensemble':'NPT','nsteps':20000}},
+                    {'md':{'ensemble':'NPT','nsteps':40000}}
                 ]}}}
     BET = MakeMembraneSystemTask(idict,'test_make_membrane_system_task',C,writers,None)
     assert BET.taskname == 'test_make_membrane_system_task'
