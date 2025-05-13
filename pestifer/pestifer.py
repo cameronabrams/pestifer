@@ -20,12 +20,25 @@ from .controller import Controller
 from .namdrestart import make_namd_restart
 from .scriptwriters import Psfgen
 from .stringthings import banner, banner_message, enhanced_banner_message, oxford
+from .util.logparsers import subcommand_follow_namd_log
 
 logger=logging.getLogger(__name__)
 
 logging.getLogger("pidibble").setLevel(logging.WARNING)
 logging.getLogger("ycleptic").setLevel(logging.WARNING)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
+
+def follow_namd_log(args):
+    log=args.log
+    basename=args.basename
+    console=logging.StreamHandler()
+    loglevel_numeric=getattr(logging,args.diagnostic_log_level.upper())
+    console.setLevel(loglevel_numeric)
+    formatter=logging.Formatter('%(levelname)s> %(message)s')
+    console.setFormatter(formatter)
+    logging.getLogger('').addHandler(console)
+    subcommand_follow_namd_log(log,basename=basename)
+    print()
 
 def config_help(args):
     c=Config()
@@ -269,6 +282,7 @@ def cli():
         'make-resi-database': make_RESI_database,
         'config-default': config_default,
         'cleanup': cleanup,
+        'follow-namd-log': follow_namd_log,
     }
     helps={
         'config-help':'get help on the syntax of input configuration files',
@@ -283,7 +297,8 @@ def cli():
         'make-namd-restart':'generate a restart NAMD config file based on current checkpoint',
         'show-resources':'display elements of the included pestifer resources',
         'mdplot':'Extract and plot time-series data from NAMD log and xst files',
-        'cleanup':'Clean up files from a run (usually for a clean restart)'
+        'cleanup':'Clean up files from a run (usually for a clean restart)',
+        'follow-namd-log':'Follow a NAMD log file and show a progress bar'
     }
     descs={
         'config-help':'Use this command to get interactive help on config file directives.',
@@ -298,7 +313,8 @@ def cli():
         'make-namd-restart':'generate a restart NAMD config file based on current checkpoint',
         'show-resources':'display elements of the included pestifer resources',
         'mdplot':'Extract and plot time-series data from NAMD log and xst files',
-        'cleanup':'Clean up files from a run (usually for a clean restart)'
+        'cleanup':'Clean up files from a run (usually for a clean restart)',
+        'follow-namd-log':'Follow a NAMD log file and show a progress bar'
     }
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
     parser.add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
@@ -370,11 +386,16 @@ def cli():
     command_parsers['mdplot'].add_argument('--figsize',type=int,nargs=2,default=[9,6],help='figsize')
     command_parsers['mdplot'].add_argument('--traces',type=list,default=['density'],nargs='+',help='traces to plot')
     command_parsers['cleanup'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
+    command_parsers['follow-namd-log'].add_argument('log',type=str,default=None,help='input NAMD log file')
+    command_parsers['follow-namd-log'].add_argument('--basename',type=str,default=None,help='basename of output files')
+    command_parsers['follow-namd-log'].add_argument('--diagnostic-log-file',type=str,default=None,help='diagnostic log file')
+    command_parsers['follow-namd-log'].add_argument('--diagnostic-log-level',type=str,default='info',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
+    command_parsers['follow-namd-log'].add_argument('--no-banner',default=True,action='store_true',help='turn off the banner')
 
     args=parser.parse_args()
 
     if not args.no_banner:
-        banner(print)    
+        banner(print)
     if args.kick_ass_banner:
         print(enhanced_banner_message)
 

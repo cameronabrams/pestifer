@@ -1,5 +1,5 @@
-fetch--example
---------------
+fetch-example
+-------------
 
 Like ``run-example``, except it only copies the YAML input file needed to run the example to the CWD.  It can be edited, if desired, and then run using the ``run`` subcommand (see above).  If you request help on ``fetch-example``, you will see a list of examples:
 

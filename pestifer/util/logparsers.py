@@ -6,10 +6,11 @@
 import logging
 import os
 import re
-
+import time
 import pandas as pd
 import matplotlib.pyplot as plt
 from ..stringthings import ByteCollector
+from ..util.progress import PackmolProgress, NAMDProgress
 
 logger=logging.getLogger(__name__)
 
@@ -95,6 +96,29 @@ class LogParser(ByteCollector):
     def update_progress_bar(self):
         if self.progress_bar is not None:
             self.progress_bar.go()
+
+    def success(self):
+        return False
+
+    def follow(self,filename,sleep_interval=0.5,timeout_intervals=120):
+        logger.debug(f'Following {filename}')
+        self.ntimeout=0
+        with open(filename,'r') as f:
+            while True:
+                line=f.readline()
+                if not line:
+                    time.sleep(sleep_interval)
+                    self.ntimeout+=1
+                    if self.ntimeout>timeout_intervals:
+                        logger.debug(f'Follow timed out after {self.ntimeout} intervals')
+                        break
+                    continue
+                self.ntimeout=0
+                self.update(line)
+                self.update_progress_bar()
+                if self.success():
+                    logger.debug(f'Follow succeeded after {self.ntimeout} intervals')
+                    break
 
 class VMDLog(LogParser):
     def __init__(self,basename='vmd-logparser'):
@@ -642,3 +666,21 @@ class PsfgenLog(LogParser):
             elif line.endswith('explicit exclusions'):
                 self.metadata['number_of_exclusions']=int(get_single('total of',line))
 
+def subcommand_follow_namd_log(filename,basename=None):
+    """ Follow a NAMD log file and parse it
+    """
+    if not os.path.exists(filename):
+        logger.debug(f'File {filename} does not exist')
+        return -1
+    if basename is None:
+        basename=os.path.splitext(os.path.basename(filename))[0]
+    namd_log=NAMDLog(basename=basename)
+    PS=NAMDProgress()
+    namd_log.enable_progress_bar(PS)
+    namd_log.follow(filename)
+    if not namd_log.success():
+        logger.debug('NAMD log file did not complete successfully')
+        return -2
+    namd_log.finalize()
+    return 0
+    

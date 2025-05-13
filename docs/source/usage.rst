@@ -45,6 +45,7 @@ Subcommands
    subs/make-namd-restart
    subs/show-resources
    subs/cleanup
+   subs/follow-namd-log
 
 Use in VMD scripts
 ------------------
