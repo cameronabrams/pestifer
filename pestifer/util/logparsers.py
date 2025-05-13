@@ -66,6 +66,7 @@ class LogParser(ByteCollector):
     def __init__(self):
         super().__init__()
         self.progress=0.0
+        self.progress_bar=None
 
     def static(self,filename):
         logger.debug(f'Initiating {self.__class__.__name__} from {filename}')
@@ -95,6 +96,11 @@ class LogParser(ByteCollector):
         if self.progress_bar is not None:
             self.progress_bar.go()
 
+class VMDLog(LogParser):
+    def __init__(self,basename='vmd-logparser'):
+        super().__init__()
+        self.basename=basename
+
 class NAMDxst():
     def __init__(self,filename):
         celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
@@ -116,7 +122,8 @@ class NAMDLog(LogParser):
     etitle_key='ETITLE: '
     struct_sep='*****************************'
     wallclock_key='WallClock: '
-    default_etitle='TS,BOND,ANGLE,DIHED,IMPRP,ELECT,VDW,BOUNDARY,MISC,KINETIC,TOTAL,TEMP,POTENTIAL,TOTAL3,TEMPAVG,PRESSURE,GPRESSURE,VOLUME,PRESSAVG,GPRESSAVG'.split(',')
+    default_etitle_npt='TS,BOND,ANGLE,DIHED,IMPRP,ELECT,VDW,BOUNDARY,MISC,KINETIC,TOTAL,TEMP,POTENTIAL,TOTAL3,TEMPAVG,PRESSURE,GPRESSURE,VOLUME,PRESSAVG,GPRESSAVG'.split(',')
+    default_etitle_nvt='TS,BOND,ANGLE,DIHED,IMPRP,ELECT,VDW,BOUNDARY,MISC,KINETIC,TOTAL,TEMP,POTENTIAL,TOTAL3,TEMPAVG'.split(',')  
     def __init__(self,basename='namd-logparser'):
         super().__init__()
         self.line_idx=[0] # byte offsets of lines
@@ -183,20 +190,34 @@ class NAMDLog(LogParser):
             self.metadata['output_filename']=get_single('OUTPUT FILENAME',line)
         elif 'ENERGY OUTPUT STEPS' in line:
             self.metadata['energy_output_steps']=int(get_single('ENERGY OUTPUT STEPS',line))
+        elif 'LANGEVIN DYNAMICS ACTIVE' in line:
+            self.metadata['ensemble']='NVT'
+        elif 'LANGEVIN PISTON PRESSURE CONTROL ACTIVE' in line:
+            self.metadata['ensemble']='NPT'
+
     def process_tcl_line(self,line):
         if line.startswith('Running for'):
             self.metadata['running_for']=int(get_single('Running for',line))
         elif line.startswith('Minimizing for'):
             self.metadata['minimizing_for']=int(get_single('Minimizing for',line))
+            self.metadata['ensemble']='minimize'
 
     def process_energy_line(self,line):
         tokens=[x.strip() for x in line.split()]
         if 'etitle' not in self.metadata:
-            logger.debug(f'no etitle record found yet.')
-            return
-        if len(tokens)!=len(self.metadata['etitle']):
-            logger.debug(f'process_energy: {line} does not enough tokens')
-            return
+            if len(tokens)==len(self.default_etitle_npt):
+                logger.debug(f'process_energy: {len(tokens)} tokens found, using default etitle for NPT')
+                self.metadata['etitle']=self.default_etitle_npt
+            elif len(tokens)==len(self.default_etitle_nvt):
+                logger.debug(f'process_energy: {len(tokens)} tokens found, using default etitle for NVT')
+                self.metadata['etitle']=self.default_etitle_nvt
+            else:
+                logger.debug(f'process_energy: {len(tokens)} tokens found, but either {len(self.default_etitle_nvt)} or {len(self.default_etitle_npt)} expected')
+                return
+        else:
+            if len(tokens)!=len(self.metadata['etitle']):
+                logger.debug(f'process_energy: {len(tokens)} tokens found, but {len(self.metadata["etitle"])} expected')
+                return
         tokens[0]=int(tokens[0])
         for i in range(1,len(tokens)):
             tokens[i]=float(tokens[i])
@@ -212,6 +233,10 @@ class NAMDLog(LogParser):
         tokens=[x.strip() for x in line.split()]
         if 'etitle' not in self.metadata:
             self.metadata['etitle']=tokens
+        else:
+            if len(tokens)!=len(self.metadata['etitle']):
+                logger.debug(f'process_energy_title: {len(tokens)} tokens found, but {len(self.metadata["etitle"])} expected')
+
 
     def update(self,bytes):
         super().update(bytes)
@@ -246,15 +271,11 @@ class NAMDLog(LogParser):
             self.process_tcl_line(line[o:])
         elif line.startswith(self.etitle_key):
             if 'etitle' in self.metadata:
-                logger.debug(f'process_energy_title: {line} already has etitle')
+                # logger.debug(f'process_energy_title: {line} already has etitle')
                 return
             o=len(self.etitle_key)
             self.process_energy_title(line[o:])
         elif line.startswith(self.energy_key):
-            if not 'etitle' in self.metadata:
-                logger.debug(f'process_energy: no etitle record found yet')
-                logger.debug(f'process_energy: using default etitle')
-                self.metadata['etitle']=self.default_etitle
             o=len(self.energy_key)
             self.process_energy_line(line[o:])
             if 'first_timestep' not in self.metadata:
@@ -338,7 +359,7 @@ class PackmolLog(LogParser):
             idx=bytes.index('Packing molecules of type')+len('Packing molecules of type')+1
             
             mtype=bytes[idx:].split()[0]
-            mfrac=mtype/len(self.metadata['structures'])
+            mfrac=int(mtype)/len(self.metadata['structures'])
             self.progress=0.20+0.60*mfrac
             self.phase=f'packing_molecules_of_type_{mtype}'
             if not 'molecule_types_packed' in self.metadata:

@@ -16,7 +16,7 @@ sA2_=_UNITS_['SQUARE-ANGSTROMS']
 
 logger=logging.getLogger(__name__)
 
-class BilayerEmbedTask(BaseTask):
+class MakeMembraneSystemTask(BaseTask):
     """ A class for handling embedding proteins into bilayers
     
     Attributes
@@ -30,7 +30,7 @@ class BilayerEmbedTask(BaseTask):
         then runs packmol
 
     """
-    yaml_header='bilayer'
+    yaml_header='make_membrane_system'
     def __init__(self,input_dict,taskname,config:Config,writers,prior):
         super().__init__(input_dict,taskname,config,writers,prior)
         self.progress=config.progress

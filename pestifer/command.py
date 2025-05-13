@@ -72,21 +72,17 @@ class Command:
         output=''
 
         while True:
-            # b=time.process_time_ns()
             output=process.stdout.readline()
             self.stdout+=output
             if logparser:
                 logparser.update(output)
                 logparser.update_progress_bar()
-            # e=time.process_time_ns()
-            # ncalls+=1
-            # ttally+=(e-b)/1.e6
             if log: 
                 log.write(output)
                 log.flush()
             if output=='' and process.poll() is not None:
                 break
-        if hasattr(logparser,'progress_bar'):
+        if hasattr(logparser,'progress_bar') and logparser.progress_bar is not None:
             print()
         if logfile:
             logger.debug(f'Log written to {logfile}')

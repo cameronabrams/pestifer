@@ -4,14 +4,13 @@
 """
 import os
 import datetime
-import shutil
 import logging
 
 from .command import Command
 from .config import Config
 from .stringthings import ByteCollector, FileCollector
 from .util.colors import *
-from .util.logparsers import NAMDLog, PackmolLog, PsfgenLog
+from .util.logparsers import VMDLog, NAMDLog, PackmolLog, PsfgenLog
 from .util.progress import NAMDProgress, PsfgenProgress, PestiferProgress, PackmolProgress
 from .util.util import reduce_intlist
 
@@ -70,7 +69,8 @@ class TcLScriptwriter(Filewriter):
             self.basename=os.path.splitext(self.default_script)[0]
         self.scriptname=f'{self.basename}{self.default_ext}'
         self.newfile(self.scriptname)
-        self.banner(f'{__package__}: {self.basename}{self.default_ext}')
+        msg=f'{__package__}: {self.basename}{self.default_ext}'
+        self.comment(msg)
         self.banner(f'Created {timestampstr}')
 
     def writescript(self):
@@ -197,13 +197,15 @@ class VMD(TcLScriptwriter):
     def runscript(self,*args,**options):
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         self.logname=f'{self.basename}.log'
+        self.logparser=VMDLog(basename=self.basename)
         logger.debug(f'Log file: {self.logname}')
         c=Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}',**options)
         progress_struct=None
         progress_title=options.get('progress_title','')
         if self.progress and progress_title!='':
             progress_struct=PestiferProgress(name=progress_title)
-        return c.run(logfile=self.logname,progress=progress_struct)
+            self.logparser.enable_progress_bar(progress_struct)
+        return c.run(logfile=self.logname,logparser=self.logparser)
     
     def cleanup(self,cleanup=False):
         if cleanup:

@@ -71,7 +71,7 @@ class SolvateTask(BaseTask):
             ai_args.append(f'-cation {anion}')
         vt.addline(f'autoionize -psf {self.basename}_solv.psf -pdb {self.basename}_solv.pdb {" ".join(ai_args)} -o {self.basename}')
         vt.writescript()
-        self.result=vt.runscript()
+        self.result=vt.runscript(progress_title='solvate')
         if self.result!=0:
             return super().do()
         self.save_state(exts=['psf','pdb','xsc'])
