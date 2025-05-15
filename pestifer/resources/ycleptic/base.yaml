@@ -1436,6 +1436,19 @@ directives:
             text: Parameters controlling bilayer generation
             type: dict
             directives:
+              - name: prebuilt
+                text: PSF and PDB file of a previously built system membrane system
+                type: dict
+                directives:
+                  - name: psf
+                    text: name of psf file (includes psf extension)
+                    type: str
+                  - name: pdb
+                    text: name of pdb file (includes pdb extension)
+                    type: str
+                  - name: xsc
+                    text: name of xsc file (includes xsc extension)
+                    type: str
               - name: lipids
                 text: declaration of lipids in each leaflet in memgen format LIP1[:LIP2][//LIP3] where ":" is an intra-leaflet separator and "//" is an inter-leaflet separator
                 type: str
@@ -1706,6 +1719,10 @@ directives:
             text: parameters controlling protein embedding
             type: dict
             directives:
+              - name: q_tolerance
+                text: tolerance for net charge neutralization
+                type: float
+                default: 1.e-4
               - name: xydist
                 text: distance from perimeter of protein to box edge in x and y (Å)
                 type: float

@@ -13,6 +13,9 @@
 
 package require Orient
 namespace import ::Orient::*
+package require pbctools
+package require solvate
+package require autoionize
 
 set scriptname bilayer_embed
 
@@ -27,6 +30,7 @@ set z_ref_group ""
 set z_value 0.0
 set outbasename "embedded"
 set no_orient 0
+set zdist 10.0; # distance between protein atoms and z-boundaries of box
 
 for { set i 0 } { $i < [llength $argv] } { incr i } {
    if { [lindex $argv $i] == "-psf"} {
@@ -69,6 +73,10 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
       incr i
       set z_value [lindex $argv $i]
    }
+   if { [lindex $argv $i] == "-zdist"} {
+      incr i
+      set zdist [lindex $argv $i]
+   }
    if { [lindex $argv $i] == "-o"} {
       incr i
       set outbasename [lindex $argv $i]
@@ -106,29 +114,55 @@ if { $z_tail_group == "" && !$no_orient } {
    exit
 }
 
+# load the protein system
 mol new $psf
 mol addfile $pdb waitfor all
 set protein [molinfo top get id]
-vmdcon -info "protein system from $psf and $pdb into molecule $protein"
+set pro_sel [atomselect $protein "all"]
 
+# load the bilayer system, take measurements
 mol new $bilayer_psf
 mol addfile $bilayer_pdb waitfor all
 set bilayer [molinfo top get id]
-vmdcon -info "bilayer system from $bilayer_psf and $bilayer_pdb into molecule $bilayer"
+pbc readxst $bilayer_xsc -molid $bilayer
+set bilayer_box [lindex [pbc get -molid $bilayer] 0]
+set bilayer_box_x [lindex $bilayer_box 0]
+set box_xminmax [list [expr -1*($bilayer_box_x / 2)] [expr $bilayer_box_x / 2]]
+set bilayer_box_y [lindex $bilayer_box 1]
+set box_yminmax [list [expr -1*($bilayer_box_y / 2)] [expr $bilayer_box_y / 2]]
 set bilayer_sel [atomselect $bilayer "all"]
 
-vmdcon -info "selecting \"$z_head_group\" and \"$z_tail_group\" from protein (molecule $protein)"
+set bilayer_minmax [measure minmax $bilayer_sel]
+set bilayer_min [lindex $bilayer_minmax 0]
+set bilayer_max [lindex $bilayer_minmax 1]
+set bilayer_min_x [lindex $bilayer_min 0]
+set bilayer_max_x [lindex $bilayer_max 0]
+set bilayer_mid_x [expr ($bilayer_min_x + $bilayer_max_x) / 2]
+set bilayer_min_y [lindex $bilayer_min 1]
+set bilayer_max_y [lindex $bilayer_max 1]
+set bilayer_mid_y [expr ($bilayer_min_y + $bilayer_max_y) / 2]
+
+$bilayer_sel moveby [list [expr -1*$bilayer_mid_x] [expr -1*$bilayer_mid_y] 0]
+unset bilayer_min_x
+unset bilayer_max_x
+unset bilayer_min_y
+unset bilayer_max_y
+
+
+set bilayer_min_z [lindex $bilayer_min 2]
+set bilayer_max_z [lindex $bilayer_max 2]
+
+vmdcon -info "bilayer z-span [lindex $bilayer_box 2]; by apparent atom measurements, min-z $bilayer_min_z max-z $bilayer_max_z"
+
 set head [atomselect $protein "$z_head_group"]
 set tail [atomselect $protein "$z_tail_group"]
-vmdcon -info "head: [$head num] atoms"
-vmdcon -info "tail: [$tail num] atoms"
 set head_com [measure center $head weight mass]
 set tail_com [measure center $tail weight mass]
 set bilayer_com [measure center $bilayer_sel weight mass]
 set bilayer_x [lindex $bilayer_com 0]
 set bilayer_y [lindex $bilayer_com 1]
 set bilayer_z [lindex $bilayer_com 2]
-set pro_sel [atomselect $protein "all"]
+
 if { !$no_orient } {
    vmdcon -info "orienting protein axis to bilayer normal"
    set pro_axis [vecnorm [vecsub $head_com $tail_com]]
@@ -140,12 +174,23 @@ set pro_embed_mid_z [lindex [measure center $pro_mid_z_ref_sel weight mass] 2]
 set pro_com [measure center $pro_sel weight mass]
 set pro_x [lindex $pro_com 0]
 set pro_y [lindex $pro_com 1]
-set pro_x_shift [expr $bilayer_x - $pro_x]
-set pro_y_shift [expr $bilayer_y - $pro_y]
+set pro_x_shift [expr -1*($pro_x)]
+set pro_y_shift [expr -1*($pro_y)]
 set pro_z_shift [expr $bilayer_z - $pro_embed_mid_z - $z_value]
 
 $pro_sel moveby [list $pro_x_shift $pro_y_shift $pro_z_shift]
 $pro_sel writepdb "${outbasename}_embedded.pdb"
+set pro_minmax [measure minmax $pro_sel]
+set pro_min [lindex $pro_minmax 0]
+set pro_max [lindex $pro_minmax 1]
+set pro_min_x [lindex $pro_min 0]
+set pro_max_x [lindex $pro_max 0]
+set pro_min_y [lindex $pro_min 1]
+set pro_max_y [lindex $pro_max 1]
+set pro_min_z [lindex $pro_min 2]
+set pro_max_z [lindex $pro_max 2]
+set box_min_z [expr $pro_min_z - $zdist]
+set box_max_z [expr $pro_max_z + $zdist]
 
 set bad_atoms [measure contacts 2.4 $bilayer_sel $pro_sel]
 set bad_membrane_idx [lindex $bad_atoms 0]
@@ -159,28 +204,110 @@ foreach seg [$bad_membrane_sel get segname] resid [$bad_membrane_sel get resid] 
 }
 regenerate angles dihedrals
 
-writepsf cmap ${outbasename}.psf
-writepdb ${outbasename}.pdb
+writepsf cmap ${outbasename}_prefill.psf
+writepdb ${outbasename}_prefill.pdb
 
 resetpsf
 mol delete $protein
 mol delete $bilayer
-mol new ${outbasename}.psf
-mol addfile ${outbasename}.pdb waitfor all
-set allatoms [atomselect top "all"]
+mol new ${outbasename}_prefill.psf
+mol addfile ${outbasename}_prefill.pdb waitfor all
+set raw_embedded_system [molinfo top get id]
+set allatoms [atomselect $raw_embedded_system "all"]
+$allatoms writenamdbin ${outbasename}.coor
+set segnames [lsort -unique [$allatoms get segname]]
+set solsegnums [list]
+foreach sg $segnames {
+   if { [string match "WT*" $sg] } {
+      if {[regexp {[0-9]+} $seg match number]} {
+         lappend solsegnums $sg
+      }
+   }
+}
+vmdcon -info "solvent segment numbers in raw-embedded bilayer: $solsegnums"
+if { [llength $solsegnums] == 0 } {
+   set nextsolsegnum 1
+} else {
+   set nextsolsegnum [expr {[lindex $solsegnums end] + 1}]
+}
+vmdcon -info "next solvent segname: WT$nextsolsegnum"
+
 set net_charge [vecsum [$allatoms get charge]]
+mol delete $raw_embedded_system
+
+set addl_water_seg_pdbs [list]
+
+if { $box_min_z < $bilayer_min_z } {
+   # make a slab of water thick enough to fill this gap
+   set gapsize [expr $bilayer_min_z - $box_min_z]
+   if {$gapsize < 3.0} {
+      set extragap [expr 3.0 - $gapsize]
+      set $box_min_z [expr $box_min_z - $extragap]
+   }
+   vmdcon -info "solvating into {{[lindex $box_xminmax 0] [lindex $box_yminmax 0] $box_min_z} {[lindex $box_xminmax 1] [lindex $box_yminmax 1] $bilayer_min_z}}"
+   solvate -minmax {{[lindex $box_xminmax 0] [lindex $box_yminmax 0] $box_min_z} {[lindex $box_xminmax 1] [lindex $box_yminmax 1] $bilayer_min_z}} -o ${outbasename}_water_lower
+   lappend addl_water_seg_pdbs ${outbasename}_water_lower.pdb
+}
+if { $box_max_z > $bilayer_max_z } {
+   # make a slab of water thick enough to fill this gap
+   set gapsize [expr $box_max_z - $bilayer_max_z]
+   if {$gapsize < 3.0} {
+      set extragap [expr 3.0 - $gapsize]
+      set $box_max_z [expr $box_max_z + $extragap]
+   }
+   vmdcon -info "solvating into {{[lindex $box_xminmax 0] [lindex $box_yminmax 0] $bilayer_max_z} {[lindex $box_xminmax 1] [lindex $box_yminmax 1] $box_max_z}}"
+   solvate -minmax {{[lindex $box_xminmax 0] [lindex $box_yminmax 0] $bilayer_max_z} {[lindex $box_xminmax 1] [lindex $box_yminmax 1] $box_max_z}} -o ${outbasename}_water_upper
+   lappend addl_water_seg_pdbs ${outbasename}_water_upper.pdb
+}
+
+set newsegids [list]
+resetpsf
+readpsf ${outbasename}_prefill.psf pdb ${outbasename}_prefill.pdb
+foreach apdb $addl_water_seg_pdbs {
+   segment WT${nextsolsegnum} {
+      pdb $apdb
+      first none
+      last none
+      auto none
+   }
+   coordpdb $apdb WT${nextsolsegnum}
+   lappend newsegids WT${nextsolsegnum}
+   set nextsolsegnum [expr $nextsolsegnum + 1]
+}
+
+writepsf cmap ${outbasename}_solvent_appended.psf
+writepdb ${outbasename}_solvent_appended.pdb
+resetpsf
+
+mol new ${outbasename}_solvent_appended.psf
+mol addfile ${outbasename}_solvent_appended.pdb waitfor all
+set embedded_system [molinfo top get id]
+pbc set [list $bilayer_box_x $bilayer_box_y [expr $box_max_z - $box_min_z]] -molid $embedded_system
+set pro_sel [atomselect $embedded_system "protein or glycan"]
+set segs_to_search [join $newsegids]
+set water_sel [atomselect $embedded_system "segname $segs_to_search"]
+set bad_atoms [measure contacts 2.4 $water_sel $pro_sel]
+set bad_water_idx [lindex $bad_atoms 0]
+foreach seg [$water_sel get segname] resid [$water_sel get resid] {
+   delatom $seg $resid
+}
+regenerate angles dihedrals
+writepsf cmap ${outbasename}_filled.psf
+writepdb ${outbasename}_filled.pdb
+pbc writexst ${outbasename}.xsc -molid $embedded_system
+
+resetpsf
+mol delete $embedded_system
+
+package require autoionize
+
 vmdcon -info "net charge of embedded system before filling: $net_charge"
 
-set embedded_system [molinfo top get id]
-set embedded_protein_sel [atomselect ${embedded_system} "protein or glycan"]
-set embedded_protein_minmax [measure minmax $embedded_protein_sel]
-set embedded_protein_min [lindex $embedded_protein_minmax 0]
-set embedded_protein_max [lindex $embedded_protein_minmax 1]
-set embedded_protein_min_z [lindex $embedded_protein_min 2]
-set embedded_protein_max_z [lindex $embedded_protein_max 2]
-set fp [open "${outbasename}_embed_prefilling.yaml" "w"]
-puts $fp "embedded_protein_min_z: $embedded_protein_min_z"
-puts $fp "embedded_protein_max_z: $embedded_protein_max_z"
-puts $fp "net_charge: $net_charge"
-puts $fp "prefill_xsc: $bilayer_xsc"
-close $fp
+if {[expr abs($net_charge)] > 0.0001} {
+   autoionize -psf ${outbasename}_filled.psf -pdb ${outbasename}_filled.pdb -o ${outbasename} -neutralize
+} else {
+   # copy ${outbasename}_filled.psf and ${outbasename}_filled.pdb to ${outbasename}.psf and ${outbasename}.pdb
+   file copy ${outbasename}_filled.psf ${outbasename}.psf
+   file copy ${outbasename}_filled.pdb ${outbasename}.pdb
+}
+vmdcon -info "final embedded system: ${outbasename}.psf ${outbasename}.pdb ${outbasename}.xsc"

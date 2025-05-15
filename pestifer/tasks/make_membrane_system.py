@@ -1,5 +1,8 @@
 # Author: Cameron F. Abrams, <cfa2@drexel.edu>
 import logging
+import yaml
+
+import numpy as np
 
 from copy import deepcopy
 
@@ -8,7 +11,7 @@ from ..basetask import BaseTask
 from ..charmmtop import CharmmResiDatabase
 from ..config import Config
 from ..scriptwriters import PackmolInputWriter
-from ..psfutil.psfcontents import PSFContents
+from ..psfutil.psfcontents import get_toppar_from_psf
 from ..util.util import cell_to_xsc,cell_from_xsc, protect_str_arg
 from ..util.units import _UNITS_
 
@@ -33,6 +36,7 @@ class MakeMembraneSystemTask(BaseTask):
     yaml_header='make_membrane_system'
     def __init__(self,input_dict,taskname,config:Config,writers,prior):
         super().__init__(input_dict,taskname,config,writers,prior)
+        self.patchA=self.patchB=self.patch=None
         self.progress=config.progress
         self.pdb_collection=config.RM.pdb_collection
         self.RDB=CharmmResiDatabase()
@@ -40,6 +44,21 @@ class MakeMembraneSystemTask(BaseTask):
         self.RDB.add_topology('toppar_all36_moreions.str',streamnameoverride='water_ions')
         self.bilayer_specs=self.specs.get('bilayer',{})
         self.embed_specs=self.specs.get('embed',{})
+        self.using_prebuilt_bilayer=False
+        if 'prebuilt' in self.bilayer_specs:
+            self.using_prebuilt_bilayer=True
+            self.quilt=Bilayer()
+            additional_topologies=get_toppar_from_psf(self.statevars['psf'])
+            self.quilt.addl_streamfiles=additional_topologies
+            self.quilt.statevars['pdb']=self.bilayer_specs['prebuilt']['pdb']
+            self.quilt.statevars['psf']=self.bilayer_specs['prebuilt']['psf']
+            self.quilt.statevars['xsc']=self.bilayer_specs['prebuilt']['xsc']
+            self.quilt.box,self.quilt.origin=cell_from_xsc(self.quilt.statevars['xsc'])
+            self.quilt.area=self.quilt.box[0][0]*self.quilt.box[1][1]
+        else:
+            self.initialize()
+
+    def initialize(self):
         lipid_specstring=self.bilayer_specs.get('lipids','')
         ratio_specstring=self.bilayer_specs.get('mole_fractions','')
         conformers_specstring=self.bilayer_specs.get('conformers','')
@@ -67,8 +86,6 @@ class MakeMembraneSystemTask(BaseTask):
                             leaflet_nlipids=leaflet_nlipids,
                             pdb_collection=self.pdb_collection,resi_database=self.RDB)
         logger.debug(f'Main composition dict after call {composition_dict}')
-        self.patchA=None # symmetric patch that will donate its upper leaflet
-        self.patchB=None # symmetric patch that will donate its lower leaflet
         if self.patch.asymmetric:
             logger.debug(f'Requested patch is asymmetric; generating two symmetric patches')
             logger.debug(f'Symmetrizing bilayer to upper leaflet')
@@ -105,16 +122,18 @@ class MakeMembraneSystemTask(BaseTask):
     def do(self):
         self.log_message('initiated')
         self.inherit_state()
+        # as part of a list of tasks, this task expects to be fed a protein system to embed
         self.pro_psf=self.statevars.get('psf',None)
         if self.pro_psf is not None:
-            self.pro_psc=PSFContents(self.pro_psf)
-            self.pro_charge=self.pro_psc.get_charge()
+            # self.pro_psc=PSFContents(self.pro_psf)
+            # self.pro_charge=self.pro_psc.get_charge()
             self.pro_pdb=self.statevars.get('pdb',None)
             if self.pro_psf is not None and self.pro_pdb is not None:
-                logger.debug(f'BilayerEmbedTask will use psf {self.pro_psf} and pdb {self.pro_pdb} as inputs')
+                logger.debug(f'will use psf {self.pro_psf} and pdb {self.pro_pdb} as inputs')
 
-        self.build_patch()
-        self.make_bilayer_from_patch()
+        if not self.using_prebuilt_bilayer:
+            self.build_patch()
+            self.make_bilayer_from_patch()
         self.embed_protein()
         # self.solvate()
         # self.log_message('complete')
@@ -165,6 +184,7 @@ class MakeMembraneSystemTask(BaseTask):
 
     def make_bilayer_from_patch(self):
         logger.debug(f'Creating bilayer from patch')
+        self.next_basename('bilayer')
         additional_topologies=[]
         if self.patch is not None:
             pdb=self.patch.statevars.get('pdb',None)
@@ -219,7 +239,6 @@ class MakeMembraneSystemTask(BaseTask):
         if not self.embed_specs:
             logger.debug('No embed specs.')
             return
-        zdist=self.embed_specs.get('zdist',0.0)
         z_head_group=self.embed_specs.get('z_head_group',None)
         z_tail_group=self.embed_specs.get('z_tail_group',None)
         z_ref_group=self.embed_specs.get('z_ref_group',{}).get('text',None)
@@ -245,6 +264,42 @@ class MakeMembraneSystemTask(BaseTask):
         self.quilt.statevars.update(self.statevars)
         return result
     
+    def fill_box(self):
+        fill_top=False
+        fill_bot=False
+        zdist=self.embed_specs.get('zdist',10.0)
+        q_tolerance=self.embed_specs.get('q_tolerance',1.e-4)
+        embed_results_file=f'{self.basename}_embed_prefilling.yaml'
+        with open(embed_results_file,'r') as f:
+            self.embed_results=yaml.safe_load(f)
+        net_charge=self.embed_results['net_charge']
+        botz=self.embed_results['protein']['min_z']-zdist
+        if botz<self.embed_results['bilayer']['min_z']:
+            fillwidth_bot=self.embed_results['bilayer']['min_z']-botz
+            if fillwidth_bot<3.0:
+                fillwidth_bot=0.0
+            else:
+                bot_zupper=self.embed_results['bilayer']['min_z']
+                bot_zlower=botz
+                fill_bot=True
+        topz=self.embed_results['protein']['max_z']+zdist
+        if topz>self.embed_results['bilayer']['max_z']:
+            fillwidth_top=topz-self.embed_results['bilayer']['max_z']
+            if fillwidth_top<3.0:
+                fillwidth_top=0.0
+            else:
+                top_zupper=self.embed_results['bilayer']['max_z']
+                top_zlower=topz
+                fill_top=True
+        if not fill_top and not fill_bot:
+            if np.abs(net_charge)>q_tolerance:
+                logger.debug(f'Net charge {net_charge} exceeds tolerance {q_tolerance}')
+                # do_autoionize()
+            else:
+                logger.debug('No filling/ionization needed')
+            return
+        
+        
     # def solvate(self):
     #     solvent_specstring=self.specs.get('solvents','TIP3')
     #     solv_molfrac_specstring=self.specs.get('solvent_mole_fractions','1.0')

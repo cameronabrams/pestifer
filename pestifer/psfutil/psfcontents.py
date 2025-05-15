@@ -2,7 +2,7 @@
 
 import logging
 import numpy as np
-
+import os
 from .psftopoelement import LineList
 from .psfatom import PSFAtom, PSFAtomList
 from .psfbond import PSFBondList
@@ -13,6 +13,23 @@ from ..objs.ssbond import SSBond, SSBondList
 from ..objs.link import Link, LinkList
 
 logger=logging.getLogger(__name__)
+
+def get_toppar_from_psf(filename):
+    lines=[]
+    with open(filename,'r') as f:
+        for line in f:
+            if '!NATOM' in line:
+                break
+            lines.append(line)
+    toppars=[]
+    for l in lines:
+        if l[0:17]==' REMARKS topology':
+            tokens=l.split()
+            top=tokens[2]
+            if 'toppar_' in top:
+                fn=os.path.basename(top)
+                toppars.append(fn)
+    return list(set(toppars))  
 
 class PSFContents:
     def __init__(self,filename,topology_segtypes=[],parse_topology=[]):

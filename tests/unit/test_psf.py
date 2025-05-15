@@ -6,7 +6,8 @@ from pestifer.objs.link import Link
 from pestifer.psfutil.psfbond import PSFBond
 from pestifer.psfutil.psfangle import PSFAngle
 from pestifer.psfutil.psfdihedral import PSFDihedral
-from pestifer.psfutil.psfcontents import PSFContents
+from pestifer.psfutil.psfcontents import PSFContents, get_toppar_from_psf
+
 
 class TestPSF(unittest.TestCase):
 
@@ -142,3 +143,24 @@ class TestPSF(unittest.TestCase):
         self.assertEqual(psf.dihedrals[1].serial2,firstdihedralline[5])
         self.assertEqual(psf.dihedrals[1].serial3,firstdihedralline[6])
         self.assertEqual(psf.dihedrals[1].serial4,firstdihedralline[7])
+
+    def test_psf_get_toppar_from_psf(self):
+        source='test.psf'
+        toppars=get_toppar_from_psf(source)
+        self.assertEqual(len(toppars),4)
+        self.assertTrue('toppar_all36_carb_glycopeptide.str' in toppars)
+        self.assertTrue('toppar_all36_prot_modify_res.str' in toppars)
+        self.assertTrue('toppar_water_ions.str' in toppars)
+        self.assertTrue('toppar_all36_moreions.str' in toppars)
+
+        source='equilibrate.psf'
+        toppars=get_toppar_from_psf(source)
+        self.assertEqual(len(toppars),8)
+        self.assertTrue('toppar_water_ions.str' in toppars)
+        self.assertTrue('toppar_all36_carb_glycopeptide.str' in toppars)
+        self.assertTrue('toppar_all36_prot_modify_res.str' in toppars)
+        self.assertTrue('toppar_all36_moreions.str' in toppars)
+        self.assertTrue('toppar_all36_lipid_lps.str' in toppars)
+        self.assertTrue('toppar_all36_carb_imlab.str' in toppars)
+        self.assertTrue('toppar_all36_lipid_cholesterol.str' in toppars)
+        self.assertTrue('toppar_all36_lipid_sphingo.str' in toppars)

@@ -160,6 +160,7 @@ def test_make_membrane_system_task_embed():
                         z_tail_group=protect_str_arg("protein and resid 710"),
                         z_ref_group=protect_str_arg("protein and resid 696"),
                         z_value=0.0,
+                        z_dist=10.0,
                         o=basename)
 
     os.chdir('..')
