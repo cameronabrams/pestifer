@@ -30,7 +30,7 @@ set z_ref_group ""
 set z_value 0.0
 set outbasename "embedded"
 set no_orient 0
-set zdist 10.0; # distance between protein atoms and z-boundaries of box
+set zdist 10.0; # distance between z-extremal protein atoms and z-boundaries of box
 
 for { set i 0 } { $i < [llength $argv] } { incr i } {
    if { [lindex $argv $i] == "-psf"} {
@@ -143,6 +143,7 @@ set bilayer_max_y [lindex $bilayer_max 1]
 set bilayer_mid_y [expr ($bilayer_min_y + $bilayer_max_y) / 2]
 
 $bilayer_sel moveby [list [expr -1*$bilayer_mid_x] [expr -1*$bilayer_mid_y] 0]
+$bilayer_sel writepdb ${outbasename}_bilayer_shifted.pdb
 unset bilayer_min_x
 unset bilayer_max_x
 unset bilayer_min_y
@@ -197,7 +198,7 @@ set bad_membrane_idx [lindex $bad_atoms 0]
 set bad_membrane_sel [atomselect $bilayer "index $bad_membrane_idx"]
 
 readpsf $psf pdb ${outbasename}_embedded.pdb
-readpsf $bilayer_psf pdb $bilayer_pdb
+readpsf $bilayer_psf pdb ${outbasename}_bilayer_shifted.pdb
 
 foreach seg [$bad_membrane_sel get segname] resid [$bad_membrane_sel get resid] {
    delatom $seg $resid
@@ -235,7 +236,7 @@ vmdcon -info "next solvent segname: WT$nextsolsegnum"
 set net_charge [vecsum [$allatoms get charge]]
 mol delete $raw_embedded_system
 
-set addl_water_seg_pdbs [list]
+set addl_water [list]
 
 if { $box_min_z < $bilayer_min_z } {
    # make a slab of water thick enough to fill this gap
@@ -246,7 +247,7 @@ if { $box_min_z < $bilayer_min_z } {
    }
    vmdcon -info "solvating into {{[lindex $box_xminmax 0] [lindex $box_yminmax 0] $box_min_z} {[lindex $box_xminmax 1] [lindex $box_yminmax 1] $bilayer_min_z}}"
    solvate -minmax {{[lindex $box_xminmax 0] [lindex $box_yminmax 0] $box_min_z} {[lindex $box_xminmax 1] [lindex $box_yminmax 1] $bilayer_min_z}} -o ${outbasename}_water_lower
-   lappend addl_water_seg_pdbs ${outbasename}_water_lower.pdb
+   lappend addl_water ${outbasename}_water_lower
 }
 if { $box_max_z > $bilayer_max_z } {
    # make a slab of water thick enough to fill this gap
@@ -256,28 +257,44 @@ if { $box_max_z > $bilayer_max_z } {
       set $box_max_z [expr $box_max_z + $extragap]
    }
    vmdcon -info "solvating into {{[lindex $box_xminmax 0] [lindex $box_yminmax 0] $bilayer_max_z} {[lindex $box_xminmax 1] [lindex $box_yminmax 1] $box_max_z}}"
-   solvate -minmax {{[lindex $box_xminmax 0] [lindex $box_yminmax 0] $bilayer_max_z} {[lindex $box_xminmax 1] [lindex $box_yminmax 1] $box_max_z}} -o ${outbasename}_water_upper
-   lappend addl_water_seg_pdbs ${outbasename}_water_upper.pdb
+   solvate -minmax [list [list [lindex $box_xminmax 0] [lindex $box_yminmax 0] $bilayer_max_z] [list [lindex $box_xminmax 1] [lindex $box_yminmax 1] $box_max_z]] -o ${outbasename}_water_upper
+   lappend addl_water ${outbasename}_water_upper
 }
 
 set newsegids [list]
 resetpsf
 readpsf ${outbasename}_prefill.psf pdb ${outbasename}_prefill.pdb
-foreach apdb $addl_water_seg_pdbs {
-   segment WT${nextsolsegnum} {
-      pdb $apdb
-      first none
-      last none
-      auto none
+foreach aw $addl_water {
+   set apdb ${aw}.pdb
+   set apsf ${aw}.psf
+   mol new $apsf
+   mol addfile $apdb waitfor all
+   set water [molinfo top get id]
+   set water_sel [atomselect $water "all"]
+   set new_segids [lsort -unique [$water_sel get segname]]
+   foreach ns $new_segids {
+      set pdbfrag [atomselect $water "segname $ns"]
+      $pdbfrag writepdb ${aw}_${ns}.pdb
+      segment WT${nextsolsegnum} {
+         pdb ${aw}_${ns}.pdb
+         first none
+         last none
+         auto none
+      }
+      coordpdb ${aw}_${ns}.pdb WT${nextsolsegnum}
+      lappend newsegids WT${nextsolsegnum}
+      set nextsolsegnum [expr $nextsolsegnum + 1]
    }
-   coordpdb $apdb WT${nextsolsegnum}
-   lappend newsegids WT${nextsolsegnum}
-   set nextsolsegnum [expr $nextsolsegnum + 1]
+   mol delete $water
+   file delete $apdb
+   file delete $apsf
+   foreach ns $new_segids {
+      file delete ${aw}_${ns}.pdb
+   }
 }
 
 writepsf cmap ${outbasename}_solvent_appended.psf
 writepdb ${outbasename}_solvent_appended.pdb
-resetpsf
 
 mol new ${outbasename}_solvent_appended.psf
 mol addfile ${outbasename}_solvent_appended.pdb waitfor all
@@ -288,7 +305,8 @@ set segs_to_search [join $newsegids]
 set water_sel [atomselect $embedded_system "segname $segs_to_search"]
 set bad_atoms [measure contacts 2.4 $water_sel $pro_sel]
 set bad_water_idx [lindex $bad_atoms 0]
-foreach seg [$water_sel get segname] resid [$water_sel get resid] {
+set bad_water_sel [atomselect $embedded_system "index $bad_water_idx"]
+foreach seg [$bad_water_sel get segname] resid [$bad_water_sel get resid] {
    delatom $seg $resid
 }
 regenerate angles dihedrals
@@ -298,6 +316,7 @@ pbc writexst ${outbasename}.xsc -molid $embedded_system
 
 resetpsf
 mol delete $embedded_system
+
 
 package require autoionize
 
@@ -310,4 +329,8 @@ if {[expr abs($net_charge)] > 0.0001} {
    file copy ${outbasename}_filled.psf ${outbasename}.psf
    file copy ${outbasename}_filled.pdb ${outbasename}.pdb
 }
-vmdcon -info "final embedded system: ${outbasename}.psf ${outbasename}.pdb ${outbasename}.xsc"
+mol new ${outbasename}.psf
+mol addfile ${outbasename}.pdb waitfor all
+[atomselect top "all"] writenamdbin ${outbasename}.coor
+
+vmdcon -info "final embedded system: ${outbasename}.psf ${outbasename}.pdb ${outbasename}.coor ${outbasename}.xsc"

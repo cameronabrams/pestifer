@@ -45,16 +45,17 @@ class MakeMembraneSystemTask(BaseTask):
         self.bilayer_specs=self.specs.get('bilayer',{})
         self.embed_specs=self.specs.get('embed',{})
         self.using_prebuilt_bilayer=False
-        if 'prebuilt' in self.bilayer_specs:
+        if 'prebuilt' in self.bilayer_specs and 'pdb' in self.bilayer_specs['prebuilt']:
+            logger.debug('Using prebuilt bilayer')
             self.using_prebuilt_bilayer=True
             self.quilt=Bilayer()
-            additional_topologies=get_toppar_from_psf(self.statevars['psf'])
-            self.quilt.addl_streamfiles=additional_topologies
             self.quilt.statevars['pdb']=self.bilayer_specs['prebuilt']['pdb']
             self.quilt.statevars['psf']=self.bilayer_specs['prebuilt']['psf']
             self.quilt.statevars['xsc']=self.bilayer_specs['prebuilt']['xsc']
             self.quilt.box,self.quilt.origin=cell_from_xsc(self.quilt.statevars['xsc'])
             self.quilt.area=self.quilt.box[0][0]*self.quilt.box[1][1]
+            additional_topologies=get_toppar_from_psf(self.quilt.statevars['psf'])
+            self.quilt.addl_streamfiles=additional_topologies
         else:
             self.initialize()
 
@@ -136,7 +137,7 @@ class MakeMembraneSystemTask(BaseTask):
             self.make_bilayer_from_patch()
         self.embed_protein()
         # self.solvate()
-        # self.log_message('complete')
+        self.log_message('complete')
         return super().do()
 
     def build_patch(self):
@@ -151,6 +152,7 @@ class MakeMembraneSystemTask(BaseTask):
         nloop_all=self.bilayer_specs.get('nloop_all',100)
         relaxation_protocols=self.bilayer_specs.get('relaxation_protocols',{})
         relaxation_protocol=relaxation_protocols.get('patch',{})
+        logger.debug(f'relaxation protocols: {relaxation_protocols}')
         # we now build the patch, or if asymmetric, two patches
         for patch,spec in zip([self.patch,self.patchA,self.patchB],['','A','B']):
             if patch is None:
@@ -245,14 +247,14 @@ class MakeMembraneSystemTask(BaseTask):
         z_value=self.embed_specs.get('z_ref_group',{}).get('z_value',0.0)
         self.next_basename('embed')
         pg=self.writers['psfgen']
-        pg.newscript(self.basename,additional_topologies=self.statevars['topologies'])
+        pg.newscript(self.basename,additional_topologies=self.quilt.addl_streamfiles)
         pg.usescript('bilayer_embed')
         pg.writescript(self.basename,guesscoord=False,regenerate=True,force_exit=True,writepsf=False,writepdb=False)
         result=pg.runscript(psf=self.pro_psf,
                             pdb=self.pro_pdb,
-                            bilayer_psf=self.statevars['psf'],
-                            bilayer_pdb=self.statevars['pdb'],
-                            bilayer_xsc=self.statevars['xsc'],
+                            bilayer_psf=self.quilt.statevars['psf'],
+                            bilayer_pdb=self.quilt.statevars['pdb'],
+                            bilayer_xsc=self.quilt.statevars['xsc'],
                             z_head_group=protect_str_arg(z_head_group),
                             z_tail_group=protect_str_arg(z_tail_group),
                             z_ref_group=protect_str_arg(z_ref_group),
@@ -260,7 +262,12 @@ class MakeMembraneSystemTask(BaseTask):
                             o=self.basename)
         self.statevars['pdb']=f'{self.basename}.pdb'
         self.statevars['psf']=f'{self.basename}.psf'
+        self.statevars['coor']=f'{self.basename}.coor'
         self.statevars['xsc']=f'{self.basename}.xsc'
+        if 'charmmff_paramfils' not in self.statevars:
+            self.statevars['charmmff_paramfiles']=[]
+        self.statevars['charmmff_paramfiles']+=self.quilt.addl_streamfiles
+        self.statevars['charmmff_paramfiles']=list(set(self.statevars['charmmff_paramfiles']))
         self.quilt.statevars.update(self.statevars)
         return result
     

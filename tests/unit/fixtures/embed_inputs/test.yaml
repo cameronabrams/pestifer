@@ -1,0 +1,21 @@
+tasks:
+  - restart:
+      psf: 5e8w-proteinonly.psf
+      pdb: 5e8w-proteinonly.pdb
+  - make_membrane_system:
+      bilayer:
+        prebuilt:
+          psf: equilibrate.psf
+          pdb: equilibrate.pdb
+          xsc: equilibrate.xsc
+      embed:
+        z_head_group: "protein and resid 667"
+        z_tail_group: "protein and resid 710"
+        z_ref_group: 
+          text: "protein and resid 696"
+  - md:
+      ensemble: minimize
+      nsteps: 1000
+  - terminate:
+      basename: test
+      basename: test

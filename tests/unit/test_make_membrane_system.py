@@ -2,6 +2,7 @@ import os
 import shutil
 from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
 from pestifer.config import Config
+from pestifer.controller import Controller
 from pestifer.scriptwriters import Psfgen,VMD,NAMD,Filewriter
 from pestifer.util.util import protect_str_arg
 
@@ -18,7 +19,7 @@ def test_make_membrane_system_task_init_symmetric():
             'namd':   NAMD(C),
             'data':   Filewriter()
         }
-    idict={'bilayer':{
+    idict={'make_membrane_system':{
             'SAPL': 50,
             'npatch':[2,2],
             'composition':{
@@ -57,7 +58,7 @@ def test_make_membrane_system_task_init_asymmetric():
             'namd':   NAMD(C),
             'data':   Filewriter()
         }
-    idict={'bilayer':{
+    idict={'make_membrane_system':{
             'SAPL': 50,
             'npatch':[2,2],
             'composition':{
@@ -165,3 +166,38 @@ def test_make_membrane_system_task_embed():
 
     os.chdir('..')
     assert result==0
+
+def test_make_membrane_system_with_md():
+    if os.path.exists('__test_make_membrane_system_with_md'):
+        shutil.rmtree('__test_make_membrane_system_with_md')
+    os.mkdir('__test_make_membrane_system_with_md')
+    os.chdir('__test_make_membrane_system_with_md')
+    psf='5e8w-proteinonly.psf'
+    pdb='5e8w-proteinonly.pdb'
+    bilayer_psf='equilibrate.psf'
+    bilayer_pdb='equilibrate.pdb'
+    bilayer_xsc='equilibrate.xsc'
+    yaml_file='test.yaml'
+    input_data_dir='../../fixtures/embed_inputs'
+    for ftype in [psf,pdb,bilayer_psf,bilayer_pdb,bilayer_xsc,yaml_file]:
+        shutil.copy(os.path.join(input_data_dir,ftype),'.')
+    config=Config(yaml_file)
+    C=Controller(config)
+    C.do_tasks()
+    os.chdir('..')
+
+def test_make_membrane_system_with_md_build():
+    if os.path.exists('__test_make_membrane_system_with_md_build'):
+        shutil.rmtree('__test_make_membrane_system_with_md_build')
+    os.mkdir('__test_make_membrane_system_with_md_build')
+    os.chdir('__test_make_membrane_system_with_md_build')
+    psf='5e8w-proteinonly.psf'
+    pdb='5e8w-proteinonly.pdb'
+    yaml_file='test2.yaml'
+    input_data_dir='../../fixtures/embed_inputs'
+    for ftype in [psf,pdb,yaml_file]:
+        shutil.copy(os.path.join(input_data_dir,ftype),'.')
+    config=Config(yaml_file)
+    C=Controller(config)
+    C.do_tasks()
+    os.chdir('..')
