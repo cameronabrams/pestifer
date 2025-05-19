@@ -239,11 +239,11 @@ mol addfile ${firstname}.pdb waitfor all
 
 set molid [molinfo top get id]
 
-set lipid [atomselect $molid "lipid"]
-set ncom [vecscale -1 [measure center $lipid weight mass]]
-set all [atomselect $molid all]
-$all moveby $ncom
-$all writepdb "${firstname}_centered.pdb"
+# set lipid [atomselect $molid "lipid"]
+# set ncom [vecscale -1 [measure center $lipid weight mass]]
+# set all [atomselect $molid all]
+# $all moveby $ncom
+# $all writepdb "${firstname}_centered.pdb"
 
 set origin_x [expr $quilt_boxX / 2]
 set origin_y [expr $quilt_boxY / 2]

@@ -11,7 +11,7 @@ proc PestiferEnviron::leaflet_apportionment { molid } {
     set bilayer [atomselect $molid "lipid"]
     set bilayer_com [measure center $bilayer weight mass]
     set bilayer_com_z [lindex $bilayer_com 2]
-    vmdcon -info "Bilayer center of mass z coordinate: $com_z"
+    vmdcon -info "Bilayer center of mass z coordinate: $bilayer_com_z"
     set residue_list [lsort -unique [$bilayer get residue]]
     vmdcon -info "Residue list: $residue_list"
     set residues_upper [list]
@@ -19,7 +19,7 @@ proc PestiferEnviron::leaflet_apportionment { molid } {
     foreach residue $residue_list {
         set ressel [atomselect $molid "residue $residue"]
         set residue_com [measure center $ressel weight mass]
-        set residue_com_z [lindex $com 2]
+        set residue_com_z [lindex $residue_com 2]
         if { $residue_com_z > $bilayer_com_z } {
             lappend residues_upper $residue
         } else {
