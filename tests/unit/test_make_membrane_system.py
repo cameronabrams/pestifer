@@ -1,12 +1,13 @@
 import os
 import shutil
+import pytest
 from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
 from pestifer.config import Config
 from pestifer.controller import Controller
 from pestifer.scriptwriters import Psfgen,VMD,NAMD,Filewriter
 from pestifer.util.util import protect_str_arg
 
-
+@pytest.mark.slow
 def test_make_membrane_system_task_init_symmetric():
     if os.path.exists('__test_make_membrane_system_task_symmetric'):
         shutil.rmtree('__test_make_membrane_system_task_symmetric')
@@ -19,7 +20,7 @@ def test_make_membrane_system_task_init_symmetric():
             'namd':   NAMD(C),
             'data':   Filewriter()
         }
-    idict={'make_membrane_system':{
+    idict={'bilayer':{
             'SAPL': 50,
             'npatch':[2,2],
             'composition':{
@@ -46,6 +47,7 @@ def test_make_membrane_system_task_init_symmetric():
     os.chdir('..')
     assert result==0
 
+@pytest.mark.slow
 def test_make_membrane_system_task_init_asymmetric():
     if os.path.exists('__test_make_membrane_system_task_asymmetric'):
         shutil.rmtree('__test_make_membrane_system_task_asymmetric')
@@ -86,6 +88,7 @@ def test_make_membrane_system_task_init_asymmetric():
     os.chdir('..')
     assert result==0
 
+@pytest.mark.slow
 def test_make_membrane_system_task_init_asymmetric_multicomponent():
     if os.path.exists('__test_make_membrane_system_task_asymmetric_multicomponent'):
         shutil.rmtree('__test_make_membrane_system_task_asymmetric_multicomponent')
@@ -133,6 +136,7 @@ def test_make_membrane_system_task_init_asymmetric_multicomponent():
     os.chdir('..')
     assert result==0
 
+@pytest.mark.slow
 def test_make_membrane_system_task_embed():
     if os.path.exists('__test_make_membrane_system_task_embed'):
         shutil.rmtree('__test_make_membrane_system_task_embed')
@@ -167,6 +171,7 @@ def test_make_membrane_system_task_embed():
     os.chdir('..')
     assert result==0
 
+@pytest.mark.slow
 def test_make_membrane_system_with_md():
     if os.path.exists('__test_make_membrane_system_with_md'):
         shutil.rmtree('__test_make_membrane_system_with_md')
@@ -186,6 +191,7 @@ def test_make_membrane_system_with_md():
     C.do_tasks()
     os.chdir('..')
 
+@pytest.mark.slow
 def test_make_membrane_system_with_md_build():
     if os.path.exists('__test_make_membrane_system_with_md_build'):
         shutil.rmtree('__test_make_membrane_system_with_md_build')

@@ -160,9 +160,9 @@ set tail [atomselect $protein "$z_tail_group"]
 set head_com [measure center $head weight mass]
 set tail_com [measure center $tail weight mass]
 set bilayer_com [measure center $bilayer_sel weight mass]
-set bilayer_x [lindex $bilayer_com 0]
-set bilayer_y [lindex $bilayer_com 1]
-set bilayer_z [lindex $bilayer_com 2]
+# set bilayer_x [lindex $bilayer_com 0]
+# set bilayer_y [lindex $bilayer_com 1]
+set bilayer_com_z [lindex $bilayer_com 2]
 
 if { !$no_orient } {
    vmdcon -info "orienting protein axis to bilayer normal"
@@ -177,7 +177,7 @@ set pro_x [lindex $pro_com 0]
 set pro_y [lindex $pro_com 1]
 set pro_x_shift [expr -1*($pro_x)]
 set pro_y_shift [expr -1*($pro_y)]
-set pro_z_shift [expr $bilayer_z - $pro_embed_mid_z - $z_value]
+set pro_z_shift [expr $bilayer_com_z - $pro_embed_mid_z - $z_value]
 
 $pro_sel moveby [list $pro_x_shift $pro_y_shift $pro_z_shift]
 $pro_sel writepdb "${outbasename}_embedded.pdb"

@@ -310,15 +310,15 @@ class NAMDLog(LogParser):
 
     def measure_progress(self):
         if 'number_of_steps' not in self.metadata:
-            logger.debug('measure_progress: number_of_steps not in metadata')
+            # logger.debug('measure_progress: number_of_steps not in metadata')
             return 0.0
         number_of_steps=self.metadata['number_of_steps']
         if 'first_timestep' not in self.metadata:
-            logger.debug('measure_progress: first_timestep not in metadata')
+            # logger.debug('measure_progress: first_timestep not in metadata')
             return 0.0
         first_time_step=self.metadata['first_timestep']
         if self.energy_df.empty:
-            logger.debug('measure_progress: energy_df is empty')
+            # logger.debug('measure_progress: energy_df is empty')
             return 0.0
         if 'running_for' in self.metadata:
             running_for=self.metadata['running_for']

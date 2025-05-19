@@ -158,7 +158,7 @@ class Bilayer:
         self.total_charge=0.0
         for layer,data in self.slices.items():
             data['charge']=0.0
-            data['maxlength']=0.0
+            data['maxthickness']=0.0
             data['composition']=composition_dict[layer]
             data['avgMW']=0.0
             data['patn']=0
@@ -170,9 +170,9 @@ class Bilayer:
                 elif 'leaflet' in layer:
                     for lipid in data['composition']:
                         lipid['reference_length']=self.species_data[lipid['name']].get_ref_length(index=lipid['conf'])
-                        if lipid['reference_length']>data['maxlength']:
-                            data['maxlength']=lipid['reference_length']
-                    logger.debug(f'{layer} maxlength {data["maxlength"]:.3f}')
+                        if lipid['reference_length']>data['maxthickness']:
+                            data['maxthickness']=lipid['reference_length']
+                    logger.debug(f'{layer} maxthickness {data["maxthickness"]:.3f}')
             self.total_charge+=data['charge']
 
         if self.total_charge!=0.0:
@@ -211,30 +211,31 @@ class Bilayer:
                 species['local_name']=self.species_data[species_name].checkout()
                 # logger.debug(f'Checked out {species_name} as {species["local_name"]}')
 
-    def build_patch(self,SAPL=60.0,xy_aspect_ratio=1.0,midplane_z=0.0,half_mid_zgap=1.0,solution_gcc=1.0,rotation_pm=10.0):
+    def build_patch(self,SAPL=60.0,xy_aspect_ratio=1.0,half_mid_zgap=1.0,solution_gcc=1.0,rotation_pm=10.0):
         patch_area=SAPL*self.leaflet_nlipids
         Lx=np.sqrt(patch_area/xy_aspect_ratio)
         Ly=xy_aspect_ratio*Lx
         self.patch_area=patch_area
-        lcvol=cuA_of_nmolec(self.LC['avgMW'],solution_gcc,self.LC['patn'])
-        ucvol=cuA_of_nmolec(self.UC['avgMW'],solution_gcc,self.UC['patn'])
-        lcdepth=lcvol/self.patch_area
-        ucdepth=ucvol/self.patch_area
-        ll_maxlength=self.LL['maxlength']
-        ul_maxlength=self.UL['maxlength']
-        ll_actlength=np.cos(np.deg2rad(rotation_pm))*ll_maxlength
-        ul_actlength=np.cos(np.deg2rad(rotation_pm))*ul_maxlength
+        lc_vol=cuA_of_nmolec(self.LC['avgMW'],solution_gcc,self.LC['patn'])
+        uc_vol=cuA_of_nmolec(self.UC['avgMW'],solution_gcc,self.UC['patn'])
+        lc_thickness=lc_vol/self.patch_area
+        uc_thickness=uc_vol/self.patch_area
+        ll_maxthickness=self.LL['maxthickness']
+        ul_maxthickness=self.UL['maxthickness']
+        ll_actthickness=np.cos(np.deg2rad(rotation_pm))*ll_maxthickness
+        ul_actthickness=np.cos(np.deg2rad(rotation_pm))*ul_maxthickness
         # guarantees that the longest lipid is longer than the width of the leaflet
-        zmin=midplane_z-ll_actlength-lcdepth-half_mid_zgap
-        zmax=midplane_z+ul_actlength+ucdepth+half_mid_zgap
-        self.UC['z-hi']=zmax
-        self.UC['z-lo']=zmax-ucdepth
-        self.UL['z-hi']=self.UC['z-lo']
-        self.UL['z-lo']=midplane_z+half_mid_zgap
-        self.LL['z-hi']=midplane_z-half_mid_zgap
-        self.LL['z-lo']=zmin+lcdepth
-        self.LC['z-hi']=self.LL['z-lo']
+        zmin=0.0
+        zmax=lc_thickness+ll_actthickness+2*half_mid_zgap+ul_actthickness+uc_thickness
         self.LC['z-lo']=zmin
+        self.LC['z-hi']=self.LC['z-lo']+lc_thickness
+        self.LL['z-lo']=self.LC['z-hi']
+        self.LL['z-hi']=self.LL['z-lo']+ll_actthickness
+        self.UL['z-lo']=self.LL['z-hi']+2*half_mid_zgap
+        self.midplane_z=self.LL['z-hi']+half_mid_zgap
+        self.UL['z-hi']=self.UL['z-lo']+ul_actthickness
+        self.UC['z-lo']=self.UL['z-hi']
+        self.UC['z-hi']=zmax
         logger.debug(f'++++++++++++++ {zmax:8.3f} ++++++++++++++')
         logger.debug(f'                                    ^  ')
         logger.debug(f'    U P P E R   C H A M B E R {zmax-self.UC["z-lo"]:8.3f}')
@@ -244,7 +245,9 @@ class Bilayer:
         logger.debug(f'    U P P E R   L E A F L E T {self.UC["z-lo"]-self.UL["z-lo"]:8.3f}    ')
         logger.debug(f'                                    v  ')
         logger.debug(f'-------------- {self.UL["z-lo"]:8.3f} --------------')
-        logger.debug(f'    M I D P L A N E  Z - G A P      ')
+        logger.debug(f'    M I D P L A N E  H A L F  G A P    ')
+        logger.debug(f'-------------- {self.midplane_z:8.3f} --------------')
+        logger.debug(f'    M I D P L A N E  H A L F  G A P    ')
         logger.debug(f'-------------- {self.LL["z-hi"]:8.3f} --------------')
         logger.debug(f'                                    ^  ')
         logger.debug(f'    L O W E R   L E A F L E T {self.LL["z-hi"]-self.LL["z-lo"]:8.3f}    ')
@@ -258,7 +261,7 @@ class Bilayer:
         self.patch_ur_corner=np.array([Lx,Ly,zmax])
         # box and origin
         self.box=np.array([[Lx,0,0],[0,Ly,0],[0,0,zmax-zmin]])
-        self.origin=np.array([0,0,zmin])
+        self.origin=np.array([self.box[i][i]/2 for i in range(3)])
 
     def write_packmol(self,pm,half_mid_zgap=2.0,rotation_pm=0.0,nloop=100):
         # first patch-specific packmol directives
@@ -277,7 +280,8 @@ class Bilayer:
                 lipid_length=self.species_data[name].get_ref_length(index=specs['conf'])
 
                 leaflet_thickness=leaflet['z-hi']-leaflet['z-lo']
-
+                logger.debug(f'Leaflet thickness {leaflet_thickness:.3f} {sA_}')
+                logger.debug(f'Lipid length {lipid_length:.3f} {sA_}')
                 if lipid_length>leaflet_thickness:
                     pm.addline(f'inside box {self.patch_ll_corner[0]:.3f} {self.patch_ll_corner[1]:.3f} {self.patch_ll_corner[2]:.3f} {self.patch_ur_corner[0]:.3f} {self.patch_ur_corner[1]:.3f} {self.patch_ur_corner[2]:.3f}',indents=1)
                     if leaflet is self.LL:
@@ -288,14 +292,14 @@ class Bilayer:
                         pm.addline( 'end atoms',indents=1)
                         pm.addline(f'atoms {ts}',indents=1)
                         pm.addline(f'above plane 0. 0. 1. {above_plane_z:.3f}',indents=2)
-                        pm.addline(f'below plane 0. 0. 1. 0.0',indents=2)
+                        pm.addline(f'below plane 0. 0. 1. {self.midplane_z:.3f}',indents=2)
                         pm.addline( 'end atoms',indents=1)
                     elif leaflet is self.UL:
                         below_plane_z=leaflet['z-lo']+half_mid_zgap
                         above_plane_z=leaflet['z-hi']   
                         pm.addline(f'atoms {ts}',indents=1)
                         pm.addline(f'below plane 0. 0. 1. {below_plane_z:.3f}',indents=2)
-                        pm.addline(f'above plane 0. 0. 1. 0.0',indents=2)
+                        pm.addline(f'above plane 0. 0. 1. {self.midplane_z:.3f}',indents=2)
                         pm.addline( 'end atoms',indents=1)
                         pm.addline(f'atoms {hs}',indents=1)
                         pm.addline(f'above plane 0. 0. 1. {above_plane_z:.3f}',indents=2)

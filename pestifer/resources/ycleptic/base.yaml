@@ -1747,7 +1747,7 @@ directives:
                 directive:
                   - name: z_value
                     type: float
-                    text: value of z at COM of this group (default 0) (Å)
+                    text: value of z at COM of this group relative to apparent bilayer midplane z-value (Å) (default 0)
                     default: 0.0
                   - name: text
                     text: the atomselect text
