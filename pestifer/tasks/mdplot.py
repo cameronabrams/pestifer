@@ -10,6 +10,7 @@ import os
 from ..basetask import BaseTask
 from ..util.units import g_per_amu,A3_per_cm3
 from ..util.logparsers import NAMDLog, NAMDxst
+from ..stringthings import to_latex_math
 
 logger=logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -122,8 +123,8 @@ class MDPlotTask(BaseTask):
                 elif xst is not None and t_i in xst.df:
                     ax.plot(xst.df['step'],xst.df[t_i]*units,label=t_i)
             ax.set_xlabel('time step')
-            tracename=','.join(tracelist)
-            ax.set_ylabel(tracename+' ('+','.join([_ for _ in unitspecs if _!='*'])+')')
+            ax.set_ylabel(','.join([to_latex_math(n)+' ('+u+')' for n,u in zip(tracelist,unitspecs)]))
+            # ax.set_ylabel(tracename_label+' ('+','.join([_ for _ in unitspecs if _!='*'])+')')
             if legend:
                 ax.legend()
             if grid:

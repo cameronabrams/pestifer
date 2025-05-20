@@ -286,7 +286,7 @@ if { [verify_no_mols] != 1} {
    vmdcon -error "There are still molecules loaded"
 }
 resetpsf
-readpsf ${firstname}.psf pdb ${firstname}_centered.pdb
+readpsf ${firstname}.psf pdb ${firstname}.pdb
 if { [llength $badseg] > 0 } {
    foreach seg $badseg res $badres name $badname {
       delatom $seg $res $name

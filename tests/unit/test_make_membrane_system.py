@@ -48,11 +48,11 @@ def test_make_membrane_system_task_init_symmetric():
     assert result==0
 
 @pytest.mark.slow
-def test_make_membrane_system_task_init_asymmetric():
-    if os.path.exists('__test_make_membrane_system_task_asymmetric'):
-        shutil.rmtree('__test_make_membrane_system_task_asymmetric')
-    os.mkdir('__test_make_membrane_system_task_asymmetric')
-    os.chdir('__test_make_membrane_system_task_asymmetric')
+def test_make_membrane_system_task_init_asymmetric_pure_leaflets():
+    if os.path.exists('__test_make_membrane_system_task_asymmetric_pure_leaflets'):
+        shutil.rmtree('__test_make_membrane_system_task_asymmetric_pure_leaflets')
+    os.mkdir('__test_make_membrane_system_task_asymmetric_pure_leaflets')
+    os.chdir('__test_make_membrane_system_task_asymmetric_pure_leaflets')
     C=Config()
     writers={
             'psfgen': Psfgen(C),
@@ -60,7 +60,7 @@ def test_make_membrane_system_task_init_asymmetric():
             'namd':   NAMD(C),
             'data':   Filewriter()
         }
-    idict={'make_membrane_system':{
+    idict={'bilayer':{
             'SAPL': 50,
             'npatch':[2,2],
             'composition':{
@@ -71,10 +71,12 @@ def test_make_membrane_system_task_init_asymmetric():
                 'patch':[
                     {'md':{'ensemble':'minimize','nsteps':1000}},
                     {'md':{'ensemble':'NVT','nsteps':1000}},
-                    {'md':{'ensemble':'NPT','nsteps':1000}},
-                    {'md':{'ensemble':'NPT','nsteps':2000}},
-                    {'md':{'ensemble':'NPT','nsteps':4000}},
-                    {'md':{'ensemble':'NPT','nsteps':8000}}
+                    {'md':{'ensemble':'NPT','nsteps':1000,'pressure':10.0}},
+                    {'md':{'ensemble':'NPT','nsteps':2000,'pressure':10.0}},
+                    {'md':{'ensemble':'NPT','nsteps':4000,'pressure':10.0}},
+                    {'md':{'ensemble':'NPT','nsteps':8000,'pressure':1.0}},
+                    {'md':{'ensemble':'NPT','nsteps':16000,'pressure':1.0}},
+                    {'md':{'ensemble':'NPT','nsteps':21000,'pressure':1.0}}
                 ],
                 'bilayer':[
                     {'md':{'ensemble':'minimize','nsteps':2000}},

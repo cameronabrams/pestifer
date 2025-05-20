@@ -3,6 +3,7 @@
 """
 import logging
 import os
+import re
 import subprocess
 import shutil
 
@@ -470,3 +471,26 @@ def striplist(L):
     while '' in l:
         l.remove('')
     return l
+
+
+def to_latex_math(s):
+    # written by ChatGPT
+    def convert_token(token):
+        # Match base, subscript, and superscript using regex
+        match = re.fullmatch(r'\s*([a-zA-Z0-9]+)(?:_([a-zA-Z0-9^]+))?(?:\^([a-zA-Z0-9_]+))?\s*', token)
+        if not match:
+            return token  # return as-is if it doesn't match expected pattern
+        base, sub, sup = match.groups()
+        result = base
+        if sub:
+            if '^' in sub:
+                # Handle cases like a_x^2 packed into sub
+                sub, sup = sub.split('^', 1)
+            result += f'$_{{{sub}}}$'
+        if sup:
+            result += f'$^{{{sup}}}$'
+        return result
+
+    parts = s.split(',')
+    converted = [convert_token(part) for part in parts]
+    return ', '.join(converted)

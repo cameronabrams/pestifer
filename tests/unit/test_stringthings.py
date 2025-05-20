@@ -1,5 +1,5 @@
 import unittest
-from pestifer.stringthings import ByteCollector, FileCollector, ri_range
+from pestifer.stringthings import ByteCollector, FileCollector, ri_range, to_latex_math
 class TestStringthings(unittest.TestCase):
     def test_byte_collector_write(self):
         bc=ByteCollector()
@@ -60,3 +60,8 @@ class TestStringthings(unittest.TestCase):
         self.assertEqual(i3,'C')
         self.assertEqual(r4,199)
         self.assertEqual(i4,'')
+
+    def test_to_latex_math(self):
+        s='a_x'
+        res=to_latex_math(s)
+        self.assertEqual(res,r'a$_{x}$')
