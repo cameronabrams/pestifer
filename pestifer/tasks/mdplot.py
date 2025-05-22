@@ -121,9 +121,9 @@ class MDPlotTask(BaseTask):
                     key=t_i.upper()
                     ax.plot(nrg['TS'],nrg[key]*units,label=key.title())
                 elif xst is not None and t_i in xst.df:
-                    ax.plot(xst.df['step'],xst.df[t_i]*units,label=t_i)
+                    ax.plot(xst.df['step'],xst.df[t_i]*units,label=to_latex_math(t_i))
             ax.set_xlabel('time step')
-            ax.set_ylabel(','.join([to_latex_math(n)+' ('+u+')' for n,u in zip(tracelist,unitspecs)]))
+            ax.set_ylabel(', '.join([to_latex_math(n)+' ('+u+')' for n,u in zip(tracelist,unitspecs)]))
             # ax.set_ylabel(tracename_label+' ('+','.join([_ for _ in unitspecs if _!='*'])+')')
             if legend:
                 ax.legend()

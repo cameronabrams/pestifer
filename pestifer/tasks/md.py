@@ -52,6 +52,8 @@ class MDTask(BaseTask):
         addl_paramfiles=specs.get('addl_paramfiles',[])
         logger.debug(f'md task specs {specs}')
         ensemble=specs['ensemble']
+        if ensemble.casefold() not in ['NPT'.casefold(),'NVT'.casefold(),'minimize'.casefold()]:
+            raise Exception(f'Error: {ensemble} is not a valid ensemble type. Must be \'NPT\', \'NVT\', or \'minimize\'')
         if not baselabel:
             self.next_basename(ensemble)
         else:
@@ -69,7 +71,7 @@ class MDTask(BaseTask):
         self.statevars['periodic']=is_periodic(xsc)
 
         temperature=specs['temperature']
-        if ensemble=='NPT':
+        if ensemble.casefold()=='NPT'.casefold():
             pressure=specs['pressure']
         params['tcl']=[]
         params['tcl'].append(f'set temperature {temperature}')
@@ -93,7 +95,7 @@ class MDTask(BaseTask):
             del params['temperature']
         if xsc:
             params['extendedSystem']=xsc
-            if ensemble=='NPT' and xstfreq:
+            if ensemble.casefold()=='NPT'.casefold() and xstfreq:
                 params['xstfreq']=xstfreq
         
         if self.statevars['periodic']:
@@ -101,9 +103,9 @@ class MDTask(BaseTask):
         else:
             params.update(namd_global_params['vacuum'])
         
-        if ensemble in ['NPT','NVT']:
+        if ensemble.casefold() in ['NPT'.casefold(),'NVT'.casefold()]:
             params.update(namd_global_params['thermostat'])
-            if ensemble=='NPT':
+            if ensemble.casefold()=='NPT'.casefold():
                 if not self.statevars['periodic']:
                     raise Exception(f'Cannot use barostat on a system without PBCs')
                 params['tcl'].append(f'set pressure {pressure}')
@@ -131,10 +133,10 @@ class MDTask(BaseTask):
         params.update(other_params)
         params.update(extras)
         params['firsttimestep']=firsttimestep
-        if ensemble=='minimize':
+        if ensemble.casefold()=='minimize'.casefold():
             assert specs['minimize']>0,f'Error: you must specify how many minimization cycles'
             params['minimize']=specs['minimize']
-        elif ensemble in ['NVT','NPT']:
+        elif ensemble.casefold() in ['NVT'.casefold(),'NPT'.casefold()]:
             assert nsteps>0,f'Error: you must specify how many time steps to run'
             params['run']=nsteps
         
@@ -161,7 +163,7 @@ class MDTask(BaseTask):
             #     self.xstlog=na.getxst()
             #     logger.debug(f'{self.xstlog.df.shape[0]} xst entries stored')
 
-            if ensemble!='minimize':
+            if ensemble.casefold()!='minimize'.casefold():
                 self.update_statevars('firsttimestep',firsttimestep+nsteps)
             else:
                 self.update_statevars('firsttimestep',firsttimestep+specs['minimize'])

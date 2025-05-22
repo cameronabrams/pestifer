@@ -62,7 +62,7 @@ class BilayerSpecString:
                 for i in range(len(self.right)):
                     self.right[i][attr_name]=Lright[0]
 
-def specstrings_builddict(lipid_specstring='',lipid_ratio_specstring='',lipid_conformers_specstring='',    
+def specstrings_builddict(lipid_specstring='',lipid_ratio_specstring='',lipid_conformers_specstring='0',    
                           solvent_specstring='TIP3',solvent_ratio_specstring=''):
     L=BilayerSpecString(specstring=lipid_specstring,fracstring=lipid_ratio_specstring)
     L.add_specstring('conf',lipid_conformers_specstring,int)
@@ -169,7 +169,7 @@ class Bilayer:
                     data['avgMW']+=species['MW']*species['frac']
                 elif 'leaflet' in layer:
                     for lipid in data['composition']:
-                        lipid['reference_length']=self.species_data[lipid['name']].get_ref_length(index=lipid['conf'])
+                        lipid['reference_length']=self.species_data[lipid['name']].get_ref_length(index=lipid.get('conf',0))
                         if lipid['reference_length']>data['maxthickness']:
                             data['maxthickness']=lipid['reference_length']
                     logger.debug(f'{layer} maxthickness {data["maxthickness"]:.3f}')
@@ -277,7 +277,7 @@ class Bilayer:
                 n=specs['patn']
                 pm.addline(f'structure {specs["local_name"]}')
                 pm.addline(f'number {n}',indents=1)
-                lipid_length=self.species_data[name].get_ref_length(index=specs['conf'])
+                lipid_length=self.species_data[name].get_ref_length(index=specs.get('conf',0))
 
                 leaflet_thickness=leaflet['z-hi']-leaflet['z-lo']
                 logger.debug(f'Leaflet thickness {leaflet_thickness:.3f} {sA_}')

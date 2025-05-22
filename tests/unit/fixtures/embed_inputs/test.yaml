@@ -16,6 +16,26 @@ tasks:
   - md:
       ensemble: minimize
       nsteps: 1000
+  - md:
+      ensemble: nvt
+      nsteps: 1000
+  - md:
+      ensemble: npt
+      nsteps: 1000
+  - md:
+      ensemble: npt
+      nsteps: 1000
+  - md:
+      ensemble: npt
+      nsteps: 1000
+  - mdplot:
+      savedata: solvated.csv
+      traces:
+        - density
+        - - a_x
+          - b_y
+          - c_z
+      basename: solvated 
   - terminate:
       basename: test
       basename: test

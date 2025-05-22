@@ -138,7 +138,6 @@ def test_make_membrane_system_task_init_asymmetric_multicomponent():
     os.chdir('..')
     assert result==0
 
-@pytest.mark.slow
 def test_make_membrane_system_task_embed():
     if os.path.exists('__test_make_membrane_system_task_embed'):
         shutil.rmtree('__test_make_membrane_system_task_embed')
@@ -174,11 +173,11 @@ def test_make_membrane_system_task_embed():
     assert result==0
 
 @pytest.mark.slow
-def test_make_membrane_system_with_md():
-    if os.path.exists('__test_make_membrane_system_with_md'):
-        shutil.rmtree('__test_make_membrane_system_with_md')
-    os.mkdir('__test_make_membrane_system_with_md')
-    os.chdir('__test_make_membrane_system_with_md')
+def test_make_membrane_system_with_md_prebuilt():
+    if os.path.exists('__test_make_membrane_system_with_md_prebuilt'):
+        shutil.rmtree('__test_make_membrane_system_with_md_prebuilt')
+    os.mkdir('__test_make_membrane_system_with_md_prebuilt')
+    os.chdir('__test_make_membrane_system_with_md_prebuilt')
     psf='5e8w-proteinonly.psf'
     pdb='5e8w-proteinonly.pdb'
     bilayer_psf='equilibrate.psf'

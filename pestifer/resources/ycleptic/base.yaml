@@ -1214,6 +1214,7 @@ directives:
               - name: ensemble
                 text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                 type: str
+                case_sensitive: False
                 choices: [minimize, NVT, NPT]
                 default: NVT
               - name: force_constant
@@ -1364,6 +1365,7 @@ directives:
           - name: ensemble
             type: str
             text: ensemble in which MD is run [NVT]
+            case_sensitive: False
             choices: [minimize, NVT, NPT]
             default: NVT
       - name: solvate
@@ -1625,6 +1627,7 @@ directives:
                           - name: ensemble
                             text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                             type: str
+                            case_sensitive: False
                             choices: [minimize, NVT, NPT]
                             default: minimize
                           - name: nsteps
@@ -1769,6 +1772,7 @@ directives:
             type: str
             choices: [minimize, NVT, NPT]
             default: NVT
+            case_sensitive: False
           - name: minimize
             text: Number of minimization steps; ignored if ensemble is not 'minimize' (used with the 'minimize' command)
             type: int
@@ -1855,6 +1859,7 @@ directives:
               - name: ensemble
                 text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                 type: str
+                case_sensitive: False
                 choices: [NVT, NPT]
                 default: NVT
               - name: nminsteps

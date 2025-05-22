@@ -9,17 +9,14 @@ tasks:
           upper_leaflet:
             - name: PSM
               frac: 0.5
-              conf: 0
             - name: CHL1 
               frac: 0.5
-              conf: 0
           lower_leaflet:
             - name: POPE
               frac: 0.5
-              conf: 0
             - name: CHL1 
               frac: 0.5
-              conf: 0
+              conf: 1
         relaxation_protocols:
           patch:
             - md:
@@ -79,6 +76,29 @@ tasks:
   - md:
       ensemble: minimize
       nsteps: 1000
+  - md:
+      ensemble: nvt
+      nsteps: 1000
+  - md:
+      ensemble: npt
+      nsteps: 1000
+  - md:
+      ensemble: npt
+      nsteps: 1000
+  - md:
+      ensemble: npt
+      nsteps: 10000
+  - md:
+      ensemble: npt
+      nsteps: 20000
+  - mdplot:
+      savedata: solvated.csv
+      traces:
+        - density
+        - - a_x
+          - b_y
+          - c_z
+      basename: solvated
   - terminate:
       basename: test2
       basename: test2

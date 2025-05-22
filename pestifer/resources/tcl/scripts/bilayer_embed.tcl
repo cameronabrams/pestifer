@@ -126,10 +126,8 @@ mol addfile $bilayer_pdb waitfor all
 set bilayer [molinfo top get id]
 pbc readxst $bilayer_xsc -molid $bilayer
 set bilayer_box [lindex [pbc get -molid $bilayer] 0]
-set bilayer_box_x [lindex $bilayer_box 0]
-set box_xminmax [list [expr -1*($bilayer_box_x / 2)] [expr $bilayer_box_x / 2]]
-set bilayer_box_y [lindex $bilayer_box 1]
-set box_yminmax [list [expr -1*($bilayer_box_y / 2)] [expr $bilayer_box_y / 2]]
+set bilayer_box_Lx [lindex $bilayer_box 0]
+set bilayer_box_Ly [lindex $bilayer_box 1]
 set bilayer_sel [atomselect $bilayer "all"]
 
 set bilayer_minmax [measure minmax $bilayer_sel]
@@ -141,17 +139,9 @@ set bilayer_mid_x [expr ($bilayer_min_x + $bilayer_max_x) / 2]
 set bilayer_min_y [lindex $bilayer_min 1]
 set bilayer_max_y [lindex $bilayer_max 1]
 set bilayer_mid_y [expr ($bilayer_min_y + $bilayer_max_y) / 2]
-
-$bilayer_sel moveby [list [expr -1*$bilayer_mid_x] [expr -1*$bilayer_mid_y] 0]
-$bilayer_sel writepdb ${outbasename}_bilayer_shifted.pdb
-unset bilayer_min_x
-unset bilayer_max_x
-unset bilayer_min_y
-unset bilayer_max_y
-
-
 set bilayer_min_z [lindex $bilayer_min 2]
 set bilayer_max_z [lindex $bilayer_max 2]
+set bilayer_mid_z [expr ($bilayer_min_z + $bilayer_max_z) / 2]
 
 vmdcon -info "bilayer z-span [lindex $bilayer_box 2]; by apparent atom measurements, min-z $bilayer_min_z max-z $bilayer_max_z"
 
@@ -160,8 +150,6 @@ set tail [atomselect $protein "$z_tail_group"]
 set head_com [measure center $head weight mass]
 set tail_com [measure center $tail weight mass]
 set bilayer_com [measure center $bilayer_sel weight mass]
-# set bilayer_x [lindex $bilayer_com 0]
-# set bilayer_y [lindex $bilayer_com 1]
 set bilayer_com_z [lindex $bilayer_com 2]
 
 if { !$no_orient } {
@@ -169,14 +157,16 @@ if { !$no_orient } {
    set pro_axis [vecnorm [vecsub $head_com $tail_com]]
    set A [orient $pro_sel $pro_axis {0 0 1}]
    $pro_sel move $A
+} else {
+   vmdcon -info "not orienting protein axis to bilayer normal"
 }
 set pro_mid_z_ref_sel [atomselect $protein "$z_ref_group"]
 set pro_embed_mid_z [lindex [measure center $pro_mid_z_ref_sel weight mass] 2]
 set pro_com [measure center $pro_sel weight mass]
 set pro_x [lindex $pro_com 0]
 set pro_y [lindex $pro_com 1]
-set pro_x_shift [expr -1*($pro_x)]
-set pro_y_shift [expr -1*($pro_y)]
+set pro_x_shift [expr $bilayer_mid_x - $pro_x]
+set pro_y_shift [expr $bilayer_mid_y - $pro_y]
 set pro_z_shift [expr $bilayer_com_z - $pro_embed_mid_z - $z_value]
 
 $pro_sel moveby [list $pro_x_shift $pro_y_shift $pro_z_shift]
@@ -198,7 +188,7 @@ set bad_membrane_idx [lindex $bad_atoms 0]
 set bad_membrane_sel [atomselect $bilayer "index $bad_membrane_idx"]
 
 readpsf $psf pdb ${outbasename}_embedded.pdb
-readpsf $bilayer_psf pdb ${outbasename}_bilayer_shifted.pdb
+readpsf $bilayer_psf pdb $bilayer_pdb
 
 foreach seg [$bad_membrane_sel get segname] resid [$bad_membrane_sel get resid] {
    delatom $seg $resid
@@ -225,7 +215,7 @@ foreach sg $segnames {
       }
    }
 }
-vmdcon -info "solvent segment numbers in raw-embedded bilayer: $solsegnums"
+vmdcon -info "solvent (WT) segment numbers in raw-embedded bilayer: $solsegnums"
 if { [llength $solsegnums] == 0 } {
    set nextsolsegnum 1
 } else {
@@ -245,10 +235,13 @@ if { $box_min_z < $bilayer_min_z } {
       set extragap [expr 3.0 - $gapsize]
       set $box_min_z [expr $box_min_z - $extragap]
    }
-   vmdcon -info "solvating into {{[lindex $box_xminmax 0] [lindex $box_yminmax 0] $box_min_z} {[lindex $box_xminmax 1] [lindex $box_yminmax 1] $bilayer_min_z}}"
-   solvate -minmax {{[lindex $box_xminmax 0] [lindex $box_yminmax 0] $box_min_z} {[lindex $box_xminmax 1] [lindex $box_yminmax 1] $bilayer_min_z}} -o ${outbasename}_water_lower
+   vmdcon -info "solvating into {{0 0 $box_min_z} {$bilayer_box_Lx $bilayer_box_Ly $bilayer_min_z}}"
+   solvate -minmax [list [list 0 0 $box_min_z] [list $bilayer_box_Lx $bilayer_box_Ly $bilayer_min_z]] -o ${outbasename}_water_lower
    lappend addl_water ${outbasename}_water_lower
+} else {
+   set box_min_z $bilayer_min_z
 }
+
 if { $box_max_z > $bilayer_max_z } {
    # make a slab of water thick enough to fill this gap
    set gapsize [expr $box_max_z - $bilayer_max_z]
@@ -256,9 +249,11 @@ if { $box_max_z > $bilayer_max_z } {
       set extragap [expr 3.0 - $gapsize]
       set $box_max_z [expr $box_max_z + $extragap]
    }
-   vmdcon -info "solvating into {{[lindex $box_xminmax 0] [lindex $box_yminmax 0] $bilayer_max_z} {[lindex $box_xminmax 1] [lindex $box_yminmax 1] $box_max_z}}"
-   solvate -minmax [list [list [lindex $box_xminmax 0] [lindex $box_yminmax 0] $bilayer_max_z] [list [lindex $box_xminmax 1] [lindex $box_yminmax 1] $box_max_z]] -o ${outbasename}_water_upper
+   vmdcon -info "Running solvate -minmax [list [list 0 0 $bilayer_max_z] [list $bilayer_box_Lx $bilayer_box_Ly $box_max_z]] -o ${outbasename}_water_upper"
+   solvate -minmax [list [list 0 0 $bilayer_max_z] [list $bilayer_box_Lx $bilayer_box_Ly $box_max_z]] -o ${outbasename}_water_upper
    lappend addl_water ${outbasename}_water_upper
+} else {
+   set box_max_z $bilayer_max_z
 }
 
 set newsegids [list]
@@ -299,7 +294,10 @@ writepdb ${outbasename}_solvent_appended.pdb
 mol new ${outbasename}_solvent_appended.psf
 mol addfile ${outbasename}_solvent_appended.pdb waitfor all
 set embedded_system [molinfo top get id]
-pbc set [list $bilayer_box_x $bilayer_box_y [expr $box_max_z - $box_min_z]] -molid $embedded_system
+set all [atomselect $embedded_system "all"]
+$all moveby [list 0 0 expr (-1*$box_min_z)]
+set box_Lz [expr $box_max_z - $box_min_z]
+# pbc set [list $bilayer_box_Lx $bilayer_box_Ly [expr $box_max_z - $box_min_z]] -molid $embedded_system
 set pro_sel [atomselect $embedded_system "protein or glycan"]
 set segs_to_search [join $newsegids]
 set water_sel [atomselect $embedded_system "segname $segs_to_search"]
@@ -312,7 +310,11 @@ foreach seg [$bad_water_sel get segname] resid [$bad_water_sel get resid] {
 regenerate angles dihedrals
 writepsf cmap ${outbasename}_filled.psf
 writepdb ${outbasename}_filled.pdb
-pbc writexst ${outbasename}.xsc -molid $embedded_system
+set fp [open "${outbasename}.xsc" "w"]
+puts $fp "# PESTIFER generated xst file"
+puts $fp "#\$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w"
+puts $fp "0 $bilayer_box_Lx 0 0  0 $bilayer_box_Ly 0  0 0 $box_Lz  [expr ($bilayer_box_Lx / 2)] [expr ($bilayer_box_Ly / 2)] [expr ($box_Lz / 2)] 0 0 0 0 0 0"
+close $fp
 
 resetpsf
 mol delete $embedded_system
