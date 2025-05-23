@@ -1,24 +1,34 @@
 charge: 0.0
 conformers:
-- head-tail-length: 23.998
+- head-tail-length: 23.301
+  max-internal-length: 27.313
   pdb: DPPE-00.pdb
-- head-tail-length: 21.193
+- head-tail-length: 22.52
+  max-internal-length: 28.102
   pdb: DPPE-01.pdb
-- head-tail-length: 21.704
+- head-tail-length: 22.618
+  max-internal-length: 28.111
   pdb: DPPE-02.pdb
-- head-tail-length: 22.378
+- head-tail-length: 21.979
+  max-internal-length: 27.639
   pdb: DPPE-03.pdb
-- head-tail-length: 21.378
+- head-tail-length: 19.63
+  max-internal-length: 25.645
   pdb: DPPE-04.pdb
-- head-tail-length: 18.745
+- head-tail-length: 18.799
+  max-internal-length: 25.279
   pdb: DPPE-05.pdb
-- head-tail-length: 20.563
+- head-tail-length: 19.006
+  max-internal-length: 24.994
   pdb: DPPE-06.pdb
-- head-tail-length: 19.154
+- head-tail-length: 19.327
+  max-internal-length: 25.39
   pdb: DPPE-07.pdb
-- head-tail-length: 21.214
+- head-tail-length: 17.985
+  max-internal-length: 23.913
   pdb: DPPE-08.pdb
-- head-tail-length: 22.106
+- head-tail-length: 14.991
+  max-internal-length: 23.717
   pdb: DPPE-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 75
   - name: C316
     serial: 118
+synonym: 2,3 dipalmitoyl-D-glycero-1-Phosphatidylethanolamine

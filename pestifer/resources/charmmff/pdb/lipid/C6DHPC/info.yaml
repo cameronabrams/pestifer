@@ -1,24 +1,34 @@
 charge: 0.0
 conformers:
-- head-tail-length: 5.029
+- head-tail-length: 14.586
+  max-internal-length: 19.501
   pdb: C6DHPC-00.pdb
-- head-tail-length: 4.899
+- head-tail-length: 13.301
+  max-internal-length: 19.43
   pdb: C6DHPC-01.pdb
-- head-tail-length: 4.025
+- head-tail-length: 12.173
+  max-internal-length: 18.008
   pdb: C6DHPC-02.pdb
-- head-tail-length: 3.266
+- head-tail-length: 11.277
+  max-internal-length: 16.625
   pdb: C6DHPC-03.pdb
-- head-tail-length: 3.373
+- head-tail-length: 12.477
+  max-internal-length: 18.521
   pdb: C6DHPC-04.pdb
-- head-tail-length: 3.974
+- head-tail-length: 12.712
+  max-internal-length: 18.024
   pdb: C6DHPC-05.pdb
-- head-tail-length: 3.108
+- head-tail-length: 11.052
+  max-internal-length: 16.957
   pdb: C6DHPC-06.pdb
-- head-tail-length: 3.889
+- head-tail-length: 10.773
+  max-internal-length: 16.712
   pdb: C6DHPC-07.pdb
-- head-tail-length: 4.682
+- head-tail-length: 10.763
+  max-internal-length: 17.489
   pdb: C6DHPC-08.pdb
-- head-tail-length: 3.695
+- head-tail-length: 10.7
+  max-internal-length: 17.737
   pdb: C6DHPC-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -36,8 +46,11 @@ parameters:
 - toppar_all36_carb_glycolipid.str
 reference-atoms:
   heads:
-  - name: P
-    serial: 20
+  - name: N
+    serial: 1
   tails:
-  - name: C13
-    serial: 2
+  - name: C26
+    serial: 54
+  - name: C36
+    serial: 67
+synonym: 1,2-dihexanoyl-sn-glycero-3-phosphocholine

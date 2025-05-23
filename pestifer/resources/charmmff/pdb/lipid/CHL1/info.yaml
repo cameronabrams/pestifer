@@ -1,25 +1,5 @@
 charge: 0.0
-conformers:
-- head-tail-length: 15.515
-  pdb: CHL1-00.pdb
-- head-tail-length: 15.015
-  pdb: CHL1-01.pdb
-- head-tail-length: 14.978
-  pdb: CHL1-02.pdb
-- head-tail-length: 15.116
-  pdb: CHL1-03.pdb
-- head-tail-length: 15.436
-  pdb: CHL1-04.pdb
-- head-tail-length: 15.34
-  pdb: CHL1-05.pdb
-- head-tail-length: 15.216
-  pdb: CHL1-06.pdb
-- head-tail-length: 15.299
-  pdb: CHL1-07.pdb
-- head-tail-length: 15.677
-  pdb: CHL1-08.pdb
-- head-tail-length: 15.412
-  pdb: CHL1-09.pdb
+conformers: []
 parameters:
 - par_all36m_prot.prm
 - par_all36_carb.prm

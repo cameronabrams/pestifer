@@ -1,24 +1,34 @@
 charge: -1.0
 conformers:
-- head-tail-length: 23.065
+- head-tail-length: 21.408
+  max-internal-length: 25.146
   pdb: DSPA-00.pdb
-- head-tail-length: 21.85
+- head-tail-length: 20.516
+  max-internal-length: 25.266
   pdb: DSPA-01.pdb
-- head-tail-length: 21.169
+- head-tail-length: 20.692
+  max-internal-length: 24.267
   pdb: DSPA-02.pdb
-- head-tail-length: 19.723
+- head-tail-length: 21.815
+  max-internal-length: 24.607
   pdb: DSPA-03.pdb
-- head-tail-length: 21.211
+- head-tail-length: 20.232
+  max-internal-length: 24.035
   pdb: DSPA-04.pdb
-- head-tail-length: 21.303
+- head-tail-length: 19.842
+  max-internal-length: 23.069
   pdb: DSPA-05.pdb
-- head-tail-length: 21.631
+- head-tail-length: 19.53
+  max-internal-length: 22.984
   pdb: DSPA-06.pdb
-- head-tail-length: 20.362
+- head-tail-length: 19.165
+  max-internal-length: 22.258
   pdb: DSPA-07.pdb
-- head-tail-length: 18.874
+- head-tail-length: 19.238
+  max-internal-length: 22.577
   pdb: DSPA-08.pdb
-- head-tail-length: 19.536
+- head-tail-length: 18.772
+  max-internal-length: 21.947
   pdb: DSPA-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 72
   - name: C318
     serial: 121
+synonym: 2,3-distearoyl--D-glycero-1-Phosphatidic acid

@@ -1,24 +1,34 @@
 charge: 0.0
 conformers:
-- head-tail-length: 28.098
+- head-tail-length: 27.265
+  max-internal-length: 31.107
   pdb: DPPC-00.pdb
-- head-tail-length: 27.704
+- head-tail-length: 27.286
+  max-internal-length: 31.952
   pdb: DPPC-01.pdb
-- head-tail-length: 27.751
+- head-tail-length: 27.126
+  max-internal-length: 31.409
   pdb: DPPC-02.pdb
-- head-tail-length: 26.569
+- head-tail-length: 27.495
+  max-internal-length: 31.835
   pdb: DPPC-03.pdb
-- head-tail-length: 26.647
+- head-tail-length: 27.244
+  max-internal-length: 30.736
   pdb: DPPC-04.pdb
-- head-tail-length: 26.806
+- head-tail-length: 26.76
+  max-internal-length: 31.378
   pdb: DPPC-05.pdb
-- head-tail-length: 26.297
+- head-tail-length: 27.537
+  max-internal-length: 31.304
   pdb: DPPC-06.pdb
-- head-tail-length: 25.861
+- head-tail-length: 27.389
+  max-internal-length: 31.149
   pdb: DPPC-07.pdb
-- head-tail-length: 24.151
+- head-tail-length: 27.032
+  max-internal-length: 30.964
   pdb: DPPC-08.pdb
-- head-tail-length: 24.599
+- head-tail-length: 26.622
+  max-internal-length: 30.182
   pdb: DPPC-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 84
   - name: C316
     serial: 127
+synonym: 2,3 dipalmitoyl-D-glycero-1-Phosphatidylcholine

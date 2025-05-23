@@ -1,24 +1,34 @@
 charge: -1.0
 conformers:
-- head-tail-length: 19.507
+- head-tail-length: 19.603
+  max-internal-length: 23.15
   pdb: DPPA-00.pdb
-- head-tail-length: 18.063
+- head-tail-length: 19.297
+  max-internal-length: 22.479
   pdb: DPPA-01.pdb
-- head-tail-length: 17.439
+- head-tail-length: 19.062
+  max-internal-length: 23.12
   pdb: DPPA-02.pdb
-- head-tail-length: 17.985
+- head-tail-length: 18.15
+  max-internal-length: 22.178
   pdb: DPPA-03.pdb
-- head-tail-length: 18.527
+- head-tail-length: 18.502
+  max-internal-length: 23.188
   pdb: DPPA-04.pdb
-- head-tail-length: 19.402
+- head-tail-length: 18.485
+  max-internal-length: 22.21
   pdb: DPPA-05.pdb
-- head-tail-length: 19.53
+- head-tail-length: 18.869
+  max-internal-length: 21.6
   pdb: DPPA-06.pdb
-- head-tail-length: 18.167
+- head-tail-length: 18.749
+  max-internal-length: 21.782
   pdb: DPPA-07.pdb
-- head-tail-length: 16.55
+- head-tail-length: 19.031
+  max-internal-length: 22.752
   pdb: DPPA-08.pdb
-- head-tail-length: 15.087
+- head-tail-length: 19.197
+  max-internal-length: 23.645
   pdb: DPPA-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 66
   - name: C316
     serial: 109
+synonym: 2,3 dipalmitoyl--D-glycero-1-Phosphatidic acid

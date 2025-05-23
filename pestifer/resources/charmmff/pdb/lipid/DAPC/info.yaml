@@ -1,24 +1,34 @@
 charge: 0.0
 conformers:
-- head-tail-length: 29.274
+- head-tail-length: 28.919
+  max-internal-length: 33.799
   pdb: DAPC-00.pdb
-- head-tail-length: 28.51
+- head-tail-length: 27.827
+  max-internal-length: 32.748
   pdb: DAPC-01.pdb
-- head-tail-length: 27.57
+- head-tail-length: 27.15
+  max-internal-length: 30.771
   pdb: DAPC-02.pdb
-- head-tail-length: 26.688
+- head-tail-length: 26.371
+  max-internal-length: 30.419
   pdb: DAPC-03.pdb
-- head-tail-length: 26.933
+- head-tail-length: 25.846
+  max-internal-length: 29.569
   pdb: DAPC-04.pdb
-- head-tail-length: 26.951
+- head-tail-length: 26.714
+  max-internal-length: 30.475
   pdb: DAPC-05.pdb
-- head-tail-length: 26.18
+- head-tail-length: 26.444
+  max-internal-length: 30.731
   pdb: DAPC-06.pdb
-- head-tail-length: 25.908
+- head-tail-length: 25.925
+  max-internal-length: 31.458
   pdb: DAPC-07.pdb
-- head-tail-length: 27.036
+- head-tail-length: 26.182
+  max-internal-length: 31.4
   pdb: DAPC-08.pdb
-- head-tail-length: 27.14
+- head-tail-length: 25.02
+  max-internal-length: 30.952
   pdb: DAPC-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 88
   - name: C320
     serial: 135
+synonym: 2,3-diarachidonyl-D-glycero-1-phosphatidylcholine (20:4 20:4 PC)

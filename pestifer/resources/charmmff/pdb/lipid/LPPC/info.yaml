@@ -1,24 +1,34 @@
 charge: 0.0
 conformers:
-- head-tail-length: 18.275
+- head-tail-length: 18.595
+  max-internal-length: 21.138
   pdb: LPPC-00.pdb
-- head-tail-length: 17.683
+- head-tail-length: 18.674
+  max-internal-length: 21.207
   pdb: LPPC-01.pdb
-- head-tail-length: 17.084
+- head-tail-length: 18.152
+  max-internal-length: 20.783
   pdb: LPPC-02.pdb
-- head-tail-length: 17.647
+- head-tail-length: 18.112
+  max-internal-length: 20.805
   pdb: LPPC-03.pdb
-- head-tail-length: 16.837
+- head-tail-length: 16.422
+  max-internal-length: 19.113
   pdb: LPPC-04.pdb
-- head-tail-length: 17.354
+- head-tail-length: 16.374
+  max-internal-length: 19.185
   pdb: LPPC-05.pdb
-- head-tail-length: 17.774
+- head-tail-length: 16.492
+  max-internal-length: 19.224
   pdb: LPPC-06.pdb
-- head-tail-length: 17.896
+- head-tail-length: 15.943
+  max-internal-length: 19.103
   pdb: LPPC-07.pdb
-- head-tail-length: 17.469
+- head-tail-length: 17.051
+  max-internal-length: 20.007
   pdb: LPPC-08.pdb
-- head-tail-length: 17.241
+- head-tail-length: 17.288
+  max-internal-length: 19.631
   pdb: LPPC-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -37,3 +47,4 @@ reference-atoms:
   tails:
   - name: C312
     serial: 67
+synonym: deoxylysophosphatidylcholine

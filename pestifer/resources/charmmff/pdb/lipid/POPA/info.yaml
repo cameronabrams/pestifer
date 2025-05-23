@@ -1,24 +1,34 @@
 charge: -1.0
 conformers:
-- head-tail-length: 24.039
+- head-tail-length: 24.79
+  max-internal-length: 27.534
   pdb: POPA-00.pdb
-- head-tail-length: 23.742
+- head-tail-length: 24.307
+  max-internal-length: 27.302
   pdb: POPA-01.pdb
-- head-tail-length: 22.624
+- head-tail-length: 24.256
+  max-internal-length: 26.805
   pdb: POPA-02.pdb
-- head-tail-length: 22.674
+- head-tail-length: 24.501
+  max-internal-length: 27.961
   pdb: POPA-03.pdb
-- head-tail-length: 22.16
+- head-tail-length: 24.107
+  max-internal-length: 26.956
   pdb: POPA-04.pdb
-- head-tail-length: 22.036
+- head-tail-length: 23.91
+  max-internal-length: 26.977
   pdb: POPA-05.pdb
-- head-tail-length: 22.506
+- head-tail-length: 23.473
+  max-internal-length: 26.606
   pdb: POPA-06.pdb
-- head-tail-length: 21.96
+- head-tail-length: 22.42
+  max-internal-length: 26.763
   pdb: POPA-07.pdb
-- head-tail-length: 21.344
+- head-tail-length: 23.244
+  max-internal-length: 27.386
   pdb: POPA-08.pdb
-- head-tail-length: 20.827
+- head-tail-length: 23.502
+  max-internal-length: 26.89
   pdb: POPA-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 70
   - name: C316
     serial: 113
+synonym: 3-palmitoyl-2-oleoyl-D-glycero-1-Phosphatidic acid

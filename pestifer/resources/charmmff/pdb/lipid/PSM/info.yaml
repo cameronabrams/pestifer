@@ -1,24 +1,34 @@
 charge: 0.0
 conformers:
-- head-tail-length: 26.682
+- head-tail-length: 25.988
+  max-internal-length: 30.841
   pdb: PSM-00.pdb
-- head-tail-length: 24.708
+- head-tail-length: 26.086
+  max-internal-length: 30.874
   pdb: PSM-01.pdb
-- head-tail-length: 24.097
+- head-tail-length: 25.74
+  max-internal-length: 30.275
   pdb: PSM-02.pdb
-- head-tail-length: 24.387
+- head-tail-length: 25.778
+  max-internal-length: 30.891
   pdb: PSM-03.pdb
-- head-tail-length: 23.962
+- head-tail-length: 23.672
+  max-internal-length: 30.138
   pdb: PSM-04.pdb
-- head-tail-length: 23.459
+- head-tail-length: 23.747
+  max-internal-length: 29.774
   pdb: PSM-05.pdb
-- head-tail-length: 23.956
+- head-tail-length: 23.375
+  max-internal-length: 28.903
   pdb: PSM-06.pdb
-- head-tail-length: 24.313
+- head-tail-length: 21.91
+  max-internal-length: 27.784
   pdb: PSM-07.pdb
-- head-tail-length: 22.49
+- head-tail-length: 21.73
+  max-internal-length: 26.972
   pdb: PSM-08.pdb
-- head-tail-length: 22.292
+- head-tail-length: 21.944
+  max-internal-length: 26.896
   pdb: PSM-09.pdb
 parameters:
 - par_all36m_prot.prm

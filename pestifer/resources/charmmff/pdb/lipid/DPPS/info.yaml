@@ -1,24 +1,34 @@
 charge: -1.0
 conformers:
-- head-tail-length: 24.165
+- head-tail-length: 24.269
+  max-internal-length: 27.727
   pdb: DPPS-00.pdb
-- head-tail-length: 23.355
+- head-tail-length: 25.186
+  max-internal-length: 28.008
   pdb: DPPS-01.pdb
-- head-tail-length: 22.482
+- head-tail-length: 23.786
+  max-internal-length: 27.673
   pdb: DPPS-02.pdb
-- head-tail-length: 23.883
+- head-tail-length: 22.871
+  max-internal-length: 27.421
   pdb: DPPS-03.pdb
-- head-tail-length: 23.145
+- head-tail-length: 21.985
+  max-internal-length: 26.789
   pdb: DPPS-04.pdb
-- head-tail-length: 22.993
+- head-tail-length: 21.862
+  max-internal-length: 27.304
   pdb: DPPS-05.pdb
-- head-tail-length: 22.75
+- head-tail-length: 23.277
+  max-internal-length: 27.285
   pdb: DPPS-06.pdb
-- head-tail-length: 22.951
+- head-tail-length: 23.705
+  max-internal-length: 27.574
   pdb: DPPS-07.pdb
-- head-tail-length: 22.857
+- head-tail-length: 24.406
+  max-internal-length: 28.843
   pdb: DPPS-08.pdb
-- head-tail-length: 21.922
+- head-tail-length: 23.062
+  max-internal-length: 28.462
   pdb: DPPS-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 77
   - name: C316
     serial: 120
+synonym: 2,3 dipalmitoyl-D-glycero-1-Phosphatidylserine

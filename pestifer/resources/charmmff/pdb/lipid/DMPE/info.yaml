@@ -1,24 +1,34 @@
 charge: 0.0
 conformers:
-- head-tail-length: 21.183
+- head-tail-length: 22.367
+  max-internal-length: 25.4
   pdb: DMPE-00.pdb
-- head-tail-length: 20.335
+- head-tail-length: 21.677
+  max-internal-length: 24.286
   pdb: DMPE-01.pdb
-- head-tail-length: 20.718
+- head-tail-length: 23.228
+  max-internal-length: 25.198
   pdb: DMPE-02.pdb
-- head-tail-length: 20.739
+- head-tail-length: 22.686
+  max-internal-length: 24.787
   pdb: DMPE-03.pdb
-- head-tail-length: 20.544
+- head-tail-length: 20.851
+  max-internal-length: 23.643
   pdb: DMPE-04.pdb
-- head-tail-length: 19.299
+- head-tail-length: 19.281
+  max-internal-length: 22.435
   pdb: DMPE-05.pdb
-- head-tail-length: 18.943
+- head-tail-length: 19.365
+  max-internal-length: 23.385
   pdb: DMPE-06.pdb
-- head-tail-length: 18.826
+- head-tail-length: 18.895
+  max-internal-length: 23.268
   pdb: DMPE-07.pdb
-- head-tail-length: 19.104
+- head-tail-length: 19.197
+  max-internal-length: 23.358
   pdb: DMPE-08.pdb
-- head-tail-length: 17.489
+- head-tail-length: 17.173
+  max-internal-length: 23.337
   pdb: DMPE-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 69
   - name: C314
     serial: 106
+synonym: 2,3 dimyristoyl-D-glycero-1-Phosphatidylethanolamine

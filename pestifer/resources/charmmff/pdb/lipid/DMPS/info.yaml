@@ -1,24 +1,34 @@
 charge: -1.0
 conformers:
-- head-tail-length: 20.793
+- head-tail-length: 21.815
+  max-internal-length: 24.735
   pdb: DMPS-00.pdb
-- head-tail-length: 21.856
+- head-tail-length: 21.904
+  max-internal-length: 23.6
   pdb: DMPS-01.pdb
-- head-tail-length: 20.285
+- head-tail-length: 20.518
+  max-internal-length: 23.988
   pdb: DMPS-02.pdb
-- head-tail-length: 20.292
+- head-tail-length: 21.283
+  max-internal-length: 24.761
   pdb: DMPS-03.pdb
-- head-tail-length: 20.478
+- head-tail-length: 19.068
+  max-internal-length: 22.379
   pdb: DMPS-04.pdb
-- head-tail-length: 20.058
+- head-tail-length: 19.615
+  max-internal-length: 23.171
   pdb: DMPS-05.pdb
-- head-tail-length: 20.075
+- head-tail-length: 20.277
+  max-internal-length: 22.649
   pdb: DMPS-06.pdb
-- head-tail-length: 18.957
+- head-tail-length: 21.443
+  max-internal-length: 24.007
   pdb: DMPS-07.pdb
-- head-tail-length: 18.069
+- head-tail-length: 19.711
+  max-internal-length: 22.109
   pdb: DMPS-08.pdb
-- head-tail-length: 18.381
+- head-tail-length: 18.97
+  max-internal-length: 21.767
   pdb: DMPS-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 71
   - name: C314
     serial: 108
+synonym: 2,3 dimyristoyl-D-glycero-1-Phosphatidylserine

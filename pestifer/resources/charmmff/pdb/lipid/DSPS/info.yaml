@@ -1,24 +1,34 @@
 charge: -1.0
 conformers:
-- head-tail-length: 25.075
+- head-tail-length: 25.807
+  max-internal-length: 29.344
   pdb: DSPS-00.pdb
-- head-tail-length: 23.379
+- head-tail-length: 25.558
+  max-internal-length: 28.782
   pdb: DSPS-01.pdb
-- head-tail-length: 24.572
+- head-tail-length: 24.426
+  max-internal-length: 27.703
   pdb: DSPS-02.pdb
-- head-tail-length: 24.74
+- head-tail-length: 23.798
+  max-internal-length: 27.896
   pdb: DSPS-03.pdb
-- head-tail-length: 23.916
+- head-tail-length: 22.762
+  max-internal-length: 26.479
   pdb: DSPS-04.pdb
-- head-tail-length: 23.962
+- head-tail-length: 24.461
+  max-internal-length: 27.729
   pdb: DSPS-05.pdb
-- head-tail-length: 21.597
+- head-tail-length: 25.675
+  max-internal-length: 29.067
   pdb: DSPS-06.pdb
-- head-tail-length: 21.973
+- head-tail-length: 25.515
+  max-internal-length: 28.962
   pdb: DSPS-07.pdb
-- head-tail-length: 20.85
+- head-tail-length: 25.491
+  max-internal-length: 28.189
   pdb: DSPS-08.pdb
-- head-tail-length: 20.236
+- head-tail-length: 25.634
+  max-internal-length: 29.889
   pdb: DSPS-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 83
   - name: C318
     serial: 132
+synonym: 2,3-distearoyl-D-glycero-1-Phosphatidylserine

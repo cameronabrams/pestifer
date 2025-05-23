@@ -1,24 +1,34 @@
 charge: 0.0
 conformers:
-- head-tail-length: 27.807
+- head-tail-length: 24.027
+  max-internal-length: 31.59
   pdb: SOPE-00.pdb
-- head-tail-length: 27.459
+- head-tail-length: 25.679
+  max-internal-length: 31.608
   pdb: SOPE-01.pdb
-- head-tail-length: 26.004
+- head-tail-length: 25.786
+  max-internal-length: 30.29
   pdb: SOPE-02.pdb
-- head-tail-length: 23.918
+- head-tail-length: 23.867
+  max-internal-length: 28.335
   pdb: SOPE-03.pdb
-- head-tail-length: 23.209
+- head-tail-length: 22.337
+  max-internal-length: 27.932
   pdb: SOPE-04.pdb
-- head-tail-length: 22.333
+- head-tail-length: 21.228
+  max-internal-length: 27.022
   pdb: SOPE-05.pdb
-- head-tail-length: 22.603
+- head-tail-length: 22.717
+  max-internal-length: 28.177
   pdb: SOPE-06.pdb
-- head-tail-length: 22.839
+- head-tail-length: 24.604
+  max-internal-length: 28.119
   pdb: SOPE-07.pdb
-- head-tail-length: 22.443
+- head-tail-length: 22.735
+  max-internal-length: 27.278
   pdb: SOPE-08.pdb
-- head-tail-length: 21.735
+- head-tail-length: 22.547
+  max-internal-length: 27.832
   pdb: SOPE-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -40,3 +50,4 @@ reference-atoms:
     serial: 79
   - name: C318
     serial: 128
+synonym: 1-Stearoyl-2-Oleoyl-Phosphatidylethanolamine

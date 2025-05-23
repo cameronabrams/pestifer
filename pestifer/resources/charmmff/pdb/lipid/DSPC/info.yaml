@@ -1,24 +1,34 @@
 charge: 0.0
 conformers:
-- head-tail-length: 26.554
+- head-tail-length: 26.836
+  max-internal-length: 29.921
   pdb: DSPC-00.pdb
-- head-tail-length: 26.655
+- head-tail-length: 26.151
+  max-internal-length: 29.458
   pdb: DSPC-01.pdb
-- head-tail-length: 26.775
+- head-tail-length: 24.535
+  max-internal-length: 27.977
   pdb: DSPC-02.pdb
-- head-tail-length: 26.33
+- head-tail-length: 24.476
+  max-internal-length: 27.915
   pdb: DSPC-03.pdb
-- head-tail-length: 25.87
+- head-tail-length: 25.136
+  max-internal-length: 28.449
   pdb: DSPC-04.pdb
-- head-tail-length: 25.751
+- head-tail-length: 26.338
+  max-internal-length: 29.231
   pdb: DSPC-05.pdb
-- head-tail-length: 24.791
+- head-tail-length: 26.642
+  max-internal-length: 29.837
   pdb: DSPC-06.pdb
-- head-tail-length: 24.197
+- head-tail-length: 27.293
+  max-internal-length: 30.366
   pdb: DSPC-07.pdb
-- head-tail-length: 23.486
+- head-tail-length: 26.672
+  max-internal-length: 30.129
   pdb: DSPC-08.pdb
-- head-tail-length: 22.756
+- head-tail-length: 22.827
+  max-internal-length: 29.014
   pdb: DSPC-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 90
   - name: C318
     serial: 139
+synonym: 2,3 distearoyl-D-glycero-1-Phosphatidylcholine

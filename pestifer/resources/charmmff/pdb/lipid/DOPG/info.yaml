@@ -1,24 +1,34 @@
 charge: -1.0
 conformers:
-- head-tail-length: 23.708
+- head-tail-length: 23.332
+  max-internal-length: 26.974
   pdb: DOPG-00.pdb
-- head-tail-length: 22.443
+- head-tail-length: 23.944
+  max-internal-length: 27.834
   pdb: DOPG-01.pdb
-- head-tail-length: 22.677
+- head-tail-length: 23.606
+  max-internal-length: 26.675
   pdb: DOPG-02.pdb
-- head-tail-length: 22.213
+- head-tail-length: 23.321
+  max-internal-length: 27.197
   pdb: DOPG-03.pdb
-- head-tail-length: 21.202
+- head-tail-length: 22.558
+  max-internal-length: 27.457
   pdb: DOPG-04.pdb
-- head-tail-length: 21.578
+- head-tail-length: 21.42
+  max-internal-length: 26.773
   pdb: DOPG-05.pdb
-- head-tail-length: 22.49
+- head-tail-length: 21.499
+  max-internal-length: 25.205
   pdb: DOPG-06.pdb
-- head-tail-length: 22.316
+- head-tail-length: 20.449
+  max-internal-length: 25.709
   pdb: DOPG-07.pdb
-- head-tail-length: 20.398
+- head-tail-length: 20.718
+  max-internal-length: 26.979
   pdb: DOPG-08.pdb
-- head-tail-length: 19.023
+- head-tail-length: 20.794
+  max-internal-length: 26.176
   pdb: DOPG-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 81
   - name: C318
     serial: 128
+synonym: 2,3-dioleoyl-D-glycero-1-phosphatidylglycerol

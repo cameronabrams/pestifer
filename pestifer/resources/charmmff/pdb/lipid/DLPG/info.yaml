@@ -1,24 +1,34 @@
 charge: -1.0
 conformers:
-- head-tail-length: 15.006
+- head-tail-length: 13.837
+  max-internal-length: 19.111
   pdb: DLPG-00.pdb
-- head-tail-length: 14.382
+- head-tail-length: 14.541
+  max-internal-length: 18.633
   pdb: DLPG-01.pdb
-- head-tail-length: 13.885
+- head-tail-length: 14.447
+  max-internal-length: 18.316
   pdb: DLPG-02.pdb
-- head-tail-length: 12.283
+- head-tail-length: 13.43
+  max-internal-length: 18.105
   pdb: DLPG-03.pdb
-- head-tail-length: 12.213
+- head-tail-length: 13.392
+  max-internal-length: 17.857
   pdb: DLPG-04.pdb
-- head-tail-length: 12.283
+- head-tail-length: 12.558
+  max-internal-length: 17.565
   pdb: DLPG-05.pdb
-- head-tail-length: 11.648
+- head-tail-length: 13.013
+  max-internal-length: 17.78
   pdb: DLPG-06.pdb
-- head-tail-length: 10.9
+- head-tail-length: 13.413
+  max-internal-length: 18.491
   pdb: DLPG-07.pdb
-- head-tail-length: 10.655
+- head-tail-length: 13.764
+  max-internal-length: 18.815
   pdb: DLPG-08.pdb
-- head-tail-length: 11.208
+- head-tail-length: 12.955
+  max-internal-length: 17.586
   pdb: DLPG-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 65
   - name: C312
     serial: 96
+synonym: 2,3 dilauroyl-D-glycero-1-Phosphatidylglycerol

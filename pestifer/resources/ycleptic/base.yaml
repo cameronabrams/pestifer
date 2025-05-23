@@ -70,6 +70,16 @@ directives:
             text: Custom charmmff parameter files
             default:
               - toppar_all36_moreions.str
+      - name: overrides
+        type: dict
+        text: Some overrides
+        directives:
+          - name: substreams
+            type: dict
+            text: stream overrides for certain resids
+            default:
+              C6DHPC: lipid
+              C7DHPC: lipid
   - name: psfgen
     type: dict
     text: Specifications for the psfgen plugin

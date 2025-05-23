@@ -1,24 +1,34 @@
 charge: 0.0
 conformers:
-- head-tail-length: 30.732
+- head-tail-length: 30.398
+  max-internal-length: 34.973
   pdb: SAPC-00.pdb
-- head-tail-length: 30.285
+- head-tail-length: 30.301
+  max-internal-length: 35.686
   pdb: SAPC-01.pdb
-- head-tail-length: 29.396
+- head-tail-length: 29.536
+  max-internal-length: 35.077
   pdb: SAPC-02.pdb
-- head-tail-length: 28.038
+- head-tail-length: 29.037
+  max-internal-length: 35.478
   pdb: SAPC-03.pdb
-- head-tail-length: 26.796
+- head-tail-length: 29.66
+  max-internal-length: 35.67
   pdb: SAPC-04.pdb
-- head-tail-length: 24.905
+- head-tail-length: 29.192
+  max-internal-length: 35.367
   pdb: SAPC-05.pdb
-- head-tail-length: 24.941
+- head-tail-length: 29.429
+  max-internal-length: 34.892
   pdb: SAPC-06.pdb
-- head-tail-length: 24.931
+- head-tail-length: 28.637
+  max-internal-length: 34.492
   pdb: SAPC-07.pdb
-- head-tail-length: 25.512
+- head-tail-length: 28.212
+  max-internal-length: 34.248
   pdb: SAPC-08.pdb
-- head-tail-length: 25.279
+- head-tail-length: 26.517
+  max-internal-length: 33.363
   pdb: SAPC-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 88
   - name: C318
     serial: 137
+synonym: 3-stearoyl-2-arachidonyl-D-glycero-1-phosphatidylcholine

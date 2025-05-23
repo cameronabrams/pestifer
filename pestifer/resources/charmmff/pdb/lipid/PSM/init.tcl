@@ -1,5 +1,5 @@
-############################## pestifer: init.tcl ##############################
-####################### Created Fri Sep 20 15:44:18 2024 #######################
+# pestifer: init.tcl
+####################### Created Thu May 22 14:37:25 2025 #######################
 package require psfgen
 psfcontext mixedcase
 topology top_all36_prot.rtf
@@ -41,8 +41,10 @@ pdbalias residue H2PO H2PO4
 pdbalias residue MAN AMAN
 pdbalias residue BMA BMAN
 pdbalias residue NAG BGLCNA
+pdbalias residue NDG AGLCNA
 pdbalias residue BGLC BGLCNA
 pdbalias residue FUC AFUC
+pdbalias residue FUL BFUC
 pdbalias residue GAL BGAL
 pdbalias residue ANE5 ANE5AC
 pdbalias residue SIA ANE5AC

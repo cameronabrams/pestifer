@@ -2,13 +2,13 @@
 #
 # Facilitates reading and parsing of CHARMM RESI and MASS records from rtp and str files
 #
-import glob 
 import logging
 import os
 import networkx as nx
 import numpy as np
 from collections import UserDict, UserList
 from itertools import compress, batched
+from .config import Config
 from .resourcemanager import ResourceManager
 from .stringthings import linesplit
 
@@ -422,6 +422,12 @@ class CharmmTopResi:
                 tailatom=ta
         assert tailatom!=None
         self.annotation['tails']=[tailatom]
+        WG=G.copy()
+        self.annotation['shortest_paths']={
+            head:{
+                tail:len(nx.shortest_path(WG,source=head,target=tail)) for tail in self.annotation['tails']
+                } for head in self.annotation['heads']
+            }
 
         logger.debug(f'annotation {self.annotation}')
 
@@ -642,6 +648,8 @@ def getResis(topfile,masses=[]):
 class CharmmResiDatabase(UserDict):
     def __init__(self):  # initialize from standard topology files in the topmost directory
         self.resources=ResourceManager()
+        self.default_config=Config()
+        self.overrides=self.default_config['user']['charmmff'].get('overrides',{})
         self.charmmff_content=self.resources.charmmff_content
         self.get_abs_path=self.charmmff_content.get_abs_path
         stdtops=self.charmmff_content.top+self.charmmff_content.toppar

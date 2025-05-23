@@ -1,24 +1,34 @@
 charge: -1.0
 conformers:
-- head-tail-length: 18.488
+- head-tail-length: 18.916
+  max-internal-length: 22.414
   pdb: DMPA-00.pdb
-- head-tail-length: 17.93
+- head-tail-length: 17.724
+  max-internal-length: 23.666
   pdb: DMPA-01.pdb
-- head-tail-length: 18.095
+- head-tail-length: 18.549
+  max-internal-length: 23.387
   pdb: DMPA-02.pdb
-- head-tail-length: 17.132
+- head-tail-length: 17.352
+  max-internal-length: 22.419
   pdb: DMPA-03.pdb
-- head-tail-length: 16.76
+- head-tail-length: 17.164
+  max-internal-length: 22.25
   pdb: DMPA-04.pdb
-- head-tail-length: 17.742
+- head-tail-length: 17.979
+  max-internal-length: 22.07
   pdb: DMPA-05.pdb
-- head-tail-length: 18.609
+- head-tail-length: 18.607
+  max-internal-length: 21.616
   pdb: DMPA-06.pdb
-- head-tail-length: 18.815
+- head-tail-length: 18.707
+  max-internal-length: 22.189
   pdb: DMPA-07.pdb
-- head-tail-length: 19.196
+- head-tail-length: 18.943
+  max-internal-length: 22.155
   pdb: DMPA-08.pdb
-- head-tail-length: 17.536
+- head-tail-length: 19.018
+  max-internal-length: 22.53
   pdb: DMPA-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 60
   - name: C314
     serial: 97
+synonym: 2,3 dimyristoyl-D-glycero-1-Phosphatidic acid

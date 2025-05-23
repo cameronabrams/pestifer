@@ -1,24 +1,34 @@
 charge: 0.0
 conformers:
-- head-tail-length: 28.589
+- head-tail-length: 27.983
+  max-internal-length: 30.862
   pdb: POPE-00.pdb
-- head-tail-length: 27.217
+- head-tail-length: 25.619
+  max-internal-length: 29.434
   pdb: POPE-01.pdb
-- head-tail-length: 26.715
+- head-tail-length: 26.683
+  max-internal-length: 29.33
   pdb: POPE-02.pdb
-- head-tail-length: 25.567
+- head-tail-length: 25.295
+  max-internal-length: 27.943
   pdb: POPE-03.pdb
-- head-tail-length: 23.99
+- head-tail-length: 24.488
+  max-internal-length: 27.741
   pdb: POPE-04.pdb
-- head-tail-length: 24.832
+- head-tail-length: 24.266
+  max-internal-length: 27.942
   pdb: POPE-05.pdb
-- head-tail-length: 23.988
+- head-tail-length: 24.199
+  max-internal-length: 27.511
   pdb: POPE-06.pdb
-- head-tail-length: 23.808
+- head-tail-length: 24.413
+  max-internal-length: 27.176
   pdb: POPE-07.pdb
-- head-tail-length: 21.782
+- head-tail-length: 25.555
+  max-internal-length: 28.276
   pdb: POPE-08.pdb
-- head-tail-length: 21.473
+- head-tail-length: 26.549
+  max-internal-length: 29.399
   pdb: POPE-09.pdb
 parameters:
 - par_all36m_prot.prm

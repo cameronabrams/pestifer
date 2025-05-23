@@ -1,24 +1,34 @@
 charge: 0.0
 conformers:
-- head-tail-length: 20.145
+- head-tail-length: 20.339
+  max-internal-length: 25.986
   pdb: DLPE-00.pdb
-- head-tail-length: 20.158
+- head-tail-length: 19.709
+  max-internal-length: 25.139
   pdb: DLPE-01.pdb
-- head-tail-length: 18.405
+- head-tail-length: 17.943
+  max-internal-length: 23.105
   pdb: DLPE-02.pdb
-- head-tail-length: 19.831
+- head-tail-length: 19.364
+  max-internal-length: 24.257
   pdb: DLPE-03.pdb
-- head-tail-length: 19.679
+- head-tail-length: 20.185
+  max-internal-length: 24.696
   pdb: DLPE-04.pdb
-- head-tail-length: 20.461
+- head-tail-length: 19.305
+  max-internal-length: 23.39
   pdb: DLPE-05.pdb
-- head-tail-length: 20.3
+- head-tail-length: 18.432
+  max-internal-length: 22.098
   pdb: DLPE-06.pdb
-- head-tail-length: 20.228
+- head-tail-length: 16.348
+  max-internal-length: 21.687
   pdb: DLPE-07.pdb
-- head-tail-length: 20.403
+- head-tail-length: 16.471
+  max-internal-length: 20.743
   pdb: DLPE-08.pdb
-- head-tail-length: 21.205
+- head-tail-length: 15.368
+  max-internal-length: 20.81
   pdb: DLPE-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 63
   - name: C312
     serial: 94
+synonym: 2,3 dilauroyl-D-glycero-1-Phosphatidylethanolamine

@@ -1,24 +1,34 @@
 charge: 0.0
 conformers:
-- head-tail-length: 25.024
+- head-tail-length: 24.919
+  max-internal-length: 29.888
   pdb: DMPC-00.pdb
-- head-tail-length: 24.295
+- head-tail-length: 25.421
+  max-internal-length: 30.068
   pdb: DMPC-01.pdb
-- head-tail-length: 23.467
+- head-tail-length: 24.566
+  max-internal-length: 29.649
   pdb: DMPC-02.pdb
-- head-tail-length: 24.096
+- head-tail-length: 23.49
+  max-internal-length: 28.521
   pdb: DMPC-03.pdb
-- head-tail-length: 23.436
+- head-tail-length: 24.367
+  max-internal-length: 30.273
   pdb: DMPC-04.pdb
-- head-tail-length: 23.442
+- head-tail-length: 23.526
+  max-internal-length: 30.132
   pdb: DMPC-05.pdb
-- head-tail-length: 23.075
+- head-tail-length: 23.182
+  max-internal-length: 29.736
   pdb: DMPC-06.pdb
-- head-tail-length: 23.218
+- head-tail-length: 21.898
+  max-internal-length: 28.402
   pdb: DMPC-07.pdb
-- head-tail-length: 23.807
+- head-tail-length: 21.787
+  max-internal-length: 27.556
   pdb: DMPC-08.pdb
-- head-tail-length: 23.351
+- head-tail-length: 21.486
+  max-internal-length: 26.782
   pdb: DMPC-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 78
   - name: C314
     serial: 115
+synonym: 2,3 dimyristoyl-D-glycero-1-Phosphatidylcholine

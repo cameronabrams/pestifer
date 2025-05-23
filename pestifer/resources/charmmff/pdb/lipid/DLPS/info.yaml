@@ -1,24 +1,34 @@
 charge: -1.0
 conformers:
-- head-tail-length: 18.881
+- head-tail-length: 17.619
+  max-internal-length: 20.951
   pdb: DLPS-00.pdb
-- head-tail-length: 17.7
+- head-tail-length: 17.071
+  max-internal-length: 21.827
   pdb: DLPS-01.pdb
-- head-tail-length: 16.783
+- head-tail-length: 15.713
+  max-internal-length: 20.445
   pdb: DLPS-02.pdb
-- head-tail-length: 15.562
+- head-tail-length: 15.453
+  max-internal-length: 20.318
   pdb: DLPS-03.pdb
-- head-tail-length: 15.542
+- head-tail-length: 14.594
+  max-internal-length: 20.177
   pdb: DLPS-04.pdb
-- head-tail-length: 16.988
+- head-tail-length: 16.041
+  max-internal-length: 21.716
   pdb: DLPS-05.pdb
-- head-tail-length: 14.833
+- head-tail-length: 15.117
+  max-internal-length: 20.338
   pdb: DLPS-06.pdb
-- head-tail-length: 13.715
+- head-tail-length: 15.699
+  max-internal-length: 20.477
   pdb: DLPS-07.pdb
-- head-tail-length: 13.988
+- head-tail-length: 14.851
+  max-internal-length: 20.77
   pdb: DLPS-08.pdb
-- head-tail-length: 12.187
+- head-tail-length: 14.613
+  max-internal-length: 20.614
   pdb: DLPS-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 65
   - name: C312
     serial: 96
+synonym: 2,3 dilauroyl-D-glycero-1-Phosphatidylserine

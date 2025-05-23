@@ -1,5 +1,5 @@
-############################## pestifer: init.tcl ##############################
-####################### Created Fri Sep 20 15:00:57 2024 #######################
+# pestifer: init.tcl
+####################### Created Thu May 22 13:59:56 2025 #######################
 package require psfgen
 psfcontext mixedcase
 topology top_all36_prot.rtf
@@ -11,7 +11,6 @@ topology top_all36_na.rtf
 topology toppar_water_ions.str
 topology toppar_all36_carb_glycopeptide.str
 topology toppar_all36_prot_modify_res.str
-topology top_all36_lipid.rtf
 topology toppar_all36_moreions.str
 pdbalias atom ILE CD1 CD
 pdbalias atom BGLCNA C7 C
@@ -41,8 +40,10 @@ pdbalias residue H2PO H2PO4
 pdbalias residue MAN AMAN
 pdbalias residue BMA BMAN
 pdbalias residue NAG BGLCNA
+pdbalias residue NDG AGLCNA
 pdbalias residue BGLC BGLCNA
 pdbalias residue FUC AFUC
+pdbalias residue FUL BFUC
 pdbalias residue GAL BGAL
 pdbalias residue ANE5 ANE5AC
 pdbalias residue SIA ANE5AC

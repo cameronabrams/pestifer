@@ -1,24 +1,34 @@
 charge: 0.0
 conformers:
-- head-tail-length: 19.257
+- head-tail-length: 18.915
+  max-internal-length: 22.496
   pdb: DLPC-00.pdb
-- head-tail-length: 18.826
+- head-tail-length: 16.601
+  max-internal-length: 21.743
   pdb: DLPC-01.pdb
-- head-tail-length: 16.908
+- head-tail-length: 16.487
+  max-internal-length: 20.076
   pdb: DLPC-02.pdb
-- head-tail-length: 16.4
+- head-tail-length: 17.058
+  max-internal-length: 21.445
   pdb: DLPC-03.pdb
-- head-tail-length: 16.813
+- head-tail-length: 16.735
+  max-internal-length: 22.103
   pdb: DLPC-04.pdb
-- head-tail-length: 14.95
+- head-tail-length: 16.058
+  max-internal-length: 21.904
   pdb: DLPC-05.pdb
-- head-tail-length: 14.868
+- head-tail-length: 17.345
+  max-internal-length: 23.048
   pdb: DLPC-06.pdb
-- head-tail-length: 14.752
+- head-tail-length: 18.116
+  max-internal-length: 21.694
   pdb: DLPC-07.pdb
-- head-tail-length: 15.272
+- head-tail-length: 16.783
+  max-internal-length: 20.237
   pdb: DLPC-08.pdb
-- head-tail-length: 14.033
+- head-tail-length: 17.206
+  max-internal-length: 21.032
   pdb: DLPC-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 72
   - name: C312
     serial: 103
+synonym: 2,3 dilauroyl-D-glycero-1-Phosphatidylcholine

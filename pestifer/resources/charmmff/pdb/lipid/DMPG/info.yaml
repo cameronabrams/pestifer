@@ -1,24 +1,34 @@
 charge: -1.0
 conformers:
-- head-tail-length: 17.954
+- head-tail-length: 17.91
+  max-internal-length: 24.744
   pdb: DMPG-00.pdb
-- head-tail-length: 17.449
+- head-tail-length: 17.366
+  max-internal-length: 24.26
   pdb: DMPG-01.pdb
-- head-tail-length: 18.108
+- head-tail-length: 16.618
+  max-internal-length: 23.931
   pdb: DMPG-02.pdb
-- head-tail-length: 17.516
+- head-tail-length: 16.473
+  max-internal-length: 22.99
   pdb: DMPG-03.pdb
-- head-tail-length: 17.193
+- head-tail-length: 16.949
+  max-internal-length: 21.645
   pdb: DMPG-04.pdb
-- head-tail-length: 16.816
+- head-tail-length: 17.248
+  max-internal-length: 22.277
   pdb: DMPG-05.pdb
-- head-tail-length: 14.879
+- head-tail-length: 16.704
+  max-internal-length: 21.483
   pdb: DMPG-06.pdb
-- head-tail-length: 16.028
+- head-tail-length: 16.323
+  max-internal-length: 21.05
   pdb: DMPG-07.pdb
-- head-tail-length: 16.104
+- head-tail-length: 15.018
+  max-internal-length: 21.83
   pdb: DMPG-08.pdb
-- head-tail-length: 16.098
+- head-tail-length: 13.721
+  max-internal-length: 21.879
   pdb: DMPG-09.pdb
 parameters:
 - par_all36m_prot.prm
@@ -39,3 +49,4 @@ reference-atoms:
     serial: 71
   - name: C314
     serial: 108
+synonym: 2,3 dimyristoyl-D-glycero-1-Phosphatidylglycerol
