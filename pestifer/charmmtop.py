@@ -612,7 +612,7 @@ def getResis(topfile,masses=[]):
         stream,substream=ftok[idx],''
     logger.debug(f'topfile {topfile} stream \'{stream}\' substream \'{substream}\'')
     R=[]
-    metadat=dict(charmmtopfile=topfile,stream=stream,substream=substream)
+    metadat=dict(charmmtopfile=os.path.basename(topfile),stream=stream,substream=substream)
     with open(topfile,'r') as f:
         lines=f.read().split('\n')
     residx=[]
@@ -642,23 +642,23 @@ def getResis(topfile,masses=[]):
 class CharmmResiDatabase(UserDict):
     def __init__(self):  # initialize from standard topology files in the topmost directory
         self.resources=ResourceManager()
-        self.toppardir=self.resources.get_charmmff_toppardir()
-        self.customdir=self.resources.get_charmmff_customdir()
-        self.toppath=[self.toppardir,self.customdir]
-        # get all atom types from standard charmmff topology files
-        stdtops=glob.glob(os.path.join(self.toppardir,'top_*.rtf'))
+        self.charmmff_content=self.resources.charmmff_content
+        self.get_abs_path=self.charmmff_content.get_abs_path
+        stdtops=self.charmmff_content.top+self.charmmff_content.toppar
         stdtops=[x for x in stdtops if 'ljpme' not in x]
-        stdtops.extend(glob.glob(os.path.join(self.toppardir,'toppar*.str')))
         self.all_charmm_topology_files=stdtops
         M=[]
         for f in stdtops:
-            M.extend(getMasses(f))
+            M.extend(getMasses(self.get_abs_path(f)))
         
         self.M=CharmmMasses(M)
         self.charmm_resnames=[]
         data={}
         for f in stdtops:
-            sublist=getResis(f,self.M)
+            sublist=getResis(self.get_abs_path(f),self.M)
+            if not sublist:
+                logger.debug(f'No RESI\'s found in {f}')
+                continue
             for resi in sublist:
                 stream,substream=resi.metadata['stream'],resi.metadata['substream']
                 if not stream in data:
@@ -674,24 +674,18 @@ class CharmmResiDatabase(UserDict):
         logger.debug(f'{len(self.M)} atomic mass records parsed')
 
     def add_topology(self,topfile,streamnameoverride=''):
-        if not topfile.startswith('/'):
-            for p in self.toppath:
-                top_abs=os.path.join(p,topfile)
-                if os.path.exists(top_abs):
-                    break
-            else:
-                logger.debug(f'{topfile} not found in {self.toppath}')
-                return -1
-        else:
-            top_abs=topfile
-        if top_abs in self.all_charmm_topology_files:
-            logger.debug(f'{topfile} has already been incorporated')
-            return self
+        resolved_file=self.get_abs_path(topfile)
+        if not os.path.exists(resolved_file):
+            logger.debug(f'{resolved_file} not found')
+            return
 
-        self.all_charmm_topology_files.append(top_abs)
-        newM=CharmmMasses(getMasses(top_abs))
+        if topfile in self.all_charmm_topology_files:
+            logger.debug(f'{topfile} already in the database')
+            return
+        self.all_charmm_topology_files.append(topfile)
+        newM=CharmmMasses(getMasses(resolved_file))
         self.M.update(newM)
-        sublist=getResis(top_abs,self.M)
+        sublist=getResis(resolved_file,self.M)
         for resi in sublist:
             stream,substream=resi.metadata['stream'],resi.metadata['substream']
             if streamnameoverride != '':
@@ -704,26 +698,30 @@ class CharmmResiDatabase(UserDict):
         self.charmm_resnames.sort()
         logger.debug(f'Appended {len(sublist)} RESI\'s and {len(newM)} mass records')
         logger.debug(f'Current streams: {" ".join(list(self.keys()))}')
-        return self
 
     def add_stream(self,streamname):
-        streamdir=os.path.join(self.toppardir,f'stream/{streamname}')
-        if not os.path.exists(streamdir):
-            logger.debug(f'{streamdir} not found')
-            return self
+        badstrings=['list','model','lipid_prot','ljpme','llo']
+        if streamname not in self.charmmff_content.streams:
+            logger.debug(f'{streamname} not found in the database')
+            return
 
-        allstream_strs=glob.glob(os.path.join(streamdir,'*.str'))
-        include_strs=[not ('cationpi_wyf' in x or 'list' in x or 'model' in x or 'lipid_prot' in x or 'ljpme' in x or 'llo' in x) for x in allstream_strs]
-        stream_strs=list(compress(allstream_strs,include_strs))
+        allstream_strs=self.charmmff_content.toppar_streams[streamname]
+        if not allstream_strs:
+            logger.debug(f'{streamname} has no associated topology files')
+            return
+        
+        stream_strs=[x for x in allstream_strs if not any([bad in x for bad in badstrings])]
         M=[]
-        for f in stream_strs: # already got masses from all rtf files
-            M.extend(getMasses(f))
+        for s in stream_strs:
+            if s in self.all_charmm_topology_files:
+                logger.debug(f'{s} already in the database')
+                continue
+            self.all_charmm_topology_files.append(s)
+            M.extend(getMasses(self.get_abs_path(s)))
         
         self.M.update(CharmmMasses(M))
-        for t in stream_strs:
-            if not t in self.all_charmm_topology_files:
-                self.all_charmm_topology_files.append(t)
-            sublist=getResis(t,self.M)
+        for s in stream_strs:
+            sublist=getResis(self.get_abs_path(s),self.M)
             for resi in sublist:
                 if resi.resname in self.charmm_resnames:
                     logger.debug(f'RESI {resi.resname} is already in the database')
@@ -732,8 +730,7 @@ class CharmmResiDatabase(UserDict):
                     if not stream in self:
                         self[stream]={}
                     self[stream][resi.resname]=resi
-                    self.charmm_resnames.append(resi.resname)
-        return self
+                    self.charmm_resnames.append(resi.resname)    
 
     def get_charmm_topfile(self,charmm_resid):
         if charmm_resid not in self.charmm_resnames:
@@ -746,7 +743,7 @@ class CharmmResiDatabase(UserDict):
     
     def get_topo(self,charmm_resid):
         if charmm_resid not in self.charmm_resnames:
-            logger.debug(f'resi {charmm_resid} is nowhere')
+            logger.debug(f'resi {charmm_resid} is not loaded in the database')
             return None
         for stream,data in self.items():
             elem=data.get(charmm_resid,None)

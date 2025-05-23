@@ -166,7 +166,7 @@ class Bilayer:
                 data['patn']+=species['patn']
                 data['charge']+=species['charge']*species['patn']
                 if 'chamber' in layer:
-                    data['avgMW']+=species['MW']*species['frac']
+                    data['avgMW']+=species['MW']*species['patn']
                 elif 'leaflet' in layer:
                     for lipid in data['composition']:
                         lipid['reference_length']=self.species_data[lipid['name']].get_ref_length(index=lipid.get('conf',0))
@@ -174,6 +174,7 @@ class Bilayer:
                             data['maxthickness']=lipid['reference_length']
                     logger.debug(f'{layer} maxthickness {data["maxthickness"]:.3f}')
             self.total_charge+=data['charge']
+            data['avgMW']/=data['patn']
 
         if self.total_charge!=0.0:
             logger.debug(f'Total charge of bilayer is {self.total_charge:.3f} e')
@@ -281,7 +282,7 @@ class Bilayer:
 
                 leaflet_thickness=leaflet['z-hi']-leaflet['z-lo']
                 logger.debug(f'Leaflet thickness {leaflet_thickness:.3f} {sA_}')
-                logger.debug(f'Lipid length {lipid_length:.3f} {sA_}')
+                logger.debug(f'Lipid {name} length {lipid_length:.3f} {sA_}')
                 if lipid_length>leaflet_thickness:
                     pm.addline(f'inside box {self.patch_ll_corner[0]:.3f} {self.patch_ll_corner[1]:.3f} {self.patch_ll_corner[2]:.3f} {self.patch_ur_corner[0]:.3f} {self.patch_ur_corner[1]:.3f} {self.patch_ur_corner[2]:.3f}',indents=1)
                     if leaflet is self.LL:

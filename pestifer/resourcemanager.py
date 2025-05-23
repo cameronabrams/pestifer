@@ -4,7 +4,7 @@
 import glob
 import os
 from . import resources
-from .charmffcontent import CHARMFFContent
+from .charmmffcontent import CHARMMFFContent
 
 import logging
 logger=logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class ResourceManager:
         self.resource_path={}
         for r in ResourceManager.base_resources:
             self.resource_path[r]=os.path.join(self.resources_path,r)
-        self.charmmff_content=CHARMFFContent(self.resource_path['charmmff'])
+        self.charmmff_content=CHARMMFFContent(self.resource_path['charmmff'])
         self.pdb_collection=self.charmmff_content.pdb_collection
 
     def __str__(self):

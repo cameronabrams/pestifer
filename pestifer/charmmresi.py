@@ -13,6 +13,7 @@ from itertools import product
 
 from pidibble.pdbparse import PDBParser
 from .charmmtop import CharmmResiDatabase
+from .config import Config
 from .controller import Controller
 from .psfutil.psfcontents import PSFContents
 from .scriptwriters import Psfgen, VMD
@@ -51,6 +52,8 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
         if substream=='cholesterol':
             pass
         elif substream=='detergent':
+            logger.debug('detergent')
+            logger.debug(f'heads: {heads}. tails: {tails}, shortest_paths: {shortest_paths}')
             pass
         else:
             if shortest_paths and any([len(v)>0 for v in shortest_paths.values()]) and heads and tails: # and len(tails)==2:
@@ -90,22 +93,24 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
         my_logger(f'{resid} is from stream {stream}',logger.debug,just='^',frame='!',fill='!')
         with open(f'{resid}-topo.rtf','w') as f:
             topo.to_file(f)
+    logger.debug(f'heads: {heads}')
     if len(heads)>0:
         # reorient molecule so head is at highest z position if molecule is rotated about its COM
         tasklist.append({'manipulate':{'mods':{'orient':[f'z,{heads[0]}']}}})
     # do a conformer-generation MD simulation
     tasklist.append({'md':{'ensemble':'NVT','nsteps':sample_steps,'dcdfreq':sample_steps//nsamples,'xstfreq':100,'temperature':sample_temperature,'index':99}})
 
-    C=Controller(userspecs={'tasks':tasklist},quiet=True)
+    config=Config()
+    C=Controller(config=config,userspecs={'tasks':tasklist})
     # First we de-novo generate a pdb/psf file using seeded internal coordinates
     W=Psfgen(C.config)
     if not charmm_topfile in W.charmmff_config['standard']['topologies']:
         W.charmmff_config['standard']['topologies'].append(charmm_topfile)
     if charmm_topfile.endswith('detergent.str'):
-        needed=os.path.join(DB.toppardir,'stream/lipid/toppar_all36_lipid_sphingo.str')
+        needed='toppar_all36_lipid_sphingo.str'
         W.charmmff_config['standard']['topologies'].append(needed)
     if charmm_topfile.endswith('initosol.str'):
-        needed=os.path.join(DB.toppardir,'stream/carb/toppar_all36_carb_glycolipid.str')
+        needed='toppar_all36_carb_glycolipid.str'
         W.charmmff_config['standard']['topologies'].append(needed)
 
     W.newscript('init')
@@ -133,23 +138,22 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
             needed=[]
             if 'toppar' in charmm_topfile: 
                 # this is a combined topology/parameter file; charmm_topfile is ABSOLUTE, so we need to add its RELATIVE path to the list of parameter files
-                charmm_topfile_rel=charmm_topfile.replace(DB.toppardir,'')
-                if not charmm_topfile_rel in task.writers['namd'].charmmff_config['standard']['parameters']:
-                    task.writers['namd'].charmmff_config['standard']['parameters'].append(charmm_topfile_rel)
+                if not charmm_topfile in task.writers['namd'].charmmff_config['standard']['parameters']:
+                    task.writers['namd'].charmmff_config['standard']['parameters'].append(charmm_topfile)
             if charmm_topfile.endswith('sphingo.str'):
-                needed=['stream/carb/toppar_all36_carb_imlab.str',
-                        'stream/lipid/toppar_all36_lipid_lps.str']
+                needed=['toppar_all36_carb_imlab.str',
+                        'toppar_all36_lipid_lps.str']
             if charmm_topfile.endswith('detergent.str'):
-                needed=['stream/lipid/toppar_all36_lipid_sphingo.str',
-                        'stream/lipid/toppar_all36_lipid_cholesterol.str',
-                        'stream/carb/toppar_all36_carb_glycolipid.str']
+                needed=['toppar_all36_lipid_sphingo.str',
+                        'toppar_all36_lipid_cholesterol.str',
+                        'toppar_all36_carb_glycolipid.str']
             if charmm_topfile.endswith('inositol.str'):
-                needed=['stream/carb/toppar_all36_carb_glycolipid.str']
+                needed=['toppar_all36_carb_glycolipid.str']
             if charmm_topfile.endswith('cardiolipin.str'):
-                needed=['stream/lipid/toppar_all36_lipid_bacterial.str']
+                needed=['toppar_all36_lipid_bacterial.str']
             if charmm_topfile.endswith('lps.str'):
-                needed=['stream/carb/toppar_all36_carb_imlab.str',
-                        'stream/lipid/toppar_all36_lipid_bacterial.str']
+                needed=['toppar_all36_carb_imlab.str',
+                        'toppar_all36_lipid_bacterial.str']
 
             for n in needed:
                 if n not in task.writers['namd'].charmmff_config['standard']['parameters']:
@@ -166,10 +170,20 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
             return -1
         
     # now sample
+    dcd=None
+    possible_dcds=['04-00-md-NVT.dcd','03-00-md-NVT.dcd']
+    for d in possible_dcds:
+        if os.path.exists(d):
+            dcd=d
+            break
+    if dcd is None:
+        return -1
+    if dcd=='03-00-md-NVT.dcd' and substream!='cholesterol':
+        return -1
     W=VMD(C.config)
     W.newscript('sample')
     W.addline(f'mol new {resid}-init.psf')
-    W.addline(f'mol addfile 99-00-md-NVT.dcd waitfor all')
+    W.addline(f'mol addfile 04-00-md-NVT.dcd waitfor all')
     W.addline(f'set a [atomselect top all]')
     W.addline(f'set b [atomselect top noh]')
     W.addline(f'set ref [atomselect top all]')
@@ -216,6 +230,12 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
         tail_z=np.array([x.z for x in pdbatoms if x.name in tails])
         length=np.array([np.abs(x-y) for x,y in product(head_z,tail_z)]).min()
         entry['head-tail-length']=float(f'{length:.3f}')
+        max_internal_length=0.0
+        for i,j in product(pdbatoms,pdbatoms):
+            internal_length=np.sqrt((i.z-j.z)**2+(i.y-j.y)**2+(i.x-j.x)**2)
+            if internal_length>max_internal_length:
+                max_internal_length=internal_length
+        entry['max-internal-length']=float(f'{max_internal_length:.3f}')
         info['conformers'].append(entry)
 
     info['synonym']=synonym

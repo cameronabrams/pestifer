@@ -33,10 +33,10 @@ class TerminateTask(MDTask):  #need to inherit for namdrun() method
 
     def make_package(self):
         specs=self.specs.get('package',{})
-        basename=specs.get('basename','my_system')
-        # logger.debug(f'make_package specs {specs}')
         if not specs:
+            logger.debug('no package specs found')
             return 0
+        basename=specs.get('basename','my_system')
         self.inherit_state()
         self.FC.clear()  # populate a file collector to make the tarball
         logger.debug(f'Packaging for namd using basename {basename}')

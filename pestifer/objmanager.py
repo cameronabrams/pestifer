@@ -104,7 +104,7 @@ class ObjManager(UserDict):
                     self[objcat][header]=LCls([])
                 for entry in objdict[header]:
                     assert type(entry) in [str,dict],f'Error: expected obj specification of type str or dict, got {type(entry)}'
-                    logger.debug(f'entry {entry}')
+                    logger.debug(f'entry {entry} objcat {objcat} header {header}')
                     self[objcat][header].append(Cls(entry))
 
     def retire(self,objcat):

@@ -6,7 +6,6 @@ the tasks.
 import logging
 import os
 
-from .basetask import BaseTask
 from .config import Config
 from .scriptwriters import Filewriter,Psfgen,VMD,NAMD
 from .tasks.terminate import TerminateTask

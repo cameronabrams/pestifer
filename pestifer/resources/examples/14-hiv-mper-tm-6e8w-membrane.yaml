@@ -4,25 +4,8 @@
 # 
 # Membrane-embedded build of HIV-1 gp41 MPER-TM trimer (6e8w)
 #
-# Notes:
-#   - Topology and parameters for cholesterol, sphingomyelin, and stearates 
-#     are not loaded by default, so we explicitly declare them here
 #
 title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in a model viral membrane
-# charmmff:
-#   standard:
-#     topologies:
-#       - toppar_all36_lipid_cholesterol.str
-#       - toppar_all36_lipid_sphingo.str
-#       - toppar_all36_lipid_lps.str
-#       - toppar_all36_lipid_miscellaneous.str
-#       - toppar_all36_carb_imlab.str
-#     parameters:
-#       - toppar_all36_lipid_cholesterol.str
-#       - toppar_all36_lipid_sphingo.str
-#       - toppar_all36_lipid_lps.str
-#       - toppar_all36_lipid_miscellaneous.str
-#       - toppar_all36_carb_imlab.str
 tasks:
   - psfgen:
       source:
@@ -34,41 +17,87 @@ tasks:
   - make_membrane_system:
       bilayer:
         SAPL: 50.0
-        scale_excluded_volume: 0.25
         composition:
           lower_leaflet:
             - name: POPE
               frac: 0.09
-              conf: 0
             - name: POPE
               frac: 0.09
-              conf: 0
             - name: SOPS
               frac: 0.18
-              conf: 0
             - name: SOPE
               frac: 0.30
-              conf: 0
             - name: CHL1
               frac: 0.43
-              conf: 0
           upper_leaflet:
             - name: PSM
               frac: 0.36
-              conf: 0
             - name: POPC
               frac: 0.17
-              conf: 0
             - name: CHL1
               frac: 0.47
-              conf: 0
         seed: 270272
-        nloop: 1000
-        nloop_all: 1000
+        nloop: 100
+        nloop_all: 100
+        relaxation_protocols:
+          patch:
+            - md:
+                ensemble: minimize
+                nsteps: 1000
+            - md:
+                ensemble: NVT
+                nsteps: 1000
+                temperature: 310
+            - md:
+                ensemble: NPT
+                nsteps: 1000
+                temperature: 310
+                pressure: 10.0
+            - md:
+                ensemble: NPT
+                nsteps: 2000
+                temperature: 310
+                pressure: 10.0
+            - md:
+                ensemble: NPT
+                nsteps: 4000
+                temperature: 310
+                pressure: 10.0
+            - md:
+                ensemble: NPT
+                nsteps: 8000
+                temperature: 310
+                pressure: 10.0
+            - md:
+                ensemble: NPT
+                nsteps: 16000
+                temperature: 310
+                pressure: 1.0
+            - md:
+                ensemble: NPT
+                nsteps: 32000
+                temperature: 310
+                pressure: 1.0
+          quilt:
+            - md:
+                ensemble: minimize
+            - md:
+                ensemble: NVT
+                nsteps: 1000
+                temperature: 310
+            - md:
+                ensemble: NPT
+                nsteps: 1000
+                temperature: 310
+                pressure: 1.0
+            - md:
+                ensemble: NPT
+                nsteps: 10000
+                temperature: 310
+                pressure: 1.0
       embed:
         xydist: 30
         zdist: 20
-        protein_radius_scaling: 0.9
         z_head_group: "protein and resid 667"
         z_tail_group: "protein and resid 710"
         z_ref_group: 
@@ -95,31 +124,7 @@ tasks:
         atoms: protein and name CA
   - md:
       ensemble: NPT
-      nsteps: 200
-  - md:
-      ensemble: NPT
-      nsteps: 400
-  - md:
-      ensemble: NPT
-      nsteps: 800
-  - md:
-      ensemble: NPT
-      nsteps: 1600
-  - md:
-      ensemble: NPT
-      nsteps: 3200
-  - md:
-      ensemble: NPT
       nsteps: 6400
-  - md:
-      ensemble: NPT
-      nsteps: 12800
-  - md:
-      ensemble: NPT
-      nsteps: 25600
-  - md:
-      ensemble: NPT
-      nsteps: 51200
   - md:
       ensemble: NPT
       nsteps: 102400
