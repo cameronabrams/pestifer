@@ -105,7 +105,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     # do a conformer-generation MD simulation
     tasklist.append({'md':{'ensemble':'NVT','nsteps':sample_steps,'dcdfreq':sample_steps//nsamples,'xstfreq':100,'temperature':sample_temperature,'index':99}})
 
-    config=Config()
+    config=Config(quiet=True)
     C=Controller(config=config,userspecs={'tasks':tasklist})
     # First we de-novo generate a pdb/psf file using seeded internal coordinates
     W=Psfgen(C.config)
@@ -176,6 +176,8 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
         
     # now sample
     dcd=None
+    # prefer 04-00-md-NVT.dcd, but if it doesn't exist, use 03-00-md-NVT.dcd, but
+    # only for sterols
     possible_dcds=['04-00-md-NVT.dcd','03-00-md-NVT.dcd']
     for d in possible_dcds:
         if os.path.exists(d):
@@ -184,11 +186,14 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     if dcd is None:
         return -1
     if dcd=='03-00-md-NVT.dcd' and substream!='cholesterol':
+        # we don't do any steered md for sterols, so the final
+        # dcd file is 03-00-md-NVT.dcd; otherwise, if there is no 
+        # 04-00-md-NVT.dcd, we bail
         return -1
     W=VMD(C.config)
     W.newscript('sample')
     W.addline(f'mol new {resid}-init.psf')
-    W.addline(f'mol addfile 04-00-md-NVT.dcd waitfor all')
+    W.addline(f'mol addfile {dcd} waitfor all')
     W.addline(f'set a [atomselect top all]')
     W.addline(f'set b [atomselect top noh]')
     W.addline(f'set ref [atomselect top all]')
@@ -226,6 +231,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
         }
 
     pdbs=[os.path.basename(x) for x in glob.glob(f'{resid}-??.pdb')]
+    logger.debug(f'found {len(pdbs)} pdbs')
     for pdb in pdbs:
         entry={}
         p=PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()

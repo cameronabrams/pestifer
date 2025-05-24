@@ -169,7 +169,7 @@ class Bilayer:
                     data['avgMW']+=species['MW']*species['patn']
                 elif 'leaflet' in layer:
                     for lipid in data['composition']:
-                        lipid['reference_length']=self.species_data[lipid['name']].get_ref_length(index=lipid.get('conf',0))
+                        lipid['reference_length']=self.species_data[lipid['name']].get_head_tail_length(index=lipid.get('conf',0))
                         if lipid['reference_length']>data['maxthickness']:
                             data['maxthickness']=lipid['reference_length']
                     logger.debug(f'{layer} maxthickness {data["maxthickness"]:.3f}')
@@ -267,54 +267,65 @@ class Bilayer:
     def write_packmol(self,pm,half_mid_zgap=2.0,rotation_pm=0.0,nloop=100):
         # first patch-specific packmol directives
         pm.addline(f'pbc {" ".join([f"{_:.3f}" for _ in self.patch_ll_corner])} {" ".join([f"{_:.3f}" for _ in self.patch_ur_corner])}')
-
+        ll=self.patch_ll_corner
+        ur=self.patch_ur_corner
         for leaflet in [self.LL,self.UL]:
             logger.debug(f'Leaflet species to pack :{leaflet["composition"]}')
             for specs in leaflet['composition']:
                 name=specs['name']
+                logger.debug(f'Packing {name}')
+                lipid_max_length=self.species_data[name].get_max_internal_length(index=specs.get('conf',0))
+                lipid_headtail_length=self.species_data[name].get_head_tail_length(index=specs.get('conf',0))
+                lipid_overhang=lipid_max_length-lipid_headtail_length
+                leaflet_thickness=leaflet['z-hi']-leaflet['z-lo']
                 ref_atoms=self.species_data[name].get_ref_atoms()
                 hs=' '.join([f"{x['serial']}" for x in ref_atoms['heads']])
                 ts=' '.join([f"{x['serial']}" for x in ref_atoms['tails']])
                 n=specs['patn']
                 pm.addline(f'structure {specs["local_name"]}')
+                pm.comment(f'  max int length {lipid_max_length:.3f}, head-tail length {lipid_headtail_length:.3f}, overhang {lipid_overhang:.3f}')
                 pm.addline(f'number {n}',indents=1)
-                lipid_length=self.species_data[name].get_ref_length(index=specs.get('conf',0))
-
-                leaflet_thickness=leaflet['z-hi']-leaflet['z-lo']
-                logger.debug(f'Leaflet thickness {leaflet_thickness:.3f} {sA_}')
-                logger.debug(f'Lipid {name} length {lipid_length:.3f} {sA_}')
-                if lipid_length>leaflet_thickness:
-                    pm.addline(f'inside box {self.patch_ll_corner[0]:.3f} {self.patch_ll_corner[1]:.3f} {self.patch_ll_corner[2]:.3f} {self.patch_ur_corner[0]:.3f} {self.patch_ur_corner[1]:.3f} {self.patch_ur_corner[2]:.3f}',indents=1)
-                    if leaflet is self.LL:
-                        below_plane_z=leaflet['z-lo']
-                        above_plane_z=leaflet['z-hi']-half_mid_zgap
-                        pm.addline(f'atoms {hs}',indents=1)
-                        pm.addline(f'below plane 0. 0. 1. {below_plane_z:.3f}',indents=2)
-                        pm.addline( 'end atoms',indents=1)
-                        pm.addline(f'atoms {ts}',indents=1)
-                        pm.addline(f'above plane 0. 0. 1. {above_plane_z:.3f}',indents=2)
-                        pm.addline(f'below plane 0. 0. 1. {self.midplane_z:.3f}',indents=2)
-                        pm.addline( 'end atoms',indents=1)
-                    elif leaflet is self.UL:
-                        below_plane_z=leaflet['z-lo']+half_mid_zgap
-                        above_plane_z=leaflet['z-hi']   
-                        pm.addline(f'atoms {ts}',indents=1)
-                        pm.addline(f'below plane 0. 0. 1. {below_plane_z:.3f}',indents=2)
-                        pm.addline(f'above plane 0. 0. 1. {self.midplane_z:.3f}',indents=2)
-                        pm.addline( 'end atoms',indents=1)
-                        pm.addline(f'atoms {hs}',indents=1)
-                        pm.addline(f'above plane 0. 0. 1. {above_plane_z:.3f}',indents=2)
-                        pm.addline( 'end atoms',indents=1)
-                else:
+                # if the maximum length of the lipid is less than the desired leaflet thickness minus a margin,
+                # we can pack directly into the leaflet slab using contstrained rotation to orient
+                if lipid_max_length<leaflet_thickness:
+                    logger.debug(f' -> lipid length {lipid_max_length:.3f} < leaflet thickness {leaflet_thickness:.3f}')
                     if leaflet is self.LL:
                         constrain_rotation=180.0
                     elif leaflet is self.UL:
                         constrain_rotation=0.0
                     inside_z_lo=leaflet['z-lo']
                     inside_z_hi=leaflet['z-hi']
-                    pm.addline(f'inside box {self.patch_ll_corner[0]:.3f} {self.patch_ll_corner[1]:.3f} {inside_z_lo:.3f} {self.patch_ur_corner[0]:.3f} {self.patch_ur_corner[1]:.3f} {inside_z_hi:.3f}',indents=1)
+                    pm.addline(f'inside box {ll[0]:.3f} {ll[1]:.3f} {inside_z_lo:.3f} {ur[0]:.3f} {ur[1]:.3f} {inside_z_hi:.3f}',indents=1)
                     pm.addline(f'constrain_rotation x {constrain_rotation} {rotation_pm}',indents=1)
                     pm.addline(f'constrain_rotation y {constrain_rotation} {rotation_pm}',indents=1)
+                else:
+                    # we need to pack by specifying some atoms above a plane and other atoms below a different
+                    # plane, and the "inside box" should refer to the whole cell
+                    # if the head-tail length is GREATER than the leaflet thickness, we can use the
+                    # explicit leafleat boundaries as the planes
+                    if lipid_headtail_length>leaflet_thickness:
+                        below_plane_z=leaflet['z-lo']
+                        above_plane_z=leaflet['z-hi']-half_mid_zgap
+                    else:
+                        # if the head-tail length is less than the leaflet thickness, while the max internal
+                        # length is still greater, then we can't use the leaflet boundaries as the planes
+                        span=leaflet_thickness-lipid_headtail_length
+                        below_plane_z=leaflet['z-lo']+span/2.0
+                        above_plane_z=leaflet['z-hi']-span/2.0
+                    pm.addline(f'inside box {ll[0]:.3f} {ll[1]:.3f} {ll[2]:.3f} {ur[0]:.3f} {ur[1]:.3f} {ur[2]:.3f}',indents=1)
+                    pm.addline(f'atoms {hs}',indents=1)
+                    if leaflet is self.LL: # heads are low
+                        pm.addline(f'below plane 0. 0. 1. {below_plane_z:.3f}',indents=2)
+                    elif leaflet is self.UL: # heads are high
+                        pm.addline(f'above plane 0. 0. 1. {above_plane_z:.3f}',indents=2)
+                    pm.addline( 'end atoms',indents=1)
+                    pm.addline(f'atoms {ts}',indents=1)
+                    if leaflet is self.LL: # tails are high
+                        pm.addline(f'above plane 0. 0. 1. {above_plane_z:.3f}',indents=2)
+                    elif leaflet is self.UL: # tails are low
+                        pm.addline(f'below plane 0. 0. 1. {below_plane_z:.3f}',indents=2)
+                    pm.addline( 'end atoms',indents=1)
+
                 pm.addline(f'nloop {nloop}',indents=1)
                 pm.addline(f'end structure')
         for chamber in [self.LC,self.UC]:
@@ -326,8 +337,7 @@ class Bilayer:
                 pm.addline(f'number {n}',indents=1)
                 inside_z_lo=chamber['z-lo']
                 inside_z_hi=chamber['z-hi']
-                pm.addline(f'inside box {self.patch_ll_corner[0]:.3f} {self.patch_ll_corner[1]:.3f} {inside_z_lo:.3f} {self.patch_ur_corner[0]:.3f} {self.patch_ur_corner[1]:.3f} {inside_z_hi:.3f}',indents=1)
-
+                pm.addline(f'inside box {ll[0]:.3f} {ll[1]:.3f} {inside_z_lo:.3f} {ur[0]:.3f} {ur[1]:.3f} {inside_z_hi:.3f}',indents=1)
                 pm.addline(f'nloop {nloop}',indents=1)
                 pm.addline(f'end structure')
         pm.writefile()
@@ -387,7 +397,7 @@ class Bilayer:
             {'mdplot':dict(traces=['density',['a_x','b_y','c_z'],'pressure'],legend=True,grid=True,savedata=f'{basename}-traces.csv',basename=basename)},
             {'terminate':dict(basename=basename,chainmapfile=f'{basename}-chainmap.yaml',statefile=f'{basename}-state.yaml')}                 
         ]
-        subconfig=Config(userdict=user_dict)
+        subconfig=Config(userdict=user_dict,quiet=True)
         subcontroller=Controller(subconfig)
         for task in subcontroller.tasks:
             task_key=task.taskname

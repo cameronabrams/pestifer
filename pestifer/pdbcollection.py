@@ -35,7 +35,15 @@ class PDBInput:
     def get_charge(self):
         return self.info.get('charge',None)
     
-    def get_ref_length(self,index=0):
+    def get_max_internal_length(self,index=0):
+        conformers=self.info.get('conformers',[])
+        basename=os.path.basename(self.conformers[index])
+        for c in conformers:
+            if c['pdb']==basename:
+                return c['max-internal-length']
+        return 0.0
+
+    def get_head_tail_length(self,index=0):
         conformers=self.info.get('conformers',[])
         basename=os.path.basename(self.conformers[index])
         for c in conformers:

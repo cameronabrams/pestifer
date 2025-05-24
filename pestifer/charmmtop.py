@@ -648,7 +648,7 @@ def getResis(topfile,masses=[]):
 class CharmmResiDatabase(UserDict):
     def __init__(self):  # initialize from standard topology files in the topmost directory
         self.resources=ResourceManager()
-        self.default_config=Config()
+        self.default_config=Config(quiet=True)
         self.overrides=self.default_config['user']['charmmff'].get('overrides',{})
         self.charmmff_content=self.resources.charmmff_content
         self.get_abs_path=self.charmmff_content.get_abs_path

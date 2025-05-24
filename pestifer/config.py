@@ -28,6 +28,7 @@ class Config(Yclept):
     def __init__(self,userfile='',userdict={},quiet=False):
         vrep=f'ycleptic v. {version("ycleptic")}\npidibble v. {version("pidibble")}'
         self.RM=ResourceManager()
+        logger.debug(f'config quiet? {quiet}')
         if not quiet:
             my_logger(vrep,logger.info,just='<',frame='*',fill='',no_indent=True)
             my_logger(str(self.RM),logger.debug,just='<',frame='*',fill='',no_indent=True)

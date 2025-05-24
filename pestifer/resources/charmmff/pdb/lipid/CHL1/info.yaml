@@ -1,5 +1,35 @@
 charge: 0.0
-conformers: []
+conformers:
+- head-tail-length: 15.17
+  max-internal-length: 18.564
+  pdb: CHL1-00.pdb
+- head-tail-length: 15.05
+  max-internal-length: 18.939
+  pdb: CHL1-01.pdb
+- head-tail-length: 14.923
+  max-internal-length: 18.854
+  pdb: CHL1-02.pdb
+- head-tail-length: 14.902
+  max-internal-length: 18.935
+  pdb: CHL1-03.pdb
+- head-tail-length: 14.924
+  max-internal-length: 18.624
+  pdb: CHL1-04.pdb
+- head-tail-length: 15.459
+  max-internal-length: 19.115
+  pdb: CHL1-05.pdb
+- head-tail-length: 15.181
+  max-internal-length: 18.654
+  pdb: CHL1-06.pdb
+- head-tail-length: 15.048
+  max-internal-length: 19.033
+  pdb: CHL1-07.pdb
+- head-tail-length: 15.092
+  max-internal-length: 18.548
+  pdb: CHL1-08.pdb
+- head-tail-length: 14.774
+  max-internal-length: 18.666
+  pdb: CHL1-09.pdb
 parameters:
 - par_all36m_prot.prm
 - par_all36_carb.prm
