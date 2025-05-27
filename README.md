@@ -151,7 +151,7 @@ Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full d
 * 1.3.1
     * bug fixes for cleaving
 * 1.3.0
-    * Support for reading from already-build PSF/PDB systems
+    * Support for reading from already-built PSF/PDB systems
 * 1.2.9
     * improved declashing and domain-swapping
 * 1.2.8
