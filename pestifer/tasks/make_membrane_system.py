@@ -126,8 +126,6 @@ class MakeMembraneSystemTask(BaseTask):
         # as part of a list of tasks, this task expects to be fed a protein system to embed
         self.pro_psf=self.statevars.get('psf',None)
         if self.pro_psf is not None:
-            # self.pro_psc=PSFContents(self.pro_psf)
-            # self.pro_charge=self.pro_psc.get_charge()
             self.pro_pdb=self.statevars.get('pdb',None)
             if self.pro_psf is not None and self.pro_pdb is not None:
                 logger.debug(f'will use psf {self.pro_psf} and pdb {self.pro_pdb} as inputs')
@@ -136,8 +134,6 @@ class MakeMembraneSystemTask(BaseTask):
             self.build_patch()
             self.make_bilayer_from_patch()
         self.embed_protein()
-        # self.save_state(exts=['pdb','psf','xsc'])
-        # self.solvate()
         self.log_message('complete')
         return super().do()
 
@@ -183,7 +179,10 @@ class MakeMembraneSystemTask(BaseTask):
             patch.statevars['psf']=f'{self.basename}.psf'
             patch.statevars['xsc']=f'{self.basename}.xsc'
             self.next_basename(f'patch{spec}-equilibrate')
-            patch.equilibrate(user_dict=deepcopy(self.config['user']),basename=self.basename,index=self.index,spec=spec,relaxation_protocol=relaxation_protocol)
+            patch.equilibrate(user_dict=deepcopy(self.config['user']),
+                              basename=self.basename,index=self.index,
+                              spec=spec,relaxation_protocol=relaxation_protocol,
+                              parent_controller_index=self.controller_index)
 
     def make_bilayer_from_patch(self):
         logger.debug(f'Creating bilayer from patch')
@@ -236,7 +235,10 @@ class MakeMembraneSystemTask(BaseTask):
         self.quilt.box,self.quilt.origin=cell_from_xsc(f'{self.basename}.xsc')
         self.quilt.area=self.quilt.box[0][0]*self.quilt.box[1][1]
         relaxation_protocol=self.bilayer_specs.get('relaxation_protocols',{}).get('bilayer',{})
-        self.quilt.equilibrate(user_dict=deepcopy(self.config['user']),spec='',relaxation_protocol=relaxation_protocol)
+        self.quilt.equilibrate(user_dict=deepcopy(self.config['user']),
+                                spec='',
+                                relaxation_protocol=relaxation_protocol,
+                                parent_controller_index=self.controller_index)
 
     def embed_protein(self):
         if not self.embed_specs:

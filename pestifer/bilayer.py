@@ -360,7 +360,9 @@ class Bilayer:
             raise Exception(f'Packmol failed with result {result}')
         return packmol_output_pdb
 
-    def equilibrate(self,user_dict={},basename='equilibrate',index=0,spec='',relaxation_protocol=None):
+    def equilibrate(self,user_dict={},
+                    basename='equilibrate',index=0,spec='',
+                    relaxation_protocol=None,parent_controller_index=0):
         if user_dict=={}:
             return
         psf=self.statevars['psf']
@@ -398,7 +400,7 @@ class Bilayer:
             {'terminate':dict(basename=basename,chainmapfile=f'{basename}-chainmap.yaml',statefile=f'{basename}-state.yaml')}                 
         ]
         subconfig=Config(userdict=user_dict,quiet=True)
-        subcontroller=Controller(subconfig,index=self.controller_index+1)
+        subcontroller=Controller(subconfig,index=parent_controller_index+1)
         for task in subcontroller.tasks:
             task_key=task.taskname
             task.override_taskname(f'{basename}{spec}-'+task_key)
