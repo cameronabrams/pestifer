@@ -7,6 +7,8 @@ parameters controlling protein embedding
 
 Single-valued parameters:
 
+  * ``q_tolerance``: tolerance for net charge neutralization (default: 0.0001)
+
   * ``xydist``: distance from perimeter of protein to box edge in x and y (Å) (default: 15)
 
   * ``zdist``: distance from perimeter of protein to box edge in z (Å) (default: 20)

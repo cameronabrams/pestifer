@@ -22,7 +22,7 @@ Container-like parameter:
 .. toctree::
    :maxdepth: 1
 
-   md/addl_parmfiles
+   md/addl_paramfiles
 
 
 Subdirective:

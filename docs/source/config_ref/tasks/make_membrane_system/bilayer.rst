@@ -52,6 +52,7 @@ Subdirectives:
 .. toctree::
    :maxdepth: 1
 
+   bilayer/prebuilt
    bilayer/composition
    bilayer/relaxation_protocols
 

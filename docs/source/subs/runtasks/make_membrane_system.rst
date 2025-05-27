@@ -11,30 +11,47 @@ An example ``make_membrane_system`` task is specified below:
 
   - make_membrane_system:
       bilayer:
-         SAPL: 50.0
-         lipids: POPE:SOPS:SOPE:CHL1//PSM:POPC:CHL1
-         mole_fractions: 0.09:0.18:0.30:0.43//0.36:0.17:0.47
-         relaxation_protocols:
-           patch:
-             md:
-               ensemble: minimize
-               nsteps: 1000
-             md:
-               ensemble: NVT
-               nsteps: 1000
-             md:
-               ensemble: NPT
-               nsteps: 10000   
-           quilt:
-             md:
-               ensemble: minimize
-               nsteps: 1000
-             md:
-               ensemble: NVT
-               nsteps: 1000
-             md:
-               ensemble: NPT
-               nsteps: 1000       
+        SAPL: 50.0
+        composition:
+          lower_leaflet:
+            - name: POPE
+              frac: 0.09
+            - name: POPE
+              frac: 0.09
+            - name: SOPS
+              frac: 0.18
+            - name: SOPE
+              frac: 0.30
+            - name: CHL1
+              frac: 0.43
+          upper_leaflet:
+            - name: PSM
+              frac: 0.36
+            - name: POPC
+              frac: 0.17
+            - name: CHL1
+              frac: 0.47
+        relaxation_protocols:
+          patch:
+            md:
+              ensemble: minimize
+              nsteps: 1000
+            md:
+              ensemble: NVT
+              nsteps: 1000
+            md:
+              ensemble: NPT
+              nsteps: 10000   
+          quilt:
+            md:
+              ensemble: minimize
+              nsteps: 1000
+            md:
+              ensemble: NVT
+              nsteps: 1000
+            md:
+              ensemble: NPT
+              nsteps: 1000       
       embed:
         xydist: 30
         zdist: 20
@@ -50,14 +67,12 @@ There are two main directives in a ``make_membrane_system`` task:
 1. ``bilayer`` is a set of specifications for the composition of the bilayer that allows packmol to build it
    
    - ``SAPL`` is the initial surface area per lipid in Å².  This is just used to provide an initial lateral surface area into which the lipid molecules are packed.
-   - ``scale_excluded_volume`` is used to make the lipids "softer" during packing; I haven't really tested whether this is necessary.
-   - ``lipids`` allows one to specify the identities of the lipids molecules in each leaflet.  The two leaflets are separated by "//", and each leaflet is represented by a colon-delimited list of lipid molecules, each referenced by their charmff resnames.  We provide a set of PDB files for all lipid molecules defined in the base charmmff topology file ``top_all36_lipid.rtf``.  To see the full list:
+   - ``composition`` allows one to specify the identities and mole fractions of the lipids molecules in each leaflet.  We provide a set of PDB files for all lipid molecules defined in the base charmmff topology file ``top_all36_lipid.rtf`` along with a few select lipids defined in CHARMM lipid stream files.  To see the full list:
 
    .. code-block:: console
 
       $ pestifer show-resources --charmmff pdb
 
-   - ``mole_fractions`` is where you specify the mole fractions of each molecule in the same order as in the ``lipids`` directive.
    - ``relaxation_protocols`` is a set of protocols that are used to relax the bilayer patch and quilt.  Each protocol is a list of tasks, and each task is a dictionary with a single key-value pair.  The key is the name of the task, and the value is a dictionary of options for that task.  The example above shows how to use ``md`` tasks to perform energy minimization, NVT, and NPT equilibration.  The ``patch`` protocol is used to relax the initial bilayer patch, and the ``quilt`` protocol is used to relax the final quilted bilayer system. (``md`` tasks are currently the only supported task type in a ``relaxation_protocols`` directive.  All ``md`` task options are document in the Config Reference pages for :ref:`config_ref tasks md`.)
 
 2. ``embed`` is a set of specifications for embedding the protein in the bilayer.  
