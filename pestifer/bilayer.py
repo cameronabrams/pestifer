@@ -398,7 +398,7 @@ class Bilayer:
             {'terminate':dict(basename=basename,chainmapfile=f'{basename}-chainmap.yaml',statefile=f'{basename}-state.yaml')}                 
         ]
         subconfig=Config(userdict=user_dict,quiet=True)
-        subcontroller=Controller(subconfig)
+        subcontroller=Controller(subconfig,index=self.controller_index+1)
         for task in subcontroller.tasks:
             task_key=task.taskname
             task.override_taskname(f'{basename}{spec}-'+task_key)

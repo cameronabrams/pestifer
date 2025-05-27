@@ -34,11 +34,11 @@ class MakeMembraneSystemTask(BaseTask):
 
     """
     yaml_header='make_membrane_system'
-    def __init__(self,input_dict,taskname,config:Config,writers,prior):
-        super().__init__(input_dict,taskname,config,writers,prior)
+    def __init__(self,config_specs={},controller_specs={}):
+        super().__init__(config_specs,controller_specs)
         self.patchA=self.patchB=self.patch=None
-        self.progress=config.progress
-        self.pdb_collection=config.RM.pdb_collection
+        self.progress=self.config.progress
+        self.pdb_collection=self.config.RM.pdb_collection
         self.RDB=CharmmResiDatabase()
         self.RDB.add_stream('lipid')
         self.RDB.add_topology('toppar_all36_moreions.str',streamnameoverride='water_ions')

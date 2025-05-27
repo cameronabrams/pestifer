@@ -152,16 +152,6 @@ class MDTask(BaseTask):
             result=na.runscript(single_molecule=(not self.statevars['periodic']),local_execution_only=local_execution_only,single_gpu_only=single_gpu_only,cpu_override=cpu_override)
             if result!=0:
                 return -1
-            # inherited_etitles=[]
-            # if self.prior and self.prior.yaml_header=='md' and hasattr(self.prior,'mdlog'):
-            #     inherited_etitles=self.prior.mdlog.etitles
-            #     logger.debug(f'Offering these etitles: {inherited_etitles}')
-
-            # self.mdlog=na.getlog(inherited_etitles=inherited_etitles)
-
-            # if os.path.exists(f'{self.basename}.xst'):
-            #     self.xstlog=na.getxst()
-            #     logger.debug(f'{self.xstlog.df.shape[0]} xst entries stored')
 
             if ensemble.casefold()!='minimize'.casefold():
                 self.update_statevars('firsttimestep',firsttimestep+nsteps)

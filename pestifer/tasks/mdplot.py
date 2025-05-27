@@ -1,7 +1,5 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 # 
-
-
 import logging
 import matplotlib.pyplot as plt
 import pandas as pd

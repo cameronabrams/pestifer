@@ -70,24 +70,29 @@ class BaseTask(BaseObj):
         Updates this task's statevars dict subject to some controls.
 
     """
-    req_attr=BaseObj.req_attr+['specs','config','index','prior','writers','taskname']
+    req_attr=BaseObj.req_attr+['specs','config','index','prior','writers','taskname','controller_index']
     yaml_header='generic_task'
     init_msg_options=['INITIATED','STARTED','BEGUN','SET IN MOTION','KICKED OFF','LIT','SPANKED ON THE BOTTOM']
 
-    def __init__(self,input_dict,taskname,config,writers,prior):
-        specs=input_dict.copy()
+    def __init__(self,config_specs={},controller_specs={}):
+        specs=config_specs.copy()
+        prior=controller_specs.get('prior',None)
+        index=controller_specs.get('index',0)
+        writers=controller_specs.get('writers',{})
+        taskname=controller_specs.get('taskname','generic_task')
+        config=controller_specs.get('config',{})
+        controller_index=controller_specs.get('controller_index',0)
         if prior:
             index=prior.index+1
-        else:
-            index=specs.get('index',0)
         logger.debug(f'Creating task {taskname} with index {index}')
         input_dict = {
             'index':index,
-            'writers': writers,
+            'writers':writers,
             'prior':prior,
             'specs':specs,
             'config':config,
-            'taskname':taskname
+            'taskname':taskname,
+            'controller_index':controller_index
         }
         super().__init__(input_dict)
         self.subtaskcount=0
@@ -96,7 +101,6 @@ class BaseTask(BaseObj):
         self.result=0
 
     def override_taskname(self,taskname):
-        """ Override the task name. """
         logger.debug(f'Overriding task name {self.taskname} to {taskname}')
         self.taskname=taskname
 
@@ -104,7 +108,7 @@ class BaseTask(BaseObj):
         return self.result
 
     def __str__(self):
-        return f'{self.index} - {self.taskname} [has prior {self.prior!=None}]'
+        return f'{self.controller_index} - {self.index} - {self.taskname} [has prior {self.prior!=None}]'
 
     def log_message(self,message,**kwargs):
         extra=''
@@ -114,7 +118,7 @@ class BaseTask(BaseObj):
         mtoks=[x.strip() for x in [x.upper() for x in message.split()]]
         if not any([x in self.init_msg_options for x in mtoks]):
             extra+=f' (result: {self.result})'
-        logger.info(f'Task {self.index:02} \'{self.taskname}\' {message} {extra}')
+        logger.info(f'Controller {self.controller_index:02} Task {self.index:02} \'{self.taskname}\' {message} {extra}')
 
     def get_keepfiles(self):
         """ Returns a list of files that should be kept after the task is done """
@@ -127,9 +131,10 @@ class BaseTask(BaseObj):
         label=''
         if len(obj)==1 and len(obj[0])>0:
             label=f'-{obj[0]}'
-        default_basename=f'{self.index:02d}-{self.subtaskcount:02d}-{self.taskname}{label}'
+        default_basename=f'{self.controller_index:02d}-{self.index:02d}-{self.subtaskcount:02d}_{self.taskname}{label}'
         overwrite_basename=self.specs.get('basename',None)
         if overwrite_basename:
+            logger.debug(f'Overriding basename {default_basename} with {overwrite_basename}')
             self.basename=overwrite_basename
         else:
             self.basename=default_basename

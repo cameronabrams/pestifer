@@ -31,8 +31,8 @@ class PsfgenTask(BaseTask):
 
     """
     yaml_header='psfgen'
-    def __init__(self,input_dict,taskname,config,writers,prior):
-        super().__init__(input_dict,taskname,config,writers,prior)
+    def __init__(self,config_specs={},controller_specs={}):
+        super().__init__(config_specs,controller_specs)
         self.molecules={}
         self.keepfiles=[]
         if self.specs['source'].get('prebuilt',{}):
