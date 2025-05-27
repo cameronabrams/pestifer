@@ -87,5 +87,5 @@ class Controller:
                 break
         return task_report
 
-    def write_complete_config(self,filename='00-complete-user.yaml'):
+    def write_complete_config(self,filename='complete-user.yaml'):
         self.config.dump_user(filename=filename)
