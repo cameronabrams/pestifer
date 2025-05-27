@@ -412,7 +412,6 @@ class Bilayer:
         logger.debug(f'Bilayer area after equilibration: {self.area:.3f} {sA2_}')         
 
     def delete_lipid(self,vm,count,leaflet='upper'):
-        selstr="and z>0.0" if leaflet=='upper' else "and z<0.0"
         pdb=self.statevars['pdb']
         psf=self.statevars['psf']
         basenamepdb,dum=os.path.splitext(pdb)
