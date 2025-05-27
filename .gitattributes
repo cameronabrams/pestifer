@@ -1,2 +1,2 @@
-docs/** linguist-documentation
-resources/charmmff/** linguist-documentation
+docs/** linguist-documentation=false
+resources/charmmff/** linguist-documentation=false
