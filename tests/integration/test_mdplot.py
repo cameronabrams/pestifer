@@ -12,7 +12,9 @@ class Test_MDPlot(unittest.TestCase):
         logs.sort()
         xsts=glob.glob('*.xst')
         xsts.sort()
-        args=Namespace(logs=logs,xsts=xsts,basename='testmdplot',savedata='testsave.csv',figsize=[9,6],traces=['density',['a_x','b_y','c_z']])
+        args=Namespace(logs=logs,xsts=xsts,
+                       basename='testmdplot',
+                       savedata='testsave.csv',figsize=[9,6],traces=['density',['a_x','b_y','c_z']])
         mdplot(args)
 
         self.assertTrue(os.path.exists('testsave.csv'))

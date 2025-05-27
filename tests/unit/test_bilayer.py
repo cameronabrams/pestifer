@@ -322,6 +322,9 @@ def test_bilayer_build_patch():
     test_bilayer.build_patch()
     assert test_bilayer.patch_ll_corner[0]==pytest.approx(0.0, rel=1e-2)
     assert test_bilayer.patch_ll_corner[1]==pytest.approx(0.0, rel=1e-2)
-    assert test_bilayer.patch_ll_corner[2]==pytest.approx(-43.31, rel=1e-2)
+    assert test_bilayer.patch_ll_corner[2]==pytest.approx(0.0, rel=1e-2)
+    assert test_bilayer.patch_ur_corner[0]==pytest.approx(77.46, rel=1e-2)
+    assert test_bilayer.patch_ur_corner[1]==pytest.approx(77.46, rel=1e-2)
+    assert test_bilayer.patch_ur_corner[2]==pytest.approx(85.31, rel=1e-2)
     os.chdir('..')
     

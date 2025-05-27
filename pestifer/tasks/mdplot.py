@@ -66,7 +66,7 @@ class MDPlotTask(BaseTask):
                 apparent_basename=os.path.splitext(os.path.basename(f))[0]
                 l=NAMDLog(basename=apparent_basename)
                 l.static(f)
-                nrg=pd.concat([nrg,l.df])
+                nrg=pd.concat([nrg,l.energy_df])
             if len(self.specs['existing-xsts'])>0:
                 logger.debug(f'Extracting data from {len(self.specs["existing-xsts"])} explicitly named XST files...')
             for f in self.specs['existing-xsts']:

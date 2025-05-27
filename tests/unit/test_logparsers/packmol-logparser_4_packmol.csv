@@ -1,0 +1,3 @@
+iteration,radius_scaling,function_value_last,function_value_best,max_viol_dist,max_viol_constr,all_type_function_value
+0,1.1,0.02656,59881.0,0.0,0.012488,38684.0
+1,1.1,0.016635,0.02656,0.0,0.0051731,

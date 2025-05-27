@@ -4,6 +4,10 @@ charmmff:
     - toppar_all36_moreions.str
     topologies:
     - toppar_all36_moreions.str
+  overrides:
+    substreams:
+      C6DHPC: lipid
+      C7DHPC: lipid
   standard:
     parameters:
     - par_all36m_prot.prm
@@ -13,13 +17,8 @@ charmmff:
     - par_all36_na.prm
     - par_all36_cgenff.prm
     - toppar_water_ions.str
-    - stream/carb/toppar_all36_carb_glycopeptide.str
-    - stream/prot/toppar_all36_prot_modify_res.str
-    - stream/lipid/toppar_all36_lipid_cholesterol.str
-    - stream/lipid/toppar_all36_lipid_sphingo.str
-    - stream/lipid/toppar_all36_lipid_lps.str
-    - stream/lipid/toppar_all36_lipid_miscellaneous.str
-    - stream/carb/toppar_all36_carb_imlab.str
+    - toppar_all36_carb_glycopeptide.str
+    - toppar_all36_prot_modify_res.str
     topologies:
     - top_all36_prot.rtf
     - top_all35_ethers.rtf
@@ -28,13 +27,8 @@ charmmff:
     - top_all36_carb.rtf
     - top_all36_na.rtf
     - toppar_water_ions.str
-    - stream/carb/toppar_all36_carb_glycopeptide.str
-    - stream/prot/toppar_all36_prot_modify_res.str
-    - stream/lipid/toppar_all36_lipid_cholesterol.str
-    - stream/lipid/toppar_all36_lipid_sphingo.str
-    - stream/lipid/toppar_all36_lipid_lps.str
-    - stream/lipid/toppar_all36_lipid_miscellaneous.str
-    - stream/carb/toppar_all36_carb_imlab.str
+    - toppar_all36_carb_glycopeptide.str
+    - toppar_all36_prot_modify_res.str
 namd:
   barostat:
     langevinpiston: true
@@ -936,6 +930,7 @@ tasks:
           sac_res_name: GLY
       transform_reserves: {}
 - md:
+    addl_paramfiles: &id003 []
     constraints: {}
     cpu-override: true
     dcdfreq: 100
@@ -946,41 +941,158 @@ tasks:
     pressure: 1
     temperature: 300
     xstfreq: 100
-- bilayer:
-    SAPL: 50.0
-    anion: CLA
-    cation: POT
-    composition:
-      lower_leaflet:
-      - conf: 0
-        frac: 0.09
-        name: POPE
-      - conf: 0
-        frac: 0.09
-        name: POPE
-      - conf: 0
-        frac: 0.18
-        name: SOPS
-      - conf: 0
-        frac: 0.3
-        name: SOPE
-      - conf: 0
-        frac: 0.43
-        name: CHL1
-      upper_leaflet:
-      - conf: 0
-        frac: 0.36
-        name: PSM
-      - conf: 0
-        frac: 0.17
-        name: POPC
-      - conf: 0
-        frac: 0.47
-        name: CHL1
-    dims: []
+- make_membrane_system:
+    bilayer:
+      SAPL: 50.0
+      anion: CLA
+      cation: POT
+      composition:
+        lower_leaflet:
+        - frac: 0.09
+          name: POPE
+        - frac: 0.09
+          name: POPE
+        - frac: 0.18
+          name: SOPS
+        - frac: 0.3
+          name: SOPE
+        - frac: 0.43
+          name: CHL1
+        upper_leaflet:
+        - frac: 0.36
+          name: PSM
+        - frac: 0.17
+          name: POPC
+        - frac: 0.47
+          name: CHL1
+      dims: []
+      lipid_conformers: '0'
+      lipids: POPC
+      mole_fractions: '1.0'
+      nloop: 100
+      nloop_all: 100
+      npatch: []
+      patch_nlipids: 100
+      patch_thickness: 20.0
+      prebuilt: {}
+      relaxation_protocols:
+        patch:
+        - md:
+            addl_paramfiles: &id001 []
+            ensemble: minimize
+            nsteps: 1000
+            other_parameters:
+              useconstantratio: true
+              useflexiblecell: true
+            pressure: 1
+            temperature: 300
+        - md:
+            addl_paramfiles: *id001
+            ensemble: nvt
+            nsteps: 1000
+            other_parameters:
+              useconstantratio: true
+              useflexiblecell: true
+            pressure: 1
+            temperature: 310
+        - md:
+            addl_paramfiles: *id001
+            ensemble: npt
+            nsteps: 1000
+            other_parameters:
+              useconstantratio: true
+              useflexiblecell: true
+            pressure: 10.0
+            temperature: 310
+        - md:
+            addl_paramfiles: *id001
+            ensemble: npt
+            nsteps: 2000
+            other_parameters:
+              useconstantratio: true
+              useflexiblecell: true
+            pressure: 10.0
+            temperature: 310
+        - md:
+            addl_paramfiles: *id001
+            ensemble: npt
+            nsteps: 4000
+            other_parameters:
+              useconstantratio: true
+              useflexiblecell: true
+            pressure: 10.0
+            temperature: 310
+        - md:
+            addl_paramfiles: *id001
+            ensemble: npt
+            nsteps: 8000
+            other_parameters:
+              useconstantratio: true
+              useflexiblecell: true
+            pressure: 10.0
+            temperature: 310
+        - md:
+            addl_paramfiles: *id001
+            ensemble: npt
+            nsteps: 16000
+            other_parameters:
+              useconstantratio: true
+              useflexiblecell: true
+            pressure: 1.0
+            temperature: 310
+        - md:
+            addl_paramfiles: *id001
+            ensemble: npt
+            nsteps: 32000
+            other_parameters:
+              useconstantratio: true
+              useflexiblecell: true
+            pressure: 1.0
+            temperature: 310
+        quilt:
+        - md:
+            addl_parmfiles: &id002 []
+            ensemble: minimize
+            nsteps: 1000
+            other_parameters:
+              useconstantratio: true
+              useflexiblecell: true
+            pressure: 1
+            temperature: 300
+        - md:
+            addl_parmfiles: *id002
+            ensemble: NVT
+            nsteps: 1000
+            other_parameters:
+              useconstantratio: true
+              useflexiblecell: true
+            pressure: 1
+            temperature: 310
+        - md:
+            addl_parmfiles: *id002
+            ensemble: NPT
+            nsteps: 1000
+            other_parameters:
+              useconstantratio: true
+              useflexiblecell: true
+            pressure: 1.0
+            temperature: 310
+        - md:
+            addl_parmfiles: *id002
+            ensemble: NPT
+            nsteps: 10000
+            other_parameters:
+              useconstantratio: true
+              useflexiblecell: true
+            pressure: 1.0
+            temperature: 310
+      seed: 270272
+      solution_gcc: 1.0
+      solvent_mole_fractions: '1.0'
+      solvents: TIP3
     embed:
-      n_ter: in
-      protein_radius_scaling: 0.9
+      margin: 2.4
+      q_tolerance: 0.0001
       xydist: 30
       z_head_group: protein and resid 667
       z_ref_group:
@@ -988,19 +1100,8 @@ tasks:
         z_value: 0.0
       z_tail_group: protein and resid 710
       zdist: 20
-    fuzz_factor: 0.5
-    leaflet_thickness: 20.0
-    lipid_conformers: '0'
-    lipids: POPC
-    mole_fractions: '1.0'
-    nloop: 1000
-    nloop_all: 1000
-    scale_excluded_volume: 0.25
-    seed: 270272
-    solution_gcc: 1.0
-    solvent_mole_fractions: '1.0'
-    solvents: TIP3
 - md:
+    addl_paramfiles: *id003
     constraints:
       atoms: protein and name CA
       k: 10
@@ -1018,12 +1119,13 @@ tasks:
     segtypes:
     - lipid
 - md:
+    addl_paramfiles: *id003
     constraints:
       atoms: protein and name CA
       k: 10
     cpu-override: false
     dcdfreq: 100
-    ensemble: NVT
+    ensemble: nvt
     minimize: 1000
     nsteps: 1000
     other_parameters: {}
@@ -1031,12 +1133,13 @@ tasks:
     temperature: 300
     xstfreq: 100
 - md:
+    addl_paramfiles: *id003
     constraints:
       atoms: protein and name CA
       k: 1
     cpu-override: false
     dcdfreq: 100
-    ensemble: NVT
+    ensemble: nvt
     minimize: 1000
     nsteps: 1000
     other_parameters: {}
@@ -1044,65 +1147,11 @@ tasks:
     temperature: 300
     xstfreq: 100
 - md:
+    addl_paramfiles: *id003
     constraints: {}
     cpu-override: false
     dcdfreq: 100
-    ensemble: NPT
-    minimize: 1000
-    nsteps: 200
-    other_parameters: {}
-    pressure: 1
-    temperature: 300
-    xstfreq: 100
-- md:
-    constraints: {}
-    cpu-override: false
-    dcdfreq: 100
-    ensemble: NPT
-    minimize: 1000
-    nsteps: 400
-    other_parameters: {}
-    pressure: 1
-    temperature: 300
-    xstfreq: 100
-- md:
-    constraints: {}
-    cpu-override: false
-    dcdfreq: 100
-    ensemble: NPT
-    minimize: 1000
-    nsteps: 800
-    other_parameters: {}
-    pressure: 1
-    temperature: 300
-    xstfreq: 100
-- md:
-    constraints: {}
-    cpu-override: false
-    dcdfreq: 100
-    ensemble: NPT
-    minimize: 1000
-    nsteps: 1600
-    other_parameters: {}
-    pressure: 1
-    temperature: 300
-    xstfreq: 100
-- md:
-    constraints: {}
-    cpu-override: false
-    dcdfreq: 100
-    ensemble: NPT
-    minimize: 1000
-    nsteps: 3200
-    other_parameters: {}
-    pressure: 1
-    temperature: 300
-    xstfreq: 100
-- md:
-    constraints: {}
-    cpu-override: false
-    dcdfreq: 100
-    ensemble: NPT
+    ensemble: npt
     minimize: 1000
     nsteps: 6400
     other_parameters: {}
@@ -1110,43 +1159,11 @@ tasks:
     temperature: 300
     xstfreq: 100
 - md:
+    addl_paramfiles: *id003
     constraints: {}
     cpu-override: false
     dcdfreq: 100
-    ensemble: NPT
-    minimize: 1000
-    nsteps: 12800
-    other_parameters: {}
-    pressure: 1
-    temperature: 300
-    xstfreq: 100
-- md:
-    constraints: {}
-    cpu-override: false
-    dcdfreq: 100
-    ensemble: NPT
-    minimize: 1000
-    nsteps: 25600
-    other_parameters: {}
-    pressure: 1
-    temperature: 300
-    xstfreq: 100
-- md:
-    constraints: {}
-    cpu-override: false
-    dcdfreq: 100
-    ensemble: NPT
-    minimize: 1000
-    nsteps: 51200
-    other_parameters: {}
-    pressure: 1
-    temperature: 300
-    xstfreq: 100
-- md:
-    constraints: {}
-    cpu-override: false
-    dcdfreq: 100
-    ensemble: NPT
+    ensemble: npt
     minimize: 1000
     nsteps: 102400
     other_parameters: {}
@@ -1181,7 +1198,7 @@ tasks:
       basename: prod_6e8w
       constraints: {}
       dcdfreq: 10000
-      ensemble: NPT
+      ensemble: npt
       nminsteps: 0
       nsteps: 1000000
       pressure: 1

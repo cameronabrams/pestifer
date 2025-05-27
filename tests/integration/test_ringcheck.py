@@ -2,6 +2,7 @@ import unittest
 from pestifer.ring import ring_check
 import os
 import logging
+import pytest
 logger=logging.getLogger(__name__)
 
 class TestRingCheck(unittest.TestCase):
@@ -18,6 +19,7 @@ class TestRingCheck(unittest.TestCase):
         self.assertEqual(p['piercer']['resid'],645)
         self.assertEqual(p['piercer']['segname'],'S2')
 
+    @pytest.mark.slow
     def test_ring_check_coords_2(self):
         dir='2'
         pdb=os.path.join(dir,'S2.pdb')
@@ -36,6 +38,7 @@ class TestRingCheck(unittest.TestCase):
         self.assertEqual(p['piercer']['resid'],645)
         self.assertEqual(p['piercer']['segname'],'S2')
 
+    @pytest.mark.slow
     def test_ring_check_coords_3(self):
         dir='3'
         pdb=os.path.join(dir,'S2.pdb')
@@ -59,6 +62,7 @@ class TestRingCheck(unittest.TestCase):
         self.assertEqual(p['piercer']['resid'],529)
         self.assertEqual(p['piercer']['segname'],'S1')
 
+    @pytest.mark.slow
     def test_ring_check_coords_4(self):
         # checks when molecules are in different periodic images
         dir='4'

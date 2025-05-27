@@ -4,6 +4,10 @@ charmmff:
     - toppar_all36_moreions.str
     topologies:
     - toppar_all36_moreions.str
+  overrides:
+    substreams:
+      C6DHPC: lipid
+      C7DHPC: lipid
   standard:
     parameters:
     - par_all36m_prot.prm
@@ -13,8 +17,8 @@ charmmff:
     - par_all36_na.prm
     - par_all36_cgenff.prm
     - toppar_water_ions.str
-    - stream/carb/toppar_all36_carb_glycopeptide.str
-    - stream/prot/toppar_all36_prot_modify_res.str
+    - toppar_all36_carb_glycopeptide.str
+    - toppar_all36_prot_modify_res.str
     topologies:
     - top_all36_prot.rtf
     - top_all35_ethers.rtf
@@ -23,8 +27,8 @@ charmmff:
     - top_all36_carb.rtf
     - top_all36_na.rtf
     - toppar_water_ions.str
-    - stream/carb/toppar_all36_carb_glycopeptide.str
-    - stream/prot/toppar_all36_prot_modify_res.str
+    - toppar_all36_carb_glycopeptide.str
+    - toppar_all36_prot_modify_res.str
 namd:
   barostat:
     langevinpiston: true
@@ -932,6 +936,7 @@ tasks:
           sac_res_name: GLY
       transform_reserves: {}
 - md:
+    addl_paramfiles: &id001 []
     constraints: {}
     cpu-override: false
     dcdfreq: 100
@@ -945,6 +950,7 @@ tasks:
 - solvate:
     pad: 10
 - md:
+    addl_paramfiles: *id001
     constraints: {}
     cpu-override: false
     dcdfreq: 100
@@ -956,10 +962,11 @@ tasks:
     temperature: 300
     xstfreq: 100
 - md:
+    addl_paramfiles: *id001
     constraints: {}
     cpu-override: false
     dcdfreq: 100
-    ensemble: NVT
+    ensemble: nvt
     minimize: 1000
     nsteps: 2000
     other_parameters: {}
@@ -967,10 +974,11 @@ tasks:
     temperature: 300
     xstfreq: 100
 - md:
+    addl_paramfiles: *id001
     constraints: {}
     cpu-override: false
     dcdfreq: 100
-    ensemble: NPT
+    ensemble: npt
     minimize: 1000
     nsteps: 200
     other_parameters: {}
@@ -978,10 +986,11 @@ tasks:
     temperature: 300
     xstfreq: 100
 - md:
+    addl_paramfiles: *id001
     constraints: {}
     cpu-override: false
     dcdfreq: 100
-    ensemble: NPT
+    ensemble: npt
     minimize: 1000
     nsteps: 400
     other_parameters: {}
@@ -989,10 +998,11 @@ tasks:
     temperature: 300
     xstfreq: 100
 - md:
+    addl_paramfiles: *id001
     constraints: {}
     cpu-override: false
     dcdfreq: 100
-    ensemble: NPT
+    ensemble: npt
     minimize: 1000
     nsteps: 800
     other_parameters: {}
@@ -1000,10 +1010,11 @@ tasks:
     temperature: 300
     xstfreq: 100
 - md:
+    addl_paramfiles: *id001
     constraints: {}
     cpu-override: false
     dcdfreq: 100
-    ensemble: NPT
+    ensemble: npt
     minimize: 1000
     nsteps: 1600
     other_parameters: {}
@@ -1011,10 +1022,11 @@ tasks:
     temperature: 300
     xstfreq: 100
 - md:
+    addl_paramfiles: *id001
     constraints: {}
     cpu-override: false
     dcdfreq: 100
-    ensemble: NPT
+    ensemble: npt
     minimize: 1000
     nsteps: 13200
     other_parameters: {}
@@ -1028,12 +1040,15 @@ tasks:
     figsize:
     - 9
     - 6
-    grid: false
+    grid: true
     legend: true
     savedata: solvated.csv
     traces:
     - density
     - density
+    - - a_x
+      - b_y
+      - c_z
     units:
       a_x: "\xC5"
       b_y: "\xC5"
@@ -1046,7 +1061,7 @@ tasks:
       basename: prod_6pti
       constraints: {}
       dcdfreq: 10000
-      ensemble: NPT
+      ensemble: npt
       nminsteps: 0
       nsteps: 1000000
       pressure: 1

@@ -26,6 +26,8 @@ Pestifer includes the [July 2024 Charmm36 force field](https://mackerell.umaryla
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
+* 1.11.1
+    * tests passed after minor updates
 * 1.11.0
     * New bilayer build protocol
     * New NAMD and packmol on-the-fly log parsing, including in standalone mode with the `follow-namd-log` subcommand
