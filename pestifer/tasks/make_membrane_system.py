@@ -136,6 +136,7 @@ class MakeMembraneSystemTask(BaseTask):
             self.build_patch()
             self.make_bilayer_from_patch()
         self.embed_protein()
+        # self.save_state(exts=['pdb','psf','xsc'])
         # self.solvate()
         self.log_message('complete')
         return super().do()
@@ -264,7 +265,8 @@ class MakeMembraneSystemTask(BaseTask):
         self.statevars['psf']=f'{self.basename}.psf'
         self.statevars['coor']=f'{self.basename}.coor'
         self.statevars['xsc']=f'{self.basename}.xsc'
-        if 'charmmff_paramfils' not in self.statevars:
+        del self.statevars['vel']
+        if 'charmmff_paramfiles' not in self.statevars:
             self.statevars['charmmff_paramfiles']=[]
         self.statevars['charmmff_paramfiles']+=self.quilt.addl_streamfiles
         self.statevars['charmmff_paramfiles']=list(set(self.statevars['charmmff_paramfiles']))
