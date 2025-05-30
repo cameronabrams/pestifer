@@ -1548,87 +1548,87 @@ directives:
                     type: list
                     default:
                       - md:
-                        ensemble: minimize
-                        nsteps: 1000
+                          ensemble: minimize
+                          nsteps: 1000
                       - md:
-                        ensemble: NVT
-                        nsteps: 1000
-                        temperature: 300
-                        other_parameters:
-                          useflexiblecell: True
-                          useconstantratio: True
+                          ensemble: NVT
+                          nsteps: 1000
+                          temperature: 300
+                          other_parameters:
+                            useflexiblecell: True
+                            useconstantratio: True
                       - md:
-                        ensemble: NPT
-                        nsteps: 200
-                        temperature: 300
-                        pressure: 10
-                        other_parameters:
-                          useflexiblecell: True
-                          useconstantratio: True
+                          ensemble: NPT
+                          nsteps: 200
+                          temperature: 300
+                          pressure: 10
+                          other_parameters:
+                            useflexiblecell: True
+                            useconstantratio: True
                       - md:
-                        ensemble: NPT
-                        nsteps: 200
-                        temperature: 300
-                        pressure: 10
-                        other_parameters:
-                          useflexiblecell: True
-                          useconstantratio: True
+                          ensemble: NPT
+                          nsteps: 200
+                          temperature: 300
+                          pressure: 10
+                          other_parameters:
+                            useflexiblecell: True
+                            useconstantratio: True
                       - md:
-                        ensemble: NPT
-                        nsteps: 400
-                        temperature: 300
-                        pressure: 10
-                        other_parameters:
-                          useflexiblecell: True
-                          useconstantratio: True
+                          ensemble: NPT
+                          nsteps: 400
+                          temperature: 300
+                          pressure: 10
+                          other_parameters:
+                            useflexiblecell: True
+                            useconstantratio: True
                       - md:
-                        ensemble: NPT
-                        nsteps: 800
-                        temperature: 300
-                        pressure: 10
-                        other_parameters:
-                          useflexiblecell: True
-                          useconstantratio: True
+                          ensemble: NPT
+                          nsteps: 800
+                          temperature: 300
+                          pressure: 10
+                          other_parameters:
+                            useflexiblecell: True
+                            useconstantratio: True
                       - md:
-                        ensemble: NPT
-                        nsteps: 1600
-                        temperature: 300
-                        pressure: 10
-                        other_parameters:
-                          useflexiblecell: True
-                          useconstantratio: True
+                          ensemble: NPT
+                          nsteps: 1600
+                          temperature: 300
+                          pressure: 10
+                          other_parameters:
+                            useflexiblecell: True
+                            useconstantratio: True
                       - md:
-                        ensemble: NPT
-                        nsteps: 3200
-                        temperature: 300
-                        pressure: 10
-                        other_parameters:
-                          useflexiblecell: True
-                          useconstantratio: True
+                          ensemble: NPT
+                          nsteps: 3200
+                          temperature: 300
+                          pressure: 10
+                          other_parameters:
+                            useflexiblecell: True
+                            useconstantratio: True
                       - md:
-                        ensemble: NPT
-                        nsteps: 6400
-                        temperature: 300
-                        pressure: 10
-                        other_parameters:
-                          useflexiblecell: True
-                          useconstantratio: True
+                          ensemble: NPT
+                          nsteps: 6400
+                          temperature: 300
+                          pressure: 10
+                          other_parameters:
+                            useflexiblecell: True
+                            useconstantratio: True
                       - md:
-                        ensemble: NPT
-                        nsteps: 12800
-                        temperature: 300
-                        pressure: 10
-                        other_parameters:
-                          useflexiblecell: True
-                          useconstantratio: True
+                          ensemble: NPT
+                          nsteps: 12800
+                          temperature: 300
+                          pressure: 10
+                          other_parameters:
+                            useflexiblecell: True
+                            useconstantratio: True
                       - md:
-                        ensemble: NPT
-                        nsteps: 25600
-                        temperature: 300
-                        pressure: 1
-                        other_parameters:
-                          useflexiblecell: True
-                          useconstantratio: True
+                          ensemble: NPT
+                          nsteps: 25600
+                          temperature: 300
+                          pressure: 1
+                          other_parameters:
+                            useflexiblecell: True
+                            useconstantratio: True
                     directives:
                       - name: md
                         text: md task for bilayer relaxation
@@ -1673,23 +1673,23 @@ directives:
                     type: list
                     default:
                       - md:
-                        ensemble: minimize
-                        nsteps: 1000
+                          ensemble: minimize
+                          nsteps: 1000
                       - md:
-                        ensemble: NVT
-                        nsteps: 1000
-                        temperature: 300
-                        other_parameters:
-                          useflexiblecell: True
-                          useconstantratio: True
+                          ensemble: NVT
+                          nsteps: 1000
+                          temperature: 300
+                          other_parameters:
+                            useflexiblecell: True
+                            useconstantratio: True
                       - md:
-                        ensemble: NPT
-                        nsteps: 25600
-                        temperature: 300
-                        pressure: 1
-                        other_parameters:
-                          useflexiblecell: True
-                          useconstantratio: True
+                          ensemble: NPT
+                          nsteps: 25600
+                          temperature: 300
+                          pressure: 1
+                          other_parameters:
+                            useflexiblecell: True
+                            useconstantratio: True
                     directives:
                       - name: md
                         text: md task for bilayer relaxation
@@ -1732,6 +1732,10 @@ directives:
             text: parameters controlling protein embedding
             type: dict
             directives:
+              - name: no_orient
+                text: if true, do not alter orientation of protein; z-axis of protein coordinate system is assumed to be membrane normal
+                type: bool
+                default: False
               - name: q_tolerance
                 text: tolerance for net charge neutralization
                 type: float

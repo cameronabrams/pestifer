@@ -167,9 +167,12 @@ proc PestiferUtil::resequence { badsel goodsel } {
    return $badpos
 }
 
-proc PestiferUtil::letter_up { c } {
+proc PestiferUtil::letter_up { c {cyclic 0}} {
    if { $c == "Z" } {
       return "a"
+   }
+   if { $c == "z" && $cyclic == 1 } {
+      return "A"
    }
    scan $c %c i
    return [binary format c* [expr $i + 1]]

@@ -110,7 +110,8 @@ if { $propdb != "" } {
    # explicit dimensions provided in number of patchlengths
    vmdcon -info "x and y dimensions provided in number of patchlengths; x $npatchx, y $npatchy"
 } else {
-   vmdcon -error "No protein pdb or patch dimensions provided"
+   vmdcon -err "No protein pdb or patch dimensions provided"
+   exit
 }
 
 mol new $psfA 
@@ -173,9 +174,11 @@ vmdcon -info "nlipidsA: $nlipidsA"
 vmdcon -info "nlipidsB: $nlipidsB"
 # there should be no molecules loaded at this point
 if { [verify_no_mols] != 1} {
-   vmdcon -error "There are still molecules loaded"
+   vmdcon -err "There are still molecules loaded"
+   exit
 }
 
+# reconcile the patch area and number of lipids
 set saplA [expr $patch_areaA / $nlipidsA]
 set saplB [expr $patch_areaB / $nlipidsB]
 vmdcon -info "saplA: $saplA"
@@ -199,31 +202,42 @@ if { $quilt_area_AB > 0 } {
    set Ly [lindex $boxB 1]
 }
 
-set next_available_chain A
+# build the quilt
+mol new "${upper_patch}.psf" 
+mol addfile "${upper_patch}.pdb" waitfor all
+set umolid [molinfo top get id]
+set upper_patch_sel [atomselect $umolid "all"]
+mol new "${lower_patch}.psf" 
+mol addfile "${lower_patch}.pdb" waitfor all
+set lmolid [molinfo top get id]
+set lower_patch_sel [atomselect $lmolid "all"]
+
+# set next_available_chain A
+set segtypes {lipid ion water}
+set seglabels {L I WT}
+set segidx {1 1 1}
+set maxres_per_seg 10000
 for {set nx 0} { $nx < $npatchx } { incr nx } {
+   set xoffset [expr $nx * $Lx]
    for {set ny 0} { $ny < $npatchy } { incr ny } {
-      set xoffset [expr $nx * $Lx]
       set yoffset [expr $ny * $Ly]
-      vmdcon -info "xoffset: $xoffset"
-      vmdcon -info "yoffset: $yoffset"
+      vmdcon -info "patch ($nx,$ny) offset ($xoffset,$yoffset)"
       set movevec [list $xoffset $yoffset 0]
-      mol new "${upper_patch}.psf" 
-      mol addfile "${upper_patch}.pdb" waitfor all
-      set molid [molinfo top get id]
-      [atomselect $molid all] moveby $movevec
-      set next_available_chain [write_psfgen $molid $next_available_chain { lipid water ion } { L I W } 1000]
-      mol delete $molid
-      mol new "${lower_patch}.psf" 
-      mol addfile "${lower_patch}.pdb" waitfor all
-      set molid [molinfo top get id]
-      [atomselect $molid all] moveby $movevec
-      set next_available_chain [write_psfgen $molid $next_available_chain { lipid water ion } { L I W } 1000]
-      mol delete $molid
+      set unmovevec [vecscale -1 $movevec]
+      $upper_patch_sel moveby $movevec
+      set segidx [write_psfgen $umolid $segtypes $seglabels $segidx $maxres_per_seg]
+      $upper_patch_sel moveby $unmovevec
+      $lower_patch_sel moveby $movevec
+      set segidx [write_psfgen $lmolid $segtypes $seglabels $segidx $maxres_per_seg]
+      $lower_patch_sel moveby $unmovevec
    }
 }
+mol delete $umolid
+mol delete $lmolid
 # there should be no molecules loaded at this point
 if { [verify_no_mols] != 1} {
-   vmdcon -error "There are still molecules loaded"
+   vmdcon -err "There are still molecules loaded"
+   exit
 }
 
 set quilt_boxX [expr $Lx * $npatchx]
@@ -236,25 +250,19 @@ writepsf "${firstname}.psf"
 writepdb "${firstname}.pdb"
 mol new ${firstname}.psf
 mol addfile ${firstname}.pdb waitfor all
-
 set molid [molinfo top get id]
-
-# set lipid [atomselect $molid "lipid"]
-# set ncom [vecscale -1 [measure center $lipid weight mass]]
-# set all [atomselect $molid all]
-# $all moveby $ncom
-# $all writepdb "${firstname}_centered.pdb"
 
 set origin_x [expr $quilt_boxX / 2]
 set origin_y [expr $quilt_boxY / 2]
 set origin_z [expr $quilt_boxZ / 2]
 
 set fp [open "${outbasename}.xsc" "w"]
-puts $fp "# PESTIFER generated xst file"
+puts $fp "# PESTIFER generated xsc"
 puts $fp "#\$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w"
 puts $fp "0 $quilt_boxX 0 0  0 $quilt_boxY 0  0 0 $quilt_boxZ  $origin_x $origin_y $origin_z 0 0 0 0 0 0"
 close $fp
 
+# delete any lipids necessary to equalize the two leaflet areas
 set slicedquilt [leaflet_apportionment $molid]
 
 if { $nlipids_deleteA > 0 } {
@@ -283,7 +291,8 @@ set badname [$remove_sel get name]
 
 mol delete $molid
 if { [verify_no_mols] != 1} {
-   vmdcon -error "There are still molecules loaded"
+   vmdcon -err "There are still molecules loaded"
+   exit
 }
 resetpsf
 readpsf ${firstname}.psf pdb ${firstname}.pdb
@@ -301,7 +310,8 @@ mol new ${outbasename}_prelabel.psf
 mol addfile ${outbasename}_prelabel.pdb waitfor all
 set molid [molinfo top get id]
 
-write_psfgen ${molid} U { lipid water ion } { L I W } 1000
+set segidx {1 1 1}
+write_psfgen $molid $segtypes $seglabels $segidx $maxres_per_seg
 regenerate angles dihedrals
 writepsf "${outbasename}.psf"
 writepdb "${outbasename}.pdb"

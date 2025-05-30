@@ -55,7 +55,12 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
    }
    if { [lindex $argv $i] == "-no_orient"} {
       incr i
-      set no_orient 1
+      set no_orient_val [lindex $argv $i]
+      if { $no_orient_val == "1" || $no_orient_val == "True" || $no_orient_val == "true" || $no_orient_val == "yes" || $no_orient_val == "Yes" } {
+         set no_orient 1
+      } else {
+         set no_orient 0
+      }
    }
    if { [lindex $argv $i] == "-z_head_group"} {
       incr i
@@ -145,15 +150,15 @@ set bilayer_mid_z [expr ($bilayer_min_z + $bilayer_max_z) / 2]
 
 vmdcon -info "bilayer z-span [lindex $bilayer_box 2]; by apparent atom measurements, min-z $bilayer_min_z max-z $bilayer_max_z"
 
-set head [atomselect $protein "$z_head_group"]
-set tail [atomselect $protein "$z_tail_group"]
-set head_com [measure center $head weight mass]
-set tail_com [measure center $tail weight mass]
 set bilayer_com [measure center $bilayer_sel weight mass]
 set bilayer_com_z [lindex $bilayer_com 2]
 
 if { !$no_orient } {
    vmdcon -info "orienting protein axis to bilayer normal"
+   set head [atomselect $protein "$z_head_group"]
+   set tail [atomselect $protein "$z_tail_group"]
+   set head_com [measure center $head weight mass]
+   set tail_com [measure center $tail weight mass]
    set pro_axis [vecnorm [vecsub $head_com $tail_com]]
    set A [orient $pro_sel $pro_axis {0 0 1}]
    $pro_sel move $A

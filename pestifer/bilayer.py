@@ -90,6 +90,7 @@ class Bilayer:
         # complete leaflet entries in composition dictionary with species counts, charges, and MWs
         for l in ['upper_leaflet','lower_leaflet']:
             L=composition_dict[l]
+            logger.debug(f'Leaflet {l} composition: {L}')
             for d in L:
                 if not 'patn' in d:
                     d['patn']=int(d['frac']*leaflet_nlipids)
@@ -163,6 +164,7 @@ class Bilayer:
             data['avgMW']=0.0
             data['patn']=0
             for species in data['composition']:
+                logger.debug(f'Layer {layer} species {species["name"]} patn {species["patn"]} charge {species["charge"]} MW {species["MW"]}')
                 data['patn']+=species['patn']
                 data['charge']+=species['charge']*species['patn']
                 if 'chamber' in layer:
@@ -173,6 +175,7 @@ class Bilayer:
                         if lipid['reference_length']>data['maxthickness']:
                             data['maxthickness']=lipid['reference_length']
                     logger.debug(f'{layer} maxthickness {data["maxthickness"]:.3f}')
+            logger.debug(f'Layer {layer} patn {data["patn"]} charge {data["charge"]:.3f} e avgMW*N {data["avgMW"]:.3f} g/mol')
             self.total_charge+=data['charge']
             data['avgMW']/=data['patn']
 
@@ -391,6 +394,7 @@ class Bilayer:
                 {'md':dict(ensemble='NPT',nsteps=25600,addl_paramfiles=self.addl_streamfiles,
                         other_parameters=dict(useflexiblecell=True,useconstantratio=True))}]
         else:
+            logger.debug(f'Using user-specified relaxation protocol: {relaxation_protocol}')
             for stage in relaxation_protocol:
                 specs=stage['md']
                 specs['addl_paramfiles']=self.addl_streamfiles

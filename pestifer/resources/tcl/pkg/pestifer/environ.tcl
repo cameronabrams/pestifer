@@ -44,21 +44,25 @@ proc PestiferEnviron::leaflet_apportionment { molid } {
     return [list $residues_upper $residues_lower]
 }
 
-proc PestiferEnviron::write_psfgen { molid {next_available_chain A} {segtypes {lipid water ion}} {Slet {L I W}} {maxr_per_seg 1000}} {
+proc PestiferEnviron::write_psfgen { molid {segtypes {lipid ion water}} 
+                                    {seglabels {L I WT}} {segidx {1 1 1}} 
+                                    {maxr_per_seg 10000} {sac_chain A}} {
     # execute segment and coordpdb stanzas for all atoms in the molid
-    foreach segtype $segtypes S $Slet {
+    set new_segidx [list]
+    foreach segtype $segtypes seglabel $seglabels idx $segidx {
+        vmdcon -info "Processing segment type $segtype with label $seglabel and index $idx"
         set a [atomselect $molid "$segtype"]
         if { [$a num] > 0 } {
-            $a set chain $next_available_chain
-
+            $a set chain $sac_chain
             set ridx [lsort -integer -unique [$a get residue]]
             set nres [llength $ridx]
             set nseg [expr $nres / $maxr_per_seg + 1]
             set mm [expr $nres % $nseg]
-            vmdcon -info "[$a num] $segtype atoms (chain $next_available_chain) in $nres residues divide into $nseg segments"
-
+            vmdcon -info "[$a num] $segtype atoms $nres residues divide into $nseg segments"
+            vmdcon -info "the last of which has $mm residues"
             for { set seg 1 } { $seg <= $nseg } { incr seg } {
-                set segname "${next_available_chain}${seg}"
+                set this_segidx [expr $seg + $idx - 1]
+                set segname "${seglabel}${this_segidx}"
                 set left [expr (${seg}-1)*$maxr_per_seg]
                 set right [expr $left + $maxr_per_seg - 1]
                 if { $right >= [llength $ridx] } {
@@ -78,7 +82,6 @@ proc PestiferEnviron::write_psfgen { molid {next_available_chain A} {segtypes {l
                     lappend rser $sridx_sermap($x)
                 }
                 $segsel set resid $rser
-                vmdcon -info "Segment $segname has [$segsel num] atoms"
                 $segsel writepdb "${segname}_tmp.pdb"
                 segment $segname {
                     auto none
@@ -89,8 +92,8 @@ proc PestiferEnviron::write_psfgen { molid {next_available_chain A} {segtypes {l
                 coordpdb ${segname}_tmp.pdb $segname
                 $segsel delete
             }
-            set next_available_chain [letter_up $next_available_chain]
+            lappend new_segidx $seg
         }
     }
-    return $next_available_chain
+    return $new_segidx
 }
