@@ -26,6 +26,8 @@ Pestifer includes the [July 2024 Charmm36 force field](https://mackerell.umaryla
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
+* 1.11.3
+    * fixed residue misnumbering for large membranes
 * 1.11.2
     * fixed parsing error converting specstrings to composition dicts
 * 1.11.1
