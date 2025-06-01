@@ -46,9 +46,11 @@ proc PestiferEnviron::leaflet_apportionment { molid } {
 
 proc PestiferEnviron::write_psfgen { molid {segtypes {lipid ion water}} 
                                     {seglabels {L I WT}} {segidx {1 1 1}} 
-                                    {maxr_per_seg 10000} {sac_chain A}} {
+                                    {maxr_per_seg 9999} {sac_chain A}} {
     # execute segment and coordpdb stanzas for all atoms in the molid
     set new_segidx [list]
+    vmdcon -info "Writing psfgen segments for molid $molid with chain $sac_chain, 
+                 segment types $segtypes, labels $seglabels, segidx $segidx, and max residues per segment $maxr_per_seg"
     foreach segtype $segtypes seglabel $seglabels idx $segidx {
         vmdcon -info "Processing segment type $segtype with label $seglabel and index $idx"
         set a [atomselect $molid "$segtype"]
@@ -58,8 +60,10 @@ proc PestiferEnviron::write_psfgen { molid {segtypes {lipid ion water}}
             set nres [llength $ridx]
             set nseg [expr $nres / $maxr_per_seg + 1]
             set mm [expr $nres % $nseg]
-            vmdcon -info "[$a num] $segtype atoms $nres residues divide into $nseg segments"
-            vmdcon -info "the last of which has $mm residues"
+            vmdcon -info "[$a num] $segtype atoms $nres residues divide into $nseg segment[ess $nseg]"
+            if { $mm > 0 } {
+                vmdcon -info "the last of which has $mm residues"
+            }
             for { set seg 1 } { $seg <= $nseg } { incr seg } {
                 set this_segidx [expr $seg + $idx - 1]
                 set segname "${seglabel}${this_segidx}"
@@ -92,8 +96,11 @@ proc PestiferEnviron::write_psfgen { molid {segtypes {lipid ion water}}
                 coordpdb ${segname}_tmp.pdb $segname
                 $segsel delete
             }
-            lappend new_segidx $seg
+            lappend new_segidx [expr $seg + $idx]
+        } else {
+            lappend new_segidx $idx
         }
     }
+    vmdcon -info "All segments processed, new segment indices: $new_segidx"
     return $new_segidx
 }

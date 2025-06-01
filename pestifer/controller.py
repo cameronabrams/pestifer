@@ -45,7 +45,7 @@ class Controller:
             taskname=list(taskdict.keys())[0]
             config_specs=taskdict[taskname]
             logger.debug(f'{taskname}: {config_specs}')
-            specs={} if not config_specs else config_specs.copy()
+            # specs={} if not config_specs else config_specs.copy()
             # Ensure the name of the task is among the implemented Tasks
             class_name=[name for name,cls in task_classes.items() if cls.yaml_header==taskname][0]
             # Create this Task instance:

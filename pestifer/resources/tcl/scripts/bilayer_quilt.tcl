@@ -140,7 +140,7 @@ if {$min_sys_Lx > 0 && $min_sys_Ly > 0} {
    # are given
    set npatchx [expr max(1, int($min_sys_Lx / $patchx)+1)]
    set npatchy [expr max(1, int($min_sys_Ly / $patchy)+1)]
-   vmdcon -info "npatchx x npatchy: $patchx x $npatchy"
+   vmdcon -info "calculated npatchx x npatchy: $npatchx x $npatchy"
 }
 
 set quilt_areaA [expr $patch_areaA * $npatchx * $npatchy]
@@ -194,12 +194,16 @@ if { $quilt_area_AB > 0 } {
    vmdcon -info "Deleting $nlipids_deleteA lipids from upper leaflet quilt"
    set Lx [lindex $boxA 0]
    set Ly [lindex $boxA 1]
-} else {
+} elseif { $quilt_area_AB < 0 } {
    vmdcon -info "Lower leaflet quilt is larger by $quilt_area_AB"
    set nlipids_deleteB [expr int(-$quilt_area_AB / $saplB)]
    vmdcon -info "Deleting $nlipids_deleteB lipids from lower leaflet quilt"
    set Lx [lindex $boxB 0]
    set Ly [lindex $boxB 1]
+} else {
+   vmdcon -info "Upper and lower leaflet quilts are equal in area"
+   set Lx [lindex $boxA 0]
+   set Ly [lindex $boxA 1]
 }
 
 # build the quilt
@@ -216,7 +220,7 @@ set lower_patch_sel [atomselect $lmolid "all"]
 set segtypes {lipid ion water}
 set seglabels {L I WT}
 set segidx {1 1 1}
-set maxres_per_seg 10000
+set maxres_per_seg 9999
 for {set nx 0} { $nx < $npatchx } { incr nx } {
    set xoffset [expr $nx * $Lx]
    for {set ny 0} { $ny < $npatchy } { incr ny } {
@@ -224,11 +228,16 @@ for {set nx 0} { $nx < $npatchx } { incr nx } {
       vmdcon -info "patch ($nx,$ny) offset ($xoffset,$yoffset)"
       set movevec [list $xoffset $yoffset 0]
       set unmovevec [vecscale -1 $movevec]
+      vmdcon -info "moving upper patch by $movevec"
       $upper_patch_sel moveby $movevec
       set segidx [write_psfgen $umolid $segtypes $seglabels $segidx $maxres_per_seg]
+      vmdcon -info "segidx: $segidx"
+      vmdcon -info "moving upper patch by $unmovevec"
       $upper_patch_sel moveby $unmovevec
+      vmdcon -info "moving lower patch by $movevec"
       $lower_patch_sel moveby $movevec
       set segidx [write_psfgen $lmolid $segtypes $seglabels $segidx $maxres_per_seg]
+      vmdcon -info "moving lower patch by $unmovevec"
       $lower_patch_sel moveby $unmovevec
    }
 }
@@ -266,6 +275,7 @@ close $fp
 set slicedquilt [leaflet_apportionment $molid]
 
 if { $nlipids_deleteA > 0 } {
+   vmdcon -info "Deleting $nlipids_deleteA lipids from upper leaflet quilt"
    set u_allres [lindex $slicedquilt 0]
    set u_l [atomselect $molid "lipid and residue $u_allres"]
    set u_lres [lsort -unique [$u_l get residue]]
@@ -274,6 +284,7 @@ if { $nlipids_deleteA > 0 } {
    set remove_resnums [lrange $shuffled_resnums 0 [expr {$nlipids_deleteA - 1}]]
    set remove_sel [atomselect $molid "residue $remove_resnums"]
 } elseif { $nlipids_deleteB > 0} {
+   vmdcon -info "Deleting $nlipids_deleteB lipids from lower leaflet quilt"
    set l_allres [lindex $slicedquilt 1]
    set l_l [atomselect $molid "lipid and residue $l_allres"]
    set l_lres [lsort -unique [$l_l get residue]]

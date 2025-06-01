@@ -39,9 +39,12 @@ vmdcon -info "waters: [$waters num] atoms"
 vmdcon -info "ions: [$ions num] atoms"
 vmdcon -info "other: [$other num] atoms"
 
-set maxr_per_seg 1000
-set next_available_chain A
-write_psfgen $environ_molid $next_available_chain {lipid water ion} {L I W} $maxr_per_seg
+set segtypes {lipid ion water}
+set seglabels {L I WT}
+set segidx {1 1 1}
+set maxres_per_seg 10000
+# write_psfgen $environ_molid $next_available_chain {lipid water ion} {L I W} $maxr_per_seg
+write_psfgen $environ_molid $segtypes $seglabels $segidx $maxres_per_seg
 
 mol delete $environ_molid
 regenerate angles dihedrals

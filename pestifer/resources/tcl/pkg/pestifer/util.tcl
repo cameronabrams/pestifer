@@ -19,12 +19,12 @@ proc PestiferUtil::split_psf {psf pdb residues {prefix "section"}} {
       set keepsel [atomselect top "residue $x"]
       set delsel [atomselect top "not residue $x"]
       catch {
-      foreach seg [$delsel get segname] resid [$delsel get resid] {
-         delatom $seg $resid
-      }}
+      foreach seg [$delsel get segname] resid [$delsel get resid] atom_name [$delsel get name] {
+         delatom $seg $resid $atom_name
+      }} rv
       writepsf "${prefix}${section}.psf"
       writepdb "${prefix}${section}.pdb"
-      vmdcon -info "Wrote ${prefix}${section}.psf and ${prefix}${section}.pdb"
+      vmdcon -info "split_psf: wrote ${prefix}${section}.psf and ${prefix}${section}.pdb"
       set section [expr $section + 1]
    }
    resetpsf
@@ -50,6 +50,15 @@ proc PestiferUtil::shuffle_list {list} {
     return $list
 }
 
+proc PestiferUtil::ess { count } {
+   # returns the number of elements in a list
+   # if count is zero, returns 1
+   if { $count > 1 } {
+      return "s"
+   } else {
+      return ""
+   }
+}
 
 # Logs a message to both the VMD console and to an open
 # log file

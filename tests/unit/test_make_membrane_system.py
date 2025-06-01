@@ -20,9 +20,9 @@ def test_make_membrane_system_task_init_symmetric():
             'namd':   NAMD(C),
             'data':   Filewriter()
         }
-    idict={'bilayer':{
+    config_specs={'bilayer':{
             'SAPL': 50,
-            'npatch':[2,2],
+            'npatch':[3,3],
             'composition':{
                 'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
                 'lower_leaflet': [{'name':'POPC','frac':1.0,'conf':0}]
@@ -41,7 +41,8 @@ def test_make_membrane_system_task_init_symmetric():
                     {'md':{'ensemble':'NVT','nsteps':1000}},
                     {'md':{'ensemble':'NPT','nsteps':10000}}
                 ]}}}
-    BET = MakeMembraneSystemTask(idict,'test_make_membrane_system_task',C,writers,None)
+    controller_specs={'controller_index':0,'taskname':'test_make_membrane_system_task','config':C,'writers':writers,'prior':None}
+    BET = MakeMembraneSystemTask(config_specs,controller_specs)
     assert BET.taskname == 'test_make_membrane_system_task'
     result=BET.do()
     os.chdir('..')
@@ -60,7 +61,7 @@ def test_make_membrane_system_task_init_asymmetric_pure_leaflets():
             'namd':   NAMD(C),
             'data':   Filewriter()
         }
-    idict={'bilayer':{
+    config_specs={'bilayer':{
             'SAPL': 50,
             'npatch':[2,2],
             'composition':{
@@ -84,7 +85,8 @@ def test_make_membrane_system_task_init_asymmetric_pure_leaflets():
                     {'md':{'ensemble':'NPT','nsteps':1000}},
                     {'md':{'ensemble':'NPT','nsteps':10000}}
                 ]}}}
-    BET = MakeMembraneSystemTask(idict,'test_make_membrane_system_task',C,writers,None)
+    controller_specs={'controller_index':0,'taskname':'test_make_membrane_system_task','config':C,'writers':writers,'prior':None}
+    BET = MakeMembraneSystemTask(config_specs,controller_specs)
     assert BET.taskname == 'test_make_membrane_system_task'
     result=BET.do()
     os.chdir('..')
@@ -103,9 +105,9 @@ def test_make_membrane_system_task_init_asymmetric_multicomponent():
             'namd':   NAMD(C),
             'data':   Filewriter()
         }
-    idict={'bilayer':{
+    config_specs={'bilayer':{
             'SAPL': 50,
-            'npatch':[2,2],
+            'npatch':[3,3],
             'composition':{
                 'upper_leaflet': [
                     {'name':'POPC','frac':0.5,'conf':0},
@@ -132,7 +134,8 @@ def test_make_membrane_system_task_init_asymmetric_multicomponent():
                     {'md':{'ensemble':'NPT','nsteps':20000}},
                     {'md':{'ensemble':'NPT','nsteps':40000}}
                 ]}}}
-    BET = MakeMembraneSystemTask(idict,'test_make_membrane_system_task',C,writers,None)
+    controller_specs={'controller_index':0,'taskname':'test_make_membrane_system_task','config':C,'writers':writers,'prior':None}
+    BET = MakeMembraneSystemTask(config_specs,controller_specs)
     assert BET.taskname == 'test_make_membrane_system_task'
     result=BET.do()
     os.chdir('..')
@@ -208,3 +211,27 @@ def test_make_membrane_system_with_md_build():
     C=Controller(config)
     C.do_tasks()
     os.chdir('..')
+
+def test_make_membrane_system_task_quilt():
+    if os.path.exists('__test_make_membrane_system_task_quilt'):
+        shutil.rmtree('__test_make_membrane_system_task_quilt')
+    os.mkdir('__test_make_membrane_system_task_quilt')
+    os.chdir('__test_make_membrane_system_task_quilt')
+    datadir='../../fixtures/quilt_inputs'
+    basename='patch'
+    for ftype in ['.coor','.psf','.pdb','.xsc']:
+        shutil.copy(os.path.join(datadir,basename+ftype),'.')
+    psfA=psfB=basename+'.psf'
+    pdbA=pdbB=basename+'.pdb'
+    xscA=xscB=basename+'.xsc'
+    npatchx=npatchy=3
+    C=Config()
+    pg=Psfgen(C)
+    pg.newscript(basename)
+    pg.usescript('bilayer_quilt')
+    pg.writescript(basename,guesscoord=False,regenerate=True,force_exit=True,writepsf=False,writepdb=False)
+    result=pg.runscript(nx=npatchx,ny=npatchy,psfA=psfA,pdbA=pdbA,
+                                    psfB=psfB,pdbB=pdbB,xscA=xscA,xscB=xscB,o='quilt_test_sym_3x3')
+
+    os.chdir('..')
+    assert result==0
