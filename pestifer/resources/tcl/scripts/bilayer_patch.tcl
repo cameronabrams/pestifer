@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
 # VMD/psfgen script for creating a new psf/pdb pair for a bilayer patch
-# that is a pdb result of packmol
+# from a packmol pdb output
 
 # if referenced using the Psfgen scriptwriter, all common psfgen
 # pre-build commands are invoked automatically
@@ -42,8 +42,8 @@ vmdcon -info "other: [$other num] atoms"
 set segtypes {lipid ion water}
 set seglabels {L I WT}
 set segidx {1 1 1}
-set maxres_per_seg 10000
-# write_psfgen $environ_molid $next_available_chain {lipid water ion} {L I W} $maxr_per_seg
+set maxres_per_seg 9999
+
 write_psfgen $environ_molid $segtypes $seglabels $segidx $maxres_per_seg
 
 mol delete $environ_molid

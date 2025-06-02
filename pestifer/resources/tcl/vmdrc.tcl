@@ -3,7 +3,7 @@
 # General VMD startup script for pestifer-managed VMD sessions or
 # VMD sessions in initiated with the statement
 #
-# source [pestifer_init]
+# pestifer_init
 #
 # and run in a conda environment in which pestifer is installed
 # 
@@ -26,7 +26,7 @@ if {[info exists argv]} {
 }
 global quiet
 if {![info exists quiet]} {
-  vmdcon -debug "No quiet argument passed in; defaulting to 0"
+  vmdcon -info "No quiet argument passed in; defaulting to 0"
   set quiet 1
 }
 
@@ -34,7 +34,7 @@ global PESTIFER_TCLROOT
 if {![info exists PESTIFER_TCLROOT]} {
   set PESTIFER_TCLROOT [exec pestifer --no-banner wheretcl --root]
   if {$quiet == 0} {
-    vmdcon -debug "No PESTIFER_TCLROOT passed in; detected $PESTIFER_TCLROOT"
+    vmdcon -info "No PESTIFER_TCLROOT passed in; detected $PESTIFER_TCLROOT"
   }
 }
 
@@ -42,7 +42,7 @@ if {![info exists PESTIFER_TCLROOT]} {
 set PESTIFER_TCLPKG ${PESTIFER_TCLROOT}/pkg
 set packages [glob -type d $PESTIFER_TCLPKG]
 foreach pkg $packages {
-  vmdcon -debug "Adding $pkg to auto_path"
+  vmdcon -info "Adding $pkg to auto_path"
   lappend auto_path $pkg
 }
 

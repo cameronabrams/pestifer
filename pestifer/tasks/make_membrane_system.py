@@ -133,7 +133,7 @@ class MakeMembraneSystemTask(BaseTask):
 
         if not self.using_prebuilt_bilayer:
             self.build_patch()
-            self.make_bilayer_from_patch()
+            self.make_quilt_from_patch()
         self.embed_protein()
         self.log_message('complete')
         return super().do()
@@ -168,7 +168,7 @@ class MakeMembraneSystemTask(BaseTask):
                                                 half_mid_zgap=half_mid_zgap,
                                                 rotation_pm=rotation_pm,
                                                 nloop=nloop)
-            self.next_basename(f'patch{spec}-psfgen')
+            self.next_basename(f'patch{spec}-build')
             pg=self.writers['psfgen']
             pg.newscript(self.basename,additional_topologies=patch.addl_streamfiles)
             pg.usescript('bilayer_patch')
@@ -179,15 +179,15 @@ class MakeMembraneSystemTask(BaseTask):
             patch.statevars['pdb']=f'{self.basename}.pdb'
             patch.statevars['psf']=f'{self.basename}.psf'
             patch.statevars['xsc']=f'{self.basename}.xsc'
-            self.next_basename(f'patch{spec}-equilibrate')
+            # self.next_basename(f'patch{spec}-equilibrate')
             patch.equilibrate(user_dict=deepcopy(self.config['user']),
-                              basename=self.basename,index=self.index,
-                              spec=spec,relaxation_protocol=relaxation_protocol,
+                              basename=f'patch{spec}',index=self.index,
+                              relaxation_protocol=relaxation_protocol,
                               parent_controller_index=self.controller_index)
 
-    def make_bilayer_from_patch(self):
-        logger.debug(f'Creating bilayer from patch')
-        self.next_basename('bilayer')
+    def make_quilt_from_patch(self):
+        logger.debug(f'Creating quilt from patch')
+        self.next_basename('quilt')
         additional_topologies=[]
         if self.patch is not None:
             pdb=self.patch.statevars.get('pdb',None)
@@ -237,7 +237,7 @@ class MakeMembraneSystemTask(BaseTask):
         self.quilt.area=self.quilt.box[0][0]*self.quilt.box[1][1]
         relaxation_protocol=self.bilayer_specs.get('relaxation_protocols',{}).get('bilayer',{})
         self.quilt.equilibrate(user_dict=deepcopy(self.config['user']),
-                                spec='',
+                                basename='quilt',
                                 relaxation_protocol=relaxation_protocol,
                                 parent_controller_index=self.controller_index)
 
@@ -277,43 +277,5 @@ class MakeMembraneSystemTask(BaseTask):
         self.statevars['charmmff_paramfiles']=list(set(self.statevars['charmmff_paramfiles']))
         self.quilt.statevars.update(self.statevars)
         return result
-    
-    # def fill_box(self):
-    #     fill_top=False
-    #     fill_bot=False
-    #     zdist=self.embed_specs.get('zdist',10.0)
-    #     q_tolerance=self.embed_specs.get('q_tolerance',1.e-4)
-    #     embed_results_file=f'{self.basename}_embed_prefilling.yaml'
-    #     with open(embed_results_file,'r') as f:
-    #         self.embed_results=yaml.safe_load(f)
-    #     net_charge=self.embed_results['net_charge']
-    #     botz=self.embed_results['protein']['min_z']-zdist
-    #     if botz<self.embed_results['bilayer']['min_z']:
-    #         fillwidth_bot=self.embed_results['bilayer']['min_z']-botz
-    #         if fillwidth_bot<3.0:
-    #             fillwidth_bot=0.0
-    #         else:
-    #             fill_bot=True
-    #     topz=self.embed_results['protein']['max_z']+zdist
-    #     if topz>self.embed_results['bilayer']['max_z']:
-    #         fillwidth_top=topz-self.embed_results['bilayer']['max_z']
-    #         if fillwidth_top<3.0:
-    #             fillwidth_top=0.0
-    #         else:
-    #             fill_top=True
-    #     if not fill_top and not fill_bot:
-    #         if np.abs(net_charge)>q_tolerance:
-    #             logger.debug(f'Net charge {net_charge} exceeds tolerance {q_tolerance}')
-    #         else:
-    #             logger.debug('No filling/ionization needed')
-    #         return
-        
-    def psfgen(self,psf='',pdb='',addpdb='',additional_topologies=[]):
-        logger.debug(f'psfgen {self.basename} {psf} {pdb} {addpdb}')
-        pg=self.writers['psfgen']
-        pg.newscript(self.basename,additional_topologies=additional_topologies)
-        pg.usescript('memb')
-        pg.writescript(self.basename,guesscoord=False,regenerate=True,force_exit=True)
-        result=pg.runscript(psf=psf,pdb=pdb,addpdb=addpdb,o=self.basename)
-        return result
+
     

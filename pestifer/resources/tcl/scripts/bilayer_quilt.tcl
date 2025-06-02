@@ -83,6 +83,7 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
    }
 }
 
+# determine the lateral dimensions of the system
 set min_sys_Lx 0
 set min_sys_Ly 0
 if { $propdb != "" } {
@@ -99,8 +100,7 @@ if { $propdb != "" } {
    set pro_Ly [expr $maxy - $miny]
    set min_sys_Lx [expr $pro_Lx + 2*$margin]
    set min_sys_Ly [expr $pro_Ly + 2*$margin]
-   vmdcon -info "minimum system Lx: $min_sys_Lx"
-   vmdcon -info "minimum system Ly: $min_sys_Ly"
+   vmdcon -info "minimum system (Lx,Ly): $min_sys_Lx, $min_sys_Ly"
    mol delete $prop_molid
 } elseif { $dimx > 0 && $dimy > 0 } {
    # explicit dimensions provided
@@ -110,11 +110,12 @@ if { $propdb != "" } {
    # explicit dimensions provided in number of patchlengths
    vmdcon -info "x and y dimensions provided in number of patchlengths; x $npatchx, y $npatchy"
 } else {
-   vmdcon -err "No protein pdb or patch dimensions provided"
+   vmdcon -err "No protein pdb + margin or patch dimensions provided"
    exit
 }
 
-mol new $psfA 
+# read in the two source bilayer systems, measure lateral areas and determine the common patch area
+mol new $psfA
 mol addfile $pdbA waitfor all
 set source_upper [molinfo top get id]
 pbc readxst $xscA -molid $source_upper
@@ -143,11 +144,13 @@ if {$min_sys_Lx > 0 && $min_sys_Ly > 0} {
    vmdcon -info "calculated npatchx x npatchy: $npatchx x $npatchy"
 }
 
+# determine the implied quilt lateral dimensions for each pure patch
 set quilt_areaA [expr $patch_areaA * $npatchx * $npatchy]
 set quilt_areaB [expr $patch_areaB * $npatchx * $npatchy]
 vmdcon -info "quilt areaA: $quilt_areaA"
 vmdcon -info "quilt areaB: $quilt_areaB"
 
+# extract upper leaflet of system A and lower leaflet of system B
 catch {set sliced_upper [leaflet_apportionment $source_upper]}
 split_psf $psfA $pdbA $sliced_upper "sliceA"
 catch {set sliced_lower [leaflet_apportionment $source_lower]}
@@ -159,6 +162,7 @@ set lower_patch "sliceB2"
 mol delete $source_upper
 mol delete $source_lower
 
+# count lipid moleculs in each leaflet
 mol new $upper_patch.psf 
 mol addfile $upper_patch.pdb waitfor all
 set sliceAmolid [molinfo top get id]
@@ -170,8 +174,8 @@ set sliceBmolid [molinfo top get id]
 set nlipidsB [llength [lsort -unique [[atomselect $sliceBmolid "lipid"] get residue]]]
 mol delete $sliceBmolid
 
-vmdcon -info "nlipidsA: $nlipidsA"
-vmdcon -info "nlipidsB: $nlipidsB"
+vmdcon -info "upper-patch nlipids: $nlipidsA"
+vmdcon -info "lower-patch nlipids: $nlipidsB"
 # there should be no molecules loaded at this point
 if { [verify_no_mols] != 1} {
    vmdcon -err "There are still molecules loaded"
@@ -181,11 +185,13 @@ if { [verify_no_mols] != 1} {
 # reconcile the patch area and number of lipids
 set saplA [expr $patch_areaA / $nlipidsA]
 set saplB [expr $patch_areaB / $nlipidsB]
-vmdcon -info "saplA: $saplA"
-vmdcon -info "saplB: $saplB"
+vmdcon -info "upper-patch SAPL: $saplA"
+vmdcon -info "lower-patch SAPL: $saplB"
 
+# determine the difference in area between the two leaflets
+# and determine how many lipids to delete from the larger leaflet
 set quilt_area_AB [expr $quilt_areaA - $quilt_areaB]
-vmdcon -info "quilt area difference (upper - lower): $quilt_area_AB"
+vmdcon -info "Quilt area difference (upper - lower): $quilt_area_AB"
 set nlipids_deleteA 0
 set nlipids_deleteB 0
 if { $quilt_area_AB > 0 } {
@@ -206,7 +212,7 @@ if { $quilt_area_AB > 0 } {
    set Ly [lindex $boxA 1]
 }
 
-# build the quilt
+# build the quilt by replication of the the hybrid patch
 mol new "${upper_patch}.psf" 
 mol addfile "${upper_patch}.pdb" waitfor all
 set umolid [molinfo top get id]
@@ -249,27 +255,32 @@ if { [verify_no_mols] != 1} {
    exit
 }
 
-set quilt_boxX [expr $Lx * $npatchx]
-set quilt_boxY [expr $Ly * $npatchy]
-set quilt_boxZ [expr {max([lindex $boxA 2],[lindex $boxB 2])}]
-
+# write the first quilt psf and pdb files
 regenerate angles dihedrals
 set firstname  "${outbasename}_first_quilting"
 writepsf "${firstname}.psf"
 writepdb "${firstname}.pdb"
-mol new ${firstname}.psf
-mol addfile ${firstname}.pdb waitfor all
-set molid [molinfo top get id]
+
+# determine final box size and set the origin to be the center of the quilt in all three dimensions
+set quilt_boxX [expr $Lx * $npatchx]
+set quilt_boxY [expr $Ly * $npatchy]
+set quilt_boxZ [expr {max([lindex $boxA 2],[lindex $boxB 2])}]
 
 set origin_x [expr $quilt_boxX / 2]
 set origin_y [expr $quilt_boxY / 2]
 set origin_z [expr $quilt_boxZ / 2]
 
+# write the box dimensions and origin to an xsc file
 set fp [open "${outbasename}.xsc" "w"]
 puts $fp "# PESTIFER generated xsc"
 puts $fp "#\$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w"
 puts $fp "0 $quilt_boxX 0 0  0 $quilt_boxY 0  0 0 $quilt_boxZ  $origin_x $origin_y $origin_z 0 0 0 0 0 0"
 close $fp
+
+# read in the first quilt psf and pdb files
+mol new ${firstname}.psf
+mol addfile ${firstname}.pdb waitfor all
+set molid [molinfo top get id]
 
 # delete any lipids necessary to equalize the two leaflet areas
 set slicedquilt [leaflet_apportionment $molid]
@@ -317,6 +328,8 @@ if { [llength $badseg] > 0 } {
 writepsf "${outbasename}_prelabel.psf"
 writepdb "${outbasename}_prelabel.pdb"
 resetpsf
+
+# relabel all segments
 mol new ${outbasename}_prelabel.psf
 mol addfile ${outbasename}_prelabel.pdb waitfor all
 set molid [molinfo top get id]

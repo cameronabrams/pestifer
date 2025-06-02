@@ -28,6 +28,7 @@ Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full d
 ## Release History
 * 1.11.3
     * fixed residue misnumbering for large membranes
+    * fixed large membrane embedding errors
 * 1.11.2
     * fixed parsing error converting specstrings to composition dicts
 * 1.11.1

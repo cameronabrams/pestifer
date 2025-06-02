@@ -8,9 +8,6 @@
 # pre-build commands are invoked automatically
 # and the script is run in the context of the psfgen package
 
-# package require PestiferEnviron 1.0
-# namespace import ::PestiferEnviron::*
-
 package require Orient
 namespace import ::Orient::*
 package require pbctools
@@ -24,12 +21,12 @@ set psf "";  # pdb of protein-only system
 set bilayer_pdb ""; # the membrane-only system
 set bilayer_psf ""; # the membrane-only system
 set bilayer_xsc ""; # the membrane-only system
-set z_head_group ""
-set z_tail_group ""
-set z_ref_group ""
-set z_value 0.0
+set z_head_group ""; # atomselection whose center of mass defines one end of the protein axis
+set z_tail_group ""; # atomselection whose center of mass defines the other end of the protein axis
+set z_ref_group ""; # atomselection whose center of mass lies at the membrane midplane + z_value
+set z_value 0.0 ; # offset of the protein center of mass from the bilayer midplane
 set outbasename "embedded"
-set no_orient 0
+set no_orient 0; # override the orientation of the protein axis to align with the bilayer normal
 set zdist 10.0; # distance between z-extremal protein atoms and z-boundaries of box
 
 for { set i 0 } { $i < [llength $argv] } { incr i } {
@@ -165,6 +162,8 @@ if { !$no_orient } {
 } else {
    vmdcon -info "not orienting protein axis to bilayer normal"
 }
+
+# perform a translation of the protein to the middle of the bilayer
 set pro_mid_z_ref_sel [atomselect $protein "$z_ref_group"]
 set pro_embed_mid_z [lindex [measure center $pro_mid_z_ref_sel weight mass] 2]
 set pro_com [measure center $pro_sel weight mass]
@@ -173,9 +172,9 @@ set pro_y [lindex $pro_com 1]
 set pro_x_shift [expr $bilayer_mid_x - $pro_x]
 set pro_y_shift [expr $bilayer_mid_y - $pro_y]
 set pro_z_shift [expr $bilayer_com_z - $pro_embed_mid_z - $z_value]
-
 $pro_sel moveby [list $pro_x_shift $pro_y_shift $pro_z_shift]
 $pro_sel writepdb "${outbasename}_embedded.pdb"
+
 set pro_minmax [measure minmax $pro_sel]
 set pro_min [lindex $pro_minmax 0]
 set pro_max [lindex $pro_minmax 1]
@@ -188,6 +187,7 @@ set pro_max_z [lindex $pro_max 2]
 set box_min_z [expr $pro_min_z - $zdist]
 set box_max_z [expr $pro_max_z + $zdist]
 
+# delete atoms that are in conflict with the protein
 set bad_atoms [measure contacts 2.4 $bilayer_sel $pro_sel]
 set bad_membrane_idx [lindex $bad_atoms 0]
 set bad_membrane_sel [atomselect $bilayer "index $bad_membrane_idx"]
@@ -203,6 +203,7 @@ regenerate angles dihedrals
 writepsf cmap ${outbasename}_prefill.psf
 writepdb ${outbasename}_prefill.pdb
 
+# add water slabs to fill gaps above and below the protein
 resetpsf
 mol delete $protein
 mol delete $bilayer
@@ -298,13 +299,13 @@ foreach aw $addl_water {
 writepsf cmap ${outbasename}_solvent_appended.psf
 writepdb ${outbasename}_solvent_appended.pdb
 
+# delete any waters that conflict with the protein after the slab addition
 mol new ${outbasename}_solvent_appended.psf
 mol addfile ${outbasename}_solvent_appended.pdb waitfor all
 set embedded_system [molinfo top get id]
 set all [atomselect $embedded_system "all"]
 $all moveby [list 0 0 expr (-1*$box_min_z)]
 set box_Lz [expr $box_max_z - $box_min_z]
-# pbc set [list $bilayer_box_Lx $bilayer_box_Ly [expr $box_max_z - $box_min_z]] -molid $embedded_system
 set pro_sel [atomselect $embedded_system "protein or glycan"]
 set segs_to_search [join $newsegids]
 set water_sel [atomselect $embedded_system "segname $segs_to_search"]
@@ -317,6 +318,8 @@ catch {foreach seg [$bad_water_sel get segname] resid [$bad_water_sel get resid]
 regenerate angles dihedrals
 writepsf cmap ${outbasename}_filled.psf
 writepdb ${outbasename}_filled.pdb
+
+# write the resulting box dimensions to an xsc file
 set fp [open "${outbasename}.xsc" "w"]
 puts $fp "# PESTIFER generated xst file"
 puts $fp "#\$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w"
@@ -326,15 +329,14 @@ close $fp
 resetpsf
 mol delete $embedded_system
 
-
-package require autoionize
+# neutralize the system if necessary
 
 vmdcon -info "net charge of embedded system before filling: $net_charge"
 
 if {[expr abs($net_charge)] > 0.0001} {
    autoionize -psf ${outbasename}_filled.psf -pdb ${outbasename}_filled.pdb -o ${outbasename} -neutralize
 } else {
-   # copy ${outbasename}_filled.psf and ${outbasename}_filled.pdb to ${outbasename}.psf and ${outbasename}.pdb
+   vmdcon -info "no autoionization required; net charge is $net_charge"
    file copy ${outbasename}_filled.psf ${outbasename}.psf
    file copy ${outbasename}_filled.pdb ${outbasename}.pdb
 }
@@ -342,4 +344,4 @@ mol new ${outbasename}.psf
 mol addfile ${outbasename}.pdb waitfor all
 [atomselect top "all"] writenamdbin ${outbasename}.coor
 
-vmdcon -info "final embedded system: ${outbasename}.psf ${outbasename}.pdb ${outbasename}.coor ${outbasename}.xsc"
+vmdcon -info "Final embedded system: ${outbasename}.psf ${outbasename}.pdb ${outbasename}.coor ${outbasename}.xsc"

@@ -366,7 +366,7 @@ class PackmolLog(LogParser):
             vstr=bytes[vidx:].split()[0]
             self.metadata['version']=vstr
             self.phase='initialization'
-            self.progress=0.10
+            self.progress=0.00
         elif 'Building initial approximation' in bytes:
             self.metadata['initial_approximation']={}
             self.phase='initial_approximation'
@@ -381,7 +381,6 @@ class PackmolLog(LogParser):
             self.progress=0.90
         elif 'Packing molecules of type' in bytes:
             idx=bytes.index('Packing molecules of type')+len('Packing molecules of type')+1
-            
             mtype=bytes[idx:].split()[0]
             mfrac=int(mtype)/len(self.metadata['structures'])
             self.progress=0.20+0.60*mfrac
@@ -569,6 +568,8 @@ class PackmolLog(LogParser):
             self.process_gencan_report(bytes)
         elif 'Packing solved for molecules of type' in bytes:
             self.process_gencan_success(bytes)
+        elif 'Moving worst molecules' in bytes:
+            self.process_moving_worst_molecules(bytes)
 
     def finalize(self):
         self.gencan_df={}

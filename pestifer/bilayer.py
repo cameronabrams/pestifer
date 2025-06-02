@@ -364,7 +364,7 @@ class Bilayer:
         return packmol_output_pdb
 
     def equilibrate(self,user_dict={},
-                    basename='equilibrate',index=0,spec='',
+                    basename='equilibrate',index=0,
                     relaxation_protocol=None,parent_controller_index=0):
         if user_dict=={}:
             return
@@ -375,77 +375,38 @@ class Bilayer:
         if not relaxation_protocol:
             logger.debug('Using hard-coded relaxation protocol!!')
             relaxation_protocol=[            
-                {'md':dict(ensemble='minimize',minimize=1000,addl_paramfiles=self.addl_streamfiles)},
-                {'md':dict(ensemble='NVT',nsteps=1000,addl_paramfiles=self.addl_streamfiles)},
-                {'md':dict(ensemble='NPT',nsteps=200,addl_paramfiles=self.addl_streamfiles,
-                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-                {'md':dict(ensemble='NPT',nsteps=400,addl_paramfiles=self.addl_streamfiles,
-                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-                {'md':dict(ensemble='NPT',nsteps=800,addl_paramfiles=self.addl_streamfiles,
-                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-                {'md':dict(ensemble='NPT',nsteps=1600,addl_paramfiles=self.addl_streamfiles,
-                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-                {'md':dict(ensemble='NPT',nsteps=3200,addl_paramfiles=self.addl_streamfiles,
-                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-                {'md':dict(ensemble='NPT',nsteps=6400,addl_paramfiles=self.addl_streamfiles,
-                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-                {'md':dict(ensemble='NPT',nsteps=12800,addl_paramfiles=self.addl_streamfiles,
-                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))},
-                {'md':dict(ensemble='NPT',nsteps=25600,addl_paramfiles=self.addl_streamfiles,
-                        other_parameters=dict(useflexiblecell=True,useconstantratio=True))}]
+                {'md':dict(ensemble='minimize',minimize=1000)},
+                {'md':dict(ensemble='NVT',nsteps=1000)},
+                {'md':dict(ensemble='NPT',nsteps=200)},
+                {'md':dict(ensemble='NPT',nsteps=400)},
+                {'md':dict(ensemble='NPT',nsteps=800)},
+                {'md':dict(ensemble='NPT',nsteps=1600)},
+                {'md':dict(ensemble='NPT',nsteps=3200)},
+                {'md':dict(ensemble='NPT',nsteps=6400)},
+                {'md':dict(ensemble='NPT',nsteps=12800)},
+                {'md':dict(ensemble='NPT',nsteps=25600)}]
         else:
             logger.debug(f'Using user-specified relaxation protocol: {relaxation_protocol}')
-            for stage in relaxation_protocol:
-                specs=stage['md']
-                specs['addl_paramfiles']=self.addl_streamfiles
+        for stage in relaxation_protocol:
+            specs=stage['md']
+            specs['addl_paramfiles']=self.addl_streamfiles
+            if specs.get('ensemble',None) in ['NPT','npt']:
                 specs['other_parameters']={'useflexiblecell':True,'useconstantratio':True}
-        user_dict['tasks']=[{'restart':dict(psf=psf,pdb=pdb,xsc=xsc,index=index)}]+relaxation_protocol+[
+        user_dict['tasks']=[
+            {'restart':dict(psf=psf,pdb=pdb,xsc=xsc,index=index)}
+            ]+relaxation_protocol+[
             {'mdplot':dict(traces=['density',['a_x','b_y','c_z'],'pressure'],legend=True,grid=True,savedata=f'{basename}-traces.csv',basename=basename)},
             {'terminate':dict(basename=basename,chainmapfile=f'{basename}-chainmap.yaml',statefile=f'{basename}-state.yaml')}                 
         ]
+        user_dict['title']=f'Bilayer equilibration from {basename}'
         subconfig=Config(userdict=user_dict,quiet=True)
         subcontroller=Controller(subconfig,index=parent_controller_index+1)
         for task in subcontroller.tasks:
             task_key=task.taskname
-            task.override_taskname(f'{basename}{spec}-'+task_key)
+            task.override_taskname(f'{basename}-'+task_key)
         
         subcontroller.do_tasks()
         self.statevars=subcontroller.tasks[-1].statevars.copy()
         self.box,self.origin=cell_from_xsc(self.statevars['xsc'])
         self.area=self.box[0][0]*self.box[1][1]
-        logger.debug(f'Bilayer area after equilibration: {self.area:.3f} {sA2_}')         
-
-    def delete_lipid(self,vm,count,leaflet='upper'):
-        pdb=self.statevars['pdb']
-        psf=self.statevars['psf']
-        basenamepdb,dum=os.path.splitext(pdb)
-        basenamepsf,dum=os.path.splitext(psf)
-        vm.newscript(f'delete-lipid')
-        vm.addline(f'package require PestiferEnviron')
-        vm.addline(f'namespace import ::PestiferEnviron::*')
-        vm.addline(f'package require psfgen')
-        vm.addline(f'readpsf {psf} pdb {pdb}')
-        vm.addline(f'mol new {psf}')
-        vm.addline(f'mol addfile {pdb}')
-        vm.addline(f'set molid [molinfo top get id]')
-        vm.addline(f'set residues [leaflet_apportionment $molid]')
-
-        vm.addline(f'set sel [atomselect top "lipid and residue $residues($leaflet)"]')
-        vm.addline(f'set lres [lsort -unique [$sel get residue]]')
-        vm.addline(f'set nres [llength $lres]')
-        vm.addline(r'set shuffled_resnums [lsort -integer -command {expr {rand() > 0.5 ? 1 : -1}} $lres]')
-        vm.addline(f'set count {count}')
-        vm.addline(r'set remove_resnums [lrange $shuffled_resnums 0 [expr {$count - 1}]]')
-        vm.addline(r'set remove_sel [atomselect top "residue $remove_resnums"]')
-        vm.addline(r'foreach segname [$remove_sel get segname] resid [$remove_sel get resid] {')
-        vm.addline(r'   delatom $segname $resid')
-        vm.addline(r'}')
-        trim_pdb=basenamepdb+'-trim.pdb'
-        trim_psf=basenamepsf+'-trim.psf'
-        vm.addline(f'writepdb {trim_pdb}')
-        vm.addline(f'writepsf {trim_psf}')
-        vm.addline(f'close')
-        vm.writescript()
-        vm.runscript()
-        self.statevars['pdb']=trim_pdb
-        self.statevars['psf']=trim_psf
+        logger.debug(f'{basename} area after equilibration: {self.area:.3f} {sA2_}')         
