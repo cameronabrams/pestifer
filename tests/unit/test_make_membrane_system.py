@@ -235,3 +235,38 @@ def test_make_membrane_system_task_quilt():
 
     os.chdir('..')
     assert result==0
+
+def test_make_membrane_system_task_embed_no_orient():
+    if os.path.exists('__test_make_membrane_system_task_embed_no_orient'):
+        shutil.rmtree('__test_make_membrane_system_task_embed_no_orient')
+    os.mkdir('__test_make_membrane_system_task_embed_no_orient')
+    os.chdir('__test_make_membrane_system_task_embed_no_orient')
+    basename='test_bilayer_embed_no_orient'
+    psf='wt.psf'
+    pdb='wt-flip.pdb'
+    bilayer_psf='big_membrane.psf'
+    bilayer_pdb='big_membrane.pdb'
+    bilayer_xsc='big_membrane.xsc'
+    input_data_dir='../../fixtures/embed_inputs'
+    for ftype in [psf,pdb,bilayer_psf,bilayer_pdb,bilayer_xsc]:
+        shutil.copy(os.path.join(input_data_dir,ftype),'.')
+    C=Config()
+    pg=Psfgen(C)
+    pg.newscript(basename)
+    pg.usescript('bilayer_embed')
+    pg.writescript(basename,guesscoord=False,regenerate=True,force_exit=True,writepsf=False,writepdb=False)
+    result=pg.runscript(psf=psf,
+                        pdb=pdb,
+                        bilayer_psf=bilayer_psf,
+                        bilayer_pdb=bilayer_pdb,
+                        bilayer_xsc=bilayer_xsc,
+                        no_orient=True,
+                        z_head_group=protect_str_arg(None),
+                        z_tail_group=protect_str_arg(None),
+                        z_ref_group=protect_str_arg("protein and resid 696"),
+                        z_value=0.0,
+                        z_dist=10.0,
+                        o=basename)
+
+    os.chdir('..')
+    assert result==0

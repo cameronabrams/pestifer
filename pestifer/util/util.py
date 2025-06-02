@@ -95,6 +95,8 @@ def special_update(dict1,dict2):
 
 def protect_str_arg(arg):
     # returns arg with spaces replaced with underscores
+    if arg is None or type(arg) not in [str]:
+        return ''
     return arg.replace(' ','_')
 
 def reduce_intlist(L):

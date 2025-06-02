@@ -13,7 +13,7 @@ proc PestiferEnviron::leaflet_apportionment { molid } {
     set bilayer_com_z [lindex $bilayer_com 2]
     vmdcon -info "Bilayer center of mass z coordinate: $bilayer_com_z"
     set residue_list [lsort -unique [$bilayer get residue]]
-    vmdcon -info "Residue list: $residue_list"
+    vmdcon -info "[llength $residue_list] residues in the bilayer"
     set residues_upper [list]
     set residues_lower [list]
     foreach residue $residue_list {

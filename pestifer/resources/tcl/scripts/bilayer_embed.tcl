@@ -195,9 +195,9 @@ set bad_membrane_sel [atomselect $bilayer "index $bad_membrane_idx"]
 readpsf $psf pdb ${outbasename}_embedded.pdb
 readpsf $bilayer_psf pdb $bilayer_pdb
 
-foreach seg [$bad_membrane_sel get segname] resid [$bad_membrane_sel get resid] {
+catch {foreach seg [$bad_membrane_sel get segname] resid [$bad_membrane_sel get resid] {
    delatom $seg $resid
-}
+}} result
 regenerate angles dihedrals
 
 writepsf cmap ${outbasename}_prefill.psf
@@ -215,11 +215,13 @@ set segnames [lsort -unique [$allatoms get segname]]
 set solsegnums [list]
 foreach sg $segnames {
    if { [string match "WT*" $sg] } {
-      if {[regexp {[0-9]+} $seg match number]} {
-         lappend solsegnums $sg
+      if {[regexp {[0-9]+} $sg match number]} {
+         regsub -all {[^0-9]} $sg "" digits
+         lappend solsegnums $digits
       }
    }
 }
+set solsegnums [lsort $solsegnums]
 vmdcon -info "solvent (WT) segment numbers in raw-embedded bilayer: $solsegnums"
 if { [llength $solsegnums] == 0 } {
    set nextsolsegnum 1
@@ -309,9 +311,9 @@ set water_sel [atomselect $embedded_system "segname $segs_to_search"]
 set bad_atoms [measure contacts 2.4 $water_sel $pro_sel]
 set bad_water_idx [lindex $bad_atoms 0]
 set bad_water_sel [atomselect $embedded_system "index $bad_water_idx"]
-foreach seg [$bad_water_sel get segname] resid [$bad_water_sel get resid] {
+catch {foreach seg [$bad_water_sel get segname] resid [$bad_water_sel get resid] {
    delatom $seg $resid
-}
+}} result
 regenerate angles dihedrals
 writepsf cmap ${outbasename}_filled.psf
 writepdb ${outbasename}_filled.pdb

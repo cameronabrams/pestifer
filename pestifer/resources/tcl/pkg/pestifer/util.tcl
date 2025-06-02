@@ -11,23 +11,42 @@ namespace eval ::PestiferUtil:: {
 
 proc PestiferUtil::split_psf {psf pdb residues {prefix "section"}} {
    set nsections [llength $residues]
+   for {set i 0} {$i < $nsections} {incr i} {
+      vmdcon -info "split_psf: section $i has [llength [lindex $residues $i]] residues"
+   }
    package require psfgen
    set section 1
+   mol new $psf
+   mol addfile $pdb waitfor all
+   set tmpmolid [molinfo top get id]
    foreach x $residues {
       resetpsf
       readpsf $psf pdb $pdb
-      set keepsel [atomselect top "residue $x"]
-      set delsel [atomselect top "not residue $x"]
+      set keepsel [atomselect $tmpmolid "residue $x"]
+      set delsel [atomselect $tmpmolid "not residue $x"]
       catch {
-      foreach seg [$delsel get segname] resid [$delsel get resid] atom_name [$delsel get name] {
-         delatom $seg $resid $atom_name
+      foreach seg [$delsel get segname] resid [$delsel get resid]  {
+         delatom $seg $resid
       }} rv
       writepsf "${prefix}${section}.psf"
       writepdb "${prefix}${section}.pdb"
       vmdcon -info "split_psf: wrote ${prefix}${section}.psf and ${prefix}${section}.pdb"
+      mol new "${prefix}${section}.psf"
+      mol addfile "${prefix}${section}.pdb" waitfor all
+      set chkmolid [molinfo top get id]
+      set sel [atomselect $chkmolid "all"]
+      set nres [llength [lsort -unique [$sel get residue]]]
+      $sel delete
+      vmdcon -info "split_psf: section $section has $nres residues"
+      if { $nres != [llength $x]} {
+         vmdcon -err "split_psf: section $section assigned wrong number of residues: $nres != [llength $x]"
+         exit
+      }
+      mol delete $chkmolid
       set section [expr $section + 1]
    }
    resetpsf
+   mol delete $tmpmolid
 }
 
 proc PestiferUtil::verify_no_mols {} {
