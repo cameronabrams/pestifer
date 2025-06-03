@@ -1092,6 +1092,7 @@ tasks:
       solvents: TIP3
     embed:
       margin: 2.4
+      no_orient: false
       q_tolerance: 0.0001
       xydist: 30
       z_head_group: protein and resid 667

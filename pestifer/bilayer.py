@@ -1,7 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
 import logging
-import os 
 
 import numpy as np
 

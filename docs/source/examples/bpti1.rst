@@ -6,7 +6,7 @@ Example 1: BPTI
 The Input Configuration
 =======================
 
-The ``psfgen`` `user manual <https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen/ug.pdf>`_ is a great resource for learning how to use ``psfgen``.  A simple example in that manual is a solvation of BPTI starting from its PDB coordinates (PDB ID 6pti).  ``pestifer`` can reproduce this solvation via the input configuration shown below:
+The ``psfgen`` `user manual <https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen/ug.pdf>`_ is a necessary resource for learning how to use ``psfgen``.  A simple example in that manual is a solvation of bovine pancreatic trypsin inhibitor (BPTI) starting from its PDB coordinates (`PDB ID 6pti <https://www.rcsb.org/structure/6PTI>`_).  ``pestifer`` can reproduce this solvation via the input configuration shown below:
 
 .. literalinclude:: ../../../pestifer/resources/examples/01-bpti.yaml
     :language: yaml
@@ -192,13 +192,15 @@ And so on.  Let's return to the example.  Immediately after the ``psfgen`` task 
 The Input Configuration (Continued)
 ===================================
 
-So let's return again to the example.  After this ``md`` task is the ``solvate`` task.  Notice that it has no subdirectives; only default values are used for any subdirectives. Then comes another minimization via an ``md`` task, then an NVT equilibration, and then a series of progressively longer NPT equilibrations in yet more ``md`` tasks.  These "chained-together" NPT runs avoid the common issue that, after solvation, the density of the initial water box is a bit too low, so under pressure control the volume shrinks.  It can shrink so quickly that NAMD's internal data structures for distributing the computational load among processing units becomes invalid, which causes NAMD to die.  The easiest way to reset those internal data structures is just to restart NAMD from the result of the previous run.
+So let's return to the example.  After the first ``md`` task is the ``solvate`` task.  Notice that it has no subdirectives; in this case default values are used for any subdirectives. After this task has finished, we have a run-ready *nonequilibrated* system.  We equilibrate here using first another minimization via an ``md`` task, then an NVT equilibration in another ``md`` task, and then a series of progressively longer NPT equilibrations in yet more ``md`` tasks.  These "chained-together" NPT runs avoid the common issue that, after solvation, the density of the initial water box is a bit too low, so under pressure control the volume shrinks.  It can shrink so quickly that NAMD's internal data structures for distributing the computational load among processing units becomes invalid, which causes NAMD to die.  The easiest way to reset those internal data structures is just to restart NAMD from the result of the previous run.
 
 The ``mdplot`` task generates a plot of system density (in g/cc) vs time step for the series of MD simulations that occur after solvation.  This is a quick way to check that enough NPT equilibration has been performed.  For this example, the plot looks like this:
 
 .. figure:: pics/solvated-density.png
 
     Density vs. timestep for the BPTI system post-solvation.
+
+Since the density has plateaued, we can reasonably assume that the system density is equilibrated.
 
 Finally, we see a ``terminate`` task, whose main role is to generate some informative output and to provide a set of NAMD input files (PSF, PDB, xsc, coor, and vel) that all have a common base file name.  The ``package`` subdirective creates a tarball of all required input files to execute a NAMD run, ready for transfer to the HPC resource of your choice.
 
@@ -216,21 +218,35 @@ You should note the presence of CHARMM force-field files in the current director
 .. code-block:: console
 
   $ tar ztf prod_6pti.tgz
-  prod_6pti.namd
-  par_all36m_prot.prm
-  par_all36_carb.prm
-  par_all36_lipid.prm
-  par_all36_carb.prm
-  par_all36_na.prm
-  par_all36_cgenff.prm
-  toppar_all36_carb_glycopeptide.str
-  toppar_all36_prot_modify_res.str
-  toppar_water_ions.str
-  toppar_all36_moreions.str
-  02-00-solvate.psf
-  08-00-md-NPT.pdb
-  08-00-md-NPT.coor
-  08-00-md-NPT.xsc
-  08-00-md-NPT.vel
+    prod_6pti.namd
+    par_all36_lipid.prm
+    toppar_all36_moreions.str
+    toppar_all36_prot_modify_res.str
+    par_all36_na.prm
+    toppar_all36_carb_glycopeptide.str
+    par_all36_cgenff.prm
+    toppar_water_ions.str
+    par_all36m_prot.prm
+    par_all36_carb.prm
+    00-02-00_solvate.psf
+    00-09-00_md-npt.pdb
+    00-09-00_md-npt.coor
+    00-09-00_md-npt.xsc
+    00-09-00_md-npt.vel
 
-``prod_6pti.namd`` is the namd3 configuration file, and it created with some default values.  Carefully consider its contents before you run; you will need to edit it!
+The CHARMMFF files that end with ``prm`` and ``str`` are *modified* versions of the as-provided CHARMMFF files from the MacKerrel lab so that NAMD can use them as parameter files.  These are local copies of the files that will work with any NAMD run.  It is important to note that the CHARMMFF files distributed by the MacKerrel lab are not modified AT ALL within pestifer.  ``prod_6pti.namd`` is the namd3 configuration file, and it created with some default values.  Carefully consider its contents before you run; you will need to edit it!
+
+Digression: On File Name Conventions
+====================================
+
+Files generated by pestifer during a build typically conform to a common naming convention:
+
+.. code-block:: console
+
+   CC-MT-ST-TASKNAME.ext
+
+Here ``CC`` is the 2-digit identification of the run *controller* (e.g., ``00`` for the first controller), ``MT`` is the 2-digit identification of the *main task* of that controller (e.g., ``02`` is the *third* task), and ``ST`` is the 2-digit identification of the *subtask*  of that task(e.g., ``00`` for the first subtasks). ``TASKNAME`` is the name of the task as it appears in the yaml file. ``ext`` is the file extension.  For example, ``00-02-00_solvate.psf`` is the PSF file generated by the ``solvate`` task (the *third* task) in this example.
+
+There were a total of 11 tasks performed in this example, where the final task is the ``terminate`` task.  The final run-ready files therefore have the prefix ``00-09-00`` since they result from the 10th task of the first (and only) controller.
+
+Some tasks may spawn *subcontrollers*, which typically acquire a controller ID derived from that of the parent controller.  In the current version of pestifer, this occurs when building a membrane bilayer, in which a series of MD simulations are launched by a subcontroller the the ``make_membrane_system`` task.

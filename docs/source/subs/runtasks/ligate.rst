@@ -3,7 +3,7 @@
 ligate 
 ------
 
-A ``ligate`` task is used to build missing protein loops that are specified in the input structure file.  It is very often the case that a structure file declares "missing" or "zero-occupancy" residues that are part of the physical molecule that was analyzed but for whatever reason are not resolved.  Pestifer by default will build this in as unstructured loops.  The algorithm that does this is as follows:
+A ``ligate`` task is used to build missing protein loops that are specified in the input structure file.  It is very often the case that a structure file declares "missing" or "zero-occupancy" residues that are part of the physical molecule that was analyzed but for whatever reason are not resolved.  Pestifer by default will build these in as unstructured loops.  The algorithm that does this is as follows:
 
 1. For each missing residue, include the appropriate ``residue`` command in the ``segment`` block in the automatically-generated psfen input script.
 2. When ``guesscoords`` is run in psfgen, these missing residues are inserted with default internal coordinates.  More than one or two of them, and you have a situation in which the carbonyl carbon of the last inserted residue can be very far away to the amide nitrogen atom to which it is bonded.

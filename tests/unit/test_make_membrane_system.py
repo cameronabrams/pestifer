@@ -236,6 +236,7 @@ def test_make_membrane_system_task_quilt():
     os.chdir('..')
     assert result==0
 
+@pytest.mark.slow
 def test_make_membrane_system_task_embed_no_orient():
     if os.path.exists('__test_make_membrane_system_task_embed_no_orient'):
         shutil.rmtree('__test_make_membrane_system_task_embed_no_orient')

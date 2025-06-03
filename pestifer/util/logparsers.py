@@ -350,7 +350,9 @@ class PackmolLog(LogParser):
         self.processed_banners=[]
         self.metadata={}
         self.gencan={}
+        self.molmoves=[]
         self.basename=basename
+        self.progress=0.0
 
     def update(self,bytes):
         super().update(bytes)
@@ -547,6 +549,40 @@ class PackmolLog(LogParser):
         match=next((d for d in self.metadata['structures'] if d['idx'] == mtype), None)
         if match:
             match['gencan_success']=dict(objective_function_value=obj_func_val,max_viol_target_distance=max_viol_target_dist,max_viol_constr=max_viol_constr)
+
+    def process_moving_worst_molecules(self,bytes):
+        top_idx=[m.start() for m in re.finditer('Moving',bytes)]
+        cont_idx=top_idx[0]+len('Moving worst molecules ...')
+        mbytes=bytes[cont_idx:]
+        fvbefore=float(get_single('Function value before moving molecules:',mbytes))
+        flag='Moving '
+        moltypes=[]
+        pct=[]
+        fam_idx=[m.start() for m in re.finditer(flag,mbytes)]
+        for i in fam_idx:
+            idx=i+len(flag)
+            eol=mbytes[idx:].index('\n')+idx
+            substr=mbytes[idx:eol]
+            tokens=substr.replace(':','').split()
+            val=int(tokens[0])
+            cnt=int(tokens[-1])
+            moltypes.append((val,cnt))
+        flag='Type'
+        fam_idx=[m.start() for m in re.finditer(flag,mbytes)]
+        for i in fam_idx:
+            idx=i+len(flag)
+            eol=mbytes[idx:].index('\n')+idx
+            substr=mbytes[idx:eol]
+            tokens=substr.replace(':','').split()
+            val=int(tokens[0])
+            cnt=float(tokens[-1].replace('%',''))
+            pct.append((val,cnt))
+        fvafter=float(get_single('Function value after moving molecules:',mbytes))
+        result=dict(function_value_before_moving_molecules=fvbefore,
+                    function_value_after_moving_molecules=fvafter,
+                    moltypes=moltypes,
+                    pcts=pct)
+        self.molmoves.append(result)
 
     def process_section(self,bytes):
         banner_idx=[m.start() for m in re.finditer(self.banner_separator,bytes)]

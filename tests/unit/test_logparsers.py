@@ -85,6 +85,8 @@ def test_packmol_log_static():
     assert 'gencan_success' in l.metadata['structures'][2]
     assert 'gencan_success' in l.metadata['structures'][3]
 
+    assert len(l.molmoves)==57
+
     l.finalize()
 
 def test_packmol_log_dynamic():
@@ -94,11 +96,15 @@ def test_packmol_log_dynamic():
     msg_len=len(msg)
     chunk_size=msg_len//100
     p=0
+    prog=[0.0]
     while p<msg_len:
         l.update(msg[p:p+chunk_size])
         p+=chunk_size
+        if l.measure_progress()>prog[-1]:
+            prog.append(l.measure_progress())
         sleep(0.1)
     l.finalize()
+    assert len(prog)==5
 
 def test_namd_log_static():
     l=NAMDLog()
