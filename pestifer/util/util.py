@@ -8,7 +8,7 @@ import logging
 import os
 import sys
 import time
-import shutil
+# import shutil
 import pandas as pd
 import numpy as np
 from functools import wraps
@@ -18,7 +18,6 @@ logger=logging.getLogger(__name__)
 _fntiminginfo={}
 def countTime(fn):
     @wraps(fn)
-    # global _fntiminginfo
     def measure_time(*args,**kwargs):
         keyname=f'{fn.__module__}.{fn.__name__}'
         if hasattr(fn,'__self__'):#.__class__.__name__=='method':
@@ -56,12 +55,12 @@ def cell_to_xsc(box,orig,xsc):
         f.write('#$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z\n')
         f.write(f'0 {" ".join([f"{_:.6f}" for _ in box.reshape((9,)).tolist()])} {" ".join([f"{_:.6f}" for _ in orig])}\n')
 
-def is_tool(name):
-    """Checks to see if the object name is an executable"""
-    return shutil.which(name) is not None
+# def is_tool(name):
+#     """Checks to see if the object name is an executable"""
+#     return shutil.which(name) is not None
 
 def is_periodic(xsc):
-    """Checks to see if the contents of the NAMD XSC
+    """Checks to see if the contents of the NAMD
     output xsc indicate that the current system is periodic 
     """
     if xsc and os.path.exists(xsc):
@@ -242,78 +241,78 @@ def write_residue_map(the_map,filename,valkeys=['chainID','resseqnum','insertion
             vl=' '.join([str(v.__dict__[x]) for x in valkeys])
             f.write(f'{kl} {vl}\n')
 
-def split_list(L,idx):
-    """ Split a list by removing items [idx..end] and returning
-    as a new list. This avoids the shallow copy nature of standard
-    list slicing in python """
-    LCls=type(L)
-    D=LCls([])
-    for i in range(idx,len(L)):
-        D.append(L[i])
-    for d in D:
-        L.remove(d)
-    return D
+# def split_list(L,idx):
+#     """ Split a list by removing items [idx..end] and returning
+#     as a new list. This avoids the shallow copy nature of standard
+#     list slicing in python """
+#     LCls=type(L)
+#     D=LCls([])
+#     for i in range(idx,len(L)):
+#         D.append(L[i])
+#     for d in D:
+#         L.remove(d)
+#     return D
 
-def pdb_search_replace(pdbfile,mapdict):
-    """ perform a straight-up search replace on the
-    contents of pdbfile """
-    with open(pdbfile,'r') as f:
-        probe=f.read()
-    for i,j in mapdict.items():
-        probe=probe.replace(i,j)
-    with open(pdbfile,'w') as f:
-        f.write(probe)
+# def pdb_search_replace(pdbfile,mapdict):
+#     """ perform a straight-up search replace on the
+#     contents of pdbfile """
+#     with open(pdbfile,'r') as f:
+#         probe=f.read()
+#     for i,j in mapdict.items():
+#         probe=probe.replace(i,j)
+#     with open(pdbfile,'w') as f:
+#         f.write(probe)
 
-def pdb_singlemolecule_charmify(pdbfile,moltype_map,outfile=None,molname=''):
-    """ Using the charmmlipid2amber input data, convert any specific amber-style
-    lipids in pdbfile to charmm-style.  This is done by direct byte-level
-    string manipulations.  """
-    if not molname:
-        molname=os.path.splitext(pdbfile)[0]
-    with open(pdbfile,'r') as f:
-        probelines=f.read().split('\n')
-    parsedlines=[]
-    for rec in probelines:
-        # logger.debug(rec)
-        if not rec.startswith('ATOM') and not rec.startswith('HETATM'):
-            # logger.debug(f'skipping {rec}')
-            parsedlines.append(rec)
-            continue
-        for i,atom in moltype_map.iterrows():
-            badlab=atom['replace']
-            spc=[]
-            for i,c in enumerate(badlab):
-                if c==' ':
-                    spc.append(i)
-            ll=len(badlab)
-            mind=ll+1
-            mini=-1
-            for i in range(len(spc)):
-                d=abs(spc[i]-ll/2)
-                if d < mind:
-                    mind=d
-                    mini=spc[i]
-            badlab2=badlab[:mini]+' '+badlab[mini:-1]
-            # logger.debug(f'[{badlab}] or [{badlab2}]')
-            goodlab=atom['search'] # we are inverting charmmlipid2amber!
-            if rec.find(badlab)!=-1 or rec.find(badlab2)!=-1:
-                # logger.debug(f'{rec}')
-                # rec=rec.replace(badlab,goodlab)
-                chain=rec[21]
-                residstr=rec[22:26]
-                tokens=goodlab.split()
-                correct_atom_name=tokens[0].strip()
-                correct_residue_name=tokens[1].strip()
-                # logger.debug(f'{lip} {nat} {chain} {residstr}')
-                # write in the correct atom name and residue name
-                rec=rec[:12]+'{:>4s} '.format(correct_atom_name)+'{:.4s} '.format(correct_residue_name)+chain+'{: 4d}'.format(1)+rec[26:]
-                # logger.debug(f'{rec}')
+# def pdb_singlemolecule_charmify(pdbfile,moltype_map,outfile=None,molname=''):
+#     """ Using the charmmlipid2amber input data, convert any specific amber-style
+#     lipids in pdbfile to charmm-style.  This is done by direct byte-level
+#     string manipulations.  """
+#     if not molname:
+#         molname=os.path.splitext(pdbfile)[0]
+#     with open(pdbfile,'r') as f:
+#         probelines=f.read().split('\n')
+#     parsedlines=[]
+#     for rec in probelines:
+#         # logger.debug(rec)
+#         if not rec.startswith('ATOM') and not rec.startswith('HETATM'):
+#             # logger.debug(f'skipping {rec}')
+#             parsedlines.append(rec)
+#             continue
+#         for i,atom in moltype_map.iterrows():
+#             badlab=atom['replace']
+#             spc=[]
+#             for i,c in enumerate(badlab):
+#                 if c==' ':
+#                     spc.append(i)
+#             ll=len(badlab)
+#             mind=ll+1
+#             mini=-1
+#             for i in range(len(spc)):
+#                 d=abs(spc[i]-ll/2)
+#                 if d < mind:
+#                     mind=d
+#                     mini=spc[i]
+#             badlab2=badlab[:mini]+' '+badlab[mini:-1]
+#             # logger.debug(f'[{badlab}] or [{badlab2}]')
+#             goodlab=atom['search'] # we are inverting charmmlipid2amber!
+#             if rec.find(badlab)!=-1 or rec.find(badlab2)!=-1:
+#                 # logger.debug(f'{rec}')
+#                 # rec=rec.replace(badlab,goodlab)
+#                 chain=rec[21]
+#                 residstr=rec[22:26]
+#                 tokens=goodlab.split()
+#                 correct_atom_name=tokens[0].strip()
+#                 correct_residue_name=tokens[1].strip()
+#                 # logger.debug(f'{lip} {nat} {chain} {residstr}')
+#                 # write in the correct atom name and residue name
+#                 rec=rec[:12]+'{:>4s} '.format(correct_atom_name)+'{:.4s} '.format(correct_residue_name)+chain+'{: 4d}'.format(1)+rec[26:]
+#                 # logger.debug(f'{rec}')
 
-            # else:
-            #     logger.debug(f'{badlab} not found in {rec}')
-        parsedlines.append(rec)
-    assert len(probelines)==len(parsedlines)
-    if not outfile:
-        outfile=pdbfile
-    with open(outfile,'w') as f:
-        f.write('\n'.join(parsedlines))
+#             # else:
+#             #     logger.debug(f'{badlab} not found in {rec}')
+#         parsedlines.append(rec)
+#     assert len(probelines)==len(parsedlines)
+#     if not outfile:
+#         outfile=pdbfile
+#     with open(outfile,'w') as f:
+#         f.write('\n'.join(parsedlines))
