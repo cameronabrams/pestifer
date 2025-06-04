@@ -8,3 +8,5 @@ sphinx-rtd-theme
 furo
 readthedocs-sphinx-ext<2.3
 sphinx-copybutton
+sphinxcontrib-mermaid
+

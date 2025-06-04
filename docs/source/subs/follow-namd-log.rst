@@ -1,7 +1,7 @@
 follow-namd-log
 ---------------
 
-Pestifer automatically shows progress bars for any NAMD runs that it starts.  If you want to see the progress of a NAMD run that was started outside of pestifer, you can use the ``follow-namd-log`` command.
+When run interactively, ``pestifer`` automatically shows progress bars for any NAMD run that it starts.  If you want to see the progress of a NAMD run that was started *outside* of pestifer, you can use the ``follow-namd-log`` command.
 
 .. code-block:: console
 

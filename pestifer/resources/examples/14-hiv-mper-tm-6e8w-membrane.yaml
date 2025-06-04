@@ -73,11 +73,6 @@ tasks:
                 nsteps: 16000
                 temperature: 310
                 pressure: 1.0
-            - md:
-                ensemble: NPT
-                nsteps: 32000
-                temperature: 310
-                pressure: 1.0
           quilt:
             - md:
                 ensemble: minimize
@@ -96,8 +91,8 @@ tasks:
                 temperature: 310
                 pressure: 1.0
       embed:
-        xydist: 30
-        zdist: 20
+        xydist: 20
+        zdist: 10
         z_head_group: "protein and resid 667"
         z_tail_group: "protein and resid 710"
         z_ref_group: 
@@ -105,7 +100,7 @@ tasks:
           z_value: 0.0
   - md:
       ensemble: minimize
-      minimize: 5000
+      minimize: 1000
       constraints:
         k: 10
         atoms: protein and name CA

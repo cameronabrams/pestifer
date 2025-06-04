@@ -1,3 +1,5 @@
+.. _subs_cleanup:
+
 cleanup
 -------
 

@@ -2,13 +2,12 @@
 
 # -- Project information
 
-
 project = 'pestifer'
 copyright = '2023-2025, Cameron F. Abrams'
 author = 'cfa22@drexel.edu'
 
-release = '1.11'
-version = '1.11.0'
+release = '1.12'
+version = '1.12.0'
 
 # -- General configuration
 
@@ -18,7 +17,8 @@ extensions = [
     'sphinx.ext.autodoc',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
-    'sphinx_copybutton'
+    'sphinx_copybutton',
+    'sphinxcontrib.mermaid',
 ]
 
 intersphinx_mapping = {

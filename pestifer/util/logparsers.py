@@ -7,8 +7,13 @@ import logging
 import os
 import re
 import time
+import yaml
+
 import pandas as pd
 import matplotlib.pyplot as plt
+
+from enum import Enum
+
 from ..stringthings import ByteCollector
 from ..util.progress import PackmolProgress, NAMDProgress
 
@@ -340,6 +345,10 @@ class NAMDLog(LogParser):
         self.energy_df.to_csv(f'{self.basename}-energy.csv',index=False)
         return f'{self.basename}-energy.csv'
 
+class PackmolPhase(Enum):
+    UNINITIALIZED = 0
+    INITIALIZATION = 1
+
 class PackmolLog(LogParser):
     banner_separator='#'*80  # banners can occur within sections
     section_separator='-'*80 # file is divided into sections
@@ -362,13 +371,16 @@ class PackmolLog(LogParser):
                 self.processed_separator_idx.append(i)
                 self.process_section(self.byte_collector[i:j])
 
+    def measure_progress(self):
+        self.progress=self.metadata['current_total_gencan_loops']/self.metadata['max_total_gencan_loops'] if 'current_total_gencan_loops' in self.metadata and 'max_total_gencan_loops' in self.metadata else 0.0
+        return super().measure_progress()
+    
     def process_banner(self,bytes):
         if 'Version' in bytes:
             vidx=bytes.index('Version')+len('Version')+1
             vstr=bytes[vidx:].split()[0]
             self.metadata['version']=vstr
             self.phase='initialization'
-            self.progress=0.00
         elif 'Building initial approximation' in bytes:
             self.metadata['initial_approximation']={}
             self.phase='initial_approximation'
@@ -377,15 +389,11 @@ class PackmolLog(LogParser):
             ofstr=bytes[idx:].split()[0]
             self.metadata['initial_objective_function']=float(ofstr)
             self.phase='packing_molecules'
-            self.progress=0.20
         elif 'Packing all molecules together' in bytes:
             self.phase='packing_all_molecules_together'
-            self.progress=0.90
         elif 'Packing molecules of type' in bytes:
             idx=bytes.index('Packing molecules of type')+len('Packing molecules of type')+1
             mtype=bytes[idx:].split()[0]
-            mfrac=int(mtype)/len(self.metadata['structures'])
-            self.progress=0.20+0.60*mfrac
             self.phase=f'packing_molecules_of_type_{mtype}'
             if not 'molecule_types_packed' in self.metadata:
                 self.metadata['molecule_types_packed']=[]
@@ -438,6 +446,11 @@ class PackmolLog(LogParser):
             match=next((d for d in self.metadata['structures'] if d['idx'] == mtype), None)
             if match:
                 match['max_gencan_loops']=mloops
+                match['current_gencan_loops']=0
+            else:
+                logger.error(f'process_header: No match for mtype {mtype} in structures {self.metadata["structures"]}')
+        self.metadata['max_total_gencan_loops']=self.metadata['max_gencan_loops_all']+sum([d['max_gencan_loops'] for d in self.metadata['structures'] if 'max_gencan_loops' in d])
+        self.metadata['current_total_gencan_loops']=0
         flag='Distance tolerance:'
         self.metadata['distance_tolerance']=float(bytes[bytes.index(flag)+len(flag):].split()[0].strip())
         flag='Number of molecules of type'
@@ -540,6 +553,10 @@ class PackmolLog(LogParser):
             all_type_f=float(get_single('All-type function value:',bytes))
             dsofar['all_type_function_value']=all_type_f
         G.append(dsofar)
+        self.metadata['current_total_gencan_loops']+=1
+        match=next((d for d in self.metadata['structures'] if d['idx'] == mtype), None)
+        if match:
+            match['current_gencan_loops']+=1
 
     def process_gencan_success(self,bytes):
         mtype=int(get_single('Packing solved for molecules of type',bytes))
@@ -549,6 +566,8 @@ class PackmolLog(LogParser):
         match=next((d for d in self.metadata['structures'] if d['idx'] == mtype), None)
         if match:
             match['gencan_success']=dict(objective_function_value=obj_func_val,max_viol_target_distance=max_viol_target_dist,max_viol_constr=max_viol_constr)
+            unneeded_loops=match.get('max_gencan_loops',0)-match.get('current_gencan_loops',0)
+            self.metadata['max_total_gencan_loops']-=(unneeded_loops-1)
 
     def process_moving_worst_molecules(self,bytes):
         top_idx=[m.start() for m in re.finditer('Moving',bytes)]
@@ -608,6 +627,8 @@ class PackmolLog(LogParser):
             self.process_moving_worst_molecules(bytes)
 
     def finalize(self):
+        with open(f'{self.basename}_packmol-results.yaml','w') as f:
+            yaml.dump(self.metadata,f,default_flow_style=False)
         self.gencan_df={}
         for k,v in self.gencan.items():
             self.gencan_df[k]=pd.DataFrame(v)

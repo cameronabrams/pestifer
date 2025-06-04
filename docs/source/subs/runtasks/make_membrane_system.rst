@@ -88,6 +88,40 @@ If you are including cholesterol or any other sterols in your bilayer, it is rec
 
 As mentioned above, pestifer first uses packmol to make a minimal patch (of, say, 100 lipids per leaflet) of the desired composition.  If the system is to have a symmetric bilayer (same composition in each leaflet), then this patch is first relaxed and then replicated to form the final quilt, into which the protein is embedded (if there is one).  If the system is to have an asymmetric bilayer (different composition in each leaflet), then pestifer first makes *two symmetric* patches, where in the first the two leaflets have the same composition as the upper leaflet of the final system, and the second has the composition of the lower leaflet.  These two patches are relaxed independently.  Then a hybrid asymmetric patch is constructed by combining the upper leaflet of the first and the lower leaflet of the second.  The lateral box size is set as that of the larger of the two leaflets (laterally).  If there is a difference in lateral area of the two patches, this means the larger one has *excess lipids*.  However, we will not delete excess lipids until the quilt is made.  At this point, this fresh asymmetric patch is replicated to form the quilt.  The number of excess lipids in the larger patch is computed assuming that the equilibrated symmetric patch reports an accurate SAPL for that composition, and that the two leaflets in the quilt must have the *same* area, which is assumed at the outset to reflect a laterally equilibrated *smaller* leaflet.  The determined number of excess lipids is then deleted from the larger leaflet by random selection, and the system is relaxed again.  This is done to ensure the lateral pressure in the two leaflets is the same, minimizing any spontaneous curvature that would cause spurious "ripples" in the fully periodic system.
 
+.. mermaid::
+
+  graph TD;
+    A{Is bilayer asymmetric?};
+    A -- No --> B[Make patch];
+    B --> H[Relax];
+    H --> I[Replicate patch to quilt];
+    A -- Yes --> C[Make two symmetric patches];
+    C --> D[Make patch for upper leaflet];
+    C --> E[Make patch for lower leaflet];
+    D --> F[Relax];
+    E --> G[Relax];
+    F -- Upper leaflet --> J[Combine leaflets into asymmetric patch];
+    G -- Lower leaflet --> J;
+    J --> N[Replicate asymmetric patch to quilt];
+    N --> K{Any excess lipids?};
+    K -- Yes --> L[Delete excess lipids from larger leaflet];
+    K -- No --> M[Relax quilted system];
+    L --> M;
+    I --> M;
+
+..
+    ..
+    ..
+    F --> Upper leaflet --> H[Combine leaflets into asymmetric patch];
+    G --> Lower leaflet --> H;
+    H --> I[Replicate asymmetric patch to quilt];
+    I --> J{Any excess lipids?};
+    J -- Yes --> K[Delete excess lipids from larger leaflet];
+    J -- No --> L[Relax quilted system];
+    K --> L;
+    A --> M[Replicate symmetric patch to quilt];
+    M --> L;
+
 Pestifer's ``make_membrane_system`` task is inspired by the `packmol-memgen package <https://ambermd.org/tutorials/advanced/tutorial38/index.php>`_.  For instance, we borrow ``packmol-memgen`` syntax for specifying composition (optionally; the preferred syntax is to use a ``composition`` dictionary in the yaml input).  However, we do not use any precomputed surface-area per lipid.  Instead, we allow the user to specify a single value for SAPL and then a relaxation protocol to achieve a laterally equilibrated bilayer system prior to any embedding.  Packmol-memgen allows for generation of asymmetric bilayers but does not provide a way to guarantee lack of spontaneous curvature that might result, beyond assuming its pre-computed SAPL's are correct.
 
 A moderately sized bilayer system can take *several hours* to pack.  A typical bilayer patch of 100 lipids per leaflet with 32 waters per lipid will take between 15 and 30 minutes for ``packmol`` to pack; the remainder of the time is relaxation.  The relaxation protocols can take anywhere from a few minutes to several hours, depending on the size of the system and the number of steps specified in each protocol.  See :ref:`example 14` for an example of a protein-embedded, heterogeneous asymmetric bilayer system built using the ``make_membrane_system`` task.
