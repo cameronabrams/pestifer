@@ -66,7 +66,7 @@ class MakeMembraneSystemTask(BaseTask):
         solvent_specstring=self.bilayer_specs.get('solvents','TIP3')
         solvent_ratio_specstring=self.bilayer_specs.get('solvent_mole_fractions','1.0')
         solvent_to_lipid_ratio=self.bilayer_specs.get('solvent_to_lipid_ratio',32.0)
-        leaflet_nlipids=self.bilayer_specs.get('leaflet_nlipids',100)
+        patch_nlipids=self.bilayer_specs.get('patch_nlipids',dict(upper=100,lower=100))
         cation_name=self.bilayer_specs.get('cation','POT')
         anion_name=self.bilayer_specs.get('anion','CLA')
         neutralizing_salt=[cation_name,anion_name]
@@ -85,7 +85,7 @@ class MakeMembraneSystemTask(BaseTask):
                             solvent_specstring=solvent_specstring,
                             solvent_ratio_specstring=solvent_ratio_specstring,
                             solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
-                            leaflet_nlipids=leaflet_nlipids,
+                            leaflet_nlipids=patch_nlipids,
                             pdb_collection=self.pdb_collection,resi_database=self.RDB)
         logger.debug(f'Main composition dict after call {composition_dict}')
         if self.patch.asymmetric:
@@ -100,7 +100,7 @@ class MakeMembraneSystemTask(BaseTask):
                                 solvent_specstring=solvent_specstring,
                                 solvent_ratio_specstring=solvent_ratio_specstring,
                                 solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
-                                leaflet_nlipids=leaflet_nlipids,
+                                leaflet_nlipids=patch_nlipids,
                                 pdb_collection=self.pdb_collection,resi_database=self.RDB)
             logger.debug(f'Symmetrizing bilayer to lower leaflet')
             composition_dict['upper_leaflet_saved']=composition_dict['upper_leaflet']
@@ -114,7 +114,7 @@ class MakeMembraneSystemTask(BaseTask):
                                 solvent_specstring=solvent_specstring,
                                 solvent_ratio_specstring=solvent_ratio_specstring,
                                 solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
-                                leaflet_nlipids=leaflet_nlipids,
+                                leaflet_nlipids=patch_nlipids,
                                 pdb_collection=self.pdb_collection,resi_database=self.RDB)
             composition_dict['upper_leaflet']=composition_dict['upper_leaflet_saved']
             composition_dict['upper_chamber']=composition_dict['upper_chamber_saved']

@@ -3,7 +3,7 @@
 ``namd``
 ========
 
-These are specifications for NAMD, including default input configuration parameters for various classes of simulations.
+These are specifications for NAMD3, including default input configuration parameters for various classes of simulations.
 
 Single-valued parameters:
 

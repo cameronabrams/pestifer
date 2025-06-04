@@ -3,7 +3,7 @@
 ``standard``
 ============
 
-Standard charmmff files under the standard toppar/ directory
+These are the standard CHARMM force-field files that pestifer will use for all psfgen/namd3 executions.  These files are included in the pestifer distribution, and are not expected to be modified by the user.  They are always referred to by their base filenames, regardless of whether they live in the topmost ``toppar`` directory or one of the stream subdirectories.  The default set is useful for most non-membrane systems.
 
 Container-like parameters:
 

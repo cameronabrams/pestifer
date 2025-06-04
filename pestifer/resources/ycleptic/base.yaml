@@ -20,12 +20,14 @@ directives:
     text: Specifications for charmm force-field parameter and topology files
     required: True
     docs:
-      text: "The ``charmff`` directive informs pestifer which CHARMM force-field parameter and topology files are to be used for all psfgen/namd3 executions.  ``standard`` refers to files that are found in the official CHARMMFF release, and are named relative to the topmost ``toppar/`` directory of that release.  ``custom`` refers to files that are not part of the official CHARMMFF release."
+      text: "The ``charmff`` directive informs pestifer which CHARMM force-field parameter and topology files are to be used for all psfgen/namd3 executions.  ``standard`` refers to files that are found in the official CHARMMFF release, and are referred to by their base filenames, regardless of whether they live in the topmost ``toppar`` directory or one of the stream subdirectories.  ``custom`` refers to files that are not part of the official CHARMMFF release."
     directives:
       - name: standard
         type: dict
         text: Standard charmmff files under the standard toppar/ directory
-        required: True 
+        required: True
+        docs:
+          text: "These are the standard CHARMM force-field files that pestifer will use for all psfgen/namd3 executions.  These files are included in the pestifer distribution, and are not expected to be modified by the user.  They are always referred to by their base filenames, regardless of whether they live in the topmost ``toppar`` directory or one of the stream subdirectories.  The default set is useful for most non-membrane systems."
         directives:
           - name: topologies
             type: list
@@ -72,7 +74,7 @@ directives:
               - toppar_all36_moreions.str
       - name: overrides
         type: dict
-        text: Some overrides
+        text: Some overrides to recategorize residues from one stream to another
         directives:
           - name: substreams
             type: dict
@@ -891,7 +893,7 @@ directives:
     type: dict
     text: NAMD specifications
     docs:
-      text: These are specifications for NAMD, including default input configuration parameters for various classes of simulations.
+      text: These are specifications for NAMD3, including default input configuration parameters for various classes of simulations.
     directives:
       - name: namd-version
         text: version of NAMD to run
@@ -1474,9 +1476,17 @@ directives:
                 type: str
                 default: '1.0'
               - name: patch_nlipids
-                type: int
+                type: dict
                 text: number of lipids per leaflet when building initial bilayer patches
-                default: 100
+                directives:
+                  - name: upper
+                    type: int
+                    text: number of lipids in the upper leaflet
+                    default: 100
+                  - name: lower
+                    type: int
+                    text: number of lipids in the lower leaflet
+                    default: 100
               - name: composition
                 type: dict
                 text: Alternate way of expressing bilayer composition; supercedes memgen-format 'lipids', 'mole_fractions', and 'lipid_conformers'
@@ -1495,6 +1505,10 @@ directives:
                 text: string in memgen format x_1:x_2:...
                 type: str
                 default: '1.0'
+              - name: solvent_to_lipid_ratio
+                text: ratio of solvent molecules to lipids in each leaflet; must be specified if solvents are present
+                type: float
+                default: 32.0
               - name: SAPL
                 text: estimate of surface area per lipid (Å²) for building initial patches
                 type: float

@@ -13,11 +13,11 @@ Single-valued parameters:
 
   * ``mole_fractions``: declaration of mole fractions of each lipid in each leaflet in memgen format R1:R2//R3; must be congruent with the lipids directive (default: 1.0)
 
-  * ``patch_nlipids``: number of lipids per leaflet when building initial bilayer patches (default: 100)
-
   * ``solvents``: string in memgen format SOL1:SOL2:... (default: TIP3)
 
   * ``solvent_mole_fractions``: string in memgen format x_1:x_2:... (default: 1.0)
+
+  * ``solvent_to_lipid_ratio``: ratio of solvent molecules to lipids in each leaflet; must be specified if solvents are present (default: 32.0)
 
   * ``SAPL``: estimate of surface area per lipid (Å²) for building initial patches (default: 60.0)
 
@@ -53,6 +53,7 @@ Subdirectives:
    :maxdepth: 1
 
    bilayer/prebuilt
+   bilayer/patch_nlipids
    bilayer/composition
    bilayer/relaxation_protocols
 

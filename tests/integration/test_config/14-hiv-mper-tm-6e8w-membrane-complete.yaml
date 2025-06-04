@@ -972,7 +972,9 @@ tasks:
       nloop: 100
       nloop_all: 100
       npatch: []
-      patch_nlipids: 100
+      patch_nlipids:
+        lower: 100
+        upper: 100
       patch_thickness: 20.0
       prebuilt: {}
       relaxation_protocols:
@@ -1040,15 +1042,6 @@ tasks:
               useflexiblecell: true
             pressure: 1.0
             temperature: 310
-        - md:
-            addl_paramfiles: *id001
-            ensemble: npt
-            nsteps: 32000
-            other_parameters:
-              useconstantratio: true
-              useflexiblecell: true
-            pressure: 1.0
-            temperature: 310
         quilt:
         - md:
             addl_parmfiles: &id002 []
@@ -1089,18 +1082,19 @@ tasks:
       seed: 270272
       solution_gcc: 1.0
       solvent_mole_fractions: '1.0'
+      solvent_to_lipid_ratio: 32.0
       solvents: TIP3
     embed:
       margin: 2.4
       no_orient: false
       q_tolerance: 0.0001
-      xydist: 30
+      xydist: 20
       z_head_group: protein and resid 667
       z_ref_group:
         text: protein and resid 696
         z_value: 0.0
       z_tail_group: protein and resid 710
-      zdist: 20
+      zdist: 10
 - md:
     addl_paramfiles: *id003
     constraints:
@@ -1109,7 +1103,7 @@ tasks:
     cpu-override: false
     dcdfreq: 100
     ensemble: minimize
-    minimize: 5000
+    minimize: 1000
     nsteps: 2000
     other_parameters: {}
     pressure: 1

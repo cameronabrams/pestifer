@@ -104,7 +104,7 @@ def test_packmol_log_dynamic():
             prog.append(l.measure_progress())
         sleep(0.1)
     l.finalize()
-    assert len(prog)==5
+    assert len(prog)==97
 
 def test_namd_log_static():
     l=NAMDLog()

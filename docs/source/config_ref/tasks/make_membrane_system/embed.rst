@@ -7,6 +7,8 @@ parameters controlling protein embedding
 
 Single-valued parameters:
 
+  * ``no_orient``: if true, do not alter orientation of protein; z-axis of protein coordinate system is assumed to be membrane normal (default: False)
+
   * ``q_tolerance``: tolerance for net charge neutralization (default: 0.0001)
 
   * ``xydist``: distance from perimeter of protein to box edge in x and y (Å) (default: 15)

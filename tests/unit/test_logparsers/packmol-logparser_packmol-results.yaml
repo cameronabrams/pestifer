@@ -1,0 +1,124 @@
+coordinate_file_types: pdb
+coordinate_files:
+- POPC-00.pdb
+- POPC-00.pdb
+- TIP3.pdb
+- TIP3.pdb
+current_total_gencan_loops: 307
+distance_tolerance: 2.0
+initial_approximation: {}
+initial_objective_function: 308065.45399671065
+max_gencan_loops_all: 100
+max_total_gencan_loops: 309
+molecule_types_packed:
+- '1'
+- '2'
+- '3'
+- '4'
+number_of_fixed_molecules: 0
+number_of_free_molecules: 6600
+number_of_independent_structures: 4
+number_of_variables: 39600
+output_file: patch.pdb
+pbc_boxsize:
+- 70.71
+- 70.71
+- 95.99
+pbc_reference_box:
+- 0.0
+- 0.0
+- -48.0
+- 70.71
+- 70.71
+- 48.0
+seed: 27021972
+structures:
+- after_adjusting:
+    function_value_after_moving_molecules: []
+    function_value_before_moving_molecules: []
+    maximum_violation_of_the_restraints: 0.006937322314495756
+    restraint_only_function_value: 0.012707914952250293
+  before_adjusting:
+    function_value_after_moving_molecules:
+    - 4999.3267934110645
+    function_value_before_moving_molecules:
+    - 6132.678528941493
+    maximum_violation_of_the_restraints: 0.000515283083681571
+    restraint_only_function_value: 0.001126550492299488
+  current_gencan_loops: 101
+  file: POPC-00.pdb
+  idx: 1
+  max_gencan_loops: 101
+  maximum_internal_distance: 31.769849621929282
+  natoms: 134
+  number_of_molecules: 100
+- after_adjusting:
+    function_value_after_moving_molecules: []
+    function_value_before_moving_molecules: []
+    maximum_violation_of_the_restraints: 0.0017782924407129424
+    restraint_only_function_value: 0.0034141154632280047
+  before_adjusting:
+    function_value_after_moving_molecules:
+    - 518979.69846450235
+    - 375844.8274801912
+    - 6056.689318109685
+    function_value_before_moving_molecules:
+    - 556490.2835589554
+    - 407234.0980370583
+    - 11312.964715378288
+    maximum_violation_of_the_restraints: 8.594475008014658e-05
+    restraint_only_function_value: 0.0001739016570746024
+  current_gencan_loops: 101
+  file: POPC-00.pdb
+  idx: 2
+  max_gencan_loops: 102
+  maximum_internal_distance: 31.769849621929282
+  natoms: 134
+  number_of_molecules: 100
+- after_adjusting:
+    function_value_after_moving_molecules: []
+    function_value_before_moving_molecules: []
+    maximum_violation_of_the_restraints: 0.0017698154525776248
+    restraint_only_function_value: 0.0017698359923056604
+  before_adjusting:
+    function_value_after_moving_molecules: []
+    function_value_before_moving_molecules: []
+    maximum_violation_of_the_restraints: 0.005048050953287774
+    restraint_only_function_value: 0.04190673587605618
+  current_gencan_loops: 2
+  file: TIP3.pdb
+  gencan_success:
+    max_viol_constr: 0.007779253341856952
+    max_viol_target_distance: 0.0
+    objective_function_value: 0.01826269220767651
+  idx: 3
+  max_gencan_loops: 103
+  maximum_internal_distance: 1.517577345640083
+  natoms: 3
+  number_of_molecules: 3200
+- after_adjusting:
+    function_value_after_moving_molecules: []
+    function_value_before_moving_molecules: []
+    maximum_violation_of_the_restraints: 1.5361930535610698e-05
+    restraint_only_function_value: 1.5361930535610698e-05
+  before_adjusting:
+    function_value_after_moving_molecules: []
+    function_value_before_moving_molecules: []
+    maximum_violation_of_the_restraints: 0.003396136851712468
+    restraint_only_function_value: 0.025194602041311596
+  current_gencan_loops: 2
+  file: TIP3.pdb
+  gencan_success:
+    max_viol_constr: 0.005173146523752495
+    max_viol_target_distance: 0.0
+    objective_function_value: 0.016635470359369308
+  idx: 4
+  max_gencan_loops: 104
+  maximum_internal_distance: 1.517577345640083
+  natoms: 3
+  number_of_molecules: 3200
+total_number_atoms: 46000
+total_number_fixed_atoms: 0
+total_number_molecules: 6600
+url: http://m3g.iqm.unicamp.br/packmol
+version: 20.15.1

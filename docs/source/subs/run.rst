@@ -14,6 +14,7 @@ Here ``config.yaml`` is the name of the configuration file that describes the bu
 ``pestifer run`` begins by parsing the configuration file, and then it sets up a ``Controller`` object that manages the tasks.  The controller executes each task in the order specified in the configuration file, and it handles any dependencies between tasks.  If a task fails, the controller will stop the run and report the error.
 
 .. mermaid:: 
+   :caption: Pestifer Run Task Flowchart
 
    graph TD;
       A[Config] --> B[Controller];

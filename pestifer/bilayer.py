@@ -74,7 +74,7 @@ def specstrings_builddict(lipid_specstring='',lipid_ratio_specstring='',lipid_co
     }
 
 class Bilayer:
-    def __init__(self,composition_dict={},leaflet_nlipids=100,solvent_to_key_lipid_ratio=32.0,
+    def __init__(self,composition_dict={},leaflet_nlipids=dict(upper=100,lower=100),solvent_to_key_lipid_ratio=32.0,
                 neutralizing_salt=['POT','CLA'],pdb_collection=None,resi_database=None,solvent_specstring='TIP3',solvent_ratio_specstring='1.0'):
 
         self.statevars={}
@@ -88,11 +88,12 @@ class Bilayer:
 
         # complete leaflet entries in composition dictionary with species counts, charges, and MWs
         for l in ['upper_leaflet','lower_leaflet']:
+            adjective='upper' if l=='upper_leaflet' else 'lower'
             L=composition_dict[l]
             logger.debug(f'Leaflet {l} composition: {L}')
             for d in L:
                 if not 'patn' in d:
-                    d['patn']=int(d['frac']*leaflet_nlipids)
+                    d['patn']=int(d['frac']*leaflet_nlipids[adjective])
                 if not 'charge' in d:
                     d['charge']=resi_database['lipid'][d['name']].charge
                 if not 'MW' in d:
@@ -110,10 +111,11 @@ class Bilayer:
 
         # complete chamber entries in composition dictionary with species counts, charges, and MWs
         for c in ['upper_chamber','lower_chamber']:
+            adjective
             L=composition_dict[c]
             for d in L:
                 if not 'patn' in d:
-                    d['patn']=int(d['frac']*leaflet_nlipids*solvent_to_key_lipid_ratio)
+                    d['patn']=int(d['frac']*leaflet_nlipids[adjective]*solvent_to_key_lipid_ratio)
                 if not 'charge' in d:
                     d['charge']=resi_database['water_ions'][d['name']].charge
                 if not 'MW' in d:
@@ -215,7 +217,7 @@ class Bilayer:
                 # logger.debug(f'Checked out {species_name} as {species["local_name"]}')
 
     def build_patch(self,SAPL=60.0,xy_aspect_ratio=1.0,half_mid_zgap=1.0,solution_gcc=1.0,rotation_pm=10.0):
-        patch_area=SAPL*self.leaflet_nlipids
+        patch_area=SAPL*self.leaflet_nlipids['upper'] # assume symmetric
         Lx=np.sqrt(patch_area/xy_aspect_ratio)
         Ly=xy_aspect_ratio*Lx
         self.patch_area=patch_area

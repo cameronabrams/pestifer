@@ -3,7 +3,7 @@
 ``overrides``
 =============
 
-Some overrides
+Some overrides to recategorize residues from one stream to another
 
 Container-like parameter:
 

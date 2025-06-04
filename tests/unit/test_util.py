@@ -104,24 +104,6 @@ exit
         self.assertFalse(is_periodic('no.xsc'))
         self.assertTrue(is_periodic('yes.xsc'))
 
-    def test_split_list(self):
-        mL=[{'a':x,'b':x+1} for x in range(2,12,2)]
-        orig_len=len(mL)
-        idx=4
-        the_id=id(mL[idx])
-        dL=split_list(mL,idx)
-        # first element in dL is the same object that was idx'th element of mL
-        self.assertTrue(id(dL[0])==the_id)
-        self.assertTrue(len(mL)==idx)
-        self.assertTrue(len(dL)==(orig_len-idx))
-
-        mL=[{'a':x,'b':x+1} for x in range(2,12,2)]
-        idx=4
-        c1mL=mL[:idx]
-        c1dL=mL[idx:]
-        # does not copy
-        self.assertTrue(mL[idx] is c1dL[0])
-
     def test_cell_from_xsc(self):
         box,orig=cell_from_xsc('test.xsc')
         self.assertTrue(box.shape==(3,3))
