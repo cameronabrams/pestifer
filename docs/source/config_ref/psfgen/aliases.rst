@@ -42,5 +42,7 @@
   * residue HOH TIP3
   * residue ZN ZN2
   * residue CL CLA
+  * residue C6DH C6DHPC
+  * residue C7DH C7DHPC
 
 

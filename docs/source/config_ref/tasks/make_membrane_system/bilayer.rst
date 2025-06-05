@@ -13,6 +13,8 @@ Single-valued parameters:
 
   * ``mole_fractions``: declaration of mole fractions of each lipid in each leaflet in memgen format R1:R2//R3; must be congruent with the lipids directive (default: 1.0)
 
+  * ``half_mid_zgap``: extra gap between hydrophobic tails in bilayer during packing, Angstroms (default: 1.0)
+
   * ``solvents``: string in memgen format SOL1:SOL2:... (default: TIP3)
 
   * ``solvent_mole_fractions``: string in memgen format x_1:x_2:... (default: 1.0)

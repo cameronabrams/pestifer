@@ -27,6 +27,7 @@ Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full d
 
 ## Release History
 * 1.12.1
+    * added `half_mid_zgap` parameter to ease membrane packing
     * enable inadvertantly unimplemented user selection of number of lipids per leaflet in a patch
     * misspelled "paramfiles" in ycleptic basefile (one time)
 * 1.12.0

@@ -133,6 +133,8 @@ directives:
           - residue HOH TIP3
           - residue ZN ZN2
           - residue CL CLA
+          - residue C6DH C6DHPC
+          - residue C7DH C7DHPC
       - name: segtypes
         type: dict
         text: Segment type specifications
@@ -449,6 +451,8 @@ directives:
                   - BUTA
                   - C6DHPC
                   - C7DHPC
+                  - C6DH
+                  - C7DH
                   - CER160
                   - CER180
                   - CER181
@@ -1497,6 +1501,10 @@ directives:
                   - name: lower_leaflet
                     type: list
                     text: List of dicts with keys 'name', 'frac', and 'conf' for each lipid species
+              - name: half_mid_zgap
+                text: extra gap between hydrophobic tails in bilayer during packing, Angstroms
+                type: float
+                default: 1.0
               - name: solvents
                 text: string in memgen format SOL1:SOL2:...
                 type: str

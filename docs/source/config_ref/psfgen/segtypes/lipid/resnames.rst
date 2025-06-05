@@ -32,6 +32,8 @@
   * BUTA
   * C6DHPC
   * C7DHPC
+  * C6DH
+  * C7DH
   * CER160
   * CER180
   * CER181

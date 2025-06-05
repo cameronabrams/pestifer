@@ -8,7 +8,7 @@ from pestifer.scriptwriters import Psfgen,VMD,NAMD,Filewriter
 from pestifer.util.util import protect_str_arg
 
 @pytest.mark.slow
-def test_make_membrane_system_task_init_symmetric():
+def test_membrane_symmetric_popc():
     if os.path.exists('__test_make_membrane_system_task_symmetric'):
         shutil.rmtree('__test_make_membrane_system_task_symmetric')
     os.mkdir('__test_make_membrane_system_task_symmetric')
@@ -49,7 +49,48 @@ def test_make_membrane_system_task_init_symmetric():
     assert result==0
 
 @pytest.mark.slow
-def test_make_membrane_system_task_init_asymmetric_pure_leaflets():
+def test_membrane_symmetric_c6dhpc():
+    if os.path.exists('__test_make_membrane_system_task_symmetric'):
+        shutil.rmtree('__test_make_membrane_system_task_symmetric')
+    os.mkdir('__test_make_membrane_system_task_symmetric')
+    os.chdir('__test_make_membrane_system_task_symmetric')
+    C=Config()
+    writers={
+            'psfgen': Psfgen(C),
+            'vmd':    VMD(C),
+            'namd':   NAMD(C),
+            'data':   Filewriter()
+        }
+    config_specs={'bilayer':{
+            'SAPL': 50,
+            'npatch':[3,3],
+            'composition':{
+                'upper_leaflet': [{'name':'C6DHPC','frac':1.0,'conf':0}],
+                'lower_leaflet': [{'name':'C6DHPC','frac':1.0,'conf':0}]
+                },
+            'relaxation_protocols':{
+                'patch':[
+                    {'md':{'ensemble':'minimize','nsteps':1000}},
+                    {'md':{'ensemble':'NVT','nsteps':1000}},
+                    {'md':{'ensemble':'NPT','nsteps':1000}},
+                    {'md':{'ensemble':'NPT','nsteps':2000}},
+                    {'md':{'ensemble':'NPT','nsteps':4000}},
+                    {'md':{'ensemble':'NPT','nsteps':8000}}
+                ],
+                'bilayer':[
+                    {'md':{'ensemble':'minimize'}},
+                    {'md':{'ensemble':'NVT','nsteps':1000}},
+                    {'md':{'ensemble':'NPT','nsteps':10000}}
+                ]}}}
+    controller_specs={'controller_index':0,'taskname':'test_make_membrane_system_task','config':C,'writers':writers,'prior':None}
+    BET = MakeMembraneSystemTask(config_specs,controller_specs)
+    assert BET.taskname == 'test_make_membrane_system_task'
+    result=BET.do()
+    os.chdir('..')
+    assert result==0
+
+@pytest.mark.slow
+def test_membrane_asymmetric_pure_leaflets():
     if os.path.exists('__test_make_membrane_system_task_asymmetric_pure_leaflets'):
         shutil.rmtree('__test_make_membrane_system_task_asymmetric_pure_leaflets')
     os.mkdir('__test_make_membrane_system_task_asymmetric_pure_leaflets')
@@ -93,7 +134,7 @@ def test_make_membrane_system_task_init_asymmetric_pure_leaflets():
     assert result==0
 
 @pytest.mark.slow
-def test_make_membrane_system_task_init_asymmetric_multicomponent():
+def test_membrane_asymmetric_multicomponent():
     if os.path.exists('__test_make_membrane_system_task_asymmetric_multicomponent'):
         shutil.rmtree('__test_make_membrane_system_task_asymmetric_multicomponent')
     os.mkdir('__test_make_membrane_system_task_asymmetric_multicomponent')
@@ -141,7 +182,7 @@ def test_make_membrane_system_task_init_asymmetric_multicomponent():
     os.chdir('..')
     assert result==0
 
-def test_make_membrane_system_task_embed():
+def test_membrane_embed():
     if os.path.exists('__test_make_membrane_system_task_embed'):
         shutil.rmtree('__test_make_membrane_system_task_embed')
     os.mkdir('__test_make_membrane_system_task_embed')
@@ -176,7 +217,7 @@ def test_make_membrane_system_task_embed():
     assert result==0
 
 @pytest.mark.slow
-def test_make_membrane_system_with_md_prebuilt():
+def test_membrane_md_prebuilt():
     if os.path.exists('__test_make_membrane_system_with_md_prebuilt'):
         shutil.rmtree('__test_make_membrane_system_with_md_prebuilt')
     os.mkdir('__test_make_membrane_system_with_md_prebuilt')
@@ -196,7 +237,7 @@ def test_make_membrane_system_with_md_prebuilt():
     os.chdir('..')
 
 @pytest.mark.slow
-def test_make_membrane_system_with_md_build():
+def test_membrane_md_build():
     if os.path.exists('__test_make_membrane_system_with_md_build'):
         shutil.rmtree('__test_make_membrane_system_with_md_build')
     os.mkdir('__test_make_membrane_system_with_md_build')
@@ -212,7 +253,7 @@ def test_make_membrane_system_with_md_build():
     C.do_tasks()
     os.chdir('..')
 
-def test_make_membrane_system_task_quilt():
+def test_membrane_quilt():
     if os.path.exists('__test_make_membrane_system_task_quilt'):
         shutil.rmtree('__test_make_membrane_system_task_quilt')
     os.mkdir('__test_make_membrane_system_task_quilt')
@@ -237,7 +278,7 @@ def test_make_membrane_system_task_quilt():
     assert result==0
 
 @pytest.mark.slow
-def test_make_membrane_system_task_embed_no_orient():
+def test_membrane_embed_no_orient():
     if os.path.exists('__test_make_membrane_system_task_embed_no_orient'):
         shutil.rmtree('__test_make_membrane_system_task_embed_no_orient')
     os.mkdir('__test_make_membrane_system_task_embed_no_orient')
