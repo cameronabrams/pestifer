@@ -1726,7 +1726,7 @@ directives:
                             text: Pressure (bar) for NPT; note that NPT can only be performed on a solvated system
                             type: float
                             default: 1
-                          - name: addl_parmfiles
+                          - name: addl_paramfiles
                             type: list
                             text: list of additional parameter files to be included in the NAMD run
                             default: []

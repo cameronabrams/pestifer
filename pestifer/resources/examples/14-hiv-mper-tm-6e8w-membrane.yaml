@@ -85,11 +85,6 @@ tasks:
                 nsteps: 1000
                 temperature: 310
                 pressure: 1.0
-            - md:
-                ensemble: NPT
-                nsteps: 10000
-                temperature: 310
-                pressure: 1.0
       embed:
         xydist: 20
         zdist: 10

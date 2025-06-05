@@ -179,7 +179,6 @@ class MakeMembraneSystemTask(BaseTask):
             patch.statevars['pdb']=f'{self.basename}.pdb'
             patch.statevars['psf']=f'{self.basename}.psf'
             patch.statevars['xsc']=f'{self.basename}.xsc'
-            # self.next_basename(f'patch{spec}-equilibrate')
             patch.equilibrate(user_dict=deepcopy(self.config['user']),
                               basename=f'patch{spec}',index=self.index,
                               relaxation_protocol=relaxation_protocol,
@@ -235,7 +234,7 @@ class MakeMembraneSystemTask(BaseTask):
         self.quilt.statevars=self.statevars.copy()
         self.quilt.box,self.quilt.origin=cell_from_xsc(f'{self.basename}.xsc')
         self.quilt.area=self.quilt.box[0][0]*self.quilt.box[1][1]
-        relaxation_protocol=self.bilayer_specs.get('relaxation_protocols',{}).get('bilayer',{})
+        relaxation_protocol=self.bilayer_specs.get('relaxation_protocols',{}).get('quilt',{})
         self.quilt.equilibrate(user_dict=deepcopy(self.config['user']),
                                 basename='quilt',
                                 relaxation_protocol=relaxation_protocol,

@@ -28,6 +28,7 @@ Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full d
 ## Release History
 * 1.12.1
     * enable inadvertantly unimplemented user selection of number of lipids per leaflet in a patch
+    * misspelled "paramfiles" in ycleptic basefile (one time)
 * 1.12.0
     * documentation upgrades
     * better progress bar integration with `packmol`

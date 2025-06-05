@@ -374,7 +374,7 @@ class Bilayer:
         xsc=self.statevars['xsc']
         logger.debug(f'Bilayer area before equilibration: {self.area:.3f} {sA2_}')
         if not relaxation_protocol:
-            logger.debug('Using hard-coded relaxation protocol!!')
+            logger.debug(f'Using hard-coded relaxation protocol for {basename}!!')
             relaxation_protocol=[            
                 {'md':dict(ensemble='minimize',minimize=1000)},
                 {'md':dict(ensemble='NVT',nsteps=1000)},
