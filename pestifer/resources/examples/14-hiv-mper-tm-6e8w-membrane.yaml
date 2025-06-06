@@ -5,7 +5,7 @@
 # Membrane-embedded build of HIV-1 gp41 MPER-TM trimer (6e8w)
 #
 #
-title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in a model viral membrane
+title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in DMPC/DHPC bilayer
 tasks:
   - psfgen:
       source:
@@ -24,27 +24,11 @@ tasks:
               frac: 0.50
             - name: C6DHPC
               frac: 0.50
-            # - name: POPE
-            #   frac: 0.09
-            # - name: POPE
-            #   frac: 0.09
-            # - name: SOPS
-            #   frac: 0.18
-            # - name: SOPE
-            #   frac: 0.30
-            # - name: CHL1
-            #   frac: 0.43
           upper_leaflet:
             - name: DMPC
               frac: 0.50
             - name: C6DHPC
               frac: 0.50
-            # - name: PSM
-            #   frac: 0.36
-            # - name: POPC
-            #   frac: 0.17
-            # - name: CHL1
-            #   frac: 0.47
         seed: 270272
         nloop: 100
         nloop_all: 100
