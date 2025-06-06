@@ -126,6 +126,8 @@ psfgen:
   - residue HOH TIP3
   - residue ZN ZN2
   - residue CL CLA
+  - residue C6DH C6DHPC
+  - residue C7DH C7DHPC
   segtypes:
     glycan:
       macro: true
@@ -342,6 +344,8 @@ psfgen:
       - BUTA
       - C6DHPC
       - C7DHPC
+      - C6DH
+      - C7DH
       - CER160
       - CER180
       - CER181
@@ -767,8 +771,6 @@ psfgen:
       - YPLIPB
       - ABLI
       - BCLI
-      - C6DH
-      - C7DH
       - CER1
       - CER3
       - CHAP
@@ -948,24 +950,17 @@ tasks:
       cation: POT
       composition:
         lower_leaflet:
-        - frac: 0.09
-          name: POPE
-        - frac: 0.09
-          name: POPE
-        - frac: 0.18
-          name: SOPS
-        - frac: 0.3
-          name: SOPE
-        - frac: 0.43
-          name: CHL1
+        - frac: 0.5
+          name: DMPC
+        - frac: 0.5
+          name: C6DHPC
         upper_leaflet:
-        - frac: 0.36
-          name: PSM
-        - frac: 0.17
-          name: POPC
-        - frac: 0.47
-          name: CHL1
+        - frac: 0.5
+          name: DMPC
+        - frac: 0.5
+          name: C6DHPC
       dims: []
+      half_mid_zgap: 0.0
       lipid_conformers: '0'
       lipids: POPC
       mole_fractions: '1.0'
@@ -1044,7 +1039,7 @@ tasks:
             temperature: 310
         quilt:
         - md:
-            addl_parmfiles: &id002 []
+            addl_paramfiles: &id002 []
             ensemble: minimize
             nsteps: 1000
             other_parameters:
@@ -1053,7 +1048,7 @@ tasks:
             pressure: 1
             temperature: 300
         - md:
-            addl_parmfiles: *id002
+            addl_paramfiles: *id002
             ensemble: NVT
             nsteps: 1000
             other_parameters:
@@ -1062,18 +1057,9 @@ tasks:
             pressure: 1
             temperature: 310
         - md:
-            addl_parmfiles: *id002
+            addl_paramfiles: *id002
             ensemble: NPT
             nsteps: 1000
-            other_parameters:
-              useconstantratio: true
-              useflexiblecell: true
-            pressure: 1.0
-            temperature: 310
-        - md:
-            addl_parmfiles: *id002
-            ensemble: NPT
-            nsteps: 10000
             other_parameters:
               useconstantratio: true
               useflexiblecell: true
@@ -1109,10 +1095,6 @@ tasks:
     pressure: 1
     temperature: 300
     xstfreq: 100
-- ring_check:
-    cutoff: 10.0
-    segtypes:
-    - lipid
 - md:
     addl_paramfiles: *id003
     constraints:
@@ -1202,4 +1184,4 @@ tasks:
       topogromacs: false
       xstfreq: 10000
     statefile: states.yaml
-title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in a model viral membrane
+title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in DMPC/DHPC bilayer

@@ -1,5 +1,5 @@
 # pestifer: pestifer-script.tcl
-####################### Created Wed Jun  4 13:57:30 2025 #######################
+####################### Created Fri Jun  6 09:57:04 2025 #######################
 package require psfgen
 psfcontext mixedcase
 topology top_all36_prot.rtf
@@ -51,6 +51,8 @@ pdbalias residue EIC LIN
 pdbalias residue HOH TIP3
 pdbalias residue ZN ZN2
 pdbalias residue CL CLA
+pdbalias residue C6DH C6DHPC
+pdbalias residue C7DH C7DHPC
 ################################### TESTING ####################################
 guesscoord
 regenerate angles dihedrals

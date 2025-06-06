@@ -1,6 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 import logging
 import os
+import tarfile
 from .pdbcollection import PDBCollection
 
 logger=logging.getLogger(__name__)
@@ -18,7 +19,9 @@ def copy_charmm_top(sysfile,localfile=''):
                 f.write(l+'\n')
 
 class CHARMMFFContent:
-    """ A class for handling all CHARMM force field content
+    """ A class for handling all CHARMM force field content.  The CHARMM force field is
+    stored in a tarbal downloaded directly from the MacKerell lab at the University of Michigan.
+    https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_jul24.tgz
     """
     def __init__(self,abs_dir):
         self.abs_dir=abs_dir
@@ -26,6 +29,16 @@ class CHARMMFFContent:
         assert self.charmmff_dir=='charmmff','expected charmmff directory'
         cwd=os.getcwd()
         os.chdir(self.resource_dir)
+        self.toppar=tarfile.open('toppar_c36_jul24.tgz','r:gz')
+        self.tarmembers=self.toppar.getmembers()
+        # build lists of base filenames
+        self.par=[x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/par_')]
+        self.top=[x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/top_') and 'history' not in x.name]
+        self.toppar=[x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/toppar') and 'history' not in x.name]
+        self.streams=[x.name for x in self.tarmembers if x.isdir() and x.name.startswith('toppar/stream/') and 'history' not in x.name]
+        self.toppar_streams={}
+        for stream in self.streams:
+            self.toppar_streams[stream]=[x.name for x in self.tarmembers if x.name.startswith(stream) and 'history' not in x.name]
         self.dirtree={a:[b,c] for a,b,c in os.walk('charmmff')}
         os.chdir(cwd)
         self.charmm_elements=self.dirtree['charmmff'][0]
@@ -35,13 +48,8 @@ class CHARMMFFContent:
             self.pdb_collection=PDBCollection(os.path.join(self.resource_dir,self.charmmff_dir,'pdb'))
         self.custom_files=self.dirtree[f'{self.charmmff_dir}/custom'][1]
 
-        self.par=[x for x in self.dirtree[f'{self.charmmff_dir}/toppar'][1] if x.startswith('par')]
-        self.top=[x for x in self.dirtree[f'{self.charmmff_dir}/toppar'][1] if x.startswith('top') and 'history' not in x]
-        self.toppar=[x for x in self.dirtree[f'{self.charmmff_dir}/toppar'][1] if x.startswith('toppar') and 'history' not in x]
-        self.streams=self.dirtree[f'{self.charmmff_dir}/toppar/stream'][0]
-        self.toppar_streams={}
-        for stream in self.streams:
-            self.toppar_streams[stream]=self.dirtree[f'{self.charmmff_dir}/toppar/stream/{stream}'][1]
+    def __del__(self):
+        self.toppar.close()
 
     def get_abs_path(self,basename):
         """ Given a basename for any charmmff file, return the absolute path to the file
