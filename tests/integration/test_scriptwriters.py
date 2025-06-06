@@ -17,10 +17,12 @@ class TestPsfgen(unittest.TestCase):
         self.assertTrue(os.path.isfile('testing.tcl'))
         os.remove(p.basename+'.tcl')
         self.assertFalse(os.path.exists('testing.tcl'))
+        c.RM.charmmff_content.clean_local_charmmff_files()
     def test_charmm(self):
         c=Config()
         p=NAMD(c)
         assert p.namd_version==3
+        c.RM.charmmff_content.clean_local_charmmff_files()
     def test_atomselect_macros(self):
         c=Config()
         p=Psfgen(c)
