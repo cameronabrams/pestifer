@@ -641,9 +641,11 @@ def getResis(topfile,masses=[]):
             endidx=residx[-1]+i
             break
     bufs.append('\n'.join(lines[residx[-1]:endidx]))
+    logger.debug(f'{len(bufs)} RESI\'s found in {topfile}')
+    logger.debug(f'Each gets metadata {metadat}')
     for block in bufs:
         resi=CharmmTopResi(block,masses=masses)
-        resi.metadata=metadat
+        resi.metadata=metadat.copy()
         R.append(resi)
     return R
 

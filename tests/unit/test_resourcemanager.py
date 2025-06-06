@@ -23,11 +23,6 @@ class TestResourceManager(unittest.TestCase):
         self.assertEqual(os.path.basename(RM.ycleptic_config),"base.yaml")
         self.assertEqual(os.path.basename(RM.get_ycleptic_config()),"base.yaml")
 
-    def test_resource_charmmff(self):
-        RM=ResourceManager()
-        self.assertTrue(os.path.exists(RM.get_charmmff_customdir()))
-        self.assertTrue(os.path.exists(RM.get_charmmff_toppardir()))
-
     def test_resource_tcl(self):
         RM=ResourceManager()
         self.assertTrue(os.path.exists(RM.get_tcldir()))

@@ -25,13 +25,14 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     topo=DB.get_topo(resid)
     synonym=topo.synonym
     meta=topo.metadata
+    logger.debug(f'do_psfgen for {resid} with metadata {meta}')
     charmm_topfile,stream,substream=meta['charmmtopfile'],meta['stream'],meta['substream']
     substream_overrides=DB.overrides.get('substreams',{})
     ss_override=substream_overrides.get(resid,None)
     if ss_override is not None:
         substream=ss_override
+        logger.debug(f'Overriding substream for {resid} from {meta["substream"]} to {substream}')
         meta['substream']=substream
-        logger.debug(f'Overriding substream for {resid} to {substream}')
     if charmm_topfile is None:
         return -2
     if topo.error_code!=0:
