@@ -114,10 +114,10 @@ class Config(Yclept):
         assert os.path.exists(self.tcl_script_path)
         self.vmd_startup_script=os.path.join(self.tcl_root,'vmdrc.tcl')
         assert os.path.exists(self.vmd_startup_script)
-        self.charmmff_toppar_path=RM.get_charmmff_toppardir()
-        assert os.path.exists(self.charmmff_toppar_path)
-        self.charmmff_custom_path=RM.get_charmmff_customdir()
-        assert os.path.exists(self.charmmff_custom_path)
+        # self.charmmff_toppar_path=RM.get_charmmff_toppardir()
+        # assert os.path.exists(self.charmmff_toppar_path)
+        # self.charmmff_custom_path=RM.get_charmmff_customdir()
+        # assert os.path.exists(self.charmmff_custom_path)
         self.charmmff_pdb_collection=RM.pdb_collection
         self.user_charmmff_toppar_path=''
         if hasattr(self,'user'):

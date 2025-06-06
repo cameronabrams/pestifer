@@ -19,7 +19,7 @@ Pestifer also requires access to the following executables:
 
 By default, pestifer looks for these commands in your path.  Specific paths for these can be stipulated in the `paths` directive of your input file.
 
-Pestifer includes the [July 2024 Charmm36 force field](https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_jul24.tgz).
+Pestifer **includes** the [July 2024 Charmm36 force field](https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_jul24.tgz).
 
 ## Documentation
 
@@ -27,6 +27,7 @@ Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full d
 
 ## Release History
 * 1.12.1
+    * converted charmmff contents back into an as-downloaded tarball
     * added `half_mid_zgap` parameter to ease membrane packing
     * added `C6DH` and `C7DH` lipid residue aliases for `C6DHPC` and `C7DHCP`, respectively
     * enable inadvertantly unimplemented user selection of number of lipids per leaflet in a patch

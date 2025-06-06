@@ -651,19 +651,20 @@ class CharmmResiDatabase(UserDict):
         self.default_config=Config(quiet=True)
         self.overrides=self.default_config['user']['charmmff'].get('overrides',{})
         self.charmmff_content=self.resources.charmmff_content
-        self.get_abs_path=self.charmmff_content.get_abs_path
-        stdtops=self.charmmff_content.top+self.charmmff_content.toppar
-        stdtops=[x for x in stdtops if 'ljpme' not in x]
-        self.all_charmm_topology_files=stdtops
+
+        self.all_charmm_topology_files=[x for x in self.charmmff_content.toplevel_top.keys() if 'ljpme' not in x]
+        for f in self.all_charmm_topology_files:
+            self.charmmff_content.copy_charmmfile_local(f)
+
         M=[]
-        for f in stdtops:
-            M.extend(getMasses(self.get_abs_path(f)))
+        for f in self.all_charmm_topology_files:
+            M.extend(getMasses(f))
         
         self.M=CharmmMasses(M)
         self.charmm_resnames=[]
         data={}
-        for f in stdtops:
-            sublist=getResis(self.get_abs_path(f),self.M)
+        for f in self.all_charmm_topology_files:
+            sublist=getResis(f,self.M)
             if not sublist:
                 logger.debug(f'No RESI\'s found in {f}')
                 continue
@@ -675,7 +676,7 @@ class CharmmResiDatabase(UserDict):
                 self.charmm_resnames.append(resi.resname)
 
         super().__init__(data)
-        logger.debug(f'{len(stdtops)} CHARMM topology files scanned')
+        logger.debug(f'{len(self.all_charmm_topology_files)} CHARMM topology files scanned')
         logger.debug(f'Streams initiated: {" ".join(list(data.keys()))}')
         self.charmm_resnames.sort()
         logger.debug(f'{len(self.charmm_resnames)} RESI\'s parsed')
@@ -713,7 +714,7 @@ class CharmmResiDatabase(UserDict):
             logger.debug(f'{streamname} not found in the database')
             return
 
-        allstream_strs=self.charmmff_content.toppar_streams[streamname]
+        allstream_strs=list(self.charmmff_content.streamfiles[streamname].keys())
         if not allstream_strs:
             logger.debug(f'{streamname} has no associated topology files')
             return
@@ -725,11 +726,12 @@ class CharmmResiDatabase(UserDict):
                 logger.debug(f'{s} already in the database')
                 continue
             self.all_charmm_topology_files.append(s)
-            M.extend(getMasses(self.get_abs_path(s)))
+            self.charmmff_content.copy_charmmfile_local(s)
+            M.extend(getMasses(s))
         
         self.M.update(CharmmMasses(M))
         for s in stream_strs:
-            sublist=getResis(self.get_abs_path(s),self.M)
+            sublist=getResis(s,self.M)
             for resi in sublist:
                 if resi.resname in self.charmm_resnames:
                     logger.debug(f'RESI {resi.resname} is already in the database')

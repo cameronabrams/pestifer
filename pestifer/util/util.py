@@ -241,78 +241,29 @@ def write_residue_map(the_map,filename,valkeys=['chainID','resseqnum','insertion
             vl=' '.join([str(v.__dict__[x]) for x in valkeys])
             f.write(f'{kl} {vl}\n')
 
-# def split_list(L,idx):
-#     """ Split a list by removing items [idx..end] and returning
-#     as a new list. This avoids the shallow copy nature of standard
-#     list slicing in python """
-#     LCls=type(L)
-#     D=LCls([])
-#     for i in range(idx,len(L)):
-#         D.append(L[i])
-#     for d in D:
-#         L.remove(d)
-#     return D
+def tarball_walk(tar):
+    """Simulates os.walk() for tarball contents. (chatgpt) """
+    # This will hold the current directory and all its subdirectories and files
+    directories = {}
 
-# def pdb_search_replace(pdbfile,mapdict):
-#     """ perform a straight-up search replace on the
-#     contents of pdbfile """
-#     with open(pdbfile,'r') as f:
-#         probe=f.read()
-#     for i,j in mapdict.items():
-#         probe=probe.replace(i,j)
-#     with open(pdbfile,'w') as f:
-#         f.write(probe)
+    # Get all members (files and directories)
+    for member in tar.getmembers():
+        # Split the member's name into parts, treating '/' as directory separator
+        parts = member.name.split('/')
+        
+        # Reconstruct directory structure by iterating over parts
+        for i in range(1, len(parts)):
+            dir_path = '/'.join(parts[:i])  # Get the directory path
+            if dir_path not in directories:
+                directories[dir_path] = []
 
-# def pdb_singlemolecule_charmify(pdbfile,moltype_map,outfile=None,molname=''):
-#     """ Using the charmmlipid2amber input data, convert any specific amber-style
-#     lipids in pdbfile to charmm-style.  This is done by direct byte-level
-#     string manipulations.  """
-#     if not molname:
-#         molname=os.path.splitext(pdbfile)[0]
-#     with open(pdbfile,'r') as f:
-#         probelines=f.read().split('\n')
-#     parsedlines=[]
-#     for rec in probelines:
-#         # logger.debug(rec)
-#         if not rec.startswith('ATOM') and not rec.startswith('HETATM'):
-#             # logger.debug(f'skipping {rec}')
-#             parsedlines.append(rec)
-#             continue
-#         for i,atom in moltype_map.iterrows():
-#             badlab=atom['replace']
-#             spc=[]
-#             for i,c in enumerate(badlab):
-#                 if c==' ':
-#                     spc.append(i)
-#             ll=len(badlab)
-#             mind=ll+1
-#             mini=-1
-#             for i in range(len(spc)):
-#                 d=abs(spc[i]-ll/2)
-#                 if d < mind:
-#                     mind=d
-#                     mini=spc[i]
-#             badlab2=badlab[:mini]+' '+badlab[mini:-1]
-#             # logger.debug(f'[{badlab}] or [{badlab2}]')
-#             goodlab=atom['search'] # we are inverting charmmlipid2amber!
-#             if rec.find(badlab)!=-1 or rec.find(badlab2)!=-1:
-#                 # logger.debug(f'{rec}')
-#                 # rec=rec.replace(badlab,goodlab)
-#                 chain=rec[21]
-#                 residstr=rec[22:26]
-#                 tokens=goodlab.split()
-#                 correct_atom_name=tokens[0].strip()
-#                 correct_residue_name=tokens[1].strip()
-#                 # logger.debug(f'{lip} {nat} {chain} {residstr}')
-#                 # write in the correct atom name and residue name
-#                 rec=rec[:12]+'{:>4s} '.format(correct_atom_name)+'{:.4s} '.format(correct_residue_name)+chain+'{: 4d}'.format(1)+rec[26:]
-#                 # logger.debug(f'{rec}')
+        # Store the file under its directory
+        dir_path = '/'.join(parts[:-1])  # Get the directory of the current file
+        if dir_path not in directories:
+            directories[dir_path] = []
+        directories[dir_path].append(parts[-1])  # Add the file itself
 
-#             # else:
-#             #     logger.debug(f'{badlab} not found in {rec}')
-#         parsedlines.append(rec)
-#     assert len(probelines)==len(parsedlines)
-#     if not outfile:
-#         outfile=pdbfile
-#     with open(outfile,'w') as f:
-#         f.write('\n'.join(parsedlines))
+    # Now iterate over directories and their files, similar to os.walk
+    for dir_path, files in directories.items():
+        yield dir_path, [], files
+

@@ -7,16 +7,6 @@ from .pdbcollection import PDBCollection
 logger=logging.getLogger(__name__)
 
 comment_these_out=['set','if','WRNLEV','BOMLEV']
-def copy_charmm_top(sysfile,localfile=''):
-    if localfile=='':
-        localfile=os.path.split(sysfile)[1]
-    with open(sysfile,'r') as f:
-        lines=f.read().split('\n')
-    with open(localfile,'w') as f:
-        for l in lines:
-            is_comment=any([l.startswith(x) for x in comment_these_out])
-            if not is_comment:
-                f.write(l+'\n')
 
 class CHARMMFFContent:
     """ A class for handling all CHARMM force field content.  The CHARMM force field is
@@ -29,16 +19,21 @@ class CHARMMFFContent:
         assert self.charmmff_dir=='charmmff','expected charmmff directory'
         cwd=os.getcwd()
         os.chdir(self.resource_dir)
-        self.toppar=tarfile.open('toppar_c36_jul24.tgz','r:gz')
-        self.tarmembers=self.toppar.getmembers()
-        # build lists of base filenames
-        self.par=[x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/par_')]
-        self.top=[x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/top_') and 'history' not in x.name]
-        self.toppar=[x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/toppar') and 'history' not in x.name]
-        self.streams=[x.name for x in self.tarmembers if x.isdir() and x.name.startswith('toppar/stream/') and 'history' not in x.name]
-        self.toppar_streams={}
+        self.tarfile=tarfile.open(os.path.join('charmmff','toppar_c36_jul24.tgz'),'r:gz')
+        self.tarmembers=self.tarfile.getmembers()
+        self.toplevel_par={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/par_') and 'history' not in x.name}
+        self.toplevel_top={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/top_') and 'history' not in x.name}
+        self.toplevel_toppar={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/') and 'history' not in x.name}
+        self.filenamemap={**self.toplevel_par,**self.toplevel_top,**self.toplevel_toppar}
+        self.streams=[os.path.basename(x.name) for x in self.tarmembers if x.isdir() and x.name.startswith('toppar/stream/') and 'history' not in x.name]
+        self.streamfiles={}
         for stream in self.streams:
-            self.toppar_streams[stream]=[x.name for x in self.tarmembers if x.name.startswith(stream) and 'history' not in x.name]
+            self.streamfiles[stream]={os.path.basename(x.name):x.name 
+                                      for x in self.tarmembers if x.isfile() 
+                                      and x.name.startswith(f'toppar/stream/{stream}/') and 'history' not in x.name}
+            self.filenamemap.update(self.streamfiles[stream])
+        check_basenames=list(self.filenamemap.keys())
+        assert len(check_basenames)==len(set(check_basenames)),f'found duplicate basenames in charmmff tarball: {check_basenames}'
         self.dirtree={a:[b,c] for a,b,c in os.walk('charmmff')}
         os.chdir(cwd)
         self.charmm_elements=self.dirtree['charmmff'][0]
@@ -47,42 +42,16 @@ class CHARMMFFContent:
         if 'pdb' in self.charmm_elements:
             self.pdb_collection=PDBCollection(os.path.join(self.resource_dir,self.charmmff_dir,'pdb'))
         self.custom_files=self.dirtree[f'{self.charmmff_dir}/custom'][1]
+        for f in self.custom_files:
+            assert f not in self.filenamemap, f'custom file {f} already exists in filenamemap'
+            self.filenamemap[f]=os.path.join(self.abs_dir,'custom',f)
 
     def __del__(self):
-        self.toppar.close()
-
-    def get_abs_path(self,basename):
-        """ Given a basename for any charmmff file, return the absolute path to the file
-        """
-        if os.sep in basename:
-            # this is a path
-            logger.debug(f'expected a basename and got a path {basename}')
-            basename=os.path.split(basename)[1]
-            logger.debug(f'truncated to basename {basename}')
-        if basename.startswith('par_') or basename.startswith('top_') or basename.startswith('toph') or basename.startswith('param'):
-            if basename in self.par or basename in self.top: 
-                # this is a toplevel parameter or topology file
-                return os.path.join(self.resource_dir,f'{self.charmmff_dir}/toppar',basename)
-        elif basename.startswith('toppar'):
-            # logger.debug(f'basename {basename} is a stream file')
-            if basename in self.toppar:
-                # this is a toplevel toppar file
-                return os.path.join(self.resource_dir,f'{self.charmmff_dir}/toppar',basename)
-            else:
-                # this is a stream file
-                for stream in self.streams:
-                    searchlist=self.dirtree[f'{self.charmmff_dir}/toppar/stream/{stream}'][1]
-                    # logger.debug(f'searching for {basename} in {searchlist}')
-                    if basename in searchlist:
-                        return os.path.join(self.resource_dir,f'{self.charmmff_dir}/toppar/stream',stream,basename)
-        # logger.debug(f'searching for {basename} in {self.custom_files}')
-        if basename in self.custom_files:
-            return os.path.join(self.resource_dir,f'{self.charmmff_dir}/custom',basename)
-        logger.warning(f'{basename} not found in charmmff')
-        return basename
+        self.tarfile.close()
 
     def copy_charmmfile_local(self,basename):
-        """ Given a basename for any charmmff file, copy from the existing unaltered charmmff installation to the cwd, and modify it for use directly in NAMD if necessary"""
+        """ Given a basename for any charmmff file, extract from the existing unaltered charmmff installation
+            and modify it for use directly in NAMD if necessary"""
         if os.path.exists(basename):
             logger.debug(f'{basename} already exists in {os.getcwd()}')
             return basename
@@ -91,34 +60,32 @@ class CHARMMFFContent:
             logger.debug(f'expected a basename and got a path {basename}')
             basename=os.path.split(basename)[1]
             logger.debug(f'truncated to basename {basename}')
-        if basename.startswith('par_') or basename.startswith('top_'):
-            if basename in self.par or basename in self.top: 
-                # this is a toplevel parameter or topology file
-                src=os.path.join(self.resource_dir,f'{self.charmmff_dir}/toppar',basename)
-                copy_charmm_top(src)
-                return basename
-        elif basename.startswith('toppar'):
-            # logger.debug(f'basename {basename} is a stream file')
-            if basename in self.toppar:
-                # this is a toplevel toppar file
-                src=os.path.join(self.resource_dir,f'{self.charmmff_dir}/toppar',basename)
-                copy_charmm_top(src)
-                return basename
-            else: # this is a stream file
-                for stream in self.streams:
-                    searchlist=self.dirtree[f'{self.charmmff_dir}/toppar/stream/{stream}'][1]
-                    # logger.debug(f'searching for {basename} in {searchlist}')
-                    if basename in searchlist:
-                        src=os.path.join(self.resource_dir,f'{self.charmmff_dir}/toppar/stream',stream,basename)
-                        copy_charmm_top(src)
-                        return basename
-        # logger.debug(f'searching for {basename} in {self.custom_files}')
         if basename in self.custom_files:
-            src=os.path.join(self.resource_dir,f'{self.charmmff_dir}/custom',basename)
-            copy_charmm_top(src)
-            return basename
-        logger.warning(f'{basename} not found')
-        return None
+            with open(self.filenamemap[basename]) as file:
+                lines=file.read().split('\n')
+                with open(basename,'w') as f:
+                    for l in lines:
+                        is_comment=any([l.startswith(x) for x in comment_these_out])
+                        if not is_comment:
+                            f.write(l+'\n')
+                        else:
+                            f.write('! commented out by pestifer:\n')
+                            f.write(f'! {l}\n')
+        # logger.debug(f'searching for {basename} in {self.custom_files}')
+        elif basename in self.filenamemap:
+            with self.tarfile.extractfile(self.filenamemap[basename]) as file:
+                lines=file.read().decode('utf-8').split('\n')
+                with open(basename,'w') as f:
+                    for l in lines:
+                        is_comment=any([l.startswith(x) for x in comment_these_out])
+                        if not is_comment:
+                            f.write(l+'\n')
+                        else:
+                            f.write('! commented out by pestifer:\n')
+                            f.write(f'! {l}\n')
+        else:
+            logger.warning(f'{basename} not found in charmmff')
+        return basename
     
     def clean_local_charmmff_files(self):
         """ remove all local charmmff files
