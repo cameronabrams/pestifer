@@ -14,6 +14,10 @@ def test_bilayer_init_empty():
         assert test_bilayer.statevars == {}
 
 def test_bilayer_init_nonempty():
+    if os.path.exists('__test_bilayer_init_nonempty'):
+        shutil.rmtree('__test_bilayer_init_nonempty')
+    os.mkdir('__test_bilayer_init_nonempty')
+    os.chdir('__test_bilayer_init_nonempty')
     C=Config()
     RM=C.RM        
     pdb_collection=RM.pdb_collection
@@ -27,6 +31,8 @@ def test_bilayer_init_nonempty():
         resi_database=resi_database)
     assert all([x in test_bilayer.lipid_names for x in ['POPE', 'POPC']])
     assert all([x in ['POPE', 'POPC'] for x in test_bilayer.lipid_names])
+    RM.charmmff_content.clean_local_charmmff_files()
+    os.chdir('..')
 
 def test_bilayer_memgen_to_composition_simple_symm():
     cdict=specstrings_builddict(lipid_specstring='POPC',lipid_ratio_specstring='1',lipid_conformers_specstring='1')
@@ -182,6 +188,10 @@ def test_bilayer_memgen_to_composition_complex_asymm():
 
 
 def test_bilayer_init_memgen_style():
+    if os.path.exists('__test_bilayer_init_memgen_style'):
+        shutil.rmtree('__test_bilayer_init_memgen_style')
+    os.mkdir('__test_bilayer_init_memgen_style')
+    os.chdir('__test_bilayer_init_memgen_style')
     C=Config()
     RM=C.RM        
     pdb_collection=RM.pdb_collection
@@ -305,6 +315,8 @@ def test_bilayer_init_memgen_style():
     assert test_bilayer.slices['lower_chamber']['composition'][1]['patn'] == 37
     assert test_bilayer.slices['lower_chamber']['composition'][1]['MW'] == 39.0983
     assert test_bilayer.asymmetric == True
+    RM.charmmff_content.clean_local_charmmff_files()
+    os.chdir('..')
 
 def test_bilayer_build_patch():
     if os.path.exists('__test_bilayer_build_patch'):
@@ -326,5 +338,7 @@ def test_bilayer_build_patch():
     assert test_bilayer.patch_ur_corner[0]==pytest.approx(77.46, rel=1e-2)
     assert test_bilayer.patch_ur_corner[1]==pytest.approx(77.46, rel=1e-2)
     assert test_bilayer.patch_ur_corner[2]==pytest.approx(85.31, rel=1e-2)
+    RM.charmmff_content.clean_local_charmmff_files()
+
     os.chdir('..')
     

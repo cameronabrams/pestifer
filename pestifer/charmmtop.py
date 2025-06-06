@@ -344,6 +344,7 @@ class CharmmTopResi:
     def lipid_annotate(self):
         """ Identify head and tail atoms """
         m=self.metadata
+        logger.debug(f'metadata {m}')
         if m['stream']=='lipid' and m['substream']=='cholesterol':
             self.sterol_annotate()
         elif m['stream']=='lipid' and m['substream']=='detergent':
@@ -599,6 +600,7 @@ def getResis(topfile,masses=[]):
         logger.debug(f'{topfile} extension \'{ext}\' not recognized')
         return None
     ftok=f.split('_')
+    logger.debug(f'topfile {topfile} tokens {ftok}')
     fcontent_type=ftok[0]
     if not fcontent_type in ['top','toppar']:
         logger.debug(f'{topfile} content type \'{fcontent_type}\' not recognized')
@@ -653,6 +655,7 @@ class CharmmResiDatabase(UserDict):
         self.charmmff_content=self.resources.charmmff_content
 
         self.all_charmm_topology_files=[x for x in self.charmmff_content.toplevel_top.keys() if 'ljpme' not in x]
+        self.all_charmm_topology_files.extend([x for x in self.charmmff_content.toplevel_toppar.keys() if 'ljpme' not in x])
         for f in self.all_charmm_topology_files:
             self.charmmff_content.copy_charmmfile_local(f)
 
@@ -683,18 +686,18 @@ class CharmmResiDatabase(UserDict):
         logger.debug(f'{len(self.M)} atomic mass records parsed')
 
     def add_topology(self,topfile,streamnameoverride=''):
-        resolved_file=self.get_abs_path(topfile)
-        if not os.path.exists(resolved_file):
-            logger.debug(f'{resolved_file} not found')
+        self.charmmff_content.copy_charmmfile_local(topfile)
+        if not os.path.exists(topfile):
+            logger.debug(f'{topfile} not found')
             return
 
         if topfile in self.all_charmm_topology_files:
             logger.debug(f'{topfile} already in the database')
             return
         self.all_charmm_topology_files.append(topfile)
-        newM=CharmmMasses(getMasses(resolved_file))
+        newM=CharmmMasses(getMasses(topfile))
         self.M.update(newM)
-        sublist=getResis(resolved_file,self.M)
+        sublist=getResis(topfile,self.M)
         for resi in sublist:
             stream,substream=resi.metadata['stream'],resi.metadata['substream']
             if streamnameoverride != '':

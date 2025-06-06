@@ -14,6 +14,9 @@ class CHARMMFFContent:
     https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_jul24.tgz
     """
     def __init__(self,abs_dir):
+        def okfilename(name):
+            """ Check if a filename is ok to use in the tarfile """
+            return not 'history' in name and (name.endswith('.str') or name.endswith('.prm') or name.endswith('.rtf'))
         self.abs_dir=abs_dir
         self.resource_dir,self.charmmff_dir=os.path.split(abs_dir)
         assert self.charmmff_dir=='charmmff','expected charmmff directory'
@@ -21,16 +24,16 @@ class CHARMMFFContent:
         os.chdir(self.resource_dir)
         self.tarfile=tarfile.open(os.path.join('charmmff','toppar_c36_jul24.tgz'),'r:gz')
         self.tarmembers=self.tarfile.getmembers()
-        self.toplevel_par={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/par_') and 'history' not in x.name}
-        self.toplevel_top={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/top_') and 'history' not in x.name}
-        self.toplevel_toppar={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/') and 'history' not in x.name}
+        self.toplevel_par={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/par_') and okfilename(x.name)}
+        self.toplevel_top={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/top_') and okfilename(x.name)}
+        self.toplevel_toppar={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/toppar_') and okfilename(x.name)}
         self.filenamemap={**self.toplevel_par,**self.toplevel_top,**self.toplevel_toppar}
         self.streams=[os.path.basename(x.name) for x in self.tarmembers if x.isdir() and x.name.startswith('toppar/stream/') and 'history' not in x.name]
         self.streamfiles={}
         for stream in self.streams:
             self.streamfiles[stream]={os.path.basename(x.name):x.name 
                                       for x in self.tarmembers if x.isfile() 
-                                      and x.name.startswith(f'toppar/stream/{stream}/') and 'history' not in x.name}
+                                      and x.name.startswith(f'toppar/stream/{stream}/') and okfilename(x.name)}
             self.filenamemap.update(self.streamfiles[stream])
         check_basenames=list(self.filenamemap.keys())
         assert len(check_basenames)==len(set(check_basenames)),f'found duplicate basenames in charmmff tarball: {check_basenames}'
@@ -62,7 +65,8 @@ class CHARMMFFContent:
             logger.debug(f'truncated to basename {basename}')
         if basename in self.custom_files:
             with open(self.filenamemap[basename]) as file:
-                lines=file.read().split('\n')
+                lines=file.readlines()
+                logger.debug(f'found {len(lines)} lines in {basename} in custom files')
                 with open(basename,'w') as f:
                     for l in lines:
                         is_comment=any([l.startswith(x) for x in comment_these_out])
@@ -71,10 +75,13 @@ class CHARMMFFContent:
                         else:
                             f.write('! commented out by pestifer:\n')
                             f.write(f'! {l}\n')
-        # logger.debug(f'searching for {basename} in {self.custom_files}')
         elif basename in self.filenamemap:
+            logger.debug(f'found {basename} in at {self.filenamemap[basename]} in tarball')
             with self.tarfile.extractfile(self.filenamemap[basename]) as file:
-                lines=file.read().decode('utf-8').split('\n')
+                logger.debug(f' file has type {type(file)}')
+                lines=file.read().decode().splitlines()
+                logger.debug(f'type of lines is {type(lines)}')
+                logger.debug(f'found {len(lines)} lines in {basename} in tarfile')
                 with open(basename,'w') as f:
                     for l in lines:
                         is_comment=any([l.startswith(x) for x in comment_these_out])
@@ -91,5 +98,5 @@ class CHARMMFFContent:
         """ remove all local charmmff files
         """
         for f in os.listdir('.'):
-            if f.startswith('par_') or f.startswith('top_') or f.startswith('toppar'):
+            if f.startswith('par') or f.startswith('top_') or f.startswith('toppar') or f.startswith('charmm') or f.endswith('.str') or f.endswith('.prm') or f.endswith('.rtf'):
                 os.remove(f)

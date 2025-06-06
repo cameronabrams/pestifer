@@ -1,6 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 import unittest
-# from pestifer.config import ResourceManager
+from pestifer.resourcemanager import ResourceManager
 # from pestifer.charmmtop import getResis, makeBondGraph, getMasses, CharmmMasses
 from pestifer.charmmtop import *
 # import glob
@@ -11,7 +11,7 @@ import shutil
 # import networkx as nx
 # import yaml
 logger=logging.getLogger(__name__)
-
+RM=ResourceManager()
 class TestCHARMMtop(unittest.TestCase):
 
     def test_detect_structure_CHL1(self):
@@ -25,7 +25,8 @@ class TestCHARMMtop(unittest.TestCase):
         tails=topo.annotation['tails']
         self.assertTrue(heads==['C3'])
         self.assertTrue(tails==['C27'])
-    
+        RM.charmmff_content.clean_local_charmmff_files()
+
     def test_detect_structure_CHM1(self):
         DB=CharmmResiDatabase()
         DB.add_stream('lipid')
@@ -37,6 +38,7 @@ class TestCHARMMtop(unittest.TestCase):
         tails=topo.annotation['tails']
         self.assertTrue(heads==['C1'])
         self.assertTrue(tails==['C6'])
+        RM.charmmff_content.clean_local_charmmff_files()
 
     def test_detect_structure_DPPC(self):
         DB=CharmmResiDatabase()
@@ -54,6 +56,7 @@ class TestCHARMMtop(unittest.TestCase):
         # logger.debug(f'dist1 {dist1} dist2 {dist2}')
         self.assertEqual(dist1,25)
         self.assertEqual(dist2,26)
+        RM.charmmff_content.clean_local_charmmff_files()
 
     def test_detect_structure_SDS(self):
         DB=CharmmResiDatabase()
@@ -66,6 +69,7 @@ class TestCHARMMtop(unittest.TestCase):
         tails=topo.annotation['tails']
         self.assertTrue(heads==['S'])
         self.assertTrue(tails==['C12'])
+        RM.charmmff_content.clean_local_charmmff_files()
 
     def test_detect_structure_TOCL1(self):
         DB=CharmmResiDatabase()
@@ -79,3 +83,4 @@ class TestCHARMMtop(unittest.TestCase):
         self.assertEqual(len(tails),4)
         self.assertTrue(heads==['C2'])
         self.assertTrue(tails==['CA18', 'CB18', 'CC18', 'CD18'])
+        RM.charmmff_content.clean_local_charmmff_files()

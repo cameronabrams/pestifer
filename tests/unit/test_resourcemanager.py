@@ -57,6 +57,7 @@ class TestResourceManager(unittest.TestCase):
 
     def test_charmmff_content(self):
         RM=ResourceManager()
+        RM.charmmff_content.clean_local_charmmff_files()
         self.assertTrue(RM.charmmff_content!=None)
         self.assertTrue(RM.charmmff_content.filenamemap!={})
         basenames=[k for k in RM.charmmff_content.filenamemap.keys()]
