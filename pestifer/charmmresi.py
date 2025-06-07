@@ -65,7 +65,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
             if shortest_paths and any([len(v)>0 for v in shortest_paths.values()]) and heads and tails: # and len(tails)==2:
                 # run a non-equilibrium MD simulation to bring the tails together to make a 'standard' conformation
                 force_constant=0.2
-                base_md={'ensemble':'NVT','nsteps':10000,'dcdfreq':100,'xstfreq':100,'temperature':100}
+                base_md={'ensemble':'NVT','nsteps':15000,'dcdfreq':100,'xstfreq':100,'temperature':100}
                 groups={'repeller':{'atomnames': [heads[0]]}}
                 distances={}
                 harmonics={}

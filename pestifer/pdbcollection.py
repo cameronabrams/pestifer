@@ -6,6 +6,7 @@ import os
 import glob
 import logging
 import shutil
+import tarfile
 import yaml
 logger=logging.getLogger(__name__)
 
