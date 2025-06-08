@@ -42,6 +42,8 @@ class Config(Yclept):
             my_logger(processor_info,logger.info,just='<',frame='*',fill='')
         self._set_internal_shortcuts()
         self._set_shell_commands(verify_access=(userfile!=''))
+        self.RM.update_pdb_repository(self['user']['paths'].get('pdb_repository',''))
+        self.RM.update_charmmff(self['user']['charmmff'].get('tarball',''))
 
     def processor_info(self):
         self.slurmvars={k:os.environ[k] for k in os.environ if 'SLURM' in k}
@@ -118,7 +120,7 @@ class Config(Yclept):
         # assert os.path.exists(self.charmmff_toppar_path)
         # self.charmmff_custom_path=RM.get_charmmff_customdir()
         # assert os.path.exists(self.charmmff_custom_path)
-        self.charmmff_pdb_collection=RM.pdb_collection
+        self.charmmff_pdb_repository=RM.charmmff_content.pdb_repository
         self.user_charmmff_toppar_path=''
         if hasattr(self,'user'):
             self.user_charmmff_toppar_path=os.path.join(self['user']['charmff'],'toppar')
@@ -145,8 +147,6 @@ class Config(Yclept):
             res=self['user']['psfgen']['segtypes'][st].get('resnames',[])
             for r in res:
                 self.segtype_of_resname[r]=st
-        if 'pdb_depot' in self['user']['paths']:
-            RM.pdb_collection.registercollection(self['user']['paths']['pdb_depot'],'user')
 
         # globals
         charmm_resname_of_pdb_resname.update(self.pdb_to_charmm_resnames)

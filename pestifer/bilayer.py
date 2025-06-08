@@ -75,7 +75,7 @@ def specstrings_builddict(lipid_specstring='',lipid_ratio_specstring='',lipid_co
 
 class Bilayer:
     def __init__(self,composition_dict={},leaflet_nlipids=dict(upper=100,lower=100),solvent_to_key_lipid_ratio=32.0,
-                neutralizing_salt=['POT','CLA'],pdb_collection=None,resi_database=None,solvent_specstring='TIP3',solvent_ratio_specstring='1.0'):
+                neutralizing_salt=['POT','CLA'],pdb_repository=None,resi_database=None,solvent_specstring='TIP3',solvent_ratio_specstring='1.0'):
 
         self.statevars={}
 
@@ -147,10 +147,10 @@ class Bilayer:
 
         self.species_data={}
         self.addl_streamfiles=[]
-        if pdb_collection is not None:
+        if pdb_repository is not None:
             for l in self.species_names:
                 logger.debug(f'Getting pdb for {l}')
-                pdbstruct=pdb_collection.checkout(l)
+                pdbstruct=pdb_repository.checkout(l)
                 self.species_data[l]=pdbstruct
                 for p in self.species_data[l].get_parameters():
                     if p.endswith('.str') and not p in self.addl_streamfiles:
@@ -172,7 +172,7 @@ class Bilayer:
                     data['avgMW']+=species['MW']*species['patn']
                 elif 'leaflet' in layer:
                     for lipid in data['composition']:
-                        lipid['reference_length']=self.species_data[lipid['name']].get_head_tail_length(index=lipid.get('conf',0))
+                        lipid['reference_length']=self.species_data[lipid['name']].get_head_tail_length(conformerID=lipid.get('conf',0))
                         if lipid['reference_length']>data['maxthickness']:
                             data['maxthickness']=lipid['reference_length']
                     logger.debug(f'{layer} maxthickness {data["maxthickness"]:.3f}')
@@ -189,7 +189,7 @@ class Bilayer:
                 ion_name=cation_name
             if ion_name not in self.species_names:
                 self.species_names.append(ion_name)
-                self.species_data[ion_name]=pdb_collection.checkout(ion_name)
+                self.species_data[ion_name]=pdb_repository.checkout(ion_name)
             ion_q=resi_database['water_ions'][ion_name].charge
             ion_patn=int(np.round(np.abs(self.total_charge),0)/np.abs(ion_q))
             if ion_patn%2==0:
@@ -280,8 +280,8 @@ class Bilayer:
             for specs in leaflet['composition']:
                 name=specs['name']
                 logger.debug(f'Packing {name}')
-                lipid_max_length=self.species_data[name].get_max_internal_length(index=specs.get('conf',0))
-                lipid_headtail_length=self.species_data[name].get_head_tail_length(index=specs.get('conf',0))
+                lipid_max_length=self.species_data[name].get_max_internal_length(conformerID=specs.get('conf',0))
+                lipid_headtail_length=self.species_data[name].get_head_tail_length(conformerID=specs.get('conf',0))
                 lipid_overhang=lipid_max_length-lipid_headtail_length
                 leaflet_thickness=leaflet['z-hi']-leaflet['z-lo']
                 ref_atoms=self.species_data[name].get_ref_atoms()

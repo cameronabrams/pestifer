@@ -17,13 +17,11 @@ Single-valued parameters:
 
   * ``vmd``: Path for vmd executable (default: vmd)
 
-  * ``charmmff``: Path for standard charmm force-field distribution; note that pestifer includes the July 2024 distribution by default
-
   * ``packmol``: Path to packmol executable (default: packmol)
 
   * ``catdcd``: Path to catdcd executable (default: catdcd)
 
-  * ``pdb_depot``: Path to a user's collection of PDB files for custom lipids or ligands
+  * ``pdb_repository``: Path to a user's PDB repository, which can be used to store custom PDB files for lipids or ligands
 
 
 

@@ -22,6 +22,9 @@ directives:
     docs:
       text: "The ``charmff`` directive informs pestifer which CHARMM force-field parameter and topology files are to be used for all psfgen/namd3 executions.  ``standard`` refers to files that are found in the official CHARMMFF release, and are referred to by their base filenames, regardless of whether they live in the topmost ``toppar`` directory or one of the stream subdirectories.  ``custom`` refers to files that are not part of the official CHARMMFF release."
     directives:
+      - name: tarball
+        type: str
+        text: Path to a tarball containing the charmmff files; this is used to override the default set of charmmff files
       - name: standard
         type: dict
         text: Standard charmmff files under the standard toppar/ directory
@@ -82,6 +85,10 @@ directives:
             default:
               C6DHPC: lipid
               C7DHPC: lipid
+      - name: pdb_repository
+        type: list
+        text: Paths to local repository of PDB files for custom lipids or ligands
+        default: []
   - name: psfgen
     type: dict
     text: Specifications for the psfgen plugin
@@ -1008,10 +1015,6 @@ directives:
         type: str
         text: Path for vmd executable
         default: vmd
-      - name: charmmff
-        type: str
-        text: Path for standard charmm force-field distribution; note that pestifer includes the July 2024 distribution by default
-        required: False
       - name: packmol
         type: str
         text: Path to packmol executable
@@ -1020,9 +1023,9 @@ directives:
         type: str
         text: Path to catdcd executable
         default: catdcd
-      - name: pdb_depot
+      - name: pdb_repository
         type: str
-        text: Path to a user's collection of PDB files for custom lipids or ligands
+        text: Path to a user's PDB repository, which can be used to store custom PDB files for lipids or ligands
   - name: tasks
     type: list
     text: Specifies the tasks to be performed serially in a pestifer run

@@ -5,6 +5,20 @@
 
 The ``charmff`` directive informs pestifer which CHARMM force-field parameter and topology files are to be used for all psfgen/namd3 executions.  ``standard`` refers to files that are found in the official CHARMMFF release, and are referred to by their base filenames, regardless of whether they live in the topmost ``toppar`` directory or one of the stream subdirectories.  ``custom`` refers to files that are not part of the official CHARMMFF release.
 
+Single-valued parameter:
+
+  * ``tarball``: Path to a tarball containing the charmmff files; this is used to override the default set of charmmff files
+
+
+
+Container-like parameter:
+
+.. toctree::
+   :maxdepth: 1
+
+   charmmff/pdb_repository
+
+
 Subdirectives:
 
 .. toctree::

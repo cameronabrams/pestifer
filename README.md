@@ -28,6 +28,7 @@ Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full d
 ## Release History
 * 1.13.1
     * updated `make-resi-database` to work with gzipped charmmff
+    * updated PDB repository to work with a gzipped folder (all lipids)
 * 1.13.0
     * converted charmmff contents back into an as-downloaded tarball
 * 1.12.1

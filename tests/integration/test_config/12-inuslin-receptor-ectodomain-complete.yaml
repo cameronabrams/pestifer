@@ -8,6 +8,7 @@ charmmff:
     substreams:
       C6DHPC: lipid
       C7DHPC: lipid
+  pdb_repository: []
   standard:
     parameters:
     - par_all36m_prot.prm

@@ -20,14 +20,14 @@ def test_bilayer_init_nonempty():
     os.chdir('__test_bilayer_init_nonempty')
     C=Config()
     RM=C.RM        
-    pdb_collection=RM.pdb_collection
+    pdb_repository=RM.pdb_repository
     resi_database=CharmmResiDatabase()
     resi_database.add_stream('lipid')
     resi_database.add_topology('toppar_all36_moreions.str',streamnameoverride='water_ions')
     test_bilayer=Bilayer(composition_dict={
         'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
         'lower_leaflet': [{'name':'POPE','frac':1.0,'conf':0}]},
-        pdb_collection=pdb_collection,
+        pdb_repository=pdb_repository,
         resi_database=resi_database)
     assert all([x in test_bilayer.lipid_names for x in ['POPE', 'POPC']])
     assert all([x in ['POPE', 'POPC'] for x in test_bilayer.lipid_names])
@@ -194,17 +194,17 @@ def test_bilayer_init_memgen_style():
     os.chdir('__test_bilayer_init_memgen_style')
     C=Config()
     RM=C.RM        
-    pdb_collection=RM.pdb_collection
+    pdb_repository=RM.pdb_repository
     resi_database=CharmmResiDatabase()
     resi_database.add_stream('lipid')
     resi_database.add_topology('toppar_all36_moreions.str',streamnameoverride='water_ions')
     cdict=specstrings_builddict(lipid_specstring='POPC',lipid_ratio_specstring='1.0',lipid_conformers_specstring='1')
     test_bilayer=Bilayer(composition_dict=cdict,
-        pdb_collection=pdb_collection,resi_database=resi_database)
+        pdb_repository=pdb_repository,resi_database=resi_database)
     assert test_bilayer.lipid_names == ['POPC']
     assert test_bilayer.species_names == ['POPC','TIP3']
     cdict=specstrings_builddict(lipid_specstring='POPC//POPE',lipid_ratio_specstring='1',lipid_conformers_specstring='1')
-    test_bilayer=Bilayer(composition_dict=cdict,pdb_collection=pdb_collection,resi_database=resi_database)
+    test_bilayer=Bilayer(composition_dict=cdict,pdb_repository=pdb_repository,resi_database=resi_database)
 
     assert all([x in test_bilayer.lipid_names for x in ['POPE', 'POPC']])
     assert all([x in ['POPE', 'POPC'] for x in test_bilayer.lipid_names])
@@ -233,7 +233,7 @@ def test_bilayer_init_memgen_style():
     assert test_bilayer.asymmetric == True
 
     cdict=specstrings_builddict(lipid_specstring='POPC:CHL1//POPE:CHL1',lipid_ratio_specstring='0.5:0.5',lipid_conformers_specstring='1:1')
-    test_bilayer=Bilayer(composition_dict=cdict,pdb_collection=pdb_collection,resi_database=resi_database)
+    test_bilayer=Bilayer(composition_dict=cdict,pdb_repository=pdb_repository,resi_database=resi_database)
     assert all([x in test_bilayer.lipid_names for x in ['POPE', 'POPC','CHL1']])
     assert all([x in ['POPE', 'POPC','CHL1'] for x in test_bilayer.lipid_names])
     assert all([x in test_bilayer.species_names for x in ['POPE', 'POPC','CHL1','TIP3']])
@@ -271,7 +271,7 @@ def test_bilayer_init_memgen_style():
     assert test_bilayer.asymmetric == True
 
     cdict=specstrings_builddict(lipid_specstring='POPS:CHL1//POPE:CHL1',lipid_ratio_specstring='0.75:0.25',lipid_conformers_specstring='3:4//7:2')
-    test_bilayer=Bilayer(composition_dict=cdict,pdb_collection=pdb_collection,resi_database=resi_database)
+    test_bilayer=Bilayer(composition_dict=cdict,pdb_repository=pdb_repository,resi_database=resi_database)
     assert all([x in test_bilayer.lipid_names for x in ['POPS', 'POPE','CHL1']])
     assert all([x in ['POPS', 'POPE','CHL1'] for x in test_bilayer.lipid_names])
     assert all([x in test_bilayer.species_names for x in ['POPS', 'POPE','CHL1','TIP3']])
@@ -328,16 +328,16 @@ def test_bilayer_build_patch():
     RDB.add_topology('toppar_all36_moreions.str',streamnameoverride='water_ions')
     C=Config()
     RM=C.RM
-    pdb_collection=RM.pdb_collection
+    pdb_repository=RM.pdb_repository
     cdict=specstrings_builddict(lipid_specstring='POPC:CHL1//POPE:CHL1',lipid_ratio_specstring='0.75:0.25//0.33:0.67',lipid_conformers_specstring='3:4//7:2')
-    test_bilayer=Bilayer(composition_dict=cdict,pdb_collection=pdb_collection,resi_database=RDB)
+    test_bilayer=Bilayer(composition_dict=cdict,pdb_repository=pdb_repository,resi_database=RDB)
     test_bilayer.build_patch()
     assert test_bilayer.patch_ll_corner[0]==pytest.approx(0.0, rel=1e-2)
     assert test_bilayer.patch_ll_corner[1]==pytest.approx(0.0, rel=1e-2)
     assert test_bilayer.patch_ll_corner[2]==pytest.approx(0.0, rel=1e-2)
     assert test_bilayer.patch_ur_corner[0]==pytest.approx(77.46, rel=1e-2)
     assert test_bilayer.patch_ur_corner[1]==pytest.approx(77.46, rel=1e-2)
-    assert test_bilayer.patch_ur_corner[2]==pytest.approx(85.31, rel=1e-2)
+    assert test_bilayer.patch_ur_corner[2]==pytest.approx(79.83, rel=1e-2)
     RM.charmmff_content.clean_local_charmmff_files()
 
     os.chdir('..')

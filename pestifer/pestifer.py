@@ -223,8 +223,8 @@ def show_resources(args,**kwargs):
             val=getattr(args,c)
             if val:
                 specs[c]=val
-    if args.pdb_depot:
-        r.pdb_collection.add_usercollection(userpath=args.pdb_depot)
+    if args.user_pdb_repository:
+        r.update_pdb_repository(args.user_pdb_repostiory)
     r.show(out_stream=print,components=specs)
 
 def inittcl(args):
@@ -378,7 +378,7 @@ def cli():
     command_parsers['show-resources'].add_argument('--examples',default=False,action='store_true',help='show system examples')
     command_parsers['show-resources'].add_argument('--tcl',default=False,action='store_true',help='show description of system TcL scripts and packages')
     command_parsers['show-resources'].add_argument('--charmmff',type=str,nargs='+',default=[],help='show elements of charmmff-specific resources (\'toppar\', \'custom\', \'pdb\')')
-    command_parsers['show-resources'].add_argument('--pdb-depot',type=str,help='additional collection of PDB files')
+    command_parsers['show-resources'].add_argument('--user-pdb-repository',type=str,help='additional repository of PDB files outside pestifer installation')
     command_parsers['mdplot'].add_argument('--logs',type=str,default=[],nargs='+',help='list of one more NAMD logs in chronological order')
     command_parsers['mdplot'].add_argument('--xsts',type=str,default=[],nargs='+',help='list of one more NAMD xsts in chronological order')
     command_parsers['mdplot'].add_argument('--basename',type=str,default='mdplot',help='basename of output files')

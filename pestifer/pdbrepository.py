@@ -86,22 +86,31 @@ class PDBInput:
     def get_charge(self):
         return self.info.get('charge',None)
     
-    def get_max_internal_length(self,index=0):
+    def get_conformer_data(self,conformerID=0):
         conformers=self.info.get('conformers',[])
-        basename=os.path.basename(self.conformers[index])
-        for c in conformers:
-            if c['pdb']==basename:
-                return c['max-internal-length']
-        return 0.0
+        if len(conformers)==0:
+            logger.warning('No conformers found in info.yaml.')
+            return None
+        if conformerID < 0 or conformerID >= len(conformers):
+            logger.warning(f'Conformer ID {conformerID} is out of range; returning None')
+            return None
+        c=conformers[conformerID]
+        return c
+    
+    def get_max_internal_length(self,conformerID=0):
+        c=self.get_conformer_data(conformerID)
+        if c is None:
+            logger.warning('No conformer data available to get max internal length.')
+            return 0.0
+        return c.get('max-internal-length',0)
 
-    def get_head_tail_length(self,index=0):
-        conformers=self.info.get('conformers',[])
-        basename=os.path.basename(self.conformers[index])
-        for c in conformers:
-            if c['pdb']==basename:
-                return c['head-tail-length']
-        return 0.0
-
+    def get_head_tail_length(self,conformerID=0):
+        c=self.get_conformer_data(conformerID)
+        if c is None:
+            logger.warning('No conformer data available to get head-tail length.')
+            return 0.0
+        return c.get('head-tail-length',0.0)
+    
     def get_ref_atoms(self):
         return self.info.get('reference-atoms',{})
     

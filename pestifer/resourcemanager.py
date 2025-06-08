@@ -61,9 +61,6 @@ class ResourceManager:
                     msg=f.read()
                 out_stream(msg)
 
-    # def get_pdb(self,name):
-    #     return self.pdb_repository.get_pdb(name)
-
     def get_ycleptic_config(self):
         return self.ycleptic_config
     
@@ -108,5 +105,10 @@ class ResourceManager:
     def get_tcl_scriptsdir(self):
         return os.path.join(self.resource_path['tcl'],'scripts')
     
-    def set_pdb_depot(self,depot_path):
-        self.pdb_depot_path=depot_path
+    def update_pdb_repository(self,user_pdb_repository=''):
+        if user_pdb_repository:
+            self.charmmff_content.pdb_repository.add_usercollection(user_pdb_repository)
+
+    def update_charmmff(self,tarball=''):
+        if tarball:
+            self.charmmff_content.load_charmmff(tarball)

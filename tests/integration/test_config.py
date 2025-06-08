@@ -117,7 +117,3 @@ class ConfigTest(unittest.TestCase):
             self.assertTrue('ssbondsdelete' in specs['mods'])
             source_specs=specs['source']
             self.assertTrue('id' in source_specs)
-
-    def test_config_pdb_depot(self):
-        C=Config('test.yaml')
-        self.assertEqual(C['user']['paths']['pdb_depot'],'pdb_depot')
