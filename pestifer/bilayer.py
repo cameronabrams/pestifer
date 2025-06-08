@@ -150,7 +150,7 @@ class Bilayer:
         if pdb_collection is not None:
             for l in self.species_names:
                 logger.debug(f'Getting pdb for {l}')
-                pdbstruct=pdb_collection.get_pdb(l)
+                pdbstruct=pdb_collection.checkout(l)
                 self.species_data[l]=pdbstruct
                 for p in self.species_data[l].get_parameters():
                     if p.endswith('.str') and not p in self.addl_streamfiles:
@@ -189,7 +189,7 @@ class Bilayer:
                 ion_name=cation_name
             if ion_name not in self.species_names:
                 self.species_names.append(ion_name)
-                self.species_data[ion_name]=pdb_collection.get_pdb(ion_name)
+                self.species_data[ion_name]=pdb_collection.checkout(ion_name)
             ion_q=resi_database['water_ions'][ion_name].charge
             ion_patn=int(np.round(np.abs(self.total_charge),0)/np.abs(ion_q))
             if ion_patn%2==0:
@@ -213,7 +213,9 @@ class Bilayer:
         for layer,data in self.slices.items():
             for species in data['composition']:
                 species_name=species['name']
-                species['local_name']=self.species_data[species_name].checkout()
+                conformerID=species.get('conf',0)
+                noh=species.get('noh',False)
+                species['local_name']=self.species_data[species_name].get_pdb(conformerID=conformerID,noh=noh)
                 # logger.debug(f'Checked out {species_name} as {species["local_name"]}')
 
     def build_patch(self,SAPL=60.0,xy_aspect_ratio=1.0,half_mid_zgap=1.0,solution_gcc=1.0,rotation_pm=10.0):

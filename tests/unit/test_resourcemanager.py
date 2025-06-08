@@ -3,7 +3,7 @@ import glob
 import os
 import yaml
 from pestifer.resourcemanager import ResourceManager
-from pestifer.pdbcollection import PDBInput
+from pestifer.pdbrepository import PDBInput
 from pestifer import resources
 
 class TestResourceManager(unittest.TestCase):
@@ -29,27 +29,6 @@ class TestResourceManager(unittest.TestCase):
         self.assertTrue(os.path.exists(RM.get_tcl_pkgdir()))
         self.assertTrue(os.path.exists(RM.get_tcl_scriptsdir()))
 
-    def test_resource_pdb_path(self):
-        RM=ResourceManager()
-        t2=RM.get_pdb('PSM')
-        self.assertTrue(t2!=None)
-        self.assertEqual(type(t2),PDBInput)
-        self.assertTrue(os.path.exists(t2.conformers[0]))
-        self.assertTrue(len(t2.info)>0)
-        self.assertTrue('parameters' in t2.info)
-        self.assertTrue('conformers' in t2.info)
-        self.assertTrue('charge' in t2.info)
-        self.assertTrue('reference-atoms' in t2.info)
-        t2=RM.get_pdb('PXM')
-        self.assertTrue(t2 == None)
-        t3=RM.get_pdb('FAKE')
-        self.assertTrue(t3==None)
-        RM.pdb_collection.registercollection('pdb_depot','user')
-        self.assertTrue('user' in RM.pdb_collection.collections)
-        t3=RM.get_pdb('FAKE')
-        self.assertEqual(type(t3),PDBInput)
-        self.assertTrue(os.path.exists(t3.conformers[0]))
-
     def test_charmmff_content(self):
         RM=ResourceManager()
         RM.charmmff_content.clean_local_charmmff_files()
@@ -61,8 +40,7 @@ class TestResourceManager(unittest.TestCase):
         self.assertTrue(len(RM.charmmff_content.streams)>0)
         self.assertEqual(RM.charmmff_content.streams,['prot', 'cphmd', 'carb', 'na', 'lipid', 'misc'])
         self.assertTrue(RM.charmmff_content.custom_files!=None)
-        self.assertTrue(RM.charmmff_content.pdb_collection!=None)
-        self.assertTrue(RM.charmmff_content.pdb_collection.get_pdb('PSM')!=None)
+
         RM.charmmff_content.copy_charmmfile_local('par_all36m_prot.prm')
         self.assertTrue(os.path.exists('par_all36m_prot.prm'))
         RM.charmmff_content.copy_charmmfile_local('top_all36_prot.rtf')
@@ -85,3 +63,36 @@ class TestResourceManager(unittest.TestCase):
         self.assertFalse(os.path.exists('toppar_water_ions.str'))
         self.assertFalse(os.path.exists('toppar_all36_carb_glycopeptide.str'))
         self.assertFalse(os.path.exists('toppar_all36_moreions.str'))
+
+    def test_pdb_repository(self):
+        RM=ResourceManager()
+        PD=RM.charmmff_content.pdb_repository
+        self.assertTrue(PD!=None)
+        c=PD.checkout('PSM')
+        self.assertTrue(c!=None)
+        ch=c.get_charge()
+        self.assertTrue(ch==0.0)
+        p=c.get_parameters()
+        self.assertTrue('toppar_all36_lipid_sphingo.str' in p)
+        self.assertTrue(len(c.info['conformers'])==10)
+        self.assertEqual(c.info['conformers'][0]['head-tail-length'],26.779)
+        self.assertEqual(c.info['conformers'][0]['max-internal-length'],30.398)
+        c.get_pdb(0)
+        self.assertTrue(os.path.exists('PSM-00.pdb'))
+        os.remove('PSM-00.pdb')
+        c.get_pdb(0,noh=True)
+        self.assertTrue(os.path.exists('PSM-00-noh.pdb'))
+        os.remove('PSM-00-noh.pdb')
+        c=PD.checkout('TIP3')
+        self.assertTrue(c!=None)
+        self.assertTrue(c.info=={})
+        c.get_pdb(0)
+        self.assertTrue(os.path.exists('TIP3.pdb'))
+        c=PD.checkout('FAKE')
+        self.assertTrue(c==None)
+        PD.registercollection('pdb_depot','user')
+        c=PD.checkout('FAKE')
+        self.assertTrue(c!=None)
+        c.get_pdb(0)
+        self.assertTrue(os.path.exists('FAKE-00.pdb'))
+        os.remove('FAKE-00.pdb')

@@ -23,7 +23,7 @@ class ResourceManager:
         for r in ResourceManager.base_resources:
             self.resource_path[r]=os.path.join(self.resources_path,r)
         self.charmmff_content=CHARMMFFContent(self.resource_path['charmmff'])
-        self.pdb_collection=self.charmmff_content.pdb_collection
+        self.pdb_repository=self.charmmff_content.pdb_repository
 
     def __str__(self):
         cp=os.path.commonpath(list(self.resource_path.values()))
@@ -49,7 +49,7 @@ class ResourceManager:
                         msg=f.read()
                     out_stream(msg)
                 if 'pdb' in spec:
-                    self.pdb_collection.show(out_stream)
+                    self.pdb_repository.show(out_stream)
                 if 'custom' in spec:
                     path=self.get_charmmff_customdir()
                     with open(os.path.join(path,'00PESTIFER-README.txt'),'r') as f:
@@ -61,8 +61,8 @@ class ResourceManager:
                     msg=f.read()
                 out_stream(msg)
 
-    def get_pdb(self,name):
-        return self.pdb_collection.get_pdb(name)
+    # def get_pdb(self,name):
+    #     return self.pdb_repository.get_pdb(name)
 
     def get_ycleptic_config(self):
         return self.ycleptic_config

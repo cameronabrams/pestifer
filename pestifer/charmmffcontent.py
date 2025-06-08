@@ -2,7 +2,8 @@
 import logging
 import os
 import tarfile
-from .pdbcollection import PDBCollection
+from .pdbrepository import PDBRepository
+
 
 logger=logging.getLogger(__name__)
 
@@ -41,9 +42,9 @@ class CHARMMFFContent:
         os.chdir(cwd)
         self.charmm_elements=self.dirtree['charmmff'][0]
         logger.debug(f'Charmmff elements: {self.charmm_elements}')
-        self.pdb_collection=None
-        if 'pdb' in self.charmm_elements:
-            self.pdb_collection=PDBCollection(os.path.join(self.resource_dir,self.charmmff_dir,'pdb'))
+        self.pdb_repository=None
+        if 'pdbrepository' in self.charmm_elements:
+            self.pdb_repository=PDBRepository(os.path.join(self.resource_dir,self.charmmff_dir,'pdbrepository'))
         self.custom_files=self.dirtree[f'{self.charmmff_dir}/custom'][1]
         for f in self.custom_files:
             assert f not in self.filenamemap, f'custom file {f} already exists in filenamemap'
