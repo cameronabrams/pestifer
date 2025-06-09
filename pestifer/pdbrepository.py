@@ -136,7 +136,7 @@ class PDBRepository:
         for cname,coll in self.collections.items():
             out_stream(f'\n{cname} collection at {coll['path']}:')
             for st,L in coll['streams'].items():
-                members=L.get('tarfile',None)
+                tarfile=L.get('tarfile',None)
                 toplevels=[]
                 if tarfile:
                     members=tarfile.getmembers()

@@ -118,8 +118,8 @@ class Config(Yclept):
         assert os.path.exists(self.vmd_startup_script)
         # self.charmmff_toppar_path=RM.get_charmmff_toppardir()
         # assert os.path.exists(self.charmmff_toppar_path)
-        # self.charmmff_custom_path=RM.get_charmmff_customdir()
-        # assert os.path.exists(self.charmmff_custom_path)
+        self.charmmff_custom_path=RM.get_charmmff_customdir()
+        assert os.path.exists(self.charmmff_custom_path)
         self.charmmff_pdb_repository=RM.charmmff_content.pdb_repository
         self.user_charmmff_toppar_path=''
         if hasattr(self,'user'):

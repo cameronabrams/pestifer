@@ -44,10 +44,7 @@ class ResourceManager:
                     out_stream(f'    {e}')
             elif c=='charmmff':
                 if 'toppar' in spec:
-                    path=self.get_charmmff_toppardir()
-                    with open(os.path.join(path,'00PESTIFER-README.txt'),'r') as f:
-                        msg=f.read()
-                    out_stream(msg)
+                    out_stream(f'{self.charmmff_content.tarfilename}')
                 if 'pdb' in spec:
                     self.pdb_repository.show(out_stream)
                 if 'custom' in spec:
@@ -89,9 +86,6 @@ class ResourceManager:
         else:
             return None
         return os.path.join(epath,b)
-
-    def get_charmmff_toppardir(self):
-        return os.path.join(self.resource_path['charmmff'],'toppar')
     
     def get_charmmff_customdir(self):
         return os.path.join(self.resource_path['charmmff'],'custom')

@@ -16,6 +16,7 @@ class CHARMMFFContent:
     """
     def __init__(self,charmmff_path='',tarfilename='toppar_c36_jul24.tgz'):
         self.tarfile=None
+        self.tarfilename=tarfilename
         if not charmmff_path:
             charmmff_path='.'
         if not os.path.isdir(charmmff_path):
