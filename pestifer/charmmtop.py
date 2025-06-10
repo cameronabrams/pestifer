@@ -3,14 +3,14 @@
 # Facilitates reading and parsing of CHARMM RESI and MASS records from rtp and str files
 #
 import logging
-import os
+# import os
 import networkx as nx
 import numpy as np
 from collections import UserDict, UserList
 from itertools import compress, batched
-from .config import Config
-from .resourcemanager import ResourceManager
-from .stringthings import linesplit
+# from .config import Config
+# from .resourcemanager import ResourceManager
+from .stringthings import linesplit #, my_logger
 
 logger=logging.getLogger(__name__)
 
@@ -21,10 +21,21 @@ class CharmmMassRecord:
         tokens=[t.strip() for t in tok.split()]
         self.atom_type=tokens[2].upper()
         self.atom_mass=float(tokens[3])
+        self.atom_element='?'
         try:
             self.atom_element=tokens[4]
         except:
-            self.atom_element=self.atom_type[0]
+            firstchar=self.atom_type[0]
+            if not firstchar.isdigit():
+                self.atom_element=self.atom_type[0].upper()
+    
+    def __str__(self):
+        ans=f'{self.atom_type} {self.atom_mass:.4f}'
+        if self.atom_element!='?':
+            ans+=f' {self.atom_element}'
+        if self.com:
+            ans+=' '+self.com
+        return ans
 
 class CharmmMasses(UserDict):
     def __init__(self,mList):
@@ -33,27 +44,39 @@ class CharmmMasses(UserDict):
             self.data[m.atom_type]=m
 
 class CharmmTopAtom:
-    def __init__(self,atomstring,masses=[]):
+    def __init__(self,atomstring):
         tokens=atomstring.split()
         self.name=tokens[1].upper()
         self.type=tokens[2].upper()
         self.charge=float(tokens[3])
         self.mass=0.0
         self.element='?'
-        if masses:
-            atom_massrecord=masses.get(self.type,None)
-            if atom_massrecord is not None:
-                self.mass=atom_massrecord.atom_mass
-                self.element=atom_massrecord.atom_element
-            else:
-                logger.debug(f'no mass record for atom type {self.type} (raw {tokens[2]})')
-                exit(-1)
-        else:
-            logger.debug(f'cannot initialize without masses')
-            exit(-1)
     
+    def __str__(self):
+        ans=f'ATOM {self.name} {self.type} {self.charge:.4f}'
+        if hasattr(self,'mass') and self.mass>0.0:
+            ans+=f' {self.mass:.4f}'
+        if hasattr(self,'element') and self.element!='?':
+            ans+=f' {self.element}'
+        return ans
+
     def __eq__(self,other):
         return self.name==other.name
+    
+    def set_mass(self,masses):
+        """ Set the mass of this atom from a CharmmMasses object """
+        if isinstance(masses,CharmmMasses):
+            m=masses.get(self.type,None)
+            if m is not None:
+                self.mass=m.atom_mass
+                self.element=m.atom_element
+                logger.debug(f'setting mass of {self.name} ({self.type}) to {self.mass} and element to {self.element}')
+            else:
+                logger.debug(f'no mass record for atom type {self.type} (raw {self.type})')
+                exit(-1)
+        else:
+            logger.error(f'Cannot set mass of {self.name} ({self.type}) from {type(masses)}')
+            exit(-1)
     
 class CharmmTopAtomList(UserList):
     def __init__(self,data):
@@ -103,6 +126,11 @@ class CharmmTopAtomList(UserList):
         if not hasattr(atom,'serial'):
             atom.serial=len(self)+1
         super().append(atom)
+
+    def set_masses(self,masses):
+        for a in self:
+            logger.debug(f'setting mass for {type(a)} \'{str(a)}\'')
+            a.set_mass(masses)
 
 def charmmBonds(card:str,degree=1):
     result=CharmmBondList([])
@@ -225,7 +253,7 @@ class CharmmTopIC:
         return ans
 
 class CharmmTopResi:
-    def __init__(self,blockstring,masses=[]):
+    def __init__(self,blockstring):
         self.blockstring=blockstring
         self.error_code=0
         lines=[x.strip() for x in blockstring.split('\n')]
@@ -256,7 +284,7 @@ class CharmmTopResi:
         g=0
         for card in atomgroupcards:
             if card.startswith('ATOM'):
-                a=CharmmTopAtom(card,masses=masses)
+                a=CharmmTopAtom(card)
                 self.atoms.append(a)
                 if not g in self.atoms_in_group:
                     self.atoms_in_group[g]=CharmmTopAtomList([])
@@ -291,6 +319,10 @@ class CharmmTopResi:
                 ic_atom_names.extend(IC.atoms)
                 self.IC.append(IC)
         
+
+    def set_masses(self,masses):
+        self.atoms.set_mass(masses)
+
     def num_atoms(self):
         return len(self.atoms)
 
@@ -584,187 +616,188 @@ class CharmmTopResi:
         W.addline(f'psfset coord A 1 {a1a3} [list $x $y 0.0]')
         return 0
 
-def getMasses(topfile):
-    R=[]
-    with open(topfile,'r') as f:
-        lines=f.read().upper().split('\n')
-    masses=[]
-    for i in range(len(lines)):
-        if lines[i].startswith('MASS'):
-            masses.append(CharmmMassRecord(lines[i]))
-    return masses
+# def getMasses(topfile):
+#     R=[]
+#     with open(topfile,'r') as f:
+#         lines=f.read().upper().split('\n')
+#     masses=[]
+#     for i in range(len(lines)):
+#         if lines[i].startswith('MASS'):
+#             masses.append(CharmmMassRecord(lines[i]))
+#     return masses
 
-def getResis(topfile,masses=[]):
-    f,ext=os.path.splitext(os.path.basename(topfile))
-    if not ext in ['.rtf','.str']:
-        logger.debug(f'{topfile} extension \'{ext}\' not recognized')
-        return None
-    ftok=f.split('_')
-    logger.debug(f'topfile {topfile} tokens {ftok}')
-    fcontent_type=ftok[0]
-    if not fcontent_type in ['top','toppar']:
-        logger.debug(f'{topfile} content type \'{fcontent_type}\' not recognized')
-        return None
-    stream,substream='',''
-    idx=2 if 'all' in ftok[1] else 1
-    if fcontent_type=='toppar':
-        stream=ftok[idx]
-        if len(ftok)==idx+1:
-            substream=''
-        else:
-            substream=ftok[idx+1]
-        if stream=='water' and substream=='ions':
-            stream='water_ions'
-            substream=''
-    else:
-        stream,substream=ftok[idx],''
-    logger.debug(f'topfile {topfile} stream \'{stream}\' substream \'{substream}\'')
-    R=[]
-    metadat=dict(charmmtopfile=os.path.basename(topfile),stream=stream,substream=substream)
-    with open(topfile,'r') as f:
-        lines=f.read().split('\n')
-    residx=[]
-    for i in range(len(lines)):
-        if lines[i].startswith('RESI'):
-            residx.append(i)
-    if not residx:
-        logger.debug(f'No RESI\'s found in {topfile}')
-        return R
-    # logger.debug(f'{topfile}: residx {residx}')
-    bufs=[]
-    for ll,lr in zip(residx[:-1],residx[1:]):
-        bufs.append('\n'.join(lines[ll:lr]))
-    endidx=len(lines)
-    for i,l in enumerate(lines[residx[-1]:]):
-        ll=l.upper()
-        if ll.startswith('END'):
-            endidx=residx[-1]+i
-            break
-    bufs.append('\n'.join(lines[residx[-1]:endidx]))
-    logger.debug(f'{len(bufs)} RESI\'s found in {topfile}')
-    logger.debug(f'Each gets metadata {metadat}')
-    for block in bufs:
-        resi=CharmmTopResi(block,masses=masses)
-        resi.metadata=metadat.copy()
-        R.append(resi)
-    return R
+# def getResis(topfile,masses=[]):
+#     f,ext=os.path.splitext(os.path.basename(topfile))
+#     if not ext in ['.rtf','.str']:
+#         logger.debug(f'{topfile} extension \'{ext}\' not recognized')
+#         return None
+#     ftok=f.split('_')
+#     logger.debug(f'topfile {topfile} tokens {ftok}')
+#     fcontent_type=ftok[0]
+#     if not fcontent_type in ['top','toppar']:
+#         logger.debug(f'{topfile} content type \'{fcontent_type}\' not recognized')
+#         return None
+#     stream,substream='',''
+#     idx=2 if 'all' in ftok[1] else 1
+#     if fcontent_type=='toppar':
+#         stream=ftok[idx]
+#         if len(ftok)==idx+1:
+#             substream=''
+#         else:
+#             substream=ftok[idx+1]
+#         if stream=='water' and substream=='ions':
+#             stream='water_ions'
+#             substream=''
+#     else:
+#         stream,substream=ftok[idx],''
+#     logger.debug(f'topfile {topfile} stream \'{stream}\' substream \'{substream}\'')
+#     R=[]
+#     metadat=dict(charmmtopfile=os.path.basename(topfile),stream=stream,substream=substream)
+#     with open(topfile,'r') as f:
+#         lines=f.read().split('\n')
+#     residx=[]
+#     for i in range(len(lines)):
+#         if lines[i].startswith('RESI'):
+#             residx.append(i)
+#     if not residx:
+#         logger.debug(f'No RESI\'s found in {topfile}')
+#         return R
+#     # logger.debug(f'{topfile}: residx {residx}')
+#     bufs=[]
+#     for ll,lr in zip(residx[:-1],residx[1:]):
+#         bufs.append('\n'.join(lines[ll:lr]))
+#     endidx=len(lines)
+#     for i,l in enumerate(lines[residx[-1]:]):
+#         ll=l.upper()
+#         if ll.startswith('END'):
+#             endidx=residx[-1]+i
+#             break
+#     bufs.append('\n'.join(lines[residx[-1]:endidx]))
+#     logger.debug(f'{len(bufs)} RESI\'s found in {topfile}')
+#     logger.debug(f'Each gets metadata {metadat}')
+#     for block in bufs:
+#         resi=CharmmTopResi(block,masses=masses)
+#         resi.metadata=metadat.copy()
+#         R.append(resi)
+#     return R
 
-class CharmmResiDatabase(UserDict):
-    def __init__(self):  # initialize from standard topology files in the topmost directory
-        self.resources=ResourceManager()
-        self.default_config=Config(quiet=True)
-        self.overrides=self.default_config['user']['charmmff'].get('overrides',{})
-        self.charmmff_content=self.resources.charmmff_content
+# class CharmmResiDatabase(UserDict):
+#     def __init__(self):  # initialize from standard topology files in the topmost directory
+#         self.resources=ResourceManager()
+#         self.default_config=Config(quiet=True)
+#         self.overrides=self.default_config['user']['charmmff'].get('overrides',{})
+#         self.charmmff_content=self.resources.charmmff_content
 
-        self.all_charmm_topology_files=[x for x in self.charmmff_content.toplevel_top.keys() if 'ljpme' not in x]
-        self.all_charmm_topology_files.extend([x for x in self.charmmff_content.toplevel_toppar.keys() if 'ljpme' not in x])
-        for f in self.all_charmm_topology_files:
-            self.charmmff_content.copy_charmmfile_local(f)
+#         self.all_charmm_topology_files=[x for x in self.charmmff_content.toplevel_top.keys() if 'ljpme' not in x]
+#         self.all_charmm_topology_files.extend([x for x in self.charmmff_content.toplevel_toppar.keys() if 'ljpme' not in x])
+#         for f in self.all_charmm_topology_files:
+#             self.charmmff_content.copy_charmmfile_local(f)
 
-        M=[]
-        for f in self.all_charmm_topology_files:
-            M.extend(getMasses(f))
+#         M=[]
+#         for f in self.all_charmm_topology_files:
+#             M.extend(getMasses(f))
         
-        self.M=CharmmMasses(M)
-        self.charmm_resnames=[]
-        data={}
-        for f in self.all_charmm_topology_files:
-            sublist=getResis(f,self.M)
-            if not sublist:
-                logger.debug(f'No RESI\'s found in {f}')
-                continue
-            for resi in sublist:
-                stream,substream=resi.metadata['stream'],resi.metadata['substream']
-                if not stream in data:
-                    data[stream]={}
-                data[stream][resi.resname]=resi
-                self.charmm_resnames.append(resi.resname)
+#         self.M=CharmmMasses(M)
+#         self.charmm_resnames=[]
+#         data={}
+#         for f in self.all_charmm_topology_files:
+#             sublist=getResis(f,self.M)
+#             if not sublist:
+#                 logger.debug(f'No RESI\'s found in {f}')
+#                 continue
+#             for resi in sublist:
+#                 stream,substream=resi.metadata['stream'],resi.metadata['substream']
+#                 if not stream in data:
+#                     data[stream]={}
+#                 data[stream][resi.resname]=resi
+#                 self.charmm_resnames.append(resi.resname)
 
-        super().__init__(data)
-        logger.debug(f'{len(self.all_charmm_topology_files)} CHARMM topology files scanned')
-        logger.debug(f'Streams initiated: {" ".join(list(data.keys()))}')
-        self.charmm_resnames.sort()
-        logger.debug(f'{len(self.charmm_resnames)} RESI\'s parsed')
-        logger.debug(f'{len(self.M)} atomic mass records parsed')
+#         super().__init__(data)
+#         logger.debug(f'{len(self.all_charmm_topology_files)} CHARMM topology files scanned')
+#         my_logger(self.all_charmm_topology_files,logger.debug)
+#         logger.debug(f'Streams initiated: {" ".join(list(data.keys()))}')
+#         self.charmm_resnames.sort()
+#         logger.debug(f'{len(self.charmm_resnames)} RESI\'s parsed')
+#         logger.debug(f'{len(self.M)} atomic mass records parsed')
 
-    def add_topology(self,topfile,streamnameoverride=''):
-        self.charmmff_content.copy_charmmfile_local(topfile)
-        if not os.path.exists(topfile):
-            logger.debug(f'{topfile} not found')
-            return
+#     def add_topology(self,topfile,streamnameoverride=''):
+#         self.charmmff_content.copy_charmmfile_local(topfile)
+#         if not os.path.exists(topfile):
+#             logger.debug(f'{topfile} not found')
+#             return
 
-        if topfile in self.all_charmm_topology_files:
-            logger.debug(f'{topfile} already in the database')
-            return
-        self.all_charmm_topology_files.append(topfile)
-        newM=CharmmMasses(getMasses(topfile))
-        self.M.update(newM)
-        sublist=getResis(topfile,self.M)
-        for resi in sublist:
-            stream,substream=resi.metadata['stream'],resi.metadata['substream']
-            if streamnameoverride != '':
-                stream=streamnameoverride
-            if not stream in self:
-                self[stream]={}
-            self[stream][resi.resname]=resi
-            self.charmm_resnames.append(resi.resname)
+#         if topfile in self.all_charmm_topology_files:
+#             logger.debug(f'{topfile} already in the database')
+#             return
+#         self.all_charmm_topology_files.append(topfile)
+#         newM=CharmmMasses(getMasses(topfile))
+#         self.M.update(newM)
+#         sublist=getResis(topfile,self.M)
+#         for resi in sublist:
+#             stream,substream=resi.metadata['stream'],resi.metadata['substream']
+#             if streamnameoverride != '':
+#                 stream=streamnameoverride
+#             if not stream in self:
+#                 self[stream]={}
+#             self[stream][resi.resname]=resi
+#             self.charmm_resnames.append(resi.resname)
 
-        self.charmm_resnames.sort()
-        logger.debug(f'Appended {len(sublist)} RESI\'s and {len(newM)} mass records')
-        logger.debug(f'Current streams: {" ".join(list(self.keys()))}')
+#         self.charmm_resnames.sort()
+#         logger.debug(f'Appended {len(sublist)} RESI\'s and {len(newM)} mass records')
+#         logger.debug(f'Current streams: {" ".join(list(self.keys()))}')
 
-    def add_stream(self,streamname):
-        badstrings=['list','model','lipid_prot','ljpme','llo']
-        if streamname not in self.charmmff_content.streams:
-            logger.debug(f'{streamname} not found in the database')
-            return
+#     def add_stream(self,streamname):
+#         badstrings=['list','model','lipid_prot','ljpme','llo']
+#         if streamname not in self.charmmff_content.streams:
+#             logger.debug(f'{streamname} not found in the database')
+#             return
 
-        allstream_strs=list(self.charmmff_content.streamfiles[streamname].keys())
-        if not allstream_strs:
-            logger.debug(f'{streamname} has no associated topology files')
-            return
+#         allstream_strs=list(self.charmmff_content.streamfiles[streamname].keys())
+#         if not allstream_strs:
+#             logger.debug(f'{streamname} has no associated topology files')
+#             return
         
-        stream_strs=[x for x in allstream_strs if not any([bad in x for bad in badstrings])]
-        M=[]
-        for s in stream_strs:
-            if s in self.all_charmm_topology_files:
-                logger.debug(f'{s} already in the database')
-                continue
-            self.all_charmm_topology_files.append(s)
-            self.charmmff_content.copy_charmmfile_local(s)
-            M.extend(getMasses(s))
+#         stream_strs=[x for x in allstream_strs if not any([bad in x for bad in badstrings])]
+#         M=[]
+#         for s in stream_strs:
+#             if s in self.all_charmm_topology_files:
+#                 logger.debug(f'{s} already in the database')
+#                 continue
+#             self.all_charmm_topology_files.append(s)
+#             self.charmmff_content.copy_charmmfile_local(s)
+#             M.extend(getMasses(s))
         
-        self.M.update(CharmmMasses(M))
-        for s in stream_strs:
-            sublist=getResis(s,self.M)
-            for resi in sublist:
-                if resi.resname in self.charmm_resnames:
-                    logger.debug(f'RESI {resi.resname} is already in the database')
-                else:
-                    stream,substream=resi.metadata['stream'],resi.metadata['substream']
-                    if not stream in self:
-                        self[stream]={}
-                    self[stream][resi.resname]=resi
-                    self.charmm_resnames.append(resi.resname)    
+#         self.M.update(CharmmMasses(M))
+#         for s in stream_strs:
+#             sublist=getResis(s,self.M)
+#             for resi in sublist:
+#                 if resi.resname in self.charmm_resnames:
+#                     logger.debug(f'RESI {resi.resname} is already in the database')
+#                 else:
+#                     stream,substream=resi.metadata['stream'],resi.metadata['substream']
+#                     if not stream in self:
+#                         self[stream]={}
+#                     self[stream][resi.resname]=resi
+#                     self.charmm_resnames.append(resi.resname)    
 
-    def get_charmm_topfile(self,charmm_resid):
-        if charmm_resid not in self.charmm_resnames:
-            return None
-        for stream,data in self.items():
-            elem=data.get(charmm_resid,None)
-            if elem is not None:
-                return elem.metadata['charmmtopfile']
-        return None
+#     def get_charmm_topfile(self,charmm_resid):
+#         if charmm_resid not in self.charmm_resnames:
+#             return None
+#         for stream,data in self.items():
+#             elem=data.get(charmm_resid,None)
+#             if elem is not None:
+#                 return elem.metadata['charmmtopfile']
+#         return None
     
-    def get_topo(self,charmm_resid):
-        if charmm_resid not in self.charmm_resnames:
-            logger.debug(f'resi {charmm_resid} is not loaded in the database')
-            return None
-        for stream,data in self.items():
-            elem=data.get(charmm_resid,None)
-            if elem is not None:
-                return elem
-        logger.debug(f'resi {charmm_resid} is not found in any streams')
-        return None
+#     def get_topo(self,charmm_resid):
+#         if charmm_resid not in self.charmm_resnames:
+#             logger.debug(f'resi {charmm_resid} is not loaded in the database')
+#             return None
+#         for stream,data in self.items():
+#             elem=data.get(charmm_resid,None)
+#             if elem is not None:
+#                 return elem
+#         logger.debug(f'resi {charmm_resid} is not found in any streams')
+#         return None
 
 

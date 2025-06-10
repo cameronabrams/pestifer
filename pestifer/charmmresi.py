@@ -12,7 +12,7 @@ import numpy as np
 from itertools import product
 
 from pidibble.pdbparse import PDBParser
-from .charmmtop import CharmmResiDatabase
+# from .charmmtop import CharmmResiDatabase
 from .config import Config
 from .controller import Controller
 from .psfutil.psfcontents import PSFContents

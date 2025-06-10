@@ -22,41 +22,57 @@ class PDBInput:
         """ Create a PDBInput object from a tarfile containing PDB files and an info.yaml file """
         if not tarfile:
             return None
-        members=[]
+        # There is either a single PDB {name}.pdb or a directory {name}
+        solo_member=None
+        folder_member=None
         for member in tarfile.getmembers():
-            if name in member.name:
-                members.append(member)
-        if len(members)==0:
+            if member.name==name+'.pdb':
+                solo_member=member
+                break
+            elif member.isdir() and member.name==name:
+                folder_member=member
+                break
+        if solo_member is None and folder_member is None:
             logger.warning(f'No members found in tarfile {tarfile.name} for {name}')
             return None
         pdbcontents={}
         info={}
         opt_tags={}
         conformerID=0
-        for member in members:
-            if member.name.endswith('.pdb'):
-                # extract conformer ID from file name if possible
-                tag=''
-                if '-' in member.name:
-                    parts = member.name.split('-')
-                    if len(parts)>1: # e.g., 'name-optional_tag-01.pdb'
-                        token=parts[-1].split('.')[0]
-                        if len(token)>1 and token.isdigit():
-                            conformerID = int(token)
-                        else:
-                            continue
-                        if len(parts) > 2:  # e.g., 'name-tag-01.pdb'
-                            tag=parts[-2]
-                with tarfile.extractfile(member) as f:
-                    if tag=='':
-                        pdbcontents[conformerID]=f.read().decode()
-                    else:
-                        if not tag in opt_tags:
-                            opt_tags[tag]={}
-                        opt_tags[tag][conformerID]=f.read().decode()
-            elif member.name.endswith('info.yaml'):
-                with tarfile.extractfile(member) as f:
-                    info=yaml.safe_load(f)
+
+# in progress
+        if solo_member:
+            # single PDB file case
+            with tarfile.extractfile(solo_member) as f:
+                pdbcontents[conformerID]=f.read().decode()
+        elif folder_member:
+            for member in tarfile.getmembers():
+                if member.name.startswith(folder_member.name + '/'):
+                    # member is inside the folder
+                    if member.name.endswith('info.yaml'):
+                        # extract info.yaml
+                        with tarfile.extractfile(member) as f:
+                            info=yaml.safe_load(f)
+                    elif member.name.endswith('.pdb'):
+                        # extract PDB file
+                        tag=''
+                        if '-' in member.name:
+                            parts = member.name.split('-')
+                            if len(parts)>1:
+                                token=parts[-1].split('.')[0]
+                                if len(token)>1 and token.isdigit():
+                                    conformerID = int(token)
+                                else:
+                                    continue
+                                if len(parts) > 2:
+                                    tag=parts[-2]
+                        with tarfile.extractfile(member) as f:
+                            if tag=='':
+                                pdbcontents[conformerID]=f.read().decode()
+                            else:
+                                if not tag in opt_tags:
+                                    opt_tags[tag]={}
+                                opt_tags[tag][conformerID]=f.read().decode()
         return cls(name=name,pdbcontents=pdbcontents,info=info,opt_tags=opt_tags)
     
     def get_pdb(self,conformerID=0,noh=False):
@@ -66,6 +82,7 @@ class PDBInput:
         if len(self.pdbcontents)==1:
             with open(f'{self.name}.pdb','w') as f:
                 f.write(next(iter(self.pdbcontents.values())))
+            modified_name=f'{self.name}.pdb'
         else:
             modified_name=f'{self.name}/{self.name}-{conformerID:02d}'
             if noh:
@@ -82,7 +99,8 @@ class PDBInput:
                         f.write(self.opt_tags['noh'][conformerID])
                     else:
                         logger.warning(f'Conformer ID {conformerID} ({modified_name}) not found in PDB contents for noh.')
-
+        return os.path.basename(modified_name)
+    
     def get_charge(self):
         return self.info.get('charge',None)
     
@@ -203,3 +221,5 @@ class PDBRepository:
                     return PDBInput.from_tarfile(name,tar)
         return None
 
+class PDBRepositoryGenerator: 
+    pass

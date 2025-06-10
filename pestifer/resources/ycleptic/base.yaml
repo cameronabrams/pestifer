@@ -75,16 +75,6 @@ directives:
             text: Custom charmmff parameter files
             default:
               - toppar_all36_moreions.str
-      - name: overrides
-        type: dict
-        text: Some overrides to recategorize residues from one stream to another
-        directives:
-          - name: substreams
-            type: dict
-            text: stream overrides for certain resids
-            default:
-              C6DHPC: lipid
-              C7DHPC: lipid
       - name: pdb_repository
         type: list
         text: Paths to local repository of PDB files for custom lipids or ligands

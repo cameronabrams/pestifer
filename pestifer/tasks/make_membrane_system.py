@@ -8,7 +8,7 @@ from copy import deepcopy
 
 from ..bilayer import Bilayer, specstrings_builddict
 from ..basetask import BaseTask
-from ..charmmtop import CharmmResiDatabase
+# from ..charmmtop import CharmmResiDatabase
 from ..config import Config
 from ..scriptwriters import PackmolInputWriter
 from ..psfutil.psfcontents import get_toppar_from_psf
@@ -38,7 +38,7 @@ class MakeMembraneSystemTask(BaseTask):
         super().__init__(config_specs,controller_specs)
         self.patchA=self.patchB=self.patch=None
         self.progress=self.config.progress
-        self.pdb_collection=self.config.RM.pdb_collection
+        self.pdb_repository=self.config.RM.charmmff_content.pdb_repository
         self.RDB=CharmmResiDatabase()
         self.RDB.add_stream('lipid')
         self.RDB.add_topology('toppar_all36_moreions.str',streamnameoverride='water_ions')
@@ -86,7 +86,7 @@ class MakeMembraneSystemTask(BaseTask):
                             solvent_ratio_specstring=solvent_ratio_specstring,
                             solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
                             leaflet_nlipids=patch_nlipids,
-                            pdb_collection=self.pdb_collection,resi_database=self.RDB)
+                            pdb_repository=self.pdb_repository,resi_database=self.RDB)
         logger.debug(f'Main composition dict after call {composition_dict}')
         if self.patch.asymmetric:
             logger.debug(f'Requested patch is asymmetric; generating two symmetric patches')
@@ -101,7 +101,7 @@ class MakeMembraneSystemTask(BaseTask):
                                 solvent_ratio_specstring=solvent_ratio_specstring,
                                 solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
                                 leaflet_nlipids=patch_nlipids,
-                                pdb_collection=self.pdb_collection,resi_database=self.RDB)
+                                pdb_repository=self.pdb_repository,resi_database=self.RDB)
             logger.debug(f'Symmetrizing bilayer to lower leaflet')
             composition_dict['upper_leaflet_saved']=composition_dict['upper_leaflet']
             composition_dict['upper_chamber_saved']=composition_dict['upper_chamber']
@@ -115,7 +115,7 @@ class MakeMembraneSystemTask(BaseTask):
                                 solvent_ratio_specstring=solvent_ratio_specstring,
                                 solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
                                 leaflet_nlipids=patch_nlipids,
-                                pdb_collection=self.pdb_collection,resi_database=self.RDB)
+                                pdb_repository=self.pdb_repository,resi_database=self.RDB)
             composition_dict['upper_leaflet']=composition_dict['upper_leaflet_saved']
             composition_dict['upper_chamber']=composition_dict['upper_chamber_saved']
             self.patch=None

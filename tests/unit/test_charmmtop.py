@@ -6,7 +6,7 @@ from pestifer.charmmtop import *
 # import glob
 # import os
 import logging
-import shutil
+/import shutil
 # import gzip
 # import networkx as nx
 # import yaml

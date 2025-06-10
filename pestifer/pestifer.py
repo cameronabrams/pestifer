@@ -15,7 +15,7 @@ import yaml
 
 __pestifer_version__ = importlib.metadata.version("pestifer")
 from .config import Config, ResourceManager
-from .charmmresi import make_RESI_database
+# from .charmmresi import make_RESI_database
 from .controller import Controller
 from .namdrestart import make_namd_restart
 from .scriptwriters import Psfgen

@@ -3,7 +3,7 @@ import os
 import shutil
 from pestifer.bilayer import Bilayer,specstrings_builddict
 from pestifer.config import Config
-from pestifer.charmmtop import CharmmResiDatabase
+# from pestifer.charmmtop import CharmmResiDatabase
 from unittest.mock import patch
 
 def test_bilayer_init_empty():

@@ -35,7 +35,7 @@ class PsfgenTask(BaseTask):
         super().__init__(config_specs,controller_specs)
         self.molecules={}
         self.keepfiles=[]
-        if self.specs['source'].get('prebuilt',{}):
+        if self.specs.get('source',{}).get('prebuilt',{}):
             self.keepfiles=[self.specs['source']["prebuilt"]["psf"],self.specs['source']["prebuilt"]["pdb"]]
             xsc=self.specs['source'].get('xsc','')
             if xsc:

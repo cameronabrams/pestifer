@@ -1,8 +1,7 @@
 import unittest
-import glob
 import os
-import yaml
 from pestifer.resourcemanager import ResourceManager
+from pestifer.charmmffcontent import CHARMMFFResiDatabase, CHARMMFFContent
 from pestifer.pdbrepository import PDBInput
 from pestifer import resources
 
@@ -96,3 +95,18 @@ class TestResourceManager(unittest.TestCase):
         c.get_pdb(0)
         self.assertTrue(os.path.exists('FAKE-00.pdb'))
         os.remove('FAKE-00.pdb')
+
+    def test_charmmff_residatabase(self):
+        RM=ResourceManager()
+        C=RM.charmmff_content
+        CDB=CHARMMFFResiDatabase(C)
+        self.assertTrue(CDB!=None)
+        self.assertEqual(len(CDB.residues),1101)
+        self.assertTrue('ALA' in CDB.residues)
+        self.assertTrue('TIP3' in CDB.residues)
+        self.assertTrue('FAKE' not in CDB.residues)
+        ala=CDB.residues['ALA']
+        self.assertTrue(ala!=None)
+        self.assertTrue(ala.metadat['stream']=='prot')
+        self.assertTrue(ala.metadat['substream']=='')
+        self.assertEqual(ala.mass(),89.093)
