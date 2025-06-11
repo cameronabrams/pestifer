@@ -51,6 +51,8 @@ class CharmmTopAtom:
         self.charge=float(tokens[3])
         self.mass=0.0
         self.element='?'
+        if self.name[0].isdigit():
+            self.bad=True
     
     def __str__(self):
         ans=f'ATOM {self.name} {self.type} {self.charge:.4f}'
@@ -65,12 +67,13 @@ class CharmmTopAtom:
     
     def set_mass(self,masses):
         """ Set the mass of this atom from a CharmmMasses object """
+        # logger.debug(f'setting mass for {self.name} ({self.type}) using type {type(masses)}')
         if isinstance(masses,CharmmMasses):
             m=masses.get(self.type,None)
             if m is not None:
                 self.mass=m.atom_mass
                 self.element=m.atom_element
-                logger.debug(f'setting mass of {self.name} ({self.type}) to {self.mass} and element to {self.element}')
+                # logger.debug(f'setting mass of {self.name} ({self.type}) to {self.mass} and element to {self.element}')
             else:
                 logger.debug(f'no mass record for atom type {self.type} (raw {self.type})')
                 exit(-1)
@@ -129,7 +132,7 @@ class CharmmTopAtomList(UserList):
 
     def set_masses(self,masses):
         for a in self:
-            logger.debug(f'setting mass for {type(a)} \'{str(a)}\'')
+            # logger.debug(f'setting mass for {type(a)} \'{str(a)}\'')
             a.set_mass(masses)
 
 def charmmBonds(card:str,degree=1):
@@ -253,17 +256,18 @@ class CharmmTopIC:
         return ans
 
 class CharmmTopResi:
-    def __init__(self,blockstring):
+    def __init__(self,blockstring,metadata={}):
         self.blockstring=blockstring
         self.error_code=0
         lines=[x.strip() for x in blockstring.split('\n')]
         titlecard=lines[0]
-        assert titlecard.startswith('RESI'),f'bad title card in RESI: [{titlecard}]'
+        assert titlecard.upper().startswith('RESI'),f'bad title card in RESI: [{titlecard}]'
         titledata,titlecomment=linesplit(titlecard)
         tctokens=titledata.split()
         self.resname=tctokens[1]
         self.charge=float(tctokens[2])
         self.synonym=titlecomment.strip()
+        self.metadata=metadata
 
         didx=1
         while lines[didx].startswith('!'): didx+=1
@@ -291,6 +295,11 @@ class CharmmTopResi:
                 self.atoms_in_group[g].append(a)
             elif card.startswith('GROU'):
                 g+=1
+        for a in self.atoms:
+            if hasattr(a,'bad'):
+                if a.bad:
+                    logger.error(f'bad atom {a.name} in {self.resname}')
+                    self.bad=True
         # logger.debug(f'{len(self.atoms)} atoms processed in {len(self.atoms_in_group)} groups')
         self.atomdict={a.name:a for a in self.atoms}
         isbond=[d.startswith('BOND') for d in datacards]
@@ -321,7 +330,7 @@ class CharmmTopResi:
         
 
     def set_masses(self,masses):
-        self.atoms.set_mass(masses)
+        self.atoms.set_masses(masses)
 
     def num_atoms(self):
         return len(self.atoms)

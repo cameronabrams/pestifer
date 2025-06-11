@@ -92,12 +92,13 @@ class Bilayer:
             L=composition_dict[l]
             logger.debug(f'Leaflet {l} composition: {L}')
             for d in L:
+                resi=resi_database.get_resi(d['name'])
                 if not 'patn' in d:
                     d['patn']=int(d['frac']*leaflet_nlipids[adjective])
                 if not 'charge' in d:
-                    d['charge']=resi_database['lipid'][d['name']].charge
+                    d['charge']=resi.charge
                 if not 'MW' in d:
-                    d['MW']=resi_database['lipid'][d['name']].mass()
+                    d['MW']=resi.mass()
 
         # user need not have specified the solvent composition in the upper and lower chambers
         if 'upper_chamber' not in composition_dict or 'lower_chamber' not in composition_dict:
@@ -114,12 +115,13 @@ class Bilayer:
             adjective
             L=composition_dict[c]
             for d in L:
+                resi=resi_database.get_resi(d['name'])
                 if not 'patn' in d:
                     d['patn']=int(d['frac']*leaflet_nlipids[adjective]*solvent_to_key_lipid_ratio)
                 if not 'charge' in d:
-                    d['charge']=resi_database['water_ions'][d['name']].charge
+                    d['charge']=resi.charge
                 if not 'MW' in d:
-                    d['MW']=resi_database['water_ions'][d['name']].mass()
+                    d['MW']=resi.mass()
 
         # set up some short-cut object labes
         self.slices={'lower_chamber':{},'lower_leaflet':{},'upper_leaflet':{},'upper_chamber':{}}
@@ -190,7 +192,9 @@ class Bilayer:
             if ion_name not in self.species_names:
                 self.species_names.append(ion_name)
                 self.species_data[ion_name]=pdb_repository.checkout(ion_name)
-            ion_q=resi_database['water_ions'][ion_name].charge
+            ion_resi=resi_database.get_resi(ion_name)
+            ion_q=ion_resi.charge
+            logger.debug(f'Adding {ion_name} with charge {ion_q:.3f} e')
             ion_patn=int(np.round(np.abs(self.total_charge),0)/np.abs(ion_q))
             if ion_patn%2==0:
                 lc_ion_patn=ion_patn//2
@@ -201,7 +205,7 @@ class Bilayer:
             for chamber,nions in zip(['upper_chamber','lower_chamber'],[uc_ion_patn,lc_ion_patn]):
                 chamber_names=[x['name'] for x in self.slices[chamber]['composition']]
                 if ion_name not in chamber_names:
-                    self.slices[chamber]['composition'].append({'name':ion_name,'patn':nions,'charge':ion_q,'MW':resi_database['water_ions'][ion_name].mass()})
+                    self.slices[chamber]['composition'].append({'name':ion_name,'patn':nions,'charge':ion_q,'MW':ion_resi.mass()})
                 else:
                     # if the ion is already in the chamber, just add to the number of ions
                     for species in self.slices[chamber]['composition']:

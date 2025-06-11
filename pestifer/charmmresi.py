@@ -292,42 +292,42 @@ def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup
     else:
         logger.info(f'RESI {resi} built previously; use \'--force\' to recalculate')
 
-def make_RESI_database(args):
-    streams=args.streams
-    loglevel_numeric=getattr(logging,args.diagnostic_log_level.upper())
-    if args.diagnostic_log_file:
-        if os.path.exists(args.diagnostic_log_file):
-            shutil.copyfile(args.diagnostic_log_file,args.diagnostic_log_file+'.bak')
-        logging.basicConfig(filename=args.diagnostic_log_file,filemode='w',format='%(asctime)s %(name)s %(message)s',level=loglevel_numeric)
-    console=logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    formatter=logging.Formatter('%(levelname)s> %(message)s')
-    console.setFormatter(formatter)
-    logging.getLogger('').addHandler(console)
+# def make_RESI_database(args):
+#     streams=args.streams
+#     loglevel_numeric=getattr(logging,args.diagnostic_log_level.upper())
+#     if args.diagnostic_log_file:
+#         if os.path.exists(args.diagnostic_log_file):
+#             shutil.copyfile(args.diagnostic_log_file,args.diagnostic_log_file+'.bak')
+#         logging.basicConfig(filename=args.diagnostic_log_file,filemode='w',format='%(asctime)s %(name)s %(message)s',level=loglevel_numeric)
+#     console=logging.StreamHandler()
+#     console.setLevel(logging.INFO)
+#     formatter=logging.Formatter('%(levelname)s> %(message)s')
+#     console.setFormatter(formatter)
+#     logging.getLogger('').addHandler(console)
 
-    DB=CharmmResiDatabase()
-    active_resnames=[]
-    for stream in streams:
-        DB.add_stream(stream)
-        active_resnames.extend(list(DB[stream].keys()))
-    active_resnames.sort()
+#     DB=CharmmResiDatabase()
+#     active_resnames=[]
+#     for stream in streams:
+#         DB.add_stream(stream)
+#         active_resnames.extend(list(DB[stream].keys()))
+#     active_resnames.sort()
 
-    outdir=args.output_dir
-    faildir=args.fail_dir
-    if not os.path.exists(outdir):
-        os.mkdir(outdir)
-    if not os.path.exists(faildir):
-        os.mkdir(faildir)
-    if os.path.exists('tmp'):
-        shutil.rmtree('tmp')
-    resi=args.resi
-    if resi!=[]:
-        for r in resi:
-            my_logger(f'RESI {r}',logger.info,just='^',frame='*',fill='*')
-            do_resi(r,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
-    else:
-        nresi=len(active_resnames)
-        for i,r in enumerate(active_resnames):
-            my_logger(f'RESI {r} ({i+1}/{nresi})',logger.info,just='^',frame='*',fill='*')
-            do_resi(r,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
+#     outdir=args.output_dir
+#     faildir=args.fail_dir
+#     if not os.path.exists(outdir):
+#         os.mkdir(outdir)
+#     if not os.path.exists(faildir):
+#         os.mkdir(faildir)
+#     if os.path.exists('tmp'):
+#         shutil.rmtree('tmp')
+#     resi=args.resi
+#     if resi!=[]:
+#         for r in resi:
+#             my_logger(f'RESI {r}',logger.info,just='^',frame='*',fill='*')
+#             do_resi(r,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
+#     else:
+#         nresi=len(active_resnames)
+#         for i,r in enumerate(active_resnames):
+#             my_logger(f'RESI {r} ({i+1}/{nresi})',logger.info,just='^',frame='*',fill='*')
+#             do_resi(r,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
 

@@ -17,7 +17,6 @@ def change_test_dir(request, monkeypatch):
     """
     module_bn=request.fspath.basename
     module_name,_=os.path.splitext(module_bn)
-    print('module name',module_name)
     test_dir=request.fspath.dirname
     subdir=os.path.join(test_dir,module_name)
     if os.path.isdir(subdir):

@@ -1,15 +1,15 @@
 # Author: Cameron F. Abrams, <cfa2@drexel.edu>
 import logging
-import yaml
+# import yaml
 
-import numpy as np
+# import numpy as np
 
 from copy import deepcopy
 
 from ..bilayer import Bilayer, specstrings_builddict
 from ..basetask import BaseTask
-# from ..charmmtop import CharmmResiDatabase
-from ..config import Config
+from ..charmmffcontent import CHARMMFFResiDatabase
+# from ..config import Config
 from ..scriptwriters import PackmolInputWriter
 from ..psfutil.psfcontents import get_toppar_from_psf
 from ..util.util import cell_to_xsc,cell_from_xsc, protect_str_arg
@@ -39,7 +39,8 @@ class MakeMembraneSystemTask(BaseTask):
         self.patchA=self.patchB=self.patch=None
         self.progress=self.config.progress
         self.pdb_repository=self.config.RM.charmmff_content.pdb_repository
-        self.RDB=CharmmResiDatabase()
+        self.charmmff_content=self.config.RM.charmmff_content
+        self.RDB=CHARMMFFResiDatabase(self.charmmff_content)
         self.RDB.add_stream('lipid')
         self.RDB.add_topology('toppar_all36_moreions.str',streamnameoverride='water_ions')
         self.bilayer_specs=self.specs.get('bilayer',{})
