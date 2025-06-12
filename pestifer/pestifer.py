@@ -279,7 +279,7 @@ def cli():
         'show-resources': show_resources,
         'wheretcl': wheretcl,
         'inittcl': inittcl,
-        'make-resi-database': make_RESI_database,
+        # 'make-resi-database': make_RESI_database,
         'config-default': config_default,
         'cleanup': cleanup,
         'follow-namd-log': follow_namd_log,
@@ -292,7 +292,7 @@ def cli():
         'run':'build a system using instructions in the config file',
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
         'inittcl':'initializes macros from config',
-        'make-resi-database':'make reference PDB/PSF files for any CHARMM residue',
+        # 'make-resi-database':'make reference PDB/PSF files for any CHARMM residue',
         'desolvate':'desolvate an existing PSF/DCD',
         'make-namd-restart':'generate a restart NAMD config file based on current checkpoint',
         'show-resources':'display elements of the included pestifer resources',
@@ -308,7 +308,7 @@ def cli():
         'run':'Build a system',
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
         'inittcl':'initializes macros from config',
-        'make-resi-database':'makes representative psf/pdb files for any CHARMM RESI\'s found in given topology streams',
+        # 'make-resi-database':'makes representative psf/pdb files for any CHARMM RESI\'s found in given topology streams',
         'desolvate':'desolvate an existing PSF/DCD',
         'make-namd-restart':'generate a restart NAMD config file based on current checkpoint',
         'show-resources':'display elements of the included pestifer resources',
@@ -349,19 +349,19 @@ def cli():
     command_parsers['wheretcl'].add_argument('--pkg-dir',default=False,action='store_true',help='print full path of directory of Pestifer\'s VMD/TcL package library')
     command_parsers['wheretcl'].add_argument('--root',default=False,action='store_true',help='print full path of Pestifer\'s root TcL directory')
     command_parsers['inittcl'].add_argument('--force',default=False,action='store_true',help='force overwrite of any package-resident tcl files inittcl generates')
-    command_parsers['make-resi-database'].add_argument('--streams',type=str,nargs='+',default=['lipid'],help='list of charmmff streams to scan (default: %(default)s)')
-    command_parsers['make-resi-database'].add_argument('--force',default=False,action='store_true',help='force overwrite of any existing molecules in the database')
-    command_parsers['make-resi-database'].add_argument('--cleanup',default=True,action=ap.BooleanOptionalAction,help='clean up all working files (default: %(default)s)')
-    command_parsers['make-resi-database'].add_argument('--resi',nargs='+',type=str,default=[],help='regenerate entry for just these RESIs')
-    command_parsers['make-resi-database'].add_argument('--diagnostic-log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log (default: %(default)s)')
-    command_parsers['make-resi-database'].add_argument('--lenfac',type=float,default=1.4,help='this factor times topological distance is the cartesian distance to which you want to stretch a molecule (default: %(default)s)')
-    command_parsers['make-resi-database'].add_argument('--minimize-steps',type=int,default=500,help='number of minimization steps immediately after each build (default: %(default)s)')
-    command_parsers['make-resi-database'].add_argument('--sample-steps',type=int,default=5000,help='number of sample steps (default: %(default)s)')
-    command_parsers['make-resi-database'].add_argument('--nsamples',type=int,default=10,help='number of samples (default: %(default)s)')
-    command_parsers['make-resi-database'].add_argument('--sample-temperature',type=float,default=300.0,help='number of sample steps (default: %(default)s)')
-    command_parsers['make-resi-database'].add_argument('--output-dir',type=str,default='data',help='name of output directory relative to CWD (default: %(default)s)')
-    command_parsers['make-resi-database'].add_argument('--fail-dir',type=str,default='fails',help='name of output directory for failed runs relative to CWD (default: %(default)s)')
-    command_parsers['make-resi-database'].add_argument('--refic-idx',type=int,default=0,help='index of reference IC to use to build a single molecule (default: %(default)s)')
+    # command_parsers['make-resi-database'].add_argument('--streams',type=str,nargs='+',default=['lipid'],help='list of charmmff streams to scan (default: %(default)s)')
+    # command_parsers['make-resi-database'].add_argument('--force',default=False,action='store_true',help='force overwrite of any existing molecules in the database')
+    # command_parsers['make-resi-database'].add_argument('--cleanup',default=True,action=ap.BooleanOptionalAction,help='clean up all working files (default: %(default)s)')
+    # command_parsers['make-resi-database'].add_argument('--resi',nargs='+',type=str,default=[],help='regenerate entry for just these RESIs')
+    # command_parsers['make-resi-database'].add_argument('--diagnostic-log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log (default: %(default)s)')
+    # command_parsers['make-resi-database'].add_argument('--lenfac',type=float,default=1.4,help='this factor times topological distance is the cartesian distance to which you want to stretch a molecule (default: %(default)s)')
+    # command_parsers['make-resi-database'].add_argument('--minimize-steps',type=int,default=500,help='number of minimization steps immediately after each build (default: %(default)s)')
+    # command_parsers['make-resi-database'].add_argument('--sample-steps',type=int,default=5000,help='number of sample steps (default: %(default)s)')
+    # command_parsers['make-resi-database'].add_argument('--nsamples',type=int,default=10,help='number of samples (default: %(default)s)')
+    # command_parsers['make-resi-database'].add_argument('--sample-temperature',type=float,default=300.0,help='number of sample steps (default: %(default)s)')
+    # command_parsers['make-resi-database'].add_argument('--output-dir',type=str,default='data',help='name of output directory relative to CWD (default: %(default)s)')
+    # command_parsers['make-resi-database'].add_argument('--fail-dir',type=str,default='fails',help='name of output directory for failed runs relative to CWD (default: %(default)s)')
+    # command_parsers['make-resi-database'].add_argument('--refic-idx',type=int,default=0,help='index of reference IC to use to build a single molecule (default: %(default)s)')
     command_parsers['desolvate'].add_argument('--psf',type=str,help='name of input PSF file')
     command_parsers['desolvate'].add_argument('--pdb',type=str,help='name of input PDB file (optional)')
     command_parsers['desolvate'].add_argument('--dcd-infiles',type=str,nargs='+',default=[],help='list of input dcd files in chronological order')

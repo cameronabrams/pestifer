@@ -43,9 +43,13 @@ class CHARMMFFContent:
         os.chdir(cwd)
         self.charmm_elements=self.dirtree[self.basename][0]
         logger.debug(f'Charmmff elements: {self.charmm_elements}')
-        self.pdb_repository=None
+        self.pdbrepository=PDBRepository()
         if 'pdbrepository' in self.charmm_elements:
-            self.pdb_repository=PDBRepository(os.path.join(self.charmmff_path,'pdbrepository'))
+            os.chdir(os.path.join(self.charmmff_path,'pdbrepository'))
+            members=os.listdir('.')
+            for m in members:
+                self.pdbrepository.add_path(m)
+            os.chdir(cwd)
         self.load_charmmff(tarfilename)
         self.custom_files=self.dirtree[f'{self.basename}/custom'][1]
         for f in self.custom_files:

@@ -132,3 +132,28 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertEqual(len(tails),4)
         self.assertTrue(heads==['C2'])
         self.assertTrue(tails==['CA18', 'CB18', 'CC18', 'CD18'])
+
+    def test_charmmffcontent_pdbrepository_initialized(self):
+        self.assertTrue(self.RM!=None)
+        self.assertTrue(self.RM.charmmff_content!=None)
+        self.assertTrue(self.RM.pdbrepository!=None)
+        self.assertTrue(self.RM.pdbrepository.collections!=None)
+        self.assertTrue(len(self.RM.pdbrepository.collections)>0)
+        self.assertTrue('lipid' in self.RM.pdbrepository.collections)
+        self.assertTrue('water_ions' in self.RM.pdbrepository.collections)
+        self.assertTrue('TIP3' in self.RM.pdbrepository)
+        self.assertTrue('PSM' in self.RM.pdbrepository)
+
+    def test_charmmffcontent_pdbrepository_checkout(self):
+        c=self.RM.pdbrepository.checkout('PSM')
+        self.assertTrue(c!=None)
+        self.assertEqual(c.get_charge(),0.0)
+        params=c.get_parameters()
+        self.assertIn('toppar_all36_lipid_sphingo.str',params)
+        self.assertEqual(len(c.info['conformers']),10)
+        self.assertAlmostEqual(c.info['conformers'][0]['head-tail-length'],26.779,places=3)
+        self.assertAlmostEqual(c.info['conformers'][0]['max-internal-length'],30.398,places=3)
+        c.get_pdb(0)
+        self.assertTrue(os.path.exists('PSM-00.pdb'))
+        os.remove('PSM-00.pdb')
+        

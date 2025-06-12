@@ -23,7 +23,7 @@ class ResourceManager:
         for r in ResourceManager.base_resources:
             self.resource_path[r]=os.path.join(self.resources_path,r)
         self.charmmff_content=CHARMMFFContent(self.resource_path['charmmff'])
-        self.pdb_repository=self.charmmff_content.pdb_repository
+        self.pdbrepository=self.charmmff_content.pdbrepository
 
     def __str__(self):
         cp=os.path.commonpath(list(self.resource_path.values()))
@@ -46,7 +46,7 @@ class ResourceManager:
                 if 'toppar' in spec:
                     out_stream(f'{self.charmmff_content.tarfilename}')
                 if 'pdb' in spec:
-                    self.pdb_repository.show(out_stream)
+                    self.pdbrepository.show(out_stream)
                 if 'custom' in spec:
                     path=self.get_charmmff_customdir()
                     with open(os.path.join(path,'00PESTIFER-README.txt'),'r') as f:
@@ -99,9 +99,9 @@ class ResourceManager:
     def get_tcl_scriptsdir(self):
         return os.path.join(self.resource_path['tcl'],'scripts')
     
-    def update_pdb_repository(self,user_pdb_repository=''):
-        if user_pdb_repository:
-            self.charmmff_content.pdb_repository.add_usercollection(user_pdb_repository)
+    def update_pdbrepository(self,user_pdbrepository=''):
+        if user_pdbrepository:
+            self.charmmff_content.pdbrepository.add_usercollection(user_pdbrepository)
 
     def update_charmmff(self,tarball=''):
         if tarball:

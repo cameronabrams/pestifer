@@ -152,6 +152,8 @@ class Bilayer:
         if pdb_repository is not None:
             for l in self.species_names:
                 logger.debug(f'Getting pdb for {l}')
+                if not l in pdb_repository:
+                    raise Exception(f'Cannot find {l} in PDB repository')
                 pdbstruct=pdb_repository.checkout(l)
                 self.species_data[l]=pdbstruct
                 for p in self.species_data[l].get_parameters():
