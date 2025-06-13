@@ -298,7 +298,7 @@ class CharmmTopResi:
         for a in self.atoms:
             if hasattr(a,'bad'):
                 if a.bad:
-                    logger.error(f'bad atom {a.name} in {self.resname}')
+                    # logger.error(f'bad atom {a.name} in {self.resname}')
                     self.bad=True
         # logger.debug(f'{len(self.atoms)} atoms processed in {len(self.atoms_in_group)} groups')
         self.atomdict={a.name:a for a in self.atoms}
@@ -386,9 +386,9 @@ class CharmmTopResi:
         """ Identify head and tail atoms """
         m=self.metadata
         logger.debug(f'metadata {m}')
-        if m['stream']=='lipid' and m['substream']=='cholesterol':
+        if m['streamID']=='lipid' and m['substreamID']=='cholesterol':
             self.sterol_annotate()
-        elif m['stream']=='lipid' and m['substream']=='detergent':
+        elif m['streamID']=='lipid' and m['substreamID']=='detergent':
             self.detergent_annotate()
         else:
             self.generic_lipid_annotate()
@@ -715,7 +715,7 @@ class CharmmTopResi:
 #                 logger.debug(f'No RESI\'s found in {f}')
 #                 continue
 #             for resi in sublist:
-#                 stream,substream=resi.metadata['stream'],resi.metadata['substream']
+#                 stream,substream=resi.metadata['streamID'],resi.metadata['substreamID']
 #                 if not stream in data:
 #                     data[stream]={}
 #                 data[stream][resi.resname]=resi
@@ -743,7 +743,7 @@ class CharmmTopResi:
 #         self.M.update(newM)
 #         sublist=getResis(topfile,self.M)
 #         for resi in sublist:
-#             stream,substream=resi.metadata['stream'],resi.metadata['substream']
+#             stream,substream=resi.metadata['streamID'],resi.metadata['substreamID']
 #             if streamnameoverride != '':
 #                 stream=streamnameoverride
 #             if not stream in self:
@@ -783,7 +783,7 @@ class CharmmTopResi:
 #                 if resi.resname in self.charmm_resnames:
 #                     logger.debug(f'RESI {resi.resname} is already in the database')
 #                 else:
-#                     stream,substream=resi.metadata['stream'],resi.metadata['substream']
+#                     stream,substream=resi.metadata['streamID'],resi.metadata['substreamID']
 #                     if not stream in self:
 #                         self[stream]={}
 #                     self[stream][resi.resname]=resi

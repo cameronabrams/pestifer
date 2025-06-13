@@ -234,10 +234,10 @@ class Psfgen(VMD):
         self.addline('psfcontext mixedcase')
         self.topologies=self.fetch_standard_charmm_topologies()
         for at in additional_topologies:
+            assert os.sep not in t,f'Topology file {t} must not contain a path.'
             self.charmmff.copy_charmmfile_local(at)
             self.topologies.append(at)
         for t in self.topologies:
-            assert os.sep not in t
             self.addline(f'topology {t}')
         for pdba in self.psfgen_config['aliases']:
             alias_tokens=pdba.split()

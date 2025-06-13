@@ -12,7 +12,9 @@ import numpy as np
 from itertools import product
 
 from pidibble.pdbparse import PDBParser
-# from .charmmtop import CharmmResiDatabase
+from .pdbrepository import PDBCollection
+from .resourcemanager import ResourceManager
+from .charmmffcontent import CHARMMFFResiDatabase
 from .config import Config
 from .controller import Controller
 from .psfutil.psfcontents import PSFContents
@@ -22,17 +24,19 @@ from .stringthings import my_logger
 logger=logging.getLogger(__name__)
 
 def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0):
-    topo=DB.get_topo(resid)
+    topo=DB.get_resi(resid)
     synonym=topo.synonym
     meta=topo.metadata
     logger.debug(f'do_psfgen for {resid} with metadata {meta}')
-    charmm_topfile,stream,substream=meta['charmmtopfile'],meta['stream'],meta['substream']
+    charmm_topfile,stream,substream=meta['charmmtopfile'],meta['streamID'],meta['substreamID']
+    charmm_topfile=os.path.basename(charmm_topfile)
+    logger.debug(f'charmm_topfile: {charmm_topfile}, stream: {stream}, substream: {substream}')
     substream_overrides=DB.overrides.get('substreams',{})
     ss_override=substream_overrides.get(resid,None)
     if ss_override is not None:
         substream=ss_override
-        logger.debug(f'Overriding substream for {resid} from {meta["substream"]} to {substream}')
-        meta['substream']=substream
+        logger.debug(f'Overriding substream for {resid} from {meta["substreamID"]} to {substream}')
+        meta['substreamID']=substream
     if charmm_topfile is None:
         return -2
     if topo.error_code!=0:
@@ -110,6 +114,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     C=Controller(config=config,userspecs={'tasks':tasklist})
     # First we de-novo generate a pdb/psf file using seeded internal coordinates
     W=Psfgen(C.config)
+    logger.debug(f'charmm_topfile from resiDB entry {topo.resname}: {charmm_topfile}')
     if not charmm_topfile in W.charmmff_config['standard']['topologies']:
         W.charmmff_config['standard']['topologies'].append(charmm_topfile)
     if charmm_topfile.endswith('detergent.str'):
@@ -292,6 +297,59 @@ def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup
     else:
         logger.info(f'RESI {resi} built previously; use \'--force\' to recalculate')
 
+def make_pdb_collection(args):
+    """
+    Make a collection of PDB files for RESI's in the CHARMMFFResiDatabase.
+    """
+    streamID=args.streamID # if provided, we will make a collection from RESIs in this stream
+    resname=args.resname # if provided, we will only make a collection member for this RESI
+    topfile=args.topfile # if provided, we will use this topology file instead of the one in the CHARMMFFResiDatabase; stream name is extracted
+    loglevel_numeric=getattr(logging,args.diagnostic_log_level.upper())
+    if args.diagnostic_log_file:
+        if os.path.exists(args.diagnostic_log_file):
+            shutil.copyfile(args.diagnostic_log_file,args.diagnostic_log_file+'.bak')
+        logging.basicConfig(filename=args.diagnostic_log_file,filemode='w',format='%(asctime)s %(name)s %(message)s',level=loglevel_numeric)
+    console=logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    formatter=logging.Formatter('%(levelname)s> %(message)s')
+    console.setFormatter(formatter)
+    logging.getLogger('').addHandler(console)
+
+    RM=ResourceManager()
+    CC=RM.charmmff_content
+    DB=CHARMMFFResiDatabase(CC)
+
+    if streamID is not None:
+        DB.add_stream(streamID)
+    
+    if topfile is not None:
+        if not os.path.exists(topfile):
+            raise FileNotFoundError(f'Topology file {topfile} does not exist')
+        DB.add_topology(topfile)
+
+    if not resname in DB:
+        logger.warning(f'RESI {resname} not found in CHARMMFFResiDatabase; will not build PDB collection for it')
+        exit(-1)
+
+    outdir=args.output_dir
+    faildir=args.fail_dir
+    if not os.path.exists(outdir):
+        os.mkdir(outdir)
+    if not os.path.exists(faildir):
+        os.mkdir(faildir)
+    if os.path.exists('tmp'):
+        shutil.rmtree('tmp')
+    
+    if resname is not None:
+        my_logger(f'RESI {resname}',logger.info,just='^',frame='*',fill='*')
+        do_resi(resname,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
+    else:
+        active_resnames=DB.get_resnames_of_streamIDs(streamID)
+        nresi=len(active_resnames)
+        for i,r in enumerate(active_resnames):
+            my_logger(f'RESI {r} ({i+1}/{nresi})',logger.info,just='^',frame='*',fill='*')
+            do_resi(r,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
+
 # def make_RESI_database(args):
 #     streams=args.streams
 #     loglevel_numeric=getattr(logging,args.diagnostic_log_level.upper())
@@ -305,7 +363,7 @@ def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup
 #     console.setFormatter(formatter)
 #     logging.getLogger('').addHandler(console)
 
-#     DB=CharmmResiDatabase()
+#     DB=CHARMMFFResiDatabase()
 #     active_resnames=[]
 #     for stream in streams:
 #         DB.add_stream(stream)

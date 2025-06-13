@@ -42,7 +42,14 @@ class Config(Yclept):
             my_logger(processor_info,logger.info,just='<',frame='*',fill='')
         self._set_internal_shortcuts()
         self._set_shell_commands(verify_access=(userfile!=''))
-        self.RM.update_pdb_repository(self['user']['paths'].get('pdb_repository',''))
+        local_repository=self['user']['paths'].get('pdb_repository','')
+        if local_repository:
+            cwd=os.getcwd()
+            os.chdir(local_repository)
+            members=os.listdir('.')
+            for m in members:
+                self.RM.pdbrepository.add_path(m)
+            os.chdir(cwd)
         self.RM.update_charmmff(self['user']['charmmff'].get('tarball',''))
 
     def processor_info(self):
@@ -120,7 +127,7 @@ class Config(Yclept):
         # assert os.path.exists(self.charmmff_toppar_path)
         self.charmmff_custom_path=RM.get_charmmff_customdir()
         assert os.path.exists(self.charmmff_custom_path)
-        self.charmmff_pdb_repository=RM.charmmff_content.pdb_repository
+        self.charmmff_pdbrepository=RM.charmmff_content.pdbrepository
         self.user_charmmff_toppar_path=''
         if hasattr(self,'user'):
             self.user_charmmff_toppar_path=os.path.join(self['user']['charmff'],'toppar')

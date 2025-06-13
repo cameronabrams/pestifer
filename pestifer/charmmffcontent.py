@@ -210,119 +210,144 @@ class CHARMMFFContent:
                 continue
             else:
                 R.append(resi)
+        # ignoring PRES blocks for now (1.13.1)
         logger.debug(f'Returning {len(R)} residues from {topfile}')
         return R
 
-class CHARMMFFStream:
+class CHARMMFFStreamID:
     # patterns: par_all3x_STREAM.prm (x=5,6), top_all3x_STREAM.rtf (x=5,6), toppar_STREAM.str, toppar_all36_STREAM_SUBSTREAM.str
     # SUBSTREAM can also be _-delimited
     def __init__(self,charmmff_filename):
-        self.stream=''
-        self.substream=''
+        self.streamID=''
+        self.substreamID=''
         self.charmmff_filename=os.path.basename(charmmff_filename)
         pref,ext=os.path.splitext(self.charmmff_filename)
         if ext=='.prm':
             tokens=pref.split('_')
             if tokens[0]=='par' and (tokens[1]=='all35' or tokens[1]=='all36'):
-                self.stream=tokens[2]
-                self.substream=''
+                self.streamID=tokens[2]
+                self.substreamID=''
         elif ext=='.rtf':
             tokens=pref.split('_')
             if tokens[0]=='top' and (tokens[1]=='all35' or tokens[1]=='all36'):
-                self.stream=tokens[2]
-                self.substream=''
+                self.streamID=tokens[2]
+                self.substreamID=''
         elif ext=='.str':
             tokens=pref.split('_')
             if tokens[0]=='toppar':
                 if len(tokens)==2:
-                    self.stream=tokens[1]
-                    self.substream=''
+                    self.streamID=tokens[1]
+                    self.substreamID=''
                 elif len(tokens)==3:
-                    self.stream='_'.join(tokens[1:3])
-                    if self.stream=='all36_moreions':
+                    self.streamID='_'.join(tokens[1:3])
+                    if self.streamID=='all36_moreions':
                         # this is a special case for the all36_moreions stream
-                        self.stream='water_ions'
-                        self.substream=''
-                    self.substream=''
+                        self.streamID='water_ions'
+                        self.substreamID=''
+                    self.substreamID=''
                 elif len(tokens)>=4:
-                    self.stream=tokens[2]
-                    self.substream='_'.join(tokens[3:])
+                    self.streamID=tokens[2]
+                    self.substreamID='_'.join(tokens[3:])
 
 class CHARMMFFResiDatabase:
     """ A class for handling the CHARMM force field residue database.  This is a dictionary of residue names
     to their corresponding stream and substream.
     """
-    def __init__(self,charmmff_content:CHARMMFFContent,streams=[]):
+    def __init__(self,charmmff_content:CHARMMFFContent,streamIDs=[]):
         self.charmmff_content=charmmff_content
         self.residues={}
         self.masses=CharmmMasses({})
-        self.streams=[]
+        self.streamIDs=streamIDs
         self.load_from_toplevels()
-        logger.debug(f'Loaded {len(self.residues)} residues from toplevels, streams: {self.streams}')
-        for stream in streams:
-            self.load_from_stream(stream)
-            if not stream in self.streams:
-                logger.debug(f'Adding stream {stream} to streams')
+        logger.debug(f'Loaded {len(self.residues)} residues from toplevels, streams: {self.streamIDs}')
+        for streamID in streamIDs:
+            self.load_from_stream(streamID)
+            if not streamID in self.streamIDs:
+                logger.debug(f'Adding stream {streamID} to streams')
                 # if the stream is not already in the streams list, add it
-                self.streams.append(stream)
+                self.streamIDs.append(streamID)
         self.tally_masses()
-
+        self.overrides={
+            'substreams':{
+                'C6DHPC':'lipid',
+                'C7DHPC':'lipid',
+                'C8DHPC':'lipid',
+                'C9DHPC':'lipid',
+                'C10DHPC':'lipid',
+                'C11DHPC':'lipid',
+                'C12DHPC':'lipid',
+                'C13DHPC':'lipid',
+                'C14DHPC':'lipid',
+                'C15DHPC':'lipid',
+                'C16DHPC':'lipid',
+                'C17DHPC':'lipid',
+                'C18DHPC':'lipid'
+            }
+        }
     def load_from_toplevels(self):
         for topfile in list(self.charmmff_content.toplevel_top.values())+list(self.charmmff_content.toplevel_toppar.values()):
             new_resis=self.load_from_topfile(topfile)
+            logger.debug(f'Loaded {len(new_resis)} residues from {topfile}')
             self.residues.update({x.resname:x for x in new_resis})
 
-    def load_from_stream(self,stream):
+    def load_from_stream(self,streamID):
         """ Load residues from a specific stream """
-        if stream not in self.charmmff_content.streams:
-            logger.warning(f'Stream {stream} not found in CHARMM force field content')
+        if streamID not in self.charmmff_content.streams:
+            logger.warning(f'Stream {streamID} not found in CHARMM force field content')
             return
-        logger.debug(f'Loading resis from stream {stream}')
-        for topfile in self.charmmff_content.streamfiles[stream].values():
+        logger.debug(f'Loading resis from stream {streamID}')
+        for topfile in self.charmmff_content.streamfiles[streamID].values():
             this_residues=self.load_from_topfile(topfile)
+            logger.debug(f'Loaded {len(this_residues)} residues from {topfile} in stream {streamID}')
             self.residues.update({x.resname:x for x in this_residues})
     
+    def get_resnames_of_streamID(self,streamID):
+        """ Get a list of residue names in a specific stream """
+        if streamID not in self.streamIDs:
+            logger.warning(f'Stream {streamID} not found in CHARMM force field residue database')
+            return []
+        resnames=[x.resname for x in self.residues.values() if x.metadata['streamID']==streamID]
+        logger.debug(f'Found {len(resnames)} residues in stream {streamID}')
+        return resnames
+
     def load_from_topfile(self,topfile):
         logger.debug(f'Loading resis from {topfile}')
-        cstr=CHARMMFFStream(topfile)
-        logger.debug(f'topfile {topfile} CHARMMFFStream: \'{cstr.stream}\' \'{cstr.substream}\'')
+        cstr=CHARMMFFStreamID(topfile)
+        logger.debug(f'topfile {topfile} CHARMMFFStream: \'{cstr.streamID}\' \'{cstr.substreamID}\'')
         self.masses.update(self.charmmff_content.masses_from_topfile(topfile))
         this_residues=self.charmmff_content.resis_from_topfile(topfile,metadata=dict(
-                stream=cstr.stream,
-                substream=cstr.substream,
+                streamID=cstr.streamID,
+                substreamID=cstr.substreamID,
                 charmmtopfile=topfile
             ))
         for resi in this_residues:
             if resi.resname in self.residues:
                 logger.debug(f'Residue {resi.resname} found in {topfile} will overwrite already loaded {resi.resname} from {self.residues[resi.resname].metadata["charmmtopfile"]}')
-        if cstr.stream not in self.streams:
-            logger.debug(f'Adding stream {cstr.stream} to streams')
-            self.streams.append(cstr.stream)
         return this_residues
 
     def tally_masses(self):
         # atom mass records are stored throughout the topfiles, so we will only set the masses once all tops are read in
-        for rname,resi in self.residues.items():
+        for resi in self.residues.values():
             resi.set_masses(self.masses)
-    
-    def add_stream(self,stream):
+
+    def add_stream(self,streamID):
         """ Add a stream to the database """
-        self.load_from_stream(stream)
-        if not stream in self.streams:
-            logger.debug(f'Adding stream {stream} to streams')
-                # if the stream is not already in the streams list, add it
-            self.streams.append(stream)
+        self.load_from_stream(streamID)
+        if not streamID in self.streamIDs:
+            logger.debug(f'Adding stream {streamID} to streams')
+            # if the stream is not already in the streams list, add it
+            self.streamIDs.append(streamID)
         self.tally_masses()
 
-    def add_topology(self,topfile,streamnameoverride=None):
+    def add_topology(self,topfile,streamIDoverride=None):
         new_resis=self.load_from_topfile(topfile)
-        if streamnameoverride is not None:
+        if streamIDoverride is not None:
             for resi in new_resis:
-                resi.metadata['stream']=streamnameoverride
-                resi.metadata['substream']=''
+                resi.metadata['streamID']=streamIDoverride
+                resi.metadata['substreamID']=''
         self.residues.update({x.resname:x for x in new_resis})
-        if streamnameoverride is not None and streamnameoverride not in self.streams:
-            self.streams.append(streamnameoverride)
+        if streamIDoverride is not None and streamIDoverride not in self.streamIDs:
+            self.streamIDs.append(streamIDoverride)
         self.tally_masses()
 
     def get_resi(self,resname):
@@ -332,3 +357,7 @@ class CHARMMFFResiDatabase:
         else:
             logger.warning(f'Residue {resname} not found in CHARMM force field residue database')
             return None
+    
+    def __contains__(self,resname):
+        """ Check if a residue is in the database """
+        return resname in self.residues

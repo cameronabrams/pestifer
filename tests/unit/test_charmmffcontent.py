@@ -12,7 +12,7 @@ class TestCharmmffContent(unittest.TestCase):
         cls.C = cls.RM.charmmff_content
         cls.CDB = CHARMMFFResiDatabase(cls.C)
         cls.CDB.add_stream('lipid')
-        cls.CDB.add_topology('toppar_all36_moreions.str', streamnameoverride='water_ions')
+        cls.CDB.add_topology('toppar_all36_moreions.str', streamIDoverride='water_ions')
 
     def test_charmmff_content(self):
         self.RM.charmmff_content.clean_local_charmmff_files()
@@ -57,31 +57,31 @@ class TestCharmmffContent(unittest.TestCase):
         resname='ALA'
         ala=self.CDB.get_resi(resname)
         self.assertTrue(ala!=None)
-        self.assertTrue(ala.metadata['stream']=='prot')
-        self.assertTrue(ala.metadata['substream']=='')
+        self.assertTrue(ala.metadata['streamID']=='prot')
+        self.assertTrue(ala.metadata['substreamID']=='')
         self.assertEqual(ala.mass(),71.0794)
 
     def test_detect_charge(self):
         resname='POT'
         resi=self.CDB.get_resi(resname)
         self.assertTrue(resi!=None)
-        self.assertTrue(resi.metadata['stream']=='water_ions')
+        self.assertTrue(resi.metadata['streamID']=='water_ions')
         self.assertEqual(resi.charge,1.0)
         resname='CLA'
         resi=self.CDB.get_resi(resname)
         self.assertTrue(resi!=None)
-        self.assertTrue(resi.metadata['stream']=='water_ions')
+        self.assertTrue(resi.metadata['streamID']=='water_ions')
         self.assertEqual(resi.charge,-1.0)
         resname='PO4'
         resi=self.CDB.get_resi(resname)
         self.assertTrue(resi!=None)
-        self.assertTrue(resi.metadata['stream']=='water_ions')
+        self.assertTrue(resi.metadata['streamID']=='water_ions')
         self.assertEqual(resi.charge,-3.0)
 
     def test_detect_structure_CHL1(self):
         resname='CHL1'
         resi=self.CDB.get_resi(resname)
-        self.assertTrue(resi.metadata['substream']=='cholesterol')
+        self.assertTrue(resi.metadata['substreamID']=='cholesterol')
         resi.lipid_annotate()
         heads=resi.annotation['heads']
         tails=resi.annotation['tails']
@@ -91,7 +91,7 @@ class TestCharmmffContent(unittest.TestCase):
     def test_detect_structure_CHM1(self):
         resname='CHM1'
         resi=self.CDB.get_resi(resname)
-        self.assertTrue(resi.metadata['substream']=='cholesterol')
+        self.assertTrue(resi.metadata['substreamID']=='cholesterol')
         resi.lipid_annotate()
         heads=resi.annotation['heads']
         tails=resi.annotation['tails']
@@ -101,7 +101,7 @@ class TestCharmmffContent(unittest.TestCase):
     def test_detect_structure_DPPC(self):
         resname='DPPC'
         resi=self.CDB.get_resi(resname)
-        self.assertTrue(resi.metadata['substream']=='')
+        self.assertTrue(resi.metadata['substreamID']=='')
         resi.lipid_annotate()
         heads=resi.annotation['heads']
         tails=resi.annotation['tails']
@@ -115,7 +115,7 @@ class TestCharmmffContent(unittest.TestCase):
     def test_detect_structure_SDS(self):
         resname='SDS'
         resi=self.CDB.get_resi(resname)
-        self.assertTrue(resi.metadata['substream']=='detergent')
+        self.assertTrue(resi.metadata['substreamID']=='detergent')
         resi.lipid_annotate()
         heads=resi.annotation['heads']
         tails=resi.annotation['tails']
@@ -125,7 +125,7 @@ class TestCharmmffContent(unittest.TestCase):
     def test_detect_structure_TOCL1(self):
         resname='TOCL1'
         resi=self.CDB.get_resi(resname)
-        self.assertTrue(resi.metadata['substream']=='cardiolipin')
+        self.assertTrue(resi.metadata['substreamID']=='cardiolipin')
         resi.lipid_annotate()
         heads=resi.annotation['heads']
         tails=resi.annotation['tails']
