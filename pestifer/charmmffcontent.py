@@ -301,13 +301,14 @@ class CHARMMFFResiDatabase:
             logger.debug(f'Loaded {len(this_residues)} residues from {topfile} in stream {streamID}')
             self.residues.update({x.resname:x for x in this_residues})
     
-    def get_resnames_of_streamID(self,streamID):
+    def get_resnames_of_streamID(self,streamID,substreamID=None):
         """ Get a list of residue names in a specific stream """
         if streamID not in self.streamIDs:
             logger.warning(f'Stream {streamID} not found in CHARMM force field residue database')
             return []
-        resnames=[x.resname for x in self.residues.values() if x.metadata['streamID']==streamID]
+        resnames=[x.resname for x in self.residues.values() if (x.metadata['streamID']==streamID and ((substreamID is None) or (x.metadata.get('substreamID','')==substreamID)))]
         logger.debug(f'Found {len(resnames)} residues in stream {streamID}')
+        resnames.sort()
         return resnames
 
     def load_from_topfile(self,topfile):

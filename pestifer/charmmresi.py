@@ -59,7 +59,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
         topo.lipid_annotate()
         ano=topo.annotation
         heads,tails,shortest_paths=ano.get('heads',[]),ano.get('tails',[]),ano.get('shortest_paths',{})
-        if substream=='cholesterol':
+        if substream=='cholesterol' or substream=='model':
             pass
         elif substream=='detergent':
             logger.debug('detergent')
@@ -111,7 +111,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     tasklist.append({'md':{'ensemble':'NVT','nsteps':sample_steps,'dcdfreq':sample_steps//nsamples,'xstfreq':100,'temperature':sample_temperature,'index':99}})
 
     config=Config(quiet=True)
-    C=Controller(config=config,userspecs={'tasks':tasklist})
+    C=Controller(config=config,userspecs={'title':f'Build PDBCollection entry for {resid}','tasks':tasklist})
     # First we de-novo generate a pdb/psf file using seeded internal coordinates
     W=Psfgen(C.config)
     logger.debug(f'charmm_topfile from resiDB entry {topo.resname}: {charmm_topfile}')
@@ -302,6 +302,7 @@ def make_pdb_collection(args):
     Make a collection of PDB files for RESI's in the CHARMMFFResiDatabase.
     """
     streamID=args.streamID # if provided, we will make a collection from RESIs in this stream
+    substreamID=args.substreamID
     resname=args.resname # if provided, we will only make a collection member for this RESI
     topfile=args.topfile # if provided, we will use this topology file instead of the one in the CHARMMFFResiDatabase; stream name is extracted
     loglevel_numeric=getattr(logging,args.diagnostic_log_level.upper())
@@ -327,11 +328,16 @@ def make_pdb_collection(args):
             raise FileNotFoundError(f'Topology file {topfile} does not exist')
         DB.add_topology(topfile)
 
-    if not resname in DB:
+    if not resname == '' and not resname in DB:
         logger.warning(f'RESI {resname} not found in CHARMMFFResiDatabase; will not build PDB collection for it')
         exit(-1)
 
     outdir=args.output_dir
+    if outdir is None or outdir=='':
+        if streamID is not None:
+            outdir=f'{streamID}'
+        else:
+            outdir='data'
     faildir=args.fail_dir
     if not os.path.exists(outdir):
         os.mkdir(outdir)
@@ -340,11 +346,12 @@ def make_pdb_collection(args):
     if os.path.exists('tmp'):
         shutil.rmtree('tmp')
     
-    if resname is not None:
+    if resname is not None and resname != '':
         my_logger(f'RESI {resname}',logger.info,just='^',frame='*',fill='*')
         do_resi(resname,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
     else:
-        active_resnames=DB.get_resnames_of_streamIDs(streamID)
+        active_resnames=DB.get_resnames_of_streamID(streamID,substreamID=substreamID)
+        logger.debug(f'active_resnames: {active_resnames}')
         nresi=len(active_resnames)
         for i,r in enumerate(active_resnames):
             my_logger(f'RESI {r} ({i+1}/{nresi})',logger.info,just='^',frame='*',fill='*')

@@ -388,11 +388,19 @@ class CharmmTopResi:
         logger.debug(f'metadata {m}')
         if m['streamID']=='lipid' and m['substreamID']=='cholesterol':
             self.sterol_annotate()
-        elif m['streamID']=='lipid' and m['substreamID']=='detergent':
+        elif m['streamID']=='lipid' and m['substreamID'] == 'detergent':
             self.detergent_annotate()
+        elif m['streamID']=='lipid' and m['substreamID'] == 'model':
+            self.model_annotate()
         else:
             self.generic_lipid_annotate()
     
+    def model_annotate(self):
+        self.annotation={}
+        self.annotation['heads']=[]
+        self.annotation['tails']=[]
+        self.annotation['shortest_paths']={}
+
     def sterol_annotate(self):
         self.annotation={}
         G=self.to_graph(includeH=False)

@@ -26,6 +26,5 @@ Subdirectives:
 
    charmmff/standard
    charmmff/custom
-   charmmff/overrides
 
 

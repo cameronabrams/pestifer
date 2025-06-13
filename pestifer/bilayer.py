@@ -75,7 +75,7 @@ def specstrings_builddict(lipid_specstring='',lipid_ratio_specstring='',lipid_co
 
 class Bilayer:
     def __init__(self,composition_dict={},leaflet_nlipids=dict(upper=100,lower=100),solvent_to_key_lipid_ratio=32.0,
-                neutralizing_salt=['POT','CLA'],pdb_repository=None,resi_database=None,solvent_specstring='TIP3',solvent_ratio_specstring='1.0'):
+                neutralizing_salt=['POT','CLA'],pdbrepository=None,resi_database=None,solvent_specstring='TIP3',solvent_ratio_specstring='1.0'):
 
         self.statevars={}
 
@@ -149,12 +149,12 @@ class Bilayer:
 
         self.species_data={}
         self.addl_streamfiles=[]
-        if pdb_repository is not None:
+        if pdbrepository is not None:
             for l in self.species_names:
                 logger.debug(f'Getting pdb for {l}')
-                if not l in pdb_repository:
+                if not l in pdbrepository:
                     raise Exception(f'Cannot find {l} in PDB repository')
-                pdbstruct=pdb_repository.checkout(l)
+                pdbstruct=pdbrepository.checkout(l)
                 self.species_data[l]=pdbstruct
                 for p in self.species_data[l].get_parameters():
                     if p.endswith('.str') and not p in self.addl_streamfiles:
@@ -193,7 +193,7 @@ class Bilayer:
                 ion_name=cation_name
             if ion_name not in self.species_names:
                 self.species_names.append(ion_name)
-                self.species_data[ion_name]=pdb_repository.checkout(ion_name)
+                self.species_data[ion_name]=pdbrepository.checkout(ion_name)
             ion_resi=resi_database.get_resi(ion_name)
             ion_q=ion_resi.charge
             logger.debug(f'Adding {ion_name} with charge {ion_q:.3f} e')
