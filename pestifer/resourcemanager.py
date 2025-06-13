@@ -13,7 +13,8 @@ class ResourceManager:
     ignored_resources=['__pycache__','_archive','bash']
     def __init__(self):
         self.resources_path=os.path.dirname(resources.__file__)
-        self.resource_dirs=[x for x in glob.glob(os.path.join(self.resources_path,'*')) if os.path.isdir(x) and not os.path.basename(x) in ResourceManager.ignored_resources]
+        self.resource_dirs=[x for x in glob.glob(os.path.join(self.resources_path,'*')) if os.path.isdir(x) 
+                            and not os.path.basename(x) in ResourceManager.ignored_resources]
         assert all([x in [os.path.basename(_) for _ in self.resource_dirs] for x in ResourceManager.base_resources]),f'some resources seem to be missing'
         self.ycleptic_configdir=os.path.join(self.resources_path,'ycleptic')
         ycleptic_files=glob.glob(os.path.join(self.ycleptic_configdir,'*'))
@@ -99,9 +100,10 @@ class ResourceManager:
     def get_tcl_scriptsdir(self):
         return os.path.join(self.resource_path['tcl'],'scripts')
     
-    def update_pdbrepository(self,user_pdbrepository=''):
-        if user_pdbrepository:
-            self.charmmff_content.pdbrepository.add_usercollection(user_pdbrepository)
+    def update_pdbrepository(self,user_pdbrepository=[]):
+        for path in user_pdbrepository:
+            logger.info(f'Adding user PDB collection: {path}')
+            self.charmmff_content.pdbrepository.add_path(path)
 
     def update_charmmff(self,tarball=''):
         if tarball:

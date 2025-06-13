@@ -42,7 +42,7 @@ class CHARMMFFContent:
         self.dirtree={a:[b,c] for a,b,c in os.walk(self.basename)}
         os.chdir(cwd)
         self.charmm_elements=self.dirtree[self.basename][0]
-        logger.debug(f'Charmmff elements: {self.charmm_elements}')
+        logger.debug(f'Members if {self.charmmff_path}: {self.charmm_elements}')
         self.pdbrepository=PDBRepository()
         if 'pdbrepository' in self.charmm_elements:
             os.chdir(os.path.join(self.charmmff_path,'pdbrepository'))
@@ -51,7 +51,9 @@ class CHARMMFFContent:
                 self.pdbrepository.add_path(m)
             os.chdir(cwd)
         self.load_charmmff(tarfilename)
-        self.custom_files=self.dirtree[f'{self.basename}/custom'][1]
+        self.custom_files=[]
+        if 'custom' in self.charmm_elements and os.path.exists(os.path.join(self.charmmff_path,'custom')):
+            self.custom_files=self.dirtree[f'{self.basename}/custom'][1]
         for f in self.custom_files:
             assert f not in self.filenamemap, f'custom file {f} already exists in filenamemap'
             self.filenamemap[f]=os.path.join(self.charmmff_path,'custom',f)
@@ -65,7 +67,7 @@ class CHARMMFFContent:
         else:
             logger.debug('No CHARMM force field tarfile to close')
 
-    def load_charmmff(self,tarfilename='toppar_c36_jul24.tgz'):
+    def load_charmmff(self,tarfilename='toppar_c36_jul24.tgz',skip_streams=['cphmd','prot','misc']):
         """ Load the entire CHARMM force field tarball """
         def okfilename(name):
             """ Check if a filename is ok to use in the tarfile """
@@ -85,7 +87,8 @@ class CHARMMFFContent:
         self.toplevel_top={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/top_') and okfilename(x.name)}
         self.toplevel_toppar={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/toppar_') and okfilename(x.name)}
         self.filenamemap={**self.toplevel_par,**self.toplevel_top,**self.toplevel_toppar}
-        self.streams=[os.path.basename(x.name) for x in self.tarmembers if x.isdir() and x.name.startswith('toppar/stream/') and 'cphmd' not in x.name]
+        self.streams=[os.path.basename(x.name) for x in self.tarmembers 
+                      if x.isdir() and x.name.startswith('toppar/stream/') and x.name not in skip_streams]
         self.streamfiles={}
         for stream in self.streams:
             self.streamfiles[stream]={os.path.basename(x.name):x.name 

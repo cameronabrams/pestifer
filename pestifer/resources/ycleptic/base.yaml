@@ -75,9 +75,9 @@ directives:
             text: Custom charmmff parameter files
             default:
               - toppar_all36_moreions.str
-      - name: pdb_repository
+      - name: pdbcollections
         type: list
-        text: Paths to local repository of PDB files for custom lipids or ligands
+        text: Paths to local collections of PDB files for custom lipids or ligands
         default: []
   - name: psfgen
     type: dict

@@ -51,6 +51,7 @@ class Config(Yclept):
                 self.RM.pdbrepository.add_path(m)
             os.chdir(cwd)
         self.RM.update_charmmff(self['user']['charmmff'].get('tarball',''))
+        self.RM.update_pdbrepository(self['user']['charmmff'].get('pdbcollections',[]))
 
     def processor_info(self):
         self.slurmvars={k:os.environ[k] for k in os.environ if 'SLURM' in k}

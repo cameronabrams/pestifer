@@ -15,13 +15,13 @@ class PDBInfo:
         self.metadata=metadata
 
     @classmethod
-    def from_yaml(cls,yaml='info.yaml'):
+    def from_yaml(cls,yamlfile='info.yaml'):
         metadata={}
-        if os.path.exists(yaml):
-            with open(yaml,'r') as f:
+        if os.path.exists(yamlfile):
+            with open(yamlfile,'r') as f:
                 metadata=yaml.safe_load(f)
         else:
-            logger.warning(f'{yaml} not found; metadata will be empty.')
+            logger.warning(f'{yamlfile} not found; metadata will be empty.')
         return cls(metadata)
     
     @classmethod
@@ -223,6 +223,7 @@ class PDBCollection:
         self.resnames={} # resname -> PDBInfo object
         self.tarfile=None
         self.path=path # path to the collection directory or tarball relative to CWD
+        self.registration_place=0
         if path.endswith('.tar.gz') or path.endswith('.tgz'):
             basename=os.path.basename(path)
             streamID=os.path.splitext(basename)[0]
@@ -261,10 +262,15 @@ class PDBCollection:
                 resname=os.path.splitext(solo)[0]
                 self.resnames[resname]=PDBInfo({})
             for subdir in subdirs:
+                resname=subdir
                 if os.path.exists(os.path.join(subdir,'info.yaml')):
                     self.resnames[resname]=PDBInfo.from_yaml(os.path.join(subdir,'info.yaml'))
             os.chdir(cwd)
         self.streamID=streamID
+
+    def __repr__(self):
+        """ Return a string representation of the PDBCollection. """
+        return f'PDBCollection(registered_at={self.registration_place}, streamID={self.streamID}, path={self.path}, resnames={list(self.resnames.keys())})'
 
     def __contains__(self,resname):
         """ Check if a resname is in the collection. """
@@ -291,8 +297,7 @@ class PDBRepository:
     """
     def __init__(self):
         self.collections={} # streamID -> PDBCollection object
-        # register the base collection that comes with pestifer
-        # self.registercollection(basepath,'base') moving this to caller
+        self.registration_order=[]
 
     def add_path(self,path,streamID_override=''):
         c=PDBCollection(path,streamID_override=streamID_override)
@@ -302,27 +307,33 @@ class PDBRepository:
         """ Add a PDBCollection to the repository. If the collection_key already exists, it will be overwritten. """
         if not isinstance(collection,PDBCollection):
             raise TypeError('collection must be a PDBCollection object')
-        if collection_key in self.collections:
-            logger.warning(f'Overwriting existing collection {collection_key} in PDBRepository.')
+        # if collection_key in self.collections:
+        #     logger.warning(f'Overwriting existing collection {collection_key} in PDBRepository.')
+        if collection_key in self.registration_order:
+            logger.warning(f'Collection {collection_key} already registered; will not add again.')
+            tag=1
+            while f'{collection_key}_{tag}' in self.registration_order:
+                tag += 1
+                if tag>10:
+                    raise ValueError(f'Too many collections with the same base name {collection_key}; please choose a different name.')
+            collection_key = f'{collection_key}_{tag}'
         self.collections[collection_key]=collection
+        self.registration_order.append(collection_key)
+        self.collections[collection_key].registration_place=len(self.registration_order)
         logger.debug(f'Added collection {collection_key} with {len(collection.resnames)} residues.')
 
     def show(self,out_stream=print):
         out_stream('----------------------------------------------------------------------')
         out_stream('PDB Collections:')
-        for cname,coll in self.collections.items():
-            out_stream(f'\nCollection \'{cname}\' at {coll['path']}:')
-            streams=coll.get('streams',[])
-            for st,stream in streams.items():
-                resis=stream.get('resnames',{})
-                for r,info in resis.items():
-                    syn=info.get('synonym','')  
-                    out_stream(f'{st:>12s}: {r:>12s}{syn:<50s}')
+        for cname in self.registration_order[::-1]:
+            coll=self.collections[cname]
+            out_stream(str(coll))
         out_stream('----------------------------------------------------------------------')
 
     def __contains__(self,resname):
         """ Check if a resname is in any of the collections. """
-        for c,coll in self.collections.items():
+        for c in self.registration_order[::-1]:
+            coll=self.collections[c]
             if resname in coll.resnames:
                 return True
         return False
@@ -331,12 +342,10 @@ class PDBRepository:
         """ Given a name, return the PDBInput object for that name, or None if not found.
             Search is conducted over collections in the order they were registered.
         """
-        for c,coll in self.collections.items():
+        for c in self.registration_order[::-1]:
+            coll=self.collections[c]
             result=coll.checkout(name)
             if result is not None:
                 logger.debug(f'Found {name} in collection {c}')
                 return result
         return None
-
-class PDBRepositoryGenerator: 
-    pass
