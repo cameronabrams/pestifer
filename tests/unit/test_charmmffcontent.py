@@ -22,7 +22,7 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertTrue(len(basenames)>0)
         self.assertEqual(len(set(basenames)),len(basenames))  # check for duplicates
         self.assertTrue(len(self.RM.charmmff_content.streams)>0)
-        self.assertEqual(self.RM.charmmff_content.streams,['carb', 'na', 'lipid'])
+        self.assertEqual(self.RM.charmmff_content.streams,['prot','carb', 'na', 'lipid'])
         self.assertTrue(self.RM.charmmff_content.custom_files!=None)
 
         self.RM.charmmff_content.copy_charmmfile_local('par_all36m_prot.prm')

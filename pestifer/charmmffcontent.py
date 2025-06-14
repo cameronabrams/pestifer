@@ -67,7 +67,7 @@ class CHARMMFFContent:
         else:
             logger.debug('No CHARMM force field tarfile to close')
 
-    def load_charmmff(self,tarfilename='toppar_c36_jul24.tgz',skip_streams=['cphmd','prot','misc']):
+    def load_charmmff(self,tarfilename='toppar_c36_jul24.tgz',skip_streams=['cphmd','misc']):
         """ Load the entire CHARMM force field tarball """
         def okfilename(name):
             """ Check if a filename is ok to use in the tarfile """
@@ -251,6 +251,7 @@ class CHARMMFFStreamID:
                 elif len(tokens)>=4:
                     self.streamID=tokens[2]
                     self.substreamID='_'.join(tokens[3:])
+        logger.debug(f'CHARMMFFStreamID: parsed {self.charmmff_filename} to streamID={self.streamID}, substreamID={self.substreamID}')
 
 class CHARMMFFResiDatabase:
     """ A class for handling the CHARMM force field residue database.  This is a dictionary of residue names
@@ -264,6 +265,7 @@ class CHARMMFFResiDatabase:
         self.load_from_toplevels()
         logger.debug(f'Loaded {len(self.residues)} residues from toplevels, streams: {self.streamIDs}')
         for streamID in streamIDs:
+            logger.debug(f'Loading residues from stream {streamID}')
             self.load_from_stream(streamID)
             if not streamID in self.streamIDs:
                 logger.debug(f'Adding stream {streamID} to streams')

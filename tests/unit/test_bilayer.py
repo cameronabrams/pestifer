@@ -17,7 +17,7 @@ class TestBilayer(unittest.TestCase):
         cls.charmmff_content = cls.RM.charmmff_content
         cls.resi_database = CHARMMFFResiDatabase(charmmff_content=cls.charmmff_content)
         cls.resi_database.add_stream('lipid')
-        cls.resi_database.add_topology('toppar_all36_moreions.str', streamnameoverride='water_ions')
+        cls.resi_database.add_topology('toppar_all36_moreions.str', streamIDoverride='water_ions')
 
     def test_bilayer_init_empty(self):
         with patch("pestifer.bilayer.logger.debug") as mock_logger:
@@ -331,7 +331,7 @@ class TestBilayer(unittest.TestCase):
         assert test_bilayer.patch_ll_corner[2]==pytest.approx(0.0, rel=1e-2)
         assert test_bilayer.patch_ur_corner[0]==pytest.approx(77.46, rel=1e-2)
         assert test_bilayer.patch_ur_corner[1]==pytest.approx(77.46, rel=1e-2)
-        assert test_bilayer.patch_ur_corner[2]==pytest.approx(87.55, rel=1e-2)
+        assert test_bilayer.patch_ur_corner[2]==pytest.approx(82.51, rel=1e-2)
         self.RM.charmmff_content.clean_local_charmmff_files()
 
         os.chdir('..')
