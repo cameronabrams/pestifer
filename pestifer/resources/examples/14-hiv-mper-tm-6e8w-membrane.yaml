@@ -17,7 +17,7 @@ tasks:
   - make_membrane_system:
       bilayer:
         half_mid_zgap: 0.0 # for C6
-        SAPL: 50.0
+        SAPL: 45.0
         composition:
           lower_leaflet:
             - name: DMPC
@@ -63,7 +63,7 @@ tasks:
                 pressure: 10.0
             - md:
                 ensemble: NPT
-                nsteps: 16000
+                nsteps: 16000  # this is probably too short!
                 temperature: 310
                 pressure: 1.0
           quilt:
@@ -73,9 +73,10 @@ tasks:
                 ensemble: NVT
                 nsteps: 1000
                 temperature: 310
+                pressure: 1.0
             - md:
                 ensemble: NPT
-                nsteps: 1000
+                nsteps: 2000
                 temperature: 310
                 pressure: 1.0
       embed:
@@ -110,7 +111,7 @@ tasks:
       nsteps: 6400
   - md:
       ensemble: NPT
-      nsteps: 102400
+      nsteps: 12800  # this is way too short!!
   - mdplot:
       savedata: bilayer.csv
       traces:

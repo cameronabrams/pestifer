@@ -9,7 +9,6 @@ from copy import deepcopy
 from ..bilayer import Bilayer, specstrings_builddict
 from ..basetask import BaseTask
 from ..charmmffcontent import CHARMMFFResiDatabase
-# from ..config import Config
 from ..scriptwriters import PackmolInputWriter
 from ..psfutil.psfcontents import get_toppar_from_psf
 from ..util.util import cell_to_xsc,cell_from_xsc, protect_str_arg

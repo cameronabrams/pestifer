@@ -13,7 +13,7 @@ class TestBilayer(unittest.TestCase):
         # Ensure the resource manager is initialized before any tests run
         cls.C = Config()
         cls.RM = cls.C.RM        
-        cls.pdb_repository = cls.RM.pdb_repository
+        cls.pdbrepository = cls.RM.pdbrepository
         cls.charmmff_content = cls.RM.charmmff_content
         cls.resi_database = CHARMMFFResiDatabase(charmmff_content=cls.charmmff_content)
         cls.resi_database.add_stream('lipid')
@@ -34,7 +34,7 @@ class TestBilayer(unittest.TestCase):
         test_bilayer=Bilayer(composition_dict={
             'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
             'lower_leaflet': [{'name':'POPE','frac':1.0,'conf':0}]},
-            pdb_repository=self.pdb_repository,
+            pdbrepository=self.pdbrepository,
             resi_database=self.resi_database)
         assert all([x in test_bilayer.lipid_names for x in ['POPE', 'POPC']])
         assert all([x in ['POPE', 'POPC'] for x in test_bilayer.lipid_names])
@@ -200,11 +200,11 @@ class TestBilayer(unittest.TestCase):
         os.chdir('__test_bilayer_init_memgen_style')
         cdict=specstrings_builddict(lipid_specstring='POPC',lipid_ratio_specstring='1.0',lipid_conformers_specstring='1')
         test_bilayer=Bilayer(composition_dict=cdict,
-            pdb_repository=self.pdb_repository,resi_database=self.resi_database)
+            pdbrepository=self.pdbrepository,resi_database=self.resi_database)
         assert test_bilayer.lipid_names == ['POPC']
         assert test_bilayer.species_names == ['POPC','TIP3']
         cdict=specstrings_builddict(lipid_specstring='POPC//POPE',lipid_ratio_specstring='1',lipid_conformers_specstring='1')
-        test_bilayer=Bilayer(composition_dict=cdict,pdb_repository=self.pdb_repository,resi_database=self.resi_database)
+        test_bilayer=Bilayer(composition_dict=cdict,pdbrepository=self.pdbrepository,resi_database=self.resi_database)
 
         assert all([x in test_bilayer.lipid_names for x in ['POPE', 'POPC']])
         assert all([x in ['POPE', 'POPC'] for x in test_bilayer.lipid_names])
@@ -233,7 +233,7 @@ class TestBilayer(unittest.TestCase):
         assert test_bilayer.asymmetric == True
 
         cdict=specstrings_builddict(lipid_specstring='POPC:CHL1//POPE:CHL1',lipid_ratio_specstring='0.5:0.5',lipid_conformers_specstring='1:1')
-        test_bilayer=Bilayer(composition_dict=cdict,pdb_repository=self.pdb_repository,resi_database=self.resi_database)
+        test_bilayer=Bilayer(composition_dict=cdict,pdbrepository=self.pdbrepository,resi_database=self.resi_database)
         assert all([x in test_bilayer.lipid_names for x in ['POPE', 'POPC','CHL1']])
         assert all([x in ['POPE', 'POPC','CHL1'] for x in test_bilayer.lipid_names])
         assert all([x in test_bilayer.species_names for x in ['POPE', 'POPC','CHL1','TIP3']])
@@ -271,7 +271,7 @@ class TestBilayer(unittest.TestCase):
         assert test_bilayer.asymmetric == True
 
         cdict=specstrings_builddict(lipid_specstring='POPS:CHL1//POPE:CHL1',lipid_ratio_specstring='0.75:0.25',lipid_conformers_specstring='3:4//7:2')
-        test_bilayer=Bilayer(composition_dict=cdict,pdb_repository=self.pdb_repository,resi_database=self.resi_database)
+        test_bilayer=Bilayer(composition_dict=cdict,pdbrepository=self.pdbrepository,resi_database=self.resi_database)
         assert all([x in test_bilayer.lipid_names for x in ['POPS', 'POPE','CHL1']])
         assert all([x in ['POPS', 'POPE','CHL1'] for x in test_bilayer.lipid_names])
         assert all([x in test_bilayer.species_names for x in ['POPS', 'POPE','CHL1','TIP3']])
@@ -324,7 +324,7 @@ class TestBilayer(unittest.TestCase):
         os.mkdir('__test_bilayer_build_patch')
         os.chdir('__test_bilayer_build_patch')
         cdict=specstrings_builddict(lipid_specstring='POPC:CHL1//POPE:CHL1',lipid_ratio_specstring='0.75:0.25//0.33:0.67',lipid_conformers_specstring='3:4//7:2')
-        test_bilayer=Bilayer(composition_dict=cdict,pdb_repository=self.pdb_repository,resi_database=self.resi_database)
+        test_bilayer=Bilayer(composition_dict=cdict,pdbrepository=self.pdbrepository,resi_database=self.resi_database)
         test_bilayer.build_patch()
         assert test_bilayer.patch_ll_corner[0]==pytest.approx(0.0, rel=1e-2)
         assert test_bilayer.patch_ll_corner[1]==pytest.approx(0.0, rel=1e-2)

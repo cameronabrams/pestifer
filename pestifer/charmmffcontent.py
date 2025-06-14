@@ -88,7 +88,7 @@ class CHARMMFFContent:
         self.toplevel_toppar={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/toppar_') and okfilename(x.name)}
         self.filenamemap={**self.toplevel_par,**self.toplevel_top,**self.toplevel_toppar}
         self.streams=[os.path.basename(x.name) for x in self.tarmembers 
-                      if x.isdir() and x.name.startswith('toppar/stream/') and x.name not in skip_streams]
+                      if x.isdir() and x.name.startswith('toppar/stream/') and os.path.basename(x.name) not in skip_streams]
         self.streamfiles={}
         for stream in self.streams:
             self.streamfiles[stream]={os.path.basename(x.name):x.name 
@@ -137,7 +137,7 @@ class CHARMMFFContent:
                             f.write('! commented out by pestifer:\n')
                             f.write(f'! {l}\n')
         else:
-            logger.warning(f'{basename} not found in charmmff')
+            logger.warning(f'copy_charmmfile_local: {basename} not found in charmmff')
         return basename
     
     def clean_local_charmmff_files(self):
@@ -296,7 +296,7 @@ class CHARMMFFResiDatabase:
     def load_from_stream(self,streamID):
         """ Load residues from a specific stream """
         if streamID not in self.charmmff_content.streams:
-            logger.warning(f'Stream {streamID} not found in CHARMM force field content')
+            logger.warning(f'load_from_stream: Stream {streamID} not found in CHARMM force field content')
             return
         logger.debug(f'Loading resis from stream {streamID}')
         for topfile in self.charmmff_content.streamfiles[streamID].values():
@@ -307,7 +307,7 @@ class CHARMMFFResiDatabase:
     def get_resnames_of_streamID(self,streamID,substreamID=None):
         """ Get a list of residue names in a specific stream """
         if streamID not in self.streamIDs:
-            logger.warning(f'Stream {streamID} not found in CHARMM force field residue database')
+            logger.warning(f'get_resnames_of_streamID: Stream {streamID} not found in CHARMM force field residue database')
             return []
         resnames=[x.resname for x in self.residues.values() if (x.metadata['streamID']==streamID and ((substreamID is None) or (x.metadata.get('substreamID','')==substreamID)))]
         logger.debug(f'Found {len(resnames)} residues in stream {streamID}')

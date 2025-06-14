@@ -42,14 +42,6 @@ class Config(Yclept):
             my_logger(processor_info,logger.info,just='<',frame='*',fill='')
         self._set_internal_shortcuts()
         self._set_shell_commands(verify_access=(userfile!=''))
-        local_repository=self['user']['paths'].get('pdb_repository','')
-        if local_repository:
-            cwd=os.getcwd()
-            os.chdir(local_repository)
-            members=os.listdir('.')
-            for m in members:
-                self.RM.pdbrepository.add_path(m)
-            os.chdir(cwd)
         self.RM.update_charmmff(self['user']['charmmff'].get('tarball',''))
         self.RM.update_pdbrepository(self['user']['charmmff'].get('pdbcollections',[]))
 

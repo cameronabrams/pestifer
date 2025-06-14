@@ -5,6 +5,7 @@ import unittest
 from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
 from pestifer.config import Config
 from pestifer.controller import Controller
+from pestifer.resourcemanager import ResourceManager
 from pestifer.scriptwriters import Psfgen,VMD,NAMD,Filewriter
 from pestifer.util.util import protect_str_arg
 
@@ -18,6 +19,18 @@ class TestMakeMembraneSystem(unittest.TestCase):
             'namd':   NAMD(cls.C),
             'data':   Filewriter()
         }
+        cls.common_patch_relaxation_protocols = [
+            {'md': {'ensemble': 'minimize', 'nsteps': 1000}},
+            {'md': {'ensemble': 'NVT', 'nsteps': 1000}},
+            {'md': {'ensemble': 'NPT', 'nsteps': 1000}},
+            {'md': {'ensemble': 'NPT', 'nsteps': 2000}},
+            {'md': {'ensemble': 'NPT', 'nsteps': 4000}}
+        ]
+        cls.common_quilt_relaxation_protocols = [
+            {'md': {'ensemble': 'minimize', 'nsteps': 1000}},
+            {'md': {'ensemble': 'NVT', 'nsteps': 1000}},
+            {'md': {'ensemble': 'NPT', 'nsteps': 2000}}
+        ]
 
     @pytest.mark.slow
     def test_membrane_symmetric_popc(self):
@@ -34,19 +47,10 @@ class TestMakeMembraneSystem(unittest.TestCase):
                     'lower_leaflet': [{'name':'POPC','frac':1.0,'conf':0}]
                     },
                 'relaxation_protocols':{
-                    'patch':[
-                        {'md':{'ensemble':'minimize','nsteps':1000}},
-                        {'md':{'ensemble':'NVT','nsteps':1000}},
-                        {'md':{'ensemble':'NPT','nsteps':1000}},
-                        {'md':{'ensemble':'NPT','nsteps':2000}},
-                        {'md':{'ensemble':'NPT','nsteps':4000}},
-                        {'md':{'ensemble':'NPT','nsteps':8000}}
-                    ],
-                    'bilayer':[
-                        {'md':{'ensemble':'minimize'}},
-                        {'md':{'ensemble':'NVT','nsteps':1000}},
-                        {'md':{'ensemble':'NPT','nsteps':10000}}
-                    ]}}}
+                    'patch':self.common_patch_relaxation_protocols,
+                    'quilt':self.common_quilt_relaxation_protocols}
+                }
+                }
         controller_specs={'controller_index':0,'taskname':'test_make_membrane_system_task','config':self.C,'writers':self.writers,'prior':None}
         BET = MakeMembraneSystemTask(config_specs,controller_specs)
         assert BET.taskname == 'test_make_membrane_system_task'
@@ -69,19 +73,8 @@ class TestMakeMembraneSystem(unittest.TestCase):
                     'lower_leaflet': [{'name':'C6DHPC','frac':1.0,'conf':0}]
                     },
                 'relaxation_protocols':{
-                    'patch':[
-                        {'md':{'ensemble':'minimize','nsteps':1000}},
-                        {'md':{'ensemble':'NVT','nsteps':1000}},
-                        {'md':{'ensemble':'NPT','nsteps':1000}},
-                        {'md':{'ensemble':'NPT','nsteps':2000}},
-                        {'md':{'ensemble':'NPT','nsteps':4000}},
-                        {'md':{'ensemble':'NPT','nsteps':8000}}
-                    ],
-                    'bilayer':[
-                        {'md':{'ensemble':'minimize'}},
-                        {'md':{'ensemble':'NVT','nsteps':1000}},
-                        {'md':{'ensemble':'NPT','nsteps':10000}}
-                    ]}}}
+                    'patch':self.common_patch_relaxation_protocols,
+                    'quilt':self.common_quilt_relaxation_protocols}}}
         controller_specs={'controller_index':0,'taskname':'test_make_membrane_system_task','config':self.C,'writers':self.writers,'prior':None}
         BET = MakeMembraneSystemTask(config_specs,controller_specs)
         assert BET.taskname == 'test_make_membrane_system_task'
@@ -103,22 +96,8 @@ class TestMakeMembraneSystem(unittest.TestCase):
                     'lower_leaflet': [{'name':'POPE','frac':1.0,'conf':0}]
                     },
                 'relaxation_protocols':{
-                    'patch':[
-                        {'md':{'ensemble':'minimize','nsteps':1000}},
-                        {'md':{'ensemble':'NVT','nsteps':1000}},
-                        {'md':{'ensemble':'NPT','nsteps':1000,'pressure':10.0}},
-                        {'md':{'ensemble':'NPT','nsteps':2000,'pressure':10.0}},
-                        {'md':{'ensemble':'NPT','nsteps':4000,'pressure':10.0}},
-                        {'md':{'ensemble':'NPT','nsteps':8000,'pressure':1.0}},
-                        {'md':{'ensemble':'NPT','nsteps':16000,'pressure':1.0}},
-                        {'md':{'ensemble':'NPT','nsteps':21000,'pressure':1.0}}
-                    ],
-                    'bilayer':[
-                        {'md':{'ensemble':'minimize','nsteps':2000}},
-                        {'md':{'ensemble':'NVT','nsteps':1000}},
-                        {'md':{'ensemble':'NPT','nsteps':1000}},
-                        {'md':{'ensemble':'NPT','nsteps':10000}}
-                    ]}}}
+                    'patch':self.common_patch_relaxation_protocols,
+                    'quilt':self.common_quilt_relaxation_protocols}}}
         controller_specs={'controller_index':0,'taskname':'test_make_membrane_system_task','config':self.C,'writers':self.writers,'prior':None}
         BET = MakeMembraneSystemTask(config_specs,controller_specs)
         assert BET.taskname == 'test_make_membrane_system_task'
@@ -143,24 +122,8 @@ class TestMakeMembraneSystem(unittest.TestCase):
                         {'name':'PSM','frac':0.5,'conf':0},
                         {'name':'CHL1','frac':0.5,'conf':0}]},
                 'relaxation_protocols':{
-                    'patch':[
-                        {'md':{'ensemble':'minimize','nsteps':1000}},
-                        {'md':{'ensemble':'NVT','nsteps':1000}},
-                        {'md':{'ensemble':'NPT','nsteps':1000,'pressure':10.0}},
-                        {'md':{'ensemble':'NPT','nsteps':2000,'pressure':10.0}},
-                        {'md':{'ensemble':'NPT','nsteps':4000,'pressure':10.0}},
-                        {'md':{'ensemble':'NPT','nsteps':8000,'pressure':10.0}},
-                        {'md':{'ensemble':'NPT','nsteps':16000}},
-                        {'md':{'ensemble':'NPT','nsteps':32000}},
-                    ],
-                    'bilayer':[
-                        {'md':{'ensemble':'minimize','nsteps':1000}},
-                        {'md':{'ensemble':'NVT','nsteps':1000}},
-                        {'md':{'ensemble':'NPT','nsteps':1000,'pressure':10.0}},
-                        {'md':{'ensemble':'NPT','nsteps':10000,'pressure':10.0}},
-                        {'md':{'ensemble':'NPT','nsteps':20000}},
-                        {'md':{'ensemble':'NPT','nsteps':40000}}
-                    ]}}}
+                    'patch':self.common_patch_relaxation_protocols,
+                    'quilt':self.common_quilt_relaxation_protocols}}}
         controller_specs={'controller_index':0,'taskname':'test_make_membrane_system_task','config':self.C,'writers':self.writers,'prior':None}
         BET = MakeMembraneSystemTask(config_specs,controller_specs)
         assert BET.taskname == 'test_make_membrane_system_task'

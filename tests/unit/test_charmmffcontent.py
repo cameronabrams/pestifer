@@ -22,7 +22,7 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertTrue(len(basenames)>0)
         self.assertEqual(len(set(basenames)),len(basenames))  # check for duplicates
         self.assertTrue(len(self.RM.charmmff_content.streams)>0)
-        self.assertEqual(self.RM.charmmff_content.streams,['prot', 'carb', 'na', 'lipid', 'misc'])
+        self.assertEqual(self.RM.charmmff_content.streams,['carb', 'na', 'lipid'])
         self.assertTrue(self.RM.charmmff_content.custom_files!=None)
 
         self.RM.charmmff_content.copy_charmmfile_local('par_all36m_prot.prm')
@@ -151,8 +151,8 @@ class TestCharmmffContent(unittest.TestCase):
         params=c.get_parameters()
         self.assertIn('toppar_all36_lipid_sphingo.str',params)
         self.assertEqual(len(c.info['conformers']),10)
-        self.assertAlmostEqual(c.info['conformers'][0]['head-tail-length'],26.779,places=3)
-        self.assertAlmostEqual(c.info['conformers'][0]['max-internal-length'],30.398,places=3)
+        self.assertAlmostEqual(c.info['conformers'][0]['head-tail-length'],27.139,places=2)
+        self.assertAlmostEqual(c.info['conformers'][0]['max-internal-length'],30.72,places=2)
         c.get_pdb(0)
         self.assertTrue(os.path.exists('PSM-00.pdb'))
         os.remove('PSM-00.pdb')

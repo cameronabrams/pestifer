@@ -1,23 +1,20 @@
-"""
-
-.. module:: test_config
-   :synopsis: tests pestifer.Config()
-   
-.. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
-
-"""
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
 import unittest
-import glob
 import os
+import shutil
 import yaml
 from pestifer.config import Config, segtype_of_resname, charmm_resname_of_pdb_resname, res_123, res_321
 from pestifer.resourcemanager import ResourceManager
 
 class ConfigTest(unittest.TestCase):
-            
+    @classmethod
+    def setUpClass(cls):
+        cls.RM=ResourceManager()
+        cls.c=Config(quiet=True)
+
     def test_config_nouser_globals(self):
-        c=Config()
+        c=self.c
         self.assertEqual(os.path.join(c.tcl_root,'vmdrc.tcl'),c.vmd_startup_script)
         self.assertEqual(segtype_of_resname['ALA'],'protein')
         self.assertEqual(segtype_of_resname['MAN'],'glycan')
@@ -28,17 +25,17 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(res_321['PHE'],'F')
 
     def test_config_boolean(self):
-        c=Config()
+        c=self.c
         self.assertTrue(c)
 
     def test_config_userdict(self):
-        C=Config()
+        C=self.c
         ud=C['user']
         D=Config(userdict=ud)
         self.assertTrue('user' in D)
         
     def test_config_user(self):
-        RM=ResourceManager()
+        RM=self.RM
         configfile=RM.get_example_yaml_by_index(1)
         c=Config(userfile=configfile)
         self.assertTrue('user' in c)
@@ -57,7 +54,7 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(name,'solvate')
 
     def test_config_task_source(self):
-        RM=ResourceManager()
+        RM=self.RM
         configfile=RM.get_example_yaml_by_index(5)
         c=Config(userfile=configfile)
         self.assertTrue('user' in c)
@@ -77,8 +74,13 @@ class ConfigTest(unittest.TestCase):
         self.assertTrue(resm['B']==['C','D'])
 
     def test_config_help_examples(self):
-        RM=ResourceManager()
+        RM=self.RM
         configfiles=RM.get_examples_as_list(fullpaths=True)
+        tmpdir='__test_config_help_examples'
+        if os.path.exists(tmpdir):
+            shutil.rmtree(tmpdir)
+        os.mkdir(tmpdir)
+
         for configfile in configfiles:
             d,n=os.path.split(configfile)
             b,e=os.path.splitext(n)
@@ -106,10 +108,9 @@ class ConfigTest(unittest.TestCase):
             self.assertEqual(paths['packmol'],'packmol')
             self.assertEqual(paths['catdcd'],'catdcd')
             self.assertFalse('charmff' in paths)
-            with open(f'{b}-complete.yaml','w') as f:
+            with open(os.path.join(tmpdir,f'{b}-complete.yaml'),'w') as f:
                 yaml.dump(U,f)
             tasks=U['tasks']
-            print(tasks)
             self.assertTrue('psfgen' in tasks[0])
             specs=tasks[0]['psfgen']
             self.assertTrue('source' in specs)
