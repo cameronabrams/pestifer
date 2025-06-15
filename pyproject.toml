@@ -22,7 +22,7 @@ dependencies = [
     "pyyaml>=6",
     "pidibble>=1.2.1",
     "pandas",
-    "ycleptic>=1.4.1",
+    "ycleptic>=1.5.0",
     "mmcif",
     "progressbar2",
     "networkx",
