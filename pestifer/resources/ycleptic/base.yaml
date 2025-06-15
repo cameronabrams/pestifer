@@ -13,24 +13,37 @@
 #
 docs:
   title: Configuration File Reference
-  text: "Pestifer uses YAML-format configuration input for executing a build.  These pages document all YAML directives that can be included in a config file."
+  text: |
+    Pestifer uses YAML-format configuration input for executing a build.  These pages document all YAML directives 
+    that can be included in a config file.  You can also use the ``pestifer config-help`` subcommand to step through
+    this documentation on interactively on the command line.
+
+    Each item below is a top-level directive in a pestifer configuration file.
 directives:
   - name: charmmff
     type: dict
     text: Specifications for charmm force-field parameter and topology files
     required: True
     docs:
-      text: "The ``charmff`` directive informs pestifer which CHARMM force-field parameter and topology files are to be used for all psfgen/namd3 executions.  ``standard`` refers to files that are found in the official CHARMMFF release, and are referred to by their base filenames, regardless of whether they live in the topmost ``toppar`` directory or one of the stream subdirectories.  ``custom`` refers to files that are not part of the official CHARMMFF release."
+      text: |
+        The ``charmff`` directive informs pestifer which CHARMM force-field parameter and topology files are to be 
+        used for all psfgen/namd3 executions.  ``standard`` refers to files that are found in the official CHARMMFF 
+        release, and are referred to by their base filenames, regardless of whether they live in the topmost ``toppar`` 
+        directory or one of the stream subdirectories.  ``custom`` refers to files that are not part of the official CHARMMFF release.
     directives:
       - name: tarball
         type: str
         text: Path to a tarball containing the charmmff files; this is used to override the default set of charmmff files
       - name: standard
         type: dict
-        text: Standard charmmff files under the standard toppar/ directory
+        text: Standard charmmff files under the standard ``toppar/`` directory
         required: True
         docs:
-          text: "These are the standard CHARMM force-field files that pestifer will use for all psfgen/namd3 executions.  These files are included in the pestifer distribution, and are not expected to be modified by the user.  They are always referred to by their base filenames, regardless of whether they live in the topmost ``toppar`` directory or one of the stream subdirectories.  The default set is useful for most non-membrane systems."
+          text: |
+            These are the standard CHARMM force-field files that pestifer will use for all psfgen/namd3 executions.  
+            These files are included in the pestifer distribution, and are not expected to be modified by the user.  
+            They are always referred to by their base filenames, regardless of whether they live in the topmost ``toppar`` 
+            directory or one of the stream subdirectories.  The default set is useful for most non-membrane systems.
         directives:
           - name: topologies
             type: list
@@ -78,12 +91,23 @@ directives:
       - name: pdbcollections
         type: list
         text: Paths to local collections of PDB files for custom lipids or ligands
+        docs:
+          text: | 
+            Here you can list one or more paths to PDB collections that you have built using the ``make-pdb-collection`` subcommand.  
+            These collections can be used to provide custom lipids or ligands for your simulations.  
+            The paths should point to directories that contain subdirectories for each RESI in the collection, 
+            each of which contains PDB files for that RESI.
+          example: 
+            charmff:
+              pdbcollections:
+                - /path/to/my/custom/lipid/collection/
+                - /path/to/my/custom/ligand/collection/
         default: []
   - name: psfgen
     type: dict
     text: Specifications for the psfgen plugin
     docs:
-      text: This directive allows you to define common macros and other psfgen commands used in all psfgen runs
+      text: This directive defines common settings for the ``psfgen`` VMD plugin, including standard atom and residue aliases.
     required: True
     directives:
       - name: aliases
@@ -979,11 +1003,18 @@ directives:
     type: str
     text: Meaningful title (optional)
     default: Pestifer
+    docs:
+      text: |
+        A meaningful title for the run.  This is optional, but can be useful for identifying runs in the output files.
+        If not specified, the default is "Pestifer".
   - name: paths
     type: dict
     text: Allows user to specify paths for certain resources, including external applications
     docs:
-      text: Allows user to specify paths for certain resources, including external applications
+      text: |
+        Allows user to specify paths for certain resources, including external applications.  By default, ``pestifer``
+        expects that all external applications are already in the user's PATH.  If not, this directive should be used
+        to specify the paths to these applications.
     directives:
       - name: namd2
         type: str
@@ -1013,9 +1044,6 @@ directives:
         type: str
         text: Path to catdcd executable
         default: catdcd
-      - name: pdb_repository
-        type: str
-        text: Path to a user's PDB repository, which can be used to store custom PDB files for lipids or ligands
   - name: tasks
     type: list
     text: Specifies the tasks to be performed serially in a pestifer run
@@ -1040,7 +1068,7 @@ directives:
             type: int
             default: 0
       - name: psfgen
-        text: Parameters controlling a psfgen run on an input molecule
+        text: Parameters controlling a specific psfgen run on an input molecule
         type: dict
         directives:
           - name: source
@@ -1176,8 +1204,14 @@ directives:
             type: dict
             directives:
               - name: mutations
-                text: Single-residue mutations, expressed as shortcodes; e.g., C:F32A for mutation of Phe 32 on chain C to an Alanine
+                text: Single-residue mutations, expressed as shortcodes (e.g., C:F32A to mutate residue 32 of chain C from PHE to ALA); note that the residue must be present in the PDB source file, and that the mutation will not be made if the residue is not present
                 type: list
+                docs:
+                  example:
+                      mutations:
+                        - C:F32A
+                        - A:TRP100ARG
+                        - B:K50M
               - name: ssbonds
                 text: additional ssbonds, expressed as shortcodes; e.g., C_154-A_298 to add an ssbond between resids 154 of chain C and 298 of chain A.  Note that the indicated residues must by CYS's.  If they are not, you should include each in a mutation shortcode in the mutations list
                 type: list

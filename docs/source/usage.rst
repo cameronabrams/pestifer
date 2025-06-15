@@ -40,7 +40,7 @@ Subcommands
    subs/fetch-example
    subs/wheretcl
    subs/inittcl
-   subs/make-resi-database
+   subs/make-pdb-collection
    subs/desolvate
    subs/make-namd-restart
    subs/show-resources

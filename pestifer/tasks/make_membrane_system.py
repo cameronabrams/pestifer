@@ -269,7 +269,8 @@ class MakeMembraneSystemTask(BaseTask):
         self.statevars['psf']=f'{self.basename}.psf'
         self.statevars['coor']=f'{self.basename}.coor'
         self.statevars['xsc']=f'{self.basename}.xsc'
-        del self.statevars['vel']
+        if 'vel' in self.statevars:
+            del self.statevars['vel']
         if 'charmmff_paramfiles' not in self.statevars:
             self.statevars['charmmff_paramfiles']=[]
         self.statevars['charmmff_paramfiles']+=self.quilt.addl_streamfiles

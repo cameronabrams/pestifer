@@ -361,7 +361,7 @@ def cli():
     command_parsers['make-pdb-collection'].add_argument('--sample-steps',type=int,default=5000,help='number of sample steps (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--nsamples',type=int,default=10,help='number of samples (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--sample-temperature',type=float,default=300.0,help='number of sample steps (default: %(default)s)')
-    command_parsers['make-pdb-collection'].add_argument('--output-dir',type=str,default=None,help='name of output directory relative to CWD')
+    command_parsers['make-pdb-collection'].add_argument('--output-dir',type=str,default=None,help='name of output directory relative to CWD; defaults to streamID')
     command_parsers['make-pdb-collection'].add_argument('--fail-dir',type=str,default='fails',help='name of output directory for failed runs relative to CWD (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--refic-idx',type=int,default=0,help='index of reference IC to use to build a single molecule (default: %(default)s)')
     command_parsers['desolvate'].add_argument('--psf',type=str,help='name of input PSF file')
