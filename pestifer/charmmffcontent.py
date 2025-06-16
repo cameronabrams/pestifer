@@ -42,7 +42,7 @@ class CHARMMFFContent:
         self.dirtree={a:[b,c] for a,b,c in os.walk(self.basename)}
         os.chdir(cwd)
         self.charmm_elements=self.dirtree[self.basename][0]
-        logger.debug(f'Members if {self.charmmff_path}: {self.charmm_elements}')
+        logger.debug(f'Members of {self.charmmff_path}: {self.charmm_elements}')
         self.pdbrepository=PDBRepository()
         if 'pdbrepository' in self.charmm_elements:
             os.chdir(os.path.join(self.charmmff_path,'pdbrepository'))
@@ -66,6 +66,7 @@ class CHARMMFFContent:
             logger.debug('Closed CHARMM force field tarfile')
         else:
             logger.debug('No CHARMM force field tarfile to close')
+        del self.pdbrepository
 
     def load_charmmff(self,tarfilename='toppar_c36_jul24.tgz',skip_streams=['cphmd','misc']):
         """ Load the entire CHARMM force field tarball """
@@ -87,6 +88,7 @@ class CHARMMFFContent:
         self.toplevel_top={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/top_') and okfilename(x.name)}
         self.toplevel_toppar={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/toppar_') and okfilename(x.name)}
         self.filenamemap={**self.toplevel_par,**self.toplevel_top,**self.toplevel_toppar}
+        logger.debug(f'filenamemap: {self.filenamemap}')
         self.streams=[os.path.basename(x.name) for x in self.tarmembers 
                       if x.isdir() and x.name.startswith('toppar/stream/') and os.path.basename(x.name) not in skip_streams]
         self.streamfiles={}
@@ -97,6 +99,7 @@ class CHARMMFFContent:
             self.filenamemap.update(self.streamfiles[stream])
         check_basenames=list(self.filenamemap.keys())
         assert len(check_basenames)==len(set(check_basenames)),f'found duplicate basenames in charmmff tarball: {check_basenames}'
+        logger.debug(f'Loaded {len(self.filenamemap)} files from CHARMM force field tarball {tarfilename}; subdir-streams: {self.streams}')
 
     def copy_charmmfile_local(self,basename):
         """ Given a basename for any charmmff file, extract from the existing unaltered charmmff installation
@@ -150,17 +153,17 @@ class CHARMMFFContent:
     def lines_from_topfile(self,topfile):
         """ Extract the lines from a top file """
         lines=[]
-        logger.debug(f'Extracting lines from {topfile}')
+        # logger.debug(f'Extracting lines from {topfile}')
         for m in self.tarmembers:
             if topfile==m.name:
-                logger.debug(f'Found {topfile} in tarfile member {m.name}')
+                # logger.debug(f'Found {topfile} in tarfile member {m.name}')
                 with self.tarfile.extractfile(m) as f:
                     lines=f.read().decode().splitlines()
                     break
         if not lines:
             mapped_name=self.filenamemap.get(topfile,None)
             if mapped_name is not None:
-                logger.debug(f'Extracting lines from {topfile} using mapped name {mapped_name}')
+                # logger.debug(f'Extracting lines from {topfile} using mapped name {mapped_name}')
                 with open(mapped_name,'r') as f:
                     lines=f.read().splitlines()
         return lines
@@ -258,6 +261,7 @@ class CHARMMFFResiDatabase:
     to their corresponding stream and substream.
     """
     def __init__(self,charmmff_content:CHARMMFFContent,streamIDs=[]):
+        logger.debug(f'Initializing CHARMMFFResiDatabase with extra streamIDs {streamIDs}')
         self.charmmff_content=charmmff_content
         self.residues={}
         self.masses=CharmmMasses({})
@@ -289,10 +293,12 @@ class CHARMMFFResiDatabase:
                 'C18DHPC':'lipid'
             }
         }
+        logger.debug(f'Initialized CHARMMFFResiDatabase with extra streamIDs {streamIDs}')
+
     def load_from_toplevels(self):
         for topfile in list(self.charmmff_content.toplevel_top.values())+list(self.charmmff_content.toplevel_toppar.values()):
             new_resis=self.load_from_topfile(topfile)
-            logger.debug(f'Loaded {len(new_resis)} residues from {topfile}')
+            logger.debug(f'Loaded {len(new_resis)} residues from toplevel {topfile}')
             self.residues.update({x.resname:x for x in new_resis})
 
     def load_from_stream(self,streamID):
@@ -317,7 +323,7 @@ class CHARMMFFResiDatabase:
         return resnames
 
     def load_from_topfile(self,topfile):
-        logger.debug(f'Loading resis from {topfile}')
+        logger.debug(f'CHARMMFFResiDatabase::load_from_topfile Loading resis from {topfile}')
         cstr=CHARMMFFStreamID(topfile)
         logger.debug(f'topfile {topfile} CHARMMFFStream: \'{cstr.streamID}\' \'{cstr.substreamID}\'')
         self.masses.update(self.charmmff_content.masses_from_topfile(topfile))

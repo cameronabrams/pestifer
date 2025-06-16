@@ -70,3 +70,6 @@ def test_example_build13():
 @pytest.mark.slow
 def test_example_build14():
     do_it(14)
+@pytest.mark.slow
+def test_example_build15():
+    do_it(15)

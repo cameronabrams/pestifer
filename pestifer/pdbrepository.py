@@ -270,7 +270,7 @@ class PDBCollection:
 
     def __repr__(self):
         """ Return a string representation of the PDBCollection. """
-        return f'PDBCollection(registered_at={self.registration_place}, streamID={self.streamID}, path={self.path}, resnames={list(self.resnames.keys())})'
+        return f'PDBCollection(registered_at={self.registration_place}, streamID={self.streamID}, path={self.path}, resnames({len(self.resnames)})={list(sorted(list(self.resnames.keys())))})'
 
     def __contains__(self,resname):
         """ Check if a resname is in the collection. """

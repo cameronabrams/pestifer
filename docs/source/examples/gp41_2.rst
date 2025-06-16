@@ -1,0 +1,12 @@
+.. _example 15:
+
+Example 15: Trimeric HIV-1 gp41 construct embedded in a model viral bilayer
+---------------------------------------------------------------------------
+
+This example is the same as :ref:`example 14 <example 14>`, but uses a model viral bilayer instead of a DMPC/DHPC bilayer.  The model viral bilayer is constructed from a mixture of lipids that are commonly found in the viral membrane, such as phosphatidylcholine (PC), phosphatidylethanolamine (PE), sphingomyelin (SM), and cholesterol, and is asymmetric.
+
+.. literalinclude:: ../../../pestifer/resources/examples/15-hiv-mper-tm-6e8w-membrane-viral.yaml
+    :language: yaml
+
+In this example, we demonstrate the ``composition`` keyword in the ``bilayer`` section of the  ``make_membrane_system`` task.  This is a more flexible representation of the bilayer composition than the packmol-memgen format used in example 14.  
+

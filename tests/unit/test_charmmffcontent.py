@@ -4,15 +4,24 @@ import os
 from pestifer.resourcemanager import ResourceManager
 from pestifer.charmmffcontent import CHARMMFFResiDatabase
 
+import logging
+logger = logging.getLogger(__name__)
+
 class TestCharmmffContent(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Ensure the resource manager is initialized before any tests run
+        logging.debug("Setting up TestCharmmffContent class...")
         cls.RM = ResourceManager()
         cls.C = cls.RM.charmmff_content
-        cls.CDB = CHARMMFFResiDatabase(cls.C)
+        cls.CDB = CHARMMFFResiDatabase(cls.C,streamIDs=[])
         cls.CDB.add_stream('lipid')
         cls.CDB.add_topology('toppar_all36_moreions.str', streamIDoverride='water_ions')
+        logging.debug("Done setting up TestCharmmffContent class...")
+
+    @classmethod
+    def tearDownClass(cls):
+        del cls.RM.charmmff_content
 
     def test_charmmff_content(self):
         self.RM.charmmff_content.clean_local_charmmff_files()

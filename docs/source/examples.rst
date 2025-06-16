@@ -20,6 +20,7 @@ Examples
   examples/insulin-receptor
   examples/sarscov2S-ba2
   examples/gp41
+  examples/gp41_2
 
 
 

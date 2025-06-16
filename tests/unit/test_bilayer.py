@@ -12,12 +12,16 @@ class TestBilayer(unittest.TestCase):
     def setUpClass(cls):
         # Ensure the resource manager is initialized before any tests run
         cls.C = Config()
-        cls.RM = cls.C.RM        
+        cls.RM = cls.C.RM
         cls.pdbrepository = cls.RM.pdbrepository
         cls.charmmff_content = cls.RM.charmmff_content
         cls.resi_database = CHARMMFFResiDatabase(charmmff_content=cls.charmmff_content)
         cls.resi_database.add_stream('lipid')
         cls.resi_database.add_topology('toppar_all36_moreions.str', streamIDoverride='water_ions')
+
+    @classmethod
+    def tearDownClass(cls):
+        del cls.charmmff_content
 
     def test_bilayer_init_empty(self):
         with patch("pestifer.bilayer.logger.debug") as mock_logger:
