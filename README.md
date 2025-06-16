@@ -26,6 +26,8 @@ Pestifer **includes** the [July 2024 Charmm36 force field](https://mackerell.uma
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
+* 1.13.2
+    * Example 15 added with ring-check
 * 1.13.1
     * changed `make-resi-database` to `make-pdb-collection`
     * updated PDB repository to work with a gzipped folder (all lipids)
