@@ -9,7 +9,7 @@ As an *alternative* to a ``solvate`` task, you can use a ``make_membrane_system`
 
 .. code-block:: console
 
-  $ pestifer show-resources --charmmff lipids
+  $ pestifer show-resources --charmmff pdb
 
 ``Pestifer`` provides 10 distinct conformers for each lipid molecule which are sampled from short vacuum MD simulations.  These are labelled "0" to "9".  By default, conformer "0" is used for each lipid.
 
@@ -106,7 +106,7 @@ This subtask requires a set of specifications for embedding the protein in the b
    - ``xydist`` and ``zdist`` are the lateral and membrane-nomral margins of the simulation box; these values are added to corresponding coordinates extremal atoms to make sure the box is big enough.
    - ``z_head_group`` and ``z_tail_group`` are VMD ``atomselect`` strings that define the center of mass z-coordinate for the membrane-proximal regions of the protein
    - ``z_ref_group`` specifies via VMD atomselection whose center of mass sits at the the middle of the bilayer at a particular ``z_value``.
-   - ``no_orient`` is a boolean that specifies whether the protein should be oriented to the membrane normal.  If ``True``, the protein will be oriented so that its z-axis is aligned with the membrane normal.  If ``False``, the protein will not be oriented, and its orientation will be preserved.  It is ``False`` by default.  When ``False``, the ``z_head_group`` and ``z_tail_group`` selections are required and used to determine the orientation of the protein in the bilayer.`
+   - ``no_orient`` is a boolean that specifies whether the protein should be oriented to the membrane normal.  If ``True``, the protein will be oriented so that its z-axis is aligned with the membrane normal.  If ``False``, the protein will not be oriented, and the orientation it has in its own structure file will be preserved.  It is ``False`` by default.  When ``False``, the ``z_head_group`` and ``z_tail_group`` selections are required and used to determine the orientation of the protein in the bilayer.
 
 
 Example

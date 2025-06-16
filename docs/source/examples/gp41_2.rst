@@ -3,7 +3,13 @@
 Example 15: Trimeric HIV-1 gp41 construct embedded in a model viral bilayer
 ---------------------------------------------------------------------------
 
-This example is the same as :ref:`example 14 <example 14>`, but uses a model viral bilayer instead of a DMPC/DHPC bilayer.  The model viral bilayer is constructed from a mixture of lipids that are commonly found in the viral membrane, such as phosphatidylcholine (PC), phosphatidylethanolamine (PE), sphingomyelin (SM), and cholesterol, and is asymmetric.
+.. figure:: pics/my_6e8w_viral.png
+
+           HIV-1 gp41 (MPER-TM) trimer embedded in a model viral envelope lipid bilayer.  Bilayer is clipped to show the protein, and each protein chain is colored uniquely.  The outer leaflet (top) is composed of 36% Sphingomyelin d18:1/16:0 (CHARMM residue name PSM, colored grey), 17% 3-palmitoyl-2-oleoyl-D-glycero-1-Phosphatidylcholine (POPC, green), and 43% cholesterol (CHL1, white).  The inner leaflet (bottom) is composed of 30% 1-Stearoyl-2-Oleoyl-Phosphatidylethanolamine (SOPE, purple), 18% 1-Stearoyl-2-Oleoyl-Phosphatidylserine (SOPS, blue), 9% 3-palmitoyl-2-oleoyl-D-glycero-1-Phosphatidylethanolamine  (POPE, pink), and 47% cholesterol.
+           :align: center
+
+
+This example is the same as :ref:`example 14 <example 14>`, but uses a model viral bilayer instead of a DMPC/DHPC bilayer.  The model viral bilayer is constructed from a mixture of lipids that are commonly found in the viral membrane.
 
 .. literalinclude:: ../../../pestifer/resources/examples/15-hiv-mper-tm-6e8w-membrane-viral.yaml
     :language: yaml

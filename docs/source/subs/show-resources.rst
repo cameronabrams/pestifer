@@ -17,3 +17,9 @@ To see a list of all PDB input files suitable for ``make_membrane_system`` tasks
 
     $ pestifer show-resources --charmmff pdb
 
+To see their full names:
+
+.. code-block:: console
+
+    $ pestifer show-resources --charmmff pdb --fullnames
+

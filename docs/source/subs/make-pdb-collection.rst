@@ -8,9 +8,33 @@ You can see what RESIs are included in pestifer using the ``show-resources`` sub
 .. code-block:: console
 
     $ pestifer show-resources --charmmff pdb
+    ---------------------------------------------------------------------------
     PDB Collections:
-    PDBCollection(registered_at=2, streamID=water_ions, path=water_ions.tgz, resnames(12)=['BAR', 'CAL', 'CD2', 'CES', 'CLA', 'LIT', 'MG', 'POT', 'RUB', 'SOD', 'TIP3', 'ZN2'])
-    PDBCollection(registered_at=1, streamID=lipid, path=lipid.tgz, resnames(129)=['23SM', 'ASM', 'BSM', 'C6DHPC', 'CER160', 'CER180', 'CER181', 'CER2', 'CER200', 'CER220', 'CER240', 'CER241', 'CER3E', 'CHL1', 'CHSD', 'CHSP', 'DAPA', 'DAPC', 'DAPE', 'DAPG', 'DAPS', 'DCPC', 'DDOPC', 'DDOPE', 'DDOPS', 'DDPC', 'DEPA', 'DEPC', 'DEPE', 'DEPG', 'DEPS', 'DGPA', 'DGPC', 'DGPE', 'DGPG', 'DGPS', 'DIPA', 'DLPA', 'DLPC', 'DLPE', 'DLPG', 'DLPS', 'DLiPC', 'DLiPE', 'DMPA', 'DMPC', 'DMPE', 'DMPG', 'DMPS', 'DNPA', 'DNPC', 'DNPE', 'DNPG', 'DNPS', 'DOPA', 'DOPC', 'DOPE', 'DOPG', 'DOPP1', 'DOPP2', 'DOPP3', 'DOPS', 'DPPA', 'DPPC', 'DPPE', 'DPPG', 'DPPS', 'DSPA', 'DSPC', 'DSPE', 'DSPG', 'DSPS', 'DTPA', 'DUPC', 'DXPC', 'DXPE', 'DYPA', 'DYPG', 'DYPS', 'ERG', 'LLPA', 'LLPC', 'LLPE', 'LLPS', 'LPPC', 'LSM', 'NSM', 'OSM', 'PDOPC', 'PDOPE', 'PLPA', 'PLPC', 'PLPE', 'PLPG', 'PLPS', 'POPA', 'POPC', 'POPE', 'POPG', 'POPP1', 'POPP2', 'POPP3', 'POPS', 'PSM', 'SAPA', 'SAPC', 'SAPE', 'SAPG', 'SAPS', 'SDPA', 'SDPC', 'SDPE', 'SDPG', 'SDPS', 'SITO', 'SLPA', 'SLPC', 'SLPE', 'SLPG', 'SLPS', 'SOPA', 'SOPC', 'SOPE', 'SOPG', 'SOPS', 'SSM', 'STIG', 'TIPA', 'TSPC'])
+    PDBCollection(registered_at=2, streamID=water_ions, path=water_ions.tgz, contains 12 resnames)
+    BAR,    CAL,    CD2,    CES,    CLA,    LIT,     MG, 
+    POT,    RUB,    SOD,   TIP3,    ZN2
+    PDBCollection(registered_at=1, streamID=lipid, path=lipid.tgz, contains 129 resnames)
+    23SM,    ASM,    BSM, C6DHPC, CER160, CER180, CER181, 
+    CER2, CER200, CER220, CER240, CER241,  CER3E,   CHL1, 
+    CHSD,   CHSP,   DAPA,   DAPC,   DAPE,   DAPG,   DAPS, 
+    DCPC,  DDOPC,  DDOPE,  DDOPS,   DDPC,   DEPA,   DEPC, 
+    DEPE,   DEPG,   DEPS,   DGPA,   DGPC,   DGPE,   DGPG, 
+    DGPS,   DIPA,   DLPA,   DLPC,   DLPE,   DLPG,   DLPS, 
+    DLiPC,  DLiPE,   DMPA,   DMPC,   DMPE,   DMPG,   DMPS, 
+    DNPA,   DNPC,   DNPE,   DNPG,   DNPS,   DOPA,   DOPC, 
+    DOPE,   DOPG,  DOPP1,  DOPP2,  DOPP3,   DOPS,   DPPA, 
+    DPPC,   DPPE,   DPPG,   DPPS,   DSPA,   DSPC,   DSPE, 
+    DSPG,   DSPS,   DTPA,   DUPC,   DXPC,   DXPE,   DYPA, 
+    DYPG,   DYPS,    ERG,   LLPA,   LLPC,   LLPE,   LLPS, 
+    LPPC,    LSM,    NSM,    OSM,  PDOPC,  PDOPE,   PLPA, 
+    PLPC,   PLPE,   PLPG,   PLPS,   POPA,   POPC,   POPE, 
+    POPG,  POPP1,  POPP2,  POPP3,   POPS,    PSM,   SAPA, 
+    SAPC,   SAPE,   SAPG,   SAPS,   SDPA,   SDPC,   SDPE, 
+    SDPG,   SDPS,   SITO,   SLPA,   SLPC,   SLPE,   SLPG, 
+    SLPS,   SOPA,   SOPC,   SOPE,   SOPG,   SOPS,    SSM, 
+    STIG,   TIPA,   TSPC
+    ---------------------------------------------------------------------------
+
 
 This shows that there are two PDB collections in the built-in repository: one for lipids and another for water and ions.  The lipid and water/ion residues are extracted from the top-level topology files in CHARMM36.  Additional lipids are included from the ``cholesterol``, ``sphingo``, and ``miscellaneous`` substreams of the lipid stream.  Any of these residues can be referred to in a ``make_membrane_system`` task (See :ref:`subs_runtasks_make_membrane_system` and :ref:`example 14` and :ref:`example 15`).
 
@@ -20,16 +44,209 @@ With this subcommand, the user can build their own PDB collections for pestifer 
 
     $ pestifer make-pdb-collection --streamID lipid
 
-This will initiate a sequence of NAMD runs that will generate a PDB collection for the ``lipid`` stream.  The collection will be stored in a directory called ``lipid/`` in your current working directory, and it will contain subdirectories for each RESI in the lipid stream, each of which contains 10 unique PDB samples of the molecule in various configurations.  If you want to reference this collection in a ``make_membrane_system`` task, you will need to set the ``pdbcollections`` variable in your config file to point to the directory where the collection is stored.
+This will initiate a sequence of NAMD runs that will generate a PDB collection for the ``lipid`` stream.  The collection will be stored in a directory called ``lipid/`` in your current working directory, and it will contain subdirectories for each RESI in the lipid stream, each of which contains 10 unique PDB samples of the molecule in various configurations.  If you want to reference this collection in a ``make_membrane_system`` task, you will need to add it to the list ``pdbcollections`` in your config file to point to the directory where the collection is stored.
 
+Example
++++++++
 
-where ``stream-name`` is the name of the CHARMM36 molecule type (e.g., lipid) and ``resi-name`` is a RESI defined in the appropriate stream file.
+Suppose you want to use lipid residues defined in the CHARMMFF stream file ``toppar_all36_lipid_yeast.str``.  Consider the following commands:
 
-``make-resi-database`` has a lot of options; the defaults provided have been tested on all lipid RESIs in the CHARMM36FF and seem adequate.
+.. code-block:: console
 
-``make-resi-database`` will generate a directory called ``data/<stream-name>/<resi-name>/``, under which you will find 10 unique PDB samples of the molecule in various configurations.
+    $ mkdir ~/my_pestifer_project
+    $ cd ~/my_pestifer_project
+    $ pestifer make-pdb-collection --streamID lipid --substreamID yeast  --output-dir lipid-yeast
 
-A ``bilayer`` task can be told which of these configs to use when packing a system.  To use your own locally generated PDBs from ``make-resi-database``, you need to declare the location of your local database in your config file.  To do this, you need to assign the value ``data`` to the ``pdb_depot`` variable in the ``paths`` section.  You build a database outside your build directory to collect molecules you want to use in multiple different builds, and just refer to that relative to your build directory.
+If you run this in a clean directory, this will generated a subdirectory ``lipid-yeast/`` that contains the new PDB collection.  Each RESI subdirectory will contain 10 PDB files, each of which represents a different configuration of the molecule, along with an ``info.yaml`` file that contains important metadata about the RESI:  
 
-A directory tree recognizable as a PDB depot has subdirectories that are known CHARMM36FF streams, each of which can contain just naked PDB files with names of the form ``<RESI>.pdb``, or subdirectories for each RESI with the configurational samples mentioned above. 
+.. code-block:: text
 
+    lipid-yeast/
+    ├── DYPC
+    │   ├── DYPC-00.pdb
+    │   ├── DYPC-01.pdb
+    │   ├── DYPC-02.pdb
+    │   ├── DYPC-03.pdb
+    │   ├── DYPC-04.pdb
+    │   ├── DYPC-05.pdb
+    │   ├── DYPC-06.pdb
+    │   ├── DYPC-07.pdb
+    │   ├── DYPC-08.pdb
+    │   ├── DYPC-09.pdb
+    │   ├── DYPC-init.pdb
+    │   ├── DYPC-init.psf
+    │   ├── DYPC-noh-00.pdb
+    │   ├── DYPC-noh-01.pdb
+    │   ├── DYPC-noh-02.pdb
+    │   ├── DYPC-noh-03.pdb
+    │   ├── DYPC-noh-04.pdb
+    │   ├── DYPC-noh-05.pdb
+    │   ├── DYPC-noh-06.pdb
+    │   ├── DYPC-noh-07.pdb
+    │   ├── DYPC-noh-08.pdb
+    │   ├── DYPC-noh-09.pdb
+    │   ├── info.yaml
+    │   └── init.tcl
+    ├── DYPE
+    │   ├── DYPE-00.pdb
+    │   ├── DYPE-01.pdb
+    │   ├── DYPE-02.pdb
+    │   ├── DYPE-03.pdb
+    │   ├── DYPE-04.pdb
+    │   ├── DYPE-05.pdb
+    │   ├── DYPE-06.pdb
+    │   ├── DYPE-07.pdb
+    │   ├── DYPE-08.pdb
+    │   ├── DYPE-09.pdb
+    │   ├── DYPE-init.pdb
+    │   ├── DYPE-init.psf
+    │   ├── DYPE-noh-00.pdb
+    │   ├── DYPE-noh-01.pdb
+    │   ├── DYPE-noh-02.pdb
+    │   ├── DYPE-noh-03.pdb
+    │   ├── DYPE-noh-04.pdb
+    │   ├── DYPE-noh-05.pdb
+    │   ├── DYPE-noh-06.pdb
+    │   ├── DYPE-noh-07.pdb
+    │   ├── DYPE-noh-08.pdb
+    │   ├── DYPE-noh-09.pdb
+    │   ├── info.yaml
+    │   └── init.tcl
+    ├── PYPE
+    │   ├── info.yaml
+    │   ├── init.tcl
+    │   ├── PYPE-00.pdb
+    │   ├── PYPE-01.pdb
+    │   ├── PYPE-02.pdb
+    │   ├── PYPE-03.pdb
+    │   ├── PYPE-04.pdb
+    │   ├── PYPE-05.pdb
+    │   ├── PYPE-06.pdb
+    │   ├── PYPE-07.pdb
+    │   ├── PYPE-08.pdb
+    │   ├── PYPE-09.pdb
+    │   ├── PYPE-init.pdb
+    │   ├── PYPE-init.psf
+    │   ├── PYPE-noh-00.pdb
+    │   ├── PYPE-noh-01.pdb
+    │   ├── PYPE-noh-02.pdb
+    │   ├── PYPE-noh-03.pdb
+    │   ├── PYPE-noh-04.pdb
+    │   ├── PYPE-noh-05.pdb
+    │   ├── PYPE-noh-06.pdb
+    │   ├── PYPE-noh-07.pdb
+    │   ├── PYPE-noh-08.pdb
+    │   └── PYPE-noh-09.pdb
+    ├── YOPA
+    │   ├── info.yaml
+    │   ├── init.tcl
+    │   ├── YOPA-00.pdb
+    │   ├── YOPA-01.pdb
+    │   ├── YOPA-02.pdb
+    │   ├── YOPA-03.pdb
+    │   ├── YOPA-04.pdb
+    │   ├── YOPA-05.pdb
+    │   ├── YOPA-06.pdb
+    │   ├── YOPA-07.pdb
+    │   ├── YOPA-08.pdb
+    │   ├── YOPA-09.pdb
+    │   ├── YOPA-init.pdb
+    │   ├── YOPA-init.psf
+    │   ├── YOPA-noh-00.pdb
+    │   ├── YOPA-noh-01.pdb
+    │   ├── YOPA-noh-02.pdb
+    │   ├── YOPA-noh-03.pdb
+    │   ├── YOPA-noh-04.pdb
+    │   ├── YOPA-noh-05.pdb
+    │   ├── YOPA-noh-06.pdb
+    │   ├── YOPA-noh-07.pdb
+    │   ├── YOPA-noh-08.pdb
+    │   └── YOPA-noh-09.pdb
+    ├── YOPC
+    │   ├── info.yaml
+    │   ├── init.tcl
+    │   ├── YOPC-00.pdb
+    │   ├── YOPC-01.pdb
+    │   ├── YOPC-02.pdb
+    │   ├── YOPC-03.pdb
+    │   ├── YOPC-04.pdb
+    │   ├── YOPC-05.pdb
+    │   ├── YOPC-06.pdb
+    │   ├── YOPC-07.pdb
+    │   ├── YOPC-08.pdb
+    │   ├── YOPC-09.pdb
+    │   ├── YOPC-init.pdb
+    │   ├── YOPC-init.psf
+    │   ├── YOPC-noh-00.pdb
+    │   ├── YOPC-noh-01.pdb
+    │   ├── YOPC-noh-02.pdb
+    │   ├── YOPC-noh-03.pdb
+    │   ├── YOPC-noh-04.pdb
+    │   ├── YOPC-noh-05.pdb
+    │   ├── YOPC-noh-06.pdb
+    │   ├── YOPC-noh-07.pdb
+    │   ├── YOPC-noh-08.pdb
+    │   └── YOPC-noh-09.pdb
+    ├── YOPE
+    │   ├── info.yaml
+    │   ├── init.tcl
+    │   ├── YOPE-00.pdb
+    │   ├── YOPE-01.pdb
+    │   ├── YOPE-02.pdb
+    │   ├── YOPE-03.pdb
+    │   ├── YOPE-04.pdb
+    │   ├── YOPE-05.pdb
+    │   ├── YOPE-06.pdb
+    │   ├── YOPE-07.pdb
+    │   ├── YOPE-08.pdb
+    │   ├── YOPE-09.pdb
+    │   ├── YOPE-init.pdb
+    │   ├── YOPE-init.psf
+    │   ├── YOPE-noh-00.pdb
+    │   ├── YOPE-noh-01.pdb
+    │   ├── YOPE-noh-02.pdb
+    │   ├── YOPE-noh-03.pdb
+    │   ├── YOPE-noh-04.pdb
+    │   ├── YOPE-noh-05.pdb
+    │   ├── YOPE-noh-06.pdb
+    │   ├── YOPE-noh-07.pdb
+    │   ├── YOPE-noh-08.pdb
+    │   └── YOPE-noh-09.pdb
+    └── YOPS
+        ├── info.yaml
+        ├── init.tcl
+        ├── YOPS-00.pdb
+        ├── YOPS-01.pdb
+        ├── YOPS-02.pdb
+        ├── YOPS-03.pdb
+        ├── YOPS-04.pdb
+        ├── YOPS-05.pdb
+        ├── YOPS-06.pdb
+        ├── YOPS-07.pdb
+        ├── YOPS-08.pdb
+        ├── YOPS-09.pdb
+        ├── YOPS-init.pdb
+        ├── YOPS-init.psf
+        ├── YOPS-noh-00.pdb
+        ├── YOPS-noh-01.pdb
+        ├── YOPS-noh-02.pdb
+        ├── YOPS-noh-03.pdb
+        ├── YOPS-noh-04.pdb
+        ├── YOPS-noh-05.pdb
+        ├── YOPS-noh-06.pdb
+        ├── YOPS-noh-07.pdb
+        ├── YOPS-noh-08.pdb
+        └── YOPS-noh-09.pdb
+
+    7 directories, 168 files
+
+The files with ``noh`` in their names are the same PDB files, but with all hydrogens removed.  The ``init.pdb`` and ``init.psf`` files are the initial coordinates and topology of the molecule, and the ``init.tcl`` file is a psfgen script used to generate those two files.
+
+Suppose you want to use the PDB collection you just created in a ``make_membrane_system`` task.  You would need include the path in the ``pdbcollections`` list under the toplevel ``charmmff`` section:
+
+.. code-block:: yaml
+
+    charmmff:
+      pdbcollections:
+        - ~/my_pestifer_project/lipid-yeast
+        

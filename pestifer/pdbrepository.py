@@ -212,6 +212,10 @@ class PDBInput:
     def get_parameters(self):
         return self.info.get('parameters',[])
 
+    def longname(self):
+        return self.info.get('synonym','').strip() or self.name
+        
+
 class PDBCollection:
     """ A PDBCollection is a collection of PDBInput objects, each of which represents a residue in the CHARMM force field.  It is used to manage the residues in a single stream, and it can be used to query for residues by name. 
 
@@ -268,9 +272,20 @@ class PDBCollection:
             os.chdir(cwd)
         self.streamID=streamID
 
-    def __repr__(self):
+    def show(self,fullnames=False):
         """ Return a string representation of the PDBCollection. """
-        return f'PDBCollection(registered_at={self.registration_place}, streamID={self.streamID}, path={self.path}, resnames({len(self.resnames)})={list(sorted(list(self.resnames.keys())))})'
+        retstr=f'PDBCollection(registered_at={self.registration_place}, streamID={self.streamID}, path={self.path}, contains {len(self.resnames)} resnames)\n'
+        if fullnames:
+            for resname in sorted(self.resnames.keys()):
+                retstr += f'  {self.resnames[resname].get("synonym",""):>66s} ({resname})\n'
+        else:
+            for i,resname in enumerate(sorted(self.resnames.keys())):
+                retstr += f'{resname:>6s}'
+                if i<len(self.resnames)-1:
+                    retstr+= ', '
+                if (i+1) % 7==0:
+                    retstr += '\n'
+        return retstr
 
     def __contains__(self,resname):
         """ Check if a resname is in the collection. """
@@ -322,13 +337,13 @@ class PDBRepository:
         self.collections[collection_key].registration_place=len(self.registration_order)
         logger.debug(f'Added collection {collection_key} with {len(collection.resnames)} residues.')
 
-    def show(self,out_stream=print):
-        out_stream('----------------------------------------------------------------------')
+    def show(self,out_stream=print,fullnames=False):
+        out_stream('-'*75)
         out_stream('PDB Collections:')
         for cname in self.registration_order[::-1]:
             coll=self.collections[cname]
-            out_stream(str(coll))
-        out_stream('----------------------------------------------------------------------')
+            out_stream(coll.show(fullnames=fullnames))
+        out_stream('-'*75)
 
     def __contains__(self,resname):
         """ Check if a resname is in any of the collections. """
