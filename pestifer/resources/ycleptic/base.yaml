@@ -103,6 +103,17 @@ directives:
                 - /path/to/my/custom/lipid/collection/
                 - /path/to/my/custom/ligand/collection/
         default: []
+      - name: resi-fullnames
+        type: dict
+        text: Full names for RESI's that are missing full names in the standard charmmff files
+        docs:
+          text: |
+            This directive allows you to specify full names for RESI codes that are used in your custom charmmff files.
+            This is useful for ensuring that the full names are consistent with the rest of your simulation setup.
+        default:
+          DIPA: di-alpha-linoleoyl phosphatidic acid
+          DTPA: di-hexadecatrienoyl phosphatidic acid
+          TIPA: di-palmitoleoyl-2-linoleoyl phosphatidic acid
   - name: psfgen
     type: dict
     text: Specifications for the psfgen plugin

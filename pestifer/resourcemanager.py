@@ -33,7 +33,7 @@ class ResourceManager:
             retstr+=f'        {p.replace(cp+os.sep,"")+os.sep}\n'
         return retstr
 
-    def show(self,out_stream=print,components={},fullnames=False):
+    def show(self,out_stream=print,components={},fullnames=False,missing_fullnames={}):
         for c,spec in components.items():
             if not c in self.base_resources:
                 logger.warning(f'{c} is not a base resource; expected one of {", ".join(self.base_resources)}')
@@ -47,7 +47,7 @@ class ResourceManager:
                 if 'toppar' in spec:
                     out_stream(f'{self.charmmff_content.tarfilename}')
                 if 'pdb' in spec:
-                    self.pdbrepository.show(out_stream,fullnames=fullnames)
+                    self.pdbrepository.show(out_stream,fullnames=fullnames,missing_fullnames=missing_fullnames)
                 if 'custom' in spec:
                     path=self.get_charmmff_customdir()
                     with open(os.path.join(path,'00PESTIFER-README.txt'),'r') as f:

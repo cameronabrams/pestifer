@@ -216,7 +216,8 @@ def cleanup(args,**kwargs):
     logger.debug(f'Files removed: {removed}')
 
 def show_resources(args,**kwargs):
-    r=ResourceManager()
+    C=Config()
+    r=C.RM
     specs={}
     for c in r.base_resources:
         if hasattr(args,c):
@@ -225,7 +226,7 @@ def show_resources(args,**kwargs):
                 specs[c]=val
     if args.user_pdbcollection:
         r.update_pdbrepository(args.user_pdbcollection)
-    r.show(out_stream=print,components=specs,fullnames=args.fullnames)
+    r.show(out_stream=print,components=specs,fullnames=args.fullnames,missing_fullnames=C['user']['charmmff'].get('resi-fullnames',{}))
 
 def inittcl(args):
     c=Config()

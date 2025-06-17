@@ -272,12 +272,15 @@ class PDBCollection:
             os.chdir(cwd)
         self.streamID=streamID
 
-    def show(self,fullnames=False):
+    def show(self,fullnames=False,missing_fullnames={}):
         """ Return a string representation of the PDBCollection. """
         retstr=f'PDBCollection(registered_at={self.registration_place}, streamID={self.streamID}, path={self.path}, contains {len(self.resnames)} resnames)\n'
         if fullnames:
             for resname in sorted(self.resnames.keys()):
-                retstr += f'  {self.resnames[resname].get("synonym",""):>66s} ({resname})\n'
+                fullname=self.resnames[resname].get('synonym','')
+                if not fullname:
+                    fullname=missing_fullnames.get(resname,'')
+                retstr += f'  {fullname:>66s} ({resname})\n'
         else:
             for i,resname in enumerate(sorted(self.resnames.keys())):
                 retstr += f'{resname:>6s}'
@@ -337,12 +340,12 @@ class PDBRepository:
         self.collections[collection_key].registration_place=len(self.registration_order)
         logger.debug(f'Added collection {collection_key} with {len(collection.resnames)} residues.')
 
-    def show(self,out_stream=print,fullnames=False):
+    def show(self,out_stream=print,fullnames=False,missing_fullnames={}):
         out_stream('-'*75)
         out_stream('PDB Collections:')
         for cname in self.registration_order[::-1]:
             coll=self.collections[cname]
-            out_stream(coll.show(fullnames=fullnames))
+            out_stream(coll.show(fullnames=fullnames,missing_fullnames=missing_fullnames))
         out_stream('-'*75)
 
     def __contains__(self,resname):
