@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "pestifer"
 # BREAKING_CHANGE.NEW_FEATURE.BUGFIX
-version = "1.13.3"
+version = "1.14.0"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
 ]

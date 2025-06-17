@@ -10,6 +10,7 @@ Examples
   examples/bpti2
   examples/bpti3
   examples/bpti4
+  examples/hivprotease
   examples/env
   examples/env_4tvp
   examples/8fad

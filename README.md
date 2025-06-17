@@ -26,6 +26,9 @@ Pestifer **includes** the [July 2024 Charmm36 force field](https://mackerell.uma
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
+* 1.14.0
+    * Implemented standard CHARMM36 patches as mods
+    * Added HIV-1 protease 1f7a as a new example (now there are 16!)
 * 1.13.3
     * Allow config to contain names of otherwise unnamed lipids in CHARMMFF
 * 1.13.2

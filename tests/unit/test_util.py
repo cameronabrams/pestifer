@@ -3,6 +3,7 @@ import unittest
 from pestifer.tasks.psfgen import *
 import os
 from pestifer.objs.mutation import Mutation
+from pestifer.objs.patch import Patch
 from pestifer import objs
 from pestifer.command import Command
 from pestifer.util.util import protect_str_arg
@@ -67,8 +68,9 @@ exit
 
     def test_inspect_package_dir(self):
         x,y=inspect_package_dir(os.path.dirname(objs.__file__),key='List')
-        self.assertEqual(len(x),15)
+        self.assertEqual(len(x),16)
         self.assertEqual(x['Mutation'],Mutation)
+        self.assertEqual(x['Patch'],Patch)
 
     def test_replace(self):
         starting_dict={

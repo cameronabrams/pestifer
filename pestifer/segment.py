@@ -7,6 +7,7 @@ from .baseobj import AncestorAwareObj, AncestorAwareObjList
 from .objs.mutation import MutationList
 from .objs.cfusion import CfusionList
 from .objs.graft import GraftList
+from .objs.patch import PatchList
 from .config import charmm_resname_of_pdb_resname
 from .residue import Residue,ResidueList
 from .util.util import reduce_intlist
@@ -14,8 +15,8 @@ from .scriptwriters import Psfgen
 
 class Segment(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','specs']
-    opt_attr=AncestorAwareObj.opt_attr+['mutations','deletions','grafts','attachments','psfgen_segname']
-    inheritable_mods=['mutations','Cfusions','grafts']
+    opt_attr=AncestorAwareObj.opt_attr+['mutations','deletions','grafts','patches','attachments','psfgen_segname']
+    inheritable_mods=['mutations','patches','Cfusions','grafts']
     def __init__(self,specs,input_obj,segname):
         if type(input_obj)==dict:
             input_dict=input_obj
@@ -199,7 +200,7 @@ class Segment(AncestorAwareObj):
         for m in seg_mutations:
             logger.debug(str(m))
         seg_Cfusions=seqmods.get('Cfusions',CfusionList([]))
-
+        seg_patches=seqmods.get('patches',PatchList([]))
         W.banner(f'Segment {image_seglabel} begins')
         logger.debug(f'Segment {image_seglabel} begins')
         for sf in seg_Cfusions:
@@ -284,6 +285,10 @@ class Segment(AncestorAwareObj):
                     prior_run=ResidueList(self.residues[prior_b.bounds[0]:prior_b.bounds[1]+1])
                     W.comment(f'Seeding orientation of model-built loop starting at {str(this_run[0])} from {str(prior_run[-1])}')
                     W.addline(f'{this_run.caco_str(prior_run,image_seglabel,parent_molecule.molid_varname,transform.tmat)}')
+        if len(seg_patches)>0:
+            W.banner(f'Patches for segment {image_seglabel}')
+        for patch in seg_patches:
+            W.addline(f'patch {patch.patchname} {image_seglabel}:{patch.resseqnum}{patch.insertion}')
         for sc in seg_Cfusions:
             sc.write_post_segment(W)
         W.banner('Intra-segmental terminal patches')

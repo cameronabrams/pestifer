@@ -225,6 +225,10 @@ class Psfgen(VMD):
         for t in self.charmmff_config['standard']['topologies']+self.charmmff_config['custom']['topologies']:
             self.charmmff.copy_charmmfile_local(t)
             topology_local.append(t)
+        # the order of the topologies is imporant, and the top_all35_ethers.rtf should be last
+        if 'top_all35_ethers.rtf' in topology_local:
+            topology_local.remove('top_all35_ethers.rtf')
+            topology_local.append('top_all35_ethers.rtf')
         logger.debug(f'local topologies: {topology_local}')
         return topology_local
 
@@ -237,6 +241,10 @@ class Psfgen(VMD):
             assert os.sep not in at,f'Topology file {at} must not contain a path.'
             self.charmmff.copy_charmmfile_local(at)
             self.topologies.append(at)
+        self.topologies=list(set(self.topologies))  # remove duplicates
+        if 'top_all35_ethers.rtf' in self.topologies:
+            self.topologies.remove('top_all35_ethers.rtf')
+            self.topologies.append('top_all35_ethers.rtf')
         for t in self.topologies:
             self.addline(f'topology {t}')
         for pdba in self.psfgen_config['aliases']:

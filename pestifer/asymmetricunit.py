@@ -21,6 +21,7 @@ from .objs.link import Link, LinkList
 from .objs.mutation import Mutation, MutationList
 from .objs.seqadv import Seqadv, SeqadvList
 from .objs.ssbond import SSBond, SSBondList
+from .objs.patch import Patch, PatchList
 # from .objs.ssbonddelete import SSBondDelete, SSBondDeleteListe
 # from .objs.substitution import Substitution, SubstitutionList
 from .objs.ter import Ter, TerList
@@ -57,6 +58,7 @@ class AsymmetricUnit(AncestorAwareObj):
             links=LinkList([])
             ters=TerList([])
             seqadvs=SeqadvList([])
+            patches=PatchList([])
             if type(pr)==dict: # PDB format
                 # minimal pr has ATOMS
                 if 'model' in sourcespecs:
@@ -130,6 +132,9 @@ class AsymmetricUnit(AncestorAwareObj):
             userssbonds=topomods.get('ssbonds',SSBondList([]))
             ssbonds.extend(userssbonds)
 
+            userpatches=topomods.get('patches',[])
+            patches.extend(userpatches)
+
             # Build the list of residues
             fromAtoms=ResidueList(atoms)
             fromEmptyResidues=ResidueList(missings)
@@ -180,9 +185,13 @@ class AsymmetricUnit(AncestorAwareObj):
             # Give each Seqadv a residue identifier
             ignored_seqadvs=seqadvs.assign_residues(residues)
             ignored_ssbonds=ssbonds.assign_residues(residues)
+            ignored_patches=patches.assign_residues(residues)
             logger.debug(f'{len(ssbonds)} ssbonds after assign_residues')
             for b in ssbonds:
                 logger.debug(f'{b}')
+            logger.debug(f'{len(patches)} patches after assign_residues')
+            for p in patches:
+                logger.debug(f'{p}')
             more_ignored_residues,ignored_links=links.assign_residues(residues)
             logger.debug(f'{len(links)} links after assign_residues')
             for l in links:
@@ -199,6 +208,7 @@ class AsymmetricUnit(AncestorAwareObj):
                 logger.debug(f'    {len(ignored_residues)} residues, {len(residues)} remain')
                 logger.debug(f'    {len(ignored_seqadvs)} seqadvs, {len(seqadvs)} remain')
                 logger.debug(f'    {len(ignored_ssbonds)} ssbonds, {len(ssbonds)} remain')
+                logger.debug(f'    {len(ignored_patches)} patches, {len(patches)} remain')
                 logger.debug(f'    {len(ignored_links)} links, {len(links)} remain')
                 logger.debug(f'    {len(ignored_grafts)} grafts, {len(grafts)} remain')
 
@@ -273,6 +283,7 @@ class AsymmetricUnit(AncestorAwareObj):
             ssbonds=objmanager.injest(ssbonds,overwrite=True)
             links=objmanager.injest(links,overwrite=True)
             grafts=objmanager.injest(grafts,overwrite=True)
+            patches=objmanager.injest(patches,overwrite=True)
             
             segments.inherit_mods(objmanager)
 

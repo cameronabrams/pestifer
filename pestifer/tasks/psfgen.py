@@ -93,10 +93,20 @@ class PsfgenTask(BaseTask):
                     vm.runscript()
                     self.save_state(exts=['pdb'])
 
+    def patch_topologies(self):
+        objmanager=self.base_molecule.objmanager
+        seqmods=objmanager.get('seq',{})
+        patches=seqmods.get('patches',[])
+        CC=self.config.RM.charmmff_content
+        new_topfiles=set()
+        for patch in patches:
+            new_topfiles.add(CC.get_topfile_of_patchname(patch.patchname))
+        return list(new_topfiles)
+
     def psfgen(self):
         self.next_basename('build')
         pg=self.writers['psfgen']
-        pg.newscript(self.basename,packages=['PestiferCRot'])
+        pg.newscript(self.basename,packages=['PestiferCRot'],additional_topologies=self.patch_topologies())
         pg.set_molecule(self.base_molecule,altcoords=self.specs.get('source',{}).get('altcoords',None))
         pg.describe_molecule(self.base_molecule)
         pg.writescript(self.basename)

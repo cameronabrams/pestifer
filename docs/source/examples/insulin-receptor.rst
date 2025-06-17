@@ -1,7 +1,7 @@
-.. _example 12:
+.. _example 13:
 
-Example 12: Insulin receptor ectodomain
+Example 13: Insulin receptor ectodomain
 ---------------------------------------
 
-.. literalinclude:: ../../../pestifer/resources/examples/12-inuslin-receptor-ectodomain.yaml
+.. literalinclude:: ../../../pestifer/resources/examples/13-insulin-receptor-ectodomain.yaml
     :language: yaml

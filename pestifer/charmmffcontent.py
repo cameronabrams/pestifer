@@ -1,6 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 import logging
 import os
+import re
 import tarfile
 from .charmmtop import CharmmMassRecord, CharmmMasses, CharmmTopResi
 from .pdbrepository import PDBRepository
@@ -8,19 +9,22 @@ from .stringthings import my_logger
 
 logger=logging.getLogger(__name__)
 
+import re
+
+def extract_resi_pres_blocks(text, keywords=('RESI', 'PRES')):
+    keyword_pattern = '|'.join(re.escape(k) for k in keywords)
+    # Include ATOMS and BONDS as additional block-end sentinels
+    terminator_pattern = rf'^(?:{keyword_pattern}|ATOMS|BONDS|ANGLES|DIHEDRALS)\b'
+    # Match starting with RESI or PRES, ending before the next RESI, PRES, ATOMS, or EOF
+    pattern = rf'(?i)^(({keyword_pattern})\s.*?)(?={terminator_pattern}|\Z)'
+    matches = re.finditer(pattern, text, flags=re.DOTALL | re.MULTILINE)
+    return [m.group(1).strip() for m in matches]
+
+def extract_mass_lines(file_contents):
+    return [line for line in file_contents.splitlines() if line.strip().upper().startswith("MASS")]
+
 comment_these_out=['set','if','WRNLEV','BOMLEV']
-ovr=""" 
-      - name: overrides
-        type: dict
-        text: Some overrides to recategorize residues from one stream to another
-        directives:
-          - name: substreams
-            type: dict
-            text: stream overrides for certain resids
-            default:
-              C6DHPC: lipid
-              C7DHPC: lipid
-"""
+
 class CHARMMFFContent:
     """ A class for handling all CHARMM force field content.  The CHARMM force field is
     stored in a tarball downloaded directly from the MacKerell lab at the University of Michigan.
@@ -100,6 +104,7 @@ class CHARMMFFContent:
         check_basenames=list(self.filenamemap.keys())
         assert len(check_basenames)==len(set(check_basenames)),f'found duplicate basenames in charmmff tarball: {check_basenames}'
         logger.debug(f'Loaded {len(self.filenamemap)} files from CHARMM force field tarball {tarfilename}; subdir-streams: {self.streams}')
+        self.all_topology_files=[x for x in self.filenamemap.values() if x.endswith('.str') or x.endswith('.rtf')]
 
     def copy_charmmfile_local(self,basename):
         """ Given a basename for any charmmff file, extract from the existing unaltered charmmff installation
@@ -152,73 +157,58 @@ class CHARMMFFContent:
     
     def lines_from_topfile(self,topfile):
         """ Extract the lines from a top file """
-        lines=[]
-        # logger.debug(f'Extracting lines from {topfile}')
+        lines=self.contents_from_topfile(topfile).splitlines()
+        return lines
+
+    def contents_from_topfile(self,topfile):
+        """ Extract the contents from a top file """
+        content=''
+        # logger.debug(f'Extracting content from {topfile}')
         for m in self.tarmembers:
             if topfile==m.name:
                 # logger.debug(f'Found {topfile} in tarfile member {m.name}')
                 with self.tarfile.extractfile(m) as f:
-                    lines=f.read().decode().splitlines()
+                    content=f.read().decode()
                     break
-        if not lines:
+        if not content:
             mapped_name=self.filenamemap.get(topfile,None)
             if mapped_name is not None:
                 # logger.debug(f'Extracting lines from {topfile} using mapped name {mapped_name}')
                 with open(mapped_name,'r') as f:
-                    lines=f.read().splitlines()
-        return lines
-
+                    content=f.read()
+        return content
+    
     def masses_from_topfile(self,topfile):
         masses=[]
-        lines=self.lines_from_topfile(topfile)
+        lines=extract_mass_lines(self.contents_from_topfile(topfile))
         for i in range(len(lines)):
-            if lines[i].startswith('MASS'):
-                masses.append(CharmmMassRecord(lines[i]))
+            masses.append(CharmmMassRecord(lines[i]))
         # for m in masses:
         #     logger.debug(f'Found mass record: \'{str(m)}\'')
         return CharmmMasses(masses)
 
     def resis_from_topfile(self,topfile,metadata={}):
-        """ Extract the residues from a top file """
+        blocks=extract_resi_pres_blocks(self.contents_from_topfile(topfile))
         R=[]
-        lines=self.lines_from_topfile(topfile)
-        residx=[]
-        for i in range(len(lines)):
-            if lines[i].upper().startswith('RESI') or lines[i].upper().startswith('PRES'):
-                residx.append(i)
-        if not residx:
-            logger.debug(f'No RESI\'s found in {topfile}')
-            return R
-        # logger.debug(f'{topfile}: residx {residx}')
-        bufs=[]
-        pbufs=[]
-        for ll,lr in zip(residx[:-1],residx[1:]):
-            if lines[ll].upper().startswith('RESI'):
-                bufs.append('\n'.join(lines[ll:lr]))
-            elif lines[ll].upper().startswith('PRES'):
-                pbufs.append('\n'.join(lines[ll:lr]))
-        endidx=len(lines)
-        for i,l in enumerate(lines[residx[-1]:]):
-            ll=l.upper()
-            if ll.startswith('END'):
-                endidx=residx[-1]+i
-                break
-        if lines[residx[-1]].upper().startswith('RESI'):
-            bufs.append('\n'.join(lines[residx[-1]:endidx]))
-        elif lines[residx[-1]].upper().startswith('PRES'):
-            pbufs.append('\n'.join(lines[residx[-1]:endidx]))
-        logger.debug(f'Found {len(bufs)} RESI\'s in {topfile}')
-        logger.debug(f'Found {len(pbufs)} PRES\'s in {topfile}')
-        for block in bufs:
-            resi=CharmmTopResi(block,metadata=metadata)
-            if hasattr(resi,'bad'):
-                logger.debug(f'Found bad residue in {topfile} block:\n{block}')
-                continue
-            else:
-                R.append(resi)
-        # ignoring PRES blocks for now (1.13.1)
-        logger.debug(f'Returning {len(R)} residues from {topfile}')
+        for block in blocks:
+            # logger.debug(block)
+            key=block.split()[0].upper()
+            # if key!='RESI':
+            #     logger.debug(f'Expected RESI block, but found {key} in {topfile}')
+            resi=CharmmTopResi(block,key=key)
+            resi.metadata=metadata
+            R.append(resi)
         return R
+
+    def get_topfile_of_patchname(self,patchname):
+        """ Given a patch name, return the top file that contains it """
+        for topfile in self.all_topology_files:
+            lines=self.lines_from_topfile(topfile)
+            for line in lines:
+                if line.upper().startswith('PRES') and patchname in line:
+                    logger.debug(f'Found patch {patchname} in {topfile}')
+                    return os.path.basename(topfile)
+        return None
 
 class CHARMMFFStreamID:
     # patterns: par_all3x_STREAM.prm (x=5,6), top_all3x_STREAM.rtf (x=5,6), toppar_STREAM.str, toppar_all36_STREAM_SUBSTREAM.str
@@ -264,6 +254,7 @@ class CHARMMFFResiDatabase:
         logger.debug(f'Initializing CHARMMFFResiDatabase with extra streamIDs {streamIDs}')
         self.charmmff_content=charmmff_content
         self.residues={}
+        self.patches={}
         self.masses=CharmmMasses({})
         self.streamIDs=streamIDs
         self.load_from_toplevels()
@@ -297,9 +288,11 @@ class CHARMMFFResiDatabase:
 
     def load_from_toplevels(self):
         for topfile in list(self.charmmff_content.toplevel_top.values())+list(self.charmmff_content.toplevel_toppar.values()):
-            new_resis=self.load_from_topfile(topfile)
+            new_resis,new_patches=self.load_from_topfile(topfile)
             logger.debug(f'Loaded {len(new_resis)} residues from toplevel {topfile}')
             self.residues.update({x.resname:x for x in new_resis})
+            logger.debug(f'Loaded {len(new_patches)} patches from toplevel {topfile}')
+            self.patches.update({x.resname:x for x in new_patches})
 
     def load_from_stream(self,streamID):
         """ Load residues from a specific stream """
@@ -308,10 +301,11 @@ class CHARMMFFResiDatabase:
             return
         logger.debug(f'Loading resis from stream {streamID}')
         for topfile in self.charmmff_content.streamfiles[streamID].values():
-            this_residues=self.load_from_topfile(topfile)
-            logger.debug(f'Loaded {len(this_residues)} residues from {topfile} in stream {streamID}')
+            this_residues,this_patches=self.load_from_topfile(topfile)
+            logger.debug(f'Loaded {len(this_residues)} residues and {len(this_patches)} patches from {topfile} in stream {streamID}')
             self.residues.update({x.resname:x for x in this_residues})
-    
+            self.patches.update({x.resname:x for x in this_patches})
+
     def get_resnames_of_streamID(self,streamID,substreamID=None):
         """ Get a list of residue names in a specific stream """
         if streamID not in self.streamIDs:
@@ -327,15 +321,17 @@ class CHARMMFFResiDatabase:
         cstr=CHARMMFFStreamID(topfile)
         logger.debug(f'topfile {topfile} CHARMMFFStream: \'{cstr.streamID}\' \'{cstr.substreamID}\'')
         self.masses.update(self.charmmff_content.masses_from_topfile(topfile))
-        this_residues=self.charmmff_content.resis_from_topfile(topfile,metadata=dict(
+        all_resis=self.charmmff_content.resis_from_topfile(topfile,metadata=dict(
                 streamID=cstr.streamID,
                 substreamID=cstr.substreamID,
                 charmmtopfile=topfile
             ))
+        this_residues=[x for x in all_resis if x.key=='RESI']
+        this_patches=[x for x in all_resis if x.key=='PRES']
         for resi in this_residues:
             if resi.resname in self.residues:
                 logger.debug(f'Residue {resi.resname} found in {topfile} will overwrite already loaded {resi.resname} from {self.residues[resi.resname].metadata["charmmtopfile"]}')
-        return this_residues
+        return this_residues,this_patches
 
     def tally_masses(self):
         # atom mass records are stored throughout the topfiles, so we will only set the masses once all tops are read in
@@ -352,12 +348,13 @@ class CHARMMFFResiDatabase:
         self.tally_masses()
 
     def add_topology(self,topfile,streamIDoverride=None):
-        new_resis=self.load_from_topfile(topfile)
+        new_resis,new_patches=self.load_from_topfile(topfile)
         if streamIDoverride is not None:
-            for resi in new_resis:
+            for resi in new_resis+new_patches:
                 resi.metadata['streamID']=streamIDoverride
                 resi.metadata['substreamID']=''
         self.residues.update({x.resname:x for x in new_resis})
+        self.patches.update({x.resname:x for x in new_patches})
         if streamIDoverride is not None and streamIDoverride not in self.streamIDs:
             self.streamIDs.append(streamIDoverride)
         self.tally_masses()

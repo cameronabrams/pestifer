@@ -49,7 +49,8 @@ class CharmmTopAtom:
         self.mass=0.0
         self.element='?'
         if self.name[0].isdigit():
-            self.bad=True
+            # logger.debug(f'Atom name {self.name} starts with a digit; setting inpatch')
+            self.inpatch=True
     
     def __str__(self):
         ans=f'ATOM {self.name} {self.type} {self.charge:.4f}'
@@ -252,13 +253,34 @@ class CharmmTopIC:
             ans+='-empty'
         return ans
 
+class CharmmTopDelete:
+    def __init__(self,delete_string):
+        """
+        DELETE ATOM HN ! comment
+        """
+        self.raw_string=delete_string
+        self.error_code=0
+        delete_string,self.comment=linesplit(delete_string)
+        toks=[x.strip() for x in delete_string.split()]
+        if len(toks)<3 or not toks[0].upper().startswith('DELETE'):
+            self.error_code=-1
+        self.atomname=toks[2].upper()
+
+    def __str__(self):
+        return f'DELETE ATOM {self.atomname} ! {self.comment}'
+
 class CharmmTopResi:
-    def __init__(self,blockstring,metadata={}):
+    def __init__(self,blockstring,key='RESI',metadata={}):
+        self.key=key
         self.blockstring=blockstring
         self.error_code=0
         lines=[x.strip() for x in blockstring.split('\n')]
+        # logger.debug(f'processing {key} block with {len(lines)} lines')
+        # if len(lines)<2:
+        #     logger.debug(f'{lines}')
+        #     logger.debug(f'{metadata}')
         titlecard=lines[0]
-        assert titlecard.upper().startswith('RESI'),f'bad title card in RESI: [{titlecard}]'
+        assert titlecard.upper().startswith(key),f'bad title card in {key}: [{titlecard}]'
         titledata,titlecomment=linesplit(titlecard)
         tctokens=titledata.split()
         self.resname=tctokens[1]
@@ -279,11 +301,14 @@ class CharmmTopResi:
             if len(cardcomment)>0: comments.append(cardcomment)
         # logger.debug(f'{self.resname}: {len(datacards)} datacards and {len(comments)} comments')
         isatomgroup=[d.startswith('ATOM') or d.startswith('GROU') for d in datacards]
-        atomgroupcards=compress(datacards,isatomgroup)
+        atomgroupcards=list(compress(datacards,isatomgroup))
+        # logger.debug(f'{self.resname}: {len(atomgroupcards)} atom group cards')
+        # logger.debug(f'{atomgroupcards[0:5]}')
         self.atoms=CharmmTopAtomList([])
         self.atoms_in_group={}
         g=0
         for card in atomgroupcards:
+            # logger.debug(f'{card}')
             if card.startswith('ATOM'):
                 a=CharmmTopAtom(card)
                 self.atoms.append(a)
@@ -293,10 +318,9 @@ class CharmmTopResi:
             elif card.startswith('GROU'):
                 g+=1
         for a in self.atoms:
-            if hasattr(a,'bad'):
-                if a.bad:
-                    # logger.error(f'bad atom {a.name} in {self.resname}')
-                    self.bad=True
+            if hasattr(a,'inpatch'):
+                if a.inpatch:
+                    self.ispatch=True
         # logger.debug(f'{len(self.atoms)} atoms processed in {len(self.atoms_in_group)} groups')
         self.atomdict={a.name:a for a in self.atoms}
         isbond=[d.startswith('BOND') for d in datacards]
@@ -324,7 +348,12 @@ class CharmmTopResi:
             else:
                 ic_atom_names.extend(IC.atoms)
                 self.IC.append(IC)
-        
+        isDelete=[d.startswith('DELETE') for d in datacards]
+        deletecards=compress(datacards,isDelete)
+        self.Delete=[]
+        for card in deletecards:
+            D=CharmmTopDelete(card)
+            self.Delete.append(D)
 
     def set_masses(self,masses):
         self.atoms.set_masses(masses)

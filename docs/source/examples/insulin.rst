@@ -1,7 +1,7 @@
-.. _example 11:
+.. _example 12:
 
-Example 11: Hexameric insulin
+Example 12: Hexameric insulin
 -----------------------------
 
-.. literalinclude:: ../../../pestifer/resources/examples/11-insulin.yaml
+.. literalinclude:: ../../../pestifer/resources/examples/12-insulin.yaml
     :language: yaml

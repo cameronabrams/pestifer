@@ -1,0 +1,57 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+# 
+# Build of solvated HIV protease 
+#
+# Notes:
+#   - Using the 1f7a pdb entry
+#   - The ligand (chain P) and the acetates (ACT) are removed
+#   - ASPP patch to protonate ASP25 (catalytic residue)
+#
+title: HIV-1 protease dimer
+tasks:
+  - psfgen:
+      source:
+        id: 1f7a
+        exclude:
+            chains:
+              - P
+            resnames:
+              - ACT
+      mods:
+        patches:
+          - ASPP:A:25
+          - ASPP:B:25
+  - md:
+      ensemble: minimize
+  - solvate:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - md:
+      ensemble: NPT
+      nsteps: 13200
+  - mdplot:
+      savedata: solvated.csv
+      traces:
+        - density
+      basename: solvated
+  - terminate:
+      basename: my_1f7a
+      package:
+        ensemble: NPT
+        basename: prod_1f7a

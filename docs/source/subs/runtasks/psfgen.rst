@@ -45,6 +45,7 @@ Below are all the ``mods`` that can be invoked in a ``mods`` directive.  Each of
 .. toctree::
    :maxdepth: 1
 
+   mods/patches
    mods/mutations
    mods/deletions
    mods/insertions
