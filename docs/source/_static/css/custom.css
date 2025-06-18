@@ -10,3 +10,10 @@
 .linkedin-icon svg:hover {
     fill: #0A66C2;  /* LinkedIn icon turns its official blue on hover */
 }
+
+.autogen-footer {
+    font-size: 0.8em;
+    color: #666;
+    margin-top: 2em;
+    text-align: right;
+}
