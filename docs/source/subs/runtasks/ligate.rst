@@ -13,4 +13,4 @@ A ``ligate`` task is used to build missing protein loops that are specified in t
 
 For insertions of two or fewer residues, no steering is performed.
 
-This is illustrated in :ref:`example 5`.
+This is illustrated in :ref:`example 6`.
