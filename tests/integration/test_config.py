@@ -55,7 +55,7 @@ class ConfigTest(unittest.TestCase):
 
     def test_config_task_source(self):
         RM=self.RM
-        configfile=RM.get_example_yaml_by_index(5)
+        configfile=RM.get_example_yaml_by_index(6)
         c=Config(userfile=configfile)
         self.assertTrue('user' in c)
         self.assertTrue('tasks' in c['user'])
