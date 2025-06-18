@@ -400,7 +400,10 @@ class Bilayer:
             specs=stage['md']
             specs['addl_paramfiles']=self.addl_streamfiles
             if specs.get('ensemble',None) in ['NPT','npt']:
-                specs['other_parameters']={'useflexiblecell':True,'useconstantratio':True}
+                if not 'other_parameters' in specs:
+                    specs['other_parameters']={'useflexiblecell':True,'useconstantratio':True,
+                                               'pressureProfile':'on','pressureProfileSlabs':30,
+                                               'pressureProfileFreq':100}
         user_dict['tasks']=[
             {'restart':dict(psf=psf,pdb=pdb,xsc=xsc,index=index)}
             ]+relaxation_protocol+[

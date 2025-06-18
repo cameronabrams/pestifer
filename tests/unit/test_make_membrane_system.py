@@ -5,11 +5,11 @@ import unittest
 from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
 from pestifer.config import Config
 from pestifer.controller import Controller
-from pestifer.resourcemanager import ResourceManager
 from pestifer.scriptwriters import Psfgen,VMD,NAMD,Filewriter
 from pestifer.util.util import protect_str_arg
 
 class TestMakeMembraneSystem(unittest.TestCase):
+    
     @classmethod
     def setUpClass(cls):
         cls.C=Config()
@@ -34,10 +34,11 @@ class TestMakeMembraneSystem(unittest.TestCase):
 
     @pytest.mark.slow
     def test_membrane_symmetric_popc(self):
-        if os.path.exists('__test_make_membrane_system_task_symmetric'):
-            shutil.rmtree('__test_make_membrane_system_task_symmetric')
-        os.mkdir('__test_make_membrane_system_task_symmetric')
-        os.chdir('__test_make_membrane_system_task_symmetric')
+        test_dir='__test_make_membrane_system_task_symmetric_popc'
+        if os.path.exists(test_dir):
+            shutil.rmtree(test_dir)
+        os.mkdir(test_dir)
+        os.chdir(test_dir)
 
         config_specs={'bilayer':{
                 'SAPL': 50,
@@ -60,10 +61,11 @@ class TestMakeMembraneSystem(unittest.TestCase):
 
     @pytest.mark.slow
     def test_membrane_symmetric_c6dhpc(self):
-        if os.path.exists('__test_make_membrane_system_task_symmetric'):
-            shutil.rmtree('__test_make_membrane_system_task_symmetric')
-        os.mkdir('__test_make_membrane_system_task_symmetric')
-        os.chdir('__test_make_membrane_system_task_symmetric')
+        test_dir='__test_make_membrane_system_task_symmetric_c6dhpc'
+        if os.path.exists(test_dir):
+            shutil.rmtree(test_dir)
+        os.mkdir(test_dir)
+        os.chdir(test_dir)
 
         config_specs={'bilayer':{
                 'SAPL': 50,
@@ -84,10 +86,11 @@ class TestMakeMembraneSystem(unittest.TestCase):
 
     @pytest.mark.slow
     def test_membrane_asymmetric_pure_leaflets(self):
-        if os.path.exists('__test_make_membrane_system_task_asymmetric_pure_leaflets'):
-            shutil.rmtree('__test_make_membrane_system_task_asymmetric_pure_leaflets')
-        os.mkdir('__test_make_membrane_system_task_asymmetric_pure_leaflets')
-        os.chdir('__test_make_membrane_system_task_asymmetric_pure_leaflets')
+        test_dir='__test_make_membrane_system_task_asymmetric_pure_leaflets'
+        if os.path.exists(test_dir):
+            shutil.rmtree(test_dir)
+        os.mkdir(test_dir)
+        os.chdir(test_dir)
         config_specs={'bilayer':{
                 'SAPL': 50,
                 'npatch':[2,2],
@@ -107,10 +110,11 @@ class TestMakeMembraneSystem(unittest.TestCase):
 
     @pytest.mark.slow
     def test_membrane_asymmetric_multicomponent(self):
-        if os.path.exists('__test_make_membrane_system_task_asymmetric_multicomponent'):
-            shutil.rmtree('__test_make_membrane_system_task_asymmetric_multicomponent')
-        os.mkdir('__test_make_membrane_system_task_asymmetric_multicomponent')
-        os.chdir('__test_make_membrane_system_task_asymmetric_multicomponent')
+        test_dir='__test_make_membrane_system_task_asymmetric_multicomponent'
+        if os.path.exists(test_dir):
+            shutil.rmtree(test_dir)
+        os.mkdir(test_dir)
+        os.chdir(test_dir)
         config_specs={'bilayer':{
                 'SAPL': 50,
                 'npatch':[3,3],
@@ -132,10 +136,11 @@ class TestMakeMembraneSystem(unittest.TestCase):
         assert result==0
 
     def test_membrane_embed(self):
-        if os.path.exists('__test_make_membrane_system_task_embed'):
-            shutil.rmtree('__test_make_membrane_system_task_embed')
-        os.mkdir('__test_make_membrane_system_task_embed')
-        os.chdir('__test_make_membrane_system_task_embed')
+        test_dir='__test_make_membrane_system_task_embed'
+        if os.path.exists(test_dir):
+            shutil.rmtree(test_dir)
+        os.mkdir(test_dir)
+        os.chdir(test_dir)
         basename='test_bilayer_embed'
         psf='5e8w-proteinonly.psf'
         pdb='5e8w-proteinonly.pdb'
@@ -166,6 +171,11 @@ class TestMakeMembraneSystem(unittest.TestCase):
 
     @pytest.mark.slow
     def test_membrane_md_prebuilt(self):
+        test_dir='__test_make_membrane_system_with_md_prebuilt'
+        if os.path.exists(test_dir):
+            shutil.rmtree(test_dir)
+        os.mkdir(test_dir)
+        os.chdir(test_dir)
         if os.path.exists('__test_make_membrane_system_with_md_prebuilt'):
             shutil.rmtree('__test_make_membrane_system_with_md_prebuilt')
         os.mkdir('__test_make_membrane_system_with_md_prebuilt')
@@ -186,10 +196,11 @@ class TestMakeMembraneSystem(unittest.TestCase):
 
     @pytest.mark.slow
     def test_membrane_md_build(self):
-        if os.path.exists('__test_make_membrane_system_with_md_build'):
-            shutil.rmtree('__test_make_membrane_system_with_md_build')
-        os.mkdir('__test_make_membrane_system_with_md_build')
-        os.chdir('__test_make_membrane_system_with_md_build')
+        test_dir='__test_make_membrane_system_with_md_build'
+        if os.path.exists(test_dir):
+            shutil.rmtree(test_dir)
+        os.mkdir(test_dir)
+        os.chdir(test_dir)
         psf='5e8w-proteinonly.psf'
         pdb='5e8w-proteinonly.pdb'
         yaml_file='test2.yaml'
@@ -202,10 +213,11 @@ class TestMakeMembraneSystem(unittest.TestCase):
         os.chdir('..')
 
     def test_membrane_quilt(self):
-        if os.path.exists('__test_make_membrane_system_task_quilt'):
-            shutil.rmtree('__test_make_membrane_system_task_quilt')
-        os.mkdir('__test_make_membrane_system_task_quilt')
-        os.chdir('__test_make_membrane_system_task_quilt')
+        test_dir='__test_make_membrane_system_task_quilt'
+        if os.path.exists(test_dir):
+            shutil.rmtree(test_dir)
+        os.mkdir(test_dir)
+        os.chdir(test_dir)
         datadir='../../fixtures/quilt_inputs'
         basename='patch'
         for ftype in ['.coor','.psf','.pdb','.xsc']:
@@ -227,10 +239,11 @@ class TestMakeMembraneSystem(unittest.TestCase):
 
     @pytest.mark.slow
     def test_membrane_embed_no_orient(self):
-        if os.path.exists('__test_make_membrane_system_task_embed_no_orient'):
-            shutil.rmtree('__test_make_membrane_system_task_embed_no_orient')
-        os.mkdir('__test_make_membrane_system_task_embed_no_orient')
-        os.chdir('__test_make_membrane_system_task_embed_no_orient')
+        test_dir='__test_make_membrane_system_task_embed_no_orient'
+        if os.path.exists(test_dir):
+            shutil.rmtree(test_dir)
+        os.mkdir(test_dir)
+        os.chdir(test_dir)
         basename='test_bilayer_embed_no_orient'
         psf='wt.psf'
         pdb='wt-flip.pdb'

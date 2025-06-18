@@ -39,7 +39,7 @@ class MakeMembraneSystemTask(BaseTask):
         self.progress=self.config.progress
         self.pdbrepository=self.config.RM.charmmff_content.pdbrepository
         self.charmmff_content=self.config.RM.charmmff_content
-        self.RDB=CHARMMFFResiDatabase(self.charmmff_content)
+        self.RDB=CHARMMFFResiDatabase(self.charmmff_content,streamIDs=[])
         self.RDB.add_stream('lipid')
         self.RDB.add_topology('toppar_all36_moreions.str',streamIDoverride='water_ions')
         self.bilayer_specs=self.specs.get('bilayer',{})
