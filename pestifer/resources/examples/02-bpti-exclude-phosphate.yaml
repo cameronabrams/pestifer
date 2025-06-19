@@ -6,10 +6,11 @@
 #
 # Notes:
 #   - The phospate ion is excluded, but all crystal waters are retained
+#   - Solution has 0.154 M NaCl
 #   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_6pti.tgz
 #
-title: BPTI with phosphate ion excluded
+title: BPTI with phosphate ion excluded in salty solution
 tasks:
   - psfgen:
       source:
@@ -20,6 +21,9 @@ tasks:
   - md:
       ensemble: minimize
   - solvate:
+      salt_con: 0.154
+      cation: SOD
+      anion: CLA
   - md:
       ensemble: minimize
   - md:

@@ -16,8 +16,11 @@ tasks:
       ensemble: minimize
   - make_membrane_system:
       bilayer:
+        salt_con: 0.154
+        cation: POT
+        anion: CLA
         half_mid_zgap: 0.0 # for C6
-        SAPL: 45.0
+        SAPL: 75.0
         composition:
           lower_leaflet:
             - name: DMPC

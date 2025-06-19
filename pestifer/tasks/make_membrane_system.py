@@ -70,6 +70,7 @@ class MakeMembraneSystemTask(BaseTask):
         cation_name=self.bilayer_specs.get('cation','POT')
         anion_name=self.bilayer_specs.get('anion','CLA')
         neutralizing_salt=[cation_name,anion_name]
+        salt_con=self.bilayer_specs.get('salt_con',0.0)  # Molar concentration
         composition_dict=self.bilayer_specs.get('composition',{})
 
         if not composition_dict['upper_leaflet'] or not composition_dict['lower_leaflet']:
@@ -82,6 +83,7 @@ class MakeMembraneSystemTask(BaseTask):
         logger.debug(f'Main composition dict {composition_dict}')
         self.patch=Bilayer(composition_dict,
                             neutralizing_salt=neutralizing_salt,
+                            salt_concentration=salt_con,
                             solvent_specstring=solvent_specstring,
                             solvent_ratio_specstring=solvent_ratio_specstring,
                             solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
@@ -97,6 +99,7 @@ class MakeMembraneSystemTask(BaseTask):
             composition_dict['lower_chamber']=composition_dict['upper_chamber']
             self.patchA=Bilayer(composition_dict,
                                 neutralizing_salt=neutralizing_salt,
+                                salt_concentration=salt_con,
                                 solvent_specstring=solvent_specstring,
                                 solvent_ratio_specstring=solvent_ratio_specstring,
                                 solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
@@ -140,9 +143,10 @@ class MakeMembraneSystemTask(BaseTask):
 
     def build_patch(self):
         logger.debug(f'Bilayer specs: {self.bilayer_specs}')
+        solution_gcc=self.bilayer_specs.get('solution_gcc',1.0)
         rotation_pm=self.bilayer_specs.get('rotation_pm',10.)
         half_mid_zgap=self.bilayer_specs.get('half_mid_zgap',1.0)
-        SAPL=self.bilayer_specs.get('SAPL',60.0)
+        SAPL=self.bilayer_specs.get('SAPL',75.0)
         seed=self.bilayer_specs.get('seed',27021972)
         tolerance=self.bilayer_specs.get('tolerance',2.0)
         xy_aspect_ratio=self.bilayer_specs.get('xy_aspect_ratio',1.0)
@@ -159,7 +163,7 @@ class MakeMembraneSystemTask(BaseTask):
             specname=self.basename
             logger.debug(f'building {specname}')
             patch.build_patch(SAPL=SAPL,xy_aspect_ratio=xy_aspect_ratio,
-                              rotation_pm=rotation_pm,
+                              rotation_pm=rotation_pm,solution_gcc=solution_gcc,
                               half_mid_zgap=half_mid_zgap)
             pm=PackmolInputWriter(self.config)
             packmol_output_pdb=patch.pack_patch(pm,specname,seed=seed,

@@ -1623,20 +1623,13 @@ directives:
               - name: SAPL
                 text: estimate of surface area per lipid (Å²) for building initial patches
                 type: float
-                default: 60.0
-              - name: patch_thickness
-                text: initial value of leaflet thickness (Å)
-                type: float
-                default: 20.0
+                default: 75.0
               - name: dims
                 text: box dimensions in x, y, and z in Å; must be specified for a bilayer-only system
                 type: list
               - name: npatch
                 text: box dimensions in number of patches in x and y
                 type: list
-              - name: length_pad
-                text: additional length added to longest molecular length when orienting molecules that are parallel to z axis
-                type: float
               - name: solution_gcc
                 text: solution density in g/cc
                 type: float

@@ -43,3 +43,5 @@ Note the ``exclude`` subdirective under ``source``.  You remember how you can le
   pestifer-help:
 
 Each of ``chains`` and ``resnames`` are lists, and in the configuration file above, we have a single-element list for ``resnames`` that indicates the resname ``PO4``, which is how the phosphate ion is labelled in the original PDB file.
+
+We have also modified the ``solvate`` task to allow for a 0.154 M NaCl solution, which is a common salt concentration in biological systems.

@@ -92,6 +92,8 @@ class MDPlotTask(BaseTask):
                     logger.debug(xst.df.iloc[:3,:].to_string())
         
         traces=self.specs.get('traces',[])
+        histograms=self.specs.get('histograms',[])
+        profiles=self.specs.get('profiles',[])
         legend=self.specs.get('legend',False)
         grid=self.specs.get('grid',False)
         basename=self.specs.get('basename','myplot')

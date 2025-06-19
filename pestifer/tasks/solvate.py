@@ -68,7 +68,7 @@ class SolvateTask(BaseTask):
             ai_args.append(f'-cation {cation}')
         anion=self.specs.get('anion',None)
         if anion is not None:
-            ai_args.append(f'-cation {anion}')
+            ai_args.append(f'-anion {anion}')
         vt.addline(f'autoionize -psf {self.basename}_solv.psf -pdb {self.basename}_solv.pdb {" ".join(ai_args)} -o {self.basename}')
         vt.writescript()
         self.result=vt.runscript(progress_title='solvate')

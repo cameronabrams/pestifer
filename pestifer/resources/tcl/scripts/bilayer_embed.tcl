@@ -28,6 +28,9 @@ set z_value 0.0 ; # offset of the protein center of mass from the bilayer midpla
 set outbasename "embedded"
 set no_orient 0; # override the orientation of the protein axis to align with the bilayer normal
 set zdist 10.0; # distance between z-extremal protein atoms and z-boundaries of box
+set sc 0.0
+set cation POT
+set anion CLA
 
 for { set i 0 } { $i < [llength $argv] } { incr i } {
    if { [lindex $argv $i] == "-psf"} {
@@ -78,6 +81,18 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
    if { [lindex $argv $i] == "-zdist"} {
       incr i
       set zdist [lindex $argv $i]
+   }
+   if { [lindex $argv $i] == "-sc"} {
+      incr i
+      set sc [lindex $argv $i]
+   }
+   if { [lindex $argv $i] == "-cation"} {
+      incr i
+      set cation [lindex $argv $i]
+   }
+   if { [lindex $argv $i] == "-anion"} {
+      incr i
+      set anion [lindex $argv $i]
    }
    if { [lindex $argv $i] == "-o"} {
       incr i
@@ -244,8 +259,16 @@ if { $box_min_z < $bilayer_min_z } {
       set $box_min_z [expr $box_min_z - $extragap]
    }
    vmdcon -info "solvating into {{0 0 $box_min_z} {$bilayer_box_Lx $bilayer_box_Ly $bilayer_min_z}}"
+   vmdcon -info "Running solvate [list [list 0 0 $box_min_z] [list $bilayer_box_Lx $bilayer_box_Ly $bilayer_min_z]] -o ${outbasename}_water_lower"
    solvate -minmax [list [list 0 0 $box_min_z] [list $bilayer_box_Lx $bilayer_box_Ly $bilayer_min_z]] -o ${outbasename}_water_lower
-   lappend addl_water ${outbasename}_water_lower
+   if { $sc > 0.0 } {
+      vmdcon -info "Adding $sc M salt (cation $cation, anion $anion) to lower water slab"
+      autoionize -psf ${outbasename}_water_lower.psf -pdb ${outbasename}_water_lower.pdb -o ${outbasename}_solution_lower -sc $sc -cation $cation -anion $anion
+   } {
+      file move ${outbasename}_water_lower.psf ${outbasename}_solution_lower.psf
+      file move ${outbasename}_water_lower.pdb ${outbasename}_solution_lower.pdb
+   }
+   lappend addl_solution ${outbasename}_solution_lower
 } else {
    set box_min_z $bilayer_min_z
 }
@@ -259,7 +282,14 @@ if { $box_max_z > $bilayer_max_z } {
    }
    vmdcon -info "Running solvate -minmax [list [list 0 0 $bilayer_max_z] [list $bilayer_box_Lx $bilayer_box_Ly $box_max_z]] -o ${outbasename}_water_upper"
    solvate -minmax [list [list 0 0 $bilayer_max_z] [list $bilayer_box_Lx $bilayer_box_Ly $box_max_z]] -o ${outbasename}_water_upper
-   lappend addl_water ${outbasename}_water_upper
+   if { $sc > 0.0 } {
+      vmdcon -info "Adding $sc M salt (cation $cation, anion $anion) to upper water slab"
+      autoionize -psf ${outbasename}_water_upper.psf -pdb ${outbasename}_water_upper.pdb -o ${outbasename}_solution_upper -sc $sc -cation $cation -anion $anion
+   } else {
+      file move ${outbasename}_water_upper.psf ${outbasename}_solution_upper.psf
+      file move ${outbasename}_water_upper.pdb ${outbasename}_solution_upper.pdb
+   }
+   lappend addl_solution ${outbasename}_solution_upper
 } else {
    set box_max_z $bilayer_max_z
 }
@@ -267,16 +297,16 @@ if { $box_max_z > $bilayer_max_z } {
 set newsegids [list]
 resetpsf
 readpsf ${outbasename}_prefill.psf pdb ${outbasename}_prefill.pdb
-foreach aw $addl_water {
+foreach aw $addl_solution {
    set apdb ${aw}.pdb
    set apsf ${aw}.psf
    mol new $apsf
    mol addfile $apdb waitfor all
-   set water [molinfo top get id]
-   set water_sel [atomselect $water "all"]
+   set solution [molinfo top get id]
+   set water_sel [atomselect $solution "water"]
    set new_segids [lsort -unique [$water_sel get segname]]
    foreach ns $new_segids {
-      set pdbfrag [atomselect $water "segname $ns"]
+      set pdbfrag [atomselect $solution "segname $ns"]
       $pdbfrag writepdb ${aw}_${ns}.pdb
       segment WT${nextsolsegnum} {
          pdb ${aw}_${ns}.pdb
@@ -288,7 +318,21 @@ foreach aw $addl_water {
       lappend newsegids WT${nextsolsegnum}
       set nextsolsegnum [expr $nextsolsegnum + 1]
    }
-   mol delete $water
+   set ions [atomselect $solution "ion"]
+   set ion_segs [lsort -unique [$ions get segname]]
+   foreach is $ion_segs {
+      set ion_frag [atomselect $solution "segname $is"]
+      $ion_frag writepdb ${aw}_${is}.pdb
+      segment $is {
+         pdb ${aw}_${is}.pdb
+         first none
+         last none
+         auto none
+      }
+      coordpdb ${aw}_${is}.pdb $is
+      lappend newsegids $is
+   }
+   mol delete $solution
    file delete $apdb
    file delete $apsf
    foreach ns $new_segids {

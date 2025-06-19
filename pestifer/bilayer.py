@@ -75,7 +75,7 @@ def specstrings_builddict(lipid_specstring='',lipid_ratio_specstring='',lipid_co
 
 class Bilayer:
     def __init__(self,composition_dict={},leaflet_nlipids=dict(upper=100,lower=100),solvent_to_key_lipid_ratio=32.0,
-                neutralizing_salt=['POT','CLA'],pdbrepository=None,resi_database=None,solvent_specstring='TIP3',solvent_ratio_specstring='1.0'):
+                neutralizing_salt=['POT','CLA'],salt_concentration=0.0,solution_gcc=1.0,pdbrepository=None,resi_database=None,solvent_specstring='TIP3',solvent_ratio_specstring='1.0'):
 
         self.statevars={}
 
@@ -112,8 +112,10 @@ class Bilayer:
 
         # complete chamber entries in composition dictionary with species counts, charges, and MWs
         for c in ['upper_chamber','lower_chamber']:
-            adjective
+            adjective='upper' if c=='upper_chamber' else 'lower'
             L=composition_dict[c]
+            Nsol=0
+            AMW=0.0
             for d in L:
                 resi=resi_database.get_resi(d['name'])
                 if not 'patn' in d:
@@ -122,7 +124,23 @@ class Bilayer:
                     d['charge']=resi.charge
                 if not 'MW' in d:
                     d['MW']=resi.mass()
-
+                Nsol+=d['patn']
+                AMW+=d['MW']*d['patn']
+            if Nsol>0:
+                AMW/=Nsol
+            else:
+                AMW=0.0
+            if salt_concentration>0.0:
+                Npm=int(AMW/1000*salt_concentration/solution_gcc*Nsol)
+                if Npm>0:
+                    cation_name,anion_name=neutralizing_salt
+                    logger.debug(f'Salting at {salt_concentration} M, soln density {solution_gcc} gcc')
+                    logger.debug(f'-> adding {Npm} {cation_name} and {Npm} {anion_name} to {c}')
+                    cation,anion=resi_database.get_resi(cation_name),resi_database.get_resi(anion_name)
+                    n_cation=int(np.round(Npm/np.abs(cation.charge),0))
+                    n_anion=int(np.round(Npm/np.abs(anion.charge),0))
+                    composition_dict[c].append({'name':cation_name,'patn':n_cation,'charge':cation.charge,'MW':cation.mass()})
+                    composition_dict[c].append({'name':anion_name,'patn':n_anion,'charge':anion.charge,'MW':anion.mass()})
         # set up some short-cut object labes
         self.slices={'lower_chamber':{},'lower_leaflet':{},'upper_leaflet':{},'upper_chamber':{}}
         self.LC=self.slices['lower_chamber']
@@ -224,7 +242,7 @@ class Bilayer:
                 species['local_name']=self.species_data[species_name].get_pdb(conformerID=conformerID,noh=noh)
                 # logger.debug(f'Checked out {species_name} as {species["local_name"]}')
 
-    def build_patch(self,SAPL=60.0,xy_aspect_ratio=1.0,half_mid_zgap=1.0,solution_gcc=1.0,rotation_pm=10.0):
+    def build_patch(self,SAPL=75.0,xy_aspect_ratio=1.0,half_mid_zgap=1.0,solution_gcc=1.0,rotation_pm=10.0):
         patch_area=SAPL*self.leaflet_nlipids['upper'] # assume symmetric
         Lx=np.sqrt(patch_area/xy_aspect_ratio)
         Ly=xy_aspect_ratio*Lx
@@ -404,10 +422,21 @@ class Bilayer:
                     specs['other_parameters']={'useflexiblecell':True,'useconstantratio':True,
                                                'pressureProfile':'on','pressureProfileSlabs':30,
                                                'pressureProfileFreq':100}
+                else:
+                    if user_dict['namd']['processor-type']!='gpu': # GPU NAMD 3.0.1 does not support pressure profiles
+                        if not 'pressureProfile' in specs['other_parameters']:
+                            specs['other_parameters']['pressureProfile']='on'
+                        if not 'pressureProfileSlabs' in specs['other_parameters']:
+                            specs['other_parameters']['pressureProfileSlabs']=30
+                        if not 'pressureProfileFreq' in specs['other_parameters']:
+                            specs['other_parameters']['pressureProfileFreq']=100
+        traces=['density',['a_x','b_y','c_z']]
+        if user_dict['namd']['processor-type']!='gpu':
+            traces.append('pressure') # To do: change this to pressureProfile plotting
         user_dict['tasks']=[
             {'restart':dict(psf=psf,pdb=pdb,xsc=xsc,index=index)}
             ]+relaxation_protocol+[
-            {'mdplot':dict(traces=['density',['a_x','b_y','c_z'],'pressure'],legend=True,grid=True,savedata=f'{basename}-traces.csv',basename=basename)},
+            {'mdplot':dict(traces=traces,legend=True,grid=True,savedata=f'{basename}-traces.csv',basename=basename)},
             {'terminate':dict(basename=basename,chainmapfile=f'{basename}-chainmap.yaml',statefile=f'{basename}-state.yaml')}                 
         ]
         user_dict['title']=f'Bilayer equilibration from {basename}'
