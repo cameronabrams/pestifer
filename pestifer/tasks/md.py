@@ -1,6 +1,7 @@
 # Author: Cameron F. Abrams
 
 import logging
+import os
 
 logger=logging.getLogger(__name__)
 
@@ -41,6 +42,8 @@ class MDTask(BaseTask):
             self.save_state(exts=['coor','vel','xsc'])
             self.update_statevars('charmmff_paramfiles',self.writers['namd'].parameters)
             self.update_statevars('energy-csv',f'{self.basename}-energy.csv',vtype='file')
+            if os.path.exists(f'{self.basename}-pressureprofile.csv'):
+                self.update_statevars('pressureprofile-csv',f'{self.basename}-pressureprofile.csv',vtype='file')
         else:
             raise Exception(f'md task failed: {self.result}')
         self.log_message('complete',ensemble=self.specs.get('ensemble',None))

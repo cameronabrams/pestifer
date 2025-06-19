@@ -9,6 +9,7 @@ import re
 import time
 import yaml
 
+import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 
@@ -149,6 +150,7 @@ class NAMDLog(LogParser):
     tcl_key='TCL: '
     energy_key='ENERGY: '
     etitle_key='ETITLE: '
+    pressureprofile_key='PRESSUREPROFILE: '
     struct_sep='*****************************'
     wallclock_key='WallClock: '
     default_etitle_npt='TS,BOND,ANGLE,DIHED,IMPRP,ELECT,VDW,BOUNDARY,MISC,KINETIC,TOTAL,TEMP,POTENTIAL,TOTAL3,TEMPAVG,PRESSURE,GPRESSURE,VOLUME,PRESSAVG,GPRESSAVG'.split(',')
@@ -158,6 +160,7 @@ class NAMDLog(LogParser):
         self.line_idx=[0] # byte offsets of lines
         self.processed_line_idx=[]
         self.energy_df=pd.DataFrame()
+        self.pressureprofile_df=pd.DataFrame() # each column is a pressure profile at a given timestep
         self.metadata={}
         self.reading_structure_summary=False
         self.basename=basename
@@ -223,6 +226,12 @@ class NAMDLog(LogParser):
             self.metadata['ensemble']='NVT'
         elif 'LANGEVIN PISTON PRESSURE CONTROL ACTIVE' in line:
             self.metadata['ensemble']='NPT'
+        elif 'PERIODIC CELL BASIS 1' in line:
+            self.metadata['periodic_cell_basis_1']=get_values('PERIODIC CELL BASIS 1',line,dtype=float)
+        elif 'PERIODIC CELL BASIS 2' in line:
+            self.metadata['periodic_cell_basis_2']=get_values('PERIODIC CELL BASIS 2',line,dtype=float)
+        elif 'PERIODIC CELL BASIS 3' in line:
+            self.metadata['periodic_cell_basis_3']=get_values('PERIODIC CELL BASIS 3',line,dtype=float)
 
     def process_tcl_line(self,line):
         if line.startswith('Running for'):
@@ -286,6 +295,28 @@ class NAMDLog(LogParser):
                 self.process_line(last_line)
                 self.processed_line_idx.append(addl_line_idx[-1])
 
+    def process_pressureprofile_line(self,line):
+        tokens=[x.strip() for x in line.split()]
+        tokens[0]=int(tokens[0])
+        for i in range(1,len(tokens)):
+            tokens[i]=float(tokens[i])
+        this_col=tokens[1:]
+        if not 'number_of_pressure_slabs' in self.metadata:
+            self.metadata['number_of_pressure_slabs']=len(this_col)
+        if self.pressureprofile_df.empty:
+            # we need to set the indices to be the slab indices
+            if 'periodic_cell_basis_3' in self.metadata:
+                zbox=self.metadata['periodic_cell_basis_3'][2]
+                if 'number_of_pressure_slabs' in self.metadata:
+                    self.pressureprofile_df=pd.DataFrame(this_col,index=np.arange(self.metadata['number_of_pressure_slabs']),columns=[str(tokens[0])])
+                else:
+                    logger.debug('process_pressureprofile_line: number_of_pressure_slabs not in metadata')
+        else:
+            # append this col to the dataframe
+            if 'number_of_pressure_slabs' in self.metadata:
+                new_col=pd.DataFrame(this_col,index=np.arange(self.metadata['number_of_pressure_slabs']),columns=[str(tokens[0])])
+                self.pressureprofile_df=pd.concat([self.pressureprofile_df,new_col],axis=1)
+
     def process_wallclock_line(self,line):
         tokens=[x.strip() for x in line.split()]
         self.metadata['wallclock_time']=float(tokens[0])
@@ -309,6 +340,9 @@ class NAMDLog(LogParser):
             self.process_energy_line(line[o:])
             if 'first_timestep' not in self.metadata:
                 self.metadata['first_timestep']=int(self.energy_df.iloc[0]['TS'])
+        elif line.startswith(self.pressureprofile_key):
+            o=len(self.pressureprofile_key)
+            self.process_pressureprofile_line(line[o:])
         elif line.startswith(self.wallclock_key):
             o=len(self.wallclock_key)
             self.process_wallclock_line(line[o:])
@@ -343,7 +377,8 @@ class NAMDLog(LogParser):
 
     def finalize(self):
         self.energy_df.to_csv(f'{self.basename}-energy.csv',index=False)
-        return f'{self.basename}-energy.csv'
+        self.pressureprofile_df.to_csv(f'{self.basename}-pressureprofile.csv',index=True)
+        return f'{self.basename}-energy.csv', f'{self.basename}-pressureprofile.csv'
 
 class PackmolPhase(Enum):
     UNINITIALIZED = 0
