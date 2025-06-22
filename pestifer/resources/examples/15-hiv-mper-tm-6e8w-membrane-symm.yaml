@@ -19,7 +19,7 @@ tasks:
         salt_con: 0.154
         cation: POT
         anion: CLA
-        half_mid_zgap: 0.0 # for C6
+        half_mid_zgap: 0.0 # gap not really useful for packing C6
         SAPL: 75.0
         composition:
           lower_leaflet:
@@ -46,12 +46,22 @@ tasks:
                 temperature: 310
             - md:
                 ensemble: NPT
+                nsteps: 500
+                temperature: 310
+                pressure: 10.0
+            - md:
+                ensemble: NPT
+                nsteps: 500
+                temperature: 310
+                pressure: 10.0
+            - md:
+                ensemble: NPT
                 nsteps: 1000
                 temperature: 310
                 pressure: 10.0
             - md:
                 ensemble: NPT
-                nsteps: 2000
+                nsteps: 1000
                 temperature: 310
                 pressure: 10.0
             - md:
@@ -66,7 +76,7 @@ tasks:
                 pressure: 10.0
             - md:
                 ensemble: NPT
-                nsteps: 16000  # this is probably too short!
+                nsteps: 16000  # this is (probably) too short!
                 temperature: 310
                 pressure: 1.0
           quilt:
@@ -96,7 +106,6 @@ tasks:
       constraints:
         k: 10
         atoms: protein and name CA
-  # - ring_check:  # no need if there are no sterols
   - md:
       ensemble: NVT
       nsteps: 1000
@@ -114,17 +123,33 @@ tasks:
       nsteps: 6400
   - md:
       ensemble: NPT
-      nsteps: 12800  # this is way too short!!
+      nsteps: 25600  # this is (probably) way too short!!
+      other_parameters:
+        pressureProfile: on
+        pressureProfileFreq: 100
+        pressureProfileSlabs: 20
   - mdplot:
-      savedata: bilayer.csv
       traces:
         - density
         - - a_x
           - b_y
           - c_z
+      profiles:
+        - pressure
       basename: bilayer
+      grid: True
+      legend: True
   - terminate:
       basename: my_6e8w
       package:
         ensemble: NPT
         basename: prod_6e8w
+        firsttimestep: 0
+        dcdfreq: 10000
+        xstfreq: 10000
+        outputenergies: 1000
+        nsteps: 10000000
+        other_parameters:
+          pressureProfile: on
+          pressureProfileFreq: 1000
+          pressureProfileSlabs: 20

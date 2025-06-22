@@ -1390,8 +1390,11 @@ directives:
                 type: bool
                 default: True
       - name: mdplot
-        text: Generate plot(s) from previous md tasks with same psf
+        text: Generate plot(s) from md tasks
         type: dict
+        docs:
+          text: |
+            This task generates plots from the output of MD tasks.  It can plot energy-like quantities vs time, and profile quantities vs distance along the z-axis. The plots are generated using matplotlib, and are saved as image files. This task can be part of a standard build, or it can be used via the command line (``pestifer mdplot``) to generate plots from existing NAMD logs and xst files.
         directives:
           - name: existing-logs
             type: list
@@ -1401,9 +1404,6 @@ directives:
             type: list
             text: list of existing namd xst files, in chronological order, from which data to be plotted is to be extracted
             default: []
-          - name: savedata
-            type: str
-            text: name of CSV file to save all energy-like data
           - name: figsize
             type: list
             text: size of matplotlib figure
@@ -1413,14 +1413,28 @@ directives:
             text: List of energy-like quantities to plot vs timestep
             default:
               - density
+            docs:
+              text: |
+                The list of energy-like quantities to plot vs timestep.  These quantities are extracted from the NAMD log files and plotted against timestep.  To combine traces onto a single plot, the list element itself can be a list. The default is to plot density, but you can specify any quantity in an ENERGY: output line or an XST file, including:
+                - density (not included in ENERGY:, but computed)
+                - a_x (cell size along x direction)
+                - b_y (cell size along y direction)
+                - c_z (cell size along z direction)
+                - pressure
+                - temperature
+          - name: profiles
+            type: list
+            text: List of profile quantities to plot vs distance along z-axis
           - name: units
             type: dict
-            text: user-specified units for plots (if other than NAMD standard units)
+            text: user-specified units for plots
             default:
               density: g/cc
               a_x: Å
               b_y: Å
               c_z: Å
+              pressure: bar
+              temperature: K
           - name: legend
             text: include a legend
             type: bool
@@ -1431,7 +1445,7 @@ directives:
             default: False
           - name: basename
             type: str
-            text: Baseame of image file(s) to generate
+            text: Baseame of image/CSV file(s) to generate
             default: myplot
       - name: cleave
         text: Parameters controlling cleavage of one or more protein chains
@@ -1786,6 +1800,15 @@ directives:
                                 text: constant X:Y ratio for NPT
                                 type: bool
                                 default: True
+                              - name: pressureProfile
+                                text: turn on NAMD's on-the-fly pressure profile calculation 
+                                type: bool
+                              - name: pressureProfileSlabs
+                                text: number of slabs along z for NAMD's on-the-fly pressure profile calculation 
+                                type: int
+                              - name: pressureProfileFreq
+                                text: frequency of pressure profile calculation in time steps
+                                type: int
                   - name: quilt
                     text: quilt-specific relaxation protocol; if patch is well-equilibrated and any lipids deleted due to asymmetry are small in number, this is usually much shorter
                     type: list
@@ -2002,6 +2025,9 @@ directives:
                 text: Number of MD time steps
                 type: int
                 default: 1000000
+              - name: firsttimestep
+                text: First timestep to use in the run (if unset, inherits from last MD task)
+                type: int
               - name: dcdfreq
                 text: number of time steps between configuration output to DCD file
                 type: int
@@ -2022,6 +2048,12 @@ directives:
                 text: Pressure (bar) for NPT; note that NPT can only be performed on a solvated system
                 type: float
                 default: 1
+              - name: outputenergies
+                type: int
+                text: timesteps between outputting energies to the log file
+              - name: other_parameters
+                text: key:value pairs for other namd3 configuration file statements
+                type: dict
               - name: topogromacs
                 text: Set to True if you want to use topogromacs to generate Gromacs-compatible PDB and TOP files
                 type: bool

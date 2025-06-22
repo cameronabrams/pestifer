@@ -16,7 +16,7 @@ tasks:
       ensemble: minimize
   - make_membrane_system:
       bilayer:
-        SAPL: 45.0
+        SAPL: 75.0
         composition:
           lower_leaflet:
             - name: POPE
@@ -116,14 +116,19 @@ tasks:
       nsteps: 6400
   - md:
       ensemble: NPT
-      nsteps: 12800  # this is way too short!!
+      nsteps: 25600  # this is way too short!!
+      other_parameters:
+        pressureProfile: on
+        pressureProfileFreq: 100
+        pressureProfileSlabs: 20
   - mdplot:
-      savedata: bilayer.csv
       traces:
         - density
         - - a_x
           - b_y
           - c_z
+      profiles:
+        - pressure
       basename: bilayer
   - terminate:
       basename: my_6e8w

@@ -46,6 +46,7 @@ Subcommands
    subs/show-resources
    subs/cleanup
    subs/follow-namd-log
+   subs/mdplot
 
 Use in VMD scripts
 ------------------

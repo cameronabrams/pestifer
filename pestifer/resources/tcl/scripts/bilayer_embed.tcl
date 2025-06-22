@@ -265,8 +265,8 @@ if { $box_min_z < $bilayer_min_z } {
       vmdcon -info "Adding $sc M salt (cation $cation, anion $anion) to lower water slab"
       autoionize -psf ${outbasename}_water_lower.psf -pdb ${outbasename}_water_lower.pdb -o ${outbasename}_solution_lower -sc $sc -cation $cation -anion $anion
    } {
-      file move ${outbasename}_water_lower.psf ${outbasename}_solution_lower.psf
-      file move ${outbasename}_water_lower.pdb ${outbasename}_solution_lower.pdb
+      file copy ${outbasename}_water_lower.psf ${outbasename}_solution_lower.psf
+      file copy ${outbasename}_water_lower.pdb ${outbasename}_solution_lower.pdb
    }
    lappend addl_solution ${outbasename}_solution_lower
 } else {
@@ -286,8 +286,8 @@ if { $box_max_z > $bilayer_max_z } {
       vmdcon -info "Adding $sc M salt (cation $cation, anion $anion) to upper water slab"
       autoionize -psf ${outbasename}_water_upper.psf -pdb ${outbasename}_water_upper.pdb -o ${outbasename}_solution_upper -sc $sc -cation $cation -anion $anion
    } else {
-      file move ${outbasename}_water_upper.psf ${outbasename}_solution_upper.psf
-      file move ${outbasename}_water_upper.pdb ${outbasename}_solution_upper.pdb
+      file copy ${outbasename}_water_upper.psf ${outbasename}_solution_upper.psf
+      file copy ${outbasename}_water_upper.pdb ${outbasename}_solution_upper.pdb
    }
    lappend addl_solution ${outbasename}_solution_upper
 } else {

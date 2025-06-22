@@ -134,15 +134,18 @@ def mdplot(args):
                                 {'mdplot':{
                                     'existing-logs':args.logs,
                                     'existing-xsts':args.xsts,
-                                    'savedata':args.savedata,
                                     'basename':args.basename,
                                     'figsize':args.figsize,
                                     'traces':args.traces,
+                                    'profiles':args.profiles,
+                                    'legend':True,
+                                    'grid':True,
                                     'units': {
                                         'density': 'g/cc',
                                         'a_x': 'Å',
                                         'b_y': 'Å',
                                         'c_z': 'Å',
+                                        'pressure': 'bar'
                                         }
                                     }
                                 }
@@ -386,9 +389,9 @@ def cli():
     command_parsers['mdplot'].add_argument('--logs',type=str,default=[],nargs='+',help='list of one more NAMD logs in chronological order')
     command_parsers['mdplot'].add_argument('--xsts',type=str,default=[],nargs='+',help='list of one more NAMD xsts in chronological order')
     command_parsers['mdplot'].add_argument('--basename',type=str,default='mdplot',help='basename of output files')
-    command_parsers['mdplot'].add_argument('--savedata',type=str,default='mdplot.csv',help='name of CSV file to save data to')
     command_parsers['mdplot'].add_argument('--figsize',type=int,nargs=2,default=[9,6],help='figsize')
     command_parsers['mdplot'].add_argument('--traces',type=list,default=['density'],nargs='+',help='traces to plot')
+    command_parsers['mdplot'].add_argument('--profiles',type=list,default=['pressure'],nargs='+',help='profiles (along z) to plot')
     command_parsers['cleanup'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
     command_parsers['follow-namd-log'].add_argument('log',type=str,default=None,help='input NAMD log file')
     command_parsers['follow-namd-log'].add_argument('--basename',type=str,default=None,help='basename of output files')

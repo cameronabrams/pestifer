@@ -418,11 +418,15 @@ class Bilayer:
             specs=stage['md']
             specs['addl_paramfiles']=self.addl_streamfiles
             if specs.get('ensemble',None) in ['NPT','npt']:
-                if not 'other_parameters' in specs:
+                if not 'other_parameters' in specs: # never true due to ycleptic base.yaml
                     specs['other_parameters']={'useflexiblecell':True,'useconstantratio':True,
                                                'pressureProfile':'on','pressureProfileSlabs':30,
                                                'pressureProfileFreq':100}
                 else:
+                    if not 'useflexiblecell' in specs['other_parameters']:
+                        specs['other_parameters']['useflexiblecell']=True
+                    if not 'useconstantratio' in specs['other_parameters']:
+                        specs['other_parameters']['useconstantratio']=True
                     if user_dict['namd']['processor-type']!='gpu': # GPU NAMD 3.0.1 does not support pressure profiles
                         if not 'pressureProfile' in specs['other_parameters']:
                             specs['other_parameters']['pressureProfile']='on'
@@ -431,12 +435,13 @@ class Bilayer:
                         if not 'pressureProfileFreq' in specs['other_parameters']:
                             specs['other_parameters']['pressureProfileFreq']=100
         traces=['density',['a_x','b_y','c_z']]
+        profiles=['pressure']
         if user_dict['namd']['processor-type']!='gpu':
             traces.append('pressure') # To do: change this to pressureProfile plotting
         user_dict['tasks']=[
             {'restart':dict(psf=psf,pdb=pdb,xsc=xsc,index=index)}
             ]+relaxation_protocol+[
-            {'mdplot':dict(traces=traces,legend=True,grid=True,savedata=f'{basename}-traces.csv',basename=basename)},
+            {'mdplot':dict(traces=traces,profiles=profiles,legend=True,grid=True,basename=basename)},
             {'terminate':dict(basename=basename,chainmapfile=f'{basename}-chainmap.yaml',statefile=f'{basename}-state.yaml')}                 
         ]
         user_dict['title']=f'Bilayer equilibration from {basename}'

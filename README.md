@@ -29,6 +29,7 @@ Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full d
 * 1.15.0
     * updated salt concentration implementation in membrane system builder
     * removed spurious dependence on `parmed`
+    * added pressure profile calculation capabilities to `mdplot` task
 * 1.14.1
     * new docs
 * 1.14.0

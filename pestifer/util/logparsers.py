@@ -298,6 +298,7 @@ class NAMDLog(LogParser):
     def process_pressureprofile_line(self,line):
         tokens=[x.strip() for x in line.split()]
         tokens[0]=int(tokens[0])
+        logger.debug(f'process_pressureprofile_line: TS {tokens[0]}')
         for i in range(1,len(tokens)):
             tokens[i]=float(tokens[i])
         this_col=tokens[1:]
@@ -305,17 +306,13 @@ class NAMDLog(LogParser):
             self.metadata['number_of_pressure_slabs']=len(this_col)
         if self.pressureprofile_df.empty:
             # we need to set the indices to be the slab indices
-            if 'periodic_cell_basis_3' in self.metadata:
-                zbox=self.metadata['periodic_cell_basis_3'][2]
-                if 'number_of_pressure_slabs' in self.metadata:
-                    self.pressureprofile_df=pd.DataFrame(this_col,index=np.arange(self.metadata['number_of_pressure_slabs']),columns=[str(tokens[0])])
-                else:
-                    logger.debug('process_pressureprofile_line: number_of_pressure_slabs not in metadata')
+            self.pressureprofile_df=pd.DataFrame(this_col,index=np.arange(self.metadata['number_of_pressure_slabs']),columns=[str(tokens[0])])
         else:
             # append this col to the dataframe
-            if 'number_of_pressure_slabs' in self.metadata:
-                new_col=pd.DataFrame(this_col,index=np.arange(self.metadata['number_of_pressure_slabs']),columns=[str(tokens[0])])
-                self.pressureprofile_df=pd.concat([self.pressureprofile_df,new_col],axis=1)
+            new_col=pd.DataFrame(this_col,index=np.arange(self.metadata['number_of_pressure_slabs']),columns=[str(tokens[0])])
+            self.pressureprofile_df=pd.concat([self.pressureprofile_df,new_col],axis=1)
+                # if self.pressureprofile_df.shape[1]==2:
+                #     logger.debug(f'{self.pressureprofile_df.head().to_string()}')
 
     def process_wallclock_line(self,line):
         tokens=[x.strip() for x in line.split()]
@@ -376,9 +373,10 @@ class NAMDLog(LogParser):
         return 'wallclock_time' in self.metadata
 
     def finalize(self):
-        self.energy_df.to_csv(f'{self.basename}-energy.csv',index=False)
-        self.pressureprofile_df.to_csv(f'{self.basename}-pressureprofile.csv',index=True)
-        return f'{self.basename}-energy.csv', f'{self.basename}-pressureprofile.csv'
+        if not self.energy_df.empty:
+            self.energy_df.to_csv(f'{self.basename}-energy.csv',index=False)
+        if not self.pressureprofile_df.empty:
+            self.pressureprofile_df.to_csv(f'{self.basename}-pressureprofile.csv',index=True)
 
 class PackmolPhase(Enum):
     UNINITIALIZED = 0

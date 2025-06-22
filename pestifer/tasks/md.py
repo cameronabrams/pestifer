@@ -41,9 +41,16 @@ class MDTask(BaseTask):
         if self.result==0: 
             self.save_state(exts=['coor','vel','xsc'])
             self.update_statevars('charmmff_paramfiles',self.writers['namd'].parameters)
-            self.update_statevars('energy-csv',f'{self.basename}-energy.csv',vtype='file')
+            if os.path.exists(f'{self.basename}-energy.csv'):
+                self.update_statevars('energy-csv',f'{self.basename}-energy.csv',vtype='file')
+            else:
+                if 'energy-csv' in self.statevars:
+                    del self.statevars['energy-csv']
             if os.path.exists(f'{self.basename}-pressureprofile.csv'):
                 self.update_statevars('pressureprofile-csv',f'{self.basename}-pressureprofile.csv',vtype='file')
+            else:
+                if 'pressureprofile-csv' in self.statevars:
+                    del self.statevars['pressureprofile-csv']
         else:
             raise Exception(f'md task failed: {self.result}')
         self.log_message('complete',ensemble=self.specs.get('ensemble',None))
@@ -70,6 +77,8 @@ class MDTask(BaseTask):
         xsc=self.statevars.get('xsc',None)
         prior_paramfiles=self.statevars.get('charmmff_paramfiles',[])
         firsttimestep=self.statevars.get('firsttimestep',0)
+        if specs.get('firsttimestep',None) is not None:
+            firsttimestep=specs['firsttimestep']
         self.statevars['periodic']=is_periodic(xsc)
 
         temperature=specs['temperature']
