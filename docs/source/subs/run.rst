@@ -17,10 +17,8 @@ Here ``config.yaml`` is the name of the configuration file that describes the bu
    :caption: Pestifer Run Task Flowchart
 
    graph TD;
-      direction LR;
       A[Config] --> C{Next task?};
       subgraph group Controller [Controller];
-         direction LR;
          C --> Yes --> D[Run task];
          D -->|Success| C;
          D -->|Failure| F[Report error];

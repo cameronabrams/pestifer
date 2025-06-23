@@ -228,11 +228,13 @@ Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full d
 
 ## Meta
 
-Cameron F. Abrams
-
-Distributed under the MIT license. See ``LICENSE`` for more information.
-
 [https://github.com/cameronabrams](https://github.com/cameronabrams/)
+
+Pestifer is maintained by Cameron F. Abrams 
+
+Pestifer is distributed under the MIT license. See ``LICENSE`` for more information.
+
+Pestifer was developed with support from the National Institutes of Health via grants GM100472, AI154071, and AI178833.
 
 ## Contributing
 
