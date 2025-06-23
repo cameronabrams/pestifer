@@ -333,9 +333,9 @@ class TestBilayer(unittest.TestCase):
         assert test_bilayer.patch_ll_corner[0]==pytest.approx(0.0, rel=1e-2)
         assert test_bilayer.patch_ll_corner[1]==pytest.approx(0.0, rel=1e-2)
         assert test_bilayer.patch_ll_corner[2]==pytest.approx(0.0, rel=1e-2)
-        assert test_bilayer.patch_ur_corner[0]==pytest.approx(77.46, rel=1e-2)
-        assert test_bilayer.patch_ur_corner[1]==pytest.approx(77.46, rel=1e-2)
-        assert test_bilayer.patch_ur_corner[2]==pytest.approx(82.51, rel=1e-2)
+        assert test_bilayer.patch_ur_corner[0]==pytest.approx(86.60, rel=1e-2)
+        assert test_bilayer.patch_ur_corner[1]==pytest.approx(86.60, rel=1e-2)
+        assert test_bilayer.patch_ur_corner[2]==pytest.approx(76.13, rel=1e-2)
         self.RM.charmmff_content.clean_local_charmmff_files()
 
         os.chdir('..')

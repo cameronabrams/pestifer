@@ -1,0 +1,719 @@
+Charm++: standalone mode (not using charmrun)
+Charm++> Running in Multicore mode: 16 threads (PEs)
+Charm++> Using recursive bisection (scheme 3) for topology aware partitions
+Converse/Charm++ Commit ID: v80000
+CharmLB> Load balancer assumes all CPUs are same.
+Charm++> cpu affinity enabled. 
+Charm++> Running on 1 hosts (2 sockets x 4 cores x 2 PUs = 16-way SMP)
+Charm++> cpu topology info is gathered in 0.000 seconds.
+Info: Built with CUDA version 11030
+Pe 10 physical rank 10 will use CUDA device of pe 8
+Pe 1 physical rank 1 will use CUDA device of pe 8
+Pe 14 physical rank 14 will use CUDA device of pe 8
+Pe 12 physical rank 12 will use CUDA device of pe 8
+Pe 13 physical rank 13 will use CUDA device of pe 8
+Pe 11 physical rank 11 will use CUDA device of pe 8
+Pe 9 physical rank 9 will use CUDA device of pe 8
+Pe 6 physical rank 6 will use CUDA device of pe 8
+Pe 4 physical rank 4 will use CUDA device of pe 8
+Pe 15 physical rank 15 will use CUDA device of pe 8
+Pe 2 physical rank 2 will use CUDA device of pe 8
+Pe 7 physical rank 7 will use CUDA device of pe 8
+Pe 3 physical rank 3 will use CUDA device of pe 8
+Pe 5 physical rank 5 will use CUDA device of pe 8
+Pe 8 physical rank 8 binding to CUDA device 0 on panacea: 'Quadro P4000'  Mem: 8106MB  Rev: 6.1  PCI: 0:73:0
+Pe 0 physical rank 0 will use CUDA device of pe 8
+CharmLB> Load balancing instrumentation for communication is off.
+Info: NAMD 3.0.1 for Linux-x86_64-multicore-CUDA
+Info: 
+Info: Please visit http://www.ks.uiuc.edu/Research/namd/
+Info: for updates, documentation, and support information.
+Info: 
+Info: Please cite Phillips et al., J. Chem. Phys. 153:044130 (2020) doi:10.1063/5.0014475
+Info: in all publications reporting results obtained with NAMD.
+Info: 
+Info: Based on Charm++/Converse 80000 for multicore-linux-x86_64
+Info: Built Mon 03 Feb 2025 11:11:51 AM EST by cfa on panacea
+Info: 1 NAMD  3.0.1  Linux-x86_64-multicore-CUDA  16    panacea  cfa
+Info: Running on 16 processors, 1 nodes, 1 physical nodes.
+Info: CPU topology information available.
+Info: Charm++/Converse parallel runtime startup completed at 0.436808 s
+CkLoopLib is used in SMP with simple dynamic scheduling (converse-level notification)
+Info: 0 MB of memory in use based on /proc/self/stat
+Info: Configuration file is 12-00-md-NPT.namd
+Info: Working in the current directory /home/cfa/devtests/pestifer/180/08
+TCL: Suspending until startup complete.
+Info: EXTENDED SYSTEM FILE   11-00-md-NPT.xsc
+Info: Tuning parameters to improve GPU-resident performance
+Warning: The Langevin gamma parameters differ over the particles,
+Warning: requiring extra work per step to constrain rigid bonds.
+Warning: Disabling lonepair support due to incompatability with GPU-resident.
+Info: Running with GPU-resident mode
+Info: SIMULATION PARAMETERS:
+Info: TIMESTEP               2
+Info: NUMBER OF STEPS        14000
+Info: STEPS PER CYCLE        10
+Info: PERIODIC CELL BASIS 1  152.013 0 0
+Info: PERIODIC CELL BASIS 2  0 151.331 0
+Info: PERIODIC CELL BASIS 3  0 0 137.348
+Info: PERIODIC CELL CENTER   125.251 140.073 134.45
+Info: WRAPPING ALL CLUSTERS AROUND PERIODIC BOUNDARIES ON OUTPUT.
+Info: LOAD BALANCER  Centralized
+Info: LOAD BALANCING STRATEGY  New Load Balancers -- DEFAULT
+Info: LDB PERIOD             2000 steps
+Info: FIRST LDB TIMESTEP     50
+Info: LAST LDB TIMESTEP     -1
+Info: LDB BACKGROUND SCALING 1
+Info: HOM BACKGROUND SCALING 1
+Info: PME BACKGROUND SCALING 1
+Info: MIN ATOMS PER PATCH    40
+Info: EMPTY PATCH LOAD       40 ATOMS
+Info: VELOCITY FILE          11-00-md-NPT.vel
+Info: CENTER OF MASS MOVING INITIALLY? NO
+Info: DIELECTRIC             1
+Info: EXCLUDE                SCALED ONE-FOUR
+Info: 1-4 ELECTROSTATICS SCALED BY 1
+Info: MODIFIED 1-4 VDW PARAMETERS WILL BE USED
+Info: DCD FILENAME           12-00-md-NPT.dcd
+Info: DCD FREQUENCY          100
+Info: DCD FIRST STEP         14100
+Info: DCD FILE WILL CONTAIN UNIT CELL DATA
+Info: XST FILENAME           12-00-md-NPT.xst
+Info: XST FREQUENCY          100
+Info: NO VELOCITY DCD OUTPUT
+Info: NO FORCE DCD OUTPUT
+Info: OUTPUT FILENAME        12-00-md-NPT
+Info: BINARY OUTPUT FILES WILL BE USED
+Info: NO RESTART FILE
+Info: SWITCHING ACTIVE
+Info: SWITCHING ON           9
+Info: SWITCHING OFF          10
+Info: PAIRLIST DISTANCE      11.5
+Info: PAIRLIST SHRINK RATE   0.01
+Info: PAIRLIST GROW RATE     0.01
+Info: PAIRLIST TRIGGER       0.3
+Info: PAIRLISTS PER CYCLE    2
+Info: PAIRLISTS ENABLED
+Info: MARGIN                 4
+Info: HYDROGEN GROUP CUTOFF  2.5
+Info: PATCH DIMENSION        18
+Info: ENERGY OUTPUT STEPS    100
+Info: ENERGY EVALUATION STEPS    100
+Info: OUTPUT ENERGY PRECISION 4
+Info: CROSSTERM ENERGY INCLUDED IN DIHEDRAL
+Info: TIMING OUTPUT STEPS    1000
+Info: LANGEVIN DYNAMICS ACTIVE
+Info: LANGEVIN TEMPERATURE   300
+Info: LANGEVIN USING BBK INTEGRATOR
+Info: LANGEVIN DAMPING COEFFICIENT IS 5 INVERSE PS
+Info: LANGEVIN DYNAMICS NOT APPLIED TO HYDROGENS
+Info: LANGEVIN PISTON PRESSURE CONTROL ACTIVE
+Info:        TARGET PRESSURE IS 1 BAR
+Info:     OSCILLATION PERIOD IS 200 FS
+Info:             DECAY TIME IS 100 FS
+Info:     PISTON TEMPERATURE IS 300 K
+Info:       PRESSURE CONTROL IS GROUP-BASED
+Info:    INITIAL STRAIN RATE IS 5.59188e-07 5.59188e-07 5.59188e-07
+Info:       CELL FLUCTUATION IS ISOTROPIC
+Info: PARTICLE MESH EWALD (PME) ACTIVE
+Info: PME TOLERANCE               1e-06
+Info: PME EWALD COEFFICIENT       0.312341
+Info: PME INTERPOLATION ORDER     4
+Info: PME GRID DIMENSIONS         160 160 144
+Info: PME MAXIMUM GRID SPACING    1
+Info: PME CALCULATION WILL BE PERFORMED ON GPU
+Info: FULL ELECTROSTATIC EVALUATION FREQUENCY      2
+Info: USING VERLET I (r-RESPA) MTS SCHEME.
+Info: C1 SPLITTING OF LONG RANGE ELECTROSTATICS
+Info: PLACING ATOMS IN PATCHES BY HYDROGEN GROUPS
+Info: RIGID BONDS TO HYDROGEN : ALL
+Info:         ERROR TOLERANCE : 1e-08
+Info:          MAX ITERATIONS : 100
+Info: RIGID WATER USING SETTLE ALGORITHM
+Info: RANDOM NUMBER SEED     1740779937
+Info: USE HYDROGEN BONDS?    NO
+Info: COORDINATE PDB         11-00-md-NPT.pdb
+Info: STRUCTURE FILE         05-00-solvate.psf
+Info: PARAMETER file: CHARMM format! 
+Info: PARAMETERS             par_all36m_prot.prm
+Info: PARAMETERS             par_all36_carb.prm
+Info: PARAMETERS             par_all36_lipid.prm
+Info: PARAMETERS             par_all36_carb.prm
+Info: PARAMETERS             par_all36_na.prm
+Info: PARAMETERS             par_all36_cgenff.prm
+Info: PARAMETERS             toppar_water_ions.str
+Info: PARAMETERS             toppar_all36_carb_glycopeptide.str
+Info: PARAMETERS             toppar_all36_prot_modify_res.str
+Info: PARAMETERS             toppar_all36_moreions.str
+Info: USING ARITHMETIC MEAN TO COMBINE L-J SIGMA PARAMETERS
+Info: BINARY COORDINATES     11-00-md-NPT.coor
+Info: FIRST TIMESTEP         14000
+Info: SKIPPING rtf SECTION IN STREAM FILE
+Info: SKIPPING rtf SECTION IN STREAM FILE
+Info: SKIPPING rtf SECTION IN STREAM FILE
+Info: SKIPPING rtf SECTION IN STREAM FILE
+Info: SUMMARY OF PARAMETERS:
+Info: 1324 BONDS
+Info: 4452 ANGLES
+Info: 13183 DIHEDRAL
+Info: 310 IMPROPER
+Info: 20 CROSSTERM
+Info: 419 VDW
+Info: 99 VDW_PAIRS
+Info: 0 NBTHOLE_PAIRS
+Info: TIME FOR READING PSF FILE: 15.2077
+Info: Reading pdb file 11-00-md-NPT.pdb
+Info: TIME FOR READING PDB FILE: 0.575697
+Info: 
+Info: ****************************
+Info: STRUCTURE SUMMARY:
+Info: 319419 ATOMS
+Info: 225178 BONDS
+Info: 159492 ANGLES
+Info: 96101 DIHEDRALS
+Info: 5472 IMPROPERS
+Info: 1826 CROSSTERMS
+Info: 0 EXCLUSIONS
+Info: 301708 RIGID BONDS
+Info: 656549 DEGREES OF FREEDOM
+Info: 112512 HYDROGEN GROUPS
+Info: 4 ATOMS IN LARGEST HYDROGEN GROUP
+Info: 112512 MIGRATION GROUPS
+Info: 4 ATOMS IN LARGEST MIGRATION GROUP
+Info: TOTAL MASS = 1.96154e+06 amu
+Info: TOTAL CHARGE = 2.97632e-05 e
+Info: MASS DENSITY = 1.03092 g/cm^3
+Info: ATOM DENSITY = 0.101095 atoms/A^3
+Info: *****************************
+Info: Reading from binary file 11-00-md-NPT.coor
+Info: 
+Info: Entering startup at 16.9287 s, 0 MB of memory in use
+Info: Startup phase 0 took 0.0356682 s, 0 MB of memory in use
+Info: ADDED 478827 IMPLICIT EXCLUSIONS
+Info: Startup phase 1 took 0.211794 s, 0 MB of memory in use
+Info: NONBONDED TABLE R-SQUARED SPACING: 0.0625
+Info: NONBONDED TABLE SIZE: 705 POINTS
+Info: INCONSISTENCY IN FAST TABLE ENERGY VS FORCE: 0.000290479 AT 0.251946
+Info: INCONSISTENCY IN SCOR TABLE ENERGY VS FORCE: 0.000178193 AT 9.97184
+Info: ABSOLUTE IMPRECISION IN VDWA TABLE ENERGY: 7.88861e-31 AT 9.99687
+Info: RELATIVE IMPRECISION IN VDWA TABLE ENERGY: 1.10587e-16 AT 9.99687
+Info: INCONSISTENCY IN VDWA TABLE ENERGY VS FORCE: 0.0040507 AT 0.251946
+Info: INCONSISTENCY IN VDWB TABLE ENERGY VS FORCE: 0.00377068 AT 9.07951
+Info: Startup phase 2 took 0.0100748 s, 0 MB of memory in use
+Info: Startup phase 3 took 0.000452234 s, 0 MB of memory in use
+Info: Startup phase 4 took 0.0178781 s, 0 MB of memory in use
+Info: Startup phase 5 took 0.00778556 s, 0 MB of memory in use
+Info: PATCH GRID IS 8 (PERIODIC) BY 8 (PERIODIC) BY 7 (PERIODIC)
+Info: PATCH GRID IS 1-AWAY BY 1-AWAY BY 1-AWAY
+Info: Reading from binary file 11-00-md-NPT.vel
+Info: REMOVING COM VELOCITY -0.00218102 -0.00993885 0.0142114
+Info: LARGEST PATCH (360) HAS 774 ATOMS
+Info: TORUS A SIZE 1 USING 0
+Info: TORUS B SIZE 1 USING 0
+Info: TORUS C SIZE 1 USING 0
+Info: TORUS MINIMAL MESH SIZE IS 1 BY 1 BY 1
+Info: Placed 100% of base nodes on same physical node as patch
+Info: Startup phase 6 took 0.258606 s, 0 MB of memory in use
+Info: Use 3D box decompostion in PME FFT.
+Info: PME using 1 x 1 x 1 pencil grid for FFT and reciprocal sum.
+Info: Startup phase 7 took 0.00138822 s, 0 MB of memory in use
+Info: Updated CUDA force table with 4096 elements.
+Info: Updated CUDA LJ table with 362 x 362 elements.
+Info: Startup phase 8 took 0.00777937 s, 0 MB of memory in use
+Info: Startup phase 9 took 0.00591081 s, 0 MB of memory in use
+Info: Startup phase 10 took 0.000480088 s, 0 MB of memory in use
+Info: Startup phase 11 took 0.164758 s, 0 MB of memory in use
+LDB: Central LB being created...
+Info: Startup phase 12 took 0.00946657 s, 0 MB of memory in use
+Info: CREATING 9536 COMPUTE OBJECTS
+Info: Found 1093 unique exclusion lists needing 2218904 bytes
+Info: useSync: 0 useProxySync: 0
+Info: Startup phase 13 took 0.29764 s, 0 MB of memory in use
+Info: Startup phase 14 took 0.000997951 s, 0 MB of memory in use
+Info: Startup phase 15 took 0.000483808 s, 0 MB of memory in use
+Info: Finished startup at 17.9599 s, 0 MB of memory in use
+
+TCL: Running for 13200 steps
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   14000      7397.2557     20165.8287     23965.3248      1142.9495       -1080619.1857     90865.8770         0.0000         0.0000    194536.9065        -742545.0436       298.2121   -937081.9501   -742545.0436       298.2121            -42.4924         6.6418   3159590.0926       -42.4924         6.6418
+
+OPENING EXTENDED SYSTEM TRAJECTORY FILE
+Info: Initial time: 16 CPUs 0.0282585 s/step 6.11497 ns/day 0 MB memory
+Info: Initial time: 16 CPUs 0.0287301 s/step 6.0146 ns/day 0 MB memory
+ENERGY:   14100      7372.6338     20155.0626     23845.8679      1151.1208       -1079998.6104     90059.8604         0.0000         0.0000    195301.3130        -742112.7521       299.3839   -937414.0650   -742328.8978       298.7980           -135.0722       -82.7883   3160407.6116       -88.7823       -38.0732
+
+OPENING COORDINATE DCD FILE
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 14100
+The last position output (seq=14100) takes 0.013 seconds, 0.000 MB of memory in use
+Info: Initial time: 16 CPUs 0.0261228 s/step 6.61492 ns/day 0 MB memory
+Info: Benchmark time: 16 CPUs 0.0278353 s/step 6.20794 ns/day 0 MB memory
+ENERGY:   14200      7438.9704     20177.3206     23804.1903      1118.8106       -1080197.0532     90862.4186         0.0000         0.0000    195096.4215        -741698.9212       299.0698   -936795.3427   -742118.9056       298.8886            -25.6785        23.1345   3161523.0336       -67.7477       -17.6707
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 14200
+The last position output (seq=14200) takes 0.012 seconds, 0.000 MB of memory in use
+Info: Benchmark time: 16 CPUs 0.0277662 s/step 6.22339 ns/day 0 MB memory
+Info: Benchmark time: 16 CPUs 0.0233425 s/step 7.40282 ns/day 0 MB memory
+ENERGY:   14300      7364.5832     20202.6699     23854.5954      1139.4310       -1079747.8586     90716.1570         0.0000         0.0000    194979.8384        -741490.5836       298.8911   -936470.4220   -741961.8251       298.8892            -34.9231        16.0269   3159306.1058       -59.5416        -9.2463
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 14300
+The last position output (seq=14300) takes 0.016 seconds, 0.000 MB of memory in use
+Info: Benchmark time: 16 CPUs 0.027584 s/step 6.26451 ns/day 0 MB memory
+Info: Benchmark time: 16 CPUs 0.0287605 s/step 6.00824 ns/day 0 MB memory
+ENERGY:   14400      7355.5552     20258.7220     23860.6737      1071.3092       -1080576.2115     90488.2468         0.0000         0.0000    195436.8893        -742104.8154       299.5917   -937541.7047   -741990.4232       299.0297            -31.0350        19.9719   3156382.1235       -53.8402        -3.4026
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 14400
+The last position output (seq=14400) takes 0.014 seconds, 0.000 MB of memory in use
+Info: Benchmark time: 16 CPUs 0.0344976 s/step 5.00905 ns/day 0 MB memory
+ENERGY:   14500      7509.1056     20464.8744     23770.8463      1086.8625       -1081002.6798     90908.1710         0.0000         0.0000    195867.1573        -741395.6626       300.2513   -937262.8199   -741891.2964       299.2333            -31.4002        19.5422   3154671.9291       -50.1002         0.4215
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 14500
+The last position output (seq=14500) takes 0.010 seconds, 0.000 MB of memory in use
+ENERGY:   14600      7308.3087     20269.1078     23837.2678      1121.5664       -1081065.0714     91045.0640         0.0000         0.0000    195612.5414        -741871.2153       299.8610   -937483.7568   -741888.4277       299.3230            -14.2334        36.4086   3154194.6679       -44.9764         5.5625
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 14600
+The last position output (seq=14600) takes 0.011 seconds, 0.000 MB of memory in use
+ENERGY:   14700      7455.0133     20298.7158     23820.0148      1184.6022       -1080551.2165     90753.5239         0.0000         0.0000    195099.5953        -741939.7512       299.0747   -937039.3465   -741894.8431       299.2919             22.4706        73.0307   3153898.2825       -36.5455        13.9960
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 14700
+The last position output (seq=14700) takes 0.018 seconds, 0.000 MB of memory in use
+ENERGY:   14800      7434.4816     20036.7630     23836.8182      1146.4674       -1079275.9679     89714.0469         0.0000         0.0000    195237.8552        -741869.5355       299.2866   -937107.3907   -741892.0312       299.2913            -91.6501       -42.2480   3155300.0823       -42.6683         7.7467
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 14800
+The last position output (seq=14800) takes 0.010 seconds, 0.000 MB of memory in use
+ENERGY:   14900      7364.7091     20338.3708     23758.7317      1124.9769       -1080597.4460     90428.5969         0.0000         0.0000    195670.7294        -741911.3312       299.9502   -937582.0606   -741893.9612       299.3572            -41.6115         7.1513   3154765.5818       -42.5626         7.6872
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 14900
+The last position output (seq=14900) takes 0.011 seconds, 0.000 MB of memory in use
+TIMING: 15000  CPU: 28.5238, 0.0290616/step  Wall: 32.2309, 0.0316046/step, 5.46756 ns/days, 0.107104 hours remaining, 0.000000 MB of memory in use.
+PERFORMANCE: 15000  averaging 5.46756 ns/day, 0.0316046 sec/step with standard deviation 0
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   15000      7381.0027     20294.0279     23947.5064      1094.6457       -1081732.6553     91505.4360         0.0000         0.0000    195142.4167        -742367.6198       299.1403   -937510.0365   -741937.0211       299.3375             16.7315        69.9997   3154910.4953       -37.1722        13.3519
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 15000
+The last position output (seq=15000) takes 0.011 seconds, 0.000 MB of memory in use
+ENERGY:   15100      7272.2918     20301.5878     23866.5861      1111.5748       -1080426.3717     89979.1002         0.0000         0.0000    194539.4695        -743355.7616       298.2160   -937895.2311   -742055.2494       299.2440           -117.0423       -68.8628   3155770.5275       -43.8281         6.5007
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 15100
+ENERGY:   15200      7307.2542     20185.0787     23934.9928      1113.5756       -1080526.7744     89684.6631         0.0000         0.0000    195226.7562        -743074.4539       299.2696   -938301.2100   -742133.6498       299.2460           -131.8750       -81.2664   3158306.8496       -50.6009        -0.2506
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 15200
+ENERGY:   15300      7399.7927     20450.3500     23793.4572      1186.2348       -1081355.3927     90573.5106         0.0000         0.0000    194987.7753        -742964.2722       298.9032   -937952.0475   -742192.9799       299.2215            -31.1939        18.3593   3156373.4398       -49.2147         1.0787
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 15300
+ENERGY:   15400      7530.0974     20222.1087     23833.6806      1111.1078       -1081394.8310     91096.7009         0.0000         0.0000    195382.4583        -742218.6774       299.5083   -937601.1357   -742194.6931       299.2406            -47.9160         3.2003   3153917.8343       -49.1281         1.2201
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 15400
+ENERGY:   15500      7374.6600     20473.3745     23863.0076      1148.4577       -1080940.9514     90397.3680         0.0000         0.0000    196110.9952        -741573.0885       300.6251   -937684.0837   -742155.8428       299.3272            -86.7356       -35.8826   3158952.1819       -51.4786        -1.0988
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 15500
+ENERGY:   15600      7390.0229     20368.9115     23858.1015      1091.7726       -1081085.0904     90806.8650         0.0000         0.0000    195752.0606        -741817.3563       300.0748   -937569.4169   -742135.9318       299.3711             18.3718        69.1235   3158327.7222       -47.3697         3.0319
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 15600
+ENERGY:   15700      7254.8498     20208.8956     23795.1887      1108.2243       -1080720.3526     90127.8581         0.0000         0.0000    195698.2549        -742527.0812       299.9924   -938225.3361   -742157.6624       299.4057            -80.3675       -31.8273   3161135.7572       -49.2029         1.0953
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 15700
+ENERGY:   15800      7272.2348     20095.8472     23861.4624      1156.5342       -1080346.6453     89870.9602         0.0000         0.0000    195697.9067        -742391.6998       299.9918   -938089.6065   -742169.9801       299.4365            -34.1704        13.1150   3156622.6598       -48.4118         1.7279
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 15800
+ENERGY:   15900      7268.9330     20293.5160     23771.5353      1123.7393       -1080466.5266     90345.0917         0.0000         0.0000    195545.4469        -742118.2645       299.7581   -937663.7113   -742167.3943       299.4526            -53.7268        -5.0782   3155817.8774       -48.6775         1.3876
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 15900
+TIMING: 16000  CPU: 56.571, 0.0280471/step  Wall: 62.1605, 0.0299296/step, 5.77354 ns/days, 0.0931144 hours remaining, 0.000000 MB of memory in use.
+PERFORMANCE: 16000  averaging 5.61639 ns/day, 0.0307671 sec/step with standard deviation 0.00118438
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   16000      7411.6910     20314.0917     23886.0529      1151.5447       -1081019.1073     90418.9397         0.0000         0.0000    195685.5722        -742151.2151       299.9729   -937836.7873   -742147.7029       299.5406            -65.4537       -16.2369   3155771.8231       -49.8256         0.2437
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 16000
+ENERGY:   16100      7444.2751     20438.8205     23794.1586      1111.9982       -1080460.8939     89780.8386         0.0000         0.0000    195349.8720        -742540.9308       299.4583   -937890.8028   -742169.1119       299.5444           -102.3463       -53.7106   3155324.5684       -48.1893         1.6976
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 16100
+ENERGY:   16200      7487.2188     20139.9835     23767.9302      1102.3905       -1080418.6618     89955.8038         0.0000         0.0000    195508.0200        -742457.3150       299.7007   -937965.3349   -742207.0315       299.5759           -162.3081      -110.2285   3155277.2712       -55.0207        -4.9706
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 16200
+ENERGY:   16300      7333.5193     20420.8021     23855.6830      1152.9184       -1081047.1644     90377.5723         0.0000         0.0000    195871.7918        -742034.8775       300.2584   -937906.6693   -742234.2462       299.6443            -91.5903       -42.4966   3153059.5272       -57.8541        -7.8968
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 16300
+ENERGY:   16400      7476.3701     20340.2315     23729.6131      1093.2625       -1081082.6206     90347.8254         0.0000         0.0000    195438.3472        -742656.9709       299.5939   -938095.3181   -742261.8540       299.6444            -76.7797       -22.6945   3153497.8422       -60.1413       -10.0301
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 16400
+ENERGY:   16500      7461.0185     20436.4384     23822.1309      1145.1148       -1081199.9044     90627.1072         0.0000         0.0000    195186.9986        -742521.0960       299.2086   -937708.0945   -742318.1257       299.5922            -55.8848        -6.3397   3151589.6766       -61.3656       -11.3242
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 16500
+ENERGY:   16600      7419.0110     20310.8372     23896.0584      1136.3294       -1082174.8434     91010.9580         0.0000         0.0000    195599.9294        -742801.7200       299.8416   -938401.6494   -742364.6509       299.5913            -46.5166         6.3795   3148815.7365       -62.9797       -12.8256
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 16600
+ENERGY:   16700      7443.0399     20493.3683     23844.6420      1129.3887       -1082520.7496     91107.4728         0.0000         0.0000    195448.3730        -743054.4650       299.6093   -938502.8379   -742420.3866       299.6180             -1.9232        50.0824   3149648.1095       -64.1994       -13.9731
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 16700
+ENERGY:   16800      7295.0189     20389.4862     23878.4072      1102.2950       -1082128.3400     90160.7380         0.0000         0.0000    195229.7274        -744072.6672       299.2741   -939302.3946   -742530.5432       299.6174           -108.9038       -59.7855   3150086.6784       -65.0621       -14.8499
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 16800
+ENERGY:   16900      7456.7904     20267.5833     23773.7737      1098.9252       -1081436.7772     90034.9696         0.0000         0.0000    194999.7755        -743804.9594       298.9216   -938804.7349   -742625.2246       299.5660            -94.4125       -42.7031   3148615.3978       -67.7022       -17.3427
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 16900
+TIMING: 17000  CPU: 80.0692, 0.0234983/step  Wall: 86.1355, 0.023975/step, 7.20752 ns/days, 0.067929 hours remaining, 0.000000 MB of memory in use.
+PERFORMANCE: 17000  averaging 6.06251 ns/day, 0.0285031 sec/step with standard deviation 0.00400989
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   17000      7536.4757     20155.4464     23818.4058      1133.0765       -1081578.6330     90466.1000         0.0000         0.0000    195410.9200        -743058.2087       299.5519   -938469.1286   -742659.7540       299.5865            -43.3863         7.8126   3149812.0582       -70.7080       -20.4520
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 17000
+ENERGY:   17100      7438.0897     20313.9675     23722.4186      1098.0488       -1081226.5526     90594.8538         0.0000         0.0000    195195.8003        -742863.3738       299.2221   -938059.1741   -742635.1346       299.6368            -33.3901        20.8102   3151084.2047       -66.5254       -15.9684
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 17100
+ENERGY:   17200      7417.1017     20238.9251     23851.3489      1093.6451       -1081307.1710     90047.4666         0.0000         0.0000    195629.0344        -743029.6492       299.8862   -938658.6836   -742632.8944       299.6677            -78.3608       -26.5717   3150033.6436       -63.8497       -13.2336
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 17200
+ENERGY:   17300      7388.2356     20245.2375     23784.5395      1121.5077       -1080297.6319     89661.9199         0.0000         0.0000    194852.0668        -743244.1249       298.6952   -938096.1917   -742646.8870       299.6573           -111.2030       -56.6159   3152501.4206       -67.8502       -16.9824
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 17300
+ENERGY:   17400      7458.6805     20179.9095     23819.6803      1128.7431       -1081356.5769     90503.5444         0.0000         0.0000    194984.0582        -743281.9609       298.8975   -938266.0191   -742700.0512       299.6267            -22.4829        27.9335   3150506.9001       -66.5785       -15.7457
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 17400
+ENERGY:   17500      7532.3778     20039.7460     23676.8983      1117.8926       -1080867.7640     90272.9467         0.0000         0.0000    195224.2565        -743003.6462       299.2658   -938227.9027   -742771.5791       299.5588            -44.9794         2.4289   3151916.4361       -64.4907       -13.8301
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 17500
+ENERGY:   17600      7432.5070     20202.9339     23712.5126      1154.0536       -1081542.5096     90370.7211         0.0000         0.0000    195134.0088        -743535.7727       299.1274   -938669.7815   -742857.4999       299.5114              8.2262        59.2344   3150377.6331       -64.9980       -14.3246
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 17600
+ENERGY:   17700      7366.7438     20183.8207     23834.3918      1127.8057       -1081859.1413     90639.1527         0.0000         0.0000    195363.7016        -743343.5250       299.4795   -938707.2266   -742898.3221       299.4858            -53.8526        -4.3535   3153934.7888       -63.6723       -12.9509
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 17700
+ENERGY:   17800      7307.9847     20186.6830     23732.9661      1111.1855       -1081093.2913     90116.3171         0.0000         0.0000    195509.8601        -743128.2949       299.7036   -938638.1550   -742935.1519       299.4714            -22.0936        25.6915   3153043.1354       -63.0684       -12.3221
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 17800
+ENERGY:   17900      7239.5190     20143.3412     23727.6262      1185.8350       -1081167.1556     90163.6782         0.0000         0.0000    194694.3566        -744012.7994       298.4534   -938707.1560   -743029.8786       299.4061             -4.7073        46.6750   3152561.2092       -60.6174        -9.7344
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 17900
+TIMING: 18000  CPU: 105.223, 0.0251534/step  Wall: 113.016, 0.02688/step, 6.42856 ns/days, 0.0686934 hours remaining, 0.000000 MB of memory in use.
+PERFORMANCE: 18000  averaging 6.15006 ns/day, 0.0280973 sec/step with standard deviation 0.00337313
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   18000      7276.4706     20150.9669     23789.6060      1152.6864       -1081245.1268     90392.8057         0.0000         0.0000    195054.9080        -743427.6831       299.0062   -938482.5912   -743093.7020       299.3578            -49.0825         0.6213   3151680.9156       -59.7989        -8.8915
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 18000
+ENERGY:   18100      7422.5018     20141.0510     23866.9246      1140.8599       -1081617.4949     90832.7694         0.0000         0.0000    194850.2386        -743363.1497       298.6924   -938213.3882   -743134.8130       299.3195             49.4847        99.9395   3153654.4312       -52.2073        -1.2090
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 18100
+ENERGY:   18200      7377.4867     20293.8892     23765.5906      1128.7380       -1082067.8431     90498.6045         0.0000         0.0000    195280.8432        -743722.6909       299.3525   -939003.5341   -743198.0818       299.3021            -30.4952        23.6385   3153787.1202       -45.6167         5.4843
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 18200
+ENERGY:   18300      7434.8025     20115.0362     23810.4545      1124.1806       -1081521.4075     89966.9314         0.0000         0.0000    195403.2243        -743666.7781       299.5401   -939070.0024   -743279.6768       299.2662            -80.6382       -30.7230   3151080.6696       -45.0691         6.0730
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 18300
+ENERGY:   18400      7326.9706     20331.6670     23735.3382      1127.7150       -1080353.8868     89261.4059         0.0000         0.0000    194821.1909        -743749.5991       298.6479   -938570.7900   -743334.3082       299.2189           -133.8011       -82.0728   3152897.4189       -47.9202         3.1041
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 18400
+ENERGY:   18500      7466.8622     20216.9344     23794.5838      1101.3796       -1082381.7527     90851.8718         0.0000         0.0000    195157.6676        -743792.4532       299.1637   -938950.1208   -743397.8761       299.2166            -46.4987         4.3421   3149491.5798       -47.4508         3.6382
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 18500
+ENERGY:   18600      7349.7215     20175.2193     23819.9019      1161.1723       -1082793.0382     90598.5459         0.0000         0.0000    196023.3854        -743665.0919       300.4908   -939688.4773   -743441.0447       299.2491            -13.7457        34.9783   3149444.1610       -45.8123         5.0681
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 18600
+ENERGY:   18700      7380.6864     20313.5185     23829.0189      1143.0659       -1081803.0249     90100.7630         0.0000         0.0000    195466.5579        -743569.4143       299.6372   -939035.9722   -743466.7921       299.2505           -106.2052       -56.9151   3151971.1650       -51.0264        -0.2817
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 18700
+ENERGY:   18800      7497.7004     20246.2106     23787.2225      1109.3108       -1081347.5624     90027.9855         0.0000         0.0000    195079.9605        -743599.1722       299.0446   -938679.1327   -743443.1174       299.2390           -107.2948       -58.1219   3153532.5093       -50.9459        -0.1986
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 18800
+ENERGY:   18900      7426.0458     20422.9151     23657.8738      1116.3108       -1081495.1150     90246.2626         0.0000         0.0000    195129.1396        -743496.5673       299.1199   -938625.7069   -743427.6978       299.2489            -67.8920       -15.4119   3152136.3422       -49.6199         1.1660
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 18900
+TIMING: 19000  CPU: 130.551, 0.025328/step  Wall: 140.3, 0.0272845/step, 6.33326 ns/days, 0.0621481 hours remaining, 0.000000 MB of memory in use.
+PERFORMANCE: 19000  averaging 6.18584 ns/day, 0.0279348 sec/step with standard deviation 0.00294374
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   19000      7406.8727     20232.1289     23759.1974      1114.4445       -1083036.8324     90829.9075         0.0000         0.0000    195880.6635        -743813.6179       300.2720   -939694.2814   -743465.4682       299.2849             45.4314        93.2883   3150058.7160       -45.1790         5.4398
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 19000
+ENERGY:   19100      7421.3020     20387.8683     23827.9104      1090.0240       -1080320.9108     89193.2558         0.0000         0.0000    195103.6904        -743296.8599       299.0809   -938400.5503   -743487.1425       299.2778           -144.7728       -94.2518   3152885.3782       -50.7482        -0.3133
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 19100
+ENERGY:   19200      7320.0576     20130.0303     23726.0379      1110.4767       -1081395.5128     90507.9694         0.0000         0.0000    195110.3334        -743490.6076       299.0911   -938600.9410   -743510.1905       299.2381            -36.9085        13.7719   3150970.9226       -48.6756         1.7039
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 19200
+ENERGY:   19300      7418.5585     20273.7460     23775.5868      1084.3078       -1080861.6739     89206.8487         0.0000         0.0000    195378.7755        -743723.8505       299.5026   -939102.6260   -743534.1767       299.2785           -167.6977      -119.8533   3153260.1343       -51.5003        -1.4580
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 19300
+ENERGY:   19400      7278.0240     20128.1821     23781.2495      1141.6637       -1081710.9610     89980.7388         0.0000         0.0000    195077.3658        -744323.7371       299.0406   -939401.1029   -743586.2655       299.2856            -43.4003         3.8966   3149846.9840       -52.5462        -2.6599
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 19400
+ENERGY:   19500      7323.1841     20245.4819     23791.2349      1113.5867       -1082255.3450     90297.9391         0.0000         0.0000    195700.0580        -743783.8603       299.9951   -939483.9183   -743625.2763       299.3221            -56.7625        -4.6325   3151215.1074       -53.1353        -3.0129
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 19500
+ENERGY:   19600      7320.4338     20273.9467     23757.2896      1152.6831       -1081904.9374     90561.7999         0.0000         0.0000    195174.3112        -743664.4732       299.1892   -938838.7844   -743631.7113       299.3252              1.1025        52.7914   3150856.5254       -53.4915        -3.3351
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 19600
+ENERGY:   19700      7412.6677     20198.8864     23701.6037      1098.8685       -1081370.3906     89618.5240         0.0000         0.0000    195873.8419        -743465.9984       300.2615   -939339.8402   -743637.8350       299.3643           -143.0597       -93.5034   3150041.5435       -57.9519        -7.7926
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 19700
+ENERGY:   19800      7291.6327     20118.9352     23709.5636      1051.9468       -1081260.9829     89937.2704         0.0000         0.0000    195118.3523        -744033.2819       299.1034   -939151.6342   -743683.0843       299.3343            -65.2800       -13.5196   3148242.0742       -60.1112        -9.7531
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 19800
+ENERGY:   19900      7328.8805     20341.4617     23686.1006      1133.2398       -1081802.4183     90109.7362         0.0000         0.0000    195652.0907        -743550.9088       299.9216   -939202.9995   -743659.9898       299.4077             -9.0909        41.0577   3145623.4791       -60.3304       -10.0340
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 19900
+TIMING: 20000  CPU: 159.16, 0.0286089/step  Wall: 171.068, 0.0307684/step, 5.61616 ns/days, 0.0615367 hours remaining, 0.000000 MB of memory in use.
+PERFORMANCE: 20000  averaging 6.083 ns/day, 0.028407 sec/step with standard deviation 0.00287589
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   20000      7420.4371     20336.9703     23776.5999      1121.0700       -1081620.0406     89952.8965         0.0000         0.0000    195110.4787        -743901.5880       299.0913   -939012.0668   -743683.6850       299.4119            -69.8616       -22.5147   3146055.7424       -61.3693       -11.1908
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 20000
+ENERGY:   20100      7359.8441     20270.7937     23707.8366      1167.5562       -1082540.1948     90694.5746         0.0000         0.0000    195523.7852        -743815.8044       299.7249   -939339.5896   -743706.3178       299.4635              7.1353        56.8004   3145642.0237       -63.4868       -13.3477
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 20100
+ENERGY:   20200      7244.0699     20389.7810     23809.6694      1084.2108       -1081851.3021     90270.4267         0.0000         0.0000    195094.8974        -743958.2470       299.0675   -939053.1444   -743718.0956       299.4493              1.9653        53.1512   3148569.9661       -61.8638       -11.8721
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 20200
+ENERGY:   20300      7478.1220     20228.1628     23732.8761      1093.1373       -1082803.7303     90690.0963         0.0000         0.0000    195450.8556        -744130.4802       299.6131   -939581.3358   -743741.2807       299.4529            -56.1434        -4.8583   3145828.8508       -60.6390       -10.5789
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 20300
+ENERGY:   20400      7268.3162     20275.2333     23740.7576      1103.4906       -1081718.7319     90117.6028         0.0000         0.0000    195265.5659        -743947.7655       299.3291   -939213.3314   -743751.1890       299.4870            -26.5020        22.0141   3146060.9293       -55.2741        -5.3745
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 20400
+ENERGY:   20500      7272.1766     20174.8174     23721.7581      1139.4195       -1081204.5843     90103.8418         0.0000         0.0000    195345.6239        -743446.9469       299.4518   -938792.5708   -743733.9137       299.5014             -0.3247        47.7126   3147669.3365       -52.9654        -3.2060
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 20500
+ENERGY:   20600      7368.1241     20268.9206     23728.4182      1110.7291       -1081586.0650     89927.0666         0.0000         0.0000    195338.1326        -743844.6739       299.4403   -939182.8065   -743742.8928       299.4489            -26.3371        24.2338   3145682.3430       -53.5949        -3.7432
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 20600
+ENERGY:   20700      7519.1293     20442.1014     23650.3309      1125.8962       -1081892.9041     89761.4442         0.0000         0.0000    195463.7322        -743930.2700       299.6329   -939394.0022   -743760.9356       299.4487           -113.0716       -61.9040   3147169.0852       -53.9382        -3.9927
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 20700
+ENERGY:   20800      7355.6069     20154.6587     23721.7295      1116.0572       -1082402.9068     90673.1342         0.0000         0.0000    195287.8649        -744093.8554       299.3633   -939381.7203   -743785.6697       299.4646             30.5154        80.0092   3143350.0868       -47.0477         2.9139
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 20800
+ENERGY:   20900      7484.5757     20410.0605     23708.3362      1165.4071       -1082184.3922     90199.9210         0.0000         0.0000    195515.8479        -743700.2438       299.7127   -939216.0917   -743795.8535       299.4942            -62.4436       -11.0484   3146839.4328       -46.7753         3.1321
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 20900
+TIMING: 21000  CPU: 185.479, 0.0263198/step  Wall: 199.689, 0.0286209/step, 6.03754 ns/days, 0.0492916 hours remaining, 0.000000 MB of memory in use.
+PERFORMANCE: 21000  averaging 6.07647 ns/day, 0.0284376 sec/step with standard deviation 0.00262656
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   21000      7399.2567     20401.9157     23641.8437      1139.6878       -1082446.9533     90211.1443         0.0000         0.0000    195707.6968        -743945.4084       300.0068   -939653.1052   -743802.4431       299.4810             12.8794        66.2214   3144856.0358       -48.4029         1.7787
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 21000
+ENERGY:   21100      7358.4156     20295.3730     23743.9266      1157.4874       -1083203.6102     90566.6731         0.0000         0.0000    195859.8649        -744221.8698       300.2401   -940081.7347   -743848.6936       299.5389            -21.5645        29.6894   3144672.7923       -42.2425         7.9758
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 21100
+ENERGY:   21200      7388.4853     20393.7808     23636.9399      1140.7076       -1082064.9443     90128.4124         0.0000         0.0000    194763.7726        -744612.8456       298.5599   -939376.6182   -743904.8055       299.5124             -7.1660        44.9829   3144848.5420       -40.7554         9.5363
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 21200
+ENERGY:   21300      7335.9337     20316.3634     23714.8233      1107.4448       -1083409.6290     90464.6330         0.0000         0.0000    195074.1475        -745396.2833       299.0356   -940470.4308   -743988.4271       299.4890            -13.4442        36.8762   3145112.4419       -33.0427        17.3728
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 21300
+ENERGY:   21400      7353.2340     20249.6182     23807.7965      1137.6026       -1083464.9291     90886.2725         0.0000         0.0000    195116.6588        -744913.7463       299.1008   -940030.4051   -744017.9276       299.4920            -46.0643         6.2943   3142222.8797       -33.1759        17.4927
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 21400
+ENERGY:   21500      7477.0173     20457.5606     23740.2320      1147.9347       -1082716.3778     89560.2771         0.0000         0.0000    195262.5387        -745070.8175       299.3244   -940333.3562   -744082.2754       299.4585            -91.5615       -40.7884   3140877.5101       -34.9159        15.6849
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 21500
+ENERGY:   21600      7367.6811     20392.6293     23665.2760      1112.7872       -1083220.8986     90377.4973         0.0000         0.0000    194920.9254        -745384.1023       298.8008   -940305.0277   -744168.2569       299.4391            -21.1015        31.0677   3139434.4896       -36.0261        14.5987
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 21600
+ENERGY:   21700      7460.8728     20252.9559     23589.4665      1073.2975       -1083361.1141     90555.4860         0.0000         0.0000    195228.2181        -745200.8173       299.2718   -940429.0354   -744254.9978       299.3896             27.1709        75.8542   3138783.0494       -27.5145        23.0666
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 21700
+ENERGY:   21800      7261.7985     20200.0734     23758.1848      1099.1005       -1082718.9883     89887.5841         0.0000         0.0000    195293.9769        -745218.2702       299.3726   -940512.2471   -744314.2472       299.4031            -90.7134       -39.8240   3143637.9599       -28.7862        21.7514
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 21800
+ENERGY:   21900      7429.8733     20255.9816     23678.3502      1085.7822       -1083649.6508     90671.5772         0.0000         0.0000    194964.0920        -745563.9943       298.8669   -940528.0864   -744414.9015       299.3503            -56.9194        -7.1294   3142067.3025       -31.1776        19.3420
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 21900
+TIMING: 22000  CPU: 213.768, 0.0282883/step  Wall: 232.525, 0.032836/step, 5.26252 ns/days, 0.0474298 hours remaining, 0.000000 MB of memory in use.
+PERFORMANCE: 22000  averaging 5.96121 ns/day, 0.0289874 sec/step with standard deviation 0.00288644
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   22000      7366.8557     20110.4587     23658.5227      1121.0800       -1082396.7612     90082.9127         0.0000         0.0000    194777.8584        -745279.0731       298.5815   -940056.9315   -744483.7758       299.3248            -82.4416       -30.8307   3143943.9951       -31.8066        18.9262
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 22000
+ENERGY:   22100      7367.0474     20258.1219     23744.8560      1109.0745       -1082693.5451     90228.1091         0.0000         0.0000    194521.8588        -745464.4775       298.1890   -939986.3363   -744566.2094       299.2480           -107.4325       -56.8838   3145825.0641       -37.5350        13.2420
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 22100
+ENERGY:   22200      7313.4590     20238.1559     23713.1276      1145.8360       -1083317.5019     90217.9154         0.0000         0.0000    194619.8285        -746069.1795       298.3392   -940689.0080   -744671.7561       299.2116            -49.7910        -3.0463   3143215.8560       -40.1228        10.4321
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 22200
+ENERGY:   22300      7357.6965     20198.7656     23668.7137      1151.8449       -1083812.5230     90327.7691         0.0000         0.0000    195574.5493        -745533.1840       299.8027   -941107.7333   -744741.8912       299.2211            -49.6956         2.4407   3142529.2622       -39.8004        10.7971
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 22300
+ENERGY:   22400      7374.0407     20187.1555     23660.0000      1082.2272       -1082618.1359     89838.1871         0.0000         0.0000    194880.5056        -745596.0197       298.7388   -940476.5253   -744824.3039       299.1916            -46.1290         3.5897   3142788.1908       -40.7818         9.8759
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 22400
+ENERGY:   22500      7358.4429     20309.0626     23639.9985      1078.4941       -1082435.5354     89898.3970         0.0000         0.0000    194893.6434        -745257.4969       298.7589   -940151.1403   -744914.8314       299.1570           -107.6996       -59.4051   3149136.0487       -46.1505         4.5200
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 22500
+ENERGY:   22600      7429.3546     20147.8937     23622.4222      1120.1972       -1082171.1678     90007.7831         0.0000         0.0000    194949.9089        -744893.6080       298.8452   -939843.5169   -744967.2781       299.1272            -60.6295       -11.3943   3147613.7142       -47.8651         2.7386
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 22600
+ENERGY:   22700      7476.3195     20158.3819     23745.3170      1093.6927       -1082321.2414     90372.0136         0.0000         0.0000    194420.9732        -745054.5435       298.0344   -939475.5167   -745023.4918       299.0473            -17.3162        35.0829   3147434.3016       -43.0774         7.5879
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 22700
+ENERGY:   22800      7436.1467     20152.0425     23633.3525      1118.1032       -1082767.3685     90649.4854         0.0000         0.0000    195252.4185        -744525.8199       299.3089   -939778.2384   -745045.0901       299.0446            -58.0265        -8.9907   3146951.2436       -47.5045         3.1379
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 22800
+ENERGY:   22900      7240.9558     20366.4213     23690.6236      1117.9731       -1082728.3572     90176.4061         0.0000         0.0000    195592.0050        -744543.9724       299.8295   -940135.9774   -745087.2765       299.0504            -16.6687        36.7844   3147674.3361       -45.2157         5.5296
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 22900
+TIMING: 23000  CPU: 241.608, 0.0278408/step  Wall: 262.552, 0.0300271/step, 5.7548 ns/days, 0.0350316 hours remaining, 0.000000 MB of memory in use.
+PERFORMANCE: 23000  averaging 5.93755 ns/day, 0.0291029 sec/step with standard deviation 0.00272217
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   23000      7368.9334     20056.1546     23627.6458      1085.0397       -1081441.6457     89519.9172         0.0000         0.0000    195337.1018        -744446.8533       299.4387   -939783.9551   -745112.3487       299.0220           -129.6377       -77.1457   3148446.5005       -52.3416        -1.6388
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 23000
+ENERGY:   23100      7356.9148     20221.3507     23834.4887      1085.8599       -1081364.9838     89396.7569         0.0000         0.0000    194678.7124        -744790.9005       298.4295   -939469.6129   -745140.8003       298.9315           -162.0855      -113.2318   3149976.9873       -59.3676        -8.7848
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 23100
+ENERGY:   23200      7217.9058     20030.9317     23629.4559      1133.7271       -1082122.3131     90089.0630         0.0000         0.0000    195115.9967        -744905.2329       299.0998   -940021.2296   -745155.4196       298.9585            -43.0761         5.8374   3147239.0540       -61.1631       -10.7421
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 23200
+ENERGY:   23300      7243.1605     20425.2532     23673.3213      1153.6500       -1082452.0707     89931.3371         0.0000         0.0000    194965.3477        -745060.0009       298.8689   -940025.3486   -745138.6055       298.9501            -68.6305       -15.6081   3145958.6323       -63.9225       -13.3663
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 23300
+ENERGY:   23400      7464.4095     20315.8212     23659.0657      1082.4274       -1083066.9291     90166.2362         0.0000         0.0000    195180.3047        -745198.6643       299.1984   -940378.9691   -745152.8514       298.9550           -111.6407       -61.3725   3147033.1179       -67.2013       -16.7497
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 23400
+ENERGY:   23500      7318.3816     20240.4020     23671.6743      1089.1512       -1082864.8635     89944.2055         0.0000         0.0000    195206.2583        -745394.7906       299.2382   -940601.0490   -745169.0501       298.9507            -92.8537       -40.5703   3146320.2977       -67.2659       -16.7388
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 23500
+ENERGY:   23600      7274.8092     20136.7179     23725.3184      1072.3753       -1083058.5897     90569.7753         0.0000         0.0000    194976.7169        -745302.8767       298.8863   -940279.5936   -745164.9888       298.9550            -16.0757        36.4183   3143639.7934       -67.0146       -16.4712
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 23600
+ENERGY:   23700      7524.0082     20220.9711     23682.6841      1104.3607       -1082792.7851     90441.1792         0.0000         0.0000    195032.3529        -744787.2289       298.9716   -939819.5817   -745144.3094       298.9399            -97.4436       -44.7068   3146215.8034       -73.2453       -22.4993
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 23700
+ENERGY:   23800      7373.7247     20182.6697     23749.3198      1167.9649       -1082657.7995     89830.9122         0.0000         0.0000    195386.1630        -744967.0452       299.5139   -940353.2082   -745131.7481       298.9470            -63.2107       -14.6955   3142475.6508       -71.8702       -21.2429
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 23800
+ENERGY:   23900      7331.7423     20246.6302     23654.2519      1127.9887       -1082652.4604     90256.0177         0.0000         0.0000    195032.9687        -745002.8608       298.9725   -940035.8296   -745103.6914       298.9523            -38.7870        11.1130   3144992.4165       -70.9636       -20.3308
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 23900
+TIMING: 24000  CPU: 269.759, 0.0281505/step  Wall: 292.998, 0.0304455/step, 5.67572 ns/days, 0.0270627 hours remaining, 0.000000 MB of memory in use.
+PERFORMANCE: 24000  averaging 5.91029 ns/day, 0.0292372 sec/step with standard deviation 0.00260136
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   24000      7402.2501     20237.5569     23625.6336      1105.6629       -1082304.5940     89944.9148         0.0000         0.0000    194787.0930        -745201.4827       298.5956   -939988.5756   -745099.8119       298.9530            -51.6424         1.7612   3143665.5966       -69.4236       -18.7012
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 24000
+ENERGY:   24100      7463.8338     20148.3725     23672.1250      1142.8600       -1082871.9845     90170.8637         0.0000         0.0000    195115.4668        -745158.4628       299.0990   -940273.9296   -745084.5112       298.9985            -59.9324       -10.2944   3142425.9685       -67.0486       -16.3717
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 24100
+ENERGY:   24200      7303.9166     20170.0260     23639.3705      1085.2179       -1082984.0102     90235.5337         0.0000         0.0000    195332.3405        -745217.6051       299.4314   -940549.9455   -745041.9325       299.0531             -9.4737        41.4295   3140689.8509       -65.0327       -14.1479
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 24200
+ENERGY:   24300      7492.6534     20305.0206     23710.5872      1116.0992       -1081465.7843     89189.0697         0.0000         0.0000    194765.3961        -744886.9581       298.5623   -939652.3543   -745009.6212       298.9911           -157.8117      -106.0447   3144345.1094       -70.4385       -19.5722
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 24300
+ENERGY:   24400      7469.8215     20216.6526     23640.2893      1139.1198       -1082127.8355     89243.7300         0.0000         0.0000    195229.9877        -745188.2347       299.2745   -940418.2224   -744989.2319       299.0179           -118.1257       -69.7571   3143771.6303       -74.0384       -23.2395
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 24400
+ENERGY:   24500      7336.8363     20157.6855     23742.8694      1123.1500       -1081833.0028     89674.3913         0.0000         0.0000    194337.5188        -745460.5515       297.9064   -939798.0703   -744999.3846       298.9753            -86.6224       -37.9668   3144772.5747       -72.9845       -22.1676
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 24500
+ENERGY:   24600      7259.1971     20304.3897     23669.7304      1129.2874       -1082679.1660     90094.3952         0.0000         0.0000    195107.9948        -745114.1714       299.0875   -940222.1662   -745010.4128       298.9874             31.8968        85.1150   3140093.7875       -68.3582       -17.3421
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 24600
+ENERGY:   24700      7371.8534     20086.2685     23747.0295      1124.3129       -1083194.3925     90157.0819         0.0000         0.0000    195545.2060        -745162.6403       299.7577   -940707.8462   -745015.8177       299.0735             28.8258        83.0342   3141312.1136       -66.0511       -14.9446
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 24700
+ENERGY:   24800      7296.7662     20183.8310     23707.3192      1119.7666       -1082622.1183     89440.3824         0.0000         0.0000    195061.9362        -745812.1168       299.0169   -940874.0529   -745080.1325       299.0589            -58.7010        -9.5743   3142772.4617       -66.0848       -14.9737
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 24800
+ENERGY:   24900      7478.4205     20168.6420     23703.5502      1098.6783       -1083972.1284     90589.2971         0.0000         0.0000    194817.2789        -746116.2614       298.6419   -940933.5403   -745158.7469       298.9996            -48.6108        -0.4632   3139972.9721       -67.6819       -16.8361
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 24900
+TIMING: 25000  CPU: 296.61, 0.0268512/step  Wall: 320.945, 0.0279469/step, 6.18314 ns/days, 0.0170787 hours remaining, 0.000000 MB of memory in use.
+PERFORMANCE: 25000  averaging 5.93409 ns/day, 0.0291199 sec/step with standard deviation 0.00249834
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   25000      7411.6165     20274.6202     23672.4916      1109.6572       -1083070.1468     90004.0760         0.0000         0.0000    194571.2979        -746026.3874       298.2648   -940597.6853   -745237.7237       298.9409            -97.8843       -46.7253   3143165.5533       -66.0943       -15.3151
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 25000
+ENERGY:   25100      7418.9715     20097.1749     23692.3031      1095.1823       -1083369.5682     89963.1218         0.0000         0.0000    195457.2412        -745645.5733       299.6229   -941102.8146   -745280.4573       299.0005            -82.0738       -32.3492   3142628.7989       -62.0937       -11.2710
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 25100
+ENERGY:   25200      7398.5066     20101.6310     23625.9914      1127.6699       -1082105.9505     89238.8637         0.0000         0.0000    195011.4835        -745601.8044       298.9396   -940613.2879   -745315.2859       298.9925           -168.2342      -117.4360   3147225.9539       -68.3516       -17.4347
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 25200
+ENERGY:   25300      7329.5616     20232.2834     23635.8526      1091.6575       -1082213.7342     89451.5896         0.0000         0.0000    195048.0385        -745424.7511       298.9956   -940472.7896   -745333.5234       298.9989           -132.3442       -84.4160   3149082.3519       -71.5373       -20.8750
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 25300
+ENERGY:   25400      7279.4668     20040.3516     23599.2832      1102.6283       -1081680.1589     89297.7032         0.0000         0.0000    195000.2283        -745360.4974       298.9223   -940360.7257   -745341.6150       298.9851           -149.9704       -99.8979   3150539.0709       -73.4538       -22.8013
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 25400
+ENERGY:   25500      7326.6071     20121.9258     23671.8633      1130.7391       -1082852.5117     90326.4069         0.0000         0.0000    195092.2331        -745182.7364       299.0634   -940274.9695   -745331.0123       298.9763            -65.3809       -15.0509   3147677.2029       -72.0801       -21.5253
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 25500
+ENERGY:   25600      7453.2057     20264.5657     23703.2533      1112.0597       -1083276.3745     90594.4138         0.0000         0.0000    194879.3213        -745269.5551       298.7370   -940148.8764   -745329.3462       298.9689             -6.7519        45.2879   3140950.0928       -71.6139       -21.0819
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 25600
+ENERGY:   25700      7346.7705     20256.3460     23648.7041      1096.1174       -1083199.0523     90401.5431         0.0000         0.0000    195275.6713        -745173.8999       299.3446   -940449.5712   -745348.6798       298.9875            -12.8402        37.8288   3143617.1408       -67.3838       -16.9551
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 25700
+ENERGY:   25800      7415.6273     20196.1793     23585.8080      1118.0815       -1083031.6664     90272.6008         0.0000         0.0000    195355.7356        -745087.6338       299.4673   -940443.3694   -745354.7092       298.9852            -39.7399        10.1769   3142038.5964       -66.2102       -15.7115
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 25800
+ENERGY:   25900      7408.4119     20451.1936     23669.6561      1127.9860       -1083327.5787     90417.0827         0.0000         0.0000    195509.0513        -744744.1971       299.7023   -940253.2483   -745341.7760       299.0217             30.4360        79.8384   3141948.5006       -62.7491       -12.2752
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 25900
+TIMING: 26000  CPU: 322.146, 0.0255355/step  Wall: 346.727, 0.0257826/step, 6.70219 ns/days, 0.0085942 hours remaining, 0.000000 MB of memory in use.
+PERFORMANCE: 26000  averaging 5.99131 ns/day, 0.0288418 sec/step with standard deviation 0.00256951
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   26000      7375.4559     20332.5758     23621.3813      1070.5984       -1082139.7198     89412.9231         0.0000         0.0000    195235.4411        -745091.3443       299.2829   -940326.7854   -745336.2691       299.0560            -89.5234       -41.3020   3146644.1507       -64.6431       -14.4284
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 26000
+ENERGY:   26100      7271.1278     20304.6956     23595.0948      1124.1761       -1082398.6908     90070.9486         0.0000         0.0000    194967.4821        -745065.1658       298.8721   -940032.6479   -745331.6043       299.0447            -14.4239        38.2475   3143844.6022       -62.3677       -12.0013
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 26100
+ENERGY:   26200      7363.4321     20368.5248     23652.7403      1185.7236       -1083865.2643     90792.3949         0.0000         0.0000    195526.1740        -744976.2744       299.7286   -940502.4485   -745319.5377       299.0595             26.6256        76.0761   3141295.5829       -60.5627       -10.2689
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 26200
+ENERGY:   26300      7413.7352     20193.2352     23561.4420      1102.8623       -1082724.8263     89967.5568         0.0000         0.0000    195351.1975        -745134.7973       299.4603   -940485.9948   -745331.9297       299.1044            -47.3942         0.2684   3142404.8140       -55.0419        -4.9533
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 26300
+ENERGY:   26400      7386.0152     20309.1525     23612.4014      1104.9214       -1082618.6441     89644.3040         0.0000         0.0000    195453.6762        -745108.1734       299.6174   -940561.8496   -745327.9266       299.1216            -64.9562       -11.9441   3141089.1147       -52.3834        -2.0626
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 26400
+ENERGY:   26500      7335.0348     20171.0938     23566.7779      1151.3152       -1082817.2839     89830.0348         0.0000         0.0000    195547.8667        -745215.1607       299.7618   -940763.0274   -745315.6571       299.2144           -110.9161       -59.6977   3145833.9148       -53.5981        -3.1492
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 26500
+ENERGY:   26600      7346.9391     20277.4936     23650.1381      1158.1501       -1083505.0360     90903.8366         0.0000         0.0000    195418.9377        -744749.5408       299.5642   -940168.4786   -745297.4256       299.2382             13.6549        61.6196   3144609.9027       -54.5102        -4.3239
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 26600
+ENERGY:   26700      7429.9494     20247.5935     23780.9253      1089.8868       -1082032.1247     89336.5319         0.0000         0.0000    195385.4754        -744761.7623       299.5129   -940147.2377   -745277.3817       299.2259           -130.4200       -81.7734   3142883.9614       -62.4724       -12.5643
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 26700
+ENERGY:   26800      7478.8846     20173.7258     23665.8294      1087.4220       -1082861.6854     90089.5286         0.0000         0.0000    195232.2366        -745134.0584       299.2780   -940366.2950   -745243.4787       299.2390            -19.6139        34.4383   3141795.5682       -60.5181       -10.3637
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 26800
+ENERGY:   26900      7377.2322     20360.0711     23709.5692      1135.1739       -1082286.7094     89726.3602         0.0000         0.0000    195329.4975        -744648.8053       299.4271   -939978.3028   -745170.1059       299.2783            -46.2401         1.4003   3140507.5975       -60.3996       -10.2705
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 26900
+TIMING: 27000  CPU: 349.552, 0.0274068/step  Wall: 376.016, 0.0292882/step, 5.89998 ns/days, 0.00162712 hours remaining, 0.000000 MB of memory in use.
+PERFORMANCE: 27000  averaging 5.98419 ns/day, 0.0288761 sec/step with standard deviation 0.00246324
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   27000      7281.9780     20146.4849     23672.0607      1129.5941       -1083171.3973     90180.3720         0.0000         0.0000    195761.1782        -744999.7294       300.0888   -940760.9076   -745118.7730       299.3695            -34.8812        15.4352   3142989.3319       -57.2494        -7.1625
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 27000
+ENERGY:   27100      7393.7730     20177.8526     23682.2363      1145.6256       -1082056.5064     90044.7759         0.0000         0.0000    195228.5792        -744383.6638       299.2724   -939612.2429   -745055.6776       299.3519            -37.2060        15.8643   3142585.4364       -55.0060        -4.7518
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 27100
+ENERGY:   27200      7379.7031     20256.9763     23645.1628      1073.5828       -1083011.3303     90449.3982         0.0000         0.0000    195271.6555        -744934.8517       299.3384   -940206.5072   -745022.3299       299.3719              5.7831        55.0645   3142262.4755       -46.3051         3.8732
+
+WRITING COORDINATES TO DCD FILE 12-00-md-NPT.dcd AT STEP 27200
+WRITING EXTENDED SYSTEM TO OUTPUT FILE AT STEP 27200
+CLOSING EXTENDED SYSTEM TRAJECTORY FILE
+WRITING COORDINATES TO OUTPUT FILE AT STEP 27200
+CLOSING COORDINATE DCD FILE 12-00-md-NPT.dcd
+WRITING VELOCITIES TO OUTPUT FILE AT STEP 27200
+The last velocity output (seq=-2) takes 0.007 seconds, 0.000 MB of memory in use
+====================================================
+
+WallClock: 398.800415  CPUTime: 379.390320  Memory: 0.000000 MB
+[Partition 0][Node 0] End of program

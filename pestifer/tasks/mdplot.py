@@ -101,14 +101,14 @@ class MDPlotTask(BaseTask):
         if not pprofiles.empty:
             logger.debug(f'Saving pressure profile data to {basename}-pressureprofile.csv.')
             try:
-                pprofiles.to_csv(f'{basename}-pressureprofile',header=True,index=True)
+                pprofiles.to_csv(f'{basename}-pressureprofile.csv',header=True,index=True)
             except:
                 logger.debug(f'For some reason, I could not write this dataframe to csv')
                 logger.debug(pprofiles.iloc[:3,:].to_string())
         if xst is not None:
             logger.debug(f'Saving cell data to {basename}-cell.csv.')
             try:
-                xst.df.to_csv(f'{basename}-cell',header=True,index=False)
+                xst.df.to_csv(f'{basename}-cell.csv',header=True,index=False)
             except:
                 logger.debug(f'For some reason, I could not write this dataframe to csv')
                 logger.debug(xst.df.iloc[:3,:].to_string())

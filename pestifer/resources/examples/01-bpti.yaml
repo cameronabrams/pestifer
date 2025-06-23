@@ -37,7 +37,6 @@ tasks:
       ensemble: NPT
       nsteps: 13200
   - mdplot:
-      savedata: solvated.csv
       traces:
         - density
       basename: solvated

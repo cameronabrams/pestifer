@@ -59,10 +59,10 @@ tasks:
       ensemble: NPT
       nsteps: 13200
   - mdplot:
-      savedata: solvated.csv
       traces:
         - density
       basename: solvated
+      grid: True
   - terminate:
       basename: my_8fae
       package:

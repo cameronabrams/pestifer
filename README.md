@@ -26,6 +26,8 @@ Pestifer **includes** the [July 2024 Charmm36 force field](https://mackerell.uma
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
+* 1.15.1
+    * fixed the dropped filename extensions in `mdplot`
 * 1.15.0
     * updated salt concentration implementation in membrane system builder
     * removed spurious dependence on `parmed`
