@@ -1,9 +1,9 @@
 config-help
 -----------
 
-Interactive help in constructing a config file. Because it uses ``ycleptic``, ``pestifer`` has a built-in interactive system for help generating YAML-format input configuration files.  
+Interactive help in constructing a config file. Because it uses ``ycleptic``, ``pestifer`` has a built-in interactive system for help generating YAML-format input configuration files available through the ``config-help`` subcommand.  
 
-.. code-block:: console
+.. code-block:: bash
 
    $ pestifer config-help
    Help on user-provided configuration file format
@@ -17,53 +17,67 @@ Interactive help in constructing a config file. Because it uses ``ycleptic``, ``
       ! quit
    pestifer-help: 
 
-Each of these topics is a top-level directive allowed in a config file.  We can dig down on any one of them:
+This command ends at a prompt (``pestifer-help:``) that allows you to drill down into the help system.  The help system is organized around the topics that are allowed in a config file, which appear in the list above.  Any item with an arrow after it can be drilled down into.  Double-dot (``..``) takes you up, and bang (``!``) quits.  For example, in the case above, if you type ``tasks``, you will get a list of the tasks that can be performed in a config file:
 
-.. code-block:: console
+.. code-block:: bash
 
    pestifer-help: tasks
 
    tasks:
-      Specifies the tasks to be performed serially
+       Specifies the tasks to be performed serially in a pestifer run
 
    base|tasks
-      restart ->
-      psfgen ->
-      ligate ->
-      mdplot ->
-      cleave ->
-      domainswap ->
-      solvate ->
-      ring_check ->
-      bilayer ->
-      md ->
-      manipulate ->
-      terminate ->
-      .. up
-      ! quit
+       restart ->
+       psfgen ->
+       ligate ->
+       mdplot ->
+       cleave ->
+       domainswap ->
+       solvate ->
+       desolvate ->
+       ring_check ->
+       make_membrane_system ->
+       md ->
+       manipulate ->
+       terminate ->
+       .. up
+       ! quit
    pestifer-help:
 
 Continuing to drill down is easy -- just add the next directive to the interactive-help command line:
 
-.. code-block:: console
+.. code-block:: bash
 
+   pestifer-help: make_membrane_system
+
+   make_membrane_system:
+       Parameters controlling packmol to generate a membrane system with an
+         embedded protein
+
+   base|tasks->make_membrane_system
+       bilayer ->
+       embed ->
+       .. up
+       ! quit
    pestifer-help: bilayer
 
    bilayer:
-      Parameters controlling packmol to generate a bilayer system
+      Parameters controlling bilayer generation
 
-   base|tasks->bilayer
-      embed ->
+   base|tasks->make_membrane_system->bilayer
+      prebuilt ->
       lipids
+      lipid_conformers
       mole_fractions
+      patch_nlipids ->
+      composition ->
+      half_mid_zgap
       solvents
       solvent_mole_fractions
+      solvent_to_lipid_ratio
       SAPL
-      leaflet_thickness
-      scale_excluded_volume
-      fuzz_factor
       dims
-      length_pad
+      npatch
       solution_gcc
       cation
       anion
@@ -72,6 +86,6 @@ Continuing to drill down is easy -- just add the next directive to the interacti
       nloop_all
       tolerance
       seed
+      relaxation_protocols ->
       .. up
       ! quit
-   pestifer-help: 

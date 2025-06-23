@@ -9,7 +9,7 @@ Pestifer provides a subcommand called ``desolvate`` to generate DCD files that a
 
 Example: Say you have a PSF file ``my_system.psf`` and DCD's generated from sequential NAMD runs called ``run01.dcd``, ``run02.dcd``, etc.  A simple invocatino of ``pestifer desolvate`` might be:
 
-.. code-block:: console
+.. code-block:: bash
 
     $ pestifer desolvate --psf my_system.psf --dcd-infiles run??.dcd
 
@@ -17,7 +17,7 @@ This will generate ``dry.psf`` and ``dry.dcd``, which will hold all frames from 
 
 For more help with ``pestifer desolvate``: 
 
-.. code-block:: console
+.. code-block:: bash
 
     $ pestifer desolvate --help
 

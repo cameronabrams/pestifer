@@ -5,7 +5,7 @@ run
 
 The main purpose of ``pestifer`` is to build simulation-ready systems.  The ``run`` subcommand is used to run a build from a configuration file.  The configuration file describes the tasks that should be performed to build the system, and the order in which they should be performed.
 
-.. code-block:: console
+.. code-block:: bash
 
    $ pestifer run <config.yaml>
 
@@ -17,13 +17,16 @@ Here ``config.yaml`` is the name of the configuration file that describes the bu
    :caption: Pestifer Run Task Flowchart
 
    graph TD;
-      A[Config] --> B[Controller];
-      B --> C{Next task?};
-      C --> Yes --> D[Run task];
-      D -->|Success| C;
-      D -->|Failure| F[Report error];
+      direction LR;
+      A[Config] --> C{Next task?};
+      subgraph group Controller [Controller];
+         direction LR;
+         C --> Yes --> D[Run task];
+         D -->|Success| C;
+         D -->|Failure| F[Report error];
+      end
       C --> No --> E[End];
-      F --> E;      
+      F --> E;
 
 Detailed explanation of some *selected* common tasks you can use is below.
 

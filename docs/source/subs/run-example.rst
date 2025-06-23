@@ -3,7 +3,7 @@ run-example
 
 There are 14 example systems; to run number four, for example:
 
-.. code-block:: console
+.. code-block:: bash
    
    $ pestifer run-example 4
 
@@ -11,7 +11,7 @@ There are 14 example systems; to run number four, for example:
 
 You can use ``pestifer show-resources`` to list the examples:
 
-.. code-block:: console
+.. code-block:: bash
 
     $ pestifer show-resources examples
 
