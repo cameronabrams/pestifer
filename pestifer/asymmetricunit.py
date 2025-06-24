@@ -36,7 +36,8 @@ from .util.cifutil import CIFdict
 class AsymmetricUnit(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['atoms','residues','objmanager']
     opt_attr=AncestorAwareObj.opt_attr+['segments','ignored','pruned']
-    excludables={'resnames':'resname','chains':'chainID','segtypes':'segtype'}
+    residue_excludables={'resnames':'resname','chains':'chainID','segtypes':'segtype'}
+    atom_excludables={'altlocs':'altloc'}
     def __init__(self,**objs):
         if len(objs)==0:
             logger.debug('Generating an empty A.U.')
@@ -49,6 +50,7 @@ class AsymmetricUnit(AncestorAwareObj):
         else: #
             pr=objs.get('parsed',None)
             sourcespecs=objs.get('sourcespecs',{})
+            excludes=sourcespecs.get('exclude',{})
             objmanager=objs.get('objmanager',ObjManager())
             chainIDmanager=objs.get('chainIDmanager',None)
             psf=objs.get('psf',None)
@@ -136,6 +138,10 @@ class AsymmetricUnit(AncestorAwareObj):
             patches.extend(userpatches)
 
             # Build the list of residues
+            thru_dict={resattr:excludes.get(yaml,[]) for yaml,resattr in self.atom_excludables.items()}
+            logger.debug(f'Atom exclusions: {thru_dict}')
+            ignored_atoms=atoms.prune_exclusions(**thru_dict)
+            logger.debug(f'{len(ignored_atoms)} atoms excluded by user-specified exclusions')
             fromAtoms=ResidueList(atoms)
             fromEmptyResidues=ResidueList(missings)
             residues=fromAtoms+fromEmptyResidues
@@ -167,8 +173,7 @@ class AsymmetricUnit(AncestorAwareObj):
 
             logger.debug(f'Segtypes present: {uniques["segtype"]}')
             # Delete any residues dictated by user-specified exclusions
-            excludes=sourcespecs.get('exclude',{})
-            thru_dict={resattr:excludes.get(yaml,[]) for yaml,resattr in self.excludables.items()}
+            thru_dict={resattr:excludes.get(yaml,[]) for yaml,resattr in self.residue_excludables.items()}
             logger.debug(f'Exclusions: {thru_dict}')
             # delete residues that are in user-specified exclusions
             ignored_residues=residues.prune_exclusions(**thru_dict)

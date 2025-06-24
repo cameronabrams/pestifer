@@ -1146,6 +1146,10 @@ directives:
                     text: Specify list of resseqnums to ignore
                     type: list
                     required: False
+                  - name: altlocs
+                    text: Specify list of altlocs to ignore; good for excluding alternate conformations
+                    type: list
+                    required: False
               - name: sequence
                 text: Parameters controlling sequence modifications based on specifications in the PDB source
                 type: dict
@@ -1389,6 +1393,14 @@ directives:
                 text: Specifies whether or not to clean up temporary files
                 type: bool
                 default: True
+      - name: pdb2pqr
+        text: Parameters controlling a PDB2PQR run on an input molecule
+        type: dict
+        directives:
+          - name: pH 
+            text: pH at which to calculate the protonation states of titratable residues
+            type: float
+            default: 7.0
       - name: mdplot
         text: Generate plot(s) from md tasks
         type: dict

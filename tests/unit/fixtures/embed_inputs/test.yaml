@@ -29,7 +29,6 @@ tasks:
       ensemble: npt
       nsteps: 1000
   - mdplot:
-      savedata: solvated.csv
       traces:
         - density
         - - a_x
@@ -37,5 +36,4 @@ tasks:
           - c_z
       basename: solvated 
   - terminate:
-      basename: test
       basename: test

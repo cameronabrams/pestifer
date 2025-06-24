@@ -176,10 +176,6 @@ class TestMakeMembraneSystem(unittest.TestCase):
             shutil.rmtree(test_dir)
         os.mkdir(test_dir)
         os.chdir(test_dir)
-        if os.path.exists('__test_make_membrane_system_with_md_prebuilt'):
-            shutil.rmtree('__test_make_membrane_system_with_md_prebuilt')
-        os.mkdir('__test_make_membrane_system_with_md_prebuilt')
-        os.chdir('__test_make_membrane_system_with_md_prebuilt')
         psf='5e8w-proteinonly.psf'
         pdb='5e8w-proteinonly.pdb'
         bilayer_psf='equilibrate.psf'

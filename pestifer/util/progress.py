@@ -62,6 +62,10 @@ class PsfgenProgress(PestiferProgress):
     def __init__(self,**kwargs):
         super().__init__(name='psfgen',colorno=125,**kwargs)
 
+class PDB2PQRProgress(PestiferProgress):
+    def __init__(self,**kwargs):
+        super().__init__(name='pdb2pqr',colorno=150,**kwargs)
+        
 class RingCheckProgress(PestiferProgress):
     def __init__(self,**kwargs):
         super().__init__(**kwargs)

@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "pestifer"
 # BREAKING_CHANGE.NEW_FEATURE.BUGFIX
-version = "1.15.1"
+version = "1.16.0"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
 ]
@@ -27,7 +27,8 @@ dependencies = [
     "progressbar2",
     "networkx",
     "colorist",
-    "gputil"
+    "gputil",
+    "pdb2pqr"
 ]
 [project.urls]
 "Source" = "https://github.com/cameronabrams/pestifer"

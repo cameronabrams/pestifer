@@ -30,7 +30,7 @@ class CHARMMFFContent:
     stored in a tarball downloaded directly from the MacKerell lab at the University of Michigan.
     https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_jul24.tgz
     """
-    def __init__(self,charmmff_path='',tarfilename='toppar_c36_jul24.tgz'):
+    def __init__(self,charmmff_path='',tarfilename='toppar_c36_jul24.tgz',user_custom_directory=None):
         self.tarfile=None
         self.tarfilename=tarfilename
         self.filenamemap={}
@@ -61,6 +61,14 @@ class CHARMMFFContent:
         for f in self.custom_files:
             assert f not in self.filenamemap, f'custom file {f} already exists in filenamemap'
             self.filenamemap[f]=os.path.join(self.charmmff_path,'custom',f)
+        if user_custom_directory is not None:
+            if not os.path.isdir(user_custom_directory):
+                raise NotADirectoryError(f'Expected a directory at {user_custom_directory}, but it is not a directory')
+            logger.debug(f'Adding user custom directory {user_custom_directory} to CHARMMFFContent')
+            self.custom_files.extend(os.listdir(user_custom_directory))
+            for f in self.custom_files:
+                assert f not in self.filenamemap, f'user custom file {f} already exists in filenamemap'
+                self.filenamemap[f]=os.path.join(user_custom_directory,f)
 
     def __del__(self):
         """ Close the tarfile if it is open """
@@ -71,6 +79,16 @@ class CHARMMFFContent:
         else:
             logger.debug('No CHARMM force field tarfile to close')
         del self.pdbrepository
+
+    def add_custom_directory(self,user_custom_directory):
+        """ Add a user custom directory to the CHARMMFFContent """
+        if not os.path.isdir(user_custom_directory):
+            raise NotADirectoryError(f'Expected a directory at {user_custom_directory}, but it is not a directory')
+        logger.debug(f'Adding user custom directory {user_custom_directory} to CHARMMFFContent')
+        self.custom_files.extend(os.listdir(user_custom_directory))
+        for f in self.custom_files:
+            assert f not in self.filenamemap, f'user custom file {f} already exists in filenamemap'
+            self.filenamemap[f]=os.path.join(user_custom_directory,f)
 
     def load_charmmff(self,tarfilename='toppar_c36_jul24.tgz',skip_streams=['cphmd','misc']):
         """ Load the entire CHARMM force field tarball """

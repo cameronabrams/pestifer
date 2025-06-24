@@ -757,6 +757,62 @@ class PsfgenLog(LogParser):
             elif line.endswith('explicit exclusions'):
                 self.metadata['number_of_exclusions']=int(get_single('total of',line))
 
+class PDB2PQRLog(LogParser):
+    section_separator='-'*80 # file is divided into sections
+    def __init__(self,basename='pdb2pqr-logparser'):
+        super().__init__()
+        self.processed_separator_idx=[]
+        self.processed_sections=[]
+        self.metadata={}
+        self.basename=basename
+        self.progress=0.0
+
+    def update(self,bytes):
+        super().update(bytes)
+        separator_idx=[0]+[m.start() for m in re.finditer(self.section_separator,self.byte_collector)]
+        # logger.debug(f'update: found {len(separator_idx)-1} sections in {self.basename}')
+        for i,j in zip(separator_idx[:-1],separator_idx[1:]):
+            if i not in self.processed_separator_idx:
+                self.processed_separator_idx.append(i)
+                self.process_section(self.byte_collector[i+int(i>0)*len(self.section_separator):j])
+
+    def finalize(self):
+        separator_idx=[0]+[m.start() for m in re.finditer(self.section_separator,self.byte_collector)]
+        # logger.debug(f'update: found {len(separator_idx)-1} sections in {self.basename}')
+        for i,j in zip(separator_idx[:-1],separator_idx[1:]):
+            if i not in self.processed_separator_idx:
+                self.processed_separator_idx.append(i)
+                self.process_section(self.byte_collector[i+len(self.section_separator):j])
+
+    def process_section(self,bytes):
+        # logger.debug(f'process_section: {bytes[:50]}...')
+        if 'SUMMARY OF THIS PREDICTION' in bytes:
+            self.process_summary(bytes)
+
+    def process_summary(self,bytes):
+        # logger.debug(f'process_summary: {bytes[:50]}...')
+        lines=bytes.split(os.linesep)
+        expected_table=lines[3:]
+        logger.debug(f'process_summary: expected_table begins with: {expected_table[0]}')
+        table_lines=[]
+        for line in expected_table:
+            if len(line.strip())==0:
+                logger.debug('process_summary: empty line signals end of table')
+                break
+            tokens=[x.strip() for x in line.split() if x.strip()]
+            resname=tokens[0]
+            resnum=int(tokens[1])
+            reschain=tokens[2]
+            respka=float(tokens[3])
+            resmodelpka=float(tokens[4])
+            if len(tokens)>5:
+                resatomtype=tokens[5]
+            else:
+                resatomtype=None
+            table_lines.append(dict(resname=resname,resnum=resnum,reschain=reschain,respka=respka,resmodelpka=resmodelpka,resatomtype=resatomtype))
+        if len(table_lines)>0:
+            self.metadata['pka_table']=pd.DataFrame(table_lines)
+
 def subcommand_follow_namd_log(filename,basename=None):
     """ Follow a NAMD log file and parse it
     """

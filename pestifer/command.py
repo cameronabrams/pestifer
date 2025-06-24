@@ -23,7 +23,7 @@ class Command:
         self.stdout=''
         self.stderr=''
 
-    def run(self,logfile=None,override=(),ignore_codes=[],quiet=True,logparser=None,**kwargs):
+    def run(self,logfile=None,override=(),ignore_codes=[],quiet=True,logparser=None,log_stderr=False,**kwargs):
         """ runs this Command instance
         
         Parameters:
@@ -74,6 +74,8 @@ class Command:
         while True:
             output=process.stdout.readline()
             self.stdout+=output
+            if log_stderr:
+                output+=process.stderr.readline()
             if logparser:
                 logparser.update(output)
                 logparser.update_progress_bar()
@@ -86,6 +88,7 @@ class Command:
             print()
         if logfile:
             logger.debug(f'Log written to {logfile}')
+            log.close()
         remaining_stdout,self.stderr=process.communicate()
         if logparser:
             logparser.update(remaining_stdout)

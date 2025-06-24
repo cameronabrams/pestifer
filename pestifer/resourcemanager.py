@@ -105,6 +105,8 @@ class ResourceManager:
             logger.info(f'Adding user PDB collection: {path}')
             self.charmmff_content.pdbrepository.add_path(path)
 
-    def update_charmmff(self,tarball=''):
+    def update_charmmff(self,tarball='',user_custom_directory=None):
         if tarball:
             self.charmmff_content.load_charmmff(tarball)
+        if user_custom_directory:
+            self.charmmff_content.add_custom_directory(user_custom_directory)
