@@ -71,10 +71,11 @@ class CHARMMFFContent:
                 assert f not in self.filenamemap, f'user custom file {f} already exists in filenamemap'
                 self.filenamemap[f]=os.path.join(user_custom_directory,f)
         self.all_topology_files=[x for x in self.filenamemap.values() if x.endswith('.str') or x.endswith('.rtf') or x.endswith('.top')]
+        self.find_patches()
         logger.debug(f'filename map:')
         for k,v in self.filenamemap.items():
             logger.debug(f'  {k} -> {v}')
-            
+
     def __del__(self):
         """ Close the tarfile if it is open """
         if self.tarfile is not None:
@@ -95,7 +96,7 @@ class CHARMMFFContent:
             assert f not in self.filenamemap, f'user custom file {f} already exists in filenamemap'
             self.filenamemap[f]=os.path.join(user_custom_directory,f)
 
-    def load_charmmff(self,tarfilename='toppar_c36_jul24.tgz',skip_streams=['cphmd','misc']):
+    def load_charmmff(self,tarfilename='toppar_c36_jul24.tgz',skip_streams=['misc','cphmd']):
         """ Load the entire CHARMM force field tarball """
         def okfilename(name):
             """ Check if a filename is ok to use in the tarfile """
@@ -142,16 +143,16 @@ class CHARMMFFContent:
             logger.debug(f'truncated to basename {basename}')
         if basename in self.custom_files:
             with open(self.filenamemap[basename]) as file:
-                lines=file.readlines()
+                lines=file.read().splitlines()
                 logger.debug(f'found {len(lines)} lines in {basename} in custom files')
                 with open(basename,'w') as f:
-                    for l in lines:
+                    for l in lines: # l will contain the newline character
                         is_comment=any([l.startswith(x) for x in comment_these_out])
                         if not is_comment:
                             f.write(l+'\n')
                         else:
                             f.write('! commented out by pestifer:\n')
-                            f.write(f'! {l}\n')
+                            f.write(f'! {l}'+'\n')
         elif basename in self.filenamemap:
             logger.debug(f'found {basename} in at {self.filenamemap[basename]} in tarball')
             with self.tarfile.extractfile(self.filenamemap[basename]) as file:
@@ -160,7 +161,7 @@ class CHARMMFFContent:
                 logger.debug(f'type of lines is {type(lines)}')
                 logger.debug(f'found {len(lines)} lines in {basename} in tarfile')
                 with open(basename,'w') as f:
-                    for l in lines:
+                    for l in lines: # l will NOT contain the newline character
                         is_comment=any([l.startswith(x) for x in comment_these_out])
                         if not is_comment:
                             f.write(l+'\n')
@@ -226,15 +227,22 @@ class CHARMMFFContent:
             R.append(resi)
         return R
 
-    def get_topfile_of_patchname(self,patchname):
-        """ Given a patch name, return the top file that contains it """
+    def find_patches(self):
+        """ Find all patches in the CHARMM force field content """
+        self.patches={}
         for topfile in self.all_topology_files:
             lines=self.lines_from_topfile(topfile)
             for line in lines:
-                if line.upper().startswith('PRES') and patchname in line:
-                    logger.debug(f'Found patch {patchname} in {topfile}')
-                    return os.path.basename(topfile)
-        return None
+                if line.upper().startswith('PRES'):
+                    patchname=line.split()[1]
+                    if patchname not in self.patches:
+                        self.patches[patchname]=os.path.basename(topfile)
+                        logger.debug(f'Found patch {patchname} in {topfile}')
+        logger.debug(f'Found {len(self.patches)} patches in CHARMM force field content')
+
+    def get_topfile_of_patchname(self,patchname):
+        """ Given a patch name, return the top file that contains it """
+        return self.patches.get(patchname, None)
 
 class CHARMMFFStreamID:
     # patterns: par_all3x_STREAM.prm (x=5,6), top_all3x_STREAM.rtf (x=5,6), toppar_STREAM.str, toppar_all36_STREAM_SUBSTREAM.str

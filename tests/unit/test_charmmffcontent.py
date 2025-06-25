@@ -82,6 +82,9 @@ class TestCharmmffContent(unittest.TestCase):
         patchname = 'HSPP'
         topfile = self.C.get_topfile_of_patchname(patchname)
         self.assertEqual(topfile, 'hspp.top')
+        patchname = 'TYRO'
+        topfile = self.C.get_topfile_of_patchname(patchname)
+        self.assertEqual(topfile, 'protpatch_protein_toppar36.str')
 
     def test_get_topfile_blocks(self):
         """Test that the get_topfile_blocks method returns the correct blocks."""

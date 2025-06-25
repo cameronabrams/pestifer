@@ -94,7 +94,7 @@ class PDB2PQRTask(PsfgenTask):
                 if row['resname']=='HSE':
                     patchname='HS2'
                 elif row['resname']=='HSP':
-                    patchname='HSPP' # this is my custom patch
+                    patchname='HSPP' # provided in pestifer.top
             elif row['resname'] in ['ASP','GLU']: # Acidic residues
                 if row['protonated']:
                     if row['resname']=='ASP':
@@ -103,9 +103,11 @@ class PDB2PQRTask(PsfgenTask):
                         patchname='GLUP'
                     else:
                         patchname=None
-            elif row['resname'] in ['SER','LYS','ARG']: # basic residues
+            elif row['resname'] in ['TYR','SER','LYS','ARG']: # basic residues
                 if not row['protonated']: # deprotonate!
-                    if row['resname']=='SER':
+                    if row['resname']=='TYR':
+                        patchname='TYRO' # provided in pestifer.top
+                    elif row['resname']=='SER':
                         patchname='SERD'
                     elif row['resname']=='LYS':
                         patchname='LSN'
@@ -117,7 +119,7 @@ class PDB2PQRTask(PsfgenTask):
             elif row['resname'] == 'C-':
                 if row['protonated']:
                     patchname='CNEU'
-                    
+
             if not patchname:
                 logger.debug(f'No patch will be applied for {row["resname"]} at {row["reschain"]}:{row["resnum"]}')
                 continue

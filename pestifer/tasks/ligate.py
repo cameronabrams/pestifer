@@ -119,10 +119,9 @@ class LigateTask(MDTask):
         self.next_basename('heal')
         pg=self.writers['psfgen']
         pg.newscript(self.basename)
-        # pg.topo_aliases()
-        topfile=os.path.join(self.config.charmmff_custom_path,'unter.top')
-        pg.addline(f'topology {topfile}')
-        # pg.usescript('loop_closure')
+        CC=self.config.RM.charmmff_content
+        CC.copy_charmmfile_local('pestifer.top')
+        pg.addline(f'topology pestifer.top')
         patchfile=self.statevars['data']
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']

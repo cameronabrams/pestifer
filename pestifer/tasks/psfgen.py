@@ -106,15 +106,21 @@ class PsfgenTask(BaseTask):
     def psfgen(self):
         self.next_basename('build')
         pg=self.writers['psfgen']
-        pg.newscript(self.basename,packages=['PestiferCRot'],additional_topologies=self.patch_topologies())
+        addl_topologies=self.patch_topologies()
+        pg.newscript(self.basename,packages=['PestiferCRot'],additional_topologies=addl_topologies)
         pg.set_molecule(self.base_molecule,altcoords=self.specs.get('source',{}).get('altcoords',None))
         pg.describe_molecule(self.base_molecule)
         pg.writescript(self.basename)
         result=pg.runscript()
         if result!=0:
             return result
-        if self.specs.get('remove_charmmtop',False):
-            pg.remove_charmm_top(pg.topologies)
+        for ptop in addl_topologies:
+            if ptop.endswith('.str'):
+                if not self.statevars.get('charmmff_paramfiles',[]):
+                    self.statevars['charmmff_paramfiles']=[]
+                if ptop not in self.statevars['charmmff_paramfiles']:
+                    logger.debug(f'Adding {ptop} to charmmff_paramfiles')
+                    self.statevars['charmmff_paramfiles'].append(ptop)
         self.save_state(exts=['psf','pdb'])
         self.strip_remarks()
         return 0
