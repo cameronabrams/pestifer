@@ -11,4 +11,4 @@ A ``cleave`` task is used to cleave one or more chains in a system.  A ``cleave`
 
 When a cleavage occurs, all residues in the parent chain N-terminal to the cleavage site retain their original chain ID, while those residues C-terminal to the cleavage site are assigned the first new available chain ID.
 
-An example of a ``cleave`` task is shown in :ref:`example 13`.
+An example of a ``cleave`` task is shown in :ref:`example 14`.

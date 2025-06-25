@@ -325,15 +325,21 @@ class Link(AncestorAwareObj):
                 self.patchname='SA28AA'
             elif self.name1=='O9':
                 self.patchname='SA29AT'
-
         elif self.name1=='O6' and self.name2=='C2':
                 self.patchname='SA26AT' 
         elif 'ZN' in self.resname1 and 'HIS' in self.resname2:
-                # links in PDB files involving Zn usually list the Zn atom first, but the patch has it second
-                self.patchname='ZNHD'
+                if self.name2=='NE2':
+                    self.patchname='ZNHE'
+                else:
+                    self.patchname='ZNHD'
                 self.patchorder=[2,1]
+        elif 'HIS' in self.resname1 and 'ZN' in self.resname2:
+                if self.name1=='NE2':
+                    self.patchname='ZNHE'
+                else:
+                    self.patchname='ZNHD'
         else:
-            logger.warning(f'Could not identify patch for link: {str(self)}')
+            logger.warning(f'Could not identify patch for link {self.resname1}-{self.resname2}')
             self.patchname='UNFOUND'
 
     def write_TcL(self,W:Psfgen,transform):
@@ -471,16 +477,6 @@ class LinkList(AncestorAwareObjList):
     def write_TcL(self,W:Psfgen,transform):
         for l in self:
             l.write_TcL(W,transform)
-
-    # def remove_orphan_residues(self,Links,Residues):
-    #     for dl in self:
-    #         reslist,lnlist=dl.residue2.get_down_group()
-    #         reslist.insert(0,dl.residue2)
-    #         for r in reslist:
-    #             Residues.remove(r)
-    #         for l in lnlist:
-    #             Links.remove(l)
-    #     return reslist,lnlist
 
     def prune_mutations(self,Mutations,Segments):
         """Prune off any links and associated objects as a result of mutations

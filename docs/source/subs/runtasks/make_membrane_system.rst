@@ -168,7 +168,7 @@ An example ``make_membrane_system`` task is specified below:
           text: "protein and resid 696"
           z_value: 0.0
 
-If you are including cholesterol or any other sterols in your bilayer, it is recommended that you follow the ``make_membrane_system`` task immediately with an energy minimization and then a ``ring_check`` task.  This will identify and delete any sterols whose rings are pierced by other molecules.  This is illustrated in :ref:`example 14`.
+If you are including cholesterol or any other sterols in your bilayer, it is recommended that you follow the ``make_membrane_system`` task immediately with an energy minimization and then a ``ring_check`` task.  This will identify and delete any sterols whose rings are pierced by other molecules.  This is illustrated in :ref:`example 15`.
 
 Task Flow
 =========

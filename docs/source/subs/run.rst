@@ -38,6 +38,7 @@ Detailed explanation of some *selected* common tasks you can use is below.
    runtasks/make_membrane_system
    runtasks/terminate
    runtasks/cleave
+   runtasks/pdb2pqr
 
 Please consult the Config Reference pages :ref:`config_ref tasks` for a full list of available pestifer run tasks.
 

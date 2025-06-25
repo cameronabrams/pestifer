@@ -1,16 +1,16 @@
 # pestifer: pestifer-script.tcl
-####################### Created Mon Jun 23 11:42:05 2025 #######################
+####################### Created Wed Jun 25 16:07:15 2025 #######################
 package require psfgen
 psfcontext mixedcase
-topology top_all36_lipid.rtf
-topology top_all36_carb.rtf
 topology toppar_all36_moreions.str
+topology top_all36_lipid.rtf
+topology toppar_water_ions.str
+topology top_all36_na.rtf
 topology toppar_all36_carb_glycopeptide.str
 topology top_all36_cgenff.rtf
 topology toppar_all36_prot_modify_res.str
 topology top_all36_prot.rtf
-topology toppar_water_ions.str
-topology top_all36_na.rtf
+topology top_all36_carb.rtf
 topology top_all35_ethers.rtf
 pdbalias atom ILE CD1 CD
 pdbalias atom BGLCNA C7 C

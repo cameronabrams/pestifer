@@ -101,6 +101,10 @@ class PsfgenTask(BaseTask):
         new_topfiles=set()
         for patch in patches:
             new_topfiles.add(CC.get_topfile_of_patchname(patch.patchname))
+        topomods=objmanager.get('topol',{})
+        links=topomods.get('links',[])
+        for link in links:
+            new_topfiles.add(CC.get_topfile_of_patchname(link.patchname))
         return list(new_topfiles)
 
     def psfgen(self):
