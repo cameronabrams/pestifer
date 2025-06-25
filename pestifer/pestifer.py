@@ -32,7 +32,7 @@ def follow_namd_log(args):
     log=args.log
     basename=args.basename
     console=logging.StreamHandler()
-    loglevel_numeric=getattr(logging,args.diagnostic_log_level.upper())
+    loglevel_numeric=getattr(logging,args.log_level.upper())
     console.setLevel(loglevel_numeric)
     formatter=logging.Formatter('%(levelname)s> %(message)s')
     console.setFormatter(formatter)
@@ -61,11 +61,11 @@ def run(args,**kwargs):
             os.mkdir(args.output_dir)
         shutil.copy(args.config,args.output_dir)
         os.chdir(args.output_dir)
-    loglevel_numeric=getattr(logging,args.diagnostic_log_level.upper())
-    if args.diagnostic_log_file:
-        if os.path.exists(args.diagnostic_log_file):
-            shutil.copyfile(args.diagnostic_log_file,args.diagnostic_log_file+'.bak')
-        logging.basicConfig(filename=args.diagnostic_log_file,filemode='w',format='%(asctime)s %(name)s %(message)s',level=loglevel_numeric)
+    loglevel_numeric=getattr(logging,args.log_level.upper())
+    if args.log_file:
+        if os.path.exists(args.log_file):
+            shutil.copyfile(args.log_file,args.log_file+'.bak')
+        logging.basicConfig(filename=args.log_file,filemode='w',format='%(asctime)s %(name)s %(message)s',level=loglevel_numeric)
     console=logging.StreamHandler()
     console.setLevel(logging.INFO)
     formatter=logging.Formatter('%(levelname)s> %(message)s')
@@ -202,7 +202,7 @@ def run_example(args,**kwargs):
 def cleanup(args,**kwargs):
     config=Config(args.config)
     c=Controller(config)
-    keepfiles=[args.config,args.diagnostic_log_file]
+    keepfiles=[args.config,args.log_file]
     init_task=c.tasks[0]
     keepfiles+=init_task.get_keepfiles()
     removed=[]
@@ -232,6 +232,14 @@ def show_resources(args,**kwargs):
     r.show(out_stream=print,components=specs,fullnames=args.fullnames,missing_fullnames=C['user']['charmmff'].get('resi-fullnames',{}))
 
 def modify_package(args):
+    loglevel_numeric=getattr(logging,args.log_level.upper())
+    logging.basicConfig(level=loglevel_numeric)#filename='modify_package.log',filemode='w',format='%(asctime)s %(name)s %(message)s',level=logging.DEBUG)
+    # console=logging.StreamHandler()
+    # console.setLevel(logging.DEBUG)
+    # formatter=logging.Formatter('%(levelname)s> %(message)s')
+    # console.setFormatter(formatter)
+    # logging.getLogger('').addHandler(console)
+    logger.debug(f'modify-package called with args {args}')
     if args.inittcl:
         c=Config()
         assert os.path.isdir(c.tcl_root)
@@ -246,7 +254,29 @@ def modify_package(args):
     if args.insert_example and args.example_yaml:
         new_number=args.insert_example
         new_yaml=args.example_yaml
-        pass
+        src_dir=os.path.dirname(__file__)
+        package_dir=os.sep.join(src_dir.split(os.sep)[:-1])
+        doc_dir=os.path.join(package_dir,'docs')
+        if not os.path.exists(doc_dir):
+            logger.warning(f'This is not a full source tree, so you cannot insert an example.  This is for developer use only.  Clone the full repository from GitHub to use this feature.')
+            exit(-1)
+        logging.info(f'Inserting example {new_number} from {new_yaml} into package docs directory {doc_dir}')
+        RM=ResourceManager()
+        RM.insert_example(new_number,new_yaml)
+        # TODO: docs
+
+    if args.delete_example:
+        number=args.delete_example
+        src_dir=os.path.dirname(__file__)
+        package_dir=os.sep.join(src_dir.split(os.sep)[:-1])
+        doc_dir=os.path.join(package_dir,'docs')
+        if not os.path.exists(doc_dir):
+            logger.warning(f'This is not a full source tree, so you cannot delete an example.  This is for developer use only.  Clone the full repository from GitHub to use this feature.')
+            exit(-1)
+        logging.info(f'Deleting example {number} from package docs directory {doc_dir}')
+        RM=ResourceManager()
+        RM.delete_example(number)
+        # TODO: docs
 
 def wheretcl(args):
     r=ResourceManager()
@@ -304,9 +334,9 @@ def cli():
         'desolvate':'desolvate an existing PSF/DCD',
         'make-namd-restart':'generate a restart NAMD config file based on current checkpoint',
         'show-resources':'display elements of the included pestifer resources',
-        'mdplot':'Extract and plot time-series data from NAMD log and xst files',
-        'cleanup':'Clean up files from a run (usually for a clean restart)',
-        'follow-namd-log':'Follow a NAMD log file and show a progress bar',
+        'mdplot':'extract and plot time-series data from NAMD log and xst files',
+        'cleanup':'clean up files from a run (usually for a clean restart)',
+        'follow-namd-log':'follow a NAMD log file and show a progress bar',
         'modify-package':'various package modifications, developer use only',
     }
     descs={
@@ -328,8 +358,8 @@ def cli():
     parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
     parser.add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
     parser.add_argument('--kick-ass-banner',default=False,action='store_true',help=ap.SUPPRESS)
-    parser.add_argument('--diagnostic-log-level',type=str,default=None,choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
-    parser.add_argument('--diagnostic-log-file',type=str,default='pestifer_diagnostics.log',help='diagnostic log file')
+    parser.add_argument('--log-level',type=str,default=None,choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
+    parser.add_argument('--log-file',type=str,default='pestifer_diagnostics.log',help='diagnostic log file')
     subparsers=parser.add_subparsers()
     subparsers.required=False
     command_parsers={}
@@ -339,7 +369,7 @@ def cli():
     
     command_parsers['run'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
     command_parsers['run'].add_argument('--output-dir',type=str,default='./',help='name of output directory relative to CWD (default: %(default)s)')
-    command_parsers['run'].add_argument('--diagnostic-log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
+    command_parsers['run'].add_argument('--log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
     command_parsers['run'].add_argument('--gpu',default=False,action='store_true',help='force run on GPU')
     command_parsers['fetch-example'].add_argument('number',type=int,default=None,help='example number')
     command_parsers['fetch-example'].add_argument('--config-updates',type=str,nargs='+',default=[],help='yaml files to update example')
@@ -347,7 +377,7 @@ def cli():
     command_parsers['run-example'].add_argument('number',type=int,default=None,help='example number')
     command_parsers['run-example'].add_argument('--output-dir',type=str,default='./',help='name of output directory relative to CWD')
     command_parsers['run-example'].add_argument('--config-updates',type=str,nargs='+',default=[],help='yaml files to update example')
-    command_parsers['run-example'].add_argument('--diagnostic-log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
+    command_parsers['run-example'].add_argument('--log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
     command_parsers['run-example'].add_argument('--gpu',default=False,action='store_true',help='force run on GPU')
     command_parsers['config-help'].add_argument('directives',type=str,nargs='*',help='config file directives')
     command_parsers['config-help'].add_argument('--interactive',default=True,action=ap.BooleanOptionalAction,help='use help in interactive mode')
@@ -359,13 +389,18 @@ def cli():
     command_parsers['wheretcl'].add_argument('--root',default=False,action='store_true',help='print full path of Pestifer\'s root TcL directory')
     command_parsers['modify-package'].add_argument('--inittcl',default=False,action='store_true',help='generates macros.tcl in the TcL root directory or the package; developer use only')
     command_parsers['modify-package'].add_argument('--force',default=False,action='store_true',help='force overwrite of any package-resident tcl files inittcl generates')
+    command_parsers['modify-package'].add_argument('--insert-example',type=int,default=0,help='integer index of example to insert into the package; developer use only')
+    command_parsers['modify-package'].add_argument('--update-example',type=int,default=0,help='integer index of example to update in the package; developer use only')
+    command_parsers['modify-package'].add_argument('--example-yaml',type=str,default='',help='yaml file of example to insert/update into the package; developer use only')
+    command_parsers['modify-package'].add_argument('--log-level',type=str,default='info',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
+
     command_parsers['make-pdb-collection'].add_argument('--streamID',type=str,default=None,help='charmmff stream to scan')
     command_parsers['make-pdb-collection'].add_argument('--substreamID',type=str,default='',help='charmmff substream to scan')
     command_parsers['make-pdb-collection'].add_argument('--topfile',type=str,default=None,help='charmmff-format topology file to scan')
     command_parsers['make-pdb-collection'].add_argument('--force',default=False,action='store_true',help='force overwrite of any existing molecules in the database')
     command_parsers['make-pdb-collection'].add_argument('--cleanup',default=True,action=ap.BooleanOptionalAction,help='clean up all working files (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--resname',type=str,default='',help='single resname to generate')
-    command_parsers['make-pdb-collection'].add_argument('--diagnostic-log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log (default: %(default)s)')
+    command_parsers['make-pdb-collection'].add_argument('--log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--lenfac',type=float,default=1.4,help='this factor times topological distance is the cartesian distance to which you want to stretch a molecule (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--minimize-steps',type=int,default=500,help='number of minimization steps immediately after each build (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--sample-steps',type=int,default=5000,help='number of sample steps (default: %(default)s)')
@@ -402,7 +437,7 @@ def cli():
     command_parsers['follow-namd-log'].add_argument('log',type=str,default=None,help='input NAMD log file')
     command_parsers['follow-namd-log'].add_argument('--basename',type=str,default=None,help='basename of output files')
     command_parsers['follow-namd-log'].add_argument('--diagnostic-log-file',type=str,default=None,help='diagnostic log file')
-    command_parsers['follow-namd-log'].add_argument('--diagnostic-log-level',type=str,default='info',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
+    command_parsers['follow-namd-log'].add_argument('--log-level',type=str,default='info',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
     command_parsers['follow-namd-log'].add_argument('--no-banner',default=True,action='store_true',help='turn off the banner')
 
     args=parser.parse_args()

@@ -3,6 +3,7 @@
 """
 import glob
 import os
+import shutil
 from . import resources
 from .charmmffcontent import CHARMMFFContent
 
@@ -88,6 +89,16 @@ class ResourceManager:
             return None
         return os.path.join(epath,b)
     
+    def insert_example(self,new_index,new_yaml_file):
+        epath=self.resource_path['examples']
+        # TODO shift file name indices
+        cwd=os.getcwd()
+        os.chdir(epath)
+        
+        os.chdir(cwd)
+        shutil.copy(f'{new_index:02d}-{new_yaml_file}',epath)
+        logger.info(f'Inserted example {new_index} in {epath}')
+
     def get_charmmff_customdir(self):
         return os.path.join(self.resource_path['charmmff'],'custom')
 
