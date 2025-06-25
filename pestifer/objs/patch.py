@@ -24,10 +24,11 @@ class Patch(AncestorAwareObj):
         type of mod from among objcats
 
     """
-    req_attr=['patchname','chainID','resseqnum','insertion','residue']
+    req_attr=['patchname','chainID','resseqnum','insertion','residue','use_in_segment']
     yaml_header='patches'
     objcat='seq'
-
+    in_segment_Npatches=['NTER','GLYP','PROP','ACE','ACED','ACP','ACPD','NNEU','NGNE']
+    in_segment_Cpatches=['CTER','CNEU','PCTE','CT1','CT2','CT3']
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)
@@ -45,12 +46,19 @@ class Patch(AncestorAwareObj):
             raise ValueError(f'Invalid patch shortcode: {shortcode}')
         ri=parts[2]
         r,i=split_ri(ri)
+        if parts[0] in self.in_segment_Npatches:
+            use_in_segment='first'
+        elif parts[0] in self.in_segment_Cpatches:
+            use_in_segment='last'
+        else:
+            use_in_segment=''
         input_dict={
             'patchname':parts[0],
             'chainID':parts[1],
             'resseqnum':r,
             'insertion':i,
-            'residue':None
+            'residue':None,
+            'use_in_segment':use_in_segment
         }
         super().__init__(input_dict)
         

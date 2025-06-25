@@ -60,6 +60,7 @@ class CHARMMFFContent:
             self.custom_files=self.dirtree[f'{self.basename}/custom'][1]
         for f in self.custom_files:
             assert f not in self.filenamemap, f'custom file {f} already exists in filenamemap'
+            logger.debug(f'Adding custom file {f} to CHARMMFFContent filenamemap ({len(self.filenamemap)} entries before adding)')
             self.filenamemap[f]=os.path.join(self.charmmff_path,'custom',f)
         if user_custom_directory is not None:
             if not os.path.isdir(user_custom_directory):
@@ -69,7 +70,11 @@ class CHARMMFFContent:
             for f in self.custom_files:
                 assert f not in self.filenamemap, f'user custom file {f} already exists in filenamemap'
                 self.filenamemap[f]=os.path.join(user_custom_directory,f)
-
+        self.all_topology_files=[x for x in self.filenamemap.values() if x.endswith('.str') or x.endswith('.rtf') or x.endswith('.top')]
+        logger.debug(f'filename map:')
+        for k,v in self.filenamemap.items():
+            logger.debug(f'  {k} -> {v}')
+            
     def __del__(self):
         """ Close the tarfile if it is open """
         if self.tarfile is not None:
@@ -122,7 +127,7 @@ class CHARMMFFContent:
         check_basenames=list(self.filenamemap.keys())
         assert len(check_basenames)==len(set(check_basenames)),f'found duplicate basenames in charmmff tarball: {check_basenames}'
         logger.debug(f'Loaded {len(self.filenamemap)} files from CHARMM force field tarball {tarfilename}; subdir-streams: {self.streams}')
-        self.all_topology_files=[x for x in self.filenamemap.values() if x.endswith('.str') or x.endswith('.rtf')]
+        
 
     def copy_charmmfile_local(self,basename):
         """ Given a basename for any charmmff file, extract from the existing unaltered charmmff installation
@@ -181,19 +186,22 @@ class CHARMMFFContent:
     def contents_from_topfile(self,topfile):
         """ Extract the contents from a top file """
         content=''
-        # logger.debug(f'Extracting content from {topfile}')
         for m in self.tarmembers:
             if topfile==m.name:
-                # logger.debug(f'Found {topfile} in tarfile member {m.name}')
+                logger.debug(f'Found {topfile} in tarfile member {m.name}')
                 with self.tarfile.extractfile(m) as f:
                     content=f.read().decode()
                     break
         if not content:
-            mapped_name=self.filenamemap.get(topfile,None)
+            mapped_name=self.filenamemap.get(os.path.basename(topfile),None)
             if mapped_name is not None:
-                # logger.debug(f'Extracting lines from {topfile} using mapped name {mapped_name}')
+                logger.debug(f'Extracting lines from {topfile} using mapped name {mapped_name}')
                 with open(mapped_name,'r') as f:
                     content=f.read()
+            else:
+                logger.warning(f'Could not find {topfile} in tarfile or filenamemap')
+                return ''
+        logger.debug(f'Extracted {len(content)} characters from {topfile}')
         return content
     
     def masses_from_topfile(self,topfile):

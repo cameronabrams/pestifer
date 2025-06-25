@@ -73,7 +73,8 @@ class ObjManager(UserDict):
         if not header in self[objcat]:
             self[objcat][header]=LCls([])
         self[objcat][header].append(a_obj)
-
+        logger.debug(f'Ingested {str(a_obj)} into {objcat} {header}')
+        
     def _injest_objlist(self,a_objlist,overwrite=False):
         if len(a_objlist)==0: # can handle an empty list...
             return a_objlist  # ...by returning it

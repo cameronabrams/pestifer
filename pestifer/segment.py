@@ -91,14 +91,6 @@ class Segment(AncestorAwareObj):
         Dseg.objmanager=self.objmanager.expel(daughter_residues)
         Dseg.ancestor_obj=self.ancestor_obj
         return Dseg
-
-    # def has_graft(self,modlist):
-    #     if not modlist:
-    #         return False
-    #     for g in modlist:
-    #         if g.segname==self.psfgen_segname:
-    #             return True
-    #     return False
     
     def __str__(self):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
@@ -125,7 +117,6 @@ class Segment(AncestorAwareObj):
         objmanager=self.objmanager
         seqmods=objmanager.get('seq',{})
         seg_grafts=seqmods.get('grafts',GraftList([]))
-        # self.injest_grafts(seg_grafts)
 
         transform.register_mapping(self.segtype,image_seglabel,seglabel)
 
@@ -147,9 +138,9 @@ class Segment(AncestorAwareObj):
         W.addline(f'${selname} set resid [list {" ".join([str(x) for x in resid_list])}]')
         W.addline(f'${selname} writepdb {pdb}')
         W.addline(f'segment {image_seglabel} '+'{')
-        W.addline(f'    first none')
-        W.addline(f'    last none')
-        W.addline(f'    pdb {pdb}')
+        W.addline(f'first none',indents=1)
+        W.addline(f'last none',indents=1)
+        W.addline(f'pdb {pdb}',indents=1)
         for g in seg_grafts:
             g.write_in_segment(W)
         W.addline('}')
@@ -160,20 +151,6 @@ class Segment(AncestorAwareObj):
             W.banner(f'Restoring A.U. state for {seglabel}')
             W.restore_selection(selname,dataholder=f'{selname}_data')
         W.banner(f'Segment {image_seglabel} ends')
-
-    # def injest_grafts(self,G:GraftList):
-    #     """Loads all graft source files and renumbers their residues for incorporation into this segment"""
-    #     next_available_resid=max([x.resseqnum for x in self.residues])+1
-    #     for g in G:
-    #         g.source_seg=g.source_molecule.asymmetric_unit.segments.get(segname=g.source_chainID)
-    #         g.my_residues=ResidueList([])
-    #         for residue in g.source_seg.residues:
-    #             if residue>f'{g.source_resseqnum1}{g.source_insertion1}' and residue<=f'{g.source_resseqnum2}{g.source_insertion2}':
-    #                 g.my_residues.append(residue)
-    #         for r in g.my_residues:
-    #             r.set_resseqnum(next_available_resid)
-    #             next_available_resid+=1
-    #         logger.debug(f'Graft {g.id} in segment {self.segname}: resid {g.my_residues[0].resseqnum}{g.my_residues[0].insertion}-{g.my_residues[-1].resseqnum}{g.my_residues[-1].insertion}')
 
     def protein_stanza(self,W:Psfgen,transform):
         parent_molecule=self.ancestor_obj
@@ -251,23 +228,28 @@ class Segment(AncestorAwareObj):
             # logger.info(f'Since terminal loops are not included, ignoring {str(Cterminal_missing_subsegment)}')
         for b in self.subsegments:
             if b.state=='RESOLVED':
-                W.addline(f'    pdb {b.pdb}')
+                W.addline(f'pdb {b.pdb}',indents=1)
             elif b.state=='MISSING' and b.build:
                 for r in self.residues[b.bounds[0]:b.bounds[1]+1]:
                     rname=charmm_resname_of_pdb_resname.get(r.resname,r.resname)
-                    W.addline(f'    residue {r.resseqnum}{r.insertion} {rname} {image_seglabel}')
+                    W.addline(f'residue {r.resseqnum}{r.insertion} {rname} {image_seglabel}',indents=1)
                 if b.num_items()>=min_loop_length and not b in [self.subsegments[0],self.subsegments[-1]]:
                     lrr=self.residues[b.bounds[1]]
                     sac_resseqnum=lrr.resseqnum
                     sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
                     assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {seglabel} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_rn}'
                     b.sacres=Residue({'resname':sac_rn,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':'protein','resolved':False,'atoms':[]})
-                    W.addline(f'    residue {sac_resseqnum}{sac_insertion} {sac_rn} {image_seglabel}')
+                    W.addline(f'residue {sac_resseqnum}{sac_insertion} {sac_rn} {image_seglabel}',indents=1)
         for cf in seg_Cfusions:
             cf.write_in_segment(W)
         for m in seg_mutations:
                 W.comment(f'mutation source: {m.typekey}')
                 W.addline(m.write_TcL())
+        for p in seg_patches:
+            if p.use_in_segment=='first':
+                W.addline(f'first {p.patchname}',indents=1)
+            elif p.use_in_segment=='last':
+                W.addline(f'last {p.patchname}',indents=1)
         W.addline('}')
         W.banner(f'End segment {image_seglabel}')
         W.banner('Coordinate-specification commands')
@@ -288,7 +270,8 @@ class Segment(AncestorAwareObj):
         if len(seg_patches)>0:
             W.banner(f'Patches for segment {image_seglabel}')
         for patch in seg_patches:
-            W.addline(f'patch {patch.patchname} {image_seglabel}:{patch.resseqnum}{patch.insertion}')
+            if patch.use_in_segment=='':
+                W.addline(f'patch {patch.patchname} {image_seglabel}:{patch.resseqnum}{patch.insertion}')
         for sc in seg_Cfusions:
             sc.write_post_segment(W)
         W.banner('Intra-segmental terminal patches')

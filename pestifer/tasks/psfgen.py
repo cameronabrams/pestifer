@@ -285,7 +285,7 @@ class PsfgenTask(BaseTask):
                 'xsc':xsc
             }
         }
-        if hasattr(self,'chainIDManager') and hasattr(self,'objmanager'):
+        if hasattr(self,'chainIDmanager') and hasattr(self,'objmanager'):
             updated_molecule=Molecule(source=source,chainIDmanager=self.chainIDmanager,objmanager=self.objmanager).activate_biological_assembly(0)
         else:
             updated_molecule=Molecule(source=source).activate_biological_assembly(0)

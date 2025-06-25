@@ -2,9 +2,10 @@
 These are charmmff topology/parameter/stream files not normally
 found in the base charmmff releases.
 
-- mylink.top
-    defines a patch for creating a new backbone peptide bond; used in 
-    loop relaxation
+- hspp.top
+    postively-charged histidine patch
+- unter.top
+    patches that "undo" terminal patches
 - prod.top
     a patch that turns a standard up-puckered PRO into a down-
     puckered PRO (PROD)

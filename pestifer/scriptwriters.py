@@ -87,6 +87,7 @@ class VMD(TcLScriptwriter):
         self.tcl_pkg_path=config.tcl_pkg_path
         self.tcl_script_path=config.tcl_script_path
         self.vmd_startup=config.vmd_startup_script
+        self.indent=' '*4
 
     def newscript(self,basename=None,packages=[]):
         super().newscript(basename=basename)
