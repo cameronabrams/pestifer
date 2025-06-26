@@ -1,7 +1,7 @@
 config-help
 -----------
 
-Interactive help in constructing a config file. Because it uses ``ycleptic``, ``pestifer`` has a built-in interactive system for help generating YAML-format input configuration files available through the ``config-help`` subcommand.  
+Because it uses ``ycleptic``, ``pestifer`` has a built-in, interactive, command-line system for help generating YAML-format input configuration files available through the ``config-help`` subcommand.  
 
 .. code-block:: bash
 

@@ -236,6 +236,8 @@ You should note the presence of CHARMM force-field files in the current director
 
 The CHARMMFF files that end with ``prm`` and ``str`` are *modified* versions of the as-provided CHARMMFF files from the MacKerrel lab so that NAMD can use them as parameter files.  These are local copies of the files that will work with any NAMD run.  It is important to note that the CHARMMFF files distributed by the MacKerrel lab are not modified AT ALL within pestifer.  ``prod_6pti.namd`` is the namd3 configuration file, and it created with some default values.  Carefully consider its contents before you run; you will need to edit it!
 
+.. _file name conventions:
+
 Digression: On File Name Conventions
 ====================================
 

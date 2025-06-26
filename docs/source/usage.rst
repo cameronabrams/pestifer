@@ -48,6 +48,8 @@ Subcommands
    subs/follow-namd-log
    subs/mdplot
 
+.. _use in vmd scripts:
+
 Use in VMD scripts
 ------------------
 
@@ -74,4 +76,10 @@ Pestifer provides a library of useful TcL/VMD procs and VMD macro definitions.  
          }
       }
 
-If you are using VMD to analyze a system generated using pestifer, it is a good idea to initialize VMD's access to pestifer's TcL library.  This is because pestifer extends the definitions of the ``glycan`` and ``lipid`` macros, among other reasons.
+If you are using VMD to analyze a system generated using pestifer, it is a good idea to initialize VMD's access to pestifer's TcL library.  This is because pestifer extends the definitions of the ``glycan`` and ``lipid`` macros, among other reasons.  In addition to defining the ``pestifer_init`` proc, you should also add the following line to your ``~/.vmdrc`` file (after the ``pestifer_init`` proc definition):
+
+.. code-block:: tcl
+
+   pestifer_init
+
+This will ensure that the pestifer library is available in your VMD session.  You can then use the ``pestifer`` command to access pestifer's functionality from within VMD scripts.  Note that if you launch VMD from a shell in which the ``pestifer`` command is not available, you will not be able to use the ``pestifer_init`` proc, and you will not have access to pestifer's TcL library.
