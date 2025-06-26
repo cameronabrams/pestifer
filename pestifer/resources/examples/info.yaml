@@ -1,0 +1,69 @@
+input-files:
+  - name: bpti1.yaml
+    description: |
+      solvated BPTI
+    pdbID: 6pti
+  - name: bpti2.yaml
+    description: |
+      solvated BPTI excluding the phosphate ion
+    pdbID: 6pti
+  - name: bpti3.yaml
+    description: |
+      solvated BPTI with a mutated-out disulfide bond
+    pdbID: 6pti
+  - name: bpti4.yaml
+    description: |
+      solvated BPTI with a mutated-in disulfide bon
+    pdbID: 6pti
+  - name: hiv-protease.yaml
+    description: |
+      solvated HIV protease with explicitly protonated catalytic aspartates
+    pdbID: 1f7a
+  - name: toxin.yaml
+    description: |
+      solvated green mamba toxin at pH 7.0
+    pdbID: 1fas
+  - name: hiv-sosip-env-ectodomain1.yaml
+    description: |
+      solvated, closed, ligand-free HIV-1 SOSIP Env ectodomain trimer
+    pdbID: 4zmj
+  - name: hiv-sosip-env-ectodomain2.yaml
+    description: |
+      solvated, closed, liganded (optionally) HIV-1 SOSIP Env ectodomain trimer
+    pdbID: 4tvp
+  - name: hiv-ad8-env-ectodomain.yaml
+    description: |
+      solvated, closed, asymmetric HIV-1 AD8 Env ectodomain trimer
+    pdbID: 8fad
+  - name: hiv-ae2-env-ectodomain.yaml
+    description: |
+      solvated, closed, asymmetric HIV-1 AE2 Env ectodomain trimer
+    pdbID: 8fae
+  - name: hiv-sosip-env-ectodomain3.yaml
+    description: |
+      solvated, open, asymmetric HIV-1 SOSIP Env ectodomain trimer
+    pdbID: 7txd
+  - name: hiv-sosip-env-ectodomain4.yaml
+    description: |
+      solvated, open, symmetric HIV-1 SOSIP Env ectodomain trimer
+    pdbID: 5vn3
+  - name: insulin-hexamer.yaml
+    description: |
+      solvated insulin hexamer
+    pdbID: 2ins
+  - name: insulin-receptor-ectodomain.yaml
+    description: |
+      solvated insulin receptor ectodomain
+    pdbID: 4zxb
+  - name: sars-cov2-S-BA2.yaml
+    description: |
+      solvated, fully glycosylated SARS-CoV-2 spike protein (BA.2 variant via homology)
+    pdbID: 7xix
+  - name: hiv-mpertm3-membrane1.yaml
+    description: |
+      HIV-1 Env MPER-TM trimer in a DMPC/DHPC symmetric bilayer
+    pdbID: 6e8w
+  - name: hiv-mpertm3-membrane2.yaml
+    description: |
+      HIV-1 Env MPER-TM trimer in an asymmetric, model viral bilayer
+    pdbID: 6e8w

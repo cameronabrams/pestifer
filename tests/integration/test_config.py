@@ -35,8 +35,13 @@ class ConfigTest(unittest.TestCase):
         self.assertTrue('user' in D)
         
     def test_config_user(self):
-        RM=self.RM
-        configfile=RM.get_example_yaml_by_index(1)
+        tmpdir='__test_config_user'
+        if os.path.exists(tmpdir):
+            shutil.rmtree(tmpdir)
+        os.mkdir(tmpdir)
+        os.chdir(tmpdir)
+        EM=self.RM.example_manager
+        configfile=EM.checkout_example_yaml(1)
         c=Config(userfile=configfile)
         self.assertTrue('user' in c)
         self.assertTrue('tasks' in c['user'])
@@ -52,10 +57,16 @@ class ConfigTest(unittest.TestCase):
         task3=c['user']['tasks'][2]
         name,specs=[(x,y) for x,y in task3.items()][0]
         self.assertEqual(name,'solvate')
+        os.chdir('..')
 
     def test_config_task_source(self):
-        RM=self.RM
-        configfile=RM.get_example_yaml_by_index(6)
+        tmpdir='__test_config_task_source'
+        if os.path.exists(tmpdir):
+            shutil.rmtree(tmpdir)
+        os.mkdir(tmpdir)
+        os.chdir(tmpdir)
+        EM=self.RM.example_manager
+        configfile=EM.checkout_example_yaml(7)
         c=Config(userfile=configfile)
         self.assertTrue('user' in c)
         self.assertTrue('tasks' in c['user'])
@@ -72,18 +83,21 @@ class ConfigTest(unittest.TestCase):
         self.assertTrue('B' in resm)
         self.assertTrue(resm['G']==['H','J'])
         self.assertTrue(resm['B']==['C','D'])
+        os.chdir('..')
 
     def test_config_help_examples(self):
-        RM=self.RM
-        configfiles=RM.get_examples_as_list(fullpaths=True)
+        EM=self.RM.example_manager
+        configfiles=[x['name'] for x in EM.examples_list]
         tmpdir='__test_config_help_examples'
         if os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)
         os.mkdir(tmpdir)
-
-        for configfile in configfiles:
-            d,n=os.path.split(configfile)
-            b,e=os.path.splitext(n)
+        os.chdir(tmpdir)
+        for index,configfile in enumerate(configfiles):
+            configfile_path=os.path.join(EM.path,configfile)
+            self.assertTrue(os.path.exists(configfile_path),f'Config file {configfile_path} does not exist')
+            EM.checkout_example_yaml(index+1)
+            self.assertTrue(os.path.exists(configfile),f'Config file {configfile} does not exist after checkout')
             c=Config(userfile=configfile)
             self.assertTrue('base' in c)
             self.assertTrue('user' in c)
@@ -108,7 +122,7 @@ class ConfigTest(unittest.TestCase):
             self.assertEqual(paths['packmol'],'packmol')
             self.assertEqual(paths['catdcd'],'catdcd')
             self.assertFalse('charmff' in paths)
-            with open(os.path.join(tmpdir,f'{b}-complete.yaml'),'w') as f:
+            with open(f'{configfile}-complete.yaml','w') as f:
                 yaml.dump(U,f)
             tasks=U['tasks']
             self.assertTrue('psfgen' in tasks[0])
@@ -118,3 +132,4 @@ class ConfigTest(unittest.TestCase):
             self.assertTrue('ssbondsdelete' in specs['mods'])
             source_specs=specs['source']
             self.assertTrue('id' in source_specs)
+        os.chdir('..')

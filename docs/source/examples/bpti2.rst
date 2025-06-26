@@ -1,11 +1,11 @@
-.. _example 2:
+.. _example bpti2:
 
-Example 2: BPTI with Phosphate Ion Deleted
+Example 1: BPTI with Phosphate Ion Deleted
 ------------------------------------------
 
-This is the same as Example 1, except we delete the phosphate ion.
+This is the same as Example 0, except we delete the phosphate ion.
 
-.. literalinclude:: ../../../pestifer/resources/examples/02-bpti-exclude-phosphate.yaml
+.. literalinclude:: ../../../pestifer/resources/examples/bpti2.yaml
     :language: yaml
 
 Note the ``exclude`` subdirective under ``source``.  You remember how you can learn about it?  Using ``config-help``: 

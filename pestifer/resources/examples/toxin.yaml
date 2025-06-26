@@ -1,0 +1,44 @@
+tasks:
+- psfgen:
+    source:
+      id: 1fas
+      exclude:
+        altlocs:
+          - B
+- md:
+    ensemble: minimize
+- pdb2pqr:
+    pH: 7.0
+- solvate:
+    anion: CLA
+    cation: SOD
+    salt_con: 0.154
+- md:
+    ensemble: minimize
+- md:
+    ensemble: NVT
+- md:
+    ensemble: NPT
+    nsteps: 200
+- md:
+    ensemble: NPT
+    nsteps: 400
+- md:
+    ensemble: NPT
+    nsteps: 800
+- md:
+    ensemble: NPT
+    nsteps: 1600
+- md:
+    ensemble: NPT
+    nsteps: 13200
+- mdplot:
+    basename: solvated
+    traces:
+    - density
+- terminate:
+    basename: my_1fas
+    package:
+      basename: prod_1fas
+      ensemble: NPT
+title: Green mamba toxin

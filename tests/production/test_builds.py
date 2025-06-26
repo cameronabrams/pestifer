@@ -13,15 +13,12 @@ def do_it(exnumber):
     os.mkdir(f'__test_build_{nstr}')
     os.chdir(f'__test_build_{nstr}')
     RM=ResourceManager()
-    configfile=RM.get_example_yaml_by_index(exnumber)
-    shutil.copy(configfile,'.')
-    configfile_basename=os.path.basename(configfile)
-    assert(os.path.exists(configfile_basename))
-    with open(configfile_basename,'r') as f:
+    configfile=RM.example_manager.checkout_example_yaml(exnumber)
+    with open(configfile,'r') as f:
         specs=yaml.safe_load(f)
     prod_basename=specs['tasks'][-1]['terminate']['package']['basename']
     prod_tgz=f'{prod_basename}.tgz'
-    cmd=f'pestifer run {configfile_basename}'
+    cmd=f'pestifer run {configfile}'
     res=subprocess.run(cmd,shell=True,executable='/bin/bash',check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
     with open('console.log','w') as f:
         f.write(res.stdout)
@@ -76,3 +73,6 @@ def test_example_build15():
 @pytest.mark.slow
 def test_example_build16():
     do_it(16)
+@pytest.mark.slow
+def test_example_build17():
+    do_it(17)

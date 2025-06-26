@@ -1,5 +1,5 @@
 # pestifer: testcif.tcl
-####################### Created Wed Jun 25 16:07:44 2025 #######################
+####################### Created Thu Jun 26 11:22:46 2025 #######################
 mol new 8fae.cif
 set a [atomselect top "serial 1 to 1157"]
 set c [lsort -unique [$a get chain]]

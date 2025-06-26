@@ -157,47 +157,16 @@ def mdplot(args):
 
 def list_examples():
     r=ResourceManager()
-    ex_full_paths=r.get_examples_as_list(fullpaths=True)
-    exdict={}
-    for e in ex_full_paths:
-        base=os.path.split(e)[1]
-        code=int(base.split('-')[0])
-        with open(e,'r') as f:
-            d=yaml.safe_load(f)
-            desc=d['title']
-            exdict[code]=desc
-    return collections.OrderedDict(sorted(exdict.items()))
+    return r.example_manager.report_examples_list()
 
-def fetch_example(args,**kwargs):
-    index=args.number
+def fetch_example(args):
+    index=args.index
     r=ResourceManager()
-    ex_yaml=r.get_example_yaml_by_index(index)
-    with open(ex_yaml,'r') as f:
-        ex_dict=yaml.safe_load(f)
-    for update in args.config_updates:
-        with open(update,'r') as f:
-            up_dict=yaml.safe_load(f)
-            print(f'ex_dict {ex_dict}')
-            print(f'up_dict {up_dict}')
-            ex_dict.update(up_dict)
-            print(f'ex_dict {ex_dict}')
-    
-    base=os.path.split(ex_yaml)[1]
-    rebase=base[len(f'{index:02d}')+1:]
-    
-    # if args.gpu:
-    #     if not 'namd' in ex_dict:
-    #         ex_dict['namd']={}
-    #     ex_dict['namd']['processor-type']='gpu'
-    #     # ex_dict['paths']['namd3']='namd3gpu'
+    r.example_manager.checkout_example_yaml(index)
 
-    with open(rebase,'w') as f:
-        yaml.dump(ex_dict,f)
-    return rebase
-
-def run_example(args,**kwargs):
-    args.config=fetch_example(args,**kwargs)
-    run(args,**kwargs)
+def run_example(args):
+    args.config=fetch_example(args)
+    run(args)
 
 def cleanup(args,**kwargs):
     config=Config(args.config)
@@ -342,8 +311,8 @@ def cli():
     descs={
         'config-help':'Use this command to get interactive help on config file directives.',
         'config-default':'This will generate a default config file for you to fill in using a text editor.',
-        'fetch-example':'Fetch YAML config for one of the examples:\n'+'\n'.join([f'{c:>3d}: {d}' for c,d in list_examples().items()]),
-        'run-example':'Build one of the examples:\n'+'\n'.join([f'{c:>3d}: {d}' for c,d in list_examples().items()]),
+        'fetch-example':'Fetch YAML config for one of the examples:\n'+list_examples(),
+        'run-example':'Build one of the examples:\n'+list_examples(),
         'run':'Build a system',
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
         'make-pdb-collection':'makes representative psf/pdb files for any CHARMM RESI\'s found in given topology streams',
@@ -371,10 +340,9 @@ def cli():
     command_parsers['run'].add_argument('--output-dir',type=str,default='./',help='name of output directory relative to CWD (default: %(default)s)')
     command_parsers['run'].add_argument('--log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
     command_parsers['run'].add_argument('--gpu',default=False,action='store_true',help='force run on GPU')
-    command_parsers['fetch-example'].add_argument('number',type=int,default=None,help='example number')
-    command_parsers['fetch-example'].add_argument('--config-updates',type=str,nargs='+',default=[],help='yaml files to update example')
+    command_parsers['fetch-example'].add_argument('index',type=int,default=None,help='example index')
 
-    command_parsers['run-example'].add_argument('number',type=int,default=None,help='example number')
+    command_parsers['run-example'].add_argument('index',type=int,default=None,help='example index')
     command_parsers['run-example'].add_argument('--output-dir',type=str,default='./',help='name of output directory relative to CWD')
     command_parsers['run-example'].add_argument('--config-updates',type=str,nargs='+',default=[],help='yaml files to update example')
     command_parsers['run-example'].add_argument('--log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')

@@ -40,21 +40,6 @@ tasks:
                 ensemble: NPT
                 nsteps: 4000
                 temperature: 310
-                pressure: 10.0
-            - md:
-                ensemble: NPT
-                nsteps: 8000
-                temperature: 310
-                pressure: 10.0
-            - md:
-                ensemble: NPT
-                nsteps: 16000
-                temperature: 310
-                pressure: 1.0
-            - md:
-                ensemble: NPT
-                nsteps: 32000
-                temperature: 310
                 pressure: 1.0
           quilt:
             - md:
@@ -66,7 +51,7 @@ tasks:
                 temperature: 310
             - md:
                 ensemble: NPT
-                nsteps: 10000
+                nsteps: 1000
                 temperature: 310
       embed:
         z_head_group: "protein and resid 667"
@@ -82,15 +67,6 @@ tasks:
   - md:
       ensemble: npt
       nsteps: 1000
-  - md:
-      ensemble: npt
-      nsteps: 1000
-  - md:
-      ensemble: npt
-      nsteps: 10000
-  - md:
-      ensemble: npt
-      nsteps: 20000
   - mdplot:
       traces:
         - density

@@ -1,0 +1,7 @@
+.. _example env 5vn3:
+
+Example 12: Open-state BG505 SOSIP HIV-1 Env trimer 5vn3
+--------------------------------------------------------
+
+.. literalinclude:: ../../../pestifer/resources/examples/hiv-sosip-env-ectodomain4.yaml
+    :language: yaml

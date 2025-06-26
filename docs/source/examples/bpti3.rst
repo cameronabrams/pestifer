@@ -1,11 +1,11 @@
-.. _example 3:
+.. _example bpti3:
 
 Example 3: BPTI with One Reduced Disulfide and Some Point Mutations
 -------------------------------------------------------------------
 
 Building on Example 2, here we show how to introduce point mutations and how to undo disulfides.  Both of these actions are specified in the ``psfgen`` task under the ``mods`` subdirective:
 
-.. literalinclude:: ../../../pestifer/resources/examples/03-bpti-mutant-deldisulf.yaml
+.. literalinclude:: ../../../pestifer/resources/examples/bpti3.yaml
     :language: yaml
 
 First, note the ``mutations`` list.  Each element specifies one particular point mutation using a *shortcode*.  There are two allowable shortcodes for a point mutation:
