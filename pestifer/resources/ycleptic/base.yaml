@@ -1,4 +1,4 @@
-# Pestifer 1.6.2
+# Pestifer
 # (c) 2023-2025 Cameron F. Abrams, cfa22@drexel.edu
 #
 # Ycleptic-format specification for a user's YAML-format pestifer configuration file
@@ -105,18 +105,17 @@ directives:
         default: []
       - name: resi-fullnames
         type: dict
-        text: Full names for RESI's that are missing full names in the standard charmmff files
+        text: Full names for RESI's that are missing full names in the standard CHARMMFF files
         docs:
           text: |
-            This directive allows you to specify full names for RESI codes that are used in your custom charmmff files.
-            This is useful for ensuring that the full names are consistent with the rest of your simulation setup.
+            This directive allows you to specify full names for RESI names that lack full names in the CHARMMFF files.
         default:
           DIPA: di-alpha-linoleoyl phosphatidic acid
           DTPA: di-hexadecatrienoyl phosphatidic acid
           TIPA: di-palmitoleoyl-2-linoleoyl phosphatidic acid
   - name: psfgen
     type: dict
-    text: Specifications for the psfgen plugin
+    text: Specifications for the psfgen plugin of VMD
     docs:
       text: This directive defines common settings for the ``psfgen`` VMD plugin, including standard atom and residue aliases.
     required: True
@@ -125,6 +124,13 @@ directives:
         type: list
         text: Psgfen atom and residue aliases
         required: True 
+        docs:
+          text: |
+            Add any residue or atom aliases needed; this is often done to make sure you have a 4-byte resname for any residue.  These are input as a list of strings, where each string is the full psfgen alias command
+          example:
+            aliases:
+              - atom ILE CD1 CD
+              - residue HIS HSD
         default:
           - atom ILE CD1 CD
           - atom BGLCNA C7 C
@@ -244,7 +250,7 @@ directives:
                   Q: GLN
                   E: GLU
                   G: GLY
-                  H: HSE
+                  H: HSD
                   I: ILE
                   L: LEU
                   K: LYS
@@ -1012,7 +1018,7 @@ directives:
           spring_constant: 200
   - name: title
     type: str
-    text: Meaningful title (optional)
+    text: Meaningful title
     default: Pestifer
     docs:
       text: |
@@ -1314,6 +1320,8 @@ directives:
                     Grafts are specified as a colon-separated list of source chain ID, source PDB ID, and target chain ID and residue number.
                     For example, A_1304:4b7i,C_1-8 grafts residues 1 to 8 of chain C of PDB entry 4b7i onto residue 1304 of chain A.
                     If the source PDB does not contain the specified residues, they will be skipped.
+
+                    In the example below, the first graft can be interpreted as, "Take resids 1 to 8 of chain C of PDB 4b7i and graft them onto resid 1304 of chain A of the main molecule."  This will compute positions of the 8 residues by aligning the graft's resid 1 onto the main molecule's resid 1304 of chain A, and then replacing the coordinates of resid 1304 with that of resid 1 of the graft, and inserting the remaining 7 glycan residues into the main molecule topology.
                   example:
                       grafts:
                         - A_1304:4b7i,C_1-8
@@ -1325,6 +1333,9 @@ directives:
       - name: ligate
         text: Specifies how C-termini of modeled loops are connected back to the protein
         type: dict
+        docs:
+          text: |
+            During a psfgen task, pestifer can be configured to "cap" the ends of interior gaps in protein backbones, or it can model-in the missing residues by growing them in from the C-terminus of the resolved protein before the gap.  Ligation refers to forming the bond between the C-terminus of the modeled-in residues and the first resolved residue after the gap.  This is done by "steering" the C-terminus toward the first resolved residue after the gap and then patching the bond in using the CHARMMFF LINK patch.
         directives:
           - name: steer
             text: Specifies parameters for steered MD to bring C-termini close to their connection points

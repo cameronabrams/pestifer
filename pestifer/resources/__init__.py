@@ -2,8 +2,8 @@
 
 This file is included so that a module in pestifer can 
 
-from pestifer include Resources
+from pestifer import resources
 
-and then get the absolute path by stripping __init__.py from Resources.__file__
+and then get the absolute path from resources.__file__
 
 """

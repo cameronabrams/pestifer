@@ -3,7 +3,8 @@
 ``ligate``
 ==========
 
-Specifies how C-termini of modeled loops are connected back to the protein
+During a psfgen task, pestifer can be configured to "cap" the ends of interior gaps in protein backbones, or it can model-in the missing residues by growing them in from the C-terminus of the resolved protein before the gap.  Ligation refers to forming the bond between the C-terminus of the modeled-in residues and the first resolved residue after the gap.  This is done by "steering" the C-terminus toward the first resolved residue after the gap and then patching the bond in using the CHARMMFF LINK patch.
+
 
 Subdirectives:
 

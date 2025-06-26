@@ -12,7 +12,7 @@ Each item below is a top-level directive in a pestifer configuration file.
 
 Single-valued parameter:
 
-  * ``title``: Meaningful title (optional) (default: Pestifer)
+  * ``title``: Meaningful title (default: Pestifer)
 
 
 

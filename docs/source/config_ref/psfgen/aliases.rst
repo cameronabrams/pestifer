@@ -46,7 +46,17 @@
   * residue C7DH C7DHPC
 
 
-Psgfen atom and residue aliases
+Add any residue or atom aliases needed; this is often done to make sure you have a 4-byte resname for any residue.  These are input as a list of strings, where each string is the full psfgen alias command
+
+
+Example:
+++++++++
+
+.. code-block:: yaml
+
+   aliases:
+   - atom ILE CD1 CD
+   - residue HIS HSD
 
 .. raw:: html
 

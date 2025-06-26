@@ -1,8 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
 import logging
-import os
-
 from .md import MDTask
 from ..colvars import declare_distance_cv_atoms, declare_single_harmonic_distance_bias
 
@@ -21,14 +19,19 @@ class LigateTask(MDTask):
         logger.debug('Storing sequence gaps.')
         self.write_gaps()
         logger.debug('Measuring gap distances.')
-        self.measure_distances(self.specs['steer'])
+        steering_specs=self.specs.get('steer',{})
+        if not steering_specs:
+            logger.debug(f'No steering specifications for ligate task; this is a bug; bypassing')
+            return
+        self.measure_distances(steering_specs)
         logger.debug('Steering loop C-termini toward their partner N-termini')
         self.result=self.do_steered_md(self.specs['steer'])
         if self.result!=0:
             return self.result
         self.save_state(exts=['coor','vel'])
         logger.debug('Connecting loop C-termini to their partner N-termini')
-        self.result=self.connect()
+        connect_specs=self.specs.get('connect',{})
+        self.result=self.connect(connect_specs)
         if self.result!=0:
             return self.result
         self.save_state(exts=['psf','pdb'])
@@ -100,7 +103,8 @@ class LigateTask(MDTask):
         self.specs=savespecs
         return result
 
-    def connect(self):
+    def connect(self,connect_specs):
+        logger.debug(f'Connect specs: {connect_specs} (unused)')
         self.write_connect_patches()
         result=self.connect_gaps()
         return result

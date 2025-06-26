@@ -8,8 +8,7 @@
   * ``TIPA``: di-palmitoleoyl-2-linoleoyl phosphatidic acid
 
 
-This directive allows you to specify full names for RESI codes that are used in your custom charmmff files.
-This is useful for ensuring that the full names are consistent with the rest of your simulation setup.
+This directive allows you to specify full names for RESI names that lack full names in the CHARMMFF files.
 
 
 .. raw:: html
