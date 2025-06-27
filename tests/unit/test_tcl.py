@@ -1,7 +1,7 @@
 import unittest
 from pidibble.pdbparse import PDBParser
-from pestifer.scriptwriters import *
-from pestifer.config import Config
+from pestifer.core.scriptwriters import *
+from pestifer.core.config import Config
 
 class TestTCL(unittest.TestCase):
     def test_backup(self):

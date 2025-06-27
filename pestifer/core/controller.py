@@ -8,10 +8,10 @@ import os
 
 from .config import Config
 from .scriptwriters import Filewriter,Psfgen,VMD,NAMD
-from .tasks.terminate import TerminateTask
-from .util.util import inspect_package_dir
+from ..tasks.terminate import TerminateTask
+from ..util.util import inspect_package_dir
 
-from . import tasks
+from .. import tasks
 
 logger=logging.getLogger(__name__)
 

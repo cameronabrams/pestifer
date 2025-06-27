@@ -1,7 +1,7 @@
 import unittest
-from pestifer.molecule import Molecule
-from pestifer.config import Config
-from pestifer.chainidmanager import ChainIDManager
+from pestifer.molecule.molecule import Molecule
+from pestifer.core.config import Config
+from pestifer.molecule.chainidmanager import ChainIDManager
 from io import StringIO
 import yaml
 class TestSegment(unittest.TestCase):

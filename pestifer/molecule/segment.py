@@ -3,15 +3,15 @@
 """
 import logging
 logger=logging.getLogger(__name__)
-from .baseobj import AncestorAwareObj, AncestorAwareObjList
-from .objs.mutation import MutationList
-from .objs.cfusion import CfusionList
-from .objs.graft import GraftList
-from .objs.patch import PatchList
-from .config import charmm_resname_of_pdb_resname
+from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..objs.mutation import MutationList
+from ..objs.cfusion import CfusionList
+from ..objs.graft import GraftList
+from ..objs.patch import PatchList
+from ..core.config import charmm_resname_of_pdb_resname
 from .residue import Residue,ResidueList
-from .util.util import reduce_intlist
-from .scriptwriters import Psfgen
+from ..util.util import reduce_intlist
+from ..core.scriptwriters import Psfgen
 
 class Segment(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','specs']

@@ -5,7 +5,7 @@ import os
 from pestifer.objs.mutation import Mutation
 from pestifer.objs.patch import Patch
 from pestifer import objs
-from pestifer.command import Command
+from pestifer.core.command import Command
 from pestifer.util.util import protect_str_arg
 
 

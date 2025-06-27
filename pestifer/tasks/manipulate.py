@@ -2,8 +2,8 @@
 
 import logging
 
-from ..basetask import BaseTask
-from ..objmanager import ObjManager
+from ..core.basetask import BaseTask
+from ..core.objmanager import ObjManager
 
 logger=logging.getLogger(__name__)
 

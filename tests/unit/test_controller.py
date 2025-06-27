@@ -1,8 +1,8 @@
 import os
 import unittest
-from pestifer.config import Config
-from pestifer.controller import Controller
-from pestifer.resourcemanager import ResourceManager
+from pestifer.core.config import Config
+from pestifer.core.controller import Controller
+from pestifer.core.resourcemanager import ResourceManager
 
 class TestController(unittest.TestCase):
     def test_controller_base(self):

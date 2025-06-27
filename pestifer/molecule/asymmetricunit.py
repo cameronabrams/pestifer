@@ -9,29 +9,21 @@ from argparse import Namespace
 from mmcif.api.PdbxContainers import DataContainer
 
 from .atom import AtomList, Atom, Hetatm
-from .baseobj import AncestorAwareObj
-# from .config import Config
-# from .objs.cfusion import Cfusion,CfusionList
-# from .objs.cleavagesite import CleavageSite,CleavageSiteList
-# from .objs.crot import Crot,CrotList
-# from .objs.deletion import Deletion, DeletionList
-from .objs.graft import Graft, GraftList
-# from .objs.insertion import Insertion, InsertionList
-from .objs.link import Link, LinkList
-from .objs.mutation import Mutation, MutationList
-from .objs.seqadv import Seqadv, SeqadvList
-from .objs.ssbond import SSBond, SSBondList
-from .objs.patch import Patch, PatchList
-# from .objs.ssbonddelete import SSBondDelete, SSBondDeleteListe
-# from .objs.substitution import Substitution, SubstitutionList
-from .objs.ter import Ter, TerList
-from .objmanager import ObjManager, ObjCats
-from .psfutil.psfcontents import PSFContents
+from ..core.baseobj import AncestorAwareObj
+from ..objs.graft import Graft, GraftList
+from ..objs.link import Link, LinkList
+from ..objs.mutation import Mutation, MutationList
+from ..objs.seqadv import Seqadv, SeqadvList
+from ..objs.ssbond import SSBond, SSBondList
+from ..objs.patch import Patch, PatchList
+from ..objs.ter import Ter, TerList
+from ..core.objmanager import ObjManager, ObjCats
+from ..psfutil.psfcontents import PSFContents
 from .residue import ResidueList,EmptyResidue,EmptyResidueList
 from .segment import SegmentList
-from .stringthings import my_logger
-from .util.util import write_residue_map
-from .util.cifutil import CIFdict
+from ..core.stringthings import my_logger
+from ..util.util import write_residue_map
+from ..util.cifutil import CIFdict
 
 class AsymmetricUnit(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['atoms','residues','objmanager']

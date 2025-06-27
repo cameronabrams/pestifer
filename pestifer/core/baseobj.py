@@ -29,6 +29,7 @@ logger=logging.getLogger(__name__)
 from argparse import Namespace
 from functools import singledispatchmethod
 from .stringthings import my_logger
+
 class BaseObj(Namespace):
     """A class defining a namespace with custom attribute controls.
 

@@ -3,8 +3,8 @@ import logging
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
 
-from ..baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..stringthings import split_ri
+from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.stringthings import split_ri
 
 class Substitution(AncestorAwareObj):
     """A class for handling substitutions 

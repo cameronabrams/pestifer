@@ -7,7 +7,7 @@ import networkx as nx
 import numpy as np
 from collections import UserDict, UserList
 from itertools import compress, batched
-from .stringthings import linesplit #, my_logger
+from ..core.stringthings import linesplit #, my_logger
 
 logger=logging.getLogger(__name__)
 

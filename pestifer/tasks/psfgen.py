@@ -6,11 +6,11 @@ import shutil
 
 from copy import deepcopy
 
-from ..basetask import BaseTask
-from ..chainidmanager import ChainIDManager
-from ..command import Command
-from ..molecule import Molecule
-from ..objmanager import ObjManager
+from ..core.basetask import BaseTask
+from ..molecule.chainidmanager import ChainIDManager
+from ..core.command import Command
+from ..molecule.molecule import Molecule
+from ..core.objmanager import ObjManager
 from ..psfutil.psfcontents import PSFContents
 
 logger=logging.getLogger(__name__)

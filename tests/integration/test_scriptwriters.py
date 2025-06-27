@@ -1,6 +1,6 @@
 import unittest
-from pestifer.scriptwriters import Psfgen, NAMD
-from pestifer.config import Config
+from pestifer.core.scriptwriters import Psfgen, NAMD
+from pestifer.core.config import Config
 
 import os
 class TestPsfgen(unittest.TestCase):

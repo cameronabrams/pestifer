@@ -2,9 +2,9 @@ import pytest
 import os
 import shutil
 import unittest
-from pestifer.bilayer import Bilayer,specstrings_builddict
-from pestifer.config import Config
-from pestifer.charmmffcontent import CHARMMFFResiDatabase
+from pestifer.molecule.bilayer import Bilayer,specstrings_builddict
+from pestifer.core.config import Config
+from pestifer.charmmff.charmmffcontent import CHARMMFFResiDatabase
 from unittest.mock import patch
 
 class TestBilayer(unittest.TestCase):
@@ -24,7 +24,7 @@ class TestBilayer(unittest.TestCase):
         del cls.charmmff_content
 
     def test_bilayer_init_empty(self):
-        with patch("pestifer.bilayer.logger.debug") as mock_logger:
+        with patch("pestifer.molecule.bilayer.logger.debug") as mock_logger:
             test_bilayer=Bilayer(composition_dict={})
             mock_logger.assert_called_once_with('Empty bilayer')
             assert type(test_bilayer) == Bilayer

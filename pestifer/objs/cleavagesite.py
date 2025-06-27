@@ -4,8 +4,8 @@ logger=logging.getLogger(__name__)
 
 from functools import singledispatchmethod
 
-from ..baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..stringthings import split_ri
+from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.stringthings import split_ri
 
 class CleavageSite(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']

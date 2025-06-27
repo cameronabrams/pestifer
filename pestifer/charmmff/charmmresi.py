@@ -12,18 +12,20 @@ import numpy as np
 from itertools import product
 
 from pidibble.pdbparse import PDBParser
-from .pdbrepository import PDBCollection
-from .resourcemanager import ResourceManager
+from ..core.resourcemanager import ResourceManager
 from .charmmffcontent import CHARMMFFResiDatabase
-from .config import Config
-from .controller import Controller
-from .psfutil.psfcontents import PSFContents
-from .scriptwriters import Psfgen, VMD
-from .stringthings import my_logger
+from ..core.config import Config
+from ..core.controller import Controller
+from ..psfutil.psfcontents import PSFContents
+from ..core.scriptwriters import Psfgen, VMD
+from ..core.stringthings import my_logger
 
 logger=logging.getLogger(__name__)
 
-def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0):
+def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0,force_constant=1.0):
+    if nsamples>sample_steps:
+        raise ValueError(f'nsamples ({nsamples}) must be less than or equal to sample_steps ({sample_steps})')
+    digits=len(str(nsamples))
     topo=DB.get_resi(resid)
     synonym=topo.synonym
     meta=topo.metadata
@@ -68,7 +70,6 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
         else:
             if shortest_paths and any([len(v)>0 for v in shortest_paths.values()]) and heads and tails: # and len(tails)==2:
                 # run a non-equilibrium MD simulation to bring the tails together to make a 'standard' conformation
-                force_constant=0.2
                 base_md={'ensemble':'NVT','nsteps':15000,'dcdfreq':100,'xstfreq':100,'temperature':100}
                 groups={'repeller':{'atomnames': [heads[0]]}}
                 distances={}
@@ -85,7 +86,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
                         distances[f'tail{i+1}_tail{j+1}']={'groups': [f'tail{i+1}',f'tail{j+1}']}
                         harmonics[f'tail{i+1}_tail{j+1}_attract']={
                                 'colvars': [f'tail{i+1}_tail{j+1}'],
-                                'forceConstant': {force_constant},
+                                'forceConstant': force_constant,
                                 'distance':[4.0]}
                 name='repeller_tail'+''.join(f'{i+1}' for i in range(len(tails)))
                 colvars=[]               
@@ -95,7 +96,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
                     distance.append(dists[i])
                 harmonics[name]={'colvars':colvars,'distance':distance,'forceConstant':force_constant}
                 colvar_specs={'groups':groups,'distances':distances,'harmonics':harmonics}
-                base_md['colvar_specs']=colvar_specs
+                base_md['colvar_specs']=colvar_specs.copy()
                 assert 'minimize' not in base_md
                 logger.debug(f'base_md {base_md}')
                 tasklist.append({'md':base_md})
@@ -107,8 +108,14 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     if len(heads)>0:
         # reorient molecule so head is at highest z position if molecule is rotated about its COM
         tasklist.append({'manipulate':{'mods':{'orient':[f'z,{heads[0]}']}}})
-    # do a conformer-generation MD simulation
-    tasklist.append({'md':{'ensemble':'NVT','nsteps':sample_steps,'dcdfreq':sample_steps//nsamples,'xstfreq':100,'temperature':sample_temperature,'index':99}})
+    # do a conformer-generation MD simulation with the external forces dialed down a bit
+    base_md={'ensemble':'NVT','nsteps':sample_steps,'dcdfreq':sample_steps//nsamples,'xstfreq':100,'temperature':sample_temperature}
+    if substream not in ['cholesterol','detergent']:
+        for cv,spec in colvar_specs['harmonics'].items():
+            if 'forceConstant' in spec:
+                spec['forceConstant']*=0.1
+        base_md['colvar_specs']=colvar_specs.copy()
+    tasklist.append({'md':base_md})
 
     config=Config(quiet=True)
     C=Controller(config=config,userspecs={'title':f'Build PDBCollection entry for {resid}','tasks':tasklist})
@@ -201,19 +208,19 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     W.addline(f'mol new {resid}-init.psf')
     W.addline(f'mol addfile {dcd} waitfor all')
     W.addline(f'set a [atomselect top all]')
-    W.addline(f'set b [atomselect top noh]')
+    # W.addline(f'set b [atomselect top noh]')
     W.addline(f'set ref [atomselect top all]')
     W.addline(f'$ref frame 0')
-    W.addline(f'set bref [atomselect top noh]')
+    # W.addline(f'set bref [atomselect top noh]')
     W.addline(f'$ref move [vecscale -1 [measure center $ref]]')
-    W.addline(f'$bref move [vecscale -1 [measure center $bref]]')
+    # W.addline(f'$bref move [vecscale -1 [measure center $bref]]')
     W.addline(r'for { set f 0 } { $f < [molinfo top get numframes] } { incr f } {')
     W.addline( '    $a frame $f')
     W.addline( '    $a move [measure fit $a $ref]')
-    W.addline(f'    $a writepdb {resid}-[format %02d $f].pdb')
-    W.addline( '    $b frame $f')
-    W.addline( '    $b move [measure fit $b $bref]')
-    W.addline(f'    $b writepdb {resid}-noh-[format %02d $f].pdb')
+    W.addline(f'    $a writepdb {resid}-[format %0{digits}d $f].pdb')
+    # W.addline( '    $b frame $f')
+    # W.addline( '    $b move [measure fit $b $bref]')
+    # W.addline(f'    $b writepdb {resid}-noh-[format %0{digits}d $f].pdb')
     W.addline(r'}')
     W.writescript()
     W.runscript()
@@ -236,7 +243,8 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
         'conformers':[]
         }
 
-    pdbs=[os.path.basename(x) for x in glob.glob(f'{resid}-??.pdb')]
+    q='?'*digits
+    pdbs=[os.path.basename(x) for x in glob.glob(f'{resid}-{q}.pdb')]
     logger.debug(f'found {len(pdbs)} pdbs')
     for pdb in pdbs:
         entry={}
@@ -273,7 +281,7 @@ def do_cleanup(resname,dirname):
         os.remove(f)
     os.chdir(cwd)
 
-def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup=True,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0):
+def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup=True,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0,force_constant=1.0):
     cwd=os.getcwd()
     successdir=os.path.join(outdir,resi)
     failuredir=os.path.join(faildir,resi)
@@ -283,7 +291,7 @@ def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup
         if os.path.exists('tmp'): shutil.rmtree('tmp')
         os.mkdir('tmp')
         os.chdir('tmp')
-        result=do_psfgen(resi,DB,lenfac=lenfac,minimize_steps=minimize_steps,sample_steps=sample_steps,nsamples=nsamples,sample_temperature=sample_temperature,refic_idx=refic_idx)
+        result=do_psfgen(resi,DB,lenfac=lenfac,minimize_steps=minimize_steps,sample_steps=sample_steps,nsamples=nsamples,sample_temperature=sample_temperature,refic_idx=refic_idx,force_constant=force_constant)
         os.chdir(cwd)
         if result==0:
             if cleanup: do_cleanup(resi,'tmp')
@@ -305,11 +313,11 @@ def make_pdb_collection(args):
     substreamID=args.substreamID
     resname=args.resname # if provided, we will only make a collection member for this RESI
     topfile=args.topfile # if provided, we will use this topology file instead of the one in the CHARMMFFResiDatabase; stream name is extracted
-    loglevel_numeric=getattr(logging,args.diagnostic_log_level.upper())
-    if args.diagnostic_log_file:
-        if os.path.exists(args.diagnostic_log_file):
-            shutil.copyfile(args.diagnostic_log_file,args.diagnostic_log_file+'.bak')
-        logging.basicConfig(filename=args.diagnostic_log_file,filemode='w',format='%(asctime)s %(name)s %(message)s',level=loglevel_numeric)
+    loglevel_numeric=getattr(logging,args.log_level.upper())
+    if args.log_file:
+        if os.path.exists(args.log_file):
+            shutil.copyfile(args.log_file,args.log_file+'.bak')
+        logging.basicConfig(filename=args.log_file,filemode='w',format='%(asctime)s %(name)s %(message)s',level=loglevel_numeric)
     console=logging.StreamHandler()
     console.setLevel(logging.INFO)
     formatter=logging.Formatter('%(levelname)s> %(message)s')
@@ -348,51 +356,18 @@ def make_pdb_collection(args):
     
     if resname is not None and resname != '':
         my_logger(f'RESI {resname}',logger.info,just='^',frame='*',fill='*')
-        do_resi(resname,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
+        do_resi(resname,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx,force_constant=args.force_constant)
     else:
         active_resnames=DB.get_resnames_of_streamID(streamID,substreamID=substreamID)
         logger.debug(f'active_resnames: {active_resnames}')
         nresi=len(active_resnames)
         for i,r in enumerate(active_resnames):
             my_logger(f'RESI {r} ({i+1}/{nresi})',logger.info,just='^',frame='*',fill='*')
-            do_resi(r,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
+            do_resi(r,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx,force_constant=args.force_constant)
 
-# def make_RESI_database(args):
-#     streams=args.streams
-#     loglevel_numeric=getattr(logging,args.diagnostic_log_level.upper())
-#     if args.diagnostic_log_file:
-#         if os.path.exists(args.diagnostic_log_file):
-#             shutil.copyfile(args.diagnostic_log_file,args.diagnostic_log_file+'.bak')
-#         logging.basicConfig(filename=args.diagnostic_log_file,filemode='w',format='%(asctime)s %(name)s %(message)s',level=loglevel_numeric)
-#     console=logging.StreamHandler()
-#     console.setLevel(logging.INFO)
-#     formatter=logging.Formatter('%(levelname)s> %(message)s')
-#     console.setFormatter(formatter)
-#     logging.getLogger('').addHandler(console)
-
-#     DB=CHARMMFFResiDatabase()
-#     active_resnames=[]
-#     for stream in streams:
-#         DB.add_stream(stream)
-#         active_resnames.extend(list(DB[stream].keys()))
-#     active_resnames.sort()
-
-#     outdir=args.output_dir
-#     faildir=args.fail_dir
-#     if not os.path.exists(outdir):
-#         os.mkdir(outdir)
-#     if not os.path.exists(faildir):
-#         os.mkdir(faildir)
-#     if os.path.exists('tmp'):
-#         shutil.rmtree('tmp')
-#     resi=args.resi
-#     if resi!=[]:
-#         for r in resi:
-#             my_logger(f'RESI {r}',logger.info,just='^',frame='*',fill='*')
-#             do_resi(r,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
-#     else:
-#         nresi=len(active_resnames)
-#         for i,r in enumerate(active_resnames):
-#             my_logger(f'RESI {r} ({i+1}/{nresi})',logger.info,just='^',frame='*',fill='*')
-#             do_resi(r,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx)
+    # if the faildir is empty, remove it
+    if len(os.listdir(faildir))==0:
+        os.rmdir(faildir)
+    else:
+        logger.warning(f'Failures in {faildir}; see the files there for details')
 

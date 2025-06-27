@@ -2,8 +2,8 @@
 
 import logging
 
-from ..basetask import BaseTask
-from ..ring import ring_check
+from ..core.basetask import BaseTask
+from ..molecule.ring import ring_check
 
 logger=logging.getLogger(__name__)
 

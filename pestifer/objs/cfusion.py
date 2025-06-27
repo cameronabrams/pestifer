@@ -5,9 +5,9 @@ import os
 
 from functools import singledispatchmethod
 
-from ..baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..scriptwriters import Psfgen
-from ..stringthings import split_ri
+from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.scriptwriters import Psfgen
+from ..core.stringthings import split_ri
 
 class Cfusion(AncestorAwareObj):
     """A class for handling fusions of residues represented by an existing 

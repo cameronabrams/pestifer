@@ -11,14 +11,14 @@ from pidibble.baserecord import BaseRecord
 from pidibble.pdbrecord import PDBRecord
 
 from .atom import Atom, AtomList, Hetatm
-from .baseobj import AncestorAwareObj, AncestorAwareObjList
-from .config import res_123, segtype_of_resname
-from .objs.seqadv import Seqadv, SeqadvList
-from .objs.deletion import DeletionList
-from .objs.substitution import SubstitutionList
-from .stringthings import join_ri, split_ri
-from .util.cifutil import CIFdict
-from .util.coord import positionN
+from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.config import res_123, segtype_of_resname
+from ..objs.seqadv import Seqadv, SeqadvList
+from ..objs.deletion import DeletionList
+from ..objs.substitution import SubstitutionList
+from ..core.stringthings import join_ri, split_ri
+from ..util.cifutil import CIFdict
+from ..util.coord import positionN
 
 class EmptyResidue(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['resname','resseqnum','insertion','chainID','resolved','segtype']

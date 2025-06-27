@@ -1,6 +1,6 @@
 import unittest
 import pytest
-from pestifer.baseobj import BaseObj, CloneableObj, AncestorAwareObj, ObjList, StateInterval, StateIntervalList
+from pestifer.core.baseobj import BaseObj, CloneableObj, AncestorAwareObj, ObjList, StateInterval, StateIntervalList
 from argparse import Namespace
 
 class TestBaseObj(unittest.TestCase):

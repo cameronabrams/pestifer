@@ -1,6 +1,6 @@
 import unittest
 import os
-from pestifer.resourcemanager import ResourceManager
+from pestifer.core.resourcemanager import ResourceManager
 from pestifer import resources
 
 class TestResourceManager(unittest.TestCase):

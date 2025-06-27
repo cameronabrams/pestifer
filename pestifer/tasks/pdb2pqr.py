@@ -2,14 +2,14 @@
 
 import logging
 import os
-from ..command import Command
+from ..core.command import Command
+from ..core.objmanager import ObjManager
+from ..molecule.atom import Atom, AtomList
+from ..molecule.chainidmanager import ChainIDManager
 from .psfgen import PsfgenTask
 from ..objs.patch import Patch
 from ..util.logparsers import PDB2PQRLog
 from ..util.progress import PDB2PQRProgress
-from ..atom import Atom, AtomList
-from ..objmanager import ObjManager
-from ..chainidmanager import ChainIDManager
 from pidibble.pdbparse import PDBParser
 
 logger=logging.getLogger(__name__)

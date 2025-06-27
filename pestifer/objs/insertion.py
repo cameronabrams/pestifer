@@ -4,8 +4,8 @@ logger=logging.getLogger(__name__)
 
 from functools import singledispatchmethod
 
-from ..baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..stringthings import split_ri
+from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.stringthings import split_ri
 
 class Insertion(AncestorAwareObj):
     """A class for handling insertions of amino acid residues within an otherwise

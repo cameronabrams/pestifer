@@ -6,10 +6,10 @@ import logging
 
 from copy import deepcopy
 
-from ..bilayer import Bilayer, specstrings_builddict
-from ..basetask import BaseTask
-from ..charmmffcontent import CHARMMFFResiDatabase
-from ..scriptwriters import PackmolInputWriter
+from ..charmmff.charmmffcontent import CHARMMFFResiDatabase
+from ..core.basetask import BaseTask
+from ..core.scriptwriters import PackmolInputWriter
+from ..molecule.bilayer import Bilayer, specstrings_builddict
 from ..psfutil.psfcontents import get_toppar_from_psf
 from ..util.util import cell_to_xsc,cell_from_xsc, protect_str_arg
 from ..util.units import _UNITS_

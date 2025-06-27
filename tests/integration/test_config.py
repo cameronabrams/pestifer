@@ -4,8 +4,8 @@ import unittest
 import os
 import shutil
 import yaml
-from pestifer.config import Config, segtype_of_resname, charmm_resname_of_pdb_resname, res_123, res_321
-from pestifer.resourcemanager import ResourceManager
+from pestifer.core.config import Config, segtype_of_resname, charmm_resname_of_pdb_resname, res_123, res_321
+from pestifer.core.resourcemanager import ResourceManager
 
 class ConfigTest(unittest.TestCase):
     @classmethod

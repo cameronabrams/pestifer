@@ -1,9 +1,9 @@
 import unittest
 import logging
-from pestifer.molecule import Molecule
-from pestifer.config import Config, segtype_of_resname
-from pestifer.chainidmanager import ChainIDManager
-from pestifer.objmanager import ObjManager
+from pestifer.molecule.molecule import Molecule
+from pestifer.core.config import Config, segtype_of_resname
+from pestifer.molecule.chainidmanager import ChainIDManager
+from pestifer.core.objmanager import ObjManager
 from pestifer.objs.ssbond import SSBondList
 from pestifer.objs.link import LinkList
 from io import StringIO

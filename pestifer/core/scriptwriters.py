@@ -9,10 +9,10 @@ import logging
 from .command import Command
 from .config import Config
 from .stringthings import ByteCollector, FileCollector
-from .util.colors import *
-from .util.logparsers import VMDLog, NAMDLog, PackmolLog, PsfgenLog
-from .util.progress import NAMDProgress, PsfgenProgress, PestiferProgress, PackmolProgress
-from .util.util import reduce_intlist
+from ..util.colors import *
+from ..util.logparsers import VMDLog, NAMDLog, PackmolLog, PsfgenLog
+from ..util.progress import NAMDProgress, PsfgenProgress, PestiferProgress, PackmolProgress
+from ..util.util import reduce_intlist
 
 logger=logging.getLogger(__name__)
 

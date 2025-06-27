@@ -37,4 +37,4 @@ dependencies = [
 [tool.pytest.ini_options]
 log_cli = true
 [project.scripts]
-pestifer = "pestifer.pestifer:cli"
+pestifer = "pestifer.core.pestifer:cli"

@@ -1,8 +1,8 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 import unittest
 import os
-from pestifer.resourcemanager import ResourceManager
-from pestifer.charmmffcontent import CHARMMFFResiDatabase, extract_resi_pres_blocks, extract_mass_lines
+from pestifer.core.resourcemanager import ResourceManager
+from pestifer.charmmff.charmmffcontent import CHARMMFFResiDatabase, extract_resi_pres_blocks, extract_mass_lines
 
 import logging
 logger = logging.getLogger(__name__)

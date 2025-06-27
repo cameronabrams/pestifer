@@ -9,7 +9,7 @@ import logging
 logger=logging.getLogger(__name__)
 
 from .asymmetricunit import AsymmetricUnit
-from .baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
 from .chainidmanager import ChainIDManager
 
 def build_tmat(RotMat,TransVec):

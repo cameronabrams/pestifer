@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 
 from enum import Enum
 
-from ..stringthings import ByteCollector
+from ..core.stringthings import ByteCollector
 from ..util.progress import PackmolProgress, NAMDProgress
 
 logger=logging.getLogger(__name__)

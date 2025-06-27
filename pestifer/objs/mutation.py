@@ -5,9 +5,9 @@ from functools import singledispatchmethod
 
 from .seqadv import Seqadv
 
-from ..baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..config import res_123
-from ..stringthings import split_ri
+from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.config import res_123
+from ..core.stringthings import split_ri
 
 class Mutation(AncestorAwareObj):
     """A class for handling single-residue mutations

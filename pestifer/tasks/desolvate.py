@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
-from ..basetask import BaseTask
-from ..command import Command
+from ..core.basetask import BaseTask
+from ..core.command import Command
 from ..util.progress import PestiferProgress
 import os
 

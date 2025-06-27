@@ -2,7 +2,7 @@
 
 import logging
 from .md import MDTask
-from ..colvars import declare_distance_cv_atoms, declare_single_harmonic_distance_bias
+from ..molecule.colvars import declare_distance_cv_atoms, declare_single_harmonic_distance_bias
 
 logger=logging.getLogger(__name__)
 

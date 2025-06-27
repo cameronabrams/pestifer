@@ -6,7 +6,7 @@
 .. moduleauthor: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
-from pestifer.baseobj import ObjList, BaseObj, CloneableObj, CloneableObjList
+from pestifer.core.baseobj import ObjList, BaseObj, CloneableObj, CloneableObjList
 from pestifer.objs.mutation import MutationList,Mutation
 import unittest
 import random

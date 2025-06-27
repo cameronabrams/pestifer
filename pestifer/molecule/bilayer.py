@@ -4,10 +4,10 @@ import logging
 
 import numpy as np
 
-from .config import Config
-from .controller import Controller
-from .util.units import _UNITS_, _SYMBOLS_, cuA_of_nmolec
-from .util.util import cell_from_xsc
+from ..core.config import Config
+from ..core.controller import Controller
+from ..util.units import _UNITS_, _SYMBOLS_, cuA_of_nmolec
+from ..util.util import cell_from_xsc
 
 sA_ =_SYMBOLS_['ANGSTROM']
 sA2_=_UNITS_['SQUARE-ANGSTROMS']

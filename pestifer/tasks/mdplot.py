@@ -5,10 +5,10 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import os
 
-from ..basetask import BaseTask
+from ..core.basetask import BaseTask
 from ..util.units import g_per_amu,A3_per_cm3
 from ..util.logparsers import NAMDLog, NAMDxst
-from ..stringthings import to_latex_math
+from ..core.stringthings import to_latex_math
 
 logger=logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)

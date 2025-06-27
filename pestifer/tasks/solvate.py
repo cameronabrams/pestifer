@@ -5,7 +5,7 @@ import os
 
 from pidibble.pdbparse import PDBParser
 
-from ..basetask import BaseTask
+from ..core.basetask import BaseTask
 
 from ..util.util import cell_from_xsc, cell_to_xsc
 

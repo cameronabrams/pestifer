@@ -4,8 +4,8 @@ import os
 import re
 import tarfile
 from .charmmtop import CharmmMassRecord, CharmmMasses, CharmmTopResi
-from .pdbrepository import PDBRepository
-from .stringthings import my_logger
+from ..core.pdbrepository import PDBRepository
+from ..core.stringthings import my_logger
 
 logger=logging.getLogger(__name__)
 

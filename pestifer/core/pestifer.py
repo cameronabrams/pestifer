@@ -2,7 +2,6 @@
 """ Defines all subcommands of the pestifer command
 """
 import argparse as ap
-import collections
 import datetime
 import glob
 import importlib.metadata
@@ -15,12 +14,12 @@ import yaml
 
 __pestifer_version__ = importlib.metadata.version("pestifer")
 from .config import Config, ResourceManager
-from .charmmresi import make_pdb_collection
+from ..charmmff.charmmresi import make_pdb_collection
 from .controller import Controller
-from .namdrestart import make_namd_restart
+from ..util.namdrestart import make_namd_restart
 from .scriptwriters import Psfgen
 from .stringthings import banner, banner_message, enhanced_banner_message, oxford
-from .util.logparsers import subcommand_follow_namd_log
+from ..util.logparsers import subcommand_follow_namd_log
 
 logger=logging.getLogger(__name__)
 
@@ -369,6 +368,7 @@ def cli():
     command_parsers['make-pdb-collection'].add_argument('--cleanup',default=True,action=ap.BooleanOptionalAction,help='clean up all working files (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--resname',type=str,default='',help='single resname to generate')
     command_parsers['make-pdb-collection'].add_argument('--log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log (default: %(default)s)')
+    command_parsers['make-pdb-collection'].add_argument('--force-constant',type=float,default=1.0,help='harmonic force constant used in non-equilibrium MD to stretch a molecule (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--lenfac',type=float,default=1.4,help='this factor times topological distance is the cartesian distance to which you want to stretch a molecule (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--minimize-steps',type=int,default=500,help='number of minimization steps immediately after each build (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--sample-steps',type=int,default=5000,help='number of sample steps (default: %(default)s)')

@@ -4,10 +4,12 @@
 from pidibble.pdbparse import PDBParser
 import os
 import logging
+from copy import deepcopy
 logger=logging.getLogger(__name__)
 
 def colvar_writer(specs,writer,pdb=''):
     logger.debug(f'{specs}')
+    local_specs=deepcopy(specs)
     atom_names=[]
     atom_serials=[]
     if pdb:
@@ -16,7 +18,7 @@ def colvar_writer(specs,writer,pdb=''):
         atom_names=[a.name for a in atoms]
         atom_serials=[a.serial for a in atoms]
 
-    groups=specs.get('groups',{})
+    groups=local_specs.get('groups',{})
     for groupname,groupspecs in groups.items():
         atomnames=groupspecs.get('atomnames',[])
         serials=groupspecs.get('serials',[])
@@ -27,7 +29,7 @@ def colvar_writer(specs,writer,pdb=''):
         groupspecs['atomNumbers']=' '.join([f'{i}' for i in serials])
         assert len(groupspecs['atomNumbers'])>0,f'No atoms in group {groupname}'
 
-    distances=specs.get('distances',{})
+    distances=local_specs.get('distances',{})
     logger.debug(f'distances {distances}')
     for distancename,distancespecs in distances.items():
         for i in range(len(distancespecs['groups'])):
@@ -35,7 +37,7 @@ def colvar_writer(specs,writer,pdb=''):
             distancespecs['name']=distancename
         declare_distance_cv(distancespecs,writer)
 
-    harmonics=specs.get('harmonics',{})
+    harmonics=local_specs.get('harmonics',{})
     for harmonicname,harmonicspecs in harmonics.items():
         harmonicspecs['name']=harmonicname
         declare_harmonic_distance_biases(harmonicspecs,writer)

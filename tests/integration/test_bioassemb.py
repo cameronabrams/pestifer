@@ -8,8 +8,8 @@
 """
 
 import unittest
-from pestifer.bioassemb import BioAssemb, Transform
-from pestifer.asymmetricunit import AsymmetricUnit
+from pestifer.molecule.bioassemb import BioAssemb, Transform
+from pestifer.molecule.asymmetricunit import AsymmetricUnit
 import numpy as np
 
 class TestBiomT(unittest.TestCase):

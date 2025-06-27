@@ -5,8 +5,8 @@ import os
 
 logger=logging.getLogger(__name__)
 
-from ..basetask import BaseTask
-from ..colvars import colvar_writer
+from ..core.basetask import BaseTask
+from ..molecule.colvars import colvar_writer
 from ..util.util import is_periodic
 
 class MDTask(BaseTask):

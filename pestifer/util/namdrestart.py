@@ -5,9 +5,9 @@ import glob
 import logging
 import os
 import shutil
-from .util.logparsers import NAMDLog
-from .scriptwriters import Filewriter
-from .stringthings import ByteCollector
+from .logparsers import NAMDLog
+from ..core.scriptwriters import Filewriter
+from ..core.stringthings import ByteCollector
 
 logger=logging.getLogger(__name__)
 

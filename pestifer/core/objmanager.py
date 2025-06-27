@@ -1,13 +1,13 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """ A dictionary object for containing all objs from a task specification
 """
-from .util.util import inspect_package_dir
+from ..util.util import inspect_package_dir
 from collections import UserDict
 import logging
 logger=logging.getLogger(__name__)
 import os
 
-from . import objs
+from .. import objs
 
 ObjCats=['seq','topol','coord','generic']
 

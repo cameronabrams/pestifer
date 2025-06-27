@@ -3,9 +3,9 @@ import shutil
 import pytest
 import unittest
 from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
-from pestifer.config import Config
-from pestifer.controller import Controller
-from pestifer.scriptwriters import Psfgen,VMD,NAMD,Filewriter
+from pestifer.core.config import Config
+from pestifer.core.controller import Controller
+from pestifer.core.scriptwriters import Psfgen,VMD,NAMD,Filewriter
 from pestifer.util.util import protect_str_arg
 
 class TestMakeMembraneSystem(unittest.TestCase):
@@ -208,6 +208,7 @@ class TestMakeMembraneSystem(unittest.TestCase):
         C.do_tasks()
         os.chdir('..')
 
+    @pytest.mark.slow
     def test_membrane_quilt(self):
         test_dir='__test_make_membrane_system_task_quilt'
         if os.path.exists(test_dir):

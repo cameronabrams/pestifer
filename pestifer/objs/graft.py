@@ -5,9 +5,9 @@ import os
 
 from functools import singledispatchmethod
 
-from ..baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..scriptwriters import Psfgen
-from ..stringthings import ri_range
+from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.scriptwriters import Psfgen
+from ..core.stringthings import ri_range
 from .link import LinkList
 
 class Graft(AncestorAwareObj):

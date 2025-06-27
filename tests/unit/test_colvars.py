@@ -1,14 +1,7 @@
 import unittest
-# from pestifer.config import ResourceManager
-# from pestifer.charmmtop import getResis, makeBondGraph, getMasses, CharmmMasses
-from pestifer.colvars import *
-from pestifer.scriptwriters import *
-# import glob
-# import os
+from pestifer.molecule.colvars import *
+from pestifer.core.scriptwriters import *
 import logging
-# import gzip
-# import networkx as nx
-# import yaml
 logger=logging.getLogger(__name__)
 
 class TestColvars(unittest.TestCase):

@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 import unittest
 
-from pestifer.command import Command
+from pestifer.core.command import Command
 from pestifer.objs.link import Link
 from pestifer.psfutil.psfbond import PSFBond
 from pestifer.psfutil.psfangle import PSFAngle

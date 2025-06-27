@@ -5,10 +5,10 @@ logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
 from pidibble.pdbrecord import PDBRecord
 
-from ..baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
 from ..util.cifutil import CIFdict
-from ..scriptwriters import Psfgen
-from ..stringthings import split_ri
+from ..core.scriptwriters import Psfgen
+from ..core.stringthings import split_ri
 
 class SSBond(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']

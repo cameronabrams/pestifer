@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch
-from pestifer.basetask import BaseTask
+from pestifer.core.basetask import BaseTask
 
 @pytest.fixture
 def mock_task():
@@ -29,7 +29,7 @@ def test_str_method(mock_task):
     assert str(mock_task) == "0 - 1 - test_task [has prior True]"
 
 def test_log_message(mock_task):
-    with patch("pestifer.basetask.logger.info") as mock_logger:
+    with patch("pestifer.core.basetask.logger.info") as mock_logger:
         mock_task.log_message("started", extra_info="test")
         mock_logger.assert_called_once_with("Controller 00 Task 01 'test_task' started  (extra_info: test)")
 
@@ -53,7 +53,7 @@ def test_inherit_state(mock_task):
     assert mock_task.statevars == {"key": "value"}
 
 def test_save_state(mock_task):
-    with patch("pestifer.basetask.BaseTask.update_statevars") as mock_update:
+    with patch("pestifer.core.basetask.BaseTask.update_statevars") as mock_update:
         mock_task.next_basename("subtask")
         mock_task.save_state(["pdb", "coor"])
         assert mock_update.call_count == 2

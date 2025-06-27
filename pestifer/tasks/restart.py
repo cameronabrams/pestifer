@@ -3,7 +3,7 @@
 import logging
 import shutil
 
-from ..basetask import BaseTask
+from ..core.basetask import BaseTask
 
 logger=logging.getLogger(__name__)
         

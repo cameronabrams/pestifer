@@ -5,8 +5,8 @@ import networkx as nx
 
 from .psftopoelement import PSFTopoElement,PSFTopoElementList
 
-from ..config import Config, segtype_of_resname
-from ..stringthings import split_ri
+from ..core.config import Config, segtype_of_resname
+from ..core.stringthings import split_ri
 
 logger=logging.getLogger(__name__)
 

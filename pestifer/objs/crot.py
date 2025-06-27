@@ -3,8 +3,8 @@ import logging
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
 
-from ..baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..scriptwriters import VMD, Psfgen
+from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.scriptwriters import VMD, Psfgen
 
 class Crot(AncestorAwareObj):
     """A class for managing so-called 'C-rotations'

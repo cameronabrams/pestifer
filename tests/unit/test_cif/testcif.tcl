@@ -1,5 +1,5 @@
-# pestifer: testcif.tcl
-####################### Created Thu Jun 26 11:22:46 2025 #######################
+# pestifer.core: testcif.tcl
+####################### Created Fri Jun 27 09:59:13 2025 #######################
 mol new 8fae.cif
 set a [atomselect top "serial 1 to 1157"]
 set c [lsort -unique [$a get chain]]
@@ -822,5 +822,5 @@ set b [atomselect top "chain DC"]
 puts "COUNTS [$b num] 14"
 puts "RESIDS && $resids && 602 602 602 602 602 602 602 602 602 602 602 602 602 602"
 exit
-########################### END PESTIFER VMD SCRIPT ############################
-######################## Thank you for using pestifer! #########################
+######################### END PESTIFER.CORE VMD SCRIPT #########################
+###################### Thank you for using pestifer.core! ######################

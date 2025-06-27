@@ -4,11 +4,11 @@ logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
 from pidibble.pdbrecord import PDBRecord
 
-from ..baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
 from ..util.cifutil import CIFdict
 from ..util.coord import ic_reference_closest
-from ..scriptwriters import Psfgen, Filewriter
-from ..stringthings import split_ri
+from ..core.scriptwriters import Psfgen, Filewriter
+from ..core.stringthings import split_ri
 
 class Link(AncestorAwareObj):
     """A class for handling covalent bonds between residues where at least one residue is non-protein

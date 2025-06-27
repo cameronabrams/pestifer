@@ -3,13 +3,13 @@
 """
 import logging
 import os
-from .objmanager import ObjManager
+from ..core.objmanager import ObjManager
 from pidibble.pdbparse import PDBParser
-from .util.cifutil import CIFload
-from .baseobj import AncestorAwareObj
+from ..util.cifutil import CIFload
+from ..core.baseobj import AncestorAwareObj
 from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList,BioAssemb
-from .scriptwriters import Psfgen, Filewriter
+from ..core.scriptwriters import Psfgen, Filewriter
 from .chainidmanager import ChainIDManager
 logger=logging.getLogger(__name__)
 

@@ -5,7 +5,7 @@ import os
 import yaml
 
 from .md import MDTask
-from ..command import Command
+from ..core.command import Command
 
 logger=logging.getLogger(__name__)
 

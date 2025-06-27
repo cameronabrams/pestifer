@@ -3,8 +3,8 @@ import logging
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
 
-from ..baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..scriptwriters import VMD
+from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.scriptwriters import VMD
 
 class Orient(AncestorAwareObj):
     req_attr=AncestorAwareObj.req_attr+['axis']

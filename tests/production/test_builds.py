@@ -1,5 +1,5 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-from pestifer.resourcemanager import ResourceManager
+from pestifer.core.resourcemanager import ResourceManager
 import os
 import shutil
 import subprocess

@@ -5,8 +5,8 @@ import glob
 import os
 import shutil
 import yaml
-from . import resources
-from .charmmffcontent import CHARMMFFContent
+from .. import resources
+from ..charmmff.charmmffcontent import CHARMMFFContent
 
 import logging
 logger=logging.getLogger(__name__)

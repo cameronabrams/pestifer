@@ -4,7 +4,7 @@ logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
 from pidibble.pdbrecord import PDBRecord
 
-from ..baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
 
 class Ter(AncestorAwareObj):
     """A class for handing TER records in PDB files

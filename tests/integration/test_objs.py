@@ -7,12 +7,11 @@ from pestifer.objs.link import Link
 from pestifer.objs.insertion import Insertion
 from pestifer.util.cifutil import CIFdict, CIFload
 from pidibble.pdbparse import PDBParser
-from pestifer.bioassemb import Transform
-from pestifer.config import Config, segtype_of_resname
-from pestifer.stringthings import ByteCollector
+from pestifer.molecule.bioassemb import Transform
+from pestifer.core.config import Config, segtype_of_resname
+from pestifer.core.stringthings import ByteCollector
 from pidibble.pdbparse import PDBParser
 import unittest
-# import pytest
 
 class TestTer(unittest.TestCase):
     def test_ter_fromdict(self):
