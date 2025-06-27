@@ -9,7 +9,64 @@ from ..core.stringthings import my_logger
 
 logger=logging.getLogger(__name__)
 
-import re
+def parse_conditional_script(script_text):
+    # some CHARMM topology files contain conditional logics
+    lines = script_text.strip().splitlines()
+    vars = {}
+    output = []
+    i = 0
+    stop_processing = False
+
+    while i < len(lines):
+        if stop_processing:
+            break
+
+        line = lines[i].strip()
+        if not line or line.startswith("#"):
+            i += 1
+            continue
+
+        tokens = line.split()
+
+        if tokens[0] == "set" and len(tokens) >= 3:
+            var, value = tokens[1], tokens[2]
+            if value.isdigit():
+                vars[var] = int(value)
+            else:
+                vars[var] = value.strip('"')
+            output.append(line)
+
+        elif tokens[0] == "if" and tokens[2] == 'eq':
+            var, op, value = tokens[1], tokens[2], tokens[3]
+            if value.isdigit():
+                value = int(value)
+            else:
+                value = value.strip('"')
+            condition_result = False
+            if op == "eq":
+                condition_result = vars.get(var) == value
+            block_lines = []
+            contains_return = False
+            i += 1
+            while i < len(lines):
+                inner_line = lines[i].strip()
+                if inner_line == "endif":
+                    break
+                block_lines.append(inner_line)
+                if inner_line == "return":
+                    contains_return = True
+                i += 1
+
+            if condition_result:
+                output.extend(block_lines)
+                if contains_return:
+                    stop_processing = True
+            # move past the endif
+        else:
+            output.append(line)
+
+        i += 1
+    return dict(parsed="\n".join(output),vars=vars)
 
 def extract_resi_pres_blocks(text, keywords=('RESI', 'PRES')):
     keyword_pattern = '|'.join(re.escape(k) for k in keywords)
@@ -23,7 +80,7 @@ def extract_resi_pres_blocks(text, keywords=('RESI', 'PRES')):
 def extract_mass_lines(file_contents):
     return [line for line in file_contents.splitlines() if line.strip().upper().startswith("MASS")]
 
-comment_these_out=['set','if','WRNLEV','BOMLEV']
+comment_these_out=['set','if','WRNLEV','BOMLEV','return','endif']
 
 class CHARMMFFContent:
     """ A class for handling all CHARMM force field content.  The CHARMM force field is
@@ -203,7 +260,14 @@ class CHARMMFFContent:
                 logger.warning(f'Could not find {topfile} in tarfile or filenamemap')
                 return ''
         logger.debug(f'Extracted {len(content)} characters from {topfile}')
-        return content
+
+        parsed_content = content
+        if 'cholesterol' in topfile:
+            parsed_content_dict=parse_conditional_script(content)
+            parsed_content=parsed_content_dict['parsed']
+            logger.debug(f'Parsed {topfile} with conditional script based on {parsed_content_dict["vars"]}')
+
+        return parsed_content
     
     def masses_from_topfile(self,topfile):
         masses=[]
@@ -224,7 +288,11 @@ class CHARMMFFContent:
             #     logger.debug(f'Expected RESI block, but found {key} in {topfile}')
             resi=CharmmTopResi(block,key=key)
             resi.metadata=metadata
+            # logger.debug(f'Found residue {resi.resname} in {topfile} with metadata {resi.metadata}')         
             R.append(resi)
+        resname_list=[x.resname for x in R]
+        if len(resname_list)!=len(set(resname_list)):
+            logger.warning(f'Found duplicate residue names in {topfile}: {resname_list}')
         return R
 
     def find_patches(self):
@@ -237,7 +305,7 @@ class CHARMMFFContent:
                     patchname=line.split()[1]
                     if patchname not in self.patches:
                         self.patches[patchname]=os.path.basename(topfile)
-                        logger.debug(f'Found patch {patchname} in {topfile}')
+                        # logger.debug(f'Found patch {patchname} in {topfile}')
         logger.debug(f'Found {len(self.patches)} patches in CHARMM force field content')
 
     def get_topfile_of_patchname(self,patchname):

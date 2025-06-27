@@ -1,5 +1,5 @@
-# pestifer: testtcl.tcl
-####################### Created Thu Jun 26 11:25:13 2025 #######################
+# pestifer.core: testtcl.tcl
+####################### Created Fri Jun 27 10:01:46 2025 #######################
 mol new 6pti.pdb
 set a [atomselect top all]
 set data [ backup $a [ list chain x y z resid resname name ] ]
@@ -10,5 +10,5 @@ set data [ backup $a [ list chain x y z resid resname name ] ]
 restore $a [ list chain x y z resid resname name ]  $data
 [atomselect top "name CA"] writepdb good.pdb
 exit
-########################### END PESTIFER VMD SCRIPT ############################
-######################## Thank you for using pestifer! #########################
+######################### END PESTIFER.CORE VMD SCRIPT #########################
+###################### Thank you for using pestifer.core! ######################

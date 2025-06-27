@@ -274,6 +274,14 @@ def wheretcl(args):
             msg='TcL package directory: '
         print(f'{msg}{pkg_dir}')
 
+class NiceHelpFormatter(ap.HelpFormatter):
+    def __init__(self, prog):
+        super().__init__(prog, max_help_position=40, width=100)
+
+    def format_help(self):
+        # Return the banner followed by the regular help
+        return textwrap.dedent(banner_message) + '\n\n' + super().format_help()
+    
 def cli():
     commands={
         'run': run,
@@ -323,12 +331,18 @@ def cli():
         'follow-namd-log':'Follow a NAMD log file and show a progress bar',
         'modify-package':'various package modifications, developer use only',
     }
-    parser=ap.ArgumentParser(description=textwrap.dedent(banner_message),formatter_class=ap.RawDescriptionHelpFormatter)
+    parser=ap.ArgumentParser(formatter_class=NiceHelpFormatter)
     parser.add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
     parser.add_argument('--kick-ass-banner',default=False,action='store_true',help=ap.SUPPRESS)
-    parser.add_argument('--log-level',type=str,default=None,choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
-    parser.add_argument('--log-file',type=str,default='pestifer_diagnostics.log',help='diagnostic log file')
-    subparsers=parser.add_subparsers()
+    parser.add_argument('--log-level',type=str,default=None,choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
+    parser.add_argument('--log-file',type=str,default='pestifer_diagnostics.log',help='Log file (default: %(default)s)')
+    subparsers = parser.add_subparsers(
+        title="available commands (use \"pestifer <command> --help\" for help with any command)",
+        dest="command",
+        metavar="",
+        required=True
+    )
+
     subparsers.required=False
     command_parsers={}
     for k in commands:
@@ -337,14 +351,14 @@ def cli():
     
     command_parsers['run'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
     command_parsers['run'].add_argument('--output-dir',type=str,default='./',help='name of output directory relative to CWD (default: %(default)s)')
-    command_parsers['run'].add_argument('--log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
+    command_parsers['run'].add_argument('--log-level',type=str,default='debug',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
     command_parsers['run'].add_argument('--gpu',default=False,action='store_true',help='force run on GPU')
     command_parsers['fetch-example'].add_argument('index',type=int,default=None,help='example index')
 
     command_parsers['run-example'].add_argument('index',type=int,default=None,help='example index')
-    command_parsers['run-example'].add_argument('--output-dir',type=str,default='./',help='name of output directory relative to CWD')
+    command_parsers['run-example'].add_argument('--output-dir',type=str,default='./',help='name of output directory relative to CWD (default: %(default)s)')
     command_parsers['run-example'].add_argument('--config-updates',type=str,nargs='+',default=[],help='yaml files to update example')
-    command_parsers['run-example'].add_argument('--log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
+    command_parsers['run-example'].add_argument('--log-level',type=str,default='debug',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
     command_parsers['run-example'].add_argument('--gpu',default=False,action='store_true',help='force run on GPU')
     command_parsers['config-help'].add_argument('directives',type=str,nargs='*',help='config file directives')
     command_parsers['config-help'].add_argument('--interactive',default=True,action=ap.BooleanOptionalAction,help='use help in interactive mode')
@@ -359,7 +373,7 @@ def cli():
     command_parsers['modify-package'].add_argument('--insert-example',type=int,default=0,help='integer index of example to insert into the package; developer use only')
     command_parsers['modify-package'].add_argument('--update-example',type=int,default=0,help='integer index of example to update in the package; developer use only')
     command_parsers['modify-package'].add_argument('--example-yaml',type=str,default='',help='yaml file of example to insert/update into the package; developer use only')
-    command_parsers['modify-package'].add_argument('--log-level',type=str,default='info',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
+    command_parsers['modify-package'].add_argument('--log-level',type=str,default='info',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
 
     command_parsers['make-pdb-collection'].add_argument('--streamID',type=str,default=None,help='charmmff stream to scan')
     command_parsers['make-pdb-collection'].add_argument('--substreamID',type=str,default='',help='charmmff substream to scan')
@@ -367,7 +381,8 @@ def cli():
     command_parsers['make-pdb-collection'].add_argument('--force',default=False,action='store_true',help='force overwrite of any existing molecules in the database')
     command_parsers['make-pdb-collection'].add_argument('--cleanup',default=True,action=ap.BooleanOptionalAction,help='clean up all working files (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--resname',type=str,default='',help='single resname to generate')
-    command_parsers['make-pdb-collection'].add_argument('--log-level',type=str,default='debug',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log (default: %(default)s)')
+    command_parsers['make-pdb-collection'].add_argument('--take-ic-from',type=str,default='',help='resname take ICs from')
+    command_parsers['make-pdb-collection'].add_argument('--log-level',type=str,default='debug',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--force-constant',type=float,default=1.0,help='harmonic force constant used in non-equilibrium MD to stretch a molecule (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--lenfac',type=float,default=1.4,help='this factor times topological distance is the cartesian distance to which you want to stretch a molecule (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--minimize-steps',type=int,default=500,help='number of minimization steps immediately after each build (default: %(default)s)')
@@ -405,7 +420,7 @@ def cli():
     command_parsers['follow-namd-log'].add_argument('log',type=str,default=None,help='input NAMD log file')
     command_parsers['follow-namd-log'].add_argument('--basename',type=str,default=None,help='basename of output files')
     command_parsers['follow-namd-log'].add_argument('--diagnostic-log-file',type=str,default=None,help='diagnostic log file')
-    command_parsers['follow-namd-log'].add_argument('--log-level',type=str,default='info',choices=[None,'info','debug','warning'],help='Log level for messages written to diagnostic log')
+    command_parsers['follow-namd-log'].add_argument('--log-level',type=str,default='info',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
     command_parsers['follow-namd-log'].add_argument('--no-banner',default=True,action='store_true',help='turn off the banner')
 
     args=parser.parse_args()

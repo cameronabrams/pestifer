@@ -202,6 +202,7 @@ class CharmmDihedralList(UserList):
 class CharmmTopIC:
     def __init__(self,ICstring):
         self.empty=False
+        self.card=ICstring
         ICstring,dummy=linesplit(ICstring)
         toks=[x.strip() for x in ICstring.split()]
         data=np.array(list(map(float,toks[5:])))
@@ -354,6 +355,17 @@ class CharmmTopResi:
         for card in deletecards:
             D=CharmmTopDelete(card)
             self.Delete.append(D)
+
+    def copy_ICs_from(self,other):
+        self.IC=[]
+        for ic in other.IC:
+            ic_card=ic.card
+            IC=CharmmTopIC(ic_card)
+            if any([x not in self.atomdict.keys() for x in IC.atoms]):
+                logger.error(f'IC {ic_card} has atoms not in {self.resname}: {IC.atoms}')
+                self.error_code=-5
+            else:
+                self.IC.append(IC)
 
     def set_masses(self,masses):
         self.atoms.set_masses(masses)

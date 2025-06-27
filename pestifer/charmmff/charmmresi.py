@@ -22,7 +22,7 @@ from ..core.stringthings import my_logger
 
 logger=logging.getLogger(__name__)
 
-def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0,force_constant=1.0):
+def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0,force_constant=1.0,borrow_ic_from=None):
     if nsamples>sample_steps:
         raise ValueError(f'nsamples ({nsamples}) must be less than or equal to sample_steps ({sample_steps})')
     digits=len(str(nsamples))
@@ -30,6 +30,10 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     synonym=topo.synonym
     meta=topo.metadata
     logger.debug(f'do_psfgen for {resid} with metadata {meta}')
+    if borrow_ic_from:
+        logger.debug(f'borrowing ICs from {borrow_ic_from}')
+        take_my_ics=DB.get_resi(borrow_ic_from)
+        topo.copy_ICs_from(take_my_ics)
     charmm_topfile,stream,substream=meta['charmmtopfile'],meta['streamID'],meta['substreamID']
     charmm_topfile=os.path.basename(charmm_topfile)
     logger.debug(f'charmm_topfile: {charmm_topfile}, stream: {stream}, substream: {substream}')
@@ -281,7 +285,7 @@ def do_cleanup(resname,dirname):
         os.remove(f)
     os.chdir(cwd)
 
-def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup=True,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0,force_constant=1.0):
+def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup=True,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0,force_constant=1.0,borrow_ic_from=None):
     cwd=os.getcwd()
     successdir=os.path.join(outdir,resi)
     failuredir=os.path.join(faildir,resi)
@@ -291,7 +295,7 @@ def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup
         if os.path.exists('tmp'): shutil.rmtree('tmp')
         os.mkdir('tmp')
         os.chdir('tmp')
-        result=do_psfgen(resi,DB,lenfac=lenfac,minimize_steps=minimize_steps,sample_steps=sample_steps,nsamples=nsamples,sample_temperature=sample_temperature,refic_idx=refic_idx,force_constant=force_constant)
+        result=do_psfgen(resi,DB,lenfac=lenfac,minimize_steps=minimize_steps,sample_steps=sample_steps,nsamples=nsamples,sample_temperature=sample_temperature,refic_idx=refic_idx,force_constant=force_constant,borrow_ic_from=borrow_ic_from)
         os.chdir(cwd)
         if result==0:
             if cleanup: do_cleanup(resi,'tmp')
@@ -327,7 +331,6 @@ def make_pdb_collection(args):
     RM=ResourceManager()
     CC=RM.charmmff_content
     DB=CHARMMFFResiDatabase(CC)
-
     if streamID is not None:
         DB.add_stream(streamID)
     
@@ -356,7 +359,7 @@ def make_pdb_collection(args):
     
     if resname is not None and resname != '':
         my_logger(f'RESI {resname}',logger.info,just='^',frame='*',fill='*')
-        do_resi(resname,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx,force_constant=args.force_constant)
+        do_resi(resname,DB,outdir=outdir,faildir=faildir,force=args.force,cleanup=args.cleanup,lenfac=args.lenfac,minimize_steps=args.minimize_steps,sample_steps=args.sample_steps,nsamples=args.nsamples,sample_temperature=args.sample_temperature,refic_idx=args.refic_idx,force_constant=args.force_constant,borrow_ic_from=args.take_ic_from)
     else:
         active_resnames=DB.get_resnames_of_streamID(streamID,substreamID=substreamID)
         logger.debug(f'active_resnames: {active_resnames}')

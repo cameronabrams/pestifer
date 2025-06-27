@@ -2,9 +2,9 @@
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
+
 [project]
 name = "pestifer"
-# BREAKING_CHANGE.NEW_FEATURE.BUGFIX
 version = "1.16.0"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
@@ -13,28 +13,37 @@ description = "A NAMD topology/coordinate input builder"
 readme = "README.md"
 requires-python = ">=3.12"
 classifiers = [
-    "Programming Language :: Python :: 3",
-    "License :: OSI Approved :: MIT License",
-    "Operating System :: POSIX :: Linux",
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: POSIX :: Linux",
 ]
 dependencies = [
-    "numpy>=1.24",
-    "pyyaml>=6",
-    "pidibble>=1.2.1",
-    "pandas",
-    "ycleptic>=1.6.0",
-    "mmcif",
-    "progressbar2",
-    "networkx",
-    "colorist",
-    "gputil",
-    "pdb2pqr"
+  "docutils>=0.20,<0.22",  # Required for sphinx
+  "numpy>=1.24",
+  "pyyaml>=6",
+  "pidibble>=1.2.1",
+  "pandas",
+  "ycleptic>=1.6.0",
+  "mmcif",
+  "progressbar2",
+  "networkx",
+  "colorist",
+  "gputil",
+  "sphinx==8.2.3"  # Explicitly declare if needed for docs
 ]
+
+[project.scripts]
+pestifer = "pestifer.core.pestifer:cli"
+
 [project.urls]
 "Source" = "https://github.com/cameronabrams/pestifer"
 "Documentation" = "https://pestifer.readthedocs.io/en/latest/"
 "Bug Tracker" = "https://github.com/cameronabrams/pestifer/issues"
+
 [tool.pytest.ini_options]
 log_cli = true
-[project.scripts]
-pestifer = "pestifer.core.pestifer:cli"
+
+[tool.hatch.envs.default.scripts]
+post-install = [
+  "pip install pdb2pqr==3.7.1 --no-deps"
+]

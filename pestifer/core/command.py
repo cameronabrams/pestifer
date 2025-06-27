@@ -90,6 +90,7 @@ class Command:
             logger.debug(f'Log written to {logfile}')
             log.close()
         remaining_stdout,self.stderr=process.communicate()
+        self.stdout+=remaining_stdout
         if logparser:
             logparser.update(remaining_stdout)
             if hasattr(logparser,'finalize'):
