@@ -22,6 +22,12 @@ from .stringthings import my_logger
 logger=logging.getLogger(__name__)
 
 class Config(Yclept):
+    """ The Config class:  parsing the config file and creating the Config object
+    Pestifer's user-configuration input uses ycleptic, an enhanced, YAML-based
+    configuration file manager.  The Config object is a descendent of the
+    Yclept class.  It also houses the ResourceManager object, which manages
+    access to the contents of Pestifer's "resources" directory.
+    """
     def __init__(self,userfile='',userdict={},quiet=False):
         vrep=f'ycleptic v. {version("ycleptic")}\npidibble v. {version("pidibble")}'
         self.RM=ResourceManager()
@@ -43,6 +49,14 @@ class Config(Yclept):
         self.RM.update_pdbrepository(self['user']['charmmff'].get('pdbcollections',[]))
 
     def processor_info(self):
+        """ Determine the number of CPUs and GPUs available for this process.
+        This method checks if the process is running under SLURM (a job scheduler)
+        and retrieves the number of nodes and tasks per node. If SLURM variables are not set,
+        it defaults to the local CPU count. It also checks for available GPUs using GPUtil.
+        Returns:
+        --------
+        str: A string summarizing the number of CPUs and GPUs available.
+        """
         self.slurmvars={k:os.environ[k] for k in os.environ if 'SLURM' in k}
         self.local_ncpus=os.cpu_count()
         self.gpus_allocated=''
@@ -126,34 +140,5 @@ class Config(Yclept):
 
         self.segtypes=Labels.segtypes
         self['user']['psfgen']['segtypes']=self.segtypes
-        # self.segtypes=self['user']['psfgen']['segtypes']
-        # for stn,stspec in self.segtypes.items():
-        #     if stspec and 'resnames' in stspec:
-        #         initresnames=stspec['resnames']
-        #         for r in initresnames:
-        #             if len(r)>4 and r.isalnum():
-        #                 rabbrv=r[:4]
-        #                 # logger.debug(r,rabbrv)
-        #                 if not rabbrv in stspec['resnames']:
-        #                     stspec['resnames'].append(rabbrv)
-        #                     # logger.debug(f'Adding abbreviated resname {rabbrv} to resnames for segtype {stn}')
-        # self.pdb_to_charmm_resnames={}
-        # for alias in self['user']['psfgen']['aliases']:
-        #     tok=alias.split()
-        #     if tok[0]=='residue':
-        #         self.pdb_to_charmm_resnames[tok[1]]=tok[2]
-        # self.segtype_of_resname={}
-        # for st in self['user']['psfgen']['segtypes']:
-        #     res=self['user']['psfgen']['segtypes'][st].get('resnames',[])
-        #     for r in res:
-        #         self.segtype_of_resname[r]=st
 
-        # # Labels
-        
-        # charmm_resname_of_pdb_resname.update(self.pdb_to_charmm_resnames)
-        # for p,c in charmm_resname_of_pdb_resname.items():
-        #     self.segtype_of_resname[c]=self.segtype_of_resname[p]
-        # segtype_of_resname.update(self.segtype_of_resname)
-        # res_123.update(self['user']['psfgen']['segtypes']['protein']['invrescodes'])
-        # res_321.update(self['user']['psfgen']['segtypes']['protein']['rescodes'])
 

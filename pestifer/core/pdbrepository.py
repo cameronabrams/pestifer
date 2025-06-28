@@ -10,7 +10,9 @@ import yaml
 logger=logging.getLogger(__name__)
 
 class PDBInfo:
-    """ A PDBInfo object is a simple container for the metadata of a PDB file. It is used to store the information about a residue, such as its name, charge, and conformers. """
+    """ A PDBInfo object is a container for metadata about a PDB file. It is used to store information about the residue, such as its name, charge, conformers, and other metadata. It can be created from a YAML file or from a tarfile member that is expected to be an info.yaml file.   
+    The metadata is stored in a dictionary, and the PDBInfo object provides methods to access the metadata, check equality with another PDBInfo object, and get items from the metadata dictionary.
+    """
     def __init__(self,metadata={}):
         self.metadata=metadata
 
@@ -36,7 +38,7 @@ class PDBInfo:
         return cls(metadata)
 
     def get(self,key,default=None):
-        """ Get an item from the metadata dictionary. If the key is not found, return the default value. """
+        """ Get a value from the metadata dictionary by key, returning a default value if the key is not found. """
         return self.metadata.get(key,default)
 
     def __eq__(self,other):
@@ -153,6 +155,7 @@ class PDBInput:
         return cls(name=name,pdbcontents=pdbcontents,info=info,opt_tags=opt_tags)
     
     def get_pdb(self,conformerID=0,noh=False):
+        """ Get the PDB contents for a given conformer ID. If noh is True, it will return the PDB contents for the 'noh' tag if available. """
         if len(self.pdbcontents)==0:
             logger.warning('No PDB contents available to checkout.')
             return None
@@ -179,9 +182,11 @@ class PDBInput:
         return os.path.basename(modified_name)
     
     def get_charge(self):
+        """ Get the charge of the residue from the metadata. If not found, return 0.0. """
         return self.info.get('charge',0.0)
     
     def get_conformer_data(self,conformerID=0):
+        """ Get the conformer data for a given conformer ID. If no conformers are found, return None. If the conformer ID is out of range, return None. """
         conformers=self.info.get('conformers',[])
         if len(conformers)==0:
             logger.warning('No conformers found in metadata.')
@@ -193,6 +198,7 @@ class PDBInput:
         return c
     
     def get_max_internal_length(self,conformerID=0):
+        """ Get the maximum internal length for a given conformer ID. If no conformers are found, return 0.0. If the conformer ID is out of range, return 0.0. """
         c=self.get_conformer_data(conformerID)
         if c is None:
             logger.warning('No conformer data available to provide max internal length.')
@@ -200,6 +206,7 @@ class PDBInput:
         return c.get('max-internal-length',0)
 
     def get_head_tail_length(self,conformerID=0):
+        """ Get the head-tail length for a given conformer ID. If no conformers are found, return 0.0. If the conformer ID is out of range, return 0.0. """
         c=self.get_conformer_data(conformerID)
         if c is None:
             logger.warning('No conformer data available to provide head-tail length.')
@@ -207,12 +214,15 @@ class PDBInput:
         return c.get('head-tail-length',0.0)
     
     def get_ref_atoms(self):
+        """ Get the reference atoms for the residue from the metadata. If not found, return an empty dictionary. """
         return self.info.get('reference-atoms',{})
     
     def get_parameters(self):
+        """ Get the parameters for the residue from the metadata. If not found, return an empty list. """
         return self.info.get('parameters',[])
 
     def longname(self):
+        """ Get the long name of the residue from the metadata. If not found, return the resname. """
         return self.info.get('synonym','').strip() or self.name
         
 

@@ -311,7 +311,7 @@ class CHARMMFFContent:
         return basename
     
     def clean_local_charmmff_files(self):
-        """ Remove all local CHARMM force field files that start with 'par', 'top_', 'toppar', 'charmm', or end with '.str', '.prm', or '.rtf'.
+        """ Remove all local CHARMM force field files that start with 'par', 'top', 'toppar', 'charmm', or end with '.str', '.prm', or '.rtf'.
         This function is useful for cleaning up the local directory where CHARMM files are stored.
         It will remove files that match the specified patterns, ensuring that only relevant CHARMM files are kept.
         """

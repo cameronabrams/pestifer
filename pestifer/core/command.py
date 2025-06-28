@@ -14,6 +14,30 @@ from glob import glob
 logger=logging.getLogger(__name__)
 
 class Command:
+    """ Class for running external commands in a subprocess.
+    This class allows you to create a command with its arguments and options, and then run it while capturing its output.
+    The command is run in a shell, and you can specify a logfile to write the output to.
+    If the command returns a non-zero exit code, an error is logged, and the stdout and stderr buffers are printed.
+    You can also specify a tuple of (needle, message) to override the default behavior and log a custom message if the needle is found in the stdout or stderr.
+    The command can be run with a progress bar and elapsed time display using a LogParser instance.
+    The command can also be run quietly, suppressing the output to the console.
+    Attributes:
+    -----------
+    command : str
+        The command to be executed.
+    args : tuple
+        The arguments to be passed to the command.
+    options : dict
+        The options to be passed to the command in the form of key-value pairs.
+    c : str
+        The complete command string that will be executed, including the command, arguments, and options.
+    stdout : str
+        The standard output of the command after it has been run.
+    stderr : str
+        The standard error output of the command after it has been run.
+    divider_line_length : int
+        The length of the divider line used in logging output to separate sections of the log.
+    """
     divider_line_length=55
     def __init__(self,command:str,*args,**options):
         self.command=command
