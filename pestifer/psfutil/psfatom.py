@@ -5,7 +5,7 @@ import networkx as nx
 
 from .psftopoelement import PSFTopoElement,PSFTopoElementList
 
-from ..core.config import Config, segtype_of_resname
+from ..core.labels import Labels
 from ..core.stringthings import split_ri
 
 logger=logging.getLogger(__name__)
@@ -26,9 +26,7 @@ class PSFAtom(PSFTopoElement):
         self.type=tokens[5]
         self.charge=float(tokens[6])
         self.atomicwt=float(tokens[7])
-        if len(segtype_of_resname)==0:
-            c=Config()
-        self.segtype=segtype_of_resname[self.resname]
+        self.segtype=Labels.segtype_of_resname[self.resname]
         self.ligands=[]
     
     def __hash__(self):

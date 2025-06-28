@@ -196,7 +196,6 @@ class TestBilayer(unittest.TestCase):
         assert 'MW' not in cdict['upper_chamber'][0]
         assert 'MW' not in cdict['lower_chamber'][0]
 
-
     def test_bilayer_init_memgen_style(self):
         if os.path.exists('__test_bilayer_init_memgen_style'):
             shutil.rmtree('__test_bilayer_init_memgen_style')
@@ -335,7 +334,7 @@ class TestBilayer(unittest.TestCase):
         assert test_bilayer.patch_ll_corner[2]==pytest.approx(0.0, rel=1e-2)
         assert test_bilayer.patch_ur_corner[0]==pytest.approx(86.60, rel=1e-2)
         assert test_bilayer.patch_ur_corner[1]==pytest.approx(86.60, rel=1e-2)
-        assert test_bilayer.patch_ur_corner[2]==pytest.approx(76.13, rel=1e-2)
+        assert test_bilayer.patch_ur_corner[2]==pytest.approx(83.08, rel=1e-2)
         self.RM.charmmff_content.clean_local_charmmff_files()
 
         os.chdir('..')

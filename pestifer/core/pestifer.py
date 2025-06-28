@@ -1,4 +1,4 @@
-# Author: Cameron F. Abrams <cfa22@drexel.edu>.
+# Author: Cameron F. Abrams <cfa22@drexel.edu>
 """ Defines all subcommands of the pestifer command
 """
 import argparse as ap
@@ -71,18 +71,20 @@ def run(args,**kwargs):
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
-
     # Set up the Controller and execute tasks
     begin_time=time.time()
-    logger.info(f'{__package__} begins.')
-    allowed_extensions=['.yaml','.yml','.y']
     configname=args.config
+    # include date and time in the message below
+    logger.info(f'pestifer begins at {time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(begin_time))} with config {configname}')
+
+    allowed_extensions=['.yaml','.yml','.y']
     cbase,cext=os.path.splitext(configname)
     if not cext:
         fil=[os.path.exists(f'{cbase}{ext}') for ext in allowed_extensions]
         if any(fil):
             iix=fil.index(True)
             configname=f'{cbase}{allowed_extensions[iix]}'
+
     config=Config(userfile=configname,**kwargs)
     C=Controller(config)
 
@@ -161,30 +163,31 @@ def list_examples():
 def fetch_example(args):
     index=args.index
     r=ResourceManager()
-    r.example_manager.checkout_example_yaml(index)
+    config=r.example_manager.checkout_example_yaml(index)
+    return config
 
 def run_example(args):
     args.config=fetch_example(args)
     run(args)
 
-def cleanup(args,**kwargs):
-    config=Config(args.config)
-    c=Controller(config)
-    keepfiles=[args.config,args.log_file]
-    init_task=c.tasks[0]
-    keepfiles+=init_task.get_keepfiles()
-    removed=[]
-    # remove all extension-specific files not in keepfiles
-    for ext in ['.pdb', '.psf', '.yaml','.txt', '.coor',
-                '.vel', '.namd','.xsc', '.dcd', '.xst',
-                '.log', '.prm', '.rtf', '.str', '.tcl',
-                '.BAK', '%']:
-        nokeep=glob.glob(f'*{ext}')
-        for p in nokeep:
-            if p not in keepfiles:
-                removed+=p
-                os.remove(p)
-    logger.debug(f'Files removed: {removed}')
+# def cleanup(args,**kwargs):
+#     config=Config(args.config)
+#     c=Controller(config)
+#     keepfiles=[args.config,args.log_file]
+#     init_task=c.tasks[0]
+#     keepfiles+=init_task.get_keepfiles()
+#     removed=[]
+#     # remove all extension-specific files not in keepfiles
+#     for ext in ['.pdb', '.psf', '.yaml','.txt', '.coor',
+#                 '.vel', '.namd','.xsc', '.dcd', '.xst',
+#                 '.log', '.prm', '.rtf', '.str', '.tcl',
+#                 '.BAK', '%']:
+#         nokeep=glob.glob(f'*{ext}')
+#         for p in nokeep:
+#             if p not in keepfiles:
+#                 removed+=p
+#                 os.remove(p)
+#     logger.debug(f'Files removed: {removed}')
 
 def show_resources(args,**kwargs):
     C=Config()
@@ -278,10 +281,21 @@ class NiceHelpFormatter(ap.HelpFormatter):
     def __init__(self, prog):
         super().__init__(prog, max_help_position=40, width=100)
 
+
+class BanneredHelpFormatter(NiceHelpFormatter):
+
     def format_help(self):
         # Return the banner followed by the regular help
         return textwrap.dedent(banner_message) + '\n\n' + super().format_help()
+
+class SubCommandSpecifier:
+    def __init__(self, name, func, description=None, help_text=None):
+        self.name = name
+        self.func = func
+        self.description = description if description else ''
+        self.help_text = help_text if help_text else ''
     
+
 def cli():
     commands={
         'run': run,
@@ -295,7 +309,7 @@ def cli():
         'wheretcl': wheretcl,
         'make-pdb-collection': make_pdb_collection,
         'config-default': config_default,
-        'cleanup': cleanup,
+        # 'cleanup': cleanup,
         'follow-namd-log': follow_namd_log,
         'modify-package': modify_package,
     }
@@ -311,7 +325,7 @@ def cli():
         'make-namd-restart':'generate a restart NAMD config file based on current checkpoint',
         'show-resources':'display elements of the included pestifer resources',
         'mdplot':'extract and plot time-series data from NAMD log and xst files',
-        'cleanup':'clean up files from a run (usually for a clean restart)',
+        # 'cleanup':'clean up files from a run (usually for a clean restart)',
         'follow-namd-log':'follow a NAMD log file and show a progress bar',
         'modify-package':'various package modifications, developer use only',
     }
@@ -327,7 +341,7 @@ def cli():
         'make-namd-restart':'generate a restart NAMD config file based on current checkpoint',
         'show-resources':'display elements of the included pestifer resources',
         'mdplot':'Extract and plot time-series data from NAMD log and xst files',
-        'cleanup':'Clean up files from a run (usually for a clean restart)',
+        # 'cleanup':'Clean up files from a run (usually for a clean restart)',
         'follow-namd-log':'Follow a NAMD log file and show a progress bar',
         'modify-package':'various package modifications, developer use only',
     }
@@ -340,13 +354,12 @@ def cli():
         title="available commands (use \"pestifer <command> --help\" for help with any command)",
         dest="command",
         metavar="",
-        required=True
+        required=False
     )
 
-    subparsers.required=False
     command_parsers={}
     for k in commands:
-        command_parsers[k]=subparsers.add_parser(k,description=descs.get(k,''),help=helps.get(k,''),formatter_class=ap.RawDescriptionHelpFormatter)
+        command_parsers[k]=subparsers.add_parser(k,description=descs.get(k,''),help=helps.get(k,''),formatter_class=BanneredHelpFormatter)
         command_parsers[k].set_defaults(func=commands[k])
     
     command_parsers['run'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
@@ -381,7 +394,7 @@ def cli():
     command_parsers['make-pdb-collection'].add_argument('--force',default=False,action='store_true',help='force overwrite of any existing molecules in the database')
     command_parsers['make-pdb-collection'].add_argument('--cleanup',default=True,action=ap.BooleanOptionalAction,help='clean up all working files (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--resname',type=str,default='',help='single resname to generate')
-    command_parsers['make-pdb-collection'].add_argument('--take-ic-from',type=str,default='',help='resname take ICs from')
+    command_parsers['make-pdb-collection'].add_argument('--take-ic-from',type=str,default='',help='alternate resname to take ICs from if this resname has bad ICs')
     command_parsers['make-pdb-collection'].add_argument('--log-level',type=str,default='debug',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--force-constant',type=float,default=1.0,help='harmonic force constant used in non-equilibrium MD to stretch a molecule (default: %(default)s)')
     command_parsers['make-pdb-collection'].add_argument('--lenfac',type=float,default=1.4,help='this factor times topological distance is the cartesian distance to which you want to stretch a molecule (default: %(default)s)')
@@ -416,7 +429,7 @@ def cli():
     command_parsers['mdplot'].add_argument('--figsize',type=int,nargs=2,default=[9,6],help='figsize')
     command_parsers['mdplot'].add_argument('--traces',type=list,default=['density'],nargs='+',help='traces to plot')
     command_parsers['mdplot'].add_argument('--profiles',type=list,default=['pressure'],nargs='+',help='profiles (along z) to plot')
-    command_parsers['cleanup'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
+    # command_parsers['cleanup'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
     command_parsers['follow-namd-log'].add_argument('log',type=str,default=None,help='input NAMD log file')
     command_parsers['follow-namd-log'].add_argument('--basename',type=str,default=None,help='basename of output files')
     command_parsers['follow-namd-log'].add_argument('--diagnostic-log-file',type=str,default=None,help='diagnostic log file')

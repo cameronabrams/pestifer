@@ -8,7 +8,7 @@ from ..objs.mutation import MutationList
 from ..objs.cfusion import CfusionList
 from ..objs.graft import GraftList
 from ..objs.patch import PatchList
-from ..core.config import charmm_resname_of_pdb_resname
+from ..core.labels import Labels
 from .residue import Residue,ResidueList
 from ..util.util import reduce_intlist
 from ..core.scriptwriters import Psfgen
@@ -231,7 +231,7 @@ class Segment(AncestorAwareObj):
                 W.addline(f'pdb {b.pdb}',indents=1)
             elif b.state=='MISSING' and b.build:
                 for r in self.residues[b.bounds[0]:b.bounds[1]+1]:
-                    rname=charmm_resname_of_pdb_resname.get(r.resname,r.resname)
+                    rname=Labels.charmm_resname_of_pdb_resname.get(r.resname,r.resname)
                     W.addline(f'residue {r.resseqnum}{r.insertion} {rname} {image_seglabel}',indents=1)
                 if b.num_items()>=min_loop_length and not b in [self.subsegments[0],self.subsegments[-1]]:
                     lrr=self.residues[b.bounds[1]]

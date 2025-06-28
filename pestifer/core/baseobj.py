@@ -28,7 +28,6 @@ from collections import UserList
 logger=logging.getLogger(__name__)
 from argparse import Namespace
 from functools import singledispatchmethod
-from .stringthings import my_logger
 
 class BaseObj(Namespace):
     """A class defining a namespace with custom attribute controls.
@@ -91,15 +90,9 @@ class BaseObj(Namespace):
        "weak" less than operator; only those attributes listed in the attr
        argument are considered in the comparison
 
-    strhash(fields):
-        generates a string hash of the caller using values of attributes
-        whose names are listed in fields (or all attributes if
-        fields is empty)
-
     matches(**fields)
         non strict match -- returns true if all key:val pairs in fields
-        match the corresponding key:val pairs in the calling instance's
-        attributes
+        match the corresponding key:val pairs in the calling instance's attributes
     
     allneg(**fields)
         strict no-match -- returns true if NO key:val pairs in fields

@@ -1,7 +1,8 @@
 import unittest
 import logging
 from pestifer.molecule.molecule import Molecule
-from pestifer.core.config import Config, segtype_of_resname
+from pestifer.core.config import Config
+from pestifer.core.labels import Labels #segtype_of_resname
 from pestifer.molecule.chainidmanager import ChainIDManager
 from pestifer.core.objmanager import ObjManager
 from pestifer.objs.ssbond import SSBondList

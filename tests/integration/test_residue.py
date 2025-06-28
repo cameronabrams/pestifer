@@ -1,6 +1,7 @@
 import unittest
 from pestifer.molecule.residue import Residue, EmptyResidue
-from pestifer.core.config import Config, res_123
+from pestifer.core.config import Config
+from pestifer.core.labels import Labels
 from pestifer.molecule.molecule import Molecule
 from pestifer.util.cifutil import CIFdict, CIFload
 from pestifer.objs.insertion import InsertionList, Insertion
@@ -119,7 +120,7 @@ source:
         self.assertEqual(len(R),orig_numres+5)
         for i,n in zip('ABCDE','GRETA'):
             r=R.get(chainID='A',resseqnum=427,insertion=i)
-            self.assertEqual(r.resname,res_123[n])
+            self.assertEqual(r.resname,Labels.res_123[n])
             self.assertEqual(r.resolved,False)
             self.assertEqual(r.segtype,'protein')
 

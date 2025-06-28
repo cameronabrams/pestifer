@@ -44,7 +44,6 @@ Subcommands
    subs/desolvate
    subs/make-namd-restart
    subs/show-resources
-   subs/cleanup
    subs/follow-namd-log
    subs/mdplot
 

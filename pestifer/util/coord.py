@@ -3,6 +3,13 @@
 """
 import logging
 import numpy as np
+import pandas as pd
+import os
+
+from pidibble.pdbparse import PDBParser
+
+from ..core.labels import Labels
+
 logger=logging.getLogger(__name__)
 
 def measure_dihedral(a1,a2,a3,a4):
@@ -134,9 +141,6 @@ def positionN(res,tmat):
     return rN
 
 def coorddf_from_pdb(pdb,segtypes=False):
-    import pandas as pd
-    import os
-    from pidibble.pdbparse import PDBParser
     p=PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()
     atlist=p.parsed['ATOM']+p.parsed.get('HETATM',[])
     serial=[x.serial for x in atlist]
@@ -151,9 +155,7 @@ def coorddf_from_pdb(pdb,segtypes=False):
     ins=[x.residue.iCode for x in atlist]
     basedict={'name':name,'x':x,'y':y,'z':z,'resname':resname,'resid':resid,'chain':chain,'altloc':alt,'insertion':ins}
     if segtypes:
-        from .config import segtype_of_resname, Config
-        if len(segtype_of_resname)==0: c=Config()
-        basedict['segtype']=[segtype_of_resname[x] for x in resname]
+        basedict['segtype']=[Labels.segtype_of_resname[x] for x in resname]
     return pd.DataFrame(basedict,index=serial)
 
 def mic_shift(point,ref,box):

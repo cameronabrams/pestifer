@@ -4,7 +4,8 @@ import unittest
 import os
 import shutil
 import yaml
-from pestifer.core.config import Config, segtype_of_resname, charmm_resname_of_pdb_resname, res_123, res_321
+from pestifer.core.config import Config
+from pestifer.core.labels import Labels #segtype_of_resname, charmm_resname_of_pdb_resname, res_123, res_321
 from pestifer.core.resourcemanager import ResourceManager
 
 class ConfigTest(unittest.TestCase):
@@ -13,16 +14,16 @@ class ConfigTest(unittest.TestCase):
         cls.RM=ResourceManager()
         cls.c=Config(quiet=True)
 
-    def test_config_nouser_globals(self):
+    def test_labels(self):
         c=self.c
         self.assertEqual(os.path.join(c.tcl_root,'vmdrc.tcl'),c.vmd_startup_script)
-        self.assertEqual(segtype_of_resname['ALA'],'protein')
-        self.assertEqual(segtype_of_resname['MAN'],'glycan')
-        self.assertEqual(segtype_of_resname['CL'],'ion')
-        self.assertEqual(charmm_resname_of_pdb_resname.get('MAN'),'AMAN')
-        self.assertEqual(charmm_resname_of_pdb_resname.get('ALA'),None)
-        self.assertEqual(res_123['A'],'ALA')
-        self.assertEqual(res_321['PHE'],'F')
+        self.assertEqual(Labels.segtype_of_resname['ALA'],'protein')
+        self.assertEqual(Labels.segtype_of_resname['MAN'],'glycan')
+        self.assertEqual(Labels.segtype_of_resname['CL'],'ion')
+        self.assertEqual(Labels.charmm_resname_of_pdb_resname.get('MAN'),'AMAN')
+        self.assertEqual(Labels.charmm_resname_of_pdb_resname.get('ALA'),None)
+        self.assertEqual(Labels.res_123['A'],'ALA')
+        self.assertEqual(Labels.res_321['PHE'],'F')
 
     def test_config_boolean(self):
         c=self.c

@@ -262,7 +262,8 @@ class CHARMMFFContent:
         logger.debug(f'Extracted {len(content)} characters from {topfile}')
 
         parsed_content = content
-        if 'cholesterol' in topfile:
+        if 'cholesterol' in topfile:  # the cholesteral substream has two models, and it specifies the first one by default
+            # we will parse the conditional script to get the correct model
             parsed_content_dict=parse_conditional_script(content)
             parsed_content=parsed_content_dict['parsed']
             logger.debug(f'Parsed {topfile} with conditional script based on {parsed_content_dict["vars"]}')

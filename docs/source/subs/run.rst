@@ -32,14 +32,14 @@ Detailed explanation of some *selected* common tasks you can use is below.
    :maxdepth: 1
 
    runtasks/psfgen
+   runtasks/pdb2pqr
    runtasks/md
+   runtasks/cleave
    runtasks/ligate
    runtasks/solvate
    runtasks/make_membrane_system
    runtasks/terminate
-   runtasks/cleave
-   runtasks/pdb2pqr
 
-Please consult the Config Reference pages :ref:`config_ref tasks` for a full list of available pestifer run tasks.
+Please consult the Configuration Reference pages for the ``tasks`` directive, :ref:`config_ref tasks`, for a full list of available pestifer run tasks.
 
 We provide several :ref:`examples` that show a variety of task lists.

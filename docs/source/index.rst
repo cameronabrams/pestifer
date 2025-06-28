@@ -13,11 +13,12 @@ Contents
 --------
 
 .. toctree::
-   :maxdepth: 3
+   :maxdepth: 2
 
    introduction
    installation
    usage
    examples
    config_ref
+   api/pestifer
 

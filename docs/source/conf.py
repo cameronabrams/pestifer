@@ -1,3 +1,8 @@
+import os
+import sys
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
 # Configuration file for the Sphinx documentation builder.
 
 # -- Project information
@@ -19,7 +24,11 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx_copybutton',
     'sphinxcontrib.mermaid',
+    'sphinx.ext.napoleon',
+    'sphinx.ext.viewcode',
 ]
+
+autosummary_generate = True  # Enable autosummary tables
 
 intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),

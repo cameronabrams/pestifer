@@ -8,7 +8,8 @@ from pestifer.objs.insertion import Insertion
 from pestifer.util.cifutil import CIFdict, CIFload
 from pidibble.pdbparse import PDBParser
 from pestifer.molecule.bioassemb import Transform
-from pestifer.core.config import Config, segtype_of_resname
+from pestifer.core.config import Config
+from pestifer.core.labels import Labels #segtype_of_resname
 from pestifer.core.stringthings import ByteCollector
 from pidibble.pdbparse import PDBParser
 import unittest
@@ -167,8 +168,8 @@ class TestLink(unittest.TestCase):
             'resseqnum2':2,
             'insertion2':'',}
         l=Link(input_dict)
-        l.map_attr('segtype1','resname1',segtype_of_resname)
-        l.map_attr('segtype2','resname2',segtype_of_resname)
+        l.map_attr('segtype1','resname1',Labels.segtype_of_resname)
+        l.map_attr('segtype2','resname2',Labels.segtype_of_resname)
         self.assertEqual(l.segtype1,'protein')
         self.assertEqual(l.segtype2,'glycan')
 

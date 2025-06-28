@@ -4,7 +4,7 @@ Examples
 ========
 
 .. toctree::
-  :maxdepth: 2
+  :maxdepth: 1
 
   examples/bpti1
   examples/bpti2

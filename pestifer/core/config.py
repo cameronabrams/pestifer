@@ -15,14 +15,11 @@ from GPUtil import getGPUs
 from importlib.metadata import version
 from ycleptic.yclept import Yclept
 
+from .labels import Labels
 from .resourcemanager import ResourceManager
 from .stringthings import my_logger
 
 logger=logging.getLogger(__name__)
-segtype_of_resname={}
-charmm_resname_of_pdb_resname={}
-res_321={}
-res_123={}
 
 class Config(Yclept):
     def __init__(self,userfile='',userdict={},quiet=False):
@@ -126,33 +123,37 @@ class Config(Yclept):
             self.user_charmmff_toppar_path=os.path.join(self['user']['charmff'],'toppar')
             assert os.path.exists(self.user_charmmff_toppar_path)
         self.namd_config_defaults=self['user']['namd']
-        self.segtypes=self['user']['psfgen']['segtypes']
-        for stn,stspec in self.segtypes.items():
-            if stspec and 'resnames' in stspec:
-                initresnames=stspec['resnames']
-                for r in initresnames:
-                    if len(r)>4 and r.isalnum():
-                        rabbrv=r[:4]
-                        # logger.debug(r,rabbrv)
-                        if not rabbrv in stspec['resnames']:
-                            stspec['resnames'].append(rabbrv)
-                            # logger.debug(f'Adding abbreviated resname {rabbrv} to resnames for segtype {stn}')
-        self.pdb_to_charmm_resnames={}
-        for alias in self['user']['psfgen']['aliases']:
-            tok=alias.split()
-            if tok[0]=='residue':
-                self.pdb_to_charmm_resnames[tok[1]]=tok[2]
-        self.segtype_of_resname={}
-        for st in self['user']['psfgen']['segtypes']:
-            res=self['user']['psfgen']['segtypes'][st].get('resnames',[])
-            for r in res:
-                self.segtype_of_resname[r]=st
 
-        # globals
-        charmm_resname_of_pdb_resname.update(self.pdb_to_charmm_resnames)
-        for p,c in charmm_resname_of_pdb_resname.items():
-            self.segtype_of_resname[c]=self.segtype_of_resname[p]
-        segtype_of_resname.update(self.segtype_of_resname)
-        res_123.update(self['user']['psfgen']['segtypes']['protein']['invrescodes'])
-        res_321.update(self['user']['psfgen']['segtypes']['protein']['rescodes'])
+        self.segtypes=Labels.segtypes
+        self['user']['psfgen']['segtypes']=self.segtypes
+        # self.segtypes=self['user']['psfgen']['segtypes']
+        # for stn,stspec in self.segtypes.items():
+        #     if stspec and 'resnames' in stspec:
+        #         initresnames=stspec['resnames']
+        #         for r in initresnames:
+        #             if len(r)>4 and r.isalnum():
+        #                 rabbrv=r[:4]
+        #                 # logger.debug(r,rabbrv)
+        #                 if not rabbrv in stspec['resnames']:
+        #                     stspec['resnames'].append(rabbrv)
+        #                     # logger.debug(f'Adding abbreviated resname {rabbrv} to resnames for segtype {stn}')
+        # self.pdb_to_charmm_resnames={}
+        # for alias in self['user']['psfgen']['aliases']:
+        #     tok=alias.split()
+        #     if tok[0]=='residue':
+        #         self.pdb_to_charmm_resnames[tok[1]]=tok[2]
+        # self.segtype_of_resname={}
+        # for st in self['user']['psfgen']['segtypes']:
+        #     res=self['user']['psfgen']['segtypes'][st].get('resnames',[])
+        #     for r in res:
+        #         self.segtype_of_resname[r]=st
+
+        # # Labels
+        
+        # charmm_resname_of_pdb_resname.update(self.pdb_to_charmm_resnames)
+        # for p,c in charmm_resname_of_pdb_resname.items():
+        #     self.segtype_of_resname[c]=self.segtype_of_resname[p]
+        # segtype_of_resname.update(self.segtype_of_resname)
+        # res_123.update(self['user']['psfgen']['segtypes']['protein']['invrescodes'])
+        # res_321.update(self['user']['psfgen']['segtypes']['protein']['rescodes'])
 

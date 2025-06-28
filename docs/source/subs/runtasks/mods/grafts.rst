@@ -26,6 +26,6 @@ The ``<target>`` format is ``<chain>_<resi>[-<resi>]``, where ``<chain>`` is the
 
 The ``<source>`` format is ``<pdbid>,<chain>_<resi>[#<resi>][-<resi>]``, where ``<pdbid>`` is the basename of the PDB file or PDB ID, ``<chain>`` is the chain ID in the source PDB, ``<resi>`` is the residue number (including an optionally appended insertion code) of the first residue in the source alignment basis, ``[#<resi>]`` is an optional second residue number (including an optionally appended insertion code) of the last residue in the source alignment basis, and ``[-<resi>]`` is an optional third residue number (including an optionally appended insertion code) of the last residue in the graft source.  For example, ``1A2B,A_12#15-20`` would graft residues 12 through 20 from chain A of PDB 1A2B using residues 12 through 15 of chain A as the alignment basis onto the target.
 
-A good example of using grafts to fully glycosylate a protein is :ref:`example 13`.
+A good example of using grafts to fully glycosylate a protein is :ref:`example sars cov2 spike ba2`.
 
 

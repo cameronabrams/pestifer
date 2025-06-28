@@ -29,6 +29,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     topo=DB.get_resi(resid)
     synonym=topo.synonym
     meta=topo.metadata
+    charmm_topfile=meta.get('charmmtopfile',None)
     logger.debug(f'do_psfgen for {resid} with metadata {meta}')
     if borrow_ic_from:
         logger.debug(f'borrowing ICs from {borrow_ic_from}')
@@ -238,7 +239,8 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
         qstr=float(f'{q:.3f}')
     psfatoms=psf.atoms
     info={
-        'parameters':par,
+        'defined-in':charmm_topfile,
+        'parameters':list(set(par)),
         'reference-atoms':{
             'heads':[dict(serial=p.serial,name=p.name) for p in psfatoms if p.name in heads],
             'tails':[dict(serial=p.serial,name=p.name) for p in psfatoms if p.name in tails],

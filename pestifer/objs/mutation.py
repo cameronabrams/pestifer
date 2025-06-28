@@ -6,7 +6,7 @@ from functools import singledispatchmethod
 from .seqadv import Seqadv
 
 from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..core.config import res_123
+from ..core.labels import Labels
 from ..core.stringthings import split_ri
 
 class Mutation(AncestorAwareObj):
@@ -78,8 +78,8 @@ class Mutation(AncestorAwareObj):
             nrn=s2[2]
         else:
             s2=s2[0]
-            orn=res_123[s2[0]]
-            nrn=res_123[s2[-1]]
+            orn=Labels.res_123[s2[0]]
+            nrn=Labels.res_123[s2[-1]]
             ri=s2[1:-1]
             r,i=split_ri(ri)
         input_dict={

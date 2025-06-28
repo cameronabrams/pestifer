@@ -12,7 +12,7 @@ from pidibble.pdbrecord import PDBRecord
 
 from .atom import Atom, AtomList, Hetatm
 from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..core.config import res_123, segtype_of_resname
+from ..core.labels import Labels
 from ..objs.seqadv import Seqadv, SeqadvList
 from ..objs.deletion import DeletionList
 from ..objs.substitution import SubstitutionList
@@ -100,7 +100,7 @@ class EmptyResidue(AncestorAwareObj):
                 ri=ri+byte
         rescode=rescode.upper()
         if len(rescode)==1:
-            rescode=res_123[rescode]
+            rescode=Labels.res_123[rescode]
         r,i=split_ri(ri)
         input_dict={
             'model':model,
@@ -355,7 +355,7 @@ class ResidueList(AncestorAwareObjList):
 
     def apply_segtypes(self):
         # logger.debug(f'residuelist:apply_segtypes {segtype_of_resname}')
-        self.map_attr('segtype','resname',segtype_of_resname)
+        self.map_attr('segtype','resname',Labels.segtype_of_resname)
     
     def deletion(self,DL:DeletionList):
         excised=[]
@@ -386,7 +386,7 @@ class ResidueList(AncestorAwareObjList):
             for r in chain:
                 if r1<=r<=r2:
                     if currsubidx<len(subseq):
-                        resname=res_123[subseq[currsubidx].upper()]
+                        resname=Labels.res_123[subseq[currsubidx].upper()]
                         if r.resolved: # make a new seqadv for this mutation
                             input_dict={
                                 'idCode':'I doubt I ever use this',
