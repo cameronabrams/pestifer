@@ -23,6 +23,7 @@ from ..core.stringthings import my_logger
 logger=logging.getLogger(__name__)
 
 def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0,force_constant=1.0,borrow_ic_from=None):
+    """ Generate a PDB file for a RESI using psfgen, and sample it."""
     if nsamples>sample_steps:
         raise ValueError(f'nsamples ({nsamples}) must be less than or equal to sample_steps ({sample_steps})')
     digits=len(str(nsamples))
@@ -275,6 +276,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     return 0
 
 def do_cleanup(resname,dirname):
+    """ Remove all files in the directory except for the init.tcl, info.yaml, and psf files."""
     cwd=os.getcwd()
     os.chdir(dirname)
     files=glob.glob('*')
@@ -288,6 +290,14 @@ def do_cleanup(resname,dirname):
     os.chdir(cwd)
 
 def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup=True,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0,force_constant=1.0,borrow_ic_from=None):
+    """ Build a RESI using psfgen and sample it.
+    This function checks if the RESI has been built previously, and if not, it will
+    create a new directory for the RESI in the specified output directory.
+    If the RESI has been built previously, it will skip the build step unless the `force` argument is set to True.
+    If the RESI is not found in the CHARMMFFResiDatabase, it will log a warning and return -2.
+    If the RESI is found, it will create a new directory for the RESI in the specified output directory,
+    and if the `cleanup` argument is set to True, it will remove all files in the directory except for the init.tcl, info.yaml, and psf files.
+    """
     cwd=os.getcwd()
     successdir=os.path.join(outdir,resi)
     failuredir=os.path.join(faildir,resi)
@@ -312,8 +322,19 @@ def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup
         logger.info(f'RESI {resi} built previously; use \'--force\' to recalculate')
 
 def make_pdb_collection(args):
-    """
-    Make a collection of PDB files for RESI's in the CHARMMFFResiDatabase.
+    """ Make a PDBCollection from the CHARMMFFResiDatabase.
+    This function will create a PDBCollection from the CHARMMFFResiDatabase, either
+    for a specific RESI or for all RESIs in a specified stream.
+    If a specific RESI is provided, it will create a collection member for that RESI
+    and save it in the specified output directory.
+    If a stream ID is provided, it will create a collection for all RESIs in that stream.
+    If no stream ID is provided, it will create a collection for all RESIs in the CHARMMFFResiDatabase.
+    The output directory will be created if it does not exist, and if the `--fail-dir` argument is provided,
+    it will create a directory for failed RESIs in that directory.
+    If the `--force` argument is set, it will force the recalculation of the RESI, even if it has been built previously.
+    If the `--cleanup` argument is set, it will remove all files in the RESI directory except for the init.tcl, info.yaml, and psf files.
+    The `--lenfac`, `--minimize-steps`, `--sample-steps`, `--nsamples`, `--sample-temperature`, `--refic-idx`, and `--force-constant` arguments
+    will be passed to the `do_psfgen` function to control the sampling and equilibration of the RESI.
     """
     streamID=args.streamID # if provided, we will make a collection from RESIs in this stream
     substreamID=args.substreamID

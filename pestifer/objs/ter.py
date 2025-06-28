@@ -23,17 +23,22 @@ class Ter(AncestorAwareObj):
     
     Attributes
     ----------
-    req_attr: list
-        * serial: (int) atom serial number
-        * resname: (str) residue name
-        * chainID: (str) chain identifier
-        * resseqnum: (int) residue number
-        * insertion: (chr) residue insertion code
+    req_attr : list
+        * serial : int
+            serial number of the TER record, or None if empty
+        * resname : str
+            residue name of the terminal residue, or None if empty
+        * chainID : str
+            chain ID of the terminal residue, or None if empty
+        * resseqnum : int
+            residue sequence number of the terminal residue, or None if empty
+        * insertion : str
+            insertion code of the terminal residue, or None if empty
     
-    yaml_header: (str)
+    yaml_header: str
         label used for yaml format input/output
     
-    objcat: (str)
+    objcat: str
         type of mod from among objcats
 
     """

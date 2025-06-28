@@ -8,8 +8,24 @@ from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
 from ..core.stringthings import split_ri
 
 class CleavageSite(AncestorAwareObj):
+    """A class for handling chain cleavage.  Note that this mod is not expected to be part of an 
+    ObjManager so the yaml_header and objcat attributes are irrelevant.  It is instead handled
+    as a run task.
+    
+    Attributes
+    ----------
+    req_attr : list
+        * chainID : str
+            chain ID of the segment to which cleavage is made
+        * resseqnum1 : int
+            N-terminal resid of cleavage site
+        * insertion1 : str
+            insertion code of N-terminal residue
+        * resseqnum2 : int
+            C-terminal resid of cleavage site
+        * insertion2 : str
+            insertion code of the C-terminal residue"""
     req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
-    """A class for handling chain cleavage.  Note that this mod is not expected to be part of a ObjManager so the yaml_header and objcat attributes are irrelevant"""
     yaml_header='cleavages'
     objcat='seq'
 

@@ -10,17 +10,20 @@ class Patch(AncestorAwareObj):
     
     Attributes
     ----------
-    req_attr: list
-        * patchname: (str) name of the patch in CHARMMFF
-        * chainID: (str) chain identifier of residue to be patched
-        * resseqnum: (int) residue number of residue to be patched
-        * insertion: (chr) residue insertion code of residue to be patched
-    
-    yaml_header: (str)
-        label used for yaml format input/output
-    
-    objcat: (str)
-        type of mod from among objcats
+    req_attr : list
+        * patchname : str
+            name of the patch in CHARMMFF
+        * chainID : str
+            chain identifier of residue to be patched
+        * resseqnum : int
+            residue sequence number of residue to be patched
+        * insertion : str
+            insertion code of residue to be patched
+        * residue : Residue
+            residue object
+        * use_in_segment : str
+            whether the patch is used in the first or last segment of a chain, or not used
+            in a segment (optional, can be empty)
 
     """
     req_attr=['patchname','chainID','resseqnum','insertion','residue','use_in_segment']
@@ -62,7 +65,22 @@ class Patch(AncestorAwareObj):
         super().__init__(input_dict)
         
 class PatchList(AncestorAwareObjList):
- def assign_residues(self,Residues):
+    """A class for handling lists of Patch objects
+    
+    This class inherits from AncestorAwareObjList and provides methods to manage
+    a list of Patch objects.
+    """
+    def assign_residues(self,Residues):
+        """Assigns a list of Residue objects to the patch residues.
+        Parameters
+        ----------
+        Residues : list of Residue
+            A list of Residue objects to be assigned to the patch residues.
+        Returns
+        -------
+        PatchList
+            A new PatchList object containing the residues that were not assigned because no applicable residues were found
+        """
         logger.debug(f'Patches: Assigning residues from list of {len(Residues)} residues')
         ignored=self.assign_objs_to_attr('residue',Residues,resseqnum='resseqnum',chainID='chainID',insertion='insertion')
         return self.__class__(ignored)

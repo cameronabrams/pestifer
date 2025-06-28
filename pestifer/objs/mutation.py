@@ -22,16 +22,23 @@ class Mutation(AncestorAwareObj):
     
     Attributes
     ----------
-    req_attr: list
-        * chainID: chain identifier
-        * origresname: original (wild-type) residue name
-        * resseqnum: residue sequence position
-        * insertion: residue insertion code
-        * newresname: mutated residue name
-        * typekey: indicates what type of mutation this is
-    opt_attr: list
-        * pdb_auth_seq_num: author's sequence number of the residue (value used in PDB file)
+    req_attr : list
+        * chainID: str
+            chain ID of the segment to which mutation is made
+        * origresname: str
+            original residue name at the mutation position (3-letter code)
+        * resseqnum: int
+            residue sequence number of the residue to be mutated (author's sequence number)
+        * insertion: str
+            insertion code of the residue to be mutated (author's insertion code)
+        * newresname: str
+            new residue name at the mutation position (3-letter code)
+        * typekey: str
+            type of mutation, e.g., 'user' for user-specified mutations
 
+    opt_attr : list
+        * pdbx_auth_seq_num: str
+            mmCIF attribute for the residue sequence number, if available
     """
     req_attr=AncestorAwareObj.req_attr+['chainID','origresname','resseqnum','insertion','newresname','typekey']
     opt_attr=AncestorAwareObj.opt_attr+['pdbx_auth_seq_num']
@@ -97,7 +104,12 @@ class Mutation(AncestorAwareObj):
         return f'{self.chainID}:{self.origresname}{self.resseqnum}{self.insertion}{self.newresname}'
 
     def write_TcL(self):
-        """Returns the string to be written in a psfgen input file within a segment """
+        """Writes the Tcl command to perform the mutation in a Psfgen script.
+        Returns
+        -------
+        str
+            The Tcl command to mutate the residue at the specified position to the new residue name.
+        """
         if hasattr(self,'pdbx_auth_seq_num'): # mmCIF!
             return f'    mutate {self.resseqnum} {self.newresname}'
         else:

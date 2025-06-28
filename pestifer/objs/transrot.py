@@ -7,7 +7,30 @@ from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
 from ..core.scriptwriters import VMD
 
 class RotTrans(AncestorAwareObj):
-    """A class for managing global rotations and translations """
+    """A class for handling translation and rotation of segments in a molecular structure.
+    This class represents a move operation that can either be a translation or a rotation.
+    Attributes
+    ----------
+    req_attr : list
+        * movetype : str
+            The type of move operation, either 'TRANS' for translation or 'ROT' for rotation.
+    opt_attr : list
+        * x : float
+            The x-coordinate for translation (required if movetype is TRANS).
+        * y : float
+            The y-coordinate for translation (required if movetype is TRANS).
+        * z : float
+            The z-coordinate for translation (required if movetype is TRANS).
+        * axis : str
+            The axis of rotation (required if movetype is ROT).
+        * angle : float
+            The angle of rotation in degrees (required if movetype is ROT).
+    yaml_header : str
+        'transrot'
+    objcat : str
+        'coord'
+    """
+    
     yaml_header='transrot'
     objcat='coord'
     req_attr=AncestorAwareObj.req_attr+['movetype']
@@ -37,6 +60,9 @@ class RotTrans(AncestorAwareObj):
         super().__init__(input_dict)
 
     def to_shortcode(self):
+        """Convert the RotTrans object to a shortcode representation.
+        This method generates a shortcode that represents the move type and its parameters.
+        """
         if 'shortcode' in self.__dict__:
             return
         ret=[f'{self.movetype}']
@@ -54,6 +80,15 @@ class RotTrans(AncestorAwareObj):
         return self.shortcode
     
     def write_TcL(self,W:VMD,**kwargs):
+        """Write the Tcl commands to perform the move operation in VMD.
+        This method generates the Tcl commands to either translate or rotate a segment in VMD.
+        Parameters
+        ----------
+        W : VMD
+            The VMD script writer object to which the Tcl commands will be written.
+        **kwargs : dict
+            Additional keyword arguments (not used in this method).
+        """
         molid_varname=W.molid_varname
         molid=f'${molid_varname}'
         W.addline(f'set mover [atomselect {molid} all]')
@@ -64,6 +99,20 @@ class RotTrans(AncestorAwareObj):
             W.addline(f'$mover move [trans origin $COM axis {self.axis} {self.angle}]')
 
 class RotTransList(AncestorAwareObjList):
+    """A class for handling lists of RotTrans objects.
+    This class inherits from AncestorAwareObjList and provides methods to manage
+    a list of RotTrans objects.
+    """
     def write_TcL(self,W:VMD,**kwargs):
+        """Write the Tcl commands for each RotTrans object in the list.
+        This method iterates over each RotTrans object in the list and calls its `write_TcL` method
+        to generate the Tcl commands. The commands are written to the provided VMD script writer object.
+        Parameters
+        ----------
+        W : VMD
+            The VMD script writer object to which the Tcl commands will be written.
+        **kwargs : dict
+            Additional keyword arguments (not used in this method).
+        """
         for c in self:
             c.write_TcL(W,**kwargs)

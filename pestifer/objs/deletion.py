@@ -14,12 +14,17 @@ class Deletion(AncestorAwareObj):
 
     Attributes
     ----------
-    req_attr: list
-        * chainID: chain identifier
-        * resseqnum1: N-terminal resid of sequence to be deleted
-        * insertion1: insertion code of N-terminal residue
-        * resseqnum2: C-terminal resid of sequence to be deleted
-        * insertion2: insertion code of the C-terminal residue
+    req_att : list
+        * chainID : str
+            chain ID of the segment to which deletion is made
+        * resseqnum1 : int
+            N-terminal resid of sequence to be deleted
+        * insertion1 : str
+            insertion code of N-terminal residue
+        * resseqnum2 : int
+            C-terminal resid of sequence to be deleted
+        * insertion2 : str
+            insertion code of the C-terminal residue
 
     """
     req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']

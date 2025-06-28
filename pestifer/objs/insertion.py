@@ -13,10 +13,15 @@ class Insertion(AncestorAwareObj):
     
     Attributes
     ----------
-    req_attr: list
-        * chainID: chain id where insertion is to be made
-        * resseqnum, insertion: resid+ins.code marking position AFTER which inserted residues are to be inserted
-        * sequence: sequence of one-letter amino acids defining the insertion
+    req_attr : list
+        * chainID : str
+            chain ID of the segment to which insertion is made
+        * resseqnum : int
+            resid of the residue before which the insertion is made
+        * insertion : str
+            insertion code of the residue before which the insertion is made
+        * sequence : str
+            amino acid sequence to insert expressed using one-letter codes
     """
     req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum','insertion','sequence']
     yaml_header='insertions'

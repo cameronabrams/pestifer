@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>.
 """ Namespace objects with attribute controls
 
-This objule defines the BaseObj class as a derivative of argparse's
+The BaseObj class is a derivative of argparse's
 very nice Namespace class, and the ObjList class as a derivative
 of collection's UserList.
 

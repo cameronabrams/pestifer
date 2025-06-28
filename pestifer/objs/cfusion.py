@@ -19,14 +19,21 @@ class Cfusion(AncestorAwareObj):
 
     Attributes
     ----------
-    req_attr: list
-        * sourcefile: name of source coordinate PDB file of fusion
-        * sourceseg: chainID of the fusion sequence in sourcefile
-        * resseqnum1: N-terminal resid of fusion sequence
-        * insertion1: insertion code of N-terminal residue
-        * resseqnum2: C-terminal resid of fusion sequence
-        * insertion2: insertion code of the C-terminal residue
-        * chainID: name of segment to which fusion is made
+    req_attr : list
+        * sourcefile : str 
+            name of source coordinate PDB file of fusion
+        * sourceseg : str 
+            chainID of the fusion sequence in sourcefile
+        * resseqnum1 : int
+            N-terminal resid of fusion sequence
+        * insertion1 : str
+            insertion code of N-terminal residue
+        * resseqnum2 : int
+            C-terminal resid of fusion sequence
+        * insertion2 : str
+            insertion code of the C-terminal residue
+        * chainID : str
+            name of segment to which fusion is made
 
     """
     req_attr=AncestorAwareObj.req_attr+['sourcefile','sourceseg','resseqnum1','insertion1','resseqnum2','insertion2','chainID','id']
@@ -71,6 +78,7 @@ class Cfusion(AncestorAwareObj):
         super().__init__(input_dict)    
 
     def write_pre_segment(self,W:Psfgen):
+        """Writes the Tcl commands to create a fusion segment in the Psfgen script."""
         W.addline(f'set topid [molinfo top get id]')
         W.addline(f'mol new {self.sourcefile}')
         W.addline(f'set cfusid [molinfo top get id]')
@@ -80,8 +88,10 @@ class Cfusion(AncestorAwareObj):
         W.addline(f'$fusres writepdb {self.segfile}')
         W.addline(f'delete $cfusid')
     def write_in_segment(self,W:Psfgen):
+        """Writes the Tcl commands to add the fusion into the active segment of the base molecule."""
         W.addline (f'    pdb {self.segfile}')
     def write_post_segment(self,W:Psfgen):
+        """Writes the Tcl commands to finalize the fusion segment in the Psfgen script."""
         W.addline(f'coordpdb {self.segfile} {self.chainID}')
 
 class CfusionList(AncestorAwareObjList):

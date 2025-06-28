@@ -82,6 +82,13 @@ class Crot(AncestorAwareObj):
         super().__init__(input_dict)
     
     def to_shortcode(self):
+        """Convert the Crot object to a shortcode representation."""
+        """This method generates a shortcode representation of the Crot object.
+        The shortcode is a string that encodes the attributes of the Crot object in a specific
+        format. The format depends on the type of angle (e.g., PHI, PSI, OMEGA, CHI1, CHI2, ANGLEIJK, ALPHA).
+        The shortcode is stored in the `shortcode` attribute of the Crot object.
+        If the `shortcode` attribute already exists, the method returns without modifying it.
+        """
         if 'shortcode' in self.__dict__:
             return
         ret=[f'{self.angle}']
@@ -121,6 +128,16 @@ class Crot(AncestorAwareObj):
         return self.shortcode
     
     def write_TcL(self,W:VMD,chainIDmap={},**kwargs):
+        """Write the Tcl commands to perform the C-rotation in a VMD script.
+        Arguments
+        ---------
+        W: VMD
+            The VMD script writer object to which the Tcl commands will be written.
+        chainIDmap: dict, optional
+            A dictionary mapping original chain IDs to new chain IDs. If not provided, the original chain ID will be used.
+        **kwargs: dict, optional
+            Additional keyword arguments that may be used in the future.
+        """
         the_chainID=chainIDmap.get(self.chainID,self.chainID)
         molid_varname=W.molid_varname
         molid=f'${molid_varname}'
@@ -156,6 +173,20 @@ class Crot(AncestorAwareObj):
             W.addline('fold_alpha $r1 $r2 $rterm {}'.format(molid))
 
 class CrotList(AncestorAwareObjList):
+    """A class for managing lists of Crot objects.
+    This class inherits from AncestorAwareObjList and provides methods to handle multiple Crot objects.
+    It allows for writing Tcl commands for all Crot objects in the list.
+    """
     def write_TcL(self,W:Psfgen,chainIDmap={},**kwargs):
+        """Write the Tcl commands for all Crot objects in the list.
+        Arguments
+        ---------
+        W: Psfgen
+            The Psfgen script writer object to which the Tcl commands will be written.
+        chainIDmap: dict, optional
+            A dictionary mapping original chain IDs to new chain IDs. If not provided, the original chain ID will be used.
+        **kwargs: dict, optional
+            Additional keyword arguments that may be used in the future.
+        """
         for c in self:
             c.write_TcL(W,chainIDmap=chainIDmap,**kwargs)

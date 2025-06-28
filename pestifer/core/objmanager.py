@@ -1,5 +1,5 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" A dictionary object for containing all objs from a task specification
+"""A dictionary object for containing all objs from a task specification
 """
 from ..util.util import inspect_package_dir
 from collections import UserDict
@@ -9,6 +9,9 @@ import os
 
 from .. import objs
 
+# Object categories
+# These are the categories of objects that can be stored in the ObjManager.
+# They are used to organize the objects and to filter them when needed.
 ObjCats=['seq','topol','coord','generic']
 
 class ObjManager(UserDict):
@@ -30,19 +33,25 @@ class ObjManager(UserDict):
         self.injest(input_specs)
 
     def filter_copy(self,objnames=[],**fields):
+        """Returns a copy of the ObjManager with only the objects that match the given fields.
+        Arguments
+        ---------
+        objnames: list
+          list of object names to filter by; if empty, all objects are included
+        fields: dict
+          dictionary of fields to filter by; only objects that match all fields are included
+        Returns
+        -------
+        ObjManager
+          a new ObjManager containing only the objects that match the given fields. If no object names are provided, an empty ObjManager is returned.
+        """
         result=ObjManager()
-        # logger.debug(f'ObjManager filter_copy objnames {objnames} fields {fields}')
         self.counts()
         for name,Cls in self.obj_classes.items():
             objcat=Cls.objcat
             header=Cls.yaml_header
-            # logger.debug(f'passing {objcat} {header}...')
-            # logger.debug(f'1-{header in objnames} 2-{objcat in self}')
-            # if objcat in self and header in self[objcat]:
-            #     logger.debug(f'   3-{header in self[objcat]}')
             if header in objnames and objcat in self and header in self[objcat]:
                 objlist=self[objcat][header].filter(**fields)
-                # logger.debug(f'{len(objlist)} filtered from {len(self[objcat][header])} objs')
                 if len(objlist)>0:
                     if not objcat in result:
                         result[objcat]={}
@@ -50,6 +59,14 @@ class ObjManager(UserDict):
         return result
 
     def injest(self,input_obj,overwrite=False):
+        """Ingest an object or list of objects into the ObjManager.
+        Arguments
+        ---------
+        input_obj: object, list, or dict
+          an object of type Obj, a list of objects, or a dictionary of objects to be ingested
+        overwrite: bool
+          if True, overwrite existing objects with the same header; if False, append to existing objects
+        """
         if type(input_obj) in self.obj_classes.values():
             self._injest_obj(input_obj)
         elif type(input_obj) in self.objlist_classes.values():
@@ -91,7 +108,6 @@ class ObjManager(UserDict):
         
     def _injest_objdict(self,objdict,overwrite=False):
         # does nothing if objdict is empty, but let's just be sure
-        logger.debug(f'objdict {objdict}')
         if len(objdict)==0:
             return
         for name,Cls in self.obj_classes.items():
@@ -109,11 +125,27 @@ class ObjManager(UserDict):
                     self[objcat][header].append(Cls(entry))
 
     def retire(self,objcat):
+        """Retire an object category from the ObjManager.
+        Arguments
+        ---------
+        objcat: str
+          the object category to retire; if it exists, it will be removed from the ObjManager and stored in the used dictionary
+        """
         if objcat in self:
             self.used[objcat]=self[objcat].copy()
             del self[objcat]
     
     def expel(self,expelled_residues):
+        """Expel all objects that match the given residues from the ObjManager.
+        Arguments
+        ---------
+        expelled_residues: list
+          list of residues to expel; each residue should have a resseqnum and insertion attribute
+        Returns
+        -------
+        ObjManager
+          a new ObjManager containing the expelled objects; the original ObjManager is modified to remove these objects
+        """
         ex=ObjManager()
         for name,Cls in self.obj_classes.items():
             LCls=self.objlist_classes.get(f'{name}List',list)
@@ -131,6 +163,11 @@ class ObjManager(UserDict):
         return ex
     
     def counts(self):
+        """Counts the number of objects in each category and header.
+        This method logs the counts of objects in each category and header.
+        It iterates through the object classes and their corresponding categories and headers,
+        counting the number of objects in each header within each category.
+        """
         for name,Cls in self.obj_classes.items():
             objcat=Cls.objcat
             header=Cls.yaml_header

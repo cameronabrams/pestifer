@@ -174,8 +174,3 @@ class LabelMappers:
 
 
 Labels=LabelMappers()
-
-# segtype_of_resname={}
-# charmm_resname_of_pdb_resname={}
-# res_321={}
-# res_123={}

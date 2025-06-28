@@ -16,15 +16,19 @@ class Link(AncestorAwareObj):
     Attributes
     ----------
 
-    req_attr: list
-    * name1: name of partner-1 residue
-    * chainID1: chain ID of partner-1 residue
-    * resseqnum1: residue sequence number of partner-1 residue
-    * insertion1: insertion code of partner-1 residue
-    * name2: name of partner-2 residue
-    * chainID2: chain ID of partner-2 residue
-    * resseqnum2: residue sequence number of partner-2 residue
-    * insertion2: insertion code of partner-2 residue
+    req_attr : list
+        * chainID1 : str
+            chain ID of the first residue in the link
+        * resseqnum1 : int
+            resid of the first residue in the link
+        * insertion1 : str
+            insertion code of the first residue in the link
+        * chainID2 : str
+            chain ID of the second residue in the link
+        * resseqnum2 : int
+            resid of the second residue in the link
+        * insertion2 : str
+            insertion code of the second residue in the link
     
     """
     req_attr=AncestorAwareObj.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
@@ -228,12 +232,11 @@ class Link(AncestorAwareObj):
         
         New Attributes
         --------------
-        patchname: str
+        patchname : str
            charmff pres name
         
-        patchorder: list
-            [1,2] if residue 1 appears first in the pres listing
-            [2,1] if residue 2 appears first in the pres listing
+        patchorder : list
+            [1,2] if residue 1 appears first in the pres listing; [2,1] if residue 2 appears first in the pres listing
         """
         if hasattr(self,'patchname') and len(self.patchname)>0 and not force:
             logger.debug(f'Patchname for {str(self)} already set to {self.patchname}')
@@ -380,6 +383,14 @@ class Link(AncestorAwareObj):
             W.comment(f'No patch found for {str(self)}')
     
     def update_residue(self,idx,**fields):
+        """Updates the chainID of the residue in the link based on the index provided
+        Parameters
+        ----------
+        idx: int
+            1 for residue1, 2 for residue2
+        fields: dict
+            a dictionary of fields to update; currently only 'chainID' is supported
+        """
         if idx==1:
             if 'chainID' in fields:
                 new_chainID=fields['chainID']

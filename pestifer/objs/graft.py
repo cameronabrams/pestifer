@@ -14,7 +14,39 @@ class Graft(AncestorAwareObj):
     """A class for handling grafts.  A graft refers to a set of residues that are added to the base molecule and sourced from a separate pdb. 
     The graft's "target" is a residue that is congruent to the "reference" residue in the graft.  The graft is positioned by aligning all of
     its atoms using a triple on the reference and the same triplet on the target as an alignment generator. The target residue's atoms
-    are replaced by those in the reference and the rest of the reference is incorporated."""
+    are replaced by those in the reference and the rest of the reference is incorporated.
+    
+    Attributes
+    ----------
+    req_attr : list
+        * orig_chainID : str
+            chain ID of the segment to which graft is made
+        * orig_resseqnum1 : int
+            N-terminal resid of target alignment basis
+        * orig_insertion1 : str
+            insertion code of N-terminal residue in target alignment basis
+        * orig_resseqnum2 : int
+            C-terminal resid of target alignment basis
+        * orig_insertion2 : str
+            insertion code of the C-terminal residue in target alignment basis
+        * source_pdbid : str
+            basename of source pdb file or pdb id
+        * source_chainID : str
+            chain ID in source pdb
+        * source_resseqnum1 : int
+            N-terminal resid of source alignment basis
+        * source_insertion1 : str
+            insertion code of N-terminal residue in source alignment basis
+        * source_resseqnum2 : int
+            C-terminal resid of source alignment basis
+        * source_insertion2 : str
+            insertion code of the C-terminal residue in source alignment basis
+        * source_resseqnum3 : int
+            last resid in source alignment basis (if not present, same as source_resseqnum2)
+        * source_insertion3 : str
+            insertion code of the last residue in source alignment basis (if not present, same as source_insertion2)
+    
+    """
     req_attr=AncestorAwareObj.req_attr+['id','orig_chainID','orig_resseqnum1','orig_insertion1','orig_resseqnum2','orig_insertion2','source_pdbid','source_chainID','source_resseqnum1','source_insertion1','source_resseqnum2','source_insertion2','source_resseqnum3','source_insertion3']
     yaml_header='grafts'
     objcat='seq'
@@ -92,6 +124,16 @@ class Graft(AncestorAwareObj):
         super().__init__(input_dict)
 
     def activate(self,mol):
+        """Activate the graft by linking it to a source molecule.
+
+        Arguments
+        ---------
+        mol: Molecule
+            The source molecule from which the graft will be sourced.
+
+        This method sets up the graft by identifying the source molecule, its segments, and the residues that will be moved.
+        It also filters the links to include only those that are relevant to the graft.
+        """
         self.source_molecule=mol
         g_topomods=self.source_molecule.objmanager.get('topol',{})
         g_links=g_topomods.get('links',LinkList([]))
@@ -115,6 +157,17 @@ class Graft(AncestorAwareObj):
         logger.debug(f'Activated graft {self.id}')
 
     def set_links(self,next_resseqnum):
+        """Set the links for the graft based on the assigned residues.
+        Arguments
+        ---------
+        next_resseqnum: int
+            The next available residue sequence number to be assigned to the graft residues.
+        This method updates the residue sequence numbers for the mover residues and adjusts the links to point to the correct residues in the graft.    
+        Returns
+        -------
+        next_resseqnum: int
+            The updated next available residue sequence number after assigning the graft residues.
+        """
         assert self.residues!=None
         logger.debug(f'Setting links for graft {self.id}')
         logger.debug(f'-> resolved receiver residues {[str(x) for x in self.residues]}')
@@ -138,6 +191,15 @@ class Graft(AncestorAwareObj):
         return res
 
     def write_pre_segment(self,W:Psfgen):
+        """Writes the Tcl commands to perform the graft operation in a VMD script.
+        Arguments
+        ---------
+        W: Psfgen
+            The Psfgen script writer object to which the Tcl commands will be written.
+        This method generates the Tcl commands to load the source pdb file, select the relevant atoms for the graft,
+        align the source residues to the target residues, and write the resulting segment to a pdb file.
+        It also sets the segment file name for later use.
+        """
         W.comment(f'{str(self)}')
         W.addline(f'set topid [molinfo ${W.molid_varname} get id]')
         if os.path.exists(f'{self.source_pdbid}.pdb'):
@@ -167,27 +229,20 @@ class Graft(AncestorAwareObj):
         W.addline (f'    pdb {self.segfile}')
     def write_post_segment(self,W:Psfgen):
         W.addline(f'coordpdb {self.segfile} {self.chainID}')
-    # def execute_graft(self,target_residue,next_available_resid):
-    #     graft_chainID=self.chainID 
-    #     g_topomods=self.source_molecule.modmanager.get('topomods',{})
-    #     g_links=g_topomods.get('links',LinkList([]))
-    #     source_seg=self.source_molecule.asymmetric_unit.segments.get(segname=self.source_chainID)
-    #     # build the list of new residues this graft contributes; the index residue is not included!
-    #     self.donated_residues=[]
-    #     for residue in source_seg.residues:
-    #         if residue>f'{self.source_resseqnum1}{self.source_insertion1}' and residue<=f'{self.source_resseqnum2}{self.source_insertion2}':
-    #             residue.set_resseqnum(next_available_resid)
-    #             residue.set_chainID(graft_chainID)
-    #             next_available_resid+=1
-    #             self.mover_residues.append(residue)
-    #         # only injest links that are internal to this set of residues
-    #     self.donated_links=[]
-    #     for l in g_links:
-    #         if l.residue1 in self.donated_residues and l.residue2 in self.donated_residues:
-    #             links.append(l)
-    #                 injested_links+=1
 
     def assign_residues(self,Residues):
+        """Assign the residues for the graft based on the original chain ID and residue sequence numbers.
+        Arguments
+        ---------
+        Residues: ResidueList
+            The list of residues from which the graft will be assigned.
+        This method filters the residues in the specified chain ID and assigns them to the graft based on the original residue sequence numbers.
+        It sets the `self.residues` attribute to a list of residues that fall within the specified range.
+        Returns
+        -------
+        None
+        This method does not return any value, but it modifies the `self.residues` attribute of the graft object.
+        """
         assert self.residues==None
         logger.debug(f'Assigning receiver residues to graft {self.id} ({self.orig_resseqnum1}{self.orig_insertion1} to {self.orig_resseqnum2}{self.orig_insertion2})...')
         this_chain=Residues.filter(chainID=self.orig_chainID)
@@ -200,7 +255,32 @@ class Graft(AncestorAwareObj):
         logger.debug(f'...assigned {len(self.residues)} residues')
 
 class GraftList(AncestorAwareObjList):
+    """A class for handling lists of grafts.
+    This class inherits from AncestorAwareObjList and provides methods to manage a list of Graft objects.
+    It allows for the assignment of residue objects to each graft and the removal of grafts that do not have any assigned residues.
+    It also handles the destruction of down-links from terminal residues in the grafts.
+    """
     def assign_residues(self,Residues,Links):
+        """Assign residue objects to each graft in the list.
+        Arguments
+        ---------
+        Residues: ResidueList
+            The list of residues from which the grafts will be assigned.
+        Links: LinkList
+            The list of links that may be affected by the graft assignments.
+        This method iterates through each graft in the list, assigns residues to it, and checks for terminal residues that have down-links.
+        If terminal residues are found, it removes the linked residues and links from the Residues and Links lists, respectively.
+        It also ensures that any grafts that do not have assigned residues are removed from the graft list.
+        Returns
+        -------
+        delete_us: GraftList
+            A list of grafts that do not have any assigned residues and should be removed.
+        down_group: list
+            A list of residues that were linked down from terminal residues in the grafts.
+        down_links: list
+            A list of links that were removed due to down-links from terminal residues in the grafts.
+        This method modifies the Residues and Links lists by removing residues and links that are no longer needed.
+        """
         logger.debug(f'Assigning residue objects to {len(self)} grafts')
         delete_us=[]
         down_group=[]

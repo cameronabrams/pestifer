@@ -109,7 +109,7 @@ class ChainIDManager:
     def unregister_chain(self,chainID):
         """ Unregister the single chainID with the manager 
         
-        Paramter:
+        Parameter:
         ---------
         chainID : str
            1- or 2-byte chainID to unregister

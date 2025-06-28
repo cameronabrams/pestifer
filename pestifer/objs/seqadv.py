@@ -17,22 +17,36 @@ class Seqadv(AncestorAwareObj):
     Attributes
     ----------
     req_attr: list
-        * idCode: identification code of the seqadv record
-        * resname: residue name
-        * chainID: chain identifier
-        * resseqnum: sequence number of residue in chain
-        * insertion: insertion code
-        * typekey: reports the type of the seqadv/seq_dif based on the description provided by the author
+        * idCode: str
+            PDB ID code of the molecule
+        * resname: str
+            3-letter residue name of the residue this seqadv refers to
+        * chainID: str
+            chain identifier of the residue this seqadv refers to
+        * resseqnum: int
+            residue sequence position of the residue this seqadv refers to
+        * insertion: str
+            insertion code of the residue this seqadv refers to
+        * typekey: str
+            type of seqadv, e.g., 'conflict', 'cloning', 'expression', 'engineered', 'variant', 'insertion', 'deletion', 'microheterogeneity', 'chromophore', 'user', '_other_'
+    
     opt_attr: list
-        * database: name of database
-        * dbAccession: accession code of this molecule's sequence in that database
-        * dbRes: name of residue in the database
-        * dbSeq: sequence position of residue in the database
-        * pdbx_pdb_strand_id: (mmCIF format) chain identifier according to author
-        * pdbx_auth_seq_num: (mmCIF format) residue sequence position according to author
-        * pdbx_ordinal: some integer, i don't know
-        * residue: holder for actual residue this seqadv refers to
-
+        * database: str
+            name of the database from which the sequence is derived, e.g., 'PDB', 'SwissProt', etc.
+        * dbAccession: str
+            accession code of the sequence in the database
+        * dbRes: str
+            3-letter residue name in the database sequence
+        * dbSeq: int
+            sequence number in the database sequence
+        * pdbx_ordinal: int
+            ordinal number of the seqadv in the mmCIF record
+        * pdbx_auth_seq_num: int
+            author-assigned sequence number of the residue this seqadv refers to
+        * residue: Residue
+            the residue object that this seqadv refers to, if it can be found in the current
+            set of residues; this is set to None if the residue cannot be found
+    
         _from_cifdict   _struct_ref_seq_dif.align_id 
                         _struct_ref_seq_dif.pdbx_pdb_id_code 
                         _struct_ref_seq_dif.mon_id 
@@ -122,6 +136,16 @@ class Seqadv(AncestorAwareObj):
         super().__init__(input_dict)
 
     def seqadv_details_keyword(self,text):
+        """Returns the typekey for the given text
+        Parameters
+        ----------
+        text : str
+            The text to analyze for keywords.
+        Returns
+        -------
+        str
+            The typekey corresponding to the text, or '_other_' if no keyword is found.
+        """
         text=text.lower()
         keyword_list=self.__class__.attr_choices['typekey']
         for keyword in keyword_list:
@@ -130,9 +154,24 @@ class Seqadv(AncestorAwareObj):
         return '_other_'
 
     def pdb_line(self):
+        """Write the seqadv as it would appear in a PDB file
+        Returns
+        -------
+        str
+            The PDB line for the seqadv record.
+        """
         return f'SEQADV {self.idCode:3s} {self.resname:>3s} {self.chainID:1s} {self.resseqnum:>4d}{self.insertion:1s} {self.database:>4s} {self.dbAccession:9s} {self.dbRes:3s} {self.dbSeq:>5d} {self.typekey:21s}          '
     
     def assign_residue(self,Residues):
+        """Assigns the residue attribute of the seqadv to the corresponding Residue object
+        Parameters
+        ----------
+        Residues : list
+            A list of Residue objects to search for the corresponding residue.
+        This method searches through the provided list of Residues to find a match based on the
+        attributes of the seqadv object. If a match is found, the residue attribute is set
+        to the corresponding Residue object. If no match is found, the residue attribute remains None.
+        """
         # logger.debug(f'Searching {len(Residues)} Residues for auth_chain {self.pdbx_pdb_strand_id} auth_seq {self.pdbx_auth_seq_num}')
         assert self.residue==None
         if self.typekey!='deletion':
@@ -155,6 +194,10 @@ class Seqadv(AncestorAwareObj):
                     self.residue=None
 
     def update_from_residue(self):
+        """Updates the chainID attribute of the seqadv from its residue attribute
+        This method sets the chainID attribute of the seqadv to the chainID of its residue
+        attribute, if the residue is not None. If the residue is None, it does nothing.
+        """
         assert self.residue!=None
         self.chainID=self.residue.chainID
         # else:
@@ -176,6 +219,20 @@ class SeqadvList(AncestorAwareObjList):
     
     """
     def assign_residues(self,Residues):
+        """Assigns residues to each Seqadv in the list from the provided Residues.
+        Parameters
+        ----------
+        Residues : list
+            A list of Residue objects to assign to the Seqadv objects.
+        Returns
+        -------
+        SeqadvList
+            A new SeqadvList containing the Seqadv objects that could not be assigned a residue.
+        This method iterates over each Seqadv in the list and calls its `assign_residue` method
+        with the provided Residues. After assigning residues, it creates a new SeqadvList containing
+        the Seqadv objects that have no assigned residue (i.e., their `residue` attribute is None).
+        It then removes these Seqadv objects from the original list.
+        """        
         delete_us=[]
         for s in self:
             s.assign_residue(Residues)
@@ -185,5 +242,9 @@ class SeqadvList(AncestorAwareObjList):
         return delete_us
     
     def update_from_residues(self):
+        """Updates the chainID attribute of each Seqadv in the list from its residue.
+        This method iterates over each Seqadv in the list and calls its `update_from_residue` method.
+        It updates the chainID attribute of each Seqadv based on its residue attribute.
+        """
         for s in self:
             s.update_from_residue()
