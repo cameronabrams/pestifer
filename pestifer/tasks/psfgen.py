@@ -99,12 +99,19 @@ class PsfgenTask(BaseTask):
         patches=seqmods.get('patches',[])
         CC=self.config.RM.charmmff_content
         new_topfiles=set()
+        # logger.debug(f'New topologies: {new_topfiles}')
         for patch in patches:
-            new_topfiles.add(CC.get_topfile_of_patchname(patch.patchname))
+            topfile=CC.get_topfile_of_patchname(patch.patchname)
+            if topfile:
+                new_topfiles.add(topfile)
+        # logger.debug(f'New topologies: {new_topfiles}')
         topomods=objmanager.get('topol',{})
         links=topomods.get('links',[])
         for link in links:
-            new_topfiles.add(CC.get_topfile_of_patchname(link.patchname))
+            topfile=CC.get_topfile_of_patchname(link.patchname)
+            if topfile:
+                new_topfiles.add(topfile)
+        # logger.debug(f'New topologies: {new_topfiles}')
         return list(new_topfiles)
 
     def psfgen(self):

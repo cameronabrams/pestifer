@@ -5,6 +5,9 @@
 # Simple build of solvated hexameric insulin 2ins
 #
 # Notes:
+#   - All waters are removed from the input PDB file
+#   - The Zn-bound histidines are patched to HSE from default HSD
+#     based on content of LINK records in the PDB file
 #   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_2ins.tgz
 #
@@ -14,6 +17,13 @@ tasks:
       source:
         id: 2ins
         biological_assembly: 1
+        exclude:
+          resnames:
+            - HOH
+      mods:
+        patches:
+          - HS2:B:10
+          - HS2:D:10
   - md:
       cpu-override: True
       ensemble: minimize
