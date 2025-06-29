@@ -10,19 +10,19 @@ Command-line Usage
 
 Installation of pestifer gives access to the ``pestifer`` command.  The general syntax for invoking ``pestifer`` is
 
-.. code-block:: console
+.. code-block:: bash
 
    $ pestifer <subcommand> <options>
 
 Help with any subcommand can be obtained via
 
-.. code-block:: console
+.. code-block:: bash
 
    $ pestifer <subcommand> --help
 
 General options for all subcommands:
 
-.. code-block:: console
+.. code-block:: bash
 
   --no-banner          turn off the banner
   --loglevel LOGLEVEL  Log level for messages written to diagnostic log (debug|info)

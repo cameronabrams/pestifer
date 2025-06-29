@@ -9,28 +9,9 @@ from ..core.scriptwriters import VMD
 class RotTrans(AncestorAwareObj):
     """A class for handling translation and rotation of segments in a molecular structure.
     This class represents a move operation that can either be a translation or a rotation.
-    Attributes
-    ----------
-    req_attr : list
-        * movetype : str
-            The type of move operation, either 'TRANS' for translation or 'ROT' for rotation.
-    opt_attr : list
-        * x : float
-            The x-coordinate for translation (required if movetype is TRANS).
-        * y : float
-            The y-coordinate for translation (required if movetype is TRANS).
-        * z : float
-            The z-coordinate for translation (required if movetype is TRANS).
-        * axis : str
-            The axis of rotation (required if movetype is ROT).
-        * angle : float
-            The angle of rotation in degrees (required if movetype is ROT).
-    yaml_header : str
-        'transrot'
-    objcat : str
-        'coord'
-    """
     
+    """
+
     yaml_header='transrot'
     objcat='coord'
     req_attr=AncestorAwareObj.req_attr+['movetype']

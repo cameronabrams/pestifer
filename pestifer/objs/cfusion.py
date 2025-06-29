@@ -10,7 +10,8 @@ from ..core.scriptwriters import Psfgen
 from ..core.stringthings import split_ri
 
 class Cfusion(AncestorAwareObj):
-    """A class for handling fusions of residues represented by an existing 
+    """
+    A class for handling fusions of residues represented by an existing 
     coordinate file to the C-termini of base-molecule segments
     
     A Cfusion is a user-specified modification which fuses residues from a
@@ -19,21 +20,20 @@ class Cfusion(AncestorAwareObj):
 
     Attributes
     ----------
-    req_attr : list
-        * sourcefile : str 
-            name of source coordinate PDB file of fusion
-        * sourceseg : str 
-            chainID of the fusion sequence in sourcefile
-        * resseqnum1 : int
-            N-terminal resid of fusion sequence
-        * insertion1 : str
-            insertion code of N-terminal residue
-        * resseqnum2 : int
-            C-terminal resid of fusion sequence
-        * insertion2 : str
-            insertion code of the C-terminal residue
-        * chainID : str
-            name of segment to which fusion is made
+    sourcefile : str 
+        name of source coordinate PDB file of fusion
+    sourceseg : str 
+        chainID of the fusion sequence in sourcefile
+    resseqnum1 : int
+        N-terminal resid of fusion sequence
+    insertion1 : str
+        insertion code of N-terminal residue
+    resseqnum2 : int
+        C-terminal resid of fusion sequence
+    insertion2 : str
+        insertion code of the C-terminal residue
+    chainID : str
+        name of segment to which fusion is made
 
     """
     req_attr=AncestorAwareObj.req_attr+['sourcefile','sourceseg','resseqnum1','insertion1','resseqnum2','insertion2','chainID','id']
@@ -77,8 +77,18 @@ class Cfusion(AncestorAwareObj):
         Cfusion._Cfusion_counter+=1
         super().__init__(input_dict)    
 
-    def write_pre_segment(self,W:Psfgen):
-        """Writes the Tcl commands to create a fusion segment in the Psfgen script."""
+    def write_pre_segment(self, W: Psfgen):
+        """
+        Writes the Tcl commands to create a fusion segment in the Psfgen script.
+
+        Parameters
+        ----------
+        W : Psfgen
+            The Psfgen script writer object to which the Tcl commands will be written.
+            This method generates the Tcl commands to create a new segment in the Psfgen
+            script for the fusion of residues from the source coordinate file.
+        """
+
         W.addline(f'set topid [molinfo top get id]')
         W.addline(f'mol new {self.sourcefile}')
         W.addline(f'set cfusid [molinfo top get id]')
