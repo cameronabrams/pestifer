@@ -9,4 +9,13 @@ furo
 readthedocs-sphinx-ext<2.3
 sphinx-copybutton
 sphinxcontrib-mermaid
-
+numpy
+pyyaml
+pandas
+pidibble
+ycleptic
+mmcif
+progressbar2
+networkx
+colorist
+gputil
