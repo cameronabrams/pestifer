@@ -1,5 +1,12 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-"""A dictionary object for containing all objs from a task specification
+"""
+A dictionary object for containing all objs from a task specification.  Objs are objects that handle various modifications
+to a molecular structure, such as cleavages, translations, rotations, and so on.
+This module defines the `ObjManager` class, which is responsible for managing these objects and their organization.
+It provides methods for ingesting objects, filtering them, and managing their categories.
+The `ObjManager` class inherits from `UserDict`, allowing it to behave like a dictionary
+while providing additional functionality specific to managing molecular objects.
+It also includes methods for counting objects, retiring categories, and expelling objects based on specific criteria
 """
 from ..util.util import inspect_package_dir
 from collections import UserDict
@@ -9,41 +16,75 @@ import os
 
 from .. import objs
 
-# Object categories
-# These are the categories of objects that can be stored in the ObjManager.
-# They are used to organize the objects and to filter them when needed.
 ObjCats=['seq','topol','coord','generic']
+"""
+Object categories used in the ObjManager.
+This list defines the categories of objects that can be managed by the `ObjManager`.
+Each category corresponds to a specific type of modification or information related to molecular structures.
 
+- ``seq``: Sequence-related objects
+- ``topol``: Topology-related objects
+- ``coord``: Coordinate-related objects
+- ``generic``: Generic objects that do not fit into the other categories
+
+"""
 class ObjManager(UserDict):
-    """A class for initializing and collecting all objs into 
-       a single, organized object 
-       
     """
+    A class for initializing and collecting all objs into 
+    a single, organized object 
+
+    Parameters
+    ----------
+    input_specs : dict, optional
+        A dictionary of object specifications to be ingested into the ObjManager.
+        If not provided, an empty dictionary is used.
+
+    Attributes
+    ----------
+    used : dict
+        A dictionary that stores retired objects, allowing for retrieval of previously used objects.
+    """
+
     obj_classes,objlist_classes=inspect_package_dir(os.path.dirname(objs.__file__),key='List')
+    """
+    obj_classes: dict
+        A dictionary mapping object names to their corresponding classes.
+        This dictionary is populated by inspecting the ``objs`` package directory.
+    objlist_classes: dict
+        A dictionary mapping object list names to their corresponding list classes.
+        This dictionary is also populated by inspecting the ``objs`` package directory.
+    """
     
     def __init__(self,input_specs={}):
         """ 
-        Arguments
-        ---------
-        input_specs: dict
-          dictionary of obj shortcode specifications
+        Initializes the ObjManager with a dictionary of object specifications.
+        This method sets up the object classes and their corresponding list classes,
+        and prepares the ObjManager to ingest objects based on the provided specifications.
+
+        Parameters
+        ----------  
+        input_specs : dict
+            dictionary of obj shortcode specifications
         """
         self.used={}
         super().__init__({})
-        self.injest(input_specs)
+        self.ingest(input_specs)
 
     def filter_copy(self,objnames=[],**fields):
-        """Returns a copy of the ObjManager with only the objects that match the given fields.
-        Arguments
-        ---------
-        objnames: list
+        """
+        Returns a copy of the ObjManager with only the objects that match the given fields.
+        
+        Parameters
+        ----------
+        objnames : list
           list of object names to filter by; if empty, all objects are included
-        fields: dict
+        fields : dict
           dictionary of fields to filter by; only objects that match all fields are included
+
         Returns
         -------
         ObjManager
-          a new ObjManager containing only the objects that match the given fields. If no object names are provided, an empty ObjManager is returned.
+            a new ObjManager containing only the objects that match the given fields. If no object names are provided, an empty ObjManager is returned.
         """
         result=ObjManager()
         self.counts()
@@ -58,27 +99,29 @@ class ObjManager(UserDict):
                     result[objcat][header]=objlist
         return result
 
-    def injest(self,input_obj,overwrite=False):
-        """Ingest an object or list of objects into the ObjManager.
-        Arguments
-        ---------
-        input_obj: object, list, or dict
-          an object of type Obj, a list of objects, or a dictionary of objects to be ingested
-        overwrite: bool
-          if True, overwrite existing objects with the same header; if False, append to existing objects
+    def ingest(self,input_obj,overwrite=False):
+        """
+        Ingest an object or list of objects into the ObjManager.
+
+        Parameters
+        ----------
+        input_obj : object, list, or dict
+            an object of type Obj, a list of objects, or a dictionary of objects to be ingested
+        overwrite : bool
+            if True, overwrite existing objects with the same header; if False, append to existing objects
         """
         if type(input_obj) in self.obj_classes.values():
-            self._injest_obj(input_obj)
+            self._ingest_obj(input_obj)
         elif type(input_obj) in self.objlist_classes.values():
-            return self._injest_objlist(input_obj,overwrite=overwrite)
+            return self._ingest_objlist(input_obj,overwrite=overwrite)
         elif type(input_obj)==dict:
-            self._injest_objdict(input_obj,overwrite=overwrite)
+            self._ingest_objdict(input_obj,overwrite=overwrite)
         elif type(input_obj)==list and len(input_obj)==0: # a blank call
             pass
         else:
-            raise TypeError(f'Cannot injest object of type {type(input_obj)} into objmanager')
+            raise TypeError(f'Cannot ingest object of type {type(input_obj)} into objmanager')
     
-    def _injest_obj(self,a_obj):
+    def _ingest_obj(self,a_obj):
         Cls=type(a_obj)
         objclassident=[x for x,y in self.obj_classes.items() if y==Cls][0]
         LCls=self.objlist_classes.get(f'{objclassident}List',list)
@@ -92,7 +135,7 @@ class ObjManager(UserDict):
         self[objcat][header].append(a_obj)
         logger.debug(f'Ingested {str(a_obj)} into {objcat} {header}')
         
-    def _injest_objlist(self,a_objlist,overwrite=False):
+    def _ingest_objlist(self,a_objlist,overwrite=False):
         if len(a_objlist)==0: # can handle an empty list...
             return a_objlist  # ...by returning it
         LCls=type(a_objlist)
@@ -106,7 +149,7 @@ class ObjManager(UserDict):
         self[objcat][header].extend(a_objlist)
         return self[objcat][header]
         
-    def _injest_objdict(self,objdict,overwrite=False):
+    def _ingest_objdict(self,objdict,overwrite=False):
         # does nothing if objdict is empty, but let's just be sure
         if len(objdict)==0:
             return
@@ -125,10 +168,12 @@ class ObjManager(UserDict):
                     self[objcat][header].append(Cls(entry))
 
     def retire(self,objcat):
-        """Retire an object category from the ObjManager.
-        Arguments
-        ---------
-        objcat: str
+        """
+        Retire an object category from the ObjManager.
+        
+        Parameters
+        ----------
+        objcat : str
           the object category to retire; if it exists, it will be removed from the ObjManager and stored in the used dictionary
         """
         if objcat in self:
@@ -136,15 +181,18 @@ class ObjManager(UserDict):
             del self[objcat]
     
     def expel(self,expelled_residues):
-        """Expel all objects that match the given residues from the ObjManager.
-        Arguments
-        ---------
-        expelled_residues: list
+        """
+        Expel all objects that match the given residues from the ObjManager.
+
+        Parameters
+        ----------
+        expelled_residues : list
           list of residues to expel; each residue should have a resseqnum and insertion attribute
+        
         Returns
         -------
         ObjManager
-          a new ObjManager containing the expelled objects; the original ObjManager is modified to remove these objects
+            a new ObjManager containing the expelled objects; the original ObjManager is modified to remove these objects
         """
         ex=ObjManager()
         for name,Cls in self.obj_classes.items():
@@ -159,11 +207,12 @@ class ObjManager(UserDict):
                             exl.append(obj)
                 for obj in exl:
                     self[objcat].remove(obj)
-                ex.injest(exl)
+                ex.ingest(exl)
         return ex
     
     def counts(self):
-        """Counts the number of objects in each category and header.
+        """
+        Counts the number of objects in each category and header.
         This method logs the counts of objects in each category and header.
         It iterates through the object classes and their corresponding categories and headers,
         counting the number of objects in each header within each category.

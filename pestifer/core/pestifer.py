@@ -1,9 +1,9 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
-""" Defines all subcommands of the pestifer command
+""" 
+Defines all subcommands of the pestifer command
 """
 import argparse as ap
 import datetime
-import glob
 import importlib.metadata
 import logging
 import os
@@ -28,6 +28,9 @@ logging.getLogger("ycleptic").setLevel(logging.WARNING)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 def follow_namd_log(args):
+    """
+    Follow an actively updating NAMD log file and print relevant information.
+    """
     log=args.log
     basename=args.basename
     console=logging.StreamHandler()
@@ -40,6 +43,9 @@ def follow_namd_log(args):
     print()
 
 def config_help(args):
+    """
+    Display help information for user-provided configuration file format.
+    """
     c=Config()
     print(f'Help on user-provided configuration file format')
     directives=args.directives
@@ -47,6 +53,9 @@ def config_help(args):
     c.console_help(directives,interactive_prompt=iprompt,exit=True)
 
 def config_default(args):
+    """
+    Display default configuration directives.
+    """
     c=Config()
     print(f'Default directive:')
     directives=args.directives
@@ -54,6 +63,9 @@ def config_default(args):
     print(yaml.dump(specs))
 
 def run(args,**kwargs):
+    """
+    Run the ``pestifer run`` command with the specified configuration file.
+    """
     if args.output_dir!='./':
         exec_dir=os.getcwd()
         if not os.path.exists(args.output_dir):
@@ -102,6 +114,9 @@ def run(args,**kwargs):
         os.chdir(exec_dir)
 
 def desolvate(args,**kwargs):
+    """
+    Run the ``pestifer desolvate`` command with the specified psf/pdb/dcd file combination
+    """
     config=Config()
     C=Controller(config,userspecs={'tasks':
                             [
@@ -121,6 +136,9 @@ def desolvate(args,**kwargs):
     report=C.do_tasks()
 
 def mdplot(args):
+    """
+    Run the ``pestifer mdplot`` command to plot time-series data from NAMD log and xst files.
+    """
     logging.basicConfig(filename='mdplot.log',filemode='w',format='%(asctime)s %(name)s %(message)s',level=logging.DEBUG)
 
     console=logging.StreamHandler()
@@ -157,39 +175,32 @@ def mdplot(args):
     report=C.do_tasks()
 
 def list_examples():
+    """
+    List all available example YAML configurations.
+    """
     r=ResourceManager()
     return r.example_manager.report_examples_list()
 
 def fetch_example(args):
+    """
+    Fetch an example YAML configuration by index.
+    """
     index=args.index
     r=ResourceManager()
     config=r.example_manager.checkout_example_yaml(index)
     return config
 
 def run_example(args):
+    """
+    Run an example YAML configuration by index.
+    """
     args.config=fetch_example(args)
     run(args)
 
-# def cleanup(args,**kwargs):
-#     config=Config(args.config)
-#     c=Controller(config)
-#     keepfiles=[args.config,args.log_file]
-#     init_task=c.tasks[0]
-#     keepfiles+=init_task.get_keepfiles()
-#     removed=[]
-#     # remove all extension-specific files not in keepfiles
-#     for ext in ['.pdb', '.psf', '.yaml','.txt', '.coor',
-#                 '.vel', '.namd','.xsc', '.dcd', '.xst',
-#                 '.log', '.prm', '.rtf', '.str', '.tcl',
-#                 '.BAK', '%']:
-#         nokeep=glob.glob(f'*{ext}')
-#         for p in nokeep:
-#             if p not in keepfiles:
-#                 removed+=p
-#                 os.remove(p)
-#     logger.debug(f'Files removed: {removed}')
-
 def show_resources(args,**kwargs):
+    """
+    Show available resources for the specified configuration.
+    """
     C=Config()
     r=C.RM
     specs={}
@@ -203,13 +214,11 @@ def show_resources(args,**kwargs):
     r.show(out_stream=print,components=specs,fullnames=args.fullnames,missing_fullnames=C['user']['charmmff'].get('resi-fullnames',{}))
 
 def modify_package(args):
+    """
+    Modify the pestifer package, used for development purposes.
+    """
     loglevel_numeric=getattr(logging,args.log_level.upper())
-    logging.basicConfig(level=loglevel_numeric)#filename='modify_package.log',filemode='w',format='%(asctime)s %(name)s %(message)s',level=logging.DEBUG)
-    # console=logging.StreamHandler()
-    # console.setLevel(logging.DEBUG)
-    # formatter=logging.Formatter('%(levelname)s> %(message)s')
-    # console.setFormatter(formatter)
-    # logging.getLogger('').addHandler(console)
+    logging.basicConfig(level=loglevel_numeric)
     logger.debug(f'modify-package called with args {args}')
     if args.inittcl:
         c=Config()
@@ -250,6 +259,9 @@ def modify_package(args):
         # TODO: docs
 
 def wheretcl(args):
+    """
+    Show the locations of TcL-related directories.
+    """
     r=ResourceManager()
     tcl_root=r.get_tcldir()
     script_dir=r.get_tcl_scriptsdir()
@@ -278,25 +290,29 @@ def wheretcl(args):
         print(f'{msg}{pkg_dir}')
 
 class NiceHelpFormatter(ap.HelpFormatter):
+    """
+    A custom help formatter that provides a more readable help output.
+    It formats the help text with a maximum help position and width.
+    """
     def __init__(self, prog):
         super().__init__(prog, max_help_position=40, width=100)
 
 
 class BanneredHelpFormatter(NiceHelpFormatter):
-
+    """
+    A custom help formatter that includes a banner at the top of the help output.
+    It inherits from NiceHelpFormatter and overrides the format_help method to include a banner message.
+    """
     def format_help(self):
         # Return the banner followed by the regular help
         return textwrap.dedent(banner_message) + '\n\n' + super().format_help()
 
-class SubCommandSpecifier:
-    def __init__(self, name, func, description=None, help_text=None):
-        self.name = name
-        self.func = func
-        self.description = description if description else ''
-        self.help_text = help_text if help_text else ''
-    
-
 def cli():
+    """
+    Command-line interface for pestifer.
+    This function sets up the argument parser, defines commands, and executes the appropriate command based on the user's input.
+    It includes commands for running simulations, fetching examples, showing resources, and more.
+    """
     commands={
         'run': run,
         'config-help': config_help,

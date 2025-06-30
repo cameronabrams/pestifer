@@ -1,7 +1,9 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 #
-# Class for handling running external commands
-#
+"""
+Class for handling and running external commands and managing their output.
+"""
+
 import atexit
 import logging
 import os
@@ -21,25 +23,26 @@ class Command:
     You can also specify a tuple of (needle, message) to override the default behavior and log a custom message if the needle is found in the stdout or stderr.
     The command can be run with a progress bar and elapsed time display using a LogParser instance.
     The command can also be run quietly, suppressing the output to the console.
-    Attributes:
-    -----------
-    command : str
-        The command to be executed.
-    args : tuple
-        The arguments to be passed to the command.
-    options : dict
-        The options to be passed to the command in the form of key-value pairs.
-    c : str
-        The complete command string that will be executed, including the command, arguments, and options.
-    stdout : str
-        The standard output of the command after it has been run.
-    stderr : str
-        The standard error output of the command after it has been run.
-    divider_line_length : int
-        The length of the divider line used in logging output to separate sections of the log.
     """
+ 
     divider_line_length=55
+    """
+    The length of the divider line used in logging output to separate sections of the log.
+    """
+ 
     def __init__(self,command:str,*args,**options):
+        """ 
+        Initializes a Command instance with a command, its arguments, and options.
+
+        Parameters
+        ----------
+        command : str
+            The command to be executed.
+        args : tuple
+            A tuple of arguments to be passed to the command.
+        options : dict
+            A dictionary of options to be passed to the command, where keys are option names and values are option values.
+        """
         self.command=command
         self.args=args
         self.options=options
@@ -48,11 +51,11 @@ class Command:
         self.stderr=''
 
     def run(self,logfile=None,override=(),ignore_codes=[],quiet=True,logparser=None,log_stderr=False,**kwargs):
-        """ runs this Command instance
+        """
+        Runs this Command instance
         
-        Parameters:
-        -----------
-
+        Parameters
+        ----------
         logfile : str
             name of log file to write process' stdout and stderr. If None (default), stdout and stderr are retained
             only in this instance's stdout and stderr attributes.
@@ -61,10 +64,10 @@ class Command:
             the process, the message is displayed and an error is thrown, halting the program.
         ignore_codes : list
             a list of integer exit codes that are ignored in addition to 0
-        quiet : boolean
-        logparser: LogParser instance (or descendant) 
+        quiet : bool
+            if True, suppresses all output from the command
+        logparser: LogParser
             used for progress bar/elapsed time displays and log parsing
-
         """
         if not quiet:
             logger.debug(f'{self.c}')

@@ -1,4 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+A module for handling bilayer structures in molecular simulations.
+"""
 
 import logging
 
@@ -16,7 +19,21 @@ sA3_=_UNITS_['CUBIC-ANGSTROMS']
 logger=logging.getLogger(__name__)
 
 class BilayerSpecString:
-    """ A class for handling bilayer specification strings in memgen format """
+    """ 
+    A class for handling bilayer specification strings in memgen format.
+    The specification string is a string that describes the composition of the bilayer in terms of species and their fractions.
+    
+    Parameters
+    ----------
+    specstring : str, optional
+        The packmol-memgen-format specification string for the bilayer.
+    fracstring : str, optional
+        The mole-fraction specification string for the bilayer.
+    leaflet_delimiter : str, optional
+        The delimiter used to separate the left and right leaflets in the specification string.
+    species_delimiter : str, optional
+        The delimiter used to separate species in the specification string.
+    """
     def __init__(self,specstring='',fracstring='',leaflet_delimiter='//',species_delimiter=':'):
         self.specstring=specstring
         self.fracstring=fracstring
@@ -42,6 +59,20 @@ class BilayerSpecString:
             self.right=[dict(name=n,frac=x) for n,x in zip(Lright,Fright)]
 
     def add_specstring(self,attr_name,specstring='',attr_type=str):
+        """
+        Adds a specification string to the BilayerSpecString object.
+
+        This method updates the internal state of the object to include the new specification string.
+
+        Parameters
+        ----------
+        attr_name : str
+            The name of the attribute to which the specification string will be added.
+        specstring : str, optional
+            The specification string to be added.
+        attr_type : type, optional
+            The type to which the specification string will be converted.
+        """
         if specstring:
             self.extrastrings[attr_name]=specstring
             Sleft,Sright=(specstring.split(self.leaflet_delimiter)+[specstring])[:2]
@@ -63,6 +94,27 @@ class BilayerSpecString:
 
 def specstrings_builddict(lipid_specstring='',lipid_ratio_specstring='',lipid_conformers_specstring='0',    
                           solvent_specstring='TIP3',solvent_ratio_specstring=''):
+    """
+    Builds a dictionary of bilayer specifications from the provided specification strings.
+    
+    Parameters
+    ----------
+    lipid_specstring : str, optional
+        The specification string for the lipid bilayer.
+    lipid_ratio_specstring : str, optional
+        The mole-fraction specification string for the lipid bilayer.
+    lipid_conformers_specstring : str, optional
+        The conformer specification string for the lipid bilayer.
+    solvent_specstring : str, optional
+        The specification string for the solvent.
+    solvent_ratio_specstring : str, optional
+        The mole-fraction specification string for the solvent.
+
+    Returns
+    -------
+    dict
+        A dictionary containing the bilayer specifications.
+    """
     L=BilayerSpecString(specstring=lipid_specstring,fracstring=lipid_ratio_specstring)
     L.add_specstring('conf',lipid_conformers_specstring,int)
     C=BilayerSpecString(specstring=solvent_specstring,fracstring=solvent_ratio_specstring)
@@ -74,6 +126,38 @@ def specstrings_builddict(lipid_specstring='',lipid_ratio_specstring='',lipid_co
     }
 
 class Bilayer:
+    """
+    A class for handling bilayer structures in molecular simulations.
+    This class represents a bilayer composed of lipids and solvent, with specifications for each leaflet and chamber.
+
+    Parameters
+    ----------
+    composition_dict : dict, optional
+        A dictionary containing the composition of the bilayer, including leaflets and chambers.
+    leaflet_nlipids : dict, optional
+        A dictionary specifying the number of lipids per leaflet in a patch.
+        Default is {'upper': 100, 'lower': 100}.
+    solvent_to_key_lipid_ratio : float, optional
+        The ratio of solvent molecules to key lipid molecules in the bilayer.
+        Default is 32.0.
+    neutralizing_salt : list, optional
+        A list containing the names of the cation and anion used for neutralizing the bilayer. Default is ['POT', 'CLA'].
+    salt_concentration : float, optional
+        The concentration of salt in the bilayer solution, in molarity (M). Default is 0.0.
+    solution_gcc : float, optional
+        The density of the solution in grams per cubic centimeter (gcc). Default is 1.0.
+    pdbrepository : PDBRepository, optional
+        A repository of PDB structures for the species in the bilayer.
+    resi_database : ResidueDatabase, optional
+        A database of residue information for the species in the bilayer.   
+    solvent_specstring : str, optional
+        The specification string for the solvent in the bilayer.
+        Default is 'TIP3'.
+    solvent_ratio_specstring : str, optional
+        The mole-fraction specification string for the solvent.
+        Default is '1.0'.
+    """
+
     def __init__(self,composition_dict={},leaflet_nlipids=dict(upper=100,lower=100),solvent_to_key_lipid_ratio=32.0,
                 neutralizing_salt=['POT','CLA'],salt_concentration=0.0,solution_gcc=1.0,pdbrepository=None,resi_database=None,solvent_specstring='TIP3',solvent_ratio_specstring='1.0'):
 
@@ -243,6 +327,22 @@ class Bilayer:
                 # logger.debug(f'Checked out {species_name} as {species["local_name"]}')
 
     def build_patch(self,SAPL=75.0,xy_aspect_ratio=1.0,half_mid_zgap=1.0,solution_gcc=1.0,rotation_pm=10.0):
+        """
+        Builds a patch of the bilayer with specified parameters.
+
+        Parameters
+        ----------
+        SAPL : float, optional
+            The surface area per lipid in square angstroms (sA2_). Default is 75.0.
+        xy_aspect_ratio : float, optional
+            The aspect ratio of the patch in the x and y dimensions. Default is 1.0.
+        half_mid_zgap : float, optional
+            The half mid-plane gap in angstroms (sA_). Default is 1.0 sA_.
+        solution_gcc : float, optional
+            The density of the solution in grams per cubic centimeter (gcc). Default is 1.0.
+        rotation_pm : float, optional
+            The rotation angle in degrees for the patch. Default is 10.0 degrees.
+        """
         patch_area=SAPL*self.leaflet_nlipids['upper'] # assume symmetric
         Lx=np.sqrt(patch_area/xy_aspect_ratio)
         Ly=xy_aspect_ratio*Lx
@@ -295,7 +395,20 @@ class Bilayer:
         self.origin=np.array([self.box[i][i]/2 for i in range(3)])
 
     def write_packmol(self,pm,half_mid_zgap=2.0,rotation_pm=0.0,nloop=100):
-        # first patch-specific packmol directives
+        """
+        Writes the packmol input for the bilayer patch to the provided Packmol object.
+
+        Parameters
+        ----------
+        pm : Packmol
+            The Packmol ScriptWriter object to which the bilayer patch specifications will be written.
+        half_mid_zgap : float, optional
+            The half mid-plane gap in angstroms (sA_). Default is 2.0 sA_.
+        rotation_pm : float, optional
+            The rotation angle in degrees for the patch. Default is 0.0 degrees.
+        nloop : int, optional
+            The number of loops for packing the bilayer. Default is 100.
+        """
         pm.addline(f'pbc {" ".join([f"{_:.3f}" for _ in self.patch_ll_corner])} {" ".join([f"{_:.3f}" for _ in self.patch_ur_corner])}')
         ll=self.patch_ll_corner
         ur=self.patch_ur_corner
@@ -373,6 +486,28 @@ class Bilayer:
         pm.writefile()
 
     def pack_patch(self,pm,specname,seed=None,tolerance=None,nloop_all=200,nloop=200,half_mid_zgap=1.0,rotation_pm=20):
+        """
+        Packs the bilayer patch using Packmol.
+        
+        Parameters
+        ----------
+        pm : Packmol
+            The Packmol ScriptWriter object to which the bilayer patch specifications will be written.
+        specname : str
+            The name of the specification for the bilayer patch.
+        seed : int, optional
+            The random seed for the packing process. Default is None.
+        tolerance : float, optional
+            The tolerance for the packing process. Default is None.
+        nloop_all : int, optional
+            The total number of loops for the packing process. Default is 200.
+        nloop : int, optional
+            The number of loops for each individual structure in the packing process. Default is 200.
+        half_mid_zgap : float, optional
+            The half mid-plane gap in angstroms (sA_). Default is 1
+        rotation_pm : float, optional
+            The rotation angle in degrees for the patch. Default is 20.0 degrees.
+        """
         pm.newscript(specname)
         packmol_output_pdb=f'{specname}.pdb'
         pm.comment('packmol input automatically generated by pestifer')
@@ -393,6 +528,24 @@ class Bilayer:
     def equilibrate(self,user_dict={},
                     basename='equilibrate',index=0,
                     relaxation_protocol=None,parent_controller_index=0):
+        """
+        Equilibrates the bilayer patch using the specified user dictionary and relaxation protocol.
+        
+        Parameters
+        ----------
+        user_dict : dict, optional
+            A dictionary containing user-defined parameters for the equilibration process.
+            Default is an empty dictionary.
+        basename : str, optional
+            The base name for the output files. Default is 'equilibrate'.
+        index : int, optional
+            The index for the task in the controller. Default is 0.
+        relaxation_protocol : list, optional
+            A list of dictionaries specifying the stages of the relaxation protocol.
+            If not provided, a hard-coded relaxation protocol will be used. 
+        parent_controller_index : int, optional
+            The index of the parent controller. Default is 0.
+        """
         if user_dict=={}:
             return
         psf=self.statevars['psf']

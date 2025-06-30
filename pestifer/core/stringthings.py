@@ -30,6 +30,9 @@ banner_message="""
     CHARMM force field files (July 24) from the 
     MacKerell Lab
     """.format(__pestifer_version__)
+"""
+Basic banner message for pestifer.
+"""
 
 enhanced_banner_message="""
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
@@ -68,54 +71,37 @@ enhanced_banner_message="""
 ░░░░░░░░░░░░░░░░░ Cameron F. Abrams, cfa22@drexel.edu ░░░░░░░░░░░░░░░░
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 """
+"""
+:no-index:
+"""
 
 def banner(logf):
+    """
+    Writes a banner message to the log file
+
+    Parameters
+    ----------
+    logf: file-like object
+        The log file to which the banner message will be written.
+    """
     my_logger(banner_message,logf,fill=' ',just='<')
 
 class ByteCollector:
-    """A simple string manager
-    
-    The main object in a ByteCollector instance is a string of bytes (byte_collector).
-    The string can be appended to by anoter string or the contents of a file.
-    The string can have "comments" written to it.
+    """
+    A simple string manager.
+    The main object in a ``ByteCollector`` instance is a string of bytes (``byte_collector``).
+    The string can be appended to by another string or the contents of a file.
+    The string can have comments written to it.
+    The string can be written to a file.
 
-    Attributes
+    Parameters
     ----------
-    byte_collector: str
-       the string
-    
-    line_length: int
-       number of bytes that represents the maximum length of one line of text
-    
-    comment_char: str(1)
-       beginning-of-line character that signals the line is a comment
-
-    Methods
-    -------
-    reset()
-        blanks the string
-    
-    write(msg)
-        appends msg to string
-
-    addline(msg)
-        appends msg to string with a line-end byte
-        
-    injest_file(filename)
-        appends the contents of filename to the string
-    
-    comment(msg)
-        appends the msg as a comment (or multiple comment
-        lines) to the string
-
-    log(msg)
-        uses the auxiliary function my_logger to write
-        a log line to the string
-    
-    banner(msg)
-        uses the auxiliary function my_logger to write
-        a banner line to the string
-    
+    comment_char: str, optional
+        The character used to denote comments in the string.
+        Defaults to '#'.
+    line_length: int, optional
+        The maximum length of a line in the string.
+        Defaults to 80.
     """
     def __init__(self,comment_char='#',line_length=80):
         self.line_length=line_length
@@ -123,38 +109,39 @@ class ByteCollector:
         self.byte_collector=''
     
     def reset(self):
-        """Resets the string"""
+        """
+        Resets the string
+        """
         self.byte_collector=''
 
     def write(self,msg):
-        """Appends msg to the string
+        """
+        Appends msg to the string
         
         Parameters
         ----------
-        msg: str            for ln in:
-                outstr=ll+ln+rr
-                logf(fmt.format(outstr))
-
+        msg: str
            the message
         """
         self.byte_collector+=msg
 
     def addline(self,msg,end='\n'):
         """Appends msg to the string as a line
-        
+
         Parameters
         ----------
         msg: str
            the message
-        
+
         end: str, optional
-            end-of-line byte
+           the end-of-line byte
         """
         self.byte_collector+=f'{msg}{end}'
 
     def lastline(self,end='\n',exclude='#'):
-        """Returns last line in the string
-        
+        """
+        Returns last line in the string
+
         Parameters
         ----------
         end: str, optional
@@ -167,10 +154,11 @@ class ByteCollector:
             return lines[-1]
         else:
             return None
-    
+
     def has_statement(self,statement,end='\n',exclude='#'):
-        """Determines if a particular statement is on at least one non-comment line
-        
+        """
+        Determines if a particular statement is on at least one non-comment line
+
         Parameters
         ----------
         statement: str
@@ -186,10 +174,23 @@ class ByteCollector:
                 if statement in l:
                     return True
         return False
-    
+
     def reassign(self,varname,varvalue,style='bash',end='\n'):
-        """Reassigns variable varname to value varvalue if an assignment to varname already
-           exists in the byte_collector """
+        """
+        Reassigns variable varname to value varvalue if an assignment to varname already
+        exists in the byte_collector 
+        
+        Parameters
+        ----------
+        varname: str
+            the name of the variable to reassign
+        varvalue: str
+            the value to assign to the variable
+        style: str, optional
+            the style of the assignment (e.g., ``bash``, 'SLURM')
+        end: str, optional
+            end-of-line byte
+        """
         lines=self.byte_collector.split(end)
         logger.debug(lines)
         if len(lines)>0:
@@ -225,9 +226,59 @@ class ByteCollector:
         self.byte_collector=end.join(lines)
         logger.debug(self.byte_collector)
 
-    def injest_file(self,filename):
-        """Appends contents of file 'filename' to the string
+    def addline(self,msg,end='\n'):
+        """Appends msg to the string as a line
         
+        Parameters
+        ----------
+        msg: str
+           the message
+        
+        end: str, optional
+            end-of-line byte
+        """
+        self.byte_collector+=f'{msg}{end}'
+
+    def lastline(self,end='\n',exclude='#'):
+        """Returns last line in the string
+        
+        Parameters
+        ----------
+        end: str, optional
+            end-of-line byte
+        exclude: str, optional
+            comment byte
+        """
+        lines=[x for x in self.byte_collector.split(end) if (len(x)>0 and not x.startswith(exclude))]
+        if len(lines)>0:
+            return lines[-1]
+        else:
+            return None
+    
+    def has_statement(self,statement,end='\n',exclude='#'):
+        """
+        Determines if a particular statement is on at least one non-comment line
+        
+        Parameters
+        ----------
+        statement: str
+            the statement; e.g., ``exit``
+        end: str, optional
+            end-of-line byte
+        exclude: str, optional
+            comment byte
+        """
+        lines=[x for x in self.byte_collector.split(end) if (len(x)>0 and not x.startswith(exclude))]
+        if len(lines)>0:
+            for l in lines:
+                if statement in l:
+                    return True
+        return False
+
+    def ingest_file(self,filename):
+        """
+        Appends contents of file ``filename`` to the string
+
         Parameters
         ----------
         filename: str
@@ -237,8 +288,9 @@ class ByteCollector:
             self.byte_collector+=f.read()
 
     def write_file(self,filename):
-        """Writes string to 'filename' 
-        
+        """
+        Writes string to ``filename``
+
         Parameters
         ----------
         filename: str
@@ -248,7 +300,8 @@ class ByteCollector:
             f.write(self.byte_collector)
 
     def comment(self,msg,end='\n'):
-        """Appends msg as a comment to the string
+        """
+        Appends ``msg`` as a comment to the string
         
         Parameters
         ----------
@@ -282,7 +335,8 @@ class ByteCollector:
         return self.byte_collector
 
 def my_logger(msg,logf,width=None,fill='',just='<',frame='',depth=0,**kwargs):
-    """A fancy logger
+    """
+    A fancy logger
     
     Parameters
     ----------
@@ -352,17 +406,14 @@ def my_logger(msg,logf,width=None,fill='',just='<',frame='',depth=0,**kwargs):
         logf(ffmt.format(frame))
             
 class FileCollector(UserList):
-    """A class for handling collections of files
-    
-    Methods
-    -------
-    flush()
-       remove all files in the collection
-       
-    tarball()
-       make a tarball of the collection
+    """
+    A class for handling collections of files
+
     """
     def flush(self):
+        """
+        Deletes all files in the collection and clears the collection
+        """
         logger.debug(f'Flushing file collector: {len(self)} files.')
         for f in self:
             if os.path.exists(f):
@@ -372,7 +423,8 @@ class FileCollector(UserList):
         self.clear()
         
     def tarball(self,basename):
-        """Makes a tarball of the files in the collection
+        """
+        Makes a tarball of the files in the collection
         
         Parameters
         ----------
@@ -389,14 +441,16 @@ class FileCollector(UserList):
         logger.debug(f'generated tarball {basename}.tgz')
 
 def split_ri(ri):
-    """A simple utility function for splitting the integer resid and
+    """
+    A simple utility function for splitting the integer resid and
     1-byte insertion code out of a string resid-insertion code
     concatenation
-    
+
     Parameters
     ----------
-    ri: the supposed resid-insertion concatenation
-    
+    ri: str
+        the string representation of a residue number, e.g., ``123A`` or ``123``
+
     Returns
     -------
     tuple(int, str): the integer resid and the 1-byte insertion code or '' if none
@@ -410,11 +464,40 @@ def split_ri(ri):
     return r,i
 
 def join_ri(resseqnum,insertion):
+    """
+    Joins a residue sequence number and an insertion code into a single string.
+
+    Parameters
+    ----------
+    resseqnum: int
+        The residue sequence number, e.g., 123.
+    insertion: str
+        The insertion code, e.g., ``A``. If there is no insertion code, this
+        should be an empty string.
+    """
     if insertion=='':
         return resseqnum
     return f'{resseqnum}{insertion}'
 
 def ri_range(val,split_chars=['-','#']):
+    """
+    Splits a string representation of a range of residue numbers into a list of
+    residue numbers. The string can contain multiple ranges separated by
+    characters in ``split_chars``. The ranges can be specified as a single
+    residue number, a range of residue numbers (e.g., ``123-456``),
+    or a range of residue numbers with insertion codes (e.g., ``123A-456B``).
+
+    Parameters
+    ----------
+    val: str
+        The string representation of the residue number range.
+    split_chars: list of str, optional
+        A list of characters that can be used to split the string into multiple
+        ranges. Defaults to ['-', '#']. 
+    Returns
+    -------
+    list of str: A list of residue numbers in string format, e.g., ['123', '124', '125A', '126B'].
+    """
     the_split=[val]
     for c in split_chars:
         the_splits=[x.split(c) for x in the_split]
@@ -423,32 +506,44 @@ def ri_range(val,split_chars=['-','#']):
             the_split.extend(s)
     return [split_ri(x) for x in the_split]
 
-def rescale_packmol_inp_box(fn,scale):
-    shutil.copy(fn,f'{fn}-bak')
-    with open(fn,'r') as f:
-        lines=f.read().split('\n')
-    for i in range(len(lines)):
-        l=lines[i]
-        tokens=[x.strip() for x in l.split()]
-        if tokens:
-            if tokens[0]=='inside':
-                if tokens[1]=='box':
-                    llx,lly,llz,urx,ury,urz=list(map(float,tokens[2:]))
-                    llx*=scale[0]
-                    urx*=scale[0]
-                    lly*=scale[1]
-                    ury*=scale[1]
-                    llz*=scale[2]
-                    urz*=scale[2]
-                    newline=f'  inside box {llx:.2f} {lly:.2f} {llz:.2f} {urx:.2f} {ury:.2f} {urz:.2f}'
-                    lines[i]=newline
-    with open('tmp','w') as f:
-        for l in lines:
-            f.write(f'{l}\n')
-    shutil.move('tmp',fn)
+# def rescale_packmol_inp_box(fn,scale):
+#     shutil.copy(fn,f'{fn}-bak')
+#     with open(fn,'r') as f:
+#         lines=f.read().split('\n')
+#     for i in range(len(lines)):
+#         l=lines[i]
+#         tokens=[x.strip() for x in l.split()]
+#         if tokens:
+#             if tokens[0]=='inside':
+#                 if tokens[1]=='box':
+#                     llx,lly,llz,urx,ury,urz=list(map(float,tokens[2:]))
+#                     llx*=scale[0]
+#                     urx*=scale[0]
+#                     lly*=scale[1]
+#                     ury*=scale[1]
+#                     llz*=scale[2]
+#                     urz*=scale[2]
+#                     newline=f'  inside box {llx:.2f} {lly:.2f} {llz:.2f} {urx:.2f} {ury:.2f} {urz:.2f}'
+#                     lines[i]=newline
+#     with open('tmp','w') as f:
+#         for l in lines:
+#             f.write(f'{l}\n')
+#     shutil.move('tmp',fn)
 
 def oxford(a_list,conjunction='or'):
-    """ Obey the Oxford comma when ending a list with a conjunction
+    """ 
+    Obey the Oxford comma when ending a list with a conjunction
+
+    Parameters
+    ----------
+    a_list: list of str
+        The list of items to join.
+    conjunction: str, optional
+        The conjunction to use when joining the list. Defaults to 'or'.
+
+    Returns
+    -------
+    str: The Oxford-compliant string representation of the list.
     """
     if not a_list: return ''
     if len(a_list)==1:
@@ -459,6 +554,9 @@ def oxford(a_list,conjunction='or'):
         return ", ".join(a_list[:-1])+f', {conjunction} {a_list[-1]}'
     
 def linesplit(line,cchar='!'):
+    """
+    Splits a line at the first occurrence of the character ``cchar``.
+    """
     if not cchar in line:
         return line,''
     idx=line.index(cchar)
@@ -467,6 +565,17 @@ def linesplit(line,cchar='!'):
     return line[:idx],line[idx+1:]
 
 def striplist(L):
+    """
+    Strips whitespace from each item in a list and removes empty strings.
+
+    Parameters
+    ----------
+    L: list of str
+        The list of strings to be stripped.
+    Returns
+    -------
+    list of str: A new list with whitespace stripped from each item and empty strings removed.
+    """
     l=[x.strip() for x in L]
     while '' in l:
         l.remove('')
@@ -474,7 +583,9 @@ def striplist(L):
 
 
 def to_latex_math(s):
-    # written by ChatGPT
+    """
+    Converts a string into LaTeX math format.  Written by ChatGPT 4o.
+    """
     def convert_token(token):
         # Match base, subscript, and superscript using regex
         match = re.fullmatch(r'\s*([a-zA-Z0-9]+)(?:_([a-zA-Z0-9^]+))?(?:\^([a-zA-Z0-9_]+))?\s*', token)

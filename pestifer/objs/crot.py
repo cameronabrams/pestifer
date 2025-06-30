@@ -17,8 +17,6 @@ class Crot(AncestorAwareObj):
     of reducing steric clashses.  The primary job of this class is to translate the C-rotation shortcodes
     specified by the user into TcL commands to be incorporated in a psfgen script.
 
-    NOTE: This is currently implemented in the cfapdbparse (2020) format, and has not been thoroughly tested.
-
     """
     req_attr=AncestorAwareObj.req_attr+['angle']
     opt_attr=AncestorAwareObj.opt_attr+['chainID','resseqnum1','resseqnum2','resseqnum3','segname','atom1','atom2','segname1','segname2','segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk','degrees']

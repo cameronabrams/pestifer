@@ -1,8 +1,9 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" Labels and segtypes for residues
-    This module defines the segment types and residue names used in
-    CHARMM and PDB files, along with their mappings. It also provides
-    a class for managing these labels and mappings.
+""" 
+Labels and segtypes for residues
+This module defines the segment types and residue names used in
+CHARMM and PDB files, along with their mappings. It also provides
+a class for managing these labels and mappings.
 """
 
 segtypes= {
@@ -157,7 +158,9 @@ _residue_aliases = [
     ]
 
 class LabelMappers:
-    """Class to hold label mappers for residue names and segment types."""
+    """
+    Class to hold label mappers for residue names and segment types.
+    """
     def __init__(self):
         # process _data to initialize the label mappers
         self.segtypes=segtypes
@@ -175,3 +178,12 @@ class LabelMappers:
 
 
 Labels=LabelMappers()
+""" 
+Global instance of LabelMappers class to access segment types and residue names.
+This instance provides access to the segment types and residue names used in CHARMM and PDB files.
+It allows for easy mapping between residue names and their corresponding segment types,
+as well as providing access to the CHARMM residue names for PDB residue names.  Any module file
+that imports ``Labels`` from ``pestifer.core.labels`` will have access to this instance.
+This is useful for tasks that require residue name and segment type management, such as
+preparing input files for molecular simulations or analyzing protein structures.
+"""

@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-#
-# Facilitates building PDB files of RESI's using ICs, and equilibrating them and generating samples
-#
+"""
+This module defines functions that facilitate building PDB files of RESI's using ICs, and equilibrating them and generating samples that can be used as input to packmol.
+"""
 import glob
 import logging
 import os
@@ -23,7 +23,9 @@ from ..core.stringthings import my_logger
 logger=logging.getLogger(__name__)
 
 def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0,force_constant=1.0,borrow_ic_from=None):
-    """ Generate a PDB file for a RESI using psfgen, and sample it."""
+    """ 
+    Generate a PDB file for a RESI using psfgen, and sample it.
+    """
     if nsamples>sample_steps:
         raise ValueError(f'nsamples ({nsamples}) must be less than or equal to sample_steps ({sample_steps})')
     digits=len(str(nsamples))
@@ -276,7 +278,9 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     return 0
 
 def do_cleanup(resname,dirname):
-    """ Remove all files in the directory except for the init.tcl, info.yaml, and psf files."""
+    """ 
+    Remove all files in the directory except for the init.tcl, info.yaml, and psf files.
+    """
     cwd=os.getcwd()
     os.chdir(dirname)
     files=glob.glob('*')
@@ -290,7 +294,8 @@ def do_cleanup(resname,dirname):
     os.chdir(cwd)
 
 def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup=True,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0,force_constant=1.0,borrow_ic_from=None):
-    """ Build a RESI using psfgen and sample it.
+    """
+    Build a RESI using psfgen and sample it.
     This function checks if the RESI has been built previously, and if not, it will
     create a new directory for the RESI in the specified output directory.
     If the RESI has been built previously, it will skip the build step unless the `force` argument is set to True.
@@ -322,7 +327,8 @@ def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup
         logger.info(f'RESI {resi} built previously; use \'--force\' to recalculate')
 
 def make_pdb_collection(args):
-    """ Make a PDBCollection from the CHARMMFFResiDatabase.
+    """
+    Make a PDBCollection from the CHARMMFFResiDatabase.
     This function will create a PDBCollection from the CHARMMFFResiDatabase, either
     for a specific RESI or for all RESIs in a specified stream.
     If a specific RESI is provided, it will create a collection member for that RESI

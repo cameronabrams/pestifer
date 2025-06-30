@@ -1,4 +1,8 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+This module defines classes that facilitate the handling of CHARMM force field content.
+It includes functionality to parse CHARMM force field files, extract relevant data such as masses and residues, and manage custom directories for additional CHARMM files.
+"""
 import logging
 import os
 import re
@@ -10,10 +14,13 @@ from ..core.stringthings import my_logger
 logger=logging.getLogger(__name__)
 
 def parse_conditional_script(script_text):
-    """ Parse a conditional script text and return a dictionary with parsed lines and variables.
+    """ 
+    Parse a conditional script text and return a dictionary with parsed lines and variables.
     This function processes a script that contains conditional statements and variable assignments.
     It supports 'set' commands to define variables and 'if' statements to conditionally execute blocks of code.
+    
     This function was written by ChatGPT 4o.
+
     Parameters
     ----------
     script_text : str
@@ -84,9 +91,11 @@ def parse_conditional_script(script_text):
     return dict(parsed="\n".join(output),vars=vars)
 
 def extract_resi_pres_blocks(text, keywords=('RESI', 'PRES')):
-    """ Extract blocks of text starting with RESI or PRES and ending before the next RESI, PRES, ATOMS, or EOF.
+    """ 
+    Extract blocks of text starting with RESI or PRES and ending before the next RESI, PRES, ATOMS, or EOF.
     This function uses a regular expression to find blocks of text that start with the specified keywords
     and continue until the next occurrence of one of the keywords or the end of the file.
+    
     Parameters
     ----------
     text : str
@@ -108,12 +117,22 @@ def extract_resi_pres_blocks(text, keywords=('RESI', 'PRES')):
     return [m.group(1).strip() for m in matches]
 
 def extract_mass_lines(file_contents):
+    """
+    Extract lines containing mass information from the CHARMM force field files.
+    This function scans the contents of a CHARMM force field file and returns lines that start with "MASS".
+    Parameters
+    ----------
+    file_contents : str
+        The contents of the CHARMM force field file to scan for mass information.
+    """
     return [line for line in file_contents.splitlines() if line.strip().upper().startswith("MASS")]
 
+# When copying a parameter file into a NAMD run directory, lines that begin with these keywords are removed
 comment_these_out=['set','if','WRNLEV','BOMLEV','return','endif']
 
 class CHARMMFFContent:
-    """ A class for handling all CHARMM force field content.  
+    """ 
+    A class for handling all CHARMM force field content.  
     
     The CHARMM force field is
     stored in a tarball downloaded directly from the MacKerell lab at the University of Michigan.
@@ -133,7 +152,6 @@ class CHARMMFFContent:
         A list of custom files that can be added to the CHARMM force field content.
     all_topology_files : list
         A list of all topology files in the CHARMM force field content.
-    
     """
     def __init__(self,charmmff_path='',tarfilename='toppar_c36_jul24.tgz',user_custom_directory=None):
         self.tarfile=None
@@ -182,7 +200,8 @@ class CHARMMFFContent:
             logger.debug(f'  {k} -> {v}')
 
     def __del__(self):
-        """ Close the tarfile if it is open """
+        """ 
+        Close the tarfile if it is open """
         if self.tarfile is not None:
             self.tarfile.close()
             self.tarfile=None
@@ -192,7 +211,8 @@ class CHARMMFFContent:
         del self.pdbrepository
 
     def add_custom_directory(self,user_custom_directory):
-        """ Add a user custom directory to the CHARMMFFContent.
+        """ 
+        Add a user custom directory to the CHARMMFFContent.
         This directory should contain custom files that can be used in addition to the standard CHARMM force field files.
         Parameters
         ----------
@@ -212,7 +232,8 @@ class CHARMMFFContent:
             self.filenamemap[f]=os.path.join(user_custom_directory,f)
 
     def load_charmmff(self,tarfilename='toppar_c36_jul24.tgz',skip_streams=['misc','cphmd']):
-        """ Load the CHARMM force field tarball from the specified path.
+        """ 
+        Load the CHARMM force field tarball from the specified path.
         Parameters
         ----------
         tarfilename : str, optional
@@ -228,7 +249,8 @@ class CHARMMFFContent:
             """ Check if a filename is ok to use in the tarfile """
             return not 'history' in name and not 'all22' in name and not 'ljpme' in name and (name.endswith('.str') or name.endswith('.prm') or name.endswith('.rtf'))
 
-        """ Load the CHARMM force field tarball from the specified path """
+        """ 
+        Load the CHARMM force field tarball from the specified path """
         if not os.path.exists(os.path.join(self.charmmff_path,tarfilename)):
             raise FileNotFoundError(f'CHARMM force field tarball {tarfilename} not found in {self.charmmff_path}')
         logger.debug(f'Loading CHARMM force field tarball {tarfilename} from {self.charmmff_path}')
@@ -257,7 +279,8 @@ class CHARMMFFContent:
         
 
     def copy_charmmfile_local(self,basename):
-        """ Copy a CHARMM file to the local directory.
+        """ 
+        Copy a CHARMM file to the local directory.
         This function checks if the file already exists in the current working directory.
         If it does, it returns the basename. If the file is found in the custom files, it copies it from there.
         If the file is found in the tarball or any custom directory, it extracts it and writes it to the local directory, filtering out CHARMM commands that give NAMD trouble.
@@ -311,7 +334,8 @@ class CHARMMFFContent:
         return basename
     
     def clean_local_charmmff_files(self):
-        """ Remove all local CHARMM force field files that start with 'par', 'top', 'toppar', 'charmm', or end with '.str', '.prm', or '.rtf'.
+        """ 
+        Remove all local CHARMM force field files that start with 'par', 'top', 'toppar', 'charmm', or end with '.str', '.prm', or '.rtf'.
         This function is useful for cleaning up the local directory where CHARMM files are stored.
         It will remove files that match the specified patterns, ensuring that only relevant CHARMM files are kept.
         """
@@ -320,7 +344,8 @@ class CHARMMFFContent:
                 os.remove(f)
     
     def lines_from_topfile(self,topfile):
-        """ Extract the lines from a top file.
+        """ 
+        Extract the lines from a top file.
         This function reads the contents of a top file, either from the tarfile or from a mapped filename in the filenamemap.
         Parameters
         ----------
@@ -335,7 +360,8 @@ class CHARMMFFContent:
         return lines
 
     def contents_from_topfile(self,topfile):
-        """ Extract the contents of a top file.
+        """ 
+        Extract the contents of a top file.
         This function reads the contents of a top file, either from the tarfile or from a mapped filename in the filenamemap.  Applies the logic filter if this is a cholesterol substream.
         Parameters
         ----------
@@ -374,7 +400,8 @@ class CHARMMFFContent:
         return parsed_content
     
     def masses_from_topfile(self,topfile):
-        """ Extract the masses from a top file
+        """ 
+        Extract the masses from a top file
         This function reads the contents of a top file and extracts the mass records.
         Parameters
         ----------
@@ -394,7 +421,8 @@ class CHARMMFFContent:
         return CharmmMasses(masses)
 
     def resis_from_topfile(self,topfile,metadata={}):
-        """ Extract the residues from a top file.
+        """ 
+        Extract the residues from a top file.
         This function reads the contents of a top file and extracts the residue blocks.
         It looks for blocks that start with 'RESI' or 'PRES' and creates instances of CharmmTopResi for each block.
         Parameters
@@ -425,7 +453,8 @@ class CHARMMFFContent:
         return R
 
     def find_patches(self):
-        """ Find all patches in the CHARMM force field content.
+        """ 
+        Find all patches in the CHARMM force field content.
         This function scans all topology files for lines that start with 'PRES' and extracts the patch names.
         It creates a dictionary mapping patch names to the topology file they are found in.
         The patches are stored in the `self.patches` attribute.
@@ -442,12 +471,15 @@ class CHARMMFFContent:
         logger.debug(f'Found {len(self.patches)} patches in CHARMM force field content')
 
     def get_topfile_of_patchname(self,patchname):
-        """ Given a patch name, return the top file that contains it """
+        """ 
+        Given a patch name, return the top file that contains it """
         return self.patches.get(patchname, None)
 
 class CHARMMFFStreamID:
-    """ A class for handling the CHARMM force field stream ID and substream ID.
+    """ 
+    A class for handling the CHARMM force field stream ID and substream ID.
     This class parses the filename of a CHARMM force field file to extract the stream ID and substream ID.
+    
     Attributes
     ----------
     charmff_filename : str
@@ -491,9 +523,11 @@ class CHARMMFFStreamID:
         logger.debug(f'CHARMMFFStreamID: parsed {self.charmmff_filename} to streamID={self.streamID}, substreamID={self.substreamID}')
 
 class CHARMMFFResiDatabase:
-    """ A class for handling a database of CHARMM force field residues.
-    This class loads residues and patches from CHARMM force field files, including toplevel files and specific streams.
+    """ 
+    A class for handling a database of CHARMM force field residues.
+    This class loads residues and patches from CHARMM force field topology/stream files, including toplevel files and specific streams.
     It maintains a collection of residues, patches, and masses, and provides methods to access and manipulate this data.
+    
     Attributes
     ----------
     charmmff_content : CHARMMFFContent
@@ -546,7 +580,8 @@ class CHARMMFFResiDatabase:
         logger.debug(f'Initialized CHARMMFFResiDatabase with extra streamIDs {streamIDs}')
 
     def load_from_toplevels(self):
-        """ Load residues and patches from the toplevel CHARMM force field files.
+        """ 
+        Load residues and patches from the toplevel CHARMM force field files.
         This function iterates through the toplevel topology files and extracts residues and patches.
         It updates the `self.residues` and `self.patches` dictionaries with the extracted data.
         """
@@ -558,7 +593,8 @@ class CHARMMFFResiDatabase:
             self.patches.update({x.resname:x for x in new_patches})
 
     def load_from_stream(self,streamID):
-        """ Load residues and patches from a specific stream in the CHARMM force field content.
+        """ 
+        Load residues and patches from a specific stream in the CHARMM force field content.
         This function checks if the streamID exists in the CHARMM force field content and loads the residues and patches from the corresponding topology files.
         Parameters
         ----------
@@ -580,7 +616,8 @@ class CHARMMFFResiDatabase:
             self.patches.update({x.resname:x for x in this_patches})
 
     def get_resnames_of_streamID(self,streamID,substreamID=None):
-        """ Get the residue names of a specific stream ID.
+        """ 
+        Get the residue names of a specific stream ID.
         This function retrieves the residue names associated with a given stream ID and optional substream ID.
         Parameters
         ----------
@@ -606,7 +643,8 @@ class CHARMMFFResiDatabase:
         return resnames
 
     def load_from_topfile(self,topfile):
-        """ Load residues and patches from a specific topology file.
+        """ 
+        Load residues and patches from a specific topology file.
         This function reads the contents of a topology file, extracts residues and patches, and updates the `self.residues` and `self.patches` dictionaries.
         Parameters
         ----------
@@ -634,7 +672,8 @@ class CHARMMFFResiDatabase:
         return this_residues,this_patches
 
     def tally_masses(self):
-        """ Tally the masses of all residues in the database.
+        """ 
+        Tally the masses of all residues in the database.
         This function iterates through all residues in the database and sets their masses based on the atom mass records.
         It uses the `set_masses` method of each residue to assign the correct masses.
         This is necessary because the atom mass records are stored throughout the topology files, and we need to ensure that all residues have their masses set correctly after all topology files are read in.
@@ -643,7 +682,8 @@ class CHARMMFFResiDatabase:
             resi.set_masses(self.masses)
 
     def add_stream(self,streamID):
-        """ Add a stream to the CHARMM force field residue database.
+        """ 
+        Add a stream to the CHARMM force field residue database.
         This function loads residues and patches from the specified stream ID and updates the `self.streamIDs` list.
         Parameters
         ----------
@@ -658,7 +698,8 @@ class CHARMMFFResiDatabase:
         self.tally_masses()
 
     def add_topology(self,topfile,streamIDoverride=None):
-        """ Add a topology file to the CHARMM force field residue database.
+        """ 
+        Add a topology file to the CHARMM force field residue database.
         This function loads residues and patches from the specified topology file and updates the `self.residues` and `self.patches` dictionaries.
         If a `streamIDoverride` is provided, it will set the `streamID` and `substreamID` metadata for all residues and patches loaded from the topology file.
         Parameters
@@ -680,7 +721,8 @@ class CHARMMFFResiDatabase:
         self.tally_masses()
 
     def get_resi(self,resname):
-        """ Get a residue by its name from the CHARMM force field residue database.
+        """ 
+        Get a residue by its name from the CHARMM force field residue database.
         This function checks if the residue name exists in the database and returns the corresponding CharmmTopResi object.
         Parameters
         ----------
@@ -698,7 +740,8 @@ class CHARMMFFResiDatabase:
             return None
     
     def __contains__(self,resname):
-        """ Check if a residue name exists in the CHARMM force field residue database.
+        """ 
+        Check if a residue name exists in the CHARMM force field residue database.
         This function checks if the specified residue name is present in the `self.residues` dictionary.
         Parameters
         ----------

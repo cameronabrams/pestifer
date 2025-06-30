@@ -16,7 +16,7 @@ class ManipulateTask(BaseTask):
             self.inherit_state()
         logger.debug(f'manipulate {self.specs["mods"]}')
         self.objmanager=ObjManager()
-        self.objmanager.injest(self.specs['mods'])
+        self.objmanager.ingest(self.specs['mods'])
         self.result=self.coormods()
         self.log_message('complete')
         return super().do()

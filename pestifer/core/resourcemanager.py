@@ -1,6 +1,8 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" Defines the ResourceManager class for managing access to pestifer's built-in resources 
+""" 
+Defines the ``ResourceManager`` class for managing access to pestifer's built-in resources 
 """
+
 import glob
 import os
 import shutil
@@ -12,6 +14,17 @@ import logging
 logger=logging.getLogger(__name__)
 
 class ExampleManager:
+    """
+    A class for managing example input files in pestifer.
+    This class provides methods to check out example YAML files, report the list of examples, and manage example resources.
+    
+    Parameters
+    ----------
+    example_path : str
+        The path to the directory containing example input files. This directory should contain an ``info.yaml`` file
+        that describes the examples available in that directory.
+    """
+
     def __init__(self,example_path):
         if not os.path.isdir(example_path):
             raise FileNotFoundError(f'Example path {example_path} does not exist or is not a directory')
@@ -26,7 +39,26 @@ class ExampleManager:
         self.examples_list=self.info['input-files']
     
     def checkout_example_yaml(self,index:int):
-        # copies requested example YAML input file to CWD
+        """
+        Check out an example YAML file by its index and copy it to the current working directory.
+        
+        Parameters
+        ----------
+        index : int
+            The index of the example to check out. The index is 1-based, meaning the first example has index 1.
+        
+        Returns
+        -------
+        str
+            The name of the example YAML file that was checked out.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range for the examples list.
+        FileNotFoundError
+            If the example YAML file does not exist in the specified path.
+        """
         if index < 1 or index > len(self.examples_list):
             raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
         example_yaml=self.examples_list[index-1]['name']
@@ -38,7 +70,21 @@ class ExampleManager:
         return example_yaml # return the name of the copied file
     
     def report_examples_list(self,header=False,formatter=r'{:>7s}    {:<30s}    {}'):
-        # return a string representation of the examples list
+        """
+        Generate a report of the available examples in the examples list.
+        
+        Parameters
+        ----------
+        header : bool, optional
+            If True, include a header in the report. Default is False.
+        formatter : str, optional
+            A format string for the report. Default is a string that formats the index, name, and description of each example. Default is ``r'{:>7s}    {:<30s}    {}'``.
+        
+        Returns
+        -------
+        str
+            A report of the available examples in the examples list.
+        """
         if not self.examples_list:
             return 'No examples available'
         if header:
@@ -53,7 +99,25 @@ class ExampleManager:
         return ''.join(report_lines)
 
     def append_example(self,name:str,description:str,pdbID:str):
-        # append a new example to the examples list
+        """
+        Append a new example to the examples list.
+
+        Parameters
+        ----------
+        name : str
+            The name of the example file to append. This should be a valid file path.
+        description : str
+            A description of the example.
+        pdbID : str
+            The PDB ID associated with the example. 
+
+        Raises
+        ------
+        ValueError
+            If the name, description, or pdbID is not provided. 
+        FileNotFoundError
+            If the example file does not exist at the specified path.
+        """
         if not name or not description or not pdbID:
             raise ValueError('Name, description, and pdbID must be provided')
         new_example = {
@@ -73,7 +137,21 @@ class ExampleManager:
         logger.info(f'Added new example: {name}')
 
     def delete_example(self,index:int):
-        # delete an example from the examples list
+        """
+        Delete an example from the examples list by its index.
+        
+        Parameters
+        ----------
+        index : int
+            The index of the example to delete (1-based).
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range for the examples list.
+        FileNotFoundError
+            If the example file does not exist in the specified path.
+        """
         if index < 1 or index > len(self.examples_list):
             raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
         real_index = index - 1  # convert to zero-based index
@@ -87,7 +165,29 @@ class ExampleManager:
         logger.info(f'Deleted example {index}: {example["name"]}')
 
     def insert_example(self,index:int,name:str,description:str,pdbID:str):
-        # insert a new example at the specified index
+        """
+        Insert a new example into the examples list at a specified index.
+        
+        Parameters
+        ----------
+        index : int
+            The index at which to insert the new example (1-based).
+        name : str
+            The name of the example file to insert. This should be a valid file path.
+        description : str
+            A description of the example.
+        pdbID : str
+            The PDB ID associated with the example.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range for the examples list.
+        ValueError
+            If the name, description, or pdbID is not provided.
+        FileNotFoundError
+            If the example file does not exist at the specified path.
+        """
         real_index = index - 1  # convert to zero-based index
         if real_index < 0 or real_index > len(self.examples_list):
             raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
@@ -110,8 +210,25 @@ class ExampleManager:
         logger.info(f'Inserted new example at index {index}: {name}')   
 
 class ResourceManager:
+    """
+    A class for managing pestifer's built-in resources.
+    This class provides access to various resources such as CHARMM force fields, example input files, and TcL scripts.
+    It also manages the ``ycleptic`` configuration file used for user-specific configurations.
+    The resources are organized into directories, and the class provides methods to access these resources.
+    """
+    
     base_resources=['charmmff','examples','tcl','ycleptic']
+    """
+    A list of base resources that are managed by the ResourceManager.
+    These resources include CHARMM force fields, example input files, TcL scripts, and the ycleptic configuration file.
+    """
+    
     ignored_resources=['__pycache__','_archive','bash']
+    """
+    A list of resource directories that are ignored by the ResourceManager.
+    These directories are not considered part of the base resources and are excluded from resource management.
+    """
+
     def __init__(self):
         self.resources_path=os.path.dirname(resources.__file__)
         self.resource_dirs=[x for x in glob.glob(os.path.join(self.resources_path,'*')) if os.path.isdir(x) 
@@ -138,6 +255,21 @@ class ResourceManager:
         return retstr
 
     def show(self,out_stream=print,components={},fullnames=False,missing_fullnames={}):
+        """
+        Show a summary of the specified components.
+        
+        Parameters
+        ----------
+        out_stream : callable, optional
+            A callable that takes a string and outputs it. Default is `print`.
+        components : dict, optional
+            A dictionary specifying the components to show. The keys are the component names
+            and the values are the specifications for each component.
+        fullnames : bool, optional
+            If True, show full names for the components. Default is False.
+        missing_fullnames : dict, optional
+            A dictionary of missing full names for the components. Default is an empty dictionary.
+        """
         for c,spec in components.items():
             if not c in self.base_resources:
                 logger.warning(f'{c} is not a base resource; expected one of {", ".join(self.base_resources)}')
@@ -161,29 +293,102 @@ class ResourceManager:
                 out_stream(msg)
 
     def get_ycleptic_config(self):
+        """
+        Get the path to the ``ycleptic`` configuration file.
+        This file is used for defining the formats of user-specific configurations and is located in the resources directory.
+        
+        Returns
+        -------
+        str
+            The path to the ``ycleptic`` configuration file.
+        """
         return self.ycleptic_config
     
     def get_resource_path(self,r):
+        """
+        Get the path to a specific resource.
+
+        Parameters
+        ----------
+        r : str
+            The name of the resource to get the path for. This should be one of the base resources defined in ``ResourceManager.base_resources``.
+        """
         return self.resource_path.get(r,None)
             
     def get_charmmff_customdir(self):
+        """
+        Get the path to the custom CHARMM force field directory.
+        This directory is used for storing custom CHARMM force field files that are not part of the standard distribution.
+
+        Returns
+        -------
+        str
+            The path to the custom CHARMM force field directory.
+        """
         return os.path.join(self.resource_path['charmmff'],'custom')
 
     def get_tcldir(self):
+        """
+        Get the path to the TcL scripts and packages directory.
+        
+        Returns
+        -------
+        str
+            The path to the TcL scripts and packages directory.
+        """
         return self.resource_path['tcl']
     
     def get_tcl_pkgdir(self):
+        """
+        Get the path to the TcL package directory.
+        This directory contains TcL packages that are used by pestifer for various tasks, such as loading additional functionality or libraries.
+
+        Returns
+        -------
+        str
+            The path to the TcL package directory.
+        """
         return os.path.join(self.resource_path['tcl'],'pkg')
     
     def get_tcl_scriptsdir(self):
+        """
+        Get the path to the TcL scripts directory.
+        This directory contains TcL scripts that are used by pestifer for various tasks, such as setting up simulations or processing data.
+
+        Returns
+        -------
+        str
+            The path to the TcL scripts directory.
+        """
         return os.path.join(self.resource_path['tcl'],'scripts')
     
     def update_pdbrepository(self,user_pdbrepository=[]):
+        """
+        Update the PDB repository with user-defined paths.
+
+        Parameters
+        ----------
+        user_pdbrepository : list, optional
+            A list of paths to user-defined PDB collections. These paths will be added to the PDB repository.
+            If not provided, an empty list is used, meaning no user-defined paths will be added.
+        """
         for path in user_pdbrepository:
             logger.info(f'Adding user PDB collection: {path}')
             self.charmmff_content.pdbrepository.add_path(path)
 
     def update_charmmff(self,tarball='',user_custom_directory=None):
+        """
+        Update the CHARMM force field content with a tarball and/or a user-defined custom directory
+
+        Parameters
+        ----------
+        tarball : str, optional
+            The path to a tarball containing CHARMM force field files. If provided, the tarball will be loaded into the CHARMM force field content.
+            If not provided, no tarball will be loaded beyond the default CHARMM force field files.
+        user_custom_directory : str, optional
+            The path to a user-defined custom directory containing CHARMM force field files. If provided, this directory will be added to the CHARMM force field content.
+            If not provided, no custom directory will be added. 
+        """
         if tarball:
             self.charmmff_content.load_charmmff(tarball)
         if user_custom_directory:

@@ -28,8 +28,9 @@ Pestifer **includes** the [July 2024 Charmm36 force field](https://mackerell.uma
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
-* 1.16.1
+* 1.16.2
     * fixed bug in insulin example to correctly assign NE2-Zn bonds
+    * fixed bug causing piericing of PRO807 in model-building missing residues in insulin receptor example
 * 1.16.0
     * new `pdb2pqr` task to assign protonation states based on `propka3`
 * 1.15.1

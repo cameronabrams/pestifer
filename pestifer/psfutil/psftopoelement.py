@@ -40,7 +40,7 @@ class PSFTopoElement(Namespace):
         self.B=np.array([p[1]-p[0] for p in product(self.P,repeat=2)]).reshape((len(self.P),len(self.P),3))
         self.b=np.linalg.norm(self.B.reshape((len(self.P)**2,3)),axis=1).reshape(len(self.P),len(self.P))
 
-    def injest_coordinates(self,A,pos_key=['posX','posY','posZ'],meta_key=[]):
+    def ingest_coordinates(self,A,pos_key=['posX','posY','posZ'],meta_key=[]):
         self.P=np.array(A.loc[self.idx_list][pos_key].values)
         if np.any(np.isnan(self.P)):
             logger.debug(f'nan detected in {self.P}')
@@ -76,9 +76,9 @@ class PSFTopoElementList(UserList):
         super().__init__(data)
 
     @countTime
-    def injest_coordinates(self,A,pos_key=['posX','posY','posZ'],meta_key=[]):
+    def ingest_coordinates(self,A,pos_key=['posX','posY','posZ'],meta_key=[]):
         for b in self:
-            b.injest_coordinates(A,pos_key=pos_key,meta_key=meta_key)
+            b.ingest_coordinates(A,pos_key=pos_key,meta_key=meta_key)
 
     @countTime
     def assign_cell_indexes(self,LC):

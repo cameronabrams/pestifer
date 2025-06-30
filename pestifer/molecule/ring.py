@@ -93,8 +93,8 @@ def ring_check(psf,pdb,xsc,cutoff=10.0,segtypes=['lipid']):
     topol=PSFContents(psf,parse_topology=['bonds'],topology_segtypes=segtypes)
     assert coorddf.shape[0]==len(topol.atoms),f'{psf} and {pdb} are incongruent'
     coorddf['segname']=[a.chainID for a in topol.atoms]
-    logger.debug(f'Injesting coords into bonds...(could take a while)')
-    topol.bonds.injest_coordinates(coorddf,pos_key=['x','y','z'],meta_key=['segname','resid'])
+    logger.debug(f'ingesting coords into bonds...(could take a while)')
+    topol.bonds.ingest_coordinates(coorddf,pos_key=['x','y','z'],meta_key=['segname','resid'])
     logger.debug(f'Assiging link-cell indices to each bond')
     topol.bonds.assign_cell_indexes(LC)
     logger.debug(f'Sorting bonds by link-cell index')
@@ -105,8 +105,8 @@ def ring_check(psf,pdb,xsc,cutoff=10.0,segtypes=['lipid']):
         bondlist_per_cell[b.linkcell_idx].append(b)
     Rings=RingList(topol.G)
     logger.debug(f'{len(Rings)} rings to be analyzed for piercings')
-    logger.debug(f'Injesting coords into rings...')
-    Rings.injest_coordinates(coorddf,pos_key=['x','y','z'],meta_key=['segname','resid'])
+    logger.debug(f'ingesting coords into rings...')
+    Rings.ingest_coordinates(coorddf,pos_key=['x','y','z'],meta_key=['segname','resid'])
     piercespecs=[]
     rdict={}
     dtsum=0.0

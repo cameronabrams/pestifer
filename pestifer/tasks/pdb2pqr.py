@@ -127,5 +127,5 @@ class PDB2PQRTask(PsfgenTask):
                 continue
             shortcode=f"{patchname}:{row['reschain']}:{row['resnum']}"
             pat=Patch(shortcode)
-            self.objmanager.injest(pat)
+            self.objmanager.ingest(pat)
         

@@ -1,6 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" Defines the Filewriter class and several descendents specialized for writing
-    scripts for VMD, psfgen, and NAMD
+""" 
+Defines the ``Filewriter`` class and several descendents specialized for writing
+and running scripts for VMD, psfgen, NAMD, and packmol
 """
 import os
 import datetime
@@ -17,33 +18,100 @@ from ..util.util import reduce_intlist
 logger=logging.getLogger(__name__)
 
 class Filewriter:
+    """
+    A class for writing files with a specific format, such as Tcl scripts.
+    
+    Parameters
+    ----------
+    comment_char : str, optional
+        The character used for comments in the script. Default is '#'.
+    """
     def __init__(self,comment_char='#'):
         self.B=ByteCollector(comment_char=comment_char)
         self.is_written=False
         self.indent=''
 
     def newfile(self,filename):
+        """
+        Initializes a new file for writing.
+        
+        Parameters
+        ----------
+        filename : str
+            The name of the file to be created or overwritten.
+        """
         self.filename=filename
         self.B.reset()
         self.is_written=False
         return self
 
-    def injest_file(self,filename):
-        self.B.injest_file(filename)
+    def ingest_file(self,filename):
+        """
+        Ingest a file into the script writer.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to be ingested. The file's contents will be added to the script.
+
+        """
+        self.B.ingest_file(filename)
 
     def addline(self,data,indents=0):
+        """
+        Add a line of code to the script.
+        
+        Parameters
+        ----------
+        data : str
+            The line of code to be added.
+        indents : int, optional
+            The number of indentation levels to apply. Default is 0.
+        """
         self.B.addline(indents*self.indent+data)
 
     def banner(self,data):
+        """
+        Add a banner comment to the script.
+
+        Parameters
+        ----------
+        data : str
+            The banner comment to be added.
+        """
         self.B.banner(data)
 
     def comment(self,data):
+        """
+        Add a comment to the script.
+
+        Parameters
+        ----------
+        data : str
+            The comment to be added.
+        """
         self.B.comment(data)
 
     def has_statement(self,statement):
+        """
+        Check if a specific statement is present in the script.
+        
+        Parameters
+        ----------
+        statement : str
+            The statement to check for.
+        """
         return self.B.has_statement(statement)
 
     def writefile(self,force=False):
+        """
+        Write the contents of the script to a file.
+        
+        Parameters
+        ----------
+        force : bool, optional
+            If True, overwrite the file even if it has already been written.
+        """
         if not self.is_written or force:
             with open(self.filename,'w') as f:
                 f.write(str(self.B))
@@ -52,6 +120,15 @@ class Filewriter:
             logger.debug(f'{self.filename} has already been written')
 
 class TcLScriptwriter(Filewriter):
+    """
+    A class for writing Tcl scripts.
+    This class extends the Filewriter class to provide functionality for creating and managing Tcl scripts.
+
+    Parameters
+    ----------
+    config : Config
+        The configuration object containing settings for the script.
+    """
     def __init__(self,config):
         self.config=config
         self.progress=self.config.progress
@@ -62,6 +139,15 @@ class TcLScriptwriter(Filewriter):
         super().__init__(comment_char='#')
     
     def newscript(self,basename=None):
+        """
+        Initialize a new Tcl script with a specified basename.
+        If no basename is provided, a default script name is used.
+
+        Parameters
+        ----------
+        basename : str, optional
+            The base name for the script file. If not provided, a default name is used.
+        """
         timestampstr=datetime.datetime.today().ctime()
         if basename:
             self.basename=basename
@@ -74,12 +160,34 @@ class TcLScriptwriter(Filewriter):
         self.banner(f'Created {timestampstr}')
 
     def writescript(self):
+        """
+        Writes the Tcl script to the file specified by the ``scriptname`` attribute.
+        """
         self.writefile()
 
     def addfile(self,filename):
+        """
+        Add a file to the list of files associated with the script; these might be inputs or outputs (mostly outputs).
+        This method appends the specified filename to the internal ``FileCollector``.
+
+        Parameters
+        ----------
+        filename : str
+            The name of the file to be added.
+        """
         self.F.append(filename)
 
 class VMD(TcLScriptwriter):
+    """
+    A class for writing VMD Tcl scripts.
+    This class extends the TcLScriptwriter class to provide functionality for creating and managing VMD scripts.
+
+    Parameters
+    ----------
+    config : Config
+        The configuration object containing settings for the script.
+    """ 
+
     def __init__(self,config:Config):
         super().__init__(config)
         self.vmd=config.shell_commands['vmd']
@@ -90,6 +198,17 @@ class VMD(TcLScriptwriter):
         self.indent=' '*4
 
     def newscript(self,basename=None,packages=[]):
+        """
+        Initialize a new VMD script with a specified basename and packages.
+        If no basename is provided, a default script name is used.
+        
+        Parameters
+        ----------
+        basename : str, optional
+            The base name for the script file. If not provided, a default name is used.
+        packages : list, optional
+            A list of Tcl packages to be imported in the script.
+        """
         super().newscript(basename=basename)
         self.packages=packages
         for p in self.packages:
@@ -97,6 +216,19 @@ class VMD(TcLScriptwriter):
             self.addline(f'namespace import {p}::*')
 
     def usescript(self,scriptbasename,local=False,add_banners=False):
+        """
+        Ingest a VMD Tcl script file into the current script.
+        This method reads the specified script file and adds its contents to the current script.
+
+        Parameters
+        ----------
+        scriptbasename : str
+            The base name of the script file to be ingested (without extension).
+        local : bool, optional
+            If True, the script is searched for in the current directory; otherwise, it is searched for in the Tcl script path.
+        add_banners : bool, optional
+            If True, banners are added to the script indicating the start and end of the ingested script.
+        """
         if not local:
             scriptname=os.path.join(self.tcl_script_path,f'{scriptbasename}.tcl')
         else:
@@ -106,11 +238,20 @@ class VMD(TcLScriptwriter):
             raise FileNotFoundError(f'Pestifer script {scriptbasename}.tcl is not found.')
         if add_banners:
             self.banner(f'Begin {scriptbasename}, {timestampstr}')
-        self.injest_file(scriptname)
+        self.ingest_file(scriptname)
         if add_banners:
             self.banner(f'End {scriptbasename}')
 
     def writescript(self,force_exit=False):
+        """
+        Finalize the VMD script by adding an exit statement and banners.
+        This method checks if an exit statement is already present in the script; if not, it adds one.
+
+        Parameters
+        ----------
+        force_exit : bool, optional
+            If True, the exit statement is added even if one is already present.
+        """
         if not self.has_statement('exit') or force_exit:
             self.addline('exit')
         self.banner(f'END {__package__.upper()} VMD SCRIPT')
@@ -118,6 +259,16 @@ class VMD(TcLScriptwriter):
         super().writescript()
 
     def set_molecule(self,mol,altcoords=None):
+        """
+        Set up a VMD molecule from the given molecule object.
+    
+        Parameters
+        ----------
+        mol : Molecule
+            The molecule object to be set up in VMD.
+        altcoords : str, optional
+            Alternative coordinates file to be loaded for the molecule.
+        """
         mol.molid_varname=f'm{mol.molid}'
         ext='.pdb' if mol.rcsb_file_format=='PDB' else '.cif'
         if mol.sourcespecs.get('id',{}):
@@ -163,12 +314,56 @@ class VMD(TcLScriptwriter):
             self.comment('Done.')
 
     def backup_selection(self,selname,dataholder='data',attributes=['chain','x','y','z','resid','resname','name']):
+        """
+        Backup a selection of atoms in VMD to a data holder variable.
+        This method creates a backup of the specified selection by storing its attributes in a data holder variable.
+        
+        Parameters
+        ----------
+        selname : str
+            The name of the selection to be backed up.
+        dataholder : str, optional
+            The name of the variable where the backup data will be stored. Default is ``data''.
+        attributes : list, optional
+            A list of attributes to be included in the backup. Default includes ``chain``, ``x``, ``y``, ``z``, ``resid``, ``resname``, and ``name``.
+        """
+
         self.addline(f'set {dataholder} [ backup ${selname} [ list {" ".join(attributes)} ] ]')
     
     def restore_selection(self,selname,dataholder='data',attributes=['chain','x','y','z','resid','resname','name']):
+        """
+        Restore a selection of atoms in VMD from a data holder variable.
+        This method restores the specified selection by retrieving its attributes from the data holder variable.
+
+        Parameters
+        ----------
+        selname : str
+            The name of the selection to be restored.
+        dataholder : str, optional
+            The name of the variable from which the backup data will be retrieved. Default is ``data''.
+        attributes : list, optional
+            A list of attributes to be restored. Default includes ``chain``, ``x``, ``y``, ``z``, ``resid``, ``resname``, and ``name``.
+        """
         self.addline(f'restore ${selname} [ list {" ".join(attributes)} ]  ${dataholder}')
 
     def load_psf_pdb(self,*objs,new_molid_varname='mX'):
+        """
+        Load a PSF and PDB file into VMD.
+        This method takes one or two objects (PSF and PDB files) and loads them into VMD.
+        If only one object is provided, it is assumed to be the basename of both the PSF and PDB files.
+        If two objects are provided, the first is treated as the PSF file and the second as the PDB file.
+
+        Parameters
+        ----------
+        objs : tuple
+            A tuple containing either one or two objects:
+
+            - If one object, it should be the basename of both the PSF and PDB files.
+            - If two objects, the first should be the PSF file and the second should be the PDB file.
+        
+        new_molid_varname : str, optional
+            The variable name to be used for the new molecule ID in VMD. Default is 'mX'.
+        """
         if len(objs)==1:
             basename=objs[0]
             pdb=f'{basename}.pdb'
@@ -181,21 +376,39 @@ class VMD(TcLScriptwriter):
         self.molid_varname=new_molid_varname
 
     def write_pdb(self,basename,molid_varname):
+        """
+        Write the current VMD molecule to a PDB file.
+        This method exports the current molecule in VMD to a PDB file with the specified basename.
+
+        Parameters
+        ----------
+        basename : str
+            The base name for the PDB file to be created.
+        molid_varname : str
+            The variable name of the molecule ID in VMD. This is used to select the molecule
+            for writing to the PDB file.
+        """
         self.addline(f'set TMP [atomselect ${molid_varname} all]')
         self.addline(f'$TMP writepdb {basename}.pdb')
         self.addline(f'$TMP delete')
-
-    def center_molecule(self,mol):
-        self.banner('Centering molecule')
-        self.addline(f'set TMP [atomselect ${mol.molid_varname} all]')
-        self.addline(f'set or [measure center $TMP weight mass]')
-        self.addline(f'$TMP moveby [vescale -1 $or]')
-        self.addline(f'$TMP delete')
-
-    def shift_coords(self,factors):
-        self.banner('Shifting')
         
     def runscript(self,*args,**options):
+        """
+        Run the VMD script using the VMD command line interface.
+        This method constructs a command to execute VMD with the specified script and options.
+        
+        Parameters
+        ----------
+        args : tuple
+            Additional arguments to be passed to the VMD command.
+        options : dict
+            A dictionary of options to be passed to the VMD command.
+        
+        Returns
+        -------
+        Command
+            The command object that was constructed to run the VMD script, after it has been executed.
+        """
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         self.logname=f'{self.basename}.log'
         self.logparser=VMDLog(basename=self.basename)
@@ -209,12 +422,30 @@ class VMD(TcLScriptwriter):
         return c.run(logfile=self.logname,logparser=self.logparser)
     
     def cleanup(self,cleanup=False):
+        """
+        Perform post-execution clean-up by flushing the file collector.
+        If ``cleanup`` is True, it will remove all files collected during the script execution.
+
+        Parameters
+        ----------
+        cleanup : bool, optional
+            If True, the method will remove all files collected during the script execution. Default is False
+        """
         if cleanup:
             nremoved=len(self.F)
             self.F.flush()
             logger.info(f'Post-execution clean-up: {nremoved} files removed.')
 
 class Psfgen(VMD):
+    """
+    A class for writing psfgen Tcl scripts.
+    This class extends the VMD class to provide functionality for creating and managing psfgen scripts
+
+    Parameters
+    ----------
+    config : Config
+        The configuration object containing settings for the script.
+    """
     def __init__(self,config):
         super().__init__(config)
         self.charmmff=config.RM.charmmff_content
@@ -222,6 +453,16 @@ class Psfgen(VMD):
         self.psfgen_config=config['user']['psfgen']
 
     def fetch_standard_charmm_topologies(self):
+        """
+        Fetch the standard CHARMM topologies from the configuration and copy them to the local directory.
+        This method retrieves the topologies defined in the CHARMM force field configuration and copies them to 
+        the local directory for use in the psfgen script.
+
+        Returns
+        -------
+        list
+            A list of topology files that have been copied to the local directory.
+        """
         topology_local=[]
         for t in self.charmmff_config['standard']['topologies']+self.charmmff_config['custom']['topologies']:
             self.charmmff.copy_charmmfile_local(t)
@@ -234,6 +475,20 @@ class Psfgen(VMD):
         return topology_local
 
     def newscript(self,basename=None,packages=[],additional_topologies=[]):
+        """
+        Initialize a new psfgen script with a specified basename and packages.
+        If no basename is provided, a default script name is used.
+
+        Parameters
+        ----------
+        basename : str, optional
+            The base name for the script file. If not provided, a default name is used.
+        packages : list, optional
+            A list of Tcl packages to be imported in the script.
+        additional_topologies : list, optional
+            A list of additional topology files to be included in the script. These files should not contain
+            a path (i.e., they should be in the current working directory).
+        """
         super().newscript(basename=basename,packages=packages)
         self.addline('package require psfgen')
         self.addline('psfcontext mixedcase')
@@ -258,9 +513,10 @@ class Psfgen(VMD):
                 self.addline(f'pdbalias {pdba}')
 
     def atomselect_macros(self):
-        """Converts all resnames in the base config by segtype into updated atomselect macros
+        """
+        Converts all resnames in the base config by segtype into updated atomselect macros
         This is usually only done one time, or whenever developer updates base config
-        The command 'inittcl' is the only way this method is ever called
+        The subcommand ``inittcl`` is the only way this method is ever called (development use only)
         """
         for segtypename,segtyperec in self.psfgen_config['segtypes'].items():
             logger.debug(f'Searching base record of segtype {segtypename} for resname atomselect macro')
@@ -270,6 +526,21 @@ class Psfgen(VMD):
                 self.addline(f'update_atomselect_macro {segtypename} "{new_macro}" 0')
 
     def load_project(self,*objs):
+        """
+        Load a project into psfgen by reading the PSF and PDB files.
+        This method takes one or two objects (PSF and PDB files) and loads them into psfgen.
+        If only one object is provided, it is assumed to be the basename of both the PSF and PDB files.
+        If two objects are provided, the first is treated as the PSF file and the second as the PDB file.
+        
+        Parameters
+        ----------
+        objs : tuple
+            A tuple containing either one or two objects:
+
+            - If one object, it should be the basename of both the PSF and PDB files.
+            - If two objects, the first should be the PSF file and the second should be the PDB file.
+        
+        """
         logger.debug(f'load_project called with {len(objs)} arguments')
         for _ in objs:
             logger.debug(f'   {_}')
@@ -281,11 +552,41 @@ class Psfgen(VMD):
             self.addline(f'readpsf {psf} pdb {pdb}')
         
     def describe_molecule(self,mol):
+        """
+        Describe a molecule in the psfgen script.
+        This method sets up the molecule in the psfgen script by writing the necessary Tcl commands
+        to create a new molecule and load its topology and coordinates.
+        
+        Parameters
+        ----------
+        mol : Molecule
+            The molecule object to be described in the psfgen script.
+        """
         self.molid_varname=f'm{mol.molid}'
         self.addline(f'mol top ${self.molid_varname}')
         mol.write_TcL(self)
 
     def writescript(self,statename,guesscoord=True,regenerate=True,writepsf=True,writepdb=True,force_exit=False):
+        """
+        Finalize the psfgen script by adding commands to write the PSF and PDB
+        files, and optionally regenerate angles and dihedrals, and guess coordinates.
+        This method checks if an exit statement is already present in the script; if not, it adds one.
+
+        Parameters
+        ----------
+        statename : str
+            The name of the state to be used for writing the PSF and PDB files.
+        guesscoord : bool, optional
+            If True, the script will include a command to guess coordinates. Default is True.
+        regenerate : bool, optional
+            If True, the script will include a command to regenerate angles and dihedrals. Default is True.
+        writepsf : bool, optional
+            If True, the script will include a command to write the PSF file. Default is True.
+        writepdb : bool, optional
+            If True, the script will include a command to write the PDB file. Default is True.
+        force_exit : bool, optional
+            If True, the script will include an exit statement even if one is already present. Default is False.
+        """
         if guesscoord:
             self.addline('guesscoord')
         if regenerate:
@@ -297,6 +598,22 @@ class Psfgen(VMD):
         super().writescript(force_exit=force_exit)
 
     def runscript(self,*args,**options):
+        """
+        Run the psfgen script using the VMD command line interface.
+        This method constructs a command to execute VMD with the specified script and options.
+        
+        Parameters
+        ----------
+        args : tuple
+            Additional arguments to be passed to the VMD command.
+        options : dict
+            A dictionary of options to be passed to the VMD command.
+        
+        Returns
+        -------
+        Command
+            The command object that was constructed to run the psfgen script, after it has been executed.
+        """
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         self.logname=f'{self.basename}.log'
         self.logparser=PsfgenLog(basename=self.basename)
@@ -313,6 +630,15 @@ class Psfgen(VMD):
         return c.run(logfile=self.logname,logparser=self.logparser)
     
 class NAMD(TcLScriptwriter):
+    """
+    A class for writing NAMD scripts.
+    This class extends the TcLScriptwriter class to provide functionality for creating and managing NAMD scripts.
+    
+    Parameters
+    ----------
+    config : Config
+        The configuration object containing settings for the script.
+    """
     def __init__(self,config:Config):
         super().__init__(config)
         self.charmmff=config.RM.charmmff_content
@@ -337,6 +663,17 @@ class NAMD(TcLScriptwriter):
         self.default_ext='.namd'
     
     def fetch_standard_charmm_parameters(self):
+        """
+        Fetch the standard CHARMM parameters from the configuration and copy them to the local directory.
+        This method retrieves the parameters defined in the CHARMM force field configuration and copies them to
+        the local directory for use in the NAMD script.
+        
+        Returns
+        -------
+        list
+            A list of parameter files that have been copied to the local directory.
+        """
+        logger.debug('Fetching standard CHARMM parameters')
         parameters_local=[]
         for t in list(set(self.charmmff_config['standard']['parameters']+self.charmmff_config['custom']['parameters'])):
             self.charmmff.copy_charmmfile_local(t)
@@ -345,6 +682,18 @@ class NAMD(TcLScriptwriter):
         return parameters_local
 
     def newscript(self,basename=None,addl_paramfiles=[]):
+        """
+        Initialize a new NAMD script with a specified basename and additional parameter files.
+        If no basename is provided, a default script name is used.
+
+        Parameters
+        ----------
+        basename : str, optional
+            The base name for the script file. If not provided, a default name is used.
+        addl_paramfiles : list, optional
+            A list of additional parameter files to be included in the script. These files should not contain
+            a path (i.e., they should be in the current working directory).
+        """
         super().newscript(basename)
         self.scriptname=f'{basename}{self.default_ext}'
         self.banner('NAMD script')
@@ -358,6 +707,18 @@ class NAMD(TcLScriptwriter):
             self.addline(f'parameters {p}')
 
     def writescript(self,params,cpu_override=False):
+        """
+        Write the NAMD script based on the provided parameters.
+        This method constructs the NAMD script by adding lines based on the parameters provided.
+        If the NAMD type is 'gpu' and `cpu_override` is False, it will also add GPU-specific configurations.
+        
+        Parameters
+        ----------
+        params : dict
+            A dictionary of parameters to include in the NAMD script.
+        cpu_override : bool, optional
+            If True, the script will be written with CPU-specific configurations, even if the NAMD type is 'gpu'.
+        """
         logger.debug(f'params: {params}')
         tailers=['minimize','run','numsteps']
         for k,v in params.items():
@@ -382,6 +743,18 @@ class NAMD(TcLScriptwriter):
         super().writescript()
 
     def runscript(self,**kwargs):
+        """
+        Run the NAMD script using the NAMD command line interface.
+        This method constructs a command to execute NAMD with the specified script and options.
+
+        Parameters
+        ----------
+        kwargs : dict
+            A dictionary of options to be passed to the NAMD command. This can include:
+            - ``local_execution_only``: If True, use the local CPU count instead of the configured CPU count.
+            - ``single_gpu_only``: If True, use only one GPU device.
+            - ``cpu_override``: If True, force the use of CPU settings even if the NAMD type is ``gpu``.
+        """
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         if kwargs.get('local_execution_only',False):
             use_cpu_count=self.local_ncpus
@@ -413,6 +786,15 @@ class NAMD(TcLScriptwriter):
         return c.run(logfile=self.logname,logparser=self.logparser)
 
 class PackmolInputWriter(Filewriter):
+    """
+    A class for writing Packmol input scripts.
+    This class extends the Filewriter class to provide functionality for creating and managing Packmol input scripts.
+    
+    Parameters
+    ----------
+    config : Config
+        The configuration object containing settings for the script.
+    """
     def __init__(self,config):
         super().__init__(comment_char='#')
         self.indent=4*' '
@@ -424,6 +806,14 @@ class PackmolInputWriter(Filewriter):
         self.scriptname=self.default_script
 
     def newscript(self,basename=None):
+        """
+        Create a new Packmol input script.
+
+        Parameters
+        ----------
+        basename : str, optional
+            The base name for the script file (without extension). If not provided, a default name will be used.
+        """
         timestampstr=datetime.datetime.today().ctime()
         if basename:
             self.basename=basename
@@ -435,9 +825,16 @@ class PackmolInputWriter(Filewriter):
         self.banner(f'Created {timestampstr}')
 
     def writescript(self):
+        """
+        Write the Packmol input script to the file specified in the ``scriptname`` attribute.
+        """
         self.writefile()
 
     def runscript(self,*args,**options):
+        """
+        Run the Packmol script using the specified shell command.
+        This method constructs a command to execute Packmol with the specified script and options.
+        """
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         self.logname=f'{self.basename}.log'
         self.logparser=PackmolLog(basename=self.basename)

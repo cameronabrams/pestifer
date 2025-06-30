@@ -29,14 +29,14 @@ tasks:
               maxcycles: 0
       mods:
         crotations: # some fine-tuning to ease ligation
-          - psi,E,661,693,60
-          - phi,E,662,693,60
+          - phi,E,657,693,120
   - md:
       cpu-override: True
       ensemble: minimize
   - ligate:
       steer:
         nsteps: 12000
+        temperature: 500
   - md:
       cpu-override: True
       ensemble: minimize

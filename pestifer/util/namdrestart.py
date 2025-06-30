@@ -147,7 +147,7 @@ def make_namd_restart(args,**kwargs):
 
     if len(args.slurm)>0:
         bc=ByteCollector()
-        bc.injest_file(args.slurm)
+        bc.ingest_file(args.slurm)
         oldscripts=glob.glob(f'%{args.slurm}%-*')
         if len(oldscripts)==0:
             n=1

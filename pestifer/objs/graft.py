@@ -145,7 +145,7 @@ class Graft(AncestorAwareObj):
                 self.index_residues.append(residue)
             elif residue>f'{self.source_resseqnum2}{self.source_insertion2}' and residue<=f'{self.source_resseqnum3}{self.source_insertion3}':
                 self.mover_residues.append(residue)
-        # only injest links that are internal to this set of residues or that link to index residues
+        # only ingest links that are internal to this set of residues or that link to index residues
         self.my_links=type(g_links)([])
         for l in g_links:
             if l.residue1 in self.mover_residues and l.residue2 in self.mover_residues:

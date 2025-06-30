@@ -1,11 +1,10 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" The Config class:  parsing the config file and creating the Config object 
-
-    Pestifer's user-configuration input uses ycleptic, an enhanced, YAML-based
-    configuration file manager.  The Config object is a descendent of the
-    Yclept class.  It also houses the ResourceManager object, which manages
-    access to the contents of Pestifer's "resources" directory.
-
+""" 
+A class for parsing the config file and creating the Config object 
+Pestifer's user-configuration input uses ycleptic, an enhanced, YAML-based
+configuration file manager.  The Config object is a descendent of the
+Yclept class.  It also houses the ResourceManager object, which manages
+access to the contents of Pestifer's ``resources`` directory.
 """
 
 import os
@@ -22,11 +21,19 @@ from .stringthings import my_logger
 logger=logging.getLogger(__name__)
 
 class Config(Yclept):
-    """ The Config class:  parsing the config file and creating the Config object
-    Pestifer's user-configuration input uses ycleptic, an enhanced, YAML-based
-    configuration file manager.  The Config object is a descendent of the
-    Yclept class.  It also houses the ResourceManager object, which manages
-    access to the contents of Pestifer's "resources" directory.
+    """ 
+    A class for managing the configuration of Pestifer.
+    This class extends the Yclept class to provide additional functionality
+    specific to Pestifer's configuration needs.
+
+    Parameters
+    ----------
+    userfile : str, optional
+        Path to the user-specific configuration file. If not provided, the default configuration is used.
+    userdict : dict, optional
+        A dictionary of user-specific configuration options. If not provided, the default configuration is used.
+    quiet : bool, optional
+        If True, suppresses output to the console. Default is False.
     """
     def __init__(self,userfile='',userdict={},quiet=False):
         vrep=f'ycleptic v. {version("ycleptic")}\npidibble v. {version("pidibble")}'
@@ -40,7 +47,7 @@ class Config(Yclept):
         assert os.path.exists(basefile)
         # ycleptic's init:
         super().__init__(basefile,userfile=userfile,userdict=userdict)
-        processor_info=self.processor_info()
+        processor_info=self._get_processor_info()
         if not quiet:
             my_logger(processor_info,logger.info,just='<',frame='*',fill='')
         self._set_internal_shortcuts()
@@ -48,14 +55,21 @@ class Config(Yclept):
         self.RM.update_charmmff(self['user']['charmmff'].get('tarball',''))
         self.RM.update_pdbrepository(self['user']['charmmff'].get('pdbcollections',[]))
 
-    def processor_info(self):
-        """ Determine the number of CPUs and GPUs available for this process.
+    def _get_processor_info(self):
+        """ 
+        Determine the number of CPUs and GPUs available for this process.
         This method checks if the process is running under SLURM (a job scheduler)
         and retrieves the number of nodes and tasks per node. If SLURM variables are not set,
         it defaults to the local CPU count. It also checks for available GPUs using GPUtil.
-        Returns:
-        --------
-        str: A string summarizing the number of CPUs and GPUs available.
+        If running under SLURM, the return value includes the number of nodes and tasks per node.
+        If running locally, it includes the local CPU count and the number of GPUs detected.
+        If no GPUs are detected, it will not mention GPUs in the output.
+        If GPUs are detected, it will include the number of GPUs and their IDs.
+
+        Returns
+        -------
+        str
+            A string summarizing the number of CPUs and GPUs available.
         """
         self.slurmvars={k:os.environ[k] for k in os.environ if 'SLURM' in k}
         self.local_ncpus=os.cpu_count()

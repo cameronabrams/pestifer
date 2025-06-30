@@ -30,7 +30,8 @@ from argparse import Namespace
 from functools import singledispatchmethod
 
 class BaseObj(Namespace):
-    """A class defining a namespace with custom attribute controls.
+    """
+    A class defining a namespace with custom attribute controls.
 
     Required attributes are those that must have a value assigned
     upon instance creation.  Optional attributes *may* have a 
@@ -43,14 +44,21 @@ class BaseObj(Namespace):
     values in order to have a value.  Finally, any attribute may
     be designated as silent when relative comparisons between
     object instances are made.
-    
-    Attributes
-    ----------
-    req_attr : list
-        List of required attributes as strings. These attributes must have values assigned at instance creation time, otherwise an AssertionError is raised
-    opt_attr : list
+   
+    """
+
+    req_attr=[]
+    """
+    List of required attributes as strings. These attributes must have values assigned at instance creation time, otherwise an AssertionError is raised
+    """
+
+    opt_attr=[]
+    """
         List of optional attributes as strings. These attributes may have values assigned at instance creation time, but need not; if they do not have values, they are simply not present in the instance's __dict__.
-    alt_attr : list
+    """
+
+    alt_attr=[]
+    """
         Lists of pairs of mutually exclusive attributes.
         Each pair is a list of two strings, each of which is an attribute label. If one of the attributes in the pair has a value assigned at instance creation time, the other is not allowed to have a value. If neither attribute in the pair has a value, then both are simply
         not present in the instance's __dict__.
@@ -58,8 +66,10 @@ class BaseObj(Namespace):
         This means that if 'is_edible' has a value, 'is_flavorable'
         cannot have a value, and vice versa.
         If neither attribute in the pair has a value, then both are simply not present in the
-        instance's __dict__.
-    attr_choices : dict
+    """
+
+    attr_choices={}
+    """
         Dictionary of attributes with limited set of possible values.
         The keys are attribute labels, and the values are lists of possible
         values for the respective attributes. If an attribute is present
@@ -70,7 +80,10 @@ class BaseObj(Namespace):
         This means that if 'flavor' has a value, it must be one of the
         values in the list, e.g., 'sweet', 'sour', or 'bitter'.
         If 'flavor' is not present, it is simply not present in the instance's __dict__.
-    opt_attr_deps : dict
+    """
+
+    opt_attr_deps={}
+    """ 
         Dictionary of optional attributes that have required attributes
         that must also have values assigned at instance creation time.
         The keys are optional attribute labels, and the values are lists of
@@ -80,7 +93,10 @@ class BaseObj(Namespace):
         This means that if 'has_sauce' has a value, 'sauce_type'
         must also have a value assigned at instance creation time.
         If 'has_sauce' is not present, it is simply not present in the instance's __dict__.
-    ignore_att : list
+    """
+    
+    ignore_attr=[]
+    """
         List of attributes that are ignored when comparing instances.
         This is a list of attribute labels that are not considered when
         comparing instances of this class. If an attribute is in this list,
@@ -90,27 +106,12 @@ class BaseObj(Namespace):
         are not considered when comparing instances of this class.
         If an attribute is not present, it is simply not present in the instance's __dict__.
     """
-    # :no-index:
-    req_attr=[]
     
-    # :no-index:
-    opt_attr=[]
-
-    # :no-index:
-    alt_attr=[]
-
-    # :no-index:
-    attr_choices={}
-
-    # :no-index:
-    opt_attr_deps={}
-
-    # :no-index:
-    ignore_attr=[]
-
     @singledispatchmethod
     def __init__(self,input_obj):
-        """Default constructor fails; all constructions are argument-type dependent """
+        """
+        Default constructor fails; all constructions are argument-type dependent 
+        """
         msg=f'Cannot initialize {self.__class__} from object type {type(input_obj)}'
         logger.error(msg)
         raise TypeError(msg)
@@ -121,7 +122,8 @@ class BaseObj(Namespace):
 
     @__init__.register(dict)
     def _from_dict(self,input_dict):
-        """BaseObj constructor when single positional argument is a dict
+        """
+        BaseObj constructor when single positional argument is a dict
         Parameters
         ----------
         input_dict : dict
@@ -156,7 +158,8 @@ class BaseObj(Namespace):
         super().__init__(**prep_dict)
 
     def __eq__(self,other):
-        """Defines the equality operator for BaseObj instances.
+        """
+        Defines the equality operator for BaseObj instances.
         The two instances are considered equal if their attribute values are equal.
         This includes all required attributes and any common optional attributes.
 
@@ -181,7 +184,8 @@ class BaseObj(Namespace):
         return all(test_list)
     
     def __lt__(self,other):
-        """Defines the less-than operator for BaseObj instances.
+        """
+        Defines the less-than operator for BaseObj instances.
 
         Parameters
         ----------
@@ -201,7 +205,8 @@ class BaseObj(Namespace):
         return all(le_list) and any(lt_list)
     
     def __le__(self,other):
-        """Defines the less-than-or-equal-to operator for BaseObj instances.
+        """
+        Defines the less-than-or-equal-to operator for BaseObj instances.
         The two instances are considered less than or equal to each other if their attribute values are equal or if one is less than the other.
 
         Parameters
@@ -221,7 +226,8 @@ class BaseObj(Namespace):
         return all(le_list)
     
     def weak_lt(self,other,attr=[]):
-        """Defines a "weak" less-than operator for BaseObj instances.  Only those attributes listed in the attr
+        """
+        Defines a weak less-than operator for BaseObj instances.  Only those attributes listed in the attr
         parameter are considered in the comparison
 
         Parameters
@@ -236,10 +242,12 @@ class BaseObj(Namespace):
         return all(le_list) and any(lt_list)
 
     def strhash(self,fields=[]):
-        """Generates a string hash of the calling instance's attributes.
+        """
+        Generates a string hash of the calling instance's attributes.
         The hash is a string of the values of the attributes sorted by their names.
+        
         Parameters
-        ---------
+        ----------
         fields : list, optional
             attributes to be included in the identifier
         """
@@ -251,7 +259,8 @@ class BaseObj(Namespace):
         return result
     
     def matches(self,**fields):
-        """Defines a non-strict match operator for BaseObj instances.
+        """
+        Defines a non-strict match operator for BaseObj instances.
         The two instances are considered a match if all key:val pairs in fields
         match the corresponding key:val pairs in the calling instance's attributes.
 
@@ -275,11 +284,13 @@ class BaseObj(Namespace):
         return True
     
     def allneg(self,**fields):
-        """ Determines if the calling instance has NO attributes
+        """ 
+        Determines if the calling instance has NO attributes
         that match the key:val pairs in fields.
         This is a strict no-match operator, meaning that if any
         key:val pair in fields matches the corresponding key:val pair
         in the calling instance's attributes, the method returns False.
+        
         Parameters
         ----------
         field : dict, optional
@@ -299,7 +310,8 @@ class BaseObj(Namespace):
         return all([x!=y for x,y in [(goodfields[k],self.__dict__[k]) for k in goodfields.keys()]])
 
     def wildmatch(self,**fields):
-        """ Defines a wildcard match operator for BaseObj instances.
+        """ 
+        Defines a wildcard match operator for BaseObj instances.
         The two instances are considered a match if all key:val pairs in fields
         match the corresponding key:val pairs in the calling instance's attributes,
         such that the keys in fields are substrings of the attribute names
@@ -329,7 +341,8 @@ class BaseObj(Namespace):
         return True
 
     def dump(self):
-        """Simple dump of this item's __dict__ in YAML format.
+        """
+        Simple dump of this item's __dict__ in YAML format.
 
         Returns
         -------
@@ -342,7 +355,8 @@ class BaseObj(Namespace):
         return yaml.dump(retdict)
     
     def inlist(self,a_list):
-        """Checks if the calling instance is a member of a_list
+        """
+        Checks if the calling instance is a member of a_list
         This is a simple membership test that checks if the calling instance
         is equal to any element in a_list.
 
@@ -362,7 +376,8 @@ class BaseObj(Namespace):
         return False
     
     def map_attr(self,mapped_attr,key_attr,map):
-        """Simple cross-attribute mapper. 
+        """
+        Simple cross-attribute mapper. 
 
         Parameters
         ----------
@@ -381,7 +396,8 @@ class BaseObj(Namespace):
                 self.__dict__[mapped_attr]=val
 
     def swap_attr(self,attr1,attr2):
-        """Simple attribute value swapper
+        """
+        Simple attribute value swapper
         
         Parameters
         ----------
@@ -405,7 +421,8 @@ class BaseObj(Namespace):
                 raise AttributeError(f'attribute 2 {attr2} not found.')
 
     def copy_attr(self,recv_attr,src_attr):
-        """Simple attribute copier 
+        """
+        Simple attribute copier 
         
         Parameters
         ----------
@@ -426,7 +443,8 @@ class BaseObj(Namespace):
                 raise AttributeError(f'source attribute {src_attr} not found.')
 
     def set(self,shallow=False,**fields):
-        """Sets the values of the calling instance's attributes
+        """
+        Sets the values of the calling instance's attributes
         to the values in fields.  If shallow is False, and if there are
         nested objects, their attributes will also be set.
         If shallow is True, only the attributes of the calling instance
@@ -453,7 +471,8 @@ class BaseObj(Namespace):
                                 subitem.set(**fields)
 
     def assign_obj_to_attr(self,attr,objList,**matchattr):
-        """Assigns the single object from objList whose
+        """
+        Assigns the single object from objList whose
         attributes match the matchattr dict to the 
         calling instances attr attribute, but only if
         the result of the match-search is valid,
@@ -493,7 +512,8 @@ class BaseObj(Namespace):
             # raise ValueError(f'stop')
     
     def update_attr_from_obj_attr(self,attr,obj,obj_attr):
-        """Set value of caller's attribute from another
+        """
+        Set value of caller's attribute from another
         attribute of a separate object
 
         Parameters
@@ -514,19 +534,21 @@ class BaseObj(Namespace):
         setattr(self,attr,getattr(getattr(self,objlist)[index],obj_attr))
 
 class CloneableObj(BaseObj):
-    """A class defining a custom namespace that can be cloned 
+    """
+    A class defining a custom namespace that can be cloned 
     
     This BaseObj specialization gives instances the ability to
     be cloned and to remember their source object.  Attribute
     values can optionally be changed during the cloning
-    operation.  The attribute 'clone_of' is added as an optional 
-    attribute; any BaseObj instance with an attribute named 
-    'clone_of' is interpreted as a clone.
+    operation.  The attribute ``clone_of`` is added as an optional
+    attribute; any BaseObj instance with an attribute named
+    ``clone_of`` is interpreted as a clone.
 
     """
     opt_attr=BaseObj.opt_attr+['clone_of']
     def clone(self,**options):
-        """Generates and returns a clone of the calling instance
+        """
+        Generates and returns a clone of the calling instance
         
         Parameters
         ----------
@@ -547,7 +569,8 @@ class CloneableObj(BaseObj):
         return x
     
     def is_clone(self):
-        """Determines if the calling instance is a clone
+        """
+        Determines if the calling instance is a clone
         A clone is defined as an instance that has a 'clone_of' attribute
 
         Returns
@@ -557,7 +580,8 @@ class CloneableObj(BaseObj):
         """
         return 'clone_of' in self.__dict__
     def get_original(self):
-        """Returns identifier of object the calling instance is a clone of 
+        """
+        Returns identifier of object the calling instance is a clone of 
         or None if calling instance is not a clone 
         
         Returns
@@ -573,7 +597,8 @@ class CloneableObj(BaseObj):
             return None
         
 class AncestorAwareObj(CloneableObj):
-    """A class defining custom, cloneable namespaces that can exists in a hierarchy 
+    """
+    A class defining custom, cloneable namespaces that can exists in a hierarchy 
     
     In cases where an object instance attribute is *another* object, like a BaseObj or
     any derivative thereof, one often would like to allow the "child" object to have
@@ -586,7 +611,8 @@ class AncestorAwareObj(CloneableObj):
     ignore_attr=CloneableObj.ignore_attr+['ancestor_obj']
     
     def claim_self(self,stamp):
-        """Applies the stamp to the calling instance's ancestor_obj
+        """
+        Applies the stamp to the calling instance's ``ancestor_obj``
         attribute 
         
         Parameters
@@ -598,7 +624,8 @@ class AncestorAwareObj(CloneableObj):
         # self.__dict__['ancestor_obj']=stamp
 
     def claim_descendants(self,stamp):
-        """Recursively instructs calling instance to stamp all of 
+        """
+        Recursively instructs calling instance to stamp all of 
         its descendant objects 
         
         Parameters
@@ -615,14 +642,15 @@ class AncestorAwareObj(CloneableObj):
                     obj.claim_descendants(stamp)
 
 class StateInterval(AncestorAwareObj):
-    """A class defining a custom, ancestor-aware namespace that encodes the 
+    """
+    A class defining a custom, ancestor-aware namespace that encodes the 
     state between two bounding values
     
     In reference to an arbitrary list, this class defines a construction
-    that assigns a value for 'state' to items in the list inclusively between
+    that assigns a value for ``state`` to items in the list inclusively between
     two indices.  This is an ancestor-aware namespace with the additional
-    attributes 'state' and 'bound'
-    
+    attributes ``state`` and ``bounds``
+
     """
     req_attr=AncestorAwareObj.req_attr+['state','bounds']
     opt_attr=AncestorAwareObj.opt_attr+['build']
@@ -632,16 +660,21 @@ class StateInterval(AncestorAwareObj):
         super().__init__(input_dict)
     
     def declare_buildable(self):
-        """Sets the build attribute to True"""
+        """
+        Sets the build attribute to True
+        """
         self.build=True
 
     def increment_rightbound(self):
-        """Increments the position-1 element of the bounds attribute
-        of the calling instance """
+        """
+        Increments the position-1 element of the bounds attribute
+        of the calling instance
+        """
         self.bounds[1]+=1
     
     def num_items(self):
-        """Returns a calculated value of the number of items inclusively
+        """
+        Returns a calculated value of the number of items inclusively
         between the two bounds, assuming we are referring to a container
         object with sequential indicies 
         
@@ -653,11 +686,14 @@ class StateInterval(AncestorAwareObj):
         return self.bounds[1]-self.bounds[0]+1
     
     def pstr(self):
-        """Returns a pretty string version"""
+        """
+        Returns a pretty string version
+        """
         return f'{self.state}({self.bounds[1]-self.bounds[0]+1})'
 
 class ObjList(UserList):
-    """List of BaseObjs or derivatives thereof
+    """
+    List of BaseObjs or derivatives thereof
     
     When collected into lists, BaseObj instances can acquire collective
     importance that needs to be handled.  This class allows for filtering,
@@ -666,21 +702,24 @@ class ObjList(UserList):
     """
     objliststamp=True
     def __init__(self,data):
-        """Standard initialization of the UserList """
+        """
+        Standard initialization of the UserList
+        """
         super().__init__(data)
 
     def filter(self,**fields):
-        """Creates a returns a new list containing objects
-        whose attributes match the fields dictionary 
-        
-        This method uses the "matches()" instance method
+        """
+        Creates a returns a new list containing objects
+        whose attributes match the fields dictionary
+
+        This method uses the ``matches()`` instance method
         of the BaseObj class
 
         Parameters
         ----------
         fields : dict
             attribute-name:value pairs used to search for
-            'hits' in the calling instance
+            hits in the calling instance
         
         Returns
         -------
@@ -693,16 +732,19 @@ class ObjList(UserList):
         return retlist
     
     def negfilter(self,**fields):
-        """Applies a negated filter to the calling instance
+        """
+        Applies a negated filter to the calling instance
         Creates a returns a new list containing objects
         whose attributes do NOT match the fields dictionary
-        This method uses the "allneg()" instance method
+        This method uses the ``allneg()`` instance method
         of the BaseObj class
+        
         Parameters
         ----------
         fields : dict
             attribute-name:value pairs used to search for
-            'hits' in the calling instance
+            hits in the calling instance
+
         Returns
         -------
         list :
@@ -715,15 +757,18 @@ class ObjList(UserList):
         
 
     def ifilter(self,**fields):
-        """Creates a returns a new list containing indices
+        """
+        Creates a returns a new list containing indices
         of objects whose attributes match the fields dictionary
-        This method uses the "matches()" instance method
+        This method uses the ``matches()`` instance method
         of the BaseObj class
+        
         Parameters
         ----------
         fields : dict
             attribute-name:value pairs used to search for
             'hits' in the calling instance
+        
         Returns
         -------
         list
@@ -735,7 +780,8 @@ class ObjList(UserList):
         return retlist
     
     def get(self,**fields):
-        """Special implementation of filter
+        """
+        Special implementation of filter
         
         get returns a single object if there is only one match;
         if there are multiple matches, all are returned in a list;
@@ -765,6 +811,27 @@ class ObjList(UserList):
             return R
         
     def iget(self,**fields):
+        """
+        Special implementation of ifilter
+        iget returns a single index if there is only one match;
+        if there are multiple matches, all indices are returned in a list;
+        if there are no matches, None is returned.
+
+        Parameters
+        ----------
+        fields : dict
+            attribute-name:value pairs used to search for
+            hits in the calling instance
+
+        Returns
+        -------
+        None :
+            if no elements matching fields are found in calling instance
+        int :
+            if one element matching fields is found, this is its index
+        list :
+            list of all indices matching fields if more than one matches
+        """
         I=self.ifilter(**fields)
         if len(I)==0:
             return None
@@ -774,7 +841,8 @@ class ObjList(UserList):
             return I
 
     def set(self,shallow=False,**fields):
-        """Element attribute-setter
+        """
+        Element attribute-setter
         
         Parameters
         ----------
@@ -786,8 +854,9 @@ class ObjList(UserList):
             item.set(shallow=shallow,**fields)
 
     def prune(self,objlist=[],attr_maps=[]):
-        """Attribute-based pruning by referencing and mapping another list  
-        
+        """
+        Attribute-based pruning by referencing and mapping another list
+
         Parameters
         ----------
         objlist : list
@@ -816,8 +885,9 @@ class ObjList(UserList):
         return acc_list
     
     def prune_exclusions(self,**kwargs):
-        """Attribute-based list pruning 
-        
+        """
+        Attribute-based list pruning
+
         Parameters
         ----------
         kwargs : dict
@@ -842,7 +912,8 @@ class ObjList(UserList):
         return acc_list
     
     def get_attr(self,S:tuple,**fields):
-        """Return list of S-matching attributes from among elements matching fields
+        """
+        Return list of S-matching attributes from among elements matching fields
          
         Parameters
         ----------
@@ -871,7 +942,8 @@ class ObjList(UserList):
         return L.get(**subfields)
     
     def sort(self,by=None,reverse=False):
-        """ ObjList sort function, a simple override of UserList.sort() 
+        """ 
+        ObjList sort function, a simple override of UserList.sort() 
         
         Parameters
         ----------
@@ -888,7 +960,8 @@ class ObjList(UserList):
             self.data.sort(key=key,reverse=reverse)
 
     def uniqattrs(self,attrs=[],with_counts=False):
-        """Generates a dictionary of list of unique values for each 
+        """
+        Generates a dictionary of list of unique values for each 
         attribute 
         
         Parameters
@@ -925,7 +998,8 @@ class ObjList(UserList):
         return uattrs
     
     def binnify(self,fields=[]):
-        """Simple binning of all elements by unique hashes of values of fields
+        """
+        Simple binning of all elements by unique hashes of values of fields
 
         Parameters
         ----------
@@ -950,7 +1024,8 @@ class ObjList(UserList):
         return bins
     
     def puniq(self,fields=[]):
-        """Simple test that all elements of self are 'unique' among fields 
+        """
+        Simple test that all elements of self are unique among fields 
         
         Parameters
         ----------
@@ -966,7 +1041,8 @@ class ObjList(UserList):
         return len(bins)==len(self)
     
     def puniquify(self,fields=[],new_attr_name='_ORIGINAL_',make_common=[]):
-        """Systematic attribute altering to make all elements unique
+        """
+        Systematic attribute altering to make all elements unique
         
         There may be a set of attributes for which no two elements may
         have the exact same set of respective values.  This method 
@@ -1023,12 +1099,13 @@ class ObjList(UserList):
                     s.__dict__.update(use_common)
     
     def state_bounds(self,state_func):
-        """Reduces calling instance to a list of state intervals 
+        """
+        Reduces calling instance to a list of state intervals 
         
         Parameters
         ----------
         state_func : method
-            A function that returns the 'state value' of a single 
+            A function that returns the state value of a single 
             element of the calling instance
 
         Returns
@@ -1052,7 +1129,8 @@ class ObjList(UserList):
         return slices
     
     def map_attr(self,mapped_attr,key_attr,map):
-        """Simple cross-attribute mapper, applied to each element
+        """
+        Simple cross-attribute mapper, applied to each element
         of the calling instance
         
         Parameters
@@ -1070,7 +1148,8 @@ class ObjList(UserList):
                 item.map_attr(mapped_attr,key_attr,map)
     
     def swap_attr(self,attr1,attr2):
-        """Simple attribute value swapper, applied to each element
+        """
+        Simple attribute value swapper, applied to each element
         of caller
         
         Parameters
@@ -1084,7 +1163,8 @@ class ObjList(UserList):
             item.swap_attr(attr1,attr2)
 
     def copy_attr(self,recv_attr,src_attr):
-        """Simple attribute copier, applied to each element of caller
+        """
+        Simple attribute copier, applied to each element of caller
         
         Parameters
         ----------
@@ -1097,7 +1177,8 @@ class ObjList(UserList):
             item.copy_attr(recv_attr,src_attr)
 
     def assign_objs_to_attr(self,attr,objList,**matchattr):
-        """Assigns the single object from objList whose
+        """
+        Assigns the single object from objList whose
         attributes match the matchattr dict to the 
         attr attribute of every element in the calling
         instance; any elements that 
@@ -1120,7 +1201,8 @@ class ObjList(UserList):
         return self.__class__(delete_us)
     
     def update_attr_from_obj_attr(self,attr,obj,obj_attr):
-        """Set value of attribues of all elements of caller
+        """
+        Set value of attribues of all elements of caller
         from another attribute of a separate object
 
         Parameters
@@ -1139,7 +1221,8 @@ class ObjList(UserList):
             item.update_attr_from_obj_attr(attr,obj,obj_attr)
 
     def update_attr_from_objlist_elem_attr(self,attr,objlist,index,obj_attr):
-        """Set value of attribues of all elements of caller
+        """
+        Set value of attribues of all elements of caller
         from another attribute of index'th element objectlist
 
         Parameters
@@ -1159,7 +1242,8 @@ class ObjList(UserList):
             item.update_attr_from_objlist_elem_attr(attr,objlist,index,obj_attr)
 
     def remove_duplicates(self,fields=[]):
-        """Removes duplicates from the calling instance
+        """
+        Removes duplicates from the calling instance
         The duplicates are determined by the hash of the values
         of the attributes named in the fields list. 
 
@@ -1180,11 +1264,13 @@ class ObjList(UserList):
             #     logger.debug(f'discarding {str(c)}')
 
 class CloneableObjList(ObjList):
-    """A class for lists of cloneable objs 
+    """
+    A class for lists of cloneable objs 
     
     """
     def clone(self,**options):
-        """List cloner
+        """
+        List cloner
 
         Parameters
         ----------
@@ -1203,11 +1289,13 @@ class CloneableObjList(ObjList):
         return R
 
 class AncestorAwareObjList(CloneableObjList):
-    """A class for lists of ancestor-aware objs 
+    """
+    A class for lists of ancestor-aware objs 
 
     """
     def claim_descendants(self,stamp):
-        """Instructs caller to stamp all elements' descendant objects 
+        """
+        Instructs caller to stamp all elements' descendant objects 
         
         Parameters
         ----------
@@ -1219,10 +1307,13 @@ class AncestorAwareObjList(CloneableObjList):
             obj.claim_descendants(stamp)
 
 class StateIntervalList(AncestorAwareObjList):
-    """A class for lists of StateIntervals """
+    """
+    A class for lists of StateIntervals
+    """
 
     def insert(self,alien:StateInterval):
-        """Inserts a StateInterval into the calling instance
+        """
+        Inserts a StateInterval into the calling instance
         The insertion is done in such a way that the calling instance
         remains sorted by the bounds of the intervals, and that
         the new interval is inserted in such a way that it does not

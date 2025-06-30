@@ -44,8 +44,8 @@ class PsfgenTask(BaseTask):
     def do(self):
         self.log_message('initiated')
         self.inherit_state()
-        logger.debug('Injesting molecule(s)')
-        self.injest_molecules()
+        logger.debug('ingesting molecule(s)')
+        self.ingest_molecules()
         self.statevars['base_molecule']=self.base_molecule
         logger.debug(f'base mol num images {self.base_molecule.num_images()}')
         logger.debug('Running first psfgen')
@@ -189,7 +189,7 @@ class PsfgenTask(BaseTask):
 
     def _write_glycans(self,fw):
         psf=self.statevars['psf']
-        logger.debug(f'Injesting {psf}')
+        logger.debug(f'ingesting {psf}')
         struct=PSFContents(psf,parse_topology=['bonds'])
         logger.debug(f'Making graph structure of glycan atoms...')
         glycanatoms=struct.atoms.get(segtype='glycan')
@@ -236,19 +236,19 @@ class PsfgenTask(BaseTask):
                     g.add_edge(ai,aj)
         return len(G)
 
-    def injest_molecules(self):
+    def ingest_molecules(self):
         specs=self.specs
         self.source_specs=specs['source']
         logger.debug(f'User-input modspecs {self.specs["mods"]}')
         self.objmanager=ObjManager(self.specs['mods'])
         seqmods=self.objmanager.get('seq',{})
-        logger.debug(f'Injesting seqmods {seqmods}')
+        logger.debug(f'ingesting seqmods {seqmods}')
         if 'grafts' in seqmods:
-            logger.debug(f'looking for graft sources to injest')
+            logger.debug(f'looking for graft sources to ingest')
             Grafts=seqmods['grafts']
             for g in Grafts:
                 if not g.source_pdbid in self.molecules:
-                    logger.debug(f'Injesting graft source {g.source_pdbid}')
+                    logger.debug(f'ingesting graft source {g.source_pdbid}')
                     this_source={
                         'id':g.source_pdbid,
                         'file_format':'PDB'

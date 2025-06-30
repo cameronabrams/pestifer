@@ -1,5 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-"""A class for processing biological assemblies
+"""
+A class for processing biological assemblies
 """
 
 import numpy as np
@@ -13,7 +14,8 @@ from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
 from .chainidmanager import ChainIDManager
 
 def build_tmat(RotMat,TransVec):
-    """Builds a 4 x 4 homogeneous transformation matrix 
+    """
+    Builds a 4 x 4 homogeneous transformation matrix 
     
     Parameters
     ----------
@@ -30,7 +32,29 @@ def build_tmat(RotMat,TransVec):
     return tmat
 
 class Transform(AncestorAwareObj):
+    """
+    A class for handling transformations of segments in a molecular structure.
+    This class represents a transformation that can be applied to segments
+    in an asymmetric unit, including rotation and translation.
+    """
+
     req_attr=AncestorAwareObj.req_attr+['index','tmat','applies_chainIDs','chainIDmap','segname_by_type_map']
+    """
+    Required attributes for the Transform class.
+    
+    Attributes
+    ----------
+    index : int
+        Index of the transformation.
+    tmat : numpy.ndarray
+        4 x 4 transformation matrix.
+    applies_chainIDs : list
+        List of chain IDs to which this transformation applies.
+    chainIDmap : dict
+        Mapping of chain IDs for the transformation.
+    segname_by_type_map : dict
+        Mapping of segment names by type for the transformation.
+    """
     def __init__(self,*input_objs):
         input_dict={
             'tmat':None,
@@ -60,14 +84,48 @@ class Transform(AncestorAwareObj):
         super().__init__(input_dict)
 
     def is_identity(self):
+        """
+        Checks if the transformation is an identity transformation.
+        An identity transformation is one where the transformation matrix is
+        an identity matrix and the translation vector is zero.
+        
+        Returns
+        -------
+        bool
+            True if the transformation is an identity transformation, False otherwise.
+        """
         return np.array_equal(np.identity(4,dtype=float),self.tmat)
 
     def register_mapping(self,segtype,chainID,seglabel):
+        """
+        Registers a mapping of segment type to chain ID and segment label.
+        This method updates the `segname_by_type_map` attribute with the provided
+        segment type, chain ID, and segment label.
+
+        Parameters
+        ----------
+        segtype : str
+            The type of the segment (e.g., 'protein', 'nucleic').
+        chainID : str
+            The chain ID associated with the segment.
+        seglabel : str
+            The label for the segment.
+        """
         if not segtype in self.segname_by_type_map:
             self.segname_by_type_map[segtype]={}
         self.segname_by_type_map[segtype][chainID]=seglabel
 
     def write_TcL(self):
+        """
+        Generates a Tcl command string that represents the transformation.
+        This method constructs a string that can be used in a Tcl script to apply
+        the transformation to a segment in VMD.
+
+        Returns
+        -------
+        str
+            A string containing the Tcl command to apply the transformation.
+        """
         retstr=r'{ '
         for i in range(4):
             retstr+=r'{ '
@@ -76,10 +134,41 @@ class Transform(AncestorAwareObj):
             retstr+=r' } '
         retstr+=r' }'
         return retstr
+    
     def __eq__(self,other):
+        """
+        Checks if this Transform instance is equal to another Transform instance.
+        Two Transform instances are considered equal if their transformation matrices are the same.
+        
+        Parameters
+        ----------
+        other : Transform
+            The other Transform instance to compare with.
+
+        Returns
+        -------
+        bool
+            True if the transformation matrices are equal, False otherwise.
+        """
         return np.array_equal(self.tmat,other.tmat)
     
     def generate_chainIDmap(self,auChainIDs,daughters,CM):
+        """
+        Generates a mapping of chain IDs for the transformation.
+        This method creates a mapping of chain IDs that this transformation applies to,
+        based on the asymmetric unit's chain IDs and the daughters of segments.
+        If the transformation is an identity transformation, it applies a "thru map" to the chain IDs.
+        Otherwise, it generates a new mapping for the chain IDs.
+        
+        Parameters
+        ----------
+        auChainIDs : list
+            The list of chain IDs in the asymmetric unit.
+        daughters : dict
+            A dictionary mapping parent segment IDs to their daughter segment IDs.
+        CM : ChainIDManager
+            The ChainIDManager instance used to manage chain ID mappings.
+        """
         applies_to=self.applies_chainIDs[:]
         for d,v in daughters.items():
             if d in self.applies_chainIDs:
@@ -93,6 +182,11 @@ class Transform(AncestorAwareObj):
             self.chainIDmap=CM.generate_next_map(auChainIDs,applies_to)
 
 class TransformList(AncestorAwareObjList):
+    """
+    A class for handling lists of Transform objects.
+    This class inherits from AncestorAwareObjList and provides methods to manage
+    collections of Transform instances.
+    """
     def __init__(self,*args):
         L=[]
         if len(args)==1:
@@ -104,9 +198,32 @@ class TransformList(AncestorAwareObjList):
         super().__init__(L)
 
 class BioAssemb(AncestorAwareObj):
+    """
+    A class for handling biological assemblies in molecular structures.
+    This class represents a biological assembly, which can consist of multiple
+    transformations applied to segments in an asymmetric unit.
+    It is initialized with a dictionary or an AsymmetricUnit, TransformList, or AncestorAwareObjList instance.
+    If initialized with an AsymmetricUnit, it creates a default assembly with
+    the name 'A.U.' and an identity transformation.
+    If initialized with a TransformList or AncestorAwareObjList, it uses the transforms from that list.
+    If initialized with a dictionary, it expects the dictionary to contain the keys 'name', 'transforms', and 'index'.
+    The class also maintains a static index to ensure unique assembly names.
+    """
     _index=1 # start at 1
     req_attr=AncestorAwareObj.req_attr+['name','transforms','index']
-    ''' Container for handling info for "REMARK 350 BIOMOLECULE: #" stanzas in RCSB PDB files '''
+    """
+    Required attributes for the BioAssemb class.
+    
+    Attributes
+    ----------
+    name : str
+        The name of the biological assembly.
+    transforms : TransformList
+        A list of Transform objects representing the transformations applied to the assembly.
+    index : int
+        An index for the biological assembly, used to ensure unique names.
+    """
+
     def __init__(self,input_obj):
         if type(input_obj)==dict:
             input_dict=input_obj
@@ -132,10 +249,26 @@ class BioAssemb(AncestorAwareObj):
         cls._index=1
 
     def activate(self,AU:AsymmetricUnit,CM:ChainIDManager):
+        """
+        Activate the biological assembly by generating chain ID maps for its transformations.
+        
+        Parameters
+        ----------
+        AU : AsymmetricUnit
+            The asymmetric unit to which this biological assembly applies.
+        CM : ChainIDManager
+            The ChainIDManager instance used to manage chain ID mappings.
+        """
         for T in self.transforms:
             T.generate_chainIDmap(AU.segments.segnames,AU.segments.daughters,CM)
 
 class BioAssembList(AncestorAwareObjList):
+    """
+    A class for handling lists of BioAssemb objects.
+    This class inherits from AncestorAwareObjList and provides methods to manage
+    collections of biological assemblies.
+    """
+
     def __init__(self,*obj):
         BioAssemb.reset_index()
         B=[]

@@ -1,6 +1,7 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" A controller for the pestifer runtime.  Initialization of a Controller object generates
-the configuration, from which the list of tasks is created.  The do_tasks() method executes
+""" 
+A controller for the pestifer runtime.  Initialization of a Controller object generates
+the configuration, from which the list of tasks is created.  The ``do_tasks()`` method executes
 the tasks.
 """
 import logging
@@ -16,12 +17,22 @@ from .. import tasks
 logger=logging.getLogger(__name__)
 
 class Controller:
-    """ Controller class for managing the execution of tasks in the Pestifer runtime.
+    """ 
+    Controller class for managing the execution of tasks in the Pestifer runtime.
     This class initializes with a configuration and a list of user-specified tasks.
     It sets up the necessary file writers and creates a list of tasks to be executed.
     The tasks are executed in the order they are defined, and the results of each task
-    are collected in a report. If the last task is not a "terminate" task,
-    a default "terminate" task is added to ensure proper cleanup.
+    are collected in a report. If the last task is not a ``terminate`` task,
+    a default ``terminate`` task is added to ensure proper cleanup.
+
+    Parameters
+    ----------
+    config : Config
+        The configuration object containing user specifications and settings.
+    userspecs : dict, optional
+        A dictionary of user-specific configurations that will update the base configuration.
+    index : int, optional
+        An index for the controller instance, useful for identifying multiple controllers in a run.
     """
     def __init__(self,config:Config,userspecs={},index=0):
         self.index=index
@@ -82,22 +93,23 @@ class Controller:
         logger.info(f'Controller {self.index:02d} will execute {len(self.tasks)} task{ess}.')
 
     def do_tasks(self):
-        """ Execute the tasks in the order they were defined.
+        """
+        Execute the tasks in the order they were defined.
+
         This method iterates through the list of tasks, executing each one in turn.
         It collects the results of each task in a report dictionary, which maps task indices to their
         names, indices, and results. If any task fails (i.e., returns a non-zero result),
         a warning is logged, and the execution of subsequent tasks is aborted.
-        Returns:
-        --------
-        dict: A dictionary containing the results of each task, with task indices as keys.
-        The dictionary has the following structure:
-        {
-            task_index: {
-                'taskname': str,  # Name of the task
-                'taskindex': int,  # Index of the task in the task list
-                'result': any  # Result returned by the task
-            }
-        }
+
+        Returns
+        -------
+        dict
+            A dictionary containing the results of each task, with task indices as keys.
+            Each value is itself a dictionary with the following keys:
+
+            - ``taskname``: The name of the task
+            - ``taskindex``: The index of the task
+            - ``result``: The task's return code
         """
         task_report={}
         for task in self.tasks:
@@ -109,10 +121,12 @@ class Controller:
         return task_report
 
     def write_complete_config(self,filename='complete-user.yaml'):
-        """ Write the complete user configuration to a YAML file.
+        """ 
+        Write the complete user configuration to a YAML file.
         This method dumps the user configuration, including all modifications made during the execution of tasks,
         to a specified YAML file. The default filename is 'complete-user.yaml'.
-        Parameters:
+        
+        Parameters
         ----------
         filename : str, optional
             The name of the file to which the user configuration will be written. Default is 'complete-user.yaml'.

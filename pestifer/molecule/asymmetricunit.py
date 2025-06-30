@@ -1,6 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-"""A class for building the asymmetric unit from a PDB file
-
+"""
+A class for building the asymmetric unit from a PDB file
 """
 import logging
 logger=logging.getLogger(__name__)
@@ -26,10 +26,40 @@ from ..util.util import write_residue_map
 from ..util.cifutil import CIFdict
 
 class AsymmetricUnit(AncestorAwareObj):
+    """
+    A class for building the asymmetric unit from a PDB file.
+    """
+
     req_attr=AncestorAwareObj.req_attr+['atoms','residues','objmanager']
+    """
+    Required attributes:
+    
+    - atoms: AtomList of all atoms in the asymmetric unit
+    - residues: ResidueList of all residues in the asymmetric unit
+    - objmanager: ObjManager containing all modifications and additional objects
+    """
+
     opt_attr=AncestorAwareObj.opt_attr+['segments','ignored','pruned']
+    """
+    Optional attributes:
+
+    - segments: SegmentList of segments in the asymmetric unit
+    - ignored: List of residues/atoms to ignore
+    - pruned: List of residues/atoms that have been pruned
+    """
+
     residue_excludables={'resnames':'resname','chains':'chainID','segtypes':'segtype'}
+    """
+    Attributes that can be excluded from the asymmetric unit based on user specifications.
+    Key is the YAML key used the input file and value is the attribute of the residue to check against.
+    """
+
     atom_excludables={'altlocs':'altloc'}
+    """
+    Attributes that can be excluded from the asymmetric unit based on user specifications.
+    Key is the YAML key used the input file and value is the attribute of the atom to check against.
+    """
+
     def __init__(self,**objs):
         if len(objs)==0:
             logger.debug('Generating an empty A.U.')
@@ -73,7 +103,7 @@ class AsymmetricUnit(AncestorAwareObj):
                     if lnonemptyters>0:
                         atoms.reserialize()
                 # atoms.adjustSerials(ters)
-                objmanager.injest(ters)
+                objmanager.ingest(ters)
                 if 'REMARK.465' in pr:
                     missings=EmptyResidueList([EmptyResidue(p) for p in pr['REMARK.465'].tables['MISSING']])
                 ssbonds=SSBondList([SSBond(p) for p in pr.get(SSBond.PDB_keyword,[])])
@@ -137,7 +167,7 @@ class AsymmetricUnit(AncestorAwareObj):
             fromAtoms=ResidueList(atoms)
             fromEmptyResidues=ResidueList(missings)
             residues=fromAtoms+fromEmptyResidues
-            # self.injest_grafts(grafts,residues,links)
+            # self.ingest_grafts(grafts,residues,links)
             if sourcespecs.get('cif_residue_map_file',''):
                 write_residue_map(residues.cif_residue_map(),sourcespecs['cif_residue_map_file'])
             residues.apply_segtypes()
@@ -257,7 +287,7 @@ class AsymmetricUnit(AncestorAwareObj):
                 mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='conflict']))
             mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey=='user']))
             # Now append these to the objmanager's mutations
-            mutations=objmanager.injest(mutations)
+            mutations=objmanager.ingest(mutations)
             logger.debug(f'All mutations')
             mutations.sort(by=['typekey'])
             for m in mutations:
@@ -277,10 +307,10 @@ class AsymmetricUnit(AncestorAwareObj):
                         ignored_ssbonds.append(ssbonds.remove(s))
 
             # finalize the objmanager
-            ssbonds=objmanager.injest(ssbonds,overwrite=True)
-            links=objmanager.injest(links,overwrite=True)
-            grafts=objmanager.injest(grafts,overwrite=True)
-            patches=objmanager.injest(patches,overwrite=True)
+            ssbonds=objmanager.ingest(ssbonds,overwrite=True)
+            links=objmanager.ingest(links,overwrite=True)
+            grafts=objmanager.ingest(grafts,overwrite=True)
+            patches=objmanager.ingest(patches,overwrite=True)
             
             segments.inherit_mods(objmanager)
 
@@ -295,11 +325,29 @@ class AsymmetricUnit(AncestorAwareObj):
         super().__init__(input_dict)
 
     def add_segment(self,seg):
+        """
+        Adds a segment to the asymmetric unit.
+
+        Parameters
+        ----------
+        seg : Segment
+            The segment to add to the asymmetric unit.
+        """
         self.segments.append(seg)
 
-    def injest_grafts(self,grafts,residues,links):
-        # For each graft, add its residues beyond the graftpoint and the links involving those residues from the graft molecule as copies!
-        # also need to reassign resids to these grafts and update any chainIDs
+    def ingest_grafts(self,grafts,residues,links):
+        """
+        Ingests grafts into the asymmetric unit.
+
+        Parameters
+        ----------
+        grafts : GraftList
+            The list of grafts to ingest.
+        residues : ResidueList
+            The list of residues in the asymmetric unit.
+        links : LinkList
+            The list of links in the asymmetric unit.
+        """
         for g in grafts:
             graft_chainID=g.chainID
             chain_residues=residues.filter(chainID=graft_chainID)
@@ -316,17 +364,25 @@ class AsymmetricUnit(AncestorAwareObj):
                     residue.set_chainID(graft_chainID)
                     next_available_resid+=1
                     g.my_residues.append(residue)
-            # only injest links that are internal to this set of residues
-            injested_links=0
+            # only ingest links that are internal to this set of residues
+            ingested_links=0
             for l in g_links:
                 if l.residue1 in g.my_residues and l.residue2 in g.my_residues:
                     links.append(l)
-                    injested_links+=1
-            logger.debug(f'Chain {graft_chainID} of raw asymmetric unit injests {len(g.my_residues)} residues and {injested_links} links from graft {g.id}')
+                    ingested_links+=1
+            logger.debug(f'Chain {graft_chainID} of raw asymmetric unit ingests {len(g.my_residues)} residues and {ingested_links} links from graft {g.id}')
                 # residues.insert(last_chain_residue_idx+1,r)
                 # last_chain_residue_idx+=1
 
     def set_coords(self,altstruct):
+        """
+        Sets the coordinates of the asymmetric unit from an alternative structure.
+        
+        Parameters
+        ----------
+        altstruct : dict
+            The alternative structure containing atomic coordinates.
+        """
         atoms=AtomList([Atom(p) for p in altstruct[Atom.PDB_keyword]])
         atoms.extend([Hetatm(p) for p in altstruct.get(Hetatm.PDB_keyword,[])])
         ters=TerList([Ter(p) for  p in altstruct.get(Ter.PDB_keyword,[])])
