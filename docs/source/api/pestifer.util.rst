@@ -17,6 +17,7 @@ Submodules
    pestifer.util.coord
    pestifer.util.linkcell
    pestifer.util.logparsers
+   pestifer.util.namdcolvars
    pestifer.util.namdrestart
    pestifer.util.progress
    pestifer.util.units

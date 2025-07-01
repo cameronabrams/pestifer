@@ -1,4 +1,8 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+A deletion is a user-specified modification in which a sequence of one or
+more contiguous residues are deleted.
+"""
 import logging
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
@@ -7,31 +11,34 @@ from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
 from ..core.stringthings import split_ri
 
 class Deletion(AncestorAwareObj):
-    """A class for handling deletions 
-    
-    A deletion is a user-specified modification in which a sequence of one or
-    more contiguous residues are deleted.
-
-    Attributes
-    ----------
-    req_att : list
-        * chainID : str
-            chain ID of the segment to which deletion is made
-        * resseqnum1 : int
-            N-terminal resid of sequence to be deleted
-        * insertion1 : str
-            insertion code of N-terminal residue
-        * resseqnum2 : int
-            C-terminal resid of sequence to be deleted
-        * insertion2 : str
-            insertion code of the C-terminal residue
-
     """
-    req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
-    # opt_attr=AncestorAwareObj.opt_attr+['model']
-    yaml_header='deletions'
-    objcat='seq'
+    A class for handling deletions in a molecular sequence.
+    """
 
+    req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
+    """
+    Required attributes for a Deletion object.
+    These attributes must be provided when creating a Deletion object.
+
+    - ``chainID``: The chain ID of the segment from which residues are deleted.
+    - ``resseqnum1``: The N-terminal residue number of the deletion.
+    - ``insertion1``: The insertion code of the N-terminal residue.
+    - ``resseqnum2``: The C-terminal residue number of the deletion.
+    - ``insertion2``: The insertion code of the C-terminal residue.
+    """
+
+    yaml_header='deletions'
+    """
+    YAML header for Deletion objects.
+    This header is used to identify Deletion objects in YAML files.
+    """
+    
+    objcat='seq'
+    """
+    Category of the Deletion object.
+    This categorization is used to group Deletion objects in the object manager.
+    """
+    
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)

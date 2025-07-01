@@ -1,4 +1,9 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+A patch is a modification to a residue or residues defined in the CHARMM force field by ``PRES`` records.
+It is used to apply specific modifications to residues in a molecular structure, such as adding or removing
+functional groups or modifying the residue's properties.
+"""
 import logging
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
@@ -6,31 +11,47 @@ from ..core.stringthings import split_ri
 from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
 
 class Patch(AncestorAwareObj):
-    """A class for handing patch residues
-    
-    Attributes
-    ----------
-    req_attr : list
-        * patchname : str
-            name of the patch in CHARMMFF
-        * chainID : str
-            chain identifier of residue to be patched
-        * resseqnum : int
-            residue sequence number of residue to be patched
-        * insertion : str
-            insertion code of residue to be patched
-        * residue : Residue
-            residue object
-        * use_in_segment : str
-            whether the patch is used in the first or last segment of a chain, or not used
-            in a segment (optional, can be empty)
-
     """
+    A class for handing patch residues
+    """
+    
     req_attr=['patchname','chainID','resseqnum','insertion','residue','use_in_segment']
+    """
+    Required attributes for a Patch object.
+    These attributes must be provided when creating a Patch object.
+    
+    - ``patchname``: The name of the patch as defined in the CHARMM force field.
+    - ``chainID``: The chain identifier of the residue to be patched.
+    - ``resseqnum``: The residue sequence number of the residue to be patched.
+    - ``insertion``: The insertion code of the residue to be patched.
+    - ``residue``: The Residue object to be patched.
+    - ``use_in_segment``: Specifies whether the patch is applied to the first or last residue in a segment, and therefore should be declared inside a psfgen ``segment``.
+    """
+
     yaml_header='patches'
+    """
+    YAML header for Patch objects.
+    This header is used to identify Patch objects in YAML files.
+    """
+    
     objcat='seq'
+    """
+    Category of the Patch object.
+    This categorization is used to group Patch objects in the object manager.
+    """
+    
     in_segment_Npatches=['NTER','GLYP','PROP','ACE','ACED','ACP','ACPD','NNEU','NGNE']
+    """
+    List of patch names that are applied to the first residue in a segment.
+    These patches are typically used for N-terminal modifications.
+    """
+    
     in_segment_Cpatches=['CTER','CNEU','PCTE','CT1','CT2','CT3']
+    """
+    List of patch names that are applied to the last residue in a segment.
+    These patches are typically used for C-terminal modifications.
+    """
+
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)
@@ -65,17 +86,21 @@ class Patch(AncestorAwareObj):
         super().__init__(input_dict)
         
 class PatchList(AncestorAwareObjList):
-    """A class for handling lists of Patch objects
+    """
+    A class for handling lists of Patch objects
     
     This class inherits from AncestorAwareObjList and provides methods to manage
     a list of Patch objects.
     """
     def assign_residues(self,Residues):
-        """Assigns a list of Residue objects to the patch residues.
+        """
+        Assigns a list of Residue objects to the patch residues.
+        
         Parameters
         ----------
         Residues : list of Residue
             A list of Residue objects to be assigned to the patch residues.
+        
         Returns
         -------
         PatchList

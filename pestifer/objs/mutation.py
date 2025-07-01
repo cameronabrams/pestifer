@@ -1,4 +1,13 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+Single-residue mutations are handled in psfgen by including a "mutate" directive within
+a protein segment.  The mutate directive needs only the resid and 3-letter desired
+residue name at that resid position.  Mutate directives come after all pdb and residue
+directives in segment, typically.
+
+Mutations can be inferred directly from coordinate-file metadata or supplied by the
+user.
+"""
 import logging
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
@@ -10,40 +19,42 @@ from ..core.labels import Labels
 from ..core.stringthings import split_ri
 
 class Mutation(AncestorAwareObj):
-    """A class for handling single-residue mutations
-    
-    Single-residue mutations are handled in psfgen by including a "mutate" directive within
-    a protein segment.  The mutate directive needs only the resid and 3-letter desired
-    residue name at that resid position.  Mutate directives come after all pdb and residue
-    directives in segment, typically.
-
-    Mutations can be inferred directly from coordinate-file metadata or supplied by the
-    user.
-    
-    Attributes
-    ----------
-    req_attr : list
-        * chainID: str
-            chain ID of the segment to which mutation is made
-        * origresname: str
-            original residue name at the mutation position (3-letter code)
-        * resseqnum: int
-            residue sequence number of the residue to be mutated (author's sequence number)
-        * insertion: str
-            insertion code of the residue to be mutated (author's insertion code)
-        * newresname: str
-            new residue name at the mutation position (3-letter code)
-        * typekey: str
-            type of mutation, e.g., 'user' for user-specified mutations
-
-    opt_attr : list
-        * pdbx_auth_seq_num: str
-            mmCIF attribute for the residue sequence number, if available
     """
+    A class for handling single-residue mutations
+    """
+
     req_attr=AncestorAwareObj.req_attr+['chainID','origresname','resseqnum','insertion','newresname','typekey']
+    """
+    Required attributes for a Mutation object.
+    These attributes must be provided when creating a Mutation object.
+    
+    - ``chainID``: The chain ID of the segment where the mutation occurs.
+    - ``origresname``: The original residue name at the mutation site.
+    - ``resseqnum``: The residue number where the mutation is made.
+    - ``insertion``: The insertion code for the original residue.
+    - ``newresname``: The new residue name to be mutated to.
+    - ``typekey``: A key indicating the type of mutation (e.g., ``user``, ``author``, ``mmCIF``).
+    """
+
     opt_attr=AncestorAwareObj.opt_attr+['pdbx_auth_seq_num']
+    """ 
+    Optional attributes for a Mutation object.
+    These attributes may be present but are not required.
+    
+    - ``pdbx_auth_seq_num``: The PDBx author sequence number, which is used in mmCIF files to indicate the residue number.
+    """
+
     yaml_header='mutations'
+    """
+    YAML header for Mutation objects.
+    This header is used to identify Mutation objects in YAML files.
+    """
+    
     objcat='seq'
+    """
+    Category of the Mutation object.
+    This categorization is used to group Mutation objects in the object manager.
+    """
 
     @singledispatchmethod
     def __init__(self,input_obj):
@@ -104,7 +115,9 @@ class Mutation(AncestorAwareObj):
         return f'{self.chainID}:{self.origresname}{self.resseqnum}{self.insertion}{self.newresname}'
 
     def write_TcL(self):
-        """Writes the Tcl command to perform the mutation in a Psfgen script.
+        """
+        Writes the Tcl command to perform the mutation in a Psfgen script.
+        
         Returns
         -------
         str

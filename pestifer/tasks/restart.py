@@ -8,7 +8,9 @@ from ..core.basetask import BaseTask
 logger=logging.getLogger(__name__)
         
 class RestartTask(BaseTask):
-    """ This task only resets the workflow chain to named values of the psf, pdb, xsc, and coor files """
+    """ 
+    This task only resets the task chain to named values of the psf, pdb, xsc, and coor files 
+    """
     yaml_header='restart'
     def do(self):
         self.log_message('initiated')

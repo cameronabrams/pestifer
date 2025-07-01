@@ -1,31 +1,51 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+This class allows the user to orient a coordinate set along a specified axis
+and optionally align it with a reference atom.  The orientation is performed
+using the VMD ``orient`` command, which computes the principal axes of the
+coordinate set and aligns it with the specified axis.    
+"""
 import logging
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
 
 from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..core.scriptwriters import VMD
+from ..core.scripters import VMDScripter
 
 class Orient(AncestorAwareObj):
-    """A class for handling orientation of a coordinate set in VMD.
-    This class allows the user to orient a coordinate set along a specified axis
-    and optionally align it with a reference atom.  The orientation is performed
-    using the VMD `orient` command, which computes the principal axes of the
-    coordinate set and aligns it with the specified axis.
-    Attributes
-    ----------
-    req_attr : list
-        * axis : str
-            The axis along which to orient the coordinate set. Valid values are 'x', 'y', or 'z'.
-        * refatom : str, optional
-            The name of the reference atom to align the coordinate set with. If not specified,
-            the coordinate set is centered at the origin.
     """
-    req_attr=AncestorAwareObj.req_attr+['axis']
-    opt_attr=AncestorAwareObj.opt_attr+['refatom']
-    yaml_header='orient'
-    objcat='coord'
+    A class for handling orientation of a coordinate set in VMD.
+    """
 
+    req_attr=AncestorAwareObj.req_attr+['axis']
+    """
+    Required attributes for an Orient object.
+    These attributes must be provided when creating an Orient object.
+    
+    - ``axis``: The axis along which the coordinate set will be oriented.
+    """
+
+    opt_attr=AncestorAwareObj.opt_attr+['refatom']
+    """
+    Optional attributes for an Orient object.
+    These attributes may be present but are not required.
+
+    - ``refatom``: The name of the reference atom to align the coordinate set with. If not specified,
+      the coordinate set is centered at the origin.
+    """
+
+    yaml_header='orient'
+    """
+    YAML header for Orient objects.
+    This header is used to identify Orient objects in YAML files.
+    """
+    
+    objcat='coord'
+    """
+    Category of the Orient object.
+    This categorization is used to group Orient objects in the object manager.
+    """
+   
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)
@@ -39,14 +59,16 @@ class Orient(AncestorAwareObj):
             input_dict['refatom']=dat[1]
         super().__init__(input_dict)
 
-    def write_TcL(self,W:VMD):
-        """Write the Tcl commands to orient the coordinate set in VMD.
+    def write_TcL(self,W:VMDScripter):
+        """
+        Write the Tcl commands to orient the coordinate set in VMD.
         This method generates the Tcl commands to orient the coordinate set along the specified axis
         and optionally align it with a reference atom. The commands are written to the provided VMD
         script writer object.
+        
         Parameters
         ----------
-        W : VMD
+        W: VMD
             The VMD script writer object to which the Tcl commands will be written.
         """
         W.addline('set a [atomselect top all]')
@@ -63,20 +85,21 @@ class Orient(AncestorAwareObj):
             W.addline(r'}')
             
 class OrientList(AncestorAwareObjList):
-    """A class for handling a list of Orient objects.
+    """
+    A class for handling a list of Orient objects.
     This class inherits from AncestorAwareObjList and provides methods to write Tcl commands
     for each Orient object in the list.
-    Attributes
-    ----------
-    None
     """
-    def write_TcL(self,W:VMD):
-        """Write the Tcl commands for each Orient object in the list.
+
+    def write_TcL(self,W:VMDScripter):
+        """
+        Write the Tcl commands for each Orient object in the list.
         This method iterates over each Orient object in the list and calls its `write_TcL` method   
         to generate the Tcl commands. The commands are written to the provided VMD script writer object.
+        
         Parameters
         ----------
-        W : VMD
+        W: VMD
             The VMD script writer object to which the Tcl commands will be written.
         """
         for c in self:

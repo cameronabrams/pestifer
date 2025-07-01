@@ -31,6 +31,6 @@ class TestRings(unittest.TestCase):
         topol=PSFContents('test.psf',parse_topology=['bonds'])
         self.assertEqual(coorddf.shape[0],len(topol.atoms))
         Rings=RingList(topol.G)
-        Rings.injest_coordinates(coorddf,pos_key=['x','y','z'])
+        Rings.ingest_coordinates(coorddf,pos_key=['x','y','z'])
         Rings.validate_images(box)
         self.assertTrue(all([x.same_image for x in Rings]))

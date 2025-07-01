@@ -18,7 +18,7 @@ import importlib.metadata
 
 __pestifer_version__ = importlib.metadata.version("pestifer")
 
-banner_message="""
+_banner_message="""
     pestifer v. {}
     https://pestifer.readthedocs.io/en/latest/
 
@@ -30,11 +30,8 @@ banner_message="""
     CHARMM force field files (July 24) from the 
     MacKerell Lab
     """.format(__pestifer_version__)
-"""
-Basic banner message for pestifer.
-"""
 
-enhanced_banner_message="""
+_enhanced_banner_message="""
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
@@ -71,9 +68,6 @@ enhanced_banner_message="""
 ░░░░░░░░░░░░░░░░░ Cameron F. Abrams, cfa22@drexel.edu ░░░░░░░░░░░░░░░░
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 """
-"""
-:no-index:
-"""
 
 def banner(logf):
     """
@@ -84,7 +78,7 @@ def banner(logf):
     logf: file-like object
         The log file to which the banner message will be written.
     """
-    my_logger(banner_message,logf,fill=' ',just='<')
+    my_logger(_banner_message,logf,fill=' ',just='<')
 
 class ByteCollector:
     """

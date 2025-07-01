@@ -8,7 +8,7 @@ import logging
 import os
 
 from .config import Config
-from .scriptwriters import Filewriter,Psfgen,VMD,NAMD
+from .scripters import Filewriter, PsfgenScripter, VMDScripter, NAMDScripter
 from ..tasks.terminate import TerminateTask
 from ..util.util import inspect_package_dir
 
@@ -40,11 +40,11 @@ class Controller:
         if userspecs:
             self.config['user'].update(userspecs)
 
-        # Set up the file writers
-        self.writers={
-            'psfgen': Psfgen(self.config),
-            'vmd':    VMD(self.config),
-            'namd':   NAMD(self.config),
+        # Set up the scripters
+        self.scripters={
+            'psfgen': PsfgenScripter(self.config),
+            'vmd':    VMDScripter(self.config),
+            'namd':   NAMDScripter(self.config),
             'data':   Filewriter()
         }
 
@@ -70,10 +70,10 @@ class Controller:
             #      - specs: specifications from user config
             #      - taskname: the name of the task
             #      - self.config: the Controller configuration
-            #      - self.writers: the Controller's filewriters
+            #      - self.scripters: the Controller's filewriters
             #      - prior_task: indentifier of prior task in task list
             Cls=task_classes[class_name]
-            this_task=Cls(config_specs,dict(controller_index=self.index,taskname=taskname,config=self.config,writers=self.writers,prior=prior_task))
+            this_task=Cls(config_specs,dict(controller_index=self.index,taskname=taskname,config=self.config,scripters=self.scripters,prior=prior_task))
             # Append to the task list
             self.tasks.append(this_task)
             prior_task=this_task
@@ -86,7 +86,7 @@ class Controller:
                 controller_index=self.index,
                 taskname='terminate',
                 config=self.config['base'],
-                writers=self.writers,
+                scripters=self.scripters,
                 prior=prior_task)))
         ess='s' if len(self.tasks)>1 else ''
         logger.info(f'Run title: "{self.config["user"]["title"]}"')

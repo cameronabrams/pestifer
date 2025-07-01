@@ -17,7 +17,7 @@ from .charmmffcontent import CHARMMFFResiDatabase
 from ..core.config import Config
 from ..core.controller import Controller
 from ..psfutil.psfcontents import PSFContents
-from ..core.scriptwriters import Psfgen, VMD
+from ..core.scripters import PsfgenScripter, VMDScripter
 from ..core.stringthings import my_logger
 
 logger=logging.getLogger(__name__)
@@ -128,7 +128,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
     config=Config(quiet=True)
     C=Controller(config=config,userspecs={'title':f'Build PDBCollection entry for {resid}','tasks':tasklist})
     # First we de-novo generate a pdb/psf file using seeded internal coordinates
-    W=Psfgen(C.config)
+    W=PsfgenScripter(C.config)
     logger.debug(f'charmm_topfile from resiDB entry {topo.resname}: {charmm_topfile}')
     if not charmm_topfile in W.charmmff_config['standard']['topologies']:
         W.charmmff_config['standard']['topologies'].append(charmm_topfile)
@@ -164,8 +164,8 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
             needed=[]
             if 'toppar' in charmm_topfile: 
                 # this is a combined topology/parameter file; charmm_topfile is ABSOLUTE, so we need to add its RELATIVE path to the list of parameter files
-                if not charmm_topfile in task.writers['namd'].charmmff_config['standard']['parameters']:
-                    task.writers['namd'].charmmff_config['standard']['parameters'].append(charmm_topfile)
+                if not charmm_topfile in task.scripters['namd'].charmmff_config['standard']['parameters']:
+                    task.scripters['namd'].charmmff_config['standard']['parameters'].append(charmm_topfile)
             if charmm_topfile.endswith('sphingo.str'):
                 needed=['toppar_all36_carb_imlab.str',
                         'toppar_all36_lipid_lps.str']
@@ -182,10 +182,10 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
                         'toppar_all36_lipid_bacterial.str']
 
             for n in needed:
-                if n not in task.writers['namd'].charmmff_config['standard']['parameters']:
-                    task.writers['namd'].charmmff_config['standard']['parameters'].append(n)
+                if n not in task.scripters['namd'].charmmff_config['standard']['parameters']:
+                    task.scripters['namd'].charmmff_config['standard']['parameters'].append(n)
 
-            par=task.writers['namd'].charmmff_config['standard']['parameters']
+            par=task.scripters['namd'].charmmff_config['standard']['parameters']
 
     result=C.do_tasks()
     for k,v in result.items():
@@ -211,7 +211,7 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
         # dcd file is 00-03-00_md-NVT.dcd; otherwise, if there is no 
         # 00-04-00_md-NVT.dcd, we bail
         return -1
-    W=VMD(C.config)
+    W=VMDScripter(C.config)
     W.newscript('sample')
     W.addline(f'mol new {resid}-init.psf')
     W.addline(f'mol addfile {dcd} waitfor all')

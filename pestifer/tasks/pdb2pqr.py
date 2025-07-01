@@ -38,7 +38,7 @@ class PDB2PQRTask(PsfgenTask):
         # writes a hydrogen-free PDB file with histidine resnames all reverted to HIS and water resnames to HOH
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
-        vt=self.writers['vmd']
+        vt=self.scripters['vmd']
         vt.newscript(self.basename)
         vt.addline(f'mol new {psf}')
         vt.addline(f'mol addfile {pdb} waitfor all')

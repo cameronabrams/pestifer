@@ -8,7 +8,7 @@ from copy import deepcopy
 
 from ..charmmff.charmmffcontent import CHARMMFFResiDatabase
 from ..core.basetask import BaseTask
-from ..core.scriptwriters import PackmolInputWriter
+from ..core.scripters import PackmolScripter
 from ..molecule.bilayer import Bilayer, specstrings_builddict
 from ..psfutil.psfcontents import get_toppar_from_psf
 from ..util.util import cell_to_xsc,cell_from_xsc, protect_str_arg
@@ -19,18 +19,8 @@ sA2_=_UNITS_['SQUARE-ANGSTROMS']
 logger=logging.getLogger(__name__)
 
 class MakeMembraneSystemTask(BaseTask):
-    """ A class for handling embedding proteins into bilayers
-    
-    Attributes
-    ----------
-    yaml_header(str) 
-
-    Methods
-    -------
-    do(): 
-        Based on specs, writes packmol input files to generate a membrane-embedded protein and
-        then runs packmol
-
+    """ 
+    A class for handling embedding proteins into bilayers
     """
     yaml_header='make_membrane_system'
     def __init__(self,config_specs={},controller_specs={}):
@@ -165,7 +155,7 @@ class MakeMembraneSystemTask(BaseTask):
             patch.build_patch(SAPL=SAPL,xy_aspect_ratio=xy_aspect_ratio,
                               rotation_pm=rotation_pm,solution_gcc=solution_gcc,
                               half_mid_zgap=half_mid_zgap)
-            pm=PackmolInputWriter(self.config)
+            pm=PackmolScripter(self.config)
             packmol_output_pdb=patch.pack_patch(pm,specname,seed=seed,
                                                 tolerance=tolerance,
                                                 nloop_all=nloop_all,
@@ -173,7 +163,7 @@ class MakeMembraneSystemTask(BaseTask):
                                                 rotation_pm=rotation_pm,
                                                 nloop=nloop)
             self.next_basename(f'patch{spec}-build')
-            pg=self.writers['psfgen']
+            pg=self.scripters['psfgen']
             pg.newscript(self.basename,additional_topologies=patch.addl_streamfiles)
             pg.usescript('bilayer_patch')
             pg.writescript(self.basename,guesscoord=False,regenerate=True,force_exit=True)
@@ -212,7 +202,7 @@ class MakeMembraneSystemTask(BaseTask):
                 continue
             additional_topologies+=patch.addl_streamfiles
         additional_topologies=list(set(additional_topologies))
-        pg=self.writers['psfgen']
+        pg=self.scripters['psfgen']
         pg.newscript(self.basename,additional_topologies=additional_topologies)
         pg.usescript('bilayer_quilt')
         pg.writescript(self.basename,guesscoord=False,regenerate=False,force_exit=True,writepsf=False,writepdb=False)
@@ -254,7 +244,7 @@ class MakeMembraneSystemTask(BaseTask):
         z_ref_group=self.embed_specs.get('z_ref_group',{}).get('text',None)
         z_value=self.embed_specs.get('z_ref_group',{}).get('z_value',0.0)
         self.next_basename('embed')
-        pg=self.writers['psfgen']
+        pg=self.scripters['psfgen']
         pg.newscript(self.basename,additional_topologies=self.quilt.addl_streamfiles)
         pg.usescript('bilayer_embed')
         pg.writescript(self.basename,guesscoord=False,regenerate=True,force_exit=True,writepsf=False,writepdb=False)

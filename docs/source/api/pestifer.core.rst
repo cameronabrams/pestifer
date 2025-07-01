@@ -22,5 +22,5 @@ Submodules
    pestifer.core.pdbrepository
    pestifer.core.pestifer
    pestifer.core.resourcemanager
-   pestifer.core.scriptwriters
+   pestifer.core.scripters
    pestifer.core.stringthings

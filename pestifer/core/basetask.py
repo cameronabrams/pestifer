@@ -25,18 +25,18 @@ class BaseTask(BaseObj):
         A dictionary of configuration specifications. This can include task-specific settings.
     controller_specs : dict, optional
         A dictionary of specifications provided by the controller that created this task.
-        It can include attributes like `prior`, `index`, `writers`, `taskname`, and `controller_index`.
+        It can include attributes like `prior`, `index`, `scripters`, `taskname`, and `controller_index`.
 
     """
     
-    req_attr=BaseObj.req_attr+['specs','config','index','prior','writers','taskname','controller_index']
+    req_attr=BaseObj.req_attr+['specs','config','index','prior','scripters','taskname','controller_index']
     """ 
     List of required attributes as strings. These attributes must have values assigned at instance creation time, otherwise an AssertionError is raised.
     The required attributes are:
     
         * ``controller_index``: index of the controller that created this task
         * ``specs``: dictionary of specifications; under ``directives`` in yaml
-        * ``writers``: dictionary of ``FileWriters``
+        * ``scripters``: dictionary of ``FileWriters``
         * ``prior``: identifier of prior task in sequence
         * ``index``: unique integer index of task in run
         * ``config``: access to the run config
@@ -63,7 +63,7 @@ class BaseTask(BaseObj):
         specs=config_specs.copy()
         prior=controller_specs.get('prior',None)
         index=controller_specs.get('index',0)
-        writers=controller_specs.get('writers',{})
+        scripters=controller_specs.get('scripters',{})
         taskname=controller_specs.get('taskname','generic_task')
         config=controller_specs.get('config',{})
         controller_index=controller_specs.get('controller_index',0)
@@ -72,7 +72,7 @@ class BaseTask(BaseObj):
         logger.debug(f'Creating task {taskname} with index {index}')
         input_dict = {
             'index':index,
-            'writers':writers,
+            'scripters':scripters,
             'prior':prior,
             'specs':specs,
             'config':config,
@@ -175,7 +175,7 @@ class BaseTask(BaseObj):
         It uses the ``namdbin2pdb`` Tcl proc to convert the coordinate file to a PDB file.
         The resulting PDB file is named based on the task's basename.
         """
-        vm=self.writers['vmd']
+        vm=self.scripters['vmd']
         vm.newscript(f'{self.basename}-coor2pdb')
         psf=self.statevars['psf']
         coor=self.statevars['coor']
@@ -190,7 +190,7 @@ class BaseTask(BaseObj):
         It uses the ``pdb2namdbin`` Tcl proc to convert the PDB file to a coordinate file.
         The resulting coordinate file is named based on the task's basename.
         """
-        vm=self.writers['vmd']
+        vm=self.scripters['vmd']
         vm.newscript(f'{self.basename}-pdb2coor')
         pdb=self.statevars['pdb']
         vm.addline(f'pdb2namdbin {pdb} {self.basename}.coor')
@@ -222,7 +222,7 @@ class BaseTask(BaseObj):
         statekey : str, optional
             The key under which the resulting PDB file will be stored in the state variables. Default is ``consref``.
         """
-        vm=self.writers['vmd']
+        vm=self.scripters['vmd']
         pdb=self.statevars['pdb']
         force_constant=specs.get('k',self.config['user']['namd']['harmonic']['spring_constant'])
         constrained_atoms_def=specs.get('atoms','all')

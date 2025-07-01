@@ -6,31 +6,12 @@ import os
 logger=logging.getLogger(__name__)
 
 from ..core.basetask import BaseTask
-from ..molecule.colvars import colvar_writer
+from ..util.namdcolvars import colvar_writer
 from ..util.util import is_periodic
 
 class MDTask(BaseTask):
-    """ A class for handling all NAMD runs
-    
-    Attributes
-    ----------
-    `yaml_header(str)`:
-        the name used to declare this task in an input yaml file
-
-    Methods
-    -------
-    
-    `do()`:
-        Inherits state and performs namd run based on specs; updates run state
-
-    `copy_charmmpar_local()`:abbr:
-        Copies all charmm parameter files from pestifer's resource library to
-        the current working directory; returns the list of file names that
-        were copied
-
-    `namdrun()`: 
-        Generates the NAMD config file based on specs and then executes NAMD
-
+    """ 
+    A class for handling all NAMD runs
     """
     yaml_header='md'
 
@@ -40,7 +21,7 @@ class MDTask(BaseTask):
         self.result=self.namdrun()
         if self.result==0: 
             self.save_state(exts=['coor','vel','xsc'])
-            self.update_statevars('charmmff_paramfiles',self.writers['namd'].parameters)
+            self.update_statevars('charmmff_paramfiles',self.scripters['namd'].parameters)
             if os.path.exists(f'{self.basename}-energy.csv'):
                 self.update_statevars('energy-csv',f'{self.basename}-energy.csv',vtype='file')
             else:
@@ -134,7 +115,7 @@ class MDTask(BaseTask):
             params['conskfile']=self.statevars['consref']
             params['conskcol']='O'
         if colvars:
-            writer=self.writers['data']
+            writer=self.scripters['data']
             writer.newfile(f'{self.basename}-cv.inp')
             colvar_writer(colvars,writer,pdb=pdb)
             writer.writefile()
@@ -151,7 +132,7 @@ class MDTask(BaseTask):
             assert nsteps>0,f'Error: you must specify how many time steps to run'
             params['run']=nsteps
         
-        na=self.writers['namd']
+        na=self.scripters['namd']
         na.newscript(self.basename,addl_paramfiles=list(set(addl_paramfiles+prior_paramfiles)))
         cpu_override=specs.get('cpu-override',False)
         logger.debug(f'CPU-override is {cpu_override}')

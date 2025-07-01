@@ -1,6 +1,6 @@
 import unittest
 from pidibble.pdbparse import PDBParser
-from pestifer.core.scriptwriters import *
+from pestifer.core.scripters import *
 from pestifer.core.config import Config
 
 class TestTCL(unittest.TestCase):
@@ -8,7 +8,7 @@ class TestTCL(unittest.TestCase):
         # test backup and restor procs in saverestore.tcl
         source='6pti'
         config=Config()
-        vmd=VMD(config)
+        vmd=VMDScripter(config)
         o=PDBParser(PDBcode=source).parse()
         oatoms=o.parsed['ATOM']
         ox=[a.x for a in oatoms if a.name=='CA']
@@ -39,7 +39,7 @@ class TestTCL(unittest.TestCase):
         # test backup and restor procs in saverestore.tcl
         source='6pti'
         config=Config()
-        vmd=VMD(config)
+        vmd=VMDScripter(config)
         o=PDBParser(PDBcode=source).parse()
         oatoms=o.parsed['ATOM']
         ox=[a.x for a in oatoms if a.name=='CA']

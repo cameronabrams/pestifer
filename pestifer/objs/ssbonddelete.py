@@ -1,19 +1,42 @@
 # Author: Cameron F. Abrams
+
+"""
+One modification a user might want to make is reducing a disulfide bond
+to free cysteine residues.  This is handled by the SSBondDelete class.
+"""
+
 from .ssbond import SSBond, SSBondList
 
 class SSBondDelete(SSBond):
-    """A class for handling deletion of SSBonds."""
+    """
+    A class for handling deletion of SSBonds.
+    """
+
     yaml_header='ssbondsdelete'
+    """
+    YAML header for SSBondDelete objects.
+    This header is used to identify SSBondDelete objects in YAML files.
+    """
+    
     objcat='topol'
+    """
+    Category of the SSBondDelete object.
+    This categorization is used to group SSBondDelete objects in the object manager.
+    """
 
 class SSBondDeleteList(SSBondList):
-    """A class for handling a list of deleted SSBonds."""
+    """
+    A class for handling a list of deleted SSBonds.
+    """
     def is_deleted(self,a_SSBond):
-        """Check if a given SSBond is deleted in this list.
+        """
+        Check if a given SSBond is deleted in this list.
+        
         Parameters
         ----------
         a_SSBond : SSBond
             The SSBond to check for deletion.
+        
         Returns
         -------
         bool

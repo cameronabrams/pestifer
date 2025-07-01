@@ -1,5 +1,6 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" Defines the Segment class for generating and managing segments declared for psfgen
+""" 
+Defines the Segment class for generating and managing segments declared for psfgen
 """
 import logging
 logger=logging.getLogger(__name__)
@@ -11,12 +12,41 @@ from ..objs.patch import PatchList
 from ..core.labels import Labels
 from .residue import Residue,ResidueList
 from ..util.util import reduce_intlist
-from ..core.scriptwriters import Psfgen
+from ..core.scripters import PsfgenScripter
 
 class Segment(AncestorAwareObj):
+    """
+    A class for handling segments in a molecular structure.
+    This class represents a segment defined by a list of residue indices and provides methods to check if a bond intersects the segment.
+    It also provides methods to yield treadmilled versions of the segment and to check for equality with another segment.
+
+    Parameters
+    ----------
+    specs : dict
+        A dictionary of specifications for the segment.
+        This dictionary may include keys such as ``segtype``, ``segname``, ``chainID``, ``residues``, ``subsegments``, and ``parent_chain``.
+    input_obj : Residue or ResidueList or dict
+        An object representing the residues in the segment.
+    segname : str
+        The name of the segment.
+    """
+
     req_attr=AncestorAwareObj.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','specs']
+    """
+    Required attributes for ``Segment``.
+    """
+
     opt_attr=AncestorAwareObj.opt_attr+['mutations','deletions','grafts','patches','attachments','psfgen_segname']
-    inheritable_mods=['mutations','patches','Cfusions','grafts']
+    """
+    Optional attributes for ``Segment``.
+    """
+
+    inheritable_objs=['mutations','patches','Cfusions','grafts']
+    """
+    List of inheritable modifications for the segment.
+    These modifications include mutations, patches, C-terminal fusions, and grafts.
+    """
+
     def __init__(self,specs,input_obj,segname):
         if type(input_obj)==dict:
             input_dict=input_obj
@@ -73,6 +103,16 @@ class Segment(AncestorAwareObj):
         super().__init__(input_dict)
 
     def cleave(self,clv,daughter_chainID):
+        """
+        Cleave the segment at a specified cut location, creating a daughter segment.
+        
+        Parameters
+        ----------
+        clv : Cleavage
+            The cut location specifying where to cleave the segment.
+        daughter_chainID : str
+            The chain ID to assign to the daughter segment.
+        """
         assert clv.chainID==self.segname
         assert self.segtype=='protein'
         r2=self.residues.get(resseqnum=clv.resseqnum2,insertion=clv.insertion2)
@@ -95,7 +135,19 @@ class Segment(AncestorAwareObj):
     def __str__(self):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
 
-    def write_TcL(self,W:Psfgen,transform):
+    def write_TcL(self,W:PsfgenScripter,transform):
+        """
+        Write the Tcl commands to create a segment in the Psfgen script.
+        This method generates the Tcl commands to create a new segment in the PsfgenScripter script
+        based on the segment type and its specifications.
+        
+        Parameters
+        ----------
+        W : Psfgen
+            The Psfgen script writer object to which the Tcl commands will be written.
+        transform : Transform
+            The transformation object containing mapping information.
+        """
         if self.segtype=='protein':
             self.protein_stanza(W,transform)
         elif self.segtype=='glycan':
@@ -103,10 +155,30 @@ class Segment(AncestorAwareObj):
         else:
             self.generic_stanza(W,transform)
     
-    def glycan_stanza(self,W,transform):
+    def glycan_stanza(self,W:PsfgenScripter,transform):
+        """
+        Write the Tcl commands to create a glycan segment in the Psfgen script.
+
+        Parameters
+        ----------
+        W : PsfgenScripter
+            The PsfgenScripter script writer object to which the Tcl commands will be written.
+        transform : Transform
+            The transformation object containing mapping information.
+        """
         self.generic_stanza(W,transform)
     
     def generic_stanza(self,W,transform):
+        """
+        Write the Tcl commands to create a generic segment in the Psfgen script.
+        
+        Parameters
+        ----------
+        W : PsfgenScripter
+            The Psfgen script writer object to which the Tcl commands will be written.
+        transform : Transform
+            The transformation object containing mapping information.
+        """
         assert len(self.subsegments)==1,'No missing atoms allowed in generic stanza'
         parent_molecule=self.ancestor_obj
         chainIDmap=transform.chainIDmap
@@ -152,7 +224,17 @@ class Segment(AncestorAwareObj):
             W.restore_selection(selname,dataholder=f'{selname}_data')
         W.banner(f'Segment {image_seglabel} ends')
 
-    def protein_stanza(self,W:Psfgen,transform):
+    def protein_stanza(self,W:PsfgenScripter,transform):
+        """
+        Write the Tcl commands to create a protein segment in the Psfgen script.
+
+        Parameters
+        ----------
+        W : PsfgenScripter
+            The Psfgen script writer object to which the Tcl commands will be written.
+        transform : Transform
+            The transformation object containing mapping information.
+        """
         parent_molecule=self.ancestor_obj
         chainIDmap=transform.chainIDmap
         seglabel=self.segname
@@ -298,7 +380,12 @@ class Segment(AncestorAwareObj):
         # THIS IS BAD self.objmanager.retire('seq')
 
 class SegmentList(AncestorAwareObjList):
-    """A class for creating and handling a list of segments given a complete list of residues for an entire asymmetric unit"""
+    """
+    A list of segments in a molecular structure.
+    This class represents a collection of segments and provides methods to manage and manipulate them.
+    It inherits from `AncestorAwareObjList` to maintain the context of the parent molecule.
+    """
+
     def __init__(self,*objs):
         if len(objs)==1 and objs[0]==[]:
             super().__init__([])
@@ -361,6 +448,13 @@ class SegmentList(AncestorAwareObjList):
                 logger.error(f'Cannot initialize {self.__class__} from objects {objs}')
 
     def collect_working_files(self):
+        """
+        Collect all working files (PDB files) from the segments in the list.
+
+        Returns
+        -------
+        list
+            A list of PDB files associated with the segments."""
         working_files=[]
         for seg in self:
             for subseg in seg.subsegments:
@@ -369,26 +463,66 @@ class SegmentList(AncestorAwareObjList):
                     working_files.append(subseg.pdb)
         return working_files
     
-    def write_TcL(self,W:Psfgen,transform):
+    def write_TcL(self,W:PsfgenScripter,transform):
+        """
+        Write the Tcl commands to create all segments in the Psfgen script.
+        
+        Parameters
+        ----------
+        W : PsfgenScripter
+            The Psfgen script writer object to which the Tcl commands will be written.
+        transform : Transform
+            The transformation object containing mapping information."""
         for seg in self:
             W.comment(f'Writing seg {seg.segname}')
             seg.write_TcL(W,transform)
             W.comment(f'Done with seg {seg.segname}')
     
     def get_segment_of_residue(self,residue):
+        """
+        Get the segment that contains a specified residue.
+
+        Parameters
+        ----------
+        residue : Residue
+            The residue for which to find the containing segment.
+
+        Returns
+        -------
+        Segment or None
+            The segment containing the specified residue, or None if not found.
+        """
         for S in self:
             if residue in S.residues:
                 return S
         return None
 
     def remove(self,item):
+        """
+        Remove a segment from the list and update associated attributes.
+        
+        Parameters
+        ----------
+        item : Segment
+            The segment to remove from the list.
+        """
         self.segnames.remove(item.segname)
         self.counters_by_segtype[self.segtype_of_segname[item.segname]]-=1
         return super().remove(item)
 
-    def inherit_mods(self,objmanager):
+    def inherit_objs(self,objmanager):
+        """
+        Inherit objects from the object manager for each segment in the list.
+        This method updates the object manager for each segment with inherited objects
+        such as mutations, grafts, and patches.
+        
+        Parameters
+        ----------
+        objmanager : ObjectManager
+            The object manager from which to inherit objects.
+        """
         for item in self:
-            item.objmanager=objmanager.filter_copy(objnames=item.inheritable_mods,chainID=item.segname)
+            item.objmanager=objmanager.filter_copy(objnames=item.inheritable_objs,chainID=item.segname)
             seqmods=item.objmanager.get('seq',{})
             grafts=seqmods.get('grafts',[])
             logger.debug(f'Inherit mods: seg {item.segname} has {len(grafts)} grafts')

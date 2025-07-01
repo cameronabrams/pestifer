@@ -16,19 +16,9 @@ from ..psfutil.psfcontents import PSFContents
 logger=logging.getLogger(__name__)
 
 class PsfgenTask(BaseTask):
-    """ A class for handling invocations of psfgen which create a molecule from a base PDB/mmCIF file
+    """ 
+    A class for handling invocations of psfgen which create a molecule from a base PDB/mmCIF file
     or from a PSF file generated previously by psfgen
-    
-    Attributes
-    ----------
-    yaml_header(str) 
-
-    Methods
-    -------
-    do(): 
-        Based on specs, reads in input PDB/mmCIF file, generates parsed Molecule instances, generates
-        the psfgen script, and executes VMD to perform the psfgen run.
-
     """
     yaml_header='psfgen'
     def __init__(self,config_specs={},controller_specs={}):
@@ -78,7 +68,7 @@ class PsfgenTask(BaseTask):
             for objtype,objlist in coormods.items():
                 if len(objlist)>0:
                     self.next_basename(objtype)
-                    vm=self.writers['vmd']
+                    vm=self.scripters['vmd']
                     packages=[]
                     if objtype=='crotations':
                         packages.append('PestiferCRot')
@@ -116,7 +106,7 @@ class PsfgenTask(BaseTask):
 
     def psfgen(self):
         self.next_basename('build')
-        pg=self.writers['psfgen']
+        pg=self.scripters['psfgen']
         addl_topologies=self.patch_topologies()
         pg.newscript(self.basename,packages=['PestiferCRot'],additional_topologies=addl_topologies)
         pg.set_molecule(self.base_molecule,altcoords=self.specs.get('source',{}).get('altcoords',None))
@@ -148,7 +138,7 @@ class PsfgenTask(BaseTask):
             logger.debug(f'Loop declashing is intentionally not done.')
             return
         self.next_basename('declash-loops')
-        vt=self.writers['vmd']
+        vt=self.scripters['vmd']
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
         vt.newscript(self.basename,packages=['PestiferDeclash'])
@@ -170,7 +160,7 @@ class PsfgenTask(BaseTask):
         outpdb=f'{self.basename}.pdb'
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
-        vt=self.writers['vmd']
+        vt=self.scripters['vmd']
         vt.newscript(self.basename,packages=['PestiferDeclash'])
         vt.addline(f'mol new {psf}')
         vt.addline(f'mol addfile {pdb} waitfor all')

@@ -5,7 +5,7 @@ import unittest
 from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
 from pestifer.core.config import Config
 from pestifer.core.controller import Controller
-from pestifer.core.scriptwriters import Psfgen,VMD,NAMD,Filewriter
+from pestifer.core.scripters import PsfgenScripter,VMDScripter,NAMDScripter,Filewriter
 from pestifer.util.util import protect_str_arg
 
 class TestMakeMembraneSystem(unittest.TestCase):
@@ -13,10 +13,10 @@ class TestMakeMembraneSystem(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.C=Config()
-        cls.writers={
-            'psfgen': Psfgen(cls.C),
-            'vmd':    VMD(cls.C),
-            'namd':   NAMD(cls.C),
+        cls.scripters={
+            'psfgen': PsfgenScripter(cls.C),
+            'vmd':    VMDScripter(cls.C),
+            'namd':   NAMDScripter(cls.C),
             'data':   Filewriter()
         }
         cls.common_patch_relaxation_protocols = [
@@ -150,7 +150,7 @@ class TestMakeMembraneSystem(unittest.TestCase):
         input_data_dir='../../fixtures/embed_inputs'
         for ftype in [psf,pdb,bilayer_psf,bilayer_pdb,bilayer_xsc]:
             shutil.copy(os.path.join(input_data_dir,ftype),'.')
-        pg=Psfgen(self.C)
+        pg=PsfgenScripter(self.C)
         pg.newscript(basename)
         pg.usescript('bilayer_embed')
         pg.writescript(basename,guesscoord=False,regenerate=True,force_exit=True,writepsf=False,writepdb=False)
@@ -224,7 +224,7 @@ class TestMakeMembraneSystem(unittest.TestCase):
         xscA=xscB=basename+'.xsc'
         npatchx=npatchy=3
         C=Config()
-        pg=Psfgen(C)
+        pg=PsfgenScripter(C)
         pg.newscript(basename)
         pg.usescript('bilayer_quilt')
         pg.writescript(basename,guesscoord=False,regenerate=True,force_exit=True,writepsf=False,writepdb=False)
@@ -250,7 +250,7 @@ class TestMakeMembraneSystem(unittest.TestCase):
         input_data_dir='../../fixtures/embed_inputs'
         for ftype in [psf,pdb,bilayer_psf,bilayer_pdb,bilayer_xsc]:
             shutil.copy(os.path.join(input_data_dir,ftype),'.')
-        pg=Psfgen(self.C)
+        pg=PsfgenScripter(self.C)
         pg.newscript(basename)
         pg.usescript('bilayer_embed')
         pg.writescript(basename,guesscoord=False,regenerate=True,force_exit=True,writepsf=False,writepdb=False)

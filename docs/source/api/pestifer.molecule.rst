@@ -17,7 +17,6 @@ Submodules
    pestifer.molecule.bilayer
    pestifer.molecule.bioassemb
    pestifer.molecule.chainidmanager
-   pestifer.molecule.colvars
    pestifer.molecule.molecule
    pestifer.molecule.residue
    pestifer.molecule.ring

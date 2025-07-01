@@ -2,7 +2,7 @@
 
 import logging
 from .md import MDTask
-from ..molecule.colvars import declare_distance_cv_atoms, declare_single_harmonic_distance_bias
+from ..util.namdcolvars import declare_distance_cv_atoms, declare_single_harmonic_distance_bias
 
 logger=logging.getLogger(__name__)
 
@@ -42,7 +42,7 @@ class LigateTask(MDTask):
         self.next_basename('gaps')
         mol=self.base_molecule
         datafile=f'{self.basename}.inp'
-        writer=self.writers['data']
+        writer=self.scripters['data']
         writer.newfile(datafile)
         mol.write_gaps(writer)
         writer.writefile()
@@ -51,7 +51,7 @@ class LigateTask(MDTask):
     def measure_distances(self,specs):
         comment_chars='#!$'
         self.next_basename('measure')
-        vm=self.writers['vmd']
+        vm=self.scripters['vmd']
         vm.newscript(self.basename)
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
@@ -80,7 +80,7 @@ class LigateTask(MDTask):
 
     def do_steered_md(self,specs):
         self.next_basename('steer')
-        writer=self.writers['data']
+        writer=self.scripters['data']
         writer.newfile(f'{self.basename}-cv.inp')
         for i,g in enumerate(self.gaps):
             g['colvars']=f'GAP{i:02d}'
@@ -113,7 +113,7 @@ class LigateTask(MDTask):
         self.next_basename('gap_patches')
         mol=self.base_molecule
         datafile=f'{self.basename}.inp'
-        writer=self.writers['data']
+        writer=self.scripters['data']
         writer.newfile(datafile)
         mol.write_connect_patches(writer)
         writer.writefile()
@@ -121,7 +121,7 @@ class LigateTask(MDTask):
 
     def connect_gaps(self):
         self.next_basename('heal')
-        pg=self.writers['psfgen']
+        pg=self.scripters['psfgen']
         pg.newscript(self.basename)
         CC=self.config.RM.charmmff_content
         CC.copy_charmmfile_local('pestifer.top')

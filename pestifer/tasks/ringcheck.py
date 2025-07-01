@@ -8,20 +8,16 @@ from ..molecule.ring import ring_check
 logger=logging.getLogger(__name__)
 
 class RingCheckTask(BaseTask):
-    """ A class for checking for pierced rings
-    
-    Attributes
-    ----------
-    yaml_header(str) 
-
-    Methods
-    -------
-    do(): 
-        Based on specs, executes ring piercing check and deletes offending residues
-
     """
+    A class for checking for pierced rings
+    """
+    
     yaml_header='ring_check'
-
+    """
+    YAML header for RingCheckTask objects.
+    This header is used to declare RingCheckTask objects in YAML task lists.
+    """
+    
     def do(self):
         self.log_message('initiated')
         self.inherit_state()
@@ -40,7 +36,7 @@ class RingCheckTask(BaseTask):
                     logger.debug(f'  Piercing of {r["piercee"]["segname"]}-{r["piercee"]["resid"]} by {r["piercer"]["segname"]}-{r["piercer"]["resid"]}')
             else:
                 self.next_basename('ring_check')
-                pg=self.writers['psfgen']
+                pg=self.scripters['psfgen']
                 pg.newscript(self.basename)
                 pg.load_project(psf,pdb)
                 logger.debug(f'Deleting all {delete_these}s from {len(npiercings)} pierced-ring configuration{ess}')

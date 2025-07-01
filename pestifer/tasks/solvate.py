@@ -49,7 +49,7 @@ class SolvateTask(BaseTask):
         ll_tcl=r'{ '+' '.join([str(_) for _ in LL.tolist()])+r' }'
         ur_tcl=r'{ '+' '.join([str(_) for _ in UR.tolist()])+r' }'
         box_tcl=r'{ '+ll_tcl+' '+ur_tcl+r' }'
-        vt=self.writers['vmd']
+        vt=self.scripters['vmd']
         vt.newscript(self.basename)
         vt.addline( 'package require solvate')
         vt.addline( 'package require autoionize')

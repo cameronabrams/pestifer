@@ -312,7 +312,7 @@ class AsymmetricUnit(AncestorAwareObj):
             grafts=objmanager.ingest(grafts,overwrite=True)
             patches=objmanager.ingest(patches,overwrite=True)
             
-            segments.inherit_mods(objmanager)
+            segments.inherit_objs(objmanager)
 
             input_dict={
                 'atoms':atoms,

@@ -23,7 +23,7 @@ class DesolvateTask(BaseTask):
         psf_outfile=self.specs['psf_outfile']
         if pdb:
             pdb_outfile=os.path.splitext(psf_outfile)[0]+'.pdb'
-        vt=self.writers['vmd']
+        vt=self.scripters['vmd']
         vt.newscript(self.basename)
         vt.addline( 'package require psfgen')
         vt.addline(f'mol new {psf}')

@@ -19,7 +19,7 @@ class TestStringthings(unittest.TestCase):
         self.assertEqual('# this is a multiline comment. What is the deal with potato chips? I mean you\'re\n# crispy, you\'re greasy... just make up your mind, potato chips!\n',str(bc))
     def test_byte_collector_reassign(self):
         bc=ByteCollector()
-        bc.injest_file('reassigntest.sh')
+        bc.ingest_file('reassigntest.sh')
         bc.reassign('MYVAR1',64)
         bc.reassign('EXMYVAR2',63)
         bc.reassign('ntasks',8,style='SLURM')

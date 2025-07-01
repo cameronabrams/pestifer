@@ -1,6 +1,6 @@
 import unittest
-from pestifer.molecule.colvars import *
-from pestifer.core.scriptwriters import *
+from pestifer.util.namdcolvars import *
+from pestifer.core.scripters import *
 import logging
 logger=logging.getLogger(__name__)
 

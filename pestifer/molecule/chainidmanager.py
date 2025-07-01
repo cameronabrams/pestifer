@@ -1,40 +1,27 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>.
-""" Chain ID manager -- make sure all chains have unique IDs and ID maps are tracked
+""" 
+A chain ID manager makes sure all chains have unique IDs and ID maps are tracked.
 """
 
 import logging
 logger=logging.getLogger(__name__)
 
 class ChainIDManager:
-    """A class for managing chainIDs.  Allows for users to request changes to chainIDs, assign specific chainIDs to transformed subunits, and prevents duplicate usage.
+    """
+    A class for managing chainIDs.  Allows for users to request changes to chainIDs, assign specific chainIDs to transformed subunits, and prevents duplicate usage.
     
-    Methods
-    -------
-    __init__(format, transform_reserves)
-      initializes the repository of chainIDs depending on format (PDB or mmCIF)
-       
-    check(chainID)
-      checks to see if proposed chainID is available, and if so, registers it and returns it.  If not, counters proposal with next available chainID, registers that and returns it.
-    
-    unregister_chain(chainID)
-      Unregisters the chainID
-      
-    next_unused_chainID()
-      Registers the next available non-reserved chainID and returns it
-    
-    next_reserved_chainID(key)
-      Registers and returns the next available chainID reserved to key
-
-    generate_next_map()
-      Given the original chainIDs, returns a dictionary mapping each 
-      to a new chainID
-    
-    thru_map()
-      Generates an identity map
-      
-    cleavage_daughter_chainID(chainID)
-      returns a single-entry dictionary mapping the chainID to the
-      next available chainID
+    Parameters
+    ----------
+    format : str, optional
+        The format of the chain IDs, either 'PDB' or 'mmCIF'.
+        Default is 'PDB'.
+    remap : dict, optional
+        A dictionary mapping user-defined chain IDs to their desired replacements.
+        Default is an empty dictionary.
+    transform_reserves : dict, optional
+        A dictionary mapping chain IDs to lists of reserved chain IDs for transformed subunits.
+        This allows for specific chain IDs to be reserved for the products of asymmetric unit transformations.
+        Default is an empty dictionary.
     """
     def __init__(self,format='PDB',remap={},transform_reserves={}):
         logger.debug(f'New chainIDmanager, format {format}')
@@ -64,7 +51,14 @@ class ChainIDManager:
         self.Used=set()
 
     def sandbag(self,i_chainIDs):
-        """ moves all chainIDs in i_chainIDs to end of Unused so they are not popped too early."""
+        """ 
+        moves all chainIDs in i_chainIDs to end of Unused so they are not popped too early.
+
+        Parameters
+        ----------
+        i_chainIDs : list of str
+            List of chainIDs to sandbag. These chainIDs will be moved to the end of the Unused list, ensuring they are not used until explicitly requested.
+        """
         logger.debug(f'Sandbagging: unused chains: {self.Unused}')
         assert all([(x in self.Unused) or (x in self.ReservedUnused) for x in i_chainIDs]),f'Cannot sandbag since at least one initial chainID is not found in Unused or ReservedUnusued -- bug!'
         for c in i_chainIDs:
@@ -76,6 +70,15 @@ class ChainIDManager:
                 logger.debug(f'Not sandbagging chainID {c} since it is reserved for a transform')
 
     def check(self,proposed_chainID):
+        """
+        Check if the proposed chainID is available and return a valid chainID.
+        If the proposed chainID is already in use or reserved, a new chainID will be proposed.
+
+        Parameters
+        ----------
+        proposed_chainID : str
+            The chainID proposed by the user. This can be a 1- or 2-byte string, depending on the format of the ChainIDManager.
+        """
         hold_chainID=proposed_chainID
         if hold_chainID in self.remap.values():
             logger.debug(f'proposed chainID {hold_chainID} is already reserved as a user-map')
@@ -107,10 +110,11 @@ class ChainIDManager:
         return hold_chainID
 
     def unregister_chain(self,chainID):
-        """ Unregister the single chainID with the manager 
+        """ 
+        Unregister the single chainID with the manager 
         
-        Parameter:
-        ---------
+        Parameters
+        ----------
         chainID : str
            1- or 2-byte chainID to unregister
         """
@@ -122,11 +126,25 @@ class ChainIDManager:
             self.Unused.append(chainID)
 
     def next_unused_chainID(self):
+        """ 
+        Returns the next unused chainID from the Unused list.
+        If there are no unused chainIDs, this will raise an error.
+        """
         p=self.Unused.pop(0)
         self.Used.add(p)
         return p
     
     def next_reserved_chainID(self,key):
+        """
+        Returns the next available chainID from the ReservedUnused list that is mapped to the given key.
+        If the key is not in the transform_reserves, an error is raised.
+        If no reserved chainIDs are available for the key, an error is raised.
+        
+        Parameters
+        ----------
+        key : str
+            The chainID key for which to find the next available reserved chainID.
+        """
         assert key in self.transform_reserves,f'Key chainID {key} not a key in the prescribed reserve maps'
         mapsto=self.transform_reserves[key]
         assert any([x in self.ReservedUnused for x in mapsto]),f'mapped key {key} has no daughters available'
@@ -138,9 +156,19 @@ class ChainIDManager:
         return None
         
     def generate_next_map(self,chainIDs,active_chains=[]):
-        """ Generate a map identifying new chainIDs for each existing chainID
-            in the list chainIDs.  If active_chains is not empty, then 
-            it must list a subset of the chainIDs considered actually active
+        """ 
+        Generate a map identifying new chainIDs for each existing chainID
+        in the list chainIDs.  If active_chains is not empty, then 
+        it must list a subset of the chainIDs considered actually active
+        
+        Parameters
+        ----------
+        chainIDs : list of str
+            List of chainIDs for which to generate a map of next available chainIDs.
+        active_chains : list of str, optional
+            List of chainIDs that are currently active. If provided, only these chainIDs will be
+            considered for the next available chainIDs. If not provided, all chainIDs in chainIDs
+            will be considered active.
         """
         assert len(chainIDs)<=len(self.Unused),f'Not enough available chainIDs'
         myMap={}
@@ -160,6 +188,19 @@ class ChainIDManager:
         return myMap
     
     def thru_map(self,chainIDs,active_chains=[]):
+        """
+        Generate a map that maps each chainID in chainIDs to itself, but only for the
+        chainIDs that are considered active. If active_chains is provided, only those
+        chainIDs will be included in the map. If active_chains is empty, all chainIDs in chainIDs will be considered active.
+
+        Parameters
+        ----------
+        chainIDs : list of str
+            List of chainIDs to include in the map.
+        active_chains : list of str, optional
+            List of chainIDs that are currently active. If provided, only these chainIDs will be
+            included in the map. If not provided, all chainIDs in chainIDs will be considered active.
+        """
         activeChainIDs=chainIDs.copy()
         if active_chains:
             inactive_chains=[x for x in activeChainIDs if not x in active_chains]
@@ -168,7 +209,3 @@ class ChainIDManager:
         logger.debug(f'generating thru_map from {activeChainIDs} with actives {activeChainIDs}')
         return {c:c for c in activeChainIDs}
     
-    # def cleavage_daughter_chainID(self,chainID):
-    #     assert 1<=len(self.Unused),f'Not enough available chainIDs'
-    #     assert chainID in self.Unused,f'Parent chain {chainID} was never claimed'
-    #     return {chainID: self.next_unused_chainID()}

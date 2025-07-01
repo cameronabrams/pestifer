@@ -1,5 +1,6 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" Defines the Ring class and the ring_check function for detection of pierced rings
+""" 
+Defines the Ring class and the ring_check function for detection of pierced rings
 """
 
 import logging
@@ -21,32 +22,95 @@ from ..util.util import countTime, cell_from_xsc
 logger=logging.getLogger(__name__)
 
 def lawofcos(a,b):
-    """lawofcos return the cosine of the angle defined by vectors a and b if they share a vertex (the LAW OF COSINES)
+    """
+    return the cosine of the angle defined by vectors a and b if they share a vertex (the LAW OF COSINES)
 
-    :param a: a vector
-    :type a: numpy.ndarray(3,float)
-    :param b: another vector
-    :type b: numpy.ndarray(3,float)
-    :return: cosine of the angle formed by a and b
-    :rtype: float
+    Parameters
+    ----------
+    a : np.ndarray
+        First vector
+    b : np.ndarray
+        Second vector
     """
     return np.dot(a,b)/np.sqrt(np.dot(a,a)*np.dot(b,b))
 
 class Ring(PSFTopoElement):
+    """
+    A class for handling rings in a molecular structure.
+    This class represents a ring defined by a list of atom indices and provides methods to check if a bond pierces the ring.
+    It also provides methods to yield treadmilled versions of the ring and to check for equality with another ring.
 
+    Parameters
+    ----------
+    idx_list : list
+        A list of atom indices that define the ring.
+    """
+    
     def treadmill(self):
-        """ yield the treadmilled versions of the list """
+        """ 
+        yield the treadmilled versions of the list if atom indices in the ring
+        This method generates all possible rotations of the ring's atom indices.
+        Each rotation is a new arrangement of the atom indices, simulating the effect of a treadmill.
+        
+        Yields
+        -------
+        list
+            A list of all possible rotations of the ring's atom indices.
+        """
         for i in range(1,len(self.idx_list)):
             yield self.idx_list[i:]+self.idx_list[:i]
 
     def __eq__(self,other):
+        """
+        Check if this ring is equal to another ring.
+        Two rings are considered equal if they have the same atom indices in any order, including their
+        treadmilled versions.
+        
+        Parameters
+        ----------
+        other : Ring
+            The other ring to compare with. 
+        
+        Returns
+        -------
+        bool
+            True if the rings are equal, False otherwise.
+        """
         check1=any([self.idx_list==other.idx_list] + [self.idx_list==x for x in other.treadmill()])
         check2=any([self.idx_list==other.idx_list[::-1]]+[self.idx_list==x[::-1] for x in other.treadmill()])
         return check1 or check2
 
-    # @countTime
     def pierced_by(self,bond,cutoff=3.5,tol=1.e-5):
-        """determines if PSFBond B pierces ring
+        """
+        Check if a bond pierces the ring.
+        A bond is considered to pierce the ring if:
+
+        - The center of mass (COM) of the bond is within a specified cutoff distance from the COM of the ring.
+        - The COM of the bond is not more than half the distance between the two endpoints of the bond.
+        - The ring's points, when projected onto a plane perpendicular to the bond at the bond's midpoint, form a closed loop (i.e., the sum of angles around the COM is approximately 2π).
+
+        Parameters
+        ----------
+        bond : PSFBond
+            The bond to check for piercing the ring.
+        cutoff : float
+            The cutoff distance for considering a bond to pierce the ring.
+        tol : float
+            The tolerance for checking if the ring forms a closed loop.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the result of the piercing check. Keys include:
+
+            - `pierced`: bool
+                True if the bond pierces the ring, False otherwise.
+            - `piercepoint`: np.ndarray
+                The center of mass of the ring projected onto the plane perpendicular to the bond at the bond's midpoint, if the bond pierces the ring.
+            - `error`: float
+                The error in the closed loop condition, if the bond pierces the ring.
+            - `reason`: str
+                A reason for why the bond does not pierce the ring, if applicable.
         """
         # - reject if bond COM and ring COM are more than the cutoff from each other
         # - reject if both bond endpoints are on the same side of the plane
@@ -69,9 +133,20 @@ class Ring(PSFTopoElement):
         return dict(pierced=False,reason='non-winding',error=np.abs(diff))
 
 class RingList(PSFTopoElementList):
+    """
+    A class for handling lists of Ring objects.
+    This class inherits from PSFTopoElementList and provides methods to initialize the list from a networkx graph,
+    ingest coordinates, and check for string representation.
+    
+    Parameters
+    ----------
+    input_obj : nx.Graph or list of Ring
+    """
+
     @singledispatchmethod
     def __init__(self,input_obj):
         self.data=input_obj
+    
     @__init__.register(nx.Graph)
     def _from_graph(self,G):
         L=[]
@@ -84,6 +159,24 @@ class RingList(PSFTopoElementList):
     
 @countTime
 def ring_check(psf,pdb,xsc,cutoff=10.0,segtypes=['lipid']):
+    """
+    Check for rings in a molecular structure and identify bonds that pierce them.
+    This function reads a PSF file and a PDB file, extracts the coordinates of atoms, and checks for rings in the structure.
+    It identifies bonds that pierce the rings based on a specified cutoff distance and returns a list of specifications for the piercing bonds.
+    
+    Parameters
+    ----------
+    psf : str
+        Path to the PSF file.
+    pdb : str
+        Path to the PDB file.
+    xsc : str
+        Path to the XSC file.
+    cutoff : float
+        Cutoff distance in Angstroms for identifying piercing bonds. Default is 10.0.
+    segtypes : list
+        List of segment types to include in the analysis. Default is ['lipid'].
+    """
     box,orig=cell_from_xsc(xsc)
     coorddf=coorddf_from_pdb(pdb)
     sidelengths=np.diagonal(box)

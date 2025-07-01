@@ -19,7 +19,7 @@ logger=logging.getLogger(__name__)
 
 class Filewriter:
     """
-    A class for writing files with a specific format, such as Tcl scripts.
+    A class for writing files with specific formats.
     
     Parameters
     ----------
@@ -119,9 +119,8 @@ class Filewriter:
         else:
             logger.debug(f'{self.filename} has already been written')
 
-class TcLScriptwriter(Filewriter):
+class TcLScripter(Filewriter):
     """
-    A class for writing Tcl scripts.
     This class extends the Filewriter class to provide functionality for creating and managing Tcl scripts.
 
     Parameters
@@ -177,10 +176,9 @@ class TcLScriptwriter(Filewriter):
         """
         self.F.append(filename)
 
-class VMD(TcLScriptwriter):
+class VMDScripter(TcLScripter):
     """
-    A class for writing VMD Tcl scripts.
-    This class extends the TcLScriptwriter class to provide functionality for creating and managing VMD scripts.
+    This class extends the TcLScripter class to provide functionality for creating and managing VMD scripts.
 
     Parameters
     ----------
@@ -323,7 +321,7 @@ class VMD(TcLScriptwriter):
         selname : str
             The name of the selection to be backed up.
         dataholder : str, optional
-            The name of the variable where the backup data will be stored. Default is ``data''.
+            The name of the variable where the backup data will be stored. Default is ``data``.
         attributes : list, optional
             A list of attributes to be included in the backup. Default includes ``chain``, ``x``, ``y``, ``z``, ``resid``, ``resname``, and ``name``.
         """
@@ -340,7 +338,7 @@ class VMD(TcLScriptwriter):
         selname : str
             The name of the selection to be restored.
         dataholder : str, optional
-            The name of the variable from which the backup data will be retrieved. Default is ``data''.
+            The name of the variable from which the backup data will be retrieved. Default is ``data``.
         attributes : list, optional
             A list of attributes to be restored. Default includes ``chain``, ``x``, ``y``, ``z``, ``resid``, ``resname``, and ``name``.
         """
@@ -436,10 +434,9 @@ class VMD(TcLScriptwriter):
             self.F.flush()
             logger.info(f'Post-execution clean-up: {nremoved} files removed.')
 
-class Psfgen(VMD):
+class PsfgenScripter(VMDScripter):
     """
-    A class for writing psfgen Tcl scripts.
-    This class extends the VMD class to provide functionality for creating and managing psfgen scripts
+    This class extends the VMDScripter class to provide functionality for creating and managing psfgen scripts.
 
     Parameters
     ----------
@@ -629,11 +626,10 @@ class Psfgen(VMD):
             self.logparser.enable_progress_bar(progress_struct)
         return c.run(logfile=self.logname,logparser=self.logparser)
     
-class NAMD(TcLScriptwriter):
+class NAMDScripter(TcLScripter):
     """
-    A class for writing NAMD scripts.
-    This class extends the TcLScriptwriter class to provide functionality for creating and managing NAMD scripts.
-    
+    This class extends the TcLScripter class to provide functionality for creating and managing NAMD scripts (which NAMD refers to as "configurations" -- this is not to be confused with Pestifer's Config class).
+
     Parameters
     ----------
     config : Config
@@ -785,10 +781,9 @@ class NAMD(TcLScriptwriter):
             logger.debug(f'NAMD runscript NOT using progress')
         return c.run(logfile=self.logname,logparser=self.logparser)
 
-class PackmolInputWriter(Filewriter):
+class PackmolScripter(Filewriter):
     """
-    A class for writing Packmol input scripts.
-    This class extends the Filewriter class to provide functionality for creating and managing Packmol input scripts.
+   This class extends the Filewriter class to provide functionality for creating and managing Packmol scripts.
     
     Parameters
     ----------

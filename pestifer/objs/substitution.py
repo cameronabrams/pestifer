@@ -1,4 +1,8 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+A Substitution is a user-specified modification in which a sequence of one or
+more contiguous residues are replaced by a new sequence of one or more residues.
+"""
 import logging
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
@@ -7,47 +11,35 @@ from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
 from ..core.stringthings import split_ri
 
 class Substitution(AncestorAwareObj):
-    """A class for handling substitutions 
-    
-    A substitution is a user-specified modification in which a sequence of one or
-    more contiguous residues are replaced by a new sequence of one or more residues.
-
-    Attributes
-    ----------
-    req_attr : list
-        * chainID : str
-            chain ID of the segment to which substitution is made
-        * resseqnum1 : int
-            N-terminal resid of sequence to be replaced
-        * insertion1 : str
-            insertion code of N-terminal residue
-        * resseqnum2 : int
-            C-terminal resid of sequence to be replaced
-        * insertion2 : str
-            insertion code of the C-terminal residue
-        * subseq : str
-            amino acid sequence to substitute expressed using one-letter codes
-    This class represents a substitution modification in a protein structure, allowing for the
-    specification of a range of residues to be replaced and the new sequence to be inserted.
-    The substitution is defined by the chain ID, the N-terminal and C-terminal residue numbers
-    (including insertion codes), and the sequence of residues to be substituted in.
-    The class provides methods to initialize from a shortcode, which is a compact representation
-    of the substitution, and to handle the attributes required for the substitution.
-    The shortcode format is `C:nnn-ccc,abcdef`, where `C` is the chain ID, `nnn` is the N-terminal residue number,
-    `ccc` is the C-terminal residue number, and `abcdef` is the sequence of residues to be substituted.
-    The `subseq` attribute is a string of one-letter amino acid codes representing the new sequence to be inserted.
-    The class inherits from `AncestorAwareObj`, which provides basic functionality for handling attributes
-    and initialization from various input types.
-    The `yaml_header` and `objcat` attributes are used for YAML serialization and categorization of the object.
-    The `req_attr` attribute lists the required attributes for the substitution object.
-    The class is designed to be flexible and can be initialized from a string shortcode or a dictionary
-    representation of the substitution.
-
     """
-    req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2','subseq']
-    yaml_header='substitutions'
-    objcat='seq'
+    A class for handling substitutions 
+    """
 
+    req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2','subseq']
+    """
+    Required attributes for a Substitution object.
+    These attributes must be provided when creating a Substitution object.
+    
+    - ``chainID``: The chain ID of the segment where the substitution occurs.
+    - ``resseqnum1``: The N-terminal residue number of the substitution.
+    - ``insertion1``: The insertion code of the N-terminal residue.
+    - ``resseqnum2``: The C-terminal residue number of the substitution.
+    - ``insertion2``: The insertion code of the C-terminal residue.
+    - ``subseq``: The one-letter amino acid sequence to be substituted.
+    """
+    
+    yaml_header='substitutions'
+    """
+    YAML header for Substitution objects.
+    This header is used to identify Substitution objects in YAML files.
+    """
+    
+    objcat='seq'
+    """
+    Category of the Substitution object.
+    This categorization is used to group Substitution objects in the object manager.
+    """
+    
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)

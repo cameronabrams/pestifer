@@ -333,11 +333,11 @@ class Bilayer:
         Parameters
         ----------
         SAPL : float, optional
-            The surface area per lipid in square angstroms (sA2_). Default is 75.0.
+            The surface area per lipid in Å². Default is 75.0.
         xy_aspect_ratio : float, optional
             The aspect ratio of the patch in the x and y dimensions. Default is 1.0.
         half_mid_zgap : float, optional
-            The half mid-plane gap in angstroms (sA_). Default is 1.0 sA_.
+            The half mid-plane gap in Å. Default is 1.0 Å.
         solution_gcc : float, optional
             The density of the solution in grams per cubic centimeter (gcc). Default is 1.0.
         rotation_pm : float, optional
@@ -403,7 +403,7 @@ class Bilayer:
         pm : Packmol
             The Packmol ScriptWriter object to which the bilayer patch specifications will be written.
         half_mid_zgap : float, optional
-            The half mid-plane gap in angstroms (sA_). Default is 2.0 sA_.
+            The half mid-plane gap in Å. Default is 2.0 Å.
         rotation_pm : float, optional
             The rotation angle in degrees for the patch. Default is 0.0 degrees.
         nloop : int, optional
@@ -504,7 +504,7 @@ class Bilayer:
         nloop : int, optional
             The number of loops for each individual structure in the packing process. Default is 200.
         half_mid_zgap : float, optional
-            The half mid-plane gap in angstroms (sA_). Default is 1
+            The half mid-plane gap in Å. Default is 1.0 Å.
         rotation_pm : float, optional
             The rotation angle in degrees for the patch. Default is 20.0 degrees.
         """

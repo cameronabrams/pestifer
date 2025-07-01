@@ -30,7 +30,7 @@ class ManipulateTask(BaseTask):
         logger.debug(f'performing coormods')
         for objtype,objlist in coord.items():
             self.next_basename(objtype)
-            vm=self.writers['vmd']
+            vm=self.scripters['vmd']
             vm.newscript(self.basename,packages=['Orient'])
             psf=self.statevars['psf']
             pdb=self.statevars['pdb']

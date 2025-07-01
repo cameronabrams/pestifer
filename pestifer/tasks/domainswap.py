@@ -25,7 +25,7 @@ class DomainSwapTask(MDTask):
     def make_inputs(self):
         specs=self.specs
         self.next_basename('domainswap-prep')
-        vm=self.writers['vmd']
+        vm=self.scripters['vmd']
         vm.newscript(self.basename)
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']

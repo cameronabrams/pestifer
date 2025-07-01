@@ -1,4 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+A Link is a covalent bond between two residues in a protein structure.
+"""
 import logging
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
@@ -7,35 +10,79 @@ from pidibble.pdbrecord import PDBRecord
 from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
 from ..util.cifutil import CIFdict
 from ..util.coord import ic_reference_closest
-from ..core.scriptwriters import Psfgen, Filewriter
+from ..core.scripters import PsfgenScripter, Filewriter
 from ..core.stringthings import split_ri
 
 class Link(AncestorAwareObj):
-    """A class for handling covalent bonds between residues where at least one residue is non-protein
-    
-    Attributes
-    ----------
-
-    req_attr : list
-        * chainID1 : str
-            chain ID of the first residue in the link
-        * resseqnum1 : int
-            resid of the first residue in the link
-        * insertion1 : str
-            insertion code of the first residue in the link
-        * chainID2 : str
-            chain ID of the second residue in the link
-        * resseqnum2 : int
-            resid of the second residue in the link
-        * insertion2 : str
-            insertion code of the second residue in the link
-    
     """
+    A class for handling covalent bonds between residues where at least one residue is non-protein
+    """
+
     req_attr=AncestorAwareObj.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
+    """
+    Required attributes for a Link object.
+    These attributes must be provided when creating a Link object.
+
+    - ``chainID1``: The chain ID of the first residue in the link.
+    - ``resseqnum1``: The residue number of the first residue in the link.
+    - ``insertion1``: The insertion code of the first residue in the link.
+    - ``chainID2``: The chain ID of the second residue in the link.
+    - ``resseqnum2``: The residue number of the second residue in the link.
+    - ``insertion2``: The insertion code of the second residue in the link.
+    """
+    
     opt_attr=AncestorAwareObj.opt_attr+['name1','name2','altloc1','altloc2','resname1','resname2','sym1','sym2','link_distance','segname1','segname2','residue1','residue2','atom1','atom2','empty','segtype1','segtype2','ptnr1_label_asym_id','ptnr2_label_asym_id','ptnr1_label_seq_id','ptnr2_label_seq_id','ptnr1_label_comp_id','ptnr2_label_comp_id','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id','ptnr1_auth_comp_id','ptnr2_auth_comp_id']    
+    """
+    Optional attributes for a Link object.
+    
+    - ``name1``: The name of the first atom in the link.
+    - ``name2``: The name of the second atom in the link.
+    - ``altloc1``: The alternate location identifier for the first atom.
+    - ``altloc2``: The alternate location identifier for the second atom.
+    - ``resname1``: The residue name of the first residue in the link.
+    - ``resname2``: The residue name of the second residue in the link.
+    - ``sym1``: The symmetry operator for the first residue.
+    - ``sym2``: The symmetry operator for the second residue.
+    - ``link_distance``: The distance between the two atoms in the link.
+    - ``segname1``: The segment name of the first residue.
+    - ``segname2``: The segment name of the second residue.
+    - ``residue1``: The first residue object in the link.
+    - ``residue2``: The second residue object in the link.
+    - ``atom1``: The first atom object in the link.
+    - ``atom2``: The second atom object in the link.
+    - ``empty``: A boolean indicating if the link is empty.
+    - ``segtype1``: The segment type of the first residue.
+    - ``segtype2``: The segment type of the second residue.
+    - ``ptnr1_label_asym_id``: The asym ID of the first partner in the link (mmCIF).
+    - ``ptnr2_label_asym_id``: The asym ID of the second partner in the link (mmCIF).
+    - ``ptnr1_label_seq_id``: The sequence ID of the first partner in the link (mmCIF).
+    - ``ptnr2_label_seq_id``: The sequence ID of the second partner in the link (mmCIF).
+    - ``ptnr1_label_comp_id``: The component ID of the first partner in the link (mmCIF).
+    - ``ptnr2_label_comp_id``: The component ID of the second partner in the link (mmCIF).
+    - ``ptnr1_auth_asym_id``: The author asym ID of the first partner in the link (mmCIF).
+    - ``ptnr2_auth_asym_id``: The author asym ID of the second partner in the link (mmCIF).
+    - ``ptnr1_auth_seq_id``: The author sequence ID of the first partner in the link (mmCIF).
+    - ``ptnr2_auth_seq_id``: The author sequence ID of the second partner in the link (mmCIF).
+    - ``ptnr1_auth_comp_id``: The author component ID of the first partner in the link (mmCIF).
+    - ``ptnr2_auth_comp_id``: The author component ID of the second partner in the link (mmCIF).
+    """
+    
     yaml_header='links'
+    """
+    YAML header for Link objects.
+    This header is used to identify Link objects in YAML files.
+    """
+
     PDB_keyword='LINK'
+    """
+    PDB keyword for Link objects.
+    """
+    
     objcat='topol'
+    """
+    Category of the Link object.
+    This categorization is used to group Link objects in the object manager.
+    """
     
     patch_atomnames={
         'NGLA':['ND2','C1'],
@@ -62,8 +109,12 @@ class Link(AncestorAwareObj):
         'SA26AT':['O6','C2'],
         'SA28AA':['O8','C2'],
         'SA29AT':['O9','C2'],
-        'ZNHD':['NE2','ZN']
+        'ZNHE':['ZN','NE2'],
+        'ZNHD':['ZN','ND2']
     }
+    """
+    A dictionary mapping atom names to their corresponding CHARMM36 patch names.
+    """
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)
@@ -226,17 +277,18 @@ class Link(AncestorAwareObj):
         self.altloc2=''
 
     def set_patchname(self,force=False):
-        """Determine the charmff patch residue name for this link based on
-        residue names, atom names, and when necessary, 3D geometry of a 
-        particular dihedral angle around the link's bond
+        """
+        Set the charmff patch name for this link.
+        This method assigns a patch name based on the residues involved in the link.
+        If the patch name is already set and ``force`` is False, it will not change the patch name.
+        This method does not return any value. It modifies the ``patchname`` attribute of the Link object.
+        It checks the residues involved in the link and assigns a patch name based on predefined mappings.
         
-        New Attributes
-        --------------
-        patchname : str
-           charmff pres name
-        
-        patchorder : list
-            [1,2] if residue 1 appears first in the pres listing; [2,1] if residue 2 appears first in the pres listing
+        Parameters
+        ----------
+        force : bool, optional
+            If True, forces the patch name to be set even if it is already assigned.
+            Default is False.
         """
         if hasattr(self,'patchname') and len(self.patchname)>0 and not force:
             logger.debug(f'Patchname for {str(self)} already set to {self.patchname}')
@@ -345,8 +397,9 @@ class Link(AncestorAwareObj):
             logger.warning(f'Could not identify patch for link {self.resname1}-{self.resname2}')
             self.patchname='UNFOUND'
 
-    def write_TcL(self,W:Psfgen,transform):
-        """Insert the appropriate TcL commands to add this link in a psfgen script
+    def write_TcL(self,W:PsfgenScripter,transform):
+        """
+        Insert the appropriate TcL commands to add this link in a psfgen script
         
         Assumes that if one of the two residues is an asparagine and the other is a 
         from a glycan, this requires an CHARMM NGLB patch
@@ -358,9 +411,9 @@ class Link(AncestorAwareObj):
         
         Parameters
         ----------
-        W: Psfgen
+        W : PsfgenScripter
             the psfgen scriptwriter object
-        transform: BiomT
+        transform : BiomT
             the designated transform under which this link is operational; used for its chainIDmap
         """
         chainIDmap=transform.chainIDmap
@@ -383,7 +436,9 @@ class Link(AncestorAwareObj):
             W.comment(f'No patch found for {str(self)}')
     
     def update_residue(self,idx,**fields):
-        """Updates the chainID of the residue in the link based on the index provided
+        """
+        Updates the chainID of the residue in the link based on the index provided
+        
         Parameters
         ----------
         idx: int
@@ -412,44 +467,27 @@ class Link(AncestorAwareObj):
         return f'{str(self.residue1)}-{str(self.residue2)}'
 
 class LinkList(AncestorAwareObjList):
-    """A class for handling lists of Links
-
-    Methods
-    -------
-    assign_resiudes(Residues)
-        scans the provided list of residues to assign actual residues to the 'residue1' and 'residue2'
-        attributes of each link; sets the 'atom1' and 'atom2' attributes to point to the actual
-        atoms; sets up the 'up' and 'down' pointers for every link; sets the segtype1 and segtype2
-        attributes of every link; returns list of residues not assigned to links and links to which
-        no residues were assigned.
-
-    write_TcL(W,transform)
-        calls write_TcL for each link
-
-    prune_mutations(Mutations,Segments)
-        Given a list of mutations, removes any links that were declared such that any mutation
-        would make the link chemically impossible.  E.g., mutating an ASN of an N-linked
-        glycosylation site results in loss of the ASN-BGLNA link.
-    
-    apply_segtypes(map)
-        using the resname-to-segtype map provided, set the 'segtype1' and 'seqtype2' attributes
-        of every element.
-                
     """
+    A class for handling lists of Links
+    """
+
     def assign_residues(self,Residues):
-        """Assigns residue and atom pointers to each link; sets up the up and down links of both
+        """
+        Assigns residue and atom pointers to each link; sets up the up and down links of both
         residues so that linked residue objects can reference one another; flags residues from
         list of residues passed in that are not assigned to any links
 
-        Arguments
-        ---------
+        Parameters
+        ----------
         Residues: ResidueList
-            List of residues to search in order to make residue assignments
-        
+            list of residues to assign to links; this is typically a list of all residues in the
+            structure, but it can also be a list of residues that are not linked to any other
+            residues, such as when reading in a set of links from a pre-built psf file.
+
         Returns
         -------
-        ResidueList: list of residues from Residues that are not used for any assignments
-
+        Residues: ResidueList
+            list of residues from Residues that are not used for any assignments
         """
         logger.debug(f'Links: Assigning residues from list of {len(Residues)} residues')
         ignored_by_ptnr1=self.assign_objs_to_attr('residue1',Residues,resseqnum='resseqnum1',chainID='chainID1',insertion='insertion1')
@@ -485,22 +523,41 @@ class LinkList(AncestorAwareObjList):
                 Residues.remove(r)
         return Residues.__class__(rlist),self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
     
-    def write_TcL(self,W:Psfgen,transform):
+    def write_TcL(self,W:PsfgenScripter,transform):
+        """
+        Write the Tcl commands to add all links in this list to a psfgen script
+        
+        Parameters
+        ----------
+        W : PsfgenScripter
+            the psfgen scriptwriter object
+        transform : BiomT
+            the designated transform under which these links are operational; used for its chainIDmap
+        """
         for l in self:
             l.write_TcL(W,transform)
 
     def prune_mutations(self,Mutations,Segments):
-        """Prune off any links and associated objects as a result of mutations
-        
-        Arguments
-        ---------
+        """
+        Prune off any links and associated objects as a result of mutations
+
+        Parameters
+        ----------
         Mutations: MutationList
-            list of mutations
-            
+            list of mutations to prune off links; these are typically the mutations that were applied
+            to the structure before the links were created, so they are not part of the original
+            structure, but they are part of the current structure.
         Segments: SegmentList
-            list of assembled segments; might need to be modified if pruning gets rid
-            of a whole segment's worth of residues
+            Current list of segments in the structure; it is from this list that segments are removed if they become empty as a result of pruning off links that are pruned off due to mutations.
+
+        Returns
+        -------
+        pruned: dict
+            A dictionary containing lists of pruned residues, links, and segments.
         
+            - ``residues``: list of Residue objects that were pruned
+            - ``links``: list of Link objects that were pruned
+            - ``segments``: list of Segment objects that were pruned
         """
         pruned={'residues':[],'links':self.__class__([]),'segments':[]}
         for m in Mutations:
@@ -532,7 +589,8 @@ class LinkList(AncestorAwareObjList):
         return pruned
 
     def apply_segtypes(self,map):
-        """Apply segtype values to each of the two residues using the map
+        """
+        Apply segtype values to each of the two residues using the map
         
         Parameters
         ----------
@@ -543,5 +601,8 @@ class LinkList(AncestorAwareObjList):
         self.map_attr('segtype2','resname2',map)
 
     def report(self,W:Filewriter):
+        """
+        Report the string representation of each link in the list.
+        """
         for l in self:
             W.addline(str(l))

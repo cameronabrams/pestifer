@@ -1,4 +1,8 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+CleavageSite is a class for handling chain cleavage in molecular structures.
+It represents a user-specified modification that cleaves a segment of a chain
+between two specified residues, creating a new segment."""
 import logging
 logger=logging.getLogger(__name__)
 
@@ -12,23 +16,31 @@ class CleavageSite(AncestorAwareObj):
     A class for handling chain cleavage.  Note that this mod is not expected to be part of an 
     ObjManager so the yaml_header and objcat attributes are irrelevant.  It is instead handled
     as a run task.
-    
-    Attributes
-    ----------
-    chainID : str
-        chain ID of the segment to which cleavage is made
-    resseqnum1 : int
-        N-terminal resid of cleavage site
-    insertion1 : str
-        insertion code of N-terminal residue
-    resseqnum2 : int
-        C-terminal resid of cleavage site
-    insertion2 : str
-       insertion code of the C-terminal residue
     """
+
     req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
+    """
+    Required attributes for a CleavageSite object.
+    These attributes must be provided when creating a CleavageSite object.
+
+    - ``chainID``: The chain ID of the segment to be cleaved.
+    - ``resseqnum1``: The N-terminal residue number of the cleavage site.
+    - ``insertion1``: The insertion code of the N-terminal residue.
+    - ``resseqnum2``: The C-terminal residue number of the cleavage site.
+    - ``insertion2``: The insertion code of the C-terminal residue.
+    """
+    
     yaml_header='cleavages'
+    """
+    YAML header for CleavageSite objects.
+    This header is used to identify CleavageSite objects in YAML files.
+    """
+
     objcat='seq'
+    """
+    Category of the CleavageSite object.
+    This categorization is used to group CleavageSite objects in the object manager.
+    """
 
     @singledispatchmethod
     def __init__(self,input_obj):

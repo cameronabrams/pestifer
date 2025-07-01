@@ -14,9 +14,11 @@ logger=logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 class MDPlotTask(BaseTask):
-    """ A class for making plots of energy-like quantities from a series of one or more NAMD 
-        runs.  Since NAMD runs are always invoked using a log-parser, a csv file is created that 
-        contains all energy-like data from the run. """
+    """ 
+    A class for making plots of energy-like quantities from a series of one or more NAMD 
+    runs.  Since NAMD runs are always invoked using a log-parser, a csv file is created that 
+    contains all energy-like data from the run. 
+    """
     yaml_header='mdplot'
     def do(self):
         logger.debug(f'Running {self.__class__.__name__} task with specs {self.specs}')

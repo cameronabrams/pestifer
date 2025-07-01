@@ -1,7 +1,7 @@
-pestifer.molecule.colvars module
+pestifer.util.namdcolvars module
 ================================
 
-.. automodule:: pestifer.molecule.colvars
+.. automodule:: pestifer.util.namdcolvars
    :members:
    :show-inheritance:
    :undoc-members:

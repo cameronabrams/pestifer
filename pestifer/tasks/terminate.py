@@ -62,7 +62,7 @@ class TerminateTask(MDTask):  #need to inherit for namdrun() method
             with open(f'{basename}_par.inp','w') as f:
                 for pf in params['parameters']:
                     f.write(f'parameters {pf}\n')
-            vt=self.writers['vmd']
+            vt=self.scripters['vmd']
             vt.newscript(f'{basename}_tg')
             vt.usescript('tg')
             vt.writescript()

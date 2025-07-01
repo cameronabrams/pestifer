@@ -8,7 +8,7 @@ from pestifer.molecule.residue import ResidueList, EmptyResidue, EmptyResidueLis
 from pestifer.molecule.atom import Atom, AtomList
 from pestifer.objs.seqadv import Seqadv, SeqadvList
 from pestifer.core.config import Config
-from pestifer.core.scriptwriters import VMD
+from pestifer.core.scripters import VMDScripter
 from pestifer.molecule.bioassemb import Transform, TransformList, BioAssemb, BioAssembList
 from pestifer.util.util import reduce_intlist
 
@@ -76,7 +76,7 @@ class TestCIF(unittest.TestCase):
         source='8fae'
         config=Config()
         # config['rcsb_file_format']='mmCIF'
-        vmd=VMD(config)
+        vmd=VMDScripter(config)
         vmd.newscript('testcif')
         vmd.addline(f'mol new {source}.cif')
         p_struct=CIFload(source)
