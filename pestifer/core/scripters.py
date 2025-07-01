@@ -1,7 +1,13 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """ 
-Defines the ``Filewriter`` class and several descendents specialized for writing
-and running scripts for VMD, psfgen, NAMD, and packmol
+Defines the :class:`Filewriter` class and several descendents specialized for writing
+and running scripts for VMD, psfgen, NAMD, and packmol.  These include:
+
+- :class:`TcLScripter`: A base class for creating and running Tcl scripts.
+- :class:`VMDScripter`: A class for creating and running VMD Tcl scripts.
+- :class:`PsfgenScripter`: A class for creating and running psfgen Tcl scripts.
+- :class:`NAMDScripter`: A class for creating and running NAMD Tcl scripts.
+- :class:`PackmolScripter`: A class for creating and running Packmol scripts.
 """
 import os
 import datetime

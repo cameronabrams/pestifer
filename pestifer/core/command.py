@@ -16,7 +16,8 @@ from glob import glob
 logger=logging.getLogger(__name__)
 
 class Command:
-    """ Class for running external commands in a subprocess.
+    """ 
+    Class for running external commands in a subprocess.
     This class allows you to create a command with its arguments and options, and then run it while capturing its output.
     The command is run in a shell, and you can specify a logfile to write the output to.
     If the command returns a non-zero exit code, an error is logged, and the stdout and stderr buffers are printed.

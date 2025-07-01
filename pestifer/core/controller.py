@@ -1,7 +1,7 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """ 
 A controller for the pestifer runtime.  Initialization of a Controller object generates
-the configuration, from which the list of tasks is created.  The ``do_tasks()`` method executes
+the configuration, from which the list of tasks is created.  The :meth:`do_tasks()` method executes
 the tasks.
 """
 import logging
@@ -22,8 +22,8 @@ class Controller:
     This class initializes with a configuration and a list of user-specified tasks.
     It sets up the necessary file writers and creates a list of tasks to be executed.
     The tasks are executed in the order they are defined, and the results of each task
-    are collected in a report. If the last task is not a ``terminate`` task,
-    a default ``terminate`` task is added to ensure proper cleanup.
+    are collected in a report. If the last task is not a :class:`pestifer.tasks.terminate.TerminateTask` task,
+    a default :class:`pestifer.tasks.terminate.TerminateTask` is added to ensure proper cleanup.
 
     Parameters
     ----------

@@ -1,5 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" Defines the ByteCollector and FileCollector classes
+""" 
+Defines the :class:`ByteCollector` and :class:`FileCollector` classes, and defines the :func:`banner` and :func:`my_logger` functions.
 """
 import logging
 import os
@@ -320,12 +321,30 @@ class ByteCollector:
             self.addline(line,end=end)
 
     def log(self,msg):
+        """
+        Logs a message to the string
+        
+        Parameters
+        ----------
+        msg: str
+           the message to log"""
         my_logger(msg,self.addline)
 
     def banner(self,msg):
+        """
+        Logs a banner message to the string
+        
+        Parameters
+        ----------
+        msg: str
+           the message to log
+        """
         my_logger(msg,self.addline,fill='#',width=80,just='^')
 
     def __str__(self):
+        """
+        Returns the string representation of the byte collector
+        """
         return self.byte_collector
 
 def my_logger(msg,logf,width=None,fill='',just='<',frame='',depth=0,**kwargs):

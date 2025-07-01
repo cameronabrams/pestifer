@@ -1,10 +1,10 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """ 
-A class for parsing the config file and creating the Config object 
+A class for parsing the config file and creating the :class:`Config` object 
 Pestifer's user-configuration input uses ycleptic, an enhanced, YAML-based
-configuration file manager.  The Config object is a descendent of the
-Yclept class.  It also houses the ResourceManager object, which manages
-access to the contents of Pestifer's ``resources`` directory.
+configuration file manager.  The :class:`Config` object is a descendent of the
+:class:`Yclept` class.  It also houses the :class:`pestifer.core.resourcemanager.ResourceManager` object, which manages
+access to the contents of Pestifer's :mod:`pestifer.resources` subpackage.
 """
 
 import os

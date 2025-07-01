@@ -531,6 +531,21 @@ class BaseObj(Namespace):
         setattr(self,attr,getattr(getattr(self,obj),obj_attr))
     
     def update_attr_from_objlist_elem_attr(self,attr,objlist,index,obj_attr):
+        """
+        Set value of caller's attribute from an attribute
+        of an object in a list of objects
+        
+        Parameters
+        ----------
+        attr : str
+            attribute name
+        objlist : list
+            list of objects
+        index : int
+            index of object in list
+        obj_attr : str
+            attribute name in object
+        """
         setattr(self,attr,getattr(getattr(self,objlist)[index],obj_attr))
 
 class CloneableObj(BaseObj):

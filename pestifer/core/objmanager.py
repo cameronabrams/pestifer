@@ -1,12 +1,12 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
 A dictionary object for containing all objs from a task specification.  Objs are objects that handle various modifications
-to a molecular structure, such as cleavages, translations, rotations, and so on.
-This module defines the `ObjManager` class, which is responsible for managing these objects and their organization.
+to a molecular structure, such as cleavages, translations, rotations, and so on.  These are all defined in the :mod:`pestifer.objs` subpackage.
+This module defines the :class:`ObjManager` class, which is responsible for managing these objects and their organization.
 It provides methods for ingesting objects, filtering them, and managing their categories.
-The `ObjManager` class inherits from `UserDict`, allowing it to behave like a dictionary
+The :class:`ObjManager` inherits from :class:`collections.UserDict`, allowing it to behave like a dictionary
 while providing additional functionality specific to managing molecular objects.
-It also includes methods for counting objects, retiring categories, and expelling objects based on specific criteria
+It also includes methods for counting objects, retiring categories, and expelling objects based on specific criteria.
 """
 from ..util.util import inspect_package_dir
 from collections import UserDict
@@ -45,15 +45,7 @@ class ObjManager(UserDict):
         A dictionary that stores retired objects, allowing for retrieval of previously used objects.
     """
 
-    obj_classes,objlist_classes=inspect_package_dir(os.path.dirname(objs.__file__),key='List')
-    """
-    obj_classes: dict
-        A dictionary mapping object names to their corresponding classes.
-        This dictionary is populated by inspecting the ``objs`` package directory.
-    objlist_classes: dict
-        A dictionary mapping object list names to their corresponding list classes.
-        This dictionary is also populated by inspecting the ``objs`` package directory.
-    """
+    _obj_classes,_objlist_classes=inspect_package_dir(os.path.dirname(objs.__file__),key='List')
     
     def __init__(self,input_specs={}):
         """ 
@@ -112,7 +104,7 @@ class ObjManager(UserDict):
         """
         if type(input_obj) in self.obj_classes.values():
             self._ingest_obj(input_obj)
-        elif type(input_obj) in self.objlist_classes.values():
+        elif type(input_obj) in self._objlist_classes.values():
             return self._ingest_objlist(input_obj,overwrite=overwrite)
         elif type(input_obj)==dict:
             self._ingest_objdict(input_obj,overwrite=overwrite)
@@ -124,7 +116,7 @@ class ObjManager(UserDict):
     def _ingest_obj(self,a_obj):
         Cls=type(a_obj)
         objclassident=[x for x,y in self.obj_classes.items() if y==Cls][0]
-        LCls=self.objlist_classes.get(f'{objclassident}List',list)
+        LCls=self._objlist_classes.get(f'{objclassident}List',list)
         objcat=Cls.objcat
         assert objcat in ObjCats,f'Object category {objcat} is not recognized'
         header=Cls.yaml_header
@@ -157,7 +149,7 @@ class ObjManager(UserDict):
             objcat=Cls.objcat
             header=Cls.yaml_header
             if header in objdict:
-                LCls=self.objlist_classes.get(f'{name}List',list)
+                LCls=self._objlist_classes.get(f'{name}List',list)
                 if not objcat in self:
                     self[objcat]={}
                 if overwrite or not header in self[objcat]:
@@ -196,7 +188,7 @@ class ObjManager(UserDict):
         """
         ex=ObjManager()
         for name,Cls in self.obj_classes.items():
-            LCls=self.objlist_classes.get(f'{name}List',list)
+            LCls=self._objlist_classes.get(f'{name}List',list)
             objcat=Cls.objcat
             if objcat in self:
                 exl=LCls([])

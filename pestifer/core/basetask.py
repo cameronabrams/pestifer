@@ -1,5 +1,15 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" The BaseTask class
+""" 
+This module defines the :class:`BaseTask` class, which serves as a base class for all task types in the pestifer framework.
+The :class:`BaseTask` class provides a common interface and some basic functionality for tasks, including task initialization,
+logging, state management, and file handling. It is intended to be subclassed by specific task types that implement their own
+specific behavior and functionality.
+The :class:`BaseTask` class includes methods for task execution, state variable management, file collection, and task name management.
+It also provides a mechanism for inheriting state from prior tasks, saving the task state to a YAML file, and copying the state to files based on specified extensions.
+The class also includes methods for converting coordinate files to PDB files and vice versa, as well as creating constraint PDB files based on task specifications.
+The :class:`BaseTask` class is designed to be flexible and extensible, allowing for the creation of various task types that can perform different operations on molecular structures.
+
+Available tasks that inherit from :class:`BaseTask` include all those in the :mod:`pestifer.tasks` subpackage.
 
 """
 import logging
