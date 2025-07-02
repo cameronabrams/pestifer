@@ -1,5 +1,13 @@
 # Author: Cameron F. Abrams
+"""
+Definition of the :class:`MDTask` class for handling molecular dynamics (MD) simulations using NAMD.
+This class is a descendant of the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class and is used to run NAMD simulations,
+manage the state of the simulation, and handle various aspects of the MD task such as ensembles, constraints, and colvars.
+It manages the setup and execution of NAMD runs, including reading and writing necessary files,
+updating state variables, and handling the results of the simulation.
 
+Usage is described in the :ref:`subs_runtasks_md` documentation.
+"""
 import logging
 import os
 
@@ -14,8 +22,13 @@ class MDTask(BaseTask):
     A class for handling all NAMD runs
     """
     yaml_header='md'
-
+    """
+    YAML header for the MDTask, used to identify the task in configuration files as part of a ``tasks`` list.
+    """
     def do(self):
+        """
+        Execute the MD task.
+        """
         self.log_message('initiated',ensemble=self.specs.get('ensemble',None))
         self.inherit_state()            
         self.result=self.namdrun()
@@ -38,6 +51,23 @@ class MDTask(BaseTask):
         return super().do()
 
     def namdrun(self,baselabel='',extras={},script_only=False,**kwargs):
+        """
+        Run a NAMD simulation based on the specifications provided in the task.
+        This method prepares the necessary parameters, writes the NAMD script, and executes it.
+        It handles different ensembles (NPT, NVT, minimize), sets up constraints and colvars, and manages the simulation state.
+        If `script_only` is True, it only writes the script without executing it.
+        
+        Parameters
+        ----------
+        baselabel : str, optional
+            The base label for the NAMD run. If not provided, it will be generated based on the ensemble type.
+        extras : dict, optional
+            Additional parameters to be included in the NAMD script.
+        script_only : bool, optional
+            If True, only the script will be written without executing it.
+        **kwargs : dict, optional
+            Additional keyword arguments that may include execution options such as `single_gpu_only`.
+        """
         specs=self.specs
         addl_paramfiles=specs.get('addl_paramfiles',[])
         logger.debug(f'md task specs {specs}')

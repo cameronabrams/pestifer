@@ -1,5 +1,9 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+Definition of the :class:`RestartTask` class for resetting the task chain to named values of the psf, pdb, xsc, and coor files.
 
+Usage is described in the :ref:`config_ref tasks restart` documentation.
+"""
 import logging
 import shutil
 

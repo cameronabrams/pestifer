@@ -1,8 +1,8 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
-# VMD/psfgen script for creating a new psf/pdb pair for a complete, 
-# membrane-embedded protein pdb from an intact membrane system
-# and the original protein psf/pdb
+## VMD/psfgen script for creating a new psf/pdb pair for a complete, 
+## membrane-embedded protein pdb from an intact membrane system
+## and the original protein psf/pdb
 
 # if referenced using the Psfgen scriptwriter, all common psfgen
 # pre-build commands are invoked automatically

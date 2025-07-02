@@ -1,4 +1,11 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+# Definition of the :class:`PSFDihedral` and :class:`PSFDihedralList` classes for handling dihedrals in PSF topology files.
+# These classes are used to represent dihedrals formed by four atoms in a molecular structure, as defined in PSF files.
+# The :class:`PSFDihedral` class represents a single dihedral, while the :class:`PSFDihedralList` class is a collection of such dihedrals.
+# These are descendants of the :class:`PSFTopoElement <.psftopoelement.PSFTopoElement>` and :class:`PSFTopoElementList <.psftopoelement.PSFTopoElementList>` classes, respectively,
+# which provide a framework for representing and manipulating generic PSF topology elements.
+"""
 
 import logging
 
@@ -9,10 +16,32 @@ from .psftopoelement import PSFTopoElement, PSFTopoElementList, LineList
 logger=logging.getLogger(__name__)
 
 class PSFDihedral(PSFTopoElement):
+    """
+    A class representing a dihedral in a PSF topology file.
+    """
+    
     def __eq__(self,other):
+        """
+        Check if two PSFDihedral objects are equal by comparing their serial numbers.
+        Two dihedrals are considered equal if they have the same serial numbers in either forward or reverse order.
+        
+        Parameters
+        ----------
+        other : PSFDihedral
+            The other dihedral to compare against.
+        
+        Returns
+        -------
+        bool
+            True if the dihedrals are equal, False otherwise.
+        """
         return [self.serial1,self.serial2,self.serial3,self.serial4]==[other.serial1,other.serial2,other.serial3,other.serial4] or [self.serial1,self.serial2,self.serial3,self.serial4]==[other.serial4,other.serial3,other.serial2,other.serial1] 
 
 class PSFDihedralList(PSFTopoElementList):
+    """
+    A class representing a list of :class:`PSFDihedral` objects.  This class can be initialized from a list of lines or from a :class:`PSFTopoElementList <.psftopoelement.PSFTopoElementList>` object.
+    """
+    
     @singledispatchmethod
     def __init__(self,input_data,**kwargs):
         super().__init__(input_data)

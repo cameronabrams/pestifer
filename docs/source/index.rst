@@ -20,5 +20,5 @@ Contents
    usage
    examples
    config_ref
-   api/pestifer
-
+   api/modules
+   tcl/source

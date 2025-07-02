@@ -1,5 +1,15 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
+"""
+Definition of the :class:`PDB2PQRTask` class for preparing PDB files for PQR generation using PDB2PQR.
+This class is a descendant of the :class:`PsfgenTask <pestifer.tasks.psfgen.PsfgenTask>` class and is used to prepare PDB files,
+generate PQR files with titration states, and apply necessary modifications to the molecular structure.
+
+Usage is described in the :ref:`subs_runtasks_pdb2pqr` documentation.
+
+The documentation of the pdb2pqr command is available at `readthedocs <https://pdb2pqr.readthedocs.io/en/latest/>`_.
+"""
+
 import logging
 import os
 from ..core.command import Command
@@ -15,9 +25,18 @@ from pidibble.pdbparse import PDBParser
 logger=logging.getLogger(__name__)
 
 class PDB2PQRTask(PsfgenTask):
+    """
+    PDB2PQRTask class for preparing PDB files for PQR generation using PDB2PQR.
+    """
     yaml_header='pdb2pqr'
-
+    """
+    YAML header for the PDB2PQRTask, used to identify the task in configuration
+    files as part of a ``tasks`` list.
+    """
     def do(self):
+        """
+        Execute the PDB2PQR task.
+        """
         self.log_message('initiated')
         self.inherit_state()
         self.next_basename()
@@ -35,6 +54,19 @@ class PDB2PQRTask(PsfgenTask):
         self.log_message('complete')
 
     def prep_input(self):
+        """
+        Prepare the input PDB file for PDB2PQR processing.
+        This method writes a hydrogen-free PDB file with histidine resnames reverted to HIS and
+        water resnames changed to HOH. It uses the VMD scripter to create a script that performs these modifications.
+        The resulting PDB file is saved with the basename followed by `_pprep.pdb`.
+        It also updates the state variables with the new PDB file.
+        The method returns the result of the VMD script execution.
+        
+        Returns
+        -------
+        int
+            The result of the VMD script execution, typically 0 on success.
+        """
         # writes a hydrogen-free PDB file with histidine resnames all reverted to HIS and water resnames to HOH
         psf=self.statevars['psf']
         pdb=self.statevars['pdb']
@@ -55,6 +87,18 @@ class PDB2PQRTask(PsfgenTask):
         return result
     
     def run_pdb2pqr(self,pH=7.0):
+        """
+        Run PDB2PQR on the prepared PDB file to generate a PQR file
+        with titration states. This method constructs a command to run PDB2PQR with the specified parameters,
+        including the force field, output force field, pH, titration state method, and output file names.
+        It uses the `Command` class to execute the PDB2PQR command and parse the results using the `PDB2PQRLog` parser.
+        The method also updates the metadata with the protonation states of histidines based on the pKa values.
+        
+        Parameters
+        ----------
+        pH : float, optional
+            The pH value to be used for titration state calculations. Default is 7.
+        """
         # runs PDB2PQR on the prepped PDB file, generating a PQR file with titration states, and parses the results
         c=Command(f'pdb2pqr --ff CHARMM --ffout CHARMM --with-ph {pH} --titration-state-method propka --pdb-output {self.basename}_pqr.pdb {self.basename}_pprep.pdb {self.basename}.pqr')
         self.log_parser=PDB2PQRLog(basename=f'{self.basename}_run')
@@ -86,6 +130,13 @@ class PDB2PQRTask(PsfgenTask):
                     pka_table.loc[(pka_table['resnum']==resnum) & (pka_table['reschain']=='A'),'resname']=hisname
 
     def prep_mods(self):
+        """
+        Prepare modifications based on the PKA table from the log parser.
+        This method iterates through the PKA table and creates `Patch` objects for residues that require modifications.
+        It handles different residue types such as histidines, acidic residues (ASP, GLU), basic residues (TYR, SER, LYS, ARG), and terminal residues (N+, C-).
+        The patches are created based on the protonation state of the residues and their resnames.
+        The patches are stored in the `objmanager` for later use.
+        """
         self.objmanager=ObjManager()
         # columns
         # resname  resnum reschain  respka  resmodelpka resatomtype  protonated

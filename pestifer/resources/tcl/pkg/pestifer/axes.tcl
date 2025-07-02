@@ -1,25 +1,40 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
+## ``PestiferAxes`` -- This is a Pestifer Tcl package for VMD that provides tools for
+## computing approximate symmetry axes of macromolecular complexes.
+## It allows for the generation of an approximate axis around which protomers are arranged,
+## based on the coordinates of symmetry-related atoms in each protomer.
+## The package provides the following main procedures:
+##
+##  ``axis``: Computes the approximate symmetry axis based on parallel arrays of atom coordinates.
+##
+##  ``get_axis``: Computes the symmetry axis for a given molecule, frame, and selection string.
+##
+##  ``get_center``: Computes the geometric center of symmetry-related atoms in a molecule.
+##
+##  ``get_tilt``: Computes the tilt angle between two axes defined by different sets of chains.
+##
+##  ``get_tilt_z``: Computes the tilt angle of a trimer axis with respect to the z-axis.
 package provide PestiferAxes 1.0
 
 namespace eval ::PestiferAxes:: {
     namespace export *
 }
 
+## Given a list whose elements are parallel arrays of atom coordinates, one per protomer and therefore
+## assumed to be symmetry related, computes selected cross products of displacement vectors connecting
+## parallel coordinates and averages the resulting vectors to generate an approximation to the axis
+## around which the protomers are arranged.
+##
+##   2
+##   |
+##   |
+##   0-----1
+##
+##   v1=r0-r1
+##   v2=r0-r2
+##   c=v1 x v2
+##
 proc PestiferAxes::axis { rlist } {
-    # Given a list whose elements are parallel arrays of atom coordinates, one per protomer and therefore
-    # assumed to be symmetry related, computes selected cross products of displacement vectors connecting
-    # parallel coordinates and averages the resulting vectors to generate an approximation to the axis
-    # around which the protomers are arranged.
-    #
-    #   2
-    #   |
-    #   |
-    #   0-----1
-    #
-    #   v1=r0-r1
-    #   v2=r0-r2
-    #   c=v1 x v2
-    #
     set npoints [llength $rlist]
     set accum [veczero]
     set count 0

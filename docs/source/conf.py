@@ -2,6 +2,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'pestifer','sphinxext')))
 
 # Configuration file for the Sphinx documentation builder.
 
@@ -37,6 +38,8 @@ intersphinx_mapping = {
 intersphinx_disabled_domains = ['std']
 
 templates_path = ['_templates']
+
+
 
 # -- Options for HTML output
 
@@ -99,5 +102,8 @@ epub_show_urls = 'footnote'
 mermaid_params = ['--theme', 'dark', '--width', '600']
 
 def setup(app):
+    print("✅ Setting up custom directives...") 
     app.add_css_file("css/custom.css")
+    from pestifer.sphinxext.tclscript import TclScriptDirective
+    app.add_directive("tclscript", TclScriptDirective)
     

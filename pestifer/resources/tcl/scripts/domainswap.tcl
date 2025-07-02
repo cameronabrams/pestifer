@@ -1,6 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
-# A VMD/TcL script to perform a domain-swapping TMD simulation using NAMD colvars
+## A VMD/TcL script to perform a domain-swapping TMD simulation using NAMD colvars
 
 proc repl_w_avg { L } {
     set sum 0.0

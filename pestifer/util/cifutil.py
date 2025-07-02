@@ -1,5 +1,6 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
-"""Some classes/methods for interfacing with mmcif
+"""
+Some classes/methods for interfacing with mmCIF files.
 """
 import logging
 
@@ -11,7 +12,9 @@ from collections import UserDict
 logger=logging.getLogger(__name__)
 
 class CIFdict(UserDict):
-    """A class for generating a custom-format dictionary from an mmcif input object"""
+    """
+    A class for generating a custom-format dictionary from an mmcif input object
+    """
     def __init__(self,Obj,idx,lowercase=True,blankers=[' ','?']):
         if lowercase:
             data={c.lower():Obj.getValue(c,idx) for c in Obj.getAttributeList()}
@@ -23,7 +26,9 @@ class CIFdict(UserDict):
         super().__init__(data)
 
 def CIFload(pdb_id) -> DataContainer:
-    """Downloads (if necessary) and reads in a mmCIF file into an mmcif DataContainer object"""
+    """
+    Downloads (if necessary) and reads in a mmCIF file into an mmcif DataContainer object
+    """
     # fetch the cif file if not already present
     PDBParser(PDBcode=pdb_id,input_format='mmCIF').fetch()
     # strip out the pdbx_audit_revision_item that confuses

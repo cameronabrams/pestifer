@@ -1,9 +1,11 @@
 # Author: Cameron F. Abrams, <cfa2@drexel.edu>
+"""
+Definition of the :class:`MakeMembraneSystemTask` class for handling embedding proteins into bilayers.
+
+Usage is described in the :ref:`subs_runtasks_make_membrane_system` documentation.
+"""
+
 import logging
-# import yaml
-
-# import numpy as np
-
 from copy import deepcopy
 
 from ..charmmff.charmmffcontent import CHARMMFFResiDatabase
@@ -23,6 +25,9 @@ class MakeMembraneSystemTask(BaseTask):
     A class for handling embedding proteins into bilayers
     """
     yaml_header='make_membrane_system'
+    """
+    YAML header for the MakeMembraneSystemTask, used to identify the task in configuration files as part of a ``tasks`` list.
+    """
     def __init__(self,config_specs={},controller_specs={}):
         super().__init__(config_specs,controller_specs)
         self.patchA=self.patchB=self.patch=None
@@ -50,6 +55,13 @@ class MakeMembraneSystemTask(BaseTask):
             self.initialize()
 
     def initialize(self):
+        """
+        Initialize the MakeMembraneSystemTask by building the bilayer patch and quilt.
+        This method sets up the bilayer patch based on the specifications provided in the configuration.
+        If the bilayer is asymmetric, it builds two symmetric patches.
+        It also sets up the quilt from the bilayer patch, which will be used for embedding proteins. 
+        If a prebuilt bilayer is specified, it uses that instead of building a new one.
+        """
         lipid_specstring=self.bilayer_specs.get('lipids','')
         ratio_specstring=self.bilayer_specs.get('mole_fractions','')
         conformers_specstring=self.bilayer_specs.get('conformers','')
@@ -115,6 +127,9 @@ class MakeMembraneSystemTask(BaseTask):
 
 
     def do(self):
+        """
+        Execute the MakeMembraneSystemTask.
+        """
         self.log_message('initiated')
         self.inherit_state()
         # as part of a list of tasks, this task expects to be fed a protein system to embed
@@ -132,6 +147,12 @@ class MakeMembraneSystemTask(BaseTask):
         return super().do()
 
     def build_patch(self):
+        """
+        Build the bilayer patch or patches based on the specifications provided in the configuration.
+        This method retrieves the bilayer specifications, including solution conditions, rotation parameters,
+        and other relevant settings.
+        It then constructs the patch or patches, packs them using Packmol, and writes the necessary files for further processing.
+        """
         logger.debug(f'Bilayer specs: {self.bilayer_specs}')
         solution_gcc=self.bilayer_specs.get('solution_gcc',1.0)
         rotation_pm=self.bilayer_specs.get('rotation_pm',10.)
@@ -179,6 +200,11 @@ class MakeMembraneSystemTask(BaseTask):
                               parent_controller_index=self.controller_index)
 
     def make_quilt_from_patch(self):
+        """
+        Create a quilt from the bilayer patch or patches.
+        This method generates a quilt that combines the bilayer patches into a single structure.
+        It uses the psfgen scripter to create a script that builds the quilt based on the provided patches.
+        The quilt is then equilibrated and saved with the appropriate state variables."""
         logger.debug(f'Creating quilt from patch')
         self.next_basename('quilt')
         additional_topologies=[]
@@ -235,6 +261,14 @@ class MakeMembraneSystemTask(BaseTask):
                                 parent_controller_index=self.controller_index)
 
     def embed_protein(self):
+        """
+        Embed the protein into the bilayer patch or quilt.
+        This method uses the psfgen scripter to create a script that embeds the protein
+        into the bilayer based on the provided specifications.
+        It retrieves the embedding specifications, such as head and tail groups, reference groups,
+        and orientation settings, and runs the script to perform the embedding.
+        The resulting state variables are updated with the new PSF, PDB, and coordinate files.
+        """
         if not self.embed_specs:
             logger.debug('No embed specs.')
             return

@@ -1,5 +1,16 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+Definition of the :class:`SolvateTask` class for solvating a molecular structure.
+This class is a descendant of the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class and is used to solvate a molecular structure
+using the VMD solvate and autoionize packages.
+It generates a solvated PDB and PSF file, optionally adding ions based on specified salt concentration and ion types.
+The task can also handle cubic or rectangular boxes for solvation based on the provided specifications.
+The task reads the input PDB and PSF files, calculates the bounding box for the solvation,
+and generates the necessary Tcl commands to perform the solvation and ionization.
+The resulting solvated structure is saved with the specified basename, and the state is updated with the new PSF, PDB, and XSC files.
 
+Usage is described in the :ref:`subs_runtasks_solvate` documentation.
+"""
 import numpy as np
 import os
 
@@ -10,9 +21,19 @@ from ..core.basetask import BaseTask
 from ..util.util import cell_from_xsc, cell_to_xsc
 
 class SolvateTask(BaseTask):
+    """
+    SolvateTask class for solvating a molecular structure.
+    """
     yaml_header='solvate'
-
+    """
+    YAML header for the SolvateTask, used to identify the task in configuration files as part of a ``tasks`` list.
+    This header is used to declare SolvateTask objects in YAML task lists.
+    """
     def do(self):
+        """
+        Execute the solvate task.
+        This method initializes the task, inherits the state from prior tasks, and performs the solvation and ionization.
+        """
         self.log_message('initiated')
         self.inherit_state()
         self.next_basename()

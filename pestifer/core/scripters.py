@@ -789,7 +789,7 @@ class NAMDScripter(TcLScripter):
 
 class PackmolScripter(Filewriter):
     """
-   This class extends the Filewriter class to provide functionality for creating and managing Packmol scripts.
+    This class extends the Filewriter class to provide functionality for creating and managing Packmol scripts.
     
     Parameters
     ----------

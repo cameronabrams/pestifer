@@ -1,7 +1,19 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-#
-# Use VMD to detect glycan-based linkages and SS bonds; output them in YAML format for a pestifer input file
-#
+## ``PestiferGetLinks`` -- This is a Pestifer Tcl package for VMD that provides tools for
+## extracting links and disulfide bonds from a molecular structure.
+## It allows for the identification of glycan links and disulfide bonds
+## based on specific atom selections and bonding criteria.
+## The package provides the following main procedures:
+##
+##  ``getlinks``: Extracts glycan links from a specified molecule.
+##
+##  ``getssbonds``: Extracts disulfide bonds from a specified molecule.
+##
+##  The links are formatted as "C1_RRR1_A1-C2_RRR2_A2" and
+##  disulfide bonds as "C1_RRR1_A1-C2_RRR2_A2",
+##  where C1 and C2 are the atoms involved in the link,
+##  RRR1 and RRR2 are the residue numbers, and
+##  A1 and A2 are the chain identifiers.
 package provide PestiferGetLinks 1.0
 
 namespace eval ::PestiferGetLinks:: {

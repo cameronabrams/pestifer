@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
-# VMD/psfgen script for creating a new psf/pdb pair for a bilayer patch
-# from a packmol pdb output
+## VMD/psfgen script for creating a new psf/pdb pair for a bilayer patch
+## from a packmol pdb output
 
 # if referenced using the Psfgen scriptwriter, all common psfgen
 # pre-build commands are invoked automatically

@@ -1,6 +1,33 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-#
-# TcL procedures for facilitating rotations around bonds
+## ``PestiferCRot`` -- This is a Pestifer Tcl package for VMD that provides tools for
+## manipulating protein backbone and side chain torsion angles.
+## It allows for the folding of alpha helices, rotation of phi, psi, and omega angles,
+## and side chain rotations around chi angles.
+## The package provides the following main procedures:
+##
+##  ``residues_in_same_chain``: Checks if two residues are in the same chain.
+##
+##  ``get_phi_psi_omega``: Measures phi, psi, and omega angles at a residue.
+##
+##  ``fold_alpha``: Folds a section of residues into an alpha helix.
+##
+##  ``brot``: Generalized bond rotation for proteins, allowing for phi, psi, omega, and chi rotations.
+##
+##  ``Crot_phi``, ``Crot_phi_toCterm``, ``Crot_psi``, ``Crot_psi_toCterm``, ``Crot_omega``, 
+##  ``SCrot_chi1``, ``SCrot_chi2``, ``Crot_psi_special``: Specific procedures for
+##   rotating phi, psi, omega angles and side chain chi angles in proteins.
+##
+##  ``new_alpha``: Folds a run of new residues into an alpha helix.
+##
+##  ``Crot_psi_special``: Special case for psi rotation in a specific context.
+##
+##  ``Crot_omega``: Rotates residues C-terminal to a specified residue around the peptide bond.
+##
+##  ``Crot_phi``, ``Crot_phi_toCterm``: Rotates residues C-terminal to a specified residue around the phi angle.
+##
+##  ``Crot_psi``, ``Crot_psi_toCterm``: Rotates residues C-terminal to a specified residue around the psi angle.
+##
+##  ``SCrot_chi1``, ``SCrot_chi2``: Rotates side chains around chi1 and chi2 angles.
 package provide PestiferCRot 1.0
 
 namespace eval ::PestiferCRot:: {

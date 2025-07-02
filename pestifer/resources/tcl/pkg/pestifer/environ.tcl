@@ -1,4 +1,15 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
+## ``PestiferEnviron`` -- This is a Pestifer Tcl package for VMD that provides tools for
+## manipulating the environment of a molecular system, particularly for bilayer systems.
+## It allows for the apportioning of residues to upper and lower leaflets of a bilayer,
+## and for writing PSFGEN segments based on residue types and labels.
+## The package provides the following main procedures:
+##
+##  ``leaflet_apportionment``: Apportion residues to upper and lower leaflets
+##   based on their center of mass relative to the bilayer center of mass.
+##
+##  ``write_psfgen``: Write PSFGEN segments for a molecule based on specified segment
+##   types, labels, indices, and maximum residues per segment.
 package provide PestiferEnviron 1.0
 
 namespace eval ::PestiferEnviron:: {

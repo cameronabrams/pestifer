@@ -1,4 +1,19 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
+#
+## ``PestiferAUTools`` -- This is a Pestifer Tcl package for VMD that provides tools for
+## manipulating asymmetric units (AUs) of macromolecular complexes.
+## It allows for the generation of a new PDB file containing an asymmetric
+## unit and appropriate BIOMT operations to build a complex based on aligning
+## the base chains onto congruent chains of any other subunits.
+## The package provides the following main procedures:
+##
+##  ``make_au_from_aligning``: Generates a new PDB file containing an asymmetric unit
+##   and BIOMT transformations based on aligning the base chains onto
+##   congruent chains of other subunits.
+##
+##  ``overlay_protomers``: Aligns protomer chains based on a specified residue range
+##   and returns the RMSD values for the alignment.
+
 package provide PestiferAUTools 1.0
 
 namespace eval ::PestiferAUTools:: {
@@ -21,40 +36,41 @@ proc format_tmat { tmat biomtnum } {
     return [join $result \n]
 }
 
-# make_au_from_aligning
-#
-# This procedure will generate a new PDB file containing a asymmetric
-# unit and appropriate BIOMT operations to build a complex based
-# on aligning the *base* chains onto congruent chains of any other
-# subunits.  For example, if you have a molecule with chains A, B, and C
-# where there is quasi symmetry among the three, you can build a
-# a new pdb containing just A and the BIOMT transformations that will
-# allow for replicating A and putting it in the place of B and C via
-# alignment.
-#
-# Arguments:
-#  - molid : molecule ID
-#  - protomer_chains: list of chains by subunit; first entry signifies
-#    the base chain(s).
-#  - resids: string of resid range description for an atomselection
-#    to use as an alignment basis
-#  - outpub: string name of output pdb file to be generated
-#
-# Example:
-#   Suppose you have a system (molid 0) with three protomers: 
-#   chains A, B (protomer 1); chains C, D (2); and chains E, F (3).
-#   Suppose there is *nearly* three-fold symmetry, and you want to 
-#   generate a *strictly* three-fold symmetric structure by aligning 
-#   replicas of chains A and B respectively onto chains C and D and 
-#   chains E and F.  Suppose further that the resids you want to use to 
-#   do the alignment are 1-100.  In a VMD session where the molecule
-#   is loaded, issue this command
-#
-#   make_au_from_aligning 0 {{A B} {C D} {E F}} "1-100" "my_au.pdb"
-#
-#   and the file "my_au.pdb" will contain the BIOMT transformations
-#   in REMARK 350 records and all atoms for chain A, B.
-#
+## make_au_from_aligning
+##
+## This procedure will generate a new PDB file containing a asymmetric
+## unit and appropriate BIOMT operations to build a complex based
+## on aligning the *base* chains onto congruent chains of any other
+## subunits.  For example, if you have a molecule with chains A, B, and C
+## where there is quasi symmetry among the three, you can build a
+## a new pdb containing just A and the BIOMT transformations that will
+## allow for replicating A and putting it in the place of B and C via
+## alignment.
+##
+## Arguments:
+##
+## - molid : molecule ID
+##  - protomer_chains: list of chains by subunit; first entry signifies
+##    the base chain(s).
+##  - resids: string of resid range description for an atomselection
+##    to use as an alignment basis
+##  - outpub: string name of output pdb file to be generated
+##
+## Example:
+##   Suppose you have a system (molid 0) with three protomers: 
+##   chains A, B (protomer 1); chains C, D (2); and chains E, F (3).
+##   Suppose there is *nearly* three-fold symmetry, and you want to 
+##   generate a *strictly* three-fold symmetric structure by aligning 
+##   replicas of chains A and B respectively onto chains C and D and 
+##   chains E and F.  Suppose further that the resids you want to use to 
+##   do the alignment are 1-100.  In a VMD session where the molecule
+##   is loaded, issue this command
+##
+##   make_au_from_aligning 0 {{A B} {C D} {E F}} "1-100" "my_au.pdb"
+##
+##   and the file "my_au.pdb" will contain the BIOMT transformations
+##   in REMARK 350 records and all atoms for chain A, B.
+##
 proc PestiferAUTools::make_au_from_aligning { molid protomer_chains resids outpdb } {
     set tmats [list]
     set c1 [lindex $protomer_chains 0]

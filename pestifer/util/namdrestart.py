@@ -1,5 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" Defines the NAMDConfig class for parsing NAMD config files and the make_namd_restart function
+""" 
+Defines the :class:`NAMDConfig` class for parsing NAMD config files and the :func:`make_namd_restart` function for the NAMD restart task.
 """
 import glob
 import logging
@@ -12,6 +13,16 @@ from ..core.stringthings import ByteCollector
 logger=logging.getLogger(__name__)
 
 class NAMDConfig:
+    """
+    A class for parsing NAMD configuration files. This class reads a NAMD config file, extracts commands and variable assignments,
+    and allows for modification of the configuration by replacing variable assignments and commands.
+    
+    Parameters
+    ----------
+    configfile : str
+        The path to the NAMD configuration file to be parsed. The file should exist and be readable.
+        
+    """
     def __init__(self,configfile):
         if not os.path.exists(configfile):
             raise FileNotFoundError(f'{configfile} not found')
@@ -68,6 +79,14 @@ class NAMDConfig:
                             self.varscited.append(varcited)
 
     def write(self,filename):
+        """
+        Write the NAMD configuration to a file.
+        
+        Parameters
+        ----------
+        filename : str
+            The name of the file to which the NAMD configuration will be written. If the file already exists, it will be overwritten.
+        """
         W=Filewriter()
         W.filename=filename
         W.banner('pestifer NAMD restart')
@@ -85,6 +104,9 @@ class NAMDConfig:
         W.writefile()
 
     def backresolve_lines(self):
+        """
+        Back-resolve variable assignments in the lines of the NAMD configuration.
+        """
         for l in self.lines:
             if l['ltype']=='varassign':
                 for k,v in self.varsdefined.items():
@@ -92,6 +114,9 @@ class NAMDConfig:
                         l['varval']=v
 
     def var_backresolve(self,oldvarname,newvarval):
+        """
+        Back-resolve a variable assignment in the NAMD configuration.
+        """
         if oldvarname in self.varsdefined:
             self.varsdefined[oldvarname]=newvarval
             self.backresolve_lines()
@@ -99,6 +124,17 @@ class NAMDConfig:
             logger.warning(f'Cannot back-resolve {oldvarname}')
 
     def replace_command(self,commandname,args):
+        """
+        Replace a command in the NAMD configuration with a new command and its arguments.
+        
+        Parameters
+        ----------
+        commandname : str
+            The name of the command to be replaced. The command name is case-insensitive.
+        args : list
+            A list of arguments to be passed to the command. The arguments can include variable references (starting with `$`).
+            If an argument starts with `$`, it is treated as a variable reference and will be back-resolved to its value.
+        """
         commandline=[x for x in self.lines if x.get('ltype',None)=='command' and x.get('commandname','fake').lower()==commandname.lower()][0]
         newargs=[]
         for o,n in zip(commandline['commandargs'],args):
@@ -110,6 +146,20 @@ class NAMDConfig:
         commandline['commandargs']=newargs
 
 def make_namd_restart(args,**kwargs):
+    """
+    Create a NAMD restart configuration file based on an existing NAMD log file and configuration file.
+    
+    Parameters
+    ----------
+    args : argparse.Namespace
+        The command-line arguments parsed by argparse. It should contain the following attributes:
+
+        - ``log``: The path to the NAMD log file.
+        - ``config``: The path to the NAMD configuration file.
+        - ``new_base``: The new base name for the output files.
+        - ``run``: The number of time steps to run. If ``run`` is 0, the script will not run any new time steps.
+        - ``slurm``: The path to the SLURM script file, if applicable.
+    """
     log=args.log
     config=args.config
     newbasename=args.new_base

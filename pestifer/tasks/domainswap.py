@@ -1,5 +1,15 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
+"""
+Definition of the :class:`DomainSwapTask` class for performing domain swaps in molecular dynamics simulations.
+This class is a descendant of the :class:`MDTask <pestifer.tasks.md.MDTask>` class and is used to perform domain swaps
+using the NAMD molecular dynamics engine.
+It generates the necessary input files for a domain swap operation, runs NAMD to execute the swap,
+and saves the resulting state of the simulation.
+
+It uses the :ref:`tcl-domainswap` Tcl script.  Usage is described in the :ref:`config_ref tasks domainswap` documentation.
+"""
+
 import logging
 
 from .md import MDTask
@@ -7,6 +17,10 @@ from .md import MDTask
 logger=logging.getLogger(__name__)
 
 class DomainSwapTask(MDTask):
+    """
+    DomainSwapTask class for performing domain swaps in molecular dynamics simulations.
+    """
+    
     yaml_header='domainswap'
 
     def do(self):

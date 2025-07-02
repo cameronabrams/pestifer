@@ -5,4 +5,4 @@ from pestifer.core.objmanager import ObjManager
 class TestObjManager(unittest.TestCase):
     def test_obj_manager(self):
         O=ObjManager()
-        self.assertEqual(len(O.obj_classes),16)
+        self.assertEqual(len(O._obj_classes),16)

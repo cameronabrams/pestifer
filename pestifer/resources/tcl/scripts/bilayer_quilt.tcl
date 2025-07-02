@@ -1,9 +1,9 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
-# VMD/psfgen script for creating a new psf/pdb pair for a
-# bilayer created using the upper leaflet of one
-# input bilayer and the lower leaflet of another, and
-# replicated in x and y to make a "quilt"
+## VMD/psfgen script for creating a new psf/pdb pair for a
+## bilayer created using the upper leaflet of one
+## input bilayer and the lower leaflet of another, and
+## replicated in x and y to make a "quilt"
 
 package require PestiferEnviron 1.0
 namespace import ::PestiferEnviron::*

@@ -1,7 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-#
-# Utility procs for VMD/Psfgen TcL scripts
-#
+## ``PestiferUtil`` -- This is a Pestifer Tcl package for VMD that provides utility functions
+## for various tasks such as splitting PSF files, verifying molecule states, and manipulating molecular data.
 
 package provide PestiferUtil 1.0
 

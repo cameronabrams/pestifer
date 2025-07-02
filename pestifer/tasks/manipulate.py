@@ -1,5 +1,10 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+Definition of the :class:`ManipulateTask` class for performing coordinate manipulations.
+This class is a descendant of the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class and is used for manipulating molecular coordinates.
 
+Usage is described in the :ref:`config_ref tasks manipulate` documentation.
+"""
 import logging
 
 from ..core.basetask import BaseTask
@@ -8,8 +13,17 @@ from ..core.objmanager import ObjManager
 logger=logging.getLogger(__name__)
 
 class ManipulateTask(BaseTask):
+    """
+    ManipulateTask class for performing coordinate manipulations.
+    """
     yaml_header='manipulate'
+    """
+    YAML header for the ManipulateTask, used to identify the task in configuration files as part of a ``tasks`` list.
+    """
     def do(self):
+        """
+        Execute the manipulate task.
+        """
         self.log_message('initiated')
         if self.prior:
             logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
@@ -22,6 +36,14 @@ class ManipulateTask(BaseTask):
         return super().do()
 
     def coormods(self):
+        """
+        Perform coordinate modifications based on the specifications provided in the task.
+        This method retrieves the coordinate modifications from the object manager,
+        iterates through the specified object types and their corresponding lists,
+        and applies the modifications using the VMD scripter.
+        It writes the modified coordinates to a PDB file and saves the state with the updated coordinates.
+        The method returns 0 on success or a non-zero error code on failure.
+        """
         coord=self.objmanager.get('coord',{})
         logger.debug(f'coord {coord}')
         if not coord:

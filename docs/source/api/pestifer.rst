@@ -18,5 +18,6 @@ Subpackages
    pestifer.objs
    pestifer.psfutil
    pestifer.resources
+   pestifer.sphinxext
    pestifer.tasks
    pestifer.util

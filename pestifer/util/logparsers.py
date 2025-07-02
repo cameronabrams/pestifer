@@ -1,6 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" Defines the PackmolLog, PsfgenLog, and NAMDLog classes for parsing
-    log files
+""" 
+Defines the :class:`LogParser` class and its subclasses for parsing log files from various applications used by Pestifer, such as NAMD and Packmol.
 """
 
 import logging
@@ -21,14 +21,47 @@ from ..util.progress import PackmolProgress, NAMDProgress
 logger=logging.getLogger(__name__)
 
 def get_toflag(flag,bytes):
+    """
+    Get the substring of bytes up to the first occurrence of flag.
+    If the flag is not found, return None and log a debug message.
+    
+    Parameters
+    ----------
+    flag : str
+        The flag to search for in the bytes.
+    bytes : bytes
+        The bytes to search within.
+
+    Returns
+    -------
+    bytes
+        The substring of bytes up to the first occurrence of flag, or None if not found.
+    """
     try:
         idx=bytes.index(flag)
     except ValueError:
         logger.debug(f'get_toflag: {flag} not found in {bytes}')
+        return None
     substr=bytes[:idx]
     return substr.strip()
 
 def get_toeol(flag,bytes):
+    """
+    Get the substring of bytes from the first occurrence of flag to the end of the line.
+    If the flag is not found or there is no newline character after the flag, return None and log a debug message.
+    
+    Parameters
+    ----------
+    flag : str
+        The flag to search for in the bytes.
+    bytes : bytes
+        The bytes to search within.
+
+    Returns
+    -------
+    bytes
+        The substring of bytes from the first occurrence of flag to the end of the line, or None if not found.
+    """
     try:
         idx=bytes.index(flag)+len(flag)
     except ValueError:
@@ -42,6 +75,22 @@ def get_toeol(flag,bytes):
     return substr.strip()
 
 def get_tokens(flag,bytes):
+    """
+    Get the tokens from the bytes that follow the first occurrence of flag.
+    If the flag is not found or there are no tokens, return an empty list and log a debug message.
+
+    Parameters
+    ----------
+    flag : str
+        The flag to search for in the bytes.
+    bytes : bytes
+        The bytes to search within.
+
+    Returns
+    -------
+    list
+        A list of tokens found in the bytes, or an empty list if none are found.
+    """
     # logger.debug(f'get_single: {flag} in {bytes}')
     toel=get_toeol(flag,bytes)
     if toel is None:
@@ -49,6 +98,22 @@ def get_tokens(flag,bytes):
     return [x.strip() for x in toel.split()]
 
 def get_single(flag,bytes):
+    """
+    Get the first token that follows the first occurrence of flag in the bytes.
+    If the flag is not found or there are no tokens, return None and log a debug message.
+    
+    Parameters
+    ----------
+    flag : str
+        The flag to search for in the bytes.
+    bytes : bytes
+        The bytes to search within.
+
+    Returns
+    -------
+    bytes
+        The first token found in the bytes, or None if not found.
+    """
     # logger.debug(f'get_single: {flag} in {bytes}')
     vals=get_tokens(flag,bytes)
     if len(vals)==0:
@@ -56,6 +121,24 @@ def get_single(flag,bytes):
     return vals[0]
 
 def get_values(flag,bytes,dtype=float):
+    """
+    Get the values from the bytes that follow the first occurrence of flag.
+    If the flag is not found or there are no values, return an empty list and log a debug message.
+
+    Parameters
+    ----------
+    flag : str
+        The flag to search for in the bytes.
+    bytes : bytes
+        The bytes to search within.
+    dtype : type
+        The data type to convert the values to (default is float).
+
+    Returns
+    -------
+    list
+        A list of values found in the bytes, or an empty list if none are found.
+    """
     # logger.debug(f'get_single: {flag} in {bytes}')
     vals=get_tokens(flag,bytes)
     if len(vals)==0:
@@ -70,29 +153,58 @@ def get_values(flag,bytes,dtype=float):
     return rvals
 
 class LogParser(ByteCollector):
+    """
+    A base class for parsing log files from various applications used by Pestifer. This class is a subclass of :class:`ByteCollector <pestifer.util.stringthings.ByteCollector>` and provides methods for reading, updating, and dumping log data.
+    """
     def __init__(self):
         super().__init__()
         self.progress=0.0
         self.progress_bar=None
 
     def static(self,filename):
+        """
+        Initialize the LogParser from an existing, static file.
+        """
         logger.debug(f'Initiating {self.__class__.__name__} from {filename}')
         with open(filename,'r') as f:
             rawlines=f.read()
         self.update(rawlines)
 
     def update(self,bytes):
+        """
+        Update the LogParser with new bytes of data. This method appends the new bytes to the byte collector and updates the progress.
+        """
         self.write(bytes)
         # logger.debug(f'Updating {self.__class__.__name__} with {len(bytes)} bytes -> {len(self.byte_collector)} bytes collected')
 
     def dump(self,basename='logparser'):
+        """
+        Dump the collected log data to a file with the specified basename.
+        The file will be named `<basename>.log` and will contain the collected log data.
+        
+        Parameters
+        ----------
+        basename : str
+            The base name for the log file. The final file will be named `<basename>.log`.
+        """
         logger.debug(f'Dumping {self.__class__.__name__} to {basename}')
         self.byte_collector.write_file(f'{basename}.log')
 
     def measure_progress(self):
+        """
+        Measure the progress of the log parsing. This method is intended to be overridden by subclasses to provide specific progress measurement logic.
+        """
         return self.progress
     
     def enable_progress_bar(self,PS=None):
+        """
+        Enable a progress bar for the log parser. If a progress bar instance is provided, it will be used to track the progress of the log parsing.
+        
+        Parameters
+        ----------
+        PS : ProgressBar
+            An instance of a progress bar to track the progress of the log parsing.
+        """
         if PS is None:
             self.progress_bar=None
         else:
@@ -100,13 +212,37 @@ class LogParser(ByteCollector):
             self.progress_bar.register_update_function(self.measure_progress)
 
     def update_progress_bar(self):
+        """
+        Update the progress bar for the log parser.
+        This method calls the `go` method of the progress bar instance, if it exists.
+        """
         if self.progress_bar is not None:
             self.progress_bar.go()
 
     def success(self):
+        """
+        Check if the log parsing was successful. This method is intended to be overridden by subclasses to provide specific success criteria.
+        
+        Returns
+        -------
+        bool
+            True if the log parsing was successful, False otherwise.
+        """
         return False
 
     def follow(self,filename,sleep_interval=0.5,timeout_intervals=120):
+        """
+        Follow a log file, reading new lines as they are added.
+        
+        Parameters
+        ----------
+        filename : str
+            The path to the log file to follow.
+        sleep_interval : float
+            The time to sleep between checks for new lines (in seconds).
+        timeout_intervals : int
+            The maximum number of intervals to wait before timing out.
+        """
         logger.debug(f'Following {filename}')
         self.ntimeout=0
         with open(filename,'r') as f:
@@ -127,34 +263,106 @@ class LogParser(ByteCollector):
                     break
 
 class VMDLog(LogParser):
+    """
+    A class for parsing VMD log files. This class is a subclass of :class:`LogParser <pestifer.util.logparsers.LogParser>` and provides methods for reading, updating, and dumping VMD log data.
+    It also includes methods for processing specific lines in the log file, such as those containing information about the simulation, TCL commands, and energy calculations.
+    
+    Parameters
+    ----------
+    basename : str
+        The base name for the log parser.
+    """
     def __init__(self,basename='vmd-logparser'):
         super().__init__()
         self.basename=basename
 
 class NAMDxst():
+    """ 
+    A class for parsing NAMD xst files, which contain information about the simulation cell dimensions.
+
+    Parameters
+    ----------
+    filename : str
+        The path to the NAMD xst file to parse.
+    """
     def __init__(self,filename):
         celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
         col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
         celldf.columns=col
         self.df=celldf
+
     def add_file(self,filename):
+        """
+        Add another NAMD xst file to the existing data.
+        
+        Parameters
+        ----------
+        filename : str
+            The path to the NAMD xst file to add.
+        """
         celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
         col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
         celldf.columns=col
         self.df=pd.concat((self.df,celldf))
+
     def concat(self,other):
+        """
+        Concatenate another NAMDxst instance's data with the current instance's data.
+        
+        Parameters
+        ----------
+        other : NAMDxst
+            Another instance of NAMDxst whose data will be concatenated with the current instance's data.
+        """
         self.df=pd.concat((self.df,other.df))
         
 class NAMDLog(LogParser):
+    """
+    A class for parsing NAMD log files. This class is a subclass of :class:`LogParser <pestifer.util.logparsers.LogParser>` and provides methods for reading, updating, and dumping NAMD log data.
+    It also includes methods for processing specific lines in the log file, such as those containing information about the simulation, energy calculations, and pressure profiles.
+    
+    Parameters
+    ----------
+    basename : str
+        The base name for the log parser. This is used to name the output log file.
+    """
+
     info_key='Info: '
+    """
+    The key used to identify information lines in the NAMD log file.
+    """
     tcl_key='TCL: '
+    """
+    The key used to identify TCL command lines in the NAMD log file.
+    """
     energy_key='ENERGY: '
+    """
+    The key used to identify energy lines in the NAMD log file.
+    """
     etitle_key='ETITLE: '
+    """
+    The key used to identify energy title lines in the NAMD log file.
+    """
     pressureprofile_key='PRESSUREPROFILE: '
+    """
+    The key used to identify pressure profile lines in the NAMD log file.
+    """
     struct_sep='*****************************'
+    """
+    The key used to identify the structure summary in the NAMD log file.
+    """
     wallclock_key='WallClock: '
+    """
+    The key used to identify wall clock time lines in the NAMD log file.
+    """
     default_etitle_npt='TS,BOND,ANGLE,DIHED,IMPRP,ELECT,VDW,BOUNDARY,MISC,KINETIC,TOTAL,TEMP,POTENTIAL,TOTAL3,TEMPAVG,PRESSURE,GPRESSURE,VOLUME,PRESSAVG,GPRESSAVG'.split(',')
+    """
+    The default energy titles for NPT ensembles in NAMD log files.
+    """
     default_etitle_nvt='TS,BOND,ANGLE,DIHED,IMPRP,ELECT,VDW,BOUNDARY,MISC,KINETIC,TOTAL,TEMP,POTENTIAL,TOTAL3,TEMPAVG'.split(',')  
+    """
+    The default energy titles for NVT ensembles in NAMD log files.
+    """
     def __init__(self,basename='namd-logparser'):
         super().__init__()
         self.line_idx=[0] # byte offsets of lines
@@ -166,6 +374,9 @@ class NAMDLog(LogParser):
         self.basename=basename
 
     def process_struct_summ_datum(self,line):
+        """
+        Process a line from the structure summary section of the NAMD log file.
+        """
         o=len(self.info_key)
         if line.endswith('FIXED ATOMS\n'):
             self.metadata['number_of_fixed_atoms']=int(get_toflag('FIXED ATOMS',line))
@@ -197,6 +408,9 @@ class NAMDLog(LogParser):
             self.metadata['mass_density']=float(get_single('MASS DENSITY =',line))
 
     def process_info_line(self,line):
+        """
+        Process a line from the information section of the NAMD log file.
+        """
         # logger.debug(f'process_info: {line}')
         if line.startswith('STRUCTURE SUMMARY:'):
             self.reading_structure_summary=True
@@ -234,6 +448,9 @@ class NAMDLog(LogParser):
             self.metadata['periodic_cell_basis_3']=get_values('PERIODIC CELL BASIS 3',line,dtype=float)
 
     def process_tcl_line(self,line):
+        """
+        Process a line from the TCL command section of the NAMD log file.
+        """
         if line.startswith('Running for'):
             self.metadata['running_for']=int(get_single('Running for',line))
         elif line.startswith('Minimizing for'):
@@ -241,6 +458,14 @@ class NAMDLog(LogParser):
             self.metadata['ensemble']='minimize'
 
     def process_energy_line(self,line):
+        """
+        Process a line from the energy section of the NAMD log file.
+
+        Parameters
+        ----------
+        line : str
+            A line from the NAMD log file that contains energy data.
+        """
         tokens=[x.strip() for x in line.split()]
         if 'etitle' not in self.metadata:
             if len(tokens)==len(self.default_etitle_npt):
@@ -268,6 +493,14 @@ class NAMDLog(LogParser):
             self.energy_df=pd.concat([self.energy_df,pd.DataFrame(new_line,index=[0])],ignore_index=True)
 
     def process_energy_title(self,line):
+        """
+        Process a line from the energy title section of the NAMD log file.
+
+        Parameters
+        ----------
+        line : str
+            A line from the NAMD log file that contains the energy titles.
+        """
         tokens=[x.strip() for x in line.split()]
         if 'etitle' not in self.metadata:
             self.metadata['etitle']=tokens
@@ -275,8 +508,16 @@ class NAMDLog(LogParser):
             if len(tokens)!=len(self.metadata['etitle']):
                 logger.debug(f'process_energy_title: {len(tokens)} tokens found, but {len(self.metadata["etitle"])} expected')
 
-
     def update(self,bytes):
+        """
+        Update the NAMD log parser with new bytes of data. This method appends the new bytes to the byte collector and processes the lines in the log file.
+        It identifies the end of each line and processes each line based on its content.
+        
+        Parameters
+        ----------
+        bytes : bytes
+            The bytes to update the log parser with. This can be a string or bytes object containing the log data.
+        """
         super().update(bytes)
         last_line_idx=self.line_idx[-1]
         addl_line_idx=[m.start()+1+last_line_idx for m in re.finditer(os.linesep,self.byte_collector[last_line_idx:])]
@@ -296,6 +537,14 @@ class NAMDLog(LogParser):
                 self.processed_line_idx.append(addl_line_idx[-1])
 
     def process_pressureprofile_line(self,line):
+        """
+        Process a line from the pressure profile section of the NAMD log file.
+
+        Parameters
+        ----------
+        line : str
+            A line from the NAMD log file that contains pressure profile data.
+        """
         tokens=[x.strip() for x in line.split()]
         tokens[0]=int(tokens[0])
         logger.debug(f'process_pressureprofile_line: TS {tokens[0]}')
@@ -315,10 +564,26 @@ class NAMDLog(LogParser):
                 #     logger.debug(f'{self.pressureprofile_df.head().to_string()}')
 
     def process_wallclock_line(self,line):
+        """
+        Process a line from the wall clock time section of the NAMD log file.
+
+        Parameters
+        ----------
+        line : str
+            A line from the NAMD log file that contains the wall clock time.
+        """
         tokens=[x.strip() for x in line.split()]
         self.metadata['wallclock_time']=float(tokens[0])
 
     def process_line(self,line):
+        """
+        Process a line from the NAMD log file. This method identifies the type of line (information, TCL command, energy, pressure profile, or wall clock time) and processes it accordingly.
+        
+        Parameters
+        ----------
+        line : str
+            A line from the NAMD log file to be processed.
+        """
         assert line.endswith(os.linesep),f'process_line: {line} does not end with os.linesep'
         if line.startswith(self.info_key):
             o=len(self.info_key)
@@ -370,6 +635,9 @@ class NAMDLog(LogParser):
         return complete_steps/number_of_steps
     
     def success(self):
+        """ 
+        Check if the NAMD log parsing was successful. This method checks if the metadata contains the ``wallclock_time`` key, which indicates that the log file has been processed successfully. 
+        """
         return 'wallclock_time' in self.metadata
 
     def finalize(self):
@@ -378,13 +646,23 @@ class NAMDLog(LogParser):
         if not self.pressureprofile_df.empty:
             self.pressureprofile_df.to_csv(f'{self.basename}-pressureprofile.csv',index=True)
 
-class PackmolPhase(Enum):
-    UNINITIALIZED = 0
-    INITIALIZATION = 1
-
 class PackmolLog(LogParser):
+    """
+    A class for parsing Packmol log files. This class is a subclass of :class:`LogParser <pestifer.util.logparsers.LogParser>` and provides methods for reading, updating, and dumping Packmol log data.
+
+    Parameters
+    ----------
+    basename : str
+        The base name for the log parser. This is used to name the output log file.
+    """
     banner_separator='#'*80  # banners can occur within sections
+    """
+    The separator used to identify banners in the Packmol log file.
+    """
     section_separator='-'*80 # file is divided into sections
+    """
+    The separator used to identify sections in the Packmol log file.
+    """
     def __init__(self,basename='packmol-logparser'):
         super().__init__()
         self.processed_separator_idx=[]
@@ -397,6 +675,9 @@ class PackmolLog(LogParser):
         self.progress=0.0
 
     def update(self,bytes):
+        """
+        Update the Packmol log parser with new bytes of data. This method appends the new bytes to the byte collector and processes the sections in the log file.
+        """
         super().update(bytes)
         separator_idx=[0]+[m.start() for m in re.finditer(self.section_separator,self.byte_collector)]
         for i,j in zip(separator_idx[:-1],separator_idx[1:]):
@@ -405,10 +686,22 @@ class PackmolLog(LogParser):
                 self.process_section(self.byte_collector[i:j])
 
     def measure_progress(self):
+        """
+        Measure the progress of the Packmol log parsing. This method calculates the progress based on the number of GENCAN loops completed and the maximum number of GENCAN loops.
+        It updates the `progress` attribute with the calculated progress value.
+        """
         self.progress=self.metadata['current_total_gencan_loops']/self.metadata['max_total_gencan_loops'] if 'current_total_gencan_loops' in self.metadata and 'max_total_gencan_loops' in self.metadata else 0.0
         return super().measure_progress()
     
     def process_banner(self,bytes):
+        """
+        Process a banner in the Packmol log file. This method identifies the type of banner and updates the metadata accordingly.
+        
+        Parameters
+        ----------
+        bytes : bytes
+            The bytes representing the banner to be processed. This can be a string or bytes object containing the banner data.
+        """
         if 'Version' in bytes:
             vidx=bytes.index('Version')+len('Version')+1
             vstr=bytes[vidx:].split()[0]
@@ -434,6 +727,14 @@ class PackmolLog(LogParser):
         self.processed_banners.append(bytes)
 
     def process_header(self,bytes):
+        """
+        Process the header section of the Packmol log file. This method extracts metadata from the header and updates the `metadata` attribute with relevant information.
+        
+        Parameters
+        ----------
+        bytes : bytes
+            The bytes representing the header section to be processed. This can be a string or bytes object
+            containing the header data."""
         self.metadata['url']=get_single('Userguide at:',bytes)
         flag='Types of coordinate files specified:'
         self.metadata['coordinate_file_types']=bytes[bytes.index(flag)+len(flag):].split()[0]
@@ -524,6 +825,15 @@ class PackmolLog(LogParser):
                 match['maximum_internal_distance']=mid
 
     def process_molecule_report(self,bytes):
+        """
+        Process a report about molecules in the Packmol log file. This method extracts information about the molecules, such as their type, function values before and after moving, and restraint violations.
+        
+        Parameters
+        ----------
+        bytes : bytes
+            The bytes representing the molecule report to be processed. This can be a string or bytes object
+            containing the report data.
+        """
         flag='Molecules of type'
         idx=bytes.index(flag)+len(flag)
         eol=bytes[idx:].index('\n')+idx
@@ -563,6 +873,15 @@ class PackmolLog(LogParser):
             match[subflag]['maximum_violation_of_the_restraints']=float(bytes[bytes.index(flag)+len(flag):].split()[0].strip())
 
     def process_gencan_report(self,bytes):
+        """
+        Process a report about the GENCAN (GENeric CANonical) packing algorithm in the Packmol log file. This method extracts information about the GENCAN loops, such as the iteration number, radius scaling, function values, and violations of target distances and constraints.
+        It updates the ``gencan`` attribute with the extracted information.
+        
+        Parameters
+        ----------
+        bytes : bytes
+            The bytes representing the GENCAN report to be processed. This can be a string or bytes object
+            containing the report data."""
         G=None
         ptok=self.phase.split('_')
         if ptok[1]=='all':
@@ -592,6 +911,17 @@ class PackmolLog(LogParser):
             match['current_gencan_loops']+=1
 
     def process_gencan_success(self,bytes):
+        """
+        Process a report about the successful completion of the GENCAN packing algorithm in the Packmol log file. This method extracts information about the molecule type, objective function value, maximum violation of target distance, and maximum constraint violation.
+        It updates the metadata of the corresponding molecule type in the ``metadata['structures']`` attribute
+        with the extracted information.
+        
+        Parameters
+        ----------
+        bytes : bytes
+            The bytes representing the GENCAN success report to be processed. This can be a string or bytes object
+            containing the report data. 
+        """
         mtype=int(get_single('Packing solved for molecules of type',bytes))
         obj_func_val=float(get_single('Objective function value:',bytes))
         max_viol_target_dist=float(get_single('Maximum violation of target distance:',bytes))
@@ -603,6 +933,15 @@ class PackmolLog(LogParser):
             self.metadata['max_total_gencan_loops']-=(unneeded_loops-1)
 
     def process_moving_worst_molecules(self,bytes):
+        """
+        Process a report about moving the worst molecules in the Packmol log file. This method extracts information about the function values before and after moving molecules, the types of molecules moved, and their percentages.
+        
+        Parameters
+        ----------
+        bytes : bytes
+            The bytes representing the report about moving worst molecules to be processed. This can be a string or bytes object
+            containing the report data.
+        """
         top_idx=[m.start() for m in re.finditer('Moving',bytes)]
         cont_idx=top_idx[0]+len('Moving worst molecules ...')
         mbytes=bytes[cont_idx:]
@@ -637,6 +976,15 @@ class PackmolLog(LogParser):
         self.molmoves.append(result)
 
     def process_section(self,bytes):
+        """
+        Process a section of the Packmol log file. This method identifies the type of section and processes it accordingly.
+        
+        Parameters
+        ----------
+        bytes : bytes
+            The bytes representing the section to be processed. This can be a string or bytes object containing
+            the section data.
+        """
         banner_idx=[m.start() for m in re.finditer(self.banner_separator,bytes)]
         nbsep=len(banner_idx)
         banners=[]
@@ -660,6 +1008,15 @@ class PackmolLog(LogParser):
             self.process_moving_worst_molecules(bytes)
 
     def finalize(self):
+        """
+        Finalize the Packmol log parser by saving the metadata and GENCAN data to files. This method writes the metadata to a YAML file and the GENCAN data to CSV files.
+        It also generates plots of the GENCAN function values over iterations for each molecule type and saves them as PNG files.
+        
+        Returns
+        -------
+        str
+            The filename of the generated PNG file containing the GENCAN function value plots.  
+        """
         with open(f'{self.basename}_packmol-results.yaml','w') as f:
             yaml.dump(self.metadata,f,default_flow_style=False)
         self.gencan_df={}
@@ -684,8 +1041,22 @@ class PackmolLog(LogParser):
         return f'{self.basename}_packmol.png'
 
 class PsfgenLog(LogParser):
+    """
+    A class for parsing Psfgen log files. This class is a subclass of :class:`LogParser <pestifer.util.logparsers.LogParser>` and provides methods for reading, updating, and dumping Psfgen log data.
+    
+    Parameters
+    ----------
+    basename : str
+        The base name for the log parser. This is used to name the output log file.
+    """
     info_keys=['Info) ', 'Info: ']
+    """
+    A list of prefixes used to identify information lines in the Psfgen log file.
+    """
     psfgen_key='psfgen) '
+    """
+    The prefix used to identify Psfgen-specific lines in the log file.
+    """
     def __init__(self,basename='psfgen-logparser'):
         super().__init__()
         self.line_idx=[0] # byte offsets of lines
@@ -694,6 +1065,14 @@ class PsfgenLog(LogParser):
         self.basename=basename
 
     def update(self,bytes):
+        """
+        Update the Psfgen log parser with new bytes of data. This method appends the new bytes to the byte collector and processes the lines in the log file.
+        
+        Parameters
+        ----------
+        bytes : bytes
+            The bytes to update the log parser with. This can be a string or bytes object containing the log data.
+        """
         super().update(bytes)
         last_line_idx=self.line_idx[-1]
         addl_line_idx=[m.start()+1+last_line_idx for m in re.finditer(os.linesep,self.byte_collector[last_line_idx:])]
@@ -713,6 +1092,14 @@ class PsfgenLog(LogParser):
                 self.processed_line_idx.append(addl_line_idx[-1])
 
     def process_line(self,line):
+        """
+        Process a line from the Psfgen log file. This method identifies the type of line (information, Psfgen command) and processes it accordingly.
+        
+        Parameters
+        ----------
+        line : str
+            A line from the Psfgen log file to be processed. This can be a string or bytes object containing the log data.
+        """
         assert line.endswith(os.linesep),f'process_line: {line} does not end with os.linesep'
         if line.startswith(self.info_keys[0]):
             o=len(self.info_keys[0])
@@ -725,6 +1112,14 @@ class PsfgenLog(LogParser):
             self.process_psfgen_line(line[o:])
 
     def process_info_line(self,line):
+        """ 
+        Process an information line from the Psfgen log file. This method extracts metadata from the line and updates the `metadata` attribute accordingly.
+        
+        Parameters
+        ----------
+        line : str
+            A line from the Psfgen log file that contains information to be processed. This can be a string or bytes object containing the log data.
+        """
         if 'Exiting normally' in line:
             self.metadata['success']=True
         elif line.startswith('VMD'):
@@ -736,11 +1131,27 @@ class PsfgenLog(LogParser):
                     self.metadata['version']=tokens[4]
 
     def success(self):
+        """
+        Check if the Psfgen execution was successful. This method checks if the metadata contains the `success` key, which indicates that the execution was successful.
+        
+        Returns
+        -------
+        bool
+            True if the log parsing was successful, False otherwise.
+        """
         if 'success' in self.metadata:
             return self.metadata['success']
         return False
 
     def process_psfgen_line(self,line):
+        """
+        Process a Psfgen-specific line from the log file. This method extracts metadata from the line and updates the `metadata` attribute accordingly.
+        
+        Parameters
+        ----------
+        line : str
+            A line from the Psfgen log file that contains Psfgen-specific information to be processed. This can be a string or bytes object containing the log data.
+        """
         if line.startswith('total of'):
             if line.endswith('atoms'):
                 self.metadata['number_of_atoms']=int(get_single('total of',line))
@@ -758,7 +1169,18 @@ class PsfgenLog(LogParser):
                 self.metadata['number_of_exclusions']=int(get_single('total of',line))
 
 class PDB2PQRLog(LogParser):
+    """
+    A class for parsing PDB2PQR log files. This class is a subclass of :class:`LogParser <pestifer.util.logparsers.LogParser>` and provides methods for reading, updating, and dumping PDB2PQR log data.
+    
+    Parameters
+    ----------
+    basename : str
+        The base name for the log parser. This is used to name the output log file.
+    """
     section_separator='-'*80 # file is divided into sections
+    """
+    The separator used to identify sections in the PDB2PQR log file.
+    """
     def __init__(self,basename='pdb2pqr-logparser'):
         super().__init__()
         self.processed_separator_idx=[]
@@ -768,6 +1190,14 @@ class PDB2PQRLog(LogParser):
         self.progress=0.0
 
     def update(self,bytes):
+        """
+        Update the PDB2PQR log parser with new bytes of data. This method appends the new bytes to the byte collector and processes the sections in the log file.
+        
+        Parameters
+        ----------
+        bytes : bytes
+            The bytes to update the log parser with.
+        """
         super().update(bytes)
         separator_idx=[0]+[m.start() for m in re.finditer(self.section_separator,self.byte_collector)]
         # logger.debug(f'update: found {len(separator_idx)-1} sections in {self.basename}')
@@ -777,6 +1207,9 @@ class PDB2PQRLog(LogParser):
                 self.process_section(self.byte_collector[i+int(i>0)*len(self.section_separator):j])
 
     def finalize(self):
+        """
+        Finalize the PDB2PQR log parser by saving the metadata to a YAML file. This method writes the metadata to a YAML file with the base name of the log parser.
+        """
         separator_idx=[0]+[m.start() for m in re.finditer(self.section_separator,self.byte_collector)]
         # logger.debug(f'update: found {len(separator_idx)-1} sections in {self.basename}')
         for i,j in zip(separator_idx[:-1],separator_idx[1:]):
@@ -785,11 +1218,23 @@ class PDB2PQRLog(LogParser):
                 self.process_section(self.byte_collector[i+len(self.section_separator):j])
 
     def process_section(self,bytes):
+        """
+        Process a section of the PDB2PQR log file. This method identifies the type of section and processes it accordingly.
+        """
         # logger.debug(f'process_section: {bytes[:50]}...')
         if 'SUMMARY OF THIS PREDICTION' in bytes:
             self.process_summary(bytes)
 
     def process_summary(self,bytes):
+        """
+        Process the summary section of the PDB2PQR log file. This method extracts information from the summary section and updates the `metadata` attribute with relevant data.
+        
+        Parameters
+        ----------
+        bytes : bytes
+            The bytes representing the summary section to be processed. This can be a string or bytes object
+            containing the summary data. 
+        """
         # logger.debug(f'process_summary: {bytes[:50]}...')
         lines=bytes.split(os.linesep)
         expected_table=lines[3:]
@@ -814,7 +1259,8 @@ class PDB2PQRLog(LogParser):
             self.metadata['pka_table']=pd.DataFrame(table_lines)
 
 def subcommand_follow_namd_log(filename,basename=None):
-    """ Follow a NAMD log file and parse it
+    """ 
+    Follow a NAMD log file and parse it
     """
     if not os.path.exists(filename):
         logger.debug(f'File {filename} does not exist')

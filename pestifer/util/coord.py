@@ -1,5 +1,6 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>.
-""" Some calculations based on atom coordinates
+""" 
+Some calculations based on atom coordinates
 """
 import logging
 import numpy as np
@@ -13,7 +14,19 @@ from ..core.labels import Labels
 logger=logging.getLogger(__name__)
 
 def measure_dihedral(a1,a2,a3,a4):
-    """Measure dihedral angle IN RADIANS of a1->a2--a3->a4"""
+    """
+    Measure dihedral angle IN RADIANS of a1->a2--a3->a4
+    
+    Parameters
+    ----------
+    a1, a2, a3, a4: Atom
+       Atom objects with x, y, z attributes
+
+    Returns
+    -------
+    float
+         Dihedral angle in radians between the four atoms a1, a2, a3, a4 in radians.
+    """
     v1=np.array([a1.x,a1.y,a1.z])
     v2=np.array([a2.x,a2.y,a2.z])
     v3=np.array([a3.x,a3.y,a3.z])
@@ -40,22 +53,11 @@ def measure_dihedral(a1,a2,a3,a4):
     return phi
 
 def ic_reference_closest(res12,ICmaps):
-    """Given the two Residues in res12 and the maps in ICmaps, 
+    """
+    Given the two Residues in res12 and the maps in ICmaps, 
     return the mapping key to which the given IC values are
     closest in a Euclidean sense
     
-    Parameters
-    ----------
-    res12: list
-       exactly two Residue objects which must have lists of atoms attributes
-    
-    ICMaps: list
-       list of dicts of the following format
-          key           desc
-          ---           ----
-          ICatomnames   list of atom names as they appear in the charmff IC
-          mapping       dictionary of patch name to IC value
-
     This method will identify the four atoms of the IC and reference
     them directly when calling the measure_dihedral function. 
     
@@ -65,6 +67,20 @@ def ic_reference_closest(res12,ICmaps):
     The reference point to which the point is closest is identified as the 
     desired result.
 
+    Parameters
+    ----------
+    res12: list
+       exactly two Residue objects which must have lists of atoms attributes
+    ICMaps : list of dict
+        A list of dictionaries, each with the following structure:
+
+        +--------------+-----------------------------------------------------------+
+        | Key          | Description                                               |
+        +==============+===========================================================+
+        | ICatomnames  | List of 4 atom names as they appear in the CHARMM FF IC.  |
+        +--------------+-----------------------------------------------------------+
+        | mapping      | Dictionary mapping patch names to IC values.              |
+        +--------------+-----------------------------------------------------------+
     """
     for ic in ICmaps:
         logger.debug(f'icmap {ic}')
@@ -105,14 +121,17 @@ def ic_reference_closest(res12,ICmaps):
     return the_one
 
 def positionN(res,tmat):
-    """Given residue res, calculate the nominal position of the amide nitrogen
-       in the next residue based on the positions of CA, C, and O.
+    """
+    Given residue res, calculate the nominal position of the amide nitrogen
+    in the next residue based on the positions of CA, C, and O.
        
     Parameters
     ----------
     res: Residue
-    tmat: 4x4 homogeneous transformation matrix
-    
+       Residue object with atoms CA, C, and O (or OT1)
+    tmat: numpy.ndarray
+       4x4 homogeneous transformation matrix
+
     Returns
     -------
     rN: position of N atom (np.ndarray(3))
@@ -141,6 +160,21 @@ def positionN(res,tmat):
     return rN
 
 def coorddf_from_pdb(pdb,segtypes=False):
+    """
+    Read a PDB file and return a DataFrame with atom coordinates and other information.
+
+    Parameters
+    ----------
+    pdb : str
+        Path to the PDB file.
+    segtypes : bool, optional
+        If True, include segment types in the DataFrame. Default is False.
+
+    Returns
+    -------
+    pd.DataFrame
+        DataFrame with atom coordinates and other information.
+    """
     p=PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()
     atlist=p.parsed['ATOM']+p.parsed.get('HETATM',[])
     serial=[x.serial for x in atlist]
@@ -159,6 +193,20 @@ def coorddf_from_pdb(pdb,segtypes=False):
     return pd.DataFrame(basedict,index=serial)
 
 def mic_shift(point,ref,box):
+    """
+    Given a point, a reference point, and a box, return the point shifted
+    into the periodic box defined by the reference point.
+
+    Parameters
+    ----------
+    point : np.ndarray
+        The point to be shifted, as a 3-element array.
+    ref : np.ndarray
+        The reference point, as a 3-element array.
+    box : np.ndarray
+        The box dimensions, as a 3x3 array where each row is a basis vector
+        defining the periodic box.
+    """
     hbox=np.diagonal(box)/2
     cpoint=point.copy()
     d=cpoint-ref

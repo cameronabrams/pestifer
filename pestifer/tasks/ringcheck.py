@@ -1,5 +1,10 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-
+"""
+Definition of the :class:`RingCheckTask` class for checking for pierced rings in a molecular structure.
+This class is a descendant of the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class and is used to check for pierced rings in a molecular structure.
+It identifies configurations where a ring is pierced by another segment and can optionally delete the pierced segments.
+Usage is described in the :ref:`config_ref tasks ring_check` documentation.
+"""
 import logging
 
 from ..core.basetask import BaseTask

@@ -1,12 +1,16 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 #
-# General VMD startup script for pestifer-managed VMD sessions or
-# VMD sessions in initiated with the statement
+# Lines beginning with `##` are considered docstrings to be processed
+# by Sphinx and included in the HTML documentation.
 #
-# pestifer_init
-#
-# and run in a conda environment in which pestifer is installed
-# 
+## This is a VMD startup script for pestifer-managed VMD sessions or
+## VMD sessions if initiated with the Tcl command
+##
+## ``pestifer_init``
+##
+## This makes sure that the Pestifer Tcl packages are available and
+## that the appropriate atomselect macros are updated from the VMD defaults.
+## 
 
 # we are calling this script at vmd startup so we can pass arguments to it
 global auto_path
@@ -24,6 +28,7 @@ if {[info exists argv]} {
     }
   }
 }
+
 global quiet
 if {![info exists quiet]} {
   vmdcon -info "No quiet argument passed in; defaulting to 0"

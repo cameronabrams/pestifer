@@ -1,15 +1,26 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-#
-# procedures for computing geometrical features of multimers
-#
-#
+## ``PestiferMultimer`` -- This is a Pestifer Tcl package for VMD that provides tools for
+## computing geometric properties of multimers, such as opening angles and rotation matrices.
+## It allows for the calculation of opening angles between protomer selections
+## and the generation of rotation matrices for aligning protomers.
+## The package provides the following main procedures:
+##
+##  ``opening_angles``: Computes the opening angles between a list of selections
+##   based on their geometric centers.
+##
+##  ``opening_angles_trace``: Computes opening angles for a trace of selections
+##   across multiple frames of a molecule.
+##
+##  ``rotation_matrices``: Computes rotation matrices for aligning selections
+##   based on their geometric centers.
+##
+##  ``rotation_matrices_trace``: Computes rotation matrices for a trace of selections
+##   across multiple frames of a molecule.
 package provide PestiferMultimer 1.0
 
 namespace eval ::PestiferMultimer:: {
     namespace export *
 }
-
-
 
 # Compute and return geometric center of a collection of points
 proc centroid { points } {

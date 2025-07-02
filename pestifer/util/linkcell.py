@@ -1,8 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" Custom link-cell algorithm for pair-wise searches in 3D space
-
-The Linkcell object is used by the RingCheck algorithm to detect pierced rings
-
+""" 
+Custom link-cell algorithm for pair-wise searches in 3D space
+The :class:`Linkcell` object is used by the :class:`RingCheck algorithm <pestifer.tasks.ringcheck.RingCheckTask>` to detect pierced rings
 """
 import numpy as np
 import logging
@@ -10,18 +9,21 @@ from itertools import product
 logger=logging.getLogger(__name__)
 
 class Linkcell:
-    """ Handles the link-cell algorithm """
+    """ 
+    A class for implementing the link-cell algorithm for pairwise distance calculations in 3D space.
+    
+    Parameters
+    ----------
+    corners : np.ndarray, optional
+        A 2x3 array defining the lower left and upper right corners of the simulation box in Angstroms. Default is a box from (0,0,0) to (100,100,100).
+    cutoff : float, optional
+        The cutoff distance for the link-cell algorithm in Angstroms. Default is 10.0.
+    atidxlabel : str, optional
+        The label for the atom index in the link-cell structure. Default is 'serial'.
+    atposlabel : list, optional
+        A list of labels for the atom positions in the link-cell structure. Default is ['x', 'y', 'z'].
+    """
     def __init__(self,corners=np.array([[0,0,0],[100,100,100]],dtype=float),cutoff=10.0,atidxlabel='serial',atposlabel=['x','y','z']):
-        """__init__ Constructor for an empty Linkcell object
-
-        :param corners: lower-left and upper-right corner coordinates for the box
-        :type corners: np.array
-        :param cutoff: cutoff distance, defaults to None
-        :type cutoff: float, optional
-        :param wrap_point: function used on any 3-D point to wrap it into the central image
-        :type cutoff: bool
-        """
-
         self.cutoff=cutoff
         self.lower_left_corner,self.upper_right_corner=corners
         self.sidelengths=self.upper_right_corner-self.lower_left_corner
@@ -35,12 +37,21 @@ class Linkcell:
         logger.debug(f'Linkcell structure: {self.ncells} cells ({self.cells_per_dim}) size {self.celldim} A^3')
 
     def wrap_point(self,ri):
-        """wrap_point wraps point ri into the base periodic image
+        """
+        Wraps point ri into the base periodic image
 
-        :param ri: a point
-        :type ri: np.ndarray(3,float)
-        :return: a tuple containing (1) the wrapped point and (2) number of box lengths required to wrap this point, per dimension
-        :rtype: tuple
+        Parameters
+        ----------
+        ri : np.ndarray
+            A 3-element array representing the coordinates of the point to be wrapped.
+
+        Returns
+        -------
+        tuple
+            A tuple containing:
+            
+            - ``R``: The wrapped coordinates of the point.
+            - ``box_lengths``: An array indicating how many times the point was wrapped in each dimension.
         """
         R=ri.copy()
         box_lengths=np.array([0,0,0],dtype=int)
@@ -57,7 +68,18 @@ class Linkcell:
         return R,box_lengths
 
     def cellndx_of_point(self,R):
-        """cellndx_of_point returns the (i,j,k) cell index of point R
+        """
+        Returns the (i,j,k) cell index of point R
+
+        Parameters
+        ----------
+        R : np.ndarray
+            A 3-element array representing the coordinates of the point.
+
+        Returns
+        -------
+        np.ndarray
+            A 3-element array representing the (i,j,k) index of the cell containing the point R.
         """
         wrapR,bl=self.wrap_point(R)
         # logger.debug(f'{R} {wrapR}')
@@ -74,7 +96,18 @@ class Linkcell:
         return C
 
     def ldx_of_cellndx(self,C):
-        """ldx_of_cellndx returns scalar index of cell with (i,j,k)-index C
+        """
+        Returns scalar index of cell with (i,j,k)-index C
+
+        Parameters
+        ----------
+        C : np.ndarray
+            A 3-element array representing the (i,j,k) index of the cell
+
+        Returns
+        -------
+        int
+            The scalar index of the cell with (i,j,k)-index C.
         """
         nc=self.cells_per_dim
         # logger.debug(f'{C} {nc}')
@@ -82,7 +115,18 @@ class Linkcell:
         return xc
 
     def cellndx_of_ldx(self,i):
-        """cellndx_of_ldx returns (i,j,k)-index of cell with scalar index i
+        """
+        Returns (i,j,k)-index of cell with scalar index i
+
+        Parameters
+        ----------
+        i : int
+            The scalar index of the cell.
+
+        Returns
+        -------
+        np.ndarray
+            A 3-element array representing the (i,j,k) index of the cell with scalar index i.
         """
         nc=self.cells_per_dim
         t1=i//(nc[0]*nc[1])
@@ -92,7 +136,14 @@ class Linkcell:
         return np.array([t3,t2,t1])
 
     def ldx_searchlist_of_ldx(self,i):
-        """searchlist_of_ldx returns the list of cells to search around and including central cell i """
+        """
+        Returns the list of cells to search around and including central cell i.
+
+        Parameters
+        ----------
+        i : int
+            The scalar index of the central cell.
+        """
         # assert i!=-1
         C=self.cellndx_of_ldx(i)
         nc=self.cells_per_dim

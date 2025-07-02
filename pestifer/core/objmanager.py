@@ -80,7 +80,7 @@ class ObjManager(UserDict):
         """
         result=ObjManager()
         self.counts()
-        for name,Cls in self.obj_classes.items():
+        for name,Cls in self._obj_classes.items():
             objcat=Cls.objcat
             header=Cls.yaml_header
             if header in objnames and objcat in self and header in self[objcat]:
@@ -102,7 +102,7 @@ class ObjManager(UserDict):
         overwrite : bool
             if True, overwrite existing objects with the same header; if False, append to existing objects
         """
-        if type(input_obj) in self.obj_classes.values():
+        if type(input_obj) in self._obj_classes.values():
             self._ingest_obj(input_obj)
         elif type(input_obj) in self._objlist_classes.values():
             return self._ingest_objlist(input_obj,overwrite=overwrite)
@@ -115,7 +115,7 @@ class ObjManager(UserDict):
     
     def _ingest_obj(self,a_obj):
         Cls=type(a_obj)
-        objclassident=[x for x,y in self.obj_classes.items() if y==Cls][0]
+        objclassident=[x for x,y in self._obj_classes.items() if y==Cls][0]
         LCls=self._objlist_classes.get(f'{objclassident}List',list)
         objcat=Cls.objcat
         assert objcat in ObjCats,f'Object category {objcat} is not recognized'
@@ -145,7 +145,7 @@ class ObjManager(UserDict):
         # does nothing if objdict is empty, but let's just be sure
         if len(objdict)==0:
             return
-        for name,Cls in self.obj_classes.items():
+        for name,Cls in self._obj_classes.items():
             objcat=Cls.objcat
             header=Cls.yaml_header
             if header in objdict:
@@ -187,7 +187,7 @@ class ObjManager(UserDict):
             a new ObjManager containing the expelled objects; the original ObjManager is modified to remove these objects
         """
         ex=ObjManager()
-        for name,Cls in self.obj_classes.items():
+        for name,Cls in self._obj_classes.items():
             LCls=self._objlist_classes.get(f'{name}List',list)
             objcat=Cls.objcat
             if objcat in self:
@@ -209,7 +209,7 @@ class ObjManager(UserDict):
         It iterates through the object classes and their corresponding categories and headers,
         counting the number of objects in each header within each category.
         """
-        for name,Cls in self.obj_classes.items():
+        for name,Cls in self._obj_classes.items():
             objcat=Cls.objcat
             header=Cls.yaml_header
             this_count=0

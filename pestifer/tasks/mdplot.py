@@ -1,5 +1,16 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-# 
+"""
+Definition of the :class:`MDPlotTask` class for making plots of energy-like quantities from NAMD runs.
+This class is a descendant of the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class and is used to extract energy-like data from NAMD log files,
+pressure profiles, and XST files, and to generate plots based on this data.
+It handles the collection of energy data from multiple NAMD runs, creates CSV files for energy and pressure profile data,
+and generates plots for specified traces and profiles.
+The plots can include energy traces, pressure profiles, and histograms, with options for units, legends, and grid lines.
+It also supports the extraction of data from existing NAMD log files and XST files, allowing for flexible data visualization.
+
+Usage as a task in a build workflow is described in the :ref:`config_ref tasks mdplot` documentation.  This module is also used in standalone form by the :ref:`subs_mdplot` command.
+
+"""
 import logging
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -20,6 +31,9 @@ class MDPlotTask(BaseTask):
     contains all energy-like data from the run. 
     """
     yaml_header='mdplot'
+    """
+    YAML header for the MDPlotTask, used to identify the task in configuration files as part of a ``tasks`` list.
+    """
     def do(self):
         logger.debug(f'Running {self.__class__.__name__} task with specs {self.specs}')
         self.log_message('initiated')

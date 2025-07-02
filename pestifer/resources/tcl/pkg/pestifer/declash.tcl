@@ -1,5 +1,14 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-
+## ``PestiferDeclash`` -- This is a Pestifer Tcl package for VMD that provides tools for
+## declashing protein loops and pendant groups.
+## It allows for the minimization of steric clashes in protein structures
+## by applying a simple Metropolis algorithm to alter the conformation of
+## raw model-built protein gap loops or pendant groups.
+## The package provides the following main procedures:
+##
+##  ``declash_loop``: Applies a Metropolis algorithm to minimize clashes in protein gap loops.
+##
+##  ``declash_pendant``: Applies a Metropolis algorithm to minimize clashes in pendant groups.
 package provide PestiferDeclash 1.0
 
 namespace eval ::PestiferDeclash:: {
