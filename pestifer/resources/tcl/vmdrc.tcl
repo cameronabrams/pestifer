@@ -31,7 +31,6 @@ if {[info exists argv]} {
 
 global quiet
 if {![info exists quiet]} {
-  vmdcon -info "No quiet argument passed in; defaulting to 0"
   set quiet 1
 }
 
@@ -47,7 +46,7 @@ if {![info exists PESTIFER_TCLROOT]} {
 set PESTIFER_TCLPKG ${PESTIFER_TCLROOT}/pkg
 set packages [glob -type d $PESTIFER_TCLPKG]
 foreach pkg $packages {
-  vmdcon -info "Adding $pkg to auto_path"
+  vmdcon -info "Adding Tcl package directory $pkg to auto_path"
   lappend auto_path $pkg
 }
 
@@ -55,7 +54,8 @@ foreach pkg $packages {
 package require PestiferUtil
 namespace import PestiferUtil::*
 
-# source the current atomselect macro definitions
+# Update atomselect macro definitions
 if {[file exists ${PESTIFER_TCLROOT}/macros.tcl]} {
+  vmdcon -info "Updating atomselect macros using ${PESTIFER_TCLROOT}/macros.tcl"
   source ${PESTIFER_TCLROOT}/macros.tcl
 }

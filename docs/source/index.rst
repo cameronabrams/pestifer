@@ -20,5 +20,5 @@ Contents
    usage
    examples
    config_ref
-   api/modules
+   API <api/API>
    tcl/source

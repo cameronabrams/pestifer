@@ -7,7 +7,7 @@ Info)    Molecular Dynamics', J. Molec. Graphics 1996, 14.1, 33-38.
 Info) -------------------------------------------------------------
 Info) Multithreading available, 16 CPUs.
 Info)   CPU features: SSE2 SSE4.1 AVX AVX2 FMA F16 AVX512F AVX512CD HT 
-Info) Free system memory: 36GB (56%)
+Info) Free system memory: 36GB (57%)
 Info) Creating CUDA device pool and initializing hardware...
 Info) Detected 1 available CUDA accelerator::
 Info) [0] Quadro P4000         14 SM_6.1 1.5 GHz, 7.9GB RAM SP32 KT AE2 ZC
@@ -21,6 +21,9 @@ Info) No quiet argument passed in; defaulting to 0
 /home/cfa/Git/pestifer/pestifer/resources/tcl/pkg
 Info) Adding /home/cfa/Git/pestifer/pestifer/resources/tcl/pkg to auto_path
 1.0
+ERROR) syntax error
+ERROR) Macro '(resname AL BA CA CAL CD CES CLA CL CO CS CU CU1 CUA HG IN IOD K LIT MG MN3 MO3 MO4 MO5 MO6 NA NAW OC7 PB POT PT RB SOD TB TL WO4 YB ZN ZN1 ZN2) or (LIT SOD MG POT CAL RUB CES BAR ZN CAD CL SO4 PO4 H2PO ZN2 CLA)' cannot be parsed.
+Unable to create macro for 'ion'
 Info) Using plugin pdb for structure file 6pti.pdb
 Info) Using plugin pdb for coordinates from file 6pti.pdb
 Info) Determining bond structure from distance search ...

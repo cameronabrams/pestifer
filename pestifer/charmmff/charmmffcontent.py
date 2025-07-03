@@ -201,7 +201,8 @@ class CHARMMFFContent:
 
     def __del__(self):
         """ 
-        Close the tarfile if it is open """
+        Close the tarfile if it is open 
+        """
         if self.tarfile is not None:
             self.tarfile.close()
             self.tarfile=None
@@ -214,10 +215,12 @@ class CHARMMFFContent:
         """ 
         Add a user custom directory to the CHARMMFFContent.
         This directory should contain custom files that can be used in addition to the standard CHARMM force field files.
+
         Parameters
         ----------
         user_custom_directory : str
             The path to the user custom directory containing additional CHARMM files.
+
         Raises
         -------
         NotADirectoryError
@@ -234,12 +237,14 @@ class CHARMMFFContent:
     def load_charmmff(self,tarfilename='toppar_c36_jul24.tgz',skip_streams=['misc','cphmd']):
         """ 
         Load the CHARMM force field tarball from the specified path.
+
         Parameters
         ----------
         tarfilename : str, optional
             The name of the tarball file containing the CHARMM force field files. Default is 'toppar_c36_jul24.tgz'.
         skip_streams : list of str, optional
             A list of stream names to skip when loading the CHARMM force field content. Default is ['misc', 'cphmd'].
+
         Raises
         -------
         FileNotFoundError
@@ -249,8 +254,6 @@ class CHARMMFFContent:
             """ Check if a filename is ok to use in the tarfile """
             return not 'history' in name and not 'all22' in name and not 'ljpme' in name and (name.endswith('.str') or name.endswith('.prm') or name.endswith('.rtf'))
 
-        """ 
-        Load the CHARMM force field tarball from the specified path """
         if not os.path.exists(os.path.join(self.charmmff_path,tarfilename)):
             raise FileNotFoundError(f'CHARMM force field tarball {tarfilename} not found in {self.charmmff_path}')
         logger.debug(f'Loading CHARMM force field tarball {tarfilename} from {self.charmmff_path}')
@@ -285,10 +288,12 @@ class CHARMMFFContent:
         If it does, it returns the basename. If the file is found in the custom files, it copies it from there.
         If the file is found in the tarball or any custom directory, it extracts it and writes it to the local directory, filtering out CHARMM commands that give NAMD trouble.
         If the file is not found in either location, it logs a warning.
+
         Parameters
         ----------
         basename : str
             The basename of the CHARMM file to copy. This should be a file name without any directory path.
+
         Returns
         -------
         str
@@ -347,10 +352,12 @@ class CHARMMFFContent:
         """ 
         Extract the lines from a top file.
         This function reads the contents of a top file, either from the tarfile or from a mapped filename in the filenamemap.
+
         Parameters
         ----------
         topfile : str
             The name of the top file to extract lines from. This can be a full path or just the basename.
+
         Returns
         -------
         list of str
@@ -363,10 +370,12 @@ class CHARMMFFContent:
         """ 
         Extract the contents of a top file.
         This function reads the contents of a top file, either from the tarfile or from a mapped filename in the filenamemap.  Applies the logic filter if this is a cholesterol substream.
+
         Parameters
         ----------
         topfile : str
             The name of the top file to extract contents from. This can be a full path or just the basename.
+
         Returns
         -------
         str
@@ -403,10 +412,12 @@ class CHARMMFFContent:
         """ 
         Extract the masses from a top file
         This function reads the contents of a top file and extracts the mass records.
+
         Parameters
         ----------
         topfile : str
             The name of the top file to extract masses from. This can be a full path or just the basename.
+
         Returns
         -------
         CharmmMasses
@@ -425,12 +436,14 @@ class CHARMMFFContent:
         Extract the residues from a top file.
         This function reads the contents of a top file and extracts the residue blocks.
         It looks for blocks that start with 'RESI' or 'PRES' and creates instances of CharmmTopResi for each block.
+
         Parameters
         ----------
         topfile : str
             The name of the top file to extract residues from. This can be a full path or just the basename.
         metadata : dict, optional
             A dictionary containing metadata to be associated with each residue. Default is an empty dictionary.
+
         Returns
         -------
         list of CharmmTopResi
@@ -480,6 +493,11 @@ class CHARMMFFStreamID:
     A class for handling the CHARMM force field stream ID and substream ID.
     This class parses the filename of a CHARMM force field file to extract the stream ID and substream ID.
     
+    Parameters
+    ----------
+    charmmff_filename : str
+        The name of the CHARMM force field file.
+
     Attributes
     ----------
     charmff_filename : str
@@ -596,10 +614,12 @@ class CHARMMFFResiDatabase:
         """ 
         Load residues and patches from a specific stream in the CHARMM force field content.
         This function checks if the streamID exists in the CHARMM force field content and loads the residues and patches from the corresponding topology files.
+
         Parameters
         ----------
         streamID : str
             The ID of the stream from which to load residues and patches.
+
         Raises
         -------
         Warning
@@ -619,16 +639,19 @@ class CHARMMFFResiDatabase:
         """ 
         Get the residue names of a specific stream ID.
         This function retrieves the residue names associated with a given stream ID and optional substream ID.
+
         Parameters
         ----------
         streamID : str
             The ID of the stream from which to retrieve residue names.
         substreamID : str, optional
             The ID of the substream from which to retrieve residue names. If None, all residues in the stream are returned.
+
         Returns
         -------
         list of str
             A sorted list of residue names associated with the specified stream ID and optional substream ID.
+
         Raises
         -------
         Warning
@@ -646,10 +669,13 @@ class CHARMMFFResiDatabase:
         """ 
         Load residues and patches from a specific topology file.
         This function reads the contents of a topology file, extracts residues and patches, and updates the `self.residues` and `self.patches` dictionaries.
+
+
         Parameters
         ----------
         topfile : str
             The name of the topology file to load residues and patches from. This can be a full path or just the basename.
+
         Returns
         -------
         tuple of list of CharmmTopResi
@@ -685,6 +711,7 @@ class CHARMMFFResiDatabase:
         """ 
         Add a stream to the CHARMM force field residue database.
         This function loads residues and patches from the specified stream ID and updates the `self.streamIDs` list.
+
         Parameters
         ----------
         streamID : str
@@ -702,6 +729,7 @@ class CHARMMFFResiDatabase:
         Add a topology file to the CHARMM force field residue database.
         This function loads residues and patches from the specified topology file and updates the `self.residues` and `self.patches` dictionaries.
         If a `streamIDoverride` is provided, it will set the `streamID` and `substreamID` metadata for all residues and patches loaded from the topology file.
+
         Parameters
         ----------
         topfile : str
@@ -724,10 +752,12 @@ class CHARMMFFResiDatabase:
         """ 
         Get a residue by its name from the CHARMM force field residue database.
         This function checks if the residue name exists in the database and returns the corresponding CharmmTopResi object.
+
         Parameters
         ----------
         resname : str
             The name of the residue to retrieve from the database.
+
         Returns
         -------
         CharmmTopResi or None
@@ -742,11 +772,13 @@ class CHARMMFFResiDatabase:
     def __contains__(self,resname):
         """ 
         Check if a residue name exists in the CHARMM force field residue database.
-        This function checks if the specified residue name is present in the `self.residues` dictionary.
+        This function checks if the specified residue name is present in the ``self.residues`` dictionary.
+
         Parameters
         ----------
         resname : str
             The name of the residue to check for in the database.
+            
         Returns
         -------
         bool

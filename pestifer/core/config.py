@@ -14,7 +14,6 @@ from GPUtil import getGPUs
 from importlib.metadata import version
 from ycleptic.yclept import Yclept
 
-from .labels import Labels
 from .resourcemanager import ResourceManager
 from .stringthings import my_logger
 
@@ -152,7 +151,7 @@ class Config(Yclept):
             assert os.path.exists(self.user_charmmff_toppar_path)
         self.namd_config_defaults=self['user']['namd']
 
-        self.segtypes=Labels.segtypes
+        self.segtypes=RM.labels.segtypes
         self['user']['psfgen']['segtypes']=self.segtypes
 
 
