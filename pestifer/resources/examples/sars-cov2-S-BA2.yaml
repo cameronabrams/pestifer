@@ -6,9 +6,9 @@
 #
 # Notes:
 #   - Glycans are grafted from prototypical structures
-#     - 2byh chain C is a MAN9GLCNAC2
-#     - 4b7i chain C is a Man7Fuc
-#     - 4byh chain C is a Man3
+#     - 2byh chain C is a poorly processed, high-mannose glycan
+#     - 4b7i chain C is an intermedately processed glycan
+#     - 4byh chain C is a complex glycan
 #   - Chains are cleaved at the furin cleavage sites
 #
 title: BA.2 SARS-CoV-2 Spike 7xix, fully glycosylated using grafts, and cleaved
