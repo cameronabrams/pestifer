@@ -87,7 +87,8 @@ class TerminateTask(MDTask):
         for ext in ['psf','pdb','coor','xsc','vel']:
             if ext in self.statevars:
                 self.FC.append(self.statevars[ext])
-
+        return result
+    
         # if specs["topogromacs"]:
         #     logger.debug(f'running topogromacs')
         #     with open(f'{basename}_par.inp','w') as f:
