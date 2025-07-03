@@ -125,60 +125,38 @@ directives:
         docs:
           text: |
             This is a dictionary that holds segment types as keys and lists of residue names as values.  The segment types are used to define the segments in the PSF file, and the residue names are used to define the residues in each segment.
-            The segment types are defined in the ``pestifer/core/labels.py`` file, and can be modified by the user using this directive.
+            The segment types are defined in the ``pestifer/core/labels.py`` file, and can be modified/appended to by the user using this directive.
       - name: aliases
-        type: list
-        text: Psgfen atom and residue aliases
+        type: dict
+        text: additional atom and residue aliases for psfgen not already defined in pestifer/core/labels.py
         required: True 
         docs:
           text: |
             Add any residue or atom aliases needed; this is often done to make sure you have a 4-byte resname for any residue.  These are input as a list of strings, where each string is the full psfgen alias command
           example:
             aliases:
-              - atom ILE CD1 CD
-              - residue HIS HSD
+              atom:
+                - ILE CD1 CD
+              residue:
+                - HIS HSD
+        directives:
+          - name: atom
+            type: list
+            text: List of atom aliases to add to psfgen
+            default: []
+            docs:
+              text: |
+                This is a list of atom aliases to add to psfgen.  Each alias should be a string in the format "ATOM_NAME ALIAS_NAME", where ATOM_NAME is the name of the atom in the PDB file and ALIAS_NAME is the name you want to use in the PSF file.
+          - name: residue
+            type: list
+            text: List of residue aliases to add to psfgen
+            default: []
+            docs:
+              text: |
+                This is a list of residue aliases to add to psfgen.  Each alias should be a string in the format "RESNAME ALIAS_NAME", where RESNAME is the name of the residue in the PDB file and ALIAS_NAME is the name you want to use in the PSF file.
         default:
-          - atom ILE CD1 CD
-          - atom BGLCNA C7 C
-          - atom BGLCNA O7 O
-          - atom BGLCNA C8 CT
-          - atom BGLCNA N2 N
-          - atom ANE5 C10 C
-          - atom ANE5 C11 CT
-          - atom ANE5 N5 N
-          - atom ANE5 O1A O11
-          - atom ANE5 O1B O12
-          - atom ANE5 O10 O
-          - atom VCG C01 C1
-          - atom VCG C01 C1
-          - atom VCG C02 C2
-          - atom VCG C03 C3
-          - atom VCG C04 C4
-          - atom VCG C05 C5
-          - atom VCG C06 C6
-          - atom VCG C07 C7
-          - atom VCG C08 C8
-          - atom VCG C09 C9
-          - atom TIP3 O OH2
-          - residue HIS HSD
-          - residue PO4 H2PO4
-          - residue H2PO H2PO4
-          - residue MAN AMAN
-          - residue BMA BMAN
-          - residue NAG BGLCNA
-          - residue NDG AGLCNA
-          - residue BGLC BGLCNA
-          - residue FUC AFUC
-          - residue FUL BFUC
-          - residue GAL BGAL
-          - residue ANE5 ANE5AC
-          - residue SIA ANE5AC
-          - residue EIC LIN
-          - residue HOH TIP3
-          - residue ZN ZN2
-          - residue CL CLA
-          - residue C6DH C6DHPC
-          - residue C7DH C7DHPC
+          atom: []
+          residue: []
   - name: namd
     type: dict
     text: NAMD specifications
@@ -452,6 +430,10 @@ directives:
                             text: Flag to indicate if model-built C-terminal loops should be declashed
                             type: bool
                             default: True
+                          - name: clashdist
+                            text: interatomic distance threshold for clashes in Angstroms
+                            type: float
+                            default: 1.5
                   - name: glycans
                     text: parameters controlling how model-built glycans are adjusted, if present
                     type: dict

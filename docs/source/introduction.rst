@@ -17,7 +17,7 @@ As far as automating the tedium of psfgen scripting, pestifer can do a lot of th
 A partial list of things pestifer can do 
 ----------------------------------------
 
-1. Generate a complete, self-contained set of files for NAMD simulation of a solvated system using the CHARMM36FF from nearly any PDB input
+1. Generate a complete, self-contained set of files for NAMD simulation of a solvated system using the CHARMM36FF from nearly any PDB input, including glycosylated proteins and nucleic acids
 2. During this generation process, introduce modifications, including
    
    * residue patches

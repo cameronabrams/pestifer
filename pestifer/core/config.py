@@ -153,5 +153,12 @@ class Config(Yclept):
 
         self.segtypes=RM.labels.segtypes
         self['user']['psfgen']['segtypes']=self.segtypes
-
-
+        for atom_alias in RM.labels.aliases['atom']:
+            if atom_alias not in self['user']['psfgen']['aliases']['atom']:
+                # add the atom alias to the user config
+                self['user']['psfgen']['aliases']['atom'].append(atom_alias)
+        for residue_alias in RM.labels.aliases['residue']:
+            if residue_alias not in self['user']['psfgen']['aliases']['residue']:
+                # add the residue alias to the user config
+                self['user']['psfgen']['aliases']['residue'].append(residue_alias)
+        logger.debug(f'psfgen aliases: {self["user"]["psfgen"]["aliases"]}')

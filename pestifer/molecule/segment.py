@@ -70,7 +70,7 @@ class Segment(AncestorAwareObj):
             Residues=input_obj
             apparent_chainID=Residues[0].chainID
             apparent_segtype=Residues[0].segtype
-            if apparent_segtype=='protein':
+            if apparent_segtype in ['protein','nucleicacid']:
                 # a protein segment must have unique residue numbers
                 assert Residues.puniq(['resseqnum','insertion']),f'ChainID {apparent_chainID} has duplicate resseqnum-insertion!'
                 # a protein segment may not have more than one protein chain
@@ -149,9 +149,11 @@ class Segment(AncestorAwareObj):
             The transformation object containing mapping information.
         """
         if self.segtype=='protein':
-            self.protein_stanza(W,transform)
+            self.polymer_stanza(W,transform)
         elif self.segtype=='glycan':
             self.glycan_stanza(W,transform)
+        elif self.segtype=='nucleicacid':
+            self.nucleicacid_stanza(W,transform)
         else:
             self.generic_stanza(W,transform)
     
@@ -224,9 +226,23 @@ class Segment(AncestorAwareObj):
             W.restore_selection(selname,dataholder=f'{selname}_data')
         W.banner(f'Segment {image_seglabel} ends')
 
-    def protein_stanza(self,W:PsfgenScripter,transform):
+    def nucleicacid_stanza(self,W:PsfgenScripter,transform):
         """
-        Write the Tcl commands to create a protein segment in the Psfgen script.
+        Write the Tcl commands to create a nucleic acid segment in the Psfgen script.  For now, this just redirects to a polymer stanza.
+
+        Parameters
+        ----------
+        W : PsfgenScripter
+            The Psfgen script writer object to which the Tcl commands will be written.
+        transform : Transform
+            The transformation object containing mapping information.
+        """
+        self.polymer_stanza(W,transform)
+
+    def polymer_stanza(self,W:PsfgenScripter,transform):
+        """
+        Write the Tcl commands to create a polymer (protein or nucleic acid) 
+        segment in the Psfgen script.
 
         Parameters
         ----------
@@ -240,12 +256,12 @@ class Segment(AncestorAwareObj):
         seglabel=self.segname
         image_seglabel=chainIDmap.get(seglabel,seglabel)
         is_image=image_seglabel!=seglabel
-
+        segtype=self.segtype
         objmanager=self.objmanager
         seqmods=objmanager.get('seq',{})
-        logger.debug(f'protein_stanza {seglabel}->{image_seglabel} seqmods: {seqmods}')
+        logger.debug(f'polymer_stanza {segtype} {seglabel}->{image_seglabel} seqmods: {seqmods}')
 
-        transform.register_mapping(self.segtype,image_seglabel,seglabel)
+        transform.register_mapping(segtype,image_seglabel,seglabel)
 
         loopspecs=self.specs.get('loops',{})
         sac_rn=loopspecs.get('sac_res_name','NOSAC')
@@ -255,7 +271,7 @@ class Segment(AncestorAwareObj):
         build_C_terminal_loop=seglabel in self.specs.get('build_zero_occupancy_C_termini',[])
 
         seg_mutations=seqmods.get('mutations',MutationList([]))
-        logger.debug(f'protein_stanza for segname {seglabel}; init mutations:')
+        logger.debug(f'polymer_stanza for {segtype} segname {seglabel}; init mutations:')
         for m in seg_mutations:
             logger.debug(str(m))
         seg_Cfusions=seqmods.get('Cfusions',CfusionList([]))
@@ -320,7 +336,7 @@ class Segment(AncestorAwareObj):
                     sac_resseqnum=lrr.resseqnum
                     sac_insertion='A' if lrr.insertion in [' ',''] else chr(ord(lrr.insertion)+1)
                     assert sac_insertion<='Z',f'Residue {lrr.resseqnum} of chain {seglabel} already has too many insertion instances (last: {lrr.insertion}) to permit insertion of a sacrificial {sac_rn}'
-                    b.sacres=Residue({'resname':sac_rn,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':'protein','resolved':False,'atoms':[]})
+                    b.sacres=Residue({'resname':sac_rn,'resseqnum':sac_resseqnum,'insertion':sac_insertion,'chainID':seglabel,'segtype':segtype,'resolved':False,'atoms':[]})
                     W.addline(f'residue {sac_resseqnum}{sac_insertion} {sac_rn} {image_seglabel}',indents=1)
         for cf in seg_Cfusions:
             cf.write_in_segment(W)
@@ -347,8 +363,9 @@ class Segment(AncestorAwareObj):
                     prior_b=self.subsegments[self.subsegments.index(b)-1]
                     W.comment(f'...attached to subsegment {self.subsegments.index(prior_b)}')
                     prior_run=ResidueList(self.residues[prior_b.bounds[0]:prior_b.bounds[1]+1])
-                    W.comment(f'Seeding orientation of model-built loop starting at {str(this_run[0])} from {str(prior_run[-1])}')
-                    W.addline(f'{this_run.caco_str(prior_run,image_seglabel,parent_molecule.molid_varname,transform.tmat)}')
+                    if segtype=='protein':
+                        W.comment(f'Seeding orientation of model-built loop starting at {str(this_run[0])} from {str(prior_run[-1])}')
+                        W.addline(f'{this_run.caco_str(prior_run,image_seglabel,parent_molecule.molid_varname,transform.tmat)}')
         if len(seg_patches)>0:
             W.banner(f'Patches for segment {image_seglabel}')
         for patch in seg_patches:
@@ -357,20 +374,21 @@ class Segment(AncestorAwareObj):
         for sc in seg_Cfusions:
             sc.write_post_segment(W)
         W.banner('Intra-segmental terminal patches')
-        for i,b in enumerate(self.subsegments):
-            # only non-terminal loops get the terminal patches
-            if b.state=='MISSING' and 0<i<(len(self.subsegments)-1) and hasattr(b,'sacres'):
-                Cterm=self.residues[b.bounds[1]]
-                W.addline(f'patch CTER {image_seglabel}:{Cterm.resseqnum}{Cterm.insertion}')
-                nextb=self.subsegments[i+1]
-                Nterm=self.residues[nextb.bounds[0]]
-                patchname='NTER'
-                if Nterm.resname=='PRO':
-                    patchname='PROP'
-                elif Nterm.resname=='GLY':
-                    patchname='GLYP'
-                W.addline(f'patch {patchname} {image_seglabel}:{Nterm.resseqnum}{Nterm.insertion}')
-                W.addline(f'delatom {image_seglabel} {b.sacres.resseqnum}{b.sacres.insertion}')
+        if segtype=='protein':
+            for i,b in enumerate(self.subsegments):
+                # only non-terminal loops get the terminal patches
+                if b.state=='MISSING' and 0<i<(len(self.subsegments)-1) and hasattr(b,'sacres'):
+                    Cterm=self.residues[b.bounds[1]]
+                    W.addline(f'patch CTER {image_seglabel}:{Cterm.resseqnum}{Cterm.insertion}')
+                    nextb=self.subsegments[i+1]
+                    Nterm=self.residues[nextb.bounds[0]]
+                    patchname='NTER'
+                    if Nterm.resname=='PRO':
+                        patchname='PROP'
+                    elif Nterm.resname=='GLY':
+                        patchname='GLYP'
+                    W.addline(f'patch {patchname} {image_seglabel}:{Nterm.resseqnum}{Nterm.insertion}')
+                    W.addline(f'delatom {image_seglabel} {b.sacres.resseqnum}{b.sacres.insertion}')
         W.banner('Restoring A.U. state for all resolved subsegments')
         for b in self.subsegments:
             if b.state=='RESOLVED':
@@ -401,7 +419,7 @@ class SegmentList(AncestorAwareObjList):
                 super().__init__([])
                 residues=input_obj
                 # all residues have their segtypes set
-                assert all([x.segtype!='UNSET' for x in residues])
+                assert all([x.segtype!='UNSET' for x in residues]),f'There are residues with UNSET segtype in {input_obj}'
                 self.segtypes_ordered=[]
                 for r in residues:
                     if not r.chainID in self.segtype_of_segname:

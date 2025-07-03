@@ -1,0 +1,64 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+#
+# E. Coli replicative DNA polymerase complex 
+# bound to a primer-template DNA
+#
+# Demonstration of nucleic acid building
+# Three unresolved nucleic acid at 5' end of chain T are modeled in
+#
+title: 5fkw
+tasks:
+  - psfgen:
+      source:
+        id: 5fkw
+        sequence:
+          build_zero_occupancy_N_termini: [T]
+          loops:
+            min_loop_length: 2
+            declash:
+              maxcycles: 40
+  - md:
+      ensemble: minimize
+  - ligate:
+      steer:
+        nsteps: 3600
+  - md:
+      ensemble: minimize
+  - md:
+      cpu-override: True
+      ensemble: NVT
+      nsteps: 2400
+  - solvate:
+        salt_con: 0.15
+        cation: SOD
+        anion: CLA
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - md:
+      ensemble: NPT
+      nsteps: 13200
+  - mdplot:
+      basename: solvated
+      traces:
+        - density
+  - terminate:
+      basename: my_5fkw
+      package:
+        basename: prod_5fkw
+        ensemble: NPT

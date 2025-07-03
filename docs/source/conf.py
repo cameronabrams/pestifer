@@ -13,8 +13,8 @@ project = 'pestifer'
 copyright = '2023-2025, Cameron F. Abrams'
 author = 'cfa22@drexel.edu'
 
-release = '1.16'
-version = '1.16.0'
+release = '1.17'
+version = '1.17.0'
 
 # -- General configuration
 

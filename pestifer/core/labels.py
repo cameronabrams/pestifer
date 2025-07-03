@@ -36,6 +36,10 @@ segtypes= {
         'macro': True,
         'resnames' : [
             'EIC', 'VCG', '83G']},
+    'nucleicacid': {
+        'macro': True,
+        'resnames': [
+            'ADE', 'THY', 'CYT', 'GUA', 'URA', 'DA', 'DC', 'DG', 'DT', 'DU',]},
     'glycan': {
         'macro':True,
         'resnames': [
@@ -135,27 +139,56 @@ segtypes= {
             'resnames': []}
     }
 
+_atom_aliases = [
+    "ILE CD1 CD",
+    "BGLCNA C7 C",
+    "BGLCNA O7 O",
+    "BGLCNA C8 CT",
+    "BGLCNA N2 N",
+    "ANE5 C10 C",
+    "ANE5 C11 CT",
+    "ANE5 N5 N",
+    "ANE5 O1A O11",
+    "ANE5 O1B O12",
+    "ANE5 O10 O",
+    "VCG C01 C1",
+    "VCG C01 C1",
+    "VCG C02 C2",
+    "VCG C03 C3",
+    "VCG C04 C4",
+    "VCG C05 C5",
+    "VCG C06 C6",
+    "VCG C07 C7",
+    "VCG C08 C8",
+    "VCG C09 C9",
+    "TIP3 O OH2"
+]
 _residue_aliases = [
-        "residue HIS HSD",
-        "residue PO4 H2PO4",
-        "residue H2PO H2PO4",
-        "residue MAN AMAN",
-        "residue BMA BMAN",
-        "residue NAG BGLCNA",
-        "residue NDG AGLCNA",
-        "residue BGLC BGLCNA",
-        "residue FUC AFUC",
-        "residue FUL BFUC",
-        "residue GAL BGAL",
-        "residue ANE5 ANE5AC",
-        "residue SIA ANE5AC",
-        "residue EIC LIN",
-        "residue HOH TIP3",
-        "residue ZN ZN2",
-        "residue CL CLA",
-        "residue C6DH C6DHPC",
-        "residue C7DH C7DHPC",
-    ]
+    "HIS HSD",
+    "PO4 H2PO4",
+    "H2PO H2PO4",
+    "MAN AMAN",
+    "BMA BMAN",
+    "NAG BGLCNA",
+    "NDG AGLCNA",
+    "BGLC BGLCNA",
+    "FUC AFUC",
+    "FUL BFUC",
+    "GAL BGAL",
+    "ANE5 ANE5AC",
+    "SIA ANE5AC",
+    "EIC LIN",
+    "HOH TIP3",
+    "ZN ZN2",
+    "CL CLA",
+    "C6DH C6DHPC",
+    "C7DH C7DHPC",
+    "DT THY",
+    "DA ADE",
+    "DC CYT",
+    "DG GUA",
+    "DU URA",
+]
 
 class LabelMappers:
     """
@@ -163,6 +196,9 @@ class LabelMappers:
     """
     def __init__(self):
         # process _data to initialize the label mappers
+        self.aliases={}
+        self.aliases['atom'] = _atom_aliases
+        self.aliases['residue'] = _residue_aliases
         self.segtypes=segtypes
         self.segtype_of_resname = {}
         self.charmm_resname_of_pdb_resname = {}
@@ -172,7 +208,7 @@ class LabelMappers:
             for resname in segtypes[segtype]['resnames']:
                 self.segtype_of_resname[resname] = segtype
         for alias in _residue_aliases:
-            parts = alias.split()[1:]
+            parts = alias.split()
             resname, alias1 = parts
             self.charmm_resname_of_pdb_resname[resname] = alias1
     

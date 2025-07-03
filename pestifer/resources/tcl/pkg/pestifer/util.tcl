@@ -149,6 +149,7 @@ proc PestiferUtil::update_atomselect_macro { macro_name new_value overwrite } {
       if {$existing_macro != ""} {
          atomselect macro $macro_name "($existing_macro) or ($new_value)"
       } else {
+         vmdcon -info "No existing \"$macro_name\" -- creating."
          atomselect macro $macro_name $new_value
       }
    }

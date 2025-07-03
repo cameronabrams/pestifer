@@ -57,7 +57,7 @@ input-files:
     pdbID: 4zxb
   - name: sars-cov2-S-BA2.yaml
     description: |
-      solvated, fully glycosylated SARS-CoV-2 spike protein (BA.2 variant via homology)
+      solvated, fully glycosylated SARS-CoV-2 BA.2 spike protein
     pdbID: 7xix
   - name: hiv-mpertm3-membrane1.yaml
     description: |
@@ -67,3 +67,7 @@ input-files:
     description: |
       HIV-1 Env MPER-TM trimer in an asymmetric, model viral bilayer
     pdbID: 6e8w
+  - name: ecoli_polymerase.yaml
+    description: |
+      E. coli RNA polymerase with a 12-mer DNA duplex
+    pdbID: 5fkw

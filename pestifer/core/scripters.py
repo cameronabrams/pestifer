@@ -506,14 +506,17 @@ class PsfgenScripter(VMDScripter):
             self.topologies.append('top_all35_ethers.rtf')
         for t in self.topologies:
             self.addline(f'topology {t}')
-        for pdba in self.psfgen_config['aliases']:
-            alias_tokens=pdba.split()
-            if alias_tokens[1]=='*': # wild-card for all protein residues
-                for protein_resname in self.psfgen_config['segtypes']['protein']['resnames']:
-                    this_pdba=f'{alias_tokens[0]} {protein_resname} {alias_tokens[2]} {alias_tokens[3]}'
-                    self.addline(f'pdbalias {this_pdba}')
-            else:
-                self.addline(f'pdbalias {pdba}')
+        # logger.debug(f'psfgen aliases: {self.psfgen_config["aliases"]}')
+        for alias_type,alias_list in self.psfgen_config['aliases'].items():
+            logger.debug(f'Adding {len(alias_list)} {alias_type} aliases to psfgen script')
+            for pdba in alias_list:
+                alias_tokens=pdba.split()
+                if alias_tokens[1]=='*': # wild-card for all protein residues
+                    for protein_resname in self.psfgen_config['segtypes']['protein']['resnames']:
+                        this_pdba=f'{alias_tokens[0]} {protein_resname} {alias_tokens[2]} {alias_tokens[3]}'
+                        self.addline(f'pdbalias {alias_type} {this_pdba}')
+                else:
+                    self.addline(f'pdbalias {alias_type} {pdba}')
 
     def atomselect_macros(self):
         """

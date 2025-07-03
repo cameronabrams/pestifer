@@ -1,3 +1,10 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+# 
+# Green mamba toxin, demostration of pdb2pqr usage
+#
+#
 tasks:
 - psfgen:
     source:

@@ -256,17 +256,25 @@ class Molecule(AncestorAwareObj):
 
         Returns
         -------
-        nloops : int
-            The number of loops found in the asymmetric unit.
+        nloops : dict
+            A dictionary containing the counts of loops in the asymmetric unit, categorized by segment type.
+            The keys are segment types (e.g., ``protein``, ``nucleicacid``) and the values are the counts of loops.
+            For example, ``{'protein': 3, 'nucleicacid': 2}`` indicates that there are 3 loops in protein segments
+            and 2 loops in nucleic acid segments.
         """
-        nloops=0
+        nloops={}
+        nloops['protein']=0
+        nloops['nucleicacid']=0
         au=self.asymmetric_unit
         for S in au.segments:
-            # chainID=S.chainID
             if S.segtype=='protein':
                 for b in S.subsegments:
                     if b.state=='MISSING' and b.num_items()>=min_loop_length:
-                        nloops+=1
+                        nloops['protein']+=1
+            elif S.segtype=='nucleicacid':
+                for b in S.subsegments:
+                    if b.state=='MISSING' and b.num_items()>=min_loop_length:
+                        nloops['nucleicacid']+=1
         return nloops
 
     def nglycans(self):
@@ -334,7 +342,7 @@ class Molecule(AncestorAwareObj):
         """
         return len(self.asymmetric_unit.segments)
 
-    def write_loop_lines(self,writer,cycles=100,**options): #min_length=4):
+    def write_protein_loop_lines(self,writer,cycles=100,**options):
         """
         Write Tcl commands to declare loops in the asymmetric unit that are in the ``MISSING``
         state and have a length greater than or equal to the specified minimum length.
@@ -359,7 +367,7 @@ class Molecule(AncestorAwareObj):
         include_c_termini=options.get('include_c_termini',False)
         for S in au.segments:
             # chainID=S.chainID
-            if S.segtype=='protein':
+            if S.segtype in 'protein':
                 asymm_segname=S.segname
                 n_subsegs=len(S.subsegments)
                 for b in S.subsegments:

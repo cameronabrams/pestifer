@@ -23,6 +23,7 @@ Examples
   examples/sarscov2S-ba2
   examples/6e8w-symm
   examples/6e8w-viral
+  examples/ecoli_polymerase
 
 
 

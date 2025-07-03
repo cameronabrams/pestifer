@@ -28,6 +28,8 @@ Pestifer **includes** the [July 2024 Charmm36 force field](https://mackerell.uma
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
+* 1.17.0
+    * support for simple nucleic acids added
 * 1.16.3
     * fixed None-return bug in terminate task
     * fixed bug in insulin example to correctly assign NE2-Zn bonds
