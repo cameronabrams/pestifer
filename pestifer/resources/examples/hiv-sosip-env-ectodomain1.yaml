@@ -15,7 +15,7 @@
 #   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_4zmj.tgz
 #
-title: HIV-1 Env Trimer 4zmj
+title: Closed, Unliganded HIV-1 BG505 Env SOSIP-664 Trimer
 tasks:
   - psfgen:
       source:

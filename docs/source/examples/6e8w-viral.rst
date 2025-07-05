@@ -1,7 +1,7 @@
 .. _example mper-tm viral bilayer:
 
-Example 17: Trimeric HIV-1 gp41 construct embedded in a model viral bilayer
----------------------------------------------------------------------------
+Example 17: HIV-1 Env MPER-TM Trimer in a DMPC/DHPC Symmetric Bilayer
+---------------------------------------------------------------------
 
 .. figure:: pics/my_6e8w_viral.png
 

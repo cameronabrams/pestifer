@@ -17,7 +17,6 @@ from .config import Config, ResourceManager
 from ..charmmff.charmmresi import make_pdb_collection
 from .controller import Controller
 from ..util.namdrestart import make_namd_restart
-from .scripters import PsfgenScripter
 from .stringthings import banner, _banner_message, _enhanced_banner_message, oxford
 from ..util.logparsers import subcommand_follow_namd_log
 
@@ -109,7 +108,7 @@ def run(args,**kwargs):
     report=C.do_tasks()
     end_time=time.time()
     elapsed_time_s=datetime.timedelta(seconds=(end_time-begin_time))
-    logger.info(f'{__package__} ends. Elapsed time {time.strftime("%H:%M:%S",time.gmtime(elapsed_time_s.seconds))}.')
+    logger.info(f'pestifer ends. Elapsed time {time.strftime("%H:%M:%S",time.gmtime(elapsed_time_s.seconds))}.')
     if args.output_dir!='./':
         os.chdir(exec_dir)
 
@@ -118,21 +117,23 @@ def desolvate(args,**kwargs):
     Run the ``pestifer desolvate`` command with the specified psf/pdb/dcd file combination
     """
     config=Config()
-    C=Controller(config,userspecs={'tasks':
-                            [
-                                {'desolvate':{
-                                    'basename':'desolvate',
-                                    'keepatselstr':args.keepatselstr,
-                                    'psf':args.psf,
-                                    'pdb':args.pdb,
-                                    'dcd_infiles':args.dcd_infiles,
-                                    'dcd_outfile':args.dcd_outfile,
-                                    'psf_outfile':args.psf_outfile,
-                                    'idx_outfile':args.idx_outfile,
-                                    'dcd_stride':args.dcd_stride
-                                   }
-                                }
-                            ]})
+    C=Controller(
+        config,userspecs={
+            'tasks':[{
+                'desolvate':{
+                    'basename':'desolvate',
+                    'keepatselstr':args.keepatselstr,
+                    'psf':args.psf,
+                    'pdb':args.pdb,
+                    'dcd_infiles':args.dcd_infiles,
+                    'dcd_outfile':args.dcd_outfile,
+                    'psf_outfile':args.psf_outfile,
+                    'idx_outfile':args.idx_outfile,
+                    'dcd_stride':args.dcd_stride
+                }
+            }]
+        }
+    )
     report=C.do_tasks()
 
 def mdplot(args):
@@ -148,29 +149,29 @@ def mdplot(args):
     logging.getLogger('').addHandler(console)
     config=Config()
     logger.debug(f'logs {args.logs}')
-    C=Controller(config,userspecs={'tasks':
-                            [
-                                {'mdplot':{
-                                    'existing-logs':args.logs,
-                                    'existing-xsts':args.xsts,
-                                    'basename':args.basename,
-                                    'figsize':args.figsize,
-                                    'traces':args.traces,
-                                    'profiles':args.profiles,
-                                    'legend':True,
-                                    'grid':True,
-                                    'units': {
-                                        'density': 'g/cc',
-                                        'a_x': 'Å',
-                                        'b_y': 'Å',
-                                        'c_z': 'Å',
-                                        'pressure': 'bar'
-                                        }
-                                    }
-                                }
-                            ]
-                            }
-                            )
+    C=Controller(
+        config,userspecs={
+            'tasks':[{
+                'mdplot':{
+                    'existing-logs':args.logs,
+                    'existing-xsts':args.xsts,
+                    'basename':args.basename,
+                    'figsize':args.figsize,
+                    'traces':args.traces,
+                    'profiles':args.profiles,
+                    'legend':True,
+                    'grid':True,
+                    'units': {
+                        'density': 'g/cc',
+                        'a_x': 'Å',
+                        'b_y': 'Å',
+                        'c_z': 'Å',
+                        'pressure': 'bar'
+                    }
+                }
+            }]
+        }
+    )
 
     report=C.do_tasks()
 
@@ -220,6 +221,10 @@ def modify_package(args):
     loglevel_numeric=getattr(logging,args.log_level.upper())
     logging.basicConfig(level=loglevel_numeric)
     if args.insert_example and args.example_yaml:
+        """
+        Insert a new example into the package docs directory.
+        This is a developer-only feature.
+        """
         new_number=args.insert_example
         new_yaml=args.example_yaml
         src_dir=os.path.dirname(__file__)

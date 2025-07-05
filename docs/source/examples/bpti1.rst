@@ -1,7 +1,7 @@
 .. _example bpti1:
 
-Example 1: BPTI
----------------
+Example 1: Bovine Pancreatic Trypsin Inhibitor (BPTI)
+-----------------------------------------------------
 
 The Input Configuration
 =======================

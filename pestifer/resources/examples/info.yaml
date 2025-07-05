@@ -1,73 +1,91 @@
-input-files:
+examples:
   - name: bpti1.yaml
     description: |
-      solvated BPTI
+      Bovine Pancreatic Trypsin Inhibitor (BPTI)
     pdbID: 6pti
+    rst: bpti1.rst
   - name: bpti2.yaml
     description: |
-      solvated BPTI excluding the phosphate ion
+      BPTI Excluding the Phosphate Ion
     pdbID: 6pti
+    rst: bpti2.rst
   - name: bpti3.yaml
     description: |
-      solvated BPTI with a mutated-out disulfide bond
+      BPTI with a Mutated-out Disulfide Bond
     pdbID: 6pti
+    rst: bpti3.rst
   - name: bpti4.yaml
     description: |
-      solvated BPTI with a mutated-in disulfide bon
+      BPTI with a Mutated-in Disulfide Bond
     pdbID: 6pti
+    rst: bpti4
   - name: hiv-protease.yaml
     description: |
-      solvated HIV protease with explicitly protonated catalytic aspartates
+      HIV Protease with Patches to Protonate Aspartates
     pdbID: 1f7a
+    rst: hivprotease.rst
   - name: toxin.yaml
     description: |
-      solvated green mamba toxin at pH 7.0
+      Green Mamba Toxin at pH 7.0
     pdbID: 1fas
+    rst: toxin.rst
   - name: hiv-sosip-env-ectodomain1.yaml
     description: |
-      solvated, closed, ligand-free HIV-1 SOSIP Env ectodomain trimer
+      Closed, Unliganded HIV-1 BG505 Env SOSIP.664 Trimer
     pdbID: 4zmj
+    rst: env.rst
   - name: hiv-sosip-env-ectodomain2.yaml
     description: |
-      solvated, closed, liganded (optionally) HIV-1 SOSIP Env ectodomain trimer
+      Closed, PGT122/35O22-Liganded HIV-1 BG505 Env SOSIP.664 Trimer (ligands removed)
     pdbID: 4tvp
+    rst: env_4tvp.rst
   - name: hiv-ad8-env-ectodomain.yaml
     description: |
-      solvated, closed, asymmetric HIV-1 AD8 Env ectodomain trimer
+      Cleaved, Asymmetric HIV-1 AD8 Env Ectodomain Trimer
     pdbID: 8fad
+    rst: 8fad.rst  
   - name: hiv-ae2-env-ectodomain.yaml
     description: |
-      solvated, closed, asymmetric HIV-1 AE2 Env ectodomain trimer
+      Cleaved, Asymmetric HIV-1 AE2 Env Ectodomain Trimer
     pdbID: 8fae
+    rst: 8fae.rst
   - name: hiv-sosip-env-ectodomain3.yaml
     description: |
-      solvated, open, asymmetric HIV-1 SOSIP Env ectodomain trimer
+      Open, Symmetric D9/CD4-liganded HIV-1 SOSIP Env Ectodomain Trimer (ligands removed)
     pdbID: 7txd
+    rst: 7txd.rst
   - name: hiv-sosip-env-ectodomain4.yaml
     description: |
-      solvated, open, symmetric HIV-1 SOSIP Env ectodomain trimer
+      Open, Symmetric 17b/CD4-liganded HIV-1 B41 SOSIP Env Ectodomain Trimer (ligands removed)
     pdbID: 5vn3
+    rst: 5vn3.rst
   - name: insulin-hexamer.yaml
     description: |
-      solvated insulin hexamer
+      DES-PHE B1 Bovine Insulin Hexamer
     pdbID: 2ins
+    rst: insulin.rst
   - name: insulin-receptor-ectodomain.yaml
     description: |
-      solvated insulin receptor ectodomain
+      Human Insulin Receptor Ectodomain IRαβ
     pdbID: 4zxb
+    rst: insulin-receptor.rst
   - name: sars-cov2-S-BA2.yaml
     description: |
-      solvated, fully glycosylated SARS-CoV-2 BA.2 spike protein
+      Fully Glycosylated, Closed SARS-CoV-2 Omicron BA.2 Variant Spike
     pdbID: 7xix
+    rst: sarscov2S-ba2.rst
   - name: hiv-mpertm3-membrane1.yaml
     description: |
-      HIV-1 Env MPER-TM trimer in a DMPC/DHPC symmetric bilayer
+      HIV-1 Env MPER-TM Trimer in a DMPC/DHPC Symmetric Bilayer
     pdbID: 6e8w
+    rst: 6e8w-symm.rst
   - name: hiv-mpertm3-membrane2.yaml
     description: |
-      HIV-1 Env MPER-TM trimer in an asymmetric, model viral bilayer
+      HIV-1 Env MPER-TM Trimer in an Asymmetric, Model Viral Bilayer
     pdbID: 6e8w
+    rst: 6e8w-viral.rst
   - name: ecoli_polymerase.yaml
     description: |
-      E. coli RNA polymerase with a 12-mer DNA duplex
+      E. coli Replicative DNA Polymerase Complex Bound to DNA
     pdbID: 5fkw
+    rst: ecoli_polymerase.rst

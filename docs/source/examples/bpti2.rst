@@ -1,7 +1,7 @@
 .. _example bpti2:
 
-Example 1: BPTI with Phosphate Ion Deleted
-------------------------------------------
+Example 1: BPTI Excluding the Phosphate Ion
+-------------------------------------------
 
 This is the same as Example 0, except we delete the phosphate ion.
 

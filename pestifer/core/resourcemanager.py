@@ -35,9 +35,9 @@ class ExampleManager:
             raise FileNotFoundError(f'Example path {example_path} does not contain info.yaml')
         with open(info_file,'r') as f:
             self.info=yaml.safe_load(f)
-        if 'input-files' not in self.info:
-            raise KeyError(f'info.yaml in {example_path} does not contain input-files key')
-        self.examples_list=self.info['input-files']
+        if 'examples' not in self.info:
+            raise KeyError(f'info.yaml in {example_path} does not contain examples key')
+        self.examples_list=self.info['examples']
     
     def checkout_example_yaml(self,index:int):
         """
@@ -131,7 +131,7 @@ class ExampleManager:
         new_example['name'] = os.path.basename(name)
         shutil.copy(name, self.path)
         self.examples_list.append(new_example)
-        self.info['input-files'] = self.examples_list
+        self.info['examples'] = self.examples_list
         info_file=os.path.join(self.path,'info.yaml')
         with open(info_file,'w') as f:
             yaml.safe_dump(self.info,f)
@@ -204,7 +204,7 @@ class ExampleManager:
         new_example['name'] = os.path.basename(name)
         shutil.copy(name, self.path)
         self.examples_list.insert(real_index, new_example)
-        self.info['input-files'] = self.examples_list
+        self.info['examples'] = self.examples_list
         info_file=os.path.join(self.path,'info.yaml')
         with open(info_file,'w') as f:
             yaml.safe_dump(self.info,f)

@@ -1,7 +1,7 @@
 .. _example sars cov2 spike ba2:
 
-Example 15: SARS-CoV2 Spike Protein, fully glycosylated, BA2 strain
--------------------------------------------------------------------
+Example 15: Fully Glycosylated, Closed SARS-CoV-2 Omicron BA.2 Variant Spike
+----------------------------------------------------------------------------
 
 This example highlights the use of Pestifer to build a fully glycosylated SARS-CoV2 Spike protein (BA.2 strain) using grafted glycans and cleaving at the furin cleavage sites.  This build is based on the `PDB entry 7xix <https://www.rcsb.org/structure/7XIX>`_, which contains a spike protein in the closed conformation.  The PDB file contains glycans, but they are not fully resolved, so we graft glycans from prototypical structures.
 
