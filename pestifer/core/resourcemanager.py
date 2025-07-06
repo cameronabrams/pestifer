@@ -26,10 +26,13 @@ class ExampleManager:
         that describes the examples available in that directory.
     """
 
-    def __init__(self,example_path):
+    def __init__(self,example_path,docs_path):
         if not os.path.isdir(example_path):
             raise FileNotFoundError(f'Example path {example_path} does not exist or is not a directory')
+        if not os.path.isdir(docs_path):
+            raise FileNotFoundError(f'Docs path {docs_path} does not exist or is not a directory')
         self.path=example_path
+        self.docs_path=docs_path
         info_file=os.path.join(example_path,'info.yaml')
         if not os.path.isfile(info_file):
             raise FileNotFoundError(f'Example path {example_path} does not contain info.yaml')
@@ -99,18 +102,23 @@ class ExampleManager:
             report_lines.append(formatter.format(index_str, name, description))
         return ''.join(report_lines)
 
-    def append_example(self,name:str,description:str,pdbID:str):
+    def add_example(self,yaml_file_name:str,pdbID:str='',description:str='',docs_source:str=''):
         """
-        Append a new example to the examples list.
+        Add a new example to the examples list.
 
         Parameters
         ----------
-        name : str
-            The name of the example file to append. This should be a valid file path.
-        description : str
-            A description of the example.
+        yaml_file_name : str
+            The name of the example file to add. This should be a valid file path.
         pdbID : str
-            The PDB ID associated with the example. 
+            The PDB ID associated with the example; if not provided, extracts the ``id`` field from the ``psfgen`` task of the ``tasks`` list in the YAML file.
+        description : str
+            A description of the example; if not provided, extracts the ``title`` field from the YAML file.
+
+        Returns
+        -------
+        int
+            The index of the newly added example in the examples list (1-based index).
 
         Raises
         ------
@@ -119,23 +127,66 @@ class ExampleManager:
         FileNotFoundError
             If the example file does not exist at the specified path.
         """
-        if not name or not description or not pdbID:
-            raise ValueError('Name, description, and pdbID must be provided')
-        new_example = {
-            'name': name,
-            'description': description,
-            'pdbID': pdbID
-        }
-        if not os.path.isfile(name):
-            raise FileNotFoundError(f'Example file {name} does not exist')
-        new_example['name'] = os.path.basename(name)
-        shutil.copy(name, self.path)
+        new_example=self.grab_example_info(yaml_file_name,description,pdbID)
+        # ensure that the yaml file name is unique
+        if any(e['name'] == new_example['name'] for e in self.examples_list):
+            raise ValueError(f'Example with name {new_example["name"]} already exists in the examples list')
         self.examples_list.append(new_example)
         self.info['examples'] = self.examples_list
         info_file=os.path.join(self.path,'info.yaml')
         with open(info_file,'w') as f:
             yaml.safe_dump(self.info,f)
-        logger.info(f'Added new example: {name}')
+        logger.info(f'Added new example: {yaml_file_name} with index {len(self.examples_list)}')
+        return len(self.examples_list)  # return the new index of the example
+
+    def grab_example_info(self,yaml_file_name:str,description:str='',pdbID:str=''):
+        """
+        Grab the information from an example YAML file and return it as a dictionary.
+        
+        Parameters
+        ----------
+        yaml_file_name : str
+            The name of the example file to grab information from. This should be a valid file path.
+        description : str, optional
+            A description of the example; if not provided, extracts the ``title`` field from the YAML file.
+        pdbID : str, optional
+            The PDB ID associated with the example; if not provided, extracts the ``id`` field from the ``psfgen`` task of the ``tasks`` list in the YAML file.
+
+        Returns
+        -------
+        dict
+            A dictionary containing the name, description, and pdbID of the example.
+        
+        Raises
+        ------
+        ValueError
+            If the name, description, or pdbID is not provided. 
+        FileNotFoundError
+            If the example file does not exist at the specified path.
+        """
+        if not yaml_file_name:
+            raise ValueError('Name must be provided')
+        with open(yaml_file_name, 'r') as f:
+            try:
+                new_config=yaml.safe_load(f)
+            except yaml.YAMLError as e:
+                raise ValueError(f'Invalid YAML file {yaml_file_name}: {e}')
+        if not description:
+            if 'title' in new_config:
+                description = new_config['title']
+            else:
+                description = 'No description provided'
+        if not pdbID:
+            if 'id' in new_config.get('tasks', [{}])[0].get('psfgen', {}):
+                pdbID = new_config['tasks'][0]['psfgen']['id']
+            else:
+                pdbID = 'No PDB ID provided'
+        return {
+            'name': os.path.basename(yaml_file_name),
+            'description': description,
+            'pdbID': pdbID,
+            'rst': os.path.splitext(os.path.basename(yaml_file_name))[0] + '.rst'
+        }
 
     def delete_example(self,index:int):
         """
@@ -145,6 +196,11 @@ class ExampleManager:
         ----------
         index : int
             The index of the example to delete (1-based).
+
+        Returns
+        -------
+        int
+            The index of the deleted example (1-based).
 
         Raises
         ------
@@ -157,15 +213,19 @@ class ExampleManager:
             raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
         real_index = index - 1  # convert to zero-based index
         example=self.examples_list.pop(real_index)
+        example_file=os.path.join(self.path,example['name'])
+        if os.path.isfile(example_file):
+            logger.debug(f'Deleting example file {example_file}')
+            os.remove(example_file)
+        else:
+            raise FileNotFoundError(f'Example file {example_file} does not exist')
         info_file=os.path.join(self.path,'info.yaml')
         with open(info_file,'w') as f:
             yaml.safe_dump(self.info,f)
-        example_file=os.path.join(self.path,example['name'])
-        if os.path.isfile(example_file):
-            os.remove(example_file)
         logger.info(f'Deleted example {index}: {example["name"]}')
+        return example  # return the dict of the deleted example
 
-    def insert_example(self,index:int,name:str,description:str,pdbID:str):
+    def insert_example(self,index:int,yaml_file_name:str,description:str='',pdbID:str=''):
         """
         Insert a new example into the examples list at a specified index.
         
@@ -180,6 +240,11 @@ class ExampleManager:
         pdbID : str
             The PDB ID associated with the example.
 
+        Returns
+        -------
+        int
+            The index of the newly inserted example in the examples list (1-based).
+            
         Raises
         ------
         IndexError
@@ -189,26 +254,19 @@ class ExampleManager:
         FileNotFoundError
             If the example file does not exist at the specified path.
         """
+        new_example=self.grab_example_info(yaml_file_name,description,pdbID)
         real_index = index - 1  # convert to zero-based index
         if real_index < 0 or real_index > len(self.examples_list):
             raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
-        if not name or not description or not pdbID:
-            raise ValueError('Name, description, and pdbID must be provided')
-        new_example = {
-            'name': name,
-            'description': description,
-            'pdbID': pdbID
-        }
-        if not os.path.isfile(name):
-            raise FileNotFoundError(f'Example file {name} does not exist')
-        new_example['name'] = os.path.basename(name)
-        shutil.copy(name, self.path)
+        new_example['name'] = os.path.basename(yaml_file_name)
+        shutil.copy(yaml_file_name, self.path)
         self.examples_list.insert(real_index, new_example)
         self.info['examples'] = self.examples_list
         info_file=os.path.join(self.path,'info.yaml')
         with open(info_file,'w') as f:
             yaml.safe_dump(self.info,f)
-        logger.info(f'Inserted new example at index {index}: {name}')   
+        logger.info(f'Inserted new example at index {index}: {new_example["name"]}')
+        return index
 
 class ResourceManager:
     """
@@ -246,7 +304,17 @@ class ResourceManager:
                 raise FileNotFoundError(f'Resource {r} not found at {self.resource_path[r]} -- your installation is likely incomplete')
         self.charmmff_content=CHARMMFFContent(self.resource_path['charmmff'])
         self.pdbrepository=self.charmmff_content.pdbrepository
-        self.example_manager=ExampleManager(self.resource_path['examples'])
+        # check for a docs path, only if this is a source package
+        # self.__file__ is pestifer/core/resourcemanager.py
+        # docs is in same parent directory as pestifer
+        examples_path=self.resource_path['examples']
+        docs_path=os.path.join(os.path.dirname(os.path.dirname(self.__file__)),'docs','source')
+        if os.path.isdir(docs_path):
+            self.docs_path=docs_path
+        else:
+            logger.debug(f'This is not a source package; docs path {docs_path} does not exist')
+            self.docs_path=None
+        self.example_manager=ExampleManager(examples_path,self.docs_path)
         self.labels=Labels
 
     def __str__(self):

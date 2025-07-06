@@ -218,34 +218,44 @@ def modify_package(args):
     """
     Modify the pestifer package, used for development purposes.
     """
+    # First, verify that the user has a full source tree by verifying the existence of the docs directory.  If not, raise an error.
+    src_dir=os.path.dirname(__file__)
+    package_dir=os.sep.join(src_dir.split(os.sep)[:-1])
+    doc_dir=os.path.join(package_dir,'docs')
+    if not os.path.exists(doc_dir):
+        raise FileNotFoundError(f'Cannot find docs directory {doc_dir}. Please ensure you have a full source tree of pestifer.')
     loglevel_numeric=getattr(logging,args.log_level.upper())
     logging.basicConfig(level=loglevel_numeric)
+
     if args.insert_example and args.example_yaml:
         """
         Insert a new example into the package docs directory.
-        This is a developer-only feature.
         """
         new_number=args.insert_example
         new_yaml=args.example_yaml
-        src_dir=os.path.dirname(__file__)
-        package_dir=os.sep.join(src_dir.split(os.sep)[:-1])
-        doc_dir=os.path.join(package_dir,'docs')
-        if not os.path.exists(doc_dir):
-            logger.warning(f'This is not a full source tree, so you cannot insert an example.  This is for developer use only.  Clone the full repository from GitHub to use this feature.')
-            exit(-1)
         logging.info(f'Inserting example {new_number} from {new_yaml} into package docs directory {doc_dir}')
         RM=ResourceManager()
         RM.insert_example(new_number,new_yaml)
         # TODO: docs
-
-    if args.delete_example:
+    elif args.add_example and args.example_yaml:
+        """
+        Add a new example into the package docs directory.
+        """
+        new_yaml=args.example_yaml
+        logging.info(f'Adding example from {new_yaml} into package docs directory {doc_dir}')
+        RM=ResourceManager()
+        RM.add_example(new_yaml)
+    elif args.update_example and args.example_yaml:
+        """
+        Update an existing example in the package docs directory.
+        """
+        number=args.update_example
+        new_yaml=args.example_yaml
+        logging.info(f'Updating example {number} from {new_yaml} in package docs directory {doc_dir}')
+        RM=ResourceManager()
+        RM.update_example(number,new_yaml)
+    elif args.delete_example:
         number=args.delete_example
-        src_dir=os.path.dirname(__file__)
-        package_dir=os.sep.join(src_dir.split(os.sep)[:-1])
-        doc_dir=os.path.join(package_dir,'docs')
-        if not os.path.exists(doc_dir):
-            logger.warning(f'This is not a full source tree, so you cannot delete an example.  This is for developer use only.  Clone the full repository from GitHub to use this feature.')
-            exit(-1)
         logging.info(f'Deleting example {number} from package docs directory {doc_dir}')
         RM=ResourceManager()
         RM.delete_example(number)

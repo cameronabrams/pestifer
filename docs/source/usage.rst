@@ -39,13 +39,13 @@ Subcommands
    subs/run-example
    subs/fetch-example
    subs/wheretcl
-   subs/inittcl
    subs/make-pdb-collection
    subs/desolvate
    subs/make-namd-restart
    subs/show-resources
    subs/follow-namd-log
    subs/mdplot
+   subs/modify-package
 
 .. _use in vmd scripts:
 

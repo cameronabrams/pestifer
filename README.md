@@ -1,5 +1,5 @@
 # Pestifer
-> NAMD Input System Builder
+> NAMD System Preparation Tool
 
 [![PyPI Downloads](https://static.pepy.tech/badge/pestifer)](https://pepy.tech/projects/pestifer)
 
