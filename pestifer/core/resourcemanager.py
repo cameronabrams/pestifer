@@ -7,6 +7,7 @@ import glob
 import os
 import logging
 logger = logging.getLogger(__name__)
+from pathlib import Path
 from .. import resources
 from ..charmmff.charmmffcontent import CHARMMFFContent
 from .examplemanager import ExampleManager
@@ -52,7 +53,8 @@ class ResourceManager:
         # self.__file__ is pestifer/core/resourcemanager.py
         # docs is in same parent directory as pestifer
         examples_path=self.resource_path['examples']
-        docs_source_path=os.path.join(os.path.dirname(os.path.dirname(self.__file__)),'docs','source')
+        package_path=Path(self.resources_path).parent.parent
+        docs_source_path=os.path.join(package_path,'docs','source')
         if os.path.isdir(docs_source_path):
             logger.debug(f'Docs path {docs_source_path} exists; using it for example documentation')
         else:

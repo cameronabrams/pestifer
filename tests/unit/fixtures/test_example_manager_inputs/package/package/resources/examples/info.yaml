@@ -1,0 +1,9 @@
+examples:
+  - name: exA
+    description: |
+      This example shows how to use Pestifer to create a simple magic eightball application. No, github copilot, you're drunk.
+    pdbID: 1a8l
+  - name: exB
+    description: |
+      This example shows how to use Pestifer to create a simple analog cell phone application. No, github copilot, you're drunk.
+    pdbID: 1acp

@@ -36,8 +36,8 @@ class ExampleManager:
             raise FileNotFoundError(f'Directory "{example_path}" containing example YAML files does not exist or is not a directory')
         if docs_source_path is not None and not os.path.isdir(docs_source_path):
             raise FileNotFoundError(f'Docs source path "{docs_source_path}" does not exist or is not a directory')
-        self.path=example_path
-        self.docs_source_path=docs_source_path
+        self.path=os.path.abspath(example_path)
+        self.docs_source_path=os.path.abspath(docs_source_path) if docs_source_path else None
         self._read_info()  # read the info.yaml file to populate the examples list
         if self.docs_source_path:
             self.sphinx_example_manager=SphinxExampleManager(docs_source_path=self.docs_source_path)
@@ -57,7 +57,7 @@ class ExampleManager:
             self.info=yaml.safe_load(f)
         if 'examples' not in self.info:
             raise KeyError(f'info.yaml in {self.path} does not contain examples key')
-        self.examples_list=ExampleList.read_yaml(self.info['examples'])
+        self.examples_list=ExampleList.from_list_of_dicts(self.info['examples'])
 
     def _write_info(self):
         """
@@ -166,12 +166,12 @@ class ExampleManager:
             else:
                 description = 'No description provided'
         if not pdbID:
-            if 'id' in new_config.get('tasks', [{}])[0].get('psfgen', {}):
-                pdbID = new_config['tasks'][0]['psfgen']['id']
+            if 'id' in new_config.get('tasks', [{}])[0].get('psfgen', {}).get('source', {}):
+                pdbID = new_config['tasks'][0]['psfgen']['source']['id']
             else:
                 pdbID = 'No PDB ID provided'
         input_dict= {
-            'name': os.path.basename(yaml_file_name),
+            'name': os.path.splitext(os.path.basename(yaml_file_name))[0],
             'description': description,
             'pdbID': pdbID
         }
@@ -184,7 +184,7 @@ class ExampleManager:
         Parameters
         ----------
         name : str
-            The name of the example to add.  If this has a file extension, it will be stripped off.
+            The name of the example to add.  It should be a valid file path to a YAML file, with or without the `.yaml` extension.
         pdbID : str
             The PDB ID associated with the example; if not provided, extracts the ``id`` field from the ``psfgen`` task of the ``tasks`` list in the YAML file.
         description : str
@@ -202,22 +202,8 @@ class ExampleManager:
         FileNotFoundError
             If the example file does not exist at the specified path.
         """
-        new_example=self.new_example(os.path.splitext(name)[0],description,pdbID)
-        # ensure that the yaml file name is unique
-        if any(e.name == new_example.name for e in self.examples_list):
-            raise ValueError(f'Example with name {new_example.name} already exists in the examples list')
-        # copy the file to the examples directory
-        yaml_file_path=new_example.name+'.yaml' # in cwd
-        if not os.path.isfile(yaml_file_path):
-            raise FileNotFoundError(f'Example file {yaml_file_path} does not exist')
-        shutil.copy(yaml_file_path, self.path)
-        self.examples_list.append(new_example)
-        self._write_info()  # write the updated info.yaml file
-        logger.info(f'Added new example: "{name}" with index {new_example.index}')
-        if self.docs_source_path:
-            self.sphinx_example_manager.add_example(new_example)
-        return new_example.index  # return the new index of the example
-
+        return self.insert_example(len(self.examples_list)+1,name,description,pdbID)
+    
     def delete_example(self,index:int):
         """
         Delete an example from the examples list by its index.
@@ -285,13 +271,13 @@ class ExampleManager:
         FileNotFoundError
             If the example file does not exist at the specified path.
         """
-        new_example=self.new_example(name,description,pdbID)
+        yaml_file_path=name if name.endswith('.yaml') else name + '.yaml'
+        new_example=self.new_example(yaml_file_path,description,pdbID)
         new_example.index = index  # set the index for the new example
         real_index = index - 1  # convert to zero-based index
         if real_index < 0 or real_index > len(self.examples_list):
             raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
-        yaml_file_name=name if name.endswith('.yaml') else name + '.yaml'
-        shutil.copy(yaml_file_name, self.path)
+        shutil.copy(yaml_file_path, self.path)
         self.examples_list.insert(real_index, new_example)
         self._write_info()
         if self.sphinx_example_manager:

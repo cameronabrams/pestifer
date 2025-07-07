@@ -105,6 +105,27 @@ class ExampleList(UserList):
             if not hasattr(example, 'index'):
                 example.index = i + 1  # Set index if not already set
 
+    @classmethod
+    def from_list_of_dicts(cls, examples_list):
+        """
+        Create an ExampleList from a list of dictionaries.
+        
+        Parameters
+        ----------
+        examples_list : list of dict
+            A list of dictionaries, each representing an example.
+        
+        Returns
+        -------
+        ExampleList
+            An instance of ExampleList containing the examples.
+        """
+        examples = [Example(**example_data) for example_data in examples_list]
+        # set index for each example
+        for i, example in enumerate(examples):
+            example.index = i + 1
+        return cls(examples)
+
     def append(self, example: Example):
         """
         Append an Example instance to the list.
