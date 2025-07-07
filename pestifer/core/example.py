@@ -83,9 +83,14 @@ class Example:
         """
         title= f"Example {self.index}: {self.description}"
         yaml_file_name=self.name if self.name.endswith('.yaml') else f"{self.name}.yaml"
+        if self.pdbID.startswith('P') and len(self.pdbID) > 4:
+            # this is likely an alphafold ID
+            url= f"https://alphafold.com/api/prediction/{self.pdbID}"
+        else:
+            url= f"https://www.rcsb.org/structure/{self.pdbID}"
         return f".. _example {self.name}:\n\n{title}\n" \
                f"{'-' * len(title)}\n\n" \
-               f"`PDB ID {self.pdbID} <https://www.rcsb.org/structure/{self.pdbID}>`_ is...\n\n" \
+               f"`PDB ID {self.pdbID} <{url}>`_ is...\n\n" \
                f"This example demonstrates that ...\n\n" \
                f".. literalinclude:: ../../../pestifer/resources/examples/{yaml_file_name}\n" \
                f"    :language: yaml\n\n"

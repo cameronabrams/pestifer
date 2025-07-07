@@ -18,6 +18,7 @@ from ..molecule.atom import Atom, AtomList
 from ..molecule.chainidmanager import ChainIDManager
 from .psfgen import PsfgenTask
 from ..objs.patch import Patch
+from ..objs.mutation import Mutation
 from ..util.logparsers import PDB2PQRLog
 from ..util.progress import PDB2PQRProgress
 from pidibble.pdbparse import PDBParser
@@ -117,7 +118,7 @@ class PDB2PQRTask(PsfgenTask):
             for a in AL:
                 if a.resname in ['HSD','HSE','HSP']:
                     if not a.resseqnum in self.log_parser.metadata['histidines'][a.resname]:
-                        self.log_parser.metadata['histidines'][a.resname].append(a.resseqnum)
+                        self.log_parser.metadata['histidines'][a.resname].append((a.chainID,a.resseqnum))
 
         logger.debug(f'Protonated/deprotonated histidines: {self.log_parser.metadata["histidines"]}')
 
@@ -126,8 +127,9 @@ class PDB2PQRTask(PsfgenTask):
         # replace the resname field in the pka_table with the histidine resnames
         for hisname in ['HSD','HSE','HSP']:
             if hisname in allhismods:
-                for resnum in allhismods[hisname]:
-                    pka_table.loc[(pka_table['resnum']==resnum) & (pka_table['reschain']=='A'),'resname']=hisname
+                for chain_resnum in allhismods[hisname]:
+                    chainID,resnum=chain_resnum
+                    pka_table.loc[(pka_table['resnum']==resnum) & (pka_table['reschain']==chainID),'resname']=hisname
 
     def prep_mods(self):
         """
@@ -142,12 +144,13 @@ class PDB2PQRTask(PsfgenTask):
         # resname  resnum reschain  respka  resmodelpka resatomtype  protonated
         for i,row in self.log_parser.metadata['pka_table'].iterrows():
             patchname=None
+            mut_resname=None
             if row['resname'] in ['HSE','HSP']: # HSD is the default histidine!
-                # make the Patch shortcode
+                # use a mutation to change HSD to HSE or HSP
                 if row['resname']=='HSE':
-                    patchname='HS2'
+                    mut_resname='HSE'
                 elif row['resname']=='HSP':
-                    patchname='HSPP' # provided in pestifer.top
+                    mut_resname='HSP'
             elif row['resname'] in ['ASP','GLU']: # Acidic residues
                 if row['protonated']:
                     if row['resname']=='ASP':
@@ -173,10 +176,14 @@ class PDB2PQRTask(PsfgenTask):
                 if row['protonated']:
                     patchname='CNEU'
 
-            if not patchname:
-                logger.debug(f'No patch will be applied for {row["resname"]} at {row["reschain"]}:{row["resnum"]}')
+            if not patchname and not mut_resname:
+                logger.debug(f'No patch or mutation will be applied for {row["resname"]} at {row["reschain"]}:{row["resnum"]}')
                 continue
-            shortcode=f"{patchname}:{row['reschain']}:{row['resnum']}"
-            pat=Patch(shortcode)
-            self.objmanager.ingest(pat)
-        
+            if patchname:
+                shortcode=f"{patchname}:{row['reschain']}:{row['resnum']}"
+                pat=Patch(shortcode)
+                self.objmanager.ingest(pat)
+            if mut_resname:
+                shortcode=f"{row['reschain']}:{row['resname']},{row['resnum']},{mut_resname}"
+                mut=Mutation(shortcode)
+                self.objmanager.ingest(mut)

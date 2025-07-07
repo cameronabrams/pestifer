@@ -83,7 +83,11 @@ class Command:
             log=open(logfile,'w')
             logger.debug(f'Opened {logfile} for writing')
 
-        process=subprocess.Popen(self.c,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
+        if log_stderr:
+            stderr_redirect=subprocess.STDOUT
+        else:
+            stderr_redirect=subprocess.PIPE
+        process=subprocess.Popen(self.c,shell=True,stdout=subprocess.PIPE,stderr=stderr_redirect,text=True)
         global pid
         pid=process.pid
         def kill_child():
@@ -102,8 +106,6 @@ class Command:
         while True:
             output=process.stdout.readline()
             self.stdout+=output
-            if log_stderr:
-                output+=process.stderr.readline()
             if logparser:
                 logparser.update(output)
                 logparser.update_progress_bar()
