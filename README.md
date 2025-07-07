@@ -28,6 +28,10 @@ Pestifer **includes** the [July 2024 Charmm36 force field](https://mackerell.uma
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
+* 1.18.1
+    * switched from patches to mutations for protonated histines predicted by `pdb2pqr`
+* 1.18.0
+    * developer support for adding examples
 * 1.17.0
     * support for simple nucleic acids added
 * 1.16.3
