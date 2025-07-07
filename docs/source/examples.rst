@@ -10,20 +10,20 @@ Examples
   examples/bpti2
   examples/bpti3
   examples/bpti4
-  examples/hivprotease
+  examples/hiv-protease
   examples/toxin
-  examples/env
-  examples/env_4tvp
-  examples/8fad
-  examples/8fae
-  examples/7txd
-  examples/5vn3
-  examples/insulin
-  examples/insulin-receptor
-  examples/sarscov2S-ba2
-  examples/6e8w-symm
-  examples/6e8w-viral
-  examples/ecoli_polymerase
+  examples/hiv-sosip-env-ectodomain1
+  examples/hiv-sosip-env-ectodomain2
+  examples/hiv-ad8-env-ectodomain
+  examples/hiv-ae2-env-ectodomain
+  examples/hiv-sosip-env-ectodomain3
+  examples/hiv-sosip-env-ectodomain4
+  examples/insulin-hexamer
+  examples/insulin-receptor-ectodomain
+  examples/sars-cov2-S-BA2
+  examples/hiv-mpertm3-membrane1
+  examples/hiv-mpertm3-membrane2
+  examples/ecoli-polymerase
 
 
 

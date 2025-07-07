@@ -1,5 +1,6 @@
 """
 This Sphinx extension provides a directive to include Tcl scripts in documentation.
+Written by ChatGPT, based on the original work by Cameron F. Abrams.
 """
 
 import os

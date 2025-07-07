@@ -1,19 +1,14 @@
 import unittest
 from pestifer.sphinxext.modify_toctree import modify_toctree
-
+import os
+import shutil
 class TestModifyToctree(unittest.TestCase):
     def setUp(self):
-        self.sample_lines = [
-            ".. toctree::\n",
-            "  :maxdepth: 2\n",
-            "\n",
-            "  howlers/example1\n",
-            "  howlers/example2\n",
-            "  howlers/example3\n",
-            "\n",
-        ]
-        with open('sample_rst_file.rst', 'w') as f:
-            f.writelines(self.sample_lines)
+        shutil.copy('../fixtures/modify_toctree_inputs/sample_rst_file.rst', '.')
+
+    def tearDown(self):
+        if os.path.isfile('sample_rst_file.rst'):
+            os.remove('sample_rst_file.rst')
 
     def test_modify_toctree_add(self):
         filepath = 'sample_rst_file.rst'
@@ -22,25 +17,26 @@ class TestModifyToctree(unittest.TestCase):
         modify_toctree(filepath, action, new_entry=new_entry)
         with open(filepath, 'r') as f:
             lines = f.readlines()
-        self.assertIn("  howlers/example4\n", lines)
+        self.assertIn("  howlers/example4\n", lines[-1])
 
     def test_modify_toctree_delete(self):
         filepath = 'sample_rst_file.rst'
         action = "delete"
-        target = "howlers/example1"
+        target = "howlers/exampleB"
         modify_toctree(filepath, action, target=target)
         with open(filepath, 'r') as f:
-            lines = f.readlines()
-        self.assertNotIn("  example1\n", lines)
+            all_content = f.read()
+        self.assertNotIn("  exampleB\n", all_content)
 
     def test_modify_toctree_insert(self):
         filepath = 'sample_rst_file.rst'
         action = "insert"
-        target = "howlers/example1"
-        new_entry = "example2.5"
-        modify_toctree(filepath, action, target=target, new_entry=new_entry)
+        new_index=2 # 1-based index for insertion
+        new_entry = "exampleD"
+        modify_toctree(filepath, action, new_entry=new_entry, new_index=new_index)
         with open(filepath, 'r') as f:
             lines = f.readlines()
-        self.assertIn("  howlers/example2.5\n", lines)
-        idx = lines.index("  howlers/example2.5\n")
-        self.assertEqual(lines[idx - 1].strip(), "howlers/example1")
+        self.assertIn("  howlers/exampleD\n", lines)
+        idx = lines.index("  howlers/exampleD\n")
+        self.assertEqual(lines[idx - 1].strip(), "howlers/exampleA")
+        self.assertEqual(lines[idx + 1].strip(), "howlers/exampleB")

@@ -6,6 +6,11 @@ to add or remove examples.  Written substantially by ChatGPT, with some modifica
 import os
 
 def detect_common_prefix(entries):
+    """
+    Detects the common prefix in a list of entries.
+    If all entries share a common prefix, returns that prefix with a trailing separator.
+    If no common prefix exists, returns None.
+    """
     split_entries = [e.split(os.sep) for e in entries if os.sep in e]
     if not split_entries:
         return None
@@ -15,14 +20,57 @@ def detect_common_prefix(entries):
     return None
 
 def read_rst_file(filepath):
+    """
+    Reads a reStructuredText (RST) file and returns its lines.
+    
+    Parameters
+    ----------
+    filepath : str
+        The path to the RST file to read.
+        
+    Returns
+    -------
+    list of str
+        A list of lines from the RST file.
+    """
     with open(filepath, "r", encoding="utf-8") as f:
         return f.readlines()
 
 def write_rst_file(filepath, lines):
+    """
+    Writes a list of lines to a reStructuredText (RST) file.
+    
+    Parameters
+    ----------
+    filepath : str
+        The path to the RST file to write.
+    lines : list of str
+        The lines to write to the RST file.
+    """
     with open(filepath, "w", encoding="utf-8") as f:
         f.writelines(lines)
 
 def find_toctree_block(lines):
+    """
+    Finds the start and end indices of the toctree block in the RST file lines.
+    The toctree block starts with ".. toctree::" and may have options before the entries.
+
+    Parameters
+    ----------
+    lines : list of str
+        The lines of the RST file.
+
+    Returns
+    -------
+    tuple
+        A tuple containing the start index of the toctree block, the start index of the
+        entries, and the end index of the entries.
+
+    Raises
+    ------
+    ValueError
+        If no toctree block is found in the lines.
+    """
     for i, line in enumerate(lines):
         if line.strip().startswith(".. toctree::"):
             start = i
@@ -44,9 +92,46 @@ def find_toctree_block(lines):
     return start, entry_start, entry_end
 
 def parse_toctree_entries(lines, entry_start, entry_end):
+    """
+    Parses the entries from the toctree block in the RST file lines.
+    
+    Parameters
+    ----------
+    lines : list of str
+        The lines of the RST file.
+    entry_start : int
+        The start index of the entries in the toctree block.
+    entry_end : int
+        The end index of the entries in the toctree block.
+  
+    Returns
+    -------
+    list of str
+        A list of entries from the toctree block, stripped of leading and trailing whitespace.
+    """
     return [line.strip() for line in lines[entry_start:entry_end] if line.strip()]
 
 def reconstruct_toctree_block(lines, start, entry_start, entry_end, new_entries):
+    """
+    Reconstructs the toctree block in the RST file lines with the updated entries
+    
+    Parameters
+    ----------
+    lines : list of str
+        The original lines of the RST file.
+    start : int
+        The start index of the toctree block.
+    entry_start : int
+        The start index of the entries in the toctree block.
+    entry_end : int
+        The end index of the entries in the toctree block.
+    new_entries : list of str
+        The new entries to be included in the toctree block. 
+        
+    Returns
+    -------
+    list of str
+        The lines of the RST file with the updated toctree block."""
     # Keep the toctree line and any options
     header = lines[start:entry_start]
 
@@ -59,7 +144,28 @@ def reconstruct_toctree_block(lines, start, entry_start, entry_end, new_entries)
 
     return lines[:start] + header + formatted_entries + lines[entry_end:]
 
-def modify_entries(entries, action, target=None, new_entry=None):
+def modify_entries(entries, action, delete_target=None, new_entry=None, new_index=None):
+    """
+    Modifies the list of entries based on the specified action.
+    
+    Parameters
+    ----------
+    entries : list of str
+        The current list of entries in the toctree.
+    action : str
+        The action to perform: "add", "delete", or "insert".
+    delete_target : str, optional
+        The entry to delete if action is "delete". Required for "delete" action.
+    new_entry : str, optional
+        The new entry to add or insert. Required for "add" and "insert" actions.   
+    new_index : int, optional
+        The 1-based index at which to insert the new entry. Required for "insert" action.
+    
+    Returns
+    -------
+    list of str
+        The modified list of entries in the toctree.
+    """
     prefix = detect_common_prefix(entries)
     entries_set = set(entries)
 
@@ -74,23 +180,37 @@ def modify_entries(entries, action, target=None, new_entry=None):
             entries.append(entry_to_add)
 
     elif action == "delete":
-        entries = [e for e in entries if e != target]
+        entries = [e for e in entries if e != apply_prefix(delete_target)]
 
     elif action == "insert":
-        if target in entries:
-            idx = entries.index(target)
-            entry_to_insert = apply_prefix(new_entry)
-            if entry_to_insert not in entries:
-                entries.insert(idx + 1, entry_to_insert)
+        entry_to_insert = apply_prefix(new_entry)
+        if entry_to_insert not in entries:
+            entries.insert(new_index-1, entry_to_insert)
 
     return entries
 
+def modify_toctree(filepath, action, target=None, new_entry=None, new_index=None):
+    """
+    Modifies the toctree block in a reStructuredText (RST) file based on the specified action.
+    
+    Parameters
+    ----------
+    filepath : str
+        The path to the RST file to modify.
+    action : str
+        The action to perform: "add", "delete", or "insert".
+    target : str, optional
+        The entry to modify (delete or insert before/after). Required for "delete" and "insert" actions.
+    new_entry : str, optional
+        The new entry to add or insert. Required for "add" and "insert" actions.
+    new_index : int, optional
+        The 1-based index at which to insert the new entry. Required for "insert" action.
 
-def modify_toctree(filepath, action, target=None, new_entry=None):
+    """
     lines = read_rst_file(filepath)
     start, entry_start, entry_end = find_toctree_block(lines)
     entries = parse_toctree_entries(lines, entry_start, entry_end)
-    updated_entries = modify_entries(entries, action, target, new_entry)
+    updated_entries = modify_entries(entries, action, target, new_entry, new_index)
     new_lines = reconstruct_toctree_block(lines, start, entry_start, entry_end, updated_entries)
     write_rst_file(filepath, new_lines)
 
