@@ -170,7 +170,7 @@ def make_namd_restart(args,**kwargs):
     if not output_filename:
         logger.error(f'No output filename found in {log}')
     oldconfig.replace_command('outputname',[newbasename])
-    last_timestep=oldconfig.metadata.get('restart',[None])[-1]
+    last_timestep=oldlog.metadata.get('restart',[None])[-1]
     requested_timesteps=oldlog.metadata.get('running_for',None)
     if last_timestep is None:
         raise ValueError(f'No restart time step found in {log}. Please check the log file for errors.')
