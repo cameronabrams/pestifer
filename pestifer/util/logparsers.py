@@ -377,6 +377,10 @@ class NAMDLog(LogParser):
     """
     The default energy titles for NVT ensembles in NAMD log files.
     """
+    bail_out_key='Stack Traceback:'
+    """
+    The key used to identify lines indicating a stack traceback in the NAMD log file, which may indicate an error or crash.
+    """
     def __init__(self,basename='namd-logparser'):
         super().__init__()
         self.line_idx=[0] # byte offsets of lines
@@ -575,7 +579,9 @@ class NAMDLog(LogParser):
         for i,j in zip(scan_ldx[:-1],scan_ldx[1:]):
             if i not in self.processed_line_idx:
                 line=self.byte_collector[i:j]
-                self.process_line(line)
+                result=self.process_line(line)
+                if result==-1:  # bail out key found, stop processing
+                    return
                 self.processed_line_idx.append(i)
         if len(addl_line_idx)>1:
             self.line_idx.extend(addl_line_idx)
@@ -682,6 +688,9 @@ class NAMDLog(LogParser):
             A line from the NAMD log file to be processed.
         """
         assert line.endswith(os.linesep),f'process_line: {line} does not end with os.linesep'
+        if self.bail_out_key in line:
+            logger.debug(f'process_line: {line} contains bail out key, stopping processing')
+            return -1
         if line.startswith(self.info_key):
             o=len(self.info_key)
             self.process_info_line(line[o:])
@@ -714,7 +723,8 @@ class NAMDLog(LogParser):
         elif line.startswith(self.timing_key):
             o=len(self.timing_key)
             self.process_timing_line(line[o:])
-
+        return 0
+    
     def measure_progress(self):
         if 'number_of_steps' not in self.metadata:
             # logger.debug('measure_progress: number_of_steps not in metadata')
