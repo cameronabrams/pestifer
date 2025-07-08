@@ -387,6 +387,26 @@ class NAMDLog(LogParser):
         self.reading_structure_summary=False
         self.basename=basename
 
+    @classmethod
+    def from_file(cls,filename):
+        """
+        Create a NAMDLog instance from an existing NAMD log file.
+        
+        Parameters
+        ----------
+        filename : str
+            The path to the NAMD log file to read.
+        
+        Returns
+        -------
+        NAMDLog
+            An instance of NAMDLog with the data from the specified file.
+        """
+        logger.debug(f'Creating {cls.__name__} from {filename}')
+        instance=cls()
+        instance.static(filename)
+        return instance
+    
     def process_struct_summ_datum(self,line):
         """
         Process a line from the structure summary section of the NAMD log file.
