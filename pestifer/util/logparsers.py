@@ -355,7 +355,7 @@ class NAMDLog(LogParser):
     """
     The key used to identify wall clock time lines in the NAMD log file.
     """
-    restart_key='WRITING COORDINATES TO RESTART AT STEP'
+    restart_key='WRITING COORDINATES TO RESTART FILE AT STEP'
     """
     The key used to identify lines indicating that coordinates are being written to a restart file in the NAMD log file.
     """
