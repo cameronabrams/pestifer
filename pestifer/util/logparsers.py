@@ -355,11 +355,20 @@ class NAMDLog(LogParser):
     """
     The key used to identify wall clock time lines in the NAMD log file.
     """
-    restart_key='WRITING COORDINATES TO RESTART FILE AT STEP'
+    restart_key='WRITING COORDINATES TO RESTART FILE AT STEP '
     """
     The key used to identify lines indicating that coordinates are being written to a restart file in the NAMD log file.
     """
-
+    performance_key='PERFORMANCE: '
+    """
+    The key used to identify performance lines in the NAMD log file, e.g.,
+    PERFORMANCE: 34000  averaging 23.789 ns/day, 0.00726387 sec/step with standard deviation 3.76697e-05
+    """
+    timing_key='TIMING: '
+    """
+    The key used to identify timing lines in the NAMD log file, e.g.,
+    TIMING: 34000  CPU: 100.266, 0.00728793/step  Wall: 100.267, 0.00728689/step, 1.9962 hours remaining, 0.000000 MB of memory in use.
+    """
     default_etitle_npt='TS,BOND,ANGLE,DIHED,IMPRP,ELECT,VDW,BOUNDARY,MISC,KINETIC,TOTAL,TEMP,POTENTIAL,TOTAL3,TEMPAVG,PRESSURE,GPRESSURE,VOLUME,PRESSAVG,GPRESSAVG'.split(',')
     """
     The default energy titles for NPT ensembles in NAMD log files.
@@ -594,6 +603,55 @@ class NAMDLog(LogParser):
         tokens=[x.strip() for x in line.split()]
         self.metadata['wallclock_time']=float(tokens[0])
 
+    def process_performance_line(self,line):
+        """
+        Process a line from the performance section of the NAMD log file, e.g.,
+        PERFORMANCE: 34000  averaging 23.789 ns/day, 0.00726387 sec/step with standard deviation 3.76697e-05
+
+        Parameters
+        ----------
+        line : str
+            A line from the NAMD log file that contains performance data.
+        """
+        tokens=[x.strip() for x in line.split()]
+        if len(tokens)<5:
+            logger.debug(f'process_performance_line: {line} does not have enough tokens')
+            return
+        if not 'performance' in self.metadata:
+            self.metadata['performance']=[]
+        self.metadata['performance'].append({
+            'steps': int(tokens[0]),
+            'ns_per_day': float(tokens[2]),
+            'sec_per_step': float(tokens[4]),
+            'std_dev': float(tokens[-1]),
+        })
+
+    def process_timing_line(self,line):
+        """
+        Process a line from the timing section of the NAMD log file, e.g.,
+        TIMING: 34000  CPU: 100.266, 0.00728793/step  Wall: 100.267, 0.00728689/step, 1.9962 hours remaining, 0.000000 MB of memory in use.
+
+        Parameters
+        ----------
+        line : str
+            A line from the NAMD log file that contains timing data.
+        """
+        tokens=[x.strip(' :,').replace('/step','').replace(',','') for x in line.split()]
+        if len(tokens)<11:
+            logger.debug(f'process_timing_line: {line} does not have enough tokens')
+            return
+        if not 'timing' in self.metadata:
+            self.metadata['timing']=[]
+        self.metadata['timing'].append({
+            'steps': int(tokens[0]),
+            'cpu_time': float(tokens[2]),
+            'cpu_per_step': float(tokens[3]),
+            'wall_time': float(tokens[5]),
+            'wall_per_step': float(tokens[6]),
+            'hours_remaining': float(tokens[7]),
+            'memory_in_use': float(tokens[10]),
+        })
+
     def process_line(self,line):
         """
         Process a line from the NAMD log file. This method identifies the type of line (information, TCL command, energy, pressure profile, or wall clock time) and processes it accordingly.
@@ -628,7 +686,14 @@ class NAMDLog(LogParser):
             o=len(self.wallclock_key)
             self.process_wallclock_line(line[o:])
         elif line.startswith(self.restart_key):
-            self.process_restart_line(line)
+            o=len(self.restart_key)
+            self.process_restart_line(line[o:])
+        elif line.startswith(self.performance_key):
+            o=len(self.performance_key)
+            self.process_performance_line(line[o:])
+        elif line.startswith(self.timing_key):
+            o=len(self.timing_key)
+            self.process_timing_line(line[o:])
 
     def measure_progress(self):
         if 'number_of_steps' not in self.metadata:
