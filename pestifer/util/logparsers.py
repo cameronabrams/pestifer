@@ -355,6 +355,11 @@ class NAMDLog(LogParser):
     """
     The key used to identify wall clock time lines in the NAMD log file.
     """
+    restart_key='WRITING COORDINATES TO RESTART AT STEP'
+    """
+    The key used to identify lines indicating that coordinates are being written to a restart file in the NAMD log file.
+    """
+
     default_etitle_npt='TS,BOND,ANGLE,DIHED,IMPRP,ELECT,VDW,BOUNDARY,MISC,KINETIC,TOTAL,TEMP,POTENTIAL,TOTAL3,TEMPAVG,PRESSURE,GPRESSURE,VOLUME,PRESSAVG,GPRESSAVG'.split(',')
     """
     The default energy titles for NPT ensembles in NAMD log files.
@@ -424,7 +429,6 @@ class NAMDLog(LogParser):
         elif 'FIRST TIMESTEP' in line:
             self.metadata['first_timestep']=int(get_single('FIRST TIMESTEP',line))
         elif 'NUMBER OF STEPS' in line:
-            logger.debug(f'process_info: {line}')
             self.metadata['number_of_steps']=int(get_single('NUMBER OF STEPS',line))
         elif 'RANDOM NUMBER SEED' in line:
             self.metadata['random_number_seed']=int(get_single('RANDOM NUMBER SEED',line))
@@ -507,6 +511,21 @@ class NAMDLog(LogParser):
         else:
             if len(tokens)!=len(self.metadata['etitle']):
                 logger.debug(f'process_energy_title: {len(tokens)} tokens found, but {len(self.metadata["etitle"])} expected')
+
+    def process_restart_line(self,line):
+        """
+        Process a line from the restart section of the NAMD log file.
+
+        Parameters
+        ----------
+        line : str
+            A line from the NAMD log file that contains restart information.
+        """
+        # the only thing in line should be the time step at which the last restart was written
+        if not 'restart' in self.metadata:
+            self.metadata['restart']=[]
+        ts=int(line.strip())
+        self.metadata['restart'].append(ts)
 
     def update(self,bytes):
         """
@@ -608,6 +627,8 @@ class NAMDLog(LogParser):
         elif line.startswith(self.wallclock_key):
             o=len(self.wallclock_key)
             self.process_wallclock_line(line[o:])
+        elif line.startswith(self.restart_key):
+            self.process_restart_line(line)
 
     def measure_progress(self):
         if 'number_of_steps' not in self.metadata:

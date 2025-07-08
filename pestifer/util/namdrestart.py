@@ -166,20 +166,24 @@ def make_namd_restart(args,**kwargs):
     run=args.run
     oldconfig=NAMDConfig(config)
     oldlog=NAMDLog(log)
-    output_filename=oldlog.metadata.get('output_filename',None)
+    output_filename=oldlog.metadata.get('OUTPUT FILENAME',None)
     if not output_filename:
         logger.error(f'No output filename found in {log}')
     oldconfig.replace_command('outputname',[newbasename])
+    last_timestep=oldconfig.metadata.get('restart',[None])[-1]
+    requested_timesteps=oldlog.metadata.get('running_for',None)
+    if last_timestep is None:
+        raise ValueError(f'No restart time step found in {log}. Please check the log file for errors.')
+    if requested_timesteps is None:
+        raise ValueError(f'No "TCL: Running for..." metadata found in {log}. Please check the log file for errors.')
     if oldlog.success():
         if run==0:
             logger.warning(f'Run logged in {log} was successful but you did not request any new time steps')
             return
-        last_timestep=oldlog.output_timestep
         resstr=''
         oldconfig.replace_command('run',[f'{run}'])
     else:
-        last_timestep=oldlog.restart_timestep
-        remaining_timesteps=oldlog.requested_timesteps-last_timestep
+        remaining_timesteps=requested_timesteps-last_timestep
         oldconfig.replace_command('run',[f'{remaining_timesteps}'])
         resstr='.restart'
 
