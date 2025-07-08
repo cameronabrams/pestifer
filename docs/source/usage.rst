@@ -37,6 +37,7 @@ Subcommands
    subs/config-help
    subs/run
    subs/run-example
+   subs/new-system
    subs/fetch-example
    subs/wheretcl
    subs/make-pdb-collection

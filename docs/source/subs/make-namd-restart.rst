@@ -22,3 +22,5 @@ This will replace an assignment statement to the variable ``BASENAME`` with
 .. code-block:: bash
 
     BASENAME=my_run_02
+
+If your run was unsuccessful, simply leave off the ``--run`` option, and the new config file will be generated with the proper run length to complete the original run as specified.
