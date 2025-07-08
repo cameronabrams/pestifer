@@ -190,6 +190,17 @@ class ExampleList(UserList):
         """
         return yaml.dump([example.to_dict() for example in self.data], default_flow_style=False)
 
+    def to_list_of_dicts(self) -> list:
+        """
+        Convert the list of examples to a list of dictionaries.
+        
+        Returns
+        -------
+        list
+            A list of dictionaries, each representing an example.
+        """
+        return [example.to_dict() for example in self.data]
+
     def from_yaml(self, yaml_str: str, overwrite: bool = False):
         """
         Load examples from a YAML string.
