@@ -1,0 +1,51 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+#
+# High-Resolution Crystal Structures of Distal Histidine Mutants of Sperm Whale Myoglobin
+#
+# This file was generated using the command ` pestifer new-system --id 1mob --build-type full`
+# and subsequently edited.
+#
+# Notes:
+#   - A five-phase NPT equilibration is used to settle the density
+#   - A production tarball is generated: my_1mob.tgz
+
+title: Sperm whale myoglobin
+tasks:
+  - psfgen:
+      source:
+        id: 1mob
+  - md:
+      ensemble: minimize
+  - solvate:
+      salt_con: 0.15
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - md:
+      ensemble: NPT
+      nsteps: 13200
+  - mdplot:
+      basename: solvated
+      grid: true
+      traces:
+        - density
+  - terminate:
+      basename: my_1mob
+      package:
+        basename: my_1mob
+        ensemble: NPT

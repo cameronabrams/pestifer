@@ -1,73 +1,114 @@
 examples:
-  - name: bpti1
-    description: |
-      Bovine Pancreatic Trypsin Inhibitor (BPTI)
-    pdbID: 6pti
-  - name: bpti2
-    description: |
-      BPTI Excluding the Phosphate Ion
-    pdbID: 6pti
-  - name: bpti3
-    description: |
-      BPTI with a Mutated-out Disulfide Bond
-    pdbID: 6pti
-  - name: bpti4
-    description: |
-      BPTI with a Mutated-in Disulfide Bond
-    pdbID: 6pti
-  - name: hiv-protease
-    description: |
-      HIV Protease with Patches to Protonate Aspartates
-    pdbID: 1f7a
-  - name: toxin
-    description: |
-      Green Mamba Toxin at pH 7.0
-    pdbID: 1fas
-  - name: hiv-sosip-env-ectodomain1
-    description: |
-      Closed, Unliganded HIV-1 BG505 Env SOSIP.664 Trimer
-    pdbID: 4zmj
-  - name: hiv-sosip-env-ectodomain2
-    description: |
-      Closed, PGT122/35O22-Liganded HIV-1 BG505 Env SOSIP.664 Trimer (ligands removed)
-    pdbID: 4tvp
-  - name: hiv-ad8-env-ectodomain
-    description: |
-      Cleaved, Asymmetric HIV-1 AD8 Env Ectodomain Trimer
-    pdbID: 8fad
-  - name: hiv-ae2-env-ectodomain
-    description: |
-      Cleaved, Asymmetric HIV-1 AE2 Env Ectodomain Trimer
-    pdbID: 8fae
-  - name: hiv-sosip-env-ectodomain3
-    description: |
-      Open, Symmetric D9/CD4-liganded HIV-1 SOSIP Env Ectodomain Trimer (ligands removed)
-    pdbID: 7txd
-  - name: hiv-sosip-env-ectodomain4
-    description: |
-      Open, Symmetric 17b/CD4-liganded HIV-1 B41 SOSIP Env Ectodomain Trimer (ligands removed)
-    pdbID: 5vn3
-  - name: insulin-hexamer
-    description: |
-      DES-PHE B1 Bovine Insulin Hexamer
-    pdbID: 2ins
-  - name: insulin-receptor-ectodomain
-    description: |
-      Human Insulin Receptor Ectodomain IRαβ
-    pdbID: 4zxb
-  - name: sars-cov2-S-BA2
-    description: |
-      Fully Glycosylated, Closed SARS-CoV-2 Omicron BA.2 Variant Spike
-    pdbID: 7xix
-  - name: hiv-mpertm3-membrane1
-    description: |
-      HIV-1 Env MPER-TM Trimer in a DMPC/DHPC Symmetric Bilayer
-    pdbID: 6e8w
-  - name: hiv-mpertm3-membrane2
-    description: |
-      HIV-1 Env MPER-TM Trimer in an Asymmetric, Model Viral Bilayer
-    pdbID: 6e8w
-  - name: ecoli-polymerase
-    description: |
-      E. coli Replicative DNA Polymerase Complex Bound to DNA
-    pdbID: 5fkw
+- description: 'Bovine Pancreatic Trypsin Inhibitor (BPTI)
+
+    '
+  index: 1
+  name: bpti1
+  pdbID: 6pti
+- description: 'BPTI Excluding the Phosphate Ion
+
+    '
+  index: 2
+  name: bpti2
+  pdbID: 6pti
+- description: 'BPTI with a Mutated-out Disulfide Bond
+
+    '
+  index: 3
+  name: bpti3
+  pdbID: 6pti
+- description: 'BPTI with a Mutated-in Disulfide Bond
+
+    '
+  index: 4
+  name: bpti4
+  pdbID: 6pti
+- description: 'HIV Protease with Patches to Protonate Aspartates
+
+    '
+  index: 5
+  name: hiv-protease
+  pdbID: 1f7a
+- description: 'Green Mamba Toxin at pH 7.0
+
+    '
+  index: 6
+  name: toxin
+  pdbID: 1fas
+- description: 'Closed, Unliganded HIV-1 BG505 Env SOSIP.664 Trimer
+
+    '
+  index: 7
+  name: hiv-sosip-env-ectodomain1
+  pdbID: 4zmj
+- description: 'Closed, PGT122/35O22-Liganded HIV-1 BG505 Env SOSIP.664 Trimer (ligands
+    removed)
+
+    '
+  index: 8
+  name: hiv-sosip-env-ectodomain2
+  pdbID: 4tvp
+- description: 'Cleaved, Asymmetric HIV-1 AD8 Env Ectodomain Trimer
+
+    '
+  index: 9
+  name: hiv-ad8-env-ectodomain
+  pdbID: 8fad
+- description: 'Cleaved, Asymmetric HIV-1 AE2 Env Ectodomain Trimer
+
+    '
+  index: 10
+  name: hiv-ae2-env-ectodomain
+  pdbID: 8fae
+- description: 'Open, Symmetric D9/CD4-liganded HIV-1 SOSIP Env Ectodomain Trimer
+    (ligands removed)
+
+    '
+  index: 11
+  name: hiv-sosip-env-ectodomain3
+  pdbID: 7txd
+- description: 'Open, Symmetric 17b/CD4-liganded HIV-1 B41 SOSIP Env Ectodomain Trimer
+    (ligands removed)
+
+    '
+  index: 12
+  name: hiv-sosip-env-ectodomain4
+  pdbID: 5vn3
+- description: 'DES-PHE B1 Bovine Insulin Hexamer
+
+    '
+  index: 13
+  name: insulin-hexamer
+  pdbID: 2ins
+- description: "Human Insulin Receptor Ectodomain IR\u03B1\u03B2\n"
+  index: 14
+  name: insulin-receptor-ectodomain
+  pdbID: 4zxb
+- description: 'Fully Glycosylated, Closed SARS-CoV-2 Omicron BA.2 Variant Spike
+
+    '
+  index: 15
+  name: sars-cov2-S-BA2
+  pdbID: 7xix
+- description: 'HIV-1 Env MPER-TM Trimer in a DMPC/DHPC Symmetric Bilayer
+
+    '
+  index: 16
+  name: hiv-mpertm3-membrane1
+  pdbID: 6e8w
+- description: 'HIV-1 Env MPER-TM Trimer in an Asymmetric, Model Viral Bilayer
+
+    '
+  index: 17
+  name: hiv-mpertm3-membrane2
+  pdbID: 6e8w
+- description: 'E. coli Replicative DNA Polymerase Complex Bound to DNA
+
+    '
+  index: 18
+  name: ecoli-polymerase
+  pdbID: 5fkw
+- description: Sperm whale myoglobin
+  index: 19
+  name: 1mob
+  pdbID: 1mob
