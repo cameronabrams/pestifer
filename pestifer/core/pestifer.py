@@ -216,57 +216,48 @@ def show_resources(args,**kwargs):
 
 def modify_package(args):
     """
-    Modify the pestifer package, used for development purposes.
+    Modify the pestifer source package.  Current modifications allowed involve example addition/insertion/update/deletion, and
+    updating atomselect macros based on globals defined in :mod:`core/labels.py <pestifer.core.labels>`. 
+    
+    .. note::
+    
+        The command ``pestifer modify-package`` can only be invoked if ``pestifer`` is run from the root of the pestifer source tree, i.e. the directory containing the ``pestifer`` package.  A simple pip installation of the pestifer package will not allow this command to run, as the pestifer package will not have a full source tree available.  If you want to modify the package, you must clone the repository from GitHub and then execute ``pip install -e .`` from the package root.  Before modifying, it would also be a good idea to create a new branch, rather than modifying in the main branch.
     """
     # First, verify that the user has a full source tree by verifying the existence of the docs directory.  If not, raise an error.
-    src_dir=os.path.dirname(__file__)
-    package_dir=os.sep.join(src_dir.split(os.sep)[:-1])
-    doc_dir=os.path.join(package_dir,'docs')
-    if not os.path.exists(doc_dir):
-        raise FileNotFoundError(f'Cannot find docs directory {doc_dir}. Please ensure you have a full source tree of pestifer.')
-    loglevel_numeric=getattr(logging,args.log_level.upper())
-    logging.basicConfig(level=loglevel_numeric)
-
-    if args.insert_example and args.example_yaml:
-        """
-        Insert a new example into the package docs directory.
-        """
-        new_number=args.insert_example
-        new_yaml=args.example_yaml
-        logging.info(f'Inserting example {new_number} from {new_yaml} into package docs directory {doc_dir}')
-        RM=ResourceManager()
-        RM.insert_example(new_number,new_yaml)
-        # TODO: docs
-    elif args.add_example and args.example_yaml:
-        """
-        Add a new example into the package docs directory.
-        """
-        new_yaml=args.example_yaml
-        logging.info(f'Adding example from {new_yaml} into package docs directory {doc_dir}')
-        RM=ResourceManager()
-        RM.add_example(new_yaml)
-    elif args.update_example and args.example_yaml:
-        """
-        Update an existing example in the package docs directory.
-        """
-        number=args.update_example
-        new_yaml=args.example_yaml
-        logging.info(f'Updating example {number} from {new_yaml} in package docs directory {doc_dir}')
-        RM=ResourceManager()
-        RM.update_example(number,new_yaml)
-    elif args.delete_example:
-        number=args.delete_example
-        logging.info(f'Deleting example {number} from package docs directory {doc_dir}')
-        RM=ResourceManager()
-        RM.delete_example(number)
-        # TODO: docs
+    logging.basicConfig(level=getattr(logging,args.log_level.upper()))
+    RM=ResourceManager()
+    if args.example_action:
+        docs_source_path=RM.example_manager.docs_source_path
+        if not docs_source_path:
+            raise FileNotFoundError(f'Cannot find docs directory {docs_source_path}. Please ensure you have a full source tree of pestifer.')
+        if args.example_action == 'insert':
+            new_number=args.example_index
+            new_yaml=args.new_yaml
+            if new_number>0 and new_yaml:    
+                RM.insert_example(new_number,new_yaml)
+            else:
+                raise ValueError(f'Invalid parameters for insert example action: new_number={new_number}, new_yaml={new_yaml}. Must be positive integer and non-empty YAML file name.')
+        elif args.example_action == 'add':
+            new_yaml=args.new_yaml
+            if new_yaml:
+                RM.add_example(new_yaml)
+            else:
+                raise ValueError(f'Invalid parameter for add example action: new_yaml={new_yaml}. Must be non-empty YAML file name.')
+        elif args.example_action == 'update':
+            new_number=args.example_index
+            new_yaml=args.new_yaml
+            if new_number>0 and new_yaml:
+                RM.update_example(new_number,new_yaml)
+            else:
+                raise ValueError(f'Invalid parameters for update example action: new_number={new_number}, new_yaml={new_yaml}. Must be positive integer and non-empty YAML file name.')
+        elif args.example_action == 'delete':
+            number=args.example_index
+            if number>0:
+                RM.delete_example(number)
+            else:
+                raise ValueError(f'Invalid parameter for delete example action: number={number}. Must be positive integer.')
     
     if args.update_atomselect_macros:
-        """
-        Update the atomselect macros in the macros.tcl file based on the loaded charmmff streams.
-        This is a developer-only feature.
-        """
-        RM=ResourceManager()
         RM.update_atomselect_macros()
 
 def wheretcl(args):
@@ -409,10 +400,9 @@ def cli():
     command_parsers['wheretcl'].add_argument('--pkg-dir',default=False,action='store_true',help='print full path of directory of Pestifer\'s VMD/TcL package library')
     command_parsers['wheretcl'].add_argument('--root',default=False,action='store_true',help='print full path of Pestifer\'s root TcL directory')
     command_parsers['modify-package'].add_argument('--update-atomselect-macros',action='store_true',help='update the resources/tcl/macros.tcl file based on content in core/labels.py; developer use only')
-    command_parsers['modify-package'].add_argument('--insert-example',type=int,default=0,help='integer index of example to insert into the package; developer use only')
-    command_parsers['modify-package'].add_argument('--update-example',type=int,default=0,help='integer index of example to update in the package; developer use only')
-    command_parsers['modify-package'].add_argument('--delete-example',type=int,default=None,help='integer index of example to delete from the package; developer use only')
-    command_parsers['modify-package'].add_argument('--example-yaml',type=str,default='',help='yaml file of example to insert/update into the package; developer use only')
+    command_parsers['modify-package'].add_argument('--example-index',type=int,default=0,help='integer index of example to modify; developer use only')
+    command_parsers['modify-package'].add_argument('--example-action',type=str,default=None,choices=[None,'add','insert','update','delete'],help='action to perform on the example; choices are [add|insert|update|delete]; developer use only')
+    command_parsers['modify-package'].add_argument('--new-yaml',type=str,default='',help='yaml file of example to update in the package; developer use only')
     command_parsers['modify-package'].add_argument('--log-level',type=str,default='info',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
 
     command_parsers['make-pdb-collection'].add_argument('--streamID',type=str,default=None,help='charmmff stream to scan')

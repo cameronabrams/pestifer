@@ -1,8 +1,15 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
-
+"""
+Manages examples for ``pestifer run`` within the documentation.
+This module provides the `SphinxExampleManager` class, which allows for the management of examples in the documentation.
+It includes methods to add, insert, update, and delete examples, as well as to shift title indices in the examples RST file.
+It also provides functionality to modify the TOC tree for the examples RST file.  The only way :class:`SphinxExampleManager` understands the **order** of the examples is the order they are referenced in the TOC tree of the examples RST file.
+This is typically the file `docs/source/examples.rst` in the package.
+"""
 import os
-
-from .modify_toctree import modify_toctree
+import logging
+logger = logging.getLogger(__name__)
+from .toctree_util import modify_toctree,get_name_from_toctree
 from ..core.examplemanager import Example
 
 class SphinxExampleManager:
@@ -28,6 +35,15 @@ class SphinxExampleManager:
         assert os.path.isdir(self.examples_source_path), f'Examples source path {self.examples_source_path} does not exist or is not a directory'
     
     def add_example(self, example:Example):
+        """
+        Add a new example to the documentation.
+        This method creates a new example file in the examples source path and updates the examples RST file.
+
+        Parameters
+        ----------
+        example : Example
+            The example to add. The example must have a valid index (greater than 0).  It should have been set by the :class:`ExampleManager` prior to calling this method to reflect its position at the end of the current examples list.
+        """
         if example.index==0:
             raise ValueError('Example index must be greater than 0. Use insert_example to insert an example at a specific index.')
         if self.examples_source_path:
@@ -72,16 +88,16 @@ class SphinxExampleManager:
                         else:
                             f.write(line)
 
-    def insert_example(self, example:Example, index:int):
+    def insert_example(self, index:int, example:Example):
         """
         Insert an example at a specific index in the examples RST file.
         
         Parameters
         ----------
-        example : Example
-            The example to insert.
         index : int
             The 1-based index label of the inserted example.
+        example : Example
+            The example to insert.
         """
         if self.examples_source_path:
             destination_file = os.path.join(self.examples_source_path, f'{example.name}.rst')
@@ -94,9 +110,38 @@ class SphinxExampleManager:
         if self.examples_rst:
             modify_toctree(self.examples_rst, action='insert', new_entry=example.name, new_index=index)
 
+    def update_example(self, index: int, example:Example):
+        """
+        Update an existing example in the examples RST file.
+        
+        Parameters
+        ----------
+        index : int
+            The 1-based index of the example to update.
+        example : Example
+            The example to update.
+        """
+        if self.examples_source_path:
+            current_name=get_name_from_toctree(self.examples_rst, index)
+            current_rst_file = os.path.join(self.examples_source_path, f'{current_name}.rst')
+            if not os.path.exists(current_rst_file):
+                raise FileNotFoundError(f'Current example file {current_rst_file} does not exist. Cannot update non-existing example files.')
+            # move the current example rst file to a temporary name
+            os.rename(current_rst_file, current_rst_file.replace('.rst', f'-{index}.rst'))
+            logger.debug(f'Renamed {current_rst_file} to {current_rst_file.replace(".rst", f"-{index}.rst")}')
+            # write the new example rst file
+            example.index = index  # Ensure the example has the correct index
+            new_destination_file = os.path.join(self.examples_source_path, f'{example.name}.rst')
+            with open(new_destination_file, 'w') as f:
+                f.write(example.new_rst())
+
+        if self.examples_rst:
+            modify_toctree(self.examples_rst, action='update', target=current_name, new_entry=example.name)
+
+
     def delete_example(self, example:Example):
         """
-        Delete an example from the examples RST file.
+        Delete an example from the examples RST file.  This method first searches the TOC tree for the example's name, then deletes the corresponding file in the examples source path (typically docs/source/examples/name.rst). Since the examples are ordered by their position in the TOC tree, this method will also shift the indices of subsequent examples down by one, by editing the titles of their respective RST files.
         
         Parameters
         ----------

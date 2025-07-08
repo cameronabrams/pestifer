@@ -14,11 +14,11 @@ class Example:
     Attributes
     ----------
     name : str
-        The name of the example.
+        The name of the example.  Used to resolve the associate YAML file in the examples directory (typically `pestifer/resources/examples`). Also used to resolve the entry in the toctree in the examples RST file (typically `docs/source/examples.rst`), and the name of the specific RST file for the example (typically `docs/source/examples/{name}.rst`).
     pdbID : str
         The PDB ID associated with the example.
     description : str
-        A description of the example.
+        A description of the example.  Used as the title of the example in its RST file.
     index : int
         The index of the example in the list of examples.
     """

@@ -17,6 +17,7 @@ class TestSphinxExampleManager(unittest.TestCase):
         self.manager = SphinxExampleManager(docs_source_path='docs/source')
         self.example = Example(name="example2-5", pdbID='abc123', description="This is an example")
         self.existing_example=Example(name="example1", pdbID='def456', description="Example Input (orig 1)", index=1)
+        self.updated_existing_example=Example(name="example1_updated", pdbID='def457', description="Example Input (orig 1) updated", index=1)
 
     def tearDown(self):
         shutil.rmtree('docs', ignore_errors=True)
@@ -59,7 +60,7 @@ class TestSphinxExampleManager(unittest.TestCase):
 
     def test_sphinx_example_manager_insert_delete_example(self):
         self.example.index = 2
-        self.manager.insert_example(self.example,2)
+        self.manager.insert_example(2,self.example)
         toctree_path = self.manager.examples_rst
         with open(toctree_path, 'r') as f:
             toctree_lines = f.readlines()
@@ -93,3 +94,18 @@ class TestSphinxExampleManager(unittest.TestCase):
         with open(example_rst_path, 'r') as f:
             content = f.read()
         self.assertIn("Example 1:", content)
+    
+    def test_sphinx_example_manager_update_example(self):
+        self.manager.update_example(1, self.updated_existing_example)
+        example_rst_path = os.path.join(self.manager.examples_source_path, f'{self.updated_existing_example.name}.rst')
+        self.assertTrue(os.path.isfile(example_rst_path))
+        with open(example_rst_path, 'r') as f:
+            content = f.read()
+        self.assertIn("Example 1: Example Input (orig 1)", content)
+        self.assertIn("PDB ID def457", content)
+        toctree_path = self.manager.examples_rst
+        with open(toctree_path, 'r') as f:
+            content = f.read()
+        self.assertIn(f'examples/{self.updated_existing_example.name}', content)
+        content=content.replace(f'examples/{self.updated_existing_example.name}', 'PLACEHOLDER')
+        self.assertNotIn(f'examples/{self.existing_example.name}', content)

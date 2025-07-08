@@ -67,7 +67,7 @@ examples:
     description: |
       HIV-1 Env MPER-TM Trimer in an Asymmetric, Model Viral Bilayer
     pdbID: 6e8w
-  - name: ecoli_polymerase
+  - name: ecoli-polymerase
     description: |
       E. coli Replicative DNA Polymerase Complex Bound to DNA
     pdbID: 5fkw

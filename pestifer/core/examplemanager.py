@@ -101,7 +101,7 @@ class ExampleManager:
         logger.info(f'Checked out example {index} from {self.path} to current working directory {os.getcwd()}')
         return example_yaml # return the name of the copied file
     
-    def report_examples_list(self,header=False,formatter=r'{:>7s}    {:>5s}  {:<30s}    {}'):
+    def report_examples_list(self,header=False,formatter=r'{:>7s}  {:>8s}  {:<30s}  {}'):
         """
         Generate a report of the available examples in the examples list.
         
@@ -120,7 +120,7 @@ class ExampleManager:
         if not self.examples_list:
             return 'No examples available'
         if header:
-            report_lines = [formatter.format('Index','Name','Description')+'\n']
+            report_lines = [formatter.format('Index','ID','Name','Description')+'\n']
         else:
             report_lines = []
         for i, example in enumerate(self.examples_list):
@@ -281,6 +281,65 @@ class ExampleManager:
         self.examples_list.insert(real_index, new_example)
         self._write_info()
         if self.sphinx_example_manager:
-            self.sphinx_example_manager.insert_example(new_example, index)
+            self.sphinx_example_manager.insert_example(index, new_example)
         logger.info(f'Inserted new example at index {index}: {new_example.name}')
         return index
+
+    def update_example(self,index:int,name:str,description:str='',pdbID:str=''):
+        """
+        Update an existing example in the examples list by its index.  This will edit the entry at position ``index`` in the toctree of "examples.rst" to have name ``name``, delete the existing example YAML file in resources/examples, delete the rst documentation file for the old example, copy the new example YAML file to resources/examples, and generate a new rst documentation file for the updated example.  The index is 1-based, meaning the first example has index 1.  The operations involving files in docs/source/examples are performed by the ``sphinx_example_manager`` if it is initialized.
+        
+        Parameters
+        ----------
+        index : int
+            The index of the example to update (1-based).
+        name : str
+            The name of the example file to update.  This can replace the existing example file, or it can be a new file.
+            It should be a valid file path to a YAML file, with or without the `.yaml` extension.
+        description : str
+            A description of the example.
+        pdbID : str
+            The PDB ID associated with the example.
+
+        Returns
+        -------
+        Example
+            The updated Example object.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range for the examples list.
+        ValueError
+            If the name, description, or pdbID is not provided.
+        FileNotFoundError
+            If the example file does not exist at the specified path.
+        """
+        if index < 1 or index > len(self.examples_list):
+            raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
+        if not name:
+            raise ValueError('Name must be provided')
+        yaml_file_path=name if name.endswith('.yaml') else name + '.yaml'
+        if not os.path.isfile(yaml_file_path):
+            raise FileNotFoundError(f'Example file {yaml_file_path} does not exist')
+        real_index = index - 1  # convert to zero-based index
+        if real_index >= len(self.examples_list):
+            raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
+        elif real_index < 0:
+            raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
+        # get the existing example to update
+        example=self.examples_list[real_index]
+        # delete the existing example file if it exists
+        example_file=os.path.join(self.path,example.name+'.yaml')
+        if os.path.isfile(example_file):
+            logger.debug(f'Deleting existing example file "{example_file}"')
+            os.remove(example_file)
+        new_example=self.new_example(yaml_file_path,description,pdbID)
+        new_example.index = index  # set the index for the new example
+        self.examples_list[real_index] = new_example  # replace the old example with the new one
+        shutil.copy(yaml_file_path, self.path)  # copy the new example
+        self._write_info()
+        if self.sphinx_example_manager:
+            self.sphinx_example_manager.update_example(index, new_example)
+        logger.info(f'Updated example at index {index}: {new_example.name}')
+        return new_example

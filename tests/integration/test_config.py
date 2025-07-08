@@ -88,7 +88,7 @@ class ConfigTest(unittest.TestCase):
 
     def test_config_help_examples(self):
         EM=self.RM.example_manager
-        configfiles=[x['name'] for x in EM.examples_list]
+        configfiles=[f'{x.name}.yaml' for x in EM.examples_list]
         tmpdir='__test_config_help_examples'
         if os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)

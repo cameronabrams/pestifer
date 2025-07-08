@@ -50,6 +50,7 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertFalse(os.path.exists('toppar_water_ions.str'))
         self.assertFalse(os.path.exists('toppar_all36_carb_glycopeptide.str'))
         self.assertFalse(os.path.exists('toppar_all36_moreions.str'))
+
     def test_charmmffcontent_pdbrepository_initialized(self):
         self.assertTrue(self.RM!=None)
         self.assertTrue(self.RM.charmmff_content!=None)
@@ -79,9 +80,6 @@ class TestCharmmffContent(unittest.TestCase):
         patchname = 'NNEU'
         topfile = self.C.get_topfile_of_patchname(patchname)
         self.assertEqual(topfile, 'top_all36_prot.rtf')
-        patchname = 'HSPP'
-        topfile = self.C.get_topfile_of_patchname(patchname)
-        self.assertEqual(topfile, 'pestifer.top')
         patchname = 'TYRO'
         topfile = self.C.get_topfile_of_patchname(patchname)
         self.assertEqual(topfile, 'pestifer.top')

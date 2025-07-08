@@ -1,16 +1,16 @@
 # pestifer.core: pestifer-script.tcl
-####################### Created Thu Jul  3 09:13:35 2025 #######################
+####################### Created Tue Jul  8 11:15:10 2025 #######################
 package require psfgen
 psfcontext mixedcase
-topology top_all36_carb.rtf
-topology toppar_all36_moreions.str
 topology top_all36_na.rtf
-topology top_all36_prot.rtf
-topology top_all36_cgenff.rtf
 topology toppar_all36_carb_glycopeptide.str
+topology top_all36_prot.rtf
 topology top_all36_lipid.rtf
 topology toppar_all36_prot_modify_res.str
 topology toppar_water_ions.str
+topology top_all36_cgenff.rtf
+topology top_all36_carb.rtf
+topology toppar_all36_moreions.str
 topology top_all35_ethers.rtf
 pdbalias atom ILE CD1 CD
 pdbalias atom BGLCNA C7 C
@@ -23,7 +23,6 @@ pdbalias atom ANE5 N5 N
 pdbalias atom ANE5 O1A O11
 pdbalias atom ANE5 O1B O12
 pdbalias atom ANE5 O10 O
-pdbalias atom VCG C01 C1
 pdbalias atom VCG C01 C1
 pdbalias atom VCG C02 C2
 pdbalias atom VCG C03 C3
@@ -53,6 +52,11 @@ pdbalias residue ZN ZN2
 pdbalias residue CL CLA
 pdbalias residue C6DH C6DHPC
 pdbalias residue C7DH C7DHPC
+pdbalias residue DT THY
+pdbalias residue DA ADE
+pdbalias residue DC CYT
+pdbalias residue DG GUA
+pdbalias residue DU URA
 ################################### TESTING ####################################
 guesscoord
 regenerate angles dihedrals

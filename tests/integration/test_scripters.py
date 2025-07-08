@@ -4,6 +4,7 @@ from pestifer.core.config import Config
 
 import os
 class TestPsfgen(unittest.TestCase):
+
     def test_header(self):
         c=Config()
         p=PsfgenScripter(c)
@@ -18,11 +19,13 @@ class TestPsfgen(unittest.TestCase):
         os.remove(p.basename+'.tcl')
         self.assertFalse(os.path.exists('testing.tcl'))
         c.RM.charmmff_content.clean_local_charmmff_files()
+
     def test_charmm(self):
         c=Config()
         p=NAMDScripter(c)
         assert p.namd_version==3
         c.RM.charmmff_content.clean_local_charmmff_files()
+
     def test_atomselect_macros(self):
         c=Config()
         p=PsfgenScripter(c)
@@ -41,5 +44,5 @@ class TestPsfgen(unittest.TestCase):
             w=l.split()
             if w[0]=='update_atomselect_macro':
                 nmacros+=1
-        self.assertEqual(nmacros,4)
+        self.assertEqual(nmacros,5) # glycan, ligand, ion, lipid, and nucleicacid
 

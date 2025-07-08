@@ -73,7 +73,6 @@ class TerminateTask(MDTask):
         logger.debug(f'Packaging for namd using basename {basename}')
         savespecs=self.specs
         self.specs=specs
-        params={}
         result=self.namdrun(script_only=True)
         self.specs=savespecs
         self.FC.append(f'{basename}.namd')

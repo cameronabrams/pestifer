@@ -1,5 +1,5 @@
 """  
-Modifies toctree directives in documentation when ``pestifer modify-package``` is used
+Modifies toctree directives in documentation when ``pestifer modify-package`` is used
 to add or remove examples.  Written substantially by ChatGPT, with some modifications.
 """
 
@@ -144,7 +144,7 @@ def reconstruct_toctree_block(lines, start, entry_start, entry_end, new_entries)
 
     return lines[:start] + header + formatted_entries + lines[entry_end:]
 
-def modify_entries(entries, action, delete_target=None, new_entry=None, new_index=None):
+def modify_entries(entries, action, target=None, new_entry=None, new_index=None):
     """
     Modifies the list of entries based on the specified action.
     
@@ -153,9 +153,9 @@ def modify_entries(entries, action, delete_target=None, new_entry=None, new_inde
     entries : list of str
         The current list of entries in the toctree.
     action : str
-        The action to perform: "add", "delete", or "insert".
-    delete_target : str, optional
-        The entry to delete if action is "delete". Required for "delete" action.
+        The action to perform: "add", "delete", "update", or "insert".
+    target : str, optional
+        The entry to delete or update if action is "delete" or "update", respectively. Required for "delete" and "update" actions.
     new_entry : str, optional
         The new entry to add or insert. Required for "add" and "insert" actions.   
     new_index : int, optional
@@ -180,12 +180,18 @@ def modify_entries(entries, action, delete_target=None, new_entry=None, new_inde
             entries.append(entry_to_add)
 
     elif action == "delete":
-        entries = [e for e in entries if e != apply_prefix(delete_target)]
+        entries = [e for e in entries if e != apply_prefix(target)]
 
     elif action == "insert":
         entry_to_insert = apply_prefix(new_entry)
         if entry_to_insert not in entries:
             entries.insert(new_index-1, entry_to_insert)
+    
+    elif action== "update":
+        if apply_prefix(target) in entries:
+            entries[entries.index(apply_prefix(target))] = apply_prefix(new_entry)
+        else:
+            raise ValueError(f"Target entry {target} not found for update.")
 
     return entries
 
@@ -198,11 +204,11 @@ def modify_toctree(filepath, action, target=None, new_entry=None, new_index=None
     filepath : str
         The path to the RST file to modify.
     action : str
-        The action to perform: "add", "delete", or "insert".
+        The action to perform: "add", "delete", "update", or "insert".
     target : str, optional
-        The entry to modify (delete or insert before/after). Required for "delete" and "insert" actions.
+        The entry to modify (delete, update, or insert before/after). Required for "delete", "insert", and "update" actions.
     new_entry : str, optional
-        The new entry to add or insert. Required for "add" and "insert" actions.
+        The new entry to add or insert. Required for "add", "insert", and "update" actions.
     new_index : int, optional
         The 1-based index at which to insert the new entry. Required for "insert" action.
 
@@ -213,6 +219,36 @@ def modify_toctree(filepath, action, target=None, new_entry=None, new_index=None
     updated_entries = modify_entries(entries, action, target, new_entry, new_index)
     new_lines = reconstruct_toctree_block(lines, start, entry_start, entry_end, updated_entries)
     write_rst_file(filepath, new_lines)
+
+def get_name_from_toctree(filepath, index):
+    """
+    Retrieves the name of the entry at the specified index from the toctree in an RST file.
+    
+    Parameters
+    ----------
+    filepath : str
+        The path to the RST file.
+    index : int
+        The 1-based index of the entry to retrieve.
+        
+    Returns
+    -------
+    str
+        The name of the entry at the specified index.
+        
+    Raises
+    ------
+    IndexError
+        If the index is out of range for the entries in the toctree.
+    """
+    lines = read_rst_file(filepath)
+    start, entry_start, entry_end = find_toctree_block(lines)
+    entries = parse_toctree_entries(lines, entry_start, entry_end)
+    
+    if 0 < index <= len(entries):
+        return os.path.basename(entries[index - 1])
+    else:
+        raise IndexError(f"Index {index} is out of range for toctree entries.")
 
 # Examples:
 # update_rst("examples.rst", action="add", new_entry="examples/new_example")

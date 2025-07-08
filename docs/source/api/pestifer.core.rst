@@ -17,6 +17,8 @@ Submodules
    pestifer.core.command
    pestifer.core.config
    pestifer.core.controller
+   pestifer.core.example
+   pestifer.core.examplemanager
    pestifer.core.labels
    pestifer.core.objmanager
    pestifer.core.pdbrepository

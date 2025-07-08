@@ -224,3 +224,40 @@ class ResourceManager:
             self.charmmff_content.load_charmmff(tarball)
         if user_custom_directory:
             self.charmmff_content.add_custom_directory(user_custom_directory)
+
+    def add_example(self,example_yaml):
+        """
+        Add an example to the pestifer examples directory.
+
+        Parameters
+        ----------
+        example_yaml : str
+            The path to a YAML file containing the example data. It may or may not end with '.yaml'.  It should have a 'title' field and either the field 'id' or 'alphafold' under tasks->psfgen->source.
+        """
+        self.example_manager.add_example(example_yaml)
+
+    def insert_example(self,example_index,example_yaml):
+        """
+        Insert an example into the pestifer examples directory.
+
+        Parameters
+        ----------
+        example_index : int
+            The index at which to insert the example. This should be a positive integer indicating the position in the examples list (1-based).
+        example_yaml : str
+            The path to a YAML file containing the example data. It may or may not end with '.yaml'.  It should have a 'title' field and either the field 'id' or 'alphafold' under tasks->psfgen->source.
+        """
+        self.example_manager.insert_example(example_index, example_yaml)
+    
+    def update_example(self,example_index,example_yaml):
+        """
+        Update an existing example in the pestifer examples directory.
+
+        Parameters
+        ----------
+        example_index : int
+            The index of the example to update. This should be a positive integer indicating the position in the examples list (1-based).
+        example_yaml : str
+            The path to a YAML file containing the updated example data. It may or may not end with '.yaml'.  It should have a 'title' field and either the field 'id' or 'alphafold' under tasks->psfgen->source.
+        """
+        self.example_manager.update_example(example_index, example_yaml)
