@@ -103,6 +103,12 @@ class ByteCollector:
         self.comment_char=comment_char
         self.byte_collector=''
     
+    # def __len__(self):
+    #     """
+    #     Returns the length of the byte collector string
+    #     """
+    #     return len(self.byte_collector)
+
     def reset(self):
         """
         Resets the string
@@ -221,54 +227,54 @@ class ByteCollector:
         self.byte_collector=end.join(lines)
         logger.debug(self.byte_collector)
 
-    def addline(self,msg,end='\n'):
-        """Appends msg to the string as a line
+    # def addline(self,msg,end='\n'):
+    #     """Appends msg to the string as a line
         
-        Parameters
-        ----------
-        msg: str
-           the message
+    #     Parameters
+    #     ----------
+    #     msg: str
+    #        the message
         
-        end: str, optional
-            end-of-line byte
-        """
-        self.byte_collector+=f'{msg}{end}'
+    #     end: str, optional
+    #         end-of-line byte
+    #     """
+    #     self.byte_collector+=f'{msg}{end}'
 
-    def lastline(self,end='\n',exclude='#'):
-        """Returns last line in the string
+    # def lastline(self,end='\n',exclude='#'):
+    #     """Returns last line in the string
         
-        Parameters
-        ----------
-        end: str, optional
-            end-of-line byte
-        exclude: str, optional
-            comment byte
-        """
-        lines=[x for x in self.byte_collector.split(end) if (len(x)>0 and not x.startswith(exclude))]
-        if len(lines)>0:
-            return lines[-1]
-        else:
-            return None
+    #     Parameters
+    #     ----------
+    #     end: str, optional
+    #         end-of-line byte
+    #     exclude: str, optional
+    #         comment byte
+    #     """
+    #     lines=[x for x in self.byte_collector.split(end) if (len(x)>0 and not x.startswith(exclude))]
+    #     if len(lines)>0:
+    #         return lines[-1]
+    #     else:
+    #         return None
     
-    def has_statement(self,statement,end='\n',exclude='#'):
-        """
-        Determines if a particular statement is on at least one non-comment line
+    # def has_statement(self,statement,end='\n',exclude='#'):
+    #     """
+    #     Determines if a particular statement is on at least one non-comment line
         
-        Parameters
-        ----------
-        statement: str
-            the statement; e.g., ``exit``
-        end: str, optional
-            end-of-line byte
-        exclude: str, optional
-            comment byte
-        """
-        lines=[x for x in self.byte_collector.split(end) if (len(x)>0 and not x.startswith(exclude))]
-        if len(lines)>0:
-            for l in lines:
-                if statement in l:
-                    return True
-        return False
+    #     Parameters
+    #     ----------
+    #     statement: str
+    #         the statement; e.g., ``exit``
+    #     end: str, optional
+    #         end-of-line byte
+    #     exclude: str, optional
+    #         comment byte
+    #     """
+    #     lines=[x for x in self.byte_collector.split(end) if (len(x)>0 and not x.startswith(exclude))]
+    #     if len(lines)>0:
+    #         for l in lines:
+    #             if statement in l:
+    #                 return True
+    #     return False
 
     def ingest_file(self,filename):
         """

@@ -11,6 +11,7 @@ import shutil
 
 from copy import deepcopy
 
+from ..objs.patch import PatchList
 from ..core.basetask import BaseTask
 from ..molecule.chainidmanager import ChainIDManager
 from ..core.command import Command
@@ -115,6 +116,19 @@ class PsfgenTask(BaseTask):
                     vm.runscript()
                     self.save_state(exts=['pdb'])
 
+    def resi_topologies(self):
+        """
+        Collect the topology files that are needed for the residues in the base molecule.
+        """
+        resis=set([x.resname for x in self.base_molecule.asymmetric_unit.residues])
+        CC=self.config.RM.charmmff_content
+        new_topfiles=set()
+        for resname in resis:
+            topfile=CC.get_topfile_of_resname(resname)
+            if topfile:
+                new_topfiles.add(topfile)
+        return list(new_topfiles)
+
     def patch_topologies(self):
         """
         Collect the topology files that are needed for the patches and links in the base molecule.
@@ -147,7 +161,9 @@ class PsfgenTask(BaseTask):
         """
         self.next_basename('build')
         pg=self.scripters['psfgen']
-        addl_topologies=self.patch_topologies()
+        patch_topologies=self.patch_topologies()
+        resi_topologies=self.resi_topologies()
+        addl_topologies=list(set(patch_topologies+resi_topologies))
         pg.newscript(self.basename,packages=['PestiferCRot'],additional_topologies=addl_topologies)
         pg.set_molecule(self.base_molecule,altcoords=self.specs.get('source',{}).get('altcoords',None))
         pg.describe_molecule(self.base_molecule)

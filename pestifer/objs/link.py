@@ -7,6 +7,7 @@ logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
 from pidibble.pdbrecord import PDBRecord
 
+from .patch import Patch
 from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
 from ..util.cifutil import CIFdict
 from ..util.coord import ic_reference_closest
@@ -393,6 +394,17 @@ class Link(AncestorAwareObj):
                     self.patchname='ZNHE'
                 else:
                     self.patchname='ZNHD'
+        elif 'HIS' in self.resname1 and 'HEM' in self.resname2:
+                if self.name1=='NE2':
+                    self.patchname='PHEM'
+                else:
+                    self.patchname='UNFOUND'
+        elif 'HEM' in self.resname1 and 'HIS' in self.resname2:
+                if self.name2=='NE2':
+                    self.patchname='PHEM'
+                else:
+                    self.patchname='UNFOUND'
+                self.patchorder=[2,1]
         else:
             logger.warning(f'Could not identify patch for link {self.resname1}-{self.resname2}')
             self.patchname='UNFOUND'
@@ -427,10 +439,17 @@ class Link(AncestorAwareObj):
         ins2=self.residue2.insertion
         logger.debug(f'Link: {self.residue1.chainID}->{seg1}:{rsn1}{ins1} {self.residue2.chainID}->{seg2}:{rsn2}{ins2}')
         if not self.patchname=='UNFOUND':
+            write_post_regenerate=self.patchname in Patch.after_regenerate_patches
             if self.patchorder==[1,2]:
-                W.addline(f'patch {self.patchname} {seg1}:{rsn1}{ins1} {seg2}:{rsn2}{ins2}')
+                if write_post_regenerate:
+                    W.addpostregenerateline(f'patch {self.patchname} {seg1}:{rsn1}{ins1} {seg2}:{rsn2}{ins2}')
+                else:
+                    W.addline(f'patch {self.patchname} {seg1}:{rsn1}{ins1} {seg2}:{rsn2}{ins2}')
             elif self.patchorder==[2,1]:
-                W.addline(f'patch {self.patchname} {seg2}:{rsn2}{ins2} {seg1}:{rsn1}{ins1}')
+                if write_post_regenerate:
+                    W.addpostregenerateline(f'patch {self.patchname} {seg2}:{rsn2}{ins2} {seg1}:{rsn1}{ins1}')
+                else:   
+                    W.addline(f'patch {self.patchname} {seg2}:{rsn2}{ins2} {seg1}:{rsn1}{ins1}')
         else:
             logger.warning(f'Could not identify patch for link: {str(self)}')
             W.comment(f'No patch found for {str(self)}')

@@ -198,6 +198,14 @@ def run_example(args):
     args.config=fetch_example(args)
     run(args)
 
+def new_system(args):
+    """
+    Generate a template YAML configuration file for a new system based on the specified directives.
+    """
+
+    r=ResourceManager()
+    r.example_manager.new_example_yaml(id=args.id,build_type=args.build_type)
+    
 def show_resources(args,**kwargs):
     """
     Show available resources for the specified configuration.
@@ -318,6 +326,7 @@ def cli():
     commands={
         'run': run,
         'config-help': config_help,
+        'new-system': new_system,
         'fetch-example': fetch_example,
         'run-example': run_example,
         'desolvate': desolvate,
@@ -337,6 +346,7 @@ def cli():
         'fetch-example':'copy the example\'s YAML config file to the CWD',
         'run-example':'build one of the examples provided',
         'run':'build a system using instructions in the config file',
+        'new-system':'create a new system from scratch',
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
         'make-pdb-collection':'make a PDB Collection for use by packmol',
         'desolvate':'desolvate an existing PSF/DCD',
@@ -350,6 +360,7 @@ def cli():
     descs={
         'config-help':'Use this command to get interactive help on config file directives.',
         'config-default':'This will generate a default config file for you to fill in using a text editor.',
+        'new-system':'Create a new system from scratch.',
         'fetch-example':'Fetch YAML config for one of the examples:\n'+list_examples(),
         'run-example':'Build one of the examples:\n'+list_examples(),
         'run':'Build a system',
@@ -391,6 +402,8 @@ def cli():
     command_parsers['run-example'].add_argument('--config-updates',type=str,nargs='+',default=[],help='yaml files to update example')
     command_parsers['run-example'].add_argument('--log-level',type=str,default='debug',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
     command_parsers['run-example'].add_argument('--gpu',default=False,action='store_true',help='force run on GPU')
+    command_parsers['new-system'].add_argument('--id',type=str,default='ABCD',help='ID of the new system to create (default: %(default)s)')
+    command_parsers['new-system'].add_argument('--build-type',type=str,default='minimal',choices=['minimal','full'],help='Build type for the new system (default: %(default)s)')
     command_parsers['config-help'].add_argument('directives',type=str,nargs='*',help='config file directives')
     command_parsers['config-help'].add_argument('--interactive',default=True,action=ap.BooleanOptionalAction,help='use help in interactive mode')
     command_parsers['config-default'].add_argument('directives',type=str,nargs='*',help='config file directives')

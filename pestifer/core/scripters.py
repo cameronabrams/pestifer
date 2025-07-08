@@ -454,6 +454,18 @@ class PsfgenScripter(VMDScripter):
         self.charmmff=config.RM.charmmff_content
         self.charmmff_config=config['user']['charmmff']
         self.psfgen_config=config['user']['psfgen']
+        self.postregencommands=ByteCollector()
+
+    def addpostregenerateline(self,line):
+        """
+        Add a line to the post-regenerate commands section of the psfgen script.
+
+        Parameters
+        ----------
+        line : str
+            The line of Tcl code to be added to the post-regenerate commands.
+        """
+        self.postregencommands.addline(line)
 
     def fetch_standard_charmm_topologies(self):
         """
@@ -496,14 +508,15 @@ class PsfgenScripter(VMDScripter):
         self.addline('package require psfgen')
         self.addline('psfcontext mixedcase')
         self.topologies=self.fetch_standard_charmm_topologies()
-        for at in additional_topologies:
+        for at in sorted(additional_topologies):
             assert os.sep not in at,f'Topology file {at} must not contain a path.'
-            self.charmmff.copy_charmmfile_local(at)
-            self.topologies.append(at)
-        self.topologies=list(set(self.topologies))  # remove duplicates
-        if 'top_all35_ethers.rtf' in self.topologies:
-            self.topologies.remove('top_all35_ethers.rtf')
-            self.topologies.append('top_all35_ethers.rtf')
+            if not at in self.topologies:
+                self.charmmff.copy_charmmfile_local(at)
+                self.topologies.append(at)
+        # self.topologies=list(set(self.topologies))  # remove duplicates
+        # if 'top_all35_ethers.rtf' in self.topologies:
+        #     self.topologies.remove('top_all35_ethers.rtf')
+        #     self.topologies.append('top_all35_ethers.rtf')
         for t in self.topologies:
             self.addline(f'topology {t}')
         # logger.debug(f'psfgen aliases: {self.psfgen_config["aliases"]}')
@@ -571,7 +584,7 @@ class PsfgenScripter(VMDScripter):
         self.molid_varname=f'm{mol.molid}'
         self.addline(f'mol top ${self.molid_varname}')
         mol.write_TcL(self)
-
+    
     def writescript(self,statename,guesscoord=True,regenerate=True,writepsf=True,writepdb=True,force_exit=False):
         """
         Finalize the psfgen script by adding commands to write the PSF and PDB
@@ -597,6 +610,8 @@ class PsfgenScripter(VMDScripter):
             self.addline('guesscoord')
         if regenerate:
             self.addline('regenerate angles dihedrals')
+        if len(self.postregencommands.byte_collector)>0:
+            self.B.write(self.postregencommands.byte_collector)
         if writepsf:
             self.addline(f'writepsf cmap {statename}.psf')
         if writepdb:
@@ -633,6 +648,8 @@ class PsfgenScripter(VMDScripter):
         if self.progress:
             progress_struct=PsfgenProgress()
             self.logparser.enable_progress_bar(progress_struct)
+        else:
+            logger.debug('Progress bar is disabled for psfgen script')
         return c.run(logfile=self.logname,logparser=self.logparser)
     
 class NAMDScripter(TcLScripter):
@@ -680,9 +697,13 @@ class NAMDScripter(TcLScripter):
         """
         logger.debug('Fetching standard CHARMM parameters')
         parameters_local=[]
-        for t in list(set(self.charmmff_config['standard']['parameters']+self.charmmff_config['custom']['parameters'])):
+        for t in self.charmmff_config['standard']['parameters']:
             self.charmmff.copy_charmmfile_local(t)
             parameters_local.append(t)
+        for t in self.charmmff_config['custom']['parameters']:
+            if t not in parameters_local:
+                self.charmmff.copy_charmmfile_local(t)
+                parameters_local.append(t)
         logger.debug(f'local parameters: {parameters_local}')
         return parameters_local
 
@@ -703,7 +724,7 @@ class NAMDScripter(TcLScripter):
         self.scriptname=f'{basename}{self.default_ext}'
         self.banner('NAMD script')
         self.parameters=self.fetch_standard_charmm_parameters()
-        for at in addl_paramfiles:
+        for at in sorted(addl_paramfiles):
             if not at in self.parameters:
                 self.charmmff.copy_charmmfile_local(at)
                 self.parameters.append(at)

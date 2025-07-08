@@ -148,6 +148,7 @@ class Segment(AncestorAwareObj):
         transform : Transform
             The transformation object containing mapping information.
         """
+
         if self.segtype=='protein':
             self.polymer_stanza(W,transform)
         elif self.segtype=='glycan':
@@ -156,7 +157,7 @@ class Segment(AncestorAwareObj):
             self.nucleicacid_stanza(W,transform)
         else:
             self.generic_stanza(W,transform)
-    
+        
     def glycan_stanza(self,W:PsfgenScripter,transform):
         """
         Write the Tcl commands to create a glycan segment in the Psfgen script.
@@ -369,8 +370,10 @@ class Segment(AncestorAwareObj):
         if len(seg_patches)>0:
             W.banner(f'Patches for segment {image_seglabel}')
         for patch in seg_patches:
-            if patch.use_in_segment=='':
+            if patch.use_in_segment=='' and not patch.use_after_regenerate:
                 W.addline(f'patch {patch.patchname} {image_seglabel}:{patch.resseqnum}{patch.insertion}')
+            if patch.use_after_regenerate:
+                W.addpostregenerateline(f'patch {patch.patchname} {image_seglabel}:{patch.resseqnum}{patch.insertion}')
         for sc in seg_Cfusions:
             sc.write_post_segment(W)
         W.banner('Intra-segmental terminal patches')
@@ -419,7 +422,7 @@ class SegmentList(AncestorAwareObjList):
                 super().__init__([])
                 residues=input_obj
                 # all residues have their segtypes set
-                assert all([x.segtype!='UNSET' for x in residues]),f'There are residues with UNSET segtype in {input_obj}'
+                assert all([x.segtype!='UNSET' for x in residues]),f'There are residues with UNSET segtype: {[(x.resname,x.chainID,x.resseqnum) for x in residues if x.segtype=="UNSET"]}'
                 self.segtypes_ordered=[]
                 for r in residues:
                     if not r.chainID in self.segtype_of_segname:

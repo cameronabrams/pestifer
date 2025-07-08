@@ -101,6 +101,37 @@ class ExampleManager:
         logger.info(f'Checked out example {index} from {self.path} to current working directory {os.getcwd()}')
         return example_yaml # return the name of the copied file
     
+    def new_example_yaml(self,id='ABCD',build_type='minimal'):
+        if len(id)==4: # assume a PDB id
+            idtype='PDB'
+        elif id.startswith('P'): # assume an alphafold id by uniprot id
+            idtype='Alphafold'
+        else:
+            raise ValueError(f'Invalid id {id} for new example YAML; must be a 4-letter PDB ID or an Alphafold/UNIPROT ID starting with "P"')
+        example_yaml=self.examples_list[0].name+'.yaml'
+        example_yaml_path=os.path.join(self.path,example_yaml)
+        with open(example_yaml_path, 'r') as f:
+            try:
+                example_config=yaml.safe_load(f)
+            except yaml.YAMLError as e:
+                raise ValueError(f'Invalid YAML file {example_yaml_path}: {e}')
+        if build_type=='minimal':
+            psfgen_task=example_config['tasks'][0]
+            example_config['tasks']=[psfgen_task]  # keep only the psfgen task
+        example_config['title']=f'New template pestifer config for id {id} ({idtype})'
+        if idtype=='PDB':
+            example_config['tasks'][0]['psfgen']['source']['id']=id
+        elif idtype=='Alphafold':
+            del example_config['tasks'][0]['psfgen']['source']['id']
+            example_config['tasks'][0]['psfgen']['source']['alphafold']=id
+        if build_type=='full':
+            example_config['tasks'][-1]['terminate']['basename']=f'my_{id.lower()}'
+            example_config['tasks'][-1]['terminate']['package']['basename']=f'my_{id.lower()}'
+        output_yaml=os.path.join(os.getcwd(),f'{id.lower()}.yaml')
+        with open(output_yaml, 'w') as f:
+            yaml.dump(example_config, f, default_flow_style=False)
+        logger.info(f'Generated new example YAML file {output_yaml} for id {id} ({idtype})')
+
     def report_examples_list(self,header=False,formatter=r'{:>7s}  {:>8s}  {:<30s}  {}'):
         """
         Generate a report of the available examples in the examples list.

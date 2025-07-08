@@ -31,11 +31,11 @@ segtypes= {
         'resnames': [
             'LIT', 'SOD', 'MG' , 'POT', 'CAL', 'RUB', 'CES',
             'BAR', 'ZN' , 'CAD', 'CL',  'SO4', 'PO4', 'H2PO',
-            'ZN2', 'CLA']},
+            'ZN2', 'CLA', 'FE']},
     'ligand': {
         'macro': True,
         'resnames' : [
-            'EIC', 'VCG', '83G']},
+            'EIC', 'VCG', '83G', 'HEM']},
     'nucleicacid': {
         'macro': True,
         'resnames': [
@@ -188,6 +188,7 @@ _residue_aliases = [
     "DC CYT",
     "DG GUA",
     "DU URA",
+    "HEM HEME"
 ]
 
 class LabelMappers:
@@ -202,6 +203,7 @@ class LabelMappers:
         self.segtypes=segtypes
         self.segtype_of_resname = {}
         self.charmm_resname_of_pdb_resname = {}
+        self.pdb_resname_of_charmm_resname = {}
         self.res_321 = segtypes['protein']['rescodes']
         self.res_123 = segtypes['protein']['invrescodes']
         for segtype in segtypes:
@@ -211,6 +213,7 @@ class LabelMappers:
             parts = alias.split()
             resname, alias1 = parts
             self.charmm_resname_of_pdb_resname[resname] = alias1
+            self.pdb_resname_of_charmm_resname[alias1] = resname
     
     def update_atomselect_macros(self,fp):
         """

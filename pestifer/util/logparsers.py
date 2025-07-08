@@ -172,7 +172,7 @@ class LogParser(ByteCollector):
 
     def update(self,bytes):
         """
-        Update the LogParser with new bytes of data. This method appends the new bytes to the byte collector and updates the progress.
+        Update the LogParser with new bytes of data.
         """
         self.write(bytes)
         # logger.debug(f'Updating {self.__class__.__name__} with {len(bytes)} bytes -> {len(self.byte_collector)} bytes collected')

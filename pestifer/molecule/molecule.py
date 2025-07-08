@@ -4,6 +4,7 @@ A class for handling molecules
 """
 import logging
 import os
+from ..objs.patch import PatchList
 from ..core.objmanager import ObjManager
 from pidibble.pdbparse import PDBParser
 from ..util.cifutil import CIFload

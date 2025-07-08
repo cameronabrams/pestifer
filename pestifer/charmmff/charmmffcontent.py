@@ -10,6 +10,7 @@ import tarfile
 from .charmmtop import CharmmMassRecord, CharmmMasses, CharmmTopResi
 from ..core.pdbrepository import PDBRepository
 from ..core.stringthings import my_logger
+from ..core.labels import Labels
 
 logger=logging.getLogger(__name__)
 
@@ -195,6 +196,7 @@ class CHARMMFFContent:
                 self.filenamemap[f]=os.path.join(user_custom_directory,f)
         self.all_topology_files=[x for x in self.filenamemap.values() if x.endswith('.str') or x.endswith('.rtf') or x.endswith('.top')]
         self.find_patches()
+        self.find_resis()
         logger.debug(f'filename map:')
         for k,v in self.filenamemap.items():
             logger.debug(f'  {k} -> {v}')
@@ -465,6 +467,27 @@ class CHARMMFFContent:
             logger.warning(f'Found duplicate residue names in {topfile}: {resname_list}')
         return R
 
+    def find_resis(self):
+        """ 
+        Find all residues in the CHARMM force field content.
+        This function scans all topology files for lines that start with 'RESI' or 'PRES' and extracts the residue names.
+        It creates a dictionary mapping residue names to the topology file they are found in.
+        The residues are stored in the `self.residues` attribute.
+        """
+        self.residues={}
+        for topfile in self.all_topology_files:
+            lines=self.lines_from_topfile(topfile)
+            for line in lines:
+                if line.upper().startswith('RESI'):
+                    resname=line.split()[1]
+                    if resname not in self.residues:
+                        self.residues[resname]=os.path.basename(topfile)
+                    alias=Labels.pdb_resname_of_charmm_resname.get(resname,None)
+                    if alias is not None and alias not in self.residues:
+                        self.residues[alias]=os.path.basename(topfile)
+                        # logger.debug(f'Found residue {resname} in {topfile}')
+        logger.debug(f'Found {len(self.residues)} residues in CHARMM force field content')
+
     def find_patches(self):
         """ 
         Find all patches in the CHARMM force field content.
@@ -487,6 +510,27 @@ class CHARMMFFContent:
         """ 
         Given a patch name, return the top file that contains it """
         return self.patches.get(patchname, None)
+
+    def get_topfile_of_resname(self,resname):
+        """ 
+        Given a residue name, return the top file that contains it.
+        This function searches through all topology files and returns the first one that contains the specified residue name.
+
+        Parameters
+        ----------
+        resname : str
+            The name of the residue to search for.
+
+        Returns
+        -------
+        str or None
+            The name of the topology file containing the residue, or None if not found.
+        """
+        if resname in self.residues:
+            return self.residues[resname]
+        else:
+            logger.warning(f'Residue {resname} not found in CHARMM force field content')
+            return None
 
 class CHARMMFFStreamID:
     """ 
