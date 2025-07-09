@@ -165,7 +165,7 @@ def make_namd_restart(args,**kwargs):
     newbasename=args.new_base
     run=args.run
     oldconfig=NAMDConfig(config)
-    oldlog=NAMDLog.from_file(log)
+    oldlog=NAMDLog.from_file(log,passfilter=['OUTPUT','RESTART','TCL'])
     output_filename=oldlog.metadata.get('OUTPUT FILENAME',None)
     if not output_filename:
         logger.error(f'No output filename found in {log}')
