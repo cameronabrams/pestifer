@@ -178,6 +178,15 @@ class SphinxExampleManager:
             new_rst_file = os.path.join(self.examples_source_path, f'{new_name}.rst')
             os.rename(current_rst_file, new_rst_file)
             logger.debug(f'Renamed {current_rst_file} to {new_rst_file}')
+            # update the explicit yaml include in the example RST file
+            with open(new_rst_file, 'r') as f:
+                lines = f.readlines()
+            with open(new_rst_file, 'w') as f:
+                for line in lines:
+                    if line.startswith('.. literalinclude::') and 'examples/' in line:
+                        f.write(line.replace(f'examples/{current_name}.yaml', f'examples/{new_name}.yaml'))
+                    else:
+                        f.write(line)
         if self.examples_rst:
             modify_toctree(self.examples_rst, action='rename', index=index, new_entry=new_name)
 

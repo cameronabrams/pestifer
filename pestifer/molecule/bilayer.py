@@ -560,17 +560,17 @@ class Bilayer:
                 {'md':dict(ensemble='NPT',nsteps=200)},
                 {'md':dict(ensemble='NPT',nsteps=400)},
                 {'md':dict(ensemble='NPT',nsteps=800)},
-                {'md':dict(ensemble='NPT',nsteps=1600)},
-                {'md':dict(ensemble='NPT',nsteps=3200)},
-                {'md':dict(ensemble='NPT',nsteps=6400)},
-                {'md':dict(ensemble='NPT',nsteps=12800)},
-                {'md':dict(ensemble='NPT',nsteps=25600)}]
+                {'md':dict(ensemble='NPAT',nsteps=1600)},
+                {'md':dict(ensemble='NPAT',nsteps=3200)},
+                {'md':dict(ensemble='NPAT',nsteps=6400)},
+                {'md':dict(ensemble='NPAT',nsteps=12800)},
+                {'md':dict(ensemble='NPAT',nsteps=25600)}]
         else:
             logger.debug(f'Using user-specified relaxation protocol: {relaxation_protocol}')
         for stage in relaxation_protocol:
             specs=stage['md']
             specs['addl_paramfiles']=self.addl_streamfiles
-            if specs.get('ensemble',None) in ['NPT','npt']:
+            if specs.get('ensemble',None) in ['NPT','npt','NPAT','npat']:
                 if not 'other_parameters' in specs: # never true due to ycleptic base.yaml
                     specs['other_parameters']={'useflexiblecell':True,'useconstantratio':True,
                                                'pressureProfile':'on','pressureProfileSlabs':30,

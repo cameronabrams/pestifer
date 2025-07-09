@@ -227,6 +227,18 @@ directives:
           langevinpistontemp: $temperature
           usegrouppressure: yes
           useflexiblecell: no
+      - name: membrane
+        type: dict
+        text: NAMD parameters for membrane simulations
+        default:
+          langevinpiston: on 
+          langevinpistontarget: $pressure
+          langevinpistonperiod: 200
+          langevinpistondecay: 100
+          langevinpistontemp: $temperature
+          usegrouppressure: yes
+          useflexiblecell: yes
+          useconstantratio: yes
       - name: harmonic
         type: dict
         text: parameters governing harmonic constraints; not necessarily NAMD-compatible keywords
@@ -569,7 +581,7 @@ directives:
                 text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                 type: str
                 case_sensitive: False
-                choices: [minimize, NVT, NPT]
+                choices: [minimize, NVT, NPT, NPAT]
                 default: NVT
               - name: force_constant
                 text: force constant (kcal/mol/Angstrom^2)
@@ -742,7 +754,7 @@ directives:
             type: str
             text: ensemble in which MD is run [NVT]
             case_sensitive: False
-            choices: [minimize, NVT, NPT]
+            choices: [minimize, NVT, NPT, NPAT]
             default: NVT
       - name: solvate
         text: Parameters controlling solvation and ionization
@@ -1013,7 +1025,7 @@ directives:
                             text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                             type: str
                             case_sensitive: False
-                            choices: [minimize, NVT, NPT]
+                            choices: [minimize, NVT, NPT, NPAT]
                             default: minimize
                           - name: nsteps
                             text: Number of MD time steps (or minimization steps if 'ensemble' is 'minimize')
@@ -1082,7 +1094,7 @@ directives:
                           - name: ensemble
                             text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                             type: str
-                            choices: [minimize, NVT, NPT]
+                            choices: [minimize, NVT, NPT, NPAT]
                             default: minimize
                           - name: nsteps
                             text: Number of MD time steps (or minimization steps if 'ensemble' is 'minimize')
@@ -1168,7 +1180,7 @@ directives:
           - name: ensemble
             text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
             type: str
-            choices: [minimize, NVT, NPT]
+            choices: [minimize, NVT, NPT, NPAT]
             default: NVT
             case_sensitive: False
           - name: minimize
@@ -1258,7 +1270,7 @@ directives:
                 text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                 type: str
                 case_sensitive: False
-                choices: [NVT, NPT]
+                choices: [NVT, NPT, NPAT]
                 default: NVT
               - name: nminsteps
                 text: Number of minimization steps
