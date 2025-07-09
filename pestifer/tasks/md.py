@@ -172,6 +172,9 @@ class MDTask(BaseTask):
             local_execution_only=not self.statevars['periodic']
             single_gpu_only=kwargs.get('single_gpu_only',False) or constraints
             result=na.runscript(single_molecule=(not self.statevars['periodic']),local_execution_only=local_execution_only,single_gpu_only=single_gpu_only,cpu_override=cpu_override)
+            if hasattr(na.logparser,'dataframes'):
+                for key in na.logparser.dataframes:
+                    self.update_statevars(f'{key}-csv',f'{self.basename}-{key}.csv',vtype='file')
             if result!=0:
                 return -1
 

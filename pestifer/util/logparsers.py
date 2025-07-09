@@ -381,18 +381,29 @@ class NAMDLog(LogParser):
     """
     The key used to identify lines indicating a stack traceback in the NAMD log file, which may indicate an error or crash.
     """
+
     def __init__(self,basename='namd-logparser'):
         super().__init__()
         self.line_idx=[0] # byte offsets of lines
         self.processed_line_idx=[]
-        self.energy_df=pd.DataFrame()
-        self.pressureprofile_df=pd.DataFrame() # each column is a pressure profile at a given timestep
+        self.time_series_data={}
         self.metadata={}
+        self.dataframes={}
         self.reading_structure_summary=False
         self.basename=basename
-
+        self._line_processors={
+            self.info_key: self.process_info_line,
+            self.tcl_key: self.process_tcl_line,
+            self.energy_key: self.process_energy_line,
+            self.pressureprofile_key: self.process_pressureprofile_line,
+            self.wallclock_key: self.process_wallclock_line,
+            self.restart_key: self.process_restart_line,
+            self.performance_key: self.process_performance_line,
+            self.timing_key: self.process_timing_line
+        }
+    
     @classmethod
-    def from_file(cls,filename):
+    def from_file(cls,filename,passfilter=[]):
         """
         Create a NAMDLog instance from an existing NAMD log file.
         
@@ -408,9 +419,30 @@ class NAMDLog(LogParser):
         """
         logger.debug(f'Creating {cls.__name__} from {filename}')
         instance=cls()
-        instance.static(filename)
+        instance.static(filename,passfilter=passfilter)
         return instance
     
+    def static(self,filename,passfilter=[]):
+        """
+        Initialize the NAMDLog from an existing, static file.
+        
+        Parameters
+        ----------
+        filename : str
+            The path to the NAMD log file to read.
+        filter : list
+            A list of strings to filter the lines in the log file. Only lines containing these strings will be processed.
+        """
+        logger.debug(f'Initiating {self.__class__.__name__} from {filename}')
+        with open(filename,'r',encoding='utf-8') as f:
+            raw=f.read()
+        self.write(raw)
+        rawlines=raw.splitlines(keepends=True)
+        for line in rawlines:
+            if not passfilter or any(f in line for f in passfilter):
+                self.process_line(line)
+        self.finalize()
+
     def process_struct_summ_datum(self,line):
         """
         Process a line from the structure summary section of the NAMD log file.
@@ -524,10 +556,13 @@ class NAMDLog(LogParser):
         new_line={k:v for k,v in zip(self.metadata['etitle'],tokens)}
         if 'VOLUME' in new_line:
             new_line['DENSITY']=self.metadata['total_mass']/new_line['VOLUME']
-        if self.energy_df.empty:
-            self.energy_df=pd.DataFrame(new_line,index=[0])
-        else:
-            self.energy_df=pd.concat([self.energy_df,pd.DataFrame(new_line,index=[0])],ignore_index=True)
+        if not 'energy' in self.time_series_data:
+            self.time_series_data['energy']=[]
+        self.time_series_data['energy'].append(new_line)
+        # if self.energy_df.empty:
+        #     self.energy_df=pd.DataFrame(new_line,index=[0])
+        # else:
+        #     self.energy_df=pd.concat([self.energy_df,pd.DataFrame(new_line,index=[0])],ignore_index=True)
 
     def process_energy_title(self,line):
         """
@@ -555,40 +590,10 @@ class NAMDLog(LogParser):
             A line from the NAMD log file that contains restart information.
         """
         # the only thing in line should be the time step at which the last restart was written
-        if not 'restart' in self.metadata:
-            self.metadata['restart']=[]
+        if not 'restart' in self.time_series_data:
+            self.time_series_data['restart']=[]
         ts=int(line.strip())
-        self.metadata['restart'].append(ts)
-
-    def update(self,bytes):
-        """
-        Update the NAMD log parser with new bytes of data. This method appends the new bytes to the byte collector and processes the lines in the log file.
-        It identifies the end of each line and processes each line based on its content.
-        
-        Parameters
-        ----------
-        bytes : bytes
-            The bytes to update the log parser with. This can be a string or bytes object containing the log data.
-        """
-        super().update(bytes)
-        last_line_idx=self.line_idx[-1]
-        addl_line_idx=[m.start()+1+last_line_idx for m in re.finditer(os.linesep,self.byte_collector[last_line_idx:])]
-        scan_ldx=[last_line_idx] # in case last line was incomplete in a previous pass
-        if len(addl_line_idx)>1:
-            scan_ldx.extend(addl_line_idx)
-        for i,j in zip(scan_ldx[:-1],scan_ldx[1:]):
-            if i not in self.processed_line_idx:
-                line=self.byte_collector[i:j]
-                result=self.process_line(line)
-                if result==-1:  # bail out key found, stop processing
-                    return
-                self.processed_line_idx.append(i)
-        if len(addl_line_idx)>1:
-            self.line_idx.extend(addl_line_idx)
-            last_line=self.byte_collector[addl_line_idx[-1]:]
-            if last_line.endswith(os.linesep):
-                self.process_line(last_line)
-                self.processed_line_idx.append(addl_line_idx[-1])
+        self.time_series_data['restart'].append(ts)
 
     def process_pressureprofile_line(self,line):
         """
@@ -600,22 +605,27 @@ class NAMDLog(LogParser):
             A line from the NAMD log file that contains pressure profile data.
         """
         tokens=[x.strip() for x in line.split()]
-        tokens[0]=int(tokens[0])
+        TS=int(tokens[0])
         logger.debug(f'process_pressureprofile_line: TS {tokens[0]}')
         for i in range(1,len(tokens)):
             tokens[i]=float(tokens[i])
         this_col=tokens[1:]
+        new_line={'TS':TS}
+        new_line.update({k:v for k,v in zip([str(x) for x in np.arange(len(this_col))],this_col)})
         if not 'number_of_pressure_slabs' in self.metadata:
             self.metadata['number_of_pressure_slabs']=len(this_col)
-        if self.pressureprofile_df.empty:
-            # we need to set the indices to be the slab indices
-            self.pressureprofile_df=pd.DataFrame(this_col,index=np.arange(self.metadata['number_of_pressure_slabs']),columns=[str(tokens[0])])
-        else:
-            # append this col to the dataframe
-            new_col=pd.DataFrame(this_col,index=np.arange(self.metadata['number_of_pressure_slabs']),columns=[str(tokens[0])])
-            self.pressureprofile_df=pd.concat([self.pressureprofile_df,new_col],axis=1)
-                # if self.pressureprofile_df.shape[1]==2:
-                #     logger.debug(f'{self.pressureprofile_df.head().to_string()}')
+        if not 'pressureprofile' in self.time_series_data:
+            self.time_series_data['pressureprofile']=[]
+        self.time_series_data['pressureprofile'].append(new_line)
+        # if self.pressureprofile_df.empty:
+        #     # we need to set the indices to be the slab indices
+        #     self.pressureprofile_df=pd.DataFrame(this_col,index=np.arange(self.metadata['number_of_pressure_slabs']),columns=[str(tokens[0])])
+        # else:
+        #     # append this col to the dataframe
+        #     new_col=pd.DataFrame(this_col,index=np.arange(self.metadata['number_of_pressure_slabs']),columns=[str(tokens[0])])
+        #     self.pressureprofile_df=pd.concat([self.pressureprofile_df,new_col],axis=1)
+        #         # if self.pressureprofile_df.shape[1]==2:
+        #             logger.debug(f'{self.pressureprofile_df.head().to_string()}')
 
     def process_wallclock_line(self,line):
         """
@@ -643,9 +653,9 @@ class NAMDLog(LogParser):
         if len(tokens)<5:
             logger.debug(f'process_performance_line: {line} does not have enough tokens')
             return
-        if not 'performance' in self.metadata:
-            self.metadata['performance']=[]
-        self.metadata['performance'].append({
+        if not 'performance' in self.time_series_data:
+            self.time_series_data['performance']=[]
+        self.time_series_data['performance'].append({
             'steps': int(tokens[0]),
             'ns_per_day': float(tokens[2]),
             'sec_per_step': float(tokens[4]),
@@ -666,9 +676,9 @@ class NAMDLog(LogParser):
         if len(tokens)<11:
             logger.debug(f'process_timing_line: {line} does not have enough tokens')
             return
-        if not 'timing' in self.metadata:
-            self.metadata['timing']=[]
-        self.metadata['timing'].append({
+        if not 'timing' in self.time_series_data:
+            self.time_series_data['timing']=[]
+        self.time_series_data['timing'].append({
             'steps': int(tokens[0]),
             'cpu_time': float(tokens[2]),
             'cpu_per_step': float(tokens[3]),
@@ -691,40 +701,46 @@ class NAMDLog(LogParser):
         if self.bail_out_key in line:
             logger.debug(f'process_line: {line} contains bail out key, stopping processing')
             return -1
-        if line.startswith(self.info_key):
-            o=len(self.info_key)
-            self.process_info_line(line[o:])
-        elif line.startswith(self.tcl_key):
-            o=len(self.tcl_key)
-            self.process_tcl_line(line[o:])
-        elif line.startswith(self.etitle_key):
+        if line.startswith(self.etitle_key):
             if 'etitle' in self.metadata:
                 # logger.debug(f'process_energy_title: {line} already has etitle')
-                return
-            o=len(self.etitle_key)
-            self.process_energy_title(line[o:])
-        elif line.startswith(self.energy_key):
-            o=len(self.energy_key)
-            self.process_energy_line(line[o:])
-            if 'first_timestep' not in self.metadata:
-                self.metadata['first_timestep']=int(self.energy_df.iloc[0]['TS'])
-        elif line.startswith(self.pressureprofile_key):
-            o=len(self.pressureprofile_key)
-            self.process_pressureprofile_line(line[o:])
-        elif line.startswith(self.wallclock_key):
-            o=len(self.wallclock_key)
-            self.process_wallclock_line(line[o:])
-        elif line.startswith(self.restart_key):
-            o=len(self.restart_key)
-            self.process_restart_line(line[o:])
-        elif line.startswith(self.performance_key):
-            o=len(self.performance_key)
-            self.process_performance_line(line[o:])
-        elif line.startswith(self.timing_key):
-            o=len(self.timing_key)
-            self.process_timing_line(line[o:])
-        return 0
+                return 0
+            self.process_energy_title(line[len(self.etitle_key):])
+            return 0
+        for key,func in self._line_processors.items():
+            if line.startswith(key):
+                func(line[len(key):])
+                return 0
     
+    def update(self,bytes):
+        """
+        Update the NAMD log parser with new bytes of data. This method appends the new bytes to the byte collector and processes the lines in the log file. It identifies the end of each line and processes each line based on its content.  This is best used on a log file that is being written to, such as a live NAMD simulation log file.  For static files, use the :meth:`static <pestifer.util.logparsers.NAMDLog.static>` method instead.
+
+        Parameters
+        ----------
+        bytes : bytes
+            The bytes to update the log parser with. This can be a string or bytes object containing the log data.
+        """
+        super().update(bytes) # this just appends the bytes to the byte_collector
+        last_line_idx=self.line_idx[-1] # recall byte index of last line processed
+        addl_line_idx=[m.start()+1+last_line_idx for m in re.finditer(os.linesep,self.byte_collector[last_line_idx:])]
+        scan_ldx=[last_line_idx] # in case last line was incomplete in a previous pass
+        if len(addl_line_idx)>1:
+            scan_ldx.extend(addl_line_idx)
+        for i,j in zip(scan_ldx[:-1],scan_ldx[1:]):
+            if i not in self.processed_line_idx:
+                line=self.byte_collector[i:j]
+                result=self.process_line(line)
+                if result==-1:  # bail out key found, stop processing
+                    return
+                self.processed_line_idx.append(i)
+        if len(addl_line_idx)>1:
+            self.line_idx.extend(addl_line_idx)
+            last_line=self.byte_collector[addl_line_idx[-1]:]
+            if last_line.endswith(os.linesep):
+                self.process_line(last_line)
+                self.processed_line_idx.append(addl_line_idx[-1])
+
     def measure_progress(self):
         if 'number_of_steps' not in self.metadata:
             # logger.debug('measure_progress: number_of_steps not in metadata')
@@ -734,9 +750,9 @@ class NAMDLog(LogParser):
             # logger.debug('measure_progress: first_timestep not in metadata')
             return 0.0
         first_time_step=self.metadata['first_timestep']
-        if self.energy_df.empty:
-            # logger.debug('measure_progress: energy_df is empty')
-            return 0.0
+        # if self.energy_df.empty:
+        #     # logger.debug('measure_progress: energy_df is empty')
+        #     return 0.0
         if 'running_for' in self.metadata:
             running_for=self.metadata['running_for']
             if running_for>0:
@@ -745,7 +761,13 @@ class NAMDLog(LogParser):
             minimizing_for=self.metadata['minimizing_for']
             if minimizing_for>0:
                 number_of_steps=minimizing_for
-        last_row=self.energy_df.iloc[-1]
+        last_row=self.time_series_data['energy'][-1] if 'energy' in self.time_series_data and len(self.time_series_data['energy'])>0 else None
+        if last_row is None:
+            logger.debug('measure_progress: last_row is None')
+            return 0.0
+        if 'TS' not in last_row:
+            logger.debug('measure_progress: TS not in last_row')
+            return 0.0
         most_recent_time_step=last_row['TS']
         complete_steps=most_recent_time_step-first_time_step
         return complete_steps/number_of_steps
@@ -757,10 +779,23 @@ class NAMDLog(LogParser):
         return 'wallclock_time' in self.metadata
 
     def finalize(self):
-        if not self.energy_df.empty:
-            self.energy_df.to_csv(f'{self.basename}-energy.csv',index=False)
-        if not self.pressureprofile_df.empty:
-            self.pressureprofile_df.to_csv(f'{self.basename}-pressureprofile.csv',index=True)
+        """
+        Finalize the log parsing by creating dataframes for each time series.
+        """
+        for key in self.time_series_data:
+            self.dataframes[key]=pd.DataFrame(self.time_series_data[key])
+        if 'first_timestep' not in self.metadata:
+            if 'energy' in self.dataframes:
+                self.metadata['first_timestep']=int(self.dataframes['energy'].iloc[0]['TS'])
+            self.metadata['first_timestep']=int(self.dataframes['energy'].iloc[0]['TS'])
+    
+    def write_csv(self):
+        """
+        Write the parsed data to CSV files. This method creates a CSV file for each dataframe in the `dataframes` attribute, using the basename provided during initialization.
+        The files will be named `<basename>-<key>.csv`, where `<key>` is the key of the dataframe in the `dataframes` dictionary.
+        """
+        for key in self.dataframes:
+            self.dataframes[key].to_csv(f'{self.basename}-{key}.csv',index=False)
 
 class PackmolLog(LogParser):
     """

@@ -123,8 +123,11 @@ class Command:
         self.stdout+=remaining_stdout
         if logparser:
             logparser.update(remaining_stdout)
+            logparser.update_progress_bar()
             if hasattr(logparser,'finalize'):
                 logparser.finalize()
+            if hasattr(logparser,'write_csv'):
+                logparser.write_csv()
         if process.returncode!=0 and not process.returncode in ignore_codes:
             logger.error(f'Returncode: {process.returncode}')
             if len(self.stdout)>0:
