@@ -787,7 +787,6 @@ class NAMDLog(LogParser):
         if 'first_timestep' not in self.metadata:
             if 'energy' in self.dataframes:
                 self.metadata['first_timestep']=int(self.dataframes['energy'].iloc[0]['TS'])
-            self.metadata['first_timestep']=int(self.dataframes['energy'].iloc[0]['TS'])
     
     def write_csv(self):
         """
