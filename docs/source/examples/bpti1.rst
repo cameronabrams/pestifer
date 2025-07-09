@@ -15,19 +15,19 @@ You can check the :ref:`config_ref` for a complete reference to Pestifer config 
 
 This build can be performed (preferably in a clean directory) using this command:
 
-.. code-block:: console
+.. code-block:: bash
 
    $ pestifer run-example 1
 
 The first thing ``pestifer`` does with ``run-example`` is to copy the YAML config file for that example into the local directory.  In this case, the file copied is named ``bpti1.yaml``, and contains what you see above.  Or, alternatively, pasting that content into a local file ``myconfig.yaml``:
 
-.. code-block:: console
+.. code-block:: bash
 
    $ pestifer run myconfig.yaml
 
 You could also use ``fetch-example`` to get the config file and then run it:
 
-.. code-block:: console
+.. code-block:: bash
 
   $ ls
   $ pestifer fetch-example 1
@@ -49,7 +49,7 @@ Digression: Interactive Help
 
 Let's use this second feature to explore the ``psfgen`` task.  (You can visit the :ref:`config_ref tasks psfgen` page to view the same info in the online documentation.) 
 
-.. code-block:: console
+.. code-block:: bash
 
   $ pestifer --no-banner config-help tasks
   Help on user-provided configuration file format
@@ -112,7 +112,7 @@ Let's use this second feature to explore the ``psfgen`` task.  (You can visit th
 
 This tells us that, in addition to ``id``, we have the ability to set several other control parameters.  Continuing in this interactive help session:
 
-.. code-block:: console
+.. code-block:: bash
 
   pestifer-help: biological_assembly
 
@@ -142,7 +142,7 @@ This tells us that, in addition to ``id``, we have the ability to set several ot
 
 And so on.  Let's return to the example.  Immediately after the ``psfgen`` task we declare an ``md`` task, and the subdirective ``ensemble`` is set to ``minimize``.  There are no other subdirectives explicitly listed.  This task will use ``namd3`` to run an energy minimization.  As we did for the ``source`` subdirective of the ``psfgen`` task, let's have a look at the possible subdirectives for an ``md`` task.  We can do this by going "up" twice (``source`` to ``psfgen`` to ``tasks``) and then down into the ``md`` task:
 
-.. code-block:: console
+.. code-block:: bash
 
   pestifer-help: ..
 
@@ -252,3 +252,9 @@ Here ``CC`` is the 2-digit identification of the run *controller* (e.g., ``00`` 
 There were a total of 11 tasks performed in this example, where the final task is the ``terminate`` task.  The final run-ready files therefore have the prefix ``00-09-00`` since they result from the 10th task of the first (and only) controller.
 
 Some tasks may spawn *subcontrollers*, which typically acquire a controller ID derived from that of the parent controller.  In the current version of pestifer, this occurs when building a membrane bilayer, in which a series of MD simulations are launched by a subcontroller the the ``make_membrane_system`` task.
+
+.. raw:: html
+
+    <div class="autogen-footer">
+        <p>Author: Cameron F. Abrams   Contact: <a href="mailto:cfa22@drexel.edu">cfa22@drexel.edu</a></p>
+    </div>

@@ -624,3 +624,28 @@ def to_latex_math(s):
     parts = s.split(',')
     converted = [convert_token(part) for part in parts]
     return ', '.join(converted)
+
+def example_footer(author_name='',author_email=''):
+    """
+    Returns a formatted footer string with author information.
+
+    Parameters
+    ----------
+    author_name: str, optional
+        The name of the author. Defaults to an empty string.
+    author_email: str, optional
+        The email of the author. Defaults to an empty string.
+
+    Returns
+    -------
+    str: A formatted footer string.
+    """
+    footer=''
+    if author_name and author_email:
+        footer=f""".. raw:: html
+
+
+        <div class="autogen-footer">
+            <p>Example author: {author_name}&nbsp;&nbsp;&nbsp;Contact: <a href="mailto:{author_email}">{author_email}</a></p>
+        </div>"""
+    return footer

@@ -3,7 +3,6 @@ These are charmmff topology/parameter/stream files not normally
 found in the base charmmff releases.
 
 - pestifer.top
-    * postively-charged histidine patch
     * a patch that turns a standard up-puckered PRO into a down-
       puckered PRO (PROD)
     * various terminus undoing patches

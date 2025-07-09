@@ -22,7 +22,7 @@ I also recommend creating a Git branch for your modifications, so you can easily
 Adding an Example
 ~~~~~~~~~~~~~~~~~
 
-I developed most of the examples by iteration, so I would start with a simple YAML config file and then modify it to add new features or test new functionality.  The simplest way to start with a new example is to use ``pestifer new-system``.  For example, consider the :ref:`myoglobin example <example 1mob>`.  I started with:
+I developed most of the examples by iteration, so I would start with a simple YAML config file and then modify it to add new features or test new functionality.  The simplest way to start with a new example is to use ``pestifer new-system``.  For example, consider the :ref:`myoglobin example <example sperm-whale-myoglobin>`.  I started with:
 
 .. code-block:: bash
 
@@ -104,4 +104,10 @@ Satisfied with the example, I merged the branch back into ``main``:
     $ git branch -d new-1mob
 
 If you want to add an example, you can do so in your own fork of the repository, and then submit a pull request to have it merged into the main repository.
+
+I then renamed this example using the ``modify-package`` subcommand:
+
+.. code-block:: bash
+
+    $ pestifer modify-package --example-action rename --example-index 19 --new-name sperm-whale-myoglobin
 

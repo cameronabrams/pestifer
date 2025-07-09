@@ -6,6 +6,7 @@ from collections import UserList
 import yaml
 import logging
 logger = logging.getLogger(__name__)
+from ..core.stringthings import example_footer
 
 class Example:
     """
@@ -23,11 +24,31 @@ class Example:
         The index of the example in the list of examples.
     """
 
-    def __init__(self, name: str, pdbID: str = '', description: str = '', index: int = 0):
+    def __init__(self, name: str, pdbID: str = '', description: str = '', index: int = 0, author_name: str = '', author_email: str = ''):
+        """
+        Initialize an Example instance.
+
+        Parameters
+        ----------
+        name : str
+            The name of the example.
+        pdbID : str, optional
+            The PDB ID associated with the example.
+        description : str, optional
+            A description of the example.
+        index : int, optional
+            The index of the example in the list of examples.
+        author_name : str, optional
+            The name of the author of the example.
+        author_email : str, optional
+            The email of the author of the example.
+        """
         self.name = name
         self.pdbID = pdbID
         self.description = description
         self.index = index
+        self.author_name = author_name
+        self.author_email = author_email
 
     def to_dict(self) -> dict:
         """
@@ -42,7 +63,9 @@ class Example:
             'name': self.name,
             'pdbID': self.pdbID,
             'description': self.description,
-            'index': self.index
+            'index': self.index,
+            'author_name': self.author_name,
+            'author_email': self.author_email
         }
 
     def report_line(self,formatter=r'{:>7s}    {:>4s}  {:<30s}    {}') -> str:
@@ -88,13 +111,16 @@ class Example:
             url= f"https://alphafold.com/api/prediction/{self.pdbID}"
         else:
             url= f"https://www.rcsb.org/structure/{self.pdbID}"
-        return f".. _example {self.name}:\n\n{title}\n" \
+        basestring= f".. _example {self.name}:\n\n{title}\n" \
                f"{'-' * len(title)}\n\n" \
                f"`PDB ID {self.pdbID} <{url}>`_ is...\n\n" \
                f"This example demonstrates that ...\n\n" \
                f".. literalinclude:: ../../../pestifer/resources/examples/{yaml_file_name}\n" \
                f"    :language: yaml\n\n"
-
+        if self.author_email and self.author_name:
+            basestring += example_footer(self.author_name, self.author_email)
+        return basestring
+    
 class ExampleList(UserList):
     """
     Represents a list of examples.

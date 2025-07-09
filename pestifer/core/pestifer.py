@@ -210,17 +210,15 @@ def show_resources(args,**kwargs):
     """
     Show available resources for the specified configuration.
     """
-    C=Config()
-    r=C.RM
-    specs={}
-    for c in r.base_resources:
-        if hasattr(args,c):
-            val=getattr(args,c)
-            if val:
-                specs[c]=val
+    r=ResourceManager()
+    resource_type=args.resource_type
+    specs={resource_type:[]}
+    if hasattr(args,resource_type):
+        for subresource in getattr(args,resource_type):
+            specs[resource_type].append(subresource)
     if args.user_pdbcollection:
         r.update_pdbrepository(args.user_pdbcollection)
-    r.show(out_stream=print,components=specs,fullnames=args.fullnames,missing_fullnames=C['user']['charmmff'].get('resi-fullnames',{}))
+    r.show(out_stream=print,components=specs,fullnames=args.fullnames,missing_fullnames=r.labels.residue_fullnames)
 
 def modify_package(args):
     """
@@ -241,14 +239,18 @@ def modify_package(args):
         if args.example_action == 'insert':
             new_number=args.example_index
             new_yaml=args.new_yaml
+            author_name=args.author_name
+            author_email=args.author_email
             if new_number>0 and new_yaml:    
-                RM.insert_example(new_number,new_yaml)
+                RM.insert_example(new_number,new_yaml,author_name=author_name,author_email=author_email)
             else:
                 raise ValueError(f'Invalid parameters for insert example action: new_number={new_number}, new_yaml={new_yaml}. Must be positive integer and non-empty YAML file name.')
         elif args.example_action == 'add':
             new_yaml=args.new_yaml
+            author_name=args.author_name
+            author_email=args.author_email
             if new_yaml:
-                RM.add_example(new_yaml)
+                RM.add_example(new_yaml,author_name=author_name,author_email=author_email)
             else:
                 raise ValueError(f'Invalid parameter for add example action: new_yaml={new_yaml}. Must be non-empty YAML file name.')
         elif args.example_action == 'update':
@@ -264,7 +266,22 @@ def modify_package(args):
                 RM.delete_example(number)
             else:
                 raise ValueError(f'Invalid parameter for delete example action: number={number}. Must be positive integer.')
-    
+        elif args.example_action == 'rename':
+            number=args.example_index
+            new_name=args.new_example_name
+            if number>0 and new_name:
+                RM.rename_example(number,new_name)
+            else:
+                raise ValueError(f'Invalid parameters for rename example action: number={number}, new_name={new_name}. Must be positive integer and non-empty YAML file name.')
+        elif args.example_action == 'author':
+            number=args.example_index
+            author_name=args.author_name
+            author_email=args.author_email
+            if number>0 and author_name and author_email:
+                RM.set_example_author(number,author_name,author_email)
+            else:
+                raise ValueError(f'Invalid parameters for set-author example action: number={number}, author_name={author_name}, author_email={author_email}. Must be positive integer and non-empty strings.')
+            
     if args.update_atomselect_macros:
         RM.update_atomselect_macros()
 
@@ -412,11 +429,15 @@ def cli():
     command_parsers['wheretcl'].add_argument('--script-dir',default=False,action='store_true',help='print full path of directory of Pestifer\'s VMD scripts')
     command_parsers['wheretcl'].add_argument('--pkg-dir',default=False,action='store_true',help='print full path of directory of Pestifer\'s VMD/TcL package library')
     command_parsers['wheretcl'].add_argument('--root',default=False,action='store_true',help='print full path of Pestifer\'s root TcL directory')
+
     command_parsers['modify-package'].add_argument('--update-atomselect-macros',action='store_true',help='update the resources/tcl/macros.tcl file based on content in core/labels.py; developer use only')
     command_parsers['modify-package'].add_argument('--example-index',type=int,default=0,help='integer index of example to modify; developer use only')
-    command_parsers['modify-package'].add_argument('--example-action',type=str,default=None,choices=[None,'add','insert','update','delete'],help='action to perform on the example; choices are [add|insert|update|delete]; developer use only')
+    command_parsers['modify-package'].add_argument('--example-action',type=str,default=None,choices=[None,'add','insert','update','delete','rename','author'],help='action to perform on the example; choices are [add|insert|update|delete|rename|author]; developer use only')
     command_parsers['modify-package'].add_argument('--new-yaml',type=str,default='',help='yaml file of example to update in the package; developer use only')
+    command_parsers['modify-package'].add_argument('--new-example-name',type=str,default='',help='new name for the example; developer use only')
     command_parsers['modify-package'].add_argument('--log-level',type=str,default='info',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
+    command_parsers['modify-package'].add_argument('--author-name',type=str,default='',help='Name of the author (default: %(default)s)')
+    command_parsers['modify-package'].add_argument('--author-email',type=str,default='',help='Email of the author (default: %(default)s)')
 
     command_parsers['make-pdb-collection'].add_argument('--streamID',type=str,default=None,help='charmmff stream to scan')
     command_parsers['make-pdb-collection'].add_argument('--substreamID',type=str,default='',help='charmmff substream to scan')
@@ -448,11 +469,12 @@ def cli():
     command_parsers['make-namd-restart'].add_argument('--new-base',type=str,help='basename of new NAMD config to create (excludes .namd extension)')
     command_parsers['make-namd-restart'].add_argument('--run',type=int,help='number of time steps to run')
     command_parsers['make-namd-restart'].add_argument('--slurm',type=str,help='name of SLURM script to update')
-    command_parsers['show-resources'].add_argument('--examples',default=False,action='store_true',help='show system examples')
-    command_parsers['show-resources'].add_argument('--tcl',default=False,action='store_true',help='show description of system TcL scripts and packages')
-    command_parsers['show-resources'].add_argument('--charmmff',type=str,nargs='+',default=[],help='show elements of charmmff-specific resources (\'toppar\', \'custom\', \'pdb\')')
+
+    command_parsers['show-resources'].add_argument('resource_type',type=str,default='examples',help='Type of resource to show; [tcl|examples|charmff]')
+    command_parsers['show-resources'].add_argument('--charmmff',type=str,nargs='+',default=[],help='show sub-resources of charmmff resources (\'toppar\', \'custom\', \'pdb\')')
     command_parsers['show-resources'].add_argument('--fullnames',default=False,action='store_true',help='show full names of any residues shown with --charmmff pdb')
     command_parsers['show-resources'].add_argument('--user-pdbcollection',type=str,nargs='+',default=[],help='additional collections of PDB files outside pestifer installation')
+    
     command_parsers['mdplot'].add_argument('--logs',type=str,default=[],nargs='+',help='list of one more NAMD logs in chronological order')
     command_parsers['mdplot'].add_argument('--xsts',type=str,default=[],nargs='+',help='list of one more NAMD xsts in chronological order')
     command_parsers['mdplot'].add_argument('--basename',type=str,default='mdplot',help='basename of output files')

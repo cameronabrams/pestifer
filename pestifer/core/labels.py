@@ -191,6 +191,12 @@ _residue_aliases = [
     "HEM HEME"
 ]
 
+_residue_fullnames = {
+    "DIPA": "di-alpha-linoleoyl phosphatidic acid",
+    "DTPA": "di-hexadecatrienoyl phosphatidic acid",
+    "TIPA": "di-palmitoleoyl-2-linoleoyl phosphatidic acid"
+}
+
 class LabelMappers:
     """
     Class to hold label mappers for residue names and segment types.
@@ -200,6 +206,7 @@ class LabelMappers:
         self.aliases={}
         self.aliases['atom'] = _atom_aliases
         self.aliases['residue'] = _residue_aliases
+        self.residue_fullnames = _residue_fullnames
         self.segtypes=segtypes
         self.segtype_of_resname = {}
         self.charmm_resname_of_pdb_resname = {}

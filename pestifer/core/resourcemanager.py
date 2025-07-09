@@ -261,3 +261,42 @@ class ResourceManager:
             The path to a YAML file containing the updated example data. It may or may not end with '.yaml'.  It should have a 'title' field and either the field 'id' or 'alphafold' under tasks->psfgen->source.
         """
         self.example_manager.update_example(example_index, example_yaml)
+
+    def delete_example(self,example_index):
+        """
+        Delete an example from the pestifer examples directory.
+
+        Parameters
+        ----------
+        example_index : int
+            The index of the example to delete. This should be a positive integer indicating the position in the examples list (1-based).
+        """
+        self.example_manager.delete_example(example_index)
+
+    def rename_example(self,example_index,new_name):
+        """
+        Rename an existing example in the pestifer examples directory.
+
+        Parameters
+        ----------
+        example_index : int
+            The index of the example to rename. This should be a positive integer indicating the position in the examples list (1-based).
+        new_name : str
+            The new name for the example. This should be a valid filename without any path components.
+        """
+        self.example_manager.rename_example(example_index, new_name)
+
+    def set_example_author(self,example_index,author_name,author_email):
+        """
+        Set the author information for an example in the pestifer examples directory.
+
+        Parameters
+        ----------
+        example_index : int
+            The index of the example to set the author for. This should be a positive integer indicating the position in the examples list (1-based).
+        author_name : str
+            The name of the author.
+        author_email : str
+            The email address of the author.
+        """
+        self.example_manager.set_example_author(example_index, author_name, author_email)

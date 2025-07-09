@@ -28,3 +28,11 @@ Second, note the ``ssbondsdelete`` list.  Again, a shortcode is used to identify
 
            BPTI with the 5-55 disulfide reduced, and 
            point mutations T11A, P13A, K15R, and M52L.
+
+
+.. raw:: html
+
+
+        <div class="autogen-footer">
+            <p>Example author: Cameron F. Abrams&nbsp;&nbsp;&nbsp;Contact: <a href="mailto:cfa22@drexel.edu">cfa22@drexel.edu</a></p>
+        </div>

@@ -24,4 +24,4 @@ Examples
   examples/hiv-mpertm3-membrane1
   examples/hiv-mpertm3-membrane2
   examples/ecoli-polymerase
-  examples/1mob
+  examples/sperm-whale-myoglobin

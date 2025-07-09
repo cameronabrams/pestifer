@@ -11,6 +11,7 @@ import logging
 logger = logging.getLogger(__name__)
 from .toctree_util import modify_toctree,get_name_from_toctree
 from ..core.examplemanager import Example
+from ..core.stringthings import example_footer
 
 class SphinxExampleManager:
     """
@@ -157,3 +158,47 @@ class SphinxExampleManager:
                 raise FileNotFoundError(f'Example file {destination_file} does not exist. Cannot delete non-existing example files.')
         if self.examples_rst:
             modify_toctree(self.examples_rst, action='delete', target=example.name)
+
+    def rename_example(self, index:int, new_name:str):
+        """
+        Rename an example in the examples RST file.
+        
+        Parameters
+        ----------
+        index : int
+            The 1-based index of the example to rename.
+        new_name : str
+            The new name for the example.
+        """
+        if self.examples_source_path:
+            current_name = get_name_from_toctree(self.examples_rst, index)
+            current_rst_file = os.path.join(self.examples_source_path, f'{current_name}.rst')
+            if not os.path.exists(current_rst_file):
+                raise FileNotFoundError(f'Current example file {current_rst_file} does not exist. Cannot rename non-existing example files.')
+            new_rst_file = os.path.join(self.examples_source_path, f'{new_name}.rst')
+            os.rename(current_rst_file, new_rst_file)
+            logger.debug(f'Renamed {current_rst_file} to {new_rst_file}')
+        if self.examples_rst:
+            modify_toctree(self.examples_rst, action='rename', index=index, new_entry=new_name)
+
+    def set_author(self, index:int, author_name:str, author_email:str):
+        """
+        Set the author information for an example in the examples RST file.
+        
+        Parameters
+        ----------
+        index : int
+            The 1-based index of the example to set the author for.
+        author_name : str
+            The name of the author.
+        author_email : str
+            The email of the author.
+        """
+        if self.examples_source_path:
+            current_name = get_name_from_toctree(self.examples_rst, index)
+            current_rst_file = os.path.join(self.examples_source_path, f'{current_name}.rst')
+            if not os.path.exists(current_rst_file):
+                raise FileNotFoundError(f'Current example file {current_rst_file} does not exist. Cannot set author for non-existing example files.')
+            with open(current_rst_file, 'a') as f:
+                f.write(f'\n\n')
+                f.write(example_footer(author_name, author_email))
