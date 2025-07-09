@@ -1,6 +1,6 @@
 .. _example mper-tm symmetric bilayer:
 
-Example 16: HIV-1 Env MPER-TM Trimer in an Asymmetric, Model Viral Bilayer
+Example 16: HIV-1 Env MPER-TM Trimer in a DMPC/DHPC Symmetric Bilayer
 --------------------------------------------------------------------------
 
 .. figure:: pics/my_6e8w_pc.png
