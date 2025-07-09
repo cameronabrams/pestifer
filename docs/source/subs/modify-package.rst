@@ -57,9 +57,10 @@ This will copy the file ``1mob.yaml`` to the ``examples`` directory in the pesti
 
 .. code-block:: bash
 
+    $ git add .
     $ git commit -m "Add 1mob example"
 
-Then, I recompiled the documenation:
+Then, I recompiled the documenation while my package was still in the ``new-1mob`` branch:
 
 .. code-block:: bash
 

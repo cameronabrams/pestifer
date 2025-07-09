@@ -11,7 +11,7 @@ Examples
   examples/bpti3
   examples/bpti4
   examples/hiv-protease
-  examples/toxin
+  examples/green-mamba-toxin
   examples/hiv-sosip-env-ectodomain1
   examples/hiv-sosip-env-ectodomain2
   examples/hiv-ad8-env-ectodomain
