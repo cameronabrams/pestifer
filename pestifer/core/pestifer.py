@@ -146,19 +146,17 @@ def mdplot(args):
     console.setLevel(logging.DEBUG)
     formatter=logging.Formatter('%(levelname)s> %(message)s')
     console.setFormatter(formatter)
-    logging.getLogger('').addHandler(console)
     config=Config()
-    logger.debug(f'logs {args.logs}')
     C=Controller(
         config,userspecs={
             'tasks':[{
                 'mdplot':{
-                    'existing-logs':args.logs,
-                    'existing-xsts':args.xsts,
-                    'basename':args.basename,
+                    'postprocessing':True,
+                    'logs':args.logs,
                     'figsize':args.figsize,
-                    'traces':args.traces,
+                    'timeseries':args.timeseries,
                     'profiles':args.profiles,
+                    'profiles_per_block':args.profiles_per_block,
                     'legend':True,
                     'grid':True,
                     'units': {
@@ -170,9 +168,10 @@ def mdplot(args):
                     }
                 }
             }]
-        }
+        },
+        terminate=False
     )
-
+    C.tasks[0].taskname=args.basename
     report=C.do_tasks()
 
 def list_examples():
@@ -476,11 +475,11 @@ def cli():
     command_parsers['show-resources'].add_argument('--user-pdbcollection',type=str,nargs='+',default=[],help='additional collections of PDB files outside pestifer installation')
     
     command_parsers['mdplot'].add_argument('--logs',type=str,default=[],nargs='+',help='list of one more NAMD logs in chronological order')
-    command_parsers['mdplot'].add_argument('--xsts',type=str,default=[],nargs='+',help='list of one more NAMD xsts in chronological order')
     command_parsers['mdplot'].add_argument('--basename',type=str,default='mdplot',help='basename of output files')
     command_parsers['mdplot'].add_argument('--figsize',type=int,nargs=2,default=[9,6],help='figsize')
-    command_parsers['mdplot'].add_argument('--traces',type=list,default=['density'],nargs='+',help='traces to plot')
-    command_parsers['mdplot'].add_argument('--profiles',type=list,default=['pressure'],nargs='+',help='profiles (along z) to plot')
+    command_parsers['mdplot'].add_argument('--timeseries',type=str,default=['density'],nargs='+',help='timeseries to plot')
+    command_parsers['mdplot'].add_argument('--profiles',type=str,default=['pressure'],nargs='+',help='profiles (along z) to plot')
+    command_parsers['mdplot'].add_argument('--profiles-per-block',type=int,default=100,help='number of profiles to plot per block (default: %(default)s)')
     # command_parsers['cleanup'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
     command_parsers['follow-namd-log'].add_argument('log',type=str,default=None,help='input NAMD log file')
     command_parsers['follow-namd-log'].add_argument('--basename',type=str,default=None,help='basename of output files')

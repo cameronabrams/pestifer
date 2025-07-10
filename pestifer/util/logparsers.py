@@ -276,7 +276,7 @@ class VMDLog(LogParser):
         super().__init__()
         self.basename=basename
 
-class NAMDxst():
+class NAMDxst(LogParser):
     """ 
     A class for parsing NAMD xst files, which contain information about the simulation cell dimensions.
 
@@ -285,36 +285,26 @@ class NAMDxst():
     filename : str
         The path to the NAMD xst file to parse.
     """
-    def __init__(self,filename):
-        celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
-        col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
-        celldf.columns=col
-        self.df=celldf
+    def __init__(self,basename='namd-xstparser'):
+        self.basename=basename
+        self.filename=f'{basename}.xst'
+        super().__init__()
 
-    def add_file(self,filename):
+    @classmethod
+    def from_file(cls,basename='namd-xstparser'):
         """
-        Add another NAMD xst file to the existing data.
-        
-        Parameters
-        ----------
-        filename : str
-            The path to the NAMD xst file to add.
+        Generate a NAMDxst instance from an existing NAMD xst file.
         """
-        celldf=pd.read_csv(filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
-        col='step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
+        instance = cls(basename)
+        if not os.path.exists(instance.filename):
+            # throw a warning and return None
+            logger.debug(f'FYI: No {instance.filename} exists for this run.')
+            return None
+        celldf=pd.read_csv(instance.filename,skiprows=2,header=None,sep=r'\s+',index_col=None)
+        col='TS a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
         celldf.columns=col
-        self.df=pd.concat((self.df,celldf))
-
-    def concat(self,other):
-        """
-        Concatenate another NAMDxst instance's data with the current instance's data.
-        
-        Parameters
-        ----------
-        other : NAMDxst
-            Another instance of NAMDxst whose data will be concatenated with the current instance's data.
-        """
-        self.df=pd.concat((self.df,other.df))
+        instance.dataframe=celldf
+        return instance
         
 class NAMDLog(LogParser):
     """
@@ -401,6 +391,7 @@ class NAMDLog(LogParser):
             self.performance_key: self.process_performance_line,
             self.timing_key: self.process_timing_line
         }
+        self._xst_parser=None
     
     @classmethod
     def from_file(cls,filename,passfilter=[]):
@@ -419,6 +410,7 @@ class NAMDLog(LogParser):
         """
         logger.debug(f'Creating {cls.__name__} from {filename}')
         instance=cls()
+        instance.basename=os.path.splitext(os.path.basename(filename))[0]
         instance.static(filename,passfilter=passfilter)
         return instance
     
@@ -554,8 +546,8 @@ class NAMDLog(LogParser):
         for i in range(1,len(tokens)):
             tokens[i]=float(tokens[i])
         new_line={k:v for k,v in zip(self.metadata['etitle'],tokens)}
-        if 'VOLUME' in new_line:
-            new_line['DENSITY']=self.metadata['total_mass']/new_line['VOLUME']
+        # if 'VOLUME' in new_line:
+        #     new_line['DENSITY']=self.metadata['total_mass']/new_line['VOLUME']
         if not 'energy' in self.time_series_data:
             self.time_series_data['energy']=[]
         self.time_series_data['energy'].append(new_line)
@@ -606,7 +598,7 @@ class NAMDLog(LogParser):
         """
         tokens=[x.strip() for x in line.split()]
         TS=int(tokens[0])
-        logger.debug(f'process_pressureprofile_line: TS {tokens[0]}')
+        # logger.debug(f'process_pressureprofile_line: TS {tokens[0]}')
         for i in range(1,len(tokens)):
             tokens[i]=float(tokens[i])
         this_col=tokens[1:]
@@ -782,8 +774,17 @@ class NAMDLog(LogParser):
         """
         Finalize the log parsing by creating dataframes for each time series.
         """
+        # parse the XST file
+        self.auxlog=NAMDxst.from_file(basename=self.basename)
         for key in self.time_series_data:
             self.dataframes[key]=pd.DataFrame(self.time_series_data[key])
+        if self.auxlog:
+            self.dataframes['xst']=self.auxlog.dataframe
+        # add a 'DENSITY' column to the energy dataframe
+        if 'energy' in self.dataframes:
+            if 'total_mass' in self.metadata and 'VOLUME' in self.dataframes['energy'].columns:
+                self.dataframes['energy']['DENSITY']=self.metadata['total_mass']/self.dataframes['energy']['VOLUME']
+        # If we did not find the first time step, infer it from the energy log
         if 'first_timestep' not in self.metadata:
             if 'energy' in self.dataframes:
                 self.metadata['first_timestep']=int(self.dataframes['energy'].iloc[0]['TS'])

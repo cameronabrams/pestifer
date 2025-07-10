@@ -210,7 +210,7 @@ directives:
           wrapAll: on
       - name: thermostat
         type: dict
-        text: NAMD thermostat parameters
+        text: NAMD thermostat parameters (NVT, NPT, and NPAT ensembles)
         default:
           langevin: on 
           langevinDamping: 5
@@ -218,7 +218,7 @@ directives:
           langevinHydrogen: no 
       - name: barostat
         type: dict
-        text: NAMD barostat parameters
+        text: NAMD barostat parameters (NPT ensemble)
         default:
           langevinpiston: on 
           langevinpistontarget: $pressure
@@ -229,7 +229,7 @@ directives:
           useflexiblecell: no
       - name: membrane
         type: dict
-        text: NAMD parameters for membrane simulations
+        text: NAMD parameters for membrane simulations (NPAT ensemble)
         default:
           langevinpiston: on 
           langevinpistontarget: $pressure
@@ -651,35 +651,51 @@ directives:
           text: |
             This task generates plots from the output of MD tasks.  It can plot energy-like quantities vs time, and profile quantities vs distance along the z-axis. The plots are generated using matplotlib, and are saved as image files. This task can be part of a standard build, or it can be used via the command line (``pestifer mdplot``) to generate plots from existing NAMD logs and xst files.
         directives:
-          - name: existing-logs
+          - name: postprocessing
+            text: whether to run the mdplot task as part of a standard build or as a post-processing step
+            type: bool
+            default: False
+          - name: logs
             type: list
             text: list of existing namd logs, in chronological order, from which data to be plotted is to be extracted
-            default: []
-          - name: existing-xsts
-            type: list
-            text: list of existing namd xst files, in chronological order, from which data to be plotted is to be extracted
             default: []
           - name: figsize
             type: list
             text: size of matplotlib figure
             default: [9,6]
-          - name: traces
+          - name: timeseries
             type: list
-            text: List of energy-like quantities to plot vs timestep
+            text: List of (possibly sublists of) quantities to plot vs timestep
             default:
               - density
             docs:
               text: |
                 The list of energy-like quantities to plot vs timestep.  These quantities are extracted from the NAMD log files and plotted against timestep.  To combine traces onto a single plot, the list element itself can be a list. The default is to plot density, but you can specify any quantity in an ENERGY: output line or an XST file, including:
+
                 - density (not included in ENERGY:, but computed)
                 - a_x (cell size along x direction)
                 - b_y (cell size along y direction)
                 - c_z (cell size along z direction)
                 - pressure
                 - temperature
+              example:
+                timeseries:
+                  - density
+                  - - a_x
+                    - b_y
+                    - c_z
+                  - pressure
+                  - temperature
           - name: profiles
             type: list
             text: List of profile quantities to plot vs distance along z-axis
+          - name: profiles-per-block
+            type: int
+            text: Number of profiles to average per block
+            default: 100
+          - name: histograms
+            type: list
+            text: List of histogram quantities to plot vs distance along z-axis
           - name: units
             type: dict
             text: user-specified units for plots

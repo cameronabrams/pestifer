@@ -9,12 +9,14 @@ For example, if your list of tasks ends with the following ``terminate`` task sp
 
 .. code-block:: yaml
 
-   - terminate:
-      basename: my_system
-      package:
-        ensemble: NPT
-        basename: prod_system
-        
+   tasks:
+     - ... (prior tasks here)
+     - terminate:
+         basename: my_system
+         package:
+           ensemble: NPT
+           basename: prod_system
+
 then pestifer will generate the output files
 
 * ``my_system.psf`` -- the PSF file

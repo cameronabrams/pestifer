@@ -1,6 +1,6 @@
-.. _config_ref namd barostat:
+.. _config_ref namd membrane:
 
-``barostat``
+``membrane``
 ------------
 
   * ``langevinpiston``: True
@@ -9,10 +9,11 @@
   * ``langevinpistondecay``: 100
   * ``langevinpistontemp``: $temperature
   * ``usegrouppressure``: True
-  * ``useflexiblecell``: False
+  * ``useflexiblecell``: True
+  * ``useconstantratio``: True
 
 
-NAMD barostat parameters (NPT ensemble)
+NAMD parameters for membrane simulations (NPAT ensemble)
 
 .. raw:: html
 

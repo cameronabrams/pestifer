@@ -34,7 +34,7 @@ class Controller:
     index : int, optional
         An index for the controller instance, useful for identifying multiple controllers in a run.
     """
-    def __init__(self,config:Config,userspecs={},index=0):
+    def __init__(self,config:Config,userspecs={},index=0,terminate=True):
         self.index=index
         self.config=config
         if userspecs:
@@ -79,7 +79,10 @@ class Controller:
             prior_task=this_task
         if len(self.tasks)>0: logger.debug(f'last task currently is {self.tasks[-1].taskname}')
         # Add a "terminate" task by default if the user has not specified one
-        if len(self.tasks)==0 or not self.tasks[-1].taskname=='terminate':
+        if terminate and (len(self.tasks)==0 or not self.tasks[-1].taskname=='terminate'):
+            # If the last task is not a TerminateTask, add one
+            # This ensures that the runtime will always have a way to clean up and terminate properly
+            # The TerminateTask will be initialized with the controller index, taskname, config, scripters, and prior task
             specs=self.config.make_default_specs('tasks','terminate')
             logger.debug('Adding default terminate task')
             self.tasks.append(TerminateTask(specs,dict(

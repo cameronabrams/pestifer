@@ -9,7 +9,23 @@ The main purpose of ``pestifer`` is to build simulation-ready systems.  The ``ru
 
    $ pestifer run <config.yaml>
 
-Here ``config.yaml`` is the name of the configuration file that describes the build.  Minimally, a pestifer config file for a run must have a ``tasks`` directive that specifies the *ordered list* of tasks the run should perform.  Typically, each tasks inherits a PSF/PDB/COOR/XSC NAMD file set for a system from a previous task.
+Here ``config.yaml`` is the name of the configuration file that describes the build.  Minimally, a pestifer config file for a run must have a ``tasks`` directive that specifies the *ordered list* of tasks the run should perform.  Typically, each tasks inherits a PSF/PDB/COOR/XSC NAMD file set for a system from a previous task.  For example:
+
+.. code-block:: yaml
+
+   tasks:
+     - psfgen:
+         source:
+           id: 6pti
+     - md:
+         ensemble: minimize
+     - md:
+         ensemble: NVT
+     - terminate:
+         basename: my_system
+         package:
+           ensemble: NPT
+           basename: prod_system
 
 ``pestifer run`` begins by parsing the configuration file, and then it sets up a ``Controller`` object that manages the tasks.  The controller executes each task in the order specified in the configuration file, and it handles any dependencies between tasks.  If a task fails, the controller will stop the run and report the error.
 

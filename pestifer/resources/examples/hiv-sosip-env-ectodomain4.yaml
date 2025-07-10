@@ -76,7 +76,7 @@ tasks:
       ensemble: NPT
       nsteps: 13200
   - mdplot:
-      traces:
+      timeseries:
         - density
       basename: solvated
       grid: True

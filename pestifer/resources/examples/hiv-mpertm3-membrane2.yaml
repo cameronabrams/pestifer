@@ -67,7 +67,7 @@ tasks:
                 temperature: 310
                 pressure: 10.0
             - md:
-                ensemble: NPT
+                ensemble: NPAT
                 nsteps: 16000  # this is probably too short!
                 temperature: 310
                 pressure: 1.0
@@ -80,7 +80,7 @@ tasks:
                 temperature: 310
                 pressure: 1.0
             - md:
-                ensemble: NPT
+                ensemble: NPAT
                 nsteps: 2000
                 temperature: 310
                 pressure: 1.0
@@ -115,14 +115,14 @@ tasks:
       ensemble: NPT
       nsteps: 6400
   - md:
-      ensemble: NPT
+      ensemble: NPAT
       nsteps: 25600  # this is way too short!!
       other_parameters:
         pressureProfile: on
         pressureProfileFreq: 100
         pressureProfileSlabs: 20
   - mdplot:
-      traces:
+      timeseries:
         - density
         - - a_x
           - b_y
@@ -133,5 +133,14 @@ tasks:
   - terminate:
       basename: my_6e8w
       package:
-        ensemble: NPT
+        ensemble: NPAT
         basename: prod_6e8w
+        firsttimestep: 0
+        dcdfreq: 10000
+        xstfreq: 10000
+        outputenergies: 1000
+        nsteps: 10000000
+        other_parameters:
+          pressureProfile: on
+          pressureProfileFreq: 10000
+          pressureProfileSlabs: 20

@@ -129,7 +129,7 @@ tasks:
         pressureProfileFreq: 100
         pressureProfileSlabs: 20
   - mdplot:
-      traces:
+      timeseries:
         - density
         - - a_x
           - b_y
@@ -151,5 +151,5 @@ tasks:
         nsteps: 10000000
         other_parameters:
           pressureProfile: on
-          pressureProfileFreq: 1000
+          pressureProfileFreq: 10000
           pressureProfileSlabs: 20

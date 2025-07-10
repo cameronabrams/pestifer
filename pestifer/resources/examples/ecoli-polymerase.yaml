@@ -55,7 +55,7 @@ tasks:
       nsteps: 13200
   - mdplot:
       basename: solvated
-      traces:
+      timeseries:
         - density
   - terminate:
       basename: my_5fkw

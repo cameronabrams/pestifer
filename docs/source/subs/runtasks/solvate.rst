@@ -16,10 +16,11 @@ This task simply performs a standard ``psfgen`` run that invokes the ``solvate``
      - md:
          ensemble: NVT
      - solvate:
+         salt_con: 0.15
      - md:
           ensemble: minimize
      - md:
          ensemble: NVT
     
-After minimizing and thermalizing (300 K) a newly built system, pestifer will then solvate it, and then it performs a second minimization and thermalization.
+After minimizing and thermalizing (300 K) a newly built system, pestifer will then solvate it and autoionize to achieve a salt concentration of 150 mM, and then it performs a second minimization and thermalization.
 

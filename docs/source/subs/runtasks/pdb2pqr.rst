@@ -26,8 +26,6 @@ The task then prepares for a new invocation of ``psfgen`` that will apply all th
 
 - ``NNEU``: Neutral N-terminus
 - ``CNEU``: Neutral C-terminus
-- ``HS2``: Convert histidine protonated on ND1 (``HSD``) to histidine protonated on NE2 (``HSE``) (``HSD`` is the default assignment to all histidines)
-- ``HSPP``: Convert histidine protonated on ND1 (``HSD``) to histidine protonated on both NE2 and ND1 (``HSP``)
 - ``TYRO``: Deprotonated tyrosine
 - ``SERD``: Deprotonated serine
 - ``ASPP``: Protonate aspartic acid (``ASP``) on OD1 (``ASPP``)
@@ -35,7 +33,9 @@ The task then prepares for a new invocation of ``psfgen`` that will apply all th
 - ``LSN`` : Deprotonated lysine (atom ``HZ3`` is removed)
 - ``RN2`` : Deprotonated arginine (atom ``HH12`` is removed)
 
-The task then runs ``psfgen`` to apply the patches to the incoming PSF/PDB combination, and it outputs a new PSF/PDB combination that has the protonation states applied.
+Furthermore, the protonation states of the histidine residues are specified via in-segment mutations to the appropriate side-chain.  By default, all histidines are interpreted at residue HSD (protonated on atom ND1).  ``pdb2pqr`` assigns one of HSD, HSE, or HSP as residue names to each histidine residue, depending on the pKa value of the residue and the specified pH.  The task will then apply the appropriate mutation to each histidine residue based on its assigned name.  For example, if a histidine residue is assigned HSE, then the task will apply a mutation to change the residue from HSD to HSE.  If a histidine residue is assigned HSP, then the task will apply a mutation to change the residue from HSD to HSP.
+
+The task then runs ``psfgen`` to apply the mutations and patches to the incoming PSF/PDB combination, and it outputs a new PSF/PDB combination that has the protonation states applied.
 
 References
 ++++++++++

@@ -42,7 +42,7 @@ tasks:
   - mdplot:
       basename: solvated
       grid: true
-      traces:
+      timeseries:
         - density
   - terminate:
       basename: my_1mob
