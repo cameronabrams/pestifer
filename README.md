@@ -28,7 +28,7 @@ Pestifer **includes** the [July 2024 Charmm36 force field](https://mackerell.uma
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
-* 1.18.4
+* 1.18.5
     * support for adding, renaming, inserting, and deleting examples
     * fixed namd restart bugs
 * 1.18.1
