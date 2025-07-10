@@ -12,6 +12,8 @@ Single-valued parameters:
 
   * ``profiles``: List of profile quantities to plot vs distance along z-axis
 
+  * ``profiles-per-block``: Number of profiles to average per block (default: 100)
+
   * ``histograms``: List of histogram quantities to plot vs distance along z-axis
 
   * ``legend``: include a legend (default: True)

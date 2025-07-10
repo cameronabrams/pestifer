@@ -68,7 +68,7 @@ class TerminateTask(MDTask):
             logger.debug('no package specs found')
             return 0
         basename=specs.get('basename','my_system')
-        self.inherit_state()
+        # self.inherit_state()
         self.FC.clear()  # populate a file collector to make the tarball
         logger.debug(f'Packaging for namd using basename {basename}')
         savespecs=self.specs
