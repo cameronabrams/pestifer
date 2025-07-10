@@ -165,7 +165,7 @@ def make_namd_restart(args,**kwargs):
     newbasename=args.new_base
     run=args.run
     oldconfig=NAMDConfig(config)
-    oldlog=NAMDLog.from_file(log,passfilter=['OUTPUT','RESTART','TCL','TIMESTEP'])
+    oldlog=NAMDLog.from_file(log,passfilter=['OUTPUT','RESTART','TCL','TIMESTEP','Wallclock'])
     output_filename=oldlog.metadata.get('output_filename',None)
     if not output_filename:
         logger.error(f'No output filename found in {log}')
@@ -199,7 +199,7 @@ def make_namd_restart(args,**kwargs):
 
     oldconfig.write(f'{newbasename}.namd')
 
-    if len(args.slurm)>0:
+    if args.slurm is not None:
         bc=ByteCollector()
         bc.ingest_file(args.slurm)
         oldscripts=glob.glob(f'%{args.slurm}%-*')

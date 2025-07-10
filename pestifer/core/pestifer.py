@@ -463,11 +463,12 @@ def cli():
     command_parsers['desolvate'].add_argument('--dcd-outfile',type=str,default='dry.dcd',help='name of DCD output file to create (default: %(default)s)')
     command_parsers['desolvate'].add_argument('--idx-outfile',type=str,default='dry.idx',help='name of index file for catdcd to create  (default: %(default)s)')
     command_parsers['desolvate'].add_argument('--dcd-stride',type=int,default=1,help='stride in number of frames for catdcd (default: %(default)s)')
+    
     command_parsers['make-namd-restart'].add_argument('--log',type=str,help='name of most recent NAMD log')
     command_parsers['make-namd-restart'].add_argument('--config',type=str,help='name of most recent NAMD config')
     command_parsers['make-namd-restart'].add_argument('--new-base',type=str,help='basename of new NAMD config to create (excludes .namd extension)')
     command_parsers['make-namd-restart'].add_argument('--run',type=int,help='number of time steps to run')
-    command_parsers['make-namd-restart'].add_argument('--slurm',type=str,help='name of SLURM script to update')
+    command_parsers['make-namd-restart'].add_argument('--slurm',type=str,default=None,help='name of SLURM script to update')
 
     command_parsers['show-resources'].add_argument('resource_type',type=str,default='examples',help='Type of resource to show; [tcl|examples|charmff]')
     command_parsers['show-resources'].add_argument('--charmmff',type=str,nargs='+',default=[],help='show sub-resources of charmmff resources (\'toppar\', \'custom\', \'pdb\')')
