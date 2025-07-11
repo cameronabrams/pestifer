@@ -5,6 +5,7 @@ Defines the :class:`Example` class for managing examples in the documentation.
 from collections import UserList
 import yaml
 import logging
+import os
 logger = logging.getLogger(__name__)
 from ..core.stringthings import example_footer
 
@@ -24,7 +25,7 @@ class Example:
         The index of the example in the list of examples.
     """
 
-    def __init__(self, name: str, pdbID: str = '', description: str = '', index: int = 0, author_name: str = '', author_email: str = ''):
+    def __init__(self, name: str, pdbID: str = '', description: str = '', index: int = 0, author_name: str = '', author_email: str = '', companion_files=[]):
         """
         Initialize an Example instance.
 
@@ -42,6 +43,8 @@ class Example:
             The name of the author of the example.
         author_email : str, optional
             The email of the author of the example.
+        companion_files : list, optional
+            A list of companion files associated with the example.
         """
         self.name = name
         self.pdbID = pdbID
@@ -49,6 +52,7 @@ class Example:
         self.index = index
         self.author_name = author_name
         self.author_email = author_email
+        self.companion_files = companion_files
 
     def to_dict(self) -> dict:
         """
@@ -65,8 +69,86 @@ class Example:
             'description': self.description,
             'index': self.index,
             'author_name': self.author_name,
-            'author_email': self.author_email
+            'author_email': self.author_email,
+            'companion_files': self.companion_files
         }
+
+    @classmethod
+    def from_yaml(cls,yaml_file_name:str,description:str='',pdbID:str='',author_name:str='',author_email:str='',companion_files: list = []):
+        """
+        Create a new Example object based on the provided YAML file and optional parameters.  This provides the convenience of setting the necessary attributes of the Example object based on the contents of the YAML file, while also allowing for customization of the description, pdbID, author name, author email, and companion files.
+
+        Parameters
+        ----------
+        yaml_file_name : str
+            The name of the example file to grab information from. This should be a valid file path.
+        description : str, optional
+            A description of the example; if not provided, extracts the ``title`` field from the YAML file.
+        pdbID : str, optional
+            The PDB ID associated with the example; if not provided, extracts the ``id`` field from the ``psfgen`` task of the ``tasks`` list in the YAML file.
+        author_name : str, optional
+            The name of the author of the example; if not provided, defaults to an empty string.
+        author_email : str, optional
+            The email of the author of the example; if not provided, defaults to an empty string.
+        companion_files : list, optional
+            A list of companion files associated with the example; defaults to an empty list.
+
+        Returns
+        -------
+        Example
+            An Example object containing the name, description, pdbID, and companion_files of the example.
+
+        Raises
+        ------
+        ValueError
+            If the name of the YAML file is not provided. 
+        FileNotFoundError
+            If the example file does not exist at the specified path.
+        """
+        if not yaml_file_name:
+            raise ValueError('Name must be provided')
+        with open(yaml_file_name, 'r') as f:
+            try:
+                new_config=yaml.safe_load(f)
+            except yaml.YAMLError as e:
+                raise ValueError(f'Invalid YAML file {yaml_file_name}: {e}')
+        if not description:
+            if 'title' in new_config:
+                description = new_config['title']
+            else:
+                description = yaml_file_name.replace('.yaml', '').replace('_', ' ').title()
+        if not pdbID:
+            if 'id' in new_config.get('tasks', [{}])[0].get('psfgen', {}).get('source', {}):
+                pdbID = new_config['tasks'][0]['psfgen']['source']['id']
+            elif 'alphafold' in new_config.get('tasks', [{}])[0].get('psfgen', {}).get('source', {}):
+                pdbID = new_config['tasks'][0]['psfgen']['source']['alphafold']
+            else:
+                raise ValueError(f'PDB ID must be provided or found in the YAML file {yaml_file_name}')
+        if not author_name and not author_email:
+            with open(yaml_file_name, 'r') as f:
+                lines= f.readlines()
+            for line in lines:
+                if line.startswith('# Author:'):
+                    author_info = line.split(':', 1)[1].strip()
+                    if '<' in author_info and '>' in author_info:
+                        author_name, author_email = author_info.split('<', 1)
+                        author_email = author_email.strip('>')
+                        author_name = author_name.strip()
+                    else:
+                        author_name = author_info
+                        author_email = ''
+                    break
+        
+        input_dict= {
+            # the name attributed is assigned the basename of the YAML file without the extension
+            'name': os.path.splitext(os.path.basename(yaml_file_name))[0],
+            'description': description,
+            'pdbID': pdbID,
+            'author_name': author_name,
+            'author_email': author_email,
+            'companion_files': companion_files or []
+        }
+        return cls(**input_dict)
 
     def report_line(self,formatter=r'{:>7s}    {:>4s}  {:<30s}    {}') -> str:
         """
@@ -106,21 +188,64 @@ class Example:
         """
         title= f"Example {self.index}: {self.description}"
         yaml_file_name=self.name if self.name.endswith('.yaml') else f"{self.name}.yaml"
+        example_folder=yaml_file_name.replace('.yaml', '')
         if self.pdbID.startswith('P') and len(self.pdbID) > 4:
             # this is likely an alphafold ID
+            pref='Alphafold'
             url= f"https://alphafold.com/api/prediction/{self.pdbID}"
         else:
+            pref='PDB'
             url= f"https://www.rcsb.org/structure/{self.pdbID}"
         basestring= f".. _example {self.name}:\n\n{title}\n" \
                f"{'-' * len(title)}\n\n" \
-               f"`PDB ID {self.pdbID} <{url}>`_ is...\n\n" \
+               f"`{pref} ID {self.pdbID} <{url}>`_ is...\n\n" \
                f"This example demonstrates that ...\n\n" \
-               f".. literalinclude:: ../../../pestifer/resources/examples/{yaml_file_name}\n" \
+               f".. literalinclude:: ../../../pestifer/resources/examples/{example_folder}/{yaml_file_name}\n" \
                f"    :language: yaml\n\n"
         if self.author_email and self.author_name:
             basestring += example_footer(self.author_name, self.author_email)
         return basestring
     
+    def update_in_place(self, name: str = None, pdbID: str = None, description: str = None, author_name: str = None, author_email: str = None, companion_files: list = None):
+        """
+        Update the attributes of the example in place.  Return the Example instance itself.
+        
+        Parameters
+        ----------
+        name : str, optional
+            The new name of the example.
+        pdbID : str, optional
+            The new PDB ID associated with the example.
+        description : str, optional
+            The new description of the example.
+        author_name : str, optional
+            The new name of the author of the example.
+        author_email : str, optional
+            The new email of the author of the example.
+        companion_files : list, optional
+            A new list of companion files associated with the example.
+
+        Returns
+        -------
+        Example
+            The updated Example instance.
+        """
+        if name is not None:
+            self.name = name
+        if pdbID is not None:
+            self.pdbID = pdbID
+        if description is not None:
+            self.description = description
+        if author_name is not None:
+            self.author_name = author_name
+        if author_email is not None:
+            self.author_email = author_email
+        if companion_files is not None:
+            for f in companion_files:
+                if f not in self.companion_files:
+                    self.companion_files.append(f)
+        return self
+
 class ExampleList(UserList):
     """
     Represents a list of examples.
@@ -265,3 +390,23 @@ class ExampleList(UserList):
         for i, example in enumerate(inst.data):
             example.index = i + 1
         return inst
+    
+    def get_example_by_name(self, name: str) -> Example:
+        """
+        Get an example by its name.
+        
+        Parameters
+        ----------
+        name : str
+            The name of the example to retrieve.
+        
+        Returns
+        -------
+        Example
+            The Example instance with the specified name or None if not found.
+        
+        """
+        for example in self.data:
+            if example.name == name:
+                return example
+        return None

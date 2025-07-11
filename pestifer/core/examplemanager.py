@@ -33,7 +33,7 @@ class ExampleManager:
 
     def __init__(self,example_path,docs_source_path=None):
         if not os.path.isdir(example_path):
-            raise FileNotFoundError(f'Directory "{example_path}" containing example YAML files does not exist or is not a directory')
+            raise FileNotFoundError(f'Directory "{example_path}" containing example folders does not exist or is not a directory')
         if docs_source_path is not None and not os.path.isdir(docs_source_path):
             raise FileNotFoundError(f'Docs source path "{docs_source_path}" does not exist or is not a directory')
         self.path=os.path.abspath(example_path)
@@ -71,10 +71,10 @@ class ExampleManager:
             yaml.dump(saveme,f,default_flow_style=False)
         logger.debug(f'Wrote info.yaml to {info_file}')
 
-    def checkout_example_yaml(self,index:int):
+    def checkout_example(self,index:int):
         """
-        Check out an example YAML file by its index and copy it to the current working directory.
-        
+        Copy example YAML file and associated companion files by example index to the current working directory.
+
         Parameters
         ----------
         index : int
@@ -94,15 +94,41 @@ class ExampleManager:
         """
         if index < 1 or index > len(self.examples_list):
             raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
-        example_yaml=self.examples_list[index-1].name+'.yaml'
-        example_yaml_path=os.path.join(self.path,example_yaml)
+        example= self.examples_list[index-1]  # convert to zero-based index
+        example_folder=example.name
+        example_folder_path=os.path.join(self.path,example_folder)
+        if not os.path.isdir(example_folder_path):
+            raise FileNotFoundError(f'Example folder {example_folder} does not exist in {self.path}')
+        example_yaml=example.name+'.yaml'
+        example_yaml_path=os.path.join(example_folder_path,example_yaml)
         if not os.path.isfile(example_yaml_path):
             raise FileNotFoundError(f'Example YAML file {example_yaml_path} does not exist')
-        shutil.copy(example_yaml_path,os.getcwd())
+        # copy all files in the example_yaml_path directory to the current working directory
+        shutil.copy(example_yaml_path, os.getcwd())
+        # copy all companion files to the current working directory
+        companion_files=self.examples_list[index-1].companion_files
+        if companion_files:
+            for companion_file in companion_files:
+                companion_file_path=os.path.join(self.path,example_folder,companion_file)
+                if os.path.isfile(companion_file_path):
+                    shutil.copy(companion_file_path, os.getcwd())
+                else:
+                    logger.warning(f'Declared companion file "{companion_file}" does not exist in {os.path.join(self.path,example_folder)}')
         logger.info(f'Checked out example {index} from {self.path} to current working directory {os.getcwd()}')
         return example_yaml # return the name of the copied file
     
     def new_example_yaml(self,id='ABCD',build_type='minimal'):
+        """
+        Generate a new example YAML file based on an existing example template.  The id can be a 4-letter PDB ID or an Alphafold/UNIPROT ID starting with "P".  The build_type can be either 'minimal' or 'full', which determines whether the generated YAML file contains only the psfgen task or all tasks including termination.
+
+        Parameters
+        ----------
+        id : str, optional
+            The ID for the new example YAML file. It can be a 4-letter PDB ID or an Alphafold/UNIPROT ID starting with "P". Default is 'ABCD'.
+        build_type : str, optional
+            The type of build for the new example YAML file. It can be either 'minimal' or 'full'. Default is 'minimal'.
+
+        """
         if len(id)==4: # assume a PDB id
             idtype='PDB'
         elif id.startswith('P'): # assume an alphafold id by uniprot id
@@ -160,104 +186,6 @@ class ExampleManager:
         return ''.join(report_lines)
 
 
-    def new_example(self,yaml_file_name:str,description:str='',pdbID:str='',author_name:str='',author_email:str=''):
-        """
-        Grab the information from an example YAML file along with description and return it as an Example object.  This method allows the caller to specify a description and PDB ID, or it will extract these from the YAML file if not provided.  It also checks that the YAML file is valid and contains the necessary fields.
-
-        Parameters
-        ----------
-        yaml_file_name : str
-            The name of the example file to grab information from. This should be a valid file path.
-        description : str, optional
-            A description of the example; if not provided, extracts the ``title`` field from the YAML file.
-        pdbID : str, optional
-            The PDB ID associated with the example; if not provided, extracts the ``id`` field from the ``psfgen`` task of the ``tasks`` list in the YAML file.
-        author_name : str, optional
-            The name of the author of the example; if not provided, defaults to an empty string.
-        author_email : str, optional
-            The email of the author of the example; if not provided, defaults to an empty string.
-
-        Returns
-        -------
-        Example
-            An Example object containing the name, description, and pdbID of the example.
-
-        Raises
-        ------
-        ValueError
-            If the name, description, or pdbID is not provided. 
-        FileNotFoundError
-            If the example file does not exist at the specified path.
-        """
-        if not yaml_file_name:
-            raise ValueError('Name must be provided')
-        with open(yaml_file_name, 'r') as f:
-            try:
-                new_config=yaml.safe_load(f)
-            except yaml.YAMLError as e:
-                raise ValueError(f'Invalid YAML file {yaml_file_name}: {e}')
-        if not description:
-            if 'title' in new_config:
-                description = new_config['title']
-            else:
-                description = 'No description provided'
-        if not pdbID:
-            if 'id' in new_config.get('tasks', [{}])[0].get('psfgen', {}).get('source', {}):
-                pdbID = new_config['tasks'][0]['psfgen']['source']['id']
-            elif 'alphafold' in new_config.get('tasks', [{}])[0].get('psfgen', {}).get('source', {}):
-                pdbID = new_config['tasks'][0]['psfgen']['source']['alphafold']
-            else:
-                pdbID = 'No PDB ID provided'
-        if not author_name and not author_email:
-            with open(yaml_file_name, 'r') as f:
-                lines= f.readlines()
-            for line in lines:
-                if line.startswith('# Author:'):
-                    author_info = line.split(':', 1)[1].strip()
-                    if '<' in author_info and '>' in author_info:
-                        author_name, author_email = author_info.split('<', 1)
-                        author_email = author_email.strip('>')
-                        author_name = author_name.strip()
-                    else:
-                        author_name = author_info
-                        author_email = ''
-                    break
-        input_dict= {
-            'name': os.path.splitext(os.path.basename(yaml_file_name))[0],
-            'description': description,
-            'pdbID': pdbID,
-            'author_name': author_name,
-            'author_email': author_email
-        }
-        return Example(**input_dict)
-
-    def add_example(self,name:str,pdbID:str='',description:str='',author_name:str='',author_email:str=''):
-        """
-        Add a new example to the examples list.
-
-        Parameters
-        ----------
-        name : str
-            The name of the example to add.  It should be a valid file path to a YAML file, with or without the `.yaml` extension.
-        pdbID : str
-            The PDB ID associated with the example; if not provided, extracts the ``id`` field from the ``psfgen`` task of the ``tasks`` list in the YAML file.
-        description : str
-            A description of the example; if not provided, extracts the ``title`` field from the YAML file.
-
-        Returns
-        -------
-        int
-            The index of the newly added example in the examples list (1-based index).
-
-        Raises
-        ------
-        ValueError
-            If the name, description, or pdbID is not provided. 
-        FileNotFoundError
-            If the example file does not exist at the specified path.
-        """
-        return self.insert_example(len(self.examples_list)+1,name,description,pdbID,author_name,author_email)
-
     def delete_example(self,index:int):
         """
         Delete an example from the examples list by its index.
@@ -284,18 +212,228 @@ class ExampleManager:
         real_index = index - 1  # convert to zero-based index
         example=self.examples_list[real_index]
         self.examples_list.remove(example)  # remove the example from the list
-        example_file=os.path.join(self.path,example.name+'.yaml')
-        if os.path.isfile(example_file):
-            logger.debug(f'Deleting example file "{example_file}"')
-            os.remove(example_file)
+        example_folder_path=os.path.join(self.path,example.name)
+        if os.path.isdir(example_folder_path):
+            logger.debug(f'Deleting example folder "{example_folder_path}"')
+            shutil.rmtree(example_folder_path)
         else:
-            raise FileNotFoundError(f'Example file "{example_file}" does not exist')
+            raise FileNotFoundError(f'Example folder "{example_folder_path}" does not exist')
         self._write_info()
         if self.sphinx_example_manager:
             self.sphinx_example_manager.delete_example(example)
         logger.info(f'Deleted example {index}: {example.name}')
         return example
     
+
+
+    def checkin_example(self,example: Example):
+        """
+        Check in an Example instance by copying its YAML file and companion files to the appropriate example folder, which is created if it doesn't already exist.  This will overwrite the existing files.  If any file referenced by the example does not exist in the current working directory, a warning is logged but no action taken.
+
+        Parameters
+        ----------
+        example : Example
+            The Example instance to check in.
+        """
+        example_folder=os.path.join(self.path,example.name)
+        user_yaml_file_path=example.name+'.yaml' # correct; the name attribute should never have an extension
+        if not os.path.isdir(example_folder):
+            logger.debug(f'Creating example folder "{example_folder}"')
+            if not os.path.isfile(user_yaml_file_path):
+                raise FileNotFoundError(f'Example YAML file {user_yaml_file_path} does not exist in your current working directory {os.getcwd()}')
+            os.makedirs(example_folder)
+            shutil.copy(user_yaml_file_path, example_folder)
+        else:
+            if not os.path.isfile(user_yaml_file_path):
+                logger.debug(f'Example YAML file {user_yaml_file_path} does not exist in your current working directory {os.getcwd()}')
+                logger.debug(f'Pestifer will now check that this YAML file is already in the example folder {example_folder}')
+                existing_yaml_file_path = os.path.join(example_folder, user_yaml_file_path)
+                if not os.path.isfile(existing_yaml_file_path):
+                    raise FileNotFoundError(f'Example YAML file {existing_yaml_file_path} does not exist in the example folder {example_folder}')
+            else:
+                logger.debug(f'Copying example YAML file "{user_yaml_file_path}" to example folder "{example_folder}"')
+                shutil.copy(user_yaml_file_path, example_folder)
+        for f in example.companion_files:
+            if os.path.isfile(f):
+                shutil.copy(f, example_folder)
+            else:
+                logger.warning(f'Companion file {f} does not exist in {os.getcwd()}')
+
+    def insert_example(self,index:int,name:str,description:str='',pdbID:str='',author_name:str='',author_email:str='',companion_files: list = []):
+        """
+        Insert a new example into the examples list at a specified index.
+        
+        Parameters
+        ----------
+        index : int
+            The index at which to insert the new example (1-based).
+        name : str
+            The name of the example file to insert. This should be a valid file path since a new Example is created.
+        description : str
+            A description of the example.
+        pdbID : str
+            The PDB ID associated with the example.
+        author_name : str
+            The name of the author of the example.
+        author_email : str
+            The email of the author of the example.
+        companion_files : list, optional
+            A list of companion files associated with the example; defaults to an empty list.
+
+        Returns
+        -------
+        int
+            The index of the newly inserted example in the examples list (1-based).
+            
+        Raises
+        ------
+        IndexError
+            If the index is out of range for the examples list.
+        ValueError
+            If the name, description, or pdbID is not provided.
+        FileNotFoundError
+            If the example file does not exist at the specified path.
+        """
+        yaml_file_path=name if name.endswith('.yaml') else name + '.yaml'
+        new_example=Example.from_yaml(yaml_file_path,description=description,pdbID=pdbID,author_name=author_name,author_email=author_email,companion_files=companion_files) 
+        new_example.index = index  # set the index for the new example
+        real_index = index - 1  # convert to zero-based index
+        if real_index < 0 or real_index > len(self.examples_list):
+            raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
+        self.checkin_example(new_example)  # check in the new example by copying its YAML file and companion files to the appropriate example folder
+        self.examples_list.insert(real_index, new_example)
+        self._write_info()
+        if self.sphinx_example_manager:
+            self.sphinx_example_manager.insert_example(index, new_example)
+        logger.info(f'Inserted new example at index {index}: {new_example.name}')
+        return index
+
+    def update_example(self,index:int,name:str='',description:str='',pdbID:str='',author_name:str='',author_email:str='',companion_files: list = []):
+        """
+        Update an existing example in the examples list by its unique index.
+        
+        * if name is not given, then
+           * overwrite attributes ``description``, ``pdbID``, ``author_name``, and ``author_email`` of the existing example at index with the 
+             provided values, if they are not empty.  The name of the example is unchanged.
+        * otherwise, if name is given, then
+           * if name matches name of example at index
+              * overwrite attributes ``description``, ``pdbID``, ``author_name``, and ``author_email`` of the existing example at index with the 
+                provided values, if they are not empty.
+              * if there is a file <name>.yaml in the user's cwd, then
+                * check this yaml file in, overwriting the existing YAML file (DANGER!)
+              * otherwise if there is NOT a file <name>.yaml in the user's cwd, then
+                * congratulate the user on their diligence in providing both the unique index and unique name of the existing example they want to 
+                  modify, and proceed with the update.
+           * otherwise, if name does not match name of example at index
+              * if there is already an example with this name, then raise an error
+              * otherwise, if there is not already an example with this name, then
+                * if there is a file <name>.yaml in the user's cwd, then
+                  * assume the user is trying to create a new example by completely overwriting the existing example at index; i.e.,
+                    * rename the existing example at index to <name> and overwrite all attributes ``name``, ``description``, ``pdbID``, ``author_name``, and ``author_email`` of the existing example at index with the provided values, if they are not empty.
+                * otherwise, if there is NOT a file <name>.yaml in the user's cwd, then
+                  * assume the user is simply trying to rename the existing example at index
+                  * rename the example at index; i.e., overwrite all attributes ``name``, ``description``, ``pdbID``, ``author_name``, and ``author_email`` of the existing example at index with the provided values, if they are not empty (``name`` is necessarily not empty in this branch).
+
+        Parameters
+        ----------
+        index : int
+            The index of the example to update (1-based).
+        name : str
+            The name of the example to update.  It should not have an extension, so if it does, it is stripped off.
+        description : str
+            A description of the example.
+        pdbID : str
+            The PDB ID (or Alphafold ID) associated with the example.
+        author_name : str
+            The name of the author of the example.
+        author_email : str
+            The email of the author of the example.
+        companion_files : list, optional
+            A list of companion files associated with the example; defaults to an empty list.
+            
+        Returns
+        -------
+        Example
+            The updated Example object.
+
+        Raises
+        ------
+        IndexError
+            If the index is out of range for the examples list.
+        ValueError
+            If the name, description, or pdbID is not provided.
+        FileNotFoundError
+            If the example file does not exist at the specified path.
+        """
+        if index < 1 or index > len(self.examples_list):
+            raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
+        # get the name of the example with this index by directly querying the examples list
+        current_example=self.examples_list[index-1]
+        current_example_name=current_example.name
+        current_example_folder=current_example_name
+        name=name.replace('.yaml','')  # strip .yaml from the name if it is there
+        if name == '' or name == current_example_name:
+            # if name is '', then the user just wants to update the existing example using the other parameters; there will be no change to the name of the example folder or the YAML file.
+            new_example=current_example.update_in_place(description=description,pdbID=pdbID,author_name=author_name,author_email=author_email,companion_files=companion_files)
+            self.checkin_example(new_example)
+        else:
+            # first, check if there is already an example with this name; if so, raise an error
+            for i, ex in enumerate(self.examples_list):
+                if ex.name == name:
+                    raise ValueError(f'You have named an existing example whose index does not match the index you provided: {i+1} ({ex.name})')
+            if os.path.isfile(os.path.join(os.getcwd(),name+'.yaml')):
+                # if there is a file <name>.yaml in the user's cwd, then assume the user is trying to create a new example; bail and instruct user to use --example-action add instead.
+                logger.error(f'The name you provided matches a YAML file in your CWD, but does not match the name of the example at index {index} ({current_example_name})')
+                logger.error(f'If you are trying to create a new example, please use --example-action add instead of --example-action update')
+                logger.error(f'If you are trying to rename the existing example at index {index}, please be sure to run pestifer from a directory that does not contain a file named {name}.yaml')
+                raise FileExistsError(f'Improper use of --example-action update')
+            current_example_folder_path=os.path.join(self.path,current_example_folder)
+            current_example.update_in_place(description=description,pdbID=pdbID,author_name=author_name,author_email=author_email,companion_files=companion_files)
+            current_example.name=name
+            renamed_example_folder_path=os.path.join(self.path,name)
+            # rename the folder
+            os.rename(current_example_folder_path, renamed_example_folder_path)
+            # perform a checkin to overwrite any files if they are in the user's cwd
+            self.checkin_example(current_example)
+        self._write_info()
+        if self.sphinx_example_manager:
+            self.sphinx_example_manager.update_example(index, new_example)
+        logger.info(f'Updated example at index {index}: {new_example.name}')
+        return new_example
+    
+    def add_example(self,name:str,pdbID:str='',description:str='',author_name:str='',author_email:str='',companion_files: list = []):
+        """
+        Add a new example to the examples list.
+
+        Parameters
+        ----------
+        name : str
+            The name of the example to add.  It should be a valid file path to a YAML file, with or without the `.yaml` extension.
+        pdbID : str
+            The PDB ID associated with the example; if not provided, extracts the ``id`` field from the ``psfgen`` task of the ``tasks`` list in the YAML file.
+        description : str
+            A description of the example; if not provided, extracts the ``title`` field from the YAML file.
+        author_name : str
+            The name of the author of the example; if not provided, defaults to an empty string
+        author_email : str
+            The email of the author of the example; if not provided, defaults to an empty string
+        companion_files : list, optional
+            A list of companion files associated with the example; defaults to an empty list.
+
+        Returns
+        -------
+        int
+            The index of the newly added example in the examples list (1-based index).
+
+        Raises
+        ------
+        ValueError
+            If the name, description, or pdbID is not provided. 
+        FileNotFoundError
+            If the example file does not exist at the specified path.
+        """
+        return self.insert_example(len(self.examples_list)+1,name,description=description,pdbID=pdbID,author_name=author_name,author_email=author_email,companion_files=companion_files)
+
     def rename_example(self,index:int,new_name:str):
         """
         Rename an example in the examples list by its index.
@@ -321,146 +459,9 @@ class ExampleManager:
         FileNotFoundError
             If the example file does not exist at the specified path.
         """
-        if index < 1 or index > len(self.examples_list):
-            raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
-        if not new_name:
-            raise ValueError('New name must be provided')
-        real_index = index - 1  # convert to zero-based index
-        if real_index >= len(self.examples_list):
-            raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
-        elif real_index < 0:
-            raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
-        # get the existing example to rename
-        example=self.examples_list[real_index]
-        # correct the TOC entry in the examples.rst file
-        if self.sphinx_example_manager:
-            self.sphinx_example_manager.rename_example(index, new_name)
-        # rename the existing example file if it exists
-        existing_example_file = os.path.join(self.path, example.name + '.yaml')
-        if os.path.isfile(existing_example_file):
-            new_example_file = os.path.join(self.path, new_name + '.yaml')
-            logger.debug(f'Renaming example file "{existing_example_file}" to "{new_example_file}"')
-            os.rename(existing_example_file, new_example_file)
-        else:
-            raise FileNotFoundError(f'Example file "{existing_example_file}" does not exist')
-        # update the example name in the examples list
-        example.name = new_name
-        # update the example in the examples list
-        self.examples_list[real_index] = example
-        # write the updated examples list to the info.yaml file
-        self._write_info()
-        logger.info(f'Renamed example {index} from {example.name} to {new_name}')
+        self.update_example(index, name=new_name)  # use update_example to handle renaming logic
+        logger.info(f'Renamed example {index} from {self.examples_list[index-1].name} to {new_name}')
 
-    def insert_example(self,index:int,name:str,description:str='',pdbID:str='',author_name:str='',author_email:str=''):
-        """
-        Insert a new example into the examples list at a specified index.
-        
-        Parameters
-        ----------
-        index : int
-            The index at which to insert the new example (1-based).
-        name : str
-            The name of the example file to insert. This should be a valid file path.
-        description : str
-            A description of the example.
-        pdbID : str
-            The PDB ID associated with the example.
-        author_name : str
-            The name of the author of the example.
-        author_email : str
-            The email of the author of the example.
-
-        Returns
-        -------
-        int
-            The index of the newly inserted example in the examples list (1-based).
-            
-        Raises
-        ------
-        IndexError
-            If the index is out of range for the examples list.
-        ValueError
-            If the name, description, or pdbID is not provided.
-        FileNotFoundError
-            If the example file does not exist at the specified path.
-        """
-        yaml_file_path=name if name.endswith('.yaml') else name + '.yaml'
-        new_example=self.new_example(yaml_file_path,description=description,pdbID=pdbID,author_name=author_name,author_email=author_email)
-        new_example.index = index  # set the index for the new example
-        real_index = index - 1  # convert to zero-based index
-        if real_index < 0 or real_index > len(self.examples_list):
-            raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
-        shutil.copy(yaml_file_path, self.path)
-        self.examples_list.insert(real_index, new_example)
-        self._write_info()
-        if self.sphinx_example_manager:
-            self.sphinx_example_manager.insert_example(index, new_example)
-        logger.info(f'Inserted new example at index {index}: {new_example.name}')
-        return index
-
-    def update_example(self,index:int,name:str,description:str='',pdbID:str='',author_name:str='',author_email:str=''):
-        """
-        Update an existing example in the examples list by its index.  This will edit the entry at position ``index`` in the toctree of "examples.rst" to have name ``name``, delete the existing example YAML file in resources/examples, delete the rst documentation file for the old example, copy the new example YAML file to resources/examples, and generate a new rst documentation file for the updated example.  The index is 1-based, meaning the first example has index 1.  The operations involving files in docs/source/examples are performed by the ``sphinx_example_manager`` if it is initialized.  This is the equivalent to deleting the existing example and inserting the new one, but it preserves the index of the example in the examples list.
-        
-        Parameters
-        ----------
-        index : int
-            The index of the example to update (1-based).
-        name : str
-            The name of the example file to update.  This can replace the existing example file, or it can be a new file.
-            It should be a valid file path to a YAML file, with or without the `.yaml` extension.
-        description : str
-            A description of the example.
-        pdbID : str
-            The PDB ID associated with the example.
-        author_name : str
-            The name of the author of the example.
-        author_email : str
-            The email of the author of the example.
-            
-        Returns
-        -------
-        Example
-            The updated Example object.
-
-        Raises
-        ------
-        IndexError
-            If the index is out of range for the examples list.
-        ValueError
-            If the name, description, or pdbID is not provided.
-        FileNotFoundError
-            If the example file does not exist at the specified path.
-        """
-        if index < 1 or index > len(self.examples_list):
-            raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
-        if not name:
-            raise ValueError('Name must be provided')
-        yaml_file_path=name if name.endswith('.yaml') else name + '.yaml'
-        if not os.path.isfile(yaml_file_path):
-            raise FileNotFoundError(f'Example file {yaml_file_path} does not exist')
-        real_index = index - 1  # convert to zero-based index
-        if real_index >= len(self.examples_list):
-            raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
-        elif real_index < 0:
-            raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
-        # get the existing example to update
-        example=self.examples_list[real_index]
-        # delete the existing example file if it exists
-        example_file=os.path.join(self.path,example.name+'.yaml')
-        if os.path.isfile(example_file):
-            logger.debug(f'Deleting existing example file "{example_file}"')
-            os.remove(example_file)
-        new_example=self.new_example(yaml_file_path,description=description,pdbID=pdbID,author_name=author_name,author_email=author_email)
-        new_example.index = index  # set the index for the new example
-        self.examples_list[real_index] = new_example  # replace the old example with the new one
-        shutil.copy(yaml_file_path, self.path)  # copy the new example
-        self._write_info()
-        if self.sphinx_example_manager:
-            self.sphinx_example_manager.update_example(index, new_example)
-        logger.info(f'Updated example at index {index}: {new_example.name}')
-        return new_example
-    
     def set_example_author(self,index:int,author_name:str,author_email:str):
         """
         Set the author information for an example in the examples list by its index.
@@ -486,22 +487,5 @@ class ExampleManager:
         ValueError
             If the author name or email is not provided.
         """
-        if index < 1 or index > len(self.examples_list):
-            raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
-        if not author_name or not author_email:
-            raise ValueError('Author name and email must be provided')
-        real_index = index - 1  # convert to zero-based index
-        if real_index >= len(self.examples_list):
-            raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
-        elif real_index < 0:
-            raise IndexError(f'Index {index} is out of range for examples list of length {len(self.examples_list)}')
-        # get the existing example to update
-        example=self.examples_list[real_index]
-        assert example.index==index,f'Example at index {index} does not match the expected index {example.index}'
-        example.author_name = author_name
-        example.author_email = author_email
-        self.examples_list[real_index] = example  # replace the old example with the new one
-        self._write_info()
-        if self.sphinx_example_manager:
-            self.sphinx_example_manager.set_author(index, author_name, author_email)
-        logger.info(f'Set author for example at index {index}: {example.name} by {author_name} <{author_email}>')
+        self.update_example(index,author_name=author_name, author_email=author_email)
+        logger.info(f'Set author for example at index {index}: {self.examples_list[index-1].name} by {author_name} <{author_email}>')
