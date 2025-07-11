@@ -23,4 +23,4 @@ This will replace an assignment statement to the variable ``BASENAME`` with
 
     BASENAME=my_run_02
 
-If your run was unsuccessful, simply leave off the ``--run`` option, and the new config file will be generated with the proper run length to complete the original run as specified.
+If your run terminated prematurely, simply leave off the ``--run`` option, and the new config file will be generated with the proper run length to complete the original run as specified.
