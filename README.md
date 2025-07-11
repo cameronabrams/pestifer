@@ -28,10 +28,11 @@ Pestifer **includes** the [July 2024 Charmm36 force field](https://mackerell.uma
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
+* 1.19.1
+    * fixed namd restart bugs
 * 1.19.0
     * fixed improper sorting of segment indices in bilayer_embed.tcl
     * support for adding, renaming, inserting, assigning authorship to, and deleting examples
-    * fixed namd restart bugs
 * 1.18.1
     * switched from patches to mutations for protonated histines predicted by `pdb2pqr`
 * 1.18.0

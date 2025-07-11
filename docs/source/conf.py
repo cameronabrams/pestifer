@@ -14,7 +14,7 @@ copyright = '2023-2025, Cameron F. Abrams'
 author = 'cfa22@drexel.edu'
 
 release = '1.19'
-version = '1.19.0'
+version = '1.19.1'
 
 # -- General configuration
 
