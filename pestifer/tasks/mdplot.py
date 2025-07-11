@@ -176,7 +176,7 @@ class MDPlotTask(BaseTask):
                     figsize=self.specs.get('figsize',(9,6))
                     fig,ax=plt.subplots(1,1,figsize=figsize)
                     ax.set_xlabel(f'Pressure ({unitspec})')
-                    ax.set_ylabel('Slab Index')
+                    ax.set_ylabel('z (Å)')
                     nprofiles=df.shape[0]
                     nblocks=nprofiles//profiles_per_block
                     if nprofiles%profiles_per_block>0:

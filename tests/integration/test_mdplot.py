@@ -13,8 +13,8 @@ class Test_MDPlot(unittest.TestCase):
         xsts=[os.path.join('inputs',f) for f in inputs if f.endswith('.xst')]
         xsts.sort()
         args=Namespace(logs=logs,xsts=xsts,
-                       basename='testmdplot',profiles=[],
-                       figsize=[9,6],traces=['density',['a_x','b_y','c_z']])
+                       basename='testmdplot',profiles=[],profiles_per_block=1,
+                       figsize=[9,6],timeseries=['density',['a_x','b_y','c_z']])
         mdplot(args)
 
         self.assertTrue(os.path.exists('testmdplot-energy.csv'))

@@ -237,7 +237,7 @@ foreach sg $segnames {
       }
    }
 }
-set solsegnums [lsort $solsegnums]
+set solsegnums [lsort -integer $solsegnums]
 vmdcon -info "solvent (WT) segment numbers in raw-embedded bilayer: $solsegnums"
 if { [llength $solsegnums] == 0 } {
    set nextsolsegnum 1

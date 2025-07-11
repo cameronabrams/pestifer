@@ -3,7 +3,7 @@
 ``aliases``
 ===========
 
-Add any residue or atom aliases needed; this is often done to make sure you have a 4-byte resname for any residue.  These are input as a list of strings, where each string is the full psfgen alias command
+Add any residue or atom aliases needed; this is often done to make sure you have a 4-byte resname for any residue.
 
 
 Example:

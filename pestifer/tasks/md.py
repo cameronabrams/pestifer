@@ -125,7 +125,7 @@ class MDTask(BaseTask):
         else:
             params.update(namd_global_params['vacuum'])
         
-        if ensemble.casefold() in ['NPT'.casefold(),'NVT'.casefold()]:
+        if ensemble.casefold() in ['NPT'.casefold(),'NVT'.casefold(), 'NPAT'.casefold()]:
             params.update(namd_global_params['thermostat'])
             if ensemble.casefold()=='NPT'.casefold():
                 if not self.statevars['periodic']:

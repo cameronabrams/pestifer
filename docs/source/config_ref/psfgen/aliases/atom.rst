@@ -5,7 +5,7 @@
 
 
 
-This is a list of atom aliases to add to psfgen.  Each alias should be a string in the format "ATOM_NAME ALIAS_NAME", where ATOM_NAME is the name of the atom in the PDB file and ALIAS_NAME is the name you want to use in the PSF file.
+This is a list of atom aliases to add to psfgen.  The original list of aliases used by Pestifer is in core/labels.py. Each alias should be a string in the format "ATOM_NAME ALIAS_NAME", where ATOM_NAME is the name of the atom in the PDB file and ALIAS_NAME is the name you want to use in the PSF file.
 
 
 .. raw:: html

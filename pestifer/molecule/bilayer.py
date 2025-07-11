@@ -587,14 +587,14 @@ class Bilayer:
                             specs['other_parameters']['pressureProfileSlabs']=30
                         if not 'pressureProfileFreq' in specs['other_parameters']:
                             specs['other_parameters']['pressureProfileFreq']=100
-        traces=['density',['a_x','b_y','c_z']]
+        timeseries=['density',['a_x','b_y','c_z']]
         profiles=['pressure']
         if user_dict['namd']['processor-type']!='gpu':
-            traces.append('pressure') # To do: change this to pressureProfile plotting
+            timeseries.append('pressure') # To do: change this to pressureProfile plotting
         user_dict['tasks']=[
             {'restart':dict(psf=psf,pdb=pdb,xsc=xsc,index=index)}
             ]+relaxation_protocol+[
-            {'mdplot':dict(traces=traces,profiles=profiles,legend=True,grid=True,basename=basename)},
+            {'mdplot':dict(timeseries=timeseries,profiles=profiles,legend=True,grid=True,basename=basename)},
             {'terminate':dict(basename=basename,chainmapfile=f'{basename}-chainmap.yaml',statefile=f'{basename}-state.yaml')}                 
         ]
         user_dict['title']=f'Bilayer equilibration from {basename}'

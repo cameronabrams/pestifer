@@ -1,4 +1,4 @@
-# Pestifer
+# Pestifer v 1.19
 # (c) 2023-2025 Cameron F. Abrams, cfa22@drexel.edu
 #
 # Ycleptic-format specification for a user's YAML-format pestifer configuration file
@@ -122,7 +122,7 @@ directives:
         required: True 
         docs:
           text: |
-            Add any residue or atom aliases needed; this is often done to make sure you have a 4-byte resname for any residue.  These are input as a list of strings, where each string is the full psfgen alias command
+            Add any residue or atom aliases needed; this is often done to make sure you have a 4-byte resname for any residue.
           example:
             aliases:
               atom:
@@ -136,14 +136,14 @@ directives:
             default: []
             docs:
               text: |
-                This is a list of atom aliases to add to psfgen.  Each alias should be a string in the format "ATOM_NAME ALIAS_NAME", where ATOM_NAME is the name of the atom in the PDB file and ALIAS_NAME is the name you want to use in the PSF file.
+                This is a list of atom aliases to add to psfgen.  The original list of aliases used by Pestifer is in core/labels.py. Each alias should be a string in the format "ATOM_NAME ALIAS_NAME", where ATOM_NAME is the name of the atom in the PDB file and ALIAS_NAME is the name you want to use in the PSF file.
           - name: residue
             type: list
             text: List of residue aliases to add to psfgen
             default: []
             docs:
               text: |
-                This is a list of residue aliases to add to psfgen.  Each alias should be a string in the format "RESNAME ALIAS_NAME", where RESNAME is the name of the residue in the PDB file and ALIAS_NAME is the name you want to use in the PSF file.
+                This is a list of residue aliases to add to psfgen.  The original list of aliases used by Pestifer is in core/labels.py.  Each alias should be a string in the format "RESNAME ALIAS_NAME", where RESNAME is the name of the residue in the PDB file and ALIAS_NAME is the name you want to use in the PSF file.
         default:
           atom: []
           residue: []

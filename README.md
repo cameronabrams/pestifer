@@ -3,7 +3,7 @@
 
 [![PyPI Downloads](https://static.pepy.tech/badge/pestifer)](https://pepy.tech/projects/pestifer)
 
-Pestifer is a fully automated simulation-ready MD system builder, requiring as inputs only biomolecular structures (e.g., PDB IDs, PDB files, mmCIF files, alphafold IDs) and a handful of customization parameters, to generate NAMD-compatible input files (PSF, PDB, and xsc).  It is basically a highly functionalized front end for VMD's `psfgen` utility.  It also has a few handy subcommands for working with NAMD output.
+Pestifer is a fully automated simulation-ready MD system preparation tool, requiring as inputs only biomolecular structures (e.g., PDB IDs, PDB files, mmCIF files, alphafold IDs) and a handful of customization parameters, to generate NAMD-compatible input files (PSF, PDB, and xsc).  It is basically a highly functionalized front end for VMD's `psfgen` utility.  It also has a few handy subcommands for working with NAMD output.
 
 ## Installation
 
@@ -28,8 +28,9 @@ Pestifer **includes** the [July 2024 Charmm36 force field](https://mackerell.uma
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
-* 1.18.5
-    * support for adding, renaming, inserting, and deleting examples
+* 1.19.0
+    * fixed improper sorting of segment indices in bilayer_embed.tcl
+    * support for adding, renaming, inserting, assigning authorship to, and deleting examples
     * fixed namd restart bugs
 * 1.18.1
     * switched from patches to mutations for protonated histines predicted by `pdb2pqr`

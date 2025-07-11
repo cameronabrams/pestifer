@@ -382,14 +382,14 @@ class NAMDLog(LogParser):
         self.reading_structure_summary=False
         self.basename=basename
         self._line_processors={
-            self.info_key: self.process_info_line,
-            self.tcl_key: self.process_tcl_line,
             self.energy_key: self.process_energy_line,
             self.pressureprofile_key: self.process_pressureprofile_line,
-            self.wallclock_key: self.process_wallclock_line,
             self.restart_key: self.process_restart_line,
             self.performance_key: self.process_performance_line,
-            self.timing_key: self.process_timing_line
+            self.timing_key: self.process_timing_line,  
+            self.info_key: self.process_info_line,
+            self.tcl_key: self.process_tcl_line,
+            self.wallclock_key: self.process_wallclock_line
         }
         self._xst_parser=None
     
@@ -501,12 +501,16 @@ class NAMDLog(LogParser):
             self.metadata['ensemble']='NVT'
         elif 'LANGEVIN PISTON PRESSURE CONTROL ACTIVE' in line:
             self.metadata['ensemble']='NPT'
+        elif 'SHAPE OF CELL IS CONSTRAINED IN X-Y PLANE' in line:
+            self.metadata['ensemble']='NPAT'
         elif 'PERIODIC CELL BASIS 1' in line:
             self.metadata['periodic_cell_basis_1']=get_values('PERIODIC CELL BASIS 1',line,dtype=float)
         elif 'PERIODIC CELL BASIS 2' in line:
             self.metadata['periodic_cell_basis_2']=get_values('PERIODIC CELL BASIS 2',line,dtype=float)
         elif 'PERIODIC CELL BASIS 3' in line:
             self.metadata['periodic_cell_basis_3']=get_values('PERIODIC CELL BASIS 3',line,dtype=float)
+        elif 'SLAB THICKNESS:' in line:
+            self.metadata['slab_thickness']=get_single('SLAB THICKNESS:',line,dtype=float)
 
     def process_tcl_line(self,line):
         """
@@ -546,15 +550,11 @@ class NAMDLog(LogParser):
         for i in range(1,len(tokens)):
             tokens[i]=float(tokens[i])
         new_line={k:v for k,v in zip(self.metadata['etitle'],tokens)}
-        # if 'VOLUME' in new_line:
-        #     new_line['DENSITY']=self.metadata['total_mass']/new_line['VOLUME']
         if not 'energy' in self.time_series_data:
             self.time_series_data['energy']=[]
+            if not 'first_timestep' in self.metadata:
+                self.metadata['first_timestep']=new_line['TS']
         self.time_series_data['energy'].append(new_line)
-        # if self.energy_df.empty:
-        #     self.energy_df=pd.DataFrame(new_line,index=[0])
-        # else:
-        #     self.energy_df=pd.concat([self.energy_df,pd.DataFrame(new_line,index=[0])],ignore_index=True)
 
     def process_energy_title(self,line):
         """
@@ -609,15 +609,6 @@ class NAMDLog(LogParser):
         if not 'pressureprofile' in self.time_series_data:
             self.time_series_data['pressureprofile']=[]
         self.time_series_data['pressureprofile'].append(new_line)
-        # if self.pressureprofile_df.empty:
-        #     # we need to set the indices to be the slab indices
-        #     self.pressureprofile_df=pd.DataFrame(this_col,index=np.arange(self.metadata['number_of_pressure_slabs']),columns=[str(tokens[0])])
-        # else:
-        #     # append this col to the dataframe
-        #     new_col=pd.DataFrame(this_col,index=np.arange(self.metadata['number_of_pressure_slabs']),columns=[str(tokens[0])])
-        #     self.pressureprofile_df=pd.concat([self.pressureprofile_df,new_col],axis=1)
-        #         # if self.pressureprofile_df.shape[1]==2:
-        #             logger.debug(f'{self.pressureprofile_df.head().to_string()}')
 
     def process_wallclock_line(self,line):
         """
@@ -658,26 +649,125 @@ class NAMDLog(LogParser):
         """
         Process a line from the timing section of the NAMD log file, e.g.,
         TIMING: 34000  CPU: 100.266, 0.00728793/step  Wall: 100.267, 0.00728689/step, 1.9962 hours remaining, 0.000000 MB of memory in use.
+        or
+        TIMING: 19000  CPU: 130.551, 0.025328/step  Wall: 140.3    , 0.0272845/step , 6.33326 ns/days       , 0.0621481 hours remaining, 0.000000 MB of memory in use.
 
         Parameters
         ----------
         line : str
             A line from the NAMD log file that contains timing data.
         """
-        tokens=[x.strip(' :,').replace('/step','').replace(',','') for x in line.split()]
-        if len(tokens)<11:
-            logger.debug(f'process_timing_line: {line} does not have enough tokens')
+        elements=line.split(',')
+        if len(elements)<5:
+            logger.debug(f'process_timing_line: {line} does not have enough elements')
             return
+        if len(elements)==5:
+            hasnsperday=False
+        elif len(elements)==6:
+            hasnsperday=True
+        else:
+            logger.debug(f'process_timing_line: {line} has too many elements ({len(elements)})')
+            return
+
+        # element[0] contributes TS and cpu_time
+        # element[1] contributes cpu_per_step and wall_time
+        # element[2] contributes wall_per_step
+        # if hasnsperday:
+        #    element[3] contributes ns_per_day
+        #    element[4] contributes hours_remaining
+        #    element[5] contributes memory_in_use
+        # else 
+        #     element[3] contributes hours_remaining
+        #     element[4] contributes memory_in_use        
+
+        # process element[0] "19000  CPU: 130.551"
+        tokens=[x.strip() for x in elements[0].split()]
+        if len(tokens)!=3:
+            logger.debug(f'process_timing_line: {line} does not have enough tokens in first element')
+            return
+        if not tokens[0].isdigit():
+            logger.debug(f'process_timing_line: {line} first token is not a digit: {tokens[0]}')
+            return
+        TS=int(tokens[0])
+        cpu_time=float(tokens[2])
+
+        # process element[1] "0.025328/step  Wall: 140.3    "
+        tokens=[x.strip().replace('/step','') for x in elements[1].split()]  # [0.025328, Wall:, 140.3]
+        if len(tokens)!=4:
+            logger.debug(f'process_timing_line: {line} does not have enough tokens in second element')
+            return
+        if not tokens[0].replace('.','',1).isdigit():
+            logger.debug(f'process_timing_line: {line} first token is not a digit: {tokens[0]}')
+            return
+        cpu_per_step=float(tokens[0])
+        wall_time=float(tokens[2])
+
+        # process element[2] "0.00728689/step"
+        tokens=[x.strip().replace('/step','') for x in elements[2].split()]  # [0.00728689]
+        if len(tokens)!=1:
+            logger.debug(f'process_timing_line: {line} does not have enough tokens in third element')
+            return
+        if not tokens[0].replace('.','',1).isdigit():
+            logger.debug(f'process_timing_line: {line} first token is not a digit: {tokens[0]}')
+            return
+        wall_per_step=float(tokens[0])
+        if hasnsperday:
+        #     process element[3] "6.33326 ns/days       "
+            tokens=[x.strip().replace('ns/days','') for x in elements[3].split()]  # [6.33326]
+            if len(tokens)!=1:
+                logger.debug(f'process_timing_line: {line} does not have enough tokens in fourth element')
+                return
+            if not tokens[0].replace('.','',1).isdigit():
+                logger.debug(f'process_timing_line: {line} first token is not a digit: {tokens[0]}')
+                return
+            ns_per_day=float(tokens[0]) # orphaned
+        #     process element[4] "0.0621481 hours remaining"
+            tokens=[x.strip().replace('hours remaining','') for x in elements[4].split()]  # [0.0621481]
+            if len(tokens)!=1:
+                logger.debug(f'process_timing_line: {line} does not have enough tokens in fifth element')
+                return
+            if not tokens[0].replace('.','',1).isdigit():
+                logger.debug(f'process_timing_line: {line} first token is not a digit: {tokens[0]}')
+                return
+            hours_remaining=float(tokens[0])
+        #     process element[5] "0.000000 MB of memory in use."
+            tokens=[x.strip().replace('MB of memory in use.','') for x in elements[5].split()]  # [0.000000]
+            if len(tokens)!=1:
+                logger.debug(f'process_timing_line: {line} does not have enough tokens in sixth element')
+                return
+            if not tokens[0].replace('.','',1).isdigit():
+                logger.debug(f'process_timing_line: {line} first token is not a digit: {tokens[0]}')
+                return
+            memory_in_use=float(tokens[0])
+        else:
+        #     process element[3] "0.0621481 hours remaining"
+            tokens=[x.strip().replace('hours remaining','') for x in elements[3].split()]  # [0.0621481]
+            if len(tokens)!=1:
+                logger.debug(f'process_timing_line: {line} does not have enough tokens in fourth element')
+                return
+            if not tokens[0].replace('.','',1).isdigit():
+                logger.debug(f'process_timing_line: {line} first token is not a digit: {tokens[0]}')
+                return
+            hours_remaining=float(tokens[0])
+        #     process element[4] "0.000000 MB of memory in use."
+            tokens=[x.strip().replace('MB of memory in use.','') for x in elements[4].split()]  # [0.000000]
+            if len(tokens)!=1:
+                logger.debug(f'process_timing_line: {line} does not have enough tokens in fifth element')
+                return
+            if not tokens[0].replace('.','',1).isdigit():
+                logger.debug(f'process_timing_line: {line} first token is not a digit: {tokens[0]}')
+                return
+            memory_in_use=float(tokens[0])
         if not 'timing' in self.time_series_data:
             self.time_series_data['timing']=[]
         self.time_series_data['timing'].append({
-            'steps': int(tokens[0]),
-            'cpu_time': float(tokens[2]),
-            'cpu_per_step': float(tokens[3]),
-            'wall_time': float(tokens[5]),
-            'wall_per_step': float(tokens[6]),
-            'hours_remaining': float(tokens[7]),
-            'memory_in_use': float(tokens[10]),
+            'steps': TS,
+            'cpu_time': cpu_time,
+            'cpu_per_step': cpu_per_step,
+            'wall_time': wall_time,
+            'wall_per_step': wall_per_step,
+            'hours_remaining': hours_remaining,
+            'memory_in_use': memory_in_use,
         })
 
     def process_line(self,line):
@@ -734,17 +824,17 @@ class NAMDLog(LogParser):
                 self.processed_line_idx.append(addl_line_idx[-1])
 
     def measure_progress(self):
+        """
+        Measure the progress of the NAMD simulation based on the metadata and time series data. This method calculates the fraction of completed steps relative to the total number of steps, using the first time step and the last recorded time step in the energy data.
+        """
         if 'number_of_steps' not in self.metadata:
-            # logger.debug('measure_progress: number_of_steps not in metadata')
+            logger.debug('measure_progress: number_of_steps not in metadata')
             return 0.0
-        number_of_steps=self.metadata['number_of_steps']
+        number_of_steps=self.metadata['number_of_steps'] # this will be zero for a minimization
         if 'first_timestep' not in self.metadata:
-            # logger.debug('measure_progress: first_timestep not in metadata')
+            logger.debug('measure_progress: first_timestep not in metadata')
             return 0.0
         first_time_step=self.metadata['first_timestep']
-        # if self.energy_df.empty:
-        #     # logger.debug('measure_progress: energy_df is empty')
-        #     return 0.0
         if 'running_for' in self.metadata:
             running_for=self.metadata['running_for']
             if running_for>0:
@@ -784,6 +874,13 @@ class NAMDLog(LogParser):
         if 'energy' in self.dataframes:
             if 'total_mass' in self.metadata and 'VOLUME' in self.dataframes['energy'].columns:
                 self.dataframes['energy']['DENSITY']=self.metadata['total_mass']/self.dataframes['energy']['VOLUME']
+        # convert the integer slab index column headings in the pressure profile dataframe to floating point z-coordinates using metadata['slab_thickness']
+        if 'pressureprofile' in self.dataframes:
+            if 'number_of_pressure_slabs' in self.metadata and 'slab_thickness' in self.metadata:
+                slab_thickness=self.metadata['slab_thickness']
+                number_of_pressure_slabs=self.metadata['number_of_pressure_slabs']
+                z_coords=[(i+0.5)*slab_thickness for i in range(number_of_pressure_slabs)]
+                self.dataframes['pressureprofile'].columns=['TS']+z_coords
         # If we did not find the first time step, infer it from the energy log
         if 'first_timestep' not in self.metadata:
             if 'energy' in self.dataframes:

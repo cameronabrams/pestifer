@@ -289,7 +289,7 @@ if { $nlipids_deleteA > 0 } {
    vmdcon -info "Deleting $nlipids_deleteA lipids from upper leaflet quilt"
    set u_allres [lindex $slicedquilt 0]
    set u_l [atomselect $molid "lipid and residue $u_allres"]
-   set u_lres [lsort -unique [$u_l get residue]]
+   set u_lres [lsort -unique -integer [$u_l get residue]]
    set nres [llength $u_lres]
    set shuffled_resnums [shuffle_list $u_lres]
    set remove_resnums [lrange $shuffled_resnums 0 [expr {$nlipids_deleteA - 1}]]
@@ -298,7 +298,7 @@ if { $nlipids_deleteA > 0 } {
    vmdcon -info "Deleting $nlipids_deleteB lipids from lower leaflet quilt"
    set l_allres [lindex $slicedquilt 1]
    set l_l [atomselect $molid "lipid and residue $l_allres"]
-   set l_lres [lsort -unique [$l_l get residue]]
+   set l_lres [lsort -unique -integer [$l_l get residue]]
    set nres [llength $l_lres]
    set shuffled_resnums [shuffle_list $l_lres]
    set remove_resnums [lrange $shuffled_resnums 0 [expr {$nlipids_deleteB - 1}]]
