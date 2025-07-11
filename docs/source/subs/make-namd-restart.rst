@@ -7,7 +7,7 @@ For example, say you have a run whose config file was ``my_run_01.namd`` and whi
 
 .. code-block:: bash
 
-    $ pestifer make-namd-restart --log my_run_01.log --config my_run_01.namd --new-base my_run_02 --run 1000000
+    $ pestifer make-namd-restart --namd-log my_run_01.log --config my_run_01.namd --new-base my_run_02 --run 1000000
 
 This will create the new config file ``my_run_02.namd`` and it will specify a run of 1,000,000 timesteps, with inputs comprising the successful outputs defined in ``my_run_01.namd``.
 
@@ -15,7 +15,7 @@ If you are running in a SLURM batch environment, and your SLURM ``bash`` script 
 
 .. code-block:: bash
 
-    $ pestifer make-namd-restart --log my_run_01.log --config my_run_01.namd --new-base my_run_02 --run 1000000 --slurm my_slurm.sh
+    $ pestifer make-namd-restart --namd-log my_run_01.log --config my_run_01.namd --new-base my_run_02 --run 1000000 --slurm my_slurm.sh
 
 This will replace an assignment statement to the variable ``BASENAME`` with
 
