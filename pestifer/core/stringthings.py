@@ -7,6 +7,7 @@ import os
 import re
 import subprocess
 import shutil
+import sys
 
 import pandas as pd
 
@@ -649,3 +650,18 @@ def example_footer(author_name='',author_email=''):
             <p>Example author: {author_name}&nbsp;&nbsp;&nbsp;Contact: <a href="mailto:{author_email}">{author_email}</a></p>
         </div>"""
     return footer
+
+def raise_clean(ErrorInstance):
+    """
+    Raises an error with a clean message showing no traceback.
+
+    Parameters
+    ----------
+    ErrorInstance: Exception instance
+        The exception instance to raise.
+    """
+    try:
+        raise ErrorInstance
+    except ErrorInstance.__class__ as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)

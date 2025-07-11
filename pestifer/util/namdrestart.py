@@ -160,25 +160,25 @@ def make_namd_restart(args,**kwargs):
         - ``run``: The number of time steps to run. If ``run`` is 0, the script will not run any new time steps.
         - ``slurm``: The path to the SLURM script file, if applicable.
     """
-    log=args.log
+    namd_log=args.namd_log
     config=args.config
     newbasename=args.new_base
     run=args.run
     oldconfig=NAMDConfig(config)
-    oldlog=NAMDLog.from_file(log,passfilter=['OUTPUT','RESTART','TCL','TIMESTEP','Wallclock'])
+    oldlog=NAMDLog.from_file(namd_log,passfilter=['OUTPUT','RESTART','TCL','TIMESTEP','WallClock'])
     output_filename=oldlog.metadata.get('output_filename',None)
     if not output_filename:
-        logger.error(f'No output filename found in {log}')
+        logger.error(f'No output filename found in {namd_log}')
     oldconfig.replace_command('outputname',[newbasename])
     last_timestep=oldlog.time_series_data.get('restart',[None])[-1]
     requested_timesteps=oldlog.metadata.get('running_for',None)
     if last_timestep is None:
-        raise ValueError(f'No restart time step found in {log}. Please check the log file for errors.')
+        raise ValueError(f'No restart time step found in {namd_log}. Please check the log file for errors.')
     if requested_timesteps is None:
-        raise ValueError(f'No "TCL: Running for..." metadata found in {log}. Please check the log file for errors.')
+        raise ValueError(f'No "TCL: Running for..." metadata found in {namd_log}. Please check the log file for errors.')
     if oldlog.success():
         if run==0:
-            logger.warning(f'Run logged in {log} was successful but you did not request any new time steps')
+            logger.warning(f'Run logged in {namd_log} was successful but you did not request any new time steps')
             return
         resstr=''
         oldconfig.replace_command('run',[f'{run}'])
