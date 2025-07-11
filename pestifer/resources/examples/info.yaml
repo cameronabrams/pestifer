@@ -82,7 +82,7 @@ examples:
   pdbID: 2ins
 - author_email: ''
   author_name: ''
-  description: "Human Insulin Receptor Ectodomain IR\u03B1\u03B2"
+  description: "Human Insulin Receptor Ectodomain IRαβ"
   index: 14
   name: insulin-receptor-ectodomain
   pdbID: 4zxb
@@ -116,3 +116,4 @@ examples:
   index: 19
   name: sperm-whale-myoglobin
   pdbID: 1mob
+

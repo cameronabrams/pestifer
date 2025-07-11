@@ -225,7 +225,7 @@ class ResourceManager:
         if user_custom_directory:
             self.charmmff_content.add_custom_directory(user_custom_directory)
 
-    def add_example(self,example_yaml):
+    def add_example(self,example_yaml,author_name='',author_email='',description=''):
         """
         Add an example to the pestifer examples directory.
 
@@ -234,9 +234,9 @@ class ResourceManager:
         example_yaml : str
             The path to a YAML file containing the example data. It may or may not end with '.yaml'.  It should have a 'title' field and either the field 'id' or 'alphafold' under tasks->psfgen->source.
         """
-        self.example_manager.add_example(example_yaml)
+        self.example_manager.add_example(example_yaml,description=description,author_name=author_name,author_email=author_email)
 
-    def insert_example(self,example_index,example_yaml):
+    def insert_example(self,example_index,example_yaml,author_name='',author_email='',description=''):
         """
         Insert an example into the pestifer examples directory.
 
@@ -247,8 +247,8 @@ class ResourceManager:
         example_yaml : str
             The path to a YAML file containing the example data. It may or may not end with '.yaml'.  It should have a 'title' field and either the field 'id' or 'alphafold' under tasks->psfgen->source.
         """
-        self.example_manager.insert_example(example_index, example_yaml)
-    
+        self.example_manager.insert_example(example_index, example_yaml,author_name=author_name,author_email=author_email,description=description)
+
     def update_example(self,example_index,example_yaml):
         """
         Update an existing example in the pestifer examples directory.

@@ -226,7 +226,7 @@ def modify_package(args):
     
     .. note::
     
-        The command ``pestifer modify-package`` can only be invoked if ``pestifer`` is run from the root of the pestifer source tree, i.e. the directory containing the ``pestifer`` package.  A simple pip installation of the pestifer package will not allow this command to run, as the pestifer package will not have a full source tree available.  If you want to modify the package, you must clone the repository from GitHub and then execute ``pip install -e .`` from the package root.  Before modifying, it would also be a good idea to create a new branch, rather than modifying in the main branch.
+        The command ``pestifer modify-package`` can only be invoked if ``pestifer`` is installed as an editable source tree, i.e. the directory containing the ``pestifer`` package.  A simple pip installation of the pestifer package will not allow this command to run, as the pestifer package will not have a full source tree available.  If you want to modify the package, you must clone the repository from GitHub and then execute ``pip install -e .`` from the package root.  Before modifying, it would also be a good idea to create a new branch, rather than modifying in the main branch.
     """
     # First, verify that the user has a full source tree by verifying the existence of the docs directory.  If not, raise an error.
     logging.basicConfig(level=getattr(logging,args.log_level.upper()))
@@ -237,24 +237,26 @@ def modify_package(args):
             raise FileNotFoundError(f'Cannot find docs directory {docs_source_path}. Please ensure you have a full source tree of pestifer.')
         if args.example_action == 'insert':
             new_number=args.example_index
-            new_yaml=args.new_yaml
-            author_name=args.author_name
-            author_email=args.author_email
+            new_yaml=args.new_example_yaml
+            author_name=args.example_author_name
+            author_email=args.example_author_email
+            description=args.example_description
             if new_number>0 and new_yaml:    
-                RM.insert_example(new_number,new_yaml,author_name=author_name,author_email=author_email)
+                RM.insert_example(new_number,new_yaml,author_name=author_name,author_email=author_email,description=description)
             else:
                 raise ValueError(f'Invalid parameters for insert example action: new_number={new_number}, new_yaml={new_yaml}. Must be positive integer and non-empty YAML file name.')
         elif args.example_action == 'add':
-            new_yaml=args.new_yaml
-            author_name=args.author_name
-            author_email=args.author_email
+            new_yaml=args.new_example_yaml
+            author_name=args.example_author_name
+            author_email=args.example_author_email
+            description=args.example_description
             if new_yaml:
-                RM.add_example(new_yaml,author_name=author_name,author_email=author_email)
+                RM.add_example(new_yaml,author_name=author_name,author_email=author_email,description=description)
             else:
                 raise ValueError(f'Invalid parameter for add example action: new_yaml={new_yaml}. Must be non-empty YAML file name.')
         elif args.example_action == 'update':
             new_number=args.example_index
-            new_yaml=args.new_yaml
+            new_yaml=args.new_example_yaml
             if new_number>0 and new_yaml:
                 RM.update_example(new_number,new_yaml)
             else:
@@ -274,8 +276,8 @@ def modify_package(args):
                 raise ValueError(f'Invalid parameters for rename example action: number={number}, new_name={new_name}. Must be positive integer and non-empty YAML file name.')
         elif args.example_action == 'author':
             number=args.example_index
-            author_name=args.author_name
-            author_email=args.author_email
+            author_name=args.example_author_name
+            author_email=args.example_author_email
             if number>0 and author_name and author_email:
                 RM.set_example_author(number,author_name,author_email)
             else:
@@ -432,11 +434,12 @@ def cli():
     command_parsers['modify-package'].add_argument('--update-atomselect-macros',action='store_true',help='update the resources/tcl/macros.tcl file based on content in core/labels.py; developer use only')
     command_parsers['modify-package'].add_argument('--example-index',type=int,default=0,help='integer index of example to modify; developer use only')
     command_parsers['modify-package'].add_argument('--example-action',type=str,default=None,choices=[None,'add','insert','update','delete','rename','author'],help='action to perform on the example; choices are [add|insert|update|delete|rename|author]; developer use only')
-    command_parsers['modify-package'].add_argument('--new-yaml',type=str,default='',help='yaml file of example to update in the package; developer use only')
-    command_parsers['modify-package'].add_argument('--new-example-name',type=str,default='',help='new name for the example; developer use only')
+    command_parsers['modify-package'].add_argument('--new-example-yaml',type=str,default='',help='yaml file of example; developer use only')
+    command_parsers['modify-package'].add_argument('--new-example-name',type=str,default='',help='new name for the example for action \'rename\'; developer use only')
     command_parsers['modify-package'].add_argument('--log-level',type=str,default='info',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
-    command_parsers['modify-package'].add_argument('--author-name',type=str,default='',help='Name of the author (default: %(default)s)')
-    command_parsers['modify-package'].add_argument('--author-email',type=str,default='',help='Email of the author (default: %(default)s)')
+    command_parsers['modify-package'].add_argument('--example-author-name',type=str,default='',help='Name of the author; if not given, pestifer attempts to extract it from the YAML file header')
+    command_parsers['modify-package'].add_argument('--example-author-email',type=str,default='',help='Email of the author; if not given, pestifer attempts to extract it from the YAML file header')
+    command_parsers['modify-package'].add_argument('--example-description',type=str,default='',help='Description of the example (default: extract from \'title\' directive in YAML file)')
 
     command_parsers['make-pdb-collection'].add_argument('--streamID',type=str,default=None,help='charmmff stream to scan')
     command_parsers['make-pdb-collection'].add_argument('--substreamID',type=str,default='',help='charmmff substream to scan')

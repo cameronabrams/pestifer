@@ -385,7 +385,7 @@ class ExampleManager:
             If the example file does not exist at the specified path.
         """
         yaml_file_path=name if name.endswith('.yaml') else name + '.yaml'
-        new_example=self.new_example(yaml_file_path,description,pdbID,author_name,author_email)
+        new_example=self.new_example(yaml_file_path,description=description,pdbID=pdbID,author_name=author_name,author_email=author_email)
         new_example.index = index  # set the index for the new example
         real_index = index - 1  # convert to zero-based index
         if real_index < 0 or real_index > len(self.examples_list):
@@ -451,7 +451,7 @@ class ExampleManager:
         if os.path.isfile(example_file):
             logger.debug(f'Deleting existing example file "{example_file}"')
             os.remove(example_file)
-        new_example=self.new_example(yaml_file_path,description,pdbID,author_name,author_email)
+        new_example=self.new_example(yaml_file_path,description=description,pdbID=pdbID,author_name=author_name,author_email=author_email)
         new_example.index = index  # set the index for the new example
         self.examples_list[real_index] = new_example  # replace the old example with the new one
         shutil.copy(yaml_file_path, self.path)  # copy the new example
