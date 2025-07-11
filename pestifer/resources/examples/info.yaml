@@ -116,4 +116,9 @@ examples:
   index: 19
   name: sperm-whale-myoglobin
   pdbID: 1mob
-
+- author_email: cfa22@drexel.edu
+  author_name: Cameron F. Abrams
+  description: Mitochondrial methylmalonyl-CoA mutase (Alphafold P22033)
+  index: 20
+  name: methylmalonyl-coa-mutase
+  pdbID: P22033

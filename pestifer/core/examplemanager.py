@@ -67,7 +67,7 @@ class ExampleManager:
         """
         info_file=os.path.join(self.path,'info.yaml')
         saveme=dict(examples=self.examples_list.to_list_of_dicts())
-        with open(info_file,'w') as f:
+        with open(info_file,'w',encoding='utf-8') as f:
             yaml.dump(saveme,f,default_flow_style=False)
         logger.debug(f'Wrote info.yaml to {info_file}')
 

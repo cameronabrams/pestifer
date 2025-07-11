@@ -25,3 +25,4 @@ Examples
   examples/hiv-mpertm3-membrane2
   examples/ecoli-polymerase
   examples/sperm-whale-myoglobin
+  examples/methylmalonyl-coa-mutase

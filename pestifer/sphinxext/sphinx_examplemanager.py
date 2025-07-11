@@ -109,7 +109,7 @@ class SphinxExampleManager:
             else:
                 raise FileExistsError(f'Example file {destination_file} already exists. Cannot overwrite existing example files.')
         if self.examples_rst:
-            modify_toctree(self.examples_rst, action='insert', new_entry=example.name, new_index=index)
+            modify_toctree(self.examples_rst, action='insert', new_entry=example.name, index=index)
 
     def update_example(self, index: int, example:Example):
         """
