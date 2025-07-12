@@ -2,35 +2,38 @@ import unittest
 import os
 import shutil
 from pestifer.sphinxext.sphinx_examplemanager import SphinxExampleManager
+from pestifer.sphinxext.toctree_util import modify_toctree, get_num_entries_in_toctree
 from pestifer.core.example import Example
 
 class TestSphinxExampleManager(unittest.TestCase):
     def setUp(self):
         if os.path.isdir('docs'):
             shutil.rmtree('docs', ignore_errors=True)
-        if os.path.isfile('example1.yaml'):
-            os.remove('example1.yaml')
-        if os.path.isfile('example2-5.yaml'):
-            os.remove('example2-5.yaml')
+        if os.path.isdir('userspace'):
+            shutil.rmtree('userspace', ignore_errors=True)
         shutil.copytree('../fixtures/sphinx_example_inputs', '.', dirs_exist_ok=True)
-        self.manager = SphinxExampleManager(docs_source_path='docs/source')
-        self.example = Example(name="example2-5", pdbID='abc123', description="This is an example")
-        self.existing_example=Example(name="example1", pdbID='def456', description="Example Input (orig 1)", index=1)
-        self.updated_existing_example=Example(name="example1_updated", pdbID='def457', description="Example Input (orig 1) updated", index=1)
+        self.manager = SphinxExampleManager(docs_source_path='docs/source',examples_folder_name='examples', examples_rst_name='examples.rst')
+        self.examples=[]
+        idx=1
+        for l in ['A','B','C']:
+            self.examples.append(Example.from_yaml(f'userspace/ex{l}.yaml'))
+            self.manager.insert_example(len(self.examples), self.examples[-1])
 
-    def tearDown(self):
-        shutil.rmtree('docs', ignore_errors=True)
-        os.remove('example1.yaml')
-        os.remove('example2-5.yaml')
-        return super().tearDown()
+    # def tearDown(self):
+    #     shutil.rmtree('docs', ignore_errors=True)
+    #     shutil.rmtree('userspace', ignore_errors=True)
+    #     return super().tearDown()
 
     def test_sphinx_example_manager_init(self):
         self.assertIsNotNone(self.manager)
         self.assertTrue(os.path.isdir(self.manager.docs_source_path))
         self.assertTrue(os.path.isfile(self.manager.examples_rst))
         self.assertTrue(os.path.isdir(self.manager.examples_source_path))
-        self.assertTrue(os.path.exists('example2-5.yaml'))
-        
+        self.assertTrue(os.path.exists(self.manager.examples_rst))
+        self.assertTrue(os.path.exists(os.path.join(self.manager.examples_source_path, 'exA.rst')))
+        self.assertTrue(os.path.exists(os.path.join(self.manager.examples_source_path, 'exB.rst')))
+        self.assertTrue(os.path.exists(os.path.join(self.manager.examples_source_path, 'exC.rst')))
+
     def test_sphinx_example_manager_insert_delete_example(self):
         self.example.index = 2
         self.manager.insert_example(2,self.example)

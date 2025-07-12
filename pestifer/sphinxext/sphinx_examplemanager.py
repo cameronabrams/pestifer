@@ -32,6 +32,7 @@ class SphinxExampleManager:
         if docs_source_path is None:
             return None
         self.docs_source_path = docs_source_path
+        self.examples_folder_name = examples_folder_name
         self.examples_rst = os.path.join(docs_source_path, examples_rst_name) if docs_source_path else None
         assert os.path.isfile(self.examples_rst), f'Examples RST file {self.examples_rst} does not exist or is not a file'
         self.examples_source_path = os.path.join(docs_source_path, examples_folder_name) if docs_source_path else None
@@ -136,11 +137,11 @@ class SphinxExampleManager:
         if not os.path.exists(destination_file):
             self.title_index_shift(index, 1)  # Shift existing titles to make space for the new example
             with open(destination_file, 'w') as f:
-                f.write(example.new_rst())
+                f.write(self.new_rst(example))
         else:
             raise FileExistsError(f'Example file {destination_file} already exists. Cannot overwrite existing example files.')
         if self.examples_rst:
-            modify_toctree(self.examples_rst, action='insert', new_entry=example.name, index=index)
+            modify_toctree(self.examples_rst, action='insert', new_entry=example.name, index=index, common_prefix=self.examples_folder_name)
 
     def update_example(self, index: int, example:Example):
         """
