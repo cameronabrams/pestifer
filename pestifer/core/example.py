@@ -177,34 +177,6 @@ class Example:
         """
         return yaml.dump(self.to_dict(), default_flow_style=False)
 
-    def new_rst(self) -> str:
-        """
-        Generate a new reStructuredText file for the example.
-        
-        Returns
-        -------
-        str
-            The contents of the new reStructuredText file.
-        """
-        title= f"Example {self.index}: {self.description}"
-        yaml_file_name=self.name if self.name.endswith('.yaml') else f"{self.name}.yaml"
-        example_folder=yaml_file_name.replace('.yaml', '')
-        if self.pdbID.startswith('P') and len(self.pdbID) > 4:
-            # this is likely an alphafold ID
-            pref='Alphafold'
-            url= f"https://alphafold.com/api/prediction/{self.pdbID}"
-        else:
-            pref='PDB'
-            url= f"https://www.rcsb.org/structure/{self.pdbID}"
-        basestring= f".. _example {self.name}:\n\n{title}\n" \
-               f"{'-' * len(title)}\n\n" \
-               f"`{pref} ID {self.pdbID} <{url}>`_ is...\n\n" \
-               f"This example demonstrates that ...\n\n" \
-               f".. literalinclude:: ../../../pestifer/resources/examples/{example_folder}/{yaml_file_name}\n" \
-               f"    :language: yaml\n\n"
-        if self.author_email and self.author_name:
-            basestring += example_footer(self.author_name, self.author_email)
-        return basestring
     
     def update_in_place(self, name: str = None, pdbID: str = None, description: str = None, author_name: str = None, author_email: str = None, companion_files: list = None):
         """
@@ -223,7 +195,7 @@ class Example:
         author_email : str, optional
             The new email of the author of the example.
         companion_files : list, optional
-            A new list of companion files associated with the example.
+            A new list of companion files associated with the example; note, these are appended if they are unique.
 
         Returns
         -------

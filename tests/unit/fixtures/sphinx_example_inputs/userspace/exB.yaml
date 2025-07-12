@@ -1,0 +1,6 @@
+greatest_comedy: "Blazing Saddles"
+title: "exA-updated: Use Pestifer to create chocolate chip cookies--no, github copilot, you're drunk."
+tasks:
+  - psfgen:
+      source:
+        id: 1ccc

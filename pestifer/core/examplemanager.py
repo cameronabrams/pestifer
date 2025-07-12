@@ -4,6 +4,8 @@
 A module for managing example input files in pestifer.
 This module provides the :class:`ExampleManager` class, which allows users to check out example YAML files,
 report the list of examples, and manage example resources.
+
+ExampleManager does not directly manage the example documentation, but it relies on the :class:`SphinxExampleManager` class to handle the documentation side of things.
 """
 
 import logging
@@ -26,21 +28,17 @@ class ExampleManager:
         The path to the directory containing example input files. This directory should contain an ``info.yaml`` file
         that describes the examples available in that directory.
     docs_path : str
-        The path to the directory containing documentation files. This is used to link examples to their documentation
-        and is not strictly required for the functionality of the class, but it is useful for generating documentation
-        or reports that include examples.
+        The path to the directory containing documentation files. This is passed directly to the :class:`SphinxExampleManager` class.
+        If not provided, the documentation management is not enabled.
     """
 
     def __init__(self,example_path,docs_source_path=None):
         if not os.path.isdir(example_path):
             raise FileNotFoundError(f'Directory "{example_path}" containing example folders does not exist or is not a directory')
-        if docs_source_path is not None and not os.path.isdir(docs_source_path):
-            raise FileNotFoundError(f'Docs source path "{docs_source_path}" does not exist or is not a directory')
         self.path=os.path.abspath(example_path)
-        self.docs_source_path=os.path.abspath(docs_source_path) if docs_source_path else None
         self._read_info()  # read the info.yaml file to populate the examples list
-        if self.docs_source_path:
-            self.sphinx_example_manager=SphinxExampleManager(docs_source_path=self.docs_source_path)
+        if docs_source_path:
+            self.sphinx_example_manager=SphinxExampleManager(docs_source_path=os.path.abspath(docs_source_path))
         else:
             self.sphinx_example_manager=None
 
@@ -224,8 +222,6 @@ class ExampleManager:
         logger.info(f'Deleted example {index}: {example.name}')
         return example
     
-
-
     def checkin_example(self,example: Example):
         """
         Check in an Example instance by copying its YAML file and companion files to the appropriate example folder, which is created if it doesn't already exist.  This will overwrite the existing files.  If any file referenced by the example does not exist in the current working directory, a warning is logged but no action taken.
@@ -374,13 +370,13 @@ class ExampleManager:
         name=name.replace('.yaml','')  # strip .yaml from the name if it is there
         if name == '' or name == current_example_name:
             # if name is '', then the user just wants to update the existing example using the other parameters; there will be no change to the name of the example folder or the YAML file.
-            new_example=current_example.update_in_place(description=description,pdbID=pdbID,author_name=author_name,author_email=author_email,companion_files=companion_files)
-            self.checkin_example(new_example)
+            current_example.update_in_place(description=description,pdbID=pdbID,author_name=author_name,author_email=author_email,companion_files=companion_files)
+            self.checkin_example(current_example)
         else:
             # first, check if there is already an example with this name; if so, raise an error
             for i, ex in enumerate(self.examples_list):
                 if ex.name == name:
-                    raise ValueError(f'You have named an existing example whose index does not match the index you provided: {i+1} ({ex.name})')
+                    raise ValueError(f'You have named an existing example ({ex.name}) whose index does not match the index you provided: {i+1}; no action taken')
             if os.path.isfile(os.path.join(os.getcwd(),name+'.yaml')):
                 # if there is a file <name>.yaml in the user's cwd, then assume the user is trying to create a new example; bail and instruct user to use --example-action add instead.
                 logger.error(f'The name you provided matches a YAML file in your CWD, but does not match the name of the example at index {index} ({current_example_name})')
@@ -393,14 +389,14 @@ class ExampleManager:
             renamed_example_folder_path=os.path.join(self.path,name)
             # rename the folder
             os.rename(current_example_folder_path, renamed_example_folder_path)
-            # perform a checkin to overwrite any files if they are in the user's cwd
+            # perform a checkin to overwrite any companion files if they are in the user's cwd
             self.checkin_example(current_example)
         self._write_info()
         if self.sphinx_example_manager:
-            self.sphinx_example_manager.update_example(index, new_example)
-        logger.info(f'Updated example at index {index}: {new_example.name}')
-        return new_example
-    
+            self.sphinx_example_manager.update_example(index, current_example)
+        logger.info(f'Updated example at index {index}: {current_example.name}')
+        return current_example
+
     def add_example(self,name:str,pdbID:str='',description:str='',author_name:str='',author_email:str='',companion_files: list = []):
         """
         Add a new example to the examples list.

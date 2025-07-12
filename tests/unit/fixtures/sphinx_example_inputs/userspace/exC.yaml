@@ -1,0 +1,6 @@
+title: "exX: Use Pestifer to create a simple userspace application--no, github copilot, you're drunk."
+tasks:
+  - psfgen:
+      source:
+        id: 1a8l
+    

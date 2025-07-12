@@ -1,7 +1,6 @@
 import unittest
 import os
 import shutil
-import tarfile
 from pestifer.sphinxext.sphinx_examplemanager import SphinxExampleManager
 from pestifer.core.example import Example
 
@@ -31,6 +30,33 @@ class TestSphinxExampleManager(unittest.TestCase):
         self.assertTrue(os.path.isfile(self.manager.examples_rst))
         self.assertTrue(os.path.isdir(self.manager.examples_source_path))
         self.assertTrue(os.path.exists('example2-5.yaml'))
+        
+    def test_sphinx_example_manager_insert_delete_example(self):
+        self.example.index = 2
+        self.manager.insert_example(2,self.example)
+        toctree_path = self.manager.examples_rst
+        with open(toctree_path, 'r') as f:
+            toctree_lines = f.readlines()
+        ex1idx=toctree_lines.index('  examples/example1\n')
+        exINSidx=toctree_lines.index('  examples/example2-5\n')
+        ex2idx=toctree_lines.index('  examples/example2\n')
+        self.assertTrue(ex1idx < exINSidx < ex2idx)
+        example_rst_path = os.path.join(self.manager.examples_source_path, f'{self.example.name}.rst')
+        self.assertTrue(os.path.isfile(example_rst_path))
+        with open(example_rst_path, 'r') as f:
+            content = f.read()
+        self.assertIn("Example 2: This is an example", content)
+        self.assertIn("PDB ID abc123", content)
+        existing_example_rst_path = os.path.join(self.manager.examples_source_path, f'example2.rst')
+        self.assertTrue(os.path.isfile(existing_example_rst_path))
+        with open(existing_example_rst_path, 'r') as f:
+            content = f.read()
+        self.assertIn("Example 3: Example Input (orig 2)", content)
+        self.manager.delete_example(self.example)
+        self.assertFalse(os.path.isfile(example_rst_path))
+        with open(existing_example_rst_path, 'r') as f:
+            content = f.read()
+        self.assertIn("Example 2: Example Input (orig 2)", content)
 
     def test_sphinx_example_manager_add_example(self):
         self.example.index=4 # this will be set by the manager
@@ -58,32 +84,7 @@ class TestSphinxExampleManager(unittest.TestCase):
             content = f.read()
         self.assertIn("Example 2: Example Input (orig 2)", content)
 
-    def test_sphinx_example_manager_insert_delete_example(self):
-        self.example.index = 2
-        self.manager.insert_example(2,self.example)
-        toctree_path = self.manager.examples_rst
-        with open(toctree_path, 'r') as f:
-            toctree_lines = f.readlines()
-        ex1idx=toctree_lines.index('  examples/example1\n')
-        exINSidx=toctree_lines.index('  examples/example2-5\n')
-        ex2idx=toctree_lines.index('  examples/example2\n')
-        self.assertTrue(ex1idx < exINSidx < ex2idx)
-        example_rst_path = os.path.join(self.manager.examples_source_path, f'{self.example.name}.rst')
-        self.assertTrue(os.path.isfile(example_rst_path))
-        with open(example_rst_path, 'r') as f:
-            content = f.read()
-        self.assertIn("Example 2: This is an example", content)
-        self.assertIn("PDB ID abc123", content)
-        existing_example_rst_path = os.path.join(self.manager.examples_source_path, f'example2.rst')
-        self.assertTrue(os.path.isfile(existing_example_rst_path))
-        with open(existing_example_rst_path, 'r') as f:
-            content = f.read()
-        self.assertIn("Example 3: Example Input (orig 2)", content)
-        self.manager.delete_example(self.example)
-        self.assertFalse(os.path.isfile(example_rst_path))
-        with open(existing_example_rst_path, 'r') as f:
-            content = f.read()
-        self.assertIn("Example 2: Example Input (orig 2)", content)
+
 
     def test_sphinx_example_manager_add_existing_example(self):
         with self.assertRaises(FileExistsError):
