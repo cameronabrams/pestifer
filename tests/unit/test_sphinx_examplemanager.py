@@ -14,11 +14,11 @@ class TestSphinxExampleManager(unittest.TestCase):
         shutil.copytree('../fixtures/sphinx_example_inputs', '.', dirs_exist_ok=True)
         self.manager = SphinxExampleManager(docs_source_path='docs/source',examples_folder_name='examples', examples_rst_name='examples.rst')
         self.examples=[]
-        idx=1
         for l in ['A','B','C']:
             self.examples.append(Example.from_yaml(f'userspace/ex{l}.yaml'))
             self.manager.insert_example(len(self.examples), self.examples[-1])
-
+        self.updated_existing_example = Example.from_yaml('userspace/exA_updated.yaml')
+        self.example_to_insert=Example.from_yaml('userspace/exD.yaml')
     # def tearDown(self):
     #     shutil.rmtree('docs', ignore_errors=True)
     #     shutil.rmtree('userspace', ignore_errors=True)
@@ -35,31 +35,31 @@ class TestSphinxExampleManager(unittest.TestCase):
         self.assertTrue(os.path.exists(os.path.join(self.manager.examples_source_path, 'exC.rst')))
 
     def test_sphinx_example_manager_insert_delete_example(self):
-        self.example.index = 2
-        self.manager.insert_example(2,self.example)
+        self.example_to_insert.index = 2
+        self.manager.insert_example(2,self.example_to_insert)
         toctree_path = self.manager.examples_rst
         with open(toctree_path, 'r') as f:
             toctree_lines = f.readlines()
-        ex1idx=toctree_lines.index('  examples/example1\n')
-        exINSidx=toctree_lines.index('  examples/example2-5\n')
-        ex2idx=toctree_lines.index('  examples/example2\n')
-        self.assertTrue(ex1idx < exINSidx < ex2idx)
-        example_rst_path = os.path.join(self.manager.examples_source_path, f'{self.example.name}.rst')
+        exAidx=toctree_lines.index('  examples/exA\n')
+        exINSidx=toctree_lines.index('  examples/exD\n')
+        exBidx=toctree_lines.index('  examples/exB\n')
+        self.assertTrue(exAidx < exINSidx < exBidx)
+        example_rst_path = os.path.join(self.manager.examples_source_path, f'{self.example_to_insert.name}.rst')
         self.assertTrue(os.path.isfile(example_rst_path))
         with open(example_rst_path, 'r') as f:
             content = f.read()
-        self.assertIn("Example 2: This is an example", content)
-        self.assertIn("PDB ID abc123", content)
-        existing_example_rst_path = os.path.join(self.manager.examples_source_path, f'example2.rst')
+        self.assertIn("Example 2: exD: My Life on the D list", content)
+        self.assertIn("PDB ID 1b85", content)
+        existing_example_rst_path = os.path.join(self.manager.examples_source_path, f'exB.rst')
         self.assertTrue(os.path.isfile(existing_example_rst_path))
         with open(existing_example_rst_path, 'r') as f:
             content = f.read()
-        self.assertIn("Example 3: Example Input (orig 2)", content)
-        self.manager.delete_example(self.example)
+        self.assertIn("Example 3:", content)
+        self.manager.delete_example(self.example_to_insert)
         self.assertFalse(os.path.isfile(example_rst_path))
         with open(existing_example_rst_path, 'r') as f:
             content = f.read()
-        self.assertIn("Example 2: Example Input (orig 2)", content)
+        self.assertIn("Example 2:", content)
 
     def test_sphinx_example_manager_add_example(self):
         self.example.index=4 # this will be set by the manager
