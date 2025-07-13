@@ -129,9 +129,9 @@ def test_namd_log_static_incomplete():
     l.update(msg)
     assert len(l.processed_line_idx)==3198
     assert l.metadata['timestep']==2.0
-    assert l.metadata['restart'][-1]==120000
-    assert l.metadata['performance'][-1]['ns_per_day']==23.2433
-    assert l.metadata['timing'][-1]['cpu_time']==786.403
+    assert l.time_series_data['restart'][-1]==120000
+    assert l.time_series_data['performance'][-1]['ns_per_day']==23.2433
+    assert l.time_series_data['timing'][-1]['cpu_time']==786.403
     l.finalize()
 
 def test_namd_log_dynamic():

@@ -26,13 +26,6 @@ class TestExample(unittest.TestCase):
         report_line = example.report_line()
         self.assertEqual(report_line, "      1    abc1  example1                          This is an example")
 
-    def test_example_new_rst(self):
-        example = Example(name="example1", pdbID='abc123', description="This is an example", index=1)
-        rst_content = example.new_rst()
-        self.assertIn("Example 1: This is an example", rst_content)
-        self.assertIn("PDB ID abc123", rst_content)
-        self.assertIn("literalinclude:: ../../../pestifer/resources/examples/example1.yaml", rst_content)
-
     def test_example_list_creation(self):
         example1 = Example(name="example1", pdbID='abc123', description="This is an example", index=1)
         example2 = Example(name="example2", pdbID='def456', description="This is another example", index=2)

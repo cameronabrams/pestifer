@@ -645,10 +645,9 @@ def example_footer(author_name='',author_email=''):
     if author_name and author_email:
         footer=f""".. raw:: html
 
-
-        <div class="autogen-footer">
-            <p>Example author: {author_name}&nbsp;&nbsp;&nbsp;Contact: <a href="mailto:{author_email}">{author_email}</a></p>
-        </div>"""
+    <div class="autogen-footer">
+        <p>Example author: {author_name} &nbsp;&nbsp;&nbsp; Contact: <a href="mailto:{author_email}">{author_email}</a></p>
+    </div>"""
     return footer
 
 def raise_clean(ErrorInstance):

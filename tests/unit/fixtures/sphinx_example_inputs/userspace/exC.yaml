@@ -1,5 +1,5 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-title: "exC: Use Pestifer to create a simple userspace application--no, github copilot, you're drunk."
+title: "Use Pestifer to entertain your friends and family."
 tasks:
   - psfgen:
       source:

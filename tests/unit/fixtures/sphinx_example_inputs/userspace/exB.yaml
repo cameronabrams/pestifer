@@ -1,7 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-greatest_comedy: "Spaceballs"
-title: "exB: Use Pestifer to create chocolate chip cookies--no, github copilot, you're drunk."
+title: "Use Pestifer to enter the underworld"
 tasks:
   - psfgen:
       source:
-        id: 1ccc
+        id: 1ccx

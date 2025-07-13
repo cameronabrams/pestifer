@@ -1,0 +1,6 @@
+# Author: Mel Brooks, <mb@yahoo.com>
+title: Spaceballs
+tasks:
+  - psfgen:
+      source:
+        id: 1spb

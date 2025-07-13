@@ -32,12 +32,17 @@ class ExampleManager:
         If not provided, the documentation management is not enabled.
     """
 
-    def __init__(self,example_path,docs_source_path=None):
+    def __init__(self,example_resource_folder_name='examples',resources_path=None,docs_source_path=None):
+        if not resources_path:
+            raise ValueError('You must provide a path to the directory containing package resources')
+        example_path=os.path.join(resources_path,example_resource_folder_name)
         if not os.path.isdir(example_path):
-            raise FileNotFoundError(f'Directory "{example_path}" containing example folders does not exist or is not a directory')
+            logger.debug(f'Directory "{example_path}" does not exist; creating it')
+            os.makedirs(example_path)
         self.path=os.path.abspath(example_path)
-        self._read_info()  # read the info.yaml file to populate the examples list
+        self._read_info()  # read the info.yaml if it exists file to populate the examples list
         if docs_source_path:
+            # create the SphinxExampleManager instance if docs_source_path is provided
             self.sphinx_example_manager=SphinxExampleManager(docs_source_path=os.path.abspath(docs_source_path))
         else:
             self.sphinx_example_manager=None
@@ -48,13 +53,15 @@ class ExampleManager:
         
         This method is called internally to refresh the examples list from the info.yaml file.
         """
+        self.info= {'examples': []}
         info_file=os.path.join(self.path,'info.yaml')
         if not os.path.isfile(info_file):
-            raise FileNotFoundError(f'Example path {self.path} does not contain info.yaml')
-        with open(info_file,'r') as f:
-            self.info=yaml.safe_load(f)
-        if 'examples' not in self.info:
-            raise KeyError(f'info.yaml in {self.path} does not contain examples key')
+            logger.debug(f'info.yaml file {info_file} does not exist in {self.path}. Assuming you have no examples yet')
+        else:
+            with open(info_file,'r') as f:
+                self.info=yaml.safe_load(f)
+            if 'examples' not in self.info:
+                raise KeyError(f'info.yaml in {self.path} does not contain examples key')
         self.examples_list=ExampleList.from_list_of_dicts(self.info['examples'])
 
     def _write_info(self):
@@ -307,57 +314,33 @@ class ExampleManager:
     def update_example(self,index:int,name:str='',description:str='',pdbID:str='',author_name:str='',author_email:str='',companion_files: list = []):
         """
         Update an existing example in the examples list by its unique index.
-        
-        * if name is not given, then
-           * overwrite attributes ``description``, ``pdbID``, ``author_name``, and ``author_email`` of the existing example at index with the 
-             provided values, if they are not empty.  The name of the example is unchanged.
-        * otherwise, if name is given, then
-           * if name matches name of example at index
-              * overwrite attributes ``description``, ``pdbID``, ``author_name``, and ``author_email`` of the existing example at index with the 
-                provided values, if they are not empty.
-              * if there is a file <name>.yaml in the user's cwd, then
-                * check this yaml file in, overwriting the existing YAML file (DANGER!)
-              * otherwise if there is NOT a file <name>.yaml in the user's cwd, then
-                * congratulate the user on their diligence in providing both the unique index and unique name of the existing example they want to 
-                  modify, and proceed with the update.
-           * otherwise, if name does not match name of example at index
-              * if there is already an example with this name, then raise an error
-              * otherwise, if there is not already an example with this name, then
-                * if there is a file <name>.yaml in the user's cwd, then
-                  * assume the user is trying to create a new example by completely overwriting the existing example at index; i.e.,
-                    * rename the existing example at index to <name> and overwrite all attributes ``name``, ``description``, ``pdbID``, ``author_name``, and ``author_email`` of the existing example at index with the provided values, if they are not empty.
-                * otherwise, if there is NOT a file <name>.yaml in the user's cwd, then
-                  * assume the user is simply trying to rename the existing example at index
-                  * rename the example at index; i.e., overwrite all attributes ``name``, ``description``, ``pdbID``, ``author_name``, and ``author_email`` of the existing example at index with the provided values, if they are not empty (``name`` is necessarily not empty in this branch).
 
         Parameters
         ----------
         index : int
             The index of the example to update (1-based).
         name : str
-            The name of the example to update.  It should not have an extension, so if it does, it is stripped off.
+            The name of the example to update.  It should not have an extension, so if it does, it is stripped off.  If <name>.yaml exists in the current working directory, it is used to update the example; otherwise, the existing example is updated in place.  <name> need not match the name of the existing example installed at <index>; if it does not (and there is no other installed example with that name), the existing example is renamed to <name> and the folder is renamed accordingly.
         description : str
-            A description of the example.
+            A description of the example; overrides value of 'title' in the <name>.yaml if it exists.
         pdbID : str
-            The PDB ID (or Alphafold ID) associated with the example.
+            The PDB ID (or Alphafold ID) associated with the example; overrides value of 'id' or 'alphafold' in the <name>.yaml if it exists.
         author_name : str
-            The name of the author of the example.
+            The name of the author of the example; overrides the name in the # Author line of <name>.yaml if it exists.
         author_email : str
-            The email of the author of the example.
+            The email of the author of the example; overrides the email in the # Author line of <name>.yaml if it exists.
         companion_files : list, optional
             A list of companion files associated with the example; defaults to an empty list.
             
         Returns
         -------
-        Example
-            The updated Example object.
+        Example or None
+            The updated Example object if the update was successful, or None if the name already exists in the examples list and does not match the index of the current example.
 
         Raises
         ------
         IndexError
             If the index is out of range for the examples list.
-        ValueError
-            If the name, description, or pdbID is not provided.
         FileNotFoundError
             If the example file does not exist at the specified path.
         """
@@ -367,30 +350,45 @@ class ExampleManager:
         current_example=self.examples_list[index-1]
         current_example_name=current_example.name
         current_example_folder=current_example_name
-        name=name.replace('.yaml','')  # strip .yaml from the name if it is there
-        if name == '' or name == current_example_name:
-            # if name is '', then the user just wants to update the existing example using the other parameters; there will be no change to the name of the example folder or the YAML file.
-            current_example.update_in_place(description=description,pdbID=pdbID,author_name=author_name,author_email=author_email,companion_files=companion_files)
-            self.checkin_example(current_example)
-        else:
-            # first, check if there is already an example with this name; if so, raise an error
+        desired_name=name.replace('.yaml','') if name else ''  # strip .yaml from the passed-in name if it is there
+        # cross-check the index of the desired name; it should match the index of the current example or nothing at all
+        rename_current_example=False
+        if desired_name and current_example_name != desired_name:
+            # make sure desired_name is not already in the examples list
             for i, ex in enumerate(self.examples_list):
-                if ex.name == name:
-                    raise ValueError(f'You have named an existing example ({ex.name}) whose index does not match the index you provided: {i+1}; no action taken')
-            if os.path.isfile(os.path.join(os.getcwd(),name+'.yaml')):
-                # if there is a file <name>.yaml in the user's cwd, then assume the user is trying to create a new example; bail and instruct user to use --example-action add instead.
-                logger.error(f'The name you provided matches a YAML file in your CWD, but does not match the name of the example at index {index} ({current_example_name})')
-                logger.error(f'If you are trying to create a new example, please use --example-action add instead of --example-action update')
-                logger.error(f'If you are trying to rename the existing example at index {index}, please be sure to run pestifer from a directory that does not contain a file named {name}.yaml')
-                raise FileExistsError(f'Improper use of --example-action update')
-            current_example_folder_path=os.path.join(self.path,current_example_folder)
+                if ex.name == desired_name:
+                    logger.warning(f'You have named an existing example "{ex.name}" at index {i+1} that does not match the index you provided: {index}; no action taken')
+                    return None
+            rename_current_example=True  # we will rename the current example to the desired name
+        user_file_path=name+'.yaml' if desired_name else current_example_name+'.yaml'  # the name of the YAML file in the user's cwd
+        user_file_exists=os.path.isfile(user_file_path)
+        if user_file_exists:
+            replacement_example=Example.from_yaml(user_file_path,description=description,pdbID=pdbID,author_name=author_name,author_email=author_email,companion_files=companion_files)
+            replacement_example.index = index  # set the index for the replacement example
+            self.examples_list[index-1]=replacement_example  # replace the existing example with the new one
+            self.checkin_example(replacement_example)  # check in the new example by copying
+            if rename_current_example:
+                files_to_transfer= [f for f in os.listdir(os.path.join(self.path,current_example_folder)) if f != current_example_name+'.yaml']
+                for f in files_to_transfer:
+                    old_path=os.path.join(self.path,current_example_folder,f)
+                    new_path=os.path.join(self.path,desired_name,f)
+                    if not os.path.isfile(new_path):
+                        logger.debug(f'Renaming file "{old_path}" to "{new_path}"')
+                        shutil.move(old_path, new_path)
+                shutil.rmtree(os.path.join(self.path,current_example_folder))  # remove the old example folder
+            current_example=replacement_example
+        else:
             current_example.update_in_place(description=description,pdbID=pdbID,author_name=author_name,author_email=author_email,companion_files=companion_files)
-            current_example.name=name
-            renamed_example_folder_path=os.path.join(self.path,name)
-            # rename the folder
-            os.rename(current_example_folder_path, renamed_example_folder_path)
-            # perform a checkin to overwrite any companion files if they are in the user's cwd
-            self.checkin_example(current_example)
+            if rename_current_example:
+                current_example.name=desired_name
+                current_example_folder=os.path.join(self.path,desired_name)
+                # rename the folder
+                current_example_folder_path=os.path.join(self.path,current_example_folder)
+                if os.path.isdir(current_example_folder_path):
+                    logger.debug(f'Renaming example folder "{current_example_folder_path}" to "{current_example_folder}"')
+                    os.rename(current_example_folder_path, current_example_folder)
+            self.checkin_example(current_example)  # check in the updated example by copying its YAML file and companion files to the appropriate example folder
+
         self._write_info()
         if self.sphinx_example_manager:
             self.sphinx_example_manager.update_example(index, current_example)

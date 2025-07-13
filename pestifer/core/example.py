@@ -5,6 +5,7 @@ Defines the :class:`Example` class for managing examples in the documentation.
 from collections import UserList
 import yaml
 import logging
+import re
 import os
 logger = logging.getLogger(__name__)
 from ..core.stringthings import example_footer
@@ -128,15 +129,28 @@ class Example:
             with open(yaml_file_name, 'r') as f:
                 lines= f.readlines()
             for line in lines:
+                """ Recognized format: list of strings that start with `# Author:` and contain the author's name and email.
+                The format is flexible, but the following rules apply:
+                    - the line must start with `# Author:`
+                    - a single string contains the '@' symbol, which is used to identify the email address
+                    - the name and email must be separated by a comma or whitespace
+                    - the name can contain spaces, internal commas, and periods
+                    - a terminal comma in the name can be ignored
+                    - any nonalphanumeric characters in email string (e.g., the '<' and '>' in '<email-address>') can be deleted from values
+                """
                 if line.startswith('# Author:'):
-                    author_info = line.split(':', 1)[1].strip()
-                    if '<' in author_info and '>' in author_info:
-                        author_name, author_email = author_info.split('<', 1)
-                        author_email = author_email.strip('>')
-                        author_name = author_name.strip()
-                    else:
-                        author_name = author_info
-                        author_email = ''
+                    author_info = line.replace('# Author:', '').strip()
+                    tokens = author_info.split()
+                    idx_of_email_tokens = [i for i, token in enumerate(tokens) if '@' in token]
+                    if not idx_of_email_tokens:
+                        raise ValueError(f'No email found in author line: {line}')
+                    if len(idx_of_email_tokens) > 1:
+                        raise ValueError(f'Multiple emails found in author line: {line}')
+                    email_idx = idx_of_email_tokens[0]
+                    raw_email = tokens.pop(email_idx)
+                    # remove any non-alphanumeric characters from the beginning and end of the email
+                    author_email = re.sub(r'^\W+|\W+$', '', raw_email)
+                    author_name = ' '.join(tokens).strip(',;')
                     break
         
         input_dict= {

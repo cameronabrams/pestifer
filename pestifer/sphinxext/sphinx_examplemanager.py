@@ -32,33 +32,21 @@ class SphinxExampleManager:
         if docs_source_path is None:
             return None
         self.docs_source_path = docs_source_path
+        self.examples_basename = examples_rst_name.replace('.rst', '')
         self.examples_folder_name = examples_folder_name
-        self.examples_rst = os.path.join(docs_source_path, examples_rst_name) if docs_source_path else None
-        assert os.path.isfile(self.examples_rst), f'Examples RST file {self.examples_rst} does not exist or is not a file'
-        self.examples_source_path = os.path.join(docs_source_path, examples_folder_name) if docs_source_path else None
-        assert os.path.isdir(self.examples_source_path), f'Examples source path {self.examples_source_path} does not exist or is not a directory'
-    
-    # def add_example(self, example:Example):
-    #     """
-    #     Add a new example to the documentation.
-    #     This method creates a new example file in the examples source path and updates the examples RST file.
-
-    #     Parameters
-    #     ----------
-    #     example : Example
-    #         The example to add. The example must have a valid index (greater than 0).  It should have been set by the :class:`ExampleManager` prior to calling this method to reflect its position at the end of the current examples list.
-    #     """
-    #     if example.index==0:
-    #         raise ValueError('Example index must be greater than 0. Use insert_example to insert an example at a specific index.')
-    #     if self.examples_source_path:
-    #         destination_file= os.path.join(self.examples_source_path, f'{example.name}.rst')
-    #         if not os.path.exists(destination_file):
-    #            with open(destination_file, 'w') as f:
-    #                f.write(example.new_rst())
-    #         else:
-    #             raise FileExistsError(f'Example file {destination_file} already exists. Cannot overwrite existing example files.')
-    #     if self.examples_rst:
-    #         modify_toctree(self.examples_rst, action='add', new_entry=example.name)
+        # determine if this is an empty docs source path and if so, build it
+        self.examples_folder_path = os.path.join(docs_source_path, examples_folder_name)
+        if not os.path.isdir(self.examples_folder_path):
+            logger.debug(f'Examples folder {self.examples_folder_path} under {docs_source_path} does not exist or is not a directory')
+            os.makedirs(self.examples_folder_path, exist_ok=True)
+        self.examples_rst = os.path.join(docs_source_path, examples_rst_name)
+        if not os.path.isfile(self.examples_rst):
+            logger.debug(f'Main examples RST file {self.examples_rst} under {docs_source_path} does not exist. Creating a new one.')
+            with open(self.examples_rst, 'w') as f:
+                f.write(f'.. _{self.examples_basename}:\n\n')
+                f.write(f'{self.examples_basename.title()}\n')
+                f.write(f'{"=" * len(self.examples_basename)}\n\n')
+                f.write('.. toctree::\n   :maxdepth: 1\n\n')
 
     def new_rst(self, example:Example):
         """
@@ -102,11 +90,11 @@ class SphinxExampleManager:
         shift : int
             The amount by which to shift the indices.
         """
-        existing_rst_files = [f for f in os.listdir(self.examples_source_path) if f.endswith('.rst')]
+        existing_rst_files = [f for f in os.listdir(self.examples_folder_path) if f.endswith('.rst')]
         for existing_file in existing_rst_files:
-            with open(os.path.join(self.examples_source_path, existing_file), 'r') as f:
+            with open(os.path.join(self.examples_folder_path, existing_file), 'r') as f:
                 lines = f.readlines()
-            with open(os.path.join(self.examples_source_path, existing_file), 'w') as f:
+            with open(os.path.join(self.examples_folder_path, existing_file), 'w') as f:
                 for line in lines:
                     if line.startswith('Example'):
                         try:
@@ -133,7 +121,8 @@ class SphinxExampleManager:
         example : Example
             The example to insert.
         """
-        destination_file = os.path.join(self.examples_source_path, f'{example.name}.rst')
+        example.index=index
+        destination_file = os.path.join(self.examples_folder_path, f'{example.name}.rst')
         if not os.path.exists(destination_file):
             self.title_index_shift(index, 1)  # Shift existing titles to make space for the new example
             with open(destination_file, 'w') as f:
@@ -142,6 +131,19 @@ class SphinxExampleManager:
             raise FileExistsError(f'Example file {destination_file} already exists. Cannot overwrite existing example files.')
         if self.examples_rst:
             modify_toctree(self.examples_rst, action='insert', new_entry=example.name, index=index, common_prefix=self.examples_folder_name)
+
+    def append_example(self, example:Example):
+        """
+        Append an example RST file and append its reference to the toctree.
+        
+        Parameters
+        ----------
+        example : Example
+            The example to append.
+        """
+        new_index = len(os.listdir(self.examples_folder_path)) + 1  # Determine the new index based on the number of existing examples
+        example.index = new_index  # Set the index for the example
+        self.insert_example(new_index, example)  # Use insert_example to add the example at the end
 
     def update_example(self, index: int, example:Example):
         """
@@ -155,17 +157,18 @@ class SphinxExampleManager:
             The example whose content will be used to update the existing example
         """
         current_name = get_name_from_toctree(self.examples_rst, index)
-        current_rst_file = os.path.join(self.examples_source_path, f'{current_name}.rst')
+        current_rst_file = os.path.join(self.examples_folder_path, f'{current_name}.rst')
         if not os.path.exists(current_rst_file):
             raise FileNotFoundError(f'Current example file {current_rst_file} does not exist. Cannot update non-existing example files.')
         updated_name = example.name
         if current_name != updated_name:
             # rename the current example rst file to include the index
-            updated_rst_file = os.path.join(self.examples_source_path, f'{updated_name}.rst')
+            updated_rst_file = os.path.join(self.examples_folder_path, f'{updated_name}.rst')
             os.rename(current_rst_file, updated_rst_file)
             logger.debug(f'Renamed {current_rst_file} to {updated_rst_file}')
             if self.examples_rst:
                 modify_toctree(self.examples_rst, action='update', target=current_name, new_entry=example.name)
+            current_rst_file = updated_rst_file
         with open(current_rst_file, 'r') as f:
             rst_lines=f.readlines()
         with open(current_rst_file, 'w') as f:
@@ -202,7 +205,7 @@ class SphinxExampleManager:
         example : Example
             The example to delete.
         """
-        destination_file = os.path.join(self.examples_source_path, f'{example.name}.rst')
+        destination_file = os.path.join(self.examples_folder_path, f'{example.name}.rst')
         if os.path.exists(destination_file):
             os.remove(destination_file)
             self.title_index_shift(example.index, -1)
@@ -222,12 +225,12 @@ class SphinxExampleManager:
     #     new_name : str
     #         The new name for the example.
     #     """
-    #     if self.examples_source_path:
+    #     if self.examples_folder_path:
     #         current_name = get_name_from_toctree(self.examples_rst, index)
-    #         current_rst_file = os.path.join(self.examples_source_path, f'{current_name}.rst')
+    #         current_rst_file = os.path.join(self.examples_folder_path, f'{current_name}.rst')
     #         if not os.path.exists(current_rst_file):
     #             raise FileNotFoundError(f'Current example file {current_rst_file} does not exist. Cannot rename non-existing example files.')
-    #         new_rst_file = os.path.join(self.examples_source_path, f'{new_name}.rst')
+    #         new_rst_file = os.path.join(self.examples_folder_path, f'{new_name}.rst')
     #         os.rename(current_rst_file, new_rst_file)
     #         logger.debug(f'Renamed {current_rst_file} to {new_rst_file}')
     #         # update the explicit yaml include in the example RST file
@@ -255,9 +258,9 @@ class SphinxExampleManager:
     #     author_email : str
     #         The email of the author.
     #     """
-    #     if self.examples_source_path:
+    #     if self.examples_folder_path:
     #         current_name = get_name_from_toctree(self.examples_rst, index)
-    #         current_rst_file = os.path.join(self.examples_source_path, f'{current_name}.rst')
+    #         current_rst_file = os.path.join(self.examples_folder_path, f'{current_name}.rst')
     #         if not os.path.exists(current_rst_file):
     #             raise FileNotFoundError(f'Current example file {current_rst_file} does not exist. Cannot set author for non-existing example files.')
     #         with open(current_rst_file, 'a') as f:

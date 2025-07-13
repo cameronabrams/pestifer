@@ -42,7 +42,7 @@ class ConfigTest(unittest.TestCase):
         os.mkdir(tmpdir)
         os.chdir(tmpdir)
         EM=self.RM.example_manager
-        configfile=EM.checkout_example_yaml(1)
+        configfile=EM.checkout_example(1)
         c=Config(userfile=configfile)
         self.assertTrue('user' in c)
         self.assertTrue('tasks' in c['user'])
@@ -67,7 +67,7 @@ class ConfigTest(unittest.TestCase):
         os.mkdir(tmpdir)
         os.chdir(tmpdir)
         EM=self.RM.example_manager
-        configfile=EM.checkout_example_yaml(7)
+        configfile=EM.checkout_example(7)
         c=Config(userfile=configfile)
         self.assertTrue('user' in c)
         self.assertTrue('tasks' in c['user'])
@@ -88,18 +88,19 @@ class ConfigTest(unittest.TestCase):
 
     def test_config_help_examples(self):
         EM=self.RM.example_manager
+        configfolders=[x.name for x in EM.examples_list]
         configfiles=[f'{x.name}.yaml' for x in EM.examples_list]
         tmpdir='__test_config_help_examples'
         if os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)
         os.mkdir(tmpdir)
         os.chdir(tmpdir)
-        for index,configfile in enumerate(configfiles):
-            configfile_path=os.path.join(EM.path,configfile)
+        for index,(configfolder,configfile) in enumerate(zip(configfolders,configfiles)):
+            configfile_path=os.path.join(EM.path,configfolder,configfile)
             self.assertTrue(os.path.exists(configfile_path),f'Config file {configfile_path} does not exist')
-            EM.checkout_example_yaml(index+1)
+            EM.checkout_example(index+1)
             self.assertTrue(os.path.exists(configfile),f'Config file {configfile} does not exist after checkout')
-            c=Config(userfile=configfile)
+            c=Config(userfile=configfile_path)
             self.assertTrue('base' in c)
             self.assertTrue('user' in c)
             D=c['base']['directives']
@@ -132,5 +133,5 @@ class ConfigTest(unittest.TestCase):
             self.assertTrue('mods' in specs)
             self.assertTrue('ssbondsdelete' in specs['mods'])
             source_specs=specs['source']
-            self.assertTrue('id' in source_specs)
+            self.assertTrue('id' in source_specs or 'alphafold' in source_specs)
         os.chdir('..')

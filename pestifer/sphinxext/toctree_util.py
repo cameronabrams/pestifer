@@ -237,6 +237,8 @@ def get_num_entries_in_toctree(filepath):
     ValueError
         If no toctree block is found in the file.
     """
+    if not os.path.isfile(filepath):
+        return 0
     lines = read_rst_file(filepath)
     start, entry_start, entry_end = find_toctree_block(lines)
     entries = parse_toctree_entries(lines, entry_start, entry_end)

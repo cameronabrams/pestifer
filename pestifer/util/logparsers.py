@@ -693,7 +693,7 @@ class NAMDLog(LogParser):
 
         # process element[1] "0.025328/step  Wall: 140.3    "
         tokens=[x.strip().replace('/step','') for x in elements[1].split()]  # [0.025328, Wall:, 140.3]
-        if len(tokens)!=4:
+        if len(tokens)!=3:
             logger.debug(f'process_timing_line: {line} does not have enough tokens in second element')
             return
         if not tokens[0].replace('.','',1).isdigit():
@@ -741,16 +741,16 @@ class NAMDLog(LogParser):
             memory_in_use=float(tokens[0])
         else:
         #     process element[3] "0.0621481 hours remaining"
-            tokens=[x.strip().replace('hours remaining','') for x in elements[3].split()]  # [0.0621481]
+            tokens=[x.strip() for x in elements[3].replace('hours remaining','').split()]  # [0.0621481]
             if len(tokens)!=1:
-                logger.debug(f'process_timing_line: {line} does not have enough tokens in fourth element')
+                logger.debug(f'process_timing_line: {line} does not have enough tokens in fourth element {tokens}')
                 return
             if not tokens[0].replace('.','',1).isdigit():
                 logger.debug(f'process_timing_line: {line} first token is not a digit: {tokens[0]}')
                 return
             hours_remaining=float(tokens[0])
         #     process element[4] "0.000000 MB of memory in use."
-            tokens=[x.strip().replace('MB of memory in use.','') for x in elements[4].split()]  # [0.000000]
+            tokens=[x.strip() for x in elements[4].replace('MB of memory in use.','').split()]  # [0.000000]
             if len(tokens)!=1:
                 logger.debug(f'process_timing_line: {line} does not have enough tokens in fifth element')
                 return

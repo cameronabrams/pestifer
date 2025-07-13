@@ -24,7 +24,7 @@ tasks:
     nsteps: 10000
 - mdplot:
     basename: solvated
-    traces:
+    timeseries:
       - density
     grid: True
 - terminate:
