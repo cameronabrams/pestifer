@@ -32,7 +32,7 @@ class ExampleManager:
         If not provided, the documentation management is not enabled.
     """
 
-    def __init__(self,example_resource_folder_name='examples',resources_path=None,docs_source_path=None):
+    def __init__(self,resources_path=None,docs_source_path=None,example_resource_folder_name='examples'):
         if not resources_path:
             raise ValueError('You must provide a path to the directory containing package resources')
         example_path=os.path.join(resources_path,example_resource_folder_name)

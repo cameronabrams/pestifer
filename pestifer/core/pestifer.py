@@ -12,6 +12,8 @@ import time
 import textwrap
 import yaml
 
+from pathlib import Path
+
 __pestifer_version__ = importlib.metadata.version("pestifer")
 from .config import Config, ResourceManager
 from ..charmmff.charmmresi import make_pdb_collection
@@ -174,12 +176,12 @@ def mdplot(args):
     C.tasks[0].taskname=args.basename
     report=C.do_tasks()
 
-def list_examples():
-    """
-    List all available example YAML configurations.
-    """
-    r=ResourceManager()
-    return r.example_manager.report_examples_list()
+# def list_examples():
+#     """
+#     List all available example YAML configurations.
+#     """
+#     r=ResourceManager()
+#     return r.example_manager.report_examples_list()
 
 def fetch_example(args):
     """
@@ -341,6 +343,9 @@ def cli():
     This function sets up the argument parser, defines commands, and executes the appropriate command based on the user's input.
     It includes commands for running simulations, fetching examples, showing resources, and more.
     """
+    package_path=Path(__file__).resolve().parent.parent.parent
+    is_source_package_with_git=os.path.isdir(os.path.join(package_path,'.git'))
+
     commands={
         'run': run,
         'config-help': config_help,
@@ -356,14 +361,15 @@ def cli():
         'config-default': config_default,
         # 'cleanup': cleanup,
         'follow-namd-log': follow_namd_log,
-        'modify-package': modify_package,
     }
+    if is_source_package_with_git:
+        commands['modify-package'] = modify_package
     helps={
         'config-help':'get help on the syntax of input configuration files',
         'config-default':'generate a default input directive',
         'fetch-example':'copy the example\'s YAML config file to the CWD',
         'run-example':'build one of the examples provided',
-        'run':'build a system using instructions in the config file',
+        'run':'prepare a system using instructions in the config file',
         'new-system':'create a new system from scratch',
         'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
         'make-pdb-collection':'make a PDB Collection for use by packmol',
@@ -373,25 +379,27 @@ def cli():
         'mdplot':'extract and plot time-series data from NAMD log and xst files',
         # 'cleanup':'clean up files from a run (usually for a clean restart)',
         'follow-namd-log':'follow a NAMD log file and show a progress bar',
-        'modify-package':'various package modifications, developer use only',
     }
+    if is_source_package_with_git:
+        helps['modify-package']='modify the pestifer source package; developer use only'
     descs={
         'config-help':'Use this command to get interactive help on config file directives.',
         'config-default':'This will generate a default config file for you to fill in using a text editor.',
         'new-system':'Create a new system from scratch.',
-        'fetch-example':'Fetch YAML config for one of the examples:\n'+list_examples(),
-        'run-example':'Build one of the examples:\n'+list_examples(),
-        'run':'Build a system',
-        'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
-        'make-pdb-collection':'makes representative psf/pdb files for any CHARMM RESI\'s found in given topology streams',
-        'desolvate':'desolvate an existing PSF/DCD',
-        'make-namd-restart':'generate a restart NAMD config file based on current checkpoint',
-        'show-resources':'display elements of the included pestifer resources',
+        'fetch-example':'Fetch YAML config for one of the examples; \'pestifer show-resources examples\' will show you the available examples.',
+        'run-example':'Prepare a system from one of the examples; \'pestifer show-resources examples\' will show you the available examples.',
+        'run':'Prepare a system from a provided configuration file.',
+        'wheretcl':'Report path of TcL scripts for sourcing in interactive VMD',
+        'make-pdb-collection':'Make representative psf/pdb files for any CHARMM RESI\'s found in given topology streams',
+        'desolvate':'Desolvate an existing PSF/DCD',
+        'make-namd-restart':'Generate a restart NAMD config file based on current checkpoint',
+        'show-resources':'Display elements of the included pestifer resources',
         'mdplot':'Extract and plot time-series data from NAMD log and xst files',
         # 'cleanup':'Clean up files from a run (usually for a clean restart)',
         'follow-namd-log':'Follow a NAMD log file and show a progress bar',
-        'modify-package':'various package modifications, developer use only',
     }
+    if is_source_package_with_git:
+        descs['modify-package']='Modify the pestifer source package; developer use only.  This command can only be run if pestifer is installed as an editable source tree.'
     parser=ap.ArgumentParser(formatter_class=NiceHelpFormatter)
     parser.add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
     parser.add_argument('--kick-ass-banner',default=False,action='store_true',help=ap.SUPPRESS)
@@ -430,16 +438,16 @@ def cli():
     command_parsers['wheretcl'].add_argument('--script-dir',default=False,action='store_true',help='print full path of directory of Pestifer\'s VMD scripts')
     command_parsers['wheretcl'].add_argument('--pkg-dir',default=False,action='store_true',help='print full path of directory of Pestifer\'s VMD/TcL package library')
     command_parsers['wheretcl'].add_argument('--root',default=False,action='store_true',help='print full path of Pestifer\'s root TcL directory')
-
-    command_parsers['modify-package'].add_argument('--update-atomselect-macros',action='store_true',help='update the resources/tcl/macros.tcl file based on content in core/labels.py; developer use only')
-    command_parsers['modify-package'].add_argument('--example-index',type=int,default=0,help='integer index of example to modify; developer use only')
-    command_parsers['modify-package'].add_argument('--example-action',type=str,default=None,choices=[None,'add','insert','update','delete','rename','author'],help='action to perform on the example; choices are [add|insert|update|delete|rename|author]; developer use only')
-    command_parsers['modify-package'].add_argument('--new-example-yaml',type=str,default='',help='yaml file of example; developer use only')
-    command_parsers['modify-package'].add_argument('--new-example-name',type=str,default='',help='new name for the example for action \'rename\'; developer use only')
-    command_parsers['modify-package'].add_argument('--log-level',type=str,default='info',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
-    command_parsers['modify-package'].add_argument('--example-author-name',type=str,default='',help='Name of the author; if not given, pestifer attempts to extract it from the YAML file header')
-    command_parsers['modify-package'].add_argument('--example-author-email',type=str,default='',help='Email of the author; if not given, pestifer attempts to extract it from the YAML file header')
-    command_parsers['modify-package'].add_argument('--example-description',type=str,default='',help='Description of the example (default: extract from \'title\' directive in YAML file)')
+    if is_source_package_with_git:
+        command_parsers['modify-package'].add_argument('--update-atomselect-macros',action='store_true',help='update the resources/tcl/macros.tcl file based on content in core/labels.py; developer use only')
+        command_parsers['modify-package'].add_argument('--example-index',type=int,default=0,help='integer index of example to modify; developer use only')
+        command_parsers['modify-package'].add_argument('--example-action',type=str,default=None,choices=[None,'add','insert','update','delete','rename','author'],help='action to perform on the example; choices are [add|insert|update|delete|rename|author]; developer use only')
+        command_parsers['modify-package'].add_argument('--new-example-yaml',type=str,default='',help='yaml file of example; developer use only')
+        command_parsers['modify-package'].add_argument('--new-example-name',type=str,default='',help='new name for the example for action \'rename\'; developer use only')
+        command_parsers['modify-package'].add_argument('--log-level',type=str,default='info',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
+        command_parsers['modify-package'].add_argument('--example-author-name',type=str,default='',help='Name of the author; if not given, pestifer attempts to extract it from the YAML file header')
+        command_parsers['modify-package'].add_argument('--example-author-email',type=str,default='',help='Email of the author; if not given, pestifer attempts to extract it from the YAML file header')
+        command_parsers['modify-package'].add_argument('--example-description',type=str,default='',help='Description of the example (default: extract from \'title\' directive in YAML file)')
 
     command_parsers['make-pdb-collection'].add_argument('--streamID',type=str,default=None,help='charmmff stream to scan')
     command_parsers['make-pdb-collection'].add_argument('--substreamID',type=str,default='',help='charmmff substream to scan')

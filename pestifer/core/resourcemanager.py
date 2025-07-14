@@ -57,7 +57,6 @@ class ResourceManager:
         # check for a docs path, only if this is a source package
         # self.__file__ is pestifer/core/resourcemanager.py
         # docs is in same parent directory as pestifer
-        examples_path=self.resource_path['examples']
         docs_source_path=None
         if is_source_package_with_git:
             docs_source_path=os.path.join(self.package_path,'docs','source')
@@ -66,7 +65,8 @@ class ResourceManager:
             else:
                 logger.debug(f'Error: This is a source package but docs path {docs_source_path} does not exist')
                 docs_source_path=None
-        self.example_manager=ExampleManager(examples_path,docs_source_path)
+        self.example_manager=ExampleManager(resources_path=self.resources_path,docs_source_path=docs_source_path,
+                                            example_resource_folder_name='examples')
         self.labels=Labels
 
     def __str__(self):
