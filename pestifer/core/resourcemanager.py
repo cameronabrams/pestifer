@@ -12,6 +12,7 @@ from ..charmmff.charmmffcontent import CHARMMFFContent
 from .examplemanager import ExampleManager
 from .labels import Labels
 from .. import resources
+from ..util.gitutil import get_git_origin_url
 
 class ResourceManager:
     """
@@ -26,19 +27,21 @@ class ResourceManager:
     A list of base resources that are managed by the ResourceManager.
     These resources include CHARMM force fields, example input files, TcL scripts, and the ycleptic configuration file.
     """
-    
-    # _ignored_resources=['__pycache__','_archive','bash']
-    # """
-    # A list of resource directories that are ignored by the ResourceManager.
-    # These directories are not considered part of the base resources and are excluded from resource management.
-    # """
 
     def __init__(self):
         self.resources_path=os.path.dirname(resources.__file__)
         self.package_path=Path(self.resources_path).parent.parent
-        self.resource_dirs=[x for x in os.listdir(self.resources_path) if os.path.isdir(os.path.join(self.resources_path, x)) 
+        resources_subfolders=os.listdir(self.resources_path)
+        is_source_package_with_git=os.path.isdir(os.path.join(self.package_path,'.git'))
+        if is_source_package_with_git:
+            remote=get_git_origin_url()
+            if remote:
+                logger.debug(f'This is a source package installed from {remote} installed in {self.package_path}')
+            else:
+                logger.debug(f'This is a source package installed in {self.package_path} but the remote origin URL could not be determined.')
+        self.resource_dirs=[x for x in resources_subfolders if os.path.isdir(os.path.join(self.resources_path, x)) 
                             and x in ResourceManager._base_resources]
-        assert all([x in [os.path.basename(_) for _ in self.resource_dirs] for x in ResourceManager._base_resources]),f'some resources seem to be missing'
+        assert all([x in [os.path.basename(_) for _ in self.resource_dirs] for x in ResourceManager._base_resources]),f'some resources seem to be missing; found {self.resource_dirs}, expected {ResourceManager._base_resources}'
         self.ycleptic_configdir=os.path.join(self.resources_path,'ycleptic')
         ycleptic_files=os.listdir(self.ycleptic_configdir)
         assert len(ycleptic_files)==1,f'Too many config files in {self.ycleptic_configdir}: {ycleptic_files}'
@@ -55,12 +58,14 @@ class ResourceManager:
         # self.__file__ is pestifer/core/resourcemanager.py
         # docs is in same parent directory as pestifer
         examples_path=self.resource_path['examples']
-        docs_source_path=os.path.join(self.package_path,'docs','source')
-        if os.path.isdir(docs_source_path):
-            logger.debug(f'Docs path {docs_source_path} exists; using it for example documentation')
-        else:
-            logger.debug(f'This is not a valid source package; docs path {docs_source_path} does not exist')
-            docs_source_path=None
+        docs_source_path=None
+        if is_source_package_with_git:
+            docs_source_path=os.path.join(self.package_path,'docs','source')
+            if os.path.isdir(docs_source_path):
+                logger.debug(f'Docs path {docs_source_path} exists; using it for example documentation')
+            else:
+                logger.debug(f'Error: This is a source package but docs path {docs_source_path} does not exist')
+                docs_source_path=None
         self.example_manager=ExampleManager(examples_path,docs_source_path)
         self.labels=Labels
 
