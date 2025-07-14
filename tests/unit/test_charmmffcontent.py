@@ -2,7 +2,9 @@
 import unittest
 import os
 from pestifer.core.resourcemanager import ResourceManager
-from pestifer.charmmff.charmmffcontent import CHARMMFFResiDatabase, extract_resi_pres_blocks, extract_mass_lines
+from pestifer.charmmff.charmmffcontent import extract_resi_pres_blocks, extract_mass_lines
+from pestifer.charmmff.charmmresidatabase import CHARMMFFResiDatabase
+from pestifer.charmmff.charmmtop import CharmmMasses
 
 import logging
 logger = logging.getLogger(__name__)
@@ -105,12 +107,14 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertTrue(len(mass_lines) > 0)
         self.assertEqual(len(mass_lines), 54)
 
-    def test_resis_from_topfile(self):
-        """Test that the resis_from_topfile method returns the correct residues."""
+    def test_resis_and_masses_from_topfile(self):
+        """Test that the resis_and_masses_from_topfile method returns the correct residues and masses."""
         topfile = 'toppar/top_all36_prot.rtf'
-        resis = self.C.resis_from_topfile(topfile)
+        resis, masses = self.C.resis_and_masses_from_topfile(topfile)
         self.assertTrue(isinstance(resis, list))
         self.assertEqual(len(resis), 48)
+        self.assertTrue(isinstance(masses, CharmmMasses))
+        self.assertEqual(len(masses), 54)
         r=resis[0]
         self.assertTrue(r.resname == 'ALA')
 

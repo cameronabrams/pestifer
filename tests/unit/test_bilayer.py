@@ -4,7 +4,7 @@ import shutil
 import unittest
 from pestifer.molecule.bilayer import Bilayer,specstrings_builddict
 from pestifer.core.config import Config
-from pestifer.charmmff.charmmffcontent import CHARMMFFResiDatabase
+from pestifer.charmmff.charmmresidatabase import CHARMMFFResiDatabase
 from unittest.mock import patch
 
 class TestBilayer(unittest.TestCase):

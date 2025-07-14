@@ -13,7 +13,7 @@ from itertools import product
 
 from pidibble.pdbparse import PDBParser
 from ..core.resourcemanager import ResourceManager
-from .charmmffcontent import CHARMMFFResiDatabase
+from .charmmresidatabase import CHARMMFFResiDatabase
 from ..core.config import Config
 from ..core.controller import Controller
 from ..psfutil.psfcontents import PSFContents

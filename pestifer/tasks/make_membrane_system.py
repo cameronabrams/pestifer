@@ -8,7 +8,7 @@ Usage is described in the :ref:`subs_runtasks_make_membrane_system` documentatio
 import logging
 from copy import deepcopy
 
-from ..charmmff.charmmffcontent import CHARMMFFResiDatabase
+from ..charmmff.charmmresidatabase import CHARMMFFResiDatabase
 from ..core.basetask import BaseTask
 from ..core.scripters import PackmolScripter
 from ..molecule.bilayer import Bilayer, specstrings_builddict

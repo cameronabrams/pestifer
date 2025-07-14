@@ -1,6 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
-This module defines classes and methods that facilitate reading and parsing of CHARMM RESI and MASS records from rtp and str files from the force field. 
+This module defines classes and methods that facilitate reading and parsing of CHARMM RESI and MASS records from top, rtp, and str files from the force field. 
 """
 import logging
 import networkx as nx

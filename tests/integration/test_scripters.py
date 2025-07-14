@@ -44,5 +44,5 @@ class TestPsfgen(unittest.TestCase):
             w=l.split()
             if w[0]=='update_atomselect_macro':
                 nmacros+=1
-        self.assertEqual(nmacros,5) # glycan, ligand, ion, lipid, and nucleicacid
+        self.assertEqual(nmacros,6) # glycan, ligand, ion, lipid, cofactor, and nucleicacid
 
