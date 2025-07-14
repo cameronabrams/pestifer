@@ -141,7 +141,7 @@ class ExampleManager:
         else:
             raise ValueError(f'Invalid id {id} for new example YAML; must be a 4-letter PDB ID or an Alphafold/UNIPROT ID starting with "P"')
         example_yaml=self.examples_list[0].name+'.yaml'
-        example_yaml_path=os.path.join(self.path,example_yaml)
+        example_yaml_path=os.path.join(self.path,self.examples_list[0].name,example_yaml)
         with open(example_yaml_path, 'r') as f:
             try:
                 example_config=yaml.safe_load(f)

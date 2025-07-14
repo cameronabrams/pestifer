@@ -39,7 +39,7 @@ segtypes= {
     'nucleicacid': {
         'macro': True,
         'resnames': [
-            'ADE', 'THY', 'CYT', 'GUA', 'URA', 'DA', 'DC', 'DG', 'DT', 'DU',]},
+            'ADE', 'THY', 'CYT', 'GUA', 'URA', 'DA', 'DC', 'DG', 'DT', 'DU', 'ADP']},
     'glycan': {
         'macro':True,
         'resnames': [

@@ -19,6 +19,8 @@ I also recommend creating a Git branch for your modifications, so you can easily
 
     git checkout -b my-modifications
 
+.. _modify add example:
+
 Adding an Example
 ~~~~~~~~~~~~~~~~~
 
