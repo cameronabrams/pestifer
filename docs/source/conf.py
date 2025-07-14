@@ -1,9 +1,7 @@
 import os
 import sys
 
-# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-# sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'pestifer','sphinxext')))
 
 # Configuration file for the Sphinx documentation builder.
 
@@ -13,8 +11,8 @@ project = 'pestifer'
 copyright = '2023-2025, Cameron F. Abrams'
 author = 'cfa22@drexel.edu'
 
-release = '1.19'
-version = '1.19.1'
+release = '1.20'
+version = '1.20.0'
 
 # -- General configuration
 
@@ -46,20 +44,7 @@ templates_path = ['_templates']
 
 # html_theme = 'sphinx_rtd_theme'
 html_theme = 'furo'
-# html_theme_options = {
-#     "footer_icons": [
-#         {
-#             "name": "Test",
-#             "url": "https://example.com",
-#             "html": """
-#                 <svg width="24" height="24" xmlns="http://www.w3.org/2000/svg">
-#                     <rect width="24" height="24" style="fill:blue;"/>
-#                 </svg>
-#             """,
-#             "class": "example-icon",
-#         }
-#     ]
-# }
+
 
 html_theme_options = {
     "light_css_variables": {
