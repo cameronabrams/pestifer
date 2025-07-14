@@ -53,7 +53,7 @@ Subcommands
 Use in VMD scripts
 ------------------
 
-Pestifer provides a library of useful TcL/VMD procs and VMD macro definitions.  Include the following proc definition somewhere in your ``.vmdrc`` file.  Then the command ``pestifer_init`` will be available any time you start VMD, and if you run it, your VMD session will have access to pestifer's TcL library.
+Pestifer provides a library of useful TcL/VMD procs and VMD macro definitions.  Include the following ``proc`` definition somewhere in your ``.vmdrc`` file.  Then the command ``pestifer_init`` will be available any time you start VMD.  You can issue ``pestifer_init`` from any Tcl prompt in a running VMD session to give it access to pestifer's TcL library.
 
 .. code-block:: tcl
 
@@ -75,6 +75,8 @@ Pestifer provides a library of useful TcL/VMD procs and VMD macro definitions.  
             vmdcon -info "Pestifer is not available in your current environment."
          }
       }
+
+This ``proc`` uses the :ref:`subs wheretcl` subcommand to find the location of pestifer's TcL library, and it sources the ``vmdrc.tcl`` file from that location.  The ``vmdrc.tcl`` file contains the definitions of pestifer's TcL procs, packages, and macros.
 
 If you are using VMD to analyze a system generated using pestifer, it is a good idea to initialize VMD's access to pestifer's TcL library.  This is because pestifer extends the definitions of the ``glycan`` and ``lipid`` macros, among other reasons.  In addition to defining the ``pestifer_init`` proc, you should also add the following line to your ``~/.vmdrc`` file (after the ``pestifer_init`` proc definition):
 
