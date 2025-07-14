@@ -235,9 +235,6 @@ def modify_package(args):
     logging.basicConfig(level=getattr(logging,args.log_level.upper()))
     RM=ResourceManager()
     if args.example_action:
-        docs_source_path=RM.example_manager.docs_source_path
-        if not docs_source_path:
-            raise FileNotFoundError(f'Cannot find docs directory {docs_source_path}. Please ensure you have a full source tree of pestifer.')
         if args.example_action == 'insert':
             new_number=args.example_index
             new_yaml=args.new_example_yaml

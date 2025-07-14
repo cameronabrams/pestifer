@@ -63,6 +63,7 @@ class SphinxExampleManager:
             The path to the newly created RST file.
         """
         title= f"Example {example.index}: {example.description}"
+        yaml_folder_name=example.name.replace('.yaml','')
         yaml_file_name=example.name if example.name.endswith('.yaml') else f"{example.name}.yaml"
         if example.pdbID.startswith('P') and len(example.pdbID) > 4:
             # this is likely an alphafold ID
@@ -73,7 +74,7 @@ class SphinxExampleManager:
                f"{'-' * len(title)}\n\n" \
                f"`PDB ID {example.pdbID} <{url}>`_ is...\n\n" \
                f"This example demonstrates that ...\n\n" \
-               f".. literalinclude:: ../../../pestifer/resources/examples/{yaml_file_name}\n" \
+               f".. literalinclude:: ../../../pestifer/resources/examples/{yaml_folder_name}/{yaml_file_name}\n" \
                f"    :language: yaml\n\n"
         if example.author_email and example.author_name:
             basestring += example_footer(example.author_name, example.author_email)
