@@ -187,7 +187,7 @@ def fetch_example(args):
     """
     index=args.index
     r=ResourceManager()
-    config=r.example_manager.checkout_example_yaml(index)
+    config=r.example_manager.checkout_example(index)
     return config
 
 def run_example(args):
