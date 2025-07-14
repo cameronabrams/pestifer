@@ -149,3 +149,10 @@ examples:
   index: 21
   name: groel-groes-adp
   pdbID: 1aon
+- author_email: cfa22@drexel.edu
+  author_name: Cameron F. Abrams
+  companion_files: []
+  description: Ferredoxin-NADP(H) Reductase from Rhodobacter capsulatus
+  index: 22
+  name: ferredoxin-fad
+  pdbID: 2bgj

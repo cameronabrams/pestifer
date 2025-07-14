@@ -1,0 +1,43 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+tasks:
+- psfgen:
+    source:
+      id: 2bgj
+      exclude:
+        chains:
+          - B
+          - C
+          - D
+- md:
+    ensemble: minimize
+- solvate: null
+- md:
+    ensemble: minimize
+- md:
+    ensemble: NVT
+- md:
+    ensemble: NPT
+    nsteps: 200
+- md:
+    ensemble: NPT
+    nsteps: 400
+- md:
+    ensemble: NPT
+    nsteps: 800
+- md:
+    ensemble: NPT
+    nsteps: 1600
+- md:
+    ensemble: NPT
+    nsteps: 13200
+- mdplot:
+    basename: solvated
+    grid: true
+    timeseries:
+    - density
+- terminate:
+    basename: my_2bgj
+    package:
+      basename: my_2bgj
+      ensemble: NPT
+title: Ferredoxin-NADP(H) Reductase from Rhodobacter capsulatus

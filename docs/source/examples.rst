@@ -27,3 +27,4 @@ Examples
   examples/sperm-whale-myoglobin
   examples/methylmalonyl-coa-mutase
   examples/groel-groes-adp
+  examples/ferredoxin-fad
