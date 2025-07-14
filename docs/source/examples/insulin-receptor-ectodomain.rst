@@ -3,5 +3,5 @@
 Example 14:  Human Insulin Receptor Ectodomain IRαβ
 ---------------------------------------------------
 
-.. literalinclude:: ../../../pestifer/resources/examples/insulin-receptor-ectodomain.yaml
+.. literalinclude:: ../../../pestifer/resources/examples/insulin-receptor-ectodomain/insulin-receptor-ectodomain.yaml
     :language: yaml

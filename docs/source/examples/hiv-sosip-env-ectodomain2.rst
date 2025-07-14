@@ -7,5 +7,5 @@ Example 8: Closed, PGT122/35O22-Liganded HIV-1 BG505 Env SOSIP.664 Trimer (ligan
 
 Many structures in the RCSB are only available in mmCIF format, rather than the older, outdated PDB format; `4tvp <https://www.rcsb.org/structure/4TVP>`_ is one example.  Fortunately, because ``pestifer`` uses the ``pidibble`` `package <https://pypi.org/project/pidibble/>`_, this is quite easy to handle in pestifer:
 
-.. literalinclude:: ../../../pestifer/resources/examples/hiv-sosip-env-ectodomain2.yaml
+.. literalinclude:: ../../../pestifer/resources/examples/hiv-sosip-env-ectodomain2/hiv-sosip-env-ectodomain2.yaml
     :language: yaml

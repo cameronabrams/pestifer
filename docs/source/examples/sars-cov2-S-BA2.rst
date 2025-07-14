@@ -36,7 +36,7 @@ The script below shows the use of ``graft`` modifications to include the glycans
 
 The ``cleave`` task is used to cleave each protomer at its furin cleavage site (residue 685).
 
-.. literalinclude:: ../../../pestifer/resources/examples/sars-cov2-S-BA2.yaml
+.. literalinclude:: ../../../pestifer/resources/examples/sars-cov2-S-BA2/sars-cov2-S-BA2.yaml
     :language: yaml
 
 

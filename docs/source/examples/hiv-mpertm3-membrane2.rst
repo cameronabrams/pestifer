@@ -10,7 +10,7 @@ Example 17: HIV-1 Env MPER-TM Trimer in an Asymmetric, Model Viral Bilayer
 
 This example is the same as :ref:`example mper-tm symmetric bilayer`, but uses a model viral bilayer instead of a DMPC/DHPC bilayer.  The model viral bilayer is constructed from a mixture of lipids that are commonly found in the viral membrane.
 
-.. literalinclude:: ../../../pestifer/resources/examples/hiv-mpertm3-membrane2.yaml
+.. literalinclude:: ../../../pestifer/resources/examples/hiv-mpertm3-membrane2/hiv-mpertm3-membrane2.yaml
 
 In this example, we demonstrate the ``composition`` keyword in the ``bilayer`` section of the  ``make_membrane_system`` task.  This is a more flexible representation of the bilayer composition than the packmol-memgen format used in example 15.
 

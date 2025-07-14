@@ -5,7 +5,7 @@ Example 2: BPTI Excluding the Phosphate Ion
 
 This is the same as Example 1, except we delete the phosphate ion.
 
-.. literalinclude:: ../../../pestifer/resources/examples/bpti2.yaml
+.. literalinclude:: ../../../pestifer/resources/examples/bpti2/bpti2.yaml
     :language: yaml
 
 Note the ``exclude`` subdirective under ``source``.  You remember how you can learn about it?  Using ``config-help``: 

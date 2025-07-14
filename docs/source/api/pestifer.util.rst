@@ -15,6 +15,7 @@ Submodules
    pestifer.util.cifutil
    pestifer.util.colors
    pestifer.util.coord
+   pestifer.util.gitutil
    pestifer.util.linkcell
    pestifer.util.logparsers
    pestifer.util.namdcolvars
