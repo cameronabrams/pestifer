@@ -3,9 +3,9 @@
 modify-package
 ---------------
 
-The subcommand is meant for development use only. It allows modifications to the **source package**, including adding and deleting examples and updating atomselect macros.
+The subcommand is meant for development use only, and is only available when pestifer is installed as an **editable source package**. It allows modifications to your source package, including adding and deleting examples and updating atomselect macros.
 
-This subcommand will only work on a full source repository, so if you want to use it, you will need to fork the repository on GitHub and then clone your fork to your local machine.  If you have not already done so, you can do this with the following commands:
+This subcommand will only work on a full source repository, so if you want to use it, you will need to **fork the repository `cameronabrams/pestifer` on GitHub** and then clone your fork to your local machine.  If you have not already done so, you can do this with the following commands:
 
 .. code-block:: bash
 
