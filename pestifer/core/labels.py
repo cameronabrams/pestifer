@@ -35,11 +35,15 @@ segtypes= {
     'ligand': {
         'macro': True,
         'resnames' : [
-            'EIC', 'VCG', '83G', 'HEM']},
+            'EIC', 'VCG', '83G', 'HEM', 'ADP']},
+    'cofactor': {
+        'macro': True,
+        'resnames': [
+            'FAD', 'FMN', 'NAD', 'NADP', 'TPP', 'COA', 'PLP',]},
     'nucleicacid': {
         'macro': True,
         'resnames': [
-            'ADE', 'THY', 'CYT', 'GUA', 'URA', 'DA', 'DC', 'DG', 'DT', 'DU', 'ADP']},
+            'ADE', 'THY', 'CYT', 'GUA', 'URA', 'DA', 'DC', 'DG', 'DT', 'DU', 'FAD']},
     'glycan': {
         'macro':True,
         'resnames': [

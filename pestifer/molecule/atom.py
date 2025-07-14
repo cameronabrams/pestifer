@@ -145,11 +145,11 @@ class Atom(AncestorAwareObj):
             'occ':float(cifdict['occupancy']),
             'beta':float(cifdict['b_iso_or_equiv']),
             'elem':cifdict['type_symbol'],
-            'charge':cifdict['pdbx_formal_charge'],
+            'charge':cifdict.get('pdbx_formal_charge',0.0),
             'auth_seq_id':cifdict['auth_seq_id'],
             'auth_comp_id':cifdict['auth_comp_id'],
             'auth_asym_id':cifdict['auth_asym_id'],
-            'auth_atom_id':cifdict['auth_atom_id']
+            'auth_atom_id':cifdict.get('auth_atom_id',None)
         }
         # if the seq id is a dot, we revert to the author designations for seq id and asym id
         if input_dict['resseqnum']=='.':
