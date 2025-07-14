@@ -58,14 +58,14 @@ class Filewriter:
         Parameters
         ----------
         filename : str
-            The name of the file to be ingested. The file's contents will be added to the script.
+            The name of the file to be ingested. The file's contents will be added to the ByteCollector.
 
         """
         self.B.ingest_file(filename)
 
     def addline(self,data,indents=0):
         """
-        Add a line of code to the script.
+        Add a line of code to the ByteCollector.
         
         Parameters
         ----------
@@ -78,7 +78,7 @@ class Filewriter:
 
     def banner(self,data):
         """
-        Add a banner comment to the script.
+        Add a banner comment to the ByteCollector.
 
         Parameters
         ----------
@@ -89,7 +89,7 @@ class Filewriter:
 
     def comment(self,data):
         """
-        Add a comment to the script.
+        Add a comment to the ByteCollector.
 
         Parameters
         ----------
@@ -100,8 +100,8 @@ class Filewriter:
 
     def has_statement(self,statement):
         """
-        Check if a specific statement is present in the script.
-        
+        Check if a specific statement is present in the ByteCollector.
+
         Parameters
         ----------
         statement : str
@@ -111,7 +111,7 @@ class Filewriter:
 
     def writefile(self,force=False):
         """
-        Write the contents of the script to a file.
+        Write the contents of the ByteCollector to a file.
         
         Parameters
         ----------
@@ -826,6 +826,7 @@ class PackmolScripter(Filewriter):
         self.indent=4*' '
         self.config=config
         self.progress=self.config.progress
+        self.packmol=self.config.shell_commands['packmol']
         self.F=FileCollector()
         self.default_ext='.inp'
         self.default_script=f'packmol{self.default_ext}'
@@ -865,7 +866,7 @@ class PackmolScripter(Filewriter):
         self.logname=f'{self.basename}.log'
         self.logparser=PackmolLog(basename=self.basename)
         logger.debug(f'Log file: {self.logname}')
-        cmd=Command(f'{self.config.shell_commands["packmol"]} < {self.scriptname}')
+        cmd=Command(f'{self.packmol} < {self.scriptname}')
         progress_struct=None
         if self.progress:
             progress_struct=PackmolProgress()

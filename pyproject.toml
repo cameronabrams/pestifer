@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pestifer"
-version = "1.19.1"
+version = "1.20.0"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
 ]
@@ -46,4 +46,9 @@ log_cli = true
 [tool.hatch.envs.default.scripts]
 post-install = [
   "pip install pdb2pqr==3.7.1 --no-deps"
+]
+
+[tool.hatch.build]
+exclude = [
+  "pestifer/resources/_archive/**"
 ]

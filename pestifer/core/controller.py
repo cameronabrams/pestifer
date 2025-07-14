@@ -23,7 +23,7 @@ class Controller:
     It sets up the necessary file writers and creates a list of tasks to be executed.
     The tasks are executed in the order they are defined, and the results of each task
     are collected in a report. If the last task is not a :class:`pestifer.tasks.terminate.TerminateTask` task,
-    a default :class:`pestifer.tasks.terminate.TerminateTask` is added to ensure proper cleanup.
+    a default :class:`pestifer.tasks.terminate.TerminateTask` is added to ensure proper termination.
 
     Parameters
     ----------

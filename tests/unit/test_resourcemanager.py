@@ -11,7 +11,7 @@ class TestResourceManager(unittest.TestCase):
 
     def test_resource_manager(self):
         self.assertEqual(self.RM.resources_path,os.path.dirname(resources.__file__))
-        for r in self.RM.base_resources:
+        for r in self.RM._base_resources:
             self.assertTrue(os.path.exists(self.RM.resource_path[r]))
     
     def test_resource_get_example_yaml(self):

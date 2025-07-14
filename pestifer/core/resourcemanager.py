@@ -1,17 +1,17 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """ 
-Defines the ``ResourceManager`` class for managing access to :mod:`pestifer.resources`.
+Defines the :class:`ResourceManager` class for managing access to :mod:`pestifer.resources`.
 """
 
-import glob
 import os
 import logging
 logger = logging.getLogger(__name__)
 from pathlib import Path
-from .. import resources
+from importlib.resources import files
 from ..charmmff.charmmffcontent import CHARMMFFContent
 from .examplemanager import ExampleManager
 from .labels import Labels
+from .. import resources
 
 class ResourceManager:
     """
@@ -21,29 +21,31 @@ class ResourceManager:
     The resources are organized into directories, and the class provides methods to access these resources.
     """
     
-    base_resources=['charmmff','examples','tcl','ycleptic']
+    _base_resources=['charmmff','examples','tcl','ycleptic']
     """
     A list of base resources that are managed by the ResourceManager.
     These resources include CHARMM force fields, example input files, TcL scripts, and the ycleptic configuration file.
     """
     
-    ignored_resources=['__pycache__','_archive','bash']
-    """
-    A list of resource directories that are ignored by the ResourceManager.
-    These directories are not considered part of the base resources and are excluded from resource management.
-    """
+    # _ignored_resources=['__pycache__','_archive','bash']
+    # """
+    # A list of resource directories that are ignored by the ResourceManager.
+    # These directories are not considered part of the base resources and are excluded from resource management.
+    # """
 
     def __init__(self):
         self.resources_path=os.path.dirname(resources.__file__)
-        self.resource_dirs=[x for x in glob.glob(os.path.join(self.resources_path,'*')) if os.path.isdir(x) 
-                            and not os.path.basename(x) in ResourceManager.ignored_resources]
-        assert all([x in [os.path.basename(_) for _ in self.resource_dirs] for x in ResourceManager.base_resources]),f'some resources seem to be missing'
+        self.package_path=Path(self.resources_path).parent.parent
+        self.resource_dirs=[x for x in os.listdir(self.resources_path) if os.path.isdir(os.path.join(self.resources_path, x)) 
+                            and x in ResourceManager._base_resources]
+        assert all([x in [os.path.basename(_) for _ in self.resource_dirs] for x in ResourceManager._base_resources]),f'some resources seem to be missing'
         self.ycleptic_configdir=os.path.join(self.resources_path,'ycleptic')
-        ycleptic_files=glob.glob(os.path.join(self.ycleptic_configdir,'*'))
+        ycleptic_files=os.listdir(self.ycleptic_configdir)
         assert len(ycleptic_files)==1,f'Too many config files in {self.ycleptic_configdir}: {ycleptic_files}'
         self.ycleptic_config=ycleptic_files[0]
+        self.ycleptic_config=os.path.join(self.ycleptic_configdir,self.ycleptic_config)
         self.resource_path={}
-        for r in ResourceManager.base_resources:
+        for r in self._base_resources:
             self.resource_path[r]=os.path.join(self.resources_path,r)
             if not os.path.isdir(self.resource_path[r]):
                 raise FileNotFoundError(f'Resource {r} not found at {self.resource_path[r]} -- your installation is likely incomplete')
@@ -53,12 +55,11 @@ class ResourceManager:
         # self.__file__ is pestifer/core/resourcemanager.py
         # docs is in same parent directory as pestifer
         examples_path=self.resource_path['examples']
-        package_path=Path(self.resources_path).parent.parent
-        docs_source_path=os.path.join(package_path,'docs','source')
+        docs_source_path=os.path.join(self.package_path,'docs','source')
         if os.path.isdir(docs_source_path):
             logger.debug(f'Docs path {docs_source_path} exists; using it for example documentation')
         else:
-            logger.debug(f'This is not a source package; docs path {docs_source_path} does not exist')
+            logger.debug(f'This is not a valid source package; docs path {docs_source_path} does not exist')
             docs_source_path=None
         self.example_manager=ExampleManager(examples_path,docs_source_path)
         self.labels=Labels
@@ -87,8 +88,8 @@ class ResourceManager:
             A dictionary of missing full names for the components. Default is an empty dictionary.
         """
         for c,spec in components.items():
-            if not c in self.base_resources:
-                logger.warning(f'{c} is not a base resource; expected one of {", ".join(self.base_resources)}')
+            if not c in self._base_resources:
+                logger.warning(f'{c} is not a base resource; expected one of {", ".join(self._base_resources)}')
             path=self.get_resource_path(c)
             if c=='examples':
                 out_stream(f'\nExamples:\n\n{self.example_manager.report_examples_list(header=True)}')
@@ -127,7 +128,7 @@ class ResourceManager:
         Parameters
         ----------
         r : str
-            The name of the resource to get the path for. This should be one of the base resources defined in ``ResourceManager.base_resources``.
+            The name of the resource to get the path for. This should be one of the base resources defined in ``ResourceManager._base_resources``.
         """
         return self.resource_path.get(r,None)
             
@@ -165,7 +166,7 @@ class ResourceManager:
             f.write('## Updates atomselect macros to account for residues not in the macros in a base VMD installation.\n')
             f.write('## This file is automatically generated by ``pestifer.core.resourcemanager.update_atomselect_macros().``\n')
             f.write('## Do not edit this file directly; changes will be overwritten.\n')
-            f.write('## Instead, edit `pestifer.core.labels.py` and run ``pestifer modify-package --update-atomselect-macros.``\n')
+            f.write('## Instead, edit :mod:`pestifer.core.labels` and run ``pestifer modify-package --update-atomselect-macros.``\n')
             f.write('## The Tcl proc ``update_atomselect_macro`` is defined in the PestiferUtil Tcl package.\n\n')
             self.labels.update_atomselect_macros(f)
 
@@ -204,7 +205,7 @@ class ResourceManager:
             If not provided, an empty list is used, meaning no user-defined paths will be added.
         """
         for path in user_pdbrepository:
-            logger.info(f'Adding user PDB collection: {path}')
+            logger.info(f'Adding user PDB collection {path} to PDB repository')
             self.charmmff_content.pdbrepository.add_path(path)
 
     def update_charmmff(self,tarball='',user_custom_directory=None):
@@ -225,7 +226,7 @@ class ResourceManager:
         if user_custom_directory:
             self.charmmff_content.add_custom_directory(user_custom_directory)
 
-    def add_example(self,example_yaml,author_name='',author_email='',description=''):
+    def add_example(self,example_yaml,author_name='',author_email='',description='',companion_files=[]):
         """
         Add an example to the pestifer examples directory.
 
@@ -234,9 +235,9 @@ class ResourceManager:
         example_yaml : str
             The path to a YAML file containing the example data. It may or may not end with '.yaml'.  It should have a 'title' field and either the field 'id' or 'alphafold' under tasks->psfgen->source.
         """
-        self.example_manager.add_example(example_yaml,description=description,author_name=author_name,author_email=author_email)
+        self.example_manager.add_example(example_yaml,description=description,author_name=author_name,author_email=author_email,companion_files=companion_files)
 
-    def insert_example(self,example_index,example_yaml,author_name='',author_email='',description=''):
+    def insert_example(self,example_index,example_yaml,author_name='',author_email='',description='',companion_files=[]):
         """
         Insert an example into the pestifer examples directory.
 
@@ -247,7 +248,7 @@ class ResourceManager:
         example_yaml : str
             The path to a YAML file containing the example data. It may or may not end with '.yaml'.  It should have a 'title' field and either the field 'id' or 'alphafold' under tasks->psfgen->source.
         """
-        self.example_manager.insert_example(example_index, example_yaml,author_name=author_name,author_email=author_email,description=description)
+        self.example_manager.insert_example(example_index, example_yaml,author_name=author_name,author_email=author_email,description=description,companion_files=companion_files)
 
     def update_example(self,example_index,example_yaml):
         """

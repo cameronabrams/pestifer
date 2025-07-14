@@ -510,7 +510,7 @@ class NAMDLog(LogParser):
         elif 'PERIODIC CELL BASIS 3' in line:
             self.metadata['periodic_cell_basis_3']=get_values('PERIODIC CELL BASIS 3',line,dtype=float)
         elif 'SLAB THICKNESS:' in line:
-            self.metadata['slab_thickness']=get_single('SLAB THICKNESS:',line,dtype=float)
+            self.metadata['slab_thickness']=float(get_single('SLAB THICKNESS:',line))
 
     def process_tcl_line(self,line):
         """

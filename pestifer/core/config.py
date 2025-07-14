@@ -43,7 +43,7 @@ class Config(Yclept):
             my_logger(str(self.RM),logger.debug,just='<',frame='*',fill='',no_indent=True)
         # resolve full pathname of YCleptic base config for this application
         basefile=self.RM.get_ycleptic_config()
-        assert os.path.exists(basefile)
+        assert os.path.exists(basefile),f'Base config file {basefile} does not exist.'
         # ycleptic's init:
         super().__init__(basefile,userfile=userfile,userdict=userdict)
         processor_info=self._get_processor_info()

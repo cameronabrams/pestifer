@@ -8,7 +8,6 @@ import logging
 import re
 import os
 logger = logging.getLogger(__name__)
-from ..core.stringthings import example_footer
 
 class Example:
     """
