@@ -26,3 +26,4 @@ Examples
   examples/ecoli-polymerase
   examples/sperm-whale-myoglobin
   examples/methylmalonyl-coa-mutase
+  examples/groel-groes-adp
