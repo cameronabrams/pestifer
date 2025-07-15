@@ -224,7 +224,8 @@ class LabelMappers:
             parts = alias.split()
             resname, alias1 = parts
             self.charmm_resname_of_pdb_resname[resname] = alias1
-            self.pdb_resname_of_charmm_resname[alias1] = resname
+            if len(resname)<=3:
+                self.pdb_resname_of_charmm_resname[alias1] = resname
     
     def update_atomselect_macros(self,fp):
         """
