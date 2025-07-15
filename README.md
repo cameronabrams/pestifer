@@ -28,6 +28,8 @@ Pestifer **includes** the [July 2024 Charmm36 force field](https://mackerell.uma
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
 ## Release History
+* 1.21.0
+    * Parameterized BMS-806 (resname 83G) from PDB ID 8fad now included
 * 1.20.3
     * more examples
     * upgraded example support
