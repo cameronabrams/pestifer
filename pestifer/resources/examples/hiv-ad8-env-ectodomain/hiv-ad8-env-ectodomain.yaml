@@ -6,7 +6,7 @@
 #
 # Notes:
 #   - Missing protein is built-in
-#   - Drug molecule (resname 83G) is removed
+#   - Drug molecules (resname 83G) is included (previously parameterized using cgenff)
 #   - mmCIF input file requires careful attention to chainIDs and
 #     residue numbers
 #   - Fine-tuning ramachandran rotations performed to avoid steric
@@ -20,9 +20,6 @@ tasks:
       source:
         id: 8fad
         file_format: mmCIF
-        exclude:
-          resnames:
-            - 83G
       mods:
         crotations:
           - phi,F,29,43,-90.0
