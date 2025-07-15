@@ -35,7 +35,7 @@ segtypes= {
     'ligand': {
         'macro': True,
         'resnames' : [
-            'EIC', 'VCG', 'HEM', 'ADP', 'ATP']},
+            'EIC', 'VCG', 'HEM', 'ADP', 'ATP', '83G']},
     'cofactor': {
         'macro': True,
         'resnames': [
