@@ -35,7 +35,7 @@ segtypes= {
     'ligand': {
         'macro': True,
         'resnames' : [
-            'EIC', 'VCG', '83G', 'HEM', 'ADP']},
+            'EIC', 'VCG', 'HEM', 'ADP', 'ATP']},
     'cofactor': {
         'macro': True,
         'resnames': [
@@ -140,7 +140,7 @@ segtypes= {
             'resnames': ['HOH', 'TIP3', 'WAT']},
         'other': {
             'macro': False,
-            'resnames': []}
+            'resnames': ['ACET']}
     }
 
 _atom_aliases = [
@@ -192,7 +192,8 @@ _residue_aliases = [
     "DC CYT",
     "DG GUA",
     "DU URA",
-    "HEM HEME"
+    "HEM HEME",
+    "ACT ACET"
 ]
 
 _residue_fullnames = {
