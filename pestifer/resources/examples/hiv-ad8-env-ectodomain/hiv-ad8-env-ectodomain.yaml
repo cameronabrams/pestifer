@@ -6,7 +6,7 @@
 #
 # Notes:
 #   - Missing protein is built-in
-#   - Drug molecules (resname 83G) is included (previously parameterized)
+#   - Drug molecules (resname 83G) is included (previously parameterized using cgenff)
 #   - mmCIF input file requires careful attention to chainIDs and
 #     residue numbers
 #   - Fine-tuning ramachandran rotations performed to avoid steric
