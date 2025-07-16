@@ -14,7 +14,7 @@
 #   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_8fad.tgz
 #
-title: HIV-1 Env Trimer 8fad, drug molecule removed
+title: HIV-1 Env Trimer 8fad
 tasks:
   - psfgen:
       source:
