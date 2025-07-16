@@ -32,4 +32,5 @@ If you want a bleeding-edge, potentially unstable version, or you just want the 
    $ cd pestifer
    $ pip install -e .
 
+Of course, you need to pull changes from the repository periodically to keep up with the latest development.  Commits tagged as releases are typically stable.  Consider forking the repository if you want to make changes or contribute to the project.
    

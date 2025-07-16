@@ -124,6 +124,7 @@ class BaseObj(Namespace):
     def _from_dict(self,input_dict):
         """
         BaseObj constructor when single positional argument is a dict
+        
         Parameters
         ----------
         input_dict : dict

@@ -22,7 +22,7 @@ logger=logging.getLogger(__name__)
 class Config(Yclept):
     """ 
     A class for managing the configuration of Pestifer.
-    This class extends the Yclept class to provide additional functionality
+    This class extends the :class:`ycleptic.yclept.Yclept` class to provide additional functionality
     specific to Pestifer's configuration needs.
 
     Parameters
