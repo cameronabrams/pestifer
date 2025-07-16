@@ -3,7 +3,7 @@
 Example 9: Cleaved, Asymmetric HIV-1 AD8 Env Ectodomain Trimer
 --------------------------------------------------------------
 
-PDB ID 8fad <https://www.rcsb.org/structure/8fad>`_ is a structure of the cleaved, asymmetric HIV-1 AD8 Env ectodomain trimer. This example demonstrates that pestifer can handle large protein complexes with multiple chains and post-translational modifications.
+`PDB ID 8fad <https://www.rcsb.org/structure/8fad>`_ is a structure of the cleaved, asymmetric HIV-1 AD8 Env ectodomain trimer.
 
 The molecules with the resname 83G are bound instances of the entry inhibitor model BMS-806, which is a small molecule related to the drug Temsavir. 83G was parameterized using the CGenFF server, so it was done prior to the build.
 
@@ -53,3 +53,14 @@ The following procedure was used to parameterize 83G.
 
 
    It does not matter which segtype it is added, so long as it is not one associated with polymeric molecules like proteins or nucleic acids.
+
+Reference
++++++++++
+
+* Asymmetric conformations of cleaved HIV-1 envelope glycoprotein trimers in styrene-maleic acid lipid nanoparticles.  Wang, K., Zhang, S., Go, E.P., Ding, H., Wang, W.L., Nguyen, H.T., Kappes, J.C., Desaire, H., Sodroski, J., Mao, Y. Commun Biol 6: 535 `DOI 10.1038/s42003-023-04916-w <https://doi.org/10.1038/s42003-023-04916-w>`_ (2023)
+
+.. raw:: html
+
+    <div class="autogen-footer">
+        <p>Example author: Cameron F. Abrams&nbsp;&nbsp;&nbsp;Contact: <a href="mailto:cfa22@drexel.edu">cfa22@drexel.edu</a></p>
+    </div>

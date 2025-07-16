@@ -49,7 +49,6 @@ We have also modified the ``solvate`` task to allow for a 0.154 M NaCl solution,
 
 .. raw:: html
 
-
         <div class="autogen-footer">
             <p>Example author: Cameron F. Abrams&nbsp;&nbsp;&nbsp;Contact: <a href="mailto:cfa22@drexel.edu">cfa22@drexel.edu</a></p>
         </div>
