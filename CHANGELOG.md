@@ -7,6 +7,8 @@ This project follows [Semantic Versioning](https://semver.org/) and documents ch
 ### Changed
 
 ## [1.21.2] - 2025-07-17
+- first official Zenodo release [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.16051499.svg)](https://doi.org/10.5281/zenodo.16051499)
+
 - fixed bug in user-modifiable segtype handling
 
 ## [1.21.1] - 2025-07-15
