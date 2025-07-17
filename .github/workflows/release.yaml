@@ -68,7 +68,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y pandoc
 
       - name: Wait for Zenodo to update
-         run: |
+        run: |
             echo "Waiting 45 seconds to give Zenodo time to register the new release..."
             sleep 45
     
