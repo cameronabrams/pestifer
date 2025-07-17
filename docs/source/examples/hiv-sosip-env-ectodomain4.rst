@@ -7,3 +7,9 @@ Example 12: Open, Symmetric 17b/CD4-liganded HIV-1 B41 SOSIP Env Ectodomain Trim
 
 .. literalinclude:: ../../../pestifer/resources/examples/hiv-sosip-env-ectodomain4/hiv-sosip-env-ectodomain4.yaml
     :language: yaml
+
+.. raw:: html
+
+    <div class="autogen-footer">
+        <p>Example author: Cameron F. Abrams &nbsp;&nbsp;&nbsp; Contact: <a href="mailto:cfa22@drexel.edu">cfa22@drexel.edu</a></p>
+    </div>

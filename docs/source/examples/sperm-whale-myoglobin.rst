@@ -14,3 +14,9 @@ Example 19: Sperm whale myoglobin
    :align: center
 
    Sperm whale myoglobin structure from PDB ID 1mob.  The heme group and His93 residue are shown in licorice representation, including the bond between the heme iron and the Nε of His93.
+
+.. raw:: html
+
+    <div class="autogen-footer">
+        <p>Example author: Cameron F. Abrams &nbsp;&nbsp;&nbsp; Contact: <a href="mailto:cfa22@drexel.edu">cfa22@drexel.edu</a></p>
+    </div>

@@ -201,7 +201,7 @@ class Segment(AncestorAwareObj):
         serial_list=self.residues.atom_serials(as_type=int)
         resid_list=self.residues.atom_resseqnums(as_type=int)
         vmd_red_list=reduce_intlist(serial_list)
-        pdb=f'GENERIC_{image_seglabel}.pdb'
+        pdb=f'segtype_generic_{image_seglabel}.pdb'
         selname=image_seglabel
         W.addfile(pdb)
         W.addline(f'set {selname} [atomselect ${parent_molecule.molid_varname} "serial {vmd_red_list}"]')
@@ -286,7 +286,7 @@ class Segment(AncestorAwareObj):
                 """ for a resolved subsegment, generate its pdb file """
                 b.selname=f'{image_seglabel}{i:02d}'
                 run=ResidueList(self.residues[b.bounds[0]:b.bounds[1]+1])
-                b.pdb=f'protein_{image_seglabel}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
+                b.pdb=f'segtype_polymer_{image_seglabel}_{run[0].resseqnum}{run[0].insertion}_to_{run[-1].resseqnum}{run[-1].insertion}.pdb'
                 W.addfile(b.pdb)
                 serial_list=run.atom_serials(as_type=int)
                 logger.debug(f'Last atom has serial {serial_list[-1]}')

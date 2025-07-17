@@ -5,8 +5,10 @@ This module defines the segment types and residue names used in
 CHARMM and PDB files, along with their mappings. It also provides
 a class for managing these labels and mappings.
 """
+import logging
+logger=logging.getLogger(__name__)
 
-segtypes= {
+_segtypes= {
     'protein': {
         'macro': False,
         'resnames': [
@@ -140,7 +142,7 @@ segtypes= {
             'resnames': ['HOH', 'TIP3', 'WAT']},
         'other': {
             'macro': False,
-            'resnames': ['ACET']}
+            'resnames': []}
     }
 
 _atom_aliases = [
@@ -192,8 +194,7 @@ _residue_aliases = [
     "DC CYT",
     "DG GUA",
     "DU URA",
-    "HEM HEME",
-    "ACT ACET"
+    "HEM HEME"
 ]
 
 _residue_fullnames = {
@@ -212,22 +213,44 @@ class LabelMappers:
         self.aliases['atom'] = _atom_aliases
         self.aliases['residue'] = _residue_aliases
         self.residue_fullnames = _residue_fullnames
-        self.segtypes=segtypes
+        self.segtypes=_segtypes
         self.segtype_of_resname = {}
         self.charmm_resname_of_pdb_resname = {}
         self.pdb_resname_of_charmm_resname = {}
-        self.res_321 = segtypes['protein']['rescodes']
-        self.res_123 = segtypes['protein']['invrescodes']
-        for segtype in segtypes:
-            for resname in segtypes[segtype]['resnames']:
+        self.res_321 = self.segtypes['protein']['rescodes']
+        self.res_123 = self.segtypes['protein']['invrescodes']
+        for segtype in self.segtypes:
+            for resname in self.segtypes[segtype]['resnames']:
                 self.segtype_of_resname[resname] = segtype
-        for alias in _residue_aliases:
+        for alias in self.aliases['residue']:
             parts = alias.split()
             resname, alias1 = parts
             self.charmm_resname_of_pdb_resname[resname] = alias1
             if len(resname)<=3:
                 self.pdb_resname_of_charmm_resname[alias1] = resname
     
+    def update_segtypes(self, new_segtypes):
+        """
+        Update the segment types with new resnames.
+
+        Parameters
+        ----------
+        new_segtypes : dict
+            A dictionary containing new segment types to be added or updated. Each key is a segment type, and the value is a list of residue names to *add* to that segment type.
+        """
+        logger.debug(f'Updating segtypes with {new_segtypes}')
+        for segtype, data in new_segtypes.items():
+            if segtype not in self.segtypes:
+                self.segtypes[segtype] = {}
+                self.segtypes[segtype]['resnames'] = data
+            else:
+                assert 'resnames' in self.segtypes[segtype], f'Segtype {segtype} does not have a "resnames" key.'
+                self.segtypes[segtype]['resnames'].extend(data)
+            # update segtype_of_resname mapping for this segtype
+            for resname in self.segtypes[segtype]['resnames']:
+                if resname not in self.segtype_of_resname:
+                    self.segtype_of_resname[resname] = segtype
+
     def update_atomselect_macros(self,fp):
         """
         Update the atomselect macros in the file ``fp`` based on the ``segtypes`` dict.

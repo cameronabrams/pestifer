@@ -427,8 +427,7 @@ def my_logger(msg,logf,width=None,fill='',just='<',frame='',depth=0,**kwargs):
             
 class FileCollector(UserList):
     """
-    A class for handling collections of files
-
+    A class for handling collections of files; inherits from :class:`~collections.UserList`.
     """
     def flush(self):
         """

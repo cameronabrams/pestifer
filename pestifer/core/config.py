@@ -152,7 +152,8 @@ class Config(Yclept):
         self.namd_config_defaults=self['user']['namd']
 
         self.segtypes=RM.labels.segtypes
-        self['user']['psfgen']['segtypes']=self.segtypes
+        RM.labels.update_segtypes(self['user']['psfgen']['segtypes'])
+        logger.debug(f'segtypes: {self.segtypes}')
         for atom_alias in RM.labels.aliases['atom']:
             if atom_alias not in self['user']['psfgen']['aliases']['atom']:
                 # add the atom alias to the user config

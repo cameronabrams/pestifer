@@ -77,3 +77,8 @@ The prototypical glycans in the same PDB structure but not used here are:
 
             Prototypical glycan from PDB ID 4byh chain D.  Green circles denote mannoses, either α or β, blue circles denote N-acetylglucosamines, red triangle denotes fucose, and yellow circles denote galactoses.
 
+.. raw:: html
+
+    <div class="autogen-footer">
+        <p>Example author: Cameron F. Abrams &nbsp;&nbsp;&nbsp; Contact: <a href="mailto:cfa22@drexel.edu">cfa22@drexel.edu</a></p>
+    </div>

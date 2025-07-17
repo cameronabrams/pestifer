@@ -33,7 +33,7 @@ examples:
   description: HIV Protease with Patches to Protonate Aspartates
   index: 5
   name: hiv-protease
-  pdbID: 1f7
+  pdbID: 1f7a
 - author_email: ''
   author_name: ''
   companion_files: *id001

@@ -650,8 +650,10 @@ class PsfgenScripter(VMDScripter):
             self.logparser.enable_progress_bar(progress_struct)
         else:
             logger.debug('Progress bar is disabled for psfgen script')
-        return c.run(logfile=self.logname,logparser=self.logparser)
-    
+        result = c.run(logfile=self.logname,logparser=self.logparser)
+        logger.debug(f'FileCollector {self.F}')
+        return result
+
 class NAMDScripter(TcLScripter):
     """
     This class extends the TcLScripter class to provide functionality for creating and managing NAMD scripts (which NAMD refers to as "configurations" -- this is not to be confused with Pestifer's Config class).

@@ -384,6 +384,18 @@ directives:
                     text: Specify list of altlocs to ignore; good for excluding alternate conformations
                     type: list
                     required: False
+                docs:
+                  text: |
+                    This is a dictionary that specifies any residues or atoms present in the PDB source to exclude from the system.  
+                    You can specify chains, resnames, resseqnums, and altlocs to ignore.  If you specify a chain, all residues in that chain will be ignored.  
+                    If you specify a resname, all residues with that resname will be ignored.  If you specify a resseqnum, all residues with that resseqnum will be ignored.  
+                    If you specify an altloc, all residues with that altloc will be ignored.  This is useful for excluding stabilizing ligands (like antibody fragments) or small molecules for which a CHARMM36 topology does not exists.  (The latter can be handled outside Pestifer using, for example, CGenFF.)
+                  example:
+                    exclude:
+                      chains: [A, B]
+                      resnames: [YYZ, 888]
+                      resseqnums: [100, 101, 102]
+                      altlocs: [A, B]
               - name: sequence
                 text: Parameters controlling sequence modifications based on specifications in the PDB source
                 type: dict

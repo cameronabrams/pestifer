@@ -9,3 +9,9 @@ Many structures in the RCSB are only available in mmCIF format, rather than the 
 
 .. literalinclude:: ../../../pestifer/resources/examples/hiv-sosip-env-ectodomain2/hiv-sosip-env-ectodomain2.yaml
     :language: yaml
+
+.. raw:: html
+
+    <div class="autogen-footer">
+        <p>Example author: Cameron F. Abrams &nbsp;&nbsp;&nbsp; Contact: <a href="mailto:cfa22@drexel.edu">cfa22@drexel.edu</a></p>
+    </div>

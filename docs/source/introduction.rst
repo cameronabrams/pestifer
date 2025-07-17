@@ -3,22 +3,25 @@
 Introduction
 ============
 
-Why pestifer?
+Why Pestifer?
 -------------
 
-Perhaps the most important phase of large-scale all-atom molecular dynamics simulations is **system preparation**.  ``Pestifer`` grew out of my own research in MD simulations of biomolecular systems.  I am a long-time user of `VMD <https://www.ks.uiuc.edu/Research/vmd/>`_ and `NAMD <https://www.ks.uiuc.edu/Research/namd/>`_, and I've invested a lot of time and effort mastering the ``psfgen`` utility to prepare systems that use the CHARMM force field.  I suspect that ``psfgen`` was developed because the CHARMM program was not freely available but the CHARMM force field was; this is likely why there are so many of us who think ``psfgen/VMD`` when building systems that use the CHARMM force-field and are run using NAMD.  
+Perhaps the most important phase of large-scale all-atom molecular dynamics (MD) simulations is **system preparation**--starting with an existing atomic structure file and ending with a simulation box and associated topology that can be understood by MD simulation software.  I am a long-time user of `VMD <https://www.ks.uiuc.edu/Research/vmd/>`_ and `NAMD <https://www.ks.uiuc.edu/Research/namd/>`_, and I've invested a lot of time and effort mastering the `psfgen <https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen/ug.pdf>`_ VMD plugin to prepare systems that use the `CHARMM36 force field <https://mackerell.umaryland.edu/charmm_ff.shtml>`_.  I have written hundreds of ``psfgen`` scripts over the years, and every new one I wrote made me wish I didn't have to keep reinventing the wheel.  I wanted a way to automate the tedious parts of writing ``psfgen`` scripts, and I wanted a way to ensure that I could reproduce any system I prepared in the future.  So I wrote Pestifer.
 
-If you are an experienced CHARMM user, then ``pestifer`` is likely not much use to you, since you think in terms of writing a CHARMM input script (or if you hate writing CHARMM scripts, you use ``pyCHARMM``). If you are a regular user of `Charmm-GUI <https://charmm-gui.org>`_, a server-based interface to the CHARMM PSF-generation routines that can generate production-ready NAMD topology and coordinate inputs, ``pestifer`` offers some advantages.  Unless you are exclusively using coordinates deposited at the `RCSB Protein Data Bank <https://rcsb.org>`_, Charmm-GUI requires you to upload a PDB file to begin the process, and maybe you aren't comfortable with that.  ``pestifer`` does everything on your local machine, so you can prepare simulation systems based on non-publicly-available PDB structures.  ``pestifer`` also works well in a SLURM-based HPC environment.
+Pestifer provides an easy way to generate lots of system replicas using *exactly the same method* each time, and it automates a lot of the tedium encountered in writing scripts for ``psfgen``.  Pestifer requires only a `YAML-format <https://yaml.org/>`_ input configuration file to describe how to prepare a simulation-ready system from an existing structure, in the form of a local structure file (pdb or mmcif formats) or database entry (e.g., RCSB ID or Alphafold ID).  This means that the YAML input together with the identified version of pestifer is a **complete record** of how any system was prepared, and it can be used to reproduce the system at any time in the future.
 
-Pestifer provides an easy way to generate lots of system replicas using *exactly the same method* each time, and it automates a lot of the tedium encountered in writing scripts for ``psfgen``.  Pestifer requires only a YAML-format input configuration file to describe how to prepare a simulation-ready system from an existing structure, in the form of a local structure file (pdb or mmcif) or database entry (e.g., RCSB PDB ID or Alphafold ID).  This means that the YAML input together with the identified version of pestifer is a complete record of how any system was prepared, and it can be used to reproduce the system at any time in the future.  This is the key reason I developed pestifer.
+In addition to enhancing reproducibilty in system preparation, Pestifer also provides for data security.  You never need to upload any data to a web-based application, like `Charmm-GUI <https://charmm-gui.org>`_, to prepare a system.  Pestifer runs entirely on your local machine, so you can prepare simulation systems based on non-publicly-available PDB structures or other data that you do not (yet) want to share with the world.
 
-As far as automating the tedium of psfgen scripting, pestifer can do a lot of things:
+Why YAML?
+---------
+YAML is a human-readable data format that is easy to write and read.  Like JSON, it maps neatly to Python containers, but 
+unlike JSON, it has support for comments, making it an ideal format for input configuration files for simulations.  It also has a more flexible structure, allowing for complex data representations without the need for extensive punctuation.  I like YAML so much I wrote `Ycleptic <https://ycleptic.readthedocs.io/en/latest/>`_, a Python package that provides a YAML-based configuration system for Python applications.  Pestifer uses Ycleptic to parse its YAML input files.
 
-A partial list of things pestifer can do 
+A partial list of things Pestifer can do
 ----------------------------------------
 
 1. Generate a complete, self-contained set of files for NAMD simulation of a solvated system using the CHARMM36FF from nearly any PDB input, including glycosylated proteins and nucleic acids
-2. During this generation process, introduce modifications, including
+2. During this system-preparation process, introduce modifications, including
    
    * residue patches
    * residue mutations
@@ -37,4 +40,9 @@ A partial list of things pestifer can do
 4. Generate restart files (NAMD configs and SLURM scripts) based on current runs 
 5. Generate solvent-stripped PSF and DCD files
 
-Check out the :ref:`examples` -- some of these are showcased there.
+Check out the :ref:`examples` -- some of these capabilities are showcased there.
+
+Who is Pestifer *not* for?
+----------------------------
+
+If you are an experienced CHARMM user, then Pestifer is likely not much use to you, since you think in terms of writing a CHARMM input script (or if you hate writing CHARMM scripts, you use ``pyCHARMM``).   If you are unlikely or just unwilling to use NAMD or the CHARMM36 force field, then Pestifer is not for you.  If you are a Charmm-GUI user, then Pestifer may not be for you, since Charmm-GUI has many system-building features that Pestifer does not (yet) have.

@@ -2,8 +2,7 @@
 #
 # pestifer input script
 # 
-# Green mamba toxin, demostration of pdb2pqr usage
-#
+# Green mamba toxin, demonstration of pdb2pqr usage
 #
 tasks:
 - psfgen:

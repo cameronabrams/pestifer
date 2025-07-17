@@ -1,7 +1,7 @@
 config-help
 -----------
 
-Because it uses ``ycleptic``, ``pestifer`` has a built-in, interactive, command-line system for help generating YAML-format input configuration files available through the ``config-help`` subcommand.  
+Because it imports the class :class:`~ycleptic.yclept.Yclept` from `Ycleptic <https://pypi.org/project/ycleptic/>`_, Pestifer has a built-in, interactive, command-line system for help generating YAML-format input configuration files available through the ``config-help`` subcommand.  
 
 .. code-block:: bash
 

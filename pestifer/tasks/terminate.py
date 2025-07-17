@@ -87,6 +87,7 @@ class TerminateTask(MDTask):
             if ext in self.statevars:
                 self.FC.append(self.statevars[ext])
         self.FC.tarball(specs["basename"])
+        self.FC.flush()
         return result
     
         # if specs["topogromacs"]:

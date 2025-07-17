@@ -6,19 +6,31 @@
 #
 # Notes:
 #   - Using the 1f7a pdb entry
-#   - The ligand (chain P) and the acetates (ACT) are removed
+#   - The ligand (chain P) is removed
 #   - ASPP patch to protonate ASP25 (catalytic residue)
+#   - Acetates (ACT) are included by providing psfgen 
+#     with segment type information and the appropriate
+#     aliases to map to the CHARMM36 ACET residue.
 #
 title: HIV-1 protease dimer
+psfgen:
+  segtypes:
+    other: ["ACET", "ACT"]
+  aliases:
+    residue:
+      - "ACT ACET"
+    atom:
+      - "ACT CH3 C1"
+      - "ACT O O1"
+      - "ACT OXT O2"
+      - "ACT C C2"
 tasks:
   - psfgen:
       source:
         id: 1f7a
         exclude:
-            chains:
-              - P
-            resnames:
-              - ACT
+          chains:
+            - P
       mods:
         patches:
           - ASPP:A:25

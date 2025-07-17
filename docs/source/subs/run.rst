@@ -3,13 +3,13 @@
 run
 ---
 
-The main purpose of ``pestifer`` is to build simulation-ready systems.  The ``run`` subcommand is used to run a build from a configuration file.  The configuration file describes the tasks that should be performed to build the system, and the order in which they should be performed.
+The main purpose of Pestifer is to prepare simulation-ready systems.  The ``run`` subcommand is used to run a system preparation from a configuration file.  The configuration file describes the tasks that should be performed to prepare the system, and the order in which they should be performed.
 
 .. code-block:: bash
 
-   $ pestifer run <config.yaml>
+   $ pestifer run config.yaml
 
-Here ``config.yaml`` is the name of the configuration file that describes the build.  Minimally, a pestifer config file for a run must have a ``tasks`` directive that specifies the *ordered list* of tasks the run should perform.  Typically, each tasks inherits a PSF/PDB/COOR/XSC NAMD file set for a system from a previous task.  For example:
+Here ``config.yaml`` is the name of the configuration file that describes the system preparation.  Minimally, a pestifer config file for a run must have a ``tasks`` directive that specifies the *ordered list* of tasks the run should perform.  Typically, each tasks inherits a PSF/PDB/COOR/XSC NAMD file set for a system from a previous task.  For example:
 
 .. code-block:: yaml
 
