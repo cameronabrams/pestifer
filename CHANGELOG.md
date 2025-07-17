@@ -2,7 +2,11 @@
 
 This project follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
-## [1.21.2] - YYYY-MM-DD
+## [UNRELEASED]
+### Added
+### Changed
+
+## [1.21.2] - 2025-07-17
 - fixed bug in user-modifiable segtype handling
 
 ## [1.21.1] - 2025-07-15
@@ -14,15 +18,11 @@ This project follows [Semantic Versioning](https://semver.org/) and documents ch
 
 ## [1.19.1] - 2025-07-11
 - fixed namd restart bugs
-
-## [1.19.0] - 2025-07-11
 - fixed improper sorting of segment indices in bilayer_embed.tcl
 - support for adding, renaming, inserting, assigning authorship to, and deleting examples
 
 ## [1.18.1] - 2025-07-08
 - switched from patches to mutations for protonated histines predicted by `pdb2pqr`
-
-## [1.18.0] - YYYY-MM-DD
 - developer support for adding examples
 
 ## [1.17.0] - 2025-07-05
@@ -32,8 +32,6 @@ This project follows [Semantic Versioning](https://semver.org/) and documents ch
 - fixed None-return bug in terminate task
 - fixed bug in insulin example to correctly assign NE2-Zn bonds
 - fixed bug causing piericing of PRO807 in model-building missing residues in insulin receptor example
-
-## [1.16.0] - 2025-06-28
 - new `pdb2pqr` task to assign protonation states based on `propka3`
 
 ## [1.15.1] - 2025-06-22
@@ -53,8 +51,6 @@ This project follows [Semantic Versioning](https://semver.org/) and documents ch
 - Example 15 added with ring-check
 - changed `make-resi-database` to `make-pdb-collection`
 - updated PDB repository to work with a gzipped folder (all lipids)
-
-## [1.13.0] - 2025-06-06
 - converted charmmff contents back into an as-downloaded tarball
 
 ## [1.12.1] - 2025-06-04
@@ -69,13 +65,9 @@ This project follows [Semantic Versioning](https://semver.org/) and documents ch
 - fixed residue misnumbering for large membranes
 - fixed large membrane embedding errors
 
-## [1.11.2] - YYYY-MM-DD
+## [1.11.2] - 2025-05-27
 - fixed parsing error converting specstrings to composition dicts
-
-## [1.11.1] - 2025-05-27
 - tests passed after minor updates
-
-## [1.11.0] - 2025-05-27
 - New bilayer build protocol
 - New NAMD and packmol on-the-fly log parsing, including in standalone mode with the `follow-namd-log` subcommand
 
@@ -105,21 +97,15 @@ This project follows [Semantic Versioning](https://semver.org/) and documents ch
 - `mdplot` subcommand added
 
 ## [1.7.4] - 2025-02-23
-- bugfix:
-- xst trace for `mdplot` fails if empty
+- bugfix: xst trace for `mdplot` fails if empty
 
 ## [1.7.2] - 2025-02-12
-- bugfix:
-- correct the detection of whether or not a file is a NAMD log file based on the first two Info: records
-- correct the problem with restarts interfering with mdplot
+- bugfix: correct the detection of whether or not a file is a NAMD log file based on the first two Info: records
+- bugfix: correct the problem with restarts interfering with mdplot
 
 ## [1.7.1] - 2025-02-10
 - `make-namd-restart` enhanced with automatic SLURM script updating
-
-## [1.6.4a2] - 2025-02-09
 - bugfix: GPU-resident NAMD3 cannot do mulitple-gpu runs with constraints
-
-## [1.6.4a0] - 2025-02-05
 - all lipids in the charmmff topology file `top_all36_lipid.rtf` now have PDBs ready for `packmol`
 - `show-resources` subcommand enabled
 - `make-namd-restart` subcommand enabled
@@ -134,8 +120,6 @@ This project follows [Semantic Versioning](https://semver.org/) and documents ch
 
 ## [1.5.6] - 2025-01-03
 - `desolvate` subcommand implemented
-
-## [1.5.5] - YYYY-MM-DD
 - wildcard allowed in pdbalias commands for atom renaming
 - temporary fix for dbRes HIS in any mutations to be named HSD
 
@@ -161,8 +145,6 @@ This project follows [Semantic Versioning](https://semver.org/) and documents ch
 - CHARMM force field files updated to July 2024
 - `salt_con`, `anion`, and `cation` specs for solvate now available
 - `pidibble` dependency updated to 1.1.9
-
-## [1.4.6] - YYYY-MM-DD
 - pierced ring detection and remediation via the `ring_check` task
 - `restart` task added
 - automatic detection of SLURM environment for multi-node MD runs
@@ -171,8 +153,6 @@ This project follows [Semantic Versioning](https://semver.org/) and documents ch
 - `--kick-ass-banner` option implemented -- check it out!
 - `pidibble` dependency updated to 1.1.8
 - expanded integration of `packmol-memgen`
-
-## [1.4.5] - YYYY-MM-DD
 - added `fetch-example` subcommand that just copies the respective example YAML file to the CWD
 - bugfixes:
 - since packmol-memgen sometimes translates the insert, cannot use packmol's input coordinates to psfgen the resulting embedded system
@@ -205,15 +185,11 @@ This project follows [Semantic Versioning](https://semver.org/) and documents ch
 
 ## [1.3.7] - 2024-02-29
 - bugfix: fixed a spurious hard-coded path in `macros.tcl`
-
-## [1.3.6] - YYYY-MM-DD
-- bugfix:
-- `runscript` sources TcL proc files with dependencies in proc files that aren't yet sourced; fixed that
+- bugfix: `runscript` sources TcL proc files with dependencies in proc files that aren't yet sourced; fixed that
 - `alphafold` source directive added to permit download of models from the AlphaFold database by accession code
 
 ## [1.3.5] - 2024-02-26
-- bugfix:
-- renumbering of author resids in non-protein segments if user adds protein residues by insertion that may conflict
+- bugfix: renumbering of author resids in non-protein segments if user adds protein residues by insertion that may conflict
 - transferance of atomselect macros from YAML input to any VMD script
 - `inittcl` subcommand makes this transfer; needs only to be run one time post-installation
 
@@ -242,11 +218,7 @@ This project follows [Semantic Versioning](https://semver.org/) and documents ch
 
 ## [1.2.8] - 2023-12-05
 - `grafts` for adding glycans
-
-## [1.2.7] - YYYY-MM-DD
 - `cleave` task and `CleavageMod`
-
-## [1.2.6] - YYYY-MM-DD
 - `ModManager` replaces `ModContainer`
 
 ## [1.2.5] - 2023-11-28
@@ -254,45 +226,27 @@ This project follows [Semantic Versioning](https://semver.org/) and documents ch
 
 ## [1.2.3] - 2023-11-20
 - script subcommand handles local scripts
-
-## [1.2.2] - 2023-11-20
 - added `wheretcl` subcommand
-
-## [1.2.1] - YYYY-MM-DD
-- added `script` subcommand
+- added `script` subcommand (since removed)
 
 ## [1.2.0] - 2023-11-16
 - split all namd subtasks out; now they are level-1 tasks
-
-## [1.1.3] - YYYY-MM-DD
 - added `manipulate` task
 
 ## [1.1.2] - 2023-11-09
 - more control over production NAMD2 config generated by the package directive
-
-## [1.1.1] - 2023-11-08
 - position restraints control in minimization and relaxation
-
-## [1.1.0] - YYYY-MM-DD
 - `other_parameters` for any NAMD2 relaxation task
 
 ## [1.0.9] - 2023-11-07
 - alternate coordinate files and Cfusions
-
-## [1.0.8] - 2023-11-06
 - chain-specific control over building in zero-occupancy residues at N and C termini
-
-## [1.0.7] - 2023-11-01
 - `alpha` crotation for folding a span of residues into an alpha helix
 
 ## [1.0.6] - 2023-10-31
 - `cif_residue_map_file` generated to report mapping between CIF-residue numbering and author residue numbering
-
-## [1.0.5] - YYYY-MM-DD
 - enhancements to packaging task
-
-## [1.0.4] - YYYY-MM-DD
 - support for topogromacs added
 
-## [1.0.1] - YYYY-MM-DD
+## [1.0.1] - 2023-09-20
 - Initial release
