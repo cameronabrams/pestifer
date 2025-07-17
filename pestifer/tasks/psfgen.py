@@ -11,7 +11,6 @@ import shutil
 
 from copy import deepcopy
 
-from ..objs.patch import PatchList
 from ..core.basetask import BaseTask
 from ..molecule.chainidmanager import ChainIDManager
 from ..core.command import Command

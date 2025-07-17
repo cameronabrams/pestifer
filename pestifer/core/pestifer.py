@@ -16,7 +16,7 @@ from pathlib import Path
 
 __pestifer_version__ = importlib.metadata.version("pestifer")
 from .config import Config, ResourceManager
-from ..charmmff.charmmresi import make_pdb_collection
+from ..charmmff.make_pdb_collection import make_pdb_collection
 from .controller import Controller
 from ..util.namdrestart import make_namd_restart
 from .stringthings import banner, _banner_message, _enhanced_banner_message, oxford

@@ -1,6 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
-This module defines functions that facilitate building PDB files of RESI's using ICs, and equilibrating them and generating samples that can be used as input to packmol.
+This module implements the ``make-pdb-collection`` subcommand.  It generates a PDB collection from the CHARMM force field residue database.  The purpose is to generate 3D structures for all standalone (small-molecule) residues defined in the CHARMM force field, which can be used for molecular dynamics simulations and system preparation.
 """
 import glob
 import logging
@@ -8,23 +8,49 @@ import os
 import shutil
 import yaml
 import numpy as np
+from   itertools            import product
 
-from itertools import product
+from   pidibble.pdbparse    import PDBParser
 
-from pidibble.pdbparse import PDBParser
+from  .charmmresidatabase   import CHARMMFFResiDatabase
+from ..core.config          import Config
+from ..core.controller      import Controller
 from ..core.resourcemanager import ResourceManager
-from .charmmresidatabase import CHARMMFFResiDatabase
-from ..core.config import Config
-from ..core.controller import Controller
-from ..psfutil.psfcontents import PSFContents
-from ..core.scripters import PsfgenScripter, VMDScripter
-from ..core.stringthings import my_logger
+from ..core.scripters       import PsfgenScripter, VMDScripter
+from ..core.stringthings    import my_logger
+from ..psfutil.psfcontents  import PSFContents
 
 logger=logging.getLogger(__name__)
 
 def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0,force_constant=1.0,borrow_ic_from=None):
     """ 
-    Generate a PDB file for a RESI using psfgen, and sample it.
+    Generate a PDB file for a residue defined by the CHARMM force field using psfgen, and sample it using NAMD.  Also generate the ``info.yaml`` file for this residue.
+
+    This function uses the :class:`pdibble.pdbparse.PDBParser` to read in generated PDB files and :class:`~pestifer.psfutil.psfcontents.PSFContents` to read in generated PSF files to make measurements needed for the ``info.yaml`` files.
+
+    Parameters
+    ----------
+    resid : str
+        The residue ID for which to generate the PDB file.
+    DB : :class:`~pestifer.charmmff.charmmresidatabase.CHARMMFFResiDatabase`
+        The database containing CHARMM residue information.
+    lenfac : float, optional
+        The lengthening factor to apply to the residue (default is 1.2).
+    minimize_steps : int, optional
+        The number of minimization steps to perform (default is 500).
+    sample_steps : int, optional
+        The total number of sampling steps to perform (default is 5000).
+    nsamples : int, optional
+        The number of samples to generate (default is 10).
+    sample_temperature : float, optional
+        The temperature to use for sampling (default is 300 K).
+    refic_idx : int, optional
+        The index of the reference IC to use (default is 0).
+    force_constant : float, optional
+        The force constant to use for sampling (default is 1.0).
+    borrow_ic_from : str, optional
+        The residue ID from which to borrow internal coordinates (default is None).
+
     """
     if nsamples>sample_steps:
         raise ValueError(f'nsamples ({nsamples}) must be less than or equal to sample_steps ({sample_steps})')
@@ -279,11 +305,11 @@ def do_psfgen(resid,DB,lenfac=1.2,minimize_steps=500,sample_steps=5000,nsamples=
 
 def do_cleanup(resname,dirname):
     """ 
-    Remove all files in the directory except for the init.tcl, info.yaml, and psf files.
+    Remove all files in the directory except for the ``init.tcl``, ``info.yaml``, and ``*.psf`` files.
     """
     cwd=os.getcwd()
     os.chdir(dirname)
-    files=glob.glob('*')
+    files=os.listdir('.')
     files.remove('init.tcl')
     files.remove('info.yaml')
     files.remove(f'{resname}-init.psf')
@@ -295,13 +321,31 @@ def do_cleanup(resname,dirname):
 
 def do_resi(resi,DB,outdir='data',faildir='fails',force=False,lenfac=1.2,cleanup=True,minimize_steps=500,sample_steps=5000,nsamples=10,sample_temperature=300,refic_idx=0,force_constant=1.0,borrow_ic_from=None):
     """
-    Build a RESI using psfgen and sample it.
-    This function checks if the RESI has been built previously, and if not, it will
-    create a new directory for the RESI in the specified output directory.
-    If the RESI has been built previously, it will skip the build step unless the `force` argument is set to True.
-    If the RESI is not found in the CHARMMFFResiDatabase, it will log a warning and return -2.
-    If the RESI is found, it will create a new directory for the RESI in the specified output directory,
-    and if the `cleanup` argument is set to True, it will remove all files in the directory except for the init.tcl, info.yaml, and psf files.
+    Manager function for :func:`do_psfgen`.  Makes sure it operates in the correct subdirectories and handles success/failure cases.
+
+    Parameters
+    ----------
+    resi : str
+        The residue ID for which to generate the PDB file.
+    DB : :class:`~pestifer.charmmff.charmmresidatabase.CHARMMFFResiDatabase`
+        The database containing CHARMM residue information.
+    lenfac : float, optional
+        The lengthening factor to apply to the residue (default is 1.2).
+    minimize_steps : int, optional
+        The number of minimization steps to perform (default is 500).
+    sample_steps : int, optional
+        The total number of sampling steps to perform (default is 5000).
+    nsamples : int, optional
+        The number of samples to generate (default is 10).
+    sample_temperature : float, optional
+        The temperature to use for sampling (default is 300 K).
+    refic_idx : int, optional
+        The index of the reference IC to use (default is 0).
+    force_constant : float, optional
+        The force constant to use for sampling (default is 1.0).
+    borrow_ic_from : str, optional
+        The residue ID from which to borrow internal coordinates (default is None).
+
     """
     cwd=os.getcwd()
     successdir=os.path.join(outdir,resi)
@@ -335,12 +379,12 @@ def make_pdb_collection(args):
     and save it in the specified output directory.
     If a stream ID is provided, it will create a collection for all RESIs in that stream.
     If no stream ID is provided, it will create a collection for all RESIs in the CHARMMFFResiDatabase.
-    The output directory will be created if it does not exist, and if the `--fail-dir` argument is provided,
+    The output directory will be created if it does not exist, and if the ``--fail-dir`` argument is provided,
     it will create a directory for failed RESIs in that directory.
-    If the `--force` argument is set, it will force the recalculation of the RESI, even if it has been built previously.
-    If the `--cleanup` argument is set, it will remove all files in the RESI directory except for the init.tcl, info.yaml, and psf files.
-    The `--lenfac`, `--minimize-steps`, `--sample-steps`, `--nsamples`, `--sample-temperature`, `--refic-idx`, and `--force-constant` arguments
-    will be passed to the `do_psfgen` function to control the sampling and equilibration of the RESI.
+    If the ``--force`` argument is set, it will force the recalculation of the RESI, even if it has been built previously.
+    If the ``--cleanup`` argument is set, it will remove all files in the RESI directory except for the init.tcl, info.yaml, and psf files.
+    The ``--lenfac``, ``--minimize-steps``, ``--sample-steps``, ``--nsamples``, ``--sample-temperature``, ``--refic-idx``, and ``--force-constant`` arguments
+    will be passed to the :func:`do_resi` function to control the sampling and equilibration of the RESI.
     """
     streamID=args.streamID # if provided, we will make a collection from RESIs in this stream
     substreamID=args.substreamID

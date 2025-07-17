@@ -36,6 +36,10 @@ class Transform(AncestorAwareObj):
     A class for handling transformations of segments in a molecular structure.
     This class represents a transformation that can be applied to segments
     in an asymmetric unit, including rotation and translation.
+
+    This method used the :func:`pidibble.pdbparse.get_symm_ops` function to extract the rotation matrix and translation vector from a PDB record.
+    It constructs a 4 x 4 transformation matrix from these components.
+
     """
 
     req_attr=AncestorAwareObj.req_attr+['index','tmat','applies_chainIDs','chainIDmap','segname_by_type_map']

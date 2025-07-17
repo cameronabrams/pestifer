@@ -34,6 +34,8 @@ intersphinx_mapping = {
     'python': ('https://docs.python.org/3/', None),
     'sphinx': ('https://www.sphinx-doc.org/en/master/', None),
     'ycleptic': ('https://ycleptic.readthedocs.io/en/latest/', None),
+    'pidibble': ('https://pidibble.readthedocs.io/en/latest/', None),
+    'numpy': ('https://numpy.org/doc/stable/', None),
 }
 intersphinx_disabled_domains = ['std']
 

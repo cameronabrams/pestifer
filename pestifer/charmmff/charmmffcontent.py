@@ -9,7 +9,6 @@ import re
 import tarfile
 from .charmmtop import CharmmMassRecord, CharmmMasses, CharmmTopResi
 from ..core.pdbrepository import PDBRepository
-from ..core.stringthings import my_logger
 from ..core.labels import Labels
 
 logger=logging.getLogger(__name__)
@@ -30,8 +29,9 @@ def parse_conditional_script(script_text):
     -------
     dict
         A dictionary with two keys:
-        - 'parsed': a string containing the processed script text with comments and conditionals resolved.
-        - 'vars': a dictionary of variables defined in the script.
+
+        - ``parsed``: a string containing the processed script text with comments and conditionals resolved.
+        - ``vars``: a dictionary of variables defined in the script.
     """
 
     lines = script_text.strip().splitlines()
@@ -102,7 +102,8 @@ def extract_resi_pres_blocks(text, keywords=('RESI', 'PRES')):
     text : str
         The input text from which to extract the blocks.
     keywords : tuple of str, optional
-        The keywords that indicate the start of a block. Default is ('RESI', 'PRES').   
+        The keywords that indicate the start of a block. Default is (``RESI``, ``PRES``).
+
     Returns
     -------
     list of str
@@ -120,7 +121,8 @@ def extract_resi_pres_blocks(text, keywords=('RESI', 'PRES')):
 def extract_mass_lines(file_contents):
     """
     Extract lines containing mass information from the CHARMM force field files.
-    This function scans the contents of a CHARMM force field file and returns lines that start with "MASS".
+    This function scans the contents of a CHARMM force field file and returns lines that start with ``MASS``.
+
     Parameters
     ----------
     file_contents : str
@@ -135,9 +137,7 @@ class CHARMMFFContent:
     """ 
     A class for handling all CHARMM force field content.  
     
-    The CHARMM force field is
-    stored in a tarball downloaded directly from the MacKerell lab at the University of Michigan.
-    https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_jul24.tgz
+    The CHARMM force field is stored in a tarball downloaded directly from the `MacKerell lab at the University of Maryland <https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_jul24.tgz>`_.
     
     Attributes
     ----------
@@ -153,6 +153,10 @@ class CHARMMFFContent:
         A list of custom files that can be added to the CHARMM force field content.
     all_topology_files : list
         A list of all topology files in the CHARMM force field content.
+    residues : dict
+        A dictionary mapping residue names to their corresponding Charmm topology files.
+    patches : dict
+        A dictionary mapping patch names to their corresponding Charmm topology files.
     """
     def __init__(self,charmmff_path='',tarfilename='toppar_c36_jul24.tgz',user_custom_directory=None):
         self.tarfile=None
@@ -204,7 +208,7 @@ class CHARMMFFContent:
 
     def __del__(self):
         """ 
-        Close the tarfile if it is open 
+        Close the tarfile if it is open and delete the PDB repository.
         """
         if self.tarfile is not None:
             self.tarfile.close()
@@ -216,7 +220,7 @@ class CHARMMFFContent:
 
     def add_custom_directory(self,user_custom_directory):
         """ 
-        Add a user custom directory to the CHARMMFFContent.
+        Add a user custom directory to the :class:`CHARMMFFContent`.
         This directory should contain custom files that can be used in addition to the standard CHARMM force field files.
 
         Parameters
@@ -343,7 +347,7 @@ class CHARMMFFContent:
     
     def clean_local_charmmff_files(self):
         """ 
-        Remove all local CHARMM force field files that start with 'par', 'top', 'toppar', 'charmm', or end with '.str', '.prm', or '.rtf'.
+        Remove all local CHARMM force field files that start with ``par``, ``top_``, ``toppar``, ``charmm``, or end with ``.str``, ``.prm``, or ``.rtf``.
         This function is useful for cleaning up the local directory where CHARMM files are stored.
         It will remove files that match the specified patterns, ensuring that only relevant CHARMM files are kept.
         """
@@ -372,7 +376,7 @@ class CHARMMFFContent:
     def contents_from_topfile(self,topfile):
         """ 
         Extract the contents of a top file.
-        This function reads the contents of a top file, either from the tarfile or from a mapped filename in the filenamemap.  Applies the logic filter if this is a cholesterol substream.
+        This function reads the contents of a top file, either from the tarfile or from a mapped filename in the filenamemap.  Applies the logic filter :func:`parse_conditional_script` if this is a cholesterol substream.
 
         Parameters
         ----------
@@ -415,7 +419,7 @@ class CHARMMFFContent:
         """ 
         Extract the residues and atom masses from a top file.
         This function reads the contents of a top file and extracts the residue blocks and atom mass lines.
-        It looks for blocks that start with 'RESI' or 'PRES' and creates instances of CharmmTopResi for each block.
+        It looks for blocks that start with ``RESI`` or ``PRES`` and creates instances of CharmmTopResi for each block.
 
         Parameters
         ----------
@@ -429,8 +433,8 @@ class CHARMMFFContent:
         tuple
             A tuple containing two elements:
 
-            - A list of CharmmTopResi objects representing the residues found in the top file.
-            - A CharmmMasses object containing the atom masses extracted from the top file.
+            - A list of :class:`~.charmmtop.CharmmTopResi` objects representing the residues found in the top file.
+            - A :class:`~.charmmtop.CharmmMasses` object containing the atom masses extracted from the top file.
         """
         contents=self.contents_from_topfile(topfile)
         blocks=extract_resi_pres_blocks(contents)
@@ -456,9 +460,10 @@ class CHARMMFFContent:
     def find_resis_and_patches(self):
         """ 
         Find all residues in the CHARMM force field content and associate each with its topology file.
-        This function scans all topology files for lines that start with 'RESI' or 'PRES' and extracts the residue names.
-        It creates a dictionary mapping residue names to the topology file they are found in.
-        The residues are stored in the `self.residues` attribute and the patches in the `self.patches` attribute.
+        This function scans all topology files for lines that start with ``RESI`` or ``PRES`` and extracts the residue names.
+        It creates a dictionary mapping residue names to the topology files they are found in.
+        The residues are stored in the :attr:`~CHARMMFFContent.residues` attribute and the patches in the
+        :attr:`~CHARMMFFContent.patches` attribute.
         """
         for topfile in self.all_topology_files:
             lines=self.lines_from_topfile(topfile)
@@ -478,7 +483,8 @@ class CHARMMFFContent:
 
     def get_topfile_of_patchname(self,patchname):
         """ 
-        Given a patch name, return the top file that contains it """
+        Given a patch name, return the top file that contains it 
+        """
         return self.patches.get(patchname, None)
 
     def get_topfile_of_resname(self,resname):

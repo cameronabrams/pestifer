@@ -30,9 +30,9 @@ class EmptyResidue(AncestorAwareObj):
     
     Parameters
     ----------
-    input_obj : str, BaseRecord, CIFdict, or EmptyResidue
-        The input object can be a string representing a residue shortcode, a BaseRecord or PDBRecord object,
-        or a CIFdict object containing residue information. If it is an EmptyResidue, it will be initialized
+    input_obj : str, :class:`pidibble.baserecord.BaseRecord`, :class:`pestifer.util.cifutil.CIFdict`, or :class:`EmptyResidue`
+        The input object can be a string representing a residue shortcode, a :class:`~pidibble.baserecord.BaseRecord` or :class:`~pidibble.pdbrecord.PDBRecord` object,
+        or a :class:`~pestifer.util.cifutil.CIFdict` object containing residue information. If it is an EmptyResidue, it will be initialized
         with the same attributes.
     """
 
@@ -180,13 +180,13 @@ class EmptyResidue(AncestorAwareObj):
 
     def pdb_line(self):
         """
-        Returns a PDB line representation of the EmptyResidue.
+        Returns a PDB line representation of the :class:`EmptyResidue`.
         The line is formatted according to the PDB standard for missing residues.
         
         Returns
         -------
         str
-            A string representing the EmptyResidue in PDB format.
+            A string representing the :class:`EmptyResidue` in PDB format.
         """
         record_name,code=EmptyResidue.PDB_keyword.split('.')
         return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>5d}{:1s}'.format(record_name,
@@ -194,39 +194,37 @@ class EmptyResidue(AncestorAwareObj):
 
 class EmptyResidueList(AncestorAwareObjList):
     """
-    A class for handling lists of EmptyResidue objects.
+    A class for handling lists of :class:`EmptyResidue` objects.
     This class is used to manage collections of residues that are not present in the molecular structure,
     such as missing residues in a PDB file.
 
-    This class does not add anything beyond the ``AncestorAwareObjList`` class.
+    This class does not add anything beyond the :class:`~pestifer.core.baseobj.AncestorAwareObjList` class.
     """
     pass
 
 class Residue(EmptyResidue):
     """
     A class for handling residues in a molecular structure.
-    This class extends the EmptyResidue class to include additional functionality for managing residues.
-    
+    This class extends the :class:`EmptyResidue` class to include additional functionality for managing residues.
+
     Parameters
     ----------
-    input_obj : Atom, Hetatm, EmptyResidue, str, or Residue
-        The input object can be an Atom or Hetatm object, an EmptyResidue object, a string representing a residue shortcode,
-        or another ``Residue`` object. If it is an EmptyResidue, it will be initialized with the same attributes.    
+    input_obj : :class:`~pestifer.molecule.atom.Atom`, :class:`~pestifer.molecule.atom.Hetatm`, :class:`~pestifer.molecule.residue.EmptyResidue`, str, or :class:`~pestifer.molecule.residue.Residue`
     """
 
     req_attr=EmptyResidue.req_attr+['atoms']
     """
-    Required attributes for ``Residue`` in addition to those defined for ``EmptyResidue``.
+    Required attributes for :class:`~pestifer.molecule.residue.Residue` in addition to those defined for :class:`~pestifer.molecule.residue.EmptyResidue`.
 
     Attributes
     ----------
-    atoms : AtomList
-        A list of Atom objects that belong to this residue.
+    atoms : :class:`~pestifer.molecule.atom.AtomList`
+        A list of :class:`~pestifer.molecule.atom.Atom` objects that belong to this residue.
     """
 
     opt_attr=EmptyResidue.opt_attr+['up','down','uplink','downlink']
     """
-    Optional attributes for ``Residue`` in addition to those defined for ``EmptyResidue``.
+    Optional attributes for :class:`~pestifer.molecule.residue.Residue` in addition to those defined for :class:`~pestifer.molecule.residue.EmptyResidue`.
 
     - ``up``: list
         A list of residues that are linked to this residue in an upstream direction.
@@ -241,10 +239,10 @@ class Residue(EmptyResidue):
     ignore_attr=EmptyResidue.ignore_attr+['atoms','up','down','uplink','downlink']
     """
     Attributes to ignore when comparing Residue objects.
-    This includes the attributes defined in ``EmptyResidue`` as well as the additional attributes defined for ``Residue``.
-    
-    - ``atoms``: AtomList
-        A list of Atom objects that belong to this residue.
+    This includes the attributes defined in :class:`~pestifer.molecule.residue.EmptyResidue` as well as the additional attributes defined for :class:`~pestifer.molecule.residue.Residue`.
+
+    - ``atoms``: :class:`~pestifer.molecule.atom.AtomList`
+        A list of :class:`~pestifer.molecule.atom.Atom` objects that belong to this residue.
     - ``up``: list
         A list of residues that are linked to this residue in an upstream direction.
     - ``down``: list
@@ -319,11 +317,11 @@ class Residue(EmptyResidue):
         Compare this residue with another residue or a string representation of a residue to determine if this residue is "less than" the other; i.e., N-terminal to.  This is used for sorting residues in a sequence.
         The comparison is based on the residue sequence number and insertion code.
         If the other object is a string, it is split into residue sequence number and insertion code
-        using the ``split_ri`` function.
-        
+        using the :func:`~pestifer.core.stringthings.split_ri` function.
+
         Parameters
         ----------
-        other : Residue, str
+        other : :class:`~pestifer.molecule.residue.Residue`, str
             The other residue or string to compare with.
         
         Returns
@@ -346,11 +344,11 @@ class Residue(EmptyResidue):
     
     def __gt__(self,other):
         """
-        Compare this residue with another residue or a string representation of a residue to determine if this residue is "greater than" the other; i.e., C-terminal to.  This is used for sorting residues in a sequence.
+        Compare this residue with another residue or a string representation of a residue to determine if this residue is "greater than" the other; i.e., C-terminal to.  This is used for sorting residues in a sequence. If the other object is a string, it is split into residue sequence number and insertion code using the :func:`~pestifer.core.stringthings.split_ri` function.
 
         Parameters
         ----------
-        other : Residue, str
+        other : :class:`~pestifer.molecule.residue.Residue`, str
             The other residue or string to compare with.
 
         Returns
@@ -377,7 +375,7 @@ class Residue(EmptyResidue):
 
         Parameters
         ----------
-        other : Residue, str
+        other : :class:`~pestifer.molecule.residue.Residue`, str
             The other residue or string to compare with.
 
         Returns
@@ -395,7 +393,7 @@ class Residue(EmptyResidue):
 
         Parameters
         ----------
-        other : Residue, str
+        other : :class:`~pestifer.molecule.residue.Residue`, str
             The other residue or string to compare with.
 
         Returns
@@ -414,14 +412,15 @@ class Residue(EmptyResidue):
         
         Parameters
         ----------
-        other : Residue, str
+        other : :class:`~pestifer.molecule.residue.Residue`, str
             The other residue or string to compare with.
             
         Returns
         -------
         bool
             True if this residue has the same residue sequence number and insertion code as the other residue,
-            False otherwise."""
+            False otherwise.
+        """
         if type(other)==type(self):
             o_resseqnum=other.resseqnum
             o_insertion=other.insertion
@@ -438,7 +437,7 @@ class Residue(EmptyResidue):
         
         Parameters
         ----------
-        a : Atom
+        a : :class:`~pestifer.molecule.atom.Atom`
             The atom to be added to the residue.
         """
         if self.resseqnum==a.resseqnum and self.resname==a.resname and self.chainID==a.chainID and self.insertion==a.insertion:
@@ -470,11 +469,10 @@ class Residue(EmptyResidue):
         
         Parameters
         ----------
-        other : Residue
+        other : :class:`~pestifer.molecule.residue.Residue`
             The other residue to link to.
-        link : str
-            A string representing the link between the two residues. This could be a description of the type
-            of link or a unique identifier for the link.
+        link : :class:`~pestifer.objs.link.Link`
+            A link object representing the connection between the two residues.
         """
         assert type(other)==type(self),f'type of other is {type(other)}; expected {type(self)}'
         self.down.append(other)
@@ -491,11 +489,10 @@ class Residue(EmptyResidue):
         
         Parameters
         ----------
-        other : Residue
+        other : :class:`~pestifer.molecule.residue.Residue`
             The other residue to unlink from.
-        link : str
-            A string representing the link between the two residues. This could be a description of the type
-            of link or a unique identifier for the link.
+        link : :class:`~pestifer.objs.link.Link`
+            A link object representing the connection between the two residues.
         """
         self.down.remove(other)
         self.downlink.remove(link)
@@ -528,8 +525,8 @@ class Residue(EmptyResidue):
     
 class ResidueList(AncestorAwareObjList):
     """
-    A class for handling lists of Residue objects.
-    This class extends the AncestorAwareObjList to manage collections of residues in a molecular structure.
+    A class for handling lists of :class:`~pestifer.molecule.residue.Residue` objects.
+    This class extends the :class:`~pestifer.core.baseobj.AncestorAwareObjList` to manage collections of residues in a molecular structure.
     It provides methods for initializing the list from various input types, indexing residues, and performing operations
     such as mapping chain IDs, retrieving residues and atoms, and handling residue ranges.
     """
@@ -559,7 +556,7 @@ class ResidueList(AncestorAwareObjList):
         
         Parameters
         ----------
-        R : Residue
+        R : :class:`~pestifer.molecule.residue.Residue`
             The residue to find in the list.
         """
         for i,r in enumerate(self):
@@ -586,12 +583,12 @@ class ResidueList(AncestorAwareObjList):
 
         Parameters
         ----------
-        **fields : keyword arguments
+        fields : keyword arguments
             The fields to match against residues in the list.
 
         Returns
         -------
-        Residue
+        :class:`~pestifer.molecule.residue.Residue`
             The matching residue, or None if not found.
         """
         return self.get(**fields)
@@ -604,12 +601,12 @@ class ResidueList(AncestorAwareObjList):
         ----------
         atname : str
             The name of the atom to retrieve.
-        **fields : keyword arguments
+        fields : keyword arguments
             Additional fields to match against the atom's attributes.
         
         Returns
         -------
-        Atom
+        :class:`~pestifer.molecule.atom.Atom`
             The matching atom, or None if not found."""
         S=('atoms',{'name':atname})
         return self.get_attr(S,**fields)
@@ -656,7 +653,7 @@ class ResidueList(AncestorAwareObjList):
     def caco_str(self,upstream_reslist,seglabel,molid_varname,tmat):
         """
         Generate a string representation of the ``caco`` command to position
-        the N atom of a model-built residue based on the coordinates of the previous residue.
+        the N atom of a model-built residue based on the coordinates of the previous residue.  Uses the :func:`~pestifer.util.coord.positionN` function to calculate the position of the N atom based on the upstream residue's coordinates and the transformation matrix.
         
         Parameters
         ----------
@@ -665,14 +662,14 @@ class ResidueList(AncestorAwareObjList):
         seglabel : str
             The segment label for the residue.
         molid_varname : str
-            The variable name for the molecule ID.
-        tmat : numpy.ndarray
+            The variable name for the molecule ID. (unused for now)
+        tmat : :class:`numpy.ndarray`
             A transformation matrix to apply to the coordinates of the residue.
 
         Returns
         -------
         str
-            A string representing the ``caco`` command for positioning the residue.
+            A string representing the VMD/psfgen ``caco`` command for positioning the residue.
         """
         r0=self[0]
         ur=upstream_reslist[-1]
@@ -682,16 +679,24 @@ class ResidueList(AncestorAwareObjList):
     
     def resrange(self,rngrec):
         """
-        Get a range of residues based on a ResidueRange record.
+        Yield residues from specified residue range.
         
         Parameters
         ----------
-        rngrec : ResidueRange
-            A record defining the range of residues to retrieve. It should contain the chain ID, residue sequence numbers, and insertion codes for the start and end of the range.
+        rngrec : :class:`argparse.Namespace`
+            A record defining the range of residues to retrieve. It must have the following attributes:
+
+            - `chainID`: The chain ID of the residues.
+            - `resseqnum1`: The starting residue sequence number.
+            - `insertion1`: The starting insertion code.
+            - `resseqnum2`: The ending residue sequence number.
+            - `insertion2`: The ending insertion code.
+
+            For example, a :class:`~pestifer.objs.deletion.Deletion` object can be used to define the range
 
         Yields
         ------
-        Residue
+        :class:`~pestifer.molecule.residue.Residue`
             Yields residues within the specified range.
         """
         subR=self.get(chainID=rngrec.chainID)
@@ -717,7 +722,7 @@ class ResidueList(AncestorAwareObjList):
         
         Parameters
         ----------
-        Deletions : list of ResidueRange
+        Deletions : list of :class:`~pestifer.objs.deletion.Deletion`
             A list of deletion ranges to apply. Each deletion range should contain the chain ID, residue sequence numbers, and insertion codes for the start and end of the deletion range.
         """
         delete_us=[]
@@ -730,8 +735,8 @@ class ResidueList(AncestorAwareObjList):
     def apply_segtypes(self):
         """
         Apply segment types to residues based on their residue names.
-        This method uses the ``Labels.segtype_of_resname`` mapping to assign segment types to
-        residues based on their residue names. It updates the `segtype` attribute of each residue
+        This method uses the :attr:`~pestifer.core.labels.Labels.segtype_of_resname` mapping to assign segment types to
+        residues based on their residue names. It updates the :attr:`~pestifer.molecule.residue.Residue.segtype` attribute of each residue
         in the residue list.
         """
         # logger.debug(f'residuelist:apply_segtypes {segtype_of_resname}')
@@ -739,13 +744,13 @@ class ResidueList(AncestorAwareObjList):
     
     def deletion(self,DL:DeletionList):
         """
-        Remove residues from the residue list based on a DeletionList.
+        Remove residues from the residue list based on a :class:`~pestifer.objs.deletion.DeletionList`.
         This method iterates through the DeletionList, retrieves the residues to be deleted based on their
         chain ID, residue sequence numbers, and insertion codes, and removes them from the residue list
         
         Parameters
         ----------
-        DL : DeletionList
+        DL : :class:`~pestifer.objs.deletion.DeletionList`
             A list of deletion ranges to apply. Each deletion range should contain the chain ID, residue sequence numbers, and insertion codes for the start and end of the deletion range.
         """
         excised=[]
@@ -763,22 +768,18 @@ class ResidueList(AncestorAwareObjList):
 
     def substitutions(self,SL:SubstitutionList):
         """
-        Apply a list of substitutions to the residue list.
-        This method iterates through the SubstitutionList, retrieves the residues to be substituted based on their
-        chain ID, residue sequence numbers, and insertion codes, and replaces their residue names with the
-        corresponding residue names from the substitution list. It also creates a new SeqadvList for any
-        resolved residues that are substituted.
-        
+        Apply a list of substitutions to the residue list. This method iterates through the :class:`~pestifer.objs.substitution.SubstitutionList`, retrieves the residues to be substituted based on their chain ID, residue sequence numbers, and insertion codes, and replaces their residue names with the corresponding residue names from the substitution list. It also creates a new :class:`~pestifer.objs.seqadv.SeqadvList` for any resolved residues that are substituted.  Any residues that are deleted as a result of the substitutions are also returned in a list.
+
         Parameters
         ----------
-        SL : SubstitutionList
+        SL : :class:`~pestifer.objs.substitution.SubstitutionList`
             A list of substitutions to apply. Each substitution should contain the chain ID, residue sequence numbers,
             insertion codes, and the new residue sequence to substitute.
         
         Returns
         -------
-        tuple
-            A tuple containing a SeqadvList of new sequence advancements for resolved residues and a list of residues that were deleted.
+        tuple : (:class:`~pestifer.objs.seqadv.SeqadvList`, list of :class:`~pestifer.molecule.residue.Residue`)
+            A tuple containing a :class:`~pestifer.objs.seqadv.SeqadvList` of new sequence advancements for resolved residues and a list of residues that were deleted.
         """
         delete_us=[]
         newseqadv=SeqadvList([]) # for holding single-residue changes for resolved residues
@@ -840,7 +841,7 @@ class ResidueList(AncestorAwareObjList):
         
         Parameters
         ----------
-        insertions : list of Insertion
+        insertions : list of :class:`~pestifer.objs.insertion.Insertion`
             A list of insertions to apply. Each insertion should contain the chain ID, residue sequence numbers,
             insertion codes, and the sequence of residues to insert.
         """
@@ -873,7 +874,7 @@ class ResidueList(AncestorAwareObjList):
         
         Parameters
         ----------
-        links : LinkList
+        links : :class:`~pestifer.objs.link.LinkList`
             A list of links that may contain residue sequence numbers that need to be updated.
         """
         protein_residues=self.get(segtype='protein')

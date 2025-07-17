@@ -1,6 +1,5 @@
 """
-CHARMM Force Field Residue Database
-This module defines the :class:`CHARMMFFResiDatabase` class, which manages a database of CHARMM force field residues.
+This module defines the :class:`CHARMMFFResiDatabase` class, which manages a database of 3-d structures of residues defined in the CHARMM force field.
 """
 
 import logging
@@ -17,16 +16,16 @@ class CHARMMFFResiDatabase:
     
     Attributes
     ----------
-    charmmff_content : CHARMMFFContent
-        An instance of CHARMMFFContent containing the CHARMM force field data.
+    charmmff_content : :class:`~.charmmffcontent.CHARMMFFContent`
+        An instance of :class:`~.charmmffcontent.CHARMMFFContent` containing the CHARMM force field data.
     streamIDs : list of str
         A list of stream IDs from which residues can be loaded.
     residues : dict
         A dictionary mapping residue names to their corresponding CharmmTopResi objects.
     patches : dict
         A dictionary mapping patch names to their corresponding CharmmTopResi objects.
-    masses : CharmmMasses
-        An instance of CharmmMasses containing the atom mass records extracted from the CHARMM force field files.
+    masses : :class:`~.charmmtop.CharmmMasses`
+        An instance of :class:`~.charmmtop.CharmmMasses` containing the atom mass records extracted from the CHARMM force field files.
     overrides : dict
         A dictionary containing overrides for specific substreams, such as lipid classification.
     """
@@ -70,7 +69,7 @@ class CHARMMFFResiDatabase:
         """ 
         Load residues and patches from the toplevel CHARMM force field files.
         This function iterates through the toplevel topology files and extracts residues and patches.
-        It updates the `self.residues` and `self.patches` dictionaries with the extracted data.
+        It updates the :attr:`~CHARMMFFResiDatabase.residues` and :attr:`~CHARMMFFResiDatabase.patches` dictionaries with the extracted data.
         """
         for topfile in list(self.charmmff_content.toplevel_top.values())+list(self.charmmff_content.toplevel_toppar.values()):
             new_resis,new_patches=self.load_charmmresi_from_topfile(topfile)
@@ -137,7 +136,8 @@ class CHARMMFFResiDatabase:
     def load_charmmresi_from_topfile(self,topfile):
         """ 
         Load residues and patches from a specific topology file.
-        This function reads the contents of a topology file, extracts residues and patches, and updates the `self.residues` and `self.patches` dictionaries.
+        This function reads the contents of a topology file, extracts masses, residues and patches, updates the
+        :attr:`~CHARMMFFResiDatabase.masses` attribute and returns the lists of patches and residues extracted from the topology file.
 
 
         Parameters
@@ -197,8 +197,8 @@ class CHARMMFFResiDatabase:
     def add_topology(self,topfile,streamIDoverride=None):
         """ 
         Add a topology file to the CHARMM force field residue database.
-        This function loads residues and patches from the specified topology file and updates the `self.residues` and `self.patches` dictionaries.
-        If a `streamIDoverride` is provided, it will set the `streamID` and `substreamID` metadata for all residues and patches loaded from the topology file.
+        This function loads residues and patches from the specified topology file and updates the :attr:`~CHARMMFFResiDatabase.residues` and :attr:`~CHARMMFFResiDatabase.patches` dictionaries.
+        If a ``streamIDoverride`` is provided, it will set the `streamID` and `substreamID` metadata for all residues and patches loaded from the topology file.
 
         Parameters
         ----------
@@ -221,7 +221,8 @@ class CHARMMFFResiDatabase:
     def get_resi(self,resname):
         """ 
         Get a residue by its name from the CHARMM force field residue database.
-        This function checks if the residue name exists in the database and returns the corresponding CharmmTopResi object.
+        This function checks if the residue name exists in the database and returns
+        the corresponding :class:`~.charmmtop.CharmmTopResi` object.
 
         Parameters
         ----------
@@ -230,8 +231,8 @@ class CHARMMFFResiDatabase:
 
         Returns
         -------
-        CharmmTopResi or None
-            The CharmmTopResi object corresponding to the residue name, or None if the residue is not found in the database.
+        :class:`~.charmmtop.CharmmTopResi` or None
+            The :class:`~.charmmtop.CharmmTopResi` object corresponding to the residue name, or None if the residue is not found in the database.
         """
         if resname in self.residues:
             return self.residues[resname]
@@ -242,7 +243,7 @@ class CHARMMFFResiDatabase:
     def __contains__(self,resname):
         """ 
         Check if a residue name exists in the CHARMM force field residue database.
-        This function checks if the specified residue name is present in the ``self.residues`` dictionary.
+        This function checks if the specified residue name is present in the :attr:`~CHARMMFFResiDatabase.residues` dictionary.
 
         Parameters
         ----------

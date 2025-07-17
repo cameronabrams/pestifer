@@ -70,4 +70,8 @@ class Substitution(AncestorAwareObj):
         super().__init__(input_dict)
 
 class SubstitutionList(AncestorAwareObjList):
+    """
+    A list of Substitution objects.
+    This class is used to manage a collection of Substitution objects.
+    """
     pass
