@@ -21,5 +21,6 @@ Submodules
    pestifer.util.namdcolvars
    pestifer.util.namdrestart
    pestifer.util.progress
+   pestifer.util.readme_to_changelog_with_dates
    pestifer.util.units
    pestifer.util.util

@@ -27,6 +27,10 @@ Pestifer **includes** the [July 2024 Charmm36 force field](https://mackerell.uma
 
 Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full documentation.
 
+## Version History
+
+See the [CHANGELOG](./CHANGELOG.md) for full details.
+
 ## Meta
 
 [https://github.com/cameronabrams](https://github.com/cameronabrams/)

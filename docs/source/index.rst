@@ -22,3 +22,4 @@ Contents
    config_ref
    API <api/API>
    tcl/source
+   changelog
