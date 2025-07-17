@@ -1,0 +1,25 @@
+name: Update ReadTheDocs
+
+on:
+  push:
+    tags:
+      - "d*"
+  workflow_dispatch:
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.12"
+          
+      - name: Trigger ReadTheDocs build
+        run: |
+          curl -X POST \
+            -H "Authorization: Token ${{ secrets.RTD_SECRET }}" \
+            https://readthedocs.org/api/v3/projects/pestifer/versions/latest/builds/
