@@ -203,7 +203,7 @@ class Segment(AncestorAwareObj):
         vmd_red_list=reduce_intlist(serial_list)
         pdb=f'segtype_generic_{image_seglabel}.pdb'
         selname=image_seglabel
-        W.addfile(pdb)
+        W.addfile(pdb) # appends this file to the scripters FileCollector for later cleanup
         W.addline(f'set {selname} [atomselect ${parent_molecule.molid_varname} "serial {vmd_red_list}"]')
         W.addline(f'${selname} set segname {image_seglabel}')
         if is_image:
