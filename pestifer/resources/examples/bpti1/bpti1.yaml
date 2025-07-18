@@ -39,6 +39,11 @@ tasks:
   - mdplot:
       timeseries:
         - density
+        - - cpu_time
+          - wall_time
+      units:
+        cpu_time: s
+        wall_time: s
       basename: solvated
       grid: True
   - terminate:

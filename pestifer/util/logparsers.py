@@ -832,7 +832,7 @@ class NAMDLog(LogParser):
             return 0.0
         number_of_steps=self.metadata['number_of_steps'] # this will be zero for a minimization
         if 'first_timestep' not in self.metadata:
-            logger.debug('measure_progress: first_timestep not in metadata')
+            # logger.debug('measure_progress: first_timestep not in metadata')
             return 0.0
         first_time_step=self.metadata['first_timestep']
         if 'running_for' in self.metadata:
@@ -845,10 +845,10 @@ class NAMDLog(LogParser):
                 number_of_steps=minimizing_for
         last_row=self.time_series_data['energy'][-1] if 'energy' in self.time_series_data and len(self.time_series_data['energy'])>0 else None
         if last_row is None:
-            logger.debug('measure_progress: last_row is None')
+            # logger.debug('measure_progress: last_row is None')
             return 0.0
         if 'TS' not in last_row:
-            logger.debug('measure_progress: TS not in last_row')
+            # logger.debug('measure_progress: TS not in last_row')
             return 0.0
         most_recent_time_step=last_row['TS']
         complete_steps=most_recent_time_step-first_time_step

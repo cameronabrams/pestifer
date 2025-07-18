@@ -39,6 +39,7 @@ class MDPlotTask(BaseTask):
         self.inherit_state()
         self.next_basename()
         is_post_processing=self.specs.get('postprocessing',False)
+        running_sums=self.specs.get('running_sums',['cpu_time','wall_time'])
         dataframes={}
         if not is_post_processing and self.prior:
             # this is an in-build task, so we collect time series data from each prior md task's csv files
@@ -58,10 +59,18 @@ class MDPlotTask(BaseTask):
                         dataframes[tst]=pd.DataFrame()
                     csvname=pt.statevars.get(f'{tst}-csv',None)
                     if csvname:
-                        logger.debug(f'Collecting data from {csvname}')
+                        logger.debug(f'Collecting data from CSV file {csvname}')
                         try:
                             newdf=pd.read_csv(csvname,header=0,index_col=None)
                             logger.debug(f'newdf shape: {newdf.shape}')
+                            # show the range of the first column
+                            if not newdf.empty:
+                                logger.debug(f' -> first column range: {newdf.iloc[:,0].min()} - {newdf.iloc[:,0].max()}')
+                            if not dataframes[tst].empty and any(col in newdf.columns for col in running_sums):
+                                # shift any columns designated as running sums by the final value of the previous dataframe
+                                for col in running_sums:
+                                    if col in newdf.columns:
+                                        newdf[col]=newdf[col]+dataframes[tst][col].iloc[-1]
                             dataframes[tst]=pd.concat([dataframes[tst],newdf],ignore_index=True)
                             logger.debug(f'{tst} dataframe shape: {dataframes[tst].shape}')
                         except:
@@ -87,11 +96,13 @@ class MDPlotTask(BaseTask):
                     if not newdf.empty:
                         dataframes[tst]=pd.concat([dataframes[tst],newdf],ignore_index=True)
                         logger.debug(f'{tst} dataframe shape: {dataframes[tst].shape}')
-            # save each new dataframe to a csv file
-            for key,df in dataframes.items():
-                if not df.empty:
-                    csvname=f'{self.basename}-{key}.csv'
-                    df.to_csv(csvname,index=False)
+
+        # save each new dataframe to a csv file
+        # TODO: make sure accumulating quantities increment
+        for key,df in dataframes.items():
+            if not df.empty:
+                csvname=f'{self.basename}-{key}.csv'
+                df.to_csv(csvname,index=False)
 
         # build a dictionary of column headings:dataframe pairs
         df_of_column={}
@@ -103,6 +114,7 @@ class MDPlotTask(BaseTask):
                     logger.debug(f'Column {col} found in multiple dataframes')
 
         timeseries=self.specs.get('timeseries',[])
+        time_step_column_names=self.specs.get('time_step_column_names',['TS','step','steps'])
         histograms=self.specs.get('histograms',[])
         profiles=self.specs.get('profiles',[])
         profiles_per_block=self.specs.get('profiles_per_block',100)
@@ -139,7 +151,16 @@ class MDPlotTask(BaseTask):
                 if df is None:
                     logger.debug(f'No data found for trace {t_i}. Skipping...')
                     continue
-                ax.plot(df['TS'],df[key]*units,label=key.title())
+                # determine the time step column name
+                time_step_column=None
+                for tcn in time_step_column_names:
+                    if tcn in df.columns:
+                        time_step_column=tcn
+                        break
+                if time_step_column is None:
+                    logger.debug(f'No time step column found for trace {t_i}. Skipping...')
+                    continue
+                ax.plot(df[time_step_column],df[key]*units,label=key.title())
             ax.set_xlabel('time step')
             ax.set_ylabel(', '.join([to_latex_math(n)+' ('+u+')' for n,u in zip(tracelist,unitspecs)]))
             if legend:

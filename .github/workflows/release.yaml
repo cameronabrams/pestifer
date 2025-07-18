@@ -1,4 +1,4 @@
-name: Release & Upload to PyPI (Hatch)
+name: Release & Upload to PyPI & Archive at Zenodo
 
 on:
   push:
@@ -91,11 +91,8 @@ jobs:
           # Replace DOI badge in README.md
           sed -i -E "s|\[!\[DOI\]\(https://zenodo.org/badge/DOI/.*\.svg\)\]\(https://doi.org/.*\)|$BADGE_MD|" README.md
 
-          # index.rst if needed
-          sed -i -E "/^\.\. image:: https:\/\/zenodo\.org\/badge\/DOI\/.*\.svg$/{
-          N   
-          s|^\.\. image:: https:\/\/zenodo\.org\/badge\/DOI\/.*\.svg\n   :target: https:\/\/doi\.org\/.*|.. image:: https://zenodo.org/badge/DOI/${LATEST_RECORD_DOI}.svg\n   :target: https://doi.org/${LATEST_RECORD_DOI}|
-          }" docs/source/index.rst
+          # add the Markdown DOI badge to this release's entry in CHANGELOG.md
+          echo -e "\n## [${{ github.ref_name }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}})\n\n$BADGE_MD" >> CHANGELOG.md
 
           # Commit and push if there are changes
           if git diff --quiet; then
