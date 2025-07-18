@@ -600,7 +600,6 @@ def striplist(L):
         l.remove('')
     return l
 
-
 def to_latex_math(s):
     """
     Converts a string into LaTeX math format.  Written by ChatGPT 4o.
@@ -663,3 +662,27 @@ def raise_clean(ErrorInstance):
     except ErrorInstance.__class__ as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
+
+def special_update(dict, key, val, mode='strict'):
+    """
+    Special update function for dictionaries with different modes.
+
+    Parameters
+    ----------
+    dict: dict
+        The dictionary to update.
+    key: str
+        The key to update.
+    val: any
+        The value to set.
+    mode: str, optional
+        The mode of the update. Can be 'strict' or 'permissive'. Defaults to 'strict'.
+
+    Raises
+    ------
+    KeyError
+        If the mode is 'strict' and the key already exists.
+    """
+    if mode == 'strict' and key in dict:
+        raise KeyError(f'Key {key} already exists in dictionary.')
+    dict[key] = val

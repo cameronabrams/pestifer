@@ -8,6 +8,7 @@ import logging
 import os
 
 from .config import Config
+from .pipeline import PipelineContext
 from .scripters import Filewriter, PsfgenScripter, VMDScripter, NAMDScripter
 from ..tasks.terminate import TerminateTask
 from ..util.util import inspect_package_dir
@@ -54,7 +55,8 @@ class Controller:
         # set up the task list
         self.tasks=[]
         prior_task=None
-        for taskdict in self.config['user'].get('tasks',[]):
+        ctx=PipelineContext()
+        for idx,taskdict in enumerate(self.config['user'].get('tasks',[])):
             # Each task dictionary has a single keyword (the task name) and a value
             # that comprises the task specifications from the config
             assert len(taskdict)==1, f"Task dictionary {taskdict} must have a single key-value pair"
@@ -73,7 +75,7 @@ class Controller:
             #      - self.scripters: the Controller's filewriters
             #      - prior_task: indentifier of prior task in task list
             Cls=task_classes[class_name]
-            this_task=Cls(config_specs,dict(controller_index=self.index,taskname=taskname,config=self.config,scripters=self.scripters,prior=prior_task))
+            this_task=Cls(ctx,config_specs,dict(controller_index=self.index,taskname=taskname,config=self.config,scripters=self.scripters,prior=prior_task))
             # Append to the task list
             self.tasks.append(this_task)
             prior_task=this_task

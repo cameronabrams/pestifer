@@ -16,6 +16,7 @@ from ..molecule.chainidmanager import ChainIDManager
 from ..core.command import Command
 from ..molecule.molecule import Molecule
 from ..core.objmanager import ObjManager
+from ..core.pipeline import PipelineContext
 from ..psfutil.psfatom import PSFAtomList
 from ..psfutil.psfcontents import PSFContents
 
@@ -39,8 +40,8 @@ class PsfgenTask(BaseTask):
     """
     YAML header for the PsfgenTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
-    def __init__(self,config_specs={},controller_specs={}):
-        super().__init__(config_specs,controller_specs)
+    def __init__(self,ctx:PipelineContext,config_specs={},controller_specs={}):
+        super().__init__(ctx,config_specs,controller_specs)
         self.molecules={}
         self.keepfiles=[]
         if self.specs.get('source',{}).get('prebuilt',{}):

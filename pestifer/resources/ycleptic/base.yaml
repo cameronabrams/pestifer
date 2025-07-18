@@ -295,6 +295,18 @@ directives:
     docs:
       text: These are the types of tasks that can be chained together into a run.
     directives:
+      - name: initiate
+        text: Initial task; its only job is to fetch any external data file (e.g., PDB)
+        type: dict
+        directives:
+          - name: source
+            text: Source for the initial coordinate file
+            type: str
+            options: [pdb, alphafold, local]
+            default: pdb
+          - name: sourceID
+            text: ID of the source file; if source is 'local', a file 'sourceID.pdb' or 'sourceID.cif' must exist in the working directory
+            type: str
       - name: restart
         text: Restart from specified pdb, psf, and (optionally) xsc files without any further modifications (suitable for directly feeding to md tasks)
         type: dict

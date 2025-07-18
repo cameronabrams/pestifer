@@ -436,9 +436,8 @@ class VMDScripter(TcLScripter):
             If True, the method will remove all files collected during the script execution. Default is False
         """
         if cleanup:
-            nremoved=len(self.F)
+            logger.debug(f'Post-execution clean-up: {len(self.F)} files removed.')
             self.F.flush()
-            logger.info(f'Post-execution clean-up: {nremoved} files removed.')
 
 class PsfgenScripter(VMDScripter):
     """
@@ -519,6 +518,7 @@ class PsfgenScripter(VMDScripter):
         #     self.topologies.append('top_all35_ethers.rtf')
         for t in self.topologies:
             self.addline(f'topology {t}')
+            self.addfile(t) # appends this file to the scripters FileCollector for later cleanup
         # logger.debug(f'psfgen aliases: {self.psfgen_config["aliases"]}')
         for alias_type,alias_list in self.psfgen_config['aliases'].items():
             logger.debug(f'Adding {len(alias_list)} {alias_type} aliases to psfgen script')
@@ -652,6 +652,8 @@ class PsfgenScripter(VMDScripter):
             logger.debug('Progress bar is disabled for psfgen script')
         result = c.run(logfile=self.logname,logparser=self.logparser)
         logger.debug(f'FileCollector {self.F}')
+        if not options.get('keep_tempfiles',False):
+            self.F.flush()
         return result
 
 class NAMDScripter(TcLScripter):

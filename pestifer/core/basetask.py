@@ -18,10 +18,12 @@ import shutil
 import yaml
 
 from .baseobj import BaseObj
-from .stringthings import FileCollector
+from .stringthings import FileCollector, special_update
+from .pipeline import PipelineContext
 
 logger=logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
+
 
 class BaseTask(BaseObj):
     """ 
@@ -66,7 +68,7 @@ class BaseTask(BaseObj):
     They are used to log the start of the task in a consistent manner.
     """
 
-    def __init__(self,config_specs={},controller_specs={}):
+    def __init__(self,ctx:PipelineContext,config_specs={},controller_specs={}):
         """
         Constructor for the BaseTask class.
         """
@@ -90,8 +92,9 @@ class BaseTask(BaseObj):
             'controller_index':controller_index
         }
         super().__init__(input_dict)
+        self.basename=''
         self.subtaskcount=0
-        self.statevars={}
+        self.ctx=ctx
         self.FC=FileCollector()
         self.result=0
 
@@ -157,8 +160,8 @@ class BaseTask(BaseObj):
         """
         Generates a new basename for the task based on the controller index, task index, subtask count, and task name.
         If the ``specs`` dictionary contains a 'basename' key, it overrides the default basename.
-        The basename is constructed in the format: ``controller_index-task_index-subtask_count_taskname-label``.
-        If ``obj`` is provided, it appends a label to the basename based on the first element of ``obj``.
+        The basename is constructed in the format: ``(controller_index)-(task_index)-(subtask_count)_(taskname)[-(label)]``.
+        If ``obj`` is provided, its first element is the label.  For example, next_basename('mylabel') would result in a basename like ``01-02-03_taskname-mylabel``.
 
         Parameters
         ----------
@@ -170,12 +173,9 @@ class BaseTask(BaseObj):
         if len(obj)==1 and len(obj[0])>0:
             label=f'-{obj[0]}'
         default_basename=f'{self.controller_index:02d}-{self.index:02d}-{self.subtaskcount:02d}_{self.taskname}{label}'
-        overwrite_basename=self.specs.get('basename',None)
-        if overwrite_basename:
-            logger.debug(f'Overriding basename {default_basename} with {overwrite_basename}')
-            self.basename=overwrite_basename
-        else:
-            self.basename=default_basename
+        overwrite_basename=self.specs.get('basename',None) # user put a basename in the task specs in the YAML input
+        basename=overwrite_basename if overwrite_basename else default_basename
+        self.basename=basename
         self.subtaskcount+=1
     
     def coor_to_pdb(self):
@@ -187,11 +187,15 @@ class BaseTask(BaseObj):
         """
         vm=self.scripters['vmd']
         vm.newscript(f'{self.basename}-coor2pdb')
-        psf=self.statevars['psf']
-        coor=self.statevars['coor']
+        psf=self.state.get('psf')
+        coor=self.state.get('coor')
         vm.addline(f'namdbin2pdb {psf} {coor} {self.basename}.pdb')
         vm.writescript()
         vm.runscript()
+        vm.addfile(f'{self.basename}-coor2pdb.tcl')
+        vm.addfile(f'{self.basename}-coor2pdb.log')
+        self.state.set('pdb',f'{self.basename}.pdb',mode='file')
+        vm.cleanup(cleanup=True)
 
     def pdb_to_coor(self):
         """
@@ -202,10 +206,14 @@ class BaseTask(BaseObj):
         """
         vm=self.scripters['vmd']
         vm.newscript(f'{self.basename}-pdb2coor')
-        pdb=self.statevars['pdb']
+        pdb=self.state.get('pdb')
         vm.addline(f'pdb2namdbin {pdb} {self.basename}.coor')
         vm.writescript()
         vm.runscript()
+        vm.addfile(f'{self.basename}-pdb2coor.tcl')
+        vm.addfile(f'{self.basename}-pdb2coor.log')
+        self.state.set('coor',f'{self.basename}.coor',mode='file')
+        vm.cleanup(cleanup=True)
 
     def make_constraint_pdb(self,specs,statekey='consref'):
         """
@@ -233,7 +241,7 @@ class BaseTask(BaseObj):
             The key under which the resulting PDB file will be stored in the state variables. Default is ``consref``.
         """
         vm=self.scripters['vmd']
-        pdb=self.statevars['pdb']
+        pdb=self.state.get('pdb')
         force_constant=specs.get('k',self.config['user']['namd']['harmonic']['spring_constant'])
         constrained_atoms_def=specs.get('atoms','all')
         logger.debug(f'constraint spec: {specs["atoms"]}')
@@ -249,8 +257,8 @@ class BaseTask(BaseObj):
         vm.addline(f'$a writepdb {c_pdb}')
         vm.writescript()
         vm.runscript()
-        self.update_statevars(statekey,c_pdb,mode='file')
-    
+        self.state.set(statekey,c_pdb,mode='file',scope='local')
+
     def inherit_state(self):
         """
         Inherits the state variables from a prior task if it exists.
@@ -261,46 +269,52 @@ class BaseTask(BaseObj):
         """
         if self.prior:
             logger.debug(f'Inheriting state from prior task {self.prior.taskname}')
-            self.statevars=self.prior.statevars.copy()
+            self.state.inherit_from(self.prior.state)
 
-    def save_state(self,exts=[]):
-        """
-        Saves the current state of the task to files based on the specified extensions.
-        This method updates the state variables with the file paths for each specified extension.
-        It checks if the files exist and updates the state variables accordingly.
-        If the file does not exist, it raises a FileNotFoundError in strict mode or
-        logs a debug message in permissive mode.
+    # def complete_state(self):
+    #     """
 
-        If ``pdb`` is in the list of extensions and ``vel`` is also in the state variables,
-        it assumes that the binary velocity file is stale and removes it from the state variables.
-        If ``coor`` is in the list of extensions and ``pdb`` is not, it converts the coordinate file
-        to a PDB file and updates the state variables accordingly.
-        If ``pdb`` is in the list of extensions and ``coor`` is not, it converts the PDB file to a coordinate file
-        and updates the state variables accordingly.
+    #     """
         
-        Parameters
-        ----------
-        exts : list
-            A list of file extensions to save the state for. Each extension corresponds to a specific file type.
-            The extensions should be provided without the leading dot (e.g., ``psf``, ``pdb``, ``coor``, ``vel``, ``xsc``).
-            The method will update the state variables with the file paths for each extension.
-            If the extension is ``xsc``, it uses ``permissive`` mode, allowing the file to be optional.
-            For other extensions, it uses ``strict`` mode, meaning the file must exist.
 
-        """
-        for ext in exts:
-            mode='strict'
-            if ext=='xsc':
-                mode='permissive'
-            self.update_statevars(ext,f'{self.basename}.{ext}',vtype='file',mode=mode)
-        if 'pdb' in exts and 'vel' in self.statevars: # if pdb has changed, assume binary velocity file is stale
-            del self.statevars['vel']
-        if 'coor' in exts and 'pdb' not in exts:
-            self.coor_to_pdb()
-            self.update_statevars('pdb',f'{self.basename}.pdb',vtype='file')
-        elif 'pdb' in exts and 'coor' not in exts:
-            self.pdb_to_coor()
-            self.update_statevars('coor',f'{self.basename}.coor',vtype='file')
+    # def save_state(self,exts=[]):
+    #     """
+    #     Saves the current state of the task to files based on the specified extensions.
+    #     This method updates the state variables with the file paths for each specified extension.
+    #     It checks if the files exist and updates the state variables accordingly.
+    #     If the file does not exist, it raises a FileNotFoundError in strict mode or
+    #     logs a debug message in permissive mode.
+
+    #     If ``pdb`` is in the list of extensions and ``vel`` is also in the state variables,
+    #     it assumes that the binary velocity file is stale and removes it from the state variables.
+    #     If ``coor`` is in the list of extensions and ``pdb`` is not, it converts the coordinate file
+    #     to a PDB file and updates the state variables accordingly.
+    #     If ``pdb`` is in the list of extensions and ``coor`` is not, it converts the PDB file to a coordinate file
+    #     and updates the state variables accordingly.
+        
+    #     Parameters
+    #     ----------
+    #     exts : list
+    #         A list of file extensions to save the state for. Each extension corresponds to a specific file type.
+    #         The extensions should be provided without the leading dot (e.g., ``psf``, ``pdb``, ``coor``, ``vel``, ``xsc``).
+    #         The method will update the state variables with the file paths for each extension.
+    #         If the extension is ``xsc``, it uses ``permissive`` mode, allowing the file to be optional.
+    #         For other extensions, it uses ``strict`` mode, meaning the file must exist.
+
+    #     """
+    #     for ext in exts:
+    #         mode='strict'
+    #         if ext=='xsc':
+    #             mode='permissive'
+    #         self.update_statevars(ext,f'{self.basename}.{ext}',vtype='file',mode=mode)
+    #     if 'pdb' in exts and 'vel' in self.statevars: # if pdb has changed, assume binary velocity file is stale
+    #         del self.statevars['vel']
+    #     if 'coor' in exts and 'pdb' not in exts:
+    #         self.coor_to_pdb()
+    #         self.update_statevars('pdb',f'{self.basename}.pdb',vtype='file')
+    #     elif 'pdb' in exts and 'coor' not in exts:
+    #         self.pdb_to_coor()
+    #         self.update_statevars('coor',f'{self.basename}.coor',vtype='file')
 
     def update_statevars(self,key,value,vtype='',mode='strict'):
         """ 
