@@ -1,0 +1,45 @@
+colvar {
+    name tail1_tail2
+    distance {
+        group1 {
+            atomNumbers { 84 }
+        }
+        group2 {
+            atomNumbers { 127 }
+        }
+    }
+}
+colvar {
+    name head1_tail1
+    distance {
+        group1 {
+            atomNumbers { 28 }
+        }
+        group2 {
+            atomNumbers { 84 }
+        }
+    }
+}
+colvar {
+    name head1_tail2
+    distance {
+        group1 {
+            atomNumbers { 28 }
+        }
+        group2 {
+            atomNumbers { 127 }
+        }
+    }
+}
+harmonic {
+    name tail1_tail2_attract
+    colvars tail1_tail2
+    forceConstant [1.0]
+    centers 4.00000
+}
+harmonic {
+    name head1_tail12_repulse
+    colvars head1_tail1 head1_tail2
+    forceConstant [-1.0, -1.0]
+    centers 20.00000 20.00000
+}

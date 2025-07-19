@@ -8,6 +8,7 @@ Usage is described in the :ref:`subs_runtasks_psfgen` documentation.
 import logging
 import networkx as nx
 import shutil
+import os
 
 from copy import deepcopy
 
@@ -43,12 +44,12 @@ class PsfgenTask(BaseTask):
     def __init__(self,ctx:PipelineContext,config_specs={},controller_specs={}):
         super().__init__(ctx,config_specs,controller_specs)
         self.molecules={}
-        self.keepfiles=[]
-        if self.specs.get('source',{}).get('prebuilt',{}):
-            self.keepfiles=[self.specs['source']["prebuilt"]["psf"],self.specs['source']["prebuilt"]["pdb"]]
-            xsc=self.specs['source'].get('xsc','')
-            if xsc:
-                self.keepfiles.append(xsc)
+        # self.keepfiles=[]
+        # if self.specs.get('source',{}).get('prebuilt',{}):
+        #     self.keepfiles=[self.specs['source']["prebuilt"]["psf"],self.specs['source']["prebuilt"]["pdb"]]
+        #     xsc=self.specs['source'].get('xsc','')
+        #     if xsc:
+        #         self.keepfiles.append(xsc)
 
     def do(self):
         """
@@ -58,10 +59,18 @@ class PsfgenTask(BaseTask):
         The results of the psfgen process are saved as a PSF/PDB fileset, and the state is updated accordingly.
         """
         self.log_message('initiated')
-        self.inherit_state()
+        self.inherit_artifacts()
         logger.debug('ingesting molecule(s)')
         self.ingest_molecules()
-        self.statevars['base_molecule']=self.base_molecule
+        # register self.base_molecule in the pipeline context
+        self.ctx.register(
+            key='base_molecule',
+            value=self.base_molecule,
+            value_type=Molecule,
+            produced_by=self.__class__.__name__,
+            type='instance',
+            propagate=True
+        )
         logger.debug(f'base mol num images {self.base_molecule.num_images()}')
         logger.debug('Running first psfgen')
         self.result=self.psfgen()
@@ -415,8 +424,35 @@ class PsfgenTask(BaseTask):
         which can be a PDB file, a prebuilt PSF/PDB pair, or an AlphaFold model.
         It also handles any graft sources specified in the sequence modifications and
         activates the biological assembly of the base molecule."""
+
+        # the prior task registered one of
+        # - base_pdb, or
+        # - base_cif, or 
+        # - continuation pdb, psf, xsc files.
+        artifacts=[p for p in self.ctx.artifacts if p.produced_by==self and p.key in ['base_pdb','base_cif','continuation_pdb','continuation_psf','continuation_xsc']]
+        this_source={}
+        if len(artifacts)>0:
+            logger.debug(f'Found {len(artifacts)} artifacts to ingest')
+            for a in artifacts:
+                if a.key=='base_pdb':
+                    this_source['id']=os.path.splitext(a.value.path)[0]
+                elif a.key=='base_cif':
+                    this_source['id']=os.path.splitext(a.value.path)[0]
+                    this_source['file_format']='mmCIF'
+                elif 'continuation' in a.key:
+                    if not 'prebuilt' in this_source:
+                        this_source['prebuilt']={}
+                    if a.key=='continuation_pdb':
+                        this_source['prebuilt']['pdb']=str(a.value.path)
+                    elif a.key=='continuation_psf':
+                        this_source['prebuilt']['psf']=str(a.value.path)
+                    elif a.key=='continuation_xsc':
+                        this_source['prebuilt']['xsc']=str(a.value.path)
+        else:
+            raise RuntimeError(f'No artifacts found to ingest for {self.__class__.__name__}. Expected base_pdb, base_cif, or continuation_pdb/psf/xsc files.')
         specs=self.specs
         self.source_specs=specs['source']
+        self.source_specs.update(this_source)
         logger.debug(f'User-input modspecs {self.specs["mods"]}')
         self.objmanager=ObjManager(self.specs['mods'])
         seqmods=self.objmanager.get('seq',{})

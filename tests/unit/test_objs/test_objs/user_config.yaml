@@ -1,0 +1,38 @@
+title: HIV-1 Env Trimer 4zmj
+tasks:
+  - psfgen:
+      source:
+        id: 4zmj
+        biological_assembly: 1
+        sequence:
+          loops:
+            declash:
+              maxcycles: 20
+      mods:
+        crotations:
+          - psi,B,546,568,-180.0
+          - phi,B,547,568,-60.0
+  - md:
+      ensemble: minimize
+  - ligate:
+      steer:
+        nsteps: 4200
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+      nsteps: 2400
+  - solvate:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NPT
+      nsteps: 1000
+  - md:
+      ensemble: NPT
+      nsteps: 1000
+  - md:
+      ensemble: NPT
+      nsteps: 1000
+  - terminate:
+      basename: my_4zmj

@@ -295,8 +295,8 @@ directives:
     docs:
       text: These are the types of tasks that can be chained together into a run.
     directives:
-      - name: initiate
-        text: Initial task; its only job is to fetch any external data file (e.g., PDB)
+      - name: fetch
+        text: Fetch task; its only job is to fetch any external data file (e.g., PDB).
         type: dict
         directives:
           - name: source
@@ -307,8 +307,13 @@ directives:
           - name: sourceID
             text: ID of the source file; if source is 'local', a file 'sourceID.pdb' or 'sourceID.cif' must exist in the working directory
             type: str
-      - name: restart
-        text: Restart from specified pdb, psf, and (optionally) xsc files without any further modifications (suitable for directly feeding to md tasks)
+          - name: source_format
+            text: Format of the source file; this should be 'pdb' or 'cif'
+            type: str
+            choices: [pdb, cif]
+            default: pdb
+      - name: continue
+        text: Continue from specified pdb, psf, and (optionally) xsc files without any further modifications (suitable for directly feeding to md tasks)
         type: dict
         directives:
           - name: psf
@@ -320,10 +325,6 @@ directives:
           - name: xsc
             text: name of xsc file (w/optional xsc extension)
             type: str
-          - name: index
-            text: first task index in the restart
-            type: int
-            default: 0
       - name: psfgen
         text: Parameters controlling a specific psfgen run on an input molecule
         type: dict
@@ -332,25 +333,25 @@ directives:
             text: Specifies the source of the initial coordinate file
             type: dict
             directives:
-              - name: prebuilt
-                text: PSF and PDB file of a previously built system
-                type: dict
-                directives:
-                  - name: psf
-                    text: name of psf file (includes psf extension)
-                    type: str
-                  - name: pdb
-                    text: name of pdb file (includes pdb extension)
-                    type: str
-                  - name: xsc
-                    text: name of xsc file (includes xsc extension)
-                    type: str
-              - name: id 
-                text: The 4-character PDB ID of the source or the basename of a local coordinate file (PDB or mmCIF format); pestifer will download from the RCSB if a file is not found
-                type: str
-              - name: alphafold
-                type: str
-                text: If set, its value signifies an accession code used to download a model from the AlphaFold database. If either prebuilt or id are set, this directive is ignored
+              # - name: prebuilt
+              #   text: PSF and PDB file of a previously built system
+              #   type: dict
+              #   directives:
+              #     - name: psf
+              #       text: name of psf file (includes psf extension)
+              #       type: str
+              #     - name: pdb
+              #       text: name of pdb file (includes pdb extension)
+              #       type: str
+              #     - name: xsc
+              #       text: name of xsc file (includes xsc extension)
+              #       type: str
+              # - name: id 
+              #   text: The 4-character PDB ID of the source or the basename of a local coordinate file (PDB or mmCIF format); pestifer will download from the RCSB if a file is not found
+              #   type: str
+              # - name: alphafold
+              #   type: str
+              #   text: If set, its value signifies an accession code used to download a model from the AlphaFold database. If either prebuilt or id are set, this directive is ignored
               - name: biological_assembly 
                 text: integer index of the biological assembly to construct; default is 0, signifying that the asymmetric unit is to be used
                 type: int
@@ -368,11 +369,11 @@ directives:
               - name: model
                 text: model number to use if there are multiple models in the file
                 type: int
-              - name: file_format
-                text: either PDB or mmCIF; some entries do not have a PDB-format file.  The main advantage of PDB is that it uses the author-designations for chains by default.  mmCIF is the new "default" format of the PDB.
-                type: str
-                choices: [PDB, mmCIF]
-                default: PDB
+              # - name: file_format
+              #   text: either PDB or mmCIF; some entries do not have a PDB-format file.  The main advantage of PDB is that it uses the author-designations for chains by default.  mmCIF is the new "default" format of the PDB.
+              #   type: str
+              #   choices: [PDB, mmCIF]
+              #   default: PDB
               - name: cif_residue_map_file
                 text: name of output file to write a mapping of CIF chain-residue number to author chain-residue number-insertion
                 type: str

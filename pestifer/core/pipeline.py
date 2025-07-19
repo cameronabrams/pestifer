@@ -41,9 +41,10 @@ class CSVFile:
 @dataclass
 class Artifact:
     key: str
-    file: object  # e.g., PDBFile, CIFFile, PSFFile, COORFile, XSCFile, VELFile, NAMDConfigFile, CSVFile
+    value: object
+    value_type: type
     type: str     # e.g., 'intermediate', 'final', 'log', etc.
-    produced_by: str
+    produced_by: object
     propagate: bool  # flag for whether to pass to next task
 
 class PipelineContext:
@@ -51,17 +52,23 @@ class PipelineContext:
         self.artifacts: dict[str, Artifact] = {}
         self.history: list[dict] = []
 
-    def register(self, key, file_obj, produced_by, *, type='intermediate', propagate=True):
+    def register(self, key, value, value_type, produced_by, *, type='intermediate', propagate=True):
         self.artifacts[key] = Artifact(
             key=key,
-            file=file_obj,
+            value=value,
+            value_type=value_type,
             type=type,
             produced_by=produced_by,
             propagate=propagate
         )
 
-    def get(self, key):
-        return self.artifacts[key].file
+    def get(self, key: str, expected_type=None):
+        artifact = self.artifacts.get(key,None)
+        if artifact is None:
+            return None
+        if expected_type and not isinstance(artifact.value, expected_type):
+            raise TypeError(f"{key} is not a {expected_type}")
+        return artifact.value
 
     def get_propagated_inputs(self):
-        return {k: a.file for k, a in self.artifacts.items() if a.propagate}
+        return {k: a.value for k, a in self.artifacts.items() if a.propagate}

@@ -1,0 +1,40 @@
+Title: Test
+BuildSteps:
+  - name: step1
+    source:
+      pdb: 7df3
+      biological_assembly: 1
+      chains: all  # protein, or single-letters
+    # mods:
+    #   - glycans.yaml
+    tasks:
+      - build:
+      - smdclose:
+      - relax:
+          - nsteps: 10000
+            temperature: 310
+  - name: cleave
+    source: step1
+    # mods:
+    #   - cleavage.yaml
+    tasks:
+      - build:
+      - relax:
+          - nsteps: 10000
+            temperature: 310
+  - name: solvate
+    source: cleave
+    mods:
+    tasks:
+      relax_series:
+        temperature: 310
+        nsteps:
+          - 100
+          - 200
+          - 400
+          - 800
+          - 20000
+NAMD2: $(HOME)/namd/NAMD_2.14_Source/Linux-x86_64-g++/namd2
+CHARMRUN: $(HOME)/namd/NAMD_2.14_Source/Linux-x86_64-g++/charmrun
+VMD: /usr/local/bin/vmd
+CHARMMDIR: $(HOME)/charmm

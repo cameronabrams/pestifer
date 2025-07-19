@@ -1,0 +1,16 @@
+
+REMARK 465                                                                      
+REMARK 465 MISSING RESIDUES                                                     
+REMARK 465 THE FOLLOWING RESIDUES WERE NOT LOCATED IN THE                       
+REMARK 465 EXPERIMENT. (M=MODEL NUMBER; RES=RESIDUE NAME; C=CHAIN               
+REMARK 465 IDENTIFIER; SSSEQ=SEQUENCE NUMBER; I=INSERTION CODE.)                
+REMARK 465                                                                      
+REMARK 465   M RES C SSSEQI                                                     
+REMARK 465     GLY G    79                                                      
+REMARK 465     ALA G    80                                                      
+REMARK 465     ARG G    81                                                      
+REMARK 465     SER G    82                                                      
+REMARK 465     GLU G    83                                                      
+REMARK 465     VAL G    84         
+REMARK 465 
+

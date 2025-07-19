@@ -1,0 +1,78 @@
+tasks:
+  - restart:
+      psf: 5e8w-proteinonly.psf
+      pdb: 5e8w-proteinonly.pdb
+  - make_membrane_system:
+      bilayer:
+        SAPL: 50
+        composition:
+          upper_leaflet:
+            - name: PSM
+              frac: 0.5
+            - name: CHL1 
+              frac: 0.5
+          lower_leaflet:
+            - name: POPE
+              frac: 0.5
+            - name: CHL1 
+              frac: 0.5
+              conf: 1
+        relaxation_protocols:
+          patch:
+            - md:
+                ensemble: minimize
+                nsteps: 1000
+            - md:
+                ensemble: NVT
+                nsteps: 1000
+                temperature: 310
+            - md:
+                ensemble: NPT
+                nsteps: 1000
+                temperature: 310
+                pressure: 10.0
+            - md:
+                ensemble: NPT
+                nsteps: 2000
+                temperature: 310
+                pressure: 10.0
+            - md:
+                ensemble: NPT
+                nsteps: 4000
+                temperature: 310
+                pressure: 1.0
+          quilt:
+            - md:
+                ensemble: minimize
+                nsteps: 1000
+            - md:
+                ensemble: NVT
+                nsteps: 1000
+                temperature: 310
+            - md:
+                ensemble: NPT
+                nsteps: 1000
+                temperature: 310
+      embed:
+        z_head_group: "protein and resid 667"
+        z_tail_group: "protein and resid 710"
+        z_ref_group: 
+          text: "protein and resid 696"
+  - md:
+      ensemble: minimize
+      nsteps: 1000
+  - md:
+      ensemble: nvt
+      nsteps: 1000
+  - md:
+      ensemble: npt
+      nsteps: 1000
+  - mdplot:
+      traces:
+        - density
+        - - a_x
+          - b_y
+          - c_z
+      basename: solvated
+  - terminate:
+      basename: test2

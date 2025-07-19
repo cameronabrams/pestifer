@@ -1,0 +1,328 @@
+Charm++: standalone mode (not using charmrun)
+Charm++> Running in Multicore mode: 16 threads (PEs)
+Charm++> Using recursive bisection (scheme 3) for topology aware partitions
+Converse/Charm++ Commit ID: v80000
+CharmLB> Load balancer assumes all CPUs are same.
+Charm++> cpu affinity enabled. 
+Charm++> Running on 1 hosts (2 sockets x 4 cores x 2 PUs = 16-way SMP)
+Charm++> cpu topology info is gathered in 0.001 seconds.
+Info: Built with CUDA version 11030
+Pe 4 physical rank 4 will use CUDA device of pe 8
+Pe 2 physical rank 2 will use CUDA device of pe 8
+Pe 1 physical rank 1 will use CUDA device of pe 8
+Pe 12 physical rank 12 will use CUDA device of pe 8
+Pe 11 physical rank 11 will use CUDA device of pe 8
+Pe 9 physical rank 9 will use CUDA device of pe 8
+Pe 10 physical rank 10 will use CUDA device of pe 8
+Pe 13 physical rank 13 will use CUDA device of pe 8
+Pe 6 physical rank 6 will use CUDA device of pe 8
+Pe 14 physical rank 14 will use CUDA device of pe 8
+Pe 7 physical rank 7 will use CUDA device of pe 8
+Pe 5 physical rank 5 will use CUDA device of pe 8
+Pe 15 physical rank 15 will use CUDA device of pe 8
+Pe 0 physical rank 0 will use CUDA device of pe 8
+Pe 3 physical rank 3 will use CUDA device of pe 8
+Pe 8 physical rank 8 binding to CUDA device 0 on panacea: 'Quadro P4000'  Mem: 8106MB  Rev: 6.1  PCI: 0:73:0
+CharmLB> Load balancing instrumentation for communication is off.
+Info: NAMD 3.0.1 for Linux-x86_64-multicore-CUDA
+Info: 
+Info: Please visit http://www.ks.uiuc.edu/Research/namd/
+Info: for updates, documentation, and support information.
+Info: 
+Info: Please cite Phillips et al., J. Chem. Phys. 153:044130 (2020) doi:10.1063/5.0014475
+Info: in all publications reporting results obtained with NAMD.
+Info: 
+Info: Based on Charm++/Converse 80000 for multicore-linux-x86_64
+Info: Built Mon 03 Feb 2025 11:11:51 AM EST by cfa on panacea
+Info: 1 NAMD  3.0.1  Linux-x86_64-multicore-CUDA  16    panacea  cfa
+Info: Running on 16 processors, 1 nodes, 1 physical nodes.
+Info: CPU topology information available.
+Info: Charm++/Converse parallel runtime startup completed at 0.402909 s
+CkLoopLib is used in SMP with simple dynamic scheduling (converse-level notification)
+Info: 0 MB of memory in use based on /proc/self/stat
+Info: Configuration file is 07-00-md-NVT.namd
+Info: Working in the current directory /home/cfa/devtests/pestifer/180/08
+TCL: Suspending until startup complete.
+Info: EXTENDED SYSTEM FILE   06-00-md-minimize.xsc
+Info: Tuning parameters to improve GPU-resident performance
+Warning: The Langevin gamma parameters differ over the particles,
+Warning: requiring extra work per step to constrain rigid bonds.
+Warning: Disabling lonepair support due to incompatability with GPU-resident.
+Info: Running with GPU-resident mode
+Info: SIMULATION PARAMETERS:
+Info: TIMESTEP               2
+Info: NUMBER OF STEPS        9000
+Info: STEPS PER CYCLE        10
+Info: PERIODIC CELL BASIS 1  155.822 0 0
+Info: PERIODIC CELL BASIS 2  0 155.123 0
+Info: PERIODIC CELL BASIS 3  0 0 140.789
+Info: PERIODIC CELL CENTER   125.251 140.073 134.45
+Info: WRAPPING ALL CLUSTERS AROUND PERIODIC BOUNDARIES ON OUTPUT.
+Info: LOAD BALANCER  Centralized
+Info: LOAD BALANCING STRATEGY  New Load Balancers -- DEFAULT
+Info: LDB PERIOD             2000 steps
+Info: FIRST LDB TIMESTEP     50
+Info: LAST LDB TIMESTEP     -1
+Info: LDB BACKGROUND SCALING 1
+Info: HOM BACKGROUND SCALING 1
+Info: PME BACKGROUND SCALING 1
+Info: MIN ATOMS PER PATCH    40
+Info: EMPTY PATCH LOAD       40 ATOMS
+Info: VELOCITY FILE          06-00-md-minimize.vel
+Info: CENTER OF MASS MOVING INITIALLY? NO
+Info: DIELECTRIC             1
+Info: EXCLUDE                SCALED ONE-FOUR
+Info: 1-4 ELECTROSTATICS SCALED BY 1
+Info: MODIFIED 1-4 VDW PARAMETERS WILL BE USED
+Info: DCD FILENAME           07-00-md-NVT.dcd
+Info: DCD FREQUENCY          100
+Info: DCD FIRST STEP         9100
+Info: DCD FILE WILL CONTAIN UNIT CELL DATA
+Info: NO EXTENDED SYSTEM TRAJECTORY OUTPUT
+Info: NO VELOCITY DCD OUTPUT
+Info: NO FORCE DCD OUTPUT
+Info: OUTPUT FILENAME        07-00-md-NVT
+Info: BINARY OUTPUT FILES WILL BE USED
+Info: NO RESTART FILE
+Info: SWITCHING ACTIVE
+Info: SWITCHING ON           9
+Info: SWITCHING OFF          10
+Info: PAIRLIST DISTANCE      11.5
+Info: PAIRLIST SHRINK RATE   0.01
+Info: PAIRLIST GROW RATE     0.01
+Info: PAIRLIST TRIGGER       0.3
+Info: PAIRLISTS PER CYCLE    2
+Info: PAIRLISTS ENABLED
+Info: MARGIN                 4
+Info: HYDROGEN GROUP CUTOFF  2.5
+Info: PATCH DIMENSION        18
+Info: ENERGY OUTPUT STEPS    100
+Info: ENERGY EVALUATION STEPS    100
+Info: OUTPUT ENERGY PRECISION 4
+Info: CROSSTERM ENERGY INCLUDED IN DIHEDRAL
+Info: TIMING OUTPUT STEPS    1000
+Info: LANGEVIN DYNAMICS ACTIVE
+Info: LANGEVIN TEMPERATURE   300
+Info: LANGEVIN USING BBK INTEGRATOR
+Info: LANGEVIN DAMPING COEFFICIENT IS 5 INVERSE PS
+Info: LANGEVIN DYNAMICS NOT APPLIED TO HYDROGENS
+Info: PARTICLE MESH EWALD (PME) ACTIVE
+Info: PME TOLERANCE               1e-06
+Info: PME EWALD COEFFICIENT       0.312341
+Info: PME INTERPOLATION ORDER     4
+Info: PME GRID DIMENSIONS         160 160 144
+Info: PME MAXIMUM GRID SPACING    1
+Info: PME CALCULATION WILL BE PERFORMED ON GPU
+Info: FULL ELECTROSTATIC EVALUATION FREQUENCY      2
+Info: USING VERLET I (r-RESPA) MTS SCHEME.
+Info: C1 SPLITTING OF LONG RANGE ELECTROSTATICS
+Info: PLACING ATOMS IN PATCHES BY HYDROGEN GROUPS
+Info: RIGID BONDS TO HYDROGEN : ALL
+Info:         ERROR TOLERANCE : 1e-08
+Info:          MAX ITERATIONS : 100
+Info: RIGID WATER USING SETTLE ALGORITHM
+Info: RANDOM NUMBER SEED     1740779712
+Info: USE HYDROGEN BONDS?    NO
+Info: COORDINATE PDB         06-00-md-minimize.pdb
+Info: STRUCTURE FILE         05-00-solvate.psf
+Info: PARAMETER file: CHARMM format! 
+Info: PARAMETERS             par_all36m_prot.prm
+Info: PARAMETERS             par_all36_carb.prm
+Info: PARAMETERS             par_all36_lipid.prm
+Info: PARAMETERS             par_all36_carb.prm
+Info: PARAMETERS             par_all36_na.prm
+Info: PARAMETERS             par_all36_cgenff.prm
+Info: PARAMETERS             toppar_water_ions.str
+Info: PARAMETERS             toppar_all36_carb_glycopeptide.str
+Info: PARAMETERS             toppar_all36_prot_modify_res.str
+Info: PARAMETERS             toppar_all36_moreions.str
+Info: USING ARITHMETIC MEAN TO COMBINE L-J SIGMA PARAMETERS
+Info: BINARY COORDINATES     06-00-md-minimize.coor
+Info: FIRST TIMESTEP         9000
+Info: SKIPPING rtf SECTION IN STREAM FILE
+Info: SKIPPING rtf SECTION IN STREAM FILE
+Info: SKIPPING rtf SECTION IN STREAM FILE
+Info: SKIPPING rtf SECTION IN STREAM FILE
+Info: SUMMARY OF PARAMETERS:
+Info: 1324 BONDS
+Info: 4452 ANGLES
+Info: 13183 DIHEDRAL
+Info: 310 IMPROPER
+Info: 20 CROSSTERM
+Info: 419 VDW
+Info: 99 VDW_PAIRS
+Info: 0 NBTHOLE_PAIRS
+Info: TIME FOR READING PSF FILE: 18.4785
+Info: Reading pdb file 06-00-md-minimize.pdb
+Info: TIME FOR READING PDB FILE: 0.770644
+Info: 
+Info: ****************************
+Info: STRUCTURE SUMMARY:
+Info: 319419 ATOMS
+Info: 225178 BONDS
+Info: 159492 ANGLES
+Info: 96101 DIHEDRALS
+Info: 5472 IMPROPERS
+Info: 1826 CROSSTERMS
+Info: 0 EXCLUSIONS
+Info: 301708 RIGID BONDS
+Info: 656549 DEGREES OF FREEDOM
+Info: 112512 HYDROGEN GROUPS
+Info: 4 ATOMS IN LARGEST HYDROGEN GROUP
+Info: 112512 MIGRATION GROUPS
+Info: 4 ATOMS IN LARGEST MIGRATION GROUP
+Info: TOTAL MASS = 1.96154e+06 amu
+Info: TOTAL CHARGE = 2.97632e-05 e
+Info: MASS DENSITY = 0.957154 g/cm^3
+Info: ATOM DENSITY = 0.0938614 atoms/A^3
+Info: *****************************
+Info: Reading from binary file 06-00-md-minimize.coor
+Info: 
+Info: Entering startup at 20.6968 s, 0 MB of memory in use
+Info: Startup phase 0 took 0.00102793 s, 0 MB of memory in use
+Info: ADDED 478827 IMPLICIT EXCLUSIONS
+Info: Startup phase 1 took 0.246692 s, 0 MB of memory in use
+Info: NONBONDED TABLE R-SQUARED SPACING: 0.0625
+Info: NONBONDED TABLE SIZE: 705 POINTS
+Info: INCONSISTENCY IN FAST TABLE ENERGY VS FORCE: 0.000290479 AT 0.251946
+Info: INCONSISTENCY IN SCOR TABLE ENERGY VS FORCE: 0.000178193 AT 9.97184
+Info: ABSOLUTE IMPRECISION IN VDWA TABLE ENERGY: 7.88861e-31 AT 9.99687
+Info: RELATIVE IMPRECISION IN VDWA TABLE ENERGY: 1.10587e-16 AT 9.99687
+Info: INCONSISTENCY IN VDWA TABLE ENERGY VS FORCE: 0.0040507 AT 0.251946
+Info: INCONSISTENCY IN VDWB TABLE ENERGY VS FORCE: 0.00377068 AT 9.07951
+Info: Startup phase 2 took 0.0258683 s, 0 MB of memory in use
+Info: Startup phase 3 took 0.000508741 s, 0 MB of memory in use
+Info: Startup phase 4 took 0.00444593 s, 0 MB of memory in use
+Info: Startup phase 5 took 0.000577998 s, 0 MB of memory in use
+Info: PATCH GRID IS 8 (PERIODIC) BY 8 (PERIODIC) BY 7 (PERIODIC)
+Info: PATCH GRID IS 1-AWAY BY 1-AWAY BY 1-AWAY
+Info: Reading from binary file 06-00-md-minimize.vel
+Info: REMOVING COM VELOCITY 0 0 0
+Info: LARGEST PATCH (343) HAS 789 ATOMS
+Info: TORUS A SIZE 1 USING 0
+Info: TORUS B SIZE 1 USING 0
+Info: TORUS C SIZE 1 USING 0
+Info: TORUS MINIMAL MESH SIZE IS 1 BY 1 BY 1
+Info: Placed 100% of base nodes on same physical node as patch
+Info: Startup phase 6 took 0.29304 s, 0 MB of memory in use
+Info: Use 3D box decompostion in PME FFT.
+Info: PME using 1 x 1 x 1 pencil grid for FFT and reciprocal sum.
+Info: Startup phase 7 took 0.00149724 s, 0 MB of memory in use
+Info: Updated CUDA force table with 4096 elements.
+Info: Updated CUDA LJ table with 362 x 362 elements.
+Info: Startup phase 8 took 0.00818611 s, 0 MB of memory in use
+Info: Startup phase 9 took 0.000507305 s, 0 MB of memory in use
+Info: Startup phase 10 took 0.000455367 s, 0 MB of memory in use
+Info: Startup phase 11 took 0.144449 s, 0 MB of memory in use
+LDB: Central LB being created...
+Info: Startup phase 12 took 0.00351602 s, 0 MB of memory in use
+Info: CREATING 9536 COMPUTE OBJECTS
+Info: Found 1093 unique exclusion lists needing 2218904 bytes
+Info: useSync: 0 useProxySync: 0
+Info: Startup phase 13 took 0.270971 s, 0 MB of memory in use
+Info: Startup phase 14 took 0.00129146 s, 0 MB of memory in use
+Info: Startup phase 15 took 0.00050189 s, 0 MB of memory in use
+Info: Finished startup at 21.7003 s, 0 MB of memory in use
+
+TCL: Running for 2000 steps
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:    9000      2239.8468      6500.4583     21556.0011       249.9391       -1314826.5499    129189.9961         0.0000         0.0000         0.0000       -1155090.3085         0.0000  -1155090.3085  -1155090.3085         0.0000          -4670.9359     -4614.9509   3403092.0284     -4670.9359     -4614.9509
+
+Info: Initial time: 16 CPUs 0.0156046 s/step 11.0736 ns/day 0 MB memory
+Info: Initial time: 16 CPUs 0.0155513 s/step 11.1116 ns/day 0 MB memory
+ENERGY:    9100      4643.0021     11606.7209     22583.0166       639.0550       -1270210.6101    134546.9500         0.0000         0.0000     66556.3772       -1029635.4882       102.0265  -1096191.8654  -1092362.8984        51.0132          -2364.6053     -2310.9657   3403092.0284     -3517.7706     -3462.9583
+
+OPENING COORDINATE DCD FILE
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 9100
+The last position output (seq=9100) takes 0.013 seconds, 0.000 MB of memory in use
+Info: Initial time: 16 CPUs 0.0160093 s/step 10.7937 ns/day 0 MB memory
+Info: Benchmark time: 16 CPUs 0.0164455 s/step 10.5074 ns/day 0 MB memory
+ENERGY:    9200      5904.5400     14467.5341     23318.2137       874.5602       -1235581.8323    129254.4527         0.0000         0.0000     97724.0197        -964038.5119       149.8044  -1061762.5316  -1049588.1029        83.9436          -1851.2495     -1799.7706   3403092.0284     -2962.2635     -2908.5624
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 9200
+The last position output (seq=9200) takes 0.021 seconds, 0.000 MB of memory in use
+Info: Benchmark time: 16 CPUs 0.0162598 s/step 10.6274 ns/day 0 MB memory
+Info: Benchmark time: 16 CPUs 0.0169073 s/step 10.2205 ns/day 0 MB memory
+ENERGY:    9300      6561.3180     16331.3096     23541.7932       963.3228       -1212718.9781    125271.6568         0.0000         0.0000    116746.6260        -923302.9516       178.9648  -1040049.5776  -1018016.8150       107.6989          -1538.5608     -1488.3058   3403092.0284     -2606.3379     -2553.4983
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 9300
+The last position output (seq=9300) takes 0.010 seconds, 0.000 MB of memory in use
+Info: Benchmark time: 16 CPUs 0.0160932 s/step 10.7375 ns/day 0 MB memory
+Info: Benchmark time: 16 CPUs 0.0161496 s/step 10.6999 ns/day 0 MB memory
+ENERGY:    9400      6828.2417     17295.1070     23841.4394      1030.5498       -1194376.1510    121531.6340         0.0000         0.0000    130333.6771        -893515.5020       199.7928  -1023849.1791   -993116.5524       126.1177          -1417.9192     -1365.2194   3403092.0284     -2368.6541     -2315.8425
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 9400
+The last position output (seq=9400) takes 0.009 seconds, 0.000 MB of memory in use
+Info: Benchmark time: 16 CPUs 0.0165783 s/step 10.4232 ns/day 0 MB memory
+ENERGY:    9500      7245.2602     18085.7304     23980.0139      1107.6572       -1178009.2305    117613.9937         0.0000         0.0000    141067.0645        -868909.5106       216.2464  -1009976.5751   -972415.3788       141.1391          -1427.2826     -1376.1382   3403092.0284     -2211.7589     -2159.2251
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 9500
+The last position output (seq=9500) takes 0.009 seconds, 0.000 MB of memory in use
+ENERGY:    9600      7161.9378     18435.2421     24001.7616      1087.2654       -1164363.3083    115459.7502         0.0000         0.0000    150174.2227        -848043.1284       230.2071   -998217.3511   -954647.9145       153.8631          -1234.8269     -1182.4011   3403092.0284     -2072.1972     -2019.6788
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 9600
+The last position output (seq=9600) takes 0.013 seconds, 0.000 MB of memory in use
+ENERGY:    9700      7466.0513     18839.8991     24025.4354      1048.9622       -1151126.0222    111687.8174         0.0000         0.0000    158318.9894        -829738.8672       242.6924   -988057.8566   -939034.2836       164.9668          -1267.1189     -1214.3663   3403092.0284     -1971.5624     -1919.0148
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 9700
+The last position output (seq=9700) takes 0.013 seconds, 0.000 MB of memory in use
+ENERGY:    9800      7387.3137     19221.1795     24022.2723      1094.5095       -1138798.0994    108412.0270         0.0000         0.0000    164144.4642        -814516.3331       251.6225   -978660.7973   -925198.9557       174.5952          -1242.0356     -1192.0277   3403092.0284     -1890.5038     -1838.2384
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 9800
+The last position output (seq=9800) takes 0.009 seconds, 0.000 MB of memory in use
+ENERGY:    9900      7338.9402     19522.3108     24211.7916      1134.1378       -1128108.8289    105773.9097         0.0000         0.0000    169272.9590        -800854.7798       259.4841   -970127.7388   -912764.5381       183.0841          -1186.5776     -1137.9111   3403092.0284     -1820.1112     -1768.2057
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 9900
+The last position output (seq=9900) takes 0.019 seconds, 0.000 MB of memory in use
+TIMING: 10000  CPU: 17.8205, 0.0173737/step  Wall: 18.0695, 0.0175368/step, 9.85359 ns/days, 0.00487132 hours remaining, 0.000000 MB of memory in use.
+PERFORMANCE: 10000  averaging 9.85359 ns/day, 0.0175368 sec/step with standard deviation 0
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   10000      7469.7112     19588.6727     24019.0181      1081.2906       -1118363.2657    103548.7246         0.0000         0.0000    173090.9205        -789564.9280       265.3368   -962655.8485   -901564.5736       190.5616          -1217.6738     -1169.9721   3403092.0284     -1765.3442     -1713.8208
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 10000
+The last position output (seq=10000) takes 0.012 seconds, 0.000 MB of memory in use
+ENERGY:   10100      7542.0463     19729.2137     24032.2902      1144.5181       -1111293.4780    101836.3662         0.0000         0.0000    177388.7298        -779620.3136       271.9251   -957009.0434   -891402.5519       197.3419          -1168.3584     -1119.7340   3403092.0284     -1715.5954     -1664.3136
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 10100
+ENERGY:   10200      7338.0153     20080.6888     23955.4733      1122.3501       -1102829.6208     99615.1447         0.0000         0.0000    179978.0299        -770739.9186       275.8943   -950717.9485   -882120.8109       203.3844          -1181.3796     -1134.1172   3403092.0284     -1674.5018     -1623.5292
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 10200
+ENERGY:   10300      7352.0137     20102.6118     24037.3350      1128.2232       -1096892.2351     97803.7179         0.0000         0.0000    182305.7170        -764162.6165       279.4625   -946468.3336   -873695.2256       208.8186          -1117.6963     -1071.9650   3403092.0284     -1634.7300     -1584.1318
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 10300
+ENERGY:   10400      7458.9944     20169.5738     24048.9297      1141.1650       -1091405.5910     96283.8343         0.0000         0.0000    184838.6231        -757464.4707       283.3453   -942303.0938   -865946.5086       213.7870          -1131.5902     -1083.7064   3403092.0284     -1601.1874     -1550.7701
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 10400
+ENERGY:   10500      7567.4839     20254.2263     24011.1579      1115.3065       -1086850.7934     95466.3987         0.0000         0.0000    185877.0362        -752559.1840       284.9371   -938436.2201   -858859.8008       218.2339          -1157.2881     -1110.5838   3403092.0284     -1573.4437     -1523.2585
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 10500
+ENERGY:   10600      7456.7979     20423.3650     23983.6481      1119.4186       -1082995.4459     94054.7543         0.0000         0.0000    188040.4197        -747917.0423       288.2534   -935957.4620   -852333.7562       222.3527          -1118.5422     -1072.1691   3403092.0284     -1546.6848     -1496.7238
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 10600
+ENERGY:   10700      7449.8895     20270.4658     24017.8712      1135.7535       -1080261.7194     94079.9495         0.0000         0.0000    189071.1544        -744236.6355       289.8335   -933307.7900   -846328.3606       226.1016          -1053.0828     -1007.6149   3403092.0284     -1519.2624     -1469.5511
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 10700
+ENERGY:   10800      7513.6359     20190.1710     24003.6700      1126.5727       -1075951.4101     92186.6949         0.0000         0.0000    190266.6689        -740663.9968       291.6661   -930930.6657   -840767.0783       229.5524          -1145.8268     -1095.6023   3403092.0284     -1499.6079     -1449.8696
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 10800
+ENERGY:   10900      7459.1067     20427.2073     23946.9427      1132.1623       -1074821.2249     92785.6998         0.0000         0.0000    191207.9486        -737862.1575       293.1090   -929070.1061   -835621.8322       232.7302          -1037.9976      -990.6499   3403092.0284     -1476.5274     -1426.9086
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 10900
+TIMING: 11000  CPU: 38.2675, 0.020447/step  Wall: 39.1358, 0.0210664/step, 8.20264 ns/days, 0 hours remaining, 0.000000 MB of memory in use.
+PERFORMANCE: 11000  averaging 8.95264 ns/day, 0.0193016 sec/step with standard deviation 0.00249582
+ETITLE:      TS           BOND          ANGLE          DIHED          IMPRP               ELECT            VDW       BOUNDARY           MISC        KINETIC               TOTAL           TEMP      POTENTIAL       TOTALAVG        TEMPAVG            PRESSURE      GPRESSURE         VOLUME       PRESSAVG      GPRESSAVG
+
+ENERGY:   11000      7700.2548     20239.1905     23972.6210      1135.6126       -1071093.1191     90737.8860         0.0000         0.0000    191826.6894        -735480.8647       294.0575   -927307.5541   -814641.3601       247.4331          -1107.6571     -1062.9193   3403092.0284     -1298.3635     -1249.3070
+
+WRITING COORDINATES TO DCD FILE 07-00-md-NVT.dcd AT STEP 11000
+WRITING EXTENDED SYSTEM TO OUTPUT FILE AT STEP 11000
+WRITING COORDINATES TO OUTPUT FILE AT STEP 11000
+CLOSING COORDINATE DCD FILE 07-00-md-NVT.dcd
+WRITING VELOCITIES TO OUTPUT FILE AT STEP 11000
+The last velocity output (seq=-2) takes 0.030 seconds, 0.000 MB of memory in use
+====================================================
+
+WallClock: 60.843487  CPUTime: 59.998081  Memory: 0.000000 MB
+[Partition 0][Node 0] End of program

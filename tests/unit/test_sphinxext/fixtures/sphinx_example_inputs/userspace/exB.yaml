@@ -1,0 +1,6 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+title: "Use Pestifer to enter the underworld"
+tasks:
+  - psfgen:
+      source:
+        id: 1ccx
