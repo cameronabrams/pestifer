@@ -39,6 +39,18 @@ class CSVFile:
     path: Path
 
 @dataclass
+class LogFile:
+    path: Path
+
+@dataclass
+class TopoFile:
+    path: Path
+
+@dataclass
+class ParamFile:
+    path: Path
+
+@dataclass
 class Artifact:
     key: str
     value: object
@@ -53,6 +65,27 @@ class PipelineContext:
         self.history: list[dict] = []
 
     def register(self, key, value, value_type, produced_by, *, type='intermediate', propagate=True):
+        """ 
+        Create and register an artifact in the pipeline context.
+
+        Parameters
+        ----------
+        key : str
+            Unique identifier for the artifact.
+        value : object
+            The value of the artifact, can be any object.
+        value_type : type
+            The expected type of the value.
+        produced_by : object
+            The task or object that produced this artifact.
+        type : str, optional
+            The type of the artifact (e.g., 'intermediate', 'final', etc.), defaults to 'intermediate'.
+        propagate : bool, optional
+            Whether this artifact should be passed to the next task, defaults to True.
+        """
+        if key in self.artifacts:
+            """ move to history if already exists """
+            self.history.append(self.artifacts[key])
         self.artifacts[key] = Artifact(
             key=key,
             value=value,
@@ -72,3 +105,25 @@ class PipelineContext:
 
     def get_propagated_inputs(self):
         return {k: a.value for k, a in self.artifacts.items() if a.propagate}
+
+    def context_to_string(self):
+        """ 
+        Report the current artifacts in the pipeline context.
+        
+        Returns
+        -------
+        str
+            A string representation of the current artifacts in the pipeline context.
+        """
+        return "\n".join([f"{k}: {a.value}" for k, a in self.artifacts.items() if a.propagate])
+    
+    def history_to_string(self):
+        """ 
+        Report the history of artifacts in the pipeline context.
+        
+        Returns
+        -------
+        str
+            A string representation of the history of artifacts in the pipeline context.
+        """
+        return "\n".join([f"{h['key']}: {h['value']} (produced by {h['produced_by'].index})" for h in self.history])

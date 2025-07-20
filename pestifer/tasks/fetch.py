@@ -84,7 +84,7 @@ class FetchTask(BaseTask):
                 )
             elif os.path.exists(local_cif):
                 self.ctx.register(
-                    key='base_cif',
+                    key='base_coordinates',
                     value=CIFFile(path=local_cif),
                     value_type=CIFFile,
                     produced_by=self,

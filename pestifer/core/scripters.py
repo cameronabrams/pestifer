@@ -284,7 +284,7 @@ class VMDScripter(TcLScripter):
             pdb=f'{mol.sourcespecs["alphafold"]}.pdb'
             self.addline(f'mol new {pdb} waitfor all')
         else:
-            raise Exception(f'Molecule specs has none of "id", "prebuilt", or "alphafold"')
+            raise ValueError(f'Molecule specs has none of "id", "prebuilt", or "alphafold"')
         self.addline(f'set {mol.molid_varname} [molinfo top get id]')
         self.addline(f'set nf [molinfo ${mol.molid_varname} get numframes]')
         self.addline(r'if { $nf > 1 } { animate delete beg 0 end [expr $nf - 2] $'+mol.molid_varname+r' }')
@@ -478,6 +478,7 @@ class PsfgenScripter(VMDScripter):
             A list of topology files that have been copied to the local directory.
         """
         topology_local=[]
+        # topologies are assumed correctly ordered in config file
         for t in self.charmmff_config['standard']['topologies']+self.charmmff_config['custom']['topologies']:
             self.charmmff.copy_charmmfile_local(t)
             topology_local.append(t)
