@@ -172,7 +172,7 @@ class BaseTask(BaseObj):
         dict
             A dictionary of artifact values associated with the current task, keyed by artifact key.
         """
-        return self.ctx.get_artifact_collection(produced_by=self)
+        return self.ctx.get_artifact_values_collection_as_dict(produced_by=self)
     
     def register_current_artifact(self,key,value,value_type=None):
         """

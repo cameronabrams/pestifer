@@ -8,12 +8,11 @@ The task is designed to be used in a workflow where the simulation needs to be g
 It ensures that all necessary files are collected and organized, making it easy to resume or analyze the simulation later.
 """
 import logging
-import os
+import shutil
 import yaml
 
 from .md import MDTask
-from ..core.command import Command
-from ..core.pipeline import PDBFile, PSFFile, XSCFile, VELFile, COORFile, NAMDConfigFile, LogFile, TclFile
+from ..core.pipeline import NAMDConfigFile
 
 logger=logging.getLogger(__name__)
 
@@ -39,7 +38,6 @@ class TerminateTask(MDTask):
         if not coor:
             self.pdb_to_coor()
         self.write_chainmaps()
-        # self.write_statefile()
         self.result=self.make_package()
         self.log_message('complete')
         return self.result
@@ -64,31 +62,35 @@ class TerminateTask(MDTask):
         The method also handles the generation of a tarball containing all the necessary files for the NAMD run.
         The tarball is named based on the basename specified in the task specifications.
         """
+        self.FC.clear()  # populate a file collector to make the tarball
         specs=self.specs.get('package',{})
         if not specs:
             logger.debug('no package specs found')
             return 0
-        basename=specs.get('basename','my_system')
+        self.basename=specs.get('basename','my_system')
+        for ext in ['psf','pdb','coor','xsc','vel']:
+            fa=self.get_current_artifact_value(ext)
+            if fa:
+                shutil.copy(fa.path, self.basename + '.' + ext)
+                self.register_current_artifact(ext, type(fa)(path=self.basename + '.' + ext))
+                self.FC.append(self.basename + '.' + ext)
         # self.inherit_state()
-        self.FC.clear()  # populate a file collector to make the tarball
-        logger.debug(f'Packaging for namd using basename {basename}')
+        logger.debug(f'Packaging for namd using basename {self.basename}')
         savespecs=self.specs
         self.specs=specs
         result=self.namdrun(script_only=True)
         self.specs=savespecs
-        self.FC.append(f'{basename}.namd')
-        self.register_current_artifact('namd', NAMDConfigFile(path=f'{basename}.namd'))
+        self.FC.append(f'{self.basename}.namd')
+        self.register_current_artifact('namd', NAMDConfigFile(path=f'{self.basename}.namd'))
         constraints=specs.get('constraints',{})
         if constraints:
             self.make_constraint_pdb(constraints,statekey='consref')
             self.FC.append(self.get_current_artifact_value('consref').path)
-        local_params=self.get_current_artifact_value('charmmff_paramfiles')
-        for n in local_params:
-            self.FC.append(n.name)
-        for ext in ['psf','pdb','coor','xsc','vel']:
-            fa=self.get_current_artifact_value(ext)
-            if fa:
-                self.FC.append(fa.path)
+        # local_params=self.get_current_artifact_value('charmmff_paramfiles')
+        # for n in local_params:
+        #     self.FC.append(n.name)
+
+        self.FC.extend(self.get_current_artifact_value('charmmff_params'))
         self.FC.tarball(specs["basename"])
         # self.FC.flush()
         return result

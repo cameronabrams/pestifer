@@ -161,6 +161,7 @@ class MDTask(VMDTask):
         
         na=self.scripters['namd']
         na.newscript(self.basename,addl_paramfiles=list(set(addl_paramfiles+prior_paramfiles)))
+        self.register_current_artifact('charmmff_params',na.parameters)
         cpu_override=specs.get('cpu-override',False)
         logger.debug(f'CPU-override is {cpu_override}')
         na.writescript(params,cpu_override=cpu_override)

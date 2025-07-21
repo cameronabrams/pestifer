@@ -166,7 +166,7 @@ class PipelineContext:
             return history + [current.value]
         return history
     
-    def get_artifact_collection(self, produced_by=None):
+    def get_artifact_values_collection_as_dict(self, produced_by=None):
         """
         Retrieve a collection of artifacts produced by a specific task or object.
         
@@ -180,8 +180,8 @@ class PipelineContext:
         dict
             A dictionary of artifact values associated with the given produced_by, keyed by artifact key.
         """
-        history = {h.key: h.value for h in self.history if h.produced_by == produced_by}
-        current = {k: a.value for k, a in self.artifacts.items() if a.produced_by == produced_by}
+        history = {h.key: h.value for h in self.history if (not produced_by or h.produced_by == produced_by)}
+        current = {k: a.value for k, a in self.artifacts.items() if (not produced_by or a.produced_by == produced_by)}
         return {**history, **current}
 
     def context_to_string(self):
