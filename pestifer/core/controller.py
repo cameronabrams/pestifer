@@ -55,7 +55,7 @@ class Controller:
         # set up the task list
         self.tasks=[]
         prior_task=None
-        ctx=PipelineContext()
+        self.ctx=PipelineContext()
         for idx,taskdict in enumerate(self.config['user'].get('tasks',[])):
             # Each task dictionary has a single keyword (the task name) and a value
             # that comprises the task specifications from the config
@@ -75,7 +75,7 @@ class Controller:
             #      - self.scripters: the Controller's filewriters
             #      - prior_task: indentifier of prior task in task list
             Cls=task_classes[class_name]
-            this_task=Cls(ctx,config_specs,dict(controller_index=self.index,taskname=taskname,config=self.config,scripters=self.scripters,prior=prior_task))
+            this_task=Cls(self.ctx,config_specs,dict(controller_index=self.index,taskname=taskname,config=self.config,scripters=self.scripters,prior=prior_task))
             # Append to the task list
             self.tasks.append(this_task)
             prior_task=this_task
@@ -120,6 +120,7 @@ class Controller:
         for task in self.tasks:
             returned_result=task.do()
             task_report[task.index]=dict(taskname=task.taskname,taskindex=task.index,result=returned_result)
+            logger.debug(f'Current artifacts in pipeline context:\n{self.ctx.context_to_string()}')
             if task.result!=0:
                 logger.warning(f'Task {task.taskname} failed; task.result {task.result} returned result {returned_result} controller is aborted.')
                 break

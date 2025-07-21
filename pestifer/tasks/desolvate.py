@@ -10,7 +10,10 @@ Usage is described in the :ref:`subs_desolvate` documentation.
 from ..core.basetask import BaseTask
 from ..core.command import Command
 from ..util.progress import PestiferProgress
+import logging
 import os
+
+logger=logging.getLogger(__name__)
 
 class DesolvateTask(BaseTask):
     """
@@ -31,9 +34,12 @@ class DesolvateTask(BaseTask):
         Generate an index file and a PSF file from the given PSF and PDB files.
         This method uses the VMD scripter to create a script that performs the necessary operations
         to generate the index file and the PSF file based on the specified selection criteria.
-        The generated script is then executed to produce the output files."""
+        The generated script is then executed to produce the output files.
+
+        This is not a pipelined task (for now)
+
+        """
         self.log_message('initiated')
-        # self.inherit_state()
         self.next_basename()
         psf=self.specs['psf']
         pdb=self.specs['pdb']

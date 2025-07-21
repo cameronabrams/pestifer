@@ -8,6 +8,7 @@ Usage is described in the :ref:`config_ref tasks ring_check` documentation.
 import logging
 
 from ..core.basetask import BaseTask
+from ..core.pipeline import PDBFile, PSFFile, XSCFile, TclFile, LogFile
 from ..molecule.ring import ring_check
 
 logger=logging.getLogger(__name__)
@@ -25,10 +26,9 @@ class RingCheckTask(BaseTask):
     
     def do(self):
         self.log_message('initiated')
-        self.inherit_state()
-        psf=self.statevars.get('psf',None)
-        pdb=self.statevars.get('pdb',None)
-        xsc=self.statevars.get('xsc',None)
+        psf=self.get_current_artifact('psf')
+        pdb=self.get_current_artifact('pdb')
+        xsc=self.get_current_artifact('xsc')
         cutoff=self.specs.get('cutoff',3.5)
         segtypes=self.specs.get('segtypes',['lipid'])
         delete_these=self.specs.get('delete','piercee')
@@ -43,14 +43,17 @@ class RingCheckTask(BaseTask):
                 self.next_basename('ring_check')
                 pg=self.scripters['psfgen']
                 pg.newscript(self.basename)
-                pg.load_project(psf,pdb)
+                pg.load_project(psf.path,pdb.path)
                 logger.debug(f'Deleting all {delete_these}s from {len(npiercings)} pierced-ring configuration{ess}')
                 for r in npiercings:
                     logger.debug(f'   Deleting segname {r[delete_these]["segname"]} residue {r[delete_these]["resid"]}')
                     pg.addline(f'delatom {r[delete_these]["segname"]} {r[delete_these]["resid"]}')
                 pg.writescript(self.basename)
+                self.register_current_artifact('tcl', TclFile(path=f'{self.basename}.tcl'))
                 pg.runscript()
-                self.save_state(exts=['psf','pdb'])
+                self.register_current_artifact('psf', PSFFile(path=f'{self.basename}.psf'))
+                self.register_current_artifact('pdb', PDBFile(path=f'{self.basename}.pdb'))
+                self.register_current_artifact('log', LogFile(path=f'{self.basename}.log'))
         self.log_message('complete')
         self.result=0
         return super().do()

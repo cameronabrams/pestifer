@@ -828,7 +828,7 @@ class NAMDLog(LogParser):
         Measure the progress of the NAMD simulation based on the metadata and time series data. This method calculates the fraction of completed steps relative to the total number of steps, using the first time step and the last recorded time step in the energy data.
         """
         if 'number_of_steps' not in self.metadata:
-            logger.debug('measure_progress: number_of_steps not in metadata')
+            # logger.debug('measure_progress: number_of_steps not in metadata')
             return 0.0
         number_of_steps=self.metadata['number_of_steps'] # this will be zero for a minimization
         if 'first_timestep' not in self.metadata:

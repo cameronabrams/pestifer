@@ -7,17 +7,15 @@ Usage is described in the :ref:`subs_runtasks_psfgen` documentation.
 """
 import logging
 import networkx as nx
-import shutil
 import os
 
 from copy import deepcopy
 
 from ..core.basetask import BaseTask
 from ..molecule.chainidmanager import ChainIDManager
-from ..core.command import Command
 from ..molecule.molecule import Molecule
 from ..core.objmanager import ObjManager
-from ..core.pipeline import PipelineContext, PSFFile, PDBFile, XSCFile
+from ..core.pipeline import PipelineContext, PSFFile, PDBFile, XSCFile, TclFile, LogFile, TopoFileName, ParamFileName
 from ..psfutil.psfatom import PSFAtomList
 from ..psfutil.psfcontents import PSFContents
 
@@ -44,12 +42,6 @@ class PsfgenTask(BaseTask):
     def __init__(self,ctx:PipelineContext,config_specs={},controller_specs={}):
         super().__init__(ctx,config_specs,controller_specs)
         self.molecules={}
-        # self.keepfiles=[]
-        # if self.specs.get('source',{}).get('prebuilt',{}):
-        #     self.keepfiles=[self.specs['source']["prebuilt"]["psf"],self.specs['source']["prebuilt"]["pdb"]]
-        #     xsc=self.specs['source'].get('xsc','')
-        #     if xsc:
-        #         self.keepfiles.append(xsc)
 
     def do(self):
         """
@@ -59,7 +51,6 @@ class PsfgenTask(BaseTask):
         The results of the psfgen process are saved as a PSF/PDB fileset, and the state is updated accordingly.
         """
         self.log_message('initiated')
-        self.inherit_artifacts()
         logger.debug('ingesting molecule(s)')
         self.ingest_molecules()
         logger.debug(f'base mol num images {self.base_molecule.num_images()}')
@@ -69,22 +60,7 @@ class PsfgenTask(BaseTask):
             return super().do()
         # we now have a full coordinate set, so we can do coormods
         self.coormods()
-        # min_loop_length=0
-        min_loop_length=self.specs['source'].get('sequence',{}).get('loops',{}).get('min_loop_length',0)
-        self.update_statevars('min_loop_length',min_loop_length)
-        self.nloops=self.base_molecule.has_loops(min_loop_length=min_loop_length)
-        for segtype in ['protein','nucleicacid']:
-            self.nloops[segtype]*=self.base_molecule.num_images()
-        if self.nloops['protein']>0 and self.specs['source']['sequence']['loops']['declash']['maxcycles']>0:
-            logger.debug(f'Declashing {self.nloops["protein"]} protein loops')
-            self.declash_protein_loops(self.specs['source']['sequence']['loops'])
-        if self.nloops['nucleicacid']>0 and self.specs['source']['sequence']['loops']['declash']['maxcycles']>0:
-            logger.debug(f'Declashing {self.nloops["nucleicacid"]} nucleic acid loops')
-            self.declash_na_loops(self.specs['source']['sequence']['loops'])
-        nglycans=self.base_molecule.nglycans()*self.base_molecule.num_images()
-        if nglycans>0 and self.specs['source']['sequence']['glycans']['declash']['maxcycles']>0:
-            logger.debug(f'Declashing {nglycans} glycan segments')
-            self.declash_glycans(self.specs['source']['sequence']['glycans'])
+        self.declash()
         self.log_message('complete')
         return super().do()
 
@@ -95,7 +71,6 @@ class PsfgenTask(BaseTask):
         coormods=self.objmanager.get('coord',{})
         logger.debug(f'psfgen task has {len(coormods)} coormods:')
         logger.debug(';'.join([str(_) for _ in coormods]))
-        ba=self.base_molecule.active_biological_assembly
         if coormods:
             logger.debug(f'performing coormods')
             for objtype,objlist in coormods.items():
@@ -106,15 +81,29 @@ class PsfgenTask(BaseTask):
                     if objtype=='crotations':
                         packages.append('PestiferCRot')
                     vm.newscript(self.basename,packages=packages)
-                    psf=self.statevars['psf']
-                    pdb=self.statevars['pdb']
+                    psf=self.get_current_artifact_value('psf')
+                    pdb=self.get_current_artifact_value('pdb')
                     vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
-                    for transform in ba.transforms:
+                    for transform in self.base_molecule.active_biological_assembly.transforms:
                         objlist.write_TcL(vm,chainIDmap=transform.chainIDmap)
                     vm.write_pdb(self.basename,'mCM')
                     vm.writescript()
+                    self.register_current_artifact('tcl', TclFile(path=self.basename + '.tcl'))
                     vm.runscript()
-                    self.save_state(exts=['pdb'])
+                    self.register_current_artifact('pdb', PDBFile(path=self.basename + '.pdb'))
+                    self.register_current_artifact('log', LogFile(path=self.basename + '.log'))
+
+    def declash(self):
+        self.min_loop_length = self.specs['source'].get('sequence',{}).get('loops',{}).get('min_loop_length',0)
+        self.declash_counts = self.base_molecule.loop_counts(min_loop_length=self.min_loop_length)
+        num_images = self.base_molecule.num_images()
+        for segtype in ['protein','nucleicacid']:
+            self.declash_counts[segtype] *= num_images
+        self.declash_counts['glycan'] = self.base_molecule.nglycans() * num_images
+        for segtype,speckey in zip(['protein','nucleicacid','glycan'],['loops','loops','glycans']):
+            if self.declash_counts[segtype]>0 and self.specs['source']['sequence'][speckey]['declash']['maxcycles']>0:
+                logger.debug(f'Declashing {self.declash_counts[segtype]} {segtype} segments')
+                self.declash_segtype(self.specs['source']['sequence'][speckey]['declash'], segtype=segtype)
 
     def resi_topologies(self):
         """
@@ -164,46 +153,35 @@ class PsfgenTask(BaseTask):
         patch_topologies=self.patch_topologies()
         resi_topologies=self.resi_topologies()
         addl_topologies=list(set(patch_topologies+resi_topologies))
+        # Register CHARMM parameter filenames
+        charmff_parfiles=self.get_current_artifact('charmmff_paramfiles')
+        if not charmff_parfiles:
+            self.register_current_artifact('charmmff_paramfiles',[])
+            charmmff_parfiles=self.get_current_artifact('charmmff_paramfiles')
+        for ptop in addl_topologies:
+            if ptop.endswith('.str'):
+                charmmff_parfiles.append(ParamFileName(name=ptop),unique=True) 
+
         pg.newscript(self.basename,packages=['PestiferCRot'],additional_topologies=addl_topologies)
+        self.register_current_artifact('tcl',TclFile(path=f'{self.basename}.tcl'))
         pg.set_molecule(self.base_molecule,altcoords=self.specs.get('source',{}).get('altcoords',None))
         pg.describe_molecule(self.base_molecule)
         pg.writescript(self.basename)
+        self.register_current_artifact('tcl',TclFile(path=f'{self.basename}.tcl'))
         result=pg.runscript()
         if result!=0:
             return result
-        for ptop in addl_topologies:
-            if ptop.endswith('.str'):
-                if not self.statevars.get('charmmff_paramfiles',[]):
-                    self.statevars['charmmff_paramfiles']=[]
-                if ptop not in self.statevars['charmmff_paramfiles']:
-                    logger.debug(f'Adding {ptop} to charmmff_paramfiles')
-                    self.statevars['charmmff_paramfiles'].append(ptop)
-        # register PSF, PDB, tcl, log, and all charmmff files in the pipeline context
-        exts=['psf','pdb','tcl','log']
-        for ext in exts:
-            fname=f'{self.basename}.{ext}'
-            if os.path.exists(fname):
-                objtype=PSFFile if ext=='psf' else PDBFile if ext=='pdb' else XSCFile if ext=='xsc' else None
-                if objtype:
-                    self.ctx.register(
-                        key=ext,
-                        value=objtype(path=fname),
-                        value_type=objtype,
-                        produced_by=self,
-                        type='intermediate',
-                        propagate=ext in ['psf','pdb']
-                    )
+        # register PSF, PDB, log, and all charmmff files in the pipeline context
+        exts={'psf':PSFFile,'pdb':PDBFile,'log':LogFile}
+        for ext, objtype in exts.items():
+            self.register_current_artifact(ext, objtype(path=f'{self.basename}.{ext}'))
+        charmm_topofiles = self.get_current_artifact('charmmff_topofiles')
+        if not charmm_topofiles:
+            self.register_current_artifact('charmmff_topofiles', [])
+            charmm_topofiles = self.get_current_artifact('charmmff_topofiles')
         for topology in pg.topologies:
-            
-            if topology.endswith('.str'):
-                self.ctx.register(
-                    key=topology,
-                    value=topology,
-                    value_type=str,
-                    produced_by=self,
-                    type='intermediate',
-                    propagate=True
-                )
+            if topology.endswith('.str'): # toplevels already registered?
+                charmm_topofiles.append(TopoFileName(name=topology), unique=True)
         self.strip_remarks()
         return 0
         
@@ -212,21 +190,37 @@ class PsfgenTask(BaseTask):
         Strip REMARK lines from the PDB file generated by psfgen.
         This method removes any REMARK lines from the PDB file to ensure that it contains only the relevant atomic coordinates and structure information.
         """
-        pdb=self.get_current_artifact('pdb')
+        pdb=self.get_current_artifact_value('pdb')
         if not pdb:
             logger.warning('No PDB file found to strip remarks from.')
             return
-        if not os.path.exists(pdb):
-            logger.warning(f'PDB file {pdb} does not exist, cannot strip remarks.')
+        if not os.path.exists(pdb.path):
+            logger.warning(f'PDB file {pdb.path} does not exist, cannot strip remarks.')
             return
-        logger.debug(f'Stripping REMARK lines from {pdb}')
-        with open(pdb, 'r') as infile:
+        logger.debug(f'Stripping REMARK lines from {pdb.path}')
+        with open(pdb.path, 'r') as infile:
             lines = infile.readlines()
-        with open(pdb, 'w') as outfile:
+        with open(pdb.path, 'w') as outfile:
             for line in lines:
                 if not line.startswith('REMARK'):
                     outfile.write(line)
 
+    def declash_segtype(self,specs,segtype='protein'):
+        """
+        Declash loops in the base molecule using the custom ``PestiferDeclash`` TcL package.
+        This method generates a VMD script to identify and declash loops in the molecular structure.
+        It uses the ``PestiferDeclash`` package to perform the declashing operation, which involves identifying
+        and modifying the coordinates of atoms in loop regions.
+        """
+        if segtype == 'protein':
+            self.declash_protein_loops(specs)
+        elif segtype == 'nucleicacid':
+            self.declash_na_loops(specs)
+        elif segtype == 'glycan':
+            self.declash_glycans(specs)
+        else:
+            raise ValueError(f'Unknown segment type {segtype} for declashing')
+        
     def declash_protein_loops(self,specs):
         """
         Declash loops in the base molecule using the custom ``PestiferDeclash`` TcL package.
@@ -240,23 +234,18 @@ class PsfgenTask(BaseTask):
             logger.debug(f'Protein loop declashing is intentionally not done.')
             return
         self.next_basename('declash-loops')
+        psf=self.get_current_artifact_value('psf')
+        pdb=self.get_current_artifact_value('pdb')
         vt=self.scripters['vmd']
-        psf=self.statevars['psf']
-        pdb=self.statevars['pdb']
         vt.newscript(self.basename,packages=['PestiferDeclash'])
+        self.register_current_artifact('tcl',TclFile(path=f'{self.basename}.tcl'))
         vt.load_psf_pdb(psf,pdb,new_molid_varname='mLL')
-        mol.write_protein_loop_lines(vt,cycles=cycles,min_length=specs['min_loop_length'],include_c_termini=specs['declash']['include_C_termini'])
+        mol.write_protein_loop_lines(vt,cycles=cycles,include_c_termini=specs['declash']['include_C_termini'])
         vt.write_pdb(self.basename,'mLL')
         vt.writescript()
         vt.runscript()
-        self.ctx.register(
-            key='pdb',
-            value=PDBFile(path=f'{self.basename}.pdb'),
-            value_type=PDBFile,
-            produced_by=self,
-            type='intermediate',
-            propagate=True
-        )
+        self.register_current_artifact('pdb',PDBFile(path=f'{self.basename}.pdb'))
+        self.register_current_artifact('log',LogFile(path=f'{self.basename}.log'))
 
     def declash_na_loops(self,specs):
         """
@@ -265,25 +254,24 @@ class PsfgenTask(BaseTask):
         It uses the ``PestiferDeclash`` package to perform the declashing operation, which involves identifying
         and modifying the coordinates of atoms in nucleic acid loop regions.
         """
-        mol=self.base_molecule
         cycles=specs['declash']['maxcycles']
         clashdist=specs['declash']['clashdist']
-        minlooplength=specs['min_loop_length']
 
         if self.nloops['nucleicacid'] == 0 or not cycles:
             logger.debug(f'Nucleic acid loop declashing is intentionally not done.')
             return
         self.next_basename('declash-na-loops')
         vt=self.scripters['vmd']
-        psf=self.statevars['psf']
-        pdb=self.statevars['pdb']
+        psf=self.get_current_artifact_value('psf')
+        pdb=self.get_current_artifact_value('pdb')
         outpdb=f'{self.basename}.pdb'
         vt.newscript(self.basename,packages=['PestiferDeclash'])
+        self.register_current_artifact('tcl',TclFile(path=f'{self.basename}.tcl'))
         vt.addline(f'mol new {psf}')
         vt.addline(f'mol addfile {pdb} waitfor all')
         vt.addline(f'set a [atomselect top all]')
         vt.addline(f'set molid [molinfo top get id]')
-        nna=self._write_na_loops(vt,minlooplength=minlooplength)
+        nna=self._write_na_loops(vt)
         vt.addline(f'set nna {nna}')
         vt.addline(f'vmdcon -info "Declashing $nna nucleic acid loops; clashdist {clashdist}; maxcycles {cycles}"')
         vt.addline(r'for {set i 0} {$i<$nna} {incr i} {')
@@ -293,12 +281,12 @@ class PsfgenTask(BaseTask):
         vt.writescript()
         logger.debug(f'Declashing {nna} nucleic acid loops')
         vt.runscript(progress_title='declash-nucleic-acid-loops')
-        self.save_state(exts=['pdb'])
+        self.register_current_artifact('pdb',PDBFile(path=f'{self.basename}.pdb'))
 
     def _write_na_loops(self,vt,**options):
         mol=self.base_molecule
         au=mol.asymmetric_unit
-        psf=self.statevars['psf']
+        psf=self.get_current_artifact_value('psf')
         logger.debug(f'ingesting {psf}')
         struct=PSFContents(psf,parse_topology=['bonds'])
         na_atoms=struct.atoms.get(segtype='nucleicacid')
@@ -306,7 +294,7 @@ class PsfgenTask(BaseTask):
         my_rep.sort(key=lambda x: (x[0],x[1]))
         logger.debug(f'Getting loops from {len(na_atoms)} nucleic acid atoms in PSF file {psf}')
         logger.debug(f'{my_rep}')
-        min_length=options.get('minlooplength',4)
+        min_length=self.min_loop_length
         include_c_termini=options.get('include_c_termini',False)
         i=0
         SL=[S for S in au.segments if S.segtype=='nucleicacid']
@@ -383,10 +371,11 @@ class PsfgenTask(BaseTask):
             return
         self.next_basename('declash-glycans')
         outpdb=f'{self.basename}.pdb'
-        psf=self.statevars['psf']
-        pdb=self.statevars['pdb']
+        psf=self.get_current_artifact_value('psf')
+        pdb=self.get_current_artifact_value('pdb')
         vt=self.scripters['vmd']
         vt.newscript(self.basename,packages=['PestiferDeclash'])
+        self.register_current_artifact('tcl',TclFile(path=f'{self.basename}.tcl'))
         vt.addline(f'mol new {psf}')
         vt.addline(f'mol addfile {pdb} waitfor all')
         vt.addline(f'set a [atomselect top all]')
@@ -400,10 +389,11 @@ class PsfgenTask(BaseTask):
         vt.writescript()
         logger.debug(f'Declashing {nglycan} glycans')
         vt.runscript(progress_title='declash-glycans')
-        self.save_state(exts=['pdb'])
+        self.register_current_artifact('pdb',PDBFile(path=f'{self.basename}.pdb'))
+        self.register_current_artifact('log',LogFile(path=f'{self.basename}.log'))
 
     def _write_glycans(self,fw):
-        psf=self.statevars['psf']
+        psf=self.get_current_artifact_value('psf')
         logger.debug(f'ingesting {psf}')
         struct=PSFContents(psf,parse_topology=['bonds'])
         logger.debug(f'Making graph structure of glycan atoms...')
@@ -457,40 +447,30 @@ class PsfgenTask(BaseTask):
         This method initializes the base molecule based on the source specifications,
         which can be a PDB file, a prebuilt PSF/PDB pair, or an AlphaFold model.
         It also handles any graft sources specified in the sequence modifications and
-        activates the biological assembly of the base molecule."""
-
-        # the prior task registered one of
-        # - base_pdb, or
-        # - base_cif, or 
-        # - continuation pdb, psf, xsc files.
-        artifacts=[p for p in self.ctx.artifacts if p.produced_by==self and p.key in ['base_coordinates','continuation_pdb','continuation_psf','continuation_xsc','continuation_vel']]
+        activates the biological assembly of the base molecule.
+        """
         this_source={}
-        if len(artifacts)>0:
-            logger.debug(f'Found {len(artifacts)} artifacts to ingest')
-            for a in artifacts:
-                if a.key=='base_coordinates':
-                    basename,ext=os.path.splitext(a.value.path)
-                    this_source['id']=basename
-                    if ext.lower()=='.pdb':
-                        this_source['file_format']='PDB'
-                    elif ext.lower()=='.cif':
-                        this_source['file_format']='mmCIF'
-                    else:
-                        raise RuntimeError(f'Unknown file format {ext} for base_coordinates artifact {a.value.path}')
-                    break
-                elif 'continuation' in a.key:
-                    if not 'prebuilt' in this_source:
-                        this_source['prebuilt']={}
-                    if a.key=='continuation_pdb':
-                        this_source['prebuilt']['pdb']=str(a.value.path)
-                    elif a.key=='continuation_psf':
-                        this_source['prebuilt']['psf']=str(a.value.path)
-                    elif a.key=='continuation_xsc':
-                        this_source['prebuilt']['xsc']=str(a.value.path)
-                    elif a.key=='continuation_vel':
-                        this_source['prebuilt']['vel']=str(a.value.path)
+        base_coordinates = self.get_current_artifact_value('base_coordinates')
+        if not base_coordinates:
+            pdb = self.get_current_artifact_value('pdb')
+            psf = self.get_current_artifact_value('psf')
+            xsc = self.get_current_artifact_value('xsc')
+            if not (pdb and psf):
+                raise RuntimeError(f'No base_coordinates artifact found, and no prebuilt PDB/PSF/XSC files found in the pipeline context. Cannot ingest base molecule.')
+            this_source['prebuilt'] = {
+                'pdb': str(pdb.path),
+                'psf': str(psf.path),
+                'xsc': str(xsc.path) if xsc else None
+            }
         else:
-            raise RuntimeError(f'No artifacts found to ingest for {self.__class__.__name__}. Expected base_coordinates, or continuation_pdb/psf/xsc/vel files.')
+            basename,ext=os.path.splitext(base_coordinates.path)
+            this_source['id']=basename
+            if ext.lower()=='.pdb':
+                this_source['file_format']='PDB'
+            elif ext.lower()=='.cif':
+                this_source['file_format']='mmCIF'
+            else:
+                raise RuntimeError(f'Unknown file format {ext} for base_coordinates artifact {base_coordinates.path}')
         specs=self.specs
         self.source_specs=specs['source']
         assert not 'id' in self.source_specs,f'Version 2.0+ of Pestifer does not support "id" in source specs.  Psfgen task must inherit "base_coordinates" artifact or continuation artifacts from a prior task (fetch or continuation).'
@@ -510,14 +490,7 @@ class PsfgenTask(BaseTask):
                         'file_format':'PDB'
                     }
                     self.molecules[g.source_pdbid]=Molecule(source=this_source)
-                    self.ctx.register(
-                        key=f'graft-{g.source_pdbid}',
-                        value=self.molecules[g.source_pdbid],
-                        value_type=Molecule,
-                        produced_by=self,
-                        type='instance',
-                        propagate=True
-                    )
+                    self.register_current_artifact(f'graft-{g.source_pdbid}',PDBFile(path=f'{g.source_pdbid}.pdb'))
                 g.activate(deepcopy(self.molecules[g.source_pdbid]))
         self.chainIDmanager=ChainIDManager(
             format=self.source_specs['file_format'],
@@ -527,14 +500,7 @@ class PsfgenTask(BaseTask):
                                     objmanager=self.objmanager,
                                     chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
         # register self.base_molecule in the pipeline context
-        self.ctx.register(
-            key='base_molecule',
-            value=self.base_molecule,
-            value_type=Molecule,
-            produced_by=self,
-            type='instance',
-            propagate=True
-        )
+        self.register_current_artifact('base_molecule',self.base_molecule)
         for molid,molecule in self.molecules.items():
             logger.debug(f'Molecule "{molid}": {molecule.num_atoms()} atoms in {molecule.num_residues()} residues; {molecule.num_segments()} segments.')
 
@@ -555,16 +521,16 @@ class PsfgenTask(BaseTask):
                 base_key=k
         # assert base_key!='UNSET',f'Cannot update a non-existent base molecule'
         # get the psf, pdb, xsc from the pipeline context
-        my_artifacts={x.key:x for x in self.ctx.artifacts if x.produced_by==self and x.key in ['psf','pdb','xsc','vel']}
-        psf=my_artifacts.get('psf','')
-        pdb=my_artifacts.get('pdb','')
-        xsc=my_artifacts.get('xsc','')
-        source={
-            'prebuilt': {
-                'psf':psf,
-                'pdb':pdb,
-                'xsc':xsc
-            }
+        pdb = self.get_current_artifact_value('pdb')
+        psf = self.get_current_artifact_value('psf')
+        xsc = self.get_current_artifact_value('xsc')
+        if not (pdb and psf):
+            raise RuntimeError(f'No base_coordinates artifact found, and no prebuilt PDB/PSF/XSC files found in the pipeline context. Cannot ingest base molecule.')
+        source={}
+        source['prebuilt'] = {
+            'pdb': str(pdb.path),
+            'psf': str(psf.path),
+            'xsc': str(xsc.path) if xsc else None
         }
         if hasattr(self,'chainIDmanager') and hasattr(self,'objmanager'):
             updated_molecule=Molecule(source=source,chainIDmanager=self.chainIDmanager,objmanager=self.objmanager).activate_biological_assembly(0)
@@ -573,11 +539,4 @@ class PsfgenTask(BaseTask):
 
         self.molecules[base_key]=updated_molecule
         self.base_molecule=updated_molecule
-        self.ctx.register(
-            key='base_molecule',
-            value=self.base_molecule,
-            value_type=Molecule,
-            produced_by=self,
-            type='instance',
-            propagate=True
-        )
+        self.register_current_artifact('base_molecule',self.base_molecule)

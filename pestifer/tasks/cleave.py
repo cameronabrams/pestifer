@@ -12,6 +12,8 @@ Usage is described in the :ref:`subs_runtasks_cleave` documentation.
 """
 from .psfgen import PsfgenTask
 from ..objs.cleavagesite import CleavageSite, CleavageSiteList
+from ..core.pipeline import PDBFile, PSFFile, COORFile, XSCFile, VELFile, LogFile, DCDFile, NAMDConfigFile
+
 
 class CleaveTask(PsfgenTask):
     """
@@ -55,6 +57,5 @@ class CleaveTask(PsfgenTask):
         self.update_molecule()
         self.base_molecule.cleave_chains(cleavage_sites)
         self.result=self.psfgen()
-        # self.save_state(exts=['psf','pdb']) # already done in psfgen()
         self.log_message('complete')
         return self.result

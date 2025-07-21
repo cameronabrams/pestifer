@@ -11,9 +11,9 @@
 #
 title: Bovine Pancreatic Trypsin Inhibitor (BPTI)
 tasks:
+  - fetch:
+      sourceID: 6pti
   - psfgen:
-      source:
-        id: 6pti
   - md:
       ensemble: minimize
   - solvate:
@@ -30,12 +30,12 @@ tasks:
   - md:
       ensemble: NPT
       nsteps: 800
-  - md:
-      ensemble: NPT
-      nsteps: 1600
-  - md:
-      ensemble: NPT
-      nsteps: 13200
+#   - md:
+#       ensemble: NPT
+#       nsteps: 1600
+#   - md:
+#       ensemble: NPT
+#       nsteps: 13200
   - mdplot:
       timeseries:
         - density
@@ -44,6 +44,9 @@ tasks:
       units:
         cpu_time: s
         wall_time: s
+      axis-labels:
+        cpu_time: CPU time
+        wall_time: Wall time
       basename: solvated
       grid: True
   - terminate:

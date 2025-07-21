@@ -13,7 +13,7 @@ It uses the :ref:`tcl-domainswap` Tcl script.  Usage is described in the :ref:`c
 import logging
 
 from .md import MDTask
-
+from ..core.pipeline import PDBFile, CVFile, TclFile, LogFile
 logger=logging.getLogger(__name__)
 
 class DomainSwapTask(MDTask):
@@ -41,13 +41,14 @@ class DomainSwapTask(MDTask):
         self.next_basename('domainswap-prep')
         vm=self.scripters['vmd']
         vm.newscript(self.basename)
-        psf=self.statevars['psf']
-        pdb=self.statevars['pdb']
+        psf=self.get_current_artifact('psf')
+        pdb=self.get_current_artifact('pdb')
         vm.usescript('domainswap')
         vm.writescript()
+        self.register_current_artifact('tcl', TclFile(path=f'{self.basename}.tcl'))
         vm.runscript(
-            psf=psf,
-            pdb=pdb,
+            psf=psf.path,
+            pdb=pdb.path,
             swap_domain_def=','.join(specs['swap_domain_def'].split()),
             anchor_domain_def=','.join(specs['anchor_domain_def'].split()),
             chain_swap_pairs=':'.join([','.join(x) for x in specs['chain_directional_swaps']]),
@@ -55,5 +56,7 @@ class DomainSwapTask(MDTask):
             target_numsteps=specs['target_numsteps'],
             cv=f'{self.basename}-cv.inp',
             refpdb=f'{self.basename}-ref.pdb')
-        self.update_statevars('cv',f'{self.basename}-cv.inp',vtype='file')
+        self.register_current_artifact('cv', CVFile(path=f'{self.basename}-cv.inp'))
+        self.register_current_artifact('refpdb', PDBFile(path=f'{self.basename}-ref.pdb'))
+        self.register_current_artifact('log', LogFile(path=f'{self.basename}.log'))
         

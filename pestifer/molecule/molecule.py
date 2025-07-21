@@ -133,6 +133,18 @@ class Molecule(AncestorAwareObj):
         self.asymmetric_unit.claim_descendants(self)
         self.biological_assemblies.claim_descendants(self)
 
+    def __repr__(self):
+        """
+        Return a string representation of the Molecule instance.
+        This method provides a concise description of the molecule, including its ID and the number of atoms.
+        
+        Returns
+        -------
+        str
+            A string representation of the Molecule instance.
+        """
+        return f'Molecule(molid={self.molid}, num_atoms={self.num_atoms()})'
+
     def set_coords(self,altcoordsfile):
         """
         Set the coordinates of the asymmetric unit from an alternate coordinates file.
@@ -243,7 +255,7 @@ class Molecule(AncestorAwareObj):
                 maps[oc].append({'transform':transform.index,'mappedchain':mc})
         return maps
 
-    def has_loops(self,min_loop_length=1):
+    def loop_counts(self,min_loop_length=1):
         """
         Check if the asymmetric unit contains loops (missing residues) of a specified minimum length.
         This method iterates through the segments of the asymmetric unit and counts the number of loops
@@ -262,6 +274,8 @@ class Molecule(AncestorAwareObj):
             For example, ``{'protein': 3, 'nucleicacid': 2}`` indicates that there are 3 loops in protein segments
             and 2 loops in nucleic acid segments.
         """
+        self.min_loop_length=min_loop_length
+        self.has_protein_loops=False
         nloops={}
         nloops['protein']=0
         nloops['nucleicacid']=0
@@ -275,6 +289,8 @@ class Molecule(AncestorAwareObj):
                 for b in S.subsegments:
                     if b.state=='MISSING' and b.num_items()>=min_loop_length:
                         nloops['nucleicacid']+=1
+        if nloops['protein']>0:
+            self.has_protein_loops=True
         return nloops
 
     def nglycans(self):
@@ -363,7 +379,7 @@ class Molecule(AncestorAwareObj):
         """
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
-        min_length=options.get('min_length',4)
+        min_length=self.min_loop_length
         include_c_termini=options.get('include_c_termini',False)
         for S in au.segments:
             # chainID=S.chainID

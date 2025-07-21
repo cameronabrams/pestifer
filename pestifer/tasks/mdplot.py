@@ -19,6 +19,7 @@ from ..core.basetask import BaseTask
 from ..util.units import g_per_amu,A3_per_cm3
 from ..util.logparsers import NAMDLog
 from ..core.stringthings import to_latex_math
+from ..core.pipeline import ImageFile
 
 logger=logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -36,7 +37,6 @@ class MDPlotTask(BaseTask):
     def do(self):
         logger.debug(f'Running {self.__class__.__name__} task with specs {self.specs}')
         self.log_message('initiated')
-        self.inherit_state()
         self.next_basename()
         is_post_processing=self.specs.get('postprocessing',False)
         running_sums=self.specs.get('running_sums',['cpu_time','wall_time'])
@@ -52,16 +52,17 @@ class MDPlotTask(BaseTask):
                 priortaskpointer=priortaskpointer.prior
             priortasklist=priortasklist[::-1]
             for pt in priortasklist:
-                time_series_titles=[x.replace('-csv','') for x in pt.statevars.keys() if x.endswith('-csv')]
+                artifact_collection=pt.get_artifact_collection()
+                time_series_titles=[x.replace('-csv','') for x in artifact_collection.keys() if x.endswith('-csv')]
                 logger.debug(f'Found {len(time_series_titles)} time series titles in {pt.basename}: {time_series_titles}')
                 for tst in time_series_titles:
                     if not tst in dataframes:
                         dataframes[tst]=pd.DataFrame()
-                    csvname=pt.statevars.get(f'{tst}-csv',None)
+                    csvname=artifact_collection.get(f'{tst}-csv')
                     if csvname:
-                        logger.debug(f'Collecting data from CSV file {csvname}')
+                        logger.debug(f'Collecting data from CSV file {csvname.path}')
                         try:
-                            newdf=pd.read_csv(csvname,header=0,index_col=None)
+                            newdf=pd.read_csv(csvname.path,header=0,index_col=None)
                             logger.debug(f'newdf shape: {newdf.shape}')
                             # show the range of the first column
                             if not newdf.empty:
@@ -93,6 +94,11 @@ class MDPlotTask(BaseTask):
                         logger.debug(f'Creating dataframe for {tst}')
                         dataframes[tst]=pd.DataFrame()
                     newdf=nl.dataframes[tst]
+                    if not dataframes[tst].empty and any(col in newdf.columns for col in running_sums):
+                        # shift any columns designated as running sums by the final value of the previous dataframe
+                        for col in running_sums:
+                            if col in newdf.columns:
+                                newdf[col]=newdf[col]+dataframes[tst][col].iloc[-1]
                     if not newdf.empty:
                         dataframes[tst]=pd.concat([dataframes[tst],newdf],ignore_index=True)
                         logger.debug(f'{tst} dataframe shape: {dataframes[tst].shape}')
@@ -162,13 +168,15 @@ class MDPlotTask(BaseTask):
                     continue
                 ax.plot(df[time_step_column],df[key]*units,label=key.title())
             ax.set_xlabel('time step')
-            ax.set_ylabel(', '.join([to_latex_math(n)+' ('+u+')' for n,u in zip(tracelist,unitspecs)]))
+            axis_labels=self.specs.get('axis-labels',{})
+            ax.set_ylabel(', '.join([to_latex_math(axis_labels.get(n,n))+' ('+u+')' for n,u in zip(tracelist,unitspecs)]))
             if legend:
                 ax.legend()
             if grid:
                 ax.grid(True)
             tracename='-'.join(tracelist)
             plt.savefig(f'{self.basename}-{tracename}.png',bbox_inches='tight')
+            self.register_current_artifact(f'{tracename}-timeseries', ImageFile(path=f'{self.basename}-{tracename}.png'))
             plt.clf()
         for profile in profiles:
             if profile=='pressureprofile':
@@ -239,6 +247,7 @@ class MDPlotTask(BaseTask):
                     if grid:
                         ax.grid(True)
                     plt.savefig(f'{self.basename}-pressureprofile.png',bbox_inches='tight')
+                    self.register_current_artifact('pressureprofile', ImageFile(path=f'{self.basename}-pressureprofile.png'))
                     plt.clf()
                 else:
                     logger.debug(f'No pressure profile data.  Skipping...')

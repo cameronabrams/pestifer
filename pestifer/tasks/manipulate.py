@@ -9,6 +9,7 @@ import logging
 
 from ..core.basetask import BaseTask
 from ..core.objmanager import ObjManager
+from ..core.pipeline import PDBFile, PSFFile, XSCFile, LogFile, COORFile, DCDFile, NAMDConfigFile, CVFile, TclFile
 
 logger=logging.getLogger(__name__)
 
@@ -54,14 +55,15 @@ class ManipulateTask(BaseTask):
             self.next_basename(objtype)
             vm=self.scripters['vmd']
             vm.newscript(self.basename,packages=['Orient'])
-            psf=self.statevars['psf']
-            pdb=self.statevars['pdb']
+            psf=self.get_current_artifact('psf')
+            pdb=self.get_current_artifact('pdb')
             vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
             objlist.write_TcL(vm)
             vm.write_pdb(self.basename,'mCM')
             vm.writescript()
+            self.register_current_artifact('tcl',TclFile(f'{self.basename}.tcl'))
             result=vm.runscript()
             if result!=0:
                 return result
-            self.save_state(exts=['pdb'])
+            self.register_current_artifact('pdb',PDBFile(f'{self.basename}.pdb'))
         return 0

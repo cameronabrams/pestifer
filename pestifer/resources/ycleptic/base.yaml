@@ -731,6 +731,12 @@ directives:
               c_z: Å
               pressure: bar
               temperature: K
+          - name: axis-labels
+            type: dict
+            text: user-specified axis labels for plots
+            default:
+              cpu_time: CPU time
+              wall_time: Wall time
           - name: legend
             text: include a legend
             type: bool

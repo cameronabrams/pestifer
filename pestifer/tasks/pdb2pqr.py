@@ -14,6 +14,7 @@ import logging
 import os
 from ..core.command import Command
 from ..core.objmanager import ObjManager
+from ..core.pipeline import PDBFile, PQRFile, LogFile, TclFile, PSFFile
 from ..molecule.atom import Atom, AtomList
 from ..molecule.chainidmanager import ChainIDManager
 from .psfgen import PsfgenTask
@@ -39,9 +40,8 @@ class PDB2PQRTask(PsfgenTask):
         Execute the PDB2PQR task.
         """
         self.log_message('initiated')
-        self.inherit_state()
         self.next_basename()
-        self.base_molecule=self.statevars['base_molecule']
+        self.base_molecule=self.get_current_artifact('base_molecule')
         pH=self.specs.get('pH',7.0)
         xsc=self.statevars.get('xsc',None)
 
@@ -51,7 +51,9 @@ class PDB2PQRTask(PsfgenTask):
         self.chainIDmanager=ChainIDManager()
         self.update_molecule()
         self.psfgen()
-        self.save_state(exts=['psf','pdb'])
+        self.register_current_artifact('pdb', PDBFile(path=f'{self.basename}.pdb'))
+        self.register_current_artifact('psf', PSFFile(path=f'{self.basename}.psf'))
+        self.coor_to_pdb()
         self.log_message('complete')
 
     def prep_input(self):
@@ -69,12 +71,12 @@ class PDB2PQRTask(PsfgenTask):
             The result of the VMD script execution, typically 0 on success.
         """
         # writes a hydrogen-free PDB file with histidine resnames all reverted to HIS and water resnames to HOH
-        psf=self.statevars['psf']
-        pdb=self.statevars['pdb']
+        psf=self.get_current_artifact('psf')
+        pdb=self.get_current_artifact('pdb')
         vt=self.scripters['vmd']
         vt.newscript(self.basename)
-        vt.addline(f'mol new {psf}')
-        vt.addline(f'mol addfile {pdb} waitfor all')
+        vt.addline(f'mol new {psf.path}')
+        vt.addline(f'mol addfile {pdb.path} waitfor all')
         vt.addline('set a [atomselect top noh]')
         vt.addline('set w [atomselect top water]')
         vt.addline('set h [atomselect top "resname HSD HSE HSP HIS"]')
@@ -84,7 +86,10 @@ class PDB2PQRTask(PsfgenTask):
         vt.addline('$z set resname ZN')
         vt.addline(f'$a writepdb {self.basename}_pprep.pdb')
         vt.writescript()
+        self.register_current_artifact('tcl', TclFile(path=f'{self.basename}.tcl'))
         result=vt.runscript()
+        self.register_current_artifact('pdb', PDBFile(path=f'{self.basename}_pprep.pdb'))
+        self.register_current_artifact('log', LogFile(path=f'{self.basename}.log'))
         return result
     
     def run_pdb2pqr(self,pH=7.0):
@@ -108,6 +113,9 @@ class PDB2PQRTask(PsfgenTask):
 
         c.run(logfile=f'{self.basename}_run.log',log_stderr=True,logparser=self.log_parser)
         self.log_parser.metadata['pka_table']['protonated'] = self.log_parser.metadata['pka_table']['respka']>pH
+        self.register_current_artifact('log', LogFile(path=f'{self.basename}_run.log'))
+        self.register_current_artifact('pdb', PDBFile(path=f'{self.basename}_pqr.pdb'))
+        self.register_current_artifact('pqr', PQRFile(path=f'{self.basename}.pqr'))
         logger.debug(f'PDB2PQR run completed; pka_table:\n{self.log_parser.metadata['pka_table'].to_string()}')
 
         self.log_parser.metadata['histidines']={k:[] for k in ['HSD','HSE','HSP']}

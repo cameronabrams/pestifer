@@ -13,6 +13,7 @@ import yaml
 
 from .md import MDTask
 from ..core.command import Command
+from ..core.pipeline import PDBFile, PSFFile, XSCFile, VELFile, COORFile, NAMDConfigFile, LogFile, TclFile
 
 logger=logging.getLogger(__name__)
 
@@ -33,11 +34,12 @@ class TerminateTask(MDTask):
         Execute the terminate task.
         """
         self.log_message('initiated')
-        self.inherit_state()
         self.next_basename()
-        self.copy_state(exts=['psf','pdb','coor','xsc','vel'])
+        coor=self.get_current_artifact('coor')
+        if not coor:
+            self.pdb_to_coor()
         self.write_chainmaps()
-        self.write_statefile()
+        # self.write_statefile()
         self.result=self.make_package()
         self.log_message('complete')
         return self.result
@@ -48,12 +50,11 @@ class TerminateTask(MDTask):
         This method retrieves the base molecule from the state variables, gets the chain maps, and writes them to a specified YAML file.
         The chain maps are used to map chains in the molecular structure, which is useful for understanding the topology of the system.
         """
-        bm=self.statevars.get('base_molecule',None)
+        bm=self.get_current_artifact_value('base_molecule')
         if bm:
             maps=bm.get_chainmaps()
             with open(self.specs['chainmapfile'],'w') as f:
                 yaml.dump(maps,f)
-            del self.statevars['base_molecule']
 
     def make_package(self):
         """
@@ -76,18 +77,20 @@ class TerminateTask(MDTask):
         result=self.namdrun(script_only=True)
         self.specs=savespecs
         self.FC.append(f'{basename}.namd')
+        self.register_current_artifact('namd', NAMDConfigFile(path=f'{basename}.namd'))
         constraints=specs.get('constraints',{})
         if constraints:
-            self.make_constraint_pdb(constraints)
-            self.FC.append(self.statevars['consref'])
-        local_params=self.statevars.get('charmmff_paramfiles',[])
+            self.make_constraint_pdb(constraints,statekey='consref')
+            self.FC.append(self.get_current_artifact_value('consref').path)
+        local_params=self.get_current_artifact_value('charmmff_paramfiles')
         for n in local_params:
-            self.FC.append(n)
+            self.FC.append(n.name)
         for ext in ['psf','pdb','coor','xsc','vel']:
-            if ext in self.statevars:
-                self.FC.append(self.statevars[ext])
+            fa=self.get_current_artifact_value(ext)
+            if fa:
+                self.FC.append(fa.path)
         self.FC.tarball(specs["basename"])
-        self.FC.flush()
+        # self.FC.flush()
         return result
     
         # if specs["topogromacs"]:
