@@ -19,7 +19,7 @@ from ..core.basetask import BaseTask
 from ..util.units import g_per_amu,A3_per_cm3
 from ..util.logparsers import NAMDLog
 from ..core.stringthings import to_latex_math
-from ..core.pipeline import ImageFile
+from ..core.artifacts import PNGImageFile
 
 logger=logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -52,17 +52,20 @@ class MDPlotTask(BaseTask):
                 priortaskpointer=priortaskpointer.prior
             priortasklist=priortasklist[::-1]
             for pt in priortasklist:
-                artifact_collection=pt.get_artifact_collection()
-                time_series_titles=[x.replace('-csv','') for x in artifact_collection.keys() if x.endswith('-csv')]
+                artifact_collection=pt.get_my_artifact_collection()
+                csv_artifacts=[a for a in artifact_collection if a.key.endswith('-csv')]
+                time_series_titles=[x.key.replace('-csv','') for x in csv_artifacts]
+                csv_artifact_dict={x:y for x,y in zip(time_series_titles,csv_artifacts)}
                 logger.debug(f'Found {len(time_series_titles)} time series titles in {pt.basename}: {time_series_titles}')
                 for tst in time_series_titles:
                     if not tst in dataframes:
                         dataframes[tst]=pd.DataFrame()
-                    csvname=artifact_collection.get(f'{tst}-csv')
-                    if csvname:
-                        logger.debug(f'Collecting data from CSV file {csvname.path}')
+                    csvartifact=csv_artifact_dict.get(tst)
+                    if csvartifact:
+                        csvname=csvartifact.path.name
+                        logger.debug(f'Collecting data from CSV file {csvname}')
                         try:
-                            newdf=pd.read_csv(csvname.path,header=0,index_col=None)
+                            newdf=pd.read_csv(csvname,header=0,index_col=None)
                             logger.debug(f'newdf shape: {newdf.shape}')
                             # show the range of the first column
                             if not newdf.empty:
@@ -176,7 +179,7 @@ class MDPlotTask(BaseTask):
                 ax.grid(True)
             tracename='-'.join(tracelist)
             plt.savefig(f'{self.basename}-{tracename}.png',bbox_inches='tight')
-            self.register_current_artifact(f'{tracename}-timeseries', ImageFile(path=f'{self.basename}-{tracename}.png'))
+            self.register_current_artifact(PNGImageFile(f'{self.basename}-{tracename}'),key=f'{tracename}-timeseries-plot')
             plt.clf()
         for profile in profiles:
             if profile=='pressureprofile':
@@ -247,7 +250,7 @@ class MDPlotTask(BaseTask):
                     if grid:
                         ax.grid(True)
                     plt.savefig(f'{self.basename}-pressureprofile.png',bbox_inches='tight')
-                    self.register_current_artifact('pressureprofile', ImageFile(path=f'{self.basename}-pressureprofile.png'))
+                    self.register_current_artifact(PNGImageFile(f'{self.basename}-pressureprofile.png'),key='pressureprofile-plot')
                     plt.clf()
                 else:
                     logger.debug(f'No pressure profile data.  Skipping...')

@@ -17,7 +17,7 @@ import os
 from pidibble.pdbparse import PDBParser
 
 from ..core.basetask import VMDTask
-from ..core.pipeline import PDBFile, PSFFile, XSCFile, LogFile, TclFile
+from ..core.artifacts import PDBFile, PSFFile, VMDScript, VMDLogFile, NAMDXscFile
 from ..util.util import cell_from_xsc, cell_to_xsc
 
 class SolvateTask(VMDTask):
@@ -36,20 +36,20 @@ class SolvateTask(VMDTask):
         """
         self.log_message('initiated')
         self.next_basename()
-        psf=self.get_current_artifact_value('psf')
-        pdb=self.get_current_artifact_value('pdb')
-        xsc=self.get_current_artifact_value('xsc')
+        psf=self.get_current_artifact_path('psf')
+        pdb=self.get_current_artifact_path('pdb')
+        xsc=self.get_current_artifact_path('xsc')
         self.stash_current_artifact('vel')
         use_minmax=True
         if xsc is not None:
-            box,origin=cell_from_xsc(xsc.path)
+            box,origin=cell_from_xsc(xsc)
             if box is not None and origin is not None:
                 use_minmax=False
                 basisvec=box.diagonal()
                 LL=origin-0.5*basisvec
                 UR=origin+0.5*basisvec
         if use_minmax:
-            p=PDBParser(PDBcode=os.path.splitext(pdb.path)[0]).parse()
+            p=PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()
             x=np.array([a.x for a in p.parsed['ATOM']])
             y=np.array([a.y for a in p.parsed['ATOM']])
             z=np.array([a.z for a in p.parsed['ATOM']])
@@ -66,7 +66,7 @@ class SolvateTask(VMDTask):
             basisvec=UR-LL
             origin=0.5*(UR+LL)
             cell_to_xsc(np.diag(basisvec),origin,f'{self.basename}.xsc')
-            self.register_current_artifact('xsc', XSCFile(path=f'{self.basename}.xsc'))
+            self.register_current_artifact(NAMDXscFile(self.basename))
 
         ll_tcl=r'{ '+' '.join([str(_) for _ in LL.tolist()])+r' }'
         ur_tcl=r'{ '+' '.join([str(_) for _ in UR.tolist()])+r' }'
@@ -76,9 +76,9 @@ class SolvateTask(VMDTask):
         vt.addline( 'package require solvate')
         vt.addline( 'package require autoionize')
         vt.addline( 'psfcontext mixedcase')
-        vt.addline(f'mol new {psf.path}')
-        vt.addline(f'mol addfile {pdb.path} waitfor all')
-        vt.addline(f'solvate {psf.path} {pdb.path} -minmax {box_tcl} -o {self.basename}_solv')
+        vt.addline(f'mol new {psf.name}')
+        vt.addline(f'mol addfile {pdb.name} waitfor all')
+        vt.addline(f'solvate {psf.name} {pdb.name} -minmax {box_tcl} -o {self.basename}_solv')
         ai_args=[]
         sc=self.specs.get('salt_con',None)
         if sc is None:
@@ -93,14 +93,13 @@ class SolvateTask(VMDTask):
             ai_args.append(f'-anion {anion}')
         vt.addline(f'autoionize -psf {self.basename}_solv.psf -pdb {self.basename}_solv.pdb {" ".join(ai_args)} -o {self.basename}')
         vt.writescript()
-        self.register_current_artifact('tcl', TclFile(path=f'{self.basename}.tcl'))
+        self.register_current_artifact(VMDScript(self.basename))
         self.result=vt.runscript(progress_title='solvate')
         if self.result!=0:
             return super().do()
-        self.register_current_artifact('psf', PSFFile(path=f'{self.basename}_solv.psf'))
-        self.register_current_artifact('pdb', PDBFile(path=f'{self.basename}_solv.pdb'))
-        self.register_current_artifact('psf', PSFFile(path=f'{self.basename}.psf'))
-        self.register_current_artifact('pdb', PDBFile(path=f'{self.basename}.pdb'))
+        for ext in ['_solv','']:
+            self.register_current_artifact(PSFFile(f'{self.basename}{ext}'))
+            self.register_current_artifact(PDBFile(f'{self.basename}{ext}'))
         self.pdb_to_coor()
         self.log_message('complete')
         return super().do()

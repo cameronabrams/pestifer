@@ -10,6 +10,7 @@ import shutil
 from .config import Config
 from .pipeline import PipelineContext
 from .scripters import Filewriter, PsfgenScripter, VMDScripter, NAMDScripter
+from .stringthings import my_logger
 from ..tasks.terminate import TerminateTask
 from ..util.util import inspect_package_dir
 
@@ -124,15 +125,14 @@ class Controller:
             if task.result!=0:
                 logger.warning(f'Task {task.taskname} failed; task.result {task.result} returned result {returned_result} controller is aborted.')
                 break
-        all_artifacts=self.ctx.get_artifact_values_collection_as_dict()
+        all_artifacts=self.ctx.get_artifact_collection_as_list()
         os.mkdir('tmp')
-        for key, value in all_artifacts.items():
-            if hasattr(value,'path'):
-                shutil.move(value.path,os.path.join('tmp',value.path))
-            elif hasattr(value,'name'):
-                shutil.move(value.name,os.path.join('tmp',value.name))
+        for artifact in all_artifacts:
+            if hasattr(artifact,'path'):
+                # shutil.move(artifact.path,os.path.join('tmp',artifact.path))
+                logger.debug(f'Copying artifact {artifact.key} to tmp/{artifact.path.name}')
             else:
-                logger.warning(f'Artifact {key} has no path attribute; skipping copy.')
+                logger.warning(f'Artifact {artifact.key} has no path attribute; skipping copy.')
         return task_report
 
     def write_complete_config(self,filename='complete-user.yaml'):

@@ -12,8 +12,6 @@ Usage is described in the :ref:`subs_runtasks_cleave` documentation.
 """
 from .psfgen import PsfgenTask
 from ..objs.cleavagesite import CleavageSite, CleavageSiteList
-from ..core.pipeline import PDBFile, PSFFile, COORFile, XSCFile, VELFile, LogFile, DCDFile, NAMDConfigFile
-
 
 class CleaveTask(PsfgenTask):
     """
@@ -50,10 +48,9 @@ class CleaveTask(PsfgenTask):
         The resulting structure is then processed by the psfgen method, and the final result is saved as a PSF/PDB fileset.
         """
         self.log_message('initiated')
-        self.inherit_state()
         cleavage_sites=CleavageSiteList([CleavageSite(x) for x in self.specs['sites']])
         # update base molecule to the point an inferential psfgen call could reproduce it, up to ssbonds and links
-        self.base_molecule=self.statevars['base_molecule']
+        self.base_molecule=self.get_artifact_value('base_molecule')
         self.update_molecule()
         self.base_molecule.cleave_chains(cleavage_sites)
         self.result=self.psfgen()

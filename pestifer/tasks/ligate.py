@@ -11,7 +11,7 @@ Usage is described in the :ref:`subs_runtasks_ligate` documentation.
 import logging
 from .md import MDTask
 from ..util.namdcolvars import declare_distance_cv_atoms, declare_single_harmonic_distance_bias
-from ..core.pipeline import DATAFile, PDBFile, PSFFile, TclFile, CVFile
+from ..core.artifacts import DataFile, PDBFile, PSFFile, InputFile, VMDScript, VMDLogFile, NAMDColvarsConfig, CharmmffTopFile, PsfgenInputScript
 from ..core.command import Command
 logger=logging.getLogger(__name__)
 
@@ -35,8 +35,7 @@ class LigateTask(MDTask):
         If the task is bypassed, it logs a message and returns without performing any operations.
         """
         self.log_message('initiated')
-        self.inherit_state()
-        self.base_molecule = self.get_current_artifact('base_molecule')
+        self.base_molecule = self.get_current_artifact_value('base_molecule')
         if not self.base_molecule.has_protein_loops:
             self.log_message('bypassed')
             return
@@ -52,13 +51,11 @@ class LigateTask(MDTask):
         self.result=self.do_steered_md(self.specs['steer'])
         if self.result!=0:
             return self.result
-        self.save_state(exts=['coor','vel'])
         logger.debug('Connecting loop C-termini to their partner N-termini')
         connect_specs=self.specs.get('connect',{})
         self.result=self.connect(connect_specs)
         if self.result!=0:
             return self.result
-        self.save_state(exts=['psf','pdb'])
         self.log_message('complete')
         return self.result
     
@@ -68,12 +65,12 @@ class LigateTask(MDTask):
         """
         self.next_basename('gaps')
         mol=self.base_molecule
-        datafile=f'{self.basename}.inp'
+        inputfile=f'{self.basename}.inp'
         writer=self.scripters['data']
-        writer.newfile(datafile)
+        writer.newfile(inputfile)
         mol.write_gaps(writer)
         writer.writefile()
-        self.register_current_artifact('data', DATAFile(path=datafile))
+        self.register_current_artifact(InputFile(self.basename),key='measure_distances_input')
 
     def measure_distances(self,specs):
         """
@@ -92,19 +89,20 @@ class LigateTask(MDTask):
         self.next_basename('measure')
         vm=self.scripters['vmd']
         vm.newscript(self.basename)
-        psf=self.get_current_artifact('psf')
-        pdb=self.get_current_artifact('pdb')
-        datafile=self.get_current_artifact('data')
+        psf=self.get_current_artifact_path('psf')
+        pdb=self.get_current_artifact_path('pdb')
+        inputfile=self.get_current_artifact_path('measure_distances_input')
 
         opdb=f'{self.basename}.pdb'
         receiver_flexible_zone_radius=specs.get('receiver_flexible_zone_radius',0.0)
         resultsfile=f'{self.basename}.dat'
-        vm.addline(f'measure_bonds {psf} {pdb} {datafile} {opdb} {resultsfile} {receiver_flexible_zone_radius} ')
+        vm.addline(f'measure_bonds {psf} {pdb} {inputfile} {opdb} {resultsfile} {receiver_flexible_zone_radius} ')
         vm.writescript()
-        self.register_current_artifact('tcl',TclFile(path=f'{self.basename}.tcl'))
+        self.register_current_artifact(VMDScript(self.basename))
         vm.runscript()
-        self.register_current_artifact('measure_distances_fixedref', PDBFile(path=opdb))
-        self.register_current_artifact('measure_distances_results', DATAFile(path=resultsfile))
+        self.register_current_artifact(PDBFile(self.basename),key='measure_distances_fixedref')
+        self.register_current_artifact(DataFile(self.basename),key='measure_distances_results')
+        self.register_current_artifact(VMDLogFile(self.basename))
         with open(resultsfile,'r') as f:
             datalines=f.read().split('\n')
         self.gaps=[]
@@ -125,7 +123,7 @@ class LigateTask(MDTask):
         """
         self.next_basename('steer')
         writer=self.scripters['data']
-        writer.newfile(f'{self.basename}-cv.inp')
+        writer.newfile(f'{self.basename}-cv.in')
         for i,g in enumerate(self.gaps):
             g['colvars']=f'GAP{i:02d}'
             declare_distance_cv_atoms(g,writer)
@@ -135,15 +133,15 @@ class LigateTask(MDTask):
             g['targ_numsteps']=specs['nsteps']
             declare_single_harmonic_distance_bias(g,writer)
         writer.writefile()
-        self.register_current_artifact('cv', CVFile(path=f'{self.basename}-cv.inp'))
+        self.register_current_artifact(NAMDColvarsConfig(f'{self.basename}-cv'))
         savespecs=self.specs
         self.specs=specs
         result=self.namdrun(extras={        
             'fixedatoms':'on',
-            'fixedatomsfile':self.get_current_artifact('fixedref').path,
+            'fixedatomsfile':self.get_current_artifact_path('measure_distances_fixedref'),
             'fixedatomscol': 'O',
             'colvars': 'on',
-            'colvarsconfig': self.get_current_artifact('cv').path
+            'colvarsconfig': self.get_current_artifact_path('in')
             },single_gpu_only=True)
         self.specs=savespecs
         return result
@@ -171,7 +169,7 @@ class LigateTask(MDTask):
         writer.newfile(datafile)
         mol.write_connect_patches(writer)
         writer.writefile()
-        self.register_current_artifact('data', DATAFile(path=datafile))
+        self.register_current_artifact(InputFile(self.basename))
 
     def connect_gaps(self):
         """
@@ -191,18 +189,20 @@ class LigateTask(MDTask):
         pg.newscript(self.basename)
         CC=self.config.RM.charmmff_content
         CC.copy_charmmfile_local('pestifer.top')
+        charmm_topology_files=self.get_current_artifact_value('charmmff_topfiles')
+        charmm_topology_files.append(CharmmffTopFile('pestifer',ext='top'))
         pg.addline(f'topology pestifer.top')
-        patchfile=self.get_current_artifact('data')
-        psf=self.get_current_artifact('psf')
-        pdb=self.get_current_artifact('pdb')
-        pg.load_project(psf.path,pdb.path)
-        pg.addline(f'source {patchfile.path}')
+        patchfile=self.get_current_artifact_path('inp')
+        psf=self.get_current_artifact_path('psf')
+        pdb=self.get_current_artifact_path('pdb')
+        pg.load_project(psf.name,pdb.name)
+        pg.addline(f'source {patchfile.name}')
         pg.writescript(self.basename,guesscoord=True,regenerate=True)
-        self.register_current_artifact('tcl', TclFile(path=f'{self.basename}.tcl'))
+        self.register_current_artifact(PsfgenInputScript(self.basename))
         result=pg.runscript()
         if result==0:
-            self.register_current_artifact('psf', PSFFile(path=f'{self.basename}.psf'))
-            self.register_current_artifact('pdb', PDBFile(path=f'{self.basename}.pdb'))
+            self.register_current_artifact(PSFFile(self.basename))
+            self.register_current_artifact(PDBFile(self.basename))
             self.pdb_to_coor()
         return result
     

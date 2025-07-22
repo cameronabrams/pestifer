@@ -12,7 +12,7 @@ import shutil
 import yaml
 
 from .md import MDTask
-from ..core.pipeline import NAMDConfigFile
+from ..core.artifacts import ArtifactFileList
 
 logger=logging.getLogger(__name__)
 
@@ -62,58 +62,30 @@ class TerminateTask(MDTask):
         The method also handles the generation of a tarball containing all the necessary files for the NAMD run.
         The tarball is named based on the basename specified in the task specifications.
         """
-        self.FC.clear()  # populate a file collector to make the tarball
+        TarballContents = ArtifactFileList()
         specs=self.specs.get('package',{})
         if not specs:
             logger.debug('no package specs found')
             return 0
         self.basename=specs.get('basename','my_system')
         for ext in ['psf','pdb','coor','xsc','vel']:
-            fa=self.get_current_artifact_value(ext)
+            fa=self.get_current_artifact(ext)
             if fa:
                 shutil.copy(fa.path, self.basename + '.' + ext)
-                self.register_current_artifact(ext, type(fa)(path=self.basename + '.' + ext))
-                self.FC.append(self.basename + '.' + ext)
+                self.register_current_artifact(type(fa)(self.basename))
+                TarballContents.append(self.get_current_artifact(ext))
         # self.inherit_state()
         logger.debug(f'Packaging for namd using basename {self.basename}')
         savespecs=self.specs
         self.specs=specs
         result=self.namdrun(script_only=True)
         self.specs=savespecs
-        self.FC.append(f'{self.basename}.namd')
-        self.register_current_artifact('namd', NAMDConfigFile(path=f'{self.basename}.namd'))
+        TarballContents.append(self.get_current_artifact('namd'))
         constraints=specs.get('constraints',{})
         if constraints:
             self.make_constraint_pdb(constraints,statekey='consref')
-            self.FC.append(self.get_current_artifact_value('consref').path)
-        # local_params=self.get_current_artifact_value('charmmff_paramfiles')
-        # for n in local_params:
-        #     self.FC.append(n.name)
-
-        self.FC.extend(self.get_current_artifact_value('charmmff_params'))
-        self.FC.tarball(specs["basename"])
-        # self.FC.flush()
+            TarballContents.append(self.get_current_artifact('consref'))
+        TarballContents.extend(self.get_current_artifact_value('charmmff_parfiles'))
+        TarballContents.extend(self.get_current_artifact_value('charmmff_streamfiles'))
+        TarballContents.make_tarball(self.basename)
         return result
-    
-        # if specs["topogromacs"]:
-        #     logger.debug(f'running topogromacs')
-        #     with open(f'{basename}_par.inp','w') as f:
-        #         for pf in params['parameters']:
-        #             f.write(f'parameters {pf}\n')
-        #     vt=self.scripters['vmd']
-        #     vt.newscript(f'{basename}_tg')
-        #     vt.usescript('tg')
-        #     vt.writescript()
-        #     psf=self.statevars['psf']
-        #     pdb=self.statevars['pdb']
-        #     inputname=os.path.splitext(self.statevars['coor'])[0]
-        #     vt.runscript(o=basename,pdb=pdb,psf=psf,i=inputname,parinp=f'{basename}_par.inp',ospf=f'{basename}_tg.psf',opdb=f'{basename}_tg.pdb',top=f'{basename}_topogromacs.top',cellfile=f'{basename}_cell.inp')
-        #     with open(f'{basename}_cell.inp','r') as f:
-        #         box=f.read().split()
-        #     boxstr=' '.join(box)
-        #     c=Command(f'gmx editconf -f {basename}_tg.pdb -o {basename}_topogromacs.pdb -box {boxstr}')
-        #     c.run()
-        #     self.FC.append(f'{basename}_topogromacs.pdb')
-        #     self.FC.append(f'{basename}_topogromacs.top')
-        # self.FC.tarball(specs["basename"])
-        # return 0

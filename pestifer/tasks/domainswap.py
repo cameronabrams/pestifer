@@ -13,7 +13,7 @@ It uses the :ref:`tcl-domainswap` Tcl script.  Usage is described in the :ref:`c
 import logging
 
 from .md import MDTask
-from ..core.pipeline import PDBFile, CVFile, TclFile, LogFile
+from ..core.artifacts import VMDScript, VMDLogFile, NAMDColvarsConfig, PDBFile
 logger=logging.getLogger(__name__)
 
 class DomainSwapTask(MDTask):
@@ -32,7 +32,6 @@ class DomainSwapTask(MDTask):
         self.result=self.namdrun(baselabel='domainswap-run',extras={'colvars':'on','colvarsconfig':self.statevars['cv']},single_gpu_only=True)
         if self.result!=0:
             return self.result
-        self.save_state(exts=['vel','coor'])
         self.log_message('complete')
         return self.result
 
@@ -41,14 +40,13 @@ class DomainSwapTask(MDTask):
         self.next_basename('domainswap-prep')
         vm=self.scripters['vmd']
         vm.newscript(self.basename)
-        psf=self.get_current_artifact('psf')
-        pdb=self.get_current_artifact('pdb')
+        psf=self.get_current_artifact_path('psf')
+        pdb=self.get_current_artifact_path('pdb')
         vm.usescript('domainswap')
         vm.writescript()
-        self.register_current_artifact('tcl', TclFile(path=f'{self.basename}.tcl'))
         vm.runscript(
-            psf=psf.path,
-            pdb=pdb.path,
+            psf=psf.name,
+            pdb=pdb.name,
             swap_domain_def=','.join(specs['swap_domain_def'].split()),
             anchor_domain_def=','.join(specs['anchor_domain_def'].split()),
             chain_swap_pairs=':'.join([','.join(x) for x in specs['chain_directional_swaps']]),
@@ -56,7 +54,7 @@ class DomainSwapTask(MDTask):
             target_numsteps=specs['target_numsteps'],
             cv=f'{self.basename}-cv.inp',
             refpdb=f'{self.basename}-ref.pdb')
-        self.register_current_artifact('cv', CVFile(path=f'{self.basename}-cv.inp'))
-        self.register_current_artifact('refpdb', PDBFile(path=f'{self.basename}-ref.pdb'))
-        self.register_current_artifact('log', LogFile(path=f'{self.basename}.log'))
-        
+        self.register_current_artifact(VMDScript(self.basename))
+        self.register_current_artifact(PDBFile(f'{self.basename}-ref'),key='refpdb')
+        self.register_current_artifact(NAMDColvarsConfig(f'{self.basename}-cv'))
+        self.register_current_artifact(VMDLogFile(f'{self.basename}'))

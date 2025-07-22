@@ -4,7 +4,7 @@ Definition of the :class:`InitiateTask` class for initiating a pestifer build.
 """
 
 from ..core.basetask import BaseTask
-from ..core.pipeline import PDBFile, CIFFile
+from ..core.artifacts import PDBFile, CIFFile
 from pidibble.pdbparse import PDBParser
 import os
 import logging
@@ -31,43 +31,40 @@ class FetchTask(BaseTask):
                 # parse the PDB file and register it in the pipeline context
                 pdb_file=PDBParser(PDBcode=sourceID).fetch()
                 if pdb_file:
-                    self.register_current_artifact(self._artifact_name, PDBFile(path=f'{sourceID}.pdb'))
+                    self.register_current_artifact(PDBFile(sourceID, key=self._artifact_name))
                 else:
                     raise ValueError(f"Could not fetch PDB file for sourceID: {sourceID}")
             else:
                 cif_file=PDBParser(PDBcode=sourceID, input_format='mmCIF').fetch()
                 if cif_file:
-                    self.register_current_artifact(self._artifact_name, CIFFile(path=f'{sourceID}.cif'))
+                    self.register_current_artifact(CIFFile(sourceID, key=self._artifact_name))
                 else:
                     raise ValueError(f"Could not fetch CIF file for sourceID: {sourceID}")
-                self.log_message(f'Parsed PDB file: {sourceID}')
         elif source=='alphafold':
             pdb_file=PDBParser(alphafold=sourceID).fetch()
             if pdb_file:
-                self.register_current_artifact(self._artifact_name, PDBFile(path=f'{sourceID}.pdb'))
+                self.register_current_artifact(PDBFile(sourceID, key=self._artifact_name))
             else:
                 raise ValueError(f"Could not fetch CIF file for sourceID: {sourceID}")
-            self.log_message(f'Parsed PDB file: {sourceID}')
         elif source=='alphafold':
             pdb_file=PDBParser(alphafold=sourceID).fetch()
             if pdb_file:
-                self.register_current_artifact(self._artifact_name, PDBFile(path=f'{sourceID}.pdb'))
+                self.register_current_artifact(PDBFile(sourceID, key=self._artifact_name))
             else:
                 raise ValueError(f"Could not fetch CIF file for sourceID: {sourceID}")
-            self.log_message(f'Parsed PDB file: {sourceID}')
         elif source=='alphafold':
             pdb_file=PDBParser(alphafold=sourceID).fetch()
             if pdb_file:
-                self.register_current_artifact(self._artifact_name, PDBFile(path=f'{sourceID}.pdbs'))
+                self.register_current_artifact(PDBFile(sourceID, key=self._artifact_name))
             else:
                 raise ValueError(f"Could not fetch AlphaFold PDB file for sourceID: {sourceID}")
         elif source=='local': # expect <sourceID>.pdb or <sourceID>.cif
             local_pdb=f'{sourceID}.pdb'
             local_cif=f'{sourceID}.cif'
             if source_format=='pdb' and os.path.exists(local_pdb):
-                self.register_current_artifact(self._artifact_name, PDBFile(path=local_pdb))
+                self.register_current_artifact(PDBFile(sourceID, key=self._artifact_name))
             elif os.path.exists(local_cif):
-                self.register_current_artifact(self._artifact_name, CIFFile(path=local_cif))
+                self.register_current_artifact(CIFFile(sourceID, key=self._artifact_name))
             else:
                 raise FileNotFoundError(f"Neither {local_pdb} nor {local_cif} found.")
         else:

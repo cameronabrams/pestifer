@@ -7,7 +7,7 @@ It inherits from the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class a
 
 Usage is described in the :ref:`subs_desolvate` documentation.
 """
-from ..core.basetask import BaseTask
+from ..core.basetask import VMDTask
 from ..core.command import Command
 from ..util.progress import PestiferProgress
 import logging
@@ -15,7 +15,7 @@ import os
 
 logger=logging.getLogger(__name__)
 
-class DesolvateTask(BaseTask):
+class DesolvateTask(VMDTask):
     """
     DesolvateTask class for processing DCD files and generating index and PSF files.
     """

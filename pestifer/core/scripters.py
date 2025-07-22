@@ -519,7 +519,7 @@ class PsfgenScripter(VMDScripter):
         #     self.topologies.append('top_all35_ethers.rtf')
         for t in self.topologies:
             self.addline(f'topology {t}')
-            self.addfile(t) # appends this file to the scripters FileCollector for later cleanup
+            # self.addfile(t) # appends this file to the scripters FileCollector for later cleanup
         # logger.debug(f'psfgen aliases: {self.psfgen_config["aliases"]}')
         for alias_type,alias_list in self.psfgen_config['aliases'].items():
             logger.debug(f'Adding {len(alias_list)} {alias_type} aliases to psfgen script')

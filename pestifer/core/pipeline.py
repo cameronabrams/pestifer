@@ -3,148 +3,62 @@
 Pipeline context for managing passing of information from one task to another.
 """
 
-from dataclasses import dataclass
-from pathlib import Path
+from .artifacts import Artifact, ArtifactList, ArtifactFileList
 import logging
 logger=logging.getLogger(__name__)
 
-@dataclass
-class PDBFile:
-    path: Path
-    
-@dataclass
-class CIFFile:
-    path: Path
-
-@dataclass
-class PSFFile:
-    path: Path
-
-@dataclass
-class COORFile:
-    path: Path
-
-@dataclass
-class XSCFile:
-    path: Path
-
-@dataclass
-class VELFile:
-    path: Path
-
-@dataclass
-class DCDFile:
-    path: Path
-
-@dataclass
-class XSTFile:
-    path: Path
-
-@dataclass
-class XSTFile:
-    path: Path
-
-@dataclass
-class NAMDConfigFile:
-    path: Path
-
-@dataclass
-class CVFile:
-    path: Path
-
-@dataclass
-class CSVFile:
-    path: Path
-
-@dataclass
-class LogFile:
-    path: Path
-
-@dataclass
-class TclFile:
-    path: Path
-
-@dataclass
-class DATAFile:
-    path: Path
-
-@dataclass
-class PackMolInputFile:
-    path: Path
-
-@dataclass
-class TopoFileName:
-    name: str
-
-@dataclass
-class ParamFileName:
-    name: str
-
-@dataclass
-class PQRFile:
-    path: Path
-
-@dataclass
-class ImageFile:
-    path: Path
-
-@dataclass
-class Artifact:
-    key: str
-    value: object
-    value_type: type
-    produced_by: object
-
-    def append(self,new_value,unique=False):
-        if isinstance(self.value, list):
-            if unique and new_value in self.value:
-                return
-            self.value.append(new_value)
-        else:
-            if unique and self.value == new_value:
-                return
-            self.value = [self.value, new_value]
-
 class PipelineContext:
     def __init__(self):
-        self.artifacts: dict[str, Artifact] = {}
-        self.history: list[dict] = []
+        self.head: dict[str, Artifact|ArtifactList] = {}
+        self.history: ArtifactList = ArtifactList()
 
-    def register(self, key, value, value_type, produced_by):
+    def register(self, artifact: Artifact, key: str = None):
         """ 
         Create and register an artifact in the pipeline context.
 
         Parameters
         ----------
         key : str
-            Unique identifier for the artifact.
-        value : object
-            The value of the artifact, can be any object.
-        value_type : type
-            The expected type of the value.
-        produced_by : object
-            The task or object that produced this artifact.
+            Unique identifier for the artifact; if not provided, it will be derived from the artifact's key attribute.
+        artifact : Artifact
+            The artifact to register.
         """
-        if key in self.artifacts:
+        if key: # If a key is provide, override the artifact's key
+            artifact.key = key
+        else:
+            if hasattr(artifact, 'key'):
+                key = artifact.key
+        if not key:
+            raise ValueError("Key must be provided for the artifact.")
+        if key in self.head:
             """ move to history if already exists """
-            self.history.append(self.artifacts[key])
-        logger.debug(f'Registering artifact {key} of type {value_type} produced by {produced_by.index}')
-        self.artifacts[key] = Artifact(
-            key=key,
-            value=value,
-            value_type=value_type,
-            produced_by=produced_by
-        )
+            self.history.append(self.head[key])
+        logger.debug(f'Registering artifact {key} of type {type(artifact)}')
+        self.head[key] = artifact
 
-    def get(self, key: str, expected_type=None):
-        artifact = self.artifacts.get(key,None)
-        if artifact is None:
-            return None
-        if expected_type and not isinstance(artifact.value, expected_type):
-            raise TypeError(f"{key} is not a {expected_type}")
-        return artifact.value
+    def get_artifact(self, key: str):
+        return self.head.get(key, None)
 
-    def get_artifact_series(self, key: str = ''):
+    def get_artifact_value(self, key: str):
+        """
+        Retrieve the value of an artifact by its key.
+        
+        Parameters
+        ----------
+        key : str
+            The key for the artifact to retrieve.
+
+        Returns
+        -------
+        Any
+            The value of the artifact, or None if not found.
+        """
+        artifact = self.get_artifact(key)
+        if artifact:
+            return artifact.value
+        return None
+
+    def get_artifact_series(self, key: str = '') -> ArtifactList|ArtifactFileList:
         """
         Retrieve a series of artifacts with the same key.
         
@@ -157,16 +71,18 @@ class PipelineContext:
 
         Returns
         -------
-        list
-            A list of artifact values associated with the given key, in reverse registration order.
+        ArtifactList
+            A list of artifacts associated with the given key, in reverse registration order.
         """
-        history = [h.value for h in self.history if h.key == key]
-        current = self.artifacts.get(key, None)
+        series = ArtifactList([h for h in self.history if h.key == key])
+        current = self.get_artifact(key)
         if current:
-            return history + [current.value]
-        return history
+            series.append(current)
+        if all([hasattr(x, 'path') for x in series.value]):
+            return ArtifactFileList(series)
+        return series
     
-    def get_artifact_values_collection_as_dict(self, produced_by=None):
+    def get_artifact_collection_as_list(self, produced_by=None):
         """
         Retrieve a collection of artifacts produced by a specific task or object.
         
@@ -177,12 +93,12 @@ class PipelineContext:
 
         Returns
         -------
-        dict
-            A dictionary of artifact values associated with the given produced_by, keyed by artifact key.
+        list
+            A list of artifact values associated with the given produced_by.
         """
-        history = {h.key: h.value for h in self.history if (not produced_by or h.produced_by == produced_by)}
-        current = {k: a.value for k, a in self.artifacts.items() if (not produced_by or a.produced_by == produced_by)}
-        return {**history, **current}
+        history = [h for h in self.history if (not produced_by or h.produced_by == produced_by)]
+        current = [a for a in self.head.values() if (not produced_by or a.produced_by == produced_by)]
+        return ArtifactList(history + current)
 
     def context_to_string(self):
         """ 
@@ -193,7 +109,7 @@ class PipelineContext:
         str
             A string representation of the current artifacts in the pipeline context.
         """
-        return "\n".join([f"{k}: {a.value}" for k, a in self.artifacts.items()])
+        return "\n".join([f"{k}: {a.value}" for k, a in self.head.items()])
 
     def history_to_string(self):
         """ 
@@ -204,4 +120,17 @@ class PipelineContext:
         str
             A string representation of the history of artifacts in the pipeline context.
         """
-        return "\n".join([f"{h.key}: {h.value} (produced by {h.produced_by.index})" for h in self.history])
+        return "\n".join([f"{h.key}: {h.value} (produced by {h.produced_by})" for h in self.history])
+
+    def stash(self, key: str):
+        """
+        Stash the current artifact under a new key.
+        
+        Parameters
+        ----------
+        key : str
+            The key under which to stash the current artifact.
+        """
+        artifact = self.head.pop(key,None)
+        if artifact:
+            self.history.append(artifact)

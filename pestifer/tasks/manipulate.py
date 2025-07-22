@@ -9,7 +9,7 @@ import logging
 
 from ..core.basetask import BaseTask
 from ..core.objmanager import ObjManager
-from ..core.pipeline import PDBFile, PSFFile, XSCFile, LogFile, COORFile, DCDFile, NAMDConfigFile, CVFile, TclFile
+from ..core.artifacts import PDBFile, VMDScript, VMDLogFile
 
 logger=logging.getLogger(__name__)
 
@@ -28,7 +28,6 @@ class ManipulateTask(BaseTask):
         self.log_message('initiated')
         if self.prior:
             logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
-            self.inherit_state()
         logger.debug(f'manipulate {self.specs["mods"]}')
         self.objmanager=ObjManager()
         self.objmanager.ingest(self.specs['mods'])
@@ -55,15 +54,15 @@ class ManipulateTask(BaseTask):
             self.next_basename(objtype)
             vm=self.scripters['vmd']
             vm.newscript(self.basename,packages=['Orient'])
-            psf=self.get_current_artifact('psf')
-            pdb=self.get_current_artifact('pdb')
-            vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
+            psf=self.get_current_artifact_path('psf')
+            pdb=self.get_current_artifact_path('pdb')
+            vm.load_psf_pdb(psf.name,pdb.name,new_molid_varname='mCM')
             objlist.write_TcL(vm)
             vm.write_pdb(self.basename,'mCM')
             vm.writescript()
-            self.register_current_artifact('tcl',TclFile(f'{self.basename}.tcl'))
             result=vm.runscript()
             if result!=0:
                 return result
-            self.register_current_artifact('pdb',PDBFile(f'{self.basename}.pdb'))
+            for at in [PDBFile, VMDScript, VMDLogFile]:
+                self.register_current_artifact(at(self.basename))
         return 0

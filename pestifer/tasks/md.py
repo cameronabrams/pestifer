@@ -14,7 +14,7 @@ import os
 logger=logging.getLogger(__name__)
 
 from ..core.basetask import VMDTask
-from ..core.pipeline import PDBFile, VELFile, XSCFile, LogFile, COORFile, DCDFile, CSVFile, NAMDConfigFile, CVFile, XSTFile
+from ..core.artifacts import PDBFile, CharmmffParFile, CharmmffParFiles, CharmmffStreamFile, CharmmffStreamFiles, NAMDVelFile, NAMDXscFile, NAMDLogFile, NAMDCoorFile, NAMDDcdFile, CSVDataFile, NAMDConfigFile, NAMDColvarsConfig, NAMDXstFile, NAMDColvarsOutput, ArtifactData
 from ..util.namdcolvars import colvar_writer
 from ..util.util import is_periodic
 
@@ -68,19 +68,22 @@ class MDTask(VMDTask):
         
         params={}
         namd_global_params=self.config['user']['namd']
-        psf=self.get_current_artifact_value('psf')
-        pdb=self.get_current_artifact_value('pdb')
-        coor=self.get_current_artifact_value('coor')
-        vel=self.get_current_artifact_value('vel')
-        xsc=self.get_current_artifact_value('xsc')
-        prior_paramfiles=[x.name for x in self.get_current_artifact_value('charmmff_paramfiles')]
+        psf=self.get_current_artifact_path('psf')
+        pdb=self.get_current_artifact_path('pdb')
+        coor=self.get_current_artifact_path('coor')
+        vel=self.get_current_artifact_path('vel')
+        xsc=self.get_current_artifact_path('xsc')
+        prior_charmmff_parfiles=self.get_current_artifact('charmmff_parfiles')
+        prior_paramfiles=[]
+        if prior_charmmff_parfiles:
+            prior_paramfiles=[x.path.name for x in prior_charmmff_parfiles]
         firsttimestep=self.get_current_artifact_value('firsttimestep')
         if not firsttimestep:
             firsttimestep=0
         if specs.get('firsttimestep',None) is not None:
             firsttimestep=specs['firsttimestep']
         if xsc is not None:
-            self.register_current_artifact('periodic',is_periodic(xsc.path))
+            self.register_current_artifact(ArtifactData(is_periodic(xsc.name),key='periodic'))
 
         temperature=specs['temperature']
         if ensemble.casefold()=='NPT'.casefold() or ensemble.casefold()=='NPAT'.casefold():
@@ -96,17 +99,17 @@ class MDTask(VMDTask):
         other_params=specs.get('other_parameters',{})
         colvars=specs.get('colvar_specs',{})
         params.update(namd_global_params['generic'])
-        params['structure']=psf.path
-        params['coordinates']=pdb.path
+        params['structure']=psf.name
+        params['coordinates']=pdb.name
         params['temperature']='$temperature'
 
         if coor:
-            params['bincoordinates']=coor.path
+            params['bincoordinates']=coor.name
         if vel:
-            params['binvelocities']=vel.path
+            params['binvelocities']=vel.name
             del params['temperature']
         if xsc:
-            params['extendedSystem']=xsc.path
+            params['extendedSystem']=xsc.name
             if (ensemble.casefold()=='NPT'.casefold() or ensemble.casefold()=='NPAT'.casefold()) and xstfreq:
                 params['xstfreq']=xstfreq
 
@@ -133,19 +136,19 @@ class MDTask(VMDTask):
             params['restartfreq']=specs['restartfreq']
         if constraints:
             self.make_constraint_pdb(constraints)
-            consref=self.get_current_artifact_value('consref')
+            consref=self.get_current_artifact_path('consref')
             if not consref:
                 raise RuntimeError(f'No constraint reference PDB file found for task {self.taskname}')
             params['constraints']='on'
-            params['consref']=consref.path
-            params['conskfile']=consref.path
+            params['consref']=consref.name
+            params['conskfile']=consref.name
             params['conskcol']='O'
         if colvars:
             writer=self.scripters['data']
             writer.newfile(f'{self.basename}-cv.inp')
             colvar_writer(colvars,writer,pdb=pdb)
             writer.writefile()
-            self.register_current_artifact('colvarsconfig',CVFile(f'{self.basename}-cv.inp'))
+            self.register_current_artifact(NAMDColvarsConfig(f'{self.basename}-cv'))
             params['colvars']='on'
             params['colvarsconfig']=f'{self.basename}-cv.inp'
 
@@ -161,30 +164,32 @@ class MDTask(VMDTask):
         
         na=self.scripters['namd']
         na.newscript(self.basename,addl_paramfiles=list(set(addl_paramfiles+prior_paramfiles)))
-        self.register_current_artifact('charmmff_params',na.parameters)
+        self.register_current_artifact(CharmmffParFiles([CharmmffParFile(x.replace('.prm','')) for x in na.parameters if x.endswith('.prm')]),key='charmmff_parfiles')
+        self.register_current_artifact(CharmmffStreamFiles([CharmmffStreamFile(x.replace('.str','')) for x in na.parameters if x.endswith('.str')]),key='charmmff_streamfiles')
         cpu_override=specs.get('cpu-override',False)
         logger.debug(f'CPU-override is {cpu_override}')
         na.writescript(params,cpu_override=cpu_override)
-        self.register_current_artifact('namdscript',NAMDConfigFile(f'{self.basename}.namd'))
+        self.register_current_artifact(NAMDConfigFile(self.basename))
         if not script_only:
             local_execution_only=not self.get_current_artifact_value('periodic')
             single_gpu_only=kwargs.get('single_gpu_only',False) or constraints
             result=na.runscript(single_molecule=local_execution_only,local_execution_only=local_execution_only,single_gpu_only=single_gpu_only,cpu_override=cpu_override)
-            namd_output_exts={e:t for e,t in zip(['coor','vel','xsc','log','dcd','xst'],[COORFile,VELFile,XSCFile,LogFile,DCDFile,XSTFile])}
-            for ext,artifact_type in namd_output_exts.items():
-                if os.path.exists(f'{self.basename}.{ext}'):
-                    self.register_current_artifact(ext,artifact_type(f'{self.basename}.{ext}'))
+            for at in [PDBFile, NAMDVelFile, NAMDXscFile, NAMDCoorFile, NAMDDcdFile, NAMDXstFile, NAMDLogFile, NAMDColvarsOutput]:
+                artifact=at(self.basename)
+                if artifact.exists():
+                    self.register_current_artifact(artifact)
             self.coor_to_pdb()
-            self.register_current_artifact('pdb',PDBFile(f'{self.basename}.pdb'))
             if hasattr(na.logparser,'dataframes'):
                 for key in na.logparser.dataframes:
-                    self.register_current_artifact(f'{key}-csv',CSVFile(f'{self.basename}-{key}.csv'))
+                    artifact=CSVDataFile(f'{self.basename}-{key}')
+                    if artifact.exists():
+                        self.register_current_artifact(artifact,key=f'{key}-csv')
             if result!=0:
                 return -1
 
             if ensemble.casefold()!='minimize'.casefold():
-                self.register_current_artifact('firsttimestep',firsttimestep+nsteps)
+                self.register_current_artifact(ArtifactData(firsttimestep+nsteps),key='firsttimestep')
             else:
-                self.register_current_artifact('firsttimestep',firsttimestep+specs['minimize'])
+                self.register_current_artifact(ArtifactData(firsttimestep+specs['minimize']),key='firsttimestep')
 
         return 0
