@@ -3,7 +3,7 @@ import pytest
 from pestifer.core.baseobj import BaseObj, CloneableObj, AncestorAwareObj, ObjList, StateInterval, StateIntervalList
 from argparse import Namespace
 
-class TestBaseObj(unittest.TestCase):
+class TestBaseObjOld(unittest.TestCase):
     def test_baseobj_empty(self):
         a=BaseObj({})
         self.assertEqual(type(a),BaseObj)

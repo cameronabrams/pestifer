@@ -577,39 +577,39 @@ class ResidueList(AncestorAwareObjList):
                 if not label_Cid in self.chainIDmap_label_to_auth:
                     self.chainIDmap_label_to_auth[label_Cid]=auth_Cid
 
-    def get_residue(self,**fields):
-        """
-        Get a residue from the list based on specified fields.
+    # def get_residue(self,**fields):
+    #     """
+    #     Get a residue from the list based on specified fields.
 
-        Parameters
-        ----------
-        fields : keyword arguments
-            The fields to match against residues in the list.
+    #     Parameters
+    #     ----------
+    #     fields : keyword arguments
+    #         The fields to match against residues in the list.
 
-        Returns
-        -------
-        :class:`~pestifer.molecule.residue.Residue`
-            The matching residue, or None if not found.
-        """
-        return self.get(**fields)
+    #     Returns
+    #     -------
+    #     :class:`~pestifer.molecule.residue.Residue`
+    #         The matching residue, or None if not found.
+    #     """
+    #     return self.get(**fields)
     
-    def get_atom(self,atname,**fields):
-        """
-        Get an atom from the list based on its name and specified fields.
+    # def get_atom(self,atname,**fields):
+    #     """
+    #     Get an atom from the residue's list of atoms based on its name and specified fields.
         
-        Parameters
-        ----------
-        atname : str
-            The name of the atom to retrieve.
-        fields : keyword arguments
-            Additional fields to match against the atom's attributes.
+    #     Parameters
+    #     ----------
+    #     atname : str
+    #         The name of the atom to retrieve.
+    #     fields : keyword arguments
+    #         Additional fields to match against the atom's attributes.
         
-        Returns
-        -------
-        :class:`~pestifer.molecule.atom.Atom`
-            The matching atom, or None if not found."""
-        S=('atoms',{'name':atname})
-        return self.get_attr(S,**fields)
+    #     Returns
+    #     -------
+    #     :class:`~pestifer.molecule.atom.Atom`
+    #         The matching atom, or None if not found."""
+    #     S=('atoms',{'name':atname})
+    #     return self.get_attr(S,**fields)
     
     def atom_serials(self,as_type=str):
         """

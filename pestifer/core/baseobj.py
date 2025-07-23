@@ -511,26 +511,25 @@ class BaseObj(Namespace):
             for k,v in tmp.__dict__.items():
                 logger.debug(f'        {k} ({type(v).__name__})')
             # raise ValueError(f'stop')
-    
-    def update_attr_from_obj_attr(self,attr,obj,obj_attr):
+
+    def update_attr_from_obj_attr(self,attr,obj_attr,attr_of_obj_attr):
         """
-        Set value of caller's attribute from another
-        attribute of a separate object
+        Set value of caller's attr attribute from an attribute called attr_of_obj_attr that is an attribute of one of the callers object attributes obj_attr
 
         Parameters
         ----------
         attr : str
-            attribute name
-        obj : str
-            name of object from which the attribute value is taken
+            caller's attribute name to be updated
         obj_attr : str
-            name of attribute in obj that is set to 
-            attr of caller
+            name of object attribute of caller from which the attribute value is taken
+        attr_of_obj_attr : str
+            name of attribute in object attribute of caller that is set to
+            attr attribute of caller
         """
         # attr_obj=getattr(self,obj)
         # logger.debug(f'accepting {obj_attr} from {obj} {str(attr_obj)} into {type(self)}({id(self)})')
-        setattr(self,attr,getattr(getattr(self,obj),obj_attr))
-    
+        setattr(self,attr,getattr(getattr(self,obj_attr),attr_of_obj_attr))
+
     def update_attr_from_objlist_elem_attr(self,attr,objlist,index,obj_attr):
         """
         Set value of caller's attribute from an attribute
@@ -879,9 +878,11 @@ class ObjList(UserList):
             "reference" list of objects whose attributes are consulted to 
             decide what to prune out of the calling instance
         attr_maps : list
-            dictionaries used independently to map attribute values of 
-            elements of the reference list to those of the calling instance
-        
+            each element is a dictionary that maps attributes of the calling
+            instance to attributes of the reference objects in objlist; i.e.
+            {callerattrlabel: refattrlabel}.  Values of refattrlabel in the objlist are treated as values of the callerattrlabel in elements of the calling instance.
+            Each map is used independently to gather hits.
+
         Returns
         -------
 
@@ -1216,25 +1217,23 @@ class ObjList(UserList):
             self.remove(s)
         return self.__class__(delete_us)
     
-    def update_attr_from_obj_attr(self,attr,obj,obj_attr):
+    def update_attr_from_obj_attr(self,attr,obj_attr,attr_of_obj_attr):
         """
-        Set value of attribues of all elements of caller
-        from another attribute of a separate object
+        For each element of the calling instance, set the value of its
+        attr attribute from the attr_of_obj_attr attribute of its
+        obj_attr attribute.
 
         Parameters
         ----------
         attr : str
-            attribute name
-        obj : object
-            object from which the attribute value is taken
+            caller's attribute name to update
         obj_attr : str
-            name of attribute in obj that is set to 
-            attr of caller
+            name of object attribute of caller from which the attribute value is taken
+        attr_of_obj_attr : str
+            name of attribute in obj that is set to attr of caller
         """
-        # logger.debug(f'update_attr_from_obj_attr considers type {type(self)} ({len(self)}) attr {attr} obj {obj} obj_attr {obj_attr}')
         for item in self:
-            # logger.debug(f'-> item {item}')
-            item.update_attr_from_obj_attr(attr,obj,obj_attr)
+            item.update_attr_from_obj_attr(attr,obj_attr,attr_of_obj_attr)
 
     def update_attr_from_objlist_elem_attr(self,attr,objlist,index,obj_attr):
         """

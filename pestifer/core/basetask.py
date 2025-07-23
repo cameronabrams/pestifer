@@ -103,6 +103,19 @@ class BaseTask(BaseObj, ABC):
         """
         pass
 
+    def execute(self):
+        """
+        Execute the task.
+        This method calls the `do` method, which should be implemented by subclasses to perform the task's operations.
+        It also logs the initiation and completion of the task.
+        """
+        self.log_message('initiated')
+        self.result=self.do()
+        if self.result==0:
+            self.log_message('complete')
+        else:
+            logger.error(f'Task {self.taskname} failed with result {self.result}')
+
     def stash_current_artifact(self,key):
         """
         Stash the current artifact with the specified key into the history.
