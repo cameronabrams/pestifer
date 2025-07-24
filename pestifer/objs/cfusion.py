@@ -6,83 +6,98 @@ file to the C-terminus of a named segment of base molecule.
 """
 import logging
 logger=logging.getLogger(__name__)
-import os
 
-from functools import singledispatchmethod
+from pydantic import Field
+from typing import ClassVar
 
-from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.baseobj_new import BaseObj, BaseObjList
 from ..core.scripters import PsfgenScripter
-from ..core.stringthings import split_ri
+from ..core.stringthings import split_ri, join_ri
 
-class Cfusion(AncestorAwareObj):
+class Cfusion(BaseObj):
     """
     A class for handling fusions of residues represented by an existing 
     coordinate file to the C-termini of base-molecule segments
     """
 
-    req_attr=AncestorAwareObj.req_attr+['sourcefile','sourceseg','resseqnum1','insertion1','resseqnum2','insertion2','chainID','id']
-    """
-    Required attributes for a Cfusion object.
-    These attributes must be provided when creating a Cfusion object.
+    _required_fields = ['sourcefile', 'sourceseg', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2', 'chainID', 'id']
+    _optional_fields = ['yaml_header', 'objcat']
 
-    - ``sourcefile``: The path to the source coordinate file containing the residues to be fused.
-    - ``sourceseg``: The segment identifier in the source file from which residues are taken.
-    - ``resseqnum1``: The N-terminal residue number of the fusion sequence.
-    - ``insertion1``: The insertion code of the N-terminal residue.
-    - ``resseqnum2``: The C-terminal residue number of the fusion sequence.
-    - ``insertion2``: The insertion code of the C-terminal residue.
-    - ``chainID``: The chain ID of the segment in the base molecule to which the fusion is applied.
-    - ``id``: A unique identifier for the Cfusion object.
-    """
+    sourcefile: str = Field(..., description="Path to the source coordinate file containing the residues to be fused")
+    sourceseg: str = Field(..., description="Segment in the source file from which residues are taken")
+    resseqnum1: int = Field(..., description="N-terminal residue number of the fusion sequence")
+    insertion1: str = Field(..., description="Insertion code of the N-terminal residue")
+    resseqnum2: int = Field(..., description="C-terminal residue number of the fusion sequence")
+    insertion2: str = Field(..., description="Insertion code of the C-terminal residue")
+    chainID: str = Field(..., description="Chain ID of the segment in the base molecule to which the fusion is applied")
+    id: int = Field(..., description="Unique identifier for the Cfusion object")
+
+    _yaml_header: ClassVar[str] = 'Cfusions'
+    _objcat: ClassVar[str] = 'seq'
+    _counter: ClassVar[int] = 0  # Class variable to keep track of Cfusion instances
+
+    def describe(self):
+        return f"Cfusion(sourcefile={self.sourcefile}, sourceseg={self.sourceseg}, resseqnum1={self.resseqnum1}, insertion1={self.insertion1}, resseqnum2={self.resseqnum2}, insertion2={self.insertion2}, chainID={self.chainID}, id={self.id})"
     
-    yaml_header='Cfusions'
-    """
-    YAML header for Cfusion objects.
-    This header is used to identify Cfusion objects in YAML files.
-    """
+    class Adapter:
+        """
+        A class to represent the shortcode format for Cfusion, so that we can register to BaseObj.from_input rather than defining a local from_input.
 
-    objcat='seq'
-    """
-    Category of the Cfusion object.
-    This categorization is used to group Cfusion objects in the object manager.
-    """
+        The shortcode format is filename:C:nnn-ccc,S
+        where:
+        - filename is the fusion coordinate filename
+        - C is the source segment
+        - nnn is the N-terminal residue of the fusion sequence
+        - ccc is the C-terminal residue of the fusion sequence
+        - S is the chainID, segment in base-molecule the fusion is fused to
+        """
+        def __init__(self, sourcefile: str, sourceseg: str, resseqnum1: int, insertion1: str, resseqnum2: int, insertion2: str, chainID: str, id: int = 0):
+            self.sourcefile = sourcefile
+            self.sourceseg = sourceseg
+            self.resseqnum1 = resseqnum1
+            self.insertion1 = insertion1
+            self.resseqnum2 = resseqnum2
+            self.insertion2 = insertion2
+            self.chainID = chainID
+            self.id = id
 
-    _Cfusion_counter=0
-    
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
+        @classmethod
+        def from_string(cls, raw: str):
+            sourcefile, sourceseg, seq_range_chainID = raw.split(":")
+            seq_range, chainID = seq_range_chainID.split(",")
+            resrange = seq_range.split("-")
+            resseqnum1, insertion1 = split_ri(resrange[0])
+            resseqnum2, insertion2 = split_ri(resrange[1])
+            return cls(sourcefile, sourceseg, resseqnum1, insertion1, resseqnum2, insertion2, chainID)
 
-    @__init__.register(str)
-    def _from_shortcode(self,shortcode):
-        # shortcode format: filename:C:nnn-ccc,S
-        # filename -- fusion coordinate filename
-        # C -- source segment
-        # nnn -- N-terminal resid of fusion sequence
-        # ccc -- C-terminal resid of fusion sequence
-        # S -- chainID, segment in base-molecule the fusion is fused to
-        p1=shortcode.split(':')
-        sourcefile=p1[0]
-        assert os.path.exists(sourcefile),f'Cfusion sourcefile {sourcefile} not found.'
-        sourceseg=p1[1]
-        p2=p1[2].split(',')
-        seqrange=p2[0]
-        chainID=p2[1]
-        seq=seqrange.split('-')
-        r1,i1=split_ri(seq[0])
-        r2,i2=split_ri(seq[1])
-        input_dict={
-            'sourcefile':sourcefile,
-            'sourceseg':sourceseg,
-            'resseqnum1':int(r1),
-            'insertion1':i1,
-            'resseqnum2':int(r2),
-            'insertion2':i2,
-            'chainID':chainID,
-            'id':Cfusion._Cfusion_counter
-        }
-        Cfusion._Cfusion_counter+=1
-        super().__init__(input_dict)    
+        def to_string(self) -> str:
+            return f"{self.sourcefile}:{self.sourceseg}:{join_ri(self.resseqnum1,self.insertion1)}-{join_ri(self.resseqnum2,self.insertion2)},{self.chainID}"
+        
+        def to_dict(self) -> dict:
+            return {k: v for k, v in self.__dict__.items() if not v is None}
+
+    # if registering to BaseObj.from_input, the type must be unique to this class
+    @BaseObj.from_input.register(Adapter)
+    @classmethod
+    def _from_str(cls, shortcode: Adapter):
+        input_dict=shortcode.to_dict()
+        input_dict['id'] = cls._counter  # Use the class variable to set the id
+        # Increment the counter for the next instance
+        cls._counter+=1
+        return cls(**input_dict)
+
+    def to_input_string(self) -> str:
+        """
+        Converts the Cfusion object to a string representation for input.
+        
+        Returns
+        -------
+        str
+            A string representation of the Cfusion object in the format:
+            filename:C:nnn-ccc,S
+        """
+        # return self.Adapter(self.sourcefile, self.sourceseg, self.resseqnum1, self.insertion1, self.resseqnum2, self.insertion2, self.chainID).to_string()
+        return self.Adapter(**(self.model_dump())).to_string()
 
     def write_pre_segment(self, W: PsfgenScripter):
         """
@@ -130,5 +145,12 @@ class Cfusion(AncestorAwareObj):
         """
         W.addline(f'coordpdb {self.segfile} {self.chainID}')
 
-class CfusionList(AncestorAwareObjList):
-    pass
+class CfusionList(BaseObjList[Cfusion]):
+    def describe(self) -> str:
+        return f"CfusionList with {len(self)} cfusions"
+    def _validate_item(self, item: Cfusion) -> None:
+        """
+        Validate that the item is an instance of Cfusion.
+        """
+        if not isinstance(item, Cfusion):
+            raise TypeError(f"Expected Cfusion instance, got {type(item)}")

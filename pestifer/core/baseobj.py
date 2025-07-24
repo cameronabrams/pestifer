@@ -1,5 +1,6 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>.
-""" Namespace objects with attribute controls
+""" 
+Namespace objects with attribute controls
 
 The BaseObj class is a derivative of argparse's
 very nice Namespace class, and the ObjList class as a derivative
@@ -1115,35 +1116,7 @@ class ObjList(UserList):
                     s.__dict__[new_attr_name].update({k:s.__dict__[k] for k in make_common})
                     s.__dict__.update(use_common)
     
-    def state_bounds(self,state_func):
-        """
-        Reduces calling instance to a list of state intervals 
-        
-        Parameters
-        ----------
-        state_func : method
-            A function that returns the state value of a single 
-            element of the calling instance
 
-        Returns
-        -------
-        list : state intervals
-        
-        """
-        slices=StateIntervalList([])
-        if len(self)==0:
-            return slices
-        for i,item in enumerate(self):
-            if not slices:
-                slices.append(StateInterval({'state':state_func(item),'bounds':[i,i]}))
-                continue
-            state=state_func(item)
-            last_state=slices[-1].state
-            if state==last_state:
-                slices[-1].increment_rightbound()
-            else:
-                slices.append(StateInterval({'state':state_func(item),'bounds':[i,i]}))
-        return slices
     
     def map_attr(self,mapped_attr,key_attr,map):
         """

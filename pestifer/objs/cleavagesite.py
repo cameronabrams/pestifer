@@ -2,70 +2,106 @@
 """
 CleavageSite is a class for handling chain cleavage in molecular structures.
 It represents a user-specified modification that cleaves a segment of a chain
-between two specified residues, creating a new segment."""
+between two specified residues, creating a new segment.
+"""
 import logging
 logger=logging.getLogger(__name__)
 
-from functools import singledispatchmethod
+from pydantic import Field
+from typing import ClassVar
+from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.stringthings import split_ri, join_ri
 
-from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..core.stringthings import split_ri
-
-class CleavageSite(AncestorAwareObj):
+class CleavageSite(BaseObj):
     """
     A class for handling chain cleavage.  Note that this mod is not expected to be part of an 
     ObjManager so the yaml_header and objcat attributes are irrelevant.  It is instead handled
     as a run task.
     """
+    _required_fields = ['chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2']
 
-    req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
-    """
-    Required attributes for a CleavageSite object.
-    These attributes must be provided when creating a CleavageSite object.
+    chainID:    str = Field(..., description="Chain ID of the segment to be cleaved")
+    resseqnum1: int = Field(..., description="N-terminal residue number of the cleavage site")
+    insertion1: str = Field(..., description="Insertion code of the N-terminal residue")
+    resseqnum2: int = Field(..., description="C-terminal residue number of the cleavage site")
+    insertion2: str = Field(..., description="Insertion code of the C-terminal residue")
 
-    - ``chainID``: The chain ID of the segment to be cleaved.
-    - ``resseqnum1``: The N-terminal residue number of the cleavage site.
-    - ``insertion1``: The insertion code of the N-terminal residue.
-    - ``resseqnum2``: The C-terminal residue number of the cleavage site.
-    - ``insertion2``: The insertion code of the C-terminal residue.
-    """
-    
-    yaml_header='cleavages'
-    """
-    YAML header for CleavageSite objects.
-    This header is used to identify CleavageSite objects in YAML files.
-    """
+    _yaml_header: ClassVar[str] = 'cleavages'
+    _objcat: ClassVar[str] = 'seq'
 
-    objcat='seq'
-    """
-    Category of the CleavageSite object.
-    This categorization is used to group CleavageSite objects in the object manager.
-    """
+    def describe(self):
+        return f"CleavageSite(chainID={self.chainID}, resseqnum1={self.resseqnum1}, insertion1={self.insertion1}, resseqnum2={self.resseqnum2}, insertion2={self.insertion2})"
 
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
-    @__init__.register(str)
-    def _from_shortcode(self,shortcode):
-        # C:R1-R2
-        # C: chain ID
-        # R1: resid+insertioncode of N-terminal partner in peptide bond
-        # R2: resid+insertioncode of C-terminal partner in peptide bond
-        items=shortcode.split(':')
-        assert len(items)==2,f'Bad cleavage site shortcode: {shortcode}'
-        chainID=items[0]
-        resrange=items[1]
-        ri1,ri2=resrange.split('-')
-        r1,i1=split_ri(ri1)
-        r2,i2=split_ri(ri2)
+    class Adapter:
+        """
+        A class to represent the shortcode format for CleavageSite, so that we can register to BaseObj.from_input rather than defining a local from_input.
+
+        The shortcode format is C:R1-R2
+        where:
+        - C is the chain ID
+        - R1 is the residue number and insertion code of the N-terminal partner in the peptide bond
+        - R2 is the residue number and insertion code of the C-terminal partner in the peptide bond
+        """
+        def __init__(self, chainID: str, resseqnum1: int, insertion1: str, resseqnum2: int, insertion2: str):
+            self.chainID = chainID
+            self.resseqnum1 = resseqnum1
+            self.insertion1 = insertion1
+            self.resseqnum2 = resseqnum2
+            self.insertion2 = insertion2
+
+        @classmethod
+        def from_string(cls, raw: str):
+            chainID, res_range = raw.split(":")
+            resseqnum1, insertion1 = split_ri(res_range.split("-")[0])
+            resseqnum2, insertion2 = split_ri(res_range.split("-")[1])
+            return cls(chainID, resseqnum1, insertion1, resseqnum2, insertion2)
+
+        def to_string(self) -> str:
+            return f"{self.chainID}:{join_ri(self.resseqnum1, self.insertion1)}-{join_ri(self.resseqnum2, self.insertion2)}"
+
+
+    @BaseObj.from_input.register(Adapter)
+    @classmethod
+    def _from_shortcode(cls,shortcode:Adapter):
         input_dict={
-            'chainID':chainID,
-            'resseqnum1':r1,
-            'insertion1':i1,
-            'resseqnum2':r2,
-            'insertion2':i2
+            'chainID':shortcode.chainID,
+            'resseqnum1':shortcode.resseqnum1,
+            'insertion1':shortcode.insertion1,
+            'resseqnum2':shortcode.resseqnum2,
+            'insertion2':shortcode.insertion2
         }
-        super().__init__(input_dict)
+        return cls(**input_dict)
+    
+    def to_input_string(self) -> str:
+        """
+        Converts the CleavageSite object to a string representation for input.
 
-class CleavageSiteList(AncestorAwareObjList):
-    pass
+        Returns
+        -------
+        str
+            A string representation of the CleavageSite object in the format:
+            C:R1-R2
+        """
+        return self.Adapter(**(self.model_dump())).to_string()
+
+class CleavageSiteList(BaseObjList):
+    
+    def describe(self):
+        return f"CleavageSiteList with {len(self)} cleavage sites"
+    
+    def _validate_item(self, item: CleavageSite) -> None:
+        """
+        Validate that the item is an instance of CleavageSite.
+        
+        Parameters
+        ----------
+        item : CleavageSite
+            The item to validate.
+        
+        Raises
+        ------
+        TypeError
+            If the item is not an instance of CleavageSite.
+        """
+        if not isinstance(item, CleavageSite):
+            raise TypeError(f"Item must be an instance of CleavageSite, got {type(item)}")

@@ -1,16 +1,35 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 # with extensive contributions from ChatGPT 4o
 """
+Pydantic BaseModel objects with attribute controls
+
+The :class:`BaseObj` class is a Pydantic BaseModel that provides a framework for creating objects with controlled attributes.  It is an abstract class that requires subclasses to implement the `describe()` method.  It also provides a number of utility methods for creating objects from various input types, validating attributes, and comparing objects.
+
+Any subclass that defines Field objects will automatically have their attributes validated according to the rules specified in the BaseObj class.  Subclasses can also define their own ClassVar attributes that are outside the control logic of BaseObj.
+
+Two types of Fields are supported:
+
+1. Required fields, which must be present in the input data and are validated by Pydantic.
+2. Optional fields, which are not required but can be included in the input data, and have default values defined.
+
+Pairs of optional fields can be defined as mutually exclusive, meaning that if one field is present, the other cannot be. This is useful for cases where only one of a set of related fields should be specified.
+
+Any field can also be constrained to a set of allowed values, and dependencies can be defined such that if one field is present, another must also be present.
+
+Any field can also be assigned a list of dependent fields depending on its value, which must also be present if the field value is set. This allows for complex relationships between fields to be defined.
+
+Any field can also be declared as ignored when comparing objects, meaning that it will not be included in the comparison logic.
+
+The ``BaseObj`` class also uses dispatch methods to allow for creating objects from different input types.  Because it subclasses BaseModel, it can be instantiated by keyword-value parameters.  Additionally, the ``from_input`` method is a singledispatch method that allows for creating objects from different input types, such as dictionaries and :mod:`argparse.Namespace`'s.  Classes the subclass ``BaseObj`` must register their own `from_input` methods to handle other input types, and if they do so, the should also register their own versions of `_from_dict` and `_from_namespace` methods if those input types are to be supported.
+
 """
 
-from copy import deepcopy
-from pydantic import BaseModel, Field, model_validator, ConfigDict
-from typing import ClassVar, List, Dict, Optional, Any, Union, Iterable, Iterator
+from pydantic import BaseModel, model_validator, ConfigDict
+from typing import ClassVar, List, Dict, Optional, Any, Union, Iterable, Iterator, Self
 import hashlib
 import operator
 import yaml
 import logging
-import inspect
 from collections import UserList
 logger=logging.getLogger(__name__)
 from argparse import Namespace
@@ -22,7 +41,7 @@ class BaseObj(BaseModel, ABC):
     _optional_fields: ClassVar[List[str]] = []
     _mutually_exclusive: ClassVar[List[List[str]]] = []
     _attr_choices: ClassVar[Dict[str, List[Any]]] = {}
-    _attr_dependencies: ClassVar[Dict[str, List[str]]] = {}
+    _attr_dependencies: ClassVar[Dict[str, Dict[Any, List[str]]]] = {}
     _ignore_fields: ClassVar[List[str]] = []
 
     model_config = ConfigDict(
@@ -48,7 +67,16 @@ class BaseObj(BaseModel, ABC):
     @classmethod
     def _from_namespace(cls, obj: Namespace) -> "BaseObj":
         return cls(**vars(obj))
-    
+
+    def _copy_from_instance(cls, other):
+        if type(other) is not cls:
+            raise TypeError(...)
+        return cls(**other.model_dump())
+
+    def __init_subclass__(cls):
+        super().__init_subclass__()
+        cls.from_input.register(cls)(classmethod(cls._copy_from_instance))
+
     @model_validator(mode="before")
     @classmethod
     def _validate_schema(cls, values: Dict[str, Any]) -> Dict[str, Any]:
@@ -79,11 +107,13 @@ class BaseObj(BaseModel, ABC):
                 raise ValueError(f"Field '{field}' must be one of {allowed}, got '{values[field]}'")
 
         # Conditional dependencies
-        for opt_field, dependencies in cls._attr_dependencies.items():
-            if opt_field in values:
-                for dep in dependencies:
+        for field, value_dependencies in cls._attr_dependencies.items():
+            # field is a field name
+            # value_dependency is a dict mapping field values to lists of dependent fields
+            if field in values:
+                for dep in value_dependencies.get(values[field], []):
                     if dep not in values:
-                        raise ValueError(f"If '{opt_field}' is set, '{dep}' must also be set.")
+                        raise ValueError(f"If '{field}' is set to '{values[field]}', '{dep}' must also be set.")
 
         return values
 
@@ -422,49 +452,8 @@ class BaseObj(BaseModel, ABC):
             attr of caller
         """
         setattr(self,attr,getattr(getattr(self,objlist_attr)[index_of_obj_in_objlist_attr],attr_of_obj_attr))
-
-class CloneableObj(BaseObj, ABC):
-    """
-    A base class for objects that can be cloned.
-    This class extends BaseObj and provides a method to clone the object.
-    """
-    clone_of: Optional['CloneableObj'] = Field(default=None, exclude=True)
-
-    def clone(self) -> 'CloneableObj':
-        """
-        Clone the current object.
-
-        Returns
-        -------
-        CloneableObj
-            A new instance of the object with the same attributes.
-        """
-        assert hasattr(self, 'clone_of'), "CloneableObj must have 'clone_of' attribute"
-        copy_of_self = deepcopy(self)
-        setattr(copy_of_self, 'clone_of', self)
-        return copy_of_self
     
-    def is_clone(self) -> bool:
-        """
-        Check if the current object is a clone of another object.
 
-        Returns
-        -------
-        bool
-            True if the object is a clone, False otherwise.
-        """
-        return hasattr(self, 'clone_of') and self.clone_of is not None
-    
-    def get_original(self) -> 'CloneableObj':
-        """
-        Get the original object from which this clone was created.
-
-        Returns
-        -------
-        CloneableObj
-            The original object if this is a clone, otherwise self.
-        """
-        return self.clone_of if self.is_clone() else self
 
 class BaseObjList(UserList, ABC):
     def __init__(self, initlist: Iterable[BaseObj] = ()):

@@ -6,22 +6,47 @@ its atoms using a triple on the reference and the same triplet on the target as 
 are replaced by those in the reference and the rest of the reference is incorporated.
 """
 import logging
+
+from pydantic import Field
 logger=logging.getLogger(__name__)
 import os
 
-from functools import singledispatchmethod
+# from functools import singledispatchmethod
 
-from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from pydantic import Field
+from typing import ClassVar, Optional
+from ..core.baseobj_new import BaseObj, BaseObjList
 from ..core.scripters import PsfgenScripter
 from ..core.stringthings import ri_range
 from .link import LinkList
 
-class Graft(AncestorAwareObj):
+class Graft(BaseObj):
     """
     A class for handling grafts.
     """
+    _required_fields = ['orig_chainID', 'orig_resseqnum1', 'orig_insertion1', 'orig_resseqnum2', 'orig_insertion2',
+                        'source_pdbid', 'source_chainID', 'source_resseqnum1', 'source_insertion1',
+                        'source_resseqnum2', 'source_insertion2', 'id']
+    _optional_fields = ['source_resseqnum3', 'source_insertion3']
 
-    req_attr=AncestorAwareObj.req_attr+['id','orig_chainID','orig_resseqnum1','orig_insertion1','orig_resseqnum2','orig_insertion2','source_pdbid','source_chainID','source_resseqnum1','source_insertion1','source_resseqnum2','source_insertion2','source_resseqnum3','source_insertion3']
+    orig_chainID: str = Field(..., description="Chain ID of the target segment in the base molecule")
+    orig_resseqnum1: int = Field(..., description="N-terminal residue sequence number of the target segment")
+    orig_insertion1: str = Field(..., description="Insertion code of the N-terminal residue in the target segment")
+    orig_resseqnum2: int = Field(..., description="C-terminal residue sequence number of the target segment")
+    orig_insertion2: str = Field(..., description="Insertion code of the C-terminal residue in the target segment")
+    source_pdbid: str = Field(..., description="Basename of the source PDB file or PDB ID from which the graft is sourced")
+    source_chainID: str = Field(..., description="Chain ID in the source PDB file")
+    source_resseqnum1: int = Field(..., description="N-terminal residue sequence number of the source segment")
+    source_insertion1: str = Field(..., description="Insertion code of the N-terminal residue in the source segment")
+    source_resseqnum2: int = Field(..., description="C-terminal residue sequence number of the source segment")
+    source_insertion2: str = Field(..., description="Insertion code of the C-terminal residue in the source segment")
+    source_resseqnum3: Optional[int] = Field(None, description="Optional third residue sequence number in the source segment")
+    source_insertion3: Optional[str] = Field(None, description="Optional third insertion code in the source segment")
+
+    _yaml_header: ClassVar[str] = 'grafts'
+    _objcat: ClassVar[str] = 'seq'
+    _counter: ClassVar[int] = 0  # Class variable to keep track of Graft instances
+
     """
     Required attributes for a Graft object.
     These attributes must be provided when creating a Graft object.
@@ -38,23 +63,30 @@ class Graft(AncestorAwareObj):
     - ``source_insertion1``: Insertion code of the N-terminal residue in the source segment.
     - ``source_resseqnum2``: C-terminal residue sequence number of the source segment.
     - ``source_insertion2``: Insertion code of the C-terminal residue in the source segment.
+
+    Optional attributes for a Graft object.
+    These attributes are not required when creating a Graft object.
     - ``source_resseqnum3``: Optional third residue sequence number in the source segment.
     - ``source_insertion3``: Optional third insertion code in the source segment.
     """
-    
-    yaml_header='grafts'
-    """
-    YAML header for Graft objects.
-    This header is used to identify Graft objects in YAML files.
-    """
-    
-    objcat='seq'
-    """
-    Category of the Graft object.
-    This categorization is used to group Graft objects in the object manager.
-    """
-    
-    _Graft_counter=0
+
+    class Adapter:
+        """ A class to represent the shortcode format for Graft, so that we can register to BaseObj.from_input rather than defining a local from_input."""
+        def __init__(self,orig_chainID: str = None, orig_resseqnum1: int = None, orig_insertion1: str = None, orig_resseqnum2: int = None, orig_insertion2: str = None, source_pdbid: str = None, source_chainID: str = None, source_resseqnum1: int = None, source_insertion1: str = None, source_resseqnum2: int = None, source_insertion2: str = None, id: int = 0, source_resseqnum3: Optional[int] = None, source_insertion3: Optional[str] = None):
+            self.orig_chainID = orig_chainID
+            self.orig_resseqnum1 = orig_resseqnum1
+            self.orig_insertion1 = orig_insertion1
+            self.orig_resseqnum2 = orig_resseqnum2
+            self.orig_insertion2 = orig_insertion2
+            self.source_pdbid = source_pdbid
+            self.source_chainID = source_chainID
+            self.source_resseqnum1 = source_resseqnum1
+            self.source_insertion1 = source_insertion1
+            self.source_resseqnum2 = source_resseqnum2
+            self.source_insertion2 = source_insertion2
+            self.source_resseqnum3 = source_resseqnum3
+            self.source_insertion3 = source_insertion3
+
     @singledispatchmethod
     def __init__(self,input_obj):
         super().__init__(input_obj)

@@ -1,10 +1,10 @@
 import unittest
-import pytest
-from pestifer.core.baseobj_new import BaseObj, BaseObjList, CloneableObj
+from pestifer.core.baseobj_new import BaseObj, BaseObjList
 from argparse import Namespace
-from pydantic import Field, ConfigDict, ValidationError
+from pydantic import Field, ValidationError
 from typing import Optional, List, Dict
-
+import logging
+logger = logging.getLogger(__name__)
 class TestBaseObj(unittest.TestCase):
     def test_baseobj_is_abstract(self):
         with self.assertRaises(TypeError):
@@ -108,17 +108,22 @@ class TestBaseObj(unittest.TestCase):
         class ConcreteObj(BaseObj):
             _required_fields = ['required_field']
             _optional_fields = ['optional_field']
-            _attr_dependencies = {'optional_field': ['required_field']}
+            _attr_dependencies = {'required_field': {'Trigger me to require optional field': ['optional_field']}}
             required_field: str = Field(..., description="Required field")
             optional_field: Optional[str] = Field(None, description="Optional field")
 
             def describe(self):
                 return f"Concrete Object with required_field: {self.required_field}, optional_field: {self.optional_field}"
 
+        # with self.assertRaises(ValidationError) as context:
+        #     ConcreteObj(required_field="Must be set")
+        #     logger.debug(context.exception)
         obj = ConcreteObj(required_field="Must be set")
         self.assertEqual(obj.describe(), "Concrete Object with required_field: Must be set, optional_field: None")
-        obj2 = ConcreteObj(required_field="Must be set", optional_field="Can be set")
-        self.assertEqual(obj2.describe(), "Concrete Object with required_field: Must be set, optional_field: Can be set")
+        with self.assertRaises(ValidationError):
+            obj2 = ConcreteObj(required_field="Trigger me to require optional field")
+        obj2 = ConcreteObj(required_field="Trigger me to require optional field", optional_field="Here I am")
+        self.assertEqual(obj2.describe(), "Concrete Object with required_field: Trigger me to require optional field, optional_field: Here I am")
         with self.assertRaises(ValidationError):
             # Missing required 'required_field'
             bad_obj = ConcreteObj(optional_field="Should not work")
@@ -350,22 +355,6 @@ class TestBaseObj(unittest.TestCase):
         self.assertEqual(obj2.name, "Howdy Doody")
         obj2.update_attr_from_objlist_elem_attr('name', 'subobject_list', 1, 'name')
         self.assertEqual(obj2.name, "Bumgy")
-
-class TestCloneableObj(unittest.TestCase):
-    def test_cloneable_obj_is_abstract(self):
-        with self.assertRaises(TypeError):
-            c = CloneableObj()
-
-    def test_cloneableobj_inherit(self):
-        class ConcreteCloneableObj(CloneableObj):
-            def describe(self):
-                return "Concrete Cloneable Object"
-
-        c = ConcreteCloneableObj()
-        self.assertIsInstance(c, ConcreteCloneableObj)
-        self.assertTrue(hasattr(c, 'clone_of'))
-        d=c.clone()
-        # self.assertTrue(c is not d)
 
 class TestBaseObjList(unittest.TestCase):
     def test_baseobj_list_is_abstract(self):

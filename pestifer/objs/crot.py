@@ -10,38 +10,32 @@ specified by the user into TcL commands to be incorporated in a psfgen script.
 """
 import logging
 logger=logging.getLogger(__name__)
-from functools import singledispatchmethod
-
-from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from typing import ClassVar
+from pydantic import Field
+from ..core.baseobj_new import BaseObj, BaseObjList
 from ..core.scripters import VMDScripter, PsfgenScripter
+from ..core.stringthings import split_ri, join_ri
 
-class Crot(AncestorAwareObj):
+class Crot(BaseObj):
     """
     A class for managing so-called "C-rotations" in a molecular structure.
     """
-    req_attr=AncestorAwareObj.req_attr+['angle']
-    """
-    Required attributes for a Crot object.
-    
-    - ``angle``: The type of angle to be rotated. This can be one of the following:
-
-        - ``PHI``: Backbone phi torsion angle.
-        - ``PSI``: Backbone psi torsion angle.
-        - ``OMEGA``: Backbone omega torsion angle.
-        - ``CHI1``: Side-chain chi1 torsion angle.
-        - ``CHI2``: Side-chain chi2 torsion angle.
-        - ``ANGLEIJK``: Angle defined by atoms i, j, and k.
-        - ``ALPHA``: Set of rotations that define the alpha helix.
-    """
-
-    opt_attr=AncestorAwareObj.opt_attr+['chainID','resseqnum1','resseqnum2','resseqnum3','segname','atom1','atom2','segname1','segname2','segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk','degrees']
+    _required_fields = ['angle']
+    _optional_fields = ['chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2', 
+                        'resseqnum3', 'insertion3', 'segname',
+                        'atom1', 'atom2',
+                        'segname1', 'segname2', 'segnamei', 'resseqnumi', 'insertioni','atomi',
+                        'segnamejk', 'resseqnumj', 'insertionj', 'atomj', 'resseqnumk', 
+                        'insertionk', 'atomk', 'degrees']
     """
     Optional attributes for a Crot object.
     These attributes are used to specify additional parameters for the C-rotation:
     
     - ``chainID``: The chain ID of the segment to which the rotation applies.
     - ``resseqnum1``: The residue sequence number of the first residue involved in the rotation.
+    - ``insertion1``: The insertion code of the first residue involved in the rotation.
     - ``resseqnum2``: The residue sequence number of the second residue involved in the rotation.
+    - ``insertion2``: The insertion code of the second residue involved in the rotation.
     - ``resseqnum3``: The residue sequence number of the third residue involved in the rotation (optional, used for ALPHA rotations).
     - ``segname``: The segment name of the segment to which the rotation applies.
     - ``atom1``: The name of the first atom involved in the rotation.
@@ -50,33 +44,18 @@ class Crot(AncestorAwareObj):
     - ``segname2``: The segment name of the second atom involved in the rotation.
     - ``segnamei``: The segment name of the first atom in the ANGLEIJK rotation.
     - ``resseqnumi``: The residue sequence number of the first atom in the ANGLEIJK rotation.
+    - ``insertioni``: The insertion code of the first atom in the ANGLEIJK rotation.
     - ``atomi``: The name of the first atom in the ANGLEIJK rotation.
     - ``segnamejk``: The segment name of the second atom in the ANGLEIJK rotation.
     - ``resseqnumj``: The residue sequence number of the second atom in the ANGLEIJK rotation.
+    - ``insertionj``: The insertion code of the second atom in the ANGLEIJK rotation.
     - ``atomj``: The name of the second atom in the ANGLEIJK rotation.
     - ``resseqnumk``: The residue sequence number of the third atom in the ANGLEIJK rotation.
+    - ``insertionk``: The insertion code of the third atom in the ANGLEIJK rotation.
     - ``atomk``: The name of the third atom in the ANGLEIJK rotation.
     - ``degrees``: The angle in degrees by which the atoms will be rotated.
     """
-
-    attr_choices=AncestorAwareObj.attr_choices.copy()
-    """
-    Attribute choices for the Crot object.
-    This dictionary defines the valid choices for the ``angle`` attribute.
-    The choices are:
-    
-    - ``PHI``: Backbone phi torsion angle.
-    - ``PSI``: Backbone psi torsion angle.
-    - ``OMEGA``: Backbone omega torsion angle.
-    - ``CHI1``: Side-chain chi1 torsion angle.
-    - ``CHI2``: Side-chain chi2 torsion angle.
-    - ``ANGLEIJK``: Angle defined by atoms i, j, and k.
-    - ``ALPHA``: Set of rotations that define the alpha helix.
-    """
-    attr_choices.update({'angle':['PHI','PSI','OMEGA','CHI1','CHI2','ANGLEIJK','ALPHA']})
-
-
-    opt_attr_deps=AncestorAwareObj.opt_attr_deps.copy()
+    _attr_choices = {'angle': ['PHI', 'phi', 'PSI', 'psi', 'OMEGA', 'omega', 'CHI1', 'chi1', 'CHI2', 'chi2', 'ANGLEIJK', 'angleijk', 'ALPHA', 'alpha']}
     """
     Optional attribute dependencies for the Crot object.
     This dictionary defines the dependencies for optional attributes based on the value of the ``angle`` attribute.
@@ -92,119 +71,208 @@ class Crot(AncestorAwareObj):
     - ``ANGLEIJK``: Requires ``segnamei``, ``resseqnumi``, ``atomi``, ``segnamejk``, ``resseqnumj``, ``atomj``, ``resseqnumk``, and ``atomk``.
     - ``ALPHA``: Requires ``chainID``, ``resseqnum1``, ``resseqnum2``, and ``resseqnum3``.
     """
-    opt_attr_deps.update({
-        'PHI':['chainID','resseqnum1','resseqnum2'],
-        'PSI':['chainID','resseqnum1','resseqnum2'],
-        'OMEGA':['chainID','resseqnum1','resseqnum2'],
-        'CHI1':['chainID','resseqnum1'],
-        'CHI2':['chainID','resseqnum1'],
-        'ANGLEIJK':['segnamei','resseqnumi','atomi','segnamejk','resseqnumj','atomj','resseqnumk','atomk'],
-        'ALPHA':['chainID','resseqnum1','resseqnum2','resseqnum3']
-        })
+    _attr_dependencies = {'angle': {
+                            'PHI':      ['chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2'],
+                            'PSI':      ['chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2'],
+                            'OMEGA':    ['chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2'],
+                            'CHI1':     ['chainID', 'resseqnum1', 'insertion1'],
+                            'CHI2':     ['chainID', 'resseqnum1', 'insertion1'],
+                            'ANGLEIJK': ['segnamei', 'resseqnumi', 'atomi',
+                                         'segnamejk', 'resseqnumj', 'atomj', 'resseqnumk', 'atomk'],
+                            'ALPHA':    ['chainID', 'resseqnum1', 'resseqnum2', 'resseqnum3']}}
+    angle: str = Field(..., description="Type of angle to be rotated (e.g., PHI, PSI, OMEGA, CHI1, CHI2, ANGLEIJK, ALPHA)")
+    chainID: str = Field(None, description="Chain ID of the segment to which the rotation applies")
+    resseqnum1: int = Field(None, description="Residue sequence number of the first residue involved in the rotation")
+    resseqnum2: int = Field(None, description="Residue sequence number of the second residue involved in the rotation")
+    resseqnum3: int = Field(None, description="Residue sequence number of the third residue involved in the rotation")
+    insertion1: str = Field(None, description="Insertion code of the first residue involved in the rotation")
+    insertion2: str = Field(None, description="Insertion code of the second residue involved in the rotation")
+    insertion3: str = Field(None, description="Insertion code of the third residue involved in the rotation")
+    segname: str = Field(None, description="Segment name of the segment to which the rotation applies")
+    atom1: str = Field(None, description="Name of the first atom involved in the rotation")
+    atom2: str = Field(None, description="Name of the second atom involved in the rotation")
+    segname1: str = Field(None, description="Segment name of the first atom involved in the rotation")
+    segname2: str = Field(None, description="Segment name of the second atom involved in the rotation")
+    segnamei: str = Field(None, description="Segment name of the first atom involved in the rotation")
+    resseqnumi: int = Field(None, description="Residue sequence number of the first atom in the ANGLEIJK rotation")
+    insertioni: str = Field(None, description="Insertion code of the first atom in the ANGLEIJK rotation")
+    atomi: str = Field(None, description="Name of the first atom in the ANGLEIJK rotation")
+    segnamejk: str = Field(None, description="Segment name of the second atom in the ANGLEIJK rotation")
+    resseqnumj: int = Field(None, description="Residue sequence number of the second atom in the ANGLEIJK rotation")
+    insertionj: str = Field(None, description="Insertion code of the second atom in the ANGLEIJK rotation")
+    atomj: str = Field(None, description="Name of the second atom in the ANGLEIJK rotation")
+    resseqnumk: int = Field(None, description="Residue sequence number of the third atom in the ANGLEIJK rotation")
+    insertionk: str = Field(None, description="Insertion code of the third atom in the ANGLEIJK rotation")
+    atomk: str = Field(None, description="Name of the third atom in the ANGLEIJK rotation")
+    degrees: float = Field(0.0, description="Angle in degrees by which the atoms will be rotated")
 
-    yaml_header='crotations'
+    _yaml_header: ClassVar[str] = 'crotations'
     """
     YAML header for Crot objects.
     This header is used to identify Crot objects in YAML files.
     """
-    
-    objcat='coord'
+
+    _objcat: ClassVar[str] = 'coord'
     """
     Category of the Crot object.
     This categorization is used to group Crot objects in the object manager. 
     """
     
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
-    
-    @__init__.register(str)
-    def _from_shortcode(self,shortcode):
-        dat=shortcode.split(',')
-        input_dict={}
-        input_dict['angle']=dat[0].upper()
-        if input_dict['angle']=='PHI' or input_dict['angle']=='PSI' or input_dict['angle']=='OMEGA':
-            # this is a backbone torsion, so we need both an owner
-            # residue and a residue indicating the end of the 
-            # set of residues that will be reoriented by the
-            # rotation
-            input_dict['chainID']=dat[1]
-            input_dict['resseqnum1']=int(dat[2])
-            input_dict['resseqnum2']=int(dat[3])
-            input_dict['degrees']=float(dat[4])
-        elif input_dict['angle']=='CHI1' or input_dict['angle']=='CHI2':
-            input_dict['chainID']=dat[1]
-            input_dict['resseqnum1']=int(dat[2])
-            input_dict['resseqnum2']=-1
-            input_dict['degrees']=float(dat[3])
-        elif input_dict['angle']=='ANGLEIJK':
-            input_dict['segnamei']=dat[1]
-            input_dict['resseqnumi']=int(dat[2])
-            input_dict['atomi']=dat[3]
-            input_dict['segnamejk']=dat[4]
-            input_dict['resseqnumj']=int(dat[5])
-            input_dict['atomj']=dat[6]
-            input_dict['resseqnumk']=int(dat[7])
-            input_dict['atomk']=dat[8]
-            input_dict['degrees']=float(dat[9])
-        elif input_dict['angle']=='ALPHA':
-            input_dict['chainID']=dat[1]
-            input_dict['resseqnum1']=int(dat[2])
-            input_dict['resseqnum2']=int(dat[3])
-            if len(dat)<5:
-                input_dict['resseqnum3']=input_dict['resseqnum2']
-            else:
-                input_dict['resseqnum3']=int(dat[4])
+    class Adapter:
+        """
+        A class to represent the shortcode format for Crot, so that we can register to BaseObj.from_input rather than defining a local from_input.
 
-        super().__init__(input_dict)
-    
-    def to_shortcode(self):
+        The shortcode format is:
+        - For PHI, PSI, OMEGA: angle,chainID,resseqnum1,insertion1,resseqnum2,insertion2,degrees
+        - For CHI1, CHI2: angle,chainID,resseqnum1,insertion1,degrees
+        - For ANGLEIJK: angle,segnamei,resseqnumi,insertioni,atomi,segnamejk,resseqnumj,insertionj,atomj,resseqnumk,insertionk,atomk,degrees
+        - For ALPHA: angle,chainID,resseqnum1,insertion1,resseqnum2,insertion2,[resseqnum3,insertion3]
         """
-        Convert the Crot object to a shortcode representation.
-        This method generates a shortcode representation of the Crot object.
-        The shortcode is a string that encodes the attributes of the Crot object in a specific
-        format. The format depends on the type of angle (e.g., ``PHI``, ``PSI``, ``OMEGA``, ``CHI1``, ``CHI2``, ``ANGLEIJK``, ``ALPHA``).
-        The shortcode is stored in the ``shortcode`` attribute of the Crot object.
-        If the ``shortcode`` attribute already exists, the method returns without modifying it.
+        def __init__(self, angle: str, chainID: str = None, resseqnum1: int = None, insertion1: str = None,
+                     resseqnum2: int = None, insertion2: str = None, resseqnum3: int = None, insertion3: str = None,
+                     segname: str = None, atom1: str = None, atom2: str = None,
+                     segname1: str = None, segname2: str = None,
+                     segnamei: str = None, resseqnumi: int = None, insertioni: str = None, atomi: str = None,
+                     segnamejk: str = None, resseqnumj: int = None, insertionj: str = None, atomj: str = None,
+                     resseqnumk: int = None, insertionk: str = None, atomk: str = None,
+                     degrees: float = 0.0):
+            self.angle = angle.upper()
+            self.chainID = chainID
+            self.resseqnum1 = resseqnum1
+            self.insertion1 = insertion1
+            self.resseqnum2 = resseqnum2
+            self.insertion2 = insertion2
+            self.resseqnum3 = resseqnum3
+            self.insertion3 = insertion3
+            self.segname = segname
+            self.atom1 = atom1
+            self.atom2 = atom2
+            self.segname1 = segname1
+            self.segname2 = segname2
+            self.segnamei = segnamei
+            self.resseqnumi = resseqnumi
+            self.insertioni = insertioni
+            self.atomi = atomi
+            self.segnamejk = segnamejk
+            self.resseqnumj = resseqnumj
+            self.insertionj = insertionj
+            self.atomj = atomj
+            self.resseqnumk = resseqnumk
+            self.insertionk = insertionk
+            self.atomk = atomk
+            self.degrees=degrees
+        
+        @classmethod
+        def from_string(cls, raw: str):
+            dat=raw.split(',')
+            angle=dat[0].upper()
+            match angle:
+                case 'PHI' | 'phi' | 'PSI' | 'psi' | 'OMEGA' | 'omega':
+                    chainID=dat[1]
+                    resseqnum1,insertion1=split_ri(dat[2])
+                    resseqnum2,insertion2=split_ri(dat[3])
+                    degrees=float(dat[4])
+                    return cls(angle, chainID=chainID, resseqnum1=resseqnum1, insertion1=insertion1, resseqnum2=resseqnum2, insertion2=insertion2, degrees=degrees)
+                case 'CHI1' | 'chi1' | 'CHI2' | 'chi2':
+                    chainID=dat[1]
+                    resseqnum1,insertion1=split_ri(dat[2])
+                    degrees=float(dat[3])
+                    return cls(angle, chainID=chainID, resseqnum1=resseqnum1, insertion1=insertion1, degrees=degrees)
+                case 'ANGLEIJK' | 'angleijk':
+                    segnamei=dat[1]
+                    resseqnumi,insertioni=split_ri(dat[2])
+                    atomi=dat[3]
+                    segnamejk=dat[4]
+                    resseqnumj,insertionj=split_ri(dat[5])
+                    atomj=dat[6]
+                    resseqnumk,insertionk=split_ri(dat[7])
+                    atomk=dat[8]
+                    degrees=float(dat[9])
+                    return cls(angle, segnamei=segnamei, resseqnumi=resseqnumi, insertioni=insertioni, atomi=atomi,
+                               segnamejk=segnamejk, resseqnumj=resseqnumj, insertionj=insertionj, atomj=atomj,
+                               resseqnumk=resseqnumk, insertionk=insertionk, atomk=atomk, degrees=degrees)
+                case 'ALPHA' | 'alpha':
+                    chainID=dat[1]
+                    resseqnum1,insertion1=split_ri(dat[2])
+                    resseqnum2,insertion2=split_ri(dat[3])
+                    if len(dat) < 5:
+                        resseqnum3 = resseqnum2
+                        insertion3 = insertion2
+                    else:
+                        resseqnum3,insertion3 = split_ri(dat[4])
+                    return cls(angle, chainID=chainID, resseqnum1=resseqnum1, insertion1=insertion1,
+                               resseqnum2=resseqnum2, insertion2=insertion2, resseqnum3=resseqnum3,
+                               insertion3=insertion3)
+                case _:
+                    raise ValueError(f"Unknown angle type: {angle}")
+
+        def to_string(self) -> str:
+            match self.angle:
+                case 'PHI' | 'phi' | 'PSI' | 'psi' | 'OMEGA' | 'omega':
+                    return f'{self.angle.upper()},{self.chainID},{join_ri(self.resseqnum1,self.insertion1)},{join_ri(self.resseqnum2,self.insertion2)},{self.degrees:.4f}'
+                case 'CHI1' | 'chi1' | 'CHI2' | 'chi2':
+                    return f'{self.angle.upper()},{self.chainID},{join_ri(self.resseqnum1,self.insertion1)},{self.degrees:.4f}'
+                case 'ANGLEIJK' | 'angleijk':
+                    return f'{self.angle},{self.segnamei},{join_ri(self.resseqnumi,self.insertioni)},{self.atomi},{self.segnamejk},{join_ri(self.resseqnumj,self.insertionj)},{self.atomj},{join_ri(self.resseqnumk,self.insertionk)},{self.atomk},{self.degrees:.4f}'
+                case 'ALPHA' | 'alpha':
+                    return f'{self.angle},{self.chainID},{join_ri(self.resseqnum1,self.insertion1)},{join_ri(self.resseqnum2,self.insertion2)},{join_ri(self.resseqnum3,self.insertion3)}'
+
+        def to_dict(self) -> dict:
+            """
+            Converts the Crot object to a dictionary representation.  Only attributes that are not None are included.
+            
+            Returns
+            -------
+            dict
+                A dictionary representation of the Crot object.
+            """
+            return {k: v for k, v in self.__dict__.items() if v is not None}
+
+    @BaseObj.from_input.register(Adapter)
+    @classmethod
+    def _from_shortcode(cls, shortcode: Adapter):
         """
-        if 'shortcode' in self.__dict__:
-            return
-        ret=[f'{self.angle}']
-        if self.angle=='PHI' or self.angle=='PSI' or self.angle=='OMEGA':
-            # this is a backbone torsion, so we need both an owner
-            # residue and a residue indicating the end of the 
-            # set of residues that will be reoriented by the
-            # rotation
-            ret.append(f'{self.chainID}')
-            ret.append(f'{self.resseqnum1}')
-            ret.append(f'{self.resseqnum2}')
-            ret.append(f'{self.degrees:.4f}')
-        elif self.angle=='CHI1' or self.angle=='CHI2':
-            ret.append(f'{self.chainID}')
-            ret.append(f'{self.resseqnum1}')
-            ret.append(f'-1')
-            ret.append(f'{self.degrees:.4f}')
-        elif self.angle=='ANGLEIJK':
-            ret.append(f'{self.segnamei}')
-            ret.append(f'{self.resseqnumi}')
-            ret.append(f'{self.atomi}')
-            ret.append(f'{self.segnamejk}')
-            ret.append(f'{self.resseqnumj}')
-            ret.append(f'{self.atomj}')
-            ret.append(f'{self.resseqnumk}')
-            ret.append(f'{self.atomk}')
-            ret.append(f'{self.degrees:.4f}')
-        elif self.angle=='ALPHA':
-            ret.append(f'{self.chainID}')
-            ret.append(f'{self.resseqnum1}')
-            ret.append(f'{self.resseqnum2}')
-            ret.append(f'{self.resseqnum3}')
-        self.shortcode=','.join(ret)
+        Converts a Crot.Adapter object to a Crot object.
+        
+        Parameters
+        ----------
+        shortcode : Adapter
+            The Adapter object containing the C-rotation parameters.
+        
+        Returns
+        -------
+        Crot
+            A Crot object initialized with the parameters from the Adapter.
+        """
+        return cls(**(shortcode.to_dict()))
     
-    def __str__(self):
-        self.to_shortcode()
-        return self.shortcode
+    def to_input_string(self) -> str:
+        """
+        Converts the CleavageSite object to a string representation for input.
+
+        Returns
+        -------
+        str
+            A string representation of the CleavageSite object in the format:
+            C:R1-R2
+        """
+        return self.Adapter(**(self.model_dump())).to_string()
     
+    def to_input_string(self) -> str:
+        """
+        Converts the Crot object to a string representation for input.
+        
+        Returns
+        -------
+        str
+            A string representation of the Crot object in the format:
+            angle,chainID,resseqnum1,insertion1,resseqnum2,insertion2,degrees
+        """
+        return self.Adapter(**(self.model_dump())).to_string()
+
+    def describe(self):
+        return f'Crot({self.to_input_string()})'
+
     def write_TcL(self,W:VMDScripter,chainIDmap={},**kwargs):
         """
         Write the Tcl commands to perform the C-rotation in a VMD script.
@@ -252,12 +320,40 @@ class Crot(AncestorAwareObj):
             W.addline('set rterm [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum3))
             W.addline('fold_alpha $r1 $r2 $rterm {}'.format(molid))
 
-class CrotList(AncestorAwareObjList):
+class CrotList(BaseObjList[Crot]):
     """
     A class for managing lists of Crot objects.
-    This class inherits from AncestorAwareObjList and provides methods to handle multiple Crot objects.
+    This class inherits from BaseObjList and provides methods to handle multiple Crot objects.
     It allows for writing Tcl commands for all Crot objects in the list.
     """
+
+    def describe(self):
+        """
+        Returns a string description of the CrotList, including the number of Crot objects it contains.
+        
+        Returns
+        -------
+        str
+            A string describing the CrotList.
+        """
+        return f"CrotList with {len(self)} Crot objects"
+    
+    def _validate_item(self, item: Crot) -> None:
+        """
+        Validate that the item is an instance of Crot.
+        
+        Parameters
+        ----------
+        item : Crot
+            The item to validate.
+        
+        Raises
+        ------
+        TypeError
+            If the item is not an instance of Crot.
+        """
+        if not isinstance(item, Crot):
+            raise TypeError(f"Item must be an instance of Crot, got {type(item)}")
 
     def write_TcL(self,W:PsfgenScripter,chainIDmap={},**kwargs):
         """

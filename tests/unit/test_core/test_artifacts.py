@@ -28,11 +28,7 @@ class TestArtifacts(unittest.TestCase):
         self.assertEqual(data.key, None)
         self.assertEqual(data.value, 'This is some test data.')
         self.assertIsInstance(data, ArtifactData)
-
-    def test_artifactfilelist_is_abstract(self):
-        with self.assertRaises(TypeError):
-            ArtifactFileList()
-
+        
     def test_charmmff_files(self):
         Path('p1.prm').write_text('CHARMM parameter file content.')
         Path('p1.rtf').write_text('CHARMM topology file content.')
