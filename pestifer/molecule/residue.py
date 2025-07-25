@@ -8,11 +8,14 @@ logger=logging.getLogger(__name__)
 from argparse import Namespace
 from functools import singledispatchmethod
 
+from pydantic import Field
+from typing import Union, Any, ClassVar
+
 from pidibble.baserecord import BaseRecord
 from pidibble.pdbrecord import PDBRecord
 
 from .atom import Atom, AtomList, Hetatm
-from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.baseobj_new import BaseObj, BaseObjList
 from ..core.labels import Labels
 from ..objs.seqadv import Seqadv, SeqadvList
 from ..objs.deletion import DeletionList
@@ -21,22 +24,15 @@ from ..core.stringthings import join_ri, split_ri
 from ..util.cifutil import CIFdict
 from ..util.coord import positionN
 
-class EmptyResidue(AncestorAwareObj):
+class EmptyResidue(BaseObj):
     """
     A class for handling missing residues in a molecular structure.
     This class represents residues that are not present in the structure, such as those that are missing
     due to low resolution or other reasons. It is used to track residues that are expected to be present
     but are not resolved in the coordinate file.
-    
-    Parameters
-    ----------
-    input_obj : str, :class:`pidibble.baserecord.BaseRecord`, :class:`pestifer.util.cifutil.CIFdict`, or :class:`EmptyResidue`
-        The input object can be a string representing a residue shortcode, a :class:`~pidibble.baserecord.BaseRecord` or :class:`~pidibble.pdbrecord.PDBRecord` object,
-        or a :class:`~pestifer.util.cifutil.CIFdict` object containing residue information. If it is an EmptyResidue, it will be initialized
-        with the same attributes.
     """
 
-    req_attr=AncestorAwareObj.req_attr+['resname','resseqnum','insertion','chainID','resolved','segtype']
+    _required_fields = ['resname','resseqnum','insertion','chainID','resolved','segtype']
     """
     Required attributes for EmptyResidue.
     
@@ -55,8 +51,8 @@ class EmptyResidue(AncestorAwareObj):
     segtype : str
         The segment type.
     """
-    
-    opt_attr=AncestorAwareObj.opt_attr+['model','id','auth_asym_id','auth_comp_id','auth_seq_id']
+
+    _optional_fields = ['model','id','auth_asym_id','auth_comp_id','auth_seq_id']
     """
     Optional attributes for EmptyResidue.
     
@@ -74,106 +70,186 @@ class EmptyResidue(AncestorAwareObj):
         The author sequence ID, if applicable.
     """
 
-    yaml_header='missings'
+    _ignore_fields = ['empty','link','recordname']
+
+    resname: str = Field(..., description="The residue name.")
+    resseqnum: int = Field(..., description="The residue sequence number.")
+    insertion: str = Field(..., description="The insertion code, if applicable.")
+    chainID: str = Field(..., description="The chain ID.")
+    resolved: bool = Field(..., description="Indicates whether the residue is resolved (True) or not (False).")
+    segtype: str = Field(..., description="The segment type.")
+    model: int = Field(1, description="The model number, if applicable.")
+    id: str = Field(None, description="The residue ID.")
+    auth_asym_id: str = Field(None, description="The author asymmetry ID, if applicable.")
+    auth_comp_id: str = Field(None, description="The author component ID, if applicable.")
+    auth_seq_id: int = Field(None, description="The author sequence ID, if applicable.")
+    empty: bool = Field(False, description="Indicates whether the residue is empty (True) or not (False).")
+    link: Any = Field(None, description="The link to the residue, if applicable.")
+    recordname: str = Field('REMARK.465', description="The PDB record name for the residue.")
+
+    _yaml_header: ClassVar[str] = 'missings'
     """
     YAML header for EmptyResidue.
     """
-    
-    PDB_keyword='REMARK.465'
+
+    _PDB_keyword: ClassVar[str] = 'REMARK.465'
     """
     PDB keyword for EmptyResidue.
     """
 
-    mmCIF_name='pdbx_unobs_or_zero_occ_residues'
+    _mmCIF_name: ClassVar[str] = 'pdbx_unobs_or_zero_occ_residues'
     """
     mmCIF name for EmptyResidue.
     """
 
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
+    def description(self):
+        return f"EmptyResidue: {self.chainID}_{self.resname}{self.resseqnum}{self.insertion}*"
     
-    @__init__.register(BaseRecord)
-    @__init__.register(PDBRecord)
-    def _from_pdbrecord(self,pdbrecord):
-        input_dict={
-            'model':pdbrecord.modelNum,
-            'resname':pdbrecord.resName,
-            'chainID':pdbrecord.chainID,
-            'resseqnum':pdbrecord.seqNum,
-            'insertion':pdbrecord.iCode,
-            'resolved':False,
-            'segtype':'UNSET'
-        }
-        super().__init__(input_dict)
-    
-    @__init__.register(CIFdict)
-    def _from_cifdict(self,cd):
-        mn=cd['pdb_model_num']
-        if type(mn)==str and mn.isdigit:
-            nmn=int(mn)
-        else:
-            nmn=1
-        input_dict={
-            'model':nmn,
-            'resname':cd['label_comp_id'],
-            'chainID':cd['label_asym_id'],
-            'resseqnum':int(cd['label_seq_id']),
-            'insertion':cd['pdb_ins_code'],
-            'resolved':False,
-            'segtype':'UNSET',
-            'auth_asym_id':cd['auth_asym_id'],
-            'auth_comp_id':cd['auth_comp_id'],
-            'auth_seq_id':int(cd['auth_seq_id']),
-        }
-        super().__init__(input_dict)
+    class Adapter:
+        """
+        Adapter class for converting between different representations of EmptyResidue.
+        This class provides methods to create an EmptyResidue from a PDBRecord, CIFdict, or a shortcode.
+        """
+        def __init__(self, resname=None, resseqnum=None, insertion=None, chainID=None, model=1, resolved=False, segtype='UNSET', auth_asym_id=None, auth_comp_id=None, auth_seq_id=None):
+            self.resname = resname
+            self.resseqnum = resseqnum
+            self.insertion = insertion
+            self.chainID = chainID
+            self.model = model
+            self.resolved = resolved
+            self.segtype = segtype
+            self.auth_asym_id = auth_asym_id
+            self.auth_comp_id = auth_comp_id
+            self.auth_seq_id = auth_seq_id
 
-    @__init__.register(str)
-    def _from_shortcode(self,shortcode):
-        # i:C:RRR###A
-        # i model number, optional, default 1
-        # C chain ID, optional, default 'A'
-        # RRR one or three-letter residue code
-        # ### integer residue sequence number
-        # A insertion code, optional, default ''
-        tokens=shortcode.split(':')
-        has_modelnum=len(tokens)>2
-        model_idx=-1
-        chain_idx=-1
-        model=1
-        chainID='A'
-        if has_modelnum:
-            model_idx=0
-            model=int(tokens[model_idx])
-        has_chainID=len(tokens)>1
-        if has_chainID:
-            chain_idx=model_idx+1
-            chainID=tokens[chain_idx]
-        res_idx=chain_idx+1
-        resncode=tokens[res_idx]
-        rescode=''
-        ri=''
-        okrescode=True
-        for byte in resncode:
-            if byte.isalpha() and okrescode:
-                rescode=rescode+byte
+        def to_dict(self):
+            return {k:v for k,v in self.__dict__.items() if v is not None}
+
+        def to_input_str(self):
+            return f"{self.model}:{self.chainID}:{self.resname}{self.resseqnum}{self.insertion}"
+        
+        @classmethod
+        def from_pdbrecord(cls, pdbrecord: Union[PDBRecord, BaseRecord]) -> "EmptyResidue.Adapter":
+            input_dict={
+                'model':pdbrecord.modelNum,
+                'resname':pdbrecord.resName,
+                'chainID':pdbrecord.chainID,
+                'resseqnum':pdbrecord.seqNum,
+                'insertion':pdbrecord.iCode,
+                'resolved':False,
+                'segtype':'UNSET'
+            }
+            return cls(**input_dict)
+
+        @classmethod
+        def from_cifdict(cls, cd: CIFdict) -> "EmptyResidue.Adapter":
+            mn=cd['pdb_model_num']
+            if type(mn)==str and mn.isdigit:
+                nmn=int(mn)
             else:
-                okrescode=False
-                ri=ri+byte
-        rescode=rescode.upper()
-        if len(rescode)==1:
-            rescode=Labels.res_123[rescode]
-        r,i=split_ri(ri)
-        input_dict={
-            'model':model,
-            'resname':rescode,
-            'chainID':chainID,
-            'resseqnum':r,
-            'insertion':i,
-            'resolved':False,
-            'segtype':'UNSET',
-        }
-        super().__init__(input_dict)
+                nmn=1
+            input_dict={
+                'model':nmn,
+                'resname':cd['label_comp_id'],
+                'chainID':cd['label_asym_id'],
+                'resseqnum':int(cd['label_seq_id']),
+                'insertion':cd['pdb_ins_code'],
+                'resolved':False,
+                'segtype':'UNSET',
+                'auth_asym_id':cd['auth_asym_id'],
+                'auth_comp_id':cd['auth_comp_id'],
+                'auth_seq_id':int(cd['auth_seq_id']),
+            }
+            return cls(**input_dict)
+
+        @classmethod
+        def from_shortcode(cls, shortcode: str) -> "EmptyResidue.Adapter":
+            # i:C:RRR###A
+            # i model number, optional, default 1
+            # C chain ID, optional, default 'A'
+            # RRR one or three-letter residue code
+            # ### integer residue sequence number
+            # A insertion code, optional, default ''
+            tokens=shortcode.split(':')
+            has_modelnum=len(tokens)>2
+            model_idx=-1
+            chain_idx=-1
+            model=1
+            chainID='A'
+            if has_modelnum:
+                model_idx=0
+                model=int(tokens[model_idx])
+            has_chainID=len(tokens)>1
+            if has_chainID:
+                chain_idx=model_idx+1
+                chainID=tokens[chain_idx]
+            res_idx=chain_idx+1
+            resncode=tokens[res_idx]
+            rescode=''
+            ri=''
+            okrescode=True
+            for byte in resncode:
+                if byte.isalpha() and okrescode:
+                    rescode=rescode+byte
+                else:
+                    okrescode=False
+                    ri=ri+byte
+            rescode=rescode.upper()
+            if len(rescode)==1:
+                rescode=Labels.res_123[rescode]
+            r,i=split_ri(ri)
+            input_dict={
+                'model':model,
+                'resname':rescode,
+                'chainID':chainID,
+                'resseqnum':r,
+                'insertion':i,
+                'resolved':False,
+                'segtype':'UNSET',
+            }
+            return cls(**input_dict)
+    
+    @BaseObj.from_input.register(Adapter)
+    @classmethod
+    def _from_adapter(cls, adapter: Adapter):
+        """
+        Create an EmptyResidue from an Adapter instance.
+        
+        Parameters
+        ----------
+        adapter : Adapter
+            An instance of the Adapter class containing residue information.
+        
+        Returns
+        -------
+        EmptyResidue
+            An instance of EmptyResidue initialized with the data from the adapter.
+        """
+        input_dict = adapter.to_dict()
+        return cls(**input_dict)
+
+    @singledispatchmethod
+    @classmethod
+    def new(cls, input_obj: Any):
+        raise TypeError(f"Cannot create EmptyResidue from {type(input_obj)}. Use EmptyResidue.Adapter.from_pdbrecord or EmptyResidue.Adapter.from_cifdict instead.")
+    
+    @new.register(BaseRecord|PDBRecord)
+    @classmethod
+    def _from_pdbrecord(cls, pdbrecord: Union[BaseRecord, PDBRecord]) -> "EmptyResidue":
+        adapter = cls.Adapter.from_pdbrecord(pdbrecord)
+        return cls._from_adapter(adapter)
+
+    @new.register(CIFdict)
+    @classmethod
+    def _from_cifdict(cls, cd: CIFdict) -> "EmptyResidue":
+        adapter = cls.Adapter.from_cifdict(cd)
+        return cls._from_adapter(adapter)
+    
+    @new.register(str)
+    @classmethod
+    def _from_shortcode(cls, shortcode: str) -> "EmptyResidue":
+        adapter = cls.Adapter.from_shortcode(shortcode)
+        return cls._from_adapter(adapter)
 
     def __str__(self):
         return f'{self.chainID}_{self.resname}{self.resseqnum}{self.insertion}*'
@@ -192,16 +268,22 @@ class EmptyResidue(AncestorAwareObj):
         return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>5d}{:1s}'.format(record_name,
         code,self.model,self.resname,self.chainID,self.resseqnum,self.insertion)
 
-class EmptyResidueList(AncestorAwareObjList):
+class EmptyResidueList(BaseObjList[EmptyResidue]):
     """
     A class for handling lists of :class:`EmptyResidue` objects.
     This class is used to manage collections of residues that are not present in the molecular structure,
     such as missing residues in a PDB file.
 
-    This class does not add anything beyond the :class:`~pestifer.core.baseobj.AncestorAwareObjList` class.
+    This class does not add anything beyond the :class:`~pestifer.core.baseobj.BaseObjList` class.
     """
-    pass
+    def describe(self):
+        return f'<EmptyResidueList with {len(self)} residues>'
+    
+    def _validate_item(self, item):
+        if not isinstance(item, EmptyResidue):
+            raise TypeError(f"Item must be an instance of EmptyResidue, got {type(item)}")
 
+#TODO: update!
 class Residue(EmptyResidue):
     """
     A class for handling residues in a molecular structure.
