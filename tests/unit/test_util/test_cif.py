@@ -174,7 +174,7 @@ class TestCIF(unittest.TestCase):
         obj=pr.getObj('atom_site')
         Atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
         obj=pr.getObj('struct_ref_seq_dif')
-        Seqadvs=SeqadvList([Seqadv(CIFdict(obj,i)) for i in range(len(obj))])
+        Seqadvs=SeqadvList([Seqadv.new(CIFdict(obj,i)) for i in range(len(obj))])
         obj=pr.getObj('pdbx_unobs_or_zero_occ_residues')
         EmptyResidues=EmptyResidueList([EmptyResidue(CIFdict(obj,i)) for i in range(len(obj))])
         fromAtoms=ResidueList(Atoms)

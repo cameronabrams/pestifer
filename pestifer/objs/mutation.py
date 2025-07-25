@@ -78,14 +78,15 @@ class Mutation(BaseObj):
         return f"Mutation(chainID={self.chainID}, origresname={self.origresname}, resseqnum={self.resseqnum}, insertion={self.insertion}, newresname={self.newresname}, typekey={self.typekey}, pdbx_auth_seq_num={self.pdbx_auth_seq_num})"
     
     class Adapter:
-        def __init__(self, chainID: str, origresname: str, resseqnum: int, insertion: str, newresname: str, typekey: str):
+        def __init__(self, chainID: str, origresname: str, resseqnum: int, insertion: str, newresname: str, typekey: str, pdbx_auth_seq_num: int = None):
             self.chainID = chainID
             self.origresname = origresname
             self.resseqnum = resseqnum
             self.insertion = insertion
             self.newresname = newresname
             self.typekey = typekey
-        
+            self.pdbx_auth_seq_num = pdbx_auth_seq_num
+
         @classmethod
         def from_string(cls, raw: str):
             """
@@ -127,8 +128,18 @@ class Mutation(BaseObj):
             Adapter
                 An Adapter instance initialized with the values from the Seqadv object.
             """
-            return cls(chainID=seqadv.chainID, origresname=seqadv.resname, resseqnum=seqadv.resseqnum, insertion=seqadv.insertion, newresname=seqadv.dbRes, typekey=seqadv.typekey)
+            return cls(chainID=seqadv.chainID, origresname=seqadv.resname, resseqnum=seqadv.resseqnum, insertion=seqadv.insertion, newresname=seqadv.dbRes, typekey=seqadv.typekey, pdbx_auth_seq_num=seqadv.pdbx_auth_seq_num)
 
+        def to_dict(self) -> dict:
+            """
+            Convert the Adapter instance to a dictionary representation.
+            
+            Returns
+            -------
+            dict
+                A dictionary containing the attributes of the Adapter instance.
+            """
+            return {k: v for k, v in self.__dict__.items() if v is not None}
 
     @BaseObj.from_input.register(Adapter)
     @classmethod
@@ -146,8 +157,7 @@ class Mutation(BaseObj):
         Mutation
             A new Mutation instance initialized with the attributes from the adapter.
         """
-        input_dict = adapter.__dict__
-        return cls(**input_dict)
+        return cls(**(adapter.to_dict()))
 
     @singledispatchmethod
     @classmethod

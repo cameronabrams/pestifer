@@ -6,19 +6,22 @@ to free cysteine residues.  This is handled by the SSBondDelete class.
 """
 
 from .ssbond import SSBond, SSBondList
-
+from typing import ClassVar
 class SSBondDelete(SSBond):
     """
     A class for handling deletion of SSBonds.
     """
 
-    yaml_header='ssbondsdelete'
+    def describe(self):
+        return f"SSBondDelete(chainID1={self.chainID1}, resseqnum1={self.resseqnum1}, insertion1={self.insertion1}, chainID2={self.chainID2}, resseqnum2={self.resseqnum2}, insertion2={self.insertion2})"
+
+    _yaml_header: ClassVar[str] = 'ssbondsdelete'
     """
     YAML header for SSBondDelete objects.
     This header is used to identify SSBondDelete objects in YAML files.
     """
-    
-    objcat='topol'
+
+    _objcat: ClassVar[str] = 'topol'
     """
     Category of the SSBondDelete object.
     This categorization is used to group SSBondDelete objects in the object manager.

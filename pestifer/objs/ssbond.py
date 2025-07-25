@@ -2,24 +2,28 @@
 """
 Disufulfide bonds are covalent linkages between two CYS residues in a protein.
 These are represented in PDB files as SSBOND records, and in mmCIF files
-as struct_conn records."""
+as struct_conn records.
+"""
 import logging
 logger=logging.getLogger(__name__)
 
 from functools import singledispatchmethod
 from pidibble.pdbrecord import PDBRecord
 
-from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from pydantic import Field
+from typing import ClassVar, Optional, Any
+
+from ..core.baseobj_new import BaseObj, BaseObjList
 from ..util.cifutil import CIFdict
 from ..core.scripters import PsfgenScripter
-from ..core.stringthings import split_ri
+from ..core.stringthings import split_ri, join_ri
 
-class SSBond(AncestorAwareObj):
+class SSBond(BaseObj):
     """
     A class for handling disulfide bonds between two CYS residues in a protein.
     """
 
-    req_attr=AncestorAwareObj.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
+    _required_fields = ['chainID1', 'resseqnum1', 'insertion1', 'chainID2', 'resseqnum2', 'insertion2']
     """
     Required attributes for an SSBond object.
     These attributes must be provided when creating an SSBond object.
@@ -31,8 +35,8 @@ class SSBond(AncestorAwareObj):
     - ``resseqnum2``: The residue sequence number of the second CYS residue.
     - ``insertion2``: The insertion code of the second CYS residue.
     """
-    
-    opt_attr=AncestorAwareObj.opt_attr+['serial_number','residue1','residue2','resname1','resname2','sym1','sym2','length','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id']
+
+    _optional_fields = ['serial_number', 'residue1', 'residue2', 'resname1', 'resname2', 'sym1', 'sym2', 'length', 'ptnr1_auth_asym_id', 'ptnr2_auth_asym_id', 'ptnr1_auth_seq_id', 'ptnr2_auth_seq_id']
     """
     Optional attributes for an SSBond object.
     These attributes are not required but can be provided to enhance the SSBond object.
@@ -50,128 +54,296 @@ class SSBond(AncestorAwareObj):
     - ``ptnr1_auth_seq_id``: The author sequence ID of the first CYS residue in mmCIF format.
     - ``ptnr2_auth_seq_id``: The author sequence ID of the second CYS residue in mmCIF format.
     """
-    
-    yaml_header='ssbonds'
+
+    chainID1: str = Field(..., description="Chain ID of the first CYS residue")
+    resseqnum1: int = Field(..., description="Residue sequence number of the first CYS residue")
+    insertion1: str = Field(..., description="Insertion code of the first CYS residue")
+    chainID2: str = Field(..., description="Chain ID of the second CYS residue")
+    resseqnum2: int = Field(..., description="Residue sequence number of the second CYS residue")
+    insertion2: str = Field(..., description="Insertion code of the second CYS residue")
+
+    serial_number: int = Field(0, description="Serial number of the SSBond")
+    residue1: Optional[Any] = Field(None, description="First CYS residue object associated with the SSBond")
+    residue2: Optional[Any] = Field(None, description="Second CYS residue object associated with the SSBond")
+    resname1: str = Field('CYS', description="Residue name of the first CYS residue")
+    resname2: str = Field('CYS', description="Residue name of the second CYS residue")
+    sym1: str = Field('', description="Symmetry operator for the first CYS residue")
+    sym2: str = Field('', description="Symmetry operator for the second CYS residue")
+    length: float = Field(0.0, description="Length of the SSBond")
+    ptnr1_auth_asym_id: str = Field('', description="Author asym ID of the first CYS residue in mmCIF format")
+    ptnr2_auth_asym_id: str = Field('', description="Author asym ID of the second CYS residue in mmCIF format")
+    ptnr1_auth_seq_id: str = Field('', description="Author sequence ID of the first CYS residue in mmCIF format")
+    ptnr2_auth_seq_id: str = Field('', description="Author sequence ID of the second CYS residue in mmCIF format")
+
+    _yaml_header: ClassVar[str] = 'ssbonds'
     """
     YAML header for SSBond objects.
     This header is used to identify SSBond objects in YAML files.
     """
-    
-    objcat='topol'
+
+    _objcat: ClassVar[str] = 'topol'
     """
     Category of the SSBond object.
     This categorization is used to group SSBond objects in the object manager.
     """
-    
-    PDB_keyword='SSBOND'
+
+    _PDB_keyword: ClassVar[str] = 'SSBOND'
     """
     Keyword used to identify SSBond records in PDB files.
     """
 
-    mmCIF_name='struct_conn'
+    _mmCIF_name: ClassVar[str] = 'struct_conn'
     """
     Name of the SSBond record in mmCIF files.
     This is used to identify SSBond records in mmCIF files.
     """
+
+    def describe(self):
+        """
+        Describe the SSBond object.
+        
+        Returns
+        -------
+        str
+            A string description of the SSBond object, including chain IDs, residue sequence numbers, and insertion codes.
+        """
+        return f"SSBond(chainID1={self.chainID1}, resseqnum1={self.resseqnum1}, insertion1={self.insertion1}, chainID2={self.chainID2}, resseqnum2={self.resseqnum2}, insertion2={self.insertion2})"
     
+    class Adapter:
+        def __init__(self, chainID1: str, resseqnum1: int, insertion1: str, chainID2: str, resseqnum2: int, insertion2: str, serial_number: int = 0, residue1: Any = None, residue2: Any = None, resname1: str = 'CYS', resname2: str = 'CYS', sym1: str = '', sym2: str = '', length: float = 0.0):
+            self.chainID1 = chainID1
+            self.resseqnum1 = resseqnum1
+            self.insertion1 = insertion1
+            self.chainID2 = chainID2
+            self.resseqnum2 = resseqnum2
+            self.insertion2 = insertion2
+            self.serial_number = serial_number
+            self.residue1 = residue1
+            self.residue2 = residue2
+            self.resname1 = resname1
+            self.resname2 = resname2
+            self.sym1 = sym1
+            self.sym2 = sym2
+            self.length = length
+
+        @classmethod
+        def from_string(cls, raw: str):
+            # shortcode format: C_RRR-D_SSS
+            # C, D chainIDs
+            # RRR, SSS resids
+            s1, s2 = raw.split('-')
+            r1, i1 = split_ri(s1.split('_')[1])
+            r2, i2 = split_ri(s2.split('_')[1])
+            return cls(chainID1=s1.split('_')[0], resseqnum1=r1, insertion1=i1, chainID2=s2.split('_')[0], resseqnum2=r2, insertion2=i2)
+        
+        @classmethod
+        def from_pdbrecord(cls, pdbrecord: PDBRecord):
+            """
+            Create an Adapter instance from a PDBRecord.
+            
+            Parameters
+            ----------
+            pdbrecord : PDBRecord
+                The PDBRecord object containing the SSBond information.
+            
+            Returns
+            -------
+            Adapter
+                A new Adapter instance with the SSBond information from the PDBRecord.
+            """
+            return cls(
+                chainID1=pdbrecord.residue1.chainID,
+                resseqnum1=pdbrecord.residue1.seqNum,
+                insertion1=pdbrecord.residue1.iCode,
+                chainID2=pdbrecord.residue2.chainID,
+                resseqnum2=pdbrecord.residue2.seqNum,
+                insertion2=pdbrecord.residue2.iCode,
+                serial_number=pdbrecord.serNum,
+                resname1='CYS',
+                resname2='CYS',
+                sym1=pdbrecord.sym1,
+                sym2=pdbrecord.sym2,
+                length=pdbrecord.length
+            )
+
+        @classmethod
+        def from_cifdict(cls, cd: CIFdict):
+            """
+            Create an Adapter instance from a CIFdict.
+            
+            Parameters
+            ----------
+            cd : CIFdict
+                The CIFdict object containing the SSBond information.
+            
+            Returns
+            -------
+            Adapter
+                A new Adapter instance with the SSBond information from the CIFdict.
+            """
+            return cls(
+                chainID1=cd['ptnr1_label_asym_id'],
+                resseqnum1=int(cd['ptnr1_label_seq_id']),
+                insertion1=cd['pdbx_ptnr1_pdb_ins_code'],
+                chainID2=cd['ptnr2_label_asym_id'],
+                resseqnum2=int(cd['ptnr2_label_seq_id']),
+                insertion2=cd['pdbx_ptnr2_pdb_ins_code'],
+                serial_number=int(cd['id'].strip('disulf')),
+                resname1='CYS',
+                resname2='CYS',
+                sym1=cd['ptnr1_symmetry'],
+                sym2=cd['ptnr2_symmetry'],
+                length=float(cd['pdbx_dist_value'])
+            )
+    
+        @classmethod
+        def from_patchlist(cls, L: list):
+            s1,ri1=L[0].split(':')
+            s2,ri2=L[1].split(':')
+            r1,i1=split_ri(ri1)
+            r2,i2=split_ri(ri2)
+            input_dict={
+                'serial_number':0,
+                'resname1':'CYS',
+                'resname2':'CYS',
+                'chainID1':s1,
+                'chainID2':s2,
+                'resseqnum1':r1,
+                'resseqnum2':r2,
+                'insertion1':i1,
+                'insertion2':i2,
+                'length':0.0,
+                'sym1':'',
+                'sym2':'',
+                'residue1':None,
+                'residue2':None
+            }
+            return cls(**input_dict)
+
+        def to_string(self) -> str:
+            """
+            Convert the SSBond object to a shortcode string representation.
+            
+            Returns
+            -------
+            str
+                A shortcode string representation of the SSBond object in the format C_RRR-D_SSS.
+                Where C and D are chain IDs, and RRR and SSS are residue sequence numbers with insertion codes.
+            """
+            return f"{self.chainID1}_{join_ri(self.resseqnum1, self.insertion1)}-{self.chainID2}_{join_ri(self.resseqnum2, self.insertion2)}"
+    
+        def to_dict(self) -> dict:
+            """
+            Convert the SSBond object to a dictionary representation.
+            
+            Returns
+            -------
+            dict
+                A dictionary representation of the SSBond object, including all attributes.
+            """
+            return {k: v for k, v in self.__dict__.items() if not v is None}
+        
+    @BaseObj.from_input.register(Adapter)
+    @classmethod
+    def _from_adapter(cls, adapter: Adapter):
+        return cls(**adapter.to_dict())
+
     @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
-
-    @__init__.register(PDBRecord)
-    def _from_pdbrecord(self,pdbrecord):
-        input_dict={
-            'serial_number':pdbrecord.serNum,
-            'resname1':pdbrecord.residue1.resName,
-            'chainID1':pdbrecord.residue1.chainID,
-            'resseqnum1':pdbrecord.residue1.seqNum,
-            'insertion1':pdbrecord.residue1.iCode,
-            'resname2':pdbrecord.residue2.resName,
-            'chainID2':pdbrecord.residue2.chainID,
-            'resseqnum2':pdbrecord.residue2.seqNum,
-            'insertion2':pdbrecord.residue2.iCode,
-            'sym1':pdbrecord.sym1,
-            'sym2':pdbrecord.sym2,
-            'length':pdbrecord.length,
-            'residue1':None,
-            'residue2':None
-        }
-        super().__init__(input_dict)
-        logger.debug(f'parsed {self}')
+    @classmethod
+    def new(cls, raw: Any) -> "SSBond":
+        raise TypeError(f"Cannot create SSBond from {type(raw)}: {raw}")
     
-    @__init__.register(CIFdict)
-    def _from_cifdict(self,cd):
-        input_dict={
-            'serial_number':int(cd['id'].strip('disulf')),
-            'resname1':'CYS',
-            'resname2':'CYS',
-            'chainID1':cd['ptnr1_label_asym_id'],
-            'chainID2':cd['ptnr2_label_asym_id'],
-            'resseqnum1':int(cd['ptnr1_label_seq_id']),
-            'resseqnum2':int(cd['ptnr2_label_seq_id']),
-            'insertion1':cd['pdbx_ptnr1_pdb_ins_code'],
-            'insertion2':cd['pdbx_ptnr2_pdb_ins_code'],
-            'sym1':cd['ptnr1_symmetry'],
-            'sym2':cd['ptnr2_symmetry'],
-            'length':float(cd['pdbx_dist_value']),
-            'residue1':None,
-            'residue2':None,
-            'ptnr1_auth_asym_id':cd['ptnr1_auth_asym_id'],
-            'ptnr2_auth_asym_id':cd['ptnr2_auth_asym_id'],
-            'ptnr1_auth_seq_id':int(cd['ptnr1_auth_seq_id']),
-            'ptnr2_auth_seq_id':int(cd['ptnr2_auth_seq_id'])
-        }
-        super().__init__(input_dict)
+    @new.register(str)
+    @classmethod
+    def _from_string(cls, raw: str) -> "SSBond":
+        """
+        Create a new SSBond instance from a shortcode string.
+        
+        Parameters
+        ----------
+        raw : str
+            The shortcode string in the format C_RRR-D_SSS.
+        
+        Returns
+        -------
+        SSBond
+            A new instance of SSBond.
+        """
+        adapter = cls.Adapter.from_string(raw)
+        instance = cls._from_adapter(adapter)
+        return instance
     
-    @__init__.register(str)
-    def _from_shortcode(self,shortcode):
-        # shortcode format: C_RRR-D_SSS
-        # C, D chainIDs
-        # RRR, SSS resids
-        s1=shortcode.split('-')
-        r1=s1[0].split('_')
-        r2=s1[1].split('_')
-        input_dict={
-            'serial_number':0,
-            'resname1':'CYS',
-            'resname2':'CYS',
-            'chainID1':r1[0],
-            'chainID2':r2[0],
-            'resseqnum1':int(r1[1]),
-            'resseqnum2':int(r2[1]),
-            'insertion1':'',
-            'insertion2':'',
-            'length':0.0,
-            'sym1':'',
-            'sym2':'',
-            'residue1':None,
-            'residue2':None
-        }
-        super().__init__(input_dict)
+    @new.register(PDBRecord)
+    @classmethod
+    def _from_pdbrecord(cls, pdbrecord: PDBRecord) -> "SSBond":
+        """
+        Create a new SSBond instance from a PDBRecord.
+        
+        Parameters
+        ----------
+        pdbrecord : PDBRecord
+            The PDBRecord object containing the SSBond information.
+        
+        Returns
+        -------
+        SSBond
+            A new instance of SSBond.
+        """
+        adapter = cls.Adapter.from_pdbrecord(pdbrecord)
+        instance = cls._from_adapter(adapter)
+        return instance
+    
+    @new.register(CIFdict)
+    @classmethod
+    def _from_cifdict(cls, cd: CIFdict) -> "SSBond":
+        """
+        Create a new SSBond instance from a CIFdict.
+        
+        Parameters
+        ----------
+        cd : CIFdict
+            The CIFdict object containing the SSBond information.
+        
+        Returns
+        -------
+        SSBond
+            A new instance of SSBond.
+        """
+        adapter = cls.Adapter.from_cifdict(cd)
+        instance = cls._from_adapter(adapter)
+        return instance
+    
+    @new.register(list)
+    @classmethod
+    def _from_patchlist(cls, L: list) -> "SSBond":
+        """
+        Create a new SSBond instance from a patch list.
+        
+        Parameters
+        ----------
+        L : list
+            A list containing two elements, each representing a residue in the format 'C:nnn' or 'D:nnn'.
+        
+        Returns
+        -------
+        SSBond
+            A new instance of SSBond.
+        """
+        adapter = cls.Adapter.from_patchlist(L)
+        instance = cls._from_adapter(adapter)
+        return instance
 
-    @__init__.register(list)
-    def _from_patchlist(self,L):
-        s1,ri1=L[0].split(':')
-        s2,ri2=L[1].split(':')
-        r1,i1=split_ri(ri1)
-        r2,i2=split_ri(ri2)
-        input_dict={
-            'serial_number':0,
-            'resname1':'CYS',
-            'resname2':'CYS',
-            'chainID1':s1,
-            'chainID2':s2,
-            'resseqnum1':r1,
-            'resseqnum2':r2,
-            'insertion1':i1,
-            'insertion2':i2,
-            'length':0.0,
-            'sym1':'',
-            'sym2':'',
-            'residue1':None,
-            'residue2':None
-        }
-        super().__init__(input_dict)
+    def to_input_string(self) -> str:
+        """
+        Convert the SSBond object to a string representation for input.
+        
+        Returns
+        -------
+        str
+            A string representation of the SSBond object in the format C_RRR-D_SSS.
+            Where C and D are chain IDs, and RRR and SSS are residue sequence numbers with insertion codes.
+        """
+        return self.Adapter(**(self.model_dump())).to_string()
 
     def __str__(self):
         """
@@ -180,22 +352,7 @@ class SSBond(AncestorAwareObj):
         of both residues involved in the SSBond.
         If the residue attributes are set, it uses their chain IDs, sequence numbers, and insertion codes instead.
         """
-        c1=self.chainID1
-        r1=self.resseqnum1
-        i1=self.insertion1
-        if self.residue1:
-            c1=self.residue1.chainID
-            r1=self.residue1.resseqnum
-            i1=self.residue1.insertion
-        c2=self.chainID2
-        r2=self.resseqnum2
-        i2=self.insertion2
-        if self.residue2:
-            c2=self.residue2.chainID
-            r2=self.residue2.resseqnum
-            i2=self.residue2.insertion
-        # return f'{self.chainID1}_{self.resseqnum1}{self.insertion1}-{self.chainID2}_{self.resseqnum2}{self.insertion2}'
-        return f'{c1}_{r1}{i1}-{c2}_{r2}{i2}'
+        return self.to_input_string()
 
     def pdb_line(self):
         """
@@ -244,12 +401,20 @@ class SSBond(AncestorAwareObj):
         r2=self.resseqnum2
         W.addline(f'patch DISU {c1}:{r1} {c2}:{r2}')
 
-class SSBondList(AncestorAwareObjList):
+class SSBondList(BaseObjList[SSBond]):
     """
     A class for handling a list of SSBond objects.
-    This class inherits from AncestorAwareObjList and provides methods to manage
+    This class inherits from BaseObjList and provides methods to manage
     a list of SSBond objects.
     """
+
+    def describe(self):
+        return f'SSBondList with {len(self)} SSBonds'
+    
+    def _validate_item(self, item):
+        if not isinstance(item, SSBond):
+            raise TypeError(f"Expected SSBond, got {type(item)}")
+        return True
 
     def assign_residues(self,Residues):
         """

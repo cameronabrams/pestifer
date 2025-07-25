@@ -29,7 +29,7 @@ class Seqadv(BaseObj):
     - ``chainID``: The chain ID of the segment where the sequence difference occurs.
     - ``resseqnum``: The residue sequence number where the difference occurs.
     - ``insertion``: The insertion code for the residue.
-    - ``typekey``: A key indicating the type of sequence difference (e.g., ``conflict``, ``cloning``, ``expression``, ``engineered``, ``variant``, ``insertion``, ``deletion``, ``microheterogeneity``, ``chromophore``, ``user``, ``_other_``).
+    - ``typekey``: A key indicating the type of sequence difference (e.g., ``conflict``, ``cloning``, ``expression tag``, ``engineered mutation``, ``variant``, ``insertion``, ``deletion``, ``microheterogeneity``, ``chromophore``, ``user``, ``_other_``).
     """
     
     _optional_fields = ['database', 'dbAccession', 'dbRes', 'dbSeq', 'pdbx_ordinal', 'pdbx_auth_seq_num', 'residue']
@@ -47,7 +47,7 @@ class Seqadv(BaseObj):
     """
 
     _attr_choices = {
-        'typekey': ['conflict', 'cloning', 'expression', 'engineered', 'variant', 'insertion', 'deletion', 'microheterogeneity', 'chromophore', 'user', '_other_']
+        'typekey': ['conflict', 'cloning', 'expression tag', 'engineered mutation', 'variant', 'insertion', 'deletion', 'microheterogeneity', 'chromophore', 'user', '_other_']
     }
     """
     Attribute choices for Seqadv objects.
@@ -63,10 +63,10 @@ class Seqadv(BaseObj):
     database: str = Field(None, description="Database name where the sequence difference is recorded")
     dbAccession: str = Field(None, description="Accession number of the sequence in the database")
     dbRes: str = Field(None, description="Residue name in the database")
-    dbSeq: int = Field(None, description="Sequence number in the database")
-    typekey: str = Field(..., description="Type of sequence difference (e.g., 'conflict', 'cloning', 'expression', 'engineered', 'variant', 'insertion', 'deletion', 'microheterogeneity', 'chromophore', 'user', '_other_')")
-    pdbx_ordinal: int = Field(None, description="Ordinal number of the sequence difference in mmCIF files")
-    pdbx_auth_seq_num: int = Field(None, description="Author-assigned sequence number in mmCIF files")
+    dbSeq: int = Field(0, description="Sequence number in the database")
+    typekey: str = Field('_other_', description="Type of sequence difference (e.g., 'conflict', 'cloning', 'expression', 'engineered', 'variant', 'insertion', 'deletion', 'microheterogeneity', 'chromophore', 'user', '_other_')")
+    pdbx_ordinal: int = Field(0, description="Ordinal number of the sequence difference in mmCIF files")
+    pdbx_auth_seq_num: int = Field(0, description="Author-assigned sequence number in mmCIF files")
     residue: Any = Field(None, description="Corresponding Residue object, if available")
 
     _yaml_header: ClassVar[str] = 'seqadvs'
@@ -105,7 +105,7 @@ class Seqadv(BaseObj):
         return f"Seqadv(idCode={self.idCode}, resname={self.resname}, chainID={self.chainID}, resseqnum={self.resseqnum}, insertion={self.insertion}, typekey={self.typekey})"
     
     class Adapter:
-        def __init__(self, idCode: str, resname: str, chainID: str, resseqnum: int, insertion: str, database: str = None, dbAccession: str = None, dbRes: str = None, dbSeq: int = None, typekey: str = None):
+        def __init__(self, idCode: str, resname: str, chainID: str, resseqnum: int, insertion: str, database: str = None, dbAccession: str = None, dbRes: str = None, dbSeq: int = 0, typekey: str = None, pdbx_ordinal: int = 0, pdbx_auth_seq_num: int = 0, residue: Any = None):
             self.idCode = idCode
             self.resname = resname
             self.chainID = chainID
@@ -116,10 +116,14 @@ class Seqadv(BaseObj):
             self.dbRes = dbRes
             self.dbSeq = dbSeq
             self.typekey = typekey
+            self.pdbx_ordinal = pdbx_ordinal
+            self.pdbx_auth_seq_num = pdbx_auth_seq_num
+            self.residue = residue
 
         @classmethod
-        def from_pdbrecord(self, PDBRecord):
-            return self(
+        def from_pdbrecord(cls, PDBRecord):
+            con=PDBRecord.conflict.lower() if hasattr(PDBRecord,'conflict') else None
+            return cls(
                 idCode=PDBRecord.idCode,
                 resname=PDBRecord.residue.resName,
                 chainID=PDBRecord.residue.chainID,
@@ -129,11 +133,12 @@ class Seqadv(BaseObj):
                 dbAccession=PDBRecord.dbAccession,
                 dbRes=PDBRecord.dbRes,
                 dbSeq=PDBRecord.dbSeq,
-                typekey=self.seqadv_details_keyword(PDBRecord.conflict)
+                typekey=con
             )
 
         @classmethod
         def from_cifdict(cls, cd: CIFdict):
+            con=cd['details'].lower() if 'details' in cd else None
             input_dict = {
                 'idCode': cd['pdbx_pdb_id_code'],
                 'resname': cd['mon_id'],
@@ -143,8 +148,8 @@ class Seqadv(BaseObj):
                 'database': cd['pdbx_seq_db_name'],
                 'dbAccession': cd['pdbx_seq_db_accession_code'],
                 'dbRes': cd['db_mon_id'],
-                'dbSeq': int(cd['pdbx_seq_db_seq_num']) if cd['pdbx_seq_db_seq_num'].isdigit() else None,
-                'typekey': cls.seqadv_details_keyword(cd['details']),
+                'dbSeq': int(cd['pdbx_seq_db_seq_num']) if cd['pdbx_seq_db_seq_num'].isdigit() else -1,
+                'typekey': con,
                 'pdbx_auth_seq_num': int(cd['pdbx_auth_seq_num']),
                 'pdbx_ordinal': cd.get('pdbx_ordinal', None),
             }

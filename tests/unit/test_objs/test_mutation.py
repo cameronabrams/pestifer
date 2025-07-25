@@ -1,5 +1,7 @@
 import unittest
 from pestifer.objs.mutation import Mutation, MutationList
+from pidibble.pdbparse import PDBParser
+from pestifer.objs.seqadv import Seqadv
 
 class TestMutation(unittest.TestCase):
     def test_mutation_creation(self):
@@ -34,3 +36,18 @@ class TestMutation(unittest.TestCase):
         self.assertEqual(mutation.newresname, "GLY")
         self.assertEqual(mutation.typekey, "user")
         self.assertEqual(mutation.pdbx_auth_seq_num, None)
+
+    def test_mutation_from_seqadv(self):
+        p=PDBParser(filepath='data/4zmj.pdb').parse()
+        pr=p.parsed[Seqadv._PDB_keyword][0]
+        seqadv = Seqadv.new(pr)
+        self.assertIsInstance(seqadv, Seqadv)
+        m=Mutation.new(seqadv)
+        self.assertIsInstance(m, Mutation)
+        self.assertEqual(m.chainID, seqadv.chainID)
+        self.assertEqual(m.origresname, seqadv.resname)
+        self.assertEqual(m.resseqnum, seqadv.resseqnum)
+        self.assertEqual(m.insertion, seqadv.insertion)
+        self.assertEqual(m.newresname, seqadv.dbRes)
+        self.assertEqual(m.typekey, seqadv.typekey)
+        self.assertEqual(m.pdbx_auth_seq_num, seqadv.pdbx_auth_seq_num)
