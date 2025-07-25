@@ -9,25 +9,27 @@ Mutations can be inferred directly from coordinate-file metadata or supplied by 
 user.
 """
 import logging
+import pdb
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
-
+from typing import ClassVar, Any
+from pydantic import Field
 from .seqadv import Seqadv
 
-from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.baseobj_new import BaseObj, BaseObjList
 from ..core.labels import Labels
-from ..core.stringthings import split_ri
+from ..core.stringthings import split_ri, join_ri
 
-class Mutation(AncestorAwareObj):
+class Mutation(BaseObj):
     """
     A class for handling single-residue mutations
     """
 
-    req_attr=AncestorAwareObj.req_attr+['chainID','origresname','resseqnum','insertion','newresname','typekey']
+    _required_fields = ['chainID', 'origresname', 'resseqnum', 'insertion', 'newresname', 'typekey']
     """
     Required attributes for a Mutation object.
     These attributes must be provided when creating a Mutation object.
-    
+
     - ``chainID``: The chain ID of the segment where the mutation occurs.
     - ``origresname``: The original residue name at the mutation site.
     - ``resseqnum``: The residue number where the mutation is made.
@@ -36,80 +38,145 @@ class Mutation(AncestorAwareObj):
     - ``typekey``: A key indicating the type of mutation (e.g., ``user``, ``author``, ``mmCIF``).
     """
 
-    opt_attr=AncestorAwareObj.opt_attr+['pdbx_auth_seq_num']
-    """ 
+    _optional_fields = ['pdbx_auth_seq_num']
+    """
     Optional attributes for a Mutation object.
     These attributes may be present but are not required.
-    
+
     - ``pdbx_auth_seq_num``: The PDBx author sequence number, which is used in mmCIF files to indicate the residue number.
     """
 
-    yaml_header='mutations'
+    chainID: str = Field(..., description="Chain ID of the segment where the mutation occurs")
+    origresname: str = Field(..., description="Original residue name at the mutation site")
+    resseqnum: int = Field(..., description="Residue sequence number where the mutation is made")
+    insertion: str = Field(..., description="Insertion code for the original residue")
+    newresname: str = Field(..., description="New residue name to be mutated to")
+    typekey: str = Field(..., description="Key indicating the type of mutation (e.g., 'user', 'author', 'mmCIF')")
+    pdbx_auth_seq_num: int = Field(None, description="PDBx author sequence number, used in mmCIF files")
+
+    _yaml_header: ClassVar[str] =   'mutations'
     """
     YAML header for Mutation objects.
     This header is used to identify Mutation objects in YAML files.
     """
-    
-    objcat='seq'
+
+    _objcat: ClassVar[str] = 'seq'
     """
     Category of the Mutation object.
     This categorization is used to group Mutation objects in the object manager.
     """
 
+    def describe(self):
+        """
+        Describe the Mutation object.
+        
+        Returns
+        -------
+        str
+            A string description of the Mutation object, including chain ID, original residue name, residue sequence number, insertion code, new residue name, and type key.
+        """
+        return f"Mutation(chainID={self.chainID}, origresname={self.origresname}, resseqnum={self.resseqnum}, insertion={self.insertion}, newresname={self.newresname}, typekey={self.typekey}, pdbx_auth_seq_num={self.pdbx_auth_seq_num})"
+    
+    class Adapter:
+        def __init__(self, chainID: str, origresname: str, resseqnum: int, insertion: str, newresname: str, typekey: str):
+            self.chainID = chainID
+            self.origresname = origresname
+            self.resseqnum = resseqnum
+            self.insertion = insertion
+            self.newresname = newresname
+            self.typekey = typekey
+        
+        @classmethod
+        def from_string(cls, raw: str):
+            """
+            Create an Adapter instance from a shortcode string.
+            
+            Parameters
+            ----------
+            raw : str
+                The shortcode string in the format C:nnn,rrr,mmm.
+                where C is the chain ID, nnn is the original residue name, rrr is the residue sequence number plus optional insertion code, mmm is the new residue name.
+
+            Returns
+            -------
+            Adapter
+                An Adapter instance initialized with the parsed values from the shortcode string.
+            """
+            s1 = raw.split(':')
+            chainID = s1[0]
+            s2 = s1[1].split(',')
+            origresname = s2[0]
+            resseqnum,insertion = split_ri(s2[1])
+            newresname = s2[2]
+            typekey = 'user'  # Default type key
+
+            return cls(chainID=chainID, origresname=origresname, resseqnum=resseqnum, insertion=insertion, newresname=newresname, typekey=typekey)
+
+        @classmethod
+        def from_seqadv(cls, seqadv: Seqadv):
+            """
+            Create an Adapter instance from a Seqadv object.
+
+            Parameters
+            ----------
+            seqadv : Seqadv
+                The Seqadv object containing mutation information.
+
+            Returns
+            -------
+            Adapter
+                An Adapter instance initialized with the values from the Seqadv object.
+            """
+            return cls(chainID=seqadv.chainID, origresname=seqadv.resname, resseqnum=seqadv.resseqnum, insertion=seqadv.insertion, newresname=seqadv.dbRes, typekey=seqadv.typekey)
+
+
+    @BaseObj.from_input.register(Adapter)
+    @classmethod
+    def _from_adapter(cls, adapter: Adapter):
+        """
+        Create a Mutation object from an Adapter instance, registered by BaseObj.from_input.
+        
+        Parameters
+        ----------
+        adapter : Adapter
+            An instance of Mutation.Adapter containing the necessary attributes to create a Mutation object.
+        
+        Returns
+        -------
+        Mutation
+            A new Mutation instance initialized with the attributes from the adapter.
+        """
+        input_dict = adapter.__dict__
+        return cls(**input_dict)
+
     @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
-        if not hasattr(self,'insertion'):
-            self.insertion=''
-        if not hasattr(self,'typekey'):
-            self.typekey='unknown'
+    @classmethod
+    def new(cls, raw: Any) -> "Mutation":
+        pass
 
-    @__init__.register(Seqadv)
-    def _from_seqadv(self,sq):
-        input_dict={
-            'chainID':sq.chainID,
-            'origresname':sq.resname,
-            'newresname':sq.dbRes,
-            'resseqnum':sq.resseqnum,
-            'insertion':sq.insertion,
-            'typekey':sq.typekey
-        }
-        if hasattr(sq,'label_asym_id'):
-            input_dict['chainID']=sq.__dict__['label_aym_id']
-        super().__init__(input_dict)
-
-    @__init__.register(str)
-    def _from_shortcode(self,shortcode):
-        ### shortcode format: c:nnn,rrr,mmm or c:A###B
-        ### c: chainID
-        ### nnn: old resname, 1-byte rescode allowed
-        ### rrr: resseqnum
-        ### mmm: new resname, 1-byte rescode allowed
-        s1=shortcode.split(':')
-        chainID=s1[0]
-        s2=s1[1].split(',')
-        codetype='3' if len(s2)==3 else '1'
-        if codetype=='3':
-            ri=s2[1]
-            r,i=split_ri(ri)
-            orn=s2[0]
-            nrn=s2[2]
-        else:
-            s2=s2[0]
-            orn=Labels.res_123[s2[0]]
-            nrn=Labels.res_123[s2[-1]]
-            ri=s2[1:-1]
-            r,i=split_ri(ri)
-        input_dict={
-            'chainID':chainID, # assume author
-            'origresname':orn,
-            'resseqnum':int(r), # assume author!
-            'insertion':i,
-            'newresname':nrn,
-            'typekey':'user' # shortcodes are how users indicate mutations
-        }
-        logger.debug(f'user mutation {input_dict}')
-        super().__init__(input_dict)
+    @new.register(str)
+    @classmethod
+    def _from_shortcode(cls, raw: str) -> "Mutation":
+        return cls._from_adapter(cls.Adapter.from_string(raw))
+    
+    @new.register(Seqadv)
+    @classmethod
+    def _from_seqadv(cls, seqadv: Seqadv) -> "Mutation":
+        """
+        Create a new Mutation instance from a Seqadv object.
+        
+        Parameters
+        ----------
+        seqadv : Seqadv
+            The Seqadv object containing mutation information.
+        
+        Returns
+        -------
+        Mutation
+            A new Mutation instance initialized with the values from the Seqadv object.
+        """
+        adapter = cls.Adapter.from_seqadv(seqadv)
+        return cls._from_adapter(adapter)
 
     def __str__(self):
         return f'{self.chainID}:{self.origresname}{self.resseqnum}{self.insertion}{self.newresname}'
@@ -129,5 +196,11 @@ class Mutation(AncestorAwareObj):
             resseqnumi=f'{self.resseqnum}{self.insertion}'
             return f'    mutate {resseqnumi} {self.newresname}'
 
-class MutationList(AncestorAwareObjList):
-    pass
+class MutationList(BaseObjList[Mutation]):
+    def describe(self):
+        return f'MutationList with {len(self)} mutations'
+    
+    def _validate_item(self, item:Mutation):
+        if not isinstance(item, Mutation):
+            raise TypeError(f"Expected Mutation, got {type(item)}")
+        

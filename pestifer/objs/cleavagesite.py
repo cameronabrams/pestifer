@@ -72,6 +72,25 @@ class CleavageSite(BaseObj):
         }
         return cls(**input_dict)
     
+    @classmethod
+    def new(cls, raw: str) -> "CleavageSite":
+        """
+        Create a new CleavageSite instance from a shortcode string.
+        
+        Parameters
+        ----------
+        raw : str
+            The shortcode string in the format C:R1-R2.
+        
+        Returns
+        -------
+        CleavageSite
+            A new instance of CleavageSite.
+        """
+        adapter = cls.Adapter.from_string(raw)
+        instance = cls._from_shortcode(adapter)
+        return instance
+
     def to_input_string(self) -> str:
         """
         Converts the CleavageSite object to a string representation for input.

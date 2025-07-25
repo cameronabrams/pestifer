@@ -68,14 +68,8 @@ class BaseObj(BaseModel, ABC):
     def _from_namespace(cls, obj: Namespace) -> "BaseObj":
         return cls(**vars(obj))
 
-    def _copy_from_instance(cls, other):
-        if type(other) is not cls:
-            raise TypeError(...)
-        return cls(**other.model_dump())
-
-    def __init_subclass__(cls):
-        super().__init_subclass__()
-        cls.from_input.register(cls)(classmethod(cls._copy_from_instance))
+    def copy(self, deep=False) -> Self:
+        return self.model_copy(deep=deep)
 
     @model_validator(mode="before")
     @classmethod

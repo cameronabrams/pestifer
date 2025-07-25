@@ -142,9 +142,7 @@ class TestCrot(unittest.TestCase):
             )
 
     def test_crot_from_shortcode_phi(self):
-        shortcode = Crot.Adapter.from_string("PHI,A,5,15,180.0")
-        self.assertEqual(shortcode.angle, "PHI")
-        crot = Crot.from_input(shortcode)
+        crot = Crot.new("PHI,A,5,15,180.0")
         self.assertIsInstance(crot, Crot)
         self.assertEqual(crot.angle, "PHI")
         self.assertEqual(crot.chainID, "A")
@@ -154,9 +152,7 @@ class TestCrot(unittest.TestCase):
         self.assertEqual(crot.insertion2, "")
 
     def test_crot_from_shortcode_psi(self):
-        shortcode = Crot.Adapter.from_string("PSI,B,10,20,120.0")
-        self.assertEqual(shortcode.angle, "PSI")
-        crot = Crot.from_input(shortcode)
+        crot = Crot.new("PSI,B,10,20,120.0")
         self.assertIsInstance(crot, Crot)
         self.assertEqual(crot.angle, "PSI")
         self.assertEqual(crot.chainID, "B")
@@ -166,9 +162,7 @@ class TestCrot(unittest.TestCase):
         self.assertEqual(crot.insertion2, "")
     
     def test_crot_from_shortcode_omega(self):
-        shortcode = Crot.Adapter.from_string("OMEGA,C,15,25,240.0")
-        self.assertEqual(shortcode.angle, "OMEGA")
-        crot = Crot.from_input(shortcode)
+        crot = Crot.new("OMEGA,C,15,25,240.0")
         self.assertIsInstance(crot, Crot)
         self.assertEqual(crot.angle, "OMEGA")
         self.assertEqual(crot.chainID, "C")
@@ -178,9 +172,7 @@ class TestCrot(unittest.TestCase):
         self.assertEqual(crot.insertion2, "")
     
     def test_crot_from_shortcode_chi1(self):
-        shortcode = Crot.Adapter.from_string("CHI1,D,1X,60.0")
-        self.assertEqual(shortcode.angle, "CHI1")
-        crot = Crot.from_input(shortcode)
+        crot = Crot.new("CHI1,D,1X,60.0")
         self.assertIsInstance(crot, Crot)
         self.assertEqual(crot.angle, "CHI1")
         self.assertEqual(crot.chainID, "D")
@@ -189,9 +181,7 @@ class TestCrot(unittest.TestCase):
         self.assertEqual(crot.degrees, 60.0)
 
     def test_crot_from_shortcode_angleijk(self):
-        shortcode = Crot.Adapter.from_string("ANGLEIJK,E,2Y,NC,F,3Z,CN,4W,CA,90.0")
-        self.assertEqual(shortcode.angle, "ANGLEIJK")
-        crot = Crot.from_input(shortcode)
+        crot = Crot.new("ANGLEIJK,E,2Y,NC,F,3Z,CN,4W,CA,90.0")
         self.assertIsInstance(crot, Crot)
         self.assertEqual(crot.angle, "ANGLEIJK")
         self.assertEqual(crot.segnamei, "E")
@@ -206,9 +196,7 @@ class TestCrot(unittest.TestCase):
         self.assertEqual(crot.degrees, 90.0)
     
     def test_crot_from_shortcode_alpha_full(self):
-        shortcode = Crot.Adapter.from_string("ALPHA,G,8,12,16")
-        self.assertEqual(shortcode.angle, "ALPHA")
-        crot = Crot.from_input(shortcode)
+        crot = Crot.new("ALPHA,G,8,12,16")
         self.assertIsInstance(crot, Crot)
         self.assertEqual(crot.angle, "ALPHA")
         self.assertEqual(crot.chainID, "G")
@@ -220,9 +208,7 @@ class TestCrot(unittest.TestCase):
         self.assertEqual(crot.insertion3, "")
 
     def test_crot_from_shortcode_alpha_short(self):
-        shortcode = Crot.Adapter.from_string("ALPHA,G,8,12")
-        self.assertEqual(shortcode.angle, "ALPHA")
-        crot = Crot.from_input(shortcode)
+        crot = Crot.new("ALPHA,G,8,12")
         self.assertIsInstance(crot, Crot)
         self.assertEqual(crot.angle, "ALPHA")
         self.assertEqual(crot.chainID, "G")

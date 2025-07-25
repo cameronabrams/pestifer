@@ -188,7 +188,7 @@ class TestMutationList(unittest.TestCase):
         c=L.filter(chainID='A')
         self.assertEqual(len(c),0)
         for i in range(10):
-            L.append(Mutation(f'{chr(ord("A")+i)}:PHE,{123+i},TYR'))
+            L.append(Mutation.new(f'{chr(ord("A")+i)}:PHE,{123+i},TYR'))
         self.assertEqual(len(L),10)
         self.assertTrue(type(L),MutationList)
         m=L[0]

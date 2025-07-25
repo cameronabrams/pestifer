@@ -25,8 +25,7 @@ class TestCleavageSite(unittest.TestCase):
         self.assertEqual(cleavage_site.describe(), "CleavageSite(chainID=A, resseqnum1=10, insertion1=, resseqnum2=20, insertion2=)")
 
     def test_cleavage_site_from_shortcode(self):
-        shortcode = CleavageSite.Adapter.from_string("A:10-20")
-        cleavage_site = CleavageSite.from_input(shortcode)
+        cleavage_site = CleavageSite.new("A:10-20")
         self.assertIsInstance(cleavage_site, CleavageSite)
         self.assertEqual(cleavage_site.chainID, "A")
         self.assertEqual(cleavage_site.resseqnum1, 10)

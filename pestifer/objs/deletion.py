@@ -64,6 +64,24 @@ class Deletion(BaseObj):
     def _from_shortcode(cls, shortcode: Adapter):
         return cls(**(shortcode.to_dict()))
 
+    @classmethod
+    def new(cls, raw: str) -> "Deletion":
+        """
+        Create a new Deletion instance from a shortcode string.
+        
+        Parameters
+        ----------
+        raw : str
+            The shortcode string in the format C:nnn-ccc.
+        
+        Returns
+        -------
+        Deletion
+            A new Deletion instance.
+        """
+        adapter = cls.Adapter.from_string(raw)
+        return cls._from_shortcode(adapter)
+
     def to_input_string(self) -> str:
         """
         Convert the Deletion object to a string representation for input.

@@ -108,7 +108,7 @@ source:
         a=au.residues.get_atom('OD2',resseqnum=427,chainID='A')
         self.assertEqual(a.serial,3302)
 
-    def test_insertions(self):
+    def test_doinsertions(self):
         c=Config()
         directive=self.get_source_dict('6m0j')
         m=Molecule(source=directive["source"])

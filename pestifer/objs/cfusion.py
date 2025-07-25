@@ -8,7 +8,7 @@ import logging
 logger=logging.getLogger(__name__)
 
 from pydantic import Field
-from typing import ClassVar
+from typing import ClassVar, Optional
 
 from ..core.baseobj_new import BaseObj, BaseObjList
 from ..core.scripters import PsfgenScripter
@@ -20,8 +20,8 @@ class Cfusion(BaseObj):
     coordinate file to the C-termini of base-molecule segments
     """
 
-    _required_fields = ['sourcefile', 'sourceseg', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2', 'chainID', 'id']
-    _optional_fields = ['yaml_header', 'objcat']
+    _required_fields = ['sourcefile', 'sourceseg', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2', 'chainID']
+    _optional_fields = ['yaml_header', 'objcat', 'obj_id']
 
     sourcefile: str = Field(..., description="Path to the source coordinate file containing the residues to be fused")
     sourceseg: str = Field(..., description="Segment in the source file from which residues are taken")
@@ -30,15 +30,15 @@ class Cfusion(BaseObj):
     resseqnum2: int = Field(..., description="C-terminal residue number of the fusion sequence")
     insertion2: str = Field(..., description="Insertion code of the C-terminal residue")
     chainID: str = Field(..., description="Chain ID of the segment in the base molecule to which the fusion is applied")
-    id: int = Field(..., description="Unique identifier for the Cfusion object")
+    obj_id: Optional[int] = Field(0, description="Unique identifier for the Cfusion object")
 
     _yaml_header: ClassVar[str] = 'Cfusions'
     _objcat: ClassVar[str] = 'seq'
     _counter: ClassVar[int] = 0  # Class variable to keep track of Cfusion instances
 
     def describe(self):
-        return f"Cfusion(sourcefile={self.sourcefile}, sourceseg={self.sourceseg}, resseqnum1={self.resseqnum1}, insertion1={self.insertion1}, resseqnum2={self.resseqnum2}, insertion2={self.insertion2}, chainID={self.chainID}, id={self.id})"
-    
+        return f"Cfusion(sourcefile={self.sourcefile}, sourceseg={self.sourceseg}, resseqnum1={self.resseqnum1}, insertion1={self.insertion1}, resseqnum2={self.resseqnum2}, insertion2={self.insertion2}, chainID={self.chainID}, obj_id={self.obj_id})"
+
     class Adapter:
         """
         A class to represent the shortcode format for Cfusion, so that we can register to BaseObj.from_input rather than defining a local from_input.
@@ -51,7 +51,7 @@ class Cfusion(BaseObj):
         - ccc is the C-terminal residue of the fusion sequence
         - S is the chainID, segment in base-molecule the fusion is fused to
         """
-        def __init__(self, sourcefile: str, sourceseg: str, resseqnum1: int, insertion1: str, resseqnum2: int, insertion2: str, chainID: str, id: int = 0):
+        def __init__(self, sourcefile: str, sourceseg: str, resseqnum1: int, insertion1: str, resseqnum2: int, insertion2: str, chainID: str, obj_id: int = 0):
             self.sourcefile = sourcefile
             self.sourceseg = sourceseg
             self.resseqnum1 = resseqnum1
@@ -59,7 +59,7 @@ class Cfusion(BaseObj):
             self.resseqnum2 = resseqnum2
             self.insertion2 = insertion2
             self.chainID = chainID
-            self.id = id
+            self.obj_id = obj_id
 
         @classmethod
         def from_string(cls, raw: str):
@@ -81,10 +81,16 @@ class Cfusion(BaseObj):
     @classmethod
     def _from_str(cls, shortcode: Adapter):
         input_dict=shortcode.to_dict()
-        input_dict['id'] = cls._counter  # Use the class variable to set the id
+        input_dict['obj_id'] = cls._counter  # Use the class variable to set the id
         # Increment the counter for the next instance
         cls._counter+=1
         return cls(**input_dict)
+
+    @classmethod
+    def new(cls, raw: str) -> "Cfusion":
+        adapter = cls.Adapter.from_string(raw)
+        instance = cls._from_str(adapter)
+        return instance
 
     def to_input_string(self) -> str:
         """

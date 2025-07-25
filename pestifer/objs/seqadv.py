@@ -4,20 +4,22 @@
 of its database reference.  This is how authors report things like accidental mutations (conflicts),
 engineered mutations, and other differences.  These records are residue-specific.
 """
+from pydantic import Field
+from typing import ClassVar, Any
 import logging
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
 from pidibble.pdbrecord import PDBRecord
 
-from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.baseobj_new import BaseObj, BaseObjList
+
 from ..util.cifutil import CIFdict
 
-class Seqadv(AncestorAwareObj):
+class Seqadv(BaseObj):
     """
     A class for handling SEQADV/seq_dif records in input structure files 
     """
-
-    req_attr=AncestorAwareObj.req_attr+['idCode','resname','chainID','resseqnum','insertion','typekey']
+    _required_fields = ['idCode', 'resname', 'chainID', 'resseqnum', 'insertion', 'typekey']
     """
     Required attributes for a Seqadv object.
     These attributes must be provided when creating a Seqadv object.
@@ -30,7 +32,7 @@ class Seqadv(AncestorAwareObj):
     - ``typekey``: A key indicating the type of sequence difference (e.g., ``conflict``, ``cloning``, ``expression``, ``engineered``, ``variant``, ``insertion``, ``deletion``, ``microheterogeneity``, ``chromophore``, ``user``, ``_other_``).
     """
     
-    opt_attr=AncestorAwareObj.opt_attr+['database','dbAccession','dbRes','dbSeq','pdbx_ordinal','pdbx_auth_seq_num','residue']
+    _optional_fields = ['database', 'dbAccession', 'dbRes', 'dbSeq', 'pdbx_ordinal', 'pdbx_auth_seq_num', 'residue']
     """
     Optional attributes for a Seqadv object.
     These attributes may be present but are not required.
@@ -43,83 +45,184 @@ class Seqadv(AncestorAwareObj):
     - ``pdbx_auth_seq_num``: The author-assigned sequence number in mmCIF files.
     - ``residue``: The corresponding Residue object, if available. This attribute is used to link the Seqadv object to a specific Residue object in the structure, allowing for easier access to the residue's properties.
     """
-    attr_choices=AncestorAwareObj.attr_choices.copy()
+
+    _attr_choices = {
+        'typekey': ['conflict', 'cloning', 'expression', 'engineered', 'variant', 'insertion', 'deletion', 'microheterogeneity', 'chromophore', 'user', '_other_']
+    }
     """
     Attribute choices for Seqadv objects.
    
     - ``typekey``: A list of valid sequence difference types, including ``conflict``, ``cloning``, ``expression``, ``engineered``, ``variant``, ``insertion``, ``deletion``, ``microheterogeneity``, ``chromophore``, ``user``, and ``_other_``.
     """
-    attr_choices.update({'typekey':['conflict','cloning','expression','typekey','engineered','variant','insertion','deletion','microheterogeneity','chromophore','user','_other_']})
 
-    yaml_header='seqadvs'
+    idCode: str = Field(..., description="PDB ID code of the structure")
+    resname: str = Field(..., description="Residue name of the sequence difference")
+    chainID: str = Field(..., description="Chain ID of the segment where the sequence difference occurs")
+    resseqnum: int = Field(..., description="Residue sequence number where the difference occurs")
+    insertion: str = Field(..., description="Insertion code for the residue")
+    database: str = Field(None, description="Database name where the sequence difference is recorded")
+    dbAccession: str = Field(None, description="Accession number of the sequence in the database")
+    dbRes: str = Field(None, description="Residue name in the database")
+    dbSeq: int = Field(None, description="Sequence number in the database")
+    typekey: str = Field(..., description="Type of sequence difference (e.g., 'conflict', 'cloning', 'expression', 'engineered', 'variant', 'insertion', 'deletion', 'microheterogeneity', 'chromophore', 'user', '_other_')")
+    pdbx_ordinal: int = Field(None, description="Ordinal number of the sequence difference in mmCIF files")
+    pdbx_auth_seq_num: int = Field(None, description="Author-assigned sequence number in mmCIF files")
+    residue: Any = Field(None, description="Corresponding Residue object, if available")
+
+    _yaml_header: ClassVar[str] = 'seqadvs'
     """
     YAML header for Seqadv objects.
     This header is used to identify Seqadv objects in YAML files.
     """
-    
-    objcat='seq'
+
+    _objcat: ClassVar[str] = 'seq'
     """
     Object category for Seqadv objects.
     This categorization is used to group Seqadv objects in the object manager.
     """
 
-    PDB_keyword='SEQADV'
+    _PDB_keyword: ClassVar[str] = 'SEQADV'
     """
     PDB keyword for Seqadv objects.
     This keyword is used to identify Seqadv objects in PDB files.
     """
-    
-    mmCIF_name='struct_ref_seq_dif'
+
+    _mmCIF_name: ClassVar[str] = 'struct_ref_seq_dif'
     """
     mmCIF name for Seqadv objects.
     This name is used to identify Seqadv objects in mmCIF files.
     """
+
+    def describe(self):
+        """
+        Describe the Seqadv object.
+        
+        Returns
+        -------
+        str
+            A string description of the Seqadv object, including idCode, resname, chainID, resseqnum, insertion, and typekey.
+        """
+        return f"Seqadv(idCode={self.idCode}, resname={self.resname}, chainID={self.chainID}, resseqnum={self.resseqnum}, insertion={self.insertion}, typekey={self.typekey})"
+    
+    class Adapter:
+        def __init__(self, idCode: str, resname: str, chainID: str, resseqnum: int, insertion: str, database: str = None, dbAccession: str = None, dbRes: str = None, dbSeq: int = None, typekey: str = None):
+            self.idCode = idCode
+            self.resname = resname
+            self.chainID = chainID
+            self.resseqnum = resseqnum
+            self.insertion = insertion
+            self.database = database
+            self.dbAccession = dbAccession
+            self.dbRes = dbRes
+            self.dbSeq = dbSeq
+            self.typekey = typekey
+
+        @classmethod
+        def from_pdbrecord(self, PDBRecord):
+            return self(
+                idCode=PDBRecord.idCode,
+                resname=PDBRecord.residue.resName,
+                chainID=PDBRecord.residue.chainID,
+                resseqnum=PDBRecord.residue.seqNum,
+                insertion=PDBRecord.residue.iCode,
+                database=PDBRecord.database,
+                dbAccession=PDBRecord.dbAccession,
+                dbRes=PDBRecord.dbRes,
+                dbSeq=PDBRecord.dbSeq,
+                typekey=self.seqadv_details_keyword(PDBRecord.conflict)
+            )
+
+        @classmethod
+        def from_cifdict(cls, cd: CIFdict):
+            input_dict = {
+                'idCode': cd['pdbx_pdb_id_code'],
+                'resname': cd['mon_id'],
+                'chainID': cd['pdbx_pdb_strand_id'],
+                'resseqnum': int(cd['seq_num']),
+                'insertion': cd['pdbx_pdb_ins_code'],
+                'database': cd['pdbx_seq_db_name'],
+                'dbAccession': cd['pdbx_seq_db_accession_code'],
+                'dbRes': cd['db_mon_id'],
+                'dbSeq': int(cd['pdbx_seq_db_seq_num']) if cd['pdbx_seq_db_seq_num'].isdigit() else None,
+                'typekey': cls.seqadv_details_keyword(cd['details']),
+                'pdbx_auth_seq_num': int(cd['pdbx_auth_seq_num']),
+                'pdbx_ordinal': cd.get('pdbx_ordinal', None),
+            }
+            return cls(**input_dict)
+
+    @BaseObj.from_input.register(Adapter)
+    @classmethod
+    def _from_adapter(cls, adapter: Adapter):
+        """
+        Create a Seqadv object from an Adapter instance, registered by BaseObj.from_input.
+        
+        Parameters
+        ----------
+        adapter : Adapter
+            The Adapter instance containing the attributes of the Seqadv object.
+
+        Returns
+        -------
+        Seqadv
+            A new Seqadv instance created from the Adapter.
+        """
+        return cls(**(adapter.__dict__))
     
     @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
+    @classmethod
+    def new(cls, raw: Any) -> "Seqadv":
+        """
+        Create a new Seqadv instance from a shortcode string or other input.
+        
+        Parameters
+        ----------
+        raw : str or Adapter
+            The shortcode string in the format idCode:resname:chainID:resseqnum-insertion,typekey or an Adapter instance.
+        
+        Returns
+        -------
+        Seqadv
+            A new instance of Seqadv.
+        """
+        pass
 
-    @__init__.register(PDBRecord)
-    def _from_pdbrecord(self,pdbrecord):
-        input_dict={
-            'idCode':pdbrecord.idCode,
-            'resname':pdbrecord.residue.resName,
-            'chainID':pdbrecord.residue.chainID,
-            'resseqnum':pdbrecord.residue.seqNum,
-            'insertion':pdbrecord.residue.iCode,
-            'database':pdbrecord.database,
-            'dbAccession':pdbrecord.dbAccession,
-            'dbRes':pdbrecord.dbRes,
-            'dbSeq':pdbrecord.dbSeq,
-            'typekey':self.seqadv_details_keyword(pdbrecord.conflict),
-            'residue':None
-        }
-        super().__init__(input_dict)
-
-    @__init__.register(CIFdict)
-    def _from_cifdict(self,cd):
-
-        input_dict={
-            'idCode':cd['pdbx_pdb_id_code'],
-            'resname':cd['mon_id'],
-            'chainID':cd['pdbx_pdb_strand_id'],
-            'resseqnum':cd['seq_num'],
-            'insertion':cd['pdbx_pdb_ins_code'],
-            'database':cd['pdbx_seq_db_name'],
-            'dbAccession':cd['pdbx_seq_db_accession_code'],
-            'dbRes':cd['db_mon_id'],
-            'dbSeq':cd['pdbx_seq_db_seq_num'],
-            'typekey':self.seqadv_details_keyword(cd['details']),
-            'pdbx_auth_seq_num':cd['pdbx_auth_seq_num'],
-            'pdbx_ordinal':cd['pdbx_ordinal'],
-            'label_asym_id':'UNSET',
-            'residue':None
-        }
-        input_dict['resseqnum']=int(input_dict['resseqnum'])
-        input_dict['pdbx_auth_seq_num']=int(input_dict['pdbx_auth_seq_num'])
-        if input_dict['dbSeq'].isdigit():
-            input_dict['dbSeq']=int(input_dict['dbSeq'])
-        super().__init__(input_dict)
+    @new.register(PDBRecord)
+    @classmethod
+    def _from_pdbrecord(cls, pdb_record: PDBRecord) -> "Seqadv":
+        """
+        Create a new Seqadv instance from a PDBRecord.
+        
+        Parameters
+        ----------
+        pdb_record : PDBRecord
+            The PDBRecord instance containing the attributes of the Seqadv object.
+        
+        Returns
+        -------
+        Seqadv
+            A new Seqadv instance created from the PDBRecord.
+        """
+        adapter = cls.Adapter.from_pdbrecord(pdb_record)
+        return cls._from_adapter(adapter)
+    
+    @new.register(CIFdict)
+    @classmethod
+    def _from_cifdict(cls, cif_dict: CIFdict) -> "Seqadv":
+        """
+        Create a new Seqadv instance from a CIFdict.
+        
+        Parameters
+        ----------
+        cif_dict : CIFdict
+            The CIFdict instance containing the attributes of the Seqadv object.
+        
+        Returns
+        -------
+        Seqadv
+            A new Seqadv instance created from the CIFdict.
+        """
+        adapter = cls.Adapter.from_cifdict(cif_dict)
+        return cls._from_adapter(adapter)
 
     def seqadv_details_keyword(self,text):
         """
@@ -198,11 +301,32 @@ class Seqadv(AncestorAwareObj):
         #     logger.debug(f'...seqadv {self.typekey} auth {self.pdbx_pdb_strand_id}:{self.pdbx_auth_seq_num} cannot be resolved from current set of residues')
         # we'll assume that if this residue is not found, then this seqadv is never used anyway
 
-class SeqadvList(AncestorAwareObjList):
+class SeqadvList(BaseObjList[Seqadv]):
     """
     A class for handling lists of Seqadvs    
     """
-    def assign_residues(self,Residues):
+
+    def describe(self):
+        return f'SeqadvList with {len(self)} seqadvs'
+    
+    def _validate_item(self, item: Seqadv) -> None:
+        """
+        Validate that the item is an instance of Seqadv.
+        
+        Parameters
+        ----------
+        item : Seqadv
+            The item to validate.
+        
+        Raises
+        ------
+        TypeError
+            If the item is not an instance of Seqadv.
+        """
+        if not isinstance(item, Seqadv):
+            raise TypeError(f"Item must be an instance of Seqadv, got {type(item)}")
+
+    def assign_residues(self, Residues):
         """
         Assigns residues to each Seqadv in the list from the provided Residues. This method iterates over each Seqadv in the list and calls its ``assign_residue`` method  with the provided Residues. After assigning residues, it creates a new SeqadvList containing
         the Seqadv objects that have no assigned residue (i.e., their ``residue`` attribute is None).

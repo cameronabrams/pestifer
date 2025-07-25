@@ -39,8 +39,7 @@ class TestDeletion(unittest.TestCase):
         self.assertEqual(deletion2.insertion2, "")
 
     def test_deletion_from_shortcode(self):
-        shortcode = Deletion.Adapter.from_string("A:10-20")
-        deletion = Deletion.from_input(shortcode)
+        deletion = Deletion.new("A:10-20")
         self.assertIsInstance(deletion, Deletion)
         self.assertEqual(deletion.chainID, "A")
         self.assertEqual(deletion.resseqnum1, 10)

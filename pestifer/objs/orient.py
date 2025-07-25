@@ -7,26 +7,29 @@ coordinate set and aligns it with the specified axis.
 """
 import logging
 logger=logging.getLogger(__name__)
+from pydantic import Field
+from typing import ClassVar, Any
 from functools import singledispatchmethod
 
-from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.baseobj_new import BaseObj, BaseObjList
 from ..core.scripters import VMDScripter
 
-class Orient(AncestorAwareObj):
+class Orient(BaseObj):
     """
     A class for handling orientation of a coordinate set in VMD.
     """
 
-    req_attr=AncestorAwareObj.req_attr+['axis']
-    """
-    Required attributes for an Orient object.
-    These attributes must be provided when creating an Orient object.
-    
-    - ``axis``: The axis along which the coordinate set will be oriented.
+    _required_fields = ['axis']
     """
 
-    opt_attr=AncestorAwareObj.opt_attr+['refatom']
+    Required attributes for an Orient object.
+    These attributes must be provided when creating an Orient object.
+
+    - ``axis``: The axis along which the coordinate set will be oriented.
     """
+    _optional_fields = ['refatom']
+    """
+
     Optional attributes for an Orient object.
     These attributes may be present but are not required.
 
@@ -34,31 +37,97 @@ class Orient(AncestorAwareObj):
       the coordinate set is centered at the origin.
     """
 
-    yaml_header='orient'
+    axis: str = Field(..., description="Axis along which the coordinate set will be oriented (e.g., 'x', 'y', 'z')")
+    refatom: str = Field(None, description="Name of the reference atom to align the coordinate set with. If not specified, the coordinate set is centered at the origin.")
+
+    _yaml_header: ClassVar[str] = 'orient'
     """
     YAML header for Orient objects.
     This header is used to identify Orient objects in YAML files.
     """
-    
-    objcat='coord'
+
+    _objcat: ClassVar[str] = 'coord'
     """
     Category of the Orient object.
     This categorization is used to group Orient objects in the object manager.
     """
-   
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
-    
-    @__init__.register(str)
-    def _from_shortcode(self,shortcode):
-        logger.debug(f'orient shortcode {shortcode}')
-        dat=shortcode.split(',')
-        input_dict=dict(axis=dat[0])
-        if len(dat)>1:
-            input_dict['refatom']=dat[1]
-        super().__init__(input_dict)
 
+    def describe(self):
+        """
+        Describe the Orient object.
+        
+        Returns
+        -------
+        str
+            A string description of the Orient object, including axis and reference atom.
+        """
+        return f"Orient(axis={self.axis}, refatom={self.refatom})"
+    
+    class Adapter:
+        """
+        A class to represent the shortcode format for Orient, so that we can register to BaseObj.from_input rather than defining a local from_input.
+
+        The shortcode format is axis,refatom
+        where:
+        - axis is the axis along which the coordinate set will be oriented (e.g., 'x', 'y', 'z')
+        - refatom is the name of the reference atom to align the coordinate set with (optional)
+        """
+        def __init__(self, axis: str, refatom: str = None):
+            self.axis = axis
+            self.refatom = refatom
+
+        @classmethod
+        def from_string(cls, raw: str):
+            parts = raw.split(',')
+            if len(parts) == 1:
+                return cls(parts[0])
+            elif len(parts) == 2:
+                return cls(parts[0], parts[1])
+            else:
+                raise ValueError(f"Invalid format for Orient: {raw}")
+   
+    @BaseObj.from_input.register(Adapter)
+    @classmethod
+    def _from_adapter(cls, adapter: Adapter):
+        """
+        Create an Orient object from an Adapter instance, registered by BaseObj.from_input.
+        
+        Parameters
+        ----------
+        adapter : Adapter
+            The Adapter instance containing the axis and optional reference atom.
+
+        Returns
+        -------
+        Orient
+            A new Orient instance created from the Adapter.
+        """
+        return cls(axis=adapter.axis, refatom=adapter.refatom)
+
+    @singledispatchmethod
+    @classmethod
+    def new(cls, raw: Any) -> "Orient":
+        pass
+
+    @new.register(str)
+    @classmethod
+    def _from_str(cls, raw: str) -> "Orient":
+        """
+        Create a new Orient instance from a shortcode string.
+        
+        Parameters
+        ----------
+        raw : str
+            The shortcode string in the format axis,refatom.
+        
+        Returns
+        -------
+        Orient
+            A new instance of Orient.
+        """
+        adapter = cls.Adapter.from_string(raw)
+        return cls._from_shortcode(adapter)
+    
     def write_TcL(self,W:VMDScripter):
         """
         Write the Tcl commands to orient the coordinate set in VMD.
@@ -84,12 +153,19 @@ class Orient(AncestorAwareObj):
             W.addline(r'   $a move [transaxis x 180 degrees]')
             W.addline(r'}')
             
-class OrientList(AncestorAwareObjList):
+class OrientList(BaseObjList[Orient]):
     """
     A class for handling a list of Orient objects.
-    This class inherits from AncestorAwareObjList and provides methods to write Tcl commands
+    This class inherits from BaseObjList and provides methods to write Tcl commands
     for each Orient object in the list.
     """
+
+    def describe(self):
+        return f'OrientList with {len(self)} orientations'
+    
+    def _validate_item(self, item: Orient):
+        if not isinstance(item, Orient):
+            raise TypeError(f"Expected Orient instance, got {type(item)}")
 
     def write_TcL(self,W:VMDScripter):
         """

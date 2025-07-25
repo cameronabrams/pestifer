@@ -246,27 +246,33 @@ class Crot(BaseObj):
         """
         return cls(**(shortcode.to_dict()))
     
-    def to_input_string(self) -> str:
+    @classmethod
+    def new(cls, raw: str) -> "Crot":
         """
-        Converts the CleavageSite object to a string representation for input.
-
+        Creates a new Crot object from a raw string representation.
+        
+        Parameters
+        ----------
+        raw : str
+            The raw string representation of the Crot object.
+        
         Returns
         -------
-        str
-            A string representation of the CleavageSite object in the format:
-            C:R1-R2
+        Crot
+            A new Crot object initialized with the parameters from the raw string.
         """
-        return self.Adapter(**(self.model_dump())).to_string()
+        adapter = cls.Adapter.from_string(raw)
+        instance = cls._from_shortcode(adapter)
+        return instance
     
     def to_input_string(self) -> str:
         """
         Converts the Crot object to a string representation for input.
-        
+
         Returns
         -------
         str
-            A string representation of the Crot object in the format:
-            angle,chainID,resseqnum1,insertion1,resseqnum2,insertion2,degrees
+            A string representation of the Crot object.
         """
         return self.Adapter(**(self.model_dump())).to_string()
 
