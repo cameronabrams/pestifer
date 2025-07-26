@@ -15,6 +15,7 @@ from pidibble.baserecord import BaseRecord
 from pidibble.pdbrecord import PDBRecord
 
 from .atom import Atom, AtomList, Hetatm
+from ..objs.link import LinkList
 from ..core.baseobj_new import BaseObj, BaseObjList
 from ..core.labels import Labels
 from ..objs.seqadv import Seqadv, SeqadvList
@@ -294,7 +295,7 @@ class Residue(EmptyResidue):
     input_obj : :class:`~pestifer.molecule.atom.Atom`, :class:`~pestifer.molecule.atom.Hetatm`, :class:`~pestifer.molecule.residue.EmptyResidue`, str, or :class:`~pestifer.molecule.residue.Residue`
     """
 
-    req_attr=EmptyResidue.req_attr+['atoms']
+    _required_fields = ['atoms']
     """
     Required attributes for :class:`~pestifer.molecule.residue.Residue` in addition to those defined for :class:`~pestifer.molecule.residue.EmptyResidue`.
 
@@ -303,8 +304,9 @@ class Residue(EmptyResidue):
     atoms : :class:`~pestifer.molecule.atom.AtomList`
         A list of :class:`~pestifer.molecule.atom.Atom` objects that belong to this residue.
     """
+    atoms: AtomList = Field(default_factory=AtomList, description="A list of atoms that belong to this residue.")
 
-    opt_attr=EmptyResidue.opt_attr+['up','down','uplink','downlink']
+    _optional_fields = ['up', 'down', 'uplink', 'downlink']
     """
     Optional attributes for :class:`~pestifer.molecule.residue.Residue` in addition to those defined for :class:`~pestifer.molecule.residue.EmptyResidue`.
 
@@ -317,8 +319,12 @@ class Residue(EmptyResidue):
     - ``downlink``: list
         A list of links to residues that are connected to this residue in a downstream direction.
     """
+    up: list = Field(default_factory=BaseObjList, description="A list of residues linked to this residue in an upstream direction.")
+    down: list = Field(default_factory=BaseObjList, description="A list of residues linked to this residue in a downstream direction.")
+    uplink: list = Field(default_factory=LinkList, description="A list of links to residues connected to this residue in an upstream direction.")
+    downlink: list = Field(default_factory=LinkList, description="A list of links to residues connected to this residue in a downstream direction.")
 
-    ignore_attr=EmptyResidue.ignore_attr+['atoms','up','down','uplink','downlink']
+    _ignore_fields = ['atoms', 'up', 'down', 'uplink', 'downlink']
     """
     Attributes to ignore when comparing Residue objects.
     This includes the attributes defined in :class:`~pestifer.molecule.residue.EmptyResidue` as well as the additional attributes defined for :class:`~pestifer.molecule.residue.Residue`.
@@ -335,61 +341,105 @@ class Residue(EmptyResidue):
         A list of links to residues that are connected to this residue in a downstream direction.
     """
 
-    _counter=0
+    _counter: ClassVar[int] = 0
 
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
-    
-    @__init__.register(Atom)
-    @__init__.register(Hetatm)
-    def _from_atom(self,a):
-        input_dict={
-            'resseqnum':a.resseqnum,
-            'insertion':a.insertion,
-            'resname':a.resname,
-            'chainID':a.chainID,
-            'atoms':AtomList([a]),
-            'segtype':'UNSET',
-            'resolved':True
-        }
-        for cif_xtra in ['auth_seq_id','auth_comp_id','auth_asym_id']:
-            if hasattr(a,cif_xtra):
-                input_dict[cif_xtra]=a.__dict__[cif_xtra]
-        super().__init__(input_dict)
-        self.index=Residue._counter
-        Residue._counter+=1
-        self.down=[]
-        self.downlink=[]
-        self.up=[]
-        self.uplink=[]
+    def describe(self):
+        """
+        Returns a string description of the Residue object, including its chain ID, residue name, sequence number, and insertion code.
+        
+        Returns
+        -------
+        str
+            A string representation of the Residue object.
+        """
+        return f'<Residue {self.chainID}_{self.resname}{self.resseqnum}{self.insertion} ({len(self.atoms)} atoms)>'
 
-    @__init__.register(EmptyResidue)
-    def _from_emptyresidue(self,m):
-        input_dict={
-            'model':m.model,
-            'resseqnum':m.resseqnum,
-            'insertion':m.insertion,
-            'resname':m.resname,
-            'chainID':m.chainID,
-            'atoms':AtomList([]),
-            'segtype':'UNSET',
-            'resolved':False
-        }
-        for cif_xtra in ['auth_asym_id','auth_comp_id','auth_seq_id']:
-            if hasattr(m,cif_xtra):
-                input_dict[cif_xtra]=m.__dict__[cif_xtra]
-        super().__init__(input_dict)
-        self.index=Residue._counter
-        Residue._counter+=1
-        self.down=[]
-        self.downlink=[]
-        self.up=[]
-        self.uplink=[]
+    class Adapter(EmptyResidue.Adapter):
+        """
+        Adapter class for converting between different representations of Residue.
+        This class provides methods to create a Residue from a PDBRecord, CIFdict, or a shortcode.
+        It extends the :class:`EmptyResidue.Adapter` class to include additional attributes specific to Residue.
+        """
+        @classmethod
+        def from_atom(cls, a: Union[Atom, Hetatm]) -> "Residue.Adapter":
+            """
+            Create a Residue.Adapter from an Atom or Hetatm object.
+            
+            Parameters
+            ----------
+            a : :class:`~pestifer.molecule.atom.Atom` or :class:`~pestifer.molecule.atom.Hetatm`
+                The atom or hetatm object to create the residue adapter from.
+            
+            Returns
+            -------
+            Residue.Adapter
+                An instance of Residue.Adapter initialized with the atom's attributes.
+            """
+            return cls(resname=a.resname, resseqnum=a.resseqnum, insertion=a.insertion, chainID=a.chainID,
+                       model=a.modelNum, resolved=True, segtype='UNSET', atoms = AtomList([a]),
+                       auth_asym_id=getattr(a, 'auth_asym_id', None),
+                       auth_comp_id=getattr(a, 'auth_comp_id', None),
+                       auth_seq_id=getattr(a, 'auth_seq_id', None))
+        
 
-    @__init__.register(str)
-    def _from_shortcode(self,shortcode):
-        self.__init__(EmptyResidue(shortcode))
+        @classmethod
+        def from_emptyresidue(cls, m: "EmptyResidue") -> "Residue.Adapter":
+            """
+            Create a Residue.Adapter from an EmptyResidue object.
+            
+            Parameters
+            ----------
+            m : :class:`~pestifer.molecule.residue.EmptyResidue`
+                The empty residue object to create the residue adapter from.
+            
+            Returns
+            -------
+            Residue.Adapter
+                An instance of Residue.Adapter initialized with the empty residue's attributes.
+            """
+            return cls(resname=m.resname, resseqnum=m.resseqnum, insertion=m.insertion, chainID=m.chainID,
+                       model=m.model, resolved=False, segtype='UNSET', atoms=AtomList([]),
+                       auth_asym_id=getattr(m, 'auth_asym_id', None),
+                       auth_comp_id=getattr(m, 'auth_comp_id', None),
+                       auth_seq_id=getattr(m, 'auth_seq_id', None))
+
+    @EmptyResidue.new.register(Atom|Hetatm)
+    @classmethod
+    def _from_atom(cls, a: Union[Atom, Hetatm]) -> "Residue":
+        """
+        Create a Residue from an Atom or Hetatm object.
+        
+        Parameters
+        ----------
+        a : :class:`~pestifer.molecule.atom.Atom` or :class:`~pestifer.molecule.atom.Hetatm`
+            The atom or hetatm object to create the residue from.
+        
+        Returns
+        -------
+        Residue
+            An instance of Residue initialized with the atom's attributes.
+        """
+        adapter = cls.Adapter.from_pdbrecord(a)
+        return cls._from_adapter(adapter)
+
+    @EmptyResidue.new.register(EmptyResidue)
+    @classmethod
+    def _from_emptyresidue(cls, m: "EmptyResidue") -> "Residue":
+        """
+        Create a Residue from an EmptyResidue object.
+        
+        Parameters
+        ----------
+        m : :class:`~pestifer.molecule.residue.EmptyResidue`
+            The empty residue object to create the residue from.
+        
+        Returns
+        -------
+        Residue
+            An instance of Residue initialized with the empty residue's attributes.
+        """
+        adapter = cls.Adapter.from_emptyresidue(m)
+        return cls._from_adapter(adapter)
 
     def __str__(self):
         return super().__str__()[0:-1] # strip off the "*"
@@ -605,34 +655,45 @@ class Residue(EmptyResidue):
             lin.extend(tlin)
         return res,lin
     
-class ResidueList(AncestorAwareObjList):
+class ResidueList(BaseObjList[Residue]):
     """
     A class for handling lists of :class:`~pestifer.molecule.residue.Residue` objects.
     This class extends the :class:`~pestifer.core.baseobj.AncestorAwareObjList` to manage collections of residues in a molecular structure.
     It provides methods for initializing the list from various input types, indexing residues, and performing operations
     such as mapping chain IDs, retrieving residues and atoms, and handling residue ranges.
     """
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
-
-    @__init__.register(AtomList)
-    def _from_atomlist(self,atoms):
-        R=[]
+    def describe(self):
+        """
+        Returns a string description of the ResidueList object, including the number of residues it contains.
+        
+        Returns
+        -------
+        str
+            A string representation of the ResidueList object.
+        """
+        return f'<ResidueList with {len(self)} residues>'
+    
+    def _validate_item(self, item):
+        if not isinstance(item, Residue):
+            raise TypeError(f"Item must be an instance of Residue, got {type(item)}")
+        
+    @BaseObjList.__init__.register(AtomList)
+    def _from_atomlist(self, atoms: AtomList):
+        R = []
         for a in atoms:
             for r in R[::-1]:
                 if r.add_atom(a):
                     break
             else:
-                R.append(Residue(a))
-        super().__init__(R)
-    
-    @__init__.register(EmptyResidueList)
-    def _from_emptyresiduelist(self,input_list):
-        R=[Residue(m) for m in input_list]
+                R.append(Residue.new(a))
         super().__init__(R)
 
-    def index(self,R):
+    @BaseObjList.__init__.register(EmptyResidueList)
+    def _from_emptyresiduelist(self, input_list: EmptyResidueList):
+        R = [Residue.new(m) for m in input_list]
+        super().__init__(R)
+
+    def index(self, R: Residue):
         """
         Get the index of a residue in the list.
         
@@ -693,7 +754,7 @@ class ResidueList(AncestorAwareObjList):
     #     S=('atoms',{'name':atname})
     #     return self.get_attr(S,**fields)
     
-    def atom_serials(self,as_type=str):
+    def atom_serials(self, as_type=str):
         """
         Get a list of atom serial numbers for all atoms in the residues.
         
@@ -711,8 +772,8 @@ class ResidueList(AncestorAwareObjList):
             for a in res.atoms:
                 serlist.append(as_type(a.serial))
         return serlist
-    
-    def atom_resseqnums(self,as_type=str):
+
+    def atom_resseqnums(self, as_type=str):
         """
         Get a list of residue sequence numbers for all atoms in the residues.
         
@@ -941,7 +1002,7 @@ class ResidueList(AncestorAwareObjList):
                     r+=1
                     i=''
                 shortcode=f'{chainID}:{olc}{r}{i}'
-                new_residue=EmptyResidue(shortcode)
+                new_residue=EmptyResidue.new(shortcode)
                 new_residue.atoms=AtomList([])
                 new_residue.segtype='protein'
                 self.insert(idx,new_residue)
