@@ -2,13 +2,16 @@
 """ 
 Defines the EmptyResidue and Residue classes for handling residues in a molecular structure.
 """
+
+from __future__ import annotations
+
 import logging
 logger=logging.getLogger(__name__)
 
 from argparse import Namespace
 from functools import singledispatchmethod
 
-from pydantic import Field
+from pydantic import Field, ConfigDict
 from typing import Union, Any, ClassVar
 
 from pidibble.baserecord import BaseRecord
@@ -33,7 +36,7 @@ class EmptyResidue(BaseObj):
     but are not resolved in the coordinate file.
     """
 
-    _required_fields = ['resname','resseqnum','insertion','chainID','resolved','segtype']
+    _required_fields = {'resname','resseqnum','insertion','chainID','resolved','segtype'}
     """
     Required attributes for EmptyResidue.
     
@@ -53,7 +56,7 @@ class EmptyResidue(BaseObj):
         The segment type.
     """
 
-    _optional_fields = ['model','id','auth_asym_id','auth_comp_id','auth_seq_id']
+    _optional_fields = {'model','obj_id','auth_asym_id','auth_comp_id','auth_seq_id'}
     """
     Optional attributes for EmptyResidue.
     
@@ -61,7 +64,7 @@ class EmptyResidue(BaseObj):
     ----------
     model : int
         The model number, if applicable.
-    id : str
+    obj_id : str
         The residue ID.
     auth_asym_id : str
         The author asymmetry ID, if applicable.
@@ -71,8 +74,11 @@ class EmptyResidue(BaseObj):
         The author sequence ID, if applicable.
     """
 
-    _ignore_fields = ['empty','link','recordname']
-
+    _ignore_fields = {'empty','link','recordname'}
+    """
+    Fields that are ignored when comparing EmptyResidue objects.
+    """
+    
     resname: str = Field(..., description="The residue name.")
     resseqnum: int = Field(..., description="The residue sequence number.")
     insertion: str = Field(..., description="The insertion code, if applicable.")
@@ -80,7 +86,7 @@ class EmptyResidue(BaseObj):
     resolved: bool = Field(..., description="Indicates whether the residue is resolved (True) or not (False).")
     segtype: str = Field(..., description="The segment type.")
     model: int = Field(1, description="The model number, if applicable.")
-    id: str = Field(None, description="The residue ID.")
+    obj_id: int = Field(None, description="The residue ID.")
     auth_asym_id: str = Field(None, description="The author asymmetry ID, if applicable.")
     auth_comp_id: str = Field(None, description="The author component ID, if applicable.")
     auth_seq_id: int = Field(None, description="The author sequence ID, if applicable.")
@@ -103,7 +109,7 @@ class EmptyResidue(BaseObj):
     mmCIF name for EmptyResidue.
     """
 
-    def description(self):
+    def describe(self):
         return f"EmptyResidue: {self.chainID}_{self.resname}{self.resseqnum}{self.insertion}*"
     
     class Adapter:
@@ -111,7 +117,7 @@ class EmptyResidue(BaseObj):
         Adapter class for converting between different representations of EmptyResidue.
         This class provides methods to create an EmptyResidue from a PDBRecord, CIFdict, or a shortcode.
         """
-        def __init__(self, resname=None, resseqnum=None, insertion=None, chainID=None, model=1, resolved=False, segtype='UNSET', auth_asym_id=None, auth_comp_id=None, auth_seq_id=None):
+        def __init__(self, resname=None, resseqnum=None, insertion=None, chainID=None, model=1, resolved=False, segtype='UNSET', auth_asym_id=None, auth_comp_id=None, auth_seq_id=None, obj_id=None):
             self.resname = resname
             self.resseqnum = resseqnum
             self.insertion = insertion
@@ -122,6 +128,7 @@ class EmptyResidue(BaseObj):
             self.auth_asym_id = auth_asym_id
             self.auth_comp_id = auth_comp_id
             self.auth_seq_id = auth_seq_id
+            self.obj_id = obj_id
 
         def to_dict(self):
             return {k:v for k,v in self.__dict__.items() if v is not None}
@@ -284,18 +291,13 @@ class EmptyResidueList(BaseObjList[EmptyResidue]):
         if not isinstance(item, EmptyResidue):
             raise TypeError(f"Item must be an instance of EmptyResidue, got {type(item)}")
 
-#TODO: update!
 class Residue(EmptyResidue):
     """
     A class for handling residues in a molecular structure.
     This class extends the :class:`EmptyResidue` class to include additional functionality for managing residues.
-
-    Parameters
-    ----------
-    input_obj : :class:`~pestifer.molecule.atom.Atom`, :class:`~pestifer.molecule.atom.Hetatm`, :class:`~pestifer.molecule.residue.EmptyResidue`, str, or :class:`~pestifer.molecule.residue.Residue`
     """
-
-    _required_fields = ['atoms']
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    _required_fields = EmptyResidue._required_fields | {'atoms'}
     """
     Required attributes for :class:`~pestifer.molecule.residue.Residue` in addition to those defined for :class:`~pestifer.molecule.residue.EmptyResidue`.
 
@@ -306,7 +308,7 @@ class Residue(EmptyResidue):
     """
     atoms: AtomList = Field(default_factory=AtomList, description="A list of atoms that belong to this residue.")
 
-    _optional_fields = ['up', 'down', 'uplink', 'downlink']
+    _optional_fields = EmptyResidue._optional_fields | {'up', 'down', 'uplink', 'downlink'}
     """
     Optional attributes for :class:`~pestifer.molecule.residue.Residue` in addition to those defined for :class:`~pestifer.molecule.residue.EmptyResidue`.
 
@@ -319,12 +321,12 @@ class Residue(EmptyResidue):
     - ``downlink``: list
         A list of links to residues that are connected to this residue in a downstream direction.
     """
-    up: list = Field(default_factory=BaseObjList, description="A list of residues linked to this residue in an upstream direction.")
-    down: list = Field(default_factory=BaseObjList, description="A list of residues linked to this residue in a downstream direction.")
-    uplink: list = Field(default_factory=LinkList, description="A list of links to residues connected to this residue in an upstream direction.")
-    downlink: list = Field(default_factory=LinkList, description="A list of links to residues connected to this residue in a downstream direction.")
+    up: 'ResidueList' = Field(default_factory='ResidueList', description="A list of residues linked to this residue in an upstream direction.")
+    down: 'ResidueList' = Field(default_factory='ResidueList', description="A list of residues linked to this residue in a downstream direction.")
+    uplink: LinkList = Field(default_factory=LinkList, description="A list of links to residues connected to this residue in an upstream direction.")
+    downlink: LinkList = Field(default_factory=LinkList, description="A list of links to residues connected to this residue in a downstream direction.")
 
-    _ignore_fields = ['atoms', 'up', 'down', 'uplink', 'downlink']
+    _ignore_fields = EmptyResidue._ignore_fields | {'atoms', 'up', 'down', 'uplink', 'downlink'}
     """
     Attributes to ignore when comparing Residue objects.
     This includes the attributes defined in :class:`~pestifer.molecule.residue.EmptyResidue` as well as the additional attributes defined for :class:`~pestifer.molecule.residue.Residue`.
@@ -654,7 +656,9 @@ class Residue(EmptyResidue):
             res.extend(tres)
             lin.extend(tlin)
         return res,lin
-    
+
+# Residue.model_rebuild()
+
 class ResidueList(BaseObjList[Residue]):
     """
     A class for handling lists of :class:`~pestifer.molecule.residue.Residue` objects.
@@ -676,9 +680,9 @@ class ResidueList(BaseObjList[Residue]):
     def _validate_item(self, item):
         if not isinstance(item, Residue):
             raise TypeError(f"Item must be an instance of Residue, got {type(item)}")
-        
-    @BaseObjList.__init__.register(AtomList)
-    def _from_atomlist(self, atoms: AtomList):
+
+    @classmethod
+    def from_atomlist(cls, atoms: AtomList):
         R = []
         for a in atoms:
             for r in R[::-1]:
@@ -686,27 +690,27 @@ class ResidueList(BaseObjList[Residue]):
                     break
             else:
                 R.append(Residue.new(a))
-        super().__init__(R)
+        return cls(R)
 
-    @BaseObjList.__init__.register(EmptyResidueList)
-    def _from_emptyresiduelist(self, input_list: EmptyResidueList):
-        R = [Residue.new(m) for m in input_list]
-        super().__init__(R)
+    # @BaseObjList.__init__.register(EmptyResidueList)
+    # def _from_emptyresiduelist(self, input_list: EmptyResidueList):
+    #     R = [Residue.new(m) for m in input_list]
+    #     super().__init__(R)
 
-    def index(self, R: Residue):
-        """
-        Get the index of a residue in the list.
+    # def index(self, R: Residue):
+    #     """
+    #     Get the index of a residue in the list.
         
-        Parameters
-        ----------
-        R : :class:`~pestifer.molecule.residue.Residue`
-            The residue to find in the list.
-        """
-        for i,r in enumerate(self):
-            if r is R:
-                return i
-        else:
-            raise ValueError(f'Residue not found')
+    #     Parameters
+    #     ----------
+    #     R : :class:`~pestifer.molecule.residue.Residue`
+    #         The residue to find in the list.
+    #     """
+    #     for i,r in enumerate(self):
+    #         if r is R:
+    #             return i
+    #     else:
+    #         raise ValueError(f'Residue not found')
 
     def map_chainIDs_label_to_auth(self):
         """
@@ -940,16 +944,15 @@ class ResidueList(BaseObjList[Residue]):
                     if currsubidx<len(subseq):
                         resname=Labels.res_123[subseq[currsubidx].upper()]
                         if r.resolved: # make a new seqadv for this mutation
-                            input_dict={
-                                'idCode':'I doubt I ever use this',
-                                'typekey':'user',
-                                'resname':r.resname,
-                                'chainID':r.chainID,
-                                'resseqnum':r.resseqnum,
-                                'insertion':r.insertion,
-                                'dbRes':resname
-                            }
-                            newseqadv.append(Seqadv(input_dict))
+                            newseqadv.append(Seqadv(
+                                idCode='I doubt I ever use this',
+                                typekey='user',
+                                resname=r.resname,
+                                chainID=r.chainID,
+                                resseqnum=r.resseqnum,
+                                insertion=r.insertion,
+                                dbRes=resname
+                            ))
                         else:  # just change the residue name
                             r.name=resname
                         currsubidx+=1

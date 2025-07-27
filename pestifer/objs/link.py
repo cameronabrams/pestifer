@@ -13,19 +13,19 @@ from ..util.cifutil import CIFdict
 from ..util.coord import ic_reference_closest
 from ..core.scripters import PsfgenScripter, Filewriter
 from ..core.stringthings import split_ri, join_ri
-from typing import ClassVar, Optional, Dict, List, Any
+from typing import ClassVar, Optional, Dict, List, Any, Tuple
 from pydantic import Field
 
 class Link(BaseObj):
     """
     A class for handling covalent bonds between residues where at least one residue is non-protein
     """
-    _required_fields = ['chainID1', 'resseqnum1', 'insertion1', 'name1',
-                        'chainID2', 'resseqnum2', 'insertion2', 'name2']
+    _required_fields = {'chainID1', 'resseqnum1', 'insertion1', 'name1',
+                        'chainID2', 'resseqnum2', 'insertion2', 'name2'}
 
-    _optional_fields = ['altloc1', 'altloc2', 'resname1', 'resname2', 'sym1', 'sym2', 'link_distance', 'segname1', 'segname2', 'residue1', 'residue2', 'atom1', 'atom2', 'empty', 'segtype1', 'segtype2', 'ptnr1_label_asym_id', 'ptnr2_label_asym_id', 'ptnr1_label_seq_id', 'ptnr2_label_seq_id', 'ptnr1_label_comp_id', 'ptnr2_label_comp_id', 'ptnr1_auth_asym_id', 'ptnr2_auth_asym_id', 'ptnr1_auth_seq_id', 'ptnr2_auth_seq_id', 'ptnr1_auth_comp_id', 'ptnr2_auth_comp_id','patchname','patchorder']
+    _optional_fields = {'altloc1', 'altloc2', 'resname1', 'resname2', 'sym1', 'sym2', 'link_distance', 'segname1', 'segname2', 'residue1', 'residue2', 'atom1', 'atom2', 'empty', 'segtype1', 'segtype2', 'ptnr1_label_asym_id', 'ptnr2_label_asym_id', 'ptnr1_label_seq_id', 'ptnr2_label_seq_id', 'ptnr1_label_comp_id', 'ptnr2_label_comp_id', 'ptnr1_auth_asym_id', 'ptnr2_auth_asym_id', 'ptnr1_auth_seq_id', 'ptnr2_auth_seq_id', 'ptnr1_auth_comp_id', 'ptnr2_auth_comp_id','patchname','patchhead'}
 
-    _attr_choices = {'patchorder': [None,[1,2],[2,1]]}
+    _attr_choices = {'patchhead': {1, 2}}
 
     chainID1: str = Field(..., description="Chain ID of the first residue in the link")
     resseqnum1: int = Field(..., description="Residue sequence number of the first residue in the link")
@@ -77,7 +77,7 @@ class Link(BaseObj):
     ptnr1_auth_comp_id: Optional[str] = Field("", description="Author component ID of the first partner in the link (mmCIF)")
     ptnr2_auth_comp_id: Optional[str] = Field("", description="Author component ID of the second partner in the link (mmCIF)")
     patchname: Optional[str] = Field("", description="Name of the patch applied to the link")
-    patchorder: Optional[List[int]] = Field(None, description="Order of the residue labels in the link relative to the CHARMM26 PRES definition")
+    patchhead: Optional[int] = Field(1, description="1 = residue1 is the first residue in the link, 2 = residue2 is the first residue in the link")
     """
     Optional attributes for a Link object.
     These attributes can be provided to modify the behavior of the link.
@@ -101,7 +101,7 @@ class Link(BaseObj):
     - ``ptnr1_auth_comp_id``: The author component ID of the first partner in the link (mmCIF).
     - ``ptnr2_auth_comp_id``: The author component ID of the second partner in the link (mmCIF).
     - ``patchname``: The name of the patch applied to the link.
-    - ``patchorder``: The order of the residue labels in the link relative to the CHARMM26 PRES definition.
+    - ``patchhead``: 1 = residue1 is the first residue in the link, 2 = residue2 is the first residue in the link.
     """
     
     _yaml_header: ClassVar[str] = 'links'
@@ -178,7 +178,7 @@ class Link(BaseObj):
                      ptnr1_auth_asym_id: Optional[str] = '', ptnr2_auth_asym_id: Optional[str] = '',
                      ptnr1_auth_seq_id: Optional[str] = '', ptnr2_auth_seq_id: Optional[str] = '',
                      ptnr1_auth_comp_id: Optional[str] = '', ptnr2_auth_comp_id: Optional[str] = '',
-                     patchname: Optional[str] = '', patchorder: Optional[List[int]] = None):
+                     patchname: Optional[str] = '', patchhead: Optional[int] = 1):
             self.name1 = name1
             self.resname1 = resname1
             self.chainID1 = chainID1
@@ -216,7 +216,7 @@ class Link(BaseObj):
             self.ptnr1_auth_comp_id = ptnr1_auth_comp_id
             self.ptnr2_auth_comp_id = ptnr2_auth_comp_id
             self.patchname = patchname
-            self.patchorder = patchorder if patchorder is not None else [1, 2]  # default order 
+            self.patchhead = 1  # default order
 
         @classmethod
         def from_pdbrecord(cls,pdbrecord:PDBRecord):
@@ -245,6 +245,7 @@ class Link(BaseObj):
                 'empty':False,
                 'segtype1':'UNSET',
                 'segtype2':'UNSET',
+                'patchhead': 1
             }
             return cls(**idict)
 
@@ -318,7 +319,7 @@ class Link(BaseObj):
                 'resseqnum2': r2,
                 'insertion2': i2,
                 'patchname': L[0],
-                'patchorder': [1, 2],  # default order
+                'patchhead': 1,  # default order
                 'name1': Link.patch_atomnames[L[0]][0],
                 'name2': Link.patch_atomnames[L[0]][1],
                 'residue1': None,
@@ -367,7 +368,7 @@ class Link(BaseObj):
                 'segtype1':'UNSET',
                 'segtype2':'UNSET',
                 'patchname':'',
-                'patchorder':[1,2],  # default order
+                'patchhead': 1,  # default order
                 'altloc1':'',
                 'altloc2':''
             }
@@ -432,7 +433,7 @@ class Link(BaseObj):
             logger.debug(f'Patchname for {str(self)} already set to {self.patchname}')
             return
         self.patchname=''
-        self.patchorder=[1,2]
+        self.patchhead=1
         logger.debug(f'patch assignment for link {str(self)}')
         if not self.residue1 and not self.residue2:
             logger.debug(f'missing residue')
@@ -525,7 +526,7 @@ class Link(BaseObj):
                     self.patchname='ZNHE'
                 else:
                     self.patchname='ZNHD'
-                self.patchorder=[2,1]
+                self.patchhead=2
         elif 'HIS' in self.resname1 and 'ZN' in self.resname2:
                 if self.name1=='NE2':
                     self.patchname='ZNHE'
@@ -541,7 +542,7 @@ class Link(BaseObj):
                     self.patchname='PHEM'
                 else:
                     self.patchname='UNFOUND'
-                self.patchorder=[2,1]
+                self.patchhead=2
         else:
             logger.warning(f'Could not identify patch for link {self.resname1}-{self.resname2}')
             self.patchname='UNFOUND'
@@ -577,12 +578,12 @@ class Link(BaseObj):
         logger.debug(f'Link: {self.residue1.chainID}->{seg1}:{rsn1}{ins1} {self.residue2.chainID}->{seg2}:{rsn2}{ins2}')
         if not self.patchname=='UNFOUND':
             write_post_regenerate=self.patchname in Patch.after_regenerate_patches
-            if self.patchorder==[1,2]:
+            if self.patchhead==1:
                 if write_post_regenerate:
                     W.addpostregenerateline(f'patch {self.patchname} {seg1}:{rsn1}{ins1} {seg2}:{rsn2}{ins2}')
                 else:
                     W.addline(f'patch {self.patchname} {seg1}:{rsn1}{ins1} {seg2}:{rsn2}{ins2}')
-            elif self.patchorder==[2,1]:
+            elif self.patchhead==2:
                 if write_post_regenerate:
                     W.addpostregenerateline(f'patch {self.patchname} {seg2}:{rsn2}{ins2} {seg1}:{rsn1}{ins1}')
                 else:   

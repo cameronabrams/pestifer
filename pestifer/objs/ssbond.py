@@ -23,7 +23,7 @@ class SSBond(BaseObj):
     A class for handling disulfide bonds between two CYS residues in a protein.
     """
 
-    _required_fields = ['chainID1', 'resseqnum1', 'insertion1', 'chainID2', 'resseqnum2', 'insertion2']
+    _required_fields = {'chainID1', 'resseqnum1', 'insertion1', 'chainID2', 'resseqnum2', 'insertion2'}
     """
     Required attributes for an SSBond object.
     These attributes must be provided when creating an SSBond object.
@@ -36,7 +36,7 @@ class SSBond(BaseObj):
     - ``insertion2``: The insertion code of the second CYS residue.
     """
 
-    _optional_fields = ['serial_number', 'residue1', 'residue2', 'resname1', 'resname2', 'sym1', 'sym2', 'length', 'ptnr1_auth_asym_id', 'ptnr2_auth_asym_id', 'ptnr1_auth_seq_id', 'ptnr2_auth_seq_id']
+    _optional_fields = {'serial_number', 'residue1', 'residue2', 'resname1', 'resname2', 'sym1', 'sym2', 'length', 'ptnr1_auth_asym_id', 'ptnr2_auth_asym_id', 'ptnr1_auth_seq_id', 'ptnr2_auth_seq_id'}
     """
     Optional attributes for an SSBond object.
     These attributes are not required but can be provided to enhance the SSBond object.

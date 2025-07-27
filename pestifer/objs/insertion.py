@@ -15,8 +15,8 @@ class Insertion(BaseObj):
     A class for handling insertions of amino acid residues within an otherwise
     fully resolved chain.
     """
-    _required_fields = ['chainID', 'resseqnum', 'insertion', 'sequence']
-    _optional_fields = ['integer_increment']
+    _required_fields = {'chainID', 'resseqnum', 'insertion', 'sequence'}
+    _optional_fields = {'integer_increment'}
 
     chainID: str = Field(..., description="Chain ID of the segment where the insertion occurs")
     resseqnum: int = Field(..., description="Residue sequence number where the insertion is made")

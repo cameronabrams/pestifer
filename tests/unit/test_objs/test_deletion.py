@@ -28,7 +28,8 @@ class TestDeletion(unittest.TestCase):
             resseqnum2=20,
             insertion2=""
         )
-        deletion2 = Deletion.from_input(deletion1)
+        deletion2 = deletion1.copy()
+        self.assertIsInstance(deletion2, Deletion)
         self.assertTrue(deletion1 is not deletion2)
         self.assertEqual(deletion1, deletion2)
         self.assertIsInstance(deletion2, Deletion)

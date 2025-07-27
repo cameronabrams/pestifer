@@ -18,7 +18,7 @@ class Substitution(BaseObj):
     A class for handling substitutions 
     """
 
-    _required_fields = ['chainID','resseqnum1','insertion1','resseqnum2','insertion2','subseq']
+    _required_fields = {'chainID','resseqnum1','insertion1','resseqnum2','insertion2','subseq'}
     """
     Required attributes for a Substitution object.
     These attributes must be provided when creating a Substitution object.

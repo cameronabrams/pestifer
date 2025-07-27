@@ -20,8 +20,8 @@ class Cfusion(BaseObj):
     coordinate file to the C-termini of base-molecule segments
     """
 
-    _required_fields = ['sourcefile', 'sourceseg', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2', 'chainID']
-    _optional_fields = ['yaml_header', 'objcat', 'obj_id']
+    _required_fields = {'sourcefile', 'sourceseg', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2', 'chainID'}
+    _optional_fields = {'yaml_header', 'objcat', 'obj_id'}
 
     sourcefile: str = Field(..., description="Path to the source coordinate file containing the residues to be fused")
     sourceseg: str = Field(..., description="Segment in the source file from which residues are taken")
@@ -153,7 +153,8 @@ class Cfusion(BaseObj):
 
 class CfusionList(BaseObjList[Cfusion]):
     def describe(self) -> str:
-        return f"CfusionList with {len(self)} cfusions"
+        return f"<CfusionList with {len(self)} items>"
+    
     def _validate_item(self, item: Cfusion) -> None:
         """
         Validate that the item is an instance of Cfusion.

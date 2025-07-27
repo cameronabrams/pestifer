@@ -26,7 +26,7 @@ class Atom(BaseObj):
     record name, and author sequence ID, component ID, asym ID, and atom ID.
     """
 
-    _required_fields = ['serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge']
+    _required_fields = {'serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge'}
     """
     Required attributes for the Atom class.
     These attributes must be provided when creating an Atom instance.
@@ -63,7 +63,7 @@ class Atom(BaseObj):
         Charge of the atom.
     """
 
-    _optional_fields = ['segname','empty','link','recordname','auth_seq_id','auth_comp_id','auth_asym_id','auth_atom_id']
+    _optional_fields = {'segname','empty','link','recordname','auth_seq_id','auth_comp_id','auth_asym_id','auth_atom_id'}
     """
     Optional attributes for the Atom class.
     These attributes can be provided when creating an Atom instance, but are not required.

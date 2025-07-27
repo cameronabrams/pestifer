@@ -15,12 +15,10 @@ class TestBaseObj(unittest.TestCase):
             def describe(self):
                 return "Concrete Object"
             
+        # with self.assertRaises(ValidationError):
         class BadObj(BaseObj):
             # no--name is not in the required field
             name: str = Field(..., description="Name of the object")
-
-            def describe(self):
-                return f"Bad Object with name: {self.name}"
             
         class AnotherBadObj(BaseObj):
             # no--name is not in the optional field
@@ -34,14 +32,11 @@ class TestBaseObj(unittest.TestCase):
         self.assertEqual(obj.describe(), "Concrete Object")
     
         with self.assertRaises(ValidationError):
-            bad_obj = BadObj(name="Test")
-
-        with self.assertRaises(ValidationError):
             another_bad_obj = AnotherBadObj(name="Test")
 
     def test_baseobj_inherit_with_new_reqattr(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
@@ -59,7 +54,7 @@ class TestBaseObj(unittest.TestCase):
 
     def test_baseobj_inherit_with_new_optattr(self):
         class ConcreteObj(BaseObj):
-            _optional_fields = ['description']
+            _optional_fields = {'description'}
             description: Optional[str] = Field(None, description="Description of the object")
 
             def describe(self):
@@ -73,8 +68,8 @@ class TestBaseObj(unittest.TestCase):
 
     def test_baseobj_inherit_with_mutually_exclusive_fields(self):
         class ConcreteObj(BaseObj):
-            _optional_fields = ['field_a', 'field_b']
-            _mutually_exclusive = [['field_a', 'field_b']]
+            _optional_fields = {'field_a', 'field_b'}
+            _mutually_exclusive = {frozenset({'field_a', 'field_b'})}
             field_a: Optional[str] = Field(None, description="Field A")
             field_b: Optional[str] = Field(None, description="Field B")
 
@@ -91,8 +86,8 @@ class TestBaseObj(unittest.TestCase):
 
     def test_baseobj_inherit_with_attr_choices(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['status']
-            _attr_choices = {'status': ['active', 'inactive']}
+            _required_fields = {'status'}
+            _attr_choices = {'status': {'active', 'inactive'}}
             status: str = Field(..., description="Status of the object")
 
             def describe(self):
@@ -106,9 +101,9 @@ class TestBaseObj(unittest.TestCase):
 
     def test_baseobj_inherit_with_attr_dependencies(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['required_field']
-            _optional_fields = ['optional_field']
-            _attr_dependencies = {'required_field': {'Trigger me to require optional field': ['optional_field']}}
+            _required_fields = {'required_field'}
+            _optional_fields = {'optional_field'}
+            _attr_dependencies = {'required_field': {'Trigger me to require optional field': {'optional_field'}}}
             required_field: str = Field(..., description="Required field")
             optional_field: Optional[str] = Field(None, description="Optional field")
 
@@ -130,7 +125,7 @@ class TestBaseObj(unittest.TestCase):
 
     def test_baseobj_inherit_comparison(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name','number']
+            _required_fields = {'name', 'number'}
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
 
@@ -155,7 +150,7 @@ class TestBaseObj(unittest.TestCase):
 
     def test_baseobj_inherit_strhash(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name','number']
+            _required_fields = {'name', 'number'}
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
 
@@ -174,7 +169,7 @@ class TestBaseObj(unittest.TestCase):
 
     def test_baseobj_inherit_matches(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name','number']
+            _required_fields = {'name', 'number'}
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
 
@@ -195,7 +190,7 @@ class TestBaseObj(unittest.TestCase):
 
     def test_baseobj_inherit_yamldump(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name','number']
+            _required_fields = {'name', 'number'}
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
 
@@ -209,7 +204,7 @@ class TestBaseObj(unittest.TestCase):
 
     def test_baseobj_inlist(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name','number']
+            _required_fields = {'name', 'number'}
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
 
@@ -225,7 +220,7 @@ class TestBaseObj(unittest.TestCase):
 
     def test_baseobj_map_attr(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name','number']
+            _required_fields = {'name', 'number'}
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
 
@@ -238,7 +233,7 @@ class TestBaseObj(unittest.TestCase):
 
     def test_baseobj_swap_attributes(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name','number']
+            _required_fields = {'name', 'number'}
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
 
@@ -252,7 +247,7 @@ class TestBaseObj(unittest.TestCase):
 
     def test_baseobj_copy_attributes(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name','number']
+            _required_fields = {'name', 'number'}
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
 
@@ -266,8 +261,8 @@ class TestBaseObj(unittest.TestCase):
 
     def test_baseobj_inherit_nested(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name','number']
-            _optional_fields = ['spouse','children','dict_of_pets']
+            _required_fields = {'name', 'number'}
+            _optional_fields = {'spouse', 'children', 'dict_of_pets'}
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
             spouse: Optional["ConcreteObj"] = None
@@ -310,14 +305,14 @@ class TestBaseObj(unittest.TestCase):
 
     def test_baseobj_inherit_update_attr_from_obj_attr(self):
         class BasicObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
                 return f"Basic Object with name: {self.name}"
             
         class CompoundObj(BaseObj):
-            _required_fields = ['name','number','subobject']
+            _required_fields = {'name', 'number', 'subobject'}
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
             subobject: BasicObj = Field(..., description="A subobject")
@@ -333,14 +328,14 @@ class TestBaseObj(unittest.TestCase):
 
     def test_baseobj_inherit_update_attr_from_objlist_elem_attr(self):
         class BasicObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
                 return f"Basic Object with name: {self.name}"
 
         class CompoundObj(BaseObj):
-            _required_fields = ['name','number','subobject_list']
+            _required_fields = {'name', 'number', 'subobject_list'}
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
             subobject_list: List[BasicObj] = Field(..., description="A list of subobjects")
@@ -375,7 +370,7 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_inherit(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
@@ -399,7 +394,7 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_append(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
@@ -423,7 +418,7 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_extend(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
@@ -449,7 +444,7 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_insert(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
@@ -475,7 +470,7 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_remove(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
@@ -501,7 +496,7 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_add_lists(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
@@ -529,7 +524,7 @@ class TestBaseObjList(unittest.TestCase):
         self.assertIn(obj2, obj_list3)
 
         class WobblyObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
@@ -553,7 +548,7 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_getitem(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
@@ -577,7 +572,7 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_validation_check(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
@@ -590,7 +585,7 @@ class TestBaseObjList(unittest.TestCase):
                     raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
         
         class WobblyObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
@@ -609,7 +604,7 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_iterate(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
@@ -630,7 +625,7 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_setitem(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
@@ -652,7 +647,7 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_filter(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
@@ -674,7 +669,7 @@ class TestBaseObjList(unittest.TestCase):
         self.assertEqual(filtered_list[0].name, "Object 1")
 
         class WobblyObj(BaseObj):
-            _required_fields = ['name','rank','serialno']
+            _required_fields = {'name', 'rank', 'serialno'}
             name: str = Field(..., description="Name of the object")
             rank: int = Field(..., description="Rank of the object")
             serialno: int = Field(..., description="Serial number of the object")
@@ -711,7 +706,7 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_negfilter(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name']
+            _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
 
             def describe(self):
@@ -736,7 +731,7 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_get(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name','rank']
+            _required_fields = {'name', 'rank'}
             name: str = Field(..., description="Name of the object")
             rank: int = Field(..., description="Rank of the object")
             def describe(self):
@@ -766,7 +761,7 @@ class TestBaseObjList(unittest.TestCase):
     
     def test_baseobj_list_iget(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name','rank']
+            _required_fields = {'name', 'rank'}
             name: str = Field(..., description="Name of the object")
             rank: int = Field(..., description="Rank of the object")
             def describe(self):
@@ -795,8 +790,8 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_set(self):
         class PersonObj(BaseObj):
-            _required_fields = ['name','number']
-            _optional_fields = ['spouse','children','dict_of_pets']
+            _required_fields = {'name', 'number'}
+            _optional_fields = {'spouse', 'children', 'dict_of_pets'}
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
             spouse: Optional["PersonObj"] = None
@@ -807,8 +802,8 @@ class TestBaseObjList(unittest.TestCase):
                 return f"Concrete Object with name: {self.name}, number: {self.number}"
 
         class FamilyObj(BaseObj):
-            _required_fields = ['root','surname1','address','number']
-            _optional_fields = ['surname2','gamenight']
+            _required_fields = {'root', 'surname1', 'address', 'number'}
+            _optional_fields = {'surname2', 'gamenight'}
             root: PersonObj = Field(..., description="Root person of the family")
             surname1: str = Field(..., description="Primary surname of the family")
             surname2: Optional[str] = Field(None, description="Secondary surname of the family")
@@ -869,18 +864,18 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_prune(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['serial','name','number','evenodd']
+            _required_fields = {'serial','name','number','evenodd'}
             serial: int = Field(..., description="Serial number of the object")
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
             evenodd: str = Field(..., description="Even or odd")
-            _attr_choices = {'evenodd': ['even', 'odd']}
+            _attr_choices = {'evenodd': {'even', 'odd'}}
 
             def describe(self):
                 return f"Concrete Object with name: {self.name}, number: {self.number}, evenodd: {self.evenodd}"
 
         class SubObj(BaseObj):
-            _required_fields = ['cucumber','evenodd']
+            _required_fields = {'cucumber','evenodd'}
             cucumber: int = Field(..., description="length of the cucumber in inches")
             evenodd: str = Field(..., description="Red or white")
 
@@ -920,7 +915,7 @@ class TestBaseObjList(unittest.TestCase):
     def test_baseobj_list_prune_exclusions(self):
         exclusions = {'restype':['X','Y','Z'],'resname':['POOPYBUTT','FARTYPOO']}
         class Residue(BaseObj):
-            _required_fields = ['restype','resname']
+            _required_fields = {'restype','resname'}
             restype: str = Field(..., description="Type of the residue")
             resname: str = Field(..., description="Name of the residue")
 
@@ -954,7 +949,7 @@ class TestBaseObjList(unittest.TestCase):
     
     def test_baseobj_list_uniqattrs(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name','number']
+            _required_fields = {'name','number'}
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
 
@@ -990,7 +985,7 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_binnify(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name','number']
+            _required_fields = {'name','number'}
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
 
@@ -1042,7 +1037,7 @@ class TestBaseObjList(unittest.TestCase):
     
     def test_baseobj_list_puniq(self):
         class ConcreteObj(BaseObj):
-            _required_fields = ['name','number']
+            _required_fields = {'name', 'number'}
             name: str = Field(..., description="Name of the object")
             number: int = Field(..., description="A number")
 

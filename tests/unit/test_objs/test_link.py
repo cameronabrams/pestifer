@@ -25,6 +25,7 @@ class TestLink(unittest.TestCase):
         self.assertEqual(link.name2, "CA")
         self.assertEqual(link._yaml_header, 'links')
         self.assertEqual(link._objcat, 'topol')
+        self.assertEqual(link.patchhead,1)
         self.assertEqual(link.describe(), "Link between N and CA (A:1-B:2)")
 
     def test_link_from_shortcode(self):

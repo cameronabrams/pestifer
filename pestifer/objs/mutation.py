@@ -25,7 +25,7 @@ class Mutation(BaseObj):
     A class for handling single-residue mutations
     """
 
-    _required_fields = ['chainID', 'origresname', 'resseqnum', 'insertion', 'newresname', 'typekey']
+    _required_fields = {'chainID', 'origresname', 'resseqnum', 'insertion', 'newresname', 'typekey'}
     """
     Required attributes for a Mutation object.
     These attributes must be provided when creating a Mutation object.
@@ -38,7 +38,7 @@ class Mutation(BaseObj):
     - ``typekey``: A key indicating the type of mutation (e.g., ``user``, ``author``, ``mmCIF``).
     """
 
-    _optional_fields = ['pdbx_auth_seq_num']
+    _optional_fields = {'pdbx_auth_seq_num'}
     """
     Optional attributes for a Mutation object.
     These attributes may be present but are not required.

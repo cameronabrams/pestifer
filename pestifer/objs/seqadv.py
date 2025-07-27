@@ -19,7 +19,7 @@ class Seqadv(BaseObj):
     """
     A class for handling SEQADV/seq_dif records in input structure files 
     """
-    _required_fields = ['idCode', 'resname', 'chainID', 'resseqnum', 'insertion', 'typekey']
+    _required_fields = {'idCode', 'resname', 'chainID', 'resseqnum', 'insertion', 'typekey'}
     """
     Required attributes for a Seqadv object.
     These attributes must be provided when creating a Seqadv object.
@@ -31,8 +31,8 @@ class Seqadv(BaseObj):
     - ``insertion``: The insertion code for the residue.
     - ``typekey``: A key indicating the type of sequence difference (e.g., ``conflict``, ``cloning``, ``expression tag``, ``engineered mutation``, ``variant``, ``insertion``, ``deletion``, ``microheterogeneity``, ``chromophore``, ``user``, ``_other_``).
     """
-    
-    _optional_fields = ['database', 'dbAccession', 'dbRes', 'dbSeq', 'pdbx_ordinal', 'pdbx_auth_seq_num', 'residue']
+
+    _optional_fields = {'database', 'dbAccession', 'dbRes', 'dbSeq', 'pdbx_ordinal', 'pdbx_auth_seq_num', 'residue'}
     """
     Optional attributes for a Seqadv object.
     These attributes may be present but are not required.
@@ -47,7 +47,7 @@ class Seqadv(BaseObj):
     """
 
     _attr_choices = {
-        'typekey': ['conflict', 'cloning', 'expression tag', 'engineered mutation', 'variant', 'insertion', 'deletion', 'microheterogeneity', 'chromophore', 'user', '_other_']
+        'typekey': {'conflict', 'cloning', 'expression tag', 'engineered mutation', 'variant', 'insertion', 'deletion', 'microheterogeneity', 'chromophore', 'user', '_other_'}
     }
     """
     Attribute choices for Seqadv objects.

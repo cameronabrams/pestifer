@@ -15,7 +15,7 @@ class Deletion(BaseObj):
     """
     A class for handling deletions in a molecular sequence.
     """
-    _required_fields = ['chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2']
+    _required_fields = {'chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2'}
 
     chainID: str = Field(..., description="Chain ID of the segment from which residues are deleted")
     resseqnum1: int = Field(..., description="N-terminal residue number of the deletion")

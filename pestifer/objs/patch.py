@@ -4,7 +4,6 @@ A patch is a modification to a residue or residues defined in the CHARMM force f
 It is used to apply specific modifications to residues in a molecular structure, such as adding or removing
 functional groups or modifying the residue's properties.
 """
-from copy import deepcopy
 import logging
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
@@ -17,9 +16,8 @@ class Patch(BaseObj):
     """
     A class for handing patch residues
     """
-    
-    _required_fields = ['patchname', 'chainID', 'resseqnum', 'insertion']
-    _optional_fields = ['residue', 'use_in_segment', 'use_after_regenerate']
+
+    _required_fields = {'patchname', 'chainID', 'resseqnum', 'insertion'}
     """
     Required attributes for a Patch object.
     These attributes must be provided when creating a Patch object.
@@ -28,7 +26,9 @@ class Patch(BaseObj):
     - ``chainID``: The chain identifier of the residue to be patched.
     - ``resseqnum``: The residue sequence number of the residue to be patched.
     - ``insertion``: The insertion code of the residue to be patched.
-
+    """
+    _optional_fields = {'residue', 'use_in_segment', 'use_after_regenerate'}
+    """
     Optional attributes for a Patch object.
     - ``residue``: The Residue object to be patched.  Assigned by the PatchList.assign_residues method.
     - ``use_in_segment``: Specifies whether the patch is applied to the first or last residue in a segment, and therefore should be declared inside a psfgen ``segment``.

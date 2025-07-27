@@ -18,7 +18,7 @@ class CleavageSite(BaseObj):
     ObjManager so the yaml_header and objcat attributes are irrelevant.  It is instead handled
     as a run task.
     """
-    _required_fields = ['chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2']
+    _required_fields = {'chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2'}
 
     chainID:    str = Field(..., description="Chain ID of the segment to be cleaved")
     resseqnum1: int = Field(..., description="N-terminal residue number of the cleavage site")

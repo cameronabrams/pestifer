@@ -22,10 +22,10 @@ class Graft(BaseObj):
     """
     A class for handling grafts.
     """
-    _required_fields = ['orig_chainID', 'orig_resseqnum1', 'orig_insertion1', 
-                        'source_pdbid', 'source_chainID', 'source_resseqnum1', 'source_insertion1']
-    _optional_fields = ['orig_resseqnum2', 'orig_insertion2',
-                        'source_resseqnum2', 'source_insertion2', 'source_resseqnum3', 'source_insertion3', 'obj_id']
+    _required_fields = {'orig_chainID', 'orig_resseqnum1', 'orig_insertion1',
+                        'source_pdbid', 'source_chainID', 'source_resseqnum1', 'source_insertion1'}
+    _optional_fields = {'orig_resseqnum2', 'orig_insertion2',
+                        'source_resseqnum2', 'source_insertion2', 'source_resseqnum3', 'source_insertion3', 'obj_id'}
 
     orig_chainID: str = Field(..., description="Chain ID of the target segment in the base molecule")
     orig_resseqnum1: int = Field(..., description="N-terminal residue sequence number of the target segment")

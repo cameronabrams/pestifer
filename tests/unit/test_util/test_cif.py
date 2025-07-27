@@ -52,14 +52,14 @@ class TestCIF(unittest.TestCase):
         source='8fae'
         p_struct=CIFload(source)
         obj=p_struct.getObj('atom_site')
-        atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
+        atoms=AtomList([Atom.new(CIFdict(obj,i)) for i in range(len(obj))])
         self.assertEqual(len(atoms),17693)
 
     def test_residues(self):
         source='8fae'
         p_struct=CIFload(source)
         obj=p_struct.getObj('atom_site')
-        atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
+        atoms=AtomList([Atom.new(CIFdict(obj,i)) for i in range(len(obj))])
         self.assertEqual(len(atoms),17693)
         residues=ResidueList(atoms)
         self.assertEqual(len(residues),2082)
@@ -81,7 +81,7 @@ class TestCIF(unittest.TestCase):
         vmd.addline(f'mol new {source}.cif')
         p_struct=CIFload(source)
         obj=p_struct.getObj('atom_site')
-        atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
+        atoms=AtomList([Atom.new(CIFdict(obj,i)) for i in range(len(obj))])
         residues=ResidueList(atoms)
         uCIDs=residues.uniqattrs(['chainID'])['chainID']
         nres=0
@@ -172,11 +172,11 @@ class TestCIF(unittest.TestCase):
         source='4zmj'
         pr=CIFload(source)
         obj=pr.getObj('atom_site')
-        Atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
+        Atoms=AtomList([Atom.new(CIFdict(obj,i)) for i in range(len(obj))])
         obj=pr.getObj('struct_ref_seq_dif')
         Seqadvs=SeqadvList([Seqadv.new(CIFdict(obj,i)) for i in range(len(obj))])
         obj=pr.getObj('pdbx_unobs_or_zero_occ_residues')
-        EmptyResidues=EmptyResidueList([EmptyResidue(CIFdict(obj,i)) for i in range(len(obj))])
+        EmptyResidues=EmptyResidueList([EmptyResidue.new(CIFdict(obj,i)) for i in range(len(obj))])
         fromAtoms=ResidueList(Atoms)
         fromEmptyResidues=ResidueList(EmptyResidues)
         Residues=fromAtoms+fromEmptyResidues

@@ -19,7 +19,7 @@ class Orient(BaseObj):
     A class for handling orientation of a coordinate set in VMD.
     """
 
-    _required_fields = ['axis']
+    _required_fields = {'axis'}
     """
 
     Required attributes for an Orient object.
@@ -27,7 +27,7 @@ class Orient(BaseObj):
 
     - ``axis``: The axis along which the coordinate set will be oriented.
     """
-    _optional_fields = ['refatom']
+    _optional_fields = {'refatom'}
     """
 
     Optional attributes for an Orient object.

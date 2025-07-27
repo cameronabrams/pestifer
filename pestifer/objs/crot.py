@@ -20,13 +20,13 @@ class Crot(BaseObj):
     """
     A class for managing so-called "C-rotations" in a molecular structure.
     """
-    _required_fields = ['angle']
-    _optional_fields = ['chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2', 
+    _required_fields = {'angle'}
+    _optional_fields = {'chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2', 
                         'resseqnum3', 'insertion3', 'segname',
                         'atom1', 'atom2',
-                        'segname1', 'segname2', 'segnamei', 'resseqnumi', 'insertioni','atomi',
-                        'segnamejk', 'resseqnumj', 'insertionj', 'atomj', 'resseqnumk', 
-                        'insertionk', 'atomk', 'degrees']
+                        'segname1', 'segname2', 'segnamei', 'resseqnumi', 'insertioni', 'atomi',
+                        'segnamejk', 'resseqnumj', 'insertionj', 'atomj', 'resseqnumk',
+                        'insertionk', 'atomk', 'degrees'}
     """
     Optional attributes for a Crot object.
     These attributes are used to specify additional parameters for the C-rotation:

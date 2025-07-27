@@ -25,7 +25,7 @@ The ``BaseObj`` class also uses dispatch methods to allow for creating objects f
 """
 
 from pydantic import BaseModel, model_validator, ConfigDict
-from typing import ClassVar, List, Dict, Optional, Any, Union, Iterable, Iterator, Self
+from typing import ClassVar, List, Dict, Optional, Any, Union, Iterable, Iterator, Self, Set, TypeVar, Generic, Annotated
 import hashlib
 import operator
 import yaml
@@ -37,12 +37,12 @@ from functools import singledispatchmethod
 from abc import ABC, abstractmethod
 
 class BaseObj(BaseModel, ABC):
-    _required_fields: ClassVar[List[str]] = []
-    _optional_fields: ClassVar[List[str]] = []
-    _mutually_exclusive: ClassVar[List[List[str]]] = []
-    _attr_choices: ClassVar[Dict[str, List[Any]]] = {}
-    _attr_dependencies: ClassVar[Dict[str, Dict[Any, List[str]]]] = {}
-    _ignore_fields: ClassVar[List[str]] = []
+    _required_fields:    ClassVar[Set[str]]                       = set()
+    _optional_fields:    ClassVar[Set[str]]                       = set()
+    _mutually_exclusive: ClassVar[Set[frozenset[str]]]            = set()
+    _attr_choices:       ClassVar[Dict[str, Set[Any]]]            = {}
+    _attr_dependencies:  ClassVar[Dict[str, Dict[Any, Set[Any]]]] = {}
+    _ignore_fields:      ClassVar[Set[str]]                       = set()
 
     model_config = ConfigDict(
         extra='forbid',
@@ -74,7 +74,7 @@ class BaseObj(BaseModel, ABC):
     @model_validator(mode="before")
     @classmethod
     def _validate_schema(cls, values: Dict[str, Any]) -> Dict[str, Any]:
-        declared_fields = set(cls._required_fields + cls._optional_fields)
+        declared_fields = cls._required_fields | cls._optional_fields
         received_fields = set(values)
 
         # Ensure all fields are explicitly declared
@@ -446,15 +446,31 @@ class BaseObj(BaseModel, ABC):
             attr of caller
         """
         setattr(self,attr,getattr(getattr(self,objlist_attr)[index_of_obj_in_objlist_attr],attr_of_obj_attr))
-    
 
+T = TypeVar("T", bound=BaseObj)
 
-class BaseObjList(UserList, ABC):
-    def __init__(self, initlist: Iterable[BaseObj] = ()):
+class BaseObjList(UserList, Generic[T], ABC):
+    def __init__(self, initlist: Iterable[T] = ()):
         self.data = []
         for item in initlist:
             self._validate_item(item)
             self.data.append(item)
+
+    def _validate_item(self, item: T):
+        model_type = self.__orig_class__.__args__[0]
+        if isinstance(item, dict):
+            item = model_type(**item)
+        if not isinstance(item, self.__orig_class__.__args__[0]):
+            raise TypeError(f"Item {item} is not of expected type {self.__orig_class__.__args__[0]}")
+
+    @classmethod
+    def validate(cls, v):
+        if isinstance(v, cls):
+            return v
+        elif isinstance(v, Iterable):
+            return cls(v)
+        else:
+            raise TypeError(f"Expected {cls.__name__} or iterable of {cls.__args__[0].__name__}")
 
     def append(self, item: BaseObj) -> None:
         self._validate_item(item)
@@ -487,12 +503,6 @@ class BaseObjList(UserList, ABC):
     def __iadd__(self, other: Iterable[BaseObj]) -> 'BaseObjList':
         self.extend(other)
         return self
-
-    @abstractmethod
-    def _validate_item(self, item: BaseObj) -> None:
-        """Require subclass-level validation on items."""
-        if not isinstance(item, BaseObj):
-            raise TypeError(f"Item must be a BaseObj, got {type(item)}")
         
     @abstractmethod
     def describe(self) -> str:
@@ -851,5 +861,4 @@ class BaseObjList(UserList, ABC):
                 # re-bin the items
                 bins=self.binnify(fields=local_fields_copy)
         assert(self.puniq(fields=local_fields_copy))
-
 

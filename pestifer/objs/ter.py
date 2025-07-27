@@ -28,7 +28,7 @@ class Ter(BaseObj):
     A class for handing TER records in PDB files
     """
 
-    _required_fields = ['serial','resname','chainID','resseqnum','insertion']
+    _required_fields = {'serial','resname','chainID','resseqnum','insertion'}
     """
     Required attributes for a Ter object.
     These attributes must be provided when creating a Ter object.
