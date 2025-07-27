@@ -308,28 +308,11 @@ class Seqadv(BaseObj):
 
 class SeqadvList(BaseObjList[Seqadv]):
     """
-    A class for handling lists of Seqadvs    
+    A class for handling lists of Seqadvs.
     """
 
     def describe(self):
-        return f'SeqadvList with {len(self)} seqadvs'
-    
-    def _validate_item(self, item: Seqadv) -> None:
-        """
-        Validate that the item is an instance of Seqadv.
-        
-        Parameters
-        ----------
-        item : Seqadv
-            The item to validate.
-        
-        Raises
-        ------
-        TypeError
-            If the item is not an instance of Seqadv.
-        """
-        if not isinstance(item, Seqadv):
-            raise TypeError(f"Item must be an instance of Seqadv, got {type(item)}")
+        return f'<SeqadvList with {len(self)} seqadvs>'
 
     def assign_residues(self, Residues):
         """

@@ -150,11 +150,7 @@ class Ter(BaseObj):
         adapter = cls.Adapter.from_pdbrecord(pdbrecord)
         return cls._from_adapter(adapter)
     
-class TerList(BaseObjList):
+class TerList(BaseObjList[Ter]):
     def describe(self):
         return f'TerList with {len(self)} TER records'
-    
-    def _validate_item(self, item):
-        if not isinstance(item, Ter):
-            raise TypeError(f"Expected Ter instance, got {type(item)}")
-        return True
+

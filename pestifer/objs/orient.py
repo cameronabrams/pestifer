@@ -161,11 +161,7 @@ class OrientList(BaseObjList[Orient]):
     """
 
     def describe(self):
-        return f'OrientList with {len(self)} orientations'
-    
-    def _validate_item(self, item: Orient):
-        if not isinstance(item, Orient):
-            raise TypeError(f"Expected Orient instance, got {type(item)}")
+        return f'<OrientList with {len(self)} orientations>'
 
     def write_TcL(self,W:VMDScripter):
         """

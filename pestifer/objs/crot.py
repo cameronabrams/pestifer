@@ -343,23 +343,6 @@ class CrotList(BaseObjList[Crot]):
             A string describing the CrotList.
         """
         return f"CrotList with {len(self)} Crot objects"
-    
-    def _validate_item(self, item: Crot) -> None:
-        """
-        Validate that the item is an instance of Crot.
-        
-        Parameters
-        ----------
-        item : Crot
-            The item to validate.
-        
-        Raises
-        ------
-        TypeError
-            If the item is not an instance of Crot.
-        """
-        if not isinstance(item, Crot):
-            raise TypeError(f"Item must be an instance of Crot, got {type(item)}")
 
     def write_TcL(self,W:PsfgenScripter,chainIDmap={},**kwargs):
         """

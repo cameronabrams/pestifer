@@ -377,11 +377,7 @@ class GraftList(BaseObjList[Graft]):
     It also handles the destruction of down-links from terminal residues in the grafts.
     """
     def describe(self):
-        return f"GraftList with {len(self)} grafts"
-
-    def _validate_item(self, item):
-        if not isinstance(item, Graft):
-            raise TypeError(f"Item must be an instance of Graft, got {type(item)}")
+        return f"<GraftList with {len(self)} items>"
 
     def assign_residues(self,Residues,Links):
         """

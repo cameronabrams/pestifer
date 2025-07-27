@@ -241,10 +241,6 @@ class RotTransList(BaseObjList[RotTrans]):
             A string description of the RotTransList object, including the number of items in the list.
         """
         return f'<RotTransList: {len(self)} items>'
-    
-    def _validate_item(self, item):
-        if not isinstance(item, RotTrans):
-            raise TypeError(f"Item must be an instance of RotTrans, got {type(item)}")
 
     def write_TcL(self,W:VMDScripter,**kwargs):
         """

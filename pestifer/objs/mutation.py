@@ -208,9 +208,4 @@ class Mutation(BaseObj):
 
 class MutationList(BaseObjList[Mutation]):
     def describe(self):
-        return f'MutationList with {len(self)} mutations'
-    
-    def _validate_item(self, item:Mutation):
-        if not isinstance(item, Mutation):
-            raise TypeError(f"Expected Mutation, got {type(item)}")
-        
+        return f'<MutationList with {len(self)} mutations>'

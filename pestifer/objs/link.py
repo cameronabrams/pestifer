@@ -637,24 +637,7 @@ class LinkList(BaseObjList[Link]):
         str
             A string describing the number of links in the list.
         """
-        return f'LinkList with {len(self)} links'
-    
-    def _validate_item(self, item: Link):
-        """
-        Validates that the item is an instance of Link.
-        
-        Parameters
-        ----------
-        item : Link
-            The item to validate.
-        
-        Raises
-        ------
-        TypeError
-            If the item is not an instance of Link.
-        """
-        if not isinstance(item, Link):
-            raise TypeError(f'Item must be a Link, got {type(item)}')
+        return f'<LinkList with {len(self)} links>'
 
     def assign_residues(self,Residues):
         """

@@ -148,21 +148,5 @@ class InsertionList(BaseObjList[Insertion]):
         str
             A string description of the InsertionList, including the number of insertions.
         """
-        return f"InsertionList with {len(self)} insertions"
-    
-    def _validate_item(self, item: Insertion) -> None:
-        """
-        Validate that the item is an instance of Insertion.
-        
-        Parameters
-        ----------
-        item : Insertion
-            The item to validate.
-        
-        Raises
-        ------
-        TypeError
-            If the item is not an instance of Insertion.
-        """
-        if not isinstance(item, Insertion):
-            raise TypeError(f"Item must be an instance of Insertion, got {type(item)}")
+        return f"<InsertionList with {len(self)} insertions>"
+

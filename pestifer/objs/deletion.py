@@ -94,23 +94,6 @@ class Deletion(BaseObj):
         """
         return self.Adapter(**(self.model_dump())).to_string()
 
-class DeletionList(BaseObjList):
+class DeletionList(BaseObjList[Deletion]):
     def describe(self):
         return f'DeletionList with {len(self)} deletions'
-    
-    def _validate_item(self, item: Deletion) -> None:
-        """
-        Validate that the item is an instance of Deletion.
-        
-        Parameters
-        ----------
-        item : Deletion
-            The item to validate.
-        
-        Raises
-        ------
-        TypeError
-            If the item is not an instance of Deletion.
-        """
-        if not isinstance(item, Deletion):
-            raise TypeError(f"Item must be an instance of Deletion, got {type(item)}")

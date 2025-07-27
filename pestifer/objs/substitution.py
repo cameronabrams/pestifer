@@ -145,20 +145,3 @@ class SubstitutionList(BaseObjList[Substitution]):
     
     def describe(self):
         return f'<SubstitutionList: {len(self)} items>'
-    
-    def _validate_item(self, item: Substitution) -> None:
-        """
-        Validate that the item is an instance of Substitution.
-        
-        Parameters
-        ----------
-        item : Substitution
-            The item to validate.
-        
-        Raises
-        ------
-        TypeError
-            If the item is not an instance of Substitution.
-        """
-        if not isinstance(item, Substitution):
-            raise TypeError(f"Item must be an instance of Substitution, got {type(item)}")

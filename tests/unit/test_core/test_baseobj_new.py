@@ -1,9 +1,11 @@
+from __future__ import annotations
 import unittest
 from pestifer.core.baseobj_new import BaseObj, BaseObjList
 from argparse import Namespace
-from pydantic import Field, ValidationError
-from typing import Optional, List, Dict
+from pydantic import Field, ValidationError, ConfigDict
+from typing import Optional, List, Dict, Annotated
 import logging
+
 logger = logging.getLogger(__name__)
 class TestBaseObj(unittest.TestCase):
     def test_baseobj_is_abstract(self):
@@ -15,10 +17,11 @@ class TestBaseObj(unittest.TestCase):
             def describe(self):
                 return "Concrete Object"
             
-        # with self.assertRaises(ValidationError):
         class BadObj(BaseObj):
             # no--name is not in the required field
             name: str = Field(..., description="Name of the object")
+            def describe(self):
+                return "Bad Object"
             
         class AnotherBadObj(BaseObj):
             # no--name is not in the optional field
@@ -31,6 +34,9 @@ class TestBaseObj(unittest.TestCase):
         self.assertIsInstance(obj, ConcreteObj)
         self.assertEqual(obj.describe(), "Concrete Object")
     
+        with self.assertRaises(ValidationError):
+            b=BadObj(name="Test Bad Object")
+
         with self.assertRaises(ValidationError):
             another_bad_obj = AnotherBadObj(name="Test")
 
@@ -352,19 +358,23 @@ class TestBaseObj(unittest.TestCase):
         self.assertEqual(obj2.name, "Bumgy")
 
 class TestBaseObjList(unittest.TestCase):
+
     def test_baseobj_list_is_abstract(self):
         with self.assertRaises(TypeError):
             BaseObjList()
-        class ConcreteObjListA(BaseObjList):
-            pass
-        with self.assertRaises(TypeError):
-            ConcreteObjListA([])
-        class ConcreteObjListB(BaseObjList):
+        # with self.assertRaises(TypeError):
+        #     class ConcreteObjListA(BaseObjList):
+        #         pass
+        # with self.assertRaises(TypeError):
+        #     ConcreteObjListA([])
+        class ConcreteObjB(BaseObj):
+            _required_fields = {'name'}
+            name: str = Field(..., description="Name of the object")
+            def describe(self):
+                return f"Concrete Object with name: {self.name}"
+        class ConcreteObjListB(BaseObjList[ConcreteObjB]):
             def describe(self) -> str:
                 return "Concrete Object List"
-            def _validate_item(self, item: BaseObj) -> None:
-                if not isinstance(item, BaseObj):
-                    raise TypeError(f"Item must be a BaseObj, got {type(item)}")
         cl=ConcreteObjListB([])
         self.assertIsInstance(cl, ConcreteObjListB)
 
@@ -375,13 +385,10 @@ class TestBaseObjList(unittest.TestCase):
 
             def describe(self):
                 return f"Concrete Object with name: {self.name}"
-            
-        class ConcreteObjList(BaseObjList):
+
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
 
         obj1 = ConcreteObj(name="Object 1")
         obj2 = ConcreteObj(name="Object 2")
@@ -399,13 +406,10 @@ class TestBaseObjList(unittest.TestCase):
 
             def describe(self):
                 return f"Concrete Object with name: {self.name}"
-        
-        class ConcreteObjList(BaseObjList):
+
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
         
         obj1 = ConcreteObj(name="Object 1")
         obj2 = ConcreteObj(name="Object 2")
@@ -423,13 +427,10 @@ class TestBaseObjList(unittest.TestCase):
 
             def describe(self):
                 return f"Concrete Object with name: {self.name}"
-        
-        class ConcreteObjList(BaseObjList):
+
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
         
         obj1 = ConcreteObj(name="Object 1")
         obj2 = ConcreteObj(name="Object 2")
@@ -449,13 +450,10 @@ class TestBaseObjList(unittest.TestCase):
 
             def describe(self):
                 return f"Concrete Object with name: {self.name}"
-        
-        class ConcreteObjList(BaseObjList):
+
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
         
         obj1 = ConcreteObj(name="Object 1")
         obj2 = ConcreteObj(name="Object 2")
@@ -476,12 +474,9 @@ class TestBaseObjList(unittest.TestCase):
             def describe(self):
                 return f"Concrete Object with name: {self.name}"
         
-        class ConcreteObjList(BaseObjList):
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
         
         obj1 = ConcreteObj(name="Object 1")
         obj2 = ConcreteObj(name="Object 2")
@@ -498,16 +493,12 @@ class TestBaseObjList(unittest.TestCase):
         class ConcreteObj(BaseObj):
             _required_fields = {'name'}
             name: str = Field(..., description="Name of the object")
-
             def describe(self):
                 return f"Concrete Object with name: {self.name}"
-        
-        class ConcreteObjList(BaseObjList):
+
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
         
         obj1 = ConcreteObj(name="Object 1")
         obj2 = ConcreteObj(name="Object 2")
@@ -529,12 +520,9 @@ class TestBaseObjList(unittest.TestCase):
 
             def describe(self):
                 return f"Wobbly Object with name: {self.name}"
-        class WobblyObjList(BaseObjList):
+        class WobblyObjList(BaseObjList[WobblyObj]):
             def describe(self) -> str:
                 return f"Wobbly Object List with {len(self)} items."
-            def _validate_item(self, item: WobblyObj) -> None:
-                if not isinstance(item, WobblyObj):
-                    raise TypeError(f"Item must be a WobblyObj, got {type(item)}")
         
         wob1 = WobblyObj(name="Wobbly 1")
         wob2 = WobblyObj(name="Wobbly 2")
@@ -553,13 +541,10 @@ class TestBaseObjList(unittest.TestCase):
 
             def describe(self):
                 return f"Concrete Object with name: {self.name}"
-        
-        class ConcreteObjList(BaseObjList):
+
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
         
         obj1 = ConcreteObj(name="Object 1")
         obj2 = ConcreteObj(name="Object 2")
@@ -577,12 +562,9 @@ class TestBaseObjList(unittest.TestCase):
 
             def describe(self):
                 return f"Concrete Object with name: {self.name}"
-        class ConcreteObjList(BaseObjList):
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: BaseObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
         
         class WobblyObj(BaseObj):
             _required_fields = {'name'}
@@ -609,13 +591,10 @@ class TestBaseObjList(unittest.TestCase):
 
             def describe(self):
                 return f"Concrete Object with name: {self.name}"
-        
-        class ConcreteObjList(BaseObjList):
+
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
         
         obj1 = ConcreteObj(name="Object 1")
         obj2 = ConcreteObj(name="Object 2")
@@ -631,12 +610,9 @@ class TestBaseObjList(unittest.TestCase):
             def describe(self):
                 return f"Concrete Object with name: {self.name}"
 
-        class ConcreteObjList(BaseObjList):
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
 
         obj1 = ConcreteObj(name="Object 1")
         obj2 = ConcreteObj(name="Object 2")
@@ -652,13 +628,10 @@ class TestBaseObjList(unittest.TestCase):
 
             def describe(self):
                 return f"Concrete Object with name: {self.name}"
-        
-        class ConcreteObjList(BaseObjList):
+
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
         
         obj1 = ConcreteObj(name="Object 1")
         obj2 = ConcreteObj(name="Object 2")
@@ -676,12 +649,9 @@ class TestBaseObjList(unittest.TestCase):
 
             def describe(self):
                 return f"Wobbly Object with name: {self.name}, rank: {self.rank}, serialno: {self.serialno}"
-        class WobblyObjList(BaseObjList):
+        class WobblyObjList(BaseObjList[WobblyObj]):
             def describe(self) -> str:
                 return f"Wobbly Object List with {len(self)} items."
-            def _validate_item(self, item: WobblyObj) -> None:
-                if not isinstance(item, WobblyObj):
-                    raise TypeError(f"Item must be a WobblyObj, got {type(item)}")
         
         wob1 = WobblyObj(name="Wobbly", rank=1, serialno=123)
         wob2 = WobblyObj(name="Wobbly", rank=2, serialno=456)
@@ -711,13 +681,10 @@ class TestBaseObjList(unittest.TestCase):
 
             def describe(self):
                 return f"Concrete Object with name: {self.name}"
-            
-        class ConcreteObjList(BaseObjList):
+
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
         
         obj1 = ConcreteObj(name="Object 1")
         obj2 = ConcreteObj(name="Object 2")
@@ -736,13 +703,10 @@ class TestBaseObjList(unittest.TestCase):
             rank: int = Field(..., description="Rank of the object")
             def describe(self):
                 return f"Concrete Object with name: {self.name} rank: {self.rank}"
-        
-        class ConcreteObjList(BaseObjList):
+
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
 
         obj1 = ConcreteObj(name="Object 1", rank=1)
         obj2 = ConcreteObj(name="Object 2", rank=2)
@@ -766,13 +730,10 @@ class TestBaseObjList(unittest.TestCase):
             rank: int = Field(..., description="Rank of the object")
             def describe(self):
                 return f"Concrete Object with name: {self.name} rank: {self.rank}"
-        
-        class ConcreteObjList(BaseObjList):
+
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
 
         obj1 = ConcreteObj(name="Object 1", rank=1)
         obj2 = ConcreteObj(name="Object 2", rank=2)
@@ -814,13 +775,10 @@ class TestBaseObjList(unittest.TestCase):
             def describe(self):
                 return f"Concrete Object with name: {self.name}, number: {self.number}"
 
-        class FamilyObjList(BaseObjList):
+        class FamilyObjList(BaseObjList[FamilyObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: FamilyObj) -> None:
-                if not isinstance(item, FamilyObj):
-                    raise TypeError(f"Item must be a FamilyObj, got {type(item)}")
-
+            
         families=FamilyObjList()
 
         root1 = PersonObj(name="Root 1", number=1)
@@ -882,19 +840,13 @@ class TestBaseObjList(unittest.TestCase):
             def describe(self):
                 return f"Sub Object with cucumber: {self.cucumber}, redwhite: {self.redwhite}"
 
-        class ConcreteObjList(BaseObjList):
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
 
-        class SubObjList(BaseObjList):
+        class SubObjList(BaseObjList[SubObj]):
             def describe(self) -> str:
                 return f"Sub Object List with {len(self)} items."
-            def _validate_item(self, item: SubObj) -> None:
-                if not isinstance(item, SubObj):
-                    raise TypeError(f"Item must be a SubObj, got {type(item)}")
 
         L = ConcreteObjList()
         for _ in range(100):
@@ -925,12 +877,9 @@ class TestBaseObjList(unittest.TestCase):
         restype_options=['A','B','C','D','E','F','G','H','I','J','X','Y','Z']
         resname_options=['ALA','GLY','SER','THR','LEU','ILE','VAL','PRO','PHE','TRP','POOPYBUTT','FARTYPOO']
 
-        class ResidueList(BaseObjList):
+        class ResidueList(BaseObjList[Residue]):
             def describe(self) -> str:
                 return f"Residue List with {len(self)} items."
-            def _validate_item(self, item: Residue) -> None:
-                if not isinstance(item, Residue):
-                    raise TypeError(f"Item must be a Residue, got {type(item)}")
                 
         R = ResidueList()
         for _ in range(100):
@@ -956,12 +905,9 @@ class TestBaseObjList(unittest.TestCase):
             def describe(self):
                 return f"Concrete Object with name: {self.name}, number: {self.number}"
 
-        class ConcreteObjList(BaseObjList):
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
 
         obj1 = ConcreteObj(name="Object 1", number=1)
         obj2 = ConcreteObj(name="Object 2", number=2)
@@ -992,12 +938,9 @@ class TestBaseObjList(unittest.TestCase):
             def describe(self):
                 return f"Concrete Object with name: {self.name}, number: {self.number}"
 
-        class ConcreteObjList(BaseObjList):
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
 
         L=ConcreteObjList()
         for _ in range(100):
@@ -1044,12 +987,9 @@ class TestBaseObjList(unittest.TestCase):
             def describe(self):
                 return f"Concrete Object with name: {self.name}, number: {self.number}"
 
-        class ConcreteObjList(BaseObjList):
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-            def _validate_item(self, item: ConcreteObj) -> None:
-                if not isinstance(item, ConcreteObj):
-                    raise TypeError(f"Item must be a ConcreteObj, got {type(item)}")
 
         L=ConcreteObjList()
         for _ in range(100):
@@ -1075,3 +1015,25 @@ class TestBaseObjList(unittest.TestCase):
         self.assertFalse(BL.puniq(['name']))
         self.assertFalse(BL.puniq())
 
+    def test_baseobj_list_with_self_fields(self):
+        
+        class PersonObj(BaseObj):
+            _required_fields = {'name'}
+            _optional_fields= {'children'}
+            model_config = ConfigDict(arbitrary_types_allowed=True)
+            name: str = Field(..., description="Name of the object")
+            children: Optional[Annotated[PersonList, PersonList.validate]] = Field(default_factory=lambda: PersonList())
+            def describe(self):
+                return f"Person with name: {self.name}"
+
+        class PersonList(BaseObjList[PersonObj]):
+            def describe(self) -> str:
+                return f"Self Referencing Object List with {len(self)} items."
+            
+        Person1 = PersonObj(name="Alice")
+        Person2 = PersonObj(name="Bob")
+        Person3 = PersonObj(name="Charlie", children=PersonList([Person1, Person2]))
+        self.assertEqual(Person3.name, "Charlie")
+        self.assertEqual(len(Person3.children), 2)
+        self.assertEqual(Person3.children[0].name, "Alice")
+        self.assertEqual(Person3.children[1].name, "Bob")

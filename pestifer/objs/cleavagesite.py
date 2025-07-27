@@ -103,24 +103,6 @@ class CleavageSite(BaseObj):
         """
         return self.Adapter(**(self.model_dump())).to_string()
 
-class CleavageSiteList(BaseObjList):
-    
+class CleavageSiteList(BaseObjList[CleavageSite]):
     def describe(self):
         return f"CleavageSiteList with {len(self)} cleavage sites"
-    
-    def _validate_item(self, item: CleavageSite) -> None:
-        """
-        Validate that the item is an instance of CleavageSite.
-        
-        Parameters
-        ----------
-        item : CleavageSite
-            The item to validate.
-        
-        Raises
-        ------
-        TypeError
-            If the item is not an instance of CleavageSite.
-        """
-        if not isinstance(item, CleavageSite):
-            raise TypeError(f"Item must be an instance of CleavageSite, got {type(item)}")

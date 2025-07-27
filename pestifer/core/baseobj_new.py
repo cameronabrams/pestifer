@@ -23,9 +23,9 @@ Any field can also be declared as ignored when comparing objects, meaning that i
 The ``BaseObj`` class also uses dispatch methods to allow for creating objects from different input types.  Because it subclasses BaseModel, it can be instantiated by keyword-value parameters.  Additionally, the ``from_input`` method is a singledispatch method that allows for creating objects from different input types, such as dictionaries and :mod:`argparse.Namespace`'s.  Classes the subclass ``BaseObj`` must register their own `from_input` methods to handle other input types, and if they do so, the should also register their own versions of `_from_dict` and `_from_namespace` methods if those input types are to be supported.
 
 """
-
+from __future__ import annotations
 from pydantic import BaseModel, model_validator, ConfigDict
-from typing import ClassVar, List, Dict, Optional, Any, Union, Iterable, Iterator, Self, Set, TypeVar, Generic, Annotated
+from typing import ClassVar, List, Dict, Optional, Any, Union, Iterable, Iterator, Self, Set, TypeVar, Generic, get_args, get_origin
 import hashlib
 import operator
 import yaml
@@ -34,7 +34,7 @@ from collections import UserList
 logger=logging.getLogger(__name__)
 from argparse import Namespace
 from functools import singledispatchmethod
-from abc import ABC, abstractmethod
+from abc import ABC, abstractmethod, ABCMeta
 
 class BaseObj(BaseModel, ABC):
     _required_fields:    ClassVar[Set[str]]                       = set()
@@ -447,21 +447,54 @@ class BaseObj(BaseModel, ABC):
         """
         setattr(self,attr,getattr(getattr(self,objlist_attr)[index_of_obj_in_objlist_attr],attr_of_obj_attr))
 
+
+class GenericListMeta(ABCMeta):
+    """ 
+    Metaclass for abstract :class:`BaseObjList` to handle generic type arguments.
+    
+    A subclass of :class:`BaseObjList` must be declared as class MyList(BaseObjList[MyType])
+    where MyType is a subclass of :class:`BaseObj`.
+
+    Ultimately, this enables subclasses of :class:`BaseObj` to have Fields that are subclasses of :class:`BaseObjList`.
+    We need this because certain objects when put into lists acquire new attributes that are not present in the original object.
+    """
+    def __new__(mcls, name, bases, namespace, **kwargs):
+        cls = super().__new__(mcls, name, bases, namespace, **kwargs)
+        # Use __orig_bases__ to introspect generic base with type args
+        orig_bases = namespace.get('__orig_bases__', ())
+        for base in orig_bases:
+            origin = get_origin(base)
+            args = get_args(base)
+            if origin and args: # and not isinstance(args[0], TypeVar):
+                cls._item_type = args[0]
+                return cls
+        else:
+            # Fallback: walk MRO and look for _item_type
+            for base in cls.__mro__[1:]:
+                inherited_type = getattr(base, "_item_type", None)
+                if inherited_type is not None and not isinstance(inherited_type, TypeVar):
+                    cls._item_type = inherited_type
+                    return cls
+        if getattr(cls, "_item_type", None) is None or isinstance(cls._item_type, TypeVar):
+            raise TypeError(
+                f"{name} must subclass BaseObjList with a concrete Pydantic model type parameter, "
+                f"e.g., `class {name}(BaseObjList[MyModel])` or subclass something that does."
+            )
+
 T = TypeVar("T", bound=BaseObj)
 
-class BaseObjList(UserList, Generic[T], ABC):
+class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
     def __init__(self, initlist: Iterable[T] = ()):
         self.data = []
         for item in initlist:
-            self._validate_item(item)
-            self.data.append(item)
+            self.data.append(self._validate_item(item))
 
     def _validate_item(self, item: T):
-        model_type = self.__orig_class__.__args__[0]
         if isinstance(item, dict):
-            item = model_type(**item)
-        if not isinstance(item, self.__orig_class__.__args__[0]):
-            raise TypeError(f"Item {item} is not of expected type {self.__orig_class__.__args__[0]}")
+            item = self._item_type(**item)
+        elif not isinstance(item, self._item_type):
+            raise TypeError(f"{item} is not an instance of {self._item_type}")
+        return item
 
     @classmethod
     def validate(cls, v):

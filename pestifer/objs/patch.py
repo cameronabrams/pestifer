@@ -204,15 +204,14 @@ class Patch(BaseObj):
         Writes the patch command.
         """
         return f'patch {self.patchname} {self.chainID}:{self.resseqnum}{self.insertion}'
-        
-class PatchList(BaseObjList):
+
+class PatchList(BaseObjList[Patch]):
     """
     A class for handling lists of Patch objects
     
     This class inherits from BaseObjList and provides methods to manage
     a list of Patch objects.
     """
-
     def describe(self):
         """
         Returns a string description of the PatchList.
@@ -222,24 +221,7 @@ class PatchList(BaseObjList):
         str
             A description of the PatchList, including the number of patches it contains.
         """
-        return f'PatchList with {len(self)} patches'
-    
-    def _validate_item(self, item: Patch) -> None:
-        """
-        Validate that the item is an instance of Patch.
-        
-        Parameters
-        ----------
-        item : Patch
-            The item to validate.
-        
-        Raises
-        ------
-        TypeError
-            If the item is not an instance of Patch.
-        """
-        if not isinstance(item, Patch):
-            raise TypeError(f'Item must be an instance of Patch, got {type(item)} instead.')
+        return f'<PatchList with {len(self)} patches>'
 
     def assign_residues(self, Residues):
         """

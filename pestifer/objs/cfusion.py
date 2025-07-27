@@ -154,10 +154,3 @@ class Cfusion(BaseObj):
 class CfusionList(BaseObjList[Cfusion]):
     def describe(self) -> str:
         return f"<CfusionList with {len(self)} items>"
-    
-    def _validate_item(self, item: Cfusion) -> None:
-        """
-        Validate that the item is an instance of Cfusion.
-        """
-        if not isinstance(item, Cfusion):
-            raise TypeError(f"Expected Cfusion instance, got {type(item)}")

@@ -410,11 +410,6 @@ class SSBondList(BaseObjList[SSBond]):
 
     def describe(self):
         return f'SSBondList with {len(self)} SSBonds'
-    
-    def _validate_item(self, item):
-        if not isinstance(item, SSBond):
-            raise TypeError(f"Expected SSBond, got {type(item)}")
-        return True
 
     def assign_residues(self,Residues):
         """
