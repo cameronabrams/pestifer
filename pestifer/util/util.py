@@ -288,15 +288,15 @@ def inspect_classes(module,key=' ',use_yaml_headers_as_keys=False):
     if key!=' ':
         nonkey_classes={}
         for name,cls in inspect.getmembers(sys.modules[module], lambda x: inspect.isclass(x) and (x.__module__==module) and key not in x.__name__):
-            if use_yaml_headers_as_keys and hasattr(cls,'yaml_header'):
-                nkey=cls.yaml_header
+            if use_yaml_headers_as_keys and hasattr(cls,'_yaml_header'):
+                nkey=cls._yaml_header
             else:
                 nkey=name
             nonkey_classes[nkey]=cls
         key_classes={}
         for name,cls in inspect.getmembers(sys.modules[module], lambda x: inspect.isclass(x) and (x.__module__==module) and key in x.__name__):
-            if use_yaml_headers_as_keys and hasattr(cls,'yaml_header'):
-                nkey=cls.yaml_header
+            if use_yaml_headers_as_keys and hasattr(cls,'_yaml_header'):
+                nkey=cls._yaml_header
             else:
                 nkey=name
             key_classes[nkey]=cls
@@ -304,8 +304,8 @@ def inspect_classes(module,key=' ',use_yaml_headers_as_keys=False):
     else:
         classes={}
         for name,cls in inspect.getmembers(sys.modules[module], lambda x: inspect.isclass(x) and (x.__module__==module)):
-            if use_yaml_headers_as_keys and hasattr(cls,'yaml_header'):
-                nkey=cls.yaml_header
+            if use_yaml_headers_as_keys and hasattr(cls,'_yaml_header'):
+                nkey=cls._yaml_header
             else:
                 nkey=name
             classes[nkey]=cls

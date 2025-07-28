@@ -8,18 +8,34 @@ The :class:`ObjManager` inherits from :class:`collections.UserDict`, allowing it
 while providing additional functionality specific to managing molecular objects.
 It also includes methods for counting objects, retiring categories, and expelling objects based on specific criteria.
 """
-from ..util.util import inspect_package_dir
-from collections import UserDict
+# from ..util.util import inspect_package_dir
+from collections import UserDict, UserList
+from typing import Dict, List, Any
 import logging
 logger=logging.getLogger(__name__)
 import os
 
-from .. import objs
+from ..objs.cfusion import Cfusion, CfusionList
+from ..objs.cleavagesite import CleavageSite, CleavageSiteList
+from ..objs.crot import Crot, CrotList
+from ..objs.deletion import Deletion, DeletionList
+from ..objs.insertion import Insertion, InsertionList
+from ..objs.graft import Graft, GraftList
+from ..objs.link import Link, LinkList
+from ..objs.mutation import Mutation, MutationList
+from ..objs.orient import Orient, OrientList
+from ..objs.patch import Patch, PatchList
+from ..objs.rottrans import RotTrans, RotTransList
+from ..objs.seqadv import Seqadv, SeqadvList
+from ..objs.ssbond import SSBond, SSBondList
+from ..objs.ssbonddelete import SSBondDelete, SSBondDeleteList
+from ..objs.substitution import Substitution, SubstitutionList
+from ..objs.ter import Ter, TerList
 
-ObjCats=['seq','topol','coord','generic']
+_ObjCats={'seq','topol','coord','generic'}
 """
 Object categories used in the ObjManager.
-This list defines the categories of objects that can be managed by the `ObjManager`.
+This set defines the categories of objects that can be managed by the `ObjManager`.
 Each category corresponds to a specific type of modification or information related to molecular structures.
 
 - ``seq``: Sequence-related objects
@@ -45,8 +61,27 @@ class ObjManager(UserDict):
         A dictionary that stores retired objects, allowing for retrieval of previously used objects.
     """
 
-    _obj_classes,_objlist_classes=inspect_package_dir(os.path.dirname(objs.__file__),key='List')
-    
+    _obj_classes = (
+        (Cfusion, CfusionList),
+        (CleavageSite, CleavageSiteList),
+        (Crot, CrotList),
+        (Deletion, DeletionList),
+        (Insertion, InsertionList),
+        (Graft, GraftList),
+        (Link, LinkList),
+        (Mutation, MutationList),
+        (Orient, OrientList),
+        (Patch, PatchList),
+        (RotTrans, RotTransList),
+        (Seqadv, SeqadvList),
+        (SSBond, SSBondList),
+        (SSBondDelete, SSBondDeleteList),
+        (Substitution, SubstitutionList),
+        (Ter, TerList)
+    )
+    _obj_classes_byYAML = {cls[0]._yaml_header: cls[0] for cls in _obj_classes}
+    _objlist_classes_byYAML = {cls[0]._yaml_header: cls[1] for cls in _obj_classes}    
+
     def __init__(self,input_specs={}):
         """ 
         Initializes the ObjManager with a dictionary of object specifications.
@@ -79,16 +114,16 @@ class ObjManager(UserDict):
             a new ObjManager containing only the objects that match the given fields. If no object names are provided, an empty ObjManager is returned.
         """
         result=ObjManager()
-        self.counts()
-        for name,Cls in self._obj_classes.items():
-            objcat=Cls.objcat
-            header=Cls.yaml_header
-            if header in objnames and objcat in self and header in self[objcat]:
-                objlist=self[objcat][header].filter(**fields)
-                if len(objlist)>0:
+        # self.counts()
+        for objcat, catdict in self.items():
+            for header, objlist in catdict.items():
+                if len(objnames) > 0 and header not in objnames:
+                    continue
+                objlist = objlist.filter(**fields)
+                if len(objlist) > 0:
                     if not objcat in result:
-                        result[objcat]={}
-                    result[objcat][header]=objlist
+                        result[objcat] = {}
+                    result[objcat][header] = objlist
         return result
 
     def ingest(self,input_obj,overwrite=False):
@@ -102,9 +137,9 @@ class ObjManager(UserDict):
         overwrite : bool
             if True, overwrite existing objects with the same header; if False, append to existing objects
         """
-        if type(input_obj) in self._obj_classes.values():
+        if type(input_obj) in [tup[0] for tup in self._obj_classes]: # an obj class
             self._ingest_obj(input_obj)
-        elif type(input_obj) in self._objlist_classes.values():
+        elif type(input_obj) in [tup[1] for tup in self._obj_classes]: # a list class
             return self._ingest_objlist(input_obj,overwrite=overwrite)
         elif type(input_obj)==dict:
             self._ingest_objdict(input_obj,overwrite=overwrite)
@@ -115,15 +150,14 @@ class ObjManager(UserDict):
     
     def _ingest_obj(self,a_obj):
         Cls=type(a_obj)
-        objclassident=[x for x,y in self._obj_classes.items() if y==Cls][0]
-        LCls=self._objlist_classes.get(f'{objclassident}List',list)
-        objcat=Cls.objcat
-        assert objcat in ObjCats,f'Object category {objcat} is not recognized'
-        header=Cls.yaml_header
+        LCls=self._objlist_classes_byYAML[Cls._yaml_header]
+        objcat=Cls._objcat
+        assert objcat in _ObjCats,f'Object category {objcat} is not recognized'
+        header=Cls._yaml_header
         if not objcat in self:
             self[objcat]={}
         if not header in self[objcat]:
-            self[objcat][header]=LCls([])
+            self[objcat][header]=LCls()
         self[objcat][header].append(a_obj)
         logger.debug(f'Ingested {str(a_obj)} into {objcat} {header}')
         
@@ -131,13 +165,13 @@ class ObjManager(UserDict):
         if len(a_objlist)==0: # can handle an empty list...
             return a_objlist  # ...by returning it
         LCls=type(a_objlist)
-        Cls=type(a_objlist[0])
-        objcat=Cls.objcat
-        header=Cls.yaml_header
+        Cls=LCls._item_type
+        objcat=Cls._objcat
+        header=Cls._yaml_header
         if not objcat in self:
             self[objcat]={}
         if overwrite or not header in self[objcat]:
-            self[objcat][header]=LCls([])
+            self[objcat][header]=LCls()
         self[objcat][header].extend(a_objlist)
         return self[objcat][header]
         
@@ -145,19 +179,22 @@ class ObjManager(UserDict):
         # does nothing if objdict is empty, but let's just be sure
         if len(objdict)==0:
             return
-        for name,Cls in self._obj_classes.items():
-            objcat=Cls.objcat
-            header=Cls.yaml_header
-            if header in objdict:
-                LCls=self._objlist_classes.get(f'{name}List',list)
-                if not objcat in self:
-                    self[objcat]={}
-                if overwrite or not header in self[objcat]:
-                    self[objcat][header]=LCls([])
-                for entry in objdict[header]:
-                    assert type(entry) in [str,dict],f'Error: expected obj specification of type str or dict, got {type(entry)}'
-                    logger.debug(f'entry {entry} objcat {objcat} header {header}')
-                    self[objcat][header].append(Cls(entry))
+        for objYAMLname,objlist in objdict.items():
+            Cls=self._obj_classes_byYAML.get(objYAMLname,None)
+            LCls=self._objlist_classes_byYAML.get(objYAMLname,None)
+            objcat=Cls._objcat
+            header=Cls._yaml_header
+            if not objcat in self:
+                self[objcat]={}
+            if overwrite or not header in self[objcat]:
+                self[objcat][header]=LCls([])
+            for entry in objlist:
+                logger.debug(f'entry {entry.__class__.__name__} objcat {objcat} header {header}')
+                if not isinstance(entry,Cls):
+                    logger.debug(f'Converting {entry} to {Cls.__name__}')
+                    self[objcat][header].append(Cls.new(entry))
+                else:
+                    self[objcat][header].append(entry)
 
     def retire(self,objcat):
         """
@@ -187,33 +224,40 @@ class ObjManager(UserDict):
             a new ObjManager containing the expelled objects; the original ObjManager is modified to remove these objects
         """
         ex=ObjManager()
-        for name,Cls in self._obj_classes.items():
-            LCls=self._objlist_classes.get(f'{name}List',list)
-            objcat=Cls.objcat
-            if objcat in self:
-                exl=LCls([])
-                for obj in self[objcat]:
+        for objcat, catdict in self.items():
+            for header, objlist in catdict.items():
+                if len(objlist) == 0:
+                    continue
+                LCls = self._objlist_classes_byYAML[header]
+                expelled_objs = LCls([])
+                for obj in objlist:
                     for r in expelled_residues:
-                        matches=obj.wildmatch(resseqnum=r.resseqnum,insertion=r.insertion)
+                        matches = obj.wildmatch(resseqnum=r.resseqnum, insertion=r.insertion)
                         if matches:
-                            exl.append(obj)
-                for obj in exl:
-                    self[objcat].remove(obj)
-                ex.ingest(exl)
+                            logger.debug(f'{obj.__class__.__name__} {obj} matches residue {r.describe()}')
+                            if not obj in expelled_objs:
+                                expelled_objs.append(obj)
+                        # else:
+                        #     logger.debug(f'{obj.__class__.__name__} {obj} does not match residue {r.describe()}')
+                if len(expelled_objs) > 0:
+                    ex.ingest(expelled_objs)
+                    for obj in expelled_objs:
+                        # logger.debug(f'Expelling {obj.__class__.__name__} {obj} from {objcat} {header}')
+                        objlist.remove(obj)
         return ex
-    
-    def counts(self):
+
+    def counts_by_header(self) -> dict:
         """
         Counts the number of objects in each category and header.
         This method logs the counts of objects in each category and header.
         It iterates through the object classes and their corresponding categories and headers,
         counting the number of objects in each header within each category.
         """
-        for name,Cls in self._obj_classes.items():
-            objcat=Cls.objcat
-            header=Cls.yaml_header
-            this_count=0
-            if objcat in self:
-                if header in self[objcat]:
-                    this_count=len(self[objcat][header])
-            logger.debug(f'{header} {this_count}')
+        counts = {} 
+        for objcat, catdict in self.items():
+            for header, objlist in catdict.items():
+                counts[header] = len(objlist)
+        for YAMLname, Cls in self._obj_classes_byYAML.items():
+            if YAMLname not in counts:
+                counts[YAMLname] = 0
+        return counts

@@ -1,7 +1,7 @@
 
 from ..core.baseobj_new import BaseObj, BaseObjList
 from pydantic import Field
-from typing import List
+from typing import List, Any
 import logging
 logger=logging.getLogger(__name__)
 
@@ -10,13 +10,14 @@ class StateInterval(BaseObj):
     A simple class to represent a state interval with a start and end time.
     This is useful for tracking the state of an object over a period of time.
     """
-    _required_fields = ['state', 'bounds', 'build']
+    _required_fields = {'state', 'bounds'}
+    _optional_fields = {'build'}
     state: str = Field(..., description="State of the interval")
     bounds: List[int] = Field(..., description="Bounds of the interval")
     build: bool = Field(False, description="build flag, if applicable")
 
     def describe(self):
-        return f"StateInterval(state={self.state}, bounds={self.bounds}, build={self.build})"
+        return f"<StateInterval state={self.state}, bounds={self.bounds}, build={self.build}>"
 
     def declare_buildable(self) -> None:
         """
@@ -38,32 +39,50 @@ class StateInterval(BaseObj):
             self.bounds[-1] += increment
         else:
             raise ValueError("Bounds must be a list of integers with at least one element.")
-        
-class StateIntervalList(BaseObjList):
+
+class StateIntervalList(BaseObjList[StateInterval]):
     """
     A list of StateInterval objects.
     This class extends BaseObjList to manage a collection of StateInterval instances.
     """
     def describe(self) -> str:
         return f"StateIntervalList with {len(self)} intervals"
-    
-    def _validate_item(self, item: StateInterval) -> None:
+
+    @classmethod
+    def process_itemlist(cls, itemlist: Any = None, state_func = None):
         """
-        Validate that the item is an instance of StateInterval.
-        
+        Process an item to extract StateInterval instances.
+
         Parameters
         ----------
-        item : StateInterval
-            The item to validate.
-        
-        Raises
-        ------
-        TypeError
-            If the item is not an instance of StateInterval.
+        item : Any, optional
+            The item to process (default is None).
+        state_func : function, optional
+            A function to determine the state of the item (default is None).
+
+        Returns
+        -------
+        StateIntervalList :
+            A list of StateInterval instances.
         """
-        if not isinstance(item, StateInterval):
-            raise TypeError(f"Item must be an instance of StateInterval, got {type(item)}")
-        
+        if itemlist is None or state_func is None:
+            return None
+
+        if not callable(state_func):
+            raise ValueError("state_func must be a callable function.")
+
+        new_list = cls()
+        for i, item in enumerate(itemlist):     
+            state = state_func(item)
+            state_change = len(new_list) == 0 or new_list[-1].state != state
+            if state_change:
+                bounds = [i, i]
+                interval = StateInterval(state=state, bounds=bounds)
+                new_list.append(interval)
+            else:
+                new_list[-1].bounds[1] = i
+        return new_list
+
     def add_interval(self, interval: StateInterval) -> None:
         """
         Inserts a StateInterval into the calling instance.
@@ -126,4 +145,4 @@ class StateIntervalList(BaseObjList):
         return self.bounds[-1] - self.bounds[0] + 1 if self.bounds else 0
 
     def describe(self) -> str:
-        return f"StateInterval(state={self.state}, bounds={self.bounds}, build={self.build})"
+        return f"<StateIntervalList with {len(self)} intervals, bounds={self.bounds}>"

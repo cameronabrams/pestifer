@@ -198,10 +198,12 @@ class BaseObj(BaseModel, ABC):
         return all(getattr(self, k) <= getattr(other, k) for k in keys)
     
     def __setattr__(self, name, value):
-        if name not in self.__class__.__annotations__:
-            raise AttributeError(f"Cannot set undeclared attribute '{name}'")
-        super().__setattr__(name, value)
-    
+        if name.startswith('_') and name not in self.__private_attributes__:
+            # This lets internal tools assign attributes like __class__ etc.
+            object.__setattr__(self, name, value)
+        else:
+            super().__setattr__(name, value)
+
     # Utility matchers
     def strhash(
         self,
@@ -523,9 +525,12 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         new.extend(other)
         return new
 
-    def __getitem__(self, index: int) -> BaseObj:
-        return self.data[index]
-
+    def __getitem__(self, index: int) -> BaseObj|BaseObjList:
+        result = super().__getitem__(index)
+        if isinstance(index, slice):
+            return type(self)(result)
+        return result
+    
     def __iter__(self) -> Iterator[BaseObj]:
         return iter(self.data)
 
@@ -895,3 +900,49 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
                 bins=self.binnify(fields=local_fields_copy)
         assert(self.puniq(fields=local_fields_copy))
 
+    def map_attr(self,mapped_attr,key_attr,map):
+        """
+        Simple cross-attribute mapper. 
+
+        Parameters
+        ----------
+        mapped_attr : str
+            name of attribute to which the mapping result 
+            will be applied
+        key_attr : str
+            name of attribute whose value is mapped
+        map : dict
+            the map
+
+        Returns
+        -------
+        None :
+            This method modifies the calling instance in place.
+            It sets the mapped_attr to the value from the map
+            corresponding to the key_attr's value.
+            If the key_attr's value is not in the map, it does nothing.
+        """
+        for item in self:
+            item.map_attr(mapped_attr, key_attr, map)
+
+    def remove_duplicates(self,fields=[]):
+        """
+        Removes duplicates from the calling instance
+        The duplicates are determined by the hash of the values
+        of the attributes named in the fields list. 
+
+        Parameters
+        ----------
+        fields : list, optional
+            attribute names used to build the hash to test for uniqueness;
+            if unset, all attributes are used
+        """
+        bins=self.binnify(fields=fields)
+        # logger.debug(f'remove_duplicates: bin counts {[len(b) for b in bins.values()]}')
+        self.clear()
+        assert len(self)==0
+        for b in bins.values():
+            # logger.debug(f'preserving {str(b[0])}')
+            self.append(b[0])
+            # for c in b[1:]:
+            #     logger.debug(f'discarding {str(c)}')

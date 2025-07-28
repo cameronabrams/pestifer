@@ -2,6 +2,7 @@
 """
 Class for handling atoms.
 """
+from __future__ import annotations
 import logging
 logger=logging.getLogger(__name__)
 
@@ -16,6 +17,7 @@ from typing import Optional, ClassVar, Union, Any
 from ..core.baseobj_new import BaseObj, BaseObjList
 from ..util.cifutil import CIFdict
 from ..util.util import reduce_intlist
+from ..psfutil.psfatom import PSFAtom, PSFAtomList
 
 class Atom(BaseObj):
     """
@@ -127,6 +129,11 @@ class Atom(BaseObj):
     Name used in mmCIF files to identify atom site records.
     """
 
+    _ORIGINAL_ATTRIBUTES: dict = {} # not a ClassVar, but a regular instance variable
+    """
+    Dictionary to store original attributes of an atom instance.
+    """
+
     def describe(self):
         return f'Atom {self.serial} ({self.name}) in {self.resname} chain {self.chainID} at position ({self.x}, {self.y}, {self.z}) with occupancy {self.occ} and beta factor {self.beta}. Element: {self.elem}, Charge: {self.charge}.'
     
@@ -234,7 +241,7 @@ class Atom(BaseObj):
                 name=cifdict['label_atom_id'],
                 resname=cifdict['label_comp_id'],
                 chainID=cifdict['label_asym_id'],
-                resseqnum=int(cifdict['label_seq_id']),
+                resseqnum=cifdict['label_seq_id'],
                 x=float(cifdict['cartn_x']),
                 y=float(cifdict['cartn_y']),
                 z=float(cifdict['cartn_z']),
@@ -324,7 +331,7 @@ class Atom(BaseObj):
         """
         pdbline='{:<6s}'.format(self.recordname)+\
                 '{:5d}'.format(self.serial)+' '+\
-                '{:<4s}'.format(' '+self.resname if len(self.resname)<4 else self.resname)+\
+                '{:<4s}'.format(' '+self.name if len(self.name)<4 else self.name)+\
                 '{:1s}'.format(self.altloc)+\
                 '{:<4s}'.format(self.resname)+\
                 '{:1s}'.format(self.chainID)+\
@@ -338,7 +345,26 @@ class Atom(BaseObj):
                 10*' '+'{:>2s}'.format(self.elem)+'{:2s}'.format(self.charge)
         return pdbline
     
-    def overwritePosition(self,other):
+    @singledispatchmethod
+    def overwrite_position(self, *args):
+        """
+        Overwrites the position of this atom with the position of another atom.
+        This method is a placeholder and should be overridden in subclasses.
+        
+        Parameters
+        ----------
+        *args : Any
+            The arguments to overwrite the position. Should be an Atom object.
+        
+        Raises
+        ------
+        NotImplementedError
+            If this method is called without being overridden in a subclass.
+        """
+        raise NotImplementedError("This method should be overridden in subclasses.")
+
+    @overwrite_position.register(BaseObj)
+    def _overwrite_position_from_Atom(self, other: BaseObj):
         """
         Overwrites the position of this atom with the position of another atom.
         This method updates the x, y, and z coordinates of this atom to match those of another atom.
@@ -348,9 +374,45 @@ class Atom(BaseObj):
         other : Atom
             The atom whose position will be used to overwrite this atom's position.
         """
+        if not isinstance(other, Atom):
+            raise TypeError(f"Expected an Atom object, got {type(other)}")
         self.x=other.x
         self.y=other.y
         self.z=other.z
+
+    @overwrite_position.register(dict)
+    def _overwrite_position_from_dict(self, other: dict):
+        """
+        Overwrites the position of this atom with the position specified in a dictionary.
+        The dictionary must contain keys 'x', 'y', and 'z' with the new coordinates.
+
+        Parameters
+        ----------
+        other : dict
+            A dictionary containing the new position for the atom.
+        """
+        self.x = other.get('x', self.x)
+        self.y = other.get('y', self.y)
+        self.z = other.get('z', self.z)
+
+    @overwrite_position.register(float)
+    def _overwrite_position_from_floats(self, x: float, y: float, z: float):
+        """
+        Overwrites the position of this atom with the position specified in a tuple.
+        The tuple must contain three elements: (x, y, z) with the new coordinates.
+
+        Parameters
+        ----------
+        x : float
+            The new x coordinate.
+        y : float
+            The new y coordinate.
+        z : float
+            The new z coordinate.
+        """
+        self.x = x
+        self.y = y
+        self.z = z
 
 class AtomList(BaseObjList[Atom]):
     """
@@ -360,24 +422,18 @@ class AtomList(BaseObjList[Atom]):
     """
 
     def describe(self):
-        return f'AtomList with {len(self)} atoms.'
-    
-    def _validate_item(self, item):
-        if not isinstance(item, Atom):
-            raise TypeError(f"Item must be an Atom, got {type(item)}")
+        return f'<AtomList with {len(self)} atoms>'
 
     def reserialize(self):
         """
         Reserializes the AtomList by updating the serial numbers of each atom.
         This method assigns a new serial number to each atom in the list, starting from 1
         and incrementing for each atom. It also stores the original serial number in the
-        `_ORIGINAL_` dictionary of each atom for reference.
+        `_ORIGINAL_ATTRIBUTES` dictionary of each atom for reference.
         """
         serial=1
         for a in self:
-            if not '_ORIGINAL_' in a.__dict__:
-                a._ORIGINAL_={}
-            a._ORIGINAL_['serial']=a.serial
+            a._ORIGINAL_ATTRIBUTES['serial']=a.serial
             a.serial=serial
             serial+=1
             
@@ -405,13 +461,11 @@ class AtomList(BaseObjList[Atom]):
             except StopIteration:
                 pass
             if n>0:
-                if not '_ORIGINAL_' in a.__dict__:
-                    a._ORIGINAL_={}
                 a._ORIGINAL_['serial']=a.serial
                 a.serial-=n
                 logger.debug(f'Atom orig serial {a._ORIGINAL_["serial"]} to {a.serial}')
 
-    def overwritePositions(self,other):
+    def overwrite_positions(self,other):
         """
         Overwrites the positions of atoms in this AtomList with the positions of atoms in another AtomList.
         This method iterates through both AtomLists, ensuring they are of equal length,
@@ -429,9 +483,9 @@ class AtomList(BaseObjList[Atom]):
         """
         assert len(self)==len(other),'Error: atom lists not equal length'
         for sa,oa in zip(self,other):
-            sa.overwritePosition(oa)
-    
-    def apply_psf_resnames(self,psfatoms):
+            sa.overwrite_position(oa)
+
+    def apply_psf_resnames(self, psfatoms: PSFAtomList):
         """
         Applies residue names from a PSF atom list to the corresponding atoms in this AtomList.
         This method iterates through both AtomLists, ensuring they are of equal length,
@@ -439,11 +493,11 @@ class AtomList(BaseObjList[Atom]):
         
         Parameters
         ----------
-        psfatoms : AtomList
+        psfatoms : PSFAtomList
             The PSF atom list containing residue names to be applied.
         """
-        for myatom,psfatom in zip(self,psfatoms):
-            myatom.resname=psfatom.resname
+        for myatom, psfatom in zip(self, psfatoms):
+            myatom.resname = psfatom.resname
 
 class Hetatm(Atom):
     """

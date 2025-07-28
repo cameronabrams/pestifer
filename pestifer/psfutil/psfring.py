@@ -15,26 +15,14 @@ from ..psfutil.psfbond import PSFBondList
 from ..psfutil.psfcontents import PSFContents
 from ..psfutil.psftopoelement import PSFTopoElementList,PSFTopoElement
 
-from ..util.coord import coorddf_from_pdb
+from ..util.coord import coorddf_from_pdb, lawofcos
 from ..util.linkcell import Linkcell
 from ..util.util import countTime, cell_from_xsc
 
 logger=logging.getLogger(__name__)
 
-def lawofcos(a,b):
-    """
-    return the cosine of the angle defined by vectors a and b if they share a vertex (the LAW OF COSINES)
 
-    Parameters
-    ----------
-    a : np.ndarray
-        First vector
-    b : np.ndarray
-        Second vector
-    """
-    return np.dot(a,b)/np.sqrt(np.dot(a,a)*np.dot(b,b))
-
-class Ring(PSFTopoElement):
+class PSFRing(PSFTopoElement):
     """
     A class for handling rings in a molecular structure.
     This class represents a ring defined by a list of atom indices and provides methods to check if a bond pierces the ring.
@@ -151,7 +139,7 @@ class RingList(PSFTopoElementList):
     def _from_graph(self,G):
         L=[]
         for ll in nx.chordless_cycles(G):
-            L.append(Ring(ll))
+            L.append(PSFRing(ll))
         super().__init__(L)
 
     def __str__(self):

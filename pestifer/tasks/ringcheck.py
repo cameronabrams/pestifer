@@ -9,7 +9,7 @@ import logging
 
 from ..core.basetask import BaseTask
 from ..core.artifacts import PDBFile, PSFFile, PsfgenInputScript, PsfgenLogFile
-from ..molecule.ring import ring_check
+from ..psfutil.psfring import ring_check
 
 logger=logging.getLogger(__name__)
 

@@ -13,6 +13,19 @@ from ..core.labels import Labels
 
 logger=logging.getLogger(__name__)
 
+def lawofcos(a: np.ndarray, b: np.ndarray) -> float:
+    """
+    return the cosine of the angle defined by vectors a and b if they share a vertex (the LAW OF COSINES)
+
+    Parameters
+    ----------
+    a : np.ndarray
+        First vector
+    b : np.ndarray
+        Second vector
+    """
+    return np.dot(a,b)/np.sqrt(np.dot(a,a)*np.dot(b,b))
+
 def measure_dihedral(a1,a2,a3,a4):
     """
     Measure dihedral angle IN RADIANS of a1->a2--a3->a4

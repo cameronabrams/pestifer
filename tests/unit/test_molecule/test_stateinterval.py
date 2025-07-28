@@ -8,7 +8,7 @@ class TestStateInterval(unittest.TestCase):
 
     def test_describe(self):
         description = self.interval.describe()
-        expected_description = "StateInterval(state=A, bounds=[1, 10], build=False)"
+        expected_description = "<StateInterval state=A, bounds=[1, 10], build=False>"
         self.assertEqual(description, expected_description)
 
     def test_declare_buildable(self):
@@ -104,3 +104,18 @@ class TestStateIntervalList(unittest.TestCase):
         nested_interval = StateInterval(state='C', bounds=[11, 15], build=False)
         with self.assertRaises(ValueError):
             self.interval_list.add_interval(nested_interval)
+
+    def test_process_itemlist(self):
+        itemlist = ['A', 'A', 'A', 'C', 'B', 'B', 'B', 'A', 'A']
+        state_func = lambda x: x
+        result = StateIntervalList.process_itemlist(itemlist, state_func)
+        self.assertIsInstance(result, StateIntervalList)
+        self.assertEqual(len(result), 4)
+        self.assertEqual(result[0].state, 'A')
+        self.assertEqual(result[0].bounds, [0, 2])
+        self.assertEqual(result[1].state, 'C')
+        self.assertEqual(result[1].bounds, [3, 3])
+        self.assertEqual(result[2].state, 'B')
+        self.assertEqual(result[2].bounds, [4, 6])
+        self.assertEqual(result[3].state, 'A')
+        self.assertEqual(result[3].bounds, [7, 8])

@@ -1,6 +1,10 @@
 import unittest
-from pestifer.molecule.residue import Residue, EmptyResidue
+from pestifer.molecule.residue import Residue, EmptyResidue, ResidueList
 from pestifer.molecule.atom import AtomList, Atom
+from pestifer.objs.link import Link, LinkList
+from pestifer.objs.deletion import Deletion, DeletionList
+from pestifer.objs.substitution import Substitution, SubstitutionList
+from pestifer.objs.insertion import Insertion, InsertionList
 from pestifer.core.config import Config
 from pestifer.core.labels import Labels
 from pestifer.util.cifutil import CIFdict, CIFload
@@ -62,3 +66,523 @@ class TestResidue(unittest.TestCase):
         self.assertTrue(r.resolved)
         self.assertEqual(r.segtype, 'UNSET')
         self.assertIsInstance(r.atoms, AtomList)  # Atoms should be an AtomList
+    
+    def test_residue_create_and_linking(self):
+        r1 = Residue(
+            resname='ALA',
+            resseqnum=1,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r2 = Residue(
+            resname='GLY',
+            resseqnum=2,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r1.down.append(r2)
+        r2.up.append(r1)
+        self.assertEqual(r1.down[0], r2)
+        self.assertEqual(r2.up[0], r1)
+        self.assertIsInstance(r1.down, ResidueList)
+        self.assertIsInstance(r2.up, ResidueList)
+
+        link1 = Link.new('A_1_C-G_2_N')
+        r1.uplink.append(link1)
+        r2.downlink.append(link1)
+        self.assertEqual(r1.uplink[0], link1)
+        self.assertEqual(r2.downlink[0], link1)
+        self.assertIsInstance(r1.uplink, LinkList)
+        self.assertIsInstance(r2.downlink, LinkList)
+
+    def test_residue_create_and_link_to(self):
+        r1 = Residue(
+            resname='ALA',
+            resseqnum=1,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r2 = Residue(
+            resname='GLY',
+            resseqnum=2,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        link1 = Link.new('A_1_C-G_2_N')
+        r1.link_to(r2,link1)
+        self.assertIn(r2, r1.down)
+        self.assertIn(r1, r2.up)
+        self.assertIn(link1, r1.downlink)
+        self.assertIn(link1, r2.uplink)
+        r1.unlink(r2,link1)
+        self.assertNotIn(r2, r1.down)
+        self.assertNotIn(r1, r2.up)
+        self.assertNotIn(link1, r1.downlink)
+        self.assertNotIn(link1, r2.uplink)
+
+    def test_residue_pair_relations(self):
+        r1 = Residue(
+            resname='ALA',
+            resseqnum=1,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r2 = Residue(
+            resname='GLY',
+            resseqnum=2,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        self.assertTrue(r1<r2)
+        r3 = Residue(
+            resname='GLY',
+            resseqnum=2,
+            insertion='A',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        self.assertTrue(r2<r3)
+        self.assertFalse(r2.same_resid(r3))
+
+    def test_residue_add_atom(self):
+        r = Residue(
+            resname='ALA',
+            resseqnum=1,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        atom = Atom(
+            serial=1,
+            name='C',
+            altloc=' ',
+            resname='ALA',
+            chainID='A',
+            resseqnum=1,
+            insertion='',
+            x=1.0,
+            y=2.0,
+            z=3.0,
+            occ=1.0,
+            beta=0.0,
+            elem='C',
+            charge=' '
+        )
+        self.assertTrue(r.add_atom(atom))
+        self.assertIn(atom, r.atoms)
+        self.assertEqual(len(r.atoms), 1)
+        another_atom = Atom(
+            serial=2,
+            name='O',
+            altloc=' ',
+            resname='GLY',
+            chainID='A',
+            resseqnum=1,
+            insertion='',
+            x=1.5,
+            y=2.5,
+            z=3.5,
+            occ=1.0,
+            beta=0.0,
+            elem='O',
+            charge=' '
+        )
+        self.assertFalse(r.add_atom(another_atom))
+
+        r.set_chainID('B')
+        self.assertEqual(r.chainID, 'B')
+        self.assertEqual(r.atoms[0].chainID, 'B')
+
+    def test_residue_get_down_group(self):
+        r1 = Residue(
+            resname='ALA',
+            resseqnum=1,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r2 = Residue(
+            resname='GLY',
+            resseqnum=2,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        link1=  Link.new('A_1_C-G_2_N')
+        r1.link_to(r2,link1)
+        downstream_residues, downstream_links = r1.get_down_group()
+        self.assertIn(r2, downstream_residues)
+        self.assertIn(link1, downstream_links)
+        self.assertIsInstance(downstream_residues, ResidueList)
+        self.assertIsInstance(downstream_links, LinkList)
+
+class TestResidueList(unittest.TestCase):
+    def test_residue_list_creation(self):
+        rl = ResidueList()
+        self.assertIsInstance(rl, ResidueList)
+        self.assertEqual(len(rl), 0)
+
+    def test_residue_list_add(self):
+        r1 = Residue(
+            resname='ALA',
+            resseqnum=1,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        rl = ResidueList()
+        rl.append(r1)
+        self.assertIn(r1, rl)
+        self.assertEqual(len(rl), 1)
+
+    def test_residue_list_from_atomlist(self):
+        atom1 = Atom(
+            serial=1,
+            name='C',
+            altloc=' ',
+            resname='ALA',
+            chainID='A',
+            resseqnum=1,
+            insertion='',
+            x=1.0,
+            y=2.0,
+            z=3.0,
+            occ=1.0,
+            beta=0.0,
+            elem='C',
+            charge=' '
+        )
+        atom2 = Atom(
+            serial=2,
+            name='O',
+            altloc=' ',
+            resname='GLY',
+            chainID='A',
+            resseqnum=2,
+            insertion='',
+            x=1.5,
+            y=2.5,
+            z=3.5,
+            occ=1.0,
+            beta=0.0,
+            elem='O',
+            charge=' '
+        )
+        atom_list = AtomList([atom1, atom2])
+        residue_list = ResidueList.from_atomlist(atom_list)
+        self.assertEqual(len(residue_list), 2)
+        self.assertIsInstance(residue_list[0], Residue)
+        self.assertIsInstance(residue_list[1], Residue)
+
+
+    def test_residue_list_get_sublist(self):
+        r1 = Residue(
+            resname='ALA',
+            resseqnum=1,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r2 = Residue(
+            resname='GLY',
+            resseqnum=2,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r3 = Residue(
+            resname='SER',
+            resseqnum=3,
+            insertion='',
+            chainID='B',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        rl = ResidueList([r1, r2, r3])
+        sublist = rl.get(chainID='A')
+        self.assertEqual(len(sublist), 2)
+        self.assertIn(r1, sublist)
+        self.assertIn(r2, sublist)
+        self.assertNotIn(r3, sublist)
+
+    def test_residue_list_get_by_resname(self):
+        r1 = Residue(
+            resname='ALA',
+            resseqnum=1,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r2 = Residue(
+            resname='GLY',
+            resseqnum=2,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r3 = Residue(
+            resname='ALA',
+            resseqnum=3,
+            insertion='',
+            chainID='B',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        rl = ResidueList([r1, r2, r3])
+        alist = rl.get(resname='ALA')
+        self.assertEqual(len(alist), 2)
+        self.assertIn(r1, alist)
+        self.assertIn(r3, alist)
+        self.assertNotIn(r2, alist)
+
+    def test_residue_list_get_by_resseqnum_insertion(self):
+        r1 = Residue(
+            resname='ALA',
+            resseqnum=1,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r2 = Residue(
+            resname='GLY',
+            resseqnum=1,
+            insertion='A',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r3 = Residue(
+            resname='SER',
+            resseqnum=3,
+            insertion='A',
+            chainID='B',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        rl = ResidueList([r1, r2, r3])
+        singleton = rl.get(resseqnum=1, insertion='A')
+        self.assertIsInstance(singleton, Residue)
+        self.assertEqual(singleton, r2)
+
+    def test_residue_list_apply_segtypes(self):
+        r1 = Residue(
+            resname='ALA',
+            resseqnum=1,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r2 = Residue(
+            resname='GLY',
+            resseqnum=2,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        rl = ResidueList([r1, r2])
+        rl.apply_segtypes()
+        self.assertEqual(r1.segtype, 'protein')
+        self.assertEqual(r2.segtype, 'protein')
+
+    def test_residue_list_deletions(self):
+        r1 = Residue(
+            resname='ALA',
+            resseqnum=1,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r2 = Residue(
+            resname='GLY',
+            resseqnum=2,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r3 = Residue(
+            resname='SER',
+            resseqnum=3,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r4 = Residue(
+            resname='THR',
+            resseqnum=4,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        rl = ResidueList([r1, r2, r3, r4])
+        deletion1 = Deletion(
+            chainID="A",
+            resseqnum1=2,
+            insertion1="",
+            resseqnum2=3,
+            insertion2=""
+        )
+        dlist=DeletionList([deletion1])
+        excised=rl.deletion(dlist)
+        self.assertEqual(len(excised), 2)
+        self.assertIn(r2, excised)
+        self.assertIn(r3, excised)
+        self.assertNotIn(r1, excised)
+        self.assertNotIn(r4, excised)
+        self.assertIn(r1, rl)
+        self.assertIn(r4, rl)
+
+    def test_residue_list_substitutions(self):
+        r1 = Residue(
+            resname='ALA',
+            resseqnum=1,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r2 = Residue(
+            resname='GLY',
+            resseqnum=2,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r3 = Residue(
+            resname='SER',
+            resseqnum=3,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r4 = Residue(
+            resname='THR',
+            resseqnum=4,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        rl = ResidueList([r1, r2, r3, r4])
+        substitution1 = Substitution(
+            chainID="A",
+            resseqnum1=2,
+            insertion1="",
+            resseqnum2=3,
+            insertion2="",
+            subseq="WAVE"
+        )
+        slist=SubstitutionList([substitution1])
+        seqadvs,substituted=rl.substitutions(slist)
+        self.assertEqual(len(substituted), 0) # subseq is greater in length that the number of residues substituted
+        self.assertEqual(len(seqadvs), 2)
+        self.assertEqual(len(rl), 4)
+
+    def test_residue_list_insertions(self):
+        r1 = Residue(
+            resname='ALA',
+            resseqnum=1,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r2 = Residue(
+            resname='GLY',
+            resseqnum=2,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r3 = Residue(
+            resname='SER',
+            resseqnum=3,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        r4 = Residue(
+            resname='THR',
+            resseqnum=4,
+            insertion='',
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
+        rl = ResidueList([r1, r2, r3, r4])
+        insertion1 = Insertion(
+            chainID="A",
+            resseqnum=3,
+            insertion="",
+            sequence="GGG",
+            integer_increment=False
+        )
+        ilist=InsertionList([insertion1])
+        self.assertEqual(len(rl), 4)
+        rl.apply_insertions(ilist)
+        self.assertEqual(len(rl), 7)

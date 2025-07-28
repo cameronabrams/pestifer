@@ -12,7 +12,7 @@ from argparse import Namespace
 from functools import singledispatchmethod
 
 from pydantic import Field, ConfigDict
-from typing import Union, Any, ClassVar
+from typing import Union, Any, ClassVar, Optional
 
 from pidibble.baserecord import BaseRecord
 from pidibble.pdbrecord import PDBRecord
@@ -27,6 +27,7 @@ from ..objs.substitution import SubstitutionList
 from ..core.stringthings import join_ri, split_ri
 from ..util.cifutil import CIFdict
 from ..util.coord import positionN
+from .stateinterval import StateInterval, StateIntervalList
 
 class EmptyResidue(BaseObj):
     """
@@ -110,7 +111,7 @@ class EmptyResidue(BaseObj):
     """
 
     def describe(self):
-        return f"EmptyResidue: {self.chainID}_{self.resname}{self.resseqnum}{self.insertion}*"
+        return f"<EmptyResidue {self.chainID}_{self.resname}{self.resseqnum}{self.insertion} ({'resolved' if self.resolved else 'unresolved'})>"
     
     class Adapter:
         """
@@ -138,6 +139,12 @@ class EmptyResidue(BaseObj):
         
         @classmethod
         def from_pdbrecord(cls, pdbrecord: Union[PDBRecord, BaseRecord]) -> "EmptyResidue.Adapter":
+            if pdbrecord.modelNum is None:
+                pdbrecord.modelNum = 1
+            elif type(pdbrecord.modelNum) == str and pdbrecord.modelNum.isdigit():
+                pdbrecord.modelNum = int(pdbrecord.modelNum)
+            elif type(pdbrecord.modelNum) == str and len(pdbrecord.modelNum) == 0:
+                pdbrecord.modelNum = 1
             input_dict={
                 'model':pdbrecord.modelNum,
                 'resname':pdbrecord.resName,
@@ -244,6 +251,7 @@ class EmptyResidue(BaseObj):
     @new.register(BaseRecord|PDBRecord)
     @classmethod
     def _from_pdbrecord(cls, pdbrecord: Union[BaseRecord, PDBRecord]) -> "EmptyResidue":
+        logger.debug(f'Creating EmptyResidue from PDBRecord: {pdbrecord}')
         adapter = cls.Adapter.from_pdbrecord(pdbrecord)
         return cls._from_adapter(adapter)
 
@@ -286,10 +294,6 @@ class EmptyResidueList(BaseObjList[EmptyResidue]):
     """
     def describe(self):
         return f'<EmptyResidueList with {len(self)} residues>'
-    
-    def _validate_item(self, item):
-        if not isinstance(item, EmptyResidue):
-            raise TypeError(f"Item must be an instance of EmptyResidue, got {type(item)}")
 
 class Residue(EmptyResidue):
     """
@@ -308,6 +312,7 @@ class Residue(EmptyResidue):
     """
     atoms: AtomList = Field(default_factory=AtomList, description="A list of atoms that belong to this residue.")
 
+    # _optional_fields = EmptyResidue._optional_fields | {'uplink', 'downlink'}
     _optional_fields = EmptyResidue._optional_fields | {'up', 'down', 'uplink', 'downlink'}
     """
     Optional attributes for :class:`~pestifer.molecule.residue.Residue` in addition to those defined for :class:`~pestifer.molecule.residue.EmptyResidue`.
@@ -321,8 +326,8 @@ class Residue(EmptyResidue):
     - ``downlink``: list
         A list of links to residues that are connected to this residue in a downstream direction.
     """
-    up: 'ResidueList' = Field(default_factory='ResidueList', description="A list of residues linked to this residue in an upstream direction.")
-    down: 'ResidueList' = Field(default_factory='ResidueList', description="A list of residues linked to this residue in a downstream direction.")
+    up: Optional['ResidueList'] = Field(default_factory=lambda: ResidueList())  # = Field(default=[], description="A list of residues linked to this residue in an upstream direction.")
+    down: Optional['ResidueList'] = Field(default_factory=lambda: ResidueList())  # = Field(default=[], description="A list of residues linked to this residue in a downstream direction.")
     uplink: LinkList = Field(default_factory=LinkList, description="A list of links to residues connected to this residue in an upstream direction.")
     downlink: LinkList = Field(default_factory=LinkList, description="A list of links to residues connected to this residue in a downstream direction.")
 
@@ -345,6 +350,8 @@ class Residue(EmptyResidue):
 
     _counter: ClassVar[int] = 0
 
+    _chainIDmap_label_to_auth = {}
+
     def describe(self):
         """
         Returns a string description of the Residue object, including its chain ID, residue name, sequence number, and insertion code.
@@ -362,6 +369,10 @@ class Residue(EmptyResidue):
         This class provides methods to create a Residue from a PDBRecord, CIFdict, or a shortcode.
         It extends the :class:`EmptyResidue.Adapter` class to include additional attributes specific to Residue.
         """
+        def __init__(self, resname=None, resseqnum=None, insertion=None, chainID=None, model=1, resolved=False, segtype='UNSET', auth_asym_id=None, auth_comp_id=None, auth_seq_id=None, obj_id=None, atoms: AtomList=None):
+            super().__init__(resname=resname, resseqnum=resseqnum, insertion=insertion, chainID=chainID, model=model, resolved=resolved, segtype=segtype, auth_asym_id=auth_asym_id, auth_comp_id=auth_comp_id, auth_seq_id=auth_seq_id, obj_id=obj_id)
+            self.atoms = atoms
+
         @classmethod
         def from_atom(cls, a: Union[Atom, Hetatm]) -> "Residue.Adapter":
             """
@@ -378,7 +389,7 @@ class Residue(EmptyResidue):
                 An instance of Residue.Adapter initialized with the atom's attributes.
             """
             return cls(resname=a.resname, resseqnum=a.resseqnum, insertion=a.insertion, chainID=a.chainID,
-                       model=a.modelNum, resolved=True, segtype='UNSET', atoms = AtomList([a]),
+                       resolved=True, segtype='UNSET', atoms = AtomList([a]),
                        auth_asym_id=getattr(a, 'auth_asym_id', None),
                        auth_comp_id=getattr(a, 'auth_comp_id', None),
                        auth_seq_id=getattr(a, 'auth_seq_id', None))
@@ -400,7 +411,7 @@ class Residue(EmptyResidue):
                 An instance of Residue.Adapter initialized with the empty residue's attributes.
             """
             return cls(resname=m.resname, resseqnum=m.resseqnum, insertion=m.insertion, chainID=m.chainID,
-                       model=m.model, resolved=False, segtype='UNSET', atoms=AtomList([]),
+                       model=m.model, segtype=m.segtype, resolved=False, atoms=AtomList([]),
                        auth_asym_id=getattr(m, 'auth_asym_id', None),
                        auth_comp_id=getattr(m, 'auth_comp_id', None),
                        auth_seq_id=getattr(m, 'auth_seq_id', None))
@@ -421,7 +432,7 @@ class Residue(EmptyResidue):
         Residue
             An instance of Residue initialized with the atom's attributes.
         """
-        adapter = cls.Adapter.from_pdbrecord(a)
+        adapter = cls.Adapter.from_atom(a)
         return cls._from_adapter(adapter)
 
     @EmptyResidue.new.register(EmptyResidue)
@@ -590,11 +601,11 @@ class Residue(EmptyResidue):
         chainID : str
             The new chain ID to be set for the residue and its atoms.
         """
-        self.chainID=chainID
+        self.set(chainID=chainID)
         for a in self.atoms:
             a.chainID=chainID
 
-    def linkTo(self,other,link):
+    def link_to(self,other,link):
         """
         Link this residue to another residue in a downstream direction.
         This method establishes a connection between this residue and another residue, allowing for
@@ -646,8 +657,8 @@ class Residue(EmptyResidue):
         This method traverses the downstream links of this residue and collects all residues
         in the downstream direction.
         """
-        res=[]
-        lin=[]
+        res=ResidueList()
+        lin=LinkList()
         for d,dl in zip(self.down,self.downlink):
             res.append(d)
             lin.append(dl)
@@ -657,7 +668,6 @@ class Residue(EmptyResidue):
             lin.extend(tlin)
         return res,lin
 
-# Residue.model_rebuild()
 
 class ResidueList(BaseObjList[Residue]):
     """
@@ -677,10 +687,6 @@ class ResidueList(BaseObjList[Residue]):
         """
         return f'<ResidueList with {len(self)} residues>'
     
-    def _validate_item(self, item):
-        if not isinstance(item, Residue):
-            raise TypeError(f"Item must be an instance of Residue, got {type(item)}")
-
     @classmethod
     def from_atomlist(cls, atoms: AtomList):
         R = []
@@ -690,6 +696,24 @@ class ResidueList(BaseObjList[Residue]):
                     break
             else:
                 R.append(Residue.new(a))
+        return cls(R)
+    
+    @classmethod
+    def from_emptyresiduelist(cls, input_list: EmptyResidueList):
+        """
+        Create a ResidueList from an EmptyResidueList.
+        
+        Parameters
+        ----------
+        input_list : EmptyResidueList
+            A list of EmptyResidue objects to convert into a ResidueList.
+        
+        Returns
+        -------
+        ResidueList
+            An instance of ResidueList initialized with the residues created from the empty residues.
+        """
+        R = [Residue.new(m) for m in input_list]
         return cls(R)
 
     # @BaseObjList.__init__.register(EmptyResidueList)
@@ -716,13 +740,13 @@ class ResidueList(BaseObjList[Residue]):
         """
         Create a mapping from chain IDs in the label (e.g., PDB format) to the author chain IDs.
         """
-        self.chainIDmap_label_to_auth={}
+        self._chainIDmap_label_to_auth = {}
         for r in self:
             if hasattr(r,'auth_asym_id'):
                 label_Cid=r.chainID
                 auth_Cid=r.auth_asym_id
-                if not label_Cid in self.chainIDmap_label_to_auth:
-                    self.chainIDmap_label_to_auth[label_Cid]=auth_Cid
+                if not label_Cid in self._chainIDmap_label_to_auth:
+                    self._chainIDmap_label_to_auth[label_Cid]=auth_Cid
 
     # def get_residue(self,**fields):
     #     """
@@ -770,7 +794,8 @@ class ResidueList(BaseObjList[Residue]):
         Returns
         -------
         list
-            A list of atom serial numbers."""
+            A list of atom serial numbers.
+        """
         serlist=[]
         for res in self:
             for a in res.atoms:
@@ -1005,15 +1030,16 @@ class ResidueList(BaseObjList[Residue]):
                     r+=1
                     i=''
                 shortcode=f'{chainID}:{olc}{r}{i}'
-                new_residue=EmptyResidue.new(shortcode)
+                new_empty_residue=EmptyResidue.new(shortcode)
+                new_residue=Residue.new(new_empty_residue)
                 new_residue.atoms=AtomList([])
                 new_residue.segtype='protein'
                 self.insert(idx,new_residue)
                 logger.debug(f'insertion of new empty residue {shortcode}')
                 idx+=1
                 i='A' if i in [' ',''] else chr(ord(i)+1)
-    
-    def renumber(self,links):
+
+    def renumber(self, links: LinkList):
         """
         The possibility exists that empty residues added have resseqnums that conflict with existing resseqnums on the same chain if those resseqnums are in a different segtype (e.g., glycan).  This method will privilege protein residues in such conflicts, and it will renumber non-protein residues, updating any resseqnum records in links
         to match the new resseqnums.
@@ -1046,7 +1072,7 @@ class ResidueList(BaseObjList[Residue]):
 
         max_unused_resseqnum=max([max([x.resseqnum for x in protein_residues]),0 if len(non_protein_residues)==0 else max([x.resseqnum for x in non_protein_residues])])+1
         newtst=self.get(resseqnum=max_unused_resseqnum)
-        assert newtst==[] #None
+        assert newtst in [None, []] #None
         mapper_by_chain={}
         for npc in non_protein_residues_in_conflict:
             c=npc.chainID
@@ -1102,3 +1128,22 @@ class ResidueList(BaseObjList[Residue]):
         for r in self:
             if r.chainID in the_map:
                 r.set_chainID(the_map[r.chainID])
+
+    def state_bounds(self, state_func):
+        """
+        Get the state bounds for each residue in the list based on a state function.
+        
+        Parameters
+        ----------
+        state_func : function
+            A function that takes a residue and returns its state bounds.
+        
+        Returns
+        -------
+        StateIntervalList
+            A list of state intervals for each residue in the residue list.
+        """
+
+        return StateIntervalList.process_itemlist(self, state_func=state_func)
+
+Residue.model_rebuild()

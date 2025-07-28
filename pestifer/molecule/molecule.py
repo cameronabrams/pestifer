@@ -126,7 +126,7 @@ class Molecule(AncestorAwareObj):
             'rcsb_file_format': file_format,
             'molid': Molecule._molcounter,
             'parsed_struct': p_struct,
-            'asymmetric_unit': AsymmetricUnit(parsed=p_struct,sourcespecs=source,objmanager=objmanager,chainIDmanager=chainIDmanager,psf=psf),
+            'asymmetric_unit': AsymmetricUnit(parsed=p_struct,sourcespecs=source,objmanager=objmanager,chainIDmanager=chainIDmanager,psf=psf,parent_molecule=self),
             'biological_assemblies': BioAssembList(p_struct)
         }
         super().__init__(input_dict)

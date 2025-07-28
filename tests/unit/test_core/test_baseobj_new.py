@@ -1037,3 +1037,24 @@ class TestBaseObjList(unittest.TestCase):
         self.assertEqual(len(Person3.children), 2)
         self.assertEqual(Person3.children[0].name, "Alice")
         self.assertEqual(Person3.children[1].name, "Bob")
+
+    def test_baseobj_list_remove_duplicates(self):
+        class ConcreteObj(BaseObj):
+            _required_fields = {'name', 'number'}
+            name: str = Field(..., description="Name of the object")
+            number: int = Field(..., description="A number")
+
+            def describe(self):
+                return f"Concrete Object with name: {self.name}, number: {self.number}"
+
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
+            def describe(self) -> str:
+                return f"Concrete Object List with {len(self)} items."
+
+        obj1 = ConcreteObj(name="Object 1", number=1)
+        obj2 = ConcreteObj(name="Object 2", number=2)
+        obj3 = ConcreteObj(name="Object 1", number=1)
+        obj_list = ConcreteObjList([obj1, obj2, obj3])
+        self.assertEqual(len(obj_list), 3)
+        obj_list.remove_duplicates()
+        self.assertEqual(len(obj_list), 2)

@@ -2,105 +2,258 @@
 """ 
 Defines the Segment class for generating and managing segments declared for psfgen
 """
+from functools import singledispatchmethod
+from typing import ClassVar, Optional, List, Any
+from pydantic import Field, ConfigDict, PrivateAttr
 import logging
 logger=logging.getLogger(__name__)
-from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.baseobj_new import BaseObj, BaseObjList
 from ..objs.mutation import MutationList
 from ..objs.cfusion import CfusionList
+from ..objs.deletion import DeletionList
 from ..objs.graft import GraftList
 from ..objs.patch import PatchList
 from ..core.labels import Labels
+from ..core.objmanager import ObjManager
 from .residue import Residue,ResidueList
 from ..util.util import reduce_intlist
 from ..core.scripters import PsfgenScripter
+from .chainidmanager import ChainIDManager
 
-class Segment(AncestorAwareObj):
+class Segment(BaseObj):
     """
     A class for handling segments in a molecular structure.
     This class represents a segment defined by a list of residue indices and provides methods to check if a bond intersects the segment.
     It also provides methods to yield treadmilled versions of the segment and to check for equality with another segment.
-
-    Parameters
-    ----------
-    specs : dict
-        A dictionary of specifications for the segment.
-        This dictionary may include keys such as ``segtype``, ``segname``, ``chainID``, ``residues``, ``subsegments``, and ``parent_chain``.
-    input_obj : Residue or ResidueList or dict
-        An object representing the residues in the segment.
-    segname : str
-        The name of the segment.
     """
-
-    req_attr=AncestorAwareObj.req_attr+['segtype','segname','chainID','residues','subsegments','parent_chain','specs']
-    """
-    Required attributes for ``Segment``.
-    """
-
-    opt_attr=AncestorAwareObj.opt_attr+['mutations','deletions','grafts','patches','attachments','psfgen_segname']
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    _required_fields = {'segtype','segname','chainID','residues','subsegments','parent_chain','specs'}
+    _optional_fields = {'mutations','deletions','grafts','patches','attachments','psfgen_segname'}
     """
     Optional attributes for ``Segment``.
     """
 
-    inheritable_objs=['mutations','patches','Cfusions','grafts']
+    segtype: str = Field(..., description="The type of the segment (e.g., 'protein', 'nucleicacid', 'glycan').")
+    segname: str = Field(..., description="The name of the segment as it is understood by psfgen and in a PSF file.")
+    chainID: str = Field(..., description="The chain ID associated with the segment.")
+    residues: ResidueList = Field(default_factory=ResidueList, description="A list of residues that make up the segment.")
+    subsegments: list = Field(..., description="A list of subsegments within the segment, each with a state indicating whether it is resolved or missing.")
+    parent_chain: str = Field(..., description="The chain ID of the parent chain to which this segment belongs.")
+    specs: dict = Field(..., description="Specifications for the segment, including details like loops and terminal modifications.")
+
+    mutations: Optional[MutationList] = Field(default=None, description="A list of mutations applied to the segment.")
+    deletions: Optional[DeletionList] = Field(default=None, description="A list of deletions applied to the segment.")
+    grafts: Optional[GraftList] = Field(default=None, description="A list of grafts applied to the segment.")
+    patches: Optional[PatchList] = Field(default=None, description="A list of patches applied to the segment.")
+    attachments: Optional[List] = Field(default=None, description="A list of attachments applied to the segment (Attachments are currently unimplemented).")
+    psfgen_segname: Optional[str] = Field(default=None, description="The segment name as understood by psfgen.")
+
+    _inheritable_objs: ClassVar[set] = {'mutations','patches','Cfusions','grafts'}
     """
     List of inheritable modifications for the segment.
     These modifications include mutations, patches, C-terminal fusions, and grafts.
     """
 
-    def __init__(self,specs,input_obj,segname):
-        if type(input_obj)==dict:
-            input_dict=input_obj
-        elif type(input_obj)==Residue:
-            res=input_obj
-            apparent_chainID=res.chainID
-            apparent_segtype=res.segtype
-            myRes=ResidueList([])
-            myRes.append(res)
-            subsegments=myRes.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
-            input_dict={
-                'specs':specs,
+    _obj_manager: ObjManager = PrivateAttr(default_factory=ObjManager)
+    """
+    The object manager for the segment.
+    This manager is used to track and manage the objects associated with the segment.
+    """
+
+    _parent_molecule: Any = PrivateAttr()
+
+    class Adapter:
+        def __init__(self, segtype: str = 'protein', segname: str = 'UNSET', chainID: str = 'UNSET', residues: ResidueList = None, subsegments: list = None, parent_chain: str = 'UNSET', specs: dict = None):
+            self.segtype = segtype
+            self.segname = segname
+            self.chainID = chainID
+            self.residues = residues if residues is not None else ResidueList([])
+            self.subsegments = subsegments if subsegments is not None else []
+            self.parent_chain = parent_chain
+            self.specs = specs if specs is not None else {}
+            
+        @classmethod
+        def from_dict(cls, data: dict):
+            """
+            Create an Adapter instance from a dictionary.
+            
+            Parameters
+            ----------
+            data : dict
+                A dictionary containing the segment attributes.
+                
+            Returns
+            -------
+            Adapter
+                An instance of the Adapter class initialized with the provided data.
+            """
+            return cls(**data)
+
+        @classmethod
+        def from_residue(cls, residue: Residue, segname: str = 'UNSET', specs: dict = None):
+            """
+            Create an Adapter instance from a Residue object.
+            """
+            apparent_chainID = residue.chainID
+            apparent_segtype = residue.segtype
+            apparent_segname = residue.chainID if segname == 'UNSET' else segname
+            myRes = ResidueList([])
+            myRes.append(residue)
+            subsegments = myRes.state_bounds(lambda x: 'RESOLVED' if len(x.atoms) > 0 else 'MISSING')
+            input_dict = {
+                'specs': specs,
                 'segtype': apparent_segtype,
-                'segname': segname,
+                'segname': apparent_segname,
                 'chainID': apparent_chainID,
                 'residues': myRes,
-                'subsegments':subsegments,
+                'subsegments': subsegments,
                 'parent_chain': apparent_chainID
             }
-        elif type(input_obj)==ResidueList:
-            Residues=input_obj
-            apparent_chainID=Residues[0].chainID
-            apparent_segtype=Residues[0].segtype
-            if apparent_segtype in ['protein','nucleicacid']:
+            return cls(**input_dict)
+        
+        @classmethod
+        def from_residue_list(cls, residues: ResidueList, segname: str = 'UNSET', specs: dict = None):
+            """
+            Create an Adapter instance from a ResidueList object.
+            """
+            apparent_chainID = residues[0].chainID
+            apparent_segtype = residues[0].segtype
+            apparent_segname = residues[0].chainID if segname == 'UNSET' else segname
+            if apparent_segtype in ['protein', 'nucleicacid']:
                 # a protein segment must have unique residue numbers
-                assert Residues.puniq(['resseqnum','insertion']),f'ChainID {apparent_chainID} has duplicate resseqnum-insertion!'
+                assert residues.puniq(['resseqnum','insertion']),f'ChainID {apparent_chainID} has duplicate resseqnum-insertion!'
                 # a protein segment may not have more than one protein chain
-                assert all([x.chainID==Residues[0].chainID for x in Residues])
-                Residues.sort()
-                subsegments=Residues.state_bounds(lambda x: 'RESOLVED' if x.resolved else 'MISSING')
+                assert all([x.chainID==residues[0].chainID for x in residues])
+                residues.sort()
+                subsegments=residues.state_bounds(lambda x: 'RESOLVED' if x.resolved else 'MISSING')
             else:
                 logger.debug(f'Calling puniqify on residues of non-protein segment {segname}')
-                Residues.puniquify(fields=['resseqnum','insertion'],make_common=['chainID'])
-                count=sum([1 for x in Residues if hasattr(x,'_ORIGINAL_')])
+                residues.puniquify(fields=['resseqnum','insertion'],make_common=['chainID'])
+                count=sum([1 for x in residues if hasattr(x,'_ORIGINAL_ATTRIBUTES')])
                 if count>0:
                     logger.debug(f'{count} residue(s) were affected by puniquify:')
-                    for x in Residues:
-                        if hasattr(x,'_ORIGINAL_'):
-                            logger.debug(f'    {x.chainID} {x.resname} {x.resseqnum}{x.insertion} was {x._ORIGINAL_}')
-                # this assumes residues are in a linear sequence?  not really..               
-                subsegments=Residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
-            logger.debug(f'Segment {segname} has {len(Residues)} residues across {len(subsegments)} subsegments')
+                    for x in residues:
+                        if hasattr(x,'_ORIGINAL_ATTRIBUTES'):
+                            logger.debug(f'    {x.chainID} {x.resname} {x.resseqnum}{x.insertion} was {x._ORIGINAL_ATTRIBUTES}')
+                # this assumes residues are in a linear sequence?  not really..
+                subsegments=residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
+            logger.debug(f'Segment {segname} has {len(residues)} residues across {len(subsegments)} subsegments')
             input_dict={
                 'specs':specs,
                 'segtype': apparent_segtype,
-                'segname': segname,
+                'segname': apparent_segname,
                 'chainID': apparent_chainID,
-                'residues': Residues,
-                'subsegments':subsegments,
+                'residues': residues,
+                'subsegments': subsegments,
                 'parent_chain': apparent_chainID
             }
-        else:
-            logger.error(f'Cannot initialize {self.__class__} from object type {type(input_obj)}')
-        super().__init__(input_dict)
+            return cls(**input_dict)
+
+        def to_dict(self):
+            """
+            Convert the Adapter instance to a dictionary.
+            
+            Returns
+            -------
+            dict
+                A dictionary representation of the Adapter instance.
+            """
+            return {
+                'segtype': self.segtype,
+                'segname': self.segname,
+                'chainID': self.chainID,
+                'residues': self.residues,
+                'subsegments': self.subsegments,
+                'parent_chain': self.parent_chain,
+                'specs': self.specs,
+                'residues': self.residues
+            }
+
+        def __repr__(self):
+            """
+            Return a string representation of the Adapter instance.
+            
+            Returns
+            -------
+            str
+                A string representation of the Adapter instance.
+            """
+            return f"Adapter(segtype={self.segtype}, segname={self.segname}, chainID={self.chainID}, residues={len(self.residues)}, subsegments={len(self.subsegments)}, parent_chain={self.parent_chain})"
+
+    @BaseObj.from_input.register(Adapter)
+    @classmethod
+    def _from_adapter(cls, adapter: Adapter):
+        input_dict = adapter.to_dict()
+        return cls(**input_dict)
+
+    @singledispatchmethod
+    @classmethod
+    def new(cls, input_obj: Any):
+        raise NotImplementedError(f'Cannot create Segment from {type(input_obj)}')
+    
+    @new.register(dict)
+    @classmethod
+    def _new_from_dict(cls, input_dict: dict):
+        """
+        Create a new Segment instance from a dictionary.
+        
+        Parameters
+        ----------
+        input_dict : dict
+            A dictionary containing the segment attributes.
+            
+        Returns
+        -------
+        Segment
+            A new Segment instance initialized with the provided attributes.
+        """
+        adapter = cls.Adapter.from_dict(input_dict)
+        return cls._from_adapter(adapter)
+    
+    @new.register(Residue)
+    @classmethod
+    def _new_from_residue(cls, res: Residue, segname: str = 'UNSET', specs: dict = {}):
+        """
+        Create a new Segment instance from a Residue object.
+        
+        Parameters
+        ----------
+        res : Residue
+            The residue from which to create the segment.
+            
+        Returns
+        -------
+        Segment
+            A new Segment instance initialized with the residue's attributes.
+        """
+        adapter = cls.Adapter.from_residue(res, segname=segname, specs=specs)
+        logger.debug(f'Creating Segment from residue via adapter {adapter}')
+        return cls._from_adapter(adapter)
+
+    @new.register(ResidueList)
+    @classmethod
+    def _new_from_residue_list(cls, residues: ResidueList = ResidueList([]), segname: str = 'UNSET', specs: dict = {}):
+        """
+        Create a new Segment instance from a ResidueList object.
+        
+        Parameters
+        ----------
+        residues : ResidueList
+            The list of residues from which to create the segment.
+            
+        Returns
+        -------
+        Segment
+            A new Segment instance initialized with the residue list's attributes.
+        """
+        adapter = cls.Adapter.from_residue_list(residues, segname=segname, specs=specs)
+        return cls._from_adapter(adapter)
+
+    def describe(self) -> str:
+        return f'<Segment {self.segname} of type {self.segtype} with {len(self.residues)} residues>'
+
+    def __str__(self):
+        return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
 
     def cleave(self,clv,daughter_chainID):
         """
@@ -120,21 +273,21 @@ class Segment(AncestorAwareObj):
         # These two slice operations create *copies* of lists of residues
         # The original list of residues contains elements that are referenced
         # by other structures, like links.   
+        assert isinstance(self.residues,ResidueList)
         daughter_residues=self.residues[r2i:]
+        assert isinstance(daughter_residues,ResidueList)
         parent_residues=self.residues[:r2i]
         assert daughter_residues[0] is self.residues[r2i]
         self.residues=parent_residues
         # this set_chainID call must act DEEPLY on structures in the list items
         # that have chainID attributes AND we have to revisit all links!
         daughter_residues.set(chainID=daughter_chainID)
-        Dseg=Segment({},daughter_residues,daughter_chainID)
-        Dseg.objmanager=self.objmanager.expel(daughter_residues)
-        Dseg.ancestor_obj=self.ancestor_obj
+        Dseg=Segment.new(daughter_residues,segname=daughter_chainID)
+        assert isinstance(Dseg,Segment)
+        Dseg._obj_manager=self._obj_manager.expel(daughter_residues)
+        # Dseg.ancestor_obj=self.ancestor_obj
         return Dseg
     
-    def __str__(self):
-        return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
-
     def write_TcL(self,W:PsfgenScripter,transform):
         """
         Write the Tcl commands to create a segment in the Psfgen script.
@@ -183,13 +336,13 @@ class Segment(AncestorAwareObj):
             The transformation object containing mapping information.
         """
         assert len(self.subsegments)==1,'No missing atoms allowed in generic stanza'
-        parent_molecule=self.ancestor_obj
+        parent_molecule=self._parent_molecule
         chainIDmap=transform.chainIDmap
         seglabel=self.segname
         image_seglabel=chainIDmap.get(seglabel,seglabel)
         is_image=image_seglabel!=seglabel
 
-        objmanager=self.objmanager
+        objmanager=self._obj_manager
         seqmods=objmanager.get('seq',{})
         seg_grafts=seqmods.get('grafts',GraftList([]))
 
@@ -252,13 +405,13 @@ class Segment(AncestorAwareObj):
         transform : Transform
             The transformation object containing mapping information.
         """
-        parent_molecule=self.ancestor_obj
+        parent_molecule=self._parent_molecule
         chainIDmap=transform.chainIDmap
         seglabel=self.segname
         image_seglabel=chainIDmap.get(seglabel,seglabel)
         is_image=image_seglabel!=seglabel
         segtype=self.segtype
-        objmanager=self.objmanager
+        objmanager=self._obj_manager
         seqmods=objmanager.get('seq',{})
         logger.debug(f'polymer_stanza {segtype} {seglabel}->{image_seglabel} seqmods: {seqmods}')
 
@@ -400,73 +553,99 @@ class Segment(AncestorAwareObj):
         W.banner(f'Segment {image_seglabel} ends')
         # THIS IS BAD self.objmanager.retire('seq')
 
-class SegmentList(AncestorAwareObjList):
+class SegmentList(BaseObjList[Segment]):
     """
     A list of segments in a molecular structure.
     This class represents a collection of segments and provides methods to manage and manipulate them.
     It inherits from `AncestorAwareObjList` to maintain the context of the parent molecule.
     """
 
-    def __init__(self,*objs):
-        if len(objs)==1 and objs[0]==[]:
-            super().__init__([])
-        elif len(objs)==3:
-            seq_spec=objs[0]
-            input_obj=objs[1]
-            chainIDmanager=objs[2]
-            self.counters_by_segtype={}
-            self.segnames=[]
-            self.daughters={}
-            self.segtype_of_segname={}
-            if type(input_obj)==ResidueList:
-                super().__init__([])
-                residues=input_obj
-                # all residues have their segtypes set
-                assert all([x.segtype!='UNSET' for x in residues]),f'There are residues with UNSET segtype: {[(x.resname,x.chainID,x.resseqnum) for x in residues if x.segtype=="UNSET"]}'
-                self.segtypes_ordered=[]
-                for r in residues:
-                    if not r.chainID in self.segtype_of_segname:
-                        self.segtype_of_segname[r.chainID]=r.segtype
-                    if not r.segtype in self.segtypes_ordered:
-                        self.segtypes_ordered.append(r.segtype)
-                logger.debug(f'Generating segments from list of {len(residues)} residues. segtypes detected: {self.segtypes_ordered}')
-                initial_chainIDs=list(self.segtype_of_segname.keys())
-                logger.debug(f'ChainIDs detected: {initial_chainIDs}')
-                chainIDmanager.sandbag(initial_chainIDs)
-                for stype in self.segtypes_ordered:
-                    self.counters_by_segtype[stype]=0
-                    res=residues.filter(segtype=stype)
-                    orig_chainIDs=res.uniqattrs(['chainID'])['chainID']
-                    logger.debug(f'Processing {len(res)} residues of segtype {stype} in {len(orig_chainIDs)} unique chainIDs')
-                    orig_res_groups={chainID: res.filter(chainID=chainID) for chainID in orig_chainIDs}
-                    for chainID,c_res in orig_res_groups.items():
-                        this_chainID=chainID
-                        # c_res=res.filter(chainID=this_chainID)
-                        logger.debug(f'-> original chainID {chainID} in {len(c_res)} residues')
-                        this_chainID=chainIDmanager.check(this_chainID)
-                        if this_chainID != chainID:
-                            logger.debug(f'{len(c_res)} residues with original chainID {chainID} and segtype {stype} are assigned new daughter chainID {this_chainID}')
-                            if not chainID in self.daughters:
-                                self.daughters[chainID]=[]
-                            self.daughters[chainID].append(this_chainID)
-                            c_res.set_chainIDs(this_chainID)
-                            self.segtype_of_segname[this_chainID]=stype
-                            if stype=='protein':
-                                if chainID in seq_spec['build_zero_occupancy_C_termini']:
-                                    logger.debug(f'-> appending new chainID {this_chainID} to build_zero_occupancy_C_termini due to member {chainID}')
-                                    seq_spec['build_zero_occupancy_C_termini'].insert(seq_spec['build_zero_occupancy_C_termini'].index(chainID),this_chainID)
-                                if chainID in seq_spec['build_zero_occupancy_N_termini']:
-                                    logger.debug(f'-> appending new chainID {this_chainID} to build_zero_occupancy_N_termini due to member {chainID}')
-                                    seq_spec['build_zero_occupancy_N_termini'].insert(seq_spec['build_zero_occupancy_N_termini'].index(chainID),this_chainID)
-                                # seq_spec['build_zero_occupancy_C_termini'].remove(chainID)
-                        num_mis=sum([1 for x in c_res if len(x.atoms)==0])
-                        thisSeg=Segment(seq_spec,c_res,segname=this_chainID)
-                        logger.debug(f'Made segment: stype {stype} chainID {this_chainID} segname {thisSeg.segname} ({num_mis} missing) (seq_spec {seq_spec})')
-                        self.append(thisSeg)
-                        self.segnames.append(thisSeg.segname)
-                        self.counters_by_segtype[stype]+=1
-            else:
-                logger.error(f'Cannot initialize {self.__class__} from objects {objs}')
+    def describe(self) -> str:
+        return f'<SegmentList with {len(self)} segments>'
+
+    @classmethod
+    def generate(cls, seq_spec: dict = {}, residues: ResidueList = [], chainIDmanager: ChainIDManager = None):
+        """
+        Generate a SegmentList from a sequence specification and a list of residues.
+        
+        Parameters
+        ----------
+        seq_spec : dict
+            A dictionary containing sequence specifications.
+        residues : ResidueList
+            A list of residues to be processed into segments.
+        chainIDmanager : ChainIDManager
+            An object managing chain IDs to ensure uniqueness.
+        
+        Returns
+        -------
+        SegmentList
+            A new SegmentList instance containing the generated segments.
+        """
+        self = cls([])
+        self.counters_by_segtype={}
+        self.segnames=[]
+        self.daughters={}
+        self.segtype_of_segname={}
+        assert all([x.segtype!='UNSET' for x in residues]),f'There are residues with UNSET segtype: {[(x.resname,x.chainID,x.resseqnum) for x in residues if x.segtype=="UNSET"]}'
+        self.segtypes_ordered=[]
+        for r in residues:
+            if not r.chainID in self.segtype_of_segname:
+                self.segtype_of_segname[r.chainID]=r.segtype
+            if not r.segtype in self.segtypes_ordered:
+                self.segtypes_ordered.append(r.segtype)
+        logger.debug(f'Generating segments from list of {len(residues)} residues. segtypes detected: {self.segtypes_ordered}')
+        initial_chainIDs=list(self.segtype_of_segname.keys())
+        logger.debug(f'ChainIDs detected: {initial_chainIDs}')
+        chainIDmanager.sandbag(initial_chainIDs)
+        for stype in self.segtypes_ordered:
+            self.counters_by_segtype[stype]=0
+            res=residues.filter(segtype=stype)
+            orig_chainIDs=res.uniqattrs(['chainID'])['chainID']
+            logger.debug(f'Processing {len(res)} residues of segtype {stype} in {len(orig_chainIDs)} unique chainIDs')
+            orig_res_groups={chainID: res.filter(chainID=chainID) for chainID in orig_chainIDs}
+            logger.debug(f'Found {len(orig_res_groups)} original chainIDs for segtype {stype}: {list(orig_res_groups.keys())} {list([len(x) for x in orig_res_groups.values()])}')
+            for chainID,c_res in orig_res_groups.items():
+                assert isinstance(c_res,ResidueList),f'ChainID {chainID} residues are not a ResidueList: {type(c_res)}'
+                this_chainID=chainID
+                # c_res=res.filter(chainID=this_chainID)
+                logger.debug(f'-> original chainID {chainID} in {len(c_res)} residues')
+                this_chainID=chainIDmanager.check(this_chainID)
+                if this_chainID != chainID:
+                    logger.debug(f'{len(c_res)} residues with original chainID {chainID} and segtype {stype} are assigned new daughter chainID {this_chainID}')
+                    if not chainID in self.daughters:
+                        self.daughters[chainID]=[]
+                    self.daughters[chainID].append(this_chainID)
+                    c_res.set_chainIDs(this_chainID)
+                    self.segtype_of_segname[this_chainID]=stype
+                    if stype=='protein':
+                        if chainID in seq_spec['build_zero_occupancy_C_termini']:
+                            logger.debug(f'-> appending new chainID {this_chainID} to build_zero_occupancy_C_termini due to member {chainID}')
+                            seq_spec['build_zero_occupancy_C_termini'].insert(seq_spec['build_zero_occupancy_C_termini'].index(chainID),this_chainID)
+                        if chainID in seq_spec['build_zero_occupancy_N_termini']:
+                            logger.debug(f'-> appending new chainID {this_chainID} to build_zero_occupancy_N_termini due to member {chainID}')
+                            seq_spec['build_zero_occupancy_N_termini'].insert(seq_spec['build_zero_occupancy_N_termini'].index(chainID),this_chainID)
+                        # seq_spec['build_zero_occupancy_C_termini'].remove(chainID)
+                num_mis=sum([1 for x in c_res if len(x.atoms)==0])
+                thisSeg=Segment.new(c_res, segname=this_chainID, specs=seq_spec)
+                logger.debug(f'Made segment: stype {stype} chainID {this_chainID} segname {thisSeg.segname} ({num_mis} missing) (seq_spec {seq_spec})')
+                self.append(thisSeg)
+                self.segnames.append(thisSeg.segname)
+                self.counters_by_segtype[stype]+=1
+        return self
+    
+    def collect_residues(self):
+        """
+        Collect all residues from the segments in the list.
+
+        Returns
+        -------
+        ResidueList
+            A list of all residues associated with the segments."""
+        residues = ResidueList([])
+        for seg in self:
+            residues.extend(seg.residues)
+        return residues
 
     def collect_working_files(self):
         """
@@ -531,7 +710,7 @@ class SegmentList(AncestorAwareObjList):
         self.counters_by_segtype[self.segtype_of_segname[item.segname]]-=1
         return super().remove(item)
 
-    def inherit_objs(self,objmanager):
+    def inherit_objs(self, objmanager:ObjManager):
         """
         Inherit objects from the object manager for each segment in the list.
         This method updates the object manager for each segment with inherited objects
@@ -543,7 +722,6 @@ class SegmentList(AncestorAwareObjList):
             The object manager from which to inherit objects.
         """
         for item in self:
-            item.objmanager=objmanager.filter_copy(objnames=item.inheritable_objs,chainID=item.segname)
-            seqmods=item.objmanager.get('seq',{})
-            grafts=seqmods.get('grafts',[])
-            logger.debug(f'Inherit mods: seg {item.segname} has {len(grafts)} grafts')
+            item._obj_manager=objmanager.filter_copy(objnames=item._inheritable_objs,chainID=item.segname)
+            counts = item._obj_manager.counts_by_header()
+            logger.debug(f'Inherit objs: seg {item.segname} has {counts}')
