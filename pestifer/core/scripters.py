@@ -13,6 +13,7 @@ import os
 import datetime
 import logging
 
+from .artifacts import ArtifactFile
 from .command import Command
 from .config import Config
 from .stringthings import ByteCollector, FileCollector
@@ -32,12 +33,12 @@ class Filewriter:
     comment_char : str, optional
         The character used for comments in the script. Default is '#'.
     """
-    def __init__(self,comment_char='#'):
-        self.B=ByteCollector(comment_char=comment_char)
-        self.is_written=False
-        self.indent=''
+    def __init__(self, comment_char='#'):
+        self.B = ByteCollector(comment_char=comment_char)
+        self.is_written = False
+        self.indent = ''
 
-    def newfile(self,filename):
+    def newfile(self, filename):
         """
         Initializes a new file for writing.
         
@@ -46,12 +47,12 @@ class Filewriter:
         filename : str
             The name of the file to be created or overwritten.
         """
-        self.filename=filename
+        self.filename = filename
         self.B.reset()
-        self.is_written=False
+        self.is_written = False
         return self
 
-    def ingest_file(self,filename):
+    def ingest_file(self, filename):
         """
         Ingest a file into the script writer.
 
@@ -109,7 +110,7 @@ class Filewriter:
         """
         return self.B.has_statement(statement)
 
-    def writefile(self,force=False):
+    def writefile(self, force=False):
         """
         Write the contents of the ByteCollector to a file.
         
@@ -119,9 +120,9 @@ class Filewriter:
             If True, overwrite the file even if it has already been written.
         """
         if not self.is_written or force:
-            with open(self.filename,'w') as f:
+            with open(self.filename, 'w') as f:
                 f.write(str(self.B))
-            self.is_written=True
+            self.is_written = True
         else:
             logger.debug(f'{self.filename} has already been written')
 

@@ -24,7 +24,7 @@ class SolvateTask(VMDTask):
     """
     SolvateTask class for solvating a molecular structure.
     """
-    yaml_header='solvate'
+    _yaml_header='solvate'
     """
     YAML header for the SolvateTask, used to identify the task in configuration files as part of a ``tasks`` list.
     This header is used to declare SolvateTask objects in YAML task lists.
@@ -34,7 +34,6 @@ class SolvateTask(VMDTask):
         Execute the solvate task.
         This method initializes the task, inherits the state from prior tasks, and performs the solvation and ionization.
         """
-        self.log_message('initiated')
         self.next_basename()
         psf=self.get_current_artifact_path('psf')
         pdb=self.get_current_artifact_path('pdb')
@@ -71,7 +70,7 @@ class SolvateTask(VMDTask):
         ll_tcl=r'{ '+' '.join([str(_) for _ in LL.tolist()])+r' }'
         ur_tcl=r'{ '+' '.join([str(_) for _ in UR.tolist()])+r' }'
         box_tcl=r'{ '+ll_tcl+' '+ur_tcl+r' }'
-        vt=self.scripters['vmd']
+        vt=self.pipeline.get_scripter('vmd')
         vt.newscript(self.basename)
         vt.addline( 'package require solvate')
         vt.addline( 'package require autoionize')
@@ -101,5 +100,4 @@ class SolvateTask(VMDTask):
             self.register_current_artifact(PSFFile(f'{self.basename}{ext}'))
             self.register_current_artifact(PDBFile(f'{self.basename}{ext}'))
         self.pdb_to_coor()
-        self.log_message('complete')
         return super().do()

@@ -8,6 +8,7 @@ Usage is described in the :ref:`subs_runtasks_make_membrane_system` documentatio
 import logging
 from copy import deepcopy
 
+from ..core.pipeline import PipelineContext
 from ..charmmff.charmmresidatabase import CHARMMFFResiDatabase
 from ..core.config import Config
 from ..core.controller import Controller
@@ -28,16 +29,17 @@ class MakeMembraneSystemTask(BaseTask):
     """ 
     A class for handling embedding proteins into bilayers
     """
-    yaml_header='make_membrane_system'
+    _yaml_header = 'make_membrane_system'
     """
     YAML header for the MakeMembraneSystemTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
-    def __init__(self,config_specs={},controller_specs={}):
-        super().__init__(config_specs,controller_specs)
+    def __init__(self, index: int = 0, pipeline: PipelineContext = None, specs: dict = None, prior: BaseTask = None):
+        super().__init__(index=index, pipeline=pipeline, specs=specs, prior=prior)
         self.patchA=self.patchB=self.patch=None
-        self.progress=self.config.progress
-        self.pdbrepository=self.config.RM.charmmff_content.pdbrepository
-        self.charmmff_content=self.config.RM.charmmff_content
+        global_config = self.pipeline.global_config
+        self.progress=global_config.progress
+        self.pdbrepository=global_config.RM.charmmff_content.pdbrepository
+        self.charmmff_content=global_config.RM.charmmff_content
         self.RDB=CHARMMFFResiDatabase(self.charmmff_content,streamIDs=[])
         self.RDB.add_stream('lipid')
         self.RDB.add_topology('toppar_all36_moreions.str',streamIDoverride='water_ions')
@@ -138,7 +140,6 @@ class MakeMembraneSystemTask(BaseTask):
         """
         Execute the MakeMembraneSystemTask.
         """
-        self.log_message('initiated')
         # as part of a list of tasks, this task expects to be fed a protein system to embed
         self.pro_psf=self.get_current_artifact_path('psf')
         self.pro_pdb=self.get_current_artifact_path('pdb')
@@ -150,7 +151,6 @@ class MakeMembraneSystemTask(BaseTask):
             self.make_quilt_from_patch()
         if self.pro_pdb is not None and self.pro_psf is not None:
             self.embed_protein()
-        self.log_message('complete')
         return super().do()
 
     def build_patch(self):

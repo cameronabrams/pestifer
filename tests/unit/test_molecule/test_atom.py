@@ -2,9 +2,11 @@ import unittest
 
 from pestifer.molecule.atom import Atom, AtomList, Hetatm
 from pidibble.pdbparse import PDBParser
+from pidibble.pdbrecord import PDBRecordDict
 from pestifer.util.cifutil import CIFdict, CIFload
 from pestifer.psfutil.psfatom import PSFAtom, PSFAtomList
 from pathlib import Path
+
 class TestAtom(unittest.TestCase):
     def test_atom_create(self):
         atom = Atom(
@@ -292,9 +294,9 @@ class TestAtomList(unittest.TestCase):
         self.assertFalse(atom_list[0]._ORIGINAL_ATTRIBUTES is atom_list[1]._ORIGINAL_ATTRIBUTES)
 
     def test_atom_list_from_pdb(self):
-        p = PDBParser(filepath='fixtures/data/4zmj.pdb').parse()
-        atom_list = AtomList([Atom.new(x) for x in p.parsed[Atom._PDB_keyword]])
-        atom_list += AtomList([Hetatm.new(x) for x in p.parsed[Hetatm._PDB_keyword]])
+        p = PDBParser(filepath='fixtures/data/4zmj.pdb').parse().parsed
+        self.assertIsInstance(p, PDBRecordDict)
+        atom_list = AtomList.from_pdb(p)
         self.assertEqual(len(atom_list), 4856)
         self.assertIsInstance(atom_list[0], Atom)
         self.assertIsInstance(atom_list[4518], Hetatm)
@@ -308,9 +310,7 @@ class TestAtomList(unittest.TestCase):
 
     def test_atom_list_from_cif(self):
         p = CIFload(Path('fixtures/data/4zmj.cif'))
-        obj = p.getObj(Atom._mmCIF_name)
-        atom_list = AtomList([Atom.new(CIFdict(obj, i)) for i in range(len(obj))])
-        # CIF file does not have heteroatoms; every atom is just an atom
+        atom_list = AtomList.from_cif(p)
         self.assertEqual(len(atom_list), 4856)
         self.assertIsInstance(atom_list[0], Atom)
         self.assertEqual(atom_list[0].serial, 1)

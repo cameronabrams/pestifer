@@ -35,8 +35,6 @@ class MDPlotTask(BaseTask):
     YAML header for the MDPlotTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
     def do(self):
-        logger.debug(f'Running {self.__class__.__name__} task with specs {self.specs}')
-        self.log_message('initiated')
         self.next_basename()
         is_post_processing=self.specs.get('postprocessing',False)
         running_sums=self.specs.get('running_sums',['cpu_time','wall_time'])
@@ -258,7 +256,6 @@ class MDPlotTask(BaseTask):
             else:
                 logger.debug(f'Profile {profile} not recognized.  Skipping...')
                 continue
-        self.log_message('complete')
         self.result=0
         return super().do()
     

@@ -6,7 +6,6 @@ the tasks.
 """
 import logging
 import os
-import shutil
 from .config import Config
 from .pipeline import PipelineContext
 from .scripters import Filewriter, PsfgenScripter, VMDScripter, NAMDScripter
@@ -16,7 +15,7 @@ from ..util.util import inspect_package_dir
 
 from .. import tasks
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 class Controller:
     """ 
@@ -32,41 +31,44 @@ class Controller:
     config : Config
         The configuration object containing user specifications and settings.
     userspecs : dict, optional
-        A dictionary of user-specific configurations that will update the base configuration.
+        A dictionary of user-specific configurations provided at run-time that will update the base configuration.
     index : int, optional
         An index for the controller instance, useful for identifying multiple controllers in a run.
+    terminate : bool, optional
+        If True, a default terminate task will be added if the last task is not already a TerminateTask.
+        This ensures that the runtime will always have a way to clean up and terminate properly.
+        Default is True.
     """
-    def __init__(self,config:Config,userspecs={},index=0,terminate=True):
-        self.index=index
-        self.config=config
-        if userspecs:
-            self.config['user'].update(userspecs)
 
-        # Set up the scripters
-        self.scripters={
-            'psfgen': PsfgenScripter(self.config),
-            'vmd':    VMDScripter(self.config),
-            'namd':   NAMDScripter(self.config),
-            'data':   Filewriter()
-        }
+    def __init__(self, config: Config, userspecs = {}, index = 0, terminate = True):
+        self.index = index
+        self.config = config
+        self.config['user'].update(userspecs)
 
-        task_classes,dum=inspect_package_dir(os.path.dirname(tasks.__file__))
+        # Use introspection to find all Task classes in the tasks subpackage
+        task_classes, dummy = inspect_package_dir(os.path.dirname(tasks.__file__))
         logger.debug(f'task_classes {task_classes}')
 
         # set up the task list
-        self.tasks=[]
-        prior_task=None
-        self.ctx=PipelineContext()
-        for idx,taskdict in enumerate(self.config['user'].get('tasks',[])):
+        self.tasks = []
+        prior_task = None
+        self.pipeline = PipelineContext(controller_index=self.index, scripters={
+            'psfgen': PsfgenScripter(self.config),
+            'vmd': VMDScripter(self.config),
+            'namd': NAMDScripter(self.config),
+            'data': Filewriter()
+        }, global_config=self.config['user'])
+
+        for idx, taskdict in enumerate(self.config['user'].get('tasks', [])):
             # Each task dictionary has a single keyword (the task name) and a value
             # that comprises the task specifications from the config
             assert len(taskdict)==1, f"Task dictionary {taskdict} must have a single key-value pair"
-            taskname=list(taskdict.keys())[0]
-            config_specs=taskdict[taskname]
-            logger.debug(f'{taskname}: {config_specs}')
+            taskname = list(taskdict.keys())[0]
+            task_specs = taskdict[taskname]
+            logger.debug(f'{taskname}: {task_specs}')
             # specs={} if not config_specs else config_specs.copy()
             # Ensure the name of the task is among the implemented Tasks
-            class_name=[name for name,cls in task_classes.items() if cls.yaml_header==taskname][0]
+            class_name = [name for name, cls in task_classes.items() if cls._yaml_header == taskname][0]
             # Create this Task instance:
             #   1. Get the class type
             #   2. Initialize the instance with 
@@ -75,25 +77,18 @@ class Controller:
             #      - self.config: the Controller configuration
             #      - self.scripters: the Controller's filewriters
             #      - prior_task: indentifier of prior task in task list
-            Cls=task_classes[class_name]
-            this_task=Cls(self.ctx,config_specs,dict(controller_index=self.index,taskname=taskname,config=self.config,scripters=self.scripters,prior=prior_task))
+            Cls = task_classes[class_name]
+            this_task = Cls(index = idx, pipeline = self.pipeline, specs = task_specs, prior = prior_task)
             # Append to the task list
             self.tasks.append(this_task)
-            prior_task=this_task
-        if len(self.tasks)>0: logger.debug(f'last task currently is {self.tasks[-1].taskname}')
+            prior_task = this_task
+        if len(self.tasks) > 0: logger.debug(f'last task currently is {self.tasks[-1].taskname}')
         # Add a "terminate" task by default if the user has not specified one
-        if terminate and (len(self.tasks)==0 or not self.tasks[-1].taskname=='terminate'):
-            # If the last task is not a TerminateTask, add one
-            # This ensures that the runtime will always have a way to clean up and terminate properly
-            # The TerminateTask will be initialized with the controller index, taskname, config, scripters, and prior task
-            specs=self.config.make_default_specs('tasks','terminate')
+        if terminate and (len(self.tasks)==0 or not type(self.tasks[-1].taskname)==TerminateTask):
+            # If the last task is not a TerminateTask, add one with default specs
+            specs = self.config.make_default_specs('tasks','terminate')
             logger.debug('Adding default terminate task')
-            self.tasks.append(TerminateTask(specs,dict(
-                controller_index=self.index,
-                taskname='terminate',
-                config=self.config['base'],
-                scripters=self.scripters,
-                prior=prior_task)))
+            self.tasks.append(TerminateTask(pipeline=self.pipeline, specs=specs, prior=prior_task, index=len(self.tasks)))
         ess='s' if len(self.tasks)>1 else ''
         logger.info(f'Run title: "{self.config["user"]["title"]}"')
         logger.info(f'Controller {self.index:02d} will execute {len(self.tasks)} task{ess}.')
@@ -117,15 +112,15 @@ class Controller:
             - ``taskindex``: The index of the task
             - ``result``: The task's return code
         """
-        task_report={}
+        task_report = {}
         for task in self.tasks:
-            returned_result=task.do()
-            task_report[task.index]=dict(taskname=task.taskname,taskindex=task.index,result=returned_result)
-            logger.debug(f'Current artifacts in pipeline context:\n{self.ctx.context_to_string()}')
-            if task.result!=0:
+            returned_result = task.execute()
+            task_report[task.index] = dict(taskname=task.taskname, taskindex=task.index, result=returned_result)
+            logger.debug(f'Current artifacts in pipeline context:\n{self.pipeline.context_to_string()}')
+            if task.result != 0:
                 logger.warning(f'Task {task.taskname} failed; task.result {task.result} returned result {returned_result} controller is aborted.')
                 break
-        all_artifacts=self.ctx.get_artifact_collection_as_list()
+        all_artifacts = self.pipeline.get_artifact_collection_as_list()
         os.mkdir('tmp')
         for artifact in all_artifacts:
             if hasattr(artifact,'path'):

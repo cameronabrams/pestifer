@@ -17,7 +17,9 @@ class Artifact(ABC):
     Represents an artifact in the Pestifer core.
     This class is used to store information about an artifact, including its key, value, type, and the task that produced it.
     The ``produced_by`` attribute indicates which task generated this artifact.
-    The ``package`` attribute indicates whether the most recently generated artifact should be included in the product package.
+    The ``package`` attribute indicates whether the most recently generated artifact should be included in the product package, if it is a file.
+    The ``value`` attribute can hold any data type, and the ``key`` attribute is used to identify the artifact.
+    The ``describe`` method should be implemented by subclasses to provide a description of the artifact.
     """
     value: Any = None
     key: Optional[str] = None
@@ -31,12 +33,15 @@ class Artifact(ABC):
     def stamp(self, owner: Any = None) -> None:
         """
         Stamp the artifact with the owner information.
-        This method is used to set the owner of the artifact, which can be useful for tracking who created or modified it.
+        This method is used to set the owner of the artifact, which can be useful for tracking who created or modified it.  If owner is None, do nothing.
+
+        Parameters
+        ----------
+        owner : Any, optional
+            The owner of the artifact, which can be any object that produced this artifact. If not provided, the artifact will not be stamped.
         """
         if owner:
             self.produced_by = owner
-        else:
-            logger.warning("No owner provided for artifact stamping.")
         return self
 
 @dataclass

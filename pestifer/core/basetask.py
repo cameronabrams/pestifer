@@ -12,20 +12,20 @@ The :class:`BaseTask` class is designed to be flexible and extensible, allowing 
 Available tasks that inherit from :class:`BaseTask` include all those in the :mod:`pestifer.tasks` subpackage.
 
 """
+from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
-from .baseobj import BaseObj
 from .pipeline import PipelineContext
 from .artifacts import TclScript, PDBFile, NAMDCoorFile, VMDLogFile, Artifact, ArtifactList
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
-class BaseTask(BaseObj, ABC):
+class BaseTask(ABC):
     """ 
-    A base class for Tasks.
-    This class is intended to be subclassed by specific task types.
-    It provides a common interface and some basic functionality for tasks.
+    A base class for Tasks. This class is intended to be subclassed by specific task types.
+    It provides a common interface and some basic functionality for tasks.  All tasks are
+    assigned to a PipelineContext owned by a Controller.
 
     Parameters
     ----------
@@ -36,62 +36,40 @@ class BaseTask(BaseObj, ABC):
         It can include attributes like `prior`, `index`, `scripters`, `taskname`, and `controller_index`.
 
     """
-    
-    req_attr=BaseObj.req_attr+['specs','config','index','prior','scripters','taskname','controller_index']
-    """ 
-    List of required attributes as strings. These attributes must have values assigned at instance creation time, otherwise an AssertionError is raised.
-    The required attributes are:
-    
-        * ``controller_index``: index of the controller that created this task
-        * ``specs``: dictionary of specifications; under ``directives`` in yaml
-        * ``scripters``: dictionary of ``FileWriters``
-        * ``prior``: identifier of prior task in sequence
-        * ``index``: unique integer index of task in run
-        * ``config``: access to the run config
-        * ``taskname``: caller-supplied name of task
-    """
+    index: int = 0
+    pipeline: PipelineContext = None
+    specs: dict = {}
+    prior: BaseTask = None
 
-    yaml_header='generic_task'
-    """
-    The yaml header for this task type.  This is used to identify the task type in yaml files.
-    """
-    
-    init_msg_options=['INITIATED','STARTED','BEGUN','SET IN MOTION','KICKED OFF','LIT','SPANKED ON THE BOTTOM']
+    _init_msg_options = ('INITIATED','STARTED','BEGUN','SET IN MOTION','KICKED OFF','LIT','SPANKED ON THE BOTTOM', 'LAUNCHED', 'KICKED OUT OF THE NEST', 'COMMENCED', 'ACTIVATED', 'UNLEASHED', 'ENGAGED', 'SPAWNED', 'BIRTHED', 'BORN', 'KICKED INTO GEAR', 'KICKED INTO ACTION', 'KICKED INTO HIGH GEAR', 'KICKED INTO OVERDRIVE', 'KICKED INTO HYPERDRIVE', 'KICKED INTO LIGHTSPEED')
     """
     A list of message options that are used to log the initiation of the task.
-    These messages are used to log the start of the task in a consistent manner.
-    The messages are used to log the start of the task in a consistent manner.
-    They are used to log the start of the task in a consistent manner.
     """
 
-    def __init__(self,ctx:PipelineContext,config_specs={},controller_specs={}):
+    @abstractmethod
+    def do(self):
+        """
+        This is a stub method that should be overridden by subclasses.
+        """
+        pass
+
+    def __init__(self, index: int = 0, pipeline: PipelineContext = None, specs: dict = None, prior: BaseTask = None):
         """
         Constructor for the BaseTask class.
         """
-        self.ctx=ctx
-        specs=config_specs.copy()
-        prior=controller_specs.get('prior',None)
-        index=controller_specs.get('index',0)
-        scripters=controller_specs.get('scripters',{})
-        taskname=controller_specs.get('taskname','generic_task')
-        config=controller_specs.get('config',{})
-        controller_index=controller_specs.get('controller_index',0)
+        self.pipeline = pipeline if pipeline else PipelineContext()
+        self.specs = specs if specs else {}
+        self.prior = prior
         if prior:
-            index=prior.index+1
-        logger.debug(f'Creating task {taskname} with index {index}')
-        input_dict = {
-            'index':index,
-            'scripters':scripters,
-            'prior':prior,
-            'specs':specs,
-            'config':config,
-            'taskname':taskname,
-            'controller_index':controller_index
-        }
-        super().__init__(input_dict)
-        self.basename=''
-        self.subtaskcount=0
-        self.result=0
+            self.index = prior.index + 1
+        else:
+            self.index = index
+
+        self.controller_index = self.pipeline.controller_index
+        self.taskname = self.specs.get('taskname', f'Task-{self.index:02d}')
+        self.basename = ''
+        self.subtaskcount = 0
+        self.result = 0
 
     @abstractmethod
     def do(self):
@@ -116,14 +94,14 @@ class BaseTask(BaseObj, ABC):
         else:
             logger.error(f'Task {self.taskname} failed with result {self.result}')
 
-    def stash_current_artifact(self,key):
+    def stash_current_artifact(self, key):
         """
         Stash the current artifact with the specified key into the history.
         This method moves the current artifact from the context to the history list.
         """
-        self.ctx.stash(key)
+        self.pipeline.stash(key)
 
-    def get_current_artifact_value(self,key):
+    def get_current_artifact_value(self, key):
         """ 
         Get the current artifact value with the specified key from the context.
         This method retrieves the artifact from the context that matches the specified key.
@@ -138,15 +116,15 @@ class BaseTask(BaseObj, ABC):
         Artifact
             The artifact associated with the specified key, or None if not found.
         """
-        artifact=self.ctx.get_artifact(key)
+        artifact=self.pipeline.get_artifact(key)
         if artifact:
             return artifact.value
         else:
             logger.debug(f'Artifact {key} not found')
         return None
-    
-    def get_current_artifact_path(self,key,default=None):
-        """ 
+
+    def get_current_artifact_path(self, key, default=None):
+        """
         Get the current artifact path with the specified key from the context.
         This method retrieves the artifact from the context that matches the specified key.
         
@@ -160,14 +138,14 @@ class BaseTask(BaseObj, ABC):
         Artifact
             The artifact associated with the specified key, or None if not found.
         """
-        artifact=self.ctx.get_artifact(key)
+        artifact=self.pipeline.get_artifact(key)
         if artifact:
             return artifact.path if hasattr(artifact,'path') else artifact.value
         else:
             logger.debug(f'Artifact {key} not found')
         return default
     
-    def get_current_artifact(self,key):
+    def get_current_artifact(self, key):
         """
         Get the current artifact with the specified key from the context.
         This method retrieves the artifact from the context that matches the specified key.
@@ -182,7 +160,7 @@ class BaseTask(BaseObj, ABC):
         Artifact
             The artifact associated with the specified key, or None if not found.
         """
-        return self.ctx.get_artifact(key)
+        return self.pipeline.get_artifact(key)
 
     def get_my_artifact_collection(self):
         """
@@ -195,7 +173,7 @@ class BaseTask(BaseObj, ABC):
         list
             A list of artifact values associated with the current task.
         """
-        return self.ctx.get_artifact_collection_as_list(produced_by=self)
+        return self.pipeline.get_artifact_collection_as_list(produced_by=self)
     
     def register_current_artifact(self, artifact: Artifact|ArtifactList, key: str = None):
         """
@@ -207,9 +185,9 @@ class BaseTask(BaseObj, ABC):
             The artifact to register.
 
         """
-        self.ctx.register(artifact.stamp(self), key=key)
+        self.pipeline.register(artifact.stamp(self), key=key)
 
-    def override_taskname(self,taskname):
+    def override_taskname(self, taskname):
         """
         Override the task name with a new name.  Certain situations may require a Controller to override the task name.
         This method is used to change the task name after the task has been created.
@@ -220,14 +198,12 @@ class BaseTask(BaseObj, ABC):
             The new task name to set.
         """
         logger.debug(f'Overriding task name {self.taskname} to {taskname}')
-        self.taskname=taskname
-
-
+        self.taskname = taskname
 
     def __str__(self):
         return f'{self.controller_index} - {self.index} - {self.taskname} [has prior {self.prior!=None}]'
 
-    def log_message(self,message,**kwargs):
+    def log_message(self, message, **kwargs):
         """ 
         Logs a message with the task's index and name.
 
@@ -239,54 +215,49 @@ class BaseTask(BaseObj, ABC):
             Additional keyword arguments that can be used to add extra information to the log message.
             These are typically used to provide additional context or details about the task's execution.
         """
-        extra=''
-        for k,v in kwargs.items():
+        extra = ''
+        for k, v in kwargs.items():
             if v:
-                extra+=f' ({k}: {v})'
-        mtoks=[x.strip() for x in [x.upper() for x in message.split()]]
+                extra += f' ({k}: {v})'
+        mtoks = [x.strip() for x in [x.upper() for x in message.split()]]
         if not any([x in self.init_msg_options for x in mtoks]):
-            extra+=f' (result: {self.result})'
+            extra += f' (result: {self.result})'
         logger.info(f'Controller {self.controller_index:02} Task {self.index:02} \'{self.taskname}\' {message} {extra}')
 
-    def get_keepfiles(self):
-        """ 
-        Returns a list of files that should be kept after the task is done.
-        """
-        if hasattr(self,'keepfiles'):
-            return self.keepfiles
-        else:   
-            return []
+    # def get_keepfiles(self):
+    #     """ 
+    #     Returns a list of files that should be kept after the task is done.
+    #     """
+    #     if hasattr(self, 'keepfiles'):
+    #         return self.keepfiles
+    #     else:   
+    #         return []
         
-    def next_basename(self,*obj):
+    def next_basename(self, extra_label: str = ''):
         """
         Generates a new basename for the task based on the controller index, task index, subtask count, and task name.
         If the ``specs`` dictionary contains a 'basename' key, it overrides the default basename.
         The basename is constructed in the format: ``(controller_index)-(task_index)-(subtask_count)_(taskname)[-(label)]``.
-        If ``obj`` is provided, its first element is the label.  For example, next_basename('mylabel') would result in a basename like ``01-02-03_taskname-mylabel``.
-
-        Parameters
-        ----------
-        *obj : tuple
-            Optional tuple of objects. If provided, the first element is used to create a label for the basename.
+        If ``extra_label`` is provided, it is used as the label.  For example, next_basename('mylabel') would result in a basename like ``01-02-03_taskname-mylabel``.
         """
 
-        label=''
-        if len(obj)==1 and len(obj[0])>0:
-            label=f'-{obj[0]}'
-        default_basename=f'{self.controller_index:02d}-{self.index:02d}-{self.subtaskcount:02d}_{self.taskname}{label}'
-        overwrite_basename=self.specs.get('basename',None) # user put a basename in the task specs in the YAML input
-        basename=overwrite_basename if overwrite_basename else default_basename
-        self.basename=basename
-        self.subtaskcount+=1
-    
-class VMDTask(BaseTask):
+        label = ''
+        if extra_label:
+            label = f'-{extra_label}'
+        default_basename = f'{self.controller_index:02d}-{self.index:02d}-{self.subtaskcount:02d}_{self.taskname}{label}'
+        overwrite_basename = self.specs.get('basename', None)  # user put a basename in the task specs in the YAML input
+        basename = overwrite_basename if overwrite_basename else default_basename
+        self.basename = basename
+        self.subtaskcount += 1
+
+class VMDTask(BaseTask, ABC):
     """
     A base class for tasks that require VMD scripting.
     This class extends the BaseTask class and provides additional functionality for tasks that involve VMD scripting.
     It includes methods for converting coordinate files to PDB files, converting PDB files to coordinate files, and creating constraint PDB files.
     The VMDTask class is intended to be subclassed.
     """
-    yaml_header=None # this is an abstract task, so no yaml header
+
     def coor_to_pdb(self):
         """
         Converts the coordinate file to a PDB file using VMD.
@@ -294,17 +265,17 @@ class VMDTask(BaseTask):
         It uses the ``namdbin2pdb`` Tcl proc to convert the coordinate file to a PDB file.
         The resulting PDB file is named based on the task's basename.
         """
-        vm=self.scripters['vmd']
+        vm = self.pipeline.get_scripters('vmd')
         vm.newscript(f'{self.basename}-coor2pdb')
-        psf=self.get_current_artifact_path('psf')
+        psf = self.get_current_artifact_path('psf')
         if not psf:
             raise RuntimeError(f'No PSF file found for task {self.taskname}')
-        coor=self.get_current_artifact_path('coor')
+        coor = self.get_current_artifact_path('coor')
         if not coor:
             raise RuntimeError(f'No coordinate file found for task {self.taskname}')
         vm.addline(f'namdbin2pdb {psf.name} {coor.name} {self.basename}.pdb')
         vm.writescript()
-        vm.runscript()
+        vm.runscript(artifact_registerer=self)
         self.register_current_artifact(TclScript(f'{self.basename}-coor2pdb'))
         self.register_current_artifact(VMDLogFile(f'{self.basename}-coor2pdb'))
         self.register_current_artifact(PDBFile(self.basename))

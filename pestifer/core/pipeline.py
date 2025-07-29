@@ -8,20 +8,44 @@ import logging
 logger=logging.getLogger(__name__)
 
 class PipelineContext:
-    def __init__(self):
+    def __init__(self, controller_index: int = 0, global_config: dict = {}, scripters: dict = {}):
         self.head: dict[str, Artifact|ArtifactList] = {}
         self.history: ArtifactList = ArtifactList()
+        self.controller_index = controller_index
+        self.global_config = global_config
+        self.scripters = scripters
 
-    def register(self, artifact: Artifact, key: str = None):
+    def __repr__(self):
+        return f"PipelineContext(controller_index={self.controller_index})"
+
+    def get_scripter(self, name: str):
+        """
+        Retrieve a scripter by name from the pipeline context.
+        
+        Parameters
+        ----------
+        name : str
+            The name of the scripter to retrieve.
+
+        Returns
+        -------
+        Scripter
+            The scripter object associated with the given name, or None if not found.
+        """
+        return self.scripters.get(name, None)
+
+    def register(self, artifact: Artifact, key: str = None, requesting_object = None):
         """ 
         Create and register an artifact in the pipeline context.
 
         Parameters
         ----------
-        key : str
-            Unique identifier for the artifact; if not provided, it will be derived from the artifact's key attribute.
         artifact : Artifact
             The artifact to register.
+        key : str
+            Unique identifier for the artifact; if not provided, it will be derived from the artifact's key attribute.
+        requesting_object : object, optional
+            The object that is requesting the registration of the artifact. This can be used for logging or tracking purposes.
         """
         if key: # If a key is provide, override the artifact's key
             artifact.key = key
@@ -34,7 +58,7 @@ class PipelineContext:
             """ move to history if already exists """
             self.history.append(self.head[key])
         logger.debug(f'Registering artifact {key} of type {type(artifact)}')
-        self.head[key] = artifact
+        self.head[key] = artifact.stamp(requesting_object)
 
     def get_artifact(self, key: str):
         return self.head.get(key, None)

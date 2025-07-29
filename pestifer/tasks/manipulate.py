@@ -17,7 +17,7 @@ class ManipulateTask(BaseTask):
     """
     ManipulateTask class for performing coordinate manipulations.
     """
-    yaml_header='manipulate'
+    _yaml_header = 'manipulate'
     """
     YAML header for the ManipulateTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
@@ -25,14 +25,10 @@ class ManipulateTask(BaseTask):
         """
         Execute the manipulate task.
         """
-        self.log_message('initiated')
-        if self.prior:
-            logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
         logger.debug(f'manipulate {self.specs["mods"]}')
         self.objmanager=ObjManager()
         self.objmanager.ingest(self.specs['mods'])
         self.result=self.coormods()
-        self.log_message('complete')
         return super().do()
 
     def coormods(self):
@@ -52,7 +48,7 @@ class ManipulateTask(BaseTask):
         logger.debug(f'performing coormods')
         for objtype,objlist in coord.items():
             self.next_basename(objtype)
-            vm=self.scripters['vmd']
+            vm=self.pipeline.get_scripter('vmd')
             vm.newscript(self.basename,packages=['Orient'])
             psf=self.get_current_artifact_path('psf')
             pdb=self.get_current_artifact_path('pdb')

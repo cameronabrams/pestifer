@@ -19,7 +19,7 @@ class LigateTask(MDTask):
     """
     LigateTask class for ligating loops in molecular dynamics simulations.
     """
-    yaml_header='ligate'
+    _yaml_header = 'ligate'
     """
     YAML header for the LigateTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
@@ -34,7 +34,6 @@ class LigateTask(MDTask):
         If the task is successful, it saves the state of the simulation with the specified extensions.
         If the task is bypassed, it logs a message and returns without performing any operations.
         """
-        self.log_message('initiated')
         self.base_molecule = self.get_current_artifact_value('base_molecule')
         if not self.base_molecule.has_protein_loops:
             self.log_message('bypassed')
@@ -42,21 +41,18 @@ class LigateTask(MDTask):
         logger.debug('Storing sequence gaps.')
         self.write_gaps()
         logger.debug('Measuring gap distances.')
-        steering_specs=self.specs.get('steer',{})
+        steering_specs = self.specs.get('steer', {})
         if not steering_specs:
             logger.debug(f'No steering specifications for ligate task; this is a bug; bypassing')
             return
         self.measure_distances(steering_specs)
         logger.debug('Steering loop C-termini toward their partner N-termini')
-        self.result=self.do_steered_md(self.specs['steer'])
-        if self.result!=0:
+        self.result = self.do_steered_md(self.specs['steer'])
+        if self.result != 0:
             return self.result
         logger.debug('Connecting loop C-termini to their partner N-termini')
-        connect_specs=self.specs.get('connect',{})
-        self.result=self.connect(connect_specs)
-        if self.result!=0:
-            return self.result
-        self.log_message('complete')
+        connect_specs = self.specs.get('connect', {})
+        self.result = self.connect(connect_specs)
         return self.result
     
     def write_gaps(self):
@@ -87,7 +83,7 @@ class LigateTask(MDTask):
         """
         comment_chars='#!$'
         self.next_basename('measure')
-        vm=self.scripters['vmd']
+        vm=self.pipeline.get_scripter('vmd')
         vm.newscript(self.basename)
         psf=self.get_current_artifact_path('psf')
         pdb=self.get_current_artifact_path('pdb')
@@ -122,7 +118,7 @@ class LigateTask(MDTask):
         Perform steered molecular dynamics to steer the loop termini toward each other.
         """
         self.next_basename('steer')
-        writer=self.scripters['data']
+        writer=self.pipeline.get_scripter('data')
         writer.newfile(f'{self.basename}-cv.in')
         for i,g in enumerate(self.gaps):
             g['colvars']=f'GAP{i:02d}'
@@ -165,7 +161,7 @@ class LigateTask(MDTask):
         self.next_basename('gap_patches')
         mol=self.base_molecule
         datafile=f'{self.basename}.inp'
-        writer=self.scripters['data']
+        writer=self.pipeline.get_scripter('data')
         writer.newfile(datafile)
         mol.write_connect_patches(writer)
         writer.writefile()
@@ -185,9 +181,9 @@ class LigateTask(MDTask):
             The result of the psfgen script execution. A return value of 0 indicates success, while any other value indicates failure.
         """
         self.next_basename('heal')
-        pg=self.scripters['psfgen']
+        pg=self.pipeline.get_scripter('psfgen')
         pg.newscript(self.basename)
-        CC=self.config.RM.charmmff_content
+        CC=self.pipeline.global_config.RM.charmmff_content
         CC.copy_charmmfile_local('pestifer.top')
         charmm_topology_files=self.get_current_artifact_value('charmmff_topfiles')
         charmm_topology_files.append(CharmmffTopFile('pestifer',ext='top'))

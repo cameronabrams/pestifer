@@ -13,14 +13,13 @@ class FetchTask(BaseTask):
     """
     A class for fetching initial structures from various sources.
     """
-    yaml_header='fetch'
+    _yaml_header = 'fetch'
     """
     YAML header for the FetchTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
     _artifact_name = 'base_coordinates'
     def do(self):
         """ Execute the fetch task. """
-        self.log_message('initiated')
         source=self.specs.get('source','pdb')
         sourceID=self.specs.get('sourceID','')
         source_format=self.specs.get('source_format','pdb') # desired format for the source file, default is 'pdb'
@@ -69,6 +68,4 @@ class FetchTask(BaseTask):
                 raise FileNotFoundError(f"Neither {local_pdb} nor {local_cif} found.")
         else:
             raise ValueError(f"Unsupported source type: {source}")
-        self.log_message('complete')
-        logger.debug(f'{self.ctx.context_to_string()}')
         return self.result

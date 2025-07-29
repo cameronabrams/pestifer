@@ -14,9 +14,8 @@ class ContinuationTask(VMDTask):
     """ 
     This task only resets the task chain to named values of the psf, pdb, xsc, and coor files 
     """
-    yaml_header='continuation'
+    _yaml_header = 'continuation'
     def do(self):
-        self.log_message('initiated')
         self.next_basename()
         # must have psf, either coor or pdb
         psf = self.specs.get('psf','')
@@ -42,6 +41,5 @@ class ContinuationTask(VMDTask):
         vel = self.specs.get('vel','')
         if vel:
             self.register_current_artifact(NAMDVelFile(vel.replace('.vel','')))
-        self.log_message('complete')
         self.result = 0
         return super().do()

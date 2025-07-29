@@ -36,7 +36,7 @@ class PsfgenTask(BaseTask):
         Controller specifications for the task.
     """
 
-    yaml_header='psfgen'
+    _yaml_header='psfgen'
     """
     YAML header for the PsfgenTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
@@ -51,7 +51,6 @@ class PsfgenTask(BaseTask):
         It also handles any necessary coormods and declashing of loops and glycans based on the task specifications.
         The results of the psfgen process are saved as a PSF/PDB fileset, and the state is updated accordingly.
         """
-        self.log_message('initiated')
         logger.debug('ingesting molecule(s)')
         self.ingest_molecules()
         logger.debug(f'base mol num images {self.base_molecule.num_images()}')
@@ -62,7 +61,6 @@ class PsfgenTask(BaseTask):
         # we now have a full coordinate set, so we can do coormods
         self.coormods()
         self.declash()
-        self.log_message('complete')
         return super().do()
 
     def coormods(self):
@@ -77,7 +75,7 @@ class PsfgenTask(BaseTask):
             for objtype,objlist in coormods.items():
                 if len(objlist)>0:
                     self.next_basename(objtype)
-                    vm=self.scripters['vmd']
+                    vm=self.pipeline.get_scripter('vmd')
                     packages=[]
                     if objtype=='crotations':
                         packages.append('PestiferCRot')
@@ -110,7 +108,8 @@ class PsfgenTask(BaseTask):
         Collect the topology files that are needed for the residues in the base molecule.
         """
         resis=set([x.resname for x in self.base_molecule.asymmetric_unit.residues])
-        CC=self.config.RM.charmmff_content
+        global_config=self.pipeline.global_config
+        CC=global_config.RM.charmmff_content
         new_topfiles=set()
         for resname in resis:
             topfile=CC.get_topfile_of_resname(resname)
@@ -127,7 +126,7 @@ class PsfgenTask(BaseTask):
         objmanager=self.base_molecule.objmanager
         seqmods=objmanager.get('seq',{})
         patches=seqmods.get('patches',[])
-        CC=self.config.RM.charmmff_content
+        CC=self.pipeline.global_config.RM.charmmff_content
         new_topfiles=set()
         # logger.debug(f'New topologies: {new_topfiles}')
         for patch in patches:
@@ -149,7 +148,7 @@ class PsfgenTask(BaseTask):
         Run the psfgen process to generate a PSF file from the base molecule.
         """
         self.next_basename('build')
-        pg=self.scripters['psfgen']
+        pg=self.pipeline.get_scripter('psfgen')
         required_topology_files=list(set(self.patch_topologies()+self.resi_topologies()))
         pg.newscript(self.basename,packages=['PestiferCRot'],additional_topologies=required_topology_files)
         pg.set_molecule(self.base_molecule,altcoords=self.specs.get('source',{}).get('altcoords',None))
@@ -217,7 +216,7 @@ class PsfgenTask(BaseTask):
         self.next_basename('declash-loops')
         psf=self.get_current_artifact_path('psf')
         pdb=self.get_current_artifact_path('pdb')
-        vt=self.scripters['vmd']
+        vt=self.pipeline.get_scripter('vmd')
         vt.newscript(self.basename,packages=['PestiferDeclash'])
         vt.load_psf_pdb(psf,pdb,new_molid_varname='mLL')
         mol.write_protein_loop_lines(vt,cycles=cycles,include_c_termini=specs['declash']['include_C_termini'])
@@ -241,7 +240,7 @@ class PsfgenTask(BaseTask):
             logger.debug(f'Nucleic acid loop declashing is intentionally not done.')
             return
         self.next_basename('declash-na-loops')
-        vt=self.scripters['vmd']
+        vt=self.pipeline.get_scripter('vmd')
         psf=self.get_current_artifact_path('psf')
         pdb=self.get_current_artifact_path('pdb')
         outpdb=f'{self.basename}.pdb'
@@ -353,7 +352,7 @@ class PsfgenTask(BaseTask):
         outpdb=f'{self.basename}.pdb'
         psf=self.get_current_artifact_path('psf')
         pdb=self.get_current_artifact_path('pdb')
-        vt=self.scripters['vmd']
+        vt=self.pipeline.get_scripter('vmd')
         vt.newscript(self.basename,packages=['PestiferDeclash'])
         vt.addline(f'mol new {psf}')
         vt.addline(f'mol addfile {pdb} waitfor all')

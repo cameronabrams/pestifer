@@ -22,7 +22,7 @@ class TerminateTask(MDTask):
     This class inherits from the :class:`MDTask <pestifer.tasks.md.MDTask>` class and is used to prepare the system for termination.
     It handles the copying of state files, writing chain maps, and packaging the system for NAMD runs.
     """
-    yaml_header='terminate'
+    _yaml_header='terminate'
     """
     YAML header for the TerminateTask, used to identify the task in configuration files as part of a ``tasks`` list.
     This header is used to declare TerminateTask objects in YAML task lists.
@@ -32,14 +32,12 @@ class TerminateTask(MDTask):
         """
         Execute the terminate task.
         """
-        self.log_message('initiated')
         self.next_basename()
         coor=self.get_current_artifact('coor')
         if not coor:
             self.pdb_to_coor()
         self.write_chainmaps()
         self.result=self.make_package()
-        self.log_message('complete')
         return self.result
 
     def write_chainmaps(self):

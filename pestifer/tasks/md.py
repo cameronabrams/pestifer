@@ -22,13 +22,16 @@ class MDTask(VMDTask):
     """ 
     A class for handling all NAMD runs
     """
-    yaml_header='md'
+    _yaml_header='md'
     """
     YAML header for the MDTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
     def do(self):
+        pass
+
+    def execute(self):
         """
-        Execute the MD task.
+        Execute the MD task; special messaging is handled here, and do() is stubbed out.
         """
         self.log_message('initiated',ensemble=self.specs.get('ensemble',None))
         self.result=self.namdrun()
@@ -67,7 +70,8 @@ class MDTask(VMDTask):
             self.next_basename(baselabel)
         
         params={}
-        namd_global_params=self.config['user']['namd']
+        global_config = self.pipeline.global_config
+        namd_global_params=global_config['namd']
         psf=self.get_current_artifact_path('psf')
         pdb=self.get_current_artifact_path('pdb')
         coor=self.get_current_artifact_path('coor')
@@ -144,7 +148,7 @@ class MDTask(VMDTask):
             params['conskfile']=consref.name
             params['conskcol']='O'
         if colvars:
-            writer=self.scripters['data']
+            writer=self.pipeline.get_scripter('data')
             writer.newfile(f'{self.basename}-cv.inp')
             colvar_writer(colvars,writer,pdb=pdb)
             writer.writefile()
@@ -161,8 +165,8 @@ class MDTask(VMDTask):
         elif ensemble.casefold() in ['NVT'.casefold(),'NPT'.casefold(),'NPAT'.casefold()]:
             assert nsteps>0,f'Error: you must specify how many time steps to run'
             params['run']=nsteps
-        
-        na=self.scripters['namd']
+
+        na = self.pipeline.get_scripter('namd')
         na.newscript(self.basename,addl_paramfiles=list(set(addl_paramfiles+prior_paramfiles)))
         self.register_current_artifact(CharmmffParFiles([CharmmffParFile(x.replace('.prm','')) for x in na.parameters if x.endswith('.prm')]),key='charmmff_parfiles')
         self.register_current_artifact(CharmmffStreamFiles([CharmmffStreamFile(x.replace('.str','')) for x in na.parameters if x.endswith('.str')]),key='charmmff_streamfiles')

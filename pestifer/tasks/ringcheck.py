@@ -18,14 +18,13 @@ class RingCheckTask(BaseTask):
     A class for checking for pierced rings
     """
     
-    yaml_header='ring_check'
+    _yaml_header='ring_check'
     """
     YAML header for RingCheckTask objects.
     This header is used to declare RingCheckTask objects in YAML task lists.
     """
     
     def do(self):
-        self.log_message('initiated')
         psf=self.get_current_artifact_path('psf')
         pdb=self.get_current_artifact_path('pdb')
         xsc=self.get_current_artifact_path('xsc')
@@ -41,7 +40,7 @@ class RingCheckTask(BaseTask):
                     logger.debug(f'  Piercing of {r["piercee"]["segname"]}-{r["piercee"]["resid"]} by {r["piercer"]["segname"]}-{r["piercer"]["resid"]}')
             else:
                 self.next_basename('ring_check')
-                pg=self.scripters['psfgen']
+                pg=self.pipeline.get_scripter('psfgen')
                 pg.newscript(self.basename)
                 pg.load_project(psf.name,pdb.name)
                 logger.debug(f'Deleting all {delete_these}s from {len(npiercings)} pierced-ring configuration{ess}')

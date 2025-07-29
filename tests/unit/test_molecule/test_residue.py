@@ -1,17 +1,14 @@
 import unittest
-from pestifer.molecule.residue import Residue, EmptyResidue, ResidueList
+from pestifer.molecule.residue import Residue, EmptyResidue, ResidueList, EmptyResidueList
 from pestifer.molecule.atom import AtomList, Atom
 from pestifer.objs.link import Link, LinkList
 from pestifer.objs.deletion import Deletion, DeletionList
 from pestifer.objs.substitution import Substitution, SubstitutionList
 from pestifer.objs.insertion import Insertion, InsertionList
-from pestifer.core.config import Config
-from pestifer.core.labels import Labels
-from pestifer.util.cifutil import CIFdict, CIFload
 from pestifer.objs.insertion import InsertionList, Insertion
-from io import StringIO
+from pestifer.util.cifutil import CIFload
+from pathlib import Path
 from pidibble.pdbparse import PDBParser
-import yaml
 
 class TestEmptyResidue(unittest.TestCase):
 
@@ -45,6 +42,23 @@ class TestEmptyResidue(unittest.TestCase):
         self.assertEqual(r.auth_asym_id, None)
         self.assertEqual(r.auth_comp_id, None)
         self.assertEqual(r.auth_seq_id, None)
+
+class TestEmptyResidueList(unittest.TestCase):
+
+    def test_empty_residue_list(self):
+        rl = ResidueList()
+        self.assertIsInstance(rl, ResidueList)
+        self.assertEqual(len(rl), 0)
+
+    def test_empty_residue_list_from_pdb(self):
+        p = PDBParser(filepath='fixtures/data/4zmj.pdb').parse().parsed
+        empty_residue_list = EmptyResidueList.from_pdb(p)
+        self.assertGreater(len(empty_residue_list), 0)
+
+    def test_empty_residue_list_from_cif(self):
+        p = CIFload(Path('fixtures/data/4zmj.cif'))
+        empty_residue_list = EmptyResidueList.from_cif(p)
+        self.assertGreater(len(empty_residue_list), 0)
 
 class TestResidue(unittest.TestCase):
 

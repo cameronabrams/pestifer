@@ -34,8 +34,8 @@ class CleaveTask(PsfgenTask):
                 - B:5-6
           - (subsequent tasks...)
     """
-    
-    yaml_header='cleave'
+
+    _yaml_header = 'cleave'
     """
     YAML header for the CleaveTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
@@ -47,12 +47,10 @@ class CleaveTask(PsfgenTask):
         that can be reproduced by an inferential psfgen call, and then performs the cleavage operation(s).
         The resulting structure is then processed by the psfgen method, and the final result is saved as a PSF/PDB fileset.
         """
-        self.log_message('initiated')
-        cleavage_sites=CleavageSiteList([CleavageSite(x) for x in self.specs['sites']])
+        cleavage_sites = CleavageSiteList([CleavageSite(x) for x in self.specs['sites']])
         # update base molecule to the point an inferential psfgen call could reproduce it, up to ssbonds and links
-        self.base_molecule=self.get_artifact_value('base_molecule')
+        self.base_molecule = self.get_artifact_value('base_molecule')
         self.update_molecule()
         self.base_molecule.cleave_chains(cleavage_sites)
-        self.result=self.psfgen()
-        self.log_message('complete')
+        self.result = self.psfgen()
         return self.result

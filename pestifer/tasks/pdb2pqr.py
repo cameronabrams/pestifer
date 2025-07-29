@@ -30,7 +30,7 @@ class PDB2PQRTask(PsfgenTask):
     """
     PDB2PQRTask class for preparing PDB files for PQR generation using PDB2PQR.
     """
-    yaml_header='pdb2pqr'
+    _yaml_header='pdb2pqr'
     """
     YAML header for the PDB2PQRTask, used to identify the task in configuration
     files as part of a ``tasks`` list.
@@ -39,11 +39,10 @@ class PDB2PQRTask(PsfgenTask):
         """
         Execute the PDB2PQR task.
         """
-        self.log_message('initiated')
         self.next_basename()
         self.base_molecule=self.get_current_artifact_value('base_molecule')
         pH=self.specs.get('pH',7.0)
-        xsc=self.statevars.get('xsc',None)
+        # xsc=self.get_current_artifact_value('xsc')
 
         prep_result=self.prep_input()
         self.run_pdb2pqr(pH=pH)
@@ -74,7 +73,7 @@ class PDB2PQRTask(PsfgenTask):
         # writes a hydrogen-free PDB file with histidine resnames all reverted to HIS and water resnames to HOH
         psf=self.get_current_artifact_path('psf')
         pdb=self.get_current_artifact_path('pdb')
-        vt=self.scripters['vmd']
+        vt=self.pipeline.get_scripter('vmd')
         vt.newscript(self.basename)
         vt.addline(f'mol new {psf.name}')
         vt.addline(f'mol addfile {pdb.name} waitfor all')

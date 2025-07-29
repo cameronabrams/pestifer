@@ -19,7 +19,7 @@ class DesolvateTask(VMDTask):
     """
     DesolvateTask class for processing DCD files and generating index and PSF files.
     """
-    yaml_header='desolvate'
+    _yaml_header='desolvate'
     """
     YAML header for the DesolvateTask, used to identify the task in configuration files as
     part of a ``tasks`` list.  This is not the normal use case for Desolvate.
@@ -48,7 +48,7 @@ class DesolvateTask(VMDTask):
         psf_outfile=self.specs['psf_outfile']
         if pdb:
             pdb_outfile=os.path.splitext(psf_outfile)[0]+'.pdb'
-        vt=self.scripters['vmd']
+        vt=self.pipeline.get_scripter('vmd')
         vt.newscript(self.basename)
         vt.addline( 'package require psfgen')
         vt.addline(f'mol new {psf}')
