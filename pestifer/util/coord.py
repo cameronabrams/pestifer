@@ -26,6 +26,24 @@ def lawofcos(a: np.ndarray, b: np.ndarray) -> float:
     """
     return np.dot(a,b)/np.sqrt(np.dot(a,a)*np.dot(b,b))
 
+def build_tmat(RotMat: np.ndarray, TransVec: np.ndarray) -> np.ndarray:
+    """
+    Builds a 4 x 4 homogeneous transformation matrix 
+    
+    Parameters
+    ----------
+    RotMat: numpy.ndarray
+        3 x 3 rotation matrix
+    TransVec: numpy.ndarray
+        translation vector
+    """
+    tmat=np.identity(4,dtype=float)
+    for i in range(3):
+        for j in range(3):
+            tmat[i][j]=RotMat[i][j]
+        tmat[i][3]=TransVec[i]
+    return tmat
+
 def measure_dihedral(a1,a2,a3,a4):
     """
     Measure dihedral angle IN RADIANS of a1->a2--a3->a4

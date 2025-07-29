@@ -7,26 +7,29 @@ logger=logging.getLogger(__name__)
 
 from argparse import Namespace
 from mmcif.api.PdbxContainers import DataContainer
-from functools import singledispatchmethod
-from pydantic import Field, ConfigDict, PrivateAttr
-from typing import ClassVar, Any, Dict, Optional
+from pathlib import Path
+from typing import ClassVar, Dict, Optional, Any
+
 from .atom import AtomList, Atom, Hetatm
-from ..core.baseobj_new import BaseObj
-from ..objs.graft import Graft, GraftList
+from .chainidmanager import ChainIDManager
+from .residue import ResidueList, EmptyResidue, EmptyResidueList
+from .segment import SegmentList
+
+from ..core.objmanager import ObjManager
+from ..core.stringthings import my_logger
+
+from ..objs.graft import GraftList
 from ..objs.link import Link, LinkList
 from ..objs.mutation import Mutation, MutationList
+from ..objs.patch import PatchList
 from ..objs.seqadv import Seqadv, SeqadvList
 from ..objs.ssbond import SSBond, SSBondList
-from ..objs.patch import Patch, PatchList
 from ..objs.ter import Ter, TerList
-from .chainidmanager import ChainIDManager
-from ..core.objmanager import ObjManager
+
 from ..psfutil.psfcontents import PSFContents
-from .residue import ResidueList,EmptyResidue,EmptyResidueList
-from .segment import SegmentList
-from ..core.stringthings import my_logger
-from ..util.util import write_residue_map
+
 from ..util.cifutil import CIFdict
+from ..util.util import write_residue_map
 
 class AsymmetricUnit:
     """
@@ -48,32 +51,36 @@ class AsymmetricUnit:
     def describe(self):
         return f'<AsymmetricUnit: {len(self.atoms)} atoms, {len(self.residues)} residues>'
 
-    def __init__(self,**objs):
-        pr=objs.get('parsed',None)
-        sourcespecs=objs.get('sourcespecs',{})
-        excludes=sourcespecs.get('exclude',{})
-        objmanager=objs.get('objmanager',ObjManager())
-        chainIDmanager=objs.get('chainIDmanager',ChainIDManager())
-        psf=objs.get('psf',None)
-        if not pr:
+    def __init__(self,
+                 parsed: Optional[Dict|DataContainer] = None,
+                 sourcespecs: Optional[Dict] = {},
+                 objmanager: Optional[ObjManager] = ObjManager(),
+                 chainIDmanager: Optional[ChainIDManager] = ChainIDManager(),
+                 psf: Optional[str|Path] = None,
+                 parent_molecule: Optional[Any] = None):
+
+        if not parsed:
             return
-        
+        excludes=sourcespecs.get('exclude',{})
+        self.parent_molecule = parent_molecule
         missings=EmptyResidueList([])
         ssbonds=SSBondList([])
         links=LinkList([])
         ters=TerList([])
         seqadvs=SeqadvList([])
         patches=PatchList([])
-        if type(pr)==dict: # PDB format
-            # minimal pr has ATOMS
+        logger.debug(f'AsymmetricUnit: objmanager at {id(objmanager)} chainidmanager at {id(chainIDmanager)}')
+        logger.debug(f'Parsed is type {type(parsed)}')
+        if type(parsed)==dict: # PDB format
+            # minimal parsed has ATOMS
             if 'model' in sourcespecs:
-                atoms=AtomList([Atom.new(p) for p in pr[Atom._PDB_keyword] if p.model==sourcespecs['model']])
-                atoms.extend([Hetatm.new(p) for p in pr.get(Hetatm._PDB_keyword,[]) if p.model==sourcespecs['model']])
-                ters=TerList([Ter.new(p) for  p in pr.get(Ter._PDB_keyword,[]) if p.model==sourcespecs['model']])
+                atoms=AtomList([Atom.new(p) for p in parsed[Atom._PDB_keyword] if p.model==sourcespecs['model']])
+                atoms.extend([Hetatm.new(p) for p in parsed.get(Hetatm._PDB_keyword,[]) if p.model==sourcespecs['model']])
+                ters=TerList([Ter.new(p) for  p in parsed.get(Ter._PDB_keyword,[]) if p.model==sourcespecs['model']])
             else:
-                atoms=AtomList([Atom.new(p) for p in pr[Atom._PDB_keyword]])
-                atoms.extend([Hetatm.new(p) for p in pr.get(Hetatm._PDB_keyword,[])])
-                ters=TerList([Ter.new(p) for  p in pr.get(Ter._PDB_keyword,[])])
+                atoms=AtomList([Atom.new(p) for p in parsed[Atom._PDB_keyword]])
+                atoms.extend([Hetatm.new(p) for p in parsed.get(Hetatm._PDB_keyword,[])])
+                ters=TerList([Ter.new(p) for  p in parsed.get(Ter._PDB_keyword,[])])
             if sourcespecs.get('reserialize',False):
                 atoms.reserialize()
             else:
@@ -85,34 +92,40 @@ class AsymmetricUnit:
                     atoms.reserialize()
                 # atoms.adjustSerials(ters)
             objmanager.ingest(ters)
-            if 'REMARK.465' in pr:
-                missings=EmptyResidueList([EmptyResidue.new(p) for p in pr['REMARK.465'].tables['MISSING']])
-            ssbonds=SSBondList([SSBond.new(p) for p in pr.get(SSBond._PDB_keyword,[])])
+            if 'REMARK.465' in parsed:
+                missings=EmptyResidueList([EmptyResidue.new(p) for p in parsed['REMARK.465'].tables['MISSING']])
+            ssbonds=SSBondList([SSBond.new(p) for p in parsed.get(SSBond._PDB_keyword,[])])
             logger.debug(f'PDB yields {len(ssbonds)} ssbonds')
-            seqadvs=SeqadvList([Seqadv.new(p) for p in pr.get(Seqadv._PDB_keyword,[])])
-            links=LinkList([Link.new(p) for p in pr.get(Link._PDB_keyword,[])])
+            seqadvs=SeqadvList([Seqadv.new(p) for p in parsed.get(Seqadv._PDB_keyword,[])])
+            links=LinkList([Link.new(p) for p in parsed.get(Link._PDB_keyword,[])])
             links.remove_duplicates(fields=['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']) # some pdb files list links multiple times (2ins, i'm looking at you)
-        elif type(pr)==DataContainer: # mmCIF format
-            obj=pr.getObj(Atom._mmCIF_name)
+        elif type(parsed)==DataContainer: # mmCIF format
+            obj=parsed.getObj(Atom._mmCIF_name)
             atoms=AtomList([Atom.new(CIFdict(obj,i)) for i in range(len(obj))])
-            obj=pr.getObj(Seqadv._mmCIF_name)
-            seqadvs=SeqadvList([Seqadv.new(CIFdict(obj,i)) for i in range(len(obj))])
-            logger.debug(f'{len(seqadvs)} {type(seqadvs)} seqadv detected; typekeys: {[s.typekey for s in seqadvs]}')
-            obj=pr.getObj(EmptyResidue._mmCIF_name)
-            missings=EmptyResidueList([EmptyResidue.new(CIFdict(obj,i)) for i in range(len(obj))])
-            obj=pr.getObj('struct_conn')
-            ssdicts=[]
-            lndicts=[]
-            for i in range(len(obj)):
-                conn_type_id=obj.getValue('conn_type_id',i)
-                if conn_type_id=='disulf':
-                    ssdicts.append(CIFdict(obj,i))
-                elif conn_type_id in ['covale','metalc']:
-                    lndicts.append(CIFdict(obj,i))
-            ssbonds=SSBondList([SSBond.new(x) for x in ssdicts])
-            links=LinkList([Link.new(x) for x in lndicts])
+            obj=parsed.getObj(Seqadv._mmCIF_name)
+            if obj is not None:
+                seqadvs=SeqadvList([Seqadv.new(CIFdict(obj,i)) for i in range(len(obj))])
+                logger.debug(f'{len(seqadvs)} {type(seqadvs)} seqadv detected; typekeys: {[s.typekey for s in seqadvs]}')
+            obj=parsed.getObj(EmptyResidue._mmCIF_name)
+            if obj is not None:
+                missings=EmptyResidueList([EmptyResidue.new(CIFdict(obj,i)) for i in range(len(obj))])
+            obj=parsed.getObj('struct_conn')
+            if obj is not None:
+                logger.debug(f'Found {len(obj)} struct_conn records: {obj}')
+                ssdicts=[]
+                lndicts=[]
+                for i in range(len(obj)):
+                    conn_type_id=obj.getValue('conn_type_id',i)
+                    if conn_type_id=='disulf':
+                        ssdicts.append(CIFdict(obj,i))
+                    elif conn_type_id in ['covale','metalc']:
+                        lndicts.append(CIFdict(obj,i))
+                logger.debug(f'Generated {len(ssdicts)} SSBond dicts and {len(lndicts)} Link dicts from struct_conn data')
+                ssbonds=SSBondList([SSBond.new(x) for x in ssdicts])
+                links=LinkList([Link.new(x) for x in lndicts])
+                logger.debug(f'Generated {len(ssbonds)} SSBond records and {len(links)} Link records from struct_conn data')
         else:
-            raise TypeError(f'Unknown type for pr: {type(pr)}; expected dict or DataContainer')
+            raise TypeError(f'Unknown type for parsed: {type(parsed)}; expected dict or DataContainer')
 
         if psf:
             self.psf=PSFContents(psf)
@@ -126,10 +139,13 @@ class AsymmetricUnit:
                 logger.debug(f'PSF file {psf} identifies {len(self.psf.ssbonds)} ssbonds; total ssbonds now {len(ssbonds)}')
             if len(self.psf.links)>0:
                 logger.debug(f'PSF file {psf} identifies {len(self.psf.links)} links; total links now {len(links)}')
-            
+
+        logger.debug(f'{len(seqadvs)} seqadvs in AsymmetricUnit')
+
         # at this point the objmanager is holding all mods that are in 
         # the input file but NOT in the PDB/mmCIF/psf file.
         seqmods=objmanager.get('seq',{})
+        logger.debug(f'Seqmods: {seqmods}')
         topomods=objmanager.get('topol',{})
         grafts=seqmods.get('grafts',GraftList([]))
 
@@ -231,7 +247,7 @@ class AsymmetricUnit:
         # provide specifications of how to handle sequence issues
         # implied by PDB input
         seq_specs=sourcespecs.get('sequence',{})
-        segments=SegmentList.generate(residues=residues,seq_specs=seq_specs,chainIDmanager=chainIDmanager)
+        segments=SegmentList.generate(residues=residues,seq_spec=seq_specs,chainIDmanager=chainIDmanager)
         # this may have altered chainIDs for some residues.  So we must
         # be sure all mods that are chainID-specific but
         # not inheritable by segments are updated

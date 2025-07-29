@@ -1058,3 +1058,164 @@ class TestBaseObjList(unittest.TestCase):
         self.assertEqual(len(obj_list), 3)
         obj_list.remove_duplicates()
         self.assertEqual(len(obj_list), 2)
+
+    def test_assign_obj_to_attr(self):
+        class ConcreteObj(BaseObj):
+            model_config = ConfigDict(arbitrary_types_allowed=True)
+            _required_fields = {'name', 'number'}
+            _optional_fields = {'child'}
+            name: str = Field(..., description="Name of the object")
+            number: int = Field(..., description="A number")
+            child: Optional["SecondaryObj"] = Field(None, description="Child object")
+
+            def describe(self):
+                return f"Concrete Object with name: {self.name}, number: {self.number}"
+
+        class SecondaryObj(BaseObj):
+            _required_fields = {'number_a','number_b','color'}
+            number_a: int = Field(..., description="A number")
+            number_b: int = Field(..., description="Another number")
+            color: str = Field(..., description="Color of the object")
+
+            def describe(self):
+                return f"Secondary Object with number_a: {self.number_a}, number_b: {self.number_b}, color: {self.color}"
+        
+        class SecondaryObjList(BaseObjList[SecondaryObj]):
+            def describe(self) -> str:
+                return f"Secondary Object List with {len(self)} items."
+
+        ConcreteObj.model_rebuild()
+
+        obj1 = ConcreteObj(name="Object 1", number=1)
+
+        secondary_obj1 = SecondaryObj(number_a=1, number_b=1, color="red")
+        secondary_obj2 = SecondaryObj(number_a=1, number_b=4, color="blue")
+
+        secondary_obj_list = SecondaryObjList([secondary_obj1, secondary_obj2])
+
+        # assign the first secondary object to the child attribute of both concrete objects
+        obj1.assign_obj_to_attr('child', secondary_obj_list, number_b='number')
+
+        self.assertEqual(obj1.child, secondary_obj1)
+
+    def test_assign_objs_to_attr(self):
+        class ConcreteObj(BaseObj):
+            model_config = ConfigDict(arbitrary_types_allowed=True)
+            _required_fields = {'name', 'number'}
+            _optional_fields = {'child'}
+            name: str = Field(..., description="Name of the object")
+            number: int = Field(..., description="A number")
+            child: Optional["SecondaryObj"] = Field(None, description="Child object")
+
+            def describe(self):
+                return f"Concrete Object with name: {self.name}, number: {self.number}"
+
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
+            def describe(self) -> str:
+                return f"Concrete Object List with {len(self)} items."
+
+        class SecondaryObj(BaseObj):
+            _required_fields = {'number_a','number_b','color'}
+            number_a: int = Field(..., description="A number")
+            number_b: int = Field(..., description="Another number")
+            color: str = Field(..., description="Color of the object")
+
+            def describe(self):
+                return f"Secondary Object with number: {self.number}, color: {self.color}"
+            
+        class SecondaryObjList(BaseObjList[SecondaryObj]):
+            def describe(self) -> str:
+                return f"Secondary Object List with {len(self)} items."
+        ConcreteObj.model_rebuild()
+
+        obj1 = ConcreteObj(name="Object 1", number=1) # this one will be removed
+        obj2 = ConcreteObj(name="Object 2", number=2)
+        obj3 = ConcreteObj(name="Object 3", number=3)
+        obj_list = ConcreteObjList([obj1, obj2, obj3])
+
+        secondary_obj1 = SecondaryObj(number_a=11, number_b=3, color="red")
+        secondary_obj2 = SecondaryObj(number_a=21, number_b=2, color="blue")
+        secondary_obj3 = SecondaryObj(number_a=31, number_b=4, color="green")
+
+        secondary_obj_list = SecondaryObjList([secondary_obj1, secondary_obj2, secondary_obj3])
+
+        deleted_objs = obj_list.assign_objs_to_attr('child', secondary_obj_list, number_b='number')
+
+        self.assertEqual(obj1.child, None)
+        self.assertEqual(obj2.child, secondary_obj2)
+        self.assertEqual(obj3.child, secondary_obj1)
+
+        self.assertEqual(len(deleted_objs), 1)
+        self.assertIn(obj1, deleted_objs)
+
+    def test_update_attr_from_obj_attr(self):
+        class ConcreteObj(BaseObj):
+            model_config = ConfigDict(arbitrary_types_allowed=True)
+            _required_fields = {'name', 'number'}
+            _optional_fields = {'child'}
+            name: str = Field(..., description="Name of the object")
+            number: int = Field(..., description="A number")
+            child: Optional["SecondaryObj"] = Field(None, description="Child object")
+
+            def describe(self):
+                return f"Concrete Object with name: {self.name}, number: {self.number}"
+
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
+            def describe(self) -> str:
+                return f"Concrete Object List with {len(self)} items."
+
+        class SecondaryObj(BaseObj):
+            _required_fields = {'number_a','number_b','color'}
+            number_a: int = Field(..., description="A number")
+            number_b: int = Field(..., description="Another number")
+            color: str = Field(..., description="Color of the object")
+
+            def describe(self):
+                return f"Secondary Object with number: {self.number}, color: {self.color}"
+        ConcreteObj.model_rebuild()
+
+        secondary_obj1 = SecondaryObj(number_a=11, number_b=3, color="red")
+        secondary_obj2 = SecondaryObj(number_a=21, number_b=2, color="blue")
+        secondary_obj3 = SecondaryObj(number_a=31, number_b=4, color="green")
+        obj1 = ConcreteObj(name="Object 1", number=1, child=secondary_obj1) # this one will be removed
+        obj2 = ConcreteObj(name="Object 2", number=2, child=secondary_obj2)
+        obj3 = ConcreteObj(name="Object 3", number=3, child=secondary_obj3)
+        obj_list = ConcreteObjList([obj1, obj2, obj3])
+        # Update the 'number' attribute of each ConcreteObj based on the 'number_b' attribute of its child SecondaryObj
+        obj_list.update_attr_from_obj_attr('number', 'child', 'number_b')
+        self.assertEqual(obj1.number, 3)  # obj1's child had number_b=3
+        self.assertEqual(obj2.number, 2)  # obj2's child had number_b=2
+        self.assertEqual(obj3.number, 4)  # obj3's
+
+    def test_update_attr_from_objlist_elem_attr(self):
+        class PersonObj(BaseObj):
+            _required_fields = {'name', 'favorite_food', 'most_hated_food'}
+            _optional_fields = {'children'}
+            model_config = ConfigDict(arbitrary_types_allowed=True)
+            name: str = Field(..., description="Name of the object")
+            favorite_food: str = Field(..., description="Favorite food of the object")
+            most_hated_food: str = Field(..., description="Most hated food of the object")
+            children: Optional[Annotated[PersonList, PersonList.validate]] = Field(default_factory=lambda: PersonList())
+            def describe(self):
+                return f"Person with name: {self.name}"
+
+        class PersonList(BaseObjList[PersonObj]):
+            def describe(self) -> str:
+                return f"Self Referencing Object List with {len(self)} items."
+
+        Person1_child1 = PersonObj(name="Bob", favorite_food="Sushi", most_hated_food="Spinach")
+        Person1_child2 = PersonObj(name="Charlie", favorite_food="Pasta", most_hated_food="Zucchini")
+        Person1 = PersonObj(name="Alice", favorite_food="Pizza", most_hated_food="Broccoli", 
+                            children=PersonList([Person1_child1, Person1_child2]))
+        
+        Person2_child1 = PersonObj(name="Dave", favorite_food="Tacos", most_hated_food="Eggplant")
+        Person2_child2 = PersonObj(name="Eve", favorite_food="Burgers", most_hated_food="Liver")
+        Person2 = PersonObj(name="Frank", favorite_food="Salad", most_hated_food="Fish", 
+                            children=PersonList([Person2_child1, Person2_child2]))
+    
+        persons = PersonList([Person1, Person2])
+
+        persons.update_attr_from_objlist_elem_attr('favorite_food', 'children', 0, 'most_hated_food')
+
+        self.assertEqual(Person1.favorite_food, "Spinach")
+        self.assertEqual(Person2.favorite_food, "Eggplant")

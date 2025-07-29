@@ -110,7 +110,7 @@ class SSBond(BaseObj):
         return f"SSBond(chainID1={self.chainID1}, resseqnum1={self.resseqnum1}, insertion1={self.insertion1}, chainID2={self.chainID2}, resseqnum2={self.resseqnum2}, insertion2={self.insertion2})"
     
     class Adapter:
-        def __init__(self, chainID1: str, resseqnum1: int, insertion1: str, chainID2: str, resseqnum2: int, insertion2: str, serial_number: int = 0, residue1: Any = None, residue2: Any = None, resname1: str = 'CYS', resname2: str = 'CYS', sym1: str = '', sym2: str = '', length: float = 0.0):
+        def __init__(self, chainID1: str, resseqnum1: int, insertion1: str, chainID2: str, resseqnum2: int, insertion2: str, serial_number: int = 0, residue1: Any = None, residue2: Any = None, resname1: str = 'CYS', resname2: str = 'CYS', sym1: str = '', sym2: str = '', length: float = 0.0, ptnr1_auth_asym_id: str = '', ptnr2_auth_asym_id: str = '', ptnr1_auth_seq_id: str = '', ptnr2_auth_seq_id: str = ''):
             self.chainID1 = chainID1
             self.resseqnum1 = resseqnum1
             self.insertion1 = insertion1
@@ -125,6 +125,10 @@ class SSBond(BaseObj):
             self.sym1 = sym1
             self.sym2 = sym2
             self.length = length
+            self.ptnr1_auth_asym_id = ptnr1_auth_asym_id
+            self.ptnr2_auth_asym_id = ptnr2_auth_asym_id
+            self.ptnr1_auth_seq_id = ptnr1_auth_seq_id
+            self.ptnr2_auth_seq_id = ptnr2_auth_seq_id
 
         @classmethod
         def from_string(cls, raw: str):

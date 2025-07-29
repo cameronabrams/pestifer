@@ -382,55 +382,42 @@ class BaseObj(BaseModel, ABC):
         value = getattr(self, src_attr)
         setattr(self, recv_attr, value)
 
-    def assign_obj_to_attr(self,attr,objList,**matchattr):
+    def assign_obj_to_attr(self, attr, objList, **matchattr):
         """
-        Assigns the single object from objList whose
-        attributes match the matchattr dict to the 
-        calling instances attr attribute, but only if
-        the result of the match-search is valid,
-        otherwise assign None to attr
+        Given the dictionary matchattr that maps attribute names in self to corresponding attribute names in the objects in objList, pluck out the element in objList that matches self and assign it to the attr attribute of self.
 
         Parameters
         ----------
         attr : str
-            attribute name
+            attribute name that will receive the matched object from objList
         objList : list
             list of objects that is searched
         matchattr : dict
-            attribute:values used in searching the 
-            list of objects
+            attribute_in_searched_objects:attribute_in_self
         """
-        if not hasattr(self, attr):
-            return
+        adict = {k:getattr(self, v) for k, v in matchattr.items()}
+        pluckedObj = objList.get(**adict) # get returns None, a list of matches, or a single match
+        # the only case where we assign is when we get a single match
+        if pluckedObj is not None and type(pluckedObj) != objList:
+            setattr(self, attr, pluckedObj)
 
-        for obj in objList:
-            if not isinstance(obj, BaseObj):
-                continue
-
-            if all(getattr(obj, key, None) == value for key, value in matchattr.items()):
-                setattr(self, attr, obj)
-                return
-
-        setattr(self, attr, None)
-
-    def update_attr_from_obj_attr(self,attr,obj_attr,attr_of_obj_attr):
+    def update_attr_from_obj_attr(self, attr, obj_attr, attr_of_obj_attr):
         """
-        Set value of attribues of all elements of caller
-        from another attribute of a separate object
+        Update an attribute of self from an attribute of one of self's object attributes.
 
         Parameters
         ----------
         attr : str
-            attribute name
+            attribute name of self that will be set to value of self.obj_attr.attr_of_obj_attr
         obj_attr : str
             name of object attribute from which the attribute value is taken
         attr_of_obj_attr : str
             name of attribute in obj_attr that is set to
             attr of caller
         """
-        setattr(self,attr,getattr(getattr(self,obj_attr),attr_of_obj_attr))
+        setattr(self, attr, getattr(getattr(self, obj_attr), attr_of_obj_attr))
 
-    def update_attr_from_objlist_elem_attr(self,attr,objlist_attr,index_of_obj_in_objlist_attr,attr_of_obj_attr):
+    def update_attr_from_objlist_elem_attr(self, attr, objlist_attr, index_of_obj_in_objlist_attr, attr_of_obj_attr):
         """
         Set value of caller's attribute from an attribute
         of an object in a list of objects
@@ -438,7 +425,7 @@ class BaseObj(BaseModel, ABC):
         Parameters
         ----------
         attr : str
-            attribute name to be updated
+            attribute name of self that will be set to value of self.objlist_attr[index_of_obj_in_objlist_attr].attr_of_obj_attr
         objlist_attr : str
             name of the caller's attribute that is a list of objects
         index_of_obj_in_objlist_attr : int
@@ -447,8 +434,7 @@ class BaseObj(BaseModel, ABC):
             name of the attribute in the object that is set to
             attr of caller
         """
-        setattr(self,attr,getattr(getattr(self,objlist_attr)[index_of_obj_in_objlist_attr],attr_of_obj_attr))
-
+        setattr(self, attr, getattr(getattr(self, objlist_attr)[index_of_obj_in_objlist_attr], attr_of_obj_attr))
 
 class GenericListMeta(ABCMeta):
     """ 
@@ -946,3 +932,66 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
             self.append(b[0])
             # for c in b[1:]:
             #     logger.debug(f'discarding {str(c)}')
+
+    def assign_objs_to_attr(self, attr, objList, **matchattr):
+        """
+        Assigns the single object from objList whose
+        attributes match the matchattr dict to the 
+        calling instances attr attribute, but only if
+        the result of the match-search is valid,
+        otherwise assign None to attr
+
+        Parameters
+        ----------
+        attr : str
+            attribute name
+        objList : list
+            list of objects that is searched
+        matchattr : dict
+            attribute:values used in searching the 
+            list of objects
+        """
+        for item in self:
+            item.assign_obj_to_attr(attr, objList, **matchattr)
+        delete_us = [item for item in self if getattr(item, attr) is None]
+        for item in delete_us:
+            self.remove(item)
+        return self.__class__(delete_us)
+    
+    def update_attr_from_obj_attr(self, attr, obj_attr, attr_of_obj_attr):
+        """
+        Set value of attributes of all elements of caller
+        from another attribute of a separate object
+
+        Parameters
+        ----------
+        attr : str
+            attribute name
+        obj_attr : str
+            name of object attribute from which the attribute value is taken
+        attr_of_obj_attr : str
+            name of attribute in obj_attr that is set to
+            attr of caller
+        """
+        for item in self:
+            item.update_attr_from_obj_attr(attr, obj_attr, attr_of_obj_attr)
+
+    def update_attr_from_objlist_elem_attr(self, attr, objlist_attr, index_of_obj_in_objlist_attr, attr_of_obj_attr):
+        """
+        Set value of caller's attribute from an attribute
+        of an object in a list of objects
+        
+        Parameters
+        ----------
+        attr : str
+            attribute name to be updated
+        objlist_attr : str
+            name of the caller's attribute that is a list of objects
+        index_of_obj_in_objlist_attr : int
+            index of the object in the list
+        attr_of_obj_attr : str
+            name of the attribute in the object that is set to
+            attr of caller
+        """
+        for item in self:
+            item.update_attr_from_objlist_elem_attr(attr, objlist_attr, index_of_obj_in_objlist_attr, attr_of_obj_attr)

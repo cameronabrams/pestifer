@@ -12,6 +12,8 @@ from pathlib import Path
 
 logger=logging.getLogger(__name__)
 
+_stripped_blocks = ['pdbx_audit_revision_item']
+
 class CIFdict(UserDict):
     """
     A class for generating a custom-format dictionary from an mmcif input object
