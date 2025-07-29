@@ -8,15 +8,17 @@ import logging
 logger=logging.getLogger(__name__)
 
 from functools import singledispatchmethod
-from pidibble.pdbrecord import PDBRecord
+from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 
 from pydantic import Field
-from typing import ClassVar, Optional, Any
+from typing import ClassVar, Optional, Any, Dict, Set
 
 from ..core.baseobj_new import BaseObj, BaseObjList
 from ..util.cifutil import CIFdict
 from ..core.scripters import PsfgenScripter
 from ..core.stringthings import split_ri, join_ri
+
+from mmcif.api.PdbxContainers import DataContainer
 
 class SSBond(BaseObj):
     """
@@ -92,10 +94,13 @@ class SSBond(BaseObj):
     Keyword used to identify SSBond records in PDB files.
     """
 
-    _mmCIF_name: ClassVar[str] = 'struct_conn'
+    _CIF_CategoryName: ClassVar[str] = 'struct_conn'
     """
-    Name of the SSBond record in mmCIF files.
-    This is used to identify SSBond records in mmCIF files.
+    Name of the CIF category that contains information for SSBond objects.
+    """
+    _CIF_CategoryElementTypes: ClassVar[Dict[str, Set]] = {'conn_type_id': {'disulf'}}
+    """
+    CIF category element types for SSBond objects; a CIF Category is effectively a list of dictionaries, and _CIF_CategoryElementTypes[keyname] is a set of values that are valid for that key, indicating the element is to be interpreted as a SSBond.
     """
 
     def describe(self):
@@ -414,6 +419,42 @@ class SSBondList(BaseObjList[SSBond]):
 
     def describe(self):
         return f'SSBondList with {len(self)} SSBonds'
+
+    @classmethod
+    def from_pdb(cls, pdb: PDBRecordDict) -> 'SSBondList':
+        """
+        Create a SSBondList from a PDBRecordDict.
+        """
+        if SSBond._PDB_keyword not in pdb:
+            return cls([])
+        return cls([SSBond.new(x) for x in pdb[SSBond._PDB_keyword]])
+
+    @classmethod
+    def from_cif(cls, dc: DataContainer) -> 'SSBondList':
+        """
+        Create a SSBondList from a CIF DataContainer.
+
+        Parameters
+        ----------
+        dc : DataContainer
+            A CIF DataContainer containing the necessary fields to create SSBond objects.
+
+        Returns
+        -------
+        SSBondList
+            An instance of SSBondList created from the CIF DataContainer.
+        """
+        L = []
+        cif_category = dc.getObj(SSBond._CIF_CategoryName)
+        if cif_category is None:
+            return cls([])
+        for i in range(len(cif_category)):
+            for key, valset in SSBond._CIF_CategoryElementTypes.items():
+                objTypeid = cif_category.getValue(key, i)
+                if objTypeid in valset:
+                    this_link = SSBond.new(CIFdict(cif_category, i))
+                    L.append(this_link)
+        return cls(L)
 
     def assign_residues(self,Residues):
         """

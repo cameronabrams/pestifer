@@ -9,7 +9,7 @@ logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
 
 from pidibble.baserecord import BaseRecord
-from pidibble.pdbrecord import PDBRecord
+from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 
 from pydantic import Field
 from typing import Optional, ClassVar, Union, Any
@@ -18,6 +18,7 @@ from ..core.baseobj_new import BaseObj, BaseObjList
 from ..util.cifutil import CIFdict
 from ..util.util import reduce_intlist
 from ..psfutil.psfatom import PSFAtom, PSFAtomList
+from mmcif.api.PdbxContainers import DataContainer
 
 class Atom(BaseObj):
     """
@@ -124,7 +125,7 @@ class Atom(BaseObj):
     Keyword used in PDB files to identify atom records.
     """
 
-    _mmCIF_name: ClassVar[str] = 'atom_site'
+    _CIF_CategoryName: ClassVar[str] = 'atom_site'
     """
     Name used in mmCIF files to identify atom site records.
     """
@@ -423,6 +424,48 @@ class AtomList(BaseObjList[Atom]):
 
     def describe(self):
         return f'<AtomList with {len(self)} atoms>'
+
+    @classmethod
+    def from_pdb(cls, parsed: PDBRecordDict, model_id = None) -> "AtomList":
+        """
+        Create an AtomList from a PDBRecordDict.
+        
+        Parameters
+        ----------
+        parsed : PDBRecordDict
+            The parsed PDB data containing atom records.
+        
+        Returns
+        -------
+        AtomList
+            A new AtomList instance containing Atom objects created from the PDB data.
+        """
+        if Atom._PDB_keyword not in parsed:
+            return cls([])
+        return cls(
+            [Atom.new(x) for x in parsed[Atom._PDB_keyword] if (model_id is None or x.model == model_id)]+
+            [Hetatm.new(x) for x in parsed.get(Hetatm._PDB_keyword, []) if (model_id is None or x.model == model_id)]
+        )
+
+    @classmethod
+    def from_cif(cls, parsed: DataContainer) -> "AtomList":
+        """
+        Create an AtomList from a DataContainer (mmCIF format).
+
+        Parameters
+        ----------
+        parsed : DataContainer
+            The parsed mmCIF data container.
+
+        Returns
+        -------
+        AtomList
+            A new AtomList instance containing Atom objects created from the mmCIF data.
+        """
+        obj=parsed.getObj(Atom._CIF_CategoryName)
+        if obj is None:
+            return cls([])
+        return cls([Atom.new(CIFdict(obj, i)) for i in range(len(obj))])
 
     def reserialize(self):
         """

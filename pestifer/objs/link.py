@@ -5,7 +5,7 @@ A Link is a covalent bond between two residues in a protein structure.
 import logging
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
-from pidibble.pdbrecord import PDBRecord
+from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 
 from .patch import Patch
 from ..core.baseobj_new import BaseObj, BaseObjList
@@ -13,8 +13,9 @@ from ..util.cifutil import CIFdict
 from ..util.coord import ic_reference_closest
 from ..core.scripters import PsfgenScripter, Filewriter
 from ..core.stringthings import split_ri, join_ri
-from typing import ClassVar, Optional, Dict, List, Any, Tuple
+from typing import ClassVar, Optional, Dict, List, Any, Set
 from pydantic import Field
+from mmcif.api.PdbxContainers import DataContainer
 
 class Link(BaseObj):
     """
@@ -113,6 +114,15 @@ class Link(BaseObj):
     _PDB_keyword: ClassVar[str] = 'LINK'
     """
     PDB keyword for Link objects.
+    """
+
+    _CIF_CategoryName: ClassVar[str] = 'struct_conn'
+    """
+    Name of the CIF category that contains information for Link objects.
+    """
+    _CIF_CategoryElementTypes: ClassVar[Dict[str, Set]] = {'conn_type_id': {'covale', 'metalc'}}
+    """
+    CIF category element types for Link objects; a CIF Category is effectively a list of dictionaries, and _CIF_CategoryElementTypes[keyname] is a set of values that are valid for that key, indicating the element is to be interpreted as a Link.
     """
 
     _objcat: ClassVar[str] = 'topol'
@@ -627,6 +637,42 @@ class LinkList(BaseObjList[Link]):
     """
     A class for handling lists of Links
     """
+
+    @classmethod
+    def from_pdb(cls, pdb: PDBRecordDict) -> 'LinkList':
+        """
+        Create a LinkList from a PDBRecordDict.
+        """
+        if Link._PDB_keyword not in pdb:
+            return cls([])
+        return cls([Link.new(x) for x in pdb[Link._PDB_keyword]])
+
+    @classmethod
+    def from_cif(cls, dc: DataContainer) -> 'LinkList':
+        """
+        Create a LinkList from a CIF DataContainer.
+        
+        Parameters
+        ----------
+        dc : DataContainer
+            A CIF DataContainer containing the necessary fields to create Link objects.
+        
+        Returns
+        -------
+        LinkList
+            An instance of LinkList created from the CIF DataContainer.
+        """
+        L = []
+        cif_category = dc.getObj(Link._CIF_CategoryName)
+        if cif_category is None:
+            return cls(L)  # Return empty LinkList if category not found
+        for i in range(len(cif_category)):
+            for key, valset in Link._CIF_CategoryElementTypes.items():
+                objTypeid = cif_category.getValue(key, i)
+                if objTypeid in valset:
+                    this_link = Link.new(CIFdict(cif_category, i))
+                    L.append(this_link)
+        return cls(L)
 
     def describe(self) -> str:
         """

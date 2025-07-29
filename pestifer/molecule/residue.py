@@ -15,7 +15,7 @@ from pydantic import Field, ConfigDict
 from typing import Union, Any, ClassVar, Optional
 
 from pidibble.baserecord import BaseRecord
-from pidibble.pdbrecord import PDBRecord
+from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 
 from .atom import Atom, AtomList, Hetatm
 from ..objs.link import LinkList
@@ -28,6 +28,7 @@ from ..core.stringthings import join_ri, split_ri
 from ..util.cifutil import CIFdict
 from ..util.coord import positionN
 from .stateinterval import StateInterval, StateIntervalList
+from mmcif.api.PdbxContainers import DataContainer
 
 class EmptyResidue(BaseObj):
     """
@@ -104,10 +105,14 @@ class EmptyResidue(BaseObj):
     """
     PDB keyword for EmptyResidue.
     """
-
-    _mmCIF_name: ClassVar[str] = 'pdbx_unobs_or_zero_occ_residues'
+    _PDB_table_of_keyword: ClassVar[str] = 'MISSING'
     """
-    mmCIF name for EmptyResidue.
+    PDB table keyword for EmptyResidue.
+    """
+
+    _CIF_CategoryName: ClassVar[str] = 'pdbx_unobs_or_zero_occ_residues'
+    """
+    mmCIF category name for EmptyResidue.
     """
 
     def describe(self):
@@ -294,6 +299,45 @@ class EmptyResidueList(BaseObjList[EmptyResidue]):
     """
     def describe(self):
         return f'<EmptyResidueList with {len(self)} residues>'
+    
+    @classmethod
+    def from_pdb(cls, parsed: PDBRecordDict) -> "EmptyResidueList":
+        """
+        Create an EmptyResidueList from parsed PDB data.
+        
+        Parameters
+        ----------
+        parsed : PDBRecordDict
+            A dictionary containing parsed PDB records.
+        
+        Returns
+        -------
+        EmptyResidueList
+            A new instance of EmptyResidueList containing the missing residues.
+        """
+        if EmptyResidue._PDB_keyword not in parsed:
+            return cls([])
+        return cls([EmptyResidue.new(p) for p in parsed[EmptyResidue._PDB_keyword].tables[EmptyResidue._PDB_table_of_keyword]])
+    
+    @classmethod
+    def from_cif(cls, cif_data: DataContainer) -> "EmptyResidueList":
+        """
+        Create an EmptyResidueList from CIF data.
+        
+        Parameters
+        ----------
+        cif_data : DataContainer
+            A DataContainer instance containing CIF data.
+        
+        Returns
+        -------
+        EmptyResidueList
+            A new instance of EmptyResidueList containing the missing residues.
+        """
+        obj = cif_data.getObj(EmptyResidue._CIF_CategoryName)
+        if obj is None:
+            return cls([])
+        return cls([EmptyResidue.new(CIFdict(obj, i)) for i in range(len(obj))])
 
 class Residue(EmptyResidue):
     """

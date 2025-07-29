@@ -2,7 +2,10 @@ import unittest
 
 from pestifer.objs.ssbond import SSBond, SSBondList
 from pidibble.pdbparse import PDBParser
-
+from pidibble.pdbrecord import PDBRecordDict
+from pathlib import Path
+from mmcif.api.PdbxContainers import DataContainer
+from pestifer.util.cifutil import CIFload
 class TestSSBond(unittest.TestCase):
 
     def test_ssbond_creation(self):
@@ -38,7 +41,23 @@ class TestSSBond(unittest.TestCase):
         ssbond = SSBond.new(pr)
         self.assertIsInstance(ssbond, SSBond)
 
+class TestSSBondList(unittest.TestCase):
+
     def test_ssbond_list_creation(self):
         ssbond_list = SSBondList()
         self.assertIsInstance(ssbond_list, SSBondList)
         self.assertEqual(len(ssbond_list), 0)
+
+    def test_ssbond_list_from_pdbrecords(self):
+        p = PDBParser(filepath='data/4zmj.pdb').parse().parsed
+        self.assertIsInstance(p, PDBRecordDict)
+        ssbond_list = SSBondList.from_pdb(p)
+        self.assertIsInstance(ssbond_list, SSBondList)
+        self.assertGreater(len(ssbond_list), 0)
+
+    def test_ssbond_list_from_cif(self):
+        cif_data = CIFload(Path('data/4zmj.cif'))
+        self.assertIsInstance(cif_data, DataContainer)
+        ssbond_list = SSBondList.from_cif(cif_data)
+        self.assertIsInstance(ssbond_list, SSBondList)
+        self.assertGreater(len(ssbond_list), 0)

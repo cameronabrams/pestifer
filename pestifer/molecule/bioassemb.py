@@ -7,6 +7,7 @@ import numpy as np
 from functools import singledispatchmethod
 from mmcif.api.PdbxContainers import DataContainer
 from pidibble.pdbparse import get_symm_ops
+from pidibble.pdbrecord import PDBRecord
 import logging
 logger=logging.getLogger(__name__)
 from typing import List, Dict, Optional, Any, ClassVar
@@ -46,7 +47,7 @@ class Transform:
         self.segname_by_type_map = segname_by_type_map if segname_by_type_map is not None else {}
 
     @classmethod
-    def from_ba_record(cls, barec: Any, index: int = 0):
+    def from_pdb_record(cls, barec: PDBRecord, index: int = 0):
         RotMat,TransVec=get_symm_ops(barec)
         tmat = build_tmat(RotMat, TransVec)
         applies_chainIDs = barec.header if hasattr(barec, 'header') else []
@@ -169,21 +170,21 @@ class TransformList(UserList):
         return cls([Transform('identity')])
             
     @classmethod
-    def from_ba_records(cls, ba_records: List[Any]):
+    def from_pdb_records(cls, pdb_records: List[PDBRecord]):
         """
-        Creates a TransformList from a list of bare records.
-        
+        Creates a TransformList from a list of PDB records.
+
         Parameters
         ----------
-        bare_records : list
-            A list of bare records from which to create Transform instances.
+        pdb_records : list
+            A list of PDB records from which to create Transform instances.
 
         Returns
         -------
         TransformList
             An instance of TransformList containing the created Transform objects.
         """
-        transforms = [Transform.from_ba_record(barec, index=i) for i, barec in enumerate(ba_records)]
+        transforms = [Transform.from_pdb_record(barec, index=i) for i, barec in enumerate(pdb_records)]
         return cls(transforms)
 
 class BioAssemb:
@@ -234,11 +235,11 @@ class BioAssemb:
         self.name = f'Assembly{BioAssemb._index}'
         self.transforms = input_obj
 
-    @__init__.register(List[Any])
-    def _from_obj_list(self, input_obj: List[Any]):
+    @__init__.register(List[PDBRecord])
+    def _from_obj_list(self, input_obj: List[PDBRecord]):
         BioAssemb._index+=1
         self.name = f'Assembly{BioAssemb._index}'
-        self.transforms = TransformList.from_bare_records(input_obj)
+        self.transforms = TransformList.from_pdb_records(input_obj)
 
     @classmethod
     def reset_index(cls):
@@ -268,8 +269,8 @@ class BioAssembList(UserList):
     @singledispatchmethod
     def __init__(self, input_obj: Any):
         raise TypeError(f'Cannot initialize {type(self)} from object of type {type(input_obj)}')
-    
-    @__init__.register(Dict)
+
+    @__init__.register(Dict[str, PDBRecord])
     def _from_dict(self, input_obj: Dict[str, Any]):
         BioAssemb.reset_index()
         B=[]

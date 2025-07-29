@@ -1,6 +1,14 @@
 import unittest
 from pestifer.objs.link import Link, LinkList
+from pidibble.pdbparse import PDBParser
+from pidibble.pdbrecord import PDBRecordDict, PDBRecordList
+from pestifer.util.cifutil import CIFload, CIFdict
+from pathlib import Path
+from mmcif.api.PdbxContainers import DataContainer
+from mmcif.api.DataCategory import DataCategory
 
+import logging
+logger = logging.getLogger(__name__)
 class TestLink(unittest.TestCase):
 
     def test_link_creation(self):
@@ -39,4 +47,20 @@ class TestLink(unittest.TestCase):
         self.assertEqual(link.resseqnum2, 2)
         self.assertEqual(link.insertion2, "")
         self.assertEqual(link.name2, "CA")
+
+class TestLinkList(unittest.TestCase):
+
+    def test_link_list_from_pdb(self):
+        p = PDBParser(filepath='data/4zmj.pdb').parse().parsed
+        self.assertIsInstance(p, PDBRecordDict)
+        L = LinkList.from_pdb(p)
+        self.assertIsInstance(L, LinkList)
+        self.assertGreater(len(L), 0)
+
+    def test_link_list_from_cif(self):
+        cif_data = CIFload(Path('data/4zmj.cif'))
+        self.assertIsInstance(cif_data, DataContainer)
+        L = LinkList.from_cif(cif_data)
+        self.assertIsInstance(L, LinkList)
+        self.assertGreater(len(L), 0)
 

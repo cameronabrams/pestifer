@@ -9,7 +9,8 @@ from typing import ClassVar, Any
 import logging
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
-from pidibble.pdbrecord import PDBRecord
+from pidibble.pdbrecord import PDBRecord, PDBRecordDict
+from mmcif.api.PdbxContainers import DataContainer
 
 from ..core.baseobj_new import BaseObj, BaseObjList
 
@@ -63,7 +64,7 @@ class Seqadv(BaseObj):
     database: str = Field(None, description="Database name where the sequence difference is recorded")
     dbAccession: str = Field(None, description="Accession number of the sequence in the database")
     dbRes: str = Field(None, description="Residue name in the database")
-    dbSeq: int = Field(0, description="Sequence number in the database")
+    dbSeq: int = Field(None, description="Sequence number in the database")
     typekey: str = Field('_other_', description="Type of sequence difference (e.g., 'conflict', 'cloning', 'expression', 'engineered', 'variant', 'insertion', 'deletion', 'microheterogeneity', 'chromophore', 'user', '_other_')")
     pdbx_ordinal: int = Field(0, description="Ordinal number of the sequence difference in mmCIF files")
     pdbx_auth_seq_num: int = Field(0, description="Author-assigned sequence number in mmCIF files")
@@ -87,7 +88,7 @@ class Seqadv(BaseObj):
     This keyword is used to identify Seqadv objects in PDB files.
     """
 
-    _mmCIF_name: ClassVar[str] = 'struct_ref_seq_dif'
+    _CIF_CategoryName: ClassVar[str] = 'struct_ref_seq_dif'
     """
     mmCIF name for Seqadv objects.
     This name is used to identify Seqadv objects in mmCIF files.
@@ -105,7 +106,7 @@ class Seqadv(BaseObj):
         return f"Seqadv(idCode={self.idCode}, resname={self.resname}, chainID={self.chainID}, resseqnum={self.resseqnum}, insertion={self.insertion}, typekey={self.typekey})"
     
     class Adapter:
-        def __init__(self, idCode: str, resname: str, chainID: str, resseqnum: int, insertion: str, database: str = None, dbAccession: str = None, dbRes: str = None, dbSeq: int = 0, typekey: str = None, pdbx_ordinal: int = 0, pdbx_auth_seq_num: int = 0, residue: Any = None):
+        def __init__(self, idCode: str, resname: str, chainID: str, resseqnum: int, insertion: str, database: str = None, dbAccession: str = None, dbRes: str = None, dbSeq: int = None, typekey: str = None, pdbx_ordinal: int = 0, pdbx_auth_seq_num: int = 0, residue: Any = None):
             self.idCode = idCode
             self.resname = resname
             self.chainID = chainID
@@ -123,6 +124,10 @@ class Seqadv(BaseObj):
         @classmethod
         def from_pdbrecord(cls, PDBRecord):
             con=PDBRecord.conflict.lower() if hasattr(PDBRecord,'conflict') else None
+            if type(PDBRecord.dbSeq)==str: # assume it's blank
+                dbSeq=-1
+            else:
+                dbSeq=PDBRecord.dbSeq
             return cls(
                 idCode=PDBRecord.idCode,
                 resname=PDBRecord.residue.resName,
@@ -132,7 +137,7 @@ class Seqadv(BaseObj):
                 database=PDBRecord.database,
                 dbAccession=PDBRecord.dbAccession,
                 dbRes=PDBRecord.dbRes,
-                dbSeq=PDBRecord.dbSeq,
+                dbSeq=dbSeq,
                 typekey=con
             )
 
@@ -314,6 +319,35 @@ class SeqadvList(BaseObjList[Seqadv]):
     def describe(self):
         return f'<SeqadvList with {len(self)} seqadvs>'
 
+    @classmethod
+    def from_pdb(cls, parsed: PDBRecordDict) -> "SeqadvList":
+        """
+        Create a SeqadvList from a PDBRecordDict.
+        """
+        if Seqadv._PDB_keyword not in parsed:
+            return cls([])
+        return cls([Seqadv.new(x) for x in parsed[Seqadv._PDB_keyword]])
+
+    @classmethod
+    def from_cif(cls, parsed: DataContainer) -> "SeqadvList":
+        """
+        Create a SeqadvList from a DataContainer (mmCIF format).
+        
+        Parameters
+        ----------
+        parsed : DataContainer
+            The parsed mmCIF data container.
+        
+        Returns
+        -------
+        SeqadvList
+            A new SeqadvList instance containing Seqadv objects created from the mmCIF data.
+        """
+        obj=parsed.getObj(Seqadv._CIF_CategoryName)
+        if obj is not None:
+            return cls([Seqadv.new(CIFdict(obj, i)) for i in range(len(obj))])
+        return cls([])
+    
     def assign_residues(self, Residues):
         """
         Assigns residues to each Seqadv in the list from the provided Residues. This method iterates over each Seqadv in the list and calls its ``assign_residue`` method  with the provided Residues. After assigning residues, it creates a new SeqadvList containing

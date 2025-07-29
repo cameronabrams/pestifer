@@ -17,7 +17,7 @@ that we have to know where any non-empty TER records are.
 import logging
 logger=logging.getLogger(__name__)
 from functools import singledispatchmethod
-from pidibble.pdbrecord import PDBRecord
+from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 
 from pydantic import Field
 from typing import ClassVar
@@ -151,6 +151,31 @@ class Ter(BaseObj):
         return cls._from_adapter(adapter)
     
 class TerList(BaseObjList[Ter]):
+
+    _has_serials: ClassVar[bool] = False
+
     def describe(self):
         return f'TerList with {len(self)} TER records'
 
+    @classmethod
+    def from_pdb(cls, parsed: PDBRecordDict, model_id = None) -> "TerList":
+        """
+        Create a TerList from parsed PDB data.
+        
+        Parameters
+        ----------
+        parsed : PDBRecordDict
+            A dictionary containing parsed PDB records.
+        model_id : int, optional
+            The model ID to filter the TER records by. If None, all models are included.
+        
+        Returns
+        -------
+        TerList
+            A new TerList instance containing Ter objects created from the PDB data.
+        """
+        if Ter._PDB_keyword not in parsed:
+            return cls([])
+        L = cls([Ter.new(p) for p in parsed[Ter._PDB_keyword] if (model_id is None or p.model == model_id)])
+        L._has_serials = any(x.serial is not None for x in L)
+        return L

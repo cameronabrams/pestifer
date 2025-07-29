@@ -21,9 +21,9 @@ dependencies = [
   "docutils>=0.20,<0.22",  # Required for sphinx
   "numpy>=1.24",
   "pyyaml>=6",
-  "pidibble>=1.3.0",
+  "pidibble>=1.3.3",
   "pandas",
-  "ycleptic>=1.7.0",
+  "ycleptic>=1.8.0",
   "mmcif",
   "progressbar2",
   "networkx",

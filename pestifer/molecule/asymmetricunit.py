@@ -61,6 +61,7 @@ class AsymmetricUnit:
 
         if not parsed:
             return
+
         excludes=sourcespecs.get('exclude',{})
         self.parent_molecule = parent_molecule
         missings=EmptyResidueList([])
@@ -69,61 +70,31 @@ class AsymmetricUnit:
         ters=TerList([])
         seqadvs=SeqadvList([])
         patches=PatchList([])
-        logger.debug(f'AsymmetricUnit: objmanager at {id(objmanager)} chainidmanager at {id(chainIDmanager)}')
-        logger.debug(f'Parsed is type {type(parsed)}')
+
         if type(parsed)==dict: # PDB format
             # minimal parsed has ATOMS
-            if 'model' in sourcespecs:
-                atoms=AtomList([Atom.new(p) for p in parsed[Atom._PDB_keyword] if p.model==sourcespecs['model']])
-                atoms.extend([Hetatm.new(p) for p in parsed.get(Hetatm._PDB_keyword,[]) if p.model==sourcespecs['model']])
-                ters=TerList([Ter.new(p) for  p in parsed.get(Ter._PDB_keyword,[]) if p.model==sourcespecs['model']])
-            else:
-                atoms=AtomList([Atom.new(p) for p in parsed[Atom._PDB_keyword]])
-                atoms.extend([Hetatm.new(p) for p in parsed.get(Hetatm._PDB_keyword,[])])
-                ters=TerList([Ter.new(p) for  p in parsed.get(Ter._PDB_keyword,[])])
+            model_id = sourcespecs.get('model', None)
+            atoms = AtomList.from_pdb(parsed, model_id=model_id)
+            ters = TerList.from_pdb(parsed, model_id=model_id)
+            if len(atoms)==0:
+                raise ValueError(f'No ATOM/HETATM records found in parsed data')
             if sourcespecs.get('reserialize',False):
                 atoms.reserialize()
             else:
                 atoms.sort(by=['serial'])
-            if len(ters)>0:
-                lnonemptyters=len([x for x in ters if x.serial!=None])
-                logger.debug(f'{lnonemptyters} TER records require adjusting atom serial numbers')
-                if lnonemptyters>0:
-                    atoms.reserialize()
-                # atoms.adjustSerials(ters)
+            if ters._has_serials: atoms.reserialize()
             objmanager.ingest(ters)
-            if 'REMARK.465' in parsed:
-                missings=EmptyResidueList([EmptyResidue.new(p) for p in parsed['REMARK.465'].tables['MISSING']])
-            ssbonds=SSBondList([SSBond.new(p) for p in parsed.get(SSBond._PDB_keyword,[])])
-            logger.debug(f'PDB yields {len(ssbonds)} ssbonds')
-            seqadvs=SeqadvList([Seqadv.new(p) for p in parsed.get(Seqadv._PDB_keyword,[])])
-            links=LinkList([Link.new(p) for p in parsed.get(Link._PDB_keyword,[])])
+            missings=EmptyResidueList.from_pdb(parsed)
+            ssbonds=SSBondList.from_pdb(parsed)
+            seqadvs=SeqadvList.from_pdb(parsed)
+            links=LinkList.from_pdb(parsed)
             links.remove_duplicates(fields=['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']) # some pdb files list links multiple times (2ins, i'm looking at you)
         elif type(parsed)==DataContainer: # mmCIF format
-            obj=parsed.getObj(Atom._mmCIF_name)
-            atoms=AtomList([Atom.new(CIFdict(obj,i)) for i in range(len(obj))])
-            obj=parsed.getObj(Seqadv._mmCIF_name)
-            if obj is not None:
-                seqadvs=SeqadvList([Seqadv.new(CIFdict(obj,i)) for i in range(len(obj))])
-                logger.debug(f'{len(seqadvs)} {type(seqadvs)} seqadv detected; typekeys: {[s.typekey for s in seqadvs]}')
-            obj=parsed.getObj(EmptyResidue._mmCIF_name)
-            if obj is not None:
-                missings=EmptyResidueList([EmptyResidue.new(CIFdict(obj,i)) for i in range(len(obj))])
-            obj=parsed.getObj('struct_conn')
-            if obj is not None:
-                logger.debug(f'Found {len(obj)} struct_conn records: {obj}')
-                ssdicts=[]
-                lndicts=[]
-                for i in range(len(obj)):
-                    conn_type_id=obj.getValue('conn_type_id',i)
-                    if conn_type_id=='disulf':
-                        ssdicts.append(CIFdict(obj,i))
-                    elif conn_type_id in ['covale','metalc']:
-                        lndicts.append(CIFdict(obj,i))
-                logger.debug(f'Generated {len(ssdicts)} SSBond dicts and {len(lndicts)} Link dicts from struct_conn data')
-                ssbonds=SSBondList([SSBond.new(x) for x in ssdicts])
-                links=LinkList([Link.new(x) for x in lndicts])
-                logger.debug(f'Generated {len(ssbonds)} SSBond records and {len(links)} Link records from struct_conn data')
+            atoms = AtomList.from_cif(parsed)
+            seqadvs = SeqadvList.from_cif(parsed)
+            missings = EmptyResidueList.from_cif(parsed)
+            ssbonds = SSBondList.from_cif(parsed)
+            links = LinkList.from_cif(parsed)
         else:
             raise TypeError(f'Unknown type for parsed: {type(parsed)}; expected dict or DataContainer')
 
@@ -139,8 +110,6 @@ class AsymmetricUnit:
                 logger.debug(f'PSF file {psf} identifies {len(self.psf.ssbonds)} ssbonds; total ssbonds now {len(ssbonds)}')
             if len(self.psf.links)>0:
                 logger.debug(f'PSF file {psf} identifies {len(self.psf.links)} links; total links now {len(links)}')
-
-        logger.debug(f'{len(seqadvs)} seqadvs in AsymmetricUnit')
 
         # at this point the objmanager is holding all mods that are in 
         # the input file but NOT in the PDB/mmCIF/psf file.
