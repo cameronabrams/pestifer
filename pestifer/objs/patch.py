@@ -54,150 +54,72 @@ class Patch(BaseObj):
     This categorization is used to group Patch objects in the object manager.
     """
 
-
-    def describe(self):
+    @staticmethod
+    def _from_shortcode(raw: str) -> dict:
+        parts=raw.split(':')
+        if len(parts)<3:
+            raise ValueError(f'Invalid patch shortcode: {raw}')
+        ri=parts[2]
+        r,i=split_ri(ri)
+        if parts[0] in Patch._in_segment_Npatches:
+            use_in_segment='first'
+        elif parts[0] in Patch._in_segment_Cpatches:
+            use_in_segment='last'
+        else:
+            use_in_segment=''
+        if parts[0] in Patch._after_regenerate_patches:
+            use_after_regenerate=True
+        else:
+            use_after_regenerate=False
+        return {
+            'patchname':parts[0],
+            'chainID':parts[1],
+            'resseqnum':r,
+            'insertion':i,
+            'residue':None,
+            'use_in_segment':use_in_segment,
+            'use_after_regenerate':use_after_regenerate
+        }
+    
+    @staticmethod
+    def _adapt(*args) -> dict:
         """
-        Describe the Patch object.
+        Adapts the input to a dictionary format suitable for Patch instantiation.
+        This method is used to convert various input types into a dictionary of parameters.
+        """
+        if isinstance(args[0], str):
+            return Patch._from_shortcode(args[0])
+        raise TypeError(f"Cannot convert {type(args[0])} to Patch") 
+    
+
+    _in_segment_Npatches: ClassVar[List[str]] = ['NTER','GLYP','PROP','ACE','ACED','ACP','ACPD','NNEU','NGNE']
+    """
+    List of patch names that are applied to the first residue in a segment.
+    These patches are typically used for N-terminal modifications.
+    """
+
+    _in_segment_Cpatches: ClassVar[List[str]] = ['CTER','CNEU','PCTE','CT1','CT2','CT3']
+    """
+    List of patch names that are applied to the last residue in a segment.
+    These patches are typically used for C-terminal modifications.
+    """
+
+    _after_regenerate_patches: ClassVar[List[str]] = ['PHEM','FHEM']
+    """
+    List of patch names that should be applied after the ``regenerate angles dihedrals`` psfgen command.
+    """
+
+    def shortcode(self) -> str:
+        """
+        Convert the Adapter instance to a shortcode string.
         
         Returns
         -------
         str
-            A string description of the Patch object, including patch name, chain ID, residue sequence number, insertion code, and whether it is used in a segment or after regeneration.
-        """
-        return f"Patch(patchname={self.patchname}, chainID={self.chainID}, resseqnum={self.resseqnum}, insertion={self.insertion}, residue={self.residue}, use_in_segment={self.use_in_segment}, use_after_regenerate={self.use_after_regenerate})"
-
-    class Adapter:
-        _in_segment_Npatches: ClassVar[List[str]] = ['NTER','GLYP','PROP','ACE','ACED','ACP','ACPD','NNEU','NGNE']
-        """
-        List of patch names that are applied to the first residue in a segment.
-        These patches are typically used for N-terminal modifications.
-        """
-
-        _in_segment_Cpatches: ClassVar[List[str]] = ['CTER','CNEU','PCTE','CT1','CT2','CT3']
-        """
-        List of patch names that are applied to the last residue in a segment.
-        These patches are typically used for C-terminal modifications.
-        """
-
-        _after_regenerate_patches: ClassVar[List[str]] = ['PHEM','FHEM']
-        """
-        List of patch names that should be applied after the ``regenerate angles dihedrals`` psfgen command.
-        """
-
-        def __init__(self, patchname: str, chainID: str, resseqnum: int, insertion: str, residue: Optional[Any] = None, use_in_segment: Optional[str] = None, use_after_regenerate: bool = False):
-            self.patchname = patchname
-            self.chainID = chainID
-            self.resseqnum = resseqnum
-            self.insertion = insertion
-            self.residue = residue
-            self.use_in_segment = use_in_segment
-            self.use_after_regenerate = use_after_regenerate
-
-        @classmethod
-        def from_string(cls, raw: str):
-            ### shortcode format: patchname:chainID:rrr
-            ### patchname: name of the patch in CHARMMFF
-            ### chainID: chain identifier of residue to be patched
-            ### rrr: residue sequence number of residue to be patched
-            parts=raw.split(':')
-            if len(parts)<3:
-                raise ValueError(f'Invalid patch shortcode: {raw}')
-            ri=parts[2]
-            r,i=split_ri(ri)
-            if parts[0] in cls._in_segment_Npatches:
-                use_in_segment='first'
-            elif parts[0] in cls._in_segment_Cpatches:
-                use_in_segment='last'
-            else:
-                use_in_segment=''
-            if parts[0] in cls._after_regenerate_patches:
-                use_after_regenerate=True
-            else:
-                use_after_regenerate=False
-            input_dict={
-                'patchname':parts[0],
-                'chainID':parts[1],
-                'resseqnum':r,
-                'insertion':i,
-                'residue':None,
-                'use_in_segment':use_in_segment,
-                'use_after_regenerate':use_after_regenerate
-            }
-            return cls(**input_dict)
-        
-        def to_string(self) -> str:
-            """
-            Convert the Adapter instance to a shortcode string.
-            
-            Returns
-            -------
-            str
-                The shortcode string in the format patchname:chainID:resseqnum,insertion.
-            """
-            rescode = join_ri(self.resseqnum, self.insertion)
-            return f"{self.patchname}:{self.chainID}:{rescode}"
-
-    @BaseObj.from_input.register(Adapter)
-    @classmethod
-    def _from_adapter(cls, adapter: Adapter):
-        """
-        Create a Patch object from an Adapter instance, registered by BaseObj.from_input.
-        
-        Parameters
-        ----------
-        adapter : Adapter
-            The Adapter instance containing the patch attributes.
-
-        Returns
-        -------
-        Patch
-            A new Patch instance created from the Adapter.
-        """
-        return cls(
-            patchname=adapter.patchname,
-            chainID=adapter.chainID,
-            resseqnum=adapter.resseqnum,
-            insertion=adapter.insertion,
-            residue=adapter.residue,
-            use_in_segment=adapter.use_in_segment,
-            use_after_regenerate=adapter.use_after_regenerate
-        )
-
-    @singledispatchmethod
-    @classmethod
-    def new(cls, raw: Any) -> "Patch":
-        pass
-
-    @new.register(str)
-    @classmethod
-    def _from_str(cls, raw: str) -> "Patch":
-        """
-        Create a new Patch instance from a shortcode string.
-
-        Parameters
-        ----------
-        raw : str
             The shortcode string in the format patchname:chainID:resseqnum,insertion.
-
-        Returns
-        -------
-        Patch
-            A new instance of Patch.
         """
-        adapter = cls.Adapter.from_string(raw)
-        return cls._from_adapter(adapter)
-
-    def to_input_string(self) -> str:
-        """
-        Convert the Patch object to a string representation for input.
-        
-        Returns
-        -------
-        str
-            A string representation of the Patch object in the format:
-            patchname:chainID:resseqnum,insertion
-        """
-        return self.Adapter(**(self.model_dump())).to_string()
+        rescode = join_ri(self.resseqnum, self.insertion)
+        return f"{self.patchname}:{self.chainID}:{rescode}"
 
     def return_TcL(self):
         """

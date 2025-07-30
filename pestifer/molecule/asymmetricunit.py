@@ -66,6 +66,9 @@ class AsymmetricUnit:
     def describe(self):
         return f'<AsymmetricUnit: {len(self.atoms)} atoms, {len(self.residues)} residues>'
 
+    def __repr__(self):
+        return self.describe()
+
     def __init__(self,
                  parsed: Optional[PDBRecordDict|DataContainer] = None,
                  sourcespecs: Optional[Dict] = {},

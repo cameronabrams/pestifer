@@ -16,10 +16,10 @@ class TestPatch(unittest.TestCase):
         self.assertEqual(patch.patchname, "test_patch")
         self.assertEqual(patch._yaml_header, 'patches')
         self.assertEqual(patch._objcat, 'seq')
-        self.assertEqual(patch.describe(), "Patch(patchname=test_patch, chainID=A, resseqnum=10, insertion=, residue=None, use_in_segment=None, use_after_regenerate=False)")
+        self.assertEqual(repr(patch), "Patch(patchname='test_patch', chainID='A', resseqnum=10, insertion='', use_after_regenerate=False)")
 
     def test_patch_from_shortcode(self):
-        patch = Patch.new("test_patch:A:10")
+        patch = Patch("test_patch:A:10")
         self.assertIsInstance(patch, Patch)
         self.assertEqual(patch.chainID, "A")
         self.assertEqual(patch.resseqnum, 10)
@@ -33,7 +33,7 @@ class TestPatch(unittest.TestCase):
             insertion="",
             patchname="test_patch"
         )
-        input_string = patch.to_input_string()
+        input_string = patch.shortcode()
         self.assertEqual(input_string, "test_patch:A:10")
 
     def test_patch_copy(self):

@@ -3,7 +3,7 @@
 """
 Pydantic BaseModel objects with attribute controls
 
-The :class:`BaseObj` class is a Pydantic BaseModel that provides a framework for creating objects with controlled attributes.  It is an abstract class that requires subclasses to implement the `describe()` method.  It also provides a number of utility methods for creating objects from various input types, validating attributes, and comparing objects.
+The :class:`BaseObj` class is a Pydantic BaseModel that provides a framework for creating objects with controlled attributes.  It is an abstract class that requires subclasses to implement the `_adapt()` static method.  It also provides a number of utility methods for creating objects from various input types, validating attributes, and comparing objects.
 
 Any subclass that defines Field objects will automatically have their attributes validated according to the rules specified in the BaseObj class.  Subclasses can also define their own ClassVar attributes that are outside the control logic of BaseObj.
 
@@ -20,60 +20,78 @@ Any field can also be assigned a list of dependent fields depending on its value
 
 Any field can also be declared as ignored when comparing objects, meaning that it will not be included in the comparison logic.
 
-The ``BaseObj`` class also uses dispatch methods to allow for creating objects from different input types.  Because it subclasses BaseModel, it can be instantiated by keyword-value parameters.  Additionally, the ``from_input`` method is a singledispatch method that allows for creating objects from different input types, such as dictionaries and :mod:`argparse.Namespace`'s.  Classes the subclass ``BaseObj`` must register their own `from_input` methods to handle other input types, and if they do so, the should also register their own versions of `_from_dict` and `_from_namespace` methods if those input types are to be supported.
-
 """
 from __future__ import annotations
 from pydantic import BaseModel, model_validator, ConfigDict
-from typing import ClassVar, List, Dict, Optional, Any, Union, Iterable, Iterator, Self, Set, TypeVar, Generic, get_args, get_origin
+from typing import ClassVar, Any, Iterable, Iterator, Self, TypeVar, Generic, get_args, get_origin
 import hashlib
 import operator
 import yaml
 import logging
 from collections import UserList
+
 logger=logging.getLogger(__name__)
-from argparse import Namespace
-from functools import singledispatchmethod
 from abc import ABC, abstractmethod, ABCMeta
 
 class BaseObj(BaseModel, ABC):
-    _required_fields:    ClassVar[Set[str]]                       = set()
-    _optional_fields:    ClassVar[Set[str]]                       = set()
-    _mutually_exclusive: ClassVar[Set[frozenset[str]]]            = set()
-    _attr_choices:       ClassVar[Dict[str, Set[Any]]]            = {}
-    _attr_dependencies:  ClassVar[Dict[str, Dict[Any, Set[Any]]]] = {}
-    _ignore_fields:      ClassVar[Set[str]]                       = set()
+    _required_fields:    ClassVar[set[str]]                       = set()
+    _optional_fields:    ClassVar[set[str]]                       = set()
+    _mutually_exclusive: ClassVar[set[frozenset[str]]]            = set()
+    _attr_choices:       ClassVar[dict[str, set[Any]]]            = {}
+    _attr_dependencies:  ClassVar[dict[str, dict[Any, set[Any]]]] = {}
+    _ignore_fields:      ClassVar[set[str]]                       = set()
 
     model_config = ConfigDict(
+        arbitrary_types_allowed=True,
         extra='forbid',
         frozen=False,  # or True if you want immutability
     )
 
+    def __init__(self, *args, **kwargs):
+        if args and not kwargs and hasattr(self, '_adapt'):
+            converted = self._adapt(*args)
+            super().__init__(**converted)
+        else:
+            super().__init__(*args, **kwargs)
+
+    @staticmethod
     @abstractmethod
-    def describe(self):  # or something meaningful like describe()
-        pass
+    def _adapt(*args) -> dict:
+        """Convert arbitrary input into a dict of model fields."""
+        raise NotImplementedError("Subclasses must implement the _adapt static method.")
 
-    @singledispatchmethod
-    @classmethod
-    def from_input(cls, obj: Any) -> "BaseObj":
-        raise TypeError(f"Cannot create {cls.__name__} from object type {type(obj)}")
+    def __repr__(self) -> str:
+        cls_name = self.__class__.__name__
+        parts = []
 
-    @from_input.register(dict)
-    @classmethod
-    def _from_dict(cls, obj: dict) -> "BaseObj":
-        return cls(**obj)
+        # Track fields required due to dependencies
+        dependency_required_fields = set()
 
-    @from_input.register(Namespace)
-    @classmethod
-    def _from_namespace(cls, obj: Namespace) -> "BaseObj":
-        return cls(**vars(obj))
+        for field, conditions in self._attr_dependencies.items():
+            if field in self.__class__.__pydantic_fields__:
+                field_value = getattr(self, field, None)
+                if '*' in conditions:
+                    dependency_required_fields |= conditions['*']
+                if field_value in conditions:
+                    dependency_required_fields |= conditions[field_value]
+
+        # Build output
+        for name, field in self.__class__.__pydantic_fields__.items():
+            value = getattr(self, name, None)
+            if name in self._required_fields:
+                parts.append(f"{name}={value!r}")
+            elif name in self._optional_fields:
+                if value is not None or name in dependency_required_fields:
+                    parts.append(f"{name}={value!r}")
+
+        return f"{cls_name}({', '.join(parts)})"
 
     def copy(self, deep=False) -> Self:
         return self.model_copy(deep=deep)
 
     @model_validator(mode="before")
     @classmethod
-    def _validate_schema(cls, values: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_schema(cls, values: dict[str, Any]) -> dict[str, Any]:
         declared_fields = cls._required_fields | cls._optional_fields
         received_fields = set(values)
 
@@ -102,12 +120,17 @@ class BaseObj(BaseModel, ABC):
 
         # Conditional dependencies
         for field, value_dependencies in cls._attr_dependencies.items():
-            # field is a field name
-            # value_dependency is a dict mapping field values to lists of dependent fields
             if field in values:
-                for dep in value_dependencies.get(values[field], []):
-                    if dep not in values:
-                        raise ValueError(f"If '{field}' is set to '{values[field]}', '{dep}' must also be set.")
+                value = values[field]
+                # Handle wildcard '*' as a catch-all dependency
+                if '*' in value_dependencies:
+                    for dep in value_dependencies['*']:
+                        if dep not in values:
+                            raise ValueError(f"If '{field}' is set, '{dep}' must also be set.")
+                if value in value_dependencies:
+                    for dep in value_dependencies[value]:
+                        if dep not in values:
+                            raise ValueError(f"If '{field}' is set to '{value}', '{dep}' must also be set.")
 
         return values
 
@@ -207,12 +230,12 @@ class BaseObj(BaseModel, ABC):
     # Utility matchers
     def strhash(
         self,
-        fields: Optional[List[str]] = None,
+        fields: list[str] | None = None,
         sep: str = "-",
-        digest: Optional[str] = None,  # e.g., "md5", "sha256"
+        digest: str | None = None,  # e.g., "md5", "sha256"
         exclude_none: bool = True,
         exclude_ignored: bool = True,
-    ) -> Union[str, bytes]:
+    ) -> str | bytes:
         """
         Generate a hash-like string from selected fields in the model.
 

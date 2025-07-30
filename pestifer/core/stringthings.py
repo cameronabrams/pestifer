@@ -686,3 +686,38 @@ def special_update(dict, key, val, mode='strict'):
     if mode == 'strict' and key in dict:
         raise KeyError(f'Key {key} already exists in dictionary.')
     dict[key] = val
+
+def plu(n: int, singform: str = '', plurform: str = 's') -> str:
+    """
+    Returns the singular or plural form of a word based on the count.
+
+    Parameters
+    ----------
+    n: int
+        The count to determine singular or plural.
+    singform: str, optional
+        The singular form of the word/word ending. Defaults to an empty string.
+    plurform: str, optional
+        The plural form of the word/word ending. Defaults to 's'.
+
+    Returns
+    -------
+    str: The appropriate form of the word based on the count.
+
+    Examples
+    --------
+    >>> for ncats in [1, 2]:
+    ...     print(f'There {plu(ncats, "is", "are")} {ncats} cat{plu(ncats)}.')
+    There is 1 cat.
+    There are 2 cats.
+    >>> for nberries in [1, 2]:
+    ...     print(f'There {plu(nberries, "is", "are")} {nberries} berr{plu(nberries, "y", "ies")}.')
+    There is 1 berry.
+    There are 2 berries.
+    >>> for noctopi in [1, 2]:
+    ...     print(f'There {plu(noctopi, "is", "are")} {noctopi} octop{plu(noctopi, "us", "i")}.')
+    There is 1 octopus.
+    There are 2 octopi.
+
+    """
+    return singform if n == 1 else plurform

@@ -2,14 +2,16 @@ import unittest
 from pestifer.molecule.chainidmanager import ChainIDManager
 
 class TestChainIDManager(unittest.TestCase):
-    def test_pdb(self):
+
+    def test_chainIDManager_pdb_format(self):
         cm=ChainIDManager()
         UC=[chr(x) for x in range(ord('A'),ord('A')+26)]
         LC=[chr(x) for x in range(ord('a'),ord('a')+26)]
         DC=[str(x) for x in range(10)]
         res=UC+LC+DC
         self.assertEqual(cm.Unused,res)
-    def test_cif(self):
+
+    def test_chainIDManager_cif_format(self):
         cm=ChainIDManager(format='mmCIF')
         self.assertEqual(len(cm.Unused),27*26)
         first_few=['A','B','C','D']
@@ -19,7 +21,7 @@ class TestChainIDManager(unittest.TestCase):
         items_52_up=['AB','BB','CB','DB']
         self.assertEqual(cm.Unused[52:52+len(items_52_up)],items_52_up)
 
-    def test_register(self):
+    def test_chainIDManager_register(self):
         cm=ChainIDManager()
         for c in ['A','B','x']:
             cm.check(c)
@@ -27,7 +29,7 @@ class TestChainIDManager(unittest.TestCase):
         for c in ['A','B','x']:
             self.assertTrue(c in cm.Used)
 
-    def test_unregister(self):
+    def test_chainIDManager_unregister(self):
         cm=ChainIDManager()
         for c in ['A','B','x']:
             cm.check(c)
@@ -36,7 +38,7 @@ class TestChainIDManager(unittest.TestCase):
         for c in ['B','x']:
             self.assertTrue(c in cm.Used)
 
-    def test_reserved(self):
+    def test_chainIDManager_reserved(self):
         cm=ChainIDManager(transform_reserves={'A':['G','Q'],'B':['H','R']})
         self.assertEqual(cm.ReservedUnused,['G','Q','H','R'])
         cm.check('A')
@@ -48,13 +50,13 @@ class TestChainIDManager(unittest.TestCase):
         d=cm.next_reserved_chainID('A')
         self.assertEqual(d,'Q')
 
-    def test_remap_chainIDs(self):
+    def test_chainIDmanager_remap_chainIDs(self):
         cm=ChainIDManager()
         self.assertTrue(cm.remap=={})
         cm=ChainIDManager(remap={'A':'X','B':'Y','C':'Z'})
         self.assertEqual(cm.remap['A'],'X')
-        
-    def test_generate_next_map(self):
+
+    def test_chainIDManager_generate_next_map(self):
         cm=ChainIDManager(transform_reserves={'A':['G','Q'],'B':['H','R']})
         cm.check('A')
         cm.check('B')

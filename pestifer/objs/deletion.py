@@ -26,73 +26,41 @@ class Deletion(BaseObj):
     _yaml_header: ClassVar[str] = 'deletions'
     _objcat: ClassVar[str] = 'seq'
     
-    class Adapter:
+    @staticmethod
+    def _adapt(*args) -> dict:
         """
-        A class to represent the shortcode format for Deletion, so that we can register to BaseObj.from_input rather than defining a local from_input.
+        Adapts the input to a dictionary format suitable for Deletion instantiation.
+        This method is used to convert various input types into a dictionary of parameters.
+        """
+        if isinstance(args[0], str):
+            input_dict = Deletion._from_shortcode(args[0])
+            return input_dict
+        raise TypeError(f"Cannot convert {type(args[0])} to Deletion")
 
-        The shortcode format is C:nnn-ccc
+    @staticmethod
+    def _from_shortcode(raw: str) -> dict:
+        """
+        Converts a shortcode string to a dictionary of parameters for Deletion.
+        The shortcode format is: C:nnn-ccc
         where:
         - C is the chain ID
-        - nnn is the N-terminal residue of the sequence to be deleted
-        - ccc is the C-terminal residue of the sequence to be deleted
+        - nnn is the N-terminal residue number of the deletion
+        - ccc is the C-terminal residue number of the deletion
         """
-        def __init__(self, chainID: str, resseqnum1: int, insertion1: str, resseqnum2: int, insertion2: str):
-            self.chainID = chainID
-            self.resseqnum1 = resseqnum1
-            self.insertion1 = insertion1
-            self.resseqnum2 = resseqnum2
-            self.insertion2 = insertion2
+        chainID, res_range = raw.split(":")
+        resseqnum1, insertion1 = split_ri(res_range.split("-")[0])
+        resseqnum2, insertion2 = split_ri(res_range.split("-")[1])
+        return dict(
+            chainID=chainID,
+            resseqnum1=resseqnum1,
+            insertion1=insertion1,
+            resseqnum2=resseqnum2,
+            insertion2=insertion2
+        )
 
-        @classmethod
-        def from_string(cls, raw: str):
-            chainID, res_range = raw.split(":")
-            resseqnum1, insertion1 = split_ri(res_range.split("-")[0])
-            resseqnum2, insertion2 = split_ri(res_range.split("-")[1])
-            return cls(chainID, resseqnum1, insertion1, resseqnum2, insertion2)
-        
-        def to_string(self) -> str:
-            return f"{self.chainID}:{join_ri(self.resseqnum1, self.insertion1)}-{join_ri(self.resseqnum2, self.insertion2)}"
-        
-        def to_dict(self) -> dict:
-            return {k: v for k, v in self.__dict__.items() if not v is None}
+    def shortcode(self) -> str:
+        return f"{self.chainID}:{join_ri(self.resseqnum1, self.insertion1)}-{join_ri(self.resseqnum2, self.insertion2)}"
 
-    def describe(self):
-        return f"Deleteion(chainID={self.chainID}, resseqnum1={self.resseqnum1}, insertion1={self.insertion1}, resseqnum2={self.resseqnum2}, insertion2={self.insertion2})"
-
-    @BaseObj.from_input.register(Adapter)
-    @classmethod
-    def _from_shortcode(cls, shortcode: Adapter):
-        return cls(**(shortcode.to_dict()))
-
-    @classmethod
-    def new(cls, raw: str) -> "Deletion":
-        """
-        Create a new Deletion instance from a shortcode string.
-        
-        Parameters
-        ----------
-        raw : str
-            The shortcode string in the format C:nnn-ccc.
-        
-        Returns
-        -------
-        Deletion
-            A new Deletion instance.
-        """
-        adapter = cls.Adapter.from_string(raw)
-        return cls._from_shortcode(adapter)
-
-    def to_input_string(self) -> str:
-        """
-        Convert the Deletion object to a string representation for input.
-        
-        Returns
-        -------
-        str
-            A string representation of the Deletion object in the format:
-            C:nnn-ccc
-        """
-        return self.Adapter(**(self.model_dump())).to_string()
 
 class DeletionList(BaseObjList[Deletion]):
     def describe(self):

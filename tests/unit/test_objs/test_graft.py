@@ -45,7 +45,7 @@ class TestGraft(unittest.TestCase):
               - TTT is optional, completing RRR-TTT range for entire graft source
         """
         shortcode = "A_520:4ijk,A_1-10"
-        graft = Graft.new(shortcode)
+        graft = Graft(shortcode)
         self.assertIsInstance(graft, Graft)
         self.assertEqual(graft.orig_chainID, "A")
         self.assertEqual(graft.orig_resseqnum1, 520)
@@ -62,7 +62,7 @@ class TestGraft(unittest.TestCase):
         self.assertEqual(graft.source_insertion3, "")
         self.assertEqual(graft.obj_id, 0)
         # do it again to make sure the counter increments
-        graft2 = Graft.new(shortcode)
+        graft2 = Graft(shortcode)
         self.assertEqual(graft2.obj_id, 1)
 
 class TestGraftList(unittest.TestCase):

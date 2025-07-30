@@ -22,10 +22,9 @@ class TestCleavageSite(unittest.TestCase):
         self.assertEqual(cleavage_site.insertion2, "")
         self.assertEqual(cleavage_site._yaml_header, 'cleavages')
         self.assertEqual(cleavage_site._objcat, 'seq')
-        self.assertEqual(cleavage_site.describe(), "CleavageSite(chainID=A, resseqnum1=10, insertion1=, resseqnum2=20, insertion2=)")
 
     def test_cleavage_site_from_shortcode(self):
-        cleavage_site = CleavageSite.new("A:10-20")
+        cleavage_site = CleavageSite("A:10-20")
         self.assertIsInstance(cleavage_site, CleavageSite)
         self.assertEqual(cleavage_site.chainID, "A")
         self.assertEqual(cleavage_site.resseqnum1, 10)
@@ -33,7 +32,7 @@ class TestCleavageSite(unittest.TestCase):
         self.assertEqual(cleavage_site.resseqnum2, 20)
         self.assertEqual(cleavage_site.insertion2, "")
 
-    def test_cleavage_site_to_input_string(self):
+    def test_cleavage_site_to_shortcode(self):
         cleavage_site = CleavageSite(
             chainID="A",
             resseqnum1=10,
@@ -41,9 +40,11 @@ class TestCleavageSite(unittest.TestCase):
             resseqnum2=20,
             insertion2="J"
         )
-        input_string = cleavage_site.to_input_string()
-        self.assertEqual(input_string, "A:10-20J")
-    
+        shortcode = cleavage_site.shortcode()
+        self.assertEqual(shortcode, "A:10-20J")
+
+        self.assertEqual(repr(cleavage_site), "CleavageSite(chainID='A', resseqnum1=10, insertion1='', resseqnum2=20, insertion2='J')")
+
     def test_cleavage_site_list_creation(self):
         cleavage_list = CleavageSiteList()
         self.assertIsInstance(cleavage_list, CleavageSiteList)

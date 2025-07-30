@@ -12,7 +12,7 @@ logger=logging.getLogger(__name__)
 import os
 
 from pydantic import Field
-from typing import ClassVar, Optional
+from typing import ClassVar
 from ..core.baseobj_new import BaseObj, BaseObjList
 from ..core.scripters import PsfgenScripter
 from ..core.stringthings import ri_range, join_ri, split_ri
@@ -30,17 +30,17 @@ class Graft(BaseObj):
     orig_chainID: str = Field(..., description="Chain ID of the target segment in the base molecule")
     orig_resseqnum1: int = Field(..., description="N-terminal residue sequence number of the target segment")
     orig_insertion1: str = Field(..., description="Insertion code of the N-terminal residue in the target segment")
-    orig_resseqnum2: Optional[int] = Field(None, description="C-terminal residue sequence number of the target segment")
-    orig_insertion2: Optional[str] = Field(None, description="Insertion code of the C-terminal residue in the target segment")
+    orig_resseqnum2: int | None = Field(None, description="C-terminal residue sequence number of the target segment")
+    orig_insertion2: str | None = Field(None, description="Insertion code of the C-terminal residue in the target segment")
     source_pdbid: str = Field(..., description="Basename of the source PDB file or PDB ID from which the graft is sourced")
     source_chainID: str = Field(..., description="Chain ID in the source PDB file")
     source_resseqnum1: int = Field(..., description="N-terminal residue sequence number of the source segment")
     source_insertion1: str = Field(..., description="Insertion code of the N-terminal residue in the source segment")
-    source_resseqnum2: Optional[int] = Field(None, description="C-terminal residue sequence number of the source segment")
-    source_insertion2: Optional[str] = Field(None, description="Insertion code of the C-terminal residue in the source segment")
-    source_resseqnum3: Optional[int] = Field(None, description="Optional third residue sequence number in the source segment")
-    source_insertion3: Optional[str] = Field(None, description="Optional third insertion code in the source segment")
-    obj_id: Optional[int] = Field(0, description="Unique identifier for the Graft object")
+    source_resseqnum2: int | None = Field(None, description="C-terminal residue sequence number of the source segment")
+    source_insertion2: str | None = Field(None, description="Insertion code of the C-terminal residue in the source segment")
+    source_resseqnum3: int | None = Field(None, description="Optional third residue sequence number in the source segment")
+    source_insertion3: str | None = Field(None, description="Optional third insertion code in the source segment")
+    obj_id: int | None = Field(0, description="Unique identifier for the Graft object")
 
     _yaml_header: ClassVar[str] = 'grafts'
     _objcat: ClassVar[str] = 'seq'
@@ -69,85 +69,76 @@ class Graft(BaseObj):
     - ``obj_id``: Unique identifier/tag for the graft; probably an integer.
     """
 
-    class Adapter:
-        """ A class to represent the shortcode format for Graft, so that we can register to BaseObj.from_input rather than defining a local from_input."""
-        def __init__(self,orig_chainID: str = None, orig_resseqnum1: int = None, orig_insertion1: str = None, orig_resseqnum2: Optional[int] = None, orig_insertion2: Optional[str] = None, source_pdbid: str = None, source_chainID: str = None, source_resseqnum1: int = None, source_insertion1: str = None, source_resseqnum2: int = None, source_insertion2: str = None, obj_id: Optional[int] = 0, source_resseqnum3: Optional[int] = None, source_insertion3: Optional[str] = None):
-            self.orig_chainID = orig_chainID
-            self.orig_resseqnum1 = orig_resseqnum1
-            self.orig_insertion1 = orig_insertion1
-            self.orig_resseqnum2 = orig_resseqnum2
-            self.orig_insertion2 = orig_insertion2
-            self.source_pdbid = source_pdbid
-            self.source_chainID = source_chainID
-            self.source_resseqnum1 = source_resseqnum1
-            self.source_insertion1 = source_insertion1
-            self.source_resseqnum2 = source_resseqnum2
-            self.source_insertion2 = source_insertion2
-            self.source_resseqnum3 = source_resseqnum3
-            self.source_insertion3 = source_insertion3
-            self.obj_id = obj_id
+    @staticmethod
+    def _adapt(*args):
+        if isinstance(args[0], str):
+            input_dict=Graft._from_shortcode(args[0])
+            input_dict['obj_id'] = Graft._counter
+            Graft._counter += 1
+            return input_dict
+        raise TypeError(f"Cannot convert {type(args[0])} to Graft")
 
-        @classmethod
-        def from_string(cls, raw: str):
-            """
-            Parse a shortcode string into an Adapter instance.
-            The shortcode format is "target:source", where:
-            - target is in the format "C_RRR[-SSS]"
-              - C is the chainID
-              - RRR is the residue number and insertion code of the first residue in the target alignment basis
-              - SSS is the optional residue number and insertion code of the last residue in the target alignment basis
-            - source is in the format "pdbid,C_RRR[#SSS][-TTT]"
-              - pdbid is the basename of the PDB file or PDB ID
-              - C is the chainID in the source PDB
-              - RRR is the residue number and insertion code of the first residue in the source alignment basis
-              - SSS is optional, as above
-              - TTT is optional, completing RRR-TTT range for entire graft source
-            """
-            tokens = raw.split(':')
-            assert len(tokens) == 2, f'Malformed graft shortcode {raw}'
-            target, source = tokens
-            target_chainID, target_resrange = target.split('_')
-            trr = ri_range(target_resrange)
-            resseqnum1, insertion1 = trr[0]
-            if len(trr) > 1:
-                resseqnum2, insertion2 = trr[1]
+    @staticmethod
+    def _from_shortcode(raw: str) -> dict:
+        """
+        Parse a shortcode string into an Adapter instance.
+        The shortcode format is "target:source", where:
+        - target is in the format "C_RRR[-SSS]"
+        - C is the chainID
+        - RRR is the residue number and insertion code of the first residue in the target alignment basis
+        - SSS is the optional residue number and insertion code of the last residue in the target alignment basis
+        - source is in the format "pdbid,C_RRR[#SSS][-TTT]"
+        - pdbid is the basename of the PDB file or PDB ID
+        - C is the chainID in the source PDB
+        - RRR is the residue number and insertion code of the first residue in the source alignment basis
+        - SSS is optional, as above
+        - TTT is optional, completing RRR-TTT range for entire graft source
+        """
+        tokens = raw.split(':')
+        assert len(tokens) == 2, f'Malformed graft shortcode {raw}'
+        target, source = tokens
+        target_chainID, target_resrange = target.split('_')
+        trr = ri_range(target_resrange)
+        resseqnum1, insertion1 = trr[0]
+        if len(trr) > 1:
+            resseqnum2, insertion2 = trr[1]
+        else:
+            resseqnum2, insertion2 = resseqnum1, insertion1
+        source_tokens = source.split(',')
+        assert len(source_tokens) == 2, f'Malformed graft spec {raw}'
+        source_pdbid, source_chainresrange_spec = source_tokens
+        source_chainID, source_resrange = source_chainresrange_spec.split('_')
+        srr = ri_range(source_resrange)
+        source_resseqnum1, source_insertion1 = srr[0]
+        if len(srr) > 1:
+            if len(srr) > 2:
+                source_resseqnum2, source_insertion2 = srr[1]
+                source_resseqnum3, source_insertion3 = srr[2]
             else:
-                resseqnum2, insertion2 = resseqnum1, insertion1
-            source_tokens = source.split(',')
-            assert len(source_tokens) == 2, f'Malformed graft spec {raw}'
-            source_pdbid, source_chainresrange_spec = source_tokens
-            source_chainID, source_resrange = source_chainresrange_spec.split('_')
-            srr = ri_range(source_resrange)
-            source_resseqnum1, source_insertion1 = srr[0]
-            if len(srr) > 1:
-                if len(srr) > 2:
+                if '#' in source_resrange:
                     source_resseqnum2, source_insertion2 = srr[1]
-                    source_resseqnum3, source_insertion3 = srr[2]
+                    source_resseqnum3, source_insertion3 = source_resseqnum2, source_insertion2
                 else:
-                    if '#' in source_resrange:
-                        source_resseqnum2, source_insertion2 = srr[1]
-                        source_resseqnum3, source_insertion3 = source_resseqnum2, source_insertion2
-                    else:
-                        source_resseqnum3, source_insertion3 = srr[1]
-                        source_resseqnum2, source_insertion2 = source_resseqnum1, source_insertion1
-            else:
-                source_resseqnum2, source_insertion2 = source_resseqnum1, source_insertion1
-                source_resseqnum3, source_insertion3 = source_resseqnum1, source_insertion1
-            return cls(orig_chainID=target_chainID,
-                       orig_resseqnum1=resseqnum1,
-                       orig_insertion1=insertion1,
-                       orig_resseqnum2=resseqnum2,
-                       orig_insertion2=insertion2,
-                       source_pdbid=source_pdbid,
-                       source_chainID=source_chainID,
-                       source_resseqnum1=source_resseqnum1,
-                       source_insertion1=source_insertion1,
-                       source_resseqnum2=source_resseqnum2,
-                       source_insertion2=source_insertion2,
-                       source_resseqnum3=source_resseqnum3,
-                       source_insertion3=source_insertion3)
+                    source_resseqnum3, source_insertion3 = srr[1]
+                    source_resseqnum2, source_insertion2 = source_resseqnum1, source_insertion1
+        else:
+            source_resseqnum2, source_insertion2 = source_resseqnum1, source_insertion1
+            source_resseqnum3, source_insertion3 = source_resseqnum1, source_insertion1
+        return dict(orig_chainID=target_chainID,
+                    orig_resseqnum1=resseqnum1,
+                    orig_insertion1=insertion1,
+                    orig_resseqnum2=resseqnum2,
+                    orig_insertion2=insertion2,
+                    source_pdbid=source_pdbid,
+                    source_chainID=source_chainID,
+                    source_resseqnum1=source_resseqnum1,
+                    source_insertion1=source_insertion1,
+                    source_resseqnum2=source_resseqnum2,
+                    source_insertion2=source_insertion2,
+                    source_resseqnum3=source_resseqnum3,
+                    source_insertion3=source_insertion3)
 
-        def to_string(self) -> str:
+    def shortcode(self) -> str:
             """
             Convert the Adapter instance to a string representation for input.
             
@@ -164,59 +155,7 @@ class Graft(BaseObj):
             if self.source_resseqnum3 is not None and self.source_insertion3 is not None:
                 source += f"-{join_ri(self.source_resseqnum3, self.source_insertion3)}"
             return f"{target}:{source}"
-        
-        def to_dict(self) -> dict:
-            """
-            Convert the Adapter instance to a dictionary representation.
-            
-            Returns
-            -------
-            dict
-                A dictionary representation of the Graft object.
-            """
-            return {k: v for k, v in self.__dict__.items() if v is not None}
-    
-    def describe(self):
-        return f"Graft(orig_chainID={self.orig_chainID}, orig_resseqnum1={self.orig_resseqnum1}, orig_insertion1={self.orig_insertion1}, orig_resseqnum2={self.orig_resseqnum2}, orig_insertion2 = {self.orig_insertion2}, source_pdbid={self.source_pdbid}, source_chainID={self.source_chainID}, source_resseqnum1={self.source_resseqnum1}, source_insertion1={self.source_insertion1}, source_resseqnum2={self.source_resseqnum2}, source_insertion2={self.source_insertion2}, source_resseqnum3={self.source_resseqnum3}, source_insertion3={self.source_insertion3}, obj_id={self.obj_id})"
-    
-    @BaseObj.from_input.register(Adapter)
-    @classmethod
-    def _from_adapter(cls, adapter: Adapter) -> "Graft":
-        input_dict = adapter.to_dict()
-        input_dict['obj_id'] = cls._counter  # Use the class variable to set the id
-        cls._counter += 1  # Increment the counter for the next instance
-        return cls(**input_dict)
-
-    @classmethod
-    def new(cls, raw: str) -> "Graft":
-        """
-        Create a new Graft instance from a shortcode string.
-        
-        Parameters
-        ----------
-        raw : str
-            The shortcode string representing the graft.
-        
-        Returns
-        -------
-        Graft
-            A new Graft instance created from the shortcode string.
-        """
-        adapter = cls.Adapter.from_string(raw)
-        return cls.from_input(adapter)
-
-    def to_input_string(self) -> str:
-        """
-        Converts the Graft object to a string representation for input.
-        
-        Returns
-        -------
-        str
-            A string representation of the Graft object in the format:
-            target:source
-        """
-        return self.Adapter(**(self.model_dump())).to_string()
-
+ 
     def activate(self,mol):
         """
         Activate the graft by linking it to a source molecule.

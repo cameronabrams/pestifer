@@ -10,8 +10,10 @@ specified by the user into TcL commands to be incorporated in a psfgen script.
 """
 import logging
 logger=logging.getLogger(__name__)
-from typing import ClassVar
+
+from functools import singledispatch
 from pydantic import Field
+from typing import ClassVar
 from ..core.baseobj_new import BaseObj, BaseObjList
 from ..core.scripters import VMDScripter, PsfgenScripter
 from ..core.stringthings import split_ri, join_ri
@@ -55,7 +57,7 @@ class Crot(BaseObj):
     - ``atomk``: The name of the third atom in the ANGLEIJK rotation.
     - ``degrees``: The angle in degrees by which the atoms will be rotated.
     """
-    _attr_choices = {'angle': ['PHI', 'phi', 'PSI', 'psi', 'OMEGA', 'omega', 'CHI1', 'chi1', 'CHI2', 'chi2', 'ANGLEIJK', 'angleijk', 'ALPHA', 'alpha']}
+    _attr_choices = {'angle': ['PHI', 'PSI', 'OMEGA', 'CHI1', 'CHI2', 'ANGLEIJK', 'ALPHA']}
     """
     Optional attribute dependencies for the Crot object.
     This dictionary defines the dependencies for optional attributes based on the value of the ``angle`` attribute.
@@ -72,39 +74,41 @@ class Crot(BaseObj):
     - ``ALPHA``: Requires ``chainID``, ``resseqnum1``, ``resseqnum2``, and ``resseqnum3``.
     """
     _attr_dependencies = {'angle': {
-                            'PHI':      ['chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2'],
-                            'PSI':      ['chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2'],
-                            'OMEGA':    ['chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2'],
-                            'CHI1':     ['chainID', 'resseqnum1', 'insertion1'],
-                            'CHI2':     ['chainID', 'resseqnum1', 'insertion1'],
-                            'ANGLEIJK': ['segnamei', 'resseqnumi', 'atomi',
-                                         'segnamejk', 'resseqnumj', 'atomj', 'resseqnumk', 'atomk'],
-                            'ALPHA':    ['chainID', 'resseqnum1', 'resseqnum2', 'resseqnum3']}}
+                            'PHI':      {'chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2'},
+                            'PSI':      {'chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2'},
+                            'OMEGA':    {'chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2'},
+                            'CHI1':     {'chainID', 'resseqnum1', 'insertion1'},
+                            'CHI2':     {'chainID', 'resseqnum1', 'insertion1'},
+                            'ANGLEIJK': {'segnamei', 'resseqnumi', 'atomi',
+                                         'segnamejk', 'resseqnumj', 'atomj', 'resseqnumk', 'atomk'},
+                            'ALPHA':    {'chainID', 'resseqnum1', 'resseqnum2', 'resseqnum3'}}
+                        }
+    
     angle: str = Field(..., description="Type of angle to be rotated (e.g., PHI, PSI, OMEGA, CHI1, CHI2, ANGLEIJK, ALPHA)")
-    chainID: str = Field(None, description="Chain ID of the segment to which the rotation applies")
-    resseqnum1: int = Field(None, description="Residue sequence number of the first residue involved in the rotation")
-    resseqnum2: int = Field(None, description="Residue sequence number of the second residue involved in the rotation")
-    resseqnum3: int = Field(None, description="Residue sequence number of the third residue involved in the rotation")
-    insertion1: str = Field(None, description="Insertion code of the first residue involved in the rotation")
-    insertion2: str = Field(None, description="Insertion code of the second residue involved in the rotation")
-    insertion3: str = Field(None, description="Insertion code of the third residue involved in the rotation")
-    segname: str = Field(None, description="Segment name of the segment to which the rotation applies")
-    atom1: str = Field(None, description="Name of the first atom involved in the rotation")
-    atom2: str = Field(None, description="Name of the second atom involved in the rotation")
-    segname1: str = Field(None, description="Segment name of the first atom involved in the rotation")
-    segname2: str = Field(None, description="Segment name of the second atom involved in the rotation")
-    segnamei: str = Field(None, description="Segment name of the first atom involved in the rotation")
-    resseqnumi: int = Field(None, description="Residue sequence number of the first atom in the ANGLEIJK rotation")
-    insertioni: str = Field(None, description="Insertion code of the first atom in the ANGLEIJK rotation")
-    atomi: str = Field(None, description="Name of the first atom in the ANGLEIJK rotation")
-    segnamejk: str = Field(None, description="Segment name of the second atom in the ANGLEIJK rotation")
-    resseqnumj: int = Field(None, description="Residue sequence number of the second atom in the ANGLEIJK rotation")
-    insertionj: str = Field(None, description="Insertion code of the second atom in the ANGLEIJK rotation")
-    atomj: str = Field(None, description="Name of the second atom in the ANGLEIJK rotation")
-    resseqnumk: int = Field(None, description="Residue sequence number of the third atom in the ANGLEIJK rotation")
-    insertionk: str = Field(None, description="Insertion code of the third atom in the ANGLEIJK rotation")
-    atomk: str = Field(None, description="Name of the third atom in the ANGLEIJK rotation")
-    degrees: float = Field(0.0, description="Angle in degrees by which the atoms will be rotated")
+    chainID: str | None = Field(None, description="Chain ID of the segment to which the rotation applies")
+    resseqnum1: int | None = Field(None, description="Residue sequence number of the first residue involved in the rotation")
+    insertion1: str | None = Field(None, description="Insertion code of the first residue involved in the rotation")
+    resseqnum2: int | None = Field(None, description="Residue sequence number of the second residue involved in the rotation")
+    insertion2: str | None = Field(None, description="Insertion code of the second residue involved in the rotation")
+    resseqnum3: int | None = Field(None, description="Residue sequence number of the third residue involved in the rotation")
+    insertion3: str | None = Field(None, description="Insertion code of the third residue involved in the rotation")
+    segname: str | None = Field(None, description="Segment name of the segment to which the rotation applies")
+    atom1: str | None = Field(None, description="Name of the first atom involved in the rotation")
+    atom2: str | None = Field(None, description="Name of the second atom involved in the rotation")
+    segname1: str | None = Field(None, description="Segment name of the first atom involved in the rotation")
+    segname2: str | None = Field(None, description="Segment name of the second atom involved in the rotation")
+    segnamei: str | None = Field(None, description="Segment name of the first atom involved in the rotation")
+    resseqnumi: int | None = Field(None, description="Residue sequence number of the first atom in the ANGLEIJK rotation")
+    insertioni: str | None = Field(None, description="Insertion code of the first atom in the ANGLEIJK rotation")
+    atomi: str | None = Field(None, description="Name of the first atom in the ANGLEIJK rotation")
+    segnamejk: str | None = Field(None, description="Segment name of the second atom in the ANGLEIJK rotation")
+    resseqnumj: int | None = Field(None, description="Residue sequence number of the second atom in the ANGLEIJK rotation")
+    insertionj: str | None = Field(None, description="Insertion code of the second atom in the ANGLEIJK rotation")
+    atomj: str | None = Field(None, description="Name of the second atom in the ANGLEIJK rotation")
+    resseqnumk: int | None = Field(None, description="Residue sequence number of the third atom in the ANGLEIJK rotation")
+    insertionk: str | None = Field(None, description="Insertion code of the third atom in the ANGLEIJK rotation")
+    atomk: str | None = Field(None, description="Name of the third atom in the ANGLEIJK rotation")
+    degrees: float | None = Field(None, description="Angle in degrees by which the atoms will be rotated")
 
     _yaml_header: ClassVar[str] = 'crotations'
     """
@@ -118,9 +122,21 @@ class Crot(BaseObj):
     This categorization is used to group Crot objects in the object manager. 
     """
     
-    class Adapter:
+    @staticmethod
+    def _adapt(*args) -> dict:
         """
-        A class to represent the shortcode format for Crot, so that we can register to BaseObj.from_input rather than defining a local from_input.
+        Adapts the input to a dictionary format suitable for Crot instantiation.
+        This method is used to convert various input types into a dictionary of parameters.
+        """
+        if isinstance(args[0], str):
+            input_dict = Crot._from_shortcode(args[0])
+            return input_dict
+        raise TypeError(f"Cannot convert {type(args[0])} to Crot")
+
+    @staticmethod
+    def _from_shortcode(raw: str) -> dict:
+        """
+        Converts the shortcode format for Crot to a dict.
 
         The shortcode format is:
         - For PHI, PSI, OMEGA: angle,chainID,resseqnum1,insertion1,resseqnum2,insertion2,degrees
@@ -128,156 +144,58 @@ class Crot(BaseObj):
         - For ANGLEIJK: angle,segnamei,resseqnumi,insertioni,atomi,segnamejk,resseqnumj,insertionj,atomj,resseqnumk,insertionk,atomk,degrees
         - For ALPHA: angle,chainID,resseqnum1,insertion1,resseqnum2,insertion2,[resseqnum3,insertion3]
         """
-        def __init__(self, angle: str, chainID: str = None, resseqnum1: int = None, insertion1: str = None,
-                     resseqnum2: int = None, insertion2: str = None, resseqnum3: int = None, insertion3: str = None,
-                     segname: str = None, atom1: str = None, atom2: str = None,
-                     segname1: str = None, segname2: str = None,
-                     segnamei: str = None, resseqnumi: int = None, insertioni: str = None, atomi: str = None,
-                     segnamejk: str = None, resseqnumj: int = None, insertionj: str = None, atomj: str = None,
-                     resseqnumk: int = None, insertionk: str = None, atomk: str = None,
-                     degrees: float = 0.0):
-            self.angle = angle.upper()
-            self.chainID = chainID
-            self.resseqnum1 = resseqnum1
-            self.insertion1 = insertion1
-            self.resseqnum2 = resseqnum2
-            self.insertion2 = insertion2
-            self.resseqnum3 = resseqnum3
-            self.insertion3 = insertion3
-            self.segname = segname
-            self.atom1 = atom1
-            self.atom2 = atom2
-            self.segname1 = segname1
-            self.segname2 = segname2
-            self.segnamei = segnamei
-            self.resseqnumi = resseqnumi
-            self.insertioni = insertioni
-            self.atomi = atomi
-            self.segnamejk = segnamejk
-            self.resseqnumj = resseqnumj
-            self.insertionj = insertionj
-            self.atomj = atomj
-            self.resseqnumk = resseqnumk
-            self.insertionk = insertionk
-            self.atomk = atomk
-            self.degrees=degrees
-        
-        @classmethod
-        def from_string(cls, raw: str):
-            dat=raw.split(',')
-            angle=dat[0].upper()
-            match angle:
-                case 'PHI' | 'phi' | 'PSI' | 'psi' | 'OMEGA' | 'omega':
-                    chainID=dat[1]
-                    resseqnum1,insertion1=split_ri(dat[2])
-                    resseqnum2,insertion2=split_ri(dat[3])
-                    degrees=float(dat[4])
-                    return cls(angle, chainID=chainID, resseqnum1=resseqnum1, insertion1=insertion1, resseqnum2=resseqnum2, insertion2=insertion2, degrees=degrees)
-                case 'CHI1' | 'chi1' | 'CHI2' | 'chi2':
-                    chainID=dat[1]
-                    resseqnum1,insertion1=split_ri(dat[2])
-                    degrees=float(dat[3])
-                    return cls(angle, chainID=chainID, resseqnum1=resseqnum1, insertion1=insertion1, degrees=degrees)
-                case 'ANGLEIJK' | 'angleijk':
-                    segnamei=dat[1]
-                    resseqnumi,insertioni=split_ri(dat[2])
-                    atomi=dat[3]
-                    segnamejk=dat[4]
-                    resseqnumj,insertionj=split_ri(dat[5])
-                    atomj=dat[6]
-                    resseqnumk,insertionk=split_ri(dat[7])
-                    atomk=dat[8]
-                    degrees=float(dat[9])
-                    return cls(angle, segnamei=segnamei, resseqnumi=resseqnumi, insertioni=insertioni, atomi=atomi,
-                               segnamejk=segnamejk, resseqnumj=resseqnumj, insertionj=insertionj, atomj=atomj,
-                               resseqnumk=resseqnumk, insertionk=insertionk, atomk=atomk, degrees=degrees)
-                case 'ALPHA' | 'alpha':
-                    chainID=dat[1]
-                    resseqnum1,insertion1=split_ri(dat[2])
-                    resseqnum2,insertion2=split_ri(dat[3])
-                    if len(dat) < 5:
-                        resseqnum3 = resseqnum2
-                        insertion3 = insertion2
-                    else:
-                        resseqnum3,insertion3 = split_ri(dat[4])
-                    return cls(angle, chainID=chainID, resseqnum1=resseqnum1, insertion1=insertion1,
-                               resseqnum2=resseqnum2, insertion2=insertion2, resseqnum3=resseqnum3,
-                               insertion3=insertion3)
-                case _:
-                    raise ValueError(f"Unknown angle type: {angle}")
+        data = raw.split(',')
+        angle = data[0].upper()
+        match angle:
+            case 'PHI' | 'PSI' | 'OMEGA':
+                chainID = data[1]
+                resseqnum1, insertion1 = split_ri(data[2])
+                resseqnum2, insertion2 = split_ri(data[3])
+                degrees = float(data[4])
+                return dict(angle=angle, chainID=chainID, resseqnum1=resseqnum1, insertion1=insertion1, resseqnum2=resseqnum2, insertion2=insertion2, degrees=degrees)
+            case 'CHI1' | 'CHI2' :
+                chainID = data[1]
+                resseqnum1, insertion1 = split_ri(data[2])
+                degrees = float(data[3])
+                return dict(angle=angle, chainID=chainID, resseqnum1=resseqnum1, insertion1=insertion1, degrees=degrees)
+            case 'ANGLEIJK':
+                segnamei = data[1]
+                resseqnumi, insertioni = split_ri(data[2])
+                atomi = data[3]
+                segnamejk = data[4]
+                resseqnumj, insertionj = split_ri(data[5])
+                atomj = data[6]
+                resseqnumk, insertionk = split_ri(data[7])
+                atomk = data[8]
+                degrees = float(data[9])
+                return dict(angle=angle, segnamei=segnamei, resseqnumi=resseqnumi, insertioni=insertioni, atomi=atomi,
+                            segnamejk=segnamejk, resseqnumj=resseqnumj, insertionj=insertionj, atomj=atomj,
+                            resseqnumk=resseqnumk, insertionk=insertionk, atomk=atomk, degrees=degrees)
+            case 'ALPHA':
+                chainID = data[1]
+                resseqnum1, insertion1 = split_ri(data[2])
+                resseqnum2, insertion2 = split_ri(data[3])
+                if len(data) < 5:
+                    resseqnum3 = resseqnum2
+                    insertion3 = insertion2
+                else:
+                    resseqnum3, insertion3 = split_ri(data[4])
+                return dict(angle=angle, chainID=chainID, resseqnum1=resseqnum1, insertion1=insertion1,
+                            resseqnum2=resseqnum2, insertion2=insertion2, resseqnum3=resseqnum3,
+                            insertion3=insertion3)
+            case _:
+                raise ValueError(f"Unknown angle type: {angle}")
 
-        def to_string(self) -> str:
-            match self.angle:
-                case 'PHI' | 'phi' | 'PSI' | 'psi' | 'OMEGA' | 'omega':
-                    return f'{self.angle.upper()},{self.chainID},{join_ri(self.resseqnum1,self.insertion1)},{join_ri(self.resseqnum2,self.insertion2)},{self.degrees:.4f}'
-                case 'CHI1' | 'chi1' | 'CHI2' | 'chi2':
-                    return f'{self.angle.upper()},{self.chainID},{join_ri(self.resseqnum1,self.insertion1)},{self.degrees:.4f}'
-                case 'ANGLEIJK' | 'angleijk':
-                    return f'{self.angle},{self.segnamei},{join_ri(self.resseqnumi,self.insertioni)},{self.atomi},{self.segnamejk},{join_ri(self.resseqnumj,self.insertionj)},{self.atomj},{join_ri(self.resseqnumk,self.insertionk)},{self.atomk},{self.degrees:.4f}'
-                case 'ALPHA' | 'alpha':
-                    return f'{self.angle},{self.chainID},{join_ri(self.resseqnum1,self.insertion1)},{join_ri(self.resseqnum2,self.insertion2)},{join_ri(self.resseqnum3,self.insertion3)}'
-
-        def to_dict(self) -> dict:
-            """
-            Converts the Crot object to a dictionary representation.  Only attributes that are not None are included.
-            
-            Returns
-            -------
-            dict
-                A dictionary representation of the Crot object.
-            """
-            return {k: v for k, v in self.__dict__.items() if v is not None}
-
-    @BaseObj.from_input.register(Adapter)
-    @classmethod
-    def _from_shortcode(cls, shortcode: Adapter):
-        """
-        Converts a Crot.Adapter object to a Crot object.
-        
-        Parameters
-        ----------
-        shortcode : Adapter
-            The Adapter object containing the C-rotation parameters.
-        
-        Returns
-        -------
-        Crot
-            A Crot object initialized with the parameters from the Adapter.
-        """
-        return cls(**(shortcode.to_dict()))
-    
-    @classmethod
-    def new(cls, raw: str) -> "Crot":
-        """
-        Creates a new Crot object from a raw string representation.
-        
-        Parameters
-        ----------
-        raw : str
-            The raw string representation of the Crot object.
-        
-        Returns
-        -------
-        Crot
-            A new Crot object initialized with the parameters from the raw string.
-        """
-        adapter = cls.Adapter.from_string(raw)
-        instance = cls._from_shortcode(adapter)
-        return instance
-    
-    def to_input_string(self) -> str:
-        """
-        Converts the Crot object to a string representation for input.
-
-        Returns
-        -------
-        str
-            A string representation of the Crot object.
-        """
-        return self.Adapter(**(self.model_dump())).to_string()
-
-    def describe(self):
-        return f'Crot({self.to_input_string()})'
+    def shortcode(self) -> str:
+        match self.angle:
+            case 'PHI' | 'phi' | 'PSI' | 'psi' | 'OMEGA' | 'omega':
+                return f'{self.angle.upper()},{self.chainID},{join_ri(self.resseqnum1,self.insertion1)},{join_ri(self.resseqnum2,self.insertion2)},{self.degrees:.4f}'
+            case 'CHI1' | 'chi1' | 'CHI2' | 'chi2':
+                return f'{self.angle.upper()},{self.chainID},{join_ri(self.resseqnum1,self.insertion1)},{self.degrees:.4f}'
+            case 'ANGLEIJK' | 'angleijk':
+                return f'{self.angle},{self.segnamei},{join_ri(self.resseqnumi,self.insertioni)},{self.atomi},{self.segnamejk},{join_ri(self.resseqnumj,self.insertionj)},{self.atomj},{join_ri(self.resseqnumk,self.insertionk)},{self.atomk},{self.degrees:.4f}'
+            case 'ALPHA' | 'alpha':
+                return f'{self.angle},{self.chainID},{join_ri(self.resseqnum1,self.insertion1)},{join_ri(self.resseqnum2,self.insertion2)},{join_ri(self.resseqnum3,self.insertion3)}'
 
     def write_TcL(self,W:VMDScripter,chainIDmap={},**kwargs):
         """

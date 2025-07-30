@@ -18,7 +18,7 @@ class TestDeletion(unittest.TestCase):
         self.assertEqual(deletion.insertion2, "")
         self.assertEqual(deletion._yaml_header, 'deletions')
         self.assertEqual(deletion._objcat, 'seq')
-        self.assertEqual(deletion.describe(), "Deleteion(chainID=A, resseqnum1=10, insertion1=, resseqnum2=20, insertion2=)")
+        self.assertEqual(repr(deletion), "Deletion(chainID='A', resseqnum1=10, insertion1='', resseqnum2=20, insertion2='')")
 
     def test_deletion_from_obj(self):
         deletion1 = Deletion(
@@ -40,7 +40,7 @@ class TestDeletion(unittest.TestCase):
         self.assertEqual(deletion2.insertion2, "")
 
     def test_deletion_from_shortcode(self):
-        deletion = Deletion.new("A:10-20")
+        deletion = Deletion("A:10-20")
         self.assertIsInstance(deletion, Deletion)
         self.assertEqual(deletion.chainID, "A")
         self.assertEqual(deletion.resseqnum1, 10)
@@ -56,7 +56,7 @@ class TestDeletion(unittest.TestCase):
             resseqnum2=20,
             insertion2="J"
         )
-        input_string = deletion.to_input_string()
+        input_string = deletion.shortcode()
         self.assertEqual(input_string, "A:10-20J")
     
     def test_deletion_list_creation(self):

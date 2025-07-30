@@ -8,7 +8,7 @@ import logging
 logger=logging.getLogger(__name__)
 
 from pydantic import Field
-from typing import ClassVar, Optional
+from typing import ClassVar
 
 from ..core.baseobj_new import BaseObj, BaseObjList
 from ..core.scripters import PsfgenScripter
@@ -20,90 +20,63 @@ class Cfusion(BaseObj):
     coordinate file to the C-termini of base-molecule segments
     """
 
-    _required_fields = {'sourcefile', 'sourceseg', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2', 'chainID'}
-    _optional_fields = {'yaml_header', 'objcat', 'obj_id'}
+    _required_fields = {'sourcefile', 'sourceseg', 'resseqnum1', 'resseqnum2', 'chainID'}
+    _optional_fields = {'insertion1', 'insertion2', 'obj_id'}
 
     sourcefile: str = Field(..., description="Path to the source coordinate file containing the residues to be fused")
     sourceseg: str = Field(..., description="Segment in the source file from which residues are taken")
     resseqnum1: int = Field(..., description="N-terminal residue number of the fusion sequence")
-    insertion1: str = Field(..., description="Insertion code of the N-terminal residue")
+    insertion1: str = Field('', description="Insertion code of the N-terminal residue")
     resseqnum2: int = Field(..., description="C-terminal residue number of the fusion sequence")
-    insertion2: str = Field(..., description="Insertion code of the C-terminal residue")
+    insertion2: str = Field('', description="Insertion code of the C-terminal residue")
     chainID: str = Field(..., description="Chain ID of the segment in the base molecule to which the fusion is applied")
-    obj_id: Optional[int] = Field(0, description="Unique identifier for the Cfusion object")
+    obj_id: int = Field(0, description="Unique identifier for the Cfusion object")
 
     _yaml_header: ClassVar[str] = 'Cfusions'
     _objcat: ClassVar[str] = 'seq'
     _counter: ClassVar[int] = 0  # Class variable to keep track of Cfusion instances
 
-    def describe(self):
-        return f"Cfusion(sourcefile={self.sourcefile}, sourceseg={self.sourceseg}, resseqnum1={self.resseqnum1}, insertion1={self.insertion1}, resseqnum2={self.resseqnum2}, insertion2={self.insertion2}, chainID={self.chainID}, obj_id={self.obj_id})"
-
-    class Adapter:
+    @staticmethod
+    def _adapt(*args) -> dict:
         """
-        A class to represent the shortcode format for Cfusion, so that we can register to BaseObj.from_input rather than defining a local from_input.
+        Adapts the input to a dictionary format suitable for Cfusion instantiation.
+        This method is used to convert various input types into a dictionary of parameters.
+        """
+        if isinstance(args[0], str):
+            input_dict=Cfusion._from_shortcode(args[0])
+            input_dict['obj_id'] = Cfusion._counter
+            Cfusion._counter += 1
+            return input_dict
+        raise TypeError(f"Cannot convert {type(args[0])} to Cfusion")
 
-        The shortcode format is filename:C:nnn-ccc,S
+    @staticmethod
+    def _from_shortcode(raw: str) -> dict:
+        """
+        Converts a shortcode string to a dictionary of parameters for Cfusion.
+        The shortcode format is: filename:C:nnn-ccc,S
         where:
-        - filename is the fusion coordinate filename
+        - filename is the source coordinate file
         - C is the source segment
-        - nnn is the N-terminal residue of the fusion sequence
-        - ccc is the C-terminal residue of the fusion sequence
-        - S is the chainID, segment in base-molecule the fusion is fused to
+        - nnn is the N-terminal residue number of the fusion sequence
+        - ccc is the C-terminal residue number of the fusion sequence
+        - S is the chain ID of the segment in the base molecule to which the fusion is applied
         """
-        def __init__(self, sourcefile: str, sourceseg: str, resseqnum1: int, insertion1: str, resseqnum2: int, insertion2: str, chainID: str, obj_id: int = 0):
-            self.sourcefile = sourcefile
-            self.sourceseg = sourceseg
-            self.resseqnum1 = resseqnum1
-            self.insertion1 = insertion1
-            self.resseqnum2 = resseqnum2
-            self.insertion2 = insertion2
-            self.chainID = chainID
-            self.obj_id = obj_id
+        sourcefile, sourceseg, seq_range_chainID = raw.split(":")
+        seq_range, chainID = seq_range_chainID.split(",")
+        resrange = seq_range.split("-")
+        resseqnum1, insertion1 = split_ri(resrange[0])
+        resseqnum2, insertion2 = split_ri(resrange[1])
+        return dict(
+            sourcefile=sourcefile,
+            sourceseg=sourceseg,
+            resseqnum1=resseqnum1,
+            resseqnum2=resseqnum2,
+            insertion1=insertion1,
+            insertion2=insertion2,
+            chainID=chainID)
 
-        @classmethod
-        def from_string(cls, raw: str):
-            sourcefile, sourceseg, seq_range_chainID = raw.split(":")
-            seq_range, chainID = seq_range_chainID.split(",")
-            resrange = seq_range.split("-")
-            resseqnum1, insertion1 = split_ri(resrange[0])
-            resseqnum2, insertion2 = split_ri(resrange[1])
-            return cls(sourcefile, sourceseg, resseqnum1, insertion1, resseqnum2, insertion2, chainID)
-
-        def to_string(self) -> str:
-            return f"{self.sourcefile}:{self.sourceseg}:{join_ri(self.resseqnum1,self.insertion1)}-{join_ri(self.resseqnum2,self.insertion2)},{self.chainID}"
-        
-        def to_dict(self) -> dict:
-            return {k: v for k, v in self.__dict__.items() if not v is None}
-
-    # if registering to BaseObj.from_input, the type must be unique to this class
-    @BaseObj.from_input.register(Adapter)
-    @classmethod
-    def _from_str(cls, shortcode: Adapter):
-        input_dict=shortcode.to_dict()
-        input_dict['obj_id'] = cls._counter  # Use the class variable to set the id
-        # Increment the counter for the next instance
-        cls._counter+=1
-        return cls(**input_dict)
-
-    @classmethod
-    def new(cls, raw: str) -> "Cfusion":
-        adapter = cls.Adapter.from_string(raw)
-        instance = cls._from_str(adapter)
-        return instance
-
-    def to_input_string(self) -> str:
-        """
-        Converts the Cfusion object to a string representation for input.
-        
-        Returns
-        -------
-        str
-            A string representation of the Cfusion object in the format:
-            filename:C:nnn-ccc,S
-        """
-        # return self.Adapter(self.sourcefile, self.sourceseg, self.resseqnum1, self.insertion1, self.resseqnum2, self.insertion2, self.chainID).to_string()
-        return self.Adapter(**(self.model_dump())).to_string()
+    def shortcode(self) -> str:
+        return f"{self.sourcefile}:{self.sourceseg}:{join_ri(self.resseqnum1, self.insertion1)}-{join_ri(self.resseqnum2, self.insertion2)},{self.chainID}"
 
     def write_pre_segment(self, W: PsfgenScripter):
         """

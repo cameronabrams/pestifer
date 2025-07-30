@@ -9,6 +9,7 @@ logger=logging.getLogger(__name__)
 
 from pydantic import Field
 from typing import ClassVar
+
 from ..core.baseobj_new import BaseObj, BaseObjList
 from ..core.stringthings import split_ri, join_ri
 
@@ -29,79 +30,27 @@ class CleavageSite(BaseObj):
     _yaml_header: ClassVar[str] = 'cleavages'
     _objcat: ClassVar[str] = 'seq'
 
-    def describe(self):
-        return f"CleavageSite(chainID={self.chainID}, resseqnum1={self.resseqnum1}, insertion1={self.insertion1}, resseqnum2={self.resseqnum2}, insertion2={self.insertion2})"
+    @staticmethod
+    def _adapt(*args) -> dict:
+        if isinstance(args[0], str):
+            return CleavageSite._from_shortcode(args[0])
+        raise TypeError(f"Cannot convert {type(args[0])} to CleavageSite")
 
-    class Adapter:
-        """
-        A class to represent the shortcode format for CleavageSite, so that we can register to BaseObj.from_input rather than defining a local from_input.
+    @staticmethod
+    def _from_shortcode(raw: str) -> dict:
+        chainID, res_range = raw.split(":")
+        resseqnum1, insertion1 = split_ri(res_range.split("-")[0])
+        resseqnum2, insertion2 = split_ri(res_range.split("-")[1])
+        return dict(
+            chainID=chainID,
+            resseqnum1=resseqnum1,
+            insertion1=insertion1,
+            resseqnum2=resseqnum2,
+            insertion2=insertion2
+        )
 
-        The shortcode format is C:R1-R2
-        where:
-        - C is the chain ID
-        - R1 is the residue number and insertion code of the N-terminal partner in the peptide bond
-        - R2 is the residue number and insertion code of the C-terminal partner in the peptide bond
-        """
-        def __init__(self, chainID: str, resseqnum1: int, insertion1: str, resseqnum2: int, insertion2: str):
-            self.chainID = chainID
-            self.resseqnum1 = resseqnum1
-            self.insertion1 = insertion1
-            self.resseqnum2 = resseqnum2
-            self.insertion2 = insertion2
-
-        @classmethod
-        def from_string(cls, raw: str):
-            chainID, res_range = raw.split(":")
-            resseqnum1, insertion1 = split_ri(res_range.split("-")[0])
-            resseqnum2, insertion2 = split_ri(res_range.split("-")[1])
-            return cls(chainID, resseqnum1, insertion1, resseqnum2, insertion2)
-
-        def to_string(self) -> str:
-            return f"{self.chainID}:{join_ri(self.resseqnum1, self.insertion1)}-{join_ri(self.resseqnum2, self.insertion2)}"
-
-
-    @BaseObj.from_input.register(Adapter)
-    @classmethod
-    def _from_shortcode(cls,shortcode:Adapter):
-        input_dict={
-            'chainID':shortcode.chainID,
-            'resseqnum1':shortcode.resseqnum1,
-            'insertion1':shortcode.insertion1,
-            'resseqnum2':shortcode.resseqnum2,
-            'insertion2':shortcode.insertion2
-        }
-        return cls(**input_dict)
-    
-    @classmethod
-    def new(cls, raw: str) -> "CleavageSite":
-        """
-        Create a new CleavageSite instance from a shortcode string.
-        
-        Parameters
-        ----------
-        raw : str
-            The shortcode string in the format C:R1-R2.
-        
-        Returns
-        -------
-        CleavageSite
-            A new instance of CleavageSite.
-        """
-        adapter = cls.Adapter.from_string(raw)
-        instance = cls._from_shortcode(adapter)
-        return instance
-
-    def to_input_string(self) -> str:
-        """
-        Converts the CleavageSite object to a string representation for input.
-
-        Returns
-        -------
-        str
-            A string representation of the CleavageSite object in the format:
-            C:R1-R2
-        """
-        return self.Adapter(**(self.model_dump())).to_string()
+    def shortcode(self) -> str:
+        return f"{self.chainID}:{join_ri(self.resseqnum1, self.insertion1)}-{join_ri(self.resseqnum2, self.insertion2)}"
 
 class CleavageSiteList(BaseObjList[CleavageSite]):
     def describe(self):

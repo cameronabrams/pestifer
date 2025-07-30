@@ -27,7 +27,7 @@ class TestCfusion(unittest.TestCase):
         self.assertEqual(cfusion.obj_id, 0)
         self.assertEqual(cfusion._yaml_header, 'Cfusions')
         self.assertEqual(cfusion._objcat, 'seq')
-        self.assertEqual(cfusion.describe(), "Cfusion(sourcefile=test.pdb, sourceseg=A, resseqnum1=1, insertion1=, resseqnum2=10, insertion2=, chainID=A, obj_id=0)")
+        self.assertEqual(repr(cfusion), "Cfusion(sourcefile='test.pdb', sourceseg='A', resseqnum1=1, insertion1='', resseqnum2=10, insertion2='', chainID='A', obj_id=0)")
         self.assertEqual(Cfusion._counter, 0)  # not created using from_input, so counter should not increment
 
     def test_cfusion_from_shortcode(self):
@@ -39,7 +39,7 @@ class TestCfusion(unittest.TestCase):
         # S -- chainID, segment in base-molecule the fusion is fused to
         # shortcode = Cfusion.Adapter.from_string("test.pdb:A:1-10,A")
         # cfusion = Cfusion.from_input(shortcode)
-        cfusion = Cfusion.new("test.pdb:A:1-10,A")
+        cfusion = Cfusion("test.pdb:A:1-10,A")
         self.assertIsInstance(cfusion, Cfusion)
         self.assertEqual(cfusion.sourcefile, "test.pdb")
         self.assertEqual(cfusion.sourceseg, "A")
@@ -50,7 +50,7 @@ class TestCfusion(unittest.TestCase):
         self.assertEqual(cfusion.chainID, "A")
         self.assertEqual(cfusion.obj_id, 0)
         # do it again to make sure the counter increments
-        cfusion2 = Cfusion.new("test.pdb:A:1-10,A")
+        cfusion2 = Cfusion("test.pdb:A:1-10,A")
         self.assertEqual(cfusion2.obj_id, 1)
 
     def test_cfusion_copy(self):
@@ -87,7 +87,7 @@ class TestCfusion(unittest.TestCase):
             chainID="A",
             obj_id=1
         )
-        input_string = cfusion.to_input_string()
+        input_string = cfusion.shortcode()
         self.assertEqual(input_string, "test.pdb:A:1-10,A")
 
     def test_cfusion_list_creation(self):

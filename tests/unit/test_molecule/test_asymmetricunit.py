@@ -58,7 +58,8 @@ class TestAsymmetricUnit(unittest.TestCase):
             obj_manager = AU.objmanager
             self.assertIsInstance(obj_manager, ObjManager)
             if fmt == 'PDB':
-                self.assertIn('seq', obj_manager) # from TER records
+                self.assertIn('seq', obj_manager) 
+                # from TER records; not present in mmCIF files
             
             self.assertTrue('topol' in obj_manager)
             self.assertTrue('ssbonds' in obj_manager['topol'])

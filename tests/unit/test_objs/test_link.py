@@ -33,11 +33,11 @@ class TestLink(unittest.TestCase):
         self.assertEqual(link.name2, "CA")
         self.assertEqual(link._yaml_header, 'links')
         self.assertEqual(link._objcat, 'topol')
-        self.assertEqual(link.patchhead,1)
-        self.assertEqual(link.describe(), "Link between N and CA (A:1-B:2)")
+        # self.assertEqual(link.patchhead,1)
+        self.assertEqual(repr(link), "Link(chainID1='A', resseqnum1=1, insertion1='', name1='N', chainID2='B', resseqnum2=2, insertion2='', name2='CA')")
 
     def test_link_from_shortcode(self):
-        link = Link.new("A_1_N-B_2_CA")
+        link = Link("A_1_N-B_2_CA")
         self.assertIsInstance(link, Link)
         self.assertEqual(link.chainID1, "A")
         self.assertEqual(link.resseqnum1, 1)

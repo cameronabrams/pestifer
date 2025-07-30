@@ -108,8 +108,13 @@ class ArtifactFile(Artifact):
             self.key = self.ext
 
     @property
+    def name(self) -> str:
+        """Return the name of the file without the extension."""
+        return self.value+r'.'+self.ext
+
+    @property
     def path(self) -> Path:
-        return Path(self.value+r'.'+self.ext)
+        return Path(self.name)
 
     def exists(self) -> bool:
         return self.path.exists()

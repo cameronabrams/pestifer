@@ -4,18 +4,20 @@ A class for processing biological assemblies
 """
 
 import numpy as np
-from functools import singledispatchmethod
+import re
+# from functools import singledispatchmethod
 from mmcif.api.PdbxContainers import DataContainer
 from pidibble.pdbparse import get_symm_ops
-from pidibble.pdbrecord import PDBRecord
+from pidibble.pdbrecord import PDBRecord, PDBRecordList, PDBRecordDict
 import logging
 logger=logging.getLogger(__name__)
-from typing import List, Dict, Optional, Any, ClassVar
+from typing import ClassVar
 from collections import UserList
 
 from .asymmetricunit import AsymmetricUnit
 from .chainidmanager import ChainIDManager
 from ..util.coord import build_tmat
+from ..core.stringthings import plu
 
 class Transform:
     """
@@ -39,24 +41,57 @@ class Transform:
     segname_by_type_map : dict
         Mapping of segment names by type for the transformation.
     """
-    def __init__(self, index: Optional[int] = 0, tmat: Optional[np.ndarray] = None, applies_chainIDs: Optional[List[str]] = None, chainIDmap: Optional[Dict[str, str]] = None, segname_by_type_map: Optional[Dict[str, str]] = None):
+    def __init__(self, 
+                 index: int = 0, 
+                 tmat: np.ndarray | None = None, 
+                 applies_chainIDs: list[str] | None = None, 
+                 chainIDmap: dict[str, str] | None = None, 
+                 segname_by_type_map: dict[str, str] | None = None):
         self.index = index
-        self.tmat = tmat if tmat is not None else np.identity(4, dtype=float)
-        self.applies_chainIDs = applies_chainIDs if applies_chainIDs is not None else []
-        self.chainIDmap = chainIDmap if chainIDmap is not None else {}
-        self.segname_by_type_map = segname_by_type_map if segname_by_type_map is not None else {}
+        self.tmat = tmat
+        self.applies_chainIDs = applies_chainIDs
+        self.chainIDmap = chainIDmap
+        self.segname_by_type_map = segname_by_type_map
 
     @classmethod
-    def from_pdb_record(cls, barec: PDBRecord, index: int = 0):
-        RotMat,TransVec=get_symm_ops(barec)
+    def from_pdb_record(cls, 
+                        barec: PDBRecord, 
+                        index: int = 0, 
+                        applies_chainIDs: list[str] | None = None, 
+                        segname_by_type_map: dict[str, str] | None = None):    
+        RotMat, TransVec = get_symm_ops(barec)
         tmat = build_tmat(RotMat, TransVec)
         applies_chainIDs = barec.header if hasattr(barec, 'header') else []
-        return cls(index=index, tmat=tmat, applies_chainIDs=applies_chainIDs)
-    
+        return cls(index=index, tmat=tmat, applies_chainIDs=applies_chainIDs, segname_by_type_map=segname_by_type_map)
+
     @classmethod
-    def from_matvec(cls, RotMat: np.ndarray, TransVec: np.ndarray, applies_chainIDs: List[str] = [], index: int = 0):
+    def from_matvec(cls, 
+                    RotMat: np.ndarray, TransVec: np.ndarray, 
+                    index: int = 0, 
+                    applies_chainIDs: list[str] | None = None, 
+                    segname_by_type_map: dict[str, str] | None = None):
         tmat = build_tmat(RotMat, TransVec)
-        return cls(index=index, tmat=tmat, applies_chainIDs=applies_chainIDs)
+        return cls(index=index, tmat=tmat, applies_chainIDs=applies_chainIDs, segname_by_type_map=segname_by_type_map)
+
+    @classmethod
+    def identity(cls, 
+                 index: int = 0,
+                 applies_chainIDs: list[str] | None = None, 
+                 segname_by_type_map: dict[str, str] | None = None):
+        tmat = np.identity(4, dtype=float)
+        applies_chainIDs = []
+        return cls(index=index, tmat=tmat, applies_chainIDs=applies_chainIDs, segname_by_type_map=segname_by_type_map)
+
+    def set_chainIDmap(self, chainIDmap: dict[str, str]):
+        """
+        Sets the chain ID mapping for the transformation.
+        
+        Parameters
+        ----------
+        chainIDmap : dict
+            A dictionary mapping original chain IDs to new chain IDs.
+        """
+        self.chainIDmap = chainIDmap
 
     def is_identity(self):
         """
@@ -87,8 +122,8 @@ class Transform:
             The label for the segment.
         """
         if not segtype in self.segname_by_type_map:
-            self.segname_by_type_map[segtype]={}
-        self.segname_by_type_map[segtype][chainID]=seglabel
+            self.segname_by_type_map[segtype] = {}
+        self.segname_by_type_map[segtype][chainID] = seglabel
 
     def write_TcL(self):
         """
@@ -127,7 +162,7 @@ class Transform:
         """
         return np.array_equal(self.tmat, other.tmat)
 
-    def generate_chainIDmap(self, auChainIDs: List[str], daughters: dict, CM: ChainIDManager):
+    def generate_chainIDmap(self, auChainIDs: list[str], daughters: dict, CM: ChainIDManager):
         """
         Generates a mapping of chain IDs for the transformation.
         This method creates a mapping of chain IDs that this transformation applies to,
@@ -142,7 +177,7 @@ class Transform:
         daughters : dict
             A dictionary mapping parent segment IDs to their daughter segment IDs.
         CM : ChainIDManager
-            The ChainIDManager instance used to manage chain ID mappings.
+            The ChainIDManager instance used to manage chain IDs.
         """
         applies_to=self.applies_chainIDs[:]
         for d,v in daughters.items():
@@ -151,10 +186,10 @@ class Transform:
         logger.debug(f'Transform applies to {applies_to}')
         if self.is_identity():
             logger.debug(f'Identity transform gets a thru map applied to {applies_to}')
-            self.chainIDmap=CM.thru_map(auChainIDs, applies_to)
+            self.chainIDmap = CM.thru_map(auChainIDs, applies_to)
         else:
             logger.debug(f'Transform gets a new map applied to {applies_to}')
-            self.chainIDmap=CM.generate_next_map(auChainIDs, applies_to)
+            self.chainIDmap = CM.generate_next_map(auChainIDs, applies_to)
 
 class TransformList(UserList):
     """
@@ -165,12 +200,12 @@ class TransformList(UserList):
     @classmethod
     def identity(cls):
         """
-        Creates an identity TransformList.
+        Creates a TransformList containing a single identity transformation.
         """
         return cls([Transform('identity')])
             
     @classmethod
-    def from_pdb_records(cls, pdb_records: List[PDBRecord]):
+    def from_pdb_records(cls, pdb_records: PDBRecordList):
         """
         Creates a TransformList from a list of PDB records.
 
@@ -213,39 +248,86 @@ class BioAssemb:
 
     _index: ClassVar[int] = 1  # start at 1
 
-    @singledispatchmethod
-    def __init__(self, input_obj: Any):
-        raise TypeError(f'Cannot initialize {type(self)} from object of type {type(input_obj)}')
-    
-    @__init__.register(dict)
-    def _from_dict(self, input_obj: Dict[str, Any]):
-        BioAssemb._index+=1
-        self.name = input_obj.get('name', f'Assembly{BioAssemb._index}')
-        self.transforms = input_obj.get('transforms', TransformList.identity())
+    def __init__(self, name: str | None = None, transforms: TransformList | None = None):
+        """
+        Initialize a BioAssemb instance.
 
-    @__init__.register(AsymmetricUnit)
-    def _from_asymmetric_unit(self, input_obj: AsymmetricUnit):
-        BioAssemb._index+=1
-        self.name = 'A.U.'
-        self.transforms = TransformList.identity()
+        Parameters
+        ----------
+        name : str | None, optional
+            The name of the biological assembly.
+        transforms : TransformList | None, optional
+            A list of Transform objects representing the transformations applied to the assembly.
+        """
+        self.name = name or f'Assembly{BioAssemb._index}'
+        self.transforms = transforms or TransformList.identity()
+        BioAssemb._index += 1
 
-    @__init__.register(TransformList)
-    def _from_transform_list(self, input_obj: TransformList):
-        BioAssemb._index+=1
-        self.name = f'Assembly{BioAssemb._index}'
-        self.transforms = input_obj
+    @classmethod
+    def from_dict(cls, input_obj: dict[str, str | TransformList | None]):
+        if not ('name' in input_obj and 'transforms' in input_obj):
+            raise ValueError(f'BioAssemb dictionary must contain "name" and "transforms" keys, got {input_obj}')
+        if not isinstance(input_obj['transforms'], TransformList):
+            raise TypeError(f'BioAssemb transforms must be a TransformList, got {type(input_obj["transforms"])}')
+        cls._index += 1
+        name = input_obj.get('name', f'Assembly{cls._index}')
+        transforms = input_obj.get('transforms', TransformList.identity())
+        return cls(name, transforms)
 
-    @__init__.register(List[PDBRecord])
-    def _from_obj_list(self, input_obj: List[PDBRecord]):
-        BioAssemb._index+=1
-        self.name = f'Assembly{BioAssemb._index}'
-        self.transforms = TransformList.from_pdb_records(input_obj)
+    @classmethod
+    def from_asymmetric_unit(cls):
+        """
+        Initialize a BioAssemb instance from an AsymmetricUnit.
+        
+        Returns
+        -------
+        BioAssemb
+            An instance of BioAssemb initialized with name A.U. and an identity transformation. 
+        """
+        cls._index += 1
+        return cls(name='A.U.', transforms=TransformList.identity())
+
+    @classmethod
+    def from_transform_list(cls, TList: TransformList):
+        """
+        Initialize a BioAssemb instance from a TransformList.
+        
+        Parameters
+        ----------
+        input_obj : TransformList
+            A TransformList containing the transformations for the biological assembly.
+        
+        Returns
+        -------
+        BioAssemb
+            An instance of BioAssemb initialized with the provided TransformList.
+        """
+        cls._index += 1
+        return cls(name=f'Assembly{cls._index}', transforms=TList)
+
+    @classmethod
+    def from_pdbrecordlist(cls, PRList: PDBRecordList):
+        """
+        Initialize a BioAssemb instance from a PDBRecordList.
+
+        Parameters
+        ----------
+        PRList : PDBRecordList
+            A PDBRecordList containing the transformations for the biological assembly.
+
+        Returns
+        -------
+        BioAssemb
+            An instance of BioAssemb initialized with the provided PDBRecordList.
+        """
+        cls._index += 1
+        return cls(name=f'Assembly{cls._index}', transforms=TransformList.from_pdb_records(PRList))
 
     @classmethod
     def reset_index(cls):
         cls._index=1
 
-    def activate(self, AU:AsymmetricUnit,CM:ChainIDManager):
+    def activate(self, AU: AsymmetricUnit, CM: ChainIDManager):
         """
         Activate the biological assembly by generating chain ID maps for its transformations.
         
@@ -266,82 +348,101 @@ class BioAssembList(UserList):
     collections of biological assemblies.
     """
 
-    @singledispatchmethod
-    def __init__(self, input_obj: Any):
-        raise TypeError(f'Cannot initialize {type(self)} from object of type {type(input_obj)}')
+    @classmethod
+    def from_pdb_record_dict(cls, PRDict: PDBRecordDict):
+        """
+        Initialize a BioAssembList from a PDBRecordDict.
+        
+        Parameters
+        ----------
+        PRDict : PDBRecordDict
+            A dictionary containing PDB records for biological assemblies.
 
-    @__init__.register(Dict[str, PDBRecord])
-    def _from_dict(self, input_obj: Dict[str, Any]):
+        Returns
+        -------
+        BioAssembList
+            An instance of BioAssembList initialized with the provided PDBRecordDict.
+        """
+
         BioAssemb.reset_index()
         B=[]
-        bareclabels=[x for x in input_obj if ('REMARK.350.BIOMOLECULE' in x and 'TRANSFORM' in x)]
-        tr={}
-        for lab in bareclabels:
-            fs=lab.split('.')
-            assert fs[0]=='REMARK'
-            assert fs[1]=='350'
-            assert 'BIOMOLECULE' in fs[2]
-            assert 'TRANSFORM' in fs[3]
-            banumber=int(fs[2][11:])
-            trnumber=int(fs[3][9:])
-            if not banumber in tr:
-                tr[banumber]=[]
-            tr[banumber].append(trnumber)
-        for ba,trs in tr.items():
-            reclist=List([])
-            savhdr=[]
-            for t in trs:
-                if f'REMARK.350.BIOMOLECULE{ba}.TRANSFORM{t}' in input_obj:
-                    barec=input_obj[f'REMARK.350.BIOMOLECULE{ba}.TRANSFORM{t}']
-                    if hasattr(barec,'header'):
-                        savhdr=barec.header
-                    else:
-                        barec.header=savhdr
-                    reclist.append(barec)
-                    logger.debug(f'BA {ba} header {barec.header}')
-                    logger.debug(barec.pstr())
-            B.append(BioAssemb(reclist))
+        # search the PDBRecordDict for keys that match the pattern 'REMARK.350.BIOMOLECULE{n}.TRANSFORM{m}', and extract the assembly number n and transform number m
+        # where n is the assembly number and m is the transform number
+        ptn = r'REMARK\.350\.BIOMOLECULE(\d+)\.TRANSFORM(\d+)'
+        savhdr = []
+        records_of_ba: dict[int, list[PDBRecord]] = {}
+        for key in PRDict.keys():
+            match = re.match(ptn, key)
+            if match:
+                ba_number, transform_number = match.groups()
+                ba_number  = int(ba_number)
+                transform_number = int(transform_number)
+                ba_record = PRDict[key]
+                if hasattr(ba_record, 'header'):
+                    savhdr = ba_record.header
+                else:
+                    ba_record.header = savhdr
+                if not ba_number in records_of_ba:
+                    records_of_ba[ba_number] = []
+                records_of_ba[ba_number].append(ba_record)
+        for ba_number, ba_recordlist in records_of_ba.items():
+            logger.debug(f'BA {ba_number} has {len(ba_recordlist)} records')
+            # Create a BioAssemb from the records
+            B.append(BioAssemb.from_pdbrecordlist(ba_recordlist))
         logger.debug(f'There are {len(B)} biological assemblies')
-        super().__init__(B)
+        return cls(B)
 
-    @__init__.register(DataContainer)
-    def _from_data_container(self, input_obj: DataContainer):
+    @classmethod
+    def from_data_container(cls, dc: DataContainer):
+        """
+        Initialize a BioAssembList from a DataContainer.
+        
+        Parameters
+        ----------
+        dc : DataContainer
+            A DataContainer containing the data for biological assemblies.
+
+        Returns
+        -------
+        BioAssembList
+            An instance of BioAssembList initialized with the provided DataContainer.
+        """
         BioAssemb.reset_index()
-        B=[]
-        Assemblies=input_obj.getObj('pdbx_struct_assembly')
-        gen=input_obj.getObj('pdbx_struct_assembly_gen')
-        oper=input_obj.getObj('pdbx_struct_oper_list')
+        B = []
+        Assemblies = dc.getObj('pdbx_struct_assembly')
+        gen = dc.getObj('pdbx_struct_assembly_gen')
+        oper = dc.getObj('pdbx_struct_oper_list')
         for ba_idx in range(len(Assemblies)):
             logger.debug(f'CIF: Establishing BA {ba_idx}')
-            assemb_id=Assemblies.getValue('id',ba_idx)
-            this_gen_idx_list=gen.selectIndices(assemb_id,'assembly_id')
+            assemb_id = Assemblies.getValue('id', ba_idx)
+            this_gen_idx_list = gen.selectIndices(assemb_id, 'assembly_id')
             logger.debug(f'BA {ba_idx} points to {len(this_gen_idx_list)} gen indexes')
-            transforms=TransformList()
+            transforms = TransformList()
             for this_gen_idx in this_gen_idx_list:
-                this_oper_list=gen.getValue('oper_expression',this_gen_idx).split(',')
+                this_oper_list = gen.getValue('oper_expression', this_gen_idx).split(',')
                 logger.debug(f'BA {ba_idx} gen {this_gen_idx} opers {this_oper_list}')
-                this_asyms=gen.getValue('asym_id_list',this_gen_idx).split(',')
+                this_asyms = gen.getValue('asym_id_list', this_gen_idx).split(',')
                 logger.debug(f'asym ids: {this_asyms}')
-                idx=0
+                idx = 0
                 # logger.debug(f'Expecting {len(this_opers)} transforms')
-                for k,opere in enumerate(this_oper_list):
-                    oper_idx=oper.selectIndices(opere,'id')[0]
+                for k, opere in enumerate(this_oper_list):
+                    oper_idx = oper.selectIndices(opere, 'id')[0]
                     logger.debug(f'making transform from oper {oper_idx}')
-                    m=np.identity(3)
-                    v=np.zeros(3)
+                    m = np.identity(3)
+                    v = np.zeros(3)
                     for i in range(3):
-                        I=i+1
-                        vlabel=f'vector[{I}]'
-                        v[i]=float(oper.getValue(vlabel,oper_idx))
+                        I = i + 1
+                        vlabel = f'vector[{I}]'
+                        v[i] = float(oper.getValue(vlabel, oper_idx))
                         for j in range(3):
-                            J=j+1
-                            mlabel=f'matrix[{I}][{J}]'
-                            m[i][j]=float(oper.getValue(mlabel,oper_idx))
-                    T=Transform.from_matvec(m,v,this_asyms,idx)
+                            J = j + 1
+                            mlabel = f'matrix[{I}][{J}]'
+                            m[i][j] = float(oper.getValue(mlabel, oper_idx))
+                    T = Transform.from_matvec(m, v, this_asyms, idx)
                     transforms.append(T)
-                    idx+=1
+                    idx += 1
         logger.debug(f'parsed {len(transforms)} transforms for ba {ba_idx}')
-        BA=BioAssemb(transforms)
+        BA = BioAssemb(transforms)
         B.append(BA)
-        logger.debug(f'There '+'is' if len(B)==1 else 'are'+f' {len(B)} biological assembl'+'y' if len(B)==1 else 'ies')
-        super().__init__(B)
+        logger.debug(f'There {plu(len(B), "is", "are")} {len(B)} biological assembl{plu(len(B), "y", "ies")}')
+        return cls(B)
