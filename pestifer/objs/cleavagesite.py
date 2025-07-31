@@ -11,7 +11,7 @@ from pydantic import Field
 from typing import ClassVar
 
 from ..core.baseobj_new import BaseObj, BaseObjList
-from ..core.stringthings import split_ri, join_ri
+from .resid import ResID
 
 class CleavageSite(BaseObj):
     """
@@ -19,13 +19,11 @@ class CleavageSite(BaseObj):
     ObjManager so the yaml_header and objcat attributes are irrelevant.  It is instead handled
     as a run task.
     """
-    _required_fields = {'chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2'}
+    _required_fields = {'chainID', 'resid1', 'resid2'}
 
     chainID:    str = Field(..., description="Chain ID of the segment to be cleaved")
-    resseqnum1: int = Field(..., description="N-terminal residue number of the cleavage site")
-    insertion1: str = Field(..., description="Insertion code of the N-terminal residue")
-    resseqnum2: int = Field(..., description="C-terminal residue number of the cleavage site")
-    insertion2: str = Field(..., description="Insertion code of the C-terminal residue")
+    resid1: ResID = Field(..., description="N-terminal residue information of the cleavage site")
+    resid2: ResID = Field(..., description="C-terminal residue information of the cleavage site")
 
     _yaml_header: ClassVar[str] = 'cleavages'
     _objcat: ClassVar[str] = 'seq'
@@ -39,18 +37,16 @@ class CleavageSite(BaseObj):
     @staticmethod
     def _from_shortcode(raw: str) -> dict:
         chainID, res_range = raw.split(":")
-        resseqnum1, insertion1 = split_ri(res_range.split("-")[0])
-        resseqnum2, insertion2 = split_ri(res_range.split("-")[1])
+        resid1 = ResID(res_range.split("-")[0])
+        resid2 = ResID(res_range.split("-")[1])
         return dict(
             chainID=chainID,
-            resseqnum1=resseqnum1,
-            insertion1=insertion1,
-            resseqnum2=resseqnum2,
-            insertion2=insertion2
+            resid1=resid1,
+            resid2=resid2
         )
 
     def shortcode(self) -> str:
-        return f"{self.chainID}:{join_ri(self.resseqnum1, self.insertion1)}-{join_ri(self.resseqnum2, self.insertion2)}"
+        return f"{self.chainID}:{self.resid1.resid}-{self.resid2.resid}"
 
 class CleavageSiteList(BaseObjList[CleavageSite]):
     def describe(self):

@@ -7,8 +7,7 @@ engineered mutations, and other differences.  These records are residue-specific
 from pydantic import Field
 from typing import ClassVar, Any
 import logging
-logger=logging.getLogger(__name__)
-from functools import singledispatchmethod
+logger = logging.getLogger(__name__)
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from mmcif.api.PdbxContainers import DataContainer
 
@@ -61,14 +60,14 @@ class Seqadv(BaseObj):
     chainID: str = Field(..., description="Chain ID of the segment where the sequence difference occurs")
     resseqnum: int = Field(..., description="Residue sequence number where the difference occurs")
     insertion: str = Field(..., description="Insertion code for the residue")
-    database: str = Field(None, description="Database name where the sequence difference is recorded")
-    dbAccession: str = Field(None, description="Accession number of the sequence in the database")
-    dbRes: str = Field(None, description="Residue name in the database")
-    dbSeq: int = Field(None, description="Sequence number in the database")
-    typekey: str = Field('_other_', description="Type of sequence difference (e.g., 'conflict', 'cloning', 'expression', 'engineered', 'variant', 'insertion', 'deletion', 'microheterogeneity', 'chromophore', 'user', '_other_')")
-    pdbx_ordinal: int = Field(0, description="Ordinal number of the sequence difference in mmCIF files")
-    pdbx_auth_seq_num: int = Field(0, description="Author-assigned sequence number in mmCIF files")
-    residue: Any = Field(None, description="Corresponding Residue object, if available")
+    database: str | None = Field(None, description="Database name where the sequence difference is recorded")
+    dbAccession: str | None = Field(None, description="Accession number of the sequence in the database")
+    dbRes: str | None = Field(None, description="Residue name in the database")
+    dbSeq: int | None = Field(None, description="Sequence number in the database")
+    typekey: str | None = Field(None, description="Type of sequence difference (e.g., 'conflict', 'cloning', 'expression', 'engineered', 'variant', 'insertion', 'deletion', 'microheterogeneity', 'chromophore', 'user', '_other_')")
+    pdbx_ordinal: int | None = Field(None, description="Ordinal number of the sequence difference in mmCIF files")
+    pdbx_auth_seq_num: int | None = Field(None, description="Author-assigned sequence number in mmCIF files")
+    residue: Any | None = Field(None, description="Corresponding Residue object, if available")
 
     _yaml_header: ClassVar[str] = 'seqadvs'
     """
@@ -94,145 +93,75 @@ class Seqadv(BaseObj):
     This name is used to identify Seqadv objects in mmCIF files.
     """
 
-    def describe(self):
+    @staticmethod
+    def _adapt(*args) -> dict:
         """
-        Describe the Seqadv object.
+        Adapts the input to a dictionary format suitable for Seqadv instantiation.
+        This method is used to convert various input types into a dictionary of parameters.
+        
+        Parameters
+        ----------
+        *args : Any
+            The input to adapt, which can be a shortcode string or an Adapter instance.
         
         Returns
         -------
-        str
-            A string description of the Seqadv object, including idCode, resname, chainID, resseqnum, insertion, and typekey.
+        dict
+            A dictionary of parameters for Seqadv instantiation.
         """
-        return f"Seqadv(idCode={self.idCode}, resname={self.resname}, chainID={self.chainID}, resseqnum={self.resseqnum}, insertion={self.insertion}, typekey={self.typekey})"
+        if isinstance(args[0], PDBRecord):
+            input_dict = Seqadv._from_pdbrecord(args[0])
+            return input_dict
+        elif isinstance(args[0], CIFdict):
+            input_dict = Seqadv._from_cifdict(args[0])
+            return input_dict
+        raise TypeError(f"Cannot convert {type(args[0])} to Seqadv")
+
+
+    @staticmethod
+    def _from_pdbrecord(raw: PDBRecord) -> dict:
+        """
+        Converts a PDBRecord object to a dictionary of parameters for Seqadv.
+        """
+        return dict(
+            chainID = raw.chainID,
+            origresname = raw.origresname,
+            resseqnum = raw.resseqnum,
+            insertion = raw.insertion,
+            newresname = raw.newresname,
+            typekey = raw.typekey,
+            pdbx_auth_seq_num = raw.pdbx_auth_seq_num
+        )
     
-    class Adapter:
-        def __init__(self, idCode: str, resname: str, chainID: str, resseqnum: int, insertion: str, database: str = None, dbAccession: str = None, dbRes: str = None, dbSeq: int = None, typekey: str = None, pdbx_ordinal: int = 0, pdbx_auth_seq_num: int = 0, residue: Any = None):
-            self.idCode = idCode
-            self.resname = resname
-            self.chainID = chainID
-            self.resseqnum = resseqnum
-            self.insertion = insertion
-            self.database = database
-            self.dbAccession = dbAccession
-            self.dbRes = dbRes
-            self.dbSeq = dbSeq
-            self.typekey = typekey
-            self.pdbx_ordinal = pdbx_ordinal
-            self.pdbx_auth_seq_num = pdbx_auth_seq_num
-            self.residue = residue
-
-        @classmethod
-        def from_pdbrecord(cls, PDBRecord):
-            con=PDBRecord.conflict.lower() if hasattr(PDBRecord,'conflict') else None
-            if type(PDBRecord.dbSeq)==str: # assume it's blank
-                dbSeq=-1
-            else:
-                dbSeq=PDBRecord.dbSeq
-            return cls(
-                idCode=PDBRecord.idCode,
-                resname=PDBRecord.residue.resName,
-                chainID=PDBRecord.residue.chainID,
-                resseqnum=PDBRecord.residue.seqNum,
-                insertion=PDBRecord.residue.iCode,
-                database=PDBRecord.database,
-                dbAccession=PDBRecord.dbAccession,
-                dbRes=PDBRecord.dbRes,
-                dbSeq=dbSeq,
-                typekey=con
-            )
-
-        @classmethod
-        def from_cifdict(cls, cd: CIFdict):
-            con=cd['details'].lower() if 'details' in cd else None
-            input_dict = {
-                'idCode': cd['pdbx_pdb_id_code'],
-                'resname': cd['mon_id'],
-                'chainID': cd['pdbx_pdb_strand_id'],
-                'resseqnum': int(cd['seq_num']),
-                'insertion': cd['pdbx_pdb_ins_code'],
-                'database': cd['pdbx_seq_db_name'],
-                'dbAccession': cd['pdbx_seq_db_accession_code'],
-                'dbRes': cd['db_mon_id'],
-                'dbSeq': int(cd['pdbx_seq_db_seq_num']) if cd['pdbx_seq_db_seq_num'].isdigit() else -1,
-                'typekey': con,
-                'pdbx_auth_seq_num': int(cd['pdbx_auth_seq_num']),
-                'pdbx_ordinal': cd.get('pdbx_ordinal', None),
-            }
-            return cls(**input_dict)
-
-    @BaseObj.from_input.register(Adapter)
-    @classmethod
-    def _from_adapter(cls, adapter: Adapter):
+    @staticmethod
+    def _from_cifdict(cd: CIFdict) -> dict:
         """
-        Create a Seqadv object from an Adapter instance, registered by BaseObj.from_input.
+        Converts a CIFdict object to a dictionary of parameters for Seqadv.
         
         Parameters
         ----------
-        adapter : Adapter
-            The Adapter instance containing the attributes of the Seqadv object.
-
-        Returns
-        -------
-        Seqadv
-            A new Seqadv instance created from the Adapter.
-        """
-        return cls(**(adapter.__dict__))
-    
-    @singledispatchmethod
-    @classmethod
-    def new(cls, raw: Any) -> "Seqadv":
-        """
-        Create a new Seqadv instance from a shortcode string or other input.
-        
-        Parameters
-        ----------
-        raw : str or Adapter
-            The shortcode string in the format idCode:resname:chainID:resseqnum-insertion,typekey or an Adapter instance.
-        
-        Returns
-        -------
-        Seqadv
-            A new instance of Seqadv.
-        """
-        pass
-
-    @new.register(PDBRecord)
-    @classmethod
-    def _from_pdbrecord(cls, pdb_record: PDBRecord) -> "Seqadv":
-        """
-        Create a new Seqadv instance from a PDBRecord.
-        
-        Parameters
-        ----------
-        pdb_record : PDBRecord
-            The PDBRecord instance containing the attributes of the Seqadv object.
-        
-        Returns
-        -------
-        Seqadv
-            A new Seqadv instance created from the PDBRecord.
-        """
-        adapter = cls.Adapter.from_pdbrecord(pdb_record)
-        return cls._from_adapter(adapter)
-    
-    @new.register(CIFdict)
-    @classmethod
-    def _from_cifdict(cls, cif_dict: CIFdict) -> "Seqadv":
-        """
-        Create a new Seqadv instance from a CIFdict.
-        
-        Parameters
-        ----------
-        cif_dict : CIFdict
+        cd : CIFdict
             The CIFdict instance containing the attributes of the Seqadv object.
         
         Returns
         -------
-        Seqadv
-            A new Seqadv instance created from the CIFdict.
+        dict
+            A dictionary of parameters for Seqadv instantiation.
         """
-        adapter = cls.Adapter.from_cifdict(cif_dict)
-        return cls._from_adapter(adapter)
+        return {
+            'idCode': cd['pdbx_pdb_id_code'],
+            'resname': cd['mon_id'],
+            'chainID': cd['pdbx_pdb_strand_id'],
+            'resseqnum': int(cd['seq_num']),
+            'insertion': cd['pdbx_pdb_ins_code'],
+            'database': cd.get('pdbx_seq_db_name', None),
+            'dbAccession': cd.get('pdbx_seq_db_accession_code', None),
+            'dbRes': cd.get('db_mon_id', None),
+            'dbSeq': int(cd.get('pdbx_seq_db_seq_num', -1)),
+            'typekey': cd.get('details', None),
+            'pdbx_ordinal': cd.get('pdbx_ordinal', None),
+            'pdbx_auth_seq_num': int(cd['pdbx_auth_seq_num'])
+        }
 
     def seqadv_details_keyword(self,text):
         """
@@ -248,8 +177,8 @@ class Seqadv(BaseObj):
         str
             The typekey corresponding to the text, or ``_other_`` if no keyword is found.
         """
-        text=text.lower()
-        keyword_list=self.__class__.attr_choices['typekey']
+        text = text.lower()
+        keyword_list = self.__class__.attr_choices['typekey']
         for keyword in keyword_list:
             if keyword in text:
                 return keyword
@@ -279,25 +208,25 @@ class Seqadv(BaseObj):
             A list of Residue objects to search for the corresponding residue.
         """
         # logger.debug(f'Searching {len(Residues)} Residues for auth_chain {self.pdbx_pdb_strand_id} auth_seq {self.pdbx_auth_seq_num}')
-        assert self.residue==None
-        if self.typekey!='deletion':
-            if hasattr(self,'pdbx_auth_seq_num'):
+        assert self.residue == None
+        if self.typekey != 'deletion':
+            if hasattr(self, 'pdbx_auth_seq_num'):
                 # this was initialized from a mmCIF record
                 # these records are weird in that the 'strand' id
                 # is the author-assigned chain id but the sequence
                 # number is the mmCIF-assigned sequence number
-                self.assign_obj_to_attr('residue',Residues,
+                self.assign_obj_to_attr('residue', Residues,
                                 auth_asym_id='chainID',
                                 auth_seq_id='pdbx_auth_seq_num',
                                 insertion='insertion')
-                if self.residue==[]:
-                    self.residue=None
-                if self.residue!=None:
-                    self.chainID=self.residue.chainID
-            else: # normal PDB record
-                self.assign_obj_to_attr('residue',Residues,chainID='chainID',resseqnum='resseqnum',insertion='insertion')
-                if self.residue==[]: # failed to find 
-                    self.residue=None
+                if self.residue == []:
+                    self.residue = None
+                if self.residue != None:
+                    self.chainID = self.residue.chainID
+            else:  # normal PDB record
+                self.assign_obj_to_attr('residue', Residues, chainID='chainID', resseqnum='resseqnum', insertion='insertion')
+                if self.residue == []:  # failed to find
+                    self.residue = None
 
     def update_from_residue(self):
         """
@@ -305,8 +234,8 @@ class Seqadv(BaseObj):
         This method sets the chainID attribute of the seqadv to the chainID of its residue
         attribute, if the residue is not None. If the residue is None, it does nothing.
         """
-        assert self.residue!=None
-        self.chainID=self.residue.chainID
+        assert self.residue != None
+        self.chainID = self.residue.chainID
         # else:
         #     logger.debug(f'...seqadv {self.typekey} auth {self.pdbx_pdb_strand_id}:{self.pdbx_auth_seq_num} cannot be resolved from current set of residues')
         # we'll assume that if this residue is not found, then this seqadv is never used anyway
@@ -326,7 +255,7 @@ class SeqadvList(BaseObjList[Seqadv]):
         """
         if Seqadv._PDB_keyword not in parsed:
             return cls([])
-        return cls([Seqadv.new(x) for x in parsed[Seqadv._PDB_keyword]])
+        return cls([Seqadv(x) for x in parsed[Seqadv._PDB_keyword]])
 
     @classmethod
     def from_cif(cls, parsed: DataContainer) -> "SeqadvList":
@@ -343,9 +272,9 @@ class SeqadvList(BaseObjList[Seqadv]):
         SeqadvList
             A new SeqadvList instance containing Seqadv objects created from the mmCIF data.
         """
-        obj=parsed.getObj(Seqadv._CIF_CategoryName)
+        obj = parsed.getObj(Seqadv._CIF_CategoryName)
         if obj is not None:
-            return cls([Seqadv.new(CIFdict(obj, i)) for i in range(len(obj))])
+            return cls([Seqadv(CIFdict(obj, i)) for i in range(len(obj))])
         return cls([])
     
     def assign_residues(self, Residues):
@@ -364,11 +293,11 @@ class SeqadvList(BaseObjList[Seqadv]):
         SeqadvList
             A new SeqadvList containing the Seqadv objects that could not be assigned a residue.
 
-        """        
-        delete_us=[]
+        """
+        delete_us = []
         for s in self:
             s.assign_residue(Residues)
-        delete_us=self.__class__([s for s in self if s.residue==None])
+        delete_us = self.__class__([s for s in self if s.residue == None])
         for s in delete_us:
             self.remove(s)
         return delete_us

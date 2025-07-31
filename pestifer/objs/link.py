@@ -8,31 +8,29 @@ from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 
 from .patch import Patch, PatchList
 from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.scripters import PsfgenScripter, Filewriter
 from ..util.cifutil import CIFdict
 from ..util.coord import ic_reference_closest
-from ..core.scripters import PsfgenScripter, Filewriter
-from ..core.stringthings import split_ri, join_ri
 from typing import ClassVar
 from pydantic import Field
 from mmcif.api.PdbxContainers import DataContainer
-
+from .resid import ResID
 class Link(BaseObj):
     """
     A class for handling covalent bonds between residues where at least one residue is non-protein
     """
-    _required_fields = {'chainID1', 'resseqnum1', 'insertion1', 'name1',
-                        'chainID2', 'resseqnum2', 'insertion2', 'name2'}
+    _required_fields = {'chainID1', 'ptnr1', 'name1',
+                        'chainID2', 'ptnr2', 'name2'}
 
     _optional_fields = {'altloc1', 'altloc2', 'resname1', 'resname2', 'sym1', 'sym2', 'link_distance', 'segname1', 'segname2', 'residue1', 'residue2', 'atom1', 'atom2', 'empty', 'segtype1', 'segtype2', 'ptnr1_label_asym_id', 'ptnr2_label_asym_id', 'ptnr1_label_seq_id', 'ptnr2_label_seq_id', 'ptnr1_label_comp_id', 'ptnr2_label_comp_id', 'ptnr1_auth_asym_id', 'ptnr2_auth_asym_id', 'ptnr1_auth_seq_id', 'ptnr2_auth_seq_id', 'ptnr1_auth_comp_id', 'ptnr2_auth_comp_id','patchname','patchhead'}
 
     _attr_choices = {'patchhead': {1, 2}}
 
     chainID1: str = Field(..., description="Chain ID of the first residue in the link")
-    resseqnum1: int = Field(..., description="Residue sequence number of the first residue in the link")
-    insertion1: str = Field(..., description="Insertion code of the first residue in the link")
+    ptnr1: ResID = Field(..., description="Residue ID of the first residue in the link")
     name1: str = Field(..., description="Name of the first atom in the link")
     chainID2: str = Field(..., description="Chain ID of the second residue in the link")
-    resseqnum2: int = Field(..., description="Residue sequence number of the second residue in the link")
+    ptnr2: ResID = Field(..., description="Residue ID of the second residue in the link")
     insertion2: str = Field(..., description="Insertion code of the second residue in the link")
     name2: str = Field(..., description="Name of the second atom in the link")
     """
@@ -40,11 +38,10 @@ class Link(BaseObj):
     These attributes must be provided when creating a Link object.
 
     - ``chainID1``: The chain ID of the first residue in the link.
-    - ``resseqnum1``: The residue number of the first residue in the link.
-    - ``insertion1``: The insertion code of the first residue in the link.
+    - ``ptnr1``: The residue ID of the first residue in the link.
     - ``name1``: The name of the first atom in the link.
     - ``chainID2``: The chain ID of the second residue in the link.
-    - ``resseqnum2``: The residue number of the second residue in the link.
+    - ``ptnr2``: The residue ID of the second residue in the link.
     - ``insertion2``: The insertion code of the second residue in the link.
     - ``name2``: The name of the second atom in the link.
     """
@@ -186,13 +183,11 @@ class Link(BaseObj):
             'name1': pdbrecord.name1,
             'resname1':pdbrecord.residue1.resName,
             'chainID1':pdbrecord.residue1.chainID,
-            'resseqnum1':pdbrecord.residue1.seqNum,
-            'insertion1':pdbrecord.residue1.iCode,
+            'ptnr1':ResID(pdbrecord.residue1.seqNum,pdbrecord.residue1.iCode),
             'name2': pdbrecord.name2,
             'resname2':pdbrecord.residue2.resName,
             'chainID2':pdbrecord.residue2.chainID,
-            'resseqnum2':pdbrecord.residue2.seqNum,
-            'insertion2':pdbrecord.residue2.iCode,
+            'ptnr2':ResID(pdbrecord.residue2.seqNum,pdbrecord.residue2.iCode),
             'altloc2':pdbrecord.altLoc2,
             'altloc1':pdbrecord.altLoc1,
             'sym1':pdbrecord.sym1,
@@ -205,18 +200,23 @@ class Link(BaseObj):
 
     @staticmethod
     def _from_cifdict(cd: CIFdict) -> dict:
+        resseqnum1 = int(cd['ptnr1_label_seq_id']) if cd['ptnr1_label_seq_id'] != '.' else int(cd['ptnr1_auth_seq_id'])
+        resseqnum2 = int(cd['ptnr2_label_seq_id']) if cd['ptnr2_label_seq_id'] != '.' else int(cd['ptnr2_auth_seq_id'])
+        insertion1 = cd['pdbx_ptnr1_pdb_ins_code'] if cd['pdbx_ptnr1_pdb_ins_code'] != '.' else ''
+        insertion2 = cd['pdbx_ptnr2_pdb_ins_code'] if cd['pdbx_ptnr2_pdb_ins_code'] != '.' else ''
+        ptnr1 = ResID(resseqnum1, insertion1)
+        ptnr2 = ResID(resseqnum2, insertion2)
         return {
                 'name1': cd['ptnr1_label_atom_id'],
                 'altloc1': cd['pdbx_ptnr1_label_alt_id'],
                 'resname1': cd['ptnr1_label_comp_id'],
                 'chainID1': cd['ptnr1_label_asym_id'],
-                'resseqnum1': int(cd['ptnr1_label_seq_id']) if cd['ptnr1_label_seq_id'] != '.' else int(cd['ptnr1_auth_seq_id']),
-                'insertion1': cd['pdbx_ptnr1_pdb_ins_code'],
+                'ptnr1': ptnr1,
                 'name2': cd['ptnr2_label_atom_id'],
                 'altloc2': cd['pdbx_ptnr2_label_alt_id'],
                 'resname2': cd['ptnr2_label_comp_id'],
                 'chainID2': cd['ptnr2_label_asym_id'],
-                'resseqnum2': int(cd['ptnr2_label_seq_id']) if cd['ptnr2_label_seq_id'] != '.' else int(cd['ptnr2_auth_seq_id']),
+                'ptnr2': ptnr2,
                 'insertion2': cd['pdbx_ptnr2_pdb_ins_code'],
                 'sym1': cd.get('ptnr1_symmetry', ''),
                 'sym2': cd.get('ptnr2_symmetry', ''),
@@ -230,15 +230,13 @@ class Link(BaseObj):
     def _from_patchlist(L: PatchList) -> dict:
         s1, ri1 = L[1].split(':')
         s2, ri2 = L[2].split(':')
-        r1, i1 = split_ri(ri1)
-        r2, i2 = split_ri(ri2)
+        ptnr1 = ResID(ri1)
+        ptnr2 = ResID(ri2)
         idict = {
             'chainID1': s1,
-                'resseqnum1': r1,
-                'insertion1': i1,
+                'ptnr1': ptnr1,
                 'chainID2': s2,
-                'resseqnum2': r2,
-                'insertion2': i2,
+                'ptnr2': ptnr2,
                 'patchname': L[0],
                 'patchhead': 1,  # default order
                 'name1': Link._patch_atomnames[L[0]][0],
@@ -253,25 +251,23 @@ class Link(BaseObj):
         Create a Link.Adapter instance from a string representation of a link.
         The string should be in the format 'C1_R1_A1-C2_R2_A2', where:
         - C1 is the chain ID of the first residue
-        - R1 is the residue number and insertion code of the first residue
+        - R1 is the residue ID of the first residue
         - A1 is the atom name of the first residue that is part of the link
         - C2 is the chain ID of the second residue
-        - R2 is the residue number and insertion code of the second residue
+        - R2 is the residue ID of the second residue
         - A2 is the atom name of the second residue that is linked to A1 of R1 of C1
         """
         I, J = raw.split('-')
         s1, ri1, a1 = I.split('_')
-        r1, i1 = split_ri(ri1)
+        ptnr1 = ResID(ri1)
         s2, ri2, a2 = J.split('_')
-        r2, i2 = split_ri(ri2)
+        ptnr2 = ResID(ri2)
         input_dict = {
             'chainID1': s1,
-            'resseqnum1': r1,
-            'insertion1': i1,
+            'ptnr1': ptnr1,
             'name1': a1,
             'chainID2': s2,
-            'resseqnum2': r2,
-            'insertion2': i2,
+            'ptnr2': ptnr2,
             'name2': a2,
             'empty': False
         }
@@ -281,7 +277,7 @@ class Link(BaseObj):
         """
         Returns a string representation of the link in the format 'C1_R1_A1-C2_R2_A2'.
         """
-        return f"{self.chainID1}_{join_ri(self.resseqnum1, self.insertion1)}_{self.name1}-{self.chainID2}_{join_ri(self.resseqnum2, self.insertion2)}_{self.name2}"
+        return f"{self.chainID1}_{self.ptnr1.resid}_{self.name1}-{self.chainID2}_{self.ptnr2.resid}_{self.name2}"
 
     def set_patchname(self,force=False):
         """
@@ -439,28 +435,26 @@ class Link(BaseObj):
         seg1=chainIDmap.get(seg1,seg1)
         seg2=self.residue2.chainID
         seg2=chainIDmap.get(seg2,seg2)
-        rsn1=self.residue1.resseqnum
-        rsn2=self.residue2.resseqnum
-        ins1=self.residue1.insertion
-        ins2=self.residue2.insertion
-        logger.debug(f'Link: {self.residue1.chainID}->{seg1}:{rsn1}{ins1} {self.residue2.chainID}->{seg2}:{rsn2}{ins2}')
+        ptnr1=self.residue1.get_resid()
+        ptnr2=self.residue2.get_resid()
+        logger.debug(f'Link: {self.residue1.chainID}->{seg1}:{ptnr1} {self.residue2.chainID}->{seg2}:{ptnr2}')
         if not self.patchname=='UNFOUND':
             write_post_regenerate=self.patchname in Patch.after_regenerate_patches
             if self.patchhead==1:
                 if write_post_regenerate:
-                    W.addpostregenerateline(f'patch {self.patchname} {seg1}:{rsn1}{ins1} {seg2}:{rsn2}{ins2}')
+                    W.addpostregenerateline(f'patch {self.patchname} {seg1}:{ptnr1} {seg2}:{ptnr2}')
                 else:
-                    W.addline(f'patch {self.patchname} {seg1}:{rsn1}{ins1} {seg2}:{rsn2}{ins2}')
+                    W.addline(f'patch {self.patchname} {seg1}:{ptnr1} {seg2}:{ptnr2}')
             elif self.patchhead==2:
                 if write_post_regenerate:
-                    W.addpostregenerateline(f'patch {self.patchname} {seg2}:{rsn2}{ins2} {seg1}:{rsn1}{ins1}')
+                    W.addpostregenerateline(f'patch {self.patchname} {seg2}:{ptnr2} {seg1}:{ptnr1}')
                 else:   
-                    W.addline(f'patch {self.patchname} {seg2}:{rsn2}{ins2} {seg1}:{rsn1}{ins1}')
+                    W.addline(f'patch {self.patchname} {seg2}:{ptnr2} {seg1}:{ptnr1}')
         else:
             logger.warning(f'Could not identify patch for link: {str(self)}')
             W.comment(f'No patch found for {str(self)}')
-    
-    def update_residue(self,idx,**fields):
+
+    def update_residue(self, idx, **fields):
         """
         Updates the chainID of the residue in the link based on the index provided
         
@@ -487,8 +481,11 @@ class Link(BaseObj):
                     self.residue2.set(chainID=new_chainID)
 
     def __str__(self):
+        # if this a nascent link object that hasn't been processed by assigning residue objects to it,
+        # just regurgitate the chainID and residue ID information that was used to create it.
         if not hasattr(self,'residue1') or not self.residue1 or not hasattr(self,'residue2') or not self.residue2:
-            return f'{self.chainID1}_{self.resname1}{self.resseqnum1}{self.insertion1}-{self.chainID2}_{self.resname2}{self.resseqnum2}{self.insertion2}'
+            return f'{self.chainID1}_{self.resname1}{self.ptnr1.resid}-{self.chainID2}_{self.resname2}{self.ptnr2.resid}'
+        # otherwise, access the string representation of the residues
         return f'{str(self.residue1)}-{str(self.residue2)}'
 
 class LinkList(BaseObjList[Link]):
@@ -594,7 +591,28 @@ class LinkList(BaseObjList[Link]):
             for r in rlist:
                 Residues.remove(r)
         return Residues.__class__(rlist),self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
-    
+
+    def remove_links_to(self, r) -> 'LinkList':
+        """
+        Remove all links to a specific residue.
+
+        Parameters
+        ----------
+        Residue: Residue
+            The residue to remove links to.
+
+        Returns
+        -------
+        LinkList
+            A new LinkList containing the removed links.
+        """
+        removed_links = self.__class__([])
+        for link in self:
+            if link.residue1 == r or link.residue2 == r:
+                removed_links.append(link)
+        self.remove(removed_links)
+        return removed_links
+
     def write_TcL(self,W:PsfgenScripter,transform):
         """
         Write the Tcl commands to add all links in this list to a psfgen script

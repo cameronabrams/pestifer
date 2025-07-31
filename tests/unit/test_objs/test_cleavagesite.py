@@ -3,23 +3,20 @@
 
 import unittest
 from pestifer.objs.cleavagesite import CleavageSite, CleavageSiteList
+from pestifer.objs.resid import ResID
 
 class TestCleavageSite(unittest.TestCase):
     
     def test_cleavage_site_creation(self):
         cleavage_site = CleavageSite(
             chainID="A",
-            resseqnum1=10,
-            insertion1="",
-            resseqnum2=20,
-            insertion2=""
+            resid1=ResID(10),
+            resid2=ResID(20)
         )
         self.assertIsInstance(cleavage_site, CleavageSite)
         self.assertEqual(cleavage_site.chainID, "A")
-        self.assertEqual(cleavage_site.resseqnum1, 10)
-        self.assertEqual(cleavage_site.insertion1, "")
-        self.assertEqual(cleavage_site.resseqnum2, 20)
-        self.assertEqual(cleavage_site.insertion2, "")
+        self.assertEqual(cleavage_site.resid1.resid, 10)
+        self.assertEqual(cleavage_site.resid2.resid, 20)
         self.assertEqual(cleavage_site._yaml_header, 'cleavages')
         self.assertEqual(cleavage_site._objcat, 'seq')
 
@@ -27,23 +24,19 @@ class TestCleavageSite(unittest.TestCase):
         cleavage_site = CleavageSite("A:10-20")
         self.assertIsInstance(cleavage_site, CleavageSite)
         self.assertEqual(cleavage_site.chainID, "A")
-        self.assertEqual(cleavage_site.resseqnum1, 10)
-        self.assertEqual(cleavage_site.insertion1, "")
-        self.assertEqual(cleavage_site.resseqnum2, 20)
-        self.assertEqual(cleavage_site.insertion2, "")
+        self.assertEqual(cleavage_site.resid1.resid, 10)
+        self.assertEqual(cleavage_site.resid2.resid, 20)
 
     def test_cleavage_site_to_shortcode(self):
         cleavage_site = CleavageSite(
             chainID="A",
-            resseqnum1=10,
-            insertion1="",
-            resseqnum2=20,
-            insertion2="J"
+            resid1=ResID(10),
+            resid2=ResID('20J')
         )
         shortcode = cleavage_site.shortcode()
         self.assertEqual(shortcode, "A:10-20J")
 
-        self.assertEqual(repr(cleavage_site), "CleavageSite(chainID='A', resseqnum1=10, insertion1='', resseqnum2=20, insertion2='J')")
+        self.assertEqual(repr(cleavage_site), "CleavageSite(chainID='A', resid1=ResID(resseqnum=10), resid2=ResID(resseqnum=20, insertion='J'))")
 
     def test_cleavage_site_list_creation(self):
         cleavage_list = CleavageSiteList()

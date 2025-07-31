@@ -11,49 +11,41 @@ specified by the user into TcL commands to be incorporated in a psfgen script.
 import logging
 logger=logging.getLogger(__name__)
 
-from functools import singledispatch
 from pydantic import Field
 from typing import ClassVar
 from ..core.baseobj_new import BaseObj, BaseObjList
 from ..core.scripters import VMDScripter, PsfgenScripter
-from ..core.stringthings import split_ri, join_ri
+from .resid import ResID
 
 class Crot(BaseObj):
     """
     A class for managing so-called "C-rotations" in a molecular structure.
     """
     _required_fields = {'angle'}
-    _optional_fields = {'chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2', 
-                        'resseqnum3', 'insertion3', 'segname',
+    _optional_fields = {'chainID', 'resid1', 'resid2', 'resid3', 'segname',
                         'atom1', 'atom2',
-                        'segname1', 'segname2', 'segnamei', 'resseqnumi', 'insertioni', 'atomi',
-                        'segnamejk', 'resseqnumj', 'insertionj', 'atomj', 'resseqnumk',
-                        'insertionk', 'atomk', 'degrees'}
+                        'segname1', 'segname2', 'segnamei', 'residi', 'atomi',
+                        'segnamejk', 'residj', 'atomj', 'residk', 'atomk', 'degrees'}
     """
     Optional attributes for a Crot object.
     These attributes are used to specify additional parameters for the C-rotation:
     
     - ``chainID``: The chain ID of the segment to which the rotation applies.
-    - ``resseqnum1``: The residue sequence number of the first residue involved in the rotation.
-    - ``insertion1``: The insertion code of the first residue involved in the rotation.
-    - ``resseqnum2``: The residue sequence number of the second residue involved in the rotation.
-    - ``insertion2``: The insertion code of the second residue involved in the rotation.
-    - ``resseqnum3``: The residue sequence number of the third residue involved in the rotation (optional, used for ALPHA rotations).
+    - ``resid1``: The residue resid of the first residue involved in the rotation.
+    - ``resid2``: The residue resid of the second residue involved in the rotation.
+    - ``resid3``: The residue resid of the third residue involved in the rotation (optional, used for ALPHA rotations).
     - ``segname``: The segment name of the segment to which the rotation applies.
     - ``atom1``: The name of the first atom involved in the rotation.
     - ``atom2``: The name of the second atom involved in the rotation.
     - ``segname1``: The segment name of the first atom involved in the rotation.
     - ``segname2``: The segment name of the second atom involved in the rotation.
     - ``segnamei``: The segment name of the first atom in the ANGLEIJK rotation.
-    - ``resseqnumi``: The residue sequence number of the first atom in the ANGLEIJK rotation.
-    - ``insertioni``: The insertion code of the first atom in the ANGLEIJK rotation.
+    - ``residi``: The residue resid of the first atom in the ANGLEIJK rotation.
     - ``atomi``: The name of the first atom in the ANGLEIJK rotation.
     - ``segnamejk``: The segment name of the second atom in the ANGLEIJK rotation.
-    - ``resseqnumj``: The residue sequence number of the second atom in the ANGLEIJK rotation.
-    - ``insertionj``: The insertion code of the second atom in the ANGLEIJK rotation.
+    - ``residj``: The residue resid of the second atom in the ANGLEIJK rotation.
     - ``atomj``: The name of the second atom in the ANGLEIJK rotation.
-    - ``resseqnumk``: The residue sequence number of the third atom in the ANGLEIJK rotation.
-    - ``insertionk``: The insertion code of the third atom in the ANGLEIJK rotation.
+    - ``residk``: The residue resid of the third atom in the ANGLEIJK rotation.
     - ``atomk``: The name of the third atom in the ANGLEIJK rotation.
     - ``degrees``: The angle in degrees by which the atoms will be rotated.
     """
@@ -64,49 +56,43 @@ class Crot(BaseObj):
     The keys are the possible values of the ``angle`` attribute, and the values are lists
     of required optional attributes for that angle type.
     The dependencies are as follows:
-    
-    - ``PHI``: Requires ``chainID``, ``resseqnum1``, and ``resseqnum2``.
-    - ``PSI``: Requires ``chainID``, ``resseqnum1``, and ``resseqnum2``.
-    - ``OMEGA``: Requires ``chainID``, ``resseqnum1``, and ``resseqnum2``.
-    - ``CHI1``: Requires ``chainID`` and ``resseqnum1``.
-    - ``CHI2``: Requires ``chainID`` and ``resseqnum1``.
-    - ``ANGLEIJK``: Requires ``segnamei``, ``resseqnumi``, ``atomi``, ``segnamejk``, ``resseqnumj``, ``atomj``, ``resseqnumk``, and ``atomk``.
-    - ``ALPHA``: Requires ``chainID``, ``resseqnum1``, ``resseqnum2``, and ``resseqnum3``.
+
+    - ``PHI``: Requires ``chainID``, ``resid1``, and ``resid2``.
+    - ``PSI``: Requires ``chainID``, ``resid1``, and ``resid2``.
+    - ``OMEGA``: Requires ``chainID``, ``resid1``, and ``resid2``.
+    - ``CHI1``: Requires ``chainID`` and ``resid1``.
+    - ``CHI2``: Requires ``chainID`` and ``resid1``.
+    - ``ANGLEIJK``: Requires ``segnamei``, ``residi``, ``atomi``, ``segnamejk``, ``residj``, ``atomj``, ``residk``, and ``atomk``.
+    - ``ALPHA``: Requires ``chainID``, ``resid1``, ``resid2``, and ``resid3``.
     """
     _attr_dependencies = {'angle': {
-                            'PHI':      {'chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2'},
-                            'PSI':      {'chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2'},
-                            'OMEGA':    {'chainID', 'resseqnum1', 'insertion1', 'resseqnum2', 'insertion2'},
-                            'CHI1':     {'chainID', 'resseqnum1', 'insertion1'},
-                            'CHI2':     {'chainID', 'resseqnum1', 'insertion1'},
-                            'ANGLEIJK': {'segnamei', 'resseqnumi', 'atomi',
-                                         'segnamejk', 'resseqnumj', 'atomj', 'resseqnumk', 'atomk'},
-                            'ALPHA':    {'chainID', 'resseqnum1', 'resseqnum2', 'resseqnum3'}}
+                            'PHI':      {'chainID', 'resid1', 'resid2', 'degrees'},
+                            'PSI':      {'chainID', 'resid1', 'resid2', 'degrees'},
+                            'OMEGA':    {'chainID', 'resid1', 'resid2', 'degrees'},
+                            'CHI1':     {'chainID', 'resid1', 'degrees'},
+                            'CHI2':     {'chainID', 'resid1', 'degrees'},
+                            'ANGLEIJK': {'segnamei', 'residi', 'atomi',
+                                         'segnamejk', 'residj', 'atomj', 'residk', 'atomk', 'degrees'},
+                            'ALPHA':    {'chainID', 'resid1', 'resid2', 'resid3'}}
                         }
     
     angle: str = Field(..., description="Type of angle to be rotated (e.g., PHI, PSI, OMEGA, CHI1, CHI2, ANGLEIJK, ALPHA)")
     chainID: str | None = Field(None, description="Chain ID of the segment to which the rotation applies")
-    resseqnum1: int | None = Field(None, description="Residue sequence number of the first residue involved in the rotation")
-    insertion1: str | None = Field(None, description="Insertion code of the first residue involved in the rotation")
-    resseqnum2: int | None = Field(None, description="Residue sequence number of the second residue involved in the rotation")
-    insertion2: str | None = Field(None, description="Insertion code of the second residue involved in the rotation")
-    resseqnum3: int | None = Field(None, description="Residue sequence number of the third residue involved in the rotation")
-    insertion3: str | None = Field(None, description="Insertion code of the third residue involved in the rotation")
+    resid1: ResID | None = Field(None, description="Residue information of the first residue involved in the rotation")
+    resid2: ResID | None = Field(None, description="Residue information of the second residue involved in the rotation")
+    resid3: ResID | None = Field(None, description="Residue information of the third residue involved in the rotation")
     segname: str | None = Field(None, description="Segment name of the segment to which the rotation applies")
     atom1: str | None = Field(None, description="Name of the first atom involved in the rotation")
     atom2: str | None = Field(None, description="Name of the second atom involved in the rotation")
     segname1: str | None = Field(None, description="Segment name of the first atom involved in the rotation")
     segname2: str | None = Field(None, description="Segment name of the second atom involved in the rotation")
     segnamei: str | None = Field(None, description="Segment name of the first atom involved in the rotation")
-    resseqnumi: int | None = Field(None, description="Residue sequence number of the first atom in the ANGLEIJK rotation")
-    insertioni: str | None = Field(None, description="Insertion code of the first atom in the ANGLEIJK rotation")
+    residi: ResID | None = Field(None, description="Residue information of the first atom in the ANGLEIJK rotation")
     atomi: str | None = Field(None, description="Name of the first atom in the ANGLEIJK rotation")
     segnamejk: str | None = Field(None, description="Segment name of the second atom in the ANGLEIJK rotation")
-    resseqnumj: int | None = Field(None, description="Residue sequence number of the second atom in the ANGLEIJK rotation")
-    insertionj: str | None = Field(None, description="Insertion code of the second atom in the ANGLEIJK rotation")
+    residj: ResID | None = Field(None, description="Residue information of the second atom in the ANGLEIJK rotation")
     atomj: str | None = Field(None, description="Name of the second atom in the ANGLEIJK rotation")
-    resseqnumk: int | None = Field(None, description="Residue sequence number of the third atom in the ANGLEIJK rotation")
-    insertionk: str | None = Field(None, description="Insertion code of the third atom in the ANGLEIJK rotation")
+    residk: ResID | None = Field(None, description="Residue information of the third atom in the ANGLEIJK rotation")
     atomk: str | None = Field(None, description="Name of the third atom in the ANGLEIJK rotation")
     degrees: float | None = Field(None, description="Angle in degrees by which the atoms will be rotated")
 
@@ -139,65 +125,62 @@ class Crot(BaseObj):
         Converts the shortcode format for Crot to a dict.
 
         The shortcode format is:
-        - For PHI, PSI, OMEGA: angle,chainID,resseqnum1,insertion1,resseqnum2,insertion2,degrees
-        - For CHI1, CHI2: angle,chainID,resseqnum1,insertion1,degrees
-        - For ANGLEIJK: angle,segnamei,resseqnumi,insertioni,atomi,segnamejk,resseqnumj,insertionj,atomj,resseqnumk,insertionk,atomk,degrees
-        - For ALPHA: angle,chainID,resseqnum1,insertion1,resseqnum2,insertion2,[resseqnum3,insertion3]
+        - For PHI, PSI, OMEGA: angle,chainID,resid1,resid2,degrees
+        - For CHI1, CHI2: angle,chainID,resid1,degrees
+        - For ANGLEIJK: angle,segnamei,resid1,atomi,segnamejk,resid2,atomj,resid3,atomk,degrees
+        - For ALPHA: angle,chainID,resid1,resid2,[resid3]
         """
         data = raw.split(',')
         angle = data[0].upper()
         match angle:
             case 'PHI' | 'PSI' | 'OMEGA':
                 chainID = data[1]
-                resseqnum1, insertion1 = split_ri(data[2])
-                resseqnum2, insertion2 = split_ri(data[3])
+                resid1 = ResID(data[2])
+                resid2 = ResID(data[3])
                 degrees = float(data[4])
-                return dict(angle=angle, chainID=chainID, resseqnum1=resseqnum1, insertion1=insertion1, resseqnum2=resseqnum2, insertion2=insertion2, degrees=degrees)
+                return dict(angle=angle, chainID=chainID, resid1=resid1, resid2=resid2, degrees=degrees)
             case 'CHI1' | 'CHI2' :
                 chainID = data[1]
-                resseqnum1, insertion1 = split_ri(data[2])
+                resid1 = ResID(data[2])
                 degrees = float(data[3])
-                return dict(angle=angle, chainID=chainID, resseqnum1=resseqnum1, insertion1=insertion1, degrees=degrees)
+                return dict(angle=angle, chainID=chainID, resid1=resid1, degrees=degrees)
             case 'ANGLEIJK':
                 segnamei = data[1]
-                resseqnumi, insertioni = split_ri(data[2])
+                residi = ResID(data[2])
                 atomi = data[3]
                 segnamejk = data[4]
-                resseqnumj, insertionj = split_ri(data[5])
+                residj = ResID(data[5])
                 atomj = data[6]
-                resseqnumk, insertionk = split_ri(data[7])
+                residk = ResID(data[7])
                 atomk = data[8]
                 degrees = float(data[9])
-                return dict(angle=angle, segnamei=segnamei, resseqnumi=resseqnumi, insertioni=insertioni, atomi=atomi,
-                            segnamejk=segnamejk, resseqnumj=resseqnumj, insertionj=insertionj, atomj=atomj,
-                            resseqnumk=resseqnumk, insertionk=insertionk, atomk=atomk, degrees=degrees)
+                return dict(angle=angle, segnamei=segnamei, residi=residi, atomi=atomi,
+                            segnamejk=segnamejk, residj=residj, atomj=atomj,
+                            residk=residk, atomk=atomk, degrees=degrees)
             case 'ALPHA':
                 chainID = data[1]
-                resseqnum1, insertion1 = split_ri(data[2])
-                resseqnum2, insertion2 = split_ri(data[3])
+                resid1 = ResID(data[2])
+                resid2 = ResID(data[3])
                 if len(data) < 5:
-                    resseqnum3 = resseqnum2
-                    insertion3 = insertion2
+                    resid3 = resid2
                 else:
-                    resseqnum3, insertion3 = split_ri(data[4])
-                return dict(angle=angle, chainID=chainID, resseqnum1=resseqnum1, insertion1=insertion1,
-                            resseqnum2=resseqnum2, insertion2=insertion2, resseqnum3=resseqnum3,
-                            insertion3=insertion3)
+                    resid3 = ResID(data[4])
+                return dict(angle=angle, chainID=chainID, resid1=resid1, resid2=resid2, resid3=resid3)
             case _:
                 raise ValueError(f"Unknown angle type: {angle}")
 
     def shortcode(self) -> str:
         match self.angle:
             case 'PHI' | 'phi' | 'PSI' | 'psi' | 'OMEGA' | 'omega':
-                return f'{self.angle.upper()},{self.chainID},{join_ri(self.resseqnum1,self.insertion1)},{join_ri(self.resseqnum2,self.insertion2)},{self.degrees:.4f}'
+                return f'{self.angle.upper()},{self.chainID},{self.resid1.resid},{self.resid2.resid},{self.degrees:.4f}'
             case 'CHI1' | 'chi1' | 'CHI2' | 'chi2':
-                return f'{self.angle.upper()},{self.chainID},{join_ri(self.resseqnum1,self.insertion1)},{self.degrees:.4f}'
+                return f'{self.angle.upper()},{self.chainID},{self.resid1.resid},{self.degrees:.4f}'
             case 'ANGLEIJK' | 'angleijk':
-                return f'{self.angle},{self.segnamei},{join_ri(self.resseqnumi,self.insertioni)},{self.atomi},{self.segnamejk},{join_ri(self.resseqnumj,self.insertionj)},{self.atomj},{join_ri(self.resseqnumk,self.insertionk)},{self.atomk},{self.degrees:.4f}'
+                return f'{self.angle},{self.segnamei},{self.resid1.resid},{self.atomi},{self.segnamejk},{self.residj.resid},{self.atomj},{self.residk.resid},{self.atomk},{self.degrees:.4f}'
             case 'ALPHA' | 'alpha':
-                return f'{self.angle},{self.chainID},{join_ri(self.resseqnum1,self.insertion1)},{join_ri(self.resseqnum2,self.insertion2)},{join_ri(self.resseqnum3,self.insertion3)}'
+                return f'{self.angle},{self.chainID},{self.resid1.resid},{self.resid2.resid},{self.resid3.resid}'
 
-    def write_TcL(self,W:VMDScripter,chainIDmap={},**kwargs):
+    def write_TcL(self, W:VMDScripter, chainIDmap={}, **kwargs):
         """
         Write the Tcl commands to perform the C-rotation in a VMD script.
         
@@ -210,38 +193,38 @@ class Crot(BaseObj):
         **kwargs : dict, optional
             Additional keyword arguments that may be used in the future.
         """
-        the_chainID=chainIDmap.get(self.chainID,self.chainID)
-        molid_varname=W.molid_varname
-        molid=f'${molid_varname}'
+        the_chainID = chainIDmap.get(self.chainID, self.chainID)
+        molid_varname = W.molid_varname
+        molid = f'${molid_varname}'
         # endIsCterm=kwargs.get('endIsCterm',True)
-        if self.angle in ['PHI','PSI','OMEGA']:
-            W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum1))
-            W.addline('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum2))
-            if self.resseqnum1<=self.resseqnum2:
-                direction='C'
+        if self.angle in ['PHI', 'PSI', 'OMEGA']:
+            W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid, the_chainID, self.resid1.resid))
+            W.addline('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid, the_chainID, self.resid2.resid))
+            if self.resid1 <= self.resid2:
+                direction = 'C'
             else:
-                direction='N'
+                direction = 'N'
             W.addline(f'brot {molid} $r1 $r2 {self.angle.lower()} {direction} {self.degrees}')
             # if endIsCterm:
             #     W.addline('Crot_{}_toCterm $r1 $r2 {} {} {}'.format(self.angle.lower(),the_chainID,molid,self.degrees))
             # else:
             #     W.addline('Crot_{} $r1 $r2 {} {} {}'.format(self.angle.lower(),the_chainID,molid,self.degrees))
         elif self.angle in ['CHI1','CHI2']:  # this is a side-chain bond
-            W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum1))
+            W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resid1.resid))
             W.addline(f'brot {molid} $r1 -1 {self.angle[:-1].lower()} {self.angle[-1]} {self.degrees}')
         elif self.angle=='ANGLEIJK':
             W.addline('set rotsel [atomselect {} "segname {}"]'.format(molid,self.segnamejk))
-            W.addline('set ri [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamei,self.resseqnumi,self.atomi))
-            W.addline('set rj [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamejk,self.resseqnumj,self.atomj))
-            W.addline('set rk [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamejk,self.resseqnumk,self.atomk))
+            W.addline('set ri [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamei,self.residi.resid,self.atomi))
+            W.addline('set rj [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamejk,self.residj.resid,self.atomj))
+            W.addline('set rk [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamejk,self.residk.resid,self.atomk))
             W.addline('set rij [vecsub $ri $rj]')
             W.addline('set rjk [vecsub $rj $rk]')
             W.addline('set cijk [veccross $rij $rjk]')
             W.addline('$rotsel move [trans center $rj origin $rj axis $cijk {} degrees]'.format(self.degrees))
         elif self.angle=='ALPHA':
-            W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum1))
-            W.addline('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum2))
-            W.addline('set rterm [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resseqnum3))
+            W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resid1.resid))
+            W.addline('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resid2.resid))
+            W.addline('set rterm [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resid3.resid))
             W.addline('fold_alpha $r1 $r2 $rterm {}'.format(molid))
 
 class CrotList(BaseObjList[Crot]):

@@ -1,31 +1,22 @@
 import unittest
 from pestifer.objs.graft import Graft, GraftList
+from pestifer.objs.resid import ResID
 
 class TestGraft(unittest.TestCase):
     def test_graft_creation(self):
         graft = Graft(
-            orig_chainID="A",
-            orig_resseqnum1=520,
-            orig_insertion1="",
+            target_chainID="A",
+            target_root=ResID(20),
             source_pdbid="4ijk",
             source_chainID="A",
-            source_resseqnum1=1,
-            source_insertion1="",
+            source_root=ResID(1),
         )
         self.assertIsInstance(graft, Graft)
-        self.assertEqual(graft.orig_chainID, "A")
-        self.assertEqual(graft.orig_resseqnum1, 520)
-        self.assertEqual(graft.orig_insertion1, "")
-        self.assertEqual(graft.orig_resseqnum2, None)
-        self.assertEqual(graft.orig_insertion2, None)
+        self.assertEqual(graft.target_chainID, "A")
+        self.assertEqual(graft.target_root.resid, 20)
         self.assertEqual(graft.source_pdbid, "4ijk")
         self.assertEqual(graft.source_chainID, "A")
-        self.assertEqual(graft.source_resseqnum1, 1)
-        self.assertEqual(graft.source_insertion1, "")
-        self.assertEqual(graft.source_resseqnum2, None)
-        self.assertEqual(graft.source_insertion2, None)
-        self.assertEqual(graft.source_resseqnum3, None)
-        self.assertEqual(graft.source_insertion3, None)
+        self.assertEqual(graft.source_root.resid, 1)
         self.assertEqual(graft.obj_id, 0)
         self.assertEqual(graft._yaml_header, 'grafts')
         self.assertEqual(graft._objcat, 'seq')
@@ -47,19 +38,12 @@ class TestGraft(unittest.TestCase):
         shortcode = "A_520:4ijk,A_1-10"
         graft = Graft(shortcode)
         self.assertIsInstance(graft, Graft)
-        self.assertEqual(graft.orig_chainID, "A")
-        self.assertEqual(graft.orig_resseqnum1, 520)
-        self.assertEqual(graft.orig_insertion1, "")
-        self.assertEqual(graft.orig_resseqnum2, 520)
-        self.assertEqual(graft.orig_insertion2, "")
+        self.assertEqual(graft.target_chainID, "A")
+        self.assertEqual(graft.target_root.resid, 520)
         self.assertEqual(graft.source_pdbid, "4ijk")
         self.assertEqual(graft.source_chainID, "A")
-        self.assertEqual(graft.source_resseqnum1, 1)
-        self.assertEqual(graft.source_insertion1, "")
-        self.assertEqual(graft.source_resseqnum2, 1)
-        self.assertEqual(graft.source_insertion2, "")
-        self.assertEqual(graft.source_resseqnum3, 10)
-        self.assertEqual(graft.source_insertion3, "")
+        self.assertEqual(graft.source_root.resid, 1)
+        self.assertEqual(graft.source_end.resid, 10)
         self.assertEqual(graft.obj_id, 0)
         # do it again to make sure the counter increments
         graft2 = Graft(shortcode)
@@ -73,13 +57,11 @@ class TestGraftList(unittest.TestCase):
 
     def test_graft_list_addition(self):
         graft = Graft(
-            orig_chainID="A",
-            orig_resseqnum1=520,
-            orig_insertion1="",
+            target_chainID="A",
+            target_root=ResID(520),
             source_pdbid="4ijk",
             source_chainID="A",
-            source_resseqnum1=1,
-            source_insertion1=""
+            source_root=ResID(1)
         )
         graft_list = GraftList()
         graft_list.append(graft)
@@ -87,15 +69,10 @@ class TestGraftList(unittest.TestCase):
         self.assertEqual(graft_list[0], graft)
 
     def test_graft_list_assignment(self):
-        graft = Graft(
-            orig_chainID="A",
-            orig_resseqnum1=520,
-            orig_insertion1="",
-            source_pdbid="4ijk",
-            source_chainID="A",
-            source_resseqnum1=1,
-            source_insertion1=""
-        )
         graft_list = GraftList()
-        graft_list.append(graft)
-        self.assertEqual(graft_list[0].orig_chainID, "A")
+        shortcode = "$_520:4ijk,A_1-10"
+        for c in 'ABCDEFG':
+            graft = Graft(shortcode.replace('$', c))
+            self.assertEqual(graft.target_chainID, c)
+            graft_list.append(graft)
+        self.assertEqual(len(graft_list), 7)

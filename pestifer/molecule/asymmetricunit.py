@@ -209,7 +209,7 @@ class AsymmetricUnit:
         for l in links:
             logger.debug(f'{l}')
         # a deleted link may create a "free" glycan; in this case
-        # we should also delete its residues; problem is that 
+        # we should also delete its residues; 
         ignored_residues.extend(more_ignored_residues)
         ignored_grafts, more_ignored_residues, new_ignored_links = grafts.assign_residues(residues, links)
         ignored_residues.extend(more_ignored_residues)

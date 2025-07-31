@@ -30,6 +30,8 @@ from ..util.coord import positionN
 from .stateinterval import StateInterval, StateIntervalList
 from mmcif.api.PdbxContainers import DataContainer
 
+from ..objs.resid import ResID
+
 class EmptyResidue(BaseObj):
     """
     A class for handling missing residues in a molecular structure.
@@ -38,7 +40,7 @@ class EmptyResidue(BaseObj):
     but are not resolved in the coordinate file.
     """
 
-    _required_fields = {'resname','resseqnum','insertion','chainID','resolved','segtype'}
+    _required_fields = {'resname','resid','chainID','resolved','segtype'}
     """
     Required attributes for EmptyResidue.
     
@@ -46,10 +48,8 @@ class EmptyResidue(BaseObj):
     ----------
     resname : str
         The residue name.
-    resseqnum : int
-        The residue sequence number.
-    insertion : str
-        The insertion code, if applicable.
+    resid : ResID
+        The residue ID.
     chainID : str
         The chain ID.
     resolved : bool
@@ -82,8 +82,7 @@ class EmptyResidue(BaseObj):
     """
     
     resname: str = Field(..., description="The residue name.")
-    resseqnum: int = Field(..., description="The residue sequence number.")
-    insertion: str = Field(..., description="The insertion code, if applicable.")
+    resid: ResID = Field(..., description="The residue ID.")
     chainID: str = Field(..., description="The chain ID.")
     resolved: bool = Field(..., description="Indicates whether the residue is resolved (True) or not (False).")
     segtype: str = Field(..., description="The segment type.")
@@ -115,81 +114,20 @@ class EmptyResidue(BaseObj):
     mmCIF category name for EmptyResidue.
     """
 
-    def describe(self):
-        return f"<EmptyResidue {self.chainID}_{self.resname}{self.resseqnum}{self.insertion} ({'resolved' if self.resolved else 'unresolved'})>"
-    
-    class Adapter:
-        """
-        Adapter class for converting between different representations of EmptyResidue.
-        This class provides methods to create an EmptyResidue from a PDBRecord, CIFdict, or a shortcode.
-        """
-        def __init__(self, resname=None, resseqnum=None, insertion=None, chainID=None, model=1, resolved=False, segtype='UNSET', auth_asym_id=None, auth_comp_id=None, auth_seq_id=None, obj_id=None):
-            self.resname = resname
-            self.resseqnum = resseqnum
-            self.insertion = insertion
-            self.chainID = chainID
-            self.model = model
-            self.resolved = resolved
-            self.segtype = segtype
-            self.auth_asym_id = auth_asym_id
-            self.auth_comp_id = auth_comp_id
-            self.auth_seq_id = auth_seq_id
-            self.obj_id = obj_id
+    def shortcode(self):
+        return f"{self.model}:{self.chainID}:{self.resname}{self.resid.resid}"
 
-        def to_dict(self):
-            return {k:v for k,v in self.__dict__.items() if v is not None}
-
-        def to_input_str(self):
-            return f"{self.model}:{self.chainID}:{self.resname}{self.resseqnum}{self.insertion}"
-        
-        @classmethod
-        def from_pdbrecord(cls, pdbrecord: Union[PDBRecord, BaseRecord]) -> "EmptyResidue.Adapter":
-            if pdbrecord.modelNum is None:
-                pdbrecord.modelNum = 1
-            elif type(pdbrecord.modelNum) == str and pdbrecord.modelNum.isdigit():
-                pdbrecord.modelNum = int(pdbrecord.modelNum)
-            elif type(pdbrecord.modelNum) == str and len(pdbrecord.modelNum) == 0:
-                pdbrecord.modelNum = 1
-            input_dict={
-                'model':pdbrecord.modelNum,
-                'resname':pdbrecord.resName,
-                'chainID':pdbrecord.chainID,
-                'resseqnum':pdbrecord.seqNum,
-                'insertion':pdbrecord.iCode,
-                'resolved':False,
-                'segtype':'UNSET'
-            }
-            return cls(**input_dict)
-
-        @classmethod
-        def from_cifdict(cls, cd: CIFdict) -> "EmptyResidue.Adapter":
-            mn=cd['pdb_model_num']
-            if type(mn)==str and mn.isdigit:
-                nmn=int(mn)
-            else:
-                nmn=1
-            input_dict={
-                'model':nmn,
-                'resname':cd['label_comp_id'],
-                'chainID':cd['label_asym_id'],
-                'resseqnum':int(cd['label_seq_id']),
-                'insertion':cd['pdb_ins_code'],
-                'resolved':False,
-                'segtype':'UNSET',
-                'auth_asym_id':cd['auth_asym_id'],
-                'auth_comp_id':cd['auth_comp_id'],
-                'auth_seq_id':int(cd['auth_seq_id']),
-            }
-            return cls(**input_dict)
-
-        @classmethod
-        def from_shortcode(cls, shortcode: str) -> "EmptyResidue.Adapter":
+    @staticmethod
+    def _adapt(*args) -> dict:
+        input_dict={}
+        if isinstance(args[0], str):
             # i:C:RRR###A
             # i model number, optional, default 1
             # C chain ID, optional, default 'A'
             # RRR one or three-letter residue code
             # ### integer residue sequence number
             # A insertion code, optional, default ''
+            shortcode=args[0]
             tokens=shortcode.split(':')
             has_modelnum=len(tokens)>2
             model_idx=-1
@@ -227,53 +165,43 @@ class EmptyResidue(BaseObj):
                 'resolved':False,
                 'segtype':'UNSET',
             }
-            return cls(**input_dict)
-    
-    @BaseObj.from_input.register(Adapter)
-    @classmethod
-    def _from_adapter(cls, adapter: Adapter):
-        """
-        Create an EmptyResidue from an Adapter instance.
-        
-        Parameters
-        ----------
-        adapter : Adapter
-            An instance of the Adapter class containing residue information.
-        
-        Returns
-        -------
-        EmptyResidue
-            An instance of EmptyResidue initialized with the data from the adapter.
-        """
-        input_dict = adapter.to_dict()
-        return cls(**input_dict)
-
-    @singledispatchmethod
-    @classmethod
-    def new(cls, input_obj: Any):
-        raise TypeError(f"Cannot create EmptyResidue from {type(input_obj)}. Use EmptyResidue.Adapter.from_pdbrecord or EmptyResidue.Adapter.from_cifdict instead.")
-    
-    @new.register(BaseRecord|PDBRecord)
-    @classmethod
-    def _from_pdbrecord(cls, pdbrecord: Union[BaseRecord, PDBRecord]) -> "EmptyResidue":
-        logger.debug(f'Creating EmptyResidue from PDBRecord: {pdbrecord}')
-        adapter = cls.Adapter.from_pdbrecord(pdbrecord)
-        return cls._from_adapter(adapter)
-
-    @new.register(CIFdict)
-    @classmethod
-    def _from_cifdict(cls, cd: CIFdict) -> "EmptyResidue":
-        adapter = cls.Adapter.from_cifdict(cd)
-        return cls._from_adapter(adapter)
-    
-    @new.register(str)
-    @classmethod
-    def _from_shortcode(cls, shortcode: str) -> "EmptyResidue":
-        adapter = cls.Adapter.from_shortcode(shortcode)
-        return cls._from_adapter(adapter)
+        elif isinstance(args[0], PDBRecord | BaseRecord):
+            if args[0].modelNum is None:
+                args[0].modelNum = 1
+            elif type(args[0].modelNum) == str and args[0].modelNum.isdigit():
+                args[0].modelNum = int(args[0].modelNum)
+            elif type(args[0].modelNum) == str and len(args[0].modelNum) == 0:
+                args[0].modelNum = 1
+            input_dict={
+                'model':args[0].modelNum,
+                'resname':args[0].resName,
+                'chainID':args[0].chainID,
+                'resid':ResID(args[0].resSeqNum, args[0].insertionCode),
+                'resolved':False,
+                'segtype':'UNSET'
+            }
+        elif isinstance(args[0], CIFdict):
+            cd=args[0]
+            mn=cd['pdb_model_num']
+            if type(mn)==str and mn.isdigit:
+                nmn=int(mn)
+            else:
+                nmn=1
+            input_dict={
+                'model':nmn,
+                'resname':cd['label_comp_id'],
+                'chainID':cd['label_asym_id'],
+                'resid':ResID(int(cd['label_seq_id']), cd['pdb_ins_code']),
+                'resolved':False,
+                'segtype':'UNSET',
+                'auth_asym_id':cd['auth_asym_id'],
+                'auth_comp_id':cd['auth_comp_id'],
+                'auth_seq_id':int(cd['auth_seq_id']),
+            }
+        return input_dict
 
     def __str__(self):
-        return f'{self.chainID}_{self.resname}{self.resseqnum}{self.insertion}*'
+        return f'{self.chainID}_{self.resname}{self.resid.resid}*'
 
     def pdb_line(self):
         """
@@ -317,7 +245,7 @@ class EmptyResidueList(BaseObjList[EmptyResidue]):
         """
         if EmptyResidue._PDB_keyword not in parsed:
             return cls([])
-        return cls([EmptyResidue.new(p) for p in parsed[EmptyResidue._PDB_keyword].tables[EmptyResidue._PDB_table_of_keyword]])
+        return cls([EmptyResidue(p) for p in parsed[EmptyResidue._PDB_keyword].tables[EmptyResidue._PDB_table_of_keyword]])
     
     @classmethod
     def from_cif(cls, cif_data: DataContainer) -> "EmptyResidueList":
@@ -337,7 +265,7 @@ class EmptyResidueList(BaseObjList[EmptyResidue]):
         obj = cif_data.getObj(EmptyResidue._CIF_CategoryName)
         if obj is None:
             return cls([])
-        return cls([EmptyResidue.new(CIFdict(obj, i)) for i in range(len(obj))])
+        return cls([EmptyResidue(CIFdict(obj, i)) for i in range(len(obj))])
 
 class Residue(EmptyResidue):
     """
@@ -407,101 +335,51 @@ class Residue(EmptyResidue):
         """
         return f'<Residue {self.chainID}_{self.resname}{self.resseqnum}{self.insertion} ({len(self.atoms)} atoms)>'
 
-    class Adapter(EmptyResidue.Adapter):
+    @staticmethod
+    def _adapt(*args) -> dict:
         """
-        Adapter class for converting between different representations of Residue.
-        This class provides methods to create a Residue from a PDBRecord, CIFdict, or a shortcode.
-        It extends the :class:`EmptyResidue.Adapter` class to include additional attributes specific to Residue.
-        """
-        def __init__(self, resname=None, resseqnum=None, insertion=None, chainID=None, model=1, resolved=False, segtype='UNSET', auth_asym_id=None, auth_comp_id=None, auth_seq_id=None, obj_id=None, atoms: AtomList=None):
-            super().__init__(resname=resname, resseqnum=resseqnum, insertion=insertion, chainID=chainID, model=model, resolved=resolved, segtype=segtype, auth_asym_id=auth_asym_id, auth_comp_id=auth_comp_id, auth_seq_id=auth_seq_id, obj_id=obj_id)
-            self.atoms = atoms
-
-        @classmethod
-        def from_atom(cls, a: Union[Atom, Hetatm]) -> "Residue.Adapter":
-            """
-            Create a Residue.Adapter from an Atom or Hetatm object.
-            
-            Parameters
-            ----------
-            a : :class:`~pestifer.molecule.atom.Atom` or :class:`~pestifer.molecule.atom.Hetatm`
-                The atom or hetatm object to create the residue adapter from.
-            
-            Returns
-            -------
-            Residue.Adapter
-                An instance of Residue.Adapter initialized with the atom's attributes.
-            """
-            return cls(resname=a.resname, resseqnum=a.resseqnum, insertion=a.insertion, chainID=a.chainID,
-                       resolved=True, segtype='UNSET', atoms = AtomList([a]),
-                       auth_asym_id=getattr(a, 'auth_asym_id', None),
-                       auth_comp_id=getattr(a, 'auth_comp_id', None),
-                       auth_seq_id=getattr(a, 'auth_seq_id', None))
-        
-
-        @classmethod
-        def from_emptyresidue(cls, m: "EmptyResidue") -> "Residue.Adapter":
-            """
-            Create a Residue.Adapter from an EmptyResidue object.
-            
-            Parameters
-            ----------
-            m : :class:`~pestifer.molecule.residue.EmptyResidue`
-                The empty residue object to create the residue adapter from.
-            
-            Returns
-            -------
-            Residue.Adapter
-                An instance of Residue.Adapter initialized with the empty residue's attributes.
-            """
-            return cls(resname=m.resname, resseqnum=m.resseqnum, insertion=m.insertion, chainID=m.chainID,
-                       model=m.model, segtype=m.segtype, resolved=False, atoms=AtomList([]),
-                       auth_asym_id=getattr(m, 'auth_asym_id', None),
-                       auth_comp_id=getattr(m, 'auth_comp_id', None),
-                       auth_seq_id=getattr(m, 'auth_seq_id', None))
-
-    @EmptyResidue.new.register(Atom|Hetatm)
-    @classmethod
-    def _from_atom(cls, a: Union[Atom, Hetatm]) -> "Residue":
-        """
-        Create a Residue from an Atom or Hetatm object.
+        Converts various input types into a dictionary of parameters for Residue.
         
         Parameters
         ----------
-        a : :class:`~pestifer.molecule.atom.Atom` or :class:`~pestifer.molecule.atom.Hetatm`
-            The atom or hetatm object to create the residue from.
+        args : tuple
+            A tuple containing the input data to be converted.
         
         Returns
         -------
-        Residue
-            An instance of Residue initialized with the atom's attributes.
-        """
-        adapter = cls.Adapter.from_atom(a)
-        return cls._from_adapter(adapter)
-
-    @EmptyResidue.new.register(EmptyResidue)
-    @classmethod
-    def _from_emptyresidue(cls, m: "EmptyResidue") -> "Residue":
-        """
-        Create a Residue from an EmptyResidue object.
+        dict
+            A dictionary containing the parameters for Residue.
         
-        Parameters
-        ----------
-        m : :class:`~pestifer.molecule.residue.EmptyResidue`
-            The empty residue object to create the residue from.
-        
-        Returns
-        -------
-        Residue
-            An instance of Residue initialized with the empty residue's attributes.
+        Raises
+        ------
+        TypeError
+            If the input type is not supported.
         """
-        adapter = cls.Adapter.from_emptyresidue(m)
-        return cls._from_adapter(adapter)
-
+        if isinstance(args[0], str):
+            input_dict = EmptyResidue._adapt(args[0])
+            input_dict['atoms'] = AtomList()
+            return input_dict
+        elif isinstance(args[0], PDBRecord | BaseRecord):
+            input_dict = EmptyResidue._adapt(args[0])
+            input_dict['atoms'] = AtomList()
+            return input_dict
+        elif isinstance(args[0], CIFdict):
+            input_dict = EmptyResidue._adapt(args[0])
+            input_dict['atoms'] = AtomList()
+            return input_dict
+        elif isinstance(args[0], Atom | Hetatm):
+            a = args[0]
+            input_dict = dict(resname=a.resname, 
+                                resid=a.resid, chainID=a.chainID,
+                                resolved=True, segtype='UNSET', atoms = AtomList([a]),
+                                auth_asym_id=getattr(a, 'auth_asym_id', None),
+                                auth_comp_id=getattr(a, 'auth_comp_id', None),
+                                auth_seq_id=getattr(a, 'auth_seq_id', None))
+            
     def __str__(self):
         return super().__str__()[0:-1] # strip off the "*"
 
-    def __lt__(self,other):
+    def __lt__(self, other):
         """
         Compare this residue with another residue or a string representation of a residue to determine if this residue is "less than" the other; i.e., N-terminal to.  This is used for sorting residues in a sequence.
         The comparison is based on the residue sequence number and insertion code.
@@ -518,20 +396,9 @@ class Residue(EmptyResidue):
         bool
             True if this residue is less than the other residue, False otherwise.
         """
-        if hasattr(other,'resseqnum') and hasattr(other,'insertion'):
-            o_resseqnum=other.resseqnum
-            o_insertion=other.insertion
-        elif type(other)==str:
-            o_resseqnum,o_insertion=split_ri(other)
-        else:
-            raise Exception(f'I do not know how to make something of type {type(other)} a residue')
-        if self.resseqnum<o_resseqnum:
-            return True
-        elif self.resseqnum==o_resseqnum:
-            return self.insertion<o_insertion
-        return False
+        return self.resid < other.resid if isinstance(other, Residue) else self.resid < ResID(other)
     
-    def __gt__(self,other):
+    def __gt__(self, other):
         """
         Compare this residue with another residue or a string representation of a residue to determine if this residue is "greater than" the other; i.e., C-terminal to.  This is used for sorting residues in a sequence. If the other object is a string, it is split into residue sequence number and insertion code using the :func:`~pestifer.core.stringthings.split_ri` function.
 
@@ -545,18 +412,7 @@ class Residue(EmptyResidue):
         bool
             True if this residue is greater than the other residue, False otherwise.
         """
-        if hasattr(other,'resseqnum') and hasattr(other,'insertion'):
-            o_resseqnum=other.resseqnum
-            o_insertion=other.insertion
-        elif type(other)==str:
-            o_resseqnum,o_insertion=split_ri(other)
-        else:
-            raise Exception(f'I do not know how to make something of type {type(other)} a residue')
-        if self.resseqnum>o_resseqnum:
-            return True
-        elif self.resseqnum==o_resseqnum:
-            return self.insertion>o_insertion
-        return False
+        return self.resid > other.resid if isinstance(other, Residue) else self.resid > ResID(other)
     
     def __le__(self,other):
         """
@@ -611,13 +467,12 @@ class Residue(EmptyResidue):
             False otherwise.
         """
         if type(other)==type(self):
-            o_resseqnum=other.resseqnum
-            o_insertion=other.insertion
+            return self.resid == other.resid
         elif type(other)==str:
-            o_resseqnum,o_insertion=split_ri(other)
-        return self.resseqnum==o_resseqnum and self.insertion==o_insertion
-        
-    def add_atom(self,a:Atom):
+            return self.resid == ResID(other)        
+        return False
+
+    def add_atom(self, a:Atom):
         """
         Add an atom to this residue if it matches the residue's sequence number, residue name,
         chain ID, and insertion code. This method is used to build a residue from its constituent
@@ -629,12 +484,12 @@ class Residue(EmptyResidue):
         a : :class:`~pestifer.molecule.atom.Atom`
             The atom to be added to the residue.
         """
-        if self.resseqnum==a.resseqnum and self.resname==a.resname and self.chainID==a.chainID and self.insertion==a.insertion:
+        if self.resid == a.resid and self.resname==a.resname and self.chainID==a.chainID:
             self.atoms.append(a)
             return True
         return False
 
-    def set_chainID(self,chainID):
+    def set_chainID(self, chainID):
         """
         Set the chain ID for this residue and all its constituent atoms.
         This method updates the chain ID of the residue and all atoms within it to ensure consistency
@@ -647,7 +502,7 @@ class Residue(EmptyResidue):
         """
         self.set(chainID=chainID)
         for a in self.atoms:
-            a.chainID=chainID
+            a.chainID = chainID
 
     def link_to(self,other,link):
         """
@@ -692,8 +547,7 @@ class Residue(EmptyResidue):
         """
         Returns the residue sequence number and insertion code as a string.
         """
-        ins0='' if self.insertion==' ' else self.insertion
-        return f'{self.resseqnum}{ins0}'
+        return self.resid.resid
     
     def get_down_group(self):
         """
@@ -739,7 +593,7 @@ class ResidueList(BaseObjList[Residue]):
                 if r.add_atom(a):
                     break
             else:
-                R.append(Residue.new(a))
+                R.append(Residue(a))
         return cls(R)
     
     @classmethod
@@ -757,7 +611,7 @@ class ResidueList(BaseObjList[Residue]):
         ResidueList
             An instance of ResidueList initialized with the residues created from the empty residues.
         """
-        R = [Residue.new(m) for m in input_list]
+        R = [Residue(m) for m in input_list]
         return cls(R)
 
     # @BaseObjList.__init__.register(EmptyResidueList)
@@ -864,6 +718,26 @@ class ResidueList(BaseObjList[Residue]):
         for res in self:
             for a in res.atoms:
                 rlist.append(as_type(a.resseqnum))
+        return rlist
+    
+    def atom_resids(self, as_type=str):
+        """
+        Get a list of residue IDs for all atoms in the residues.
+        
+        Parameters
+        ----------
+        as_type : type, optional
+            The type to which the residue IDs should be converted. Default is str.
+        
+        Returns
+        -------
+        list
+            A list of residue IDs.
+        """
+        rlist=[]
+        for res in self:
+            for a in res.atoms:
+                rlist.append(as_type(a.resid))
         return rlist
     
     def caco_str(self,upstream_reslist,seglabel,molid_varname,tmat):

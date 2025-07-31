@@ -14,7 +14,7 @@ import pandas as pd
 from collections import UserList
 from io import StringIO
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 import importlib.metadata
 
@@ -100,21 +100,15 @@ class ByteCollector:
         Defaults to 80.
     """
     def __init__(self,comment_char='#',line_length=80):
-        self.line_length=line_length
-        self.comment_char=comment_char
-        self.byte_collector=''
-    
-    # def __len__(self):
-    #     """
-    #     Returns the length of the byte collector string
-    #     """
-    #     return len(self.byte_collector)
+        self.line_length = line_length
+        self.comment_char = comment_char
+        self.byte_collector = ''
 
     def reset(self):
         """
         Resets the string
         """
-        self.byte_collector=''
+        self.byte_collector = ''
 
     def write(self,msg):
         """
@@ -125,9 +119,9 @@ class ByteCollector:
         msg: str
            the message
         """
-        self.byte_collector+=msg
+        self.byte_collector += msg
 
-    def addline(self,msg,end='\n'):
+    def addline(self, msg, end='\n'):
         """Appends msg to the string as a line
 
         Parameters
@@ -138,9 +132,9 @@ class ByteCollector:
         end: str, optional
            the end-of-line byte
         """
-        self.byte_collector+=f'{msg}{end}'
+        self.byte_collector += f'{msg}{end}'
 
-    def lastline(self,end='\n',exclude='#'):
+    def lastline(self, end='\n', exclude='#'):
         """
         Returns last line in the string
 
@@ -151,13 +145,13 @@ class ByteCollector:
         exclude: str, optional
             comment byte
         """
-        lines=[x for x in self.byte_collector.split(end) if (len(x)>0 and not x.startswith(exclude))]
-        if len(lines)>0:
+        lines = [x for x in self.byte_collector.split(end) if (len(x) > 0 and not x.startswith(exclude))]
+        if len(lines) > 0:
             return lines[-1]
         else:
             return None
 
-    def has_statement(self,statement,end='\n',exclude='#'):
+    def has_statement(self, statement, end='\n', exclude='#'):
         """
         Determines if a particular statement is on at least one non-comment line
 
@@ -170,14 +164,14 @@ class ByteCollector:
         exclude: str, optional
             comment byte
         """
-        lines=[x for x in self.byte_collector.split(end) if (len(x)>0 and not x.startswith(exclude))]
-        if len(lines)>0:
+        lines = [x for x in self.byte_collector.split(end) if (len(x) > 0 and not x.startswith(exclude))]
+        if len(lines) > 0:
             for l in lines:
                 if statement in l:
                     return True
         return False
 
-    def reassign(self,varname,varvalue,style='bash',end='\n'):
+    def reassign(self, varname, varvalue, style='bash', end='\n'):
         """
         Reassigns variable varname to value varvalue if an assignment to varname already
         exists in the byte_collector 
@@ -193,39 +187,39 @@ class ByteCollector:
         end: str, optional
             end-of-line byte
         """
-        lines=self.byte_collector.split(end)
+        lines = self.byte_collector.split(end)
         logger.debug(lines)
-        if len(lines)>0:
-            for i,l in enumerate(lines):
+        if len(lines) > 0:
+            for i, l in enumerate(lines):
                 if len(l) > 0:
-                    if style=='bash':
+                    if style == 'bash':
                         if l.startswith('export'):
                             logger.debug(f'{varname} {varvalue} : export assignment {l}')
-                            tokens=l.split()
-                            assignment=tokens[1]
-                            evarname,evarvalue=assignment.split('=')
-                            if evarname==varname:
-                                lines[i]=f'export {varname}={varvalue}'
+                            tokens = l.split()
+                            assignment = tokens[1]
+                            evarname, evarvalue = assignment.split('=')
+                            if evarname == varname:
+                                lines[i] = f'export {varname}={varvalue}'
                         elif l.startswith(varname) and '=' in l:
-                            lines[i]=f'{varname}={varvalue}'
-                    elif style=='SLURM': # will only replace SLURM variables!
+                            lines[i] = f'{varname}={varvalue}'
+                    elif style == 'SLURM':  # will only replace SLURM variables!
                         if l.startswith('#SBATCH'):
-                            tokens=l.split()
+                            tokens = l.split()
                             logger.debug(f'SLURM statement {l}')
                             if tokens[1].startswith('--'):
-                                assignment=tokens[1][2:]
+                                assignment = tokens[1][2:]
                                 if not '=' in assignment:
                                     logger.debug(f'cannot parse SLURM directive {l}')
                                 else:
-                                    svarname,svarvalue=assignment.split('=')
-                                    if svarname==varname:
-                                        lines[i]=f'#SBATCH --{svarname}={varvalue}'
+                                    svarname, svarvalue = assignment.split('=')
+                                    if svarname == varname:
+                                        lines[i] = f'#SBATCH --{svarname}={varvalue}'
                             elif tokens[1].startswith('-'):
-                                svarname=tokens[1][1:]
-                                svarvalue=tokens[2]
-                                if svarname==varname:
-                                    lines[i]=f'#SBATCH -{svarname} {varvalue}'
-        self.byte_collector=end.join(lines)
+                                svarname = tokens[1][1:]
+                                svarvalue = tokens[2]
+                                if svarname == varname:
+                                    lines[i] = f'#SBATCH -{svarname} {varvalue}'
+        self.byte_collector = end.join(lines)
         logger.debug(self.byte_collector)
 
     # def addline(self,msg,end='\n'):
@@ -459,97 +453,7 @@ class FileCollector(UserList):
                         stderr=subprocess.PIPE)
         logger.debug(f'generated tarball {basename}.tgz')
 
-def split_ri(ri):
-    """
-    A simple utility function for splitting the integer resid and
-    1-byte insertion code out of a string resid-insertion code
-    concatenation
-
-    Parameters
-    ----------
-    ri: str
-        the string representation of a residue number, e.g., ``123A`` or ``123``
-
-    Returns
-    -------
-    tuple(int, str): the integer resid and the 1-byte insertion code or '' if none
-    """
-    if ri[-1].isdigit(): # there is no insertion code
-        r=int(ri)
-        i=''
-    else:
-        r=int(ri[:-1])
-        i=ri[-1]
-    return r,i
-
-def join_ri(resseqnum,insertion):
-    """
-    Joins a residue sequence number and an insertion code into a single string.
-
-    Parameters
-    ----------
-    resseqnum: int
-        The residue sequence number, e.g., 123.
-    insertion: str
-        The insertion code, e.g., ``A``. If there is no insertion code, this
-        should be an empty string.
-    """
-    if insertion=='':
-        return resseqnum
-    return f'{resseqnum}{insertion}'
-
-def ri_range(val,split_chars=['-','#']):
-    """
-    Splits a string representation of a range of residue numbers into a list of
-    residue numbers. The string can contain multiple ranges separated by
-    characters in ``split_chars``. The ranges can be specified as a single
-    residue number, a range of residue numbers (e.g., ``123-456``),
-    or a range of residue numbers with insertion codes (e.g., ``123A-456B``).
-
-    Parameters
-    ----------
-    val: str
-        The string representation of the residue number range.
-    split_chars: list of str, optional
-        A list of characters that can be used to split the string into multiple
-        ranges. Defaults to ['-', '#']. 
-    Returns
-    -------
-    list of str: A list of residue numbers in string format, e.g., ['123', '124', '125A', '126B'].
-    """
-    the_split=[val]
-    for c in split_chars:
-        the_splits=[x.split(c) for x in the_split]
-        the_split=[]
-        for s in the_splits:
-            the_split.extend(s)
-    return [split_ri(x) for x in the_split]
-
-# def rescale_packmol_inp_box(fn,scale):
-#     shutil.copy(fn,f'{fn}-bak')
-#     with open(fn,'r') as f:
-#         lines=f.read().split('\n')
-#     for i in range(len(lines)):
-#         l=lines[i]
-#         tokens=[x.strip() for x in l.split()]
-#         if tokens:
-#             if tokens[0]=='inside':
-#                 if tokens[1]=='box':
-#                     llx,lly,llz,urx,ury,urz=list(map(float,tokens[2:]))
-#                     llx*=scale[0]
-#                     urx*=scale[0]
-#                     lly*=scale[1]
-#                     ury*=scale[1]
-#                     llz*=scale[2]
-#                     urz*=scale[2]
-#                     newline=f'  inside box {llx:.2f} {lly:.2f} {llz:.2f} {urx:.2f} {ury:.2f} {urz:.2f}'
-#                     lines[i]=newline
-#     with open('tmp','w') as f:
-#         for l in lines:
-#             f.write(f'{l}\n')
-#     shutil.move('tmp',fn)
-
-def oxford(a_list,conjunction='or'):
+def oxford(a_list, conjunction='or') -> str | None:
     """ 
     Obey the Oxford comma when ending a list with a conjunction
 
@@ -564,26 +468,26 @@ def oxford(a_list,conjunction='or'):
     -------
     str: The Oxford-compliant string representation of the list.
     """
-    if not a_list: return ''
-    if len(a_list)==1:
+    if not a_list: return None
+    if len(a_list) == 1:
         return a_list[0]
-    elif len(a_list)==2:
+    elif len(a_list) == 2:
         return f'{a_list[0]} {conjunction} {a_list[1]}'
     else:
-        return ", ".join(a_list[:-1])+f', {conjunction} {a_list[-1]}'
-    
-def linesplit(line,cchar='!'):
+        return ", ".join(a_list[:-1]) + f', {conjunction} {a_list[-1]}'
+
+def linesplit(line: str, cchar: str = '!') -> tuple[str, str]:
     """
     Splits a line at the first occurrence of the character ``cchar``.
     """
     if not cchar in line:
-        return line,''
-    idx=line.index(cchar)
-    if idx==0:
-        return '',line[1:]
-    return line[:idx],line[idx+1:]
+        return line, ''
+    idx = line.index(cchar)
+    if idx == 0:
+        return '', line[1:]
+    return line[:idx], line[idx+1:]
 
-def striplist(L):
+def striplist(L: list[str]) -> list[str]:
     """
     Strips whitespace from each item in a list and removes empty strings.
 
@@ -595,7 +499,7 @@ def striplist(L):
     -------
     list of str: A new list with whitespace stripped from each item and empty strings removed.
     """
-    l=[x.strip() for x in L]
+    l = [x.strip() for x in L]
     while '' in l:
         l.remove('')
     return l
@@ -624,7 +528,7 @@ def to_latex_math(s):
     converted = [convert_token(part) for part in parts]
     return ', '.join(converted)
 
-def example_footer(author_name='',author_email=''):
+def example_footer(author_name='', author_email='') -> str:
     """
     Returns a formatted footer string with author information.
 
@@ -639,16 +543,16 @@ def example_footer(author_name='',author_email=''):
     -------
     str: A formatted footer string.
     """
-    footer=''
+    footer = ''
     if author_name and author_email:
-        footer=f""".. raw:: html
+        footer = f""".. raw:: html
 
     <div class="autogen-footer">
         <p>Example author: {author_name} &nbsp;&nbsp;&nbsp; Contact: <a href="mailto:{author_email}">{author_email}</a></p>
     </div>"""
     return footer
 
-def raise_clean(ErrorInstance):
+def raise_clean(ErrorInstance: Exception):
     """
     Raises an error with a clean message showing no traceback.
 

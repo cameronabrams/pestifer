@@ -6,10 +6,8 @@ functional groups or modifying the residue's properties.
 """
 import logging
 logger=logging.getLogger(__name__)
-from functools import singledispatchmethod
 from typing import ClassVar, Optional, Any, List
 from pydantic import Field
-from ..core.stringthings import split_ri, join_ri
 from ..core.baseobj_new import BaseObj, BaseObjList
 
 class Patch(BaseObj):

@@ -6,23 +6,22 @@ import logging
 logger=logging.getLogger(__name__)
 
 from ..core.baseobj_new import BaseObj, BaseObjList
-from ..core.stringthings import split_ri, join_ri
-from typing import Optional, ClassVar
+from typing import ClassVar
 from pydantic import Field
+from .resid import ResID
 
 class Insertion(BaseObj):
     """
     A class for handling insertions of amino acid residues within an otherwise
     fully resolved chain.
     """
-    _required_fields = {'chainID', 'resseqnum', 'insertion', 'sequence'}
+    _required_fields = {'chainID', 'resid', 'sequence'}
     _optional_fields = {'integer_increment'}
 
     chainID: str = Field(..., description="Chain ID of the segment where the insertion occurs")
-    resseqnum: int = Field(..., description="Residue sequence number where the insertion is made")
-    insertion: str = Field(..., description="Insertion code for the residue")
+    resid: ResID = Field(..., description="Residue ID where the insertion is made")
     sequence: str = Field(..., description="One-letter amino acid sequence to be inserted")
-    integer_increment: Optional[bool] = Field(False, description="If True, the residue sequence number is incremented by 1 for each insertion; indicated by a '+' at the end of the residue code in the shortcode format.")
+    integer_increment: bool | None = Field(None, description="If True, the residue sequence number is incremented by 1 for each insertion; indicated by a '+' at the end of the residue code in the shortcode format.")
     """
     Required attributes for an Insertion object.
     These attributes must be provided when creating an Insertion object.
@@ -49,94 +48,56 @@ class Insertion(BaseObj):
     This categorization is used to group Insertion objects in the object manager.
     """
 
-    def describe(self):
+    @staticmethod
+    def _adapt(*args) -> dict:
         """
-        Describe the Insertion object.
-        
-        Returns
-        -------
-        str
-            A string description of the Insertion object, including chain ID, residue number, insertion code, and sequence.
+        Adapts the input to a dictionary format suitable for Insertion instantiation.
+        This method is used to convert various input types into a dictionary of parameters.
         """
-        return f"Insertion(chainID={self.chainID}, resseqnum={self.resseqnum}, insertion={self.insertion}, sequence={self.sequence}, integer_increment={self.integer_increment})"
-    
-    class Adapter:
+        if isinstance(args[0], str):
+            input_dict = Insertion._from_shortcode(args[0])
+            return input_dict
+        raise TypeError(f"Cannot convert {type(args[0])} to Insertion")
+
+    @staticmethod
+    def _from_shortcode(raw: str) -> dict:
         """
-        A class to represent the shortcode format for Insertion, so that we can register to BaseObj.from_input rather than defining a local from_input.
-        
-        The shortcode format is C,R,SSS
+        Converts a shortcode string to a dictionary of parameters for Insertion.
+        The shortcode format is: C,R,SSS
         where:
         - C is the chain ID
         - R is the residue number and insertion code
         - SSS is the one-letter amino acid sequence to insert after R
         """
-        def __init__(self, chainID: str, resseqnum: int, insertion: str, sequence: str, integer_increment: bool = False):
-            self.chainID = chainID
-            self.resseqnum = resseqnum
-            self.insertion = insertion
-            self.sequence = sequence
-            self.integer_increment = integer_increment
+        items = raw.split(',')
+        if len(items) != 3:
+            raise ValueError(f"Bad insertion shortcode: {raw}")
+        rescode = items[1]
+        integer_increment = False
+        if rescode[-1] == '+':
+            integer_increment = True
+            rescode = rescode[:-1]
+        r = ResID(rescode)
+        return {
+            'chainID': items[0],
+            'resid': r,
+            'sequence': items[2],
+            'integer_increment': integer_increment
+        }
 
-        @classmethod
-        def from_string(cls, raw: str):
-            items = raw.split(',')
-            if len(items) != 3:
-                raise ValueError(f"Bad insertion shortcode: {raw}")
-            rescode = items[1]
-            integer_increment = False
-            if rescode[-1] == '+':
-                integer_increment = True
-                rescode = rescode[:-1]
-            r, i = split_ri(rescode)
-            return cls(items[0], r, i, items[2], integer_increment)
-
-        def to_string(self) -> str:
-            rescode = join_ri(self.resseqnum, self.insertion)
-            if self.integer_increment:
-                rescode += '+'
-            return f"{self.chainID},{rescode},{self.sequence}"
-        
-    @BaseObj.from_input.register(Adapter)
-    @classmethod
-    def _from_adapter(cls, adapter: Adapter):
+    def shortcode(self) -> str:
         """
-        Create an Insertion object from an adapter.
+        Returns the shortcode representation of the Insertion object.
         
-        Parameters
-        ----------
-        adapter : Adapter
-            An instance of Insertion.Adapter containing the necessary attributes to create an Insertion object.
-        
-        Returns
-        -------
-        Insertion
-            An instance of Insertion created from the adapter.
+        The shortcode format is: C,R,SSS
+        where:
+        - C is the chain ID
+        - R is the residue number and insertion code
+        - SSS is the one-letter amino acid sequence to insert after R
         """
-        return cls(
-            chainID=adapter.chainID,
-            resseqnum=adapter.resseqnum,
-            insertion=adapter.insertion,
-            sequence=adapter.sequence,
-            integer_increment=adapter.integer_increment
-        )
-    
-    @classmethod
-    def new(cls, raw: str) -> "Insertion":
-        """
-        Create a new Insertion instance from a shortcode string.
-        
-        Parameters
-        ----------
-        raw : str
-            The shortcode string in the format C,R,SSS.
-        
-        Returns
-        -------
-        Insertion
-            A new Insertion instance.
-        """
-        adapter = cls.Adapter.from_string(raw)
-        return cls._from_adapter(adapter)
+        if self.integer_increment:
+            rescode += '+'
+        return f"{self.chainID},{self.resid.resid},{self.sequence}"
 
 class InsertionList(BaseObjList[Insertion]):
     def describe(self) -> str:

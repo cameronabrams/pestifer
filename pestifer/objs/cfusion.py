@@ -12,7 +12,7 @@ from typing import ClassVar
 
 from ..core.baseobj_new import BaseObj, BaseObjList
 from ..core.scripters import PsfgenScripter
-from ..core.stringthings import split_ri, join_ri
+from .resid import ResID
 
 class Cfusion(BaseObj):
     """
@@ -20,15 +20,13 @@ class Cfusion(BaseObj):
     coordinate file to the C-termini of base-molecule segments
     """
 
-    _required_fields = {'sourcefile', 'sourceseg', 'resseqnum1', 'resseqnum2', 'chainID'}
+    _required_fields = {'sourcefile', 'sourceseg', 'resid1', 'resid2', 'chainID'}
     _optional_fields = {'insertion1', 'insertion2', 'obj_id'}
 
     sourcefile: str = Field(..., description="Path to the source coordinate file containing the residues to be fused")
     sourceseg: str = Field(..., description="Segment in the source file from which residues are taken")
-    resseqnum1: int = Field(..., description="N-terminal residue number of the fusion sequence")
-    insertion1: str = Field('', description="Insertion code of the N-terminal residue")
-    resseqnum2: int = Field(..., description="C-terminal residue number of the fusion sequence")
-    insertion2: str = Field('', description="Insertion code of the C-terminal residue")
+    resid1: ResID = Field(..., description="Residue information for the N-terminal residue")
+    resid2: ResID = Field(..., description="Residue information for the C-terminal residue")
     chainID: str = Field(..., description="Chain ID of the segment in the base molecule to which the fusion is applied")
     obj_id: int = Field(0, description="Unique identifier for the Cfusion object")
 
@@ -43,7 +41,7 @@ class Cfusion(BaseObj):
         This method is used to convert various input types into a dictionary of parameters.
         """
         if isinstance(args[0], str):
-            input_dict=Cfusion._from_shortcode(args[0])
+            input_dict = Cfusion._from_shortcode(args[0])
             input_dict['obj_id'] = Cfusion._counter
             Cfusion._counter += 1
             return input_dict
@@ -64,19 +62,19 @@ class Cfusion(BaseObj):
         sourcefile, sourceseg, seq_range_chainID = raw.split(":")
         seq_range, chainID = seq_range_chainID.split(",")
         resrange = seq_range.split("-")
-        resseqnum1, insertion1 = split_ri(resrange[0])
-        resseqnum2, insertion2 = split_ri(resrange[1])
-        return dict(
-            sourcefile=sourcefile,
-            sourceseg=sourceseg,
-            resseqnum1=resseqnum1,
-            resseqnum2=resseqnum2,
-            insertion1=insertion1,
-            insertion2=insertion2,
-            chainID=chainID)
+        resid1 = ResID(resrange[0])
+        resid2 = ResID(resrange[1])
+        base_dict = {
+            'sourcefile': sourcefile,
+            'sourceseg': sourceseg,
+            'resid1': resid1,
+            'resid2': resid2,
+            'chainID': chainID
+        }
+        return base_dict
 
     def shortcode(self) -> str:
-        return f"{self.sourcefile}:{self.sourceseg}:{join_ri(self.resseqnum1, self.insertion1)}-{join_ri(self.resseqnum2, self.insertion2)},{self.chainID}"
+        return f"{self.sourcefile}:{self.sourceseg}:{self.resid1.resid}-{self.resid2.resid},{self.chainID}"
 
     def write_pre_segment(self, W: PsfgenScripter):
         """
@@ -94,8 +92,8 @@ class Cfusion(BaseObj):
         W.addline(f'mol new {self.sourcefile}')
         W.addline(f'set cfusid [molinfo top get id]')
         W.addline(f'mol top $topid')
-        W.addline(f'set fusres [atomselect $cfusid "protein and chain {self.sourceseg} and resid {self.resseqnum1}{self.insertion1} to {self.resseqnum2}{self.insertion2}"]')
-        self.segfile=f'Cfusion{self.id}_{self.sourceseg}_{self.resseqnum1}{self.insertion1}_to_{self.resseqnum2}{self.insertion2}.pdb'
+        W.addline(f'set fusres [atomselect $cfusid "protein and chain {self.sourceseg} and resid {self.resid1.resid} to {self.resid2.resid}"]')
+        self.segfile=f'Cfusion{self.id}_{self.sourceseg}_{self.resid1.resid}_to_{self.resid2.resid}.pdb'
         W.addline(f'$fusres writepdb {self.segfile}')
         W.addline(f'delete $cfusid')
 
