@@ -111,6 +111,28 @@ class ResID(BaseObj):
         """
         return self.resseqnum == other.resseqnum and (self.insertion or '') == (other.insertion or '')
 
+    def __add__(self, other: ResID | int) -> ResID:
+        """
+        Adds an integer to the residue sequence number of this ResID object.
+        If the other object is a ResID, it adds the residue sequence numbers.
+        """
+        if isinstance(other, ResID):
+            return ResID(resseqnum=self.resseqnum + other.resseqnum, insertion=None)
+        elif isinstance(other, int):
+            return ResID(resseqnum=self.resseqnum + other)
+
+    def increment(self, by_seqnum: bool = False) -> ResID:
+        """
+        Increments the insertion code of this ResID object by one.
+        If there is no insertion code, it sets it to 'A'.
+        """
+        if by_seqnum:
+            return ResID(resseqnum=self.resseqnum + 1, insertion=None)
+        if self.insertion is None or self.insertion == '':
+            return ResID(resseqnum=self.resseqnum, insertion='A')
+        else:
+            return ResID(resseqnum=self.resseqnum, insertion=chr(ord(self.insertion) + 1))
+
     @staticmethod
     def join_ri(resseqnum: int, insertion: str | None = None) -> str:
         """

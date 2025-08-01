@@ -31,12 +31,11 @@ class TestEmptyResidue(unittest.TestCase):
 
     def test_empty_residue_from_shortcode(self):
         shortcode = "1:A:ALA1:"
-        r = EmptyResidue.new(shortcode)
+        r = EmptyResidue(shortcode)
         self.assertEqual(r.model, 1)
         self.assertEqual(r.chainID, 'A')
         self.assertEqual(r.resname, 'ALA')
-        self.assertEqual(r.resseqnum, 1)
-        self.assertEqual(r.insertion, '')
+        self.assertEqual(r.resid, ResID(1))
         self.assertFalse(r.resolved)
         self.assertEqual(r.segtype, 'UNSET')
         self.assertEqual(r.auth_asym_id, None)
@@ -65,8 +64,7 @@ class TestResidue(unittest.TestCase):
     def test_residue_creation(self):
         r = Residue(
             resname='ALA',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -74,8 +72,7 @@ class TestResidue(unittest.TestCase):
         )
         self.assertIsInstance(r, Residue)
         self.assertEqual(r.resname, 'ALA')
-        self.assertEqual(r.resseqnum, 1)
-        self.assertEqual(r.insertion, '')
+        self.assertEqual(r.resid, ResID(1))
         self.assertEqual(r.chainID, 'A')
         self.assertTrue(r.resolved)
         self.assertEqual(r.segtype, 'UNSET')
@@ -84,8 +81,7 @@ class TestResidue(unittest.TestCase):
     def test_residue_create_and_linking(self):
         r1 = Residue(
             resname='ALA',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -93,8 +89,7 @@ class TestResidue(unittest.TestCase):
         )
         r2 = Residue(
             resname='GLY',
-            resseqnum=2,
-            insertion='',
+            resid=ResID(2),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -107,7 +102,7 @@ class TestResidue(unittest.TestCase):
         self.assertIsInstance(r1.down, ResidueList)
         self.assertIsInstance(r2.up, ResidueList)
 
-        link1 = Link.new('A_1_C-G_2_N')
+        link1 = Link('A_1_C-G_2_N')
         r1.uplink.append(link1)
         r2.downlink.append(link1)
         self.assertEqual(r1.uplink[0], link1)
@@ -118,8 +113,7 @@ class TestResidue(unittest.TestCase):
     def test_residue_create_and_link_to(self):
         r1 = Residue(
             resname='ALA',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -127,14 +121,13 @@ class TestResidue(unittest.TestCase):
         )
         r2 = Residue(
             resname='GLY',
-            resseqnum=2,
-            insertion='',
+            resid=ResID(2),
             chainID='A',
             resolved=True,
             segtype='UNSET',
             atoms=AtomList([])  # Empty list for atoms
         )
-        link1 = Link.new('A_1_C-G_2_N')
+        link1 = Link('A_1_C-G_2_N')
         r1.link_to(r2,link1)
         self.assertIn(r2, r1.down)
         self.assertIn(r1, r2.up)
@@ -149,8 +142,7 @@ class TestResidue(unittest.TestCase):
     def test_residue_pair_relations(self):
         r1 = Residue(
             resname='ALA',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -158,8 +150,7 @@ class TestResidue(unittest.TestCase):
         )
         r2 = Residue(
             resname='GLY',
-            resseqnum=2,
-            insertion='',
+            resid=ResID(2),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -168,8 +159,7 @@ class TestResidue(unittest.TestCase):
         self.assertTrue(r1<r2)
         r3 = Residue(
             resname='GLY',
-            resseqnum=2,
-            insertion='A',
+            resid=ResID('2A'),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -181,8 +171,7 @@ class TestResidue(unittest.TestCase):
     def test_residue_add_atom(self):
         r = Residue(
             resname='ALA',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -194,8 +183,7 @@ class TestResidue(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             x=1.0,
             y=2.0,
             z=3.0,
@@ -213,8 +201,7 @@ class TestResidue(unittest.TestCase):
             altloc=' ',
             resname='GLY',
             chainID='A',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             x=1.5,
             y=2.5,
             z=3.5,
@@ -232,8 +219,7 @@ class TestResidue(unittest.TestCase):
     def test_residue_get_down_group(self):
         r1 = Residue(
             resname='ALA',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -241,14 +227,13 @@ class TestResidue(unittest.TestCase):
         )
         r2 = Residue(
             resname='GLY',
-            resseqnum=2,
-            insertion='',
+            resid=ResID(2),
             chainID='A',
             resolved=True,
             segtype='UNSET',
             atoms=AtomList([])  # Empty list for atoms
         )
-        link1=  Link.new('A_1_C-G_2_N')
+        link1=  Link('A_1_C-G_2_N')
         r1.link_to(r2,link1)
         downstream_residues, downstream_links = r1.get_down_group()
         self.assertIn(r2, downstream_residues)
@@ -265,8 +250,7 @@ class TestResidueList(unittest.TestCase):
     def test_residue_list_add(self):
         r1 = Residue(
             resname='ALA',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -284,8 +268,7 @@ class TestResidueList(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             x=1.0,
             y=2.0,
             z=3.0,
@@ -300,8 +283,7 @@ class TestResidueList(unittest.TestCase):
             altloc=' ',
             resname='GLY',
             chainID='A',
-            resseqnum=2,
-            insertion='',
+            resid=ResID(2),
             x=1.5,
             y=2.5,
             z=3.5,
@@ -320,8 +302,7 @@ class TestResidueList(unittest.TestCase):
     def test_residue_list_get_sublist(self):
         r1 = Residue(
             resname='ALA',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -329,8 +310,7 @@ class TestResidueList(unittest.TestCase):
         )
         r2 = Residue(
             resname='GLY',
-            resseqnum=2,
-            insertion='',
+            resid=ResID(2),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -338,8 +318,7 @@ class TestResidueList(unittest.TestCase):
         )
         r3 = Residue(
             resname='SER',
-            resseqnum=3,
-            insertion='',
+            resid=ResID(3),
             chainID='B',
             resolved=True,
             segtype='UNSET',
@@ -355,8 +334,7 @@ class TestResidueList(unittest.TestCase):
     def test_residue_list_get_by_resname(self):
         r1 = Residue(
             resname='ALA',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -364,8 +342,7 @@ class TestResidueList(unittest.TestCase):
         )
         r2 = Residue(
             resname='GLY',
-            resseqnum=2,
-            insertion='',
+            resid=ResID(2),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -373,8 +350,7 @@ class TestResidueList(unittest.TestCase):
         )
         r3 = Residue(
             resname='ALA',
-            resseqnum=3,
-            insertion='',
+            resid=ResID(3),
             chainID='B',
             resolved=True,
             segtype='UNSET',
@@ -390,8 +366,7 @@ class TestResidueList(unittest.TestCase):
     def test_residue_list_get_by_resseqnum_insertion(self):
         r1 = Residue(
             resname='ALA',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -399,8 +374,7 @@ class TestResidueList(unittest.TestCase):
         )
         r2 = Residue(
             resname='GLY',
-            resseqnum=1,
-            insertion='A',
+            resid=ResID(1, 'A'),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -408,23 +382,21 @@ class TestResidueList(unittest.TestCase):
         )
         r3 = Residue(
             resname='SER',
-            resseqnum=3,
-            insertion='A',
+            resid=ResID(3, 'A'),
             chainID='B',
             resolved=True,
             segtype='UNSET',
             atoms=AtomList([])  # Empty list for atoms
         )
         rl = ResidueList([r1, r2, r3])
-        singleton = rl.get(resseqnum=1, insertion='A')
+        singleton = rl.get(resid=ResID(1, 'A'))
         self.assertIsInstance(singleton, Residue)
         self.assertEqual(singleton, r2)
 
     def test_residue_list_apply_segtypes(self):
         r1 = Residue(
             resname='ALA',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -432,8 +404,7 @@ class TestResidueList(unittest.TestCase):
         )
         r2 = Residue(
             resname='GLY',
-            resseqnum=2,
-            insertion='',
+            resid=ResID(2),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -447,8 +418,7 @@ class TestResidueList(unittest.TestCase):
     def test_residue_list_deletions(self):
         r1 = Residue(
             resname='ALA',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -456,8 +426,7 @@ class TestResidueList(unittest.TestCase):
         )
         r2 = Residue(
             resname='GLY',
-            resseqnum=2,
-            insertion='',
+            resid=ResID(2),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -465,8 +434,7 @@ class TestResidueList(unittest.TestCase):
         )
         r3 = Residue(
             resname='SER',
-            resseqnum=3,
-            insertion='',
+            resid=ResID(3),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -474,8 +442,7 @@ class TestResidueList(unittest.TestCase):
         )
         r4 = Residue(
             resname='THR',
-            resseqnum=4,
-            insertion='',
+            resid=ResID(4),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -484,10 +451,8 @@ class TestResidueList(unittest.TestCase):
         rl = ResidueList([r1, r2, r3, r4])
         deletion1 = Deletion(
             chainID="A",
-            resseqnum1=2,
-            insertion1="",
-            resseqnum2=3,
-            insertion2=""
+            resid1=ResID(2),
+            resid2=ResID(3)
         )
         dlist=DeletionList([deletion1])
         excised=rl.deletion(dlist)
@@ -502,8 +467,7 @@ class TestResidueList(unittest.TestCase):
     def test_residue_list_substitutions(self):
         r1 = Residue(
             resname='ALA',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -511,8 +475,7 @@ class TestResidueList(unittest.TestCase):
         )
         r2 = Residue(
             resname='GLY',
-            resseqnum=2,
-            insertion='',
+            resid=ResID(2, 'A'),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -520,8 +483,7 @@ class TestResidueList(unittest.TestCase):
         )
         r3 = Residue(
             resname='SER',
-            resseqnum=3,
-            insertion='',
+            resid=ResID(3, 'A'),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -529,8 +491,7 @@ class TestResidueList(unittest.TestCase):
         )
         r4 = Residue(
             resname='THR',
-            resseqnum=4,
-            insertion='',
+            resid=ResID(4, 'A'),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -539,10 +500,9 @@ class TestResidueList(unittest.TestCase):
         rl = ResidueList([r1, r2, r3, r4])
         substitution1 = Substitution(
             chainID="A",
-            resseqnum1=2,
+            resid1=ResID(2),
             insertion1="",
-            resseqnum2=3,
-            insertion2="",
+            resid2=ResID(3),
             subseq="WAVE"
         )
         slist=SubstitutionList([substitution1])
@@ -554,8 +514,7 @@ class TestResidueList(unittest.TestCase):
     def test_residue_list_insertions(self):
         r1 = Residue(
             resname='ALA',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -563,8 +522,7 @@ class TestResidueList(unittest.TestCase):
         )
         r2 = Residue(
             resname='GLY',
-            resseqnum=2,
-            insertion='',
+            resid=ResID(2),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -572,8 +530,7 @@ class TestResidueList(unittest.TestCase):
         )
         r3 = Residue(
             resname='SER',
-            resseqnum=3,
-            insertion='',
+            resid=ResID(3),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -581,8 +538,7 @@ class TestResidueList(unittest.TestCase):
         )
         r4 = Residue(
             resname='THR',
-            resseqnum=4,
-            insertion='',
+            resid=ResID(4),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -591,8 +547,7 @@ class TestResidueList(unittest.TestCase):
         rl = ResidueList([r1, r2, r3, r4])
         insertion1 = Insertion(
             chainID="A",
-            resseqnum=3,
-            insertion="",
+            resid=ResID(3),
             sequence="GGG",
             integer_increment=False
         )

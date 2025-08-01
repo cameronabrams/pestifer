@@ -12,7 +12,7 @@ from pidibble.baserecord import BaseRecord
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 
 from pydantic import Field
-from typing import Optional, ClassVar
+from typing import ClassVar
 
 from ..core.baseobj_new import BaseObj, BaseObjList
 from ..objs.resid import ResID
@@ -155,8 +155,7 @@ class Atom(BaseObj):
                 "altloc": args[0].altLoc,
                 "recordname": 'ATOM',
                 "segname": args[0].residue.chainID,
-                "empty": False,
-                "link": 'None',
+                "empty": False
             }
         elif isinstance(args[0],CIFdict):
             cifdict = args[0]
@@ -176,7 +175,6 @@ class Atom(BaseObj):
                 recordname='ATOM',
                 segname=cifdict.get('label_asym_id', None),
                 empty=False,
-                link='None',
                 auth_seq_id=cifdict['auth_seq_id'],
                 auth_comp_id=cifdict['auth_comp_id'],
                 auth_asym_id=cifdict['auth_asym_id'],

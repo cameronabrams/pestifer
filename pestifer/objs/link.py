@@ -12,7 +12,7 @@ from ..core.baseobj_new import BaseObj, BaseObjList
 from ..core.scripters import PsfgenScripter, Filewriter
 from ..util.cifutil import CIFdict
 from ..util.coord import ic_reference_closest
-from typing import ClassVar
+from typing import ClassVar, Any
 from pydantic import Field
 from mmcif.api.PdbxContainers import DataContainer
 from .resid import ResID
@@ -53,10 +53,10 @@ class Link(BaseObj):
     link_distance: float | None = Field(None, description="Distance between the two atoms in the link")
     segname1: str | None = Field(None, description="Segment name of the first residue")
     segname2: str | None = Field(None, description="Segment name of the second residue")
-    residue1: str | None = Field(None, description="First residue object in the link")
-    residue2: str | None = Field(None, description="Second residue object in the link")
-    atom1: str | None = Field(None, description="First atom object in the link")
-    atom2: str | None = Field(None, description="Second atom object in the link")
+    residue1: Any | None = Field(None, description="First residue object in the link")
+    residue2: Any | None = Field(None, description="Second residue object in the link")
+    atom1: Any | None = Field(None, description="First atom object in the link")
+    atom2: Any | None = Field(None, description="Second atom object in the link")
     empty: bool | None = Field(None, description="Indicates if the link is empty")
     segtype1: str | None = Field(None, description="Segment type of the first residue")
     segtype2: str | None = Field(None, description="Segment type of the second residue")
@@ -676,7 +676,7 @@ class LinkList(BaseObjList[Link]):
                     pruned['links'].append(self.remove(l))
         return pruned
 
-    def apply_segtypes(self,map):
+    def apply_segtypes(self, map):
         """
         Apply segtype values to each of the two residues using the map
         
@@ -685,10 +685,10 @@ class LinkList(BaseObjList[Link]):
         map: dict
             map of segtypes for given resnames
         """
-        self.map_attr('segtype1','resname1',map)
-        self.map_attr('segtype2','resname2',map)
+        self.map_attr('segtype1','resname1', map)
+        self.map_attr('segtype2','resname2', map)
 
-    def report(self,W:Filewriter):
+    def report(self, W:Filewriter):
         """
         Report the string representation of each link in the list.
         """
