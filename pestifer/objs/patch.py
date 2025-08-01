@@ -9,21 +9,21 @@ logger=logging.getLogger(__name__)
 from typing import ClassVar, Optional, Any, List
 from pydantic import Field
 from ..core.baseobj_new import BaseObj, BaseObjList
+from .resid import ResID
 
 class Patch(BaseObj):
     """
     A class for handing patch residues
     """
 
-    _required_fields = {'patchname', 'chainID', 'resseqnum', 'insertion'}
+    _required_fields = {'patchname', 'chainID', 'resid'}
     """
     Required attributes for a Patch object.
     These attributes must be provided when creating a Patch object.
     
     - ``patchname``: The name of the patch as defined in the CHARMM force field.
     - ``chainID``: The chain identifier of the residue to be patched.
-    - ``resseqnum``: The residue sequence number of the residue to be patched.
-    - ``insertion``: The insertion code of the residue to be patched.
+    - ``resid``: The residue ID of the residue to be patched.
     """
     _optional_fields = {'residue', 'use_in_segment', 'use_after_regenerate'}
     """
@@ -34,11 +34,10 @@ class Patch(BaseObj):
     """
     patchname: str = Field(..., description="Name of the patch as defined in the CHARMM force field")
     chainID: str = Field(..., description="Chain identifier of the residue to be patched")
-    resseqnum: int = Field(..., description="Residue sequence number of the residue to be patched")
-    insertion: str = Field(..., description="Insertion code of the residue to be patched")
-    residue: Optional[Any] = Field(None, description="Residue object to be patched")
-    use_in_segment: Optional[str] = Field(None, description="Specifies whether the patch is applied to the first or last residue in a segment, and therefore should be declared inside a psfgen `segment`")
-    use_after_regenerate: Optional[bool] = Field(False, description="If True, the patch is applied after the `regenerate angles dihedrals` psfgen command")
+    resid: ResID = Field(..., description="Residue ID of the residue to be patched")
+    residue: Any | None = Field(None, description="Residue object to be patched")
+    use_in_segment: str | None = Field(None, description="Specifies whether the patch is applied to the first or last residue in a segment, and therefore should be declared inside a psfgen `segment`")
+    use_after_regenerate: bool | None = Field(False, description="If True, the patch is applied after the `regenerate angles dihedrals` psfgen command")
 
     _yaml_header: ClassVar[str] = 'patches'
     """
@@ -57,8 +56,7 @@ class Patch(BaseObj):
         parts=raw.split(':')
         if len(parts)<3:
             raise ValueError(f'Invalid patch shortcode: {raw}')
-        ri=parts[2]
-        r,i=split_ri(ri)
+        resid=ResID(parts[2])
         if parts[0] in Patch._in_segment_Npatches:
             use_in_segment='first'
         elif parts[0] in Patch._in_segment_Cpatches:
@@ -72,8 +70,7 @@ class Patch(BaseObj):
         return {
             'patchname':parts[0],
             'chainID':parts[1],
-            'resseqnum':r,
-            'insertion':i,
+            'resid':resid,
             'residue':None,
             'use_in_segment':use_in_segment,
             'use_after_regenerate':use_after_regenerate
@@ -116,8 +113,7 @@ class Patch(BaseObj):
         str
             The shortcode string in the format patchname:chainID:resseqnum,insertion.
         """
-        rescode = join_ri(self.resseqnum, self.insertion)
-        return f"{self.patchname}:{self.chainID}:{rescode}"
+        return f"{self.patchname}:{self.chainID}:{self.resid.resid}"
 
     def return_TcL(self):
         """
@@ -158,5 +154,6 @@ class PatchList(BaseObjList[Patch]):
             A new PatchList object containing the residues that were not assigned because no applicable residues were found
         """
         logger.debug(f'Patches: Assigning residues from list of {len(Residues)} residues')
-        ignored=self.assign_objs_to_attr('residue',Residues,resseqnum='resseqnum',chainID='chainID',insertion='insertion')
+        # ignored=self.assign_objs_to_attr('residue',Residues,resseqnum='resseqnum',chainID='chainID',insertion='insertion')
+        ignored=self.assign_objs_to_attr('residue', Residues, resid='resid', chainID='chainID')
         return self.__class__(ignored)

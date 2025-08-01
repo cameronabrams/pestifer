@@ -249,7 +249,7 @@ class Graft(BaseObj):
             res+=f'  -> link {str(l)}\n'
         return res
 
-    def write_pre_segment(self,W:PsfgenScripter):
+    def write_pre_segment(self, W:PsfgenScripter):
         """
         Write the pre-segment Tcl commands for the graft operation.
         This method generates the Tcl commands to prepare the graft operation in VMD.

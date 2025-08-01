@@ -12,14 +12,14 @@ from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from mmcif.api.PdbxContainers import DataContainer
 
 from ..core.baseobj_new import BaseObj, BaseObjList
-
+from .resid import ResID
 from ..util.cifutil import CIFdict
 
 class Seqadv(BaseObj):
     """
     A class for handling SEQADV/seq_dif records in input structure files 
     """
-    _required_fields = {'idCode', 'resname', 'chainID', 'resseqnum', 'insertion', 'typekey'}
+    _required_fields = {'idCode', 'resname', 'chainID', 'resid', 'typekey'}
     """
     Required attributes for a Seqadv object.
     These attributes must be provided when creating a Seqadv object.
@@ -27,8 +27,7 @@ class Seqadv(BaseObj):
     - ``idCode``: The PDB ID code of the structure.
     - ``resname``: The residue name of the sequence difference.
     - ``chainID``: The chain ID of the segment where the sequence difference occurs.
-    - ``resseqnum``: The residue sequence number where the difference occurs.
-    - ``insertion``: The insertion code for the residue.
+    - ``resid``: The residue ID where the difference occurs, represented by a `ResID` object.
     - ``typekey``: A key indicating the type of sequence difference (e.g., ``conflict``, ``cloning``, ``expression tag``, ``engineered mutation``, ``variant``, ``insertion``, ``deletion``, ``microheterogeneity``, ``chromophore``, ``user``, ``_other_``).
     """
 
@@ -58,13 +57,12 @@ class Seqadv(BaseObj):
     idCode: str = Field(..., description="PDB ID code of the structure")
     resname: str = Field(..., description="Residue name of the sequence difference")
     chainID: str = Field(..., description="Chain ID of the segment where the sequence difference occurs")
-    resseqnum: int = Field(..., description="Residue sequence number where the difference occurs")
-    insertion: str = Field(..., description="Insertion code for the residue")
+    resid: ResID = Field(..., description="Residue ID where the difference occurs")
     database: str | None = Field(None, description="Database name where the sequence difference is recorded")
     dbAccession: str | None = Field(None, description="Accession number of the sequence in the database")
     dbRes: str | None = Field(None, description="Residue name in the database")
     dbSeq: int | None = Field(None, description="Sequence number in the database")
-    typekey: str | None = Field(None, description="Type of sequence difference (e.g., 'conflict', 'cloning', 'expression', 'engineered', 'variant', 'insertion', 'deletion', 'microheterogeneity', 'chromophore', 'user', '_other_')")
+    typekey: str | None = Field(None, description="Type of sequence difference (e.g., 'conflict', 'cloning', 'expression tag', 'engineered mutation', 'variant', 'insertion', 'deletion', 'microheterogeneity', 'chromophore', 'user', '_other_')")
     pdbx_ordinal: int | None = Field(None, description="Ordinal number of the sequence difference in mmCIF files")
     pdbx_auth_seq_num: int | None = Field(None, description="Author-assigned sequence number in mmCIF files")
     residue: Any | None = Field(None, description="Corresponding Residue object, if available")
@@ -124,13 +122,12 @@ class Seqadv(BaseObj):
         Converts a PDBRecord object to a dictionary of parameters for Seqadv.
         """
         return dict(
-            chainID = raw.chainID,
-            origresname = raw.origresname,
-            resseqnum = raw.resseqnum,
-            insertion = raw.insertion,
-            newresname = raw.newresname,
-            typekey = raw.typekey,
-            pdbx_auth_seq_num = raw.pdbx_auth_seq_num
+            idCode = raw.idCode,
+            chainID = raw.residue.chainID,
+            resname = raw.residue.resName,
+            resid = ResID(raw.residue.seqNum, raw.residue.iCode),
+            dbRes = raw.dbRes,
+            typekey = raw.conflict if raw.conflict in Seqadv._attr_choices['typekey'] else '_other_',
         )
     
     @staticmethod
@@ -152,12 +149,11 @@ class Seqadv(BaseObj):
             'idCode': cd['pdbx_pdb_id_code'],
             'resname': cd['mon_id'],
             'chainID': cd['pdbx_pdb_strand_id'],
-            'resseqnum': int(cd['seq_num']),
-            'insertion': cd['pdbx_pdb_ins_code'],
+            'resid': ResID(cd['pdbx_auth_seq_num'], cd.get('pdbx_auth_seq_ins_code', None)),
             'database': cd.get('pdbx_seq_db_name', None),
             'dbAccession': cd.get('pdbx_seq_db_accession_code', None),
             'dbRes': cd.get('db_mon_id', None),
-            'dbSeq': int(cd.get('pdbx_seq_db_seq_num', -1)),
+            'dbSeq': None if cd['pdbx_seq_db_seq_num'] == '' else int(cd['pdbx_seq_db_seq_num']),
             'typekey': cd.get('details', None),
             'pdbx_ordinal': cd.get('pdbx_ordinal', None),
             'pdbx_auth_seq_num': int(cd['pdbx_auth_seq_num'])
@@ -193,7 +189,7 @@ class Seqadv(BaseObj):
         str
             The PDB line for the seqadv record.
         """
-        return f'SEQADV {self.idCode:3s} {self.resname:>3s} {self.chainID:1s} {self.resseqnum:>4d}{self.insertion:1s} {self.database:>4s} {self.dbAccession:9s} {self.dbRes:3s} {self.dbSeq:>5d} {self.typekey:21s}          '
+        return f'SEQADV {self.idCode:3s} {self.resname:>3s} {self.chainID:1s} {self.resid.pdbresid:>5s} {self.database:>4s} {self.dbAccession:9s} {self.dbRes:3s} {self.dbSeq:>5d} {self.typekey:21s}          '
     
     def assign_residue(self,Residues):
         """
@@ -224,7 +220,7 @@ class Seqadv(BaseObj):
                 if self.residue != None:
                     self.chainID = self.residue.chainID
             else:  # normal PDB record
-                self.assign_obj_to_attr('residue', Residues, chainID='chainID', resseqnum='resseqnum', insertion='insertion')
+                self.assign_obj_to_attr('residue', Residues, chainID='chainID', resid='resid')
                 if self.residue == []:  # failed to find
                     self.residue = None
 

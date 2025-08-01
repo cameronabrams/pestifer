@@ -12,9 +12,10 @@ from pidibble.baserecord import BaseRecord
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 
 from pydantic import Field
-from typing import Optional, ClassVar, Union, Any
+from typing import Optional, ClassVar
 
 from ..core.baseobj_new import BaseObj, BaseObjList
+from ..objs.resid import ResID
 from ..util.cifutil import CIFdict
 from ..util.util import reduce_intlist
 from ..psfutil.psfatom import PSFAtom, PSFAtomList
@@ -29,7 +30,7 @@ class Atom(BaseObj):
     record name, and author sequence ID, component ID, asym ID, and atom ID.
     """
 
-    _required_fields = {'serial','name','altloc','resname','chainID','resseqnum','insertion','x','y','z','occ','beta','elem','charge'}
+    _required_fields = {'serial','name','altloc','resname','chainID','resid','x','y','z','occ','beta','elem','charge'}
     """
     Required attributes for the Atom class.
     These attributes must be provided when creating an Atom instance.
@@ -46,10 +47,8 @@ class Atom(BaseObj):
         Residue name to which the atom belongs.
     chainID : str
         Chain identifier for the atom.
-    resseqnum : int
-        Residue sequence number for the atom.
-    insertion : str
-        Insertion code for the residue to which the atom belongs.
+    resid: ResID
+        Residue ID of the atom.
     x : float
         X coordinate of the atom.
     y : float
@@ -96,8 +95,7 @@ class Atom(BaseObj):
     altloc: str = Field(..., description="Alternate location identifier for the atom.")
     resname: str = Field(..., description="Residue name to which the atom belongs.")
     chainID: str = Field(..., description="Chain identifier for the atom.")
-    resseqnum: int = Field(..., description="Residue sequence number for the atom.")
-    insertion: str = Field(..., description="Insertion code for the residue to which the atom belongs.")
+    resid: ResID = Field(..., description="Residue ID of the atom.")
     x: float = Field(..., description="X coordinate of the atom.")
     y: float = Field(..., description="Y coordinate of the atom.")
     z: float = Field(..., description="Z coordinate of the atom.")
@@ -106,14 +104,14 @@ class Atom(BaseObj):
     elem: str = Field(..., description="Element symbol of the atom.")
     charge: str = Field(..., description="Charge of the atom.")
 
-    segname: str = Field(default=None, description="Segment name to which the atom belongs. Defaults to the chain ID.")
+    segname: str | None = Field(default=None, description="Segment name to which the atom belongs. Defaults to the chain ID.")
     empty: bool = Field(default=False, description="Indicates whether the atom is empty. Defaults to False.")
-    link: str = Field(default='None', description="Link status of the atom. Defaults to 'None'.")
-    recordname: str = Field(default='ATOM', description="Record name for the atom. Defaults to 'ATOM'.")
-    auth_seq_id: Optional[int] = Field(default=None, description="Author sequence ID for the atom.")
-    auth_comp_id: Optional[str] = Field(default=None, description="Author component ID for the atom.")
-    auth_asym_id: Optional[str] = Field(default=None, description="Author asym ID for the atom.")
-    auth_atom_id: Optional[str] = Field(default=None, description="Author atom ID for the atom.")
+    link: str | None =  Field(default='None', description="Link status of the atom. Defaults to 'None'.")
+    recordname: str | None = Field(default='ATOM', description="Record name for the atom. Defaults to 'ATOM'.")
+    auth_seq_id: int | None = Field(default=None, description="Author sequence ID for the atom.")
+    auth_comp_id: str | None = Field(default=None, description="Author component ID for the atom.")
+    auth_asym_id: str | None = Field(default=None, description="Author asym ID for the atom.")
+    auth_atom_id: str | None = Field(default=None, description="Author atom ID for the atom.")
 
     _yaml_header: ClassVar[str] = 'atoms'
     """
@@ -134,115 +132,39 @@ class Atom(BaseObj):
     """
     Dictionary to store original attributes of an atom instance.
     """
-
-    def describe(self):
-        return f'Atom {self.serial} ({self.name}) in {self.resname} chain {self.chainID} at position ({self.x}, {self.y}, {self.z}) with occupancy {self.occ} and beta factor {self.beta}. Element: {self.elem}, Charge: {self.charge}.'
     
-    def __repr__(self):
+    @staticmethod
+    def _adapt(*args) -> dict:
         """
-        Returns a string representation of the Atom object.
-        This method formats the atom's attributes into a readable string.
-        
-        Returns
-        -------
-        str
-            A formatted string representing the atom.
+        Adapts the input to a dictionary format suitable for Atom instantiation.
         """
-        return f"Atom(serial={self.serial}, name='{self.name}', resname='{self.resname}', chainID='{self.chainID}', resseqnum={self.resseqnum}, x={self.x}, y={self.y}, z={self.z}, occ={self.occ}, beta={self.beta}, elem='{self.elem}', charge='{self.charge}')"
-    
-    class Adapter:
-        """
-        Adapter class for Atom objects.
-        This class is used to adapt Atom objects for serialization and deserialization.
-        It provides methods to initialize Atom objects from different input types.
-        """
-
-        def __init__(self, serial: int, name: str, resname: str, chainID: str, resseqnum: int, x: float, y: float, z: float, occ: float, beta: float, elem: str, charge: str, altloc: str = ' ', insertion: str = ' ', segname: Optional[str] = None, empty: bool = False, link: str = 'None', recordname: str = 'ATOM', auth_seq_id: Optional[int] = None, auth_comp_id: Optional[str] = None, auth_asym_id: Optional[str] = None, auth_atom_id: Optional[str] = None):
-            """
-            Initializes an Atom.Adapter object with the provided attributes.
-            """
-            self.serial = serial
-            self.name = name
-            self.resname = resname
-            self.chainID = chainID
-            self.resseqnum = resseqnum
-            self.x = x
-            self.y = y
-            self.z = z
-            self.occ = occ
-            self.beta = beta
-            self.elem = elem
-            self.charge = charge
-            self.altloc = altloc
-            self.insertion = insertion
-            self.segname = segname if segname is not None else chainID
-            self.empty = empty
-            self.link = link
-            self.recordname = recordname
-            self.auth_seq_id = auth_seq_id
-            self.auth_comp_id = auth_comp_id
-            self.auth_asym_id = auth_asym_id
-            self.auth_atom_id = auth_atom_id
-        
-        @classmethod
-        def from_pdbrecord(cls, pdbrecord: PDBRecord):
-            """
-            Creates an Atom.Adapter object from a PDBRecord.
-            This method extracts the necessary attributes from the PDBRecord and initializes the Atom.Adapter.
-            
-            Parameters
-            ----------
-            pdbrecord : PDBRecord
-                The PDBRecord object from which to extract attributes.
-            
-            Returns
-            -------
-            Atom.Adapter
-                An initialized Atom.Adapter object.
-            """
-            return cls(
-                serial=pdbrecord.serial,
-                name=pdbrecord.name,
-                resname=pdbrecord.residue.resName,
-                chainID=pdbrecord.residue.chainID,
-                resseqnum=pdbrecord.residue.seqNum,
-                insertion=pdbrecord.residue.iCode,
-                x=pdbrecord.x,
-                y=pdbrecord.y,
-                z=pdbrecord.z,
-                occ=pdbrecord.occupancy,
-                beta=pdbrecord.tempFactor,
-                elem=pdbrecord.element,
-                charge=pdbrecord.charge,
-                altloc=pdbrecord.altLoc,
-                recordname='ATOM',
-                segname=pdbrecord.residue.chainID,
-                empty=False,
-                link='None',
-            )
-    
-        @classmethod
-        def from_cifdict(cls, cifdict: CIFdict):
-            """
-            Creates an Atom.Adapter object from a CIFdict.
-            This method extracts the necessary attributes from the CIFdict and initializes the Atom.Adapter.
-            
-            Parameters
-            ----------
-            cifdict : CIFdict
-                The CIFdict object from which to extract attributes.
-            
-            Returns
-            -------
-            Atom.Adapter
-                An initialized Atom.Adapter object.
-            """
+        if isinstance(args[0], PDBRecord):
+            return {
+                "serial": args[0].serial,
+                "name": args[0].name,
+                "resname": args[0].residue.resName,
+                "chainID": args[0].residue.chainID,
+                "resid": ResID(resseqnum=args[0].residue.seqNum, insertion=args[0].residue.iCode),
+                "x": args[0].x,
+                "y": args[0].y,
+                "z": args[0].z,
+                "occ": args[0].occupancy,
+                "beta": args[0].tempFactor,
+                "elem": args[0].element,
+                "charge": args[0].charge,
+                "altloc": args[0].altLoc,
+                "recordname": 'ATOM',
+                "segname": args[0].residue.chainID,
+                "empty": False,
+                "link": 'None',
+            }
+        elif isinstance(args[0],CIFdict):
+            cifdict = args[0]
             input_dict = dict(
                 serial=int(cifdict['id']),
                 name=cifdict['label_atom_id'],
                 resname=cifdict['label_comp_id'],
                 chainID=cifdict['label_asym_id'],
-                resseqnum=cifdict['label_seq_id'],
                 x=float(cifdict['cartn_x']),
                 y=float(cifdict['cartn_y']),
                 z=float(cifdict['cartn_z']),
@@ -251,7 +173,6 @@ class Atom(BaseObj):
                 elem=cifdict['type_symbol'],
                 charge=cifdict.get('pdbx_formal_charge', '0.0'),
                 altloc=cifdict.get('label_alt_id', ' '),
-                insertion=cifdict.get('pdbx_pdb_ins_code', ' '),
                 recordname='ATOM',
                 segname=cifdict.get('label_asym_id', None),
                 empty=False,
@@ -261,62 +182,26 @@ class Atom(BaseObj):
                 auth_asym_id=cifdict['auth_asym_id'],
                 auth_atom_id=cifdict.get('auth_atom_id', None)
             )
-            if input_dict['resseqnum']=='.':
-            # logger.debug(f'dot-resseqnum detected in {cifdict}')
-                input_dict['resseqnum']=input_dict['auth_seq_id']
-            # input_dict['chainID']=input_dict['auth_asym_id']
-            input_dict['resseqnum']=int(input_dict['resseqnum'])
-            if input_dict['auth_seq_id'].isdigit():
-                input_dict['auth_seq_id']=int(input_dict['auth_seq_id'])
-            return cls(**input_dict)
+            apparent_resseqnum = cifdict.get('label_seq_id', None)
+            if apparent_resseqnum == '.':
+                apparent_resseqnum = cifdict['auth_seq_id']
+                input_dict['chainID']=input_dict['auth_asym_id']
+            resid = ResID(resseqnum=apparent_resseqnum, insertion=cifdict.get('pdbx_pdb_ins_code',None))
+            input_dict['resid'] = resid
+            return input_dict
 
-        def to_dict(self):
-            """
-            Converts the Atom.Adapter object to a dictionary representation.
-            This method returns a dictionary containing all attributes of the Atom.Adapter.
-            
-            Returns
-            -------
-            dict
-                A dictionary representation of the Atom.Adapter object.
-            """
-            return {k:v for k, v in self.__dict__.items() if not k.startswith('_') and not v is None}
+    def shortcode(self) -> str:
+        """
+        Converts the Atom.Adapter object to a string representation.
+        This method formats the attributes of the Atom.Adapter into a string.
         
-        def to_string(self) -> str:
-            """
-            Converts the Atom.Adapter object to a string representation.
-            This method formats the attributes of the Atom.Adapter into a string.
-            
-            Returns
-            -------
-            str
-                A string representation of the Atom.Adapter object.
-            """
-            return f"{self.serial}:{self.name}:{self.resname}:{self.chainID}:{self.resseqnum}:{self.x}:{self.y}:{self.z}:{self.occ}:{self.beta}:{self.elem}:{self.charge}"
-        
-    @BaseObj.from_input.register(Adapter)
-    @classmethod
-    def _from_adapter(cls, adapter: Adapter):
-        input_dict = adapter.to_dict()
-        return cls(**input_dict)
-
-    @singledispatchmethod
-    @classmethod
-    def new(cls, raw: Any) -> "Atom":
-        raise TypeError(f"Cannot create Atom from {type(raw)}. Use Atom.Adapter.from_pdbrecord or Atom.Adapter.from_cifdict instead.")
-
-    @new.register(PDBRecord|BaseRecord)
-    @classmethod
-    def _from_pdbrecord(cls, record: Union[PDBRecord, BaseRecord]) -> "Atom":
-        adapter = cls.Adapter.from_pdbrecord(record)
-        return cls._from_adapter(adapter)
-
-    @new.register(CIFdict)
-    @classmethod
-    def _from_cifdict(cls, cifdict: CIFdict) -> "Atom":
-        adapter = cls.Adapter.from_cifdict(cifdict)
-        return cls._from_adapter(adapter)
-
+        Returns
+        -------
+        str
+            A string representation of the Atom.Adapter object.
+        """
+        return f"{self.serial}:{self.name}:{self.resname}:{self.chainID}:{self.resid.resid}:{self.x}:{self.y}:{self.z}:{self.occ}:{self.beta}:{self.elem}:{self.charge}"
+    
     def pdb_line(self):
         """
         Returns a string representation of the atom in PDB format.
@@ -336,8 +221,7 @@ class Atom(BaseObj):
                 '{:1s}'.format(self.altloc)+\
                 '{:<4s}'.format(self.resname)+\
                 '{:1s}'.format(self.chainID)+\
-                '{:4d}'.format(self.resseqnum)+\
-                '{:1s}'.format(self.insertion)+'   '+\
+                '{:>5s}'.format(self.resid.pdbresid)+'   '+\
                 '{:8.3f}'.format(self.x)+\
                 '{:8.3f}'.format(self.y)+\
                 '{:8.3f}'.format(self.z)+\
@@ -443,8 +327,8 @@ class AtomList(BaseObjList[Atom]):
         if Atom._PDB_keyword not in parsed:
             return cls([])
         return cls(
-            [Atom.new(x) for x in parsed[Atom._PDB_keyword] if (model_id is None or x.model == model_id)]+
-            [Hetatm.new(x) for x in parsed.get(Hetatm._PDB_keyword, []) if (model_id is None or x.model == model_id)]
+            [Atom(x) for x in parsed[Atom._PDB_keyword] if (model_id is None or x.model == model_id)]+
+            [Hetatm(x) for x in parsed.get(Hetatm._PDB_keyword, []) if (model_id is None or x.model == model_id)]
         )
 
     @classmethod
@@ -465,7 +349,7 @@ class AtomList(BaseObjList[Atom]):
         obj=parsed.getObj(Atom._CIF_CategoryName)
         if obj is None:
             return cls([])
-        return cls([Atom.new(CIFdict(obj, i)) for i in range(len(obj))])
+        return cls([Atom(CIFdict(obj, i)) for i in range(len(obj))])
 
     def reserialize(self):
         """

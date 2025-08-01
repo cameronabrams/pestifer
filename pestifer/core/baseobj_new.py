@@ -652,6 +652,68 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         else:
             return matches
 
+    def remove_and_return(self, item: BaseObj) -> BaseObj | None:
+        """
+        Remove an item from the list and return it.
+        
+        Parameters
+        ----------
+        item : BaseObj
+            The item to remove from the list.
+        
+        Returns
+        -------
+        BaseObj | None :
+            The removed item if it was found, otherwise None.
+        """
+        if item in self.data:
+            self.data.remove(item)
+            return item
+        
+    def give_item(self, item: BaseObj, target_list: BaseObjList) -> bool:
+        """
+        Transfer an item from this list to another BaseObjList.
+
+        Parameters
+        ----------
+        item : BaseObj
+            The item to transfer.
+        target_list : BaseObjList
+            The list to transfer the item to.
+
+        Returns
+        -------
+        bool
+            True if the transfer was successful, False otherwise.
+        """
+        if item in self:
+            self.remove(item)
+            target_list.append(item)
+            return True
+        return False
+    
+    def take_item(self, item: BaseObj, source_list: BaseObjList) -> bool:
+        """
+        Take an item from another BaseObjList and add it to this list.
+
+        Parameters
+        ----------
+        item : BaseObj
+            The item to take.
+        source_list : BaseObjList
+            The list to take the item from.
+
+        Returns
+        -------
+        bool
+            True if the transfer was successful, False otherwise.
+        """
+        if item in source_list:
+            source_list.remove(item)
+            self.append(item)
+            return True
+        return False
+
     def iget(self,**fields):
         """
         Special implementation of ifilter

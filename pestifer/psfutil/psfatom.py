@@ -11,7 +11,7 @@ import networkx as nx
 from .psftopoelement import PSFTopoElement,PSFTopoElementList
 
 from ..core.labels import Labels
-from ..core.stringthings import split_ri
+from ..objs.resid import ResID
 
 logger=logging.getLogger(__name__)
 
@@ -34,11 +34,11 @@ class PSFAtom(PSFTopoElement):
         assert len(tokens)==9,f'cannot parse psf atomline: {atomline}'
         idx=int(tokens[0])
         super().__init__([idx])
-        r,i=split_ri(tokens[2])
+        self.resid = ResID(tokens[2])
         self.serial=idx
         self.chainID=tokens[1]
-        self.resseqnum=r
-        self.insertion=i
+        self.resseqnum=self.resid.resid
+        self.insertion=self.resid.insertion
         self.resname=tokens[3]
         self.name=tokens[4]
         self.type=tokens[5]
@@ -54,7 +54,7 @@ class PSFAtom(PSFTopoElement):
         return self.serial==other.serial
 
     def __str__(self):
-        return f'{self.chainID}_{self.resname}_{self.resseqnum}{self.insertion}-{self.name}({self.serial})'
+        return f'{self.chainID}_{self.resname}_{self.resid.resid}-{self.name}({self.serial})'
 
     def isH(self):
         """

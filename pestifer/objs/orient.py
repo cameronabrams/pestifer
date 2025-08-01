@@ -38,7 +38,7 @@ class Orient(BaseObj):
     """
 
     axis: str = Field(..., description="Axis along which the coordinate set will be oriented (e.g., 'x', 'y', 'z')")
-    refatom: str = Field(None, description="Name of the reference atom to align the coordinate set with. If not specified, the coordinate set is centered at the origin.")
+    refatom: str | None = Field(None, description="Name of the reference atom to align the coordinate set with. If not specified, the coordinate set is centered at the origin.")
 
     _yaml_header: ClassVar[str] = 'orient'
     """
@@ -52,83 +52,22 @@ class Orient(BaseObj):
     This categorization is used to group Orient objects in the object manager.
     """
 
-    def describe(self):
+    @staticmethod
+    def _adapt(*args) -> dict:
         """
-        Describe the Orient object.
-        
-        Returns
-        -------
-        str
-            A string description of the Orient object, including axis and reference atom.
+        Adapts the input to a dictionary format suitable for Orient instantiation.
+        This method is used to convert various input formats into a dictionary that can be used to create an Orient object.
         """
-        return f"Orient(axis={self.axis}, refatom={self.refatom})"
-    
-    class Adapter:
-        """
-        A class to represent the shortcode format for Orient, so that we can register to BaseObj.from_input rather than defining a local from_input.
-
-        The shortcode format is axis,refatom
-        where:
-        - axis is the axis along which the coordinate set will be oriented (e.g., 'x', 'y', 'z')
-        - refatom is the name of the reference atom to align the coordinate set with (optional)
-        """
-        def __init__(self, axis: str, refatom: str = None):
-            self.axis = axis
-            self.refatom = refatom
-
-        @classmethod
-        def from_string(cls, raw: str):
-            parts = raw.split(',')
+        if isinstance(args[0], str):
+            parts = args[0].split(',')
             if len(parts) == 1:
-                return cls(parts[0])
+                return dict(axis=parts[0])
             elif len(parts) == 2:
-                return cls(parts[0], parts[1])
+                return dict(axis=parts[0], refatom=parts[1])
             else:
-                raise ValueError(f"Invalid format for Orient: {raw}")
-   
-    @BaseObj.from_input.register(Adapter)
-    @classmethod
-    def _from_adapter(cls, adapter: Adapter):
-        """
-        Create an Orient object from an Adapter instance, registered by BaseObj.from_input.
-        
-        Parameters
-        ----------
-        adapter : Adapter
-            The Adapter instance containing the axis and optional reference atom.
+                raise ValueError(f"Invalid format for Orient: {args[0]}")
 
-        Returns
-        -------
-        Orient
-            A new Orient instance created from the Adapter.
-        """
-        return cls(axis=adapter.axis, refatom=adapter.refatom)
-
-    @singledispatchmethod
-    @classmethod
-    def new(cls, raw: Any) -> "Orient":
-        pass
-
-    @new.register(str)
-    @classmethod
-    def _from_str(cls, raw: str) -> "Orient":
-        """
-        Create a new Orient instance from a shortcode string.
-        
-        Parameters
-        ----------
-        raw : str
-            The shortcode string in the format axis,refatom.
-        
-        Returns
-        -------
-        Orient
-            A new instance of Orient.
-        """
-        adapter = cls.Adapter.from_string(raw)
-        return cls._from_shortcode(adapter)
-    
-    def write_TcL(self,W:VMDScripter):
+    def write_TcL(self, W:VMDScripter):
         """
         Write the Tcl commands to orient the coordinate set in VMD.
         This method generates the Tcl commands to orient the coordinate set along the specified axis
@@ -163,7 +102,7 @@ class OrientList(BaseObjList[Orient]):
     def describe(self):
         return f'<OrientList with {len(self)} orientations>'
 
-    def write_TcL(self,W:VMDScripter):
+    def write_TcL(self, W:VMDScripter):
         """
         Write the Tcl commands for each Orient object in the list.
         This method iterates over each Orient object in the list and calls its `write_TcL` method   

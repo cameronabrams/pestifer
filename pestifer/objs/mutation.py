@@ -11,29 +11,27 @@ user.
 import logging
 logger=logging.getLogger(__name__)
 
-from functools import singledispatchmethod
 from typing import ClassVar
 from pydantic import Field
 from .seqadv import Seqadv
 
 from ..core.baseobj_new import BaseObj, BaseObjList
-from ..core.labels import Labels
-from ..core.stringthings import split_ri, join_ri
+# from ..core.labels import Labels
+from .resid import ResID
 
 class Mutation(BaseObj):
     """
     A class for handling single-residue mutations
     """
 
-    _required_fields = {'chainID', 'origresname', 'resseqnum', 'insertion', 'newresname', 'typekey'}
+    _required_fields = {'chainID', 'origresname', 'resid', 'newresname', 'typekey'}
     """
     Required attributes for a Mutation object.
     These attributes must be provided when creating a Mutation object.
 
     - ``chainID``: The chain ID of the segment where the mutation occurs.
     - ``origresname``: The original residue name at the mutation site.
-    - ``resseqnum``: The residue number where the mutation is made.
-    - ``insertion``: The insertion code for the original residue.
+    - ``resid``: The residue ID where the mutation is made, represented by a `ResID` object.
     - ``newresname``: The new residue name to be mutated to.
     - ``typekey``: A key indicating the type of mutation (e.g., ``user``, ``author``, ``mmCIF``).
     """
@@ -48,11 +46,10 @@ class Mutation(BaseObj):
 
     chainID: str = Field(..., description="Chain ID of the segment where the mutation occurs")
     origresname: str = Field(..., description="Original residue name at the mutation site")
-    resseqnum: int = Field(..., description="Residue sequence number where the mutation is made")
-    insertion: str = Field(..., description="Insertion code for the original residue")
+    resid: ResID = Field(..., description="Residue ID where the mutation is made")
     newresname: str = Field(..., description="New residue name to be mutated to")
     typekey: str = Field(..., description="Key indicating the type of mutation (e.g., 'user', 'author', 'mmCIF')")
-    pdbx_auth_seq_num: int = Field(None, description="PDBx author sequence number, used in mmCIF files")
+    pdbx_auth_seq_num: int | None = Field(None, description="PDBx author sequence number, used in mmCIF files")
 
     _yaml_header: ClassVar[str] =   'mutations'
     """
@@ -95,14 +92,13 @@ class Mutation(BaseObj):
         chainID = s1[0]
         s2 = s1[1].split(',')
         origresname = s2[0]
-        resseqnum, insertion = split_ri(s2[1])
+        resid = ResID(s2[1])
         newresname = s2[2]
         typekey = 'user'  # Default type key
         return dict(
             chainID=chainID,
             origresname=origresname,
-            resseqnum=resseqnum,
-            insertion=insertion,
+            resid=resid,
             newresname=newresname,
             typekey=typekey
         )
@@ -125,8 +121,7 @@ class Mutation(BaseObj):
         return dict(
             chainID=seqadv.chainID,
             origresname=seqadv.resname,
-            resseqnum=seqadv.resseqnum,
-            insertion=seqadv.insertion,
+            resid=ResID(seqadv.resid),
             newresname=seqadv.dbRes,
             typekey=seqadv.typekey,
             pdbx_auth_seq_num=seqadv.pdbx_auth_seq_num
@@ -142,8 +137,7 @@ class Mutation(BaseObj):
             A string in the format C:nnn,rrr,mmm where C is the chain ID, nnn is the original residue name,
             rrr is the residue sequence number plus optional insertion code, and mmm is the new residue name.
         """
-        resseqnumi = join_ri(self.resseqnum, self.insertion)
-        return f"{self.chainID}:{self.origresname},{resseqnumi},{self.newresname}"
+        return f"{self.chainID}:{self.origresname},{self.resid.resid},{self.newresname}"
 
     def write_TcL(self):
         """
@@ -154,11 +148,10 @@ class Mutation(BaseObj):
         str
             The Tcl command to mutate the residue at the specified position to the new residue name.
         """
-        if hasattr(self,'pdbx_auth_seq_num'): # mmCIF!
-            return f'    mutate {self.resseqnum} {self.newresname}'
+        if hasattr(self,'pdbx_auth_seq_num'): # mmCIF, no insertion code
+            return f'    mutate {self.resid.resseqnum} {self.newresname}'
         else:
-            resseqnumi=f'{self.resseqnum}{self.insertion}'
-            return f'    mutate {resseqnumi} {self.newresname}'
+            return f'    mutate {self.resid.resid} {self.newresname}'
 
 class MutationList(BaseObjList[Mutation]):
     def describe(self):

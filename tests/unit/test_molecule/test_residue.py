@@ -6,6 +6,7 @@ from pestifer.objs.deletion import Deletion, DeletionList
 from pestifer.objs.substitution import Substitution, SubstitutionList
 from pestifer.objs.insertion import Insertion, InsertionList
 from pestifer.objs.insertion import InsertionList, Insertion
+from pestifer.objs.resid import ResID
 from pestifer.util.cifutil import CIFload
 from pathlib import Path
 from pidibble.pdbparse import PDBParser
@@ -15,15 +16,14 @@ class TestEmptyResidue(unittest.TestCase):
     def test_empty_residue(self):
         e = EmptyResidue(
             resname='ALA',
-            resseqnum=1,
-            insertion='',
+            resid=ResID(1),
             chainID='A',
             resolved=False,
             segtype='UNSET'
         )
         self.assertEqual(e.resname, 'ALA')
-        self.assertEqual(e.resseqnum, 1)
-        self.assertEqual(e.insertion, '')
+        self.assertEqual(e.resid.resseqnum, 1)
+        self.assertEqual(e.resid.insertion, None)
         self.assertEqual(e.chainID, 'A')
         self.assertFalse(e.resolved)
         self.assertEqual(e.segtype, 'UNSET')

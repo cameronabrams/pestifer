@@ -6,7 +6,7 @@ from pidibble.pdbrecord import PDBRecordDict
 from pestifer.util.cifutil import CIFdict, CIFload
 from pestifer.psfutil.psfatom import PSFAtom, PSFAtomList
 from pathlib import Path
-
+from pestifer.objs.resid import ResID
 class TestAtom(unittest.TestCase):
     def test_atom_create(self):
         atom = Atom(
@@ -15,8 +15,7 @@ class TestAtom(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion=' ',
+            resid=ResID(1),
             x=1.0,
             y=2.0,
             z=3.0,
@@ -36,9 +35,10 @@ class TestAtom(unittest.TestCase):
         self.assertEqual(atom.beta, 0.0)
         self.assertEqual(atom.elem, 'C')
         self.assertEqual(atom.charge, ' ')
+        self.assertEqual(atom.resid.resid, 1)
+        self.assertEqual(atom.resid.pdbresid, '1 ')
         # check default values
         self.assertEqual(atom.altloc, ' ')
-        self.assertEqual(atom.insertion, ' ')
         self.assertEqual(atom.segname, None)
         self.assertEqual(atom.empty, False)
         self.assertEqual(atom.link, 'None')
@@ -49,7 +49,7 @@ class TestAtom(unittest.TestCase):
         self.assertEqual(atom.auth_atom_id, None)
 
         self.assertEqual(atom._PDB_keyword, 'ATOM')
-        self.assertEqual(atom._mmCIF_name, 'atom_site')
+        self.assertEqual(atom._CIF_CategoryName, 'atom_site')
         self.assertEqual(atom._ORIGINAL_ATTRIBUTES, {})
 
     def test_atom_copy(self):
@@ -59,8 +59,7 @@ class TestAtom(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion=' ',
+            resid=ResID(1),
             x=1.0,
             y=2.0,
             z=3.0,
@@ -85,13 +84,13 @@ class TestAtom(unittest.TestCase):
     def test_atom_from_pdbrecord(self):
         p=PDBParser(filepath='fixtures/data/4zmj.pdb').parse()
         atom_record = p.parsed[Atom._PDB_keyword][0]
-        atom = Atom.new(atom_record)
+        atom = Atom(atom_record)
         self.assertEqual(atom.serial, atom_record.serial)
         self.assertEqual(atom.name, atom_record.name)
         self.assertEqual(atom.resname, atom_record.residue.resName)
         self.assertEqual(atom.chainID, atom_record.residue.chainID)
-        self.assertEqual(atom.resseqnum, atom_record.residue.seqNum)
-        self.assertEqual(atom.insertion, atom_record.residue.iCode)
+        self.assertEqual(atom.resid.resseqnum, atom_record.residue.seqNum)
+        self.assertEqual(atom.resid.insertion, atom_record.residue.iCode)
         self.assertEqual(atom.x, atom_record.x)
         self.assertEqual(atom.y, atom_record.y)
         self.assertEqual(atom.z, atom_record.z)
@@ -102,9 +101,9 @@ class TestAtom(unittest.TestCase):
 
     def test_atom_from_cifdict(self):
         p=CIFload(Path('fixtures/data/4zmj.cif'))
-        obj=p.getObj(Atom._mmCIF_name)
+        obj=p.getObj(Atom._CIF_CategoryName)
         d=CIFdict(obj, 0)
-        atom = Atom.new(d)
+        atom = Atom(d)
         self.assertEqual(atom.serial, int(d['id']))
 
     def test_atom_pdb_line(self):
@@ -114,8 +113,7 @@ class TestAtom(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion=' ',
+            resid=ResID(1),
             x=1.0,
             y=2.0,
             z=3.0,
@@ -135,8 +133,7 @@ class TestAtom(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion=' ',
+            resid=ResID(1),
             x=1.0,
             y=2.0,
             z=3.0,
@@ -151,8 +148,7 @@ class TestAtom(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion=' ',
+            resid=ResID(1),
             x=2.0,
             y=3.0,
             z=4.0,
@@ -173,8 +169,7 @@ class TestAtom(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion=' ',
+            resid=ResID(1),
             x=1.0,
             y=2.0,
             z=3.0,
@@ -196,8 +191,7 @@ class TestAtom(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion=' ',
+            resid=ResID(1),
             x=1.0,
             y=2.0,
             z=3.0,
@@ -219,8 +213,7 @@ class TestAtomList(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion=' ',
+            resid=ResID(1),
             x=1.0,
             y=2.0,
             z=3.0,
@@ -235,8 +228,7 @@ class TestAtomList(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion=' ',
+            resid=ResID(1),
             x=2.0,
             y=3.0,
             z=4.0,
@@ -257,8 +249,7 @@ class TestAtomList(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion=' ',
+            resid=ResID(1),
             x=1.0,
             y=2.0,
             z=3.0,
@@ -273,8 +264,7 @@ class TestAtomList(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion=' ',
+            resid=ResID(1),
             x=2.0,
             y=3.0,
             z=4.0,
@@ -329,8 +319,7 @@ class TestAtomList(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion=' ',
+            resid=ResID(1),
             x=1.0,
             y=2.0,
             z=3.0,
@@ -345,8 +334,7 @@ class TestAtomList(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion=' ',
+            resid=ResID(1),
             x=2.0,
             y=3.0,
             z=4.0,
@@ -369,8 +357,7 @@ class TestAtomList(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion=' ',
+            resid=ResID(1),
             x=1.0,
             y=2.0,
             z=3.0,
@@ -385,8 +372,7 @@ class TestAtomList(unittest.TestCase):
             altloc=' ',
             resname='ALA',
             chainID='A',
-            resseqnum=1,
-            insertion=' ',
+            resid=ResID(1),
             x=2.0,
             y=3.0,
             z=4.0,

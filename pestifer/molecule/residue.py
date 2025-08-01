@@ -9,10 +9,9 @@ import logging
 logger=logging.getLogger(__name__)
 
 from argparse import Namespace
-from functools import singledispatchmethod
 
 from pydantic import Field, ConfigDict
-from typing import Union, Any, ClassVar, Optional
+from typing import Any, ClassVar
 
 from pidibble.baserecord import BaseRecord
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
@@ -24,7 +23,6 @@ from ..core.labels import Labels
 from ..objs.seqadv import Seqadv, SeqadvList
 from ..objs.deletion import DeletionList
 from ..objs.substitution import SubstitutionList
-from ..core.stringthings import join_ri, split_ri
 from ..util.cifutil import CIFdict
 from ..util.coord import positionN
 from .stateinterval import StateInterval, StateIntervalList
@@ -49,7 +47,7 @@ class EmptyResidue(BaseObj):
     resname : str
         The residue name.
     resid : ResID
-        The residue ID.
+        The residue ID (sequence number with optional 1-character insertion code).
     chainID : str
         The chain ID.
     resolved : bool
@@ -121,12 +119,11 @@ class EmptyResidue(BaseObj):
     def _adapt(*args) -> dict:
         input_dict={}
         if isinstance(args[0], str):
-            # i:C:RRR###A
+            # i:C:RD; e.g., # 1:A:ALA123 or 1:A:ALA123A or A:A123
             # i model number, optional, default 1
-            # C chain ID, optional, default 'A'
-            # RRR one or three-letter residue code
-            # ### integer residue sequence number
-            # A insertion code, optional, default ''
+            # C chain ID
+            # R one or three-letter residue code
+            # D is resid
             shortcode=args[0]
             tokens=shortcode.split(':')
             has_modelnum=len(tokens)>2
@@ -142,26 +139,21 @@ class EmptyResidue(BaseObj):
                 chain_idx=model_idx+1
                 chainID=tokens[chain_idx]
             res_idx=chain_idx+1
-            resncode=tokens[res_idx]
-            rescode=''
-            ri=''
-            okrescode=True
-            for byte in resncode:
-                if byte.isalpha() and okrescode:
-                    rescode=rescode+byte
-                else:
-                    okrescode=False
-                    ri=ri+byte
-            rescode=rescode.upper()
-            if len(rescode)==1:
-                rescode=Labels.res_123[rescode]
-            r,i=split_ri(ri)
+            rescode_and_ID=tokens[res_idx]
+            # rescode are the first alphabetic characters of rescode_and_ID.
+            rescode_attempt = rescode_and_ID[:3].upper()
+            # if this is a single-letter code, expect the second character to be a digit
+            if rescode_attempt[1].isdigit():
+                rescode = rescode_attempt[0]
+                resid = ResID(rescode_and_ID[1:])
+            else:
+                rescode = rescode_attempt
+                resid = ResID(rescode_and_ID[3:])
             input_dict={
                 'model':model,
                 'resname':rescode,
                 'chainID':chainID,
-                'resseqnum':r,
-                'insertion':i,
+                'resid': resid,
                 'resolved':False,
                 'segtype':'UNSET',
             }
@@ -215,7 +207,7 @@ class EmptyResidue(BaseObj):
         """
         record_name,code=EmptyResidue.PDB_keyword.split('.')
         return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>5d}{:1s}'.format(record_name,
-        code,self.model,self.resname,self.chainID,self.resseqnum,self.insertion)
+        code,self.model,self.resname,self.chainID,self.resid.resseqnum,self.resid.insertion)
 
 class EmptyResidueList(BaseObjList[EmptyResidue]):
     """
@@ -298,8 +290,8 @@ class Residue(EmptyResidue):
     - ``downlink``: list
         A list of links to residues that are connected to this residue in a downstream direction.
     """
-    up: Optional['ResidueList'] = Field(default_factory=lambda: ResidueList())  # = Field(default=[], description="A list of residues linked to this residue in an upstream direction.")
-    down: Optional['ResidueList'] = Field(default_factory=lambda: ResidueList())  # = Field(default=[], description="A list of residues linked to this residue in a downstream direction.")
+    up: 'ResidueList' = Field(default_factory=lambda: ResidueList(), description="A list of residues linked to this residue in an upstream direction.")
+    down: 'ResidueList' = Field(default_factory=lambda: ResidueList(), description="A list of residues linked to this residue in a downstream direction.")
     uplink: LinkList = Field(default_factory=LinkList, description="A list of links to residues connected to this residue in an upstream direction.")
     downlink: LinkList = Field(default_factory=LinkList, description="A list of links to residues connected to this residue in a downstream direction.")
 
@@ -333,7 +325,7 @@ class Residue(EmptyResidue):
         str
             A string representation of the Residue object.
         """
-        return f'<Residue {self.chainID}_{self.resname}{self.resseqnum}{self.insertion} ({len(self.atoms)} atoms)>'
+        return f'<Residue {self.chainID}_{self.resname}{self.resid.resid} ({len(self.atoms)} atoms)>'
 
     @staticmethod
     def _adapt(*args) -> dict:
@@ -369,15 +361,17 @@ class Residue(EmptyResidue):
             return input_dict
         elif isinstance(args[0], Atom | Hetatm):
             a = args[0]
-            input_dict = dict(resname=a.resname, 
-                                resid=a.resid, chainID=a.chainID,
-                                resolved=True, segtype='UNSET', atoms = AtomList([a]),
-                                auth_asym_id=getattr(a, 'auth_asym_id', None),
-                                auth_comp_id=getattr(a, 'auth_comp_id', None),
-                                auth_seq_id=getattr(a, 'auth_seq_id', None))
+            input_dict = dict(resname=a.resname,
+                              resid=a.resid, chainID=a.chainID,
+                              atoms=AtomList([a]),
+                              auth_asym_id=getattr(a, 'auth_asym_id', None),
+                              auth_comp_id=getattr(a, 'auth_comp_id', None),
+                              auth_seq_id=getattr(a, 'auth_seq_id', None))
+        input_dict['resolved'] = True
+        return input_dict
             
     def __str__(self):
-        return super().__str__()[0:-1] # strip off the "*"
+        return f'{self.chainID}_{self.resname}{self.resid.resid}'
 
     def __lt__(self, other):
         """
@@ -396,7 +390,12 @@ class Residue(EmptyResidue):
         bool
             True if this residue is less than the other residue, False otherwise.
         """
-        return self.resid < other.resid if isinstance(other, Residue) else self.resid < ResID(other)
+        if isinstance(other, Residue):
+            return self.resid < other.resid
+        elif isinstance(other, str):
+            return self.resid < ResID(other)
+        else:
+            raise TypeError(f"Cannot compare Residue with {type(other)}")
     
     def __gt__(self, other):
         """
@@ -412,8 +411,96 @@ class Residue(EmptyResidue):
         bool
             True if this residue is greater than the other residue, False otherwise.
         """
-        return self.resid > other.resid if isinstance(other, Residue) else self.resid > ResID(other)
+        if isinstance(other, Residue):
+            return self.resid > other.resid
+        elif isinstance(other, str):
+            return self.resid > ResID(other)
+        else:
+            raise TypeError(f"Cannot compare Residue with {type(other)}")
     
+    def __lt__(self,other):
+        """
+        Compare this residue with another residue or a string representation of a residue to determine if this residue is "less than" the other; i.e., N-terminal to.  This is used for sorting residues in a sequence.
+
+        Parameters
+        ----------
+        other : :class:`~pestifer.molecule.residue.Residue`, str
+            The other residue or string to compare with.
+
+        Returns
+        -------
+        bool
+            True if this residue is less than the other residue, False otherwise.
+        """
+        if isinstance(other, Residue):
+            return self.resid < other.resid
+        elif isinstance(other, str):
+            return self.resid < ResID(other)
+        else:
+            raise TypeError(f"Cannot compare Residue with {type(other)}")
+    
+    def __gt__(self,other):
+        """
+        Compare this residue with another residue or a string representation of a residue to determine if this residue is "greater than" the other; i.e., C-terminal to.  This is used for sorting residues in a sequence.
+
+        Parameters
+        ----------
+        other : :class:`~pestifer.molecule.residue.Residue`, str
+            The other residue or string to compare with.
+
+        Returns
+        -------
+        bool
+            True if this residue is greater than the other residue, False otherwise.
+        """
+        if isinstance(other, Residue):
+            return self.resid > other.resid
+        elif isinstance(other, str):
+            return self.resid > ResID(other)
+        else:
+            raise TypeError(f"Cannot compare Residue with {type(other)}")
+    
+    def __eq__(self, other):
+        """
+        Check if this residue is equal to another residue or a string representation of a residue.
+        This is used to determine if two residues are the same in terms of their sequence position.
+
+        Parameters
+        ----------
+        other : :class:`~pestifer.molecule.residue.Residue`, str
+            The other residue or string to compare with.
+
+        Returns
+        -------
+        bool
+            True if this residue has the same residue sequence number and insertion code as the other residue,
+            False otherwise.
+        """
+        if isinstance(other, Residue):
+            return self.resid == other.resid
+        elif isinstance(other, str):
+            return self.resid == ResID(other)
+        else:
+            raise TypeError(f"Cannot compare Residue with {type(other)}")
+
+    def __ne__(self, other):
+        """
+        Check if this residue is not equal to another residue or a string representation of a residue.
+        This is used to determine if two residues are different in terms of their sequence position.
+
+        Parameters
+        ----------
+        other : :class:`~pestifer.molecule.residue.Residue`, str
+            The other residue or string to compare with.
+
+        Returns
+        -------
+        bool
+            True if this residue does not have the same residue sequence number and insertion code as the other residue,
+            False otherwise.
+        """
+        return self.resid != other.resid if isinstance(other, Residue) else self.resid != ResID(other)
+
     def __le__(self,other):
         """
         Compare this residue with another residue or a string representation of a residue to determine if this residue is "less than or equal to" the other; i.e., N-terminal to or same as.  This is used for sorting residues in a sequence.
@@ -428,9 +515,7 @@ class Residue(EmptyResidue):
         bool
             True if this residue is less than or equal to the other residue, False otherwise.
         """
-        if self<other:
-            return True
-        return self.same_resid(other)
+        return self.resid <= other.resid if isinstance(other, Residue) else self.resid <= ResID(other)
     
     def __ge__(self,other):
         """
@@ -446,9 +531,7 @@ class Residue(EmptyResidue):
         bool
             True if this residue is greater than or equal to the other residue, False otherwise.
         """
-        if self>other:
-            return True
-        return self.same_resid(other)
+        return self.resid >= other.resid if isinstance(other, Residue) else self.resid >= ResID(other)
     
     def same_resid(self,other):
         """
@@ -765,9 +848,9 @@ class ResidueList(BaseObjList[Residue]):
         ur=upstream_reslist[-1]
         rN=positionN(ur,tmat)
         logger.debug(f'caco {rN}')
-        return f'coord {seglabel} {r0.resseqnum}{r0.insertion} N {{{rN[0]:.5f} {rN[1]:.5f} {rN[2]:.5f}}}'
+        return f'coord {seglabel} {r0.resid.resid} N {{{rN[0]:.5f} {rN[1]:.5f} {rN[2]:.5f}}}'
     
-    def resrange(self,rngrec):
+    def resrange(self, rngrec):
         """
         Yield residues from specified residue range.
         
@@ -777,10 +860,8 @@ class ResidueList(BaseObjList[Residue]):
             A record defining the range of residues to retrieve. It must have the following attributes:
 
             - `chainID`: The chain ID of the residues.
-            - `resseqnum1`: The starting residue sequence number.
-            - `insertion1`: The starting insertion code.
-            - `resseqnum2`: The ending residue sequence number.
-            - `insertion2`: The ending insertion code.
+            - `resid1`: The starting resid.
+            - `resid2`: The ending resid.
 
             For example, a :class:`~pestifer.objs.deletion.Deletion` object can be used to define the range
 
@@ -789,15 +870,16 @@ class ResidueList(BaseObjList[Residue]):
         :class:`~pestifer.molecule.residue.Residue`
             Yields residues within the specified range.
         """
+        assert hasattr(rngrec,'chainID'), 'resrange requires a chainID'
+        assert hasattr(rngrec,'resid1'), 'resrange requires a resid1'
+        assert hasattr(rngrec,'resid2'), 'resrange requires a resid2'
         subR=self.get(chainID=rngrec.chainID)
         subR.sort()
-        r1=rngrec.resseqnum1
-        i1=rngrec.insertion1
-        r2=rngrec.resseqnum2
-        i2=rngrec.insertion2
-        R1=subR.get(resseqnum=r1,insertion=i1)
+        r1=rngrec.resid1
+        r2=rngrec.resid2
+        R1=subR.get(resid=r1)
         if R1:
-            R2=subR.get(resseqnum=r2,insertion=i2)
+            R2=subR.get(resid=r2)
             if R2:
                 idx1=subR.index(R1)
                 idx2=subR.index(R2)
@@ -806,7 +888,7 @@ class ResidueList(BaseObjList[Residue]):
                     yield self[j]
         return []
     
-    def do_deletions(self,Deletions):
+    def do_deletions(self, Deletions):
         """
         Apply a list of deletions to the residue list.
         
@@ -830,9 +912,9 @@ class ResidueList(BaseObjList[Residue]):
         in the residue list.
         """
         # logger.debug(f'residuelist:apply_segtypes {segtype_of_resname}')
-        self.map_attr('segtype','resname',Labels.segtype_of_resname)
-    
-    def deletion(self,DL:DeletionList):
+        self.map_attr('segtype', 'resname', Labels.segtype_of_resname)
+
+    def deletion(self, DL: DeletionList):
         """
         Remove residues from the residue list based on a :class:`~pestifer.objs.deletion.DeletionList`.
         This method iterates through the DeletionList, retrieves the residues to be deleted based on their
@@ -843,20 +925,20 @@ class ResidueList(BaseObjList[Residue]):
         DL : :class:`~pestifer.objs.deletion.DeletionList`
             A list of deletion ranges to apply. Each deletion range should contain the chain ID, residue sequence numbers, and insertion codes for the start and end of the deletion range.
         """
-        excised=[]
+        excised = []
         for d in DL:
-            chain=self.get(chainID=d.chainID)
-            r1=chain.get(resseqnum=d.resseqnum1,insertion=d.insertion1)
-            r2=chain.get(resseqnum=d.resseqnum2,insertion=d.insertion2)
+            chain = self.get(chainID=d.chainID)
+            r1 = chain.get(resid=d.resid1)
+            r2 = chain.get(resid=d.resid2)
             for r in chain:
-                if r1<=r<=r2:
+                if r1 <= r <= r2:
                     excised.append(r)
         for x in excised:
             self.remove(x)
             assert not x in self
         return excised
 
-    def substitutions(self,SL:SubstitutionList):
+    def substitutions(self, SL:SubstitutionList):
         """
         Apply a list of substitutions to the residue list. This method iterates through the :class:`~pestifer.objs.substitution.SubstitutionList`, retrieves the residues to be substituted based on their chain ID, residue sequence numbers, and insertion codes, and replaces their residue names with the corresponding residue names from the substitution list. It also creates a new :class:`~pestifer.objs.seqadv.SeqadvList` for any resolved residues that are substituted.  Any residues that are deleted as a result of the substitutions are also returned in a list.
 
@@ -871,22 +953,22 @@ class ResidueList(BaseObjList[Residue]):
         tuple : (:class:`~pestifer.objs.seqadv.SeqadvList`, list of :class:`~pestifer.molecule.residue.Residue`)
             A tuple containing a :class:`~pestifer.objs.seqadv.SeqadvList` of new sequence advancements for resolved residues and a list of residues that were deleted.
         """
-        delete_us=[]
-        newseqadv=SeqadvList([]) # for holding single-residue changes for resolved residues
+        delete_us = []
+        newseqadv = SeqadvList([])  # for holding single-residue changes for resolved residues
         for s in SL:
-            subseq=s.subseq
-            currsubidx=0
-            chain=self.get(chainID=s.chainID)
-            assert chain!=None,f'Error: no chain {s.chainID}'
-            r1=chain.get(resseqnum=s.resseqnum1,insertion=s.insertion1)
-            assert r1!=None,f'Error: no resseqnum {s.resseqnum1} insertion [{s.insertion1}]'
-            r2=chain.get(resseqnum=s.resseqnum2,insertion=s.insertion2)
-            assert r2!=None,f'Error: no resseqnum {s.resseqnum2} insertion [{s.insertion2}]'
+            subseq = s.subseq
+            currsubidx = 0
+            chain = self.get(chainID=s.chainID)
+            assert chain != None, f'Error: no chain {s.chainID}'
+            r1 = chain.get(resid=s.resid1)
+            assert r1 != None, f'Error: no resid {s.resid1}'
+            r2 = chain.get(resid=s.resid2)
+            assert r2 != None, f'Error: no resid {s.resid2}'
             for r in chain:
-                if r1<=r<=r2:
-                    if currsubidx<len(subseq):
-                        resname=Labels.res_123[subseq[currsubidx].upper()]
-                        if r.resolved: # make a new seqadv for this mutation
+                if r1 <= r <= r2:
+                    if currsubidx < len(subseq):
+                        resname = Labels.res_123[subseq[currsubidx].upper()]
+                        if r.resolved:  # make a new seqadv for this mutation
                             newseqadv.append(Seqadv(
                                 idCode='I doubt I ever use this',
                                 typekey='user',

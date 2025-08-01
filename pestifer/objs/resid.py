@@ -25,6 +25,16 @@ class ResID(BaseObj):
         return f'{self.resseqnum}{self.insertion}'
 
     @property
+    def pdbresid(self) -> str:
+        """
+        Returns the residue number and insertion code in a format suitable for PDB files.
+        If there is no insertion code, it returns just the residue number as a string.
+        """
+        if self.insertion is None or self.insertion == '':
+            return str(self.resseqnum)+' '
+        return f'{self.resseqnum}{self.insertion}'
+
+    @property
     def resid(self) -> str | int:
         """
         Returns the residue number and insertion code as a string, or if there is no insertion code,

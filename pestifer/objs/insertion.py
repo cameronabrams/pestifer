@@ -27,8 +27,7 @@ class Insertion(BaseObj):
     These attributes must be provided when creating an Insertion object.
     
     - ``chainID``: The chain ID of the segment where the insertion occurs.
-    - ``resseqnum``: The residue number where the insertion is made.
-    - ``insertion``: The insertion code for the residue.
+    - ``resid``: The residue ID where the insertion is made, represented by a `ResID` object.
     - ``sequence``: The one-letter amino acid sequence to be inserted.
 
     Optional attributes for an Insertion object.

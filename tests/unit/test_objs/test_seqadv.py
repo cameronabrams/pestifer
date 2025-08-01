@@ -5,7 +5,7 @@ from pidibble.pdbrecord import PDBRecordDict
 from pestifer.util.cifutil import CIFdict, CIFload
 from pathlib import Path
 from mmcif.api.PdbxContainers import DataContainer
-
+from pestifer.objs.resid import ResID
 class TestSeqadv(unittest.TestCase):
 
     def test_seqadv_creation(self):
@@ -13,23 +13,24 @@ class TestSeqadv(unittest.TestCase):
             idCode="1ABC",
             resname="ALA",
             chainID="A",
-            resseqnum=1,
-            insertion="",
-            typekey="conflict"
+            resid=ResID(1),
+            typekey="engineered mutation",
+            dbRes="GLY"
         )
         self.assertIsInstance(seqadv, Seqadv)
+        self.assertEqual(repr(seqadv), "Seqadv(idCode='1ABC', resname='ALA', chainID='A', resid=ResID(resseqnum=1), dbRes='GLY', typekey='engineered mutation')")
 
     def test_seqadv_from_pdbrecord(self):
         p=PDBParser(filepath='data/4zmj.pdb').parse()
         pr=p.parsed[Seqadv._PDB_keyword][0]
-        seqadv = Seqadv.new(pr)
+        seqadv = Seqadv(pr)
         self.assertIsInstance(seqadv, Seqadv)
 
     def test_seqadv_from_cifdict(self):
         p=CIFload(Path('data/4zmj.cif'))
         obj=p.getObj(Seqadv._CIF_CategoryName)
         d=CIFdict(obj, 0)
-        seqadv = Seqadv.new(d)
+        seqadv = Seqadv(d)
         self.assertIsInstance(seqadv, Seqadv)
 
 class TestSeqadvList(unittest.TestCase):

@@ -12,7 +12,7 @@ class TestOrient(unittest.TestCase):
         self.assertEqual(orient.refatom, "CA")
         self.assertEqual(orient._yaml_header, 'orient')
         self.assertEqual(orient._objcat, 'coord')
-        self.assertEqual(orient.describe(), "Orient(axis=x, refatom=CA)")
+        self.assertEqual(repr(orient), "Orient(axis='x', refatom='CA')")
 
     def test_orient_copy(self):
         orient1 = Orient(

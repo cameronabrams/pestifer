@@ -13,13 +13,13 @@ class TestRotTrans(unittest.TestCase):
         self.assertIsInstance(rottrans, RotTrans)
 
     def test_rottrans_from_shortcode(self):
-        rottrans = RotTrans.new('TRANS,1.0,2.0,3.0')
+        rottrans = RotTrans('TRANS,1.0,2.0,3.0')
         self.assertIsInstance(rottrans, RotTrans)
         self.assertEqual(rottrans.movetype, 'TRANS')
         self.assertEqual(rottrans.x, 1.0)
         self.assertEqual(rottrans.y, 2.0)
         self.assertEqual(rottrans.z, 3.0)
-        rottrans = RotTrans.new('ROT,x,90.0')
+        rottrans = RotTrans('ROT,x,90.0')
         self.assertIsInstance(rottrans, RotTrans)
         self.assertEqual(rottrans.movetype, 'ROT')
         self.assertEqual(rottrans.axis, 'x')
