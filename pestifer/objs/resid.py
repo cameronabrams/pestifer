@@ -131,7 +131,13 @@ class ResID(BaseObj):
         if self.insertion is None or self.insertion == '':
             return ResID(resseqnum=self.resseqnum, insertion='A')
         else:
-            return ResID(resseqnum=self.resseqnum, insertion=chr(ord(self.insertion) + 1))
+            new_ord = ord(self.insertion) + 1
+            if new_ord == 64:
+                new_ord = 97
+            elif new_ord > 122:
+                raise ValueError(f"Insertion code cannot exceed '{chr(122)}'")
+            new_insertion_code = chr(new_ord)
+            return ResID(resseqnum=self.resseqnum, insertion=new_insertion_code)
 
     @staticmethod
     def join_ri(resseqnum: int, insertion: str | None = None) -> str:

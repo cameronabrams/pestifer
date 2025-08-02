@@ -49,14 +49,14 @@ class BaseObj(BaseModel, ABC):
 
     def __init__(self, *args, **kwargs):
         if args and not kwargs and hasattr(self, '_adapt'):
-            converted = self._adapt(*args)
+            converted = self._adapt(*args, **kwargs)
             super().__init__(**converted)
         else:
             super().__init__(*args, **kwargs)
 
     @staticmethod
     @abstractmethod
-    def _adapt(*args) -> dict:
+    def _adapt(*args, **kwargs) -> dict:
         """Convert arbitrary input into a dict of model fields."""
         raise NotImplementedError("Subclasses must implement the _adapt static method.")
 

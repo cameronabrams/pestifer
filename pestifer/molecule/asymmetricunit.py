@@ -9,11 +9,11 @@ from argparse import Namespace
 from mmcif.api.PdbxContainers import DataContainer
 from pathlib import Path
 from pidibble.pdbrecord import PDBRecordDict
-from typing import ClassVar, Dict, Optional, Any
+from typing import ClassVar
 
 from .atom import AtomList, Atom, Hetatm
 from .chainidmanager import ChainIDManager
-from .residue import ResidueList, EmptyResidueList
+from .residue import ResidueList, ResiduePlaceholderList
 from .segment import SegmentList
 
 from ..core.objmanager import ObjManager
@@ -23,6 +23,7 @@ from ..objs.graft import GraftList
 from ..objs.link import LinkList
 from ..objs.mutation import Mutation, MutationList
 from ..objs.patch import PatchList
+from ..objs.resid import ResID
 from ..objs.seqadv import SeqadvList
 from ..objs.ssbond import SSBondList
 from ..objs.ter import Ter, TerList
@@ -47,20 +48,24 @@ class AsymmetricUnit:
         A manager for chain IDs. Defaults to a new instance of `ChainIDManager`.
     psf : str or Path, optional
         Path to a PSF file to use for additional information about the structure. Defaults to None.  If set, it must be congruent to the PDB/mmCIF data.
-    parent_molecule : Any, optional
-        The parent molecule of the asymmetric unit, if applicable. Defaults to None.
     """
 
-    _residue_excludables: ClassVar[Dict] = {'resnames':'resname','chains':'chainID','segtypes':'segtype'}
+    _residue_excludables: ClassVar[dict] = {'resnames':'resname','chains':'chainID','segtypes':'segtype'}
     """
     Attributes that can be excluded from the asymmetric unit based on user specifications.
     Key is the YAML key used the input file and value is the attribute of the residue to check against.
     """
 
-    _atom_excludables: ClassVar[Dict] ={'altlocs':'altloc'}
+    _atom_excludables: ClassVar[dict] ={'altlocs':'altloc'}
     """
     Attributes that can be excluded from the asymmetric unit based on user specifications.
     Key is the YAML key used the input file and value is the attribute of the atom to check against.
+    """
+
+    _parent_molecule: ClassVar[object] = None
+    """
+    The parent molecule of the asymmetric unit, if applicable.
+    This is used to link the asymmetric unit to a larger molecular structure.
     """
 
     def describe(self):
@@ -70,23 +75,23 @@ class AsymmetricUnit:
         return self.describe()
 
     def __init__(self,
-                 parsed: Optional[PDBRecordDict|DataContainer] = None,
-                 sourcespecs: Optional[Dict] = {},
-                 objmanager: Optional[ObjManager] = ObjManager(),
-                 chainIDmanager: Optional[ChainIDManager] = ChainIDManager(),
-                 psf: Optional[str|Path] = None,
-                 parent_molecule: Optional[Any] = None):
+                 parsed: PDBRecordDict | DataContainer = None,
+                 sourcespecs: dict = {},
+                 objmanager: ObjManager = ObjManager(),
+                 chainIDmanager: ChainIDManager = ChainIDManager(),
+                 psf: str | Path = None):
 
         if not parsed:
             return
 
-        self.parent_molecule = parent_molecule
-        missings = EmptyResidueList([])
+        self._parent_molecule = None
+        missings = ResiduePlaceholderList([])
         ssbonds = SSBondList([])
         links = LinkList([])
         ters = TerList([])
         seqadvs = SeqadvList([])
         patches = PatchList([])
+        grafts = GraftList([])
 
         if type(parsed) == dict: # PDB format
             # minimal parsed has ATOMS
@@ -101,15 +106,15 @@ class AsymmetricUnit:
                 atoms.sort(by=['serial'])
             if ters._has_serials: atoms.reserialize()
             objmanager.ingest(ters)
-            missings = EmptyResidueList.from_pdb(parsed)
+            missings = ResiduePlaceholderList.from_pdb(parsed)
             ssbonds = SSBondList.from_pdb(parsed)
             seqadvs = SeqadvList.from_pdb(parsed)
             links = LinkList.from_pdb(parsed)
-            links.remove_duplicates(fields=['chainID1', 'resseqnum1', 'insertion1', 'chainID2', 'resseqnum2', 'insertion2']) # some pdb files list links multiple times (2ins, i'm looking at you)
+            links.remove_duplicates(fields=['chainID1', 'resid1', 'chainID2', 'resid2']) # some pdb files list links multiple times (2ins, i'm looking at you)
         elif type(parsed) == DataContainer: # mmCIF format
             atoms = AtomList.from_cif(parsed)
             seqadvs = SeqadvList.from_cif(parsed)
-            missings = EmptyResidueList.from_cif(parsed)
+            missings = ResiduePlaceholderList.from_cif(parsed)
             ssbonds = SSBondList.from_cif(parsed)
             links = LinkList.from_cif(parsed)
         else:
@@ -133,7 +138,7 @@ class AsymmetricUnit:
         seqmods = objmanager.get('seq', {})
         logger.debug(f'Seqmods: {seqmods}')
         topomods = objmanager.get('topol', {})
-        grafts = seqmods.get('grafts', GraftList([]))
+        grafts: GraftList = seqmods.get('grafts', GraftList([]))
 
         userlinks = topomods.get('links', LinkList([]))
         links.extend(userlinks)
@@ -151,8 +156,8 @@ class AsymmetricUnit:
         ignored_atoms = atoms.prune_exclusions(**thru_dict)
         logger.debug(f'{len(ignored_atoms)} atoms excluded by user-specified exclusions')
         fromAtoms = ResidueList.from_atomlist(atoms)
-        fromEmptyResidues = ResidueList.from_emptyresiduelist(missings)
-        residues = fromAtoms + fromEmptyResidues
+        fromResiduePlaceholders = ResidueList.from_ResiduePlaceholderlist(missings)
+        residues = fromAtoms + fromResiduePlaceholders
         if sourcespecs.get('cif_residue_map_file', ''):
             write_residue_map(residues.cif_residue_map(), sourcespecs['cif_residue_map_file'])
         residues.apply_segtypes()
@@ -171,7 +176,7 @@ class AsymmetricUnit:
         logger.debug(f'{len(residues)} total residues: {nResolved} resolved and {nUnresolved} unresolved')
         if 'deletions' in seqmods:
             nResolvedDelete = len(fromAtoms) - nResolved
-            nUnresolvedDelete = len(fromEmptyResidues) - nUnresolved
+            nUnresolvedDelete = len(fromResiduePlaceholders) - nUnresolved
             logger.debug(f'Deletions removed {nResolvedDelete} resolved and {nUnresolvedDelete} unresolved residues')
         if 'insertions' in seqmods:
             residues.apply_insertions(seqmods['insertions'])
@@ -187,12 +192,12 @@ class AsymmetricUnit:
         # populates a specific mapping of PDB chainID to CIF label_asym_id
         # This is only meaningful if mmCIF input is used
         residues.map_chainIDs_label_to_auth()
-        logger.debug(f'{len(residues)} residues before assign_residues')
-        for r in residues:
-            if hasattr(r, 'label_seq_id'):
-                logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}')
-            else:
-                logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}{r.insertion}')
+        # logger.debug(f'{len(residues)} residues before assign_residues')
+        # for r in residues:
+        #     if hasattr(r, 'label_seq_id'):
+        #         logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}')
+        #     else:
+        #         logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}{r.insertion}')
 
         # Give each Seqadv a residue identifier
         ignored_seqadvs = seqadvs.assign_residues(residues)
@@ -225,11 +230,11 @@ class AsymmetricUnit:
             logger.debug(f'    {len(ignored_grafts)} grafts, {len(grafts)} remain')
 
         logger.debug(f'{len(residues)} residues after assign_residues')
-        for r in residues:
-            if hasattr(r, 'label_seq_id'):
-                logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}')
-            else:
-                logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}{r.insertion}')
+        # for r in residues:
+        #     if hasattr(r, 'label_seq_id'):
+        #         logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}')
+        #     else:
+        #         logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}{r.insertion}')
 
         # provide specifications of how to handle sequence issues
         # implied by PDB input
@@ -238,9 +243,9 @@ class AsymmetricUnit:
         # this may have altered chainIDs for some residues.  So we must
         # be sure all mods that are chainID-specific but
         # not inheritable by segments are updated
-        for s in seqadvs:
-            if type(s.residue) == ResidueList:
-                logger.debug(f'{str(s)}')
+        # for s in seqadvs:
+        #     if type(s.residue) == ResidueList:
+        #         logger.debug(f'{str(s)}')
         seqadvs.update_attr_from_obj_attr('chainID', 'residue', 'chainID')
         seqadvs.map_attr('dbRes', 'dbRes', {'HIS': 'HSD'})
         ssbonds.update_attr_from_obj_attr('chainID1', 'residue1', 'chainID')
@@ -253,10 +258,11 @@ class AsymmetricUnit:
             logger.debug(f'Daughter chains generated: {segments.daughters}')
         logger.debug(f'Used chainIDs {chainIDmanager.Used}')
         # promote sequence numbers in any grafts to avoid collisions
-        next_resseqnum = max([x.resseqnum for x in residues]) + 1
+        # and include the graft links in the overall list of links
+        next_resid = max([x.resid for x in residues]) + 1
+        grafts.sequential_renumber(next_resid)
         for g in grafts:
-            next_resseqnum = g.set_links(next_resseqnum)
-            my_logger(str(g), logger.debug, fill=' ', just='<')
+            next_resid = g.set_links(next_resid)
             links.extend(g.my_links)
 
         # at this point, we have built the asymmetric unit according to the intention of the 
@@ -307,6 +313,27 @@ class AsymmetricUnit:
         self.psf = psf
         self.ignored = Namespace(residues=ignored_residues, links=ignored_links, ssbonds=ignored_ssbonds, seqadv=ignored_seqadvs)
         self.pruned = Namespace(ssbonds=pruned_ssbonds, residues=pruned_by_links['residues'], links=pruned_by_links['links'], segments=pruned_by_links['segments'])
+
+    @property
+    def parent_molecule(self):
+        """
+        The parent molecule of the asymmetric unit, if applicable.
+        This is used to link the asymmetric unit to a larger molecular structure.
+        """
+        return self._parent_molecule
+    
+    def set_parent_molecule(self, parent_molecule):
+        """
+        Sets the parent molecule of the asymmetric unit.
+
+        Parameters
+        ----------
+        parent_molecule : Any
+            The parent molecule to set for the asymmetric unit.
+        """
+        if self._parent_molecule is not None:
+            raise RuntimeError("Parent molecule is already set and cannot be changed.")
+        self._parent_molecule = parent_molecule
 
     def add_segment(self, seg):
         """

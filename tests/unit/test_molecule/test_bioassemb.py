@@ -6,6 +6,13 @@ from pidibble.pdbparse import PDBRecord, PDBRecordDict
 import numpy as np
 from dataclasses import dataclass
 
+class TestBioAssemb(unittest.TestCase):
+    def test_bioassemb_init(self):
+        ba = BioAssemb()
+        self.assertIsInstance(ba.transforms, TransformList)
+        self.assertEqual(ba.name, None)
+        self.assertEqual(ba.parent_molecule, None)
+
 
 # class TestBiomT(unittest.TestCase):
 #     def test_identity(self):

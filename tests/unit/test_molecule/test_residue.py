@@ -1,5 +1,5 @@
 import unittest
-from pestifer.molecule.residue import Residue, EmptyResidue, ResidueList, EmptyResidueList
+from pestifer.molecule.residue import Residue, ResiduePlaceholder, ResidueList, ResiduePlaceholderList
 from pestifer.molecule.atom import AtomList, Atom
 from pestifer.objs.link import Link, LinkList
 from pestifer.objs.deletion import Deletion, DeletionList
@@ -11,10 +11,10 @@ from pestifer.util.cifutil import CIFload
 from pathlib import Path
 from pidibble.pdbparse import PDBParser
 
-class TestEmptyResidue(unittest.TestCase):
+class TestResiduePlaceholder(unittest.TestCase):
 
     def test_empty_residue(self):
-        e = EmptyResidue(
+        e = ResiduePlaceholder(
             resname='ALA',
             resid=ResID(1),
             chainID='A',
@@ -31,7 +31,7 @@ class TestEmptyResidue(unittest.TestCase):
 
     def test_empty_residue_from_shortcode(self):
         shortcode = "1:A:ALA1:"
-        r = EmptyResidue(shortcode)
+        r = ResiduePlaceholder(shortcode)
         self.assertEqual(r.model, 1)
         self.assertEqual(r.chainID, 'A')
         self.assertEqual(r.resname, 'ALA')
@@ -42,7 +42,7 @@ class TestEmptyResidue(unittest.TestCase):
         self.assertEqual(r.auth_comp_id, None)
         self.assertEqual(r.auth_seq_id, None)
 
-class TestEmptyResidueList(unittest.TestCase):
+class TestResiduePlaceholderList(unittest.TestCase):
 
     def test_empty_residue_list(self):
         rl = ResidueList()
@@ -51,12 +51,12 @@ class TestEmptyResidueList(unittest.TestCase):
 
     def test_empty_residue_list_from_pdb(self):
         p = PDBParser(filepath='fixtures/data/4zmj.pdb').parse().parsed
-        empty_residue_list = EmptyResidueList.from_pdb(p)
+        empty_residue_list = ResiduePlaceholderList.from_pdb(p)
         self.assertGreater(len(empty_residue_list), 0)
 
     def test_empty_residue_list_from_cif(self):
         p = CIFload(Path('fixtures/data/4zmj.cif'))
-        empty_residue_list = EmptyResidueList.from_cif(p)
+        empty_residue_list = ResiduePlaceholderList.from_cif(p)
         self.assertGreater(len(empty_residue_list), 0)
 
 class TestResidue(unittest.TestCase):
@@ -78,6 +78,23 @@ class TestResidue(unittest.TestCase):
         self.assertEqual(r.segtype, 'UNSET')
         self.assertIsInstance(r.atoms, AtomList)  # Atoms should be an AtomList
     
+    def test_residue_from_residueplaceholder(self):
+        e = ResiduePlaceholder(
+            resname='ALA',
+            resid=ResID(1),
+            chainID='A',
+            resolved=False,
+            segtype='UNSET'
+        )
+        r = Residue(e)
+        self.assertIsInstance(r, Residue)
+        self.assertEqual(r.resname, 'ALA')
+        self.assertEqual(r.resid, ResID(1))
+        self.assertEqual(r.chainID, 'A')
+        self.assertTrue(r.resolved)
+        self.assertEqual(r.segtype, 'UNSET')
+        self.assertIsInstance(r.atoms, AtomList)
+
     def test_residue_create_and_linking(self):
         r1 = Residue(
             resname='ALA',
@@ -298,7 +315,6 @@ class TestResidueList(unittest.TestCase):
         self.assertIsInstance(residue_list[0], Residue)
         self.assertIsInstance(residue_list[1], Residue)
 
-
     def test_residue_list_get_sublist(self):
         r1 = Residue(
             resname='ALA',
@@ -475,7 +491,7 @@ class TestResidueList(unittest.TestCase):
         )
         r2 = Residue(
             resname='GLY',
-            resid=ResID(2, 'A'),
+            resid=ResID(2),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -483,7 +499,7 @@ class TestResidueList(unittest.TestCase):
         )
         r3 = Residue(
             resname='SER',
-            resid=ResID(3, 'A'),
+            resid=ResID(3),
             chainID='A',
             resolved=True,
             segtype='UNSET',
@@ -501,7 +517,6 @@ class TestResidueList(unittest.TestCase):
         substitution1 = Substitution(
             chainID="A",
             resid1=ResID(2),
-            insertion1="",
             resid2=ResID(3),
             subseq="WAVE"
         )

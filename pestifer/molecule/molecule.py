@@ -7,14 +7,13 @@ import os
 from ..core.objmanager import ObjManager
 from pidibble.pdbparse import PDBParser
 from ..util.cifutil import CIFload
-from ..core.baseobj import AncestorAwareObj
 from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList,BioAssemb
 from ..core.scripters import PsfgenScripter, Filewriter
 from .chainidmanager import ChainIDManager
 logger=logging.getLogger(__name__)
 
-class Molecule(AncestorAwareObj):
+class Molecule:
     """
     A class for handling molecules, including their asymmetric unit and biological assemblies.
     This class is initialized with a source dictionary that can contain various specifications
@@ -39,10 +38,6 @@ class Molecule(AncestorAwareObj):
     reset_counter : bool, optional
         If True, resets the molecule counter to 0. This is useful for testing or reinitialization purposes.
         Default is False.
-    """
-    req_attr=AncestorAwareObj.req_attr+['molid','objmanager','chainIDmanager','sourcespecs','asymmetric_unit','biological_assemblies','parsed_struct','rcsb_file_format']
-    """
-    Required attributes for the Molecule class.
 
     Attributes
     ----------
@@ -66,7 +61,6 @@ class Molecule(AncestorAwareObj):
         The file format of the source specifications, either ``PDB`` or ``mmCIF``.
     """
 
-    opt_attr=AncestorAwareObj.opt_attr+['active_biological_assembly']
     """
     Optional attributes for the Molecule class.
     
@@ -76,62 +70,63 @@ class Molecule(AncestorAwareObj):
         An instance of BioAssemb representing the currently active biological assembly.
         This assembly is derived from the asymmetric unit and can be activated based on user requests.
     """
-    
-    _molcounter=0
-    def __init__(self,source={},objmanager=None,chainIDmanager=None,**kwargs):
-        psf=None
-        reset=kwargs.get('reset_counter',False)
+
+    _molcounter: int = 0
+
+    def __init__(self, source: dict = {}, objmanager: ObjManager = None, chainIDmanager: ChainIDManager=None, **kwargs):
+        psf = None
+        reset = kwargs.get('reset_counter', False)
         if reset:
-            Molecule._molcounter=0
+            Molecule._molcounter = 0
         else:
-            Molecule._molcounter+=1
+            Molecule._molcounter += 1
         if not source:
             logger.debug('Molecule initialized without source.')
             p_struct=None
         else:
             logger.debug('Molecule initialization')
-            file_format=source.get('file_format','PDB')
-            if source.get('id',{}) or source.get('prebuilt',{}) or source.get('alphafold',{}):
-                if source.get('id',{}):
+            file_format = source.get('file_format', 'PDB')
+            if source.get('id', {}) or source.get('prebuilt', {}) or source.get('alphafold', {}):
+                if source.get('id', {}):
                     logger.debug(f'Molecule initialization from file {source["id"]}.{source["file_format"]}')
-                    if file_format=='PDB':
-                        p_struct=PDBParser(PDBcode=source['id']).parse().parsed
-                    elif file_format=='mmCIF':
+                    if file_format == 'PDB':
+                        p_struct = PDBParser(PDBcode=source['id']).parse().parsed
+                    elif file_format == 'mmCIF':
                         logger.debug(f'CIF source {source["id"]}')
-                        p_struct=CIFload(source['id'])
-                elif source.get('prebuilt',{}):
+                        p_struct = CIFload(source['id'])
+                elif source.get('prebuilt', {}):
                     logger.debug(f'prebuilt rec [{source["prebuilt"]}]')
-                    psf=source['prebuilt']['psf']
-                    pdb=source['prebuilt']['pdb']
-                    xsc=source['prebuilt'].get('xsc','')
+                    psf = source['prebuilt']['psf']
+                    pdb = source['prebuilt']['pdb']
+                    xsc = source['prebuilt'].get('xsc', '')
                     logger.debug(f'Using prebuilt psf {psf} and pdb {pdb}')
-                    pdb_pseudocode,ext=os.path.splitext(pdb)
-                    p_struct=PDBParser(PDBcode=pdb_pseudocode).parse().parsed
-                elif source.get('alphafold',{}):
-                    ac=source['alphafold']
-                    p_struct=PDBParser(alphafold=ac).parse().parsed
+                    p_struct = PDBParser(filepath=pdb).parse().parsed
+                elif source.get('alphafold', {}):
+                    ac = source['alphafold']
+                    p_struct = PDBParser(alphafold=ac).parse().parsed
             else:
                 logger.debug(f'None of "id", "prebuilt", or "alphafold" specified; initializing an empty molecule')
-                p_struct=None
-        if objmanager==None:
+                p_struct = None
+        if objmanager is None:
             logger.debug(f'Making an empty ObjManager')
-            objmanager=ObjManager()
-        if chainIDmanager==None:
+            objmanager = ObjManager()
+        if chainIDmanager is None:
             logger.debug(f'Molecule instantiating its own ChainIDManager')
-            chainIDmanager=ChainIDManager()
-        input_dict={
-            'sourcespecs': source,
-            'objmanager': objmanager,
-            'chainIDmanager':chainIDmanager,
-            'rcsb_file_format': file_format,
-            'molid': Molecule._molcounter,
-            'parsed_struct': p_struct,
-            'asymmetric_unit': AsymmetricUnit(parsed=p_struct,sourcespecs=source,objmanager=objmanager,chainIDmanager=chainIDmanager,psf=psf,parent_molecule=self),
-            'biological_assemblies': BioAssembList(p_struct)
-        }
-        super().__init__(input_dict)
-        self.asymmetric_unit.claim_descendants(self)
-        self.biological_assemblies.claim_descendants(self)
+            chainIDmanager = ChainIDManager()
+        self.sourcespecs = source
+        self.objmanager = objmanager
+        self.chainIDmanager = chainIDmanager
+        self.rcsb_file_format = file_format
+        self.molid = Molecule._molcounter
+        self.parsed_struct = p_struct
+        self.asymmetric_unit = AsymmetricUnit(parsed=p_struct, 
+                                              sourcespecs=source, 
+                                              objmanager=objmanager, 
+                                              chainIDmanager=chainIDmanager, 
+                                              psf=psf)
+        self.asymmetric_unit.set_parent_molecule(self)
+        self.biological_assemblies = BioAssembList(p_struct)
+        self.biological_assemblies.set_parent_molecule(self)
 
     def __repr__(self):
         """
@@ -145,7 +140,7 @@ class Molecule(AncestorAwareObj):
         """
         return f'Molecule(molid={self.molid}, num_atoms={self.num_atoms()})'
 
-    def set_coords(self,altcoordsfile):
+    def set_coords(self, altcoordsfile):
         """
         Set the coordinates of the asymmetric unit from an alternate coordinates file.
         This method reads the alternate coordinates from a PDB file and updates the asymmetric unit's coordinates.
@@ -160,12 +155,12 @@ class Molecule(AncestorAwareObj):
         AssertionError
             If the provided file is not in PDB format or if the file does not exist.
         """
-        nm,ext=os.path.splitext(altcoordsfile)
-        assert ext=='.pdb',f'Alt-coords file must be PDB format'
-        altstruct=PDBParser(PDBcode=nm).parse().parsed
+        nm, ext = os.path.splitext(altcoordsfile)
+        assert ext == '.pdb', f'Alt-coords file must be PDB format'
+        altstruct = PDBParser(PDBcode=nm).parse().parsed
         self.asymmetric_unit.set_coords(altstruct)
 
-    def activate_biological_assembly(self,index):
+    def activate_biological_assembly(self, index):
         """
         Activate a biological assembly by its index.
         This method sets the active biological assembly based on the provided index.

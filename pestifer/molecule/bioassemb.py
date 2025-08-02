@@ -45,7 +45,9 @@ class BioAssemb:
 
     _index: ClassVar[int] = 1  # start at 1
 
-    def __init__(self, name: str | None = None, transforms: TransformList | None = None):
+    _parent_molecule: object | None = None
+
+    def __init__(self, *args, **kwargs):
         """
         Initialize a BioAssemb instance.
 
@@ -56,73 +58,59 @@ class BioAssemb:
         transforms : TransformList | None, optional
             A list of Transform objects representing the transformations applied to the assembly.
         """
-        self.name = name or f'Assembly{BioAssemb._index}'
-        self.transforms = transforms or TransformList.identity()
+        if len(args) == 0:
+            if len(kwargs) == 0:
+                self.name = f'Assembly{BioAssemb._index}'
+                self.transforms = TransformList.identity()
+            else:
+                self.name = kwargs.get('name', f'Assembly{BioAssemb._index}')
+                if 'transforms' in kwargs:
+                    self.transforms = kwargs.get('transforms', TransformList.identity(1))
+                elif 'pdbrecordlist' in kwargs:
+                    self.transforms = TransformList.from_pdb_records(kwargs['pdbrecordlist'])
+                elif 'asymmetric_unit' in kwargs:
+                    self.name = kwargs.get('name', 'A.U.')
+                    self.transforms = TransformList.identity(1)
+                else:
+                    raise ValueError(f'BioAssemb requires either a name or transforms, got {kwargs}')           
+        elif len(args) == 1:
+            if isinstance(args[0], TransformList):
+                self.transforms = args[0]
+                self.name = f'Assembly{BioAssemb._index}'
+            elif isinstance(args[0], PDBRecordList):
+                self.transforms = TransformList.from_pdb_records(args[0])
+                self.name = f'Assembly{BioAssemb._index}'
+            elif isinstance(args[0], dict):
+                self.transforms = args[0].get('transforms', TransformList.identity(1))
+                self.name = args[0].get('name', f'Assembly{BioAssemb._index}')
+        elif len(args) == 2:
+            self.name = args[0]
+            self.transforms = args[1]
+        self._parent_molecule = None
         BioAssemb._index += 1
 
-    @classmethod
-    def from_dict(cls, input_obj: dict[str, str | TransformList | None]):
-        if not ('name' in input_obj and 'transforms' in input_obj):
-            raise ValueError(f'BioAssemb dictionary must contain "name" and "transforms" keys, got {input_obj}')
-        if not isinstance(input_obj['transforms'], TransformList):
-            raise TypeError(f'BioAssemb transforms must be a TransformList, got {type(input_obj["transforms"])}')
-        cls._index += 1
-        name = input_obj.get('name', f'Assembly{cls._index}')
-        transforms = input_obj.get('transforms', TransformList.identity())
-        return cls(name, transforms)
-
-    @classmethod
-    def from_asymmetric_unit(cls):
+    def set_parent_molecule(self, mol: object):
         """
-        Initialize a BioAssemb instance from an AsymmetricUnit.
-        
-        Returns
-        -------
-        BioAssemb
-            An instance of BioAssemb initialized with name A.U. and an identity transformation. 
-        """
-        cls._index += 1
-        return cls(name='A.U.', transforms=TransformList.identity())
-
-    @classmethod
-    def from_transform_list(cls, TList: TransformList):
-        """
-        Initialize a BioAssemb instance from a TransformList.
+        Set the parent molecule for this BioAssemb instance.
         
         Parameters
         ----------
-        input_obj : TransformList
-            A TransformList containing the transformations for the biological assembly.
+        mol : object
+            The parent molecule to set.
+        """
+        self._parent_molecule = mol
+    
+    @property
+    def parent_molecule(self) -> object | None:
+        """
+        Get the parent molecule of this BioAssemb instance.
         
         Returns
         -------
-        BioAssemb
-            An instance of BioAssemb initialized with the provided TransformList.
+        object | None
+            The parent molecule, or None if not set.
         """
-        cls._index += 1
-        return cls(name=f'Assembly{cls._index}', transforms=TList)
-
-    @classmethod
-    def from_pdbrecordlist(cls, PRList: PDBRecordList):
-        """
-        Initialize a BioAssemb instance from a PDBRecordList.
-
-        Parameters
-        ----------
-        PRList : PDBRecordList
-            A PDBRecordList containing the transformations for the biological assembly.
-
-        Returns
-        -------
-        BioAssemb
-            An instance of BioAssemb initialized with the provided PDBRecordList.
-        """
-        cls._index += 1
-        return cls(name=f'Assembly{cls._index}', transforms=TransformList.from_pdb_records(PRList))
-
-    @classmethod
-    def reset_index(cls):
-        cls._index=1
+        return self._parent_molecule
 
     def activate(self, AU: AsymmetricUnit, CM: ChainIDManager):
         """
@@ -138,15 +126,61 @@ class BioAssemb:
         for T in self.transforms:
             T.generate_chainIDmap(AU.segments.segnames, AU.segments.daughters, CM)
 
-class BioAssembList(UserList):
+class BioAssembList(UserList[BioAssemb]):
     """
     A class for handling lists of BioAssemb objects.
     This class inherits from UserList and provides methods to manage
     collections of biological assemblies.
     """
+    _parent_molecule: object | None = None
 
-    @classmethod
-    def from_pdb_record_dict(cls, PRDict: PDBRecordDict):
+    def __init__(self, initial_data=None):
+        """
+        Initialize a BioAssembList instance.
+        
+        Parameters
+        ----------
+        initial_data : list[BioAssemb] | None, optional
+            Initial data for the BioAssembList. If None, an empty list is created.
+        """
+        if isinstance(initial_data, BioAssemb):
+            initial_data = [initial_data]
+        elif initial_data is None:
+            initial_data = []
+        elif isinstance(initial_data, PDBRecordDict):
+            initial_data = BioAssembList.from_pdb_record_dict(initial_data)
+        elif isinstance(initial_data, DataContainer):
+            initial_data = BioAssembList.from_data_container(initial_data)
+        super().__init__(initial_data or [])
+        self._parent_molecule = None
+
+    def set_parent_molecule(self, mol: object):
+        """
+        Set the parent molecule for this BioAssembList instance.
+        
+        Parameters
+        ----------
+        mol : object
+            The parent molecule to set.
+        """
+        self._parent_molecule = mol
+        for ba in self.data:
+            ba.set_parent_molecule(mol)
+    
+    @property
+    def parent_molecule(self) -> object | None:
+        """
+        Get the parent molecule of this BioAssembList instance.
+        
+        Returns
+        -------
+        object | None
+            The parent molecule, or None if not set.
+        """
+        return self._parent_molecule
+
+    @staticmethod
+    def from_pdb_record_dict(PRDict: PDBRecordDict):
         """
         Initialize a BioAssembList from a PDBRecordDict.
         
@@ -157,11 +191,10 @@ class BioAssembList(UserList):
 
         Returns
         -------
-        BioAssembList
+        list
             An instance of BioAssembList initialized with the provided PDBRecordDict.
         """
 
-        BioAssemb.reset_index()
         B=[]
         # search the PDBRecordDict for keys that match the pattern 'REMARK.350.BIOMOLECULE{n}.TRANSFORM{m}', and extract the assembly number n and transform number m
         # where n is the assembly number and m is the transform number
@@ -185,12 +218,12 @@ class BioAssembList(UserList):
         for ba_number, ba_recordlist in records_of_ba.items():
             logger.debug(f'BA {ba_number} has {len(ba_recordlist)} records')
             # Create a BioAssemb from the records
-            B.append(BioAssemb.from_pdbrecordlist(ba_recordlist))
+            B.append(BioAssemb(ba_recordlist))
         logger.debug(f'There are {len(B)} biological assemblies')
-        return cls(B)
+        return B
 
-    @classmethod
-    def from_data_container(cls, dc: DataContainer):
+    @staticmethod
+    def from_data_container(dc: DataContainer):
         """
         Initialize a BioAssembList from a DataContainer.
         
@@ -204,7 +237,6 @@ class BioAssembList(UserList):
         BioAssembList
             An instance of BioAssembList initialized with the provided DataContainer.
         """
-        BioAssemb.reset_index()
         B = []
         Assemblies = dc.getObj('pdbx_struct_assembly')
         gen = dc.getObj('pdbx_struct_assembly_gen')
@@ -235,11 +267,11 @@ class BioAssembList(UserList):
                             J = j + 1
                             mlabel = f'matrix[{I}][{J}]'
                             m[i][j] = float(oper.getValue(mlabel, oper_idx))
-                    T = Transform.from_matvec(m, v, this_asyms, idx)
+                    T = Transform(m, v, this_asyms, idx)
                     transforms.append(T)
                     idx += 1
-        logger.debug(f'parsed {len(transforms)} transforms for ba {ba_idx}')
-        BA = BioAssemb(transforms)
-        B.append(BA)
+            logger.debug(f'parsed {len(transforms)} transforms for ba {ba_idx}')
+            BA = BioAssemb(transforms)
+            B.append(BA)
         logger.debug(f'There {plu(len(B), "is", "are")} {len(B)} biological assembl{plu(len(B), "y", "ies")}')
-        return cls(B)
+        return B

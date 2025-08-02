@@ -1,6 +1,6 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """ 
-Defines the EmptyResidue and Residue classes for handling residues in a molecular structure.
+Defines the ResiduePlaceholder and Residue classes for handling residues in a molecular structure.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ logger=logging.getLogger(__name__)
 
 from argparse import Namespace
 
-from pydantic import Field, ConfigDict
+from pydantic import Field
 from typing import Any, ClassVar
 
 from pidibble.baserecord import BaseRecord
@@ -32,7 +32,7 @@ from mmcif.api.PdbxContainers import DataContainer
 
 from ..objs.resid import ResID
 
-class EmptyResidue(BaseObj):
+class ResiduePlaceholder(BaseObj):
     """
     A class for handling missing residues in a molecular structure.
     This class represents residues that are not present in the structure, such as those that are missing
@@ -42,7 +42,7 @@ class EmptyResidue(BaseObj):
 
     _required_fields = {'resname','resid','chainID','resolved','segtype'}
     """
-    Required attributes for EmptyResidue.
+    Required attributes for ResiduePlaceholder.
     
     Attributes
     ----------
@@ -58,9 +58,9 @@ class EmptyResidue(BaseObj):
         The segment type.
     """
 
-    _optional_fields = {'model','obj_id','auth_asym_id','auth_comp_id','auth_seq_id'}
+    _optional_fields = {'model','obj_id','auth_asym_id','auth_comp_id','auth_seq_id','empty','link','recordname'}
     """
-    Optional attributes for EmptyResidue.
+    Optional attributes for ResiduePlaceholder.
     
     Attributes
     ----------
@@ -78,7 +78,7 @@ class EmptyResidue(BaseObj):
 
     _ignore_fields = {'empty','link','recordname'}
     """
-    Fields that are ignored when comparing EmptyResidue objects.
+    Fields that are ignored when comparing ResiduePlaceholder objects.
     """
     
     resname: str = Field(..., description="The residue name.")
@@ -91,27 +91,28 @@ class EmptyResidue(BaseObj):
     auth_asym_id: str | None = Field(None, description="The author asymmetry ID, if applicable.")
     auth_comp_id: str | None = Field(None, description="The author component ID, if applicable.")
     auth_seq_id: int | None = Field(None, description="The author sequence ID, if applicable.")
+
     empty: bool = Field(False, description="Indicates whether the residue is empty (True) or not (False).")
     link: Any | None = Field(None, description="The link to the residue, if applicable.")
     recordname: str = Field('REMARK.465', description="The PDB record name for the residue.")
 
     _yaml_header: ClassVar[str] = 'missings'
     """
-    YAML header for EmptyResidue.
+    YAML header for ResiduePlaceholder.
     """
 
     _PDB_keyword: ClassVar[str] = 'REMARK.465'
     """
-    PDB keyword for EmptyResidue.
+    PDB keyword for ResiduePlaceholder.
     """
     _PDB_table_of_keyword: ClassVar[str] = 'MISSING'
     """
-    PDB table keyword for EmptyResidue.
+    PDB table keyword for ResiduePlaceholder.
     """
 
     _CIF_CategoryName: ClassVar[str] = 'pdbx_unobs_or_zero_occ_residues'
     """
-    mmCIF category name for EmptyResidue.
+    mmCIF category name for ResiduePlaceholder.
     """
 
     def shortcode(self):
@@ -201,33 +202,33 @@ class EmptyResidue(BaseObj):
 
     def pdb_line(self):
         """
-        Returns a PDB line representation of the :class:`EmptyResidue`.
+        Returns a PDB line representation of the :class:`ResiduePlaceholder`.
         The line is formatted according to the PDB standard for missing residues.
         
         Returns
         -------
         str
-            A string representing the :class:`EmptyResidue` in PDB format.
+            A string representing the :class:`ResiduePlaceholder` in PDB format.
         """
-        record_name,code=EmptyResidue.PDB_keyword.split('.')
+        record_name,code=ResiduePlaceholder.PDB_keyword.split('.')
         return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>5d}{:1s}'.format(record_name,
         code,self.model,self.resname,self.chainID,self.resid.resseqnum,self.resid.insertion)
 
-class EmptyResidueList(BaseObjList[EmptyResidue]):
+class ResiduePlaceholderList(BaseObjList[ResiduePlaceholder]):
     """
-    A class for handling lists of :class:`EmptyResidue` objects.
+    A class for handling lists of :class:`ResiduePlaceholder` objects.
     This class is used to manage collections of residues that are not present in the molecular structure,
     such as missing residues in a PDB file.
 
     This class does not add anything beyond the :class:`~pestifer.core.baseobj.BaseObjList` class.
     """
     def describe(self):
-        return f'<EmptyResidueList with {len(self)} residues>'
+        return f'<ResiduePlaceholderList with {len(self)} residues>'
     
     @classmethod
-    def from_pdb(cls, parsed: PDBRecordDict) -> "EmptyResidueList":
+    def from_pdb(cls, parsed: PDBRecordDict) -> "ResiduePlaceholderList":
         """
-        Create an EmptyResidueList from parsed PDB data.
+        Create an ResiduePlaceholderList from parsed PDB data.
         
         Parameters
         ----------
@@ -236,17 +237,17 @@ class EmptyResidueList(BaseObjList[EmptyResidue]):
         
         Returns
         -------
-        EmptyResidueList
-            A new instance of EmptyResidueList containing the missing residues.
+        ResiduePlaceholderList
+            A new instance of ResiduePlaceholderList containing the missing residues.
         """
-        if EmptyResidue._PDB_keyword not in parsed:
+        if ResiduePlaceholder._PDB_keyword not in parsed:
             return cls([])
-        return cls([EmptyResidue(p) for p in parsed[EmptyResidue._PDB_keyword].tables[EmptyResidue._PDB_table_of_keyword]])
+        return cls([ResiduePlaceholder(p) for p in parsed[ResiduePlaceholder._PDB_keyword].tables[ResiduePlaceholder._PDB_table_of_keyword]])
     
     @classmethod
-    def from_cif(cls, cif_data: DataContainer) -> "EmptyResidueList":
+    def from_cif(cls, cif_data: DataContainer) -> "ResiduePlaceholderList":
         """
-        Create an EmptyResidueList from CIF data.
+        Create an ResiduePlaceholderList from CIF data.
         
         Parameters
         ----------
@@ -255,23 +256,23 @@ class EmptyResidueList(BaseObjList[EmptyResidue]):
         
         Returns
         -------
-        EmptyResidueList
-            A new instance of EmptyResidueList containing the missing residues.
+        ResiduePlaceholderList
+            A new instance of ResiduePlaceholderList containing the missing residues.
         """
-        obj = cif_data.getObj(EmptyResidue._CIF_CategoryName)
+        obj = cif_data.getObj(ResiduePlaceholder._CIF_CategoryName)
         if obj is None:
             return cls([])
-        return cls([EmptyResidue(CIFdict(obj, i)) for i in range(len(obj))])
+        return cls([ResiduePlaceholder(CIFdict(obj, i)) for i in range(len(obj))])
 
-class Residue(EmptyResidue):
+class Residue(ResiduePlaceholder):
     """
     A class for handling residues in a molecular structure.
-    This class extends the :class:`EmptyResidue` class to include additional functionality for managing residues.
+    This class extends the :class:`ResiduePlaceholder` class to include additional functionality for managing residues.
     """
 
-    _required_fields = EmptyResidue._required_fields | {'atoms'}
+    _required_fields = ResiduePlaceholder._required_fields | {'atoms'}
     """
-    Required attributes for :class:`~pestifer.molecule.residue.Residue` in addition to those defined for :class:`~pestifer.molecule.residue.EmptyResidue`.
+    Required attributes for :class:`~pestifer.molecule.residue.Residue` in addition to those defined for :class:`~pestifer.molecule.residue.ResiduePlaceholder`.
 
     Attributes
     ----------
@@ -280,10 +281,10 @@ class Residue(EmptyResidue):
     """
     atoms: AtomList = Field(default_factory=AtomList, description="A list of atoms that belong to this residue.")
 
-    # _optional_fields = EmptyResidue._optional_fields | {'uplink', 'downlink'}
-    _optional_fields = EmptyResidue._optional_fields | {'up', 'down', 'uplink', 'downlink'}
+    # _optional_fields = ResiduePlaceholder._optional_fields | {'uplink', 'downlink'}
+    _optional_fields = ResiduePlaceholder._optional_fields | {'up', 'down', 'uplink', 'downlink'}
     """
-    Optional attributes for :class:`~pestifer.molecule.residue.Residue` in addition to those defined for :class:`~pestifer.molecule.residue.EmptyResidue`.
+    Optional attributes for :class:`~pestifer.molecule.residue.Residue` in addition to those defined for :class:`~pestifer.molecule.residue.ResiduePlaceholder`.
 
     - ``up``: list
         A list of residues that are linked to this residue in an upstream direction.
@@ -299,10 +300,10 @@ class Residue(EmptyResidue):
     uplink: LinkList = Field(default_factory=LinkList, description="A list of links to residues connected to this residue in an upstream direction.")
     downlink: LinkList = Field(default_factory=LinkList, description="A list of links to residues connected to this residue in a downstream direction.")
 
-    _ignore_fields = EmptyResidue._ignore_fields | {'atoms', 'up', 'down', 'uplink', 'downlink'}
+    _ignore_fields = ResiduePlaceholder._ignore_fields | {'atoms', 'up', 'down', 'uplink', 'downlink'}
     """
     Attributes to ignore when comparing Residue objects.
-    This includes the attributes defined in :class:`~pestifer.molecule.residue.EmptyResidue` as well as the additional attributes defined for :class:`~pestifer.molecule.residue.Residue`.
+    This includes the attributes defined in :class:`~pestifer.molecule.residue.ResiduePlaceholder` as well as the additional attributes defined for :class:`~pestifer.molecule.residue.Residue`.
 
     - ``atoms``: :class:`~pestifer.molecule.atom.AtomList`
         A list of :class:`~pestifer.molecule.atom.Atom` objects that belong to this residue.
@@ -345,18 +346,27 @@ class Residue(EmptyResidue):
             If the input type is not supported.
         """
         if isinstance(args[0], str):
-            input_dict = EmptyResidue._adapt(args[0])
+            input_dict = ResiduePlaceholder._adapt(args[0])
             input_dict['atoms'] = AtomList()
             return input_dict
-        elif isinstance(args[0], EmptyResidue):
-            input_dict = args[0].__pydantic_fields__
-            input_dict['atoms'] = AtomList()
+        elif isinstance(args[0], ResiduePlaceholder):
+            input_dict = {'resname': args[0].resname,
+                          'resid': ResID(args[0].resid),
+                          'chainID': args[0].chainID,
+                          'segtype': args[0].segtype,
+                          'model': args[0].model,
+                          'obj_id': args[0].obj_id,
+                          'auth_asym_id': args[0].auth_asym_id,
+                          'auth_comp_id': args[0].auth_comp_id,
+                          'auth_seq_id': args[0].auth_seq_id,'atoms': AtomList(),
+                          'resolved': True}
+            return input_dict
         elif isinstance(args[0], PDBRecord | BaseRecord):
-            input_dict = EmptyResidue._adapt(args[0])
+            input_dict = ResiduePlaceholder._adapt(args[0])
             input_dict['atoms'] = AtomList()
             return input_dict
         elif isinstance(args[0], CIFdict):
-            input_dict = EmptyResidue._adapt(args[0])
+            input_dict = ResiduePlaceholder._adapt(args[0])
             input_dict['atoms'] = AtomList()
             return input_dict
         elif isinstance(args[0], Atom | Hetatm):
@@ -650,14 +660,14 @@ class ResidueList(BaseObjList[Residue]):
         return cls(R)
     
     @classmethod
-    def from_emptyresiduelist(cls, input_list: EmptyResidueList):
+    def from_ResiduePlaceholderlist(cls, input_list: ResiduePlaceholderList):
         """
-        Create a ResidueList from an EmptyResidueList.
+        Create a ResidueList from an ResiduePlaceholderList.
         
         Parameters
         ----------
-        input_list : EmptyResidueList
-            A list of EmptyResidue objects to convert into a ResidueList.
+        input_list : ResiduePlaceholderList
+            A list of ResiduePlaceholder objects to convert into a ResidueList.
         
         Returns
         -------
@@ -753,7 +763,7 @@ class ResidueList(BaseObjList[Residue]):
                 rlist.append(as_type(a.resseqnum))
         return rlist
     
-    def atom_resids(self, as_type=str):
+    def atom_resids(self, as_type=ResID):
         """
         Get a list of residue IDs for all atoms in the residues.
         
@@ -911,9 +921,9 @@ class ResidueList(BaseObjList[Residue]):
             chain = self.get(chainID=s.chainID)
             assert chain != None, f'Error: no chain {s.chainID}'
             r1 = chain.get(resid=s.resid1)
-            assert r1 != None, f'Error: no resid {s.resid1}'
+            assert r1 is not None, f'Error: no resid {s.resid1}'
             r2 = chain.get(resid=s.resid2)
-            assert r2 != None, f'Error: no resid {s.resid2}'
+            assert r2 is not None, f'Error: no resid {s.resid2}'
             for r in chain:
                 if r1 <= r <= r2:
                     if currsubidx < len(subseq):
@@ -924,8 +934,7 @@ class ResidueList(BaseObjList[Residue]):
                                 typekey='user',
                                 resname=r.resname,
                                 chainID=r.chainID,
-                                resseqnum=r.resseqnum,
-                                insertion=r.insertion,
+                                resid=ResID(r.resid),
                                 dbRes=resname
                             ))
                         else:  # just change the residue name
@@ -975,7 +984,7 @@ class ResidueList(BaseObjList[Residue]):
             for olc in ins.sequence:
                 resid.increment(by_seqnum=ins.integer_increment)
                 shortcode=f'{chainID}:{olc}{resid.resid}'
-                new_empty_residue=EmptyResidue(shortcode)
+                new_empty_residue=ResiduePlaceholder(shortcode)
                 new_residue=Residue(new_empty_residue)
                 new_residue.atoms=AtomList([])
                 new_residue.segtype=segtype
