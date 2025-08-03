@@ -9,6 +9,7 @@ from pidibble.pdbparse import PDBParser
 import os
 import logging
 logger=logging.getLogger(__name__)
+
 class FetchTask(BaseTask):
     """
     A class for fetching initial structures from various sources.
@@ -18,11 +19,12 @@ class FetchTask(BaseTask):
     YAML header for the FetchTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
     _artifact_name = 'base_coordinates'
+    
     def do(self):
         """ Execute the fetch task. """
-        source=self.specs.get('source','pdb')
-        sourceID=self.specs.get('sourceID','')
-        source_format=self.specs.get('source_format','pdb') # desired format for the source file, default is 'pdb'
+        source = self.specs.get('source', 'pdb')
+        sourceID = self.specs.get('sourceID', '')
+        source_format = self.specs.get('source_format', 'pdb') # desired format for the source file, default is 'pdb'
         if source_format not in ['pdb', 'cif']:
             raise ValueError(f"Unsupported source format: {source_format}. Expected 'pdb' or 'cif'.")
         if source=='pdb':

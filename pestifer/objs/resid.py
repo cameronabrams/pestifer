@@ -1,7 +1,7 @@
 
 from __future__ import annotations
 from pydantic import Field
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 
 class ResID(BaseObj):
     """
@@ -45,31 +45,31 @@ class ResID(BaseObj):
             return self.resseqnum
         return str(self)
 
-    @staticmethod
-    def _adapt(*args) -> dict:
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
         """
         Adapts the input to a dictionary format suitable for ResID instantiation.
         This method is used to convert various input types into a dictionary of parameters.
         """
-        if len(args) == 2:
+        if args and len(args) == 2:
             # assume first arg is integer resnum and second is insertion code
             resseqnum, insertion = args
             if insertion is not None:
                 return {'resseqnum': resseqnum, 'insertion': insertion}
             return {'resseqnum': resseqnum}
-        elif isinstance(args[0], int):
+        elif args and isinstance(args[0], int):
             # assume first arg is integer resnum
             return {'resseqnum': args[0]}
-        elif isinstance(args[0], str):
+        elif args and isinstance(args[0], str):
             resseqnum, insertion = ResID.split_ri(args[0])
             if insertion is not None:
                 return {'resseqnum': resseqnum, 'insertion': insertion}
             return {'resseqnum': resseqnum}
-        elif isinstance(args[0], ResID):
+        elif args and isinstance(args[0], ResID):
             if args[0].insertion is not None:
                 return {'resseqnum': args[0].resseqnum, 'insertion': args[0].insertion}
             return {'resseqnum': args[0].resseqnum}
-        raise TypeError(f"Cannot convert {type(args[0])} to ResID")
+        return super()._adapt(*args, **kwargs)
 
     @staticmethod
     def split_ri(ri) -> tuple[int, str | None]:

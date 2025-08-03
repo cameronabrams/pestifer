@@ -4,16 +4,19 @@ Pipeline context for managing passing of information from one task to another.
 """
 
 from .artifacts import Artifact, ArtifactList, ArtifactFileList
+from .scripters import Filewriter
+from .resourcemanager import ResourceManager
 import logging
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 class PipelineContext:
-    def __init__(self, controller_index: int = 0, global_config: dict = {}, scripters: dict = {}):
-        self.head: dict[str, Artifact|ArtifactList] = {}
+    def __init__(self, controller_index: int = 0, global_config: dict = {}, scripters: dict[str, Filewriter] = {}, resource_manager: ResourceManager = None):
+        self.head: dict[str, Artifact | ArtifactList] = {}
         self.history: ArtifactList = ArtifactList()
         self.controller_index = controller_index
         self.global_config = global_config
         self.scripters = scripters
+        self.resource_manager = resource_manager
 
     def __repr__(self):
         return f"PipelineContext(controller_index={self.controller_index})"
@@ -82,7 +85,7 @@ class PipelineContext:
             return artifact.value
         return None
 
-    def get_artifact_series(self, key: str = '') -> ArtifactList|ArtifactFileList:
+    def get_artifact_series(self, key: str = '') -> ArtifactList | ArtifactFileList:
         """
         Retrieve a series of artifacts with the same key.
         
@@ -106,7 +109,7 @@ class PipelineContext:
             return ArtifactFileList(series)
         return series
     
-    def get_artifact_collection_as_list(self, produced_by=None):
+    def get_artifact_collection_as_list(self, produced_by=None) -> ArtifactList:
         """
         Retrieve a collection of artifacts produced by a specific task or object.
         
@@ -124,7 +127,7 @@ class PipelineContext:
         current = [a for a in self.head.values() if (not produced_by or a.produced_by == produced_by)]
         return ArtifactList(history + current)
 
-    def context_to_string(self):
+    def context_to_string(self) -> str:
         """ 
         Report the current artifacts in the pipeline context.
         
@@ -135,7 +138,7 @@ class PipelineContext:
         """
         return "\n".join([f"{k}: {a.value}" for k, a in self.head.items()])
 
-    def history_to_string(self):
+    def history_to_string(self) -> str:
         """ 
         Report the history of artifacts in the pipeline context.
         
@@ -146,7 +149,7 @@ class PipelineContext:
         """
         return "\n".join([f"{h.key}: {h.value} (produced by {h.produced_by})" for h in self.history])
 
-    def stash(self, key: str):
+    def stash(self, key: str) -> str:
         """
         Stash the current artifact under a new key.
         
@@ -155,6 +158,6 @@ class PipelineContext:
         key : str
             The key under which to stash the current artifact.
         """
-        artifact = self.head.pop(key,None)
+        artifact = self.head.pop(key, None)
         if artifact:
             self.history.append(artifact)

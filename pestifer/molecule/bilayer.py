@@ -8,13 +8,13 @@ import logging
 import numpy as np
 
 from ..util.units import _UNITS_, _SYMBOLS_, cuA_of_nmolec
-from ..util.util import cell_from_xsc
+# from ..util.util import cell_from_xsc
 
-sA_ =_SYMBOLS_['ANGSTROM']
-sA2_=_UNITS_['SQUARE-ANGSTROMS']
-sA3_=_UNITS_['CUBIC-ANGSTROMS']
+sA_  = _SYMBOLS_['ANGSTROM']
+sA2_ = _UNITS_['SQUARE-ANGSTROMS']
+sA3_ = _UNITS_['CUBIC-ANGSTROMS']
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 class BilayerSpecString:
     """ 

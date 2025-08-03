@@ -16,7 +16,7 @@ from typing import ClassVar
 
 from .chainidmanager import ChainIDManager
 from ..util.coord import build_tmat
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 
 class Transform(BaseObj):
     """
@@ -30,7 +30,6 @@ class Transform(BaseObj):
 
     _required_fields = {'index', 'tmat', 'applies_chainIDs'}
     _optional_fields = {'chainIDmap', 'segname_by_type_map'}
-
 
     index: int = Field(..., description="Index of the transformation")
     tmat: np.ndarray = Field(..., description="4 x 4 transformation matrix")
@@ -54,14 +53,14 @@ class Transform(BaseObj):
 
     _count: ClassVar[int] = 0
 
-    @staticmethod
-    def _adapt(*args) -> dict:
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
         """
         Adapts the input to a dictionary format suitable for Transform instantiation.
         This method is used to convert various input types into a dictionary of parameters.
         """
 
-        if isinstance(args[0], PDBRecord):
+        if args and isinstance(args[0], PDBRecord):
             ba_record = args[0]
             RotMat, TransVec = get_symm_ops(ba_record)
             tmat = build_tmat(RotMat, TransVec)
@@ -71,7 +70,7 @@ class Transform(BaseObj):
                               applies_chainIDs=applies_chainIDs)
             Transform._count += 1
             return input_dict
-        elif isinstance(args[0], np.ndarray):
+        elif args and isinstance(args[0], np.ndarray):
             rot = args[0]
             trans = args[1] if len(args) > 1 else np.zeros(3, dtype=float)
             if rot.shape != (3, 3):
@@ -81,6 +80,7 @@ class Transform(BaseObj):
                               tmat=tmat, applies_chainIDs=[])
             Transform._count += 1
             return input_dict
+        return super()._adapt(*args, **kwargs)
         
     @classmethod
     def identity(cls):
@@ -132,6 +132,8 @@ class Transform(BaseObj):
         seglabel : str
             The label for the segment.
         """
+        if not self.segname_by_type_map:
+            self.segname_by_type_map = {}
         if not segtype in self.segname_by_type_map:
             self.segname_by_type_map[segtype] = {}
         self.segname_by_type_map[segtype][chainID] = seglabel
@@ -212,14 +214,11 @@ class TransformList(BaseObjList[Transform]):
     def describe(self):
         return f'<TransformList: {len(self)} items>'
 
-    def __init__(self, *args):
-        if len(args) == 0:
-            super().__init__([])
-        elif isinstance(args[0], Transform):
-            super().__init__(args)       
-        elif isinstance(args[0], PDBRecordList):
-            transforms = [Transform(barec) for barec in args[0]]
-            super().__init__(transforms)
+    def __init__(self, initlist: list[Transform] | PDBRecordList = [], *args, **kwargs):
+        if isinstance(initlist, PDBRecordList):
+            # If the first argument is a PDBRecordList, convert it to a list of Transform objects
+            initlist = [Transform(x) for x in initlist]
+        super().__init__(initlist)
 
     @classmethod
     def identity(cls, length: int = 1):

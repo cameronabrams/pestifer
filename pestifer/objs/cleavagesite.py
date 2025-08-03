@@ -10,7 +10,7 @@ logger=logging.getLogger(__name__)
 from pydantic import Field
 from typing import ClassVar
 
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from .resid import ResID
 
 class CleavageSite(BaseObj):
@@ -21,18 +21,18 @@ class CleavageSite(BaseObj):
     """
     _required_fields = {'chainID', 'resid1', 'resid2'}
 
-    chainID:    str = Field(..., description="Chain ID of the segment to be cleaved")
+    chainID: str = Field(..., description="Chain ID of the segment to be cleaved")
     resid1: ResID = Field(..., description="N-terminal residue information of the cleavage site")
     resid2: ResID = Field(..., description="C-terminal residue information of the cleavage site")
 
     _yaml_header: ClassVar[str] = 'cleavages'
     _objcat: ClassVar[str] = 'seq'
 
-    @staticmethod
-    def _adapt(*args) -> dict:
-        if isinstance(args[0], str):
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
+        if args and isinstance(args[0], str):
             return CleavageSite._from_shortcode(args[0])
-        raise TypeError(f"Cannot convert {type(args[0])} to CleavageSite")
+        return super()._adapt(*args, **kwargs)
 
     @staticmethod
     def _from_shortcode(raw: str) -> dict:

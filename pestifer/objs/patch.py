@@ -5,10 +5,10 @@ It is used to apply specific modifications to residues in a molecular structure,
 functional groups or modifying the residue's properties.
 """
 import logging
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 from typing import ClassVar, Optional, Any, List
 from pydantic import Field
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from .resid import ResID
 
 class Patch(BaseObj):
@@ -53,53 +53,52 @@ class Patch(BaseObj):
 
     @staticmethod
     def _from_shortcode(raw: str) -> dict:
-        parts=raw.split(':')
-        if len(parts)<3:
+        parts = raw.split(':')
+        if len(parts) < 3:
             raise ValueError(f'Invalid patch shortcode: {raw}')
-        resid=ResID(parts[2])
+        resid = ResID(parts[2])
         if parts[0] in Patch._in_segment_Npatches:
-            use_in_segment='first'
+            use_in_segment = 'first'
         elif parts[0] in Patch._in_segment_Cpatches:
-            use_in_segment='last'
+            use_in_segment = 'last'
         else:
-            use_in_segment=''
+            use_in_segment = ''
         if parts[0] in Patch._after_regenerate_patches:
-            use_after_regenerate=True
+            use_after_regenerate = True
         else:
-            use_after_regenerate=False
+            use_after_regenerate = False
         return {
-            'patchname':parts[0],
-            'chainID':parts[1],
-            'resid':resid,
-            'residue':None,
-            'use_in_segment':use_in_segment,
-            'use_after_regenerate':use_after_regenerate
+            'patchname': parts[0],
+            'chainID': parts[1],
+            'resid': resid,
+            'residue': None,
+            'use_in_segment': use_in_segment,
+            'use_after_regenerate': use_after_regenerate
         }
     
-    @staticmethod
-    def _adapt(*args) -> dict:
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
         """
         Adapts the input to a dictionary format suitable for Patch instantiation.
         This method is used to convert various input types into a dictionary of parameters.
         """
-        if isinstance(args[0], str):
+        if args and isinstance(args[0], str):
             return Patch._from_shortcode(args[0])
-        raise TypeError(f"Cannot convert {type(args[0])} to Patch") 
-    
+        return super()._adapt(*args, **kwargs)
 
-    _in_segment_Npatches: ClassVar[List[str]] = ['NTER','GLYP','PROP','ACE','ACED','ACP','ACPD','NNEU','NGNE']
+    _in_segment_Npatches: ClassVar[List[str]] = ['NTER', 'GLYP', 'PROP', 'ACE', 'ACED', 'ACP', 'ACPD', 'NNEU', 'NGNE']
     """
     List of patch names that are applied to the first residue in a segment.
     These patches are typically used for N-terminal modifications.
     """
 
-    _in_segment_Cpatches: ClassVar[List[str]] = ['CTER','CNEU','PCTE','CT1','CT2','CT3']
+    _in_segment_Cpatches: ClassVar[List[str]] = ['CTER', 'CNEU', 'PCTE', 'CT1', 'CT2', 'CT3']
     """
     List of patch names that are applied to the last residue in a segment.
     These patches are typically used for C-terminal modifications.
     """
 
-    _after_regenerate_patches: ClassVar[List[str]] = ['PHEM','FHEM']
+    _after_regenerate_patches: ClassVar[List[str]] = ['PHEM', 'FHEM']
     """
     List of patch names that should be applied after the ``regenerate angles dihedrals`` psfgen command.
     """
@@ -111,7 +110,7 @@ class Patch(BaseObj):
         Returns
         -------
         str
-            The shortcode string in the format patchname:chainID:resseqnum,insertion.
+            The shortcode string in the format patchname:chainID:resID.
         """
         return f"{self.patchname}:{self.chainID}:{self.resid.resid}"
 
@@ -119,7 +118,7 @@ class Patch(BaseObj):
         """
         Writes the patch command.
         """
-        return f'patch {self.patchname} {self.chainID}:{self.resseqnum}{self.insertion}'
+        return f'patch {self.patchname} {self.chainID}:{self.resid.resid}'
 
 class PatchList(BaseObjList[Patch]):
     """
@@ -154,6 +153,5 @@ class PatchList(BaseObjList[Patch]):
             A new PatchList object containing the residues that were not assigned because no applicable residues were found
         """
         logger.debug(f'Patches: Assigning residues from list of {len(Residues)} residues')
-        # ignored=self.assign_objs_to_attr('residue',Residues,resseqnum='resseqnum',chainID='chainID',insertion='insertion')
         ignored=self.assign_objs_to_attr('residue', Residues, resid='resid', chainID='chainID')
         return self.__class__(ignored)

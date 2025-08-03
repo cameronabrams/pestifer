@@ -182,8 +182,17 @@ class TestResidue(unittest.TestCase):
             segtype='UNSET',
             atoms=AtomList([])  # Empty list for atoms
         )
+        r4 = Residue(
+            resname='ALA',
+            resid=ResID(1),
+            chainID='A',
+            resolved=True,
+            segtype='UNSET',
+            atoms=AtomList([])  # Empty list for atoms
+        )
         self.assertTrue(r2<r3)
         self.assertFalse(r2.same_resid(r3))
+        self.assertEqual(r1,r4)
 
     def test_residue_add_atom(self):
         r = Residue(

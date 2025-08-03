@@ -15,7 +15,7 @@ from typing import ClassVar
 from pydantic import Field
 from .seqadv import Seqadv
 
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 # from ..core.labels import Labels
 from .resid import ResID
 
@@ -63,19 +63,19 @@ class Mutation(BaseObj):
     This categorization is used to group Mutation objects in the object manager.
     """
 
-    @staticmethod
-    def _adapt(*args) -> dict:
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
         """
         Adapts the input to a dictionary format suitable for Mutation instantiation.
         This method is used to convert various input types into a dictionary of parameters.
         """
-        if isinstance(args[0], str):
+        if args and isinstance(args[0], str):
             input_dict = Mutation._from_shortcode(args[0])
             return input_dict
-        elif isinstance(args[0], Seqadv):
+        elif args and isinstance(args[0], Seqadv):
             input_dict = Mutation._from_seqadv(args[0])
             return input_dict
-        raise TypeError(f"Cannot convert {type(args[0])} to Mutation")
+        return super()._adapt(*args, **kwargs)
     
     @staticmethod
     def _from_shortcode(raw: str) -> dict:
@@ -148,10 +148,10 @@ class Mutation(BaseObj):
         str
             The Tcl command to mutate the residue at the specified position to the new residue name.
         """
-        if hasattr(self,'pdbx_auth_seq_num'): # mmCIF, no insertion code
-            return f'    mutate {self.resid.resseqnum} {self.newresname}'
-        else:
-            return f'    mutate {self.resid.resid} {self.newresname}'
+        # if hasattr(self,'pdbx_auth_seq_num'): # mmCIF, no insertion code
+        #     return f'    mutate {self.resid.resseqnum} {self.newresname}'
+        # else:
+        return f'    mutate {self.resid.resid} {self.newresname}'
 
 class MutationList(BaseObjList[Mutation]):
     def describe(self):

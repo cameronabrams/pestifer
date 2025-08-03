@@ -5,7 +5,9 @@ from pestifer.objs.insertion import Insertion, InsertionList
 from pestifer.objs.deletion import Deletion, DeletionList
 from pestifer.objs.link import Link, LinkList
 from pestifer.objs.mutation import Mutation, MutationList
-from pestifer.molecule.residue import Residue, ResidueList, EmptyResidue
+from pestifer.molecule.residue import Residue, ResidueList, ResiduePlaceholder
+from pestifer.objs.resid import ResID
+
 class TestObjManager(unittest.TestCase):
 
     def test_obj_manager_initialization(self):
@@ -22,19 +24,19 @@ class TestObjManager(unittest.TestCase):
 
     def test_obj_manager_ingest_obj(self):
         O=ObjManager()
-        mut = Mutation.new('C:THR,154,GLY')
+        mut = Mutation('C:THR,154,GLY')
         O.ingest(mut)
         self.assertIn('seq', O)
         self.assertIn('mutations', O['seq'])
         self.assertIsInstance(O['seq']['mutations'], MutationList)
 
-        insertion = Insertion.new('C,154A,GGG')
+        insertion = Insertion('C,154A,GGG')
         O.ingest(insertion)
         self.assertIn('seq', O)
         self.assertIn('insertions', O['seq'])
         self.assertIsInstance(O['seq']['insertions'], InsertionList)
 
-        link = Link.new('C_154_ND2-C_1540_C1')
+        link = Link('C_154_ND2-C_1540_C1')
         O.ingest(link)
         self.assertIn('topol', O)
         self.assertIn('links', O['topol'])
@@ -43,8 +45,8 @@ class TestObjManager(unittest.TestCase):
     def test_obj_manager_ingest_dict(self):
         O=ObjManager()
         input_specs = {
-            'mutations': MutationList([Mutation.new('C:THR,154,GLY'), Mutation.new('C:ALA,155,VAL')]),
-            'insertions': InsertionList([Insertion.new('C,154A,GGG'), Insertion.new('C,155B,AAA')]),
+            'mutations': MutationList([Mutation('C:THR,154,GLY'), Mutation('C:ALA,155,VAL')]),
+            'insertions': InsertionList([Insertion('C,154A,GGG'), Insertion('C,155B,AAA')]),
             'links': ['C_154_ND2-C_1540_C1']
         }
         O.ingest(input_specs)
@@ -61,14 +63,14 @@ class TestObjManager(unittest.TestCase):
 
     def test_obj_manager_ingest_objlist(self):
         O=ObjManager()
-        mut_list = MutationList([Mutation.new('C:THR,154,GLY'), Mutation.new('C:ALA,155,VAL')])
+        mut_list = MutationList([Mutation('C:THR,154,GLY'), Mutation('C:ALA,155,VAL')])
         O.ingest(mut_list)
         self.assertIn('seq', O)
         self.assertIn('mutations', O['seq'])
         self.assertIsInstance(O['seq']['mutations'], MutationList)
         self.assertEqual(len(O['seq']['mutations']), 2)
 
-        insertion_list = InsertionList([Insertion.new('C,154A,GGG'), Insertion.new('C,155B,AAA')])
+        insertion_list = InsertionList([Insertion('C,154A,GGG'), Insertion('C,155B,AAA')])
         O.ingest(insertion_list)
         self.assertIn('seq', O)
         self.assertIn('insertions', O['seq'])
@@ -79,8 +81,8 @@ class TestObjManager(unittest.TestCase):
         O=ObjManager()
         for C in 'ABCDE':
             for i in range(5):
-                mut = Mutation.new(f'{C}:THR,{150+i},GLY')
-                deletion = Deletion.new(f"{C}:{10+i}-20")
+                mut = Mutation(f'{C}:THR,{150+i},GLY')
+                deletion = Deletion(f"{C}:{10+i}-20")
                 O.ingest(mut)
                 O.ingest(deletion)
         chainE = O.filter_copy(chainID='E')
@@ -103,8 +105,8 @@ class TestObjManager(unittest.TestCase):
         O=ObjManager()
         for C in 'ABCDE':
             for i in range(5):
-                mut = Mutation.new(f'{C}:THR,{150+i},GLY')
-                deletion = Deletion.new(f"{C}:{10+i}-20")
+                mut = Mutation(f'{C}:THR,{150+i},GLY')
+                deletion = Deletion(f"{C}:{10+i}-20")
                 O.ingest(mut)
                 O.ingest(deletion)
         counts = O.counts_by_header()
@@ -112,9 +114,10 @@ class TestObjManager(unittest.TestCase):
         self.assertEqual(counts['deletions'], 25)
         R=ResidueList()
         for C in 'ABCDE':
-            R.append(Residue.new(EmptyResidue.new(f'{C}:T151')))
+            R.append(Residue(ResiduePlaceholder(f'{C}:T151')))
         self.assertEqual(len(R), 5)
         self.assertEqual(R[0].resname, 'THR')
+        self.assertEqual(R[0].resid, ResID(151))
 
         ex_om=O.expel(R)
         self.assertIsInstance(ex_om, ObjManager)

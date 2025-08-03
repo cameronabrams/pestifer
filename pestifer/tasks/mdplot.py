@@ -21,7 +21,7 @@ from ..util.logparsers import NAMDLog
 from ..core.stringthings import to_latex_math
 from ..core.artifacts import PNGImageFile
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 class MDPlotTask(BaseTask):
@@ -30,20 +30,20 @@ class MDPlotTask(BaseTask):
     runs.  Since NAMD runs are always invoked using a log-parser, a csv file is created that 
     contains all energy-like data from the run. 
     """
-    yaml_header='mdplot'
+    _yaml_header = 'mdplot'
     """
     YAML header for the MDPlotTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
     def do(self):
         self.next_basename()
-        is_post_processing=self.specs.get('postprocessing',False)
-        running_sums=self.specs.get('running_sums',['cpu_time','wall_time'])
-        dataframes={}
+        is_post_processing = self.specs.get('postprocessing', False)
+        running_sums = self.specs.get('running_sums', ['cpu_time', 'wall_time'])
+        dataframes = {}
         if not is_post_processing and self.prior:
             # this is an in-build task, so we collect time series data from each prior md task's csv files
             logger.debug(f'Collecting all output data from upstream md tasks...')
-            priortaskpointer=self.prior
-            priortasklist=[]
+            priortaskpointer = self.prior
+            priortasklist = []
             logger.debug(f'self={str(self)}; self.prior={str(priortaskpointer)}')
             while priortaskpointer!=None and priortaskpointer.yaml_header=='md':
                 priortasklist.append(priortaskpointer)

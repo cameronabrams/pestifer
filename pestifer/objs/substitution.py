@@ -4,12 +4,12 @@ A Substitution is a user-specified modification in which a sequence of one or
 more contiguous residues are replaced by a new sequence of one or more residues.
 """
 import logging
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 from pydantic import Field
 from typing import ClassVar
 
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from .resid import ResID, ResIDList
 
 class Substitution(BaseObj):
@@ -45,13 +45,13 @@ class Substitution(BaseObj):
     This categorization is used to group Substitution objects in the object manager.
     """
     
-    @staticmethod
-    def _adapt(*args) -> dict:
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
         """
         Adapts the input to a dictionary format suitable for Substitution instantiation.
         This method is used to convert various input formats into a dictionary that can be used to create a Substitution object.
         """
-        if len(args) == 1 and isinstance(args[0], str):
+        if args and len(args) == 1 and isinstance(args[0], str):
             # C:nnn-ccc,S
             # where:
             # C is the chain ID
@@ -75,6 +75,7 @@ class Substitution(BaseObj):
                 'subseq': subseq
             }
             return input_dict
+        return super()._adapt(*args, **kwargs)
 
     def shortcode(self) -> str:
         return f"{self.chainID}:{self.resid1.resid}-{self.resid2.resid},{self.subseq}"

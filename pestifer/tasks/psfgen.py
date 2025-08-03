@@ -40,9 +40,9 @@ class PsfgenTask(BaseTask):
     """
     YAML header for the PsfgenTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
-    def __init__(self,ctx:PipelineContext,config_specs={},controller_specs={}):
-        super().__init__(ctx,config_specs,controller_specs)
-        self.molecules={}
+    def __init__(self, index: int = 0, pipeline: PipelineContext = None, specs: dict = None, prior: BaseTask = None):
+        super().__init__(index, pipeline, specs, prior)
+        self.molecules = {}
 
     def do(self):
         """
@@ -108,8 +108,7 @@ class PsfgenTask(BaseTask):
         Collect the topology files that are needed for the residues in the base molecule.
         """
         resis=set([x.resname for x in self.base_molecule.asymmetric_unit.residues])
-        global_config=self.pipeline.global_config
-        CC=global_config.RM.charmmff_content
+        CC=self.pipeline.resource_manager.charmmff_content
         new_topfiles=set()
         for resname in resis:
             topfile=CC.get_topfile_of_resname(resname)
@@ -126,7 +125,7 @@ class PsfgenTask(BaseTask):
         objmanager=self.base_molecule.objmanager
         seqmods=objmanager.get('seq',{})
         patches=seqmods.get('patches',[])
-        CC=self.pipeline.global_config.RM.charmmff_content
+        CC=self.pipeline.resource_manager.charmmff_content
         new_topfiles=set()
         # logger.debug(f'New topologies: {new_topfiles}')
         for patch in patches:

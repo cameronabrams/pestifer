@@ -1,9 +1,9 @@
 
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from pydantic import Field
 from typing import List, Any
 import logging
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 class StateInterval(BaseObj):
     """
@@ -11,13 +11,12 @@ class StateInterval(BaseObj):
     This is useful for tracking the state of an object over a period of time.
     """
     _required_fields = {'state', 'bounds'}
-    _optional_fields = {'build'}
+    _optional_fields = {'build', 'selname', 'pdb'}
     state: str = Field(..., description="State of the interval")
     bounds: List[int] = Field(..., description="Bounds of the interval")
     build: bool = Field(False, description="build flag, if applicable")
-
-    def describe(self):
-        return f"<StateInterval state={self.state}, bounds={self.bounds}, build={self.build}>"
+    selname: str = Field(None, description="Selection name, if applicable")
+    pdb: str = Field(None, description="Temporary PDB file name, if applicable")
 
     def declare_buildable(self) -> None:
         """

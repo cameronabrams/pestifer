@@ -13,7 +13,6 @@ import os
 import datetime
 import logging
 
-from .artifacts import ArtifactFile
 from .command import Command
 from .config import Config
 from .stringthings import ByteCollector, FileCollector

@@ -74,7 +74,7 @@ class Example:
         }
 
     @classmethod
-    def from_yaml(cls,yaml_file_name:str,description:str='',pdbID:str='',author_name:str='',author_email:str='',companion_files: list = []):
+    def from_yaml(cls, yaml_file_name: str, description: str = '', pdbID: str = '', author_name: str = '', author_email: str = '', companion_files: list = []):
         """
         Create a new Example object based on the provided YAML file and optional parameters.  This provides the convenience of setting the necessary attributes of the Example object based on the contents of the YAML file, while also allowing for customization of the description, pdbID, author name, author email, and companion files.
 
@@ -109,7 +109,7 @@ class Example:
             raise ValueError('Name must be provided')
         with open(yaml_file_name, 'r') as f:
             try:
-                new_config=yaml.safe_load(f)
+                new_config = yaml.safe_load(f)
             except yaml.YAMLError as e:
                 raise ValueError(f'Invalid YAML file {yaml_file_name}: {e}')
         if not description:
@@ -126,7 +126,7 @@ class Example:
                 raise ValueError(f'PDB ID must be provided or found in the YAML file {yaml_file_name}')
         if not author_name and not author_email:
             with open(yaml_file_name, 'r') as f:
-                lines= f.readlines()
+                lines = f.readlines()
             for line in lines:
                 """ Recognized format: list of strings that start with `# Author:` and contain the author's name and email.
                 The format is flexible, but the following rules apply:
@@ -151,8 +151,8 @@ class Example:
                     author_email = re.sub(r'^\W+|\W+$', '', raw_email)
                     author_name = ' '.join(tokens).strip(',;')
                     break
-        
-        input_dict= {
+
+        input_dict = {
             # the name attributed is assigned the basename of the YAML file without the extension
             'name': os.path.splitext(os.path.basename(yaml_file_name))[0],
             'description': description,
@@ -163,7 +163,7 @@ class Example:
         }
         return cls(**input_dict)
 
-    def report_line(self,formatter=r'{:>7s}    {:>4s}  {:<30s}    {}') -> str:
+    def report_line(self, formatter=r'{:>7s}    {:>4s}  {:<30s}    {}') -> str:
         """
         Generate a formatted line for reporting the example.
         
@@ -367,7 +367,7 @@ class ExampleList(UserList):
         yaml_str : str
             A YAML string containing the examples.
         """
-        inst=cls([])
+        inst = cls([])
         examples = yaml.safe_load(yaml_str)
         for example_data in examples:
             example = Example(**example_data)

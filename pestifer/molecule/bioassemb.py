@@ -61,13 +61,13 @@ class BioAssemb:
         if len(args) == 0:
             if len(kwargs) == 0:
                 self.name = f'Assembly{BioAssemb._index}'
-                self.transforms = TransformList.identity()
+                self.transforms = TransformList.identity(1)
             else:
                 self.name = kwargs.get('name', f'Assembly{BioAssemb._index}')
                 if 'transforms' in kwargs:
                     self.transforms = kwargs.get('transforms', TransformList.identity(1))
                 elif 'pdbrecordlist' in kwargs:
-                    self.transforms = TransformList.from_pdb_records(kwargs['pdbrecordlist'])
+                    self.transforms = TransformList(kwargs['pdbrecordlist'])
                 elif 'asymmetric_unit' in kwargs:
                     self.name = kwargs.get('name', 'A.U.')
                     self.transforms = TransformList.identity(1)
@@ -78,8 +78,11 @@ class BioAssemb:
                 self.transforms = args[0]
                 self.name = f'Assembly{BioAssemb._index}'
             elif isinstance(args[0], PDBRecordList):
-                self.transforms = TransformList.from_pdb_records(args[0])
+                self.transforms = TransformList(args[0])
                 self.name = f'Assembly{BioAssemb._index}'
+            elif isinstance(args[0], AsymmetricUnit):
+                self.name = kwargs.get('name', 'A.U.')
+                self.transforms = TransformList.identity(1)
             elif isinstance(args[0], dict):
                 self.transforms = args[0].get('transforms', TransformList.identity(1))
                 self.name = args[0].get('name', f'Assembly{BioAssemb._index}')
@@ -124,7 +127,7 @@ class BioAssemb:
             The ChainIDManager instance used to manage chain ID mappings.
         """
         for T in self.transforms:
-            T.generate_chainIDmap(AU.segments.segnames, AU.segments.daughters, CM)
+            T.generate_chainIDmap(AU.segments._segnames, AU.segments._daughters, CM)
 
 class BioAssembList(UserList[BioAssemb]):
     """

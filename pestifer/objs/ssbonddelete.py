@@ -7,6 +7,7 @@ to free cysteine residues.  This is handled by the SSBondDelete class.
 
 from .ssbond import SSBond, SSBondList
 from typing import ClassVar
+
 class SSBondDelete(SSBond):
     """
     A class for handling deletion of SSBonds.
@@ -37,15 +38,15 @@ class SSBondDeleteList(SSBondList):
             True if the SSBond is deleted, False otherwise.
         """
         if self.get(
-            chainID1=a_SSBond.chainID1,
-            chainID2=a_SSBond.chainID2,
-            resid1=a_SSBond.resid1,
-            resid2=a_SSBond.resid2):
+            chainID1 = a_SSBond.chainID1,
+            chainID2 = a_SSBond.chainID2,
+            resid1 = a_SSBond.resid1,
+            resid2 = a_SSBond.resid2):
             return True
         if self.get(
-            chainID2=a_SSBond.chainID1,
-            chainID1=a_SSBond.chainID2,
-            resid2=a_SSBond.resid1,
-            resid1=a_SSBond.resid2):
+            chainID2 = a_SSBond.chainID1,
+            chainID1 = a_SSBond.chainID2,
+            resid2 = a_SSBond.resid1,
+            resid1 = a_SSBond.resid2):
             return True
         return False

@@ -15,10 +15,11 @@ class ContinuationTask(VMDTask):
     This task only resets the task chain to named values of the psf, pdb, xsc, and coor files 
     """
     _yaml_header = 'continuation'
+    
     def do(self):
         self.next_basename()
         # must have psf, either coor or pdb
-        psf = self.specs.get('psf','')
+        psf = self.specs.get('psf', '')
         if not psf:
             raise ValueError('psf file must be specified in the continuation task')
         self.register_current_artifact(PSFFile(psf.replace('.psf','')))

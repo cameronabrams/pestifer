@@ -63,68 +63,68 @@ def config_default(args):
     specs=c.make_default_specs(*directives)
     print(yaml.dump(specs))
 
-def run(args,**kwargs):
+def run(args, **kwargs):
     """
     Run the ``pestifer run`` command with the specified configuration file.
     """
-    if args.output_dir!='./':
-        exec_dir=os.getcwd()
+    if args.output_dir != './':
+        exec_dir = os.getcwd()
         if not os.path.exists(args.output_dir):
             os.mkdir(args.output_dir)
-        shutil.copy(args.config,args.output_dir)
+        shutil.copy(args.config, args.output_dir)
         os.chdir(args.output_dir)
-    loglevel_numeric=getattr(logging,args.log_level.upper())
+    loglevel_numeric = getattr(logging, args.log_level.upper())
     if args.log_file:
         if os.path.exists(args.log_file):
-            shutil.copyfile(args.log_file,args.log_file+'.bak')
-        logging.basicConfig(filename=args.log_file,filemode='w',format='%(asctime)s %(name)s %(message)s',level=loglevel_numeric)
-    console=logging.StreamHandler()
+            shutil.copyfile(args.log_file, args.log_file+'.bak')
+        logging.basicConfig(filename=args.log_file, filemode='w', format='%(asctime)s %(name)s %(message)s', level=loglevel_numeric)
+    console = logging.StreamHandler()
     console.setLevel(logging.INFO)
-    formatter=logging.Formatter('%(levelname)s> %(message)s')
+    formatter = logging.Formatter('%(levelname)s> %(message)s')
     console.setFormatter(formatter)
     logging.getLogger('').addHandler(console)
 
     # Set up the Controller and execute tasks
-    begin_time=time.time()
-    configname=args.config
+    begin_time = time.time()
+    configname = args.config
     # include date and time in the message below
-    logger.info(f'pestifer begins at {time.strftime("%Y-%m-%d %H:%M:%S",time.localtime(begin_time))} with config {configname}')
+    logger.info(f'pestifer begins at {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(begin_time))} with config {configname}')
 
-    allowed_extensions=['.yaml','.yml','.y']
-    cbase,cext=os.path.splitext(configname)
+    allowed_extensions = ['.yaml', '.yml', '.y']
+    cbase, cext = os.path.splitext(configname)
     if not cext:
-        fil=[os.path.exists(f'{cbase}{ext}') for ext in allowed_extensions]
+        fil = [os.path.exists(f'{cbase}{ext}') for ext in allowed_extensions]
         if any(fil):
-            iix=fil.index(True)
-            configname=f'{cbase}{allowed_extensions[iix]}'
+            iix = fil.index(True)
+            configname = f'{cbase}{allowed_extensions[iix]}'
 
-    config=Config(userfile=configname,**kwargs)
-    C=Controller(config)
+    config = Config(userfile=configname, **kwargs)
+    C = Controller(config)
 
     if args.gpu:
         if not 'namd' in C.config['user']:
-            C.config['user']={}
-        C.config['user']['namd']['processor-type']='gpu'
+            C.config['user'] = {}
+        C.config['user']['namd']['processor-type'] = 'gpu'
 
     C.write_complete_config(f'{cbase}-complete.yaml')
-    report=C.do_tasks()
-    end_time=time.time()
-    elapsed_time_s=datetime.timedelta(seconds=(end_time-begin_time))
-    logger.info(f'pestifer ends. Elapsed time {time.strftime("%H:%M:%S",time.gmtime(elapsed_time_s.seconds))}.')
-    if args.output_dir!='./':
+    report = C.do_tasks()
+    end_time = time.time()
+    elapsed_time_s = datetime.timedelta(seconds=(end_time - begin_time))
+    logger.info(f'pestifer ends. Elapsed time {time.strftime("%H:%M:%S", time.gmtime(elapsed_time_s.seconds))}.')
+    if args.output_dir != './':
         os.chdir(exec_dir)
 
-def desolvate(args,**kwargs):
+def desolvate(args, **kwargs):
     """
     Run the ``pestifer desolvate`` command with the specified psf/pdb/dcd file combination
     """
-    config=Config()
-    C=Controller(
-        config,userspecs={
-            'tasks':[{
-                'desolvate':{
-                    'basename':'desolvate',
-                    'keepatselstr':args.keepatselstr,
+    config = Config()
+    C = Controller(
+        config, userspecs={
+            'tasks': [{
+                'desolvate': {
+                    'basename': 'desolvate',
+                    'keepatselstr': args.keepatselstr,
                     'psf':args.psf,
                     'pdb':args.pdb,
                     'dcd_infiles':args.dcd_infiles,
@@ -142,25 +142,25 @@ def mdplot(args):
     """
     Run the ``pestifer mdplot`` command to plot time-series data from NAMD log and xst files.
     """
-    logging.basicConfig(filename='mdplot.log',filemode='w',format='%(asctime)s %(name)s %(message)s',level=logging.DEBUG)
+    logging.basicConfig(filename='mdplot.log', filemode='w', format='%(asctime)s %(name)s %(message)s', level=logging.DEBUG)
 
-    console=logging.StreamHandler()
+    console = logging.StreamHandler()
     console.setLevel(logging.DEBUG)
-    formatter=logging.Formatter('%(levelname)s> %(message)s')
+    formatter = logging.Formatter('%(levelname)s> %(message)s')
     console.setFormatter(formatter)
-    config=Config()
-    C=Controller(
-        config,userspecs={
-            'tasks':[{
-                'mdplot':{
-                    'postprocessing':True,
-                    'logs':args.logs,
-                    'figsize':args.figsize,
-                    'timeseries':args.timeseries,
-                    'profiles':args.profiles,
-                    'profiles_per_block':args.profiles_per_block,
-                    'legend':True,
-                    'grid':True,
+    config = Config()
+    C = Controller(
+        config, userspecs={
+            'tasks': [{
+                'mdplot': {
+                    'postprocessing': True,
+                    'logs': args.logs,
+                    'figsize': args.figsize,
+                    'timeseries': args.timeseries,
+                    'profiles': args.profiles,
+                    'profiles_per_block': args.profiles_per_block,
+                    'legend': True,
+                    'grid': True,
                     'units': {
                         'density': 'g/cc',
                         'a_x': 'Å',
@@ -173,8 +173,8 @@ def mdplot(args):
         },
         terminate=False
     )
-    C.tasks[0].taskname=args.basename
-    report=C.do_tasks()
+    C.tasks[0].taskname = args.basename
+    report = C.do_tasks()
 
 # def list_examples():
 #     """
@@ -187,16 +187,16 @@ def fetch_example(args):
     """
     Fetch an example YAML configuration by index.
     """
-    index=args.index
-    r=ResourceManager()
-    config=r.example_manager.checkout_example(index)
+    index = args.index
+    r = ResourceManager()
+    config = r.example_manager.checkout_example(index)
     return config
 
 def run_example(args):
     """
     Run an example YAML configuration by index.
     """
-    args.config=fetch_example(args)
+    args.config = fetch_example(args)
     run(args)
 
 def new_system(args):
@@ -206,21 +206,21 @@ def new_system(args):
 
     r = ResourceManager()
     build_type = 'full' if args.full else 'minimal'
-    r.example_manager.new_example_yaml(id=args.id,build_type=build_type)
+    r.example_manager.new_example_yaml(id=args.id, build_type=build_type)
 
-def show_resources(args,**kwargs):
+def show_resources(args, **kwargs):
     """
     Show available resources for the specified configuration.
     """
-    r=ResourceManager()
-    resource_type=args.resource_type
-    specs={resource_type:[]}
-    if hasattr(args,resource_type):
-        for subresource in getattr(args,resource_type):
+    r = ResourceManager()
+    resource_type = args.resource_type
+    specs = {resource_type: []}
+    if hasattr(args, resource_type):
+        for subresource in getattr(args, resource_type):
             specs[resource_type].append(subresource)
     if args.user_pdbcollection:
         r.update_pdbrepository(args.user_pdbcollection)
-    r.show(out_stream=print,components=specs,fullnames=args.fullnames,missing_fullnames=r.labels.residue_fullnames)
+    r.show(out_stream=print, components=specs, fullnames=args.fullnames, missing_fullnames=r.labels.residue_fullnames)
 
 def modify_package(args):
     """
@@ -232,54 +232,54 @@ def modify_package(args):
         The command ``pestifer modify-package`` can only be invoked if ``pestifer`` is installed as an editable source tree, i.e. the directory containing the ``pestifer`` package.  A simple pip installation of the pestifer package will not allow this command to run, as the pestifer package will not have a full source tree available.  If you want to modify the package, you must clone the repository from GitHub and then execute ``pip install -e .`` from the package root.  Before modifying, it would also be a good idea to create a new branch, rather than modifying in the main branch.
     """
     # First, verify that the user has a full source tree by verifying the existence of the docs directory.  If not, raise an error.
-    logging.basicConfig(level=getattr(logging,args.log_level.upper()))
-    RM=ResourceManager()
+    logging.basicConfig(level=getattr(logging, args.log_level.upper()))
+    RM = ResourceManager()
     if args.example_action:
         if args.example_action == 'insert':
-            new_number=args.example_index
-            new_yaml=args.new_example_yaml
-            author_name=args.example_author_name
-            author_email=args.example_author_email
-            description=args.example_description
-            if new_number>0 and new_yaml:    
-                RM.insert_example(new_number,new_yaml,author_name=author_name,author_email=author_email,description=description)
+            new_number = args.example_index
+            new_yaml = args.new_example_yaml
+            author_name = args.example_author_name
+            author_email = args.example_author_email
+            description = args.example_description
+            if new_number > 0 and new_yaml:
+                RM.insert_example(new_number, new_yaml, author_name=author_name, author_email=author_email, description=description)
             else:
                 raise ValueError(f'Invalid parameters for insert example action: new_number={new_number}, new_yaml={new_yaml}. Must be positive integer and non-empty YAML file name.')
         elif args.example_action == 'add':
-            new_yaml=args.new_example_yaml
-            author_name=args.example_author_name
-            author_email=args.example_author_email
-            description=args.example_description
+            new_yaml = args.new_example_yaml
+            author_name = args.example_author_name
+            author_email = args.example_author_email
+            description = args.example_description
             if new_yaml:
-                RM.add_example(new_yaml,author_name=author_name,author_email=author_email,description=description)
+                RM.add_example(new_yaml, author_name=author_name, author_email=author_email, description=description)
             else:
                 raise ValueError(f'Invalid parameter for add example action: new_yaml={new_yaml}. Must be non-empty YAML file name.')
         elif args.example_action == 'update':
-            new_number=args.example_index
-            new_yaml=args.new_example_yaml
-            if new_number>0 and new_yaml:
-                RM.update_example(new_number,new_yaml)
+            new_number = args.example_index
+            new_yaml = args.new_example_yaml
+            if new_number > 0 and new_yaml:
+                RM.update_example(new_number, new_yaml)
             else:
                 raise ValueError(f'Invalid parameters for update example action: new_number={new_number}, new_yaml={new_yaml}. Must be positive integer and non-empty YAML file name.')
         elif args.example_action == 'delete':
-            number=args.example_index
-            if number>0:
+            number = args.example_index
+            if number > 0:
                 RM.delete_example(number)
             else:
                 raise ValueError(f'Invalid parameter for delete example action: number={number}. Must be positive integer.')
         elif args.example_action == 'rename':
-            number=args.example_index
-            new_name=args.new_example_name
-            if number>0 and new_name:
-                RM.rename_example(number,new_name)
+            number = args.example_index
+            new_name = args.new_example_name
+            if number > 0 and new_name:
+                RM.rename_example(number, new_name)
             else:
                 raise ValueError(f'Invalid parameters for rename example action: number={number}, new_name={new_name}. Must be positive integer and non-empty YAML file name.')
         elif args.example_action == 'author':
-            number=args.example_index
-            author_name=args.example_author_name
-            author_email=args.example_author_email
-            if number>0 and author_name and author_email:
-                RM.set_example_author(number,author_name,author_email)
+            number = args.example_index
+            author_name = args.example_author_name
+            author_email = args.example_author_email
+            if number > 0 and author_name and author_email:
+                RM.set_example_author(number, author_name, author_email)
             else:
                 raise ValueError(f'Invalid parameters for set-author example action: number={number}, author_name={author_name}, author_email={author_email}. Must be positive integer and non-empty strings.')
             
@@ -290,11 +290,11 @@ def wheretcl(args):
     """
     Show the locations of TcL-related directories.
     """
-    r=ResourceManager()
-    tcl_root=r.get_tcldir()
-    script_dir=r.get_tcl_scriptsdir()
-    pkg_dir=r.get_tcl_pkgdir()
-    msg=''
+    r = ResourceManager()
+    tcl_root = r.get_tcldir()
+    script_dir = r.get_tcl_scriptsdir()
+    pkg_dir = r.get_tcl_pkgdir()
+    msg = ''
     if args.root or args.verbose:
         assert os.path.exists(tcl_root)
         if args.verbose:
@@ -325,7 +325,6 @@ class NiceHelpFormatter(ap.HelpFormatter):
     def __init__(self, prog):
         super().__init__(prog, max_help_position=40, width=100)
 
-
 class BanneredHelpFormatter(NiceHelpFormatter):
     """
     A custom help formatter that includes a banner at the top of the help output.
@@ -341,10 +340,10 @@ def cli():
     This function sets up the argument parser, defines commands, and executes the appropriate command based on the user's input.
     It includes commands for running simulations, fetching examples, showing resources, and more.
     """
-    package_path=Path(__file__).resolve().parent.parent.parent
-    is_source_package_with_git=os.path.isdir(os.path.join(package_path,'.git'))
+    package_path = Path(__file__).resolve().parent.parent.parent
+    is_source_package_with_git = os.path.isdir(os.path.join(package_path, '.git'))
 
-    commands={
+    commands = {
         'run': run,
         'config-help': config_help,
         'new-system': new_system,
@@ -362,47 +361,47 @@ def cli():
     }
     if is_source_package_with_git:
         commands['modify-package'] = modify_package
-    helps={
-        'config-help':'get help on the syntax of input configuration files',
-        'config-default':'generate a default input directive',
-        'fetch-example':'copy the example\'s YAML config file to the CWD',
-        'run-example':'build one of the examples provided',
-        'run':'prepare a system using instructions in the config file',
-        'new-system':'create a new system from scratch',
-        'wheretcl':'provides path of TcL scripts for sourcing in interactive VMD',
-        'make-pdb-collection':'make a PDB Collection for use by packmol',
-        'desolvate':'desolvate an existing PSF/DCD',
-        'make-namd-restart':'generate a restart NAMD config file based on current checkpoint',
-        'show-resources':'display elements of the included pestifer resources',
-        'mdplot':'extract and plot time-series data from NAMD log and xst files',
+    helps = {
+        'config-help': 'get help on the syntax of input configuration files',
+        'config-default': 'generate a default input directive',
+        'fetch-example': 'copy the example\'s YAML config file to the CWD',
+        'run-example': 'build one of the examples provided',
+        'run': 'prepare a system using instructions in the config file',
+        'new-system': 'create a new system from scratch',
+        'wheretcl': 'provides path of TcL scripts for sourcing in interactive VMD',
+        'make-pdb-collection': 'make a PDB Collection for use by packmol',
+        'desolvate': 'desolvate an existing PSF/DCD',
+        'make-namd-restart': 'generate a restart NAMD config file based on current checkpoint',
+        'show-resources': 'display elements of the included pestifer resources',
+        'mdplot': 'extract and plot time-series data from NAMD log and xst files',
         # 'cleanup':'clean up files from a run (usually for a clean restart)',
-        'follow-namd-log':'follow a NAMD log file and show a progress bar',
+        'follow-namd-log': 'follow a NAMD log file and show a progress bar',
     }
     if is_source_package_with_git:
-        helps['modify-package']='modify the pestifer source package; developer use only'
-    descs={
-        'config-help':'Use this command to get interactive help on config file directives.',
-        'config-default':'This will generate a default config file for you to fill in using a text editor.',
-        'new-system':'Create a new system from scratch.',
-        'fetch-example':'Fetch YAML config for one of the examples; \'pestifer show-resources examples\' will show you the available examples.',
-        'run-example':'Prepare a system from one of the examples; \'pestifer show-resources examples\' will show you the available examples.',
-        'run':'Prepare a system from a provided configuration file.',
-        'wheretcl':'Report path of TcL scripts for sourcing in interactive VMD',
-        'make-pdb-collection':'Make representative psf/pdb files for any CHARMM RESI\'s found in given topology streams',
-        'desolvate':'Desolvate an existing PSF/DCD',
-        'make-namd-restart':'Generate a restart NAMD config file based on current checkpoint',
-        'show-resources':'Display elements of the included pestifer resources',
-        'mdplot':'Extract and plot time-series data from NAMD log and xst files',
+        helps['modify-package'] = 'modify the pestifer source package; developer use only'
+    descs = {
+        'config-help': 'Use this command to get interactive help on config file directives.',
+        'config-default': 'This will generate a default config file for you to fill in using a text editor.',
+        'new-system': 'Create a new system from scratch.',
+        'fetch-example': 'Fetch YAML config for one of the examples; \'pestifer show-resources examples\' will show you the available examples.',
+        'run-example': 'Prepare a system from one of the examples; \'pestifer show-resources examples\' will show you the available examples.',
+        'run': 'Prepare a system from a provided configuration file.',
+        'wheretcl': 'Report path of TcL scripts for sourcing in interactive VMD',
+        'make-pdb-collection': 'Make representative psf/pdb files for any CHARMM RESI\'s found in given topology streams',
+        'desolvate': 'Desolvate an existing PSF/DCD',
+        'make-namd-restart': 'Generate a restart NAMD config file based on current checkpoint',
+        'show-resources': 'Display elements of the included pestifer resources',
+        'mdplot': 'Extract and plot time-series data from NAMD log and xst files',
         # 'cleanup':'Clean up files from a run (usually for a clean restart)',
-        'follow-namd-log':'Follow a NAMD log file and show a progress bar',
+        'follow-namd-log': 'Follow a NAMD log file and show a progress bar',
     }
     if is_source_package_with_git:
-        descs['modify-package']='Modify the pestifer source package; developer use only.  This command can only be run if pestifer is installed as an editable source tree.'
-    parser=ap.ArgumentParser(formatter_class=NiceHelpFormatter)
-    parser.add_argument('--no-banner',default=False,action='store_true',help='turn off the banner')
-    parser.add_argument('--kick-ass-banner',default=False,action='store_true',help=ap.SUPPRESS)
-    parser.add_argument('--log-level',type=str,default=None,choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
-    parser.add_argument('--log-file',type=str,default='pestifer_diagnostics.log',help='Log file (default: %(default)s)')
+        descs['modify-package'] = 'Modify the pestifer source package; developer use only.  This command can only be run if pestifer is installed as an editable source tree.'
+    parser = ap.ArgumentParser(formatter_class=NiceHelpFormatter)
+    parser.add_argument('--no-banner', default=False, action='store_true', help='turn off the banner')
+    parser.add_argument('--kick-ass-banner', default=False, action='store_true', help=ap.SUPPRESS)
+    parser.add_argument('--log-level', type=str, default=None, choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
+    parser.add_argument('--log-file', type=str, default='pestifer_diagnostics.log', help='Log file (default: %(default)s)')
     subparsers = parser.add_subparsers(
         title="available commands (use \"pestifer <command> --help\" for help with any command)",
         dest="command",
@@ -410,104 +409,104 @@ def cli():
         required=False
     )
 
-    command_parsers={}
+    command_parsers = {}
     for k in commands:
-        command_parsers[k]=subparsers.add_parser(k,description=descs.get(k,''),help=helps.get(k,''),formatter_class=BanneredHelpFormatter)
+        command_parsers[k] = subparsers.add_parser(k, description=descs.get(k, ''), help=helps.get(k, ''), formatter_class=BanneredHelpFormatter)
         command_parsers[k].set_defaults(func=commands[k])
-    
-    command_parsers['run'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
-    command_parsers['run'].add_argument('--output-dir',type=str,default='./',help='name of output directory relative to CWD (default: %(default)s)')
-    command_parsers['run'].add_argument('--log-level',type=str,default='debug',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
-    command_parsers['run'].add_argument('--gpu',default=False,action='store_true',help='force run on GPU')
-    command_parsers['fetch-example'].add_argument('index',type=int,default=None,help='example index')
 
-    command_parsers['run-example'].add_argument('index',type=int,default=None,help='example index')
-    command_parsers['run-example'].add_argument('--output-dir',type=str,default='./',help='name of output directory relative to CWD (default: %(default)s)')
-    command_parsers['run-example'].add_argument('--config-updates',type=str,nargs='+',default=[],help='yaml files to update example')
-    command_parsers['run-example'].add_argument('--log-level',type=str,default='debug',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
-    command_parsers['run-example'].add_argument('--gpu',default=False,action='store_true',help='force run on GPU')
+    command_parsers['run'].add_argument('config', type=str, default=None, help='input configuration file in YAML format')
+    command_parsers['run'].add_argument('--output-dir', type=str, default='./', help='name of output directory relative to CWD (default: %(default)s)')
+    command_parsers['run'].add_argument('--log-level', type=str, default='debug', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
+    command_parsers['run'].add_argument('--gpu', default=False, action='store_true', help='force run on GPU')
+    command_parsers['fetch-example'].add_argument('index', type=int, default=None, help='example index')
 
-    command_parsers['new-system'].add_argument('id',type=str,default=None,help='PDB/AlphaFold ID  of the new system to create')
-    command_parsers['new-system'].add_argument('--full',default=False,action='store_true',help='Include full set of tasks in the new system configuration (default: %(default)s)')
-    
-    command_parsers['config-help'].add_argument('directives',type=str,nargs='*',help='config file directives')
-    command_parsers['config-help'].add_argument('--interactive',default=True,action=ap.BooleanOptionalAction,help='use help in interactive mode')
-    command_parsers['config-default'].add_argument('directives',type=str,nargs='*',help='config file directives')
-    command_parsers['wheretcl'].add_argument('--startup-script-path',default=False,action='store_true',help='print full path of VMD startup script used by pestifer')
-    command_parsers['wheretcl'].add_argument('--verbose',default=False,action='store_true',help='print full paths of all TcL resources of Pestifer')
-    command_parsers['wheretcl'].add_argument('--script-dir',default=False,action='store_true',help='print full path of directory of Pestifer\'s VMD scripts')
-    command_parsers['wheretcl'].add_argument('--pkg-dir',default=False,action='store_true',help='print full path of directory of Pestifer\'s VMD/TcL package library')
-    command_parsers['wheretcl'].add_argument('--root',default=False,action='store_true',help='print full path of Pestifer\'s root TcL directory')
+    command_parsers['run-example'].add_argument('index', type=int, default=None, help='example index')
+    command_parsers['run-example'].add_argument('--output-dir', type=str, default='./', help='name of output directory relative to CWD (default: %(default)s)')
+    command_parsers['run-example'].add_argument('--config-updates', type=str, nargs='+', default=[], help='yaml files to update example')
+    command_parsers['run-example'].add_argument('--log-level', type=str, default='debug', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
+    command_parsers['run-example'].add_argument('--gpu', default=False, action='store_true', help='force run on GPU')
+
+    command_parsers['new-system'].add_argument('id', type=str, default=None, help='PDB/AlphaFold ID  of the new system to create')
+    command_parsers['new-system'].add_argument('--full', default=False, action='store_true', help='Include full set of tasks in the new system configuration (default: %(default)s)')
+
+    command_parsers['config-help'].add_argument('directives', type=str, nargs='*', help='config file directives')
+    command_parsers['config-help'].add_argument('--interactive', default=True, action=ap.BooleanOptionalAction, help='use help in interactive mode')
+    command_parsers['config-default'].add_argument('directives', type=str, nargs='*', help='config file directives')
+    command_parsers['wheretcl'].add_argument('--startup-script-path', default=False, action='store_true', help='print full path of VMD startup script used by pestifer')
+    command_parsers['wheretcl'].add_argument('--verbose', default=False, action='store_true', help='print full paths of all TcL resources of Pestifer')
+    command_parsers['wheretcl'].add_argument('--script-dir', default=False, action='store_true', help='print full path of directory of Pestifer\'s VMD scripts')
+    command_parsers['wheretcl'].add_argument('--pkg-dir', default=False, action='store_true', help='print full path of directory of Pestifer\'s VMD/TcL package library')
+    command_parsers['wheretcl'].add_argument('--root', default=False, action='store_true', help='print full path of Pestifer\'s root TcL directory')
     if is_source_package_with_git:
-        command_parsers['modify-package'].add_argument('--update-atomselect-macros',action='store_true',help='update the resources/tcl/macros.tcl file based on content in core/labels.py; developer use only')
-        command_parsers['modify-package'].add_argument('--example-index',type=int,default=0,help='integer index of example to modify; developer use only')
-        command_parsers['modify-package'].add_argument('--example-action',type=str,default=None,choices=[None,'add','insert','update','delete','rename','author'],help='action to perform on the example; choices are [add|insert|update|delete|rename|author]; developer use only')
-        command_parsers['modify-package'].add_argument('--new-example-yaml',type=str,default='',help='yaml file of example; developer use only')
-        command_parsers['modify-package'].add_argument('--new-example-name',type=str,default='',help='new name for the example for action \'rename\'; developer use only')
-        command_parsers['modify-package'].add_argument('--log-level',type=str,default='info',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
-        command_parsers['modify-package'].add_argument('--example-author-name',type=str,default='',help='Name of the author; if not given, pestifer attempts to extract it from the YAML file header')
-        command_parsers['modify-package'].add_argument('--example-author-email',type=str,default='',help='Email of the author; if not given, pestifer attempts to extract it from the YAML file header')
-        command_parsers['modify-package'].add_argument('--example-description',type=str,default='',help='Description of the example (default: extract from \'title\' directive in YAML file)')
+        command_parsers['modify-package'].add_argument('--update-atomselect-macros', action='store_true', help='update the resources/tcl/macros.tcl file based on content in core/labels.py; developer use only')
+        command_parsers['modify-package'].add_argument('--example-index', type=int, default=0, help='integer index of example to modify; developer use only')
+        command_parsers['modify-package'].add_argument('--example-action', type=str, default=None, choices=[None, 'add', 'insert', 'update', 'delete', 'rename', 'author'], help='action to perform on the example; choices are [add|insert|update|delete|rename|author]; developer use only')
+        command_parsers['modify-package'].add_argument('--new-example-yaml', type=str, default='', help='yaml file of example; developer use only')
+        command_parsers['modify-package'].add_argument('--new-example-name', type=str, default='', help='new name for the example for action \'rename\'; developer use only')
+        command_parsers['modify-package'].add_argument('--log-level', type=str, default='info', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
+        command_parsers['modify-package'].add_argument('--example-author-name', type=str, default='', help='Name of the author; if not given, pestifer attempts to extract it from the YAML file header')
+        command_parsers['modify-package'].add_argument('--example-author-email', type=str, default='', help='Email of the author; if not given, pestifer attempts to extract it from the YAML file header')
+        command_parsers['modify-package'].add_argument('--example-description', type=str, default='', help='Description of the example (default: extract from \'title\' directive in YAML file)')
 
-    command_parsers['make-pdb-collection'].add_argument('--streamID',type=str,default=None,help='charmmff stream to scan')
-    command_parsers['make-pdb-collection'].add_argument('--substreamID',type=str,default='',help='charmmff substream to scan')
-    command_parsers['make-pdb-collection'].add_argument('--topfile',type=str,default=None,help='charmmff-format topology file to scan')
-    command_parsers['make-pdb-collection'].add_argument('--force',default=False,action='store_true',help='force overwrite of any existing molecules in the database')
-    command_parsers['make-pdb-collection'].add_argument('--cleanup',default=True,action=ap.BooleanOptionalAction,help='clean up all working files (default: %(default)s)')
-    command_parsers['make-pdb-collection'].add_argument('--resname',type=str,default='',help='single resname to generate')
-    command_parsers['make-pdb-collection'].add_argument('--take-ic-from',type=str,default='',help='alternate resname to take ICs from if this resname has bad ICs')
-    command_parsers['make-pdb-collection'].add_argument('--log-level',type=str,default='debug',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
-    command_parsers['make-pdb-collection'].add_argument('--force-constant',type=float,default=1.0,help='harmonic force constant used in non-equilibrium MD to stretch a molecule (default: %(default)s)')
-    command_parsers['make-pdb-collection'].add_argument('--lenfac',type=float,default=1.4,help='this factor times topological distance is the cartesian distance to which you want to stretch a molecule (default: %(default)s)')
-    command_parsers['make-pdb-collection'].add_argument('--minimize-steps',type=int,default=500,help='number of minimization steps immediately after each build (default: %(default)s)')
-    command_parsers['make-pdb-collection'].add_argument('--sample-steps',type=int,default=5000,help='number of sample steps (default: %(default)s)')
-    command_parsers['make-pdb-collection'].add_argument('--nsamples',type=int,default=10,help='number of samples (default: %(default)s)')
-    command_parsers['make-pdb-collection'].add_argument('--sample-temperature',type=float,default=300.0,help='number of sample steps (default: %(default)s)')
-    command_parsers['make-pdb-collection'].add_argument('--output-dir',type=str,default=None,help='name of output directory relative to CWD; defaults to streamID')
-    command_parsers['make-pdb-collection'].add_argument('--fail-dir',type=str,default='fails',help='name of output directory for failed runs relative to CWD (default: %(default)s)')
-    command_parsers['make-pdb-collection'].add_argument('--refic-idx',type=int,default=0,help='index of reference IC to use to build a single molecule (default: %(default)s)')
-    command_parsers['desolvate'].add_argument('--psf',type=str,help='name of input PSF file')
-    command_parsers['desolvate'].add_argument('--pdb',type=str,help='name of input PDB file (optional)')
-    command_parsers['desolvate'].add_argument('--dcd-infiles',type=str,nargs='+',default=[],help='list of input dcd files in chronological order')
-    command_parsers['desolvate'].add_argument('--keepatselstr',type=str,default='protein or glycan or lipid',help='VMD atomsel string for atoms you want to keep (default: "%(default)s")')
-    command_parsers['desolvate'].add_argument('--psf-outfile',type=str,default='dry.psf',help='name of output PSF file to create (default: %(default)s)')
-    command_parsers['desolvate'].add_argument('--dcd-outfile',type=str,default='dry.dcd',help='name of DCD output file to create (default: %(default)s)')
-    command_parsers['desolvate'].add_argument('--idx-outfile',type=str,default='dry.idx',help='name of index file for catdcd to create  (default: %(default)s)')
-    command_parsers['desolvate'].add_argument('--dcd-stride',type=int,default=1,help='stride in number of frames for catdcd (default: %(default)s)')
+    command_parsers['make-pdb-collection'].add_argument('--streamID', type=str, default=None, help='charmmff stream to scan')
+    command_parsers['make-pdb-collection'].add_argument('--substreamID', type=str, default='', help='charmmff substream to scan')
+    command_parsers['make-pdb-collection'].add_argument('--topfile', type=str, default=None, help='charmmff-format topology file to scan')
+    command_parsers['make-pdb-collection'].add_argument('--force', default=False, action='store_true', help='force overwrite of any existing molecules in the database')
+    command_parsers['make-pdb-collection'].add_argument('--cleanup', default=True, action=ap.BooleanOptionalAction, help='clean up all working files (default: %(default)s)')
+    command_parsers['make-pdb-collection'].add_argument('--resname', type=str, default='', help='single resname to generate')
+    command_parsers['make-pdb-collection'].add_argument('--take-ic-from', type=str, default='', help='alternate resname to take ICs from if this resname has bad ICs')
+    command_parsers['make-pdb-collection'].add_argument('--log-level', type=str, default='debug', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
+    command_parsers['make-pdb-collection'].add_argument('--force-constant', type=float, default=1.0, help='harmonic force constant used in non-equilibrium MD to stretch a molecule (default: %(default)s)')
+    command_parsers['make-pdb-collection'].add_argument('--lenfac', type=float, default=1.4, help='this factor times topological distance is the cartesian distance to which you want to stretch a molecule (default: %(default)s)')
+    command_parsers['make-pdb-collection'].add_argument('--minimize-steps', type=int, default=500, help='number of minimization steps immediately after each build (default: %(default)s)')
+    command_parsers['make-pdb-collection'].add_argument('--sample-steps', type=int, default=5000, help='number of sample steps (default: %(default)s)')
+    command_parsers['make-pdb-collection'].add_argument('--nsamples', type=int, default=10, help='number of samples (default: %(default)s)')
+    command_parsers['make-pdb-collection'].add_argument('--sample-temperature', type=float, default=300.0, help='temperature for sampling (default: %(default)s)')
+    command_parsers['make-pdb-collection'].add_argument('--output-dir', type=str, default=None, help='name of output directory relative to CWD; defaults to streamID')
+    command_parsers['make-pdb-collection'].add_argument('--fail-dir', type=str, default='fails', help='name of output directory for failed runs relative to CWD (default: %(default)s)')
+    command_parsers['make-pdb-collection'].add_argument('--refic-idx', type=int, default=0, help='index of reference IC to use to build a single molecule (default: %(default)s)')
+    command_parsers['desolvate'].add_argument('--psf', type=str, help='name of input PSF file')
+    command_parsers['desolvate'].add_argument('--pdb', type=str, help='name of input PDB file (optional)')
+    command_parsers['desolvate'].add_argument('--dcd-infiles', type=str, nargs='+', default=[], help='list of input dcd files in chronological order')
+    command_parsers['desolvate'].add_argument('--keepatselstr', type=str, default='protein or glycan or lipid', help='VMD atomsel string for atoms you want to keep (default: "%(default)s")')
+    command_parsers['desolvate'].add_argument('--psf-outfile', type=str, default='dry.psf', help='name of output PSF file to create (default: %(default)s)')
+    command_parsers['desolvate'].add_argument('--dcd-outfile', type=str, default='dry.dcd', help='name of DCD output file to create (default: %(default)s)')
+    command_parsers['desolvate'].add_argument('--idx-outfile', type=str, default='dry.idx', help='name of index file for catdcd to create  (default: %(default)s)')
+    command_parsers['desolvate'].add_argument('--dcd-stride', type=int, default=1, help='stride in number of frames for catdcd (default: %(default)s)')
 
-    command_parsers['make-namd-restart'].add_argument('--namd-log',type=str,help='name of most recent NAMD log')
-    command_parsers['make-namd-restart'].add_argument('--config',type=str,help='name of most recent NAMD config')
-    command_parsers['make-namd-restart'].add_argument('--new-base',type=str,help='basename of new NAMD config to create (excludes .namd extension)')
-    command_parsers['make-namd-restart'].add_argument('--run',type=int,help='number of time steps to run')
-    command_parsers['make-namd-restart'].add_argument('--slurm',type=str,default=None,help='name of SLURM script to update')
+    command_parsers['make-namd-restart'].add_argument('--namd-log', type=str, help='name of most recent NAMD log')
+    command_parsers['make-namd-restart'].add_argument('--config', type=str, help='name of most recent NAMD config')
+    command_parsers['make-namd-restart'].add_argument('--new-base', type=str, help='basename of new NAMD config to create (excludes .namd extension)')
+    command_parsers['make-namd-restart'].add_argument('--run', type=int, help='number of time steps to run')
+    command_parsers['make-namd-restart'].add_argument('--slurm', type=str, default=None, help='name of SLURM script to update')
 
-    command_parsers['show-resources'].add_argument('resource_type',type=str,default='examples',help='Type of resource to show; [tcl|examples|charmff]')
-    command_parsers['show-resources'].add_argument('--charmmff',type=str,nargs='+',default=[],help='show sub-resources of charmmff resources (\'toppar\', \'custom\', \'pdb\')')
-    command_parsers['show-resources'].add_argument('--fullnames',default=False,action='store_true',help='show full names of any residues shown with --charmmff pdb')
-    command_parsers['show-resources'].add_argument('--user-pdbcollection',type=str,nargs='+',default=[],help='additional collections of PDB files outside pestifer installation')
-    
-    command_parsers['mdplot'].add_argument('--logs',type=str,default=[],nargs='+',help='list of one more NAMD logs in chronological order')
-    command_parsers['mdplot'].add_argument('--basename',type=str,default='mdplot',help='basename of output files')
-    command_parsers['mdplot'].add_argument('--figsize',type=int,nargs=2,default=[9,6],help='figsize')
-    command_parsers['mdplot'].add_argument('--timeseries',type=str,default=['density'],nargs='+',help='timeseries to plot')
-    command_parsers['mdplot'].add_argument('--profiles',type=str,default=['pressure'],nargs='+',help='profiles (along z) to plot')
-    command_parsers['mdplot'].add_argument('--profiles-per-block',type=int,default=100,help='number of profiles to plot per block (default: %(default)s)')
+    command_parsers['show-resources'].add_argument('resource_type', type=str, default='examples', help='Type of resource to show; [tcl|examples|charmff]')
+    command_parsers['show-resources'].add_argument('--charmmff', type=str, nargs='+', default=[], help='show sub-resources of charmmff resources (\'toppar\', \'custom\', \'pdb\')')
+    command_parsers['show-resources'].add_argument('--fullnames', default=False, action='store_true', help='show full names of any residues shown with --charmmff pdb')
+    command_parsers['show-resources'].add_argument('--user-pdbcollection', type=str, nargs='+', default=[], help='additional collections of PDB files outside pestifer installation')
+
+    command_parsers['mdplot'].add_argument('--logs', type=str, default=[], nargs='+', help='list of one more NAMD logs in chronological order')
+    command_parsers['mdplot'].add_argument('--basename', type=str, default='mdplot', help='basename of output files')
+    command_parsers['mdplot'].add_argument('--figsize', type=int, nargs=2, default=[9, 6], help='figsize')
+    command_parsers['mdplot'].add_argument('--timeseries', type=str, default=['density'], nargs='+', help='timeseries to plot')
+    command_parsers['mdplot'].add_argument('--profiles', type=str, default=['pressure'], nargs='+', help='profiles (along z) to plot')
+    command_parsers['mdplot'].add_argument('--profiles-per-block', type=int, default=100, help='number of profiles to plot per block (default: %(default)s)')
     # command_parsers['cleanup'].add_argument('config',type=str,default=None,help='input configuration file in YAML format')
-    command_parsers['follow-namd-log'].add_argument('log',type=str,default=None,help='input NAMD log file')
-    command_parsers['follow-namd-log'].add_argument('--basename',type=str,default=None,help='basename of output files')
-    command_parsers['follow-namd-log'].add_argument('--diagnostic-log-file',type=str,default=None,help='diagnostic log file')
-    command_parsers['follow-namd-log'].add_argument('--log-level',type=str,default='info',choices=['info','debug','warning'],help='Logging level (default: %(default)s)')
-    command_parsers['follow-namd-log'].add_argument('--no-banner',default=True,action='store_true',help='turn off the banner')
+    command_parsers['follow-namd-log'].add_argument('log', type=str, default=None, help='input NAMD log file')
+    command_parsers['follow-namd-log'].add_argument('--basename', type=str, default=None, help='basename of output files')
+    command_parsers['follow-namd-log'].add_argument('--diagnostic-log-file', type=str, default=None, help='diagnostic log file')
+    command_parsers['follow-namd-log'].add_argument('--log-level', type=str, default='info', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
+    command_parsers['follow-namd-log'].add_argument('--no-banner', default=True, action='store_true', help='turn off the banner')
 
-    args=parser.parse_args()
+    args = parser.parse_args()
 
     if not args.no_banner:
         banner(print)
     if args.kick_ass_banner:
         print(_enhanced_banner_message)
 
-    if hasattr(args,'func'):
+    if hasattr(args, 'func'):
         args.func(args)
     else:
-        my_list=oxford(list(commands.keys()))
+        my_list = oxford(list(commands.keys()))
         print(f'No subcommand found. Expected one of {my_list}')

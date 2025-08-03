@@ -21,8 +21,8 @@ class ResourceManager:
     It also manages the ``ycleptic`` configuration file used for user-specific configurations.
     The resources are organized into directories, and the class provides methods to access these resources.
     """
-    
-    _base_resources=['charmmff','examples','tcl','ycleptic']
+
+    _base_resources = ('charmmff', 'examples', 'tcl', 'ycleptic')
     """
     A list of base resources that are managed by the ResourceManager.
     These resources include CHARMM force fields, example input files, TcL scripts, and the ycleptic configuration file.

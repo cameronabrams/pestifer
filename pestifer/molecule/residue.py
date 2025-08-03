@@ -20,10 +20,11 @@ from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 
 from .atom import Atom, AtomList, Hetatm
 from ..objs.link import Link, LinkList
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from ..core.labels import Labels
 from ..objs.seqadv import Seqadv, SeqadvList
 from ..objs.deletion import DeletionList
+from ..objs.insertion import Insertion, InsertionList
 from ..objs.substitution import SubstitutionList
 from ..util.cifutil import CIFdict
 from ..util.coord import positionN
@@ -119,30 +120,27 @@ class ResiduePlaceholder(BaseObj):
         return f"{self.model}:{self.chainID}:{self.resname}{self.resid.resid}"
 
     @staticmethod
-    def _adapt(*args) -> dict:
-        input_dict={}
-        if isinstance(args[0], str):
+    def _from_shortcode(shortcode: str) -> dict:
             # i:C:RD; e.g., # 1:A:ALA123 or 1:A:ALA123A or A:A123
             # i model number, optional, default 1
             # C chain ID
             # R one or three-letter residue code
             # D is resid
-            shortcode=args[0]
-            tokens=shortcode.split(':')
-            has_modelnum=len(tokens)>2
-            model_idx=-1
-            chain_idx=-1
-            model=1
-            chainID='A'
+            tokens = shortcode.split(':')
+            has_modelnum = len(tokens) > 2
+            model_idx = -1
+            chain_idx = -1
+            model = 1
+            chainID = 'A'
             if has_modelnum:
-                model_idx=0
-                model=int(tokens[model_idx])
-            has_chainID=len(tokens)>1
+                model_idx = 0
+                model = int(tokens[model_idx])
+            has_chainID = len(tokens) > 1
             if has_chainID:
-                chain_idx=model_idx+1
-                chainID=tokens[chain_idx]
-            res_idx=chain_idx+1
-            rescode_and_ID=tokens[res_idx]
+                chain_idx = model_idx + 1
+                chainID = tokens[chain_idx]
+            res_idx = chain_idx + 1
+            rescode_and_ID = tokens[res_idx]
             # rescode are the first alphabetic characters of rescode_and_ID.
             rescode_attempt = rescode_and_ID[:3].upper()
             # if this is a single-letter code, expect the second character to be a digit
@@ -153,49 +151,77 @@ class ResiduePlaceholder(BaseObj):
             else:
                 resname = rescode_attempt
                 resid = ResID(rescode_and_ID[3:])
-            input_dict={
-                'model':model,
-                'resname':resname,
-                'chainID':chainID,
+            input_dict = {
+                'model': model,
+                'resname': resname,
+                'chainID': chainID,
                 'resid': resid,
-                'resolved':False,
-                'segtype':'UNSET',
+                'resolved': False,
+                'segtype': 'UNSET',
             }
-        elif isinstance(args[0], PDBRecord | BaseRecord):
-            if args[0].modelNum is None:
-                args[0].modelNum = 1
-            elif type(args[0].modelNum) == str and args[0].modelNum.isdigit():
-                args[0].modelNum = int(args[0].modelNum)
-            elif type(args[0].modelNum) == str and len(args[0].modelNum) == 0:
-                args[0].modelNum = 1
-            input_dict={
-                # pidbble/resources/pdb_format.yaml line 846 to 850
-                'model':args[0].modelNum,
-                'resname':args[0].resName,
-                'chainID':args[0].chainID,
-                'resid':ResID(args[0].seqNum, args[0].iCode),
-                'resolved':False,
-                'segtype':'UNSET'
-            }
-        elif isinstance(args[0], CIFdict):
-            cd=args[0]
-            mn=cd['pdb_model_num']
-            if type(mn)==str and mn.isdigit:
-                nmn=int(mn)
-            else:
-                nmn=1
-            input_dict={
-                'model':nmn,
-                'resname':cd['label_comp_id'],
-                'chainID':cd['label_asym_id'],
-                'resid':ResID(int(cd['label_seq_id']), cd['pdb_ins_code']),
-                'resolved':False,
-                'segtype':'UNSET',
-                'auth_asym_id':cd['auth_asym_id'],
-                'auth_comp_id':cd['auth_comp_id'],
-                'auth_seq_id':int(cd['auth_seq_id']),
-            }
+            return input_dict
+
+    @staticmethod
+    def _from_pdbrecord(pdbrecord: PDBRecord | BaseRecord) -> dict:
+        """
+        Converts a PDBRecord to a dictionary of parameters for ResiduePlaceholder.
+        
+        Parameters
+        ----------
+        pdbrecord : PDBRecord
+            A PDBRecord instance containing residue information.
+        
+        Returns
+        -------
+        dict
+            A dictionary containing the parameters for ResiduePlaceholder.
+        """
+        if pdbrecord.modelNum is None:
+            pdbrecord.modelNum = 1
+        elif type(pdbrecord.modelNum) == str and pdbrecord.modelNum.isdigit():
+            pdbrecord.modelNum = int(pdbrecord.modelNum)
+        elif type(pdbrecord.modelNum) == str and len(pdbrecord.modelNum) == 0:
+            pdbrecord.modelNum = 1
+        input_dict = {
+            # pidbble/resources/pdb_format.yaml line 846 to 850
+            'model': pdbrecord.modelNum,
+            'resname': pdbrecord.resName,
+            'chainID': pdbrecord.chainID,
+            'resid': ResID(pdbrecord.seqNum, pdbrecord.iCode),
+            'resolved': False,
+            'segtype': 'UNSET'
+        }
         return input_dict
+
+    @staticmethod
+    def _from_cifdict(cifdict: CIFdict) -> dict:
+        mn = cifdict['pdb_model_num']
+        if type(mn) == str and mn.isdigit():
+            nmn = int(mn)
+        else:
+            nmn = 1
+        input_dict = {
+            'model': nmn,
+            'resname': cifdict['label_comp_id'],
+            'chainID': cifdict['label_asym_id'],
+            'resid': ResID(int(cifdict['label_seq_id']), cifdict['pdb_ins_code']),
+            'resolved': False,
+            'segtype': 'UNSET',
+            'auth_asym_id': cifdict['auth_asym_id'],
+            'auth_comp_id': cifdict['auth_comp_id'],
+            'auth_seq_id': int(cifdict['auth_seq_id']),
+        }
+        return input_dict
+
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
+        if args and isinstance(args[0], str):
+            return cls._from_shortcode(args[0])
+        elif args and isinstance(args[0], PDBRecord | BaseRecord):
+            return cls._from_pdbrecord(args[0])
+        elif args and isinstance(args[0], CIFdict):
+            return cls._from_cifdict(args[0])
+        return super()._adapt(*args, **kwargs)
 
     def __str__(self):
         return f'{self.chainID}_{self.resname}{self.resid.resid}*'
@@ -210,9 +236,9 @@ class ResiduePlaceholder(BaseObj):
         str
             A string representing the :class:`ResiduePlaceholder` in PDB format.
         """
-        record_name,code=ResiduePlaceholder.PDB_keyword.split('.')
-        return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>5d}{:1s}'.format(record_name,
-        code,self.model,self.resname,self.chainID,self.resid.resseqnum,self.resid.insertion)
+        record_name, code = ResiduePlaceholder._PDB_keyword.split('.')
+        return '{:6s}{:>4d}   {:1s} {:3s} {:1s} {:>6s}'.format(record_name,
+        code, self.model, self.resname, self.chainID, self.resid.pdbresid)
 
 class ResiduePlaceholderList(BaseObjList[ResiduePlaceholder]):
     """
@@ -325,8 +351,8 @@ class Residue(ResiduePlaceholder):
 
     _chainIDmap_label_to_auth = {}
 
-    @staticmethod
-    def _adapt(*args) -> dict:
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
         """
         Converts various input types into a dictionary of parameters for Residue.
         
@@ -345,11 +371,11 @@ class Residue(ResiduePlaceholder):
         TypeError
             If the input type is not supported.
         """
-        if isinstance(args[0], str):
+        if args and isinstance(args[0], str):
             input_dict = ResiduePlaceholder._adapt(args[0])
             input_dict['atoms'] = AtomList()
             return input_dict
-        elif isinstance(args[0], ResiduePlaceholder):
+        elif args and isinstance(args[0], ResiduePlaceholder):
             input_dict = {'resname': args[0].resname,
                           'resid': ResID(args[0].resid),
                           'chainID': args[0].chainID,
@@ -358,18 +384,21 @@ class Residue(ResiduePlaceholder):
                           'obj_id': args[0].obj_id,
                           'auth_asym_id': args[0].auth_asym_id,
                           'auth_comp_id': args[0].auth_comp_id,
-                          'auth_seq_id': args[0].auth_seq_id,'atoms': AtomList(),
+                          'auth_seq_id': args[0].auth_seq_id,
+                          'atoms': AtomList(),
                           'resolved': True}
             return input_dict
-        elif isinstance(args[0], PDBRecord | BaseRecord):
+        elif args and isinstance(args[0], PDBRecord | BaseRecord):
             input_dict = ResiduePlaceholder._adapt(args[0])
             input_dict['atoms'] = AtomList()
+            input_dict['resolved'] = True
             return input_dict
-        elif isinstance(args[0], CIFdict):
+        elif args and isinstance(args[0], CIFdict):
             input_dict = ResiduePlaceholder._adapt(args[0])
             input_dict['atoms'] = AtomList()
+            input_dict['resolved'] = True
             return input_dict
-        elif isinstance(args[0], Atom | Hetatm):
+        elif args and isinstance(args[0], Atom | Hetatm):
             a = args[0]
             input_dict = dict(resname=a.resname,
                               resid=a.resid, chainID=a.chainID,
@@ -378,10 +407,9 @@ class Residue(ResiduePlaceholder):
                               auth_asym_id=getattr(a, 'auth_asym_id', None),
                               auth_comp_id=getattr(a, 'auth_comp_id', None),
                               auth_seq_id=getattr(a, 'auth_seq_id', None))
-        else:
-            raise TypeError(f"Cannot convert {type(args[0])} to Residue")
-        input_dict['resolved'] = True
-        return input_dict
+            input_dict['resolved'] = True
+            return input_dict
+        return super()._adapt(*args, **kwargs)
             
     def __str__(self):
         return f'{self.chainID}_{self.resname}{self.resid.resid}'
@@ -448,8 +476,13 @@ class Residue(ResiduePlaceholder):
             False otherwise.
         """
         if isinstance(other, Residue):
-            return self.resid == other.resid
+            # comparing to another residue requires same resid and chainID
+            return self.resid == other.resid and self.chainID == other.chainID
+        elif isinstance(other, ResID):
+            # comparing just to a Resid requires just same resid
+            return self.resid == other
         elif isinstance(other, str):
+            # str interpreted as resid
             return self.resid == ResID(other)
         else:
             raise TypeError(f"Cannot compare Residue with {type(other)}")
@@ -956,16 +989,16 @@ class ResidueList(BaseObjList[Residue]):
         and the values are dictionaries mapping residue sequence numbers to Namespace objects containing
         the residue information.
         """
-        result={}
+        result = {}
         for r in self:
-            if hasattr(r,'label_asym_id'):
+            if hasattr(r, 'label_asym_id'):
                 if not r.chainID in result:
-                    result[r.chainID]={}
-                if not r.resseqnum in result[r.chainID]:
-                    result[r.chainID][r.resseqnum]=Namespace(resseqnum=r.label_seq_id,chainID=r.label_asym_id,insertion=r.insertion)
+                    result[r.chainID] = {}
+                if not r.resid in result[r.chainID]:
+                    result[r.chainID][r.resid] = Namespace(ResID(resseqnum=r.label_seq_id, insertion=r.insertion), chainID=r.label_asym_id)
         return result
     
-    def apply_insertions(self,insertions):
+    def apply_insertions(self, insertions: InsertionList):
         """
         Apply a list of insertions to the residue list.
         
@@ -976,79 +1009,77 @@ class ResidueList(BaseObjList[Residue]):
             insertion codes, and the sequence of residues to insert.
         """
         for ins in insertions:
-            chainID,resid=ins.chainID,ins.resid
-            idx=self.iget(chainID=chainID,resid=resid)
-            segtype=self[idx].segtype
+            chainID, resid = ins.chainID, ins.resid
+            idx = self.iget(chainID=chainID, resid=resid)
+            segtype = self[idx].segtype
             logger.debug(f'insertion begins after {resid.resid} which is index {idx} in reslist, chain {chainID}')
             # add residues to residue list
             for olc in ins.sequence:
                 resid.increment(by_seqnum=ins.integer_increment)
-                shortcode=f'{chainID}:{olc}{resid.resid}'
-                new_empty_residue=ResiduePlaceholder(shortcode)
-                new_residue=Residue(new_empty_residue)
-                new_residue.atoms=AtomList([])
-                new_residue.segtype=segtype
-                self.insert(idx,new_residue)
-                logger.debug(f'insertion of new empty residue {shortcode}')
+                shortcode = f'{chainID}:{olc}{resid.resid}'
+                new_empty_residue = ResiduePlaceholder(shortcode)
+                new_residue = Residue(new_empty_residue)
+                new_residue.atoms = AtomList([])
+                new_residue.segtype = segtype
+                self.insert(idx, new_residue)
+                logger.debug(f'insertion of new residue placeholder {shortcode}')
 
     def renumber(self, links: LinkList):
         """
-        The possibility exists that empty residues added have resseqnums that conflict with existing resseqnums on the same chain if those resseqnums are in a different segtype (e.g., glycan).  This method will privilege protein residues in such conflicts, and it will renumber non-protein residues, updating any resseqnum records in links to match the new resseqnums.
-        
+        The possibility exists that empty residues added have resids that conflict with existing resids on the same chain if those resids are in a different segtype (e.g., glycan).  This method will privilege protein residues in such conflicts, and it will renumber non-protein residues, updating any resid records in links to match the new resid.
+
         Parameters
         ----------
         links : :class:`~pestifer.objs.link.LinkList`
             A list of links that may contain residue sequence numbers that need to be updated.
         """
-        protein_residues=self.get(segtype='protein')
-        if len(protein_residues)==0: return
-        min_protein_resid=min([x.resid for x in protein_residues])
-        max_protein_resid=max([x.resid for x in protein_residues])
-        non_protein_residues=ResidueList([])
+        protein_residues = self.get(segtype='protein')
+        if len(protein_residues) == 0: return
+        min_protein_resid = min([x.resid for x in protein_residues])
+        max_protein_resid = max([x.resid for x in protein_residues])
+        non_protein_residues = ResidueList([])
         for p in self:
-            if p.segtype!='protein':
+            if p.segtype != 'protein':
                 non_protein_residues.append(p)
         logger.debug(f'There are {len(protein_residues)} (resids {min_protein_resid} to {max_protein_resid}) protein residues and {len(non_protein_residues)} non-protein residues')
-        assert len(self)==(len(protein_residues)+len(non_protein_residues))
-        non_protein_residues_in_conflict=ResidueList([])
+        assert len(self) == (len(protein_residues) + len(non_protein_residues))
+        non_protein_residues_in_conflict = ResidueList([])
         for np in non_protein_residues:
-            # logger.debug(f'looking for conflict among protein for chain [{np.chainID}] resseqnum [{np.resseqnum}] insertion [{np.insertion}]')
-            tst=protein_residues.get(chainID=np.chainID,resid=np.resid)
+            tst = protein_residues.get(chainID=np.chainID, resid=np.resid)
             if tst:
-                # logger.debug(f'found it!')
                 non_protein_residues_in_conflict.append(np)
         for npc in non_protein_residues_in_conflict:
             non_protein_residues.remove(npc)
-        logger.debug(f'There are {len(non_protein_residues_in_conflict)} non-protein residues with resseqnums that conflict with protein residues')
+        logger.debug(f'There are {len(non_protein_residues_in_conflict)} non-protein residues with resid that conflict with protein residues')
 
-        max_unused_resid=max([max([x.resid for x in protein_residues]),0 if len(non_protein_residues)==0 else max([x.resid for x in non_protein_residues])]) + 1
-        newtst=self.get(resid=max_unused_resid)
-        assert newtst in [None, []] #None
-        mapper_by_chain={}
+        max_unused_resid = max([max([x.resid for x in protein_residues]), 0 if len(non_protein_residues) == 0 else max([x.resid for x in non_protein_residues])]) + 1
+        newtst = self.get(resid=max_unused_resid)
+        assert newtst in [None, []]  # None
+        mapper_by_chain = {}
         for npc in non_protein_residues_in_conflict:
-            c=npc.chainID
+            c = npc.chainID
             if not c in mapper_by_chain:
-                mapper_by_chain[c]={}
-            old_resid=npc.resid
-            new=max_unused_resid
-            mapper_by_chain[c][old_resid]=new
-            max_unused_resid+=1
-            npc.resid=new
+                mapper_by_chain[c] = {}
+            old_resid = npc.resid
+            new = max_unused_resid
+            mapper_by_chain[c][old_resid] = new
+            max_unused_resid += 1
+            npc.resid = new
             for a in npc.atoms:
-                a.resid=new
+                a.resid = new
             logger.debug(f'New resid: {c} {old_resid} -> {new}')
         if mapper_by_chain:
             logger.debug(f'Remapping resids in links')
             for l in links:
                 if l.chainID1 in mapper_by_chain:
-                    old_resid=l.resid1
+                    old_resid = l.resid1
                     if old_resid in mapper_by_chain[l.chainID1]:
-                        l.resid1=mapper_by_chain[l.chainID1][old_resid]
-                        logger.debug(f' remapped 1eft: {l.chainID1} {old_resid} -> {l.resid1}')
+                        l.resid1 = mapper_by_chain[l.chainID1][old_resid]
+                        logger.debug(f' remapped left: {l.chainID1} {old_resid} -> {l.resid1}')
                 if l.chainID2 in mapper_by_chain:
-                    old_resid=l.resid2
+                    old_resid = l.resid2
                     if old_resid in mapper_by_chain[l.chainID2]:
-                        l.resid2=mapper_by_chain[l.chainID2][old_resid]
+                        l.resid2 = mapper_by_chain[l.chainID2][old_resid]
                         logger.debug(f' remapped right: {l.chainID2} {old_resid} -> {l.resid2}')
 
     def set_chainIDs(self, chainID):

@@ -6,12 +6,11 @@ using the VMD ``orient`` command, which computes the principal axes of the
 coordinate set and aligns it with the specified axis.    
 """
 import logging
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 from pydantic import Field
-from typing import ClassVar, Any
-from functools import singledispatchmethod
+from typing import ClassVar
 
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from ..core.scripters import VMDScripter
 
 class Orient(BaseObj):
@@ -52,13 +51,12 @@ class Orient(BaseObj):
     This categorization is used to group Orient objects in the object manager.
     """
 
-    @staticmethod
-    def _adapt(*args) -> dict:
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
         """
-        Adapts the input to a dictionary format suitable for Orient instantiation.
-        This method is used to convert various input formats into a dictionary that can be used to create an Orient object.
+        Override the _adapt classmethod to handle initialization from a shortcode.
         """
-        if isinstance(args[0], str):
+        if args and isinstance(args[0], str):
             parts = args[0].split(',')
             if len(parts) == 1:
                 return dict(axis=parts[0])
@@ -66,6 +64,7 @@ class Orient(BaseObj):
                 return dict(axis=parts[0], refatom=parts[1])
             else:
                 raise ValueError(f"Invalid format for Orient: {args[0]}")
+        return super()._adapt(*args, **kwargs)
 
     def write_TcL(self, W:VMDScripter):
         """

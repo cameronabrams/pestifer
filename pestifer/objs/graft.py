@@ -10,12 +10,12 @@ from __future__ import annotations
 import logging
 
 from pydantic import Field
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 import os
 
 from pydantic import Field
 from typing import ClassVar
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from ..core.scripters import PsfgenScripter
 from .link import Link, LinkList
 from ..molecule.residue import Residue, ResidueList
@@ -76,14 +76,18 @@ class Graft(BaseObj):
     _index_residues: ResidueList = None
     _my_links: LinkList = None
 
-    @staticmethod
-    def _adapt(*args):
-        if isinstance(args[0], str):
-            input_dict=Graft._from_shortcode(args[0])
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
+        """
+        Override the _adapt classmethod to handle initialization from a shortcode.
+        This method is used to convert various input types into a dictionary of parameters.
+        """
+        if args and isinstance(args[0], str):
+            input_dict = Graft._from_shortcode(args[0])
             input_dict['obj_id'] = Graft._counter
             Graft._counter += 1
             return input_dict
-        raise TypeError(f"Cannot convert {type(args[0])} to Graft")
+        return super()._adapt(*args, **kwargs)
 
     @staticmethod
     def _from_shortcode(raw: str) -> dict:
@@ -211,21 +215,18 @@ class Graft(BaseObj):
                 self._mover_residues.append(residue)
             elif self.source_end is None and self.source_partner is not None and residue == self.source_partner.resid:
                 self._mover_residues.append(residue)
+        self._graft_residues = self._index_residues + self._mover_residues
 
         # only ingest links that are internal to this set of residues or that link to index residues
         self._my_links = LinkList([])
         for l in self._source_molecule.objmanager.get('topol', {}).get('links', LinkList([])):
-            if l.residue1 in self._mover_residues and l.residue2 in self._mover_residues:
-                self._my_links.append(l)
-            elif l.residue1 in self._index_residues and l.residue2 in self._mover_residues:
-                self._my_links.append(l)
-            elif l.residue2 in self._index_residues and l.residue1 in self._mover_residues:
-                self._my_links.append(l)
+            if l.residue1 in self._graft_residues and l.residue2 in self._graft_residues:
+                self._my_links.append(l)                
         logger.debug(f'Activated graft {self.id}')
 
-    def set_links(self, next_resid: ResID) -> ResID:
+    def set_internal_resids(self, next_resid: ResID) -> ResID:
         """
-        Set the links for the graft based on the resolved receiver residues.
+        Set the internal residue IDs for the graft based on the resolved receiver residues.
 
         Parameters
         ----------
@@ -243,7 +244,7 @@ class Graft(BaseObj):
         self._index_residues.set(chainID=self.residues[0].chainID)
         self._mover_residues.set(chainID=self.residues[0].chainID)
         for r in self._mover_residues:
-            r.set(resseqnum=next_resid)
+            r.set(resid=next_resid)
             next_resid += 1
         for l in self._my_links:
             if l.residue1 in self._index_residues and l.residue2 in self._mover_residues:
@@ -366,12 +367,12 @@ class Graft(BaseObj):
         assert self._residues == None
         logger.debug(f'Assigning receiver residues to graft {self.obj_id} ({self.target_root.resid})')
 
-        target_residue = Residues.get(chainID=self.target_chainID, resseqnum=self.target_root.resid) # change when residue definition is updated for ResID
+        target_residue = Residues.get(chainID=self.target_chainID, resid=self.target_root.resid) # change when residue definition is updated for ResID
         if target_residue is not None:
             self.residues=type(Residues)([])
             self._residues.append(target_residue)
             if self.target_partner is not None:
-                target_addl_residue = Residues.get(chainID=self.target_chainID, resseqnum=self.target_partner.resid)
+                target_addl_residue = Residues.get(chainID=self.target_chainID, resid=self.target_partner.resid)
                 if target_addl_residue is not None:
                     self._residues.append(target_addl_residue)
 
@@ -418,11 +419,11 @@ class GraftList(BaseObjList[Graft]):
             addl_res = None
             if graft.target_partner is not None:
                 addl_res = graft._residues[1]
-                assert addl_res in downs, f'Graft {graft.obj_id} target_partner {graft.target_partner.resid} not found in down-links of root residue {root_res.chainID}_{root_res.resname}{root_res.resseqnum}{root_res.insertion}'
+                assert addl_res in downs, f'Graft {graft.obj_id} target_partner {graft.target_partner.resid} not found in down-links of root residue {root_res.chainID}_{root_res.resname}{root_res.resid.resid}'
                 adowns = addl_res.down
                 # remove residues down-linked to the root residue that are not the additional residue
             for down_res in downs+adowns:
-                logger.debug(f'-> removing down-link from {root_res.chainID}_{root_res.resname}{root_res.resseqnum}{root_res.insertion} to {down_res.chainID}_{down_res.resname}{down_res.resseqnum}{down_res.insertion}')
+                logger.debug(f'-> removing down-link from {root_res.chainID}_{root_res.resname}{root_res.resid.resid} to {down_res.chainID}_{down_res.resname}{down_res.resid.resid}')
                 down_group.append(Residues.remove(down_res))
                 down_links.extend(Links.remove_links_to(down_res))
             # now we can remove the down-links from the root residue
@@ -430,3 +431,16 @@ class GraftList(BaseObjList[Graft]):
             self.remove(s)
         return delete_us, down_group, down_links
 
+    def sequential_renumber(self, r: ResID):
+        """
+        Renumber the residues in each graft sequentially.
+        This method iterates through each graft in the list and renumbers the residues
+        in each graft sequentially, starting from 1.
+        """
+        logger.debug(f'Renumbering {len(self)} grafts')
+        for g in self:
+            logger.debug(f' -> renumbering graft {g.obj_id}')
+            g._residues.renumber(start=1)
+            g._mover_residues.renumber(start=1)
+            g._index_residues.renumber(start=1)
+            g._my_links.renumber(start=1)

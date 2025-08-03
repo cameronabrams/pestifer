@@ -3,12 +3,12 @@
 A Link is a covalent bond between two residues in a protein structure.
 """
 import logging
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 
 from .patch import Patch, PatchList
 from ..molecule.transform import Transform
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from ..core.scripters import PsfgenScripter, Filewriter
 from ..util.cifutil import CIFdict
 from ..util.coord import ic_reference_closest
@@ -159,22 +159,22 @@ class Link(BaseObj):
     A dictionary mapping atom names to their corresponding CHARMM36 patch names.
     """
 
-    @staticmethod
-    def _adapt(*args) -> dict:
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
         """
         Adapts the input to a dictionary format suitable for Link instantiation.
         This method is used to convert various input types into a dictionary of parameters.
         """
-        if isinstance(args[0], str):
+        if args and isinstance(args[0], str):
             input_dict = Link._from_shortcode(args[0])
             return input_dict
-        elif isinstance(args[0], PDBRecord):
+        elif args and isinstance(args[0], PDBRecord):
             return Link._from_pdbrecord(args[0])
-        elif isinstance(args[0], CIFdict):
+        elif args and isinstance(args[0], CIFdict):
             return Link._from_cifdict(args[0])
-        elif isinstance(args[0], PatchList):
+        elif args and isinstance(args[0], PatchList):
             return Link._from_patchlist(args[0])
-        raise TypeError(f"Cannot convert {type(args[0])} to Link")
+        return super()._adapt(*args, **kwargs)
     
     @staticmethod
     def _from_pdbrecord(pdbrecord:PDBRecord) -> dict:
@@ -277,7 +277,7 @@ class Link(BaseObj):
         """
         return f"{self.chainID1}_{self.resid1.resid}_{self.name1}-{self.chainID2}_{self.resid2.resid}_{self.name2}"
 
-    def set_patchname(self,force=False):
+    def set_patchname(self, force=False):
         """
         Set the charmff patch name for this link.
         This method assigns a patch name based on the residues involved in the link.
@@ -291,7 +291,7 @@ class Link(BaseObj):
             If True, forces the patch name to be set even if it is already assigned.
             Default is False.
         """
-        if hasattr(self,'patchname') and len(self.patchname)>0 and not force:
+        if hasattr(self,'patchname') and (self.patchname and len(self.patchname)>0) and not force:
             logger.debug(f'Patchname for {str(self)} already set to {self.patchname}')
             return
         self.patchname=''
@@ -565,7 +565,7 @@ class LinkList(BaseObjList[Link]):
             pass
         for link in self:
             try:
-                link.residue1.linkTo(link.residue2,link)
+                link.residue1.link_to(link.residue2,link)
             except:
                 raise ValueError(f'Bad residue in link')
             link.atom1=link.residue1.atoms.get(name=link.name1,altloc=link.altloc1)

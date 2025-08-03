@@ -4,11 +4,14 @@ from pestifer.molecule.segment import Segment, SegmentList
 from pestifer.molecule.chainidmanager import ChainIDManager
 from pestifer.molecule.asymmetricunit import AsymmetricUnit
 from pidibble.pdbparse import PDBParser
+from pidibble.pdbrecord import PDBRecordDict
 from pestifer.util.cifutil import CIFload
+from pestifer.objs.resid import ResID
 from mmcif.api.PdbxContainers import DataContainer
 from pathlib import Path
 import logging
 logger = logging.getLogger(__name__)
+
 class TestAsymmetricUnit(unittest.TestCase):
     
     def test_asymmetric_unit_initialization_empty(self):
@@ -25,7 +28,7 @@ class TestAsymmetricUnit(unittest.TestCase):
             logger.debug(f'Testing asymmetric unit initialization from {fmt} file: {filepath}')
             if fmt == 'PDB':
                 pstruct = PDBParser(filepath=filepath, input_format=fmt).parse().parsed
-                self.assertIsInstance(pstruct, dict)
+                self.assertIsInstance(pstruct, PDBRecordDict)
             elif fmt == 'mmCIF':
                 pstruct = CIFload(Path(filepath))
                 self.assertIsInstance(pstruct, DataContainer)
@@ -64,8 +67,8 @@ class TestAsymmetricUnit(unittest.TestCase):
             self.assertTrue('topol' in obj_manager)
             self.assertTrue('ssbonds' in obj_manager['topol'])
             for ssbond in obj_manager['topol']['ssbonds']:
-                logger.debug(f"SSBond: {ssbond.describe()}")
+                logger.debug(f"SSBond: {repr(ssbond)}")
             self.assertEqual(len(obj_manager['topol']['ssbonds']), 3)
             ssbonds = obj_manager['topol']['ssbonds']
-            self.assertEqual(ssbonds[0].resseqnum1, 5)
-            self.assertEqual(ssbonds[0].resseqnum2, 55)
+            self.assertEqual(ssbonds[0].resid1, ResID(5))
+            self.assertEqual(ssbonds[0].resid2, ResID(55))

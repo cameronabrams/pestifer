@@ -8,7 +8,7 @@ logger=logging.getLogger(__name__)
 
 from pydantic import Field
 from typing import ClassVar
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from .resid import ResID
 
 class Deletion(BaseObj):
@@ -23,17 +23,16 @@ class Deletion(BaseObj):
 
     _yaml_header: ClassVar[str] = 'deletions'
     _objcat: ClassVar[str] = 'seq'
-    
-    @staticmethod
-    def _adapt(*args) -> dict:
+
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
         """
-        Adapts the input to a dictionary format suitable for Deletion instantiation.
-        This method is used to convert various input types into a dictionary of parameters.
+        Override the _adapt classmethod to handle initialization from a shortcode.
         """
-        if isinstance(args[0], str):
+        if args and isinstance(args[0], str):
             input_dict = Deletion._from_shortcode(args[0])
             return input_dict
-        raise TypeError(f"Cannot convert {type(args[0])} to Deletion")
+        return super()._adapt(*args, **kwargs)
 
     @staticmethod
     def _from_shortcode(raw: str) -> dict:

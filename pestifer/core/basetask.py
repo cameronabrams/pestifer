@@ -138,7 +138,7 @@ class BaseTask(ABC):
         Artifact
             The artifact associated with the specified key, or None if not found.
         """
-        artifact=self.pipeline.get_artifact(key)
+        artifact = self.pipeline.get_artifact(key)
         if artifact:
             return artifact.path if hasattr(artifact,'path') else artifact.value
         else:
@@ -220,7 +220,7 @@ class BaseTask(ABC):
             if v:
                 extra += f' ({k}: {v})'
         mtoks = [x.strip() for x in [x.upper() for x in message.split()]]
-        if not any([x in self.init_msg_options for x in mtoks]):
+        if not any([x in self._init_msg_options for x in mtoks]):
             extra += f' (result: {self.result})'
         logger.info(f'Controller {self.controller_index:02} Task {self.index:02} \'{self.taskname}\' {message} {extra}')
 
@@ -287,9 +287,9 @@ class VMDTask(BaseTask, ABC):
         It uses the ``pdb2namdbin`` Tcl proc to convert the PDB file to a coordinate file.
         The resulting coordinate file is named based on the task's basename.
         """
-        vm=self.scripters['vmd']
+        vm = self.scripters['vmd']
         vm.newscript(f'{self.basename}-pdb2coor')
-        pdb=self.get_current_artifact_path('pdb')
+        pdb = self.get_current_artifact_path('pdb')
         if not pdb:
             raise RuntimeError(f'No PDB file found for task {self.taskname}')
         vm.addline(f'pdb2namdbin {pdb.name} {self.basename}.coor')
@@ -299,7 +299,7 @@ class VMDTask(BaseTask, ABC):
         self.register_current_artifact(VMDLogFile(f'{self.basename}-pdb2coor'))
         self.register_current_artifact(NAMDCoorFile(f'{self.basename}'))
 
-    def make_constraint_pdb(self,specs,statekey='consref'):
+    def make_constraint_pdb(self, specs, statekey='consref'):
         """
         Creates a PDB file with constraints based on the specifications provided.
         This method generates a VMD script that selects atoms based on the specifications and writes a PDB file with the specified constraints.
@@ -324,14 +324,14 @@ class VMDTask(BaseTask, ABC):
         statekey : str, optional
             The key under which the resulting PDB file will be stored in the state variables. Default is ``consref``.
         """
-        vm=self.scripters['vmd']
-        pdb=self.get_current_artifact_path('pdb')
-        force_constant=specs.get('k',self.config['user']['namd']['harmonic']['spring_constant'])
-        constrained_atoms_def=specs.get('atoms','all')
+        vm = self.scripters['vmd']
+        pdb = self.get_current_artifact_path('pdb')
+        force_constant = specs.get('k', self.config['user']['namd']['harmonic']['spring_constant'])
+        constrained_atoms_def = specs.get('atoms', 'all')
         logger.debug(f'constraint spec: {specs["atoms"]}')
-        c_pdb=specs.get('consref','')
+        c_pdb = specs.get('consref', '')
         if not c_pdb:
-            c_pdb=f'{self.basename}-constraints.pdb'
+            c_pdb = f'{self.basename}-constraints.pdb'
         vm.newscript(f'{self.basename}-make-constraint-pdb')
         vm.addline(f'mol new {pdb.name}')
         vm.addline(f'set a [atomselect top all]')
@@ -343,5 +343,5 @@ class VMDTask(BaseTask, ABC):
         self.register_current_artifact(TclScript(f'{self.basename}-make-constraint-pdb'))
         vm.runscript()
         self.register_current_artifact(VMDLogFile(f'{self.basename}-make-constraint-pdb'))
-        self.register_current_artifact(PDBFile(c_pdb),key=statekey)
+        self.register_current_artifact(PDBFile(c_pdb), key=statekey)
 

@@ -8,13 +8,12 @@ logger=logging.getLogger(__name__)
 
 from functools import singledispatchmethod
 
-from pidibble.baserecord import BaseRecord
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 
 from pydantic import Field
 from typing import ClassVar
 
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from ..objs.resid import ResID
 from ..util.cifutil import CIFdict
 from ..util.util import reduce_intlist
@@ -133,12 +132,12 @@ class Atom(BaseObj):
     Dictionary to store original attributes of an atom instance.
     """
     
-    @staticmethod
-    def _adapt(*args) -> dict:
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
         """
         Adapts the input to a dictionary format suitable for Atom instantiation.
         """
-        if isinstance(args[0], PDBRecord):
+        if args and isinstance(args[0], PDBRecord):
             return {
                 "serial": args[0].serial,
                 "name": args[0].name,
@@ -157,7 +156,7 @@ class Atom(BaseObj):
                 "segname": args[0].residue.chainID,
                 "empty": False
             }
-        elif isinstance(args[0],CIFdict):
+        elif args and isinstance(args[0],CIFdict):
             cifdict = args[0]
             input_dict = dict(
                 serial=int(cifdict['id']),
@@ -187,6 +186,7 @@ class Atom(BaseObj):
             resid = ResID(resseqnum=apparent_resseqnum, insertion=cifdict.get('pdbx_pdb_ins_code',None))
             input_dict['resid'] = resid
             return input_dict
+        return super()._adapt(*args, **kwargs)
 
     def shortcode(self) -> str:
         """

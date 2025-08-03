@@ -13,7 +13,7 @@ from typing import ClassVar
 
 from .atom import AtomList, Atom, Hetatm
 from .chainidmanager import ChainIDManager
-from .residue import ResidueList, ResiduePlaceholderList
+from .residue import Residue, ResidueList, ResiduePlaceholderList
 from .segment import SegmentList
 
 from ..core.objmanager import ObjManager
@@ -93,7 +93,7 @@ class AsymmetricUnit:
         patches = PatchList([])
         grafts = GraftList([])
 
-        if type(parsed) == dict: # PDB format
+        if type(parsed) == PDBRecordDict: # PDB format
             # minimal parsed has ATOMS
             model_id = sourcespecs.get('model', None)
             atoms = AtomList.from_pdb(parsed, model_id=model_id)
@@ -109,6 +109,7 @@ class AsymmetricUnit:
             missings = ResiduePlaceholderList.from_pdb(parsed)
             ssbonds = SSBondList.from_pdb(parsed)
             seqadvs = SeqadvList.from_pdb(parsed)
+            logger.debug(f'Parsed {len(atoms)} atoms, {len(missings)} missing residues, {len(ssbonds)} ssbonds, {len(seqadvs)} seqadvs, {len(ters)} ters')
             links = LinkList.from_pdb(parsed)
             links.remove_duplicates(fields=['chainID1', 'resid1', 'chainID2', 'resid2']) # some pdb files list links multiple times (2ins, i'm looking at you)
         elif type(parsed) == DataContainer: # mmCIF format
@@ -146,7 +147,7 @@ class AsymmetricUnit:
         userssbonds = topomods.get('ssbonds', SSBondList([]))
         ssbonds.extend(userssbonds)
 
-        userpatches = topomods.get('patches', [])
+        userpatches = topomods.get('patches', PatchList([]))
         patches.extend(userpatches)
 
         # Build the list of residues
@@ -157,7 +158,7 @@ class AsymmetricUnit:
         logger.debug(f'{len(ignored_atoms)} atoms excluded by user-specified exclusions')
         fromAtoms = ResidueList.from_atomlist(atoms)
         fromResiduePlaceholders = ResidueList.from_ResiduePlaceholderlist(missings)
-        residues = fromAtoms + fromResiduePlaceholders
+        residues: ResidueList = fromAtoms + fromResiduePlaceholders
         if sourcespecs.get('cif_residue_map_file', ''):
             write_residue_map(residues.cif_residue_map(), sourcespecs['cif_residue_map_file'])
         residues.apply_segtypes()
@@ -192,15 +193,11 @@ class AsymmetricUnit:
         # populates a specific mapping of PDB chainID to CIF label_asym_id
         # This is only meaningful if mmCIF input is used
         residues.map_chainIDs_label_to_auth()
-        # logger.debug(f'{len(residues)} residues before assign_residues')
-        # for r in residues:
-        #     if hasattr(r, 'label_seq_id'):
-        #         logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}')
-        #     else:
-        #         logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}{r.insertion}')
 
-        # Give each Seqadv a residue identifier
         ignored_seqadvs = seqadvs.assign_residues(residues)
+        logger.debug(f'{len(seqadvs)} seqadvs after assign_residues')
+        for s in seqadvs:
+            logger.debug(f'{repr(s)}')
         ignored_ssbonds = ssbonds.assign_residues(residues)
         ignored_patches = patches.assign_residues(residues)
         logger.debug(f'{len(ssbonds)} ssbonds after assign_residues')
@@ -230,11 +227,6 @@ class AsymmetricUnit:
             logger.debug(f'    {len(ignored_grafts)} grafts, {len(grafts)} remain')
 
         logger.debug(f'{len(residues)} residues after assign_residues')
-        # for r in residues:
-        #     if hasattr(r, 'label_seq_id'):
-        #         logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}')
-        #     else:
-        #         logger.debug(f'{r.chainID}_{r.resname}{r.resseqnum}{r.insertion}')
 
         # provide specifications of how to handle sequence issues
         # implied by PDB input
@@ -253,16 +245,15 @@ class AsymmetricUnit:
         links.update_attr_from_obj_attr('chainID1', 'residue1', 'chainID')
         links.update_attr_from_obj_attr('chainID2', 'residue2', 'chainID')
         grafts.update_attr_from_objlist_elem_attr('chainID', 'residues', 0, 'chainID')
-        logger.debug(f'Segnames in A.U.: {",".join(segments.segnames)}')
-        if segments.daughters:
-            logger.debug(f'Daughter chains generated: {segments.daughters}')
+        logger.debug(f'Segnames in A.U.: {",".join(segments._segnames)}')
+        if segments._daughters:
+            logger.debug(f'Daughter chains generated: {segments._daughters}')
         logger.debug(f'Used chainIDs {chainIDmanager.Used}')
         # promote sequence numbers in any grafts to avoid collisions
         # and include the graft links in the overall list of links
         next_resid = max([x.resid for x in residues]) + 1
-        grafts.sequential_renumber(next_resid)
         for g in grafts:
-            next_resid = g.set_links(next_resid)
+            next_resid = g.set_internal_resids(next_resid)
             links.extend(g.my_links)
 
         # at this point, we have built the asymmetric unit according to the intention of the 
@@ -273,10 +264,10 @@ class AsymmetricUnit:
         # First, scan all seqadv's for relevant mutations to apply
         mutations = MutationList([])
         if seq_specs.get('fix_engineered_mutations', False):
-            mutations.extend(MutationList([Mutation.new(s) for s in seqadvs if s.typekey == 'engineered mutation']))
+            mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey == 'engineered mutation']))
         if seq_specs.get('fix_conflicts', False):
-            mutations.extend(MutationList([Mutation.new(s) for s in seqadvs if s.typekey == 'conflict']))
-        mutations.extend(MutationList([Mutation.new(s) for s in seqadvs if s.typekey == 'user']))
+            mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey == 'conflict']))
+        mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey == 'user']))
         # Now append these to the objmanager's mutations
         mutations = objmanager.ingest(mutations)
         logger.debug(f'All mutations')
@@ -334,6 +325,8 @@ class AsymmetricUnit:
         if self._parent_molecule is not None:
             raise RuntimeError("Parent molecule is already set and cannot be changed.")
         self._parent_molecule = parent_molecule
+        for segment in self.segments:
+            segment.set_parent_molecule(parent_molecule)
 
     def add_segment(self, seg):
         """
@@ -346,7 +339,7 @@ class AsymmetricUnit:
         """
         self.segments.append(seg)
 
-    def ingest_grafts(self, grafts, residues, links):
+    def ingest_grafts(self, grafts: GraftList, residues: ResidueList, links: LinkList):
         """
         Ingests grafts into the asymmetric unit.
 
@@ -360,32 +353,32 @@ class AsymmetricUnit:
             The list of links in the asymmetric unit.
         """
         for g in grafts:
-            graft_chainID=g.chainID
-            chain_residues=residues.filter(chainID=graft_chainID)
+            graft_chainID = g.chainID
+            chain_residues = residues.filter(chainID=graft_chainID)
             # last_chain_residue_idx=residues.index(chain_residues[-1])
-            next_available_resid=max([x.resseqnum for x in chain_residues])+1
-            g_topomods=g.source_molecule.objmanager.get('topol',{})
-            g_links=g_topomods.get('links',LinkList([]))
-            g.source_seg=g.source_molecule.asymmetric_unit.segments.get(segname=g.source_chainID)
+            next_available_resid = max([x.resid for x in chain_residues]) + 1
+            g_topomods = g.source_molecule.objmanager.get('topol', {})
+            g_links = g_topomods.get('links', LinkList([]))
+            g.source_seg = g.source_molecule.asymmetric_unit.segments.get(segname=g.source_chainID)
             # build the list of new residues this graft contributes; the index residue is not included!
-            g.my_residues=ResidueList([])
+            g.my_residues = ResidueList([])
             for residue in g.source_seg.residues:
-                if residue>f'{g.source_resseqnum1}{g.source_insertion1}' and residue<=f'{g.source_resseqnum2}{g.source_insertion2}':
-                    residue.set_resseqnum(next_available_resid)
+                if residue > f'{g.source_resid1}' and residue <= f'{g.source_resid2}':
+                    residue.set_resid(next_available_resid)
                     residue.set_chainID(graft_chainID)
-                    next_available_resid+=1
+                    next_available_resid += 1
                     g.my_residues.append(residue)
             # only ingest links that are internal to this set of residues
-            ingested_links=0
+            ingested_links = 0
             for l in g_links:
                 if l.residue1 in g.my_residues and l.residue2 in g.my_residues:
                     links.append(l)
-                    ingested_links+=1
+                    ingested_links += 1
             logger.debug(f'Chain {graft_chainID} of raw asymmetric unit ingests {len(g.my_residues)} residues and {ingested_links} links from graft {g.id}')
                 # residues.insert(last_chain_residue_idx+1,r)
                 # last_chain_residue_idx+=1
 
-    def set_coords(self,altstruct):
+    def set_coords(self, altstruct: PDBRecordDict):
         """
         Sets the coordinates of the asymmetric unit from an alternative structure.
         
@@ -394,17 +387,17 @@ class AsymmetricUnit:
         altstruct : dict
             The alternative structure containing atomic coordinates.
         """
-        atoms=AtomList([Atom(p) for p in altstruct[Atom.PDB_keyword]])
-        atoms.extend([Hetatm(p) for p in altstruct.get(Hetatm.PDB_keyword,[])])
-        ters=TerList([Ter(p) for  p in altstruct.get(Ter.PDB_keyword,[])])
+        atoms = AtomList([Atom(p) for p in altstruct[Atom.PDB_keyword]])
+        atoms.extend([Hetatm(p) for p in altstruct.get(Hetatm.PDB_keyword, [])])
+        # ters = TerList([Ter(p) for p in altstruct.get(Ter.PDB_keyword, [])])
         atoms.reserialize()
         # atoms.adjustSerials(ters)
-        altRes=ResidueList(atoms)
-        overwrites=[]
+        altRes = ResidueList(atoms)
+        overwrites = []
         for ar in altRes:
-            tr=self.residues.get(resname=ar.resname,resseqnum=ar.resseqnum,insertion=ar.insertion,chainID=ar.chainID)
+            tr: Residue = self.residues.get(resname=ar.resname, resid=ar.resid, chainID=ar.chainID)
             if tr:
-                tr.atoms.overwritePositions(ar.atoms)
+                tr.atoms.overwrite_positions(ar.atoms)
                 overwrites.append(ar)
         logger.debug(f'set_coords: {len(overwrites)} residues overwritten')
 

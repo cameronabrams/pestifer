@@ -4,10 +4,10 @@ A class for handling translation and rotation of segments in a molecular structu
 This class represents a move operation that can either be a translation or a rotation.
 """
 import logging
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 from typing import ClassVar
 from pydantic import Field
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from ..core.scripters import VMDScripter
 
 class RotTrans(BaseObj):
@@ -63,13 +63,13 @@ class RotTrans(BaseObj):
     This categorization is used to group RotTrans objects in the object manager.
     """
 
-    @staticmethod
-    def _adapt(*args) -> dict:
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
         """
         Adapts the input to a dictionary format suitable for RotTrans instantiation.
         This method is used to convert various input types into a dictionary of parameters.
         """
-        if isinstance(args[0], str):
+        if args and isinstance(args[0], str):
             raw = args[0]
             parts = raw.split(',')
             movetype = parts[0].upper()
@@ -84,6 +84,7 @@ class RotTrans(BaseObj):
                 return dict(movetype=movetype, axis=axis, angle=angle)
             else:
                 raise ValueError(f'move type {movetype} not recognized')
+        return super()._adapt(*args, **kwargs)
         
     def shortcode(self) -> str:
         if self.movetype == 'TRANS':

@@ -44,6 +44,7 @@ source:
         f=StringIO(source)
         directive=yaml.safe_load(f)
         return directive
+    
     def test_molecule_au(self):
         c=Config()
         directive=self.get_source_dict('1gc1')

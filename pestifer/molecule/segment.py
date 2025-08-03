@@ -8,10 +8,10 @@ import logging
 logger=logging.getLogger(__name__)
 
 from .chainidmanager import ChainIDManager
-from .residue import Residue,ResidueList
+from .residue import Residue, ResidueList
 from .transform import Transform
 
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from ..core.labels import Labels
 from ..core.objmanager import ObjManager
 from ..core.scripters import PsfgenScripter
@@ -67,64 +67,64 @@ class Segment(BaseObj):
 
     _parent_molecule: object = None
 
-    @staticmethod
-    def _adapt(*args, **kwargs) -> dict:
-        segname_override = kwargs.pop('segname', 'UNSET')
-        specs = kwargs.pop('specs', {})
-        if isinstance(args[0], Residue):
-            residue = args[0]
-            apparent_chainID = residue.chainID
-            apparent_segtype = residue.segtype
-            apparent_segname = residue.chainID if segname_override == 'UNSET' else segname_override
-            myRes = ResidueList([])
-            myRes.append(residue)
-            subsegments = myRes.state_bounds(lambda x: 'RESOLVED' if len(x.atoms) > 0 else 'MISSING')
-            input_dict = {
-                'specs': specs,
-                'segtype': apparent_segtype,
-                'segname': apparent_segname,
-                'chainID': apparent_chainID,
-                'residues': myRes,
-                'subsegments': subsegments,
-                'parent_chain': apparent_chainID
-            }
-            return input_dict
-        elif isinstance(args[0], ResidueList):
-            residues = args[0]
-            apparent_chainID = residues[0].chainID
-            apparent_segtype = residues[0].segtype
-            apparent_segname = residues[0].chainID if segname_override == 'UNSET' else segname_override
-            if apparent_segtype in ['protein', 'nucleicacid']:
-                # a protein segment must have unique residue numbers
-                assert residues.puniq(['resid']),f'ChainID {apparent_chainID} has duplicate resid!'
-                # a protein segment may not have more than one protein chain
-                assert all([x.chainID==residues[0].chainID for x in residues])
-                residues.sort()
-                subsegments=residues.state_bounds(lambda x: 'RESOLVED' if x.resolved else 'MISSING')
-            else:
-                logger.debug(f'Calling puniqify on residues of non-protein segment {apparent_segname}')
-                residues.puniquify(fields=['resid'],make_common=['chainID'])
-                count=sum([1 for x in residues if hasattr(x,'_ORIGINAL_ATTRIBUTES')])
-                if count>0:
-                    logger.debug(f'{count} residue(s) were affected by puniquify:')
-                    for x in residues:
-                        if hasattr(x,'_ORIGINAL_ATTRIBUTES'):
-                            logger.debug(f'    {x.chainID} {x.resname} {x.resid.resid} was {x._ORIGINAL_ATTRIBUTES}')
-                # this assumes residues are in a linear sequence?  not really..
-                subsegments=residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
-            logger.debug(f'Segment {apparent_segname} has {len(residues)} residues across {len(subsegments)} subsegments')
-            input_dict = {
-                'specs': specs,
-                'segtype': apparent_segtype,
-                'segname': apparent_segname,
-                'chainID': apparent_chainID,
-                'residues': residues,
-                'subsegments': subsegments,
-                'parent_chain': apparent_chainID
-            }
-            return input_dict
-        else:
-            raise TypeError(f'Cannot adapt {args[0]} to Segment input')
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
+        if args: 
+            segname_override = kwargs.pop('segname', 'UNSET')
+            specs = kwargs.pop('specs', {})
+            if isinstance(args[0], Residue):
+                residue = args[0]
+                apparent_chainID = residue.chainID
+                apparent_segtype = residue.segtype
+                apparent_segname = residue.chainID if segname_override == 'UNSET' else segname_override
+                myRes = ResidueList([])
+                myRes.append(residue)
+                subsegments = myRes.state_bounds(lambda x: 'RESOLVED' if len(x.atoms) > 0 else 'MISSING')
+                input_dict = {
+                    'specs': specs,
+                    'segtype': apparent_segtype,
+                    'segname': apparent_segname,
+                    'chainID': apparent_chainID,
+                    'residues': myRes,
+                    'subsegments': subsegments,
+                    'parent_chain': apparent_chainID
+                }
+                return input_dict
+            elif isinstance(args[0], ResidueList):
+                residues = args[0]
+                apparent_chainID = residues[0].chainID
+                apparent_segtype = residues[0].segtype
+                apparent_segname = residues[0].chainID if segname_override == 'UNSET' else segname_override
+                if apparent_segtype in ['protein', 'nucleicacid']:
+                    # a protein segment must have unique residue numbers
+                    assert residues.puniq(['resid']),f'ChainID {apparent_chainID} has duplicate resid!'
+                    # a protein segment may not have more than one protein chain
+                    assert all([x.chainID==residues[0].chainID for x in residues])
+                    residues.sort()
+                    subsegments=residues.state_bounds(lambda x: 'RESOLVED' if x.resolved else 'MISSING')
+                else:
+                    logger.debug(f'Calling puniqify on residues of non-protein segment {apparent_segname}')
+                    residues.puniquify(fields=['resid'],make_common=['chainID'])
+                    count=sum([1 for x in residues if hasattr(x,'_ORIGINAL_ATTRIBUTES')])
+                    if count>0:
+                        logger.debug(f'{count} residue(s) were affected by puniquify:')
+                        for x in residues:
+                            if hasattr(x,'_ORIGINAL_ATTRIBUTES'):
+                                logger.debug(f'    {x.chainID} {x.resname} {x.resid.resid} was {x._ORIGINAL_ATTRIBUTES}')
+                    # this assumes residues are in a linear sequence?  not really..
+                    subsegments=residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
+                logger.debug(f'Segment {apparent_segname} has {len(residues)} residues across {len(subsegments)} subsegments')
+                input_dict = {
+                    'specs': specs,
+                    'segtype': apparent_segtype,
+                    'segname': apparent_segname,
+                    'chainID': apparent_chainID,
+                    'residues': residues,
+                    'subsegments': subsegments,
+                    'parent_chain': apparent_chainID
+                }
+                return input_dict
+        return super()._adapt(*args, **kwargs)
 
     def __str__(self):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'
@@ -165,7 +165,7 @@ class Segment(BaseObj):
         """
         assert clv.chainID == self.segname
         assert self.segtype == 'protein'
-        r2i = self.residues.iget(resid=clv.resid1, chainID=clv.chainID)
+        r2i = self.residues.iget(resid=clv.resid2, chainID=clv.chainID)
         # These two slice operations create *copies* of lists of residues
         # The original list of residues contains elements that are referenced
         # by other structures, like links.
@@ -527,7 +527,7 @@ class SegmentList(BaseObjList[Segment]):
                             seq_spec['build_zero_occupancy_N_termini'].insert(seq_spec['build_zero_occupancy_N_termini'].index(chainID), this_chainID)
                         # seq_spec['build_zero_occupancy_C_termini'].remove(chainID)
                 num_mis = sum([1 for x in c_res if len(x.atoms) == 0])
-                thisSeg = Segment.new(c_res, segname=this_chainID, specs=seq_spec)
+                thisSeg = Segment(c_res, segname=this_chainID, specs=seq_spec)
                 logger.debug(f'Made segment: stype {stype} chainID {this_chainID} segname {thisSeg.segname} ({num_mis} missing) (seq_spec {seq_spec})')
                 self.append(thisSeg)
                 self._segnames.append(thisSeg.segname)
@@ -578,7 +578,7 @@ class SegmentList(BaseObjList[Segment]):
             seg.write_TcL(W, transform)
             W.comment(f'Done with seg {seg.segname}')
 
-    def get_segment_of_residue(self, residue):
+    def get_segment_of_residue(self, residue: Residue) -> Segment | None:
         """
         Get the segment that contains a specified residue.
 
@@ -593,6 +593,9 @@ class SegmentList(BaseObjList[Segment]):
             The segment containing the specified residue, or None if not found.
         """
         for S in self:
+            logger.debug(f'Looking for {residue.chainID}_{residue.resid.resid} in segment {S.segname}')
+            for r in S.residues:
+                logger.debug(f'     {r.chainID}_{r.resid.resid}')
             if residue in S.residues:
                 return S
         return None

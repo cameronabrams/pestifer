@@ -1,6 +1,6 @@
 import unittest
-from pestifer.molecule.transform import Transform
-from pidibble.pdbparse import PDBRecord
+from pestifer.molecule.transform import Transform, TransformList
+from pidibble.pdbparse import PDBRecord, PDBRecordList
 import numpy as np
 from dataclasses import dataclass
 
@@ -30,5 +30,32 @@ class TestTransform(unittest.TestCase):
         barec = PDBRecord(input_dict=input_dict)
         bi = Transform(barec)
         self.assertIsNotNone(bi.tmat)
+
+class TestTransformList(unittest.TestCase):
+
+    def test_transform_list_initialization(self):
+        tl = TransformList()
+        self.assertIsInstance(tl, TransformList)
+        self.assertEqual(len(tl), 0)
+
+    def test_transform_list_from_transforms(self):
+        transforms = [Transform.identity(), Transform.identity()]
+        tl = TransformList(transforms)
+        self.assertEqual(len(tl), 2)
+        self.assertIsInstance(tl[0], Transform)
+
+    def test_transform_list_from_pdb_records(self):
+        @dataclass
+        class test_row:
+            m1: float = 0.0
+            m2: float = 0.0
+            m3: float = 0.0
+            t: float = 1.0
+
+        barec1 = PDBRecord(input_dict={'row': [test_row(m1=1.0), test_row(m2=1.0), test_row(m3=1.0)], 'coordinate': [1, 2, 3]})
+        barec2 = PDBRecord(input_dict={'row': [test_row(m1=1.0), test_row(m2=1.0), test_row(m3=1.0)], 'coordinate': [1, 2, 3]})
+        tl = TransformList(PDBRecordList([barec1, barec2]))
+        self.assertEqual(len(tl), 2)
+        self.assertIsInstance(tl[0], Transform)
 
 

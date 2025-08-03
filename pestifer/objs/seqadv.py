@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from mmcif.api.PdbxContainers import DataContainer
 
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from .resid import ResID
 from ..util.cifutil import CIFdict
 
@@ -91,8 +91,8 @@ class Seqadv(BaseObj):
     This name is used to identify Seqadv objects in mmCIF files.
     """
 
-    @staticmethod
-    def _adapt(*args) -> dict:
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
         """
         Adapts the input to a dictionary format suitable for Seqadv instantiation.
         This method is used to convert various input types into a dictionary of parameters.
@@ -107,14 +107,13 @@ class Seqadv(BaseObj):
         dict
             A dictionary of parameters for Seqadv instantiation.
         """
-        if isinstance(args[0], PDBRecord):
+        if args and isinstance(args[0], PDBRecord):
             input_dict = Seqadv._from_pdbrecord(args[0])
             return input_dict
-        elif isinstance(args[0], CIFdict):
+        elif args and isinstance(args[0], CIFdict):
             input_dict = Seqadv._from_cifdict(args[0])
             return input_dict
-        raise TypeError(f"Cannot convert {type(args[0])} to Seqadv")
-
+        return super()._adapt(*args, **kwargs)
 
     @staticmethod
     def _from_pdbrecord(raw: PDBRecord) -> dict:
@@ -127,7 +126,7 @@ class Seqadv(BaseObj):
             resname = raw.residue.resName,
             resid = ResID(raw.residue.seqNum, raw.residue.iCode),
             dbRes = raw.dbRes,
-            typekey = raw.conflict if raw.conflict in Seqadv._attr_choices['typekey'] else '_other_',
+            typekey = raw.conflict.lower() if raw.conflict.lower() in Seqadv._attr_choices['typekey'] else '_other_',
         )
     
     @staticmethod
@@ -191,7 +190,7 @@ class Seqadv(BaseObj):
         """
         return f'SEQADV {self.idCode:3s} {self.resname:>3s} {self.chainID:1s} {self.resid.pdbresid:>5s} {self.database:>4s} {self.dbAccession:9s} {self.dbRes:3s} {self.dbSeq:>5d} {self.typekey:21s}          '
     
-    def assign_residue(self,Residues):
+    def assign_residue(self, Residues):
         """
         Assigns the residue attribute of the seqadv to the corresponding Residue object
         This method searches through the provided list of Residues to find a match based on the
@@ -206,23 +205,24 @@ class Seqadv(BaseObj):
         # logger.debug(f'Searching {len(Residues)} Residues for auth_chain {self.pdbx_pdb_strand_id} auth_seq {self.pdbx_auth_seq_num}')
         assert self.residue == None
         if self.typekey != 'deletion':
-            if hasattr(self, 'pdbx_auth_seq_num'):
+            if hasattr(self, 'pdbx_auth_seq_num') and self.pdbx_auth_seq_num is not None:
+                logger.debug(f'Assigning residue for seqadv {self.chainID}:{self.resid} from mmCIF record')
                 # this was initialized from a mmCIF record
                 # these records are weird in that the 'strand' id
                 # is the author-assigned chain id but the sequence
                 # number is the mmCIF-assigned sequence number
                 self.assign_obj_to_attr('residue', Residues,
                                 auth_asym_id='chainID',
-                                auth_seq_id='pdbx_auth_seq_num',
-                                insertion='insertion')
+                                auth_seq_id='pdbx_auth_seq_num')
                 if self.residue == []:
                     self.residue = None
                 if self.residue != None:
                     self.chainID = self.residue.chainID
             else:  # normal PDB record
+                logger.debug(f'Looking to assign residue for seqadv {self.chainID}:{self.resid}')
                 self.assign_obj_to_attr('residue', Residues, chainID='chainID', resid='resid')
-                if self.residue == []:  # failed to find
-                    self.residue = None
+                if self.residue is None:  # failed to find
+                    logger.debug(f'...seqadv {self.typekey} auth {self.chainID}:{self.resid} cannot be resolved from current set of residues')
 
     def update_from_residue(self):
         """
@@ -293,7 +293,7 @@ class SeqadvList(BaseObjList[Seqadv]):
         delete_us = []
         for s in self:
             s.assign_residue(Residues)
-        delete_us = self.__class__([s for s in self if s.residue == None])
+        delete_us = self.__class__([s for s in self if s.residue is None])
         for s in delete_us:
             self.remove(s)
         return delete_us

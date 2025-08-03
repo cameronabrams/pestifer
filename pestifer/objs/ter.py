@@ -15,13 +15,12 @@ that we have to know where any non-empty TER records are.
 """
 
 import logging
-logger=logging.getLogger(__name__)
-from functools import singledispatchmethod
+logger = logging.getLogger(__name__)
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 
 from pydantic import Field
 from typing import ClassVar
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from .resid import ResID
 
 class Ter(BaseObj):
@@ -63,13 +62,13 @@ class Ter(BaseObj):
     This keyword is used to identify TER records in PDB files.
     """
     
-    @staticmethod
-    def _adapt(*args) -> dict:
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
         """
         Adapts the input to a dictionary format suitable for Ter instantiations.
         This method is used to convert various input types into a dictionary of parameters.
         """
-        if isinstance(args[0], PDBRecord):
+        if args and isinstance(args[0], PDBRecord):
             pdbrecord = args[0]
             input_dict = {
                 'serial': pdbrecord.serial,
@@ -78,7 +77,7 @@ class Ter(BaseObj):
                 'resid': ResID(resseqnum=pdbrecord.residue.seqNum, insertion=pdbrecord.residue.iCode)
             }
             return input_dict
-        raise TypeError(f"Cannot convert {type(args[0])} to Ter")
+        return super()._adapt(*args, **kwargs)
 
 class TerList(BaseObjList[Ter]):
 

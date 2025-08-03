@@ -10,6 +10,7 @@ from ..util.cifutil import CIFload
 from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList,BioAssemb
 from ..core.scripters import PsfgenScripter, Filewriter
+from ..objs.cleavagesite import CleavageSiteList
 from .chainidmanager import ChainIDManager
 logger=logging.getLogger(__name__)
 
@@ -181,18 +182,18 @@ class Molecule:
         AssertionError
             If the specified biological assembly index is invalid.
         """
-        if index==0 or len(self.biological_assemblies)==0: # we will use the unadulterated A.U. as the B.A.
-            self.active_biological_assembly=BioAssemb(self.asymmetric_unit)
-            if index!=0:
+        if index == 0 or len(self.biological_assemblies) == 0: # we will use the unadulterated A.U. as the B.A.
+            self.active_biological_assembly = BioAssemb(self.asymmetric_unit)
+            if index != 0:
                 logger.warning(f'No biological assemblies specified in input structure.  Using A.U.; ignoring your request of B.A. "{index}"')
         else:
-            self.active_biological_assembly=self.biological_assemblies.get(index=index)
-            assert self.activate_biological_assembly!=None,f'No biological assembly "{index:d}" found.'
+            self.active_biological_assembly = self.biological_assemblies.get(index=index)
+            assert self.active_biological_assembly != None, f'No biological assembly "{index:d}" found.'
             logger.info(f'Activating biological assembly {self.active_biological_assembly.name} (idx {index})')
-        self.active_biological_assembly.activate(self.asymmetric_unit,self.chainIDmanager)
+        self.active_biological_assembly.activate(self.asymmetric_unit, self.chainIDmanager)
         return self
 
-    def write_TcL(self,W:PsfgenScripter):
+    def write_TcL(self, W: PsfgenScripter):
         """
         Write the Tcl commands for the asymmetric unit and biological assemblies to a Psfgen script.
         This method generates Tcl commands to represent the asymmetric unit and its segments,
@@ -388,7 +389,7 @@ class Molecule:
                         logger.debug(f'A.U. C-terminal loop {b.pstr()} declashing is skipped')
                         is_processible=False
                     if is_processible:
-                        reslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
+                        reslist=[f'{r.resid.resid}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
                         tcllist='[list '+' '.join(reslist)+']'
                         for transform in ba.transforms:
                             cm=transform.chainIDmap
@@ -419,9 +420,9 @@ class Molecule:
                 for i,b in enumerate(S.subsegments):
                     if b.state=='MISSING':
                         if b.num_items()>=min_length and i<(len(S.subsegments)-1):
-                            reslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
+                            reslist=[f'{r.resid.resid}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
                             bpp=S.subsegments[i+1]
-                            nreslist=[f'{r.resseqnum}{r.insertion}' for r in S.residues[bpp.bounds[0]:bpp.bounds[1]+1]]
+                            nreslist=[f'{r.resid.resid}' for r in S.residues[bpp.bounds[0]:bpp.bounds[1]+1]]
                             assert bpp.state=='RESOLVED'
                             for transform in ba.transforms:
                                 cm=transform.chainIDmap
@@ -459,10 +460,10 @@ class Molecule:
                             for transform in ba.transforms:
                                 cm=transform.chainIDmap
                                 act_segID=cm.get(asymm_segname,asymm_segname)
-                                ll=f'{act_segID}:{llres.resseqnum}{llres.insertion}'
-                                l= f'{act_segID}:{ lres.resseqnum}{ lres.insertion}'
-                                r= f'{act_segID}:{ rres.resseqnum}{ rres.insertion}'
-                                rr=f'{act_segID}:{rrres.resseqnum}{rrres.insertion}'
+                                ll=f'{act_segID}:{llres.resid.resid}'
+                                l= f'{act_segID}:{ lres.resid.resid}'
+                                r= f'{act_segID}:{ rres.resid.resid}'
+                                rr=f'{act_segID}:{rrres.resid.resid}'
                                 # undo the C-terminus on the left residue
                                 writer.addline(f'patch XCTR {l}')
                                 # under the N-terminus on the right residue
@@ -477,7 +478,7 @@ class Molecule:
                                 writer.addline(f'patch LINK {ll} {l} {r} {rr}')
                                 # writer.addline(f'patch HEAL {ll} {l} {r} {rr}')
 
-    def cleave_chains(self,clv_list):
+    def cleave_chains(self, clv_list: CleavageSiteList):
         """
         Cleave segments in the asymmetric unit based on a list of cleavage specifications.
         This method iterates through the list of cleavage specifications, finds the corresponding segments in the asymmetric unit,
@@ -501,22 +502,22 @@ class Molecule:
                 ssbonds=topomods.get('ssbonds',[])
                 if ssbonds:
                     for c in ssbonds.filter(chainID1=S.segname):
-                        for d in D.residues.filter(resseqnum=c.resseqnum1,insertion=c.insertion1):
+                        for d in D.residues.filter(resid=c.resid1):
                             c.chainID1=d.chainID
                     for c in ssbonds.filter(chainID2=S.segname):
-                        for d in D.residues.filter(resseqnum=c.resseqnum2,insertion=c.insertion2):
+                        for d in D.residues.filter(resid=c.resid2):
                             c.chainID2=d.chainID
                 links=topomods.get('links',[])
                 if links:
                     logger.debug(f'Examining {len(links)} links for ones needing chainID update from {S.segname} to {DchainID} due to cleavage')
                     for c in links.filter(chainID1=S.segname):
                         logger.debug(f'...link {str(c)}')
-                        for d in D.residues.filter(resseqnum=c.resseqnum1,insertion=c.insertion1):
+                        for d in D.residues.filter(resid=c.resid1):
                             logger.debug(f'...hit! {c.chainID1}->{d.chainID}')
                             c.update_residue(1,chainID=d.chainID)
                     for c in links.filter(chainID2=S.segname):
                         logger.debug(f'...link {str(c)}')
-                        for d in D.residues.filter(resseqnum=c.resseqnum2,insertion=c.insertion2):
+                        for d in D.residues.filter(resid=c.resid2):
                             logger.debug(f'...hit! {c.chainID2}->{d.chainID}')
                             c.update_residue(2,chainID=d.chainID)
                     for c in links:

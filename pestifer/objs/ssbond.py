@@ -5,14 +5,14 @@ These are represented in PDB files as SSBOND records, and in mmCIF files
 as struct_conn records.
 """
 import logging
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 from mmcif.api.PdbxContainers import DataContainer
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from pydantic import Field
 from typing import ClassVar, Optional, Any, Dict, Set
 
-from ..core.baseobj_new import BaseObj, BaseObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from ..core.scripters import PsfgenScripter
 from ..molecule.transform import Transform
 from .mutation import MutationList
@@ -99,12 +99,12 @@ class SSBond(BaseObj):
     CIF category element types for SSBond objects; a CIF Category is effectively a list of dictionaries, and _CIF_CategoryElementTypes[keyname] is a set of values that are valid for that key, indicating the element is to be interpreted as a SSBond.
     """
 
-    @staticmethod
-    def _adapt(*args) -> dict:
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
         """
         Adapts the input to a dictionary format suitable for SSBond instantiation.
         """
-        if isinstance(args[0], str):
+        if args and isinstance(args[0], str):
             # shortcode format: C_RRR-D_SSS
             # C, D chainIDs
             # RRR, SSS resids
@@ -113,7 +113,7 @@ class SSBond(BaseObj):
             resid1 = ResID(s1.split('_')[1])
             resid2 = ResID(s2.split('_')[1])
             return dict(chainID1=s1.split('_')[0], resid1=resid1, chainID2=s2.split('_')[0], resid2=resid2)
-        elif isinstance(args[0], PDBRecord):
+        elif args and isinstance(args[0], PDBRecord):
             pdbrecord = args[0]
             return dict(
                 chainID1 = pdbrecord.residue1.chainID,
@@ -127,7 +127,7 @@ class SSBond(BaseObj):
                 sym2 = pdbrecord.sym2,
                 length = pdbrecord.length
             )
-        elif isinstance(args[0], CIFdict):
+        elif args and isinstance(args[0], CIFdict):
             cd = args[0]
             return dict(
                 chainID1 = cd['ptnr1_label_asym_id'],
@@ -141,7 +141,7 @@ class SSBond(BaseObj):
                 sym2 = cd['ptnr2_symmetry'],
                 length = float(cd['pdbx_dist_value'])
             )
-        elif isinstance(args[0], PatchList):
+        elif args and isinstance(args[0], PatchList):
             pl = args[0]
             s1,ri1 = pl[0].split(':')
             s2,ri2 = pl[1].split(':')
@@ -158,6 +158,7 @@ class SSBond(BaseObj):
                 residue1 = None,
                 residue2 = None
             )
+        return super()._adapt(*args, **kwargs)
 
     def shortcode(self) -> str:
         """

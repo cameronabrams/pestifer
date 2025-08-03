@@ -52,17 +52,20 @@ class Controller:
         # set up the task list
         self.tasks = []
         prior_task = None
-        self.pipeline = PipelineContext(controller_index=self.index, scripters={
-            'psfgen': PsfgenScripter(self.config),
-            'vmd': VMDScripter(self.config),
-            'namd': NAMDScripter(self.config),
-            'data': Filewriter()
-        }, global_config=self.config['user'])
+        self.pipeline = PipelineContext(controller_index=self.index, 
+                                        scripters={
+                                            'psfgen': PsfgenScripter(self.config),
+                                            'vmd': VMDScripter(self.config),
+                                            'namd': NAMDScripter(self.config),
+                                            'data': Filewriter()
+                                        }, 
+                                        global_config=self.config['user'],
+                                        resource_manager=self.config.RM)
 
         for idx, taskdict in enumerate(self.config['user'].get('tasks', [])):
             # Each task dictionary has a single keyword (the task name) and a value
             # that comprises the task specifications from the config
-            assert len(taskdict)==1, f"Task dictionary {taskdict} must have a single key-value pair"
+            assert len(taskdict) == 1, f"Task dictionary {taskdict} must have a single key-value pair"
             taskname = list(taskdict.keys())[0]
             task_specs = taskdict[taskname]
             logger.debug(f'{taskname}: {task_specs}')
