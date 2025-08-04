@@ -16,10 +16,11 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from ..core.basetask import BaseTask
+from .md import MDTask
 from ..util.units import g_per_amu,A3_per_cm3
 from ..util.logparsers import NAMDLog
 from ..core.stringthings import to_latex_math
-from ..core.artifacts import PNGImageFile
+from ..core.artifacts import PNGImageFile, CSVDataFile
 
 logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -45,13 +46,15 @@ class MDPlotTask(BaseTask):
             priortaskpointer = self.prior
             priortasklist = []
             logger.debug(f'self={str(self)}; self.prior={str(priortaskpointer)}')
-            while priortaskpointer!=None and priortaskpointer.yaml_header=='md':
+            while priortaskpointer!=None and isinstance(priortaskpointer, MDTask):
                 priortasklist.append(priortaskpointer)
                 priortaskpointer=priortaskpointer.prior
             priortasklist=priortasklist[::-1]
             for pt in priortasklist:
-                artifact_collection=pt.get_my_artifact_collection()
-                csv_artifacts=[a for a in artifact_collection if a.key.endswith('-csv')]
+                artifactfile_collection = pt.get_my_artifactfile_collection()
+                csv_artifacts=[a for a in artifactfile_collection if a.key.endswith('-csv')]
+                if len(csv_artifacts)==0:
+                    raise ValueError(f'No CSV artifacts found in {pt.basename}.  Cannot extract time series data.')
                 time_series_titles=[x.key.replace('-csv','') for x in csv_artifacts]
                 csv_artifact_dict={x:y for x,y in zip(time_series_titles,csv_artifacts)}
                 logger.debug(f'Found {len(time_series_titles)} time series titles in {pt.basename}: {time_series_titles}')
@@ -110,6 +113,7 @@ class MDPlotTask(BaseTask):
             if not df.empty:
                 csvname=f'{self.basename}-{key}.csv'
                 df.to_csv(csvname,index=False)
+                self.register_current_artifact(CSVDataFile(f'{self.basename}-{key}'),key=f'{key}-csv')
 
         # build a dictionary of column headings:dataframe pairs
         df_of_column={}
@@ -257,5 +261,5 @@ class MDPlotTask(BaseTask):
                 logger.debug(f'Profile {profile} not recognized.  Skipping...')
                 continue
         self.result=0
-        return super().do()
+        return self.result
     

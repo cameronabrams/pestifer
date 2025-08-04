@@ -24,10 +24,11 @@ class DesolvateTask(VMDTask):
     YAML header for the DesolvateTask, used to identify the task in configuration files as
     part of a ``tasks`` list.  This is not the normal use case for Desolvate.
     """
-    def do(self):
+    def do(self) -> int:
         self.catdcd=self.config.shell_commands['catdcd']
         self.do_idx_psf_gen()
         self.do_dcd_prune()
+        return 0
 
     def do_idx_psf_gen(self):
         """

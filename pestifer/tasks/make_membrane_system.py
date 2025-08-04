@@ -136,7 +136,7 @@ class MakeMembraneSystemTask(BaseTask):
             composition_dict['upper_chamber']=composition_dict['upper_chamber_saved']
             self.patch=None
 
-    def do(self):
+    def do(self) -> int:
         """
         Execute the MakeMembraneSystemTask.
         """
@@ -151,7 +151,7 @@ class MakeMembraneSystemTask(BaseTask):
             self.make_quilt_from_patch()
         if self.pro_pdb is not None and self.pro_psf is not None:
             self.embed_protein()
-        return super().do()
+        return 0
 
     def build_patch(self):
         """

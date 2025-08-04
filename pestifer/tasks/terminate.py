@@ -10,9 +10,9 @@ It ensures that all necessary files are collected and organized, making it easy 
 import logging
 import shutil
 import yaml
-
+import os
 from .md import MDTask
-from ..core.artifacts import ArtifactFileList
+from ..core.artifacts import YAMLFile, ArtifactFileList
 
 logger=logging.getLogger(__name__)
 
@@ -22,22 +22,28 @@ class TerminateTask(MDTask):
     This class inherits from the :class:`MDTask <pestifer.tasks.md.MDTask>` class and is used to prepare the system for termination.
     It handles the copying of state files, writing chain maps, and packaging the system for NAMD runs.
     """
-    _yaml_header='terminate'
+    _yaml_header = 'terminate'
     """
     YAML header for the TerminateTask, used to identify the task in configuration files as part of a ``tasks`` list.
     This header is used to declare TerminateTask objects in YAML task lists.
     It is typically used at the end of a build workflow to finalize the state of the simulation and prepare for termination.
     """
-    def do(self):
+
+    def __init__(self, *args, **kwargs):
         """
-        Execute the terminate task.
+        Initialize the MDTask with the given arguments and keyword arguments.
+        This method sets up the task with the provided specifications and prepares it for execution.
         """
+        super().__init__(*args, **kwargs)
+        self._extra_message = ''
+
+    def do(self) -> int:
         self.next_basename()
-        coor=self.get_current_artifact('coor')
+        coor = self.get_current_artifact('coor')
         if not coor:
             self.pdb_to_coor()
         self.write_chainmaps()
-        self.result=self.make_package()
+        self.result = self.make_package() | self.cleanup()
         return self.result
 
     def write_chainmaps(self):
@@ -51,39 +57,73 @@ class TerminateTask(MDTask):
             maps=bm.get_chainmaps()
             with open(self.specs['chainmapfile'],'w') as f:
                 yaml.dump(maps,f)
+            self.register_current_artifact(YAMLFile(self.specs['chainmapfile'].replace('.yaml','')), key='chainmapfile')
 
     def make_package(self):
         """
-        Create a package for the NAMD run.
-        This method prepares the necessary files for a NAMD run based on the specifications provided in the task.
-        It collects the required files, including the NAMD script, constraint PDB file, and any local parameters.
-        The method also handles the generation of a tarball containing all the necessary files for the NAMD run.
-        The tarball is named based on the basename specified in the task specifications.
+        Create a package for a production NAMD run starting from the end of the build.
         """
-        TarballContents = ArtifactFileList()
-        specs=self.specs.get('package',{})
-        if not specs:
-            logger.debug('no package specs found')
+        package_specs = self.specs.get('package', {})
+        if not package_specs:
+            logger.debug('No package specifications provided; packaging will not be performed.')
             return 0
-        self.basename=specs.get('basename','my_system')
-        for ext in ['psf','pdb','coor','xsc','vel']:
-            fa=self.get_current_artifact(ext)
+        if 'ensemble' not in package_specs:
+            raise ValueError('Ensemble must be specified in package specs for terminate task')
+        TarballContents = ArtifactFileList()
+        self.basename = self.specs.get('basename', 'my_system')
+        for ext in ['psf', 'pdb', 'coor', 'xsc', 'vel']:
+            fa = self.get_current_artifact(ext)
             if fa:
                 shutil.copy(fa.path, self.basename + '.' + ext)
                 self.register_current_artifact(type(fa)(self.basename))
                 TarballContents.append(self.get_current_artifact(ext))
-        # self.inherit_state()
         logger.debug(f'Packaging for namd using basename {self.basename}')
-        savespecs=self.specs
-        self.specs=specs
-        result=self.namdrun(script_only=True)
-        self.specs=savespecs
+        save_specs = self.specs
+        self.specs = package_specs
+        result = self.namdrun(script_only=True)
+        self.specs = save_specs
         TarballContents.append(self.get_current_artifact('namd'))
-        constraints=specs.get('constraints',{})
+        constraints = self.specs.get('constraints', {})
         if constraints:
-            self.make_constraint_pdb(constraints,statekey='consref')
+            self.make_constraint_pdb(constraints, statekey='consref')
             TarballContents.append(self.get_current_artifact('consref'))
         TarballContents.extend(self.get_current_artifact_value('charmmff_parfiles'))
         TarballContents.extend(self.get_current_artifact_value('charmmff_streamfiles'))
         TarballContents.make_tarball(self.basename)
         return result
+
+    def cleanup(self):
+
+        if not self.specs.get('cleanup', True):
+            logger.debug('Cleanup disabled; skipping cleanup step.')
+            return 0
+
+        ArtifactContents = ArtifactFileList()
+
+        data_artifacts, filelist_artifacts, file_artifacts = self.pipeline.get_artifact_collection_as_lists()
+
+        all_artifact_files = []
+        for artifact in file_artifacts:
+            if not artifact.path.name in all_artifact_files and artifact.path.exists():
+                all_artifact_files.append(artifact.path.name)
+                ArtifactContents.append(artifact)
+        for artifact in filelist_artifacts:
+            for file_artifact in artifact:
+                if not file_artifact.path.name in all_artifact_files and file_artifact.path.exists():
+                    all_artifact_files.append(file_artifact.path.name)
+                    ArtifactContents.append(file_artifact)
+
+        all_artifact_files.sort()
+        # logger.debug(f'All artifact files: {all_artifact_files}')
+
+        non_artifact_files = []
+        cwd_files = os.listdir('.')
+        # logger.debug(f'Current working directory files: {cwd_files}')
+        for f in cwd_files:
+            if f not in all_artifact_files:
+                non_artifact_files.append(f)
+
+        logger.debug(f'Non-artifact files in current working directory: {non_artifact_files}')
+
+        ArtifactContents.make_tarball('artifacts', remove=True)
+        return 0

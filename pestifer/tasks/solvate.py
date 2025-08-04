@@ -95,9 +95,10 @@ class SolvateTask(VMDTask):
         self.register_current_artifact(VMDScript(self.basename))
         self.result=vt.runscript(progress_title='solvate')
         if self.result!=0:
-            return super().do()
+            return self.result
         for ext in ['_solv','']:
+            self.register_current_artifact(VMDLogFile(f'{self.basename}{ext}'))
             self.register_current_artifact(PSFFile(f'{self.basename}{ext}'))
             self.register_current_artifact(PDBFile(f'{self.basename}{ext}'))
         self.pdb_to_coor()
-        return super().do()
+        return self.result

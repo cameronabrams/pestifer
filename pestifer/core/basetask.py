@@ -37,21 +37,25 @@ class BaseTask(ABC):
 
     """
     index: int = 0
-    pipeline: PipelineContext = None
+    taskname: str = 'BaseTask'
+    pipeline: PipelineContext | None = None
     specs: dict = {}
-    prior: BaseTask = None
+    prior: BaseTask | None = None
 
-    _init_msg_options = ('INITIATED','STARTED','BEGUN','SET IN MOTION','KICKED OFF','LIT','SPANKED ON THE BOTTOM', 'LAUNCHED', 'KICKED OUT OF THE NEST', 'COMMENCED', 'ACTIVATED', 'UNLEASHED', 'ENGAGED', 'SPAWNED', 'BIRTHED', 'BORN', 'KICKED INTO GEAR', 'KICKED INTO ACTION', 'KICKED INTO HIGH GEAR', 'KICKED INTO OVERDRIVE', 'KICKED INTO HYPERDRIVE', 'KICKED INTO LIGHTSPEED')
+    basename: str = ''
+    subtaskcount: int = 0
+    result: int = 0
+
+    _extra_message: str = ''
+    """
+    An optional extra message that can be appended to the task's log messages.
+    This can be used to provide additional context or information about the task's execution.
+    """
+
+    _init_msg_options: tuple[str] = ('INITIATED','STARTED','BEGUN','SET IN MOTION','KICKED OFF','LIT','SPANKED ON THE BOTTOM', 'LAUNCHED', 'KICKED OUT OF THE NEST', 'COMMENCED', 'ACTIVATED', 'UNLEASHED', 'ENGAGED', 'SPAWNED', 'BIRTHED', 'BORN', 'KICKED INTO GEAR', 'KICKED INTO ACTION', 'KICKED INTO HIGH GEAR', 'KICKED INTO OVERDRIVE', 'KICKED INTO HYPERDRIVE', 'KICKED INTO LIGHTSPEED')
     """
     A list of message options that are used to log the initiation of the task.
     """
-
-    @abstractmethod
-    def do(self):
-        """
-        This is a stub method that should be overridden by subclasses.
-        """
-        pass
 
     def __init__(self, index: int = 0, pipeline: PipelineContext = None, specs: dict = None, prior: BaseTask = None):
         """
@@ -66,31 +70,40 @@ class BaseTask(ABC):
             self.index = index
 
         self.controller_index = self.pipeline.controller_index
-        self.taskname = self.specs.get('taskname', f'Task-{self.index:02d}')
+        self.taskname = self.specs.get('taskname', f'{self.taskname}-{self.index:02d}')
         self.basename = ''
         self.subtaskcount = 0
         self.result = 0
 
+    def __repr__(self) -> str:
+        return f"<{self.__class__.__name__} index={self.index} controller_index={self.controller_index} taskname={self.taskname}>"
+
     @abstractmethod
-    def do(self):
+    def do(self) -> int:
         """
         This a stub method that should be overridden by subclasses.
         It is intended to be the main method that performs the task's operations.
         Subclasses should implement this method to define the specific behavior of the task.
         This method is called when the task is executed.
         """
-        pass
+        return -1
 
-    def execute(self):
+    def execute(self) -> int:
         """
         Execute the task.
         This method calls the `do` method, which should be implemented by subclasses to perform the task's operations.
         It also logs the initiation and completion of the task.
         """
-        self.log_message('initiated')
-        self.result=self.do()
-        if self.result==0:
-            self.log_message('complete')
+        msg = 'initiated'
+        if self._extra_message:
+            msg += f' ({self._extra_message})'
+        self.log_message(msg)
+        self.result = self.do()
+        if self.result == 0:
+            msg = 'complete'
+            if self._extra_message:
+                msg += f' ({self._extra_message})'
+            self.log_message(msg)
         else:
             logger.error(f'Task {self.taskname} failed with result {self.result}')
 
@@ -118,7 +131,7 @@ class BaseTask(ABC):
         """
         artifact=self.pipeline.get_artifact(key)
         if artifact:
-            return artifact.value
+            return artifact.data
         else:
             logger.debug(f'Artifact {key} not found')
         return None
@@ -162,20 +175,23 @@ class BaseTask(ABC):
         """
         return self.pipeline.get_artifact(key)
 
-    def get_my_artifact_collection(self):
+    def get_my_artifactfile_collection(self):
         """
-        Get a collection of artifacts produced by the current task.
-        This method retrieves all artifacts that have been registered in the context
+        Get a collection of artifact files produced by the current task.
+        This method retrieves all artifact files that have been registered in the context
         and are associated with the current task.
 
         Returns
         -------
         list
-            A list of artifact values associated with the current task.
+            A list of artifact files associated with the current task.
         """
-        return self.pipeline.get_artifact_collection_as_list(produced_by=self)
-    
-    def register_current_artifact(self, artifact: Artifact|ArtifactList, key: str = None):
+        logger.debug(f'Getting artifact file collection for task {repr(self)}')
+        all_my_artifacts, filelist_artifacts, file_artifacts = self.pipeline.get_artifact_collection_as_lists(produced_by=self)
+        logger.debug(f'Found {len(all_my_artifacts)} artifacts, {len(filelist_artifacts)} file list artifacts, and {len(file_artifacts)} file artifacts for task {repr(self)}.')
+        return file_artifacts
+
+    def register_current_artifact(self, artifact: Artifact | ArtifactList, key: str = None):
         """
         Set the current artifact with the specified key in the context.
 
@@ -201,7 +217,7 @@ class BaseTask(ABC):
         self.taskname = taskname
 
     def __str__(self):
-        return f'{self.controller_index} - {self.index} - {self.taskname} [has prior {self.prior!=None}]'
+        return repr(self)
 
     def log_message(self, message, **kwargs):
         """ 
@@ -265,7 +281,7 @@ class VMDTask(BaseTask, ABC):
         It uses the ``namdbin2pdb`` Tcl proc to convert the coordinate file to a PDB file.
         The resulting PDB file is named based on the task's basename.
         """
-        vm = self.pipeline.get_scripters('vmd')
+        vm = self.pipeline.get_scripter('vmd')
         vm.newscript(f'{self.basename}-coor2pdb')
         psf = self.get_current_artifact_path('psf')
         if not psf:
@@ -275,7 +291,7 @@ class VMDTask(BaseTask, ABC):
             raise RuntimeError(f'No coordinate file found for task {self.taskname}')
         vm.addline(f'namdbin2pdb {psf.name} {coor.name} {self.basename}.pdb')
         vm.writescript()
-        vm.runscript(artifact_registerer=self)
+        vm.runscript()
         self.register_current_artifact(TclScript(f'{self.basename}-coor2pdb'))
         self.register_current_artifact(VMDLogFile(f'{self.basename}-coor2pdb'))
         self.register_current_artifact(PDBFile(self.basename))
@@ -287,7 +303,7 @@ class VMDTask(BaseTask, ABC):
         It uses the ``pdb2namdbin`` Tcl proc to convert the PDB file to a coordinate file.
         The resulting coordinate file is named based on the task's basename.
         """
-        vm = self.scripters['vmd']
+        vm = self.pipeline.get_scripter('vmd')
         vm.newscript(f'{self.basename}-pdb2coor')
         pdb = self.get_current_artifact_path('pdb')
         if not pdb:
@@ -324,7 +340,7 @@ class VMDTask(BaseTask, ABC):
         statekey : str, optional
             The key under which the resulting PDB file will be stored in the state variables. Default is ``consref``.
         """
-        vm = self.scripters['vmd']
+        vm = self.pipeline.get_scripter('vmd')
         pdb = self.get_current_artifact_path('pdb')
         force_constant = specs.get('k', self.config['user']['namd']['harmonic']['spring_constant'])
         constrained_atoms_def = specs.get('atoms', 'all')

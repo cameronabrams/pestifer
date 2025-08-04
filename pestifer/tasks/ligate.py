@@ -23,7 +23,7 @@ class LigateTask(MDTask):
     """
     YAML header for the LigateTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
-    def do(self):
+    def do(self) -> int:
         """
         Execute the ligate task. This method checks if the base molecule has loops,
         measures the distances between loop termini, steers them toward each other,

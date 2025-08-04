@@ -43,4 +43,4 @@ class ContinuationTask(VMDTask):
         if vel:
             self.register_current_artifact(NAMDVelFile(vel.replace('.vel','')))
         self.result = 0
-        return super().do()
+        return self.result

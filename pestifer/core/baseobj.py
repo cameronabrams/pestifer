@@ -174,7 +174,7 @@ class BaseObj(BaseModel):
         If shallow is True, only the attributes of the calling instance
         will be set.
         """
-        logger.debug(f"Setting fields {fields} on {self.__class__.__name__} instance; shallow={shallow}")
+        # logger.debug(f"Setting fields {fields} on {self.__class__.__name__} instance; shallow={shallow}")
         if not shallow:
             self.set_nested(**fields)
         else:

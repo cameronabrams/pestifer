@@ -53,4 +53,4 @@ class RingCheckTask(BaseTask):
                     self.register_current_artifact(at(self.basename))
         self.log_message('complete')
         self.result=0
-        return super().do()
+        return self.result

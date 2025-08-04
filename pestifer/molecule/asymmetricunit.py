@@ -159,6 +159,8 @@ class AsymmetricUnit:
         fromAtoms = ResidueList.from_atomlist(atoms)
         fromResiduePlaceholders = ResidueList.from_ResiduePlaceholderlist(missings)
         residues: ResidueList = fromAtoms + fromResiduePlaceholders
+        # for r in residues:
+        #     logger.debug(f'Residue {r.resname}{r.resid.resid} with {len(r.atoms)} atoms (resolved: {r.resolved})')
         if sourcespecs.get('cif_residue_map_file', ''):
             write_residue_map(residues.cif_residue_map(), sourcespecs['cif_residue_map_file'])
         residues.apply_segtypes()

@@ -386,17 +386,17 @@ class Residue(ResiduePlaceholder):
                           'auth_comp_id': args[0].auth_comp_id,
                           'auth_seq_id': args[0].auth_seq_id,
                           'atoms': AtomList(),
-                          'resolved': True}
+                          'resolved': False}
             return input_dict
         elif args and isinstance(args[0], PDBRecord | BaseRecord):
             input_dict = ResiduePlaceholder._adapt(args[0])
             input_dict['atoms'] = AtomList()
-            input_dict['resolved'] = True
+            input_dict['resolved'] = False
             return input_dict
         elif args and isinstance(args[0], CIFdict):
             input_dict = ResiduePlaceholder._adapt(args[0])
             input_dict['atoms'] = AtomList()
-            input_dict['resolved'] = True
+            input_dict['resolved'] = False
             return input_dict
         elif args and isinstance(args[0], Atom | Hetatm):
             a = args[0]
@@ -406,8 +406,8 @@ class Residue(ResiduePlaceholder):
                               segtype='UNSET',
                               auth_asym_id=getattr(a, 'auth_asym_id', None),
                               auth_comp_id=getattr(a, 'auth_comp_id', None),
-                              auth_seq_id=getattr(a, 'auth_seq_id', None))
-            input_dict['resolved'] = True
+                              auth_seq_id=getattr(a, 'auth_seq_id', None),
+                              resolved=True)
             return input_dict
         return super()._adapt(*args, **kwargs)
             
@@ -580,9 +580,12 @@ class Residue(ResiduePlaceholder):
         a : :class:`~pestifer.molecule.atom.Atom`
             The atom to be added to the residue.
         """
+        # logger.debug(f'resid: {self.resid} == {a.resid}; resname: {self.resname} == {a.resname}; chainID: {self.chainID} == {a.chainID}')
         if self.resid == a.resid and self.resname == a.resname and self.chainID == a.chainID:
             self.atoms.append(a)
+            # logger.debug(f'Atom {repr(a)} added to residue {repr(self)}')
             return True
+        # logger.debug(f'Atom {repr(a)} not added to residue {repr(self)}')
         return False
 
     def set_chainID(self, chainID):
@@ -690,6 +693,8 @@ class ResidueList(BaseObjList[Residue]):
                     break
             else:
                 R.append(Residue(a))
+        # for r in R:
+        #     logger.debug(f'Adding residue {r.resname}{r.resid.resid} with {len(r.atoms)} atoms')
         return cls(R)
     
     @classmethod

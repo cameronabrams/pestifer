@@ -21,7 +21,7 @@ class ManipulateTask(BaseTask):
     """
     YAML header for the ManipulateTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
-    def do(self):
+    def do(self) -> int:
         """
         Execute the manipulate task.
         """
@@ -29,7 +29,7 @@ class ManipulateTask(BaseTask):
         self.objmanager=ObjManager()
         self.objmanager.ingest(self.specs['mods'])
         self.result=self.coormods()
-        return super().do()
+        return self.result
 
     def coormods(self):
         """

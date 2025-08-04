@@ -68,6 +68,7 @@ class Controller:
             assert len(taskdict) == 1, f"Task dictionary {taskdict} must have a single key-value pair"
             taskname = list(taskdict.keys())[0]
             task_specs = taskdict[taskname]
+            task_specs['taskname'] = taskname
             logger.debug(f'{taskname}: {task_specs}')
             # specs={} if not config_specs else config_specs.copy()
             # Ensure the name of the task is among the implemented Tasks
@@ -87,13 +88,14 @@ class Controller:
             prior_task = this_task
         if len(self.tasks) > 0: logger.debug(f'last task currently is {self.tasks[-1].taskname}')
         # Add a "terminate" task by default if the user has not specified one
-        if terminate and (len(self.tasks)==0 or not type(self.tasks[-1].taskname)==TerminateTask):
+        if terminate and (len(self.tasks) == 0 or not isinstance(self.tasks[-1], TerminateTask)):
             # If the last task is not a TerminateTask, add one with default specs
             specs = self.config.make_default_specs('tasks','terminate')
+            specs['taskname'] = 'terminate'
             logger.debug('Adding default terminate task')
-            self.tasks.append(TerminateTask(pipeline=self.pipeline, specs=specs, prior=prior_task, index=len(self.tasks)))
+            self.tasks.append(TerminateTask(index=len(self.tasks), pipeline=self.pipeline, specs=specs, prior=prior_task))
         ess='s' if len(self.tasks)>1 else ''
-        logger.info(f'Run title: "{self.config["user"]["title"]}"')
+        logger.info(f'Running "{self.config["user"]["title"]}"')
         logger.info(f'Controller {self.index:02d} will execute {len(self.tasks)} task{ess}.')
 
     def do_tasks(self):
@@ -119,19 +121,40 @@ class Controller:
         for task in self.tasks:
             returned_result = task.execute()
             task_report[task.index] = dict(taskname=task.taskname, taskindex=task.index, result=returned_result)
-            logger.debug(f'Current artifacts in pipeline context:\n{self.pipeline.context_to_string()}')
             if task.result != 0:
                 logger.warning(f'Task {task.taskname} failed; task.result {task.result} returned result {returned_result} controller is aborted.')
                 break
-        all_artifacts = self.pipeline.get_artifact_collection_as_list()
-        os.mkdir('tmp')
-        for artifact in all_artifacts:
-            if hasattr(artifact,'path'):
-                # shutil.move(artifact.path,os.path.join('tmp',artifact.path))
-                logger.debug(f'Copying artifact {artifact.key} to tmp/{artifact.path.name}')
-            else:
-                logger.warning(f'Artifact {artifact.key} has no path attribute; skipping copy.')
-        return task_report
+
+        data_artifacts, filelist_artifacts, file_artifacts = self.pipeline.get_artifact_collection_as_lists()
+
+        all_artifact_files = []
+        for artifact in file_artifacts:
+            if not artifact.path.name in all_artifact_files and artifact.path.exists():
+                all_artifact_files.append(artifact.path.name)
+        for artifact in filelist_artifacts:
+            for file_artifact in artifact:
+                if not file_artifact.path.name in all_artifact_files and file_artifact.path.exists():
+                    all_artifact_files.append(file_artifact.path.name)
+
+        all_artifact_files.sort()
+        # logger.debug(f'All artifact files: {all_artifact_files}')
+
+        non_artifact_files = []
+        cwd_files = os.listdir('.')
+        # logger.debug(f'Current working directory files: {cwd_files}')
+        for f in cwd_files:
+            if f not in all_artifact_files:
+                non_artifact_files.append(f)
+
+        logger.debug(f'Non-artifact files in current working directory: {non_artifact_files}')
+
+        # logger.debug(f'Current working directory files: {cwd_files}')
+        # unclaimed_files = []
+        # for f in cwd_files:
+        #     if f not in [x.path.name for x in file_artifacts]:
+        #         unclaimed_files.append(f)
+        # logger.debug(f'Unclaimed files: {unclaimed_files}')
+        # return task_report
 
     def write_complete_config(self,filename='complete-user.yaml'):
         """ 

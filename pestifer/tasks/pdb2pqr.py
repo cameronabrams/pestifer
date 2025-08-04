@@ -35,7 +35,7 @@ class PDB2PQRTask(PsfgenTask):
     YAML header for the PDB2PQRTask, used to identify the task in configuration
     files as part of a ``tasks`` list.
     """
-    def do(self):
+    def do(self) -> int:
         """
         Execute the PDB2PQR task.
         """
@@ -54,8 +54,8 @@ class PDB2PQRTask(PsfgenTask):
         self.register_current_artifact(PDBFile(self.basename))
         self.register_current_artifact(PSFFile(self.basename))
         self.coor_to_pdb()
-        self.log_message('complete')
-
+        return 1
+    
     def prep_input(self):
         """
         Prepare the input PDB file for PDB2PQR processing.

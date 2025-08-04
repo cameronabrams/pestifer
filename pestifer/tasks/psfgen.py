@@ -57,11 +57,11 @@ class PsfgenTask(BaseTask):
         logger.debug('Running first psfgen')
         self.result=self.psfgen()
         if self.result!=0:
-            return super().do()
+            return self.result
         # we now have a full coordinate set, so we can do coormods
         self.coormods()
         self.declash()
-        return super().do()
+        return self.result
 
     def coormods(self):
         """
@@ -159,8 +159,8 @@ class PsfgenTask(BaseTask):
         # register PSF, PDB, log, and all charmmff files in the pipeline context
         for artifact_type in [PsfgenInputScript,PSFFile,PDBFile,PsfgenLogFile]:
             self.register_current_artifact(artifact_type(self.basename))
-        self.register_current_artifact(CharmmffTopFiles([CharmmffTopFile(x.replace('.rtf','')) for x in required_topology_files if x.endswith('.rtf')]),key='charmmff_topfiles')
-        self.register_current_artifact(CharmmffStreamFiles([CharmmffStreamFile(x.replace('.str','')) for x in required_topology_files if x.endswith('.str')]),key='charmmff_streamfiles')
+        self.register_current_artifact(CharmmffTopFiles([CharmmffTopFile(x.replace('.rtf','')) for x in pg.topologies if x.endswith('.rtf')]),key='charmmff_topfiles')
+        self.register_current_artifact(CharmmffStreamFiles([CharmmffStreamFile(x.replace('.str','')) for x in pg.topologies if x.endswith('.str')]),key='charmmff_streamfiles')
         self.strip_remarks()
         return 0
         
@@ -470,7 +470,7 @@ class PsfgenTask(BaseTask):
                     self.molecules[g.source_pdbid]=Molecule(source=this_source)
                     graft_artifacts.append(PDBFile(g.source_pdbid))
                 g.activate(deepcopy(self.molecules[g.source_pdbid]))
-            self.register_current_artifact(graft_artifacts,key='graft_sources')
+            self.register_current_artifact(graft_artifacts, key='graft_sources')
         self.chainIDmanager=ChainIDManager(
             format=self.source_specs['file_format'],
             transform_reserves=self.source_specs.get('transform_reserves',{}),

@@ -3,34 +3,43 @@
 """
 A class for handling artifacts in the Pestifer core. Artifacts are files or data generated during the execution of tasks.
 """
+from __future__ import annotations
 from abc import ABC, abstractmethod
+from collections import UserList, UserDict
 from dataclasses import dataclass, field
 from pathlib import Path
 import logging
-from typing import Optional, List, Any, Iterable, Iterator
+import os
+import tarfile
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 @dataclass
-class Artifact(ABC):
+class Artifact():
     """
     Represents an artifact in the Pestifer core.
     This class is used to store information about an artifact, including its key, value, type, and the task that produced it.
     The ``produced_by`` attribute indicates which task generated this artifact.
     The ``package`` attribute indicates whether the most recently generated artifact should be included in the product package, if it is a file.
-    The ``value`` attribute can hold any data type, and the ``key`` attribute is used to identify the artifact.
-    The ``describe`` method should be implemented by subclasses to provide a description of the artifact.
+    The ``data`` attribute can hold any data type, and the ``key`` attribute is used to identify the artifact.
     """
-    value: Any = None
-    key: Optional[str] = None
-    produced_by: object = None
+    data: object | None = None
+    key: str | None = None
+    produced_by: object | None = None
     package: bool = False
 
-    @abstractmethod
-    def describe(self) -> str:
-        pass
+    def has_stamp(self) -> bool:        
+        """
+        Check if the artifact has a stamp (owner information).
+        
+        Returns
+        -------
+        bool
+            True if the artifact has a stamp, False otherwise.
+        """
+        return self.produced_by is not None
 
-    def stamp(self, owner: Any = None) -> None:
+    def stamp(self, owner: object | None = None) -> Artifact:
         """
         Stamp the artifact with the owner information.
         This method is used to set the owner of the artifact, which can be useful for tracking who created or modified it.  If owner is None, do nothing.
@@ -41,61 +50,138 @@ class Artifact(ABC):
             The owner of the artifact, which can be any object that produced this artifact. If not provided, the artifact will not be stamped.
         """
         if owner:
+            if self.has_stamp():
+                logger.warning(f"Artifact {self.key} is already stamped by {self.produced_by}. Overriding with new owner {owner}.")
             self.produced_by = owner
+        else:
+            raise ValueError("Owner must be provided for artifact stamping.")
         return self
 
 @dataclass
-class ArtifactList:
+class ArtifactList(UserList, Artifact):
     """
     Represents a list of artifacts in the Pestifer core.
     This class is used to store a collection of artifacts, allowing for easy management and retrieval.
     """
-    value: List[Artifact] = field(default_factory=list)
+    key : str | None = None
+    data: list[Artifact] = field(default_factory=list)
+    produced_by: object | None = None   
 
-    def append(self, item: Artifact) -> None:
-        self.value.append(item)
+    def filter_by_produced_by(self, produced_by: object) -> ArtifactList:
+        """
+        Filter the artifact list by the task that produced them.
+        Parameters
+        ----------
+        produced_by : object
+            The task or object that produced the artifacts to filter by.
+        Returns
+        -------
+        ArtifactList
+            A new ArtifactList containing only the artifacts produced by the specified task.
 
-    def __len__(self) -> int:
-        return len(self.value)
+        """
+        filtered_list = ArtifactList()
+        filtered_list.key = self.key
+        filtered_list.produced_by = produced_by
+        filtered_list.data = [artifact for artifact in self.data if artifact.produced_by == produced_by]
+        return filtered_list
 
-    def extend(self, items: Iterable[Artifact]) -> None:
-        for item in items:
-            self.append(item)
+    # @property
+    # def value(self) -> list[Artifact]:
+    #     return self.data
 
-    def __iter__(self) -> Iterator[Artifact]:
-        return iter(self.value)
+    # def has_stamp(self) -> bool:
+    #     """
+    #     Check if the artifact list has a stamp (owner information).
+        
+    #     Returns
+    #     -------
+    #     bool
+    #         True if the artifact list has a stamp, False otherwise.
+    #     """
+    #     return all(artifact.produced_by is not None for artifact in self.value) and self.produced_by is not None
+
+    # def stamp(self, owner: object | None = None) -> ArtifactList:
+    #     """
+    #     Stamp the artifact list with the owner information.
+    #     This method is used to set the owner of the artifact, which can be useful for tracking who created or modified it.
+    #     """
+    #     if owner:
+    #         self.produced_by = owner
+    #         for artifact in self:
+    #             artifact.stamp(owner)
+    #     else:
+    #         logger.warning("No owner provided for artifact stamping.")
+    #     return self
     
-    def __add__(self, other: "ArtifactList") -> "ArtifactList":
-        if type(self) is not type(other):
-            raise TypeError(f"Cannot add {type(self)} to {type(other)}")
-
-        new = type(self)()  # assumes default constructor works
-        new.extend(self)
-        new.extend(other)
-        return new
-
-    def __getitem__(self, index):
-        return self.value[index]
-
-    def stamp(self, owner: Any = None) -> None:
-        """
-        Stamp the artifact list with the owner information.
-        This method is used to set the owner of the artifact, which can be useful for tracking who created or modified it.
-        """
-        if owner:
-            self.produced_by = owner
-        else:
-            logger.warning("No owner provided for artifact stamping.")
-        return self
 
 @dataclass
-class ArtifactFile(Artifact):
+class ArtifactDict(UserDict, Artifact):
+    """
+    Represents a dictionary of artifacts in the Pestifer core.
+    This class is used to store a collection of artifacts with unique keys, allowing for easy management and retrieval.
+
+    """
+    key: str | None = None
+    data: dict[str, Artifact] = field(default_factory=dict)
+    produced_by: object | None = None
+
+    @classmethod
+    def from_list(cls, artifact_list: ArtifactList) -> ArtifactDict:
+        artifact_dict = cls()
+        for artifact in artifact_list:
+            artifact_dict[artifact.key] = artifact
+        artifact_dict.produced_by = artifact_list.produced_by
+        artifact_dict.key = artifact_list.key
+        return artifact_dict
+    
+    def update_item(self, artifact: Artifact, key: str | None = None) -> None:
+        if key:
+            self.data[key] = artifact
+        else:
+            self.data[artifact.key] = artifact
+
+    def filter_by_produced_by(self, produced_by: object) -> ArtifactDict:
+        filtered_dict = ArtifactDict()
+        filtered_dict.key = self.key
+        filtered_dict.produced_by = produced_by
+        for key, artifact in self.data.items():
+            if artifact.produced_by == produced_by:
+                filtered_dict[key] = artifact
+        return filtered_dict
+
+    # def has_stamp(self) -> bool:
+    #     """
+    #     Check if the artifact list has a stamp (owner information).
+        
+    #     Returns
+    #     -------
+    #     bool
+    #         True if the artifact list has a stamp, False otherwise.
+    #     """
+    #     return all(artifact.produced_by is not None for artifact in self.values()) and self.produced_by is not None
+
+    # def stamp(self, owner: object | None = None) -> ArtifactList:
+    #     """
+    #     Stamp the artifact list with the owner information.
+    #     This method is used to set the owner of the artifact, which can be useful for tracking who created or modified it.
+    #     """
+    #     if owner:
+    #         self.produced_by = owner
+    #         for artifact in self.values():
+    #             artifact.stamp(owner)
+    #     else:
+    #         logger.warning("No owner provided for artifact stamping.")
+    #     return self
+
+@dataclass
+class ArtifactFile(Artifact, ABC):
     """
     Represents a file artifact in the Pestifer core.
     This class is used to store information about a file artifact, including its path and an optional description.
     """
-    description: Optional[str] = None
-    mime_type: Optional[str] = 'application/octet-stream'
+    description: str | None = None
+    mime_type: str | None = 'application/octet-stream'
 
     @property
     @abstractmethod
@@ -110,7 +196,7 @@ class ArtifactFile(Artifact):
     @property
     def name(self) -> str:
         """Return the name of the file without the extension."""
-        return self.value+r'.'+self.ext
+        return self.data + '.' + self.ext
 
     @property
     def path(self) -> Path:
@@ -123,9 +209,6 @@ class ArtifactFile(Artifact):
         if not self.path.exists():
             raise FileNotFoundError(f"{self.path} not found")
     
-    def describe(self) -> str:
-        return f"ArtifactFile(key={self.key}, value={self.value}, ext={self.ext}, mime_type={self.mime_type}, description={self.description})"
-
 @dataclass
 class TXTFile(ArtifactFile):
     """
@@ -144,16 +227,25 @@ class ArtifactData(Artifact):
     Represents a data artifact in the Pestifer core.
     This class is used to store information about a data artifact, including its value and the task that produced it.
     """
-    description: Optional[str] = None
-
-    def describe(self) -> str:
-        return f"ArtifactData(key={self.key}, value={self.value}, description={self.description})"
+    description: str | None = None
 
 @dataclass
 class ArtifactFileList(ArtifactList):
-    value: List[ArtifactFile] = field(default_factory=list)
+    data: list[ArtifactFile] = field(default_factory=list)
 
-    def make_tarball(self, basename: str) -> None:
+    def all_exist(self) -> bool:
+        """
+        Check if all artifact files exist.
+        """
+        return all(artifact.exists() for artifact in self)
+
+    def paths_to_list(self) -> list[Path]:
+        """
+        Convert the list of artifact files to a list of their paths.
+        """
+        return [artifact.path for artifact in self]
+
+    def make_tarball(self, basename: str, remove: bool = False) -> None:
         """
         Create a tarball from the list of artifact files.
         
@@ -162,13 +254,26 @@ class ArtifactFileList(ArtifactList):
         basename : str
             The base name for the tarball file.
         """
-        import tarfile
+        if remove:
+            remove_files = []
+            remove_artifacts = []
         with tarfile.open(f"{basename}.tar.gz", "w:gz") as tar:
-            for artifact in self.value:
+            for artifact in self:
                 if artifact.exists():
                     tar.add(artifact.path, arcname=artifact.path.name)
-                else:
-                    logger.warning(f"Artifact {artifact.path} does not exist and cannot be added to tarball.")
+                    if remove:
+                        remove_files.append(artifact.path)
+                        remove_artifacts.append(artifact)
+        if remove:
+            logger.debug(f"Removing files: {remove_files}")
+            for f in remove_files:
+                try:
+                    os.remove(f)
+                except Exception as e:
+                    logger.warning(f"Failed to remove {f}: {e}")
+            for a in remove_artifacts:
+                self.remove(a)
+        return
 
 @dataclass
 class CharmmffTopFile(TXTFile):
@@ -212,7 +317,7 @@ class CharmmffTopFiles(ArtifactFileList):
     def append(self, item: CharmmffTopFile) -> None:
         if not isinstance(item, CharmmffTopFile):
             raise TypeError(f"Expected CharmmffTopFile, got {type(item)}")
-        self.value.append(item)
+        super().append(item)
 
 @dataclass
 class CharmmffParFiles(ArtifactFileList):
@@ -225,7 +330,7 @@ class CharmmffParFiles(ArtifactFileList):
     def append(self, item: CharmmffParFile) -> None:
         if not isinstance(item, CharmmffParFile):
             raise TypeError(f"Expected CharmmffParFile, got {type(item)}")
-        self.value.append(item)
+        super().append(item)
 
 @dataclass
 class CharmmffStreamFiles(ArtifactFileList):
@@ -238,7 +343,7 @@ class CharmmffStreamFiles(ArtifactFileList):
     def append(self, item: CharmmffStreamFile) -> None:
         if not isinstance(item, CharmmffStreamFile):
             raise TypeError(f"Expected CharmmffStreamFile, got {type(item)}")
-        self.value.append(item)
+        super().append(item)
 
 @dataclass
 class YAMLFile(TXTFile):
@@ -406,7 +511,7 @@ class PDBFileList(ArtifactFileList):
     def append(self, item: PDBFile) -> None:
         if not isinstance(item, PDBFile):
             raise TypeError(f"Expected PDBFile, got {type(item)}")
-        self.value.append(item)
+        super().append(item)
 
 @dataclass
 class CIFFile(TXTFile):

@@ -11,7 +11,7 @@ from .charmmtop import CharmmMassRecord, CharmmMasses, CharmmTopResi
 from ..core.pdbrepository import PDBRepository
 from ..core.labels import Labels
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 def parse_conditional_script(script_text):
     """ 
@@ -187,6 +187,9 @@ class CHARMMFFContent:
         if 'custom' in self.charmm_elements and os.path.exists(os.path.join(self.charmmff_path,'custom')):
             self.custom_files=self.dirtree[f'{self.basename}/custom'][1]
         for f in self.custom_files:
+            if not CHARMMFFContent.is_charmmff_file(f):
+                logger.debug(f'Skipping non-CHARMM file {f}')
+                continue
             assert f not in self.filenamemap, f'custom file {f} already exists in filenamemap'
             logger.debug(f'Adding custom file {f} to CHARMMFFContent filenamemap ({len(self.filenamemap)} entries before adding)')
             self.filenamemap[f]=os.path.join(self.charmmff_path,'custom',f)
@@ -194,7 +197,7 @@ class CHARMMFFContent:
             if not os.path.isdir(user_custom_directory):
                 raise NotADirectoryError(f'Expected a directory at {user_custom_directory}, but it is not a directory')
             logger.debug(f'Adding user custom directory {user_custom_directory} to CHARMMFFContent')
-            self.custom_files.extend(os.listdir(user_custom_directory))
+            self.custom_files.extend([f for f in os.listdir(user_custom_directory) if CHARMMFFContent.is_charmmff_file(f)])
             for f in self.custom_files:
                 assert f not in self.filenamemap, f'user custom file {f} already exists in filenamemap'
                 self.filenamemap[f]=os.path.join(user_custom_directory,f)
@@ -202,7 +205,7 @@ class CHARMMFFContent:
         self.residues={}
         self.patches={}
         self.find_resis_and_patches()
-        logger.debug(f'filename map:')
+        logger.debug(f'CHARMMFF filename map:')
         for k,v in self.filenamemap.items():
             logger.debug(f'  {k} -> {v}')
 
@@ -274,7 +277,7 @@ class CHARMMFFContent:
         self.toplevel_top={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/top_') and okfilename(x.name)}
         self.toplevel_toppar={os.path.basename(x.name):x.name for x in self.tarmembers if x.isfile() and x.name.startswith('toppar/toppar_') and okfilename(x.name)}
         self.filenamemap={**self.toplevel_par,**self.toplevel_top,**self.toplevel_toppar}
-        logger.debug(f'filenamemap: {self.filenamemap}')
+        # logger.debug(f'filenamemap: {self.filenamemap}')
         self.streams=[os.path.basename(x.name) for x in self.tarmembers 
                       if x.isdir() and x.name.startswith('toppar/stream/') and os.path.basename(x.name) not in skip_streams]
         self.streamfiles={}
@@ -307,17 +310,17 @@ class CHARMMFFContent:
             The basename of the copied file in the local directory.
         """
         if os.path.exists(basename):
-            logger.debug(f'{basename} already exists in {os.getcwd()}')
+            # logger.debug(f'{basename} already exists in {os.getcwd()}')
             return basename
         if os.sep in basename:
             # this is a path
-            logger.debug(f'expected a basename and got a path {basename}')
+            # logger.debug(f'expected a basename and got a path {basename}')
             basename=os.path.split(basename)[1]
-            logger.debug(f'truncated to basename {basename}')
+            # logger.debug(f'truncated to basename {basename}')
         if basename in self.custom_files:
             with open(self.filenamemap[basename]) as file:
                 lines=file.read().splitlines()
-                logger.debug(f'found {len(lines)} lines in {basename} in custom files')
+                # logger.debug(f'found {len(lines)} lines in {basename} in custom files')
                 with open(basename,'w') as f:
                     for l in lines: # l will contain the newline character
                         is_comment=any([l.startswith(x) for x in comment_these_out])
@@ -327,12 +330,12 @@ class CHARMMFFContent:
                             f.write('! commented out by pestifer:\n')
                             f.write(f'! {l}'+'\n')
         elif basename in self.filenamemap:
-            logger.debug(f'found {basename} in at {self.filenamemap[basename]} in tarball')
+            # logger.debug(f'found {basename} in at {self.filenamemap[basename]} in tarball')
             with self.tarfile.extractfile(self.filenamemap[basename]) as file:
-                logger.debug(f' file has type {type(file)}')
+                # logger.debug(f' file has type {type(file)}')
                 lines=file.read().decode().splitlines()
-                logger.debug(f'type of lines is {type(lines)}')
-                logger.debug(f'found {len(lines)} lines in {basename} in tarfile')
+                # logger.debug(f'type of lines is {type(lines)}')
+                # logger.debug(f'found {len(lines)} lines in {basename} in tarfile')
                 with open(basename,'w') as f:
                     for l in lines: # l will NOT contain the newline character
                         is_comment=any([l.startswith(x) for x in comment_these_out])
@@ -345,17 +348,24 @@ class CHARMMFFContent:
             logger.warning(f'copy_charmmfile_local: {basename} not found in charmmff')
         return basename
     
-    def clean_local_charmmff_files(self):
+    @staticmethod
+    def is_charmmff_file(filename):
+        if filename.startswith('par') or filename.startswith('top_') or filename.startswith('toppar') or filename.startswith('charmm') or filename.endswith('.str') or filename.endswith('.prm') or filename.endswith('.rtf'):
+            return True
+        return False
+
+    @staticmethod
+    def clean_local_charmmff_files():
         """ 
         Remove all local CHARMM force field files that start with ``par``, ``top_``, ``toppar``, ``charmm``, or end with ``.str``, ``.prm``, or ``.rtf``.
         This function is useful for cleaning up the local directory where CHARMM files are stored.
         It will remove files that match the specified patterns, ensuring that only relevant CHARMM files are kept.
         """
         for f in os.listdir('.'):
-            if f.startswith('par') or f.startswith('top_') or f.startswith('toppar') or f.startswith('charmm') or f.endswith('.str') or f.endswith('.prm') or f.endswith('.rtf'):
+            if CHARMMFFContent.is_charmmff_file(f):
                 os.remove(f)
     
-    def lines_from_topfile(self,topfile):
+    def lines_from_topfile(self, topfile):
         """ 
         Extract the lines from a top file.
         This function reads the contents of a top file, either from the tarfile or from a mapped filename in the filenamemap.
@@ -370,10 +380,10 @@ class CHARMMFFContent:
         list of str
             A list of lines extracted from the top file. If the file is not found, an empty list is returned.
         """
-        lines=self.contents_from_topfile(topfile).splitlines()
+        lines = self.contents_from_topfile(topfile).splitlines()
         return lines
 
-    def contents_from_topfile(self,topfile):
+    def contents_from_topfile(self, topfile):
         """ 
         Extract the contents of a top file.
         This function reads the contents of a top file, either from the tarfile or from a mapped filename in the filenamemap.  Applies the logic filter :func:`parse_conditional_script` if this is a cholesterol substream.
@@ -388,34 +398,34 @@ class CHARMMFFContent:
         str
             The contents of the top file as a string. If the file is not found, an empty string is returned.
         """
-        content=''
+        content = ''
         for m in self.tarmembers:
-            if topfile==m.name:
-                logger.debug(f'Found {topfile} in tarfile member {m.name}')
+            if topfile == m.name:
+                # logger.debug(f'Found {topfile} in tarfile member {m.name}')
                 with self.tarfile.extractfile(m) as f:
-                    content=f.read().decode()
+                    content = f.read().decode()
                     break
         if not content:
-            mapped_name=self.filenamemap.get(os.path.basename(topfile),None)
+            mapped_name = self.filenamemap.get(os.path.basename(topfile), None)
             if mapped_name is not None:
-                logger.debug(f'Extracting lines from {topfile} using mapped name {mapped_name}')
-                with open(mapped_name,'r') as f:
-                    content=f.read()
+                # logger.debug(f'Extracting lines from {topfile} using mapped name {mapped_name}')
+                with open(mapped_name, 'r') as f:
+                    content = f.read()
             else:
-                logger.warning(f'Could not find {topfile} in tarfile or filenamemap')
+                # logger.warning(f'Could not find {topfile} in tarfile or filenamemap')
                 return ''
-        logger.debug(f'Extracted {len(content)} characters from {topfile}')
+        # logger.debug(f'Extracted {len(content)} characters from {topfile}')
 
         parsed_content = content
         if 'cholesterol' in topfile:  # the cholesteral substream has two models, and it specifies the first one by default
             # we will parse the conditional script to get the correct model
-            parsed_content_dict=parse_conditional_script(content)
-            parsed_content=parsed_content_dict['parsed']
+            parsed_content_dict = parse_conditional_script(content)
+            parsed_content = parsed_content_dict['parsed']
             logger.debug(f'Parsed {topfile} with conditional script based on {parsed_content_dict["vars"]}')
 
         return parsed_content
 
-    def resis_and_masses_from_topfile(self,topfile,metadata={}):
+    def resis_and_masses_from_topfile(self, topfile, metadata={}):
         """ 
         Extract the residues and atom masses from a top file.
         This function reads the contents of a top file and extracts the residue blocks and atom mass lines.

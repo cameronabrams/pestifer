@@ -1292,6 +1292,10 @@ directives:
         text: Task that signals end of task list
         type: dict
         directives:
+          - name: cleanup
+            text: Specifies whether or not to clean up temporary files
+            type: bool
+            default: True
           - name: basename
             text: Desired basename for final psf/pdb files
             type: str
@@ -1310,7 +1314,7 @@ directives:
             required: False
             directives:
               - name: basename
-                text: Desired basename for final tarball
+                text: Desired basename for final tarball and the files within
                 type: str
                 default: my_system
               - name: ensemble

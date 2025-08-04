@@ -12,6 +12,11 @@ class StateInterval(BaseObj):
     """
     _required_fields = {'state', 'bounds'}
     _optional_fields = {'build', 'selname', 'pdb'}
+    _attr_choices = {
+        'state': {'RESOLVED', 'MISSING'},
+        'build': {True, False}
+    }
+
     state: str = Field(..., description="State of the interval")
     bounds: List[int] = Field(..., description="Bounds of the interval")
     build: bool = Field(False, description="build flag, if applicable")
@@ -142,6 +147,3 @@ class StateIntervalList(BaseObjList[StateInterval]):
             The number of items in the bounds list.
         """
         return self.bounds[-1] - self.bounds[0] + 1 if self.bounds else 0
-
-    def describe(self) -> str:
-        return f"<StateIntervalList with {len(self)} intervals, bounds={self.bounds}>"

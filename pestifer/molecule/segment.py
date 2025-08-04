@@ -9,6 +9,7 @@ logger=logging.getLogger(__name__)
 
 from .chainidmanager import ChainIDManager
 from .residue import Residue, ResidueList
+from .stateinterval import StateInterval, StateIntervalList
 from .transform import Transform
 
 from ..core.baseobj import BaseObj, BaseObjList
@@ -42,7 +43,7 @@ class Segment(BaseObj):
     segname: str = Field(..., description="The name of the segment as it is understood by psfgen and in a PSF file.")
     chainID: str = Field(..., description="The chain ID associated with the segment.")
     residues: ResidueList = Field(default_factory=ResidueList, description="A list of residues that make up the segment.")
-    subsegments: list = Field(..., description="A list of subsegments within the segment, each with a state indicating whether it is resolved or missing.")
+    subsegments: StateIntervalList = Field(..., description="A list of subsegments within the segment, each with a state indicating whether it is resolved or missing.")
     parent_chain: str = Field(..., description="The chain ID of the parent chain to which this segment belongs.")
     specs: dict = Field(..., description="Specifications for the segment, including details like loops and terminal modifications.")
 
@@ -97,11 +98,14 @@ class Segment(BaseObj):
                 apparent_segname = residues[0].chainID if segname_override == 'UNSET' else segname_override
                 if apparent_segtype in ['protein', 'nucleicacid']:
                     # a protein segment must have unique residue numbers
-                    assert residues.puniq(['resid']),f'ChainID {apparent_chainID} has duplicate resid!'
+                    assert residues.puniq(['resid']), f'ChainID {apparent_chainID} has duplicate resid!'
                     # a protein segment may not have more than one protein chain
                     assert all([x.chainID==residues[0].chainID for x in residues])
                     residues.sort()
-                    subsegments=residues.state_bounds(lambda x: 'RESOLVED' if x.resolved else 'MISSING')
+                    # for r in residues:
+                    #     logger.debug(f'Residue {r.resname}{r.resid.resid} with {len(r.atoms)} atoms (resolved: {r.resolved})')
+                    subsegments = residues.state_bounds(lambda x: 'RESOLVED' if x.resolved else 'MISSING')
+                    logger.debug(f'Segment {apparent_segname} has {len(residues)} residues across {len(subsegments)} subsegments')
                 else:
                     logger.debug(f'Calling puniqify on residues of non-protein segment {apparent_segname}')
                     residues.puniquify(fields=['resid'],make_common=['chainID'])
@@ -112,7 +116,7 @@ class Segment(BaseObj):
                             if hasattr(x,'_ORIGINAL_ATTRIBUTES'):
                                 logger.debug(f'    {x.chainID} {x.resname} {x.resid.resid} was {x._ORIGINAL_ATTRIBUTES}')
                     # this assumes residues are in a linear sequence?  not really..
-                    subsegments=residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
+                    subsegments = residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
                 logger.debug(f'Segment {apparent_segname} has {len(residues)} residues across {len(subsegments)} subsegments')
                 input_dict = {
                     'specs': specs,
@@ -336,15 +340,16 @@ class Segment(BaseObj):
                 b.selname = f'{image_seglabel}{i:02d}'
                 run = ResidueList(self.residues[b.bounds[0]:b.bounds[1] + 1])
                 b.pdb = f'segtype_polymer_{image_seglabel}_{run[0].resid.resid}_to_{run[-1].resid.resid}.pdb'
+                logger.debug(f'Writing resolved subsegment {repr(b)} to {b.pdb}')
                 W.addfile(b.pdb)
                 serial_list = run.atom_serials(as_type=int)
-                logger.debug(f'Last atom has serial {serial_list[-1]}')
+                logger.debug(f'Last atom has serial {serial_list[-1]} ({repr(run[-1])})')
                 at = self.parent_molecule.asymmetric_unit.atoms.get(serial=serial_list[-1])
                 if hasattr(at, '__len__'):
                     for a in at:
                         logger.debug(f'whoops: {a.chainID} {a.resid.resid} {a.name} is {a.serial}')
                     raise Exception(f'More than one atom with serial {serial_list[-1]}??')
-                logger.debug(f'here it is {at.serial} {at.resname} {at.name}')
+                logger.debug(f'here it is {at.serial} {at.resname} {at.name} in chain {at.chainID} residue {at.resname}{at.resid.resid}')
                 assert at.resid == run[-1].resid
                 vmd_red_list = reduce_intlist(serial_list)
                 W.addline(f'set {b.selname} [atomselect ${self.parent_molecule.molid_varname} "serial {vmd_red_list}"]')

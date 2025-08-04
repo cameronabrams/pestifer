@@ -106,7 +106,8 @@ def run(args, **kwargs):
             C.config['user'] = {}
         C.config['user']['namd']['processor-type'] = 'gpu'
 
-    C.write_complete_config(f'{cbase}-complete.yaml')
+    if args.complete_config:
+        C.write_complete_config(f'{cbase}-complete.yaml')
     report = C.do_tasks()
     end_time = time.time()
     elapsed_time_s = datetime.timedelta(seconds=(end_time - begin_time))
@@ -418,6 +419,7 @@ def cli():
     command_parsers['run'].add_argument('--output-dir', type=str, default='./', help='name of output directory relative to CWD (default: %(default)s)')
     command_parsers['run'].add_argument('--log-level', type=str, default='debug', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
     command_parsers['run'].add_argument('--gpu', default=False, action='store_true', help='force run on GPU')
+    command_parsers['run'].add_argument('--complete-config', default=False, action='store_true', help='write complete config file')
     command_parsers['fetch-example'].add_argument('index', type=int, default=None, help='example index')
 
     command_parsers['run-example'].add_argument('index', type=int, default=None, help='example index')
@@ -425,6 +427,7 @@ def cli():
     command_parsers['run-example'].add_argument('--config-updates', type=str, nargs='+', default=[], help='yaml files to update example')
     command_parsers['run-example'].add_argument('--log-level', type=str, default='debug', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
     command_parsers['run-example'].add_argument('--gpu', default=False, action='store_true', help='force run on GPU')
+    command_parsers['run-example'].add_argument('--complete-config', default=False, action='store_true', help='write complete config file')
 
     command_parsers['new-system'].add_argument('id', type=str, default=None, help='PDB/AlphaFold ID  of the new system to create')
     command_parsers['new-system'].add_argument('--full', default=False, action='store_true', help='Include full set of tasks in the new system configuration (default: %(default)s)')

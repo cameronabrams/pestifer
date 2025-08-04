@@ -8,13 +8,14 @@ updating artifacts, and handling the results of the simulation.
 
 Usage is described in the :ref:`subs_runtasks_md` documentation.
 """
+import glob
 import logging
 import os
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 from ..core.basetask import VMDTask
-from ..core.artifacts import PDBFile, CharmmffParFile, CharmmffParFiles, CharmmffStreamFile, CharmmffStreamFiles, NAMDVelFile, NAMDXscFile, NAMDLogFile, NAMDCoorFile, NAMDDcdFile, CSVDataFile, NAMDConfigFile, NAMDColvarsConfig, NAMDXstFile, NAMDColvarsOutput, ArtifactData
+from ..core.artifacts import PDBFile, CharmmffParFile, CharmmffParFiles, CharmmffStreamFile, CharmmffStreamFiles, NAMDVelFile, NAMDXscFile, NAMDLogFile, NAMDCoorFile, NAMDDcdFile, CSVDataFile, NAMDConfigFile, NAMDColvarsConfig, NAMDXstFile, NAMDColvarsOutput, ArtifactData, TXTFile
 from ..util.namdcolvars import colvar_writer
 from ..util.util import is_periodic
 
@@ -26,21 +27,23 @@ class MDTask(VMDTask):
     """
     YAML header for the MDTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
-    def do(self):
-        pass
 
-    def execute(self):
+    def __init__(self, *args, **kwargs):
+        """
+        Initialize the MDTask with the given arguments and keyword arguments.
+        This method sets up the task with the provided specifications and prepares it for execution.
+        """
+        super().__init__(*args, **kwargs)
+        self._extra_message = f'ensemble: {self.specs.get("ensemble", "no ensemble")}'
+
+    def do(self):
         """
         Execute the MD task; special messaging is handled here, and do() is stubbed out.
         """
-        self.log_message('initiated',ensemble=self.specs.get('ensemble',None))
-        self.result=self.namdrun()
-        if self.result==0:
-            self.log_message('complete',ensemble=self.specs.get('ensemble',None))
-        else:
-            raise RuntimeError(f'md task failed: {self.result}')
+        self.result = self.namdrun()
+        return self.result
 
-    def namdrun(self,baselabel='',extras={},script_only=False,**kwargs):
+    def namdrun(self, baselabel='', extras={}, script_only=False, **kwargs):
         """
         Run a NAMD simulation based on the specifications provided in the task.
         This method prepares the necessary parameters, writes the NAMD script, and executes it.
@@ -58,11 +61,12 @@ class MDTask(VMDTask):
         **kwargs : dict, optional
             Additional keyword arguments that may include execution options such as `single_gpu_only`.
         """
-        specs=self.specs
-        addl_paramfiles=specs.get('addl_paramfiles',[])
+        logger.debug(f'namdrun called with baselabel {baselabel} and extras {extras}, script_only={script_only}')
+        specs = self.specs
+        addl_paramfiles = specs.get('addl_paramfiles', [])
         logger.debug(f'md task specs {specs}')
-        ensemble=specs['ensemble']
-        if ensemble.casefold() not in ['NPAT'.casefold(),'NPT'.casefold(),'NVT'.casefold(),'minimize'.casefold()]:
+        ensemble = specs['ensemble']
+        if ensemble.casefold() not in ['NPAT'.casefold(), 'NPT'.casefold(), 'NVT'.casefold(), 'minimize'.casefold()]:
             raise Exception(f'Error: {ensemble} is not a valid ensemble type. Must be \'NPAT\', \'NPT\', \'NVT\', or \'minimize\'')
         if not baselabel:
             self.next_basename(ensemble)
@@ -182,6 +186,10 @@ class MDTask(VMDTask):
                 artifact=at(self.basename)
                 if artifact.exists():
                     self.register_current_artifact(artifact)
+            other_files = glob.glob(f'FFTW*txt')
+            for f in other_files:
+                if os.path.isfile(f):
+                    self.register_current_artifact(TXTFile(f.replace('.txt', ''), key='NAMD FFTW warmup'))
             self.coor_to_pdb()
             if hasattr(na.logparser,'dataframes'):
                 for key in na.logparser.dataframes:
