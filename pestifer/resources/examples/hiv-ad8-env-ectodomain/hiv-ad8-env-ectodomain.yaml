@@ -16,10 +16,10 @@
 #
 title: HIV-1 Env Trimer 8fad
 tasks:
+  - fetch:
+      sourceID: 8fad
+      source_format: cif
   - psfgen:
-      source:
-        id: 8fad
-        file_format: mmCIF
       mods:
         crotations:
           - phi,F,29,43,-90.0

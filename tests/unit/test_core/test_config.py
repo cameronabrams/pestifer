@@ -74,8 +74,7 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(len(c['user']['tasks'][0].keys()),1)
         task1=c['user']['tasks'][0]
         name,specs=[(x,y) for x,y in task1.items()][0]
-        self.assertEqual(name,'psfgen')
-        self.assertTrue('source' in specs)
+        self.assertEqual(name,'fetch')
         self.assertEqual(specs['source']['id'],'4zmj')
         sourcespecs=specs['source']
         self.assertTrue('transform_reserves' in sourcespecs)
@@ -127,11 +126,11 @@ class ConfigTest(unittest.TestCase):
             with open(f'{configfile}-complete.yaml','w') as f:
                 yaml.dump(U,f)
             tasks=U['tasks']
-            self.assertTrue('psfgen' in tasks[0])
-            specs=tasks[0]['psfgen']
+            self.assertTrue('fetch' in tasks[0])
+            specs=tasks[1]['psfgen']
             self.assertTrue('source' in specs)
             self.assertTrue('mods' in specs)
             self.assertTrue('ssbondsdelete' in specs['mods'])
-            source_specs=specs['source']
-            self.assertTrue('id' in source_specs or 'alphafold' in source_specs)
+            # source_specs=specs['source']
+            # self.assertTrue('id' in source_specs or 'alphafold' in source_specs)
         os.chdir('..')

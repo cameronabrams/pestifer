@@ -5,9 +5,10 @@
 # Green mamba toxin, demonstration of pdb2pqr usage
 #
 tasks:
+- fetch:
+    sourceID: 1fas
 - psfgen:
     source:
-      id: 1fas
       exclude:
         altlocs:
           - B

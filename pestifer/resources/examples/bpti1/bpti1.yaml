@@ -43,12 +43,8 @@ tasks:
         - - cpu_time
           - wall_time
       units:
-        density: g/cc
         cpu_time: s
         wall_time: s
-      axis-labels:
-        cpu_time: CPU time
-        wall_time: Wall time
       basename: solvated
       grid: True
   - terminate:

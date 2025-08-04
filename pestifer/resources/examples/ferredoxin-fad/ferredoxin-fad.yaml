@@ -1,8 +1,9 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 tasks:
+- fetch:
+    sourceID: 2bgj
 - psfgen:
     source:
-      id: 2bgj
       exclude:
         chains:
           - B

@@ -10,9 +10,10 @@
 #
 title: 5fkw
 tasks:
+  - fetch:
+      sourceID: 5fkw
   - psfgen:
       source:
-        id: 5fkw
         sequence:
           build_zero_occupancy_N_termini: [T]
           loops:

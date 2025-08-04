@@ -98,7 +98,7 @@ class Controller:
         logger.info(f'Running "{self.config["user"]["title"]}"')
         logger.info(f'Controller {self.index:02d} will execute {len(self.tasks)} task{ess}.')
 
-    def do_tasks(self):
+    def do_tasks(self) -> dict:
         """
         Execute the tasks in the order they were defined.
 
@@ -124,37 +124,7 @@ class Controller:
             if task.result != 0:
                 logger.warning(f'Task {task.taskname} failed; task.result {task.result} returned result {returned_result} controller is aborted.')
                 break
-
-        data_artifacts, filelist_artifacts, file_artifacts = self.pipeline.get_artifact_collection_as_lists()
-
-        all_artifact_files = []
-        for artifact in file_artifacts:
-            if not artifact.path.name in all_artifact_files and artifact.path.exists():
-                all_artifact_files.append(artifact.path.name)
-        for artifact in filelist_artifacts:
-            for file_artifact in artifact:
-                if not file_artifact.path.name in all_artifact_files and file_artifact.path.exists():
-                    all_artifact_files.append(file_artifact.path.name)
-
-        all_artifact_files.sort()
-        # logger.debug(f'All artifact files: {all_artifact_files}')
-
-        non_artifact_files = []
-        cwd_files = os.listdir('.')
-        # logger.debug(f'Current working directory files: {cwd_files}')
-        for f in cwd_files:
-            if f not in all_artifact_files:
-                non_artifact_files.append(f)
-
-        logger.debug(f'Non-artifact files in current working directory: {non_artifact_files}')
-
-        # logger.debug(f'Current working directory files: {cwd_files}')
-        # unclaimed_files = []
-        # for f in cwd_files:
-        #     if f not in [x.path.name for x in file_artifacts]:
-        #         unclaimed_files.append(f)
-        # logger.debug(f'Unclaimed files: {unclaimed_files}')
-        # return task_report
+        return task_report
 
     def write_complete_config(self,filename='complete-user.yaml'):
         """ 

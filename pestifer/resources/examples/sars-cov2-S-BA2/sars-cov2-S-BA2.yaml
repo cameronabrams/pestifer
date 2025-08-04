@@ -13,9 +13,10 @@
 #
 title: BA.2 SARS-CoV-2 Spike 7xix, fully glycosylated using grafts, and cleaved
 tasks:
+  - fetch:
+      sourceID: 7xix
   - psfgen:
       source:
-        id: 7xix
         biological_assembly: 1
         sequence:
           loops:

@@ -14,10 +14,11 @@
 #
 title: HIV-1 Env Trimer 8fae
 tasks:
+  - fetch:
+      sourceID: 8fae
+      source_format: cif
   - psfgen:
       source:
-        id: 8fae
-        file_format: mmCIF
         biological_assembly: 1
         remap_chainIDs:
           B: G

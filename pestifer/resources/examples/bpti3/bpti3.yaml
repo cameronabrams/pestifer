@@ -15,9 +15,10 @@
 #
 title: BPTI, no phosphate, some random mutations plus deletion of one disulfide
 tasks:
+  - fetch:
+      sourceID: 6pti
   - psfgen:
       source:
-        id: 6pti
         exclude:
           resnames:
             - PO4

@@ -240,15 +240,6 @@ class BaseTask(ABC):
             extra += f' (result: {self.result})'
         logger.info(f'Controller {self.controller_index:02} Task {self.index:02} \'{self.taskname}\' {message} {extra}')
 
-    # def get_keepfiles(self):
-    #     """ 
-    #     Returns a list of files that should be kept after the task is done.
-    #     """
-    #     if hasattr(self, 'keepfiles'):
-    #         return self.keepfiles
-    #     else:   
-    #         return []
-        
     def next_basename(self, extra_label: str = ''):
         """
         Generates a new basename for the task based on the controller index, task index, subtask count, and task name.

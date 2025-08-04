@@ -14,10 +14,11 @@
 #
 title: Closed, PGT122/35O22-Liganded HIV-1 BG505 Env SOSIP.664 Trimer (ligands removed)
 tasks:
+  - fetch:
+      sourceID: 4tvp
+      source_format: cif
   - psfgen:
       source:
-        id: 4tvp
-        file_format: mmCIF
         biological_assembly: 1
         exclude:
           resnames:

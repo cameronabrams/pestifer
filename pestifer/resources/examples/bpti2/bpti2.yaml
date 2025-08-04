@@ -12,9 +12,10 @@
 #
 title: BPTI with phosphate ion excluded in salty solution
 tasks:
+  - fetch:
+      sourceID: 6pti
   - psfgen:
       source:
-        id: 6pti
         exclude:
           resnames:
             - PO4

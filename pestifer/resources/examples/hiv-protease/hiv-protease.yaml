@@ -25,9 +25,10 @@ psfgen:
       - "ACT OXT O2"
       - "ACT C C2"
 tasks:
+  - fetch:
+      sourceID: 1f7a
   - psfgen:
       source:
-        id: 1f7a
         exclude:
           chains:
             - P

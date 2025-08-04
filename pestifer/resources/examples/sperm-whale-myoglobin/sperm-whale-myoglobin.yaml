@@ -13,9 +13,9 @@
 
 title: Sperm whale myoglobin
 tasks:
+  - fetch:
+      sourceID: 1mob
   - psfgen:
-      source:
-        id: 1mob
   - md:
       ensemble: minimize
   - solvate:

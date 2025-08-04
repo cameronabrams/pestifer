@@ -13,9 +13,10 @@
 #
 title: BPTI, no phosphate, introducing a disulfide via mutations
 tasks:
+  - fetch:
+      sourceID: 6pti
   - psfgen:
       source:
-        id: 6pti
         exclude:
           resnames:
             - PO4 # we don't need no stinkin phosphates

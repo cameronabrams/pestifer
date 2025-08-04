@@ -13,9 +13,11 @@
 #
 title: hexameric insulin
 tasks:
+  - fetch:
+      sourceID: 2ins
+      source_format: pdb
   - psfgen:
       source:
-        id: 2ins
         biological_assembly: 1
         exclude:
           resnames:

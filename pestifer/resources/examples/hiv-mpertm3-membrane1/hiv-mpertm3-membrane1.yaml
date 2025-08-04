@@ -7,9 +7,10 @@
 #
 title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in DMPC/DHPC bilayer
 tasks:
+  - fetch:
+      sourceID: 6e8w
   - psfgen:
       source:
-        id: 6e8w
         model: 15 # last frame
   - md:
       cpu-override: True

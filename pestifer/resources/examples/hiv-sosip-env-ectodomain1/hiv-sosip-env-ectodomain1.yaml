@@ -17,9 +17,10 @@
 #
 title: Closed, Unliganded HIV-1 BG505 Env SOSIP-664 Trimer
 tasks:
+  - fetch:
+      sourceID: 4zmj
   - psfgen:
       source:
-        id: 4zmj
         biological_assembly: 1
         transform_reserves:
           G: [H,J]
