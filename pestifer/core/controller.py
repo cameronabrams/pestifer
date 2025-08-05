@@ -6,14 +6,18 @@ the tasks.
 """
 import logging
 import os
+
 from .config import Config
 from .pipeline import PipelineContext
-from .scripters import Filewriter, PsfgenScripter, VMDScripter, NAMDScripter
-from .stringthings import my_logger
-from ..tasks.terminate import TerminateTask
-from ..util.util import inspect_package_dir
+from .basetask import BaseTask, TaskList
 
-from .. import tasks
+from ..scripters.filewriter import Filewriter
+from ..scripters.namdscripter import  NAMDScripter
+from ..scripters.packmolscripter import PackmolScripter
+from ..scripters.psfgenscripter import PsfgenScripter
+from ..scripters.tclscripters import VMDScripter
+
+from ..tasks import task_classes, TerminateTask
 
 logger = logging.getLogger(__name__)
 
@@ -45,18 +49,17 @@ class Controller:
         self.config = config
         self.config['user'].update(userspecs)
 
-        # Use introspection to find all Task classes in the tasks subpackage
-        task_classes, dummy = inspect_package_dir(os.path.dirname(tasks.__file__))
         logger.debug(f'task_classes {task_classes}')
 
         # set up the task list
-        self.tasks = []
-        prior_task = None
+        self.tasks = TaskList([])
+        prior_task: BaseTask = None
         self.pipeline = PipelineContext(controller_index=self.index, 
                                         scripters={
                                             'psfgen': PsfgenScripter(self.config),
                                             'vmd': VMDScripter(self.config),
                                             'namd': NAMDScripter(self.config),
+                                            'packmol': PackmolScripter(self.config),
                                             'data': Filewriter()
                                         }, 
                                         global_config=self.config['user'],
@@ -72,7 +75,7 @@ class Controller:
             logger.debug(f'{taskname}: {task_specs}')
             # specs={} if not config_specs else config_specs.copy()
             # Ensure the name of the task is among the implemented Tasks
-            class_name = [name for name, cls in task_classes.items() if cls._yaml_header == taskname][0]
+            class_name = task_classes.get(taskname, None)
             # Create this Task instance:
             #   1. Get the class type
             #   2. Initialize the instance with 

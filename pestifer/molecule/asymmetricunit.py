@@ -17,16 +17,14 @@ from .residue import Residue, ResidueList, ResiduePlaceholderList
 from .segment import SegmentList
 
 from ..core.objmanager import ObjManager
-from ..core.stringthings import my_logger
 
 from ..objs.graft import GraftList
 from ..objs.link import LinkList
 from ..objs.mutation import Mutation, MutationList
 from ..objs.patch import PatchList
-from ..objs.resid import ResID
 from ..objs.seqadv import SeqadvList
 from ..objs.ssbond import SSBondList
-from ..objs.ter import Ter, TerList
+from ..objs.ter import TerList
 
 from ..psfutil.psfcontents import PSFContents
 

@@ -3,19 +3,22 @@
 A Link is a covalent bond between two residues in a protein structure.
 """
 import logging
-logger = logging.getLogger(__name__)
-from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 
-from .patch import Patch, PatchList
-from ..molecule.transform import Transform
+from mmcif.api.PdbxContainers import DataContainer
+from pidibble.pdbrecord import PDBRecord, PDBRecordDict
+from pydantic import Field
+from typing import ClassVar, Any
+
+from .patch import PatchList
+from .resid import ResID
+
 from ..core.baseobj import BaseObj, BaseObjList
-from ..core.scripters import PsfgenScripter, Filewriter
+
 from ..util.cifutil import CIFdict
 from ..util.coord import ic_reference_closest
-from typing import ClassVar, Any
-from pydantic import Field
-from mmcif.api.PdbxContainers import DataContainer
-from .resid import ResID
+
+logger = logging.getLogger(__name__)
+
 class Link(BaseObj):
     """
     A class for handling covalent bonds between residues where at least one residue is non-protein
@@ -409,49 +412,6 @@ class Link(BaseObj):
             logger.warning(f'Could not identify patch for link {self.resname1}-{self.resname2}')
             self.patchname = 'UNFOUND'
 
-    def write_TcL(self, W: PsfgenScripter, transform):
-        """
-        Insert the appropriate TcL commands to add this link in a psfgen script
-        
-        Assumes that if one of the two residues is an asparagine and the other is a 
-        from a glycan, this requires an CHARMM NGLB patch
-
-        A 2->6 intraglycan linkage requies the SA26T patch
-
-        Others' patches are named 1xij where x is the carbon number of the upstream monomer,
-        and i and j indicate whether the bond is axial or equatorial.
-        
-        Parameters
-        ----------
-        W : PsfgenScripter
-            the psfgen scriptwriter object
-        transform : Transform
-            the designated transform under which this link is operational; used for its chainIDmap
-        """
-        chainIDmap=transform.chainIDmap
-        seg1=self.residue1.chainID
-        seg1=chainIDmap.get(seg1,seg1)
-        seg2=self.residue2.chainID
-        seg2=chainIDmap.get(seg2,seg2)
-        resid1=self.residue1.get_resid()
-        resid2=self.residue2.get_resid()
-        logger.debug(f'Link: {self.residue1.chainID}->{seg1}:{resid1} {self.residue2.chainID}->{seg2}:{resid2}')
-        if not self.patchname=='UNFOUND':
-            write_post_regenerate=self.patchname in Patch.after_regenerate_patches
-            if self.patchhead==1:
-                if write_post_regenerate:
-                    W.addpostregenerateline(f'patch {self.patchname} {seg1}:{resid1} {seg2}:{resid2}')
-                else:
-                    W.addline(f'patch {self.patchname} {seg1}:{resid1} {seg2}:{resid2}')
-            elif self.patchhead==2:
-                if write_post_regenerate:
-                    W.addpostregenerateline(f'patch {self.patchname} {seg2}:{resid2} {seg1}:{resid1}')
-                else:   
-                    W.addline(f'patch {self.patchname} {seg2}:{resid2} {seg1}:{resid1}')
-        else:
-            logger.warning(f'Could not identify patch for link: {str(self)}')
-            W.comment(f'No patch found for {str(self)}')
-
     def update_residue(self, idx, **fields):
         """
         Updates the chainID of the residue in the link based on the index provided
@@ -611,20 +571,6 @@ class LinkList(BaseObjList[Link]):
         self.remove(removed_links)
         return removed_links
 
-    def write_TcL(self, W:PsfgenScripter, transform:Transform):
-        """
-        Write the Tcl commands to add all links in this list to a psfgen script
-        
-        Parameters
-        ----------
-        W : PsfgenScripter
-            the psfgen scriptwriter object
-        transform : Transform
-            the designated transform under which these links are operational; used for its chainIDmap
-        """
-        for l in self:
-            l.write_TcL(W, transform)
-
     def prune_mutations(self, Mutations, Segments):
         """
         Prune off any links and associated objects as a result of mutations
@@ -688,9 +634,8 @@ class LinkList(BaseObjList[Link]):
         self.map_attr('segtype1','resname1', map)
         self.map_attr('segtype2','resname2', map)
 
-    def report(self, W:Filewriter):
+    def report(self) -> str:
         """
         Report the string representation of each link in the list.
         """
-        for l in self:
-            W.addline(str(l))
+        return "\n".join([repr(l) for l in self])

@@ -238,7 +238,7 @@ class ObjManager(UserDict):
                         assert isinstance(r.resid, ResID)
                         matches = obj.wildmatch(resid=r.resid)
                         if matches:
-                            logger.debug(f'{obj.__class__.__name__} {obj} matches residue {r.describe()}')
+                            logger.debug(f'{obj.__class__.__name__} {obj} matches residue {repr(r)}')
                             if not obj in expelled_objs:
                                 expelled_objs.append(obj)
                         # else:

@@ -4,6 +4,7 @@ import yaml
 from pestifer.core.example import Example, ExampleList
 
 class TestExample(unittest.TestCase):
+    
     def test_example_creation(self):
         example = Example(name="example1", pdbID='abc123', description="This is an example", index=1)
         self.assertEqual(example.name, "example1")

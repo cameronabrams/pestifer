@@ -14,7 +14,6 @@ logger=logging.getLogger(__name__)
 from pydantic import Field
 from typing import ClassVar
 from ..core.baseobj import BaseObj, BaseObjList
-from ..core.scripters import VMDScripter, PsfgenScripter
 from .resid import ResID
 
 class Crot(BaseObj):
@@ -178,54 +177,7 @@ class Crot(BaseObj):
                 return f'{self.angle},{self.segnamei},{self.resid1.resid},{self.atomi},{self.segnamejk},{self.residj.resid},{self.atomj},{self.residk.resid},{self.atomk},{self.degrees:.4f}'
             case 'ALPHA' | 'alpha':
                 return f'{self.angle},{self.chainID},{self.resid1.resid},{self.resid2.resid},{self.resid3.resid}'
-
-    def write_TcL(self, W:VMDScripter, chainIDmap={}, **kwargs):
-        """
-        Write the Tcl commands to perform the C-rotation in a VMD script.
-        
-        Parameters
-        ----------
-        W : VMDScripter
-            The VMD script writer object to which the Tcl commands will be written.
-        chainIDmap : dict, optional
-            A dictionary mapping original chain IDs to new chain IDs. If not provided, the original chain ID will be used.
-        **kwargs : dict, optional
-            Additional keyword arguments that may be used in the future.
-        """
-        the_chainID = chainIDmap.get(self.chainID, self.chainID)
-        molid_varname = W.molid_varname
-        molid = f'${molid_varname}'
-        # endIsCterm=kwargs.get('endIsCterm',True)
-        if self.angle in ['PHI', 'PSI', 'OMEGA']:
-            W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid, the_chainID, self.resid1.resid))
-            W.addline('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid, the_chainID, self.resid2.resid))
-            if self.resid1 <= self.resid2:
-                direction = 'C'
-            else:
-                direction = 'N'
-            W.addline(f'brot {molid} $r1 $r2 {self.angle.lower()} {direction} {self.degrees}')
-            # if endIsCterm:
-            #     W.addline('Crot_{}_toCterm $r1 $r2 {} {} {}'.format(self.angle.lower(),the_chainID,molid,self.degrees))
-            # else:
-            #     W.addline('Crot_{} $r1 $r2 {} {} {}'.format(self.angle.lower(),the_chainID,molid,self.degrees))
-        elif self.angle in ['CHI1','CHI2']:  # this is a side-chain bond
-            W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resid1.resid))
-            W.addline(f'brot {molid} $r1 -1 {self.angle[:-1].lower()} {self.angle[-1]} {self.degrees}')
-        elif self.angle=='ANGLEIJK':
-            W.addline('set rotsel [atomselect {} "segname {}"]'.format(molid,self.segnamejk))
-            W.addline('set ri [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamei,self.residi.resid,self.atomi))
-            W.addline('set rj [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamejk,self.residj.resid,self.atomj))
-            W.addline('set rk [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,self.segnamejk,self.residk.resid,self.atomk))
-            W.addline('set rij [vecsub $ri $rj]')
-            W.addline('set rjk [vecsub $rj $rk]')
-            W.addline('set cijk [veccross $rij $rjk]')
-            W.addline('$rotsel move [trans center $rj origin $rj axis $cijk {} degrees]'.format(self.degrees))
-        elif self.angle=='ALPHA':
-            W.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resid1.resid))
-            W.addline('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resid2.resid))
-            W.addline('set rterm [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,self.resid3.resid))
-            W.addline('fold_alpha $r1 $r2 $rterm {}'.format(molid))
-
+            
 class CrotList(BaseObjList[Crot]):
     """
     A class for managing lists of Crot objects.
@@ -244,18 +196,18 @@ class CrotList(BaseObjList[Crot]):
         """
         return f"CrotList with {len(self)} Crot objects"
 
-    def write_TcL(self,W:PsfgenScripter,chainIDmap={},**kwargs):
-        """
-        Write the Tcl commands for all Crot objects in the list.
+    # def write_TcL(self,W:PsfgenScripter,chainIDmap={},**kwargs):
+    #     """
+    #     Write the Tcl commands for all Crot objects in the list.
         
-        Parameters
-        ----------
-        W : PsfgenScripter
-            The Psfgen script writer object to which the Tcl commands will be written.
-        chainIDmap : dict, optional
-            A dictionary mapping original chain IDs to new chain IDs. If not provided, the original chain ID will be used.
-        **kwargs : dict, optional
-            Additional keyword arguments that may be used in the future.
-        """
-        for c in self:
-            c.write_TcL(W,chainIDmap=chainIDmap,**kwargs)
+    #     Parameters
+    #     ----------
+    #     W : PsfgenScripter
+    #         The Psfgen script writer object to which the Tcl commands will be written.
+    #     chainIDmap : dict, optional
+    #         A dictionary mapping original chain IDs to new chain IDs. If not provided, the original chain ID will be used.
+    #     **kwargs : dict, optional
+    #         Additional keyword arguments that may be used in the future.
+    #     """
+    #     for c in self:
+    #         c.write_TcL(W,chainIDmap=chainIDmap,**kwargs)

@@ -11,7 +11,6 @@ from pydantic import Field
 from typing import ClassVar
 
 from ..core.baseobj import BaseObj, BaseObjList
-from ..core.scripters import VMDScripter
 
 class Orient(BaseObj):
     """
@@ -65,31 +64,6 @@ class Orient(BaseObj):
             else:
                 raise ValueError(f"Invalid format for Orient: {args[0]}")
         return super()._adapt(*args, **kwargs)
-
-    def write_TcL(self, W:VMDScripter):
-        """
-        Write the Tcl commands to orient the coordinate set in VMD.
-        This method generates the Tcl commands to orient the coordinate set along the specified axis
-        and optionally align it with a reference atom. The commands are written to the provided VMD
-        script writer object.
-        
-        Parameters
-        ----------
-        W: VMD
-            The VMD script writer object to which the Tcl commands will be written.
-        """
-        W.addline('set a [atomselect top all]')
-        W.addline('set I [draw principalaxes $a]')
-        adict=dict(x=r'{1 0 0}',y=r'{0 1 0}',z=r'{0 0 1}')
-        W.addline(f'set A [orient $a [lindex $I 2] {adict[self.axis]}]')
-        W.addline(r'$a move $A')
-        if hasattr(self,'refatom'):
-            W.addline(r'set com [measure center $a]')
-            W.addline(r'$a moveby [vecscale $com -1]')
-            W.addline(f'set z [[atomselect top "name {self.refatom}"] get z]')
-            W.addline(r'if { $z < 0.0 } {')
-            W.addline(r'   $a move [transaxis x 180 degrees]')
-            W.addline(r'}')
             
 class OrientList(BaseObjList[Orient]):
     """
@@ -100,17 +74,3 @@ class OrientList(BaseObjList[Orient]):
 
     def describe(self):
         return f'<OrientList with {len(self)} orientations>'
-
-    def write_TcL(self, W:VMDScripter):
-        """
-        Write the Tcl commands for each Orient object in the list.
-        This method iterates over each Orient object in the list and calls its `write_TcL` method   
-        to generate the Tcl commands. The commands are written to the provided VMD script writer object.
-        
-        Parameters
-        ----------
-        W: VMD
-            The VMD script writer object to which the Tcl commands will be written.
-        """
-        for c in self:
-            c.write_TcL(W)

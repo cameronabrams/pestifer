@@ -7,7 +7,7 @@ import logging
 import os
 import shutil
 from .logparsers import NAMDLog
-from ..core.scripters import Filewriter
+from ..scripters.filewriter import Filewriter
 from ..core.stringthings import ByteCollector
 
 logger=logging.getLogger(__name__)

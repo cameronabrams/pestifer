@@ -14,9 +14,12 @@ Available tasks that inherit from :class:`BaseTask` include all those in the :mo
 """
 from __future__ import annotations
 import logging
+
 from abc import ABC, abstractmethod
-from .pipeline import PipelineContext
+from collections import UserList
+
 from .artifacts import TclScript, PDBFile, NAMDCoorFile, VMDLogFile, Artifact, ArtifactList
+from .pipeline import PipelineContext
 
 logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -256,6 +259,14 @@ class BaseTask(ABC):
         basename = overwrite_basename if overwrite_basename else default_basename
         self.basename = basename
         self.subtaskcount += 1
+
+class TaskList(UserList[BaseTask]):
+    """ 
+    A list of BaseTask objects.
+    """
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
 class VMDTask(BaseTask, ABC):
     """

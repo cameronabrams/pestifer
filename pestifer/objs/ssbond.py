@@ -13,7 +13,6 @@ from pydantic import Field
 from typing import ClassVar, Optional, Any, Dict, Set
 
 from ..core.baseobj import BaseObj, BaseObjList
-from ..core.scripters import PsfgenScripter
 from ..molecule.transform import Transform
 from .mutation import MutationList
 from .patch import PatchList
@@ -204,28 +203,6 @@ class SSBond(BaseObj):
                 '{:6.2f}'.format(self.length)
         return pdbline
 
-    def write_TcL(self, W: PsfgenScripter, transform: Transform):
-        """
-        Writes the Tcl command to create a disulfide bond in a Psfgen script using the DISU patch. This method generates the Tcl command to create a disulfide bond between two CYS residues
-        in a protein. It uses the chainID mapping from the Transform object to ensure that the
-        correct chain IDs are used in the command.
-        
-        Parameters
-        ----------
-        W : PsfgenScripter
-            The Psfgen script writer object to which the Tcl command will be written.
-        transform : Transform
-            A Transform object that contains the chainID mapping for the SSBond.
-        """
-        chainIDmap=transform.chainIDmap 
-        # ok since these are only going to reference protein segments; protein segment names are the chain IDs
-        logger.debug(f'writing patch for {self}')
-        c1 = chainIDmap.get(self.chainID1, self.chainID1)
-        c2 = chainIDmap.get(self.chainID2, self.chainID2)
-        r1 = self.resid1.resid
-        r2 = self.resid2.resid
-        W.addline(f'patch DISU {c1}:{r1} {c2}:{r2}')
-
 class SSBondList(BaseObjList[SSBond]):
     """
     A class for handling a list of SSBond objects.
@@ -290,23 +267,6 @@ class SSBondList(BaseObjList[SSBond]):
         ignored_by_ptnr1=self.assign_objs_to_attr('residue1',Residues,chainID='chainID1',resid='resid1')
         ignored_by_ptnr2=self.assign_objs_to_attr('residue2',Residues,chainID='chainID2',resid='resid2')
         return self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
-    
-    def write_TcL(self,W:PsfgenScripter,transform):
-        """
-        Writes the Tcl commands to create disulfide bonds in a Psfgen script.
-        This method iterates over each SSBond in the list and writes the Tcl command to create
-        the disulfide bond using the DISU patch. It uses the chainID mapping from the Transform
-        object to ensure that the correct chain IDs are used in the command.
-        
-        Parameters
-        ----------
-        W : PsfgenScripter
-            The Psfgen script writer object to which the Tcl commands will be written.
-        transform : Transform
-            A Transform object that contains the chainID mapping for the SSBonds.
-        """
-        for s in self:
-            s.write_TcL(W,transform)
 
     def prune_mutations(self, Mutations:MutationList) -> 'SSBondList':
         """

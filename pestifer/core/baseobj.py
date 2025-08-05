@@ -161,9 +161,13 @@ class BaseObj(BaseModel):
         data = {}
         for field_name, value in self.__dict__.items():
             if isinstance(value, BaseObj):
+                logger.debug(f"Serializing nested BaseObj field '{field_name}' in {self.__class__.__name__}")
                 data[field_name] = value  # preserve as BaseObj instance
             else:
                 data[field_name] = value  # normal field
+        logger.debug('Serialized data:')
+        for k, v in data.items():
+            logger.debug(f"  {k}: {v} (type {type(v)})")
         return data
 
     def set(self, shallow=False, **fields):
@@ -213,8 +217,10 @@ class BaseObj(BaseModel):
             if k not in self._ignore_fields
         }
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, self.__class__):
+    def __eq__(self, other: BaseObj | dict) -> bool:
+        if isinstance(other, dict):
+            return self.dict_for_comparison() == other
+        if not isinstance(other, self.__class__) and not isinstance(other, dict):
             return False
         return self.dict_for_comparison() == other.dict_for_comparison()
 
@@ -294,10 +300,9 @@ class BaseObj(BaseModel):
         This allows for substring matching in the field names.
         """
         for substr, target_val in fields.items():
-            logger.debug(f"Checking wildmatch for {substr}={target_val} of type {type(target_val)} in {self.__class__.__name__}")
+            logger.debug(f"Checking requested {substr}={target_val} of type {type(target_val)} in {self.__class__.__name__}")
             match_found = False
             for k, v in self.model_dump().items():
-                logger.debug(f"Checking field {k} with value {v} of type {type(v)}")
                 if substr in k and v == target_val:
                     match_found = True
                     break

@@ -14,12 +14,12 @@ class TestPipeline(unittest.TestCase):
         self.assertIsInstance(added_artifact, Artifact)
         self.assertIsInstance(added_artifact, PDBFile)
         self.assertEqual(added_artifact.key, 'pdb')
-        self.assertEqual(added_artifact.value, '1gc1')
+        self.assertEqual(added_artifact.data, '1gc1')
         self.assertEqual(added_artifact.path, Path('1gc1.pdb'))
         self.assertEqual(added_artifact.produced_by, 'I am the maker')
-        returned_artifact_value = pipeline.get_artifact_value('pdb')
-        self.assertIsNotNone(returned_artifact_value)
-        self.assertEqual(returned_artifact_value, '1gc1')
+        returned_artifact_data = pipeline.get_artifact_data('pdb')
+        self.assertIsNotNone(returned_artifact_data)
+        self.assertEqual(returned_artifact_data, '1gc1')
 
     def test_pipeline_history(self):
         pipeline = PipelineContext()

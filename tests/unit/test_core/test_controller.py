@@ -5,6 +5,7 @@ from pestifer.core.controller import Controller
 from pestifer.core.resourcemanager import ResourceManager
 
 class TestController(unittest.TestCase):
+
     def test_controller_base(self):
         RM=ResourceManager()
         EM=RM.example_manager
@@ -13,5 +14,5 @@ class TestController(unittest.TestCase):
         config=Config(configfile)
         C=Controller(config,index=1)
         self.assertEqual(C.config['user']['title'],'Bovine Pancreatic Trypsin Inhibitor (BPTI)')
-        self.assertEqual(len(C.tasks),12)
+        self.assertEqual(len(C.tasks),13)
         self.assertEqual(C.index,1)

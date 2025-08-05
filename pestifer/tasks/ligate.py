@@ -62,7 +62,7 @@ class LigateTask(MDTask):
         self.next_basename('gaps')
         mol=self.base_molecule
         inputfile=f'{self.basename}.inp'
-        writer=self.scripters['data']
+        writer = self.pipeline.get_scripter('data')
         writer.newfile(inputfile)
         mol.write_gaps(writer)
         writer.writefile()

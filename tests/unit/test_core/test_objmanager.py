@@ -10,7 +10,7 @@ from pestifer.objs.resid import ResID
 
 class TestObjManager(unittest.TestCase):
 
-    def test_obj_manager_initialization(self):
+    def test_objmanager_initialization(self):
         O=ObjManager()
         self.assertEqual(len(O._obj_classes),16)
         sample_yaml = 'mutations'
@@ -22,7 +22,7 @@ class TestObjManager(unittest.TestCase):
         self.assertEqual(LCls, MutationList)
         self.assertEqual(LCls._item_type, Mutation)
 
-    def test_obj_manager_ingest_obj(self):
+    def test_objmanager_ingest_obj(self):
         O=ObjManager()
         mut = Mutation('C:THR,154,GLY')
         O.ingest(mut)
@@ -42,7 +42,7 @@ class TestObjManager(unittest.TestCase):
         self.assertIn('links', O['topol'])
         self.assertIsInstance(O['topol']['links'], LinkList)
 
-    def test_obj_manager_ingest_dict(self):
+    def test_objmanager_ingest_dict(self):
         O=ObjManager()
         input_specs = {
             'mutations': MutationList([Mutation('C:THR,154,GLY'), Mutation('C:ALA,155,VAL')]),
@@ -61,7 +61,7 @@ class TestObjManager(unittest.TestCase):
         self.assertIn('links', O['topol'])
         self.assertIsInstance(O['topol']['links'], LinkList)
 
-    def test_obj_manager_ingest_objlist(self):
+    def test_objmanager_ingest_objlist(self):
         O=ObjManager()
         mut_list = MutationList([Mutation('C:THR,154,GLY'), Mutation('C:ALA,155,VAL')])
         O.ingest(mut_list)
@@ -77,7 +77,7 @@ class TestObjManager(unittest.TestCase):
         self.assertIsInstance(O['seq']['insertions'], InsertionList)
         self.assertEqual(len(O['seq']['insertions']), 2)
 
-    def test_obj_manager_filter_copy(self):
+    def test_objmanager_filter_copy(self):
         O=ObjManager()
         for C in 'ABCDE':
             for i in range(5):
@@ -101,7 +101,7 @@ class TestObjManager(unittest.TestCase):
         self.assertEqual(len(mutations_only['seq']['mutations']), 25)
         self.assertNotIn('deletions', mutations_only['seq'])
 
-    def test_obj_manager_expel(self):
+    def test_objmanager_expel(self):
         O=ObjManager()
         for C in 'ABCDE':
             for i in range(5):

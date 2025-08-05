@@ -11,14 +11,12 @@ import logging
 
 from pydantic import Field
 logger = logging.getLogger(__name__)
-import os
 
 from pydantic import Field
 from typing import ClassVar
 from ..core.baseobj import BaseObj, BaseObjList
-from ..core.scripters import PsfgenScripter
-from .link import Link, LinkList
-from ..molecule.residue import Residue, ResidueList
+from .link import LinkList
+from ..molecule.residue import ResidueList
 from .resid import ResID, ResIDList
 
 class Graft(BaseObj):
@@ -75,6 +73,7 @@ class Graft(BaseObj):
     _mover_residues: ResidueList = None
     _index_residues: ResidueList = None
     _my_links: LinkList = None
+    _segfile: str = None
 
     @classmethod
     def _adapt(cls, *args, **kwargs) -> dict:
@@ -259,99 +258,6 @@ class Graft(BaseObj):
         for l in self._my_links:
             res+=f'  -> link {str(l)}\n'
         return res
-
-    def write_pre_segment(self, W:PsfgenScripter):
-        """
-        Write the pre-segment Tcl commands for the graft operation.
-        This method generates the Tcl commands to prepare the graft operation in VMD.
-        It sets up the molecule information, selects the appropriate atoms for the graft,
-        and applies a transformation to align the graft with the target segment in the base molecule.
-        It also writes the grafted segment to a PDB file.
-
-        Parameters
-        ----------
-        W : PsfgenScripter
-            The Psfgen script writer object to which the Tcl commands will be written.
-        """
-        W.comment(f'{str(self)}')
-        W.addline(f'set topid [molinfo ${W.molid_varname} get id]')
-        if os.path.exists(f'{self.source_pdbid}.pdb'):
-            W.addline(f'mol new {self.source_pdbid}.pdb')
-        else:
-            W.addline(f'mol new {self.source_pdbid}')
-        W.addline(f'set graftid [molinfo top get id]')
-        W.addline(f'mol top $topid')
-
-        alignment_target_resid_logic = f'(resid {self.target_root.resid}'
-        if self.target_partner is not None:
-            alignment_target_resid_logic += f' or resid {self.target_partner.resid}'
-        alignment_target_resid_logic += ')'
-        
-        W.addline(f'set target_sel [atomselect $topid "chain {self.target_chainID} and {alignment_target_resid_logic}"]')
-
-        alignment_source_resid_logic = f'(resid {self.source_root.resid}'
-        if self.source_partner is not None:
-            alignment_source_resid_logic += f' or resid {self.source_partner.resid}'
-        if self.source_end is not None:
-            alignment_source_resid_logic += f' or resid {self.source_end.resid}'
-        alignment_source_resid_logic += ')'
-        
-        W.addline(f'set source_sel [atomselect $graftid "chain {self.source_chainID} and {alignment_source_resid_logic}"]')
-        W.addline(f'vmdcon -info "[$source_sel num] atoms in source, [$target_sel num] atoms in target"')
-        
-        # Now we need to select the residues that will be moved
-        # The mover residues are those that are in the source segment *excluding* those used in the alignment
-
-        movers_source_resid_logic = f'(not (resid {self.source_root.resid}'
-        if self.source_partner is not None:
-            movers_source_resid_logic += f' or resid {self.source_partner.resid})'
-        if self.source_end is not None:
-            movers_source_resid_logic += f' and resid <= {self.source_end.resid}'
-        movers_source_resid_logic += ')'
-
-        W.addline(f'set mover_sel [atomselect $graftid "chain {self.source_chainID} and {movers_source_resid_logic}"]')
-        W.addline(f'vmdcon -info "[$mover_sel num] atoms will be moved"')
-        
-        # Now we need to align the mover residues to the target residues
-        # We will use the transidentity command to get the transformation matrix
-        # and then apply it to the mover residues
-
-        # W.addline(f'set TT [transidentity]')
-        W.addline(f'set TT [measure fit $source_sel $target_sel]')
-        W.addline(f'vmdcon -info "Homog. trans. matrix: $TT"')
-        W.addline(f'$mover_sel move $TT')
-        self.segfile=f'graft{self.obj_id}.pdb'
-        new_residlist=[]
-        for y in self._mover_residues:
-            new_residlist.extend([f'{y.resid.resid}' for x in y.atoms])  # r
-        W.addline(f'$mover_sel set resid [list {" ".join(new_residlist)}]')
-        W.addline(f'$mover_sel set chain {self._mover_residues[0].chainID}')
-        W.addline(f'$mover_sel writepdb {self.segfile}')
-        W.addline(f'$mover_sel delete')
-
-    def write_in_segment(self, W:PsfgenScripter):
-        """
-        Write the Tcl commands to add the graft into the active segment of the base molecule.
-        This method generates the Tcl commands to add the graft segment to the active segment
-        of the base molecule in the Psfgen script.
-        
-        Parameters
-        ----------
-        W : PsfgenScripter
-            The Psfgen script writer object to which the Tcl commands will be written."""
-        W.addline (f'    pdb {self.segfile}')
-
-    def write_post_segment(self, W:PsfgenScripter):
-        """
-        Write the Tcl commands to finalize the graft segment in the Psfgen script.
-        This method generates the Tcl commands to finalize the graft segment in the Psfgen script.
-
-        Parameters
-        ----------
-        W : PsfgenScripter
-            The Psfgen script writer object to which the Tcl commands will be written.
-        """
-        W.addline(f'coordpdb {self.segfile} {self.chainID}')
 
     def assign_receiver_residues(self, Residues):
         """

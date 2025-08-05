@@ -8,7 +8,6 @@ logger = logging.getLogger(__name__)
 from typing import ClassVar
 from pydantic import Field
 from ..core.baseobj import BaseObj, BaseObjList
-from ..core.scripters import VMDScripter
 
 class RotTrans(BaseObj):
     """
@@ -103,27 +102,6 @@ class RotTrans(BaseObj):
         """
         return self.shortcode()
 
-    def write_TcL(self,W:VMDScripter,**kwargs):
-        """
-        Write the Tcl commands to perform the move operation in VMD.
-        This method generates the Tcl commands to either translate or rotate a segment in VMD.
-        
-        Parameters
-        ----------
-        W : VMD
-            The VMD script writer object to which the Tcl commands will be written.
-        **kwargs : dict
-            Additional keyword arguments (not used in this method).
-        """
-        molid_varname=W.molid_varname
-        molid=f'${molid_varname}'
-        W.addline(f'set mover [atomselect {molid} all]')
-        if self.movetype=='TRANS':
-            W.addline(f'$mover moveby [list {self.x} {self.y} {self.z}]')
-        elif self.movetype=='ROT':
-            W.addline(f'set COM [measure center $mover weight mass]')
-            W.addline(f'$mover move [trans origin $COM axis {self.axis} {self.angle}]')
-
 class RotTransList(BaseObjList[RotTrans]):
     """
     A class for handling lists of RotTrans objects.
@@ -141,19 +119,3 @@ class RotTransList(BaseObjList[RotTrans]):
             A string description of the RotTransList object, including the number of items in the list.
         """
         return f'<RotTransList: {len(self)} items>'
-
-    def write_TcL(self,W:VMDScripter,**kwargs):
-        """
-        Write the Tcl commands for each RotTrans object in the list.
-        This method iterates over each RotTrans object in the list and calls its `write_TcL` method
-        to generate the Tcl commands. The commands are written to the provided VMD script writer object.
-        
-        Parameters
-        ----------
-        W : VMD
-            The VMD script writer object to which the Tcl commands will be written.
-        **kwargs : dict
-            Additional keyword arguments (not used in this method).
-        """
-        for c in self:
-            c.write_TcL(W,**kwargs)

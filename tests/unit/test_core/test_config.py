@@ -49,15 +49,15 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(len(c['user']['tasks'][0].keys()),1)
         task1=c['user']['tasks'][0]
         name,specs=[(x,y) for x,y in task1.items()][0]
-        self.assertEqual(name,'psfgen')
-        self.assertTrue('source' in specs)
-        self.assertEqual(specs['source']['id'],'6pti')
+        self.assertEqual(name,'fetch')
+        self.assertTrue('sourceID' in specs)
+        self.assertEqual(specs['sourceID'],'6pti')
         task2=c['user']['tasks'][1]
         name,specs=[(x,y) for x,y in task2.items()][0]
-        self.assertEqual(name,'md')
+        self.assertEqual(name,'psfgen')
         task3=c['user']['tasks'][2]
         name,specs=[(x,y) for x,y in task3.items()][0]
-        self.assertEqual(name,'solvate')
+        self.assertEqual(name,'md')
         os.chdir('..')
 
     def test_config_task_source(self):
@@ -75,7 +75,10 @@ class ConfigTest(unittest.TestCase):
         task1=c['user']['tasks'][0]
         name,specs=[(x,y) for x,y in task1.items()][0]
         self.assertEqual(name,'fetch')
-        self.assertEqual(specs['source']['id'],'4zmj')
+        self.assertEqual(specs['sourceID'],'4zmj')
+        task2=c['user']['tasks'][1]
+        name,specs=[(x,y) for x,y in task2.items()][0]
+        self.assertEqual(name,'psfgen')
         sourcespecs=specs['source']
         self.assertTrue('transform_reserves' in sourcespecs)
         resm=sourcespecs['transform_reserves']

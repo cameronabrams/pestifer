@@ -247,7 +247,7 @@ class ExampleList(UserList):
                 example.index = i + 1  # Set index if not already set
 
     @classmethod
-    def from_list_of_dicts(cls, examples_list):
+    def from_list_of_dicts(cls, examples_list) -> 'ExampleList':
         """
         Create an ExampleList from a list of dictionaries.
         

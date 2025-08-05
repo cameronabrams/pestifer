@@ -11,7 +11,6 @@ from pydantic import Field
 from typing import ClassVar
 
 from ..core.baseobj import BaseObj, BaseObjList
-from ..core.scripters import PsfgenScripter
 from .resid import ResID
 
 class Cfusion(BaseObj):
@@ -33,6 +32,8 @@ class Cfusion(BaseObj):
     _yaml_header: ClassVar[str] = 'Cfusions'
     _objcat: ClassVar[str] = 'seq'
     _counter: ClassVar[int] = 0  # Class variable to keep track of Cfusion instances
+
+    _segfile: str = None  # Internal attribute to store the segment file name
 
     @classmethod
     def _adapt(cls, *args, **kwargs) -> dict:
@@ -75,51 +76,6 @@ class Cfusion(BaseObj):
     def shortcode(self) -> str:
         return f"{self.sourcefile}:{self.sourceseg}:{self.resid1.resid}-{self.resid2.resid},{self.chainID}"
 
-    def write_pre_segment(self, W: PsfgenScripter):
-        """
-        Writes the Tcl commands to create a fusion segment in the Psfgen script.
-
-        Parameters
-        ----------
-        W : Psfgen
-            The Psfgen script writer object to which the Tcl commands will be written.
-            This method generates the Tcl commands to create a new segment in the Psfgen
-            script for the fusion of residues from the source coordinate file.
-        """
-
-        W.addline(f'set topid [molinfo top get id]')
-        W.addline(f'mol new {self.sourcefile}')
-        W.addline(f'set cfusid [molinfo top get id]')
-        W.addline(f'mol top $topid')
-        W.addline(f'set fusres [atomselect $cfusid "protein and chain {self.sourceseg} and resid {self.resid1.resid} to {self.resid2.resid}"]')
-        self.segfile=f'Cfusion{self.id}_{self.sourceseg}_{self.resid1.resid}_to_{self.resid2.resid}.pdb'
-        W.addline(f'$fusres writepdb {self.segfile}')
-        W.addline(f'delete $cfusid')
-
-    def write_in_segment(self,W:PsfgenScripter):
-        """
-        Writes the Tcl commands to add the fusion into the active segment of the base molecule.
-
-        Parameters
-        ----------
-        W : Psfgen
-            The Psfgen script writer object to which the Tcl commands will be written.
-            This method generates the Tcl commands to add the fusion segment to the active segment
-            of the base molecule in the Psfgen script.
-        """
-        W.addline (f'    pdb {self.segfile}')
-
-    def write_post_segment(self,W:PsfgenScripter):
-        """
-        Writes the Tcl commands to finalize the fusion segment in the Psfgen script.
-
-        Parameters
-        ----------
-        W : Psfgen
-            The Psfgen script writer object to which the Tcl commands will be written.
-            This method generates the Tcl commands to finalize the fusion segment in the Psfgen script.
-        """
-        W.addline(f'coordpdb {self.segfile} {self.chainID}')
 
 class CfusionList(BaseObjList[Cfusion]):
     def describe(self) -> str:

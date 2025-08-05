@@ -209,11 +209,11 @@ class LabelMappers:
     """
     def __init__(self):
         # process _data to initialize the label mappers
-        self.aliases={}
+        self.aliases = {}
         self.aliases['atom'] = _atom_aliases
         self.aliases['residue'] = _residue_aliases
         self.residue_fullnames = _residue_fullnames
-        self.segtypes=_segtypes
+        self.segtypes = _segtypes
         self.segtype_of_resname = {}
         self.charmm_resname_of_pdb_resname = {}
         self.pdb_resname_of_charmm_resname = {}
@@ -226,7 +226,7 @@ class LabelMappers:
             parts = alias.split()
             resname, alias1 = parts
             self.charmm_resname_of_pdb_resname[resname] = alias1
-            if len(resname)<=3:
+            if len(resname) >= 3:
                 self.pdb_resname_of_charmm_resname[alias1] = resname
     
     def update_segtypes(self, new_segtypes):
@@ -251,7 +251,7 @@ class LabelMappers:
                 if resname not in self.segtype_of_resname:
                     self.segtype_of_resname[resname] = segtype
 
-    def update_atomselect_macros(self,fp):
+    def update_atomselect_macros(self, fp):
         """
         Update the atomselect macros in the file ``fp`` based on the ``segtypes`` dict.
         This is a developer-only feature.  Access to this method is provided by the ``pestifer modify-package`` command (see :func:`pestifer.core.pestifer.modify_package`).

@@ -9,7 +9,6 @@ from pidibble.pdbparse import PDBParser
 from ..util.cifutil import CIFload
 from .asymmetricunit import AsymmetricUnit
 from .bioassemb import BioAssembList,BioAssemb
-from ..core.scripters import PsfgenScripter, Filewriter
 from ..objs.cleavagesite import CleavageSiteList
 from .chainidmanager import ChainIDManager
 logger=logging.getLogger(__name__)
@@ -192,43 +191,6 @@ class Molecule:
             logger.info(f'Activating biological assembly {self.active_biological_assembly.name} (idx {index})')
         self.active_biological_assembly.activate(self.asymmetric_unit, self.chainIDmanager)
         return self
-
-    def write_TcL(self, W: PsfgenScripter):
-        """
-        Write the Tcl commands for the asymmetric unit and biological assemblies to a Psfgen script.
-        This method generates Tcl commands to represent the asymmetric unit and its segments,
-        disulfide bonds, and links in the biological assembly.
-        
-        Parameters
-        ----------
-        W : PsfgenScripter
-            The Psfgen script writer object to which the Tcl commands will be written.
-            This method writes the segments, disulfide bonds, and links of the asymmetric unit
-            and of its active biological assembly to the Psfgen script.
-        """
-        au=self.asymmetric_unit
-        segments=au.segments
-        topomods=au.objmanager.get('topol',{})
-        ssbonds=topomods.get('ssbonds',[])
-        links=topomods.get('links',[])
-        ba=self.active_biological_assembly
-        for transform in ba.transforms:
-            W.banner(f'Transform {transform.index} begins')
-            W.banner('The following mappings of A.U. asym ids is used:')
-            for k,v in transform.chainIDmap.items():
-                W.comment(f'A.U. chain {k}: Image chain {v}')
-            W.banner('Segments follow')
-            segments.write_TcL(W,transform)
-            W.banner('DISU patches follow')
-            if ssbonds:
-                ssbonds.write_TcL(W,transform)
-            W.banner('LINK patches follow')
-            if links:
-                A=Filewriter().newfile('linkreport.txt')
-                links.report(A)
-                A.writefile()
-                links.write_TcL(W,transform)
-            W.banner(f'Transform {transform.index} ends')
 
     def get_chainmaps(self):
         """

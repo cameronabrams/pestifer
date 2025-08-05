@@ -19,7 +19,7 @@ title: HIV-1 Env Trimer 7txd, substitutions, no ligands
 tasks:
   - fetch:
       sourceID: 7txd
-      source_format: mmCIF
+      source_format: cif
   - psfgen:
       source:
         cif_residue_map_file: cif2user.csv

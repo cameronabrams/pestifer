@@ -13,10 +13,10 @@ from pidibble.pdbparse import PDBParser
 import os
 import logging
 from copy import deepcopy
-from ..core.scripters import Filewriter
-logger=logging.getLogger(__name__)
+from ..scripters.filewriter import Filewriter
+logger = logging.getLogger(__name__)
 
-def colvar_writer(specs,scripter:Filewriter,pdb=''):
+def colvar_writer(specs, scripter: Filewriter, pdb=''):
     """
     Writes the colvar specifications to a script writer.
     This function processes the specifications for groups of atoms, distances, and harmonic biases,

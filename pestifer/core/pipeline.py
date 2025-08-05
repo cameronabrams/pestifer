@@ -4,7 +4,7 @@ Pipeline context for managing passing of information from one task to another.
 """
 
 from .artifacts import Artifact, ArtifactFile, ArtifactDict, ArtifactList, ArtifactFileList
-from .scripters import Filewriter
+from ..scripters.filewriter import Filewriter
 from .resourcemanager import ResourceManager
 import logging
 logger = logging.getLogger(__name__)
@@ -73,10 +73,10 @@ class PipelineContext:
     def get_artifact(self, key: str):
         return self.head.get(key, None)
 
-    def get_artifact_value(self, key: str):
+    def get_artifact_data(self, key: str):
         """
-        Retrieve the value of an artifact by its key.
-        
+        Retrieve the data of an artifact by its key.
+
         Parameters
         ----------
         key : str
@@ -89,7 +89,7 @@ class PipelineContext:
         """
         artifact = self.get_artifact(key)
         if artifact:
-            return artifact.value
+            return artifact.data
         return None
 
     def get_artifact_series(self, key: str = '') -> ArtifactList | ArtifactFileList:
@@ -112,7 +112,7 @@ class PipelineContext:
         current = self.get_artifact(key)
         if current:
             series.append(current)
-        if all([hasattr(x, 'path') for x in series.value]):
+        if all([hasattr(x, 'path') for x in series.data]):
             return ArtifactFileList(series)
         return series
 

@@ -59,9 +59,13 @@ class ExampleManager:
             logger.debug(f'info.yaml file {info_file} does not exist in {self.path}. Assuming you have no examples yet')
         else:
             with open(info_file, 'r') as f:
-                self.info = yaml.safe_load(f)
-            if 'examples' not in self.info:
-                raise KeyError(f'info.yaml in {self.path} does not contain examples key')
+                yaml_info = yaml.safe_load(f)
+            if not yaml_info:
+                logger.debug(f'info.yaml file {info_file} is empty in {self.path}. Assuming you have no examples yet.')
+            elif 'examples' not in yaml_info:
+                logger.debug(f'info.yaml in {self.path} does not contain examples key. Assuming you have no examples yet.')
+            else:
+                self.info = yaml_info
         self.examples_list=ExampleList.from_list_of_dicts(self.info['examples'])
 
     def _write_info(self):

@@ -162,6 +162,45 @@ class TestBaseObj(unittest.TestCase):
         obj2 = ConcreteObj(name="Object 2", number=2)
         self.assertTrue(obj1.weak_lt(obj2, attr=['name']))
 
+    def test_baseobj_subclass_nested_wildmatch(self):
+        class SubObj(BaseObj):
+            _required_fields = {'sub_name'}
+            sub_name: str = Field(..., description="Name of the sub-object")
+
+        class RestrictiveObj(SubObj):
+            def __eq__(self, other: RestrictiveObj | dict) -> bool:
+                return self.sub_name == other.sub_name
+
+        class SuperObj(BaseObj):
+            _required_fields = {'super_name', 'sub_object', 'rsub_object'}
+            super_name: str = Field(..., description="Name of the super-object")
+            sub_object: SubObj = Field(..., description="A sub-object")
+            rsub_object: RestrictiveObj = Field(..., description="A restrictive sub-object")
+
+        Sub = SubObj(sub_name="Sub Object 1")
+        OtherSub = SubObj(sub_name="Sub Object 1")
+        ResSub = RestrictiveObj(sub_name="Sub Object 1")
+        self.assertTrue(Sub == OtherSub)
+        self.assertTrue(Sub == ResSub)
+        Sup = SuperObj(super_name="Super Object 1", sub_object=Sub, rsub_object=ResSub)
+        
+        # wildmatch means a keyword can be a substring of the model attribute name
+        # here we use "sub_obj" instead of "sub_object"
+        # using a dict version of a subobject should work thanks pydantic's full serialization of Sup
+        self.assertTrue(Sup.wildmatch(sub_obj={"sub_name": "Sub Object 1"}))
+        # wildmatch will still work since BaseObj __eq__ allows for other to be a dict serialization or a BaseObj instance
+        self.assertTrue(Sup.wildmatch(sub_obj=OtherSub))
+        # returns false -- no key matching
+        self.assertFalse(Sup.wildmatch(sub_xxx="Sub Object 1"))
+
+        # returns true, since we are using a dict and model_dump() as used
+        # in wildmatch() serializes the caller
+        self.assertTrue(Sup.wildmatch(rsub_obj={"sub_name": "Sub Object 1"}))
+
+        with self.assertRaises(AttributeError):
+            # fails because RestrictiveObj overrides __eq__ and only permits self to be a RestrictiveObj 
+            self.assertTrue(Sup.wildmatch(rsub_obj=ResSub))
+
     def test_baseobj_subclass_yamldump(self):
         class ConcreteObj(BaseObj):
             _required_fields = {'name', 'number'}

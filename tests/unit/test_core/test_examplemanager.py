@@ -8,12 +8,17 @@ from pestifer.core.examplemanager import ExampleManager
 class TestExampleManager(unittest.TestCase):
 
     def setUp(self):
+        assert os.getcwd().endswith('tests/unit/test_core/test_examplemanager')
+        assert os.path.isdir('../fixtures')
+        assert os.path.isdir('../fixtures/test_examplemanager_inputs')
+        assert os.path.isdir('../fixtures/test_examplemanager_inputs/project')
+        assert os.path.isdir('../fixtures/test_examplemanager_inputs/userspace')
         if os.path.isdir('./project'):
             shutil.rmtree('./project', ignore_errors=True)
         if os.path.isdir('./userspace'):
             shutil.rmtree('./userspace', ignore_errors=True)
-        shutil.copytree('../fixtures/test_example_manager_inputs/project', './project/', dirs_exist_ok=True)
-        shutil.copytree('../fixtures/test_example_manager_inputs/userspace', './userspace/', dirs_exist_ok=True)
+        shutil.copytree('../fixtures/test_examplemanager_inputs/project', './project/', dirs_exist_ok=True)
+        shutil.copytree('../fixtures/test_examplemanager_inputs/userspace', './userspace/', dirs_exist_ok=True)
         self.manager = ExampleManager(
             example_resource_folder_name = 'examples',
                           resources_path = 'project/package/resources',
@@ -27,6 +32,7 @@ class TestExampleManager(unittest.TestCase):
     def test_example_manager_init(self):
         self.assertIsNotNone(self.manager)
         self.assertEqual(len(self.manager.examples_list), 0)
+        self.assertEqual(self.manager.path, os.path.join(os.getcwd(), 'project', 'package', 'resources', 'examples'))
         self.assertFalse(os.path.isfile(os.path.join(self.manager.path, 'info.yaml')))
         self.assertTrue(os.path.isdir(self.manager.path))
 
