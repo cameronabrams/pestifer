@@ -4,7 +4,6 @@ import logging
 import os
 
 from .tclscripters import TcLScripter
-from ..core.config import Config
 from ..core.command import Command
 from ..util.logparsers import NAMDLog, NAMDxst
 from ..util.progress import NAMDProgress
@@ -20,29 +19,29 @@ class NAMDScripter(TcLScripter):
     config : Config
         The configuration object containing settings for the script.
     """
-    def __init__(self,config:Config):
-        super().__init__(config)
-        self.charmmff=config.RM.charmmff_content
-        self.charmmff_config=config['user']['charmmff']
-        self.charmrun=config.shell_commands['charmrun']
-        self.namd=config.shell_commands['namd3']
-        self.namdgpu=config.shell_commands['namd3gpu']
-        self.namd_type=config.namd_type
-        self.namd_config=config['user']['namd']
-        self.namd_version=int(self.namd_config['namd-version'])
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.charmmff = kwargs.get('charmmff')
+        self.charmmff_config = kwargs.get('charmmff_config')
+        self.charmrun = kwargs.get('charmrun')
+        self.namd = kwargs.get('namd')
+        self.namdgpu = kwargs.get('namd3gpu')
+        self.namd_type = kwargs.get('namd_type')
+        self.namd_config = kwargs.get('namd_config')
+        self.namd_version = int(self.namd_config['namd-version'])
         logger.debug(f'Using NAMD v {self.namd_version}')
-        self.local_ncpus=config.local_ncpus
-        self.ncpus=config.ncpus
-        self.gpu_devices=config.gpu_devices
-        self.slurmvars=config.slurmvars
-        self.ngpus=config.ngpus
-        if self.namd_version==2:
-            self.namd_deprecates={}
+        self.local_ncpus = kwargs.get('local_ncpus')
+        self.ncpus = kwargs.get('ncpus')
+        self.gpu_devices = kwargs.get('gpu_devices')
+        self.slurmvars = kwargs.get('slurmvars')
+        self.ngpus = kwargs.get('ngpus')
+        if self.namd_version == 2:
+            self.namd_deprecates = {}
         else:
-            self.namd_deprecates=config.namd_deprecates
+            self.namd_deprecates = kwargs.get('namd_deprecates')
         logger.debug(f'{self.ncpus} cpus are available for namd')
-        self.default_ext='.namd'
-    
+        self.default_ext = '.namd'
+
     def fetch_standard_charmm_parameters(self):
         """
         Fetch the standard CHARMM parameters from the configuration and copy them to the local directory.

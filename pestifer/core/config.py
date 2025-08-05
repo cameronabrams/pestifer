@@ -16,6 +16,7 @@ from ycleptic.yclept import Yclept
 
 from .resourcemanager import ResourceManager
 from .stringthings import my_logger
+from ..scripters import PsfgenScripter, NAMDScripter, PackmolScripter, VMDScripter, Filewriter
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +54,32 @@ class Config(Yclept):
         self._set_shell_commands(verify_access=(userfile != ''))
         self.RM.update_charmmff(self['user']['charmmff'].get('tarball', ''))
         self.RM.update_pdbrepository(self['user']['charmmff'].get('pdbcollections', []))
+        self.scripters = {
+            'psfgen': PsfgenScripter(charmmff_content=self.RM.charmmff_content,
+                                     charmmff_config=self['user']['charmmff'],
+                                     psfgen_config=self['user']['psfgen']),
+            'namd': NAMDScripter(charmmff=self.RM.charmmff_content,
+                                 charmmff_config=self['user']['charmmff'],
+                                 namd_config=self['user']['namd'],
+                                 namd_deprecates=self['user']['namd'].get('deprecated3', {}),
+                                 local_ncpus=self.local_ncpus,
+                                 ncpus=self.ncpus,
+                                 gpu_devices=self.gpu_devices,
+                                 slurmvars=self.slurmvars,
+                                 ngpus=self.ngpus),
+            'packmol': PackmolScripter(packmol=self.shell_commands['packmol']),
+            'tcl': VMDScripter(vmd=self.shell_commands['vmd'],
+                               tcl_root=self.tcl_root,
+                               tcl_pkg_path=self.tcl_pkg_path,
+                               tcl_script_path=self.tcl_script_path,
+                               vmd_startup_script=self.vmd_startup_script),
+            'data': Filewriter(comment_char='#'),
+            'vmd': VMDScripter(vmd=self.shell_commands['vmd'],
+                               tcl_root=self.tcl_root,
+                               tcl_pkg_path=self.tcl_pkg_path,
+                               tcl_script_path=self.tcl_script_path,
+                               vmd_startup_script=self.vmd_startup_script)
+        }
 
     def _get_processor_info(self):
         """ 
@@ -130,7 +157,7 @@ class Config(Yclept):
         self.namd_deprecates = self['user']['namd']['deprecated3']
 
     def _set_internal_shortcuts(self):
-        self.progress = len(self.slurmvars) == 0
+        self.use_terminal_progress = len(self.slurmvars) == 0
         RM = self.RM
         self.tcl_root = RM.get_tcldir()
         assert os.path.exists(self.tcl_root)

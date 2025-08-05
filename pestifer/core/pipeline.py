@@ -1,22 +1,18 @@
 # Author: ChatGPT with modifications by Cameron F. Abrams, <cfa22@drexel.edu>
 """
-Pipeline context for managing passing of information from one task to another.
+Pipeline context for managing passing of information from one task to another via artifacts.
 """
 
 from .artifacts import Artifact, ArtifactFile, ArtifactDict, ArtifactList, ArtifactFileList
-from ..scripters.filewriter import Filewriter
-from .resourcemanager import ResourceManager
 import logging
+
 logger = logging.getLogger(__name__)
 
 class PipelineContext:
-    def __init__(self, controller_index: int = 0, global_config: dict = {}, scripters: dict[str, Filewriter] = {}, resource_manager: ResourceManager = None):
+    def __init__(self, controller_index: int = 0):
         self.head: ArtifactDict = ArtifactDict()
         self.history: ArtifactList = ArtifactList()
         self.controller_index = controller_index
-        self.global_config = global_config
-        self.scripters = scripters
-        self.resource_manager = resource_manager
 
     def __repr__(self):
         return f"PipelineContext(controller_index={self.controller_index})"

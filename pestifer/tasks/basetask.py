@@ -16,10 +16,9 @@ from __future__ import annotations
 import logging
 
 from abc import ABC, abstractmethod
-from collections import UserList
 
-from .artifacts import TclScript, PDBFile, NAMDCoorFile, VMDLogFile, Artifact, ArtifactList
-from .pipeline import PipelineContext
+from ..core.artifacts import TclScript, PDBFile, NAMDCoorFile, VMDLogFile, Artifact, ArtifactList
+from ..core.pipeline import PipelineContext
 
 logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -60,26 +59,42 @@ class BaseTask(ABC):
     A list of message options that are used to log the initiation of the task.
     """
 
-    def __init__(self, index: int = 0, pipeline: PipelineContext = None, specs: dict = None, prior: BaseTask = None):
+    def __init__(self, specs: dict = None, provisions: dict = None):
         """
         Constructor for the BaseTask class.
         """
-        self.pipeline = pipeline if pipeline else PipelineContext()
         self.specs = specs if specs else {}
-        self.prior = prior
-        if prior:
-            self.index = prior.index + 1
-        else:
-            self.index = index
-
-        self.controller_index = self.pipeline.controller_index
         self.taskname = self.specs.get('taskname', f'{self.taskname}-{self.index:02d}')
+
+        self.provisions = provisions if provisions else {}
+        self.resource_manager = self.provisions.get('resource_manager', None)
+        self.scripters = self.provisions.get('scripters', {})
+        self.subcontroller = self.provisions.get('subcontroller', None)
+        self.controller_index = self.provisions.get('controller_index', 0)
+        self.pipeline = self.provisions.get('pipeline', None)
+        
         self.basename = ''
         self.subtaskcount = 0
         self.result = 0
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} index={self.index} controller_index={self.controller_index} taskname={self.taskname}>"
+        return f"<{self.__class__.__name__} index={self.index} controller_index={self.controller_index} taskname={self.taskname} provisioned?={'Yes' if self.provisions else 'No'} specs={self.specs}>"
+
+    def get_scripter(self, name: str):
+        """
+        Get a scripter by name from the pipeline's scripters.
+        
+        Parameters
+        ----------
+        name : str
+            The name of the scripter to retrieve.
+
+        Returns
+        -------
+        Scripter
+            The scripter instance associated with the given name.
+        """
+        return self.scripters.get(name, None)
 
     @abstractmethod
     def do(self) -> int:
@@ -260,13 +275,6 @@ class BaseTask(ABC):
         self.basename = basename
         self.subtaskcount += 1
 
-class TaskList(UserList[BaseTask]):
-    """ 
-    A list of BaseTask objects.
-    """
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
 
 class VMDTask(BaseTask, ABC):
     """

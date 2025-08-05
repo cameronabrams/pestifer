@@ -29,12 +29,12 @@ class TerminateTask(MDTask):
     It is typically used at the end of a build workflow to finalize the state of the simulation and prepare for termination.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, specs: dict = {}, provisions: dict = {}) :
         """
         Initialize the MDTask with the given arguments and keyword arguments.
         This method sets up the task with the provided specifications and prepares it for execution.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(specs=specs, provisions=provisions)
         self._extra_message = ''
 
     def do(self) -> int:

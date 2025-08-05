@@ -11,7 +11,7 @@ import os
 
 from copy import deepcopy
 
-from ..core.basetask import BaseTask
+from .basetask import BaseTask
 from ..molecule.chainidmanager import ChainIDManager
 from ..molecule.molecule import Molecule
 from ..core.objmanager import ObjManager
@@ -40,8 +40,8 @@ class PsfgenTask(BaseTask):
     """
     YAML header for the PsfgenTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
-    def __init__(self, index: int = 0, pipeline: PipelineContext = None, specs: dict = None, prior: BaseTask = None):
-        super().__init__(index, pipeline, specs, prior)
+    def __init__(self, specs: dict = {}, provisions: dict = {}):
+        super().__init__(specs=specs, provisions=provisions)
         self.molecules = {}
 
     def do(self):

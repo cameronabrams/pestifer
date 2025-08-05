@@ -6,7 +6,7 @@ Usage is described in the :ref:`config_ref tasks restart` documentation.
 """
 import logging
 
-from ..core.basetask import VMDTask
+from .basetask import VMDTask
 from ..core.artifacts import PDBFile, NAMDCoorFile, NAMDXscFile, PSFFile, NAMDVelFile
 logger=logging.getLogger(__name__)
 

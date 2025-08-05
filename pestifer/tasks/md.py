@@ -14,7 +14,7 @@ import os
 
 logger = logging.getLogger(__name__)
 
-from ..core.basetask import VMDTask
+from .basetask import VMDTask
 from ..core.artifacts import PDBFile, CharmmffParFile, CharmmffParFiles, CharmmffStreamFile, CharmmffStreamFiles, NAMDVelFile, NAMDXscFile, NAMDLogFile, NAMDCoorFile, NAMDDcdFile, CSVDataFile, NAMDConfigFile, NAMDColvarsConfig, NAMDXstFile, NAMDColvarsOutput, ArtifactData, TXTFile
 from ..util.namdcolvars import colvar_writer
 from ..util.util import is_periodic
@@ -28,12 +28,12 @@ class MDTask(VMDTask):
     YAML header for the MDTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, specs: dict = {}, provisions: dict = {}):
         """
         Initialize the MDTask with the given arguments and keyword arguments.
         This method sets up the task with the provided specifications and prepares it for execution.
         """
-        super().__init__(*args, **kwargs)
+        super().__init__(specs=specs, provisions=provisions)
         self._extra_message = f'ensemble: {self.specs.get("ensemble", "no ensemble")}'
 
     def do(self):
@@ -74,8 +74,7 @@ class MDTask(VMDTask):
             self.next_basename(baselabel)
         
         params={}
-        global_config = self.pipeline.global_config
-        namd_global_params=global_config['namd']
+        namd_global_params = self.provisions.get('namd_global_config',{})
         psf=self.get_current_artifact_path('psf')
         pdb=self.get_current_artifact_path('pdb')
         coor=self.get_current_artifact_path('coor')

@@ -3,7 +3,7 @@
 Definition of the :class:`InitiateTask` class for initiating a pestifer build.
 """
 
-from ..core.basetask import BaseTask
+from .basetask import BaseTask
 from ..core.artifacts import PDBFile, CIFFile
 from pidibble.pdbparse import PDBParser
 import os

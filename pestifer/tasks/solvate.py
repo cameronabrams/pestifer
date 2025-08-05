@@ -16,7 +16,7 @@ import os
 
 from pidibble.pdbparse import PDBParser
 
-from ..core.basetask import VMDTask
+from .basetask import VMDTask
 from ..core.artifacts import PDBFile, PSFFile, VMDScript, VMDLogFile, NAMDXscFile
 from ..util.util import cell_from_xsc, cell_to_xsc
 

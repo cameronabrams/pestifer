@@ -7,7 +7,7 @@ Usage is described in the :ref:`config_ref tasks manipulate` documentation.
 """
 import logging
 
-from ..core.basetask import BaseTask
+from .basetask import BaseTask
 from ..core.objmanager import ObjManager
 from ..core.artifacts import PDBFile, VMDScript, VMDLogFile
 

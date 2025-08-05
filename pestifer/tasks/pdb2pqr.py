@@ -54,7 +54,7 @@ class PDB2PQRTask(PsfgenTask):
         self.register_current_artifact(PDBFile(self.basename))
         self.register_current_artifact(PSFFile(self.basename))
         self.coor_to_pdb()
-        return 1
+        return 0
     
     def prep_input(self):
         """
@@ -125,7 +125,7 @@ class PDB2PQRTask(PsfgenTask):
             self.prot_deprot_dict={}
             for a in AL:
                 if a.resname in ['HSD','HSE','HSP']:
-                    if not a.resseqnum in self.log_parser.metadata['histidines'][a.resname]:
+                    if not a.resid.resid in self.log_parser.metadata['histidines'][a.resname]:
                         self.log_parser.metadata['histidines'][a.resname].append((a.chainID,a.resseqnum))
 
         logger.debug(f'Protonated/deprotonated histidines: {self.log_parser.metadata["histidines"]}')

@@ -12,7 +12,6 @@ import logging
 from .md import MDTask
 from ..util.namdcolvars import declare_distance_cv_atoms, declare_single_harmonic_distance_bias
 from ..core.artifacts import DataFile, PDBFile, PSFFile, InputFile, VMDScript, VMDLogFile, NAMDColvarsConfig, CharmmffTopFile, PsfgenInputScript
-from ..core.command import Command
 logger=logging.getLogger(__name__)
 
 class LigateTask(MDTask):
@@ -183,7 +182,7 @@ class LigateTask(MDTask):
         self.next_basename('heal')
         pg=self.pipeline.get_scripter('psfgen')
         pg.newscript(self.basename)
-        CC=self.pipeline.global_config.RM.charmmff_content
+        CC=self.pipeline.resource_manager.charmmff_content
         CC.copy_charmmfile_local('pestifer.top')
         charmm_topology_files=self.get_current_artifact_value('charmmff_topfiles')
         charmm_topology_files.append(CharmmffTopFile('pestifer',ext='top'))

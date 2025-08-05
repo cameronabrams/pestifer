@@ -6,7 +6,6 @@ import os
 
 from .filewriter import Filewriter
 from ..core.command import Command
-from ..core.config import Config
 from ..core.stringthings import ByteCollector, FileCollector
 from ..util.logparsers import PackmolLog
 from ..util.progress import PackmolProgress
@@ -21,12 +20,11 @@ class PackmolScripter(Filewriter):
     config : Config
         The configuration object containing settings for the script.
     """
-    def __init__(self, config: Config):
-        super().__init__(comment_char='#')
+    def __init__(self, *args, **kwargs):
+        super().__init__(comment_char=kwargs.get('comment_char', '#'))
         self.indent = 4 * ' '
-        self.config = config
-        self.progress = self.config.progress
-        self.packmol = self.config.shell_commands['packmol']
+        self.progress = kwargs.get('progress', PackmolProgress())
+        self.packmol = kwargs.get('packmol')
         self.F = FileCollector()
         self.default_ext = '.inp'
         self.default_script = f'packmol{self.default_ext}'

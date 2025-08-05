@@ -8,12 +8,9 @@ Usage is described in the :ref:`subs_runtasks_make_membrane_system` documentatio
 import logging
 from copy import deepcopy
 
-from ..core.pipeline import PipelineContext
 from ..charmmff.charmmresidatabase import CHARMMFFResiDatabase
-from ..core.config import Config
-from ..core.controller import Controller
-from ..core.basetask import BaseTask
-from ..core.artifacts import PackmolInputScript,LogFile,PDBFile,PSFFile,NAMDXscFile,TclScript, PDBFileList, PsfgenInputScript, PsfgenLogFile, PackmolLogFile, CharmmffTopFile, CharmmffStreamFile, CharmmffTopFiles, CharmmffStreamFiles,NAMDCoorFile
+from .basetask import BaseTask
+from ..core.artifacts import PackmolInputScript,PDBFile,PSFFile,NAMDXscFile, PDBFileList, PsfgenInputScript, PsfgenLogFile, PackmolLogFile, CharmmffTopFile, CharmmffStreamFile, CharmmffTopFiles, CharmmffStreamFiles,NAMDCoorFile
 from ..core.stringthings import __pestifer_version__
 from ..molecule.bilayer import Bilayer, specstrings_builddict
 from ..psfutil.psfcontents import get_toppar_from_psf
@@ -32,13 +29,12 @@ class MakeMembraneSystemTask(BaseTask):
     """
     YAML header for the MakeMembraneSystemTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
-    def __init__(self, index: int = 0, pipeline: PipelineContext = None, specs: dict = None, prior: BaseTask = None):
-        super().__init__(index=index, pipeline=pipeline, specs=specs, prior=prior)
+    def __init__(self, specs: dict = {}, provisions: dict = {}):
+        super().__init__(specs=specs, provisions=provisions)
         self.patchA=self.patchB=self.patch=None
-        global_config = self.pipeline.global_config
-        self.progress=global_config.progress
-        self.pdbrepository=global_config.RM.charmmff_content.pdbrepository
-        self.charmmff_content=global_config.RM.charmmff_content
+        self.progress= self.provisions.get('progress-flag',True)
+        self.pdbrepository=self.resource_manager.charmmff_content.pdbrepository
+        self.charmmff_content=self.resource_manager.charmmff_content
         self.RDB=CHARMMFFResiDatabase(self.charmmff_content,streamIDs=[])
         self.RDB.add_stream('lipid')
         self.RDB.add_topology('toppar_all36_moreions.str',streamIDoverride='water_ions')
@@ -296,7 +292,7 @@ class MakeMembraneSystemTask(BaseTask):
                         specs['other_parameters']['useflexiblecell']=True
                     if not 'useconstantratio' in specs['other_parameters']:
                         specs['other_parameters']['useconstantratio']=True
-                    if user_dict['namd']['processor-type']!='gpu': # GPU NAMD 3.0.1 does not support pressure profiles
+                    if self.provisions['processor-type'] != 'gpu': # GPU NAMD 3.0.1 does not support pressure profiles
                         if not 'pressureProfile' in specs['other_parameters']:
                             specs['other_parameters']['pressureProfile']='on'
                         if not 'pressureProfileSlabs' in specs['other_parameters']:
@@ -305,21 +301,20 @@ class MakeMembraneSystemTask(BaseTask):
                             specs['other_parameters']['pressureProfileFreq']=100
         timeseries=['density',['a_x','b_y','c_z']]
         profiles=['pressure']
-        if user_dict['namd']['processor-type']!='gpu':
+        if self.provisions['processor-type'] != 'gpu':
             timeseries.append('pressure') # To do: change this to pressureProfile plotting
-        user_dict['tasks']=[
+        tasklist_yaml=[
             {'continuation':dict(psf=psf.path,pdb=pdb.path,xsc=xsc.path,index=0)}
             ]+relaxation_protocol+[
             {'mdplot':dict(timeseries=timeseries,profiles=profiles,legend=True,grid=True,basename=self.basename)},
             {'terminate':dict(basename=self.basename,chainmapfile=f'{self.basename}-chainmap.yaml',statefile=f'{self.basename}-state.yaml')}
         ]
-        user_dict['title']=f'Bilayer equilibration from {self.basename}'
-        subconfig=Config(userdict=user_dict,quiet=True)
-        subcontroller=Controller(subconfig,index=self.controller_index+1)
+        subcontroller=self.subcontroller
+        subcontroller.config['title']=f'Bilayer equilibration from {self.basename}'
+        subcontroller.reconfigure_tasks(tasklist_yaml)
         for task in subcontroller.tasks:
             task_key=task.taskname
             task.override_taskname(f'{self.basename}-'+task_key)
-        
         subcontroller.do_tasks()
         artifact_types_to_collect=['pdb','psf','xsc']
         last_task=subcontroller.tasks[-1]

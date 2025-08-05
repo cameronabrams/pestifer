@@ -6,7 +6,6 @@ import os
 
 from .filewriter import Filewriter
 from ..core.command import Command
-from ..core.config import Config
 from ..core.stringthings import FileCollector
 
 from ..objs.crot import Crot
@@ -28,14 +27,13 @@ class TcLScripter(Filewriter):
     config : Config
         The configuration object containing settings for the script.
     """
-    def __init__(self, config: Config):
-        self.config = config
-        self.progress = self.config.progress
+    def __init__(self, *args, **kwargs):
+        super().__init__(comment_char=kwargs.get('comment_char', '#'))
+        self.progress = kwargs.get('progress', PestiferProgress())
         self.F = FileCollector()
         self.default_ext = '.tcl'
         self.default_script = f'pestifer-script{self.default_ext}'
         self.scriptname = self.default_script
-        super().__init__(comment_char='#')
 
     def newscript(self, basename=None):
         """
@@ -86,13 +84,13 @@ class VMDScripter(TcLScripter):
         The configuration object containing settings for the script.
     """ 
 
-    def __init__(self, config: Config):
-        super().__init__(config)
-        self.vmd = config.shell_commands['vmd']
-        self.tcl_root = config.tcl_root
-        self.tcl_pkg_path = config.tcl_pkg_path
-        self.tcl_script_path = config.tcl_script_path
-        self.vmd_startup = config.vmd_startup_script
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.vmd = kwargs.get('vmd')
+        self.tcl_root = kwargs.get('tcl_root')
+        self.tcl_pkg_path = kwargs.get('tcl_pkg_path')
+        self.tcl_script_path = kwargs.get('tcl_script_path')
+        self.vmd_startup = kwargs.get('vmd_startup_script')
         self.indent = ' ' * 4
 
     def newscript(self, basename=None, packages=[]):

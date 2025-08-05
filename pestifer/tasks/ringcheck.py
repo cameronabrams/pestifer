@@ -7,7 +7,7 @@ Usage is described in the :ref:`config_ref tasks ring_check` documentation.
 """
 import logging
 
-from ..core.basetask import BaseTask
+from .basetask import BaseTask
 from ..core.artifacts import PDBFile, PSFFile, PsfgenInputScript, PsfgenLogFile
 from ..psfutil.psfring import ring_check
 

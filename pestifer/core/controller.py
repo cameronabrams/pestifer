@@ -5,22 +5,17 @@ the configuration, from which the list of tasks is created.  The :meth:`do_tasks
 the tasks.
 """
 import logging
-import os
+
+from dataclasses import dataclass
 
 from .config import Config
 from .pipeline import PipelineContext
-from .basetask import BaseTask, TaskList
-
-from ..scripters.filewriter import Filewriter
-from ..scripters.namdscripter import  NAMDScripter
-from ..scripters.packmolscripter import PackmolScripter
-from ..scripters.psfgenscripter import PsfgenScripter
-from ..scripters.tclscripters import VMDScripter
-
-from ..tasks import task_classes, TerminateTask
+from ..tasks.taskcollections import TaskList
+from ..tasks import TerminateTask
 
 logger = logging.getLogger(__name__)
 
+@dataclass
 class Controller:
     """ 
     Controller class for managing the execution of tasks in the Pestifer runtime.
@@ -44,62 +39,60 @@ class Controller:
         Default is True.
     """
 
-    def __init__(self, config: Config, userspecs = {}, index = 0, terminate = True):
+    index: int = 0
+    config: Config | None = None
+    tasks: TaskList | None = None
+    pipeline: PipelineContext | None = None
+
+    def configure(self, config: Config, userspecs: dict = {}, index: int = 0, terminate: bool = True):
         self.index = index
         self.config = config
         self.config['user'].update(userspecs)
 
-        logger.debug(f'task_classes {task_classes}')
-
         # set up the task list
-        self.tasks = TaskList([])
-        prior_task: BaseTask = None
-        self.pipeline = PipelineContext(controller_index=self.index, 
-                                        scripters={
-                                            'psfgen': PsfgenScripter(self.config),
-                                            'vmd': VMDScripter(self.config),
-                                            'namd': NAMDScripter(self.config),
-                                            'packmol': PackmolScripter(self.config),
-                                            'data': Filewriter()
-                                        }, 
-                                        global_config=self.config['user'],
-                                        resource_manager=self.config.RM)
-
-        for idx, taskdict in enumerate(self.config['user'].get('tasks', [])):
-            # Each task dictionary has a single keyword (the task name) and a value
-            # that comprises the task specifications from the config
-            assert len(taskdict) == 1, f"Task dictionary {taskdict} must have a single key-value pair"
-            taskname = list(taskdict.keys())[0]
-            task_specs = taskdict[taskname]
-            task_specs['taskname'] = taskname
-            logger.debug(f'{taskname}: {task_specs}')
-            # specs={} if not config_specs else config_specs.copy()
-            # Ensure the name of the task is among the implemented Tasks
-            class_name = task_classes.get(taskname, None)
-            # Create this Task instance:
-            #   1. Get the class type
-            #   2. Initialize the instance with 
-            #      - specs: specifications from user config
-            #      - taskname: the name of the task
-            #      - self.config: the Controller configuration
-            #      - self.scripters: the Controller's filewriters
-            #      - prior_task: indentifier of prior task in task list
-            Cls = task_classes[class_name]
-            this_task = Cls(index = idx, pipeline = self.pipeline, specs = task_specs, prior = prior_task)
-            # Append to the task list
-            self.tasks.append(this_task)
-            prior_task = this_task
-        if len(self.tasks) > 0: logger.debug(f'last task currently is {self.tasks[-1].taskname}')
-        # Add a "terminate" task by default if the user has not specified one
+        self.tasks = TaskList.from_yaml(self.config['user'].get('tasks', []))
         if terminate and (len(self.tasks) == 0 or not isinstance(self.tasks[-1], TerminateTask)):
             # If the last task is not a TerminateTask, add one with default specs
             specs = self.config.make_default_specs('tasks','terminate')
             specs['taskname'] = 'terminate'
             logger.debug('Adding default terminate task')
-            self.tasks.append(TerminateTask(index=len(self.tasks), pipeline=self.pipeline, specs=specs, prior=prior_task))
+            self.tasks.append(TerminateTask(index=len(self.tasks), pipeline=self.pipeline, specs=specs, prior=self.tasks[-1] if self.tasks else None))
+
+        self.pipeline = PipelineContext(controller_index = self.index)
+        self.provision()
+
         ess='s' if len(self.tasks)>1 else ''
         logger.info(f'Running "{self.config["user"]["title"]}"')
         logger.info(f'Controller {self.index:02d} will execute {len(self.tasks)} task{ess}.')
+
+    @classmethod
+    def spawn_subcontroller(cls, progenitor: 'Controller') -> 'Controller':
+        subcontroller = cls()
+        subcontroller.config = progenitor.config
+        subcontroller.index = progenitor.index + 1 
+        return subcontroller
+    
+    def reconfigure_tasks(self, tasks: list[dict]):
+        self.tasks = TaskList.from_yaml(tasks)
+        self.provision()
+        ess='s' if len(self.tasks)>1 else ''
+        logger.info(f'Running "{self.config["user"]["title"]}"')
+        logger.info(f'Controller {self.index:02d} will execute {len(self.tasks)} task{ess}.')
+
+    def provision(self):
+        packet = {
+            'controller_index': self.index,
+            'resource_manager': self.config.RM,
+            'scripters': self.config.scripters,
+            'subcontroller': Controller.spawn_subcontroller(self),
+            'pipeline': self.pipeline,
+            'processor-type': self.config['user']['namd']['processor-type'],
+            'shell-commands': self.config.shell_commands,
+            'progress-flag': self.config.use_terminal_progress,
+            'namd_global_config': self.config['user']['namd'],
+        }
+        for task in self.tasks:
+            task.provisions = packet
 
     def do_tasks(self) -> dict:
         """

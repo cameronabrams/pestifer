@@ -7,7 +7,7 @@ It inherits from the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class a
 
 Usage is described in the :ref:`subs_desolvate` documentation.
 """
-from ..core.basetask import VMDTask
+from .basetask import VMDTask
 from ..core.command import Command
 from ..util.progress import PestiferProgress
 import logging
@@ -25,7 +25,7 @@ class DesolvateTask(VMDTask):
     part of a ``tasks`` list.  This is not the normal use case for Desolvate.
     """
     def do(self) -> int:
-        self.catdcd=self.config.shell_commands['catdcd']
+        self.catdcd = self.provisions.shell_commands['catdcd']
         self.do_idx_psf_gen()
         self.do_dcd_prune()
         return 0

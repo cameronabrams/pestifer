@@ -6,7 +6,6 @@ import os
 from .filewriter import Filewriter
 from .tclscripters import VMDScripter
 
-from ..core.config import Config
 from ..core.command import Command
 from ..core.labels import Labels
 from ..core.objmanager import ObjManager
@@ -40,11 +39,11 @@ class PsfgenScripter(VMDScripter):
     config : Config
         The configuration object containing settings for the script.
     """
-    def __init__(self, config: Config):
-        super().__init__(config)
-        self.charmmff = config.RM.charmmff_content
-        self.charmmff_config = config['user']['charmmff']
-        self.psfgen_config = config['user']['psfgen']
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.charmmff = kwargs.get('charmmff_content')
+        self.charmmff_config = kwargs.get('charmmff_config')
+        self.psfgen_config = kwargs.get('psfgen_config')
         self.postregencommands = ByteCollector()
 
     def addpostregenerateline(self,line):
