@@ -23,7 +23,7 @@ class PackmolScripter(Filewriter):
     def __init__(self, *args, **kwargs):
         super().__init__(comment_char=kwargs.get('comment_char', '#'))
         self.indent = 4 * ' '
-        self.progress = kwargs.get('progress', PackmolProgress())
+        self.progress = kwargs.get('progress', True)
         self.packmol = kwargs.get('packmol')
         self.F = FileCollector()
         self.default_ext = '.inp'

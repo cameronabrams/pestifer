@@ -99,11 +99,11 @@ def run(args, **kwargs):
             configname = f'{cbase}{allowed_extensions[iix]}'
 
     config = Config(userfile=configname, **kwargs)
-    C = Controller(config)
-
+    C = Controller().configure(config)
+    logger.debug(f'NAMD global config: {C.tasks[0].provisions["namd_global_config"]}')
     if args.gpu:
         if not 'namd' in C.config['user']:
-            C.config['user'] = {}
+            C.config['user']['namd'] = {}
         C.config['user']['namd']['processor-type'] = 'gpu'
 
     if args.complete_config:

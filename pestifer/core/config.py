@@ -54,32 +54,43 @@ class Config(Yclept):
         self._set_shell_commands(verify_access=(userfile != ''))
         self.RM.update_charmmff(self['user']['charmmff'].get('tarball', ''))
         self.RM.update_pdbrepository(self['user']['charmmff'].get('pdbcollections', []))
+        # TODO: kwargs_to_scripters = dict() # full dict of all kwargs to scripters
+        self._set_kwargs_to_scripters()
         self.scripters = {
-            'psfgen': PsfgenScripter(charmmff_content=self.RM.charmmff_content,
-                                     charmmff_config=self['user']['charmmff'],
-                                     psfgen_config=self['user']['psfgen']),
-            'namd': NAMDScripter(charmmff=self.RM.charmmff_content,
-                                 charmmff_config=self['user']['charmmff'],
-                                 namd_config=self['user']['namd'],
-                                 namd_deprecates=self['user']['namd'].get('deprecated3', {}),
-                                 local_ncpus=self.local_ncpus,
-                                 ncpus=self.ncpus,
-                                 gpu_devices=self.gpu_devices,
-                                 slurmvars=self.slurmvars,
-                                 ngpus=self.ngpus),
-            'packmol': PackmolScripter(packmol=self.shell_commands['packmol']),
-            'tcl': VMDScripter(vmd=self.shell_commands['vmd'],
-                               tcl_root=self.tcl_root,
-                               tcl_pkg_path=self.tcl_pkg_path,
-                               tcl_script_path=self.tcl_script_path,
-                               vmd_startup_script=self.vmd_startup_script),
-            'data': Filewriter(comment_char='#'),
-            'vmd': VMDScripter(vmd=self.shell_commands['vmd'],
-                               tcl_root=self.tcl_root,
-                               tcl_pkg_path=self.tcl_pkg_path,
-                               tcl_script_path=self.tcl_script_path,
-                               vmd_startup_script=self.vmd_startup_script)
+            'psfgen': PsfgenScripter(**self.kwargs_to_scripters),
+            'namd': NAMDScripter(**self.kwargs_to_scripters),
+            'packmol': PackmolScripter(**self.kwargs_to_scripters),
+            'tcl': VMDScripter(**self.kwargs_to_scripters),
+            'data': Filewriter(**self.kwargs_to_scripters),
+            'vmd': VMDScripter(**self.kwargs_to_scripters),
         }
+
+    def _set_kwargs_to_scripters(self):
+        self.kwargs_to_scripters = dict(
+            charmff =self.RM.charmmff_content,
+            charmmff_content=self.RM.charmmff_content,
+            charmmff_config=self['user']['charmmff'],
+            charmrun=self.shell_commands['charmrun'],
+            gpu_devices=self.gpu_devices,
+            local_ncpus=self.local_ncpus,
+            namd=self.shell_commands['namd3'],
+            namd_config=self['user']['namd'],
+            namd_deprecates=self['user']['namd'].get('deprecated3', {}),
+            namd_gpu=self.shell_commands['namd3gpu'],
+            namd_type=self.namd_type,
+            namd_version=self['user']['namd'].get('version', '3.0'),
+            ncpus=self.ncpus,
+            ngpus=self.ngpus,
+            packmol=self.shell_commands['packmol'],
+            psfgen_config=self['user']['psfgen'],
+            progress = self.use_terminal_progress,
+            slurmvars=self.slurmvars,
+            tcl_root=self.tcl_root,
+            tcl_pkg_path=self.tcl_pkg_path,
+            tcl_script_path=self.tcl_script_path,
+            vmd=self.shell_commands['vmd'],
+            vmd_startup_script=self.vmd_startup_script,
+        )
 
     def _get_processor_info(self):
         """ 

@@ -1,5 +1,5 @@
 import unittest
-from pestifer.molecule.ring import ring_check
+from pestifer.psfutil.psfring import ring_check
 import os
 import logging
 import pytest

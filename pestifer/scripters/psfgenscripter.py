@@ -191,9 +191,9 @@ class PsfgenScripter(VMDScripter):
 
     def write_segments(self, segments: SegmentList, transform: Transform = None):
         for segment in segments:
-            self.comment(f'Segment {segment.name} begins')
+            self.comment(f'Segment {segment.segname} begins')
             self.write_segment(segment, transform)
-            self.comment(f'Segment {segment.name} ends')
+            self.comment(f'Segment {segment.segname} ends')
 
     def write_segment(self, segment: Segment, transform: Transform = None):
         """
@@ -265,7 +265,7 @@ class PsfgenScripter(VMDScripter):
             if b.state == 'RESOLVED':
                 """ for a resolved subsegment, generate its pdb file """
                 b.selname = f'{image_seglabel}{i:02d}'
-                run = ResidueList(self.residues[b.bounds[0]:b.bounds[1] + 1])
+                run = ResidueList(segment.residues[b.bounds[0]:b.bounds[1] + 1])
                 b.pdb = f'segtype_polymer_{image_seglabel}_{run[0].resid.resid}_to_{run[-1].resid.resid}.pdb'
                 logger.debug(f'Writing resolved subsegment {repr(b)} to {b.pdb}')
                 self.addfile(b.pdb)
@@ -279,7 +279,7 @@ class PsfgenScripter(VMDScripter):
                 logger.debug(f'here it is {at.serial} {at.resname} {at.name} in chain {at.chainID} residue {at.resname}{at.resid.resid}')
                 assert at.resid == run[-1].resid
                 vmd_red_list = reduce_intlist(serial_list)
-                self.addline(f'set {b.selname} [atomselect ${self.parent_molecule.molid_varname} "serial {vmd_red_list}"]')
+                self.addline(f'set {b.selname} [atomselect ${segment.parent_molecule.molid_varname} "serial {vmd_red_list}"]')
                 self.addline(f'${b.selname} set segname {image_seglabel}')
                 if hasattr(at, '_ORIGINAL_ATTRIBUTES_'):
                     if at._ORIGINAL_ATTRIBUTES_["serial"] != at.serial:
@@ -294,7 +294,7 @@ class PsfgenScripter(VMDScripter):
                 if i == 0:
                     if build_N_terminal_loop or build_all_terminal_loops:
                         b.declare_buildable()
-                elif i == (len(self.subsegments) - 1):
+                elif i == (len(segment.subsegments) - 1):
                     if build_C_terminal_loop or build_all_terminal_loops:
                         b.declare_buildable()
                 else:
@@ -345,7 +345,7 @@ class PsfgenScripter(VMDScripter):
                     prior_run = ResidueList(self.residues[prior_b.bounds[0]:prior_b.bounds[1] + 1])
                     if segtype =='protein':
                         self.comment(f'Seeding orientation of model-built loop starting at {str(this_run[0])} from {str(prior_run[-1])}')
-                        self.addline(f'{this_run.caco_str(prior_run,image_seglabel,self.parent_molecule.molid_varname,transform.tmat)}')
+                        self.addline(f'{this_run.caco_str(prior_run,image_seglabel,segment.parent_molecule.molid_varname,transform.tmat)}')
         if len(seg_patches) > 0:
             self.banner(f'Patches for segment {image_seglabel}')
         for patch in seg_patches:
@@ -431,7 +431,7 @@ class PsfgenScripter(VMDScripter):
         topomods: dict = objmanager.get('topol', {})
         seg_grafts: GraftList = seqmods.get('grafts', GraftList([]))
 
-        transform.register_mapping(self.segtype, image_seglabel, seglabel)
+        transform.register_mapping(segment.segtype, image_seglabel, seglabel)
 
         self.banner(f'Segment {image_seglabel} begins as image of {seglabel}')
         for g in seg_grafts:
@@ -443,7 +443,7 @@ class PsfgenScripter(VMDScripter):
         pdb = f'segtype_generic_{image_seglabel}.pdb'
         selname = image_seglabel
         self.addfile(pdb)  # appends this file to the scripters FileCollector for later cleanup
-        self.addline(f'set {selname} [atomselect ${self.parent_molecule.molid_varname} "serial {vmd_red_list}"]')
+        self.addline(f'set {selname} [atomselect ${segment.parent_molecule.molid_varname} "serial {vmd_red_list}"]')
         self.addline(f'${selname} set segname {image_seglabel}')
         if is_image:
             self.backup_selection(selname, dataholder=f'{selname}_data')

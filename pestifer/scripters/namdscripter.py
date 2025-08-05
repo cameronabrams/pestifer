@@ -24,17 +24,17 @@ class NAMDScripter(TcLScripter):
         self.charmmff = kwargs.get('charmmff')
         self.charmmff_config = kwargs.get('charmmff_config')
         self.charmrun = kwargs.get('charmrun')
+        self.gpu_devices = kwargs.get('gpu_devices')
+        self.local_ncpus = kwargs.get('local_ncpus')
         self.namd = kwargs.get('namd')
         self.namdgpu = kwargs.get('namd3gpu')
-        self.namd_type = kwargs.get('namd_type')
         self.namd_config = kwargs.get('namd_config')
+        self.namd_type = kwargs.get('namd_type')
         self.namd_version = int(self.namd_config['namd-version'])
         logger.debug(f'Using NAMD v {self.namd_version}')
-        self.local_ncpus = kwargs.get('local_ncpus')
         self.ncpus = kwargs.get('ncpus')
-        self.gpu_devices = kwargs.get('gpu_devices')
-        self.slurmvars = kwargs.get('slurmvars')
         self.ngpus = kwargs.get('ngpus')
+        self.slurmvars = kwargs.get('slurmvars')
         if self.namd_version == 2:
             self.namd_deprecates = {}
         else:

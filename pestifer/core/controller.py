@@ -39,10 +39,11 @@ class Controller:
         Default is True.
     """
 
-    index: int = 0
-    config: Config | None = None
-    tasks: TaskList | None = None
-    pipeline: PipelineContext | None = None
+    def __init__(self):
+        self.index = 0
+        self.config = None
+        self.tasks = None
+        self.pipeline = None
 
     def configure(self, config: Config, userspecs: dict = {}, index: int = 0, terminate: bool = True):
         self.index = index
@@ -56,7 +57,7 @@ class Controller:
             specs = self.config.make_default_specs('tasks','terminate')
             specs['taskname'] = 'terminate'
             logger.debug('Adding default terminate task')
-            self.tasks.append(TerminateTask(index=len(self.tasks), pipeline=self.pipeline, specs=specs, prior=self.tasks[-1] if self.tasks else None))
+            self.tasks.append(TerminateTask(specs=specs))
 
         self.pipeline = PipelineContext(controller_index = self.index)
         self.provision()
@@ -64,6 +65,7 @@ class Controller:
         ess='s' if len(self.tasks)>1 else ''
         logger.info(f'Running "{self.config["user"]["title"]}"')
         logger.info(f'Controller {self.index:02d} will execute {len(self.tasks)} task{ess}.')
+        return self
 
     @classmethod
     def spawn_subcontroller(cls, progenitor: 'Controller') -> 'Controller':
@@ -91,8 +93,9 @@ class Controller:
             'progress-flag': self.config.use_terminal_progress,
             'namd_global_config': self.config['user']['namd'],
         }
+        logger.debug(f'Provisioning tasks with packet: {packet}')
         for task in self.tasks:
-            task.provisions = packet
+            task.provision(packet)
 
     def do_tasks(self) -> dict:
         """

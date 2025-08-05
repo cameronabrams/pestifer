@@ -1,5 +1,5 @@
 import logging
-from pestifer.molecule.ring import RingList
+from pestifer.psfutil.psfring import RingList
 import unittest
 from pestifer.psfutil.psfcontents import PSFContents
 from pestifer.util.coord import coorddf_from_pdb

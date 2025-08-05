@@ -1,6 +1,6 @@
 import unittest
 from pestifer.util.namdcolvars import *
-from pestifer.core.scripters import *
+from pestifer.scripters import *
 import logging
 logger=logging.getLogger(__name__)
 

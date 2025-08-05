@@ -29,7 +29,7 @@ class TcLScripter(Filewriter):
     """
     def __init__(self, *args, **kwargs):
         super().__init__(comment_char=kwargs.get('comment_char', '#'))
-        self.progress = kwargs.get('progress', PestiferProgress())
+        self.progress = kwargs.get('progress', True)
         self.F = FileCollector()
         self.default_ext = '.tcl'
         self.default_script = f'pestifer-script{self.default_ext}'

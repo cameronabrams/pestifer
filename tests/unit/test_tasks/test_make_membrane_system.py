@@ -5,7 +5,7 @@ import unittest
 from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
 from pestifer.core.config import Config
 from pestifer.core.controller import Controller
-from pestifer.core.scripters import PsfgenScripter,VMDScripter,NAMDScripter,Filewriter
+from pestifer.scripters import PsfgenScripter,VMDScripter,NAMDScripter,Filewriter
 from pestifer.util.util import protect_str_arg
 
 class TestMakeMembraneSystem(unittest.TestCase):

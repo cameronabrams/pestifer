@@ -1,5 +1,5 @@
 import unittest
-from pestifer.core.basetask import BaseTask, VMDTask
+from pestifer.tasks.basetask import BaseTask, VMDTask
 from pestifer.core.pipeline import PipelineContext
 from pestifer.core.artifacts import Artifact, ArtifactList, ArtifactFile, ArtifactDict, ArtifactData, ArtifactFileList, TXTFile
 class TestBaseTask(unittest.TestCase):
@@ -22,7 +22,8 @@ class TestBaseTask(unittest.TestCase):
             def do(self):
                 pass
         pipeline_context = PipelineContext()
-        task = ConcreteTaskWithPipeline(pipeline=pipeline_context)
+        task = ConcreteTaskWithPipeline(specs={}, provisions=dict(pipeline=pipeline_context))
+        self.assertTrue(task.is_provisioned)
         self.assertIsInstance(task, BaseTask)
         self.assertTrue(hasattr(task, 'do'))
         self.assertEqual(task.pipeline, pipeline_context)
@@ -36,7 +37,6 @@ class TestVMDTask(unittest.TestCase):
     
     def test_vmdtask_is_abstract(self):
         with self.assertRaises(TypeError):
-            from pestifer.core.basetask import VMDTask
             VMDTask()
     
     def test_vmdtask_subclass(self):

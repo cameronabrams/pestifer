@@ -4,11 +4,11 @@ logger=logging.getLogger(__name__)
 from pestifer.util.cifutil import CIFdict, CIFload
 from pidibble.pdbparse import PDBParser
 from mmcif.api.PdbxContainers import DataContainer
-from pestifer.molecule.residue import ResidueList, EmptyResidue, EmptyResidueList
+from pestifer.molecule.residue import ResidueList, ResiduePlaceholder, ResiduePlaceholderList
 from pestifer.molecule.atom import Atom, AtomList
 from pestifer.objs.seqadv import Seqadv, SeqadvList
 from pestifer.core.config import Config
-from pestifer.core.scripters import VMDScripter
+from pestifer.scripters import VMDScripter
 from pestifer.molecule.bioassemb import Transform, TransformList, BioAssemb, BioAssembList
 from pestifer.util.util import reduce_intlist
 
@@ -52,14 +52,14 @@ class TestCIF(unittest.TestCase):
         source='8fae'
         p_struct=CIFload(source)
         obj=p_struct.getObj('atom_site')
-        atoms=AtomList([Atom.new(CIFdict(obj,i)) for i in range(len(obj))])
+        atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
         self.assertEqual(len(atoms),17693)
 
     def test_residues(self):
         source='8fae'
         p_struct=CIFload(source)
         obj=p_struct.getObj('atom_site')
-        atoms=AtomList([Atom.new(CIFdict(obj,i)) for i in range(len(obj))])
+        atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
         self.assertEqual(len(atoms),17693)
         residues=ResidueList(atoms)
         self.assertEqual(len(residues),2082)
@@ -81,7 +81,7 @@ class TestCIF(unittest.TestCase):
         vmd.addline(f'mol new {source}.cif')
         p_struct=CIFload(source)
         obj=p_struct.getObj('atom_site')
-        atoms=AtomList([Atom.new(CIFdict(obj,i)) for i in range(len(obj))])
+        atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
         residues=ResidueList(atoms)
         uCIDs=residues.uniqattrs(['chainID'])['chainID']
         nres=0
@@ -172,11 +172,11 @@ class TestCIF(unittest.TestCase):
         source='4zmj'
         pr=CIFload(source)
         obj=pr.getObj('atom_site')
-        Atoms=AtomList([Atom.new(CIFdict(obj,i)) for i in range(len(obj))])
+        Atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
         obj=pr.getObj('struct_ref_seq_dif')
-        Seqadvs=SeqadvList([Seqadv.new(CIFdict(obj,i)) for i in range(len(obj))])
+        Seqadvs=SeqadvList([Seqadv(CIFdict(obj,i)) for i in range(len(obj))])
         obj=pr.getObj('pdbx_unobs_or_zero_occ_residues')
-        EmptyResidues=EmptyResidueList([EmptyResidue.new(CIFdict(obj,i)) for i in range(len(obj))])
+        EmptyResidues=ResiduePlaceholderList([ResiduePlaceholder(CIFdict(obj,i)) for i in range(len(obj))])
         fromAtoms=ResidueList(Atoms)
         fromEmptyResidues=ResidueList(EmptyResidues)
         Residues=fromAtoms+fromEmptyResidues

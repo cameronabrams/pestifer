@@ -32,15 +32,19 @@ class MakeMembraneSystemTask(BaseTask):
     def __init__(self, specs: dict = {}, provisions: dict = {}):
         super().__init__(specs=specs, provisions=provisions)
         self.patchA=self.patchB=self.patch=None
+        self.bilayer_specs=self.specs.get('bilayer',{})
+        self.embed_specs=self.specs.get('embed',{})
+        self.using_prebuilt_bilayer=False
+
+    def provision(self, packet: dict):
+        super().provision(packet) 
         self.progress= self.provisions.get('progress-flag',True)
         self.pdbrepository=self.resource_manager.charmmff_content.pdbrepository
         self.charmmff_content=self.resource_manager.charmmff_content
         self.RDB=CHARMMFFResiDatabase(self.charmmff_content,streamIDs=[])
         self.RDB.add_stream('lipid')
         self.RDB.add_topology('toppar_all36_moreions.str',streamIDoverride='water_ions')
-        self.bilayer_specs=self.specs.get('bilayer',{})
-        self.embed_specs=self.specs.get('embed',{})
-        self.using_prebuilt_bilayer=False
+
         if 'prebuilt' in self.bilayer_specs and 'pdb' in self.bilayer_specs['prebuilt']:
             logger.debug('Using prebuilt bilayer')
             self.using_prebuilt_bilayer=True

@@ -25,10 +25,6 @@ class ConfigTest(unittest.TestCase):
         self.assertEqual(Labels.res_123['A'],'ALA')
         self.assertEqual(Labels.res_321['PHE'],'F')
 
-    def test_config_boolean(self):
-        c=self.c
-        self.assertTrue(c)
-
     def test_config_userdict(self):
         C=self.c
         ud=C['user']

@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 from .basetask import VMDTask
 from ..core.artifacts import PDBFile, CharmmffParFile, CharmmffParFiles, CharmmffStreamFile, CharmmffStreamFiles, NAMDVelFile, NAMDXscFile, NAMDLogFile, NAMDCoorFile, NAMDDcdFile, CSVDataFile, NAMDConfigFile, NAMDColvarsConfig, NAMDXstFile, NAMDColvarsOutput, ArtifactData, TXTFile
+from ..scripters.namdscripter import NAMDScripter
 from ..util.namdcolvars import colvar_writer
 from ..util.util import is_periodic
 
@@ -34,7 +35,21 @@ class MDTask(VMDTask):
         This method sets up the task with the provided specifications and prepares it for execution.
         """
         super().__init__(specs=specs, provisions=provisions)
-        self._extra_message = f'ensemble: {self.specs.get("ensemble", "no ensemble")}'
+        self.extra_message = f'ensemble: {self.specs.get("ensemble", "no ensemble")}'
+
+    def provision(self, packet: dict):
+        """
+        Provision the MDTask with the provided packet of data.
+        This method updates the task's provisions with the necessary configuration for NAMD runs.
+        It sets up the global NAMD configuration and prepares the task for execution.
+        
+        Parameters
+        ----------
+        packet : dict
+            A dictionary containing the necessary configuration data for the MDTask.
+        """
+        super().provision(packet)
+        self.namd_global_config = self.provisions.get('namd_global_config', None)
 
     def do(self):
         """
@@ -74,7 +89,6 @@ class MDTask(VMDTask):
             self.next_basename(baselabel)
         
         params={}
-        namd_global_params = self.provisions.get('namd_global_config',{})
         psf=self.get_current_artifact_path('psf')
         pdb=self.get_current_artifact_path('pdb')
         coor=self.get_current_artifact_path('coor')
@@ -105,7 +119,7 @@ class MDTask(VMDTask):
         constraints=specs.get('constraints',{})
         other_params=specs.get('other_parameters',{})
         colvars=specs.get('colvar_specs',{})
-        params.update(namd_global_params['generic'])
+        params.update(self.namd_global_config['generic'])
         params['structure']=psf.name
         params['coordinates']=pdb.name
         params['temperature']='$temperature'
@@ -121,20 +135,20 @@ class MDTask(VMDTask):
                 params['xstfreq']=xstfreq
 
         if self.get_current_artifact_value('periodic'):
-            params.update(namd_global_params['solvated'])
+            params.update(self.namd_global_config['solvated'])
         else:
-            params.update(namd_global_params['vacuum'])
-        
+            params.update(self.namd_global_config['vacuum'])
+
         if ensemble.casefold() in ['NPT'.casefold(),'NVT'.casefold(), 'NPAT'.casefold()]:
-            params.update(namd_global_params['thermostat'])
+            params.update(self.namd_global_config['thermostat'])
             if ensemble.casefold()=='NPT'.casefold():
                 if not self.get_current_artifact_value('periodic'):
                     raise Exception(f'Cannot use barostat on a system without PBCs')
                 params['tcl'].append(f'set pressure {pressure}')
-                params.update(namd_global_params['barostat'])
+                params.update(self.namd_global_config['barostat'])
             elif ensemble.casefold()=='NPAT'.casefold():
                 params['tcl'].append(f'set pressure {pressure}')
-                params.update(namd_global_params['membrane'])
+                params.update(self.namd_global_config['membrane'])
         params['outputName']=f'{self.basename}'
 
         if dcdfreq:
@@ -151,7 +165,7 @@ class MDTask(VMDTask):
             params['conskfile']=consref.name
             params['conskcol']='O'
         if colvars:
-            writer=self.pipeline.get_scripter('data')
+            writer=self.scripters['data']
             writer.newfile(f'{self.basename}-cv.inp')
             colvar_writer(colvars,writer,pdb=pdb)
             writer.writefile()
@@ -169,7 +183,7 @@ class MDTask(VMDTask):
             assert nsteps>0,f'Error: you must specify how many time steps to run'
             params['run']=nsteps
 
-        na = self.pipeline.get_scripter('namd')
+        na: NAMDScripter = self.scripters['namd']
         na.newscript(self.basename,addl_paramfiles=list(set(addl_paramfiles+prior_paramfiles)))
         self.register_current_artifact(CharmmffParFiles([CharmmffParFile(x.replace('.prm','')) for x in na.parameters if x.endswith('.prm')]),key='charmmff_parfiles')
         self.register_current_artifact(CharmmffStreamFiles([CharmmffStreamFile(x.replace('.str','')) for x in na.parameters if x.endswith('.str')]),key='charmmff_streamfiles')

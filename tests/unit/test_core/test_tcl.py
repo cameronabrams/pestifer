@@ -1,6 +1,6 @@
 import unittest
 from pidibble.pdbparse import PDBParser
-from pestifer.core.scripters import *
+from pestifer.scripters import *
 from pestifer.core.config import Config
 
 class TestTCL(unittest.TestCase):

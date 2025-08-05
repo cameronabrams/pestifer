@@ -1,5 +1,5 @@
 import unittest
-from pestifer.core.scripters import PsfgenScripter, NAMDScripter
+from pestifer.scripters import PsfgenScripter, NAMDScripter
 from pestifer.core.config import Config
 
 import os

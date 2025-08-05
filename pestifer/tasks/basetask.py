@@ -18,7 +18,6 @@ import logging
 from abc import ABC, abstractmethod
 
 from ..core.artifacts import TclScript, PDBFile, NAMDCoorFile, VMDLogFile, Artifact, ArtifactList
-from ..core.pipeline import PipelineContext
 
 logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -38,21 +37,8 @@ class BaseTask(ABC):
         It can include attributes like `prior`, `index`, `scripters`, `taskname`, and `controller_index`.
 
     """
-    index: int = 0
-    taskname: str = 'BaseTask'
-    pipeline: PipelineContext | None = None
-    specs: dict = {}
-    prior: BaseTask | None = None
 
-    basename: str = ''
-    subtaskcount: int = 0
-    result: int = 0
-
-    _extra_message: str = ''
-    """
-    An optional extra message that can be appended to the task's log messages.
-    This can be used to provide additional context or information about the task's execution.
-    """
+    _yaml_header = 'task'  # used to identify the task in YAML files
 
     _init_msg_options: tuple[str] = ('INITIATED','STARTED','BEGUN','SET IN MOTION','KICKED OFF','LIT','SPANKED ON THE BOTTOM', 'LAUNCHED', 'KICKED OUT OF THE NEST', 'COMMENCED', 'ACTIVATED', 'UNLEASHED', 'ENGAGED', 'SPAWNED', 'BIRTHED', 'BORN', 'KICKED INTO GEAR', 'KICKED INTO ACTION', 'KICKED INTO HIGH GEAR', 'KICKED INTO OVERDRIVE', 'KICKED INTO HYPERDRIVE', 'KICKED INTO LIGHTSPEED')
     """
@@ -64,21 +50,50 @@ class BaseTask(ABC):
         Constructor for the BaseTask class.
         """
         self.specs = specs if specs else {}
-        self.taskname = self.specs.get('taskname', f'{self.taskname}-{self.index:02d}')
+        self.taskname = self.specs.get('taskname', f'{self._yaml_header}')
+        self.index = self.specs.get('index', None)
+        self.provisions = {}
+        self.provision(provisions)
+        
+        self.basename = ''
+        self.subtaskcount = 0
+        self.result = 0
+        self.extra_message = ''
 
-        self.provisions = provisions if provisions else {}
+    def provision(self, packet: dict = None):
+        """
+        Provision the task with necessary resources.
+        This method is called to set up the task with the required resources and context.
+        It can be overridden by subclasses to provide additional provisioning logic.
+
+        Parameters
+        ----------
+        packet : dict, optional
+            A dictionary of provisions to be used for the task. If not provided, the existing provisions will be used.
+        """
+        if packet:
+            self.provisions.update(packet)
         self.resource_manager = self.provisions.get('resource_manager', None)
         self.scripters = self.provisions.get('scripters', {})
         self.subcontroller = self.provisions.get('subcontroller', None)
         self.controller_index = self.provisions.get('controller_index', 0)
         self.pipeline = self.provisions.get('pipeline', None)
+
+
+    @property
+    def is_provisioned(self) -> bool:
+        """
+        Check if the task has been provisioned with necessary resources.
         
-        self.basename = ''
-        self.subtaskcount = 0
-        self.result = 0
+        Returns
+        -------
+        bool
+            True if the task has been provisioned, False otherwise.
+        """
+        return bool(self.provisions)
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} index={self.index} controller_index={self.controller_index} taskname={self.taskname} provisioned?={'Yes' if self.provisions else 'No'} specs={self.specs}>"
+        return f"<{self.__class__.__name__} index={self.index} controller_index={self.controller_index} taskname={self.taskname} provisioned?={'Yes' if self.is_provisioned else 'No'} specs={self.specs}>"
 
     def get_scripter(self, name: str):
         """
@@ -94,7 +109,12 @@ class BaseTask(ABC):
         Scripter
             The scripter instance associated with the given name.
         """
-        return self.scripters.get(name, None)
+        query_result = self.scripters.get(name, None)
+        if query_result is None:
+            logger.debug(f'Scripter {name} not found')
+            if not self.is_provisioned:
+                logger.warning(f'This task has not been provisioned.')
+        return query_result
 
     @abstractmethod
     def do(self) -> int:
@@ -113,14 +133,14 @@ class BaseTask(ABC):
         It also logs the initiation and completion of the task.
         """
         msg = 'initiated'
-        if self._extra_message:
-            msg += f' ({self._extra_message})'
+        if self.extra_message:
+            msg += f' ({self.extra_message})'
         self.log_message(msg)
         self.result = self.do()
         if self.result == 0:
             msg = 'complete'
-            if self._extra_message:
-                msg += f' ({self._extra_message})'
+            if self.extra_message:
+                msg += f' ({self.extra_message})'
             self.log_message(msg)
         else:
             logger.error(f'Task {self.taskname} failed with result {self.result}')
@@ -291,7 +311,7 @@ class VMDTask(BaseTask, ABC):
         It uses the ``namdbin2pdb`` Tcl proc to convert the coordinate file to a PDB file.
         The resulting PDB file is named based on the task's basename.
         """
-        vm = self.pipeline.get_scripter('vmd')
+        vm = self.scripters['vmd']
         vm.newscript(f'{self.basename}-coor2pdb')
         psf = self.get_current_artifact_path('psf')
         if not psf:
@@ -313,7 +333,7 @@ class VMDTask(BaseTask, ABC):
         It uses the ``pdb2namdbin`` Tcl proc to convert the PDB file to a coordinate file.
         The resulting coordinate file is named based on the task's basename.
         """
-        vm = self.pipeline.get_scripter('vmd')
+        vm = self.scripters['vmd']
         vm.newscript(f'{self.basename}-pdb2coor')
         pdb = self.get_current_artifact_path('pdb')
         if not pdb:
