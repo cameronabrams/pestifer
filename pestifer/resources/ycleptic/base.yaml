@@ -676,7 +676,7 @@ directives:
           text: |
             This task generates plots from the output of MD tasks.  It can plot energy-like quantities vs time, and profile quantities vs distance along the z-axis. The plots are generated using matplotlib, and are saved as image files. This task can be part of a standard build, or it can be used via the command line (``pestifer mdplot``) to generate plots from existing NAMD logs and xst files.
         directives:
-          - name: postprocessing
+          - name: reprocess-logs
             text: whether to run the mdplot task as part of a standard build or as a post-processing step
             type: bool
             default: False

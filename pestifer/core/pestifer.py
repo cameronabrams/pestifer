@@ -150,11 +150,12 @@ def mdplot(args):
     formatter = logging.Formatter('%(levelname)s> %(message)s')
     console.setFormatter(formatter)
     config = Config()
-    C = Controller(
+    C = Controller().configure(
         config, userspecs={
             'tasks': [{
                 'mdplot': {
-                    'postprocessing': True,
+                    'basename': args.basename,
+                    'reprocess-logs': True,
                     'logs': args.logs,
                     'figsize': args.figsize,
                     'timeseries': args.timeseries,
@@ -176,7 +177,15 @@ def mdplot(args):
     )
     C.tasks[0].taskname = args.basename
     report = C.do_tasks()
-
+    all_dataartifacts, all_filelistartifacts, all_fileartifacts = C.pipeline.get_artifact_collection_as_lists()
+    artifact_keys = set([art.key for art in all_fileartifacts])
+    for key in artifact_keys:
+        logger.debug(f'Artifacts with key {key}:')
+        key_artifacts = all_fileartifacts.filter_by_key(key)
+        for artifact in key_artifacts:
+            logger.debug(f'  {artifact.path.name}')
+    
+    return all_fileartifacts
 # def list_examples():
 #     """
 #     List all available example YAML configurations.
@@ -220,7 +229,7 @@ def show_resources(args, **kwargs):
         for subresource in getattr(args, resource_type):
             specs[resource_type].append(subresource)
     if args.user_pdbcollection:
-        r.update_pdbrepository(args.user_pdbcollection)
+        r.update_charmmff(user_pdbrepository_paths=args.user_pdbcollection)
     r.show(out_stream=print, components=specs, fullnames=args.fullnames, missing_fullnames=r.labels.residue_fullnames)
 
 def modify_package(args):

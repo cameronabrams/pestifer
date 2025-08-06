@@ -1,6 +1,6 @@
 import unittest
 import os
-from pestifer.core.pdbrepository import PDBRepository, PDBInfo, PDBCollection
+from pestifer.charmmff.pdbrepository import PDBRepository, PDBInfo, PDBCollection
 import logging
 logger = logging.getLogger(__name__)
 

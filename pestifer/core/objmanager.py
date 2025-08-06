@@ -8,11 +8,10 @@ The :class:`ObjManager` inherits from :class:`collections.UserDict`, allowing it
 while providing additional functionality specific to managing molecular objects.
 It also includes methods for counting objects, retiring categories, and expelling objects based on specific criteria.
 """
-from collections import UserDict
 import logging
 
+from collections import UserDict
 from pestifer.objs.resid import ResID
-logger = logging.getLogger(__name__)
 
 from ..objs.cfusion import Cfusion, CfusionList
 from ..objs.cleavagesite import CleavageSite, CleavageSiteList
@@ -31,7 +30,9 @@ from ..objs.ssbonddelete import SSBondDelete, SSBondDeleteList
 from ..objs.substitution import Substitution, SubstitutionList
 from ..objs.ter import Ter, TerList
 
-from ..molecule.residue import Residue, ResidueList, ResiduePlaceholder
+from ..molecule.residue import Residue, ResidueList
+
+logger = logging.getLogger(__name__)
 
 _ObjCats = {'seq', 'topol', 'coord', 'generic'}
 """

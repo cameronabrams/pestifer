@@ -17,7 +17,7 @@ import logging
 
 from abc import ABC, abstractmethod
 
-from ..core.artifacts import TclScript, PDBFile, NAMDCoorFile, VMDLogFile, Artifact, ArtifactList
+from ..core.artifacts import TclScript, PDBFile, NAMDCoorFile, VMDLogFile, Artifact, ArtifactList, ArtifactFileList
 
 logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -45,15 +45,14 @@ class BaseTask(ABC):
     A list of message options that are used to log the initiation of the task.
     """
 
-    def __init__(self, specs: dict = None, provisions: dict = None):
+    def __init__(self, specs: dict = None):
         """
         Constructor for the BaseTask class.
         """
         self.specs = specs if specs else {}
         self.taskname = self.specs.get('taskname', f'{self._yaml_header}')
         self.index = self.specs.get('index', None)
-        self.provisions = {}
-        self.provision(provisions)
+        self.provisions = None
         
         self.basename = ''
         self.subtaskcount = 0
@@ -72,13 +71,16 @@ class BaseTask(ABC):
             A dictionary of provisions to be used for the task. If not provided, the existing provisions will be used.
         """
         if packet:
+            if self.provisions is None:
+                self.provisions = {}
             self.provisions.update(packet)
+        
+        # set some shortcuts for commonly used provisions
         self.resource_manager = self.provisions.get('resource_manager', None)
         self.scripters = self.provisions.get('scripters', {})
         self.subcontroller = self.provisions.get('subcontroller', None)
         self.controller_index = self.provisions.get('controller_index', 0)
         self.pipeline = self.provisions.get('pipeline', None)
-
 
     @property
     def is_provisioned(self) -> bool:
@@ -132,6 +134,9 @@ class BaseTask(ABC):
         This method calls the `do` method, which should be implemented by subclasses to perform the task's operations.
         It also logs the initiation and completion of the task.
         """
+        if not self.is_provisioned:
+            logger.warning(f'Task {self.taskname} is not provisioned.')
+            return -1
         msg = 'initiated'
         if self.extra_message:
             msg += f' ({self.extra_message})'
@@ -213,7 +218,7 @@ class BaseTask(ABC):
         """
         return self.pipeline.get_artifact(key)
 
-    def get_my_artifactfile_collection(self):
+    def get_my_artifactfile_collection(self) -> ArtifactFileList:
         """
         Get a collection of artifact files produced by the current task.
         This method retrieves all artifact files that have been registered in the context
@@ -269,6 +274,9 @@ class BaseTask(ABC):
             Additional keyword arguments that can be used to add extra information to the log message.
             These are typically used to provide additional context or details about the task's execution.
         """
+        if self.index is None:
+            logger.info(f'Task is unindexed: {message}')
+            return
         extra = ''
         for k, v in kwargs.items():
             if v:
@@ -276,7 +284,7 @@ class BaseTask(ABC):
         mtoks = [x.strip() for x in [x.upper() for x in message.split()]]
         if not any([x in self._init_msg_options for x in mtoks]):
             extra += f' (result: {self.result})'
-        logger.info(f'Controller {self.controller_index:02} Task {self.index:02} \'{self.taskname}\' {message} {extra}')
+        logger.info(f'Controller {self.controller_index:02d} Task {self.index:02d} \'{self.taskname}\' {message} {extra}')
 
     def next_basename(self, extra_label: str = ''):
         """
@@ -295,7 +303,6 @@ class BaseTask(ABC):
         self.basename = basename
         self.subtaskcount += 1
 
-
 class VMDTask(BaseTask, ABC):
     """
     A base class for tasks that require VMD scripting.
@@ -311,7 +318,7 @@ class VMDTask(BaseTask, ABC):
         It uses the ``namdbin2pdb`` Tcl proc to convert the coordinate file to a PDB file.
         The resulting PDB file is named based on the task's basename.
         """
-        vm = self.scripters['vmd']
+        vm = self.get_scripter('vmd')
         vm.newscript(f'{self.basename}-coor2pdb')
         psf = self.get_current_artifact_path('psf')
         if not psf:
@@ -370,9 +377,10 @@ class VMDTask(BaseTask, ABC):
         statekey : str, optional
             The key under which the resulting PDB file will be stored in the state variables. Default is ``consref``.
         """
-        vm = self.pipeline.get_scripter('vmd')
+        vm = self.get_scripter('vmd')
         pdb = self.get_current_artifact_path('pdb')
-        force_constant = specs.get('k', self.config['user']['namd']['harmonic']['spring_constant'])
+        # 'namd_global_config': self.config['user']['namd'],
+        force_constant = specs.get('k', self.namd_global_config['harmonic']['spring_constant'])
         constrained_atoms_def = specs.get('atoms', 'all')
         logger.debug(f'constraint spec: {specs["atoms"]}')
         c_pdb = specs.get('consref', '')

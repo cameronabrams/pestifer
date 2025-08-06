@@ -13,12 +13,7 @@ class TestMakeMembraneSystem(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.C=Config()
-        cls.scripters={
-            'psfgen': PsfgenScripter(cls.C),
-            'vmd':    VMDScripter(cls.C),
-            'namd':   NAMDScripter(cls.C),
-            'data':   Filewriter()
-        }
+        cls.scripters=cls.C.scripters # shortcut
         cls.common_patch_relaxation_protocols = [
             {'md': {'ensemble': 'minimize', 'nsteps': 1000}},
             {'md': {'ensemble': 'NVT', 'nsteps': 1000}},

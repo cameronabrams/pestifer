@@ -12,14 +12,17 @@ import logging
 import os
 import shutil
 import yaml
-logger=logging.getLogger(__name__)
+
+from pathlib import Path
 
 from .example import Example, ExampleList
 from ..sphinxext.sphinx_examplemanager import SphinxExampleManager
 
+logger = logging.getLogger(__name__)
+
 class ExampleManager:
     """
-    A class for managing example input files in pestifer.
+    A class for managing example YAML input files in pestifer.
     This class provides methods to check out example YAML files, report the list of examples, and manage example resources.
     
     Parameters
@@ -32,20 +35,20 @@ class ExampleManager:
         If not provided, the documentation management is not enabled.
     """
 
-    def __init__(self, resources_path=None, docs_source_path=None, example_resource_folder_name='examples'):
-        if not resources_path:
-            raise ValueError('You must provide a path to the directory containing package resources')
-        example_path = os.path.join(resources_path, example_resource_folder_name)
-        if not os.path.isdir(example_path):
-            logger.debug(f'Directory "{example_path}" does not exist; creating it')
-            os.makedirs(example_path)
-        self.path = os.path.abspath(example_path)
+    def __init__(self, examples_path: str | Path | None = None, 
+                       docs_source_path: str | Path | None = None):
+        if not examples_path:
+            raise ValueError('You must provide a path to the directory containing example input files')
+        if not os.path.isdir(examples_path):
+            logger.debug(f'Directory "{examples_path}" does not exist; creating it')
+            os.makedirs(examples_path)
+        self.path = os.path.abspath(examples_path)
         self._read_info()  # read the info.yaml if it exists file to populate the examples list
         if docs_source_path:
             # create the SphinxExampleManager instance if docs_source_path is provided
-            self.sphinx_example_manager=SphinxExampleManager(docs_source_path=os.path.abspath(docs_source_path))
+            self.sphinx_example_manager = SphinxExampleManager(docs_source_path=os.path.abspath(docs_source_path))
         else:
-            self.sphinx_example_manager=None
+            self.sphinx_example_manager = None
 
     def _read_info(self):
         """

@@ -14,7 +14,8 @@ class Filewriter:
     comment_char : str, optional
         The character used for comments in the script. Default is '#'.
     """
-    def __init__(self, comment_char='#'):
+    def __init__(self, *args, **kwargs):
+        comment_char = kwargs.pop('comment_char', '#')
         self.B = ByteCollector(comment_char=comment_char)
         self.is_written = False
         self.indent = ''

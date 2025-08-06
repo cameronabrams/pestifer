@@ -85,6 +85,44 @@ class ArtifactList(UserList, Artifact):
         filtered_list.produced_by = produced_by
         filtered_list.data = [artifact for artifact in self.data if artifact.produced_by == produced_by]
         return filtered_list
+    
+    def filter_by_artifact_type(self, artifact_type: type[Artifact]) -> ArtifactList:
+        """
+        Filter the artifact list by the type of artifacts.
+        Parameters
+        ----------
+        artifact_type : type[Artifact]
+            The type of artifacts to filter by.
+        Returns
+        -------
+        ArtifactList
+            A new ArtifactList containing only the artifacts of the specified type.
+
+        """
+        filtered_list = ArtifactList()
+        filtered_list.key = self.key
+        filtered_list.produced_by = self.produced_by
+        filtered_list.data = [artifact for artifact in self.data if isinstance(artifact, artifact_type)]
+        return filtered_list
+
+    def filter_by_key(self, key: str) -> ArtifactList:
+        """
+        Filter the artifact list by the key of artifacts.
+        Parameters
+        ----------
+        key : str
+            The key of artifacts to filter by.
+        Returns
+        -------
+        ArtifactList
+            A new ArtifactList containing only the artifacts with the specified key.
+
+        """
+        filtered_list = ArtifactList()
+        filtered_list.key = self.key
+        filtered_list.produced_by = self.produced_by
+        filtered_list.data = [artifact for artifact in self.data if artifact.key == key]
+        return filtered_list
 
     # @property
     # def value(self) -> list[Artifact]:
@@ -192,6 +230,8 @@ class ArtifactFile(Artifact, ABC):
     def __post_init__(self):
         if self.key is None:
             self.key = self.ext
+        if '.' in self.data:
+            self.data = self.data.split('.')[0]
 
     @property
     def name(self) -> str:

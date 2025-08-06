@@ -4,7 +4,7 @@ This module defines the :class:`CHARMMFFResiDatabase` class, which manages a dat
 
 import logging
 from .charmmffcontent import CHARMMFFContent, CHARMMFFStreamID
-from .charmmtop import CharmmMasses
+from .charmmfftop import CharmmMasses
 
 logger=logging.getLogger(__name__)
 

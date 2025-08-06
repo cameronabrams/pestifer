@@ -291,10 +291,11 @@ class NAMDxst(LogParser):
         super().__init__()
 
     @classmethod
-    def from_file(cls,basename='namd-xstparser'):
+    def from_file(cls, basename='namd-xstparser'):
         """
         Generate a NAMDxst instance from an existing NAMD xst file.
         """
+        logger.debug(f'Creating {cls.__name__} from {basename}')
         instance = cls(basename)
         if not os.path.exists(instance.filename):
             # throw a warning and return None
@@ -372,7 +373,7 @@ class NAMDLog(LogParser):
     The key used to identify lines indicating a stack traceback in the NAMD log file, which may indicate an error or crash.
     """
 
-    def __init__(self,basename='namd-logparser'):
+    def __init__(self, basename='namd-logparser'):
         super().__init__()
         self.line_idx=[0] # byte offsets of lines
         self.processed_line_idx=[]
@@ -391,10 +392,11 @@ class NAMDLog(LogParser):
             self.tcl_key: self.process_tcl_line,
             self.wallclock_key: self.process_wallclock_line
         }
-        self._xst_parser=None
+        self._xst_parser = None
+        self.filename = None
     
     @classmethod
-    def from_file(cls,filename,passfilter=[]):
+    def from_file(cls, filename, passfilter=[]):
         """
         Create a NAMDLog instance from an existing NAMD log file.
         
@@ -409,12 +411,14 @@ class NAMDLog(LogParser):
             An instance of NAMDLog with the data from the specified file.
         """
         logger.debug(f'Creating {cls.__name__} from {filename}')
-        instance=cls()
-        instance.basename=os.path.splitext(os.path.basename(filename))[0]
-        instance.static(filename,passfilter=passfilter)
+        instance = cls()
+        instance.filename = filename
+        instance.basename = os.path.splitext(os.path.basename(filename))[0]
+        logger.debug(f'instance.basename: {instance.basename}  filename: {instance.filename}')
+        instance.static(filename, passfilter=passfilter)
         return instance
-    
-    def static(self,filename,passfilter=[]):
+
+    def static(self, filename, passfilter=[]):
         """
         Initialize the NAMDLog from an existing, static file.
         
@@ -439,7 +443,6 @@ class NAMDLog(LogParser):
         """
         Process a line from the structure summary section of the NAMD log file.
         """
-        o=len(self.info_key)
         if line.endswith('FIXED ATOMS\n'):
             self.metadata['number_of_fixed_atoms']=int(get_toflag('FIXED ATOMS',line))
         elif line.endswith('ATOMS\n'):
@@ -534,17 +537,17 @@ class NAMDLog(LogParser):
         tokens=[x.strip() for x in line.split()]
         if 'etitle' not in self.metadata:
             if len(tokens)==len(self.default_etitle_npt):
-                logger.debug(f'process_energy: {len(tokens)} tokens found, using default etitle for NPT')
+                # logger.debug(f'process_energy: {len(tokens)} tokens found, using default etitle for NPT')
                 self.metadata['etitle']=self.default_etitle_npt
             elif len(tokens)==len(self.default_etitle_nvt):
-                logger.debug(f'process_energy: {len(tokens)} tokens found, using default etitle for NVT')
+                # logger.debug(f'process_energy: {len(tokens)} tokens found, using default etitle for NVT')
                 self.metadata['etitle']=self.default_etitle_nvt
             else:
-                logger.debug(f'process_energy: {len(tokens)} tokens found, but either {len(self.default_etitle_nvt)} or {len(self.default_etitle_npt)} expected')
+                # logger.debug(f'process_energy: {len(tokens)} tokens found, but either {len(self.default_etitle_nvt)} or {len(self.default_etitle_npt)} expected')
                 return
         else:
             if len(tokens)!=len(self.metadata['etitle']):
-                logger.debug(f'process_energy: {len(tokens)} tokens found, but {len(self.metadata["etitle"])} expected')
+                # logger.debug(f'process_energy: {len(tokens)} tokens found, but {len(self.metadata["etitle"])} expected')
                 return
         tokens[0]=int(tokens[0])
         for i in range(1,len(tokens)):
@@ -659,7 +662,7 @@ class NAMDLog(LogParser):
         """
         elements=line.split(',')
         if len(elements)<5:
-            logger.debug(f'process_timing_line: {line} does not have enough elements')
+            # logger.debug(f'process_timing_line: {line} does not have enough elements')
             return
         if len(elements)==5:
             hasnsperday=False
@@ -692,7 +695,7 @@ class NAMDLog(LogParser):
         cpu_time=float(tokens[2])
 
         # process element[1] "0.025328/step  Wall: 140.3    "
-        tokens=[x.strip().replace('/step','') for x in elements[1].split()]  # [0.025328, Wall:, 140.3]
+        tokens=[x.strip() for x in elements[1].replace('/step','').split()]  # [0.025328, Wall:, 140.3]
         if len(tokens)!=3:
             logger.debug(f'process_timing_line: {line} does not have enough tokens in second element')
             return
@@ -703,7 +706,7 @@ class NAMDLog(LogParser):
         wall_time=float(tokens[2])
 
         # process element[2] "0.00728689/step"
-        tokens=[x.strip().replace('/step','') for x in elements[2].split()]  # [0.00728689]
+        tokens=[x.strip() for x in elements[2].replace('/step','').split()]  # [0.00728689]
         if len(tokens)!=1:
             logger.debug(f'process_timing_line: {line} does not have enough tokens in third element')
             return
@@ -713,25 +716,25 @@ class NAMDLog(LogParser):
         wall_per_step=float(tokens[0])
         if hasnsperday:
         #     process element[3] "6.33326 ns/days       "
-            tokens=[x.strip().replace('ns/days','') for x in elements[3].split()]  # [6.33326]
+            tokens=[x.strip() for x in elements[3].replace('ns/days','').split()]
             if len(tokens)!=1:
-                logger.debug(f'process_timing_line: {line} does not have enough tokens in fourth element')
+                logger.debug(f'process_timing_line: {line} does not have enough tokens ({tokens})in fourth element')
                 return
             if not tokens[0].replace('.','',1).isdigit():
                 logger.debug(f'process_timing_line: {line} first token is not a digit: {tokens[0]}')
                 return
             ns_per_day=float(tokens[0]) # orphaned
         #     process element[4] "0.0621481 hours remaining"
-            tokens=[x.strip().replace('hours remaining','') for x in elements[4].split()]  # [0.0621481]
+            tokens=[x.strip() for x in elements[4].replace('hours remaining','').split()]  # [0.0621481]
             if len(tokens)!=1:
-                logger.debug(f'process_timing_line: {line} does not have enough tokens in fifth element')
+                logger.debug(f'process_timing_line: {line} does not have enough tokens ({tokens}) in fifth element')
                 return
             if not tokens[0].replace('.','',1).isdigit():
                 logger.debug(f'process_timing_line: {line} first token is not a digit: {tokens[0]}')
                 return
             hours_remaining=float(tokens[0])
         #     process element[5] "0.000000 MB of memory in use."
-            tokens=[x.strip().replace('MB of memory in use.','') for x in elements[5].split()]  # [0.000000]
+            tokens=[x.strip() for x in elements[5].replace('MB of memory in use.','').split()]  # [0.000000]
             if len(tokens)!=1:
                 logger.debug(f'process_timing_line: {line} does not have enough tokens in sixth element')
                 return
@@ -865,7 +868,7 @@ class NAMDLog(LogParser):
         Finalize the log parsing by creating dataframes for each time series.
         """
         # parse the XST file
-        self.auxlog=NAMDxst.from_file(basename=self.basename)
+        self.auxlog=NAMDxst.from_file(basename=os.path.splitext(self.filename)[0])
         for key in self.time_series_data:
             self.dataframes[key]=pd.DataFrame(self.time_series_data[key])
         if self.auxlog:
@@ -885,14 +888,18 @@ class NAMDLog(LogParser):
         if 'first_timestep' not in self.metadata:
             if 'energy' in self.dataframes:
                 self.metadata['first_timestep']=int(self.dataframes['energy'].iloc[0]['TS'])
+        return self
     
     def write_csv(self):
         """
         Write the parsed data to CSV files. This method creates a CSV file for each dataframe in the `dataframes` attribute, using the basename provided during initialization.
         The files will be named `<basename>-<key>.csv`, where `<key>` is the key of the dataframe in the `dataframes` dictionary.
         """
+        self.csvfilenames = {}
         for key in self.dataframes:
             self.dataframes[key].to_csv(f'{self.basename}-{key}.csv',index=False)
+            self.csvfilenames[key] = f'{self.basename}-{key}.csv'
+        return self.csvfilenames
 
 class PackmolLog(LogParser):
     """

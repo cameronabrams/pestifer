@@ -12,6 +12,7 @@ from .config import Config
 from .pipeline import PipelineContext
 from ..tasks.taskcollections import TaskList
 from ..tasks import TerminateTask
+from .stringthings import plu
 
 logger = logging.getLogger(__name__)
 
@@ -60,34 +61,32 @@ class Controller:
             self.tasks.append(TerminateTask(specs=specs))
 
         self.pipeline = PipelineContext(controller_index = self.index)
-        self.provision()
+        self.provision_tasks()
 
-        ess='s' if len(self.tasks)>1 else ''
         logger.info(f'Running "{self.config["user"]["title"]}"')
-        logger.info(f'Controller {self.index:02d} will execute {len(self.tasks)} task{ess}.')
+        logger.info(f'Controller {self.index:02d} will execute {len(self.tasks)} task{plu(len(self.tasks))}.')
         return self
 
     @classmethod
     def spawn_subcontroller(cls, progenitor: 'Controller') -> 'Controller':
         subcontroller = cls()
         subcontroller.config = progenitor.config
-        subcontroller.index = progenitor.index + 1 
+        subcontroller.index = progenitor.index + 1
         return subcontroller
     
     def reconfigure_tasks(self, tasks: list[dict]):
         self.tasks = TaskList.from_yaml(tasks)
-        self.provision()
-        ess='s' if len(self.tasks)>1 else ''
-        logger.info(f'Running "{self.config["user"]["title"]}"')
-        logger.info(f'Controller {self.index:02d} will execute {len(self.tasks)} task{ess}.')
+        self.provision_tasks()
+        logger.info(f'Reconfigured tasks in "{self.config["user"]["title"]}"')
+        logger.info(f'Controller {self.index:02d} will execute {len(self.tasks)} task{plu(len(self.tasks))}.')
 
-    def provision(self):
+    def provision_tasks(self):
         packet = {
             'controller_index': self.index,
-            'resource_manager': self.config.RM,
-            'scripters': self.config.scripters,
             'subcontroller': Controller.spawn_subcontroller(self),
             'pipeline': self.pipeline,
+            'resource_manager': self.config.RM,
+            'scripters': self.config.scripters,
             'processor-type': self.config['user']['namd']['processor-type'],
             'shell-commands': self.config.shell_commands,
             'progress-flag': self.config.use_terminal_progress,

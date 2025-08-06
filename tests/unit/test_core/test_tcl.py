@@ -1,29 +1,31 @@
 import unittest
 from pidibble.pdbparse import PDBParser
-from pestifer.scripters import *
 from pestifer.core.config import Config
 
 class TestTCL(unittest.TestCase):
+
+    def setUp(self):
+        self.config = Config()
+        self.vmd = self.config.scripters['vmd']
+
     def test_backup(self):
         # test backup and restor procs in saverestore.tcl
         source='6pti'
-        config=Config()
-        vmd=VMDScripter(config)
         o=PDBParser(PDBcode=source).parse()
         oatoms=o.parsed['ATOM']
         ox=[a.x for a in oatoms if a.name=='CA']
         self.assertEqual(len(ox),58)
-        vmd.newscript('testtcl')
-        vmd.addline(f'mol new {source}.pdb')
-        vmd.addline(f'set a [atomselect top all]')
-        vmd.addline(r'set attributes { name x }')
-        vmd.addline(f'set data [ backup $a $attributes ]')
-        vmd.addline(f'[atomselect top "name CA"] set x 0')
-        vmd.addline(f'[atomselect top "name CA"] writepdb bad.pdb')
-        vmd.addline(f'restore $a $attributes $data')
-        vmd.addline(f'[atomselect top "name CA"] writepdb good.pdb')
-        vmd.writescript()
-        vmd.runscript()
+        self.vmd.newscript('testtcl')
+        self.vmd.addline(f'mol new {source}.pdb')
+        self.vmd.addline(f'set a [atomselect top all]')
+        self.vmd.addline(r'set attributes { name x }')
+        self.vmd.addline(f'set data [ backup $a $attributes ]')
+        self.vmd.addline(f'[atomselect top "name CA"] set x 0')
+        self.vmd.addline(f'[atomselect top "name CA"] writepdb bad.pdb')
+        self.vmd.addline(f'restore $a $attributes $data')
+        self.vmd.addline(f'[atomselect top "name CA"] writepdb good.pdb')
+        self.vmd.writescript()
+        self.vmd.runscript()
         p=PDBParser(PDBcode='bad').parse()
         badatoms=p.parsed['ATOM']
         self.assertEqual(len(badatoms),58)
@@ -38,25 +40,23 @@ class TestTCL(unittest.TestCase):
     def test_backup_scriptwriter(self):
         # test backup and restor procs in saverestore.tcl
         source='6pti'
-        config=Config()
-        vmd=VMDScripter(config)
         o=PDBParser(PDBcode=source).parse()
         oatoms=o.parsed['ATOM']
         ox=[a.x for a in oatoms if a.name=='CA']
         oy=[a.y for a in oatoms if a.name=='CA']
         self.assertEqual(len(ox),58)
-        vmd.newscript('testtcl')
-        vmd.addline(f'mol new {source}.pdb')
-        vmd.addline(f'set a [atomselect top all]')
-        vmd.backup_selection('a')
-        vmd.addline(f'[atomselect top "name CA"] set x 0')
-        vmd.addline(f'[atomselect top "name CA"] set y -1')
-        vmd.addline(f'[atomselect top "name CA"] set z 1')
-        vmd.addline(f'[atomselect top "name CA"] writepdb bad.pdb')
-        vmd.restore_selection('a')
-        vmd.addline(f'[atomselect top "name CA"] writepdb good.pdb')
-        vmd.writescript()
-        vmd.runscript()
+        self.vmd.newscript('testtcl')
+        self.vmd.addline(f'mol new {source}.pdb')
+        self.vmd.addline(f'set a [atomselect top all]')
+        self.vmd.backup_selection('a')
+        self.vmd.addline(f'[atomselect top "name CA"] set x 0')
+        self.vmd.addline(f'[atomselect top "name CA"] set y -1')
+        self.vmd.addline(f'[atomselect top "name CA"] set z 1')
+        self.vmd.addline(f'[atomselect top "name CA"] writepdb bad.pdb')
+        self.vmd.restore_selection('a')
+        self.vmd.addline(f'[atomselect top "name CA"] writepdb good.pdb')
+        self.vmd.writescript()
+        self.vmd.runscript()
         p=PDBParser(PDBcode='bad').parse()
         badatoms=p.parsed['ATOM']
         self.assertEqual(len(badatoms),58)

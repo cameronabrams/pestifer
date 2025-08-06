@@ -20,9 +20,8 @@ class TestExampleManager(unittest.TestCase):
         shutil.copytree('../fixtures/test_examplemanager_inputs/project', './project/', dirs_exist_ok=True)
         shutil.copytree('../fixtures/test_examplemanager_inputs/userspace', './userspace/', dirs_exist_ok=True)
         self.manager = ExampleManager(
-            example_resource_folder_name = 'examples',
-                          resources_path = 'project/package/resources',
-                        docs_source_path = 'project/docs/source'
+            examples_path='project/package/resources/examples',
+            docs_source_path='project/docs/source'
         )
 
     def tearDown(self):

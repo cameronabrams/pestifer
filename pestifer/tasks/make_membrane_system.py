@@ -8,7 +8,7 @@ Usage is described in the :ref:`subs_runtasks_make_membrane_system` documentatio
 import logging
 from copy import deepcopy
 
-from ..charmmff.charmmresidatabase import CHARMMFFResiDatabase
+from ..charmmff.charmmffresidatabase import CHARMMFFResiDatabase
 from .basetask import BaseTask
 from ..core.artifacts import PackmolInputScript,PDBFile,PSFFile,NAMDXscFile, PDBFileList, PsfgenInputScript, PsfgenLogFile, PackmolLogFile, CharmmffTopFile, CharmmffStreamFile, CharmmffTopFiles, CharmmffStreamFiles,NAMDCoorFile
 from ..core.stringthings import __pestifer_version__
@@ -37,26 +37,27 @@ class MakeMembraneSystemTask(BaseTask):
         self.using_prebuilt_bilayer=False
 
     def provision(self, packet: dict):
+        logger.debug(f'Provisioning MakeMembraneSystemTask with packet: {packet}')
         super().provision(packet) 
-        self.progress= self.provisions.get('progress-flag',True)
-        self.pdbrepository=self.resource_manager.charmmff_content.pdbrepository
-        self.charmmff_content=self.resource_manager.charmmff_content
-        self.RDB=CHARMMFFResiDatabase(self.charmmff_content,streamIDs=[])
+        self.progress = self.provisions.get('progress-flag',True)
+        self.charmmff_content = self.resource_manager.charmmff_content
+        self.pdbrepository = self.charmmff_content.pdbrepository
+        self.RDB = CHARMMFFResiDatabase(self.charmmff_content, streamIDs=[])
         self.RDB.add_stream('lipid')
-        self.RDB.add_topology('toppar_all36_moreions.str',streamIDoverride='water_ions')
+        self.RDB.add_topology('toppar_all36_moreions.str', streamIDoverride='water_ions')
 
         if 'prebuilt' in self.bilayer_specs and 'pdb' in self.bilayer_specs['prebuilt']:
             logger.debug('Using prebuilt bilayer')
-            self.using_prebuilt_bilayer=True
-            self.quilt=Bilayer()
+            self.using_prebuilt_bilayer = True
+            self.quilt = Bilayer()
             self.register_current_artifact(PDBFile(path=self.bilayer_specs['prebuilt']['pdb'].replace('.pdb','')))
             self.register_current_artifact(PSFFile(path=self.bilayer_specs['prebuilt']['psf'].replace('.psf','')))
             self.register_current_artifact(NAMDXscFile(path=self.bilayer_specs['prebuilt']['xsc'].replace('.xsc','')))
-            self.quilt.box,self.quilt.origin=cell_from_xsc(self.get_current_artifact_path('xsc'))
-            self.quilt.area=self.quilt.box[0][0]*self.quilt.box[1][1]
-            additional_topologies=get_toppar_from_psf(self.get_current_artifact_path('psf').name)
+            self.quilt.box, self.quilt.origin = cell_from_xsc(self.get_current_artifact_path('xsc'))
+            self.quilt.area = self.quilt.box[0][0] * self.quilt.box[1][1]
+            additional_topologies = get_toppar_from_psf(self.get_current_artifact_path('psf').name)
             # these will be registered as artifacts when psfgen executes
-            self.quilt.addl_streamfiles=additional_topologies
+            self.quilt.addl_streamfiles = additional_topologies
         else:
             self.initialize()
 
@@ -68,72 +69,74 @@ class MakeMembraneSystemTask(BaseTask):
         It also sets up the quilt from the bilayer patch, which will be used for embedding proteins. 
         If a prebuilt bilayer is specified, it uses that instead of building a new one.
         """
-        lipid_specstring=self.bilayer_specs.get('lipids','')
-        ratio_specstring=self.bilayer_specs.get('mole_fractions','')
-        conformers_specstring=self.bilayer_specs.get('conformers','')
-        solvent_specstring=self.bilayer_specs.get('solvents','TIP3')
-        solvent_ratio_specstring=self.bilayer_specs.get('solvent_mole_fractions','1.0')
-        solvent_to_lipid_ratio=self.bilayer_specs.get('solvent_to_lipid_ratio',32.0)
-        patch_nlipids=self.bilayer_specs.get('patch_nlipids',dict(upper=100,lower=100))
-        cation_name=self.bilayer_specs.get('cation','POT')
-        anion_name=self.bilayer_specs.get('anion','CLA')
-        neutralizing_salt=[cation_name,anion_name]
-        salt_con=self.bilayer_specs.get('salt_con',0.0)  # Molar concentration
-        composition_dict=self.bilayer_specs.get('composition',{})
+        lipid_specstring = self.bilayer_specs.get('lipids', '')
+        ratio_specstring = self.bilayer_specs.get('mole_fractions', '')
+        conformers_specstring = self.bilayer_specs.get('conformers', '')
+        solvent_specstring = self.bilayer_specs.get('solvents', 'TIP3')
+        solvent_ratio_specstring = self.bilayer_specs.get('solvent_mole_fractions', '1.0')
+        solvent_to_lipid_ratio = self.bilayer_specs.get('solvent_to_lipid_ratio', 32.0)
+        patch_nlipids = self.bilayer_specs.get('patch_nlipids', dict(upper=100, lower=100))
+        cation_name = self.bilayer_specs.get('cation', 'POT')
+        anion_name = self.bilayer_specs.get('anion', 'CLA')
+        neutralizing_salt = [cation_name, anion_name]
+        salt_con = self.bilayer_specs.get('salt_con', 0.0)  # Molar concentration
+        composition_dict = self.bilayer_specs.get('composition', {})
 
         if not composition_dict['upper_leaflet'] or not composition_dict['lower_leaflet']:
             logger.debug('No upper or lower leaflet specified in composition; building from memgen-format specstrings')
-            composition_dict=specstrings_builddict(lipid_specstring,
-                                                  ratio_specstring,
-                                                  conformers_specstring,
-                                                  solvent_specstring,
-                                                  solvent_ratio_specstring)
+            composition_dict = specstrings_builddict(lipid_specstring,
+                                                     ratio_specstring,
+                                                     conformers_specstring,
+                                                     solvent_specstring,
+                                                     solvent_ratio_specstring)
         logger.debug(f'Main composition dict {composition_dict}')
-        self.patch=Bilayer(composition_dict,
+        self.patch = Bilayer(composition_dict,
                             neutralizing_salt=neutralizing_salt,
                             salt_concentration=salt_con,
                             solvent_specstring=solvent_specstring,
                             solvent_ratio_specstring=solvent_ratio_specstring,
                             solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
                             leaflet_nlipids=patch_nlipids,
-                            pdbrepository=self.pdbrepository,resi_database=self.RDB)
+                            pdbrepository=self.pdbrepository, resi_database=self.RDB)
         species_pdbs = PDBFileList()
         for spdb in self.patch.register_species_pdbs:
-            species_pdbs.append(PDBFile(spdb.replace('.pdb','')))
-        self.register_current_artifact(species_pdbs,key='species_pdbs')
+            species_pdbs.append(PDBFile(spdb.replace('.pdb', ''), name=spdb))
+        self.register_current_artifact(species_pdbs, key='species_pdbs')
         logger.debug(f'Main composition dict after call {composition_dict}')
         if self.patch.asymmetric:
             logger.debug(f'Requested patch is asymmetric; generating two symmetric patches')
             logger.debug(f'Symmetrizing bilayer to upper leaflet')
-            composition_dict['lower_leaflet_saved']=composition_dict['lower_leaflet']
-            composition_dict['lower_chamber_saved']=composition_dict['lower_chamber']
-            composition_dict['lower_leaflet']=composition_dict['upper_leaflet']
-            composition_dict['lower_chamber']=composition_dict['upper_chamber']
-            self.patchA=Bilayer(composition_dict,
-                                neutralizing_salt=neutralizing_salt,
-                                salt_concentration=salt_con,
-                                solvent_specstring=solvent_specstring,
-                                solvent_ratio_specstring=solvent_ratio_specstring,
-                                solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
-                                leaflet_nlipids=patch_nlipids,
-                                pdbrepository=self.pdbrepository,resi_database=self.RDB)
+            composition_dict['lower_leaflet_saved'] = composition_dict['lower_leaflet']
+            composition_dict['lower_chamber_saved'] = composition_dict['lower_chamber']
+            composition_dict['lower_leaflet'] = composition_dict['upper_leaflet']
+            composition_dict['lower_chamber'] = composition_dict['upper_chamber']
+            self.patchA = Bilayer(composition_dict,
+                                  neutralizing_salt=neutralizing_salt,
+                                  salt_concentration=salt_con,
+                                  solvent_specstring=solvent_specstring,
+                                  solvent_ratio_specstring=solvent_ratio_specstring,
+                                  solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
+                                  leaflet_nlipids=patch_nlipids,
+                                  pdbrepository=self.pdbrepository, 
+                                  resi_database=self.RDB)
             logger.debug(f'Symmetrizing bilayer to lower leaflet')
-            composition_dict['upper_leaflet_saved']=composition_dict['upper_leaflet']
-            composition_dict['upper_chamber_saved']=composition_dict['upper_chamber']
-            composition_dict['lower_leaflet']=composition_dict['lower_leaflet_saved']
-            composition_dict['lower_chamber']=composition_dict['lower_chamber_saved']
-            composition_dict['upper_leaflet']=composition_dict['lower_leaflet']
-            composition_dict['upper_chamber']=composition_dict['lower_chamber']
-            self.patchB=Bilayer(composition_dict,
-                                neutralizing_salt=neutralizing_salt,
-                                solvent_specstring=solvent_specstring,
-                                solvent_ratio_specstring=solvent_ratio_specstring,
-                                solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
-                                leaflet_nlipids=patch_nlipids,
-                                pdbrepository=self.pdbrepository,resi_database=self.RDB)
-            composition_dict['upper_leaflet']=composition_dict['upper_leaflet_saved']
-            composition_dict['upper_chamber']=composition_dict['upper_chamber_saved']
-            self.patch=None
+            composition_dict['upper_leaflet_saved'] = composition_dict['upper_leaflet']
+            composition_dict['upper_chamber_saved'] = composition_dict['upper_chamber']
+            composition_dict['lower_leaflet'] = composition_dict['lower_leaflet_saved']
+            composition_dict['lower_chamber'] = composition_dict['lower_chamber_saved']
+            composition_dict['upper_leaflet'] = composition_dict['lower_leaflet']
+            composition_dict['upper_chamber'] = composition_dict['lower_chamber']
+            self.patchB = Bilayer(composition_dict,
+                                  neutralizing_salt=neutralizing_salt,
+                                  solvent_specstring=solvent_specstring,
+                                  solvent_ratio_specstring=solvent_ratio_specstring,
+                                  solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
+                                  leaflet_nlipids=patch_nlipids,
+                                  pdbrepository=self.pdbrepository, 
+                                  resi_database=self.RDB)
+            composition_dict['upper_leaflet'] = composition_dict['upper_leaflet_saved']
+            composition_dict['upper_chamber'] = composition_dict['upper_chamber_saved']
+            self.patch = None
 
     def do(self) -> int:
         """

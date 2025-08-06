@@ -37,79 +37,90 @@ class MDPlotTask(BaseTask):
     """
     def do(self):
         self.next_basename()
-        is_post_processing = self.specs.get('postprocessing', False)
-        running_sums = self.specs.get('running_sums', ['cpu_time', 'wall_time'])
-        dataframes = {}
-        if not is_post_processing and self.prior:
-            # this is an in-build task, so we collect time series data from each prior md task's csv files
-            logger.debug(f'Collecting all output data from upstream md tasks...')
-            priortaskpointer = self.prior
-            priortasklist = []
-            logger.debug(f'self={str(self)}; self.prior={str(priortaskpointer)}')
-            while priortaskpointer!=None and isinstance(priortaskpointer, MDTask):
-                priortasklist.append(priortaskpointer)
-                priortaskpointer=priortaskpointer.prior
-            priortasklist=priortasklist[::-1]
-            for pt in priortasklist:
-                artifactfile_collection = pt.get_my_artifactfile_collection()
-                csv_artifacts=[a for a in artifactfile_collection if a.key.endswith('-csv')]
-                if len(csv_artifacts)==0:
-                    raise ValueError(f'No CSV artifacts found in {pt.basename}.  Cannot extract time series data.')
-                time_series_titles=[x.key.replace('-csv','') for x in csv_artifacts]
-                csv_artifact_dict={x:y for x,y in zip(time_series_titles,csv_artifacts)}
-                logger.debug(f'Found {len(time_series_titles)} time series titles in {pt.basename}: {time_series_titles}')
-                for tst in time_series_titles:
-                    if not tst in dataframes:
-                        dataframes[tst]=pd.DataFrame()
-                    csvartifact=csv_artifact_dict.get(tst)
-                    if csvartifact:
-                        csvname=csvartifact.path.name
-                        logger.debug(f'Collecting data from CSV file {csvname}')
-                        try:
-                            newdf=pd.read_csv(csvname,header=0,index_col=None)
-                            logger.debug(f'newdf shape: {newdf.shape}')
-                            # show the range of the first column
-                            if not newdf.empty:
-                                logger.debug(f' -> first column range: {newdf.iloc[:,0].min()} - {newdf.iloc[:,0].max()}')
-                            if not dataframes[tst].empty and any(col in newdf.columns for col in running_sums):
-                                # shift any columns designated as running sums by the final value of the previous dataframe
-                                for col in running_sums:
-                                    if col in newdf.columns:
-                                        newdf[col]=newdf[col]+dataframes[tst][col].iloc[-1]
-                            dataframes[tst]=pd.concat([dataframes[tst],newdf],ignore_index=True)
-                            logger.debug(f'{tst} dataframe shape: {dataframes[tst].shape}')
-                        except:
-                            logger.debug(f'For some reason, I could not read this csv file')
-                            logger.debug(f'{csvname} does not exist or is not a valid csv file')
-        else:
-            # this is being run as a standalone, post-processing task
-            logger.debug(f'Extracting data from {len(self.specs["logs"])} explicitly named namd logs...')
-            self.basename=self.taskname
-            logger.debug(self.specs['logs'])
-            namdlogs=[]
-            for f in self.specs['logs']:
-                logger.debug(f'Extracting data from {f}')
-                namdlogs.append(NAMDLog.from_file(f))
-                nl=namdlogs[-1]
-                time_series_titles=list(nl.dataframes.keys())
-                logger.debug(f'Found {len(time_series_titles)} time series titles in {nl.basename}: {time_series_titles}')
-                for tst in time_series_titles:
-                    if not tst in dataframes:
-                        logger.debug(f'Creating dataframe for {tst}')
-                        dataframes[tst]=pd.DataFrame()
-                    newdf=nl.dataframes[tst]
-                    if not dataframes[tst].empty and any(col in newdf.columns for col in running_sums):
-                        # shift any columns designated as running sums by the final value of the previous dataframe
-                        for col in running_sums:
-                            if col in newdf.columns:
-                                newdf[col]=newdf[col]+dataframes[tst][col].iloc[-1]
+        self.reprocess_logs = self.specs.get('reprocess-logs', False)
+        self.explicit_logs = self.specs.get('logs', [])
+        self.running_sums = self.specs.get('running_sums', ['cpu_time', 'wall_time'])
+        self.dataframes = {}
+        
+        # task list
+        self.priortasklist = []
+        priortaskpointer = getattr(self, 'prior', None)
+        while priortaskpointer != None and isinstance(priortaskpointer, MDTask):
+            self.priortasklist.append(priortaskpointer)
+            priortaskpointer = priortaskpointer.prior
+        self.priortasklist = self.priortasklist[::-1]
+
+        if self.reprocess_logs:
+            namdlog_objs = []
+            if self.explicit_logs:
+                for f in self.explicit_logs:
+                    logger.debug(f'Extracting data from {f}')
+                    the_log = NAMDLog.from_file(f)
+                    csvs_generated = the_log.write_csv()
+                    for key in csvs_generated:
+                        artifact = CSVDataFile(csvs_generated[key])
+                        if artifact.exists():
+                            self.register_current_artifact(artifact, key=f'{key}-csv')
+                        else:
+                            raise FileNotFoundError(f'CSV file {csvs_generated[key]} does not exist.')
+                    namdlog_objs.append(the_log)
+            elif len(self.priortasklist) > 0:
+                for pt in self.priortasklist:
+                    namdlog_artifacts = pt.get_my_artifactfile_collection().filter_by_artifact_type(NAMDLog)
+                    for na in namdlog_artifacts:
+                        the_log = NAMDLog.from_file(na.path.name)
+                        csvs_generated = the_log.write_csv()
+                        for key in csvs_generated:
+                            artifact = CSVDataFile(csvs_generated[key])
+                            if artifact.exists():
+                                self.register_current_artifact(artifact, key=f'{key}-csv')
+        
+        if self.priortasklist:
+            for pt in self.priortasklist:
+                artifactfile_collection = pt.get_my_artifactfile_collection().filter_by_artifact_type(CSVDataFile)
+                for pt_artifact in artifactfile_collection:
+                    self.register_current_artifact(pt_artifact, key=pt_artifact.key)
+
+        self.csvartifacts = self.get_my_artifactfile_collection().filter_by_artifact_type(CSVDataFile)
+        if len(self.csvartifacts) == 0:
+            raise ValueError('No CSV artifacts found.  Cannot extract time series data.')
+        logger.debug(f'Found {len(self.csvartifacts)} CSV artifacts.')
+
+        self.all_time_series_names = list(set([art.key.replace('-csv', '') for art in self.csvartifacts]))
+        logger.debug(f'Found {len(self.all_time_series_names)} time series names: {self.all_time_series_names}')
+    
+        for tst in self.all_time_series_names:
+            if not tst in self.dataframes:
+                self.dataframes[tst] = pd.DataFrame()
+            csv_artifact_collection = self.csvartifacts.filter_by_key(tst + '-csv')
+            if len(csv_artifact_collection) == 0:
+                logger.debug(f'No CSV artifact found for {tst}. Skipping...')
+                continue
+            for csvartifact in csv_artifact_collection:
+                logger.debug(f'Collecting data from CSV file {csvartifact.path.name}')
+                csvname = csvartifact.path.name
+                logger.debug(f'Collecting data from CSV file {csvname}')
+                try:
+                    newdf = pd.read_csv(csvname, header=0, index_col=None)
+                    logger.debug(f'newdf shape: {newdf.shape}')
+                    # show the range of the first column
                     if not newdf.empty:
-                        dataframes[tst]=pd.concat([dataframes[tst],newdf],ignore_index=True)
-                        logger.debug(f'{tst} dataframe shape: {dataframes[tst].shape}')
+                        logger.debug(f' -> first column range: {newdf.iloc[:,0].min()} - {newdf.iloc[:,0].max()}')
+                    if not self.dataframes[tst].empty and any(col in newdf.columns for col in self.running_sums):
+                        # shift any columns designated as running sums by the final value of the previous dataframe
+                        for col in self.running_sums:
+                            if col in newdf.columns:
+                                newdf[col] = newdf[col] + self.dataframes[tst][col].iloc[-1]
+                    self.dataframes[tst] = pd.concat([self.dataframes[tst], newdf], ignore_index=True)
+                    logger.debug(f'{tst} dataframe shape: {self.dataframes[tst].shape}')
+                except:
+                    logger.debug(f'For some reason, I could not read this csv file')
+                    logger.debug(f'{csvname} does not exist or is not a valid csv file')
+
 
         # save each new dataframe to a csv file
         # TODO: make sure accumulating quantities increment
-        for key,df in dataframes.items():
+        for key,df in self.dataframes.items():
             if not df.empty:
                 csvname=f'{self.basename}-{key}.csv'
                 df.to_csv(csvname,index=False)
@@ -117,7 +128,7 @@ class MDPlotTask(BaseTask):
 
         # build a dictionary of column headings:dataframe pairs
         df_of_column={}
-        for key,df in dataframes.items():
+        for key,df in self.dataframes.items():
             for col in df.columns[1:]: # ignore first column, which is usually 'TS' or 'step'
                 if col not in df_of_column:
                     df_of_column[col]=df
@@ -185,7 +196,7 @@ class MDPlotTask(BaseTask):
             plt.clf()
         for profile in profiles:
             if profile=='pressureprofile':
-                df=dataframes.get('pressureprofile',None)
+                df=self.dataframes.get('pressureprofile',None)
                 if df is None:
                     logger.debug(f'No pressure profile data found. Skipping...')
                     continue

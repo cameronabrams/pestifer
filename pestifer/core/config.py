@@ -38,11 +38,12 @@ class Config(Yclept):
     def __init__(self, userfile='', userdict={}, quiet=False):
         vrep = f'ycleptic v. {version("ycleptic")}\npidibble v. {version("pidibble")}'
         self.RM = ResourceManager()
-        logger.debug(f'config quiet? {quiet}')
+
         if not quiet:
             my_logger(vrep, logger.info, just='<', frame='*', fill='', no_indent=True)
             my_logger(str(self.RM), logger.debug, just='<', frame='*', fill='', no_indent=True)
         # resolve full pathname of YCleptic base config for this application
+
         basefile = self.RM.get_ycleptic_config()
         assert os.path.exists(basefile), f'Base config file {basefile} does not exist.'
         # ycleptic's init:
@@ -50,11 +51,15 @@ class Config(Yclept):
         processor_info = self._get_processor_info()
         if not quiet:
             my_logger(processor_info, logger.info, just='<', frame='*', fill='')
+
         self._set_internal_shortcuts()
         self._set_shell_commands(verify_access=(userfile != ''))
-        self.RM.update_charmmff(self['user']['charmmff'].get('tarball', ''))
-        self.RM.update_pdbrepository(self['user']['charmmff'].get('pdbcollections', []))
-        # TODO: kwargs_to_scripters = dict() # full dict of all kwargs to scripters
+
+        self.RM.update_charmmff(
+            tarball=self['user']['charmmff'].get('tarball', ''),
+            user_pdbrepository_paths=self['user']['charmmff'].get('pdbrepository', [])
+        )
+
         self._set_kwargs_to_scripters()
         self.scripters = {
             'psfgen': PsfgenScripter(**self.kwargs_to_scripters),
@@ -67,29 +72,29 @@ class Config(Yclept):
 
     def _set_kwargs_to_scripters(self):
         self.kwargs_to_scripters = dict(
-            charmff =self.RM.charmmff_content,
-            charmmff_content=self.RM.charmmff_content,
-            charmmff_config=self['user']['charmmff'],
-            charmrun=self.shell_commands['charmrun'],
-            gpu_devices=self.gpu_devices,
-            local_ncpus=self.local_ncpus,
-            namd=self.shell_commands['namd3'],
-            namd_config=self['user']['namd'],
-            namd_deprecates=self['user']['namd'].get('deprecated3', {}),
-            namd_gpu=self.shell_commands['namd3gpu'],
-            namd_type=self.namd_type,
-            namd_version=self['user']['namd'].get('version', '3.0'),
-            ncpus=self.ncpus,
-            ngpus=self.ngpus,
-            packmol=self.shell_commands['packmol'],
-            psfgen_config=self['user']['psfgen'],
+            charmff = self.RM.charmmff_content,
+            charmmff_content = self.RM.charmmff_content,
+            charmmff_config = self['user']['charmmff'],
+            charmrun = self.shell_commands['charmrun'],
+            gpu_devices = self.gpu_devices,
+            local_ncpus = self.local_ncpus,
+            namd = self.shell_commands['namd3'],
+            namd_config = self['user']['namd'],
+            namd_deprecates = self['user']['namd'].get('deprecated3', {}),
+            namd_gpu = self.shell_commands['namd3gpu'],
+            namd_type = self.namd_type,
+            namd_version = self['user']['namd'].get('version', '3.0'),
+            ncpus = self.ncpus,
+            ngpus = self.ngpus,
+            packmol = self.shell_commands['packmol'],
+            psfgen_config = self['user']['psfgen'],
             progress = self.use_terminal_progress,
-            slurmvars=self.slurmvars,
-            tcl_root=self.tcl_root,
-            tcl_pkg_path=self.tcl_pkg_path,
-            tcl_script_path=self.tcl_script_path,
-            vmd=self.shell_commands['vmd'],
-            vmd_startup_script=self.vmd_startup_script,
+            slurmvars = self.slurmvars,
+            tcl_root = self.tcl_root,
+            tcl_pkg_path = self.tcl_pkg_path,
+            tcl_script_path = self.tcl_script_path,
+            vmd = self.shell_commands['vmd'],
+            vmd_startup_script = self.vmd_startup_script,
         )
 
     def _get_processor_info(self):

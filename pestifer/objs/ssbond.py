@@ -140,7 +140,7 @@ class SSBond(BaseObj):
                 sym2 = cd['ptnr2_symmetry'],
                 length = float(cd['pdbx_dist_value'])
             )
-        elif args and isinstance(args[0], PatchList):
+        elif args and isinstance(args[0], PSFDISUPatch):
             pl = args[0]
             s1,ri1 = pl[0].split(':')
             s2,ri2 = pl[1].split(':')

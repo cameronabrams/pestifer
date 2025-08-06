@@ -69,5 +69,5 @@ class FetchTask(BaseTask):
             else:
                 raise FileNotFoundError(f"Neither {local_pdb} nor {local_cif} found.")
         else:
-            raise ValueError(f"Unsupported source type: {source}")
+            raise ValueError(f"Fetch failed: source='{source}' sourceID='{sourceID}'.")
         return self.result

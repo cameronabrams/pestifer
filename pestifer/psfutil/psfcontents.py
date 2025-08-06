@@ -41,7 +41,23 @@ def get_toppar_from_psf(filename):
             if 'toppar_' in top:
                 fn=os.path.basename(top)
                 toppars.append(fn)
-    return list(set(toppars))  
+    return list(set(toppars))
+
+class PSFDISUPatch:
+    def __init__(self, pl: list[str]):
+        """
+        Initialize a PSFDISUPatch object from a list of strings.
+        
+        Parameters
+        ----------
+        pl : list[str]
+            A list of strings representing the disulfide bond patch, typically in the format:
+            ['DISU', 'segid1:resid1', 'segid2:resid2'].
+        """
+        self.seg1, self.res1 = pl[1].split(':')
+        self.seg2, self.res2 = pl[2].split(':')
+        self.resid1 = ResID(self.res1)
+        self.resid2 = ResID(self.res2)
 
 class PSFContents:
     """
