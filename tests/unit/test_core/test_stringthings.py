@@ -1,5 +1,5 @@
 import unittest
-from pestifer.core.stringthings import ByteCollector, FileCollector, to_latex_math
+from pestifer.util.stringthings import ByteCollector, FileCollector, to_latex_math
 
 class TestStringthings(unittest.TestCase):
 

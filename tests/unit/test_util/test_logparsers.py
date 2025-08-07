@@ -1,5 +1,5 @@
 from time import sleep
-from pestifer.util.logparsers import PackmolLog, NAMDLog, get_toeol, get_tokens, get_values
+from pestifer.logparsers import PackmolLog, NAMDLog, get_toeol, get_tokens, get_values
 import logging
 logger=logging.getLogger(__name__)
 

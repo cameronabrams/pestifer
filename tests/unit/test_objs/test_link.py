@@ -1,16 +1,24 @@
-import unittest
-from pestifer.objs.link import Link, LinkList
-from pidibble.pdbparse import PDBParser
-from pidibble.pdbrecord import PDBRecordDict, PDBRecordList
-from pestifer.util.cifutil import CIFload, CIFdict
-from pathlib import Path
-from mmcif.api.PdbxContainers import DataContainer
-from mmcif.api.DataCategory import DataCategory
-from pestifer.objs.resid import ResID
-from pestifer.molecule.residue import Residue, ResidueList
-from pestifer.molecule.atom import Atom, AtomList
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+
 import logging
+import unittest
+
+from mmcif.api.PdbxContainers import DataContainer
+
+from pathlib import Path
+
+from pidibble.pdbparse import PDBParser
+from pidibble.pdbrecord import PDBRecordDict
+
+from pestifer.molecule.atom import AtomList
+from pestifer.molecule.residue import Residue, ResidueList
+from pestifer.objs.link import Link, LinkList
+from pestifer.objs.resid import ResID
+from pestifer.psfutil.psfpatch import PSFLinkPatch
+from pestifer.util.cifutil import CIFload
+
 logger = logging.getLogger(__name__)
+
 class TestLink(unittest.TestCase):
 
     def test_link_creation(self):
@@ -43,6 +51,17 @@ class TestLink(unittest.TestCase):
         self.assertEqual(link.chainID2, "B")
         self.assertEqual(link.resid2, ResID(2))
         self.assertEqual(link.name2, "CA")
+
+    def test_link_from_psflinkpatch(self):
+        patch = PSFLinkPatch(['NGLB', 'A:1', 'B:2'])
+        link = Link(patch)
+        self.assertIsInstance(link, Link)
+        self.assertEqual(link.chainID1, 'A')
+        self.assertEqual(link.resid1, ResID(1))
+        self.assertEqual(link.name1, 'ND2')
+        self.assertEqual(link.chainID2, 'B')
+        self.assertEqual(link.resid2, ResID(2))
+        self.assertEqual(link.name2, 'C1')
 
 class TestLinkList(unittest.TestCase):
 

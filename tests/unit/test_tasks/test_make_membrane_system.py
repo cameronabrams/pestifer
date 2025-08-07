@@ -1,11 +1,15 @@
+import pytest
 import os
 import shutil
-import pytest
 import unittest
-from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
+
 from pestifer.core.config import Config
 from pestifer.core.controller import Controller
-from pestifer.scripters import PsfgenScripter,VMDScripter,NAMDScripter,Filewriter
+
+from pestifer.scripters import PsfgenScripter
+
+from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
+
 from pestifer.util.util import protect_str_arg
 
 class TestMakeMembraneSystem(unittest.TestCase):
@@ -145,7 +149,7 @@ class TestMakeMembraneSystem(unittest.TestCase):
         input_data_dir='../../fixtures/embed_inputs'
         for ftype in [psf,pdb,bilayer_psf,bilayer_pdb,bilayer_xsc]:
             shutil.copy(os.path.join(input_data_dir,ftype),'.')
-        pg=PsfgenScripter(self.C)
+        pg=self.C.get_scripter('psfgen')
         pg.newscript(basename)
         pg.usescript('bilayer_embed')
         pg.writescript(basename,guesscoord=False,regenerate=True,force_exit=True,writepsf=False,writepdb=False)
@@ -229,7 +233,6 @@ class TestMakeMembraneSystem(unittest.TestCase):
         os.chdir('..')
         assert result==0
 
-    @pytest.mark.slow
     def test_membrane_embed_no_orient(self):
         test_dir='__test_make_membrane_system_task_embed_no_orient'
         if os.path.exists(test_dir):
@@ -245,7 +248,7 @@ class TestMakeMembraneSystem(unittest.TestCase):
         input_data_dir='../../fixtures/embed_inputs'
         for ftype in [psf,pdb,bilayer_psf,bilayer_pdb,bilayer_xsc]:
             shutil.copy(os.path.join(input_data_dir,ftype),'.')
-        pg=PsfgenScripter(self.C)
+        pg=self.C.get_scripter('psfgen')
         pg.newscript(basename)
         pg.usescript('bilayer_embed')
         pg.writescript(basename,guesscoord=False,regenerate=True,force_exit=True,writepsf=False,writepdb=False)

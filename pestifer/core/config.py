@@ -15,8 +15,8 @@ from importlib.metadata import version
 from ycleptic.yclept import Yclept
 
 from .resourcemanager import ResourceManager
-from .stringthings import my_logger
-from ..scripters import PsfgenScripter, NAMDScripter, PackmolScripter, VMDScripter, Filewriter
+from ..util.stringthings import my_logger
+from ..scripters import PsfgenScripter, NAMDScripter, NAMDColvarInputScripter, PackmolScripter, VMDScripter, Filewriter
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,27 @@ class Config(Yclept):
             'tcl': VMDScripter(**self.kwargs_to_scripters),
             'data': Filewriter(**self.kwargs_to_scripters),
             'vmd': VMDScripter(**self.kwargs_to_scripters),
+            'namd_colvar': NAMDColvarInputScripter(**self.kwargs_to_scripters)
         }
+
+    def get_scripter(self, scripter_name):
+        """ 
+        Get a scripter instance by name.
+
+        Parameters
+        ----------
+        scripter_name : str
+            The name of the scripter to retrieve. Must be one of 'psfgen', 'namd', 'packmol', 'tcl', 'data', or 'vmd'.
+
+        Returns
+        -------
+        Scripter
+            An instance of the requested scripter.
+        """
+        if scripter_name in self.scripters:
+            return self.scripters[scripter_name]
+        else:
+            raise ValueError(f'Scripter {scripter_name} not found.')
 
     def _set_kwargs_to_scripters(self):
         self.kwargs_to_scripters = dict(

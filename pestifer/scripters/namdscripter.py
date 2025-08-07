@@ -5,7 +5,7 @@ import os
 
 from .tclscripters import TcLScripter
 from ..core.command import Command
-from ..util.logparsers import NAMDLog, NAMDxst
+from ..logparsers.logparser import NAMDLog, NAMDxst
 from ..util.progress import NAMDProgress
 
 logger = logging.getLogger(__name__)

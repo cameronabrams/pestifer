@@ -9,10 +9,11 @@ from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from pydantic import Field
 from typing import ClassVar, Any
 
-from .patch import PatchList
 from .resid import ResID
 
 from ..core.baseobj import BaseObj, BaseObjList
+
+from ..psfutil.psfpatch import PSFLinkPatch
 
 from ..util.cifutil import CIFdict
 from ..util.coord import ic_reference_closest
@@ -175,8 +176,8 @@ class Link(BaseObj):
             return Link._from_pdbrecord(args[0])
         elif args and isinstance(args[0], CIFdict):
             return Link._from_cifdict(args[0])
-        elif args and isinstance(args[0], PatchList):
-            return Link._from_patchlist(args[0])
+        elif args and isinstance(args[0], PSFLinkPatch):
+            return Link._from_psflinkpatch(args[0])
         return super()._adapt(*args, **kwargs)
     
     @staticmethod
@@ -228,21 +229,17 @@ class Link(BaseObj):
             }
 
     @staticmethod
-    def _from_patchlist(L: PatchList) -> dict:
-        s1, ri1 = L[1].split(':')
-        s2, ri2 = L[2].split(':')
-        resid1 = ResID(ri1)
-        resid2 = ResID(ri2)
+    def _from_psflinkpatch(L: PSFLinkPatch) -> dict:
         idict = {
-            'chainID1': s1,
-                'resid1': resid1,
-                'chainID2': s2,
-                'resid2': resid2,
-                'patchname': L[0],
-                'patchhead': 1,  # default order
-                'name1': Link._patch_atomnames[L[0]][0],
-                'name2': Link._patch_atomnames[L[0]][1],
-                'empty': False,
+            'chainID1': L.seg1,
+            'resid1': L.resid1,
+            'chainID2': L.seg2,
+            'resid2': L.resid2,
+            'patchname': L.patchname if hasattr(L, 'patchname') else '',
+            'patchhead': 1,  # default order
+            'name1': Link._patch_atomnames[L.patchname][0],
+            'name2': Link._patch_atomnames[L.patchname][1],
+            'empty': False,
             }
         return idict
 

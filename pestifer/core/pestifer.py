@@ -19,8 +19,8 @@ from .config import Config, ResourceManager
 from ..charmmff.make_pdb_collection import make_pdb_collection
 from .controller import Controller
 from ..util.namdrestart import make_namd_restart
-from .stringthings import banner, _banner_message, _enhanced_banner_message, oxford
-from ..util.logparsers import subcommand_follow_namd_log
+from ..util.stringthings import banner, _banner_message, _enhanced_banner_message, oxford
+from ..logparsers.logparser import subcommand_follow_namd_log
 
 logger=logging.getLogger(__name__)
 

@@ -10,8 +10,8 @@ import os
 import logging
 logger = logging.getLogger(__name__)
 from .toctree_util import modify_toctree,get_name_from_toctree
-from ..core.examplemanager import Example
-from ..core.stringthings import example_footer
+from ..core.example import Example
+from ..util.stringthings import example_footer
 
 class SphinxExampleManager:
     """

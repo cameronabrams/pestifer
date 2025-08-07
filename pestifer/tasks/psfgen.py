@@ -15,7 +15,7 @@ from .basetask import BaseTask
 from ..molecule.chainidmanager import ChainIDManager
 from ..molecule.molecule import Molecule
 from ..core.objmanager import ObjManager
-from ..core.artifacts import PDBFileList, PSFFile, PDBFile, VMDScript, PsfgenInputScript, VMDLogFile, CharmmffTopFile, CharmmffStreamFile, CharmmffTopFiles, CharmmffStreamFiles, ArtifactData, PsfgenLogFile
+from ..core.artifacts import *
 from ..psfutil.psfatom import PSFAtomList
 from ..psfutil.psfcontents import PSFContents
 
@@ -87,7 +87,7 @@ class PsfgenTask(BaseTask):
                     vm.write_pdb(self.basename,'mCM')
                     vm.writescript()
                     vm.runscript()
-                    for artifact_type in [VMDScript, PDBFile, VMDLogFile]:
+                    for artifact_type in [VMDScriptArtifact, PDBFileArtifact, VMDLogFileArtifact]:
                         self.register_current_artifact(artifact_type(self.basename))
 
     def declash(self):
@@ -156,10 +156,10 @@ class PsfgenTask(BaseTask):
         if result!=0:
             return result
         # register PSF, PDB, log, and all charmmff files in the pipeline context
-        for artifact_type in [PsfgenInputScript,PSFFile,PDBFile,PsfgenLogFile]:
+        for artifact_type in [PsfgenInputScriptArtifact,PSFFileArtifact,PDBFileArtifact,PsfgenLogFileArtifact]:
             self.register_current_artifact(artifact_type(self.basename))
-        self.register_current_artifact(CharmmffTopFiles([CharmmffTopFile(x.replace('.rtf','')) for x in pg.topologies if x.endswith('.rtf')]),key='charmmff_topfiles')
-        self.register_current_artifact(CharmmffStreamFiles([CharmmffStreamFile(x.replace('.str','')) for x in pg.topologies if x.endswith('.str')]),key='charmmff_streamfiles')
+        self.register_current_artifact(CharmmffTopFileArtifacts([CharmmffTopFileArtifact(x.replace('.rtf','')) for x in pg.topologies if x.endswith('.rtf')]),key='charmmff_topfiles')
+        self.register_current_artifact(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x.replace('.str','')) for x in pg.topologies if x.endswith('.str')]),key='charmmff_streamfiles')
         self.strip_remarks()
         return 0
         
@@ -221,7 +221,7 @@ class PsfgenTask(BaseTask):
         vt.write_pdb(self.basename,'mLL')
         vt.writescript()
         vt.runscript()
-        for artifact_type in [VMDScript, PDBFile, VMDLogFile]:
+        for artifact_type in [VMDScriptArtifact, PDBFileArtifact, VMDLogFileArtifact]:
             self.register_current_artifact(artifact_type(self.basename))
 
     def declash_na_loops(self,specs):
@@ -257,7 +257,7 @@ class PsfgenTask(BaseTask):
         vt.writescript()
         logger.debug(f'Declashing {nna} nucleic acid loops')
         vt.runscript(progress_title='declash-nucleic-acid-loops')
-        for artifact_type in [VMDScript, PDBFile, VMDLogFile]:
+        for artifact_type in [VMDScriptArtifact, PDBFileArtifact, VMDLogFileArtifact]:
             self.register_current_artifact(artifact_type(self.basename))
 
     def _write_na_loops(self,vt,**options):
@@ -365,7 +365,7 @@ class PsfgenTask(BaseTask):
         vt.writescript()
         logger.debug(f'Declashing {nglycan} glycans')
         vt.runscript(progress_title='declash-glycans')
-        for artifact_type in [VMDScript, PDBFile, VMDLogFile]:
+        for artifact_type in [VMDScriptArtifact, PDBFileArtifact, VMDLogFileArtifact]:
             self.register_current_artifact(artifact_type(self.basename))
 
     def _write_glycans(self,fw):
@@ -458,7 +458,7 @@ class PsfgenTask(BaseTask):
         if 'grafts' in seqmods:
             logger.debug(f'looking for graft sources to ingest')
             Grafts=seqmods['grafts']
-            graft_artifacts=PDBFileList()
+            graft_artifacts=PDBFileArtifactList()
             for g in Grafts:
                 if not g.source_pdbid in self.molecules:
                     logger.debug(f'ingesting graft source {g.source_pdbid}')
@@ -467,7 +467,7 @@ class PsfgenTask(BaseTask):
                         'file_format':'PDB'
                     }
                     self.molecules[g.source_pdbid]=Molecule(source=this_source)
-                    graft_artifacts.append(PDBFile(g.source_pdbid))
+                    graft_artifacts.append(PDBFileArtifact(g.source_pdbid))
                 g.activate(deepcopy(self.molecules[g.source_pdbid]))
             self.register_current_artifact(graft_artifacts, key='graft_sources')
         self.chainIDmanager=ChainIDManager(
@@ -478,7 +478,7 @@ class PsfgenTask(BaseTask):
                                     objmanager=self.objmanager,
                                     chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
         # register self.base_molecule in the pipeline context
-        self.register_current_artifact(ArtifactData(self.base_molecule),key='base_molecule')
+        self.register_current_artifact(DataArtifact(self.base_molecule),key='base_molecule')
         for molid,molecule in self.molecules.items():
             logger.debug(f'Molecule "{molid}": {molecule.num_atoms()} atoms in {molecule.num_residues()} residues; {molecule.num_segments()} segments.')
 
@@ -517,4 +517,4 @@ class PsfgenTask(BaseTask):
 
         self.molecules[base_key]=updated_molecule
         self.base_molecule=updated_molecule
-        self.register_current_artifact(ArtifactData(self.base_molecule,key='base_molecule'))
+        self.register_current_artifact(DataArtifact(self.base_molecule),key='base_molecule')

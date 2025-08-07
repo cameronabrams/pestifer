@@ -9,6 +9,7 @@ import numpy as np
 
 from ..charmmff.pdbrepository import PDBRepository
 from ..charmmff.charmmffresidatabase import CHARMMFFResiDatabase
+from ..core.artifacts import ArtifactDict
 from ..util.units import _UNITS_, _SYMBOLS_, cuA_of_nmolec
 
 sA_  = _SYMBOLS_['ANGSTROM']
@@ -333,6 +334,10 @@ class Bilayer:
                 if species['local_name'] not in self.register_species_pdbs:
                     self.register_species_pdbs.append(species['local_name'])
                 # logger.debug(f'Checked out {species_name} as {species["local_name"]}')
+
+        # attributes that will be set later
+        self.area = 0.0
+        self.artifacts = ArtifactDict()
 
     def spec_out(self, SAPL=75.0, xy_aspect_ratio=1.0, half_mid_zgap=1.0, solution_gcc=1.0, rotation_pm=10.0):
         """

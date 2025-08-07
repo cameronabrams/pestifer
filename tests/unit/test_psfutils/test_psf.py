@@ -50,16 +50,16 @@ class TestPSF(unittest.TestCase):
             self.assertEqual(p[2],'DISU')
             fss=psf.ssbonds[0]
             x=fss.chainID1
-            y=f'{fss.resseqnum1}{fss.insertion1}'
+            y=fss.resid1
             self.assertEqual(p[3],f'{x}:{y}')
             x=fss.chainID2
-            y=f'{fss.resseqnum2}{fss.insertion2}'
+            y=fss.resid2
             self.assertEqual(p[4],f'{x}:{y}')
 
     def test_psf_linkcount(self):
         source='test.psf'
         psf=PSFContents(source)
-        for patchtype in Link.patch_atomnames.keys():
+        for patchtype in Link._patch_atomnames.keys():
             c=Command(f'grep REMARKS {source} | grep patch| grep -c {patchtype}')
             c.run(ignore_codes=[1])
             expected=int(c.stdout)
@@ -77,10 +77,10 @@ class TestPSF(unittest.TestCase):
                     self.assertEqual(p[2],patchtype)
                     fss=t_links[0]
                     x=fss.chainID1
-                    y=f'{fss.resseqnum1}{fss.insertion1}'
+                    y=fss.resid1
                     self.assertEqual(p[3],f'{x}:{y}')
                     x=fss.chainID2
-                    y=f'{fss.resseqnum2}{fss.insertion2}'
+                    y=fss.resid2
                     self.assertEqual(p[4],f'{x}:{y}')
 
     def test_psf_bondcount(self):

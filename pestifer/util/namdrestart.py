@@ -6,9 +6,9 @@ import glob
 import logging
 import os
 import shutil
-from .logparsers import NAMDLog
+from ..logparsers.namdlogparser import NAMDLogParser
 from ..scripters.filewriter import Filewriter
-from ..core.stringthings import ByteCollector
+from .stringthings import ByteCollector
 
 logger=logging.getLogger(__name__)
 
@@ -165,7 +165,7 @@ def make_namd_restart(args,**kwargs):
     newbasename=args.new_base
     run=args.run
     oldconfig=NAMDConfig(config)
-    oldlog=NAMDLog.from_file(namd_log,passfilter=['OUTPUT','RESTART','TCL','TIMESTEP','WallClock'])
+    oldlog=NAMDLogParser.from_file(namd_log,passfilter=['OUTPUT','RESTART','TCL','TIMESTEP','WallClock'])
     output_filename=oldlog.metadata.get('output_filename',None)
     if not output_filename:
         logger.error(f'No output filename found in {namd_log}')

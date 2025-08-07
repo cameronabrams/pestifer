@@ -9,7 +9,7 @@ from .tclscripters import VMDScripter
 from ..core.command import Command
 from ..core.labels import Labels
 from ..core.objmanager import ObjManager
-from ..core.stringthings import ByteCollector
+from ..util.stringthings import ByteCollector
 
 from ..molecule.molecule import Molecule
 from ..molecule.residue import Residue, ResidueList
@@ -24,7 +24,7 @@ from ..objs.patch import Patch, PatchList
 from ..objs.resid import ResID
 from ..objs.ssbond import SSBond, SSBondList
 
-from ..util.logparsers import PsfgenLog
+from ..logparsers import PsfgenLogParser
 from ..util.progress import PsfgenProgress
 from ..util.util import reduce_intlist
 
@@ -695,7 +695,7 @@ class PsfgenScripter(VMDScripter):
         """
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         self.logname=f'{self.basename}.log'
-        self.logparser=PsfgenLog(basename=self.basename)
+        self.logparser=PsfgenLogParser(basename=self.basename)
         logger.debug(f'Log file: {self.logname}')
         clean_options=options.copy()
         for k,v in options.items():

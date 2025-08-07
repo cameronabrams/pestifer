@@ -11,7 +11,7 @@ import numpy as np
 from collections import UserDict, UserList
 from itertools import compress, batched
 
-from ..core.stringthings import linesplit #, my_logger
+from ..util.stringthings import linesplit #, my_logger
 
 logger=logging.getLogger(__name__)
 

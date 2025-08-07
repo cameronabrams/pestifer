@@ -63,9 +63,40 @@ class ArtifactList(UserList, Artifact):
     Represents a list of artifacts in the Pestifer core.
     This class is used to store a collection of artifacts, allowing for easy management and retrieval.
     """
-    key : str | None = None
     data: list[Artifact] = field(default_factory=list)
-    produced_by: object | None = None   
+
+    @classmethod
+    def from_dict(cls, artifact_dict: ArtifactDict) -> ArtifactList:
+        artifact_list = cls()
+        for artifact in artifact_dict.values():
+            artifact_list.append(artifact)
+        artifact_list.produced_by = artifact_dict.produced_by
+        artifact_list.key = artifact_dict.key
+        return artifact_list
+    
+    def to_dict(self) -> ArtifactDict:
+        return ArtifactDict.from_list(self)
+    
+    def stamp(self, owner: object = None) -> ArtifactList:
+        """
+        Stamp all artifacts in the list with the owner information.
+        
+        Parameters
+        ----------
+        owner : Any, optional
+            The owner of the artifacts, which can be any object that produced these artifacts. If not provided, the artifacts will not be stamped.
+        
+        Returns
+        -------
+        ArtifactList
+            The artifact list with all artifacts stamped with the owner information.
+        """
+        if owner:
+            self.produced_by = owner
+            for artifact in self.data:
+                artifact.stamp(owner)
+            return self
+        raise ValueError("Owner must be provided for artifact stamping.")
 
     def filter_by_produced_by(self, produced_by: object) -> ArtifactList:
         """
@@ -124,35 +155,6 @@ class ArtifactList(UserList, Artifact):
         filtered_list.data = [artifact for artifact in self.data if artifact.key == key]
         return filtered_list
 
-    # @property
-    # def value(self) -> list[Artifact]:
-    #     return self.data
-
-    # def has_stamp(self) -> bool:
-    #     """
-    #     Check if the artifact list has a stamp (owner information).
-        
-    #     Returns
-    #     -------
-    #     bool
-    #         True if the artifact list has a stamp, False otherwise.
-    #     """
-    #     return all(artifact.produced_by is not None for artifact in self.value) and self.produced_by is not None
-
-    # def stamp(self, owner: object | None = None) -> ArtifactList:
-    #     """
-    #     Stamp the artifact list with the owner information.
-    #     This method is used to set the owner of the artifact, which can be useful for tracking who created or modified it.
-    #     """
-    #     if owner:
-    #         self.produced_by = owner
-    #         for artifact in self:
-    #             artifact.stamp(owner)
-    #     else:
-    #         logger.warning("No owner provided for artifact stamping.")
-    #     return self
-    
-
 @dataclass
 class ArtifactDict(UserDict, Artifact):
     """
@@ -160,9 +162,7 @@ class ArtifactDict(UserDict, Artifact):
     This class is used to store a collection of artifacts with unique keys, allowing for easy management and retrieval.
 
     """
-    key: str | None = None
     data: dict[str, Artifact] = field(default_factory=dict)
-    produced_by: object | None = None
 
     @classmethod
     def from_list(cls, artifact_list: ArtifactList) -> ArtifactDict:
@@ -173,6 +173,30 @@ class ArtifactDict(UserDict, Artifact):
         artifact_dict.key = artifact_list.key
         return artifact_dict
     
+    def to_list(self) -> ArtifactList:
+        return ArtifactList.from_dict(self)
+    
+    def stamp(self, owner: object = None) -> ArtifactDict:
+        """
+        Stamp all artifacts in the dictionary with the owner information.
+        
+        Parameters
+        ----------
+        owner : Any, optional
+            The owner of the artifacts, which can be any object that produced these artifacts. If not provided, the artifacts will not be stamped.
+        
+        Returns
+        -------
+        ArtifactDict
+            The artifact dictionary with all artifacts stamped with the owner information.
+        """
+        if owner:
+            self.produced_by = owner
+            for artifact in self.data.values():
+                artifact.stamp(owner)
+            return self
+        raise ValueError("Owner must be provided for artifact stamping.")
+
     def update_item(self, artifact: Artifact, key: str | None = None) -> None:
         if key:
             self.data[key] = artifact
@@ -188,36 +212,13 @@ class ArtifactDict(UserDict, Artifact):
                 filtered_dict[key] = artifact
         return filtered_dict
 
-    # def has_stamp(self) -> bool:
-    #     """
-    #     Check if the artifact list has a stamp (owner information).
-        
-    #     Returns
-    #     -------
-    #     bool
-    #         True if the artifact list has a stamp, False otherwise.
-    #     """
-    #     return all(artifact.produced_by is not None for artifact in self.values()) and self.produced_by is not None
-
-    # def stamp(self, owner: object | None = None) -> ArtifactList:
-    #     """
-    #     Stamp the artifact list with the owner information.
-    #     This method is used to set the owner of the artifact, which can be useful for tracking who created or modified it.
-    #     """
-    #     if owner:
-    #         self.produced_by = owner
-    #         for artifact in self.values():
-    #             artifact.stamp(owner)
-    #     else:
-    #         logger.warning("No owner provided for artifact stamping.")
-    #     return self
-
 @dataclass
-class ArtifactFile(Artifact, ABC):
+class FileArtifact(Artifact, ABC):
     """
     Represents a file artifact in the Pestifer core.
     This class is used to store information about a file artifact, including its path and an optional description.
     """
+    data: str | None = None  # base name without extension
     description: str | None = None
     mime_type: str | None = 'application/octet-stream'
 
@@ -230,12 +231,11 @@ class ArtifactFile(Artifact, ABC):
     def __post_init__(self):
         if self.key is None:
             self.key = self.ext
-        if '.' in self.data:
+        if self.data and '.' in self.data:
             self.data = self.data.split('.')[0]
 
     @property
     def name(self) -> str:
-        """Return the name of the file without the extension."""
         return self.data + '.' + self.ext
 
     @property
@@ -246,15 +246,13 @@ class ArtifactFile(Artifact, ABC):
         return self.path.exists()
 
     def validate(self):
-        if not self.path.exists():
+        if not self.exists():
             raise FileNotFoundError(f"{self.path} not found")
     
 @dataclass
-class TXTFile(ArtifactFile):
+class TXTFileArtifact(FileArtifact):
     """
     Represents a text file artifact.
-    This class is used to store a text file that may be generated during the execution of tasks.
-    The text file can contain any textual data, such as logs or configuration settings.
     """
     description: str = "Text file"
     ext: str = 'txt'
@@ -262,7 +260,7 @@ class TXTFile(ArtifactFile):
     mime_type: str = 'text/plain'
 
 @dataclass
-class ArtifactData(Artifact):
+class DataArtifact(Artifact):
     """
     Represents a data artifact in the Pestifer core.
     This class is used to store information about a data artifact, including its value and the task that produced it.
@@ -270,8 +268,13 @@ class ArtifactData(Artifact):
     description: str | None = None
 
 @dataclass
-class ArtifactFileList(ArtifactList):
-    data: list[ArtifactFile] = field(default_factory=list)
+class FileArtifactList(ArtifactList):
+    data: list[FileArtifact] = field(default_factory=list)
+
+    def append(self, item: FileArtifact) -> None:
+        if not isinstance(item, FileArtifact):
+            raise TypeError(f"Expected FileArtifact, got {type(item)}")
+        super().append(item)
 
     def all_exist(self) -> bool:
         """
@@ -316,7 +319,7 @@ class ArtifactFileList(ArtifactList):
         return
 
 @dataclass
-class CharmmffTopFile(TXTFile):
+class CharmmffTopFileArtifact(TXTFileArtifact):
     """
     Represents a toplevel CHARMM force field topology file.
     This class is used to store the topology file for CHARMM force fields that are used in any particular psfgen invocation.
@@ -326,7 +329,7 @@ class CharmmffTopFile(TXTFile):
     package: bool = False
 
 @dataclass
-class CharmmffParFile(TXTFile):
+class CharmmffParFileArtifact(TXTFileArtifact):
     """
     Represents a toplevel CHARMM force field parameter file.
     This class is used to store the parameter file for CHARMM force fields that are used in any particular psfgen invocation.
@@ -336,7 +339,7 @@ class CharmmffParFile(TXTFile):
     package: bool = False
 
 @dataclass
-class CharmmffStreamFile(TXTFile):
+class CharmmffStreamFileArtifact(TXTFileArtifact):
     """
     Represents a CHARMM force field stream file.
     This class is used to store the stream file for CHARMM force fields that are used in any particular psfgen invocation.
@@ -347,46 +350,46 @@ class CharmmffStreamFile(TXTFile):
     stream: str = ''
 
 @dataclass
-class CharmmffTopFiles(ArtifactFileList):
+class CharmmffTopFileArtifacts(FileArtifactList):
     """
     Represents CHARMM force field topology files.
     This class is used to store the topology files for CHARMM force fields that are used in any particular psfgen invocation.
     """
     description: str = "CHARMM force field topology files"
     
-    def append(self, item: CharmmffTopFile) -> None:
-        if not isinstance(item, CharmmffTopFile):
-            raise TypeError(f"Expected CharmmffTopFile, got {type(item)}")
+    def append(self, item: CharmmffTopFileArtifact) -> None:
+        if not isinstance(item, CharmmffTopFileArtifact):
+            raise TypeError(f"Expected CharmmffTopFileArtifact, got {type(item)}")
         super().append(item)
 
 @dataclass
-class CharmmffParFiles(ArtifactFileList):
+class CharmmffParFileArtifacts(FileArtifactList):
     """
     Represents CHARMM force field parameter files.
     This class is used to store the parameter files for CHARMM force fields that are used in any particular psfgen invocation.
     """
     description: str = "CHARMM force field parameter files"
 
-    def append(self, item: CharmmffParFile) -> None:
-        if not isinstance(item, CharmmffParFile):
-            raise TypeError(f"Expected CharmmffParFile, got {type(item)}")
+    def append(self, item: CharmmffParFileArtifact) -> None:
+        if not isinstance(item, CharmmffParFileArtifact):
+            raise TypeError(f"Expected CharmmffParFileArtifact, got {type(item)}")
         super().append(item)
 
 @dataclass
-class CharmmffStreamFiles(ArtifactFileList):
+class CharmmffStreamFileArtifacts(FileArtifactList):
     """
     Represents CHARMM force field stream files.
     This class is used to store the stream files for CHARMM force fields that are used in any particular psfgen invocation.
     """
     description: str = "CHARMM force field stream files"
 
-    def append(self, item: CharmmffStreamFile) -> None:
-        if not isinstance(item, CharmmffStreamFile):
-            raise TypeError(f"Expected CharmmffStreamFile, got {type(item)}")
+    def append(self, item: CharmmffStreamFileArtifact) -> None:
+        if not isinstance(item, CharmmffStreamFileArtifact):
+            raise TypeError(f"Expected CharmmffStreamFileArtifact, got {type(item)}")
         super().append(item)
 
 @dataclass
-class YAMLFile(TXTFile):
+class YAMLFileArtifact(TXTFileArtifact):
     """
     Represents a YAML file artifact.
     This class is used to store a YAML file that may be generated during the execution of tasks.
@@ -397,7 +400,7 @@ class YAMLFile(TXTFile):
     package: bool = False
 
 @dataclass
-class JSONFile(TXTFile):
+class JSONFileArtifact(TXTFileArtifact):
     """
     Represents a JSON file artifact.
     This class is used to store a JSON file that may be generated during the execution of tasks.
@@ -408,7 +411,7 @@ class JSONFile(TXTFile):
     package: bool = False
 
 @dataclass
-class TclScript(TXTFile):
+class TclScriptArtifact(TXTFileArtifact):
     """
     Represents a Tcl script file artifact.
     This class is used to store a Tcl script file that may be generated during the execution of tasks.
@@ -419,7 +422,7 @@ class TclScript(TXTFile):
     package: bool = False
 
 @dataclass
-class LogFile(TXTFile):
+class LogFileArtifact(TXTFileArtifact):
     """
     Represents a log file artifact.
     This class is used to store the log file generated during the execution of tasks.
@@ -430,7 +433,7 @@ class LogFile(TXTFile):
     package: bool = False
 
 @dataclass
-class PackmolLogFile(LogFile):
+class PackmolLogFileArtifact(LogFileArtifact):
     """
     Represents a Packmol log file artifact.
     This class is used to store the log file generated by Packmol during the execution of tasks.
@@ -439,7 +442,7 @@ class PackmolLogFile(LogFile):
     description: str = "Log file for Packmol execution"
 
 @dataclass
-class NAMDLogFile(LogFile):
+class NAMDLogFileArtifact(LogFileArtifact):
     """
     Represents a NAMD log file artifact.
     This class is used to store the log file generated by NAMD during the execution of tasks.
@@ -447,7 +450,7 @@ class NAMDLogFile(LogFile):
     """
     description: str = "Log file for NAMD execution"
 
-class VMDLogFile(LogFile):
+class VMDLogFileArtifact(LogFileArtifact):
     """
     Represents a VMD log file artifact.
     This class is used to store the log file generated by VMD during the execution of tasks.
@@ -456,7 +459,7 @@ class VMDLogFile(LogFile):
     description: str = "Log file for VMD execution"
 
 @dataclass
-class PsfgenLogFile(VMDLogFile):
+class PsfgenLogFileArtifact(VMDLogFileArtifact):
     """
     Represents a psfgen log file artifact.
     This class is used to store the log file generated by psfgen during the execution of tasks.
@@ -465,16 +468,17 @@ class PsfgenLogFile(VMDLogFile):
     description: str = "Log file for psfgen execution"
 
 @dataclass
-class NAMDOutputFile(ArtifactFile):
+class NAMDOutputFileArtifact(FileArtifact):
     """
     Represents a NAMD output file artifact.
     This class is used to store the output file generated by NAMD during the execution of tasks.
     The NAMD output file contains information about the results of the molecular dynamics simulation.
     """
     description: str = "Output file for NAMD execution"
+    mime_type: str = 'application/octet-stream'
 
 @dataclass
-class NAMDCoorFile(NAMDOutputFile):
+class NAMDCoorFileArtifact(NAMDOutputFileArtifact):
     """
     Represents a NAMD coordinate file artifact.
     This class is used to store the coordinate file generated by NAMD during the execution of tasks.
@@ -485,7 +489,7 @@ class NAMDCoorFile(NAMDOutputFile):
     package: bool = True
 
 @dataclass
-class NAMDVelFile(NAMDOutputFile):
+class NAMDVelFileArtifact(NAMDOutputFileArtifact):
     """
     Represents a NAMD velocity file artifact.
     This class is used to store the velocity file generated by NAMD during the execution of tasks.
@@ -496,7 +500,7 @@ class NAMDVelFile(NAMDOutputFile):
     package: bool = True
 
 @dataclass
-class NAMDXscFile(NAMDOutputFile):
+class NAMDXscFileArtifact(LogFileArtifact):
     """
     Represents a NAMD XSC file artifact.
     This class is used to store the XSC file generated by NAMD during the execution of tasks.
@@ -507,7 +511,7 @@ class NAMDXscFile(NAMDOutputFile):
     package: bool = True
 
 @dataclass
-class NAMDXstFile(NAMDOutputFile):
+class NAMDXstFileArtifact(LogFileArtifact):
     """
     Represents a NAMD XST file artifact.
     This class is used to store the XST file generated by NAMD during the execution of tasks.
@@ -519,7 +523,7 @@ class NAMDXstFile(NAMDOutputFile):
     mime_type: str = 'text/plain'
 
 @dataclass
-class NAMDDcdFile(NAMDOutputFile):
+class NAMDDcdFileArtifact(NAMDOutputFileArtifact):
     """
     Represents a NAMD DCD file artifact.
     This class is used to store the DCD file generated by NAMD during the execution of tasks.
@@ -530,7 +534,7 @@ class NAMDDcdFile(NAMDOutputFile):
     package: bool = False
 
 @dataclass
-class PDBFile(TXTFile):
+class PDBFileArtifact(TXTFileArtifact):
     """
     Represents a base PDB file artifact.
     This class is used to store any PDB file generated during the execution of tasks.
@@ -541,20 +545,20 @@ class PDBFile(TXTFile):
     package: bool = True
 
 @dataclass
-class PDBFileList(ArtifactFileList):
+class PDBFileArtifactList(FileArtifactList):
     """
     Represents a list of PDB files.
     This class is used to store a collection of PDB files, allowing for easy management and retrieval.
     """
     description: str = "List of PDB files"
 
-    def append(self, item: PDBFile) -> None:
-        if not isinstance(item, PDBFile):
-            raise TypeError(f"Expected PDBFile, got {type(item)}")
+    def append(self, item: PDBFileArtifact) -> None:
+        if not isinstance(item, PDBFileArtifact):
+            raise TypeError(f"Expected PDBFileArtifact, got {type(item)}")
         super().append(item)
 
 @dataclass
-class CIFFile(TXTFile):
+class CIFFileArtifact(TXTFileArtifact):
     """
     Represents a CIF file artifact.
     This class is used to store a CIF file that may be fetched by a ``pestifer.tasks.fetch.FetchTask``.
@@ -564,7 +568,7 @@ class CIFFile(TXTFile):
     package: bool = False
 
 @dataclass
-class PQRFile(TXTFile):
+class PQRFileArtifact(TXTFileArtifact):
     """
     Represents a PQR file artifact.
     This class is used to store a PQR file that may be generated during the execution of ``pestifer.tasks.pdb2pqr.PDB2PQRTask``.
@@ -574,7 +578,7 @@ class PQRFile(TXTFile):
     package: bool = False
 
 @dataclass
-class PSFFile(TXTFile):
+class PSFFileArtifact(TXTFileArtifact):
     """
     Represents a PSF file artifact.
     This class is used to store the PSF file generated during the execution of tasks.
@@ -585,7 +589,7 @@ class PSFFile(TXTFile):
     package: bool = True
 
 @dataclass
-class VMDScript(TclScript):
+class VMDScriptArtifact(TclScriptArtifact):
     """
     Represents a VMD script file artifact.
     This class is used to store the VMD script file that may be generated during the execution of tasks.
@@ -595,7 +599,7 @@ class VMDScript(TclScript):
     package: bool = False
 
 @dataclass
-class PsfgenInputScript(VMDScript):
+class PsfgenInputScriptArtifact(VMDScriptArtifact):
     """
     Represents a PSFgen input script artifact.
     This class is used to store the input script for PSFgen, which contains the specifications for generating PSF files.
@@ -605,7 +609,7 @@ class PsfgenInputScript(VMDScript):
     package: bool = False
 
 @dataclass
-class NAMDConfigFile(TclScript):
+class NAMDConfigFileArtifact(TclScriptArtifact):
     """
     Represents a NAMD configuration file artifact.
     This class is used to store the configuration file for NAMD, which contains the parameters and settings for the molecular dynamics simulation.
@@ -616,7 +620,7 @@ class NAMDConfigFile(TclScript):
     package: bool = True
 
 @dataclass
-class NAMDColvarsConfig(JSONFile):
+class NAMDColvarsConfigArtifact(JSONFileArtifact):
     """
     Represents a NAMD Colvars configuration file artifact.
     This class is used to store the configuration file for NAMD Colvars, which contains the parameters and settings for collective variables in the molecular dynamics simulation.
@@ -627,7 +631,7 @@ class NAMDColvarsConfig(JSONFile):
     package: bool = False
 
 @dataclass
-class PackmolInputScript(TXTFile):
+class PackmolInputScriptArtifact(TXTFileArtifact):
     """
     Represents a Packmol input script artifact.
     This class is used to store the input script for Packmol, which contains the specifications for packing molecules into a defined space.
@@ -638,7 +642,7 @@ class PackmolInputScript(TXTFile):
     package: bool = False
 
 @dataclass
-class NAMDColvarsOutput(TXTFile):
+class NAMDColvarsOutputArtifact(LogFileArtifact):
     """
     Represents a NAMD Colvars output file artifact.
     This class is used to store the output file generated by NAMD Colvars, which contains the results of the collective variables during the molecular dynamics simulation.
@@ -649,7 +653,7 @@ class NAMDColvarsOutput(TXTFile):
     package: bool = False
 
 @dataclass
-class InputFile(TXTFile):
+class InputFileArtifact(TXTFileArtifact):
     """
     Represents a generic input file artifact.
     This class is used to store a data file that may be generated during the execution of tasks.
@@ -660,7 +664,7 @@ class InputFile(TXTFile):
     package: bool = False
     
 @dataclass
-class DataFile(TXTFile):
+class DataFileArtifact(TXTFileArtifact):
     """
     Represents a data file artifact.
     This class is used to store a data file that may be generated during the execution of tasks.
@@ -671,7 +675,7 @@ class DataFile(TXTFile):
     package: bool = False
 
 @dataclass
-class CSVDataFile(TXTFile):
+class CSVDataFileArtifact(DataFileArtifact):
     """
     Represents a CSV data file artifact.
     This class is used to store a CSV file that may be generated during the execution of tasks.
@@ -682,7 +686,7 @@ class CSVDataFile(TXTFile):
     package: bool = False
 
 @dataclass
-class PNGImageFile(ArtifactFile):
+class PNGImageFileArtifact(FileArtifact):
     """
     Represents a PNG image file artifact.
     This class is used to store a PNG image file that may be generated during the execution of tasks.

@@ -11,10 +11,14 @@ import logging
 import shutil
 import yaml
 import os
-from .md import MDTask
-from ..core.artifacts import YAMLFile, ArtifactFileList
 
-logger=logging.getLogger(__name__)
+from pathlib import Path
+
+from .md import MDTask
+from ..core.artifacts import YAMLFileArtifact, FileArtifactList
+from ..molecule.molecule import Molecule
+
+logger = logging.getLogger(__name__)
 
 class TerminateTask(MDTask):
     """
@@ -29,12 +33,12 @@ class TerminateTask(MDTask):
     It is typically used at the end of a build workflow to finalize the state of the simulation and prepare for termination.
     """
 
-    def __init__(self, specs: dict = {}, provisions: dict = {}) :
+    def __init__(self, specs: dict = {}) :
         """
         Initialize the MDTask with the given arguments and keyword arguments.
         This method sets up the task with the provided specifications and prepares it for execution.
         """
-        super().__init__(specs=specs, provisions=provisions)
+        super().__init__(specs=specs)
         self._extra_message = ''
 
     def do(self) -> int:
@@ -52,12 +56,12 @@ class TerminateTask(MDTask):
         This method retrieves the base molecule from the state variables, gets the chain maps, and writes them to a specified YAML file.
         The chain maps are used to map chains in the molecular structure, which is useful for understanding the topology of the system.
         """
-        bm=self.get_current_artifact_value('base_molecule')
+        bm: Molecule = self.get_current_artifact_data('base_molecule')
         if bm:
-            maps=bm.get_chainmaps()
-            with open(self.specs['chainmapfile'],'w') as f:
-                yaml.dump(maps,f)
-            self.register_current_artifact(YAMLFile(self.specs['chainmapfile'].replace('.yaml','')), key='chainmapfile')
+            maps = bm.get_chainmaps()
+            with open(self.specs['chainmapfile'], 'w') as f:
+                yaml.dump(maps, f)
+            self.register_current_artifact(YAMLFileArtifact(self.specs['chainmapfile'].replace('.yaml', '')), key='chainmapfile')
 
     def make_package(self):
         """
@@ -69,12 +73,12 @@ class TerminateTask(MDTask):
             return 0
         if 'ensemble' not in package_specs:
             raise ValueError('Ensemble must be specified in package specs for terminate task')
-        TarballContents = ArtifactFileList()
+        TarballContents = FileArtifactList()
         self.basename = self.specs.get('basename', 'my_system')
         for ext in ['psf', 'pdb', 'coor', 'xsc', 'vel']:
-            fa = self.get_current_artifact(ext)
+            fa: Path = self.get_current_artifact_path(ext)
             if fa:
-                shutil.copy(fa.path, self.basename + '.' + ext)
+                shutil.copy(fa, self.basename + '.' + ext)
                 self.register_current_artifact(type(fa)(self.basename))
                 TarballContents.append(self.get_current_artifact(ext))
         logger.debug(f'Packaging for namd using basename {self.basename}')
@@ -87,8 +91,8 @@ class TerminateTask(MDTask):
         if constraints:
             self.make_constraint_pdb(constraints, statekey='consref')
             TarballContents.append(self.get_current_artifact('consref'))
-        TarballContents.extend(self.get_current_artifact_value('charmmff_parfiles'))
-        TarballContents.extend(self.get_current_artifact_value('charmmff_streamfiles'))
+        TarballContents.extend(self.get_current_artifact_data('charmmff_parfiles'))
+        TarballContents.extend(self.get_current_artifact_data('charmmff_streamfiles'))
         TarballContents.make_tarball(self.basename)
         return result
 
@@ -98,18 +102,18 @@ class TerminateTask(MDTask):
             logger.debug('Cleanup disabled; skipping cleanup step.')
             return 0
 
-        ArtifactContents = ArtifactFileList()
+        ArtifactContents = FileArtifactList()
 
         data_artifacts, filelist_artifacts, file_artifacts = self.pipeline.get_artifact_collection_as_lists()
 
         all_artifact_files = []
         for artifact in file_artifacts:
-            if not artifact.path.name in all_artifact_files and artifact.path.exists():
+            if not artifact.path.name in all_artifact_files and artifact.exists():
                 all_artifact_files.append(artifact.path.name)
                 ArtifactContents.append(artifact)
         for artifact in filelist_artifacts:
             for file_artifact in artifact:
-                if not file_artifact.path.name in all_artifact_files and file_artifact.path.exists():
+                if not file_artifact.path.name in all_artifact_files and file_artifact.exists():
                     all_artifact_files.append(file_artifact.path.name)
                     ArtifactContents.append(file_artifact)
 

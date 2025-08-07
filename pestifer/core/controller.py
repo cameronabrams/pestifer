@@ -12,7 +12,7 @@ from .config import Config
 from .pipeline import PipelineContext
 from ..tasks.taskcollections import TaskList
 from ..tasks import TerminateTask
-from .stringthings import plu
+from ..util.stringthings import plu
 
 logger = logging.getLogger(__name__)
 

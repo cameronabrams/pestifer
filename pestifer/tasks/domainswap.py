@@ -12,8 +12,13 @@ It uses the :ref:`tcl-domainswap` Tcl script.  Usage is described in the :ref:`c
 
 import logging
 
+from pathlib import Path
+
 from .md import MDTask
-from ..core.artifacts import VMDScript, VMDLogFile, NAMDColvarsConfig, PDBFile
+
+from ..core.artifacts import PDBFile, NAMDColvarsConfig, VMDScript, VMDLogFile
+from ..scripters import VMDScripter
+
 logger=logging.getLogger(__name__)
 
 class DomainSwapTask(MDTask):
@@ -24,33 +29,35 @@ class DomainSwapTask(MDTask):
     _yaml_header = 'domainswap'
 
     def do(self):
-        self.inherit_state()
-        logger.debug(f'Generating inputs for domain swap')
         self.make_inputs()
-        logger.debug(f'Running NAMD to execute domain swap')
-        self.result=self.namdrun(baselabel='domainswap-run',extras={'colvars':'on','colvarsconfig':self.statevars['cv']},single_gpu_only=True)
+        self.result = self.namdrun(
+            baselabel = 'domainswap-run', 
+            extras = {'colvars': 'on', 'colvarsconfig': self.statevars['cv']}, 
+            single_gpu_only = True)
         return self.result
 
     def make_inputs(self):
-        specs=self.specs
+        specs = self.specs
         self.next_basename('domainswap-prep')
-        vm=self.pipeline.get_scripter('vmd')
+        vm: VMDScripter = self.get_scripter('vmd')
         vm.newscript(self.basename)
-        psf=self.get_current_artifact_path('psf')
-        pdb=self.get_current_artifact_path('pdb')
+        psf: Path = self.get_current_artifact_path('psf')
+        pdb: Path = self.get_current_artifact_path('pdb')
         vm.usescript('domainswap')
         vm.writescript()
         vm.runscript(
-            psf=psf.name,
-            pdb=pdb.name,
-            swap_domain_def=','.join(specs['swap_domain_def'].split()),
-            anchor_domain_def=','.join(specs['anchor_domain_def'].split()),
-            chain_swap_pairs=':'.join([','.join(x) for x in specs['chain_directional_swaps']]),
-            force_constant=specs['force_constant'],
-            target_numsteps=specs['target_numsteps'],
-            cv=f'{self.basename}-cv.inp',
-            refpdb=f'{self.basename}-ref.pdb')
+            psf = psf.name,
+            pdb = pdb.name,
+            swap_domain_def = ','.join(specs['swap_domain_def'].split()),
+            anchor_domain_def = ','.join(specs['anchor_domain_def'].split()),
+            chain_swap_pairs = ':'.join([','.join(x) for x in specs['chain_directional_swaps']]),
+            force_constant = specs['force_constant'],
+            target_numsteps = specs['target_numsteps'],
+            cv = f'{self.basename}-cv.in',
+            refpdb = f'{self.basename}-ref.pdb'
+        )
+        self.register_current_artifact(NAMDColvarsConfig(f'{self.basename}-cv'))
         self.register_current_artifact(VMDScript(self.basename))
-        self.register_current_artifact(PDBFile(f'{self.basename}-ref'),key='refpdb')
+        self.register_current_artifact(PDBFile(f'{self.basename}-ref'), key='refpdb')
         self.register_current_artifact(NAMDColvarsConfig(f'{self.basename}-cv'))
         self.register_current_artifact(VMDLogFile(f'{self.basename}'))

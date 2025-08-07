@@ -9,6 +9,7 @@ Usage is described in the :ref:`subs_desolvate` documentation.
 """
 from .basetask import VMDTask
 from ..core.command import Command
+from ..scripters import VMDScripter
 from ..util.progress import PestiferProgress
 import logging
 import os
@@ -40,16 +41,15 @@ class DesolvateTask(VMDTask):
         This is not a pipelined task (for now)
 
         """
-        self.log_message('initiated')
         self.next_basename()
-        psf=self.specs['psf']
-        pdb=self.specs['pdb']
-        keepatselstr=self.specs['keepatselstr']
-        idx_outfile=self.specs['idx_outfile']
-        psf_outfile=self.specs['psf_outfile']
+        psf: str = self.specs['psf']
+        pdb: str = self.specs['pdb']
+        keepatselstr: str = self.specs['keepatselstr']
+        idx_outfile: str = self.specs['idx_outfile']
+        psf_outfile: str = self.specs['psf_outfile']
         if pdb:
-            pdb_outfile=os.path.splitext(psf_outfile)[0]+'.pdb'
-        vt=self.pipeline.get_scripter('vmd')
+            pdb_outfile: str = os.path.splitext(psf_outfile)[0]+'.pdb'
+        vt: VMDScripter = self.get_scripter('vmd')
         vt.newscript(self.basename)
         vt.addline( 'package require psfgen')
         vt.addline(f'mol new {psf}')
@@ -76,7 +76,7 @@ class DesolvateTask(VMDTask):
         vt.addline(f'vmdcon -info "Writing {psf_outfile}"')
         vt.addline(f'writepsf {psf_outfile}')
         vt.writescript()
-        self.result=vt.runscript(progress_title='psfidx')
+        self.result = vt.runscript(progress_title='psfidx')
         
     def do_dcd_prune(self):
         """
@@ -86,10 +86,10 @@ class DesolvateTask(VMDTask):
         The new DCD file is created with a specified stride, and the original DCD files
         are concatenated into the new DCD file.
         """
-        idx_outfile=self.specs['idx_outfile']
-        dcd_outfile=self.specs['dcd_outfile']
-        dcd_infiles=self.specs['dcd_infiles']
-        dcd_stride=self.specs['dcd_stride']
-        progress_struct=PestiferProgress(name='catdcd',track_stdout=False)
-        c=Command(f'{self.catdcd} -i {idx_outfile} -stride {dcd_stride} -o {dcd_outfile} {" ".join(dcd_infiles)}')
+        idx_outfile: str = self.specs['idx_outfile']
+        dcd_outfile: str = self.specs['dcd_outfile']
+        dcd_infiles: list[str] = self.specs['dcd_infiles']
+        dcd_stride: int = self.specs['dcd_stride']
+        progress_struct: PestiferProgress = PestiferProgress(name='catdcd', track_stdout=False)
+        c: Command = Command(f'{self.catdcd} -i {idx_outfile} -stride {dcd_stride} -o {dcd_outfile} {" ".join(dcd_infiles)}')
         c.run(progress=progress_struct)

@@ -16,7 +16,7 @@ from collections import UserList
 
 from .asymmetricunit import AsymmetricUnit
 from .chainidmanager import ChainIDManager
-from ..core.stringthings import plu
+from ..util.stringthings import plu
 from .transform import Transform, TransformList
 
 class BioAssemb:

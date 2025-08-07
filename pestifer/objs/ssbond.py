@@ -12,11 +12,10 @@ from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from pydantic import Field
 from typing import ClassVar, Optional, Any, Dict, Set
 
-from ..core.baseobj import BaseObj, BaseObjList
-from ..molecule.transform import Transform
 from .mutation import MutationList
-from .patch import PatchList
 from .resid import ResID
+from ..core.baseobj import BaseObj, BaseObjList
+from ..psfutil.psfpatch import PSFDISUPatch
 from ..util.cifutil import CIFdict
 
 class SSBond(BaseObj):
@@ -141,16 +140,13 @@ class SSBond(BaseObj):
                 length = float(cd['pdbx_dist_value'])
             )
         elif args and isinstance(args[0], PSFDISUPatch):
-            pl = args[0]
-            s1,ri1 = pl[0].split(':')
-            s2,ri2 = pl[1].split(':')
-            resid1 = ResID(ri1)
-            resid2 = ResID(ri2)
+            dp = args[0]
             return dict(
-                chainID1 = s1,
-                resid1 = resid1,
-                chainID2 = s2,
-                resid2 = resid2,
+                chainID1 = dp.seg1,
+                resid1 = dp.resid1,
+                chainID2 = dp.seg2,
+                resid2 = dp.resid2,
+                # Default values for optional fields
                 serial_number = 0,  # Default serial number
                 resname1 = 'CYS',
                 resname2 = 'CYS',

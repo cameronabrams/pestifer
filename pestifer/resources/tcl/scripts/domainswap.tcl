@@ -1,6 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
-## A VMD/TcL script to perform a domain-swapping TMD simulation using NAMD colvars
+## A VMD/TcL script to generate the ColVars configuration file necessary to
+## perform a domain-swapping TMD simulation using NAMD colvars
 
 proc repl_w_avg { L } {
     set sum 0.0
@@ -22,10 +23,9 @@ set total_complex_def "protein or glycan"
 set psf "UNSET"
 set pdb "UNSET"
 set refpdb "ref.pdb"
-set cvfile "cv.inp"
+set cvfile "cv.in"
 set force_constant 200.0
 set target_numsteps 10000
-# puts "$argv"
 
 for { set i 0 } { $i < [llength $argv] } { incr i } {
     if { [lindex $argv $i] == "-pdb"} {

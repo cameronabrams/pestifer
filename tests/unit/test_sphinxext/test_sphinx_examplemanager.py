@@ -1,18 +1,20 @@
-import unittest
 import os
 import shutil
+import unittest
+
 from pestifer.sphinxext.sphinx_examplemanager import SphinxExampleManager
-from pestifer.sphinxext.toctree_util import modify_toctree, get_num_entries_in_toctree
+from pestifer.sphinxext.toctree_util import get_num_entries_in_toctree
 from pestifer.core.example import Example
 
 class TestSphinxExampleManager(unittest.TestCase):
+
     def setUp(self):
-        if os.path.isdir('docs'):
-            shutil.rmtree('docs', ignore_errors=True)
+        if os.path.isdir('project'):
+            shutil.rmtree('project', ignore_errors=True)
         if os.path.isdir('userspace'):
             shutil.rmtree('userspace', ignore_errors=True)
         shutil.copytree('../fixtures/sphinx_example_inputs', '.', dirs_exist_ok=True)
-        self.manager = SphinxExampleManager(docs_source_path='docs/source',examples_folder_name='examples', examples_rst_name='examples.rst')
+        self.manager = SphinxExampleManager(docs_source_path='project/docs/source',examples_folder_name='examples', examples_rst_name='examples.rst')
 
     def _build_example_set(self):
         self.examples=[]

@@ -15,9 +15,14 @@ import os
 logger = logging.getLogger(__name__)
 
 from .basetask import VMDTask
-from ..core.artifacts import PDBFile, CharmmffParFile, CharmmffParFiles, CharmmffStreamFile, CharmmffStreamFiles, NAMDVelFile, NAMDXscFile, NAMDLogFile, NAMDCoorFile, NAMDDcdFile, CSVDataFile, NAMDConfigFile, NAMDColvarsConfig, NAMDXstFile, NAMDColvarsOutput, ArtifactData, TXTFile
+from ..core.artifacts import PDBFileArtifact, CharmmffParFileArtifact, CharmmffParFileArtifacts, \
+CharmmffStreamFileArtifact, CharmmffStreamFileArtifacts, NAMDVelFileArtifact, NAMDXscFileArtifact, \
+NAMDLogFileArtifact, NAMDCoorFileArtifact, NAMDDcdFileArtifact, CSVDataFileArtifact, \
+NAMDConfigFileArtifact, NAMDColvarsConfigArtifact, NAMDXstFileArtifact, NAMDColvarsOutputArtifact, \
+DataArtifact, TXTFileArtifact
+
 from ..scripters.namdscripter import NAMDScripter
-from ..util.namdcolvars import colvar_writer
+from ..scripters.namdcolvarinputscripter import NAMDColvarInputScripter
 from ..util.util import is_periodic
 
 class MDTask(VMDTask):
@@ -104,7 +109,7 @@ class MDTask(VMDTask):
         if specs.get('firsttimestep',None) is not None:
             firsttimestep=specs['firsttimestep']
         if xsc is not None:
-            self.register_current_artifact(ArtifactData(is_periodic(xsc.name),key='periodic'))
+            self.register_current_artifact(DataArtifact(is_periodic(xsc.name),key='periodic'))
 
         temperature=specs['temperature']
         if ensemble.casefold()=='NPT'.casefold() or ensemble.casefold()=='NPAT'.casefold():
@@ -165,11 +170,11 @@ class MDTask(VMDTask):
             params['conskfile']=consref.name
             params['conskcol']='O'
         if colvars:
-            writer=self.scripters['data']
-            writer.newfile(f'{self.basename}-cv.inp')
-            colvar_writer(colvars,writer,pdb=pdb)
+            writer: NAMDColvarInputScripter = self.scripters['namd_colvar']
+            writer.newfile(f'{self.basename}-cv.in')
+            writer.construct_on_pdb(specs=colvars, pdb=pdb)
             writer.writefile()
-            self.register_current_artifact(NAMDColvarsConfig(f'{self.basename}-cv'))
+            self.register_current_artifact(NAMDColvarsConfigArtifact(f'{self.basename}-cv'))
             params['colvars']='on'
             params['colvarsconfig']=f'{self.basename}-cv.inp'
 
@@ -185,36 +190,38 @@ class MDTask(VMDTask):
 
         na: NAMDScripter = self.scripters['namd']
         na.newscript(self.basename,addl_paramfiles=list(set(addl_paramfiles+prior_paramfiles)))
-        self.register_current_artifact(CharmmffParFiles([CharmmffParFile(x.replace('.prm','')) for x in na.parameters if x.endswith('.prm')]),key='charmmff_parfiles')
-        self.register_current_artifact(CharmmffStreamFiles([CharmmffStreamFile(x.replace('.str','')) for x in na.parameters if x.endswith('.str')]),key='charmmff_streamfiles')
+        self.register_current_artifact(CharmmffParFileArtifacts([CharmmffParFileArtifact(x.replace('.prm','')) for x in na.parameters if x.endswith('.prm')]),key='charmmff_parfiles')
+        self.register_current_artifact(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x.replace('.str','')) for x in na.parameters if x.endswith('.str')]),key='charmmff_streamfiles')
         cpu_override=specs.get('cpu-override',False)
         logger.debug(f'CPU-override is {cpu_override}')
         na.writescript(params,cpu_override=cpu_override)
-        self.register_current_artifact(NAMDConfigFile(self.basename))
+        self.register_current_artifact(NAMDConfigFileArtifact(self.basename))
         if not script_only:
             local_execution_only=not self.get_current_artifact_value('periodic')
             single_gpu_only=kwargs.get('single_gpu_only',False) or constraints
             result=na.runscript(single_molecule=local_execution_only,local_execution_only=local_execution_only,single_gpu_only=single_gpu_only,cpu_override=cpu_override)
-            for at in [PDBFile, NAMDVelFile, NAMDXscFile, NAMDCoorFile, NAMDDcdFile, NAMDXstFile, NAMDLogFile, NAMDColvarsOutput]:
-                artifact=at(self.basename)
-                if artifact.exists():
-                    self.register_current_artifact(artifact)
+        for at in [PDBFileArtifact, NAMDVelFileArtifact, NAMDXscFileArtifact, \
+                   NAMDCoorFileArtifact, NAMDDcdFileArtifact, NAMDXstFileArtifact, \
+                   NAMDLogFileArtifact, NAMDColvarsOutputArtifact]:
+            artifact=at(self.basename)
+            if artifact.exists():
+                self.register_current_artifact(artifact)
             other_files = glob.glob(f'FFTW*txt')
             for f in other_files:
                 if os.path.isfile(f):
-                    self.register_current_artifact(TXTFile(f.replace('.txt', ''), key='NAMD FFTW warmup'))
+                    self.register_current_artifact(TXTFileArtifact(f.replace('.txt', ''), key='NAMD FFTW warmup'))
             self.coor_to_pdb()
             if hasattr(na.logparser,'dataframes'):
                 for key in na.logparser.dataframes:
-                    artifact=CSVDataFile(f'{self.basename}-{key}')
+                    artifact=CSVDataFileArtifact(f'{self.basename}-{key}')
                     if artifact.exists():
                         self.register_current_artifact(artifact,key=f'{key}-csv')
             if result!=0:
                 return -1
 
             if ensemble.casefold()!='minimize'.casefold():
-                self.register_current_artifact(ArtifactData(firsttimestep+nsteps),key='firsttimestep')
+                self.register_current_artifact(DataArtifact(firsttimestep+nsteps),key='firsttimestep')
             else:
-                self.register_current_artifact(ArtifactData(firsttimestep+specs['minimize']),key='firsttimestep')
+                self.register_current_artifact(DataArtifact(firsttimestep+specs['minimize']),key='firsttimestep')
 
         return 0

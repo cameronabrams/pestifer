@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
 import logging
-from ..core.stringthings import ByteCollector
+from ..util.stringthings import ByteCollector
 
 logger = logging.getLogger(__name__)
 

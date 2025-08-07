@@ -7,11 +7,14 @@ Usage is described in the :ref:`config_ref tasks manipulate` documentation.
 """
 import logging
 
-from .basetask import BaseTask
-from ..core.objmanager import ObjManager
-from ..core.artifacts import PDBFile, VMDScript, VMDLogFile
+from pathlib import Path
 
-logger=logging.getLogger(__name__)
+from .basetask import BaseTask
+from ..scripters import VMDScripter
+from ..core.objmanager import ObjManager
+from ..core.artifacts import PDBFileArtifact, VMDScriptArtifact, VMDLogFileArtifact
+
+logger = logging.getLogger(__name__)
 
 class ManipulateTask(BaseTask):
     """
@@ -26,9 +29,9 @@ class ManipulateTask(BaseTask):
         Execute the manipulate task.
         """
         logger.debug(f'manipulate {self.specs["mods"]}')
-        self.objmanager=ObjManager()
+        self.objmanager = ObjManager()
         self.objmanager.ingest(self.specs['mods'])
-        self.result=self.coormods()
+        self.result = self.coormods()
         return self.result
 
     def coormods(self):
@@ -40,25 +43,30 @@ class ManipulateTask(BaseTask):
         It writes the modified coordinates to a PDB file and saves the state with the updated coordinates.
         The method returns 0 on success or a non-zero error code on failure.
         """
-        coord=self.objmanager.get('coord',{})
-        logger.debug(f'coord {coord}')
+        coord: dict = self.objmanager.get('coord', {})
         if not coord:
             logger.debug(f'no coormods to perform')
             return 0
         logger.debug(f'performing coormods')
-        for objtype,objlist in coord.items():
+        for objtype, objlist in coord.items():
             self.next_basename(objtype)
-            vm=self.pipeline.get_scripter('vmd')
-            vm.newscript(self.basename,packages=['Orient'])
-            psf=self.get_current_artifact_path('psf')
-            pdb=self.get_current_artifact_path('pdb')
-            vm.load_psf_pdb(psf.name,pdb.name,new_molid_varname='mCM')
-            objlist.write_TcL(vm)
+            vm: VMDScripter = self.get_scripter('vmd')
+            vm.newscript(self.basename, packages=['Orient'])
+            psf: Path = self.get_current_artifact_path('psf')
+            pdb: Path = self.get_current_artifact_path('pdb')
+            vm.load_psf_pdb(psf.name, pdb.name, new_molid_varname='mCM')
+            for obj in objlist:
+                if objtype == 'crot':
+                    vm.write_crot(obj, molid='mCM')
+                elif objtype == 'orient':
+                    vm.write_orient(obj, molid='mCM')
+                elif objtype == 'rottrans':
+                    vm.write_rottrans(obj, molid='mCM')
             vm.write_pdb(self.basename,'mCM')
             vm.writescript()
-            result=vm.runscript()
-            if result!=0:
+            result = vm.runscript()
+            if result != 0:
                 return result
-            for at in [PDBFile, VMDScript, VMDLogFile]:
+            for at in [PDBFileArtifact, VMDScriptArtifact, VMDLogFileArtifact]:
                 self.register_current_artifact(at(self.basename))
         return 0

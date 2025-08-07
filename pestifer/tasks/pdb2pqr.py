@@ -14,13 +14,13 @@ import logging
 import os
 from ..core.command import Command
 from ..core.objmanager import ObjManager
-from ..core.artifacts import PDBFile, PQRFile, LogFile, VMDScript, VMDLogFile, PSFFile
+from ..core.artifacts import *
 from ..molecule.atom import Atom, AtomList
 from ..molecule.chainidmanager import ChainIDManager
 from .psfgen import PsfgenTask
 from ..objs.patch import Patch
 from ..objs.mutation import Mutation
-from ..util.logparsers import PDB2PQRLog
+from ..logparsers import PDB2PQRLogParser
 from ..util.progress import PDB2PQRProgress
 from pidibble.pdbparse import PDBParser
 
@@ -51,8 +51,8 @@ class PDB2PQRTask(PsfgenTask):
         self.update_molecule()
         self.psfgen()
 
-        self.register_current_artifact(PDBFile(self.basename))
-        self.register_current_artifact(PSFFile(self.basename))
+        self.register_current_artifact(PDBFileArtifact(self.basename))
+        self.register_current_artifact(PSFFileArtifact(self.basename))
         self.coor_to_pdb()
         return 0
     
@@ -86,10 +86,10 @@ class PDB2PQRTask(PsfgenTask):
         vt.addline('$z set resname ZN')
         vt.addline(f'$a writepdb {self.basename}_pprep.pdb')
         vt.writescript()
-        self.register_current_artifact(VMDScript(self.basename))
+        self.register_current_artifact(VMDScriptArtifact(self.basename))
         result=vt.runscript()
-        self.register_current_artifact(PDBFile(f'{self.basename}_pprep'))
-        self.register_current_artifact(VMDLogFile(self.basename))
+        self.register_current_artifact(PDBFileArtifact(f'{self.basename}_pprep'))
+        self.register_current_artifact(VMDLogFileArtifact(self.basename))
         return result
     
     def run_pdb2pqr(self,pH=7.0):
@@ -107,15 +107,15 @@ class PDB2PQRTask(PsfgenTask):
         """
         # runs PDB2PQR on the prepped PDB file, generating a PQR file with titration states, and parses the results
         c=Command(f'pdb2pqr --ff CHARMM --ffout CHARMM --with-ph {pH} --titration-state-method propka --pdb-output {self.basename}_pqr.pdb {self.basename}_pprep.pdb {self.basename}.pqr')
-        self.log_parser=PDB2PQRLog(basename=f'{self.basename}_run')
+        self.log_parser=PDB2PQRLogParser(basename=f'{self.basename}_run')
         PS=PDB2PQRProgress()
         self.log_parser.enable_progress_bar(PS)
 
         c.run(logfile=f'{self.basename}_run.log',log_stderr=True,logparser=self.log_parser)
         self.log_parser.metadata['pka_table']['protonated'] = self.log_parser.metadata['pka_table']['respka']>pH
-        self.register_current_artifact(LogFile(path=f'{self.basename}_run'))
-        self.register_current_artifact(PDBFile(f'{self.basename}_pqr'))
-        self.register_current_artifact(PQRFile(f'{self.basename}'))
+        self.register_current_artifact(LogFileArtifact(path=f'{self.basename}_run'))
+        self.register_current_artifact(PDBFileArtifact(f'{self.basename}_pqr'))
+        self.register_current_artifact(PQRFileArtifact(f'{self.basename}'))
         logger.debug(f'PDB2PQR run completed; pka_table:\n{self.log_parser.metadata['pka_table'].to_string()}')
 
         self.log_parser.metadata['histidines']={k:[] for k in ['HSD','HSE','HSP']}

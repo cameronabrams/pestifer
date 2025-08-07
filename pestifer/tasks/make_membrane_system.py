@@ -7,13 +7,24 @@ Usage is described in the :ref:`subs_runtasks_make_membrane_system` documentatio
 
 import logging
 from copy import deepcopy
+from pathlib import Path
 
-from ..charmmff.charmmffresidatabase import CHARMMFFResiDatabase
 from .basetask import BaseTask
-from ..core.artifacts import PackmolInputScript,PDBFile,PSFFile,NAMDXscFile, PDBFileList, PsfgenInputScript, PsfgenLogFile, PackmolLogFile, CharmmffTopFile, CharmmffStreamFile, CharmmffTopFiles, CharmmffStreamFiles,NAMDCoorFile
-from ..core.stringthings import __pestifer_version__
+
+from ..charmmff.charmmffcontent import CHARMMFFContent
+from ..charmmff.charmmffresidatabase import CHARMMFFResiDatabase
+from ..charmmff.pdbrepository import PDBRepository
+
+from ..core.artifacts import PackmolInputScript, PDBFile, PSFFile, NAMDXscFile, PDBFileList, PsfgenInputScript, PsfgenLogFile, PackmolLogFile, CharmmffTopFile, CharmmffStreamFile, CharmmffTopFiles, CharmmffStreamFiles,NAMDCoorFile
+from ..core.resourcemanager import ResourceManager
+from ..util.stringthings import __pestifer_version__
+
 from ..molecule.bilayer import Bilayer, specstrings_builddict
+
 from ..psfutil.psfcontents import get_toppar_from_psf
+
+from ..scripters import PsfgenScripter, PackmolScripter
+
 from ..util.util import cell_to_xsc,cell_from_xsc, protect_str_arg
 from ..util.units import _UNITS_
 
@@ -29,27 +40,30 @@ class MakeMembraneSystemTask(BaseTask):
     """
     YAML header for the MakeMembraneSystemTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
-    def __init__(self, specs: dict = {}, provisions: dict = {}):
-        super().__init__(specs=specs, provisions=provisions)
-        self.patchA=self.patchB=self.patch=None
-        self.bilayer_specs=self.specs.get('bilayer',{})
-        self.embed_specs=self.specs.get('embed',{})
-        self.using_prebuilt_bilayer=False
+    def __init__(self, specs: dict = {}):
+        super().__init__(specs=specs)
+        self.patchA: Bilayer = None
+        self.patchB: Bilayer = None
+        self.patch: Bilayer = None
+        self.bilayer_specs: dict = self.specs.get('bilayer', {})
+        self.embed_specs: dict = self.specs.get('embed', {})
+        self.using_prebuilt_bilayer: bool = False
 
     def provision(self, packet: dict):
         logger.debug(f'Provisioning MakeMembraneSystemTask with packet: {packet}')
-        super().provision(packet) 
-        self.progress = self.provisions.get('progress-flag',True)
-        self.charmmff_content = self.resource_manager.charmmff_content
-        self.pdbrepository = self.charmmff_content.pdbrepository
-        self.RDB = CHARMMFFResiDatabase(self.charmmff_content, streamIDs=[])
+        super().provision(packet)
+        self.progress = self.provisions.get('progress-flag', True)
+        self.resource_manager: ResourceManager = self.provisions.get('resource_manager', ResourceManager())
+        self.charmmff_content: CHARMMFFContent = self.resource_manager.charmmff_content
+        self.pdbrepository: PDBRepository = self.charmmff_content.pdbrepository
+        self.RDB: CHARMMFFResiDatabase = CHARMMFFResiDatabase(self.charmmff_content, streamIDs=[])
         self.RDB.add_stream('lipid')
         self.RDB.add_topology('toppar_all36_moreions.str', streamIDoverride='water_ions')
 
         if 'prebuilt' in self.bilayer_specs and 'pdb' in self.bilayer_specs['prebuilt']:
             logger.debug('Using prebuilt bilayer')
             self.using_prebuilt_bilayer = True
-            self.quilt = Bilayer()
+            self.quilt: Bilayer = Bilayer()
             self.register_current_artifact(PDBFile(path=self.bilayer_specs['prebuilt']['pdb'].replace('.pdb','')))
             self.register_current_artifact(PSFFile(path=self.bilayer_specs['prebuilt']['psf'].replace('.psf','')))
             self.register_current_artifact(NAMDXscFile(path=self.bilayer_specs['prebuilt']['xsc'].replace('.xsc','')))
@@ -91,13 +105,14 @@ class MakeMembraneSystemTask(BaseTask):
                                                      solvent_ratio_specstring)
         logger.debug(f'Main composition dict {composition_dict}')
         self.patch = Bilayer(composition_dict,
-                            neutralizing_salt=neutralizing_salt,
-                            salt_concentration=salt_con,
-                            solvent_specstring=solvent_specstring,
-                            solvent_ratio_specstring=solvent_ratio_specstring,
-                            solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
-                            leaflet_nlipids=patch_nlipids,
-                            pdbrepository=self.pdbrepository, resi_database=self.RDB)
+                             neutralizing_salt = neutralizing_salt,
+                             salt_concentration = salt_con,
+                             solvent_specstring = solvent_specstring,
+                             solvent_ratio_specstring = solvent_ratio_specstring,
+                             solvent_to_key_lipid_ratio = solvent_to_lipid_ratio,
+                             leaflet_nlipids = patch_nlipids,
+                             pdbrepository = self.pdbrepository, 
+                             resi_database = self.RDB)
         species_pdbs = PDBFileList()
         for spdb in self.patch.register_species_pdbs:
             species_pdbs.append(PDBFile(spdb.replace('.pdb', ''), name=spdb))
@@ -111,14 +126,14 @@ class MakeMembraneSystemTask(BaseTask):
             composition_dict['lower_leaflet'] = composition_dict['upper_leaflet']
             composition_dict['lower_chamber'] = composition_dict['upper_chamber']
             self.patchA = Bilayer(composition_dict,
-                                  neutralizing_salt=neutralizing_salt,
-                                  salt_concentration=salt_con,
-                                  solvent_specstring=solvent_specstring,
-                                  solvent_ratio_specstring=solvent_ratio_specstring,
-                                  solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
-                                  leaflet_nlipids=patch_nlipids,
-                                  pdbrepository=self.pdbrepository, 
-                                  resi_database=self.RDB)
+                                  neutralizing_salt = neutralizing_salt,
+                                  salt_concentration = salt_con,
+                                  solvent_specstring = solvent_specstring,
+                                  solvent_ratio_specstring = solvent_ratio_specstring,
+                                  solvent_to_key_lipid_ratio = solvent_to_lipid_ratio,
+                                  leaflet_nlipids = patch_nlipids,
+                                  pdbrepository = self.pdbrepository,
+                                  resi_database = self.RDB)
             logger.debug(f'Symmetrizing bilayer to lower leaflet')
             composition_dict['upper_leaflet_saved'] = composition_dict['upper_leaflet']
             composition_dict['upper_chamber_saved'] = composition_dict['upper_chamber']
@@ -127,13 +142,13 @@ class MakeMembraneSystemTask(BaseTask):
             composition_dict['upper_leaflet'] = composition_dict['lower_leaflet']
             composition_dict['upper_chamber'] = composition_dict['lower_chamber']
             self.patchB = Bilayer(composition_dict,
-                                  neutralizing_salt=neutralizing_salt,
-                                  solvent_specstring=solvent_specstring,
-                                  solvent_ratio_specstring=solvent_ratio_specstring,
-                                  solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
-                                  leaflet_nlipids=patch_nlipids,
-                                  pdbrepository=self.pdbrepository, 
-                                  resi_database=self.RDB)
+                                  neutralizing_salt = neutralizing_salt,
+                                  solvent_specstring = solvent_specstring,
+                                  solvent_ratio_specstring = solvent_ratio_specstring,
+                                  solvent_to_key_lipid_ratio = solvent_to_lipid_ratio,
+                                  leaflet_nlipids = patch_nlipids,
+                                  pdbrepository = self.pdbrepository,
+                                  resi_database = self.RDB)
             composition_dict['upper_leaflet'] = composition_dict['upper_leaflet_saved']
             composition_dict['upper_chamber'] = composition_dict['upper_chamber_saved']
             self.patch = None
@@ -143,15 +158,18 @@ class MakeMembraneSystemTask(BaseTask):
         Execute the MakeMembraneSystemTask.
         """
         # as part of a list of tasks, this task expects to be fed a protein system to embed
-        self.pro_psf=self.get_current_artifact_path('psf')
-        self.pro_pdb=self.get_current_artifact_path('pdb')
-        if self.pro_psf is not None and self.pro_pdb is not None:
-                logger.debug(f'will use psf {self.pro_psf.path} and pdb {self.pro_pdb.path} as inputs')
+        self.pro_psf: Path = self.get_current_artifact_path('psf')
+        self.pro_pdb: Path = self.get_current_artifact_path('pdb')
+        if self.pro_psf is None or self.pro_pdb is None:
+            self.embedding = False
+        else:
+            self.embedding = True
+            logger.debug(f'Using psf {self.pro_psf.name} and pdb {self.pro_pdb.name} as inputs')
 
         if not self.using_prebuilt_bilayer:
             self.build_patch()
             self.make_quilt_from_patch()
-        if self.pro_pdb is not None and self.pro_psf is not None:
+        if self.embedding:
             self.embed_protein()
         return 0
 
@@ -163,56 +181,56 @@ class MakeMembraneSystemTask(BaseTask):
         It then constructs the patch or patches, packs them using Packmol, generates the PSF file, and then does a short series of equilibration MD simulations.
         """
         logger.debug(f'Bilayer specs: {self.bilayer_specs}')
-        solution_gcc=self.bilayer_specs.get('solution_gcc',1.0)
-        rotation_pm=self.bilayer_specs.get('rotation_pm',10.)
-        half_mid_zgap=self.bilayer_specs.get('half_mid_zgap',1.0)
-        SAPL=self.bilayer_specs.get('SAPL',75.0)
-        seed=self.bilayer_specs.get('seed',27021972)
-        tolerance=self.bilayer_specs.get('tolerance',2.0)
-        xy_aspect_ratio=self.bilayer_specs.get('xy_aspect_ratio',1.0)
-        nloop=self.bilayer_specs.get('nloop',100)
-        nloop_all=self.bilayer_specs.get('nloop_all',100)
-        relaxation_protocols=self.bilayer_specs.get('relaxation_protocols',{})
-        relaxation_protocol=relaxation_protocols.get('patch',{})
+        solution_gcc: float = self.bilayer_specs.get('solution_gcc',1.0)
+        rotation_pm: float = self.bilayer_specs.get('rotation_pm',10.)
+        half_mid_zgap: float = self.bilayer_specs.get('half_mid_zgap',1.0)
+        SAPL: float = self.bilayer_specs.get('SAPL',75.0)
+        seed: int = self.bilayer_specs.get('seed',27021972)
+        tolerance: float = self.bilayer_specs.get('tolerance',2.0)
+        xy_aspect_ratio: float = self.bilayer_specs.get('xy_aspect_ratio',1.0)
+        nloop: int = self.bilayer_specs.get('nloop',100)
+        nloop_all: int = self.bilayer_specs.get('nloop_all',100)
+        relaxation_protocols: dict = self.bilayer_specs.get('relaxation_protocols',{})
+        relaxation_protocol: dict = relaxation_protocols.get('patch',{})
         logger.debug(f'relaxation protocols: {relaxation_protocols}')
         # we now build the patch, or if asymmetric, two patches
-        for patch,specbyte in zip([self.patch,self.patchA,self.patchB],['','A','B']):
+        for patch, specbyte in zip([self.patch, self.patchA, self.patchB], ['', 'A', 'B']):
             if patch is None:
                 continue
-            patch.spec_out(SAPL=SAPL,xy_aspect_ratio=xy_aspect_ratio,
-                            rotation_pm=rotation_pm,solution_gcc=solution_gcc,
+            patch.spec_out(SAPL=SAPL, xy_aspect_ratio=xy_aspect_ratio,
+                            rotation_pm=rotation_pm, solution_gcc=solution_gcc,
                             half_mid_zgap=half_mid_zgap)
-            self.pack_patch(patch,specbyte,seed=seed,
+            self.pack_patch(patch, specbyte, seed=seed,
                             tolerance=tolerance,
                             nloop_all=nloop_all,
                             half_mid_zgap=half_mid_zgap,
                             rotation_pm=rotation_pm,
                             nloop=nloop)
-            self.do_psfgen(patch,specbyte)
-            self.equilibrate_bilayer(patch,specbyte,relaxation_protocol=relaxation_protocol)
+            self.do_psfgen(patch, specbyte)
+            self.equilibrate_bilayer(patch, specbyte, relaxation_protocol=relaxation_protocol)
 
-    def register_tops_streams_from_psfgen(self,filelist):
-        self.register_current_artifact(CharmmffTopFiles([CharmmffTopFile(x.replace('.rtf','')) for x in filelist],key='charmff_topfiles'))
-        self.register_current_artifact(CharmmffStreamFiles([CharmmffStreamFile(x.replace('.str','')) for x in filelist],key='charmff_streamfiles'))
+    def register_tops_streams_from_psfgen(self, filelist):
+        self.register_current_artifact(CharmmffTopFiles([CharmmffTopFile(x.replace('.rtf', '')) for x in filelist], key='charmff_topfiles'))
+        self.register_current_artifact(CharmmffStreamFiles([CharmmffStreamFile(x.replace('.str', '')) for x in filelist], key='charmff_streamfiles'))
 
-    def do_psfgen(self,patch,specbyte):
+    def do_psfgen(self, patch, specbyte):
         """
         Perform the psfgen operation to generate the PSF and PDB files for the bilayer patch from the packmol output.
         """
         self.next_basename(f'psfgen{specbyte}')
-        pg=self.pipeline.get_scripter('psfgen')
-        pg.newscript(self.basename,additional_topologies=patch.addl_streamfiles)
+        pg: PsfgenScripter = self.get_scripter('psfgen')
+        pg.newscript(self.basename, additional_topologies=patch.addl_streamfiles)
         self.register_tops_streams_from_psfgen(pg.topologies)
         pg.usescript('bilayer_patch')
-        pg.writescript(self.basename,guesscoord=False,regenerate=True,force_exit=True)
-        pdb=self.get_current_artifact_path('pdb')
-        result=pg.runscript(pdb=pdb.name,o=self.basename)
-        cell_to_xsc(patch.box,patch.origin,f'{self.basename}.xsc')
-        patch.area=patch.box[0][0]*patch.box[1][1]
-        for at in [PsfgenInputScript,PsfgenLogFile,PDBFile,NAMDXscFile,PSFFile]:
+        pg.writescript(self.basename, guesscoord=False, regenerate=True, force_exit=True)
+        pdb: Path = self.get_current_artifact_path('pdb')
+        result = pg.runscript(pdb=pdb.name, o=self.basename)
+        cell_to_xsc(patch.box, patch.origin, f'{self.basename}.xsc')
+        patch.area = patch.box[0][0] * patch.box[1][1]
+        for at in [PsfgenInputScript, PsfgenLogFile, PDBFile, NAMDXscFile, PSFFile]:
             self.register_current_artifact(at(self.basename))
 
-    def pack_patch(self,patch,specbyte,seed=None,tolerance=None,nloop_all=200,nloop=200,half_mid_zgap=1.0,rotation_pm=20):
+    def pack_patch(self, patch: Bilayer, specbyte, seed=None, tolerance=None, nloop_all=200, nloop=200, half_mid_zgap=1.0, rotation_pm=20):
         """
         Packs the bilayer patch using Packmol.
         
@@ -232,9 +250,9 @@ class MakeMembraneSystemTask(BaseTask):
             The rotation angle in degrees for the patch. Default is 20.0 degrees.
         """
         self.next_basename(f'packmol{specbyte}')
-        pm=self.pipeline.get_scripter('packmol')
+        pm: PackmolScripter = self.get_scripter('packmol')
         pm.newscript(self.basename)
-        packmol_output_pdb=f'{self.basename}.pdb'
+        packmol_output_pdb = f'{self.basename}.pdb'
         pm.comment(f'packmol input automatically generated by pestifer {__pestifer_version__}')
         pm.addline(f'output {packmol_output_pdb}')
         pm.addline(f'filetype pdb')
@@ -242,16 +260,16 @@ class MakeMembraneSystemTask(BaseTask):
             pm.addline(f'seed {seed}')
         pm.addline(f'tolerance {tolerance}')
         pm.addline(f'nloop {nloop_all}')
-        patch.write_packmol(pm,half_mid_zgap=half_mid_zgap,rotation_pm=rotation_pm,nloop=nloop)
+        patch.write_packmol(pm, half_mid_zgap=half_mid_zgap, rotation_pm=rotation_pm, nloop=nloop)
         pm.writefile()
-        result=pm.runscript()
+        result = pm.runscript()
         logger.debug(f'{self.basename} packmol result {result}')
-        if result!=0:
+        if result != 0:
             raise Exception(f'Packmol failed with result {result}')
-        for at in [PackmolInputScript,PackmolLogFile,PDBFile]:
+        for at in [PackmolInputScript, PackmolLogFile, PDBFile]:
             self.register_current_artifact(at(self.basename))
 
-    def equilibrate_bilayer(self,bilayer,specbyte,relaxation_protocol=None):
+    def equilibrate_bilayer(self, bilayer: Bilayer, specbyte: str, relaxation_protocol=None):
         """
         Equilibrates the bilayer patch using the specified user dictionary and relaxation protocol.
         
@@ -266,72 +284,71 @@ class MakeMembraneSystemTask(BaseTask):
             If not provided, a hard-coded relaxation protocol will be used. 
         """
         self.next_basename(f'equilibration{specbyte}')
-        user_dict=deepcopy(self.config['user'])
-        psf=self.get_current_artifact_path('psf')
-        pdb=self.get_current_artifact_path('pdb')
-        xsc=self.get_current_artifact_path('xsc')
+        # user_dict=deepcopy(self.config['user'])
+        psf: Path = self.get_current_artifact_path('psf')
+        pdb: Path = self.get_current_artifact_path('pdb')
+        xsc: Path = self.get_current_artifact_path('xsc')
         logger.debug(f'Bilayer area before equilibration: {self.area:.3f} {sA2_}')
         if not relaxation_protocol:
             logger.debug(f'Using hard-coded relaxation protocol for {self.basename}!!')
-            relaxation_protocol=[            
-                {'md':dict(ensemble='minimize',minimize=1000)},
-                {'md':dict(ensemble='NVT',nsteps=1000)},
-                {'md':dict(ensemble='NPT',nsteps=200)},
-                {'md':dict(ensemble='NPT',nsteps=400)},
-                {'md':dict(ensemble='NPT',nsteps=800)},
-                {'md':dict(ensemble='NPAT',nsteps=1600)},
-                {'md':dict(ensemble='NPAT',nsteps=3200)},
-                {'md':dict(ensemble='NPAT',nsteps=6400)},
-                {'md':dict(ensemble='NPAT',nsteps=12800)},
-                {'md':dict(ensemble='NPAT',nsteps=25600)}]
+            relaxation_protocol=[
+                {'md': dict(ensemble='minimize', minimize=1000)},
+                {'md': dict(ensemble='NVT', nsteps=1000)},
+                {'md': dict(ensemble='NPT', nsteps=200)},
+                {'md': dict(ensemble='NPT', nsteps=400)},
+                {'md': dict(ensemble='NPT', nsteps=800)},
+                {'md': dict(ensemble='NPAT', nsteps=1600)},
+                {'md': dict(ensemble='NPAT', nsteps=3200)},
+                {'md': dict(ensemble='NPAT', nsteps=6400)},
+                {'md': dict(ensemble='NPAT', nsteps=12800)},
+                {'md': dict(ensemble='NPAT', nsteps=25600)}]
         else:
             logger.debug(f'Using user-specified relaxation protocol: {relaxation_protocol}')
         for stage in relaxation_protocol:
-            specs=stage['md']
-            specs['addl_paramfiles']=bilayer.addl_streamfiles
-            if specs.get('ensemble',None) in ['NPT','npt','NPAT','npat']:
-                if not 'other_parameters' in specs: # never true due to ycleptic base.yaml
-                    specs['other_parameters']={'useflexiblecell':True,'useconstantratio':True,
-                                               'pressureProfile':'on','pressureProfileSlabs':30,
-                                               'pressureProfileFreq':100}
+            specs = stage['md']
+            specs['addl_paramfiles'] = bilayer.addl_streamfiles
+            if specs.get('ensemble', None) in ['NPT', 'npt', 'NPAT', 'npat']:
+                if not 'other_parameters' in specs:  # never true due to ycleptic base.yaml
+                    specs['other_parameters'] = {'useflexiblecell': True, 'useconstantratio': True,
+                                                 'pressureProfile': 'on', 'pressureProfileSlabs': 30,
+                                                 'pressureProfileFreq': 100}
                 else:
                     if not 'useflexiblecell' in specs['other_parameters']:
-                        specs['other_parameters']['useflexiblecell']=True
+                        specs['other_parameters']['useflexiblecell'] = True
                     if not 'useconstantratio' in specs['other_parameters']:
-                        specs['other_parameters']['useconstantratio']=True
-                    if self.provisions['processor-type'] != 'gpu': # GPU NAMD 3.0.1 does not support pressure profiles
+                        specs['other_parameters']['useconstantratio'] = True
+                    if self.provisions['processor-type'] != 'gpu':  # GPU NAMD 3.0.1 does not support pressure profiles
                         if not 'pressureProfile' in specs['other_parameters']:
-                            specs['other_parameters']['pressureProfile']='on'
+                            specs['other_parameters']['pressureProfile'] = 'on'
                         if not 'pressureProfileSlabs' in specs['other_parameters']:
-                            specs['other_parameters']['pressureProfileSlabs']=30
+                            specs['other_parameters']['pressureProfileSlabs'] = 30
                         if not 'pressureProfileFreq' in specs['other_parameters']:
-                            specs['other_parameters']['pressureProfileFreq']=100
-        timeseries=['density',['a_x','b_y','c_z']]
-        profiles=['pressure']
+                            specs['other_parameters']['pressureProfileFreq'] = 100
+        timeseries = ['density', ['a_x', 'b_y', 'c_z']]
+        profiles = ['pressure']
         if self.provisions['processor-type'] != 'gpu':
-            timeseries.append('pressure') # To do: change this to pressureProfile plotting
-        tasklist_yaml=[
-            {'continuation':dict(psf=psf.path,pdb=pdb.path,xsc=xsc.path,index=0)}
-            ]+relaxation_protocol+[
-            {'mdplot':dict(timeseries=timeseries,profiles=profiles,legend=True,grid=True,basename=self.basename)},
-            {'terminate':dict(basename=self.basename,chainmapfile=f'{self.basename}-chainmap.yaml',statefile=f'{self.basename}-state.yaml')}
-        ]
-        subcontroller=self.subcontroller
-        subcontroller.config['title']=f'Bilayer equilibration from {self.basename}'
+            timeseries.append('pressure')  # To do: change this to pressureProfile plotting
+        tasklist_yaml = [{'continuation': dict(psf=psf, pdb=pdb, xsc=xsc, index=0)}]
+        tasklist_yaml.extend(relaxation_protocol)
+        tasklist_yaml.extend([
+            {'mdplot': dict(timeseries=timeseries, profiles=profiles, legend=True, grid=True, basename=self.basename)},
+            {'terminate': dict(basename=self.basename, chainmapfile=f'{self.basename}-chainmap.yaml', statefile=f'{self.basename}-state.yaml')}
+        ])
+        subcontroller = self.subcontroller
+        subcontroller.config['title'] = f'Bilayer equilibration from {self.basename}'
         subcontroller.reconfigure_tasks(tasklist_yaml)
         for task in subcontroller.tasks:
-            task_key=task.taskname
-            task.override_taskname(f'{self.basename}-'+task_key)
+            task_key = task.taskname
+            task.override_taskname(f'{self.basename}-' + task_key)
         subcontroller.do_tasks()
-        artifact_types_to_collect=['pdb','psf','xsc']
-        last_task=subcontroller.tasks[-1]
-        bilayer.artifacts={} # store the new artifacts in the bilayer object
+        artifact_types_to_collect = ['pdb', 'psf', 'xsc']
+        last_task: BaseTask = subcontroller.tasks[-1]
         for artifact_type in artifact_types_to_collect:
-            artifact=last_task.get_current_artifact(artifact_type)
+            artifact = last_task.get_current_artifact(artifact_type)
             if artifact is not None:
-                bilayer.artifacts[artifact_type]=artifact
-        bilayer.box,bilayer.origin=cell_from_xsc(bilayer.artifacts.get('xsc').path)
-        bilayer.area=bilayer.box[0][0]*bilayer.box[1][1]
+                bilayer.artifacts[artifact_type] = artifact
+        bilayer.box, bilayer.origin = cell_from_xsc(bilayer.artifacts.get('xsc').path)
+        bilayer.area = bilayer.box[0][0] * bilayer.box[1][1]
         logger.debug(f'{self.basename} area after equilibration: {bilayer.area:.3f} {sA2_}')
 
     def make_quilt_from_patch(self):
@@ -346,54 +363,55 @@ class MakeMembraneSystemTask(BaseTask):
         self.next_basename('quilt')
         additional_topologies=[]
         if self.patch is not None:
-            pdb=self.patch.artifacts.get('pdb',None)
-            xsc=self.patch.artifacts.get('xsc',None)
-            psf=self.patch.artifacts.get('psf',None)
-            pdbA=pdbB=pdb
-            psfA=psfB=psf
-            xscA=xscB=xsc
+            pdb = self.patch.artifacts.get('pdb',None)
+            xsc = self.patch.artifacts.get('xsc',None)
+            psf = self.patch.artifacts.get('psf',None)
+            pdbA = pdbB = pdb
+            psfA = psfB = psf
+            xscA = xscB = xsc
         elif self.patchA is not None and self.patchB is not None:
-            psfA=self.patchA.artifacts.get('psf',None)
-            pdbA=self.patchA.artifacts.get('pdb',None)
-            xscA=self.patchA.artifacts.get('xsc',None)
-            psfB=self.patchB.artifacts.get('psf',None)
-            pdbB=self.patchB.artifacts.get('pdb',None)
-            xscB=self.patchB.artifacts.get('xsc',None)
+            psfA = self.patchA.artifacts.get('psf', None)
+            pdbA = self.patchA.artifacts.get('pdb', None)
+            xscA = self.patchA.artifacts.get('xsc', None)
+            psfB = self.patchB.artifacts.get('psf', None)
+            pdbB = self.patchB.artifacts.get('pdb', None)
+            xscB = self.patchB.artifacts.get('xsc', None)
 
-        for patch in [self.patch,self.patchA,self.patchB]:
+        for patch in [self.patch, self.patchA, self.patchB]:
             if patch is None:
                 continue
-            additional_topologies+=patch.addl_streamfiles
-        additional_topologies=list(set(additional_topologies))
-        pg=self.pipeline.get_scripter('psfgen')
-        pg.newscript(self.basename,additional_topologies=additional_topologies)
+            additional_topologies += patch.addl_streamfiles
+        additional_topologies = list(set(additional_topologies))
+        pg: PsfgenScripter = self.get_scripter('psfgen')
+        pg.newscript(self.basename, additional_topologies=additional_topologies)
         self.register_tops_streams_from_psfgen(pg.topologies)
         pg.usescript('bilayer_quilt')
-        pg.writescript(self.basename,guesscoord=False,regenerate=False,force_exit=True,writepsf=False,writepdb=False)
+        pg.writescript(self.basename, guesscoord=False, regenerate=False, force_exit=True, writepsf=False, writepdb=False)
         self.register_current_artifact(PsfgenInputScript(self.basename))
-        margin=self.embed_specs.get('xydist',10.0)
-        if hasattr(self,"pro_pdb"):
+        margin = self.embed_specs.get('xydist', 10.0)
+        if hasattr(self, "pro_pdb"):
             # we will eventually embed a protein in here, so send its pdb along to help size the bilayer
-            result=pg.runscript(propdb=self.pro_pdb,margin=margin,psfA=psfA,pdbA=pdbA,psfB=psfB,pdbB=pdbB,xscA=xscA,xscB=xscB,o=self.basename)
+            result = pg.runscript(propdb=self.pro_pdb, margin=margin, psfA=psfA, pdbA=pdbA, psfB=psfB, pdbB=pdbB, xscA=xscA, xscB=xscB, o=self.basename)
         else:
-            dimx,dimy=self.bilayer_specs.get('dims',(0,0))
-            npatchx,npatchy=self.bilayer_specs.get('npatch',(0,0))
-            if npatchx!=0 and npatchy!=0:
-                result=pg.runscript(nx=npatchx,ny=npatchy,psfA=psfA,pdbA=pdbA,
-                                    psfB=psfB,pdbB=pdbB,xscA=xscA,xscB=xscB,o=self.basename)
-            elif dimx!=0 and dimy!=0:
-                result=pg.runscript(dimx=dimx,dimy=dimy,psfA=psfA,pdbA=pdbA,
-                                    psfB=psfB,pdbB=pdbB,xscA=xscA,xscB=xscB,o=self.basename)
-        if result!=0:
+            dimx, dimy = self.bilayer_specs.get('dims', (0, 0))
+            npatchx, npatchy = self.bilayer_specs.get('npatch', (0, 0))
+            if npatchx != 0 and npatchy != 0:
+                result = pg.runscript(nx=npatchx, ny=npatchy, psfA=psfA, pdbA=pdbA,
+                                    psfB=psfB, pdbB=pdbB, xscA=xscA, xscB=xscB, o=self.basename)
+            elif dimx != 0 and dimy != 0:
+                result = pg.runscript(dimx=dimx, dimy=dimy, psfA=psfA, pdbA=pdbA,
+                                    psfB=psfB, pdbB=pdbB, xscA=xscA, xscB=xscB, o=self.basename)
+        if result != 0:
             raise RuntimeError(f'psfgen failed with result {result} for {self.basename}')
-        for at in [PsfgenLogFile,PDBFile,NAMDXscFile,PSFFile]:
+        for at in [PsfgenLogFile, PDBFile, NAMDXscFile, PSFFile]:
             self.register_current_artifact(at(self.basename))
-        self.quilt=Bilayer()
-        self.quilt.addl_streamfiles=additional_topologies
-        self.quilt.box,self.quilt.origin=cell_from_xsc(f'{self.basename}.xsc')
-        self.quilt.area=self.quilt.box[0][0]*self.quilt.box[1][1]
-        relaxation_protocol=self.bilayer_specs.get('relaxation_protocols',{}).get('quilt',{})
-        self.equilibrate_bilayer(self.quilt,specbyte='',
+        self.quilt = Bilayer()
+        self.quilt.addl_streamfiles = additional_topologies
+        self.quilt.box, self.quilt.origin = cell_from_xsc(f'{self.basename}.xsc')
+        self.quilt.area = self.quilt.box[0][0] * self.quilt.box[1][1]
+        relaxation_protocol = self.bilayer_specs.get('relaxation_protocols', {}).get('quilt', {})
+        self.equilibrate_bilayer(self.quilt,
+                                 specbyte='',
                                  relaxation_protocol=relaxation_protocol)
 
     def embed_protein(self):

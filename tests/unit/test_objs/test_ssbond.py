@@ -1,15 +1,23 @@
 import unittest
 
-from pestifer.objs.ssbond import SSBond, SSBondList
 from pidibble.pdbparse import PDBParser
 from pidibble.pdbrecord import PDBRecordDict
+
 from pathlib import Path
+
 from mmcif.api.PdbxContainers import DataContainer
-from pestifer.util.cifutil import CIFload
-from pestifer.objs.resid import ResID
-from pestifer.molecule.residue import Residue, ResidueList
-from pestifer.molecule.atom import Atom, AtomList
+
 from pestifer.objs.mutation import Mutation, MutationList
+from pestifer.objs.resid import ResID
+from pestifer.objs.ssbond import SSBond, SSBondList
+
+from pestifer.molecule.residue import Residue, ResidueList
+from pestifer.molecule.atom import AtomList
+
+from pestifer.psfutil.psfpatch import PSFDISUPatch
+
+from pestifer.util.cifutil import CIFload
+
 class TestSSBond(unittest.TestCase):
 
     def test_ssbond_creation(self):
@@ -40,6 +48,15 @@ class TestSSBond(unittest.TestCase):
         pr = p.parsed[SSBond._PDB_keyword][0]
         ssbond = SSBond(pr)
         self.assertIsInstance(ssbond, SSBond)
+
+    def test_ssbond_from_psfdisupatch(self):
+        patch = PSFDISUPatch(['A:10', 'B:20'])
+        ssbond = SSBond(patch)
+        self.assertIsInstance(ssbond, SSBond)
+        self.assertEqual(ssbond.chainID1, 'A')
+        self.assertEqual(ssbond.resid1, ResID(10))
+        self.assertEqual(ssbond.chainID2, 'B')
+        self.assertEqual(ssbond.resid2, ResID(20))
 
 class TestSSBondList(unittest.TestCase):
 

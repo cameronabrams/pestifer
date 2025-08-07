@@ -8,14 +8,16 @@ dihedrals, and patches, and provides methods for accessing and manipulating this
 import logging
 import numpy as np
 import os
-from .psftopoelement import LineList
+
+from .psfangle import PSFAngleList
 from .psfatom import PSFAtom, PSFAtomList
 from .psfbond import PSFBondList
-from .psfangle import PSFAngleList
 from .psfdihedral import PSFDihedralList
+from .psftopoelement import LineList
+from .psfpatch import PSFDISUPatch, PSFLinkPatch
 
-from ..objs.ssbond import SSBond, SSBondList
 from ..objs.link import Link, LinkList
+from ..objs.ssbond import SSBond, SSBondList
 
 logger=logging.getLogger(__name__)
 
@@ -42,22 +44,6 @@ def get_toppar_from_psf(filename):
                 fn=os.path.basename(top)
                 toppars.append(fn)
     return list(set(toppars))
-
-class PSFDISUPatch:
-    def __init__(self, pl: list[str]):
-        """
-        Initialize a PSFDISUPatch object from a list of strings.
-        
-        Parameters
-        ----------
-        pl : list[str]
-            A list of strings representing the disulfide bond patch, typically in the format:
-            ['DISU', 'segid1:resid1', 'segid2:resid2'].
-        """
-        self.seg1, self.res1 = pl[1].split(':')
-        self.seg2, self.res2 = pl[2].split(':')
-        self.resid1 = ResID(self.res1)
-        self.resid2 = ResID(self.res2)
 
 class PSFContents:
     """
@@ -133,12 +119,13 @@ class PSFContents:
         self.atoms=PSFAtomList([PSFAtom(x) for x in self.token_lines['ATOM']])
         self.atomserials=[x.serial for x in self.atoms]
         logger.debug(f'{len(self.atoms)} total atoms...')
-        self.ssbonds=SSBondList([SSBond(L) for L in self.patches.get('DISU',[])])
+        self.ssbonds=SSBondList([SSBond(PSFDISUPatch(L)) for L in self.patches.get('DISU',[])])
         self.links=LinkList([])
         for patchtype,patchlist in self.patches.items():
-            if patchtype in Link.patch_atomnames:
+            if patchtype in Link._patch_atomnames:
                 for patch in patchlist:
-                    self.links.append(Link([patchtype]+patch))
+                    logger.debug(f'Adding link patch {[patchtype]+patch}')
+                    self.links.append(Link(PSFLinkPatch([patchtype]+patch)))
         if parse_topology:
             include_serials=[]
             if topology_segtypes:

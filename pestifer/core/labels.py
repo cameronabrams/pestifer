@@ -6,9 +6,10 @@ CHARMM and PDB files, along with their mappings. It also provides
 a class for managing these labels and mappings.
 """
 import logging
-logger=logging.getLogger(__name__)
 
-_segtypes= {
+logger = logging.getLogger(__name__)
+
+_segtypes = {
     'protein': {
         'macro': False,
         'resnames': [

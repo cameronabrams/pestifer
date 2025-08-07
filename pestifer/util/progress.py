@@ -6,11 +6,12 @@ import progressbar
 import logging
 from .colors import __plasma__
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
+
 class PestiferProgress:
-    def __init__(self,**kwargs): #Elapsed Time: %(elapsed)s\x1b[33mColorful example\x1b[39m
-        """ 
-        Initialize an instance of PestiferProgress 
+    def __init__(self, **kwargs):  # Elapsed Time: %(elapsed)s\x1b[33mColorful example\x1b[39m
+        """
+        Initialize an instance of PestiferProgress
         """
         self.name=kwargs.get('name','Elapsed')
         self.color=__plasma__[kwargs.get('colorno',100)]

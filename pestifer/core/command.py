@@ -31,7 +31,7 @@ class Command:
     The length of the divider line used in logging output to separate sections of the log.
     """
  
-    def __init__(self, command:str, *args, **options):
+    def __init__(self, command: str, *args, **options):
         """ 
         Initializes a Command instance with a command, its arguments, and options.
 

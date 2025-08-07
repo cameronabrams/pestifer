@@ -6,19 +6,14 @@ import os
 
 from .filewriter import Filewriter
 from ..core.command import Command
-from ..core.stringthings import ByteCollector, FileCollector
-from ..util.logparsers import PackmolLog
+from ..util.stringthings import ByteCollector, FileCollector
+from ..logparsers.packmollogparser import PackmolLogParser
 from ..util.progress import PackmolProgress
 
 logger = logging.getLogger(__name__)
 class PackmolScripter(Filewriter):
     """
     This class extends the Filewriter class to provide functionality for creating and managing Packmol scripts.
-    
-    Parameters
-    ----------
-    config : Config
-        The configuration object containing settings for the script.
     """
     def __init__(self, *args, **kwargs):
         super().__init__(comment_char=kwargs.get('comment_char', '#'))
@@ -62,7 +57,7 @@ class PackmolScripter(Filewriter):
         """
         assert hasattr(self,'scriptname'),f'No scriptname set.'
         self.logname=f'{self.basename}.log'
-        self.logparser=PackmolLog(basename=self.basename)
+        self.logparser=PackmolLogParser(basename=self.basename)
         logger.debug(f'Log file: {self.logname}')
         cmd=Command(f'{self.packmol} < {self.scriptname}')
         progress_struct=None

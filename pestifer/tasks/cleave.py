@@ -11,6 +11,8 @@ as a PSF file.
 Usage is described in the :ref:`subs_runtasks_cleave` documentation.
 """
 from .psfgen import PsfgenTask
+
+from ..molecule.molecule import Molecule
 from ..objs.cleavagesite import CleavageSite, CleavageSiteList
 
 class CleaveTask(PsfgenTask):
@@ -49,7 +51,7 @@ class CleaveTask(PsfgenTask):
         """
         cleavage_sites = CleavageSiteList([CleavageSite(x) for x in self.specs['sites']])
         # update base molecule to the point an inferential psfgen call could reproduce it, up to ssbonds and links
-        self.base_molecule = self.get_artifact_value('base_molecule')
+        self.base_molecule: Molecule = self.get_current_artifact_data('base_molecule')
         self.update_molecule()
         self.base_molecule.cleave_chains(cleavage_sites)
         self.result = self.psfgen()

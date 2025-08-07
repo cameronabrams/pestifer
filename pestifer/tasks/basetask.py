@@ -157,9 +157,9 @@ class BaseTask(ABC):
         """
         self.pipeline.stash(key)
 
-    def get_current_artifact_value(self, key):
+    def get_current_artifact_data(self, key):
         """ 
-        Get the current artifact value with the specified key from the context.
+        Get the current artifact data with the specified key from the context.
         This method retrieves the artifact from the context that matches the specified key.
         
         Parameters

@@ -6,13 +6,13 @@ import os
 
 from .filewriter import Filewriter
 from ..core.command import Command
-from ..core.stringthings import FileCollector
+from ..util.stringthings import FileCollector
 
 from ..objs.crot import Crot
 from ..objs.orient import Orient, OrientList
 from ..objs.rottrans import RotTrans, RotTransList
 
-from ..util.logparsers import VMDLog
+from ..logparsers.logparser import VMDLogParser
 from ..util.progress import PestiferProgress
 from ..util.util import reduce_intlist
 
@@ -348,7 +348,7 @@ class VMDScripter(TcLScripter):
         """
         assert hasattr(self, 'scriptname'), f'No scriptname set.'
         self.logname = f'{self.basename}.log'
-        self.logparser = VMDLog(basename=self.basename)
+        self.logparser = VMDLogParser(basename=self.basename)
         logger.debug(f'Log file: {self.logname}')
         c = Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}', **options)
         progress_struct = None

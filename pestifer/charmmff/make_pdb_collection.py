@@ -18,7 +18,7 @@ from  .charmmffresidatabase import CHARMMFFResiDatabase
 from ..core.config          import Config
 from ..core.controller      import Controller
 from ..core.resourcemanager import ResourceManager
-from ..core.stringthings    import my_logger
+from ..util.stringthings    import my_logger
 from ..psfutil.psfcontents  import PSFContents
 
 logger = logging.getLogger(__name__)

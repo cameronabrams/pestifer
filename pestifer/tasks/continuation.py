@@ -19,13 +19,13 @@ class ContinuationTask(VMDTask):
     def do(self):
         self.next_basename()
         # must have psf, either coor or pdb
-        psf = self.specs.get('psf', '')
+        psf: str = self.specs.get('psf', '')
         if not psf:
             raise ValueError('psf file must be specified in the continuation task')
         self.register_current_artifact(PSFFile(psf.replace('.psf','')))
         # must have either coor or pdb
-        coor = self.specs.get('coor','')
-        pdb = self.specs.get('pdb','')
+        coor: str = self.specs.get('coor','')
+        pdb: str = self.specs.get('pdb','')
         if not coor and not pdb:
             raise ValueError('Either coor or pdb file must be specified in the continuation task')
         if coor:
@@ -35,11 +35,11 @@ class ContinuationTask(VMDTask):
             self.register_current_artifact(PDBFile(pdb.replace('.pdb','')))
             if not coor: self.pdb_to_coor()
         # optional xsc file
-        xsc = self.specs.get('xsc','')
+        xsc: str = self.specs.get('xsc','')
         if xsc:
             self.register_current_artifact(NAMDXscFile(xsc.replace('.xsc','')))
         # optional vel file
-        vel = self.specs.get('vel','')
+        vel: str = self.specs.get('vel','')
         if vel:
             self.register_current_artifact(NAMDVelFile(vel.replace('.vel','')))
         self.result = 0
