@@ -1,19 +1,21 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
-Definea the :class:`PSFAtom` and :class:`PSFAtomList` classes for handling atoms in PSF topology files.
+Defines the :class:`PSFAtom` and :class:`PSFAtomList` classes for handling atoms in PSF topology files.
 These classes are used to represent individual atoms and collections of atoms in a PSF file.
 The :class:`PSFAtom` class represents a single atom, while the :class:`PSFAtomList` class is a collection of such atoms.
-These classes provide methods for parsing atom lines and managing atom properties."""
+These classes provide methods for parsing atom lines and managing atom properties.
+"""
 
+from __future__ import annotations
 import logging
 import networkx as nx
 
-from .psftopoelement import PSFTopoElement,PSFTopoElementList
+from .psftopoelement import PSFTopoElement, PSFTopoElementList
 
 from ..core.labels import Labels
 from ..objs.resid import ResID
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 class PSFAtom(PSFTopoElement):
     """
@@ -29,29 +31,29 @@ class PSFAtom(PSFTopoElement):
         The line should contain the following fields in order: serial number, chain ID, residue sequence number, insertion code, residue name, atom name, type, charge, and atomic weight.
         The line is expected to have exactly 9 tokens when split by whitespace.
     """
-    def __init__(self,atomline):
-        tokens=[x.strip() for x in atomline.split()]
-        assert len(tokens)==9,f'cannot parse psf atomline: {atomline}'
-        idx=int(tokens[0])
+    def __init__(self, atomline: str):
+        tokens = [x.strip() for x in atomline.split()]
+        assert len(tokens) == 9, f'cannot parse psf atomline: {atomline}'
+        idx = int(tokens[0])
         super().__init__([idx])
         self.resid = ResID(tokens[2])
-        self.serial=idx
-        self.chainID=tokens[1]
-        self.resseqnum=self.resid.resid
-        self.insertion=self.resid.insertion
-        self.resname=tokens[3]
-        self.name=tokens[4]
-        self.type=tokens[5]
-        self.charge=float(tokens[6])
-        self.atomicwt=float(tokens[7])
-        self.segtype=Labels.segtype_of_resname[self.resname]
-        self.ligands=[]
+        self.serial = idx
+        self.chainID = tokens[1]
+        self.resseqnum = self.resid.resid
+        self.insertion = self.resid.insertion
+        self.resname = tokens[3]
+        self.name = tokens[4]
+        self.type = tokens[5]
+        self.charge = float(tokens[6])
+        self.atomicwt = float(tokens[7])
+        self.segtype = Labels.segtype_of_resname[self.resname]
+        self.ligands = []
     
     def __hash__(self):
         return self.serial
-    
-    def __eq__(self,other):
-        return self.serial==other.serial
+
+    def __eq__(self, other: PSFAtom):
+        return self.serial == other.serial
 
     def __str__(self):
         return f'{self.chainID}_{self.resname}_{self.resid.resid}-{self.name}({self.serial})'
@@ -61,9 +63,9 @@ class PSFAtom(PSFTopoElement):
         Check if the atom is a hydrogen atom.
         Returns True if the atom's type is 'H', otherwise False.
         """
-        return self.atomicwt<1.1
-    
-    def add_ligand(self,other):
+        return self.atomicwt < 1.1
+
+    def add_ligand(self, other: PSFAtom):
         """
         Add a ligand to the atom's list of ligands.
 
@@ -75,7 +77,7 @@ class PSFAtom(PSFTopoElement):
         if not other in self.ligands:
             self.ligands.append(other)
 
-    def is_pep(self,other):
+    def is_pep(self, other: PSFAtom):
         """
         Check if the atom is part of a peptide bond with another atom.
         A peptide bond is defined as a bond between a carbon atom (C) and a nitrogen atom (NH1).
@@ -85,9 +87,9 @@ class PSFAtom(PSFTopoElement):
         other : PSFAtom
             The other atom to check for a peptide bond.
         """
-        return (self.type=='C' and other.type=='NH1') or (self.type=='NH1' and other.type=='C')
+        return (self.type == 'C' and other.type == 'NH1') or (self.type == 'NH1' and other.type == 'C')
 
-class PSFAtomList(PSFTopoElementList):
+class PSFAtomList(PSFTopoElementList[PSFAtom]):
     """
     A class representing a list of :class:`PSFAtom` objects.
     This class inherits from :class:`PSFTopoElementList <.psftopoelement.PSFTopoElementList>` and provides methods for managing a collection of atoms in a PSF topology file.
@@ -98,7 +100,7 @@ class PSFAtomList(PSFTopoElementList):
         A list of `PSFAtom` objects representing the atoms in the PSF file.
 
     """
-    def __init__(self,atoms):
+    def __init__(self, atoms: list):
         super().__init__(atoms)
 
     def graph(self):
@@ -111,9 +113,9 @@ class PSFAtomList(PSFTopoElementList):
         networkx.Graph
             A networkx graph representing the atom list, with atoms as nodes and bonds as edges
         """
-        g=nx.Graph()
-        for a in self:
+        g = nx.Graph()
+        for a in self.data:
             for l in a.ligands:
-                g.add_edge(a,l)
+                g.add_edge(a, l)
         logger.debug(f'atomlist graph has {len(g)} nodes')
         return g

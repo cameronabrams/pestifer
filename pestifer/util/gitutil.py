@@ -2,6 +2,7 @@
 Some functions for interacting with git
 """
 import subprocess
+
 from pathlib import Path
 
 def get_git_origin_url():

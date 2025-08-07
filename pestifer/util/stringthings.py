@@ -13,6 +13,8 @@ import pandas as pd
 
 from collections import UserList
 from io import StringIO
+from pathlib import Path
+from typing import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -80,15 +82,11 @@ def banner(logf):
     logf: file-like object
         The log file to which the banner message will be written.
     """
-    my_logger(_banner_message,logf,fill=' ',just='<')
+    my_logger(_banner_message, logf, fill=' ', just='<')
 
 class ByteCollector:
     """
     A simple string manager.
-    The main object in a ``ByteCollector`` instance is a string of bytes (``byte_collector``).
-    The string can be appended to by another string or the contents of a file.
-    The string can have comments written to it.
-    The string can be written to a file.
 
     Parameters
     ----------
@@ -151,7 +149,7 @@ class ByteCollector:
         else:
             return None
 
-    def has_statement(self, statement, end='\n', exclude='#'):
+    def has_statement(self, statement: str, end='\n', exclude='#'):
         """
         Determines if a particular statement is on at least one non-comment line
 
@@ -171,7 +169,7 @@ class ByteCollector:
                     return True
         return False
 
-    def reassign(self, varname, varvalue, style='bash', end='\n'):
+    def reassign(self, varname: str, varvalue: str, style: str = 'bash', end: str = '\n'):
         """
         Reassigns variable varname to value varvalue if an assignment to varname already
         exists in the byte_collector 
@@ -222,7 +220,7 @@ class ByteCollector:
         self.byte_collector = end.join(lines)
         logger.debug(self.byte_collector)
 
-    def ingest_file(self, filename):
+    def ingest_file(self, filename: Path | str):
         """
         Appends contents of file ``filename`` to the string
 
@@ -234,7 +232,7 @@ class ByteCollector:
         with open(filename, 'r') as f:
             self.byte_collector += f.read()
 
-    def write_file(self, filename):
+    def write_file(self, filename: Path | str):
         """
         Writes string to ``filename``
 
@@ -246,7 +244,7 @@ class ByteCollector:
         with open(filename, 'w') as f:
             f.write(self.byte_collector)
 
-    def comment(self, msg, end='\n'):
+    def comment(self, msg: str, end: str = '\n'):
         """
         Appends ``msg`` as a comment to the string
         
@@ -272,7 +270,7 @@ class ByteCollector:
         for line in comment_lines:
             self.addline(line, end=end)
 
-    def log(self, msg):
+    def log(self, msg: str):
         """
         Logs a message to the string
         
@@ -282,7 +280,7 @@ class ByteCollector:
            the message to log"""
         my_logger(msg, self.addline)
 
-    def banner(self, msg):
+    def banner(self, msg: str):
         """
         Logs a banner message to the string
         
@@ -299,9 +297,9 @@ class ByteCollector:
         """
         return self.byte_collector
 
-def my_logger(msg, logf, width=None, fill='', just='<', frame='', depth=0, **kwargs):
+def my_logger(msg: str | list | dict | pd.DataFrame, logf: Callable, width=None, fill='', just='<', frame='', depth=0, **kwargs):
     """
-    A fancy logger
+    A fancy recursive logger
     
     Parameters
     ----------
@@ -335,17 +333,17 @@ def my_logger(msg, logf, width=None, fill='', just='<', frame='', depth=0, **kwa
     if frame:
         ffmt = r'{'+r':'+frame+just+f'{width}'+r'}'
         logf(ffmt.format(frame))
-    if type(msg) == list:
+    if isinstance(msg, list):
         for tok in msg:
             my_logger(tok, logf, width=width, fill=fill, just=just, frame=False, depth=depth, kwargs=kwargs)
-    elif type(msg) == dict:
+    elif isinstance(msg, dict):
         for key, value in msg.items():
-            if type(value) == str or not hasattr(value, "__len__"):
+            if isinstance(value, str) or not hasattr(value, "__len__"):
                 my_logger(f'{key}: {value}', logf, width=width, fill=fill, just=just, frame=False, depth=depth, kwargs=kwargs)
             else:
                 my_logger(f'{key}:', logf, width=width, fill=fill, just=just, frame=False, depth=depth, kwargs=kwargs)
                 my_logger(value, logf, width=width, fill=fill, just=just, frame=False, depth=depth+1, kwargs=kwargs)
-    elif type(msg) == pd.DataFrame:
+    elif isinstance(msg, pd.DataFrame):
         dfoutmode = kwargs.get('dfoutmode', 'value')
         if dfoutmode == 'value':
             my_logger([ll+x+rr for x in msg.to_string().split('\n')], logf, width=width, fill=fill, just=just, frame=False, depth=depth, kwargs=kwargs)
@@ -357,7 +355,7 @@ def my_logger(msg, logf, width=None, fill='', just='<', frame='', depth=0, **kwa
             return
     else:
         indent = f'{" "*depth*2}' if just == '<' and not kwargs.get('no_indent', False) else ''
-        if type(msg) == str:
+        if isinstance(msg, str):
             lns = msg.split('\n')
             if len(lns) > 1:
                 my_logger(lns, logf, width=width, fill=fill, just=just, frame=False, depth=depth+1, kwargs=kwargs)
@@ -404,7 +402,7 @@ class FileCollector(UserList):
                         stderr=subprocess.PIPE)
         logger.debug(f'generated tarball {basename}.{preferred_extension}')
 
-def oxford(a_list, conjunction='or') -> str | None:
+def oxford(a_list: list[str], conjunction: str = 'or') -> str | None:
     """ 
     Obey the Oxford comma when ending a list with a conjunction
 
@@ -455,7 +453,7 @@ def striplist(L: list[str]) -> list[str]:
         l.remove('')
     return l
 
-def to_latex_math(s):
+def to_latex_math(s: str) -> str:
     """
     Converts a string into LaTeX math format.  Written by ChatGPT 4o.
     """
@@ -479,7 +477,7 @@ def to_latex_math(s):
     converted = [convert_token(part) for part in parts]
     return ', '.join(converted)
 
-def example_footer(author_name='', author_email='') -> str:
+def example_footer(author_name: str = '', author_email: str = '') -> str:
     """
     Returns a formatted footer string with author information.
 
@@ -518,29 +516,29 @@ def raise_clean(ErrorInstance: Exception):
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
-def special_update(dict, key, val, mode='strict'):
-    """
-    Special update function for dictionaries with different modes.
+# def special_update(dict, key, val, mode='strict'):
+#     """
+#     Special update function for dictionaries with different modes.
 
-    Parameters
-    ----------
-    dict: dict
-        The dictionary to update.
-    key: str
-        The key to update.
-    val: any
-        The value to set.
-    mode: str, optional
-        The mode of the update. Can be 'strict' or 'permissive'. Defaults to 'strict'.
+#     Parameters
+#     ----------
+#     dict: dict
+#         The dictionary to update.
+#     key: str
+#         The key to update.
+#     val: any
+#         The value to set.
+#     mode: str, optional
+#         The mode of the update. Can be 'strict' or 'permissive'. Defaults to 'strict'.
 
-    Raises
-    ------
-    KeyError
-        If the mode is 'strict' and the key already exists.
-    """
-    if mode == 'strict' and key in dict:
-        raise KeyError(f'Key {key} already exists in dictionary.')
-    dict[key] = val
+#     Raises
+#     ------
+#     KeyError
+#         If the mode is 'strict' and the key already exists.
+#     """
+#     if mode == 'strict' and key in dict:
+#         raise KeyError(f'Key {key} already exists in dictionary.')
+#     dict[key] = val
 
 def plu(n: int, singform: str = '', plurform: str = 's') -> str:
     """

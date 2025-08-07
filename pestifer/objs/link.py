@@ -2,21 +2,29 @@
 """
 A Link is a covalent bond between two residues in a protein structure.
 """
+from __future__ import annotations
+
 import logging
+
+import numpy as np
 
 from mmcif.api.PdbxContainers import DataContainer
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from pydantic import Field
-from typing import ClassVar, Any
+from typing import ClassVar, TYPE_CHECKING
 
 from .resid import ResID
 
 from ..core.baseobj import BaseObj, BaseObjList
+from ..util.coord import measure_dihedral
+
+if TYPE_CHECKING:
+    from ..molecule.atom import Atom
+    from ..molecule.residue import Residue
 
 from ..psfutil.psfpatch import PSFLinkPatch
 
 from ..util.cifutil import CIFdict
-from ..util.coord import ic_reference_closest
 
 logger = logging.getLogger(__name__)
 
@@ -57,10 +65,10 @@ class Link(BaseObj):
     link_distance: float | None = Field(None, description="Distance between the two atoms in the link")
     segname1: str | None = Field(None, description="Segment name of the first residue")
     segname2: str | None = Field(None, description="Segment name of the second residue")
-    residue1: Any | None = Field(None, description="First residue object in the link")
-    residue2: Any | None = Field(None, description="Second residue object in the link")
-    atom1: Any | None = Field(None, description="First atom object in the link")
-    atom2: Any | None = Field(None, description="Second atom object in the link")
+    residue1: "Residue" = Field(None, description="First residue object in the link")
+    residue2: "Residue" = Field(None, description="Second residue object in the link")
+    atom1: "Atom" = Field(None, description="First atom object in the link")
+    atom2: "Atom" = Field(None, description="Second atom object in the link")
     empty: bool | None = Field(None, description="Indicates if the link is empty")
     segtype1: str | None = Field(None, description="Segment type of the first residue")
     segtype2: str | None = Field(None, description="Segment type of the second residue")
@@ -636,3 +644,71 @@ class LinkList(BaseObjList[Link]):
         Report the string representation of each link in the list.
         """
         return "\n".join([repr(l) for l in self])
+    
+def ic_reference_closest(res12: list["Residue"], ICmaps: list[dict]) -> str:
+    """
+    Given the two Residues in res12 and the maps in ICmaps, 
+    return the mapping key to which the given IC values are
+    closest in a Euclidean sense.
+
+    This method will identify the four atoms of the IC and reference
+    them directly when calling the measure_dihedral function. 
+    
+    The list of computed dihedral values from the set of atoms is a "point"
+    in "IC-space", and each patch has its own "reference point" in this space.
+
+    The reference point to which the point is closest is identified as the 
+    desired result.
+
+    Parameters
+    ----------
+    res12: list
+       exactly two Residue objects which must have lists of atoms attributes
+    ICMaps : list of dict
+        A list of dictionaries, each with the following structure:
+
+        +--------------+-----------------------------------------------------------+
+        | Key          | Description                                               |
+        +==============+===========================================================+
+        | ICatomnames  | List of 4 atom names as they appear in the CHARMM FF IC.  |
+        +--------------+-----------------------------------------------------------+
+        | mapping      | Dictionary mapping patch names to IC values.              |
+        +--------------+-----------------------------------------------------------+
+    """
+    for ic in ICmaps:
+        # logger.debug(f'icmap {ic}')
+        ic['atoms'] = []
+        for n in ic['ICatomnames']:
+            r = int(n[0])-1
+            an = n[1:]
+            at = res12[r].atoms.get(name=an)
+            ic['atoms'].append(at)
+            # logger.debug(f'Assigned atom {at.name} of {at.resname}{at.resseqnum}')
+    map_points = {}
+    the_point = []
+    for ic in ICmaps:
+        value = measure_dihedral(*(ic['atoms'])) * 180.0 / np.pi
+        # logger.debug(f'{ic["ICatomnames"]} value {value:.2f}')
+        the_point.append(value)
+        for m, v in ic['mapping'].items():
+            if not m in map_points:
+                map_points[m] = []
+            map_points[m].append(v)
+    for k, v in map_points.items():
+        map_points[k] = np.array(v)
+    the_point = np.array(the_point)
+    # logger.debug(f'ic the point: {the_point}')
+    # calculate Euclidean distance adhering to the periodicity
+    # of dihedral-angle space
+    displacements = {k: (the_point - v) for k, v in map_points.items()}
+    for n, d in displacements.items():
+        for i in range(len(d)):
+            if d[i] < 180.0:
+                d[i] += 180.0
+            if d[i] > 180.0:
+                d[i] -= 180.0
+    norms = {k: np.linalg.norm(d) for k, d in displacements.items()}
+    # logger.debug(f'norms {norms}')
+    the_one = [k for (k, v) in sorted(norms.items(), key=lambda x: x[1])][0]
+    # logger.debug(f'returning {the_one}')
+    return the_one

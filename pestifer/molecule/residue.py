@@ -8,18 +8,19 @@ from __future__ import annotations
 import logging
 
 import numpy as np
-logger=logging.getLogger(__name__)
 
 from argparse import Namespace
 
 from pydantic import Field
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TYPE_CHECKING
 
 from pidibble.baserecord import BaseRecord
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 
 from .atom import Atom, AtomList, Hetatm
-from ..objs.link import Link, LinkList
+from ..objs.link import Link
+from ..objs.link import LinkList
+
 from ..core.baseobj import BaseObj, BaseObjList
 from ..core.labels import Labels
 from ..objs.seqadv import Seqadv, SeqadvList
@@ -27,11 +28,13 @@ from ..objs.deletion import DeletionList
 from ..objs.insertion import Insertion, InsertionList
 from ..objs.substitution import SubstitutionList
 from ..util.cifutil import CIFdict
-from ..util.coord import positionN
+from ..util.coord import positionN, measure_dihedral
 from .stateinterval import StateInterval, StateIntervalList
 from mmcif.api.PdbxContainers import DataContainer
 
 from ..objs.resid import ResID
+
+logger = logging.getLogger(__name__)
 
 class ResiduePlaceholder(BaseObj):
     """
@@ -41,7 +44,7 @@ class ResiduePlaceholder(BaseObj):
     but are not resolved in the coordinate file.
     """
 
-    _required_fields = {'resname','resid','chainID','resolved','segtype'}
+    _required_fields = {'resname', 'resid', 'chainID', 'resolved', 'segtype'}
     """
     Required attributes for ResiduePlaceholder.
     
@@ -59,7 +62,8 @@ class ResiduePlaceholder(BaseObj):
         The segment type.
     """
 
-    _optional_fields = {'model','obj_id','auth_asym_id','auth_comp_id','auth_seq_id','empty','link','recordname'}
+    _optional_fields = {'model', 'obj_id', 'auth_asym_id', 'auth_comp_id', 
+                        'auth_seq_id', 'empty', 'recordname'}
     """
     Optional attributes for ResiduePlaceholder.
     
@@ -94,7 +98,7 @@ class ResiduePlaceholder(BaseObj):
     auth_seq_id: int | None = Field(None, description="The author sequence ID, if applicable.")
 
     empty: bool = Field(False, description="Indicates whether the residue is empty (True) or not (False).")
-    link: Any | None = Field(None, description="The link to the residue, if applicable.")
+    # link: Any | None = Field(None, description="The link to the residue, if applicable.")
     recordname: str = Field('REMARK.465', description="The PDB record name for the residue.")
 
     _yaml_header: ClassVar[str] = 'missings'
@@ -1129,4 +1133,5 @@ class ResidueList(BaseObjList[Residue]):
 
         return StateIntervalList.process_itemlist(self, state_func=state_func)
 
-Residue.model_rebuild()
+# Residue.model_rebuild()
+

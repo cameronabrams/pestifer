@@ -2,23 +2,23 @@
 from scipy.constants import physical_constants, Avogadro
 import numpy as np
 
-_SYMBOLS_={
-    'ANGSTROM':'Å',
-    'CUBED':'³',
-    'SQUARED':'²'
+_SYMBOLS_ = {
+    'ANGSTROM': 'Å',
+    'CUBED': '³',
+    'SQUARED': '²'
 }
-_UNITS_={
-    'SQUARE-ANGSTROMS':f'{_SYMBOLS_["ANGSTROM"]}{_SYMBOLS_["SQUARED"]}',
-    'CUBIC-ANGSTROMS':f'{_SYMBOLS_["ANGSTROM"]}{_SYMBOLS_["CUBED"]}',
+_UNITS_ = {
+    'SQUARE-ANGSTROMS': f'{_SYMBOLS_["ANGSTROM"]}{_SYMBOLS_["SQUARED"]}',
+    'CUBIC-ANGSTROMS': f'{_SYMBOLS_["ANGSTROM"]}{_SYMBOLS_["CUBED"]}',
     }
 
-g_per_amu=physical_constants['atomic mass constant'][0]*1000
-A_per_cm=1.e8
-A3_per_cm3=A_per_cm**3
-cm3_per_A3=1.0/A3_per_cm3
-n_per_mol=Avogadro
+g_per_amu = physical_constants['atomic mass constant'][0] * 1000
+A_per_cm = 1.e8
+A3_per_cm3 = A_per_cm**3
+cm3_per_A3 = 1.0/A3_per_cm3
+n_per_mol = Avogadro
 
-def nmolec_in_cuA(MW_g,density_gcc,volume_A3):
+def nmolec_in_cuA(MW_g: float, density_gcc: float, volume_A3: float) -> int:
     """
     Calculate the number of molecules in a given volume in cubic Angstroms.
 
@@ -38,7 +38,7 @@ def nmolec_in_cuA(MW_g,density_gcc,volume_A3):
     """
     return int(np.floor(density_gcc/MW_g*cm3_per_A3*n_per_mol*volume_A3))
 
-def cuA_of_nmolec(MW_g,density_gcc,nmolec):
+def cuA_of_nmolec(MW_g: float, density_gcc: float, nmolec: int) -> float:
     """
     Calculate the volume in cubic Angstroms of a given number of molecules.
 

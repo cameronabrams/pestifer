@@ -2,8 +2,9 @@
 """
 A class for building the asymmetric unit from a PDB file
 """
+from __future__ import annotations
+
 import logging
-logger = logging.getLogger(__name__)
 
 from argparse import Namespace
 from mmcif.api.PdbxContainers import DataContainer
@@ -29,6 +30,8 @@ from ..objs.ter import TerList
 from ..psfutil.psfcontents import PSFContents
 
 from ..util.util import write_residue_map
+
+logger = logging.getLogger(__name__)
 
 class AsymmetricUnit:
     """

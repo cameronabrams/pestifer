@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import unittest
 from pestifer.molecule.bioassemb import BioAssemb, Transform, TransformList, BioAssembList
 from mmcif.api.PdbxContainers import DataContainer

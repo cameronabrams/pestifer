@@ -2,22 +2,27 @@
 """
 A class for processing biological assemblies
 """
+from __future__ import annotations
 
 import logging
-import numpy as np
 import re
-logger=logging.getLogger(__name__)
 
-# from functools import singledispatchmethod
+import numpy as np
+
 from mmcif.api.PdbxContainers import DataContainer
 from pidibble.pdbrecord import PDBRecord, PDBRecordList, PDBRecordDict
-from typing import ClassVar
+from typing import ClassVar, TYPE_CHECKING
 from collections import UserList
 
 from .asymmetricunit import AsymmetricUnit
 from .chainidmanager import ChainIDManager
-from ..util.stringthings import plu
+if TYPE_CHECKING:
+    from .molecule import Molecule
 from .transform import Transform, TransformList
+
+from ..util.stringthings import plu
+
+logger = logging.getLogger(__name__)
 
 class BioAssemb:
     """
@@ -92,19 +97,19 @@ class BioAssemb:
         self._parent_molecule = None
         BioAssemb._index += 1
 
-    def set_parent_molecule(self, mol: object):
+    def set_parent_molecule(self, mol: Molecule):
         """
         Set the parent molecule for this BioAssemb instance.
         
         Parameters
         ----------
-        mol : object
+        mol : Molecule
             The parent molecule to set.
         """
         self._parent_molecule = mol
     
     @property
-    def parent_molecule(self) -> object | None:
+    def parent_molecule(self) -> Molecule | None:
         """
         Get the parent molecule of this BioAssemb instance.
         
@@ -135,7 +140,7 @@ class BioAssembList(UserList[BioAssemb]):
     This class inherits from UserList and provides methods to manage
     collections of biological assemblies.
     """
-    _parent_molecule: object | None = None
+    _parent_molecule: Molecule | None = None
 
     def __init__(self, initial_data=None):
         """
@@ -157,7 +162,7 @@ class BioAssembList(UserList[BioAssemb]):
         super().__init__(initial_data or [])
         self._parent_molecule = None
 
-    def set_parent_molecule(self, mol: object):
+    def set_parent_molecule(self, mol: Molecule):
         """
         Set the parent molecule for this BioAssembList instance.
         
@@ -171,13 +176,13 @@ class BioAssembList(UserList[BioAssemb]):
             ba.set_parent_molecule(mol)
     
     @property
-    def parent_molecule(self) -> object | None:
+    def parent_molecule(self) -> Molecule | None:
         """
         Get the parent molecule of this BioAssembList instance.
         
         Returns
         -------
-        object | None
+        Molecule | None
             The parent molecule, or None if not set.
         """
         return self._parent_molecule

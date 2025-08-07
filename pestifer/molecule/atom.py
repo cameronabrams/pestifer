@@ -3,22 +3,23 @@
 Class for handling atoms.
 """
 from __future__ import annotations
+
 import logging
-logger=logging.getLogger(__name__)
 
 from functools import singledispatchmethod
-
+from mmcif.api.PdbxContainers import DataContainer
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
-
 from pydantic import Field
 from typing import ClassVar
 
 from ..core.baseobj import BaseObj, BaseObjList
 from ..objs.resid import ResID
+from ..objs.ter import TerList
+from ..psfutil.psfatom import PSFAtomList
 from ..util.cifutil import CIFdict
 from ..util.util import reduce_intlist
-from ..psfutil.psfatom import PSFAtom, PSFAtomList
-from mmcif.api.PdbxContainers import DataContainer
+
+logger = logging.getLogger(__name__)
 
 class Atom(BaseObj):
     """
@@ -29,7 +30,8 @@ class Atom(BaseObj):
     record name, and author sequence ID, component ID, asym ID, and atom ID.
     """
 
-    _required_fields = {'serial','name','altloc','resname','chainID','resid','x','y','z','occ','beta','elem','charge'}
+    _required_fields = {'serial', 'name', 'altloc', 'resname', 'chainID', 'resid', 'x', 'y', 'z', 
+                        'occ', 'beta', 'elem', 'charge'}
     """
     Required attributes for the Atom class.
     These attributes must be provided when creating an Atom instance.
@@ -64,7 +66,8 @@ class Atom(BaseObj):
         Charge of the atom.
     """
 
-    _optional_fields = {'segname','empty','link','recordname','auth_seq_id','auth_comp_id','auth_asym_id','auth_atom_id'}
+    _optional_fields = {'segname', 'empty', 'link', 'recordname', 'auth_seq_id', 
+                        'auth_comp_id', 'auth_asym_id', 'auth_atom_id'}
     """
     Optional attributes for the Atom class.
     These attributes can be provided when creating an Atom instance, but are not required.
@@ -344,7 +347,7 @@ class AtomList(BaseObjList[Atom]):
         AtomList
             A new AtomList instance containing Atom objects created from the mmCIF data.
         """
-        obj=parsed.getObj(Atom._CIF_CategoryName)
+        obj = parsed.getObj(Atom._CIF_CategoryName)
         if obj is None:
             return cls([])
         return cls([Atom(CIFdict(obj, i)) for i in range(len(obj))])
@@ -356,13 +359,13 @@ class AtomList(BaseObjList[Atom]):
         and incrementing for each atom. It also stores the original serial number in the
         `_ORIGINAL_ATTRIBUTES` dictionary of each atom for reference.
         """
-        serial=1
+        serial = 1
         for a in self:
-            a._ORIGINAL_ATTRIBUTES['serial']=a.serial
-            a.serial=serial
-            serial+=1
-            
-    def adjustSerials(self,Ters):
+            a._ORIGINAL_ATTRIBUTES['serial'] = a.serial
+            a.serial = serial
+            serial += 1
+
+    def adjustSerials(self, Ters: TerList):
         """
         Adjusts the serial numbers of atoms in the AtomList based on the provided TerList.
         This method reduces the serial numbers of atoms in the AtomList by the number of
@@ -374,23 +377,23 @@ class AtomList(BaseObjList[Atom]):
         Ters : TerList
             A list of Ter objects containing serial numbers to be ignored (TER records in old-timey PDB files)
         """
-        ignored_serials=[x.serial for x in Ters]
+        ignored_serials = [x.serial for x in Ters.data]
         if not ignored_serials:
             return
         logger.debug(f'These serials must be deleted: {ignored_serials}')
-        ril=reduce_intlist([x.serial for x in self])
+        ril = reduce_intlist([x.serial for x in self.data])
         logger.debug(f'Prior to ignore, serials populate {ril}')
-        for a in self:
+        for a in self.data:
             try:
-                n=next(x[0] for x in enumerate(ignored_serials) if x[1] > a.serial)
+                n = next(x[0] for x in enumerate(ignored_serials) if x[1] > a.serial)
             except StopIteration:
                 pass
-            if n>0:
-                a._ORIGINAL_['serial']=a.serial
-                a.serial-=n
-                logger.debug(f'Atom orig serial {a._ORIGINAL_["serial"]} to {a.serial}')
+            if n > 0:
+                a._ORIGINAL_ATTRIBUTES['serial'] = a.serial
+                a.serial -= n
+                logger.debug(f'Atom orig serial {a._ORIGINAL_ATTRIBUTES["serial"]} to {a.serial}')
 
-    def overwrite_positions(self,other):
+    def overwrite_positions(self, other: AtomList):
         """
         Overwrites the positions of atoms in this AtomList with the positions of atoms in another AtomList.
         This method iterates through both AtomLists, ensuring they are of equal length,
@@ -406,8 +409,8 @@ class AtomList(BaseObjList[Atom]):
         AssertionError
             If the lengths of the two AtomLists are not equal, an assertion error is raised.
         """
-        assert len(self)==len(other),'Error: atom lists not equal length'
-        for sa,oa in zip(self,other):
+        assert len(self) == len(other), 'Error: atom lists not equal length'
+        for sa, oa in zip(self.data, other.data):
             sa.overwrite_position(oa)
 
     def apply_psf_resnames(self, psfatoms: PSFAtomList):
@@ -421,7 +424,7 @@ class AtomList(BaseObjList[Atom]):
         psfatoms : PSFAtomList
             The PSF atom list containing residue names to be applied.
         """
-        for myatom, psfatom in zip(self, psfatoms):
+        for myatom, psfatom in zip(self.data, psfatoms.data):
             myatom.resname = psfatom.resname
 
 class Hetatm(Atom):
