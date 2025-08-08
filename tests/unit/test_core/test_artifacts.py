@@ -1,3 +1,6 @@
+
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+
 import os
 import unittest
 from pestifer.core.artifacts import *

@@ -75,13 +75,13 @@ class MDPlotTask(BaseTask):
                             if artifact.exists():
                                 self.register(artifact, key=f'{key}-csv')
         
+        self.csvartifacts = FileArtifactList()
         if self.priortasklist:
             for pt in self.priortasklist:
                 artifactfile_collection = pt.get_my_artifactfile_collection().filter_by_artifact_type(CSVDataFileArtifact)
                 for pt_artifact in artifactfile_collection:
-                    self.register(pt_artifact, key=pt_artifact.key)
+                    self.csvartifacts.append(pt_artifact)
 
-        self.csvartifacts = self.get_my_artifactfile_collection().filter_by_artifact_type(CSVDataFileArtifact)
         if len(self.csvartifacts) == 0:
             raise ValueError('No CSV artifacts found.  Cannot extract time series data.')
         logger.debug(f'Found {len(self.csvartifacts)} CSV artifacts.')

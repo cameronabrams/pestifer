@@ -15,7 +15,7 @@ import os
 from pathlib import Path
 
 from .md import MDTask
-from ..core.artifacts import YAMLFileArtifact, FileArtifactList
+from ..core.artifacts import *
 from ..molecule.molecule import Molecule
 
 logger = logging.getLogger(__name__)
@@ -76,9 +76,10 @@ class TerminateTask(MDTask):
         TarballContents = FileArtifactList()
         self.basename = self.specs.get('basename', 'my_system')
         for ext in ['psf', 'pdb', 'coor', 'xsc', 'vel']:
-            fa: Path = self.get_current_artifact_path(ext)
+            fa: FileArtifact = self.get_current_artifact(ext)
+            fa_path: Path = fa.path
             if fa:
-                shutil.copy(fa, self.basename + '.' + ext)
+                shutil.copy(fa_path, self.basename + '.' + ext)
                 self.register(type(fa)(self.basename))
                 TarballContents.append(self.get_current_artifact(ext))
         logger.debug(f'Packaging for namd using basename {self.basename}')
@@ -104,7 +105,9 @@ class TerminateTask(MDTask):
 
         ArtifactContents = FileArtifactList()
 
-        data_artifacts, filelist_artifacts, file_artifacts = self.pipeline.get_artifact_collection_as_lists()
+        all_my_artifacts = self.pipeline.get_artifact_collection_as_lists()
+        file_artifacts = all_my_artifacts['files']
+        filelist_artifacts = all_my_artifacts['filelists']
 
         all_artifact_files = []
         for artifact in file_artifacts:

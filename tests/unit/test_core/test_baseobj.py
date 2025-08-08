@@ -1,3 +1,5 @@
+# Author: Cameorn F. Abrams, <cfa22@drexel.edu>
+
 from __future__ import annotations
 import unittest
 from pestifer.core.baseobj import BaseObj, BaseObjList

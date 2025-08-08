@@ -218,7 +218,7 @@ class FileArtifact(Artifact, ABC):
     Represents a file artifact in the Pestifer core.
     This class is used to store information about a file artifact, including its path and an optional description.
     """
-    data: str | None = None  # base name without extension
+    data: str | None = None  # base name with or without extension
     description: str | None = None
     mime_type: str | None = 'application/octet-stream'
 
@@ -234,7 +234,8 @@ class FileArtifact(Artifact, ABC):
         if self.data and '.' in self.data:
             # correctly assigns data in case this is initialized
             # with a filename that has an extension
-            self.data, apparent_ext = self.data.split('.')
+            self.data, dot_apparent_ext = os.path.splitext(self.data)
+            apparent_ext = dot_apparent_ext.replace('.', '')
             if self.ext != apparent_ext:
                 logger.warning(f"Extension mismatch: {self.ext} != {apparent_ext}")
 

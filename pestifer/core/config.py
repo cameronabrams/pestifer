@@ -16,7 +16,8 @@ from ycleptic.yclept import Yclept
 
 from .resourcemanager import ResourceManager
 from ..util.stringthings import my_logger
-from ..scripters import PsfgenScripter, NAMDScripter, NAMDColvarInputScripter, PackmolScripter, VMDScripter, Filewriter
+from ..scripters import PsfgenScripter, NAMDColvarInputScripter, PackmolScripter, VMDScripter, Filewriter
+from ..scripters.namdscripter import NAMDScripter
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +62,7 @@ class Config(Yclept):
         )
 
         self._set_kwargs_to_scripters()
+        # logger.debug(f'{self.kwargs_to_scripters}')
         self.scripters = {
             'psfgen': PsfgenScripter(**self.kwargs_to_scripters),
             'namd': NAMDScripter(**self.kwargs_to_scripters),
@@ -91,8 +93,9 @@ class Config(Yclept):
             raise ValueError(f'Scripter {scripter_name} not found.')
 
     def _set_kwargs_to_scripters(self):
+        assert self.RM.charmmff_content is not None, 'ResourceManager must have charmmff_content set.'
         self.kwargs_to_scripters = dict(
-            charmff = self.RM.charmmff_content,
+            charmmff = self.RM.charmmff_content,
             charmmff_content = self.RM.charmmff_content,
             charmmff_config = self['user']['charmmff'],
             charmrun = self.shell_commands['charmrun'],
@@ -210,7 +213,7 @@ class Config(Yclept):
         self.charmmff_pdbrepository = RM.charmmff_content.pdbrepository
         self.user_charmmff_toppar_path = ''
         if hasattr(self, 'user'):
-            self.user_charmmff_toppar_path = os.path.join(self['user']['charmff'], 'toppar')
+            self.user_charmmff_toppar_path = os.path.join(self['user']['charmmff'], 'toppar')
             assert os.path.exists(self.user_charmmff_toppar_path)
         self.namd_config_defaults = self['user']['namd']
 

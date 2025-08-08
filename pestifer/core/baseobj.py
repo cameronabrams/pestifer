@@ -167,13 +167,13 @@ class BaseObj(BaseModel):
         data = {}
         for field_name, value in self.__dict__.items():
             if isinstance(value, BaseObj):
-                logger.debug(f"Serializing nested BaseObj field '{field_name}' in {self.__class__.__name__}")
+                # logger.debug(f"Serializing nested BaseObj field '{field_name}' in {self.__class__.__name__}")
                 data[field_name] = value  # preserve as BaseObj instance
             else:
                 data[field_name] = value  # normal field
-        logger.debug('Serialized data:')
-        for k, v in data.items():
-            logger.debug(f"  {k}: {v} (type {type(v)})")
+        # logger.debug('Serialized data:')
+        # for k, v in data.items():
+        #     logger.debug(f"  {k}: {v} (type {type(v)})")
         return data
 
     def set(self, shallow=False, **fields):

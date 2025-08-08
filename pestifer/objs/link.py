@@ -287,7 +287,7 @@ class Link(BaseObj):
 
     def set_patchname(self, force=False):
         """
-        Set the charmff patch name for this link.
+        Set the charmmff patch name for this link.
         This method assigns a patch name based on the residues involved in the link.
         If the patch name is already set and ``force`` is False, it will not change the patch name.
         This method does not return any value. It modifies the ``patchname`` attribute of the Link object.

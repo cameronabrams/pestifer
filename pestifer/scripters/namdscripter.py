@@ -22,6 +22,7 @@ class NAMDScripter(TcLScripter):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.charmmff = kwargs.get('charmmff')
+        assert self.charmmff is not None, 'charmmff must be provided to NAMDScripter'
         self.charmmff_config = kwargs.get('charmmff_config')
         self.charmrun = kwargs.get('charmrun')
         self.gpu_devices = kwargs.get('gpu_devices')

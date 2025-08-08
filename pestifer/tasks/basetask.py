@@ -245,9 +245,9 @@ class BaseTask(ABC):
             A list of artifact files associated with the current task.
         """
         logger.debug(f'Getting artifact file collection for task {repr(self)}')
-        all_my_artifacts, filelist_artifacts, file_artifacts = self.pipeline.get_artifact_collection_as_lists(produced_by=self)
-        logger.debug(f'Found {len(all_my_artifacts)} artifacts, {len(filelist_artifacts)} file list artifacts, and {len(file_artifacts)} file artifacts for task {repr(self)}.')
-        return file_artifacts
+        all_my_artifacts = self.pipeline.get_artifact_collection_as_lists(produced_by=self)
+        logger.debug(f'Found {len(all_my_artifacts)} artifacts for task {repr(self)}.')
+        return all_my_artifacts['files']
 
     def register(self, artifact: Artifact | ArtifactList, key: str = None):
         """

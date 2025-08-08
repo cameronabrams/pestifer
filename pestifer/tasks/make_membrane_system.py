@@ -209,8 +209,8 @@ class MakeMembraneSystemTask(BaseTask):
             self.equilibrate_bilayer(patch, specbyte, relaxation_protocol=relaxation_protocol)
 
     def register_tops_streams_from_psfgen(self, filelist):
-        self.register(CharmmffTopFileArtifacts([CharmmffTopFileArtifact(x.replace('.rtf', '')) for x in filelist], key='charmff_topfiles'))
-        self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x.replace('.str', '')) for x in filelist], key='charmff_streamfiles'))
+        self.register(CharmmffTopFileArtifacts([CharmmffTopFileArtifact(x.replace('.rtf', '')) for x in filelist], key='charmmff_topfiles'))
+        self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x.replace('.str', '')) for x in filelist], key='charmmff_streamfiles'))
 
     def do_psfgen(self, patch, specbyte):
         """

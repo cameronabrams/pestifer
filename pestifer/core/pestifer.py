@@ -492,7 +492,7 @@ def cli():
     command_parsers['make-namd-restart'].add_argument('--run', type=int, help='number of time steps to run')
     command_parsers['make-namd-restart'].add_argument('--slurm', type=str, default=None, help='name of SLURM script to update')
 
-    command_parsers['show-resources'].add_argument('resource_type', type=str, default='examples', help='Type of resource to show; [tcl|examples|charmff]')
+    command_parsers['show-resources'].add_argument('resource_type', type=str, default='examples', help='Type of resource to show; [tcl|examples|charmmff]')
     command_parsers['show-resources'].add_argument('--charmmff', type=str, nargs='+', default=[], help='show sub-resources of charmmff resources (\'toppar\', \'custom\', \'pdb\')')
     command_parsers['show-resources'].add_argument('--fullnames', default=False, action='store_true', help='show full names of any residues shown with --charmmff pdb')
     command_parsers['show-resources'].add_argument('--user-pdbcollection', type=str, nargs='+', default=[], help='additional collections of PDB files outside pestifer installation')

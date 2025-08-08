@@ -535,7 +535,7 @@ class CHARMMFFStreamID:
 
     Attributes
     ----------
-    charmff_filename : str
+    charmmff_filename : str
         The name of the CHARMM force field file.
     streamID : str
         The stream ID extracted from the filename.

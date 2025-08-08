@@ -179,7 +179,7 @@ class MDTask(VMDTask):
             assert nsteps > 0, f'Error: you must specify how many time steps to run'
             params['run'] = nsteps
 
-        na: NAMDScripter = self.scripters['namd']
+        na: NAMDScripter = self.get_scripter('namd')
         na.newscript(self.basename, addl_paramfiles=list(set(addl_paramfiles + prior_paramfiles)))
         self.register(CharmmffParFileArtifacts([CharmmffParFileArtifact(x) for x in na.parameters if x.endswith('.prm')]), key='charmmff_parfiles')
         self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x) for x in na.parameters if x.endswith('.str')]), key='charmmff_streamfiles')
@@ -187,32 +187,33 @@ class MDTask(VMDTask):
         logger.debug(f'CPU-override is {cpu_override}')
         na.writescript(params, cpu_override=cpu_override)
         self.register(NAMDConfigFileArtifact(self.basename))
+        result = 0  # anticipate success
         if not script_only:
-            local_execution_only = not self.get_current_artifact_value('periodic')
+            local_execution_only = not self.get_current_artifact_data('periodic')
             single_gpu_only = kwargs.get('single_gpu_only', False) or constraints
             result = na.runscript(single_molecule=local_execution_only, local_execution_only=local_execution_only, single_gpu_only=single_gpu_only, cpu_override=cpu_override)
         for at in [PDBFileArtifact, NAMDVelFileArtifact, NAMDXscFileArtifact, \
                    NAMDCoorFileArtifact, NAMDDcdFileArtifact, NAMDXstFileArtifact, \
                    NAMDLogFileArtifact, NAMDColvarsOutputArtifact]:
-            artifact=at(self.basename)
+            artifact: FileArtifact = at(self.basename)
             if artifact.exists():
                 self.register(artifact)
-            other_files = glob.glob(f'FFTW*txt')
-            for f in other_files:
-                if os.path.isfile(f):
-                    self.register(TXTFileArtifact(f, key='NAMD FFTW warmup'))
-            self.coor_to_pdb()
-            if hasattr(na.logparser,'dataframes'):
-                for key in na.logparser.dataframes:
-                    artifact=CSVDataFileArtifact(f'{self.basename}-{key}')
-                    if artifact.exists():
-                        self.register(artifact, key=f'{key}-csv')
-            if result != 0:
-                return -1
+        other_files = glob.glob(f'FFTW*txt')
+        for f in other_files:
+            if os.path.isfile(f):
+                self.register(TXTFileArtifact(f, key='NAMD FFTW warmup'))
+        self.coor_to_pdb()
+        if hasattr(na.logparser, 'dataframes'):
+            for key in na.logparser.dataframes:
+                artifact = CSVDataFileArtifact(f'{self.basename}-{key}')
+                if artifact.exists():
+                    self.register(artifact, key=f'{key}-csv')
+        if result != 0:
+            return -1
 
-            if ensemble.casefold() != 'minimize'.casefold():
-                self.register(DataArtifact(firsttimestep+nsteps), key='firsttimestep')
-            else:
-                self.register(DataArtifact(firsttimestep+specs['minimize']), key='firsttimestep')
+        if ensemble.casefold() != 'minimize'.casefold():
+            self.register(DataArtifact(firsttimestep+nsteps), key='firsttimestep')
+        else:
+            self.register(DataArtifact(firsttimestep+specs['minimize']), key='firsttimestep')
 
         return 0
