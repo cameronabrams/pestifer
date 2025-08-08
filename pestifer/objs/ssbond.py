@@ -4,19 +4,25 @@ Disufulfide bonds are covalent linkages between two CYS residues in a protein.
 These are represented in PDB files as SSBOND records, and in mmCIF files
 as struct_conn records.
 """
+from __future__ import annotations
+
 import logging
-logger = logging.getLogger(__name__)
 
 from mmcif.api.PdbxContainers import DataContainer
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from pydantic import Field
-from typing import ClassVar, Optional, Any, Dict, Set
+from typing import ClassVar, TYPE_CHECKING
 
 from .mutation import MutationList
 from .resid import ResID
 from ..core.baseobj import BaseObj, BaseObjList
 from ..psfutil.psfpatch import PSFDISUPatch
 from ..util.cifutil import CIFdict
+
+if TYPE_CHECKING:
+    from ..molecule.residue import Residue, ResidueList
+
+logger = logging.getLogger(__name__)
 
 class SSBond(BaseObj):
     """
@@ -59,8 +65,8 @@ class SSBond(BaseObj):
     resid2: ResID = Field(..., description="Residue ID of the second CYS residue")
 
     serial_number: int = Field(0, description="Serial number of the SSBond")
-    residue1: Optional[Any] = Field(None, description="First CYS residue object associated with the SSBond")
-    residue2: Optional[Any] = Field(None, description="Second CYS residue object associated with the SSBond")
+    residue1: 'Residue' = Field(None, description="First CYS residue object associated with the SSBond")
+    residue2: 'Residue' = Field(None, description="Second CYS residue object associated with the SSBond")
     resname1: str = Field('CYS', description="Residue name of the first CYS residue")
     resname2: str = Field('CYS', description="Residue name of the second CYS residue")
     sym1: str = Field('', description="Symmetry operator for the first CYS residue")
@@ -92,7 +98,7 @@ class SSBond(BaseObj):
     """
     Name of the CIF category that contains information for SSBond objects.
     """
-    _CIF_CategoryElementTypes: ClassVar[Dict[str, Set]] = {'conn_type_id': {'disulf'}}
+    _CIF_CategoryElementTypes: ClassVar[dict[str, set]] = {'conn_type_id': {'disulf'}}
     """
     CIF category element types for SSBond objects; a CIF Category is effectively a list of dictionaries, and _CIF_CategoryElementTypes[keyname] is a set of values that are valid for that key, indicating the element is to be interpreted as a SSBond.
     """
@@ -149,9 +155,7 @@ class SSBond(BaseObj):
                 # Default values for optional fields
                 serial_number = 0,  # Default serial number
                 resname1 = 'CYS',
-                resname2 = 'CYS',
-                residue1 = None,
-                residue2 = None
+                resname2 = 'CYS'
             )
         return super()._adapt(*args, **kwargs)
 
@@ -210,7 +214,7 @@ class SSBondList(BaseObjList[SSBond]):
         return f'SSBondList with {len(self)} SSBonds'
 
     @classmethod
-    def from_pdb(cls, pdb: PDBRecordDict) -> 'SSBondList':
+    def from_pdb(cls, pdb: PDBRecordDict) -> SSBondList:
         """
         Create a SSBondList from a PDBRecordDict.
         """
@@ -219,7 +223,7 @@ class SSBondList(BaseObjList[SSBond]):
         return cls([SSBond(x) for x in pdb[SSBond._PDB_keyword]])
 
     @classmethod
-    def from_cif(cls, dc: DataContainer) -> 'SSBondList':
+    def from_cif(cls, dc: DataContainer) -> SSBondList:
         """
         Create a SSBondList from a CIF DataContainer.
 
@@ -245,7 +249,7 @@ class SSBondList(BaseObjList[SSBond]):
                     L.append(this_link)
         return cls(L)
 
-    def assign_residues(self, Residues):
+    def assign_residues(self, Residues: 'ResidueList'):
         """
         Assigns a list of Residue objects to the SSBond residues.
         
@@ -260,11 +264,11 @@ class SSBondList(BaseObjList[SSBond]):
             A new SSBondList object containing the residues that were not assigned because no applicable residues were found.
         """
         logger.debug(f'SSBonds: Assigning residues from list of {len(Residues)} residues')
-        ignored_by_ptnr1=self.assign_objs_to_attr('residue1',Residues,chainID='chainID1',resid='resid1')
-        ignored_by_ptnr2=self.assign_objs_to_attr('residue2',Residues,chainID='chainID2',resid='resid2')
-        return self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
+        ignored_by_ptnr1=self.assign_objs_to_attr('residue1', Residues, chainID='chainID1', resid='resid1')
+        ignored_by_ptnr2=self.assign_objs_to_attr('residue2', Residues, chainID='chainID2', resid='resid2')
+        return self.__class__(ignored_by_ptnr1 + ignored_by_ptnr2)
 
-    def prune_mutations(self, Mutations:MutationList) -> 'SSBondList':
+    def prune_mutations(self, Mutations: MutationList) -> 'SSBondList':
         """
         Prunes the SSBondList by removing SSBonds that are associated with mutations. This method iterates over each Mutation in the provided list and checks if there are
         any SSBonds that match the chain ID, residue sequence number, and insertion code of
@@ -283,7 +287,7 @@ class SSBondList(BaseObjList[SSBond]):
 
         """
         pruned = self.__class__([])
-        for m in Mutations:
+        for m in Mutations.data:
             left = self.get(chainID1=m.chainID, resid1=m.resid)
             if left:
                 pruned.take_item(left, self)
@@ -291,20 +295,20 @@ class SSBondList(BaseObjList[SSBond]):
             if right:
                 pruned.take_item(right, self)
         return pruned
-    
-    def map_attr(self,mapped_attr,key_attr,map):
-        """
-        Maps an attribute of the SSBondList to a new value using a mapping dictionary.  A dictionary that maps the values of the key_attr to new values for the mapped_attr.
-        This method iterates over each SSBond in the list and applies the mapping to the
-        specified attribute. It logs the mapping operation and the number of SSBonds being processed.
+
+    # def map_attr(self, mapped_attr: str, key_attr: str, map: dict):
+    #     """
+    #     Maps an attribute of the SSBondList to a new value using a mapping dictionary.  A dictionary that maps the values of the key_attr to new values for the mapped_attr.
+    #     This method iterates over each SSBond in the list and applies the mapping to the
+    #     specified attribute. It logs the mapping operation and the number of SSBonds being processed.
         
-        Parameters
-        ----------
-        mapped_attr : str
-            The attribute of the SSBondList to be mapped.
-        key_attr : str
-            The attribute of the SSBond that will be used as the key for the mapping.
-        map : dict
-        """
-        logger.debug(f'Mapping {mapped_attr} {key_attr} in {len(self)} SSBonds using map {map}')
-        super().map_attr(mapped_attr, key_attr, map)
+    #     Parameters
+    #     ----------
+    #     mapped_attr : str
+    #         The attribute of the SSBondList to be mapped.
+    #     key_attr : str
+    #         The attribute of the SSBond that will be used as the key for the mapping.
+    #     map : dict
+    #     """
+    #     logger.debug(f'Mapping {mapped_attr} {key_attr} in {len(self)} SSBonds using map {map}')
+    #     super().map_attr(mapped_attr, key_attr, map)

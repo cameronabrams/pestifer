@@ -12,17 +12,21 @@ The documentation of the pdb2pqr command is available at `readthedocs <https://p
 
 import logging
 import os
+
+from pidibble.pdbparse import PDBParser
+
+from .psfgen import PsfgenTask
+
+from ..core.artifacts import *
 from ..core.command import Command
 from ..core.objmanager import ObjManager
-from ..core.artifacts import *
+from ..logparsers import PDB2PQRLogParser
 from ..molecule.atom import Atom, AtomList
 from ..molecule.chainidmanager import ChainIDManager
-from .psfgen import PsfgenTask
+from ..molecule.molecule import Molecule
 from ..objs.patch import Patch
 from ..objs.mutation import Mutation
-from ..logparsers import PDB2PQRLogParser
 from ..util.progress import PDB2PQRProgress
-from pidibble.pdbparse import PDBParser
 
 logger=logging.getLogger(__name__)
 
@@ -37,24 +41,24 @@ class PDB2PQRTask(PsfgenTask):
     """
     def do(self) -> int:
         """
-        Execute the PDB2PQR task.
+            Execute the PDB2PQR task.
         """
         self.next_basename()
-        self.base_molecule=self.get_current_artifact_value('base_molecule')
-        pH=self.specs.get('pH',7.0)
+        self.base_molecule: Molecule = self.get_current_artifact_data('base_molecule')
+        pH = self.specs.get('pH', 7.0)
         # xsc=self.get_current_artifact_value('xsc')
 
-        prep_result=self.prep_input()
+        prep_result = self.prep_input()
         self.run_pdb2pqr(pH=pH)
         self.prep_mods()
-        self.chainIDmanager=ChainIDManager()
+        self.chainIDmanager = ChainIDManager()
         self.update_molecule()
         self.psfgen()
 
-        self.register_current_artifact(PDBFileArtifact(self.basename))
-        self.register_current_artifact(PSFFileArtifact(self.basename))
+        self.register(PDBFileArtifact(self.basename))
+        self.register(PSFFileArtifact(self.basename))
         self.coor_to_pdb()
-        return 0
+        return prep_result
     
     def prep_input(self):
         """
@@ -86,10 +90,10 @@ class PDB2PQRTask(PsfgenTask):
         vt.addline('$z set resname ZN')
         vt.addline(f'$a writepdb {self.basename}_pprep.pdb')
         vt.writescript()
-        self.register_current_artifact(VMDScriptArtifact(self.basename))
+        self.register(VMDScriptArtifact(self.basename))
         result=vt.runscript()
-        self.register_current_artifact(PDBFileArtifact(f'{self.basename}_pprep'))
-        self.register_current_artifact(VMDLogFileArtifact(self.basename))
+        self.register(PDBFileArtifact(f'{self.basename}_pprep'))
+        self.register(VMDLogFileArtifact(self.basename))
         return result
     
     def run_pdb2pqr(self,pH=7.0):
@@ -113,9 +117,9 @@ class PDB2PQRTask(PsfgenTask):
 
         c.run(logfile=f'{self.basename}_run.log',log_stderr=True,logparser=self.log_parser)
         self.log_parser.metadata['pka_table']['protonated'] = self.log_parser.metadata['pka_table']['respka']>pH
-        self.register_current_artifact(LogFileArtifact(path=f'{self.basename}_run'))
-        self.register_current_artifact(PDBFileArtifact(f'{self.basename}_pqr'))
-        self.register_current_artifact(PQRFileArtifact(f'{self.basename}'))
+        self.register(LogFileArtifact(path=f'{self.basename}_run'))
+        self.register(PDBFileArtifact(f'{self.basename}_pqr'))
+        self.register(PQRFileArtifact(f'{self.basename}'))
         logger.debug(f'PDB2PQR run completed; pka_table:\n{self.log_parser.metadata['pka_table'].to_string()}')
 
         self.log_parser.metadata['histidines']={k:[] for k in ['HSD','HSE','HSP']}

@@ -16,7 +16,7 @@ from pathlib import Path
 
 from .md import MDTask
 
-from ..core.artifacts import PDBFile, NAMDColvarsConfig, VMDScript, VMDLogFile
+from ..core.artifacts import *
 from ..scripters import VMDScripter
 
 logger=logging.getLogger(__name__)
@@ -56,8 +56,8 @@ class DomainSwapTask(MDTask):
             cv = f'{self.basename}-cv.in',
             refpdb = f'{self.basename}-ref.pdb'
         )
-        self.register_current_artifact(NAMDColvarsConfig(f'{self.basename}-cv'))
-        self.register_current_artifact(VMDScript(self.basename))
-        self.register_current_artifact(PDBFile(f'{self.basename}-ref'), key='refpdb')
-        self.register_current_artifact(NAMDColvarsConfig(f'{self.basename}-cv'))
-        self.register_current_artifact(VMDLogFile(f'{self.basename}'))
+        self.register(NAMDColvarsConfigArtifact(f'{self.basename}-cv'))
+        self.register(VMDScriptArtifact(self.basename))
+        self.register(PDBFileArtifact(f'{self.basename}-ref'), key='refpdb')
+        self.register(NAMDColvarsConfigArtifact(f'{self.basename}-cv'))
+        self.register(VMDLogFileArtifact(f'{self.basename}'))

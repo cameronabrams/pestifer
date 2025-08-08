@@ -73,7 +73,7 @@ class LigateTask(MDTask):
         writer.newfile(inputfile)
         mol.write_gaps(writer)
         writer.writefile()
-        self.register_current_artifact(InputFileArtifact(self.basename), key='measure_distances_input')
+        self.register(InputFileArtifact(self.basename), key='measure_distances_input')
 
     def measure_distances(self, specs):
         """
@@ -101,11 +101,11 @@ class LigateTask(MDTask):
         resultsfile: Path = f'{self.basename}.dat'
         vm.addline(f'measure_bonds {psf} {pdb} {inputfile} {opdb} {resultsfile} {receiver_flexible_zone_radius} ')
         vm.writescript()
-        self.register_current_artifact(VMDScriptArtifact(self.basename))
+        self.register(VMDScriptArtifact(self.basename))
         vm.runscript()
-        self.register_current_artifact(PDBFileArtifact(self.basename), key='measure_distances_fixedref')
-        self.register_current_artifact(DataFileArtifact(self.basename), key='measure_distances_results')
-        self.register_current_artifact(VMDLogFileArtifact(self.basename))
+        self.register(PDBFileArtifact(self.basename), key='measure_distances_fixedref')
+        self.register(DataFileArtifact(self.basename), key='measure_distances_results')
+        self.register(VMDLogFileArtifact(self.basename))
         with open(resultsfile, 'r') as f:
             datalines = f.read().split('\n')
         self.gaps = []
@@ -136,7 +136,7 @@ class LigateTask(MDTask):
             g['targ_numsteps'] = specs['nsteps']
             writer.declare_single_harmonic_distance_bias(g)
         writer.writefile()
-        self.register_current_artifact(NAMDColvarsConfigArtifact(f'{self.basename}-cv'), key='steer_colvars')
+        self.register(NAMDColvarsConfigArtifact(f'{self.basename}-cv'), key='steer_colvars')
         savespecs = self.specs
         self.specs = specs
         result = self.namdrun(extras={
@@ -172,7 +172,7 @@ class LigateTask(MDTask):
         writer.newfile(datafile)
         mol.write_connect_patches(writer)
         writer.writefile()
-        self.register_current_artifact(InputFileArtifact(self.basename), key='connect_patches_input')
+        self.register(InputFileArtifact(self.basename), key='connect_patches_input')
 
     def connect_gaps(self):
         """
@@ -202,11 +202,11 @@ class LigateTask(MDTask):
         pg.load_project(psf.name, pdb.name)
         pg.addline(f'source {patchfile.name}')
         pg.writescript(self.basename, guesscoord=True, regenerate=True)
-        self.register_current_artifact(PsfgenInputScriptArtifact(self.basename))
+        self.register(PsfgenInputScriptArtifact(self.basename))
         result = pg.runscript()
         if result == 0:
-            self.register_current_artifact(PSFFileArtifact(self.basename))
-            self.register_current_artifact(PDBFileArtifact(self.basename))
+            self.register(PSFFileArtifact(self.basename))
+            self.register(PDBFileArtifact(self.basename))
             self.pdb_to_coor()
         return result
     

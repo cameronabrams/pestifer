@@ -23,7 +23,7 @@ class SSBondDeleteList(SSBondList):
     """
     A class for handling a list of deleted SSBonds.
     """
-    def is_deleted(self, a_SSBond):
+    def is_deleted(self, a_SSBond: SSBond) -> bool:
         """
         Check if a given SSBond is deleted in this list.
         

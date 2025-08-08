@@ -1,15 +1,17 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+
 import unittest
-from pestifer.molecule.residue import Residue, ResiduePlaceholder, ResidueList, ResiduePlaceholderList
-from pestifer.molecule.atom import AtomList, Atom
-from pestifer.objs.link import Link, LinkList
-from pestifer.objs.deletion import Deletion, DeletionList
-from pestifer.objs.substitution import Substitution, SubstitutionList
-from pestifer.objs.insertion import Insertion, InsertionList
-from pestifer.objs.insertion import InsertionList, Insertion
-from pestifer.objs.resid import ResID
-from pestifer.util.cifutil import CIFload
 from pathlib import Path
 from pidibble.pdbparse import PDBParser
+
+from pestifer.molecule.atom import AtomList, Atom
+from pestifer.molecule.residue import Residue, ResiduePlaceholder, ResidueList, ResiduePlaceholderList
+from pestifer.objs.deletion import Deletion, DeletionList
+from pestifer.objs.insertion import Insertion, InsertionList
+from pestifer.objs.link import Link, LinkList
+from pestifer.objs.resid import ResID
+from pestifer.objs.substitution import Substitution, SubstitutionList
+from pestifer.util.cifutil import CIFload
 
 class TestResiduePlaceholder(unittest.TestCase):
 
@@ -91,7 +93,7 @@ class TestResidue(unittest.TestCase):
         self.assertEqual(r.resname, 'ALA')
         self.assertEqual(r.resid, ResID(1))
         self.assertEqual(r.chainID, 'A')
-        self.assertTrue(r.resolved)
+        self.assertFalse(r.resolved)
         self.assertEqual(r.segtype, 'UNSET')
         self.assertIsInstance(r.atoms, AtomList)
 

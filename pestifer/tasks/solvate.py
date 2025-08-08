@@ -68,7 +68,7 @@ class SolvateTask(VMDTask):
             basisvec = UR - LL
             origin = 0.5 * (UR + LL)
             cell_to_xsc(np.diag(basisvec), origin, f'{self.basename}.xsc')
-            self.register_current_artifact(NAMDXscFileArtifact(self.basename))
+            self.register(NAMDXscFileArtifact(self.basename))
 
         ll_tcl = r'{ ' + ' '.join([str(_) for _ in LL.tolist()]) + r' }'
         ur_tcl = r'{ ' + ' '.join([str(_) for _ in UR.tolist()]) + r' }'
@@ -95,13 +95,13 @@ class SolvateTask(VMDTask):
             ai_args.append(f'-anion {anion}')
         vt.addline(f'autoionize -psf {self.basename}_solv.psf -pdb {self.basename}_solv.pdb {" ".join(ai_args)} -o {self.basename}')
         vt.writescript()
-        self.register_current_artifact(VMDScriptArtifact(self.basename))
+        self.register(VMDScriptArtifact(self.basename))
         self.result=vt.runscript(progress_title='solvate')
         if self.result!=0:
             return self.result
         for ext in ['_solv','']:
-            self.register_current_artifact(VMDLogFileArtifact(f'{self.basename}{ext}'))
-            self.register_current_artifact(PSFFileArtifact(f'{self.basename}{ext}'))
-            self.register_current_artifact(PDBFileArtifact(f'{self.basename}{ext}'))
+            self.register(VMDLogFileArtifact(f'{self.basename}{ext}'))
+            self.register(PSFFileArtifact(f'{self.basename}{ext}'))
+            self.register(PDBFileArtifact(f'{self.basename}{ext}'))
         self.pdb_to_coor()
         return self.result

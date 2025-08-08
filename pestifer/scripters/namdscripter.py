@@ -5,7 +5,7 @@ import os
 
 from .tclscripters import TcLScripter
 from ..core.command import Command
-from ..logparsers.logparser import NAMDLog, NAMDxst
+from ..logparsers import NAMDLogParser, NAMDxstParser
 from ..util.progress import NAMDProgress
 
 logger = logging.getLogger(__name__)
@@ -159,8 +159,8 @@ class NAMDScripter(TcLScripter):
                 use_cpu_count=self.local_ncpus
             c=Command(f'{self.namdgpu} +p{use_cpu_count} +setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
         self.logname=f'{self.basename}.log'
-        self.logparser=NAMDLog(basename=self.basename)
-        self.logparser.auxparser=NAMDxst(basename=f'{self.basename}')
+        self.logparser=NAMDLogParser(basename=self.basename)
+        self.logparser.auxparser=NAMDxstParser(basename=f'{self.basename}')
         progress_struct=None
         if self.progress:
             logger.debug(f'NAMD runscript using progress')

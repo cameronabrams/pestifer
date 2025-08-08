@@ -13,11 +13,15 @@ from pydantic import Field
 logger = logging.getLogger(__name__)
 
 from pydantic import Field
-from typing import ClassVar
+from typing import ClassVar, TYPE_CHECKING
 from ..core.baseobj import BaseObj, BaseObjList
 from .link import LinkList
 from ..molecule.residue import ResidueList
 from .resid import ResID, ResIDList
+
+if TYPE_CHECKING:
+    from ..molecule.molecule import Molecule
+    from ..molecule.segment import Segment
 
 class Graft(BaseObj):
     """
@@ -25,7 +29,9 @@ class Graft(BaseObj):
     """
     _required_fields = {'target_chainID', 'target_root',
                         'source_pdbid', 'source_chainID', 'source_root'}
-    _optional_fields = {'source_end', 'target_partner', 'source_partner', 'source_end', 'obj_id'}
+    _optional_fields = {'source_end', 'target_partner', 'source_partner', 'source_end', 'obj_id',
+                        'residues', 'source_molecule', 'source_seg', 'mover_residues', 
+                        'index_residues', 'graft_residues', 'my_links', 'segfile'}
 
     target_chainID: str = Field(..., description="Chain ID of the target segment in the base molecule")
     target_root: ResID = Field(..., description="Root residue ID of the target segment")
@@ -47,33 +53,35 @@ class Graft(BaseObj):
     target_partner: ResID | None = Field(None, description="Additional residue of target segment")
     source_partner: ResID | None = Field(None, description="Additional residue of the source segment")
     obj_id: int | None = Field(0, description="Unique identifier for the Graft object")
+    residues: ResidueList | None = Field(None, description="List of residues in the graft")
+    source_molecule: 'Molecule' = Field(None, description="Molecule object from which the graft was derived")
+    source_seg: 'Segment' = Field(None, description="Segment object from which the graft was derived")
+    mover_residues: ResidueList | None = Field(None, description="List of residues to be moved during the grafting process")
+    index_residues: ResidueList | None = Field(None, description="List of residues used for indexing the graft")
+    graft_residues: ResidueList | None = Field(None, description="List of residues in the graft")
+    my_links: LinkList | None = Field(None, description="List of links associated with the graft")
+    segfile: str | None = Field(None, description="Path to the segment file for the graft")
     """
     Optional attributes for a Graft object.
-    These attributes are not required when creating a Graft object.
 
     - ``source_end``: Last residue of the graft, which may be the same as the first if the entire source is used.
     - ``target_partner``: Additional residue in the target structure used for aligning the graft (``source_partner`` is aligned to this).
     - ``source_partner``: Additional residue in the source structure used for aligning the graft.
     - ``obj_id``: Unique identifier/tag for the graft; probably an integer.
+
+    These optional attributes are set by "activation" of the graft:
+
+    - ``residues``: List of residue objects in the graft.
+    - ``source_molecule``: Molecule object from which the graft was derived.
+    - ``mover_residues``: List of residues to be moved during the grafting process.
+    - ``index_residues``: List of residues used for indexing the graft.
+    - ``my_links``: List of links associated with the graft.
+    - ``segfile``: Path to the segment file for the graft.
     """
     
     _yaml_header: ClassVar[str] = 'grafts'
     _objcat: ClassVar[str] = 'seq'
     _counter: ClassVar[int] = 0  # Class variable to keep track of Graft instances
-
-    _residues: ResidueList = None
-    _source_molecule: object = None
-    """
-    The Molecule object from which this graft was derived.
-    """
-
-    _source_seg: object = None
-    """
-    The Segment object in the source molecule from which this graft was derived."""
-    _mover_residues: ResidueList = None
-    _index_residues: ResidueList = None
-    _my_links: LinkList = None
-    _segfile: str = None
 
     @classmethod
     def _adapt(cls, *args, **kwargs) -> dict:
@@ -186,42 +194,44 @@ class Graft(BaseObj):
             source += f"-{self.source_end.resid}"
         return f"{target}:{source}"
 
-    def activate(self, mol):
+    def activate(self, mol: 'Molecule'):
         """
-        Activate the graft by linking it to a source molecule.
+        Activate the graft by linking it to a source molecule and populating
+        its native residue object lists
 
         Parameters
         ----------
         mol: Molecule
             The source molecule from which the graft will be sourced.
         """
-        self._source_molecule = mol
-        self._source_seg = self._source_molecule.asymmetric_unit.segments.get(segname=self.source_chainID)
-        self._mover_residues = ResidueList([])
-        self._index_residues = ResidueList([])
+        self.source_molecule = mol
+        self.source_seg: 'Segment' = self.source_molecule.asymmetric_unit.segments.get(segname=self.source_chainID)
+        self.mover_residues = ResidueList([])
+        self.index_residues = ResidueList([])
         # split the source residues into the index, mover, and any leftovers (which we ignore)
-        for residue in self._source_seg.residues:
-            if residue == self.source_root.resid:
-                self._index_residues.append(residue)
-            elif self.source_partner is not None and residue == self.source_partner.resid:
-                self._index_residues.append(residue)
-        for residue in self._source_seg.residues:
-            if residue in self._index_residues:
+        for residue in self.source_seg.residues.data:
+            if residue.resid == self.source_root:
+                self.index_residues.append(residue)
+            elif self.source_partner is not None and residue.resid == self.source_partner:
+                self.index_residues.append(residue)
+        for residue in self.source_seg.residues.data:
+            if residue in self.index_residues:
                 continue
-            if residue == self.source_root.resid:
-                self._mover_residues.append(residue)
-            elif self.source_end is not None and residue <= self.source_end.resid:
-                self._mover_residues.append(residue)
-            elif self.source_end is None and self.source_partner is not None and residue == self.source_partner.resid:
-                self._mover_residues.append(residue)
-        self._graft_residues = self._index_residues + self._mover_residues
+            if residue.resid == self.source_root:
+                self.mover_residues.append(residue)
+            elif (self.source_end is not None) and residue.resid <= self.source_end:
+                self.mover_residues.append(residue)
+            elif (self.source_end is None and self.source_partner is not None) and residue.resid == self.source_partner:
+                self.mover_residues.append(residue)
+        self.graft_residues = self.index_residues + self.mover_residues
 
         # only ingest links that are internal to this set of residues or that link to index residues
-        self._my_links = LinkList([])
-        for l in self._source_molecule.objmanager.get('topol', {}).get('links', LinkList([])):
-            if l.residue1 in self._graft_residues and l.residue2 in self._graft_residues:
-                self._my_links.append(l)                
-        logger.debug(f'Activated graft {self.id}')
+        self.my_links = LinkList([])
+        source_links: LinkList = self.source_molecule.objmanager.get('topol', {}).get('links', LinkList([]))
+        for l in source_links.data:
+            if l.residue1 in self.graft_residues.data and l.residue2 in self.graft_residues.data:
+                self.my_links.append(l)
+        logger.debug(f'Activated graft {self.obj_id}')
 
     def set_internal_resids(self, next_resid: ResID) -> ResID:
         """
@@ -238,49 +248,50 @@ class Graft(BaseObj):
             The updated next available residue ID after setting the links.
         """
         assert self.residues is not None
-        logger.debug(f'Setting links for graft {self.id}')
+        logger.debug(f'Setting links for graft {self.obj_id}')
         logger.debug(f'-> resolved receiver residues {[repr(x) for x in self.residues]}')
-        self._index_residues.set(chainID=self.residues[0].chainID)
-        self._mover_residues.set(chainID=self.residues[0].chainID)
-        for r in self._mover_residues:
+        self.index_residues.set(chainID=self.residues[0].chainID)
+        self.mover_residues.set(chainID=self.residues[0].chainID)
+        for r in self.mover_residues:
             r.set(resid=next_resid)
             next_resid += 1
-        for l in self._my_links:
-            if l.residue1 in self._index_residues and l.residue2 in self._mover_residues:
-                l.residue1=self.residues[self._index_residues.index(l.residue1)]
-            elif l.residue2 in self._index_residues and l.residue1 in self._mover_residues:
-                l.residue2=self.residues[self._index_residues.index(l.residue2)]
+        for l in self.my_links:
+            if l.residue1 in self.index_residues and l.residue2 in self.mover_residues:
+                l.residue1=self.residues[self.index_residues.index(l.residue1)]
+            elif l.residue2 in self.index_residues and l.residue1 in self.mover_residues:
+                l.residue2=self.residues[self.index_residues.index(l.residue2)]
         return next_resid
 
     def __str__(self):
-        res=f'Graft {self.id}: index residues {[str(x) for x in self._index_residues]} delivers {len(self._mover_residues)} residues to \n'
-        res+=f'  target {[str(x) for x in self.residues]} along with {len(self._my_links)} internal links:\n'
-        for l in self._my_links:
+        res=f'Graft {self.obj_id}: index residues {[str(x) for x in self.index_residues]} delivers {len(self.mover_residues)} residues to \n'
+        res+=f'  target {[str(x) for x in self.residues]} along with {len(self.my_links)} internal links:\n'
+        for l in self.my_links:
             res+=f'  -> link {str(l)}\n'
         return res
 
-    def assign_receiver_residues(self, Residues):
+    def assign_receiver_residues(self, Residues: ResidueList):
         """
-        Assign the residues objects for the graft based on the original chain ID and residue sequence numbers.
-        This method scans the residues in the original chain and assigns those that fall within the specified range
-        of residue sequence numbers and insertions to the graft's residues attribute.
+        Populate the list of residues from the base molecule ("receiver residues") onto the graft.
 
         Parameters
         ----------
         Residues: ResidueList
             The list of residues from which the graft will be assigned.
         """
-        assert self._residues == None
-        logger.debug(f'Assigning receiver residues to graft {self.obj_id} ({self.target_root.resid})')
-
-        target_residue = Residues.get(chainID=self.target_chainID, resid=self.target_root.resid) # change when residue definition is updated for ResID
+        assert self.residues == None
+        # logger.debug(f'Assigning receiver residues to graft {self.obj_id} ({self.target_chainID} {self.target_root.resid})')
+        # logger.debug(f'from list of {len(Residues)} residues')
+        for r in Residues.data:
+            logger.debug(f' -> {r.chainID} {r.resid}')
+        target_residue = Residues.get(chainID=self.target_chainID, resid=self.target_root)
+        # logger.debug(f'-> found target residue {target_residue.resid}')
         if target_residue is not None:
-            self.residues=type(Residues)([])
-            self._residues.append(target_residue)
+            self.residues = type(Residues)([])
+            self.residues.append(target_residue)
             if self.target_partner is not None:
-                target_addl_residue = Residues.get(chainID=self.target_chainID, resid=self.target_partner.resid)
+                target_addl_residue = Residues.get(chainID=self.target_chainID, resid=self.target_partner)
                 if target_addl_residue is not None:
-                    self._residues.append(target_addl_residue)
+                    self.residues.append(target_addl_residue)
 
 class GraftList(BaseObjList[Graft]):
     """
@@ -292,7 +303,7 @@ class GraftList(BaseObjList[Graft]):
     def describe(self):
         return f"<GraftList with {len(self)} items>"
 
-    def assign_residues(self, Residues, Links):
+    def assign_residues(self, Residues: ResidueList, Links: LinkList):
         """
         Assign residue objects to each graft in the list.
         This method iterates through each graft in the list, assigns residues from the provided Residues
@@ -306,29 +317,29 @@ class GraftList(BaseObjList[Graft]):
             The list of links that may need to be modified based on the assigned residues.
         """
         logger.debug(f'Assigning residue objects to {len(self)} grafts')
-        delete_us=[]
-        down_group=[]
-        down_links=[]
-        for graft in self:
-            logger.debug(f' -> graft {s.id}')
+        delete_us = GraftList([])
+        down_group = ResidueList([])
+        down_links = LinkList([])
+        for graft in self.data:
+            logger.debug(f' -> graft {graft.obj_id}')
             graft.assign_receiver_residues(Residues)
             # a graft that received no residue assignments means that the builder was instructed to delete
             # residues that comprise it prior to the graft operation.  We can remove it from the list.
-            if graft._residues is None or len(graft._residues) == 0:
+            if graft.residues is None or len(graft.residues) == 0:
                 logger.debug(f'-> removing graft {graft.obj_id} because it has no residues')
                 delete_us.append(graft)
                 continue
             # the graft specifications allow us to keep only the first residue in the target segment, AND if specified, the additional residue.  If there are downlinks in the first residue that do not link to the additional residue, we remove them.  If there are downlinks in the additional residue, we remove them.
-            root_res = graft._residues[0]
+            root_res = graft.residues[0]
             downs = root_res.down
             adowns = []
             addl_res = None
             if graft.target_partner is not None:
-                addl_res = graft._residues[1]
+                addl_res = graft.residues[1]
                 assert addl_res in downs, f'Graft {graft.obj_id} target_partner {graft.target_partner.resid} not found in down-links of root residue {root_res.chainID}_{root_res.resname}{root_res.resid.resid}'
                 adowns = addl_res.down
                 # remove residues down-linked to the root residue that are not the additional residue
-            for down_res in downs+adowns:
+            for down_res in downs + adowns:
                 logger.debug(f'-> removing down-link from {root_res.chainID}_{root_res.resname}{root_res.resid.resid} to {down_res.chainID}_{down_res.resname}{down_res.resid.resid}')
                 down_group.append(Residues.remove(down_res))
                 down_links.extend(Links.remove_links_to(down_res))
@@ -337,16 +348,16 @@ class GraftList(BaseObjList[Graft]):
             self.remove(s)
         return delete_us, down_group, down_links
 
-    def sequential_renumber(self, r: ResID):
-        """
-        Renumber the residues in each graft sequentially.
-        This method iterates through each graft in the list and renumbers the residues
-        in each graft sequentially, starting from 1.
-        """
-        logger.debug(f'Renumbering {len(self)} grafts')
-        for g in self:
-            logger.debug(f' -> renumbering graft {g.obj_id}')
-            g._residues.renumber(start=1)
-            g._mover_residues.renumber(start=1)
-            g._index_residues.renumber(start=1)
-            g._my_links.renumber(start=1)
+    # def sequential_renumber(self, r: ResID):
+    #     """
+    #     Renumber the residues in each graft sequentially.
+    #     This method iterates through each graft in the list and renumbers the residues
+    #     in each graft sequentially, starting from 1.
+    #     """
+    #     logger.debug(f'Renumbering {len(self)} grafts')
+    #     for g in self.data:
+    #         logger.debug(f' -> renumbering graft {g.obj_id}')
+    #         g.residues.renumber(start=1)
+    #         g.mover_residues.renumber(start=1)
+    #         g.index_residues.renumber(start=1)
+    #         g.my_links.renumber(start=1)

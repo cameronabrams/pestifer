@@ -1,5 +1,4 @@
 import unittest
-from pestifer.util.namdcolvars import *
 from pestifer.scripters import *
 import logging
 logger=logging.getLogger(__name__)
@@ -30,7 +29,7 @@ class TestColvars(unittest.TestCase):
                     'distance':[20.0,20.0]}
             }
         }
-        writer=Filewriter()
+        writer=NAMDColvarInputScripter()
         writer.newfile(f'cv.inp')
-        colvar_writer(colvar_specs,writer,pdb=pdb)
+        writer.construct_on_pdb(specs=colvar_specs, pdb=pdb)
         writer.writefile()

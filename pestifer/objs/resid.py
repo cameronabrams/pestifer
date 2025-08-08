@@ -105,6 +105,16 @@ class ResID(BaseObj):
             return True
         return False
 
+    def __le__(self, other: ResID) -> bool:
+        """
+        Checks if self is less than or equal to other
+        """
+        if self.resseqnum <= other.resseqnum:
+            return True
+        if self.resseqnum == other.resseqnum and (self.insertion or '') <= (other.insertion or ''):
+            return True
+        return False
+
     def __eq__(self, other: ResID | dict) -> bool:
         """
         Checks if two ResID objects are equal based on their residue sequence number and insertion code.

@@ -1,8 +1,21 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+A "state interval" is a representation of a run of frames within a finitely resolved 
+trajectory, all of which are in the same state.  Each trajectory frame is represented
+as a counting integer index, and the state interval is defined by a pair of indices
+that represent the start and end of the interval.  The state is a string that describes
+the state of the system over that interval, such as "RESOLVED" or "MISSING".  The
+state interval can also include additional metadata such as a build flag, selection 
+name, and PDB file name.
+"""
+
+import logging
+
+from pydantic import Field
+from typing import Callable
 
 from ..core.baseobj import BaseObj, BaseObjList
-from pydantic import Field
-from typing import List, Any
-import logging
+
 logger = logging.getLogger(__name__)
 
 class StateInterval(BaseObj):
@@ -18,7 +31,7 @@ class StateInterval(BaseObj):
     }
 
     state: str = Field(..., description="State of the interval")
-    bounds: List[int] = Field(..., description="Bounds of the interval")
+    bounds: list[int] = Field(..., description="Bounds of the interval")
     build: bool = Field(False, description="build flag, if applicable")
     selname: str = Field(None, description="Selection name, if applicable")
     pdb: str = Field(None, description="Temporary PDB file name, if applicable")
@@ -53,7 +66,7 @@ class StateIntervalList(BaseObjList[StateInterval]):
         return f"StateIntervalList with {len(self)} intervals"
 
     @classmethod
-    def process_itemlist(cls, itemlist: Any = None, state_func = None):
+    def process_itemlist(cls, itemlist: list[object] = None, state_func: Callable = None):
         """
         Process an item to extract StateInterval instances.
 
@@ -98,7 +111,7 @@ class StateIntervalList(BaseObjList[StateInterval]):
 
         """
         # find a member whose bounds contain the incoming interval
-        for member in self:
+        for member in self.data:
             if interval.bounds[0]>member.bounds[0] and interval.bounds[1]<member.bounds[1]:
                 # the new interval is completely contained within an existing interval
                 break
@@ -121,8 +134,8 @@ class StateIntervalList(BaseObjList[StateInterval]):
                 return
         else:
             # look for adjacent members that might permit insertion
-            for l,r in zip(self[:-1], self[1:]):
-                assert l.state!= r.state, "Adjacent intervals must have different states"
+            for l, r in zip(self.data[:-1], self.data[1:]):
+                assert l.state != r.state, "Adjacent intervals must have different states"
                 if l.bounds[1] > interval.bounds[0] and r.bounds[0] < interval.bounds[1]:
                     if l.state == interval.state: # grow the left member by absorbing the new interval
                         l.bounds[1] = interval.bounds[1]
@@ -146,4 +159,10 @@ class StateIntervalList(BaseObjList[StateInterval]):
         int :
             The number of items in the bounds list.
         """
-        return self.bounds[-1] - self.bounds[0] + 1 if self.bounds else 0
+        for interval in self.data:
+            item_count = 0
+            if not interval.bounds or len(interval.bounds) < 2:
+                raise ValueError("Each StateInterval must have at least two bounds.")
+            item_count += interval.bounds[1] - interval.bounds[0] + 1
+        return item_count
+    

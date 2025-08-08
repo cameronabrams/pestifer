@@ -10,7 +10,7 @@ import logging
 from pathlib import Path
 
 from .basetask import BaseTask
-from ..scripters import PSFgenScripter
+from ..scripters import PsfgenScripter
 from ..core.artifacts import *
 from ..psfutil.psfring import ring_check
 
@@ -43,7 +43,7 @@ class RingCheckTask(BaseTask):
                     logger.debug(f'  Piercing of {r["piercee"]["segname"]}-{r["piercee"]["resid"]} by {r["piercer"]["segname"]}-{r["piercer"]["resid"]}')
             else:
                 self.next_basename('ring_check')
-                pg: PSFgenScripter = self.get_scripter('psfgen')
+                pg: PsfgenScripter = self.get_scripter('psfgen')
                 pg.newscript(self.basename)
                 pg.load_project(psf.name, pdb.name)
                 logger.debug(f'Deleting all {delete_these}s from {len(npiercings)} pierced-ring configuration{ess}')
@@ -53,7 +53,7 @@ class RingCheckTask(BaseTask):
                 pg.writescript(self.basename)
                 pg.runscript()
                 for at in [PsfgenInputScriptArtifact, PSFFileArtifact, PDBFileArtifact, PsfgenLogFileArtifact]:
-                    self.register_current_artifact(at(self.basename))
+                    self.register(at(self.basename))
         self.log_message('complete')
         self.result = 0
         return self.result

@@ -42,6 +42,8 @@ class BaseObj(BaseModel):
     _attr_dependencies:  ClassVar[dict[str, dict[Any, set[Any]]]] = {}
     _ignore_fields:      ClassVar[set[str]]                       = set()
 
+    _objcat: ClassVar[str] = ''
+
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         extra='forbid',
@@ -50,6 +52,10 @@ class BaseObj(BaseModel):
 
     def __init__(self, *args, **kwargs):
         super().__init__(**self.__class__._adapt(*args, **kwargs))
+
+    @property
+    def objcat(self):
+        return self._objcat
 
     @classmethod
     def _adapt(cls, *args, **kwargs) -> dict:
@@ -548,12 +554,12 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         self._validate_item(item)
         self.data.insert(index, item)
 
-    def __add__(self, other: Iterable[BaseObj]) -> 'BaseObjList':
+    def __add__(self, other: Iterable[BaseObj]) -> BaseObjList:
         new = self.__class__(self)
         new.extend(other)
         return new
 
-    def __getitem__(self, index: int) -> BaseObj|BaseObjList:
+    def __getitem__(self, index: int) -> BaseObj | BaseObjList:
         result = super().__getitem__(index)
         if isinstance(index, slice):
             return type(self)(result)
@@ -566,7 +572,7 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         self._validate_item(item)
         self.data[index] = item
 
-    def __iadd__(self, other: Iterable[BaseObj]) -> 'BaseObjList':
+    def __iadd__(self, other: Iterable[BaseObj]) -> BaseObjList:
         self.extend(other)
         return self
         
@@ -577,8 +583,8 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         Subclasses should implement this method to provide a meaningful description.
         """
         raise NotImplementedError("Subclasses must implement the describe method.")
-    
-    def filter(self,**fields):
+
+    def filter(self, **fields) -> BaseObjList:
         """
         Creates a returns a new list containing objects
         whose attributes match the fields dictionary
@@ -597,9 +603,9 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         list :
              list of elements matching fields
         """
-        return self.__class__([item for item in self if item.matches(**fields)])
+        return self.__class__([item for item in self.data if item.matches(**fields)])
 
-    def negfilter(self,**fields):
+    def negfilter(self, **fields) -> BaseObjList:
         """
         Applies a negated filter to the calling instance
         Creates a returns a new list containing objects
@@ -618,9 +624,9 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         list :
             list of elements whose attributes do NOT match fields
         """
-        return self.__class__([item for item in self if item.allneg(**fields)])
+        return self.__class__([item for item in self.data if item.allneg(**fields)])
 
-    def ifilter(self,**fields):
+    def ifilter(self, **fields) -> list[int]:
         """
         Creates a returns a new list containing indices
         of objects whose attributes match the fields dictionary
@@ -638,9 +644,9 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         list
             list of indices matching fields
         """
-        return [i for i, item in enumerate(self) if item.matches(**fields)]
+        return [i for i, item in enumerate(self.data) if item.matches(**fields)]
 
-    def get(self,**fields):
+    def get(self, **fields) -> BaseObj | BaseObjList | None:
         """
         Special implementation of filter
         
@@ -674,12 +680,12 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
     def remove_and_return(self, item: BaseObj) -> BaseObj | None:
         """
         Remove an item from the list and return it.
-        
+
         Parameters
         ----------
         item : BaseObj
             The item to remove from the list.
-        
+
         Returns
         -------
         BaseObj | None :
@@ -705,7 +711,7 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         bool
             True if the transfer was successful, False otherwise.
         """
-        if item in self:
+        if item in self.data:
             self.remove(item)
             target_list.append(item)
             return True
@@ -733,7 +739,7 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
             return True
         return False
 
-    def iget(self,**fields):
+    def iget(self, **fields) -> int | list[int] | None:
         """
         Special implementation of ifilter
         iget returns a single index if there is only one match;
@@ -762,8 +768,8 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
             return matches[0]
         else:
             return matches
-        
-    def set(self,shallow=False,**fields):
+
+    def set(self, shallow=False, **fields):
         """
         Element attribute-setter
         
@@ -773,17 +779,17 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
             attribute-name:value pairs used to set the attributes
             of the calling instance
         """
-        for item in self:
-            item.set(shallow=shallow,**fields)
-        
-    def prune(self,objlist=[],attr_maps=[]):
+        for item in self.data:
+            item.set(shallow=shallow, **fields)
+
+    def prune(self, objlist: BaseObjList = [], attr_maps: list[dict] = []) -> BaseObjList:
         """
         Attribute-based pruning by referencing and mapping another list
 
         Parameters
         ----------
-        objlist : list
-            "reference" list of objects whose attributes are consulted to 
+        objlist : BaseObjList
+            "reference" list of objects whose attributes are consulted to
             decide what to prune out of the calling instance
         attr_maps : list
             dictionaries used independently to map attribute values of 
@@ -791,21 +797,20 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         
         Returns
         -------
-
-        list :
+        BaseObjList :
             items removed from calling instance
         """
         removed = []
         for ref_obj in objlist:
             # make a specific map to filter objects from self
             for attr_map in attr_maps:
-                this_filter={k:getattr(ref_obj,v) for k,v in attr_map.items()}
+                this_filter = {k:getattr(ref_obj,v) for k, v in attr_map.items()}
                 removed.extend(self.filter(**this_filter))
         for item in removed:
             self.remove(item)
         return removed
-    
-    def prune_exclusions(self,**kwargs):
+
+    def prune_exclusions(self, **kwargs) -> BaseObjList:
         """
         Attribute-based list pruning
 
@@ -821,14 +826,14 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         list :
             items removed from calling instance
         """
-        removed = []
+        removed = self.__class__([])
         if not kwargs:
             return removed
         for k,v in kwargs.items():
             if not isinstance(v, list):
                 v = [v]
             for item in v:
-                thru_dict={k:item}
+                thru_dict = {k: item}
                 hits = self.filter(**thru_dict)
                 removed.extend(hits)
                 for item in hits:
@@ -836,10 +841,10 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         logger.debug(f"Pruning {len(removed)} items from {self.__class__.__name__} with criteria {kwargs}")
         return removed
 
-    def sort(self,by=None,reverse=False):
-        """ 
-        ObjList sort function, a simple override of UserList.sort() 
-        
+    def sort(self, by=None, reverse=False):
+        """
+        ObjList sort function, a simple override of UserList.sort()
+
         Parameters
         ----------
         by : list, optional
@@ -851,10 +856,10 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         if not by:
             self.data.sort(reverse=reverse)
         else:
-            key=operator.attrgetter(*by)
-            self.data.sort(key=key,reverse=reverse)
+            key = operator.attrgetter(*by)
+            self.data.sort(key=key, reverse=reverse)
 
-    def uniqattrs(self,attrs=[],with_counts=False):
+    def uniqattrs(self, attrs: list[str] = [], with_counts: bool = False):
         """
         Generates a dictionary of list of unique values for each 
         attribute 
@@ -892,7 +897,7 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
                         uattrs[a].append(v)
         return uattrs
 
-    def binnify(self,fields=[]):
+    def binnify(self, fields: list[str] = []) -> dict[str, BaseObjList]:
         """
         Simple binning of all elements by unique hashes of values of fields
 
@@ -907,18 +912,18 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
             lists of items for each unique key
 
         """
-        bins={}
+        bins: dict[str, BaseObjList] = {}
         for item in self:
-            key=item.strhash(fields=fields)
+            key = item.strhash(fields=fields)
             if not key in bins:
-                bins[key]=[]
+                bins[key] = self.__class__([])
             bins[key].append(item)
         # for k,v in bins.items():
         #     if len(v)>1:
         #         logger.debug(f'binnify: bin {k} has {len(v)} items: {v}')
         return bins
 
-    def puniq(self,fields=[]):
+    def puniq(self, fields: list[str] = []) -> bool:
         """
         Simple test that all elements of self are unique among fields 
         
@@ -932,10 +937,10 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         bool : True if all elements are unique
         
         """
-        bins=self.binnify(fields=fields)
-        return len(bins)==len(self)
-    
-    def puniquify(self,fields=[],stash_attr_name='_ORIGINAL_',make_common=[]):
+        bins = self.binnify(fields=fields)
+        return len(bins) == len(self)
+
+    def puniquify(self, fields: list[str] = [], stash_attr_name: str = '_ORIGINAL_ATTRIBUTES', make_common: list[str] = []) -> None:
         """
         Systematic attribute altering to make all elements unique
         
@@ -964,19 +969,19 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
 
         """
         assert not any([x in fields for x in make_common])
-        local_fields_copy= fields.copy() if fields else []
-        bins=self.binnify(fields=local_fields_copy)
-        stillworking=True
+        local_fields_copy = fields.copy() if fields else []
+        bins = self.binnify(fields=local_fields_copy)
+        stillworking = True
         while stillworking:
-            stillworking=False
+            stillworking = False
             for v in bins.values():
-                if len(v)>1: # this key has more than one item
-                    stillworking=True
-                    for d in v[1:]: # skip the first one, it is the original
+                if len(v) > 1:  # this key has more than one item
+                    stillworking = True
+                    for d in v[1:]:  # skip the first one, it is the original
                         # stash the original attribute values in a dict under stash_attr_name
                         # but only do this ONCE per object so we are only saving its original values
                         if not hasattr(d, stash_attr_name):
-                            setattr(d, stash_attr_name, {k:getattr(d, k) for k in local_fields_copy})
+                            setattr(d, stash_attr_name, {k: getattr(d, k) for k in local_fields_copy})
                         while d.strhash(local_fields_copy) in bins:
                             # increment the first value until the hash is unique
                             # this assumes the first field in local_fields_copy is numeric
@@ -987,10 +992,10 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
                                 raise TypeError(f"Field '{local_fields_copy[0]}' must be numeric for uniquification.")
             if stillworking:
                 # re-bin the items
-                bins=self.binnify(fields=local_fields_copy)
+                bins = self.binnify(fields=local_fields_copy)
         assert(self.puniq(fields=local_fields_copy))
 
-    def map_attr(self,mapped_attr,key_attr,map):
+    def map_attr(self, mapped_attr: str, key_attr: str, map: dict) -> None:
         """
         Simple cross-attribute mapper. 
 
@@ -1015,7 +1020,7 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         for item in self:
             item.map_attr(mapped_attr, key_attr, map)
 
-    def remove_duplicates(self,fields=[]):
+    def remove_duplicates(self, fields: list[str] = []) -> None:
         """
         Removes duplicates from the calling instance
         The duplicates are determined by the hash of the values
@@ -1037,7 +1042,7 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
             # for c in b[1:]:
             #     logger.debug(f'discarding {str(c)}')
 
-    def assign_objs_to_attr(self, attr, objList, **matchattr):
+    def assign_objs_to_attr(self, attr: str, objList: BaseObjList, **matchattr) -> BaseObjList:
         """
         Assigns the single object from objList whose
         attributes match the matchattr dict to the 
@@ -1061,8 +1066,8 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         for item in delete_us:
             self.remove(item)
         return self.__class__(delete_us)
-    
-    def update_attr_from_obj_attr(self, attr, obj_attr, attr_of_obj_attr):
+
+    def update_attr_from_obj_attr(self, attr: str, obj_attr: str, attr_of_obj_attr: str) -> None:
         """
         Set value of attributes of all elements of caller
         from another attribute of a separate object
@@ -1080,7 +1085,7 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         for item in self:
             item.update_attr_from_obj_attr(attr, obj_attr, attr_of_obj_attr)
 
-    def update_attr_from_objlist_elem_attr(self, attr, objlist_attr, index_of_obj_in_objlist_attr, attr_of_obj_attr):
+    def update_attr_from_objlist_elem_attr(self, attr: str, objlist_attr: str, index_of_obj_in_objlist_attr: int, attr_of_obj_attr: str) -> None:
         """
         Set value of caller's attribute from an attribute
         of an object in a list of objects

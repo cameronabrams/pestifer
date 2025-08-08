@@ -12,10 +12,11 @@ import numpy as np
 from argparse import Namespace
 
 from pydantic import Field
-from typing import Any, ClassVar, TYPE_CHECKING
+from typing import ClassVar
 
 from pidibble.baserecord import BaseRecord
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
+from mmcif.api.PdbxContainers import DataContainer
 
 from .atom import Atom, AtomList, Hetatm
 from ..objs.link import Link
@@ -23,14 +24,15 @@ from ..objs.link import LinkList
 
 from ..core.baseobj import BaseObj, BaseObjList
 from ..core.labels import Labels
-from ..objs.seqadv import Seqadv, SeqadvList
 from ..objs.deletion import DeletionList
-from ..objs.insertion import Insertion, InsertionList
+from ..objs.insertion import InsertionList
+from ..objs.patch import Patch
+from ..objs.seqadv import Seqadv, SeqadvList
+from ..objs.ssbond import SSBond
 from ..objs.substitution import SubstitutionList
 from ..util.cifutil import CIFdict
-from ..util.coord import positionN, measure_dihedral
-from .stateinterval import StateInterval, StateIntervalList
-from mmcif.api.PdbxContainers import DataContainer
+from ..util.coord import positionN
+from .stateinterval import StateIntervalList
 
 from ..objs.resid import ResID
 
@@ -691,7 +693,7 @@ class ResidueList(BaseObjList[Residue]):
     @classmethod
     def from_atomlist(cls, atoms: AtomList):
         R = []
-        for a in atoms:
+        for a in atoms.data:
             for r in R[::-1]:
                 if r.add_atom(a):
                     break
@@ -1035,7 +1037,10 @@ class ResidueList(BaseObjList[Residue]):
 
     def renumber(self, links: LinkList):
         """
-        The possibility exists that empty residues added have resids that conflict with existing resids on the same chain if those resids are in a different segtype (e.g., glycan).  This method will privilege protein residues in such conflicts, and it will renumber non-protein residues, updating any resid records in links to match the new resid.
+        The possibility exists that empty residues added have resids that conflict with existing resids 
+        on the same chain if those resids are in a different segtype (e.g., glycan).  This method will 
+        privilege protein residues in such conflicts, and it will renumber non-protein residues, updating 
+        any resid records in links to match the new resid.
 
         Parameters
         ----------
@@ -1047,7 +1052,7 @@ class ResidueList(BaseObjList[Residue]):
         min_protein_resid = min([x.resid for x in protein_residues])
         max_protein_resid = max([x.resid for x in protein_residues])
         non_protein_residues = ResidueList([])
-        for p in self:
+        for p in self.data:
             if p.segtype != 'protein':
                 non_protein_residues.append(p)
         logger.debug(f'There are {len(protein_residues)} (resids {min_protein_resid} to {max_protein_resid}) protein residues and {len(non_protein_residues)} non-protein residues')
@@ -1133,5 +1138,7 @@ class ResidueList(BaseObjList[Residue]):
 
         return StateIntervalList.process_itemlist(self, state_func=state_func)
 
-# Residue.model_rebuild()
-
+Link.model_rebuild()
+Patch.model_rebuild()
+SSBond.model_rebuild()
+Seqadv.model_rebuild()

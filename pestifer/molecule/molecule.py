@@ -8,8 +8,10 @@ from ..core.objmanager import ObjManager
 from pidibble.pdbparse import PDBParser
 from ..util.cifutil import CIFload
 from .asymmetricunit import AsymmetricUnit
-from .bioassemb import BioAssembList,BioAssemb
+from .segment import Segment
+from .bioassemb import BioAssembList, BioAssemb
 from ..objs.cleavagesite import CleavageSiteList
+from ..objs.graft import Graft
 from .chainidmanager import ChainIDManager
 logger=logging.getLogger(__name__)
 
@@ -76,16 +78,16 @@ class Molecule:
     def __init__(self, source: dict = {}, objmanager: ObjManager = None, chainIDmanager: ChainIDManager=None, **kwargs):
         psf = None
         reset = kwargs.get('reset_counter', False)
+        file_format = source.get('file_format', 'PDB')
         if reset:
             Molecule._molcounter = 0
         else:
             Molecule._molcounter += 1
         if not source:
             logger.debug('Molecule initialized without source.')
-            p_struct=None
+            p_struct = None
         else:
             logger.debug('Molecule initialization')
-            file_format = source.get('file_format', 'PDB')
             if source.get('id', {}) or source.get('prebuilt', {}) or source.get('alphafold', {}):
                 if source.get('id', {}):
                     logger.debug(f'Molecule initialization from file {source["id"]}.{source["file_format"]}')
@@ -486,3 +488,5 @@ class Molecule:
                         logger.debug(str(c))
             else:
                 logger.debug(f'No segment with chainID {clv.chainID} found; no cleavage performed.')
+
+Graft.model_rebuild()

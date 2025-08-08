@@ -232,7 +232,11 @@ class FileArtifact(Artifact, ABC):
         if self.key is None:
             self.key = self.ext
         if self.data and '.' in self.data:
-            self.data = self.data.split('.')[0]
+            # correctly assigns data in case this is initialized
+            # with a filename that has an extension
+            self.data, apparent_ext = self.data.split('.')
+            if self.ext != apparent_ext:
+                logger.warning(f"Extension mismatch: {self.ext} != {apparent_ext}")
 
     @property
     def name(self) -> str:

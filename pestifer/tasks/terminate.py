@@ -61,7 +61,7 @@ class TerminateTask(MDTask):
             maps = bm.get_chainmaps()
             with open(self.specs['chainmapfile'], 'w') as f:
                 yaml.dump(maps, f)
-            self.register_current_artifact(YAMLFileArtifact(self.specs['chainmapfile'].replace('.yaml', '')), key='chainmapfile')
+            self.register(YAMLFileArtifact(self.specs['chainmapfile'].replace('.yaml', '')), key='chainmapfile')
 
     def make_package(self):
         """
@@ -79,7 +79,7 @@ class TerminateTask(MDTask):
             fa: Path = self.get_current_artifact_path(ext)
             if fa:
                 shutil.copy(fa, self.basename + '.' + ext)
-                self.register_current_artifact(type(fa)(self.basename))
+                self.register(type(fa)(self.basename))
                 TarballContents.append(self.get_current_artifact(ext))
         logger.debug(f'Packaging for namd using basename {self.basename}')
         save_specs = self.specs

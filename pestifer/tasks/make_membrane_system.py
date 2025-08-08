@@ -6,7 +6,6 @@ Usage is described in the :ref:`subs_runtasks_make_membrane_system` documentatio
 """
 
 import logging
-from copy import deepcopy
 from pathlib import Path
 
 from .basetask import BaseTask
@@ -15,7 +14,7 @@ from ..charmmff.charmmffcontent import CHARMMFFContent
 from ..charmmff.charmmffresidatabase import CHARMMFFResiDatabase
 from ..charmmff.pdbrepository import PDBRepository
 
-from ..core.artifacts import PackmolInputScript, PDBFile, PSFFile, NAMDXscFile, PDBFileList, PsfgenInputScript, PsfgenLogFile, PackmolLogFile, CharmmffTopFile, CharmmffStreamFile, CharmmffTopFiles, CharmmffStreamFiles,NAMDCoorFile
+from ..core.artifacts import *
 from ..core.resourcemanager import ResourceManager
 from ..util.stringthings import __pestifer_version__
 
@@ -64,9 +63,9 @@ class MakeMembraneSystemTask(BaseTask):
             logger.debug('Using prebuilt bilayer')
             self.using_prebuilt_bilayer = True
             self.quilt: Bilayer = Bilayer()
-            self.register_current_artifact(PDBFile(path=self.bilayer_specs['prebuilt']['pdb'].replace('.pdb','')))
-            self.register_current_artifact(PSFFile(path=self.bilayer_specs['prebuilt']['psf'].replace('.psf','')))
-            self.register_current_artifact(NAMDXscFile(path=self.bilayer_specs['prebuilt']['xsc'].replace('.xsc','')))
+            self.register(PDBFileArtifact(path=self.bilayer_specs['prebuilt']['pdb'].replace('.pdb','')))
+            self.register(PSFFileArtifact(path=self.bilayer_specs['prebuilt']['psf'].replace('.psf','')))
+            self.register(NAMDXscFileArtifact(path=self.bilayer_specs['prebuilt']['xsc'].replace('.xsc','')))
             self.quilt.box, self.quilt.origin = cell_from_xsc(self.get_current_artifact_path('xsc'))
             self.quilt.area = self.quilt.box[0][0] * self.quilt.box[1][1]
             additional_topologies = get_toppar_from_psf(self.get_current_artifact_path('psf').name)
@@ -113,10 +112,10 @@ class MakeMembraneSystemTask(BaseTask):
                              leaflet_nlipids = patch_nlipids,
                              pdbrepository = self.pdbrepository, 
                              resi_database = self.RDB)
-        species_pdbs = PDBFileList()
+        species_pdbs = PDBFileArtifactList()
         for spdb in self.patch.register_species_pdbs:
-            species_pdbs.append(PDBFile(spdb.replace('.pdb', ''), name=spdb))
-        self.register_current_artifact(species_pdbs, key='species_pdbs')
+            species_pdbs.append(PDBFileArtifact(spdb.replace('.pdb', ''), name=spdb))
+        self.register(species_pdbs, key='species_pdbs')
         logger.debug(f'Main composition dict after call {composition_dict}')
         if self.patch.asymmetric:
             logger.debug(f'Requested patch is asymmetric; generating two symmetric patches')
@@ -210,8 +209,8 @@ class MakeMembraneSystemTask(BaseTask):
             self.equilibrate_bilayer(patch, specbyte, relaxation_protocol=relaxation_protocol)
 
     def register_tops_streams_from_psfgen(self, filelist):
-        self.register_current_artifact(CharmmffTopFiles([CharmmffTopFile(x.replace('.rtf', '')) for x in filelist], key='charmff_topfiles'))
-        self.register_current_artifact(CharmmffStreamFiles([CharmmffStreamFile(x.replace('.str', '')) for x in filelist], key='charmff_streamfiles'))
+        self.register(CharmmffTopFileArtifacts([CharmmffTopFileArtifact(x.replace('.rtf', '')) for x in filelist], key='charmff_topfiles'))
+        self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x.replace('.str', '')) for x in filelist], key='charmff_streamfiles'))
 
     def do_psfgen(self, patch, specbyte):
         """
@@ -227,8 +226,8 @@ class MakeMembraneSystemTask(BaseTask):
         result = pg.runscript(pdb=pdb.name, o=self.basename)
         cell_to_xsc(patch.box, patch.origin, f'{self.basename}.xsc')
         patch.area = patch.box[0][0] * patch.box[1][1]
-        for at in [PsfgenInputScript, PsfgenLogFile, PDBFile, NAMDXscFile, PSFFile]:
-            self.register_current_artifact(at(self.basename))
+        for at in [PsfgenInputScriptArtifact, PsfgenLogFileArtifact, PDBFileArtifact, NAMDXscFileArtifact, PSFFileArtifact]:
+            self.register(at(self.basename))
 
     def pack_patch(self, patch: Bilayer, specbyte, seed=None, tolerance=None, nloop_all=200, nloop=200, half_mid_zgap=1.0, rotation_pm=20):
         """
@@ -266,8 +265,8 @@ class MakeMembraneSystemTask(BaseTask):
         logger.debug(f'{self.basename} packmol result {result}')
         if result != 0:
             raise Exception(f'Packmol failed with result {result}')
-        for at in [PackmolInputScript, PackmolLogFile, PDBFile]:
-            self.register_current_artifact(at(self.basename))
+        for at in [PackmolInputScriptArtifact, PackmolLogFileArtifact, PDBFileArtifact]:
+            self.register(at(self.basename))
 
     def equilibrate_bilayer(self, bilayer: Bilayer, specbyte: str, relaxation_protocol=None):
         """
@@ -387,7 +386,7 @@ class MakeMembraneSystemTask(BaseTask):
         self.register_tops_streams_from_psfgen(pg.topologies)
         pg.usescript('bilayer_quilt')
         pg.writescript(self.basename, guesscoord=False, regenerate=False, force_exit=True, writepsf=False, writepdb=False)
-        self.register_current_artifact(PsfgenInputScript(self.basename))
+        self.register(PsfgenInputScriptArtifact(self.basename))
         margin = self.embed_specs.get('xydist', 10.0)
         if hasattr(self, "pro_pdb"):
             # we will eventually embed a protein in here, so send its pdb along to help size the bilayer
@@ -403,8 +402,8 @@ class MakeMembraneSystemTask(BaseTask):
                                     psfB=psfB, pdbB=pdbB, xscA=xscA, xscB=xscB, o=self.basename)
         if result != 0:
             raise RuntimeError(f'psfgen failed with result {result} for {self.basename}')
-        for at in [PsfgenLogFile, PDBFile, NAMDXscFile, PSFFile]:
-            self.register_current_artifact(at(self.basename))
+        for at in [PsfgenLogFileArtifact, PDBFileArtifact, NAMDXscFileArtifact, PSFFileArtifact]:
+            self.register(at(self.basename))
         self.quilt = Bilayer()
         self.quilt.addl_streamfiles = additional_topologies
         self.quilt.box, self.quilt.origin = cell_from_xsc(f'{self.basename}.xsc')
@@ -426,41 +425,41 @@ class MakeMembraneSystemTask(BaseTask):
         if not self.embed_specs:
             logger.debug('No embed specs.')
             return
-        no_orient=self.embed_specs.get('no_orient',False)
-        z_head_group=self.embed_specs.get('z_head_group',None)
-        z_tail_group=self.embed_specs.get('z_tail_group',None)
-        z_ref_group=self.embed_specs.get('z_ref_group',{}).get('text',None)
-        z_value=self.embed_specs.get('z_ref_group',{}).get('z_value',0.0)
+        no_orient = self.embed_specs.get('no_orient', False)
+        z_head_group = self.embed_specs.get('z_head_group', None)
+        z_tail_group = self.embed_specs.get('z_tail_group', None)
+        z_ref_group = self.embed_specs.get('z_ref_group', {}).get('text', None)
+        z_value = self.embed_specs.get('z_ref_group', {}).get('z_value', 0.0)
         self.next_basename('embed')
-        pg=self.scripters['psfgen']
-        pg.newscript(self.basename,additional_topologies=self.quilt.addl_streamfiles)
+        pg: PsfgenScripter = self.scripters['psfgen']
+        pg.newscript(self.basename, additional_topologies=self.quilt.addl_streamfiles)
         pg.usescript('bilayer_embed')
-        pg.writescript(self.basename,guesscoord=False,regenerate=True,force_exit=True,writepsf=False,writepdb=False)
-        self.register_current_artifact(PsfgenInputScript(self.basename))
-        bilayer_psf=self.get_current_artifact_path('psf')
-        bilayer_pdb=self.get_current_artifact_path('pdb')
-        bilayer_xsc=self.get_current_artifact_path('xsc')
-        result=pg.runscript(psf=self.pro_psf,
-                            pdb=self.pro_pdb,
-                            bilayer_psf=bilayer_psf.name,
-                            bilayer_pdb=bilayer_pdb.name,
-                            bilayer_xsc=bilayer_xsc.name,
-                            z_head_group=protect_str_arg(z_head_group),
-                            z_tail_group=protect_str_arg(z_tail_group),
-                            z_ref_group=protect_str_arg(z_ref_group),
-                            z_value=z_value,
-                            no_orient=no_orient,
-                            o=self.basename)
-        if result!=0:
+        pg.writescript(self.basename, guesscoord=False, regenerate=True, force_exit=True, writepsf=False, writepdb=False)
+        self.register(PsfgenInputScriptArtifact(self.basename))
+        bilayer_psf: Path = self.get_current_artifact_path('psf')
+        bilayer_pdb: Path = self.get_current_artifact_path('pdb')
+        bilayer_xsc: Path = self.get_current_artifact_path('xsc')
+        result = pg.runscript(psf=self.pro_psf,
+                              pdb=self.pro_pdb,
+                              bilayer_psf=bilayer_psf.name,
+                              bilayer_pdb=bilayer_pdb.name,
+                              bilayer_xsc=bilayer_xsc.name,
+                              z_head_group=protect_str_arg(z_head_group),
+                              z_tail_group=protect_str_arg(z_tail_group),
+                              z_ref_group=protect_str_arg(z_ref_group),
+                              z_value=z_value,
+                              no_orient=no_orient,
+                              o=self.basename)
+        if result != 0:
             raise RuntimeError(f'psfgen failed with result {result} for {self.basename}')
-        for at in [PsfgenLogFile,PDBFile,NAMDXscFile,PSFFile,NAMDCoorFile]:
-            self.register_current_artifact(at(self.basename))
-        charmmff_paramfiles=self.get_current_artifact('charmmff_paramfiles')
+        for at in [PsfgenLogFileArtifact, PDBFileArtifact, NAMDXscFileArtifact, PSFFileArtifact, NAMDCoorFileArtifact]:
+            self.register(at(self.basename))
+        charmmff_paramfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_paramfiles')
         if charmmff_paramfiles is None:
-            self.register_current_artifact('charmmff_paramfiles', [])
-            charmmff_paramfiles = self.get_current_artifact('charmmff_paramfiles')
+            self.register('charmmff_paramfiles', [])
+            charmmff_paramfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_paramfiles')
         for pf in self.quilt.addl_streamfiles:
-            charmmff_paramfiles.append(pf,unique=True)
+            charmmff_paramfiles.append(pf, unique=True)
         return result
 
     

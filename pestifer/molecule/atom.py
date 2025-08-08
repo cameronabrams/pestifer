@@ -185,8 +185,9 @@ class Atom(BaseObj):
             apparent_resseqnum = cifdict.get('label_seq_id', None)
             if apparent_resseqnum == '.':
                 apparent_resseqnum = cifdict['auth_seq_id']
-                input_dict['chainID']=input_dict['auth_asym_id']
-            resid = ResID(resseqnum=apparent_resseqnum, insertion=cifdict.get('pdbx_pdb_ins_code',None))
+                # logger.debug(f'Apparent resseqnum: {apparent_resseqnum}')
+                input_dict['chainID'] = input_dict['auth_asym_id']
+            resid = ResID(resseqnum=apparent_resseqnum, insertion=cifdict.get('pdbx_pdb_ins_code', None))
             input_dict['resid'] = resid
             return input_dict
         return super()._adapt(*args, **kwargs)

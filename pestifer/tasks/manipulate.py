@@ -24,13 +24,15 @@ class ManipulateTask(BaseTask):
     """
     YAML header for the ManipulateTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
+    def provision(self, packet = None):
+        super().provision(packet)
+        self.objmanager = ObjManager()
+        self.objmanager.ingest(self.specs['mods'])
+
     def do(self) -> int:
         """
         Execute the manipulate task.
         """
-        logger.debug(f'manipulate {self.specs["mods"]}')
-        self.objmanager = ObjManager()
-        self.objmanager.ingest(self.specs['mods'])
         self.result = self.coormods()
         return self.result
 
@@ -68,5 +70,5 @@ class ManipulateTask(BaseTask):
             if result != 0:
                 return result
             for at in [PDBFileArtifact, VMDScriptArtifact, VMDLogFileArtifact]:
-                self.register_current_artifact(at(self.basename))
+                self.register(at(self.basename))
         return 0

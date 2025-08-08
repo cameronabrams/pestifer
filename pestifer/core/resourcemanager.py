@@ -7,6 +7,7 @@ import logging
 import os
 
 from pathlib import Path
+from typing import Callable
 
 from .examplemanager import ExampleManager
 from .labels import Labels
@@ -82,7 +83,7 @@ class ResourceManager:
             retstr += f'        {p.replace(cp + os.sep, "") + os.sep}\n'
         return retstr
 
-    def show(self, out_stream=print, components={}, fullnames=False, missing_fullnames={}):
+    def show(self, out_stream: Callable = print, components: dict = {}, fullnames=False, missing_fullnames={}):
         """
         Show a summary of the specified components.
         
@@ -98,7 +99,7 @@ class ResourceManager:
         missing_fullnames : dict, optional
             A dictionary of missing full names for the components. Default is an empty dictionary.
         """
-        for c,spec in components.items():
+        for c, spec in components.items():
             if not c in self._base_resources:
                 logger.warning(f'{c} is not a base resource; expected one of {", ".join(self._base_resources)}')
             path = self.get_resource_path(c)
@@ -108,7 +109,7 @@ class ResourceManager:
                 if 'toppar' in spec:
                     out_stream(f'{self.charmmff_content.tarfilename}')
                 if 'pdb' in spec:
-                    self.pdbrepository.show(out_stream, fullnames=fullnames, missing_fullnames=missing_fullnames)
+                    self.charmmff_content.pdbrepository.show(out_stream, fullnames=fullnames, missing_fullnames=missing_fullnames)
                 if 'custom' in spec:
                     path = self.get_charmmff_customdir()
                     with open(os.path.join(path, '00PESTIFER-README.txt'), 'r') as f:
@@ -228,7 +229,7 @@ class ResourceManager:
             self.charmmff_content.pdbrepository.add_path(path)
 
 
-    def add_example(self, example_yaml, author_name='', author_email='', description='', companion_files=[]):
+    def add_example(self, example_yaml: Path | str, author_name='', author_email='', description='', companion_files=[]):
         """
         Add an example to the pestifer examples directory.
 
@@ -239,7 +240,7 @@ class ResourceManager:
         """
         self.example_manager.add_example(example_yaml, description=description, author_name=author_name, author_email=author_email, companion_files=companion_files)
 
-    def insert_example(self, example_index, example_yaml, author_name='', author_email='', description='', companion_files=[]):
+    def insert_example(self, example_index: int, example_yaml: Path | str, author_name='', author_email='', description='', companion_files: list[Path | str]=[]):
         """
         Insert an example into the pestifer examples directory.
 

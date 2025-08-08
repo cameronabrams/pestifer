@@ -1,7 +1,13 @@
 import unittest
+from collections import UserDict
 from pestifer.objs.graft import Graft, GraftList
 from pestifer.objs.resid import ResID
-
+from pestifer.objs.link import Link, LinkList
+from pestifer.molecule.residue import Residue, ResidueList
+from pestifer.molecule.atom import AtomList
+from pestifer.molecule.molecule import Molecule
+from pestifer.molecule.segment import Segment, SegmentList
+from pestifer.core.objmanager import ObjManager
 class TestGraft(unittest.TestCase):
     def test_graft_creation(self):
         graft = Graft(
@@ -48,6 +54,90 @@ class TestGraft(unittest.TestCase):
         # do it again to make sure the counter increments
         graft2 = Graft(shortcode)
         self.assertEqual(graft2.obj_id, 1)
+
+    def test_graft_activation(self):
+        mol = Molecule() # empty donor molecule
+        self.assertTrue(hasattr(mol, 'asymmetric_unit'))
+        au = mol.asymmetric_unit
+        self.assertTrue(hasattr(au, 'segments'))
+        self.assertIsInstance(au.segments, SegmentList)
+        null_seg = au.segments.get(segname='A')
+        self.assertIsNone(null_seg)
+        om = mol.objmanager
+        self.assertTrue(isinstance(om, ObjManager))
+        self.assertTrue(isinstance(om, UserDict))
+        null_topol = om.get('topol', {})
+        self.assertEqual(null_topol, {})
+        # make a donor segment
+        r = ResidueList([
+                Residue(chainID='G',
+                        resname='NAG', 
+                        resid=ResID(1),
+                        atoms=AtomList([]),
+                        segtype='glycan',
+                        resolved=True),
+                Residue(chainID='G', 
+                        resname='NAG', 
+                        resid=ResID(2),
+                        atoms=AtomList([]),
+                        segtype='glycan',
+                        resolved=True)
+            ])
+        s = Segment(
+            chainID="G",
+            segname='G', 
+            residues=r
+        )
+        # make a mol that has one segment in 
+        # its segment list
+        mol.asymmetric_unit.segments = SegmentList([s])
+        # make a graft that should match the
+        # first residue of the segment
+        g = Graft(
+            target_chainID="A",
+            target_root=ResID(666),
+            source_pdbid="4ijk",
+            source_chainID="G",
+            source_root=ResID(1),
+            source_end=ResID(2)
+        )
+        self.assertIsInstance(g, Graft)
+        self.assertEqual(g.source_end, ResID(2))
+        g.activate(mol)
+        self.assertEqual(g.source_molecule, mol)
+        self.assertEqual(g.source_seg, s)
+        self.assertEqual(g.source_root, ResID(1))
+        self.assertEqual(len(g.index_residues), 1)
+        self.assertEqual(g.index_residues[0], r[0])
+        self.assertEqual(len(g.mover_residues), 1)
+        self.assertEqual(g.mover_residues[0], r[1])
+
+        recv = Molecule()  # receiver molecule
+        # make a receiver segment
+        r = ResidueList([
+                Residue(chainID='A',
+                        resname='ASN', 
+                        resid=ResID(666),
+                        atoms=AtomList([]),
+                        segtype='protein',
+                        resolved=True),
+                Residue(chainID='A', 
+                        resname='SER', 
+                        resid=ResID(667),
+                        atoms=AtomList([]),
+                        segtype='protein',
+                        resolved=True)
+            ])
+        test_res = r.get(chainID='A',resid=ResID(666))
+        self.assertEqual(test_res, r[0])
+        s = Segment(
+            chainID="A",
+            segname='A', 
+            residues=r
+        )
+        recv.asymmetric_unit.segments = SegmentList([s])
+        g.assign_receiver_residues(r)
+        self.assertEqual(len(g.residues), 1)
 
 class TestGraftList(unittest.TestCase):
     def test_graft_list_creation(self):

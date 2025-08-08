@@ -20,7 +20,7 @@ from ..util.coord import measure_dihedral
 
 if TYPE_CHECKING:
     from ..molecule.atom import Atom
-    from ..molecule.residue import Residue
+    from ..molecule.residue import Residue, ResidueList
 
 from ..psfutil.psfpatch import PSFLinkPatch
 
@@ -189,24 +189,24 @@ class Link(BaseObj):
         return super()._adapt(*args, **kwargs)
     
     @staticmethod
-    def _from_pdbrecord(pdbrecord:PDBRecord) -> dict:
+    def _from_pdbrecord(pdbrecord: PDBRecord) -> dict:
         return {
             'name1': pdbrecord.name1,
-            'resname1':pdbrecord.residue1.resName,
-            'chainID1':pdbrecord.residue1.chainID,
-            'resid1':ResID(pdbrecord.residue1.seqNum,pdbrecord.residue1.iCode),
+            'resname1': pdbrecord.residue1.resName,
+            'chainID1': pdbrecord.residue1.chainID,
+            'resid1': ResID(pdbrecord.residue1.seqNum, pdbrecord.residue1.iCode),
             'name2': pdbrecord.name2,
-            'resname2':pdbrecord.residue2.resName,
-            'chainID2':pdbrecord.residue2.chainID,
-            'resid2':ResID(pdbrecord.residue2.seqNum,pdbrecord.residue2.iCode),
-            'altloc2':pdbrecord.altLoc2,
-            'altloc1':pdbrecord.altLoc1,
-            'sym1':pdbrecord.sym1,
-            'sym2':pdbrecord.sym2,
-            'link_distance':pdbrecord.length,
-            'segname1':pdbrecord.residue1.chainID,
-            'segname2':pdbrecord.residue2.chainID,
-            'empty':False
+            'resname2': pdbrecord.residue2.resName,
+            'chainID2': pdbrecord.residue2.chainID,
+            'resid2': ResID(pdbrecord.residue2.seqNum, pdbrecord.residue2.iCode),
+            'altloc2': pdbrecord.altLoc2,
+            'altloc1': pdbrecord.altLoc1,
+            'sym1': pdbrecord.sym1,
+            'sym2': pdbrecord.sym2,
+            'link_distance': pdbrecord.length,
+            'segname1': pdbrecord.residue1.chainID,
+            'segname2': pdbrecord.residue2.chainID,
+            'empty': False
         }
 
     @staticmethod
@@ -503,7 +503,7 @@ class LinkList(BaseObjList[Link]):
         """
         return f'<LinkList with {len(self)} links>'
 
-    def assign_residues(self, Residues):
+    def assign_residues(self, Residues: "ResidueList") -> tuple["ResidueList", "LinkList"]:
         """
         Assigns residue and atom pointers to each link; sets up the up and down links of both
         residues so that linked residue objects can reference one another; flags residues from
@@ -522,38 +522,38 @@ class LinkList(BaseObjList[Link]):
             list of residues from Residues that are not used for any assignments
         """
         logger.debug(f'Links: Assigning residues from list of {len(Residues)} residues')
-        ignored_by_ptnr1=self.assign_objs_to_attr('residue1',Residues,chainID='chainID1',resid='resid1')
-        ignored_by_ptnr2=self.assign_objs_to_attr('residue2',Residues,chainID='chainID2',resid='resid2')
-        if hasattr(self,'patchname') and len(self.patchname)>0:
+        ignored_by_ptnr1 = self.assign_objs_to_attr('residue1', Residues, chainID='chainID1', resid='resid1')
+        ignored_by_ptnr2 = self.assign_objs_to_attr('residue2', Residues, chainID='chainID2', resid='resid2')
+        if hasattr(self, 'patchname') and len(self.patchname) > 0:
             # this link was most likely created when reading in patch records from a set of REMARKS in a pre-built psf file.
             # we need to get the precise atom names for this patch
             pass
         for link in self:
             try:
-                link.residue1.link_to(link.residue2,link)
+                link.residue1.link_to(link.residue2, link)
             except:
                 raise ValueError(f'Bad residue in link')
-            link.atom1=link.residue1.atoms.get(name=link.name1,altloc=link.altloc1)
-            link.atom2=link.residue2.atoms.get(name=link.name2,altloc=link.altloc2)
-            link.segtype1=link.residue1.segtype
-            link.segtype2=link.residue2.segtype
+            link.atom1 = link.residue1.atoms.get(name=link.name1, altloc=link.altloc1)
+            link.atom2 = link.residue2.atoms.get(name=link.name2, altloc=link.altloc2)
+            link.segtype1 = link.residue1.segtype
+            link.segtype2 = link.residue2.segtype
             # shortcodes don't provide resnames, so set them here
-            if not hasattr(link,'resname1'):
-                link.resname1=link.residue1.resname
-            if not hasattr(link,'resname2'):
-                link.resname2=link.residue2.resname
+            if not hasattr(link, 'resname1'):
+                link.resname1 = link.residue1.resname
+            if not hasattr(link, 'resname2'):
+                link.resname2 = link.residue2.resname
             link.set_patchname()
         # do cross-assignment to find true orphan links and dangling links
-        orphan_1=ignored_by_ptnr1.assign_objs_to_attr('residue2',Residues,chainID='chainID2',resid='resid2')
-        orphan_2=ignored_by_ptnr2.assign_objs_to_attr('residue1',Residues,chainID='chainID1',resid='resid1')
-        orphans=orphan_1+orphan_2
-        rlist=[]
+        orphan_1 = ignored_by_ptnr1.assign_objs_to_attr('residue2', Residues, chainID='chainID2', resid='resid2')
+        orphan_2 = ignored_by_ptnr2.assign_objs_to_attr('residue1', Residues, chainID='chainID1', resid='resid1')
+        orphans = orphan_1 + orphan_2
+        rlist = []
         for link in ignored_by_ptnr1:
-            rlist,list=link.residue2.get_down_group()
-            rlist.insert(0,link.residue2)
+            rlist, list = link.residue2.get_down_group()
+            rlist.insert(0, link.residue2)
             for r in rlist:
                 Residues.remove(r)
-        return Residues.__class__(rlist), self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
+        return Residues.__class__(rlist), self.__class__(ignored_by_ptnr1 + ignored_by_ptnr2)
 
     def remove_links_to(self, r) -> 'LinkList':
         """
@@ -712,3 +712,4 @@ def ic_reference_closest(res12: list["Residue"], ICmaps: list[dict]) -> str:
     the_one = [k for (k, v) in sorted(norms.items(), key=lambda x: x[1])][0]
     # logger.debug(f'returning {the_one}')
     return the_one
+

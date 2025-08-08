@@ -10,18 +10,22 @@ import networkx as nx
 import os
 
 from copy import deepcopy
+from pathlib import Path
+from typing import ClassVar
 
-from .basetask import BaseTask
+from .basetask import VMDTask
 from ..molecule.chainidmanager import ChainIDManager
 from ..molecule.molecule import Molecule
 from ..core.objmanager import ObjManager
 from ..core.artifacts import *
+from ..objs.graft import GraftList
 from ..psfutil.psfatom import PSFAtomList
 from ..psfutil.psfcontents import PSFContents
+from ..scripters import VMDScripter, PsfgenScripter
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
-class PsfgenTask(BaseTask):
+class PsfgenTask(VMDTask):
     """ 
     A class for handling invocations of psfgen which create a molecule from a base PDB/mmCIF file
     or from a PSF file generated previously by psfgen
@@ -35,13 +39,15 @@ class PsfgenTask(BaseTask):
         Controller specifications for the task.
     """
 
-    _yaml_header='psfgen'
+    _yaml_header: ClassVar[str] = 'psfgen'
     """
     YAML header for the PsfgenTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
-    def __init__(self, specs: dict = {}, provisions: dict = {}):
-        super().__init__(specs=specs, provisions=provisions)
+
+    def provision(self, packet: dict = {}):
+        super().provision(packet=packet)
         self.molecules = {}
+        self.base_molecule: Molecule = None
 
     def do(self):
         """
@@ -54,8 +60,8 @@ class PsfgenTask(BaseTask):
         self.ingest_molecules()
         logger.debug(f'base mol num images {self.base_molecule.num_images()}')
         logger.debug('Running first psfgen')
-        self.result=self.psfgen()
-        if self.result!=0:
+        self.result = self.psfgen()
+        if self.result != 0:
             return self.result
         # we now have a full coordinate set, so we can do coormods
         self.coormods()
@@ -66,29 +72,29 @@ class PsfgenTask(BaseTask):
         """
         Perform coordinate modifications based on the specifications provided in the task.
         """
-        coormods=self.objmanager.get('coord',{})
+        coormods = self.objmanager.get('coord',{})
         logger.debug(f'psfgen task has {len(coormods)} coormods:')
         logger.debug(';'.join([str(_) for _ in coormods]))
         if coormods:
             logger.debug(f'performing coormods')
-            for objtype,objlist in coormods.items():
-                if len(objlist)>0:
+            for objtype, objlist in coormods.items():
+                if len(objlist) > 0:
                     self.next_basename(objtype)
-                    vm=self.scripters['vmd']
-                    packages=[]
-                    if objtype=='crotations':
+                    vm: VMDScripter = self.scripters['vmd']
+                    packages = []
+                    if objtype == 'crotations':
                         packages.append('PestiferCRot')
-                    vm.newscript(self.basename,packages=packages)
-                    psf=self.get_current_artifact_path('psf')
-                    pdb=self.get_current_artifact_path('pdb')
-                    vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
+                    vm.newscript(self.basename, packages=packages)
+                    psf = self.get_current_artifact_path('psf')
+                    pdb = self.get_current_artifact_path('pdb')
+                    vm.load_psf_pdb(psf, pdb, new_molid_varname='mCM')
                     for transform in self.base_molecule.active_biological_assembly.transforms:
-                        objlist.write_TcL(vm,chainIDmap=transform.chainIDmap)
-                    vm.write_pdb(self.basename,'mCM')
+                        objlist.write_TcL(vm, chainIDmap=transform.chainIDmap)
+                    vm.write_pdb(self.basename, 'mCM')
                     vm.writescript()
                     vm.runscript()
                     for artifact_type in [VMDScriptArtifact, PDBFileArtifact, VMDLogFileArtifact]:
-                        self.register_current_artifact(artifact_type(self.basename))
+                        self.register(artifact_type(self.basename))
 
     def declash(self):
         self.min_loop_length = self.specs['source'].get('sequence',{}).get('loops',{}).get('min_loop_length',0)
@@ -157,9 +163,9 @@ class PsfgenTask(BaseTask):
             return result
         # register PSF, PDB, log, and all charmmff files in the pipeline context
         for artifact_type in [PsfgenInputScriptArtifact,PSFFileArtifact,PDBFileArtifact,PsfgenLogFileArtifact]:
-            self.register_current_artifact(artifact_type(self.basename))
-        self.register_current_artifact(CharmmffTopFileArtifacts([CharmmffTopFileArtifact(x.replace('.rtf','')) for x in pg.topologies if x.endswith('.rtf')]),key='charmmff_topfiles')
-        self.register_current_artifact(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x.replace('.str','')) for x in pg.topologies if x.endswith('.str')]),key='charmmff_streamfiles')
+            self.register(artifact_type(self.basename))
+        self.register(CharmmffTopFileArtifacts([CharmmffTopFileArtifact(x.replace('.rtf','')) for x in pg.topologies if x.endswith('.rtf')]),key='charmmff_topfiles')
+        self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x.replace('.str','')) for x in pg.topologies if x.endswith('.str')]),key='charmmff_streamfiles')
         self.strip_remarks()
         return 0
         
@@ -222,7 +228,7 @@ class PsfgenTask(BaseTask):
         vt.writescript()
         vt.runscript()
         for artifact_type in [VMDScriptArtifact, PDBFileArtifact, VMDLogFileArtifact]:
-            self.register_current_artifact(artifact_type(self.basename))
+            self.register(artifact_type(self.basename))
 
     def declash_na_loops(self,specs):
         """
@@ -258,7 +264,7 @@ class PsfgenTask(BaseTask):
         logger.debug(f'Declashing {nna} nucleic acid loops')
         vt.runscript(progress_title='declash-nucleic-acid-loops')
         for artifact_type in [VMDScriptArtifact, PDBFileArtifact, VMDLogFileArtifact]:
-            self.register_current_artifact(artifact_type(self.basename))
+            self.register(artifact_type(self.basename))
 
     def _write_na_loops(self,vt,**options):
         mol=self.base_molecule
@@ -366,7 +372,7 @@ class PsfgenTask(BaseTask):
         logger.debug(f'Declashing {nglycan} glycans')
         vt.runscript(progress_title='declash-glycans')
         for artifact_type in [VMDScriptArtifact, PDBFileArtifact, VMDLogFileArtifact]:
-            self.register_current_artifact(artifact_type(self.basename))
+            self.register(artifact_type(self.basename))
 
     def _write_glycans(self,fw):
         psf=self.get_current_artifact_path('psf')
@@ -425,12 +431,12 @@ class PsfgenTask(BaseTask):
         It also handles any graft sources specified in the sequence modifications and
         activates the biological assembly of the base molecule.
         """
-        this_source={}
-        base_coordinates = self.get_current_artifact_path('base_coordinates')
+        this_source = {}
+        base_coordinates: Path = self.get_current_artifact_path('base_coordinates')
         if not base_coordinates:
-            pdb = self.get_current_artifact_path('pdb')
-            psf = self.get_current_artifact_path('psf')
-            xsc = self.get_current_artifact_path('xsc')
+            pdb: Path = self.get_current_artifact_path('pdb')
+            psf: Path = self.get_current_artifact_path('psf')
+            xsc: Path = self.get_current_artifact_path('xsc')
             if not (pdb and psf):
                 raise RuntimeError(f'No base_coordinates artifact found, and no prebuilt PDB/PSF/XSC files found in the pipeline context. Cannot ingest base molecule.')
             this_source['prebuilt'] = {
@@ -439,47 +445,47 @@ class PsfgenTask(BaseTask):
                 'xsc': xsc.name if xsc else None
             }
         else:
-            basename,ext=os.path.splitext(base_coordinates)
-            this_source['id']=basename
-            if ext.lower()=='.pdb':
-                this_source['file_format']='PDB'
-            elif ext.lower()=='.cif':
-                this_source['file_format']='mmCIF'
+            basename, ext = os.path.splitext(base_coordinates)
+            this_source['id'] = basename
+            if ext.lower() == '.pdb':
+                this_source['file_format'] = 'PDB'
+            elif ext.lower() == '.cif':
+                this_source['file_format'] = 'mmCIF'
             else:
-                raise RuntimeError(f'Unknown file format {ext} for base_coordinates artifact {base_coordinates.path}')
-        specs=self.specs
-        self.source_specs=specs['source']
-        assert not 'id' in self.source_specs,f'Version 2.0+ of Pestifer does not support "id" in source specs.  Psfgen task must inherit "base_coordinates" artifact or continuation artifacts from a prior task (fetch or continuation).'
+                raise RuntimeError(f'Unknown file format {ext} for base_coordinates artifact {base_coordinates.name}')
+        specs = self.specs
+        self.source_specs = specs['source']
+        assert not 'id' in self.source_specs, f'Version 2.0+ of Pestifer does not support "id" in source specs.  Psfgen task must inherit "base_coordinates" artifact or continuation artifacts from a prior task (fetch or continuation).'
         self.source_specs.update(this_source)
         logger.debug(f'User-input modspecs {self.specs["mods"]}')
-        self.objmanager=ObjManager(self.specs['mods'])
-        seqmods=self.objmanager.get('seq',{})
+        self.objmanager = ObjManager(self.specs['mods'])
+        seqmods = self.objmanager.get('seq', {})
         logger.debug(f'ingesting seqmods {seqmods}')
         if 'grafts' in seqmods:
             logger.debug(f'looking for graft sources to ingest')
-            Grafts=seqmods['grafts']
-            graft_artifacts=PDBFileArtifactList()
-            for g in Grafts:
+            Grafts: GraftList = seqmods['grafts']
+            graft_artifacts = PDBFileArtifactList()
+            for g in Grafts.data:
                 if not g.source_pdbid in self.molecules:
                     logger.debug(f'ingesting graft source {g.source_pdbid}')
-                    this_source={
-                        'id':g.source_pdbid,
-                        'file_format':'PDB'
+                    this_source = {
+                        'id': g.source_pdbid,
+                        'file_format': 'PDB'
                     }
-                    self.molecules[g.source_pdbid]=Molecule(source=this_source)
+                    self.molecules[g.source_pdbid] = Molecule(source=this_source)
                     graft_artifacts.append(PDBFileArtifact(g.source_pdbid))
                 g.activate(deepcopy(self.molecules[g.source_pdbid]))
-            self.register_current_artifact(graft_artifacts, key='graft_sources')
-        self.chainIDmanager=ChainIDManager(
-            format=self.source_specs['file_format'],
-            transform_reserves=self.source_specs.get('transform_reserves',{}),
-            remap=self.source_specs.get('remap_chainIDs',{}))
-        self.base_molecule=Molecule(source=self.source_specs,
-                                    objmanager=self.objmanager,
+            self.register(graft_artifacts, key='graft_sources')
+        self.chainIDmanager = ChainIDManager(
+            format = self.source_specs['file_format'],
+            transform_reserves = self.source_specs.get('transform_reserves', {}),
+            remap = self.source_specs.get('remap_chainIDs', {}))
+        self.base_molecule = Molecule(source=self.source_specs,
+                                       objmanager=self.objmanager,
                                     chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
         # register self.base_molecule in the pipeline context
-        self.register_current_artifact(DataArtifact(self.base_molecule),key='base_molecule')
-        for molid,molecule in self.molecules.items():
+        self.register(DataArtifact(self.base_molecule), key='base_molecule')
+        for molid, molecule in self.molecules.items():
             logger.debug(f'Molecule "{molid}": {molecule.num_atoms()} atoms in {molecule.num_residues()} residues; {molecule.num_segments()} segments.')
 
     def update_molecule(self):
@@ -517,4 +523,4 @@ class PsfgenTask(BaseTask):
 
         self.molecules[base_key]=updated_molecule
         self.base_molecule=updated_molecule
-        self.register_current_artifact(DataArtifact(self.base_molecule),key='base_molecule')
+        self.register(DataArtifact(self.base_molecule),key='base_molecule')

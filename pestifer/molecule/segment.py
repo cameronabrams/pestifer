@@ -26,12 +26,12 @@ class Segment(BaseObj):
     This class represents a segment defined by a list of residue indices and provides methods to check if a bond intersects the segment.
     It also provides methods to yield treadmilled versions of the segment and to check for equality with another segment.
     """
-    _required_fields = {'segtype','segname','chainID','residues','subsegments','parent_chain','specs'}
-    _optional_fields = {'mutations','deletions','grafts','patches','attachments','psfgen_segname'}
-    """
-    Optional attributes for ``Segment``.
-    """
-
+    _required_fields = {'segtype', 'segname', 'chainID', 
+                        'residues', 'subsegments', 'parent_chain', 
+                        'specs'}
+    _optional_fields = {'mutations', 'deletions', 'grafts', 'patches', 
+                        'attachments', 'psfgen_segname', 'objmanager'}
+    
     segtype: str = Field(..., description="The type of the segment (e.g., 'protein', 'nucleicacid', 'glycan').")
     segname: str = Field(..., description="The name of the segment as it is understood by psfgen and in a PSF file.")
     chainID: str = Field(..., description="The chain ID associated with the segment.")
@@ -46,20 +46,13 @@ class Segment(BaseObj):
     patches: PatchList | None = Field(default=None, description="A list of patches applied to the segment.")
     attachments: List | None = Field(default=None, description="A list of attachments applied to the segment (Attachments are currently unimplemented).")
     psfgen_segname: str | None = Field(default=None, description="The segment name as understood by psfgen.")
+    objmanager: ObjManager = Field(default_factory=ObjManager, description="The object manager for the segment, used to track and manage objects associated with the segment.")
 
-    _inheritable_objs: ClassVar[set] = {'mutations','patches','Cfusions','grafts'}
+    _inheritable_objs: ClassVar[set] = {'mutations', 'patches', 'Cfusions', 'grafts'}
     """
     List of inheritable modifications for the segment.
     These modifications include mutations, patches, C-terminal fusions, and grafts.
     """
-
-    _obj_manager: ObjManager = PrivateAttr(default_factory=ObjManager)
-    """
-    The object manager for the segment.
-    This manager is used to track and manage the objects associated with the segment.
-    """
-
-    _parent_molecule: object = None
 
     @classmethod
     def _adapt(cls, *args, **kwargs) -> dict:
@@ -121,7 +114,20 @@ class Segment(BaseObj):
                     'parent_chain': apparent_chainID
                 }
                 return input_dict
-        return super()._adapt(*args, **kwargs)
+        else:
+            # generate an input_dict for an empty, unconstructed segment
+            # built from kwargs
+            input_dict = {
+                'specs': kwargs.get('specs', {}),
+                'segtype': kwargs.get('segtype', 'unconstructed'),
+                'segname': kwargs.get('segname', 'unconstructed'),
+                'chainID': kwargs.get('chainID', 'unconstructed'),
+                'residues': kwargs.get('residues', ResidueList([])),
+                'subsegments': kwargs.get('subsegments', StateIntervalList([])),
+                'parent_chain': kwargs.get('parent_chain', 'unconstructed')
+            }
+            return input_dict
+        return {}
 
     def __str__(self):
         return f'{self.segname}: type {self.segtype} chain {self.chainID} with {len(self.residues)} residues'

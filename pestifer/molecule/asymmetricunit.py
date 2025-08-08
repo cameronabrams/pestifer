@@ -10,7 +10,7 @@ from argparse import Namespace
 from mmcif.api.PdbxContainers import DataContainer
 from pathlib import Path
 from pidibble.pdbrecord import PDBRecordDict
-from typing import ClassVar
+from typing import ClassVar, TYPE_CHECKING
 
 from .atom import AtomList, Atom, Hetatm
 from .chainidmanager import ChainIDManager
@@ -30,6 +30,9 @@ from ..objs.ter import TerList
 from ..psfutil.psfcontents import PSFContents
 
 from ..util.util import write_residue_map
+
+if TYPE_CHECKING:
+    from .molecule import Molecule
 
 logger = logging.getLogger(__name__)
 
@@ -63,12 +66,6 @@ class AsymmetricUnit:
     Key is the YAML key used the input file and value is the attribute of the atom to check against.
     """
 
-    _parent_molecule: ClassVar[object] = None
-    """
-    The parent molecule of the asymmetric unit, if applicable.
-    This is used to link the asymmetric unit to a larger molecular structure.
-    """
-
     def describe(self):
         return f'<AsymmetricUnit: {len(self.atoms)} atoms, {len(self.residues)} residues>'
 
@@ -82,10 +79,8 @@ class AsymmetricUnit:
                  chainIDmanager: ChainIDManager = ChainIDManager(),
                  psf: str | Path = None):
 
-        if not parsed:
-            return
+        self.parent_molecule: Molecule = None
 
-        self._parent_molecule = None
         missings = ResiduePlaceholderList([])
         ssbonds = SSBondList([])
         links = LinkList([])
@@ -93,8 +88,22 @@ class AsymmetricUnit:
         seqadvs = SeqadvList([])
         patches = PatchList([])
         grafts = GraftList([])
+    
+        # These will be built below
+        self.atoms = AtomList([])
+        self.residues = ResidueList([])
+        self.segments = SegmentList([])
+        self.objmanager = objmanager
+        self.chainIDmanager = chainIDmanager
+        self.psf = psf
+        self.ignored = Namespace()
+        self.pruned = Namespace()
 
-        if type(parsed) == PDBRecordDict: # PDB format
+        if not parsed:
+            # return an empty unconstructed asymmetric unit
+            return
+
+        if isinstance(parsed, PDBRecordDict): # PDB format
             # minimal parsed has ATOMS
             model_id = sourcespecs.get('model', None)
             atoms = AtomList.from_pdb(parsed, model_id=model_id)
@@ -113,14 +122,14 @@ class AsymmetricUnit:
             logger.debug(f'Parsed {len(atoms)} atoms, {len(missings)} missing residues, {len(ssbonds)} ssbonds, {len(seqadvs)} seqadvs, {len(ters)} ters')
             links = LinkList.from_pdb(parsed)
             links.remove_duplicates(fields=['chainID1', 'resid1', 'chainID2', 'resid2']) # some pdb files list links multiple times (2ins, i'm looking at you)
-        elif type(parsed) == DataContainer: # mmCIF format
+        elif isinstance(parsed, DataContainer): # mmCIF format
             atoms = AtomList.from_cif(parsed)
             seqadvs = SeqadvList.from_cif(parsed)
             missings = ResiduePlaceholderList.from_cif(parsed)
             ssbonds = SSBondList.from_cif(parsed)
             links = LinkList.from_cif(parsed)
         else:
-            raise TypeError(f'Unknown type for parsed: {type(parsed)}; expected dict or DataContainer')
+            raise TypeError(f'Cannot construct Asymmetric Unit from data of type {type(parsed)}; expected PDBRecordDict or DataContainer')
 
         if psf:
             self.psf = PSFContents(psf)
@@ -307,14 +316,6 @@ class AsymmetricUnit:
         self.psf = psf
         self.ignored = Namespace(residues=ignored_residues, links=ignored_links, ssbonds=ignored_ssbonds, seqadv=ignored_seqadvs)
         self.pruned = Namespace(ssbonds=pruned_ssbonds, residues=pruned_by_links['residues'], links=pruned_by_links['links'], segments=pruned_by_links['segments'])
-
-    @property
-    def parent_molecule(self):
-        """
-        The parent molecule of the asymmetric unit, if applicable.
-        This is used to link the asymmetric unit to a larger molecular structure.
-        """
-        return self._parent_molecule
     
     def set_parent_molecule(self, parent_molecule):
         """
@@ -325,9 +326,9 @@ class AsymmetricUnit:
         parent_molecule : Any
             The parent molecule to set for the asymmetric unit.
         """
-        if self._parent_molecule is not None:
+        if self.parent_molecule is not None:
             raise RuntimeError("Parent molecule is already set and cannot be changed.")
-        self._parent_molecule = parent_molecule
+        self.parent_molecule = parent_molecule
         for segment in self.segments:
             segment.set_parent_molecule(parent_molecule)
 
@@ -355,7 +356,7 @@ class AsymmetricUnit:
         links : LinkList
             The list of links in the asymmetric unit.
         """
-        for g in grafts:
+        for g in grafts.data:
             graft_chainID = g.chainID
             chain_residues = residues.filter(chainID=graft_chainID)
             # last_chain_residue_idx=residues.index(chain_residues[-1])
@@ -365,7 +366,7 @@ class AsymmetricUnit:
             g.source_seg = g.source_molecule.asymmetric_unit.segments.get(segname=g.source_chainID)
             # build the list of new residues this graft contributes; the index residue is not included!
             g.my_residues = ResidueList([])
-            for residue in g.source_seg.residues:
+            for residue in g.source_seg.residues.data:
                 if residue > f'{g.source_resid1}' and residue <= f'{g.source_resid2}':
                     residue.set_resid(next_available_resid)
                     residue.set_chainID(graft_chainID)
@@ -373,7 +374,7 @@ class AsymmetricUnit:
                     g.my_residues.append(residue)
             # only ingest links that are internal to this set of residues
             ingested_links = 0
-            for l in g_links:
+            for l in g_links.data:
                 if l.residue1 in g.my_residues and l.residue2 in g.my_residues:
                     links.append(l)
                     ingested_links += 1

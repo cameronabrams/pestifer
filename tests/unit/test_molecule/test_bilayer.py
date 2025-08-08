@@ -1,11 +1,16 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+
 import pytest
 import os
 import shutil
 import unittest
-from pestifer.molecule.bilayer import Bilayer,specstrings_builddict
-from pestifer.core.config import Config
-from pestifer.charmmff.charmmresidatabase import CHARMMFFResiDatabase
+
 from unittest.mock import patch
+
+from pestifer.core.artifacts import ArtifactDict
+from pestifer.core.config import Config
+from pestifer.charmmff.charmmffresidatabase import CHARMMFFResiDatabase
+from pestifer.molecule.bilayer import Bilayer, specstrings_builddict
 
 class TestBilayer(unittest.TestCase):
     @classmethod
@@ -13,8 +18,8 @@ class TestBilayer(unittest.TestCase):
         # Ensure the resource manager is initialized before any tests run
         cls.C = Config()
         cls.RM = cls.C.RM
-        cls.pdbrepository = cls.RM.pdbrepository
         cls.charmmff_content = cls.RM.charmmff_content
+        cls.pdbrepository = cls.charmmff_content.pdbrepository
         cls.resi_database = CHARMMFFResiDatabase(charmmff_content=cls.charmmff_content)
         cls.resi_database.add_stream('lipid')
         cls.resi_database.add_topology('toppar_all36_moreions.str', streamIDoverride='water_ions')
@@ -27,8 +32,8 @@ class TestBilayer(unittest.TestCase):
         with patch("pestifer.molecule.bilayer.logger.debug") as mock_logger:
             test_bilayer=Bilayer(composition_dict={})
             mock_logger.assert_called_once_with('Empty bilayer')
-            assert type(test_bilayer) == Bilayer
-            assert test_bilayer.statevars == {}
+            self.assertEqual(type(test_bilayer), Bilayer)
+            self.assertEqual(test_bilayer.artifacts, ArtifactDict())
 
     def test_bilayer_init_nonempty(self):
         if os.path.exists('__test_bilayer_init_nonempty'):
@@ -321,14 +326,14 @@ class TestBilayer(unittest.TestCase):
         self.RM.charmmff_content.clean_local_charmmff_files()
         os.chdir('..')
 
-    def test_bilayer_build_patch(self):
-        if os.path.exists('__test_bilayer_build_patch'):
-            shutil.rmtree('__test_bilayer_build_patch')
-        os.mkdir('__test_bilayer_build_patch')
-        os.chdir('__test_bilayer_build_patch')
-        cdict=specstrings_builddict(lipid_specstring='POPC:CHL1//POPE:CHL1',lipid_ratio_specstring='0.75:0.25//0.33:0.67',lipid_conformers_specstring='3:4//7:2')
-        test_bilayer=Bilayer(composition_dict=cdict,pdbrepository=self.pdbrepository,resi_database=self.resi_database)
-        test_bilayer.build_patch()
+    def test_bilayer_spec_out(self):
+        if os.path.exists('__test_bilayer_spec_out'):
+            shutil.rmtree('__test_bilayer_spec_out')
+        os.mkdir('__test_bilayer_spec_out')
+        os.chdir('__test_bilayer_spec_out')
+        cdict=specstrings_builddict(lipid_specstring='POPC:CHL1//POPE:CHL1', lipid_ratio_specstring='0.75:0.25//0.33:0.67', lipid_conformers_specstring='3:4//7:2')
+        test_bilayer = Bilayer(composition_dict=cdict, pdbrepository=self.pdbrepository, resi_database=self.resi_database)
+        test_bilayer.spec_out()
         assert test_bilayer.patch_ll_corner[0]==pytest.approx(0.0, rel=1e-2)
         assert test_bilayer.patch_ll_corner[1]==pytest.approx(0.0, rel=1e-2)
         assert test_bilayer.patch_ll_corner[2]==pytest.approx(0.0, rel=1e-2)

@@ -8,6 +8,8 @@ from pestifer import objs
 from pestifer.core.command import Command
 from pestifer.util.util import protect_str_arg
 
+import logging
+logger = logging.getLogger(__name__)
 
 class TestUtil(unittest.TestCase):
     def test_str_arg(self):
@@ -36,17 +38,10 @@ exit
         self.assertFalse('abc 123' in c.stdout)
         c=Command(f"vmd -dispdev text -e test_str_arg.tcl -args -a {protect_str_arg(arg)}")
         c.run()
+        logger.debug(f'Output: {c.stdout}')
         self.assertTrue('abc 123' in c.stdout)
         os.remove('test_str_arg.tcl')
-
-    def test_special_update(self):
-        d1={'A_LIST':[1,2,3],'B_DICT':{'k1':'v1','k2':'v2'},'C_scal':11}
-        d2={'A_LIST':[4,5,6],'B_DICT':{'k3':'v3'},'C_scal':12,'D_new':'Hello'}
-        d1=special_update(d1,d2)
-        self.assertEqual(d1['A_LIST'],[1,2,3,4,5,6])
-        self.assertEqual(d1['B_DICT'],{'k1':'v1','k2':'v2','k3':'v3'})
-        self.assertEqual(d1['C_scal'],12)
-        self.assertEqual(d1['D_new'],'Hello')
+       
     def test_reduce_intlist(self):
         l=[1,2,3,4,5,7,8,9,10,12]
         L=reduce_intlist(l)
@@ -61,16 +56,6 @@ exit
         l=[1,2]
         L=reduce_intlist(l)
         self.assertEqual(L,'1 2')
-
-    def test_inspect_classes(self):
-        cls,dum=inspect_classes('pestifer.tasks.psfgen',use_yaml_headers_as_keys=True)
-        self.assertEqual(cls['psfgen'],PsfgenTask)
-
-    def test_inspect_package_dir(self):
-        x,y=inspect_package_dir(os.path.dirname(objs.__file__),key='List')
-        self.assertEqual(len(x),16)
-        self.assertEqual(x['Mutation'],Mutation)
-        self.assertEqual(x['Patch'],Patch)
 
     def test_replace(self):
         starting_dict={

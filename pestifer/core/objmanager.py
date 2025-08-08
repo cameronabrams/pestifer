@@ -8,10 +8,14 @@ The :class:`ObjManager` inherits from :class:`collections.UserDict`, allowing it
 while providing additional functionality specific to managing molecular objects.
 It also includes methods for counting objects, retiring categories, and expelling objects based on specific criteria.
 """
+from __future__ import annotations
+
 import logging
 
 from collections import UserDict
 from pestifer.objs.resid import ResID
+
+from .baseobj import BaseObj, BaseObjList
 
 from ..objs.cfusion import Cfusion, CfusionList
 from ..objs.cleavagesite import CleavageSite, CleavageSiteList
@@ -46,10 +50,11 @@ Each category corresponds to a specific type of modification or information rela
 - ``generic``: Generic objects that do not fit into the other categories
 
 """
-class ObjManager(UserDict):
+class ObjManager(UserDict[str, UserDict[str, BaseObjList]]):
     """
     A class for initializing and collecting all objs into 
-    a single, organized object 
+    a single, organized object.  Outermost key is the object category
+    and the innermost is the object type name.
 
     Parameters
     ----------
@@ -95,11 +100,12 @@ class ObjManager(UserDict):
         input_specs : dict
             dictionary of obj shortcode specifications
         """
-        self.used = {}
+        self.data = {}
         super().__init__({})
+        self.used = {}
         self.ingest(input_specs)
 
-    def filter_copy(self, objnames=[], **fields):
+    def filter_copy(self, objnames: list[str] = [], **fields) -> ObjManager:
         """
         Returns a copy of the ObjManager with only the objects that match the given fields.
         
@@ -117,7 +123,7 @@ class ObjManager(UserDict):
         """
         result = ObjManager()
         # self.counts()
-        for objcat, catdict in self.items():
+        for objcat, catdict in self.data.items():
             for header, objlist in catdict.items():
                 if len(objnames) > 0 and header not in objnames:
                     continue
@@ -139,6 +145,8 @@ class ObjManager(UserDict):
         overwrite : bool
             if True, overwrite existing objects with the same header; if False, append to existing objects
         """
+        if input_obj is None:
+            return
         if type(input_obj) in [tup[0] for tup in self._obj_classes]:  # an obj class
             self._ingest_obj(input_obj)
         elif type(input_obj) in [tup[1] for tup in self._obj_classes]:  # a list class
@@ -176,20 +184,20 @@ class ObjManager(UserDict):
             self[objcat][header]=LCls()
         self[objcat][header].extend(a_objlist)
         return self[objcat][header]
-        
-    def _ingest_objdict(self,objdict,overwrite=False):
+
+    def _ingest_objdict(self, objdict: dict, overwrite=False):
         # does nothing if objdict is empty, but let's just be sure
-        if len(objdict)==0:
+        if len(objdict) == 0:
             return
-        for objYAMLname,objlist in objdict.items():
-            Cls=self._obj_classes_byYAML.get(objYAMLname,None)
-            LCls=self._objlist_classes_byYAML.get(objYAMLname,None)
-            objcat=Cls._objcat
-            header=Cls._yaml_header
+        for objYAMLname, objlist in objdict.items():
+            Cls = self._obj_classes_byYAML.get(objYAMLname, None)
+            LCls = self._objlist_classes_byYAML.get(objYAMLname, None)
+            objcat = Cls._objcat
+            header = Cls._yaml_header
             if not objcat in self:
-                self[objcat]={}
+                self[objcat] = {}
             if overwrite or not header in self[objcat]:
-                self[objcat][header]=LCls([])
+                self[objcat][header] = LCls([])
             for entry in objlist:
                 logger.debug(f'entry {entry.__class__.__name__} objcat {objcat} header {header}')
                 if not isinstance(entry, Cls):

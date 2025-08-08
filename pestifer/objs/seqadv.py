@@ -4,16 +4,23 @@
 of its database reference.  This is how authors report things like accidental mutations (conflicts),
 engineered mutations, and other differences.  These records are residue-specific.
 """
-from pydantic import Field
-from typing import ClassVar, Any
-import logging
-logger = logging.getLogger(__name__)
-from pidibble.pdbrecord import PDBRecord, PDBRecordDict
-from mmcif.api.PdbxContainers import DataContainer
+from __future__ import annotations
 
-from ..core.baseobj import BaseObj, BaseObjList
+import logging
+
+from mmcif.api.PdbxContainers import DataContainer
+from pydantic import Field
+from pidibble.pdbrecord import PDBRecord, PDBRecordDict
+from typing import ClassVar, TYPE_CHECKING
+
 from .resid import ResID
+from ..core.baseobj import BaseObj, BaseObjList
 from ..util.cifutil import CIFdict
+
+if TYPE_CHECKING:
+    from ..molecule.residue import Residue, ResidueList
+
+logger = logging.getLogger(__name__)
 
 class Seqadv(BaseObj):
     """
@@ -31,7 +38,7 @@ class Seqadv(BaseObj):
     - ``typekey``: A key indicating the type of sequence difference (e.g., ``conflict``, ``cloning``, ``expression tag``, ``engineered mutation``, ``variant``, ``insertion``, ``deletion``, ``microheterogeneity``, ``chromophore``, ``user``, ``_other_``).
     """
 
-    _optional_fields = {'database', 'dbAccession', 'dbRes', 'dbSeq', 'pdbx_ordinal', 'pdbx_auth_seq_num', 'residue'}
+    _optional_fields = {'database', 'dbAccession', 'dbRes', 'dbSeq', 'pdbx_ordinal', 'pdbx_auth_seq_num', 'residue', 'pdbx_stash'}
     """
     Optional attributes for a Seqadv object.
     These attributes may be present but are not required.
@@ -65,7 +72,8 @@ class Seqadv(BaseObj):
     typekey: str | None = Field(None, description="Type of sequence difference (e.g., 'conflict', 'cloning', 'expression tag', 'engineered mutation', 'variant', 'insertion', 'deletion', 'microheterogeneity', 'chromophore', 'user', '_other_')")
     pdbx_ordinal: int | None = Field(None, description="Ordinal number of the sequence difference in mmCIF files")
     pdbx_auth_seq_num: int | None = Field(None, description="Author-assigned sequence number in mmCIF files")
-    residue: Any | None = Field(None, description="Corresponding Residue object, if available")
+    residue: 'Residue' = Field(None, description="Corresponding Residue object, if available")
+    pdbx_stash: dict | None = Field(None, description="Stash for temporary storage of attributes")
 
     _yaml_header: ClassVar[str] = 'seqadvs'
     """
@@ -190,7 +198,7 @@ class Seqadv(BaseObj):
         """
         return f'SEQADV {self.idCode:3s} {self.resname:>3s} {self.chainID:1s} {self.resid.pdbresid:>5s} {self.database:>4s} {self.dbAccession:9s} {self.dbRes:3s} {self.dbSeq:>5d} {self.typekey:21s}          '
     
-    def assign_residue(self, Residues):
+    def assign_residue(self, Residues: 'ResidueList'):
         """
         Assigns the residue attribute of the seqadv to the corresponding Residue object
         This method searches through the provided list of Residues to find a match based on the
@@ -206,7 +214,7 @@ class Seqadv(BaseObj):
         assert self.residue == None
         if self.typekey != 'deletion':
             if hasattr(self, 'pdbx_auth_seq_num') and self.pdbx_auth_seq_num is not None:
-                logger.debug(f'Assigning residue for seqadv {self.chainID}:{self.resid} from mmCIF record')
+                logger.debug(f'Assigning residue for seqadv {self.chainID}:{self.resid}:{self.typekey} from mmCIF record')
                 # this was initialized from a mmCIF record
                 # these records are weird in that the 'strand' id
                 # is the author-assigned chain id but the sequence
@@ -214,10 +222,16 @@ class Seqadv(BaseObj):
                 self.assign_obj_to_attr('residue', Residues,
                                 auth_asym_id='chainID',
                                 auth_seq_id='pdbx_auth_seq_num')
-                if self.residue == []:
-                    self.residue = None
-                if self.residue != None:
+                if self.residue is not None:
+                    if self.pdbx_stash is None:
+                        self.pdbx_stash = {}
+                    self.pdbx_stash['chainID'] = self.chainID
+                    self.pdbx_stash['resid'] = self.resid
                     self.chainID = self.residue.chainID
+                    self.resid = self.residue.resid
+                    logger.debug(f'...seqadv {self.typekey} auth {self.chainID}:{self.resid} (orig. {self.pdbx_stash["chainID"]}:{self.pdbx_stash["resid"].resid}) assigned to residue {self.residue.resid} (pdb {self.residue.auth_asym_id}:{self.residue.auth_seq_id})')
+                else:
+                    logger.debug(f'...seqadv {self.typekey} auth {self.chainID}:{self.resid} cannot be resolved from current set of residues')
             else:  # normal PDB record
                 logger.debug(f'Looking to assign residue for seqadv {self.chainID}:{self.resid}')
                 self.assign_obj_to_attr('residue', Residues, chainID='chainID', resid='resid')
@@ -245,7 +259,7 @@ class SeqadvList(BaseObjList[Seqadv]):
         return f'<SeqadvList with {len(self)} seqadvs>'
 
     @classmethod
-    def from_pdb(cls, parsed: PDBRecordDict) -> "SeqadvList":
+    def from_pdb(cls, parsed: PDBRecordDict) -> SeqadvList:
         """
         Create a SeqadvList from a PDBRecordDict.
         """
@@ -254,7 +268,7 @@ class SeqadvList(BaseObjList[Seqadv]):
         return cls([Seqadv(x) for x in parsed[Seqadv._PDB_keyword]])
 
     @classmethod
-    def from_cif(cls, parsed: DataContainer) -> "SeqadvList":
+    def from_cif(cls, parsed: DataContainer) -> SeqadvList:
         """
         Create a SeqadvList from a DataContainer (mmCIF format).
         
@@ -272,8 +286,8 @@ class SeqadvList(BaseObjList[Seqadv]):
         if obj is not None:
             return cls([Seqadv(CIFdict(obj, i)) for i in range(len(obj))])
         return cls([])
-    
-    def assign_residues(self, Residues):
+
+    def assign_residues(self, Residues: 'ResidueList') -> SeqadvList:
         """
         Assigns residues to each Seqadv in the list from the provided Residues. This method iterates over each Seqadv in the list and calls its ``assign_residue`` method  with the provided Residues. After assigning residues, it creates a new SeqadvList containing
         the Seqadv objects that have no assigned residue (i.e., their ``residue`` attribute is None).
@@ -291,9 +305,9 @@ class SeqadvList(BaseObjList[Seqadv]):
 
         """
         delete_us = []
-        for s in self:
+        for s in self.data:
             s.assign_residue(Residues)
-        delete_us = self.__class__([s for s in self if s.residue is None])
+        delete_us = self.__class__([s for s in self.data if s.residue is None])
         for s in delete_us:
             self.remove(s)
         return delete_us
@@ -304,5 +318,5 @@ class SeqadvList(BaseObjList[Seqadv]):
         This method iterates over each Seqadv in the list and calls its ``update_from_residue`` method.
         It updates the chainID attribute of each Seqadv based on its residue attribute.
         """
-        for s in self:
+        for s in self.data:
             s.update_from_residue()

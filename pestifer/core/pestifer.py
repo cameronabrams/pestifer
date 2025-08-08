@@ -18,9 +18,9 @@ __pestifer_version__ = importlib.metadata.version("pestifer")
 from .config import Config, ResourceManager
 from ..charmmff.make_pdb_collection import make_pdb_collection
 from .controller import Controller
-from ..util.namdrestart import make_namd_restart
+from ..util.namdrestart import make_namd_restart_subcommand
 from ..util.stringthings import banner, _banner_message, _enhanced_banner_message, oxford
-from ..logparsers.logparser import subcommand_follow_namd_log
+from ..logparsers.namdlogparser import subcommand_follow_namd_log
 
 logger=logging.getLogger(__name__)
 
@@ -361,7 +361,7 @@ def cli():
         'run-example': run_example,
         'desolvate': desolvate,
         'mdplot':mdplot,
-        'make-namd-restart': make_namd_restart,
+        'make-namd-restart': make_namd_restart_subcommand,
         'show-resources': show_resources,
         'wheretcl': wheretcl,
         'make-pdb-collection': make_pdb_collection,

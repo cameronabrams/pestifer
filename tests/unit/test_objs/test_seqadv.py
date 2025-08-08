@@ -1,11 +1,19 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+
 import unittest
-from pestifer.objs.seqadv import Seqadv, SeqadvList
+
+from mmcif.api.PdbxContainers import DataContainer
+from pathlib import Path
+
 from pidibble.pdbparse import PDBParser
 from pidibble.pdbrecord import PDBRecordDict
-from pestifer.util.cifutil import CIFdict, CIFload
-from pathlib import Path
-from mmcif.api.PdbxContainers import DataContainer
+
+from pestifer.molecule.atom import AtomList
+from pestifer.molecule.residue import Residue, ResidueList
 from pestifer.objs.resid import ResID
+from pestifer.objs.seqadv import Seqadv, SeqadvList
+from pestifer.util.cifutil import CIFdict, CIFload
+
 class TestSeqadv(unittest.TestCase):
 
     def test_seqadv_creation(self):
@@ -53,3 +61,13 @@ class TestSeqadvList(unittest.TestCase):
         seqadv_list = SeqadvList.from_cif(cif_data)
         self.assertIsInstance(seqadv_list, SeqadvList)
         self.assertGreater(len(seqadv_list), 0)
+
+    def test_seqadv_list_assign_residues(self):
+        S = SeqadvList([Seqadv(idCode="1ABC", resname="ALA", chainID="A", resid=ResID(1), typekey="engineered mutation", dbRes="GLY"), 
+                        Seqadv(idCode="2DEF", resname="GLY", chainID="B", resid=ResID(2), typekey="conflict", dbRes="ALA")])
+        R = ResidueList([Residue(resname="ALA", chainID="A", resid=ResID(1), segtype='protein', atoms=AtomList([]), resolved=True),
+                         Residue(resname="GLY", chainID="B", resid=ResID(2), segtype='protein', atoms=AtomList([]), resolved=True)])
+        S.assign_residues(R)
+        self.assertEqual(len(S), 2)
+        self.assertEqual(S[0].residue, R[0])
+        self.assertEqual(S[1].residue, R[1])

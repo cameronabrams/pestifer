@@ -50,7 +50,7 @@ class BioAssemb:
 
     _index: ClassVar[int] = 1  # start at 1
 
-    _parent_molecule: object | None = None
+    _parent_molecule: 'Molecule' | None = None
 
     def __init__(self, *args, **kwargs):
         """
@@ -97,7 +97,7 @@ class BioAssemb:
         self._parent_molecule = None
         BioAssemb._index += 1
 
-    def set_parent_molecule(self, mol: Molecule):
+    def set_parent_molecule(self, mol: 'Molecule'):
         """
         Set the parent molecule for this BioAssemb instance.
         
@@ -109,7 +109,7 @@ class BioAssemb:
         self._parent_molecule = mol
     
     @property
-    def parent_molecule(self) -> Molecule | None:
+    def parent_molecule(self) -> 'Molecule':
         """
         Get the parent molecule of this BioAssemb instance.
         
@@ -131,7 +131,7 @@ class BioAssemb:
         CM : ChainIDManager
             The ChainIDManager instance used to manage chain ID mappings.
         """
-        for T in self.transforms:
+        for T in self.transforms.data:
             T.generate_chainIDmap(AU.segments._segnames, AU.segments._daughters, CM)
 
 class BioAssembList(UserList[BioAssemb]):
@@ -140,7 +140,7 @@ class BioAssembList(UserList[BioAssemb]):
     This class inherits from UserList and provides methods to manage
     collections of biological assemblies.
     """
-    _parent_molecule: Molecule | None = None
+    _parent_molecule: 'Molecule' = None
 
     def __init__(self, initial_data=None):
         """
@@ -162,7 +162,7 @@ class BioAssembList(UserList[BioAssemb]):
         super().__init__(initial_data or [])
         self._parent_molecule = None
 
-    def set_parent_molecule(self, mol: Molecule):
+    def set_parent_molecule(self, mol: 'Molecule'):
         """
         Set the parent molecule for this BioAssembList instance.
         
@@ -176,7 +176,7 @@ class BioAssembList(UserList[BioAssemb]):
             ba.set_parent_molecule(mol)
     
     @property
-    def parent_molecule(self) -> Molecule | None:
+    def parent_molecule(self) -> 'Molecule':
         """
         Get the parent molecule of this BioAssembList instance.
         

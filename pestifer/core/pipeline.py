@@ -2,9 +2,9 @@
 """
 Pipeline context for managing passing of information from one task to another via artifacts.
 """
+import logging
 
 from .artifacts import Artifact, FileArtifact, ArtifactDict, ArtifactList, FileArtifactList
-import logging
 
 logger = logging.getLogger(__name__)
 

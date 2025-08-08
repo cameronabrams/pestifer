@@ -13,7 +13,9 @@ import subprocess
 
 from glob import glob
 
-logger=logging.getLogger(__name__)
+from ..logparsers import LogParser
+
+logger = logging.getLogger(__name__)
 
 class Command:
     """ 
@@ -51,7 +53,7 @@ class Command:
         self.stdout = ''
         self.stderr = ''
 
-    def run(self, logfile=None, override=(), ignore_codes=[], quiet=True, logparser=None, log_stderr=False, **kwargs):
+    def run(self, logfile=None, override=(), ignore_codes=[], quiet=True, logparser: LogParser = None, log_stderr=False, **kwargs):
         """
         Runs this Command instance
         

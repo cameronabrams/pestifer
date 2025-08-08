@@ -13,11 +13,20 @@ Available tasks that inherit from :class:`BaseTask` include all those in the :mo
 
 """
 from __future__ import annotations
+
 import logging
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-from ..core.artifacts import TclScript, PDBFile, NAMDCoorFile, VMDLogFile, Artifact, ArtifactList, ArtifactFileList
+from ..core.artifacts import *
+from ..core.resourcemanager import ResourceManager
+from ..core.pipeline import PipelineContext
+
+from ..scripters import Filewriter, VMDScripter
+
+if TYPE_CHECKING:
+    from ..core.controller import Controller
 
 logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -40,7 +49,11 @@ class BaseTask(ABC):
 
     _yaml_header = 'task'  # used to identify the task in YAML files
 
-    _init_msg_options: tuple[str] = ('INITIATED','STARTED','BEGUN','SET IN MOTION','KICKED OFF','LIT','SPANKED ON THE BOTTOM', 'LAUNCHED', 'KICKED OUT OF THE NEST', 'COMMENCED', 'ACTIVATED', 'UNLEASHED', 'ENGAGED', 'SPAWNED', 'BIRTHED', 'BORN', 'KICKED INTO GEAR', 'KICKED INTO ACTION', 'KICKED INTO HIGH GEAR', 'KICKED INTO OVERDRIVE', 'KICKED INTO HYPERDRIVE', 'KICKED INTO LIGHTSPEED')
+    _init_msg_options: tuple[str] = ('INITIATED', 'STARTED', 'BEGUN', 'SET IN MOTION', 'KICKED OFF', 'LIT', \
+                                     'SPANKED ON THE BOTTOM', 'LAUNCHED', 'KICKED OUT OF THE NEST', 'COMMENCED', \
+                                     'ACTIVATED', 'UNLEASHED', 'ENGAGED', 'SPAWNED', 'BIRTHED', 'BORN', \
+                                     'KICKED INTO GEAR', 'KICKED INTO ACTION', 'KICKED INTO HIGH GEAR', \
+                                     'KICKED INTO OVERDRIVE', 'KICKED INTO HYPERDRIVE', 'KICKED INTO LIGHTSPEED')
     """
     A list of message options that are used to log the initiation of the task.
     """
@@ -49,15 +62,17 @@ class BaseTask(ABC):
         """
         Constructor for the BaseTask class.
         """
-        self.specs = specs if specs else {}
-        self.taskname = self.specs.get('taskname', f'{self._yaml_header}')
-        self.index = self.specs.get('index', None)
-        self.provisions = None
-        
-        self.basename = ''
-        self.subtaskcount = 0
-        self.result = 0
-        self.extra_message = ''
+        self.specs: dict = specs if specs else {}
+        self.taskname: str = self.specs.get('taskname', f'{self._yaml_header}')
+        self.index: int = self.specs.get('index', None)
+        self.provisions: dict = None
+
+        self.prior: BaseTask = None
+
+        self.basename: str = ''
+        self.subtaskcount: int = 0
+        self.result: int = 0
+        self.extra_message: str = ''
 
     def provision(self, packet: dict = None):
         """
@@ -76,11 +91,11 @@ class BaseTask(ABC):
             self.provisions.update(packet)
         
         # set some shortcuts for commonly used provisions
-        self.resource_manager = self.provisions.get('resource_manager', None)
-        self.scripters = self.provisions.get('scripters', {})
-        self.subcontroller = self.provisions.get('subcontroller', None)
-        self.controller_index = self.provisions.get('controller_index', 0)
-        self.pipeline = self.provisions.get('pipeline', None)
+        self.resource_manager: ResourceManager = self.provisions.get('resource_manager', None)
+        self.scripters: dict[Filewriter] = self.provisions.get('scripters', {})
+        self.subcontroller: 'Controller' = self.provisions.get('subcontroller', None)
+        self.controller_index: int = self.provisions.get('controller_index', 0)
+        self.pipeline: PipelineContext = self.provisions.get('pipeline', None)
 
     @property
     def is_provisioned(self) -> bool:
@@ -172,7 +187,7 @@ class BaseTask(ABC):
         Artifact
             The artifact associated with the specified key, or None if not found.
         """
-        artifact=self.pipeline.get_artifact(key)
+        artifact: Artifact | FileArtifact = self.pipeline.get_current_artifact(key)
         if artifact:
             return artifact.data
         else:
@@ -194,9 +209,9 @@ class BaseTask(ABC):
         Artifact
             The artifact associated with the specified key, or None if not found.
         """
-        artifact = self.pipeline.get_artifact(key)
+        artifact: Artifact | FileArtifact = self.pipeline.get_current_artifact(key)
         if artifact:
-            return artifact.path if hasattr(artifact,'path') else artifact.value
+            return artifact.path if hasattr(artifact,'path') else artifact.data
         else:
             logger.debug(f'Artifact {key} not found')
         return default
@@ -216,9 +231,9 @@ class BaseTask(ABC):
         Artifact
             The artifact associated with the specified key, or None if not found.
         """
-        return self.pipeline.get_artifact(key)
+        return self.pipeline.get_current_artifact(key)
 
-    def get_my_artifactfile_collection(self) -> ArtifactFileList:
+    def get_my_artifactfile_collection(self) -> FileArtifactList:
         """
         Get a collection of artifact files produced by the current task.
         This method retrieves all artifact files that have been registered in the context
@@ -234,7 +249,7 @@ class BaseTask(ABC):
         logger.debug(f'Found {len(all_my_artifacts)} artifacts, {len(filelist_artifacts)} file list artifacts, and {len(file_artifacts)} file artifacts for task {repr(self)}.')
         return file_artifacts
 
-    def register_current_artifact(self, artifact: Artifact | ArtifactList, key: str = None):
+    def register(self, artifact: Artifact | ArtifactList, key: str = None):
         """
         Set the current artifact with the specified key in the context.
 
@@ -318,7 +333,7 @@ class VMDTask(BaseTask, ABC):
         It uses the ``namdbin2pdb`` Tcl proc to convert the coordinate file to a PDB file.
         The resulting PDB file is named based on the task's basename.
         """
-        vm = self.get_scripter('vmd')
+        vm: VMDScripter = self.get_scripter('vmd')
         vm.newscript(f'{self.basename}-coor2pdb')
         psf = self.get_current_artifact_path('psf')
         if not psf:
@@ -329,9 +344,9 @@ class VMDTask(BaseTask, ABC):
         vm.addline(f'namdbin2pdb {psf.name} {coor.name} {self.basename}.pdb')
         vm.writescript()
         vm.runscript()
-        self.register_current_artifact(TclScript(f'{self.basename}-coor2pdb'))
-        self.register_current_artifact(VMDLogFile(f'{self.basename}-coor2pdb'))
-        self.register_current_artifact(PDBFile(self.basename))
+        self.register(TclScriptArtifact(f'{self.basename}-coor2pdb'))
+        self.register(VMDLogFileArtifact(f'{self.basename}-coor2pdb'))
+        self.register(PDBFileArtifact(self.basename))
 
     def pdb_to_coor(self):
         """
@@ -340,7 +355,7 @@ class VMDTask(BaseTask, ABC):
         It uses the ``pdb2namdbin`` Tcl proc to convert the PDB file to a coordinate file.
         The resulting coordinate file is named based on the task's basename.
         """
-        vm = self.scripters['vmd']
+        vm: VMDScripter = self.scripters['vmd']
         vm.newscript(f'{self.basename}-pdb2coor')
         pdb = self.get_current_artifact_path('pdb')
         if not pdb:
@@ -348,11 +363,11 @@ class VMDTask(BaseTask, ABC):
         vm.addline(f'pdb2namdbin {pdb.name} {self.basename}.coor')
         vm.writescript()
         vm.runscript()
-        self.register_current_artifact(TclScript(f'{self.basename}-pdb2coor'))
-        self.register_current_artifact(VMDLogFile(f'{self.basename}-pdb2coor'))
-        self.register_current_artifact(NAMDCoorFile(f'{self.basename}'))
+        self.register(TclScriptArtifact(f'{self.basename}-pdb2coor'))
+        self.register(VMDLogFileArtifact(f'{self.basename}-pdb2coor'))
+        self.register(NAMDCoorFileArtifact(f'{self.basename}'))
 
-    def make_constraint_pdb(self, specs, statekey='consref'):
+    def make_constraint_pdb(self, specs: dict, statekey: str = 'consref'):
         """
         Creates a PDB file with constraints based on the specifications provided.
         This method generates a VMD script that selects atoms based on the specifications and writes a PDB file with the specified constraints.
@@ -377,8 +392,8 @@ class VMDTask(BaseTask, ABC):
         statekey : str, optional
             The key under which the resulting PDB file will be stored in the state variables. Default is ``consref``.
         """
-        vm = self.get_scripter('vmd')
-        pdb = self.get_current_artifact_path('pdb')
+        vm: VMDScripter = self.get_scripter('vmd')
+        pdb: Path = self.get_current_artifact_path('pdb')
         # 'namd_global_config': self.config['user']['namd'],
         force_constant = specs.get('k', self.namd_global_config['harmonic']['spring_constant'])
         constrained_atoms_def = specs.get('atoms', 'all')
@@ -394,8 +409,8 @@ class VMDTask(BaseTask, ABC):
         vm.addline(f'$c set occupancy {force_constant}')
         vm.addline(f'$a writepdb {c_pdb}')
         vm.writescript()
-        self.register_current_artifact(TclScript(f'{self.basename}-make-constraint-pdb'))
+        self.register(TclScriptArtifact(f'{self.basename}-make-constraint-pdb'))
         vm.runscript()
-        self.register_current_artifact(VMDLogFile(f'{self.basename}-make-constraint-pdb'))
-        self.register_current_artifact(PDBFile(c_pdb), key=statekey)
+        self.register(VMDLogFileArtifact(f'{self.basename}-make-constraint-pdb'))
+        self.register(PDBFileArtifact(c_pdb), key=statekey)
 

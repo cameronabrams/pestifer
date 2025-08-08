@@ -18,9 +18,9 @@ import pandas as pd
 from .basetask import BaseTask
 from .md import MDTask
 from ..util.units import g_per_amu,A3_per_cm3
-from ..logparsers.logparser import NAMDLog
+from ..logparsers import NAMDLogParser
 from ..util.stringthings import to_latex_math
-from ..core.artifacts import PNGImageFile, CSVDataFile
+from ..core.artifacts import *
 
 logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
@@ -40,12 +40,12 @@ class MDPlotTask(BaseTask):
         self.reprocess_logs = self.specs.get('reprocess-logs', False)
         self.explicit_logs = self.specs.get('logs', [])
         self.running_sums = self.specs.get('running_sums', ['cpu_time', 'wall_time'])
-        self.dataframes = {}
-        
+        self.dataframes: dict[str, pd.DataFrame] = {}
+
         # task list
-        self.priortasklist = []
+        self.priortasklist: list[BaseTask] = []
         priortaskpointer = getattr(self, 'prior', None)
-        while priortaskpointer != None and isinstance(priortaskpointer, MDTask):
+        while priortaskpointer is not None and isinstance(priortaskpointer, MDTask):
             self.priortasklist.append(priortaskpointer)
             priortaskpointer = priortaskpointer.prior
         self.priortasklist = self.priortasklist[::-1]
@@ -55,33 +55,33 @@ class MDPlotTask(BaseTask):
             if self.explicit_logs:
                 for f in self.explicit_logs:
                     logger.debug(f'Extracting data from {f}')
-                    the_log = NAMDLog.from_file(f)
+                    the_log = NAMDLogParser.from_file(f)
                     csvs_generated = the_log.write_csv()
                     for key in csvs_generated:
-                        artifact = CSVDataFile(csvs_generated[key])
+                        artifact = CSVDataFileArtifact(csvs_generated[key])
                         if artifact.exists():
-                            self.register_current_artifact(artifact, key=f'{key}-csv')
+                            self.register(artifact, key=f'{key}-csv')
                         else:
                             raise FileNotFoundError(f'CSV file {csvs_generated[key]} does not exist.')
                     namdlog_objs.append(the_log)
             elif len(self.priortasklist) > 0:
                 for pt in self.priortasklist:
-                    namdlog_artifacts = pt.get_my_artifactfile_collection().filter_by_artifact_type(NAMDLog)
+                    namdlog_artifacts = pt.get_my_artifactfile_collection().filter_by_artifact_type(NAMDLogFileArtifact)
                     for na in namdlog_artifacts:
-                        the_log = NAMDLog.from_file(na.path.name)
+                        the_log = NAMDLogParser.from_file(na.path.name)
                         csvs_generated = the_log.write_csv()
                         for key in csvs_generated:
-                            artifact = CSVDataFile(csvs_generated[key])
+                            artifact = CSVDataFileArtifact(csvs_generated[key])
                             if artifact.exists():
-                                self.register_current_artifact(artifact, key=f'{key}-csv')
+                                self.register(artifact, key=f'{key}-csv')
         
         if self.priortasklist:
             for pt in self.priortasklist:
-                artifactfile_collection = pt.get_my_artifactfile_collection().filter_by_artifact_type(CSVDataFile)
+                artifactfile_collection = pt.get_my_artifactfile_collection().filter_by_artifact_type(CSVDataFileArtifact)
                 for pt_artifact in artifactfile_collection:
-                    self.register_current_artifact(pt_artifact, key=pt_artifact.key)
+                    self.register(pt_artifact, key=pt_artifact.key)
 
-        self.csvartifacts = self.get_my_artifactfile_collection().filter_by_artifact_type(CSVDataFile)
+        self.csvartifacts = self.get_my_artifactfile_collection().filter_by_artifact_type(CSVDataFileArtifact)
         if len(self.csvartifacts) == 0:
             raise ValueError('No CSV artifacts found.  Cannot extract time series data.')
         logger.debug(f'Found {len(self.csvartifacts)} CSV artifacts.')
@@ -124,128 +124,128 @@ class MDPlotTask(BaseTask):
             if not df.empty:
                 csvname=f'{self.basename}-{key}.csv'
                 df.to_csv(csvname,index=False)
-                self.register_current_artifact(CSVDataFile(f'{self.basename}-{key}'),key=f'{key}-csv')
+                self.register(CSVDataFileArtifact(f'{self.basename}-{key}'),key=f'{key}-csv')
 
         # build a dictionary of column headings:dataframe pairs
-        df_of_column={}
-        for key,df in self.dataframes.items():
+        df_of_column = {}
+        for key, df in self.dataframes.items():
             for col in df.columns[1:]: # ignore first column, which is usually 'TS' or 'step'
                 if col not in df_of_column:
-                    df_of_column[col]=df
+                    df_of_column[col] = df
                 else:
                     logger.debug(f'Column {col} found in multiple dataframes')
 
-        timeseries=self.specs.get('timeseries',[])
-        time_step_column_names=self.specs.get('time_step_column_names',['TS','step','steps'])
-        histograms=self.specs.get('histograms',[])
-        profiles=self.specs.get('profiles',[])
-        profiles_per_block=self.specs.get('profiles_per_block',100)
-        legend=self.specs.get('legend',False)
-        grid=self.specs.get('grid',False)
+        timeseries = self.specs.get('timeseries', [])
+        time_step_column_names = self.specs.get('time_step_column_names', ['TS', 'step', 'steps'])
+        histograms = self.specs.get('histograms', [])
+        profiles = self.specs.get('profiles', [])
+        profiles_per_block = self.specs.get('profiles_per_block', 100)
+        legend = self.specs.get('legend', False)
+        grid = self.specs.get('grid', False)
         if histograms:
             logger.debug(f'Histograms are not yet implemented in the mdplot task.')
         for trace in timeseries:
-            unitspecs=[]
-            figsize=self.specs.get('figsize',(9,6))
-            fig,ax=plt.subplots(1,1,figsize=figsize)
-            if type(trace)!=list:
-                tracelist=[trace]
+            unitspecs = []
+            figsize = self.specs.get('figsize', (9, 6))
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+            if type(trace) != list:
+                tracelist = [trace]
             else:
-                tracelist=trace
+                tracelist = trace
             for t_i in tracelist:
-                unitspec=self.specs.get('units',{}).get(t_i,'*')
-                if unitspec=='*':
-                    units=1.0
+                unitspec = self.specs.get('units', {}).get(t_i, '*')
+                if unitspec == '*':
+                    units = 1.0
                 else:
-                    if t_i=='density':
-                        if unitspec in ['g_per_cc','g/cc','g_per_cm3','g/cm3']:
-                            units=g_per_amu*A3_per_cm3
+                    if t_i == 'density':
+                        if unitspec in ['g_per_cc', 'g/cc', 'g_per_cm3', 'g/cm3']:
+                            units = g_per_amu * A3_per_cm3
                         else:
                             logger.debug(f'Unitspec "{unitspec}" not recognized.')
-                            units=1.0
+                            units = 1.0
                 unitspecs.append(unitspec)
-                key=t_i.upper()
-                df=df_of_column.get(key,None)
+                key = t_i.upper()
+                df = df_of_column.get(key, None)
                 if df is None:
                     # try the lowercase key
-                    key=t_i.lower()
-                    df=df_of_column.get(key,None)
+                    key = t_i.lower()
+                    df = df_of_column.get(key, None)
                 if df is None:
                     logger.debug(f'No data found for trace {t_i}. Skipping...')
                     continue
                 # determine the time step column name
-                time_step_column=None
+                time_step_column = None
                 for tcn in time_step_column_names:
                     if tcn in df.columns:
-                        time_step_column=tcn
+                        time_step_column = tcn
                         break
                 if time_step_column is None:
                     logger.debug(f'No time step column found for trace {t_i}. Skipping...')
                     continue
-                ax.plot(df[time_step_column],df[key]*units,label=key.title())
+                ax.plot(df[time_step_column], df[key] * units, label=key.title())
             ax.set_xlabel('time step')
-            axis_labels=self.specs.get('axis-labels',{})
-            ax.set_ylabel(', '.join([to_latex_math(axis_labels.get(n,n))+' ('+u+')' for n,u in zip(tracelist,unitspecs)]))
+            axis_labels = self.specs.get('axis-labels', {})
+            ax.set_ylabel(', '.join([to_latex_math(axis_labels.get(n, n)) + ' (' + u + ')' for n, u in zip(tracelist, unitspecs)]))
             if legend:
                 ax.legend()
             if grid:
                 ax.grid(True)
-            tracename='-'.join(tracelist)
-            plt.savefig(f'{self.basename}-{tracename}.png',bbox_inches='tight')
-            self.register_current_artifact(PNGImageFile(f'{self.basename}-{tracename}'),key=f'{tracename}-timeseries-plot')
+            tracename = '-'.join(tracelist)
+            plt.savefig(f'{self.basename}-{tracename}.png', bbox_inches='tight')
+            self.register(PNGImageFileArtifact(f'{self.basename}-{tracename}'), key=f'{tracename}-timeseries-plot')
             plt.clf()
         for profile in profiles:
-            if profile=='pressureprofile':
-                df=self.dataframes.get('pressureprofile',None)
+            if profile == 'pressureprofile':
+                df = self.dataframes.get('pressureprofile', None)
                 if df is None:
                     logger.debug(f'No pressure profile data found. Skipping...')
                     continue
                 if not df.empty:
-                    unitspec=self.specs.get('units',{}).get('pressure','bar')
-                    if unitspec=='*':
-                        units=1.0
+                    unitspec = self.specs.get('units', {}).get('pressure', 'bar')
+                    if unitspec == '*':
+                        units = 1.0
                     else:
-                        if unitspec in ['bar','atm']:
-                            units=1.0
-                        elif unitspec in ['Pa','pascal']:
-                            units=1e-5
-                        elif unitspec in ['kPa','kilopascal']:
-                            units=1e-2
-                        elif unitspec in ['MPa','megapascal']:
-                            units=1.0
-                        elif unitspec in ['GPa','gigapascal']:
-                            units=1e3
+                        if unitspec in ['bar', 'atm']:
+                            units = 1.0
+                        elif unitspec in ['Pa', 'pascal']:
+                            units = 1e-5
+                        elif unitspec in ['kPa', 'kilopascal']:
+                            units = 1e-2
+                        elif unitspec in ['MPa', 'megapascal']:
+                            units = 1.0
+                        elif unitspec in ['GPa', 'gigapascal']:
+                            units = 1e3
                         else:
                             logger.debug(f'Unitspec "{unitspec}" not recognized.')
-                            units=1.0
-                    figsize=self.specs.get('figsize',(9,6))
-                    fig,ax=plt.subplots(1,1,figsize=figsize)
+                            units = 1.0
+                    figsize = self.specs.get('figsize', (9, 6))
+                    fig, ax = plt.subplots(1, 1, figsize=figsize)
                     ax.set_xlabel(f'Pressure ({unitspec})')
                     ax.set_ylabel('z (Å)')
-                    nprofiles=df.shape[0]
-                    nblocks=nprofiles//profiles_per_block
-                    if nprofiles%profiles_per_block>0:
-                        nblocks+=1
-                    if nblocks==0:
-                        nblocks=1
+                    nprofiles = df.shape[0]
+                    nblocks = nprofiles // profiles_per_block
+                    if nprofiles % profiles_per_block > 0:
+                        nblocks += 1
+                    if nblocks == 0:
+                        nblocks = 1
                     logger.debug(f'Number of profiles: {nprofiles}, profiles per block: {profiles_per_block}, nblocks: {nblocks}')
                     for i in range(nblocks):
-                        start=i*profiles_per_block
-                        end=start+profiles_per_block
-                        if end>nprofiles:
-                            end=nprofiles
-                        if start<nprofiles:
-                            pprofile=df.iloc[start:end,1:]
+                        start = i * profiles_per_block
+                        end = start + profiles_per_block
+                        if end > nprofiles:
+                            end = nprofiles
+                        if start < nprofiles:
+                            pprofile = df.iloc[start:end, 1:]
                             # average all rows of pprofile
-                            pressure_profile_mean=pprofile.mean(axis=0)
-                            pressure_profile_stdev=pprofile.std(axis=0)
+                            pressure_profile_mean = pprofile.mean(axis=0)
+                            pressure_profile_stdev = pprofile.std(axis=0)
                             # make sure slab_index are integers of the column headings
-                            pprofile.columns=pprofile.columns.astype(int)
+                            pprofile.columns = pprofile.columns.astype(int)
                             # plot pressure and stdev along x-axis with shaded region and slab index on y axis in reverse numerical order
-                            ax.plot(pressure_profile_mean*units,pprofile.columns,label=f'TS {df.iloc[start,0]}-{df.iloc[end-1,0]}')
+                            ax.plot(pressure_profile_mean * units, pprofile.columns, label=f'TS {df.iloc[start, 0]}-{df.iloc[end - 1, 0]}')
                             ax.fill_betweenx(pprofile.columns, 
-                                             pressure_profile_mean*units-pressure_profile_stdev*units, 
-                                             pressure_profile_mean*units+pressure_profile_stdev*units, 
+                                             pressure_profile_mean * units - pressure_profile_stdev * units, 
+                                             pressure_profile_mean * units + pressure_profile_stdev * units, 
                                              alpha=0.2)
                     # # average all columns of pprofiles
                     # pprofiles['pressure']=pprofiles.mean(axis=1)
@@ -262,8 +262,8 @@ class MDPlotTask(BaseTask):
                         ax.legend()
                     if grid:
                         ax.grid(True)
-                    plt.savefig(f'{self.basename}-pressureprofile.png',bbox_inches='tight')
-                    self.register_current_artifact(PNGImageFile(f'{self.basename}-pressureprofile.png'),key='pressureprofile-plot')
+                    plt.savefig(f'{self.basename}-pressureprofile.png', bbox_inches='tight')
+                    self.register(PNGImageFileArtifact(f'{self.basename}-pressureprofile.png'), key='pressureprofile-plot')
                     plt.clf()
                 else:
                     logger.debug(f'No pressure profile data.  Skipping...')
@@ -271,6 +271,6 @@ class MDPlotTask(BaseTask):
             else:
                 logger.debug(f'Profile {profile} not recognized.  Skipping...')
                 continue
-        self.result=0
+        self.result = 0
         return self.result
     

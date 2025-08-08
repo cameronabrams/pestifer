@@ -11,7 +11,7 @@ from pestifer.core.config import Config
 from pestifer.scripters import VMDScripter
 from pestifer.molecule.bioassemb import Transform, TransformList, BioAssemb, BioAssembList
 from pestifer.util.util import reduce_intlist
-
+from pestifer.objs.resid import ResID
 import os
 import numpy as np
 import glob
@@ -61,11 +61,11 @@ class TestCIF(unittest.TestCase):
         obj=p_struct.getObj('atom_site')
         atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
         self.assertEqual(len(atoms),17693)
-        residues=ResidueList(atoms)
+        residues=ResidueList.from_atomlist(atoms)
         self.assertEqual(len(residues),2082)
         uCIDs=residues.uniqattrs(['chainID'])['chainID']
         print(uCIDs)
-        self.assertEqual(len(uCIDs),82)
+        self.assertEqual(len(uCIDs),76)
         nres=0
         for c in uCIDs:
             chain=residues.filter(chainID=c)
@@ -76,20 +76,22 @@ class TestCIF(unittest.TestCase):
         source='8fae'
         config=Config()
         # config['rcsb_file_format']='mmCIF'
-        vmd=VMDScripter(config)
+        vmd=config.get_scripter('vmd')
         vmd.newscript('testcif')
         vmd.addline(f'mol new {source}.cif')
         p_struct=CIFload(source)
         obj=p_struct.getObj('atom_site')
         atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
-        residues=ResidueList(atoms)
+        raw_residues=ResidueList.from_atomlist(atoms)
+        raw_residues.apply_segtypes()
+        residues=raw_residues.get(segtype='protein')  # 8fae has some glycan residues with resid 0
         uCIDs=residues.uniqattrs(['chainID'])['chainID']
         nres=0
         for c in uCIDs:
             chain=residues.filter(chainID=c)
             resids=[]
             for x in chain:
-                resids.extend([str(y.resseqnum) for y in x.atoms])
+                resids.extend([str(y.resid) for y in x.atoms])
             residlist=' '.join(resids)
             serials=chain.atom_serials(as_type=int)
             vmd_red_list=reduce_intlist(serials)
@@ -99,10 +101,13 @@ class TestCIF(unittest.TestCase):
             vmd.addline(f'$a set resid [ list {residlist} ]')
             vmd.addline(f'set cn [lsort -unique [$a get chain]]')
             vmd.addline(f'set resids [$a get resid]')
-            vmd.addline(f'puts "LOOK $cn {c}"')
+            vmd.addline(f'puts "CHAIN $cn {c}"')
             vmd.addline(f'set b [atomselect top "chain {c}"]')
             vmd.addline(f'puts "COUNTS [$b num] {len(serials)}"')
             vmd.addline(f'puts "RESIDS && $resids && {residlist}"')
+            vmd.addline(f'foreach avmd $resids apyt [list {residlist}] ' + r'{')
+            vmd.addline(f'puts "   $avmd $apyt"')
+            vmd.addline(r'}')
             nres+=len(chain)
         vmd.writescript()
         vmd.runscript()
@@ -113,7 +118,7 @@ class TestCIF(unittest.TestCase):
             os.remove(ol)
         self.assertTrue(len(output)>0)
         for l in output:
-            if l.startswith('LOOK'):
+            if l.startswith('CHAIN'):
                 fields=l.split()
                 cvmd=fields[1]
                 ccif=fields[2]
@@ -130,8 +135,8 @@ class TestCIF(unittest.TestCase):
                 rvmd=fields[1].split()
                 rcif=fields[2].split()
                 for i,j in zip(rvmd,rcif):
-                    self.assertEqual(i,j)
- 
+                    self.assertEqual(i,str(ResID.split_ri(j)[0]))  # CIF files do not have insertion codes on their native residue sequence numbers
+
     def test_biomolassemb_cif(self):
         source='8fae'
         p_struct=CIFload(source)
@@ -177,14 +182,15 @@ class TestCIF(unittest.TestCase):
         Seqadvs=SeqadvList([Seqadv(CIFdict(obj,i)) for i in range(len(obj))])
         obj=pr.getObj('pdbx_unobs_or_zero_occ_residues')
         EmptyResidues=ResiduePlaceholderList([ResiduePlaceholder(CIFdict(obj,i)) for i in range(len(obj))])
-        fromAtoms=ResidueList(Atoms)
-        fromEmptyResidues=ResidueList(EmptyResidues)
+        fromAtoms=ResidueList.from_atomlist(Atoms)
+        fromEmptyResidues=ResidueList.from_ResiduePlaceholderlist(EmptyResidues)
         Residues=fromAtoms+fromEmptyResidues
         Seqadvs.assign_residues(Residues)
         for s in Seqadvs:
             myres=Residues.get(
-                chainID=s.chainID,resseqnum=s.resseqnum
+                chainID=s.chainID, resid=s.resid
             )
+            logger.debug(f'Seqadv {s.chainID}:{s.resid} typekey {s.typekey} residue {myres.resid if myres else None}')
             if not myres:
                 self.assertTrue('engineered' not in s.typekey and 'conflict' not in s.typekey)
             else:

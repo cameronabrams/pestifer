@@ -4,12 +4,18 @@ A patch is a modification to a residue or residues defined in the CHARMM force f
 It is used to apply specific modifications to residues in a molecular structure, such as adding or removing
 functional groups or modifying the residue's properties.
 """
+from __future__ import annotations
+
 import logging
-logger = logging.getLogger(__name__)
-from typing import ClassVar, Optional, Any, List
+from typing import ClassVar, TYPE_CHECKING
 from pydantic import Field
 from ..core.baseobj import BaseObj, BaseObjList
 from .resid import ResID
+
+if TYPE_CHECKING:
+    from ..molecule.residue import Residue, ResidueList
+
+logger = logging.getLogger(__name__)
 
 class Patch(BaseObj):
     """
@@ -35,7 +41,7 @@ class Patch(BaseObj):
     patchname: str = Field(..., description="Name of the patch as defined in the CHARMM force field")
     chainID: str = Field(..., description="Chain identifier of the residue to be patched")
     resid: ResID = Field(..., description="Residue ID of the residue to be patched")
-    residue: Any | None = Field(None, description="Residue object to be patched")
+    residue: "Residue" = Field(None, description="Residue object to be patched")
     use_in_segment: str | None = Field(None, description="Specifies whether the patch is applied to the first or last residue in a segment, and therefore should be declared inside a psfgen `segment`")
     use_after_regenerate: bool | None = Field(False, description="If True, the patch is applied after the `regenerate angles dihedrals` psfgen command")
 
@@ -71,7 +77,6 @@ class Patch(BaseObj):
             'patchname': parts[0],
             'chainID': parts[1],
             'resid': resid,
-            'residue': None,
             'use_in_segment': use_in_segment,
             'use_after_regenerate': use_after_regenerate
         }
@@ -86,19 +91,19 @@ class Patch(BaseObj):
             return Patch._from_shortcode(args[0])
         return super()._adapt(*args, **kwargs)
 
-    _in_segment_Npatches: ClassVar[List[str]] = ['NTER', 'GLYP', 'PROP', 'ACE', 'ACED', 'ACP', 'ACPD', 'NNEU', 'NGNE']
+    _in_segment_Npatches: ClassVar[list[str]] = ['NTER', 'GLYP', 'PROP', 'ACE', 'ACED', 'ACP', 'ACPD', 'NNEU', 'NGNE']
     """
     List of patch names that are applied to the first residue in a segment.
     These patches are typically used for N-terminal modifications.
     """
 
-    _in_segment_Cpatches: ClassVar[List[str]] = ['CTER', 'CNEU', 'PCTE', 'CT1', 'CT2', 'CT3']
+    _in_segment_Cpatches: ClassVar[list[str]] = ['CTER', 'CNEU', 'PCTE', 'CT1', 'CT2', 'CT3']
     """
     List of patch names that are applied to the last residue in a segment.
     These patches are typically used for C-terminal modifications.
     """
 
-    _after_regenerate_patches: ClassVar[List[str]] = ['PHEM', 'FHEM']
+    _after_regenerate_patches: ClassVar[list[str]] = ['PHEM', 'FHEM']
     """
     List of patch names that should be applied after the ``regenerate angles dihedrals`` psfgen command.
     """
@@ -120,6 +125,12 @@ class Patch(BaseObj):
         """
         return f'patch {self.patchname} {self.chainID}:{self.resid.resid}'
 
+    def assign_residue(self, residue: 'Residue'):
+        """
+        Assigns a Residue object to the patch.
+        """
+        self.residue = residue
+
 class PatchList(BaseObjList[Patch]):
     """
     A class for handling lists of Patch objects
@@ -138,7 +149,7 @@ class PatchList(BaseObjList[Patch]):
         """
         return f'<PatchList with {len(self)} patches>'
 
-    def assign_residues(self, Residues):
+    def assign_residues(self, Residues: "ResidueList") -> PatchList:
         """
         Assigns a list of Residue objects to the patch residues.
         
@@ -153,5 +164,5 @@ class PatchList(BaseObjList[Patch]):
             A new PatchList object containing the residues that were not assigned because no applicable residues were found
         """
         logger.debug(f'Patches: Assigning residues from list of {len(Residues)} residues')
-        ignored=self.assign_objs_to_attr('residue', Residues, resid='resid', chainID='chainID')
+        ignored = self.assign_objs_to_attr('residue', Residues, resid='resid', chainID='chainID')
         return self.__class__(ignored)
