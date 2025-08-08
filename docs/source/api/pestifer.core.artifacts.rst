@@ -1,7 +1,7 @@
-pestifer.core.scripters module
+pestifer.core.artifacts module
 ==============================
 
-.. automodule:: pestifer.core.scripters
+.. automodule:: pestifer.core.artifacts
    :members:
    :show-inheritance:
    :undoc-members:

@@ -9,15 +9,16 @@ Mutations can be inferred directly from coordinate-file metadata or supplied by 
 user.
 """
 import logging
-logger=logging.getLogger(__name__)
 
-from typing import ClassVar
 from pydantic import Field
-from .seqadv import Seqadv
+from typing import ClassVar
 
-from ..core.baseobj import BaseObj, BaseObjList
-# from ..core.labels import Labels
 from .resid import ResID
+from .seqadv import Seqadv
+from ..core.baseobj import BaseObj, BaseObjList
+from ..core.labels import Labels
+
+logger = logging.getLogger(__name__)
 
 class Mutation(BaseObj):
     """
@@ -51,7 +52,7 @@ class Mutation(BaseObj):
     typekey: str = Field(..., description="Key indicating the type of mutation (e.g., 'user', 'author', 'mmCIF')")
     pdbx_auth_seq_num: int | None = Field(None, description="PDBx author sequence number, used in mmCIF files")
 
-    _yaml_header: ClassVar[str] =   'mutations'
+    _yaml_header: ClassVar[str] = 'mutations'
     """
     YAML header for Mutation objects.
     This header is used to identify Mutation objects in YAML files.
@@ -90,10 +91,36 @@ class Mutation(BaseObj):
         """
         s1 = raw.split(':')
         chainID = s1[0]
-        s2 = s1[1].split(',')
-        origresname = s2[0]
-        resid = ResID(s2[1])
-        newresname = s2[2]
+        mut_spec = s1[1]
+        # possible formats for mut_spec
+        #
+        # 1. nnn,rrr,mmm
+        # 2. nnnrrrmmm
+        # 3. n,rrr,m
+        # 4. nrrrm
+        #
+        # nnn, mmm are three-letter residue codes
+        # rrr is a resid with possible insertion code
+        # n, m are one-letter residue codes
+        if ',' not in mut_spec:
+            # we have a comma-less string
+            # if the string is using one-letter resid codes, then the second
+            # character will be a digit
+            if mut_spec[1].isdigit():
+                idx = 1
+            else:
+                idx = 3
+                # assume the first letter is a residue code
+            origresname = Labels.res_123.get(mut_spec[:idx],mut_spec[:idx])
+            # assume the last letter is a residue code
+            newresname = Labels.res_123.get(mut_spec[-idx:],mut_spec[-idx:])
+            # assume letters/numbers in the middle are a resid in string form
+            resid = ResID(mut_spec[idx:-idx])
+        else:
+            s2 = s1[1].split(',')
+            origresname = Labels.res_123.get(s2[0], s2[0])
+            resid = ResID(s2[1])
+            newresname = Labels.res_123.get(s2[2], s2[2])
         typekey = 'user'  # Default type key
         return dict(
             chainID=chainID,

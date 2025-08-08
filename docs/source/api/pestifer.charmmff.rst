@@ -13,6 +13,7 @@ Submodules
    :maxdepth: 4
 
    pestifer.charmmff.charmmffcontent
-   pestifer.charmmff.charmmresidatabase
-   pestifer.charmmff.charmmtop
+   pestifer.charmmff.charmmffresidatabase
+   pestifer.charmmff.charmmfftop
    pestifer.charmmff.make_pdb_collection
+   pestifer.charmmff.pdbrepository

@@ -12,9 +12,12 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   pestifer.tasks.basetask
    pestifer.tasks.cleave
+   pestifer.tasks.continuation
    pestifer.tasks.desolvate
    pestifer.tasks.domainswap
+   pestifer.tasks.fetch
    pestifer.tasks.ligate
    pestifer.tasks.make_membrane_system
    pestifer.tasks.manipulate
@@ -22,7 +25,7 @@ Submodules
    pestifer.tasks.mdplot
    pestifer.tasks.pdb2pqr
    pestifer.tasks.psfgen
-   pestifer.tasks.restart
    pestifer.tasks.ringcheck
    pestifer.tasks.solvate
+   pestifer.tasks.taskcollections
    pestifer.tasks.terminate

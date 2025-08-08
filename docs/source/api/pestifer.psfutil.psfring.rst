@@ -1,7 +1,7 @@
-pestifer.util.logparsers module
+pestifer.psfutil.psfring module
 ===============================
 
-.. automodule:: pestifer.util.logparsers
+.. automodule:: pestifer.psfutil.psfring
    :members:
    :show-inheritance:
    :undoc-members:

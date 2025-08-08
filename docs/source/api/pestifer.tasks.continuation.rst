@@ -1,7 +1,7 @@
-pestifer.charmmff.charmmtop module
+pestifer.tasks.continuation module
 ==================================
 
-.. automodule:: pestifer.charmmff.charmmtop
+.. automodule:: pestifer.tasks.continuation
    :members:
    :show-inheritance:
    :undoc-members:

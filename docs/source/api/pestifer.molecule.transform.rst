@@ -1,7 +1,7 @@
-pestifer.core.pdbrepository module
+pestifer.molecule.transform module
 ==================================
 
-.. automodule:: pestifer.core.pdbrepository
+.. automodule:: pestifer.molecule.transform
    :members:
    :show-inheritance:
    :undoc-members:

@@ -1,6 +1,7 @@
 import unittest
 from pestifer.objs.mutation import Mutation, MutationList
 from pidibble.pdbparse import PDBParser
+from pestifer.molecule.residue import Residue
 from pestifer.objs.seqadv import Seqadv
 from pestifer.objs.resid import ResID
 
@@ -34,6 +35,30 @@ class TestMutation(unittest.TestCase):
         self.assertEqual(mutation.newresname, "GLY")
         self.assertEqual(mutation.typekey, "user")
         self.assertEqual(mutation.pdbx_auth_seq_num, None)
+
+        mutation2 = Mutation("C:ALA10GLY")
+        self.assertEqual(mutation2.chainID, "C")
+        self.assertEqual(mutation2.origresname, "ALA")
+        self.assertEqual(mutation2.resid, ResID(10))
+        self.assertEqual(mutation2.newresname, "GLY")
+        self.assertEqual(mutation2.typekey, "user")
+        self.assertEqual(mutation2.pdbx_auth_seq_num, None)
+
+        mutation3 = Mutation("C:A,10,G")
+        self.assertEqual(mutation3.chainID, "C")
+        self.assertEqual(mutation3.origresname, "ALA")
+        self.assertEqual(mutation3.resid, ResID(10))
+        self.assertEqual(mutation3.newresname, "GLY")
+        self.assertEqual(mutation3.typekey, "user")
+        self.assertEqual(mutation3.pdbx_auth_seq_num, None)
+
+        mutation4 = Mutation("C:A10G")
+        self.assertEqual(mutation4.chainID, "C")
+        self.assertEqual(mutation4.origresname, "ALA")
+        self.assertEqual(mutation4.resid, ResID(10))
+        self.assertEqual(mutation4.newresname, "GLY")
+        self.assertEqual(mutation4.typekey, "user")
+        self.assertEqual(mutation4.pdbx_auth_seq_num, None)
 
     def test_mutation_from_seqadv(self):
         p=PDBParser(filepath='data/4zmj.pdb').parse()

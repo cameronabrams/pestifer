@@ -1,7 +1,7 @@
-pestifer.charmmff.charmmresidatabase module
+pestifer.logparsers.pdb2pqrlogparser module
 ===========================================
 
-.. automodule:: pestifer.charmmff.charmmresidatabase
+.. automodule:: pestifer.logparsers.pdb2pqrlogparser
    :members:
    :show-inheritance:
    :undoc-members:

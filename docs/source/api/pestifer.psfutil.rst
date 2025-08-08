@@ -17,4 +17,6 @@ Submodules
    pestifer.psfutil.psfbond
    pestifer.psfutil.psfcontents
    pestifer.psfutil.psfdihedral
+   pestifer.psfutil.psfpatch
+   pestifer.psfutil.psfring
    pestifer.psfutil.psftopoelement

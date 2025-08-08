@@ -19,5 +19,6 @@ Submodules
    pestifer.molecule.chainidmanager
    pestifer.molecule.molecule
    pestifer.molecule.residue
-   pestifer.molecule.ring
    pestifer.molecule.segment
+   pestifer.molecule.stateinterval
+   pestifer.molecule.transform

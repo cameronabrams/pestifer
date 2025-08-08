@@ -14,10 +14,12 @@ Subpackages
 
    pestifer.charmmff
    pestifer.core
+   pestifer.logparsers
    pestifer.molecule
    pestifer.objs
    pestifer.psfutil
    pestifer.resources
+   pestifer.scripters
    pestifer.sphinxext
    pestifer.tasks
    pestifer.util

@@ -1,7 +1,7 @@
-pestifer.core.stringthings module
+pestifer.util.stringthings module
 =================================
 
-.. automodule:: pestifer.core.stringthings
+.. automodule:: pestifer.util.stringthings
    :members:
    :show-inheritance:
    :undoc-members:

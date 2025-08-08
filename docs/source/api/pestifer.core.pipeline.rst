@@ -1,7 +1,7 @@
-pestifer.core.basetask module
+pestifer.core.pipeline module
 =============================
 
-.. automodule:: pestifer.core.basetask
+.. automodule:: pestifer.core.pipeline
    :members:
    :show-inheritance:
    :undoc-members:

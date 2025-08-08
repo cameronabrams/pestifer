@@ -1,7 +1,7 @@
-pestifer.util.namdcolvars module
+pestifer.psfutil.psfpatch module
 ================================
 
-.. automodule:: pestifer.util.namdcolvars
+.. automodule:: pestifer.psfutil.psfpatch
    :members:
    :show-inheritance:
    :undoc-members:

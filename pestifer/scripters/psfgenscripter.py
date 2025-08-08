@@ -19,7 +19,7 @@ from ..molecule.transform import Transform
 from ..objs.cfusion import Cfusion, CfusionList
 from ..objs.graft import Graft, GraftList
 from ..objs.link import Link, LinkList
-from ..objs.mutation import MutationList
+from ..objs.mutation import Mutation, MutationList
 from ..objs.patch import Patch, PatchList
 from ..objs.resid import ResID
 from ..objs.ssbond import SSBond, SSBondList
@@ -578,6 +578,9 @@ class PsfgenScripter(VMDScripter):
             The Cfusion object representing the fusion segment to be finalized.
         """
         self.addline(f'coordpdb {C.segfile} {C.chainID}')
+
+    def write_mutation(self, mutation: Mutation):
+        self.addline(f'mutate {mutation.resid.resid} {mutation.newresname}', indents=1)
 
     def write_ssbonds(self, ssbonds: SSBondList, transform: Transform = None):
         for S in ssbonds:

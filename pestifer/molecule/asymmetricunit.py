@@ -296,9 +296,12 @@ class AsymmetricUnit:
         # Now any explicitly deleted ssbonds
         topomods = objmanager.get('topol', {})
         if 'ssbondsdelete' in topomods:
+            logger.debug(f'SSBonds to delete: {topomods["ssbondsdelete"]} ')
             for s in ssbonds:
+                logger.debug(f'Examining ssbond {s}')
                 if topomods['ssbondsdelete'].is_deleted(s):
-                    ignored_ssbonds.append(ssbonds.remove(s))
+                    logger.debug(f'Deleting ssbond {s}')
+                    ignored_ssbonds.append(ssbonds.remove_and_return(s))
 
         # finalize the objmanager
         ssbonds = objmanager.ingest(ssbonds, overwrite=True)

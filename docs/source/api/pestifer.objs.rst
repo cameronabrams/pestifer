@@ -22,9 +22,10 @@ Submodules
    pestifer.objs.mutation
    pestifer.objs.orient
    pestifer.objs.patch
+   pestifer.objs.resid
+   pestifer.objs.rottrans
    pestifer.objs.seqadv
    pestifer.objs.ssbond
    pestifer.objs.ssbonddelete
    pestifer.objs.substitution
    pestifer.objs.ter
-   pestifer.objs.transrot

@@ -263,7 +263,7 @@ class LabelMappers:
                 macro_content = ' '.join(resnames)
                 fp.write(f"update_atomselect_macro {segtype} \"resname {macro_content}\" 0\n")
 
-Labels=LabelMappers()
+Labels = LabelMappers()
 """ 
 Global instance of :class:`LabelMappers` class to access segment types and residue names.
 This instance provides access to the segment types and residue names used in CHARMM and PDB files.
