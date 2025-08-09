@@ -13,6 +13,10 @@ The documentation of the pdb2pqr command is available at `readthedocs <https://p
 import logging
 import os
 
+import pandas as pd
+
+from pathlib import Path
+
 from pidibble.pdbparse import PDBParser
 
 from .psfgen import PsfgenTask
@@ -26,6 +30,7 @@ from ..molecule.chainidmanager import ChainIDManager
 from ..molecule.molecule import Molecule
 from ..objs.patch import Patch
 from ..objs.mutation import Mutation
+from ..scripters import VMDScripter
 from ..util.progress import PDB2PQRProgress
 
 logger=logging.getLogger(__name__)
@@ -75,9 +80,9 @@ class PDB2PQRTask(PsfgenTask):
             The result of the VMD script execution, typically 0 on success.
         """
         # writes a hydrogen-free PDB file with histidine resnames all reverted to HIS and water resnames to HOH
-        psf=self.get_current_artifact_path('psf')
-        pdb=self.get_current_artifact_path('pdb')
-        vt=self.pipeline.get_scripter('vmd')
+        psf: Path = self.get_current_artifact_path('psf')
+        pdb: Path = self.get_current_artifact_path('pdb')
+        vt: VMDScripter = self.get_scripter('vmd')
         vt.newscript(self.basename)
         vt.addline(f'mol new {psf.name}')
         vt.addline(f'mol addfile {pdb.name} waitfor all')
@@ -91,12 +96,12 @@ class PDB2PQRTask(PsfgenTask):
         vt.addline(f'$a writepdb {self.basename}_pprep.pdb')
         vt.writescript()
         self.register(VMDScriptArtifact(self.basename))
-        result=vt.runscript()
+        result = vt.runscript()
         self.register(PDBFileArtifact(f'{self.basename}_pprep'))
         self.register(VMDLogFileArtifact(self.basename))
         return result
     
-    def run_pdb2pqr(self,pH=7.0):
+    def run_pdb2pqr(self, pH=7.0):
         """
         Run PDB2PQR on the prepared PDB file to generate a PQR file
         with titration states. This method constructs a command to run PDB2PQR with the specified parameters,
@@ -110,38 +115,38 @@ class PDB2PQRTask(PsfgenTask):
             The pH value to be used for titration state calculations. Default is 7.
         """
         # runs PDB2PQR on the prepped PDB file, generating a PQR file with titration states, and parses the results
-        c=Command(f'pdb2pqr --ff CHARMM --ffout CHARMM --with-ph {pH} --titration-state-method propka --pdb-output {self.basename}_pqr.pdb {self.basename}_pprep.pdb {self.basename}.pqr')
-        self.log_parser=PDB2PQRLogParser(basename=f'{self.basename}_run')
-        PS=PDB2PQRProgress()
+        c = Command(f'pdb2pqr --ff CHARMM --ffout CHARMM --with-ph {pH} --titration-state-method propka --pdb-output {self.basename}_pqr.pdb {self.basename}_pprep.pdb {self.basename}.pqr')
+        self.log_parser = PDB2PQRLogParser(basename=f'{self.basename}_run')
+        PS = PDB2PQRProgress()
         self.log_parser.enable_progress_bar(PS)
 
-        c.run(logfile=f'{self.basename}_run.log',log_stderr=True,logparser=self.log_parser)
-        self.log_parser.metadata['pka_table']['protonated'] = self.log_parser.metadata['pka_table']['respka']>pH
-        self.register(LogFileArtifact(path=f'{self.basename}_run'))
+        c.run(logfile=f'{self.basename}_run.log', log_stderr=True, logparser=self.log_parser)
+        self.log_parser.metadata['pka_table']['protonated'] = self.log_parser.metadata['pka_table']['respka'] > pH
+        self.register(LogFileArtifact(f'{self.basename}_run'))
         self.register(PDBFileArtifact(f'{self.basename}_pqr'))
         self.register(PQRFileArtifact(f'{self.basename}'))
         logger.debug(f'PDB2PQR run completed; pka_table:\n{self.log_parser.metadata['pka_table'].to_string()}')
 
-        self.log_parser.metadata['histidines']={k:[] for k in ['HSD','HSE','HSP']}
+        self.log_parser.metadata['histidines'] = {k:[] for k in ['HSD', 'HSE', 'HSP']}
         if os.path.exists(f'{self.basename}_pqr.pdb'):
-            pqr=PDBParser(PDBcode=f'{self.basename}_pqr').parse().parsed
-            AL=AtomList([Atom(x) for x in pqr['ATOM']])
-            self.prot_deprot_dict={}
-            for a in AL:
-                if a.resname in ['HSD','HSE','HSP']:
+            pqr = PDBParser(PDBcode=f'{self.basename}_pqr').parse().parsed
+            AL = AtomList([Atom(x) for x in pqr['ATOM']])
+            self.prot_deprot_dict = {}
+            for a in AL.data:
+                if a.resname in ['HSD', 'HSE', 'HSP']:
                     if not a.resid.resid in self.log_parser.metadata['histidines'][a.resname]:
-                        self.log_parser.metadata['histidines'][a.resname].append((a.chainID,a.resseqnum))
+                        self.log_parser.metadata['histidines'][a.resname].append((a.chainID, a.resid))
 
         logger.debug(f'Protonated/deprotonated histidines: {self.log_parser.metadata["histidines"]}')
 
-        pka_table=self.log_parser.metadata['pka_table']
-        allhismods=self.log_parser.metadata['histidines']
+        pka_table: pd.DataFrame = self.log_parser.metadata['pka_table']
+        allhismods = self.log_parser.metadata['histidines']
         # replace the resname field in the pka_table with the histidine resnames
-        for hisname in ['HSD','HSE','HSP']:
+        for hisname in ['HSD', 'HSE', 'HSP']:
             if hisname in allhismods:
                 for chain_resnum in allhismods[hisname]:
-                    chainID,resnum=chain_resnum
-                    pka_table.loc[(pka_table['resnum']==resnum) & (pka_table['reschain']==chainID),'resname']=hisname
+                    chainID, resnum = chain_resnum
+                    pka_table.loc[(pka_table['resnum'] == resnum) & (pka_table['reschain'] == chainID), 'resname'] = hisname
 
     def prep_mods(self):
         """
@@ -151,51 +156,51 @@ class PDB2PQRTask(PsfgenTask):
         The patches are created based on the protonation state of the residues and their resnames.
         The patches are stored in the `objmanager` for later use.
         """
-        self.objmanager=ObjManager()
+        self.objmanager = ObjManager()
         # columns
         # resname  resnum reschain  respka  resmodelpka resatomtype  protonated
-        for i,row in self.log_parser.metadata['pka_table'].iterrows():
-            patchname=None
-            mut_resname=None
-            if row['resname'] in ['HSE','HSP']: # HSD is the default histidine!
+        for i, row in self.log_parser.metadata['pka_table'].iterrows():
+            patchname = None
+            mut_resname = None
+            if row['resname'] in ['HSE', 'HSP']: # HSD is the default histidine!
                 # use a mutation to change HSD to HSE or HSP
-                if row['resname']=='HSE':
-                    mut_resname='HSE'
-                elif row['resname']=='HSP':
-                    mut_resname='HSP'
-            elif row['resname'] in ['ASP','GLU']: # Acidic residues
+                if row['resname'] == 'HSE':
+                    mut_resname = 'HSE'
+                elif row['resname'] == 'HSP':
+                    mut_resname = 'HSP'
+            elif row['resname'] in ['ASP', 'GLU']: # Acidic residues
                 if row['protonated']:
-                    if row['resname']=='ASP':
-                        patchname='ASPP'
-                    elif row['resname']=='GLU':
-                        patchname='GLUP'
+                    if row['resname'] == 'ASP':
+                        patchname = 'ASPP'
+                    elif row['resname'] == 'GLU':
+                        patchname = 'GLUP'
                     else:
-                        patchname=None
-            elif row['resname'] in ['TYR','SER','LYS','ARG']: # basic residues
+                        patchname = None
+            elif row['resname'] in ['TYR', 'SER', 'LYS', 'ARG']: # basic residues
                 if not row['protonated']: # deprotonate!
-                    if row['resname']=='TYR':
-                        patchname='TYRO' # provided in pestifer.top
-                    elif row['resname']=='SER':
-                        patchname='SERD'
-                    elif row['resname']=='LYS':
-                        patchname='LSN'
-                    elif row['resname']=='ARG':
-                        patchname='RN2'
+                    if row['resname'] == 'TYR':
+                        patchname = 'TYRO' # provided in pestifer.top
+                    elif row['resname'] == 'SER':
+                        patchname = 'SERD'
+                    elif row['resname'] == 'LYS':
+                        patchname = 'LSN'
+                    elif row['resname'] == 'ARG':
+                        patchname = 'RN2'
             elif row['resname'] == 'N+':
                 if not row['protonated']:
-                    patchname='NNEU'
+                    patchname = 'NNEU'
             elif row['resname'] == 'C-':
                 if row['protonated']:
-                    patchname='CNEU'
+                    patchname = 'CNEU'
 
             if not patchname and not mut_resname:
                 logger.debug(f'No patch or mutation will be applied for {row["resname"]} at {row["reschain"]}:{row["resnum"]}')
                 continue
             if patchname:
-                shortcode=f"{patchname}:{row['reschain']}:{row['resnum']}"
-                pat=Patch(shortcode)
+                shortcode = f"{patchname}:{row['reschain']}:{row['resnum']}"
+                pat = Patch(shortcode)
                 self.objmanager.ingest(pat)
             if mut_resname:
-                shortcode=f"{row['reschain']}:{row['resname']},{row['resnum']},{mut_resname}"
-                mut=Mutation(shortcode)
+                shortcode = f"{row['reschain']}:{row['resname']},{row['resnum']},{mut_resname}"
+                mut = Mutation(shortcode)
                 self.objmanager.ingest(mut)
