@@ -49,6 +49,17 @@ class PipelineContext:
             else:
                 artifact.stamp(self)
         self.head[key] = artifact
+    
+    def bury(self, artifact: Artifact):
+        """
+        Bury an artifact in the history without registering it as a current artifact
+        
+        Parameters
+        ----------
+        artifact : Artifact
+            The artifact to bury.
+        """
+        self.history.append(artifact)
 
     def get_current_artifact(self, key: str):
         return self.head.get(key, None)

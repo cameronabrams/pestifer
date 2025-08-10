@@ -18,7 +18,7 @@ from ..charmmff.charmmffcontent import CHARMMFFContent
 from ..core.artifacts import *
 from ..core.resourcemanager import ResourceManager
 from ..molecule.molecule import Molecule
-from ..scripters import Filewriter, VMDScripter, PsfgenScripter, NAMDColvarInputScripter
+from ..scripters import GenericScripter, VMDScripter, PsfgenScripter, NAMDColvarInputScripter
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,8 @@ class LigateTask(MDTask):
         self.result = self.do_steered_md(self.specs['steer'])
         if self.result != 0:
             return self.result
+        # stash the vel file
+        self.stash_current_artifact('vel')
         logger.debug('Connecting loop C-termini to their partner N-termini')
         connect_specs = self.specs.get('connect', {})
         self.result = self.connect(connect_specs)
@@ -69,7 +71,7 @@ class LigateTask(MDTask):
         self.next_basename('gaps')
         mol: Molecule = self.get_current_artifact_data('base_molecule')
         inputfile = f'{self.basename}.inp'
-        writer: Filewriter = self.get_scripter('data')
+        writer: GenericScripter = self.get_scripter('data')
         writer.newfile(inputfile)
         mol.write_gaps(writer)
         writer.writefile()
@@ -90,7 +92,7 @@ class LigateTask(MDTask):
         """
         comment_chars = '#!$'
         self.next_basename('measure')
-        vm: VMDScripter = self.pipeline.get_scripter('vmd')
+        vm: VMDScripter = self.get_scripter('vmd')
         vm.newscript(self.basename)
         psf: Path = self.get_current_artifact_path('psf')
         pdb: Path = self.get_current_artifact_path('pdb')
@@ -168,7 +170,7 @@ class LigateTask(MDTask):
         self.next_basename('gap_patches')
         mol: Molecule = self.base_molecule
         datafile = f'{self.basename}.inp'
-        writer: Filewriter = self.get_scripter('data')
+        writer: GenericScripter = self.get_scripter('data')
         writer.newfile(datafile)
         mol.write_connect_patches(writer)
         writer.writefile()

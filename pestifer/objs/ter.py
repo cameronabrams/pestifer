@@ -28,10 +28,10 @@ class Ter(BaseObj):
     A class for handing TER records in PDB files
     """
 
-    _required_fields = {'serial','resname','chainID','resid'}
+    _optional_fields = {'serial', 'resname', 'chainID', 'resid'}
     """
-    Required attributes for a Ter object.
-    These attributes must be provided when creating a Ter object.
+    Optional attributes for a Ter object.  Ters can be empty.
+    These attributes can be provided when creating a Ter object.
     
     - ``serial``: The serial number of the TER record.
     - ``resname``: The residue name of the TER record.
@@ -39,10 +39,10 @@ class Ter(BaseObj):
     - ``resid``: The residue ID of the TER record.
     """
 
-    serial: int = Field(..., description="Serial number of the TER record")
-    resname: str = Field(..., description="Residue name of the TER record")
-    chainID: str = Field(..., description="Chain ID of the TER record")
-    resid: ResID = Field(..., description="Residue ID of the TER record")
+    serial: int | None = Field(None, description="Serial number of the TER record")
+    resname: str | None = Field(None, description="Residue name of the TER record")
+    chainID: str | None = Field(None, description="Chain ID of the TER record")
+    resid: ResID | None = Field(None, description="Residue ID of the TER record")
 
     _yaml_header: ClassVar[str] ='terminals'
     """ 
@@ -70,14 +70,33 @@ class Ter(BaseObj):
         """
         if args and isinstance(args[0], PDBRecord):
             pdbrecord = args[0]
-            input_dict = {
-                'serial': pdbrecord.serial,
-                'resname': pdbrecord.residue.resName,
-                'chainID': pdbrecord.residue.chainID,
-                'resid': ResID(resseqnum=pdbrecord.residue.seqNum, insertion=pdbrecord.residue.iCode)
-            }
+            assert pdbrecord.key == 'TER'
+            logger.debug(f'serial "{pdbrecord.serial}" ({type(pdbrecord.serial)})')
+            logger.debug(f'Adapting PDBRecord {str(pdbrecord)} to Ter')
+            if not pdbrecord.serial:
+                # this TER is empty
+                logger.debug(f'Empty ter')
+                input_dict = {
+                    'serial': None,
+                    'resname': None,
+                    'chainID': None,
+                    'resid': None
+                }
+                return input_dict
+            else:
+                input_dict = {
+                    'serial': pdbrecord.serial,
+                    'resname': pdbrecord.residue.resName,
+                    'chainID': pdbrecord.residue.chainID,
+                    'resid': ResID(resseqnum=pdbrecord.residue.seqNum, insertion=pdbrecord.residue.iCode)
+                }
             return input_dict
         return super()._adapt(*args, **kwargs)
+
+    def __repr__(self):
+        if self.serial is None:
+            return f'<Ter EMPTY>'
+        return f'<Ter serial={self.serial} resname={self.resname} chainID={self.chainID} resid={self.resid}>'
 
 class TerList(BaseObjList[Ter]):
 
@@ -103,8 +122,9 @@ class TerList(BaseObjList[Ter]):
         TerList
             A new TerList instance containing Ter objects created from the PDB data.
         """
-        if Ter._PDB_keyword not in parsed:
+        if Ter._PDB_keyword not in parsed or not parsed[Ter._PDB_keyword]:
             return cls([])
+        logger.debug(f'Reading from {[repr(p) for p in parsed[Ter._PDB_keyword]]}')
         L = cls([Ter(p) for p in parsed[Ter._PDB_keyword] if (model_id is None or p.model == model_id)])
         L._has_serials = any(x.serial is not None for x in L)
         return L

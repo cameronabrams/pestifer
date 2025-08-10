@@ -32,7 +32,7 @@ from ..objs.ssbond import SSBond
 from ..objs.substitution import SubstitutionList
 from ..util.cifutil import CIFdict
 from ..util.coord import positionN
-from .stateinterval import StateIntervalList
+from .stateinterval import StateInterval, StateIntervalList
 
 from ..objs.resid import ResID
 
@@ -827,7 +827,7 @@ class ResidueList(BaseObjList[Residue]):
                 rlist.append(as_type(a.resid))
         return rlist
 
-    def caco_str(self, upstream_reslist: ResidueList, seglabel: str, molid_varname: str, tmat: np.ndarray) -> str:
+    def caco_str(self, upstream_reslist: ResidueList, seglabel: str, tmat: np.ndarray) -> str:
         """
         Generate a string representation of the ``caco`` command to position
         the N atom of a model-built residue based on the coordinates of the previous residue.  Uses the :func:`~pestifer.util.coord.positionN` function to calculate the position of the N atom based on the upstream residue's coordinates and the transformation matrix.
@@ -1142,3 +1142,4 @@ Link.model_rebuild()
 Patch.model_rebuild()
 SSBond.model_rebuild()
 Seqadv.model_rebuild()
+StateInterval.model_rebuild()

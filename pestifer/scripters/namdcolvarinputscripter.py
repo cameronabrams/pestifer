@@ -5,11 +5,13 @@ from copy import deepcopy
 from pathlib import Path
 from pidibble.pdbparse import PDBParser
 
-from .filewriter import Filewriter
+from .genericscripter import GenericScripter
+
+from ..molecule.atom import AtomList
 
 logger = logging.getLogger(__name__)
 
-class NAMDColvarInputScripter(Filewriter):
+class NAMDColvarInputScripter(GenericScripter):
 
     def __init__(self, *args, **kwargs):
         """
@@ -17,7 +19,7 @@ class NAMDColvarInputScripter(Filewriter):
         
         Parameters
         ----------
-        *args, **kwargs: Additional arguments and keyword arguments to pass to the Filewriter base class.
+        *args, **kwargs: Additional arguments and keyword arguments to pass to the GenericScripter base class.
         """
         super().__init__(*args, **kwargs)
         self.default_ext = '.in'
@@ -34,36 +36,36 @@ class NAMDColvarInputScripter(Filewriter):
         **kwargs : Additional keyword arguments to customize the script generation.
         """
         self.specs = deepcopy(specs)
-        atom_names=[]
-        atom_serials=[]
+        atom_names = []
+        atom_serials = []
         if pdb:
-            p=PDBParser(filepath=pdb).parse()
-            atoms=p.parsed['ATOM']
-            atom_names=[a.name for a in atoms]
-            atom_serials=[a.serial for a in atoms]
+            p = PDBParser(filepath=pdb).parse()
+            atoms: AtomList = p.parsed['ATOM']
+            atom_names = [a.name for a in atoms.data]
+            atom_serials = [a.serial for a in atoms.data]
 
-        groups=specs.get('groups',{})
-        for groupname,groupspecs in groups.items():
-            atomnames=groupspecs.get('atomnames',[])
-            serials=groupspecs.get('serials',[])
+        groups = specs.get('groups', {})
+        for groupname, groupspecs in groups.items():
+            atomnames = groupspecs.get('atomnames', [])
+            serials = groupspecs.get('serials', [])
             if atomnames:
                 for a in atomnames:
-                    assert atom_names.count(a)==1,f'Cannot find unique atom {a}; you should use serial numbers'
+                    assert atom_names.count(a) == 1, f'Cannot find unique atom {a}; you should use serial numbers'
                     serials.append(atom_serials[atom_names.index(a)])
-            groupspecs['atomNumbers']=' '.join([f'{i}' for i in serials])
-            assert len(groupspecs['atomNumbers'])>0,f'No atoms in group {groupname}'
+            groupspecs['atomNumbers'] = ' '.join([f'{i}' for i in serials])
+            assert len(groupspecs['atomNumbers']) > 0, f'No atoms in group {groupname}'
 
-        distances=specs.get('distances',{})
+        distances = specs.get('distances', {})
         logger.debug(f'distances {distances}')
-        for distancename,distancespecs in distances.items():
+        for distancename, distancespecs in distances.items():
             for i in range(len(distancespecs['groups'])):
-                distancespecs['groups'][i]=groups[distancespecs['groups'][i]]
-                distancespecs['name']=distancename
+                distancespecs['groups'][i] = groups[distancespecs['groups'][i]]
+                distancespecs['name'] = distancename
             self.declare_distance_cv(distancespecs)
 
-        harmonics=specs.get('harmonics',{})
-        for harmonicname,harmonicspecs in harmonics.items():
-            harmonicspecs['name']=harmonicname
+        harmonics = specs.get('harmonics', {})
+        for harmonicname, harmonicspecs in harmonics.items():
+            harmonicspecs['name'] = harmonicname
             self.declare_harmonic_distance_biases(harmonicspecs)
 
     def declare_distance_cv(self, data):
@@ -74,10 +76,8 @@ class NAMDColvarInputScripter(Filewriter):
         ----------
         data: dict
             dictionary containing colvar specifications
-        scripter: Filewriter
-            An instance of a script writer that will be used to write the colvar specifications.
         """
-        name=data['name']
+        name = data['name']
         self.addline( 'colvar {')
         self.addline(f'    name {name}')
         self.addline( '    distance {')
@@ -98,12 +98,10 @@ class NAMDColvarInputScripter(Filewriter):
         ----------
         data: dict
             dictionary containing serial numbers of atoms i and j and a colvar name
-        scripter: Filewriter
-            An instance of a script writer that will be used to write the colvar specifications.
         """
-        i=data['serial_i']
-        j=data['serial_j']
-        name=data['colvars']
+        i = data['serial_i']
+        j = data['serial_j']
+        name = data['colvars']
         self.addline( 'colvar {')
         self.addline(f'    name {name}')
         self.addline( '    distance {')
@@ -125,15 +123,13 @@ class NAMDColvarInputScripter(Filewriter):
         data: dict
             dictionary containing colvar specifications, including the name of the colvar, the groups of atoms
             involved, the force constant, the distance between the groups, and optional target distance and number of steps.
-        scripter: Filewriter
-            An instance of a script writer that will be used to write the colvar specifications.
         """
-        name=data['name']
-        colvars=' '.join(data['colvars'])
-        k=data['forceConstant']
-        distance=' '.join([f'{x:.5f}' for x in data['distance']])
-        targ_distance=' '.join([f'{x:.5f}' for x in data.get('targ_distance',[])])
-        targ_numsteps=data.get('targ_numsteps','')
+        name = data['name']
+        colvars = ' '.join(data['colvars'])
+        k = data['forceConstant']
+        distance = ' '.join([f'{x:.5f}' for x in data['distance']])
+        targ_distance = ' '.join([f'{x:.5f}' for x in data.get('targ_distance', [])])
+        targ_numsteps = data.get('targ_numsteps', '')
         self.addline( 'harmonic {')
         self.addline(f'    name {name}')
         self.addline(f'    colvars {colvars}')
@@ -152,14 +148,12 @@ class NAMDColvarInputScripter(Filewriter):
         data: dict
             dictionary containing colvar specifications, including the name of the colvar, the force constant,
             the initial distance, and optional target distance and number of steps.
-        scripter: Filewriter
-            An instance of a script writer that will be used to write the colvar specifications.
         """
-        name=data['colvars']
-        k=data['forceConstant']
-        init_distance=data['distance']
-        targ_distance=data.get('targ_distance','')
-        targ_numsteps=data.get('targ_numsteps','')
+        name = data['colvars']
+        k = data['forceConstant']
+        init_distance = data['distance']
+        targ_distance = data.get('targ_distance', '')
+        targ_numsteps = data.get('targ_numsteps', '')
         self.addline( 'harmonic {')
         self.addline(f'    colvars {name}')
         self.addline(f'    forceConstant {k}')

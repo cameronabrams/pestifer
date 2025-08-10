@@ -268,33 +268,33 @@ class SSBondList(BaseObjList[SSBond]):
         ignored_by_ptnr2=self.assign_objs_to_attr('residue2', Residues, chainID='chainID2', resid='resid2')
         return self.__class__(ignored_by_ptnr1 + ignored_by_ptnr2)
 
-    def prune_mutations(self, Mutations: MutationList) -> 'SSBondList':
-        """
-        Prunes the SSBondList by removing SSBonds that are associated with mutations. This method iterates over each Mutation in the provided list and checks if there are
-        any SSBonds that match the chain ID, residue sequence number, and insertion code of
-        the Mutation. If a match is found, the SSBond is removed from the list 
-        and added to a new SSBondList object. The method returns this new SSBondList object.
+    # def prune_mutations(self, Mutations: MutationList) -> 'SSBondList':
+    #     """
+    #     Prunes the SSBondList by removing SSBonds that are associated with mutations. This method iterates over each Mutation in the provided list and checks if there are
+    #     any SSBonds that match the chain ID, residue sequence number, and insertion code of
+    #     the Mutation. If a match is found, the SSBond is removed from the list 
+    #     and added to a new SSBondList object. The method returns this new SSBondList object.
         
-        Parameters
-        ----------
-        Mutations : MutationList
-            A list of Mutation objects that contain information about the mutations to be pruned.
+    #     Parameters
+    #     ----------
+    #     Mutations : MutationList
+    #         A list of Mutation objects that contain information about the mutations to be pruned.
         
-        Returns
-        -------
-        SSBondList
-            A new SSBondList object containing the SSBonds that were pruned.
+    #     Returns
+    #     -------
+    #     SSBondList
+    #         A new SSBondList object containing the SSBonds that were pruned.
 
-        """
-        pruned = self.__class__([])
-        for m in Mutations.data:
-            left = self.get(chainID1=m.chainID, resid1=m.resid)
-            if left:
-                pruned.take_item(left, self)
-            right = self.get(chainID2=m.chainID, resid2=m.resid)
-            if right:
-                pruned.take_item(right, self)
-        return pruned
+    #     """
+    #     pruned = self.__class__([])
+    #     for m in Mutations.data:
+    #         left = self.get(chainID1=m.chainID, resid1=m.resid)
+    #         if left:
+    #             pruned.take_item(left, self)
+    #         right = self.get(chainID2=m.chainID, resid2=m.resid)
+    #         if right:
+    #             pruned.take_item(right, self)
+    #     return pruned
 
     # def map_attr(self, mapped_attr: str, key_attr: str, map: dict):
     #     """

@@ -286,10 +286,11 @@ class AsymmetricUnit:
         mutations.sort(by=['typekey'])
         for m in mutations:
             logger.debug(str(m) + ' ' + m.typekey)
-        pruned_ssbonds = ssbonds.prune_mutations(mutations)
-        pruned = pruned_by_links = links.prune_mutations(mutations, segments)
-        pruned_segments = pruned.get('segments', [])
-        for s in pruned_segments:
+        pruned_objects = segments.prune(mutations, links, ssbonds)
+                # pruned_ssbonds = ssbonds.prune_mutations(mutations)
+                # pruned = pruned_by_links = links.prune_mutations(mutations, segments)
+        pruned_segments: SegmentList = pruned_objects.get('segments', [])
+        for s in pruned_segments.data:
             logger.debug(f'Unregistering chainID {s.segname} because this entire segment was pruned')
             chainIDmanager.unregister_chain(s.segname)
 
@@ -318,7 +319,7 @@ class AsymmetricUnit:
         self.chainIDmanager = chainIDmanager
         self.psf = psf
         self.ignored = Namespace(residues=ignored_residues, links=ignored_links, ssbonds=ignored_ssbonds, seqadv=ignored_seqadvs)
-        self.pruned = Namespace(ssbonds=pruned_ssbonds, residues=pruned_by_links['residues'], links=pruned_by_links['links'], segments=pruned_by_links['segments'])
+        self.pruned = Namespace(**pruned_objects)
     
     def set_parent_molecule(self, parent_molecule):
         """

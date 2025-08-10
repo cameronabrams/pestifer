@@ -13,6 +13,8 @@ from copy import deepcopy
 from pathlib import Path
 from typing import ClassVar
 
+from sqlalchemy import case
+
 from .basetask import VMDTask
 from ..molecule.chainidmanager import ChainIDManager
 from ..molecule.molecule import Molecule
@@ -88,8 +90,14 @@ class PsfgenTask(VMDTask):
                     psf = self.get_current_artifact_path('psf')
                     pdb = self.get_current_artifact_path('pdb')
                     vm.load_psf_pdb(psf, pdb, new_molid_varname='mCM')
-                    for transform in self.base_molecule.active_biological_assembly.transforms:
-                        objlist.write_TcL(vm, chainIDmap=transform.chainIDmap)
+                    match objtype:
+                        case 'crotations':
+                            for transform in self.base_molecule.active_biological_assembly.transforms.data:
+                                vm.write_crots(objlist, chainIDmap=transform.chainIDmap)
+                        case 'orient':
+                            vm.write_orients(objlist)
+                        case 'rottrans':
+                            vm.write_rottranslist(objlist)
                     vm.write_pdb(self.basename, 'mCM')
                     vm.writescript()
                     vm.runscript()
@@ -112,11 +120,11 @@ class PsfgenTask(VMDTask):
         """
         Collect the topology files that are needed for the residues in the base molecule.
         """
-        resis=set([x.resname for x in self.base_molecule.asymmetric_unit.residues])
-        CC=self.resource_manager.charmmff_content
-        new_topfiles=set()
+        resis = set([x.resname for x in self.base_molecule.asymmetric_unit.residues.data])
+        CC = self.resource_manager.charmmff_content
+        new_topfiles = set()
         for resname in resis:
-            topfile=CC.get_topfile_of_resname(resname)
+            topfile = CC.get_topfile_of_resname(resname)
             if topfile:
                 new_topfiles.add(topfile)
         return list(new_topfiles)
@@ -127,21 +135,21 @@ class PsfgenTask(VMDTask):
         This method retrieves the CHARMMFF topology files associated with the patches and links defined 
         in the base molecule's object manager.
         """
-        objmanager=self.base_molecule.objmanager
-        seqmods=objmanager.get('seq',{})
-        patches=seqmods.get('patches',[])
-        CC=self.resource_manager.charmmff_content
-        new_topfiles=set()
+        objmanager = self.base_molecule.objmanager
+        seqmods = objmanager.get('seq', {})
+        patches = seqmods.get('patches', [])
+        CC = self.resource_manager.charmmff_content
+        new_topfiles = set()
         # logger.debug(f'New topologies: {new_topfiles}')
         for patch in patches:
-            topfile=CC.get_topfile_of_patchname(patch.patchname)
+            topfile = CC.get_topfile_of_patchname(patch.patchname)
             if topfile:
                 new_topfiles.add(topfile)
         # logger.debug(f'New topologies: {new_topfiles}')
-        topomods=objmanager.get('topol',{})
-        links=topomods.get('links',[])
+        topomods = objmanager.get('topol', {})
+        links = topomods.get('links', [])
         for link in links:
-            topfile=CC.get_topfile_of_patchname(link.patchname)
+            topfile = CC.get_topfile_of_patchname(link.patchname)
             if topfile:
                 new_topfiles.add(topfile)
         # logger.debug(f'New topologies: {new_topfiles}')
@@ -152,20 +160,20 @@ class PsfgenTask(VMDTask):
         Run the psfgen process to generate a PSF file from the base molecule.
         """
         self.next_basename('build')
-        pg=self.scripters['psfgen']
-        required_topology_files=list(set(self.patch_topologies()+self.resi_topologies()))
-        pg.newscript(self.basename,packages=['PestiferCRot'],additional_topologies=required_topology_files)
-        pg.set_molecule(self.base_molecule,altcoords=self.specs.get('source',{}).get('altcoords',None))
+        pg: PsfgenScripter = self.scripters['psfgen']
+        required_topology_files = list(set(self.patch_topologies() + self.resi_topologies()))
+        pg.newscript(self.basename, packages=['PestiferCRot'], additional_topologies=required_topology_files)
+        pg.set_molecule(self.base_molecule, altcoords=self.specs.get('source', {}).get('altcoords', None))
         pg.describe_molecule(self.base_molecule)
         pg.writescript(self.basename)
-        result=pg.runscript()
-        if result!=0:
+        result = pg.runscript()
+        if result != 0:
             return result
         # register PSF, PDB, log, and all charmmff files in the pipeline context
-        for artifact_type in [PsfgenInputScriptArtifact,PSFFileArtifact,PDBFileArtifact,PsfgenLogFileArtifact]:
+        for artifact_type in [PsfgenInputScriptArtifact, PSFFileArtifact, PDBFileArtifact, PsfgenLogFileArtifact]:
             self.register(artifact_type(self.basename))
-        self.register(CharmmffTopFileArtifacts([CharmmffTopFileArtifact(x.replace('.rtf','')) for x in pg.topologies if x.endswith('.rtf')]),key='charmmff_topfiles')
-        self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x.replace('.str','')) for x in pg.topologies if x.endswith('.str')]),key='charmmff_streamfiles')
+        self.register(CharmmffTopFileArtifacts([CharmmffTopFileArtifact(x) for x in pg.topologies if x.endswith('.rtf')]), key='charmmff_topfiles')
+        self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x) for x in pg.topologies if x.endswith('.str')]), key='charmmff_streamfiles')
         self.strip_remarks()
         return 0
         
@@ -189,46 +197,45 @@ class PsfgenTask(VMDTask):
                 if not line.startswith('REMARK'):
                     outfile.write(line)
 
-    def declash_segtype(self,specs,segtype='protein'):
+    def declash_segtype(self, specs: dict, segtype='protein'):
         """
         Declash loops in the base molecule using the custom ``PestiferDeclash`` TcL package.
         This method generates a VMD script to identify and declash loops in the molecular structure.
         It uses the ``PestiferDeclash`` package to perform the declashing operation, which involves identifying
         and modifying the coordinates of atoms in loop regions.
         """
+        specs_to_declashers = specs#['source']['sequence']['declash']
         if segtype == 'protein':
-            self.declash_protein_loops(specs)
+            self.declash_protein_loops(specs_to_declashers)
         elif segtype == 'nucleicacid':
-            self.declash_na_loops(specs)
+            self.declash_na_loops(specs_to_declashers)
         elif segtype == 'glycan':
-            self.declash_glycans(specs)
+            self.declash_glycans(specs_to_declashers)
         else:
             raise ValueError(f'Unknown segment type {segtype} for declashing')
-        
-    def declash_protein_loops(self,specs):
+
+    def declash_protein_loops(self, specs: dict):
         """
         Declash loops in the base molecule using the custom ``PestiferDeclash`` TcL package.
         This method generates a VMD script to identify and declash loops in the molecular structure.
         It uses the ``PestiferDeclash`` package to perform the declashing operation, which involves identifying
         and modifying the coordinates of atoms in loop regions.
         """
-        mol=self.base_molecule
-        cycles=specs['declash']['maxcycles']
-        if self.nloops['protein']==0 or not cycles:
-            logger.debug(f'Protein loop declashing is intentionally not done.')
-            return
+        mol = self.base_molecule
+        cycles = specs['maxcycles']
         self.next_basename('declash-loops')
-        psf=self.get_current_artifact_path('psf')
-        pdb=self.get_current_artifact_path('pdb')
-        vt=self.scripters['vmd']
-        vt.newscript(self.basename,packages=['PestiferDeclash'])
-        vt.load_psf_pdb(psf,pdb,new_molid_varname='mLL')
-        mol.write_protein_loop_lines(vt,cycles=cycles,include_c_termini=specs['declash']['include_C_termini'])
-        vt.write_pdb(self.basename,'mLL')
+        psf: Path = self.get_current_artifact_path('psf')
+        pdb: Path = self.get_current_artifact_path('pdb')
+        vt: VMDScripter = self.scripters['vmd']
+        vt.newscript(self.basename, packages=['PestiferDeclash'])
+        vt.load_psf_pdb(psf, pdb, new_molid_varname='mLL')
+        vt.write_protein_loop_lines(mol, cycles=cycles, include_c_termini=specs['include_C_termini'])
+        vt.write_pdb(self.basename, 'mLL')
         vt.writescript()
         vt.runscript()
         for artifact_type in [VMDScriptArtifact, PDBFileArtifact, VMDLogFileArtifact]:
             self.register(artifact_type(self.basename))
+
 
     def declash_na_loops(self,specs):
         """
@@ -237,23 +244,19 @@ class PsfgenTask(VMDTask):
         It uses the ``PestiferDeclash`` package to perform the declashing operation, which involves identifying
         and modifying the coordinates of atoms in nucleic acid loop regions.
         """
-        cycles=specs['declash']['maxcycles']
-        clashdist=specs['declash']['clashdist']
-
-        if self.nloops['nucleicacid'] == 0 or not cycles:
-            logger.debug(f'Nucleic acid loop declashing is intentionally not done.')
-            return
+        cycles = specs['maxcycles']
+        clashdist = specs['clashdist']
         self.next_basename('declash-na-loops')
-        vt=self.scripters['vmd']
-        psf=self.get_current_artifact_path('psf')
-        pdb=self.get_current_artifact_path('pdb')
-        outpdb=f'{self.basename}.pdb'
-        vt.newscript(self.basename,packages=['PestiferDeclash'])
+        vt: VMDScripter = self.scripters['vmd']
+        psf: Path = self.get_current_artifact_path('psf')
+        pdb: Path = self.get_current_artifact_path('pdb')
+        outpdb: Path = f'{self.basename}.pdb'
+        vt.newscript(self.basename, packages=['PestiferDeclash'])
         vt.addline(f'mol new {psf}')
         vt.addline(f'mol addfile {pdb} waitfor all')
         vt.addline(f'set a [atomselect top all]')
         vt.addline(f'set molid [molinfo top get id]')
-        nna=self._write_na_loops(vt)
+        nna = self._write_na_loops(vt)
         vt.addline(f'set nna {nna}')
         vt.addline(f'vmdcon -info "Declashing $nna nucleic acid loops; clashdist {clashdist}; maxcycles {cycles}"')
         vt.addline(r'for {set i 0} {$i<$nna} {incr i} {')
@@ -266,105 +269,105 @@ class PsfgenTask(VMDTask):
         for artifact_type in [VMDScriptArtifact, PDBFileArtifact, VMDLogFileArtifact]:
             self.register(artifact_type(self.basename))
 
-    def _write_na_loops(self,vt,**options):
-        mol=self.base_molecule
-        au=mol.asymmetric_unit
-        psf=self.get_current_artifact_path('psf')
+    def _write_na_loops(self, vt: VMDScripter, **options):
+        mol = self.base_molecule
+        au = mol.asymmetric_unit
+        psf = self.get_current_artifact_path('psf')
         logger.debug(f'ingesting {psf}')
-        struct=PSFContents(psf,parse_topology=['bonds'])
-        na_atoms=struct.atoms.get(segtype='nucleicacid')
-        my_rep=list(set([(x.chainID,x.resseqnum) for x in na_atoms]))
-        my_rep.sort(key=lambda x: (x[0],x[1]))
+        struct = PSFContents(psf, parse_topology=['bonds'])
+        na_atoms = struct.atoms.get(segtype='nucleicacid')
+        my_rep = list(set([(x.chainID, x.resseqnum) for x in na_atoms]))
+        my_rep.sort(key=lambda x: (x[0], x[1]))
         logger.debug(f'Getting loops from {len(na_atoms)} nucleic acid atoms in PSF file {psf}')
         logger.debug(f'{my_rep}')
-        min_length=self.min_loop_length
-        include_c_termini=options.get('include_c_termini',False)
-        i=0
-        SL=[S for S in au.segments if S.segtype=='nucleicacid']
+        min_length = self.min_loop_length
+        include_c_termini = options.get('include_c_termini', False)
+        i = 0
+        SL = [S for S in au.segments if S.segtype == 'nucleicacid']
         for S in SL:
-            asymm_segname=S.segname
-            n_subsegs=len(S.subsegments)
+            asymm_segname = S.segname
+            n_subsegs = len(S.subsegments)
             for b in S.subsegments:
-                lr_resseqnum=S.residues[b.bounds[0]].resseqnum
-                rr_resseqnum=S.residues[b.bounds[1]].resseqnum
-                logger.debug(f'Processing subsegment {b.pstr()} for segname {asymm_segname} with bounds {lr_resseqnum}-{rr_resseqnum}')
-                is_c_terminus=(S.subsegments.index(b)==(n_subsegs-1))
-                is_processible=b.state=='MISSING' and b.num_items()>=min_length
+                lr_resid = S.residues[b.bounds[0]].resid
+                rr_resid = S.residues[b.bounds[1]].resid
+                logger.debug(f'Processing subsegment {b.pstr()} for segname {asymm_segname} with bounds {lr_resid}-{rr_resid}')
+                is_c_terminus = (S.subsegments.index(b) == (n_subsegs - 1))
+                is_processible = b.state == 'MISSING' and b.num_items() >= min_length
                 if is_processible and (not include_c_termini) and is_c_terminus:
                     logger.debug(f'A.U. C-terminal loop {b.pstr()} declashing is skipped')
-                    is_processible=False
+                    is_processible = False
                 if is_processible:
                     logger.debug(f'Processing loop {b.pstr()} {b.bounds} for segname {asymm_segname}')
-                    loop_atoms=PSFAtomList([x for x in na_atoms if x.chainID==asymm_segname and x.resseqnum>=lr_resseqnum and x.resseqnum<=rr_resseqnum])
+                    loop_atoms = PSFAtomList([x for x in na_atoms if x.chainID == asymm_segname and x.resid >= lr_resid and x.resid <= rr_resid])
                     logger.debug(f'Loop {b.pstr()} has {len(loop_atoms)} atoms from PSFAtomList')
-                    na_graph=loop_atoms.graph()
+                    na_graph = loop_atoms.graph()
                     logger.debug(f'{na_graph}')
-                    G=[na_graph.subgraph(c).copy() for c in nx.connected_components(na_graph)]
-                    assert len(G)==1,f'NA loop {b.pstr()} has more than one connected component'
+                    G = [na_graph.subgraph(c).copy() for c in nx.connected_components(na_graph)]
+                    assert len(G) == 1, f'NA loop {b.pstr()} has more than one connected component'
                     logger.debug(f'Loop {b.pstr()} has {len(loop_atoms)} atoms')
-                    g=G[0]
-                    serials=[x.serial for x in g]
+                    g = G[0]
+                    serials = [x.serial for x in g]
                     for at in g:
-                        lig_ser=[x.serial for x in at.ligands]
-                        for k,ls in enumerate(lig_ser):
+                        lig_ser = [x.serial for x in at.ligands]
+                        for k, ls in enumerate(lig_ser):
                             if not ls in serials:
-                                at.is_root=True
-                                rp=at.ligands[k]
+                                at.is_root = True
+                                rp = at.ligands[k]
                                 logger.debug(f'-> Atom {str(at)} is the root, bound to atom {str(rp)}')
-                    indices=' '.join([str(x.serial-1) for x in g])
+                    indices = ' '.join([str(x.serial-1) for x in g])
                     vt.addline(f'set na_idx({i}) [list {indices}]')
                     vt.addline(f'set rbonds({i}) [list]')
                     vt.addline(f'set movers({i}) [list]')
                     for bond in nx.bridges(g):
-                        ai,aj=bond
+                        ai, aj = bond
                         if not (ai.isH() or aj.isH()) and not ai.is_pep(aj):
-                            g.remove_edge(ai,aj)
-                            CC=[g.subgraph(c).copy() for c in nx.connected_components(g)]
-                            assert len(CC)==2,f'Bond {ai.serial-1}-{aj.serial-1} when cut makes more than 2 components'
+                            g.remove_edge(ai, aj)
+                            CC = [g.subgraph(c).copy() for c in nx.connected_components(g)]
+                            assert len(CC) == 2, f'Bond {ai.serial-1}-{aj.serial-1} when cut makes more than 2 components'
                             for sg in CC:
-                                is_root=any([hasattr(x,'is_root') for x in sg])
+                                is_root = any([hasattr(x, 'is_root') for x in sg])
                                 if not is_root:
                                     if ai in sg:
                                         sg.remove_node(ai)
                                     if aj in sg:
                                         sg.remove_node(aj)
-                                    if len(sg)>1 or (len(sg)==1 and not [x for x in sg.nodes][0].isH()):
-                                        mover_serials=[x.serial for x in sg]
-                                        mover_indices=" ".join([str(x-1) for x in mover_serials])
+                                    if len(sg) > 1 or (len(sg) == 1 and not [x for x in sg.nodes][0].isH()):
+                                        mover_serials = [x.serial for x in sg]
+                                        mover_indices = " ".join([str(x-1) for x in mover_serials])
                                         logger.debug(f'{str(ai)}--{str(aj)} is a rotatable bridging bond')
                                         vt.addline(f'lappend rbonds({i}) [list {ai.serial-1} {aj.serial-1}]')
                                         logger.debug(f'  -> movers: {" ".join([str(x) for x in sg])}')
                                         vt.addline(f'lappend movers({i}) [list {mover_indices}]')
-                            g.add_edge(ai,aj)
-                    i+=1
+                            g.add_edge(ai, aj)
+                    i += 1
         return i
 
-    def declash_glycans(self,specs):
+    def declash_glycans(self, specs):
         """
         Declash glycans in the base molecule using the custom ``PestiferDeclash`` TcL package.
         This method generates a VMD script to identify and declash glycans in the molecular structure.
         It uses the ``PestiferDeclash`` package to perform the declashing operation,
         which involves identifying and modifying the coordinates of atoms in glycan regions.
         """
-        mol=self.base_molecule
-        cycles=specs['declash']['maxcycles']
-        clashdist=specs['declash']['clashdist']
+        mol: Molecule = self.base_molecule
+        cycles: int = specs['maxcycles']
+        clashdist: float = specs['clashdist']
         if not mol.nglycans() or not cycles:
             logger.debug(f'Glycan declashing is intentionally not done.')
             return
         self.next_basename('declash-glycans')
-        outpdb=f'{self.basename}.pdb'
-        psf=self.get_current_artifact_path('psf')
-        pdb=self.get_current_artifact_path('pdb')
-        vt=self.scripters['vmd']
-        vt.newscript(self.basename,packages=['PestiferDeclash'])
+        outpdb = f'{self.basename}.pdb'
+        psf: Path = self.get_current_artifact_path('psf')
+        pdb: Path = self.get_current_artifact_path('pdb')
+        vt: VMDScripter = self.scripters['vmd']
+        vt.newscript(self.basename, packages=['PestiferDeclash'])
         vt.addline(f'mol new {psf}')
         vt.addline(f'mol addfile {pdb} waitfor all')
         vt.addline(f'set a [atomselect top all]')
         vt.addline(f'set molid [molinfo top get id]')
-        nglycan=self._write_glycans(vt)
-        vt.addline(f'vmdcon -info "Declashing $nglycans glycans; clashdist {clashdist}; maxcycles {cycles}"')
-        vt.addline(r'for {set i 0} {$i<$nglycans} {incr i} {')
+        nglycan = self._write_glycans(vt)
+        vt.addline(f'vmdcon -info "Declashing $nglycan glycans; clashdist {clashdist}; maxcycles {cycles}"')
+        vt.addline(r'for {set i 0} {$i<$nglycan} {incr i} {')
         vt.addline(f'   declash_pendant $molid $glycan_idx($i) $rbonds($i) $movers($i) {cycles} {clashdist}')
         vt.addline(r'}')
         vt.addline(f'$a writepdb {outpdb}')
@@ -374,53 +377,53 @@ class PsfgenTask(VMDTask):
         for artifact_type in [VMDScriptArtifact, PDBFileArtifact, VMDLogFileArtifact]:
             self.register(artifact_type(self.basename))
 
-    def _write_glycans(self,fw):
-        psf=self.get_current_artifact_path('psf')
+    def _write_glycans(self, fw: VMDScripter):
+        psf: Path = self.get_current_artifact_path('psf')
         logger.debug(f'ingesting {psf}')
-        struct=PSFContents(psf,parse_topology=['bonds'])
+        struct = PSFContents(psf, parse_topology=['bonds'])
         logger.debug(f'Making graph structure of glycan atoms...')
-        glycanatoms=struct.atoms.get(segtype='glycan')
+        glycanatoms = struct.atoms.get(segtype='glycan')
         logger.debug(f'{len(glycanatoms)} total glycan atoms')
-        glycangraph=glycanatoms.graph()
-        G=[glycangraph.subgraph(c).copy() for c in nx.connected_components(glycangraph)]
+        glycangraph = glycanatoms.graph()
+        G = [glycangraph.subgraph(c).copy() for c in nx.connected_components(glycangraph)]
         logger.debug(f'Preparing declash input for {len(G)} glycans')
         fw.addline(f'set nglycans {len(G)}')
         for i,g in enumerate(G):
             logger.debug(f'Glycan {i} has {len(g)} atoms')
             serials=[x.serial for x in g]
             for at in g:
-                lig_ser=[x.serial for x in at.ligands]
-                for k,ls in enumerate(lig_ser):
+                lig_ser = [x.serial for x in at.ligands]
+                for k, ls in enumerate(lig_ser):
                     if not ls in serials:
-                        at.is_root=True
-                        rp=at.ligands[k]
+                        at.is_root = True
+                        rp = at.ligands[k]
                         logger.debug(f'-> Atom {str(at)} is the root, bound to atom {str(rp)}')
-            indices=' '.join([str(x.serial-1) for x in g])
+            indices = ' '.join([str(x.serial-1) for x in g])
             fw.comment(f'Glycan {i}:')
             fw.addline(f'set glycan_idx({i}) [list {indices}]')
             fw.addline(f'set rbonds({i}) [list]')
             fw.addline(f'set movers({i}) [list]')
             for bond in nx.bridges(g):
-                ai,aj=bond
+                ai, aj = bond
                 if not (ai.isH() or aj.isH()) and not ai.is_pep(aj):
-                    g.remove_edge(ai,aj)
-                    S=[g.subgraph(c).copy() for c in nx.connected_components(g)]
-                    assert len(S)==2,f'Bond {ai.serial-1}-{aj.serial-1} when cut makes more than 2 components'
+                    g.remove_edge(ai, aj)
+                    S = [g.subgraph(c).copy() for c in nx.connected_components(g)]
+                    assert len(S) == 2, f'Bond {ai.serial-1}-{aj.serial-1} when cut makes more than 2 components'
                     for sg in S:
-                        is_root=any([hasattr(x,'is_root') for x in sg])
+                        is_root = any([hasattr(x, 'is_root') for x in sg])
                         if not is_root:
                             if ai in sg:
                                 sg.remove_node(ai)
                             if aj in sg:
                                 sg.remove_node(aj)
-                            if len(sg)>1 or (len(sg)==1 and not [x for x in sg.nodes][0].isH()):
-                                mover_serials=[x.serial for x in sg]
-                                mover_indices=" ".join([str(x-1) for x in mover_serials])
+                            if len(sg) > 1 or (len(sg) == 1 and not [x for x in sg.nodes][0].isH()):
+                                mover_serials = [x.serial for x in sg]
+                                mover_indices = " ".join([str(x-1) for x in mover_serials])
                                 logger.debug(f'{str(ai)}--{str(aj)} is a rotatable bridging bond')
                                 fw.addline(f'lappend rbonds({i}) [list {ai.serial-1} {aj.serial-1}]')
                                 logger.debug(f'  -> movers: {" ".join([str(x) for x in sg])}')
                                 fw.addline(f'lappend movers({i}) [list {mover_indices}]')
-                    g.add_edge(ai,aj)
+                    g.add_edge(ai, aj)
         return len(G)
 
     def ingest_molecules(self):
@@ -499,28 +502,28 @@ class PsfgenTask(VMDTask):
         """
         # get the key of the base_molecule
         logger.debug(f'{self.taskname} has {len(self.molecules)} entries in its molecules dict')
-        base_key='base'
-        for k,v in self.molecules:
-            if v==self.base_molecule:
-                base_key=k
+        base_key = 'base'
+        for k, v in self.molecules.items():
+            if v == self.base_molecule:
+                base_key = k
         # assert base_key!='UNSET',f'Cannot update a non-existent base molecule'
         # get the psf, pdb, xsc from the pipeline context
-        pdb = self.get_current_artifact_path('pdb')
-        psf = self.get_current_artifact_path('psf')
-        xsc = self.get_current_artifact_path('xsc')
+        pdb: Path = self.get_current_artifact_path('pdb')
+        psf: Path = self.get_current_artifact_path('psf')
+        xsc: Path | None = self.get_current_artifact_path('xsc')
         if not (pdb and psf):
             raise RuntimeError(f'No base_coordinates artifact found, and no prebuilt PDB/PSF/XSC files found in the pipeline context. Cannot ingest base molecule.')
-        source={}
+        source = {}
         source['prebuilt'] = {
-            'pdb': str(pdb),
-            'psf': str(psf),
-            'xsc': str(xsc) if xsc else None
+            'pdb': pdb.name,
+            'psf': psf.name,
+            'xsc': xsc.name if xsc else None
         }
-        if hasattr(self,'chainIDmanager') and hasattr(self,'objmanager'):
-            updated_molecule=Molecule(source=source,chainIDmanager=self.chainIDmanager,objmanager=self.objmanager).activate_biological_assembly(0)
+        if hasattr(self, 'chainIDmanager') and hasattr(self, 'objmanager'):
+            updated_molecule = Molecule(source=source, chainIDmanager=self.chainIDmanager, objmanager=self.objmanager).activate_biological_assembly(0)
         else:
-            updated_molecule=Molecule(source=source).activate_biological_assembly(0)
+            updated_molecule = Molecule(source=source).activate_biological_assembly(0)
 
-        self.molecules[base_key]=updated_molecule
-        self.base_molecule=updated_molecule
-        self.register(DataArtifact(self.base_molecule),key='base_molecule')
+        self.molecules[base_key] = updated_molecule
+        self.base_molecule = updated_molecule
+        self.register(DataArtifact(self.base_molecule), key='base_molecule')

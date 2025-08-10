@@ -17,8 +17,10 @@ from ..core.objmanager import ObjManager
 from ..objs.cleavagesite import CleavageSite
 from ..objs.deletion import DeletionList
 from ..objs.graft import GraftList
-from ..objs.mutation import MutationList
+from ..objs.link import Link, LinkList
+from ..objs.mutation import Mutation, MutationList
 from ..objs.patch import PatchList
+from ..objs.ssbond import SSBond, SSBondList
 
 class Segment(BaseObj):
     """
@@ -188,6 +190,25 @@ class Segment(BaseObj):
         Dseg.set_parent_molecule(self._parent_molecule)
         # Dseg.ancestor_obj=self.ancestor_obj
         return Dseg
+    
+    def prune(self, mutations: MutationList, links: LinkList, ssbonds: SSBondList):
+        """
+        Prune the segment based on mutations, links, and disulfide bonds.
+        
+        Parameters
+        ----------
+        mutations : MutationList
+            A list of mutations to apply to the segment.
+        links : LinkList
+            A list of links to apply to the segment.
+        ssbonds : SSBondList
+            A list of disulfide bonds to apply to the segment.
+        
+        Returns
+        -------
+        dict
+            A dictionary containing pruned objects, including segments, links, and disulfide bonds.
+        """
 
 
 class SegmentList(BaseObjList[Segment]):
@@ -320,12 +341,15 @@ class SegmentList(BaseObjList[Segment]):
         Segment or None
             The segment containing the specified residue, or None if not found.
         """
-        for S in self:
-            logger.debug(f'Looking for {residue.chainID}_{residue.resid.resid} in segment {S.segname}')
-            for r in S.residues:
-                logger.debug(f'     {r.chainID}_{r.resid.resid}')
+        logger.debug(f'Looking for {residue.chainID}_{residue.resid.resid} in all segments {", ".join([S.segname for S in self.data])}')
+        for S in self.data:
+            logger.debug(f'   -> {residue.chainID}_{residue.resid.resid} in segment {S.segname}')
+            # for r in S.residues:
+            #     logger.debug(f'     {r.chainID}_{r.resid.resid}')
             if residue in S.residues:
+                logger.debug(f' found it!')
                 return S
+        raise ValueError(f'Residue {residue.chainID}_{residue.resid.resid} not found in any segment!')
         return None
 
     def remove(self, item):
@@ -341,7 +365,54 @@ class SegmentList(BaseObjList[Segment]):
         self._counters_by_segtype[self._segtype_of_segname[item.segname]] -= 1
         return super().remove(item)
 
-    def inherit_objs(self, objmanager:ObjManager):
+    def prune(self, mutations: MutationList, links: LinkList, ssbonds: SSBondList):
+        """ prune off any links from links and ssbonds from ssbonds due to mutations in mutations """
+        pruned_objects = {'residues': ResidueList([]), 'links': LinkList([]), 'ssbonds': SSBondList([]), 'segments': SegmentList([])}
+        for mutation in mutations:
+            llist, rlist = [], []
+            left = ssbonds.get(chainID1=mutation.chainID, resid1=mutation.resid) # ssbonds for which partner 1 is the mutation
+            right = ssbonds.get(chainID2=mutation.chainID, resid2=mutation.resid) # ssbonds for which partner 2 is the mutation
+            if left:
+                ssbonds.remove(left)
+                pruned_objects['ssbonds'].append(left)
+            if right:
+                ssbonds.remove(right)
+                pruned_objects['ssbonds'].append(right)
+            left = links.get(chainID1=mutation.chainID, resid1=mutation.resid) # links for which partner 1 is the mutation
+            right = links.get(chainID2=mutation.chainID, resid2=mutation.resid) # links for which partner 2 is the mutation
+            ### it is assumed that a residue can be represented as a partner in only two shared links
+            assert isinstance(left, Link) or left is None, f'Left link for mutation {mutation} is not a Link: {type(left)}'
+            assert isinstance(right, Link) or right is None, f'Right link for mutation {mutation} is not a Link: {type(right)}'
+            if left:  # this is a link in which this mutation is partner 1
+                links.remove(left) # get rid of this link
+                # we need to remove residue2 and everything downstream
+                # remove downstream residues!
+                rlist, llist = left.residue2.get_down_group()
+                rlist.insert(0, left.residue2)
+            elif right: # this is a link in which this mutation is the right member (should be very rare)
+                links.remove(right)
+                rlist, llist = right.residue2.get_down_group()
+                rlist.insert(0, right.residue2)
+            # logger.debug(f'Found upstream residues for mutation {mutation}: {[repr(r) for r in llist]}')
+            logger.debug(f'Found downstream residues for mutation {mutation}: {[f"{r.chainID}:{r.resname}_{r.resid.resid}" for r in rlist]}')
+            if rlist and llist:
+                logger.debug(f'Deleting residues down from and including {str(rlist[0])} due to a mutation')
+                S = self.get_segment_of_residue(rlist[0])
+                logger.debug(f'Segment {S.segname} contains residues that must be deleted because they are downstream (right) of a deleted link.')
+                for r in rlist:
+                    logger.debug(f'...{str(r)}')
+                    S.residues.remove(r)
+                    pruned_objects['residues'].append(r)
+                if len(S.residues) == 0:
+                    logger.debug(f'All residues of {S.segname} are deleted; {S.segname} is deleted')
+                    self.remove(S)
+                    pruned_objects['segments'].append(S)
+                for l in llist:
+                    links.remove(l)
+                    pruned_objects['links'].append(l)
+        return pruned_objects
+
+    def inherit_objs(self, objmanager: ObjManager):
         """
         Inherit objects from the object manager for each segment in the list.
         This method updates the object manager for each segment with inherited objects

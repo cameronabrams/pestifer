@@ -10,7 +10,7 @@ import shutil
 from pathlib import Path
 
 from ..logparsers.namdlogparser import NAMDLogParser
-from ..scripters.filewriter import Filewriter
+from ..scripters.genericscripter import GenericScripter
 from .stringthings import ByteCollector
 
 logger=logging.getLogger(__name__)
@@ -90,7 +90,7 @@ class NAMDConfig:
         filename : str
             The name of the file to which the NAMD configuration will be written. If the file already exists, it will be overwritten.
         """
-        W = Filewriter()
+        W = GenericScripter()
         W.filename = filename
         W.banner('pestifer NAMD restart')
         for line in self.lines:

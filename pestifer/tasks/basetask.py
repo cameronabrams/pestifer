@@ -23,7 +23,7 @@ from ..core.artifacts import *
 from ..core.resourcemanager import ResourceManager
 from ..core.pipeline import PipelineContext
 
-from ..scripters import Filewriter, VMDScripter
+from ..scripters import GenericScripter, VMDScripter
 
 if TYPE_CHECKING:
     from ..core.controller import Controller
@@ -92,7 +92,7 @@ class BaseTask(ABC):
         
         # set some shortcuts for commonly used provisions
         self.resource_manager: ResourceManager = self.provisions.get('resource_manager', None)
-        self.scripters: dict[Filewriter] = self.provisions.get('scripters', {})
+        self.scripters: dict[GenericScripter] = self.provisions.get('scripters', {})
         self.subcontroller: 'Controller' = self.provisions.get('subcontroller', None)
         self.controller_index: int = self.provisions.get('controller_index', 0)
         self.pipeline: PipelineContext = self.provisions.get('pipeline', None)

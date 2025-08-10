@@ -3,7 +3,7 @@
 import logging
 import os
 
-from .tclscripters import TcLScripter
+from .tclscripter import TcLScripter
 from ..core.command import Command
 from ..logparsers import NAMDLogParser, NAMDxstParser
 from ..util.progress import NAMDProgress
@@ -55,7 +55,7 @@ class NAMDScripter(TcLScripter):
             A list of parameter files that have been copied to the local directory.
         """
         logger.debug('Fetching standard CHARMM parameters')
-        parameters_local=[]
+        parameters_local = []
         for t in self.charmmff_config['standard']['parameters']:
             self.charmmff.copy_charmmfile_local(t)
             parameters_local.append(t)
@@ -66,7 +66,7 @@ class NAMDScripter(TcLScripter):
         logger.debug(f'local parameters: {parameters_local}')
         return parameters_local
 
-    def newscript(self,basename=None,addl_paramfiles=[]):
+    def newscript(self, basename=None, addl_paramfiles=[]):
         """
         Initialize a new NAMD script with a specified basename and additional parameter files.
         If no basename is provided, a default script name is used.
@@ -80,9 +80,9 @@ class NAMDScripter(TcLScripter):
             a path (i.e., they should be in the current working directory).
         """
         super().newscript(basename)
-        self.scriptname=f'{basename}{self.default_ext}'
+        self.scriptname = f'{basename}{self.default_ext}'
         self.banner('NAMD script')
-        self.parameters=self.fetch_standard_charmm_parameters()
+        self.parameters = self.fetch_standard_charmm_parameters()
         for at in sorted(addl_paramfiles):
             if not at in self.parameters:
                 self.charmmff.copy_charmmfile_local(at)
@@ -91,7 +91,7 @@ class NAMDScripter(TcLScripter):
             assert os.sep not in p
             self.addline(f'parameters {p}')
 
-    def writescript(self,params,cpu_override=False):
+    def writescript(self, params, cpu_override=False):
         """
         Write the NAMD script based on the provided parameters.
         This method constructs the NAMD script by adding lines based on the parameters provided.
@@ -105,29 +105,29 @@ class NAMDScripter(TcLScripter):
             If True, the script will be written with CPU-specific configurations, even if the NAMD type is 'gpu'.
         """
         logger.debug(f'params: {params}')
-        tailers=['minimize','run','numsteps']
-        for k,v in params.items():
+        tailers = ['minimize', 'run', 'numsteps']
+        for k, v in params.items():
             if k not in tailers:
-                if type(v)==list:
+                if type(v) == list:
                     for val in v:
-                        if k=='tcl':
+                        if k == 'tcl':
                             self.addline(val)
                         else:
-                            self.addline(f'{self.namd_deprecates.get(k,k)} {val}')
+                            self.addline(f'{self.namd_deprecates.get(k, k)} {val}')
                 else:
-                    if k=='tcl':
+                    if k == 'tcl':
                         self.addline(v)
                     else:
-                        self.addline(f'{self.namd_deprecates.get(k,k)} {v}')
-        if self.namd_type=='gpu' and not cpu_override:
-            for k,v in self.namd_config['gpu-resident'].items():
+                        self.addline(f'{self.namd_deprecates.get(k, k)} {v}')
+        if self.namd_type == 'gpu' and not cpu_override:
+            for k, v in self.namd_config['gpu-resident'].items():
                 self.addline(f'{k} {v}')
         for t in tailers:
             if t in params:
-                self.addline(f'{self.namd_deprecates.get(t,t)} {params[t]}')
+                self.addline(f'{self.namd_deprecates.get(t, t)} {params[t]}')
         super().writescript()
 
-    def runscript(self,**kwargs):
+    def runscript(self, **kwargs):
         """
         Run the NAMD script using the NAMD command line interface.
         This method constructs a command to execute NAMD with the specified script and options.
@@ -140,34 +140,34 @@ class NAMDScripter(TcLScripter):
             - ``single_gpu_only``: If True, use only one GPU device.
             - ``cpu_override``: If True, force the use of CPU settings even if the NAMD type is ``gpu``.
         """
-        assert hasattr(self,'scriptname'),f'No scriptname set.'
-        if kwargs.get('local_execution_only',False):
-            use_cpu_count=self.local_ncpus
+        assert hasattr(self, 'scriptname'), f'No scriptname set.'
+        if kwargs.get('local_execution_only', False):
+            use_cpu_count = self.local_ncpus
         else:
-            use_cpu_count=self.ncpus
-        if kwargs.get('single_gpu_only',False):
-            use_gpu_count=1
-            use_gpu_devices='0'
+            use_cpu_count = self.ncpus
+        if kwargs.get('single_gpu_only', False):
+            use_gpu_count = 1
+            use_gpu_devices = '0'
         else:
-            use_gpu_count=self.ngpus
-            use_gpu_devices=self.gpu_devices
-        if self.namd_type=='cpu' or kwargs.get('cpu_override',False):
-            c=Command(f'{self.charmrun} +p {use_cpu_count} {self.namd} {self.scriptname}')
-        elif self.namd_type=='gpu':
-            if len(self.slurmvars)>0:
-                use_cpu_count=8 if use_gpu_count==1 else (use_gpu_count-1)*8 + 8-(use_gpu_count-1)
+            use_gpu_count = self.ngpus
+            use_gpu_devices = self.gpu_devices
+        if self.namd_type == 'cpu' or kwargs.get('cpu_override', False):
+            c = Command(f'{self.charmrun} +p {use_cpu_count} {self.namd} {self.scriptname}')
+        elif self.namd_type == 'gpu':
+            if len(self.slurmvars) > 0:
+                use_cpu_count = 8 if use_gpu_count == 1 else (use_gpu_count - 1) * 8 + 8 - (use_gpu_count - 1)
             else:
-                use_cpu_count=self.local_ncpus
-            c=Command(f'{self.namdgpu} +p{use_cpu_count} +setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
-        self.logname=f'{self.basename}.log'
-        self.logparser=NAMDLogParser(basename=self.basename)
-        self.logparser.auxparser=NAMDxstParser(basename=f'{self.basename}')
-        progress_struct=None
+                use_cpu_count = self.local_ncpus
+            c = Command(f'{self.namdgpu} +p{use_cpu_count} +setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
+        self.logname = f'{self.basename}.log'
+        self.logparser = NAMDLogParser(basename=self.basename)
+        self.logparser.auxparser = NAMDxstParser(basename=f'{self.basename}')
+        progress_struct = None
         if self.progress:
             logger.debug(f'NAMD runscript using progress')
-            progress_struct=NAMDProgress()
+            progress_struct = NAMDProgress()
             self.logparser.enable_progress_bar(progress_struct)
         else:
             logger.debug(f'NAMD runscript NOT using progress')
-        return c.run(logfile=self.logname,logparser=self.logparser)
+        return c.run(logfile=self.logname, logparser=self.logparser)
 

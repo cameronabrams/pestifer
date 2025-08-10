@@ -318,47 +318,47 @@ class Molecule:
         """
         return len(self.asymmetric_unit.segments)
 
-    def write_protein_loop_lines(self,writer,cycles=100,**options):
-        """
-        Write Tcl commands to declare loops in the asymmetric unit that are in the ``MISSING``
-        state and have a length greater than or equal to the specified minimum length.
-        This method iterates through the segments of the asymmetric unit and generates Tcl commands
-        to declare the loops.
+    # def write_protein_loop_lines(self,writer,cycles=100,**options):
+    #     """
+    #     Write Tcl commands to declare loops in the asymmetric unit that are in the ``MISSING``
+    #     state and have a length greater than or equal to the specified minimum length.
+    #     This method iterates through the segments of the asymmetric unit and generates Tcl commands
+    #     to declare the loops.
         
-        Parameters
-        ----------
-        writer : scriptwriter
-            An instance of a script writer that will be used to write the Tcl commands.
-        cycles : int, optional
-            The number of cycles for the loop declaration. Default is 100.
-        options : dict, optional
-            Additional options for loop declaration. It can include:
+    #     Parameters
+    #     ----------
+    #     writer : scriptwriter
+    #         An instance of a script writer that will be used to write the Tcl commands.
+    #     cycles : int, optional
+    #         The number of cycles for the loop declaration. Default is 100.
+    #     options : dict, optional
+    #         Additional options for loop declaration. It can include:
 
-            - ``min_length``: The minimum length of loops to consider. Default is 4.
-            - ``include_c_termini``: If True, includes C-terminal loops in the declaration. If False, skips C-terminal loops. Default is False.
-        """
-        ba=self.active_biological_assembly
-        au=self.asymmetric_unit
-        min_length=self.min_loop_length
-        include_c_termini=options.get('include_c_termini',False)
-        for S in au.segments:
-            # chainID=S.chainID
-            if S.segtype in 'protein':
-                asymm_segname=S.segname
-                n_subsegs=len(S.subsegments)
-                for b in S.subsegments:
-                    is_c_terminus=(S.subsegments.index(b)==(n_subsegs-1))
-                    is_processible=b.state=='MISSING' and b.num_items()>=min_length
-                    if is_processible and (not include_c_termini) and is_c_terminus:
-                        logger.debug(f'A.U. C-terminal loop {b.pstr()} declashing is skipped')
-                        is_processible=False
-                    if is_processible:
-                        reslist=[f'{r.resid.resid}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
-                        tcllist='[list '+' '.join(reslist)+']'
-                        for transform in ba.transforms:
-                            cm=transform.chainIDmap
-                            act_segID=cm.get(asymm_segname,asymm_segname)
-                            writer.addline(f'declash_loop $mLL {act_segID} {tcllist} {cycles}')
+    #         - ``min_length``: The minimum length of loops to consider. Default is 4.
+    #         - ``include_c_termini``: If True, includes C-terminal loops in the declaration. If False, skips C-terminal loops. Default is False.
+    #     """
+    #     ba=self.active_biological_assembly
+    #     au=self.asymmetric_unit
+    #     min_length=self.min_loop_length
+    #     include_c_termini=options.get('include_c_termini',False)
+    #     for S in au.segments:
+    #         # chainID=S.chainID
+    #         if S.segtype in 'protein':
+    #             asymm_segname=S.segname
+    #             n_subsegs=len(S.subsegments)
+    #             for b in S.subsegments:
+    #                 is_c_terminus=(S.subsegments.index(b)==(n_subsegs-1))
+    #                 is_processible=b.state=='MISSING' and b.num_items()>=min_length
+    #                 if is_processible and (not include_c_termini) and is_c_terminus:
+    #                     logger.debug(f'A.U. C-terminal loop {b.pstr()} declashing is skipped')
+    #                     is_processible=False
+    #                 if is_processible:
+    #                     reslist=[f'{r.resid.resid}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
+    #                     tcllist='[list '+' '.join(reslist)+']'
+    #                     for transform in ba.transforms:
+    #                         cm=transform.chainIDmap
+    #                         act_segID=cm.get(asymm_segname,asymm_segname)
+    #                         writer.addline(f'declash_loop $mLL {act_segID} {tcllist} {cycles}')
 
     def write_gaps(self,writer,min_length=4):
         """

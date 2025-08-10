@@ -16,7 +16,7 @@ from ycleptic.yclept import Yclept
 
 from .resourcemanager import ResourceManager
 from ..util.stringthings import my_logger
-from ..scripters import PsfgenScripter, NAMDColvarInputScripter, PackmolScripter, VMDScripter, Filewriter
+from ..scripters import PsfgenScripter, NAMDColvarInputScripter, PackmolScripter, VMDScripter, GenericScripter
 from ..scripters.namdscripter import NAMDScripter
 
 logger = logging.getLogger(__name__)
@@ -68,7 +68,7 @@ class Config(Yclept):
             'namd': NAMDScripter(**self.kwargs_to_scripters),
             'packmol': PackmolScripter(**self.kwargs_to_scripters),
             'tcl': VMDScripter(**self.kwargs_to_scripters),
-            'data': Filewriter(**self.kwargs_to_scripters),
+            'data': GenericScripter(**self.kwargs_to_scripters),
             'vmd': VMDScripter(**self.kwargs_to_scripters),
             'namd_colvar': NAMDColvarInputScripter(**self.kwargs_to_scripters)
         }

@@ -12,9 +12,11 @@ name, and PDB file name.
 import logging
 
 from pydantic import Field
-from typing import Callable
+from typing import Callable, TYPE_CHECKING
 
 from ..core.baseobj import BaseObj, BaseObjList
+if TYPE_CHECKING:
+    from ..molecule.residue import Residue
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +26,7 @@ class StateInterval(BaseObj):
     This is useful for tracking the state of an object over a period of time.
     """
     _required_fields = {'state', 'bounds'}
-    _optional_fields = {'build', 'selname', 'pdb'}
+    _optional_fields = {'build', 'selname', 'pdb', 'sacres'}
     _attr_choices = {
         'state': {'RESOLVED', 'MISSING'},
         'build': {True, False}
@@ -35,6 +37,7 @@ class StateInterval(BaseObj):
     build: bool = Field(False, description="build flag, if applicable")
     selname: str = Field(None, description="Selection name, if applicable")
     pdb: str = Field(None, description="Temporary PDB file name, if applicable")
+    sacres: 'Residue' = Field(None, description="Saccharide residue, if applicable")
 
     def declare_buildable(self) -> None:
         """
@@ -56,6 +59,17 @@ class StateInterval(BaseObj):
             self.bounds[-1] += increment
         else:
             raise ValueError("Bounds must be a list of integers with at least one element.")
+
+    def num_items(self) -> int:
+        """
+        Get the number of items in the interval.
+
+        Returns
+        -------
+        int
+            The number of items in the interval.
+        """
+        return self.bounds[1] - self.bounds[0] + 1
 
 class StateIntervalList(BaseObjList[StateInterval]):
     """
@@ -160,9 +174,6 @@ class StateIntervalList(BaseObjList[StateInterval]):
             The number of items in the bounds list.
         """
         for interval in self.data:
-            item_count = 0
-            if not interval.bounds or len(interval.bounds) < 2:
-                raise ValueError("Each StateInterval must have at least two bounds.")
-            item_count += interval.bounds[1] - interval.bounds[0] + 1
+            item_count += interval.num_items()
         return item_count
     

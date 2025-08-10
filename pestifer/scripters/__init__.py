@@ -1,16 +1,17 @@
-from .filewriter import Filewriter
+from .genericscripter import GenericScripter
 from .namdscripter import NAMDScripter
 from .namdcolvarinputscripter import NAMDColvarInputScripter
 from .packmolscripter import PackmolScripter
 from .psfgenscripter import PsfgenScripter
-from .tclscripters import TcLScripter, VMDScripter
+from .tclscripter import TcLScripter
+from .vmdscripter import VMDScripter
 
 scripters = {
     'psfgen': PsfgenScripter,
     'vmd': VMDScripter,
     'tcl': TcLScripter,
     'packmol': PackmolScripter,
-    'data': Filewriter,
+    'data': GenericScripter,
     'namd': NAMDScripter,
     'namd_colvar': NAMDColvarInputScripter
 }

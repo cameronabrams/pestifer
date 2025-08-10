@@ -4,75 +4,23 @@ import datetime
 import logging
 import os
 
-from .filewriter import Filewriter
-from ..core.command import Command
-from ..util.stringthings import FileCollector
+from .tclscripter import TcLScripter
 
-from ..objs.crot import Crot
+from ..core.command import Command
+
+from ..logparsers import VMDLogParser
+
+from ..molecule.molecule import Molecule
+from ..molecule.residue import ResidueList
+
+from ..objs.crot import Crot, CrotList
 from ..objs.orient import Orient, OrientList
 from ..objs.rottrans import RotTrans, RotTransList
 
-from ..logparsers.logparser import VMDLogParser
-from ..util.progress import PestiferProgress
 from ..util.util import reduce_intlist
+from ..util.progress import PestiferProgress
 
 logger = logging.getLogger(__name__)
-
-class TcLScripter(Filewriter):
-    """
-    This class extends the Filewriter class to provide functionality for creating and managing Tcl scripts.
-
-    Parameters
-    ----------
-    config : Config
-        The configuration object containing settings for the script.
-    """
-    def __init__(self, *args, **kwargs):
-        super().__init__(comment_char=kwargs.get('comment_char', '#'))
-        self.progress = kwargs.get('progress', True)
-        self.F = FileCollector()
-        self.default_ext = '.tcl'
-        self.default_script = f'pestifer-script{self.default_ext}'
-        self.scriptname = self.default_script
-
-    def newscript(self, basename=None):
-        """
-        Initialize a new Tcl script with a specified basename.
-        If no basename is provided, a default script name is used.
-
-        Parameters
-        ----------
-        basename : str, optional
-            The base name for the script file. If not provided, a default name is used.
-        """
-        timestampstr = datetime.datetime.today().ctime()
-        if basename:
-            self.basename = basename
-        else:
-            self.basename = os.path.splitext(self.default_script)[0]
-        self.scriptname = f'{self.basename}{self.default_ext}'
-        self.newfile(self.scriptname)
-        msg = f'{__package__}: {self.basename}{self.default_ext}'
-        self.comment(msg)
-        self.banner(f'Created {timestampstr}')
-
-    def writescript(self):
-        """
-        Writes the Tcl script to the file specified by the ``scriptname`` attribute.
-        """
-        self.writefile()
-
-    def addfile(self, filename):
-        """
-        Add a file to the list of files associated with the script; these might be inputs or outputs (mostly outputs).
-        This method appends the specified filename to the internal ``FileCollector``.
-
-        Parameters
-        ----------
-        filename : str
-            The name of the file to be added.
-        """
-        self.F.append(filename)
 
 class VMDScripter(TcLScripter):
     """
@@ -138,47 +86,6 @@ class VMDScripter(TcLScripter):
         if add_banners:
             self.banner(f'End {scriptbasename}')
 
-    def write_orients(self, orients: OrientList):
-        for orient in orients:
-            self.write_orient(orient)
-
-    def write_orient(self, orient: Orient):
-        """
-        Write a VMD Orient object to the script.
-        This method generates the Tcl commands to orient a coordinate set in VMD based on the provided Orient object.
-
-        Parameters
-        ----------
-        orient : Orient
-            The Orient object containing the orientation data.
-        """
-        self.addline('set a [atomselect top all]')
-        self.addline('set I [draw principalaxes $a]')
-        adict=dict(x=r'{1 0 0}',y=r'{0 1 0}',z=r'{0 0 1}')
-        self.addline(f'set A [orient $a [lindex $I 2] {adict[orient.axis]}]')
-        self.addline(r'$a move $A')
-        if hasattr(orient,'refatom'):
-            self.addline(r'set com [measure center $a]')
-            self.addline(r'$a moveby [vecscale $com -1]')
-            self.addline(f'set z [[atomselect top "name {orient.refatom}"] get z]')
-            self.addline(r'if { $z < 0.0 } {')
-            self.addline(r'   $a move [transaxis x 180 degrees]')
-            self.addline(r'}')
-
-    def write_rottranslist(self, rottranslist: RotTransList):
-        for rt in rottranslist:
-            self.write_rottrans(rt)
-
-    def write_rottrans(self, rottrans: RotTrans):
-        molid_varname=self.molid_varname
-        molid=f'${molid_varname}'
-        self.addline(f'set mover [atomselect {molid} all]')
-        if rottrans.movetype=='TRANS':
-            self.addline(f'$mover moveby [list {rottrans.x} {rottrans.y} {rottrans.z}]')
-        elif rottrans.movetype=='ROT':
-            self.addline(f'set COM [measure center $mover weight mass]')
-            self.addline(f'$mover move [trans origin $COM axis {rottrans.axis} {rottrans.angle}]')
-
     def writescript(self, force_exit=False):
         """
         Finalize the VMD script by adding an exit statement and banners.
@@ -195,7 +102,7 @@ class VMDScripter(TcLScripter):
         self.banner(f'Thank you for using {__package__}!')
         super().writescript()
 
-    def set_molecule(self, mol, altcoords=None):
+    def set_molecule(self, mol: Molecule, altcoords=None):
         """
         Set up a VMD molecule from the given molecule object.
     
@@ -206,7 +113,7 @@ class VMDScripter(TcLScripter):
         altcoords : str, optional
             Alternative coordinates file to be loaded for the molecule.
         """
-        mol.molid_varname = f'm{mol.molid}'
+        self.molid_varname = f'm{mol.molid}'
         ext = '.pdb' if mol.rcsb_file_format == 'PDB' else '.cif'
         if mol.sourcespecs.get('id', {}):
             self.addline(f'mol new {mol.sourcespecs["id"]}{ext} waitfor all')
@@ -218,14 +125,14 @@ class VMDScripter(TcLScripter):
             self.addline(f'mol new {pdb} waitfor all')
         else:
             raise ValueError(f'Molecule specs has none of "id", "prebuilt", or "alphafold"')
-        self.addline(f'set {mol.molid_varname} [molinfo top get id]')
-        self.addline(f'set nf [molinfo ${mol.molid_varname} get numframes]')
-        self.addline(r'if { $nf > 1 } { animate delete beg 0 end [expr $nf - 2] $'+mol.molid_varname+r' }')
+        self.addline(f'set {self.molid_varname} [molinfo top get id]')
+        self.addline(f'set nf [molinfo ${self.molid_varname} get numframes]')
+        self.addline(r'if { $nf > 1 } { animate delete beg 0 end [expr $nf - 2] $'+self.molid_varname+r' }')
         if altcoords:
             mol.set_coords(altcoords)
             self.addline(f'mol addfile {altcoords} waitfor all')
-            self.addline(f'set nf [molinfo ${mol.molid_varname} get numframes]')
-            self.addline(r'animate delete beg 0 end [expr $nf - 2] $'+mol.molid_varname+r' }')
+            self.addline(f'set nf [molinfo ${self.molid_varname} get numframes]')
+            self.addline(r'animate delete beg 0 end [expr $nf - 2] $'+self.molid_varname+r' }')
         if mol.rcsb_file_format == 'mmCIF':
             # VMD appends a "1" to any two-letter chain ID from a CIF file,
             # so let's undo that
@@ -237,14 +144,14 @@ class VMDScripter(TcLScripter):
             uCIDs = residues.uniqattrs(['chainID'])['chainID']
             self.comment('Resetting chains and resids for this CIF-source molecule')
             for c in uCIDs:
-                chain = residues.filter(chainID=c)
+                chain: ResidueList = residues.filter(chainID=c)
                 resids = []
-                for x in chain:
+                for x in chain.data:
                     resids.extend([str(y.resseqnum) for y in x.atoms])
                 residlist = ' '.join(resids)
                 serials = chain.atom_serials(as_type=int)
                 vmd_red_list = reduce_intlist(serials)
-                self.addline(f'set TMP [atomselect ${mol.molid_varname} "serial {vmd_red_list}"]')
+                self.addline(f'set TMP [atomselect ${self.molid_varname} "serial {vmd_red_list}"]')
                 self.addline(f'$TMP set chain {c}')
                 self.addline(f'$TMP set resid [ list {residlist} ]')
                 self.addline(f'$TMP delete')
@@ -372,7 +279,19 @@ class VMDScripter(TcLScripter):
             logger.debug(f'Post-execution clean-up: {len(self.F)} files removed.')
             self.F.flush()
 
-    def write_crot(self, crot: Crot, chainIDmap: dict = 0):
+    def write_crots(self, crots: CrotList, chainIDmap: dict = {}):
+        for crot in crots.data:
+            self.write_crot(crot, chainIDmap=chainIDmap)
+
+    def write_orients(self, orients: OrientList):
+        for orient in orients.data:
+            self.write_orient(orient)
+
+    def write_rottranslist(self, rottranslist: RotTransList):
+        for rt in rottranslist.data:
+            self.write_rottrans(rt)
+
+    def write_crot(self, crot: Crot, chainIDmap: dict = {}):
         """
         Write a CROT object to the VMD script.
         This method generates VMD commands to create a CROT object based on the provided CROT data.
@@ -418,3 +337,78 @@ class VMDScripter(TcLScripter):
             self.addline('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,crot.resid2.resid))
             self.addline('set rterm [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,crot.resid3.resid))
             self.addline('fold_alpha $r1 $r2 $rterm {}'.format(molid))
+
+    def write_orient(self, orient: Orient):
+        """
+        Write a VMD Orient object to the script.
+        This method generates the Tcl commands to orient a coordinate set in VMD based on the provided Orient object.
+
+        Parameters
+        ----------
+        orient : Orient
+            The Orient object containing the orientation data.
+        """
+        self.addline('set a [atomselect top all]')
+        self.addline('set I [draw principalaxes $a]')
+        adict=dict(x=r'{1 0 0}',y=r'{0 1 0}',z=r'{0 0 1}')
+        self.addline(f'set A [orient $a [lindex $I 2] {adict[orient.axis]}]')
+        self.addline(r'$a move $A')
+        if hasattr(orient,'refatom'):
+            self.addline(r'set com [measure center $a]')
+            self.addline(r'$a moveby [vecscale $com -1]')
+            self.addline(f'set z [[atomselect top "name {orient.refatom}"] get z]')
+            self.addline(r'if { $z < 0.0 } {')
+            self.addline(r'   $a move [transaxis x 180 degrees]')
+            self.addline(r'}')
+
+    def write_rottrans(self, rottrans: RotTrans):
+        molid_varname=self.molid_varname
+        molid=f'${molid_varname}'
+        self.addline(f'set mover [atomselect {molid} all]')
+        if rottrans.movetype=='TRANS':
+            self.addline(f'$mover moveby [list {rottrans.x} {rottrans.y} {rottrans.z}]')
+        elif rottrans.movetype=='ROT':
+            self.addline(f'set COM [measure center $mover weight mass]')
+            self.addline(f'$mover move [trans origin $COM axis {rottrans.axis} {rottrans.angle}]')
+
+    def write_protein_loop_lines(self, mol: Molecule , cycles=100, **options):
+        """
+        Write Tcl commands to declare loops in the asymmetric unit that are in the ``MISSING``
+        state and have a length greater than or equal to the specified minimum length.
+        This method iterates through the segments of the asymmetric unit and generates Tcl commands
+        to declare the loops.
+        
+        Parameters
+        ----------
+        mol : Molecule
+            An instance of the Molecule class that contains the structural information.
+        cycles : int, optional
+            The number of cycles for the loop declaration. Default is 100.
+        options : dict, optional
+            Additional options for loop declaration. It can include:
+
+            - ``min_length``: The minimum length of loops to consider. Default is 4.
+            - ``include_c_termini``: If True, includes C-terminal loops in the declaration. If False, skips C-terminal loops. Default is False.
+        """
+        ba = mol.active_biological_assembly
+        au = mol.asymmetric_unit
+        min_length = mol.min_loop_length
+        include_c_termini = options.get('include_c_termini', False)
+        for S in au.segments.data:
+            # chainID=S.chainID
+            if S.segtype in 'protein':
+                asymm_segname = S.segname
+                n_subsegs = len(S.subsegments)
+                for b in S.subsegments.data:
+                    is_c_terminus = (S.subsegments.index(b) == (n_subsegs - 1))
+                    is_processible = b.state == 'MISSING' and b.num_items() >= min_length
+                    if is_processible and (not include_c_termini) and is_c_terminus:
+                        logger.debug(f'A.U. C-terminal loop {b.pstr()} declashing is skipped')
+                        is_processible = False
+                    if is_processible:
+                        reslist = [f'{r.resid.resid}' for r in S.residues.data[b.bounds[0]:b.bounds[1] + 1]]
+                        tcllist = '[list ' + ' '.join(reslist) + ']'
+                        for transform in ba.transforms:
+                            cm = transform.chainIDmap
+                            act_segID = cm.get(asymm_segname, asymm_segname)
+                            self.addline(f'declash_loop $mLL {act_segID} {tcllist} {cycles}')

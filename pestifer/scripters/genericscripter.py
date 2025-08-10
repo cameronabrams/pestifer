@@ -5,7 +5,7 @@ from ..util.stringthings import ByteCollector
 
 logger = logging.getLogger(__name__)
 
-class Filewriter:
+class GenericScripter:
     """
     A class for writing files with specific formats.
     

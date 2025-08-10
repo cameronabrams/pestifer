@@ -13,6 +13,7 @@ from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from pydantic import Field
 from typing import ClassVar, TYPE_CHECKING
 
+from .mutation import MutationList
 from .resid import ResID
 
 from ..core.baseobj import BaseObj, BaseObjList
@@ -21,6 +22,7 @@ from ..util.coord import measure_dihedral
 if TYPE_CHECKING:
     from ..molecule.atom import Atom
     from ..molecule.residue import Residue, ResidueList
+    from ..molecule.segment import Segment, SegmentList
 
 from ..psfutil.psfpatch import PSFLinkPatch
 
@@ -576,7 +578,7 @@ class LinkList(BaseObjList[Link]):
         self.remove(removed_links)
         return removed_links
 
-    def prune_mutations(self, Mutations, Segments):
+    def prune_mutations(self, Mutations: 'MutationList', Segments: 'SegmentList'):
         """
         Prune off any links and associated objects as a result of mutations
 
@@ -598,33 +600,34 @@ class LinkList(BaseObjList[Link]):
             - ``links``: list of Link objects that were pruned
             - ``segments``: list of Segment objects that were pruned
         """
-        pruned={'residues':[],'links':self.__class__([]),'segments':[]}
-        for m in Mutations:
-            rlist,llist=[],[]
-            left=self.get(chainID1=m.chainID,resid1=m.resid)
-            right=self.get(chainID2=m.chainID,resid2=m.resid)
-            if left:  # this is a link in which this mutation is the left member
+        pruned = {'residues': [], 'links': self.__class__([]), 'segments': []}
+        for m in Mutations.data:
+            left = self.get(chainID1=m.chainID, resid1=m.resid) # links for which partner 1 is the mutation
+            right = self.get(chainID2=m.chainID, resid2=m.resid) # links for which partner 2 is the mutation
+            if left:  # this is a link in which this mutation is the partner 1
                 self.remove(left) # get rid of this link
                 # we need to remove residue2 and everything downstream
                 # remove downstream residues!
-                rlist,llist=left.residue2.get_down_group()
-                rlist.insert(0,left.residue2)
+                rlist, llist = left.residue2.get_down_group()
+                rlist.insert(0, left.residue2)
             elif right: # this is a link in which this mutation is the right member (should be very rare)
                 self.remove(right)
-                rlist,llist=right.residue2.get_down_group()
-                rlist.insert(0,right.residue2)
+                rlist, llist = right.residue2.get_down_group()
+                rlist.insert(0, right.residue2)
             if rlist and llist:
                 # logger.debug(f'Deleting residues down from and including {str(rlist[0])} due to a mutation')
-                S=Segments.get_segment_of_residue(rlist[0])
+                S = Segments.get_segment_of_residue(rlist[0])
                 for r in rlist:
                     # logger.debug(f'...{str(r)}')
-                    pruned['residues'].append(S.residues.remove(r))
-                if len(S.residues)==0:
+                    S.residues.remove(r)
+                    pruned['residues'].append(r)
+                if len(S.residues) == 0:
                     # logger.debug(f'All residues of {S.psfgen_segname} are deleted; {S.psfgen_segname} is deleted')
                     Segments.remove(S)
                     pruned['segments'].append(S)
                 for l in llist:
-                    pruned['links'].append(self.remove(l))
+                    self.data.remove(l)
+                    pruned['links'].append(l)
         return pruned
 
     def apply_segtypes(self, map):
@@ -643,7 +646,7 @@ class LinkList(BaseObjList[Link]):
         """
         Report the string representation of each link in the list.
         """
-        return "\n".join([repr(l) for l in self])
+        return "\n".join([str(l) for l in self])
     
 def ic_reference_closest(res12: list["Residue"], ICmaps: list[dict]) -> str:
     """

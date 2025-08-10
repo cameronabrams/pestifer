@@ -3,14 +3,17 @@
 import logging
 import os
 
-from .filewriter import Filewriter
-from .tclscripters import VMDScripter
+from .genericscripter import GenericScripter
+from .vmdscripter import VMDScripter
 
 from ..core.command import Command
 from ..core.labels import Labels
 from ..core.objmanager import ObjManager
 from ..util.stringthings import ByteCollector
 
+from ..molecule.asymmetricunit import AsymmetricUnit
+from ..molecule.atom import AtomList
+from ..molecule.bioassemb import BioAssemb
 from ..molecule.molecule import Molecule
 from ..molecule.residue import Residue, ResidueList
 from ..molecule.segment import Segment, SegmentList
@@ -80,7 +83,7 @@ class PsfgenScripter(VMDScripter):
         logger.debug(f'local topologies: {topology_local}')
         return topology_local
 
-    def newscript(self,basename=None,packages=[],additional_topologies=[]):
+    def newscript(self, basename=None, packages=[], additional_topologies=[]):
         """
         Initialize a new psfgen script with a specified basename and packages.
         If no basename is provided, a default script name is used.
@@ -95,12 +98,12 @@ class PsfgenScripter(VMDScripter):
             A list of additional topology files to be included in the script. These files should not contain
             a path (i.e., they should be in the current working directory).
         """
-        super().newscript(basename=basename,packages=packages)
+        super().newscript(basename=basename, packages=packages)
         self.addline('package require psfgen')
         self.addline('psfcontext mixedcase')
-        self.topologies=self.fetch_standard_charmm_topologies()
+        self.topologies = self.fetch_standard_charmm_topologies()
         for at in sorted(additional_topologies):
-            assert os.sep not in at,f'Topology file {at} must not contain a path.'
+            assert os.sep not in at, f'Topology file {at} must not contain a path.'
             if not at in self.topologies:
                 self.charmmff.copy_charmmfile_local(at)
                 self.topologies.append(at)
@@ -115,10 +118,10 @@ class PsfgenScripter(VMDScripter):
         for alias_type,alias_list in self.psfgen_config['aliases'].items():
             logger.debug(f'Adding {len(alias_list)} {alias_type} aliases to psfgen script')
             for pdba in alias_list:
-                alias_tokens=pdba.split()
-                if alias_tokens[1]=='*': # wild-card for all protein residues
+                alias_tokens = pdba.split()
+                if alias_tokens[1] == '*':  # wild-card for all protein residues
                     for protein_resname in self.psfgen_config['segtypes']['protein']['resnames']:
-                        this_pdba=f'{alias_tokens[0]} {protein_resname} {alias_tokens[2]} {alias_tokens[3]}'
+                        this_pdba = f'{alias_tokens[0]} {protein_resname} {alias_tokens[2]} {alias_tokens[3]}'
                         self.addline(f'pdbalias {alias_type} {this_pdba}')
                 else:
                     self.addline(f'pdbalias {alias_type} {pdba}')
@@ -142,14 +145,14 @@ class PsfgenScripter(VMDScripter):
         logger.debug(f'load_project called with {len(objs)} arguments')
         for _ in objs:
             logger.debug(f'   {_}')
-        if len(objs)==1:
-            basename=objs[0]
+        if len(objs) == 1:
+            basename = objs[0]
             self.addline(f'readpsf {basename}.psf pdb {basename}.pdb')
         else:
-            psf,pdb=objs
+            psf, pdb = objs
             self.addline(f'readpsf {psf} pdb {pdb}')
 
-    def describe_molecule(self, mol:Molecule):
+    def describe_molecule(self, mol: Molecule):
         """
         Describe a molecule in the psfgen script.
         This method sets up the molecule in the psfgen script by writing the necessary Tcl commands
@@ -160,18 +163,18 @@ class PsfgenScripter(VMDScripter):
         mol : Molecule
             The molecule object to be described in the psfgen script.
         """
-        self.molid_varname=f'm{mol.molid}'
+        self.molid_varname = f'm{mol.molid}'
         self.addline(f'mol top ${self.molid_varname}')
         self.write_mol_tcl(mol)
 
-    def write_mol_tcl(self, mol:Molecule):
-        au = mol.asymmetric_unit
-        segments = au.segments
+    def write_mol_tcl(self, mol: Molecule):
+        au: AsymmetricUnit = mol.asymmetric_unit
+        segments: SegmentList = au.segments
         topomods = au.objmanager.get('topol', {})
-        ssbonds = topomods.get('ssbonds', [])
-        links = topomods.get('links', [])
-        ba = mol.active_biological_assembly
-        for transform in ba.transforms:
+        ssbonds: SSBondList = topomods.get('ssbonds', [])
+        links: LinkList = topomods.get('links', [])
+        ba: BioAssemb = mol.active_biological_assembly
+        for transform in ba.transforms.data:
             self.banner(f'Transform {transform.index} begins')
             self.banner('The following mappings of A.U. asym ids is used:')
             for k,v in transform.chainIDmap.items():
@@ -183,14 +186,14 @@ class PsfgenScripter(VMDScripter):
                 self.write_ssbonds(ssbonds, transform)
             self.banner('LINK patches follow')
             if links:
-                A = Filewriter().newfile('linkreport.txt')
+                A = GenericScripter().newfile('linkreport.txt')
                 A.addline(links.report())
                 A.writefile()
                 self.write_links(links, transform)
             self.banner(f'Transform {transform.index} ends')
 
     def write_segments(self, segments: SegmentList, transform: Transform = None):
-        for segment in segments:
+        for segment in segments.data:
             self.comment(f'Segment {segment.segname} begins')
             self.write_segment(segment, transform)
             self.comment(f'Segment {segment.segname} ends')
@@ -258,10 +261,9 @@ class PsfgenScripter(VMDScripter):
         seg_patches: PatchList = seqmods.get('patches', PatchList([]))
         self.banner(f'Segment {image_seglabel} begins')
         logger.debug(f'Segment {image_seglabel} begins')
-        for sf in seg_Cfusions:
-            # sf.write_pre_segment(self)
+        for sf in seg_Cfusions.data:
             self.write_cfusion_presegment(sf)
-        for i, b in enumerate(segment.subsegments):
+        for i, b in enumerate(segment.subsegments.data):
             if b.state == 'RESOLVED':
                 """ for a resolved subsegment, generate its pdb file """
                 b.selname = f'{image_seglabel}{i:02d}'
@@ -279,11 +281,11 @@ class PsfgenScripter(VMDScripter):
                 logger.debug(f'here it is {at.serial} {at.resname} {at.name} in chain {at.chainID} residue {at.resname}{at.resid.resid}')
                 assert at.resid == run[-1].resid
                 vmd_red_list = reduce_intlist(serial_list)
-                self.addline(f'set {b.selname} [atomselect ${segment.parent_molecule.molid_varname} "serial {vmd_red_list}"]')
+                self.addline(f'set {b.selname} [atomselect m${segment.parent_molecule.molid} "serial {vmd_red_list}"]')
                 self.addline(f'${b.selname} set segname {image_seglabel}')
-                if hasattr(at, '_ORIGINAL_ATTRIBUTES_'):
-                    if at._ORIGINAL_ATTRIBUTES_["serial"] != at.serial:
-                        self.banner(f'Atom with serial {at._ORIGINAL_ATTRIBUTES_["serial"]} in PDB needs serial {at.serial} for VMD')
+                if hasattr(at, '_ORIGINAL_ATTRIBUTES'):
+                    if at._ORIGINAL_ATTRIBUTES["serial"] != at.serial:
+                        self.banner(f'Atom with serial {at._ORIGINAL_ATTRIBUTES["serial"]} in PDB needs serial {at.serial} for VMD')
                 """ Relabel chain ID and request coordinate transformation """
                 if is_image:
                     self.backup_selection(b.selname, dataholder=f'{b.selname}_data')
@@ -306,24 +308,22 @@ class PsfgenScripter(VMDScripter):
         if segment.subsegments[-1].state == 'MISSING' and not segment.subsegments[-1].build:
             Cterminal_missing_subsegment = segment.subsegments.pop(-1)
             # logger.info(f'Since terminal loops are not included, ignoring {str(Cterminal_missing_subsegment)}')
-        for b in segment.subsegments:
+        for b in segment.subsegments.data:
             if b.state == 'RESOLVED':
                 self.addline(f'pdb {b.pdb}', indents=1)
             elif b.state == 'MISSING' and b.build:
-                for r in self.residues[b.bounds[0]:b.bounds[1]+1]:
+                for r in segment.residues[b.bounds[0]:b.bounds[1]+1]:
                     rname = Labels.charmm_resname_of_pdb_resname.get(r.resname, r.resname)
                     self.addline(f'residue {r.resid.resid} {rname} {image_seglabel}', indents=1)
                 if b.num_items() >= min_loop_length and not b in [segment.subsegments[0], segment.subsegments[-1]]:
                     lrr = segment.residues[b.bounds[1]]
                     sac_resid = lrr.resid.increment()
-                    b.sacres = Residue({'resname': sac_rn, 'resid': sac_resid, 'chainID': seglabel, 'segtype': segtype, 'resolved': False, 'atoms': []})
+                    b.sacres = Residue({'resname': sac_rn, 'resid': sac_resid, 'chainID': seglabel, 'segtype': segtype, 'resolved': False, 'atoms': AtomList([])})
                     self.addline(f'residue {sac_resid.resid} {sac_rn} {image_seglabel}', indents=1)
-        for cf in seg_Cfusions:
+        for cf in seg_Cfusions.data:
             self.write_cfusion_insegment(cf)
-        for m in seg_mutations:
-            self.comment(f'mutation source: {m.typekey}')
-            self.write_mutation(m)
-        for p in seg_patches:
+        self.write_mutations(seg_mutations)
+        for p in seg_patches.data:
             if p.use_in_segment == 'first':
                 self.addline(f'first {p.patchname}', indents=1)
             elif p.use_in_segment == 'last':
@@ -331,24 +331,24 @@ class PsfgenScripter(VMDScripter):
         self.addline('}')
         self.banner(f'End segment {image_seglabel}')
         self.banner('Coordinate-specification commands')
-        for b in segment.subsegments:
+        for b in segment.subsegments.data:
             if b.state == 'RESOLVED':
                 self.comment(f'Subsegment {[segment.subsegments.index(b)]} is a resolved run')
                 self.addline(f'coordpdb {b.pdb} {image_seglabel}')
-        for b in segment.subsegments:
+        for b in segment.subsegments.data:
             if b.state == 'MISSING' and b.build:
                 if segment.subsegments.index(b) > 0:  # only seed orientation for a loop that is not at the N-terminus
                     self.comment(f'Subsegment {[segment.subsegments.index(b)]}/{len(segment.subsegments)} is a missing loop')
-                    this_run = ResidueList(self.residues[b.bounds[0]:b.bounds[1] + 1])
+                    this_run = ResidueList(segment.residues[b.bounds[0]:b.bounds[1] + 1])
                     prior_b = segment.subsegments[segment.subsegments.index(b) - 1]
                     self.comment(f'...attached to subsegment {segment.subsegments.index(prior_b)}')
-                    prior_run = ResidueList(self.residues[prior_b.bounds[0]:prior_b.bounds[1] + 1])
+                    prior_run = ResidueList(segment.residues[prior_b.bounds[0]:prior_b.bounds[1] + 1])
                     if segtype =='protein':
                         self.comment(f'Seeding orientation of model-built loop starting at {str(this_run[0])} from {str(prior_run[-1])}')
-                        self.addline(f'{this_run.caco_str(prior_run,image_seglabel,segment.parent_molecule.molid_varname,transform.tmat)}')
+                        self.addline(f'{this_run.caco_str(prior_run, image_seglabel, transform.tmat)}')
         if len(seg_patches) > 0:
             self.banner(f'Patches for segment {image_seglabel}')
-        for patch in seg_patches:
+        for patch in seg_patches.data:
             if patch.use_in_segment == '' and not patch.use_after_regenerate:
                 self.addline(f'patch {patch.patchname} {image_seglabel}:{patch.resid.resid}')
             if patch.use_after_regenerate:
@@ -360,10 +360,10 @@ class PsfgenScripter(VMDScripter):
             for i, b in enumerate(segment.subsegments):
                 # only non-terminal loops get the terminal patches
                 if b.state == 'MISSING' and 0 < i < (len(segment.subsegments) - 1) and hasattr(b, 'sacres'):
-                    Cterm = self.residues[b.bounds[1]]
+                    Cterm = segment.residues[b.bounds[1]]
                     self.addline(f'patch CTER {image_seglabel}:{Cterm.resid.resid}')
                     nextb = segment.subsegments[i + 1]
-                    Nterm = self.residues[nextb.bounds[0]]
+                    Nterm = segment.residues[nextb.bounds[0]]
                     patchname = 'NTER'
                     if Nterm.resname == 'PRO':
                         patchname = 'PROP'
@@ -443,7 +443,7 @@ class PsfgenScripter(VMDScripter):
         pdb = f'segtype_generic_{image_seglabel}.pdb'
         selname = image_seglabel
         self.addfile(pdb)  # appends this file to the scripters FileCollector for later cleanup
-        self.addline(f'set {selname} [atomselect ${segment.parent_molecule.molid_varname} "serial {vmd_red_list}"]')
+        self.addline(f'set {selname} [atomselect m${segment.parent_molecule.molid} "serial {vmd_red_list}"]')
         self.addline(f'${selname} set segname {image_seglabel}')
         if is_image:
             self.backup_selection(selname, dataholder=f'{selname}_data')
@@ -579,6 +579,10 @@ class PsfgenScripter(VMDScripter):
         """
         self.addline(f'coordpdb {C.segfile} {C.chainID}')
 
+    def write_mutations(self, mutations: MutationList):
+        for mutation in mutations:
+            self.write_mutation(mutation)
+
     def write_mutation(self, mutation: Mutation):
         self.addline(f'mutate {mutation.resid.resid} {mutation.newresname}', indents=1)
 
@@ -599,7 +603,7 @@ class PsfgenScripter(VMDScripter):
         """
         chainIDmap=transform.chainIDmap 
         # ok since these are only going to reference protein segments; protein segment names are the chain IDs
-        logger.debug(f'writing patch for {repr(S)}')
+        logger.debug(f'writing patch for {str(S)}')
         c1 = chainIDmap.get(S.chainID1, S.chainID1)
         c2 = chainIDmap.get(S.chainID2, S.chainID2)
         r1 = S.resid1.resid
@@ -626,11 +630,11 @@ class PsfgenScripter(VMDScripter):
         seg1=chainIDmap.get(seg1,seg1)
         seg2=L.residue2.chainID
         seg2=chainIDmap.get(seg2,seg2)
-        resid1=L.residue1.get_resid()
-        resid2=L.residue2.get_resid()
+        resid1=L.residue1.resid
+        resid2=L.residue2.resid
         logger.debug(f'Link: {L.residue1.chainID}->{seg1}:{resid1} {L.residue2.chainID}->{seg2}:{resid2}')
         if not L.patchname=='UNFOUND':
-            write_post_regenerate=L.patchname in Patch.after_regenerate_patches
+            write_post_regenerate=L.patchname in Patch._after_regenerate_patches
             if L.patchhead==1:
                 if write_post_regenerate:
                     self.addpostregenerateline(f'patch {L.patchname} {seg1}:{resid1} {seg2}:{resid2}')
@@ -642,8 +646,8 @@ class PsfgenScripter(VMDScripter):
                 else:
                     self.addline(f'patch {L.patchname} {seg2}:{resid2} {seg1}:{resid1}')
         else:
-            logger.warning(f'Could not identify patch for link: {str(self)}')
-            self.comment(f'No patch found for {str(self)}')
+            logger.warning(f'Could not identify patch for link: {str(L)}')
+            self.comment(f'No patch found for {str(L)}')
 
 
     def writescript(self, statename, guesscoord=True, regenerate=True, writepsf=True, writepdb=True, force_exit=False):
@@ -716,3 +720,4 @@ class PsfgenScripter(VMDScripter):
         if not options.get('keep_tempfiles',False):
             self.F.flush()
         return result
+
