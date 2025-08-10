@@ -7,14 +7,15 @@ It inherits from the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class a
 
 Usage is described in the :ref:`subs_desolvate` documentation.
 """
+import logging
+import os
+
 from .basetask import VMDTask
 from ..core.command import Command
 from ..scripters import VMDScripter
 from ..util.progress import PestiferProgress
-import logging
-import os
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 class DesolvateTask(VMDTask):
     """

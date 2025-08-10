@@ -347,6 +347,7 @@ class VMDTask(BaseTask, ABC):
         self.register(TclScriptArtifact(f'{self.basename}-coor2pdb'))
         self.register(VMDLogFileArtifact(f'{self.basename}-coor2pdb'))
         self.register(PDBFileArtifact(self.basename))
+        return f'{self.basename}.pdb'
 
     def pdb_to_coor(self):
         """
@@ -366,6 +367,7 @@ class VMDTask(BaseTask, ABC):
         self.register(TclScriptArtifact(f'{self.basename}-pdb2coor'))
         self.register(VMDLogFileArtifact(f'{self.basename}-pdb2coor'))
         self.register(NAMDCoorFileArtifact(f'{self.basename}'))
+        return f'{self.basename}.coor'
 
     def make_constraint_pdb(self, specs: dict, statekey: str = 'consref'):
         """

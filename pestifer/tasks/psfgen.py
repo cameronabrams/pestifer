@@ -170,8 +170,9 @@ class PsfgenTask(VMDTask):
         if result != 0:
             return result
         # register PSF, PDB, log, and all charmmff files in the pipeline context
-        for artifact_type in [PsfgenInputScriptArtifact, PSFFileArtifact, PDBFileArtifact, PsfgenLogFileArtifact]:
+        for artifact_type in [PsfgenInputScriptArtifact, PsfgenLogFileArtifact]:
             self.register(artifact_type(self.basename))
+        self.register(NAMDMolInputDict.set_files(pdb=PDBFileArtifact(self.basename), psf=PSFFileArtifact(self.basename)))
         self.register(CharmmffTopFileArtifacts([CharmmffTopFileArtifact(x) for x in pg.topologies if x.endswith('.rtf')]), key='charmmff_topfiles')
         self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x) for x in pg.topologies if x.endswith('.str')]), key='charmmff_streamfiles')
         self.strip_remarks()

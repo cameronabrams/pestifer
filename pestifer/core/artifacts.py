@@ -273,6 +273,10 @@ class DataArtifact(Artifact):
     description: str | None = None
 
 @dataclass
+class FileArtifactDict(ArtifactDict):
+    data: dict[str, FileArtifact] = field(default_factory=dict)
+
+@dataclass
 class FileArtifactList(ArtifactList):
     data: list[FileArtifact] = field(default_factory=list)
 
@@ -285,13 +289,13 @@ class FileArtifactList(ArtifactList):
         """
         Check if all artifact files exist.
         """
-        return all(artifact.exists() for artifact in self)
+        return all(artifact.exists() for artifact in self.data)
 
     def paths_to_list(self) -> list[Path]:
         """
         Convert the list of artifact files to a list of their paths.
         """
-        return [artifact.path for artifact in self]
+        return [artifact.path for artifact in self.data]
 
     def make_tarball(self, basename: str, remove: bool = False) -> None:
         """
@@ -306,7 +310,7 @@ class FileArtifactList(ArtifactList):
             remove_files = []
             remove_artifacts = []
         with tarfile.open(f"{basename}.tar.gz", "w:gz") as tar:
-            for artifact in self:
+            for artifact in self.data:
                 if artifact.exists():
                     tar.add(artifact.path, arcname=artifact.path.name)
                     if remove:
@@ -322,6 +326,38 @@ class FileArtifactList(ArtifactList):
             for a in remove_artifacts:
                 self.remove(a)
         return
+
+@dataclass
+class NAMDMolInputDict(FileArtifactDict):
+    """
+    Represents a dictionary of congruent PSF/COOR/PDB/VEL files and XSC files for input.
+    """
+    description: str = "NAMD molecule input file set"
+
+    @classmethod
+    def set_files(cls, psf: Path | str = None, coor: Path | str = None, 
+                  pdb: Path | str = None, vel: Path | str = None, 
+                  xsc: Path | str = None, cv: Path | str = None,
+                  refpdb: Path | str = None) -> None:
+        instance = cls()
+        if psf is not None:
+            instance.update_item(PSFFileArtifact(psf))
+        if coor is not None:
+            instance.update_item(NAMDCoorFileArtifact(coor))
+        if pdb is not None:
+            instance.update_item(PDBFileArtifact(pdb))
+        if vel is not None:
+            instance.update_item(NAMDVelFileArtifact(vel))
+        if xsc is not None:
+            instance.update_item(NAMDXscFileArtifact(xsc))
+        if cv is not None:
+            instance.update_item(NAMDColvarsConfigArtifact(cv))
+        if refpdb is not None:
+            instance.update_item(PDBFileArtifact(refpdb))
+        return instance
+
+    def clear(self):
+        self.data.clear()
 
 @dataclass
 class CharmmffTopFileArtifact(TXTFileArtifact):
