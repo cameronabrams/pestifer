@@ -99,11 +99,13 @@ class SolvateTask(VMDTask):
         vt.writescript()
         self.register(VMDScriptArtifact(self.basename))
         self.result = vt.runscript(progress_title='solvate')
+        self.register(VMDLogFileArtifact(f'{self.basename}_solv'))
         self.register(VMDLogFileArtifact(self.basename))
         if self.result != 0:
             return self.result
-        for ext in ['_solv', '']:
-            tmp_basename = f'{self.basename}{ext}'
-            self.pdb_to_coor(f'{tmp_basename}.pdb')
-            self.register(StateArtifacts(psf=PSFFileArtifact(f'{tmp_basename}'), pdb=PDBFileArtifact(f'{tmp_basename}'), coor=NAMDCoorFileArtifact(f'{tmp_basename}'), xsc=xsc))
+        psf1 = PSFFileArtifact(f'{self.basename}_solv.psf')
+        pdb1 = PDBFileArtifact(f'{self.basename}_solv.pdb')
+        self.register(StateArtifacts(psf=psf1, pdb=pdb1, xsc=xsc))
+        self.pdb_to_coor(f'{self.basename}.pdb')
+        self.register(StateArtifacts(pdb=PDBFileArtifact(f'{self.basename}'), coor=NAMDCoorFileArtifact(f'{self.basename}'), psf=PSFFileArtifact(f'{self.basename}'), xsc=xsc))
         return self.result

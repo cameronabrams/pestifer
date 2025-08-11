@@ -31,6 +31,7 @@ dependencies = [
   "gputil",
   "sphinx==8.2.3" ,
   "scipy",
+  "pydantic",
   "matplotlib" # Explicitly declare if needed for docs
 ]
 
