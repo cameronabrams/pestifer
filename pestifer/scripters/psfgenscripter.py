@@ -186,9 +186,6 @@ class PsfgenScripter(VMDScripter):
                 self.write_ssbonds(ssbonds, transform)
             self.banner('LINK patches follow')
             if links:
-                A = GenericScripter().newfile('linkreport.txt')
-                A.addline(links.report())
-                A.writefile()
                 self.write_links(links, transform)
             self.banner(f'Transform {transform.index} ends')
 
@@ -625,22 +622,22 @@ class PsfgenScripter(VMDScripter):
             This method generates the Tcl commands to create a link in the Psfgen script,
             including the selection of atoms and writing the link to a PDB file.
         """
-        chainIDmap=transform.chainIDmap
-        seg1=L.residue1.chainID
-        seg1=chainIDmap.get(seg1,seg1)
-        seg2=L.residue2.chainID
-        seg2=chainIDmap.get(seg2,seg2)
-        resid1=L.residue1.resid
-        resid2=L.residue2.resid
+        chainIDmap = transform.chainIDmap
+        seg1 = L.residue1.chainID
+        seg1 = chainIDmap.get(seg1, seg1)
+        seg2 = L.residue2.chainID
+        seg2 = chainIDmap.get(seg2, seg2)
+        resid1 = L.residue1.resid
+        resid2 = L.residue2.resid
         logger.debug(f'Link: {L.residue1.chainID}->{seg1}:{resid1} {L.residue2.chainID}->{seg2}:{resid2}')
-        if not L.patchname=='UNFOUND':
-            write_post_regenerate=L.patchname in Patch._after_regenerate_patches
-            if L.patchhead==1:
+        if not L.patchname == 'UNFOUND':
+            write_post_regenerate = L.patchname in Patch._after_regenerate_patches
+            if L.patchhead == 1:
                 if write_post_regenerate:
                     self.addpostregenerateline(f'patch {L.patchname} {seg1}:{resid1} {seg2}:{resid2}')
                 else:
                     self.addline(f'patch {L.patchname} {seg1}:{resid1} {seg2}:{resid2}')
-            elif L.patchhead==2:
+            elif L.patchhead == 2:
                 if write_post_regenerate:
                     self.addpostregenerateline(f'patch {L.patchname} {seg2}:{resid2} {seg1}:{resid1}')
                 else:

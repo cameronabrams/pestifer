@@ -148,6 +148,7 @@ class LigateTask(MDTask):
             'colvars': 'on',
             'colvarsconfig': self.get_current_artifact_path('steer_colvars')
             }, single_gpu_only=True)
+        # self.register(NAMDColvarsOutputArtifact(f'{self.basename}-cv'), key='steer_colvars_output')
         self.specs = savespecs
         return result
 
@@ -209,6 +210,7 @@ class LigateTask(MDTask):
         if result == 0:
             self.register(PSFFileArtifact(self.basename))
             self.register(PDBFileArtifact(self.basename))
+            self.register(LogFileArtifact(self.basename))
             self.pdb_to_coor()
         return result
     

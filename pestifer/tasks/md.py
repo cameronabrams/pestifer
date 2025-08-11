@@ -85,11 +85,12 @@ class MDTask(VMDTask):
             self.next_basename(baselabel)
         
         params = {}
-        psf: Path = self.get_current_artifact_path('psf')
-        pdb: Path = self.get_current_artifact_path('pdb')
-        coor: Path = self.get_current_artifact_path('coor')
-        vel: Path = self.get_current_artifact_path('vel')
-        xsc: Path = self.get_current_artifact_path('xsc')
+        namd_mol_input = self.get_current_artifact('namd_mol_input')
+        psf: Path = namd_mol_input.get('psf', None)
+        pdb: Path = namd_mol_input.get('pdb', None)
+        coor: Path = namd_mol_input.get('coor', None)
+        vel: Path = namd_mol_input.get('vel', None)
+        xsc: Path = namd_mol_input.get('xsc', None)
         prior_charmmff_parfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_parfiles')
         prior_paramfiles = []
         if prior_charmmff_parfiles:
@@ -192,9 +193,13 @@ class MDTask(VMDTask):
             local_execution_only = not self.get_current_artifact_data('periodic')
             single_gpu_only = kwargs.get('single_gpu_only', False) or constraints
             result = na.runscript(single_molecule=local_execution_only, local_execution_only=local_execution_only, single_gpu_only=single_gpu_only, cpu_override=cpu_override)
-        for at in [PDBFileArtifact, NAMDVelFileArtifact, NAMDXscFileArtifact, \
-                   NAMDCoorFileArtifact, NAMDDcdFileArtifact, NAMDXstFileArtifact, \
-                   NAMDLogFileArtifact, NAMDColvarsOutputArtifact]:
+        self.coor_to_pdb()
+        self.register(NAMDMolInputDict(pdb=PDBFileArtifact(self.basename),
+                                       coor=NAMDCoorFileArtifact(self.basename),
+                                       vel=NAMDVelFileArtifact(self.basename),
+                                       xsc=NAMDXscFileArtifact(self.basename) if xsc else None, 
+                                       psf=PSFFileArtifact(self.basename)))
+        for at in [NAMDDcdFileArtifact, NAMDXstFileArtifact, NAMDLogFileArtifact, NAMDColvarsTrajectoryArtifact, NAMDColvarsStateArtifact]:
             artifact: FileArtifact = at(self.basename)
             if artifact.exists():
                 self.register(artifact)
@@ -202,7 +207,6 @@ class MDTask(VMDTask):
         for f in other_files:
             if os.path.isfile(f):
                 self.register(TXTFileArtifact(f, key='NAMD FFTW warmup'))
-        self.coor_to_pdb()
         if hasattr(na.logparser, 'dataframes'):
             for key in na.logparser.dataframes:
                 artifact = CSVDataFileArtifact(f'{self.basename}-{key}')
