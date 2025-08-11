@@ -34,9 +34,9 @@ tasks:
   - md:
       ensemble: NPT
       nsteps: 1600
-#   - md:
-#       ensemble: NPT
-#       nsteps: 13200
+  - md:
+      ensemble: NPT
+      nsteps: 13200
   - mdplot:
       timeseries:
         - density
