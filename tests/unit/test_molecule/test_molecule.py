@@ -159,16 +159,16 @@ source:
         au=m.asymmetric_unit
         ters=au.objmanager.get('seq',{}).get('terminals',[])
         self.assertEqual(len(ters),2)
-        atom_serials=[x.serial for x in au.atoms]
+        atom_serials=[x.serial for x in au.atoms.data]
         orig_atom_serials=[]
-        for a in au.atoms:
+        for a in au.atoms.data:
             if len(a.ORIGINAL_ATTRIBUTES)>0:
                 orig_atom_serials.append(a.ORIGINAL_ATTRIBUTES['serial'])
             else:
                 orig_atom_serials.append(a.serial)
         self.assertEqual(len(atom_serials),4856)
         self.assertEqual(len(orig_atom_serials),4856)
-        self.assertFalse(all([x==y for x,y in zip(atom_serials,orig_atom_serials)]))
+        self.assertFalse(all([x==y for x,y in zip(atom_serials,orig_atom_serials)]))    
         genuine_atoms=[au.atoms.get(serial=x.serial) for x in ters]
         self.assertEqual(len(genuine_atoms),2)
         self.assertEqual(atom_serials[-1],4856)

@@ -96,10 +96,10 @@ class LigateTask(MDTask):
         vm.newscript(self.basename)
         state: StateArtifacts = self.get_current_artifact('state')
         inputfile: Path = self.get_current_artifact_path('measure_distances_input')
-        opdb: Path = f'{self.basename}.pdb'
+        opdb: str = f'{self.basename}.pdb'
         receiver_flexible_zone_radius: float = specs.get('receiver_flexible_zone_radius', 0.0)
-        resultsfile: Path = f'{self.basename}.dat'
-        vm.addline(f'measure_bonds {state.psf} {state.pdb} {inputfile} {opdb} {resultsfile} {receiver_flexible_zone_radius} ')
+        resultsfile: str = f'{self.basename}.dat'
+        vm.addline(f'measure_bonds {state.psf.name} {state.pdb.name} {inputfile.name} {opdb} {resultsfile} {receiver_flexible_zone_radius} ')
         vm.writescript()
         self.register(VMDScriptArtifact(self.basename))
         vm.runscript()
