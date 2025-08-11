@@ -280,7 +280,7 @@ class PsfgenScripter(VMDScripter):
                 vmd_red_list = reduce_intlist(serial_list)
                 self.addline(f'set {b.selname} [atomselect $m{segment.parent_molecule.molid} "serial {vmd_red_list}"]')
                 self.addline(f'${b.selname} set segname {image_seglabel}')
-                if hasattr(at, 'ORIGINAL_ATTRIBUTES'):
+                if len(at.ORIGINAL_ATTRIBUTES) > 0:
                     if at.ORIGINAL_ATTRIBUTES["serial"] != at.serial:
                         self.banner(f'Atom with serial {at.ORIGINAL_ATTRIBUTES["serial"]} in PDB needs serial {at.serial} for VMD')
                 """ Relabel chain ID and request coordinate transformation """

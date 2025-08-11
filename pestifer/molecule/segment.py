@@ -101,12 +101,12 @@ class Segment(BaseObj):
                 else:
                     logger.debug(f'Calling puniqify on residues of non-protein segment {apparent_segname}')
                     residues.puniquify(fields=['resid'],make_common=['chainID'])
-                    count=sum([1 for x in residues if hasattr(x,'ORIGINAL_ATTRIBUTES')])
+                    count=sum([1 for x in residues if len(x.atoms)>0 and len(x.atoms[0].ORIGINAL_ATTRIBUTES)>0])
                     if count>0:
                         logger.debug(f'{count} residue(s) were affected by puniquify:')
                         for x in residues:
-                            if hasattr(x,'ORIGINAL_ATTRIBUTES'):
-                                logger.debug(f'    {x.chainID} {x.resname} {x.resid.resid} was {x.ORIGINAL_ATTRIBUTES}')
+                            if len(x.atoms) > 0 and len(x.atoms[0].ORIGINAL_ATTRIBUTES) > 0:
+                                logger.debug(f'    {x.chainID} {x.resname} {x.resid.resid} was {x.atoms[0].ORIGINAL_ATTRIBUTES}')
                     # this assumes residues are in a linear sequence?  not really..
                     subsegments = residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
                 logger.debug(f'Segment {apparent_segname} has {len(residues)} residues across {len(subsegments)} subsegments')

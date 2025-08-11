@@ -162,7 +162,7 @@ source:
         atom_serials=[x.serial for x in au.atoms]
         orig_atom_serials=[]
         for a in au.atoms:
-            if hasattr(a, 'ORIGINAL_ATTRIBUTES'):
+            if len(a.ORIGINAL_ATTRIBUTES)>0:
                 orig_atom_serials.append(a.ORIGINAL_ATTRIBUTES['serial'])
             else:
                 orig_atom_serials.append(a.serial)
