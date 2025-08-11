@@ -4,7 +4,7 @@ Pipeline context for managing passing of information from one task to another vi
 """
 import logging
 
-from .artifacts import Artifact, FileArtifact, ArtifactDict, ArtifactList, FileArtifactList
+from .artifacts import Artifact, FileArtifact, ArtifactDict, ArtifactList, FileArtifactList, StateArtifacts
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +150,8 @@ class PipelineContext:
                 filelist_artifacts.append(artifact)
             elif isinstance(artifact, FileArtifact):
                 file_artifacts.append(artifact)
+            elif isinstance(artifact, StateArtifacts):
+                file_artifacts.extend(artifact.to_list())
             else:
                 data_artifacts.append(artifact)
 

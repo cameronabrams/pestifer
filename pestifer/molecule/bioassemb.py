@@ -59,8 +59,14 @@ class BioAssemb:
         transforms : TransformList | None, optional
             A list of Transform objects representing the transformations applied to the assembly.
         """
-        self.index = kwargs.get('index', 0)
+        apparent_index = kwargs.get('index', 0)
+        if isinstance(apparent_index, str):
+            if not apparent_index.isdigit():
+                raise ValueError(f'Index must be an integer or a string representing an integer, got {apparent_index}')
+            apparent_index = int(apparent_index)
+        self.index = apparent_index
         self.name = kwargs.get('name', f'Assembly{self.index}')
+        logger.debug(f'Initializing BioAssemb {self.name} with index {self.index}')
         if len(args) == 0:
             if len(kwargs) == 0:
                 self.transforms = TransformList.identity(1)
@@ -215,7 +221,7 @@ class BioAssembList(UserList[BioAssemb]):
             logger.debug(f'BA {ba_number} has {len(ba_recordlist)} records')
             # Create a BioAssemb from the records
             B.append(BioAssemb(PDBRecordList(ba_recordlist), index=ba_number))
-        logger.debug(f'There are {len(B)} biological assemblies')
+        logger.debug(f'There {plu(len(B), "is", "are")} {len(B)} biological assembl{plu(len(B), "y", "ies")}')
         return B
 
     @staticmethod
@@ -266,7 +272,7 @@ class BioAssembList(UserList[BioAssemb]):
                     T = Transform(m, v, this_asyms, idx)
                     transforms.append(T)
                     idx += 1
-            logger.debug(f'parsed {len(transforms)} transforms for ba {ba_idx}')
+            logger.debug(f'parsed {len(transforms)} transforms for assemb_id {assemb_id}')
             BA = BioAssemb(transforms, index=assemb_id)
             B.append(BA)
         logger.debug(f'There {plu(len(B), "is", "are")} {len(B)} biological assembl{plu(len(B), "y", "ies")}')

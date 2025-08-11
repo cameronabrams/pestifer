@@ -1,6 +1,6 @@
 from pestifer.tasks.fetch import FetchTask
 from pestifer.core.pipeline import PipelineContext
-from pestifer.core.artifacts import Artifact, PDBFile, CIFFile
+from pestifer.core.artifacts import Artifact, PDBFileArtifact, CIFFileArtifact
 import unittest
 import os
 
@@ -26,9 +26,9 @@ class TestFetchTask(unittest.TestCase):
         self.assertIsInstance(task, FetchTask)
         task.execute()
         self.assertIn('base_coordinates', pipeline.head)
-        artifact = pipeline.get_artifact('base_coordinates')
+        artifact = task.get_current_artifact('base_coordinates')
         self.assertIsInstance(artifact, Artifact)
-        self.assertIsInstance(artifact, PDBFile)
+        self.assertIsInstance(artifact, PDBFileArtifact)
         self.assertEqual(artifact.key, 'base_coordinates')
         self.assertEqual(artifact.produced_by, task)
         self.assertTrue(artifact.exists())
@@ -42,9 +42,9 @@ class TestFetchTask(unittest.TestCase):
         self.assertIsInstance(task, FetchTask)
         task.execute()
         self.assertIn('base_coordinates', pipeline.head)
-        artifact = pipeline.get_artifact('base_coordinates')
+        artifact = task.get_current_artifact('base_coordinates')
         self.assertIsInstance(artifact, Artifact)
-        self.assertIsInstance(artifact, CIFFile)
+        self.assertIsInstance(artifact, CIFFileArtifact)
         self.assertEqual(artifact.key, 'base_coordinates')
         self.assertEqual(artifact.produced_by, task)
         self.assertTrue(artifact.exists())

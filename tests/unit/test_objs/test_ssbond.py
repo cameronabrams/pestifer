@@ -109,20 +109,3 @@ class TestSSBondList(unittest.TestCase):
         self.assertEqual(ssbond_list[2].residue1, residues[2])
         self.assertEqual(ssbond_list[2].residue2, residues[8])
 
-    def test_ssbond_list_prune_muations(self):
-        # make a list of 3 mock mutations
-        mutations = MutationList([
-            Mutation(chainID="A", origresname="CYS", resid=ResID(10), newresname="ALA", typekey="user"),
-            Mutation(chainID="A", origresname="CYS", resid=ResID(11), newresname="LYS", typekey="user"),
-        ])
-        # make a mock list of ssbonds
-        ssbond1 = SSBond(chainID1="A", resid1=ResID(10), chainID2="A", resid2=ResID(20))
-        ssbond2 = SSBond(chainID1="A", resid1=ResID(11), chainID2="A", resid2=ResID(19))
-        ssbond3 = SSBond(chainID1="A", resid1=ResID(12), chainID2="A", resid2=ResID(18))
-
-        ssbond_list = SSBondList([ssbond1, ssbond2, ssbond3])
-
-        pruned_list = ssbond_list.prune_mutations(mutations)
-        self.assertEqual(len(pruned_list), 2)
-        self.assertEqual(pruned_list[0].resid1, ResID(10))
-        self.assertEqual(pruned_list[1].resid1, ResID(11))

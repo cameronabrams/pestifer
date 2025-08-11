@@ -1,6 +1,7 @@
 import unittest
 from pestifer.scripters import *
 import logging
+import os
 logger=logging.getLogger(__name__)
 
 class TestColvars(unittest.TestCase):
@@ -33,3 +34,6 @@ class TestColvars(unittest.TestCase):
         writer.newfile(f'cv.inp')
         writer.construct_on_pdb(specs=colvar_specs, pdb=pdb)
         writer.writefile()
+        self.assertTrue(os.path.isfile('cv.inp'))
+        os.remove('cv.inp')
+        

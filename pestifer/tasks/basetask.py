@@ -110,7 +110,7 @@ class BaseTask(ABC):
         return bool(self.provisions)
 
     def __repr__(self) -> str:
-        return f"<{self.__class__.__name__} index={self.index} controller_index={self.controller_index} taskname={self.taskname} provisioned?={'Yes' if self.is_provisioned else 'No'} specs={self.specs}>"
+        return f"<{self.__class__.__name__} index={self.index} controller_index={self.controller_index} taskname={self.taskname}>"
 
     def get_scripter(self, name: str):
         """
@@ -326,7 +326,7 @@ class VMDTask(BaseTask, ABC):
     The VMDTask class is intended to be subclassed.
     """
 
-    def coor_to_pdb(self):
+    def coor_to_pdb(self, coorfilename: str, psffilename: str) -> str:
         """
         Converts the coordinate file to a PDB file using VMD.
         This method creates a new VMD script to perform the conversion.
@@ -335,21 +335,14 @@ class VMDTask(BaseTask, ABC):
         """
         vm: VMDScripter = self.get_scripter('vmd')
         vm.newscript(f'{self.basename}-coor2pdb')
-        psf = self.get_current_artifact_path('psf')
-        if not psf:
-            raise RuntimeError(f'No PSF file found for task {self.taskname}')
-        coor = self.get_current_artifact_path('coor')
-        if not coor:
-            raise RuntimeError(f'No coordinate file found for task {self.taskname}')
-        vm.addline(f'namdbin2pdb {psf.name} {coor.name} {self.basename}.pdb')
+        vm.addline(f'namdbin2pdb {psffilename} {coorfilename} {self.basename}.pdb')
         vm.writescript()
         vm.runscript()
         self.register(TclScriptArtifact(f'{self.basename}-coor2pdb'))
         self.register(VMDLogFileArtifact(f'{self.basename}-coor2pdb'))
-        self.register(PDBFileArtifact(self.basename), key='converted_from_namdbin')
         return f'{self.basename}.pdb'
 
-    def pdb_to_coor(self):
+    def pdb_to_coor(self, pdbfilename: str) -> str:
         """
         Converts the PDB file to a coordinate file using VMD.
         This method creates a new VMD script to perform the conversion.
@@ -358,15 +351,11 @@ class VMDTask(BaseTask, ABC):
         """
         vm: VMDScripter = self.scripters['vmd']
         vm.newscript(f'{self.basename}-pdb2coor')
-        pdb = self.get_current_artifact_path('pdb')
-        if not pdb:
-            raise RuntimeError(f'No PDB file found for task {self.taskname}')
-        vm.addline(f'pdb2namdbin {pdb.name} {self.basename}.coor')
+        vm.addline(f'pdb2namdbin {pdbfilename} {self.basename}.coor')
         vm.writescript()
         vm.runscript()
         self.register(TclScriptArtifact(f'{self.basename}-pdb2coor'))
         self.register(VMDLogFileArtifact(f'{self.basename}-pdb2coor'))
-        self.register(NAMDCoorFileArtifact(f'{self.basename}'), key='converted_from_pdb')
         return f'{self.basename}.coor'
 
     def make_constraint_pdb(self, specs: dict, statekey: str = 'consref'):

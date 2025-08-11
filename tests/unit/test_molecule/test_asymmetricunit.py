@@ -17,7 +17,10 @@ class TestAsymmetricUnit(unittest.TestCase):
     def test_asymmetric_unit_initialization_empty(self):
         AU = AsymmetricUnit()
         self.assertIsInstance(AU, AsymmetricUnit)
-        self.assertFalse(hasattr(AU, 'segments'))
+        self.assertTrue(hasattr(AU, 'segments'))
+        segmentlist = AU.segments
+        self.assertIsInstance(segmentlist, SegmentList)
+        self.assertEqual(len(segmentlist), 0)
 
     def test_asymmetric_unit_initialization_from_pdb_downloads(self):
         downloads = {

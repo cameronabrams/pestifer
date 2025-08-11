@@ -177,14 +177,18 @@ def mdplot(args):
     )
     C.tasks[0].taskname = args.basename
     report = C.do_tasks()
-    all_dataartifacts, all_filelistartifacts, all_fileartifacts = C.pipeline.get_artifact_collection_as_lists()
+    all_artifacts = C.pipeline.get_artifact_collection_as_lists()
+    all_fileartifacts = all_artifacts['files']
+    logger.debug(f'{len(all_fileartifacts)} file artifacts found:')
     artifact_keys = set([art.key for art in all_fileartifacts])
+    chk=0
     for key in artifact_keys:
         logger.debug(f'Artifacts with key {key}:')
         key_artifacts = all_fileartifacts.filter_by_key(key)
         for artifact in key_artifacts:
-            logger.debug(f'  {artifact.path.name}')
-    
+            chk+=1
+            logger.debug(f'  {artifact.name}')
+    logger.debug(f'Total of {chk} file artifacts found.')
     return all_fileartifacts
 # def list_examples():
 #     """

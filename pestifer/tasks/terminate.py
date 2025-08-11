@@ -43,9 +43,6 @@ class TerminateTask(MDTask):
 
     def do(self) -> int:
         self.next_basename()
-        coor = self.get_current_artifact('coor')
-        if not coor:
-            self.pdb_to_coor()
         self.write_chainmaps()
         self.result = self.make_package() | self.cleanup()
         return self.result
@@ -75,11 +72,11 @@ class TerminateTask(MDTask):
             raise ValueError('Ensemble must be specified in package specs for terminate task')
         TarballContents = FileArtifactList()
         self.basename = self.specs.get('basename', 'my_system')
+        state: StateArtifacts = self.get_current_artifact('state')
         for ext in ['psf', 'pdb', 'coor', 'xsc', 'vel']:
-            fa: FileArtifact = self.get_current_artifact(ext)
-            fa_path: Path = fa.path
+            fa: FileArtifact = getattr(state, ext, None)
             if fa:
-                shutil.copy(fa_path, self.basename + '.' + ext)
+                shutil.copy(fa.name, self.basename + '.' + ext)
                 self.register(type(fa)(self.basename))
                 TarballContents.append(self.get_current_artifact(ext))
         logger.debug(f'Packaging for namd using basename {self.basename}')
@@ -110,14 +107,14 @@ class TerminateTask(MDTask):
         filelist_artifacts = all_my_artifacts['filelists']
 
         all_artifact_files = []
-        for artifact in file_artifacts:
-            if not artifact.path.name in all_artifact_files and artifact.exists():
-                all_artifact_files.append(artifact.path.name)
-                ArtifactContents.append(artifact)
+        for file_artifact in file_artifacts:
+            if not file_artifact.name in all_artifact_files and file_artifact.exists():
+                all_artifact_files.append(file_artifact.name)
+                ArtifactContents.append(file_artifact)
         for artifact in filelist_artifacts:
             for file_artifact in artifact:
-                if not file_artifact.path.name in all_artifact_files and file_artifact.exists():
-                    all_artifact_files.append(file_artifact.path.name)
+                if not file_artifact.name in all_artifact_files and file_artifact.exists():
+                    all_artifact_files.append(file_artifact.name)
                     ArtifactContents.append(file_artifact)
 
         all_artifact_files.sort()

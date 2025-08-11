@@ -28,7 +28,7 @@ class StateInterval(BaseObj):
     _required_fields = {'state', 'bounds'}
     _optional_fields = {'build', 'selname', 'pdb', 'sacres'}
     _attr_choices = {
-        'state': {'RESOLVED', 'MISSING'},
+        'state': {'RESOLVED', 'MISSING', 'TESTING-A', 'TESTING-B', 'TESTING-C'},
         'build': {True, False}
     }
 

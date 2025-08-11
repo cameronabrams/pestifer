@@ -490,3 +490,4 @@ class Molecule:
                 logger.debug(f'No segment with chainID {clv.chainID} found; no cleavage performed.')
 
 Graft.model_rebuild()
+Segment.model_rebuild()

@@ -2,8 +2,8 @@
 """ 
 Defines the Segment class for generating and managing segments declared for psfgen
 """
-from typing import ClassVar, List
-from pydantic import Field, PrivateAttr
+from typing import ClassVar, List, TYPE_CHECKING
+from pydantic import Field
 import logging
 logger=logging.getLogger(__name__)
 
@@ -22,6 +22,9 @@ from ..objs.mutation import Mutation, MutationList
 from ..objs.patch import PatchList
 from ..objs.ssbond import SSBond, SSBondList
 
+if TYPE_CHECKING:
+    from ..molecule.molecule import Molecule
+
 class Segment(BaseObj):
     """
     A class for handling segments in a molecular structure.
@@ -32,7 +35,7 @@ class Segment(BaseObj):
                         'residues', 'subsegments', 'parent_chain', 
                         'specs'}
     _optional_fields = {'mutations', 'deletions', 'grafts', 'patches', 
-                        'attachments', 'psfgen_segname', 'objmanager'}
+                        'attachments', 'psfgen_segname', 'objmanager', 'parent_molecule'}
     
     segtype: str = Field(..., description="The type of the segment (e.g., 'protein', 'nucleicacid', 'glycan').")
     segname: str = Field(..., description="The name of the segment as it is understood by psfgen and in a PSF file.")
@@ -49,6 +52,7 @@ class Segment(BaseObj):
     attachments: List | None = Field(default=None, description="A list of attachments applied to the segment (Attachments are currently unimplemented).")
     psfgen_segname: str | None = Field(default=None, description="The segment name as understood by psfgen.")
     objmanager: ObjManager = Field(default_factory=ObjManager, description="The object manager for the segment, used to track and manage objects associated with the segment.")
+    parent_molecule: 'Molecule' = Field(default=None, description="The parent molecule to which this segment belongs. This is set after the segment is constructed.")
 
     _inheritable_objs: ClassVar[set] = {'mutations', 'patches', 'Cfusions', 'grafts'}
     """
@@ -88,7 +92,7 @@ class Segment(BaseObj):
                     # a protein segment must have unique residue numbers
                     assert residues.puniq(['resid']), f'ChainID {apparent_chainID} has duplicate resid!'
                     # a protein segment may not have more than one protein chain
-                    assert all([x.chainID==residues[0].chainID for x in residues])
+                    assert all([x.chainID==residues[0].chainID for x in residues.data])
                     residues.sort()
                     # for r in residues:
                     #     logger.debug(f'Residue {r.resname}{r.resid.resid} with {len(r.atoms)} atoms (resolved: {r.resolved})')
@@ -97,12 +101,12 @@ class Segment(BaseObj):
                 else:
                     logger.debug(f'Calling puniqify on residues of non-protein segment {apparent_segname}')
                     residues.puniquify(fields=['resid'],make_common=['chainID'])
-                    count=sum([1 for x in residues if hasattr(x,'_ORIGINAL_ATTRIBUTES')])
+                    count=sum([1 for x in residues if hasattr(x,'ORIGINAL_ATTRIBUTES')])
                     if count>0:
                         logger.debug(f'{count} residue(s) were affected by puniquify:')
                         for x in residues:
-                            if hasattr(x,'_ORIGINAL_ATTRIBUTES'):
-                                logger.debug(f'    {x.chainID} {x.resname} {x.resid.resid} was {x._ORIGINAL_ATTRIBUTES}')
+                            if hasattr(x,'ORIGINAL_ATTRIBUTES'):
+                                logger.debug(f'    {x.chainID} {x.resname} {x.resid.resid} was {x.ORIGINAL_ATTRIBUTES}')
                     # this assumes residues are in a linear sequence?  not really..
                     subsegments = residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
                 logger.debug(f'Segment {apparent_segname} has {len(residues)} residues across {len(subsegments)} subsegments')
@@ -143,19 +147,7 @@ class Segment(BaseObj):
         parent_molecule : object
             The parent molecule to which this segment belongs.
         """
-        self._parent_molecule = parent_molecule
-    
-    @property
-    def parent_molecule(self):
-        """
-        Get the parent molecule of this segment.
-        
-        Returns
-        -------
-        object
-            The parent molecule to which this segment belongs.
-        """
-        return self._parent_molecule
+        self.parent_molecule = parent_molecule
 
     def cleave(self, clv:CleavageSite, daughter_chainID):
         """
@@ -186,8 +178,8 @@ class Segment(BaseObj):
         daughter_residues.set(chainID=daughter_chainID)
         Dseg = Segment(daughter_residues, segname=daughter_chainID)
         assert isinstance(Dseg, Segment)
-        Dseg._obj_manager = self._obj_manager.expel(daughter_residues)
-        Dseg.set_parent_molecule(self._parent_molecule)
+        Dseg.objmanager = self.objmanager.expel(daughter_residues)
+        Dseg.set_parent_molecule(self.parent_molecule)
         # Dseg.ancestor_obj=self.ancestor_obj
         return Dseg
     
@@ -424,6 +416,6 @@ class SegmentList(BaseObjList[Segment]):
             The object manager from which to inherit objects.
         """
         for item in self:
-            item._obj_manager = objmanager.filter_copy(objnames=item._inheritable_objs, chainID=item.segname)
-            counts = item._obj_manager.counts_by_header()
+            item.objmanager = objmanager.filter_copy(objnames=item._inheritable_objs, chainID=item.segname)
+            counts = item.objmanager.counts_by_header()
             logger.debug(f'Inherit objs: seg {item.segname} has {counts}')

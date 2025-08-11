@@ -12,7 +12,7 @@ import numpy as np
 from argparse import Namespace
 
 from pydantic import Field
-from typing import ClassVar
+from typing import ClassVar, Callable
 
 from pidibble.baserecord import BaseRecord
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
@@ -1047,30 +1047,30 @@ class ResidueList(BaseObjList[Residue]):
         links : :class:`~pestifer.objs.link.LinkList`
             A list of links that may contain residue sequence numbers that need to be updated.
         """
-        protein_residues = self.get(segtype='protein')
+        protein_residues: ResidueList = self.get(segtype='protein')
         if len(protein_residues) == 0: return
-        min_protein_resid = min([x.resid for x in protein_residues])
-        max_protein_resid = max([x.resid for x in protein_residues])
-        non_protein_residues = ResidueList([])
+        min_protein_resid = min([x.resid for x in protein_residues.data])
+        max_protein_resid = max([x.resid for x in protein_residues.data])
+        non_protein_residues: ResidueList = ResidueList([])
         for p in self.data:
             if p.segtype != 'protein':
                 non_protein_residues.append(p)
         logger.debug(f'There are {len(protein_residues)} (resids {min_protein_resid} to {max_protein_resid}) protein residues and {len(non_protein_residues)} non-protein residues')
         assert len(self) == (len(protein_residues) + len(non_protein_residues))
         non_protein_residues_in_conflict = ResidueList([])
-        for np in non_protein_residues:
+        for np in non_protein_residues.data:
             tst = protein_residues.get(chainID=np.chainID, resid=np.resid)
             if tst:
                 non_protein_residues_in_conflict.append(np)
-        for npc in non_protein_residues_in_conflict:
+        for npc in non_protein_residues_in_conflict.data:
             non_protein_residues.remove(npc)
         logger.debug(f'There are {len(non_protein_residues_in_conflict)} non-protein residues with resid that conflict with protein residues')
 
-        max_unused_resid = max([max([x.resid for x in protein_residues]), 0 if len(non_protein_residues) == 0 else max([x.resid for x in non_protein_residues])]) + 1
+        max_unused_resid = max([max([x.resid for x in protein_residues.data]), ResID(0) if len(non_protein_residues) == 0 else max([x.resid for x in non_protein_residues.data])]) + 1
         newtst = self.get(resid=max_unused_resid)
         assert newtst in [None, []]  # None
         mapper_by_chain = {}
-        for npc in non_protein_residues_in_conflict:
+        for npc in non_protein_residues_in_conflict.data:
             c = npc.chainID
             if not c in mapper_by_chain:
                 mapper_by_chain[c] = {}
@@ -1079,12 +1079,12 @@ class ResidueList(BaseObjList[Residue]):
             mapper_by_chain[c][old_resid] = new
             max_unused_resid += 1
             npc.resid = new
-            for a in npc.atoms:
+            for a in npc.atoms.data:
                 a.resid = new
             logger.debug(f'New resid: {c} {old_resid} -> {new}')
         if mapper_by_chain:
             logger.debug(f'Remapping resids in links')
-            for l in links:
+            for l in links.data:
                 if l.chainID1 in mapper_by_chain:
                     old_resid = l.resid1
                     if old_resid in mapper_by_chain[l.chainID1]:
@@ -1105,10 +1105,10 @@ class ResidueList(BaseObjList[Residue]):
         chainID : str
             The chain ID to set for all residues.
         """
-        for r in self:
+        for r in self.data:
             r.set_chainID(chainID)
 
-    def remap_chainIDs(self, the_map):
+    def remap_chainIDs(self, the_map: dict):
         """
         Remap the chain IDs of residues in the list according to a provided mapping.
 
@@ -1117,11 +1117,11 @@ class ResidueList(BaseObjList[Residue]):
         the_map : dict
             A dictionary mapping old chain IDs to new chain IDs.
         """
-        for r in self:
+        for r in self.data:
             if r.chainID in the_map:
                 r.set_chainID(the_map[r.chainID])
 
-    def state_bounds(self, state_func):
+    def state_bounds(self, state_func: Callable):
         """
         Get the state bounds for each residue in the list based on a state function.
         

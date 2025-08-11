@@ -41,13 +41,12 @@ class DomainSwapTask(MDTask):
         self.next_basename('domainswap-prep')
         vm: VMDScripter = self.get_scripter('vmd')
         vm.newscript(self.basename)
-        psf: Path = self.get_current_artifact_path('psf')
-        pdb: Path = self.get_current_artifact_path('pdb')
+        state: StateArtifacts = self.get_current_artifact('state')
         vm.usescript('domainswap')
         vm.writescript()
         vm.runscript(
-            psf = psf.name,
-            pdb = pdb.name,
+            psf = state.psf.name,
+            pdb = state.pdb.name,
             swap_domain_def = ','.join(specs['swap_domain_def'].split()),
             anchor_domain_def = ','.join(specs['anchor_domain_def'].split()),
             chain_swap_pairs = ':'.join([','.join(x) for x in specs['chain_directional_swaps']]),

@@ -940,7 +940,7 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         bins = self.binnify(fields=fields)
         return len(bins) == len(self)
 
-    def puniquify(self, fields: list[str] = [], stash_attr_name: str = '_ORIGINAL_ATTRIBUTES', make_common: list[str] = []) -> None:
+    def puniquify(self, fields: list[str] = [], stash_attr_name: str = 'ORIGINAL_ATTRIBUTES', make_common: list[str] = []) -> None:
         """
         Systematic attribute altering to make all elements unique
         

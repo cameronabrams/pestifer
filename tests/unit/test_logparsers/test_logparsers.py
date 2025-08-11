@@ -1,5 +1,6 @@
 from time import sleep
-from pestifer.logparsers import PackmolLog, NAMDLog, get_toeol, get_tokens, get_values
+from pestifer.logparsers import PackmolLogParser, NAMDLogParser
+from pestifer.logparsers.logparser import get_toeol, get_tokens, get_values
 import logging
 logger=logging.getLogger(__name__)
 
@@ -28,7 +29,7 @@ def test_get_values():
     assert res==[1.23e9, 3.45, 6.78]
 
 def test_packmol_log_static():
-    l=PackmolLog()
+    l=PackmolLogParser()
     with open('packmol/a.pm-log','r') as f:
         msg=f.read()
     l.update(msg)
@@ -90,7 +91,7 @@ def test_packmol_log_static():
     l.finalize()
 
 def test_packmol_log_dynamic():
-    l=PackmolLog()
+    l=PackmolLogParser()
     with open('packmol/a.pm-log','r') as f:
         msg=f.read()
     msg_len=len(msg)
@@ -107,7 +108,7 @@ def test_packmol_log_dynamic():
     assert len(prog)==97
 
 def test_namd_log_static():
-    l=NAMDLog()
+    l=NAMDLogParser()
     with open('namd/test_namd.testlog','r') as f:
         msg=f.read()
     l.update(msg)
@@ -123,7 +124,7 @@ def test_namd_log_static():
     l.finalize()
 
 def test_namd_log_static_incomplete():
-    l=NAMDLog()
+    l=NAMDLogParser()
     with open('namd/test_namd-incomplete.testlog','r') as f:
         msg=f.read()
     l.update(msg)
@@ -135,7 +136,7 @@ def test_namd_log_static_incomplete():
     l.finalize()
 
 def test_namd_log_dynamic():
-    l=NAMDLog()
+    l=NAMDLogParser()
     with open('namd/test_namd.testlog','r') as f:
         msg=f.read()
     msg_len=len(msg)

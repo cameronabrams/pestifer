@@ -21,6 +21,16 @@ class TestPipeline(unittest.TestCase):
         self.assertIsNotNone(returned_artifact_data)
         self.assertEqual(returned_artifact_data, '1gc1')
 
+    def test_register_stateartifact(self):
+        s = StateArtifacts(pdb=PDBFileArtifact('1gc1.pdb'), psf=PSFFileArtifact('1gc1.psf'), coor=NAMDCoorFileArtifact('1gc1.coor'), xsc=NAMDXscFileArtifact('1gc1.xsc'), vel=NAMDVelFileArtifact('1gc1.vel'))
+        self.assertIsInstance(s, StateArtifacts)
+        self.assertIsInstance(s.pdb, PDBFileArtifact)
+        pipeline = PipelineContext()
+        pipeline.register(s.stamp('State maker'))
+        self.assertIn('state', pipeline.head)
+        self.assertEqual(s.produced_by, 'State maker')
+        self.assertEqual(s.psf.produced_by, 'State maker')
+
     def test_pipeline_history(self):
         pipeline = PipelineContext()
         artifact1 = PDBFileArtifact('1gc1').stamp('First maker')

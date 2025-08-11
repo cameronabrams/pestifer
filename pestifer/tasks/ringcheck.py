@@ -28,13 +28,11 @@ class RingCheckTask(BaseTask):
     """
     
     def do(self):
-        psf: Path = self.get_current_artifact_path('psf')
-        pdb: Path = self.get_current_artifact_path('pdb')
-        xsc: Path = self.get_current_artifact_path('xsc')
+        state: StateArtifacts = self.get_current_artifact('state')
         cutoff: float = self.specs.get('cutoff', 3.5)
         segtypes: list = self.specs.get('segtypes', ['lipid'])
         delete_these: str = self.specs.get('delete', 'piercee')
-        npiercings = ring_check(psf, pdb, xsc, cutoff=cutoff, segtypes=segtypes)
+        npiercings = ring_check(state.psf.name, state.pdb.name, state.xsc.name, cutoff=cutoff, segtypes=segtypes)
         if npiercings:
             ess = 's' if len(npiercings) > 1 else ''
             if delete_these == "none":
@@ -45,14 +43,15 @@ class RingCheckTask(BaseTask):
                 self.next_basename('ring_check')
                 pg: PsfgenScripter = self.get_scripter('psfgen')
                 pg.newscript(self.basename)
-                pg.load_project(psf.name, pdb.name)
+                pg.load_project(state.psf.name, state.pdb.name)
                 logger.debug(f'Deleting all {delete_these}s from {len(npiercings)} pierced-ring configuration{ess}')
                 for r in npiercings:
                     logger.debug(f'   Deleting segname {r[delete_these]["segname"]} residue {r[delete_these]["resid"]}')
                     pg.addline(f'delatom {r[delete_these]["segname"]} {r[delete_these]["resid"]}')
                 pg.writescript(self.basename)
                 pg.runscript()
-                for at in [PsfgenInputScriptArtifact, PSFFileArtifact, PDBFileArtifact, PsfgenLogFileArtifact]:
+                self.register(StateArtifacts(psf=PSFFileArtifact(self.basename), pdb=PDBFileArtifact(self.basename), xsc=state.xsc))
+                for at in [PsfgenInputScriptArtifact, PsfgenLogFileArtifact]:
                     self.register(at(self.basename))
         self.log_message('complete')
         self.result = 0

@@ -15,13 +15,16 @@ that we have to know where any non-empty TER records are.
 """
 
 import logging
-logger = logging.getLogger(__name__)
-from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 
+from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from pydantic import Field
 from typing import ClassVar
-from ..core.baseobj import BaseObj, BaseObjList
+
 from .resid import ResID
+
+from ..core.baseobj import BaseObj, BaseObjList
+
+logger = logging.getLogger(__name__)
 
 class Ter(BaseObj):
     """
@@ -92,11 +95,6 @@ class Ter(BaseObj):
                 }
             return input_dict
         return super()._adapt(*args, **kwargs)
-
-    def __repr__(self):
-        if self.serial is None:
-            return f'<Ter EMPTY>'
-        return f'<Ter serial={self.serial} resname={self.resname} chainID={self.chainID} resid={self.resid}>'
 
 class TerList(BaseObjList[Ter]):
 

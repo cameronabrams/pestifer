@@ -38,20 +38,22 @@ class SolvateTask(VMDTask):
         This method initializes the task, inherits the state from prior tasks, and performs the solvation and ionization.
         """
         self.next_basename()
-        psf: Path = self.get_current_artifact_path('psf')
-        pdb: Path = self.get_current_artifact_path('pdb')
-        xsc: Path = self.get_current_artifact_path('xsc')
-        self.stash_current_artifact('vel')
+        state: StateArtifacts = self.get_current_artifact('state')
+        # psf: Path = self.get_current_artifact_path('psf')
+        # pdb: Path = self.get_current_artifact_path('pdb')
+        # xsc: Path = self.get_current_artifact_path('xsc')
+        # self.stash_current_artifact('vel')
         use_minmax = True
-        if xsc is not None:
-            box, origin = cell_from_xsc(xsc)
+        if state.xsc is not None:
+            box, origin = cell_from_xsc(state.xsc.name)
             if box is not None and origin is not None:
                 use_minmax = False
                 basisvec = box.diagonal()
                 LL = origin - 0.5 * basisvec
                 UR = origin + 0.5 * basisvec
+            xsc = state.xsc
         if use_minmax:
-            p = PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()
+            p = PDBParser(filepath=state.pdb.name).parse()
             x = np.array([a.x for a in p.parsed['ATOM']])
             y = np.array([a.y for a in p.parsed['ATOM']])
             z = np.array([a.z for a in p.parsed['ATOM']])
@@ -68,7 +70,7 @@ class SolvateTask(VMDTask):
             basisvec = UR - LL
             origin = 0.5 * (UR + LL)
             cell_to_xsc(np.diag(basisvec), origin, f'{self.basename}.xsc')
-            self.register(NAMDXscFileArtifact(self.basename))
+            xsc = NAMDXscFileArtifact(self.basename)
 
         ll_tcl = r'{ ' + ' '.join([str(_) for _ in LL.tolist()]) + r' }'
         ur_tcl = r'{ ' + ' '.join([str(_) for _ in UR.tolist()]) + r' }'
@@ -78,9 +80,9 @@ class SolvateTask(VMDTask):
         vt.addline( 'package require solvate')
         vt.addline( 'package require autoionize')
         vt.addline( 'psfcontext mixedcase')
-        vt.addline(f'mol new {psf.name}')
-        vt.addline(f'mol addfile {pdb.name} waitfor all')
-        vt.addline(f'solvate {psf.name} {pdb.name} -minmax {box_tcl} -o {self.basename}_solv')
+        vt.addline(f'mol new {state.psf.name}')
+        vt.addline(f'mol addfile {state.pdb.name} waitfor all')
+        vt.addline(f'solvate {state.psf.name} {state.pdb.name} -minmax {box_tcl} -o {self.basename}_solv')
         ai_args=[]
         sc=self.specs.get('salt_con',None)
         if sc is None:
@@ -96,12 +98,12 @@ class SolvateTask(VMDTask):
         vt.addline(f'autoionize -psf {self.basename}_solv.psf -pdb {self.basename}_solv.pdb {" ".join(ai_args)} -o {self.basename}')
         vt.writescript()
         self.register(VMDScriptArtifact(self.basename))
-        self.result=vt.runscript(progress_title='solvate')
-        if self.result!=0:
+        self.result = vt.runscript(progress_title='solvate')
+        self.register(VMDLogFileArtifact(self.basename))
+        if self.result != 0:
             return self.result
-        for ext in ['_solv','']:
-            self.register(VMDLogFileArtifact(f'{self.basename}{ext}'))
-            self.register(PSFFileArtifact(f'{self.basename}{ext}'))
-            self.register(PDBFileArtifact(f'{self.basename}{ext}'))
-        self.pdb_to_coor()
+        for ext in ['_solv', '']:
+            tmp_basename = f'{self.basename}{ext}'
+            self.pdb_to_coor(f'{tmp_basename}.pdb')
+            self.register(StateArtifacts(psf=PSFFileArtifact(f'{tmp_basename}'), pdb=PDBFileArtifact(f'{tmp_basename}'), coor=NAMDCoorFileArtifact(f'{tmp_basename}'), xsc=xsc))
         return self.result

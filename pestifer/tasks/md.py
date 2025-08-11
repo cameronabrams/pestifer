@@ -85,12 +85,9 @@ class MDTask(VMDTask):
             self.next_basename(baselabel)
         
         params = {}
-        namd_mol_input = self.get_current_artifact('namd_mol_input')
-        psf: Path = namd_mol_input.get('psf', None)
-        pdb: Path = namd_mol_input.get('pdb', None)
-        coor: Path = namd_mol_input.get('coor', None)
-        vel: Path = namd_mol_input.get('vel', None)
-        xsc: Path = namd_mol_input.get('xsc', None)
+        state: StateArtifacts = self.get_current_artifact('state')
+        if not state.psf or not state.pdb:
+            raise RuntimeError(f'No PSF or PDB file found for task {self.taskname}')
         prior_charmmff_parfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_parfiles')
         prior_paramfiles = []
         if prior_charmmff_parfiles:
@@ -100,8 +97,8 @@ class MDTask(VMDTask):
             firsttimestep = 0
         if specs.get('firsttimestep', None) is not None:
             firsttimestep = specs['firsttimestep']
-        if xsc is not None:
-            self.register(DataArtifact(is_periodic(xsc.name), key='periodic'))
+        if state.xsc is not None:
+            self.register(DataArtifact(is_periodic(state.xsc.name), key='periodic'))
 
         temperature = specs['temperature']
         if ensemble.casefold() == 'NPT'.casefold() or ensemble.casefold() == 'NPAT'.casefold():
@@ -117,17 +114,17 @@ class MDTask(VMDTask):
         other_params = specs.get('other_parameters',{})
         colvars = specs.get('colvar_specs',{})
         params.update(self.namd_global_config['generic'])
-        params['structure'] = psf.name
-        params['coordinates'] = pdb.name
+        params['structure'] = state.psf.name
+        params['coordinates'] = state.pdb.name
         params['temperature'] = '$temperature'
 
-        if coor:
-            params['bincoordinates'] = coor.name
-        if vel:
-            params['binvelocities'] = vel.name
+        if state.coor:
+            params['bincoordinates'] = state.coor.name
+        if state.vel:
+            params['binvelocities'] = state.vel.name
             del params['temperature']
-        if xsc:
-            params['extendedSystem'] = xsc.name
+        if state.xsc:
+            params['extendedSystem'] = state.xsc.name
             if (ensemble.casefold()=='NPT'.casefold() or ensemble.casefold()=='NPAT'.casefold()) and xstfreq:
                 params['xstfreq'] = xstfreq
 
@@ -164,7 +161,7 @@ class MDTask(VMDTask):
         if colvars:
             writer: NAMDColvarInputScripter = self.scripters['namd_colvar']
             writer.newfile(f'{self.basename}-cv.in')
-            writer.construct_on_pdb(specs=colvars, pdb=pdb)
+            writer.construct_on_pdb(specs=colvars, pdb=state.pdb)
             writer.writefile()
             self.register(NAMDColvarsConfigArtifact(f'{self.basename}-cv'))
             params['colvars'] = 'on'
@@ -193,12 +190,12 @@ class MDTask(VMDTask):
             local_execution_only = not self.get_current_artifact_data('periodic')
             single_gpu_only = kwargs.get('single_gpu_only', False) or constraints
             result = na.runscript(single_molecule=local_execution_only, local_execution_only=local_execution_only, single_gpu_only=single_gpu_only, cpu_override=cpu_override)
-        self.coor_to_pdb()
-        self.register(NAMDMolInputDict(pdb=PDBFileArtifact(self.basename),
-                                       coor=NAMDCoorFileArtifact(self.basename),
-                                       vel=NAMDVelFileArtifact(self.basename),
-                                       xsc=NAMDXscFileArtifact(self.basename) if xsc else None, 
-                                       psf=PSFFileArtifact(self.basename)))
+        self.coor_to_pdb(f'{self.basename}.coor', state.psf.name)
+        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename),
+                                     coor=NAMDCoorFileArtifact(self.basename),
+                                     vel=NAMDVelFileArtifact(self.basename),
+                                     xsc=NAMDXscFileArtifact(self.basename) if state.xsc else None, 
+                                     psf=state.psf))  # an md run cannot change the PSF file
         for at in [NAMDDcdFileArtifact, NAMDXstFileArtifact, NAMDLogFileArtifact, NAMDColvarsTrajectoryArtifact, NAMDColvarsStateArtifact]:
             artifact: FileArtifact = at(self.basename)
             if artifact.exists():

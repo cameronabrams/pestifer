@@ -229,7 +229,7 @@ class AsymmetricUnit:
         ignored_residues.extend(more_ignored_residues)
         ignored_links.extend(new_ignored_links)
 
-        if excludes or len(ignored_residues + ignored_seqadvs + ignored_ssbonds + ignored_links + ignored_grafts) > 0:
+        if excludes or (len(ignored_residues) + len(ignored_seqadvs) + len(ignored_ssbonds) + len(ignored_links) + len(ignored_grafts)) > 0:
             logger.debug(f'Exclusions result in deletion of:')
             logger.debug(f'    {len(ignored_residues)} residues, {len(residues)} remain')
             logger.debug(f'    {len(ignored_seqadvs)} seqadvs, {len(seqadvs)} remain')

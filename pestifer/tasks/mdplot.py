@@ -49,8 +49,10 @@ class MDPlotTask(BaseTask):
             self.priortasklist.append(priortaskpointer)
             priortaskpointer = priortaskpointer.prior
         self.priortasklist = self.priortasklist[::-1]
-
+        logger.debug(f'Found {len(self.priortasklist)} prior MD tasks: {[pt.index for pt in self.priortasklist]}.')
+        self.csvartifacts = FileArtifactList([])
         if self.reprocess_logs:
+            logger.debug(f'Reprocessing logs: {self.reprocess_logs}')
             namdlog_objs = []
             if self.explicit_logs:
                 for f in self.explicit_logs:
@@ -64,23 +66,29 @@ class MDPlotTask(BaseTask):
                         else:
                             raise FileNotFoundError(f'CSV file {csvs_generated[key]} does not exist.')
                     namdlog_objs.append(the_log)
-            elif len(self.priortasklist) > 0:
-                for pt in self.priortasklist:
-                    namdlog_artifacts = pt.get_my_artifactfile_collection().filter_by_artifact_type(NAMDLogFileArtifact)
-                    for na in namdlog_artifacts:
-                        the_log = NAMDLogParser.from_file(na.path.name)
-                        csvs_generated = the_log.write_csv()
-                        for key in csvs_generated:
-                            artifact = CSVDataFileArtifact(csvs_generated[key])
-                            if artifact.exists():
-                                self.register(artifact, key=f'{key}-csv')
-        
-        self.csvartifacts = FileArtifactList()
-        if self.priortasklist:
+                    self.csvartifacts.append(artifact)
+        elif len(self.priortasklist) > 0:
+            logger.debug(f'Extracting data from prior tasks: {[pt.index for pt in self.priortasklist]}')
             for pt in self.priortasklist:
+                logger.debug(f'Extracting data from prior task {pt.taskname}-{pt.index}')
+                # namdlog_artifacts = pt.get_my_artifactfile_collection().filter_by_artifact_type(NAMDLogFileArtifact)
+                # for na in namdlog_artifacts.data:
+                #     if not na.exists():
+                #         raise FileNotFoundError(f'NAMD log file {na.path} does not exist.')
+                #     logger.debug(f'Extracting data from {na.name}')
+                #     the_log = NAMDLogParser.from_file(na.name)
+                #     csvs_generated = the_log.write_csv()
+                #     logger.debug(f'CSV keys generated: {csvs_generated}')
+                #     for key in csvs_generated:
+                #         artifact = CSVDataFileArtifact(csvs_generated[key])
+                #         if artifact.exists():
+                #             pt.register(artifact, key=f'{key}-csv')
+
                 artifactfile_collection = pt.get_my_artifactfile_collection().filter_by_artifact_type(CSVDataFileArtifact)
                 for pt_artifact in artifactfile_collection:
                     self.csvartifacts.append(pt_artifact)
+        else:
+            raise ValueError('No CSV artifacts found in prior tasks.')
 
         if len(self.csvartifacts) == 0:
             raise ValueError('No CSV artifacts found.  Cannot extract time series data.')

@@ -237,7 +237,7 @@ class PsfgenScripter(VMDScripter):
         image_seglabel: str = chainIDmap.get(seglabel, seglabel)
         is_image: bool = image_seglabel != seglabel
         segtype: str = segment.segtype
-        objmanager: ObjManager = segment._obj_manager
+        objmanager: ObjManager = segment.objmanager
         seqmods: dict = objmanager.get('seq', {})
         logger.debug(f'polymer_stanza {segtype} {seglabel}->{image_seglabel} seqmods: {seqmods}')
 
@@ -278,11 +278,11 @@ class PsfgenScripter(VMDScripter):
                 logger.debug(f'here it is {at.serial} {at.resname} {at.name} in chain {at.chainID} residue {at.resname}{at.resid.resid}')
                 assert at.resid == run[-1].resid
                 vmd_red_list = reduce_intlist(serial_list)
-                self.addline(f'set {b.selname} [atomselect m${segment.parent_molecule.molid} "serial {vmd_red_list}"]')
+                self.addline(f'set {b.selname} [atomselect $m{segment.parent_molecule.molid} "serial {vmd_red_list}"]')
                 self.addline(f'${b.selname} set segname {image_seglabel}')
-                if hasattr(at, '_ORIGINAL_ATTRIBUTES'):
-                    if at._ORIGINAL_ATTRIBUTES["serial"] != at.serial:
-                        self.banner(f'Atom with serial {at._ORIGINAL_ATTRIBUTES["serial"]} in PDB needs serial {at.serial} for VMD')
+                if hasattr(at, 'ORIGINAL_ATTRIBUTES'):
+                    if at.ORIGINAL_ATTRIBUTES["serial"] != at.serial:
+                        self.banner(f'Atom with serial {at.ORIGINAL_ATTRIBUTES["serial"]} in PDB needs serial {at.serial} for VMD')
                 """ Relabel chain ID and request coordinate transformation """
                 if is_image:
                     self.backup_selection(b.selname, dataholder=f'{b.selname}_data')
@@ -423,7 +423,7 @@ class PsfgenScripter(VMDScripter):
         image_seglabel: str = chainIDmap.get(seglabel, seglabel)
         is_image: bool = image_seglabel != seglabel
         segtype: str = segment.segtype
-        objmanager: ObjManager = segment._obj_manager
+        objmanager: ObjManager = segment.objmanager
         seqmods: dict = objmanager.get('seq', {})
         topomods: dict = objmanager.get('topol', {})
         seg_grafts: GraftList = seqmods.get('grafts', GraftList([]))
@@ -440,7 +440,7 @@ class PsfgenScripter(VMDScripter):
         pdb = f'segtype_generic_{image_seglabel}.pdb'
         selname = image_seglabel
         self.addfile(pdb)  # appends this file to the scripters FileCollector for later cleanup
-        self.addline(f'set {selname} [atomselect m${segment.parent_molecule.molid} "serial {vmd_red_list}"]')
+        self.addline(f'set {selname} [atomselect $m{segment.parent_molecule.molid} "serial {vmd_red_list}"]')
         self.addline(f'${selname} set segname {image_seglabel}')
         if is_image:
             self.backup_selection(selname, dataholder=f'{selname}_data')
@@ -452,14 +452,14 @@ class PsfgenScripter(VMDScripter):
         self.addline(f'first none', indents=1)
         self.addline(f'last none', indents=1)
         self.addline(f'pdb {pdb}', indents=1)
-        for g in seg_grafts:
+        for g in seg_grafts.data:
             # g.write_in_segment(self)
-            self.addline (f'    pdb {g._segfile}')
+            self.addline (f'    pdb {g.segfile}')
         self.addline('}')
         self.addline(f'coordpdb {pdb} {image_seglabel}')
-        for g in seg_grafts:
+        for g in seg_grafts.data:
             # g.write_post_segment(self)
-            self.addline(f'coordpdb {g._segfile} {g.target_chainID}')
+            self.addline(f'coordpdb {g.segfile} {g.target_chainID}')
         if is_image:
             self.banner(f'Restoring A.U. state for {seglabel}')
             self.restore_selection(selname, dataholder=f'{selname}_data')

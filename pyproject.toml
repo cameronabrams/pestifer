@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pestifer"
-version = "1.21.2"
+version = "2.0.1"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
 ]
@@ -21,7 +21,7 @@ dependencies = [
   "docutils>=0.20,<0.22",  # Required for sphinx
   "numpy>=1.24",
   "pyyaml>=6",
-  "pidibble>=1.4.1",
+  "pidibble>=1.4.2",
   "pandas",
   "ycleptic>=1.8.1",
   "mmcif",
@@ -29,7 +29,9 @@ dependencies = [
   "networkx",
   "colorist",
   "gputil",
-  "sphinx==8.2.3"  # Explicitly declare if needed for docs
+  "sphinx==8.2.3" ,
+  "scipy",
+  "matplotlib" # Explicitly declare if needed for docs
 ]
 
 [project.scripts]

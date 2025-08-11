@@ -12,7 +12,7 @@ from pathlib import Path
 from .basetask import BaseTask
 from ..scripters import VMDScripter
 from ..core.objmanager import ObjManager
-from ..core.artifacts import PDBFileArtifact, VMDScriptArtifact, VMDLogFileArtifact
+from ..core.artifacts import PDBFileArtifact, VMDScriptArtifact, VMDLogFileArtifact, StateArtifacts
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +54,8 @@ class ManipulateTask(BaseTask):
             self.next_basename(objtype)
             vm: VMDScripter = self.get_scripter('vmd')
             vm.newscript(self.basename, packages=['Orient'])
-            psf: Path = self.get_current_artifact_path('psf')
-            pdb: Path = self.get_current_artifact_path('pdb')
-            vm.load_psf_pdb(psf.name, pdb.name, new_molid_varname='mCM')
+            state: StateArtifacts = self.get_current_artifact('state')
+            vm.load_psf_pdb(state.psf.name, state.pdb.name, new_molid_varname='mCM')
             for obj in objlist:
                 if objtype == 'crot':
                     vm.write_crot(obj, molid='mCM')
@@ -69,6 +68,7 @@ class ManipulateTask(BaseTask):
             result = vm.runscript()
             if result != 0:
                 return result
-            for at in [PDBFileArtifact, VMDScriptArtifact, VMDLogFileArtifact]:
+            self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename), psf=state.psf))
+            for at in [VMDScriptArtifact, VMDLogFileArtifact]:
                 self.register(at(self.basename))
         return 0

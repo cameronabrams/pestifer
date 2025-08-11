@@ -135,8 +135,7 @@ class NAMDLogParser(LogParser):
             self.tcl_key: self.process_tcl_line,
             self.wallclock_key: self.process_wallclock_line
         }
-        self._xst_parser = None
-        self.filename = None
+        self.filename = f'{basename}.log'
     
     @classmethod
     def from_file(cls, filename: Path | str, passfilter: list[str] = []):
@@ -611,11 +610,11 @@ class NAMDLogParser(LogParser):
         Finalize the log parsing by creating dataframes for each time series.
         """
         # parse the XST file
-        self.auxlog = NAMDxstParser.from_file(basename=self.basename)
+        self.auxlogparser = NAMDxstParser.from_file(basename=os.path.splitext(self.filename)[0])
         for key in self.time_series_data:
             self.dataframes[key] = pd.DataFrame(self.time_series_data[key])
-        if self.auxlog:
-            self.dataframes['xst'] = self.auxlog.dataframe
+        if self.auxlogparser:
+            self.dataframes['xst'] = self.auxlogparser.dataframe
         # add a 'DENSITY' column to the energy dataframe
         if 'energy' in self.dataframes:
             if 'total_mass' in self.metadata and 'VOLUME' in self.dataframes['energy'].columns:

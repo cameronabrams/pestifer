@@ -45,6 +45,9 @@ class ResID(BaseObj):
             return self.resseqnum
         return str(self)
 
+    def __hash__(self):
+        return hash((self.resseqnum, self.insertion))
+
     @classmethod
     def _adapt(cls, *args, **kwargs) -> dict:
         """

@@ -94,14 +94,12 @@ class LigateTask(MDTask):
         self.next_basename('measure')
         vm: VMDScripter = self.get_scripter('vmd')
         vm.newscript(self.basename)
-        psf: Path = self.get_current_artifact_path('psf')
-        pdb: Path = self.get_current_artifact_path('pdb')
+        state: StateArtifacts = self.get_current_artifact('state')
         inputfile: Path = self.get_current_artifact_path('measure_distances_input')
-
         opdb: Path = f'{self.basename}.pdb'
         receiver_flexible_zone_radius: float = specs.get('receiver_flexible_zone_radius', 0.0)
         resultsfile: Path = f'{self.basename}.dat'
-        vm.addline(f'measure_bonds {psf} {pdb} {inputfile} {opdb} {resultsfile} {receiver_flexible_zone_radius} ')
+        vm.addline(f'measure_bonds {state.psf} {state.pdb} {inputfile} {opdb} {resultsfile} {receiver_flexible_zone_radius} ')
         vm.writescript()
         self.register(VMDScriptArtifact(self.basename))
         vm.runscript()
@@ -148,7 +146,7 @@ class LigateTask(MDTask):
             'colvars': 'on',
             'colvarsconfig': self.get_current_artifact_path('steer_colvars')
             }, single_gpu_only=True)
-        # self.register(NAMDColvarsOutputArtifact(f'{self.basename}-cv'), key='steer_colvars_output')
+        # MDTask.namdrun registers the state and all output files
         self.specs = savespecs
         return result
 
@@ -200,17 +198,15 @@ class LigateTask(MDTask):
         charmm_topology_files.append(CharmmffTopFileArtifact('pestifer', ext='top'))
         pg.addline(f'topology pestifer.top')
         patchfile: Path = self.get_current_artifact_path('connect_patches_input')
-        psf: Path = self.get_current_artifact_path('psf')
-        pdb: Path = self.get_current_artifact_path('pdb')
-        pg.load_project(psf.name, pdb.name)
+        state: StateArtifacts = self.get_current_artifact('state')
+        pg.load_project(state.psf.name, state.pdb.name)
         pg.addline(f'source {patchfile.name}')
         pg.writescript(self.basename, guesscoord=True, regenerate=True)
         self.register(PsfgenInputScriptArtifact(self.basename))
         result = pg.runscript()
         if result == 0:
-            self.register(PSFFileArtifact(self.basename))
-            self.register(PDBFileArtifact(self.basename))
+            self.pdb_to_coor(f'{self.basename}.pdb')
+            self.register(StateArtifacts(psf=PSFFileArtifact(self.basename), pdb=PDBFileArtifact(self.basename), coor=NAMDCoorFileArtifact(self.basename)))
             self.register(LogFileArtifact(self.basename))
-            self.pdb_to_coor()
         return result
     

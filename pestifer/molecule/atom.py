@@ -67,7 +67,8 @@ class Atom(BaseObj):
     """
 
     _optional_fields = {'segname', 'empty', 'link', 'recordname', 'auth_seq_id', 
-                        'auth_comp_id', 'auth_asym_id', 'auth_atom_id'}
+                        'auth_comp_id', 'auth_asym_id', 'auth_atom_id', 'pdbx_pdb_ins_code',
+                        'ORIGINAL_ATTRIBUTES'}
     """
     Optional attributes for the Atom class.
     These attributes can be provided when creating an Atom instance, but are not required.
@@ -114,6 +115,8 @@ class Atom(BaseObj):
     auth_comp_id: str | None = Field(default=None, description="Author component ID for the atom.")
     auth_asym_id: str | None = Field(default=None, description="Author asym ID for the atom.")
     auth_atom_id: str | None = Field(default=None, description="Author atom ID for the atom.")
+    pdbx_pdb_ins_code: str | None = Field(default=None, description="PDB insertion code for the atom.")
+    ORIGINAL_ATTRIBUTES: dict = Field(default_factory=dict, description="Dictionary to store original attributes of the atom instance.")
 
     _yaml_header: ClassVar[str] = 'atoms'
     """
@@ -128,11 +131,6 @@ class Atom(BaseObj):
     _CIF_CategoryName: ClassVar[str] = 'atom_site'
     """
     Name used in mmCIF files to identify atom site records.
-    """
-
-    _ORIGINAL_ATTRIBUTES: dict = {} # not a ClassVar, but a regular instance variable
-    """
-    Dictionary to store original attributes of an atom instance.
     """
     
     @classmethod
@@ -180,14 +178,15 @@ class Atom(BaseObj):
                 auth_seq_id=cifdict['auth_seq_id'],
                 auth_comp_id=cifdict['auth_comp_id'],
                 auth_asym_id=cifdict['auth_asym_id'],
-                auth_atom_id=cifdict.get('auth_atom_id', None)
+                auth_atom_id=cifdict.get('auth_atom_id', None),
+                pdbx_pdb_ins_code=cifdict.get('pdbx_pdb_ins_code', None)
             )
             apparent_resseqnum = cifdict.get('label_seq_id', None)
             if apparent_resseqnum == '.':
                 apparent_resseqnum = cifdict['auth_seq_id']
                 # logger.debug(f'Apparent resseqnum: {apparent_resseqnum}')
                 input_dict['chainID'] = input_dict['auth_asym_id']
-            resid = ResID(resseqnum=apparent_resseqnum, insertion=cifdict.get('pdbx_pdb_ins_code', None))
+            resid = ResID(resseqnum=apparent_resseqnum, insertion=input_dict['pdbx_pdb_ins_code'])
             input_dict['resid'] = resid
             return input_dict
         return super()._adapt(*args, **kwargs)
@@ -358,11 +357,11 @@ class AtomList(BaseObjList[Atom]):
         Reserializes the AtomList by updating the serial numbers of each atom.
         This method assigns a new serial number to each atom in the list, starting from 1
         and incrementing for each atom. It also stores the original serial number in the
-        `_ORIGINAL_ATTRIBUTES` dictionary of each atom for reference.
+        `ORIGINAL_ATTRIBUTES` dictionary of each atom for reference.
         """
         serial = 1
         for a in self:
-            a._ORIGINAL_ATTRIBUTES['serial'] = a.serial
+            a.ORIGINAL_ATTRIBUTES['serial'] = a.serial
             a.serial = serial
             serial += 1
 
@@ -370,7 +369,7 @@ class AtomList(BaseObjList[Atom]):
         """
         Adjusts the serial numbers of atoms in the AtomList based on the provided TerList.
         This method reduces the serial numbers of atoms in the AtomList by the number of
-        ignored serials in the TerList. It updates the `_ORIGINAL_` dictionary of each atom
+        ignored serials in the TerList. It updates the `ORIGINAL_` dictionary of each atom
         to store the original serial number before adjustment.
 
         Parameters
@@ -390,9 +389,9 @@ class AtomList(BaseObjList[Atom]):
             except StopIteration:
                 pass
             if n > 0:
-                a._ORIGINAL_ATTRIBUTES['serial'] = a.serial
+                a.ORIGINAL_ATTRIBUTES['serial'] = a.serial
                 a.serial -= n
-                logger.debug(f'Atom orig serial {a._ORIGINAL_ATTRIBUTES["serial"]} to {a.serial}')
+                logger.debug(f'Atom orig serial {a.ORIGINAL_ATTRIBUTES["serial"]} to {a.serial}')
 
     def overwrite_positions(self, other: AtomList):
         """

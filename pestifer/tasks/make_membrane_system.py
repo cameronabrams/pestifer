@@ -63,12 +63,11 @@ class MakeMembraneSystemTask(BaseTask):
             logger.debug('Using prebuilt bilayer')
             self.using_prebuilt_bilayer = True
             self.quilt: Bilayer = Bilayer()
-            self.register(PDBFileArtifact(path=self.bilayer_specs['prebuilt']['pdb'].replace('.pdb','')))
-            self.register(PSFFileArtifact(path=self.bilayer_specs['prebuilt']['psf'].replace('.psf','')))
-            self.register(NAMDXscFileArtifact(path=self.bilayer_specs['prebuilt']['xsc'].replace('.xsc','')))
-            self.quilt.box, self.quilt.origin = cell_from_xsc(self.get_current_artifact_path('xsc'))
+            quilt_state = StateArtifacts(pdb=self.bilayer_specs['prebuilt']['pdb'], psf=self.bilayer_specs['prebuilt']['psf'], xsc=self.bilayer_specs['prebuilt']['xsc'])
+            self.register(quilt_state, key='quilt_state')
+            self.quilt.box, self.quilt.origin = cell_from_xsc(quilt_state.xsc.path)
             self.quilt.area = self.quilt.box[0][0] * self.quilt.box[1][1]
-            additional_topologies = get_toppar_from_psf(self.get_current_artifact_path('psf').name)
+            additional_topologies = get_toppar_from_psf(quilt_state.psf.name)
             # these will be registered as artifacts when psfgen executes
             self.quilt.addl_streamfiles = additional_topologies
         else:
@@ -114,7 +113,7 @@ class MakeMembraneSystemTask(BaseTask):
                              resi_database = self.RDB)
         species_pdbs = PDBFileArtifactList()
         for spdb in self.patch.register_species_pdbs:
-            species_pdbs.append(PDBFileArtifact(spdb.replace('.pdb', ''), name=spdb))
+            species_pdbs.append(PDBFileArtifact(spdb, name=spdb))
         self.register(species_pdbs, key='species_pdbs')
         logger.debug(f'Main composition dict after call {composition_dict}')
         if self.patch.asymmetric:
@@ -157,19 +156,20 @@ class MakeMembraneSystemTask(BaseTask):
         Execute the MakeMembraneSystemTask.
         """
         # as part of a list of tasks, this task expects to be fed a protein system to embed
-        self.pro_psf: Path = self.get_current_artifact_path('psf')
-        self.pro_pdb: Path = self.get_current_artifact_path('pdb')
-        if self.pro_psf is None or self.pro_pdb is None:
+        protein_state: StateArtifacts = self.get_current_artifact('state')
+        if protein_state.psf is None or protein_state.pdb is None:
             self.embedding = False
         else:
             self.embedding = True
-            logger.debug(f'Using psf {self.pro_psf.name} and pdb {self.pro_pdb.name} as inputs')
+            logger.debug(f'Using psf {protein_state.psf.name} and pdb {protein_state.pdb.name} as inputs')
 
         if not self.using_prebuilt_bilayer:
             self.build_patch()
             self.make_quilt_from_patch()
         if self.embedding:
             self.embed_protein()
+        else:
+            self.register(self.get_current_artifact('quilt_state'), key='state')
         return 0
 
     def build_patch(self):
@@ -199,24 +199,24 @@ class MakeMembraneSystemTask(BaseTask):
             patch.spec_out(SAPL=SAPL, xy_aspect_ratio=xy_aspect_ratio,
                             rotation_pm=rotation_pm, solution_gcc=solution_gcc,
                             half_mid_zgap=half_mid_zgap)
-            self.pack_patch(patch, specbyte, seed=seed,
+            self.pack_patch(patch, patch_name=f'patch{specbyte}', seed=seed,
                             tolerance=tolerance,
                             nloop_all=nloop_all,
                             half_mid_zgap=half_mid_zgap,
                             rotation_pm=rotation_pm,
                             nloop=nloop)
-            self.do_psfgen(patch, specbyte)
-            self.equilibrate_bilayer(patch, specbyte, relaxation_protocol=relaxation_protocol)
+            self.do_psfgen(patch, bilayer_name=f'patch{specbyte}')
+            self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}', relaxation_protocol=relaxation_protocol)
 
     def register_tops_streams_from_psfgen(self, filelist):
-        self.register(CharmmffTopFileArtifacts([CharmmffTopFileArtifact(x.replace('.rtf', '')) for x in filelist], key='charmmff_topfiles'))
-        self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x.replace('.str', '')) for x in filelist], key='charmmff_streamfiles'))
+        self.register(CharmmffTopFileArtifacts([CharmmffTopFileArtifact(x) for x in filelist], key='charmmff_topfiles'))
+        self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x) for x in filelist], key='charmmff_streamfiles'))
 
-    def do_psfgen(self, patch, specbyte):
+    def do_psfgen(self, patch: Bilayer, bilayer_name: str):
         """
         Perform the psfgen operation to generate the PSF and PDB files for the bilayer patch from the packmol output.
         """
-        self.next_basename(f'psfgen{specbyte}')
+        self.next_basename(f'psfgen-{bilayer_name}')
         pg: PsfgenScripter = self.get_scripter('psfgen')
         pg.newscript(self.basename, additional_topologies=patch.addl_streamfiles)
         self.register_tops_streams_from_psfgen(pg.topologies)
@@ -226,10 +226,11 @@ class MakeMembraneSystemTask(BaseTask):
         result = pg.runscript(pdb=pdb.name, o=self.basename)
         cell_to_xsc(patch.box, patch.origin, f'{self.basename}.xsc')
         patch.area = patch.box[0][0] * patch.box[1][1]
-        for at in [PsfgenInputScriptArtifact, PsfgenLogFileArtifact, PDBFileArtifact, NAMDXscFileArtifact, PSFFileArtifact]:
+        self.register(StateArtifacts(psf=PSFFileArtifact(self.basename), pdb=PDBFileArtifact(self.basename), xsc=NAMDXscFileArtifact(self.basename)), key=f'{bilayer_name}_state')
+        for at in [PsfgenInputScriptArtifact, PsfgenLogFileArtifact]:
             self.register(at(self.basename))
 
-    def pack_patch(self, patch: Bilayer, specbyte, seed=None, tolerance=None, nloop_all=200, nloop=200, half_mid_zgap=1.0, rotation_pm=20):
+    def pack_patch(self, patch: Bilayer, patch_name: str = None, seed=None, tolerance=None, nloop_all=200, nloop=200, half_mid_zgap=1.0, rotation_pm=20):
         """
         Packs the bilayer patch using Packmol.
         
@@ -248,7 +249,7 @@ class MakeMembraneSystemTask(BaseTask):
         rotation_pm : float, optional
             The rotation angle in degrees for the patch. Default is 20.0 degrees.
         """
-        self.next_basename(f'packmol{specbyte}')
+        self.next_basename(f'packmol-{patch_name}')
         pm: PackmolScripter = self.get_scripter('packmol')
         pm.newscript(self.basename)
         packmol_output_pdb = f'{self.basename}.pdb'
@@ -265,10 +266,11 @@ class MakeMembraneSystemTask(BaseTask):
         logger.debug(f'{self.basename} packmol result {result}')
         if result != 0:
             raise Exception(f'Packmol failed with result {result}')
-        for at in [PackmolInputScriptArtifact, PackmolLogFileArtifact, PDBFileArtifact]:
+        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename)), key=f'{patch_name}_state')
+        for at in [PackmolInputScriptArtifact, PackmolLogFileArtifact]:
             self.register(at(self.basename))
 
-    def equilibrate_bilayer(self, bilayer: Bilayer, specbyte: str, relaxation_protocol=None):
+    def equilibrate_bilayer(self, bilayer: Bilayer, bilayer_name: str = None, relaxation_protocol=None):
         """
         Equilibrates the bilayer patch using the specified user dictionary and relaxation protocol.
         
@@ -282,12 +284,10 @@ class MakeMembraneSystemTask(BaseTask):
             A list of dictionaries specifying the stages of the relaxation protocol.
             If not provided, a hard-coded relaxation protocol will be used. 
         """
-        self.next_basename(f'equilibration{specbyte}')
+        self.next_basename(f'equilibration-{bilayer_name}')
         # user_dict=deepcopy(self.config['user'])
-        psf: Path = self.get_current_artifact_path('psf')
-        pdb: Path = self.get_current_artifact_path('pdb')
-        xsc: Path = self.get_current_artifact_path('xsc')
-        logger.debug(f'Bilayer area before equilibration: {self.area:.3f} {sA2_}')
+        state: StateArtifacts = self.get_current_artifact(f'{bilayer_name}_state')
+        logger.debug(f'Bilayer area before equilibration: {bilayer.area:.3f} {sA2_}')
         if not relaxation_protocol:
             logger.debug(f'Using hard-coded relaxation protocol for {self.basename}!!')
             relaxation_protocol=[
@@ -327,7 +327,7 @@ class MakeMembraneSystemTask(BaseTask):
         profiles = ['pressure']
         if self.provisions['processor-type'] != 'gpu':
             timeseries.append('pressure')  # To do: change this to pressureProfile plotting
-        tasklist_yaml = [{'continuation': dict(psf=psf, pdb=pdb, xsc=xsc, index=0)}]
+        tasklist_yaml = [{'continuation': dict(psf=state.psf.name, pdb=state.pdb.name, xsc=state.xsc.name, index=0)}]
         tasklist_yaml.extend(relaxation_protocol)
         tasklist_yaml.extend([
             {'mdplot': dict(timeseries=timeseries, profiles=profiles, legend=True, grid=True, basename=self.basename)},
@@ -340,13 +340,10 @@ class MakeMembraneSystemTask(BaseTask):
             task_key = task.taskname
             task.override_taskname(f'{self.basename}-' + task_key)
         subcontroller.do_tasks()
-        artifact_types_to_collect = ['pdb', 'psf', 'xsc']
         last_task: BaseTask = subcontroller.tasks[-1]
-        for artifact_type in artifact_types_to_collect:
-            artifact = last_task.get_current_artifact(artifact_type)
-            if artifact is not None:
-                bilayer.artifacts[artifact_type] = artifact
-        bilayer.box, bilayer.origin = cell_from_xsc(bilayer.artifacts.get('xsc').path)
+        bilayer_state: StateArtifacts = last_task.get_current_artifact('state')
+        self.register(bilayer_state, key=f'{bilayer_name}_state')
+        bilayer.box, bilayer.origin = cell_from_xsc(bilayer_state.xsc.path)
         bilayer.area = bilayer.box[0][0] * bilayer.box[1][1]
         logger.debug(f'{self.basename} area after equilibration: {bilayer.area:.3f} {sA2_}')
 
@@ -362,19 +359,22 @@ class MakeMembraneSystemTask(BaseTask):
         self.next_basename('quilt')
         additional_topologies=[]
         if self.patch is not None:
-            pdb = self.patch.artifacts.get('pdb',None)
-            xsc = self.patch.artifacts.get('xsc',None)
-            psf = self.patch.artifacts.get('psf',None)
+            patch_state: StateArtifacts = self.get_current_artifact('patch_state')
+            pdb = patch_state.pdb.name
+            xsc = patch_state.xsc.name
+            psf = patch_state.psf.name
             pdbA = pdbB = pdb
             psfA = psfB = psf
             xscA = xscB = xsc
         elif self.patchA is not None and self.patchB is not None:
-            psfA = self.patchA.artifacts.get('psf', None)
-            pdbA = self.patchA.artifacts.get('pdb', None)
-            xscA = self.patchA.artifacts.get('xsc', None)
-            psfB = self.patchB.artifacts.get('psf', None)
-            pdbB = self.patchB.artifacts.get('pdb', None)
-            xscB = self.patchB.artifacts.get('xsc', None)
+            patchA_state: StateArtifacts = self.get_current_artifact('patchA_state')
+            psfA = patchA_state.psf.name
+            pdbA = patchA_state.pdb.name
+            xscA = patchA_state.xsc.name
+            patchB_state: StateArtifacts = self.get_current_artifact('patchB_state')
+            psfB = patchB_state.psf.name
+            pdbB = patchB_state.pdb.name
+            xscB = patchB_state.xsc.name
 
         for patch in [self.patch, self.patchA, self.patchB]:
             if patch is None:
@@ -388,29 +388,30 @@ class MakeMembraneSystemTask(BaseTask):
         pg.writescript(self.basename, guesscoord=False, regenerate=False, force_exit=True, writepsf=False, writepdb=False)
         self.register(PsfgenInputScriptArtifact(self.basename))
         margin = self.embed_specs.get('xydist', 10.0)
-        if hasattr(self, "pro_pdb"):
+        protein_state: StateArtifacts = self.get_current_artifact('state')
+        if protein_state.pdb:
             # we will eventually embed a protein in here, so send its pdb along to help size the bilayer
-            result = pg.runscript(propdb=self.pro_pdb, margin=margin, psfA=psfA, pdbA=pdbA, psfB=psfB, pdbB=pdbB, xscA=xscA, xscB=xscB, o=self.basename)
+            result = pg.runscript(propdb=protein_state.pdb.name, margin=margin, psfA=psfA, pdbA=pdbA, psfB=psfB, pdbB=pdbB, xscA=xscA, xscB=xscB, o=self.basename)
         else:
             dimx, dimy = self.bilayer_specs.get('dims', (0, 0))
             npatchx, npatchy = self.bilayer_specs.get('npatch', (0, 0))
             if npatchx != 0 and npatchy != 0:
                 result = pg.runscript(nx=npatchx, ny=npatchy, psfA=psfA, pdbA=pdbA,
-                                    psfB=psfB, pdbB=pdbB, xscA=xscA, xscB=xscB, o=self.basename)
+                                      psfB=psfB, pdbB=pdbB, xscA=xscA, xscB=xscB, o=self.basename)
             elif dimx != 0 and dimy != 0:
                 result = pg.runscript(dimx=dimx, dimy=dimy, psfA=psfA, pdbA=pdbA,
-                                    psfB=psfB, pdbB=pdbB, xscA=xscA, xscB=xscB, o=self.basename)
+                                      psfB=psfB, pdbB=pdbB, xscA=xscA, xscB=xscB, o=self.basename)
         if result != 0:
             raise RuntimeError(f'psfgen failed with result {result} for {self.basename}')
-        for at in [PsfgenLogFileArtifact, PDBFileArtifact, NAMDXscFileArtifact, PSFFileArtifact]:
-            self.register(at(self.basename))
+        self.register(PsfgenLogFileArtifact(self.basename))
+        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename), psf=PSFFileArtifact(self.basename), xsc=NAMDXscFileArtifact(self.basename)), key='quilt_state')
         self.quilt = Bilayer()
         self.quilt.addl_streamfiles = additional_topologies
         self.quilt.box, self.quilt.origin = cell_from_xsc(f'{self.basename}.xsc')
         self.quilt.area = self.quilt.box[0][0] * self.quilt.box[1][1]
         relaxation_protocol = self.bilayer_specs.get('relaxation_protocols', {}).get('quilt', {})
         self.equilibrate_bilayer(self.quilt,
-                                 specbyte='',
+                                 bilayer_name='quilt',
                                  relaxation_protocol=relaxation_protocol)
 
     def embed_protein(self):
@@ -436,14 +437,15 @@ class MakeMembraneSystemTask(BaseTask):
         pg.usescript('bilayer_embed')
         pg.writescript(self.basename, guesscoord=False, regenerate=True, force_exit=True, writepsf=False, writepdb=False)
         self.register(PsfgenInputScriptArtifact(self.basename))
-        bilayer_psf: Path = self.get_current_artifact_path('psf')
-        bilayer_pdb: Path = self.get_current_artifact_path('pdb')
-        bilayer_xsc: Path = self.get_current_artifact_path('xsc')
+        quilt_state: StateArtifacts = self.get_current_artifact('quilt_state')
+        bilayer_psf: Path = quilt_state.psf.name
+        bilayer_pdb: Path = quilt_state.pdb.name
+        bilayer_xsc: Path = quilt_state.xsc.name
         result = pg.runscript(psf=self.pro_psf,
                               pdb=self.pro_pdb,
-                              bilayer_psf=bilayer_psf.name,
-                              bilayer_pdb=bilayer_pdb.name,
-                              bilayer_xsc=bilayer_xsc.name,
+                              bilayer_psf=bilayer_psf,
+                              bilayer_pdb=bilayer_pdb,
+                              bilayer_xsc=bilayer_xsc,
                               z_head_group=protect_str_arg(z_head_group),
                               z_tail_group=protect_str_arg(z_tail_group),
                               z_ref_group=protect_str_arg(z_ref_group),
@@ -452,8 +454,8 @@ class MakeMembraneSystemTask(BaseTask):
                               o=self.basename)
         if result != 0:
             raise RuntimeError(f'psfgen failed with result {result} for {self.basename}')
-        for at in [PsfgenLogFileArtifact, PDBFileArtifact, NAMDXscFileArtifact, PSFFileArtifact, NAMDCoorFileArtifact]:
-            self.register(at(self.basename))
+        self.register(PsfgenLogFileArtifact(self.basename))
+        self.register(StateArtifacts(psf=PSFFileArtifact(self.basename), pdb=PDBFileArtifact(self.basename), xsc=NAMDXscFileArtifact(self.basename)), key='state')
         charmmff_paramfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_paramfiles')
         if charmmff_paramfiles is None:
             self.register('charmmff_paramfiles', [])

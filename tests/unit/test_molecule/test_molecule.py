@@ -5,6 +5,7 @@ from pestifer.core.config import Config
 from pestifer.core.labels import Labels #segtype_of_resname
 from pestifer.molecule.chainidmanager import ChainIDManager
 from pestifer.core.objmanager import ObjManager
+from pestifer.objs.resid import ResID
 from pestifer.objs.ssbond import SSBondList
 from pestifer.objs.link import LinkList
 from io import StringIO
@@ -78,7 +79,6 @@ source:
         self.assertEqual(g0.resname,'NAG')
 
     def test_molecule_alphafold(self):
-        c=Config()
         ac='O46077'
         directive=self.get_source_dict_alphafold(ac)
         m=Molecule(source=directive["source"])
@@ -108,13 +108,13 @@ source:
         self.assertEqual(l.residue1.segtype,'protein')
         self.assertEqual(l.residue1.resname,'ASN')
         self.assertEqual(l.residue1.chainID,'G')
-        self.assertEqual(l.residue1.resseqnum,156)
+        self.assertEqual(l.residue1.resid,ResID(156))
         self.assertEqual(l.atom1.name,'ND2')
         self.assertEqual(l.atom1.altloc,'')
         self.assertEqual(l.residue2.segtype,'glycan')
         self.assertEqual(l.residue2.resname,'NAG')
         self.assertEqual(l.residue2.chainID,'E')
-        self.assertEqual(l.residue2.resseqnum,615)
+        self.assertEqual(l.residue2.resid,ResID(615))
         self.assertEqual(l.atom2.name,'C1')
         self.assertEqual(l.atom2.altloc,'')
         self.assertTrue(l.residue2 in l.residue1.down)
@@ -144,10 +144,10 @@ source:
         directive["source"]["biological_assembly"]=1
         m=Molecule(source=directive["source"],modmanager=ObjManager(),reset_counter=True)
         au=m.asymmetric_unit
-        auao=au.ancestor_obj
+        auao=au.parent_molecule
         self.assertEqual(auao,m)
         for s in au.segments:
-            sao=s.ancestor_obj
+            sao=s.parent_molecule
             self.assertEqual(sao,m)
             self.assertEqual(sao.molid,0)
 
@@ -162,8 +162,8 @@ source:
         atom_serials=[x.serial for x in au.atoms]
         orig_atom_serials=[]
         for a in au.atoms:
-            if '_ORIGINAL_' in a.__dict__:
-                orig_atom_serials.append(a._ORIGINAL_['serial'])
+            if hasattr(a, 'ORIGINAL_ATTRIBUTES'):
+                orig_atom_serials.append(a.ORIGINAL_ATTRIBUTES['serial'])
             else:
                 orig_atom_serials.append(a.serial)
         self.assertEqual(len(atom_serials),4856)
@@ -174,7 +174,6 @@ source:
         self.assertEqual(atom_serials[-1],4856)
 
     def test_molecule_cif(self):
-        c=Config()
         directive=self.get_source_dict('4zmj')
         directive["source"]["biological_assembly"]=1
         mol={}
@@ -203,7 +202,7 @@ source:
             if pa.resname!=ca.resname:
                 atom_mismatches.append([pa,ca])
         for pa,ca in zip(atoms['PDB'],atoms['mmCIF']):
-            if pa.resseqnum!=ca.resseqnum and pa.resseqnum!=ca.auth_seq_id:
+            if pa.resid!=ResID(ca.auth_seq_id) and pa.resid!=ResID(ca.auth_seq_id,ca.pdbx_pdb_ins_code):
                 atom_mismatches.append([pa,ca])
         self.assertEqual(len(atom_mismatches),0)
         for pa,ca in zip(atoms['PDB'],atoms['mmCIF']):
@@ -258,9 +257,9 @@ source:
         self.assertEqual(len(links),129)
         fl=links[0]
         self.assertEqual(fl.residue1.resname,'ASN')
-        self.assertEqual(fl.residue1.resseqnum,611)
+        self.assertEqual(fl.residue1.resid,ResID(611))
         self.assertEqual(fl.residue2.resname,'BGLCNA')
-        self.assertEqual(fl.residue2.resseqnum,701)
+        self.assertEqual(fl.residue2.resid,ResID(701))
         self.assertEqual(len(au.segments),45)
         self.assertEqual(len(au.segments.filter(segtype='protein')),6)
         self.assertEqual(len(au.segments.filter(segtype='glycan')),39)

@@ -102,6 +102,15 @@ class TestArtifactList(unittest.TestCase):
         self.assertEqual(len(filtered), 2)
         self.assertTrue(all(a.produced_by == stamper1 for a in filtered))
 
+    def test_stateartifacts(self):
+        s = StateArtifacts(pdb='abc.pdb',psf='abc.psf', coor='abc.coor', xsc='abc.xsc', vel='abc.vel')
+        self.assertEqual(len(s.to_list()), 5)
+        self.assertIn('abc.pdb', s.to_list())
+        self.assertIn('abc.psf', s.to_list())
+        self.assertIn('abc.coor', s.to_list())
+        self.assertIn('abc.xsc', s.to_list())
+        self.assertIn('abc.vel', s.to_list())
+
 class TestArtifactDict(unittest.TestCase):
     
     def test_artifact_dict(self):

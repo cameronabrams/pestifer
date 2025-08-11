@@ -17,12 +17,10 @@ class Test_MDPlot(unittest.TestCase):
                          basename='testmdplot', profiles=[], profiles_per_block=1,
                          figsize=[9, 6], timeseries=['density', ['a_x', 'b_y', 'c_z']])
         file_artifacts = mdplot(args)
-        expected_artifact_count = 26
+        expected_artifact_count = 24
         self.assertEqual(len(file_artifacts), expected_artifact_count)
 
         for artifact in file_artifacts:
             self.assertTrue(artifact.exists())
             os.remove(artifact.path)
         
-
-

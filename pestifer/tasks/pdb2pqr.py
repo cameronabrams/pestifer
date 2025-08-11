@@ -59,10 +59,8 @@ class PDB2PQRTask(PsfgenTask):
         self.chainIDmanager = ChainIDManager()
         self.update_molecule()
         self.psfgen()
-
-        self.register(PDBFileArtifact(self.basename))
-        self.register(PSFFileArtifact(self.basename))
-        self.coor_to_pdb()
+        self.pdb_to_coor(f'{self.basename}.pdb')
+        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename), psf=PSFFileArtifact(self.basename), coor=NAMDCoorFileArtifact(self.basename)))
         return prep_result
     
     def prep_input(self):
@@ -80,12 +78,11 @@ class PDB2PQRTask(PsfgenTask):
             The result of the VMD script execution, typically 0 on success.
         """
         # writes a hydrogen-free PDB file with histidine resnames all reverted to HIS and water resnames to HOH
-        psf: Path = self.get_current_artifact_path('psf')
-        pdb: Path = self.get_current_artifact_path('pdb')
+        state: StateArtifacts = self.get_current_artifact('state')
         vt: VMDScripter = self.get_scripter('vmd')
         vt.newscript(self.basename)
-        vt.addline(f'mol new {psf.name}')
-        vt.addline(f'mol addfile {pdb.name} waitfor all')
+        vt.addline(f'mol new {state.psf.name}')
+        vt.addline(f'mol addfile {state.pdb.name} waitfor all')
         vt.addline('set a [atomselect top noh]')
         vt.addline('set w [atomselect top water]')
         vt.addline('set h [atomselect top "resname HSD HSE HSP HIS"]')
@@ -97,7 +94,7 @@ class PDB2PQRTask(PsfgenTask):
         vt.writescript()
         self.register(VMDScriptArtifact(self.basename))
         result = vt.runscript()
-        self.pipeline.bury(PDBFileArtifact(f'{self.basename}_pprep'))
+        self.register(PDBFileArtifact(f'{self.basename}_pprep'))
         self.register(VMDLogFileArtifact(self.basename))
         return result
     
@@ -123,7 +120,7 @@ class PDB2PQRTask(PsfgenTask):
         c.run(logfile=f'{self.basename}_run.log', log_stderr=True, logparser=self.log_parser)
         self.log_parser.metadata['pka_table']['protonated'] = self.log_parser.metadata['pka_table']['respka'] > pH
         self.register(LogFileArtifact(f'{self.basename}_run'))
-        self.pipeline.bury(PDBFileArtifact(f'{self.basename}_pqr')) # so that it is not propagated as the main pdb file
+        self.register(PDBFileArtifact(f'{self.basename}_pqr'))
         self.register(PQRFileArtifact(f'{self.basename}'))
         logger.debug(f'PDB2PQR run completed; pka_table:\n{self.log_parser.metadata['pka_table'].to_string()}')
 

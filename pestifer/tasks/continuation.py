@@ -2,7 +2,7 @@
 """
 Definition of the :class:`ContinuationTask` class for resetting the task chain to named values of the psf, pdb, xsc, and coor files.
 
-Usage is described in the :ref:`config_ref tasks restart` documentation.
+Usage is described in the :ref:`config_ref tasks continuation` documentation.
 """
 import logging
 
@@ -32,13 +32,13 @@ class ContinuationTask(VMDTask):
         if not coor and not pdb:
             raise ValueError('Either coor or pdb file must be specified in the continuation task')
         if coor and not pdb: 
-            pdb = self.coor_to_pdb()
+            pdb = self.coor_to_pdb(coor, psf)
         if pdb and not coor: 
-            coor = self.pdb_to_coor()
-        self.register(NAMDMolInputDict(psf=PSFFileArtifact(psf),
-                                       pdb=PDBFileArtifact(pdb),
-                                       coor=NAMDCoorFileArtifact(coor),
-                                       xsc=NAMDXscFileArtifact(xsc) if xsc else None,
-                                       vel=NAMDVelFileArtifact(vel) if vel else None))
+            coor = self.pdb_to_coor(pdb)
+        self.register(StateArtifacts(psf=PSFFileArtifact(psf),
+                                     pdb=PDBFileArtifact(pdb),
+                                     coor=NAMDCoorFileArtifact(coor),
+                                     xsc=NAMDXscFileArtifact(xsc) if xsc else None,
+                                     vel=NAMDVelFileArtifact(vel) if vel else None))
         self.result = 0
         return self.result

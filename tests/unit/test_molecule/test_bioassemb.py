@@ -4,7 +4,6 @@ from pestifer.molecule.molecule import Molecule
 from pestifer.molecule.bioassemb import BioAssemb, Transform, TransformList, BioAssembList
 from mmcif.api.PdbxContainers import DataContainer
 from pestifer.molecule.asymmetricunit import AsymmetricUnit
-from pidibble.pdbparse import PDBRecord, PDBRecordDict
 import numpy as np
 
 class TestBioAssemb(unittest.TestCase):
@@ -12,7 +11,7 @@ class TestBioAssemb(unittest.TestCase):
     def test_bioassemb_init(self):
         ba = BioAssemb()
         self.assertIsInstance(ba.transforms, TransformList)
-        self.assertEqual(ba.name, 'Assembly1')
+        self.assertEqual(ba.name, 'Assembly0')
         self.assertEqual(ba.parent_molecule, None)
 
     def test_bioassemb_init_with_transforms(self):

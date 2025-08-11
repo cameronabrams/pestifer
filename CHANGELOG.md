@@ -5,6 +5,10 @@ This project follows [Semantic Versioning](https://semver.org/) and documents ch
 ## [UNRELEASED]
 ### Added
 ### Changed
+
+## [2.0.1]
+- `fetch` task now separately responsible for downloading necessary pdb files
+- `continuation` task now separately responsible for starting from a given state (PSF/PDB/COOR/XSC)
 - `mdplot` now correctly treats `cpu_time` and `wall_time` as running sums over chained MD runs
 
 ## [1.21.2] - 2025-07-17

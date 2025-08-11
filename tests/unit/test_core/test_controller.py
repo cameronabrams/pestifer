@@ -34,8 +34,8 @@ class TestController(unittest.TestCase):
         RM=ResourceManager()
         config=Config()
         class FakeTask(BaseTask):
-            def __init__(self, specs=None, provisions=None):
-                super().__init__(specs, provisions)
+            def __init__(self, specs=None):
+                super().__init__(specs)
             def do(self):
                 return {'status': 'done'}
 

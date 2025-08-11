@@ -50,7 +50,7 @@ class TestAtom(unittest.TestCase):
 
         self.assertEqual(atom._PDB_keyword, 'ATOM')
         self.assertEqual(atom._CIF_CategoryName, 'atom_site')
-        self.assertEqual(atom._ORIGINAL_ATTRIBUTES, {})
+        self.assertEqual(atom.ORIGINAL_ATTRIBUTES, {})
 
     def test_atom_copy(self):
         atom1 = Atom(
@@ -279,9 +279,9 @@ class TestAtomList(unittest.TestCase):
         atom_list.reserialize()
         self.assertEqual(atom_list[0].serial, 1)
         self.assertEqual(atom_list[1].serial, 2)
-        self.assertEqual(atom_list[0]._ORIGINAL_ATTRIBUTES['serial'], 9)
-        self.assertEqual(atom_list[1]._ORIGINAL_ATTRIBUTES['serial'], 10)
-        self.assertFalse(atom_list[0]._ORIGINAL_ATTRIBUTES is atom_list[1]._ORIGINAL_ATTRIBUTES)
+        self.assertEqual(atom_list[0].ORIGINAL_ATTRIBUTES['serial'], 9)
+        self.assertEqual(atom_list[1].ORIGINAL_ATTRIBUTES['serial'], 10)
+        self.assertFalse(atom_list[0].ORIGINAL_ATTRIBUTES is atom_list[1].ORIGINAL_ATTRIBUTES)
 
     def test_atom_list_from_pdb(self):
         p = PDBParser(filepath='fixtures/data/4zmj.pdb').parse().parsed

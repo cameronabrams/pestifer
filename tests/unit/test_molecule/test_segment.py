@@ -1,6 +1,8 @@
 import unittest
 import logging
 logger = logging.getLogger(__name__)
+from pestifer.molecule.molecule import Molecule
+from pestifer.molecule.stateinterval import StateIntervalList
 from pestifer.molecule.segment import Segment, SegmentList
 from pestifer.molecule.residue import ResidueList, Residue, ResiduePlaceholder
 from pestifer.objs.resid import ResID
@@ -11,17 +13,18 @@ from pestifer.objs.insertion import Insertion, InsertionList
 from pestifer.objs.mutation import Mutation, MutationList
 
 class TestSegment(unittest.TestCase):
+
     def test_segment_creation_from_dict(self):
         input_dict = {
             'segtype': 'protein',
             'segname': 'A',
             'chainID': 'A',
             'residues': ResidueList([]),
-            'subsegments': [],
+            'subsegments': StateIntervalList([]),
             'parent_chain': 'A',
             'specs': {}
         }
-        segment = Segment(input_dict)
+        segment = Segment(**input_dict)
         self.assertIsInstance(segment, Segment)
         self.assertEqual(segment.segtype, 'protein')
         self.assertEqual(segment.segname, 'A')
@@ -73,21 +76,23 @@ class TestSegment(unittest.TestCase):
         self.assertEqual(cleaved_segment.residues[0].resid, ResID(102))
 
 class TestSegmentList(unittest.TestCase):
+    
     def test_segment_list_creation(self):
         segment_list = SegmentList()
         self.assertIsInstance(segment_list, SegmentList)
         self.assertEqual(len(segment_list), 0)
 
     def test_segment_list_append(self):
-        segment = Segment({
+        input_dict = {
             'segtype': 'protein',
             'segname': 'A',
             'chainID': 'A',
             'residues': ResidueList([]),
-            'subsegments': [],
+            'subsegments': StateIntervalList([]),
             'parent_chain': 'A',
             'specs': {}
-        })
+        }
+        segment = Segment(**input_dict)
         segment_list = SegmentList()
         segment_list.append(segment)
         self.assertEqual(len(segment_list), 1)
@@ -163,20 +168,20 @@ class TestSegmentList(unittest.TestCase):
         self.assertIn('insertions', O['seq'])
         self.assertIsInstance(O['seq']['insertions'], InsertionList)
 
-        self.assertTrue(hasattr(segment_list[0], '_obj_manager'))
-        self.assertEqual(len(segment_list[0]._obj_manager), 0)
-        self.assertTrue(hasattr(segment_list[1], '_obj_manager'))
-        self.assertTrue(hasattr(segment_list[2], '_obj_manager'))
+        self.assertTrue(hasattr(segment_list[0], 'objmanager'))
+        self.assertEqual(len(segment_list[0].objmanager), 0)
+        self.assertTrue(hasattr(segment_list[1], 'objmanager'))
+        self.assertTrue(hasattr(segment_list[2], 'objmanager'))
 
         segment_list.inherit_objs(O)
-        self.assertEqual(len(segment_list[0]._obj_manager), 1)
-        self.assertIn('seq', segment_list[0]._obj_manager)
-        self.assertIn('mutations', segment_list[0]._obj_manager['seq'])
-        self.assertIsInstance(segment_list[0]._obj_manager['seq']['mutations'], MutationList)
-        self.assertEqual(len(segment_list[0]._obj_manager['seq']['mutations']), 1)
+        self.assertEqual(len(segment_list[0].objmanager), 1)
+        self.assertIn('seq', segment_list[0].objmanager)
+        self.assertIn('mutations', segment_list[0].objmanager['seq'])
+        self.assertIsInstance(segment_list[0].objmanager['seq']['mutations'], MutationList)
+        self.assertEqual(len(segment_list[0].objmanager['seq']['mutations']), 1)
 
         # insertions are not inheritable
-        self.assertNotIn('seq', segment_list[1]._obj_manager)
+        self.assertNotIn('seq', segment_list[1].objmanager)
 
     def test_segment_list_collect_residues(self):
         residue_list = [

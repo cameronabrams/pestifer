@@ -354,9 +354,13 @@ class CHARMMFFContent:
         return basename
     
     @staticmethod
-    def is_charmmff_file(filename):
-        if filename.startswith('par') or filename.startswith('top_') or filename.startswith('toppar') or filename.startswith('charmm') or filename.endswith('.str') or filename.endswith('.prm') or filename.endswith('.rtf') or filename.endswith('.top'):
+    def is_charmmff_file(filename: str) -> bool:
+        if filename.startswith('par') or filename.startswith('top_') or \
+           filename.startswith('toppar') or filename.startswith('charmm') or \
+           filename.endswith('.str') or filename.endswith('.prm') or \
+           filename.endswith('.rtf') or filename.endswith('.top'):
             return True
+        # logger.debug(f'File {filename} is not a CHARMM force field file')
         return False
 
     @staticmethod
@@ -367,6 +371,7 @@ class CHARMMFFContent:
         It will remove files that match the specified patterns, ensuring that only relevant CHARMM files are kept.
         """
         for f in os.listdir('.'):
+            # logger.debug(f'Checking file {f} for removal')
             if CHARMMFFContent.is_charmmff_file(f):
                 os.remove(f)
     
