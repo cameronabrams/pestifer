@@ -7,16 +7,16 @@ This example highlights the use of Pestifer to build a fully glycosylated SARS-C
 
 The glycans taken from prototypical structures are the following:
 
-- `PDB ID 2byh <https://www.rcsb.org/structure/2WAH>`_ chain C is a "high-mannose" glycan with 9 mannoses; its full name is alpha-D-mannopyranose-(1-2)-alpha-D-mannopyranose-(1-6)-[alpha-D-mannopyranose-(1-3)]alpha-D-mannopyranose-(1-6)-[alpha-D-mannopyranose-(1-2)-alpha-D-mannopyranose-(1-3)]beta-D-mannopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose
+- `PDB ID 2wah <https://www.rcsb.org/structure/2WAH>`_ chain C is a "high-mannose" glycan with 9 mannoses; its full name is alpha-D-mannopyranose-(1-2)-alpha-D-mannopyranose-(1-6)-[alpha-D-mannopyranose-(1-3)]alpha-D-mannopyranose-(1-6)-[alpha-D-mannopyranose-(1-2)-alpha-D-mannopyranose-(1-3)]beta-D-mannopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose
 - `PDB ID 4b7i <https://www.rcsb.org/structure/4B7I>`_ chain C is an "intermediate" glycan with 5 mannoses and a fucose; its full name is alpha-D-mannopyranose-(1-3)-[alpha-D-mannopyranose-(1-6)]alpha-D-mannopyranose-(1-6)-[alpha-D-mannopyranose-(1-3)]beta-D-mannopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose-(1-4)-[alpha-L-fucopyranose-(1-6)]2-acetamido-2-deoxy-beta-D-glucopyranose
 - `PDB ID 4byh <https://www.rcsb.org/structure/4BYH>`_ chain C is a "complex" glycan; its full name is N-acetyl-alpha-neuraminic acid-(2-6)-beta-D-galactopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose-(1-2)-alpha-D-mannopyranose-(1-6)-[2-acetamido-2-deoxy-beta-D-glucopyranose-(1-2)-alpha-D-mannopyranose-(1-3)]beta-D-mannopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose-(1-4)-[alpha-L-fucopyranose-(1-6)]2-acetamido-2-deoxy-beta-D-glucopyranose
 
 .. figure:: https://cdn.rcsb.org/images/carbohydrates/wa/2wah/2wah_SNFG_2.svg
-            :alt: 2byh chain C glycan
+            :alt: 2wah chain C glycan
             :width: 400px
             :align: center
 
-            High-mannose glycan from PDB ID 2byh chain C.  Green circles denote mannoses, either α or β, and blue circles denote N-acetylglucosamines.
+            High-mannose glycan from PDB ID 2wah chain C.  Green circles denote mannoses, either α or β, and blue circles denote N-acetylglucosamines.
 
 .. figure:: https://cdn.rcsb.org/images/carbohydrates/b7/4b7i/4b7i_SNFG_2.svg
             :alt: 4b7i chain C glycan
