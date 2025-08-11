@@ -312,7 +312,7 @@ directives:
             type: str
             choices: [pdb, cif]
             default: pdb
-      - name: continue
+      - name: continuation
         text: Continue from specified pdb, psf, and (optionally) xsc files without any further modifications (suitable for directly feeding to md tasks)
         type: dict
         directives:

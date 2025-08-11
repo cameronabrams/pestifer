@@ -36,20 +36,6 @@ class Transform(BaseObj):
     applies_chainIDs: list[str] = Field(..., description="List of chain IDs to which this transformation applies")
     chainIDmap: dict[str, str] | None = Field(None, description="Mapping of chain IDs for the transformation")
     segname_by_type_map: dict[str, str] | None = Field(None, description="Mapping of segment names by type for the transformation")
-    """
-    Attributes
-    ----------
-    index : int
-        Index of the transformation.
-    tmat : numpy.ndarray
-        4 x 4 transformation matrix.
-    applies_chainIDs : list
-        List of chain IDs to which this transformation applies.
-    chainIDmap : dict
-        Mapping of chain IDs for the transformation.
-    segname_by_type_map : dict
-        Mapping of segment names by type for the transformation.
-    """
 
     _count: ClassVar[int] = 0
 
