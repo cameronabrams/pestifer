@@ -169,7 +169,7 @@ source:
         self.assertEqual(len(atom_serials),4856)
         self.assertEqual(len(orig_atom_serials),4856)
         self.assertFalse(all([x==y for x,y in zip(atom_serials,orig_atom_serials)]))    
-        genuine_atoms=[au.atoms.get(serial=x.serial) for x in ters]
+        genuine_atoms=[au.atoms.get(lambda y: y.serial == x.serial) for x in ters]
         self.assertEqual(len(genuine_atoms),2)
         self.assertEqual(atom_serials[-1],4856)
 
@@ -261,6 +261,6 @@ source:
         self.assertEqual(fl.residue2.resname,'BGLCNA')
         self.assertEqual(fl.residue2.resid,ResID(701))
         self.assertEqual(len(au.segments),45)
-        self.assertEqual(len(au.segments.filter(segtype='protein')),6)
-        self.assertEqual(len(au.segments.filter(segtype='glycan')),39)
+        self.assertEqual(len(au.segments.filter(lambda x: x.segtype=='protein')),6)
+        self.assertEqual(len(au.segments.filter(lambda x: x.segtype=='glycan')),39)
 

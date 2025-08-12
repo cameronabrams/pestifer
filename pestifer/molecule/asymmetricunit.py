@@ -166,13 +166,15 @@ class AsymmetricUnit:
         atom_exclude_logic = sourcespecs.get('exclude', [])
         if len(atom_exclude_logic) > 0 and len(atom_include_logic) > 0:
             raise ValueError('Cannot specify both include and exclude logic for atoms')
-        ignored_count = 0
+        ignored_atom_count = 0
+        ignored_missing_residue_count = 0
         for expression in atom_include_logic:
             filter_func = parse_filter_expression(expression)
             keep_atoms = atoms.filter(filter_func)
-            ignored_count += len(atoms) - len(keep_atoms)
+            ignored_atom_count += len(atoms) - len(keep_atoms)
             atoms = keep_atoms
             keep_missing_residues = missings.filter(filter_func)
+            ignored_missing_residue_count += len(missings) - len(keep_missing_residues)
             missings = keep_missing_residues
         all_ignored_atoms = AtomList([])
         all_ignored_missing_residues = ResiduePlaceholderList([])
@@ -193,24 +195,11 @@ class AsymmetricUnit:
             for residue in all_ignored_missing_residues:
                 missings.remove_instance(residue)
             logger.debug(f'{len(all_ignored_missing_residues)} missing residues excluded by user-specified exclusion logic')
-        # let's check that the exclusion logic has been correctly applied
-        faulty_atoms = []
-        for expression in atom_exclude_logic:
-            filter_func = parse_filter_expression(expression)
-            if any(filter_func(atom) for atom in atoms):
-                faulty_atoms.append(expression)
-        if faulty_atoms:
-            logger.debug(f'Exclusion logic failed for expressions: {faulty_atoms}')
-        # excludes = sourcespecs.get('exclude', {})
-        # thru_dict = {resattr: excludes.get(yaml, []) for yaml, resattr in self._atom_excludables.items()}
-        # logger.debug(f'Atom exclusions: {thru_dict}')
-        # ignored_atoms = atoms.prune_exclusions(atoms.dict_to_condition(thru_dict, conjunction='or'))
-        # logger.debug(f'{len(ignored_atoms)} atoms excluded by user-specified exclusions')
+            ignored_missing_residue_count += len(all_ignored_missing_residues)
+
         fromAtoms = ResidueList.from_atomlist(atoms)
         fromResiduePlaceholders = ResidueList.from_ResiduePlaceholderlist(missings)
         residues: ResidueList = fromAtoms + fromResiduePlaceholders
-        # for r in residues:
-        #     logger.debug(f'Residue {r.resname}{r.resid.resid} with {len(r.atoms)} atoms (resolved: {r.resolved})')
         if sourcespecs.get('cif_residue_map_file', ''):
             write_residue_map(residues.cif_residue_map(), sourcespecs['cif_residue_map_file'])
         residues.apply_segtypes()
@@ -262,23 +251,23 @@ class AsymmetricUnit:
         logger.debug(f'{len(links)} links after assign_residues')
         for l in links:
             logger.debug(f'{l}')
-        # a deleted link may create a "free" glycan; in this case
-        # we should also delete its residues; 
         ignored_residues = ResidueList([])
         ignored_residues.extend(more_ignored_residues)
         ignored_grafts, more_ignored_residues, new_ignored_links = grafts.assign_residues(residues, links)
         ignored_residues.extend(more_ignored_residues)
         ignored_links.extend(new_ignored_links)
-
-        if (len(ignored_seqadvs) + len(ignored_ssbonds) + len(ignored_links) + len(ignored_grafts)) > 0:
+        total_ignored_residue_count = len(ignored_residues) + ignored_missing_residue_count
+        if (ignored_atom_count + total_ignored_residue_count + len(ignored_seqadvs) + len(ignored_ssbonds) + len(ignored_links) + len(ignored_grafts)) > 0:
             logger.debug(f'Inclusion/exclusion logic results in deletion of:')
+            logger.debug(f'    {ignored_atom_count} atoms, {len(atoms)} remain')
+            logger.debug(f'    {total_ignored_residue_count} residues, {len(residues)} remain')
             logger.debug(f'    {len(ignored_seqadvs)} seqadvs, {len(seqadvs)} remain')
             logger.debug(f'    {len(ignored_ssbonds)} ssbonds, {len(ssbonds)} remain')
             logger.debug(f'    {len(ignored_patches)} patches, {len(patches)} remain')
             logger.debug(f'    {len(ignored_links)} links, {len(links)} remain')
             logger.debug(f'    {len(ignored_grafts)} grafts, {len(grafts)} remain')
 
-        logger.debug(f'{len(residues)} residues after assign_residues')
+        logger.debug(f'{len(residues)} residues survived parsing')
 
         # provide specifications of how to handle sequence issues
         # implied by PDB input

@@ -61,7 +61,7 @@ class TestGraft(unittest.TestCase):
         au = mol.asymmetric_unit
         self.assertTrue(hasattr(au, 'segments'))
         self.assertIsInstance(au.segments, SegmentList)
-        null_seg = au.segments.get(segname='A')
+        null_seg = au.segments.get(lambda x: x.segname == 'A')
         self.assertIsNone(null_seg)
         om = mol.objmanager
         self.assertTrue(isinstance(om, ObjManager))
@@ -128,7 +128,7 @@ class TestGraft(unittest.TestCase):
                         segtype='protein',
                         resolved=True)
             ])
-        test_res = r.get(chainID='A',resid=ResID(666))
+        test_res = r.get(lambda x: x.chainID == 'A' and x.resid == ResID(666))
         self.assertEqual(test_res, r[0])
         s = Segment(
             chainID="A",

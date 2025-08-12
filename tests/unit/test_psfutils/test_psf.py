@@ -68,7 +68,7 @@ class TestPSF(unittest.TestCase):
             else:
                 self.assertEqual(len(psf.patches[patchtype]),expected)
                 if expected>0:
-                    t_links=psf.links.filter(patchname=patchtype)
+                    t_links=psf.links.filter(lambda x: x.patchname == patchtype)
                     c=Command(f'grep REMARKS {source} | grep {patchtype} | head -1')
                     c.run()
                     p=c.stdout.split()

@@ -68,7 +68,7 @@ class TestCIF(unittest.TestCase):
         self.assertEqual(len(uCIDs),76)
         nres=0
         for c in uCIDs:
-            chain=residues.filter(chainID=c)
+            chain=residues.filter(lambda x: x.chainID == c)
             nres+=len(chain)
         self.assertEqual(len(residues),nres)
 
@@ -84,11 +84,11 @@ class TestCIF(unittest.TestCase):
         atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
         raw_residues=ResidueList.from_atomlist(atoms)
         raw_residues.apply_segtypes()
-        residues=raw_residues.get(segtype='protein')  # 8fae has some glycan residues with resid 0
+        residues=raw_residues.get(lambda x: x.segtype == 'protein')  # 8fae has some glycan residues with resid 0
         uCIDs=residues.uniqattrs(['chainID'])['chainID']
         nres=0
         for c in uCIDs:
-            chain=residues.filter(chainID=c)
+            chain=residues.filter(lambda x: x.chainID == c)
             resids=[]
             for x in chain:
                 resids.extend([str(y.resid) for y in x.atoms])
@@ -187,9 +187,7 @@ class TestCIF(unittest.TestCase):
         Residues=fromAtoms+fromEmptyResidues
         Seqadvs.assign_residues(Residues)
         for s in Seqadvs:
-            myres=Residues.get(
-                chainID=s.chainID, resid=s.resid
-            )
+            myres=Residues.get(lambda x: x.chainID == s.chainID and x.resid == s.resid)
             logger.debug(f'Seqadv {s.chainID}:{s.resid} typekey {s.typekey} residue {myres.resid if myres else None}')
             if not myres:
                 self.assertTrue('engineered' not in s.typekey and 'conflict' not in s.typekey)

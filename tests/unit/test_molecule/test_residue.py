@@ -352,7 +352,7 @@ class TestResidueList(unittest.TestCase):
             atoms=AtomList([])  # Empty list for atoms
         )
         rl = ResidueList([r1, r2, r3])
-        sublist = rl.get(chainID='A')
+        sublist = rl.get(lambda x: x.chainID == 'A')
         self.assertEqual(len(sublist), 2)
         self.assertIn(r1, sublist)
         self.assertIn(r2, sublist)
@@ -384,7 +384,7 @@ class TestResidueList(unittest.TestCase):
             atoms=AtomList([])  # Empty list for atoms
         )
         rl = ResidueList([r1, r2, r3])
-        alist = rl.get(resname='ALA')
+        alist = rl.get(lambda x: x.resname == 'ALA')
         self.assertEqual(len(alist), 2)
         self.assertIn(r1, alist)
         self.assertIn(r3, alist)
@@ -416,7 +416,7 @@ class TestResidueList(unittest.TestCase):
             atoms=AtomList([])  # Empty list for atoms
         )
         rl = ResidueList([r1, r2, r3])
-        singleton = rl.get(resid=ResID(1, 'A'))
+        singleton = rl.get(lambda x: x.resid == ResID(1, 'A'))
         self.assertIsInstance(singleton, Residue)
         self.assertEqual(singleton, r2)
 
@@ -532,7 +532,7 @@ class TestResidueList(unittest.TestCase):
             subseq="WAVE"
         )
         slist=SubstitutionList([substitution1])
-        chain: ResidueList = rl.newget(lambda x: x.chainID == substitution1.chainID)
+        chain: ResidueList = rl.get(lambda x: x.chainID == substitution1.chainID)
         self.assertTrue(len(chain) > 0)
         seqadvs, substituted=rl.substitutions(slist)
         self.assertEqual(len(substituted), 0) # subseq is greater in length that the number of residues substituted
