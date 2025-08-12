@@ -87,7 +87,7 @@ class Molecule:
             logger.debug('Molecule initialized without source.')
             p_struct = None
         else:
-            logger.debug('Molecule initialization')
+            # logger.debug('Molecule initialization')
             if source.get('id', {}) or source.get('prebuilt', {}) or source.get('alphafold', {}):
                 if source.get('id', {}):
                     logger.debug(f'Molecule initialization from file {source["id"]}.{source["file_format"]}')

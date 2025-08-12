@@ -72,13 +72,13 @@ class Ter(BaseObj):
         This method is used to convert various input types into a dictionary of parameters.
         """
         if args and isinstance(args[0], PDBRecord):
-            pdbrecord = args[0]
+            pdbrecord: PDBRecord = args[0]
             assert pdbrecord.key == 'TER'
-            logger.debug(f'serial "{pdbrecord.serial}" ({type(pdbrecord.serial)})')
-            logger.debug(f'Adapting PDBRecord {str(pdbrecord)} to Ter')
+            # logger.debug(f'serial "{pdbrecord.serial}" ({type(pdbrecord.serial)})')
+            # logger.debug(f'Adapting PDBRecord {str(pdbrecord)} to Ter')
             if not pdbrecord.serial:
                 # this TER is empty
-                logger.debug(f'Empty ter')
+                # logger.debug(f'Empty ter')
                 input_dict = {
                     'serial': None,
                     'resname': None,
@@ -98,7 +98,7 @@ class Ter(BaseObj):
 
 class TerList(BaseObjList[Ter]):
 
-    _has_serials: ClassVar[bool] = False
+    # _has_serials: ClassVar[bool] = False
 
     def describe(self):
         return f'<TerList with {len(self)} TER records, has_serials={self._has_serials}>'
@@ -122,7 +122,7 @@ class TerList(BaseObjList[Ter]):
         """
         if Ter._PDB_keyword not in parsed or not parsed[Ter._PDB_keyword]:
             return cls([])
-        logger.debug(f'Reading from {[repr(p) for p in parsed[Ter._PDB_keyword]]}')
+        # logger.debug(f'Reading from {[repr(p) for p in parsed[Ter._PDB_keyword]]}')
         L = cls([Ter(p) for p in parsed[Ter._PDB_keyword] if (model_id is None or p.model == model_id)])
         L._has_serials = any(x.serial is not None for x in L)
         return L

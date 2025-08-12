@@ -77,6 +77,7 @@ class PsfgenTask(VMDTask):
         coormods = self.objmanager.get('coord',{})
         logger.debug(f'psfgen task has {len(coormods)} coormods:')
         logger.debug(';'.join([str(_) for _ in coormods]))
+
         if coormods:
             logger.debug(f'performing coormods')
             for objtype, objlist in coormods.items():
@@ -87,7 +88,7 @@ class PsfgenTask(VMDTask):
                     if objtype == 'crotations':
                         packages.append('PestiferCRot')
                     vm.newscript(self.basename, packages=packages)
-                    state = self.get_current_artifact('state')
+                    state: StateArtifacts = self.get_current_artifact('state')
                     vm.load_psf_pdb(state.psf.name, state.pdb.name, new_molid_varname='mCM')
                     match objtype:
                         case 'crotations':
@@ -100,7 +101,8 @@ class PsfgenTask(VMDTask):
                     vm.write_pdb(self.basename, 'mCM')
                     vm.writescript()
                     vm.runscript()
-                    for artifact_type in [VMDScriptArtifact, PDBFileArtifact, VMDLogFileArtifact]:
+                    self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename), psf=state.psf, xsc=state.xsc))
+                    for artifact_type in [VMDScriptArtifact, VMDLogFileArtifact]:
                         self.register(artifact_type(self.basename))
 
     def declash(self):
@@ -471,9 +473,9 @@ class PsfgenTask(VMDTask):
         logger.debug(f'User-input modspecs {self.specs["mods"]}')
         self.objmanager = ObjManager(self.specs['mods'])
         seqmods = self.objmanager.get('seq', {})
-        logger.debug(f'ingesting seqmods {seqmods}')
+        # logger.debug(f'ingesting seqmods {seqmods}')
         if 'grafts' in seqmods:
-            logger.debug(f'looking for graft sources to ingest')
+            # logger.debug(f'looking for graft sources to ingest')
             Grafts: GraftList = seqmods['grafts']
             graft_artifacts = PDBFileArtifactList()
             for g in Grafts.data:
@@ -486,7 +488,8 @@ class PsfgenTask(VMDTask):
                     self.molecules[g.source_pdbid] = Molecule(source=this_source)
                     graft_artifacts.append(PDBFileArtifact(g.source_pdbid))
                 g.activate(deepcopy(self.molecules[g.source_pdbid]))
-            self.register(graft_artifacts, key='graft_sources')
+            if len(graft_artifacts) > 0:
+                self.register(graft_artifacts, key='graft_sources')
         self.chainIDmanager = ChainIDManager(
             format = self.source_specs['file_format'],
             transform_reserves = self.source_specs.get('transform_reserves', {}),

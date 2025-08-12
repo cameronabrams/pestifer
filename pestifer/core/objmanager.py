@@ -199,9 +199,9 @@ class ObjManager(UserDict[str, UserDict[str, BaseObjList]]):
             if overwrite or not header in self[objcat]:
                 self[objcat][header] = LCls([])
             for entry in objlist:
-                logger.debug(f'entry {entry.__class__.__name__} objcat {objcat} header {header}')
+                # logger.debug(f'entry {entry.__class__.__name__} objcat {objcat} header {header}')
                 if not isinstance(entry, Cls):
-                    logger.debug(f'Converting {entry} to {Cls.__name__}')
+                    # logger.debug(f'Converting {entry} to {Cls.__name__}')
                     self[objcat][header].append(Cls(entry))
                 else:
                     self[objcat][header].append(entry)

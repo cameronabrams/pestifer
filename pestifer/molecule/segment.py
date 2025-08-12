@@ -84,7 +84,7 @@ class Segment(BaseObj):
                 }
                 return input_dict
             elif isinstance(args[0], ResidueList):
-                residues = args[0]
+                residues: ResidueList = args[0]
                 apparent_chainID = residues[0].chainID
                 apparent_segtype = residues[0].segtype
                 apparent_segname = residues[0].chainID if segname_override == 'UNSET' else segname_override
@@ -97,16 +97,16 @@ class Segment(BaseObj):
                     # for r in residues:
                     #     logger.debug(f'Residue {r.resname}{r.resid.resid} with {len(r.atoms)} atoms (resolved: {r.resolved})')
                     subsegments = residues.state_bounds(lambda x: 'RESOLVED' if x.resolved else 'MISSING')
-                    logger.debug(f'Segment {apparent_segname} has {len(residues)} residues across {len(subsegments)} subsegments')
+                    # logger.debug(f'Segment {apparent_segname} has {len(residues)} residues across {len(subsegments)} subsegments')
                 else:
                     logger.debug(f'Calling puniqify on residues of non-protein segment {apparent_segname}')
                     residues.puniquify(fields=['resid'],make_common=['chainID'])
-                    count=sum([1 for x in residues if len(x.atoms)>0 and len(x.atoms[0].ORIGINAL_ATTRIBUTES)>0])
-                    if count>0:
+                    count = sum([1 for x in residues if len(x.atoms)>0 and 'resid' in x.atoms[0].ORIGINAL_ATTRIBUTES])
+                    if count > 0:
                         logger.debug(f'{count} residue(s) were affected by puniquify:')
                         for x in residues:
                             if len(x.atoms) > 0 and len(x.atoms[0].ORIGINAL_ATTRIBUTES) > 0:
-                                logger.debug(f'    {x.chainID} {x.resname} {x.resid.resid} was {x.atoms[0].ORIGINAL_ATTRIBUTES}')
+                                logger.debug(f'    {x.chainID} {x.resname} {x.resid.resid} was resid {x.atoms[0].ORIGINAL_ATTRIBUTES["resid"].resid}')
                     # this assumes residues are in a linear sequence?  not really..
                     subsegments = residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
                 logger.debug(f'Segment {apparent_segname} has {len(residues)} residues across {len(subsegments)} subsegments')
