@@ -18,8 +18,7 @@ tasks:
   - psfgen:
       source:
         exclude:
-          resnames:
-            - PO4 # we don't need no stinkin phosphates
+          - resname == 'PO4'
       mods:
         mutations: # get me two cysteines, stat!
           - A:T11C

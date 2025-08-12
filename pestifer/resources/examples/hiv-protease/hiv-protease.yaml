@@ -30,8 +30,7 @@ tasks:
   - psfgen:
       source:
         exclude:
-          chains:
-            - P
+          - chainID == 'P'
       mods:
         patches:
           - ASPP:A:25

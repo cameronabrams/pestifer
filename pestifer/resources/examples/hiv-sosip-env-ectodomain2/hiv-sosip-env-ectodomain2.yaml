@@ -21,13 +21,8 @@ tasks:
       source:
         biological_assembly: 1
         exclude:
-          resnames:
-            - SO4
-          chains:  # mmCIF
-            - C
-            - D
-            - E
-            - F
+          - resname == 'SO4'
+          - chainID in ['C', 'D', 'E', 'F', 'H']  # mmCIF
   - md:
       ensemble: minimize
   - ligate:

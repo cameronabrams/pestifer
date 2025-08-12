@@ -5,13 +5,10 @@ tasks:
 - psfgen:
     source:
       exclude:
-        chains:
-          - B
-          - C
-          - D
+        - chainID in ['B', 'C', 'D']  # remove other protein chains
 - md:
     ensemble: minimize
-- solvate: null
+- solvate:
 - md:
     ensemble: minimize
 - md:

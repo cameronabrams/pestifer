@@ -1,5 +1,5 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-# with extensive contributions from ChatGPT 4o
+# with extensive contributions from ChatGPT 4o and 5
 """
 Pydantic BaseModel objects with attribute controls
 
@@ -23,8 +23,9 @@ Any field can also be declared as ignored when comparing objects, meaning that i
 """
 from __future__ import annotations
 from argparse import Namespace
+from itertools import filterfalse
 from pydantic import BaseModel, model_validator, ConfigDict, model_serializer
-from typing import ClassVar, Any, Iterable, Iterator, Self, TypeVar, Generic, get_args, get_origin
+from typing import ClassVar, Any, Iterable, Iterator, Self, TypeVar, Generic, get_args, get_origin, Callable
 import hashlib
 import operator
 import yaml
@@ -224,6 +225,7 @@ class BaseObj(BaseModel):
         }
 
     def __eq__(self, other: BaseObj | dict) -> bool:
+        if self is other: return True
         if isinstance(other, dict):
             return self.dict_for_comparison() == other
         if not isinstance(other, self.__class__) and not isinstance(other, dict):
@@ -293,12 +295,6 @@ class BaseObj(BaseModel):
             return h.hexdigest()  # or h.digest() for raw bytes
 
         return raw_string
-
-    def matches(self, **fields) -> bool:
-        return all(getattr(self, k, None) == v for k, v in fields.items())
-
-    def allneg(self, **fields) -> bool:
-        return all(getattr(self, k, None) != v for k, v in fields.items())
 
     def wildmatch(self, **fields) -> bool:
         """
@@ -413,7 +409,7 @@ class BaseObj(BaseModel):
         setattr(self, attr1, value2)
         setattr(self, attr2, value1)
 
-    def copy_attr(self,recv_attr,src_attr):
+    def copy_attr(self, recv_attr, src_attr):
         """
         Simple attribute copier 
         
@@ -444,7 +440,7 @@ class BaseObj(BaseModel):
             attribute_in_searched_objects:attribute_in_self
         """
         adict = {k:getattr(self, v) for k, v in matchattr.items()}
-        pluckedObj = objList.get(**adict) # get returns None, a list of matches, or a single match
+        pluckedObj = objList.get(objList.dict_to_condition(adict)) # get returns None, a list of matches, or a single match
         # the only case where we assign is when we get a single match
         if pluckedObj is not None and type(pluckedObj) != objList:
             setattr(self, attr, pluckedObj)
@@ -554,6 +550,18 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         self._validate_item(item)
         self.data.insert(index, item)
 
+    def remove_instance(self, obj_to_remove: BaseObj):
+        """
+        Remove the exact instance `obj_to_remove` from the list,
+        by checking identity (not equality), avoiding __eq__ overhead.
+        Raises ValueError if not found.
+        """
+        for i, item in enumerate(self.data):
+            if item is obj_to_remove:
+                del self.data[i]
+                return
+        raise ValueError("Object not found in list")
+
     def __add__(self, other: Iterable[BaseObj]) -> BaseObjList:
         new = self.__class__(self)
         new.extend(other)
@@ -584,98 +592,83 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         """
         raise NotImplementedError("Subclasses must implement the describe method.")
 
-    def filter(self, **fields) -> BaseObjList:
+    def filter(self, func: Callable[[BaseObj], bool]) -> BaseObjList:
         """
-        Creates a returns a new list containing objects
-        whose attributes match the fields dictionary
-
-        This method uses the ``matches()`` instance method
-        of the BaseObj class
+        Filters the list of BaseObj instances based on a provided function.
 
         Parameters
         ----------
-        fields : dict
-            attribute-name:value pairs used to search for
-            hits in the calling instance
-        
+        func : Callable[[BaseObj], bool]
+            A function that takes a BaseObj instance and returns True if it should be included in the filtered list.
+
         Returns
         -------
-        list :
-             list of elements matching fields
+        BaseObjList
+            A new BaseObjList containing only the objects for which func returned True.
         """
-        return self.__class__([item for item in self.data if item.matches(**fields)])
+        return self.__class__(list(filter(func, self.data)))
 
-    def negfilter(self, **fields) -> BaseObjList:
+    def ifilter(self, func: Callable[[BaseObj], bool]) -> list[int]:
         """
-        Applies a negated filter to the calling instance
-        Creates a returns a new list containing objects
-        whose attributes do NOT match the fields dictionary
-        This method uses the ``allneg()`` instance method
-        of the BaseObj class
-        
+        Filters the list of BaseObj instances based on a provided function and returns the list of indices for items passing the filter
+
         Parameters
         ----------
-        fields : dict
-            attribute-name:value pairs used to search for
-            hits in the calling instance
+        func : Callable[[BaseObj], bool]
+            A function that takes a BaseObj instance and returns True if it should be included in the filtered list.
 
         Returns
         -------
-        list :
-            list of elements whose attributes do NOT match fields
+        BaseObjList
+            A new BaseObjList containing only the objects for which func returned True.
         """
-        return self.__class__([item for item in self.data if item.allneg(**fields)])
+        return [i for i, item in enumerate(self.data) if func(item)]
 
-    def ifilter(self, **fields) -> list[int]:
+    def get(self, func: Callable[[BaseObj], bool]) -> BaseObj | BaseObjList | None:
         """
-        Creates a returns a new list containing indices
-        of objects whose attributes match the fields dictionary
-        This method uses the ``matches()`` instance method
-        of the BaseObj class
-        
-        Parameters
-        ----------
-        fields : dict
-            attribute-name:value pairs used to search for
-            'hits' in the calling instance
-        
-        Returns
-        -------
-        list
-            list of indices matching fields
-        """
-        return [i for i, item in enumerate(self.data) if item.matches(**fields)]
-
-    def get(self, **fields) -> BaseObj | BaseObjList | None:
-        """
-        Special implementation of filter
-        
-        get returns a single object if there is only one match;
+        Special implementation of filter that returns a single object if there is only one match;
         if there are multiple matches, all are returned in a list;
-        if there are no matches, an empty list is returned.
-        
-        Parameters
-        ----------
-        fields : dict
-            attribute-name:value pairs used to search for
-            'hits' in the calling instance
-
-        Returns
-        -------
-        None :
-            if no elements matching fields are found in calling instance
-        obj :
-            if one element matching fields is found, this is it
-        list :
-            list of all elements matching fields if more than one matches
+        if there are no matches, None is returned.
         """
-        matches = self.filter(**fields)
+        matches = self.filter(func=func)
         if not matches:
             return None
-        elif len(matches) == 1:
+        if len(matches) == 1:
             return matches[0]
-        else:
-            return matches
+        return matches
+
+    def iget(self, func: Callable[[BaseObj], bool]) -> int | list[int] | None:
+        """
+        Special implementation of ifilter that returns the index of a single index if there is only one match;
+        if there are multiple matching indices, all are returned in a list;
+        if there are no matches, None is returned.
+        """
+        matches = self.ifilter(func=func)
+        if not matches:
+            return None
+        if len(matches) == 1:
+            return matches[0]
+        return matches
+
+    @staticmethod
+    def dict_to_condition(condition_dict: dict[str, Callable[[BaseObj], bool]], conjunction: str = 'and') -> Callable[[BaseObj], bool]:
+        """
+        Converts a dictionary of conditions into a lambda function.
+        The dictionary keys are attribute names, and the values are the conditions.
+        
+        Returns a callable function that can be used in the filter method.
+        """
+        # Create a lambda function that checks each key-value condition
+        if conjunction == 'or':
+            return lambda obj: any(
+                (getattr(obj, key) in value if isinstance(value, list) else (getattr(obj, key) == value if callable(value) is False else value(getattr(obj, key))))
+                for key, value in condition_dict.items()
+            )
+        return lambda obj: all(
+            # Check if the value is a list and perform an "in" check if it is
+            (getattr(obj, key) in value if isinstance(value, list) else (getattr(obj, key) == value if callable(value) is False else value(getattr(obj, key))))
+            for key, value in condition_dict.items()
+        )
 
     def remove_and_return(self, item: BaseObj) -> BaseObj | None:
         """
@@ -739,36 +732,6 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
             return True
         return False
 
-    def iget(self, **fields) -> int | list[int] | None:
-        """
-        Special implementation of ifilter
-        iget returns a single index if there is only one match;
-        if there are multiple matches, all indices are returned in a list;
-        if there are no matches, None is returned.
-
-        Parameters
-        ----------
-        fields : dict
-            attribute-name:value pairs used to search for
-            hits in the calling instance
-
-        Returns
-        -------
-        None :
-            if no elements matching fields are found in calling instance
-        int :
-            if one element matching fields is found, this is its index
-        list :
-            list of all indices matching fields if more than one matches
-        """
-        matches = self.ifilter(**fields)
-        if not matches:
-            return None
-        elif len(matches) == 1:
-            return matches[0]
-        else:
-            return matches
-
     def set(self, shallow=False, **fields):
         """
         Element attribute-setter
@@ -782,64 +745,25 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         for item in self.data:
             item.set(shallow=shallow, **fields)
 
-    def prune(self, objlist: BaseObjList = [], attr_maps: list[dict] = []) -> BaseObjList:
+    def prune_exclusions(self, exclude_func: Callable[[BaseObj], bool]) -> BaseObjList:
         """
-        Attribute-based pruning by referencing and mapping another list
+        Prune elements from the calling instance based on a custom exclusion function.
 
         Parameters
         ----------
-        objlist : BaseObjList
-            "reference" list of objects whose attributes are consulted to
-            decide what to prune out of the calling instance
-        attr_maps : list
-            dictionaries used independently to map attribute values of 
-            elements of the reference list to those of the calling instance
-        
+        exclude_func : Callable[[BaseObj], bool]
+            A function that takes a BaseObj and returns True if it should be excluded.
+
         Returns
         -------
         BaseObjList :
             items removed from calling instance
         """
-        removed = []
-        for ref_obj in objlist:
-            # make a specific map to filter objects from self
-            for attr_map in attr_maps:
-                this_filter = {k:getattr(ref_obj,v) for k, v in attr_map.items()}
-                removed.extend(self.filter(**this_filter))
-        for item in removed:
+        remove_us = self.filter(exclude_func)
+        for item in remove_us:
             self.remove(item)
-        return removed
-
-    def prune_exclusions(self, **kwargs) -> BaseObjList:
-        """
-        Attribute-based list pruning
-
-        Parameters
-        ----------
-        kwargs : dict
-            dictionary of attribute-name:list-of-value pairs that define elements
-            to be pruned from the calling instance
-        
-        Returns
-        -------
-
-        list :
-            items removed from calling instance
-        """
-        removed = self.__class__([])
-        if not kwargs:
-            return removed
-        for k,v in kwargs.items():
-            if not isinstance(v, list):
-                v = [v]
-            for item in v:
-                thru_dict = {k: item}
-                hits = self.filter(**thru_dict)
-                removed.extend(hits)
-                for item in hits:
-                    self.remove(item)
-        logger.debug(f"Pruning {len(removed)} items from {self.__class__.__name__} with criteria {kwargs}")
-        return removed
+        logger.debug(f"Pruning {len(remove_us)} items from {self.__class__.__name__} with custom criteria")
+        return remove_us
 
     def sort(self, by=None, reverse=False):
         """
@@ -859,7 +783,7 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
             key = operator.attrgetter(*by)
             self.data.sort(key=key, reverse=reverse)
 
-    def uniqattrs(self, attrs: list[str] = [], with_counts: bool = False):
+    def uniqattrs(self, attrs: list[str] = [], with_counts: bool = False) -> dict[str, list]:
         """
         Generates a dictionary of list of unique values for each 
         attribute 
@@ -879,19 +803,19 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         -------
         dict :
             lists of unique values for each attribute key, or, 
-            if with_counts ins true, list of (value,count)
+            if with_counts is true, list of (value,count)
         """
-        uattrs={k:[] for k in attrs}
+        uattrs = {k: [] for k in attrs}
         for item in self:
             for a in attrs:
-                v=getattr(item,a)
+                v = getattr(item, a)
                 if with_counts:
                     try:
-                        idx=[x[0] for x in uattrs[a]].index(v)
+                        idx = [x[0] for x in uattrs[a]].index(v)
                     except:
-                        uattrs[a].append([v,0])
-                        idx=-1
-                    uattrs[a][idx][1]+=1
+                        uattrs[a].append([v, 0])
+                        idx = -1
+                    uattrs[a][idx][1] += 1
                 else:
                     if not v in uattrs[a]:
                         uattrs[a].append(v)

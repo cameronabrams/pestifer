@@ -205,7 +205,7 @@ class Graft(BaseObj):
             The source molecule from which the graft will be sourced.
         """
         self.source_molecule = mol
-        self.source_seg: 'Segment' = self.source_molecule.asymmetric_unit.segments.get(segname=self.source_chainID)
+        self.source_seg: 'Segment' = self.source_molecule.asymmetric_unit.segments.get(lambda x: x.segname == self.source_chainID)
         self.mover_residues = ResidueList([])
         self.index_residues = ResidueList([])
         # split the source residues into the index, mover, and any leftovers (which we ignore)
@@ -283,13 +283,14 @@ class Graft(BaseObj):
         # logger.debug(f'from list of {len(Residues)} residues')
         for r in Residues.data:
             logger.debug(f' -> {r.chainID} {r.resid}')
-        target_residue = Residues.get(chainID=self.target_chainID, resid=self.target_root)
+        target_residue = Residues.get(lambda x: x.chainID == self.target_chainID and x.resid == self.target_root)
+        # target_residue = Residues.get(chainID=self.target_chainID, resid=self.target_root)
         # logger.debug(f'-> found target residue {target_residue.resid}')
         if target_residue is not None:
             self.residues = type(Residues)([])
             self.residues.append(target_residue)
             if self.target_partner is not None:
-                target_addl_residue = Residues.get(chainID=self.target_chainID, resid=self.target_partner)
+                target_addl_residue = Residues.get(lambda x: x.chainID == self.target_chainID and x.resid == self.target_partner)
                 if target_addl_residue is not None:
                     self.residues.append(target_addl_residue)
 

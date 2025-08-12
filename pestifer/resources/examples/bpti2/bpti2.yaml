@@ -17,8 +17,7 @@ tasks:
   - psfgen:
       source:
         exclude:
-          resnames:
-            - PO4
+          - resname == 'PO4'
   - md:
       ensemble: minimize
   - solvate:

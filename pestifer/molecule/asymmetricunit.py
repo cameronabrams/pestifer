@@ -30,6 +30,7 @@ from ..objs.ter import TerList
 from ..psfutil.psfcontents import PSFContents
 
 from ..util.util import write_residue_map
+from ..util.stringthings import parse_filter_expression
 
 if TYPE_CHECKING:
     from .molecule import Molecule
@@ -114,7 +115,7 @@ class AsymmetricUnit:
                 atoms.reserialize()
             else:
                 atoms.sort(by=['serial'])
-            if ters._has_serials: atoms.reserialize()
+            if ters.has_serials(): atoms.reserialize()
             objmanager.ingest(ters)
             missings = ResiduePlaceholderList.from_pdb(parsed)
             ssbonds = SSBondList.from_pdb(parsed)
@@ -161,11 +162,50 @@ class AsymmetricUnit:
         patches.extend(userpatches)
 
         # Build the list of residues
-        excludes = sourcespecs.get('exclude', {})
-        thru_dict = {resattr: excludes.get(yaml, []) for yaml, resattr in self._atom_excludables.items()}
-        logger.debug(f'Atom exclusions: {thru_dict}')
-        ignored_atoms = atoms.prune_exclusions(**thru_dict)
-        logger.debug(f'{len(ignored_atoms)} atoms excluded by user-specified exclusions')
+        atom_include_logic = sourcespecs.get('include', [])
+        atom_exclude_logic = sourcespecs.get('exclude', [])
+        if len(atom_exclude_logic) > 0 and len(atom_include_logic) > 0:
+            raise ValueError('Cannot specify both include and exclude logic for atoms')
+        ignored_count = 0
+        for expression in atom_include_logic:
+            filter_func = parse_filter_expression(expression)
+            keep_atoms = atoms.filter(filter_func)
+            ignored_count += len(atoms) - len(keep_atoms)
+            atoms = keep_atoms
+            keep_missing_residues = missings.filter(filter_func)
+            missings = keep_missing_residues
+        all_ignored_atoms = AtomList([])
+        all_ignored_missing_residues = ResiduePlaceholderList([])
+        for expression in atom_exclude_logic:
+            logger.debug(f'Excluding atoms with expression: {expression}')
+            filter_func = parse_filter_expression(expression)
+            ignored_atoms = atoms.filter(filter_func)
+            all_ignored_atoms.extend(ignored_atoms)
+            ignored_missing_residues = missings.filter(filter_func)
+            all_ignored_missing_residues.extend(ignored_missing_residues)
+        if len(all_ignored_atoms) > 0:
+            logger.debug(f'Excluding {len(all_ignored_atoms)} atoms based on user-specified exclusion logic')
+            for atom in all_ignored_atoms:
+                atoms.remove_instance(atom)
+            logger.debug(f'{len(all_ignored_atoms)} atoms excluded by user-specified exclusion logic')
+        if len(all_ignored_missing_residues) > 0:
+            logger.debug(f'Excluding {len(all_ignored_missing_residues)} missing residues based on user-specified exclusion logic')
+            for residue in all_ignored_missing_residues:
+                missings.remove_instance(residue)
+            logger.debug(f'{len(all_ignored_missing_residues)} missing residues excluded by user-specified exclusion logic')
+        # let's check that the exclusion logic has been correctly applied
+        faulty_atoms = []
+        for expression in atom_exclude_logic:
+            filter_func = parse_filter_expression(expression)
+            if any(filter_func(atom) for atom in atoms):
+                faulty_atoms.append(expression)
+        if faulty_atoms:
+            logger.debug(f'Exclusion logic failed for expressions: {faulty_atoms}')
+        # excludes = sourcespecs.get('exclude', {})
+        # thru_dict = {resattr: excludes.get(yaml, []) for yaml, resattr in self._atom_excludables.items()}
+        # logger.debug(f'Atom exclusions: {thru_dict}')
+        # ignored_atoms = atoms.prune_exclusions(atoms.dict_to_condition(thru_dict, conjunction='or'))
+        # logger.debug(f'{len(ignored_atoms)} atoms excluded by user-specified exclusions')
         fromAtoms = ResidueList.from_atomlist(atoms)
         fromResiduePlaceholders = ResidueList.from_ResiduePlaceholderlist(missings)
         residues: ResidueList = fromAtoms + fromResiduePlaceholders
@@ -198,10 +238,10 @@ class AsymmetricUnit:
 
         logger.debug(f'Segtypes present: {uniques["segtype"]}')
         # Delete any residues dictated by user-specified exclusions
-        thru_dict = {resattr: excludes.get(yaml, []) for yaml, resattr in self._residue_excludables.items()}
-        logger.debug(f'Exclusions: {thru_dict}')
-        # delete residues that are in user-specified exclusions
-        ignored_residues = residues.prune_exclusions(**thru_dict)
+        # thru_dict = {resattr: excludes.get(yaml, []) for yaml, resattr in self._residue_excludables.items()}
+        # logger.debug(f'Exclusions: {thru_dict}')
+        # # delete residues that are in user-specified exclusions
+        # ignored_residues = residues.prune_exclusions(residues.dict_to_condition(thru_dict))
         # populates a specific mapping of PDB chainID to CIF label_asym_id
         # This is only meaningful if mmCIF input is used
         residues.map_chainIDs_label_to_auth()
@@ -224,14 +264,14 @@ class AsymmetricUnit:
             logger.debug(f'{l}')
         # a deleted link may create a "free" glycan; in this case
         # we should also delete its residues; 
+        ignored_residues = ResidueList([])
         ignored_residues.extend(more_ignored_residues)
         ignored_grafts, more_ignored_residues, new_ignored_links = grafts.assign_residues(residues, links)
         ignored_residues.extend(more_ignored_residues)
         ignored_links.extend(new_ignored_links)
 
-        if excludes or (len(ignored_residues) + len(ignored_seqadvs) + len(ignored_ssbonds) + len(ignored_links) + len(ignored_grafts)) > 0:
-            logger.debug(f'Exclusions result in deletion of:')
-            logger.debug(f'    {len(ignored_residues)} residues, {len(residues)} remain')
+        if (len(ignored_seqadvs) + len(ignored_ssbonds) + len(ignored_links) + len(ignored_grafts)) > 0:
+            logger.debug(f'Inclusion/exclusion logic results in deletion of:')
             logger.debug(f'    {len(ignored_seqadvs)} seqadvs, {len(seqadvs)} remain')
             logger.debug(f'    {len(ignored_ssbonds)} ssbonds, {len(ssbonds)} remain')
             logger.debug(f'    {len(ignored_patches)} patches, {len(patches)} remain')
@@ -286,9 +326,10 @@ class AsymmetricUnit:
         mutations.sort(by=['typekey'])
         for m in mutations:
             logger.debug(str(m) + ' ' + m.typekey)
-        pruned_objects = segments.prune(mutations, links, ssbonds)
+        pruned_objects = segments.prune_topology(mutations, links, ssbonds)
                 # pruned_ssbonds = ssbonds.prune_mutations(mutations)
                 # pruned = pruned_by_links = links.prune_mutations(mutations, segments)
+        logger.debug(f'Pruned objects: {pruned_objects}')
         pruned_segments: SegmentList = pruned_objects.get('segments', [])
         for s in pruned_segments.data:
             logger.debug(f'Unregistering chainID {s.segname} because this entire segment was pruned')
@@ -362,12 +403,12 @@ class AsymmetricUnit:
         """
         for g in grafts.data:
             graft_chainID = g.chainID
-            chain_residues = residues.filter(chainID=graft_chainID)
+            chain_residues = residues.newfilter(lambda x: x.chainID == graft_chainID)
             # last_chain_residue_idx=residues.index(chain_residues[-1])
             next_available_resid = max([x.resid for x in chain_residues]) + 1
             g_topomods = g.source_molecule.objmanager.get('topol', {})
             g_links = g_topomods.get('links', LinkList([]))
-            g.source_seg = g.source_molecule.asymmetric_unit.segments.get(segname=g.source_chainID)
+            g.source_seg = g.source_molecule.asymmetric_unit.segments.get(lambda x: x.segname == g.source_chainID)
             # build the list of new residues this graft contributes; the index residue is not included!
             g.my_residues = ResidueList([])
             for residue in g.source_seg.residues.data:
@@ -403,7 +444,7 @@ class AsymmetricUnit:
         altRes = ResidueList(atoms)
         overwrites = []
         for ar in altRes:
-            tr: Residue = self.residues.get(resname=ar.resname, resid=ar.resid, chainID=ar.chainID)
+            tr: Residue = self.residues.get(lambda x: x.resname == ar.resname and x.resid == ar.resid and x.chainID == ar.chainID)
             if tr:
                 tr.atoms.overwrite_positions(ar.atoms)
                 overwrites.append(ar)

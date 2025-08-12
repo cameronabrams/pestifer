@@ -6,6 +6,7 @@ Usage is described in the :ref:`subs_runtasks_psfgen` documentation.
 
 """
 import logging
+import pdb
 import networkx as nx
 import os
 
@@ -284,7 +285,7 @@ class PsfgenTask(VMDTask):
         psf = state.psf.name
         logger.debug(f'ingesting {psf}')
         struct = PSFContents(psf, parse_topology=['bonds'])
-        na_atoms = struct.atoms.get(segtype='nucleicacid')
+        na_atoms = struct.atoms.get(lambda x: x.segtype == 'nucleicacid')
         my_rep = list(set([(x.chainID, x.resseqnum) for x in na_atoms]))
         my_rep.sort(key=lambda x: (x[0], x[1]))
         logger.debug(f'Getting loops from {len(na_atoms)} nucleic acid atoms in PSF file {psf}')
@@ -394,7 +395,7 @@ class PsfgenTask(VMDTask):
         logger.debug(f'ingesting {psf}')
         struct = PSFContents(psf, parse_topology=['bonds'])
         logger.debug(f'Making graph structure of glycan atoms...')
-        glycanatoms = struct.atoms.get(segtype='glycan')
+        glycanatoms = struct.atoms.get(lambda x: x.segtype == 'glycan')
         logger.debug(f'{len(glycanatoms)} total glycan atoms')
         glycangraph = glycanatoms.graph()
         G = [glycangraph.subgraph(c).copy() for c in nx.connected_components(glycangraph)]
@@ -494,13 +495,35 @@ class PsfgenTask(VMDTask):
             format = self.source_specs['file_format'],
             transform_reserves = self.source_specs.get('transform_reserves', {}),
             remap = self.source_specs.get('remap_chainIDs', {}))
-        self.base_molecule = Molecule(source=self.source_specs,
-                                       objmanager=self.objmanager,
-                                    chainIDmanager=self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
+        # if 'vmdatomselections' in self.source_specs['exclude']:
+        #     self.apply_vmdexclusions()
+        self.base_molecule = Molecule(source = self.source_specs,
+                                      objmanager = self.objmanager,
+                                      chainIDmanager = self.chainIDmanager).activate_biological_assembly(self.source_specs['biological_assembly'])
         # register self.base_molecule in the pipeline context
         self.register(DataArtifact(self.base_molecule), key='base_molecule')
         for molid, molecule in self.molecules.items():
             logger.debug(f'Molecule "{molid}": {molecule.num_atoms()} atoms in {molecule.num_residues()} residues; {molecule.num_segments()} segments.')
+
+    # def apply_vmdexclusions(self):
+    #     """
+    #     Applies VMD atom selection exclusions to the base coordinates.
+    #     """
+    #     self.next_basename('vmdexclusions')
+    #     base_coordinates: Path = self.get_current_artifact('base_coordinates')
+    #     if not base_coordinates:
+    #         raise RuntimeError(f'No base_coordinates artifact found. Use of VMD-style exclusion logic is not supported on pre-built systems yet.')
+    #     vt: VMDScripter = self.scripters['vmd']
+    #     vt.newscript(self.basename)
+    #     vt.addline(f'mol new {base_coordinates.name}')
+    #     compound_logic = ' and '.join([f'(not {sel})' for sel in self.source_specs['exclude']['vmdatomselections']])
+    #     vt.addline(f'set sel [atomselect top "{compound_logic}"]')
+    #     vt.addline(f'$sel writepdb {self.basename}.pdb')
+    #     vt.writescript()
+    #     vt.runscript()
+    #     self.register(PDBFileArtifact(self.basename), key='base_coordinates')
+    #     self.register(VMDScriptArtifact(self.basename))
+    #     self.register(VMDLogFileArtifact(self.basename))
 
     def update_molecule(self):
         """

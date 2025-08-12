@@ -10,8 +10,7 @@ tasks:
 - psfgen:
     source:
       exclude:
-        altlocs:
-          - B
+        - altloc == 'B'
 - md:
     ensemble: minimize
 - pdb2pqr:

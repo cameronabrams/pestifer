@@ -220,8 +220,8 @@ class Seqadv(BaseObj):
                 # is the author-assigned chain id but the sequence
                 # number is the mmCIF-assigned sequence number
                 self.assign_obj_to_attr('residue', Residues,
-                                auth_asym_id='chainID',
-                                auth_seq_id='pdbx_auth_seq_num')
+                                        auth_asym_id='chainID',
+                                        auth_seq_id='pdbx_auth_seq_num')
                 if self.residue is not None:
                     if self.pdbx_stash is None:
                         self.pdbx_stash = {}
@@ -249,6 +249,7 @@ class Seqadv(BaseObj):
         # else:
         #     logger.debug(f'...seqadv {self.typekey} auth {self.pdbx_pdb_strand_id}:{self.pdbx_auth_seq_num} cannot be resolved from current set of residues')
         # we'll assume that if this residue is not found, then this seqadv is never used anyway
+
 
 class SeqadvList(BaseObjList[Seqadv]):
     """

@@ -19,11 +19,7 @@ tasks:
       source:
         biological_assembly: 1
         exclude:
-          chains:
-            - A
-            - B
-            - C
-            - D
+          - chainID in ['A', 'B', 'C', 'D'] 
         sequence:
           loops:
             declash:

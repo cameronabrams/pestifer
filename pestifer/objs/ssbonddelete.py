@@ -37,16 +37,16 @@ class SSBondDeleteList(SSBondList):
         bool
             True if the SSBond is deleted, False otherwise.
         """
-        if self.get(
-            chainID1 = a_SSBond.chainID1,
-            chainID2 = a_SSBond.chainID2,
-            resid1 = a_SSBond.resid1,
-            resid2 = a_SSBond.resid2):
+        if self.get(lambda x: 
+            x.chainID1 == a_SSBond.chainID1 and 
+            x.chainID2 == a_SSBond.chainID2 and
+            x.resid1 == a_SSBond.resid1 and
+            x.resid2 == a_SSBond.resid2):
             return True
-        if self.get(
-            chainID2 = a_SSBond.chainID1,
-            chainID1 = a_SSBond.chainID2,
-            resid2 = a_SSBond.resid1,
-            resid1 = a_SSBond.resid2):
+        if self.get(lambda x: 
+            x.chainID2 == a_SSBond.chainID1 and
+            x.chainID1 == a_SSBond.chainID2 and
+            x.resid2 == a_SSBond.resid1 and
+            x.resid1 == a_SSBond.resid2):
             return True
         return False

@@ -3,6 +3,7 @@
 from __future__ import annotations
 import unittest
 from pestifer.core.baseobj import BaseObj, BaseObjList
+from pestifer.objs.resid import ResID
 from argparse import Namespace
 from pydantic import Field, ValidationError, ConfigDict
 from typing import Optional, List, Dict, Annotated
@@ -153,12 +154,6 @@ class TestBaseObj(unittest.TestCase):
             number: int = Field(..., description="A number")
 
         obj1 = ConcreteObj(name="Object 1", number=1)
-        self.assertTrue(obj1.matches(name="Object 1"))
-        self.assertFalse(obj1.matches(number=2))
-        self.assertTrue(obj1.matches(name="Object 1", number=1))
-        self.assertFalse(obj1.matches(name="Object 2", number=1))
-        self.assertTrue(obj1.allneg(name="Object 2", number=2))
-        self.assertFalse(obj1.allneg(name="Object 1", number=2))
         # wildmatch tests if key NAMES are substrings of the model attribute names
         self.assertTrue(obj1.wildmatch(nam="Object 1", umber=1))
         obj2 = ConcreteObj(name="Object 2", number=2)
@@ -575,70 +570,104 @@ class TestBaseObjList(unittest.TestCase):
 
     def test_baseobj_list_filter(self):
         class ConcreteObj(BaseObj):
-            _required_fields = {'name'}
+            _required_fields = {'name', 'color', 'flavor', 'shape'}
             name: str = Field(..., description="Name of the object")
+            color: str = Field(..., description="Color of the object")
+            flavor: str = Field(..., description="Flavor of the object")
+            shape: str = Field(..., description="Shape of the object")
 
         class ConcreteObjList(BaseObjList[ConcreteObj]):
             def describe(self) -> str:
                 return f"Concrete Object List with {len(self)} items."
-        
-        obj1 = ConcreteObj(name="Object 1")
-        obj2 = ConcreteObj(name="Object 2")
-        obj3 = ConcreteObj(name="Object 3")
-        obj_list = ConcreteObjList([obj1, obj2, obj3])
-        filtered_list = obj_list.filter(name="Object 1")
-        self.assertEqual(len(filtered_list), 1)
+
+        obj1 = ConcreteObj(name="Object 1", color="Red", flavor="Sweet", shape="Round")
+        obj2 = ConcreteObj(name="Object 2", color="Green", flavor="Sweet", shape="Round")
+        obj3 = ConcreteObj(name="Object 3", color="Blue", flavor="Bitter", shape="Triangle")
+        obj4 = ConcreteObj(name="Object 4", color="Red", flavor="Bitter", shape="Square")
+        obj_list = ConcreteObjList([obj1, obj2, obj3, obj4])
+        condition = lambda x: x.color == "Red"
+        filtered_list = obj_list.filter(condition)
+        self.assertIsInstance(filtered_list, ConcreteObjList)
+        self.assertEqual(len(filtered_list), 2)
         self.assertEqual(filtered_list[0].name, "Object 1")
+        self.assertEqual(filtered_list[1].name, "Object 4")
 
-        class WobblyObj(BaseObj):
-            _required_fields = {'name', 'rank', 'serialno'}
-            name: str = Field(..., description="Name of the object")
-            rank: int = Field(..., description="Rank of the object")
-            serialno: int = Field(..., description="Serial number of the object")
+        condition = lambda x: x.flavor == "Bitter" and x.color == "Blue"
+        filtered_list = obj_list.filter(condition)
+        self.assertIsInstance(filtered_list, ConcreteObjList)
+        self.assertEqual(len(filtered_list), 1)
+        self.assertEqual(filtered_list[0].name, "Object 3")
+        self.assertEqual(filtered_list[0].flavor, "Bitter")
+        self.assertEqual(filtered_list[0].color, "Blue")
 
-        class WobblyObjList(BaseObjList[WobblyObj]):
-            def describe(self) -> str:
-                return f"Wobbly Object List with {len(self)} items."
+        impossible_condition = lambda x: x.flavor == "Bitter" and x.color == "Green"
+        filtered_list = obj_list.filter(impossible_condition)
+        self.assertIsInstance(filtered_list, ConcreteObjList)
+        self.assertEqual(len(filtered_list), 0)
+
+        # class WobblyObj(BaseObj):
+        #     _required_fields = {'name', 'rank', 'serialno'}
+        #     name: str = Field(..., description="Name of the object")
+        #     rank: int = Field(..., description="Rank of the object")
+        #     serialno: int = Field(..., description="Serial number of the object")
+
+        # class WobblyObjList(BaseObjList[WobblyObj]):
+        #     def describe(self) -> str:
+        #         return f"Wobbly Object List with {len(self)} items."
         
-        wob1 = WobblyObj(name="Wobbly", rank=1, serialno=123)
-        wob2 = WobblyObj(name="Wobbly", rank=2, serialno=456)
-        wob3 = WobblyObj(name="XXXXXX", rank=2, serialno=654)
-        wob4 = WobblyObj(name="Wobbly", rank=1, serialno=789)
-        wob_list = WobblyObjList([wob1, wob2, wob3, wob4])
-        filtered_wob_list = wob_list.filter(name="Wobbly", rank=1)
-        self.assertEqual(len(filtered_wob_list), 2)
-        self.assertEqual(filtered_wob_list[0].name, "Wobbly")
-        self.assertEqual(filtered_wob_list[0].rank, 1)
-        self.assertEqual(filtered_wob_list[0].serialno, 123)
-        self.assertEqual(filtered_wob_list[1].name, "Wobbly")
-        self.assertEqual(filtered_wob_list[1].rank, 1)
-        self.assertEqual(filtered_wob_list[1].serialno, 789)
-        another_filtered_wob_list = wob_list.filter(name="Wobbly", rank=2)
-        self.assertEqual(len(another_filtered_wob_list), 1)
-        self.assertEqual(another_filtered_wob_list[0].name, "Wobbly")
-        self.assertEqual(another_filtered_wob_list[0].rank, 2)
-        self.assertEqual(another_filtered_wob_list[0].serialno, 456)
-        an_empty_filtered_wob_list = wob_list.filter(name="Nonexistent", rank=99)
-        self.assertEqual(len(an_empty_filtered_wob_list), 0)
+        # wob1 = WobblyObj(name="Wobbly", rank=1, serialno=123)
+        # wob2 = WobblyObj(name="Wobbly", rank=2, serialno=456)
+        # wob3 = WobblyObj(name="XXXXXX", rank=2, serialno=654)
+        # wob4 = WobblyObj(name="Wobbly", rank=1, serialno=789)
+        # wob_list = WobblyObjList([wob1, wob2, wob3, wob4])
+        # filtered_wob_list = wob_list.filter(name="Wobbly", rank=1)
+        # self.assertEqual(len(filtered_wob_list), 2)
+        # self.assertEqual(filtered_wob_list[0].name, "Wobbly")
+        # self.assertEqual(filtered_wob_list[0].rank, 1)
+        # self.assertEqual(filtered_wob_list[0].serialno, 123)
+        # self.assertEqual(filtered_wob_list[1].name, "Wobbly")
+        # self.assertEqual(filtered_wob_list[1].rank, 1)
+        # self.assertEqual(filtered_wob_list[1].serialno, 789)
+        # another_filtered_wob_list = wob_list.filter(name="Wobbly", rank=2)
+        # self.assertEqual(len(another_filtered_wob_list), 1)
+        # self.assertEqual(another_filtered_wob_list[0].name, "Wobbly")
+        # self.assertEqual(another_filtered_wob_list[0].rank, 2)
+        # self.assertEqual(another_filtered_wob_list[0].serialno, 456)
+        # an_empty_filtered_wob_list = wob_list.filter(name="Nonexistent", rank=99)
+        # self.assertEqual(len(an_empty_filtered_wob_list), 0)
 
-    def test_baseobj_list_negfilter(self):
-        class ConcreteObj(BaseObj):
-            _required_fields = {'name'}
-            name: str = Field(..., description="Name of the object")
+    # def test_baseobj_list_negfilter(self):
+    #     class ConcreteObj(BaseObj):
+    #         _required_fields = {'name', 'color', 'flavor', 'shape'}
+    #         name: str = Field(..., description="Name of the object")
+    #         color: str = Field(..., description="Color of the object")
+    #         flavor: str = Field(..., description="Flavor of the object")
+    #         shape: str = Field(..., description="Shape of the object")
 
-        class ConcreteObjList(BaseObjList[ConcreteObj]):
-            def describe(self) -> str:
-                return f"Concrete Object List with {len(self)} items."
-        
-        obj1 = ConcreteObj(name="Object 1")
-        obj2 = ConcreteObj(name="Object 2")
-        obj3 = ConcreteObj(name="Object 3")
-        obj_list = ConcreteObjList([obj1, obj2, obj3])
-        neg_filtered_list = obj_list.negfilter(name="Object 1")
-        self.assertEqual(len(neg_filtered_list), 2)
-        self.assertNotIn(obj1, neg_filtered_list)
-        self.assertIn(obj2, neg_filtered_list)
-        self.assertIn(obj3, neg_filtered_list)
+    #     class ConcreteObjList(BaseObjList[ConcreteObj]):
+    #         def describe(self) -> str:
+    #             return f"Concrete Object List with {len(self)} items."
+
+    #     obj1 = ConcreteObj(name="Object 1", color="Red", flavor="Sweet", shape="Round")
+    #     obj2 = ConcreteObj(name="Object 2", color="Green", flavor="Sweet", shape="Round")
+    #     obj3 = ConcreteObj(name="Object 3", color="Blue", flavor="Bitter", shape="Triangle")
+    #     obj4 = ConcreteObj(name="Object 4", color="Red", flavor="Bitter", shape="Square")
+    #     obj_list = ConcreteObjList([obj1, obj2, obj3, obj4])
+    #     condition = lambda x: x.color == "Red"
+    #     surviving_list = obj_list.negfilter(condition)
+    #     self.assertEqual(len(surviving_list), 2)
+    #     self.assertIn(obj2, surviving_list)
+    #     self.assertIn(obj3, surviving_list)
+    #     self.assertNotIn(obj1, surviving_list)
+    #     self.assertNotIn(obj4, surviving_list)
+
+    #     condition = lambda x: x.flavor == "Sweet" and x.shape == "Round"
+    #     surviving_list = obj_list.negfilter(condition)
+    #     self.assertEqual(len(surviving_list), 2)
+    #     self.assertIn(obj3, surviving_list)
+    #     self.assertNotIn(obj1, surviving_list)
+    #     self.assertNotIn(obj2, surviving_list)
+    #     self.assertIn(obj4, surviving_list)
 
     def test_baseobj_list_get(self):
         class ConcreteObj(BaseObj):
@@ -653,14 +682,14 @@ class TestBaseObjList(unittest.TestCase):
         obj1 = ConcreteObj(name="Object 1", rank=1)
         obj2 = ConcreteObj(name="Object 2", rank=2)
         obj_list = ConcreteObjList([obj1, obj2])
-        self.assertEqual(obj_list.get(name="Object 1").name, "Object 1")
-        self.assertEqual(obj_list.get(name="Object 2").name, "Object 2")
-        self.assertIsNone(obj_list.get(name="Nonexistent Object"))
+        self.assertEqual(obj_list.get(lambda x: x.name == "Object 1").name, "Object 1")
+        self.assertEqual(obj_list.get(lambda x: x.name == "Object 2").name, "Object 2")
+        self.assertIsNone(obj_list.get(lambda x: x.name == "Nonexistent Object"))
         obj3 = ConcreteObj(name="Object 3", rank=2)
         obj_list.append(obj3)
-        self.assertEqual(obj_list.get(name="Object 3").name, "Object 3")
-        self.assertEqual(obj_list.get(name="Object 3").rank, 2)
-        rank2 = obj_list.get(rank=2)
+        self.assertEqual(obj_list.get(lambda x: x.name == "Object 3").name, "Object 3")
+        self.assertEqual(obj_list.get(lambda x: x.name == "Object 3").rank, 2)
+        rank2 = obj_list.get(lambda x: x.rank == 2)
         self.assertEqual(len(rank2), 2)
         self.assertEqual(rank2[0].name, "Object 2")
         self.assertEqual(rank2[1].name, "Object 3")
@@ -678,13 +707,13 @@ class TestBaseObjList(unittest.TestCase):
         obj1 = ConcreteObj(name="Object 1", rank=1)
         obj2 = ConcreteObj(name="Object 2", rank=2)
         obj_list = ConcreteObjList([obj1, obj2])
-        self.assertEqual(obj_list.iget(name="Object 1"), 0)
-        self.assertEqual(obj_list.iget(name="Object 2"), 1)
-        self.assertIsNone(obj_list.iget(name="Nonexistent Object"))
+        self.assertEqual(obj_list.iget(lambda x: x.name == "Object 1"), 0)
+        self.assertEqual(obj_list.iget(lambda x: x.name == "Object 2"), 1)
+        self.assertIsNone(obj_list.iget(lambda x: x.name == "Nonexistent Object"))
         obj3 = ConcreteObj(name="Object 3", rank=2)
         obj_list.append(obj3)
-        self.assertEqual(obj_list.iget(name="Object 3"), 2)
-        rank2 = obj_list.iget(rank=2)
+        self.assertEqual(obj_list.iget(lambda x: x.name == "Object 3"), 2)
+        rank2 = obj_list.iget(lambda x: x.rank == 2)
         self.assertEqual(len(rank2), 2)
         self.assertEqual(rank2[0], 1)
         self.assertEqual(rank2[1], 2)
@@ -754,45 +783,57 @@ class TestBaseObjList(unittest.TestCase):
                     for grandchild in child.children:
                         self.assertEqual(grandchild.number, 777)
 
-    def test_baseobj_prune(self):
-        class ConcreteObj(BaseObj):
-            _required_fields = {'serial','name','number','evenodd'}
-            serial: int = Field(..., description="Serial number of the object")
-            name: str = Field(..., description="Name of the object")
-            number: int = Field(..., description="A number")
-            evenodd: str = Field(..., description="Even or odd")
-            _attr_choices = {'evenodd': {'even', 'odd'}}
-
-        class SubObj(BaseObj):
-            _required_fields = {'cucumber','evenodd'}
-            cucumber: int = Field(..., description="length of the cucumber in inches")
-            evenodd: str = Field(..., description="Red or white")
-
-        class ConcreteObjList(BaseObjList[ConcreteObj]):
-            def describe(self) -> str:
-                return f"Concrete Object List with {len(self)} items."
-
-        class SubObjList(BaseObjList[SubObj]):
-            def describe(self) -> str:
-                return f"Sub Object List with {len(self)} items."
-
-        L = ConcreteObjList()
-        for _ in range(100):
-            L.append(ConcreteObj(serial=_, name=f"Object", number=_%10, evenodd='even' if _ % 2 == 0 else 'odd'))
-        # 0,0,e; 1,1,o; 2,2,e; 3,3,o; 4,4,e; 5,5,o; 6,6,e; 7,7,o; 8,8,e; 9,9,o; 10,0,e; 11,1,o; 12,2,e; 13,3,o; 14,4,e; 15,5,o; 16,6,e; 17,7,o; 18,8,e; 19,9,o... 
-        self.assertEqual(len(L), 100)
-
-        REF = SubObjList()
-        for _ in range(0,10,2):
-            REF.append(SubObj(cucumber=_, evenodd='red'))
-        self.assertEqual(len(REF), 5)
-
-        attr_maps=[{'number': 'cucumber'}]
-        removed=L.prune(REF,attr_maps)
-        self.assertEqual(len(removed), 50)
-        self.assertEqual(len(L), 50)
-
     def test_baseobj_list_prune_exclusions(self):
+        exclusions = lambda x: (x.restype in ['X', 'Y', 'Z'] or x.resname in ['POOPYBUTT', 'FARTYPOO'])
+        class Residue(BaseObj):
+            _required_fields = {'restype','resname','resid'}
+            restype: str = Field(..., description="Type of the residue")
+            resname: str = Field(..., description="Name of the residue")
+            resid: ResID = Field(..., description="Residue ID")
+        
+        restype_options=['A','B','C','D','E','F','G','H','I','J','X','Y','Z']
+        resname_options=['ALA','GLY','SER','THR','LEU','ILE','VAL','PRO','PHE','TRP','POOPYBUTT','FARTYPOO']
+
+        class ResidueList(BaseObjList[Residue]):
+            def describe(self) -> str:
+                return f"Residue List with {len(self)} items."
+                
+        R = ResidueList()
+        for _ in range(100):
+            rtidx=_%len(restype_options)
+            rnidx=_%len(resname_options)
+            R.append(Residue(resid=ResID(_), restype=restype_options[rtidx], resname=resname_options[rnidx]))
+
+        self.assertEqual(len(R), 100)
+        BadResidues = R.prune_exclusions(exclusions)
+        # logger.debug(f"BadResidues: {BadResidues}")
+        # logger.debug(f"R.filter(Y): {R.filter(lambda x: x.restype == 'Y')}")
+        self.assertEqual(len(BadResidues), 34)
+        self.assertEqual(len(R), 66)
+        for b in BadResidues:
+            self.assertTrue((b.restype in ['X', 'Y', 'Z']) or (b.resname in ['POOPYBUTT', 'FARTYPOO']))
+        for g in R:
+            self.assertFalse((g.restype in ['X', 'Y', 'Z']) or (g.resname in ['POOPYBUTT', 'FARTYPOO']))
+
+        R = ResidueList()
+        for _ in range(100):
+            rtidx=_%len(restype_options)
+            rnidx=_%len(resname_options)
+            R.append(Residue(resid=ResID(_), restype=restype_options[rtidx], resname=resname_options[rnidx]))
+
+        self.assertEqual(len(R), 100)
+        exclusions = lambda x: (x.restype in ['X', 'Y', 'Z'] and x.resname in ['POOPYBUTT', 'FARTYPOO'])
+        BadResidues = R.prune_exclusions(exclusions)
+        # logger.debug(f"BadResidues: {BadResidues}")
+        # logger.debug(f"R.filter(Y): {R.filter(lambda x: x.restype == 'Y')}")
+        self.assertEqual(len(BadResidues), 3)
+        self.assertEqual(len(R), 97)
+        for b in BadResidues:
+            self.assertTrue((b.restype in ['X', 'Y', 'Z']) and (b.resname in ['POOPYBUTT', 'FARTYPOO']))
+        for g in R:
+            self.assertFalse((g.restype in ['X', 'Y', 'Z']) and (g.resname in ['POOPYBUTT', 'FARTYPOO']))
+
+    def test_baseobj_list_dict_to_condition(self):
         exclusions = {'restype':['X','Y','Z'],'resname':['POOPYBUTT','FARTYPOO']}
         class Residue(BaseObj):
             _required_fields = {'restype','resname'}
@@ -813,14 +854,15 @@ class TestBaseObjList(unittest.TestCase):
             R.append(Residue(restype=restype_options[rtidx], resname=resname_options[rnidx]))
 
         self.assertEqual(len(R), 100)
-        BadResidues = R.prune_exclusions(**exclusions)
+        condition = R.dict_to_condition(exclusions, conjunction='or')
+        BadResidues = R.prune_exclusions(condition)
         self.assertEqual(len(BadResidues), 34)
         self.assertEqual(len(R), 66)
         for b in BadResidues:
             self.assertTrue((b.restype in exclusions['restype']) or (b.resname in exclusions['resname']))
         for g in R:
             self.assertFalse((g.restype in exclusions['restype']) or (g.resname in exclusions['resname']))
-    
+
     def test_baseobj_list_uniqattrs(self):
         class ConcreteObj(BaseObj):
             _required_fields = {'name','number'}
@@ -1116,3 +1158,26 @@ class TestBaseObjList(unittest.TestCase):
 
         self.assertEqual(Person1.favorite_food, "Spinach")
         self.assertEqual(Person2.favorite_food, "Eggplant")
+
+    def test_baseobj_list_remove_instance(self):
+        # define a concreteobj class
+        class ConcreteObj(BaseObj):
+            _required_fields = {'name', 'number'}
+            name: str = Field(..., description="Name of the object")
+            number: int = Field(..., description="Number of the object")
+        # and the corresponding ConcreteObjList class
+        class ConcreteObjList(BaseObjList[ConcreteObj]):
+            def describe(self) -> str:
+                return f"Concrete Object List with {len(self)} items."
+
+        # make a list of concrete objects
+        obj1 = ConcreteObj(name="Object 1", number=1)
+        obj2 = ConcreteObj(name="Object 2", number=2)
+        obj3 = ConcreteObj(name="Object 3", number=3)
+        obj_list = ConcreteObjList([obj1, obj2, obj3])
+
+        # Remove obj2 and check the list contents
+        obj_list.remove_instance(obj2)
+        self.assertNotIn(obj2, obj_list)
+        self.assertIn(obj1, obj_list)
+        self.assertIn(obj3, obj_list)

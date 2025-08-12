@@ -1,5 +1,6 @@
 import unittest
 import logging
+
 logger = logging.getLogger(__name__)
 from pestifer.molecule.molecule import Molecule
 from pestifer.molecule.stateinterval import StateIntervalList
@@ -11,6 +12,8 @@ from pestifer.molecule.chainidmanager import ChainIDManager
 from pestifer.core.objmanager import ObjManager
 from pestifer.objs.insertion import Insertion, InsertionList
 from pestifer.objs.mutation import Mutation, MutationList
+from pestifer.objs.ssbond import SSBond, SSBondList
+from pestifer.objs.link import Link, LinkList
 
 class TestSegment(unittest.TestCase):
 
@@ -204,3 +207,58 @@ class TestSegmentList(unittest.TestCase):
         self.assertIsInstance(collected_residues, ResidueList)
         self.assertEqual(len(collected_residues), 9)
         self.assertEqual(collected_residues[0].resid, ResID(1))
+
+
+    def test_segment_list_prune_topology(self):
+        # make a list of residues
+        residue_list = ResidueList([
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(1), resname='ALA', segtype='protein', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(2), resname='GLY', segtype='protein', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(3), resname='SER', segtype='protein', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(4), resname='THR', segtype='protein', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(1), resname='ALA', segtype='protein', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(2), resname='GLY', segtype='protein', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(3), resname='SER', segtype='protein', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(4), resname='THR', segtype='protein', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='S', resid=ResID(404), resname='BMA', segtype='glycan', resolved=True))
+        ])
+        # make a segment list
+        chainIDmanager = ChainIDManager()
+        segment_list = SegmentList.generate(residues=ResidueList(residue_list), chainIDmanager=chainIDmanager)
+        self.assertEqual(len(segment_list), 3)
+        # make a list of ssbonds, one element, bonding chain A resid 2 to chain B resid 3, shortcode C_RRR-D_SSS
+        ssb1 = SSBond('A_2-B_3')
+        ssbonds = SSBondList([
+            ssb1
+        ])
+        ssbonds.assign_residues(residue_list)
+        self.assertEqual(len(ssbonds), 1)
+        self.assertEqual(ssbonds[0].residue1, residue_list[1])
+        self.assertEqual(ssbonds[0].residue2, residue_list[6])
+        # make a one-element list of links, linking atom N of chain B resid 4 to atom C of chain S resid 404; use shortcode to initialize, e.g., 'C1_R1_A1-C2_R2_A2'
+        ll1 = Link('B_4_N-S_404_C')
+        links = LinkList([ll1])
+        links[0].patchname='FakePatchname'
+        links.assign_residues(residue_list)
+        self.assertEqual(len(links), 1)
+        self.assertEqual(links[0].residue1, residue_list[7])
+        self.assertEqual(links[0].residue2, residue_list[8])
+        self.assertEqual(links[0].residue1.down[0], residue_list[8])  # check that the link is correctly assigned
+        self.assertEqual(links[0].residue2.up[0], residue_list[7])  # check that the link is correctly assigned
+        self.assertEqual(links[0].residue1.downlink[0], links[0])
+        self.assertEqual(links[0].residue2.uplink[0], links[0])
+        # make a list of two mutations; shortcode C:nnn,rrr,mmm
+        mutations = MutationList([
+            Mutation('A:GLY,2,ALA'), Mutation('B:THR,4,ALA')
+        ])
+        pruned_objects = segment_list.prune_topology(mutations, links, ssbonds)
+        self.assertTrue('residues' in pruned_objects)
+        self.assertTrue('links' in pruned_objects)
+        self.assertEqual(ll1, pruned_objects['links'][0])
+        self.assertEqual(len(links), 0)
+        self.assertTrue('ssbonds' in pruned_objects)
+        self.assertEqual(ssb1, pruned_objects['ssbonds'][0])
+        self.assertEqual(len(ssbonds), 0)
+        self.assertTrue('segments' in pruned_objects)
+        self.assertEqual(len(pruned_objects['residues']), 1)
+        self.assertEqual(pruned_objects['residues'][0], residue_list[8])

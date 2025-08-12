@@ -532,7 +532,9 @@ class TestResidueList(unittest.TestCase):
             subseq="WAVE"
         )
         slist=SubstitutionList([substitution1])
-        seqadvs,substituted=rl.substitutions(slist)
+        chain: ResidueList = rl.newget(lambda x: x.chainID == substitution1.chainID)
+        self.assertTrue(len(chain) > 0)
+        seqadvs, substituted=rl.substitutions(slist)
         self.assertEqual(len(substituted), 0) # subseq is greater in length that the number of residues substituted
         self.assertEqual(len(seqadvs), 2)
         self.assertEqual(len(rl), 4)

@@ -7,6 +7,7 @@ This project follows [Semantic Versioning](https://semver.org/) and documents ch
 ### Changed
 
 ## [2.0.1]
+- `include` and `exclude` now allow full logical expressions for better control of inclusion and exclusion of atoms and residues from source structures
 - `fetch` task now separately responsible for downloading necessary pdb files
 - `continuation` task now separately responsible for starting from a given state (PSF/PDB/COOR/XSC)
 - `mdplot` now correctly treats `cpu_time` and `wall_time` as running sums over chained MD runs

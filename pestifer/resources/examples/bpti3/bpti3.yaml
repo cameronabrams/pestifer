@@ -20,8 +20,7 @@ tasks:
   - psfgen:
       source:
         exclude:
-          resnames:
-            - PO4
+          - resname == 'PO4'
       mods:
         mutations: # showcasing the two shortcode formats
           - A:T11A # threonine to alanine at position 11

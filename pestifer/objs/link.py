@@ -526,23 +526,31 @@ class LinkList(BaseObjList[Link]):
         logger.debug(f'Links: Assigning residues from list of {len(Residues)} residues')
         ignored_by_ptnr1 = self.assign_objs_to_attr('residue1', Residues, chainID='chainID1', resid='resid1')
         ignored_by_ptnr2 = self.assign_objs_to_attr('residue2', Residues, chainID='chainID2', resid='resid2')
-        if hasattr(self, 'patchname') and len(self.patchname) > 0:
-            # this link was most likely created when reading in patch records from a set of REMARKS in a pre-built psf file.
-            # we need to get the precise atom names for this patch
-            pass
-        for link in self:
+        for link in self.data:
+            link.segtype1 = link.residue1.segtype
+            link.segtype2 = link.residue2.segtype
+            # shortcodes don't provide resnames, so set them here
+            if link.residue1 is not None and link.resname1 is None:
+                link.resname1 = link.residue1.resname
+            if link.residue2 is not None and link.resname2 is None:
+                link.resname2 = link.residue2.resname
             try:
                 link.residue1.link_to(link.residue2, link)
             except:
                 raise ValueError(f'Bad residue in link')
-            link.atom1 = link.residue1.atoms.get(name=link.name1, altloc=link.altloc1)
-            link.atom2 = link.residue2.atoms.get(name=link.name2, altloc=link.altloc2)
+            if link.patchname is not None and len(link.patchname) > 0:
+            # this link was most likely created when reading in patch records from a set of REMARKS in a pre-built psf file.
+            # we need to get the precise atom names for this patch
+                continue
+
+            link.atom1 = link.residue1.atoms.get(lambda x: x.name == link.name1 and x.altloc == link.altloc1)
+            link.atom2 = link.residue2.atoms.get(lambda x: x.name == link.name2 and x.altloc == link.altloc2)
             link.segtype1 = link.residue1.segtype
             link.segtype2 = link.residue2.segtype
             # shortcodes don't provide resnames, so set them here
-            if not hasattr(link, 'resname1'):
+            if link.residue1 is not None and link.resname1 is None:
                 link.resname1 = link.residue1.resname
-            if not hasattr(link, 'resname2'):
+            if link.residue2 is not None and link.resname2 is None:
                 link.resname2 = link.residue2.resname
             link.set_patchname()
         # do cross-assignment to find true orphan links and dangling links
@@ -578,57 +586,57 @@ class LinkList(BaseObjList[Link]):
         self.remove(removed_links)
         return removed_links
 
-    def prune_mutations(self, Mutations: 'MutationList', Segments: 'SegmentList'):
-        """
-        Prune off any links and associated objects as a result of mutations
+    # def prune_mutations(self, Mutations: 'MutationList', Segments: 'SegmentList'):
+    #     """
+    #     Prune off any links and associated objects as a result of mutations
 
-        Parameters
-        ----------
-        Mutations: MutationList
-            list of mutations to prune off links; these are typically the mutations that were applied
-            to the structure before the links were created, so they are not part of the original
-            structure, but they are part of the current structure.
-        Segments: SegmentList
-            Current list of segments in the structure; it is from this list that segments are removed if they become empty as a result of pruning off links that are pruned off due to mutations.
+    #     Parameters
+    #     ----------
+    #     Mutations: MutationList
+    #         list of mutations to prune off links; these are typically the mutations that were applied
+    #         to the structure before the links were created, so they are not part of the original
+    #         structure, but they are part of the current structure.
+    #     Segments: SegmentList
+    #         Current list of segments in the structure; it is from this list that segments are removed if they become empty as a result of pruning off links that are pruned off due to mutations.
 
-        Returns
-        -------
-        pruned: dict
-            A dictionary containing lists of pruned residues, links, and segments.
+    #     Returns
+    #     -------
+    #     pruned: dict
+    #         A dictionary containing lists of pruned residues, links, and segments.
         
-            - ``residues``: list of Residue objects that were pruned
-            - ``links``: list of Link objects that were pruned
-            - ``segments``: list of Segment objects that were pruned
-        """
-        pruned = {'residues': [], 'links': self.__class__([]), 'segments': []}
-        for m in Mutations.data:
-            left = self.get(chainID1=m.chainID, resid1=m.resid) # links for which partner 1 is the mutation
-            right = self.get(chainID2=m.chainID, resid2=m.resid) # links for which partner 2 is the mutation
-            if left:  # this is a link in which this mutation is the partner 1
-                self.remove(left) # get rid of this link
-                # we need to remove residue2 and everything downstream
-                # remove downstream residues!
-                rlist, llist = left.residue2.get_down_group()
-                rlist.insert(0, left.residue2)
-            elif right: # this is a link in which this mutation is the right member (should be very rare)
-                self.remove(right)
-                rlist, llist = right.residue2.get_down_group()
-                rlist.insert(0, right.residue2)
-            if rlist and llist:
-                # logger.debug(f'Deleting residues down from and including {str(rlist[0])} due to a mutation')
-                S = Segments.get_segment_of_residue(rlist[0])
-                for r in rlist:
-                    # logger.debug(f'...{str(r)}')
-                    S.residues.remove(r)
-                    pruned['residues'].append(r)
-                if len(S.residues) == 0:
-                    # logger.debug(f'All residues of {S.psfgen_segname} are deleted; {S.psfgen_segname} is deleted')
-                    Segments.remove(S)
-                    pruned['segments'].append(S)
-                for l in llist:
-                    self.data.remove(l)
-                    pruned['links'].append(l)
-        return pruned
+    #         - ``residues``: list of Residue objects that were pruned
+    #         - ``links``: list of Link objects that were pruned
+    #         - ``segments``: list of Segment objects that were pruned
+    #     """
+    #     pruned = {'residues': [], 'links': self.__class__([]), 'segments': []}
+    #     for m in Mutations.data:
+    #         left = self.get(lambda x: x.chainID1 == m.chainID and x.resid1 == m.resid) # links for which partner 1 is the mutation
+    #         right = self.get(lambda x: x.chainID2 == m.chainID and x.resid2 == m.resid) # links for which partner 2 is the mutation
+    #         if left:  # this is a link in which this mutation is the partner 1
+    #             self.remove(left) # get rid of this link
+    #             # we need to remove residue2 and everything downstream
+    #             # remove downstream residues!
+    #             rlist, llist = left.residue2.get_down_group()
+    #             rlist.insert(0, left.residue2)
+    #         elif right: # this is a link in which this mutation is the right member (should be very rare)
+    #             self.remove(right)
+    #             rlist, llist = right.residue2.get_down_group()
+    #             rlist.insert(0, right.residue2)
+    #         if rlist and llist:
+    #             # logger.debug(f'Deleting residues down from and including {str(rlist[0])} due to a mutation')
+    #             S = Segments.get_segment_of_residue(rlist[0])
+    #             for r in rlist:
+    #                 # logger.debug(f'...{str(r)}')
+    #                 S.residues.remove(r)
+    #                 pruned['residues'].append(r)
+    #             if len(S.residues) == 0:
+    #                 # logger.debug(f'All residues of {S.psfgen_segname} are deleted; {S.psfgen_segname} is deleted')
+    #                 Segments.remove(S)
+    #                 pruned['segments'].append(S)
+    #             for l in llist:
+    #                 self.data.remove(l)
+    #                 pruned['links'].append(l)
+    #     return pruned
 
     def apply_segtypes(self, map):
         """
@@ -684,7 +692,7 @@ def ic_reference_closest(res12: list["Residue"], ICmaps: list[dict]) -> str:
         for n in ic['ICatomnames']:
             r = int(n[0])-1
             an = n[1:]
-            at = res12[r].atoms.get(name=an)
+            at = res12[r].atoms.get(lambda x: x.name == an)
             ic['atoms'].append(at)
             # logger.debug(f'Assigned atom {at.name} of {at.resname}{at.resseqnum}')
     map_points = {}

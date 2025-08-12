@@ -270,7 +270,7 @@ class PsfgenScripter(VMDScripter):
                 self.addfile(b.pdb)
                 serial_list = run.atom_serials(as_type=int)
                 logger.debug(f'Last atom has serial {serial_list[-1]} ({run[-1].resname}{run[-1].resid.resid}):')
-                at = segment.parent_molecule.asymmetric_unit.atoms.get(serial=serial_list[-1])
+                at = segment.parent_molecule.asymmetric_unit.atoms.get(lambda x: x.serial == serial_list[-1])
                 if hasattr(at, '__len__'):
                     for a in at:
                         logger.debug(f'whoops: {a.chainID} {a.resid.resid} {a.name} is {a.serial}')
@@ -301,10 +301,10 @@ class PsfgenScripter(VMDScripter):
         self.addline(f'segment {image_seglabel} '+'{')
         if segment.subsegments[0].state == 'MISSING' and not segment.subsegments[0].build:
             Nterminal_missing_subsegment = segment.subsegments.pop(0)
-            logger.info(f'Since terminal loops are not included, ignoring {str(Nterminal_missing_subsegment)}')
+            logger.debug(f'Since terminal loops are not included, ignoring {str(Nterminal_missing_subsegment)}')
         if segment.subsegments[-1].state == 'MISSING' and not segment.subsegments[-1].build:
             Cterminal_missing_subsegment = segment.subsegments.pop(-1)
-            logger.info(f'Since terminal loops are not included, ignoring {str(Cterminal_missing_subsegment)}')
+            logger.debug(f'Since terminal loops are not included, ignoring {str(Cterminal_missing_subsegment)}')
         for b in segment.subsegments.data:
             if b.state == 'RESOLVED':
                 self.addline(f'pdb {b.pdb}', indents=1)

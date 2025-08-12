@@ -13,6 +13,7 @@ from __future__ import annotations
 import logging
 
 from collections import UserDict
+from typing import Callable
 from pestifer.objs.resid import ResID
 
 from .baseobj import BaseObj, BaseObjList
@@ -105,7 +106,7 @@ class ObjManager(UserDict[str, UserDict[str, BaseObjList]]):
         self.used = {}
         self.ingest(input_specs)
 
-    def filter_copy(self, objnames: list[str] = [], **fields) -> ObjManager:
+    def filter_copy(self, condition: Callable[[BaseObj], bool], objnames: list[str] = []) -> ObjManager:
         """
         Returns a copy of the ObjManager with only the objects that match the given fields.
         
@@ -127,7 +128,7 @@ class ObjManager(UserDict[str, UserDict[str, BaseObjList]]):
             for header, objlist in catdict.items():
                 if len(objnames) > 0 and header not in objnames:
                     continue
-                objlist = objlist.filter(**fields)
+                objlist = objlist.filter(condition)
                 if len(objlist) > 0:
                     if not objcat in result:
                         result[objcat] = {}

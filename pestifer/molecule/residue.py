@@ -877,13 +877,13 @@ class ResidueList(BaseObjList[Residue]):
         assert hasattr(rngrec,'chainID'), 'resrange requires a chainID'
         assert hasattr(rngrec,'resid1'), 'resrange requires a resid1'
         assert hasattr(rngrec,'resid2'), 'resrange requires a resid2'
-        subR = self.get(chainID=rngrec.chainID)
+        subR = self.get(lambda x: x.chainID == rngrec.chainID)
         subR.sort()
         r1 = rngrec.resid1
         r2 = rngrec.resid2
-        R1 = subR.get(resid=r1)
+        R1 = subR.get(lambda x: x.resid == r1)
         if R1:
-            R2 = subR.get(resid=r2)
+            R2 = subR.get(lambda x: x.resid == r2)
             if R2:
                 idx1 = subR.index(R1)
                 idx2 = subR.index(R2)
@@ -931,9 +931,9 @@ class ResidueList(BaseObjList[Residue]):
         """
         excised = []
         for d in DL:
-            chain = self.get(chainID=d.chainID)
-            r1 = chain.get(resid=d.resid1)
-            r2 = chain.get(resid=d.resid2)
+            chain = self.filter(lambda x: x.chainID == d.chainID)
+            r1 = chain.filter(lambda x: x.resid == d.resid1)[0]
+            r2 = chain.filter(lambda x: x.resid == d.resid2)[0]
             for r in chain:
                 if r1 <= r <= r2:
                     excised.append(r)
@@ -959,16 +959,13 @@ class ResidueList(BaseObjList[Residue]):
         """
         delete_us = []
         newseqadv = SeqadvList([])  # for holding single-residue changes for resolved residues
-        for s in SL:
+        for s in SL.data:
             subseq = s.subseq
             currsubidx = 0
-            chain = self.get(chainID=s.chainID)
-            assert chain != None, f'Error: no chain {s.chainID}'
-            r1 = chain.get(resid=s.resid1)
-            assert r1 is not None, f'Error: no resid {s.resid1}'
-            r2 = chain.get(resid=s.resid2)
-            assert r2 is not None, f'Error: no resid {s.resid2}'
-            for r in chain:
+            chain: ResidueList = self.get(lambda x: x.chainID == s.chainID)
+            r1 = chain.filter(lambda x: x.resid == s.resid1)[0]
+            r2 = chain.filter(lambda x: x.resid == s.resid2)[0]
+            for r in chain.data:
                 if r1 <= r <= r2:
                     if currsubidx < len(subseq):
                         resname = Labels.res_123[subseq[currsubidx].upper()]
@@ -982,16 +979,16 @@ class ResidueList(BaseObjList[Residue]):
                                 dbRes=resname
                             ))
                         else:  # just change the residue name
-                            r.name=resname
-                        currsubidx+=1
+                            r.resname = resname
+                        currsubidx += 1
                     else:
                         delete_us.append(r)
-            if currsubidx<len(subseq):
-                # we have unsubsituted residue(s) left that must be inserted
+            if currsubidx < len(subseq):
+                # we have unsubstituted residue(s) left that must be inserted
                 pass
         for r in delete_us:
             self.remove(r)
-        return newseqadv,delete_us
+        return newseqadv, delete_us
 
     def cif_residue_map(self):
         """
@@ -1021,7 +1018,7 @@ class ResidueList(BaseObjList[Residue]):
         """
         for ins in insertions:
             chainID, resid = ins.chainID, ins.resid
-            idx = self.iget(chainID=chainID, resid=resid)
+            idx = self.iget(lambda x: x.chainID == chainID and x.resid == resid)
             segtype = self[idx].segtype
             logger.debug(f'insertion begins after {resid.resid} which is index {idx} in reslist, chain {chainID}')
             # add residues to residue list
@@ -1047,7 +1044,7 @@ class ResidueList(BaseObjList[Residue]):
         links : :class:`~pestifer.objs.link.LinkList`
             A list of links that may contain residue sequence numbers that need to be updated.
         """
-        protein_residues: ResidueList = self.get(segtype='protein')
+        protein_residues: ResidueList = self.get(lambda x: x.segtype == 'protein')
         if len(protein_residues) == 0: return
         min_protein_resid = min([x.resid for x in protein_residues.data])
         max_protein_resid = max([x.resid for x in protein_residues.data])
@@ -1059,7 +1056,7 @@ class ResidueList(BaseObjList[Residue]):
         assert len(self) == (len(protein_residues) + len(non_protein_residues))
         non_protein_residues_in_conflict = ResidueList([])
         for np in non_protein_residues.data:
-            tst = protein_residues.get(chainID=np.chainID, resid=np.resid)
+            tst = protein_residues.get(lambda x: x.chainID == np.chainID and x.resid == np.resid)
             if tst:
                 non_protein_residues_in_conflict.append(np)
         for npc in non_protein_residues_in_conflict.data:
@@ -1067,7 +1064,7 @@ class ResidueList(BaseObjList[Residue]):
         logger.debug(f'There are {len(non_protein_residues_in_conflict)} non-protein residues with resid that conflict with protein residues')
 
         max_unused_resid = max([max([x.resid for x in protein_residues.data]), ResID(0) if len(non_protein_residues) == 0 else max([x.resid for x in non_protein_residues.data])]) + 1
-        newtst = self.get(resid=max_unused_resid)
+        newtst = self.get(lambda x: x.resid == max_unused_resid)
         assert newtst in [None, []]  # None
         mapper_by_chain = {}
         for npc in non_protein_residues_in_conflict.data:

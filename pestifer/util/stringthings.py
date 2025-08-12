@@ -2,12 +2,15 @@
 """ 
 Defines the :class:`ByteCollector` and :class:`FileCollector` classes, and defines the :func:`banner` and :func:`my_logger` functions.
 """
+import ast
 import logging
+import operator
 import os
 import re
 import subprocess
 import shutil
 import sys
+
 
 import pandas as pd
 
@@ -574,3 +577,77 @@ def plu(n: int, singform: str = '', plurform: str = 's') -> str:
 
     """
     return singform if n == 1 else plurform
+
+# Supported operators for comparisons
+comp_ops = {
+    ast.Eq: operator.eq,
+    ast.NotEq: operator.ne,
+    ast.Lt: operator.lt,
+    ast.LtE: operator.le,
+    ast.Gt: operator.gt,
+    ast.GtE: operator.ge,
+    ast.In: lambda a, b: a in b,
+    ast.NotIn: lambda a, b: a not in b,
+}
+
+# Supported boolean ops
+bool_ops = {
+    ast.And: all,
+    ast.Or: any,
+}
+
+def parse_filter_expression(expr: str):
+    """
+    Parses a logical expression string (e.g., "segtype == 'protein' and resid > 100")
+    and returns a function f(obj) -> bool that evaluates the expression on obj's attributes.
+    """
+    expr_ast = ast.parse(expr, mode='eval')
+
+    def _eval(node, obj):
+        if isinstance(node, ast.Expression):
+            return _eval(node.body, obj)
+
+        elif isinstance(node, ast.BoolOp):
+            op_func = bool_ops[type(node.op)]
+            return op_func(_eval(value, obj) for value in node.values)
+
+        elif isinstance(node, ast.Compare):
+            # Left side can be Name or Attribute, only support simple Names for now
+            if isinstance(node.left, ast.Name):
+                left_val = getattr(obj, node.left.id)
+            else:
+                raise ValueError(f"Unsupported left operand type: {type(node.left)}")
+
+            # Only support single comparator for simplicity
+            op = node.ops[0]
+            comparator = node.comparators[0]
+
+            # Evaluate right side literals
+            if isinstance(comparator, (ast.Constant)):
+                right_val = comparator.value if hasattr(comparator, 'value') else comparator.s
+            elif isinstance(comparator, ast.Name):
+                right_val = getattr(obj, comparator.id)
+            else:
+                # For lists or tuples, recursively evaluate literals
+                right_val = ast.literal_eval(comparator)
+
+            op_func = comp_ops.get(type(op))
+            if op_func is None:
+                raise ValueError(f"Unsupported comparison operator: {type(op)}")
+
+            return op_func(left_val, right_val)
+
+        elif isinstance(node, ast.UnaryOp) and isinstance(node.op, ast.Not):
+            return not _eval(node.operand, obj)
+
+        elif isinstance(node, ast.Constant):
+            # True / False / None literals
+            return node.value
+
+        else:
+            raise ValueError(f"Unsupported AST node: {type(node)}")
+
+    def filter_func(obj):
+        return _eval(expr_ast, obj)
+
+    return filter_func

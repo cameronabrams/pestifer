@@ -85,7 +85,7 @@ class TestObjManager(unittest.TestCase):
                 deletion = Deletion(f"{C}:{10+i}-20")
                 O.ingest(mut)
                 O.ingest(deletion)
-        chainE = O.filter_copy(chainID='E')
+        chainE = O.filter_copy(lambda x: x.chainID == 'E')
         self.assertIn('seq', chainE)
         self.assertIn('mutations', chainE['seq'])
         self.assertIsInstance(chainE['seq']['mutations'], MutationList)
@@ -94,7 +94,7 @@ class TestObjManager(unittest.TestCase):
         self.assertIsInstance(chainE['seq']['deletions'], DeletionList)
         self.assertEqual(len(chainE['seq']['deletions']), 5)
 
-        mutations_only = O.filter_copy(objnames=['mutations'])
+        mutations_only = O.filter_copy(lambda x: isinstance(x, Mutation))
         self.assertIn('seq', mutations_only)
         self.assertIn('mutations', mutations_only['seq'])
         self.assertIsInstance(mutations_only['seq']['mutations'], MutationList)

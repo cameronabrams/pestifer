@@ -2,7 +2,8 @@
 
 """
 A class for handling artifacts in the Pestifer core. Artifacts are files or 
-data generated during the execution of tasks.  They are managed by the pipeline context.
+data generated during the execution of tasks and are managed by the 
+:ref:`~pestifer.core.pipeline.PipelineContext`.
 """
 from __future__ import annotations
 from abc import ABC, abstractmethod
@@ -18,16 +19,16 @@ logger = logging.getLogger(__name__)
 @dataclass
 class Artifact():
     """
-    Represents an artifact in the Pestifer core.
-    The ``produced_by`` attribute indicates which task generated this artifact.
-    The ``package`` attribute indicates whether the most recently generated artifact should be included in the product package, if it is a file.
-    The ``data`` attribute can hold any data type, and the ``key`` attribute is used to identify the artifact.
+    Base Artifact class.
     """
     data: object | None = None
+    """ The data contained in the artifact. """
     key: str | None = None
+    """ A unique identifier for the artifact. """
     produced_by: object | None = None
-    package: bool = False
+    """ The task or process that generated the artifact. """    
     provenance: list[object] = field(default_factory=list)
+    """ A list of objects that contributed to the creation of the artifact, ordered chronologically. """
 
     def has_stamp(self) -> bool:        
         """
@@ -40,30 +41,29 @@ class Artifact():
         """
         return self.produced_by is not None
 
-    def stamp(self, owner: object | None = None) -> Artifact:
+    def stamp(self, owner: object) -> Artifact:
         """
         Stamp the artifact with the owner information.
-        This method is used to set the owner of the artifact, which can be useful for tracking who created or modified it.  If owner is None, do nothing.
         Any attributes that are instances of Artifact are also stamped.
 
         Parameters
         ----------
-        owner : Any, optional
-            The owner of the artifact, which can be any object that produced this artifact. If not provided, the artifact will not be stamped.
+        owner : object
+            The owner of the artifact, which can be any object that produced this artifact.
         """
-        if owner:
-            if self.has_stamp():
-                if self.produced_by is owner:
-                    logger.debug(f"Artifact {self.key} is already stamped by {repr(self.produced_by)}. No need to override.")
-                    return self
-                logger.debug(f"Artifact {self.key} is already stamped by {repr(self.produced_by)}. Overriding with new owner {repr(owner)}.")
-            self.provenance.append(self.produced_by)
-            self.produced_by = owner
-            for attr_name, attr_value in self.__dict__.items():
-                if isinstance(attr_value, Artifact):
-                    attr_value.stamp(owner)
-        else:
-            raise ValueError("Owner must be provided for artifact stamping.")
+        if owner is None:
+            raise ValueError("Owner must not be None.")
+    
+        if self.has_stamp():
+            if self.produced_by is owner:
+                logger.debug(f"Artifact {self.key} is already stamped by {repr(self.produced_by)}. No need to override.")
+                return self
+            logger.debug(f"Artifact {self.key} is already stamped by {repr(self.produced_by)}. Overriding with new owner {repr(owner)}.")
+        self.provenance.append(self.produced_by)
+        self.produced_by = owner
+        for attr_name, attr_value in self.__dict__.items():
+            if isinstance(attr_value, Artifact):
+                attr_value.stamp(owner)
         return self
 
 @dataclass
@@ -76,13 +76,15 @@ class DataArtifact(Artifact):
 @dataclass
 class ArtifactList(UserList, Artifact):
     """
-    Represents a list of artifacts in the Pestifer core.
-    This class is used to store a collection of artifacts, allowing for easy management and retrieval.
+    A list of Artifacts.
     """
     data: list[Artifact] = field(default_factory=list)
 
     @classmethod
     def from_dict(cls, artifact_dict: ArtifactDict) -> ArtifactList:
+        """
+        Create an ArtifactList from an ArtifactDict.
+        """
         artifact_list = cls()
         for artifact in artifact_dict.values():
             artifact_list.append(artifact)
@@ -91,15 +93,18 @@ class ArtifactList(UserList, Artifact):
         return artifact_list
     
     def to_dict(self) -> ArtifactDict:
+        """
+        Create an ArtifactDict from the ArtifactList.
+        """
         return ArtifactDict.from_list(self)
-    
-    def stamp(self, owner: object = None) -> ArtifactList:
+
+    def stamp(self, owner: object) -> ArtifactList:
         """
         Stamp all artifacts in the list with the owner information.
         
         Parameters
         ----------
-        owner : Any, optional
+        owner : object
             The owner of the artifacts, which can be any object that produced these artifacts. If not provided, the artifacts will not be stamped.
         
         Returns
@@ -107,20 +112,22 @@ class ArtifactList(UserList, Artifact):
         ArtifactList
             The artifact list with all artifacts stamped with the owner information.
         """
-        if owner:
-            self.produced_by = owner
-            for artifact in self.data:
-                artifact.stamp(owner)
-            return self
-        raise ValueError("Owner must be provided for artifact stamping.")
+        if owner is None:
+            raise ValueError("Owner must not be None.")
+        self.produced_by = owner
+        for artifact in self.data:
+            artifact.stamp(owner)
+        return self
 
     def filter_by_produced_by(self, produced_by: object) -> ArtifactList:
         """
         Filter the artifact list by the task that produced them.
+
         Parameters
         ----------
         produced_by : object
             The task or object that produced the artifacts to filter by.
+
         Returns
         -------
         ArtifactList
@@ -136,10 +143,12 @@ class ArtifactList(UserList, Artifact):
     def filter_by_artifact_type(self, artifact_type: type[Artifact]) -> ArtifactList:
         """
         Filter the artifact list by the type of artifacts.
+
         Parameters
         ----------
         artifact_type : type[Artifact]
             The type of artifacts to filter by.
+        
         Returns
         -------
         ArtifactList
@@ -155,10 +164,12 @@ class ArtifactList(UserList, Artifact):
     def filter_by_key(self, key: str) -> ArtifactList:
         """
         Filter the artifact list by the key of artifacts.
+
         Parameters
         ----------
         key : str
             The key of artifacts to filter by.
+        
         Returns
         -------
         ArtifactList
@@ -174,14 +185,15 @@ class ArtifactList(UserList, Artifact):
 @dataclass
 class ArtifactDict(UserDict, Artifact):
     """
-    Represents a dictionary of artifacts in the Pestifer core.
-    This class is used to store a collection of artifacts with unique keys, allowing for easy management and retrieval.
-
+    Dictionary of Artifacts.
     """
     data: dict[str, Artifact] = field(default_factory=dict)
 
     @classmethod
     def from_list(cls, artifact_list: ArtifactList) -> ArtifactDict:
+        """
+        Create an ArtifactDict from an ArtifactList.
+        """
         artifact_dict = cls()
         for artifact in artifact_list:
             artifact_dict[artifact.key] = artifact
@@ -190,36 +202,55 @@ class ArtifactDict(UserDict, Artifact):
         return artifact_dict
     
     def to_list(self) -> ArtifactList:
+        """
+        Create an ArtifactList from the ArtifactDict.
+        """
         return ArtifactList.from_dict(self)
-    
-    def stamp(self, owner: object = None) -> ArtifactDict:
+
+    def stamp(self, owner: object) -> ArtifactDict:
         """
         Stamp all artifacts in the dictionary with the owner information.
         
         Parameters
         ----------
-        owner : Any, optional
-            The owner of the artifacts, which can be any object that produced these artifacts. If not provided, the artifacts will not be stamped.
-        
+        owner : object
+            The owner of the artifacts, which can be any object that produced these artifacts.
+
         Returns
         -------
         ArtifactDict
             The artifact dictionary with all artifacts stamped with the owner information.
         """
-        if owner:
-            self.produced_by = owner
-            for artifact in self.data.values():
-                artifact.stamp(owner)
-            return self
-        raise ValueError("Owner must be provided for artifact stamping.")
-
+        if owner is None:
+            raise ValueError("Owner must not be None.")
+        self.produced_by = owner
+        for artifact in self.data.values():
+            artifact.stamp(owner)
+        return self
+    
     def update_item(self, artifact: Artifact, key: str | None = None) -> None:
+        """
+        Updates a new or existing key in the ArtifactDict with an Artifact.
+        """
         if key:
             self.data[key] = artifact
         else:
             self.data[artifact.key] = artifact
 
     def filter_by_produced_by(self, produced_by: object) -> ArtifactDict:
+        """
+        Filter the artifact dictionary by the producer of artifacts.
+
+        Parameters
+        ----------
+        produced_by : object
+            The producer of artifacts to filter by.
+
+        Returns
+        -------
+        ArtifactDict
+            A new ArtifactDict containing only the artifacts produced by the specified producer.
+        """
         filtered_dict = ArtifactDict()
         filtered_dict.key = self.key
         filtered_dict.produced_by = produced_by
@@ -231,16 +262,19 @@ class ArtifactDict(UserDict, Artifact):
 @dataclass
 class FileArtifact(Artifact, ABC):
     """
-    Represents a file artifact in the Pestifer core.
+    A class for artifacts that are files.
     """
     data: str | None = None  # name with or without extension
+    """ The name of the file artifact, with or without extension. """
     description: str | None = None
+    """ A brief description of the file artifact; optional. """
     mime_type: str | None = 'application/octet-stream'
+    """ The MIME type of the file artifact; 'application/octet-stream' by default. """
 
     @property
     @abstractmethod
     def ext(self) -> str:
-        """Return a string representing this file's 'type key' fallback."""
+        """ The file extension of the file artifact, which is used as the artifact key by default. """
         pass
 
     def __post_init__(self):
@@ -256,16 +290,29 @@ class FileArtifact(Artifact, ABC):
 
     @property
     def name(self) -> str:
+        """ The name of the artifact's file """
         return self.data + '.' + self.ext
 
     @property
     def path(self) -> Path:
+        """ The file path of the file artifact. """
         return Path(self.name)
 
     def exists(self) -> bool:
+        """
+        Check if the file artifact exists.
+        """
         return self.path.exists()
 
     def validate(self):
+        """
+        Validate the file artifact.
+
+        Raises
+        ------
+        FileNotFoundError
+            If the file artifact does not exist.
+        """
         if not self.exists():
             raise FileNotFoundError(f"{self.path} not found")
     
@@ -278,23 +325,31 @@ class FileArtifactList(ArtifactList):
     data: list[FileArtifact] = field(default_factory=list)
 
     def append(self, item: FileArtifact) -> None:
+        """
+        Append a FileArtifact to the list.
+
+        Raises
+        ------
+        TypeError
+            If the item is not a FileArtifact.
+        """
         if not isinstance(item, FileArtifact):
             raise TypeError(f"Expected FileArtifact, got {type(item)}")
         super().append(item)
 
     def all_exist(self) -> bool:
         """
-        Check if all artifact files exist.
+        Check if all artifact files in the caller exist.
         """
         return all(artifact.exists() for artifact in self.data)
 
     def paths_to_list(self) -> list[Path]:
         """
-        Convert the list of artifact files to a list of their paths.
+        Convert the list of artifact files in the caller to a list of their paths.
         """
         return [artifact.path for artifact in self.data]
 
-    def make_tarball(self, basename: str, remove: bool = False) -> None:
+    def make_tarball(self, basename: str, remove: bool = False):
         """
         Create a tarball from the list of artifact files.
         
@@ -302,6 +357,8 @@ class FileArtifactList(ArtifactList):
         ----------
         basename : str
             The base name for the tarball file.
+        remove : bool
+            Whether to remove the original files after creating the tarball; default False.
         """
         if remove:
             remove_files = []
@@ -322,7 +379,6 @@ class FileArtifactList(ArtifactList):
                     logger.warning(f"Failed to remove {f}: {e}")
             for a in remove_artifacts:
                 self.remove(a)
-        return
 
 @dataclass
 class StateArtifacts(Artifact):
@@ -331,12 +387,19 @@ class StateArtifacts(Artifact):
     corresponding to the same state.
     """
     key: str = 'state'
+    """ The key identifying the state artifacts; 'state' by default. """
     description: str = "Set of congruent topology/coordinate/system files"
+    """ A brief description of the state artifacts. """
     psf: PSFFileArtifact | None = None
+    """ The PSF file artifact. """
     pdb: PDBFileArtifact | None = None
+    """ The PDB file artifact. """
     coor: NAMDCoorFileArtifact | None = None
+    """ The coordinate file artifact. """
     vel: NAMDVelFileArtifact | None = None
+    """ The velocity file artifact. """
     xsc: NAMDXscFileArtifact | None = None
+    """ The XSC file artifact. """
 
     def to_list(self) -> list[FileArtifact]:
         """
@@ -352,49 +415,48 @@ class StateArtifacts(Artifact):
 @dataclass
 class TXTFileArtifact(FileArtifact):
     """
-    Represents a text file artifact.
+    A text file artifact.
     """
     description: str = "Text file"
     ext: str = 'txt'
-    package: bool = False
     mime_type: str = 'text/plain'
 
 @dataclass
 class CharmmffTopFileArtifact(TXTFileArtifact):
     """
-    Represents a toplevel CHARMM force field topology file.
+    A toplevel CHARMM force field topology file artifact.
     """
     description: str = "CHARMM force field topology file"
     ext: str = 'rtf'
-    package: bool = False
-
+    
 @dataclass
 class CharmmffParFileArtifact(TXTFileArtifact):
     """
-    Represents a toplevel CHARMM force field parameter file.
+    A toplevel CHARMM force field parameter file artifact.
     """
     description: str = "CHARMM force field parameter file"
     ext: str = 'prm'
-    package: bool = False
 
 @dataclass
 class CharmmffStreamFileArtifact(TXTFileArtifact):
     """
-    Represents a CHARMM force field stream file.
+    A CHARMM force field stream file artifact.
     """
     description: str = "CHARMM force field stream file"
     ext: str = 'str'
-    package: bool = False
-    stream: str = ''
+    # stream: str = ''
 
 @dataclass
 class CharmmffTopFileArtifacts(FileArtifactList):
     """
-    Represents CHARMM force field topology files.
+    A collection of CHARMM force field topology file artifacts.
     """
     description: str = "CHARMM force field topology files"
     
     def append(self, item: CharmmffTopFileArtifact) -> None:
+        """
+        Append a CHARMM force field topology file artifact to the collection.
+        """
         if not isinstance(item, CharmmffTopFileArtifact):
             raise TypeError(f"Expected CharmmffTopFileArtifact, got {type(item)}")
         super().append(item)
@@ -402,11 +464,14 @@ class CharmmffTopFileArtifacts(FileArtifactList):
 @dataclass
 class CharmmffParFileArtifacts(FileArtifactList):
     """
-    Represents CHARMM force field parameter files.
+    A collection of CHARMM force field parameter file artifacts.
     """
     description: str = "CHARMM force field parameter files"
 
     def append(self, item: CharmmffParFileArtifact) -> None:
+        """
+        Append a CHARMM force field parameter file artifact to the collection.
+        """
         if not isinstance(item, CharmmffParFileArtifact):
             raise TypeError(f"Expected CharmmffParFileArtifact, got {type(item)}")
         super().append(item)
@@ -414,11 +479,14 @@ class CharmmffParFileArtifacts(FileArtifactList):
 @dataclass
 class CharmmffStreamFileArtifacts(FileArtifactList):
     """
-    Represents CHARMM force field stream files.
+    A collection of CHARMM force field stream file artifacts.
     """
     description: str = "CHARMM force field stream files"
 
     def append(self, item: CharmmffStreamFileArtifact) -> None:
+        """
+        Append a CHARMM force field stream file artifact to the collection.
+        """
         if not isinstance(item, CharmmffStreamFileArtifact):
             raise TypeError(f"Expected CharmmffStreamFileArtifact, got {type(item)}")
         super().append(item)
@@ -426,70 +494,69 @@ class CharmmffStreamFileArtifacts(FileArtifactList):
 @dataclass
 class YAMLFileArtifact(TXTFileArtifact):
     """
-    Represents a YAML file artifact.
+    A YAML file artifact.
     """
     description: str = "YAML file"
     ext: str = 'yaml'
-    package: bool = False
+    mime_type: str = 'application/x-yaml'
 
 @dataclass
 class JSONFileArtifact(TXTFileArtifact):
     """
-    Represents a JSON file artifact.
+    A JSON file artifact.
     """
     description: str = "JSON file"
     ext: str = 'json'
-    package: bool = False
+    mime_type: str = 'application/json'
 
 @dataclass
 class TclScriptArtifact(TXTFileArtifact):
     """
-    Represents a Tcl script file artifact.
+    A Tcl script file artifact.
     """
     description: str = "Tcl script file"
     ext: str = 'tcl'
-    package: bool = False
+    mime_type: str = 'application/x-tcl'
 
 @dataclass
 class LogFileArtifact(TXTFileArtifact):
     """
-    Represents a log file artifact.
+    A generic log file artifact.
     """
     description: str = "Log file generated during task execution"
     ext: str = 'log'
-    package: bool = False
 
 @dataclass
 class PackmolLogFileArtifact(LogFileArtifact):
     """
-    Represents a Packmol log file artifact.
+    A Packmol log file artifact.
     """
     description: str = "Log file for Packmol execution"
 
 @dataclass
 class NAMDLogFileArtifact(LogFileArtifact):
     """
-    Represents a NAMD log file artifact.
+    A NAMD log file artifact.
     """
     description: str = "Log file for NAMD execution"
 
 class VMDLogFileArtifact(LogFileArtifact):
     """
-    Represents a VMD log file artifact.
+    A VMD log file artifact.
     """
     description: str = "Log file for VMD execution"
 
 @dataclass
 class PsfgenLogFileArtifact(VMDLogFileArtifact):
     """
-    Represents a psfgen log file artifact.
+    A psfgen log file artifact.
     """
     description: str = "Log file for psfgen execution"
 
 @dataclass
 class NAMDOutputFileArtifact(FileArtifact):
     """
-    Represents a NAMD output file artifact.
+    A generic binary NAMD output file artifact.
     """
     description: str = "Output file for NAMD execution"
     mime_type: str = 'application/octet-stream'
@@ -497,66 +564,62 @@ class NAMDOutputFileArtifact(FileArtifact):
 @dataclass
 class NAMDCoorFileArtifact(NAMDOutputFileArtifact):
     """
-    Represents a NAMD coordinate file artifact.
+    A NAMD binary coordinate file artifact.
     """
     description: str = "Binary coordinate file"
     ext: str = 'coor'
-    package: bool = True
 
 @dataclass
 class NAMDVelFileArtifact(NAMDOutputFileArtifact):
     """
-    Represents a NAMD velocity file artifact.
+    A NAMD binary velocity file artifact.
     """
     description: str = "Binary velocity file"
     ext: str = 'vel'
-    package: bool = True
 
 @dataclass
 class NAMDXscFileArtifact(LogFileArtifact):
     """
-    Represents a NAMD XSC file artifact.
+    A NAMD XSC file artifact.
     """
     description: str = "XSC file"
     ext: str = 'xsc'
-    package: bool = True
 
 @dataclass
 class NAMDXstFileArtifact(LogFileArtifact):
     """
-    Represents a NAMD XST file artifact.
+    A NAMD XST file artifact.
     """
     description: str = "XST file"
     ext: str = 'xst'
-    package: bool = False
-    mime_type: str = 'text/plain'
 
 @dataclass
 class NAMDDcdFileArtifact(NAMDOutputFileArtifact):
     """
-    Represents a NAMD DCD file artifact.
+    A NAMD binary DCD file artifact.
     """
     description: str = "Binary DCD file"
     ext: str = 'dcd'
-    package: bool = False
 
 @dataclass
 class PDBFileArtifact(TXTFileArtifact):
     """
-    Represents a base PDB file artifact.
+    A generic PDB file artifact.
     """
     description: str = "PDB file"
     ext: str = 'pdb'
-    package: bool = True
 
 @dataclass
 class PDBFileArtifactList(FileArtifactList):
     """
-    Represents a list of PDB files.
+    A list of PDB file artifacts.
     """
     description: str = "List of PDB files"
 
     def append(self, item: PDBFileArtifact) -> None:
+        """
+        Append a PDB file artifact to the list.
+        """
         if not isinstance(item, PDBFileArtifact):
             raise TypeError(f"Expected PDBFileArtifact, got {type(item)}")
         super().append(item)
@@ -564,25 +627,23 @@ class PDBFileArtifactList(FileArtifactList):
 @dataclass
 class CIFFileArtifact(TXTFileArtifact):
     """
-    Represents a CIF file artifact.
+    A CIF file artifact.
     """
     description: str = "CIF file"
     ext: str = 'cif'
-    package: bool = False
 
 @dataclass
 class PQRFileArtifact(TXTFileArtifact):
     """
-    Represents a PQR file artifact.
+    A PQR file artifact (output generated by pdb2pqr).
     """
     description: str = "PQR file"
     ext: str = 'pqr'
-    package: bool = False
 
 @dataclass
 class PSFFileArtifact(TXTFileArtifact):
     """
-    Represents a PSF file artifact.
+    A PSF file artifact.
     """
     description: str = "PSF file"
     ext: str = 'psf'
@@ -591,99 +652,86 @@ class PSFFileArtifact(TXTFileArtifact):
 @dataclass
 class VMDScriptArtifact(TclScriptArtifact):
     """
-    Represents a VMD script file artifact.
+    A VMD script file artifact.
     """
     description: str = "VMD script file"
-    package: bool = False
 
 @dataclass
 class PsfgenInputScriptArtifact(VMDScriptArtifact):
     """
-    Represents a PSFgen input script artifact.
+    A PSFgen input script artifact.
     """
     description: str = "PSFgen input script"
-    package: bool = False
 
 @dataclass
 class NAMDConfigFileArtifact(TclScriptArtifact):
     """
-    Represents a NAMD configuration file artifact.
+    A NAMD configuration file artifact.
     """
     description: str = "NAMD configuration file"
     ext: str = 'namd'
-    package: bool = True
 
 @dataclass
 class NAMDColvarsConfigArtifact(JSONFileArtifact):
     """
-    Represents a NAMD Colvars configuration file artifact.
-    This class is used to store the configuration file for NAMD Colvars, which contains the parameters and settings for collective variables in the molecular dynamics simulation.
-    The NAMD Colvars configuration file is typically a text file with commands and parameters for the NAMD Colvars tool.
+    A NAMD Colvars configuration file artifact.
     """
     description: str = "NAMD Colvars configuration file"
     ext: str = 'in'
-    package: bool = False
 
 @dataclass
 class PackmolInputScriptArtifact(TXTFileArtifact):
     """
-    Represents a Packmol input script artifact.
+    A Packmol input script artifact.
     """
     description: str = "Packmol input script"
     ext: str = 'inp'
-    package: bool = False
 
 @dataclass
 class NAMDColvarsTrajectoryArtifact(LogFileArtifact):
     """
-    Represents a NAMD Colvars trajectory output file artifact.
+    A NAMD Colvars trajectory output file artifact.
     """
     description: str = "NAMD Colvars trajectory output file"
     ext: str = 'colvars.traj'
-    package: bool = False
 
 @dataclass
 class NAMDColvarsStateArtifact(LogFileArtifact):
     """
-    Represents a NAMD Colvars state output file artifact.
+    A NAMD Colvars state output file artifact.
     """
     description: str = "NAMD Colvars state output file"
     ext: str = 'colvars.state'
-    package: bool = False
 
 @dataclass
 class InputFileArtifact(TXTFileArtifact):
     """
-    Represents a generic input file artifact.
+    A generic input file artifact.
     """
     description: str = "Generic input file"
     ext: str = 'inp'
-    package: bool = False
     
 @dataclass
 class DataFileArtifact(TXTFileArtifact):
     """
-    Represents a data file artifact.
+    A generic data file artifact.
     """
     description: str = "Data file"
     ext: str = 'dat'
-    package: bool = False
 
 @dataclass
 class CSVDataFileArtifact(DataFileArtifact):
     """
-    Represents a CSV data file artifact.
+    A CSV data file artifact.
     """
     description: str = "CSV data file"
     ext: str = 'csv'
-    package: bool = False
 
 @dataclass
 class PNGImageFileArtifact(FileArtifact):
     """
-    Represents a PNG image file artifact.
+    A PNG image file artifact.
     """
     description: str = "PNG image file"
     ext: str = 'png'
-    package: bool = False
     mime_type: str = 'image/png'

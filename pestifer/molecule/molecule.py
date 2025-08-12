@@ -457,7 +457,7 @@ class Molecule:
         cm=self.chainIDmanager
         topomods=self.objmanager.get('topol',{})
         for clv in clv_list:
-            S=au.segments.get(chainID=clv.chainID)
+            S=au.segments.get(lambda x: x.chainID == clv.chainID)
             if S:
                 DchainID=cm.next_unused_chainID()
                 D=S.cleave(clv,DchainID)
@@ -465,23 +465,23 @@ class Molecule:
 
                 ssbonds=topomods.get('ssbonds',[])
                 if ssbonds:
-                    for c in ssbonds.filter(chainID1=S.segname):
-                        for d in D.residues.filter(resid=c.resid1):
+                    for c in ssbonds.filter(lambda x: x.chainID1 == S.segname):
+                        for d in D.residues.filter(lambda x: x.resid == c.resid1):
                             c.chainID1=d.chainID
-                    for c in ssbonds.filter(chainID2=S.segname):
-                        for d in D.residues.filter(resid=c.resid2):
+                    for c in ssbonds.filter(lambda x: x.chainID2 == S.segname):
+                        for d in D.residues.filter(lambda x: x.resid == c.resid2):
                             c.chainID2=d.chainID
                 links=topomods.get('links',[])
                 if links:
                     logger.debug(f'Examining {len(links)} links for ones needing chainID update from {S.segname} to {DchainID} due to cleavage')
-                    for c in links.filter(chainID1=S.segname):
+                    for c in links.filter(lambda x: x.chainID1 == S.segname):
                         logger.debug(f'...link {str(c)}')
-                        for d in D.residues.filter(resid=c.resid1):
+                        for d in D.residues.filter(lambda x: x.resid == c.resid1):
                             logger.debug(f'...hit! {c.chainID1}->{d.chainID}')
                             c.update_residue(1,chainID=d.chainID)
-                    for c in links.filter(chainID2=S.segname):
+                    for c in links.filter(lambda x: x.chainID2 == S.segname):
                         logger.debug(f'...link {str(c)}')
-                        for d in D.residues.filter(resid=c.resid2):
+                        for d in D.residues.filter(lambda x: x.resid == c.resid2):
                             logger.debug(f'...hit! {c.chainID2}->{d.chainID}')
                             c.update_residue(2,chainID=d.chainID)
                     for c in links:

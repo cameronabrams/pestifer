@@ -144,10 +144,10 @@ class VMDScripter(TcLScripter):
             uCIDs = residues.uniqattrs(['chainID'])['chainID']
             self.comment('Resetting chains and resids for this CIF-source molecule')
             for c in uCIDs:
-                chain: ResidueList = residues.filter(chainID=c)
+                chain: ResidueList = residues.filter(lambda x: x.chainID == c)
                 resids = []
                 for x in chain.data:
-                    resids.extend([str(y.resseqnum) for y in x.atoms])
+                    resids.extend([str(y.resid.resid) for y in x.atoms])
                 residlist = ' '.join(resids)
                 serials = chain.atom_serials(as_type=int)
                 vmd_red_list = reduce_intlist(serials)

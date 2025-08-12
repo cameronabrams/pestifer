@@ -1,5 +1,5 @@
 import unittest
-from pestifer.util.stringthings import ByteCollector, FileCollector, to_latex_math
+from pestifer.util.stringthings import ByteCollector, FileCollector, to_latex_math, parse_filter_expression
 
 class TestStringthings(unittest.TestCase):
 
@@ -48,3 +48,23 @@ class TestStringthings(unittest.TestCase):
         s='a_x'
         res=to_latex_math(s)
         self.assertEqual(res,r'a$_{x}$')
+
+    def test_parse_filter_expression(self):
+        class MockObject:
+            def __init__(self, **kwargs):
+                self.__dict__.update(kwargs)
+
+        expr = "segtype == 'protein' and resid > 100"
+        filter_func = parse_filter_expression(expr)
+        self.assertTrue(filter_func(MockObject(segtype='protein', resid=150)))
+        self.assertFalse(filter_func(MockObject(segtype='lipid', resid=50)))
+
+        expr = "(segtype == 'protein' and resid > 100) or (segtype == 'lipid' and resid < 50)"
+        filter_func = parse_filter_expression(expr)
+        self.assertTrue(filter_func(MockObject(segtype='protein', resid=150)))
+        self.assertTrue(filter_func(MockObject(segtype='lipid', resid=25)))
+
+        expr = "resname == 'PO4'"
+        filter_func = parse_filter_expression(expr)
+        self.assertTrue(filter_func(MockObject(resname='PO4')))
+        self.assertFalse(filter_func(MockObject(resname='PO5')))

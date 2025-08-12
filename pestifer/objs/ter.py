@@ -124,5 +124,7 @@ class TerList(BaseObjList[Ter]):
             return cls([])
         # logger.debug(f'Reading from {[repr(p) for p in parsed[Ter._PDB_keyword]]}')
         L = cls([Ter(p) for p in parsed[Ter._PDB_keyword] if (model_id is None or p.model == model_id)])
-        L._has_serials = any(x.serial is not None for x in L)
         return L
+
+    def has_serials(self):
+        return any(x.serial is not None for x in self)

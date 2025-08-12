@@ -377,26 +377,35 @@ directives:
               - name: cif_residue_map_file
                 text: name of output file to write a mapping of CIF chain-residue number to author chain-residue number-insertion
                 type: str
+              - name: include
+                text: Logical expressions used in series to specify those atoms to be included
+                type: list
+                required: False
               - name: exclude
-                text: Specifies any residues or atoms present in the PDB source to exclude from the system
-                type: dict
-                directives:
-                  - name: chains
-                    text: Specify list of chain IDs to ignore; in PDB-format input, these are typically author-generated, while in mmCIF they are not.  You must use chain IDs that reference your chosen coordinate file input format.
-                    type: list
-                    required: False
-                  - name: resnames
-                    text: Specify list of resnames to ignore; good for excluding waters or ions or small molecules.  Resnames must reference your chosen coordinate input file.
-                    type: list
-                    required: False
-                  - name: resseqnums
-                    text: Specify list of resseqnums to ignore
-                    type: list
-                    required: False
-                  - name: altlocs
-                    text: Specify list of altlocs to ignore; good for excluding alternate conformations
-                    type: list
-                    required: False
+                text: Logical expressions used in parallel to specify those atoms to be excluded
+                type: list
+                required: False
+                # directives:
+                #   - name: vmdatomselections
+                #     text: List of VMD atomselection logical strings to identify atoms to exclude
+                #     type: list
+                #     required: False
+                #   - name: chains
+                #     text: Specify list of chain IDs to ignore; in PDB-format input, these are typically author-generated, while in mmCIF they are not.  You must use chain IDs that reference your chosen coordinate file input format.
+                #     type: list
+                #     required: False
+                #   - name: resnames
+                #     text: Specify list of resnames to ignore; good for excluding waters or ions or small molecules.  Resnames must reference your chosen coordinate input file.
+                #     type: list
+                #     required: False
+                #   - name: resseqnums
+                #     text: Specify list of resseqnums to ignore
+                #     type: list
+                #     required: False
+                #   - name: altlocs
+                #     text: Specify list of altlocs to ignore; good for excluding alternate conformations
+                #     type: list
+                #     required: False
                 docs:
                   text: |
                     This is a dictionary that specifies any residues or atoms present in the PDB source to exclude from the system.  

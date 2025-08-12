@@ -25,13 +25,7 @@ tasks:
         cif_residue_map_file: cif2user.csv
         biological_assembly: 1
         exclude:
-          chains:
-            - G
-            - H
-            - I
-            - J
-            - K
-            - L
+          - chainID in ['G', 'H', 'I', 'J', 'K', 'L']  # mmCIF
         sequence:
           build_zero_occupancy_C_termini:
             - B
