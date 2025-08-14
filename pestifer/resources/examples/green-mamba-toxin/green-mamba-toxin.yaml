@@ -2,8 +2,9 @@
 #
 # pestifer input script
 # 
-# Green mamba toxin, demonstration of pdb2pqr usage
+# Fasciculin 1, demonstration of pdb2pqr usage
 #
+title: Fasciculin 1, an Anti-Acetylcholinesterase Toxin from Green Mamba Snake Venom
 tasks:
 - fetch:
     sourceID: 1fas
@@ -49,4 +50,3 @@ tasks:
       state_dir: r2r
       basename: prod_1fas
       ensemble: NPT
-title: Green mamba toxin

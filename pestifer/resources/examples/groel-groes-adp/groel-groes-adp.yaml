@@ -1,4 +1,5 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+title: Asymmetric GroEL/GroES Chaperonin Complex
 tasks:
 - fetch:
     sourceID: 1aon
@@ -35,7 +36,8 @@ tasks:
     - density
 - terminate:
     basename: my_1aon
+    archive_dir: arc
     package:
       basename: my_1aon
       ensemble: NPT
-title: Asymmetric GroEL/GroES Chaperonin Complex
+      state_dir: r2r

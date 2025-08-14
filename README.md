@@ -18,13 +18,13 @@ Once installed, the user has access to the main `pestifer` command.
 
 Pestifer also requires access to the following executables:
 
-1. `namd2` and `charmrun`
+1. `namd3` and `charmrun`
 2. `vmd` and `catdcd`
 3. `packmol`
 
 By default, pestifer looks for these commands in your path.  Specific paths for these can be stipulated in the `paths` directive of your input file.
 
-Pestifer **includes** the [July 2024 Charmm36 force field](https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_jul24.tgz).
+Pestifer **includes a copy of** the [July 2024 Charmm36 force field](https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_jul24.tgz).
 
 ## Documentation
 
@@ -38,7 +38,7 @@ See the [CHANGELOG](./CHANGELOG.md) for full details.
 
 [https://github.com/cameronabrams](https://github.com/cameronabrams/)
 
-Pestifer is maintained by Cameron F. Abrams 
+Pestifer is maintained by Cameron F. Abrams.
 
 Pestifer is distributed under the MIT license. See ``LICENSE`` for more information.
 

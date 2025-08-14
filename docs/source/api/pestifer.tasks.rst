@@ -29,3 +29,4 @@ Submodules
    pestifer.tasks.solvate
    pestifer.tasks.taskcollections
    pestifer.tasks.terminate
+   pestifer.tasks.validate

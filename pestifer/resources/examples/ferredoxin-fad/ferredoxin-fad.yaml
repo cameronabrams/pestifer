@@ -1,4 +1,5 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+title: Ferredoxin-NADP(H) Reductase from Rhodobacter capsulatus
 tasks:
 - fetch:
     sourceID: 2bgj
@@ -35,7 +36,8 @@ tasks:
     - density
 - terminate:
     basename: my_2bgj
+    archive_dir: arc
     package:
       basename: my_2bgj
       ensemble: NPT
-title: Ferredoxin-NADP(H) Reductase from Rhodobacter capsulatus
+      state_dir: r2r

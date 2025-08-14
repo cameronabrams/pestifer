@@ -38,8 +38,6 @@ class PsfgenTask(VMDTask):
     ----------
     config_specs : dict
         Configuration specifications for the task.
-    controller_specs : dict
-        Controller specifications for the task.
     """
 
     _yaml_header: ClassVar[str] = 'psfgen'

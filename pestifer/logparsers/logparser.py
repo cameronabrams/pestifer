@@ -2,9 +2,11 @@
 """ 
 Defines the :class:`LogParser` class and its subclasses for parsing log files from various applications used by Pestifer, such as NAMD and Packmol.
 """
-
+from __future__ import annotations
 import logging
 import time
+
+from pathlib import Path
 
 from ..util.progress import PestiferProgress
 from ..util.stringthings import ByteCollector
@@ -267,4 +269,21 @@ class VMDLogParser(LogParser):
         super().__init__()
         self.basename = basename
 
-    
+    @classmethod
+    def from_file(cls, filename: str | Path) -> VMDLogParser:
+        """
+        Create a VMDLogParser instance from a log file.
+        """
+        instance = cls()
+        instance.static(filename)
+        return instance
+
+    def collect_validation_results(self):
+        """
+        Collect validation results from the log data.
+        """
+        results = []
+        for line in self.byte_collector.splitlines():
+            if "PASS" in line or "FAIL" in line:
+                results.append(line)
+        return results

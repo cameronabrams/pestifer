@@ -33,8 +33,27 @@ tasks:
           - chainID == 'P'
       mods:
         patches:
-          - ASPP:A:25
-          - ASPP:B:25
+          - ASPP:A:29
+          - ASPP:B:29
+  - validate:
+      tests:
+        - residue_test:
+            name: chain P excluded
+            selection: chain P
+            measure: residue_count
+            value: 0
+        - attribute_test:
+            name: ASP29 is an ASP
+            selection: protein and chain A and resid 29 and name CA
+            attribute: resname
+            value: ASP
+            value_count: 1
+        - attribute_test:
+            name: ASP29 protonated on chain A
+            selection: protein and chain A and resid 29
+            attribute: name
+            value: HD2
+            value_count: 1
   - md:
       ensemble: minimize
   - solvate:

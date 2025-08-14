@@ -122,7 +122,9 @@ tasks:
       grid: True
   - terminate:
       basename: my_7xix
+      archive_dir: arc
       package:
         basename: prod_7xix
         nsteps: 10000000
         ensemble: NPT
+        state_dir: r2r

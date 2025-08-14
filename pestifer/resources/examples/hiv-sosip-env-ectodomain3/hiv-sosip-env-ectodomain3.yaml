@@ -29,6 +29,16 @@ tasks:
         sequence:
           build_zero_occupancy_C_termini: [B, D, F]
       mods:
+        mutations: # undo the SOSIP mutations on each protomer (cif resid)
+          - A:CYS,469,ALA
+          - C:CYS,469,ALA
+          - E:CYS,469,ALA
+          - B:PRO,48,ILE
+          - D:PRO,48,ILE
+          - F:PRO,48,ILE
+          - B:CYS,94,THR
+          - D:CYS,94,THR
+          - F:CYS,94,THR
         crotations:
           - alpha,B,33,52
           - alpha,B,144,153

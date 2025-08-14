@@ -20,6 +20,7 @@ from .psfgen import PsfgenTask
 from .ringcheck import RingCheckTask
 from .solvate import SolvateTask
 from .terminate import TerminateTask
+from .validate import ValidateTask
 
 task_classes: dict[str, type] = {
     'cleave': CleaveTask,
@@ -37,4 +38,5 @@ task_classes: dict[str, type] = {
     'ringcheck': RingCheckTask,
     'solvate': SolvateTask,
     'terminate': TerminateTask,
+    'validate': ValidateTask,
 }

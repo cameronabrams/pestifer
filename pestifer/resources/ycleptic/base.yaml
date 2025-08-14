@@ -1340,3 +1340,63 @@ directives:
                   - name: consfile
                     text: Name of constraints PDB file (defaults to basename-constraints.pdb)
                     type: string
+      - name: validate
+        text: Task enables VMD-based validation of PDB and PSF files
+        type: list
+        directives:
+          - name: tests
+            text: List of validation tests to run
+            type: list
+            directives:
+              - name: selection_test
+                text: Validate a selection of atoms in the system
+                type: dict
+                docs:
+                  text: |
+                    This test validates a selection of atoms in the system. It checks that the attribute of the selected atoms matches the expected value.
+                directives:
+                  - name: name
+                    text: User-selected name of this selection test
+                    type: string
+                  - name: selection
+                    text: VMD atomselection string defining the selection to be tested
+                    type: string
+                  - name: connection_type
+                    text: The type of connection to validate (e.g. "interresidue")
+                    type: string
+                    choices: [interresidue]
+                  - name: connection_count
+                    text: The expected number of connections in the selection
+                    type: int
+              - name: connection_test
+                text: Query the number of interatomic connections in a selection
+                type: dict
+                directives:
+                  - name: name
+                    text: User-selected name of this connection test
+                    type: string
+                  - name: selection
+                    text: VMD atomselection string defining the selection to be tested
+                    type: string
+                  - name: connection_type
+                    text: The type of connection to validate (e.g. "interresidue")
+                    type: string
+                  - name: connection_count
+                    text: The expected number of connections in the selection
+                    type: int
+              - name: residue_test
+                text: Validate a residue measure in the system
+                type: dict
+                directives:
+                  - name: name
+                    text: User-selected name of this residue test
+                    type: string
+                  - name: selection
+                    text: VMD atomselection string defining the selection to be tested
+                    type: string
+                  - name: measure
+                    text: Measure to apply to the selection (e.g. "count")
+                    type: string
+                  - name: value
+                    text: Expected value for the measure
+                    type: int

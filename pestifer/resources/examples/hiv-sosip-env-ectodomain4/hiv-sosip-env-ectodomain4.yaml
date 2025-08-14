@@ -21,12 +21,18 @@ tasks:
         biological_assembly: 1
         exclude:
           - chainID in ['C', 'H', 'L', 'E', 'K', 'N', 'F', 'M', 'O']
-        sequence:
-          loops:
-            declash:
-              maxcycles: 20
       mods:
-        substitutions:
+        mutations:  # undo the SOSIP mutations
+          - G:CYS,501,ALA
+          - I:CYS,501,ALA
+          - J:CYS,501,ALA
+          - B:PRO,559,ILE
+          - D:PRO,559,ILE
+          - F:PRO,559,ILE
+          - B:CYS,605,THR
+          - D:CYS,605,THR
+          - F:CYS,605,THR
+        substitutions: # stub out missing V1/2
           - G:131A-133T,GGG
           - I:131A-133T,GGG
           - J:131A-133T,GGG
@@ -74,6 +80,8 @@ tasks:
       grid: True
   - terminate:
       basename: my_5vn3
+      archive_dir: arc
       package:
         ensemble: NPT
         basename: prod_5vn3
+        state_dir: r2r

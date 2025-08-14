@@ -29,6 +29,29 @@ tasks:
           - A:MET,52,LEU
         ssbondsdelete:
           - A_5-A_55
+  - validate:
+      tests:
+        - attribute_test:
+            name: point mutation
+            selection: protein and chain A and resid 11 and name CA
+            attribute: resname
+            value: ALA
+        - attribute_test:
+            name: reduced disulfide
+            selection: protein and chain A and resid 5 55
+            attribute: name
+            value: HG1 # name of proton on sulfur in a cysteine
+            value_count: 2 # both cysteines should be reduced
+        - connection_test:
+            name: reduced disulfide
+            selection: protein and chain A and resid 5 55
+            connection_type: interresidue
+            connection_count: 0
+        - residue_test:
+            name: phosphate ion excluded
+            selection: resname PO4
+            measure: residue_count
+            value: 0
   - md:
       ensemble: minimize
   - solvate:

@@ -124,16 +124,17 @@ tasks:
         pressureProfileSlabs: 20
   - mdplot:
       timeseries:
+        - [cpu_time, wall_time]
         - density
-        - - a_x
-          - b_y
-          - c_z
+        - [a_x, b_y, c_z]
       profiles:
         - pressure
       basename: bilayer
   - terminate:
       basename: my_6e8w
+      archive_dir: arc
       package:
+        state_dir: r2r
         ensemble: NPAT
         basename: prod_6e8w
         firsttimestep: 0

@@ -27,7 +27,7 @@ tasks:
           A: [C, E] # gp120's
           B: [D, F] # gp41's
       mods:
-        mutations:  # undo the SOSIP mutations
+        mutations:  # undo the SOSIP mutations (CIF label numbering)
           - A:CYS,469,ALA
           - B:CYS,94,THR
           - B:PRO,48,ILE

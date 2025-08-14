@@ -11,13 +11,13 @@ import numpy as np
 from collections import UserDict, UserList
 from itertools import compress, batched
 
+from ..scripters import PsfgenScripter
 from ..util.stringthings import linesplit #, my_logger
 
 logger=logging.getLogger(__name__)
 
 class CharmmMassRecord:
     """ 
-    A single mass record from a CHARMM topology file.
     This class represents a single mass record from a CHARMM topology file.
     It contains the atom type, mass, and optionally the element symbol.
     The atom type is stored in uppercase, and the mass is stored as a float.
@@ -58,7 +58,6 @@ class CharmmMassRecord:
 
 class CharmmMasses(UserDict):
     """ 
-    A collection of CharmmMassRecord objects, indexed by atom type.
     This class is a dictionary-like object that stores CharmmMassRecord objects.
     It allows for easy retrieval of mass records by atom type.
     
@@ -66,6 +65,7 @@ class CharmmMasses(UserDict):
     ----------
     data : dict
         A dictionary mapping atom types to CharmmMassRecord objects.
+
     Methods
     -------
     get(atom_type, default=None)
@@ -78,7 +78,6 @@ class CharmmMasses(UserDict):
 
 class CharmmTopAtom:
     """ 
-    A single atom record from a CHARMM topology file.
     This class represents a single atom record from a CHARMM topology file.
     It contains the atom name, type, charge, mass, and optionally the element symbol.
     The atom name is stored in uppercase, and the type is also stored in uppercase.
@@ -136,7 +135,6 @@ class CharmmTopAtom:
 
     def set_mass(self, masses: CharmmMasses):
         """ 
-        Set the mass and element of the atom using a CharmmMasses object.
         This method retrieves the mass record for the atom type from the provided CharmmMasses object.
         If the atom type is found, it sets the mass and element
         attributes of the atom. If the atom type is not found, it logs an error and exits.
@@ -145,25 +143,27 @@ class CharmmTopAtom:
         ----------
         masses : list of CharmmMasses
             A CharmmMasses object containing mass records for atom types.
+
+        Raises
+        ------
+        ValueError
+            If the atom type is not found in the CharmmMasses object.
+        TypeError
+            If the masses parameter is not a CharmmMasses object.
         """
         
-        # logger.debug(f'setting mass for {self.name} ({self.type}) using type {type(masses)}')
         if isinstance(masses, CharmmMasses):
-            m = masses.get(self.type, None)
+            m: CharmmMassRecord = masses.get(self.type, None)
             if m is not None:
                 self.mass = m.atom_mass
                 self.element = m.atom_element
-                # logger.debug(f'setting mass of {self.name} ({self.type}) to {self.mass} and element to {self.element}')
             else:
-                logger.debug(f'no mass record for atom type {self.type} (raw {self.type})')
-                exit(-1)
+                raise ValueError(f'No mass record found for atom type {self.type}')
         else:
-            logger.error(f'Cannot set mass of {self.name} ({self.type}) from {type(masses)}')
-            exit(-1)
-    
+            raise TypeError(f'Cannot set mass of {self.name} ({self.type}) from {type(masses)}')
+
 class CharmmTopAtomList(UserList):
     """ 
-    A list of CharmmTopAtom objects, representing atoms in a CHARMM topology file.
     This class is a list-like object that stores CharmmTopAtom objects.
     It allows for easy iteration over the atoms and provides methods to retrieve atoms by name, mass, serial number, and element.
     """
@@ -179,29 +179,27 @@ class CharmmTopAtomList(UserList):
 
     def get_atom(self, name: str) -> CharmmTopAtom | None:
         """ 
-        Retrieve a CharmmTopAtom by name.
         This method searches for an atom by its name in the list of CharmmTopAtom objects.
         
         Parameters
         ----------
         name : str
             The name of the atom to retrieve.
+
         Returns
         -------
         CharmmTopAtom
             The CharmmTopAtom object with the specified name, or None if not found.
         """        
-        L = [x.name for x in self]
-        # logger.debug(f'looking for {name} in {L}')
+        L = [x.name for x in self.data]
         try:
             idx = L.index(name)
-            return self[idx]
+            return self.data[idx]
         except:
             return None
 
     def get_mass(self, name: str) -> float:
         """ 
-        Retrieve the mass of an atom by its name.
         This method searches for an atom by its name in the list of CharmmTopAtom objects
         and returns its mass. If the atom is not found or does not have a mass attribute, it returns 0.0.
         
@@ -273,8 +271,7 @@ class CharmmTopAtomList(UserList):
 
     def append(self, atom: CharmmTopAtom):
         """ 
-        Append a CharmmTopAtom to the list.
-        This method appends a CharmmTopAtom object to the list of atoms.
+        This method appends a CharmmTopAtom object to the caller.
         If the atom does not have a serial number, it assigns a new serial number based on the current length of the list.
         
         Parameters
@@ -282,13 +279,12 @@ class CharmmTopAtomList(UserList):
         atom : CharmmTopAtom
             The CharmmTopAtom object to append to the list.
         """
-        if not hasattr(atom, 'serial'):
+        if not hasattr(atom, 'serial') or atom.serial is None:
             atom.serial = len(self) + 1
         super().append(atom)
 
     def set_masses(self, masses: CharmmMasses):
         """ 
-        Set the mass of each atom in the list using a CharmmMasses object.
         This method iterates through all CharmmTopAtom objects in the list and sets their masses
         using the provided CharmmMasses object. It calls the `set_mass` method of each atom.
         
@@ -303,7 +299,6 @@ class CharmmTopAtomList(UserList):
 
 def charmmBonds(card: str, degree: int = 1) -> CharmmBondList:
     """ 
-    Parse a CHARMM bond record and return a CharmmBondList.
     This function takes a CHARMM bond record as a string and returns a CharmmBondList containing CharmmBond objects.
     
     Parameters
@@ -326,7 +321,6 @@ def charmmBonds(card: str, degree: int = 1) -> CharmmBondList:
 
 class CharmmBond:
     """ 
-    A single bond record from a CHARMM topology file.
     This class represents a single bond record from a CHARMM topology file.
     It contains the names of the two atoms that form the bond and the degree of the bond (single, double, or triple).
     The names are stored in uppercase, and the degree is stored as an integer.
@@ -346,7 +340,6 @@ class CharmmBond:
 
     def __eq__(self, other: CharmmBond):
         """ 
-        Check if two CharmmBond objects are equal.
         This method compares the names of the atoms in the bond, allowing for the order of the names to be reversed.
         It returns True if the names match in either order, and False otherwise.
         
@@ -366,7 +359,6 @@ class CharmmBond:
     
 class CharmmBondList(UserList):
     """ 
-    A list of CharmmBond objects, representing bonds in a CHARMM topology file.
     This class is a list-like object that stores CharmmBond objects.
     It allows for easy iteration over the bonds and provides methods to retrieve bonds by atom names.
     
@@ -380,13 +372,13 @@ class CharmmBondList(UserList):
 
 def charmmAngles(card: str) -> CharmmAngleList:
     """ 
-    Parse a CHARMM angle record and return a CharmmAngleList.
     This function takes a CHARMM angle record as a string and returns a CharmmAngleList containing CharmmAngle objects.
     
     Parameters
     ----------
     card : str
         A string representing a CHARMM angle record, which contains triplets of atom names.
+
     Returns
     -------
     CharmmAngleList
@@ -400,7 +392,6 @@ def charmmAngles(card: str) -> CharmmAngleList:
 
 class CharmmAngle:
     """ 
-    A single angle record from a CHARMM topology file.
     This class represents a single angle record from a CHARMM topology file.
     It contains the names of the three atoms that form the angle and the angle in degrees.
     The names are stored in uppercase, and the angle is stored as a float.
@@ -419,7 +410,6 @@ class CharmmAngle:
 
     def __eq__(self, other: CharmmAngle) -> bool:
         """ 
-        Check if two CharmmAngle objects are equal.
         This method compares the names of the atoms in the angle, allowing for the order of the names to be reversed.
         It returns True if the names match in either order, and False otherwise.
         
@@ -439,12 +429,20 @@ class CharmmAngle:
         return r1 and (c1 or c2)
 
 class CharmmAngleList(UserList):
+    """ 
+    This class is a list-like object that stores CharmmAngle objects.
+    It allows for easy iteration over the angles and provides methods to retrieve angles by atom names.
+
+    Attributes
+    ----------
+    data : list
+        A list of CharmmAngle objects representing the angles in a CHARMM topology file.
+    """
     def __init__(self, data: list[CharmmAngle]):
         self.data = data
 
 def charmmDihedrals(card: str, dihedral_type: str = 'proper') -> CharmmDihedralList:
     """ 
-    Parse a CHARMM dihedral record and return a CharmmDihedralList.
     This function takes a CHARMM dihedral record as a string and returns a CharmmDihedralList containing CharmmDihedral objects.
     
     Parameters
@@ -467,7 +465,6 @@ def charmmDihedrals(card: str, dihedral_type: str = 'proper') -> CharmmDihedralL
 
 class CharmmDihedral:
     """ 
-    A single dihedral record from a CHARMM topology file.
     This class represents a single dihedral record from a CHARMM topology file.
     It contains the names of the four atoms that form the dihedral and the dihedral type (proper or improper).
     The names are stored in uppercase, and the dihedral type is stored as a string.
@@ -491,7 +488,6 @@ class CharmmDihedral:
 
     def __eq__(self, other: CharmmDihedral) -> bool:
         """ 
-        Check if two CharmmDihedral objects are equal.
         This method compares the names of the atoms in the dihedral and the dihedral type.
         It returns True if the names match in the order they are defined and the dihedral types are the same, and False otherwise.
         
@@ -512,13 +508,21 @@ class CharmmDihedral:
         return l1 == l2
 
 class CharmmDihedralList(UserList):
+    """ 
+    This class is a list-like object that stores CharmmDihedral objects.
+    It allows for easy iteration over the dihedrals and provides methods to retrieve dihedrals by atom names.
+
+    Attributes
+    ----------
+    data : list
+        A list of CharmmDihedral objects representing the dihedrals in a CHARMM topology file.
+    """
     def __init__(self, data: list[CharmmDihedral]):
         self.data = data
 
 class CharmmTopIC:
     """ 
-    A single internal coordinate (IC) record from a CHARMM topology file.
-    This class represents a single internal coordinate record from a CHARMM topology file.
+    This class represents a single internal coordinate (IC) record from a CHARMM topology file.
     It contains the names of the four atoms that define the internal coordinate, the lengths of the bonds, the angles, and the dihedral angle.
     The names are stored in uppercase, and the lengths, angles, and dihedral angle are stored as floats.
     
@@ -593,7 +597,6 @@ class CharmmTopIC:
 
 class CharmmTopDelete:
     """ 
-    A single delete atom record from a CHARMM topology file.
     This class represents a single delete atom record from a CHARMM topology file.
     It contains the atom name to be deleted and an optional comment.
     The atom name is stored in uppercase, and the comment is stored as a string.
@@ -623,8 +626,7 @@ class CharmmTopDelete:
 
 class CharmmTopResi:
     """ 
-    A single residue record from a CHARMM topology file.
-    This class represents a single residue record from a CHARMM topology file.
+    This class represents a single residue record (RESI) from a CHARMM topology file.
     It contains the residue name, charge, synonym, and a list of atoms, bonds,
     internal coordinates (ICs), and delete atoms associated with the residue.
     The residue name is stored in uppercase, and the charge is stored as a float.
@@ -743,9 +745,8 @@ class CharmmTopResi:
             D = CharmmTopDelete(card)
             self.Delete.append(D)
 
-    def copy_ICs_from(self, other):
+    def copy_ICs_from(self, other: CharmmTopResi):
         """ 
-        Copy internal coordinates (ICs) from another CharmmTopResi object.
         This method copies the internal coordinates from another CharmmTopResi object to the current object.
         It checks if the atoms in the ICs exist in the current object's atom dictionary.
         If any atom in the IC is not found in the current object's atom dictionary, it logs an error and sets the error code to -5.
@@ -765,12 +766,11 @@ class CharmmTopResi:
             else:
                 self.IC.append(IC)
 
-    def set_masses(self, masses):
+    def set_masses(self, masses: CharmmMasses):
         """ 
-        Set the mass of each atom in the residue using a CharmmMasses object.
         This method iterates through all CharmmTopAtom objects in the residue and sets their masses
-        using the provided CharmmMasses object. It calls the `set_mass` method of each atom.
-        
+        using the provided CharmmMasses object. It calls the :meth:`~pestifer.charmmff.charmmfftop.CharmmTopAtom.set_mass` method of each atom.
+
         Parameters
         ----------
         masses : CharmmMasses
@@ -792,7 +792,6 @@ class CharmmTopResi:
 
     def formula(self):
         """ 
-        Return the empirical chemical formula of the residue.
         This method constructs an empirical chemical formula string based on the elements present in the atoms of the residue.
         It counts the occurrences of each element and formats the string according to the standard chemical notation.
         The elements are sorted in a predefined order (C, H, N, O, P, and then others).
@@ -823,7 +822,6 @@ class CharmmTopResi:
 
     def mass(self):
         """ 
-        Return the total mass of the residue.
         This method calculates the total mass of the residue by summing the masses of all atoms in the residue.
         It iterates through the atoms and adds their masses to a cumulative sum.
         
@@ -839,10 +837,9 @@ class CharmmTopResi:
 
     def to_graph(self, includeH: bool = True):
         """ 
-        Convert the residue to a networkx graph representation.
-        This method creates a networkx graph from the bonds in the residue.
+        This method creates a :class:`networkx.Graph` instance from the bonds in the residue.
         It adds edges between atoms based on the bonds, and assigns the element of each atom as a node attribute.
-        If `includeH` is set to True, hydrogen atoms are included in the graph; otherwise, they are excluded.
+        If parameter `includeH` is True, hydrogen atoms are included in the graph; otherwise, they are excluded.
         
         Parameters
         ----------
@@ -855,7 +852,7 @@ class CharmmTopResi:
             A networkx graph representing the residue, with atoms as nodes and bonds as edges. Each node has an 'element' attribute representing the element of the atom.
         """
         g = nx.Graph()
-        for b in self.bonds:
+        for b in self.bonds.data:
             node1 = b.name1
             node2 = b.name2
             # logger.debug(f'bond {node1} {node2}')
@@ -876,7 +873,6 @@ class CharmmTopResi:
     
     def lipid_annotate(self):
         """ 
-        Annotate the residue as a lipid.
         This method performs lipid-specific annotation based on the metadata of the residue.
         It checks the `streamID` and `substreamID` in the metadata to determine
         the type of lipid and calls the appropriate annotation method.
@@ -901,7 +897,6 @@ class CharmmTopResi:
     
     def model_annotate(self):
         """ 
-        Annotate the residue as a model compound.
         This method initializes the `annotation` attribute with empty heads, tails, and shortest paths.
         It is a placeholder and does not perform any specific operations.
         """
@@ -912,7 +907,6 @@ class CharmmTopResi:
 
     def sterol_annotate(self):
         """ 
-        Annotate the residue as a sterol (cholesterol).
         This method identifies the head and tail of the sterol based on the carbon atoms in the residue.
         It constructs a graph representation of the residue and finds the carbon atom to which the hydroxyl oxygen is bound as the head.
         The tail is determined as the carbon atom furthest away from the head.
@@ -940,7 +934,6 @@ class CharmmTopResi:
 
     def detergent_annotate(self):
         """ 
-        Annotate the residue as a detergent.
         This method identifies the head and tail of the detergent based on the carbon atoms in the residue.
         It constructs a graph representation of the residue and finds the carbon atom to which the hydroxyl oxygen is bound as the head.
         The tail is determined as the carbon atom furthest away from the head.
@@ -1006,7 +999,6 @@ class CharmmTopResi:
 
     def generic_lipid_annotate(self):
         """ 
-        Annotate the residue as a generic lipid.
         This method identifies the heads and tails of the lipid based on the carbon atoms in the residue.
         It constructs a graph representation of the residue and finds carbon chains (tails) by removing edges
         that, when removed, produce two fragments: one containing only carbons (tail) and the other containing at least one oxygen (head).
@@ -1113,7 +1105,6 @@ class CharmmTopResi:
 
     def to_file(self, f):
         """ 
-        Write the residue record to a file.
         This method writes the residue record to a file object.
         It writes the title card with the residue name, charge, and synonym,
         followed by the atom, bond, internal coordinate, and delete atom records.
@@ -1128,7 +1119,6 @@ class CharmmTopResi:
 
     def show_error(self, buf):
         """ 
-        Show an error message if the residue record has an error.
         This method checks the error code of the residue record and writes an error message to the provided buffer if the error code is not 0.
         It provides specific error messages based on the error code value.
         
@@ -1140,14 +1130,14 @@ class CharmmTopResi:
         if self.error_code == -5:
             buf(f'{self.resname} references atoms in IC\'s that are not declared at ATOM\'s')
 
-    def to_psfgen(self, W, **kwargs):
+    def to_psfgen(self, W: PsfgenScripter, **kwargs):
         """ 
         Generate the psfgen script necessary to build the residue as as standalone molecule to generate its PSF/PDB.
         
         Parameters
         ----------
-        W : PSFGENWriter
-            A PSFGENWriter object to which the residue record will be written in PSFGEN format.
+        W : PsfgenScripter
+            A PsfgenScripter object to which the residue record will be written in PSFGEN format.
         **kwargs : dict
             Additional keyword arguments that can be passed to the method.
             
@@ -1163,7 +1153,6 @@ class CharmmTopResi:
         refatom = None
         refic = None
         logger.debug(f'trying to find a reference atom from {len(self.atoms)} atoms in this resi')
-        i = 0
         try:
             is_proper = [((not x.empty) and (x.dihedral_type == 'proper') and (not any([self.atomdict[a].element == 'H' for a in x.atoms]))) for x in self.IC]
         except:

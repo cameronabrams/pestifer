@@ -25,6 +25,28 @@ tasks:
           - A:V34C
         ssbonds:
           - A_11-A_34  # now ligation!
+  - validate:
+      tests:
+        - attribute_test:
+            name: point mutation
+            selection: protein and chain A and resid 11 and name CA
+            attribute: resname
+            value: CYS
+        - attribute_test:
+            name: point mutation
+            selection: protein and chain A and resid 34 and name CA
+            attribute: resname
+            value: CYS
+        - connection_test:
+            name: new disulfide
+            selection: protein and chain A and resid 11 34
+            connection_type: interresidue
+            connection_count: 1 # should be one disulfide bond now
+        - residue_test:
+            name: phosphate ion excluded
+            selection: resname PO4
+            measure: residue_count
+            value: 0
   - md:
       ensemble: minimize
   - solvate:

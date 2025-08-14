@@ -20,10 +20,6 @@ tasks:
         biological_assembly: 1
         exclude:
           - chainID in ['A', 'B', 'C', 'D'] 
-        sequence:
-          loops:
-            declash:
-              maxcycles: 0
       mods:
         crotations: # some fine-tuning to ease ligation
           - phi,E,657,693,120
@@ -68,6 +64,8 @@ tasks:
       grid: True
   - terminate:
       basename: my_4zxb
+      archive_dir: arc
       package:
         ensemble: NPT
         basename: prod_4zxb
+        state_dir: r2r

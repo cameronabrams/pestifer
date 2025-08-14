@@ -1,5 +1,5 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
-""" 
+"""
 Defines the Segment class for generating and managing segments declared for psfgen
 """
 from typing import ClassVar, List, TYPE_CHECKING
@@ -31,12 +31,12 @@ class Segment(BaseObj):
     This class represents a segment defined by a list of residue indices and provides methods to check if a bond intersects the segment.
     It also provides methods to yield treadmilled versions of the segment and to check for equality with another segment.
     """
-    _required_fields = {'segtype', 'segname', 'chainID', 
-                        'residues', 'subsegments', 'parent_chain', 
+    _required_fields = {'segtype', 'segname', 'chainID',
+                        'residues', 'subsegments', 'parent_chain',
                         'specs'}
-    _optional_fields = {'mutations', 'deletions', 'grafts', 'patches', 
+    _optional_fields = {'mutations', 'deletions', 'grafts', 'patches',
                         'attachments', 'psfgen_segname', 'objmanager', 'parent_molecule'}
-    
+
     segtype: str = Field(..., description="The type of the segment (e.g., 'protein', 'nucleicacid', 'glycan').")
     segname: str = Field(..., description="The name of the segment as it is understood by psfgen and in a PSF file.")
     chainID: str = Field(..., description="The chain ID associated with the segment.")
@@ -62,7 +62,7 @@ class Segment(BaseObj):
 
     @classmethod
     def _adapt(cls, *args, **kwargs) -> dict:
-        if args: 
+        if args:
             segname_override = kwargs.pop('segname', 'UNSET')
             specs = kwargs.pop('specs', {})
             if isinstance(args[0], Residue):
@@ -141,7 +141,7 @@ class Segment(BaseObj):
     def set_parent_molecule(self, parent_molecule):
         """
         Set the parent molecule for this segment.
-        
+
         Parameters
         ----------
         parent_molecule : object
@@ -152,7 +152,7 @@ class Segment(BaseObj):
     def cleave(self, clv:CleavageSite, daughter_chainID):
         """
         Cleave the segment at a specified cut location, creating a daughter segment.
-        
+
         Parameters
         ----------
         clv : Cleavage
@@ -204,7 +204,7 @@ class SegmentList(BaseObjList[Segment]):
     def generate(cls, seq_spec: dict = {}, residues: ResidueList = [], chainIDmanager: ChainIDManager = None):
         """
         Generate a SegmentList from a sequence specification and a list of residues.
-        
+
         Parameters
         ----------
         seq_spec : dict
@@ -213,7 +213,7 @@ class SegmentList(BaseObjList[Segment]):
             A list of residues to be processed into segments.
         chainIDmanager : ChainIDManager
             An object managing chain IDs to ensure uniqueness.
-        
+
         Returns
         -------
         SegmentList
@@ -272,7 +272,7 @@ class SegmentList(BaseObjList[Segment]):
                 self._segnames.append(thisSeg.segname)
                 self._counters_by_segtype[stype] += 1
         return self
-    
+
     def collect_residues(self):
         """
         Collect all residues from the segments in the list.
@@ -329,7 +329,7 @@ class SegmentList(BaseObjList[Segment]):
     def remove(self, item):
         """
         Remove a segment from the list and update associated attributes.
-        
+
         Parameters
         ----------
         item : Segment
@@ -340,45 +340,58 @@ class SegmentList(BaseObjList[Segment]):
         return super().remove(item)
 
     def prune_topology(self, mutations: MutationList, links: LinkList, ssbonds: SSBondList):
-        """ 
-        Prunes links, ssbonds, and even whole segments based on mutations 
+        """
+        Prunes links, ssbonds, and even whole segments based on mutations
         """
         pruned_objects = {'residues': ResidueList([]), 'links': LinkList([]), 'ssbonds': SSBondList([]), 'segments': SegmentList([])}
-        for mutation in mutations.data:
-            bad_ssbonds: SSBondList = ssbonds.filter(lambda x: (x.chainID1 == mutation.chainID and x.resid1 == mutation.resid) or (x.chainID2 == mutation.chainID and x.resid2 == mutation.resid))
-            logger.debug(f'Pruning ssbonds for mutation {mutation}: {len(bad_ssbonds)} ssbonds found: {[str(s) for s in bad_ssbonds]}')
-            if bad_ssbonds:
-                for bond in bad_ssbonds:
-                    ssbonds.remove(bond)
-                    pruned_objects['ssbonds'].append(bond)
-            bad_links: LinkList = links.filter(lambda x: (x.chainID1 == mutation.chainID and x.resid1 == mutation.resid) or (x.chainID2 == mutation.chainID and x.resid2 == mutation.resid))
-            logger.debug(f'Pruning links for mutation {mutation}: {len(bad_links)} links found: {[str(l) for l in bad_links]}')
-            if bad_links:
-                Allres, Alllin = ResidueList([]), LinkList([])  
-                for link in bad_links.data:
-                    links.remove(link)
-                    pruned_objects['links'].append(link)
-                    res, lin = link.residue2.get_down_group()
-                    Allres.extend(res)
-                    Allres.insert(0, link.residue2)
-                    Alllin.extend(lin)
-                logger.debug(f'Found downstream residues for mutation {mutation}: {[f"{r.chainID}:{r.resname}_{r.resid.resid}" for r in Allres]}, links: {[str(l) for l in Alllin]}')
-                if Allres:
-                    logger.debug(f'Deleting residues down from and including {str(Allres[0])} due to a mutation')
-                    S = self.get_segment_of_residue(Allres[0])
-                    logger.debug(f'Segment {S.segname} contains residues that must be deleted because they are downstream (right) of a deleted link.')
-                    for r in Allres:
-                        logger.debug(f'...{str(r)}')
-                        S.residues.remove(r)
-                        pruned_objects['residues'].append(r)
-                    if len(S.residues) == 0:
-                        logger.debug(f'All residues of {S.segname} are deleted; {S.segname} is deleted')
-                        self.remove(S)
-                        pruned_objects['segments'].append(S)
-                if Alllin:
-                    for l in Alllin:
-                        links.remove(l)
-                        pruned_objects['links'].append(l)
+
+        bad_ssbonds = SSBondList([])
+        for ssbond in ssbonds.data:
+            mutation1 = mutations.get(lambda x: x.chainID == ssbond.chainID1 and x.resid == ssbond.resid1)
+            mutation2 = mutations.get(lambda x: x.chainID == ssbond.chainID2 and x.resid == ssbond.resid2)
+            logger.debug(f'Checking disulfide bond {ssbond} for mutations...')
+            logger.debug(f'   mutation1: {mutation1}, mutation2: {mutation2}')
+            if mutation1 and mutation1.newresname != 'CYS':
+                bad_ssbonds.append(ssbond)
+            elif mutation2 and mutation2.newresname != 'CYS':
+                bad_ssbonds.append(ssbond)
+
+        for ssbond in bad_ssbonds.data:
+            ssbonds.remove(ssbond)
+            pruned_objects['ssbonds'].append(ssbond)
+
+        bad_links = LinkList([])
+        for link in links.data:
+            mutation1 = mutations.get(lambda x: x.chainID == link.chainID1 and x.resid == link.resid1)
+            mutation2 = mutations.get(lambda x: x.chainID == link.chainID2 and x.resid == link.resid2)
+            if mutation1 or mutation2:
+                bad_links.append(link)
+
+        if len(bad_links) > 0:
+            Allres, Alllin = ResidueList([]), LinkList([])
+            for link in bad_links.data:
+                links.remove(link)
+                pruned_objects['links'].append(link)
+                res, lin = link.residue2.get_down_group()
+                Allres.extend(res)
+                Allres.insert(0, link.residue2)
+                Alllin.extend(lin)
+            if Allres:
+                logger.debug(f'Deleting residues down from and including {str(Allres[0])} due to a mutation')
+                S = self.get_segment_of_residue(Allres[0])
+                logger.debug(f'Segment {S.segname} contains residues that must be deleted because they are downstream (right) of a deleted link.')
+                for r in Allres:
+                    logger.debug(f'...{str(r)}')
+                    S.residues.remove(r)
+                    pruned_objects['residues'].append(r)
+                if len(S.residues) == 0:
+                    logger.debug(f'All residues of {S.segname} are deleted; {S.segname} is deleted')
+                    self.remove(S)
+                    pruned_objects['segments'].append(S)
+            if Alllin:
+                for l in Alllin:
+                    links.remove(l)
+                    pruned_objects['links'].append(l)
         return pruned_objects
             # llist, rlist = [], []
 
@@ -429,7 +442,7 @@ class SegmentList(BaseObjList[Segment]):
         Inherit objects from the object manager for each segment in the list.
         This method updates the object manager for each segment with inherited objects
         such as mutations, grafts, and patches.
-        
+
         Parameters
         ----------
         objmanager : ObjectManager

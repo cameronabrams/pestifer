@@ -29,8 +29,10 @@ tasks:
     grid: True
 - terminate:
     basename: my_mcm
+    archive_dir: arc
     package:
       basename: my_mcm
+      state_dir: r2r
       ensemble: npt
       nsteps: 1000000
       firsttimestep: 0

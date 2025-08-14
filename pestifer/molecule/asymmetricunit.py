@@ -163,6 +163,8 @@ class AsymmetricUnit:
         links.extend(userlinks)
 
         userssbonds = topomods.get('ssbonds', SSBondList([]))
+        for u in userssbonds:
+            logger.debug(f'Adding user-specified ssbond {u}')
         ssbonds.extend(userssbonds)
 
         userpatches = topomods.get('patches', PatchList([]))

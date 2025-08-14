@@ -25,14 +25,11 @@ tasks:
         transform_reserves:
           G: [H,J]
           B: [C,D]
-        sequence:
-          loops:
-            declash:
-              maxcycles: 20
-          glycans:
-            declash:
-              maxcycles: 0 # no need to declash since we are not building any
       mods:
+        mutations:  # undo the SOSIP mutations
+          - G:CYS,501,ALA
+          - B:PRO,559,ILE
+          - B:CYS,605,THR
         crotations:
           - psi,B,546,568,-180.0
           - phi,B,547,568,-60.0

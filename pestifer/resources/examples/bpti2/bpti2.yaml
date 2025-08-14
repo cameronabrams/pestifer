@@ -18,6 +18,13 @@ tasks:
       source:
         exclude:
           - resname == 'PO4'
+  - validate:
+      tests:
+        - residue_test:
+            name: phosphate ion excluded
+            selection: resname PO4
+            measure: residue_count
+            value: 0
   - md:
       ensemble: minimize
   - solvate:

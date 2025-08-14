@@ -159,11 +159,13 @@ class BaseTask(ABC):
         self.result = self.do()
         if self.result == 0:
             msg = 'complete'
-            if self.extra_message:
-                msg += f' ({self.extra_message})'
-            self.log_message(msg)
         else:
-            logger.error(f'Task {self.taskname} failed with result {self.result}')
+            msg = 'failed'
+        if self.extra_message:
+            msg += f' ({self.extra_message})'
+        self.log_message(msg)
+        return self.result
+        
 
     def stash_current_artifact(self, key):
         """

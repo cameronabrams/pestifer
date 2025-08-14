@@ -41,6 +41,7 @@ intersphinx_mapping = {
     'ycleptic': ('https://ycleptic.readthedocs.io/en/latest/', None),
     'pidibble': ('https://pidibble.readthedocs.io/en/latest/', None),
     'numpy': ('https://numpy.org/doc/stable/', None),
+    'networkx': ('https://networkx.org/documentation/stable/', None)
 }
 intersphinx_disabled_domains = ['std']
 
