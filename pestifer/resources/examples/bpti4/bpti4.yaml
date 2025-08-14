@@ -57,6 +57,8 @@ tasks:
       grid: True
   - terminate:
       basename: my_6pti
+      archive_dir: arc
       package:
+        state_dir: r2r
         ensemble: NPT
         basename: prod_6pti

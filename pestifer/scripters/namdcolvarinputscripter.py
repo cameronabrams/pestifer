@@ -1,4 +1,4 @@
-
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
 import logging
 
 from copy import deepcopy
@@ -11,7 +11,7 @@ from ..molecule.atom import AtomList
 
 logger = logging.getLogger(__name__)
 
-class NAMDColvarInputScripter(GenericScripter):
+class NAMDColvarInputScripter(GenericScripter):  # TODO: refactor as a JSONScripter
 
     def __init__(self, *args, **kwargs):
         """

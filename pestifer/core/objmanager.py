@@ -151,7 +151,8 @@ class ObjManager(UserDict[str, UserDict[str, BaseObjList]]):
         if type(input_obj) in [tup[0] for tup in self._obj_classes]:  # an obj class
             self._ingest_obj(input_obj)
         elif type(input_obj) in [tup[1] for tup in self._obj_classes]:  # a list class
-            return self._ingest_objlist(input_obj, overwrite=overwrite)
+            logger.debug(f'Ingesting {type(input_obj)} of length {len(input_obj)}')
+            self._ingest_objlist(input_obj, overwrite=overwrite)
         elif type(input_obj) == dict:
             self._ingest_objdict(input_obj, overwrite=overwrite)
         elif type(input_obj) == list and len(input_obj) == 0:  # a blank call
@@ -173,23 +174,19 @@ class ObjManager(UserDict[str, UserDict[str, BaseObjList]]):
         logger.debug(f'Ingested {str(a_obj)} into {objcat} {header}')
 
     def _ingest_objlist(self, a_objlist, overwrite=False):
-        if len(a_objlist) == 0:  # can handle an empty list...
-            return a_objlist  # ...by returning it
         LCls = type(a_objlist)
         Cls = LCls._item_type
         objcat = Cls._objcat
         header = Cls._yaml_header
+        logger.debug(f'Ingesting {LCls.__name__} with header {header} into {objcat}')
         if not objcat in self:
-            self[objcat]={}
+            self[objcat] = {}
         if overwrite or not header in self[objcat]:
-            self[objcat][header]=LCls()
+            self[objcat][header] = LCls()
         self[objcat][header].extend(a_objlist)
-        return self[objcat][header]
 
     def _ingest_objdict(self, objdict: dict, overwrite=False):
         # does nothing if objdict is empty, but let's just be sure
-        if len(objdict) == 0:
-            return
         for objYAMLname, objlist in objdict.items():
             Cls = self._obj_classes_byYAML.get(objYAMLname, None)
             LCls = self._objlist_classes_byYAML.get(objYAMLname, None)

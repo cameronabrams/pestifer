@@ -27,9 +27,9 @@ from ..scripters import PsfgenScripter, PackmolScripter
 from ..util.util import cell_to_xsc,cell_from_xsc, protect_str_arg
 from ..util.units import _UNITS_
 
-sA2_=_UNITS_['SQUARE-ANGSTROMS']
+sA2_ = _UNITS_['SQUARE-ANGSTROMS']
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 class MakeMembraneSystemTask(BaseTask):
     """ 
@@ -456,12 +456,12 @@ class MakeMembraneSystemTask(BaseTask):
             raise RuntimeError(f'psfgen failed with result {result} for {self.basename}')
         self.register(PsfgenLogFileArtifact(self.basename))
         self.register(StateArtifacts(psf=PSFFileArtifact(self.basename), pdb=PDBFileArtifact(self.basename), xsc=NAMDXscFileArtifact(self.basename)), key='state')
-        charmmff_paramfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_paramfiles')
-        if charmmff_paramfiles is None:
-            self.register('charmmff_paramfiles', [])
-            charmmff_paramfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_paramfiles')
+        charmmff_parfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_parfiles')
+        if charmmff_parfiles is None:
+            self.register('charmmff_parfiles', [])
+            charmmff_parfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_parfiles')
         for pf in self.quilt.addl_streamfiles:
-            charmmff_paramfiles.append(pf, unique=True)
+            charmmff_parfiles.append(pf, unique=True)
         return result
 
     

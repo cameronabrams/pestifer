@@ -27,10 +27,7 @@ tasks:
         exclude:
           - chainID in ['G', 'H', 'I', 'J', 'K', 'L']  # mmCIF
         sequence:
-          build_zero_occupancy_C_termini:
-            - B
-            - D
-            - F
+          build_zero_occupancy_C_termini: [B, D, F]
       mods:
         crotations:
           - alpha,B,33,52
@@ -89,6 +86,8 @@ tasks:
       grid: True
   - terminate:
       basename: my_7txd
+      archive_dir: arc
       package:
         ensemble: NPT
         basename: prod_7txd
+        state_dir: r2r

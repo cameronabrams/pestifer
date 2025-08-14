@@ -4,16 +4,9 @@ Defines the :class:`LogParser` class and its subclasses for parsing log files fr
 """
 
 import logging
-import os
-import re
 import time
-import yaml
 
-import numpy as np
-import pandas as pd
-import matplotlib.pyplot as plt
-
-from ..util.progress import PestiferProgress, NAMDProgress
+from ..util.progress import PestiferProgress
 from ..util.stringthings import ByteCollector
 
 logger = logging.getLogger(__name__)

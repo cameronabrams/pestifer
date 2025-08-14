@@ -20,6 +20,7 @@ extensions = [
     'sphinx.ext.duration',
     'sphinx.ext.doctest',
     'sphinx.ext.autodoc',
+    # 'autodoc2',
     'sphinx.ext.autosummary',
     'sphinx.ext.intersphinx',
     'sphinx_copybutton',
@@ -27,6 +28,10 @@ extensions = [
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
 ]
+
+# autodoc2_packages = [
+#     '../../pestifer',
+# ]
 
 autosummary_generate = True  # Enable autosummary tables
 
@@ -40,8 +45,6 @@ intersphinx_mapping = {
 intersphinx_disabled_domains = ['std']
 
 templates_path = ['_templates']
-
-
 
 # -- Options for HTML output
 

@@ -3,7 +3,7 @@
 """
 A class for handling artifacts in the Pestifer core. Artifacts are files or 
 data generated during the execution of tasks and are managed by the 
-:ref:`~pestifer.core.pipeline.PipelineContext`.
+:class:`~pestifer.core.pipeline.PipelineContext`.
 """
 from __future__ import annotations
 from abc import ABC, abstractmethod
@@ -349,7 +349,7 @@ class FileArtifactList(ArtifactList):
         """
         return [artifact.path for artifact in self.data]
 
-    def make_tarball(self, basename: str, remove: bool = False):
+    def make_tarball(self, basename: str, remove: bool = False, arcname_prefix: str = None):
         """
         Create a tarball from the list of artifact files.
         
@@ -366,7 +366,11 @@ class FileArtifactList(ArtifactList):
         with tarfile.open(f"{basename}.tar.gz", "w:gz") as tar:
             for artifact in self.data:
                 if artifact.exists():
-                    tar.add(artifact.path, arcname=artifact.path.name)
+                    if arcname_prefix is None:
+                        arcname = artifact.path.name
+                    else:
+                        arcname = os.path.join(arcname_prefix, artifact.path.name)
+                    tar.add(artifact.path, arcname=arcname)
                     if remove:
                         remove_files.append(artifact.path)
                         remove_artifacts.append(artifact)

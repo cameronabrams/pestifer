@@ -6,13 +6,14 @@
 #
 # Notes:
 #   - Missing protein is built-in
-#   - Sulfate ion and Fab chains are excluded
-#   - mmCIF input file requires careful attention to chainIDs and
-#     residue numbers
+#   - Fab chains are excluded (along with their associated waters and sulfate ions)
+#   - Sulfate ions and waters associated with gp120 and gp41 are retained
+#   - Glycan stems are retained
+#   - mmCIF format numbering is used (this is different from HXB2 numbering)
 #   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_4tvp.tgz
 #
-title: Closed, PGT122/35O22-Liganded HIV-1 BG505 Env SOSIP.664 Trimer (ligands removed)
+title: Closed, PGT122/35O22-Liganded HIV-1 BG505 Env SOSIP.664 Trimer (Fabs removed)
 tasks:
   - fetch:
       sourceID: 4tvp
@@ -20,16 +21,33 @@ tasks:
   - psfgen:
       source:
         biological_assembly: 1
-        exclude:
-          - resname == 'SO4'
-          - chainID in ['C', 'D', 'E', 'F', 'H']  # mmCIF
+        exclude: # the four fab chains, the one fab glycan, and waters and sulfates associated with fabs
+          - chainID in ['C', 'D', 'E', 'F', 'LA', 'KA', 'OA', 'PA', 'QA', 'RA']
+        transform_reserves:
+          A: [C, E] # gp120's
+          B: [D, F] # gp41's
+      mods:
+        mutations:  # undo the SOSIP mutations
+          - A:CYS,469,ALA
+          - B:CYS,94,THR
+          - B:PRO,48,ILE
+        crotations: # reporient the modeled-in chain to avoid clashes
+          - psi,B,35,57,-180
+          - phi,B,35,57,-60
+          - phi,B,39,57,-30
   - md:
       ensemble: minimize
+      nsteps: 3000
+  - md:
+      ensemble: NVT
+      nsteps: 2000
   - ligate:
       steer:
-        nsteps: 4000
+        force_constant: 10
+        nsteps: 6000
   - md:
-      ensemble: minimize  
+      ensemble: minimize
+      nsteps: 3000
   - md:
       cpu-override: True
       ensemble: NVT
@@ -61,6 +79,8 @@ tasks:
       grid: True
   - terminate:
       basename: my_4tvp
+      archive_dir: arc
       package:
         ensemble: NPT
         basename: prod_4tvp
+        state_dir: r2r

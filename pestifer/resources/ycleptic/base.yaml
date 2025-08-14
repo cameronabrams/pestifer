@@ -333,25 +333,6 @@ directives:
             text: Specifies the source of the initial coordinate file
             type: dict
             directives:
-              # - name: prebuilt
-              #   text: PSF and PDB file of a previously built system
-              #   type: dict
-              #   directives:
-              #     - name: psf
-              #       text: name of psf file (includes psf extension)
-              #       type: str
-              #     - name: pdb
-              #       text: name of pdb file (includes pdb extension)
-              #       type: str
-              #     - name: xsc
-              #       text: name of xsc file (includes xsc extension)
-              #       type: str
-              # - name: id 
-              #   text: The 4-character PDB ID of the source or the basename of a local coordinate file (PDB or mmCIF format); pestifer will download from the RCSB if a file is not found
-              #   type: str
-              # - name: alphafold
-              #   type: str
-              #   text: If set, its value signifies an accession code used to download a model from the AlphaFold database. If either prebuilt or id are set, this directive is ignored
               - name: biological_assembly 
                 text: integer index of the biological assembly to construct; default is 0, signifying that the asymmetric unit is to be used
                 type: int
@@ -369,55 +350,22 @@ directives:
               - name: model
                 text: model number to use if there are multiple models in the file
                 type: int
-              # - name: file_format
-              #   text: either PDB or mmCIF; some entries do not have a PDB-format file.  The main advantage of PDB is that it uses the author-designations for chains by default.  mmCIF is the new "default" format of the PDB.
-              #   type: str
-              #   choices: [PDB, mmCIF]
-              #   default: PDB
               - name: cif_residue_map_file
                 text: name of output file to write a mapping of CIF chain-residue number to author chain-residue number-insertion
                 type: str
               - name: include
-                text: Logical expressions used in series to specify those atoms to be included
+                text: Logical expressions involving atom attributes used in series to specify those atoms to be included
                 type: list
                 required: False
-              - name: exclude
-                text: Logical expressions used in parallel to specify those atoms to be excluded
-                type: list
-                required: False
-                # directives:
-                #   - name: vmdatomselections
-                #     text: List of VMD atomselection logical strings to identify atoms to exclude
-                #     type: list
-                #     required: False
-                #   - name: chains
-                #     text: Specify list of chain IDs to ignore; in PDB-format input, these are typically author-generated, while in mmCIF they are not.  You must use chain IDs that reference your chosen coordinate file input format.
-                #     type: list
-                #     required: False
-                #   - name: resnames
-                #     text: Specify list of resnames to ignore; good for excluding waters or ions or small molecules.  Resnames must reference your chosen coordinate input file.
-                #     type: list
-                #     required: False
-                #   - name: resseqnums
-                #     text: Specify list of resseqnums to ignore
-                #     type: list
-                #     required: False
-                #   - name: altlocs
-                #     text: Specify list of altlocs to ignore; good for excluding alternate conformations
-                #     type: list
-                #     required: False
                 docs:
-                  text: |
-                    This is a dictionary that specifies any residues or atoms present in the PDB source to exclude from the system.  
-                    You can specify chains, resnames, resseqnums, and altlocs to ignore.  If you specify a chain, all residues in that chain will be ignored.  
-                    If you specify a resname, all residues with that resname will be ignored.  If you specify a resseqnum, all residues with that resseqnum will be ignored.  
-                    If you specify an altloc, all residues with that altloc will be ignored.  This is useful for excluding stabilizing ligands (like antibody fragments) or small molecules for which a CHARMM36 topology does not exists.  (The latter can be handled outside Pestifer using, for example, CGenFF.)
                   example:
-                    exclude:
-                      chains: [A, B]
-                      resnames: [YYZ, 888]
-                      resseqnums: [100, 101, 102]
-                      altlocs: [A, B]
+                   - chainID == 'A'
+                   - resname == 'GLY'
+                   - chainID in ['A', 'B']
+              - name: exclude
+                text: Logical expressions involving atom attributes used in parallel to specify those atoms to be excluded
+                type: list
+                required: False
               - name: sequence
                 text: Parameters controlling sequence modifications based on specifications in the PDB source
                 type: dict
@@ -437,11 +385,11 @@ directives:
                   - name: fix_engineered_mutations
                     text: Specifies whether or not sequence differences w.r.t. a sequence database and which are labeled as "engineered mutation"s are reverted to their database values
                     type: bool
-                    default: True 
+                    default: False
                   - name: fix_conflicts 
                     text: Specifies whether or not sequence differences w.r.t. a sequence database and which are labeled as "conflicts"s are reverted to their database values
                     type: bool
-                    default: True          
+                    default: False          
                   - name: loops
                     text: Parameters controlling model-built loops during psfgen
                     type: dict
@@ -461,7 +409,7 @@ directives:
                           - name: maxcycles
                             text: Maximum number of Metropolis cycles
                             type: int
-                            default: 20
+                            default: 0
                           - name: include_C_termini
                             text: Flag to indicate if model-built C-terminal loops should be declashed
                             type: bool
@@ -481,7 +429,7 @@ directives:
                           - name: maxcycles
                             text: Maximum number of Metropolis cycles
                             type: int
-                            default: 20
+                            default: 0
                           - name: clashdist
                             text: interatomic distance threshold for clashes in Angstroms
                             type: float
@@ -495,10 +443,10 @@ directives:
                 type: list
                 docs:
                   example:
-                      mutations:
-                        - C:F32A
-                        - A:TRP100ARG
-                        - B:K50M
+                    mutations:
+                      - C:F32A
+                      - A:TRP,100,ARG
+                      - B:K50M
               - name: ssbonds
                 text: additional ssbonds, expressed as shortcodes; e.g., C_154-A_298 to add an ssbond between resids 154 of chain C and 298 of chain A.  Note that the indicated residues must by CYS's.  If they are not, you should include each in a mutation shortcode in the mutations list
                 type: list
@@ -1301,6 +1249,9 @@ directives:
         text: Task that signals end of task list
         type: dict
         directives:
+          - name: archive_dir
+            text: Specifies the directory to which all files generated by the tasks in this list will be archived in the tarball if cleanup is True
+            type: str
           - name: cleanup
             text: Specifies whether or not to clean up temporary files
             type: bool
@@ -1322,6 +1273,9 @@ directives:
             type: dict
             required: False
             directives:
+              - name: state_dir
+                text: directory name prepended to all files in the final state tarball
+                type: str
               - name: basename
                 text: Desired basename for final tarball and the files within
                 type: str

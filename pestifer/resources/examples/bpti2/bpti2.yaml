@@ -8,7 +8,7 @@
 #   - The phospate ion is excluded, but all crystal waters are retained
 #   - Solution has 0.154 M NaCl
 #   - A five-phase NPT equilibration is used to settle the density
-#   - A production tarball is generated: prod_6pti.tgz
+#   - A production tarball is generated: prod_6pti.tgz rooted in directory ready-to-run
 #
 title: BPTI with phosphate ion excluded in salty solution
 tasks:
@@ -50,6 +50,8 @@ tasks:
       grid: True
   - terminate:
       basename: my_6pti
+      archive_dir: archive
       package:
+        state_dir: ready-to-run
         ensemble: NPT
         basename: prod_6pti

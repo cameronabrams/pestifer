@@ -89,9 +89,12 @@ class MDTask(VMDTask):
         if not state.psf or not state.pdb:
             raise RuntimeError(f'No PSF or PDB file found for task {self.taskname}')
         prior_charmmff_parfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_parfiles')
+        prior_charmmff_streamfiles: CharmmffStreamFileArtifacts = self.get_current_artifact('charmmff_streamfiles')
         prior_paramfiles = []
         if prior_charmmff_parfiles:
             prior_paramfiles = [x.name for x in prior_charmmff_parfiles]
+        if prior_charmmff_streamfiles:
+            prior_paramfiles.extend([x.name for x in prior_charmmff_streamfiles])
         firsttimestep = self.get_current_artifact_data('firsttimestep')
         if not firsttimestep:
             firsttimestep = 0

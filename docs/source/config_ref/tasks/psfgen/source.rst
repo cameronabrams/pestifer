@@ -19,14 +19,36 @@ Single-valued parameters:
 
   * ``cif_residue_map_file``: name of output file to write a mapping of CIF chain-residue number to author chain-residue number-insertion
 
+  * ``include``: Logical expressions used in series to specify those atoms to be included
+
+  * ``exclude``: Logical expressions used in parallel to specify those atoms to be excluded
+
+    Example:
+
+    .. code-block:: yaml
+    
+       exclude:
+         chains:
+         - A
+         - B
+         resnames:
+         - YYZ
+         - 888
+         resseqnums:
+         - 100
+         - 101
+         - 102
+         altlocs:
+         - A
+         - B
 
 
-Subdirectives:
+
+Subdirective:
 
 .. toctree::
    :maxdepth: 1
 
-   source/exclude
    source/sequence
 
 

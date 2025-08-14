@@ -9,7 +9,7 @@
 #   - All crystal waters are retained
 #   - Some selected mutations are performed, showcasing two 
 #     shortcode formats
-#   - A disulfide is removed
+#   - A disulfide is reduced
 #   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_6pti.tgz
 #
@@ -61,6 +61,8 @@ tasks:
       grid: True
   - terminate:
       basename: my_6pti
+      archive_dir: my_archive
       package:
+        state_dir: ready-to-run
         ensemble: NPT
         basename: prod_6pti

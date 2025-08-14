@@ -12,9 +12,7 @@ import shutil
 import yaml
 import os
 
-from pathlib import Path
-
-from .md import MDTask
+from .mdtask import MDTask
 from ..core.artifacts import *
 from ..molecule.molecule import Molecule
 
@@ -65,6 +63,7 @@ class TerminateTask(MDTask):
         Create a package for a production NAMD run starting from the end of the build.
         """
         package_specs = self.specs.get('package', {})
+        state_dir = package_specs.get('state_dir', '.')
         if not package_specs:
             logger.debug('No package specifications provided; packaging will not be performed.')
             return 0
@@ -91,7 +90,7 @@ class TerminateTask(MDTask):
             TarballContents.append(self.get_current_artifact('consref'))
         TarballContents.extend(self.get_current_artifact_data('charmmff_parfiles'))
         TarballContents.extend(self.get_current_artifact_data('charmmff_streamfiles'))
-        TarballContents.make_tarball(self.basename)
+        TarballContents.make_tarball(self.basename, arcname_prefix=state_dir)
         return result
 
     def cleanup(self):
@@ -99,7 +98,7 @@ class TerminateTask(MDTask):
         if not self.specs.get('cleanup', True):
             logger.debug('Cleanup disabled; skipping cleanup step.')
             return 0
-
+        archive_dir = self.specs.get('archive_dir', 'archive')  
         ArtifactContents = FileArtifactList()
 
         all_my_artifacts = self.pipeline.get_artifact_collection_as_lists()
@@ -129,5 +128,5 @@ class TerminateTask(MDTask):
 
         logger.debug(f'Non-artifact files in current working directory: {non_artifact_files}')
 
-        ArtifactContents.make_tarball('artifacts', remove=True)
+        ArtifactContents.make_tarball('artifacts', remove=True, arcname_prefix=archive_dir)
         return 0

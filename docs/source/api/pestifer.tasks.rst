@@ -21,8 +21,8 @@ Submodules
    pestifer.tasks.ligate
    pestifer.tasks.make_membrane_system
    pestifer.tasks.manipulate
-   pestifer.tasks.md
    pestifer.tasks.mdplot
+   pestifer.tasks.mdtask
    pestifer.tasks.pdb2pqr
    pestifer.tasks.psfgen
    pestifer.tasks.ringcheck

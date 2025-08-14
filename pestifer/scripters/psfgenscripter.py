@@ -3,7 +3,6 @@
 import logging
 import os
 
-from .genericscripter import GenericScripter
 from .vmdscripter import VMDScripter
 
 from ..core.command import Command
@@ -316,6 +315,7 @@ class PsfgenScripter(VMDScripter):
                     lrr = segment.residues[b.bounds[1]]
                     sac_resid = lrr.resid.increment()
                     b.sacres = Residue({'resname': sac_rn, 'resid': sac_resid, 'chainID': seglabel, 'segtype': segtype, 'resolved': False, 'atoms': AtomList([])})
+                    logger.debug(f'Adding sac residue {str(b.sacres)}')
                     self.addline(f'residue {sac_resid.resid} {sac_rn} {image_seglabel}', indents=1)
         for cf in seg_Cfusions.data:
             self.write_cfusion_insegment(cf)
@@ -356,7 +356,7 @@ class PsfgenScripter(VMDScripter):
         if segtype == 'protein':
             for i, b in enumerate(segment.subsegments):
                 # only non-terminal loops get the terminal patches
-                if b.state == 'MISSING' and 0 < i < (len(segment.subsegments) - 1) and hasattr(b, 'sacres'):
+                if b.state == 'MISSING' and 0 < i < (len(segment.subsegments) - 1) and b.sacres is not None:
                     Cterm = segment.residues[b.bounds[1]]
                     self.addline(f'patch CTER {image_seglabel}:{Cterm.resid.resid}')
                     nextb = segment.subsegments[i + 1]
@@ -367,6 +367,7 @@ class PsfgenScripter(VMDScripter):
                     elif Nterm.resname == 'GLY':
                         patchname = 'GLYP'
                     self.addline(f'patch {patchname} {image_seglabel}:{Nterm.resid.resid}')
+                    logger.debug(f'deleting sacrificial residue {str(b.sacres)}')
                     self.addline(f'delatom {image_seglabel} {b.sacres.resid.resid}')
         self.banner('Restoring A.U. state for all resolved subsegments')
         for b in segment.subsegments:

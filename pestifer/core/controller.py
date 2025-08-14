@@ -57,6 +57,8 @@ class Controller:
             # If the last task is not a TerminateTask, add one with default specs
             specs = self.config.make_default_specs('tasks','terminate')
             specs['taskname'] = 'terminate'
+            specs['index'] = len(self.tasks)
+            specs['cleanup'] = False
             logger.debug('Adding default terminate task')
             self.tasks.append(TerminateTask(specs=specs))
 

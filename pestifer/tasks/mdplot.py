@@ -16,7 +16,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 
 from .basetask import BaseTask
-from .md import MDTask
+from .mdtask import MDTask
 from ..util.units import g_per_amu,A3_per_cm3
 from ..logparsers import NAMDLogParser
 from ..util.stringthings import to_latex_math

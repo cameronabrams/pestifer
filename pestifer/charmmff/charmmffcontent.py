@@ -7,31 +7,35 @@ import logging
 import os
 import re
 import tarfile
+
 from .charmmfftop import CharmmMassRecord, CharmmMasses, CharmmTopResi
 from .pdbrepository import PDBRepository
+
 from ..core.labels import Labels
 
 logger = logging.getLogger(__name__)
 
 def parse_conditional_script(script_text):
-    """ 
+    """
     Parse a conditional script text and return a dictionary with parsed lines and variables.
+
     This function processes a script that contains conditional statements and variable assignments.
     It supports 'set' commands to define variables and 'if' statements to conditionally execute blocks of code.
-    
+
     This function was written by ChatGPT 4o.
 
     Parameters
     ----------
     script_text : str
         The script text to parse, which may contain 'set', 'if', and 'endif' statements.
+        
     Returns
     -------
     dict
         A dictionary with two keys:
 
-        - ``parsed``: a string containing the processed script text with comments and conditionals resolved.
-        - ``vars``: a dictionary of variables defined in the script.
+            - ``parsed``: a string containing the processed script text with comments and conditionals resolved.
+            - ``vars``: a dictionary of variables defined in the script.
     """
 
     lines = script_text.strip().splitlines()
@@ -89,11 +93,12 @@ def parse_conditional_script(script_text):
             output.append(line)
 
         i += 1
-    return dict(parsed="\n".join(output),vars=vars)
+    return dict(parsed="\n".join(output), vars=vars)
 
 def extract_resi_pres_blocks(text, keywords=('RESI', 'PRES')):
     """ 
     Extract blocks of text starting with RESI or PRES and ending before the next RESI, PRES, ATOMS, or EOF.
+
     This function uses a regular expression to find blocks of text that start with the specified keywords
     and continue until the next occurrence of one of the keywords or the end of the file.
     
@@ -102,12 +107,14 @@ def extract_resi_pres_blocks(text, keywords=('RESI', 'PRES')):
     text : str
         The input text from which to extract the blocks.
     keywords : tuple of str, optional
-        The keywords that indicate the start of a block. Default is (``RESI``, ``PRES``).
+        The keywords that indicate the start of a block. 
+        Defaults to (``RESI``, ``PRES``).
 
     Returns
     -------
     list of str
-        A list of strings, each containing a block of text that starts with one of the specified keywords.
+        A list of strings, each containing a block of text that starts with one 
+        of the specified keywords.
     """
     
     keyword_pattern = '|'.join(re.escape(k) for k in keywords)
@@ -130,33 +137,42 @@ def extract_mass_lines(file_contents):
     """
     return [line for line in file_contents.splitlines() if line.strip().upper().startswith("MASS")]
 
-# When copying a parameter file into a NAMD run directory, lines that begin with these keywords are removed
-comment_these_out = ['set', 'if', 'WRNLEV', 'BOMLEV', 'return', 'endif']
 
 class CHARMMFFContent:
-    """ 
-    A class for handling all CHARMM force field content.  
-    
-    The CHARMM force field is stored in a tarball downloaded directly from the `MacKerell lab at the University of Maryland <https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_jul24.tgz>`_.
-    
+    """
+    Handles all CHARMM force field content.
+
+    The CHARMM force field is stored in a tarball downloaded directly from the
+    MacKerell lab at the University of Maryland:
+    https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_jul24.tgz
+
+    Parameters
+    ----------
+    charmmff_path : str, optional
+        Path to the directory containing the CHARMM force field files. Default is current directory.
+    tarfilename : str, optional
+        Name of the tarball file containing the CHARMM force field files. Default is 'toppar_c36_jul24.tgz'.
+    user_custom_directory : str, optional
+        Path to a custom directory containing additional CHARMM files. Default is None.
+
     Attributes
     ----------
     charmmff_path : str
-        The path to the directory containing the CHARMM force field files.
+        Path to the directory containing the CHARMM force field files.
     tarfilename : str
-        The name of the tarball file containing the CHARMM force field files.
+        Name of the tarball file containing the CHARMM force field files.
     tarfile : tarfile.TarFile
-        The tarfile object representing the CHARMM force field tarball.
+        Tarfile object representing the CHARMM force field tarball.
     filenamemap : dict
-        A dictionary mapping file basenames to their full paths in the CHARMM force field content.
+        Maps file basenames to their full paths in the CHARMM force field content.
     custom_files : list
-        A list of custom files that can be added to the CHARMM force field content.
+        List of custom files that can be added to the CHARMM force field content.
     all_topology_files : list
-        A list of all topology files in the CHARMM force field content.
+        List of all topology files in the CHARMM force field content.
     residues : dict
-        A dictionary mapping residue names to their corresponding Charmm topology files.
+        Maps residue names to their corresponding CHARMM topology files.
     patches : dict
-        A dictionary mapping patch names to their corresponding Charmm topology files.
+        Maps patch names to their corresponding CHARMM topology files.
     """
     def __init__(self, charmmff_path='', tarfilename='toppar_c36_jul24.tgz', user_custom_directory=None):
         self.tarfile = None
@@ -314,6 +330,9 @@ class CHARMMFFContent:
         str
             The basename of the copied file in the local directory.
         """
+        # When copying a parameter file into a NAMD run directory, lines that begin with these keywords are removed
+        comment_these_out = ['set', 'if', 'WRNLEV', 'BOMLEV', 'return', 'endif']
+
         if os.path.exists(basename):
             # logger.debug(f'{basename} already exists in {os.getcwd()}')
             return basename
@@ -436,8 +455,8 @@ class CHARMMFFContent:
         return parsed_content
 
     def resis_and_masses_from_topfile(self, topfile, metadata={}):
-        """ 
-        Extract the residues and atom masses from a top file.
+        """Extract the residues and atom masses from a top file.
+        
         This function reads the contents of a top file and extracts the residue blocks and atom mass lines.
         It looks for blocks that start with ``RESI`` or ``PRES`` and creates instances of CharmmTopResi for each block.
 
@@ -446,15 +465,16 @@ class CHARMMFFContent:
         topfile : str
             The name of the top file to extract residues from. This can be a full path or just the basename.
         metadata : dict, optional
-            A dictionary containing metadata to be associated with each residue. Default is an empty dictionary.
+            A dictionary containing metadata to be associated with each residue. 
+            Defaults to an empty dictionary.
 
         Returns
         -------
         tuple
             A tuple containing two elements:
-
-            - A list of :class:`~.charmmtop.CharmmTopResi` objects representing the residues found in the top file.
-            - A :class:`~.charmmtop.CharmmMasses` object containing the atom masses extracted from the top file.
+            
+                - A list of :class:`~.charmmtop.CharmmTopResi` objects representing the residues found in the top file.
+                - A :class:`~.charmmtop.CharmmMasses` object containing the atom masses extracted from the top file.
         """
         contents = self.contents_from_topfile(topfile)
         blocks = extract_resi_pres_blocks(contents)
@@ -493,6 +513,7 @@ class CHARMMFFContent:
                     if resname not in self.residues:
                         self.residues[resname] = os.path.basename(topfile)
                     alias = Labels.pdb_resname_of_charmm_resname.get(resname, None)
+                    # logger.debug(f'Found residue {resname} in {topfile} with alias {alias}')
                     if alias is not None and alias not in self.residues:
                         self.residues[alias] = os.path.basename(topfile)
                 elif line.upper().startswith('PRES'):
@@ -510,7 +531,6 @@ class CHARMMFFContent:
     def get_topfile_of_resname(self, resname):
         """ 
         Given a residue name, return the top file that contains it.
-        This function searches through all topology files and returns the first one that contains the specified residue name.
 
         Parameters
         ----------
@@ -529,8 +549,9 @@ class CHARMMFFContent:
             return None
 
 class CHARMMFFStreamID:
-    """ 
+    """
     A class for handling the CHARMM force field stream ID and substream ID.
+    
     This class parses the filename of a CHARMM force field file to extract the stream ID and substream ID.
     
     Parameters

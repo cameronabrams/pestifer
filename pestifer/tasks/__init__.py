@@ -12,7 +12,7 @@ from .domainswap import DomainSwapTask
 from .fetch import FetchTask
 from .ligate import LigateTask
 from .make_membrane_system import MakeMembraneSystemTask
-from .md import MDTask
+from .mdtask import MDTask
 from .manipulate import ManipulateTask
 from .mdplot import MDPlotTask
 from .pdb2pqr import PDB2PQRTask

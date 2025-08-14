@@ -1,4 +1,4 @@
-#Author: Cameron F. Abrams, <cfa22@drexel.edu>
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """ 
 Defines the ResiduePlaceholder and Residue classes for handling residues in a molecular structure.
 """
@@ -718,7 +718,7 @@ class ResidueList(BaseObjList[Residue]):
         ResidueList
             An instance of ResidueList initialized with the residues created from the empty residues.
         """
-        R = [Residue(m) for m in input_list]
+        R = [Residue(m) for m in input_list.data]
         return cls(R)
 
     def map_chainIDs_label_to_auth(self):
@@ -726,12 +726,12 @@ class ResidueList(BaseObjList[Residue]):
         Create a mapping from chain IDs in the label (e.g., PDB format) to the author chain IDs.
         """
         self._chainIDmap_label_to_auth = {}
-        for r in self:
+        for r in self.data:
             if hasattr(r,'auth_asym_id'):
-                label_Cid=r.chainID
-                auth_Cid=r.auth_asym_id
+                label_Cid = r.chainID
+                auth_Cid = r.auth_asym_id
                 if not label_Cid in self._chainIDmap_label_to_auth:
-                    self._chainIDmap_label_to_auth[label_Cid]=auth_Cid
+                    self._chainIDmap_label_to_auth[label_Cid] = auth_Cid
 
     # def get_residue(self,**fields):
     #     """

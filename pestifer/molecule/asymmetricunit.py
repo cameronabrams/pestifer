@@ -132,6 +132,13 @@ class AsymmetricUnit:
         else:
             raise TypeError(f'Cannot construct Asymmetric Unit from data of type {type(parsed)}; expected PDBRecordDict or DataContainer')
 
+        uniq_attr = atoms.uniqattrs(['chainID'])
+        logger.debug(f'ChainIDs in structure: {uniq_attr["chainID"]}')
+        logger.debug(f'Samples of first atoms in each chainID:')
+        for chainID in uniq_attr["chainID"]:
+            first_atom = atoms.get(lambda x: x.chainID == chainID)[0]
+            logger.debug(f'  {chainID}: {first_atom.resname} {first_atom.resid.resid}')
+
         if psf:
             self.psf = PSFContents(psf)
             assert len(self.psf.atoms) == len(atoms), f'Error: psf file {psf} has wrong number of atoms {len(self.psf.atoms)}, expected {len(atoms)}'
@@ -160,6 +167,9 @@ class AsymmetricUnit:
 
         userpatches = topomods.get('patches', PatchList([]))
         patches.extend(userpatches)
+
+        # usermutations = seqmods.get('mutations', MutationList([]))
+        # mutations.extend(usermutations )
 
         # Build the list of residues
         atom_include_logic = sourcespecs.get('include', [])
@@ -310,7 +320,8 @@ class AsymmetricUnit:
             mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey == 'conflict']))
         mutations.extend(MutationList([Mutation(s) for s in seqadvs if s.typekey == 'user']))
         # Now append these to the objmanager's mutations
-        mutations = objmanager.ingest(mutations)
+        objmanager.ingest(mutations)
+        mutations = objmanager.get('seq', {}).get('mutations', MutationList([]))
         logger.debug(f'All mutations')
         mutations.sort(by=['typekey'])
         for m in mutations:
@@ -318,7 +329,7 @@ class AsymmetricUnit:
         pruned_objects = segments.prune_topology(mutations, links, ssbonds)
                 # pruned_ssbonds = ssbonds.prune_mutations(mutations)
                 # pruned = pruned_by_links = links.prune_mutations(mutations, segments)
-        logger.debug(f'Pruned objects: {pruned_objects}')
+        # logger.debug(f'Pruned objects: {pruned_objects}')
         pruned_segments: SegmentList = pruned_objects.get('segments', [])
         for s in pruned_segments.data:
             logger.debug(f'Unregistering chainID {s.segname} because this entire segment was pruned')
@@ -335,10 +346,8 @@ class AsymmetricUnit:
                     ignored_ssbonds.append(ssbonds.remove_and_return(s))
 
         # finalize the objmanager
-        ssbonds = objmanager.ingest(ssbonds, overwrite=True)
-        links = objmanager.ingest(links, overwrite=True)
-        grafts = objmanager.ingest(grafts, overwrite=True)
-        patches = objmanager.ingest(patches, overwrite=True)
+        for olist in [ssbonds, links, grafts, patches]:
+            objmanager.ingest(olist, overwrite=True)
 
         segments.inherit_objs(objmanager)
 

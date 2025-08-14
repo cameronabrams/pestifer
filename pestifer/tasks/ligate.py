@@ -12,7 +12,7 @@ import logging
 
 from pathlib import Path
 
-from .md import MDTask
+from .mdtask import MDTask
 
 from ..charmmff.charmmffcontent import CHARMMFFContent
 from ..core.artifacts import *

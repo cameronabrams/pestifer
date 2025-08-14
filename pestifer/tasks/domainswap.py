@@ -12,9 +12,7 @@ It uses the :ref:`tcl-domainswap` Tcl script.  Usage is described in the :ref:`c
 
 import logging
 
-from pathlib import Path
-
-from .md import MDTask
+from .mdtask import MDTask
 
 from ..core.artifacts import *
 from ..scripters import VMDScripter

@@ -395,7 +395,7 @@ class PsfgenTask(VMDTask):
         logger.debug(f'ingesting {psf}')
         struct = PSFContents(psf, parse_topology=['bonds'])
         logger.debug(f'Making graph structure of glycan atoms...')
-        glycanatoms = struct.atoms.get(lambda x: x.segtype == 'glycan')
+        glycanatoms = struct.atoms.get(segtype='glycan')
         logger.debug(f'{len(glycanatoms)} total glycan atoms')
         glycangraph = glycanatoms.graph()
         G = [glycangraph.subgraph(c).copy() for c in nx.connected_components(glycangraph)]
@@ -474,7 +474,7 @@ class PsfgenTask(VMDTask):
         logger.debug(f'User-input modspecs {self.specs["mods"]}')
         self.objmanager = ObjManager(self.specs['mods'])
         seqmods = self.objmanager.get('seq', {})
-        # logger.debug(f'ingesting seqmods {seqmods}')
+        logger.debug(f'ingesting seqmods {seqmods}')
         if 'grafts' in seqmods:
             # logger.debug(f'looking for graft sources to ingest')
             Grafts: GraftList = seqmods['grafts']
