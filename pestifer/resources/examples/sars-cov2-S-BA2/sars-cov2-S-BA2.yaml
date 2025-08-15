@@ -26,6 +26,13 @@ tasks:
             declash:
               maxcycles: 500
       mods:
+        mutations: # undo the stabilizing proline mutations
+          - A:PRO,986,LYS
+          - A:PRO,987,VAL
+          - B:PRO,986,LYS
+          - B:PRO,987,VAL
+          - C:PRO,986,LYS
+          - C:PRO,987,VAL
         grafts:
           - A_1304:4b7i,C_1-8 # 61
           - B_1304:4b7i,C_1-8
@@ -75,6 +82,13 @@ tasks:
           - I_1-2:2wah,C_1#2-9 # 1134
           - O_1-2:2wah,C_1#2-9 # 1134
           - U_1-2:2wah,C_1#2-9 # 1134
+#   - validate:
+#       tests:
+#         - connection_test:
+#           name: graft 61 chain A
+#           selection: protein and chain A and resid 61 
+#           connection_type: interresidue
+#           connection_count: 1 # should be one disulfide bond now
   - md:
       cpu-override: True
       ensemble: minimize

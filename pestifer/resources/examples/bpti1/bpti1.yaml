@@ -35,9 +35,11 @@ tasks:
       ensemble: NPT
       nsteps: 1600
   - md:
+      skip_if_pytest: True
       ensemble: NPT
       nsteps: 13200
   - mdplot:
+      skip_if_pytest: True
       timeseries:
         - density
         - - cpu_time

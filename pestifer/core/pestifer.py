@@ -114,6 +114,7 @@ def run(args, **kwargs):
     logger.info(f'pestifer ends. Elapsed time {time.strftime("%H:%M:%S", time.gmtime(elapsed_time_s.seconds))}.')
     if args.output_dir != './':
         os.chdir(exec_dir)
+    return C
 
 def desolvate(args, **kwargs):
     """
@@ -211,7 +212,7 @@ def run_example(args):
     Run an example YAML configuration by index.
     """
     args.config = fetch_example(args)
-    run(args)
+    return run(args)
 
 def new_system(args):
     """

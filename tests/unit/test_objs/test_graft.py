@@ -11,14 +11,14 @@ from pestifer.core.objmanager import ObjManager
 class TestGraft(unittest.TestCase):
     def test_graft_creation(self):
         graft = Graft(
-            target_chainID="A",
+            chainID="A",
             target_root=ResID(20),
             source_pdbid="4ijk",
             source_chainID="A",
             source_root=ResID(1),
         )
         self.assertIsInstance(graft, Graft)
-        self.assertEqual(graft.target_chainID, "A")
+        self.assertEqual(graft.chainID, "A")
         self.assertEqual(graft.target_root.resid, 20)
         self.assertEqual(graft.source_pdbid, "4ijk")
         self.assertEqual(graft.source_chainID, "A")
@@ -44,7 +44,7 @@ class TestGraft(unittest.TestCase):
         shortcode = "A_520:4ijk,A_1-10"
         graft = Graft(shortcode)
         self.assertIsInstance(graft, Graft)
-        self.assertEqual(graft.target_chainID, "A")
+        self.assertEqual(graft.chainID, "A")
         self.assertEqual(graft.target_root.resid, 520)
         self.assertEqual(graft.source_pdbid, "4ijk")
         self.assertEqual(graft.source_chainID, "A")
@@ -94,7 +94,7 @@ class TestGraft(unittest.TestCase):
         # make a graft that should match the
         # first residue of the segment
         g = Graft(
-            target_chainID="A",
+            chainID="A",
             target_root=ResID(666),
             source_pdbid="4ijk",
             source_chainID="G",
@@ -147,7 +147,7 @@ class TestGraftList(unittest.TestCase):
 
     def test_graft_list_addition(self):
         graft = Graft(
-            target_chainID="A",
+            chainID="A",
             target_root=ResID(520),
             source_pdbid="4ijk",
             source_chainID="A",
@@ -163,6 +163,6 @@ class TestGraftList(unittest.TestCase):
         shortcode = "$_520:4ijk,A_1-10"
         for c in 'ABCDEFG':
             graft = Graft(shortcode.replace('$', c))
-            self.assertEqual(graft.target_chainID, c)
+            self.assertEqual(graft.chainID, c)
             graft_list.append(graft)
         self.assertEqual(len(graft_list), 7)

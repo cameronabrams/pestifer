@@ -43,7 +43,7 @@ tasks:
             measure: residue_count
             value: 0
         - attribute_test:
-            name: ASP29 is an ASP
+            name: ASP29 is an ASP on chain A
             selection: protein and chain A and resid 29 and name CA
             attribute: resname
             value: ASP
@@ -51,6 +51,18 @@ tasks:
         - attribute_test:
             name: ASP29 protonated on chain A
             selection: protein and chain A and resid 29
+            attribute: name
+            value: HD2
+            value_count: 1
+        - attribute_test:
+            name: ASP29 is an ASP on chain B
+            selection: protein and chain B and resid 29 and name CA
+            attribute: resname
+            value: ASP
+            value_count: 1
+        - attribute_test:
+            name: ASP29 protonated on chain B
+            selection: protein and chain B and resid 29
             attribute: name
             value: HD2
             value_count: 1

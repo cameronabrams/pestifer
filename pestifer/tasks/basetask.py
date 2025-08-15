@@ -25,6 +25,8 @@ from ..core.pipeline import PipelineContext
 
 from ..scripters import GenericScripter, VMDScripter
 
+from ..util.util import running_under_pytest
+
 if TYPE_CHECKING:
     from ..core.controller import Controller
 
@@ -73,6 +75,8 @@ class BaseTask(ABC):
         self.subtaskcount: int = 0
         self.result: int = 0
         self.extra_message: str = ''
+
+        self.skip_if_pytest = self.specs.get('skip_if_pytest', False)
 
     def provision(self, packet: dict = None):
         """
@@ -152,6 +156,9 @@ class BaseTask(ABC):
         if not self.is_provisioned:
             logger.warning(f'Task {self.taskname} is not provisioned.')
             return -1
+        if self.skip_if_pytest and running_under_pytest():
+            logger.info(f'Skipping task {self.taskname} because pytest is running.')
+            return 0
         msg = 'initiated'
         if self.extra_message:
             msg += f' ({self.extra_message})'

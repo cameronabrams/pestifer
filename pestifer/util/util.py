@@ -5,6 +5,7 @@ Various utility functions for pestifer
 import logging
 import os
 import time
+import sys
 
 import pandas as pd
 import numpy as np
@@ -46,6 +47,9 @@ def countTime(fn):
         logger.debug(f'{keyname}: {(t2-t1)*1000:.6f} ms; avg {_fntiminginfo[keyname]["avgtimepercall"]*1000:.6f} ms/call; {_fntiminginfo[keyname]["ncalls"]} calls')
         return result
     return measure_time
+
+def running_under_pytest() -> bool:
+    return "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ
 
 def cell_from_xsc(xsc: Path | str):
     """

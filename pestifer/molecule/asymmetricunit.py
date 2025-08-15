@@ -155,7 +155,11 @@ class AsymmetricUnit:
         # at this point the objmanager is holding all mods that are in 
         # the input file but NOT in the PDB/mmCIF/psf file.
         seqmods = objmanager.get('seq', {})
-        logger.debug(f'Seqmods: {seqmods}')
+        for k,v in seqmods.items():
+            if k != 'grafts':
+                logger.debug(f'Seqmod {k}')
+                for mod in v:
+                    logger.debug(f'  {str(mod)}')
         topomods = objmanager.get('topol', {})
         grafts: GraftList = seqmods.get('grafts', GraftList([]))
 
@@ -167,7 +171,9 @@ class AsymmetricUnit:
             logger.debug(f'Adding user-specified ssbond {u}')
         ssbonds.extend(userssbonds)
 
-        userpatches = topomods.get('patches', PatchList([]))
+        userpatches = seqmods.get('patches', PatchList([]))
+        for u in userpatches:
+            logger.debug(f'Adding user-specified patch {u}')
         patches.extend(userpatches)
 
         # usermutations = seqmods.get('mutations', MutationList([]))
@@ -250,24 +256,25 @@ class AsymmetricUnit:
         ignored_seqadvs = seqadvs.assign_residues(residues)
         logger.debug(f'{len(seqadvs)} seqadvs after assign_residues')
         for s in seqadvs:
-            logger.debug(f'{repr(s)}')
+            logger.debug(f'{str(s)}')
         ignored_ssbonds = ssbonds.assign_residues(residues)
+        logger.debug(f'{len(patches)} patches before assign_residues')
         ignored_patches = patches.assign_residues(residues)
         logger.debug(f'{len(ssbonds)} ssbonds after assign_residues')
         for b in ssbonds:
-            logger.debug(f'{b}')
+            logger.debug(f'{str(b)}')
         logger.debug(f'{len(patches)} patches after assign_residues')
         for p in patches:
-            logger.debug(f'{p}')
+            logger.debug(f'{str(p)}')
         more_ignored_residues, ignored_links = links.assign_residues(residues)
         logger.debug(f'{len(links)} links after assign_residues')
         for l in links:
-            logger.debug(f'{l}')
+            logger.debug(f'{str(l)}')
         ignored_residues = ResidueList([])
         ignored_residues.extend(more_ignored_residues)
-        ignored_grafts, more_ignored_residues, new_ignored_links = grafts.assign_residues(residues, links)
+        ignored_grafts = grafts.assign_residues(residues, links)
         ignored_residues.extend(more_ignored_residues)
-        ignored_links.extend(new_ignored_links)
+        # ignored_links.extend(new_ignored_links)
         total_ignored_residue_count = len(ignored_residues) + ignored_missing_residue_count
         if (ignored_atom_count + total_ignored_residue_count + len(ignored_seqadvs) + len(ignored_ssbonds) + len(ignored_links) + len(ignored_grafts)) > 0:
             logger.debug(f'Inclusion/exclusion logic results in deletion of:')
@@ -280,6 +287,11 @@ class AsymmetricUnit:
             logger.debug(f'    {len(ignored_grafts)} grafts, {len(grafts)} remain')
 
         logger.debug(f'{len(residues)} residues survived parsing')
+
+        if len(grafts)>0:
+            logger.debug('Grafts:')
+            for g in grafts:
+                logger.debug(str(g))
 
         # provide specifications of how to handle sequence issues
         # implied by PDB input
@@ -305,9 +317,10 @@ class AsymmetricUnit:
         # promote sequence numbers in any grafts to avoid collisions
         # and include the graft links in the overall list of links
         next_resid = max([x.resid for x in residues]) + 1
-        for g in grafts:
+        for g in grafts.data:
             next_resid = g.set_internal_resids(next_resid)
-            links.extend(g.my_links)
+            links.extend(g.donor_internal_links)
+            links.extend(g.donor_external_links)
 
         # at this point, we have built the asymmetric unit according to the intention of the 
         # author of the structure AND the intention of the user in excluding certain parts

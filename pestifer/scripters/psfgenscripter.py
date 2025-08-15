@@ -460,7 +460,7 @@ class PsfgenScripter(VMDScripter):
         self.addline(f'coordpdb {pdb} {image_seglabel}')
         for g in seg_grafts.data:
             # g.write_post_segment(self)
-            self.addline(f'coordpdb {g.segfile} {g.target_chainID}')
+            self.addline(f'coordpdb {g.segfile} {g.chainID}')
         if is_image:
             self.banner(f'Restoring A.U. state for {seglabel}')
             self.restore_selection(selname, dataholder=f'{selname}_data')
@@ -492,13 +492,13 @@ class PsfgenScripter(VMDScripter):
             alignment_target_resid_logic += f' or resid {G.target_partner.resid}'
         alignment_target_resid_logic += ')'
 
-        self.addline(f'set target_sel [atomselect $topid "chain {G.target_chainID} and {alignment_target_resid_logic}"]')
+        self.addline(f'set target_sel [atomselect $topid "chain {G.residues[0].orig_chainID} and {alignment_target_resid_logic}"]')
 
         alignment_source_resid_logic = f'(resid {G.source_root.resid}'
         if G.source_partner is not None:
             alignment_source_resid_logic += f' or resid {G.source_partner.resid}'
-        if G.source_end is not None:
-            alignment_source_resid_logic += f' or resid {G.source_end.resid}'
+        # if G.source_end is not None:
+        #     alignment_source_resid_logic += f' or resid {G.source_end.resid}'
         alignment_source_resid_logic += ')'
 
         self.addline(f'set source_sel [atomselect $graftid "chain {G.source_chainID} and {alignment_source_resid_logic}"]')
@@ -509,7 +509,8 @@ class PsfgenScripter(VMDScripter):
 
         movers_source_resid_logic = f'(not (resid {G.source_root.resid}'
         if G.source_partner is not None:
-            movers_source_resid_logic += f' or resid {G.source_partner.resid})'
+            movers_source_resid_logic += f' or resid {G.source_partner.resid}'
+        movers_source_resid_logic += ')'
         if G.source_end is not None:
             movers_source_resid_logic += f' and resid <= {G.source_end.resid}'
         movers_source_resid_logic += ')'
@@ -525,13 +526,14 @@ class PsfgenScripter(VMDScripter):
         self.addline(f'set TT [measure fit $source_sel $target_sel]')
         self.addline(f'vmdcon -info "Homog. trans. matrix: $TT"')
         self.addline(f'$mover_sel move $TT')
-        G._segfile=f'graft{G.obj_id}.pdb'
+        G.segfile=f'graft{G.obj_id}.pdb'
         new_residlist=[]
-        for y in G._mover_residues:
+        for y in G.donor_residues:
             new_residlist.extend([f'{y.resid.resid}' for x in y.atoms])  # r
         self.addline(f'$mover_sel set resid [list {" ".join(new_residlist)}]')
-        self.addline(f'$mover_sel set chain {G._mover_residues[0].chainID}')
-        self.addline(f'$mover_sel writepdb {G._segfile}')
+        self.addline(f'$mover_sel set chain {G.donor_residues[0].chainID}')
+        self.addline(f'$mover_sel writepdb {G.segfile}')
+        self.addfile(G.segfile)
         self.addline(f'$mover_sel delete')
 
     def write_cfusion_presegment(self, C: Cfusion):
@@ -551,8 +553,8 @@ class PsfgenScripter(VMDScripter):
         self.addline(f'set cfusid [molinfo top get id]')
         self.addline(f'mol top $topid')
         self.addline(f'set fusres [atomselect $cfusid "protein and chain {C.sourceseg} and resid {C.resid1.resid} to {C.resid2.resid}"]')
-        C._segfile=f'Cfusion{C.obj_id}_{C.sourceseg}_{C.resid1.resid}_to_{C.resid2.resid}.pdb'
-        self.addline(f'$fusres writepdb {C._segfile}')
+        C.segfile=f'Cfusion{C.obj_id}_{C.sourceseg}_{C.resid1.resid}_to_{C.resid2.resid}.pdb'
+        self.addline(f'$fusres writepdb {C.segfile}')
         self.addline(f'delete $cfusid')
 
     def write_cfusion_insegment(self, C: Cfusion):
@@ -681,7 +683,7 @@ class PsfgenScripter(VMDScripter):
             self.addline(f'writepdb {statename}.pdb')
         super().writescript(force_exit=force_exit)
 
-    def runscript(self,*args,**options):
+    def runscript(self, *args, **options):
         """
         Run the psfgen script using the VMD command line interface.
         This method constructs a command to execute VMD with the specified script and options.
@@ -715,7 +717,7 @@ class PsfgenScripter(VMDScripter):
             logger.debug('Progress bar is disabled for psfgen script')
         result = c.run(logfile=self.logname,logparser=self.logparser)
         logger.debug(f'FileCollector {self.F}')
-        if not options.get('keep_tempfiles',False):
+        if not options.get('keep_tempfiles', False):
             self.F.flush()
         return result
 

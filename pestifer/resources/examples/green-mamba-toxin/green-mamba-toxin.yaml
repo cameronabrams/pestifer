@@ -9,9 +9,13 @@ tasks:
 - fetch:
     sourceID: 1fas
 - psfgen:
-    source:
-      exclude:
-        - altloc == 'B'
+- validate:
+    tests:
+      - residue_test:
+          name: no altloc B atoms present
+          selection: altloc B
+          measure: atom_count
+          value: 0
 - md:
     ensemble: minimize
 - pdb2pqr:

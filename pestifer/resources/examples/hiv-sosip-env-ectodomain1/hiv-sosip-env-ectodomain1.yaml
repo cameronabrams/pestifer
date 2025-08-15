@@ -33,6 +33,26 @@ tasks:
         crotations:
           - psi,B,546,568,-180.0
           - phi,B,547,568,-60.0
+  - validate:
+      tests:
+        - attribute_test:
+            name: point mutation
+            selection: protein and chain G H J and resid 501 and name CA
+            attribute: resname
+            value: ALA
+            value_count: 3
+        - attribute_test:
+            name: point mutation
+            selection: protein and chain B C D and resid 559 and name CA
+            attribute: resname
+            value: ILE
+            value_count: 3
+        - attribute_test:
+            name: point mutation
+            selection: protein and chain B C D and resid 605 and name CA
+            attribute: resname
+            value: THR
+            value_count: 3
   - md:
       ensemble: minimize
   - ligate:

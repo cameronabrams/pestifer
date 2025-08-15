@@ -166,7 +166,7 @@ class PsfgenTask(VMDTask):
         pg.set_molecule(self.base_molecule, altcoords=self.specs.get('source', {}).get('altcoords', None))
         pg.describe_molecule(self.base_molecule)
         pg.writescript(self.basename)
-        result = pg.runscript()
+        result = pg.runscript(keep_tempfiles=True)
         if result != 0:
             return result
         # register PSF, PDB, log, and all charmmff files in the pipeline context
@@ -175,6 +175,8 @@ class PsfgenTask(VMDTask):
         self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename), psf=PSFFileArtifact(self.basename)))
         self.register(CharmmffTopFileArtifacts([CharmmffTopFileArtifact(x) for x in pg.topologies if x.endswith('.rtf')]), key='charmmff_topfiles')
         self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x) for x in pg.topologies if x.endswith('.str')]), key='charmmff_streamfiles')
+        temp_pdb_artifacts = PDBFileArtifactList([PDBFileArtifact(x) for x in pg.F if x.endswith('.pdb')])
+        self.register(temp_pdb_artifacts, key='psfgen_temp_pdbs')
         self.strip_remarks()
         return 0
         

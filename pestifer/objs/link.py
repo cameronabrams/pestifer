@@ -580,10 +580,12 @@ class LinkList(BaseObjList[Link]):
             A new LinkList containing the removed links.
         """
         removed_links = self.__class__([])
-        for link in self:
+        for link in self.data:
             if link.residue1 == r or link.residue2 == r:
                 removed_links.append(link)
-        self.remove(removed_links)
+        for badlink in removed_links:
+            self.remove(badlink)
+        logger.debug(f'Removed {len(removed_links)} links to residue {str(r)}')
         return removed_links
 
     # def prune_mutations(self, Mutations: 'MutationList', Segments: 'SegmentList'):

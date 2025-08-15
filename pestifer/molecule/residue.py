@@ -65,7 +65,7 @@ class ResiduePlaceholder(BaseObj):
     """
 
     _optional_fields = {'model', 'obj_id', 'auth_asym_id', 'auth_comp_id', 
-                        'auth_seq_id', 'empty', 'recordname'}
+                        'auth_seq_id', 'empty', 'recordname', 'orig_chainID'}
     """
     Optional attributes for ResiduePlaceholder.
     
@@ -81,9 +81,15 @@ class ResiduePlaceholder(BaseObj):
         The author component ID, if applicable.
     auth_seq_id : int
         The author sequence ID, if applicable.
+    empty : bool
+        Indicates whether the residue is empty (True) or not (False).
+    recordname : str
+        The PDB record name for the residue.
+    orig_chainID : str
+        The original chain ID, if applicable.
     """
 
-    _ignore_fields = {'empty','link','recordname'}
+    _ignore_fields = {'recordname', 'empty'}
     """
     Fields that are ignored when comparing ResiduePlaceholder objects.
     """
@@ -102,6 +108,8 @@ class ResiduePlaceholder(BaseObj):
     empty: bool = Field(False, description="Indicates whether the residue is empty (True) or not (False).")
     # link: Any | None = Field(None, description="The link to the residue, if applicable.")
     recordname: str = Field('REMARK.465', description="The PDB record name for the residue.")
+
+    orig_chainID: str | None = Field(None, description="The original chain ID, if applicable.")
 
     _yaml_header: ClassVar[str] = 'missings'
     """
@@ -161,6 +169,7 @@ class ResiduePlaceholder(BaseObj):
                 'model': model,
                 'resname': resname,
                 'chainID': chainID,
+                'orig_chainID': chainID,
                 'resid': resid,
                 'resolved': False,
                 'segtype': 'UNSET',
@@ -193,6 +202,7 @@ class ResiduePlaceholder(BaseObj):
             'model': pdbrecord.modelNum,
             'resname': pdbrecord.resName,
             'chainID': pdbrecord.chainID,
+            'orig_chainID' : pdbrecord.chainID,
             'resid': ResID(pdbrecord.seqNum, pdbrecord.iCode),
             'resolved': False,
             'segtype': 'UNSET'
@@ -210,6 +220,7 @@ class ResiduePlaceholder(BaseObj):
             'model': nmn,
             'resname': cifdict['label_comp_id'],
             'chainID': cifdict['label_asym_id'],
+            'orig_chainID': cifdict['label_asym_id'],
             'resid': ResID(int(cifdict['label_seq_id']), cifdict['pdb_ins_code']),
             'resolved': False,
             'segtype': 'UNSET',
@@ -379,12 +390,14 @@ class Residue(ResiduePlaceholder):
         """
         if args and isinstance(args[0], str):
             input_dict = ResiduePlaceholder._adapt(args[0])
+            input_dict['recordname'] = 'UNSET'
             input_dict['atoms'] = AtomList()
             return input_dict
         elif args and isinstance(args[0], ResiduePlaceholder):
             input_dict = {'resname': args[0].resname,
                           'resid': ResID(args[0].resid),
                           'chainID': args[0].chainID,
+                          'orig_chainID': args[0].orig_chainID,
                           'segtype': args[0].segtype,
                           'model': args[0].model,
                           'obj_id': args[0].obj_id,
@@ -392,28 +405,33 @@ class Residue(ResiduePlaceholder):
                           'auth_comp_id': args[0].auth_comp_id,
                           'auth_seq_id': args[0].auth_seq_id,
                           'atoms': AtomList(),
-                          'resolved': False}
+                          'resolved': False,
+                          'recordname': 'UNSET'}
             return input_dict
         elif args and isinstance(args[0], PDBRecord | BaseRecord):
             input_dict = ResiduePlaceholder._adapt(args[0])
             input_dict['atoms'] = AtomList()
             input_dict['resolved'] = False
+            input_dict['recordname'] = 'UNSET'
             return input_dict
         elif args and isinstance(args[0], CIFdict):
             input_dict = ResiduePlaceholder._adapt(args[0])
             input_dict['atoms'] = AtomList()
             input_dict['resolved'] = False
+            input_dict['recordname'] = 'UNSET'
             return input_dict
         elif args and isinstance(args[0], Atom | Hetatm):
             a = args[0]
             input_dict = dict(resname=a.resname,
                               resid=a.resid, chainID=a.chainID,
+                              orig_chainID=a.chainID,
                               atoms=AtomList([a]),
                               segtype='UNSET',
                               auth_asym_id=getattr(a, 'auth_asym_id', None),
                               auth_comp_id=getattr(a, 'auth_comp_id', None),
                               auth_seq_id=getattr(a, 'auth_seq_id', None),
                               resolved=True)
+            input_dict['recordname'] = 'UNSET'
             return input_dict
         return super()._adapt(*args, **kwargs)
             
@@ -605,9 +623,10 @@ class Residue(ResiduePlaceholder):
         chainID : str
             The new chain ID to be set for the residue and its atoms.
         """
+        self.set(orig_chainID=self.chainID)
         self.set(chainID=chainID)
-        for a in self.atoms:
-            a.chainID = chainID
+        for a in self.atoms.data:
+            a.set(chainID=chainID)
 
     def link_to(self, other: Residue, link: Link):
         """
@@ -782,7 +801,7 @@ class ResidueList(BaseObjList[Residue]):
             A list of atom serial numbers.
         """
         serlist=[]
-        for res in self:
+        for res in self.data:
             for a in res.atoms:
                 serlist.append(as_type(a.serial))
         return serlist
@@ -802,7 +821,7 @@ class ResidueList(BaseObjList[Residue]):
             A list of residue sequence numbers.
         """
         rlist=[]
-        for res in self:
+        for res in self.data:
             for a in res.atoms:
                 rlist.append(as_type(a.resseqnum))
         return rlist
@@ -822,7 +841,7 @@ class ResidueList(BaseObjList[Residue]):
             A list of residue IDs.
         """
         rlist=[]
-        for res in self:
+        for res in self.data:
             for a in res.atoms:
                 rlist.append(as_type(a.resid))
         return rlist

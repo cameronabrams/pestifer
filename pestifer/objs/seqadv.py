@@ -128,6 +128,15 @@ class Seqadv(BaseObj):
         """
         Converts a PDBRecord object to a dictionary of parameters for Seqadv.
         """
+        if raw.conflict.lower() == 'deletion':
+            return dict(
+                idCode = raw.idCode,
+                chainID = raw.residue.chainID,
+                resname = raw.dbRes,
+                resid = ResID(raw.dbSeq, raw.dbIcode),
+                dbRes = raw.dbRes,
+                typekey = 'deletion'
+            )
         return dict(
             idCode = raw.idCode,
             chainID = raw.residue.chainID,
@@ -233,7 +242,7 @@ class Seqadv(BaseObj):
                 else:
                     logger.debug(f'...seqadv {self.typekey} auth {self.chainID}:{self.resid} cannot be resolved from current set of residues')
             else:  # normal PDB record
-                logger.debug(f'Looking to assign residue for seqadv {self.chainID}:{self.resid}')
+                # logger.debug(f'Looking to assign residue for seqadv {self.chainID}:{self.resid}')
                 self.assign_obj_to_attr('residue', Residues, chainID='chainID', resid='resid')
                 if self.residue is None:  # failed to find
                     logger.debug(f'...seqadv {self.typekey} auth {self.chainID}:{self.resid} cannot be resolved from current set of residues')

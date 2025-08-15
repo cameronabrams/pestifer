@@ -224,7 +224,7 @@ class SegmentList(BaseObjList[Segment]):
         self._segnames = []
         self._daughters = {}
         self._segtype_of_segname = {}
-        assert all([x.segtype != 'UNSET' for x in residues]), f'There are residues with UNSET segtype: {[(x.resname, x.chainID, x.resid.resid) for x in residues if x.segtype == "UNSET"]}'
+        assert all([x.segtype != 'UNSET' for x in residues]), f'There are residues with UNSET segtype: {[(x.resname, x.chainID, x.resid.resid) for x in residues.data if x.segtype == "UNSET"]}'
         self._segtypes_ordered = []
         for r in residues.data:
             if not r.chainID in self._segtype_of_segname:

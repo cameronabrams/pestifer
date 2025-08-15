@@ -1,10 +1,18 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-from pestifer.core.resourcemanager import ResourceManager
+
+from pestifer.core.pestifer import run_example
+import unittest
+import pestifer.resources
+from argparse import Namespace
 import os
 import shutil
 import subprocess
 import yaml
 import pytest
+
+import logging
+
+logger = logging.getLogger(__name__)
 
 def do_it(exnumber):
     nstr=f'{exnumber:02d}'
@@ -12,16 +20,11 @@ def do_it(exnumber):
         shutil.rmtree(f'__test_build_{nstr}')
     os.mkdir(f'__test_build_{nstr}')
     os.chdir(f'__test_build_{nstr}')
-    RM=ResourceManager()
-    configfile=RM.example_manager.checkout_example_yaml(exnumber)
-    with open(configfile,'r') as f:
-        specs=yaml.safe_load(f)
-    prod_basename=specs['tasks'][-1]['terminate']['package']['basename']
-    prod_tgz=f'{prod_basename}.tgz'
-    cmd=f'pestifer run {configfile}'
-    res=subprocess.run(cmd,shell=True,executable='/bin/bash',check=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,text=True)
-    with open('console.log','w') as f:
-        f.write(res.stdout)
+    args = Namespace(index=exnumber, config=None, output_dir='./', log_file=f'diagnostics-{nstr}.log', gpu=False, complete_config=False, log_level='debug')
+    controller = run_example(args)
+    prod_basename = controller.tasks[-1].specs['package']['basename']
+    logging.debug(f'prod_basename {prod_basename}')
+    prod_tgz = f'{prod_basename}.tar.gz'
     assert(os.path.exists(prod_tgz))
     os.chdir('..')
 

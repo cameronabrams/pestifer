@@ -90,7 +90,7 @@ class Molecule:
             # logger.debug('Molecule initialization')
             if source.get('id', {}) or source.get('prebuilt', {}) or source.get('alphafold', {}):
                 if source.get('id', {}):
-                    logger.debug(f'Molecule initialization from file {source["id"]}.{source["file_format"]}')
+                    logger.debug(f'Molecule initialization from file {source["id"]}.{source["file_format"].lower()}')
                     if file_format == 'PDB':
                         p_struct = PDBParser(PDBcode=source['id']).parse().parsed
                     elif file_format == 'mmCIF':
