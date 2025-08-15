@@ -14,7 +14,7 @@ class TestSphinxExampleManager(unittest.TestCase):
         if os.path.isdir('userspace'):
             shutil.rmtree('userspace', ignore_errors=True)
         shutil.copytree('../fixtures/sphinx_example_inputs', '.', dirs_exist_ok=True)
-        self.manager = SphinxExampleManager(docs_source_path='project/docs/source',examples_folder_name='examples', examples_rst_name='examples.rst')
+        self.manager = SphinxExampleManager(docs_source_path='project/docs/source', examples_folder_name='examples', examples_rst_name='examples.rst')
 
     def _build_example_set(self):
         self.examples=[]
@@ -22,7 +22,7 @@ class TestSphinxExampleManager(unittest.TestCase):
             self.examples.append(Example.from_yaml(f'userspace/ex{l}.yaml'))
             self.manager.insert_example(len(self.examples), self.examples[-1])
         self.updated_existing_example = Example.from_yaml('userspace/exA_updated.yaml')
-        self.example_to_insert=Example.from_yaml('userspace/exD.yaml')
+        self.example_to_insert = Example.from_yaml('userspace/exD.yaml')
 
     def tearDown(self):
         shutil.rmtree('docs', ignore_errors=True)
@@ -35,15 +35,15 @@ class TestSphinxExampleManager(unittest.TestCase):
         self.assertTrue(os.path.isfile(self.manager.examples_rst))
         self.assertTrue(os.path.isdir(self.manager.examples_folder_path))
         self.assertTrue(get_num_entries_in_toctree(self.manager.examples_rst) == 0)
-        rst_files= os.listdir(self.manager.examples_folder_path)
-        self.assertTrue(len(rst_files) == 0)
+        ex_folders = os.listdir(self.manager.examples_folder_path)
+        self.assertTrue(len(ex_folders) == 0)
         self._build_example_set()
         self.assertTrue(get_num_entries_in_toctree(self.manager.examples_rst) == 3)
-        rst_files= os.listdir(self.manager.examples_folder_path)
-        self.assertIn('exA.rst', rst_files)
-        self.assertIn('exB.rst', rst_files)
-        self.assertIn('exC.rst', rst_files)
-        self.assertTrue(len(rst_files) == 3)
+        ex_folders = os.listdir(self.manager.examples_folder_path)
+        self.assertIn('exA.rst', ex_folders)
+        self.assertIn('exB.rst', ex_folders)
+        self.assertIn('exC.rst', ex_folders)
+        self.assertTrue(len(ex_folders) == 3)
 
     def test_sphinx_example_manager_insert_example(self):
         self._build_example_set()

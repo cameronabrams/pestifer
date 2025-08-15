@@ -104,7 +104,7 @@ class ResourceManager:
                 logger.warning(f'{c} is not a base resource; expected one of {", ".join(self._base_resources)}')
             path = self.get_resource_path(c)
             if c == 'examples':
-                out_stream(f'\nExamples:\n\n{self.example_manager.report_examples_list(header=True)}')
+                out_stream(f'\nExamples:\n\n{self.example_manager.report_examples(header=True)}')
             elif c == 'charmmff':
                 if 'toppar' in spec:
                     out_stream(f'{self.charmmff_content.tarfilename}')

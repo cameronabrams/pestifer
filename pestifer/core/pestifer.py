@@ -200,16 +200,16 @@ def mdplot(args):
 
 def fetch_example(args):
     """
-    Fetch an example YAML configuration by index.
+    Fetch an example YAML configuration by ID.
     """
-    index = args.index
+    example_id = args.example_id
     r = ResourceManager()
-    config = r.example_manager.checkout_example(index)
+    config = r.example_manager.checkout_example(example_id)
     return config
 
 def run_example(args):
     """
-    Run an example YAML configuration by index.
+    Run an example YAML configuration by ID.
     """
     args.config = fetch_example(args)
     return run(args)
@@ -239,9 +239,9 @@ def show_resources(args, **kwargs):
 
 def modify_package(args):
     """
-    Modify the pestifer source package.  Current modifications allowed involve example addition/insertion/update/deletion, and
-    updating atomselect macros based on globals defined in :mod:`core/labels.py <pestifer.core.labels>`. 
-    
+    Modify the pestifer source package.  Current modifications allowed involve example addition/update/deletion, and
+    updating atomselect macros based on globals defined in :mod:`core/labels.py <pestifer.core.labels>`.
+
     .. note::
     
         The command ``pestifer modify-package`` can only be invoked if ``pestifer`` is installed as an editable source tree, i.e. the directory containing the ``pestifer`` package.  A simple pip installation of the pestifer package will not allow this command to run, as the pestifer package will not have a full source tree available.  If you want to modify the package, you must clone the repository from GitHub and then execute ``pip install -e .`` from the package root.  Before modifying, it would also be a good idea to create a new branch, rather than modifying in the main branch.
@@ -250,47 +250,38 @@ def modify_package(args):
     logging.basicConfig(level=getattr(logging, args.log_level.upper()))
     RM = ResourceManager()
     if args.example_action:
-        if args.example_action == 'insert':
-            new_number = args.example_index
-            new_yaml = args.new_example_yaml
-            author_name = args.example_author_name
-            author_email = args.example_author_email
-            description = args.example_description
-            if new_number > 0 and new_yaml:
-                RM.insert_example(new_number, new_yaml, author_name=author_name, author_email=author_email, description=description)
-            else:
-                raise ValueError(f'Invalid parameters for insert example action: new_number={new_number}, new_yaml={new_yaml}. Must be positive integer and non-empty YAML file name.')
-        elif args.example_action == 'add':
+        if args.example_action == 'add':
+            new_number = args.example_id
             new_yaml = args.new_example_yaml
             author_name = args.example_author_name
             author_email = args.example_author_email
             description = args.example_description
             if new_yaml:
-                RM.add_example(new_yaml, author_name=author_name, author_email=author_email, description=description)
+                RM.add_example(new_yaml, example_id=new_number, author_name=author_name, author_email=author_email, description=description)
             else:
                 raise ValueError(f'Invalid parameter for add example action: new_yaml={new_yaml}. Must be non-empty YAML file name.')
         elif args.example_action == 'update':
-            new_number = args.example_index
+            new_number = args.example_id
             new_yaml = args.new_example_yaml
             if new_number > 0 and new_yaml:
                 RM.update_example(new_number, new_yaml)
             else:
                 raise ValueError(f'Invalid parameters for update example action: new_number={new_number}, new_yaml={new_yaml}. Must be positive integer and non-empty YAML file name.')
         elif args.example_action == 'delete':
-            number = args.example_index
+            number = args.example_id
             if number > 0:
                 RM.delete_example(number)
             else:
                 raise ValueError(f'Invalid parameter for delete example action: number={number}. Must be positive integer.')
         elif args.example_action == 'rename':
-            number = args.example_index
+            number = args.example_id
             new_name = args.new_example_name
             if number > 0 and new_name:
                 RM.rename_example(number, new_name)
             else:
                 raise ValueError(f'Invalid parameters for rename example action: number={number}, new_name={new_name}. Must be positive integer and non-empty YAML file name.')
         elif args.example_action == 'author':
-            number = args.example_index
+            number = args.example_id
             author_name = args.example_author_name
             author_email = args.example_author_email
             if number > 0 and author_name and author_email:
@@ -434,9 +425,9 @@ def cli():
     command_parsers['run'].add_argument('--log-level', type=str, default='debug', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
     command_parsers['run'].add_argument('--gpu', default=False, action='store_true', help='force run on GPU')
     command_parsers['run'].add_argument('--complete-config', default=False, action='store_true', help='write complete config file')
-    command_parsers['fetch-example'].add_argument('index', type=int, default=None, help='example index')
+    command_parsers['fetch-example'].add_argument('example-id', type=int, default=None, help='example ID')
 
-    command_parsers['run-example'].add_argument('index', type=int, default=None, help='example index')
+    command_parsers['run-example'].add_argument('example-id', type=int, default=None, help='example ID')
     command_parsers['run-example'].add_argument('--output-dir', type=str, default='./', help='name of output directory relative to CWD (default: %(default)s)')
     command_parsers['run-example'].add_argument('--config-updates', type=str, nargs='+', default=[], help='yaml files to update example')
     command_parsers['run-example'].add_argument('--log-level', type=str, default='debug', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
@@ -456,8 +447,8 @@ def cli():
     command_parsers['wheretcl'].add_argument('--root', default=False, action='store_true', help='print full path of Pestifer\'s root TcL directory')
     if is_source_package_with_git:
         command_parsers['modify-package'].add_argument('--update-atomselect-macros', action='store_true', help='update the resources/tcl/macros.tcl file based on content in core/labels.py; developer use only')
-        command_parsers['modify-package'].add_argument('--example-index', type=int, default=0, help='integer index of example to modify; developer use only')
-        command_parsers['modify-package'].add_argument('--example-action', type=str, default=None, choices=[None, 'add', 'insert', 'update', 'delete', 'rename', 'author'], help='action to perform on the example; choices are [add|insert|update|delete|rename|author]; developer use only')
+        command_parsers['modify-package'].add_argument('--example-id', type=int, default=0, help='integer ID of example to modify; developer use only')
+        command_parsers['modify-package'].add_argument('--example-action', type=str, default=None, choices=[None, 'add', 'update', 'delete', 'rename', 'author'], help='action to perform on the example; choices are [add|update|delete|rename|author]; developer use only')
         command_parsers['modify-package'].add_argument('--new-example-yaml', type=str, default='', help='yaml file of example; developer use only')
         command_parsers['modify-package'].add_argument('--new-example-name', type=str, default='', help='new name for the example for action \'rename\'; developer use only')
         command_parsers['modify-package'].add_argument('--log-level', type=str, default='info', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')

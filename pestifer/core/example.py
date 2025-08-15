@@ -1,61 +1,41 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
 """
-Defines the :class:`Example` class for managing examples in the documentation.
+Defines the :class:`Example` class for managing examples.
 """
 from collections import UserList
 import yaml
 import logging
 import re
 import os
+from pathlib import Path
+from pydantic import Field
+from .baseobj import BaseObj, BaseObjList
 
 logger = logging.getLogger(__name__)
 
-class Example:
+class Example(BaseObj):
     """
-    Represents an example in the documentation.
-
-    Attributes
-    ----------
-    name : str
-        The name of the example.  Used to resolve the associate YAML file in the examples directory (typically `pestifer/resources/examples`). Also used to resolve the entry in the toctree in the examples RST file (typically `docs/source/examples.rst`), and the name of the specific RST file for the example (typically `docs/source/examples/{name}.rst`).
-    pdbID : str
-        The PDB ID associated with the example.
-    description : str
-        A description of the example.  Used as the title of the example in its RST file.
-    index : int
-        The index of the example in the list of examples.
+    Represents an example.
     """
 
-    def __init__(self, name: str, pdbID: str = '', description: str = '', index: int = 0, author_name: str = '', author_email: str = '', companion_files=[]):
-        """
-        Initialize an Example instance.
+    _required_fields = {'example_id', 'title', 'shortname'}
+    _optional_fields = {'db_id', 'author_name', 'author_email', 'input', 'auxiliary_inputs', 'outputs'}
 
-        Parameters
-        ----------
-        name : str
-            The name of the example.
-        pdbID : str, optional
-            The PDB ID associated with the example.
-        description : str, optional
-            A description of the example.
-        index : int, optional
-            The index of the example in the list of examples.
-        author_name : str, optional
-            The name of the author of the example.
-        author_email : str, optional
-            The email of the author of the example.
-        companion_files : list, optional
-            A list of companion files associated with the example.
-        """
-        self.name = name
-        self.pdbID = pdbID
-        self.description = description
-        self.index = index
-        self.author_name = author_name
-        self.author_email = author_email
-        self.companion_files = companion_files
+    example_id: int = Field(...,title='The unique identifier for the example.')
+    title: str = Field(..., title='A single-line descriptive title for the example.')
+    shortname: str = Field(..., title='A short name for the example; <shortname>.yaml is assumed to be the name of the main input script.')
 
-    def to_dict(self) -> dict:
+    db_id: str | None = Field(None, title='The database ID associated with the example, if applicable.')
+    author_name: str | None = Field(None, title='The name of the author of the example.')
+    author_email: str | None = Field(None, title='The email of the author of the example.')
+    input: str | Path | None = Field(None, title='The input script name for the example, if different from <shortname>.yaml.')
+    auxiliary_inputs: list[str | Path] | None = Field(None, title='A list of auxiliary inputs for the example.')
+    outputs: list[str | Path] | None = Field(None, title='A list of outputs for the example.')
+
+    inputs_subdir: str = "inputs"
+    outputs_subdir: str = "outputs"
+
+    def to_dict(self, ignore_none: bool = False) -> dict:
         """
         Convert the example to a dictionary representation.
         
@@ -64,105 +44,21 @@ class Example:
         dict
             A dictionary containing the example's attributes.
         """
-        return {
-            'name': self.name,
-            'pdbID': self.pdbID,
-            'description': self.description,
-            'index': self.index,
-            'author_name': self.author_name,
-            'author_email': self.author_email,
-            'companion_files': self.companion_files
-        }
+        res_dict = {
+            'example_id': self.example_id,
+            'title': self.title,
+            'shortname': self.shortname
+            }
+        for of in self._optional_fields:
+            if not ignore_none:
+                res_dict[of] = getattr(self, of)
+            elif getattr(self, of) is not None:
+                res_dict[of] = getattr(self, of)
+        return res_dict
 
-    @classmethod
-    def from_yaml(cls, yaml_file_name: str, description: str = '', pdbID: str = '', author_name: str = '', author_email: str = '', companion_files: list = []):
-        """
-        Create a new Example object based on the provided YAML file and optional parameters.  This provides the convenience of setting the necessary attributes of the Example object based on the contents of the YAML file, while also allowing for customization of the description, pdbID, author name, author email, and companion files.
-
-        Parameters
-        ----------
-        yaml_file_name : str
-            The name of the example file to grab information from. This should be a valid file path.
-        description : str, optional
-            A description of the example; if not provided, extracts the ``title`` field from the YAML file.
-        pdbID : str, optional
-            The PDB ID associated with the example; if not provided, extracts the ``id`` field from the ``psfgen`` task of the ``tasks`` list in the YAML file.
-        author_name : str, optional
-            The name of the author of the example; if not provided, defaults to an empty string.
-        author_email : str, optional
-            The email of the author of the example; if not provided, defaults to an empty string.
-        companion_files : list, optional
-            A list of companion files associated with the example; defaults to an empty list.
-
-        Returns
-        -------
-        Example
-            An Example object containing the name, description, pdbID, and companion_files of the example.
-
-        Raises
-        ------
-        ValueError
-            If the name of the YAML file is not provided. 
-        FileNotFoundError
-            If the example file does not exist at the specified path.
-        """
-        if not yaml_file_name:
-            raise ValueError('Name must be provided')
-        with open(yaml_file_name, 'r') as f:
-            try:
-                new_config = yaml.safe_load(f)
-            except yaml.YAMLError as e:
-                raise ValueError(f'Invalid YAML file {yaml_file_name}: {e}')
-        if not description:
-            if 'title' in new_config:
-                description = new_config['title']
-            else:
-                description = yaml_file_name.replace('.yaml', '').replace('_', ' ').title()
-        if not pdbID:
-            if 'id' in new_config.get('tasks', [{}])[0].get('psfgen', {}).get('source', {}):
-                pdbID = new_config['tasks'][0]['psfgen']['source']['id']
-            elif 'alphafold' in new_config.get('tasks', [{}])[0].get('psfgen', {}).get('source', {}):
-                pdbID = new_config['tasks'][0]['psfgen']['source']['alphafold']
-            else:
-                raise ValueError(f'PDB ID must be provided or found in the YAML file {yaml_file_name}')
-        if not author_name and not author_email:
-            with open(yaml_file_name, 'r') as f:
-                lines = f.readlines()
-            for line in lines:
-                """ Recognized format: list of strings that start with `# Author:` and contain the author's name and email.
-                The format is flexible, but the following rules apply:
-                    - the line must start with `# Author:`
-                    - a single string contains the '@' symbol, which is used to identify the email address
-                    - the name and email must be separated by a comma or whitespace
-                    - the name can contain spaces, internal commas, and periods
-                    - a terminal comma in the name can be ignored
-                    - any nonalphanumeric characters in email string (e.g., the '<' and '>' in '<email-address>') can be deleted from values
-                """
-                if line.startswith('# Author:'):
-                    author_info = line.replace('# Author:', '').strip()
-                    tokens = author_info.split()
-                    idx_of_email_tokens = [i for i, token in enumerate(tokens) if '@' in token]
-                    if not idx_of_email_tokens:
-                        raise ValueError(f'No email found in author line: {line}')
-                    if len(idx_of_email_tokens) > 1:
-                        raise ValueError(f'Multiple emails found in author line: {line}')
-                    email_idx = idx_of_email_tokens[0]
-                    raw_email = tokens.pop(email_idx)
-                    # remove any non-alphanumeric characters from the beginning and end of the email
-                    author_email = re.sub(r'^\W+|\W+$', '', raw_email)
-                    author_name = ' '.join(tokens).strip(',;')
-                    break
-
-        input_dict = {
-            # the name attributed is assigned the basename of the YAML file without the extension
-            'name': os.path.splitext(os.path.basename(yaml_file_name))[0],
-            'description': description,
-            'pdbID': pdbID,
-            'author_name': author_name,
-            'author_email': author_email,
-            'companion_files': companion_files or []
-        }
-        return cls(**input_dict)
+    @property
+    def scriptpath(self) -> Path:
+        return Path(f'{self.inputs_subdir}/{self.shortname}.yaml')
 
     def report_line(self, formatter=r'{:>7s}    {:>4s}  {:<30s}    {}') -> str:
         """
@@ -171,14 +67,15 @@ class Example:
         Parameters
         ----------
         formatter : str, optional
-            A format string for the report. Default is a string that formats the index, name, pdbID, and description of the example.
+            A format string for the report. Default is a string that formats the index, name, pdbID, and title of the example.
         
         Returns
         -------
         str
             A formatted string representing the example.
         """
-        return formatter.format(str(self.index), self.pdbID, self.name, self.description)
+        dbidstr = self.db_id if self.db_id else 'N/A'
+        return formatter.format(str(self.example_id), dbidstr, self.shortname, self.title)
 
     def to_yaml(self) -> str:
         """
@@ -189,63 +86,47 @@ class Example:
         str
             A YAML representation of the example.
         """
-        return yaml.dump(self.to_dict(), default_flow_style=False)
+        return yaml.dump(self.to_dict(ignore_none=True), default_flow_style=False)
 
-    
-    def update_in_place(self, name: str = None, pdbID: str = None, description: str = None, author_name: str = None, author_email: str = None, companion_files: list = None):
+    def update_options(self, author_name: str = None, author_email: str = None, auxiliary_inputs: list[str] = None, outputs: list[str] = None) -> 'Example':
         """
-        Update the attributes of the example in place.  Return the Example instance itself.
+        Update the optional attributes of the example in place.  Return the Example instance itself.
         
         Parameters
         ----------
-        name : str, optional
-            The new name of the example.
-        pdbID : str, optional
-            The new PDB ID associated with the example.
-        description : str, optional
-            The new description of the example.
         author_name : str, optional
             The new name of the author of the example.
         author_email : str, optional
             The new email of the author of the example.
-        companion_files : list, optional
-            A new list of companion files associated with the example; note, these are appended if they are unique.
+        auxiliary_inputs : list[str], optional
+            A new list of auxiliary inputs for the example.
+        outputs : list[str], optional
+            A new list of outputs for the example.
 
         Returns
         -------
         Example
             The updated Example instance.
         """
-        if name is not None:
-            self.name = name
-        if pdbID is not None:
-            self.pdbID = pdbID
-        if description is not None:
-            self.description = description
         if author_name is not None:
             self.author_name = author_name
         if author_email is not None:
             self.author_email = author_email
-        if companion_files is not None:
-            for f in companion_files:
-                if f not in self.companion_files:
-                    self.companion_files.append(f)
+        if auxiliary_inputs is not None:
+            self.auxiliary_inputs = auxiliary_inputs
+        if outputs is not None:
+            self.outputs = outputs
         return self
 
-class ExampleList(UserList):
+class ExampleList(BaseObjList[Example]):
     """
     Represents a list of examples.
 
     Inherits from `UserList` to provide list-like behavior for managing examples.
     """
 
-    def __init__(self, examples=None):
-        super().__init__(examples or [])
-        for i, example in enumerate(self.data):
-            if not isinstance(example, Example):
-                raise TypeError(f'Expected Example instance, got {type(example)}')
-            if not hasattr(example, 'index'):
-                example.index = i + 1  # Set index if not already set
+    def describe(self) -> str:  
+        return f'ExampleList with {len(self.data)} examples'
 
     @classmethod
     def from_list_of_dicts(cls, examples_list) -> 'ExampleList':
@@ -263,9 +144,6 @@ class ExampleList(UserList):
             An instance of ExampleList containing the examples.
         """
         examples = [Example(**example_data) for example_data in examples_list]
-        # set index for each example
-        for i, example in enumerate(examples):
-            example.index = i + 1
         return cls(examples)
 
     def append(self, example: Example):
@@ -277,45 +155,9 @@ class ExampleList(UserList):
         example : Example
             The Example instance to append.
         """
-        if not isinstance(example, Example):
-            raise TypeError(f'Expected Example instance, got {type(example)}')
+        assert example.example_id not in [e.example_id for e in self.data], f'Example with ID {example.example_id} already exists'
         super().append(example)
-        example.index = len(self.data)
-
-    def insert(self, index: int, example: Example):
-        """
-        Insert an Example instance at a specific index.
-        
-        Parameters
-        ----------
-        index : int
-            The 0-based index at which to insert the example.
-        example : Example
-            The Example instance to insert.
-        """
-        if not isinstance(example, Example):
-            raise TypeError(f'Expected Example instance, got {type(example)}')
-        super().insert(index, example)
-        # reindex the examples after insertion
-        for i in range(index + 1, len(self.data)):
-            self.data[i].index = i + 1
     
-    def remove(self, example: Example):
-        """
-        Remove an Example instance from the list.
-        
-        Parameters
-        ----------
-        example : Example
-            The Example instance to remove.
-        """
-        if not isinstance(example, Example):
-            raise TypeError(f'Expected Example instance, got {type(example)}')
-        super().remove(example)
-        # reindex all just to be safe
-        for i in range(len(self.data)):
-            self.data[i].index = i + 1
-
     def to_yaml(self) -> str:
         """
         Convert the list of examples to a YAML string.
@@ -325,7 +167,7 @@ class ExampleList(UserList):
         str
             A YAML representation of the examples.
         """
-        return yaml.dump([example.to_dict() for example in self.data], default_flow_style=False)
+        return yaml.dump([example.to_dict(ignore_none=True) for example in self.data], default_flow_style=False)
 
     def to_list_of_dicts(self) -> list:
         """
@@ -336,7 +178,7 @@ class ExampleList(UserList):
         list
             A list of dictionaries, each representing an example.
         """
-        return [example.to_dict() for example in self.data]
+        return [example.to_dict(ignore_none=True) for example in self.data]
 
     def from_yaml(self, yaml_str: str, overwrite: bool = False):
         """
@@ -355,8 +197,6 @@ class ExampleList(UserList):
         for example_data in examples:
             example = Example(**example_data)
             self.append(example)
-        for i, example in enumerate(self.data):
-            example.index = i + 1
 
     @classmethod
     def read_yaml(cls, yaml_str: str):
@@ -373,14 +213,12 @@ class ExampleList(UserList):
         for example_data in examples:
             example = Example(**example_data)
             inst.append(example)
-        for i, example in enumerate(inst.data):
-            example.index = i + 1
         return inst
-    
-    def get_example_by_name(self, name: str) -> Example:
+
+    def get_example_by_shortname(self, shortname: str) -> Example:
         """
-        Get an example by its name.
-        
+        Get an example by its shortname.
+
         Parameters
         ----------
         name : str
@@ -392,7 +230,13 @@ class ExampleList(UserList):
             The Example instance with the specified name or None if not found.
         
         """
-        for example in self.data:
-            if example.name == name:
-                return example
+        query_result = self.get(lambda x: x.shortname == shortname, self.data)
+        if query_result:
+            return query_result[0]
+        return None
+    
+    def get_example_by_example_id(self, example_id: int) -> Example:
+        query_result = self.get(lambda x: x.example_id == example_id, self.data)
+        if query_result:
+            return query_result[0]
         return None
