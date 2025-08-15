@@ -70,9 +70,9 @@ class ConnectionTest:
     connection_count : int
         The expected number of connections.
     """
-    connection_type_supported = {'interresidue'}
+    connection_type_supported = {'interresidue', 'disulfide', 'glycosylation'}
 
-    def __init__(self, name: str, selection: str, connection_type: str, connection_count: int):
+    def __init__(self, name: str, selection: str, connection_type: str, connection_count: int = 1):
         self.name = name
         self.selection = selection
         self.connection_type = connection_type
@@ -84,17 +84,20 @@ class ConnectionTest:
         vt.addline(f'set test_selection [atomselect top "{self.selection}"]')
         match self.connection_type:
             case 'interresidue':
-                vt.addline(f'set indices [$test_selection get serial]')
+                vt.addline(f'set indexes [$test_selection get index]')
+                vt.addline(f'set atomnames [$test_selection get name]')
                 vt.addline(f'set resids [$test_selection get residue]')
                 vt.addline(f'set bondlists [$test_selection getbonds]')
                 vt.addline(f'set count 0')
-                vt.addline(f'foreach index $indices resid $resids bondlist $bondlists {{')
+                vt.addline(f'foreach index $indexes atomname $atomnames resid $resids bondlist $bondlists {{')
                 vt.addline(f'   foreach partner $bondlist {{')
                 vt.addline(f'      if {{$partner < $index}} {{ continue }}') # no double-counting!
-                vt.addline(f'      set idx [lsearch $indices $partner]')
+                vt.addline(f'      set idx [lsearch $indexes $partner]')
                 vt.addline(f'      set partner_resid [lindex $resids $idx]')
                 vt.addline(f'      if {{$partner_resid != "" && $partner_resid != $resid}} {{')
-                vt.addline(f'         vmdcon "BOND $index $resid <--> $partner $partner_resid"')
+                vt.addline(f'         set partnersel [atomselect top "index $partner"]')
+                vt.addline(f'         set partner_name [$partnersel get name]')
+                vt.addline(f'         vmdcon "BOND $index $atomname $resid <--> $partner $partner_name $partner_resid"')
                 vt.addline(f'         incr count')
                 vt.addline(f'      }}')
                 vt.addline(f'   }}')
@@ -103,6 +106,54 @@ class ConnectionTest:
                 vt.addline(f'   vmdcon "FAIL {self.name} has unexpected count $count (expected {self.connection_count}) in selection {self.selection} for interresidue bonds"')
                 vt.addline(f'}} else {{')
                 vt.addline(f'   vmdcon "PASS {self.name} has expected count $count (expected {self.connection_count}) in selection {self.selection}"')
+                vt.addline(f'}}')
+            case 'disulfide':
+                vt.addline(f'set indexes [$test_selection get index]')
+                vt.addline(f'set atomnames [$test_selection get name]')
+                vt.addline(f'set resids [$test_selection get residue]')
+                vt.addline(f'set bondlists [$test_selection getbonds]')
+                vt.addline(f'set count 0')
+                vt.addline(f'foreach index $indexes atomname $atomnames resid $resids bondlist $bondlists {{')
+                vt.addline(f'   foreach partner $bondlist {{')
+                vt.addline(f'      if {{$partner < $index}} {{ continue }}') # no double-counting!
+                vt.addline(f'      set idx [lsearch $indexes $partner]')
+                vt.addline(f'      set partner_resid [lindex $resids $idx]')
+                vt.addline(f'      if {{$partner_resid != "" && $partner_resid != $resid}} {{')
+                vt.addline(f'         set partnersel [atomselect top "index $partner"]')
+                vt.addline(f'         set partner_name [$partnersel get name]')
+                vt.addline(f'         vmdcon "BOND $index $atomname $resid <--> $partner $partner_name $partner_resid"')
+                vt.addline(f'         if {{$atomname == "SG" && $partner_name == "SG"}} {{')
+                vt.addline(f'             incr count')
+                vt.addline(f'         }}')
+                vt.addline(f'      }}')
+                vt.addline(f'   }}')
+                vt.addline(f'}}')
+                vt.addline(f'if {{$count != {self.connection_count}}} {{')
+                vt.addline(f'   vmdcon "FAIL {self.name} has unexpected count $count (expected {self.connection_count}) in selection {self.selection} for interresidue bonds"')
+                vt.addline(f'}} else {{')
+                vt.addline(f'   vmdcon "PASS {self.name} has expected count $count (expected {self.connection_count}) in selection {self.selection}"')
+                vt.addline(f'}}')
+            case 'glycosylation':
+                vt.addline(f'set indexes [$test_selection get index]')
+                vt.addline(f'set resids [$test_selection get residue]')
+                vt.addline(f'set bondlists [$test_selection getbonds]')
+                vt.addline(f'set external_partners [list]')
+                vt.addline(f'foreach index $indexes resid $resids bondlist $bondlists {{')
+                vt.addline(f'   foreach partner $bondlist {{')
+                vt.addline(f'      if {{$partner < $index}} {{ continue }}') # no double-counting!
+                vt.addline(f'      set idx [lsearch $indexes $partner]')
+                vt.addline(f'      if {{$idx == -1}} {{')
+                vt.addline(f'         lappend external_partners $partner')
+                vt.addline(f'      }}')
+                vt.addline(f'   }}')
+                vt.addline(f'}}')
+                vt.addline(f'set extsel [atomselect top "index $external_partners"]')
+                vt.addline(f'set names [$extsel get name]')
+                vt.addline(f'set count [llength [lsearch -nocase -exact -all $names C1]]')
+                vt.addline(f'if {{$count != 1}} {{')
+                vt.addline(f'    vmdcon "FAIL Selection {self.selection} has no atoms bound to an external C1 atom"')
+                vt.addline(f'}} else {{')
+                vt.addline(f'    vmdcon "PASS Selection {self.selection} has $count atoms bound to an external C1 atom"')
                 vt.addline(f'}}')
             case '_':
                 logger.debug(f'Unsupported connection type: {self.connection_type}')
@@ -207,7 +258,7 @@ class ValidateTask(VMDTask):
             npass = sum(1 for r in results if 'PASS' in r)
             nfail = sum(1 for r in results if 'FAIL' in r)
             logger.debug(f'Validation results: \x1b[32m\x1b[1m{npass} passing\x1b[0m, \x1b[31m\x1b[1m{nfail} failing\x1b[0m>')
-            self.extra_message = f"Validation results: \x1b[32m\x1b[1m{npass} passing\x1b[0m, \x1b[31m\x1b[1m{nfail} failing\x1b[0m"
+            self.extra_message = f"\x1b[32m\x1b[1mpass: {npass}\x1b[0m, \x1b[31m\x1b[1mfail: {nfail}\x1b[0m"
         # here we would parse the resulting log file
         # state has not changed, but if all validations pass, we can stamp it
         self.register(state)

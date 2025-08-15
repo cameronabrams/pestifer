@@ -82,13 +82,23 @@ tasks:
           - I_1-2:2wah,C_1#2-9 # 1134
           - O_1-2:2wah,C_1#2-9 # 1134
           - U_1-2:2wah,C_1#2-9 # 1134
-#   - validate:
-#       tests:
-#         - connection_test:
-#           name: graft 61 chain A
-#           selection: protein and chain A and resid 61 
-#           connection_type: interresidue
-#           connection_count: 1 # should be one disulfide bond now
+  - validate:
+      tests:
+        - connection_test:
+            name: graft 61 chain A
+            selection: protein and chain A and resid 61 
+            connection_type: glycosylation
+            connection_count: 1
+        - connection_test:
+            name: graft 61 chain B
+            selection: protein and chain B and resid 61
+            connection_type: glycosylation
+            connection_count: 1
+        - connection_test:
+            name: graft 61 chain C
+            selection: protein and chain C and resid 61 
+            connection_type: glycosylation
+            connection_count: 1
   - md:
       cpu-override: True
       ensemble: minimize

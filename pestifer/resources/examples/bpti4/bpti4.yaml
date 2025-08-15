@@ -40,8 +40,7 @@ tasks:
         - connection_test:
             name: new disulfide
             selection: protein and chain A and resid 11 34
-            connection_type: interresidue
-            connection_count: 1 # should be one disulfide bond now
+            connection_type: disulfide
         - residue_test:
             name: phosphate ion excluded
             selection: resname PO4
