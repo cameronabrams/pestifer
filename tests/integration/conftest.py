@@ -6,13 +6,24 @@ import importlib.resources as ir
 import re
 import pytest
 
+from pestifer.core.examplemanager import ExampleManager
+from pestifer.core.example import Example
+
 PKG_NAME = "pestifer"                   # your package import name
-CASES_DIR = ("pestifer", "resources", "examples")  # default discovery root: pkg/testdata/cases/
+CASES_DIR = ("resources", "examples")  # default discovery root: pkg/testdata/cases/
+
 
 @dataclass(frozen=True)
 class Case:
     index: int
-    id: str
+    folder: str
+
+def _example_foldername(example_id: int) -> Path:
+    """
+    Convert an example index to a folder name like 'ex01', 'ex02', etc.
+    """
+    return Path(Example.folder_name_format.format(example_id=example_id))
+
 
 def _default_cases_root() -> Path:
     base = ir.files(PKG_NAME)
@@ -20,30 +31,28 @@ def _default_cases_root() -> Path:
         base = base / part
     return Path(str(base)).resolve()
 
-def _parse_index(name: str) -> int | None:
+example_manager = ExampleManager(examples_path=_default_cases_root())
+def _example_foldername_validate(foldername: Path | str) -> bool:
     """
-    Accept names like 'ex01', 'ex1', 'case_01', 'case-12', '01', '1'
+    Validate an example folder name like 'ex01', 'ex02', etc.
     """
-    m = re.search(r'(?:ex|case[_-]?)?(\d+)$', name)
-    return int(m.group(1)) if m else None
+    testname = foldername if isinstance(foldername, str) else foldername.name
+    return example_manager.root_folder_format_validator.fullmatch(testname)
 
-def _discover_indices(root: Path) -> list[int]:
+def _example_foldername_extract(foldername: Path | str) -> dict:
+    testname = foldername if isinstance(foldername, str) else foldername.name
+    return example_manager.root_folder_format_validator.extract(testname)
+
+def _discover_example_folders(root: Path) -> list[Path]:
     if not root.exists():
         return []
-    indices: set[int] = set()
-    # 1) look for subdirectories named with an index pattern
+    subfolders = []
+    # look for subdirectories named with an index pattern
     for p in root.iterdir():
         if p.is_dir():
-            idx = _parse_index(p.name)
-            if idx is not None:
-                indices.add(idx)
-    # 2) also allow files like ex01.in or case_02.yaml as hints
-    for p in root.rglob("*"):
-        if p.is_file():
-            idx = _parse_index(p.stem)
-            if idx is not None:
-                indices.add(idx)
-    return sorted(indices)
+            if _example_foldername_validate(p):
+                subfolders.append(p)
+    return sorted(subfolders)
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     g = parser.getgroup("integration-examples")
@@ -58,7 +67,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         "--cases-root",
         action="store",
         default=None,
-        help="Root directory to discover examples (default: pestifer/pestifer/resources/examples)"
+        help="Root directory to discover examples (default: pestifer/resources/examples)"
     )
 
 def _expand_examples(spec: str) -> list[int]:
@@ -84,10 +93,12 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     explicit = metafunc.config.getoption("--examples")
     if explicit:
         indices = _expand_examples(explicit)
+        example_subfolders = [_example_foldername(i) for i in indices if _example_foldername(i).exists()]
     else:
-        indices = _discover_indices(root)
-    cases = [Case(index=i, id=f"ex{ i:02d }") for i in indices]
-    metafunc.parametrize("case", cases, ids=[c.id for c in cases])
+        example_subfolders = _discover_example_folders(root)
+        indices = [int(_example_foldername_extract(p.name).get('example_id')) for p in example_subfolders]
+    cases = [Case(index=i, folder=_example_foldername(i)) for i in indices]
+    metafunc.parametrize("case", cases, folders=[c.folder for c in cases])
 
 @pytest.fixture
 def per_case_dir(case: Case, request: pytest.FixtureRequest) -> Path:
@@ -105,13 +116,12 @@ def make_namespace():
     """
     Build the argparse.Namespace expected by run_example, mirroring your current runner.
     """
-    def _make(exnumber: int, outdir: Path) -> argparse.Namespace:
-        nstr = f"{exnumber:02d}"
+    def _make(example_id: int, outdir: Path) -> argparse.Namespace:
         return argparse.Namespace(
-            index=exnumber,
+            example_id=example_id,
             config=None,
             output_dir=str(outdir),
-            log_file=f"diagnostics-{nstr}.log",
+            log_file=f"diagnostics.log",
             gpu=False,
             complete_config=False,
             log_level="debug",

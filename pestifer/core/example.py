@@ -260,13 +260,19 @@ class ExampleList(BaseObjList[Example]):
             The Example instance with the specified name or None if not found.
         
         """
-        query_result = self.get(lambda x: x.shortname == shortname, self.data)
+        query_result = self.get(lambda x: x.shortname == shortname)
         if query_result:
-            return query_result[0]
+            if isinstance(query_result, list) and len(query_result) > 1:
+                logger.warning(f'Multiple examples found with shortname {shortname}. Returning the first one.')
+                return query_result[0]
+            return query_result
         return None
     
     def get_example_by_example_id(self, example_id: int) -> Example:
-        query_result = self.get(lambda x: x.example_id == example_id, self.data)
+        query_result = self.get(lambda x: x.example_id == example_id)
         if query_result:
-            return query_result[0]
+            if isinstance(query_result, list) and len(query_result) > 1:
+                logger.warning(f'Multiple examples found with example_id {example_id}. Returning the first one.')
+                return query_result[0]
+            return query_result
         return None

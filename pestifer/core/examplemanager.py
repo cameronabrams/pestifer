@@ -54,9 +54,6 @@ class ExampleManager:
         else:
             self.sphinx_example_manager = None
 
-
-
-
     def _read_dirtree(self):
         """
         Read the directory tree to populate the examples list.
@@ -242,7 +239,6 @@ class ExampleManager:
             shutil.rmtree(example_folder_path)
         else:
             raise FileNotFoundError(f'Example folder "{example_folder_path}" does not exist')
-        self._write_info()
         if self.sphinx_example_manager:
             self.sphinx_example_manager.delete_example(example)
         logger.info(f'Deleted example {example_id}: {example.shortname}')
@@ -289,7 +285,7 @@ class ExampleManager:
             else:
                 logger.warning(f'Declared output file {f} does not exist in {os.getcwd()}')
 
-    def add_example(self, example_id: int, scriptname: str, title: str = '', db_id: str = '', author_name: str = '', author_email: str = '', auxiliary_inputs: list = [], outputs: list = []):
+    def append_example(self, example_id: int, scriptname: str, title: str = '', db_id: str = '', author_name: str = '', author_email: str = '', auxiliary_inputs: list = [], outputs: list = []):
         """
         Create a new Example from keyword arguments and add it to the examples list.
         
@@ -329,9 +325,8 @@ class ExampleManager:
         new_example = Example(example_id=example_id,shortname=os.path.splitext(scriptname)[0],title=title,db_id=db_id,author_name=author_name,author_email=author_email,auxiliary_inputs=auxiliary_inputs,outputs=outputs)
         self.checkin_example(new_example)  # check in the new example by copying its YAML file and companion files to the appropriate example folder
         self.examples.append(new_example)
-        self._write_info()
         if self.sphinx_example_manager:
-            self.sphinx_example_manager.add_example(new_example)
+            self.sphinx_example_manager.append_example(new_example)
         logger.info(f'Added new example {new_example.example_id}: {new_example.shortname}')
         return new_example
 
@@ -418,8 +413,8 @@ class ExampleManager:
                 if os.path.isfile(f):
                     shutil.copy(f, current_example_outputs_subfolder)
         if self.sphinx_example_manager:
-            self.sphinx_example_manager.update_example(current_example)
-        logger.info(f'Updated example {current_example.example_id}: {current_example.shortname}')
+            self.sphinx_example_manager.update_example(example_id, current_example)
+        logger.info(f'Updated example {example_id}: {current_example.shortname}')
         return current_example
 
     def rename_example(self, example_id: int, new_shortname: str):
