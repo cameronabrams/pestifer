@@ -18,11 +18,15 @@ class TestSphinxExampleManager(unittest.TestCase):
 
     def _build_example_set(self):
         self.examples=[]
-        for l in ['A','B','C']:
-            self.examples.append(Example.from_yaml(f'userspace/ex{l}.yaml'))
-            self.manager.insert_example(len(self.examples), self.examples[-1])
-        self.updated_existing_example = Example.from_yaml('userspace/exA_updated.yaml')
-        self.example_to_insert = Example.from_yaml('userspace/exD.yaml')
+        for i,l in enumerate(['A','B','C']):
+            title, db_id = Example._get_implied_metadata(f'userspace/ex{l}.yaml')
+            example = Example(example_id=i+1, title=title, db_id=db_id, shortname=f'ex{l}')
+            self.examples.append(example)
+            self.manager.append_example(example)
+        title, db_id = Example._get_implied_metadata('userspace/exA_updated.yaml')
+        self.updated_existing_example = Example(example_id=1, title=title, db_id=db_id, shortname='exA_updated')
+        title, db_id = Example._get_implied_metadata('userspace/exD.yaml')
+        self.example_to_add = Example(example_id=4, title=title, db_id=db_id, shortname='exD')
 
     def tearDown(self):
         shutil.rmtree('docs', ignore_errors=True)
@@ -40,71 +44,48 @@ class TestSphinxExampleManager(unittest.TestCase):
         self._build_example_set()
         self.assertTrue(get_num_entries_in_toctree(self.manager.examples_rst) == 3)
         ex_folders = os.listdir(self.manager.examples_folder_path)
-        self.assertIn('exA.rst', ex_folders)
-        self.assertIn('exB.rst', ex_folders)
-        self.assertIn('exC.rst', ex_folders)
+        self.assertIn('ex01', ex_folders)
+        self.assertIn('ex02', ex_folders)
+        self.assertIn('ex03', ex_folders)
         self.assertTrue(len(ex_folders) == 3)
-
-    def test_sphinx_example_manager_insert_example(self):
-        self._build_example_set()
-        self.example_to_insert.index = 2
-        self.manager.insert_example(2,self.example_to_insert)
-        toctree_path = self.manager.examples_rst
-        with open(toctree_path, 'r') as f:
-            toctree_lines = f.readlines()
-        exAidx=toctree_lines.index('  examples/exA\n')
-        exINSidx=toctree_lines.index('  examples/exD\n')
-        exBidx=toctree_lines.index('  examples/exB\n')
-        self.assertTrue(exAidx < exINSidx < exBidx)
-        rst_files= os.listdir(self.manager.examples_folder_path)
-        self.assertIn('exD.rst', rst_files)
 
     def test_sphinx_example_manager_append_example(self):
         self._build_example_set()
-        self.manager.append_example(self.example_to_insert)
+        self.manager.append_example(self.example_to_add)
         toctree_path = self.manager.examples_rst
         with open(toctree_path, 'r') as f:
             toctree_lines = f.readlines()
-        exCidx=toctree_lines.index('  examples/exC\n')
-        exINSidx=toctree_lines.index('  examples/exD\n')
+        exCidx=toctree_lines.index('  examples/ex03/exC\n')
+        exINSidx=toctree_lines.index('  examples/ex04/exD\n')
         self.assertTrue(exCidx < exINSidx)
-        rst_files= os.listdir(self.manager.examples_folder_path)
-        self.assertIn('exD.rst', rst_files)
+        example_folders = os.listdir(self.manager.examples_folder_path)
+        self.assertIn('ex04', example_folders)
+        self.assertTrue(len(example_folders) == 4)
+        new_example_folder = os.path.join(self.manager.examples_folder_path, 'ex04')
+        self.assertTrue(os.path.exists(os.path.join(new_example_folder, 'exD.rst')))
 
     def test_sphinx_example_manager_delete_example(self):
         self._build_example_set()
         example_to_delete = self.examples[1]
-        self.assertTrue(example_to_delete.name == 'exB')
+        self.assertTrue(example_to_delete.shortname == 'exB')
         self.manager.delete_example(example_to_delete)
         toctree_path = self.manager.examples_rst
         with open(toctree_path, 'r') as f:
             toctree_lines = f.readlines()
-        self.assertNotIn('  examples/exB\n', toctree_lines)
-        rst_files= os.listdir(self.manager.examples_folder_path)
-        self.assertNotIn('exB.rst', rst_files)
-         
-    def test_sphinx_example_manager_title_index_shift(self):
-        self._build_example_set()
-        self.manager.title_index_shift(start_index=2, shift=1)
-        example_rst_path = os.path.join(self.manager.examples_folder_path, f'exB.rst')
-        self.assertTrue(os.path.isfile(example_rst_path))
-        with open(example_rst_path, 'r') as f:
-            content = f.read()
-        self.assertIn("Example 3:", content)
-        self.manager.title_index_shift(start_index=2, shift=-1)
-        with open(example_rst_path, 'r') as f:
-            content = f.read()
-        self.assertIn("Example 2:", content)
+        self.assertNotIn(f'  examples/{example_to_delete.rootfolderpath}/exB\n', toctree_lines)
+        example_folders = os.listdir(self.manager.examples_folder_path)
+        self.assertNotIn(example_to_delete.rootfolderpath, example_folders)
+        self.assertEqual(len(example_folders), 2)
 
     def test_sphinx_example_manager_append_existing_example(self):
         self._build_example_set()
-        with self.assertRaises(FileExistsError):
+        with self.assertRaises(AssertionError):
             self.manager.append_example(self.examples[0])  # Attempt to add an existing example
     
     def test_sphinx_example_manager_update_example(self):
         self._build_example_set()
         self.manager.update_example(1, self.updated_existing_example)
-        example_rst_path = os.path.join(self.manager.examples_folder_path, f'{self.updated_existing_example.name}.rst')
+        example_rst_path = os.path.join(self.manager.examples_folder_path, self.updated_existing_example.rootfolderpath, f'{self.updated_existing_example.shortname}.rst')
         self.assertTrue(os.path.isfile(example_rst_path))
         with open(example_rst_path, 'r') as f:
             content = f.read()
@@ -112,6 +93,6 @@ class TestSphinxExampleManager(unittest.TestCase):
         toctree_path = self.manager.examples_rst
         with open(toctree_path, 'r') as f:
             content = f.read()
-        self.assertIn(f'examples/{self.updated_existing_example.name}', content)
-        content=content.replace(f'examples/{self.updated_existing_example.name}', 'PLACEHOLDER')
-        self.assertNotIn(f'examples/{self.updated_existing_example.name}', content)
+        self.assertIn(f'examples/{self.updated_existing_example.rootfolderpath}/{self.updated_existing_example.shortname}', content)
+        content=content.replace(f'examples/{self.updated_existing_example.rootfolderpath}/{self.updated_existing_example.shortname}', 'PLACEHOLDER')
+        self.assertNotIn(f'examples/{self.updated_existing_example.rootfolderpath}/{self.updated_existing_example.shortname}', content)

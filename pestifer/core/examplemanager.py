@@ -5,7 +5,8 @@ A module for managing example input files in pestifer.
 This module provides the :class:`ExampleManager` class, which allows users to check out example YAML files,
 report the list of examples, and manage example resources.
 
-ExampleManager does not directly manage the example documentation, but it relies on the :class:`SphinxExampleManager` class to handle the documentation side of things.
+ExampleManager does not directly manage the example documentation, but it relies on the :class:`SphinxExampleManager` 
+class to handle the documentation side of things.
 """
 
 from glob import glob
@@ -18,6 +19,7 @@ from pathlib import Path
 
 from .example import Example, ExampleList
 from ..sphinxext.sphinx_examplemanager import SphinxExampleManager
+from ..util.formatvalidator import FormatValidator
 
 logger = logging.getLogger(__name__)
 
@@ -25,12 +27,12 @@ class ExampleManager:
     """
     A class for managing example YAML input files in pestifer.
     This class provides methods to check out example YAML files, report the list of examples, and manage example resources.
+    Each example has a root folder that lives in `examples_path`.
     
     Parameters
     ----------
     example_path : str
-        The path to the directory containing example input files. This directory should contain an ``info.yaml`` file
-        that describes the examples available in that directory.
+        The path to the directory containing example root folders.
     docs_path : str
         The path to the directory containing documentation files. This is passed directly to the :class:`SphinxExampleManager` class.
         If not provided, the documentation management is not enabled.
@@ -43,6 +45,7 @@ class ExampleManager:
         if not os.path.isdir(examples_path):
             logger.debug(f'Directory "{examples_path}" does not exist; creating it')
             os.makedirs(examples_path)
+        self.root_folder_format_validator = FormatValidator(Example.folder_name_format, greedy=True, flexible_ws=True)
         self.path = os.path.abspath(examples_path)
         self._read_dirtree()
         if docs_source_path:
@@ -51,30 +54,8 @@ class ExampleManager:
         else:
             self.sphinx_example_manager = None
 
-    @staticmethod
-    def _get_implied_metadata(script: str) -> tuple[str, str | None]:
-        """
-        Get the implied title and database ID from the user script.
 
-        Parameters
-        ----------
-        script : str
-            The path to the pestifer script file.
 
-        Returns
-        -------
-        tuple[str, str | None]
-            A tuple containing the implied title and database ID.
-        """
-        with open(script, 'r') as f:
-            main_input = yaml.safe_load(f)
-            title = main_input.get('title', 'No title provided')
-            tasks = main_input.get('tasks', [])
-            if len(tasks) > 0 and 'fetch' in tasks[0]:
-                db_id = tasks[0]['fetch']['sourceID']
-            else:
-                db_id = None
-        return title, db_id
 
     def _read_dirtree(self):
         """
@@ -84,10 +65,10 @@ class ExampleManager:
         os.chdir(self.path)
         # do stuff
         self.examples = ExampleList([])
-        exdirs = [d for d in os.listdir('.') if os.path.isdir(d)]
+        exdirs = [d for d in os.listdir('.') if os.path.isdir(d) if self.root_folder_format_validator.fullmatch(d)]
         exdirs.sort()
         for exdir in exdirs:
-            example_id = int(exdir[2:])  # convert ex## to ##
+            example_id = self.root_folder_format_validator.extract(exdir).get("example_id")
             inputdir = os.path.join(exdir, 'inputs')
             yaml_inputs = glob(os.path.join(inputdir, '*.yaml'))
             title = 'No title provided'
@@ -100,7 +81,7 @@ class ExampleManager:
             else:
                 main_input_script = yaml_inputs[0]
                 shortname = os.path.basename(main_input_script).replace('.yaml', '')
-                title, db_id = self._get_implied_metadata(main_input_script)
+                title, db_id = Example._get_implied_metadata(main_input_script)
             if shortname:
                 self.examples.append(Example(
                     example_id=example_id,
@@ -401,7 +382,7 @@ class ExampleManager:
             if os.path.isfile(user_script):
                 # user is providing a new script for this example
                 shutil.copy(user_script, current_example_scriptpath)
-                user_implied_title, user_implied_db_id = self._get_implied_metadata(user_script)
+                user_implied_title, user_implied_db_id = Example._get_implied_metadata(user_script)
                 current_example.title = user_implied_title
                 current_example.db_id = user_implied_db_id
             else:

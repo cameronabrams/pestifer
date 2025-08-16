@@ -6,6 +6,6 @@ Examples
 .. toctree::
    :maxdepth: 1
 
-  examples/exA_updated
-  examples/exB
-  examples/exC
+  examples/ex01/exA_updated
+  examples/ex02/exB
+  examples/ex03/exC

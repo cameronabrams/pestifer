@@ -1,5 +1,5 @@
 import unittest
-from pestifer.sphinxext.toctree_util import modify_toctree,get_name_from_toctree,get_num_entries_in_toctree
+from pestifer.sphinxext.toctree_util import modify_toctree, get_name_from_toctree, get_num_entries_in_toctree
 
 import os
 import shutil
@@ -7,7 +7,7 @@ class TestModifyToctree(unittest.TestCase):
     def setUp(self):
         shutil.copy('../fixtures/toctree_utils_inputs/sample_rst_file.rst', '.')
         shutil.copy('../fixtures/toctree_utils_inputs/empty_rst_file.rst', '.')
-        self.rst_folder_path='examples'
+        self.rst_folder_path = 'examples'
 
     def tearDown(self):
         if os.path.isfile('sample_rst_file.rst'):
@@ -26,60 +26,45 @@ class TestModifyToctree(unittest.TestCase):
 
     def test_new_entry_new_toctree(self):
         filepath = 'empty_rst_file.rst'
-        action = "insert"
-        new_entry = "exampleD"
-        modify_toctree(filepath, action, new_entry=new_entry, index=1, common_prefix=self.rst_folder_path)
+        action = "append"
+        new_entry = "ex01/exampleD"
+        modify_toctree(filepath, action, new_entry=new_entry, common_prefix=self.rst_folder_path)
         with open(filepath, 'r') as f:
             lines = f.readlines()
-        self.assertIn(f"  {self.rst_folder_path}/exampleD\n", lines)
+        self.assertIn(f"  {self.rst_folder_path}/ex01/exampleD\n", lines)
         self.assertEqual(get_num_entries_in_toctree(filepath), 1)
-
-    def test_modify_toctree_insert_entry(self):
-        filepath = 'sample_rst_file.rst'
-        action = "insert"
-        new_index=2 # 1-based index for insertion
-        new_entry = "exampleD"
-        modify_toctree(filepath, action, new_entry=new_entry, index=new_index)
-        with open(filepath, 'r') as f:
-            lines = f.readlines()
-        self.assertIn("  howlers/exampleD\n", lines)
-        idx = lines.index("  howlers/exampleD\n")
-        self.assertEqual(lines[idx - 1].strip(), "howlers/exampleA")
-        self.assertEqual(lines[idx + 1].strip(), "howlers/exampleB")
 
     def test_modify_toctree_add_entry(self):
         filepath = 'sample_rst_file.rst'
-        action = "insert"
-        new_entry = "example4"
-        new_index=get_num_entries_in_toctree(filepath) + 1  # Add at the end
-        modify_toctree(filepath, action, new_entry=new_entry, index=new_index)
+        action = "append"
+        new_entry = "ex04/example4"
+        modify_toctree(filepath, action, new_entry=new_entry)
         with open(filepath, 'r') as f:
             lines = f.readlines()
-        self.assertIn("  howlers/example4\n", lines[-1])
+        self.assertIn("  howlers/ex04/example4\n", lines[-1])
 
     def test_modify_toctree_delete_entry(self):
         filepath = 'sample_rst_file.rst'
         action = "delete"
-        target = "howlers/exampleB"
+        target = "ex02/exampleB"
         modify_toctree(filepath, action, target=target)
         with open(filepath, 'r') as f:
             all_content = f.read()
-        self.assertNotIn("  exampleB\n", all_content)
-
+        self.assertNotIn("  howlers/ex02/exampleB\n", all_content)
 
     def test_modify_toctree_update_entry(self):
         filepath = 'sample_rst_file.rst'
         action = "update"
-        target = "howlers/exampleA"
-        new_entry = "exampleA_updated"
+        target = "ex01/exampleA"
+        new_entry = "ex01/exampleA_updated"
         modify_toctree(filepath, action, target=target, new_entry=new_entry)
         with open(filepath, 'r') as f:
             lines = f.readlines()
-        self.assertIn("  howlers/exampleA_updated\n", lines)
-        self.assertNotIn("  howlers/exampleA\n", lines)
+        self.assertIn("  howlers/ex01/exampleA_updated\n", lines)
+        self.assertNotIn("  howlers/ex01/exampleA\n", lines)
 
     def test_get_name_from_toctree(self):
         filepath = 'sample_rst_file.rst'
-        index = 2
-        name = get_name_from_toctree(filepath, index)
+        match_str = "ex02"
+        name = get_name_from_toctree(filepath, match_str)
         self.assertEqual(name, "exampleB")

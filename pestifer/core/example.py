@@ -2,13 +2,11 @@
 """
 Defines the :class:`Example` class for managing examples.
 """
-from collections import UserList
 import yaml
 import logging
-import re
-import os
 from pathlib import Path
 from pydantic import Field
+from typing import ClassVar
 from .baseobj import BaseObj, BaseObjList
 
 logger = logging.getLogger(__name__)
@@ -35,6 +33,9 @@ class Example(BaseObj):
     inputs_subdir: str = "inputs"
     outputs_subdir: str = "outputs"
 
+    folder_name_format: ClassVar[str] = 'ex{example_id:02d}'
+    """ format for the name of the root folder of each example """
+
     def to_dict(self, ignore_none: bool = False) -> dict:
         """
         Convert the example to a dictionary representation.
@@ -60,6 +61,35 @@ class Example(BaseObj):
     def scriptpath(self) -> Path:
         return Path(f'{self.inputs_subdir}/{self.shortname}.yaml')
 
+    @property
+    def rootfolderpath(self) -> Path:
+        return Path(self.folder_name_format.format(example_id=self.example_id))
+    
+    @staticmethod
+    def _get_implied_metadata(script: str) -> tuple[str, str | None]:
+        """
+        Get the implied title and database ID from Pestifer input script.
+
+        Parameters
+        ----------
+        script : str
+            The path to the pestifer script file.
+
+        Returns
+        -------
+        tuple[str, str | None]
+            A tuple containing the implied title and database ID.
+        """
+        with open(script, 'r') as f:
+            main_input: dict = yaml.safe_load(f)
+            title = main_input.get('title', 'No title provided')
+            tasks = main_input.get('tasks', [])
+            if len(tasks) > 0 and 'fetch' in tasks[0]:
+                db_id = tasks[0]['fetch']['sourceID']
+            else:
+                db_id = None
+        return title, db_id
+    
     def report_line(self, formatter=r'{:>7s}    {:>4s}  {:<30s}    {}') -> str:
         """
         Generate a formatted line for reporting the example.

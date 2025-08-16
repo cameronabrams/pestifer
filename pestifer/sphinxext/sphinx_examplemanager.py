@@ -17,6 +17,7 @@ from pidibble.pdbparse import PDBParser
 
 from .toctree_util import modify_toctree, get_name_from_toctree
 from ..core.example import Example
+from ..util.formatvalidator import FormatValidator
 from ..util.stringthings import example_footer
 
 logger = logging.getLogger(__name__)
@@ -40,6 +41,7 @@ class SphinxExampleManager:
         if docs_source_path is None:
             return None
         self.docs_source_path = docs_source_path
+        self.example_folder_name_format_validator = FormatValidator(Example.folder_name_format, greedy=True, flexible_ws=True)
         self.examples_basename = examples_rst_name.replace('.rst', '')
         self.examples_folder_name = examples_folder_name
         # determine if this is an empty docs source path and if so, build it
@@ -98,7 +100,7 @@ class SphinxExampleManager:
             basestring += example_footer(example.author_name, example.author_email)
         return basestring
     
-    def add_example(self, example: Example):
+    def append_example(self, example: Example):
         """
         Add an example to the documentation
         
@@ -108,13 +110,14 @@ class SphinxExampleManager:
         example : Example
             The example to add.
         """
-        assert not os.path.exists(os.path.join(self.examples_folder_path, f'ex{example.example_id:02d}'))
-        os.makedirs(os.path.join(self.examples_folder_path, f'ex{example.example_id:02d}'), exist_ok=True)
-        destination_file = os.path.join(self.examples_folder_path, f'ex{example.example_id:02d}', f'{example.shortname}.rst')
+        example_folder_name = Example.folder_name_format.format(example_id=example.example_id)
+        assert not os.path.exists(os.path.join(self.examples_folder_path, example_folder_name))
+        os.makedirs(os.path.join(self.examples_folder_path, example_folder_name), exist_ok=True)
+        destination_file = os.path.join(self.examples_folder_path, example_folder_name, f'{example.shortname}.rst')
         with open(destination_file, 'w') as f:
             f.write(self.new_rst(example))
         if self.examples_rst:
-            modify_toctree(self.examples_rst, action='insert', new_entry=example.shortname, common_prefix=self.examples_folder_name)
+            modify_toctree(self.examples_rst, action='append', new_entry=f'{example_folder_name}/{example.shortname}', common_prefix=self.examples_folder_name)
 
     def update_example(self, example_id: int, example: Example):
         """
@@ -127,18 +130,22 @@ class SphinxExampleManager:
         example : Example
             The example whose content will be used to update the existing example
         """
-        current_name = get_name_from_toctree(self.examples_rst, example_id)
-        current_rst_file = os.path.join(self.examples_folder_path, f'ex{example_id:02d}', f'{current_name}.rst')
+        current_example_folder_name = Example.folder_name_format.format(example_id=example_id)
+        current_example_root = os.path.join(self.examples_folder_path, current_example_folder_name)
+        if not os.path.isdir(current_example_root):
+            raise FileNotFoundError(f'Current example folder {current_example_folder_name} does not exist; cannot update.')
+        current_name = get_name_from_toctree(self.examples_rst, current_example_folder_name)
+        current_rst_file = os.path.join(current_example_root, f'{current_name}.rst')
         if not os.path.exists(current_rst_file):
             raise FileNotFoundError(f'Current example file {current_rst_file} does not exist. Cannot update non-existing example files.')
         updated_name = example.shortname
         if current_name != updated_name:
             # rename the current example rst file to include the index
-            updated_rst_file = os.path.join(self.examples_folder_path, f'ex{example_id:02d}', f'{updated_name}.rst')
+            updated_rst_file = os.path.join(current_example_root, f'{updated_name}.rst')
             os.rename(current_rst_file, updated_rst_file)
             logger.debug(f'Renamed {current_rst_file} to {updated_rst_file}')
             if self.examples_rst:
-                modify_toctree(self.examples_rst, action='update', target=current_name, new_entry=example.shortname)
+                modify_toctree(self.examples_rst, action='update', target=f'{current_example_folder_name}/{current_name}', new_entry=f'{current_example_folder_name}/{example.shortname}')
             current_rst_file = updated_rst_file
         with open(current_rst_file, 'r') as f:
             rst_lines=f.readlines()
@@ -174,13 +181,13 @@ class SphinxExampleManager:
         example : Example
             The example to delete.
         """
-        target_example_dir = os.path.join(self.examples_folder_path, f'ex{example.example_id:02d}')
-        if os.path.isdir(target_example_dir):
-            shutil.rmtree(target_example_dir)
-        else:
-            raise FileNotFoundError(f'Example documentation folder {target_example_dir} does not exist. Cannot delete non-existing example files.')
+        current_example_folder_name = Example.folder_name_format.format(example_id=example.example_id)
+        current_example_root = os.path.join(self.examples_folder_path, current_example_folder_name)
+        if not os.path.isdir(current_example_root):
+            raise FileNotFoundError(f'Current example folder {current_example_folder_name} does not exist; cannot delete.')
+        shutil.rmtree(current_example_root)
         if self.examples_rst:
-            modify_toctree(self.examples_rst, action='delete', target=example.name)
+            modify_toctree(self.examples_rst, action='delete', target=f'{current_example_folder_name}/{example.shortname}')
 
     # def rename_example(self, index:int, new_name:str):
     #     """

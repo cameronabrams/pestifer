@@ -4,6 +4,9 @@ to add or remove examples.  Written substantially by ChatGPT, with some modifica
 """
 
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 def detect_common_prefix(entries):
     """
@@ -12,10 +15,15 @@ def detect_common_prefix(entries):
     If no common prefix exists, returns None.
     """
     split_entries = [e.split(os.sep) for e in entries if os.sep in e]
+    # logger.debug(f'split_entries: {split_entries}')
     if not split_entries:
         return None
     first_dir = split_entries[0][0]
+    # logger.debug(f'first_dir {first_dir}')
+    # logger.debug(f'first_parts {[parts[0] for parts in split_entries]}')
+    # logger.debug(f'logic {all(parts[0] == first_dir for parts in split_entries)}')
     if all(parts[0] == first_dir for parts in split_entries):
+        # logger.debug(f'returning {first_dir + os.sep}')
         return first_dir + os.sep
     return None
 
@@ -91,7 +99,7 @@ def find_toctree_block(lines):
 
     return start, entry_start, entry_end
 
-def parse_toctree_entries(lines, entry_start, entry_end):
+def parse_toctree_entries(lines: list[str], entry_start: int, entry_end: int)-> list[str]:
     """
     Parses the entries from the toctree block in the RST file lines.
     
@@ -168,10 +176,11 @@ def modify_entries(entries, action, target: str = None, new_entry=None, common_p
     if action not in ["delete", "append", "update"]:
         raise ValueError(f"Invalid action: {action}. Must be 'delete', 'append', or 'update'.")
     prefix = detect_common_prefix(entries)
+    # logger.debug(f'common_prefix: {prefix}')
     if not prefix and common_prefix is not None:
         prefix = common_prefix+os.sep
     def apply_prefix(e):
-        if os.sep in e or not prefix:
+        if not prefix:
             return e
         return prefix + e
 
@@ -242,7 +251,7 @@ def get_num_entries_in_toctree(filepath):
     entries = parse_toctree_entries(lines, entry_start, entry_end)
     return len(entries)
 
-def get_name_from_toctree(filepath, example_id):
+def get_name_from_toctree(filepath, match_str: str):
     """
     Retrieves the name of the entry at the specified index from the toctree in an RST file.
     
@@ -250,14 +259,14 @@ def get_name_from_toctree(filepath, example_id):
     ----------
     filepath : str
         The path to the RST file.
-    index : int
-        The 1-based index of the entry to retrieve.
-        
+    match_str : str
+        The string to match against the entry names.
+
     Returns
     -------
     str
-        The name of the entry at the specified index.
-        
+        The name of the entry that matches the specified string.
+
     Raises
     ------
     IndexError
@@ -267,10 +276,11 @@ def get_name_from_toctree(filepath, example_id):
     start, entry_start, entry_end = find_toctree_block(lines)
     entries = parse_toctree_entries(lines, entry_start, entry_end)
 
-    if 0 < example_id <= len(entries):
-        return os.path.basename(entries[example_id - 1])
-    else:
-        raise IndexError(f"Example ID {example_id} is out of range for toctree entries.")
+    for entry in entries:
+        if match_str in entry:
+            return os.path.basename(entry)
+
+    raise IndexError(f"No entry matching '{match_str}' found in toctree.")
 
 # Examples:
 # update_rst("examples.rst", action="add", new_entry="examples/new_example")

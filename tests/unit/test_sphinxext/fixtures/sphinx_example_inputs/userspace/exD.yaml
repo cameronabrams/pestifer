@@ -1,7 +1,5 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 title: "Use Pestifer to start a new religion."
 tasks:
-  - psfgen:
-      source:
-        id: 1c85
-    
+  - fetch:
+      sourceID: 1c85

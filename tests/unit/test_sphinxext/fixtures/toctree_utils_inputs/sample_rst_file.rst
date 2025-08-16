@@ -1,6 +1,6 @@
 .. toctree::
   :maxdepth: 2
 
-  howlers/exampleA
-  howlers/exampleB
-  howlers/exampleC
+  howlers/ex01/exampleA
+  howlers/ex02/exampleB
+  howlers/ex03/exampleC
