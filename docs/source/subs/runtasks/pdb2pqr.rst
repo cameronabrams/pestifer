@@ -11,18 +11,18 @@ Example
 .. code-block:: yaml
 
     tasks:
-      - psfgen:
-          ...
+      - ... (prior tasks, excluding solvation)
       - pdb2pqr:
           pH: 7.0
-
+      - solvate:
+      - ... (subsequent tasks follow)
 
 How it works
 ++++++++++++
 
 This task first takes the incoming structure and prepares an input for ``pdb2pqr`` by stripping all hydrogens, naming all histidine residues as ``HIS`` and all water residues as ``HOH``.  Since this happens after a ``psfgen`` task, the input structure's names are already in CHARMM format.  The task then runs ``pdb2pqr`` with the PROPKA algorithm to calculate pKa values and assign ionization states to residues based on the specified pH. The output of the command is a PDB file that indicates which residues had their protonation states updated.  This task also captures the summary table showing all residue pKa values.
 
-The task then prepares for a new invocation of ``psfgen`` that will apply all the protonation states as patches.  This ``psfgen`` will use the incoming PSF/PDB combination, *NOT* the input or output of ``pdb2pqr``.  This task can handle the following patches:
+The task then prepares for a new input script for ``psfgen`` that will apply all the protonation states as patches.  This will use the incoming PSF/PDB combination, *NOT* the input or output of ``pdb2pqr``.  This task can handle the following patches:
 
 - ``NNEU``: Neutral N-terminus
 - ``CNEU``: Neutral C-terminus
@@ -33,9 +33,9 @@ The task then prepares for a new invocation of ``psfgen`` that will apply all th
 - ``LSN`` : Deprotonated lysine (atom ``HZ3`` is removed)
 - ``RN2`` : Deprotonated arginine (atom ``HH12`` is removed)
 
-Furthermore, the protonation states of the histidine residues are specified via in-segment mutations to the appropriate side-chain.  By default, all histidines are interpreted at residue HSD (protonated on atom ND1).  ``pdb2pqr`` assigns one of HSD, HSE, or HSP as residue names to each histidine residue, depending on the pKa value of the residue and the specified pH.  The task will then apply the appropriate mutation to each histidine residue based on its assigned name.  For example, if a histidine residue is assigned HSE, then the task will apply a mutation to change the residue from HSD to HSE.  If a histidine residue is assigned HSP, then the task will apply a mutation to change the residue from HSD to HSP.
+Furthermore, the protonation states of the histidine residues are specified via in-segment mutations to the appropriate side-chain.  By default, all histidines are interpreted as residue HSD (protonated on atom ND1).  ``pdb2pqr`` assigns one of HSD, HSE, or HSP as residue names to each histidine residue, depending on the pKa value of the residue and the specified pH.  The task will then apply the appropriate mutation to each histidine residue based on its assigned name.  For example, if a histidine residue is assigned HSE, then the task will apply a mutation to change the residue from HSD to HSE.  If a histidine residue is assigned HSP, then the task will apply a mutation to change the residue from HSD to HSP.
 
-The task then runs ``psfgen`` to apply the mutations and patches to the incoming PSF/PDB combination, and it outputs a new PSF/PDB combination that has the protonation states applied.
+The task then runs VMD with the psfgen input script to apply the mutations and patches to the incoming PSF/PDB combination, and it outputs a new PSF/PDB combination that has the protonation states applied.
 
 References
 ++++++++++

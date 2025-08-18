@@ -6,7 +6,7 @@ manage the state of the simulation, and handle various aspects of the MD task su
 It manages the setup and execution of NAMD runs, including reading and writing necessary files,
 updating artifacts, and handling the results of the simulation.
 
-Usage is described in the :ref:`subs_runtasks_md` documentation.
+Usage is described in the :ref:`subs_runtasks_mdtask` documentation.
 """
 import glob
 import logging
@@ -43,6 +43,7 @@ class MDTask(VMDTask):
         """
         super().provision(packet)
         ensemble = self.specs.get('ensemble', None)
+        self.extra_message = ''
         if ensemble:
             self.extra_message = f'ensemble: {ensemble}'
         self.namd_global_config: dict = self.provisions.get('namd_global_config', None)

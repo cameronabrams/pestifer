@@ -16,7 +16,7 @@ class TestBilayer(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # Ensure the resource manager is initialized before any tests run
-        cls.C = Config()
+        cls.C = Config().configure_new()
         cls.RM = cls.C.RM
         cls.charmmff_content = cls.RM.charmmff_content
         cls.pdbrepository = cls.charmmff_content.pdbrepository

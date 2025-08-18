@@ -1,9 +1,9 @@
-.. _subs_runtasks_md:
+.. _subs_runtasks_mdtask:
 
-md 
---
+mdtask
+------
 
-An ``md`` task performs a NAMD simulation on the current PSF/PDB files; for example, those produced by the immediately previous ``psfgen`` task.
+An ``mdtask`` performs a NAMD simulation on the current state files; for example, those produced by the immediately previous ``psfgen`` task.
 
 In most cases, it is only necessary to specify which ensemble (minimize, NVT, NPT, or NPAT) you want to run in, and how many MD steps:
 
@@ -20,14 +20,14 @@ The above ``md`` directive will run an NVT MD simulation at the default temperat
 
 Default NAMD config file values can be overwritten in the top-level :ref:`config_ref namd` directive of the pestifer config file. The thermostat parameters can be overridden by specifying :ref:`config_ref namd thermostat` parameters, and the barostat parameters can be overridden by specifying :ref:`config_ref namd barostat` parameters.  The NPAT parameters can be overridden by specifying :ref:`config_ref namd membrane` parameters.
 
-A typical sequence of tasks for a new build might be a ``psfgen`` task, followed by an ``md`` task to perform a vacuum energy minimization, followed then by a short ``md`` task to thermalize the protein:
+A typical sequence of tasks for a new build might be a ``fetch`` task, then a ``psfgen`` task, followed by an ``md`` task to perform a vacuum energy minimization, followed then by a short ``md`` task to thermalize the protein:
 
 .. code-block:: yaml
 
    tasks:
+     - fetch:
+         sourceID: 6pti
      - psfgen:
-         source:
-          id: 6pti
      - md:
          ensemble: minimize
      - md:

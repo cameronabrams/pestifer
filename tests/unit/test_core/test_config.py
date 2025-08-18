@@ -11,7 +11,7 @@ class TestConfig(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.c = Config(quiet=True)
+        cls.c = Config(quiet=True).configure_new()
         cls.RM = cls.c.RM
 
     def test_labels(self):
@@ -28,7 +28,7 @@ class TestConfig(unittest.TestCase):
     def test_config_userdict(self):
         C = self.c
         ud = C['user']
-        D = Config(userdict=ud)
+        D = Config(userdict=ud).configure_new()
         self.assertTrue('user' in D)
         
     def test_config_user(self):
@@ -39,7 +39,7 @@ class TestConfig(unittest.TestCase):
         os.chdir(tmpdir)
         EM = self.RM.example_manager
         configfile = EM.checkout_example(1)
-        c = Config(userfile=configfile)
+        c = Config(userfile=configfile).configure_new()
         self.assertTrue('user' in c)
         self.assertTrue('tasks' in c['user'])
         self.assertEqual(len(c['user']['tasks'][0].keys()), 1)
@@ -64,7 +64,7 @@ class TestConfig(unittest.TestCase):
         os.chdir(tmpdir)
         EM = self.RM.example_manager
         configfile = EM.checkout_example(7)
-        c = Config(userfile=configfile)
+        c = Config(userfile=configfile).configure_new()
         self.assertTrue('user' in c)
         self.assertTrue('tasks' in c['user'])
         self.assertEqual(len(c['user']['tasks'][0].keys()), 1)
@@ -86,19 +86,16 @@ class TestConfig(unittest.TestCase):
 
     def test_config_help_examples(self):
         EM = self.RM.example_manager
-        configfolders = [x.name for x in EM.examples_list]
-        configfiles = [f'{x.name}.yaml' for x in EM.examples_list]
         tmpdir = '__test_config_help_examples'
         if os.path.exists(tmpdir):
             shutil.rmtree(tmpdir)
         os.mkdir(tmpdir)
         os.chdir(tmpdir)
-        for index, (configfolder, configfile) in enumerate(zip(configfolders, configfiles)):
-            configfile_path = os.path.join(EM.path, configfolder, configfile)
-            self.assertTrue(os.path.exists(configfile_path), f'Config file {configfile_path} does not exist')
-            EM.checkout_example(index + 1)
-            self.assertTrue(os.path.exists(configfile), f'Config file {configfile} does not exist after checkout')
-            c = Config(userfile=configfile_path)
+        for example_id, example in enumerate(EM.examples):
+            EM.checkout_example(example_id + 1)
+            configfile_path = os.path.join(EM.path, example.scriptpath)
+            self.assertTrue(os.path.exists(configfile_path), f'Config file {configfile_path} does not exist after checkout')
+            c = Config(userfile=configfile_path).configure_new()
             self.assertTrue('base' in c)
             self.assertTrue('user' in c)
             D = c['base']['directives']

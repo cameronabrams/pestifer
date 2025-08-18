@@ -1064,7 +1064,7 @@ class ResidueList(BaseObjList[Residue]):
             A list of links that may contain residue sequence numbers that need to be updated.
         """
         protein_residues: ResidueList = self.get(lambda x: x.segtype == 'protein')
-        if len(protein_residues) == 0: return
+        if protein_residues is None or len(protein_residues) == 0: return
         min_protein_resid = min([x.resid for x in protein_residues.data])
         max_protein_resid = max([x.resid for x in protein_residues.data])
         non_protein_residues: ResidueList = ResidueList([])

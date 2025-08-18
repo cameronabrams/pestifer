@@ -1,11 +1,12 @@
+import logging
 import os
 import unittest
-from pestifer.tasks import task_classes
 from pestifer.tasks.basetask import BaseTask
 from pestifer.core.config import Config
 from pestifer.core.controller import Controller
 from pestifer.core.resourcemanager import ResourceManager
 
+logger = logging.getLogger(__name__)    
 
 class TestController(unittest.TestCase):
 
@@ -13,8 +14,8 @@ class TestController(unittest.TestCase):
         RM=ResourceManager()
         EM=RM.example_manager
         # read in config file directly from the example in the package
-        configfile=os.path.join(EM.path,EM.examples_list[0].name,EM.examples_list[0].name+'.yaml')
-        config=Config(configfile)
+        configfile=os.path.join(EM.path,EM.examples[0].scriptpath)
+        config=Config(userfile=configfile).configure_new()
         C=Controller().configure(config, userspecs={'title': 'Bovine Pancreatic Trypsin Inhibitor (BPTI)'}, index=1)
 
         self.assertEqual(C.config['user']['title'],'Bovine Pancreatic Trypsin Inhibitor (BPTI)')
@@ -31,30 +32,23 @@ class TestController(unittest.TestCase):
         self.assertTrue(all([x.is_provisioned for x in C.tasks]))
 
     def test_controller_spawn_subcontroller(self):
-        RM=ResourceManager()
-        config=Config()
-        class FakeTask(BaseTask):
-            def __init__(self, specs=None):
-                super().__init__(specs)
-            def do(self):
-                return {'status': 'done'}
-
-        task_classes['fake_task'] = FakeTask
-
-        config['user']['tasks'] = [{'fake_task': {}}]
+        config=Config().configure_new()
+        self.assertEqual(len(config['user']['tasks']),0)
+        config['user']['tasks'] = [{'fetch': {'sourceID': '6pti'}}]
         C = Controller().configure(config, userspecs={'title': 'Test Controller'}, index=0)
         self.assertTrue(C.tasks[0].is_provisioned)
         subcontroller = C.tasks[0].subcontroller
         self.assertIsInstance(subcontroller, Controller)
         self.assertEqual(subcontroller.index, 1)
-        self.assertEqual(subcontroller.config, C.config)
-        self.assertEqual(subcontroller.tasks, None)
+        self.assertNotEqual(subcontroller.config, C.config)
+        self.assertEqual(len(subcontroller.tasks), 0)
         namd_global_config = C.tasks[0].provisions.get('namd_global_config', {})
         self.assertTrue('namd-version' in namd_global_config)
         # Now reconfigure the subcontroller with new tasks
-        new_tasks = [{'fake_task': {'taskname': 'subtask1'}}, {'fake_task': {'taskname': 'subtask2'}}]
+        new_tasks = [{'fetch': {}}, {'psfgen': {}}, {'md': {}}]
         subcontroller.reconfigure_tasks(new_tasks)
-        self.assertEqual(len(subcontroller.tasks), 2)
-        self.assertEqual(subcontroller.tasks[0].taskname, 'subtask1')
-        self.assertEqual(subcontroller.tasks[1].taskname, 'subtask2')
+        self.assertEqual(len(subcontroller.tasks), 3)
+        self.assertEqual(subcontroller.tasks[0].taskname, 'fetch')
+        self.assertEqual(subcontroller.tasks[1].taskname, 'psfgen')
+        self.assertEqual(subcontroller.tasks[2].taskname, 'md')
         self.assertTrue(all([x.is_provisioned for x in subcontroller.tasks]))

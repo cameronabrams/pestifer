@@ -47,7 +47,7 @@ source:
         return directive
     
     def test_molecule_au(self):
-        c=Config()
+        c=Config().configure_new()
         directive=self.get_source_dict('1gc1')
         m=Molecule(source=directive["source"])
         au=m.asymmetric_unit
@@ -97,7 +97,7 @@ source:
 
 
     def test_molecule_links(self):
-        c=Config()
+        c=Config().configure_new()
         directive=self.get_source_dict('4zmj')
         m=Molecule(source=directive["source"])
         au=m.asymmetric_unit
@@ -121,7 +121,7 @@ source:
         self.assertTrue(l.residue1 in l.residue2.up)
 
     def test_molecule_bioassemb_4zmj(self):
-        c=Config()
+        c=Config().configure_new()
         cidm=ChainIDManager()
         directive=self.get_source_dict('4zmj')
         directive["source"]["biological_assembly"]=1
@@ -139,7 +139,7 @@ source:
         self.assertEqual(cm['G'],'N')
 
     def test_molecule_ancestry(self):
-        c=Config()
+        c=Config().configure_new()
         directive=self.get_source_dict('4zmj')
         directive["source"]["biological_assembly"]=1
         m=Molecule(source=directive["source"],modmanager=ObjManager(),reset_counter=True)
@@ -152,7 +152,7 @@ source:
             self.assertEqual(sao.molid,0)
 
     def test_molecule_adjust_serials(self):
-        c=Config()
+        c=Config().configure_new()
         directive=self.get_source_dict('4zmj')
         directive["source"]["biological_assembly"]=1
         m=Molecule(source=directive["source"],reset_counter=True)
@@ -242,7 +242,7 @@ source:
         self.assertTrue(check_good,msg=check_msg)
 
     def test_molecule_existing(self):
-        c=Config()
+        c=Config().configure_new()
         source={
             'prebuilt':{
                 'psf':'existing.psf',

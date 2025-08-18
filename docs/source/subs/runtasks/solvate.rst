@@ -8,9 +8,9 @@ This task simply performs a standard ``psfgen`` run that invokes the ``solvate``
 .. code-block:: yaml
 
    tasks:
+     - fetch:
+         sourceID: 6pti
      - psfgen:
-         source:
-          id: 6pti
      - md:
          ensemble: minimize
      - md:

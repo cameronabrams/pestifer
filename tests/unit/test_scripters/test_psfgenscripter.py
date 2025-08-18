@@ -7,7 +7,7 @@ from pestifer.scripters import PsfgenScripter
 class TestPsfgenScripter(unittest.TestCase):
 
     def setUp(self):
-        self.c = Config()
+        self.c = Config().configure_new()
         self.p: PsfgenScripter = self.c.get_scripter('psfgen')
 
     def test_header(self):

@@ -20,11 +20,11 @@ tasks:
         exclude:
           - resname == 'PO4'
       mods:
-        mutations: # get me two cysteines, stat!
+        mutations:
           - A:T11C
           - A:V34C
         ssbonds:
-          - A_11-A_34  # now ligation!
+          - A_11-A_34
   - validate:
       tests:
         - attribute_test:

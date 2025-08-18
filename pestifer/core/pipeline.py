@@ -2,6 +2,7 @@
 """
 Pipeline context for managing passing of information from one task to another via artifacts.
 """
+from __future__ import annotations
 import logging
 
 from .artifacts import Artifact, FileArtifact, ArtifactDict, ArtifactList, FileArtifactList, StateArtifacts
@@ -193,3 +194,11 @@ class PipelineContext:
         artifact = self.head.pop(key, None)
         if artifact:
             self.history.append(artifact)
+
+    def import_artifacts(self, other: PipelineContext):
+        """
+        Import artifacts from another pipeline context.
+        """
+        logger.debug(f'Importing artifacts from {repr(other)} into {repr(self)}')
+        self.history.extend(other.head.to_list())
+        self.history.extend(other.history)

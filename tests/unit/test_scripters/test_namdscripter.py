@@ -6,7 +6,7 @@ from pestifer.scripters import NAMDScripter
 class TestNAMDScripter(unittest.TestCase):
 
     def test_charmm(self):
-        c = Config()
+        c = Config().configure_new()
         p: NAMDScripter = c.get_scripter('namd')
         self.assertIsInstance(p, NAMDScripter)
         self.assertEqual(p.namd_version, 3)

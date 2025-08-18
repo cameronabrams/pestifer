@@ -78,7 +78,7 @@ class ResourceManager:
 
     def __str__(self):
         cp = os.path.commonpath(list(self.resource_path.values()))
-        retstr = f'Pestifer resources are found under\n    {cp}\n'
+        retstr = f'Resources are found under\n    {cp}\n'
         for r, p in self.resource_path.items():
             retstr += f'        {p.replace(cp + os.sep, "") + os.sep}\n'
         return retstr
@@ -228,45 +228,58 @@ class ResourceManager:
             logger.info(f'Adding user PDB collection {path} to PDB repository')
             self.charmmff_content.pdbrepository.add_path(path)
 
-
-    def add_example(self, example_yaml: Path | str, author_name='', author_email='', description='', companion_files=[]):
+    def append_example(self, scriptname: str, example_id: int = 0, author_name='', author_email='', title='', db_id='', auxiliary_inputs=[], outputs=[]):
         """
-        Add an example to the pestifer examples directory.
+        Add an example to the pestifer package.  Minimally, the name of the example's YAML input file must be specified.
 
         Parameters
         ----------
-        example_yaml : str
-            The path to a YAML file containing the example data. It may or may not end with '.yaml'.  It should have a 'title' field and either the field 'id' or 'alphafold' under tasks->psfgen->source.
+        scriptname : str
+            The name of the example's YAML input file (with or without the .yaml extension).
+        example_id : int
+            The unique identifier for the example. If not provided, a new ID will be assigned.
+        author_name : str
+            The name of the author.
+        author_email : str
+            The email address of the author.
+        title : str
+            The title of the example.
+        db_id : str
+            The database ID of the example.
+        auxiliary_inputs : list
+            A list of auxiliary input files for the example.
+        outputs : list
+            A list of output files for the example.
         """
-        self.example_manager.add_example(example_yaml, description=description, author_name=author_name, author_email=author_email, companion_files=companion_files)
+        example_id = len(self.example_manager.examples) + 1 if example_id == 0 else example_id
+        self.example_manager.append_example(example_id, scriptname, title=title, author_name=author_name, author_email=author_email, auxiliary_inputs=auxiliary_inputs, outputs=outputs, db_id=db_id)
 
-    def insert_example(self, example_index: int, example_yaml: Path | str, author_name='', author_email='', description='', companion_files: list[Path | str]=[]):
-        """
-        Insert an example into the pestifer examples directory.
-
-        Parameters
-        ----------
-        example_index : int
-            The index at which to insert the example. This should be a positive integer indicating the position in the examples list (1-based).
-        example_yaml : str
-            The path to a YAML file containing the example data. It may or may not end with '.yaml'.  It should have a 'title' field and either the field 'id' or 'alphafold' under tasks->psfgen->source.
-        """
-        self.example_manager.insert_example(example_index, example_yaml, author_name=author_name, author_email=author_email, description=description, companion_files=companion_files)
-
-    def update_example(self, example_index, example_yaml):
+    def update_example(self, example_id: int, shortname: str = '', title: str = '', db_id: str = '', author_name: str = '', author_email: str = '', auxiliary_inputs: list = [], outputs: list = []):
         """
         Update an existing example in the pestifer examples directory.
 
         Parameters
         ----------
-        example_index : int
-            The index of the example to update. This should be a positive integer indicating the position in the examples list (1-based).
-        example_yaml : str
-            The path to a YAML file containing the updated example data. It may or may not end with '.yaml'.  It should have a 'title' field and either the field 'id' or 'alphafold' under tasks->psfgen->source.
+        example_id : int
+            The unique identifier for the example to update.
+        shortname : str
+            The short name of the example.
+        title : str
+            The title of the example.
+        db_id : str
+            The database ID of the example.
+        author_name : str
+            The name of the author.
+        author_email : str
+            The email address of the author.
+        auxiliary_inputs : list
+            A list of auxiliary input files for the example.
+        outputs : list
+            A list of output files for the example.
         """
-        self.example_manager.update_example(example_index, example_yaml)
+        self.example_manager.update_example(example_id, shortname=shortname, title=title, db_id=db_id, author_name=author_name, author_email=author_email, auxiliary_inputs=auxiliary_inputs, outputs=outputs)
 
-    def delete_example(self, example_index):
+    def delete_example(self, example_id: int):
         """
         Delete an example from the pestifer examples directory.
 
@@ -275,32 +288,32 @@ class ResourceManager:
         example_index : int
             The index of the example to delete. This should be a positive integer indicating the position in the examples list (1-based).
         """
-        self.example_manager.delete_example(example_index)
+        self.example_manager.delete_example(example_id)
 
-    def rename_example(self, example_index, new_name):
+    def rename_example(self, example_id: int, new_name: str):
         """
         Rename an existing example in the pestifer examples directory.
 
         Parameters
         ----------
-        example_index : int
-            The index of the example to rename. This should be a positive integer indicating the position in the examples list (1-based).
+        example_id : int
+            The unique identifier for the example to rename.
         new_name : str
             The new name for the example. This should be a valid filename without any path components.
         """
-        self.example_manager.rename_example(example_index, new_name)
+        self.example_manager.rename_example(example_id, new_name)
 
-    def set_example_author(self, example_index, author_name, author_email):
+    def set_example_author(self, example_id: int, author_name: str, author_email: str):
         """
         Set the author information for an example in the pestifer examples directory.
 
         Parameters
         ----------
-        example_index : int
-            The index of the example to set the author for. This should be a positive integer indicating the position in the examples list (1-based).
+        example_id : int
+            The unique identifier for the example to set the author for.
         author_name : str
             The name of the author.
         author_email : str
             The email address of the author.
         """
-        self.example_manager.set_example_author(example_index, author_name, author_email)
+        self.example_manager.set_example_author(example_id, author_name, author_email)

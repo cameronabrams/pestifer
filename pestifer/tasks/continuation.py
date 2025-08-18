@@ -6,12 +6,13 @@ Usage is described in the :ref:`config_ref tasks continuation` documentation.
 """
 import logging
 
-from .basetask import VMDTask
+from .psfgen import PsfgenTask
+# from .basetask import VMDTask
 from ..core.artifacts import *
 
 logger = logging.getLogger(__name__)
 
-class ContinuationTask(VMDTask):
+class ContinuationTask(PsfgenTask):
     """ 
     This task only resets the task chain to named values of the psf, pdb, xsc, and coor files 
     """
@@ -40,5 +41,6 @@ class ContinuationTask(VMDTask):
                                      coor=NAMDCoorFileArtifact(coor),
                                      xsc=NAMDXscFileArtifact(xsc) if xsc else None,
                                      vel=NAMDVelFileArtifact(vel) if vel else None))
+        self.update_molecule()
         self.result = 0
         return self.result

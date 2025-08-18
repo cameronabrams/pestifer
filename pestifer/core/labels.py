@@ -34,7 +34,7 @@ _segtypes = {
         'resnames': [
             'LIT', 'SOD', 'MG' , 'POT', 'CAL', 'RUB', 'CES',
             'BAR', 'ZN' , 'CAD', 'CL',  'SO4', 'PO4', 'H2PO',
-            'ZN2', 'CLA', 'FE']},
+            'ZN2', 'CLA', 'FE', 'H2PO4']},
     'ligand': {
         'macro': True,
         'resnames' : [

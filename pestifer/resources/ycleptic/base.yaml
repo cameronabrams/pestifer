@@ -325,6 +325,12 @@ directives:
           - name: xsc
             text: name of xsc file (w/optional xsc extension)
             type: str
+          - name: coor
+            text: name of coor file (w/optional coor extension)
+            type: str
+          - name: vel
+            text: name of vel file (w/optional vel extension)
+            type: str
       - name: psfgen
         text: Parameters controlling a specific psfgen run on an input molecule
         type: dict
@@ -830,6 +836,10 @@ directives:
         text: Parameters controlling packmol to generate a membrane system with an embedded protein
         type: dict
         directives:
+          - name: requires_subcontroller
+            text: flag to tell main controller to provision this task with a subcontroller, so it can run its own builds
+            type: bool
+            default: True
           - name: bilayer
             text: Parameters controlling bilayer generation
             type: dict
@@ -1271,15 +1281,14 @@ directives:
           - name: chainmapfile
             text: Desired name of the file describing all chain mapping
             type: str
-            default: chainmaps.yaml
           - name: statefile
             text: Desired name of the file describing the current state
             type: str
-            default: states.yaml
           - name: package
             text: Task that packages all CHARMM parameter files and pdb/psf/coor/vel/xsc files for a production run
             type: dict
             required: False
+            default: {}
             directives:
               - name: state_dir
                 text: directory name prepended to all files in the final state tarball
@@ -1287,54 +1296,45 @@ directives:
               - name: basename
                 text: Desired basename for final tarball and the files within
                 type: str
-                default: my_system
               - name: ensemble
                 text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                 type: str
                 case_sensitive: False
                 choices: [NVT, NPT, NPAT]
-                default: NVT
+                required: False
               - name: nminsteps
                 text: Number of minimization steps
                 type: int
-                default: 0
               - name: nsteps
                 text: Number of MD time steps
                 type: int
-                default: 1000000
               - name: firsttimestep
                 text: First timestep to use in the run (if unset, inherits from last MD task)
                 type: int
               - name: dcdfreq
                 text: number of time steps between configuration output to DCD file
                 type: int
-                default: 10000
               - name: xstfreq
                 text: number of time steps between cell size output to DCD file
                 type: int
-                default: 10000
               - name: restartfreq
                 text: number of timesteps between restart checkpoints
                 type: int
-                default: 10000
               - name: temperature
                 text: Temperature (K) for NVT or NPT
                 type: float
-                default: 300
               - name: pressure
                 text: Pressure (bar) for NPT; note that NPT can only be performed on a solvated system
                 type: float
-                default: 1
               - name: outputenergies
                 type: int
                 text: timesteps between outputting energies to the log file
               - name: other_parameters
                 text: key:value pairs for other namd3 configuration file statements
                 type: dict
-              - name: topogromacs
-                text: Set to True if you want to use topogromacs to generate Gromacs-compatible PDB and TOP files
-                type: bool
-                default: False
+              # - name: topogromacs
+              #   text: Set to True if you want to use topogromacs to generate Gromacs-compatible PDB and TOP files
+              #   type: bool
               - name: constraints
                 text: Parameters controlling position constraints
                 type: dict

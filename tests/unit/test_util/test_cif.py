@@ -74,7 +74,7 @@ class TestCIF(unittest.TestCase):
 
     def test_vmd(self):
         source='8fae'
-        config=Config()
+        config=Config().configure_new()
         # config['rcsb_file_format']='mmCIF'
         vmd=config.get_scripter('vmd')
         vmd.newscript('testcif')

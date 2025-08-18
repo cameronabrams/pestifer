@@ -6,6 +6,7 @@ the tasks.
 """
 import logging
 
+from copy import deepcopy
 from dataclasses import dataclass
 
 from .config import Config
@@ -45,22 +46,20 @@ class Controller:
         self.config = None
         self.tasks = None
         self.pipeline = None
+        self.parent = None
 
     def configure(self, config: Config, userspecs: dict = {}, index: int = 0, terminate: bool = True):
         self.index = index
         self.config = config
-        self.config['user'].update(userspecs)
+        self.config.update_user(userspecs)
 
         # set up the task list
         self.tasks = TaskList.from_yaml(self.config['user'].get('tasks', []))
         if terminate and (len(self.tasks) == 0 or not isinstance(self.tasks[-1], TerminateTask)):
             # If the last task is not a TerminateTask, add one with default specs
             specs = self.config.make_default_specs('tasks','terminate')
-            specs['taskname'] = 'terminate'
-            specs['index'] = len(self.tasks)
-            specs['cleanup'] = False
             logger.debug('Adding default terminate task')
-            self.tasks.append(TerminateTask(specs=specs))
+            self.tasks.append(TerminateTask(specs=specs, index=len(self.tasks)))
 
         self.pipeline = PipelineContext(controller_index = self.index)
         self.provision_tasks()
@@ -71,13 +70,16 @@ class Controller:
 
     @classmethod
     def spawn_subcontroller(cls, progenitor: 'Controller') -> 'Controller':
+        logger.debug(f'Spawning subcontroller from {progenitor.index:02d}')
         subcontroller = cls()
-        subcontroller.config = progenitor.config
-        subcontroller.index = progenitor.index + 1
+        subcontroller.configure(progenitor.config.taskless_subconfig(), index=progenitor.index+1, terminate=False)
+        subcontroller.parent = progenitor
         return subcontroller
     
     def reconfigure_tasks(self, tasks: list[dict]):
-        self.tasks = TaskList.from_yaml(tasks)
+        new_data = dict(tasks=tasks)
+        self.config.update_user(new_data)
+        self.tasks = TaskList.from_yaml(self.config['user'].get('tasks', []))
         self.provision_tasks()
         logger.info(f'Reconfigured tasks in "{self.config["user"]["title"]}"')
         logger.info(f'Controller {self.index:02d} will execute {len(self.tasks)} task{plu(len(self.tasks))}.')
@@ -85,7 +87,6 @@ class Controller:
     def provision_tasks(self):
         packet = {
             'controller_index': self.index,
-            'subcontroller': Controller.spawn_subcontroller(self),
             'pipeline': self.pipeline,
             'resource_manager': self.config.RM,
             'scripters': self.config.scripters,
@@ -96,7 +97,11 @@ class Controller:
         }
         logger.debug(f'Provisioning tasks with packet: {packet}')
         for task in self.tasks:
+            logger.debug(f'  -> task {task.index} {task.taskname}')
             task.provision(packet)
+            if task.specs.get('requires_subcontroller', False):
+                logger.debug(f'    -> spawning subcontroller for task {task.index} {task.taskname}')
+                task.subcontroller = Controller.spawn_subcontroller(self)
 
     def do_tasks(self) -> dict:
         """

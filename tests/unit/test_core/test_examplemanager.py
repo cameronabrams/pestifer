@@ -42,10 +42,10 @@ class TestExampleManager(unittest.TestCase):
     def test_example_manager_build_example_set(self):
         self._build_example_set()
         self.assertEqual(len(self.manager.examples), 2)
-        self.assertTrue(os.path.isfile(os.path.join(self.manager.path, 'ex01', self.example1.inputs_subdir, 'exA.yaml')))
-        self.assertTrue(os.path.isfile(os.path.join(self.manager.path, 'ex01', self.example1.inputs_subdir, 'exA_companion1.pdb')))
-        self.assertTrue(os.path.isfile(os.path.join(self.manager.path, 'ex01', self.example1.inputs_subdir, 'exA_companion1.psf')))
-        self.assertTrue(os.path.isfile(os.path.join(self.manager.path, 'ex02', self.example2.inputs_subdir, 'exB.yaml')))
+        self.assertTrue(os.path.isfile(os.path.join(self.manager.path, self.manager.examples[0].scriptpath)))
+        self.assertTrue(os.path.isfile(os.path.join(self.manager.path, self.manager.examples[0].inputspath, 'exA_companion1.pdb')))
+        self.assertTrue(os.path.isfile(os.path.join(self.manager.path, self.manager.examples[0].inputspath, 'exA_companion1.psf')))
+        self.assertTrue(os.path.isfile(os.path.join(self.manager.path, self.manager.examples[1].inputspath, 'exB.yaml')))
         self.assertTrue(os.path.isfile(self.manager.sphinx_example_manager.examples_rst))
         self.assertTrue(os.path.isdir(self.manager.sphinx_example_manager.examples_folder_path))
         self.assertTrue(os.path.isfile(os.path.join(self.manager.sphinx_example_manager.examples_folder_path, 'ex01', 'exA.rst')))
@@ -55,7 +55,8 @@ class TestExampleManager(unittest.TestCase):
         self._build_example_set()
         self.manager.delete_example(2)
         self.assertEqual(len(self.manager.examples), 1)
-        self.assertFalse(os.path.isfile(os.path.join(self.manager.path, 'ex02', self.example2.inputs_subdir, 'exB.yaml')))
+        self.assertTrue(os.path.isfile(os.path.join(self.manager.path, self.manager.examples[0].scriptpath)))
+        self.assertFalse(os.path.isfile(os.path.join(self.manager.path, self.example2.scriptpath)))
         self.assertFalse(os.path.isfile(os.path.join(self.manager.sphinx_example_manager.examples_folder_path, 'ex02', 'exB.rst')))
 
     def test_example_manager_update_example_inplace(self):

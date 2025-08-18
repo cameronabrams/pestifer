@@ -30,7 +30,7 @@ Here ``config.yaml`` is the name of the configuration file that describes the sy
 ``pestifer run`` begins by parsing the configuration file, and then it sets up a ``Controller`` object that manages the tasks.  The controller executes each task in the order specified in the configuration file, and it handles any dependencies between tasks.  If a task fails, the controller will stop the run and report the error.
 
 .. mermaid:: 
-   :caption: Pestifer Run Task Flowchart
+   :caption: Execution flow for the pestifer controller
 
    graph TD;
       A[Config] --> C{Next task?};
@@ -49,12 +49,13 @@ Detailed explanation of some *selected* common tasks you can use is below.
 
    runtasks/psfgen
    runtasks/pdb2pqr
-   runtasks/md
+   runtasks/mdtask
    runtasks/cleave
    runtasks/ligate
    runtasks/solvate
    runtasks/make_membrane_system
    runtasks/terminate
+   runtasks/validate
 
 Please consult the Configuration Reference pages for the ``tasks`` directive, :ref:`config_ref tasks`, for a full list of available pestifer run tasks.
 

@@ -89,7 +89,6 @@ class ExampleManager:
 
         os.chdir(savedir)
 
-
     def scriptpath(self, example: Example) -> Path:
         return self.path / example.scriptpath
 

@@ -24,15 +24,11 @@ class TaskList(UserList[BaseTask]):
             assert len(task_unidict) == 1, f"Task dictionary {task_unidict} must have a single key-value pair"
             taskname = list(task_unidict.keys())[0]
             task_specs = task_unidict[taskname]
-            if not 'taskname' in task_specs:
-                task_specs['taskname'] = taskname
-            if not 'index' in task_specs:
-                task_specs['index'] = index
             # Ensure the name of the task is among the implemented Tasks
             Cls = task_classes.get(taskname, None)
             if Cls is None:
                 raise ValueError(f"Task {taskname} is not implemented.")
-            data.append(Cls(specs=task_specs))
+            data.append(Cls(specs=task_specs, index=index))
             if prior is None:
                 prior = data[-1]
             else:

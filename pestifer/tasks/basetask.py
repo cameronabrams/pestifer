@@ -60,15 +60,15 @@ class BaseTask(ABC):
     A list of message options that are used to log the initiation of the task.
     """
 
-    def __init__(self, specs: dict = None):
+    def __init__(self, specs: dict = None, **kwargs):
         """
         Constructor for the BaseTask class.
         """
         self.specs: dict = specs if specs else {}
-        self.taskname: str = self.specs.get('taskname', f'{self._yaml_header}')
-        self.index: int = self.specs.get('index', None)
+        self.taskname: str = kwargs.get('taskname', f'{self._yaml_header}')
+        self.index: int = kwargs.get('index', None)
         self.provisions: dict = None
-
+        self.subcontroller: 'Controller' = None
         self.prior: BaseTask = None
 
         self.basename: str = ''
@@ -97,7 +97,6 @@ class BaseTask(ABC):
         # set some shortcuts for commonly used provisions
         self.resource_manager: ResourceManager = self.provisions.get('resource_manager', None)
         self.scripters: dict[GenericScripter] = self.provisions.get('scripters', {})
-        self.subcontroller: 'Controller' = self.provisions.get('subcontroller', None)
         self.controller_index: int = self.provisions.get('controller_index', 0)
         self.pipeline: PipelineContext = self.provisions.get('pipeline', None)
 
@@ -326,6 +325,12 @@ class BaseTask(ABC):
         basename = overwrite_basename if overwrite_basename else default_basename
         self.basename = basename
         self.subtaskcount += 1
+
+    def import_artifacts(self, pipeline: PipelineContext):
+        """
+        Imports artifacts from the pipeline context into the task.
+        """
+        self.pipeline.import_artifacts(pipeline)
 
 class VMDTask(BaseTask, ABC):
     """

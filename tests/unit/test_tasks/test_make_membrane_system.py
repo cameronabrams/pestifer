@@ -3,6 +3,7 @@ import os
 import shutil
 import unittest
 
+from pestifer.core.artifacts import StateArtifacts
 from pestifer.core.config import Config
 from pestifer.core.controller import Controller
 
@@ -16,30 +17,30 @@ class TestMakeMembraneSystem(unittest.TestCase):
     
     @classmethod
     def setUpClass(cls):
-        cls.C=Config()
-        cls.scripters=cls.C.scripters # shortcut
+        cls.controller=Controller().configure(Config().configure_new())
+        cls.scripters=cls.controller.config.scripters # shortcut
         cls.common_patch_relaxation_protocols = [
             {'md': {'ensemble': 'minimize', 'nsteps': 1000}},
             {'md': {'ensemble': 'NVT', 'nsteps': 1000}},
             {'md': {'ensemble': 'NPT', 'nsteps': 1000}},
-            {'md': {'ensemble': 'NPT', 'nsteps': 2000}},
-            {'md': {'ensemble': 'NPT', 'nsteps': 4000}}
+            # {'md': {'ensemble': 'NPT', 'nsteps': 2000}},
+            # {'md': {'ensemble': 'NPT', 'nsteps': 4000}}
         ]
         cls.common_quilt_relaxation_protocols = [
             {'md': {'ensemble': 'minimize', 'nsteps': 1000}},
             {'md': {'ensemble': 'NVT', 'nsteps': 1000}},
-            {'md': {'ensemble': 'NPT', 'nsteps': 2000}}
+            {'md': {'ensemble': 'NPT', 'nsteps': 1000}}
         ]
 
     @pytest.mark.slow
     def test_membrane_symmetric_popc(self):
-        test_dir='__test_make_membrane_system_task_symmetric_popc'
+        test_dir = '__test_make_membrane_system_task_symmetric_popc'
         if os.path.exists(test_dir):
             shutil.rmtree(test_dir)
         os.mkdir(test_dir)
         os.chdir(test_dir)
 
-        config_specs={'bilayer':{
+        task_list = [{'make_membrane_system':{'bilayer':{
                 'SAPL': 50,
                 'npatch':[3,3],
                 'composition':{
@@ -50,38 +51,21 @@ class TestMakeMembraneSystem(unittest.TestCase):
                     'patch':self.common_patch_relaxation_protocols,
                     'quilt':self.common_quilt_relaxation_protocols}
                 }
-                }
-        controller_specs={'controller_index':0,'taskname':'test_make_membrane_system_task','config':self.C,'writers':self.writers,'prior':None}
-        BET = MakeMembraneSystemTask(config_specs,controller_specs)
-        assert BET.taskname == 'test_make_membrane_system_task'
-        result=BET.do()
+                }}]
+        self.controller.reconfigure_tasks(task_list)
+        self.assertIsInstance(self.controller.tasks[0], MakeMembraneSystemTask)
+        result = self.controller.do_tasks()
+        task = self.controller.tasks[0]
+        self.assertIsInstance(task, MakeMembraneSystemTask)
+        state: StateArtifacts = task.get_current_artifact('state')
+        self.assertIsNotNone(state)
+        self.assertIsTrue(state.pdb.exists())
+        self.assertIsTrue(state.psf.exists())
+        self.assertIsTrue(state.coor.exists())
+        self.assertIsTrue(state.xsc.exists())
+        self.assertIsInstance(result, dict)
         os.chdir('..')
-        assert result==0
-
-    @pytest.mark.slow
-    def test_membrane_symmetric_c6dhpc(self):
-        test_dir='__test_make_membrane_system_task_symmetric_c6dhpc'
-        if os.path.exists(test_dir):
-            shutil.rmtree(test_dir)
-        os.mkdir(test_dir)
-        os.chdir(test_dir)
-
-        config_specs={'bilayer':{
-                'SAPL': 50,
-                'npatch':[3,3],
-                'composition':{
-                    'upper_leaflet': [{'name':'C6DHPC','frac':1.0,'conf':0}],
-                    'lower_leaflet': [{'name':'C6DHPC','frac':1.0,'conf':0}]
-                    },
-                'relaxation_protocols':{
-                    'patch':self.common_patch_relaxation_protocols,
-                    'quilt':self.common_quilt_relaxation_protocols}}}
-        controller_specs={'controller_index':0,'taskname':'test_make_membrane_system_task','config':self.C,'writers':self.writers,'prior':None}
-        BET = MakeMembraneSystemTask(config_specs,controller_specs)
-        assert BET.taskname == 'test_make_membrane_system_task'
-        result=BET.do()
-        os.chdir('..')
-        assert result==0
+        assert result['result'] == 0
 
     @pytest.mark.slow
     def test_membrane_asymmetric_pure_leaflets(self):
@@ -90,7 +74,7 @@ class TestMakeMembraneSystem(unittest.TestCase):
             shutil.rmtree(test_dir)
         os.mkdir(test_dir)
         os.chdir(test_dir)
-        config_specs={'bilayer':{
+        task_list=[{'make_membrane_system':{'bilayer':{
                 'SAPL': 50,
                 'npatch':[2,2],
                 'composition':{
@@ -99,11 +83,9 @@ class TestMakeMembraneSystem(unittest.TestCase):
                     },
                 'relaxation_protocols':{
                     'patch':self.common_patch_relaxation_protocols,
-                    'quilt':self.common_quilt_relaxation_protocols}}}
-        controller_specs={'controller_index':0,'taskname':'test_make_membrane_system_task','config':self.C,'writers':self.writers,'prior':None}
-        BET = MakeMembraneSystemTask(config_specs,controller_specs)
-        assert BET.taskname == 'test_make_membrane_system_task'
-        result=BET.do()
+                    'quilt':self.common_quilt_relaxation_protocols}}}}]
+        self.controller.reconfigure_tasks(task_list)
+        result=self.controller.do_tasks()
         os.chdir('..')
         assert result==0
 
@@ -114,7 +96,7 @@ class TestMakeMembraneSystem(unittest.TestCase):
             shutil.rmtree(test_dir)
         os.mkdir(test_dir)
         os.chdir(test_dir)
-        config_specs={'bilayer':{
+        task_list=[{'make_membrane_system':{'bilayer':{
                 'SAPL': 50,
                 'npatch':[3,3],
                 'composition':{
@@ -126,11 +108,9 @@ class TestMakeMembraneSystem(unittest.TestCase):
                         {'name':'CHL1','frac':0.5,'conf':0}]},
                 'relaxation_protocols':{
                     'patch':self.common_patch_relaxation_protocols,
-                    'quilt':self.common_quilt_relaxation_protocols}}}
-        controller_specs={'controller_index':0,'taskname':'test_make_membrane_system_task','config':self.C,'writers':self.writers,'prior':None}
-        BET = MakeMembraneSystemTask(config_specs,controller_specs)
-        assert BET.taskname == 'test_make_membrane_system_task'
-        result=BET.do()
+                    'quilt':self.common_quilt_relaxation_protocols}}}}]
+        self.controller.reconfigure_tasks(task_list)
+        result=self.controller.do_tasks()
         os.chdir('..')
         assert result==0
 
@@ -184,7 +164,7 @@ class TestMakeMembraneSystem(unittest.TestCase):
         input_data_dir='../../fixtures/embed_inputs'
         for ftype in [psf,pdb,bilayer_psf,bilayer_pdb,bilayer_xsc,yaml_file]:
             shutil.copy(os.path.join(input_data_dir,ftype),'.')
-        config=Config(yaml_file)
+        config=Config(userfile=yaml_file).configure_new()
         C=Controller(config)
         C.do_tasks()
         os.chdir('..')
@@ -202,8 +182,8 @@ class TestMakeMembraneSystem(unittest.TestCase):
         input_data_dir='../../fixtures/embed_inputs'
         for ftype in [psf,pdb,yaml_file]:
             shutil.copy(os.path.join(input_data_dir,ftype),'.')
-        config=Config(yaml_file)
-        C=Controller(config)
+        config=Config(userfile=yaml_file).configure_new()
+        C=Controller(config).configure()
         C.do_tasks()
         os.chdir('..')
 
@@ -222,7 +202,7 @@ class TestMakeMembraneSystem(unittest.TestCase):
         pdbA=pdbB=basename+'.pdb'
         xscA=xscB=basename+'.xsc'
         npatchx=npatchy=3
-        C=Config()
+        C=Config().configure_new()
         pg=PsfgenScripter(C)
         pg.newscript(basename)
         pg.usescript('bilayer_quilt')

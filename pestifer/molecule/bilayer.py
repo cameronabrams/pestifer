@@ -11,6 +11,7 @@ from ..charmmff.pdbrepository import PDBRepository
 from ..charmmff.charmmffresidatabase import CHARMMFFResiDatabase
 from ..core.artifacts import ArtifactDict
 from ..util.units import _UNITS_, _SYMBOLS_, cuA_of_nmolec
+from ..scripters import PackmolScripter
 
 sA_  = _SYMBOLS_['ANGSTROM']
 sA2_ = _UNITS_['SQUARE-ANGSTROMS']
@@ -407,7 +408,7 @@ class Bilayer:
         self.box = np.array([[Lx, 0, 0], [0, Ly, 0], [0, 0, zmax - zmin]])
         self.origin = np.array([self.box[i][i] / 2 for i in range(3)])
 
-    def write_packmol(self, pm, half_mid_zgap=2.0, rotation_pm=0.0, nloop=100):
+    def write_packmol(self, pm: PackmolScripter, half_mid_zgap=2.0, rotation_pm=0.0, nloop=100):
         """
         Writes the packmol input for the bilayer patch to the provided Packmol object.
 

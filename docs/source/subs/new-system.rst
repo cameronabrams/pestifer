@@ -13,15 +13,15 @@ For example, to create a new system configuration file for the PDB ID 1abc, you 
 
    $ pestifer new-system 1abc
 
-This will create a new file named `1abc.yaml` in the current directory, containing a basic configuration for the system that, by default,
-has only a single ``psfgen`` task:
+This will create a new file named `1abc.yaml` in the current directory, containing a basic configuration for the system that, by default, has only a ``fetch`` task and a single ``psfgen`` task:
 
 .. code-block:: yaml
 
     title: New template pestifer input configuration for PDB ID 1abc
     tasks:
+      - fetch:
+          sourceID: 1abc
       - psfgen:
-          id: 1abc
            
 Using this config is helpful in getting over the first hurdle of a new system, which is making sure pestifer can write a good psfgen script.
 

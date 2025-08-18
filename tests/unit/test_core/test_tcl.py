@@ -5,7 +5,7 @@ from pestifer.core.config import Config
 class TestTCL(unittest.TestCase):
 
     def setUp(self):
-        self.config = Config()
+        self.config = Config().configure_new()
         self.vmd = self.config.scripters['vmd']
 
     def test_backup(self):

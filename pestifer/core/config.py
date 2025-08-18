@@ -7,6 +7,7 @@ configuration file manager.  The :class:`Config` object is a descendent of the
 access to the contents of Pestifer's :mod:`pestifer.resources` subpackage.
 """
 
+from copy import deepcopy
 import os
 import logging
 import shutil
@@ -15,6 +16,7 @@ from importlib.metadata import version
 from ycleptic.yclept import Yclept
 
 from .resourcemanager import ResourceManager
+from ..tasks.taskcollections import TaskList
 from ..util.stringthings import my_logger
 from ..scripters import PsfgenScripter, NAMDColvarInputScripter, PackmolScripter, VMDScripter, GenericScripter
 from ..scripters.namdscripter import NAMDScripter
@@ -36,32 +38,42 @@ class Config(Yclept):
     quiet : bool, optional
         If True, suppresses output to the console. Default is False.
     """
-    def __init__(self, userfile='', userdict={}, quiet=False):
-        vrep = f'ycleptic v. {version("ycleptic")}\npidibble v. {version("pidibble")}'
-        self.RM = ResourceManager()
+    def __init__(self, userfile='', userdict={}, quiet=False, RM: ResourceManager = None, basefile: str = ''):
+        self.userfile = userfile
+        self.userdict = userdict
+        self.quiet = quiet
+        self.basefile = basefile
+        self.RM = RM
+        self.my_processor_info = ''
+        self.kwargs_to_scripters = {}
 
-        if not quiet:
+    def configure_new(self):
+        if not self.quiet:
+            vrep = f'ycleptic v. {version("ycleptic")}\npidibble v. {version("pidibble")}'
             my_logger(vrep, logger.info, just='<', frame='*', fill='', no_indent=True)
-            my_logger(str(self.RM), logger.debug, just='<', frame='*', fill='', no_indent=True)
+            # my_logger(str(self.RM), logger.debug, just='<', frame='*', fill='', no_indent=True)
         # resolve full pathname of YCleptic base config for this application
 
-        basefile = self.RM.get_ycleptic_config()
-        assert os.path.exists(basefile), f'Base config file {basefile} does not exist.'
+        self.RM = ResourceManager()
+        return self.configure()
+    
+    def configure(self):
+        self.basefile = self.RM.get_ycleptic_config()
+        assert os.path.exists(self.basefile), f'Base config file {self.basefile} does not exist.'
         # ycleptic's init:
-        super().__init__(basefile, userfile=userfile, userdict=userdict)
-        processor_info = self._get_processor_info()
-        if not quiet:
-            my_logger(processor_info, logger.info, just='<', frame='*', fill='')
+        super().__init__(self.basefile, userfile=self.userfile, userdict=self.userdict)
 
+        self.my_processor_info = self._set_processor_info()
+        if not self.quiet:
+            my_logger(self.my_processor_info, logger.info, just='<', frame='*', fill='')
         self._set_internal_shortcuts()
-        self._set_shell_commands(verify_access=(userfile != ''))
-
+        self._set_shell_commands(verify_access=(self.userfile != ''))
         self.RM.update_charmmff(
             tarball=self['user']['charmmff'].get('tarball', ''),
             user_pdbrepository_paths=self['user']['charmmff'].get('pdbrepository', [])
         )
-
         self._set_kwargs_to_scripters()
+
         # logger.debug(f'{self.kwargs_to_scripters}')
         self.scripters = {
             'psfgen': PsfgenScripter(**self.kwargs_to_scripters),
@@ -72,6 +84,13 @@ class Config(Yclept):
             'vmd': VMDScripter(**self.kwargs_to_scripters),
             'namd_colvar': NAMDColvarInputScripter(**self.kwargs_to_scripters)
         }
+        return self
+
+    def taskless_subconfig(self) -> 'Config':
+        """Create a taskless subconfiguration from the progenitor configuration."""
+        subconfig = self.__class__(quiet=True, RM=self.RM).configure()
+        subconfig['user']['tasks'] = TaskList([])
+        return subconfig
 
     def get_scripter(self, scripter_name):
         """ 
@@ -120,7 +139,7 @@ class Config(Yclept):
             vmd_startup_script = self.vmd_startup_script,
         )
 
-    def _get_processor_info(self):
+    def _set_processor_info(self):
         """ 
         Determine the number of CPUs and GPUs available for this process.
         This method checks if the process is running under SLURM (a job scheduler)
