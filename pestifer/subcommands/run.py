@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
-Implementation of the ``run`` subcommand.
+Implementation of the ``run`` subcommand for launching system preparations.
 """
 
 import datetime
@@ -24,7 +24,7 @@ class RunSubcommand(Subcommand):
     name: str = 'run'
     long_help: str = 'Prepare a system according to instructions in the config file.'
     short_help: str = 'Prepare a system'
-    return_type: type = Controller
+    func_returns_type: type = Controller
 
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
@@ -71,7 +71,7 @@ class RunSubcommand(Subcommand):
                 iix = fil.index(True)
                 configname = f'{cbase}{allowed_extensions[iix]}'
 
-        config = Config(userfile=configname, **kwargs)
+        config = Config(userfile=configname, **kwargs).configure_new()
         C = Controller().configure(config)
         logger.debug(f'NAMD global config: {C.tasks[0].provisions["namd_global_config"]}')
         if args.gpu:

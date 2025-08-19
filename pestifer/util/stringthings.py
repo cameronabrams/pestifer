@@ -11,7 +11,6 @@ import subprocess
 import shutil
 import sys
 
-
 import pandas as pd
 
 from collections import UserList
@@ -76,7 +75,7 @@ _enhanced_banner_message="""
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 """
 
-def banner(logf):
+def banner(logf, args):
     """
     Writes a banner message to the log file
 
@@ -85,7 +84,11 @@ def banner(logf):
     logf: file-like object
         The log file to which the banner message will be written.
     """
-    my_logger(_banner_message, logf, fill=' ', just='<')
+    if args.banner:
+        if args.kick_ass:
+            my_logger(_enhanced_banner_message, logf, fill=' ', just='<')
+        else:
+            my_logger(_banner_message, logf, fill=' ', just='<')
 
 class ByteCollector:
     """

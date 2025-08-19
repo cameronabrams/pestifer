@@ -1,5 +1,11 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
+"""
+Subcommand to modify the pestifer package.  This subcommand is only exposed if the Pestifer installation includes the entire source tree (i.e., it was installed with pip -e from a git repository).
+The two main ways you can modify the package are
 
+1. Managing examples, including adding, updating, and deleting example scripts.  Updating can include name-changes, adding new auxiliary inputs, and modifying expected outputs.
+2. Regenerating atomselect macros based on globals defined in :mod:`core/labels.py <pestifer.core.labels>`.
+"""
 from dataclasses import dataclass
 
 import logging
@@ -81,7 +87,7 @@ class ModifyPackageSubcommand(Subcommand):
                 raise ValueError(f'Invalid example action: {args.example_action}.')
         if args.update_atomselect_macros:
             RM.update_atomselect_macros()
-
+        return True
 
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)

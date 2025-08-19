@@ -53,4 +53,5 @@ tasks:
       package:
         state_dir: my_state
         basename: prod_6pti
-        ensemble: NPT
+        md:
+          ensemble: NPT

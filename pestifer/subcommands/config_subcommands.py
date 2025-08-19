@@ -1,6 +1,11 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
+"""
+Subcommands pertaining to the pestifer's configuration.
+"""
 import os
 import yaml
+
+import argparse as ap
 
 from dataclasses import dataclass
 
@@ -11,6 +16,11 @@ from ..core.resourcemanager import ResourceManager
 
 @dataclass
 class ConfigHelpSubcommand(Subcommand):
+    """
+    The config-help subcommand.  This subcommand exposes Ycleptic's built in interactive help system for
+    exploring Pestifer's base configuration.  The user can specify the entry point using the
+    ``directives`` argument, and can disable interactivity using the ``--no-interactive`` flag.
+    """
     name: str = 'config-help'
     short_help: str = "Show help for configuration options"
     long_help: str = "Display help information for all available configuration options."
@@ -21,14 +31,18 @@ class ConfigHelpSubcommand(Subcommand):
         directives = args.directives
         iprompt='pestifer-help: ' if args.interactive else ''
         config.console_help(directives=directives, interactive_prompt=iprompt, exit=True)
-
+        return True
+    
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
-        self.parser.add_argument('directives', type=str, nargs='*', default=[], help='specific directives to get help for (default: all)')
-        self.parser.add_argument('--interactive', default=True, action='store_false', help='enter interactive mode to query config options (default: %(default)s)')
+        self.parser.add_argument('directives', type=str, nargs='*', default=[], help='specific directives at which the help system begins (default is at the root)')
+        self.parser.add_argument('--interactive', default=True, action=ap.BooleanOptionalAction, help='Enable/disable interactive mode to query config options (default: %(default)s)')
 
 @dataclass
 class ConfigDefaultSubcommand(Subcommand):
+    """
+    Subcommand that echoes all or part of a configuration script with default values, depending on the ``directives`` entry point.
+    """
     name: str = 'config-default'
     short_help: str = "Show default configuration options"
     long_help: str = "Display default values for all available configuration options."
@@ -39,13 +53,19 @@ class ConfigDefaultSubcommand(Subcommand):
         directives = args.directives
         specs=config.make_default_specs(*directives)
         print(yaml.dump(specs))
-
+        return True
+    
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
         self.parser.add_argument('directives', type=str, nargs='*', default=[], help='specific directives to get default values for (default: all)')
 
 @dataclass
 class NewSystemSubcommand(Subcommand):
+    """
+    Subcommand that generates a minimal but specific system script.  The single required argument ``id`` is the database ID of the structure file
+    that you want to base the system on.  It can be a PDB ID or a UniProt ID, the latter of which is interpreted as an AlphaFold entry.
+    The "--full" flag can be used to include a full set of default relaxation/solvation/equilibration protocols.
+    """
     name: str = 'new-system'
     short_help: str = 'create a new system script from scratch'
     long_help: str = 'Generate a new system script with a basic template.'
@@ -55,15 +75,33 @@ class NewSystemSubcommand(Subcommand):
         r = ResourceManager()
         build_type = 'full' if args.full else 'minimal'
         r.example_manager.new_example_yaml(id=args.id, build_type=build_type)
+        return True
 
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
-        self.parser.add_argument('id', type=str, default=None, help='PDB/AlphaFold ID  of the new system to create')
-        self.parser.add_argument('--full', default=False, action='store_true', help='Include full set of tasks in the new system configuration (default: %(default)s)')
+        self.parser.add_argument('id', type=str, default=None, help='PDB/UniProt ID  of the new system to create')
+        self.parser.add_argument('--full', default=False, action=ap.BooleanOptionalAction, help='Enable/disable full set of tasks in the new system configuration (default: %(default)s)')
         return self.parser
 
 @dataclass
 class ShowResourcesSubcommand(Subcommand):
+    """
+    Subcommand that shows available resources for the current configuration.  The single positional argument is the resource type to show:
+
+    1. **tcl**: shows a brief explanation of the TcL resources included in Pestifer.
+    2. **examples**: shows a list of available example configurations.
+    3. **charmmff**: shows selected information about the CHARMM force field.
+
+    The ``charmff`` type has a few optional switches as well:
+
+    * **toppar**: shows information about the CHARMM topology and parameter files.
+    * **custom**: shows information about any custom CHARMM force fields being used.
+    * **pdb**: shows information about the PDB files in the auxiliary PDB repository.  
+      This repository is a collection of sample PDB files of small molecules and lipids useful 
+      for packing.
+    * **user-pdbcollection**: allows user to specify paths of their own PDB collections.
+
+    """
     name: str = 'show-resources'
     short_help: str = 'show available resources for the current configuration'
     long_help: str = 'Display a list of all available resources for the current configuration.'
@@ -79,7 +117,8 @@ class ShowResourcesSubcommand(Subcommand):
         if args.user_pdbcollection:
             r.update_charmmff(user_pdbrepository_paths=args.user_pdbcollection)
         r.show(out_stream=print, components=specs, fullnames=args.fullnames, missing_fullnames=r.labels.residue_fullnames)
-
+        return True
+    
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
         self.parser.add_argument('resource_type', type=str, default='examples', help='Type of resource to show; [tcl|examples|charmmff]')
@@ -90,6 +129,10 @@ class ShowResourcesSubcommand(Subcommand):
 
 @dataclass
 class WhereTCLSubcommand(Subcommand):
+    """
+    Subcommand that exposes true locations of various TcL resources in the pestifer installation.
+    This is useful for custom VMD scripts that the user may want to create.
+    """
     name: str = 'where-tcl'
     short_help: str = "provides path of TcL scripts for sourcing in interactive VMD"
     long_help: str = "Display the path of TcL scripts for sourcing in interactive VMD."
@@ -122,6 +165,7 @@ class WhereTCLSubcommand(Subcommand):
             if args.verbose:
                 msg='TcL package directory: '
             print(f'{msg}{pkg_dir}')
+        return True
 
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)

@@ -1,5 +1,28 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
+"""
+The desolvate subcommand.  This subcommand allows a user to specify a system state 
+plus a trajectory which will then be converted to a solvent-free state and trajectory.
+The state is represented minimally by a PDB, PSF, and XSC file, and the trajectory can 
+be a list of one or more DCD files, ordered chronologically.  The user can specify the 
+exact collection atoms to keep using the --keepatsel option; by default, this 
+is "protein or glycan or lipid".
 
+Example:
+--------
+
+.. code-block:: bash
+
+   $ pestifer desolvate --psf input.psf --pdb input.pdb --dcd-infiles input1.dcd input2.dcd
+
+This will create the new PSF file ``dry.psf`` and a single DCD file concatentating the inputs, 
+called ``dry.dcd``, by default.  The output file names can be specified using the --psf-outfile
+and --dcd-outfile options.
+
+``desolvate`` invokes both VMD to create an atom index file and generate the stripped psf file,
+and ``catdcd`` to process the trajectory files.  The atom index file name will be ``dry.idx``
+by default, but can be specified using the --idx-outfile option.
+
+"""
 from dataclasses import dataclass
 
 from . import Subcommand
@@ -10,8 +33,8 @@ from ..core.config import Config
 class DesolvateSubcommand(Subcommand):
     name: str = 'desolvate'
     short_help: str = "Desolvate a system"
-    long_help: str = "Remove water molecules from a solvated system."
-    return_type: type = dict
+    long_help: str = "Remove solvent molecules from a solvated system."
+    func_returns_type: type = dict
 
     @staticmethod
     def func(args, **kwargs):
@@ -33,8 +56,7 @@ class DesolvateSubcommand(Subcommand):
                 }]
             }
         )
-        report = C.do_tasks()
-        return report
+        return C.do_tasks()
 
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)

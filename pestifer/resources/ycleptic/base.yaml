@@ -36,7 +36,7 @@ directives:
         text: Path to a tarball containing the charmmff files; this is used to override the default set of charmmff files
       - name: standard
         type: dict
-        text: Standard charmmff files under the standard ``toppar/`` directory
+        text: CHARMM force-field files used by default in all system preparations
         required: True
         docs:
           text: |
@@ -45,9 +45,9 @@ directives:
             They are always referred to by their base filenames, regardless of whether they live in the topmost ``toppar`` 
             directory or one of the stream subdirectories.  The default set is useful for most non-membrane systems.
         directives:
-          - name: topologies
+          - name: rtf
             type: list
-            text: Standard charmmff topologies
+            text: Default CHARMM force-field topology files (.rst extension)
             required: True
             default:
               - top_all36_prot.rtf
@@ -56,12 +56,17 @@ directives:
               - top_all36_lipid.rtf
               - top_all36_carb.rtf
               - top_all36_na.rtf
+          - name: str
+            type: list
+            text: Default CHARMM force-field stream files (.str extension)
+            required: True
+            default:
               - toppar_water_ions.str
               - toppar_all36_carb_glycopeptide.str
               - toppar_all36_prot_modify_res.str
-          - name: parameters
+          - name: prm
             type: list
-            text: Standard charmmff parameter files
+            text: Standard charmmff parameter files (.prm extension)
             required: True
             default:
               - par_all36m_prot.prm
@@ -69,30 +74,66 @@ directives:
               - par_all36_carb.prm
               - par_all36_na.prm
               - par_all36_cgenff.prm
-              - toppar_water_ions.str
-              - toppar_all36_carb_glycopeptide.str
-              - toppar_all36_prot_modify_res.str
       - name: custom
         type: dict
-        text: Custom charmmff files provided as part of pestifer
-        required: True 
+        text: Default custom charmmff-format files provided as part of pestifer that are NOT in the standard CHARMMFF release but are used in pestifer builds
+        required: True
         directives:
-          - name: topologies
+          - name: rtf
             type: list
-            text: Custom charmmff topology files
+            text: Custom charmmff topology files (.rtf extension)
+            default: []
+          - name: str
+            type: list
+            text: Custom charmmff stream files (.str extension)
             default:
               - toppar_all36_moreions.str
-          - name: parameters
+          - name: prm
             type: list
-            text: Custom charmmff parameter files
-            default:
-              - toppar_all36_moreions.str
-      - name: pdbcollections
-        type: list
-        text: Paths to local collections of PDB files for custom lipids or ligands
+            text: Custom charmmff parameter files (.prm extension)
+            default: []
+      - name: user_custom
+        type: dict
+        text: User-defined custom charmmff files
+        required: False
+        directives:
+          - name: searchpath
+            type: list
+            text: User-defined search paths for custom charmmff files
+            default: []
+          - name: rtf
+            type: list
+            text: User-defined custom charmmff topology files (.rtf extension)
+            default: []
+          - name: str
+            type: list
+            text: User-defined custom charmmff stream files (.str extension)
+            default: []
+          - name: prm
+            type: list
+            text: User-defined custom charmmff parameter files (.prm extension)
+            default: []
         docs:
-          text: | 
-            Here you can list one or more paths to PDB collections that you have built using the ``make-pdb-collection`` subcommand.  
+          text: |
+            This directive allows you to specify user-defined custom charmmff files that are not included in the standard CHARMMFF release.  You can use this to provide your own custom files for use with pestifer.
+          example:
+            charmff:
+              user_custom:
+                searchpath:
+                  - /path/to/my/custom/search/path/
+                rtf:
+                  - a_file.rtf
+                str:
+                  - a_file.str
+                prm:
+                  - a_file.prm
+      - name: user_pdbcollections
+        type: list
+        text: Paths to user's collections of PDB files for custom lipids or ligands
+        docs:
+          text: |
+            This directive allows you to specify user-defined collections of PDB files that can be used for custom lipids or ligands in your simulations.
+            Here you can list one or more paths to PDB collections that you have built using the ``make-pdbcollection`` subcommand.  
             These collections can be used to provide custom lipids or ligands for your simulations.  
             The paths should point to directories that contain subdirectories for each RESI in the collection, 
             each of which contains PDB files for that RESI.
@@ -639,10 +680,6 @@ directives:
           text: |
             This task generates plots from the output of MD tasks.  It can plot energy-like quantities vs time, and profile quantities vs distance along the z-axis. The plots are generated using matplotlib, and are saved as image files. This task can be part of a standard build, or it can be used via the command line (``pestifer mdplot``) to generate plots from existing NAMD logs and xst files.
         directives:
-          - name: skip_if_pytest
-            type: bool
-            text: If true and pytest is running, this task is skipped
-            default: False
           - name: reprocess-logs
             text: whether to run the mdplot task as part of a standard build or as a post-processing step
             type: bool
@@ -652,9 +689,9 @@ directives:
             text: list of existing namd logs, in chronological order, from which data to be plotted is to be extracted
             default: []
           - name: figsize
-            type: list
+            type: float
             text: size of matplotlib figure
-            default: [9,6]
+            default: [9.,6.]
           - name: timeseries
             type: list
             text: List of (possibly sublists of) quantities to plot vs timestep
@@ -1187,10 +1224,6 @@ directives:
         text: Parameters controlling a NAMD run
         type: dict
         directives:
-          - name: skip_if_pytest
-            text: if true, skip this task if pytest is running
-            type: bool
-            default: False
           - name: cpu-override
             text: revert to cpu version of namd3
             type: bool
@@ -1287,8 +1320,6 @@ directives:
           - name: package
             text: Task that packages all CHARMM parameter files and pdb/psf/coor/vel/xsc files for a production run
             type: dict
-            required: False
-            default: {}
             directives:
               - name: state_dir
                 text: directory name prepended to all files in the final state tarball
@@ -1296,58 +1327,60 @@ directives:
               - name: basename
                 text: Desired basename for final tarball and the files within
                 type: str
-              - name: ensemble
-                text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
-                type: str
-                case_sensitive: False
-                choices: [NVT, NPT, NPAT]
-                required: False
-              - name: nminsteps
-                text: Number of minimization steps
-                type: int
-              - name: nsteps
-                text: Number of MD time steps
-                type: int
-              - name: firsttimestep
-                text: First timestep to use in the run (if unset, inherits from last MD task)
-                type: int
-              - name: dcdfreq
-                text: number of time steps between configuration output to DCD file
-                type: int
-              - name: xstfreq
-                text: number of time steps between cell size output to DCD file
-                type: int
-              - name: restartfreq
-                text: number of timesteps between restart checkpoints
-                type: int
-              - name: temperature
-                text: Temperature (K) for NVT or NPT
-                type: float
-              - name: pressure
-                text: Pressure (bar) for NPT; note that NPT can only be performed on a solvated system
-                type: float
-              - name: outputenergies
-                type: int
-                text: timesteps between outputting energies to the log file
-              - name: other_parameters
-                text: key:value pairs for other namd3 configuration file statements
-                type: dict
-              # - name: topogromacs
-              #   text: Set to True if you want to use topogromacs to generate Gromacs-compatible PDB and TOP files
-              #   type: bool
-              - name: constraints
-                text: Parameters controlling position constraints
+              - name: md
+                text: Parameters controlling a NAMD run to be included in the tarball
                 type: dict
                 directives:
-                  - name: atoms
-                    text: Atoms to be position-constrained expressed as a VMD atomselection
-                    type: string
-                  - name: k
-                    text: Restraint spring constant in kcal/mol/A^2
-                    type: float
-                  - name: consfile
-                    text: Name of constraints PDB file (defaults to basename-constraints.pdb)
-                    type: string
+                - name: ensemble
+                  text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
+                  type: str
+                  choices: [minimize, NVT, NPT, NPAT]
+                  default: NVT
+                  case_sensitive: False
+                - name: minimize
+                  text: Number of minimization steps; ignored if ensemble is not 'minimize' (used with the 'minimize' command)
+                  type: int
+                  default: 1000
+                - name: nsteps
+                  text: Number of MD time steps; ingored if ensemble is 'minimize' (used with the 'run' command)
+                  type: int
+                  default: 2000
+                - name: dcdfreq
+                  text: number of time steps between configuration output to DCD file
+                  type: int
+                  default: 100
+                - name: xstfreq
+                  text: number of time steps between cell size output to DCD file
+                  type: int
+                  default: 100
+                - name: temperature
+                  text: Temperature (K) for NVT or NPT
+                  type: float
+                  default: 300
+                - name: pressure
+                  text: Pressure (bar) for NPT; note that NPT can only be performed on a solvated system
+                  type: float
+                  default: 1
+                - name: addl_paramfiles
+                  type: list
+                  text: list of additional parameter files to be included in the NAMD run
+                  default: []
+                - name: other_parameters
+                  text: key:value pairs for other namd2 configuration file statements
+                  type: dict
+                - name: constraints
+                  text: Parameters controlling position constraints
+                  type: dict
+                  directives:
+                    - name: atoms
+                      text: Atoms to be position-constrained expressed as a VMD atomselection
+                      type: string
+                    - name: k
+                      text: Restraint spring constant in kcal/mol/A^2
+                      type: float
+                    - name: consfile
+                      text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+                      type: string
       - name: validate
         text: Task enables VMD-based validation of PDB and PSF files
         type: list

@@ -5,10 +5,11 @@ This module defines the :class:`CHARMMFFResiDatabase` class, which manages a dat
 import logging
 from .charmmffcontent import CHARMMFFContent, CHARMMFFStreamID
 from .charmmfftop import CharmmMasses
+from ..util.cacheable_object import CacheableObject
 
 logger=logging.getLogger(__name__)
 
-class CHARMMFFResiDatabase:
+class CHARMMFFResiDatabase(CacheableObject):
     """ 
     A class for handling a database of CHARMM force field residues.
     This class loads residues and patches from CHARMM force field topology/stream files, including toplevel files and specific streams.

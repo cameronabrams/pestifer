@@ -7,7 +7,6 @@ configuration file manager.  The :class:`Config` object is a descendent of the
 access to the contents of Pestifer's :mod:`pestifer.resources` subpackage.
 """
 
-from copy import deepcopy
 import os
 import logging
 import shutil
@@ -70,6 +69,7 @@ class Config(Yclept):
         self._set_shell_commands(verify_access=(self.userfile != ''))
         self.RM.update_charmmff(
             tarball=self['user']['charmmff'].get('tarball', ''),
+            user_custom_directory=self['user']['charmmff'].get('custom_directory', ''),
             user_pdbrepository_paths=self['user']['charmmff'].get('pdbrepository', [])
         )
         self._set_kwargs_to_scripters()

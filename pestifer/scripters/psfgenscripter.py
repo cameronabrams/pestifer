@@ -72,7 +72,7 @@ class PsfgenScripter(VMDScripter):
         """
         topology_local = []
         # topologies are assumed correctly ordered in config file
-        for t in self.charmmff_config['standard']['topologies'] + self.charmmff_config['custom']['topologies']:
+        for t in self.charmmff_config['standard']['rtf'] + self.charmmff_config['custom']['rtf'] + self.charmmff_config['standard']['str'] + self.charmmff_config['custom']['str']:
             self.charmmff.copy_charmmfile_local(t)
             topology_local.append(t)
         # the order of the topologies is imporant, and the top_all35_ethers.rtf should be last
@@ -82,7 +82,7 @@ class PsfgenScripter(VMDScripter):
         logger.debug(f'local topologies: {topology_local}')
         return topology_local
 
-    def newscript(self, basename=None, packages=[], additional_topologies=[]):
+    def newscript(self, basename: str = '', packages: list[str] = [], additional_topologies: list[str] = []):
         """
         Initialize a new psfgen script with a specified basename and packages.
         If no basename is provided, a default script name is used.
@@ -95,7 +95,8 @@ class PsfgenScripter(VMDScripter):
             A list of Tcl packages to be imported in the script.
         additional_topologies : list, optional
             A list of additional topology files to be included in the script. These files should not contain
-            a path (i.e., they should be in the current working directory).
+            a path (i.e., they should be in the current working directory).  These can be either 'rtf' 
+            or 'str' extension files.
         """
         super().newscript(basename=basename, packages=packages)
         self.addline('package require psfgen')

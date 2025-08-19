@@ -33,7 +33,8 @@ class TerminateTask(MDTask):
 
     def do(self) -> int:
         self.next_basename()
-        self.write_chainmaps()
+        if 'chainmapfile' in self.specs:
+            self.write_chainmaps()
         self.result = self.make_package() | self.cleanup()
         return self.result
 
@@ -55,12 +56,11 @@ class TerminateTask(MDTask):
         Create a package for a production NAMD run starting from the end of the build.
         """
         package_specs = self.specs.get('package', {})
+        md_specs = package_specs.get('md', {})
         state_dir = package_specs.get('state_dir', '.')
         if not package_specs:
             logger.debug('No package specifications provided; packaging will not be performed.')
             return 0
-        if 'ensemble' not in package_specs:
-            raise ValueError('Ensemble must be specified in package specs for terminate task')
         TarballContents = FileArtifactList()
         self.basename = self.specs.get('basename', 'my_system')
         state: StateArtifacts = self.get_current_artifact('state')
@@ -70,16 +70,20 @@ class TerminateTask(MDTask):
                 shutil.copy(fa.name, self.basename + '.' + ext)
                 self.register(type(fa)(self.basename))
                 TarballContents.append(self.get_current_artifact(ext))
-        logger.debug(f'Packaging for namd using basename {self.basename}')
-        save_specs = self.specs
-        self.specs = package_specs
-        result = self.namdrun(script_only=True)
-        self.specs = save_specs
-        TarballContents.append(self.get_current_artifact('namd'))
-        constraints = self.specs.get('constraints', {})
-        if constraints:
-            self.make_constraint_pdb(constraints, statekey='consref')
-            TarballContents.append(self.get_current_artifact('consref'))
+        if md_specs:
+            logger.debug(f'Packaging for namd using basename {self.basename}')
+            save_specs = self.specs
+            self.specs = md_specs
+            self.specs['basename'] = package_specs.get('basename', self.basename)
+            result = self.namdrun(script_only=True)
+            self.specs = save_specs
+            TarballContents.append(self.get_current_artifact('namd'))
+            constraints = self.specs.get('constraints', {})
+            if constraints:
+                self.make_constraint_pdb(constraints, statekey='consref')
+                TarballContents.append(self.get_current_artifact('consref'))
+        else:
+            logger.debug(f'No NAMD configuration is included in the package.')
         TarballContents.extend(self.get_current_artifact_data('charmmff_parfiles'))
         TarballContents.extend(self.get_current_artifact_data('charmmff_streamfiles'))
         TarballContents.make_tarball(self.basename, arcname_prefix=state_dir)

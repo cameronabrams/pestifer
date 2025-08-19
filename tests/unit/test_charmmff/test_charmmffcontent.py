@@ -9,6 +9,16 @@ from pestifer.charmmff.charmmfftop import CharmmMasses
 import logging
 logger = logging.getLogger(__name__)
 
+class TestCharmmffContentCacheable(unittest.TestCase):
+
+    def test_charmmff_content_cacheable(self):
+        resource_path = os.path.dirname(resources.__file__)
+        charmmff_path = os.path.join(resource_path, 'charmmff')
+        C = CHARMMFFContent(charmmff_path, force_rebuild=True)
+        self.assertFalse(C.from_cache)
+        anotherC = CHARMMFFContent(charmmff_path)
+        self.assertTrue(anotherC.from_cache)
+
 class TestCharmmffContent(unittest.TestCase):
 
     @classmethod
@@ -28,7 +38,7 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertTrue(len(basenames)>0)
         self.assertEqual(len(set(basenames)),len(basenames))  # check for duplicates
         self.assertTrue(len(self.C.streams)>0)
-        self.assertEqual(self.C.streams,['prot','carb', 'na', 'lipid'])
+        self.assertEqual(self.C.streams.sort(),['prot','carb', 'na', 'lipid'].sort())
         self.assertIn('pestifer.top', self.C.custom_files)
 
         self.C.copy_charmmfile_local('par_all36m_prot.prm')

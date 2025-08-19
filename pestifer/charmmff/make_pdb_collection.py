@@ -13,6 +13,8 @@ from   itertools            import product
 from   pidibble.pdbparse    import PDBParser
 
 from pestifer.objs import resid
+from pestifer.scripters.namdscripter import NAMDScripter
+from pestifer.scripters.psfgenscripter import PsfgenScripter
 
 from  .charmmffresidatabase import CHARMMFFResiDatabase
 from ..core.config          import Config
@@ -160,16 +162,19 @@ def do_psfgen(resid: str, DB: CHARMMFFResiDatabase,
     config = Config(quiet=True)
     C = Controller().configure(config=config, userspecs=userspecs, terminate=False)
     # First we de-novo generate a pdb/psf file using seeded internal coordinates
-    W = C.tasks[0].scripters['psfgen']
+    W: PsfgenScripter = C.tasks[0].scripters['psfgen']
     logger.debug(f'charmm_topfile from resiDB entry {topo.resname}: {charmm_topfile}')
-    if not charmm_topfile in W.charmmff_config['standard']['topologies']:
-        W.charmmff_config['standard']['topologies'].append(charmm_topfile)
+    extension = os.path.splitext(charmm_topfile)[1][1:]
+    if extension not in ['rtf', 'str']:
+        raise ValueError(f'Invalid CHARMM topology file extension: {extension}. Expected .rtf or .str.')
+    if not charmm_topfile in W.charmmff_config['standard'][extension]:
+        W.charmmff_config['standard'][extension].append(charmm_topfile)
     if charmm_topfile.endswith('detergent.str'):
         needed='toppar_all36_lipid_sphingo.str'
-        W.charmmff_config['standard']['topologies'].append(needed)
+        W.charmmff_config['standard']['str'].append(needed)
     if charmm_topfile.endswith('initosol.str'):
         needed='toppar_all36_carb_glycolipid.str'
-        W.charmmff_config['standard']['topologies'].append(needed)
+        W.charmmff_config['standard']['str'].append(needed)
 
     W.newscript('init')
     if topo.to_psfgen(W, refic_idx=refic_idx) == -1:
@@ -194,11 +199,11 @@ def do_psfgen(resid: str, DB: CHARMMFFResiDatabase,
     for task in tasks:
         if task.taskname == 'md':
             needed = []
-            if 'toppar' in charmm_topfile:
-                # this is a combined topology/parameter file; charmm_topfile is ABSOLUTE, so we need to add its RELATIVE path to the list of parameter files
-                na = C.tasks[0].scripters['namd']
-                if not charmm_topfile in na.charmmff_config['standard']['parameters']:
-                    na.charmmff_config['standard']['parameters'].append(charmm_topfile)
+            if extension == 'str':
+                # this is a stream file (combined topology/parameter file); charmm_topfile is ABSOLUTE, so we need to add its RELATIVE path to the list of parameter files
+                na: NAMDScripter = C.tasks[0].scripters['namd']
+                if not charmm_topfile in na.charmmff_config['standard'][extension]:
+                    na.charmmff_config['standard'][extension].append(charmm_topfile)
             if charmm_topfile.endswith('sphingo.str'):
                 needed = ['toppar_all36_carb_imlab.str',
                         'toppar_all36_lipid_lps.str']
@@ -215,10 +220,10 @@ def do_psfgen(resid: str, DB: CHARMMFFResiDatabase,
                         'toppar_all36_lipid_bacterial.str']
 
             for n in needed:
-                if n not in na.charmmff_config['standard']['parameters']:
-                    na.charmmff_config['standard']['parameters'].append(n)
+                if n not in na.charmmff_config['standard']['str']:
+                    na.charmmff_config['standard']['str'].append(n)
 
-            par = na.charmmff_config['standard']['parameters']
+            par = na.charmmff_config['standard']['prm'] + na.charmmff_config['standard']['str']
 
     result = C.do_tasks()
     for k, v in result.items():

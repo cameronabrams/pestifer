@@ -21,5 +21,6 @@ Subpackages
    pestifer.resources
    pestifer.scripters
    pestifer.sphinxext
+   pestifer.subcommands
    pestifer.tasks
    pestifer.util

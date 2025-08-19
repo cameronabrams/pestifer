@@ -1,5 +1,7 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
-
+"""
+Subcommand that allows for real-time following and parsing of NAMD log files actively being written to by a namd3 execution.
+"""
 from dataclasses import dataclass
 import logging
 
@@ -26,18 +28,19 @@ class FollowNAMDLogSubcommand(Subcommand):
         logging.getLogger('').addHandler(console)
         subcommand_follow_namd_log(log, basename=basename)
         print()
+        return True
     
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
         self.parser.add_argument('log', type=str, help='NAMD log file to follow')
         self.parser.add_argument('--basename', type=str, default=None, help='Base name for output files (default: derived from log file name)')
-        self.parser.add_argument('--diagnostic-log-file', type=str, default=None, help='diagnostic log file')
-        self.parser.add_argument('--log-level', type=str, default='info', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
-        self.parser.add_argument('--no-banner', default=True, action='store_true', help='turn off the banner')
         return self.parser
 
 @dataclass
 class MakeNAMDRestartSubcommand(Subcommand):
+    """
+    Subcommand that generates a default NAMD restart configuration based on a current configuration and log file.
+    """
     name: str = "make-namd-restart"
     short_help: str = 'generate a restart NAMD config file based on current checkpoint'
     long_help: str = 'This command generates a NAMD configuration file for restarting a simulation from the current checkpoint.'
@@ -45,7 +48,8 @@ class MakeNAMDRestartSubcommand(Subcommand):
     @staticmethod
     def func(args, **kwargs):
         make_namd_restart_subcommand(args)
-
+        return True
+    
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
         self.parser.add_argument('--namd-log', type=str, help='name of most recent NAMD log')

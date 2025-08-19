@@ -15,6 +15,7 @@ Submodules
    pestifer.util.cifutil
    pestifer.util.colors
    pestifer.util.coord
+   pestifer.util.formatvalidator
    pestifer.util.gitutil
    pestifer.util.linkcell
    pestifer.util.namdrestart

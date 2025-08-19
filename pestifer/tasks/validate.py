@@ -8,7 +8,7 @@ import logging
 
 from pathlib import Path
 from typing import ClassVar
-from pestifer.core.artifacts import StateArtifacts, VMDLogFileArtifact, VMDScriptArtifact
+from pestifer.core.artifacts import StateArtifacts, VMDLogFileArtifact, VMDScriptArtifact, DataArtifact
 from pestifer.logparsers.logparser import VMDLogParser
 from pestifer.scripters.vmdscripter import VMDScripter
 from pestifer.tasks.basetask import VMDTask
@@ -257,6 +257,7 @@ class ValidateTask(VMDTask):
         else:
             npass = sum(1 for r in results if 'PASS' in r)
             nfail = sum(1 for r in results if 'FAIL' in r)
+            self.register(DataArtifact(dict(npass=npass, nfail=nfail)), key='validation_results')
             logger.debug(f'Validation results: \x1b[32m\x1b[1m{npass} passing\x1b[0m, \x1b[31m\x1b[1m{nfail} failing\x1b[0m>')
             self.extra_message = f"\x1b[32m\x1b[1mpass: {npass}\x1b[0m, \x1b[31m\x1b[1mfail: {nfail}\x1b[0m"
         # here we would parse the resulting log file

@@ -5,8 +5,9 @@ Defines the PDBCollection class for managing the collection of said PDBs.
 """
 import os
 import logging
-import tarfile
 import yaml
+
+from ..util.cacheable_object import TarBytesFS
 
 logger=logging.getLogger(__name__)
 
@@ -24,24 +25,13 @@ class PDBInfo:
         self.metadata=metadata
 
     @classmethod
-    def from_yaml(cls,yamlfile='info.yaml'):
+    def from_yaml_file(cls,yamlfile='info.yaml'):
         metadata={}
         if os.path.exists(yamlfile):
             with open(yamlfile,'r') as f:
                 metadata=yaml.safe_load(f)
         else:
             logger.warning(f'{yamlfile} not found; metadata will be empty.')
-        return cls(metadata)
-    
-    @classmethod
-    def from_tarfile_member(cls,member:tarfile.TarInfo,tarfile:tarfile.TarFile):
-        """ Create a PDBInfo object from a tarfile member that is expected to be an info.yaml file. """
-        metadata={}
-        if not member.name.endswith('info.yaml'):
-            logger.warning(f'Member {member.name} is not an info.yaml file; returning empty PDBInfo.')
-            return cls()
-        with tarfile.extractfile(member) as f:
-            metadata=yaml.safe_load(f)
         return cls(metadata)
 
     def get(self,key,default=None):
@@ -106,97 +96,11 @@ class PDBInput:
     """
     def __init__(self,name='',pdbcontents={},info:PDBInfo=None,opt_tags={}):
         self.name=name
-        self.pdbcontents=pdbcontents # conformerID -> pdb contents
-        self.info=info # info.yaml contents (the metadata for the residue)
-        self.opt_tags=opt_tags
+        self.pdbcontents = pdbcontents  # conformerID -> pdb contents
+        self.info = info  # info.yaml contents (the metadata for the residue)
+        self.opt_tags = opt_tags
 
-    @classmethod
-    def from_local_filesystem(cls,name,streamID=''):
-        """ Create a PDBInput object for RESI 'name' expected to be found in the local filesystem under a directory named 'streamID/RESI' or a solo file named RESI.pdb. """
-        openname=os.path.join(streamID,name) if streamID else name
-        logger.debug(f'Looking for PDBInput for {name} in {openname}')
-        if os.path.exists(f'{openname}.pdb'):
-            with open(f'{openname}.pdb','r') as f:
-                pdbcontents={0: f.read()}
-            return cls(name=name,pdbcontents=pdbcontents,info=PDBInfo())
-        if os.path.isdir(openname):
-            opt_tags={}
-            os.chdir(openname)
-            info=PDBInfo.from_yaml('info.yaml')
-            conformerID=0
-            while os.path.exists(f'{openname}-{conformerID:02d}.pdb'):
-                with open(f'{openname}-{conformerID:02d}.pdb','r') as f:
-                    pdbcontents[conformerID]=f.read()
-                conformerID+=1
-            conformerID=0
-            expected_tags=['noh']
-            for tag in expected_tags:
-                while os.path.exists(f'{openname}-{conformerID:02d}-{tag}.pdb'):
-                    with open(f'{openname}-{conformerID:02d}-{tag}.pdb','r') as f:
-                        if not tag in opt_tags:
-                            opt_tags[tag]={}
-                        opt_tags[tag][conformerID]=f.read()
-                    conformerID+=1
-            os.chdir('..')
-            return cls(name=name,pdbcontents=pdbcontents,info=info,opt_tags=opt_tags)
-
-    @classmethod
-    def from_tarfile(cls,name,tarfile):
-        """ Create a PDBInput object for RESI 'name' expected to be found in the tarfile. """
-        if not tarfile:
-            return None
-        # There is either a single PDB {name}.pdb or a directory {name}
-        solo_member=None
-        folder_member=None
-        for member in tarfile.getmembers():
-            if os.path.basename(member.name)==name+'.pdb':
-                solo_member=member
-                break
-            elif member.isdir() and os.path.basename(member.name)==name:
-                folder_member=member
-                break
-        if solo_member is None and folder_member is None:
-            logger.warning(f'No members found in tarfile {tarfile.name} for {name}')
-            return None
-        pdbcontents={}
-        info=PDBInfo()  # default empty info
-        opt_tags={}
-        conformerID=0
-
-        if solo_member:
-            # single PDB file case
-            with tarfile.extractfile(solo_member) as f:
-                pdbcontents[conformerID]=f.read().decode()
-        elif folder_member:
-            for member in tarfile.getmembers():
-                if member.name.startswith(folder_member.name + '/'):
-                    # member is inside the folder
-                    if member.name.endswith('info.yaml'):
-                        # extract info.yaml
-                        info=PDBInfo.from_tarfile_member(member,tarfile)
-                    elif member.name.endswith('.pdb'):
-                        # extract PDB file
-                        tag=''
-                        if '-' in member.name:
-                            parts = member.name.split('-')
-                            if len(parts)>1:
-                                token=parts[-1].split('.')[0]
-                                if len(token)>1 and token.isdigit():
-                                    conformerID = int(token)
-                                else:
-                                    continue
-                                if len(parts) > 2:
-                                    tag=parts[-2]
-                        with tarfile.extractfile(member) as f:
-                            if tag=='':
-                                pdbcontents[conformerID]=f.read().decode()
-                            else:
-                                if not tag in opt_tags:
-                                    opt_tags[tag]={}
-                                opt_tags[tag][conformerID]=f.read().decode()
-        return cls(name=name,pdbcontents=pdbcontents,info=info,opt_tags=opt_tags)
-    
-    def get_pdb(self,conformerID=0,noh=False):
+    def get_pdb(self, conformerID=0, noh=False):
         """
         Get the PDB contents for a given conformer ID. If ``noh`` is True, it will return the PDB contents for the ``noh`` tag if available. 
         
@@ -212,19 +116,19 @@ class PDBInput:
         str | None
             The PDB contents for the specified conformer ID and tag, or None if not found.
         """
-        if len(self.pdbcontents)==0:
+        if len(self.pdbcontents) == 0:
             logger.warning('No PDB contents available to checkout.')
             return None
-        if len(self.pdbcontents)==1:
-            with open(f'{self.name}.pdb','w') as f:
+        if len(self.pdbcontents) == 1:
+            with open(f'{self.name}.pdb', 'w') as f:
                 f.write(next(iter(self.pdbcontents.values())))
-            modified_name=f'{self.name}.pdb'
+            modified_name = f'{self.name}.pdb'
         else:
-            modified_name=f'{self.name}/{self.name}-{conformerID:02d}'
+            modified_name = f'{self.name}/{self.name}-{conformerID:02d}'
             if noh:
                 modified_name += '-noh'
             modified_name += '.pdb'
-            with open(os.path.basename(modified_name),'w') as f:
+            with open(os.path.basename(modified_name), 'w') as f:
                 if not noh:
                     if conformerID in self.pdbcontents:
                         f.write(self.pdbcontents[conformerID])
@@ -365,54 +269,67 @@ class PDBCollection:
     
     """
 
-    def __init__(self,path='',streamID_override=''):
-        self.resnames={} # resname -> PDBInfo object
-        self.tarfile=None
-        self.path=path # path to the collection directory or tarball relative to CWD
-        self.registration_place=0
+    def __init__(self, path: str = '', streamID_override: str = ''):
+        self.info = {} # resname -> PDBInfo object
+        self.contents = {} # resname -> PDBInput object
+        self.tarfile = None
+        self.path = path # path to the collection directory or tarball relative to CWD
+        self.registration_place = 0
         if path.endswith('.tar.gz') or path.endswith('.tgz'):
-            basename=os.path.basename(path)
-            streamID=os.path.splitext(basename)[0]
+            basename = os.path.basename(path)
+            streamID = os.path.splitext(basename)[0]
             if streamID_override:
-                streamID=streamID_override
-            self.tarfile=tarfile.open(path,'r:gz')
-            logger.debug(f'Opened tarfile {path} for stream {streamID}')
-            members=self.tarfile.getmembers()
-            logger.debug(f'Processing tarball {path} with {len(members)} members')
-            leads=set([x.name.split('/')[0] for x in members])
-            assert len(leads)==1, f'Multiple top-level directories found in tarball {path}; a PDBCollection must be a single stream'
-            assert streamID==leads.pop(), f'Tarball {path}\'s top-level directory does not match stream name {streamID} (leads {leads}).'
-            toplevels=[x for x in members if len(x.name.split('/'))==2]
-            solos=[os.path.basename(x.name) for x in toplevels if x.name.endswith('.pdb')]
-            subdirs=[os.path.basename(x.name) for x in toplevels if x.isdir()]
-            for solo in solos:
-                resname=os.path.splitext(solo)[0]
-                self.resnames[resname]=PDBInfo({})
-            for subdir in subdirs:
-                resname=subdir
-                info_search=[x for x in members if x.name==f'{streamID}/{subdir}/info.yaml']
-                if len(info_search)==0:
+                streamID = streamID_override
+            self.tarfile = TarBytesFS.from_file(path, compression='gzip')
+            root_dir = self.tarfile.ls()[0].get('name', None)
+            if not root_dir or root_dir != streamID:
+                raise ValueError(f'Tarball {path}\'s top-level directory does not match stream name {streamID} (root_dir {root_dir}).')
+            toplevel_solos = [x['name'] for x in self.tarfile.ls(root_dir) if x['type'] != 'directory']
+            toplevel_subdirs = [x['name'] for x in self.tarfile.ls(root_dir) if x['type'] == 'directory']
+            for solo in toplevel_solos:
+                resname = os.path.splitext(os.path.basename(solo))[0]
+                self.info[resname] = PDBInfo({})
+                with self.tarfile.open(solo, 'r') as f:
+                    self.contents[resname] = PDBInput(name=resname, pdbcontents={'0': f.read()}, info=self.info[resname])
+            for subdir in toplevel_subdirs:
+                resname = os.path.basename(subdir)
+                info_search = [x for x in self.tarfile.ls(subdir) if 'info.yaml' in x['name']]
+                if len(info_search) == 0:
                     logger.warning(f'No info.yaml found for {resname} in tarball {path}.')
                     continue
-                sd_member=info_search[0]
-                self.resnames[resname]=PDBInfo.from_tarfile_member(sd_member,self.tarfile)
+                sd_member = info_search[0]
+                with self.tarfile.open(sd_member['name'], 'r') as f:
+                    contents = yaml.safe_load(f)
+                self.info[resname] = PDBInfo(contents)
+                pdbcontents = {}
+                for index, conformer in enumerate(self.info[resname].metadata['conformers']):
+                    with self.tarfile.open(os.path.join(subdir, conformer['pdb']), 'r') as f:
+                        pdbcontents[index] = f.read()
+                self.contents[resname] = PDBInput(name=resname, pdbcontents=pdbcontents, info=self.info[resname])
         elif os.path.isdir(path):
             logger.debug(f'Scanning directory {path} as a PDBCollection')
-            streamID=os.path.basename(path) if not streamID_override else streamID_override
-            cwd=os.getcwd()
+            streamID = os.path.basename(path) if not streamID_override else streamID_override
+            cwd = os.getcwd()
             os.chdir(path)
-            dircontents=os.listdir()
-            solos=[x for x in dircontents if os.path.isfile(x) and x.endswith('.pdb')]
-            subdirs=[x for x in dircontents if os.path.isdir(x) and not x.startswith('.')]
+            dircontents = os.listdir()
+            solos = [x for x in dircontents if os.path.isfile(x) and x.endswith('.pdb')]
+            subdirs = [x for x in dircontents if os.path.isdir(x) and not x.startswith('.')]
             for solo in solos:
-                resname=os.path.splitext(solo)[0]
-                self.resnames[resname]=PDBInfo({})
+                resname = os.path.splitext(solo)[0]
+                self.info[resname] = PDBInfo({})
+                with open(solo, 'r') as f:
+                    self.contents[resname] = PDBInput(name=resname, pdbcontents={0: f.read()}, info=self.info[resname])
+            pdbcontents = {}
             for subdir in subdirs:
-                resname=subdir
-                if os.path.exists(os.path.join(subdir,'info.yaml')):
-                    self.resnames[resname]=PDBInfo.from_yaml(os.path.join(subdir,'info.yaml'))
+                resname = subdir
+                if os.path.exists(os.path.join(subdir, 'info.yaml')):
+                    self.info[resname] = PDBInfo.from_yaml_file(os.path.join(subdir, 'info.yaml'))
+                for index, conformer in enumerate(self.info[resname].metadata['conformers']):
+                    with open(os.path.join(subdir, conformer['pdb']), 'r') as f:
+                        pdbcontents[index] = f.read()
+            self.contents[resname] = PDBInput(name=resname, pdbcontents=pdbcontents, info=self.info[resname])
             os.chdir(cwd)
-        self.streamID=streamID
+        self.streamID = streamID
 
     def show(self,fullnames=False,missing_fullnames={}):
         """
@@ -434,17 +351,17 @@ class PDBCollection:
             If `fullnames` is True, it will include the full names (synonyms) of the residues; otherwise, it will just list the resnames.
 
         """
-        retstr=f'PDBCollection(registered_at={self.registration_place}, streamID={self.streamID}, path={self.path}, contains {len(self.resnames)} resnames)\n'
+        retstr=f'PDBCollection(registered_at={self.registration_place}, streamID={self.streamID}, path={self.path}, contains {len(self.info)} resnames)\n'
         if fullnames:
-            for resname in sorted(self.resnames.keys()):
-                fullname=self.resnames[resname].get('synonym','')
+            for resname in sorted(self.info.keys()):
+                fullname=self.info[resname].get('synonym','')
                 if not fullname:
                     fullname=missing_fullnames.get(resname,'')
                 retstr += f'  {fullname:>66s} ({resname})\n'
         else:
-            for i,resname in enumerate(sorted(self.resnames.keys())):
+            for i,resname in enumerate(sorted(self.info.keys())):
                 retstr += f'{resname:>6s}'
-                if i<len(self.resnames)-1:
+                if i<len(self.info)-1:
                     retstr+= ', '
                 if (i+1) % 7==0:
                     retstr += '\n'
@@ -464,7 +381,7 @@ class PDBCollection:
         bool
             True if the resname is found in the collection, False otherwise.
         """
-        return resname in self.resnames
+        return resname in self.info
 
     def checkout(self,resname):
         """ 
@@ -481,18 +398,12 @@ class PDBCollection:
             The ``PDBInput`` object for the specified resname if found, or None if not found.   
         
         """
-        if resname in self.resnames:
+        if resname in self.contents:
             logger.debug(f'Found {resname} in collection {self.streamID}')
-            return PDBInput.from_tarfile(resname,self.tarfile) if self.tarfile else PDBInput.from_local_filesystem(resname,self.streamID)
+            return self.contents[resname]
         else:
             logger.debug(f'{resname} not found in collection {self.streamID}')
             return None
-
-    def __del__(self):
-        """ Close the tarfile if it was opened. """
-        if self.tarfile:
-            self.tarfile.close()
-            logger.debug(f'Closed tarfile {self.path}')
 
 class PDBRepository:
     """
@@ -542,7 +453,7 @@ class PDBRepository:
         self.collections[collection_key]=collection
         self.registration_order.append(collection_key)
         self.collections[collection_key].registration_place=len(self.registration_order)
-        logger.debug(f'Added collection {collection_key} with {len(collection.resnames)} residues.')
+        logger.debug(f'Added collection {collection_key} with {len(collection.info)} residues.')
 
     def show(self,out_stream=print,fullnames=False,missing_fullnames={}):
         """ 
@@ -565,7 +476,7 @@ class PDBRepository:
             out_stream(coll.show(fullnames=fullnames,missing_fullnames=missing_fullnames))
         out_stream('-'*75)
 
-    def __contains__(self,resname):
+    def __contains__(self, resname: str):
         """
         Check if a resname is in any of the collections.
 
@@ -576,13 +487,13 @@ class PDBRepository:
 
         """
         for c in self.registration_order[::-1]:
-            coll=self.collections[c]
-            if resname in coll.resnames:
+            coll: PDBCollection = self.collections[c]
+            if resname in coll.info:
                 return True
         return False
 
-    def checkout(self,name):
-        """ 
+    def checkout(self, name: str) -> PDBInput | None:
+        """
         Given a name, return the PDBInput object for that name, or None if not found.
         Search is conducted over collections in the order they were registered.
 
@@ -592,8 +503,8 @@ class PDBRepository:
             The name of the residue to check out from the ``PDBRepository``.
         """
         for c in self.registration_order[::-1]:
-            coll=self.collections[c]
-            result=coll.checkout(name)
+            coll: PDBCollection = self.collections[c]
+            result = coll.checkout(name)
             if result is not None:
                 logger.debug(f'Found {name} in collection {c}')
                 return result

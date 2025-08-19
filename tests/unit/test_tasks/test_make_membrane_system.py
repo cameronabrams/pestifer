@@ -3,7 +3,7 @@ import os
 import shutil
 import unittest
 
-from pestifer.core.artifacts import StateArtifacts
+from pestifer.core.artifacts import DataArtifact, StateArtifacts
 from pestifer.core.config import Config
 from pestifer.core.controller import Controller
 
@@ -11,6 +11,7 @@ from pestifer.scripters import PsfgenScripter
 
 from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
 
+from pestifer.tasks.validate import ValidateTask
 from pestifer.util.util import protect_str_arg
 
 class TestMakeMembraneSystem(unittest.TestCase):
@@ -40,32 +41,54 @@ class TestMakeMembraneSystem(unittest.TestCase):
         os.mkdir(test_dir)
         os.chdir(test_dir)
 
-        task_list = [{'make_membrane_system':{'bilayer':{
-                'SAPL': 50,
-                'npatch':[3,3],
-                'composition':{
-                    'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
-                    'lower_leaflet': [{'name':'POPC','frac':1.0,'conf':0}]
+        task_list = [
+            {'make_membrane_system': {
+                'bilayer': {
+                    'SAPL': 75,
+                    'npatch': [1, 1],
+                    'composition': {
+                        'upper_leaflet': [{'name': 'POPC', 'frac': 1.0, 'conf': 0}],
+                        'lower_leaflet': [{'name': 'POPC', 'frac': 1.0, 'conf': 0}]
                     },
-                'relaxation_protocols':{
-                    'patch':self.common_patch_relaxation_protocols,
-                    'quilt':self.common_quilt_relaxation_protocols}
+                    'relaxation_protocols':{
+                        'patch': self.common_patch_relaxation_protocols,
+                        'quilt': self.common_quilt_relaxation_protocols
+                    }
                 }
-                }}]
+            }},
+            {'validate': {
+                'tests': [
+                    {'residue_test': {
+                        'name': 'Count of lipid residues',
+                        'selection': 'resname POPC',
+                        'measure': 'residue_count',
+                        'value': 200
+                    }}
+                ]
+            }}]
         self.controller.reconfigure_tasks(task_list)
         self.assertIsInstance(self.controller.tasks[0], MakeMembraneSystemTask)
+        self.assertIsInstance(self.controller.tasks[1], ValidateTask)
+        self.assertEqual(len(self.controller.tasks), 2)
         result = self.controller.do_tasks()
         task = self.controller.tasks[0]
-        self.assertIsInstance(task, MakeMembraneSystemTask)
+        validation = self.controller.tasks[1]
         state: StateArtifacts = task.get_current_artifact('state')
-        self.assertIsNotNone(state)
-        self.assertIsTrue(state.pdb.exists())
-        self.assertIsTrue(state.psf.exists())
-        self.assertIsTrue(state.coor.exists())
-        self.assertIsTrue(state.xsc.exists())
+        self.assertTrue(state is not None)
+        self.assertTrue(state.pdb.exists())
+        self.assertTrue(state.psf.exists())
+        self.assertTrue(state.coor.exists())
+        self.assertTrue(state.xsc.exists())
+
+        validation_results = validation.get_current_artifact('validation_results')
+        self.assertIsInstance(validation_results, DataArtifact)
+        self.assertIsInstance(validation_results.data, dict)
+        self.assertEqual(validation_results.data['npass'], 1)
+        self.assertEqual(validation_results.data['nfail'], 0)
+
         self.assertIsInstance(result, dict)
         os.chdir('..')
-        assert result['result'] == 0
+        assert result[0]['result'] == 0
 
     @pytest.mark.slow
     def test_membrane_asymmetric_pure_leaflets(self):
@@ -74,20 +97,64 @@ class TestMakeMembraneSystem(unittest.TestCase):
             shutil.rmtree(test_dir)
         os.mkdir(test_dir)
         os.chdir(test_dir)
-        task_list=[{'make_membrane_system':{'bilayer':{
-                'SAPL': 50,
-                'npatch':[2,2],
-                'composition':{
-                    'upper_leaflet': [{'name':'POPC','frac':1.0,'conf':0}],
-                    'lower_leaflet': [{'name':'POPE','frac':1.0,'conf':0}]
+        task_list = [
+            {'make_membrane_system': {
+                'bilayer': {
+                    'SAPL': 75,
+                    'npatch': [2, 2],
+                    'composition': {
+                        'upper_leaflet': [{'name': 'POPC', 'frac': 1.0, 'conf': 0}],
+                        'lower_leaflet': [{'name': 'POPE', 'frac': 1.0, 'conf': 0}]
                     },
-                'relaxation_protocols':{
-                    'patch':self.common_patch_relaxation_protocols,
-                    'quilt':self.common_quilt_relaxation_protocols}}}}]
+                    'relaxation_protocols':{
+                        'patch': self.common_patch_relaxation_protocols,
+                        'quilt': self.common_quilt_relaxation_protocols
+                    }
+                }
+            }},
+            {'validate': {
+                'tests': [
+                    {
+                        'residue_test': {
+                            'name': 'Count of POPC residues',
+                            'selection': 'resname POPC',
+                            'measure': 'residue_count',
+                            'value': 400
+                        }
+                    },
+                    {
+                        'residue_test': {
+                            'name': 'Count of POPE residues',
+                            'selection': 'resname POPE',
+                            'measure': 'residue_count',
+                            'value': 400
+                        }
+                    }
+                ]
+            }}]
         self.controller.reconfigure_tasks(task_list)
-        result=self.controller.do_tasks()
+        self.assertIsInstance(self.controller.tasks[0], MakeMembraneSystemTask)
+        self.assertIsInstance(self.controller.tasks[1], ValidateTask)
+        self.assertEqual(len(self.controller.tasks), 2)
+        result = self.controller.do_tasks()
+        task = self.controller.tasks[0]
+        validation = self.controller.tasks[1]
+        state: StateArtifacts = task.get_current_artifact('state')
+        self.assertTrue(state is not None)
+        self.assertTrue(state.pdb.exists())
+        self.assertTrue(state.psf.exists())
+        self.assertTrue(state.coor.exists())
+        self.assertTrue(state.xsc.exists())
+
+        validation_results = validation.get_current_artifact('validation_results')
+        self.assertIsInstance(validation_results, DataArtifact)
+        self.assertIsInstance(validation_results.data, dict)
+        self.assertEqual(validation_results.data['npass'], 2)
+        self.assertEqual(validation_results.data['nfail'], 0)
+
+        self.assertIsInstance(result, dict)
         os.chdir('..')
-        assert result==0
+        assert result[0]['result'] == 0
 
     @pytest.mark.slow
     def test_membrane_asymmetric_multicomponent(self):
@@ -96,9 +163,12 @@ class TestMakeMembraneSystem(unittest.TestCase):
             shutil.rmtree(test_dir)
         os.mkdir(test_dir)
         os.chdir(test_dir)
-        task_list=[{'make_membrane_system':{'bilayer':{
-                'SAPL': 50,
-                'npatch':[3,3],
+
+        task_list = [
+            {'make_membrane_system': {
+                'bilayer': {
+                    'SAPL': 75,
+                    'npatch': [1, 1],
                 'composition':{
                     'upper_leaflet': [
                         {'name':'POPC','frac':0.5,'conf':0},
@@ -106,13 +176,63 @@ class TestMakeMembraneSystem(unittest.TestCase):
                     'lower_leaflet': [
                         {'name':'PSM','frac':0.5,'conf':0},
                         {'name':'CHL1','frac':0.5,'conf':0}]},
-                'relaxation_protocols':{
-                    'patch':self.common_patch_relaxation_protocols,
-                    'quilt':self.common_quilt_relaxation_protocols}}}}]
+                    'relaxation_protocols':{
+                        'patch': self.common_patch_relaxation_protocols,
+                        'quilt': self.common_quilt_relaxation_protocols
+                    }
+                }
+            }},
+            {'validate': {
+                'tests': [
+                    {
+                        'residue_test': {
+                            'name': 'Count of POPC residues',
+                            'selection': 'resname POPC',
+                            'measure': 'residue_count',
+                            'value': 50
+                        }
+                    },
+                    {
+                        'residue_test': {
+                            'name': 'Count of PSM residues',
+                            'selection': 'resname PSM',
+                            'measure': 'residue_count',
+                            'value': 50
+                        }
+                    },
+                    {
+                        'residue_test': {
+                            'name': 'Count of CHL1 residues',
+                            'selection': 'resname CHL1',
+                            'measure': 'residue_count',
+                            'value': 100
+                        }
+                    },
+                ]
+            }}]
         self.controller.reconfigure_tasks(task_list)
-        result=self.controller.do_tasks()
+        self.assertIsInstance(self.controller.tasks[0], MakeMembraneSystemTask)
+        self.assertIsInstance(self.controller.tasks[1], ValidateTask)
+        self.assertEqual(len(self.controller.tasks), 2)
+        result = self.controller.do_tasks()
+        task = self.controller.tasks[0]
+        validation = self.controller.tasks[1]
+        state: StateArtifacts = task.get_current_artifact('state')
+        self.assertTrue(state is not None)
+        self.assertTrue(state.pdb.exists())
+        self.assertTrue(state.psf.exists())
+        self.assertTrue(state.coor.exists())
+        self.assertTrue(state.xsc.exists())
+
+        validation_results = validation.get_current_artifact('validation_results')
+        self.assertIsInstance(validation_results, DataArtifact)
+        self.assertIsInstance(validation_results.data, dict)
+        self.assertEqual(validation_results.data['npass'], 3)
+        self.assertEqual(validation_results.data['nfail'], 0)
+
+        self.assertIsInstance(result, dict)
         os.chdir('..')
-        assert result==0
+        assert result[0]['result'] == 0
 
     def test_membrane_embed(self):
         test_dir='__test_make_membrane_system_task_embed'

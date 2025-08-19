@@ -54,12 +54,12 @@ class NAMDScripter(TcLScripter):
         list
             A list of parameter files that have been copied to the local directory.
         """
-        logger.debug('Fetching standard CHARMM parameters')
+        logger.debug('Fetching standard CHARMMFF parameters')
         parameters_local = []
-        for t in self.charmmff_config['standard']['parameters']:
+        for t in self.charmmff_config['standard']['prm'] + self.charmmff_config['standard']['str']:
             self.charmmff.copy_charmmfile_local(t)
             parameters_local.append(t)
-        for t in self.charmmff_config['custom']['parameters']:
+        for t in self.charmmff_config['custom']['prm'] + self.charmmff_config['custom']['str']:
             if t not in parameters_local:
                 self.charmmff.copy_charmmfile_local(t)
                 parameters_local.append(t)
@@ -77,7 +77,8 @@ class NAMDScripter(TcLScripter):
             The base name for the script file. If not provided, a default name is used.
         addl_paramfiles : list, optional
             A list of additional parameter files to be included in the script. These files should not contain
-            a path (i.e., they should be in the current working directory).
+            a path, but they should be recognizable .prm or .str files within the CHARMM force field or
+            the custom CHARMM-format directories.
         """
         super().newscript(basename)
         self.scriptname = f'{basename}{self.default_ext}'

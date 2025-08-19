@@ -1,5 +1,10 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
-
+"""
+The make-pdbcollection subcommand.  This allows a user to generate their own collection of 
+sample PDB files for residues defined in the CHARMM force field (or in files that have 
+CHARMM-format RESI blocks). These sample PDB's are specifically used as inputs to 
+packmol.
+"""
 from dataclasses import dataclass
 
 from . import Subcommand
@@ -18,6 +23,7 @@ class MakePDBCollectionSubcommand(Subcommand):
         Create a PDB collection from a set of input files.
         """
         make_pdb_collection(args)
+        return True
 
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)

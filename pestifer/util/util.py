@@ -10,6 +10,7 @@ import sys
 import pandas as pd
 import numpy as np
 
+from argparse import ArgumentParser
 from functools import wraps
 from pathlib import Path
 
@@ -414,3 +415,25 @@ def tarball_walk(tar):
     for dir_path, files in directories.items():
         yield dir_path, [], files
 
+def remove_argument(parser: ArgumentParser, name_or_flag: str):
+    """Remove an argument by its dest name or option string."""
+    target_action = None
+    # Look through all actions
+    for action in parser._actions:
+        if action.dest == name_or_flag or name_or_flag in action.option_strings:
+            target_action = action
+            break
+    if target_action is None:
+        raise ValueError(f"Argument {name_or_flag} not found")
+
+    # Remove from master list
+    parser._actions.remove(target_action)
+
+    # Remove from all groups (positional, optional, custom)
+    for group in parser._action_groups:
+        if target_action in group._group_actions:
+            group._group_actions.remove(target_action)
+
+    # If it was optional, also clear option string mappings
+    for opt in getattr(target_action, "option_strings", []):
+        parser._option_string_actions.pop(opt, None)
