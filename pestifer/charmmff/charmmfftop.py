@@ -3,7 +3,7 @@
 This module defines classes and methods that facilitate reading and parsing of CHARMM RESI and MASS records from top, rtp, and str files from the force field. 
 """
 from __future__ import annotations
-
+from dataclasses import dataclass, field
 import logging
 import networkx as nx
 import numpy as np
@@ -16,37 +16,36 @@ from ..util.stringthings import linesplit #, my_logger
 
 logger=logging.getLogger(__name__)
 
-class CharmmMassRecord:
+@dataclass
+class CharmmMass:
     """ 
     This class represents a single mass record from a CHARMM topology file.
     It contains the atom type, mass, and optionally the element symbol.
     The atom type is stored in uppercase, and the mass is stored as a float.
-    If the element symbol is not provided, it is inferred from the first character of the atom type.
-
-    Attributes
-    ----------
-    atom_type : str
-        The atom type, stored in uppercase.
-    atom_mass : float
-        The mass of the atom in AMU, stored as a float.
-    atom_element : str
-        The element symbol, if provided, otherwise inferred from the atom type.
-    com : str
-        A comment associated with the mass record, if present.
     """
-    def __init__(self, record):
-        tok = record
-        tok, self.com = linesplit(record)
+    atom_type: str = ''
+    """ The atom type, stored in uppercase. """
+    atom_mass: float = 0.0
+    """ The mass of the atom in AMU, stored as a float. """
+    atom_element: str = '?'
+    """ The element symbol, if provided, otherwise inferred from the atom type. """
+    com: str = ''
+    """ A comment associated with the mass record, if present. """
+    
+    @classmethod
+    def from_card(cls, card: str) -> CharmmMass: 
+        tok, com = linesplit(card)
         tokens = [t.strip() for t in tok.split()]
-        self.atom_type = tokens[2].upper()
-        self.atom_mass = float(tokens[3])
-        self.atom_element = '?'
+        atom_type = tokens[2].upper()
+        atom_mass = float(tokens[3])
+        atom_element = '?'
         try:
-            self.atom_element = tokens[4]
+            atom_element = tokens[4]
         except:
-            firstchar = self.atom_type[0]
+            firstchar = atom_type[0]
             if not firstchar.isdigit():
-                self.atom_element = self.atom_type[0].upper()
+                atom_element = firstchar.upper()
+        return cls(atom_type=atom_type, atom_mass=atom_mass, atom_element=atom_element, com=com)
 
     def __str__(self):
         ans = f'{self.atom_type} {self.atom_mass:.4f}'
@@ -56,7 +55,18 @@ class CharmmMassRecord:
             ans += ' ' + self.com
         return ans
 
-class CharmmMasses(UserDict):
+class CharmmMassList(UserList[CharmmMass]):
+    def to_dict(self):
+        return {m.atom_type: m for m in self}
+    def from_dict(self, d: dict[str, CharmmMass]):
+        self.clear()
+        self.extend(d.values())
+    @classmethod
+    def from_cardlist(cls, cardlist: list[str]):
+        mass_records = [CharmmMass.from_card(card) for card in cardlist]
+        return cls(mass_records)
+
+class CharmmMassDict(UserDict[CharmmMass]):
     """ 
     This class is a dictionary-like object that stores CharmmMassRecord objects.
     It allows for easy retrieval of mass records by atom type.
@@ -66,48 +76,50 @@ class CharmmMasses(UserDict):
     data : dict
         A dictionary mapping atom types to CharmmMassRecord objects.
 
-    Methods
-    -------
-    get(atom_type, default=None)
-        Retrieve a CharmmMassRecord by atom type.
     """
-    def __init__(self, mList: list[CharmmMassRecord]):
+    def __init__(self, mList: list[CharmmMass]):
         self.data = {}
         for m in mList:
             self.data[m.atom_type] = m
+    
+    def to_list(self):
+        return CharmmMassList(self.data.values())
 
-class CharmmTopAtom:
+    def from_list(self, other: CharmmMassList):
+        self.data = {m.atom_type: m for m in other}
+
+@dataclass
+class CharmmAtom:
     """ 
     This class represents a single atom record from a CHARMM topology file.
     It contains the atom name, type, charge, mass, and optionally the element symbol.
     The atom name is stored in uppercase, and the type is also stored in uppercase.
     If the atom name starts with a digit, it is marked as an inpatch atom.
-    
-    Attributes
-    ----------
-    name : str
-        The name of the atom, stored in uppercase.
-    type : str
-        The type of the atom, stored in uppercase.
-    charge : float
-        The charge of the atom, stored as a float.
-    mass : float
-        The mass of the atom in AMU, stored as a float. Defaults to 0.0.
-    element : str
-        The element symbol, if provided, otherwise set to '?'.
-    inpatch : bool
-        A flag indicating whether the atom is part of a patch, set to True if the name starts with a digit.
     """
-    def __init__(self, atomstring:  str):
-        tokens = atomstring.split()
-        self.name = tokens[1].upper()
-        self.type = tokens[2].upper()
-        self.charge = float(tokens[3])
-        self.mass = 0.0
-        self.element = '?'
-        if self.name[0].isdigit():
-            # logger.debug(f'Atom name {self.name} starts with a digit; setting inpatch')
-            self.inpatch = True
+    name: str = ''
+    """ The name of the atom, stored in uppercase. """
+    type: str = ''
+    """ The type of the atom, stored in uppercase. """
+    charge: float = 0.0
+    """ The charge of the atom, stored as a float. """
+    mass: float = 0.0
+    """ The mass of the atom, stored as a float. """
+    element: str = '?'
+    """ The element symbol, if provided, otherwise set to '?'. """
+    inpatch: bool = False
+    """ A flag indicating whether the atom is part of a patch, set to True if the name starts with a digit. """
+    
+    @classmethod
+    def from_card(cls, card: str) -> CharmmAtom:
+        tokens = card.split()
+        # logger.debug(f'Parsing CharmmAtom from card: [{card}]')
+        atom = cls()
+        atom.name = tokens[1].upper()
+        atom.type = tokens[2].upper()
+        atom.charge = float(tokens[3])
+        if atom.name[0].isdigit():
+            atom.inpatch = True
+        return atom
 
     def __str__(self):
         ans = f'ATOM {self.name} {self.type} {self.charge:.4f}'
@@ -117,14 +129,15 @@ class CharmmTopAtom:
             ans += f' {self.element}'
         return ans
 
-    def __eq__(self, other: CharmmTopAtom) -> bool:
+    def __eq__(self, other: CharmmAtom) -> bool:
         """ 
-        Check if two CharmmTopAtom objects are equal. They are considered equal if their names match.
+        Check if two CharmmAtom objects are equal. They are considered equal i
+        f their names match, per the CHARMM specification.
 
         Parameters
         ----------
-        other : CharmmTopAtom
-            Another CharmmTopAtom object to compare against.
+        other : CharmmAtom
+            Another CharmmAtom object to compare against.
 
         Returns
         -------
@@ -133,41 +146,42 @@ class CharmmTopAtom:
         """
         return self.name == other.name
 
-    def set_mass(self, masses: CharmmMasses):
+    def set_mass(self, massdict: CharmmMassDict) -> CharmmAtom:
         """ 
-        This method retrieves the mass record for the atom type from the provided CharmmMasses object.
+        This method retrieves the mass record for the atom type from the provided CharmmMassDict object.
         If the atom type is found, it sets the mass and element
         attributes of the atom. If the atom type is not found, it logs an error and exits.
         
         Parameters
         ----------
-        masses : list of CharmmMasses
-            A CharmmMasses object containing mass records for atom types.
+        massdict : CharmmMassDict
+            A CharmmMassDict object containing mass records for atom types.
 
         Raises
         ------
         ValueError
-            If the atom type is not found in the CharmmMasses object.
+            If the atom type is not found in the CharmmMassDict object.
         TypeError
             If the masses parameter is not a CharmmMasses object.
         """
-        
-        if isinstance(masses, CharmmMasses):
-            m: CharmmMassRecord = masses.get(self.type, None)
+
+        if isinstance(massdict, CharmmMassDict):
+            m: CharmmMass = massdict.get(self.type, None)
             if m is not None:
                 self.mass = m.atom_mass
                 self.element = m.atom_element
             else:
                 raise ValueError(f'No mass record found for atom type {self.type}')
         else:
-            raise TypeError(f'Cannot set mass of {self.name} ({self.type}) from {type(masses)}')
+            raise TypeError(f'Cannot set mass of {self.name} ({self.type}) from {type(massdict)}')
+        return self
 
-class CharmmTopAtomList(UserList):
+class CharmmAtomList(UserList[CharmmAtom]):
     """ 
-    This class is a list-like object that stores CharmmTopAtom objects.
+    This class is a list-like object that stores CharmmAtom objects.
     It allows for easy iteration over the atoms and provides methods to retrieve atoms by name, mass, serial number, and element.
     """
-    def __init__(self, data: list[CharmmTopAtom]):
+    def __init__(self, data: list[CharmmAtom]):
         self.data = data
 
     def __next__(self):
@@ -177,10 +191,16 @@ class CharmmTopAtomList(UserList):
         for i in range(len(self)):
             yield self[i]
 
-    def get_atom(self, name: str) -> CharmmTopAtom | None:
+    def to_dict(self, key: str = 'name'):
+        return {getattr(atom, key): atom for atom in self.data}
+
+    def from_dict(self, atom_dict: CharmmAtomDict):
+        self.data = list(atom_dict.values())
+
+    def get_atom(self, name: str) -> CharmmAtom | None:
         """ 
-        This method searches for an atom by its name in the list of CharmmTopAtom objects.
-        
+        This method searches for an atom by its name in the list of CharmmAtom objects.
+
         Parameters
         ----------
         name : str
@@ -188,8 +208,8 @@ class CharmmTopAtomList(UserList):
 
         Returns
         -------
-        CharmmTopAtom
-            The CharmmTopAtom object with the specified name, or None if not found.
+        CharmmAtom
+            The CharmmAtom object with the specified name, or None if not found.
         """        
         L = [x.name for x in self.data]
         try:
@@ -200,7 +220,7 @@ class CharmmTopAtomList(UserList):
 
     def get_mass(self, name: str) -> float:
         """ 
-        This method searches for an atom by its name in the list of CharmmTopAtom objects
+        This method searches for an atom by its name in the list of CharmmAtom objects
         and returns its mass. If the atom is not found or does not have a mass attribute, it returns 0.0.
         
         Parameters
@@ -222,7 +242,7 @@ class CharmmTopAtomList(UserList):
     def get_serial(self, name: str) -> int:
         """ 
         Retrieve the serial number of an atom by its name.
-        This method searches for an atom by its name in the list of CharmmTopAtom objects
+        This method searches for an atom by its name in the list of CharmmAtom objects
         and returns its serial number. If the atom is not found or does not have a serial attribute, it returns -1.
         
         Parameters
@@ -238,13 +258,13 @@ class CharmmTopAtomList(UserList):
         a = self.get_atom(name)
         if a is not None:
             if hasattr(a, 'serial'):
-                return a.serial
+                return getattr(a, 'serial')
         return -1
 
     def get_element(self, name: str) -> str:
         """ 
         Retrieve the element of an atom by its name.
-        This method searches for an atom by its name in the list of CharmmTopAtom objects
+        This method searches for an atom by its name in the list of CharmmAtom objects
         and returns its element symbol. If the atom is not found or does not have an element attribute, it returns '?'.
         
         Parameters
@@ -261,7 +281,7 @@ class CharmmTopAtomList(UserList):
         if a is not None:
             if hasattr(a, 'element'):
                 if a.element == '?':
-                    logger.error(f'{a.name} has no element?')
+                    raise ValueError(f'{a.name} has no element?')
                 # logger.debug(f'returning {a.element} for {name}')
                 return a.element
         else:
@@ -269,76 +289,76 @@ class CharmmTopAtomList(UserList):
         logger.error(f'{name} has no element?')
         return '?'
 
-    def append(self, atom: CharmmTopAtom):
+    def append(self, atom: CharmmAtom):
         """ 
-        This method appends a CharmmTopAtom object to the caller.
+        This method appends a CharmmAtom object to the caller.
         If the atom does not have a serial number, it assigns a new serial number based on the current length of the list.
         
         Parameters
         ----------
-        atom : CharmmTopAtom
-            The CharmmTopAtom object to append to the list.
+        atom : CharmmAtom
+            The CharmmAtom object to append to the list.
         """
-        if not hasattr(atom, 'serial') or atom.serial is None:
-            atom.serial = len(self) + 1
+        if not hasattr(atom, 'serial') or getattr(atom, 'serial') is None:
+            setattr(atom, 'serial', len(self) + 1)
         super().append(atom)
 
-    def set_masses(self, masses: CharmmMasses):
+    def set_masses(self, massdict: CharmmMassDict):
         """ 
         This method iterates through all CharmmTopAtom objects in the list and sets their masses
-        using the provided CharmmMasses object. It calls the `set_mass` method of each atom.
-        
+        using the provided CharmmMassDict object. It calls the `set_mass` method of each atom.
+
         Parameters
         ----------
-        masses : CharmmMasses
-            A CharmmMasses object containing mass records for atom types.
+        massdict : CharmmMassDict
+            A CharmmMassDict object containing mass records for atom types.
         """        
-        for a in self:
+        for a in self.data:
             # logger.debug(f'setting mass for {type(a)} \'{str(a)}\'')
-            a.set_mass(masses)
+            a.set_mass(massdict)
 
-def charmmBonds(card: str, degree: int = 1) -> CharmmBondList:
+class CharmmAtomDict(UserDict[str, CharmmAtom]):
     """ 
-    This function takes a CHARMM bond record as a string and returns a CharmmBondList containing CharmmBond objects.
-    
-    Parameters
-    ----------
-    card : str
-        A string representing a CHARMM bond record, which contains pairs of atom names
-    degree : int, optional
-        The degree of the bond, which defaults to 1. If the bond is a double or triple bond, this should be set to 2 or 3, respectively.
-    
-    Returns
-    -------
-    CharmmBondList
-        A CharmmBondList containing CharmmBond objects parsed from the input string.
+    This class represents a dictionary mapping atom names to their corresponding CharmmAtom objects.
     """
-    result = CharmmBondList([])
-    toks = [x.strip() for x in card.split()][1:]
-    for p in batched(toks, 2):
-        result.append(CharmmBond(p, degree=degree))
-    return result
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
 
+    def __setitem__(self, key: str, value: CharmmAtom):
+        if not isinstance(value, CharmmAtom):
+            raise TypeError(f"Expected CharmmAtom, got {type(value)}")
+        super().__setitem__(key, value)
+
+    def __getitem__(self, key: str) -> CharmmAtom:
+        return super().__getitem__(key)
+
+    def to_list(self) -> CharmmAtomList:
+        return CharmmAtomList(self.values())
+    
+    def from_list(self, atom_list: CharmmAtomList):
+        self.clear()
+        for atom in atom_list:
+            self[atom.name] = atom
+
+@dataclass
 class CharmmBond:
     """ 
     This class represents a single bond record from a CHARMM topology file.
     It contains the names of the two atoms that form the bond and the degree of the bond (single, double, or triple).
     The names are stored in uppercase, and the degree is stored as an integer.
-    
-    Attributes
-    ----------
-    name1 : str
-        The name of the first atom in the bond, stored in uppercase.
-    name2 : str
-        The name of the second atom in the bond, stored in uppercase.
-    degree : int
-        The degree of the bond, which can be 1 (single), 2 (double), or 3 (triple). Defaults to 1.
+    Because multiple bonds are stored on a line, input is managed by CharmmBondList.
     """
-    def __init__(self, names, degree=1):
-        self.name1, self.name2 = names
-        self.degree = degree
 
-    def __eq__(self, other: CharmmBond):
+    name1: str = ''
+    """ The name of the first atom in the bond, stored in uppercase. """
+    name2: str = ''
+    """ The name of the second atom in the bond, stored in uppercase. """
+    degree: int = 1
+    """ The degree of the bond, which can be 1 (single), 2 (double), or 3 (triple). Defaults to 1. """
+    length: float = 0.0
+    """ Length of the bond in Angstroms; only relevant within an IC """
+
+    def __eq__(self, other: CharmmBond) -> bool:
         """ 
         This method compares the names of the atoms in the bond, allowing for the order of the names to be reversed.
         It returns True if the names match in either order, and False otherwise.
@@ -357,7 +377,7 @@ class CharmmBond:
         c2 = self.name1 == other.name2 and self.name2 == other.name1
         return c1 or c2
     
-class CharmmBondList(UserList):
+class CharmmBondList(UserList[CharmmBond]):
     """ 
     This class is a list-like object that stores CharmmBond objects.
     It allows for easy iteration over the bonds and provides methods to retrieve bonds by atom names.
@@ -370,43 +390,30 @@ class CharmmBondList(UserList):
     def __init__(self, data: list[CharmmBond]):
         self.data = data
 
-def charmmAngles(card: str) -> CharmmAngleList:
-    """ 
-    This function takes a CHARMM angle record as a string and returns a CharmmAngleList containing CharmmAngle objects.
-    
-    Parameters
-    ----------
-    card : str
-        A string representing a CHARMM angle record, which contains triplets of atom names.
+    @classmethod
+    def from_card(cls, card: str, degree: int = 1) -> "CharmmBondList":
+        """Create a CharmmBondList from a CHARMM bond record."""
+        result = CharmmBondList([])
+        toks = [x.strip() for x in card.split()][1:]
+        for p in batched(toks, 2):
+            result.append(CharmmBond(p, degree=degree))
+        return result
 
-    Returns
-    -------
-    CharmmAngleList
-        A CharmmAngleList containing CharmmAngle objects parsed from the input string.
-    """
-    result = CharmmAngleList([])
-    toks = [x.strip() for x in card.split()][1:]
-    for p in batched(toks, 3):
-        result.append(CharmmAngle(p))
-    return result
-
+@dataclass
 class CharmmAngle:
     """ 
     This class represents a single angle record from a CHARMM topology file.
     It contains the names of the three atoms that form the angle and the angle in degrees.
     The names are stored in uppercase, and the angle is stored as a float.
-    
-    Attributes
-    ----------
-    name1 : str
-        The name of the first atom in the angle, stored in uppercase.
-    name2 : str
-        The name of the second atom in the angle, stored in uppercase.
-    name3 : str
-        The name of the third atom in the angle, stored in uppercase.
     """
-    def __init__(self, names):
-        self.name1, self.name2, self.name3 = names
+    name1: str = ''
+    """ The name of the first atom in the angle, stored in uppercase. """
+    name2: str = ''
+    """ The name of the second atom in the angle, stored in uppercase. """
+    name3: str = ''
+    """ The name of the third atom in the angle, stored in uppercase. """
+    degrees: float = 0.0
+    """ The angle in degrees; only relevant in an IC """
 
     def __eq__(self, other: CharmmAngle) -> bool:
         """ 
@@ -428,7 +435,7 @@ class CharmmAngle:
         c2 = self.name1 == other.name3 and self.name3 == other.name1
         return r1 and (c1 or c2)
 
-class CharmmAngleList(UserList):
+class CharmmAngleList(UserList[CharmmAngle]):
     """ 
     This class is a list-like object that stores CharmmAngle objects.
     It allows for easy iteration over the angles and provides methods to retrieve angles by atom names.
@@ -441,50 +448,34 @@ class CharmmAngleList(UserList):
     def __init__(self, data: list[CharmmAngle]):
         self.data = data
 
-def charmmDihedrals(card: str, dihedral_type: str = 'proper') -> CharmmDihedralList:
-    """ 
-    This function takes a CHARMM dihedral record as a string and returns a CharmmDihedralList containing CharmmDihedral objects.
-    
-    Parameters
-    ----------
-    card : str
-        A string representing a CHARMM dihedral record, which contains quadruplets of atom names.
-    dihedral_type : str, optional
-        The type of dihedral, which can be 'proper' or 'improper'. Defaults to 'proper'.
-    
-    Returns
-    -------
-    CharmmDihedralList
-        A CharmmDihedralList containing CharmmDihedral objects parsed from the input string.
-    """
-    result = CharmmDihedralList([])
-    toks = [x.strip() for x in card.split()][1:]
-    for p in batched(toks, 4):
-        result.append(CharmmDihedral(p, dihedral_type=dihedral_type))
-    return result
+    @classmethod
+    def from_card(cls, card: str) -> "CharmmAngleList":
+        result = cls([])
+        toks = [x.strip() for x in card.split()][1:]
+        for p in batched(toks, 3):
+            result.append(CharmmAngle(p))
+        return result
 
+@dataclass
 class CharmmDihedral:
     """ 
     This class represents a single dihedral record from a CHARMM topology file.
     It contains the names of the four atoms that form the dihedral and the dihedral type (proper or improper).
     The names are stored in uppercase, and the dihedral type is stored as a string.
-    
-    Attributes
-    ----------
-    name1 : str
-        The name of the first atom in the dihedral, stored in uppercase.
-    name2 : str
-        The name of the second atom in the dihedral, stored in uppercase.
-    name3 : str
-        The name of the third atom in the dihedral, stored in uppercase.
-    name4 : str
-        The name of the fourth atom in the dihedral, stored in uppercase.
-    dihedral_type : str
-        The type of the dihedral, which can be 'proper' or 'improper'. Defaults to 'proper'.
     """
-    def __init__(self, names: list[str], dihedral_type: str = 'proper'):
-        self.name1, self.name2, self.name3, self.name4 = names
-        self.dihedral_type = dihedral_type
+
+    name1: str = ''
+    """ The name of the first atom in the dihedral, stored in uppercase. """
+    name2: str = ''
+    """ The name of the second atom in the dihedral, stored in uppercase. """
+    name3: str = ''
+    """ The name of the third atom in the dihedral, stored in uppercase. """
+    name4: str = ''
+    """ The name of the fourth atom in the dihedral, stored in uppercase. """
+    dihedral_type: str = 'proper'
+    """ The type of the dihedral, which can be 'proper' or 'improper'. Defaults to 'proper'. """
+    degrees: float = 0.0
+    """ The angle in degrees; only relevant in an IC. """
 
     def __eq__(self, other: CharmmDihedral) -> bool:
         """ 
@@ -507,7 +498,7 @@ class CharmmDihedral:
             return False
         return l1 == l2
 
-class CharmmDihedralList(UserList):
+class CharmmDihedralList(UserList[CharmmDihedral]):
     """ 
     This class is a list-like object that stores CharmmDihedral objects.
     It allows for easy iteration over the dihedrals and provides methods to retrieve dihedrals by atom names.
@@ -520,68 +511,68 @@ class CharmmDihedralList(UserList):
     def __init__(self, data: list[CharmmDihedral]):
         self.data = data
 
-class CharmmTopIC:
+    @classmethod
+    def from_card(cls, card: str, dihedral_type: str = 'proper') -> "CharmmDihedralList":
+        dihedrals = CharmmDihedralList([])
+        toks = [x.strip() for x in card.split()][1:]
+        for p in batched(toks, 4):
+            dihedrals.append(CharmmDihedral(p, dihedral_type=dihedral_type))
+        return dihedrals
+
+@dataclass
+class CharmmIC:
     """ 
     This class represents a single internal coordinate (IC) record from a CHARMM topology file.
     It contains the names of the four atoms that define the internal coordinate, the lengths of the bonds, the angles, and the dihedral angle.
     The names are stored in uppercase, and the lengths, angles, and dihedral angle are stored as floats.
-    
-    Attributes
-    ----------
-    atoms : list
-        A list of the names of the four atoms that define the internal coordinate, stored in uppercase.
-    bonds : CharmmBondList
-        A CharmmBondList containing the bonds defined by the internal coordinate.
-    angles : CharmmAngleList
-        A CharmmAngleList containing the angles defined by the internal coordinate.
-    dihedral : CharmmDihedral
-        A CharmmDihedral object representing the dihedral angle defined by the internal coordinate.
-    dihedral_type : str
-        The type of the dihedral, which can be 'proper' or 'improper'. Defaults to 'proper'.
-    empty : bool
-        A flag indicating whether the internal coordinate is empty (i.e., missing data). Defaults to False.
     """
-    def __init__(self, ICstring: str):
-        self.empty = False
-        self.card = ICstring
-        ICstring, dummy = linesplit(ICstring)
+
+    card: str = ''
+    """ The unprocessed string for the IC """
+    atoms: CharmmAtomList = field(default_factory=CharmmAtomList)
+    """ A list of the names of the four atoms that define the internal coordinate, stored in uppercase. """
+    bonds: CharmmBondList = field(default_factory=CharmmBondList)
+    """ A CharmmBondList containing the bonds defined by the internal coordinate. """
+    angles: CharmmAngleList = field(default_factory=CharmmAngleList)
+    """ A CharmmAngleList containing the angles defined by the internal coordinate. """
+    dihedral: CharmmDihedral = field(default_factory=CharmmDihedral)
+    """ A CharmmDihedral object representing the dihedral angle defined by the internal coordinate. """
+    dihedral_type: str = 'proper'
+    """ The type of the dihedral, which can be 'proper' or 'improper'. Defaults to 'proper'. """
+    empty: bool = False
+    """ A flag indicating whether the internal coordinate is empty (i.e., missing data). Defaults to False. """
+
+    @classmethod
+    def from_card(cls, card: str) -> "CharmmIC":
+        empty = False
+        ICstring, dummy = linesplit(card)
         toks = [x.strip() for x in ICstring.split()]
         data = np.array(list(map(float, toks[5:])))
         if data[0] == 0.0 or data[1] == 0.0 or data[3] == 0.0 or data[4] == 0.0:
             # logger.debug(f'{toks[1:5]}: missing ic data: {data}')
-            self.empty = True
-        self.atoms = toks[1:5]
-        if self.atoms[2].startswith('*'):
-            self.atoms[2] = self.atoms[2][1:]
-            self.dihedral_type = 'improper'
+            empty = True
+        atoms = toks[1:5]
+        if atoms[2].startswith('*'):
+            atoms[2] = atoms[2][1:]
+            dihedral_type = 'improper'
         else:
-            self.dihedral_type = 'proper'
-        if self.dihedral_type == 'proper':
-            b0 = CharmmBond([self.atoms[0], self.atoms[1]])
-            b0.length = float(toks[5])
-            b1 = CharmmBond([self.atoms[2], self.atoms[3]])
-            b1.length = float(toks[9])
-            self.bonds = CharmmBondList([b0, b1])
-            a1 = CharmmAngle([self.atoms[0], self.atoms[1], self.atoms[2]])
-            a1.degrees = float(toks[6])
-            a2 = CharmmAngle([self.atoms[1], self.atoms[2], self.atoms[3]])
-            a2.degrees = float(toks[8])
-            self.angles = CharmmAngleList([a1, a2])
-            self.dihedral = CharmmDihedral([self.atoms[0], self.atoms[1], self.atoms[2], self.atoms[3]])
-            self.dihedral.degrees = float(toks[7])
+            dihedral_type = 'proper'
+        dihedral = CharmmDihedral(name1=atoms[0], name2=atoms[1], name3=atoms[2], name4=atoms[3], dihedral_type=dihedral_type, degrees=float(toks[7]))
+        if dihedral_type == 'proper':
+            b0: CharmmBond = CharmmBond(name1=atoms[0], name2=atoms[1], length=float(toks[5]))
+            b1: CharmmBond = CharmmBond(name1=atoms[2], name2=atoms[3], length=float(toks[9]))
+            bonds = CharmmBondList([b0, b1])
+            a1: CharmmAngle = CharmmAngle(name1=atoms[0], name2=atoms[1], name3=atoms[2], degrees=float(toks[6]))
+            a2: CharmmAngle = CharmmAngle(name1=atoms[1], name2=atoms[2], name3=atoms[3], degrees=float(toks[8]))
+            angles = CharmmAngleList([a1, a2])
         else:
-            b0 = CharmmBond([self.atoms[0], self.atoms[2]])
-            b0.length = float(toks[5])
-            b1 = CharmmBond([self.atoms[2], self.atoms[3]])
-            b1.length = float(toks[9])
-            self.bonds = CharmmBondList([b0, b1])
-            a1 = CharmmAngle([self.atoms[0], self.atoms[2], self.atoms[3]])
-            a1.degrees = float(toks[6])
-            a2 = CharmmAngle([self.atoms[1], self.atoms[2], self.atoms[3]])
-            a2.degrees = float(toks[8])
-            self.angles = CharmmAngleList([a1, a2])
-            self.dihedral = CharmmDihedral([self.atoms[0], self.atoms[1], self.atoms[2], self.atoms[3]], dihedral_type='improper')
-            self.dihedral.degrees = float(toks[7])
+            b0 = CharmmBond(name1=atoms[0], name2=atoms[2], length=float(toks[5]))
+            b1 = CharmmBond(name1=atoms[2], name2=atoms[3], length=float(toks[9]))
+            bonds = CharmmBondList([b0, b1])
+            a1 = CharmmAngle(name1=atoms[0], name2=atoms[2], name3=atoms[3], degrees=float(toks[6]))
+            a2 = CharmmAngle(name1=atoms[1], name2=atoms[2], name3=atoms[3], degrees=float(toks[8]))
+            angles = CharmmAngleList([a1, a2])
+        return cls(atoms=atoms, bonds=bonds, angles=angles, dihedral=dihedral, dihedral_type=dihedral_type, empty=empty)
 
     def __str__(self):
         ans = ','.join([f'{i+1}{self.atoms[i]}' for i in range(len(self.atoms))])
@@ -595,88 +586,103 @@ class CharmmTopIC:
             ans += '-empty'
         return ans
 
-class CharmmTopDelete:
+class CharmmICList(UserList[CharmmIC]):
+    """
+    This class represents a list of internal coordinate records from a CHARMM topology file.
+    """
+    pass
+
+@dataclass
+class CharmmDelete:
     """ 
     This class represents a single delete atom record from a CHARMM topology file.
     It contains the atom name to be deleted and an optional comment.
     The atom name is stored in uppercase, and the comment is stored as a string.
-    
-    Attributes
-    ----------
-    atomname : str
-        The name of the atom to be deleted, stored in uppercase.
-    comment : str
-        An optional comment associated with the delete atom record.
-    raw_string : str
-        The raw string representation of the delete atom record.
-    error_code : int
-        An error code indicating the status of the delete atom record. Defaults to 0.
-    """
-    def __init__(self, delete_string):
-        self.raw_string = delete_string
-        self.error_code = 0
-        delete_string, self.comment = linesplit(delete_string)
-        toks = [x.strip() for x in delete_string.split()]
+    """    
+
+    atomname: str = ''
+    """ The name of the atom to be deleted, stored in uppercase. """
+    comment: str = ''
+    """ An optional comment associated with the delete atom record. """
+    raw_string: str = ''
+    """ The raw string representation of the delete atom record. """
+    error_code: int = 0
+    """ An error code indicating the status of the delete atom record. Defaults to 0. """
+
+    @classmethod
+    def from_card(cls, card: str) -> 'CharmmDelete':
+        instance = cls()
+        instance.raw_string = card
+        instance.error_code = 0
+        card, instance.comment = linesplit(card)
+        toks = [x.strip() for x in card.split()]
         if len(toks) < 3 or not toks[0].upper().startswith('DELETE'):
-            self.error_code = -1
-        self.atomname = toks[2].upper()
+            instance.error_code = -1
+        instance.atomname = toks[2].upper()
+        return instance
 
     def __str__(self):
         return f'DELETE ATOM {self.atomname} ! {self.comment}'
 
-class CharmmTopResi:
+class CharmmDeleteList(UserList[CharmmDelete]):
+    """
+    This class represents a list of delete atom records from a CHARMM topology file.
+    """
+    pass
+
+@dataclass
+class CharmmResi:
     """ 
     This class represents a single residue record (RESI) from a CHARMM topology file.
     It contains the residue name, charge, synonym, and a list of atoms, bonds,
     internal coordinates (ICs), and delete atoms associated with the residue.
     The residue name is stored in uppercase, and the charge is stored as a float.
-    
-    Attributes
-    ----------
-    key : str
-        The key for the residue record, typically 'RESI'.
-    blockstring : str
-        The raw string representation of the residue record.
-    resname : str
-        The name of the residue, stored in uppercase.
-    charge : float
-        The charge of the residue, stored as a float.
-    synonym : str
-        A synonym or comment associated with the residue.
-    metadata : dict
-        A dictionary containing metadata associated with the residue.
-    atoms : CharmmTopAtomList
-        A list of CharmmTopAtom objects representing the atoms in the residue.
-    atoms_in_group : dict
-        A dictionary mapping atom group indices to lists of CharmmTopAtom objects.
-    bonds : CharmmBondList
-        A list of CharmmBond objects representing the bonds in the residue.
-    IC : list
-        A list of CharmmTopIC objects representing the internal coordinates in the residue.
-    Delete : list
-        A list of CharmmTopDelete objects representing the delete atom records in the residue.
-    error_code : int
-        An error code indicating the status of the residue record. Defaults to 0.
-    ispatch : bool
-        A flag indicating whether the residue contains atoms that are part of a patch. Defaults to False.
     """
-    def __init__(self, blockstring, key='RESI', metadata={}):
-        self.key = key
-        self.blockstring = blockstring
-        self.error_code = 0
+
+    key: str = ''
+    """ The key for the residue record, typically 'RESI' or 'PRES'. """
+    blockstring: str = ''
+    """ The raw string representation of the residue record. """
+    resname: str = ''
+    """ The name of the residue, stored in uppercase. """
+    charge: float = 0.0
+    """ The charge of the residue, stored as a float. """
+    mass: float = 0.0
+    """ The mass of the residue, stored as a float; computed after all mass records processed """
+    synonym: str = ''
+    """ A synonym or comment associated with the residue. """
+    metadata: dict = field(default_factory=dict)
+    """ A dictionary containing metadata associated with the residue. """
+    atoms: CharmmAtomList = field(default_factory=CharmmAtomList)
+    """ A list of CharmmAtom objects representing the atoms in the residue. """
+    atoms_in_group: dict[str, CharmmAtomList] = field(default_factory=dict)
+    """ A dictionary mapping atom group indices to lists of CharmmAtom objects. """
+    bonds: CharmmBondList = field(default_factory=CharmmBondList)
+    """ A list of CharmmBond objects representing the bonds in the residue. """
+    ICs: CharmmICList = field(default_factory=CharmmICList)
+    """ A list of CharmmTopIC objects representing the internal coordinates in the residue. """
+    Delete: CharmmDeleteList = field(default_factory=CharmmDeleteList)
+    """ A list of CharmmTopDelete objects representing the delete atom records in the residue. """
+    error_code: int = 0
+    """ An error code indicating the status of the residue record. Defaults to 0. """
+    ispatch: bool = False
+    """ A flag indicating whether the residue contains atoms that are part of a patch. Defaults to False. """
+    source_file: str = ''
+    """ The source file from which the residue was constructed. """
+
+    @classmethod
+    def from_blockstring(cls, blockstring: str,  metadata: dict = {}) -> 'CharmmResi':
+        # logger.debug(f'Parsing CharmmResi from blockstring: {blockstring[:30]}...')
+
+        error_code = 0
         lines = [x.strip() for x in blockstring.split('\n')]
-        # logger.debug(f'processing {key} block with {len(lines)} lines')
-        # if len(lines)<2:
-        #     logger.debug(f'{lines}')
-        #     logger.debug(f'{metadata}')
-        titlecard = lines[0]
-        assert titlecard.upper().startswith(key), f'bad title card in {key}: [{titlecard}]'
-        titledata, titlecomment = linesplit(titlecard)
+        titledata, titlecomment = linesplit(lines[0])
         tctokens = titledata.split()
-        self.resname = tctokens[1]
-        self.charge = float(tctokens[2])
-        self.synonym = titlecomment.strip()
-        self.metadata = metadata
+        key = tctokens[0].upper()
+        resname = tctokens[1]
+        charge = float(tctokens[2])
+        synonym = titlecomment.strip()
+        metadata = metadata
 
         didx = 1
         while lines[didx].startswith('!'): didx += 1
@@ -694,79 +700,84 @@ class CharmmTopResi:
         atomgroupcards = list(compress(datacards, isatomgroup))
         # logger.debug(f'{self.resname}: {len(atomgroupcards)} atom group cards')
         # logger.debug(f'{atomgroupcards[0:5]}')
-        self.atoms = CharmmTopAtomList([])
-        self.atoms_in_group = {}
+        atoms = CharmmAtomList([])
+        atoms_in_group: dict[int, CharmmAtomList] = {}
         g = 0
         for card in atomgroupcards:
             # logger.debug(f'{card}')
             if card.startswith('ATOM'):
-                a = CharmmTopAtom(card)
-                self.atoms.append(a)
-                if not g in self.atoms_in_group:
-                    self.atoms_in_group[g] = CharmmTopAtomList([])
-                self.atoms_in_group[g].append(a)
+                a = CharmmAtom.from_card(card)
+                atoms.append(a)
+                if not g in atoms_in_group:
+                    atoms_in_group[g] = CharmmAtomList([])
+                atoms_in_group[g].append(a)
             elif card.startswith('GROU'):
                 g += 1
-        for a in self.atoms:
+        ispatch = False
+        for a in atoms:
             if hasattr(a, 'inpatch'):
                 if a.inpatch:
-                    self.ispatch = True
+                    ispatch = True
+                    break
         # logger.debug(f'{len(self.atoms)} atoms processed in {len(self.atoms_in_group)} groups')
-        self.atomdict = {a.name: a for a in self.atoms}
+        atomdict = atoms.to_dict(key='name')
         isbond = [d.startswith('BOND') for d in datacards]
         bondcards = compress(datacards, isbond)
-        self.bonds = CharmmBondList([])
+
+        bonds = CharmmBondList([])
         for card in bondcards:
-            self.bonds.extend(charmmBonds(card))
+            bonds.extend(CharmmBondList.from_card(card))
         bondcards = None
         isdouble = [d.startswith('DOUB') for d in datacards]
         doublecards = compress(datacards, isdouble)
         for card in doublecards:
-            self.bonds.extend(charmmBonds(card, degree=2))
+            bonds.extend(CharmmBondList.from_card(card, degree=2))
         istriple = [d.startswith('TRIP') for d in datacards]
-        triplecards = compress(datacards, istriple)
+        triplecards = compress(datacards, istriple) 
         for card in triplecards:
-            self.bonds.extend(charmmBonds(card, degree=3))
+            bonds.extend(CharmmBondList.from_card(card, degree=3))
         isIC = [d.startswith('IC') for d in datacards]
         ICcards = compress(datacards, isIC)
-        self.IC = []
+        ICs = CharmmICList([])
         ic_atom_names = []
         for card in ICcards:
-            IC = CharmmTopIC(card)
-            if any([x not in self.atomdict.keys() for x in IC.atoms]):
-                self.error_code = -5
+            IC = CharmmIC.from_card(card)
+            if any([x not in atomdict.keys() for x in IC.atoms]):
+                error_code = -5
             else:
                 ic_atom_names.extend(IC.atoms)
-                self.IC.append(IC)
+                ICs.append(IC)
         isDelete = [d.startswith('DELETE') for d in datacards]
         deletecards = compress(datacards, isDelete)
-        self.Delete = []
+        Delete = CharmmDeleteList([])
         for card in deletecards:
-            D = CharmmTopDelete(card)
-            self.Delete.append(D)
+            D = CharmmDelete.from_card(card)
+            Delete.append(D)
 
-    def copy_ICs_from(self, other: CharmmTopResi):
+        return cls(key=key, blockstring=blockstring, resname=resname, charge=charge, synonym=synonym, metadata=metadata, atoms=atoms,atoms_in_group=atoms_in_group, bonds=bonds, ICs=ICs, Delete=Delete, error_code=error_code, ispatch=ispatch)
+
+    def copy_ICs_from(self, other: CharmmResi):
         """ 
-        This method copies the internal coordinates from another CharmmTopResi object to the current object.
+        This method copies the internal coordinates from another CharmmResi object to the current object.
         It checks if the atoms in the ICs exist in the current object's atom dictionary.
         If any atom in the IC is not found in the current object's atom dictionary, it logs an error and sets the error code to -5.
         
         Parameters
         ----------
-        other : CharmmTopResi
-            Another CharmmTopResi object from which to copy the internal coordinates.
+        other : CharmmResi
+            Another CharmmResi object from which to copy the internal coordinates.
         """
         self.IC = []
-        for ic in other.IC:
+        for ic in other.IC.data:
             ic_card = ic.card
-            IC = CharmmTopIC(ic_card)
+            IC = CharmmIC(ic_card)
             if any([x not in self.atomdict.keys() for x in IC.atoms]):
                 logger.error(f'IC {ic_card} has atoms not in {self.resname}: {IC.atoms}')
                 self.error_code = -5
             else:
                 self.IC.append(IC)
 
-    def set_masses(self, masses: CharmmMasses):
+    def set_mass(self, massdict: CharmmMassDict):
         """ 
         This method iterates through all CharmmTopAtom objects in the residue and sets their masses
         using the provided CharmmMasses object. It calls the :meth:`~pestifer.charmmff.charmmfftop.CharmmTopAtom.set_mass` method of each atom.
@@ -776,7 +787,8 @@ class CharmmTopResi:
         masses : CharmmMasses
             A CharmmMasses object containing mass records for atom types.
         """
-        self.atoms.set_masses(masses)
+        self.atoms.set_masses(massdict)
+        self.mass = self.atoms.get_mass()
 
     def num_atoms(self):
         """ 
@@ -819,21 +831,6 @@ class CharmmTopResi:
                     n = '' if v == 1 else str(v)
                     retstr += f'{k}{n}'
         return retstr
-
-    def mass(self):
-        """ 
-        This method calculates the total mass of the residue by summing the masses of all atoms in the residue.
-        It iterates through the atoms and adds their masses to a cumulative sum.
-        
-        Returns
-        -------
-        float
-            The total mass of the residue in atomic mass units (AMU). If no atoms are present, it returns 0.0.
-        """
-        total_mass = 0.0
-        for a in self.atoms:
-            total_mass += a.mass
-        return total_mass
 
     def to_graph(self, includeH: bool = True):
         """ 
@@ -1191,3 +1188,81 @@ class CharmmTopResi:
         W.addline(f'set y [expr {b1l}*sin($a)]')
         W.addline(f'psfset coord A 1 {a1a3} [list $x $y 0.0]')
         return 0
+
+class CharmmResiList(UserList[CharmmResi]):
+    """
+    A list of CharmmResi objects.
+    """
+    def to_dict(self):
+        return {r.resname: r for r in self}
+
+    def from_dict(self, d: dict[str, CharmmResi]):
+        self.clear()
+        self.extend(d.values())
+
+    @classmethod
+    def from_blockstring_list(cls, blockstring_list: list[str], metadata: dict[str, str]):
+        resi_list = cls()
+        for block in blockstring_list:
+            resi = CharmmResi.from_blockstring(block, metadata=metadata)
+            resi_list.append(resi)
+        return resi_list
+    
+    def to_resi_pres(self):
+        resi = CharmmResiList(list(filter(lambda r: r.key=='RESI', self)))
+        pres = CharmmResiList(list(filter(lambda r: r.key=='PRES', self)))
+        return resi, pres
+
+    def tally_masses(self, CharmmMassDict):
+        for resi in self.data:
+            resi.set_masses(CharmmMassDict)
+
+class CharmmResiDict(UserDict[CharmmResi]):
+    """
+    A dictionary mapping residue names to their corresponding CharmmResi objects.
+    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @classmethod
+    def from_blockstring_list(cls, blockstring_list: list[str], metadata: dict[str, str]):
+        resi_dict = cls()
+        for block in blockstring_list:
+            resi = CharmmResi.from_blockstring(block, metadata=metadata)
+            resi_dict[resi.resname] = resi
+        return resi_dict
+    
+    def to_resi_pres(self):
+        resi = CharmmResiDict({k: v for k, v in self.items() if v.key == 'RESI'})
+        pres = CharmmResiDict({k: v for k, v in self.items() if v.key == 'PRES'})
+        return resi, pres
+
+    def to_dict(self):
+        return {k: v for k, v in self.items()}
+
+    def from_dict(self, d: dict[str, CharmmResi]):
+        self.clear()
+        self.update(d)
+
+    def tally_masses(self):
+        """
+        Tally the masses of all residues in the dictionary.
+        """
+        for resi in self.values():
+            resi.set_mass(self)
+
+    def get_residue(self, name: str) -> CharmmResi | None:
+        """
+        Get a CharmmResi object by its name.
+
+        Parameters
+        ----------
+        name : str
+            The name of the residue to retrieve.
+
+        Returns
+        -------
+        CharmmResi | None
+            The corresponding CharmmResi object, or None if not found.
+        """
+        return self.get(name, None)

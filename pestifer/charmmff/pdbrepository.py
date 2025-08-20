@@ -5,100 +5,34 @@ Defines the PDBCollection class for managing the collection of said PDBs.
 """
 import os
 import logging
+from typing import Callable
 import yaml
-
+from dataclasses import dataclass, field
 from ..util.cacheable_object import TarBytesFS
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
-class PDBInfo:
-    """ 
-    A ``PDBInfo`` object is a container for metadata about a PDB file. It is used to store information about the residue, such as its name, charge, conformers, and other metadata. It can be created from a YAML file or from a tarfile member that is expected to be an info.yaml file.   
-    The metadata is stored in a dictionary, and the PDBInfo object provides methods to access the metadata, check equality with another ``PDBInfo`` object, and get items from the metadata dictionary.
-
-    Parameters
-    ----------
-    metadata : dict
-        A dictionary containing metadata about the PDB file.
-    """
-    def __init__(self,metadata={}):
-        self.metadata=metadata
-
-    @classmethod
-    def from_yaml_file(cls,yamlfile='info.yaml'):
-        metadata={}
-        if os.path.exists(yamlfile):
-            with open(yamlfile,'r') as f:
-                metadata=yaml.safe_load(f)
-        else:
-            logger.warning(f'{yamlfile} not found; metadata will be empty.')
-        return cls(metadata)
-
-    def get(self,key,default=None):
-        """ 
-        Get a value from the metadata dictionary by key, returning a default value if the key is not found.
-
-        Parameters
-        ----------
-        key : str
-            The key to look up in the metadata dictionary.
-            If the key is not found, the default value will be returned.
-        default : any, optional
-            The value to return if the key is not found.
-        """
-        return self.metadata.get(key,default)
-
-    def __eq__(self,other):
-        """ 
-        Check if two PDBInfo objects are equal by comparing their metadata dictionaries.
-
-        Parameters
-        ----------
-        other : PDBInfo
-            The other PDBInfo object to compare against.
-
-        Returns
-        -------
-        bool
-            True if the metadata dictionaries are equal, False otherwise.
-        """
-        if not isinstance(other,PDBInfo):
-            return False
-        return self.metadata == other.metadata
-
-    def __getitem__(self,key):
-        """ Get an item from the metadata dictionary. """
-        return self.metadata.get(key,None)
-    def __setitem__(self,key,value):
-        """ Set an item in the metadata dictionary. """
-        self.metadata[key]=value
-    def __contains__(self,key):
-        """ Check if a key is in the metadata dictionary. """
-        return key in self.metadata
-    def __repr__(self):
-        """ Return a string representation of the metadata dictionary. """
-        return f'PDBInfo({self.metadata})'
-
-class PDBInput:
+@dataclass
+class PDBInputData:
     """ 
     A ``PDBInput`` object is what is returned by the ``PDBRepository.checkout()`` method. It contains at minimum the data needed to write a PDB file to the local filesystem for use by, e.g., packmol.
-
-    Parameters
-    ----------
-    name : str
-        The name of the residue, which is also the base name of the PDB file.
-    pdbcontents : dict
-        A dictionary containing the PDB contents for each conformer ID. The keys are conformer IDs and the values are the PDB contents as strings.
-    info : PDBInfo
-        The metadata for the residue.
-    opt_tags : dict
-        A dictionary containing optional tags for the residue.
     """
-    def __init__(self,name='',pdbcontents={},info:PDBInfo=None,opt_tags={}):
-        self.name=name
-        self.pdbcontents = pdbcontents  # conformerID -> pdb contents
-        self.info = info  # info.yaml contents (the metadata for the residue)
-        self.opt_tags = opt_tags
+    name: str = ''
+    """ The name of the residue, which is also the base name of the PDB file. """
+    pdbcontents: dict = field(default_factory=dict)
+    """ A dictionary containing the PDB contents for each conformer ID. The keys are conformer IDs and the values are the PDB contents as strings. """
+    info: dict = field(default_factory=dict)
+    """ The metadata for the residue. """
+    opt_tags: dict = field(default_factory=dict)
+    """ A dictionary containing optional tags for the residue. """
+    
+class PDBInput(PDBInputData):
+
+    def __init__(self, *args, **kwargs):
+        if len(args) == 0:
+            super().__init__(**kwargs)
+        elif isinstance(args[0], PDBInputData):
+            self.__dict__.update(args[0].__dict__)
 
     def get_pdb(self, conformerID=0, noh=False):
         """
@@ -149,9 +83,9 @@ class PDBInput:
         -------
         float
             The charge of the residue, or 0.0 if not found."""
-        return self.info.get('charge',0.0)
-    
-    def get_conformer_data(self,conformerID=0):
+        return self.info.get('charge', 0.0)
+
+    def get_conformer_data(self, conformerID: int = 0):
         """
         Get the conformer data for a given conformer ID. If no conformers are found, return None. If the conformer ID is out of range, return None.
 
@@ -165,17 +99,17 @@ class PDBInput:
         dict | None
             The conformer data for the specified conformer ID, or None if not found.
         """
-        conformers=self.info.get('conformers',[])
-        if len(conformers)==0:
+        conformers = self.info.get('conformers', [])
+        if len(conformers) == 0:
             logger.warning('No conformers found in metadata.')
             return None
         if conformerID < 0 or conformerID >= len(conformers):
             logger.warning(f'Conformer ID {conformerID} is out of range; returning None')
             return None
-        c=conformers[conformerID]
+        c = conformers[conformerID]
         return c
-    
-    def get_max_internal_length(self,conformerID=0):
+
+    def get_max_internal_length(self, conformerID: int = 0):
         """
         Get the maximum internal length for a given conformer ID. If no conformers are found, return 0.0. If the conformer ID is out of range, return 0.0.
 
@@ -189,13 +123,13 @@ class PDBInput:
         float
             The maximum internal length for the specified conformer ID, or 0.0 if not found.
         """
-        c=self.get_conformer_data(conformerID)
+        c = self.get_conformer_data(conformerID)
         if c is None:
             logger.warning('No conformer data available to provide max internal length.')
             return 0.0
-        return c.get('max-internal-length',0)
+        return c.get('max-internal-length', 0)
 
-    def get_head_tail_length(self,conformerID=0):
+    def get_head_tail_length(self, conformerID: int = 0):
         """
         Get the head-tail length for a given conformer ID. If no conformers are found, return 0.0. If the conformer ID is out of range, return 0.0.
 
@@ -209,12 +143,12 @@ class PDBInput:
         float
             The head-tail length for the specified conformer ID, or 0.0 if not found.
         """
-        c=self.get_conformer_data(conformerID)
+        c = self.get_conformer_data(conformerID)
         if c is None:
             logger.warning('No conformer data available to provide head-tail length.')
             return 0.0
-        return c.get('head-tail-length',0.0)
-    
+        return c.get('head-tail-length', 0.0)
+
     def get_ref_atoms(self):
         """
         Get the reference atoms for the residue from the metadata. If not found, return an empty dictionary.
@@ -248,8 +182,8 @@ class PDBInput:
         """
         return self.info.get('synonym','').strip() or self.name
         
-
-class PDBCollection:
+@dataclass
+class PDBCollectionData:
     """ 
     A ``PDBCollection`` is a collection of ``PDBInput`` objects, each of which represents a residue in the CHARMM force field.  It is used to manage the residues in a single stream, and it can be used to query for residues by name. 
 
@@ -288,9 +222,9 @@ class PDBCollection:
             toplevel_subdirs = [x['name'] for x in self.tarfile.ls(root_dir) if x['type'] == 'directory']
             for solo in toplevel_solos:
                 resname = os.path.splitext(os.path.basename(solo))[0]
-                self.info[resname] = PDBInfo({})
+                self.info[resname] = {}
                 with self.tarfile.open(solo, 'r') as f:
-                    self.contents[resname] = PDBInput(name=resname, pdbcontents={'0': f.read()}, info=self.info[resname])
+                    self.contents[resname] = PDBInputData(name=resname, pdbcontents={'0': f.read()}, info=self.info[resname])
             for subdir in toplevel_subdirs:
                 resname = os.path.basename(subdir)
                 info_search = [x for x in self.tarfile.ls(subdir) if 'info.yaml' in x['name']]
@@ -300,12 +234,12 @@ class PDBCollection:
                 sd_member = info_search[0]
                 with self.tarfile.open(sd_member['name'], 'r') as f:
                     contents = yaml.safe_load(f)
-                self.info[resname] = PDBInfo(contents)
+                self.info[resname] = contents
                 pdbcontents = {}
-                for index, conformer in enumerate(self.info[resname].metadata['conformers']):
+                for index, conformer in enumerate(self.info[resname]['conformers']):
                     with self.tarfile.open(os.path.join(subdir, conformer['pdb']), 'r') as f:
                         pdbcontents[index] = f.read()
-                self.contents[resname] = PDBInput(name=resname, pdbcontents=pdbcontents, info=self.info[resname])
+                self.contents[resname] = PDBInputData(name=resname, pdbcontents=pdbcontents, info=self.info[resname])
         elif os.path.isdir(path):
             logger.debug(f'Scanning directory {path} as a PDBCollection')
             streamID = os.path.basename(path) if not streamID_override else streamID_override
@@ -316,22 +250,31 @@ class PDBCollection:
             subdirs = [x for x in dircontents if os.path.isdir(x) and not x.startswith('.')]
             for solo in solos:
                 resname = os.path.splitext(solo)[0]
-                self.info[resname] = PDBInfo({})
+                self.info[resname] = {}
                 with open(solo, 'r') as f:
-                    self.contents[resname] = PDBInput(name=resname, pdbcontents={0: f.read()}, info=self.info[resname])
+                    self.contents[resname] = PDBInputData(name=resname, pdbcontents={0: f.read()}, info=self.info[resname])
             pdbcontents = {}
             for subdir in subdirs:
                 resname = subdir
                 if os.path.exists(os.path.join(subdir, 'info.yaml')):
-                    self.info[resname] = PDBInfo.from_yaml_file(os.path.join(subdir, 'info.yaml'))
-                for index, conformer in enumerate(self.info[resname].metadata['conformers']):
+                    with open(os.path.join(subdir, 'info.yaml'), 'r') as f:
+                        self.info[resname] = yaml.safe_load(f)
+                for index, conformer in enumerate(self.info[resname]['conformers']):
                     with open(os.path.join(subdir, conformer['pdb']), 'r') as f:
                         pdbcontents[index] = f.read()
-            self.contents[resname] = PDBInput(name=resname, pdbcontents=pdbcontents, info=self.info[resname])
+            self.contents[resname] = PDBInputData(name=resname, pdbcontents=pdbcontents, info=self.info[resname])
             os.chdir(cwd)
         self.streamID = streamID
 
-    def show(self,fullnames=False,missing_fullnames={}):
+class PDBCollection(PDBCollectionData):
+    """ The full class implemention for PDBCollection """
+    def __init__(self, *args, **kwargs):
+        if isinstance(args[0], PDBCollectionData):
+            self.__dict__.update(args[0].__dict__)
+        elif isinstance(args[0], str):
+            super().__init__(*args, **kwargs)
+
+    def show(self, fullnames: bool = False, missing_fullnames: dict = None) -> str:
         """
         Return a string representation of the PDBCollection.
 
@@ -351,23 +294,23 @@ class PDBCollection:
             If `fullnames` is True, it will include the full names (synonyms) of the residues; otherwise, it will just list the resnames.
 
         """
-        retstr=f'PDBCollection(registered_at={self.registration_place}, streamID={self.streamID}, path={self.path}, contains {len(self.info)} resnames)\n'
+        retstr = f'PDBCollection(registered_at={self.registration_place}, streamID={self.streamID}, path={self.path}, contains {len(self.info)} resnames)\n'
         if fullnames:
             for resname in sorted(self.info.keys()):
-                fullname=self.info[resname].get('synonym','')
+                fullname = self.info[resname].get('synonym', '')
                 if not fullname:
-                    fullname=missing_fullnames.get(resname,'')
+                    fullname = missing_fullnames.get(resname, '')
                 retstr += f'  {fullname:>66s} ({resname})\n'
         else:
-            for i,resname in enumerate(sorted(self.info.keys())):
+            for i, resname in enumerate(sorted(self.info.keys())):
                 retstr += f'{resname:>6s}'
-                if i<len(self.info)-1:
-                    retstr+= ', '
-                if (i+1) % 7==0:
+                if i < len(self.info) - 1:
+                    retstr += ', '
+                if (i + 1) % 7 == 0:
                     retstr += '\n'
         return retstr
 
-    def __contains__(self,resname):
+    def __contains__(self, resname: str) -> bool:
         """ 
         Check if a resname is in the collection. 
         
@@ -383,7 +326,7 @@ class PDBCollection:
         """
         return resname in self.info
 
-    def checkout(self,resname):
+    def checkout(self, resname: str) -> PDBInput | None:
         """ 
         Given a resname, return the ``PDBInput`` object for that resname, or None if not found. 
         
@@ -394,26 +337,26 @@ class PDBCollection:
 
         Returns
         -------
-        PDBInput | None
-            The ``PDBInput`` object for the specified resname if found, or None if not found.   
-        
+        PDBInputManager | None
+            The ``PDBInputManager`` object for the specified resname if found, or None if not found.   
+
         """
         if resname in self.contents:
             logger.debug(f'Found {resname} in collection {self.streamID}')
-            return self.contents[resname]
+            return PDBInput(self.contents[resname])
         else:
             logger.debug(f'{resname} not found in collection {self.streamID}')
             return None
 
-class PDBRepository:
+class PDBRepositoryData:
     """
     A ``PDBRepository`` is a set of _collections_, each of which respresents a CHARMMFF _stream_.  The base ``PDBRepository`` is the one that comes with pestifer, and it is located in ``PESTIFER/resources/charmmff/pdbrepository/``. The base ``PDBRepository`` contains a ``lipid`` collection and a ``water_ions`` collection (as of v 1.13.1).  A user may register additional collections by specifying them in the yaml config file. 
     """
     def __init__(self):
-        self.collections={} # streamID -> PDBCollection object
-        self.registration_order=[]
+        self.collections = {} # streamID -> PDBCollection object
+        self.registration_order = []
 
-    def add_path(self,path,streamID_override=''):
+    def add_path(self, path, streamID_override=''):
         """
         Add a new ``PDBCollection`` to the repository from a file path.
 
@@ -425,10 +368,10 @@ class PDBRepository:
             An optional override for the stream ID.
 
         """
-        c=PDBCollection(path,streamID_override=streamID_override)
-        self.add_collection(c,collection_key=c.streamID)
+        c = PDBCollectionData(path, streamID_override=streamID_override)
+        self.add_collection(c, collection_key=c.streamID)
 
-    def add_collection(self,collection:PDBCollection,collection_key='generic'):
+    def add_collection(self, collection: PDBCollectionData, collection_key='generic'):
         """ 
         Add a ``PDBCollection`` to the repository. If the collection_key already exists, it will be overwritten. 
         
@@ -440,8 +383,8 @@ class PDBRepository:
             The key under which to register the collection in the repository. If it already exists, a warning will be logged and the collection will not be added again. If a collection with the same base name already exists, a numbered suffix will be added to the collection_key to avoid conflicts.
         
         """
-        if not isinstance(collection,PDBCollection):
-            raise TypeError('collection must be a PDBCollection object')
+        if not isinstance(collection, PDBCollectionData):
+            raise TypeError('collection must be a PDBCollectionData object')
         if collection_key in self.registration_order:
             logger.warning(f'Collection {collection_key} already registered; will not add again.')
             tag=1
@@ -455,7 +398,16 @@ class PDBRepository:
         self.collections[collection_key].registration_place=len(self.registration_order)
         logger.debug(f'Added collection {collection_key} with {len(collection.info)} residues.')
 
-    def show(self,out_stream=print,fullnames=False,missing_fullnames={}):
+class PDBRepository(PDBRepositoryData):
+
+    def __init__(self, *args, **kwargs):
+        if len(args) == 0:
+            super().__init__()
+        elif isinstance(args[0], PDBRepositoryData):
+            self.__dict__.update(args[0].__dict__)
+
+    """ A manager for the dataclass PDBRepository that adds methods for easier access and manipulation of PDB data."""
+    def show(self, out_stream: Callable = print, fullnames: bool = False, missing_fullnames: dict = {}):
         """ 
         Show the contents of the PDBRepository, including all registered collections and their contents.
 
@@ -472,8 +424,8 @@ class PDBRepository:
         out_stream('-'*75)
         out_stream('PDB Collections:')
         for cname in self.registration_order[::-1]:
-            coll=self.collections[cname]
-            out_stream(coll.show(fullnames=fullnames,missing_fullnames=missing_fullnames))
+            coll: PDBCollection = PDBCollection(self.collections[cname])
+            out_stream(coll.show(fullnames=fullnames, missing_fullnames=missing_fullnames))
         out_stream('-'*75)
 
     def __contains__(self, resname: str):
@@ -494,7 +446,7 @@ class PDBRepository:
 
     def checkout(self, name: str) -> PDBInput | None:
         """
-        Given a name, return the PDBInput object for that name, or None if not found.
+        Given a name, return the PDBInputManager object for that name, or None if not found.
         Search is conducted over collections in the order they were registered.
 
         Parameters
@@ -503,7 +455,7 @@ class PDBRepository:
             The name of the residue to check out from the ``PDBRepository``.
         """
         for c in self.registration_order[::-1]:
-            coll: PDBCollection = self.collections[c]
+            coll: PDBCollection = PDBCollection(self.collections[c])
             result = coll.checkout(name)
             if result is not None:
                 logger.debug(f'Found {name} in collection {c}')

@@ -2,22 +2,12 @@
 import unittest
 import os
 from pestifer import resources
-# from pestifer.core.resourcemanager import ResourceManager
-from pestifer.charmmff.charmmffcontent import CHARMMFFContent, extract_resi_pres_blocks, extract_mass_lines
-from pestifer.charmmff.charmmfftop import CharmmMasses
+from pestifer.charmmff.charmmffcontent import CHARMMFFContent
+from pestifer.charmmff.charmmfftop import CharmmResi
 
 import logging
 logger = logging.getLogger(__name__)
 
-class TestCharmmffContentCacheable(unittest.TestCase):
-
-    def test_charmmff_content_cacheable(self):
-        resource_path = os.path.dirname(resources.__file__)
-        charmmff_path = os.path.join(resource_path, 'charmmff')
-        C = CHARMMFFContent(charmmff_path, force_rebuild=True)
-        self.assertFalse(C.from_cache)
-        anotherC = CHARMMFFContent(charmmff_path)
-        self.assertTrue(anotherC.from_cache)
 
 class TestCharmmffContent(unittest.TestCase):
 
@@ -26,7 +16,7 @@ class TestCharmmffContent(unittest.TestCase):
         logging.debug("Setting up TestCharmmffContent class...")
         resource_path = os.path.dirname(resources.__file__)
         charmmff_path = os.path.join(resource_path, 'charmmff')
-        cls.C = CHARMMFFContent(charmmff_path)
+        cls.C = CHARMMFFContent(charmmff_path)#@, force_rebuild=True)
         # Ensure the resource manager is initialized before any tests run
         logging.debug("Done setting up TestCharmmffContent class...")
 
@@ -86,44 +76,108 @@ class TestCharmmffContent(unittest.TestCase):
         c.get_pdb(0)
         self.assertTrue(os.path.exists('PSM-00.pdb'))
         os.remove('PSM-00.pdb')
-        
+
     def test_topfile_of_patchname(self):
         """Test that the topfile of a patchname is returned correctly."""
         patchname = 'NNEU'
+        resi = self.C.get_pres(patchname)
+        self.assertIsInstance(resi, CharmmResi)
         topfile = self.C.get_topfile_of_patchname(patchname)
         self.assertEqual(topfile, 'top_all36_prot.rtf')
         patchname = 'TYRO'
         topfile = self.C.get_topfile_of_patchname(patchname)
         self.assertEqual(topfile, 'pestifer.top')
 
-    def test_get_topfile_blocks(self):
-        """Test that the get_topfile_blocks method returns the correct blocks."""
-        topfile = 'toppar/top_all36_prot.rtf'
-        content=self.C.contents_from_topfile(topfile)
-        self.assertTrue(len(content) > 0)
-        blocks = extract_resi_pres_blocks(content)
-        self.assertTrue(isinstance(blocks, list))
-        self.assertEqual(len(blocks), 48)
-        self.assertTrue(all(isinstance(block, str) for block in blocks))
+    def test_detect_charge(self):
+        resname='POT'
+        resi=self.C.get_resi(resname)
+        self.assertTrue(resi!=None)
+        self.assertTrue(resi.metadata['streamID']=='water_ions')
+        self.assertEqual(resi.charge,1.0)
+        resname='CLA'
+        resi=self.C.get_resi(resname)
+        self.assertTrue(resi!=None)
+        self.assertTrue(resi.metadata['streamID']=='water_ions')
+        self.assertEqual(resi.charge,-1.0)
+        resname='PO4'
+        resi=self.C.get_resi(resname)
+        self.assertTrue(resi!=None)
+        self.assertTrue(resi.metadata['streamID']=='water_ions')
+        self.assertEqual(resi.charge,-3.0)
 
-    def test_extract_mass_lines(self):
-        """Test that the extract_mass_lines method returns the correct mass lines."""
-        topfile = 'toppar/top_all36_prot.rtf'
-        content=self.C.contents_from_topfile(topfile)
-        self.assertTrue(len(content) > 0)
-        mass_lines = extract_mass_lines(content)
-        self.assertTrue(isinstance(mass_lines, list))
-        self.assertTrue(all(isinstance(line, str) for line in mass_lines))
-        self.assertTrue(len(mass_lines) > 0)
-        self.assertEqual(len(mass_lines), 54)
+    def test_charmmff_residatabase_1(self):
+        self.assertEqual(len(self.C.residues),1496)
+        self.assertEqual(len(self.C.patches),191)
+        self.assertTrue('ALA' in self.C.residues)
+        self.assertTrue('TIP3' in self.C.residues)
+        self.assertTrue('FAKE' not in self.C.residues)
+        self.assertTrue('NNEU' in self.C.patches)
+        self.assertTrue('ASPP' in self.C.patches)
+        self.assertTrue('GLUP' in self.C.patches)
+        resname='ALA'
+        ala=self.C.get_resi(resname)
+        self.assertTrue(ala!=None)
+        self.assertTrue(ala.metadata['streamID']=='prot')
+        self.assertTrue(ala.metadata['substreamID']=='')
+        self.assertEqual(ala.mass,71.0794)
+        resname='TOCL1'
+        TOCL1=self.C.get_resi(resname)
+        self.assertTrue(TOCL1!=None)
+        self.assertTrue(TOCL1.metadata['streamID']=='lipid')
+        self.assertTrue(TOCL1.metadata['substreamID']=='cardiolipin')
+        self.assertAlmostEqual(TOCL1.mass, 1457.02, places=2)
 
-    def test_resis_and_masses_from_topfile(self):
-        """Test that the resis_and_masses_from_topfile method returns the correct residues and masses."""
-        topfile = 'toppar/top_all36_prot.rtf'
-        resis, masses = self.C.resis_and_masses_from_topfile(topfile)
-        self.assertTrue(isinstance(resis, list))
-        self.assertEqual(len(resis), 48)
-        self.assertTrue(isinstance(masses, CharmmMasses))
-        self.assertEqual(len(masses), 54)
-        r=resis[0]
-        self.assertTrue(r.resname == 'ALA')
+    def test_detect_structure_CHL1(self):
+        resname='CHL1'
+        resi=self.C.get_resi(resname)
+        self.assertTrue(resi.metadata['substreamID']=='cholesterol')
+        resi.lipid_annotate()
+        heads=resi.annotation['heads']
+        tails=resi.annotation['tails']
+        self.assertTrue(heads==['C3'])
+        self.assertTrue(tails==['C27'])
+
+    def test_detect_structure_CHM1(self):
+        resname='CHM1'
+        resi=self.C.get_resi(resname)
+        self.assertTrue(resi.metadata['substreamID']=='cholesterol')
+        resi.lipid_annotate()
+        heads=resi.annotation['heads']
+        tails=resi.annotation['tails']
+        self.assertTrue(heads==['C1'])
+        self.assertTrue(tails==['C6'])
+
+    def test_detect_structure_DPPC(self):
+        resname='DPPC'
+        resi=self.C.get_resi(resname)
+        self.assertTrue(resi.metadata['substreamID']=='')
+        resi.lipid_annotate()
+        heads=resi.annotation['heads']
+        tails=resi.annotation['tails']
+        shortest_paths=resi.annotation['shortest_paths']
+        dist1=shortest_paths[heads[0]][tails[0]]
+        dist2=shortest_paths[heads[0]][tails[1]]
+        # logger.debug(f'dist1 {dist1} dist2 {dist2}')
+        self.assertEqual(dist1,25)
+        self.assertEqual(dist2,26)
+
+    def test_detect_structure_SDS(self):
+        resname='SDS'
+        resi=self.C.get_resi(resname)
+        self.assertTrue(resi.metadata['substreamID']=='detergent')
+        resi.lipid_annotate()
+        heads=resi.annotation['heads']
+        tails=resi.annotation['tails']
+        self.assertTrue(heads==['S'])
+        self.assertTrue(tails==['C12'])
+
+    def test_detect_structure_TOCL1(self):
+        resname='TOCL1'
+        resi=self.C.get_resi(resname)
+        self.assertTrue(resi.metadata['substreamID']=='cardiolipin')
+        resi.lipid_annotate()
+        heads=resi.annotation['heads']
+        tails=resi.annotation['tails']
+        self.assertEqual(len(tails),4)
+        self.assertTrue(heads==['C2'])
+        self.assertTrue(tails==['CA18', 'CB18', 'CC18', 'CD18'])

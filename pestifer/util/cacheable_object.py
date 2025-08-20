@@ -59,11 +59,13 @@ class TarBytesFS:
         self._fs = None
 
     
-def _latest_mtime(root: Path,
+def _latest_mtime(root: Path | CacheableObject,
                   *,
                   ignore_names: set[str] = {"__pycache__"},
                   ignore_suffixes: set[str] = set()) -> float:
     latest = 0.0
+    if isinstance(root, CacheableObject):
+        root = root.resource_root
     root = Path(root)
     for p in root.rglob("*"):
         if p.name.startswith(".") or p.name in ignore_names:
@@ -77,8 +79,10 @@ def _latest_mtime(root: Path,
                 pass
     return latest
 
-def _hash_path(p: Path) -> str:
-    return hashlib.sha256(str(Path(p).resolve()).encode()).hexdigest()[:12]
+def _hash_resource(resource: Path | CacheableObject) -> str:
+    if isinstance(resource, CacheableObject):
+        resource = resource.resource_root
+    return hashlib.sha256(str(Path(resource).resolve()).encode()).hexdigest()[:12]
 
 class CacheableObject:
     """
@@ -99,14 +103,17 @@ class CacheableObject:
     CACHE_COMPRESS = ("gzip", 3)   # joblib compression
 
     def __init__(self,
-                 resource_root: str | Path,
+                 resource_root: str | Path | CacheableObject,
                  *,
-                 cache_dir: str | Path | None = None,
+                 cache_dir: str | Path | object | None = None,
                  force_rebuild: bool = False,
-                 ignore_suffixes: Iterable[str] = ()):
-        resource_root = Path(resource_root)
+                 ignore_suffixes: Iterable[str] = (),
+                 **kwargs):
+        if isinstance(resource_root, str):
+            resource_root = Path(resource_root)
+        self.resource_root = resource_root
         # cache file name is specific to subclass + resource path to avoid collisions
-        key = f"{self.__class__.__name__.lower()}-{_hash_path(resource_root)}"
+        key = f"{self.__class__.__name__.lower()}-{_hash_resource(resource_root)}"
         cdir = Path(cache_dir) if cache_dir else Path(user_cache_dir(self.APP_NAME))
         cdir.mkdir(parents=True, exist_ok=True)
         cpath = cdir / f"{self.CACHE_PREFIX}-{key}.joblib"
@@ -122,7 +129,7 @@ class CacheableObject:
                 logger.debug(f"{cpath.stat().st_mtime} >=? {resources_mtime} -> {cpath.stat().st_mtime >= resources_mtime}")
                 try:
                     if cpath.stat().st_mtime >= resources_mtime:
-                        logger.debug("Cache is fresh; loading from cache...")
+                        logger.info(f'Loading {self.__class__.__name__} from cache: {cpath}')
                         cached = joblib.load(cpath)  # trusted cache only
                         logger.debug("Loaded cached object")
                         self._adopt_state_from(cached)
@@ -140,7 +147,8 @@ class CacheableObject:
                     pass
 
             # Rebuild from resources
-            self._build_from_resources(resource_root)
+            logger.info(f'Rebuilding {self.__class__.__name__} from resources...')
+            self._build_from_resources(resource_root, **kwargs)
             # if subclass didn't set it, default to False
             if not hasattr(self, "from_cache"):
                 try:
@@ -152,6 +160,7 @@ class CacheableObject:
             fd, tmp = tempfile.mkstemp(dir=str(cdir), suffix=".joblib")
             os.close(fd)
             try:
+                logger.debug(f'Writing {self.__class__.__name__} to cache: {cpath}')
                 joblib.dump(self, tmp, compress=self.CACHE_COMPRESS)
                 os.replace(tmp, cpath)
                 logger.debug("Wrote cache: %s", cpath)

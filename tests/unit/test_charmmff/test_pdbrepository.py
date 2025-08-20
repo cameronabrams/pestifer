@@ -1,22 +1,22 @@
 import unittest
 import os
-from pestifer.charmmff.pdbrepository import PDBRepository, PDBInfo, PDBCollection
+from pestifer.charmmff.pdbrepository import PDBRepository, PDBRepository, PDBCollection
 import logging
 logger = logging.getLogger(__name__)
 
 class TestPDBRepository(unittest.TestCase):
     
     def test_pdbcollection_initialization(self):
-        coll=PDBCollection('lipid.tgz')
+        coll = PDBCollection('lipid.tgz')
         self.assertEqual(coll.streamID, 'lipid')
         self.assertEqual(coll.path, 'lipid.tgz')
         self.assertTrue('PSM' in coll)
         self.assertFalse('FAKE' in coll)
-        coll2=PDBCollection('solos')
+        coll2 = PDBCollection('solos')
         self.assertEqual(coll2.streamID, 'solos')
         self.assertEqual(coll2.path, 'solos')
         self.assertTrue('TIP3' in coll2)
-        coll3=PDBCollection('mylipid.tgz')
+        coll3 = PDBCollection('mylipid.tgz')
         self.assertEqual(coll3.streamID, 'mylipid')
         self.assertEqual(coll3.path, 'mylipid.tgz')
         self.assertTrue('C7DHPC' in coll3)
@@ -53,7 +53,7 @@ class TestPDBRepository(unittest.TestCase):
         c = pdb_repo.checkout('TIP3')
         self.assertIsNotNone(c)
         self.assertEqual(c.get_charge(), 0.0)
-        self.assertEqual(c.info, PDBInfo({}))
+        self.assertEqual(c.info, {})
         c.get_pdb(0)
         self.assertTrue(os.path.exists('TIP3.pdb'))
         os.remove('TIP3.pdb')
