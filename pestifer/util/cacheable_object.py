@@ -103,7 +103,7 @@ class CacheableObject:
     CACHE_COMPRESS = ("gzip", 3)   # joblib compression
 
     def __init__(self,
-                 resource_root: str | Path | CacheableObject,
+                 resource_root: str | Path,
                  *,
                  cache_dir: str | Path | object | None = None,
                  force_rebuild: bool = False,

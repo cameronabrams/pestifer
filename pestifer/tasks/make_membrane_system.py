@@ -12,7 +12,6 @@ from .basetask import BaseTask
 from .terminate import TerminateTask
 
 from ..charmmff.charmmffcontent import CHARMMFFContent
-from ..charmmff.charmmffresidatabase import CHARMMFFResiDatabase
 from ..charmmff.pdbrepository import PDBRepository
 
 from ..core.artifacts import *
@@ -54,9 +53,6 @@ class MakeMembraneSystemTask(BaseTask):
         self.resource_manager: ResourceManager = self.provisions.get('resource_manager', ResourceManager())
         self.charmmff_content: CHARMMFFContent = self.resource_manager.charmmff_content
         self.pdbrepository: PDBRepository = self.charmmff_content.pdbrepository
-        self.RDB: CHARMMFFResiDatabase = CHARMMFFResiDatabase(self.charmmff_content, streamIDs=[])
-        self.RDB.add_stream('lipid')
-        self.RDB.add_topology('toppar_all36_moreions.str', streamIDoverride='water_ions')
     
         if 'prebuilt' in self.bilayer_specs and 'pdb' in self.bilayer_specs['prebuilt']:
             logger.debug('Using prebuilt bilayer')
@@ -108,8 +104,7 @@ class MakeMembraneSystemTask(BaseTask):
                              solvent_ratio_specstring = solvent_ratio_specstring,
                              solvent_to_key_lipid_ratio = solvent_to_lipid_ratio,
                              leaflet_nlipids = patch_nlipids,
-                             pdbrepository = self.pdbrepository, 
-                             resi_database = self.RDB)
+                             charmffcontent = self.charmmff_content)
         species_pdbs = PDBFileArtifactList()
         for spdb in self.patch.register_species_pdbs:
             species_pdbs.append(PDBFileArtifact(spdb, description=f'PDB for {spdb}'))
@@ -129,8 +124,7 @@ class MakeMembraneSystemTask(BaseTask):
                                   solvent_ratio_specstring = solvent_ratio_specstring,
                                   solvent_to_key_lipid_ratio = solvent_to_lipid_ratio,
                                   leaflet_nlipids = patch_nlipids,
-                                  pdbrepository = self.pdbrepository,
-                                  resi_database = self.RDB)
+                                  charmmffcontent = self.charmmff_content)
             logger.debug(f'Symmetrizing bilayer to lower leaflet')
             composition_dict['upper_leaflet_saved'] = composition_dict['upper_leaflet']
             composition_dict['upper_chamber_saved'] = composition_dict['upper_chamber']
@@ -144,8 +138,7 @@ class MakeMembraneSystemTask(BaseTask):
                                   solvent_ratio_specstring = solvent_ratio_specstring,
                                   solvent_to_key_lipid_ratio = solvent_to_lipid_ratio,
                                   leaflet_nlipids = patch_nlipids,
-                                  pdbrepository = self.pdbrepository,
-                                  resi_database = self.RDB)
+                                  charmmffcontent = self.charmmff_content)
             composition_dict['upper_leaflet'] = composition_dict['upper_leaflet_saved']
             composition_dict['upper_chamber'] = composition_dict['upper_chamber_saved']
             self.patch = None

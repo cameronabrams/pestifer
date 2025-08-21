@@ -16,7 +16,7 @@ from pestifer.objs import resid
 from pestifer.scripters.namdscripter import NAMDScripter
 from pestifer.scripters.psfgenscripter import PsfgenScripter
 
-from  .charmmffresidatabase import CHARMMFFResiDatabase
+from  .charmmffcontent      import CHARMMFFContent
 from ..core.config          import Config
 from ..core.controller      import Controller
 from ..core.resourcemanager import ResourceManager
@@ -25,7 +25,7 @@ from ..psfutil.psfcontents  import PSFContents
 
 logger = logging.getLogger(__name__)
 
-def do_psfgen(resid: str, DB: CHARMMFFResiDatabase, 
+def do_psfgen(resid: str, DB: CHARMMFFContent, 
               lenfac: float = 1.2, minimize_steps: int = 500, 
               sample_steps: int = 5000, nsamples: int = 10, 
               sample_temperature: float = 300, 
@@ -332,7 +332,7 @@ def do_cleanup(resname,dirname):
         os.remove(f)
     os.chdir(cwd)
 
-def do_resi(resi: str, DB: CHARMMFFResiDatabase, 
+def do_resi(resi: str, DB: CHARMMFFContent, 
             outdir: str = 'data', faildir: str = 'fails', force: bool = False, 
             lenfac: float = 1.2, cleanup: bool = True, minimize_steps: int = 500, 
             sample_steps: int = 5000, nsamples: int = 10, 
@@ -424,16 +424,13 @@ def make_pdb_collection(args):
     logging.getLogger('').addHandler(console)
 
     CC = ResourceManager().charmmff_content
-    DB = CHARMMFFResiDatabase(CC)
-    if streamID is not None:
-        DB.add_stream(streamID)
     
     if topfile is not None:
         if not os.path.exists(topfile):
             raise FileNotFoundError(f'Topology file {topfile} does not exist')
-        DB.add_topology(topfile)
+        CC.add_topology(topfile)
 
-    if not resname == '' and not resname in DB:
+    if not resname == '' and not resname in CC:
         logger.warning(f'RESI {resname} not found in CHARMMFFResiDatabase; will not build PDB collection for it')
         exit(-1)
 
@@ -453,19 +450,19 @@ def make_pdb_collection(args):
     
     if resname is not None and resname != '':
         my_logger(f'RESI {resname}', logger.info, just='^', frame='*', fill='*')
-        do_resi(resname, DB, outdir=outdir, faildir=faildir, force=args.force,
+        do_resi(resname, CC, outdir=outdir, faildir=faildir, force=args.force,
                  cleanup=args.cleanup, lenfac=args.lenfac, 
                  minimize_steps=args.minimize_steps, sample_steps=args.sample_steps, 
                  nsamples=args.nsamples, sample_temperature=args.sample_temperature, 
                  refic_idx=args.refic_idx, force_constant=args.force_constant, 
                  borrow_ic_from=args.take_ic_from)
     else:
-        active_resnames = DB.get_resnames_of_streamID(streamID, substreamID=substreamID)
+        active_resnames = CC.get_resnames_of_streamID(streamID, substreamID=substreamID)
         logger.debug(f'active_resnames: {active_resnames}')
         nresi = len(active_resnames)
         for i, r in enumerate(active_resnames):
             my_logger(f'RESI {r} ({i+1}/{nresi})', logger.info, just='^', frame='*', fill='*')
-            do_resi(r, DB, outdir=outdir, faildir=faildir, force=args.force, 
+            do_resi(r, CC, outdir=outdir, faildir=faildir, force=args.force,
                     cleanup=args.cleanup, lenfac=args.lenfac, 
                     minimize_steps=args.minimize_steps, sample_steps=args.sample_steps, 
                     nsamples=args.nsamples, sample_temperature=args.sample_temperature, 

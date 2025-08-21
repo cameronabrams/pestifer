@@ -7,8 +7,7 @@ import logging
 
 import numpy as np
 
-from ..charmmff.pdbrepository import PDBRepository
-from ..charmmff.charmmffresidatabase import CHARMMFFResiDatabase
+from ..charmmff.charmmffcontent import CHARMMFFContent
 from ..core.artifacts import ArtifactDict
 from ..util.units import _UNITS_, _SYMBOLS_, cuA_of_nmolec
 from ..scripters import PackmolScripter
@@ -165,14 +164,13 @@ class Bilayer:
                  neutralizing_salt: list[str] = ['POT', 'CLA'], 
                  salt_concentration: float = 0.0, 
                  solution_gcc: float = 1.0, 
-                 pdbrepository: PDBRepository = None, 
-                 resi_database: CHARMMFFResiDatabase = None, 
+                 charmmffcontent: CHARMMFFContent = None, 
                  solvent_specstring: str = 'TIP3', 
                  solvent_ratio_specstring: str = '1.0'):
 
         # leaflet_nlipids is the number of lipids per leaflet in a patch
         self.leaflet_nlipids = leaflet_nlipids
-
+        self.charmmffcontent = charmmffcontent
         # attributes that will be set later
         self.area = 0.0
         self.artifacts = ArtifactDict()
@@ -187,7 +185,7 @@ class Bilayer:
             L = composition_dict[l]
             logger.debug(f'Leaflet {l} composition: {L}')
             for d in L:
-                resi = resi_database.get_resi(d['name'])
+                resi = self.charmmffcontent.get_resi(d['name'])
                 if not 'patn' in d:
                     d['patn'] = int(d['frac'] * leaflet_nlipids[adjective])
                 if not 'charge' in d:
@@ -212,7 +210,7 @@ class Bilayer:
             Nsol = 0
             AMW = 0.0
             for d in L:
-                resi = resi_database.get_resi(d['name'])
+                resi = self.charmmffcontent.get_resi(d['name'])
                 if not 'patn' in d:
                     d['patn'] = int(d['frac'] * leaflet_nlipids[adjective] * solvent_to_key_lipid_ratio)
                 if not 'charge' in d:
@@ -231,7 +229,7 @@ class Bilayer:
                     cation_name, anion_name = neutralizing_salt
                     logger.debug(f'Salting at {salt_concentration} M, soln density {solution_gcc} gcc')
                     logger.debug(f'-> adding {Npm} {cation_name} and {Npm} {anion_name} to {c}')
-                    cation, anion = resi_database.get_resi(cation_name), resi_database.get_resi(anion_name)
+                    cation, anion = self.charmmffcontent.get_resi(cation_name), self.charmmffcontent.get_resi(anion_name)
                     n_cation = int(np.round(Npm / np.abs(cation.charge), 0))
                     n_anion = int(np.round(Npm / np.abs(anion.charge), 0))
                     composition_dict[c].append({'name': cation_name, 'patn': n_cation, 'charge': cation.charge, 'MW': cation.mass()})
@@ -262,6 +260,7 @@ class Bilayer:
 
         self.species_data = {}
         self.addl_streamfiles = []
+        pdbrepository = self.charmmffcontent.pdbrepository if self.charmmffcontent is not None else None
         if pdbrepository is not None:
             for l in self.species_names:
                 logger.debug(f'Getting pdb for {l}')
@@ -307,7 +306,7 @@ class Bilayer:
             if ion_name not in self.species_names:
                 self.species_names.append(ion_name)
                 self.species_data[ion_name] = pdbrepository.checkout(ion_name)
-            ion_resi = resi_database.get_resi(ion_name)
+            ion_resi = self.charmmffcontent.get_resi(ion_name)
             ion_q = ion_resi.charge
             logger.debug(f'Adding {ion_name} with charge {ion_q:.3f} e')
             ion_patn = int(np.round(np.abs(self.total_charge), 0) / np.abs(ion_q))

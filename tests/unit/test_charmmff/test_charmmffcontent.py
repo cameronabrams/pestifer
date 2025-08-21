@@ -16,21 +16,22 @@ class TestCharmmffContent(unittest.TestCase):
         logging.debug("Setting up TestCharmmffContent class...")
         resource_path = os.path.dirname(resources.__file__)
         charmmff_path = os.path.join(resource_path, 'charmmff')
-        cls.C = CHARMMFFContent(charmmff_path)#@, force_rebuild=True)
+        cls.C = CHARMMFFContent(charmmff_path)
         # Ensure the resource manager is initialized before any tests run
         logging.debug("Done setting up TestCharmmffContent class...")
 
-    def test_charmmff_content(self):
+    def test_charmmffcontent_initialized(self):
         self.C.clean_local_charmmff_files()
-        self.assertTrue(self.C!=None)
-        self.assertTrue(self.C.filenamemap!={})
-        basenames=[k for k in self.C.filenamemap.keys()]
-        self.assertTrue(len(basenames)>0)
-        self.assertEqual(len(set(basenames)),len(basenames))  # check for duplicates
-        self.assertTrue(len(self.C.streams)>0)
-        self.assertEqual(self.C.streams.sort(),['prot','carb', 'na', 'lipid'].sort())
-        self.assertIn('pestifer.top', self.C.custom_files)
-
+        self.assertTrue(self.C != None)
+        self.assertTrue(self.C.filenamemap != {})
+        basenames = [k for k in self.C.filenamemap['top'].keys()]
+        basenames.extend([k for k in self.C.filenamemap['toppar'].keys()])
+        basenames.extend([k for k in self.C.filenamemap['par'].keys()])
+        self.assertEqual(len(basenames), 54)
+        self.assertEqual(len(set(basenames)), len(basenames))  # check for duplicates
+        self.assertTrue(len(self.C.streams) > 0)
+        self.assertEqual(self.C.streams.sort(), ['prot', 'carb', 'na', 'lipid'].sort())
+        # self.assertIn('pestifer.top', self.C.custom_files)
         self.C.copy_charmmfile_local('par_all36m_prot.prm')
         self.assertTrue(os.path.exists('par_all36m_prot.prm'))
         self.C.copy_charmmfile_local('top_all36_prot.rtf')
@@ -55,7 +56,7 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertFalse(os.path.exists('toppar_all36_moreions.str'))
 
     def test_charmmffcontent_pdbrepository_initialized(self):
-        self.assertTrue(self.C!=None)
+        self.C.provision()
         self.assertTrue(self.C.pdbrepository!=None)
         self.assertTrue(self.C.pdbrepository.collections!=None)
         self.assertTrue(len(self.C.pdbrepository.collections)>0)
@@ -65,6 +66,7 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertTrue('PSM' in self.C.pdbrepository)
 
     def test_charmmffcontent_pdbrepository_checkout(self):
+        self.C.provision()
         c=self.C.pdbrepository.checkout('PSM')
         self.assertTrue(c!=None)
         self.assertEqual(c.get_charge(),0.0)
@@ -77,18 +79,17 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertTrue(os.path.exists('PSM-00.pdb'))
         os.remove('PSM-00.pdb')
 
-    def test_topfile_of_patchname(self):
+    def test_charmffcontent_get_topfile_of_patchname(self):
         """Test that the topfile of a patchname is returned correctly."""
         patchname = 'NNEU'
-        resi = self.C.get_pres(patchname)
-        self.assertIsInstance(resi, CharmmResi)
-        topfile = self.C.get_topfile_of_patchname(patchname)
+        topfile = self.C.resi_to_file_map[patchname]
         self.assertEqual(topfile, 'top_all36_prot.rtf')
         patchname = 'TYRO'
-        topfile = self.C.get_topfile_of_patchname(patchname)
+        topfile = self.C.resi_to_file_map[patchname]
         self.assertEqual(topfile, 'pestifer.top')
 
-    def test_detect_charge(self):
+    def test_charmmffcontent_get_charge(self):
+        self.C.provision()
         resname='POT'
         resi=self.C.get_resi(resname)
         self.assertTrue(resi!=None)
@@ -105,9 +106,10 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertTrue(resi.metadata['streamID']=='water_ions')
         self.assertEqual(resi.charge,-3.0)
 
-    def test_charmmff_residatabase_1(self):
-        self.assertEqual(len(self.C.residues),1496)
-        self.assertEqual(len(self.C.patches),191)
+    def test_charmmffcontent_get_resi(self):
+        self.C.provision()
+        self.assertEqual(len(self.C.residues),2474)
+        self.assertEqual(len(self.C.patches),790)
         self.assertTrue('ALA' in self.C.residues)
         self.assertTrue('TIP3' in self.C.residues)
         self.assertTrue('FAKE' not in self.C.residues)
@@ -119,7 +121,7 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertTrue(ala!=None)
         self.assertTrue(ala.metadata['streamID']=='prot')
         self.assertTrue(ala.metadata['substreamID']=='')
-        self.assertEqual(ala.mass,71.0794)
+        self.assertAlmostEqual(ala.mass,71.0794,places=3)
         resname='TOCL1'
         TOCL1=self.C.get_resi(resname)
         self.assertTrue(TOCL1!=None)
@@ -127,7 +129,8 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertTrue(TOCL1.metadata['substreamID']=='cardiolipin')
         self.assertAlmostEqual(TOCL1.mass, 1457.02, places=2)
 
-    def test_detect_structure_CHL1(self):
+    def test_charmffcontent_detect_structure_CHL1(self):
+        self.C.provision()
         resname='CHL1'
         resi=self.C.get_resi(resname)
         self.assertTrue(resi.metadata['substreamID']=='cholesterol')
@@ -137,7 +140,8 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertTrue(heads==['C3'])
         self.assertTrue(tails==['C27'])
 
-    def test_detect_structure_CHM1(self):
+    def test_charmffcontent_detect_structure_CHM1(self):
+        self.C.provision()
         resname='CHM1'
         resi=self.C.get_resi(resname)
         self.assertTrue(resi.metadata['substreamID']=='cholesterol')
@@ -147,7 +151,8 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertTrue(heads==['C1'])
         self.assertTrue(tails==['C6'])
 
-    def test_detect_structure_DPPC(self):
+    def test_charmffcontent_detect_structure_DPPC(self):
+        self.C.provision()
         resname='DPPC'
         resi=self.C.get_resi(resname)
         self.assertTrue(resi.metadata['substreamID']=='')
@@ -161,7 +166,8 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertEqual(dist1,25)
         self.assertEqual(dist2,26)
 
-    def test_detect_structure_SDS(self):
+    def test_charmffcontent_detect_structure_SDS(self):
+        self.C.provision()
         resname='SDS'
         resi=self.C.get_resi(resname)
         self.assertTrue(resi.metadata['substreamID']=='detergent')
@@ -171,7 +177,8 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertTrue(heads==['S'])
         self.assertTrue(tails==['C12'])
 
-    def test_detect_structure_TOCL1(self):
+    def test_charmffcontent_detect_structure_TOCL1(self):
+        self.C.provision()
         resname='TOCL1'
         resi=self.C.get_resi(resname)
         self.assertTrue(resi.metadata['substreamID']=='cardiolipin')

@@ -2,7 +2,6 @@
 """
 This module defines classes that facilitate the handling of CHARMM force field content.
 """
-from dataclasses import dataclass
 import logging
 import os
 import re
@@ -10,7 +9,7 @@ import re
 from pathlib import Path
 
 from .charmmfftop import CharmmMassDict, CharmmMassList, CharmmResiDict, CharmmResi
-from .pdbrepository import PDBRepository, PDBRepositoryData, PDBInput
+from .pdbrepository import PDBRepository, PDBInput
 
 from ..util.cacheable_object import CacheableObject, TarBytesFS
 
@@ -138,8 +137,37 @@ def extract_mass_lines(file_contents):
     """
     return [line for line in file_contents.splitlines() if line.strip().upper().startswith("MASS")]
 
-# @dataclass
-class CHARMMFFContentData(CacheableObject):
+class CHARMMFFResiTopCollection(CacheableObject):
+    """
+    A collection of CHARMM residue topology data.
+    """
+
+    def _build_from_resources(self, charmmff_path: str = ''):
+        """
+        Build the collection from the specified resources.
+
+        Parameters
+        ----------
+        path_or_tarball : str
+            The path to the directory or tarball containing the CHARMM residue topology files.
+        streamID_override : str
+            An optional stream ID to override the default.
+
+        Returns
+        -------
+        CHARMMFFResiTopCollection
+            The constructed CHARMMFFResiTopCollection object.
+        """
+        local_charmmffcontent = CHARMMFFContent(charmmff_path)
+        # this should read from cache
+
+        logger.debug(f'Parsing all RESI and PRES objects...')
+        local_charmmffcontent.find_resis_and_patches()
+        self.residues = local_charmmffcontent.residues
+        self.patches = local_charmmffcontent.patches
+        logger.debug(f'CHARMMFFContentData initialized with {len(self.residues)} residues and {len(self.patches)} patches.')
+
+class CHARMMFFContent(CacheableObject):
     """
     Holds all CHARMM force field content parsed for use within Pestifer.
 
@@ -161,52 +189,26 @@ class CHARMMFFContentData(CacheableObject):
         Path to the directory containing the CHARMM force field files.
     tarfilename : str
         Name of the tarball file containing the CHARMM force field files.
-    tarfile : TarBytesFS
-        TarBytesFS object representing the CHARMM force field tarball.
     filenamemap : dict
         Maps file basenames to their full paths in the CHARMM force field content.
-    custom_files : list
-        List of custom files that can be added to the CHARMM force field content.
-    all_topology_files : list
-        List of all topology files in the CHARMM force field content.
-    residues: CharmmResiDict
-        Maps residue names to their corresponding CharmmResi objects
-    patches: CharmmResiDict
-        Maps patch names to their corresponding CharmmResi objects.
     """
-    def _build_from_resources(self, charmmff_path: str = '.', tarfilename: str = 'toppar_c36_jul24.tgz'):
+    def _build_from_resources(self, charmmff_path: str = '.'):
         """ Method to build the CHARMMFFContent object from resources, if the cache is stale. """
-        self.tarfile = None
-        self.tarfilename = tarfilename
         self.filenamemap = {}
         if not os.path.isdir(charmmff_path):
             raise NotADirectoryError(f'Expected a directory at {charmmff_path}, but it is not a directory')
         self.charmmff_path = os.path.abspath(charmmff_path)
         self.basename = os.path.basename(self.charmmff_path)
         self.parent_path = os.path.dirname(self.charmmff_path)
-        cwd = os.getcwd()
-        os.chdir(self.parent_path)
-        self.dirtree = {a: [b, c] for a, b, c in os.walk(self.basename)}
-        os.chdir(cwd)
-        self.charmm_elements = self.dirtree[self.basename][0]
+        self.charmm_elements = os.listdir(self.charmmff_path)
         logger.debug(f'Members of {self.charmmff_path}: {self.charmm_elements}')
         logger.debug(f'Initializing pdb repository for CHARMMFFContent at {self.charmmff_path}...')
-        self.pdbrepository = PDBRepositoryData()
-        if 'pdbrepository' in self.charmm_elements:
-            os.chdir(os.path.join(self.charmmff_path, 'pdbrepository'))
-            members = os.listdir('.')
-            for m in members:
-                self.pdbrepository.add_path(m)
-            os.chdir(cwd)
-        self.load_charmmff(tarfilename)
-        logger.debug(f'Parsing all RESI and PRES objects...')
-        self.all_topology_files = {x: v for x, v in self.filenamemap.items() if x.endswith('.str') or x.endswith('.rtf') or x.endswith('.top')}
-        self.residues = CharmmResiDict({})
-        self.patches = CharmmResiDict({})
-        self.find_resis_and_patches()
-        logger.debug(f'CHARMMFFContent initialized with {len(self.residues)} residues and {len(self.patches)} patches.')
 
-    def load_charmmff(self, tarfilename='toppar_c36_jul24.tgz', skip_streams=['misc', 'cphmd']):
+        self._load_charmmff()
+        self._initialize_resi_to_file_map()
+        self.provisioned = False
+
+    def _load_charmmff(self, tarfilename='toppar_c36_jul24.tgz', skip_streams=['misc', 'cphmd']):
         """ 
         Load the CHARMM force field tarball from the specified path.
 
@@ -227,67 +229,121 @@ class CHARMMFFContentData(CacheableObject):
             return not 'history' in name and not 'all22' in name and not 'ljpme' in name and (name.endswith('.str') or name.endswith('.prm') or name.endswith('.rtf'))
 
         if not os.path.exists(os.path.join(self.charmmff_path, tarfilename)):
-            raise FileNotFoundError(f'CHARMM force field tarball {tarfilename} not found in {self.charmmff_path}')
-        logger.debug(f'Loading CHARMM force field tarball {tarfilename} from {self.charmmff_path}')
-        self.tarmembers = []
-        self.tarfile = TarBytesFS.from_file(os.path.join(self.charmmff_path, tarfilename), compression='gzip')
-        self.toplevel_listing = [x['name'] for x in self.tarfile.ls('toppar')]
-        self.contents = {}
-        self.toplevel_par = {os.path.basename(x): x for x in self.toplevel_listing if x.startswith('toppar/par_') and okfilename(x)}
-        self.toplevel_top = {os.path.basename(x): x for x in self.toplevel_listing if x.startswith('toppar/top_') and okfilename(x)}
-        self.toplevel_toppar = {os.path.basename(x): x for x in self.toplevel_listing if x.startswith('toppar/toppar_') and okfilename(x)}
-        self.filenamemap = {**self.toplevel_par, **self.toplevel_top, **self.toplevel_toppar}
+            raise FileNotFoundError(f'CHARMM force field tarball {self.tarfilename} not found in {self.charmmff_path}')
+        self.tarfilename = tarfilename  
+        logger.debug(f'Loading CHARMM force field tarball {self.tarfilename} from {self.charmmff_path}')
+        self.toppar_fs = TarBytesFS.from_file(os.path.join(self.charmmff_path, self.tarfilename), compression='gzip')
+        root_listing = [x['name'] for x in self.toppar_fs.ls('toppar')]
+        # self.contents = {}
+        par    = {os.path.basename(x): x for x in root_listing if okfilename(x) and CHARMMFFContent.charmmff_filetype(x) == 'par'}
+        top    = {os.path.basename(x): x for x in root_listing if okfilename(x) and CHARMMFFContent.charmmff_filetype(x) == 'top'}
+        toppar = {os.path.basename(x): x for x in root_listing if okfilename(x) and CHARMMFFContent.charmmff_filetype(x) == 'toppar'}
+        # self.filenamemap = {**self.top, **self.par, **self.toppar}
         # logger.debug(f'filenamemap: {self.filenamemap}')
-        self.stream_listing = [x['name'] for x in self.tarfile.ls('toppar/stream')]
-        self.streams = [os.path.basename(x) for x in self.stream_listing if os.path.basename(x) not in skip_streams]
+        self.fs_resolver = {x: os.path.join('toppar', x) for x in par.keys()}
+        self.fs_resolver.update({x: os.path.join('toppar', x) for x in top.keys()})
+        self.fs_resolver.update({x: os.path.join('toppar', x) for x in toppar.keys()})
+
+        stream_listing = [x['name'] for x in self.toppar_fs.ls('toppar/stream')]
+        self.streams = [os.path.basename(x) for x in stream_listing if os.path.basename(x) not in skip_streams]
         self.streamfiles = {}
         for stream in self.streams:
-            streamdir_listing = [x['name'] for x in self.tarfile.ls(f'toppar/stream/{stream}')]
-            self.streamfiles[stream] = {os.path.basename(x): x for x in streamdir_listing if okfilename(x)}
-            self.filenamemap.update(self.streamfiles[stream])
-        for name, fullname in self.filenamemap.items():
-            # logger.debug(f'Attempting open of {name}')
-            with self.tarfile.open(fullname) as f:
-                self.contents[name] = f.read().decode()
-                if 'cholesterol' in fullname:  # the cholesterol substream has two models, and it specifies the first one by default
-                # we will parse the conditional script to get the correct model
-                    parsed_content_dict = parse_conditional_script(self.contents[name])
-                    parsed_content = parsed_content_dict['parsed']
-                    self.contents[name] = parsed_content
+            streamdir_listing = [x['name'] for x in self.toppar_fs.ls(f'toppar/stream/{stream}')]
+            streamfiles = {os.path.basename(x): x for x in streamdir_listing if okfilename(x) and CHARMMFFContent.charmmff_filetype(x) == 'toppar'}
+            self.fs_resolver.update({x: os.path.join('toppar/stream', stream, x) for x in streamfiles.keys()})
+            toppar.update({os.path.basename(x): x for x in streamfiles.values()})
+            # self.filenamemap.update(streamfiles)
+        # for name, fullname in self.filenamemap.items():
+        #     # logger.debug(f'Attempting open of {name}')
+        #     with toppar_fs.open(fullname) as f:
+        #         self.contents[name] = f.read().decode()
+        #         if 'cholesterol' in fullname:  # the cholesterol substream has two models, and it specifies the first one by default
+        #         # we will parse the conditional script to get the correct model
+        #             parsed_content_dict = parse_conditional_script(self.contents[name])
+        #             parsed_content = parsed_content_dict['parsed']
+        #             self.contents[name] = parsed_content
+        self.filenamemap = {'par': par, 'top': top, 'toppar': toppar}
+        self.all_topology_files = {x: v for x, v in self.filenamemap['top'].items()}
+        self.all_topology_files.update({x: v for x, v in self.filenamemap['toppar'].items()})
+        self.custom_files = []
+        if 'custom' in self.charmm_elements and os.path.exists(os.path.join(self.charmmff_path, 'custom')):
+            self.custom_folder = os.path.join(self.charmmff_path, 'custom')
+            self.load_custom_files(self.custom_folder)
+
+        self.charmmstreamid = {f: CHARMMFFStreamID(f) for f in self.filenamemap['top'].keys()}
+        self.charmmstreamid.update({f: CHARMMFFStreamID(f) for f in self.filenamemap['toppar'].keys()})
+
         check_basenames = list(self.filenamemap.keys())
         assert len(check_basenames) == len(set(check_basenames)), f'found duplicate basenames in charmmff tarball: {check_basenames}'
         logger.debug(f'Loaded {len(self.filenamemap)} files from CHARMM force field tarball {tarfilename}; subdir-streams: {self.streams}')
-        self.custom_files = []
-        if 'custom' in self.charmm_elements and os.path.exists(os.path.join(self.charmmff_path, 'custom')):
-            self.custom_files = os.listdir(os.path.join(self.charmmff_path, 'custom'))
-            # logger.debug(f'Found {len(self.custom_files)} custom files in {os.path.join(self.charmmff_path,"custom")}: {self.custom_files}')
-        self.non_charmmff_custom_files = []
-        for f in self.custom_files:
-            logger.debug(f'Checking custom file {f}')
-            if CHARMMFFContentData.is_charmmff_file(f):
-                # logger.debug(f'Adding custom file {f} to CHARMMFFContentData filenamemap')
-                self.filenamemap[f] = os.path.join(self.charmmff_path, 'custom', f)
-                with open(self.filenamemap[f]) as custom_file:
-                    self.contents[f] = custom_file.read()
-            else:
-                self.non_charmmff_custom_files.append(f)
-        for nccf in self.non_charmmff_custom_files:
-            self.custom_files.remove(nccf)
 
-        total_bytes = 0
-        for x, v in self.contents.items():
-            total_bytes += len(v.encode())
-        logger.debug(f'Total bytes of CHARMMFF content: {total_bytes}')
+        for filetype in ['par', 'top', 'toppar']:
+            logger.debug(f'  {filetype}: {len(self.filenamemap[filetype])} files:')
+            for keyname, fullname in self.filenamemap[filetype].items():
+                logger.debug(f'    {keyname} -> {fullname}')
+
+    def load_custom_files(self, custom_folder: str):
+        for f in os.listdir(custom_folder):
+            ext = CHARMMFFContent.charmmff_filetype(f)
+            match ext:
+                case 'par':
+                    self.filenamemap['par'][f] = os.path.join(custom_folder, f)
+                    self.custom_files.append(f)
+                case 'top':
+                    self.filenamemap['top'][f] = os.path.join(custom_folder, f)
+                    self.all_topology_files[f] = os.path.join(custom_folder, f)
+                    self.custom_files.append(f)
+                case 'toppar':
+                    self.filenamemap['toppar'][f] = os.path.join(custom_folder, f)
+                    self.all_topology_files[f] = os.path.join(custom_folder, f)
+                    self.custom_files.append(f)
+                case _:
+                    logger.debug(f'I do not recognize custom CHARMM file {f} in {custom_folder}')
+
+    def _initialize_resi_to_file_map(self):
+        self.resi_to_file_map = {}
+        for shortname, fullname in self.all_topology_files.items():
+            try:
+                name_in_tarball = self.fs_resolver[shortname]
+                with self.toppar_fs.open(name_in_tarball) as f:
+                    lines = f.read().decode().splitlines()
+            except KeyError: # shortname is not in self.fs_resolver
+                if not os.path.exists(fullname):
+                    raise FileNotFoundError(f'File {fullname} not found in any CHARMM force field content')
+                with open(fullname,'r') as f:
+                    lines = f.read().splitlines()
+            for line in lines:
+                if line.startswith('RESI') or line.startswith('PRES'):
+                    resi_name = line.split()[1]
+                    self.resi_to_file_map[resi_name] = shortname
 
     @staticmethod
-    def is_charmmff_file(filename: str) -> bool:
-        if filename.startswith('par') or filename.startswith('top_') or \
-           filename.startswith('toppar') or filename.startswith('charmm') or \
-           filename.endswith('.str') or filename.endswith('.prm') or \
-           filename.endswith('.rtf') or filename.endswith('.top'):
-            return True
+    def charmmff_filetype(filename: str) -> str | None:
+        if filename.endswith('.prm'):
+            return 'par'
+        if filename.endswith('.rtf') or filename.endswith('.top'):
+            return 'top'
+        if filename.endswith('.str'):
+            return 'toppar'
         # logger.debug(f'File {filename} is not a CHARMM force field file')
-        return False
+        return None
+
+    def provision(self, force_rebuild=False):
+        if self.provisioned:
+            return
+        """ provision the object with a Residatabase and a PDBRepository """
+        self.pdbrepository = PDBRepository(os.path.join(self.charmmff_path, 'pdbrepository'), force_rebuild=force_rebuild)
+        self.resitopcollection = CHARMMFFResiTopCollection(self.charmmff_path, force_rebuild=force_rebuild)
+        # shortcuts
+        self.residues = self.resitopcollection.residues
+        self.patches = self.resitopcollection.patches
+        self.provisioned = True
+
+    def get_filename(self, shortname):
+        ext = CHARMMFFContent.charmmff_filetype(shortname)
+        if ext is not None:
+            return self.filenamemap[ext].get(shortname, None)
+        return None
 
     def find_resis_and_patches(self):
         """ 
@@ -299,19 +355,162 @@ class CHARMMFFContentData(CacheableObject):
         """
         self.residues = CharmmResiDict({})
         self.patches = CharmmResiDict({})
-        self.massdict = CharmmMassDict({})
-        for topfile in self.all_topology_files.keys():
-            logger.debug(f'Processing topology file {topfile} for residue and patch objects...')
-            charmmstreamid = CHARMMFFStreamID(topfile)
-            blocks = extract_resi_pres_blocks(self.contents[topfile])
-            resi, pres = CharmmResiDict.from_blockstring_list(blocks, metadata=dict(streamID=charmmstreamid.streamID, substreamID=charmmstreamid.substreamID, charmmfftopfile=topfile)).to_resi_pres()
-            masses = CharmmMassList.from_cardlist(extract_mass_lines(self.contents[topfile])).to_dict()
+        massdict = CharmmMassDict({})
+        for shortname, fullname in self.all_topology_files.items():
+            try:
+                name_in_tarball = self.fs_resolver[shortname]
+                with self.toppar_fs.open(name_in_tarball) as f:
+                    contents = f.read().decode()
+            except KeyError: # shortname is not in fs_resolver
+                with open(fullname, 'r') as f:
+                    contents = f.read()
+            logger.debug(f'Processing topology file {shortname} ({len(contents)} bytes) for residue and patch objects...')
+            charmmstreamid = CHARMMFFStreamID(shortname)
+            blocks = extract_resi_pres_blocks(contents)
+            resi, pres = CharmmResiDict.from_blockstring_list(blocks, metadata=dict(streamID=charmmstreamid.streamID, substreamID=charmmstreamid.substreamID, charmmfftopfile=shortname)).to_resi_pres()
+            masses = CharmmMassList.from_cardlist(extract_mass_lines(contents)).to_dict()
             self.residues.update(resi)
             self.patches.update(pres)
-            self.massdict.update(masses)
+            massdict.update(masses)
             logger.debug(f' -> resis ({len(resi)}) {[r for r in resi.keys()]}')
             logger.debug(f' -> pres ({len(pres)}) {[p for p in pres.keys()]}')
-        logger.debug(f'Found {len(self.residues)} residues, {len(self.patches)} patches, and {len(self.massdict)} masses in CHARMM force field content')
+        self.residues.tally_masses(massdict)
+        logger.debug(f'Found {len(self.residues)} residues, {len(self.patches)} patches, and {len(massdict)} masses in CHARMM force field content')
+        del massdict
+
+    def get_topfile_of_resname(self, resname: str) -> str | None:
+        """
+        Given a residue name, return the top file that contains it
+        """
+        resi = self.residues.get(resname, None)
+        if resi is not None:
+            return resi.metadata['charmmfftopfile']
+        else:
+            logger.warning(f'Residue {resname} not found in CHARMM force field content')
+            return None
+
+    def copy_charmmfile_local(self, basename):
+        """
+        Copy a NAMD-friendly version of a CHARMMFF file to the local directory.
+        This function checks if the file already exists in the current working directory.
+        If it does, it returns the basename. If the file is found in the custom files, it copies it from there.
+        If the file is found in the tarball or any custom directory, it extracts it and writes it to the local directory, filtering out CHARMM commands that give NAMD trouble.
+        If the file is not found in either location, it logs a warning.
+
+        Parameters
+        ----------
+        basename : str
+            The basename of the CHARMM file to copy. This should be a recognizable CHARMMFF rtf, prm, or str file name without any directory path.
+
+        Returns
+        -------
+        str
+            The basename of the copied file in the local directory.
+        """
+        # When copying a parameter file into a NAMD run directory, lines that begin with these keywords are removed
+        comment_these_out = ['set', 'if', 'WRNLEV', 'BOMLEV', 'return', 'endif']
+
+        if os.path.exists(basename):
+            # logger.debug(f'{basename} already exists in {os.getcwd()}')
+            return basename
+        if os.sep in basename:
+            # this is a path
+            # logger.debug(f'expected a basename and got a path {basename}')
+            raise ValueError(f'Expected a basename, but got a path: {basename}')
+            # logger.debug(f'truncated to basename {basename}')
+        ext = CHARMMFFContent.charmmff_filetype(basename)
+        if basename in self.custom_files:
+            with open(self.filenamemap[ext][basename]) as file:  # custom files are not part of the cache?
+                lines = file.read().splitlines()
+                # logger.debug(f'found {len(lines)} lines in {basename} in custom files')
+                with open(basename, 'w') as f:
+                    for l in lines:  # l will contain the newline character
+                        is_comment = any([l.startswith(x) for x in comment_these_out])
+                        if not is_comment:
+                            f.write(l + '\n')
+                        else:
+                            f.write('! commented out by pestifer:\n')
+                            f.write(f'! {l}' + '\n')
+        elif basename in self.filenamemap[ext]:
+            logger.debug(f'found {basename} in at {self.filenamemap[ext][basename]} in tarball')
+            longname = self.filenamemap[ext][basename]
+            with self.toppar_fs.open(self.fs_resolver[basename]) as f:
+                # logger.debug(f'Opening {longname} in tarball')
+                content = f.read().decode()
+                if 'cholesterol' in longname:  # the cholesterol substream has two models, and it specifies the first one by default
+                    # we will parse the conditional script to get the correct model
+                    parsed_content_dict = parse_conditional_script(content)
+                    parsed_content = parsed_content_dict['parsed']
+                    content = parsed_content
+            lines = content.splitlines()
+            # logger.debug(f'type of lines is {type(lines)}')
+            # logger.debug(f'found {len(lines)} lines in {basename} in tarfile')
+            with open(basename, 'w') as f:
+                for l in lines:  # l will NOT contain the newline character
+                    is_comment = any([l.startswith(x) for x in comment_these_out])
+                    if not is_comment:
+                        f.write(l + '\n')
+                    else:
+                        f.write('! commented out by pestifer:\n')
+                        f.write(f'! {l}\n')
+        else:
+            logger.warning(f'copy_charmmfile_local: {basename} not found in charmmff')
+        return basename
+
+    def add_custom_directory(self, user_custom_directory: str | Path):
+        """ 
+        Add a user custom directory to the :class:`CHARMMFFContent`.
+        This directory should contain custom files that can be used in addition to the standard CHARMM force field files.
+
+        Parameters
+        ----------
+        user_custom_directory : str
+            The path to the user custom directory containing additional CHARMM files.
+
+        Raises
+        -------
+        NotADirectoryError
+            If the specified path is not a directory.
+        """
+        if not os.path.isdir(user_custom_directory):
+            raise NotADirectoryError(f'Expected a directory at {user_custom_directory}, but it is not a directory')
+        logger.debug(f'Adding user custom directory {user_custom_directory} to CHARMMFFContent')
+        self.custom_files.extend(os.listdir(user_custom_directory))
+        for f in self.custom_files:
+            assert f not in self.filenamemap, f'user custom file {f} already exists in filenamemap'
+            ext = CHARMMFFContent.charmmff_filetype(f)
+            self.filenamemap[ext][f] = os.path.join(user_custom_directory, f)
+
+    def clean_local_charmmff_files(self):
+        """ 
+        Remove all local CHARMM force field files that start with ``par``, ``top_``, ``toppar``, ``charmm``, or end with ``.str``, ``.prm``, or ``.rtf``.
+        This function is useful for cleaning up the local directory where CHARMM files are stored.
+        It will remove files that match the specified patterns, ensuring that only relevant CHARMM files are kept.
+        """
+        for f in os.listdir('.'):
+            # logger.debug(f'Checking file {f} for removal')
+            if CHARMMFFContent.charmmff_filetype(f):
+                os.remove(f)
+    
+    def get_resi(self, resname: str) -> CharmmResi | None:
+        if not self.provisioned:
+            raise RuntimeError('CHARMMFFContent must be provisioned before accessing residues or patches')
+        return self.residues.get_residue(resname)
+
+    def get_pres(self, presname: str) -> CharmmResi | None:
+        if not self.provisioned:
+            raise RuntimeError('CHARMMFFContent must be provisioned before accessing residues or patches')
+        return self.patches.get_residue(presname)
+
+    def __contains__(self, resi_or_pres_name: str) -> bool:
+        if not self.provisioned:
+            raise RuntimeError('CHARMMFFContent must be provisioned before accessing residues or patches')
+        return resi_or_pres_name in self.residues or resi_or_pres_name in self.patches
+    
+    def checkout_pdb(self, name: str) -> PDBInput | None:
+        if not self.provisioned:
+            raise RuntimeError('CHARMMFFContent must be provisioned before accessing PDB repository')
+        return self.pdbrepository.checkout(name)
 
 class CHARMMFFStreamID:
     """
@@ -366,153 +565,4 @@ class CHARMMFFStreamID:
                     self.substreamID = '_'.join(tokens[3:])
         logger.debug(f'CHARMMFFStreamID: parsed {self.charmmff_filename} to streamID={self.streamID}, substreamID={self.substreamID}')
 
-class CHARMMFFContent(CHARMMFFContentData):
-    """
-    A class for handling the content of CHARMM force field files.
-    self, charmmff_path: str = '.', tarfilename: str = 'toppar_c36_jul24.tgz'
-    """
-    def __init__(self, *args, **kwargs):
-        if len(args) == 1 and isinstance(args[0], CHARMMFFContentData):
-            self.__dict__.update(args[0].__dict__)
-        elif len(args) == 1 and isinstance(args[0], str):
-            super().__init__(*args, **kwargs)
 
-    def get_topfile_of_resname(self, resname: str) -> str | None:
-        """
-        Given a residue name, return the top file that contains it
-        """
-        resi = self.residues.get(resname, None)
-        if resi is not None:
-            return resi.metadata['charmmfftopfile']
-        else:
-            logger.warning(f'Residue {resname} not found in CHARMM force field content')
-            return None
-
-    def copy_charmmfile_local(self, basename):
-        """
-        Copy a NAMD-friendly version of a CHARMMFF file to the local directory.
-        This function checks if the file already exists in the current working directory.
-        If it does, it returns the basename. If the file is found in the custom files, it copies it from there.
-        If the file is found in the tarball or any custom directory, it extracts it and writes it to the local directory, filtering out CHARMM commands that give NAMD trouble.
-        If the file is not found in either location, it logs a warning.
-
-        Parameters
-        ----------
-        basename : str
-            The basename of the CHARMM file to copy. This should be a recognizable CHARMMFF rtf, prm, or str file name without any directory path.
-
-        Returns
-        -------
-        str
-            The basename of the copied file in the local directory.
-        """
-        # When copying a parameter file into a NAMD run directory, lines that begin with these keywords are removed
-        comment_these_out = ['set', 'if', 'WRNLEV', 'BOMLEV', 'return', 'endif']
-
-        if os.path.exists(basename):
-            # logger.debug(f'{basename} already exists in {os.getcwd()}')
-            return basename
-        if os.sep in basename:
-            # this is a path
-            # logger.debug(f'expected a basename and got a path {basename}')
-            basename = os.path.split(basename)[1]
-            # logger.debug(f'truncated to basename {basename}')
-        if basename in self.custom_files:
-            with open(self.filenamemap[basename]) as file:  # custom files are not part of the cache?
-                lines = file.read().splitlines()
-                # logger.debug(f'found {len(lines)} lines in {basename} in custom files')
-                with open(basename, 'w') as f:
-                    for l in lines:  # l will contain the newline character
-                        is_comment = any([l.startswith(x) for x in comment_these_out])
-                        if not is_comment:
-                            f.write(l + '\n')
-                        else:
-                            f.write('! commented out by pestifer:\n')
-                            f.write(f'! {l}' + '\n')
-        elif basename in self.filenamemap:
-            logger.debug(f'found {basename} in at {self.filenamemap[basename]} in tarball')
-            lines = self.contents[basename].splitlines()
-            # logger.debug(f'type of lines is {type(lines)}')
-            # logger.debug(f'found {len(lines)} lines in {basename} in tarfile')
-            with open(basename, 'w') as f:
-                for l in lines:  # l will NOT contain the newline character
-                    is_comment = any([l.startswith(x) for x in comment_these_out])
-                    if not is_comment:
-                        f.write(l + '\n')
-                    else:
-                        f.write('! commented out by pestifer:\n')
-                        f.write(f'! {l}\n')
-        else:
-            logger.warning(f'copy_charmmfile_local: {basename} not found in charmmff')
-        return basename
-
-    def add_custom_directory(self, user_custom_directory: str | Path):
-        """ 
-        Add a user custom directory to the :class:`CHARMMFFContent`.
-        This directory should contain custom files that can be used in addition to the standard CHARMM force field files.
-
-        Parameters
-        ----------
-        user_custom_directory : str
-            The path to the user custom directory containing additional CHARMM files.
-
-        Raises
-        -------
-        NotADirectoryError
-            If the specified path is not a directory.
-        """
-        if not os.path.isdir(user_custom_directory):
-            raise NotADirectoryError(f'Expected a directory at {user_custom_directory}, but it is not a directory')
-        logger.debug(f'Adding user custom directory {user_custom_directory} to CHARMMFFContent')
-        self.custom_files.extend(os.listdir(user_custom_directory))
-        for f in self.custom_files:
-            assert f not in self.filenamemap, f'user custom file {f} already exists in filenamemap'
-            self.filenamemap[f] = os.path.join(user_custom_directory, f)
-            with open(self.filenamemap[f]) as custom_file:
-                self.contents[f] = custom_file.read()
-
-    def clean_local_charmmff_files(self):
-        """ 
-        Remove all local CHARMM force field files that start with ``par``, ``top_``, ``toppar``, ``charmm``, or end with ``.str``, ``.prm``, or ``.rtf``.
-        This function is useful for cleaning up the local directory where CHARMM files are stored.
-        It will remove files that match the specified patterns, ensuring that only relevant CHARMM files are kept.
-        """
-        for f in os.listdir('.'):
-            # logger.debug(f'Checking file {f} for removal')
-            if self.is_charmmff_file(f):
-                os.remove(f)
-
-    def get_topfile_of_resname(self, resname: str) -> str | None:
-        """ 
-        Given a residue name, return the top file that contains it 
-        """
-        resi = self.residues.get(resname, None)
-        if resi is not None:
-            return resi.metadata['charmmfftopfile']
-        else:
-            logger.warning(f'Residue {resname} not found in CHARMM force field content')
-            return None
-
-    def get_topfile_of_patchname(self, patchname: str) -> str | None:
-        """ 
-        Given a patch name, return the top file that contains it 
-        """
-        patch = self.patches.get(patchname, None)
-        if patch is not None:
-            return patch.metadata['charmmfftopfile']
-        else:
-            logger.warning(f'Patch {patchname} not found in CHARMM force field content')
-            return None
-    
-    def get_resi(self, resname: str) -> CharmmResi | None:
-        return self.residues.get_residue(resname)
-
-    def get_pres(self, presname: str) -> CharmmResi | None:
-        return self.patches.get_residue(presname)
-
-    def __contains__(self, resi_or_pres_name: str) -> bool:
-        return resi_or_pres_name in self.residues or resi_or_pres_name in self.patches
-    
-    def checkout_pdb(self, name: str) -> PDBInput | None:
-        pdb_repo = PDBRepository(self.pdbrepository)
-        return pdb_repo.checkout(name)

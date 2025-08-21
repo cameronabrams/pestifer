@@ -31,7 +31,7 @@ class CharmmMass:
     """ The element symbol, if provided, otherwise inferred from the atom type. """
     com: str = ''
     """ A comment associated with the mass record, if present. """
-    
+
     @classmethod
     def from_card(cls, card: str) -> CharmmMass: 
         tok, com = linesplit(card)
@@ -42,10 +42,16 @@ class CharmmMass:
         try:
             atom_element = tokens[4]
         except:
-            firstchar = atom_type[0]
-            if not firstchar.isdigit():
-                atom_element = firstchar.upper()
-        return cls(atom_type=atom_type, atom_mass=atom_mass, atom_element=atom_element, com=com)
+            for c in atom_type[0]:
+                if not c.isdigit():
+                    atom_element = c.upper()
+                    break
+        return cls(
+            atom_type=atom_type,
+            atom_mass=atom_mass,
+            atom_element=atom_element,
+            com=com
+        )
 
     def __str__(self):
         ans = f'{self.atom_type} {self.atom_mass:.4f}'
@@ -56,11 +62,13 @@ class CharmmMass:
         return ans
 
 class CharmmMassList(UserList[CharmmMass]):
+
     def to_dict(self):
         return {m.atom_type: m for m in self}
     def from_dict(self, d: dict[str, CharmmMass]):
         self.clear()
         self.extend(d.values())
+
     @classmethod
     def from_cardlist(cls, cardlist: list[str]):
         mass_records = [CharmmMass.from_card(card) for card in cardlist]
@@ -108,18 +116,17 @@ class CharmmAtom:
     """ The element symbol, if provided, otherwise set to '?'. """
     inpatch: bool = False
     """ A flag indicating whether the atom is part of a patch, set to True if the name starts with a digit. """
-    
+
     @classmethod
     def from_card(cls, card: str) -> CharmmAtom:
         tokens = card.split()
         # logger.debug(f'Parsing CharmmAtom from card: [{card}]')
-        atom = cls()
-        atom.name = tokens[1].upper()
-        atom.type = tokens[2].upper()
-        atom.charge = float(tokens[3])
-        if atom.name[0].isdigit():
-            atom.inpatch = True
-        return atom
+        return cls(
+            name=tokens[1].upper(),
+            type=tokens[2].upper(),
+            charge=float(tokens[3]),
+            inpatch=tokens[1][0].isdigit()
+        )
 
     def __str__(self):
         ans = f'ATOM {self.name} {self.type} {self.charge:.4f}'
@@ -218,7 +225,13 @@ class CharmmAtomList(UserList[CharmmAtom]):
         except:
             return None
 
-    def get_mass(self, name: str) -> float:
+    def get_mass(self) -> float:
+        """
+        Return the sum of the masses of all atoms in the list.
+        """
+        return np.sum([a.mass for a in self.data])
+
+    def get_mass_of_member(self, name: str) -> float:
         """ 
         This method searches for an atom by its name in the list of CharmmAtom objects
         and returns its mass. If the atom is not found or does not have a mass attribute, it returns 0.0.
@@ -235,8 +248,7 @@ class CharmmAtomList(UserList[CharmmAtom]):
         """        
         a = self.get_atom(name)
         if a is not None:
-            if hasattr(a, 'mass'):
-                return a.mass
+            return a.mass
         return 0.0
 
     def get_serial(self, name: str) -> int:
@@ -396,7 +408,7 @@ class CharmmBondList(UserList[CharmmBond]):
         result = CharmmBondList([])
         toks = [x.strip() for x in card.split()][1:]
         for p in batched(toks, 2):
-            result.append(CharmmBond(p, degree=degree))
+            result.append(CharmmBond(*p, degree=degree))
         return result
 
 @dataclass
@@ -453,7 +465,7 @@ class CharmmAngleList(UserList[CharmmAngle]):
         result = cls([])
         toks = [x.strip() for x in card.split()][1:]
         for p in batched(toks, 3):
-            result.append(CharmmAngle(p))
+            result.append(CharmmAngle(*p))
         return result
 
 @dataclass
@@ -516,7 +528,7 @@ class CharmmDihedralList(UserList[CharmmDihedral]):
         dihedrals = CharmmDihedralList([])
         toks = [x.strip() for x in card.split()][1:]
         for p in batched(toks, 4):
-            dihedrals.append(CharmmDihedral(p, dihedral_type=dihedral_type))
+            dihedrals.append(CharmmDihedral(*p, dihedral_type=dihedral_type))
         return dihedrals
 
 @dataclass
@@ -969,7 +981,7 @@ class CharmmResi:
         headg = list(mindata['headg'])
         tailg = list(mindata['tailg'])
         # head reference is heaviest atom in head
-        headmasses = np.array([self.atoms.get_mass(n) for n in headg])
+        headmasses = np.array([self.atoms.get_mass_of_member(n) for n in headg])
         headatom = headg[np.argmax(headmasses)]
         logger.debug(f'headmasses {headmasses} headatom {headatom}')
 
@@ -1213,9 +1225,9 @@ class CharmmResiList(UserList[CharmmResi]):
         pres = CharmmResiList(list(filter(lambda r: r.key=='PRES', self)))
         return resi, pres
 
-    def tally_masses(self, CharmmMassDict):
+    def tally_masses(self, massdict: CharmmMassDict):
         for resi in self.data:
-            resi.set_masses(CharmmMassDict)
+            resi.set_mass(massdict)
 
 class CharmmResiDict(UserDict[CharmmResi]):
     """
@@ -1244,12 +1256,12 @@ class CharmmResiDict(UserDict[CharmmResi]):
         self.clear()
         self.update(d)
 
-    def tally_masses(self):
+    def tally_masses(self, massdict: CharmmMassDict):
         """
         Tally the masses of all residues in the dictionary.
         """
         for resi in self.values():
-            resi.set_mass(self)
+            resi.set_mass(massdict)
 
     def get_residue(self, name: str) -> CharmmResi | None:
         """
