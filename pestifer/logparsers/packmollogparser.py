@@ -5,6 +5,7 @@ Packmol log parsing utility
 """
 
 import logging
+import os
 import re
 import yaml
 
@@ -129,7 +130,7 @@ class PackmolLogParser(LogParser):
             idx = i + len('Structure')
             eol = bytes[idx:].index('\n') + idx
             substr = bytes[idx:eol]
-            # logger.debug(f'Found structure: {substr} {idx} {eol}')
+            logger.debug(f'Found structure: {substr} {idx} {eol}')
             tokens = substr.replace('(', '').replace(')', '').replace(':', '').split()
             idx = int(tokens[0])
             fl = tokens[1]
@@ -398,7 +399,14 @@ class PackmolLogParser(LogParser):
                 continue
             ax[i].plot(v['iteration'], v['function_value_last'], label='Last function value')
             ax[i].plot(v['iteration'], v['function_value_best'], label='Best function value')
-            ax[i].set_title(f'Molecule type {k}')
+            if k == 'all':
+                title = 'All molecules'
+            else:
+                assert isinstance(k, int), f'Expected k to be int, got {type(k)}'
+                pdb_name = list(filter(lambda x: x['idx'] == k, self.metadata['structures']))[0]['file']
+                mname = os.path.splitext(os.path.basename(pdb_name))[0]
+                title = f'Molecule {mname} ({k})'
+            ax[i].set_title(title)
             ax[i].set_xlabel('Iteration')
             ax[i].set_ylabel('Function value')
             ax[i].legend()

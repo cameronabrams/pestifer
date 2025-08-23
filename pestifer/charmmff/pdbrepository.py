@@ -11,6 +11,8 @@ from typing import Callable
 import yaml
 from dataclasses import dataclass, field
 from ..util.cacheable_object import TarBytesFS, CacheableObject
+from ..util.util import countTime
+from ..util.spinner_wrapper import with_spinner
 
 logger = logging.getLogger(__name__)
 
@@ -201,12 +203,14 @@ class PDBCollection:
     """ The registration place of the collection in the repository indicating when it registered. """
 
     @classmethod
-    def build_from_resources(cls, path_or_tarball: str = '', streamID_override: str = ''):
+    # def build_from_resources(cls, path_or_tarball: str = '', streamID_override: str = ''):
+    def build_from_resources(cls, path_or_tarball: str, resnames: list[str] = [], streamID_override: str = None):
         if not path_or_tarball:
             return cls()
         streamID = os.path.splitext(os.path.basename(path_or_tarball))[0] if not streamID_override else streamID_override
-        info = {}
+        # logger.debug(f'{path_or_tarball} streamID {streamID}')
         contents = PDBInputDict({})
+        info = {}
         if path_or_tarball.endswith('.tar.gz') or path_or_tarball.endswith('.tgz'):
             logger.debug(f'Initializing PDBCollection from tarball {path_or_tarball}')
             pdbrepo_fs = TarBytesFS.from_file(path_or_tarball, compression='gzip')
@@ -219,23 +223,27 @@ class PDBCollection:
             for solo in toplevel_solos:
                 # update info and contents for a solo PDB file (info is empty in this case)
                 resname = os.path.splitext(os.path.basename(solo))[0]
-                info[resname] = {}
-                with pdbrepo_fs.open(solo, 'r') as f:
-                    contents[resname] = PDBInput(name=resname, pdbcontents={'0': f.read()}, info=info[resname])
+                if not resnames or resname in resnames:
+                    info[resname] = {}
+                    with pdbrepo_fs.open(solo, 'r') as f:
+                        contents[resname] = PDBInput(name=resname, pdbcontents={'0': f.read()}, info=info[resname])
             for subdir in toplevel_subdirs:
                 resname = os.path.basename(subdir)
-                info_search = [x for x in pdbrepo_fs.ls(subdir) if 'info.yaml' in x['name']]
-                if len(info_search) == 0:
-                    logger.warning(f'No info.yaml found for {resname} in tarball {path_or_tarball}.')
-                    continue
-                sd_member = info_search[0]
-                with pdbrepo_fs.open(sd_member['name'], 'r') as f:
-                    info[resname] = yaml.safe_load(f)
-                pdbcontents = {}
-                for index, conformer in enumerate(info[resname]['conformers']):
-                    with pdbrepo_fs.open(os.path.join(subdir, conformer['pdb']), 'r') as f:
-                        pdbcontents[index] = f.read()
-                contents[resname] = PDBInput(name=resname, pdbcontents=pdbcontents, info=info[resname])
+                if not resnames or resname in resnames:
+                    info_search = [x for x in pdbrepo_fs.ls(subdir) if 'info.yaml' in x['name']]
+                    if len(info_search) == 0:
+                        logger.warning(f'No info.yaml found for {resname} in tarball {path_or_tarball}.')
+                        continue
+                    sd_member = info_search[0]
+                    with pdbrepo_fs.open(sd_member['name'], 'r') as f:
+                        info[resname] = yaml.safe_load(f)
+                    pdbcontents = {}
+                    for index, conformer in enumerate(info[resname]['conformers']):
+                        with pdbrepo_fs.open(os.path.join(subdir, conformer['pdb']), 'r') as f:
+                            pdbcontents[index] = f.read()
+                    contents[resname] = PDBInput(name=resname, pdbcontents=pdbcontents, info=info[resname])
+            if len(contents) == 0:
+                logger.debug(f'No valid PDB contents for {"any resnames" if not resnames else resnames} found in tarball {path_or_tarball}.')
             del pdbrepo_fs
             return cls(path_or_tarball=path_or_tarball, streamID=streamID, info=info, contents=contents)
         elif os.path.isdir(path_or_tarball):
@@ -247,20 +255,24 @@ class PDBCollection:
             subdirs = [x for x in dircontents if os.path.isdir(x) and not x.startswith('.')]
             for solo in solos:
                 resname = os.path.splitext(solo)[0]
-                info[resname] = {}
-                with open(solo, 'r') as f:
-                    contents[resname] = PDBInput(name=resname, pdbcontents={0: f.read()}, info=info[resname])
+                if not resnames or resname in resnames:
+                    info[resname] = {}
+                    with open(solo, 'r') as f:
+                        contents[resname] = PDBInput(name=resname, pdbcontents={0: f.read()}, info=info[resname])
             pdbcontents = {}
             for subdir in subdirs:
                 resname = subdir
-                if os.path.exists(os.path.join(subdir, 'info.yaml')):
-                    with open(os.path.join(subdir, 'info.yaml'), 'r') as f:
-                        info[resname] = yaml.safe_load(f)
-                for index, conformer in enumerate(info[resname]['conformers']):
-                    with open(os.path.join(subdir, conformer['pdb']), 'r') as f:
-                        pdbcontents[index] = f.read()
-            contents[resname] = PDBInput(name=resname, pdbcontents=pdbcontents, info=info[resname])
+                if not resnames or resname in resnames:
+                    if os.path.exists(os.path.join(subdir, 'info.yaml')):
+                        with open(os.path.join(subdir, 'info.yaml'), 'r') as f:
+                            info[resname] = yaml.safe_load(f)
+                    for index, conformer in enumerate(info[resname]['conformers']):
+                        with open(os.path.join(subdir, conformer['pdb']), 'r') as f:
+                            pdbcontents[index] = f.read()
+                    contents[resname] = PDBInput(name=resname, pdbcontents=pdbcontents, info=info[resname])
             os.chdir(cwd)
+            if len(contents) == 0:
+                logger.debug(f'No valid PDB contents for {"any resnames" if not resnames else resnames} found in directory {path_or_tarball}.')
             return cls(path_or_tarball=path_or_tarball, streamID=streamID, info=info, contents=contents)
 
     def show(self, fullnames: bool = False, missing_fullnames: dict = None) -> str:
@@ -283,14 +295,19 @@ class PDBCollection:
             If `fullnames` is True, it will include the full names (synonyms) of the residues; otherwise, it will just list the resnames.
 
         """
-        retstr = f'PDBCollection(registered_at={self.registration_place}, streamID={self.streamID}, path={self.path_or_tarball}, contains {len(self.info)} resnames)\n'
+        retstr = f'PDBCollection(registered_at={self.registration_place}'
+        retstr += f', streamID=\'{self.streamID}\''
+        retstr += f', path=\'{self.path_or_tarball}\''
+        retstr += f', contains {len(self.info)} resnames)\n'
         if fullnames:
+            pass
             for resname in sorted(self.info.keys()):
                 fullname = self.info[resname].get('synonym', '')
                 if not fullname:
                     fullname = missing_fullnames.get(resname, '')
                 retstr += f'  {fullname:>66s} ({resname})\n'
         else:
+            pass
             for i, resname in enumerate(sorted(self.info.keys())):
                 retstr += f'{resname:>6s}'
                 if i < len(self.info) - 1:
@@ -345,7 +362,19 @@ class PDBRepository(CacheableObject):
     A ``PDBRepository`` is a set of _collections_, each of which respresents a CHARMMFF _stream_.  The base ``PDBRepository`` is the one that comes with pestifer, and it is located in ``PESTIFER/resources/charmmff/pdbrepository/``. The base ``PDBRepository`` contains a ``lipid`` collection and a ``water_ions`` collection (as of v 1.13.1).  A user may register additional collections by specifying them in the yaml config file. 
     """
     
-    def _build_from_resources(self, charmmff_pdbrepository_path: str = ''):
+    @countTime
+    def __init__(self, *args, **kwargs):
+        is_custom = 'resnames' in kwargs and len(kwargs['resnames']) > 0
+        if is_custom:
+            self.build_custom(*args, **kwargs)
+        else:
+            super().__init__(*args, **kwargs)
+
+    @with_spinner('No cache yet -- building PDBRepository from package resources...')
+    def _build_from_resources(self, charmmff_pdbrepository_path: str = '', **kwargs):
+        """
+        Build a full collection that represents the complete resource set.
+        """
         self.collections: PDBCollectionDict = PDBCollectionDict({})
         self.registration_order: list[str] = []
         members = os.listdir(charmmff_pdbrepository_path)
@@ -354,7 +383,28 @@ class PDBRepository(CacheableObject):
             datapath = os.path.join(charmmff_pdbrepository_path, m)
             self.add_resource(datapath)
 
-    def add_resource(self, path_or_tarball: str = '', streamID_override: str = ''):
+    def build_custom(self, charmmff_pdbrepository_path: str = '', streamID_override: str = '', resnames: list[str] = [], **kwargs):
+        """
+        Build a custom collection that represents a user-defined set of residues.
+
+        Parameters
+        ----------
+        charmmff_pdbrepository_path : str
+            The path to the charmmff/pdbrepository directory.
+        streamID_override : str
+            An optional override for the stream ID.
+        resnames: list[str]
+            An optional list of resnames that the collection should minimally include.  This is for building custom, right-sized collections for any particular build.
+        """
+        self.collections: PDBCollectionDict = PDBCollectionDict({})
+        self.registration_order: list[str] = []
+        members = os.listdir(charmmff_pdbrepository_path)
+        for m in members:
+            logger.debug(f'Adding {m} to custom PDBRepository from {charmmff_pdbrepository_path}')
+            datapath = os.path.join(charmmff_pdbrepository_path, m)
+            self.add_resource(datapath, streamID_override=streamID_override, resnames=resnames)
+
+    def add_resource(self, path_or_tarball: str = '', streamID_override: str = '', resnames: list[str] = []):
         """
         Add a new ``PDBCollection`` to the repository from a file path.
 
@@ -364,9 +414,11 @@ class PDBRepository(CacheableObject):
             The file path to the PDB collection.
         streamID_override : str
             An optional override for the stream ID.
-
+        resnames: list[str]
+            An optional list of resnames that the collection should minimally include.  This is for building custom, right-sized collections for any particular build.
         """
-        c = PDBCollection.build_from_resources(path_or_tarball=path_or_tarball, streamID_override=streamID_override)
+        c = PDBCollection.build_from_resources(path_or_tarball=path_or_tarball, streamID_override=streamID_override, resnames=resnames)
+        # logger.debug(c.streamID)
         self.add_collection(c, collection_key=c.streamID)
 
     def add_collection(self, collection: PDBCollection, collection_key='generic'):
@@ -383,6 +435,7 @@ class PDBRepository(CacheableObject):
         """
         if not isinstance(collection, PDBCollection):
             raise TypeError('collection must be a PDBCollection object')
+        # logger.debug(f'registration_order \'{self.registration_order}\'')
         if collection_key in self.registration_order:
             logger.warning(f'Collection {collection_key} already registered; will not add again.')
             tag=1
@@ -393,10 +446,10 @@ class PDBRepository(CacheableObject):
             collection_key = f'{collection_key}_{tag}'
         self.collections[collection_key] = collection
         self.registration_order.append(collection_key)
+        # logger.debug(f' -> registration_order \'{self.registration_order}\' streamID {collection.streamID}')
         self.collections[collection_key].registration_place = len(self.registration_order)
         logger.debug(f'Added collection {collection_key} with {len(collection.info)} residues.')
 
-    """ A manager for the dataclass PDBRepository that adds methods for easier access and manipulation of PDB data."""
     def show(self, out_stream: Callable = print, fullnames: bool = False, missing_fullnames: dict = {}):
         """ 
         Show the contents of the PDBRepository, including all registered collections and their contents.
@@ -404,17 +457,18 @@ class PDBRepository(CacheableObject):
         Parameters
         ----------
         out_stream : callable, optional
-            A callable that takes a string and outputs it. Defaults to print.
+            A callable that takes a string and outputs it. Defaults to # logger.debug.
         fullnames : bool, optional
             If True, show the full names of the residues (synonyms) instead of just the resnames. Defaults to False.
         missing_fullnames : dict, optional
             A dictionary mapping resnames to their full names if they are not found in the collection.
             This is used to provide full names for residues that do not have a synonym in the metadata.
-            Defaults to an empty dictionary."""
+            Defaults to an empty dictionary.
+        """
         out_stream('-'*75)
         out_stream('PDB Collections:')
         for cname in self.registration_order[::-1]:
-            coll: PDBCollection = PDBCollection(self.collections[cname])
+            coll: PDBCollection = self.collections[cname]
             out_stream(coll.show(fullnames=fullnames, missing_fullnames=missing_fullnames))
         out_stream('-'*75)
 

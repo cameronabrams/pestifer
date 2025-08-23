@@ -23,7 +23,7 @@ dependencies = [
   "pyyaml>=6",
   "pidibble>=1.4.2",
   "pandas",
-  "ycleptic>=1.9.0",
+  "ycleptic>=2.0.1",
   "mmcif",
   "progressbar2",
   "networkx",
@@ -32,7 +32,8 @@ dependencies = [
   "sphinx>=8.2.3",
   "scipy",
   "pydantic",
-  "matplotlib" # Explicitly declare if needed for docs
+  "matplotlib",
+  "fsspec"
 ]
 
 [project.scripts]
@@ -44,7 +45,7 @@ pestifer = "pestifer.core.pestifer:cli"
 "Bug Tracker" = "https://github.com/cameronabrams/pestifer/issues"
 
 [tool.pytest.ini_options]
-log_cli = true
+log_cli = false
 
 [tool.hatch.envs.default.scripts]
 post-install = [

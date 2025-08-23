@@ -682,6 +682,13 @@ class CharmmResi:
     source_file: str = ''
     """ The source file from which the residue was constructed. """
 
+    @staticmethod
+    def name_from_blockstring(blockstring: str):
+        lines = [x.strip() for x in blockstring.split('\n')]
+        titledata, _ = linesplit(lines[0])
+        tctokens = titledata.split()
+        return tctokens[1] if len(tctokens) > 1 else ''
+
     @classmethod
     def from_blockstring(cls, blockstring: str,  metadata: dict = {}) -> 'CharmmResi':
         # logger.debug(f'Parsing CharmmResi from blockstring: {blockstring[:30]}...')
@@ -1237,11 +1244,14 @@ class CharmmResiDict(UserDict[CharmmResi]):
         super().__init__(*args, **kwargs)
 
     @classmethod
-    def from_blockstring_list(cls, blockstring_list: list[str], metadata: dict[str, str]):
+    def from_blockstring_list(cls, blockstring_list: list[str], metadata: dict[str, str], resnames: list[str] = []):
         resi_dict = cls()
         for block in blockstring_list:
-            resi = CharmmResi.from_blockstring(block, metadata=metadata)
-            resi_dict[resi.resname] = resi
+            resname = CharmmResi.name_from_blockstring(block)
+            # logger.debug(f'Look-ahead found resname {resname}; include? {"yes" if len(resnames)==0 or resname in resnames else "no"}')
+            if len(resnames) == 0 or resname in resnames:
+                resi = CharmmResi.from_blockstring(block, metadata=metadata)
+                resi_dict[resi.resname] = resi
         return resi_dict
     
     def to_resi_pres(self):

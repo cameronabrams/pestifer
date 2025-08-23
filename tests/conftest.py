@@ -1,7 +1,17 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
+from __future__ import annotations
 
 import pytest
 import os
+# conftest.py
+import logging
+
+from logging import FileHandler, Formatter
+from pathlib import Path
+
+# Keep a reference so we can clean up
+_FILE_HANDLER: FileHandler | None = None
+_LOGFILE: Path | None = None
 
 @pytest.fixture(autouse=True)
 def change_test_dir(request, monkeypatch):
@@ -30,8 +40,50 @@ def pytest_addoption(parser):
     )
 
 def pytest_configure(config):
+    """Runs very early; attach our FileHandler to the root logger."""
+    global _FILE_HANDLER, _LOGFILE
+
+    # repo root; adjust if your conftest.py lives elsewhere
+    root = Path(config.rootpath)
+    logdir = root / "tests" / "logs"
+    logdir.mkdir(parents=True, exist_ok=True)
+
+    # xdist-friendly: one file per worker
+    worker = os.getpid()
+    _LOGFILE = logdir / f"tests-{worker}.log"
+
+    fh = FileHandler(_LOGFILE, mode="w", encoding="utf-8", delay=False)
+    fh.setFormatter(Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s",
+                              "%Y-%m-%d %H:%M:%S"))
+    fh._pytest_added = True  # tag for cleanup
+    _FILE_HANDLER = fh
+
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.DEBUG)   # adjust to taste
+    root_logger.addHandler(fh)
+
+    # Optional: announce path at start
+    config._logfile_path = str(_LOGFILE)
+
     config.addinivalue_line("markers", "slow: mark test as slow to run")
 
+def pytest_unconfigure(config):
+    """Remove and close our handler cleanly."""
+    global _FILE_HANDLER
+    if _FILE_HANDLER:
+        root_logger = logging.getLogger()
+        try:
+            root_logger.removeHandler(_FILE_HANDLER)
+        finally:
+            try:
+                _FILE_HANDLER.close()
+            except Exception:
+                pass
+        _FILE_HANDLER = None
+
+def pytest_report_header(config):
+    p = getattr(config, "_logfile_path", None)
+    return f"Logging to: {p}" if p else None
 
 def pytest_collection_modifyitems(config, items):
     if config.getoption("--runslow"):

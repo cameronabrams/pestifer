@@ -65,7 +65,7 @@ class ResiduePlaceholder(BaseObj):
     """
 
     _optional_fields = {'model', 'obj_id', 'auth_asym_id', 'auth_comp_id', 
-                        'auth_seq_id', 'empty', 'recordname', 'orig_chainID'}
+                        'auth_seq_id', 'empty', 'recordname', 'orig_chainID', 'ORIGINAL_ATTRIBUTES'}
     """
     Optional attributes for ResiduePlaceholder.
     
@@ -110,6 +110,7 @@ class ResiduePlaceholder(BaseObj):
     recordname: str = Field('REMARK.465', description="The PDB record name for the residue.")
 
     orig_chainID: str | None = Field(None, description="The original chain ID, if applicable.")
+    ORIGINAL_ATTRIBUTES: dict = Field(default_factory=dict, description="Stash of original attributes for the residue, if it is renamed.")
 
     _yaml_header: ClassVar[str] = 'missings'
     """
@@ -751,40 +752,6 @@ class ResidueList(BaseObjList[Residue]):
                 auth_Cid = r.auth_asym_id
                 if not label_Cid in self._chainIDmap_label_to_auth:
                     self._chainIDmap_label_to_auth[label_Cid] = auth_Cid
-
-    # def get_residue(self,**fields):
-    #     """
-    #     Get a residue from the list based on specified fields.
-
-    #     Parameters
-    #     ----------
-    #     fields : keyword arguments
-    #         The fields to match against residues in the list.
-
-    #     Returns
-    #     -------
-    #     :class:`~pestifer.molecule.residue.Residue`
-    #         The matching residue, or None if not found.
-    #     """
-    #     return self.get(**fields)
-    
-    # def get_atom(self,atname,**fields):
-    #     """
-    #     Get an atom from the residue's list of atoms based on its name and specified fields.
-        
-    #     Parameters
-    #     ----------
-    #     atname : str
-    #         The name of the atom to retrieve.
-    #     fields : keyword arguments
-    #         Additional fields to match against the atom's attributes.
-        
-    #     Returns
-    #     -------
-    #     :class:`~pestifer.molecule.atom.Atom`
-    #         The matching atom, or None if not found."""
-    #     S=('atoms',{'name':atname})
-    #     return self.get_attr(S,**fields)
     
     def atom_serials(self, as_type=str):
         """
@@ -1153,6 +1120,9 @@ class ResidueList(BaseObjList[Residue]):
         """
 
         return StateIntervalList.process_itemlist(self, state_func=state_func)
+
+    def puniquify(self, attrs: list[str], stash_attr_name = 'ORIGINAL_ATTRIBUTES'):
+        return super().puniquify(attrs, stash_attr_name)
 
 Link.model_rebuild()
 Patch.model_rebuild()

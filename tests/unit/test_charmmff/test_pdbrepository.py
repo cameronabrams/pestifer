@@ -29,8 +29,11 @@ class TestPDBRepository(unittest.TestCase):
         self.repopath = os.path.join(charmmffpath, 'pdbrepository')
         self.pdbrepo = PDBRepository(self.repopath)
 
+    def test_pdbrepository_force_rebuild(self):
+        self.fresh_repo = PDBRepository(self.repopath, force_rebuild=True)
+        self.assertFalse(self.fresh_repo.from_cache)
+
     def test_pdbrepository_initialization(self):
-        self.assertIsNotNone(self.pdbrepo)
         self.pdbrepo.add_resource('solos')
         self.pdbrepo.add_resource('mylipid.tgz')
         self.assertTrue('lipid' in self.pdbrepo.collections)
@@ -40,6 +43,15 @@ class TestPDBRepository(unittest.TestCase):
         self.assertTrue('TIP3' in self.pdbrepo)
         self.assertTrue('C7DHPC' in self.pdbrepo)
         self.assertFalse('FAKE' in self.pdbrepo)
+
+    def test_pdbrepository_restricted(self):
+        resnames = ['PSM', 'CHL1', 'DOPC']
+        self.fresh_repo = PDBRepository(self.repopath, resnames=resnames)
+        self.assertTrue('lipid' in self.fresh_repo.collections)
+        self.assertTrue('PSM' in self.fresh_repo)
+        self.assertTrue('CHL1' in self.fresh_repo)
+        self.assertTrue('DOPC' in self.fresh_repo)
+        self.assertFalse('TIP3' in self.fresh_repo)
 
     def test_pdbrepository_checkout_fromtar(self):
         c = self.pdbrepo.checkout('PSM')

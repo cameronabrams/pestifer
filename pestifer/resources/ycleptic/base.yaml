@@ -4,7 +4,7 @@
 # Ycleptic-format specification for a user's YAML-format pestifer configuration file
 #
 # The "name" of any directive may appear as a key whose value is specified by "type"
-# and any dependent "directives".  Values with scalar types should only appear
+# and any dependent "attributes".  Values with scalar types should only appear
 # once in any directive set.  Values with list types may have multiple instances
 # of each dependent directive.
 #
@@ -14,12 +14,12 @@
 docs:
   title: Configuration File Reference
   text: |
-    Pestifer uses YAML-format configuration input for executing a build.  These pages document all YAML directives 
+    Pestifer uses YAML-format configuration input for executing a build.  These pages document all YAML attributes 
     that can be included in a config file.  You can also use the ``pestifer config-help`` subcommand to step through
     this documentation on interactively on the command line.
 
     Each item below is a top-level directive in a pestifer configuration file.
-directives:
+attributes:
   - name: charmmff
     type: dict
     text: Specifications for charmm force-field parameter and topology files
@@ -30,7 +30,7 @@ directives:
         used for all psfgen/namd3 executions.  ``standard`` refers to files that are found in the official CHARMMFF 
         release, and are referred to by their base filenames, regardless of whether they live in the topmost ``toppar`` 
         directory or one of the stream subdirectories.  ``custom`` refers to files that are not part of the official CHARMMFF release.
-    directives:
+    attributes:
       - name: tarball
         type: str
         text: Path to a tarball containing the charmmff files; this is used to override the default set of charmmff files
@@ -44,7 +44,7 @@ directives:
             These files are included in the pestifer distribution, and are not expected to be modified by the user.  
             They are always referred to by their base filenames, regardless of whether they live in the topmost ``toppar`` 
             directory or one of the stream subdirectories.  The default set is useful for most non-membrane systems.
-        directives:
+        attributes:
           - name: rtf
             type: list
             text: Default CHARMM force-field topology files (.rst extension)
@@ -78,7 +78,7 @@ directives:
         type: dict
         text: Default custom charmmff-format files provided as part of pestifer that are NOT in the standard CHARMMFF release but are used in pestifer builds
         required: True
-        directives:
+        attributes:
           - name: rtf
             type: list
             text: Custom charmmff topology files (.rtf extension)
@@ -96,7 +96,7 @@ directives:
         type: dict
         text: User-defined custom charmmff files
         required: False
-        directives:
+        attributes:
           - name: searchpath
             type: list
             text: User-defined search paths for custom charmmff files
@@ -149,7 +149,7 @@ directives:
     docs:
       text: This directive defines common settings for the ``psfgen`` VMD plugin, including standard atom and residue aliases.
     required: True
-    directives:
+    attributes:
       - name: segtypes
         type: dict
         text: Dictionary for holding segment types as keys and lists of residue names as values
@@ -170,7 +170,7 @@ directives:
                 - ILE CD1 CD
               residue:
                 - HIS HSD
-        directives:
+        attributes:
           - name: atom
             type: list
             text: List of atom aliases to add to psfgen
@@ -193,7 +193,7 @@ directives:
     text: NAMD specifications
     docs:
       text: These are specifications for NAMD3, including default input configuration parameters for various classes of simulations.
-    directives:
+    attributes:
       - name: namd-version
         text: version of NAMD to run
         type: int
@@ -301,7 +301,7 @@ directives:
         Allows user to specify paths for certain resources, including external applications.  By default, ``pestifer``
         expects that all external applications are already in the user's PATH.  If not, this directive should be used
         to specify the paths to these applications.
-    directives:
+    attributes:
       - name: namd2
         type: str
         text: Path for namd2 executable
@@ -335,11 +335,11 @@ directives:
     text: Specifies the tasks to be performed serially in a pestifer run
     docs:
       text: These are the types of tasks that can be chained together into a run.
-    directives:
+    attributes:
       - name: fetch
         text: Fetch task; its only job is to fetch any external data file (e.g., PDB).
         type: dict
-        directives:
+        attributes:
           - name: source
             text: Source for the initial coordinate file
             type: str
@@ -356,7 +356,7 @@ directives:
       - name: continuation
         text: Continue from specified pdb, psf, and (optionally) xsc files without any further modifications (suitable for directly feeding to md tasks)
         type: dict
-        directives:
+        attributes:
           - name: psf
             text: name of psf file (w/optional psf extension)
             type: str
@@ -375,11 +375,11 @@ directives:
       - name: psfgen
         text: Parameters controlling a specific psfgen run on an input molecule
         type: dict
-        directives:
+        attributes:
           - name: source
             text: Specifies the source of the initial coordinate file
             type: dict
-            directives:
+            attributes:
               - name: biological_assembly 
                 text: integer index of the biological assembly to construct; default is 0, signifying that the asymmetric unit is to be used
                 type: int
@@ -401,7 +401,7 @@ directives:
                 text: name of output file to write a mapping of CIF chain-residue number to author chain-residue number-insertion
                 type: str
               - name: include
-                text: Logical expressions involving atom attributes used in series to specify those atoms to be included
+                text: Logical expressions involving atom attributess used in series to specify those atoms to be included
                 type: list
                 required: False
                 docs:
@@ -410,13 +410,13 @@ directives:
                    - resname == 'GLY'
                    - chainID in ['A', 'B']
               - name: exclude
-                text: Logical expressions involving atom attributes used in parallel to specify those atoms to be excluded
+                text: Logical expressions involving atom attributess used in parallel to specify those atoms to be excluded
                 type: list
                 required: False
               - name: sequence
                 text: Parameters controlling sequence modifications based on specifications in the PDB source
                 type: dict
-                directives:
+                attributes:
                   - name: include_terminal_loops
                     text: Specifies whether or not N- and C- terminal loops (if unresolved) are built in
                     type: bool
@@ -440,7 +440,7 @@ directives:
                   - name: loops
                     text: Parameters controlling model-built loops during psfgen
                     type: dict
-                    directives:
+                    attributes:
                       - name: sac_res_name 
                         text: 3-letter code of residue appended to any sufficiently long model-built 
                         type: str
@@ -452,7 +452,7 @@ directives:
                       - name: declash
                         text: Specifies how model-built residues are moved to avoid steric clashes
                         type: dict
-                        directives:
+                        attributes:
                           - name: maxcycles
                             text: Maximum number of Metropolis cycles
                             type: int
@@ -468,11 +468,11 @@ directives:
                   - name: glycans
                     text: parameters controlling how model-built glycans are adjusted, if present
                     type: dict
-                    directives:
+                    attributes:
                       - name: declash
                         text: Specifies how glycan residues are moved to avoid steric clashes
                         type: dict
-                        directives:
+                        attributes:
                           - name: maxcycles
                             text: Maximum number of Metropolis cycles
                             type: int
@@ -484,7 +484,7 @@ directives:
           - name: mods
             text: Specifies modifications to the sequence or structure in the PDB file
             type: dict
-            directives:
+            attributes:
               - name: mutations
                 text: Single-residue mutations, expressed as shortcodes (e.g., C:F32A to mutate residue 32 of chain C from PHE to ALA); note that the residue must be present in the PDB source file, and that the mutation will not be made if the residue is not present
                 type: list
@@ -597,11 +597,11 @@ directives:
         docs:
           text: |
             During a psfgen task, pestifer can be configured to "cap" the ends of interior gaps in protein backbones, or it can model-in the missing residues by growing them in from the C-terminus of the resolved protein before the gap.  Ligation refers to forming the bond between the C-terminus of the modeled-in residues and the first resolved residue after the gap.  This is done by "steering" the C-terminus toward the first resolved residue after the gap and then patching the bond in using the CHARMMFF LINK patch.
-        directives:
+        attributes:
           - name: steer
             text: Specifies parameters for steered MD to bring C-termini close to their connection points
             type: dict
-            directives:
+            attributes:
               - name: cpu-override
                 text: Override namd3 processor type since GPUresident namd3 cannot handle restraints (yet)
                 type: bool
@@ -647,7 +647,7 @@ directives:
               - name: constraints
                 text: Parameters controlling position constraints
                 type: dict
-                directives:
+                attributes:
                   - name: atoms
                     text: Atoms to be position-constrained expressed as a VMD atomselection string
                     type: string
@@ -660,7 +660,7 @@ directives:
           - name: connect
             text: Specifies parameters of the psfgen run that patches in the new backbone bonds
             type: dict
-            directives:
+            attributes:
               - name: cleanup
                 text: Specifies whether or not to clean up temporary files
                 type: bool
@@ -668,7 +668,7 @@ directives:
       - name: pdb2pqr
         text: Parameters controlling a PDB2PQR run on an input molecule
         type: dict
-        directives:
+        attributes:
           - name: pH 
             text: pH at which to calculate the protonation states of titratable residues
             type: float
@@ -679,7 +679,7 @@ directives:
         docs:
           text: |
             This task generates plots from the output of MD tasks.  It can plot energy-like quantities vs time, and profile quantities vs distance along the z-axis. The plots are generated using matplotlib, and are saved as image files. This task can be part of a standard build, or it can be used via the command line (``pestifer mdplot``) to generate plots from existing NAMD logs and xst files.
-        directives:
+        attributes:
           - name: reprocess-logs
             text: whether to run the mdplot task as part of a standard build or as a post-processing step
             type: bool
@@ -756,14 +756,14 @@ directives:
       - name: cleave
         text: Parameters controlling cleavage of one or more protein chains
         type: dict
-        directives:
+        attributes:
           - name: sites
             type: list
             text: List of site shortcodes in form C:R1-R2 where C is chain ID, R1 is resid+ins of residue N-terminal to cleavage site, R2 is residue C-terminal to cleavage site
       - name: domainswap
         text: Parameters controlling a domain swap TMD simulation
         type: dict
-        directives:
+        attributes:
           - name: cpu-override
             text: revert to cpu version of namd3 since GPUresident namd3 cannot handle restraints (yet)
             type: bool
@@ -810,7 +810,7 @@ directives:
       - name: solvate
         text: Parameters controlling solvation and ionization
         type: dict
-        directives:
+        attributes:
           - name: pad
             text: padding value for determining the overall simulation box size (in Angstroms)
             type: float
@@ -829,7 +829,7 @@ directives:
       - name: desolvate
         type: dict
         text: single-shot desolvation (no inheritance)
-        directives:
+        attributes:
           - name: psf
             type: str
             text: name of input PSF file
@@ -855,7 +855,7 @@ directives:
       - name: ring_check
         text: Parameters controlling pierced-ring checks
         type: dict
-        directives:
+        attributes:
           - name: delete
             text: which of the piercer or piercee to delete; if none, no deletions are performed
             type: string
@@ -872,7 +872,7 @@ directives:
       - name: make_membrane_system
         text: Parameters controlling packmol to generate a membrane system with an embedded protein
         type: dict
-        directives:
+        attributes:
           - name: requires_subcontroller
             text: flag to tell main controller to provision this task with a subcontroller, so it can run its own builds
             type: bool
@@ -880,11 +880,11 @@ directives:
           - name: bilayer
             text: Parameters controlling bilayer generation
             type: dict
-            directives:
+            attributes:
               - name: prebuilt
                 text: PSF and PDB file of a previously built system membrane system
                 type: dict
-                directives:
+                attributes:
                   - name: psf
                     text: name of psf file (includes psf extension)
                     type: str
@@ -909,7 +909,7 @@ directives:
               - name: patch_nlipids
                 type: dict
                 text: number of lipids per leaflet when building initial bilayer patches
-                directives:
+                attributes:
                   - name: upper
                     type: int
                     text: number of lipids in the upper leaflet
@@ -921,7 +921,7 @@ directives:
               - name: composition
                 type: dict
                 text: Alternate way of expressing bilayer composition; supercedes memgen-format 'lipids', 'mole_fractions', and 'lipid_conformers'
-                directives:
+                attributes:
                   - name: upper_leaflet
                     type: list
                     text: List of dicts with keys 'name', 'frac', and 'conf' for each lipid species
@@ -984,7 +984,7 @@ directives:
               - name: relaxation_protocols
                 text: relaxation protocols for the patch and the quilt
                 type: dict
-                directives:
+                attributes:
                   - name: patch
                     text: patch-specific relaxation protocol
                     type: list
@@ -1071,11 +1071,11 @@ directives:
                           other_parameters:
                             useflexiblecell: True
                             useconstantratio: True
-                    directives:
+                    attributes:
                       - name: md
                         text: md task for bilayer relaxation
                         type: dict
-                        directives:
+                        attributes:
                           - name: ensemble
                             text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                             type: str
@@ -1101,7 +1101,7 @@ directives:
                           - name: other_parameters 
                             type: dict
                             text: key:value pairs for other namd3 configuration file statements
-                            directives:
+                            attributes:
                               - name: useflexiblecell
                                 text: flexible cell flag for NPT
                                 type: bool
@@ -1141,11 +1141,11 @@ directives:
                           other_parameters:
                             useflexiblecell: True
                             useconstantratio: True
-                    directives:
+                    attributes:
                       - name: md
                         text: md task for bilayer relaxation
                         type: dict
-                        directives:
+                        attributes:
                           - name: ensemble
                             text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                             type: str
@@ -1170,7 +1170,7 @@ directives:
                           - name: other_parameters 
                             type: dict
                             text: key:value pairs for other namd3 configuration file statements
-                            directives:
+                            attributes:
                               - name: useflexiblecell
                                 text: flexible cell flag for NPT
                                 type: bool
@@ -1182,7 +1182,7 @@ directives:
           - name: embed
             text: parameters controlling protein embedding
             type: dict
-            directives:
+            attributes:
               - name: no_orient
                 text: if true, do not alter orientation of protein; z-axis of protein coordinate system is assumed to be membrane normal
                 type: bool
@@ -1223,7 +1223,7 @@ directives:
       - name: md
         text: Parameters controlling a NAMD run
         type: dict
-        directives:
+        attributes:
           - name: cpu-override
             text: revert to cpu version of namd3
             type: bool
@@ -1272,7 +1272,7 @@ directives:
           - name: constraints
             text: Parameters controlling position constraints
             type: dict
-            directives:
+            attributes:
               - name: atoms
                 text: Atoms to be position-constrained expressed as a VMD atomselection
                 type: string
@@ -1285,11 +1285,11 @@ directives:
       - name: manipulate
         text: Direct manipulation of atom positions
         type: dict
-        directives:
+        attributes:
           - name: mods
             text: Specifies modifications to the sequence or structure in the current structure
             type: dict
-            directives:
+            attributes:
               - name: crotations
                 text: dihedral angle rotations to reposition residues
                 type: list
@@ -1299,7 +1299,7 @@ directives:
       - name: terminate
         text: Task that signals end of task list
         type: dict
-        directives:
+        attributes:
           - name: archive_dir
             text: Specifies the directory to which all files generated by the tasks in this list will be archived in the tarball if cleanup is True
             type: str
@@ -1320,7 +1320,7 @@ directives:
           - name: package
             text: Task that packages all CHARMM parameter files and pdb/psf/coor/vel/xsc files for a production run
             type: dict
-            directives:
+            attributes:
               - name: state_dir
                 text: directory name prepended to all files in the final state tarball
                 type: str
@@ -1330,7 +1330,7 @@ directives:
               - name: md
                 text: Parameters controlling a NAMD run to be included in the tarball
                 type: dict
-                directives:
+                attributes:
                 - name: ensemble
                   text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                   type: str
@@ -1371,7 +1371,7 @@ directives:
                 - name: constraints
                   text: Parameters controlling position constraints
                   type: dict
-                  directives:
+                  attributes:
                     - name: atoms
                       text: Atoms to be position-constrained expressed as a VMD atomselection
                       type: string
@@ -1384,18 +1384,18 @@ directives:
       - name: validate
         text: Task enables VMD-based validation of PDB and PSF files
         type: list
-        directives:
+        attributes:
           - name: tests
             text: List of validation tests to run
             type: list
-            directives:
+            attributes:
               - name: selection_test
                 text: Validate a selection of atoms in the system
                 type: dict
                 docs:
                   text: |
-                    This test validates a selection of atoms in the system. It checks that the attribute of the selected atoms matches the expected value.
-                directives:
+                    This test validates a selection of atoms in the system. It checks that the attributes of the selected atoms matches the expected value.
+                attributes:
                   - name: name
                     text: User-selected name of this selection test
                     type: string
@@ -1412,7 +1412,7 @@ directives:
               - name: connection_test
                 text: Query the number of interatomic connections in a selection
                 type: dict
-                directives:
+                attributes:
                   - name: name
                     text: User-selected name of this connection test
                     type: string
@@ -1428,7 +1428,7 @@ directives:
               - name: residue_test
                 text: Validate a residue measure in the system
                 type: dict
-                directives:
+                attributes:
                   - name: name
                     text: User-selected name of this residue test
                     type: string

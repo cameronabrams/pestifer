@@ -146,10 +146,8 @@ class Bilayer:
         The concentration of salt in the bilayer solution, in molarity (M). Default is 0.0.
     solution_gcc : float, optional
         The density of the solution in grams per cubic centimeter (gcc). Default is 1.0.
-    pdbrepository : PDBRepository, optional
-        A repository of PDB structures for the species in the bilayer.
-    resi_database : ResidueDatabase, optional
-        A database of residue information for the species in the bilayer.   
+    charmmffcontent: CHARMMFFContent object
+        The CHARMM force field content object that allows access to PDB structures and RESI/PATCH information.
     solvent_specstring : str, optional
         The specification string for the solvent in the bilayer.
         Default is 'TIP3'.
@@ -178,6 +176,28 @@ class Bilayer:
         if not composition_dict:
             logger.debug('Empty bilayer')
             return None
+        
+        # user need not have specified the solvent composition in the upper and lower chambers
+        if 'upper_chamber' not in composition_dict or 'lower_chamber' not in composition_dict:
+            logger.debug(f'Provided composition dictionary does not include solvent chamber specifications')
+            logger.debug(f'Using specstrings \'{solvent_specstring}\' and \'{solvent_ratio_specstring}\' to build solvent composition')
+            C = BilayerSpecString(specstring=solvent_specstring, fracstring=solvent_ratio_specstring)
+            if 'upper_chamber' not in composition_dict:
+                composition_dict['upper_chamber'] = C.left
+            if 'lower_chamber' not in composition_dict:
+                composition_dict['lower_chamber'] = C.right
+
+        lipid_names = [x['name'] for x in composition_dict['upper_leaflet']]
+        lipid_names += [x['name'] for x in composition_dict['lower_leaflet']]
+        self.lipid_names = list(set(lipid_names))
+
+        solvent_names = [x['name'] for x in composition_dict['upper_chamber']]
+        solvent_names += [x['name'] for x in composition_dict['lower_chamber']]
+        self.solvent_names = list(set(solvent_names))
+        self.species_names = self.lipid_names + self.solvent_names
+
+        # Tell the CHARMMFFContent object to expose required PDBs and residue topologies
+        self.charmmffcontent.provision(resnames=self.species_names)
 
         # complete leaflet entries in composition dictionary with species counts, charges, and MWs
         for l in ['upper_leaflet', 'lower_leaflet']:
@@ -191,17 +211,8 @@ class Bilayer:
                 if not 'charge' in d:
                     d['charge'] = resi.charge
                 if not 'MW' in d:
-                    d['MW'] = resi.mass()
+                    d['MW'] = resi.mass
 
-        # user need not have specified the solvent composition in the upper and lower chambers
-        if 'upper_chamber' not in composition_dict or 'lower_chamber' not in composition_dict:
-            logger.debug(f'Provided composition dictionary does not include solvent chamber specifications')
-            logger.debug(f'Using specstrings \'{solvent_specstring}\' and \'{solvent_ratio_specstring}\' to build solvent composition')
-            C = BilayerSpecString(specstring=solvent_specstring, fracstring=solvent_ratio_specstring)
-            if 'upper_chamber' not in composition_dict:
-                composition_dict['upper_chamber'] = C.left
-            if 'lower_chamber' not in composition_dict:
-                composition_dict['lower_chamber'] = C.right
 
         # complete chamber entries in composition dictionary with species counts, charges, and MWs
         for c in ['upper_chamber', 'lower_chamber']:
@@ -216,7 +227,7 @@ class Bilayer:
                 if not 'charge' in d:
                     d['charge'] = resi.charge
                 if not 'MW' in d:
-                    d['MW'] = resi.mass()
+                    d['MW'] = resi.mass
                 Nsol += d['patn']
                 AMW += d['MW'] * d['patn']
             if Nsol > 0:
@@ -248,15 +259,6 @@ class Bilayer:
         # and measurment of the pressure profile.
         ul_lx, ll_lx = [(x['name'], x['frac']) for x in self.slices['upper_leaflet']['composition']], [(x['name'], x['frac']) for x in self.slices['lower_leaflet']['composition']]
         self.asymmetric = set(ul_lx) != set(ll_lx)
-
-        lipid_names = [x['name'] for x in self.slices['upper_leaflet']['composition']]
-        lipid_names += [x['name'] for x in self.slices['lower_leaflet']['composition']]
-        self.lipid_names = list(set(lipid_names))
-
-        solvent_names = [x['name'] for x in self.slices['upper_chamber']['composition']]
-        solvent_names += [x['name'] for x in self.slices['lower_chamber']['composition']]
-        self.solvent_names = list(set(solvent_names))
-        self.species_names = self.lipid_names + self.solvent_names
 
         self.species_data = {}
         self.addl_streamfiles = []
@@ -319,7 +321,7 @@ class Bilayer:
             for chamber, nions in zip(['upper_chamber', 'lower_chamber'], [uc_ion_patn, lc_ion_patn]):
                 chamber_names = [x['name'] for x in self.slices[chamber]['composition']]
                 if ion_name not in chamber_names:
-                    self.slices[chamber]['composition'].append({'name': ion_name, 'patn': nions, 'charge': ion_q, 'MW': ion_resi.mass()})
+                    self.slices[chamber]['composition'].append({'name': ion_name, 'patn': nions, 'charge': ion_q, 'MW': ion_resi.mass})
                 else:
                     # if the ion is already in the chamber, just add to the number of ions
                     for species in self.slices[chamber]['composition']:

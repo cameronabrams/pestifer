@@ -165,10 +165,7 @@ class NAMDScripter(TcLScripter):
         self.logparser.auxparser = NAMDxstParser(basename=f'{self.basename}')
         progress_struct = None
         if self.progress:
-            logger.debug(f'NAMD runscript using progress')
             progress_struct = NAMDProgress()
             self.logparser.enable_progress_bar(progress_struct)
-        else:
-            logger.debug(f'NAMD runscript NOT using progress')
         return c.run(logfile=self.logname, logparser=self.logparser)
 

@@ -3,15 +3,14 @@
 Defines the command-line interface for pestifer
 """
 import argparse as ap
-from email import parser
 import importlib.metadata
 import logging
 
 __pestifer_version__ = importlib.metadata.version("pestifer")
-from ..util.stringthings import banner, oxford
+from ..util.stringthings import banner
 from ..subcommands import _subcommands
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 logging.getLogger("pidibble").setLevel(logging.WARNING)
 logging.getLogger("ycleptic").setLevel(logging.WARNING)

@@ -11,7 +11,7 @@ from ..core.objmanager import ObjManager
 from ..util.stringthings import ByteCollector
 
 from ..molecule.asymmetricunit import AsymmetricUnit
-from ..molecule.atom import AtomList
+from ..molecule.atom import Atom, AtomList
 from ..molecule.bioassemb import BioAssemb
 from ..molecule.molecule import Molecule
 from ..molecule.residue import Residue, ResidueList
@@ -265,18 +265,18 @@ class PsfgenScripter(VMDScripter):
                 """ for a resolved subsegment, generate its pdb file """
                 b.selname = f'{image_seglabel}{i:02d}'
                 run = ResidueList(segment.residues[b.bounds[0]:b.bounds[1] + 1])
-                b.pdb = f'segtype_polymer_{image_seglabel}_{run[0].resid.resid}_to_{run[-1].resid.resid}.pdb'
+                b.pdb = f'segtype_polymer_{image_seglabel}_{run.data[0].resid.resid}_to_{run.data[-1].resid.resid}.pdb'
                 logger.debug(f'Writing resolved subsegment {repr(b)} to {b.pdb}')
                 self.addfile(b.pdb)
                 serial_list = run.atom_serials(as_type=int)
-                logger.debug(f'Last atom has serial {serial_list[-1]} ({run[-1].resname}{run[-1].resid.resid}):')
-                at = segment.parent_molecule.asymmetric_unit.atoms.get(lambda x: x.serial == serial_list[-1])
+                logger.debug(f'Last atom has serial {serial_list[-1]} ({run.data[-1].resname}{run.data[-1].resid.resid}):')
+                at: Atom = segment.parent_molecule.asymmetric_unit.atoms.get(lambda x: x.serial == serial_list[-1])
                 if hasattr(at, '__len__'):
                     for a in at:
                         logger.debug(f'whoops: {a.chainID} {a.resid.resid} {a.name} is {a.serial}')
                     raise Exception(f'More than one atom with serial {serial_list[-1]}??')
                 logger.debug(f'    {at.serial} {at.resname} {at.name} in chain {at.chainID} residue {at.resname}{at.resid.resid}')
-                assert at.resid == run[-1].resid
+                assert at.resid == run.data[-1].resid
                 vmd_red_list = reduce_intlist(serial_list)
                 self.addline(f'set {b.selname} [atomselect $m{segment.parent_molecule.molid} "serial {vmd_red_list}"]')
                 self.addline(f'${b.selname} set segname {image_seglabel}')
@@ -299,10 +299,10 @@ class PsfgenScripter(VMDScripter):
                 else:
                     b.declare_buildable()
         self.addline(f'segment {image_seglabel} '+'{')
-        if segment.subsegments[0].state == 'MISSING' and not segment.subsegments[0].build:
+        if segment.subsegments.data[0].state == 'MISSING' and not segment.subsegments.data[0].build:
             Nterminal_missing_subsegment = segment.subsegments.pop(0)
             logger.debug(f'Since terminal loops are not included, ignoring {str(Nterminal_missing_subsegment)}')
-        if segment.subsegments[-1].state == 'MISSING' and not segment.subsegments[-1].build:
+        if segment.subsegments.data[-1].state == 'MISSING' and not segment.subsegments.data[-1].build:
             Cterminal_missing_subsegment = segment.subsegments.pop(-1)
             logger.debug(f'Since terminal loops are not included, ignoring {str(Cterminal_missing_subsegment)}')
         for b in segment.subsegments.data:
@@ -360,8 +360,8 @@ class PsfgenScripter(VMDScripter):
                 if b.state == 'MISSING' and 0 < i < (len(segment.subsegments) - 1) and b.sacres is not None:
                     Cterm = segment.residues[b.bounds[1]]
                     self.addline(f'patch CTER {image_seglabel}:{Cterm.resid.resid}')
-                    nextb = segment.subsegments[i + 1]
-                    Nterm = segment.residues[nextb.bounds[0]]
+                    nextb = segment.subsegments.data[i + 1]
+                    Nterm = segment.residues.data[nextb.bounds[0]]
                     patchname = 'NTER'
                     if Nterm.resname == 'PRO':
                         patchname = 'PROP'
@@ -371,7 +371,7 @@ class PsfgenScripter(VMDScripter):
                     logger.debug(f'deleting sacrificial residue {str(b.sacres)}')
                     self.addline(f'delatom {image_seglabel} {b.sacres.resid.resid}')
         self.banner('Restoring A.U. state for all resolved subsegments')
-        for b in segment.subsegments:
+        for b in segment.subsegments.data:
             if b.state == 'RESOLVED':
                 if is_image:
                     self.restore_selection(b.selname, dataholder=f'{b.selname}_data')

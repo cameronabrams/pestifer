@@ -863,7 +863,7 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         bins = self.binnify(fields=fields)
         return len(bins) == len(self)
 
-    def puniquify(self, fields: list[str] = [], stash_attr_name: str = 'ORIGINAL_ATTRIBUTES', make_common: list[str] = []) -> None:
+    def puniquify(self, attrs: list[str] = [], stash_attr_name: str = 'ORIGINAL_ATTRIBUTES') -> None:
         """
         Systematic attribute altering to make all elements unique
         
@@ -883,17 +883,18 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         fields : list, optional
             attribute names used to build the hash to test for uniqueness;
             if unset, all attributes are used
-        new_attr_name : str, optional
-            name given to a new attribute used to store all original 
+        stash_attr_name : str, optional
+            name given to a new dict attribute used to store all original 
             attribute name:value pairs
-        make_common : list
-            list of attribute names that are set to a single set
-            of common values *after* uniquifying
 
         """
-        assert not any([x in fields for x in make_common])
-        local_fields_copy = fields.copy() if fields else []
-        bins = self.binnify(fields=local_fields_copy)
+        local_attr_copy = attrs.copy() if attrs else []
+        logger.debug(f'puniquify: Checking uniqueness for {local_attr_copy}; first binning:')
+        bins = self.binnify(fields=local_attr_copy)
+        logger.debug(f' # bins {len(bins)} vs # items {len(self.data)}')
+        if len(bins) == len(self.data):
+            # all items are unique, nothing to do
+            return
         stillworking = True
         while stillworking:
             stillworking = False
@@ -904,19 +905,20 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
                         # stash the original attribute values in a dict under stash_attr_name
                         # but only do this ONCE per object so we are only saving its original values
                         if not hasattr(d, stash_attr_name):
-                            setattr(d, stash_attr_name, {k: getattr(d, k) for k in local_fields_copy})
-                        while d.strhash(local_fields_copy) in bins:
+                            logger.debug(f'puniquify: Stashing original attributes {local_attr_copy} for {str(d)} under {stash_attr_name}')
+                            setattr(d, stash_attr_name, {k: getattr(d, k) for k in local_attr_copy})
+                        while d.strhash(local_attr_copy) in bins:
                             # increment the first value until the hash is unique
-                            # this assumes the first field in local_fields_copy is numeric
-                            value_to_increment = getattr(d, local_fields_copy[0])
-                            if isinstance(value_to_increment, (int, float)):
-                                setattr(d, local_fields_copy[0], value_to_increment + 1)
-                            else:
-                                raise TypeError(f"Field '{local_fields_copy[0]}' must be numeric for uniquification.")
+                            # this assumes the first field in local_attr_copy is numeric
+                            value_to_increment = getattr(d, local_attr_copy[0])
+                            try:
+                                operator.add(value_to_increment, 1)
+                            except TypeError:
+                                raise TypeError(f"Field '{local_attr_copy[0]}' must be addable to int for uniquification.")
             if stillworking:
                 # re-bin the items
-                bins = self.binnify(fields=local_fields_copy)
-        assert(self.puniq(fields=local_fields_copy))
+                bins = self.binnify(fields=local_attr_copy)
+        assert(self.puniq(fields=local_attr_copy))
 
     def map_attr(self, mapped_attr: str, key_attr: str, map: dict) -> None:
         """

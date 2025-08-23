@@ -3,7 +3,7 @@ from pathlib import Path
 import logging
 import pytest
 
-from pestifer.core.pestifer import run_example  # adjust if your callable lives elsewhere
+from pestifer.subcommands import RunExampleSubcommand # adjust if your callable lives elsewhere
 
 @pytest.mark.slow
 def test_example_case(case, per_case_dir, make_namespace, caplog):
@@ -29,7 +29,8 @@ def test_example_case(case, per_case_dir, make_namespace, caplog):
 
     # Build args Namespace and run
     args = make_namespace(case.index, per_case_dir)
-    controller = run_example(args)
+    task = RunExampleSubcommand()
+    controller = task.func(args)
 
     # Validate produced tarball
     prod_basename = controller.tasks[-1].specs["package"]["basename"]

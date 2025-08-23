@@ -142,14 +142,14 @@ class PsfgenTask(VMDTask):
         new_topfiles = set()
         # logger.debug(f'New topologies: {new_topfiles}')
         for patch in patches:
-            topfile = CC.get_topfile_of_patchname(patch.patchname)
+            topfile = CC.get_topfile_of_resname(patch.patchname)
             if topfile:
                 new_topfiles.add(topfile)
         # logger.debug(f'New topologies: {new_topfiles}')
         topomods = objmanager.get('topol', {})
         links = topomods.get('links', [])
         for link in links:
-            topfile = CC.get_topfile_of_patchname(link.patchname)
+            topfile = CC.get_topfile_of_resname(link.patchname)
             if topfile:
                 new_topfiles.add(topfile)
         # logger.debug(f'New topologies: {new_topfiles}')

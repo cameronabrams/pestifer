@@ -1,26 +1,29 @@
+
+# Author: ChatGPT 5
+# Assistant Author: Cameron F. Abrams <cfa22@drexel.edu>
+
+"""
+Implements the general-purpose CacheableObject class and the TarBytesFS class.
+"""
+
 from __future__ import annotations
+
+import fsspec
 import hashlib
+import importlib
+import io
+import joblib
 import logging
 import os
 import tempfile
-from pathlib import Path
-from typing import Iterable
-import joblib
+
 from filelock import FileLock
+from packaging.version import Version, InvalidVersion
+from pathlib import Path
 from platformdirs import user_cache_dir
-import io, fsspec
-from pathlib import Path
-import os, sys, json, time, platform, hashlib, tempfile, traceback, importlib
-from pathlib import Path
-from typing import Any, Iterable, Tuple
-from filelock import FileLock
-import joblib
+from typing import Iterable
 
 logger = logging.getLogger(__name__)
-
-# pip install fsspec
-import io, fsspec
-from pathlib import Path
 
 class TarBytesFS:
     __slots__ = ("tar_bytes", "compression", "_fs")
@@ -58,8 +61,8 @@ class TarBytesFS:
         self.compression = state.get("compression")
         self._fs = None
 
-    
-def _latest_mtime(root: Path | CacheableObject,
+
+def _latest_mtime(root: Path,
                   *,
                   ignore_names: set[str] = {"__pycache__"},
                   ignore_suffixes: set[str] = set()) -> float:
@@ -79,9 +82,7 @@ def _latest_mtime(root: Path | CacheableObject,
                 pass
     return latest
 
-def _hash_resource(resource: Path | CacheableObject) -> str:
-    if isinstance(resource, CacheableObject):
-        resource = resource.resource_root
+def _hash_resource(resource: Path) -> str:
     return hashlib.sha256(str(Path(resource).resolve()).encode()).hexdigest()[:12]
 
 class CacheableObject:
@@ -99,8 +100,33 @@ class CacheableObject:
     """
 
     APP_NAME = "pestifer"          # for per-user cache dir
+    APP_VERSION = importlib.metadata.version(APP_NAME)
     CACHE_PREFIX = "cacheobj"      # file prefix; class & path hash appended
     CACHE_COMPRESS = ("gzip", 3)   # joblib compression
+
+    # Choose how versioning gates the cache:
+    #   "major"        -> v{MAJOR}
+    #   "major.minor"  -> v{MAJOR}.{MINOR}   (recommended default)
+    #   "exact"        -> full version string
+    #   None           -> no version in filename (old behavior)
+    VERSION_SCOPE = "major.minor"
+
+    @classmethod
+    def _version_tag(cls) -> str:
+        if not cls.VERSION_SCOPE:
+            return ""
+        try:
+            v = Version(cls.APP_VERSION)
+        except InvalidVersion:
+            # fall back to raw string if non-PEP440
+            return f"v{cls.APP_VERSION}"
+        if cls.VERSION_SCOPE == "major":
+            return f"v{v.major}"
+        if cls.VERSION_SCOPE == "major.minor":
+            return f"v{v.major}.{v.minor}"
+        if cls.VERSION_SCOPE == "exact":
+            return f"v{str(v)}"
+        return ""  # unknown scope => no tag
 
     def __init__(self,
                  resource_root: str | Path,
@@ -112,26 +138,27 @@ class CacheableObject:
         if isinstance(resource_root, str):
             resource_root = Path(resource_root)
         self.resource_root = resource_root
-        # cache file name is specific to subclass + resource path to avoid collisions
-        key = f"{self.__class__.__name__.lower()}-{_hash_resource(resource_root)}"
+        base_key = f"{self.__class__.__name__.lower()}-{_hash_resource(resource_root)}"
+        vtag = self._version_tag()
+        key = f"{base_key}-{vtag}" if vtag else base_key
         cdir = Path(cache_dir) if cache_dir else Path(user_cache_dir(self.APP_NAME))
         cdir.mkdir(parents=True, exist_ok=True)
         cpath = cdir / f"{self.CACHE_PREFIX}-{key}.joblib"
         lock = FileLock(str(cpath) + ".lock")
 
         resources_mtime = _latest_mtime(resource_root, ignore_suffixes=set(ignore_suffixes))
-        logger.debug("Resource mtime: %s", resources_mtime)
-        logger.debug("Cache mtime: %s", cpath.stat().st_mtime if cpath.exists() else None)
+        # logger.debug("Resource mtime: %s", resources_mtime)
+        # logger.debug("Cache mtime: %s", cpath.stat().st_mtime if cpath.exists() else None)
         with lock:
-            logger.debug("Acquired lock for %s", cpath)
-            logger.debug(f'cpath.exists() {cpath.exists()} force_rebuild {force_rebuild}')
+            logger.debug(f'Acquired lock for {cpath}')
+            logger.debug(f'cache exists: {cpath.exists()} x force_rebuild: {force_rebuild} => load cache? {"yes" if cpath.exists() and not force_rebuild else "no"}')
             if cpath.exists() and not force_rebuild:
                 logger.debug(f"{cpath.stat().st_mtime} >=? {resources_mtime} -> {cpath.stat().st_mtime >= resources_mtime}")
                 try:
                     if cpath.stat().st_mtime >= resources_mtime:
-                        logger.info(f'Loading {self.__class__.__name__} from cache: {cpath}')
+                        # logger.info(f'Loading {self.__class__.__name__} from cache: {cpath}')
                         cached = joblib.load(cpath)  # trusted cache only
-                        logger.debug("Loaded cached object")
+                        # logger.debug("Loaded cached object")
                         self._adopt_state_from(cached)
                         # mark as loaded-from-cache (even if subclass set it earlier)
                         try:
@@ -139,11 +166,11 @@ class CacheableObject:
                         except Exception:
                             # if __slots__ disallow it, ignore
                             pass
-                        logger.debug("Loaded from cache: %s", cpath)
+                        # logger.debug("Loaded from cache: %s", cpath)
                         return
                 except Exception:
                     # fall through to rebuild on any load problem
-                    logger.debug("Cache load failed; rebuilding...")
+                    # logger.debug("Cache load failed; rebuilding...")
                     pass
 
             # Rebuild from resources
@@ -163,13 +190,13 @@ class CacheableObject:
                 logger.debug(f'Writing {self.__class__.__name__} to cache: {cpath}')
                 joblib.dump(self, tmp, compress=self.CACHE_COMPRESS)
                 os.replace(tmp, cpath)
-                logger.debug("Wrote cache: %s", cpath)
+                # logger.debug("Wrote cache: %s", cpath)
             finally:
                 if os.path.exists(tmp):
                     os.remove(tmp)
 
     # ----- hooks -----
-    def _build_from_resources(self, resource_root: Path) -> None:
+    def _build_from_resources(self, resource_root: Path, **kwargs) -> None:
         """Subclasses must populate `self` here."""
         raise NotImplementedError
 

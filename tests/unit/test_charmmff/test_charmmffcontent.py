@@ -3,7 +3,6 @@ import unittest
 import os
 from pestifer import resources
 from pestifer.charmmff.charmmffcontent import CHARMMFFContent
-from pestifer.charmmff.charmmfftop import CharmmResi
 
 import logging
 logger = logging.getLogger(__name__)
@@ -19,6 +18,34 @@ class TestCharmmffContent(unittest.TestCase):
         cls.C = CHARMMFFContent(charmmff_path)
         # Ensure the resource manager is initialized before any tests run
         logging.debug("Done setting up TestCharmmffContent class...")
+
+    def test_charmmffcontent_full_provisioning(self):
+        self.C.deprovision()
+        self.assertEqual(len(self.C.residues), 0)
+        self.assertEqual(len(self.C.patches), 0)
+        self.C.provision()
+        self.assertEqual(len(self.C.residues), 2474)
+        self.assertEqual(len(self.C.patches), 790)
+        self.assertEqual(len(self.C.pdbrepository.collections), 2)
+        self.assertEqual(len(self.C.pdbrepository.collections['lipid'].info), 130)
+        self.assertEqual(len(self.C.pdbrepository.collections['water_ions'].info), 12)
+
+    def test_charmmffcontent_restricted_provisioning(self):
+        self.C.deprovision()
+        self.assertEqual(len(self.C.residues), 0)
+        self.assertEqual(len(self.C.patches), 0)
+        self.C.provision(resnames=['ALA', 'TIP3', 'PSM', 'CHL1', 'DOPC', 'NNEU'])
+        self.assertEqual(len(self.C.residues), 5)
+        self.assertEqual(len(self.C.patches), 1)
+        self.assertTrue('ALA' in self.C.residues)
+        self.assertFalse('LYS' in self.C.residues)
+        self.assertTrue('TIP3' in self.C.residues)
+        self.assertTrue('TIP3' in self.C.pdbrepository)
+        self.assertTrue('PSM' in self.C.residues)
+        self.assertTrue('PSM' in self.C.pdbrepository)
+        self.assertTrue('CHL1' in self.C.residues)
+        self.assertTrue('DOPC' in self.C.residues)
+        self.assertTrue('NNEU' in self.C.patches)
 
     def test_charmmffcontent_initialized(self):
         self.C.clean_local_charmmff_files()

@@ -106,9 +106,10 @@ class ResourceManager:
             if c == 'examples':
                 out_stream(f'\nExamples:\n\n{self.example_manager.report_examples(header=True)}')
             elif c == 'charmmff':
-                if 'toppar' in spec:
+                if 'tarball' in spec:
                     out_stream(f'{self.charmmff_content.tarfilename}')
                 if 'pdb' in spec:
+                    self.charmmff_content.provision_pdbrepository()
                     self.charmmff_content.pdbrepository.show(out_stream, fullnames=fullnames, missing_fullnames=missing_fullnames)
                 if 'custom' in spec:
                     path = self.get_charmmff_customdir()

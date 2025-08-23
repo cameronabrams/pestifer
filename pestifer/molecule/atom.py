@@ -360,7 +360,7 @@ class AtomList(BaseObjList[Atom]):
         `ORIGINAL_ATTRIBUTES` dictionary of each atom for reference.
         """
         serial = 1
-        for a in self:
+        for a in self.data:
             a.ORIGINAL_ATTRIBUTES['serial'] = a.serial
             a.serial = serial
             serial += 1

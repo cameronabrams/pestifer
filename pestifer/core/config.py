@@ -229,7 +229,6 @@ class Config(Yclept):
         # assert os.path.exists(self.charmmff_toppar_path)
         self.charmmff_custom_path = RM.get_charmmff_customdir()
         assert os.path.exists(self.charmmff_custom_path)
-        self.charmmff_pdbrepository = RM.charmmff_content.pdbrepository
         self.user_charmmff_toppar_path = ''
         if hasattr(self, 'user'):
             self.user_charmmff_toppar_path = os.path.join(self['user']['charmmff'], 'toppar')

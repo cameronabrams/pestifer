@@ -162,29 +162,33 @@ class ResidueTest:
     """
     This class represents a test for expected properties of a specific residue in an atom selection.
     """
-    def __init__(self, name: str, selection: str, measure: str, value: int):
+    def __init__(self, name: str, selection: str, measure: str, value: int, relation: str = '=='):
         self.name = name
         self.selection = selection
         self.measure = measure
+        self.relation = relation
         self.value = value
 
     def write(self, vt: VMDScripter):
         vt.addline(f'set test_selection [atomselect top "{self.selection}"]')
+        pass_msg = f'PASS {self.name} has expected relation {self.relation} to count $count (expected {self.value}) in selection {self.selection}'
+        fail_msg = f'FAIL {self.name} does not have expected relation {self.relation} to count $count (expected {self.value}) in selection {self.selection}'
         match self.measure:
             case 'atom_count':
                 vt.addline(f'set count [$test_selection num]')
-                vt.addline(f'if {{$count != {self.value}}} {{')
-                vt.addline(f'   vmdcon "FAIL {self.name} has unexpected count $count (expected {self.value}) in selection {self.selection}"')
+                vt.addline(f'if {{$count {self.relation} {self.value}}} {{')
+                vt.addline(f'   vmdcon "{pass_msg}"')
                 vt.addline(f'}} else {{')
-                vt.addline(f'   vmdcon "PASS {self.name} has expected count $count (expected {self.value}) in selection {self.selection}"')
+                vt.addline(f'   vmdcon "{fail_msg}"')
                 vt.addline(f'}}')
             case 'residue_count':
                 vt.addline(f'set resids [$test_selection get residue]')
                 vt.addline(f'set unique_resids [lsort -unique $resids]')
-                vt.addline(f'if {{[llength $unique_resids] != {self.value}}} {{')
-                vt.addline(f'   vmdcon "FAIL {self.name} has unexpected count [llength $unique_resids] (expected {self.value}) in selection {self.selection}"')
+                vt.addline(f'set count [llength $unique_resids]')
+                vt.addline(f'if {{$count {self.relation} {self.value}}} {{')
+                vt.addline(f'   vmdcon "{pass_msg}"')
                 vt.addline(f'}} else {{')
-                vt.addline(f'   vmdcon "PASS {self.name} has expected count [llength $unique_resids] (expected {self.value}) in selection {self.selection}"')
+                vt.addline(f'   vmdcon "{fail_msg}"')
                 vt.addline(f'}}')
             case '_':
                 logger.debug(f'Unsupported measure type: {self.measure}')

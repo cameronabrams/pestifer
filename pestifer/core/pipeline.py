@@ -41,10 +41,10 @@ class PipelineContext:
         if key in self.head:
             """ move to history if already exists """
             self.history.append(self.head[key])
-        logger.debug(f'Registering artifact {repr(artifact)}')
+        logger.debug(f'Registering artifact {type(artifact)}')
         # stamp the arifact if it isn't already stamped
         if not artifact.has_stamp():
-            logger.debug(f'Stamping artifact {key} with requesting object {requesting_object}')
+            # logger.debug(f'Stamping artifact {key} with requesting object {requesting_object}')
             if requesting_object:
                 artifact.stamp(requesting_object)
             else:

@@ -52,7 +52,7 @@ class MakeMembraneSystemTask(BaseTask):
         self.progress = self.provisions.get('progress-flag', True)
         self.resource_manager: ResourceManager = self.provisions.get('resource_manager', ResourceManager())
         self.charmmff_content: CHARMMFFContent = self.resource_manager.charmmff_content
-        self.pdbrepository: PDBRepository = self.charmmff_content.pdbrepository
+        # self.charmmff_content.provision() # loads PDBRepository and CHARMMFFResiTopCollection
     
         if 'prebuilt' in self.bilayer_specs and 'pdb' in self.bilayer_specs['prebuilt']:
             logger.debug('Using prebuilt bilayer')
@@ -104,7 +104,7 @@ class MakeMembraneSystemTask(BaseTask):
                              solvent_ratio_specstring = solvent_ratio_specstring,
                              solvent_to_key_lipid_ratio = solvent_to_lipid_ratio,
                              leaflet_nlipids = patch_nlipids,
-                             charmffcontent = self.charmmff_content)
+                             charmmffcontent = self.charmmff_content)
         species_pdbs = PDBFileArtifactList()
         for spdb in self.patch.register_species_pdbs:
             species_pdbs.append(PDBFileArtifact(spdb, description=f'PDB for {spdb}'))
@@ -219,7 +219,11 @@ class MakeMembraneSystemTask(BaseTask):
         result = pg.runscript(pdb=pdb.name, o=self.basename)
         cell_to_xsc(patch.box, patch.origin, f'{self.basename}.xsc')
         patch.area = patch.box[0][0] * patch.box[1][1]
-        self.register(StateArtifacts(psf=PSFFileArtifact(self.basename), pdb=PDBFileArtifact(self.basename), xsc=NAMDXscFileArtifact(self.basename)), key=f'{bilayer_name}_state')
+        self.register(StateArtifacts(
+                        psf=PSFFileArtifact(self.basename), 
+                        pdb=PDBFileArtifact(self.basename), 
+                        xsc=NAMDXscFileArtifact(self.basename)), 
+                        key=f'{bilayer_name}_state')
         for at in [PsfgenInputScriptArtifact, PsfgenLogFileArtifact]:
             self.register(at(self.basename))
 
@@ -331,7 +335,8 @@ class MakeMembraneSystemTask(BaseTask):
         subcontroller.reconfigure_tasks(tasklist_user)
         for task in subcontroller.tasks:
             task_key = task.taskname
-            task.override_taskname(f'{self.basename}-' + task_key)
+            task.override_taskname(f'{self.taskname}-' + task_key)
+            logger.debug(f'Subcontroller overrides task name {task_key} with {task.taskname}')
         subcontroller.do_tasks()
         last_task: TerminateTask = subcontroller.tasks[-1]
         bilayer_state: StateArtifacts = last_task.get_current_artifact('state')

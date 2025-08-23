@@ -85,28 +85,29 @@ class Segment(BaseObj):
                 return input_dict
             elif isinstance(args[0], ResidueList):
                 residues: ResidueList = args[0]
-                apparent_chainID = residues[0].chainID
-                apparent_segtype = residues[0].segtype
-                apparent_segname = residues[0].chainID if segname_override == 'UNSET' else segname_override
+                apparent_chainID = residues.data[0].chainID
+                apparent_segtype = residues.data[0].segtype
+                apparent_segname = residues.data[0].chainID if segname_override == 'UNSET' else segname_override
                 if apparent_segtype in ['protein', 'nucleicacid']:
                     # a protein segment must have unique residue numbers
                     assert residues.puniq(['resid']), f'ChainID {apparent_chainID} has duplicate resid!'
                     # a protein segment may not have more than one protein chain
-                    assert all([x.chainID==residues[0].chainID for x in residues.data])
+                    assert all([x.chainID==residues.data[0].chainID for x in residues.data])
                     residues.sort()
                     # for r in residues:
                     #     logger.debug(f'Residue {r.resname}{r.resid.resid} with {len(r.atoms)} atoms (resolved: {r.resolved})')
                     subsegments = residues.state_bounds(lambda x: 'RESOLVED' if x.resolved else 'MISSING')
                     # logger.debug(f'Segment {apparent_segname} has {len(residues)} residues across {len(subsegments)} subsegments')
                 else:
-                    logger.debug(f'Calling puniqify on residues of non-protein segment {apparent_segname}')
-                    residues.puniquify(fields=['resid'],make_common=['chainID'])
-                    count = sum([1 for x in residues if len(x.atoms)>0 and 'resid' in x.atoms[0].ORIGINAL_ATTRIBUTES])
+                    logger.debug(f'Calling puniquify on {len(residues)} residues of non-polymer segment {apparent_segname} by attribute \'resid\'')
+                    residues.puniquify(attrs=['resid'])
+                    logger.debug(f'counting affected residues...')
+                    count = sum([1 for x in residues.data if len(x.atoms)>0 and 'resid' in x.atoms.data[0].ORIGINAL_ATTRIBUTES])
                     if count > 0:
                         logger.debug(f'{count} residue(s) were affected by puniquify:')
-                        for x in residues:
-                            if len(x.atoms) > 0 and len(x.atoms[0].ORIGINAL_ATTRIBUTES) > 0:
-                                logger.debug(f'    {x.chainID} {x.resname} {x.resid.resid} was resid {x.atoms[0].ORIGINAL_ATTRIBUTES["resid"].resid}')
+                        for x in residues.data:
+                            if len(x.atoms) > 0 and len(x.atoms.data[0].ORIGINAL_ATTRIBUTES) > 0:
+                                logger.debug(f'    {x.chainID} {x.resname} {x.resid.resid} was resid {x.atoms.data[0].ORIGINAL_ATTRIBUTES["resid"].resid}')
                     # this assumes residues are in a linear sequence?  not really..
                     subsegments = residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
                 logger.debug(f'Segment {apparent_segname} has {len(residues)} residues across {len(subsegments)} subsegments')

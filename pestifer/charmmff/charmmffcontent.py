@@ -12,6 +12,8 @@ from .charmmfftop import CharmmMassDict, CharmmMassList, CharmmResiDict, CharmmR
 from .pdbrepository import PDBRepository, PDBInput
 
 from ..util.cacheable_object import CacheableObject, TarBytesFS
+from ..util.util import countTime
+from ..util.spinner_wrapper import with_spinner
 
 logger = logging.getLogger(__name__)
 
@@ -142,7 +144,16 @@ class CHARMMFFResiTopCollection(CacheableObject):
     A collection of CHARMM residue topology data.
     """
 
-    def _build_from_resources(self, charmmff_path: str = ''):
+    @countTime
+    def __init__(self, *args, **kwargs):
+        is_custom = 'residues' in kwargs and len(kwargs['residues']) > 0
+        if is_custom:
+            self.build_custom(*args, **kwargs)
+        else:
+            super().__init__(*args, **kwargs)
+
+    @with_spinner('Building residue topology collection from package resources...')
+    def _build_from_resources(self, charmmff_path: str = '', **kwargs):
         """
         Build the collection from the specified resources.
 
@@ -192,7 +203,13 @@ class CHARMMFFContent(CacheableObject):
     filenamemap : dict
         Maps file basenames to their full paths in the CHARMM force field content.
     """
-    def _build_from_resources(self, charmmff_path: str = '.'):
+
+    @countTime
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+    @with_spinner('No cache yet -- building all CHARMMFF content from package resources...')
+    def _build_from_resources(self, charmmff_path: str = '.', **kwargs):
         """ Method to build the CHARMMFFContent object from resources, if the cache is stale. """
         self.filenamemap = {}
         if not os.path.isdir(charmmff_path):
@@ -201,12 +218,15 @@ class CHARMMFFContent(CacheableObject):
         self.basename = os.path.basename(self.charmmff_path)
         self.parent_path = os.path.dirname(self.charmmff_path)
         self.charmm_elements = os.listdir(self.charmmff_path)
-        logger.debug(f'Members of {self.charmmff_path}: {self.charmm_elements}')
-        logger.debug(f'Initializing pdb repository for CHARMMFFContent at {self.charmmff_path}...')
-
-        self._load_charmmff()
+        tarfilename = kwargs.get('tarfilename', 'toppar_c36_jul24.tgz')
+        skip_streams = kwargs.get('skip_streams', ['misc', 'cphmd'])
+        self._load_charmmff(tarfilename=tarfilename, skip_streams=skip_streams)
         self._initialize_resi_to_file_map()
         self.provisioned = False
+        """ Items below are created by provisioning at run-time """
+        self.residues = CharmmResiDict({})
+        self.patches = CharmmResiDict({})
+        self.pdbrepository = None
 
     def _load_charmmff(self, tarfilename='toppar_c36_jul24.tgz', skip_streams=['misc', 'cphmd']):
         """ 
@@ -238,11 +258,11 @@ class CHARMMFFContent(CacheableObject):
         par    = {os.path.basename(x): x for x in root_listing if okfilename(x) and CHARMMFFContent.charmmff_filetype(x) == 'par'}
         top    = {os.path.basename(x): x for x in root_listing if okfilename(x) and CHARMMFFContent.charmmff_filetype(x) == 'top'}
         toppar = {os.path.basename(x): x for x in root_listing if okfilename(x) and CHARMMFFContent.charmmff_filetype(x) == 'toppar'}
-        # self.filenamemap = {**self.top, **self.par, **self.toppar}
-        # logger.debug(f'filenamemap: {self.filenamemap}')
         self.fs_resolver = {x: os.path.join('toppar', x) for x in par.keys()}
         self.fs_resolver.update({x: os.path.join('toppar', x) for x in top.keys()})
         self.fs_resolver.update({x: os.path.join('toppar', x) for x in toppar.keys()})
+
+        self.massdict = CharmmMassDict({})
 
         stream_listing = [x['name'] for x in self.toppar_fs.ls('toppar/stream')]
         self.streams = [os.path.basename(x) for x in stream_listing if os.path.basename(x) not in skip_streams]
@@ -252,16 +272,7 @@ class CHARMMFFContent(CacheableObject):
             streamfiles = {os.path.basename(x): x for x in streamdir_listing if okfilename(x) and CHARMMFFContent.charmmff_filetype(x) == 'toppar'}
             self.fs_resolver.update({x: os.path.join('toppar/stream', stream, x) for x in streamfiles.keys()})
             toppar.update({os.path.basename(x): x for x in streamfiles.values()})
-            # self.filenamemap.update(streamfiles)
-        # for name, fullname in self.filenamemap.items():
-        #     # logger.debug(f'Attempting open of {name}')
-        #     with toppar_fs.open(fullname) as f:
-        #         self.contents[name] = f.read().decode()
-        #         if 'cholesterol' in fullname:  # the cholesterol substream has two models, and it specifies the first one by default
-        #         # we will parse the conditional script to get the correct model
-        #             parsed_content_dict = parse_conditional_script(self.contents[name])
-        #             parsed_content = parsed_content_dict['parsed']
-        #             self.contents[name] = parsed_content
+
         self.filenamemap = {'par': par, 'top': top, 'toppar': toppar}
         self.all_topology_files = {x: v for x, v in self.filenamemap['top'].items()}
         self.all_topology_files.update({x: v for x, v in self.filenamemap['toppar'].items()})
@@ -281,6 +292,18 @@ class CHARMMFFContent(CacheableObject):
             logger.debug(f'  {filetype}: {len(self.filenamemap[filetype])} files:')
             for keyname, fullname in self.filenamemap[filetype].items():
                 logger.debug(f'    {keyname} -> {fullname}')
+
+        for shortname, fullname in self.all_topology_files.items():
+            try:
+                name_in_tarball = self.fs_resolver[shortname]
+                with self.toppar_fs.open(name_in_tarball) as f:
+                    contents = f.read().decode()
+            except KeyError: # shortname is not in fs_resolver
+                with open(fullname, 'r') as f:
+                    contents = f.read()
+            logger.debug(f'Extracting atom masses from topology file {shortname} ({len(contents)} bytes)')
+            masses = CharmmMassList.from_cardlist(extract_mass_lines(contents)).to_dict()
+            self.massdict.update(masses)
 
     def load_custom_files(self, custom_folder: str):
         for f in os.listdir(custom_folder):
@@ -328,16 +351,35 @@ class CHARMMFFContent(CacheableObject):
         # logger.debug(f'File {filename} is not a CHARMM force field file')
         return None
 
-    def provision(self, force_rebuild=False):
+    def provision_pdbrepository(self, force_rebuild: bool = False, resnames: list[str] = []):
+        self.pdbrepository = PDBRepository(os.path.join(self.charmmff_path, 'pdbrepository'), resnames=resnames, force_rebuild=force_rebuild)
+
+    def provision_residueobjects(self, force_rebuild: bool = False, resnames: list[str] = []):
+        is_custom = len(resnames) > 0
+        if is_custom:
+            logger.debug(f'Provisioning CHARMMFFContent with custom residues/patches: {resnames}')
+            self.find_resis_and_patches(resnames=resnames)
+        else:
+            logger.debug(f'Provisioning CHARMMFFContent with all residues/patches')
+            self.resitopcollection = CHARMMFFResiTopCollection(self.charmmff_path, resnames=resnames, force_rebuild=force_rebuild)
+        # shortcuts
+            self.residues.update(self.resitopcollection.residues)
+            self.patches.update(self.resitopcollection.patches)
+
+    def provision(self, force_rebuild: bool = False, resnames: list[str] = []):
         if self.provisioned:
             return
-        """ provision the object with a Residatabase and a PDBRepository """
-        self.pdbrepository = PDBRepository(os.path.join(self.charmmff_path, 'pdbrepository'), force_rebuild=force_rebuild)
-        self.resitopcollection = CHARMMFFResiTopCollection(self.charmmff_path, force_rebuild=force_rebuild)
-        # shortcuts
-        self.residues = self.resitopcollection.residues
-        self.patches = self.resitopcollection.patches
+        self.provision_pdbrepository(force_rebuild=force_rebuild, resnames=resnames)
+        self.provision_residueobjects(force_rebuild=force_rebuild, resnames=resnames)
         self.provisioned = True
+
+    def deprovision(self):
+        if not self.provisioned:
+            return
+        self.pdbrepository = None
+        self.residues.clear()
+        self.patches.clear()
+        self.provisioned = False
 
     def get_filename(self, shortname):
         ext = CHARMMFFContent.charmmff_filetype(shortname)
@@ -345,7 +387,7 @@ class CHARMMFFContent(CacheableObject):
             return self.filenamemap[ext].get(shortname, None)
         return None
 
-    def find_resis_and_patches(self):
+    def find_resis_and_patches(self, resnames: list[str] = []):
         """ 
         Find all residues in the CHARMM force field content and associate each with its topology file.
         This function scans all topology files for lines that start with ``RESI`` or ``PRES`` and extracts the residue names.
@@ -353,9 +395,7 @@ class CHARMMFFContent(CacheableObject):
         The residues are stored in the :attr:`~CHARMMFFContent.residues` attribute and the patches in the
         :attr:`~CHARMMFFContent.patches` attribute.
         """
-        self.residues = CharmmResiDict({})
-        self.patches = CharmmResiDict({})
-        massdict = CharmmMassDict({})
+        logger.debug(f'Resnames {resnames}')
         for shortname, fullname in self.all_topology_files.items():
             try:
                 name_in_tarball = self.fs_resolver[shortname]
@@ -367,27 +407,19 @@ class CHARMMFFContent(CacheableObject):
             logger.debug(f'Processing topology file {shortname} ({len(contents)} bytes) for residue and patch objects...')
             charmmstreamid = CHARMMFFStreamID(shortname)
             blocks = extract_resi_pres_blocks(contents)
-            resi, pres = CharmmResiDict.from_blockstring_list(blocks, metadata=dict(streamID=charmmstreamid.streamID, substreamID=charmmstreamid.substreamID, charmmfftopfile=shortname)).to_resi_pres()
-            masses = CharmmMassList.from_cardlist(extract_mass_lines(contents)).to_dict()
+            resi, pres = CharmmResiDict.from_blockstring_list(blocks, metadata=dict(streamID=charmmstreamid.streamID, substreamID=charmmstreamid.substreamID, charmmfftopfile=shortname), resnames=resnames).to_resi_pres()
             self.residues.update(resi)
             self.patches.update(pres)
-            massdict.update(masses)
             logger.debug(f' -> resis ({len(resi)}) {[r for r in resi.keys()]}')
             logger.debug(f' -> pres ({len(pres)}) {[p for p in pres.keys()]}')
-        self.residues.tally_masses(massdict)
-        logger.debug(f'Found {len(self.residues)} residues, {len(self.patches)} patches, and {len(massdict)} masses in CHARMM force field content')
-        del massdict
+        self.residues.tally_masses(self.massdict)
+        logger.debug(f'Processed {len(self.residues)} residues and {len(self.patches)} patches in CHARMM force field content')
 
     def get_topfile_of_resname(self, resname: str) -> str | None:
         """
-        Given a residue name, return the top file that contains it
+        Given a residue name, return the name of the CHARMMFF topo or stream file that defines it
         """
-        resi = self.residues.get(resname, None)
-        if resi is not None:
-            return resi.metadata['charmmfftopfile']
-        else:
-            logger.warning(f'Residue {resname} not found in CHARMM force field content')
-            return None
+        return self.resi_to_file_map[resname] if resname in self.resi_to_file_map else None
 
     def copy_charmmfile_local(self, basename):
         """
