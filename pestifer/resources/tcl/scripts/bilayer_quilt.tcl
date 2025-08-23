@@ -162,16 +162,16 @@ set lower_patch "sliceB2"
 mol delete $source_upper
 mol delete $source_lower
 
-# count lipid moleculs in each leaflet
+# count lipid molecules in each leaflet
 mol new $upper_patch.psf 
 mol addfile $upper_patch.pdb waitfor all
 set sliceAmolid [molinfo top get id]
-set nlipidsA [llength [lsort -unique [[atomselect $sliceAmolid "lipid"] get residue]]]
+set nlipidsA [llength [lsort -unique -integer [[atomselect $sliceAmolid "lipid"] get residue]]]
 mol delete $sliceAmolid
 mol new $lower_patch.psf
 mol addfile $lower_patch.pdb waitfor all
 set sliceBmolid [molinfo top get id]
-set nlipidsB [llength [lsort -unique [[atomselect $sliceBmolid "lipid"] get residue]]]
+set nlipidsB [llength [lsort -unique -integer [[atomselect $sliceBmolid "lipid"] get residue]]]
 mol delete $sliceBmolid
 
 vmdcon -info "upper-patch nlipids: $nlipidsA"

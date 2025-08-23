@@ -57,16 +57,16 @@ proc PestiferEnviron::leaflet_apportionment { molid } {
 
 proc PestiferEnviron::write_psfgen { molid {segtypes {lipid ion water}} 
                                     {seglabels {L I WT}} {segidx {1 1 1}} 
-                                    {maxr_per_seg 9999} {sac_chain A}} {
+                                    {maxr_per_seg 9999}} {
     # execute segment and coordpdb stanzas for all atoms in the molid
     set new_segidx [list]
-    vmdcon -info "Writing psfgen segments for molid $molid with chain $sac_chain, 
+    vmdcon -info "Writing psfgen segments for molid $molid, 
                  segment types $segtypes, labels $seglabels, segidx $segidx, and max residues per segment $maxr_per_seg"
     foreach segtype $segtypes seglabel $seglabels idx $segidx {
         vmdcon -info "Processing segment type $segtype with label $seglabel and index $idx"
         set a [atomselect $molid "$segtype"]
         if { [$a num] > 0 } {
-            $a set chain $sac_chain
+            $a set chain $seglabel
             set ridx [lsort -integer -unique [$a get residue]]
             set nres [llength $ridx]
             set nseg [expr $nres / $maxr_per_seg + 1]

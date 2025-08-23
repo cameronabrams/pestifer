@@ -896,8 +896,10 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
             # all items are unique, nothing to do
             return
         stillworking = True
-        while stillworking:
+        num_iter = 0
+        while stillworking and num_iter < 10:
             stillworking = False
+            num_iter += 1
             for v in bins.values():
                 if len(v) > 1:  # this key has more than one item
                     stillworking = True
@@ -917,7 +919,10 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
                                 raise TypeError(f"Field '{local_attr_copy[0]}' must be addable to int for uniquification.")
             if stillworking:
                 # re-bin the items
+                logger.debug(f'Rebinning at iteration {num_iter}')
                 bins = self.binnify(fields=local_attr_copy)
+        if num_iter == 10:
+            raise RuntimeError(f"puniquify: Unable to uniquify after {num_iter} iterations; giving up.")
         assert(self.puniq(fields=local_attr_copy))
 
     def map_attr(self, mapped_attr: str, key_attr: str, map: dict) -> None:
