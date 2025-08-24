@@ -19,9 +19,9 @@ from .psfpatch import PSFDISUPatch, PSFLinkPatch
 from ..objs.link import Link, LinkList
 from ..objs.ssbond import SSBond, SSBondList
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
-def get_toppar_from_psf(filename):
+def get_toppar_from_psf(filename: str):
     """
     Extracts the topology file names from a PSF file.
     This function reads the PSF file and looks for lines that contain topology information,
@@ -85,71 +85,69 @@ class PSFContents:
         If provided, the class will parse the specified topology elements from the PSF file.
         Default is an empty list, which means no topology elements will be parsed.
     """
-    def __init__(self,filename,topology_segtypes=[],parse_topology=[]):
+    def __init__(self, filename: str, topology_segtypes: list[str] = [], parse_topology: list[str] = []):
         logger.debug(f'Reading {filename}...')
         with open(filename,'r') as f:
-            psflines=f.read().split('\n')
+            psflines = f.read().split('\n')
         logger.debug(f'{len(psflines)} lines...')
-        self.token_idx={}
-        self.token_count={}
-        self.patches={}
-        for i,l in enumerate(psflines):
-            toktst=[x.strip() for x in l.split()]
-            if len(toktst)>=2 and toktst[1][0]=='!':
-                token_name=toktst[1][2:]
-                if token_name[-1]==':':
-                    token_name=token_name[:-1]
-                self.token_idx[token_name]=i
-                self.token_count[token_name]=int(toktst[0])
-            elif len(toktst)>1 and toktst[0]=="REMARKS":
-                remark_type=toktst[1]
-                if remark_type=='patch':
-                    patch_type=toktst[2]
-                    if patch_type not in ['NTER','CTER']:
-                        if not patch_type in self.patches:
-                            self.patches[patch_type]=[]
-                        self.patches[patch_type].append(toktst[3:])
-        self.token_lines={}
-        for (k,l0),l1 in zip(self.token_idx.items(),list(self.token_idx.values())[1:]+[len(psflines)]):
-            fl=l0+1
-            ll=l1-1
-            self.token_lines[k]=psflines[fl:ll]
+        self.token_idx = {}
+        self.token_count = {}
+        self.patches = {}
+        # scan for important locations in the file
+        for i, l in enumerate(psflines):
+            toktst = [x.strip() for x in l.split()]
+            if len(toktst) >= 2 and toktst[1][0] == '!':
+                token_name = toktst[1][2:]
+                if current_token_name is None:
+                    current_token_name = token_name
+                if token_name[-1] == ':':
+                    token_name = token_name[:-1]
+                self.token_idx[token_name] = i
+                self.token_count[token_name] = int(toktst[0])
+        self.token_lines = {}
+        for (k, l0), l1 in zip(self.token_idx.items(), list(self.token_idx.values())[1:] + [len(psflines)]):
+            fl = l0 + 1
+            ll = l1 - 1
+            self.token_lines[k] = psflines[fl:ll]
         logger.debug(f'{len(self.token_lines)} tokensets:')
         logger.debug(f'{", ".join([x for x in self.token_lines.keys()])}')
-        self.atoms=PSFAtomList([PSFAtom(x) for x in self.token_lines['ATOM']])
-        self.atomserials=[x.serial for x in self.atoms]
+
+        self.remarks = PSFRemarkList([PSFRemark(x) for x in self.token_lines.get('TITLE', [])])
+
+        self.atoms = PSFAtomList([PSFAtom(x) for x in self.token_lines['ATOM']])
+        self.atomserials = [x.serial for x in self.atoms.data]
         logger.debug(f'{len(self.atoms)} total atoms...')
-        self.ssbonds=SSBondList([SSBond(PSFDISUPatch(L)) for L in self.patches.get('DISU',[])])
-        self.links=LinkList([])
-        for patchtype,patchlist in self.patches.items():
+        self.ssbonds = SSBondList([SSBond(PSFDISUPatch(L)) for L in self.patches.get('DISU', [])])
+        self.links = LinkList([])
+        for patchtype, patchlist in self.patches.items():
             if patchtype in Link._patch_atomnames:
                 for patch in patchlist:
                     logger.debug(f'Adding link patch {[patchtype]+patch}')
                     self.links.append(Link(PSFLinkPatch([patchtype]+patch)))
         if parse_topology:
-            include_serials=[]
+            include_serials = []
             if topology_segtypes:
-                self.included_atoms=PSFAtomList([])
+                self.included_atoms = PSFAtomList([])
                 for segtype in topology_segtypes:
-                    sublist=self.atoms.get(segtype=segtype)
+                    sublist = self.atoms.get(segtype=segtype)
                     logger.debug(f'{len(sublist)} atoms of segtype {segtype}...')
                     self.included_atoms.extend(sublist)
-                include_serials=[x.segtype in topology_segtypes for x in self.atoms]
+                include_serials = [x.segtype in topology_segtypes for x in self.atoms.data]
                 logger.debug(f'Including {include_serials.count(True)}/{len(include_serials)} topologically active atoms ({len(self.included_atoms)}) from segtypes {topology_segtypes}')
             if 'bonds' in parse_topology:
-                self.bonds=PSFBondList(LineList(self.token_lines['BOND']),include_serials=include_serials)
+                self.bonds = PSFBondList(LineList(self.token_lines['BOND']),include_serials=include_serials)
                 # logger.debug(f'Creating graph from {len(self.bonds)} bonds...')
-                self.G=self.bonds.to_graph()
+                self.G = self.bonds.to_graph()
                 logger.debug(f'extending atom instances with ligands...')
                 self.add_ligands()
                 logger.debug(f'done')
                 # logger.debug(f'Parsed {len(self.bonds)} bonds.')
             if 'angles' in parse_topology:
-                self.angles=PSFAngleList(LineList(self.token_lines['THETA']),include_serials=include_serials)
+                self.angles = PSFAngleList(LineList(self.token_lines['THETA']),include_serials=include_serials)
             if 'dihedrals' in parse_topology:
-                self.dihedrals=PSFDihedralList(LineList(self.token_lines['PHI']),include_serials=include_serials)
+                self.dihedrals = PSFDihedralList(LineList(self.token_lines['PHI']),include_serials=include_serials)
             if 'impropers' in parse_topology:
-                self.dihedrals=PSFDihedralList(LineList(self.token_lines['IMPHI']),include_serials=include_serials)
+                self.dihedrals = PSFDihedralList(LineList(self.token_lines['IMPHI']),include_serials=include_serials)
     
     def add_ligands(self):
         """
@@ -165,12 +163,12 @@ class PSFContents:
         """
         assert hasattr(self,'bonds')
         for i,a in enumerate(self.atoms):
-            a.ligands=[]
-            assert a.serial==i+1
-        for b in self.bonds:
-            i,j=b.serial1,b.serial2
-            aix,ajx=i-1,j-1#self.atomserials.index(i),self.atomserials.index(j)
-            ai,aj=self.atoms[aix],self.atoms[ajx]
+            a.ligands = []
+            assert a.serial == i+1
+        for b in self.bonds.data:
+            i, j = b.serial1, b.serial2
+            aix, ajx = i-1, j-1#self.atomserials.index(i),self.atomserials.index(j)
+            ai, aj = self.atoms[aix], self.atoms[ajx]
             ai.add_ligand(aj)
             aj.add_ligand(ai)
 

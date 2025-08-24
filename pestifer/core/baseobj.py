@@ -31,7 +31,7 @@ import yaml
 import logging
 from collections import UserList
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 from abc import abstractmethod, ABCMeta
 
 class BaseObj(BaseModel):
@@ -910,11 +910,13 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
                             logger.debug(f'puniquify: Stashing original attributes {local_attr_copy} for {str(d)} under {stash_attr_name}')
                             setattr(d, stash_attr_name, {k: getattr(d, k) for k in local_attr_copy})
                         while d.strhash(local_attr_copy) in bins:
+                            logger.debug(f'puniquify: Collision detected for {d.strhash(local_attr_copy)}; incrementing {repr(local_attr_copy[0])}')
                             # increment the first value until the hash is unique
                             # this assumes the first field in local_attr_copy is numeric
                             value_to_increment = getattr(d, local_attr_copy[0])
                             try:
-                                operator.add(value_to_increment, 1)
+                                value_to_increment = operator.add(value_to_increment, 1)
+                                setattr(d, local_attr_copy[0], value_to_increment)
                             except TypeError:
                                 raise TypeError(f"Field '{local_attr_copy[0]}' must be addable to int for uniquification.")
             if stillworking:
