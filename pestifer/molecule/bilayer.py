@@ -18,6 +18,44 @@ sA3_ = _UNITS_['CUBIC-ANGSTROMS']
 
 logger = logging.getLogger(__name__)
 
+def orthohexagonal_cell(a: float, L_star: float, origin: tuple[float, float]=(0.0, 0.0)):
+    m = round(L_star / a)  # enforce matching x-side
+    cands_n = [max(1, round(m / np.sqrt(3)) + dn) for dn in (-1, 0, 1)]
+    best = None
+    for n in cands_n:
+        Lx = m*a
+        Ly = n*np.sqrt(3)*a
+        diff = abs(Lx - Ly)
+        if best is None or diff < best[0]:
+            best = (diff, n, Lx, Ly)
+    diff, n, Lx, Ly = best
+    pts_R0 = [(r*a + origin[0], q*np.sqrt(3)*a + origin[1]) for q in range(n) for r in range(m)]
+    pts_shift = [(r*a + 0.5*a + origin[0], q*np.sqrt(3)*a + 0.5*np.sqrt(3)*a + origin[1]) for q in range(n) for r in range(m)]
+    return pts_R0 + pts_shift, Lx, Ly
+
+def squareish_lattice(Lx: float, Ly: float, m: int):
+    cands_n = [m + dn for dn in (-4, -3, -2, -1, 0, 1, 2, 3, 4)]
+    best = None
+    for n in cands_n:
+        tLx = m*Lx
+        tLy = n*Ly
+        diff = abs(tLx - tLy)
+        if best is None or diff < best[0]:
+            best = (diff, n, tLx, tLy)
+    return m, best[1]
+
+def orthohexagonal_patch(SAPL: float, lipid_count_ceiling = 100):
+    a = np.sqrt(2*SAPL/(3*np.sqrt(3)))  # area per point = SAPL
+    best = None
+    for nsites_1d in range(4,12):
+        L_star = round(nsites_1d*a)
+        pts_R0, Lx, Ly = orthohexagonal_cell(a, L_star)
+        npts = len(pts_R0)
+        if best is None or npts < lipid_count_ceiling:
+            best = (npts, Lx, Ly, pts_R0)
+    return best
+
+
 class BilayerSpecString:
     """ 
     A class for handling bilayer specification strings in memgen format.

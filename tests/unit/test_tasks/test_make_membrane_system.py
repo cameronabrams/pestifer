@@ -393,7 +393,7 @@ class TestMakeMembraneSystem(unittest.TestCase):
                             'selection': 'resname PSM',
                             'measure': 'residue_count',
                             'relation': '<=',
-                            'value': 50
+                            'value': 200
                         }
                     },
                     {
@@ -402,7 +402,7 @@ class TestMakeMembraneSystem(unittest.TestCase):
                             'selection': 'resname POPE',
                             'measure': 'residue_count',
                             'relation': '<=',
-                            'value': 50
+                            'value': 200
                         }
                     },
                     {
@@ -411,7 +411,7 @@ class TestMakeMembraneSystem(unittest.TestCase):
                             'selection': 'resname CHL1',
                             'measure': 'residue_count',
                             'relation': '<=',
-                            'value': 10
+                            'value': 400
                         }
                     },
                     {
