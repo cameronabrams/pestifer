@@ -10,6 +10,8 @@ from __future__ import annotations
 import logging
 import networkx as nx
 
+from pestifer.util.stringthings import parse_filter_expression
+
 from ..core.baseobj import BaseObj, BaseObjList
 from pydantic import Field
 
@@ -49,9 +51,10 @@ class PSFAtom(BaseObj):
 
     @staticmethod
     def _from_psf_atomline(atomline: str):
+        # logger.debug(f'Parsing psf atom line: {atomline}')
         tokens = [x.strip() for x in atomline.split()]
         assert len(tokens) == 9, f'Cannot parse psf atomline: {atomline}'
-        return PSFAtom(
+        return dict(
             serial=int(tokens[0]),
             resid=ResID(tokens[2]),
             segname=tokens[1],
@@ -128,3 +131,59 @@ class PSFAtomList(BaseObjList[PSFAtom]):
                 g.add_edge(a, l)
         logger.debug(f'atomlist graph has {len(g)} nodes')
         return g
+    
+    def apply_inclusion_logics(self, inclusion_logics: list[str] = []) -> int:
+        """
+        Apply inclusion logic expressions to filter the atom list.
+        This method filters the atom list based on a list of inclusion logic expressions.
+        Atoms that match any of the expressions are retained in the list.
+
+        Parameters
+        ----------
+        inclusion_logics : list[str], optional
+            A list of inclusion logic expressions to apply, by default []
+
+        Returns
+        -------
+        int
+            The number of atoms that were ignored (removed) from the list.
+        """
+        if len(inclusion_logics) == 0:
+            return 0
+        kept_atom_count = 0
+        total_atom_count = len(self.data)
+        keep_atoms = PSFAtomList([])
+        for expression in inclusion_logics:
+            filter_func = parse_filter_expression(expression)
+            keep_atoms.extend(filter(filter_func, self.data))
+        kept_atom_count = len(keep_atoms)
+        if kept_atom_count > 0:
+            self.data = keep_atoms
+        return total_atom_count - kept_atom_count
+
+    def apply_exclusion_logics(self, exclusion_logics: list[str] = []) -> int:
+        """
+        Apply exclusion logic expressions to filter the atom list.
+        This method filters the atom list based on a list of exclusion logic expressions.
+        Atoms that match any of the expressions are removed from the list.
+
+        Parameters
+        ----------
+        exclusion_logics : list[str], optional
+            A list of exclusion logic expressions to apply, by default []
+
+        Returns
+        -------
+        int
+            The number of atoms that were ignored (removed) from the list.
+        """
+        if len(exclusion_logics) == 0:
+            return 0
+        all_ignored_atoms = PSFAtomList([])
+        for expression in exclusion_logics:
+            filter_func = parse_filter_expression(expression)
+            ignored_atoms = filter(filter_func, self.data)
+            all_ignored_atoms.extend(ignored_atoms)
+        for atom in all_ignored_atoms:
+            self.data.remove(atom)
+        return len(all_ignored_atoms)

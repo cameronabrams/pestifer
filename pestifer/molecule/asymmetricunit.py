@@ -96,9 +96,14 @@ class AsymmetricUnit:
         self.segments = SegmentList([])
         self.objmanager = objmanager
         self.chainIDmanager = chainIDmanager
-        self.psf = psf
+        self.psfcontents = PSFContents(psf) if psf else None
         self.ignored = Namespace()
         self.pruned = Namespace()
+
+        atom_include_logic = sourcespecs.get('include', [])
+        atom_exclude_logic = sourcespecs.get('exclude', [])
+        if len(atom_exclude_logic) > 0 and len(atom_include_logic) > 0:
+            raise ValueError('Cannot specify both include and exclude logic for atoms')
 
         if not parsed:
             # return an empty unconstructed asymmetric unit
@@ -111,7 +116,7 @@ class AsymmetricUnit:
             ters = TerList.from_pdb(parsed, model_id=model_id)
             if len(atoms) == 0:
                 raise ValueError(f'No ATOM/HETATM records found in parsed data')
-            if sourcespecs.get('reserialize', False):
+            if sourcespecs.get('reserialize', False) or self.psfcontents is not None:
                 atoms.reserialize()
             else:
                 atoms.sort(by=['serial'])
@@ -139,18 +144,23 @@ class AsymmetricUnit:
             first_atom = atoms.get(lambda x: x.chainID == chainID)[0]
             logger.debug(f'  {chainID}: {first_atom.resname} {first_atom.resid.resid}')
 
-        if psf:
-            self.psf = PSFContents(psf)
-            assert len(self.psf.atoms) == len(atoms), f'Error: psf file {psf} has wrong number of atoms {len(self.psf.atoms)}, expected {len(atoms)}'
-            atoms.apply_psf_resnames(self.psf.atoms)
+        if self.psfcontents is not None:
+            assert len(self.psfcontents.atoms) == len(atoms), f'Error: psf file {psf} has wrong number of atoms {len(self.psfcontents.atoms)}, expected {len(atoms)}'
+            logger.debug(f'PSF defines {len(self.psfcontents.atoms)} atoms')
+            logger.debug(f'PSF defines {len(self.psfcontents.segments)} segments: {self.psfcontents.segnames}')
+            logger.debug(f'Samples of first atom in each segment:')
+            for segname in self.psfcontents.segnames:
+                first_atom = self.psfcontents.atoms.get(lambda x: x.segname == segname)[0]
+                logger.debug(f'  {segname}: {first_atom.resname} {first_atom.resid.resid}')
+            atoms.apply_psf_attributes(self.psfcontents.atoms)
             # note we expect that there are NO ssbonds or links in the pdb file
-            # if we are also using a psf file
-            ssbonds.extend(self.psf.ssbonds)
-            links.extend(self.psf.links)
-            if len(self.psf.ssbonds) > 0:
-                logger.debug(f'PSF file {psf} identifies {len(self.psf.ssbonds)} ssbonds; total ssbonds now {len(ssbonds)}')
-            if len(self.psf.links) > 0:
-                logger.debug(f'PSF file {psf} identifies {len(self.psf.links)} links; total links now {len(links)}')
+            # because it is not a Structure File from the PDB (since it has a companion PSF)
+            ssbonds.extend(self.psfcontents.ssbonds)
+            links.extend(self.psfcontents.links)
+            if len(self.psfcontents.ssbonds) > 0:
+                logger.debug(f'PSF file {psf} identifies {len(self.psfcontents.ssbonds)} ssbonds; total ssbonds now {len(ssbonds)}')
+            if len(self.psfcontents.links) > 0:
+                logger.debug(f'PSF file {psf} identifies {len(self.psfcontents.links)} links; total links now {len(links)}')
 
         # at this point the objmanager is holding all mods that are in 
         # the input file but NOT in the PDB/mmCIF/psf file.
@@ -176,47 +186,22 @@ class AsymmetricUnit:
             logger.debug(f'Adding user-specified patch {u}')
         patches.extend(userpatches)
 
-        # usermutations = seqmods.get('mutations', MutationList([]))
-        # mutations.extend(usermutations )
-
         # Build the list of residues
-        atom_include_logic = sourcespecs.get('include', [])
-        atom_exclude_logic = sourcespecs.get('exclude', [])
-        if len(atom_exclude_logic) > 0 and len(atom_include_logic) > 0:
-            raise ValueError('Cannot specify both include and exclude logic for atoms')
-        ignored_atom_count = 0
-        ignored_missing_residue_count = 0
-        for expression in atom_include_logic:
-            filter_func = parse_filter_expression(expression)
-            keep_atoms = atoms.filter(filter_func)
-            ignored_atom_count += len(atoms) - len(keep_atoms)
-            atoms = keep_atoms
-            keep_missing_residues = missings.filter(filter_func)
-            ignored_missing_residue_count += len(missings) - len(keep_missing_residues)
-            missings = keep_missing_residues
-        all_ignored_atoms = AtomList([])
-        all_ignored_missing_residues = ResiduePlaceholderList([])
-        for expression in atom_exclude_logic:
-            logger.debug(f'Excluding atoms with expression: {expression}')
-            filter_func = parse_filter_expression(expression)
-            ignored_atoms = atoms.filter(filter_func)
-            all_ignored_atoms.extend(ignored_atoms)
-            ignored_missing_residues = missings.filter(filter_func)
-            all_ignored_missing_residues.extend(ignored_missing_residues)
-        if len(all_ignored_atoms) > 0:
-            logger.debug(f'Excluding {len(all_ignored_atoms)} atoms based on user-specified exclusion logic')
-            for atom in all_ignored_atoms:
-                atoms.remove_instance(atom)
-            logger.debug(f'{len(all_ignored_atoms)} atoms excluded by user-specified exclusion logic')
-        if len(all_ignored_missing_residues) > 0:
-            logger.debug(f'Excluding {len(all_ignored_missing_residues)} missing residues based on user-specified exclusion logic')
-            for residue in all_ignored_missing_residues:
-                missings.remove_instance(residue)
-            logger.debug(f'{len(all_ignored_missing_residues)} missing residues excluded by user-specified exclusion logic')
-            ignored_missing_residue_count += len(all_ignored_missing_residues)
-
-        fromAtoms = ResidueList.from_atomlist(atoms)
+        ignored_atom_count  = atoms.apply_inclusion_logics(atom_include_logic)
+        ignored_atom_count += atoms.apply_exclusion_logics(atom_exclude_logic)
+        logger.debug(f'Ignored {ignored_atom_count} atoms from PDB by inclusion/exclusion logic')
+        ignored_missing_residue_count  = missings.apply_inclusion_logics(atom_include_logic)
+        ignored_missing_residue_count += missings.apply_exclusion_logics(atom_exclude_logic)
+        logger.debug(f'Ignored {ignored_missing_residue_count} missing residues from PDB by inclusion/exclusion logic')
+        if self.psfcontents is not None:
+            ignored_psfatom_count = self.psfcontents.apply_atom_logics(atom_include_logic, atom_exclude_logic)
+            assert len(atoms) == len(self.psfcontents.atoms), f'Atom logic is not consistent between PDB and PSF'
+            assert ignored_psfatom_count == ignored_atom_count, f'Ignored atom count is not consistent between PDB and PSF'
+            logger.debug(f'Ignored {ignored_psfatom_count} atoms from PSF by inclusion/exclusion logic')
+        fromAtoms = ResidueList.from_residuegrouped_atomlist(atoms)
         fromResiduePlaceholders = ResidueList.from_ResiduePlaceholderlist(missings)
+        if self.psfcontents is not None:
+            assert len(fromResiduePlaceholders) == 0, f'Expected no missing residues because you specified a companion PSF, but found {len(fromResiduePlaceholders)}'
         residues: ResidueList = fromAtoms + fromResiduePlaceholders
         if sourcespecs.get('cif_residue_map_file', ''):
             write_residue_map(residues.cif_residue_map(), sourcespecs['cif_residue_map_file'])
@@ -288,6 +273,9 @@ class AsymmetricUnit:
 
         logger.debug(f'{len(residues)} residues survived parsing')
 
+        if self.psfcontents is not None:
+            self.psfcontents.remove_ignored_residues(ignored_residues)
+
         if len(grafts)>0:
             logger.debug('Grafts:')
             for g in grafts:
@@ -296,7 +284,10 @@ class AsymmetricUnit:
         # provide specifications of how to handle sequence issues
         # implied by PDB input
         seq_specs = sourcespecs.get('sequence', {})
-        segments = SegmentList.generate(residues=residues, seq_spec=seq_specs, chainIDmanager=chainIDmanager)
+        psfcompanion = None
+        if self.psfcontents:
+            psfcompanion = self.psfcontents.segments
+        self.segments.generate_from_residues(residues=residues, seq_spec=seq_specs, chainIDmanager=chainIDmanager, psfcompanion=psfcompanion)
         # this may have altered chainIDs for some residues.  So we must
         # be sure all mods that are chainID-specific but
         # not inheritable by segments are updated
@@ -310,9 +301,9 @@ class AsymmetricUnit:
         links.update_attr_from_obj_attr('chainID1', 'residue1', 'chainID')
         links.update_attr_from_obj_attr('chainID2', 'residue2', 'chainID')
         grafts.update_attr_from_objlist_elem_attr('chainID', 'residues', 0, 'chainID')
-        logger.debug(f'Segnames in A.U.: {",".join(segments._segnames)}')
-        if segments._daughters:
-            logger.debug(f'Daughter chains generated: {segments._daughters}')
+        logger.debug(f'Segnames in A.U.: {",".join(self.segments.segnames)}')
+        if self.segments.daughters:
+            logger.debug(f'Daughter chains generated: {self.segments.daughters}')
         logger.debug(f'Used chainIDs {chainIDmanager.Used}')
         # promote sequence numbers in any grafts to avoid collisions
         # and include the graft links in the overall list of links
@@ -341,7 +332,7 @@ class AsymmetricUnit:
         mutations.sort(by=['typekey'])
         for m in mutations:
             logger.debug(str(m) + ' ' + m.typekey)
-        pruned_objects = segments.prune_topology(mutations, links, ssbonds)
+        pruned_objects = self.segments.prune_topology(mutations, links, ssbonds)
                 # pruned_ssbonds = ssbonds.prune_mutations(mutations)
                 # pruned = pruned_by_links = links.prune_mutations(mutations, segments)
         # logger.debug(f'Pruned objects: {pruned_objects}')
@@ -364,11 +355,10 @@ class AsymmetricUnit:
         for olist in [ssbonds, links, grafts, patches]:
             objmanager.ingest(olist, overwrite=True)
 
-        segments.inherit_objs(objmanager)
+        self.segments.inherit_objs(objmanager)
 
         self.atoms = atoms
         self.residues = residues
-        self.segments = segments
         self.objmanager = objmanager
         self.chainIDmanager = chainIDmanager
         self.psf = psf

@@ -12,6 +12,8 @@ from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from pydantic import Field
 from typing import ClassVar
 
+from pestifer.util.stringthings import parse_filter_expression
+
 from ..core.baseobj import BaseObj, BaseObjList
 from ..objs.resid import ResID
 from ..objs.ter import TerList
@@ -352,7 +354,7 @@ class AtomList(BaseObjList[Atom]):
             return cls([])
         return cls([Atom(CIFdict(obj, i)) for i in range(len(obj))])
 
-    def reserialize(self):
+    def reserialize(self) -> AtomList:
         """
         Reserializes the AtomList by updating the serial numbers of each atom.
         This method assigns a new serial number to each atom in the list, starting from 1
@@ -360,11 +362,23 @@ class AtomList(BaseObjList[Atom]):
         `ORIGINAL_ATTRIBUTES` dictionary of each atom for reference.
         """
         serial = 1
+        residshift = ResID(0)
+        lastresid = ResID(0)
+        lastchainID = ''
         for a in self.data:
             a.ORIGINAL_ATTRIBUTES['serial'] = a.serial
+            a.ORIGINAL_ATTRIBUTES['resid'] = a.resid.copy(deep=True)
+            # assert a.ORIGINAL_ATTRIBUTES['resid'] is not a.resid, "Error: resid is not a copy!"
             a.serial = serial
             serial += 1
-
+            if a.resid + residshift < lastresid and a.chainID == lastchainID:
+                residshift += ResID(9999)
+                logger.debug(f'Atom {a.serial} has chainID {a.chainID} and resid {a.resid} after previous atom had chainID {lastchainID} and resid {lastresid}, so shifting resseqnums by {residshift}')
+            a.resid += residshift
+            lastresid = a.resid
+            lastchainID = a.chainID
+        return self
+    
     def adjustSerials(self, Ters: TerList):
         """
         Adjusts the serial numbers of atoms in the AtomList based on the provided TerList.
@@ -413,9 +427,9 @@ class AtomList(BaseObjList[Atom]):
         for sa, oa in zip(self.data, other.data):
             sa.overwrite_position(oa)
 
-    def apply_psf_resnames(self, psfatoms: PSFAtomList):
+    def apply_psf_attributes(self, psfatoms: PSFAtomList):
         """
-        Applies residue names from a PSF atom list to the corresponding atoms in this AtomList.
+        Applies attributes from a PSF atom list to the corresponding atoms in this AtomList.
         This method iterates through both AtomLists, ensuring they are of equal length,
         and updates the `resname` attribute of each atom in this AtomList to match the corresponding atom in the PSF atom list.
         
@@ -426,6 +440,36 @@ class AtomList(BaseObjList[Atom]):
         """
         for myatom, psfatom in zip(self.data, psfatoms.data):
             myatom.resname = psfatom.resname
+            myatom.serial = psfatom.serial
+            myatom.resid = psfatom.resid.copy(deep=True)
+            myatom.chainID = psfatom.segname
+            myatom.segname = psfatom.segname
+
+    def apply_inclusion_logics(self, inclusion_logics: list[str] = []) -> int:
+        if len(inclusion_logics) == 0:
+            return 0
+        kept_atom_count = 0
+        total_atom_count = len(self.data)
+        keep_atoms = AtomList([])
+        for expression in inclusion_logics:
+            filter_func = parse_filter_expression(expression)
+            keep_atoms.extend(filter(filter_func, self.data))
+        kept_atom_count = len(keep_atoms)
+        if kept_atom_count > 0:
+            self.data = keep_atoms
+        return total_atom_count - kept_atom_count
+
+    def apply_exclusion_logics(self, exclusion_logics: list[str] = []) -> int:
+        if len(exclusion_logics) == 0:
+            return 0
+        all_ignored_atoms = AtomList([])
+        for expression in exclusion_logics:
+            filter_func = parse_filter_expression(expression)
+            ignored_atoms = list(filter(filter_func, self.data))
+            all_ignored_atoms.extend(ignored_atoms)
+        for atom in all_ignored_atoms:
+            self.data.remove(atom)
+        return len(all_ignored_atoms)
 
 class Hetatm(Atom):
     """

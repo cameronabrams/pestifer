@@ -6,12 +6,12 @@ the tasks.
 """
 import logging
 
-from copy import deepcopy
 from dataclasses import dataclass
 
 from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
 from pestifer.tasks.mdtask import MDTask
 from pestifer.tasks.psfgen import PsfgenTask
+from pestifer.tasks.validate import ValidateTask
 
 from .config import Config
 from .pipeline import PipelineContext
@@ -78,12 +78,16 @@ class Controller:
                     make_membrane_idx = i
             if make_membrane_idx is not None:
                 task_idx = make_membrane_idx + 1
+                if isinstance(self.tasks[task_idx], ValidateTask):
+                    task_idx += 1
                 if isinstance(self.tasks[task_idx], MDTask):
                     task_idx += 1
                 self.tasks = self.tasks[:task_idx] + [self.tasks[-1]]
                 self.tasks[-1].prior = self.tasks[task_idx-1]
             elif psfgen_idx is not None:
                 task_idx = psfgen_idx + 1
+                if isinstance(self.tasks[task_idx], ValidateTask):
+                    task_idx += 1
                 if isinstance(self.tasks[task_idx], MDTask):
                     task_idx += 1
                 self.tasks = self.tasks[:task_idx] + [self.tasks[-1]]

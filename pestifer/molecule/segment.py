@@ -22,14 +22,17 @@ from ..objs.mutation import Mutation, MutationList
 from ..objs.patch import PatchList
 from ..objs.ssbond import SSBond, SSBondList
 
+from ..psfutil.psfcontents import PSFSegmentList
+
 if TYPE_CHECKING:
     from ..molecule.molecule import Molecule
 
 class Segment(BaseObj):
     """
-    A class for handling segments in a molecular structure.
     This class represents a segment defined by a list of residue indices and provides methods to check if a bond intersects the segment.
     It also provides methods to yield treadmilled versions of the segment and to check for equality with another segment.
+
+    A segment represents a set of residues in which there are not repeated resids.
     """
     _required_fields = {'segtype', 'segname', 'chainID',
                         'residues', 'subsegments', 'parent_chain',
@@ -87,7 +90,7 @@ class Segment(BaseObj):
                 residues: ResidueList = args[0]
                 apparent_chainID = residues.data[0].chainID
                 apparent_segtype = residues.data[0].segtype
-                apparent_segname = residues.data[0].chainID if segname_override == 'UNSET' else segname_override
+                apparent_segname = residues.data[0].segname if segname_override == 'UNSET' else segname_override
                 if apparent_segtype in ['protein', 'nucleicacid']:
                     # a protein segment must have unique residue numbers
                     assert residues.puniq(['resid']), f'ChainID {apparent_chainID} has duplicate resid!'
@@ -102,13 +105,14 @@ class Segment(BaseObj):
                     logger.debug(f'Calling puniquify on {len(residues)} residues of non-polymer segment {apparent_segname} by attribute \'resid\'')
                     residues.puniquify(attrs=['resid'])
                     logger.debug(f'counting affected residues...')
-                    count = sum([1 for x in residues.data if len(x.atoms)>0 and 'resid' in x.atoms.data[0].ORIGINAL_ATTRIBUTES])
+                    count = sum([1 for x in residues.data if len(x.atoms)>0 and 'resid' in x.atoms.data[0].ORIGINAL_ATTRIBUTES and x.resid != x.atoms.data[0].ORIGINAL_ATTRIBUTES['resid']])
                     if count > 0:
                         logger.debug(f'{count} residue(s) were affected by puniquify:')
                         for x in residues.data:
                             if len(x.atoms) > 0 and len(x.atoms.data[0].ORIGINAL_ATTRIBUTES) > 0:
                                 logger.debug(f'    {x.chainID} {x.resname} {x.resid.resid} was resid {x.atoms.data[0].ORIGINAL_ATTRIBUTES["resid"].resid}')
-                    # this assumes residues are in a linear sequence?  not really..
+                    else:
+                        logger.debug(f'No duplicate resids found in {len(residues)} residues of non-polymer segment {apparent_segname}')
                     subsegments = residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
                 logger.debug(f'Segment {apparent_segname} has {len(residues)} residues across {len(subsegments)} subsegments')
                 input_dict = {
@@ -192,19 +196,24 @@ class SegmentList(BaseObjList[Segment]):
     It inherits from `AncestorAwareObjList` to maintain the context of the parent molecule.
     """
 
-    _segnames: list[str] | None = None
-    _counters_by_segtype: dict[str, int] | None = None
-    _daughters: dict[str, list[str]] | None = None
-    _segtype_of_segname: dict[str, str] | None = None
-    _segtypes_ordered: list[str] | None = None
+    def __init__(self, data):
+        super().__init__(data)
+        self.segnames = []
+        self.counters_by_segtype = {}
+        self.daughters = {}
+        self.segtype_of_segname = {}
+        self.segtypes_ordered = []
+        self.seq_spec = {}
+        self.residues: ResidueList = None
+        self.chainIDmanager: ChainIDManager = None
+        self.psfcompanion: PSFSegmentList = None
 
     def describe(self) -> str:
         return f'<SegmentList with {len(self)} segments>'
 
-    @classmethod
-    def generate(cls, seq_spec: dict = {}, residues: ResidueList = [], chainIDmanager: ChainIDManager = None):
+    def generate_from_residues(self, seq_spec: dict = {}, residues: ResidueList = [], chainIDmanager: ChainIDManager = None, psfcompanion: PSFSegmentList = None):
         """
-        Generate a SegmentList from a sequence specification and a list of residues.
+        Generate a SegmentList from a sequence specification and a list of residues extracted from a structure file.
 
         Parameters
         ----------
@@ -214,35 +223,39 @@ class SegmentList(BaseObjList[Segment]):
             A list of residues to be processed into segments.
         chainIDmanager : ChainIDManager
             An object managing chain IDs to ensure uniqueness.
+        psfcompanion: PSFSegmentList
+            A companion PSF segment list to provide additional context.
 
         Returns
         -------
         SegmentList
             A new SegmentList instance containing the generated segments.
         """
-        self = cls([])
-        self._counters_by_segtype = {}
-        self._segnames = []
-        self._daughters = {}
-        self._segtype_of_segname = {}
         assert all([x.segtype != 'UNSET' for x in residues]), f'There are residues with UNSET segtype: {[(x.resname, x.chainID, x.resid.resid) for x in residues.data if x.segtype == "UNSET"]}'
-        self._segtypes_ordered = []
-        for r in residues.data:
-            if not r.chainID in self._segtype_of_segname:
-                self._segtype_of_segname[r.chainID] = r.segtype
-            if not r.segtype in self._segtypes_ordered:
-                self._segtypes_ordered.append(r.segtype)
-        logger.debug(f'Generating segments from list of {len(residues)} residues. segtypes detected: {self._segtypes_ordered}')
-        initial_chainIDs = list(self._segtype_of_segname.keys())
+        self.residues = residues
+        self.seq_spec = seq_spec
+        self.chainIDmanager = chainIDmanager
+        if psfcompanion is None:
+            return self.build_from_only_pdb_data()
+        else:
+            self.psfcompanion = psfcompanion
+            self.build_from_psf_and_pdb_data()
+
+    def build_from_only_pdb_data(self):
+        for r in self.residues.data:
+            if not r.chainID in self.segtype_of_segname:
+                self.segtype_of_segname[r.chainID] = r.segtype
+            if not r.segtype in self.segtypes_ordered:
+                self.segtypes_ordered.append(r.segtype)
+        logger.debug(f'Generating segments from list of {len(self.residues)} residues. segtypes detected: {self.segtypes_ordered}')
+        initial_chainIDs = list(self.segtype_of_segname.keys())
         logger.debug(f'ChainIDs detected: {initial_chainIDs}')
-        chainIDmanager.sandbag(initial_chainIDs)
-        for stype in self._segtypes_ordered:
-            self._counters_by_segtype[stype] = 0
-            # res = residues.filter(segtype=stype)
-            res = residues.filter(lambda x: x.segtype == stype)
+        self.chainIDmanager.sandbag(initial_chainIDs)
+        for stype in self.segtypes_ordered:
+            self.counters_by_segtype[stype] = 0
+            res = self.residues.filter(lambda x: x.segtype == stype)
             orig_chainIDs = res.uniqattrs(['chainID'])['chainID']
-            logger.debug(f'Processing {len(res)} residues of segtype {stype} in {len(orig_chainIDs)} unique chainIDs')
-            # orig_res_groups = {chainID: res.filter(chainID=chainID) for chainID in orig_chainIDs}
+            logger.debug(f'Processing {len(res)} residues of segtype {stype} (out of {len(self.residues)}) in {len(orig_chainIDs)} unique chainIDs')
             orig_res_groups = {chainID: res.filter(lambda x: x.chainID == chainID) for chainID in orig_chainIDs}
             logger.debug(f'Found {len(orig_res_groups)} original chainIDs for segtype {stype}: {list(orig_res_groups.keys())} {list([len(x) for x in orig_res_groups.values()])}')
             for chainID, c_res in orig_res_groups.items():
@@ -250,29 +263,51 @@ class SegmentList(BaseObjList[Segment]):
                 this_chainID = chainID
                 # c_res=res.filter(chainID=this_chainID)
                 logger.debug(f'-> original chainID {chainID} in {len(c_res)} residues')
-                this_chainID = chainIDmanager.check(this_chainID)
+                this_chainID = self.chainIDmanager.check(this_chainID)
                 if this_chainID != chainID:
                     logger.debug(f'{len(c_res)} residues with original chainID {chainID} and segtype {stype} are assigned new daughter chainID {this_chainID}')
-                    if not chainID in self._daughters:
-                        self._daughters[chainID] = []
-                    self._daughters[chainID].append(this_chainID)
+                    if not chainID in self.daughters:
+                        self.daughters[chainID] = []
+                    self.daughters[chainID].append(this_chainID)
                     c_res.set_chainIDs(this_chainID)
-                    self._segtype_of_segname[this_chainID] = stype
+                    self.segtype_of_segname[this_chainID] = stype
                     if stype == 'protein':
-                        if chainID in seq_spec['build_zero_occupancy_C_termini']:
+                        if chainID in self.seq_spec['build_zero_occupancy_C_termini']:
                             logger.debug(f'-> appending new chainID {this_chainID} to build_zero_occupancy_C_termini due to member {chainID}')
-                            seq_spec['build_zero_occupancy_C_termini'].insert(seq_spec['build_zero_occupancy_C_termini'].index(chainID), this_chainID)
-                        if chainID in seq_spec['build_zero_occupancy_N_termini']:
+                            self.seq_spec['build_zero_occupancy_C_termini'].insert(self.seq_spec['build_zero_occupancy_C_termini'].index(chainID), this_chainID)
+                        if chainID in self.seq_spec['build_zero_occupancy_N_termini']:
                             logger.debug(f'-> appending new chainID {this_chainID} to build_zero_occupancy_N_termini due to member {chainID}')
-                            seq_spec['build_zero_occupancy_N_termini'].insert(seq_spec['build_zero_occupancy_N_termini'].index(chainID), this_chainID)
+                            self.seq_spec['build_zero_occupancy_N_termini'].insert(self.seq_spec['build_zero_occupancy_N_termini'].index(chainID), this_chainID)
                         # seq_spec['build_zero_occupancy_C_termini'].remove(chainID)
                 num_mis = sum([1 for x in c_res if len(x.atoms) == 0])
-                thisSeg = Segment(c_res, segname=this_chainID, specs=seq_spec)
-                logger.debug(f'Made segment: stype {stype} chainID {this_chainID} segname {thisSeg.segname} ({num_mis} missing) (seq_spec {seq_spec})')
+                thisSeg = Segment(c_res, segname=this_chainID, specs=self.seq_spec)
+                logger.debug(f'Made segment: stype {stype} chainID {this_chainID} segname {thisSeg.segname} ({num_mis} missing) (seq_spec {self.seq_spec})')
                 self.append(thisSeg)
-                self._segnames.append(thisSeg.segname)
-                self._counters_by_segtype[stype] += 1
+                self.segnames.append(thisSeg.segname)
+                self.counters_by_segtype[stype] += 1
         return self
+
+    def build_from_psf_and_pdb_data(self):
+        if not self.psfcompanion.num_residues() == len(self.residues):
+            raise ValueError(f'Number of residues in PSF ({self.psfcompanion.num_residues()}) does not match number of residues in PDB ({len(self.residues)})!')
+        if not self.psfcompanion.num_atoms() == sum(len(x.atoms) for x in self.residues):
+            raise ValueError(f'Number of atoms in PSF ({self.psfcompanion.num_atoms()}) does not match number of atoms in PDB ({sum(len(x.atoms) for x in self.residues)})!')
+        # for each segment in the psfcompanion, build a list of actual residues extracted from self.residues for which atom serials match those in the PSFResidues
+
+        for seg in self.psfcompanion.data:
+            matching_residues = ResidueList([])
+            for psfresidue in seg.residues.data:
+                psfatom_serials = [x.serial for x in psfresidue.atoms.data]
+                psfatom_serials.sort()
+                for res in self.residues.data:
+                    atom_serials = [x.serial for x in res.atoms.data]
+                    atom_serials.sort()
+                    if psfatom_serials == atom_serials:
+                        matching_residues.append(res)
+            if not matching_residues:
+                raise ValueError(f'No matching residues found for segment {seg.segname}')
+
+            self.append(Segment(matching_residues, segname=seg.segname, specs=self.seq_spec))
 
     def collect_residues(self):
         """
@@ -336,8 +371,8 @@ class SegmentList(BaseObjList[Segment]):
         item : Segment
             The segment to remove from the list.
         """
-        self._segnames.remove(item.segname)
-        self._counters_by_segtype[self._segtype_of_segname[item.segname]] -= 1
+        self.segnames.remove(item.segname)
+        self.counters_by_segtype[self.segtype_of_segname[item.segname]] -= 1
         return super().remove(item)
 
     def prune_topology(self, mutations: MutationList, links: LinkList, ssbonds: SSBondList):

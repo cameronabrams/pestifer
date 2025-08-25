@@ -9,15 +9,26 @@ import logging
 import numpy as np
 import os
 
+from collections import UserList
+from dataclasses import dataclass, field
+
+from pestifer.core.labels import Labels
+
 from .psfangle import PSFAngleList
 from .psfatom import PSFAtom, PSFAtomList
 from .psfbond import PSFBondList
 from .psfdihedral import PSFDihedralList
+from .psfremark import PSFRemark, PSFRemarkList, PSFSegmentRemark, PSFSegmentRemarkList
 from .psftopoelement import LineList
 from .psfpatch import PSFDISUPatch, PSFLinkPatch
 
+from ..molecule.residue import Residue, ResidueList
+
 from ..objs.link import Link, LinkList
+from ..objs.resid import ResID
 from ..objs.ssbond import SSBond, SSBondList
+
+from ..util.spinner_wrapper import with_spinner
 
 logger = logging.getLogger(__name__)
 
@@ -44,6 +55,155 @@ def get_toppar_from_psf(filename: str):
                 fn=os.path.basename(top)
                 toppars.append(fn)
     return list(set(toppars))
+
+@dataclass
+class PSFResidue:
+    resname: str = ''
+    resid: ResID = field(default_factory=ResID)
+    segname: str = ''
+    atoms: PSFAtomList = field(default_factory=PSFAtomList)
+    segtype: str = ''
+
+    def add_atom(self, atom: PSFAtom):
+        if self.resid == atom.resid and self.segname == atom.segname:
+            self.atoms.append(atom)
+            return True
+        return False
+    
+class PSFResidueList(UserList[PSFResidue]):
+    @classmethod
+    def _from_residuegrouped_atomlist(cls, atoms: PSFAtomList):
+        residues = PSFResidueList()
+        for atom in atoms.data:
+            current_residue = None if len(residues) == 0 else residues[-1]
+            if not current_residue or not current_residue.add_atom(atom):
+                new_residue = PSFResidue(
+                    resname=atom.resname,
+                    resid=atom.resid,
+                    segname=atom.segname,
+                    segtype=atom.segtype,
+                    atoms=PSFAtomList([atom])
+                )
+                residues.append(new_residue)
+        return residues
+
+    def apply_segtypes(self):
+        """
+        Apply segment types to residues based on their residue names.
+        This method uses the :attr:`~pestifer.core.labels.Labels.segtype_of_resname` mapping to assign segment types to
+        residues based on their residue names. It updates the :attr:`~pestifer.molecule.residue.Residue.segtype` attribute of each residue
+        in the residue list.
+        """
+        # logger.debug(f'residuelist:apply_segtypes {segtype_of_resname}')
+        for residue in self.data:
+            residue.segtype = Labels.segtype_of_resname.get(residue.resname, 'unknown')
+
+@dataclass
+class PSFSegment:
+    segname: str = ''
+    residues: PSFResidueList = field(default_factory=PSFResidueList)
+    commands: list[str] = field(default_factory=list)
+    segtype: str = ''
+
+    def add_residue(self, residue: Residue):
+        if self.segname == residue.segname:
+            self.residues.append(residue)
+            return True
+        return False
+
+    def remarkify(self, remark: PSFSegmentRemark):
+        segdata = remark.segdata.replace('}', '').replace('{', '')
+        self.commands = [x.strip() for x in segdata.split(';')]
+
+    def validate(self):
+        # ensure that in this segment there are no repeated resid's; if so, raise a ValueError
+        # ensure that all atoms and residues have the same segtype; if not, raise a ValueError
+        resid_set = set()
+        for residue in self.residues:
+            if residue.resid in resid_set:
+                raise ValueError(f"Duplicate resid found in segname {self.segname}: {residue.resid}")
+            resid_set.add(residue.resid)
+            if residue.segtype != self.segtype:
+                raise ValueError(f"Residue {residue.resid} in segname {self.segname} has segtype {residue.segtype}, expected {self.segtype}")
+            for atom in residue.atoms.data:
+                if atom.segtype != self.segtype:
+                    raise ValueError(f"Atom {atom.serial} in resid {residue.resid} in segname {self.segname} has segtype {atom.segtype}, expected {self.segtype}")
+
+class PSFSegmentList(UserList[PSFSegment]):
+    @classmethod
+    def _from_atom_list(cls, atoms: PSFAtomList):
+        segments = PSFSegmentList()
+        for atom in atoms.data:
+            # logger.debug(f'Considering atom {atom.serial} in seg {atom.segname} resid {atom.resid}...')
+            existing_segment = next((s for s in segments if s.segname == atom.segname), None)
+            if existing_segment:
+                # see if residue exists
+                existing_residue = next((r for r in existing_segment.residues if r.resid == atom.resid), None)
+                if existing_residue:
+                    existing_residue.atoms.append(atom)
+                else:
+                    new_residue = PSFResidue(
+                        resname=atom.resname,
+                        resid=atom.resid,
+                        segname=atom.segname,
+                        atoms=PSFAtomList([atom]),
+                        segtype=Labels.segtype_of_resname[atom.resname]
+                    )
+                    existing_segment.residues.append(new_residue)
+            else:
+                new_segment = PSFSegment(
+                    segname=atom.segname,
+                    segtype=atom.segtype,
+                    residues=PSFResidueList([PSFResidue(
+                        resname=atom.resname,
+                        resid=atom.resid,
+                        segname=atom.segname,
+                        atoms=PSFAtomList([atom]),
+                        segtype=Labels.segtype_of_resname[atom.resname]
+                    )])
+                )
+                segments.append(new_segment)
+        return segments
+
+    @classmethod
+    def _from_segmentgrouped_residuelist(cls, residues: PSFResidueList):
+        segments = PSFSegmentList()
+        for residue in residues.data:
+            current_segment = None if len(segments) == 0 else segments[-1]
+            if current_segment and current_segment.add_residue(residue):
+                continue
+            new_segment = PSFSegment(
+                segname=residue.segname,
+                segtype=residue.segtype,
+                residues=PSFResidueList([residue])
+            )
+            segments.append(new_segment)
+        return segments
+
+    def remarkify(self, remarks: PSFSegmentRemarkList):
+        self.data.sort(key=lambda x: x.segname)
+        remarks.data.sort(key=lambda x: x.segname)
+        my_segnames = [x.segname for x in self.data]
+        remark_segnames = [x.segname for x in remarks.data]
+        expired_segnames = []
+        for remark_segname in remark_segnames:
+            if not remark_segname in my_segnames:
+                expired_segnames.append(remark_segname)
+        for expired_segname in expired_segnames:
+            remark_segnames.remove(expired_segname)
+        assert my_segnames == remark_segnames, f'Segment remark names {remark_segnames} not all found in PSF segments {my_segnames}'
+        for myseg, segremark in zip(self.data, remarks.data):
+            myseg.remarkify(segremark)
+
+    def validate(self):
+        for segment in self.data:
+            segment.validate()
+    
+    def num_residues(self):
+        return sum(len(segment.residues) for segment in self.data)
+
+    def num_atoms(self):
+        return sum(len(residue.atoms) for segment in self.data for residue in segment.residues)
 
 class PSFContents:
     """
@@ -86,10 +246,9 @@ class PSFContents:
         Default is an empty list, which means no topology elements will be parsed.
     """
     def __init__(self, filename: str, topology_segtypes: list[str] = [], parse_topology: list[str] = []):
-        logger.debug(f'Reading {filename}...')
         with open(filename,'r') as f:
             psflines = f.read().split('\n')
-        logger.debug(f'{len(psflines)} lines...')
+        logger.debug(f'{filename}: {len(psflines)} lines.')
         self.token_idx = {}
         self.token_count = {}
         self.patches = {}
@@ -98,8 +257,6 @@ class PSFContents:
             toktst = [x.strip() for x in l.split()]
             if len(toktst) >= 2 and toktst[1][0] == '!':
                 token_name = toktst[1][2:]
-                if current_token_name is None:
-                    current_token_name = token_name
                 if token_name[-1] == ':':
                     token_name = token_name[:-1]
                 self.token_idx[token_name] = i
@@ -112,18 +269,26 @@ class PSFContents:
         logger.debug(f'{len(self.token_lines)} tokensets:')
         logger.debug(f'{", ".join([x for x in self.token_lines.keys()])}')
 
-        self.remarks = PSFRemarkList([PSFRemark(x) for x in self.token_lines.get('TITLE', [])])
-
+        self.remarks = PSFRemarkList([PSFRemark.from_remarkline(x) for x in self.token_lines.get('TITLE', [])])
+        logger.debug(f'{len(self.remarks)} remarks')
+        for r in self.remarks:
+            logger.debug(f'Remark: {r.remarkline} data type {type(r.data)}')
         self.atoms = PSFAtomList([PSFAtom(x) for x in self.token_lines['ATOM']])
+        self.residues = PSFResidueList._from_residuegrouped_atomlist(self.atoms)
+        self.segments = PSFSegmentList._from_segmentgrouped_residuelist(self.residues)
+        self.segmentremarks = self.remarks.get_segmentremarks()
+        self.segments.remarkify(self.segmentremarks)
+        self.segments.validate()
+        self.patchremarks = self.remarks.get_patchremarks()
+        self.ssbonds = SSBondList([SSBond(p.data) for p in self.patchremarks if isinstance(p.data, PSFDISUPatch)])
+        self.links = LinkList([Link(p.data) for p in self.patchremarks if isinstance(p.data, PSFLinkPatch)])
+
+        self.segnames = [seg.segname for seg in self.segments.data]
         self.atomserials = [x.serial for x in self.atoms.data]
-        logger.debug(f'{len(self.atoms)} total atoms...')
-        self.ssbonds = SSBondList([SSBond(PSFDISUPatch(L)) for L in self.patches.get('DISU', [])])
-        self.links = LinkList([])
-        for patchtype, patchlist in self.patches.items():
-            if patchtype in Link._patch_atomnames:
-                for patch in patchlist:
-                    logger.debug(f'Adding link patch {[patchtype]+patch}')
-                    self.links.append(Link(PSFLinkPatch([patchtype]+patch)))
+        logger.debug(f'{len(self.atoms)} atoms')
+        logger.debug(f'{len(self.segments)} segments: {self.segnames}')
+        logger.debug(f'{len(self.ssbonds)} disulfide bonds')
+        logger.debug(f'{len(self.links)} special covalent links')
         if parse_topology:
             include_serials = []
             if topology_segtypes:
@@ -149,6 +314,61 @@ class PSFContents:
             if 'impropers' in parse_topology:
                 self.dihedrals = PSFDihedralList(LineList(self.token_lines['IMPHI']),include_serials=include_serials)
     
+    def apply_atom_logics(self, inclusion_logics: list[str] = [], exclusion_logics: list[str] = []):
+        """
+        Apply inclusion and exclusion logic to the atoms in the PSF contents.
+
+        Parameters
+        ----------
+        inclusion_logics : list[str], optional
+            A list of inclusion logic strings to apply to the atoms.
+        exclusion_logics : list[str], optional
+            A list of exclusion logic strings to apply to the atoms.
+        """
+        psf_inclusion_logics = []
+        psf_exclusion_logics = []
+        for i in inclusion_logics:
+            psf_inclusion_logics.append(i.replace('chainID', 'segname'))
+        for e in exclusion_logics:
+            psf_exclusion_logics.append(e.replace('chainID', 'segname'))
+        ignored_atom_count =  self.atoms.apply_inclusion_logics(psf_inclusion_logics)
+        ignored_atom_count += self.atoms.apply_exclusion_logics(psf_exclusion_logics)
+        if ignored_atom_count > 0:
+            logger.debug(f'Ignored {ignored_atom_count} atoms from PSFContents based on atom logic')
+            logger.debug(f' -> Remaining atoms: {len(self.atoms)}')
+            self.segments = PSFSegmentList._from_atom_list(self.atoms)
+            logger.debug(f' -> New segments: {[x.segname for x in self.segments]}')
+            self.segmentremarks = self.remarks.get_segmentremarks()
+            self.segments.remarkify(self.segmentremarks)
+            self.segments.validate()
+        return ignored_atom_count
+
+    def remove_ignored_residues(self, ignored_residues: ResidueList):
+        """
+        Remove ignored residues from the PSF contents.
+
+        Parameters
+        ----------
+        ignored_residues : ResidueList
+            A list of residues to remove from the PSF contents.
+        """
+        number_atoms_ignored = 0
+        for residue in ignored_residues:
+            for atom in residue.atoms.data:
+                serial = atom.serial
+                ignored_atom = self.atoms.get(lambda x: x.serial == serial)[0]
+                try:
+                    self.atoms.remove(ignored_atom)
+                    number_atoms_ignored += 1
+                except:
+                    raise(ValueError(f'Could not remove ignored atom {ignored_atom}'))
+        if number_atoms_ignored > 0:
+            logger.debug(f'Ignored {number_atoms_ignored} atoms from PSFContents based modifications to PDB-derived residue list')
+            self.segments = PSFSegmentList._from_atom_list(self.atoms)
+            self.segmentremarks = self.remarks.get_segmentremarks()
+            self.segments.remarkify(self.segmentremarks)
+            self.segments.validate()
+
     def add_ligands(self):
         """
         Add ligands to each atom based on the bonds defined in the PSF file.

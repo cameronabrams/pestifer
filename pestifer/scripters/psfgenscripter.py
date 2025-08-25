@@ -493,7 +493,7 @@ class PsfgenScripter(VMDScripter):
             alignment_target_resid_logic += f' or resid {G.target_partner.resid}'
         alignment_target_resid_logic += ')'
 
-        self.addline(f'set target_sel [atomselect $topid "chain {G.residues[0].orig_chainID} and {alignment_target_resid_logic}"]')
+        self.addline(f'set target_sel [atomselect $topid "chain {G.residues[0].asym_chainID} and {alignment_target_resid_logic}"]')
 
         alignment_source_resid_logic = f'(resid {G.source_root.resid}'
         if G.source_partner is not None:

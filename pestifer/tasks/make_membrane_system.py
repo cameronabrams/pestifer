@@ -452,8 +452,11 @@ class MakeMembraneSystemTask(BaseTask):
         bilayer_psf: str = quilt_state.psf.name
         bilayer_pdb: str = quilt_state.pdb.name
         bilayer_xsc: str = quilt_state.xsc.name
-        result = pg.runscript(psf=self.pro_psf,
-                              pdb=self.pro_pdb,
+        protein_state: StateArtifacts = self.get_current_artifact('state')
+        protein_psf: str = protein_state.psf.name
+        protein_pdb: str = protein_state.pdb.name
+        result = pg.runscript(psf=protein_psf,
+                              pdb=protein_pdb,
                               bilayer_psf=bilayer_psf,
                               bilayer_pdb=bilayer_pdb,
                               bilayer_xsc=bilayer_xsc,

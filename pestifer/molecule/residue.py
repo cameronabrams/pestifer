@@ -18,6 +18,8 @@ from pidibble.baserecord import BaseRecord
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from mmcif.api.PdbxContainers import DataContainer
 
+from pestifer.util.stringthings import parse_filter_expression
+
 from .atom import Atom, AtomList, Hetatm
 from ..objs.link import Link
 from ..objs.link import LinkList
@@ -46,7 +48,7 @@ class ResiduePlaceholder(BaseObj):
     but are not resolved in the coordinate file.
     """
 
-    _required_fields = {'resname', 'resid', 'chainID', 'resolved', 'segtype'}
+    _required_fields = {'resname', 'resid', 'chainID', 'resolved', 'segname', 'segtype'}
     """
     Required attributes for ResiduePlaceholder.
     
@@ -60,12 +62,14 @@ class ResiduePlaceholder(BaseObj):
         The chain ID.
     resolved : bool
         Indicates whether the residue is resolved (True) or not (False).
+    segname : str
+        Segment name of the residue.
     segtype : str
         The segment type.
     """
 
     _optional_fields = {'model', 'obj_id', 'auth_asym_id', 'auth_comp_id', 
-                        'auth_seq_id', 'empty', 'recordname', 'orig_chainID', 'ORIGINAL_ATTRIBUTES'}
+                        'auth_seq_id', 'empty', 'recordname', 'asym_chainID', 'ORIGINAL_ATTRIBUTES'}
     """
     Optional attributes for ResiduePlaceholder.
     
@@ -85,8 +89,8 @@ class ResiduePlaceholder(BaseObj):
         Indicates whether the residue is empty (True) or not (False).
     recordname : str
         The PDB record name for the residue.
-    orig_chainID : str
-        The original chain ID, if applicable.
+    asym_chainID : str
+        The chain ID of this residue's image in the asymmetric unit, if applicable.
     """
 
     _ignore_fields = {'recordname', 'empty'}
@@ -99,6 +103,7 @@ class ResiduePlaceholder(BaseObj):
     chainID: str = Field(..., description="The chain ID.")
     resolved: bool = Field(..., description="Indicates whether the residue is resolved (True) or not (False).")
     segtype: str = Field(..., description="The segment type.")
+    segname: str = Field(..., description="The segment name.")
     model: int = Field(1, description="The model number, if applicable.")
     obj_id: int | None = Field(None, description="The object id, if applicable.")
     auth_asym_id: str | None = Field(None, description="The author asymmetry ID, if applicable.")
@@ -106,10 +111,9 @@ class ResiduePlaceholder(BaseObj):
     auth_seq_id: int | None = Field(None, description="The author sequence ID, if applicable.")
 
     empty: bool = Field(False, description="Indicates whether the residue is empty (True) or not (False).")
-    # link: Any | None = Field(None, description="The link to the residue, if applicable.")
     recordname: str = Field('REMARK.465', description="The PDB record name for the residue.")
 
-    orig_chainID: str | None = Field(None, description="The original chain ID, if applicable.")
+    asym_chainID: str | None = Field(None, description="The original chain ID in the asymmetric unit, if applicable.")
     ORIGINAL_ATTRIBUTES: dict = Field(default_factory=dict, description="Stash of original attributes for the residue, if it is renamed.")
 
     _yaml_header: ClassVar[str] = 'missings'
@@ -170,7 +174,8 @@ class ResiduePlaceholder(BaseObj):
                 'model': model,
                 'resname': resname,
                 'chainID': chainID,
-                'orig_chainID': chainID,
+                'asym_chainID': chainID,
+                'segname' : 'UNSET',
                 'resid': resid,
                 'resolved': False,
                 'segtype': 'UNSET',
@@ -203,10 +208,11 @@ class ResiduePlaceholder(BaseObj):
             'model': pdbrecord.modelNum,
             'resname': pdbrecord.resName,
             'chainID': pdbrecord.chainID,
-            'orig_chainID' : pdbrecord.chainID,
+            'asym_chainID' : pdbrecord.chainID,
             'resid': ResID(pdbrecord.seqNum, pdbrecord.iCode),
             'resolved': False,
-            'segtype': 'UNSET'
+            'segtype': 'UNSET',
+            'segname': 'UNSET'
         }
         return input_dict
 
@@ -221,10 +227,11 @@ class ResiduePlaceholder(BaseObj):
             'model': nmn,
             'resname': cifdict['label_comp_id'],
             'chainID': cifdict['label_asym_id'],
-            'orig_chainID': cifdict['label_asym_id'],
+            'asym_chainID': cifdict['label_asym_id'],
             'resid': ResID(int(cifdict['label_seq_id']), cifdict['pdb_ins_code']),
             'resolved': False,
             'segtype': 'UNSET',
+            'segname': 'UNSET',
             'auth_asym_id': cifdict['auth_asym_id'],
             'auth_comp_id': cifdict['auth_comp_id'],
             'auth_seq_id': int(cifdict['auth_seq_id']),
@@ -308,6 +315,32 @@ class ResiduePlaceholderList(BaseObjList[ResiduePlaceholder]):
             return cls([])
         return cls([ResiduePlaceholder(CIFdict(obj, i)) for i in range(len(obj))])
 
+    def apply_inclusion_logics(self, inclusion_logics: list[str] = []):
+        ignored_missing_residue_count = 0
+        if len(inclusion_logics) == 0:
+            return 0
+        keep_missing_residues = ResiduePlaceholderList([])
+        for expression in inclusion_logics:
+            filter_func = parse_filter_expression(expression)
+            keep_missing_residues.extend(filter(filter_func, self.data))
+        keep_missing_residues_count = len(keep_missing_residues)
+        if keep_missing_residues > 0:
+            self.data = keep_missing_residues
+        return ignored_missing_residue_count
+
+    def apply_exclusion_logics(self, exclusion_logics: list[str] = []) -> int:
+        if len(exclusion_logics) == 0:
+            return 0
+        all_ignored_missing_residues = ResiduePlaceholderList([])
+        for expression in exclusion_logics:
+            logger.debug(f'Excluding missing residues with expression: {expression}')
+            filter_func = parse_filter_expression(expression)
+            ignored_missing_residues = self.data.filter(filter_func)
+            all_ignored_missing_residues.extend(ignored_missing_residues)
+        for residue in all_ignored_missing_residues:
+            self.data.remove(residue)
+        return len(all_ignored_missing_residues)
+    
 class Residue(ResiduePlaceholder):
     """
     A class for handling residues in a molecular structure.
@@ -398,8 +431,9 @@ class Residue(ResiduePlaceholder):
             input_dict = {'resname': args[0].resname,
                           'resid': ResID(args[0].resid),
                           'chainID': args[0].chainID,
-                          'orig_chainID': args[0].orig_chainID,
+                          'asym_chainID': args[0].asym_chainID,
                           'segtype': args[0].segtype,
+                          'segname': args[0].segname,
                           'model': args[0].model,
                           'obj_id': args[0].obj_id,
                           'auth_asym_id': args[0].auth_asym_id,
@@ -425,9 +459,10 @@ class Residue(ResiduePlaceholder):
             a = args[0]
             input_dict = dict(resname=a.resname,
                               resid=a.resid, chainID=a.chainID,
-                              orig_chainID=a.chainID,
+                              asym_chainID=a.chainID,
                               atoms=AtomList([a]),
                               segtype='UNSET',
+                              segname='UNSET',
                               auth_asym_id=getattr(a, 'auth_asym_id', None),
                               auth_comp_id=getattr(a, 'auth_comp_id', None),
                               auth_seq_id=getattr(a, 'auth_seq_id', None),
@@ -587,19 +622,19 @@ class Residue(ResiduePlaceholder):
             True if this residue has the same residue sequence number and insertion code as the other residue,
             False otherwise.
         """
-        if type(other)==type(self):
+        if type(other) == type(self):
             return self.resid == other.resid
-        elif type(other)==str:
-            return self.resid == ResID(other)        
+        elif type(other) == str:
+            return self.resid == ResID(other)
         return False
 
-    def add_atom(self, a:Atom):
+    def add_atom(self, a: Atom):
         """
-        Add an atom to this residue if it matches the residue's sequence number, residue name,
-        chain ID, and insertion code. This method is used to build a residue from its constituent
-        atoms, ensuring that all atoms in the residue share the same sequence number, residue name,
-        chain ID, and insertion code.
-        
+        Add an atom to this residue if it matches the residue's resid, residue name,
+        and chain ID. This method is used to build a residue from its constituent
+        atoms, ensuring that all atoms in the residue share the same resid, residue name,
+        and chain ID.
+
         Parameters
         ----------
         a : :class:`~pestifer.molecule.atom.Atom`
@@ -624,10 +659,13 @@ class Residue(ResiduePlaceholder):
         chainID : str
             The new chain ID to be set for the residue and its atoms.
         """
-        self.set(orig_chainID=self.chainID)
+        self.set(asym_chainID=self.chainID)
         self.set(chainID=chainID)
         for a in self.atoms.data:
             a.set(chainID=chainID)
+    
+    def set_segname(self, segname: str):
+        self.set(segname=segname)
 
     def link_to(self, other: Residue, link: Link):
         """
@@ -691,7 +729,6 @@ class Residue(ResiduePlaceholder):
             lin.extend(tlin)
         return res,lin
 
-
 class ResidueList(BaseObjList[Residue]):
     """
     A class for handling lists of :class:`~pestifer.molecule.residue.Residue` objects.
@@ -711,14 +748,18 @@ class ResidueList(BaseObjList[Residue]):
         return f'<ResidueList with {len(self)} residues>'
     
     @classmethod
-    def from_atomlist(cls, atoms: AtomList):
+    def from_residuegrouped_atomlist(cls, atoms: AtomList):
+        """
+        Construct a list of residues from a list of Atoms ordered and grouped into residues
+        """
         R = []
-        for a in atoms.data:
-            for r in R[::-1]:
-                if r.add_atom(a):
-                    break
-            else:
-                R.append(Residue(a))
+        for atom in atoms.data:
+            current_residue = None if len(R) == 0 else R[-1]
+            if not current_residue or not current_residue.add_atom(atom):
+                R.append(Residue(atom))
+                # logger.debug(f'Created new residue {R[-1].resname}_{R[-1].resid.resid} with first atom {atom.name}')
+            # logger.debug(f'len(R) {len(R)} len(atoms) {len(atoms)}')
+
         # for r in R:
         #     logger.debug(f'Adding residue {r.resname}{r.resid.resid} with {len(r.atoms)} atoms')
         return cls(R)
@@ -1103,6 +1144,18 @@ class ResidueList(BaseObjList[Residue]):
         for r in self.data:
             if r.chainID in the_map:
                 r.set_chainID(the_map[r.chainID])
+
+    def set_segname(self, segname: str):
+        """
+        Set the segment name for the residue.
+
+        Parameters
+        ----------
+        segname : str
+            The segment name to set.
+        """
+        for r in self.data:
+            r.set_segname(segname)
 
     def state_bounds(self, state_func: Callable):
         """
