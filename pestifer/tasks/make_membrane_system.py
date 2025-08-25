@@ -334,9 +334,10 @@ class MakeMembraneSystemTask(BaseTask):
         subcontroller.config['user']['title'] = f'Bilayer equilibration from {self.basename}'
         subcontroller.reconfigure_tasks(tasklist_user)
         for task in subcontroller.tasks:
-            task_key = task.taskname
-            task.override_taskname(f'{self.taskname}-' + task_key)
-            logger.debug(f'Subcontroller overrides task name {task_key} with {task.taskname}')
+            save_task_name = task.taskname
+            task_name = f'{self.taskname}-{task.taskname}-{bilayer_name}'
+            task.override_taskname(task_name)
+            logger.debug(f'Subcontroller overrides task name {save_task_name} with {task.taskname}')
         subcontroller.do_tasks()
         last_task: TerminateTask = subcontroller.tasks[-1]
         bilayer_state: StateArtifacts = last_task.get_current_artifact('state')
@@ -470,12 +471,7 @@ class MakeMembraneSystemTask(BaseTask):
             raise RuntimeError(f'psfgen failed with result {result} for {self.basename}')
         self.register(PsfgenLogFileArtifact(self.basename))
         self.register(StateArtifacts(psf=PSFFileArtifact(self.basename), pdb=PDBFileArtifact(self.basename), xsc=NAMDXscFileArtifact(self.basename)), key='state')
-        charmmff_parfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_parfiles')
-        if charmmff_parfiles is None:
-            self.register('charmmff_parfiles', [])
-            charmmff_parfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_parfiles')
-        for pf in self.quilt.addl_streamfiles:
-            charmmff_parfiles.append(pf, unique=True)
+        logger.debug(f'Embedding completed with result {result}')
         return result
 
     

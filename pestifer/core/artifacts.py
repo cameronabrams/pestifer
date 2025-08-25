@@ -63,6 +63,7 @@ class Artifact():
         self.produced_by = owner
         for attr_name, attr_value in self.__dict__.items():
             if isinstance(attr_value, Artifact):
+                logger.debug(f"Stamping member Artifact {attr_name} {type(attr_value)} of artifact {self.key} ")
                 attr_value.stamp(owner)
         return self
 
@@ -116,6 +117,8 @@ class ArtifactList(UserList, Artifact):
             raise ValueError("Owner must not be None.")
         self.produced_by = owner
         for artifact in self.data:
+            if not isinstance(artifact, Artifact):
+                raise TypeError(f'Expected Artifact, got {type(artifact)}')
             artifact.stamp(owner)
         return self
 
@@ -225,6 +228,8 @@ class ArtifactDict(UserDict, Artifact):
             raise ValueError("Owner must not be None.")
         self.produced_by = owner
         for artifact in self.data.values():
+            if not isinstance(artifact, Artifact):
+                raise TypeError(f'Expected Artifact, got {type(artifact)}')
             artifact.stamp(owner)
         return self
     

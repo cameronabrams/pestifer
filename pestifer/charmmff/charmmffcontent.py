@@ -221,7 +221,7 @@ class CHARMMFFContent(CacheableObject):
         tarfilename = kwargs.get('tarfilename', 'toppar_c36_jul24.tgz')
         skip_streams = kwargs.get('skip_streams', ['misc', 'cphmd'])
         self._load_charmmff(tarfilename=tarfilename, skip_streams=skip_streams)
-        self._initialize_resi_to_file_map()
+        self._initialize_resi_to_topfile_map()
         self.provisioned = False
         """ Items below are created by provisioning at run-time """
         self.residues = CharmmResiDict({})
@@ -246,14 +246,16 @@ class CHARMMFFContent(CacheableObject):
         """
         def okfilename(name):
             """ Check if a filename is ok to use in the tarfile """
-            return not 'history' in name and not 'all22' in name and not 'ljpme' in name and (name.endswith('.str') or name.endswith('.prm') or name.endswith('.rtf'))
+            extension_whitelist = ['.rtf', '.prm', '.str']
+            name_blacklist = ['history', 'all22', 'ljpme']
+            return not any(blacklist in name for blacklist in name_blacklist) and any(name.endswith(ext) for ext in extension_whitelist)
 
         if not os.path.exists(os.path.join(self.charmmff_path, tarfilename)):
             raise FileNotFoundError(f'CHARMM force field tarball {self.tarfilename} not found in {self.charmmff_path}')
         self.tarfilename = tarfilename  
         logger.debug(f'Loading CHARMM force field tarball {self.tarfilename} from {self.charmmff_path}')
         self.toppar_fs = TarBytesFS.from_file(os.path.join(self.charmmff_path, self.tarfilename), compression='gzip')
-        root_listing = [x['name'] for x in self.toppar_fs.ls('toppar')]
+        root_listing = [x['name'] for x in self.toppar_fs.ls('toppar') if okfilename(x)]
         # self.contents = {}
         par    = {os.path.basename(x): x for x in root_listing if okfilename(x) and CHARMMFFContent.charmmff_filetype(x) == 'par'}
         top    = {os.path.basename(x): x for x in root_listing if okfilename(x) and CHARMMFFContent.charmmff_filetype(x) == 'top'}
@@ -276,6 +278,8 @@ class CHARMMFFContent(CacheableObject):
         self.filenamemap = {'par': par, 'top': top, 'toppar': toppar}
         self.all_topology_files = {x: v for x, v in self.filenamemap['top'].items()}
         self.all_topology_files.update({x: v for x, v in self.filenamemap['toppar'].items()})
+        self.all_parameter_files = {x: v for x, v in self.filenamemap['par'].items()}
+        self.all_parameter_files.update({x: v for x, v in self.filenamemap['toppar'].items()})
         self.custom_files = []
         if 'custom' in self.charmm_elements and os.path.exists(os.path.join(self.charmmff_path, 'custom')):
             self.custom_folder = os.path.join(self.charmmff_path, 'custom')
@@ -312,6 +316,7 @@ class CHARMMFFContent(CacheableObject):
                 case 'par':
                     self.filenamemap['par'][f] = os.path.join(custom_folder, f)
                     self.custom_files.append(f)
+                    self.all_parameter_files[f] = os.path.join(custom_folder, f)
                 case 'top':
                     self.filenamemap['top'][f] = os.path.join(custom_folder, f)
                     self.all_topology_files[f] = os.path.join(custom_folder, f)
@@ -319,12 +324,13 @@ class CHARMMFFContent(CacheableObject):
                 case 'toppar':
                     self.filenamemap['toppar'][f] = os.path.join(custom_folder, f)
                     self.all_topology_files[f] = os.path.join(custom_folder, f)
+                    self.all_parameter_files[f] = os.path.join(custom_folder, f)
                     self.custom_files.append(f)
                 case _:
                     logger.debug(f'I do not recognize custom CHARMM file {f} in {custom_folder}')
 
-    def _initialize_resi_to_file_map(self):
-        self.resi_to_file_map = {}
+    def _initialize_resi_to_topfile_map(self):
+        self.resi_to_topfile_map = {}
         for shortname, fullname in self.all_topology_files.items():
             try:
                 name_in_tarball = self.fs_resolver[shortname]
@@ -338,7 +344,7 @@ class CHARMMFFContent(CacheableObject):
             for line in lines:
                 if line.startswith('RESI') or line.startswith('PRES'):
                     resi_name = line.split()[1]
-                    self.resi_to_file_map[resi_name] = shortname
+                    self.resi_to_topfile_map[resi_name] = shortname
 
     @staticmethod
     def charmmff_filetype(filename: str) -> str | None:
@@ -419,7 +425,7 @@ class CHARMMFFContent(CacheableObject):
         """
         Given a residue name, return the name of the CHARMMFF topo or stream file that defines it
         """
-        return self.resi_to_file_map[resname] if resname in self.resi_to_file_map else None
+        return self.resi_to_topfile_map[resname] if resname in self.resi_to_topfile_map else None
 
     def copy_charmmfile_local(self, basename):
         """

@@ -6,7 +6,9 @@ from pidibble.pdbparse import PDBParser
 
 from pestifer.core.command import Command
 from pestifer.molecule.atom import AtomList
+from pestifer.molecule.molecule import Molecule
 from pestifer.molecule.residue import ResidueList
+from pestifer.molecule.segment import Segment, SegmentList
 from pestifer.objs.link import Link
 from pestifer.psfutil.psfcontents import PSFContents, get_toppar_from_psf
 
@@ -199,9 +201,23 @@ class TestPSFContents(unittest.TestCase):
         self.assertTrue(all([a1.serial == a2.serial for a1, a2 in zip(pdbatoms, psf.atoms)]))
         self.assertTrue(all([a1.name == a2.atomname for a1, a2 in zip(pdbatoms, psf.atoms)]))
         pdbatoms.apply_psf_attributes(psf.atoms)
+        for a1, a2 in zip(pdbatoms, psf.atoms):
+            self.assertEqual(a1.resid, a2.resid)
+            self.assertEqual(a1.segname, a2.segname)
         pdbresidues = ResidueList.from_residuegrouped_atomlist(pdbatoms)
         # self.assertTrue(all([a1.resid == a2.resid for a1, a2 in zip(pdbresidues, psf.residues)]))
         for r1, r2 in zip(pdbresidues, psf.residues):
             self.assertEqual(r1.resid, r2.resid)
-        self.assertTrue(all([a1.resname == a2.resname for a1, a2 in zip(pdbresidues, psf.residues)]))
+            self.assertEqual(r1.resname, r2.resname)
+            self.assertEqual(r1.segname, r2.segname)
 
+        pdbsegments = SegmentList([])
+        pdbsegments.residues = pdbresidues
+        pdbsegments.seq_spec = {}
+        pdbsegments.psfcompanion = psf.segments
+        pdbsegments.build_from_psf_and_pdb_data()
+
+        self.assertEqual(len(pdbsegments), len(psf.segments))
+        for seg1, seg2 in zip(pdbsegments, psf.segments):
+            self.assertEqual(seg1.segname, seg2.segname)
+            self.assertEqual(len(seg1.residues), len(seg2.residues))

@@ -102,17 +102,19 @@ class Segment(BaseObj):
                     subsegments = residues.state_bounds(lambda x: 'RESOLVED' if x.resolved else 'MISSING')
                     # logger.debug(f'Segment {apparent_segname} has {len(residues)} residues across {len(subsegments)} subsegments')
                 else:
-                    logger.debug(f'Calling puniquify on {len(residues)} residues of non-polymer segment {apparent_segname} by attribute \'resid\'')
-                    residues.puniquify(attrs=['resid'])
-                    logger.debug(f'counting affected residues...')
-                    count = sum([1 for x in residues.data if len(x.atoms)>0 and 'resid' in x.atoms.data[0].ORIGINAL_ATTRIBUTES and x.resid != x.atoms.data[0].ORIGINAL_ATTRIBUTES['resid']])
-                    if count > 0:
-                        logger.debug(f'{count} residue(s) were affected by puniquify:')
-                        for x in residues.data:
-                            if len(x.atoms) > 0 and len(x.atoms.data[0].ORIGINAL_ATTRIBUTES) > 0:
-                                logger.debug(f'    {x.chainID} {x.resname} {x.resid.resid} was resid {x.atoms.data[0].ORIGINAL_ATTRIBUTES["resid"].resid}')
-                    else:
-                        logger.debug(f'No duplicate resids found in {len(residues)} residues of non-polymer segment {apparent_segname}')
+                    skip_uniquify = kwargs.get('skip_uniquify', False)
+                    if not skip_uniquify:
+                        logger.debug(f'Calling puniquify on {len(residues)} residues of non-polymer segment {apparent_segname} by attribute \'resid\'')
+                        residues.puniquify(attrs=['resid'])
+                        logger.debug(f'counting affected residues...')
+                        count = sum([1 for x in residues.data if len(x.atoms)>0 and 'resid' in x.atoms.data[0].ORIGINAL_ATTRIBUTES and x.resid != x.atoms.data[0].ORIGINAL_ATTRIBUTES['resid']])
+                        if count > 0:
+                            logger.debug(f'{count} residue(s) were affected by puniquify:')
+                            for x in residues.data:
+                                if len(x.atoms) > 0 and len(x.atoms.data[0].ORIGINAL_ATTRIBUTES) > 0:
+                                    logger.debug(f'    {x.chainID} {x.resname} {x.resid.resid} was resid {x.atoms.data[0].ORIGINAL_ATTRIBUTES["resid"].resid}')
+                        else:
+                            logger.debug(f'No duplicate resids found in {len(residues)} residues of non-polymer segment {apparent_segname}')
                     subsegments = residues.state_bounds(lambda x: 'RESOLVED' if len(x.atoms)>0 else 'MISSING')
                 logger.debug(f'Segment {apparent_segname} has {len(residues)} residues across {len(subsegments)} subsegments')
                 input_dict = {
@@ -295,19 +297,11 @@ class SegmentList(BaseObjList[Segment]):
         # for each segment in the psfcompanion, build a list of actual residues extracted from self.residues for which atom serials match those in the PSFResidues
 
         for seg in self.psfcompanion.data:
-            matching_residues = ResidueList([])
-            for psfresidue in seg.residues.data:
-                psfatom_serials = [x.serial for x in psfresidue.atoms.data]
-                psfatom_serials.sort()
-                for res in self.residues.data:
-                    atom_serials = [x.serial for x in res.atoms.data]
-                    atom_serials.sort()
-                    if psfatom_serials == atom_serials:
-                        matching_residues.append(res)
+            matching_residues = ResidueList(list(filter(lambda x: x.segname == seg.segname, self.residues.data)))
             if not matching_residues:
                 raise ValueError(f'No matching residues found for segment {seg.segname}')
 
-            self.append(Segment(matching_residues, segname=seg.segname, specs=self.seq_spec))
+            self.append(Segment(matching_residues, segname=seg.segname, specs=self.seq_spec, skip_uniquify=True))
 
     def collect_residues(self):
         """

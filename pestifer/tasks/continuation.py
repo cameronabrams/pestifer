@@ -6,10 +6,12 @@ Usage is described in the :ref:`config_ref tasks continuation` documentation.
 """
 import logging
 
+from ..psfutil.psfcontents import PSFContents
 from .psfgen import PsfgenTask
 # from .basetask import VMDTask
 from ..core.artifacts import *
-
+from ..molecule.atom import AtomList
+from ..molecule.residue import ResidueList
 logger = logging.getLogger(__name__)
 
 class ContinuationTask(PsfgenTask):
@@ -36,6 +38,31 @@ class ContinuationTask(PsfgenTask):
             pdb = self.coor_to_pdb(coor, psf)
         if pdb and not coor: 
             coor = self.pdb_to_coor(pdb)
+        topolines = []
+        with open(psf, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if line and line.startswith("REMARKS topology"):
+                    topolines.append(line)
+                if '!NATOM' in line:
+                    break
+        if not topolines:
+            raise ValueError('No topology information found in PSF file')
+        streamfiles = []
+        for topoline in topolines:
+            tokens = topoline.split()
+            toponame = os.path.basename(tokens[-1])
+            if toponame.endswith('.str'):
+                streamfiles.append(toponame)
+        # any md task will at a minimum ensure all of charmmff's top-level parameter
+        # files are copied to the CWD.  Since this PSF also lists stream files
+        # in its topology remarks, the continuation task will also preemptively
+        # copy them to cwd and register them as artifacts
+        CC = self.resource_manager.charmmff_content
+        for streamfile in streamfiles:
+            CC.copy_charmmfile_local(streamfile)
+        self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x) for x in streamfiles]), key='charmmff_streamfiles')
+
         self.register(StateArtifacts(psf=PSFFileArtifact(psf),
                                      pdb=PDBFileArtifact(pdb),
                                      coor=NAMDCoorFileArtifact(coor),

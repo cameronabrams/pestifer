@@ -200,5 +200,9 @@ class PipelineContext:
         Import artifacts from another pipeline context.
         """
         logger.debug(f'Importing artifacts from {repr(other)} into {repr(self)}')
-        self.history.extend(other.head.to_list())
+        for other_artifact_key, other_artifact in other.head.items():
+            if not other_artifact_key in self.head:
+                self.head[other_artifact_key] = other_artifact
+            else:
+                self.history.append(other_artifact)
         self.history.extend(other.history)

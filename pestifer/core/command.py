@@ -14,6 +14,7 @@ import subprocess
 from glob import glob
 
 from ..logparsers import LogParser
+from ..util.util import running_under_pytest
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,7 @@ class Command:
         logparser: LogParser
             used for progress bar/elapsed time displays and log parsing
         """
+        _pytest = running_under_pytest()
         if not quiet:
             logger.debug(f'{self.c}')
         log = None
@@ -110,7 +112,8 @@ class Command:
             self.stdout += output
             if logparser:
                 logparser.update(output)
-                logparser.update_progress_bar()
+                if not _pytest:
+                    logparser.update_progress_bar()
             if log: 
                 log.write(output)
                 log.flush()
@@ -125,7 +128,8 @@ class Command:
         self.stdout += remaining_stdout
         if logparser:
             logparser.update(remaining_stdout)
-            logparser.update_progress_bar()
+            if not _pytest:
+                logparser.update_progress_bar()
             if hasattr(logparser, 'finalize'):
                 logparser.finalize()
             if hasattr(logparser, 'write_csv'):
