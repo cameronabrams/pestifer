@@ -11,7 +11,7 @@ from pestifer.core.example import Example
 
 @dataclass(frozen=True)
 class Case:
-    example: Example
+    example_id: int
 
 PKG_NAME = "pestifer"                   # your package import name
 CASES_DIR = ("resources", "examples")  # default discovery root: pkg/testdata/cases/
@@ -23,12 +23,6 @@ def _default_cases_root() -> Path:
     for part in CASES_DIR:
         base = base / part
     return Path(str(base)).resolve()
-
-def _cases_root(config: pytest.Config) -> Path:
-    cr = config.getoption("--cases-root")
-    return Path(cr).resolve() if cr else _default_cases_root()
-
-_example_manager = ExampleManager(examples_path=_cases_root())
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     g = parser.getgroup("integration-examples")
@@ -58,16 +52,21 @@ def _expand_examples(spec: str) -> list[int]:
             out.append(int(chunk))
     return sorted(set(out))
 
+def _cases_root(config: pytest.Config) -> Path:
+    cr = config.getoption("--cases-root")
+    return Path(cr).resolve() if cr else _default_cases_root()
+
 def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     if "case" not in metafunc.fixturenames:
         return
+    _example_manager = ExampleManager(examples_path=_cases_root(metafunc.config))
     explicit = metafunc.config.getoption("--examples")
     if explicit:
         indices = _expand_examples(explicit)
     else:
         indices = [ex.example_id for ex in _example_manager.examples.data]
-    cases = [Case(example=_example_manager.examples.get_example_by_example_id(i)) for i in indices]
-    metafunc.parametrize("case", cases, folders=[c.folder for c in cases])
+    cases = [Case(example_id=i) for i in indices]
+    metafunc.parametrize("case", cases)
 
 @pytest.fixture
 def per_case_dir(case: Case, request: pytest.FixtureRequest) -> Path:
@@ -76,7 +75,7 @@ def per_case_dir(case: Case, request: pytest.FixtureRequest) -> Path:
     Example: pkg/tests/integration/test_cli_cases/ex01/
     """
     test_module_dir = Path(request.node.fspath).parent.resolve()
-    d = test_module_dir / case.example.rootfolderpath
+    d = test_module_dir / Example.folder_name_format.format(example_id=case.example_id)
     d.mkdir(parents=True, exist_ok=True)
     return d
 

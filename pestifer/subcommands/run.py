@@ -9,15 +9,14 @@ import logging
 import os
 import shutil
 import time
-
 from dataclasses import dataclass
-
 
 logger = logging.getLogger(__name__)
 
 from ..core.controller import Controller
 from ..core.config import Config
 from .subcommand import Subcommand
+from ..util.stringthings import __pestifer_version__
 
 @dataclass
 class RunSubcommand(Subcommand):
@@ -44,7 +43,8 @@ class RunSubcommand(Subcommand):
             exec_dir = os.getcwd()
             if not os.path.exists(args.output_dir):
                 os.mkdir(args.output_dir)
-            shutil.copy(args.config, args.output_dir)
+            if not os.path.exists(os.path.join(args.output_dir, args.config)):
+                shutil.copy(args.config, args.output_dir)
             os.chdir(args.output_dir)
         loglevel_numeric = getattr(logging, args.log_level.upper())
         if args.log_file:
@@ -61,7 +61,7 @@ class RunSubcommand(Subcommand):
         begin_time = time.time()
         configname = args.config
         # include date and time in the message below
-        logger.info(f'pestifer begins at {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(begin_time))} with config {configname}')
+        logger.info(f'pestifer v. {__pestifer_version__} begins at {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(begin_time))} with config {configname}')
 
         allowed_extensions = ['.yaml', '.yml', '.y']
         cbase, cext = os.path.splitext(configname)

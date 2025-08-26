@@ -2,8 +2,11 @@ import os
 from pathlib import Path
 import logging
 import pytest
+import shutil
 
-from pestifer.subcommands import RunExampleSubcommand # adjust if your callable lives elsewhere
+from pestifer.subcommands import RunExampleSubcommand
+from pestifer.subcommands.run import RunSubcommand # adjust if your callable lives elsewhere
+from ..conftest import _LOGFILE
 
 @pytest.mark.slow
 def test_example_case(case, per_case_dir, make_namespace, caplog):
@@ -11,7 +14,7 @@ def test_example_case(case, per_case_dir, make_namespace, caplog):
     Mirrors your do_it(exnumber) logic but uses per-case subdirs under this test module.
     """
     caplog.set_level(logging.DEBUG)
-
+    global _LOGFILE
     # Clean the per-case dir like your runner does
     for p in per_case_dir.iterdir():
         if p.is_dir():
@@ -28,10 +31,10 @@ def test_example_case(case, per_case_dir, make_namespace, caplog):
     os.chdir(per_case_dir)
 
     # Build args Namespace and run
-    args = make_namespace(case.index, per_case_dir)
+    args = make_namespace(case.example_id, per_case_dir)
     task = RunExampleSubcommand()
     controller = task.func(args)
-
+    shutil.copy(_LOGFILE, per_case_dir / "pestifer_diagnostics.log")
     # Validate produced tarball
     prod_basename = controller.tasks[-1].specs["package"]["basename"]
     prod_tgz = Path(f"{prod_basename}.tar.gz")

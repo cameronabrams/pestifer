@@ -92,7 +92,7 @@ class ExampleManager:
     def scriptpath(self, example: Example) -> Path:
         return self.path / example.scriptpath
 
-    def checkout_example(self, example_id: int):
+    def checkout_example(self, example_id: int) -> Example:
         """
         Copy example YAML file and associated companion files by example ID to the current working directory.
 
@@ -137,7 +137,7 @@ class ExampleManager:
             else:
                 logger.warning(f'Declared companion file "{companion_file}" does not exist in {os.path.join(self.path,example_folder)}')
         logger.info(f'Checked out example {example_id} from {self.path} to current working directory {os.getcwd()}')
-        return example_yaml  # return the name of the copied file
+        return example
 
     def new_example_yaml(self, db_id='ABCD', build_type='minimal'):
         """

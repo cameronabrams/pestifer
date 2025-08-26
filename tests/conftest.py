@@ -6,6 +6,10 @@ import os
 # conftest.py
 import logging
 
+logging.getLogger("pidibble").setLevel(logging.WARNING)
+logging.getLogger("ycleptic").setLevel(logging.WARNING)
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
+
 from logging import FileHandler, Formatter
 from pathlib import Path
 

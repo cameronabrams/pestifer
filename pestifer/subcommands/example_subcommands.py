@@ -6,6 +6,7 @@ Subcommands providing access to the examples included in Pestifer.
 from dataclasses import dataclass
 from . import Subcommand, RunSubcommand
 from ..core.resourcemanager import ResourceManager
+from ..core.example import Example
 from ..util.util import remove_argument
 from argparse import Namespace
 
@@ -23,8 +24,8 @@ class FetchExampleSubcommand(Subcommand):
     def func(args: Namespace, **kwargs):
         example_id = args.example_id
         r = ResourceManager()
-        config = r.example_manager.checkout_example(example_id)
-        return config # name of YAML script file
+        example = r.example_manager.checkout_example(example_id)
+        return example.scriptname
 
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)

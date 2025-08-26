@@ -58,6 +58,10 @@ class Example(BaseObj):
         return res_dict
 
     @property
+    def scriptname(self) -> str:
+        return f'{self.shortname}.yaml'
+
+    @property
     def rootfolderpath(self) -> Path:
         return Path(self.folder_name_format.format(example_id=self.example_id))
     
@@ -71,7 +75,7 @@ class Example(BaseObj):
 
     @property
     def scriptpath(self) -> Path:
-        return Path(f'{self.inputspath}/{self.shortname}.yaml')
+        return Path(f'{self.inputspath}/{self.scriptname}')
 
     @staticmethod
     def _get_implied_metadata(script: str) -> tuple[str, str | None]:

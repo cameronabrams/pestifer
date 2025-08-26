@@ -255,7 +255,7 @@ class CHARMMFFContent(CacheableObject):
         self.tarfilename = tarfilename  
         logger.debug(f'Loading CHARMM force field tarball {self.tarfilename} from {self.charmmff_path}')
         self.toppar_fs = TarBytesFS.from_file(os.path.join(self.charmmff_path, self.tarfilename), compression='gzip')
-        root_listing = [x['name'] for x in self.toppar_fs.ls('toppar') if okfilename(x)]
+        root_listing = [x['name'] for x in self.toppar_fs.ls('toppar') if okfilename(x['name'])]
         # self.contents = {}
         par    = {os.path.basename(x): x for x in root_listing if okfilename(x) and CHARMMFFContent.charmmff_filetype(x) == 'par'}
         top    = {os.path.basename(x): x for x in root_listing if okfilename(x) and CHARMMFFContent.charmmff_filetype(x) == 'top'}

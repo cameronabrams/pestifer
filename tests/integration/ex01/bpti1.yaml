@@ -5,36 +5,23 @@
 # Simple build of solvated BPTI (mimics psfgen user manual)
 #
 # Notes:
-#   - The phospate ion is excluded, but all crystal waters are retained
-#   - Solution has 0.154 M NaCl
+#   - The phospate ion and all crystal waters are retained
 #   - A five-phase NPT equilibration is used to settle the density
-#   - A production tarball is generated: prod_6pti.tgz rooted in directory ready-to-run
+#   - A production tarball is generated: prod_6pti.tgz
 #
-title: BPTI with phosphate ion excluded in salty solution
+title: Bovine Pancreatic Trypsin Inhibitor (BPTI)
 tasks:
   - fetch:
       sourceID: 6pti
   - psfgen:
-      source:
-        exclude:
-          - resname == 'PO4'
-  - validate:
-      tests:
-        - residue_test:
-            name: phosphate ion excluded
-            selection: resname PO4
-            measure: residue_count
-            value: 0
   - md:
       ensemble: minimize
   - solvate:
-      salt_con: 0.154
-      cation: SOD
-      anion: CLA
   - md:
       ensemble: minimize
   - md:
       ensemble: NVT
+      nsteps: 400
   - md:
       ensemble: NPT
       nsteps: 200
@@ -53,6 +40,11 @@ tasks:
   - mdplot:
       timeseries:
         - density
+        - - cpu_time
+          - wall_time
+      units:
+        cpu_time: s
+        wall_time: s
       basename: solvated
       grid: True
   - terminate:
