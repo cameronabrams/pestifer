@@ -18,6 +18,12 @@ class PytestTerminateTask(BaseTask):
     _yaml_header = 'pytest_terminate'
 
     def do(self) -> int:
+        """
+        This method will gather all file artifacts labeled as "pytestable", delete other file artifacts,
+        and then either 
+        1. save the pytestables as gold
+        2. compare the pytestables to the gold standard
+        """
         assert running_under_pytest()
         # Determine all testable file artifacts
         task_results = self.pipeline.get_artifact_collection_as_lists()
@@ -25,6 +31,7 @@ class PytestTerminateTask(BaseTask):
         # delete any non-testable file artifacts
         for file_artifact in task_results['files']:
             if not file_artifact in testable_file_artifacts:
+                logger.debug(f'PytestTerminateTask deleting non-testable file artifact {file_artifact.name} {str(file_artifact.produced_by)}')
                 file_artifact.path.unlink(missing_ok=True)
         for file_artifact_list in task_results['filelists']:
             for file_artifact in file_artifact_list:
@@ -32,6 +39,7 @@ class PytestTerminateTask(BaseTask):
                     if file_artifact.pytestable:
                         testable_file_artifacts.append(file_artifact)
                     else:
+                        logger.debug(f'PytestTerminateTask deleting non-testable file artifact {file_artifact.name} {str(file_artifact.produced_by)}')
                         file_artifact.path.unlink(missing_ok=True)
 
         # if we are generating new standards, simply copy the remaining

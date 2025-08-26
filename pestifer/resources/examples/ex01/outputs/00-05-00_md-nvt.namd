@@ -1,5 +1,5 @@
 # pestifer.scripters: 00-05-00_md-nvt.namd
-####################### Created Tue Aug 26 14:36:06 2025 #######################
+####################### Created Tue Aug 26 17:22:50 2025 #######################
 ################################# NAMD script ##################################
 parameters par_all36m_prot.prm
 parameters par_all36_lipid.prm

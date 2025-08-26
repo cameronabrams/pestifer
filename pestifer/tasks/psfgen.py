@@ -6,15 +6,12 @@ Usage is described in the :ref:`subs_runtasks_psfgen` documentation.
 
 """
 import logging
-import pdb
 import networkx as nx
 import os
 
 from copy import deepcopy
 from pathlib import Path
 from typing import ClassVar
-
-from sqlalchemy import case
 
 from .basetask import VMDTask
 from ..molecule.chainidmanager import ChainIDManager
@@ -46,6 +43,9 @@ class PsfgenTask(VMDTask):
     """
 
     def provision(self, packet: dict = {}):
+        """
+        Provision the task with the standard packet, and initialize molecule dict and base molecule placeholders.
+        """
         super().provision(packet=packet)
         self.molecules = {}
         self.base_molecule: Molecule = None
@@ -105,6 +105,9 @@ class PsfgenTask(VMDTask):
                         self.register(artifact_type(self.basename))
 
     def declash(self):
+        """
+        Manages the declashing of protein loops and glycans
+        """
         self.min_loop_length = self.specs['source'].get('sequence',{}).get('loops',{}).get('min_loop_length',0)
         self.declash_counts = self.base_molecule.loop_counts(min_loop_length=self.min_loop_length)
         num_images = self.base_molecule.num_images()
@@ -157,7 +160,7 @@ class PsfgenTask(VMDTask):
 
     def psfgen(self):
         """
-        Run the psfgen process to generate a PSF file from the base molecule.
+        Run the psfgen process to generate a PSF and PDB fileset from the base molecule.
         """
         self.next_basename('build')
         pg: PsfgenScripter = self.scripters['psfgen']

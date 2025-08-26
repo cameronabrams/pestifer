@@ -1,9 +1,15 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+
+"""
+This module defines the ``test_example_case`` function for testing example cases and generating their gold-standard outputs for the tests.
+"""
+
 import os
 import logging
 import pytest
 import shutil
 
-from pestifer.core.artifacts import DataArtifact, FileArtifact, FileArtifactList
+from pestifer.core.artifacts import DataArtifact
 from pestifer.subcommands import RunExampleSubcommand
 from pestifer.util._goldenmode import generate_gold, set_example_id
 
@@ -16,7 +22,7 @@ def test_example_case(case, per_case_dir, make_namespace, caplog):
     """
     caplog.set_level(logging.DEBUG)
     global _LOGFILE
-    # Clean the per-case dir like your runner does
+    # Clean the per-case dir
     for p in per_case_dir.iterdir():
         if p.is_dir():
             # don't nuke the folder itself; just clear contents
