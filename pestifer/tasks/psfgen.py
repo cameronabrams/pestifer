@@ -200,7 +200,7 @@ class PsfgenTask(VMDTask):
             for line in lines:
                 if not line.startswith('REMARK'):
                     outfile.write(line)
-        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename), psf=state.psf))
+        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename, pytestable=True), psf=state.psf))
 
     def declash_segtype(self, specs: dict, segtype='protein'):
         """
