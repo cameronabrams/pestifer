@@ -257,7 +257,7 @@ class LogParser(ByteCollector):
 
 class VMDLogParser(LogParser):
     """
-    A class for parsing VMD log files. This class is a subclass of :class:`LogParser <pestifer.util.logparsers.LogParser>` and provides methods for reading, updating, and dumping VMD log data.
+    A class for parsing VMD log files. This class is a subclass of :class:`LogParser <pestifer.logparsers.logparser.LogParser>` and provides methods for reading, updating, and dumping VMD log data.
     It also includes methods for processing specific lines in the log file, such as those containing information about the simulation, TCL commands, and energy calculations.
     
     Parameters

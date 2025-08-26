@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import argparse
 import importlib.resources as ir
-import re
+import os
 import pytest
 
 from pestifer.core.examplemanager import ExampleManager
@@ -16,7 +16,7 @@ class Case:
 PKG_NAME = "pestifer"                   # your package import name
 CASES_DIR = ("resources", "examples")  # default discovery root: pkg/testdata/cases/
 
-# spoof the config's introspection to fully initialize an ExampleManager
+pytest_plugins = ["pestifer.util.pytest_plugin"]
 
 def _default_cases_root() -> Path:
     base = ir.files(PKG_NAME)
@@ -30,7 +30,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         "--examples",
         action="store",
         default=None,
-        help="Comma/ran­ge list of example indices to run, e.g. '1,2,5-7'. "
+        help="Comma/range list of example indices to run, e.g. '1,2,5-7'. "
              "Overrides discovery."
     )
     g.addoption(
@@ -75,7 +75,8 @@ def per_case_dir(case: Case, request: pytest.FixtureRequest) -> Path:
     Example: pkg/tests/integration/test_cli_cases/ex01/
     """
     test_module_dir = Path(request.node.fspath).parent.resolve()
-    d = test_module_dir / Example.folder_name_format.format(example_id=case.example_id)
+    d = test_module_dir / Path('__test_builds') / Example.folder_name_format.format(example_id=case.example_id)
+    os.environ["PESTIFER_PYTEST_GENERATE_GOLD_EXAMPLE_ID"] = str(case.example_id)
     d.mkdir(parents=True, exist_ok=True)
     return d
 

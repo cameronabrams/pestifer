@@ -49,5 +49,6 @@ tasks:
       archive_dir: arc
       package:
         basename: my_1mob
-        ensemble: NPT
         state_dir: r2r
+        md:
+          ensemble: NPT

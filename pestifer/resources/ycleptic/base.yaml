@@ -341,7 +341,7 @@ attributes:
         type: dict
         attributes:
           - name: source
-            text: Source for the initial coordinate file
+            text: Source for the initial coordinate file; one of 'pdb' (for the RCSB PDB), 'alphafold' (for the AlphaFold DB), or 'local' (for a local file)
             type: str
             options: [pdb, alphafold, local]
             default: pdb
@@ -377,7 +377,7 @@ attributes:
         type: dict
         attributes:
           - name: source
-            text: Specifies the source of the initial coordinate file
+            text: Specifies the processing and interpretation of the initial source coordinate file
             type: dict
             attributes:
               - name: biological_assembly 
@@ -1389,8 +1389,8 @@ attributes:
             text: List of validation tests to run
             type: list
             attributes:
-              - name: selection_test
-                text: Validate a selection of atoms in the system
+              - name: attribute_test
+                text: Validate a selection of atoms in the system by attribute values
                 type: dict
                 docs:
                   text: |
@@ -1402,12 +1402,14 @@ attributes:
                   - name: selection
                     text: VMD atomselection string defining the selection to be tested
                     type: string
-                  - name: connection_type
-                    text: The type of connection to validate (e.g. "interresidue")
+                  - name: attribute
+                    text: The VMD atom attribute to query
                     type: string
-                    choices: [interresidue]
-                  - name: connection_count
-                    text: The expected number of connections in the selection
+                  - name: value
+                    text: The expected value for the attribute
+                    type: string
+                  - name: value_count
+                    text: The expected number of atoms matching the attribute (will default to 1)
                     type: int
               - name: connection_test
                 text: Query the number of interatomic connections in a selection
@@ -1422,6 +1424,7 @@ attributes:
                   - name: connection_type
                     text: The type of connection to validate (e.g. "interresidue")
                     type: string
+                    choices: [interresidue, disulfide, glycosylation]
                   - name: connection_count
                     text: The expected number of connections in the selection
                     type: int
@@ -1438,6 +1441,9 @@ attributes:
                   - name: measure
                     text: Measure to apply to the selection (e.g. "count")
                     type: string
+                  - name: relation 
+                    type: string
+                    text: binary relational operator to relate measured value and expected value (defaults to ==)
                   - name: value
                     text: Expected value for the measure
                     type: int

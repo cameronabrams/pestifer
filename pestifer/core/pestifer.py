@@ -63,6 +63,5 @@ def cli():
         subcommand.add_subparser(subparsers)
 
     args = parser.parse_args()
-
     banner(print, args)
     args.func(args)

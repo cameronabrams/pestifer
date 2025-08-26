@@ -3,7 +3,7 @@
 import unittest
 import os
 
-from pestifer.core.pestifer import mdplot  # this is the subcommand
+from pestifer.subcommands.mdplot_subcommand import MDPlotSubcommand
 from argparse import Namespace
 
 class Test_MDPlot(unittest.TestCase):
@@ -16,7 +16,7 @@ class Test_MDPlot(unittest.TestCase):
         args = Namespace(logs=logs, xsts=xsts,
                          basename='testmdplot', profiles=[], profiles_per_block=1,
                          figsize=[9, 6], timeseries=['density', ['a_x', 'b_y', 'c_z']])
-        file_artifacts = mdplot(args)
+        file_artifacts = MDPlotSubcommand.func(args)
         expected_artifact_count = 24
         self.assertEqual(len(file_artifacts), expected_artifact_count)
 

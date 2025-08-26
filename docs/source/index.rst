@@ -28,4 +28,5 @@ Contents
    config_ref
    API <api/API>
    tcl/source
+   testing api <tests-api/TESTSAPI>
    changelog

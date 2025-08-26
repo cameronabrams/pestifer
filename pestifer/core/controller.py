@@ -66,32 +66,21 @@ class Controller:
             logger.debug('Adding default terminate task')
             self.tasks.append(TerminateTask(specs=specs, index=len(self.tasks)))
 
-        # if this is being run by pytest, find the first task in the list for which
-        # the pytest_skip_after_to_terminate is true, and delete all tasks between it and terminate.
         if running_under_pytest():
-            psfgen_idx = None
-            make_membrane_idx = None
+            # truncate task list after latest ValidateTask, if one exists
+            # remove the TerminateTask and put on a custom one so that 
+            # desired outputs are retained
+            from ..tasks.pytest_terminate import PytestTerminateTask
+            validate_task_idx = None
             for i, task in enumerate(self.tasks):
-                if isinstance(task, PsfgenTask):
-                    psfgen_idx = i
-                elif isinstance(task, MakeMembraneSystemTask):
-                    make_membrane_idx = i
-            if make_membrane_idx is not None:
-                task_idx = make_membrane_idx + 1
-                if isinstance(self.tasks[task_idx], ValidateTask):
-                    task_idx += 1
-                if isinstance(self.tasks[task_idx], MDTask):
-                    task_idx += 1
-                self.tasks = self.tasks[:task_idx] + [self.tasks[-1]]
-                self.tasks[-1].prior = self.tasks[task_idx-1]
-            elif psfgen_idx is not None:
-                task_idx = psfgen_idx + 1
-                if isinstance(self.tasks[task_idx], ValidateTask):
-                    task_idx += 1
-                if isinstance(self.tasks[task_idx], MDTask):
-                    task_idx += 1
-                self.tasks = self.tasks[:task_idx] + [self.tasks[-1]]
-                self.tasks[-1].prior = self.tasks[task_idx-1]
+                if isinstance(task, ValidateTask):
+                    validate_task_idx = i
+            if validate_task_idx is not None:
+                self.tasks = self.tasks[:validate_task_idx+1]
+            else:
+                self.tasks = self.tasks[:-1] # remove the original terminate task
+            # add the special pytest terminate task
+            self.tasks.append(PytestTerminateTask(specs={'prior': self.tasks[-1]}, index=len(self.tasks)))
 
         self.pipeline = PipelineContext(controller_index = self.index)
         self.provision_tasks()

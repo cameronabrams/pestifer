@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 class PackmolLogParser(LogParser):
     """
-    A class for parsing Packmol log files. This class is a subclass of :class:`LogParser <pestifer.util.logparsers.LogParser>` and provides methods for reading, updating, and dumping Packmol log data.
+    A class for parsing Packmol log files. This class is a subclass of :class:`LogParser <pestifer.logparsers.logparser.LogParser>` and provides methods for reading, updating, and dumping Packmol log data.
 
     Parameters
     ----------

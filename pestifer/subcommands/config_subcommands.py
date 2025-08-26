@@ -30,7 +30,7 @@ class ConfigHelpSubcommand(Subcommand):
         config = Config().configure_new()
         directives = args.directives
         iprompt='pestifer-help: ' if args.interactive else ''
-        config.console_help(directives=directives, interactive_prompt=iprompt, exit=True)
+        config.console_help(directives, interactive_prompt=iprompt, exit=True)
         return True
     
     def add_subparser(self, subparsers):

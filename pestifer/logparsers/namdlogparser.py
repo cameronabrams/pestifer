@@ -52,7 +52,7 @@ class NAMDxstParser(LogParser):
 
 class NAMDLogParser(LogParser):
     """
-    A class for parsing NAMD log files. This class is a subclass of :class:`LogParser <pestifer.util.logparsers.LogParser>` and provides methods for reading, updating, and dumping NAMD log data.
+    A class for parsing NAMD log files. This class is a subclass of :class:`LogParser <pestifer.logparsers.logparser.LogParser>` and provides methods for reading, updating, and dumping NAMD log data.
     It also includes methods for processing specific lines in the log file, such as those containing information about the simulation, energy calculations, and pressure profiles.
     
     Parameters
@@ -541,7 +541,7 @@ class NAMDLogParser(LogParser):
 
     def update(self, bytes: str):
         """
-        Update the NAMD log parser with new bytes of data. This method appends the new bytes to the byte collector and processes the lines in the log file. It identifies the end of each line and processes each line based on its content.  This is best used on a log file that is being written to, such as a live NAMD simulation log file.  For static files, use the :meth:`static <pestifer.util.logparsers.NAMDLog.static>` method instead.
+        Update the NAMD log parser with new bytes of data. This method appends the new bytes to the byte collector and processes the lines in the log file. It identifies the end of each line and processes each line based on its content.  This is best used on a log file that is being written to, such as a live NAMD simulation log file.  For static files, use the :meth:`static <pestifer.logparsers.namdlogparser.NAMDLog.static>` method instead.
 
         Parameters
         ----------

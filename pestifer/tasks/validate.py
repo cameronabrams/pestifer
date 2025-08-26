@@ -195,7 +195,8 @@ class ResidueTest:
 
 class ValidateTask(VMDTask):
     """
-    This class represents a validation task for PSF/PDB files.
+    This class represents a validation task for PSF/PDB files.  A validate
+    task can be inserted anywhere in the workflow to perform validation checks.
     """
 
     _yaml_header: ClassVar[str] = 'validate'

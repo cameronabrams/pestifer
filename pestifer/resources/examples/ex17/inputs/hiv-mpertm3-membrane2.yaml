@@ -135,14 +135,15 @@ tasks:
       archive_dir: arc
       package:
         state_dir: r2r
-        ensemble: NPAT
-        basename: prod_6e8w
-        firsttimestep: 0
-        dcdfreq: 10000
-        xstfreq: 10000
-        outputenergies: 1000
-        nsteps: 10000000
-        other_parameters:
-          pressureProfile: on
-          pressureProfileFreq: 10000
-          pressureProfileSlabs: 20
+        md:
+          ensemble: NPAT
+          basename: prod_6e8w
+          firsttimestep: 0
+          dcdfreq: 10000
+          xstfreq: 10000
+          outputenergies: 1000
+          nsteps: 10000000
+          other_parameters:
+            pressureProfile: on
+            pressureProfileFreq: 10000
+            pressureProfileSlabs: 20

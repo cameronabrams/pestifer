@@ -15,8 +15,6 @@ import os
 
 import pandas as pd
 
-from pathlib import Path
-
 from pidibble.pdbparse import PDBParser
 
 from .psfgen import PsfgenTask
@@ -60,7 +58,7 @@ class PDB2PQRTask(PsfgenTask):
         self.update_molecule()
         self.psfgen()
         self.pdb_to_coor(f'{self.basename}.pdb')
-        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename), psf=PSFFileArtifact(self.basename), coor=NAMDCoorFileArtifact(self.basename)))
+        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename, pytestable=True), psf=PSFFileArtifact(self.basename, pytestable=True), coor=NAMDCoorFileArtifact(self.basename)))
         return prep_result
     
     def prep_input(self):

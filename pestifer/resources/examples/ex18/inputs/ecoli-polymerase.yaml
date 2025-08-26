@@ -63,5 +63,6 @@ tasks:
       archive_dir: arc
       package:
         basename: prod_5fkw
-        ensemble: NPT
         state_dir: r2r
+        md:
+          ensemble: NPT

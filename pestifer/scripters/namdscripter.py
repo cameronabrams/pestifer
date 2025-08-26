@@ -54,7 +54,7 @@ class NAMDScripter(TcLScripter):
         list
             A list of parameter files that have been copied to the local directory.
         """
-        logger.debug('Fetching standard CHARMMFF parameters')
+        # logger.debug('Fetching standard CHARMMFF parameters')
         parameters_local = []
         for t in self.charmmff_config['standard']['prm'] + self.charmmff_config['standard']['str']:
             self.charmmff.copy_charmmfile_local(t)
@@ -63,7 +63,7 @@ class NAMDScripter(TcLScripter):
             if t not in parameters_local:
                 self.charmmff.copy_charmmfile_local(t)
                 parameters_local.append(t)
-        logger.debug(f'local parameters: {parameters_local}')
+        # logger.debug(f'local parameters: {parameters_local}')
         return parameters_local
 
     def newscript(self, basename=None, addl_paramfiles=[]):
@@ -105,7 +105,7 @@ class NAMDScripter(TcLScripter):
         cpu_override : bool, optional
             If True, the script will be written with CPU-specific configurations, even if the NAMD type is 'gpu'.
         """
-        logger.debug(f'params: {params}')
+        # logger.debug(f'params: {params}')
         tailers = ['minimize', 'run', 'numsteps']
         for k, v in params.items():
             if k not in tailers:

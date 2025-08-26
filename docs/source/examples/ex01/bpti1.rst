@@ -37,7 +37,7 @@ You could also use ``fetch-example`` to get the config file and then run it:
 
 (If there is no extension on the argument of run, pestifer assumes one of ``.yaml``, ``.yml``, or ``.ym``.)
 
-``bpti1.yaml`` is a YAML-format text file, and the keywords (of course) have particular meanings.  This is also an example of a "minimal" configuration file; ``pestifer`` has many more controls that can be set in a configuration file than are shown here.  Here, this configuration file contains two topmost directives: ``title`` and :ref:`config_ref tasks`.  The value of ``title`` is the string ``BPTI`` and the value of ``tasks`` is a *list*.  Each element in the list of tasks is itself a directive describing a task, and ``pestifer`` in general executes tasks in the order they appear in the ``tasks`` list.
+``bpti1.yaml`` is a YAML-format text file, and the keywords (of course) have particular meanings.  This is also an example of a "minimal" configuration file; ``pestifer`` has many more controls that can be set in a configuration file than are shown here.  Here, this configuration file contains two topmost directives: ``title`` and :ref:`config_ref tasks`.  The value of ``title`` is the string ``Bovine Pancreatic Trypsin Inhibitor (BPTI)`` and the value of ``tasks`` is a *list*.  Each element in the list of tasks is itself a directive describing a task, and ``pestifer`` in general executes tasks in the order they appear in the ``tasks`` list.
 
 Digression: Interactive Help 
 ============================
@@ -47,147 +47,176 @@ Digression: Interactive Help
 1. Automatic generaton of a hierarchical arrangement of RST files for documentation of all configuration parameters; in these pages, this is rooted at :ref:`config_ref`.
 2. Automatic acquisition of a command-line interactive help feature that allows package users to explore the configuration file format specified by the package developers.  
 
-Let's use this second feature to explore the ``psfgen`` task.  (You can visit the :ref:`config_ref tasks psfgen` page to view the same info in the online documentation.) 
+Let's use this second feature to explore the ``fetch`` task.  (You can visit the :ref:`config_ref tasks` page to view the same info in the online documentation.) 
 
 .. code-block:: bash
 
   $ pestifer --no-banner config-help tasks
-  Help on user-provided configuration file format
 
-  tasks:
-      Specifies the tasks to be performed serially
+    tasks:
+        Specifies the tasks to be performed serially in a pestifer run
 
-  base|tasks
-      restart ->
-      psfgen ->
-      ligate ->
-      mdplot ->
-      cleave ->
-      domainswap ->
-      solvate ->
-      ring_check ->
-      bilayer ->
-      md ->
-      manipulate ->
-      terminate ->
-      .. up
-      ! quit
-  pestifer-help:  psfgen
+    base|tasks
+        fetch ->
+        continuation ->
+        psfgen ->
+        ligate ->
+        pdb2pqr ->
+        mdplot ->
+        cleave ->
+        domainswap ->
+        solvate ->
+        desolvate ->
+        ring_check ->
+        make_membrane_system ->
+        md ->
+        manipulate ->
+        terminate ->
+        validate ->
+        .. up
+        ! quit
+    pestifer-help:  fetch
 
-  psfgen:
-      Parameters controlling a psfgen run on an input molecule
+    fetch:
+        Fetch task; its only job is to fetch any external data file (e.g.,
+        PDB).
 
-  base|tasks->psfgen
-      source ->
-      mods ->
-      cleanup
-      .. up
-      ! quit
-  pestifer-help: source
+    base|tasks->fetch
+        source
+        sourceID
+        source_format
+        .. up
+        ! quit
+    pestifer-help: source
 
-  source:
-      Specifies the source of the initial coordinate file
+    source:
+        Source for the initial coordinate file; one of 'pdb' (for the RCSB
+        PDB), 'alphafold' (for the AlphaFold DB), or 'local' (for a
+        local file)
+        default: pdb
 
-  base|tasks->psfgen->source
-      prebuilt ->
-      id
-      alphafold
-      biological_assembly
-      transform_reserves
-      remap_chainIDs
-      reserialize
-      model
-      file_format
-      cif_residue_map_file
-      exclude ->
-      sequence ->
-      .. up
-      ! quit
-  pestifer-help:  id
+    All subattributes at the same level as 'source':
 
-  id:
-      The 4-character PDB ID of the source or the basename of a local
-        coordinate file (PDB or mmCIF format); pestifer will download
-        from the RCSB if a file is not found
+    base|tasks->fetch
+        source
+        sourceID
+        source_format
+        .. up
+        ! quit
+    pestifer-help: sourceID
 
-This tells us that, in addition to ``id``, we have the ability to set several other control parameters.  Continuing in this interactive help session:
+    sourceID:
+        ID of the source file; if source is 'local', a file 'sourceID.pdb' or
+        'sourceID.cif' must exist in the working directory
 
-.. code-block:: bash
+    All subattributes at the same level as 'sourceID':
 
-  pestifer-help: biological_assembly
+    base|tasks->fetch
+        source
+        sourceID
+        source_format
+        .. up
+        ! quit
+    pestifer-help: source_format
 
-  biological_assembly:
-      integer index of the biological assembly to construct; default is 0,
+    source_format:
+        Format of the source file; this should be 'pdb' or 'cif'
+        default: pdb
+        allowed values: pdb, cif
+
+    All subattributes at the same level as 'source_format':
+
+    base|tasks->fetch
+        source
+        sourceID
+        source_format
+        .. up
+        ! quit
+    pestifer-help: !
+  $
+
+In the config file for this example, we specify on the the ``sourceID`` as 6pti; the other source attributes take their default values.  This causes ``pestifer`` to fetch the file ``6pti.pdb`` from the RCSB PDB (if ``6pti.pdb`` does not already exist in the current working directory).
+
+We can return to ``config-help`` to explore the ``psfgen`` task, which is the next task in the list.  We can do this by:
+
+.. code-block::bash
+
+  $ pestifer config-help tasks psfgen
+
+    psfgen:
+        Parameters controlling a specific psfgen run on an input molecule
+
+    base|tasks->psfgen
+        source ->
+        mods ->
+        .. up
+        ! quit 
+    pesifer-help: source
+
+    source:
+        Specifies the processing and interpretation of the initial source
+        coordinate file
+
+    base|tasks->psfgen->source
+        biological_assembly
+        transform_reserves
+        remap_chainIDs
+        reserialize
+        model
+        cif_residue_map_file
+        include
+        exclude
+        sequence ->
+        .. up
+        ! quit
+    pestifer-help: biological_assembly
+
+    biological_assembly:
+        integer index of the biological assembly to construct; default is 0,
         signifying that the asymmetric unit is to be used
-      default: 0
+        default: 0
 
-  All subdirectives at the same level as 'biological_assembly':
+    All subattributes at the same level as 'biological_assembly':
 
-  base|tasks->psfgen->source
-      prebuilt ->
-      id
-      alphafold
-      biological_assembly
-      transform_reserves
-      remap_chainIDs
-      reserialize
-      model
-      file_format
-      cif_residue_map_file
-      exclude ->
-      sequence ->
-      .. up
-      ! quit
-  pestifer-help: 
+    base|tasks->psfgen->source
+        biological_assembly
+        transform_reserves
+        remap_chainIDs
+        reserialize
+        model
+        cif_residue_map_file
+        include
+        exclude
+        sequence ->
+        .. up
+        ! quit
 
-And so on.  Let's return to the example.  Immediately after the ``psfgen`` task we declare an ``md`` task, and the subdirective ``ensemble`` is set to ``minimize``.  There are no other subdirectives explicitly listed.  This task will use ``namd3`` to run an energy minimization.  As we did for the ``source`` subdirective of the ``psfgen`` task, let's have a look at the possible subdirectives for an ``md`` task.  We can do this by going "up" twice (``source`` to ``psfgen`` to ``tasks``) and then down into the ``md`` task:
+
+And so on.  Let's return to the example.  Immediately after the ``psfgen`` task we declare an ``md`` task, and the subdirective ``ensemble`` is set to ``minimize``.  There are no other subdirectives explicitly listed.  This task will use ``namd3`` to run an energy minimization.  Let's have a look at the possible subdirectives for an ``md`` task.  We can do this by:
 
 .. code-block:: bash
 
-  pestifer-help: ..
+  $ pestifer console-help tasks md
 
-  base|tasks->psfgen
-      source ->
-      mods ->
-      cleanup
-      .. up
-      ! quit
-  pestifer-help: ..
+    md:
+        Parameters controlling a NAMD run
 
-  base|tasks
-      restart ->
-      psfgen ->
-      ligate ->
-      mdplot ->
-      cleave ->
-      domainswap ->
-      solvate ->
-      ring_check ->
-      bilayer ->
-      md ->
-      manipulate ->
-      terminate ->
-      .. up
-      ! quit
-  pestifer-help: md
-
-  md:
-      Parameters controlling a NAMD run
-
-  base|tasks->md
-      vacuum
-      ensemble
-      minimize
-      nsteps
-      dcdfreq
-      xstfreq
-      temperature
-      pressure
-      other_parameters
-      constraints ->
-      .. up
-      ! quit
-  pestifer-help:
+    base|tasks->md
+        cpu-override
+        vacuum
+        ensemble
+        minimize
+        nsteps
+        dcdfreq
+        xstfreq
+        temperature
+        pressure
+        addl_paramfiles
+        other_parameters
+        constraints ->
+        .. up
+        ! quit
+    pestifer-help:
 
 The Input Configuration (Continued)
 ===================================
@@ -202,17 +231,31 @@ The ``mdplot`` task generates a plot of system density (in g/cc) vs time step fo
 
 Since the density has plateaued, we can reasonably assume that the system density is equilibrated.
 
-Finally, we see a ``terminate`` task, whose main role is to generate some informative output and to provide a set of NAMD input files (PSF, PDB, xsc, coor, and vel) that all have a common base file name.  The ``package`` subdirective creates a tarball of all required input files to execute a NAMD run, ready for transfer to the HPC resource of your choice.
+Finally, we see a ``terminate`` task, whose main role is to generate some informative output and to provide a set of NAMD input files (PSF, PDB, xsc, coor, and vel) that all have a common base file name.  The ``package`` subdirective creates a tarball ``<basename>.tar.gz`` containing all input files necessary to execute a NAMD run, ready for transfer to the HPC resource of your choice.  The ``md`` attribute of pestifer allows you to specify any NAMD configuration options you'd like in the production NAMD config file; here, we merely state that we want the default NAMD parameters for an NPT run.  The ``state_dir`` attribute is the name of a directory you would like to prepend to all files in this tarball.  
 
-This run generates a lot of other files.  One such file, ``bpti-complete.yaml`` is the fully explicit configuration file implied by the given configuration file and any default values.  It can be instructive to peruse this file to see the totality of what you can specify for ``pestifer``; it is possible to have very close control over the ``psfgen`` script generation by, for example, adding ``pdbalias`` directives.
+By default, the ``terminate`` task also archives all other working files from the build in another tarball called ``artifacts.tar.gz``.  The ``archive_dir`` is a prepended directory name for the files in that tarball. (The PNG images of any plots generated by an ``mdplot`` task can be found in this tarball.)
 
-The outputs of this build are the PSF/PDB/COOR/VEL/XSC files needed to (re)start namd3; by default, these are ``my_6pti.pdb``, etc.
+Listing the contents of the state tarball:
 
 .. code-block:: bash
 
-   $ ls my_6pti*
-   my_6pti.coor  my_6pti.pdb  my_6pti.psf  my_6pti.vel  my_6pti.xsc
-
+   $ tar ztf my_6pti.tar.gz
+    my_6pti.namd
+    par_all36_lipid.prm
+    toppar_all36_moreions.str
+    toppar_all36_prot_modify_res.str
+    par_all36_na.prm
+    toppar_all36_carb_glycopeptide.str
+    par_all36_cgenff.prm
+    toppar_water_ions.str
+    par_all36m_prot.prm
+    par_all36_carb.prm
+    my_6pti.psf
+    my_6pti.pdb
+    my_6pti.coor
+    my_6pti.xsc
+    my_6pti.vel
+    
 You should note the presence of CHARMM force-field files in the current directory.  These are generated by ``pestifer`` during the build, and are essentially copies of the parent files with certain lines commented out to permit use by VMD and NAMD.  The parent files are not altered.
 
 .. code-block:: bash
@@ -255,6 +298,6 @@ Some tasks may spawn *subcontrollers*, which typically acquire a controller ID d
 
 .. raw:: html
 
-    <div class="autogen-footer">
-        <p>Author: Cameron F. Abrams   Contact: <a href="mailto:cfa22@drexel.edu">cfa22@drexel.edu</a></p>
-    </div>
+        <div class="autogen-footer">
+            <p>Example author: Cameron F. Abrams&nbsp;&nbsp;&nbsp;Contact: <a href="mailto:cfa22@drexel.edu">cfa22@drexel.edu</a></p>
+        </div>

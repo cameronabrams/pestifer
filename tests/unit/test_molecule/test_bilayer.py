@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from pestifer.core.artifacts import ArtifactDict
 from pestifer.core.config import Config
-from pestifer.charmmff.charmmffresidatabase import CHARMMFFResiDatabase
+# from pestifer.charmmff.charmmffresidatabase import CHARMMFFResiDatabase
 from pestifer.molecule.bilayer import Bilayer, specstrings_builddict
 
 class TestBilayer(unittest.TestCase):
@@ -20,9 +20,6 @@ class TestBilayer(unittest.TestCase):
         cls.RM = cls.C.RM
         cls.charmmff_content = cls.RM.charmmff_content
         cls.pdbrepository = cls.charmmff_content.pdbrepository
-        cls.resi_database = CHARMMFFResiDatabase(charmmff_content=cls.charmmff_content)
-        cls.resi_database.add_stream('lipid')
-        cls.resi_database.add_topology('toppar_all36_moreions.str', streamIDoverride='water_ions')
 
     @classmethod
     def tearDownClass(cls):
@@ -332,7 +329,7 @@ class TestBilayer(unittest.TestCase):
         os.mkdir('__test_bilayer_spec_out')
         os.chdir('__test_bilayer_spec_out')
         cdict=specstrings_builddict(lipid_specstring='POPC:CHL1//POPE:CHL1', lipid_ratio_specstring='0.75:0.25//0.33:0.67', lipid_conformers_specstring='3:4//7:2')
-        test_bilayer = Bilayer(composition_dict=cdict, pdbrepository=self.pdbrepository, resi_database=self.resi_database)
+        test_bilayer = Bilayer(composition_dict=cdict, charmmffcontent=self.charmmff_content)
         test_bilayer.spec_out()
         assert test_bilayer.patch_ll_corner[0]==pytest.approx(0.0, rel=1e-2)
         assert test_bilayer.patch_ll_corner[1]==pytest.approx(0.0, rel=1e-2)

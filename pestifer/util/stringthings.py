@@ -13,6 +13,7 @@ import sys
 
 import pandas as pd
 
+from argparse import Namespace
 from collections import UserList
 from io import StringIO
 from pathlib import Path
@@ -75,7 +76,7 @@ _enhanced_banner_message="""
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 """
 
-def banner(logf, args):
+def banner(logf: Callable, args: Namespace):
     """
     Writes a banner message to the log file
 

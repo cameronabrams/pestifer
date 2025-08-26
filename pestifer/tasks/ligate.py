@@ -206,7 +206,7 @@ class LigateTask(MDTask):
         result = pg.runscript()
         if result == 0:
             self.pdb_to_coor(f'{self.basename}.pdb')
-            self.register(StateArtifacts(psf=PSFFileArtifact(self.basename), pdb=PDBFileArtifact(self.basename), coor=NAMDCoorFileArtifact(self.basename)))
+            self.register(StateArtifacts(psf=PSFFileArtifact(self.basename, pytestable=True), pdb=PDBFileArtifact(self.basename, pytestable=True), coor=NAMDCoorFileArtifact(self.basename, pytestable=True)))
             self.register(LogFileArtifact(self.basename))
         return result
     

@@ -187,7 +187,7 @@ class MDTask(VMDTask):
         cpu_override = specs.get('cpu-override', False)
         logger.debug(f'CPU-override is {cpu_override}')
         na.writescript(params, cpu_override=cpu_override)
-        self.register(NAMDConfigFileArtifact(self.basename))
+        self.register(NAMDConfigFileArtifact(self.basename, pytestable=True))
         result = 0  # anticipate success
         if not script_only:
             local_execution_only = not self.get_current_artifact_data('periodic')

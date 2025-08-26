@@ -17,6 +17,7 @@ import yaml
 
 from pathlib import Path
 
+from .artifacts import *
 from .example import Example, ExampleList
 from ..sphinxext.sphinx_examplemanager import SphinxExampleManager
 from ..util.formatvalidator import FormatValidator
@@ -232,7 +233,7 @@ class ExampleManager:
             raise IndexError(f'Example ID {example_id} is out of range for examples list of length {len(self.examples)}')
 
         self.examples.remove(example)  # remove the example from the list
-        example_folder_path = os.path.join(self.path, f'ex{example.example_id:02d}')
+        example_folder_path = os.path.join(self.path, example.rootfolderpath)
         if os.path.isdir(example_folder_path):
             logger.debug(f'Deleting example folder "{example_folder_path}"')
             shutil.rmtree(example_folder_path)
@@ -252,7 +253,7 @@ class ExampleManager:
         example : Example
             The Example instance to check in.
         """
-        example_folder = os.path.join(self.path, f'ex{example.example_id:02d}')
+        example_folder = os.path.join(self.path, example.rootfolderpath)
         example_inputs_subfolder = os.path.join(example_folder, example.inputs_subdir)
         example_outputs_subfolder = os.path.join(example_folder, example.outputs_subdir) 
         user_yaml_file_path = example.shortname + '.yaml'  # correct; the name attribute should never have an extension
@@ -329,7 +330,7 @@ class ExampleManager:
         logger.info(f'Added new example {new_example.example_id}: {new_example.shortname}')
         return new_example
 
-    def update_example(self, example_id: int, shortname: str = '', title: str = '', db_id: str = '', author_name: str = '', author_email: str = '', auxiliary_inputs: list = [], outputs: list = []):
+    def update_example(self, example_id: int, shortname: str = '', title: str = '', db_id: str = '', author_name: str = '', author_email: str = '', auxiliary_inputs: list = [], outputs: list = [], skip_sphinx: bool = False):
         """
         Update an existing example in the examples list by its unique index.
 
@@ -349,7 +350,9 @@ class ExampleManager:
             The email of the author of the example; overrides the email in the # Author line of <name>.yaml if it exists.
         companion_files : list, optional
             A list of companion files associated with the example; defaults to an empty list.
-            
+        skip_sphinx : bool, optional
+            If True, skip updating the Sphinx documentation for this example.
+
         Returns
         -------
         Example or None
@@ -365,7 +368,7 @@ class ExampleManager:
         if not current_example:
             logger.warning(f'No example found with ID {example_id}')
             return None
-        current_example_folder = os.path.join(self.path, f'ex{current_example.example_id:02d}')
+        current_example_folder = os.path.join(self.path, current_example.folder_name_format.format(example_id=current_example.example_id))
         current_example_inputs_subfolder = os.path.join(current_example_folder, current_example.inputs_subdir)
         current_example_outputs_subfolder = os.path.join(current_example_folder, current_example.outputs_subdir)
         current_example_scriptpath = os.path.join(current_example_inputs_subfolder, f'{current_example.shortname}.yaml')
@@ -403,15 +406,14 @@ class ExampleManager:
                 if os.path.isfile(f):
                     shutil.copy(f, current_example_inputs_subfolder)
         if outputs:
-            for f in current_example.outputs:
-                f_path = os.path.join(current_example_outputs_subfolder, f)
-                if os.path.isfile(f_path):
-                    os.remove(f_path)  # remove old outputs
+            current_outputs = os.listdir(current_example_outputs_subfolder)
+            for co in current_outputs:
+                os.remove(os.path.join(current_example_outputs_subfolder, co))
             current_example.outputs = outputs
             for f in outputs:
                 if os.path.isfile(f):
                     shutil.copy(f, current_example_outputs_subfolder)
-        if self.sphinx_example_manager:
+        if self.sphinx_example_manager and not skip_sphinx:
             self.sphinx_example_manager.update_example(example_id, current_example)
         logger.info(f'Updated example {example_id}: {current_example.shortname}')
         return current_example

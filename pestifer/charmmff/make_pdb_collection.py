@@ -40,7 +40,7 @@ def do_psfgen(resid: str, DB: CHARMMFFContent,
     ----------
     resid : str
         The residue ID for which to generate the PDB file.
-    DB : :class:`~pestifer.charmmff.charmmresidatabase.CHARMMFFResiDatabase`
+    DB : :class:`~pestifer.charmmff.charmmffcontent.CHARMMFFContent`
         The database containing CHARMM residue information.
     lenfac : float, optional
         The lengthening factor to apply to the residue (default is 1.2).
@@ -345,7 +345,7 @@ def do_resi(resi: str, DB: CHARMMFFContent,
     ----------
     resi : str
         The residue ID for which to generate the PDB file.
-    DB : :class:`~pestifer.charmmff.charmmresidatabase.CHARMMFFResiDatabase`
+    DB : :class:`~pestifer.charmmff.charmmffcontent.CHARMMFFContent`
         The database containing CHARMM residue information.
     lenfac : float, optional
         The lengthening factor to apply to the residue (default is 1.2).
@@ -394,13 +394,13 @@ def do_resi(resi: str, DB: CHARMMFFContent,
 
 def make_pdb_collection(args):
     """
-    Make a PDBCollection from the CHARMMFFResiDatabase.
-    This function will create a PDBCollection from the CHARMMFFResiDatabase, either
+    Make a PDBCollection from the CHARMMFFContent.
+    This function will create a PDBCollection from the CHARMMFFContent, either
     for a specific RESI or for all RESIs in a specified stream.
     If a specific RESI is provided, it will create a collection member for that RESI
     and save it in the specified output directory.
     If a stream ID is provided, it will create a collection for all RESIs in that stream.
-    If no stream ID is provided, it will create a collection for all RESIs in the CHARMMFFResiDatabase.
+    If no stream ID is provided, it will create a collection for all RESIs in the CHARMMFFContent.
     The output directory will be created if it does not exist, and if the ``--fail-dir`` argument is provided,
     it will create a directory for failed RESIs in that directory.
     If the ``--force`` argument is set, it will force the recalculation of the RESI, even if it has been built previously.
@@ -411,7 +411,7 @@ def make_pdb_collection(args):
     streamID = args.streamID # if provided, we will make a collection from RESIs in this stream
     substreamID = args.substreamID
     resname = args.resname # if provided, we will only make a collection member for this RESI
-    topfile = args.topfile # if provided, we will use this topology file instead of the one in the CHARMMFFResiDatabase; stream name is extracted
+    topfile = args.topfile
     loglevel_numeric = getattr(logging, args.log_level.upper())
     if args.log_file:
         if os.path.exists(args.log_file):
@@ -431,7 +431,7 @@ def make_pdb_collection(args):
         CC.add_topology(topfile)
 
     if not resname == '' and not resname in CC:
-        logger.warning(f'RESI {resname} not found in CHARMMFFResiDatabase; will not build PDB collection for it')
+        logger.warning(f'RESI {resname} not found in CHARMMFFContent; will not build PDB collection for it')
         exit(-1)
 
     outdir = args.output_dir

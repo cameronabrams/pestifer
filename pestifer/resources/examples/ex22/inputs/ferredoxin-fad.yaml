@@ -39,5 +39,6 @@ tasks:
     archive_dir: arc
     package:
       basename: my_2bgj
-      ensemble: NPT
       state_dir: r2r
+      md:
+        ensemble: NPT

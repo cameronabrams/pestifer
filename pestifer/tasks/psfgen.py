@@ -172,7 +172,7 @@ class PsfgenTask(VMDTask):
         # register PSF, PDB, log, and all charmmff files in the pipeline context
         for artifact_type in [PsfgenInputScriptArtifact, PsfgenLogFileArtifact]:
             self.register(artifact_type(self.basename))
-        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename), psf=PSFFileArtifact(self.basename)))
+        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename, pytestable=True), psf=PSFFileArtifact(self.basename, pytestable=True)))
         self.register(CharmmffTopFileArtifacts([CharmmffTopFileArtifact(x) for x in pg.topologies if x.endswith('.rtf')]), key='charmmff_topfiles')
         self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x) for x in pg.topologies if x.endswith('.str')]), key='charmmff_streamfiles')
         temp_pdb_artifacts = PDBFileArtifactList([PDBFileArtifact(x) for x in pg.F if x.endswith('.pdb')])
@@ -504,26 +504,6 @@ class PsfgenTask(VMDTask):
         self.register(DataArtifact(self.base_molecule), key='base_molecule')
         for molid, molecule in self.molecules.items():
             logger.debug(f'Molecule "{molid}": {molecule.num_atoms()} atoms in {molecule.num_residues()} residues; {molecule.num_segments()} segments.')
-
-    # def apply_vmdexclusions(self):
-    #     """
-    #     Applies VMD atom selection exclusions to the base coordinates.
-    #     """
-    #     self.next_basename('vmdexclusions')
-    #     base_coordinates: Path = self.get_current_artifact('base_coordinates')
-    #     if not base_coordinates:
-    #         raise RuntimeError(f'No base_coordinates artifact found. Use of VMD-style exclusion logic is not supported on pre-built systems yet.')
-    #     vt: VMDScripter = self.scripters['vmd']
-    #     vt.newscript(self.basename)
-    #     vt.addline(f'mol new {base_coordinates.name}')
-    #     compound_logic = ' and '.join([f'(not {sel})' for sel in self.source_specs['exclude']['vmdatomselections']])
-    #     vt.addline(f'set sel [atomselect top "{compound_logic}"]')
-    #     vt.addline(f'$sel writepdb {self.basename}.pdb')
-    #     vt.writescript()
-    #     vt.runscript()
-    #     self.register(PDBFileArtifact(self.basename), key='base_coordinates')
-    #     self.register(VMDScriptArtifact(self.basename))
-    #     self.register(VMDLogFileArtifact(self.basename))
 
     def update_molecule(self):
         """

@@ -12,7 +12,6 @@ from .basetask import BaseTask
 from .terminate import TerminateTask
 
 from ..charmmff.charmmffcontent import CHARMMFFContent
-from ..charmmff.pdbrepository import PDBRepository
 
 from ..core.artifacts import *
 from ..core.resourcemanager import ResourceManager

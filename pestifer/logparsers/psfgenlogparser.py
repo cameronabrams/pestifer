@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class PsfgenLogParser(LogParser):
     """
-    A class for parsing Psfgen log files. This class is a subclass of :class:`LogParser <pestifer.util.logparsers.LogParser>` and provides methods for reading, updating, and dumping Psfgen log data.
+    A class for parsing Psfgen log files. This class is a subclass of :class:`LogParser <pestifer.logparsers.logparser.LogParser>` and provides methods for reading, updating, and dumping Psfgen log data.
     
     Parameters
     ----------

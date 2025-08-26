@@ -12,6 +12,7 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   pestifer.util.cacheable_object
    pestifer.util.cifutil
    pestifer.util.colors
    pestifer.util.coord
@@ -20,7 +21,9 @@ Submodules
    pestifer.util.linkcell
    pestifer.util.namdrestart
    pestifer.util.progress
+   pestifer.util.pytest_plugin
    pestifer.util.readme_to_changelog_with_dates
+   pestifer.util.spinner_wrapper
    pestifer.util.stringthings
    pestifer.util.units
    pestifer.util.util

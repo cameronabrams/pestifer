@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 class PDB2PQRLogParser(LogParser):
     """
-    A class for parsing PDB2PQR log files. This class is a subclass of :class:`LogParser <pestifer.util.logparsers.LogParser>` and provides methods for reading, updating, and dumping PDB2PQR log data.
+    A class for parsing PDB2PQR log files. This class is a subclass of :class:`LogParser <pestifer.logparsers.logparser.LogParser>` and provides methods for reading, updating, and dumping PDB2PQR log data.
     
     Parameters
     ----------

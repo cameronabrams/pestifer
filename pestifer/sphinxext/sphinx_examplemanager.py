@@ -161,7 +161,7 @@ class SphinxExampleManager:
                     if example.author_name and example.author_email:
                         line = example_footer(example.author_name, example.author_email)
                     else:
-                        line = ''
+                        continue
                 elif 'PDB ID' in line or 'Alphafold ID' in line:
                     # replace the PDB ID with the new example's PDB ID
                     if example.db_id:

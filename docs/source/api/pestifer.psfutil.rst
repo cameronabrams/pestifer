@@ -18,5 +18,6 @@ Submodules
    pestifer.psfutil.psfcontents
    pestifer.psfutil.psfdihedral
    pestifer.psfutil.psfpatch
+   pestifer.psfutil.psfremark
    pestifer.psfutil.psfring
    pestifer.psfutil.psftopoelement

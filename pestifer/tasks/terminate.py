@@ -15,7 +15,6 @@ import os
 from .mdtask import MDTask
 from ..core.artifacts import *
 from ..molecule.molecule import Molecule
-from ..util.util import running_under_pytest
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +32,6 @@ class TerminateTask(MDTask):
     """
 
     def do(self) -> int:
-        self._pytest = running_under_pytest()
         self.next_basename()
         if 'chainmapfile' in self.specs:
             self.write_chainmaps()
@@ -78,22 +76,18 @@ class TerminateTask(MDTask):
             save_specs = self.specs
             self.specs = md_specs
             self.specs['basename'] = package_specs.get('basename', self.basename)
-            if not self._pytest:
-                result = self.namdrun(script_only=True)
-                self.specs = save_specs
-                TarballContents.append(self.get_current_artifact('namd'))
-                constraints = self.specs.get('constraints', {})
-                if constraints:
-                    self.make_constraint_pdb(constraints, statekey='consref')
-                    TarballContents.append(self.get_current_artifact('consref'))
-            else:
-                self.specs = save_specs
-                self.basename = package_specs.get('basename', self.basename)
+            result = self.namdrun(script_only=True)
+            self.specs = save_specs
+            TarballContents.append(self.get_current_artifact('namd'))
+            constraints = self.specs.get('constraints', {})
+            if constraints:
+                self.make_constraint_pdb(constraints, statekey='consref')
+                TarballContents.append(self.get_current_artifact('consref'))
         else:
             logger.debug(f'No NAMD configuration is included in the package.')
         TarballContents.extend(self.get_current_artifact_data('charmmff_parfiles'))
         TarballContents.extend(self.get_current_artifact_data('charmmff_streamfiles'))
-        TarballContents.make_tarball(self.basename, arcname_prefix=state_dir)
+        TarballContents.make_tarball(self.basename, arcname_prefix=state_dir, unique=True)
         return result
 
     def cleanup(self):
@@ -131,5 +125,5 @@ class TerminateTask(MDTask):
 
         logger.debug(f'Non-artifact files in current working directory: {non_artifact_files}')
 
-        ArtifactContents.make_tarball('artifacts', remove=True, arcname_prefix=archive_dir)
+        ArtifactContents.make_tarball('artifacts', remove=True, arcname_prefix=archive_dir, unique=True)
         return 0
