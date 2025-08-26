@@ -2,37 +2,45 @@
 """
 Disufulfide bonds are covalent linkages between two CYS residues in a protein.
 These are represented in PDB files as SSBOND records, and in mmCIF files
-as struct_conn records."""
+as struct_conn records.
+"""
+from __future__ import annotations
+
 import logging
-logger=logging.getLogger(__name__)
 
-from functools import singledispatchmethod
-from pidibble.pdbrecord import PDBRecord
+from mmcif.api.PdbxContainers import DataContainer
+from pidibble.pdbrecord import PDBRecord, PDBRecordDict
+from pydantic import Field
+from typing import ClassVar, TYPE_CHECKING
 
-from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from .mutation import MutationList
+from .resid import ResID
+from ..core.baseobj import BaseObj, BaseObjList
+from ..psfutil.psfpatch import PSFDISUPatch
 from ..util.cifutil import CIFdict
-from ..core.scripters import PsfgenScripter
-from ..core.stringthings import split_ri
 
-class SSBond(AncestorAwareObj):
+if TYPE_CHECKING:
+    from ..molecule.residue import Residue, ResidueList
+
+logger = logging.getLogger(__name__)
+
+class SSBond(BaseObj):
     """
     A class for handling disulfide bonds between two CYS residues in a protein.
     """
 
-    req_attr=AncestorAwareObj.req_attr+['chainID1','resseqnum1','insertion1','chainID2','resseqnum2','insertion2']
+    _required_fields = {'chainID1', 'resid1', 'chainID2', 'resid2'}
     """
     Required attributes for an SSBond object.
     These attributes must be provided when creating an SSBond object.
     
     - ``chainID1``: The chain ID of the first CYS residue.
-    - ``resseqnum1``: The residue sequence number of the first CYS residue.
-    - ``insertion1``: The insertion code of the first CYS residue.
+    - ``resid1``: The residue ID of the first CYS residue.
     - ``chainID2``: The chain ID of the second CYS residue.
-    - ``resseqnum2``: The residue sequence number of the second CYS residue.
-    - ``insertion2``: The insertion code of the second CYS residue.
+    - ``resid2``: The residue ID of the second CYS residue.
     """
-    
-    opt_attr=AncestorAwareObj.opt_attr+['serial_number','residue1','residue2','resname1','resname2','sym1','sym2','length','ptnr1_auth_asym_id','ptnr2_auth_asym_id','ptnr1_auth_seq_id','ptnr2_auth_seq_id']
+
+    _optional_fields = {'serial_number', 'residue1', 'residue2', 'resname1', 'resname2', 'sym1', 'sym2', 'length', 'ptnr1_auth_asym_id', 'ptnr2_auth_asym_id', 'ptnr1_auth_seq_id', 'ptnr2_auth_seq_id'}
     """
     Optional attributes for an SSBond object.
     These attributes are not required but can be provided to enhance the SSBond object.
@@ -50,128 +58,118 @@ class SSBond(AncestorAwareObj):
     - ``ptnr1_auth_seq_id``: The author sequence ID of the first CYS residue in mmCIF format.
     - ``ptnr2_auth_seq_id``: The author sequence ID of the second CYS residue in mmCIF format.
     """
-    
-    yaml_header='ssbonds'
+
+    chainID1: str = Field(..., description="Chain ID of the first CYS residue")
+    resid1: ResID = Field(..., description="Residue ID of the first CYS residue")
+    chainID2: str = Field(..., description="Chain ID of the second CYS residue")
+    resid2: ResID = Field(..., description="Residue ID of the second CYS residue")
+
+    serial_number: int = Field(0, description="Serial number of the SSBond")
+    residue1: 'Residue' = Field(None, description="First CYS residue object associated with the SSBond")
+    residue2: 'Residue' = Field(None, description="Second CYS residue object associated with the SSBond")
+    resname1: str = Field('CYS', description="Residue name of the first CYS residue")
+    resname2: str = Field('CYS', description="Residue name of the second CYS residue")
+    sym1: str = Field('', description="Symmetry operator for the first CYS residue")
+    sym2: str = Field('', description="Symmetry operator for the second CYS residue")
+    length: float = Field(0.0, description="Length of the SSBond")
+    ptnr1_auth_asym_id: str = Field('', description="Author asym ID of the first CYS residue in mmCIF format")
+    ptnr2_auth_asym_id: str = Field('', description="Author asym ID of the second CYS residue in mmCIF format")
+    ptnr1_auth_seq_id: str = Field('', description="Author sequence ID of the first CYS residue in mmCIF format")
+    ptnr2_auth_seq_id: str = Field('', description="Author sequence ID of the second CYS residue in mmCIF format")
+
+    _yaml_header: ClassVar[str] = 'ssbonds'
     """
     YAML header for SSBond objects.
     This header is used to identify SSBond objects in YAML files.
     """
-    
-    objcat='topol'
+
+    _objcat: ClassVar[str] = 'topol'
     """
     Category of the SSBond object.
     This categorization is used to group SSBond objects in the object manager.
     """
-    
-    PDB_keyword='SSBOND'
+
+    _PDB_keyword: ClassVar[str] = 'SSBOND'
     """
     Keyword used to identify SSBond records in PDB files.
     """
 
-    mmCIF_name='struct_conn'
+    _CIF_CategoryName: ClassVar[str] = 'struct_conn'
     """
-    Name of the SSBond record in mmCIF files.
-    This is used to identify SSBond records in mmCIF files.
+    Name of the CIF category that contains information for SSBond objects.
     """
-    
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
+    _CIF_CategoryElementTypes: ClassVar[dict[str, set]] = {'conn_type_id': {'disulf'}}
+    """
+    CIF category element types for SSBond objects; a CIF Category is effectively a list of dictionaries, and _CIF_CategoryElementTypes[keyname] is a set of values that are valid for that key, indicating the element is to be interpreted as a SSBond.
+    """
 
-    @__init__.register(PDBRecord)
-    def _from_pdbrecord(self,pdbrecord):
-        input_dict={
-            'serial_number':pdbrecord.serNum,
-            'resname1':pdbrecord.residue1.resName,
-            'chainID1':pdbrecord.residue1.chainID,
-            'resseqnum1':pdbrecord.residue1.seqNum,
-            'insertion1':pdbrecord.residue1.iCode,
-            'resname2':pdbrecord.residue2.resName,
-            'chainID2':pdbrecord.residue2.chainID,
-            'resseqnum2':pdbrecord.residue2.seqNum,
-            'insertion2':pdbrecord.residue2.iCode,
-            'sym1':pdbrecord.sym1,
-            'sym2':pdbrecord.sym2,
-            'length':pdbrecord.length,
-            'residue1':None,
-            'residue2':None
-        }
-        super().__init__(input_dict)
-        logger.debug(f'parsed {self}')
-    
-    @__init__.register(CIFdict)
-    def _from_cifdict(self,cd):
-        input_dict={
-            'serial_number':int(cd['id'].strip('disulf')),
-            'resname1':'CYS',
-            'resname2':'CYS',
-            'chainID1':cd['ptnr1_label_asym_id'],
-            'chainID2':cd['ptnr2_label_asym_id'],
-            'resseqnum1':int(cd['ptnr1_label_seq_id']),
-            'resseqnum2':int(cd['ptnr2_label_seq_id']),
-            'insertion1':cd['pdbx_ptnr1_pdb_ins_code'],
-            'insertion2':cd['pdbx_ptnr2_pdb_ins_code'],
-            'sym1':cd['ptnr1_symmetry'],
-            'sym2':cd['ptnr2_symmetry'],
-            'length':float(cd['pdbx_dist_value']),
-            'residue1':None,
-            'residue2':None,
-            'ptnr1_auth_asym_id':cd['ptnr1_auth_asym_id'],
-            'ptnr2_auth_asym_id':cd['ptnr2_auth_asym_id'],
-            'ptnr1_auth_seq_id':int(cd['ptnr1_auth_seq_id']),
-            'ptnr2_auth_seq_id':int(cd['ptnr2_auth_seq_id'])
-        }
-        super().__init__(input_dict)
-    
-    @__init__.register(str)
-    def _from_shortcode(self,shortcode):
-        # shortcode format: C_RRR-D_SSS
-        # C, D chainIDs
-        # RRR, SSS resids
-        s1=shortcode.split('-')
-        r1=s1[0].split('_')
-        r2=s1[1].split('_')
-        input_dict={
-            'serial_number':0,
-            'resname1':'CYS',
-            'resname2':'CYS',
-            'chainID1':r1[0],
-            'chainID2':r2[0],
-            'resseqnum1':int(r1[1]),
-            'resseqnum2':int(r2[1]),
-            'insertion1':'',
-            'insertion2':'',
-            'length':0.0,
-            'sym1':'',
-            'sym2':'',
-            'residue1':None,
-            'residue2':None
-        }
-        super().__init__(input_dict)
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
+        """
+        Adapts the input to a dictionary format suitable for SSBond instantiation.
+        """
+        if args and isinstance(args[0], str):
+            # shortcode format: C_RRR-D_SSS
+            # C, D chainIDs
+            # RRR, SSS resids
+            raw = args[0]
+            s1, s2 = raw.split('-')
+            resid1 = ResID(s1.split('_')[1])
+            resid2 = ResID(s2.split('_')[1])
+            return dict(chainID1=s1.split('_')[0], resid1=resid1, chainID2=s2.split('_')[0], resid2=resid2)
+        elif args and isinstance(args[0], PDBRecord):
+            pdbrecord = args[0]
+            return dict(
+                chainID1 = pdbrecord.residue1.chainID,
+                resid1 = ResID(pdbrecord.residue1.seqNum, pdbrecord.residue1.iCode),
+                chainID2 = pdbrecord.residue2.chainID,
+                resid2 = ResID(pdbrecord.residue2.seqNum, pdbrecord.residue2.iCode),
+                serial_number = pdbrecord.serNum,
+                resname1 = 'CYS',
+                resname2 = 'CYS',
+                sym1 = pdbrecord.sym1,
+                sym2 = pdbrecord.sym2,
+                length = pdbrecord.length
+            )
+        elif args and isinstance(args[0], CIFdict):
+            cd = args[0]
+            return dict(
+                chainID1 = cd['ptnr1_label_asym_id'],
+                resid1 = ResID(cd['ptnr1_label_seq_id'], cd['pdbx_ptnr1_pdb_ins_code']),
+                chainID2 = cd['ptnr2_label_asym_id'],
+                resid2 = ResID(cd['ptnr2_label_seq_id'], cd['pdbx_ptnr2_pdb_ins_code']),
+                serial_number = int(cd['id'].strip('disulf')),
+                resname1 = 'CYS',
+                resname2 = 'CYS',
+                sym1 = cd['ptnr1_symmetry'],
+                sym2 = cd['ptnr2_symmetry'],
+                length = float(cd['pdbx_dist_value'])
+            )
+        elif args and isinstance(args[0], PSFDISUPatch):
+            dp = args[0]
+            return dict(
+                chainID1 = dp.seg1,
+                resid1 = dp.resid1,
+                chainID2 = dp.seg2,
+                resid2 = dp.resid2,
+                # Default values for optional fields
+                serial_number = 0,  # Default serial number
+                resname1 = 'CYS',
+                resname2 = 'CYS'
+            )
+        return super()._adapt(*args, **kwargs)
 
-    @__init__.register(list)
-    def _from_patchlist(self,L):
-        s1,ri1=L[0].split(':')
-        s2,ri2=L[1].split(':')
-        r1,i1=split_ri(ri1)
-        r2,i2=split_ri(ri2)
-        input_dict={
-            'serial_number':0,
-            'resname1':'CYS',
-            'resname2':'CYS',
-            'chainID1':s1,
-            'chainID2':s2,
-            'resseqnum1':r1,
-            'resseqnum2':r2,
-            'insertion1':i1,
-            'insertion2':i2,
-            'length':0.0,
-            'sym1':'',
-            'sym2':'',
-            'residue1':None,
-            'residue2':None
-        }
-        super().__init__(input_dict)
+    def shortcode(self) -> str:
+        """
+        Convert the SSBond object to a shortcode string representation.
+        
+        Returns
+        -------
+        str
+            A shortcode string representation of the SSBond object in the format C_RRR-D_SSS.
+            Where C and D are chain IDs, and RRR and SSS are residue sequence numbers with insertion codes.
+        """
+        return f"{self.chainID1}_{self.resid1.resid}-{self.chainID2}_{self.resid2.resid}"
 
     def __str__(self):
         """
@@ -180,24 +178,9 @@ class SSBond(AncestorAwareObj):
         of both residues involved in the SSBond.
         If the residue attributes are set, it uses their chain IDs, sequence numbers, and insertion codes instead.
         """
-        c1=self.chainID1
-        r1=self.resseqnum1
-        i1=self.insertion1
-        if self.residue1:
-            c1=self.residue1.chainID
-            r1=self.residue1.resseqnum
-            i1=self.residue1.insertion
-        c2=self.chainID2
-        r2=self.resseqnum2
-        i2=self.insertion2
-        if self.residue2:
-            c2=self.residue2.chainID
-            r2=self.residue2.resseqnum
-            i2=self.residue2.insertion
-        # return f'{self.chainID1}_{self.resseqnum1}{self.insertion1}-{self.chainID2}_{self.resseqnum2}{self.insertion2}'
-        return f'{c1}_{r1}{i1}-{c2}_{r2}{i2}'
+        return self.shortcode()
 
-    def pdb_line(self):
+    def pdb_line(self) -> str:
         """
         Write the SSBond as it would appear in a PDB file.
 
@@ -210,48 +193,63 @@ class SSBond(AncestorAwareObj):
                 '{:4d}'.format(self.serial_number)+\
                 '{:>4s}'.format(self.resname1)+\
                 '{:>2s}'.format(self.chainID1)+\
-                '{:5d}'.format(self.resseqnum1)+\
-                '{:1s}'.format(self.insertion1)+\
+                '{:>5s}'.format(self.resid1.pdbresid)+\
                 '{:>6s}'.format(self.resname2)+\
                 '{:>2s}'.format(self.chainID2)+\
-                '{:5d}'.format(self.resseqnum2)+\
-                '{:1s}'.format(self.insertion2)+\
+                '{:>5s}'.format(self.resid2.pdbresid)+\
                 ' '*23+\
                 '{:>6s}'.format(self.sym1)+\
                 '{:>7s}'.format(self.sym2)+\
                 '{:6.2f}'.format(self.length)
         return pdbline
-    
-    def write_TcL(self,W:PsfgenScripter,transform):
-        """
-        Writes the Tcl command to create a disulfide bond in a Psfgen script using the DISU patch. This method generates the Tcl command to create a disulfide bond between two CYS residues
-        in a protein. It uses the chainID mapping from the Transform object to ensure that the
-        correct chain IDs are used in the command.
-        
-        Parameters
-        ----------
-        W : PsfgenScripter
-            The Psfgen script writer object to which the Tcl command will be written.
-        transform : Transform
-            A Transform object that contains the chainID mapping for the SSBond.
-        """
-        chainIDmap=transform.chainIDmap 
-        # ok since these are only going to reference protein segments; protein segment names are the chain IDs
-        logger.debug(f'writing patch for {self}')
-        c1=chainIDmap.get(self.chainID1,self.chainID1)
-        c2=chainIDmap.get(self.chainID2,self.chainID2)
-        r1=self.resseqnum1
-        r2=self.resseqnum2
-        W.addline(f'patch DISU {c1}:{r1} {c2}:{r2}')
 
-class SSBondList(AncestorAwareObjList):
+class SSBondList(BaseObjList[SSBond]):
     """
     A class for handling a list of SSBond objects.
-    This class inherits from AncestorAwareObjList and provides methods to manage
+    This class inherits from BaseObjList and provides methods to manage
     a list of SSBond objects.
     """
 
-    def assign_residues(self,Residues):
+    def describe(self):
+        return f'SSBondList with {len(self)} SSBonds'
+
+    @classmethod
+    def from_pdb(cls, pdb: PDBRecordDict) -> SSBondList:
+        """
+        Create a SSBondList from a PDBRecordDict.
+        """
+        if SSBond._PDB_keyword not in pdb:
+            return cls([])
+        return cls([SSBond(x) for x in pdb[SSBond._PDB_keyword]])
+
+    @classmethod
+    def from_cif(cls, dc: DataContainer) -> SSBondList:
+        """
+        Create a SSBondList from a CIF DataContainer.
+
+        Parameters
+        ----------
+        dc : DataContainer
+            A CIF DataContainer containing the necessary fields to create SSBond objects.
+
+        Returns
+        -------
+        SSBondList
+            An instance of SSBondList created from the CIF DataContainer.
+        """
+        L = []
+        cif_category = dc.getObj(SSBond._CIF_CategoryName)
+        if cif_category is None:
+            return cls([])
+        for i in range(len(cif_category)):
+            for key, valset in SSBond._CIF_CategoryElementTypes.items():
+                objTypeid = cif_category.getValue(key, i)
+                if objTypeid in valset:
+                    this_link = SSBond(CIFdict(cif_category, i))
+                    L.append(this_link)
+        return cls(L)
+
+    def assign_residues(self, Residues: 'ResidueList'):
         """
         Assigns a list of Residue objects to the SSBond residues.
         
@@ -266,67 +264,51 @@ class SSBondList(AncestorAwareObjList):
             A new SSBondList object containing the residues that were not assigned because no applicable residues were found.
         """
         logger.debug(f'SSBonds: Assigning residues from list of {len(Residues)} residues')
-        ignored_by_ptnr1=self.assign_objs_to_attr('residue1',Residues,resseqnum='resseqnum1',chainID='chainID1',insertion='insertion1')
-        ignored_by_ptnr2=self.assign_objs_to_attr('residue2',Residues,resseqnum='resseqnum2',chainID='chainID2',insertion='insertion2')
-        return self.__class__(ignored_by_ptnr1+ignored_by_ptnr2)
-    
-    def write_TcL(self,W:PsfgenScripter,transform):
-        """
-        Writes the Tcl commands to create disulfide bonds in a Psfgen script.
-        This method iterates over each SSBond in the list and writes the Tcl command to create
-        the disulfide bond using the DISU patch. It uses the chainID mapping from the Transform
-        object to ensure that the correct chain IDs are used in the command.
-        
-        Parameters
-        ----------
-        W : PsfgenScripter
-            The Psfgen script writer object to which the Tcl commands will be written.
-        transform : Transform
-            A Transform object that contains the chainID mapping for the SSBonds.
-        """
-        for s in self:
-            s.write_TcL(W,transform)
-    def prune_mutations(self,Mutations):
-        """
-        Prunes the SSBondList by removing SSBonds that are associated with mutations. This method iterates over each Mutation in the provided list and checks if there are
-        any SSBonds that match the chain ID, residue sequence number, and insertion code of
-        the Mutation. If a match is found, the SSBond is removed from the list 
-        and added to a new SSBondList object. The method returns this new SSBondList object.
-        
-        Parameters
-        ----------
-        Mutations : list of Mutation
-            A list of Mutation objects that contain information about the mutations to be pruned.
-        
-        Returns
-        -------
-        SSBondList
-            A new SSBondList object containing the SSBonds that were pruned.
+        ignored_by_ptnr1=self.assign_objs_to_attr('residue1', Residues, chainID='chainID1', resid='resid1')
+        ignored_by_ptnr2=self.assign_objs_to_attr('residue2', Residues, chainID='chainID2', resid='resid2')
+        return self.__class__(ignored_by_ptnr1 + ignored_by_ptnr2)
 
-        """
-        pruned=self.__class__([])
-        for m in Mutations:
-            left=self.get(chainID1=m.chainID,resseqnum1=m.resseqnum,insertion1=m.insertion)
-            if left:
-                pruned.append(self.remove(left))
-            right=self.get(chainID2=m.chainID,resseqnum2=m.resseqnum,insertion2=m.insertion)
-            if right:
-                pruned.append(self.remove(right))
-        return pruned
-    
-    def map_attr(self,mapped_attr,key_attr,map):
-        """
-        Maps an attribute of the SSBondList to a new value using a mapping dictionary.  A dictionary that maps the values of the key_attr to new values for the mapped_attr.
-        This method iterates over each SSBond in the list and applies the mapping to the
-        specified attribute. It logs the mapping operation and the number of SSBonds being processed.
+    # def prune_mutations(self, Mutations: MutationList) -> 'SSBondList':
+    #     """
+    #     Prunes the SSBondList by removing SSBonds that are associated with mutations. This method iterates over each Mutation in the provided list and checks if there are
+    #     any SSBonds that match the chain ID, residue sequence number, and insertion code of
+    #     the Mutation. If a match is found, the SSBond is removed from the list 
+    #     and added to a new SSBondList object. The method returns this new SSBondList object.
         
-        Parameters
-        ----------
-        mapped_attr : str
-            The attribute of the SSBondList to be mapped.
-        key_attr : str
-            The attribute of the SSBond that will be used as the key for the mapping.
-        map : dict
-        """
-        logger.debug(f'Mapping {mapped_attr} {key_attr} in {len(self)} SSBonds using map {map}')
-        super().map_attr(mapped_attr,key_attr,map)
+    #     Parameters
+    #     ----------
+    #     Mutations : MutationList
+    #         A list of Mutation objects that contain information about the mutations to be pruned.
+        
+    #     Returns
+    #     -------
+    #     SSBondList
+    #         A new SSBondList object containing the SSBonds that were pruned.
+
+    #     """
+    #     pruned = self.__class__([])
+    #     for m in Mutations.data:
+    #         left = self.get(chainID1=m.chainID, resid1=m.resid)
+    #         if left:
+    #             pruned.take_item(left, self)
+    #         right = self.get(chainID2=m.chainID, resid2=m.resid)
+    #         if right:
+    #             pruned.take_item(right, self)
+    #     return pruned
+
+    # def map_attr(self, mapped_attr: str, key_attr: str, map: dict):
+    #     """
+    #     Maps an attribute of the SSBondList to a new value using a mapping dictionary.  A dictionary that maps the values of the key_attr to new values for the mapped_attr.
+    #     This method iterates over each SSBond in the list and applies the mapping to the
+    #     specified attribute. It logs the mapping operation and the number of SSBonds being processed.
+        
+    #     Parameters
+    #     ----------
+    #     mapped_attr : str
+    #         The attribute of the SSBondList to be mapped.
+    #     key_attr : str
+    #         The attribute of the SSBond that will be used as the key for the mapping.
+    #     map : dict
+    #     """
+    #     logger.debug(f'Mapping {mapped_attr} {key_attr} in {len(self)} SSBonds using map {map}')
+    #     super().map_attr(mapped_attr, key_attr, map)

@@ -1,0 +1,86 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+# 
+# Simple build of solvated BPTI 
+#
+# Notes:
+#   - The phospate ion is excluded
+#   - All crystal waters are retained
+#   - A new disulfide is introduced via mutation
+#   - A five-phase NPT equilibration is used to settle the density
+#   - A production tarball is generated: prod_6pti.tgz
+#
+title: BPTI, no phosphate, introducing a disulfide via mutations
+tasks:
+  - fetch:
+      sourceID: 6pti
+  - psfgen:
+      source:
+        exclude:
+          - resname == 'PO4'
+      mods:
+        mutations:
+          - A:T11C
+          - A:V34C
+        ssbonds:
+          - A_11-A_34
+  - validate:
+      tests:
+        - attribute_test:
+            name: point mutation
+            selection: protein and chain A and resid 11 and name CA
+            attribute: resname
+            value: CYS
+        - attribute_test:
+            name: point mutation
+            selection: protein and chain A and resid 34 and name CA
+            attribute: resname
+            value: CYS
+        - connection_test:
+            name: new disulfide
+            selection: protein and chain A and resid 11 34
+            connection_type: disulfide
+        - residue_test:
+            name: phosphate ion excluded
+            selection: resname PO4
+            measure: residue_count
+            value: 0
+  - md:
+      ensemble: minimize
+  - solvate:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - md:
+      ensemble: NPT
+      nsteps: 13200
+  - mdplot:
+      timeseries:
+        - density
+        - - a_x
+          - b_y
+          - c_z
+      basename: solvated
+      grid: True
+  - terminate:
+      basename: my_6pti
+      archive_dir: my_archive
+      package:
+        state_dir: my_state
+        basename: prod_6pti
+        md:
+          ensemble: NPT

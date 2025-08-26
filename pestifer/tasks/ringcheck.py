@@ -7,8 +7,12 @@ Usage is described in the :ref:`config_ref tasks ring_check` documentation.
 """
 import logging
 
-from ..core.basetask import BaseTask
-from ..molecule.ring import ring_check
+from pathlib import Path
+
+from .basetask import BaseTask
+from ..scripters import PsfgenScripter
+from ..core.artifacts import *
+from ..psfutil.psfring import ring_check
 
 logger=logging.getLogger(__name__)
 
@@ -17,40 +21,38 @@ class RingCheckTask(BaseTask):
     A class for checking for pierced rings
     """
     
-    yaml_header='ring_check'
+    _yaml_header = 'ring_check'
     """
     YAML header for RingCheckTask objects.
     This header is used to declare RingCheckTask objects in YAML task lists.
     """
     
     def do(self):
-        self.log_message('initiated')
-        self.inherit_state()
-        psf=self.statevars.get('psf',None)
-        pdb=self.statevars.get('pdb',None)
-        xsc=self.statevars.get('xsc',None)
-        cutoff=self.specs.get('cutoff',3.5)
-        segtypes=self.specs.get('segtypes',['lipid'])
-        delete_these=self.specs.get('delete','piercee')
-        npiercings=ring_check(psf,pdb,xsc,cutoff=cutoff,segtypes=segtypes)
+        state: StateArtifacts = self.get_current_artifact('state')
+        cutoff: float = self.specs.get('cutoff', 3.5)
+        segtypes: list = self.specs.get('segtypes', ['lipid'])
+        delete_these: str = self.specs.get('delete', 'piercee')
+        npiercings = ring_check(state.psf.name, state.pdb.name, state.xsc.name, cutoff=cutoff, segtypes=segtypes)
         if npiercings:
-            ess='s' if len(npiercings)>1 else ''
-            if delete_these=="none":
+            ess = 's' if len(npiercings) > 1 else ''
+            if delete_these == "none":
                 logger.debug(f'No action taken regarding {len(npiercings)} pierced-ring configuration{ess}')
                 for r in npiercings:
                     logger.debug(f'  Piercing of {r["piercee"]["segname"]}-{r["piercee"]["resid"]} by {r["piercer"]["segname"]}-{r["piercer"]["resid"]}')
             else:
                 self.next_basename('ring_check')
-                pg=self.scripters['psfgen']
+                pg: PsfgenScripter = self.get_scripter('psfgen')
                 pg.newscript(self.basename)
-                pg.load_project(psf,pdb)
+                pg.load_project(state.psf.name, state.pdb.name)
                 logger.debug(f'Deleting all {delete_these}s from {len(npiercings)} pierced-ring configuration{ess}')
                 for r in npiercings:
                     logger.debug(f'   Deleting segname {r[delete_these]["segname"]} residue {r[delete_these]["resid"]}')
                     pg.addline(f'delatom {r[delete_these]["segname"]} {r[delete_these]["resid"]}')
                 pg.writescript(self.basename)
                 pg.runscript()
-                self.save_state(exts=['psf','pdb'])
+                self.register(StateArtifacts(psf=PSFFileArtifact(self.basename), pdb=PDBFileArtifact(self.basename), xsc=state.xsc))
+                for at in [PsfgenInputScriptArtifact, PsfgenLogFileArtifact]:
+                    self.register(at(self.basename))
         self.log_message('complete')
-        self.result=0
-        return super().do()
+        self.result = 0
+        return self.result

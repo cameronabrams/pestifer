@@ -7,33 +7,34 @@ Usage is described in the :ref:`config_ref tasks manipulate` documentation.
 """
 import logging
 
-from ..core.basetask import BaseTask
-from ..core.objmanager import ObjManager
+from pathlib import Path
 
-logger=logging.getLogger(__name__)
+from .basetask import BaseTask
+from ..scripters import VMDScripter
+from ..core.objmanager import ObjManager
+from ..core.artifacts import PDBFileArtifact, VMDScriptArtifact, VMDLogFileArtifact, StateArtifacts
+
+logger = logging.getLogger(__name__)
 
 class ManipulateTask(BaseTask):
     """
     ManipulateTask class for performing coordinate manipulations.
     """
-    yaml_header='manipulate'
+    _yaml_header = 'manipulate'
     """
     YAML header for the ManipulateTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
-    def do(self):
+    def provision(self, packet = None):
+        super().provision(packet)
+        self.objmanager = ObjManager()
+        self.objmanager.ingest(self.specs['mods'])
+
+    def do(self) -> int:
         """
         Execute the manipulate task.
         """
-        self.log_message('initiated')
-        if self.prior:
-            logger.debug(f'Task {self.taskname} prior {self.prior.taskname}')
-            self.inherit_state()
-        logger.debug(f'manipulate {self.specs["mods"]}')
-        self.objmanager=ObjManager()
-        self.objmanager.ingest(self.specs['mods'])
-        self.result=self.coormods()
-        self.log_message('complete')
-        return super().do()
+        self.result = self.coormods()
+        return self.result
 
     def coormods(self):
         """
@@ -44,24 +45,30 @@ class ManipulateTask(BaseTask):
         It writes the modified coordinates to a PDB file and saves the state with the updated coordinates.
         The method returns 0 on success or a non-zero error code on failure.
         """
-        coord=self.objmanager.get('coord',{})
-        logger.debug(f'coord {coord}')
+        coord: dict = self.objmanager.get('coord', {})
         if not coord:
             logger.debug(f'no coormods to perform')
             return 0
         logger.debug(f'performing coormods')
-        for objtype,objlist in coord.items():
+        for objtype, objlist in coord.items():
             self.next_basename(objtype)
-            vm=self.scripters['vmd']
-            vm.newscript(self.basename,packages=['Orient'])
-            psf=self.statevars['psf']
-            pdb=self.statevars['pdb']
-            vm.load_psf_pdb(psf,pdb,new_molid_varname='mCM')
-            objlist.write_TcL(vm)
+            vm: VMDScripter = self.get_scripter('vmd')
+            vm.newscript(self.basename, packages=['Orient'])
+            state: StateArtifacts = self.get_current_artifact('state')
+            vm.load_psf_pdb(state.psf.name, state.pdb.name, new_molid_varname='mCM')
+            for obj in objlist:
+                if objtype == 'crot':
+                    vm.write_crot(obj, molid='mCM')
+                elif objtype == 'orient':
+                    vm.write_orient(obj, molid='mCM')
+                elif objtype == 'rottrans':
+                    vm.write_rottrans(obj, molid='mCM')
             vm.write_pdb(self.basename,'mCM')
             vm.writescript()
-            result=vm.runscript()
-            if result!=0:
+            result = vm.runscript()
+            if result != 0:
                 return result
-            self.save_state(exts=['pdb'])
+            self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename), psf=state.psf))
+            for at in [VMDScriptArtifact, VMDLogFileArtifact]:
+                self.register(at(self.basename))
         return 0

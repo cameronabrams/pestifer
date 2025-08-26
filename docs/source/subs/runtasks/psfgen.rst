@@ -3,34 +3,19 @@
 psfgen 
 ------
 
-A ``psfgen`` task is usually the first task in a ``tasks`` directive.  Its basic functionality is to set up and conduct the first ``psfgen`` run to generate psf and pdb files from a structure file.  It's real job is writing the ``psfgen`` input file and then calling ``psfgen``.
+A ``psfgen`` task's  basic functionality is to set up and conduct the first ``psfgen`` run to generate psf and pdb files from a structure file.  It's real job is writing the ``psfgen`` input script and then executing VMD with that script as input.
 
-An example ``psfgen`` task that fetches and processes the 6PTI structure might look like this:
+An example Pestifer input that specifies fetching and processing the 6PTI structure might look like this:
 
 .. code-block:: yaml
 
   tasks:
+    - fetch:
+        sourceID: 6pti
     - psfgen:
-        source:
-          id: 6pti  # if 6pti.pdb does not exist in the current directory, it will be fetched from the RCSB
     - ... (more tasks follow)
 
-With this input, pestifer will fetch ``6pti.pdb`` from the RCSB, generate the required ``psfgen`` script, and execute ``psfgen`` from within a text-only VMD session.  The PSF and PDB files that result are passed forward to the next task in the ``tasks`` directive.  Any string is allowed in an ``id`` directive, but if ``<id-value>.pdb`` does not exist in the current directory, pestifer will attempt to fetch it from the RCSB PDB.  If you want to use a local PDB file, you can simply place it in the current directory and use the ``id`` directive to specify its name (without the ``.pdb`` extension).
-
-The only two subdirectives under ``psfgen`` are ``source`` and ``mods``. 
-
-source
-++++++
-
-Under ``source``, there are three mutually exclusive directives used to specify the molecular input:
-
-1. ``id``: This is a 4-character PDB ID.
-2. ``alphafold``: This is an AlphaFold database ID.
-3. ``prebuilt``: This allows you to specify obligatory PSF, PDB, and optional xsc file for a system that was already built.
-
-Secondary directives under ``source`` are described in its :ref:`Configuration File Reference pages <config_ref tasks psfgen source>`.
-
-If ``psfgen`` is the first task, the name of the ``psfgen`` input file it will write is ``00-00-00_psfgen-build.tcl`` and the ``psfgen`` session log will be written to ``00-00-00_psfgen-build.log``. (File naming conventions are briefly explained :ref:`here: <file name conventions>`.  There is no ``pestifer`` use case in which is top-level ``psfgen`` task is *not* the first task in a ``tasks`` directive.)  
+With this input, pestifer will fetch ``6pti.pdb`` from the RCSB, generate the required ``psfgen`` script, and execute VMD with that script as input.  The PSF and PDB files that result are passed forward to the next task in the ``tasks`` directive.
 
 A common way of iterating with pestifer when a build is not successful is to carefully read the log file, and then edit the ``00-00-00_psfgen-build.tcl`` file to attempt fix the problem. For example, you might need to add a missing patch or modify a residue name. This requires a good working understanding of how to use ``psfgen``, of course.  You can then re-run the ``psfgen`` task by running the following command in a text-only VMD session:
 
@@ -40,9 +25,56 @@ A common way of iterating with pestifer when a build is not successful is to car
    VMD> pestifer_init
    VMD> source 00-00-00_psfgen-build.tcl 
 
-Once you have a successful standalone ``psfgen`` run, you can then use the ``pestifer`` command to complete the build by reading in the successfully (and manually) created PSF and PDB files in a ``prebuilt`` directive, rather then ``id`` or ``alphafold``.  Or, you may figure out how to modify your original config file to fix the problem and then re-run the ``pestifer`` command with the new config file.  This is a common workflow when using pestifer to build systems, and it is preferred if you want to use pestifer in a high-throughput setting.
+Once you have a successful standalone ``psfgen`` run, you can then use the ``pestifer`` command to complete the build by reading in the successfully (and manually) created PSF and PDB files in a ``continuation`` task.  Or, you may figure out how to modify your original config file to fix the problem and then re-run the ``pestifer`` command with the new config file.  This is a common workflow when using pestifer to build systems, and it is preferred if you want to use pestifer in a high-throughput setting.
 
 ``pestifer_init`` is a TcL proc that you should put in your ``~/.vmdrc`` file.  It sets up the environment for pestifer within the VMD session. (See :ref:`use in vmd scripts` for details on how to set up your ``~/.vmdrc`` file to make sure VMD works with pestifer.)
+
+The only two subdirectives under ``psfgen`` are ``source`` and ``mods``. 
+
+.. _subs_runtasks_psfgen_source:
+
+source
+++++++
+
+Under ``source``, there are several useful directives:
+
+1. ``biological_assembly``: The integer ID of the biological assembly represented in the input structure file which you would like to use to prepare your system.  This is useful for structures that have multiple biological assemblies.  If not specified, the asymmetric unit will be used.
+2. ``transform_reserves``: A dictionary mapping chainID's in the asymmetric unit to their counterparts in other protomers of the biological assembly (if the assembly replicates the asymmetric unit).
+3. ``remap_chainIDs``: A dictionary mapping chainID's in the input structure file to their counterparts in the output structure file.
+4. ``reserialize``: A boolean. If true, resets the serial numbers of all atoms based on their order in the input structure file -- use with caution!!
+5. ``model``: The integer ID of the model to use from a multi-model structure file.  If unspecified, the **last** model in the file is used.
+6. ``cif_residue_map_file``: If the structure file's format is CIF (rather than PDB), it often has its own labels for chainIDs and residue sequence numbers that differ from what the authors use in their publications.  This specifies the name of an output file that contains the information mapping the CIF-format resids to the author-format.
+7. ``include``: A list of strings representing **pythonic** logic for including atoms in the structure file in the final build.
+8. ``exclude``: A list of strings representing **pythonic** logic for excluding atoms from the structure file in the final build.
+9. ``sequence``: A dictionary with special keyword-value pairs for handling certain sequence modifications to the base molecule. These are:
+
+     a. ``include_terminal_loops``: A boolean.  If true, any unresolved residues in the N and C termini of **all** chains in the input strucutre file will be grown in. Default is **false**.
+     b. ``build_zero_occupancy_C_termini``: A list of chainIDs for which you would specifically like to build in any unresolved C-terminal residues.  Default is **empty**.
+     c. ``build_zero_occupancy_N_termini``: A list of chainIDs for which you would specifically like to build in any unresolved N-terminal residues.  Default is **empty**.
+     d. ``fix_engineered_mutations``: A boolean.  If true, any engineered mutations specified in the input structure file will be reverted back to wild-type in the output structure file.  Default is **false**.
+     e. ``fix_conflicts``: A boolean.  If true, any sequence conflicts listed in the input structure file are resolved in favor of the database values.  Default is **false**.
+     f. ``loops``: A dictionary with parameters governing how missing loops are grown in.
+     g. ``glycans``: A dictionary with parameters governing how glycans are modeled.
+
+source.sequence.loops
+#####################
+
+Under the ``loops`` directive under ``source.sequence``, one can specify three main directives.
+
+1. ``sac_res_name``: The is the 3-letter name of the residue used as a temporary C-terminus on the growing loop.  This is necessary to separate the actual least residue of the loop from an active C-terminus, making it very easy to delete the C-terminus prior to linking the C-terminus to the next residue to close the gap.  Defaul is **GLY**.
+2. ``min_loop_length``: The minimum number of residues in a loop that qualifies it for the steering simulations to close the gap.  Default is **4**.
+3. ``declash``: A dictionary of parameters governing a declashing procedure for grown in loop prior to steering.
+
+    a. ``maxcycles``: maximum number of declash cycles; a cycle is a random torsion angle displacment per residue of the loop.  Default is **0**, which turns off declashing.
+    b. ``include_C_termini``: A boolean.  If true, any C-terminal loops are subject to declashing (provided that ``maxcycles`` is greater than 0.)  Default is **true**.
+    c. ``clash_dist``: The minimum distance in Angstrom between any two atoms in the loop during the declashing procedure.  Default is **1.5**.
+
+
+source.sequence.glycans
+#######################
+
+Under the ``glycans`` directive under ``source.sequence``, one can specify a single ``declash`` directive, which like the loop declashing, has ``maxcycles`` (default **0**) and ``clashdist`` (default **1.5**).
+
 
 mods 
 ++++
@@ -54,9 +86,9 @@ For example, a ``psfgen`` task that builds a 6PTI system with two specific point
 .. code-block:: yaml
 
   tasks:
-    - psfgen:
-        source:
-          id: 6pti
+    - fetch:
+        sourceID: 6pti
+     - psfgen:
         mods:
           mutations:
             - A:T11A # threonine to alanine at position 11, 

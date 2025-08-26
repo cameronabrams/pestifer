@@ -1,3 +1,5 @@
+from_chatgpt/
+
 *.dcd
 *.bak
 __defunct__/

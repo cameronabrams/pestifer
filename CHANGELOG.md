@@ -7,9 +7,15 @@ This project follows [Semantic Versioning](https://semver.org/) and documents ch
 ### Changed
 - `mdplot` now correctly treats `cpu_time` and `wall_time` as running sums over chained MD runs
 
+## [2.0.1]
+- `validate` task introduced to allow for validation of psfgen-produced PSF and PDB files
+- `include` and `exclude` now allow full logical expressions for better control of inclusion and exclusion of atoms and residues from source structures
+- `fetch` task now separately responsible for downloading necessary pdb files
+- `continuation` task now separately responsible for starting from a given state (PSF/PDB/COOR/XSC)
+- `mdplot` now correctly treats `cpu_time` and `wall_time` as running sums over chained MD runs
+
 ## [1.21.2] - 2025-07-17
 - first official Zenodo release [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.16051499.svg)](https://doi.org/10.5281/zenodo.16051499)
-
 - fixed bug in user-modifiable segtype handling
 
 ## [1.21.1] - 2025-07-15

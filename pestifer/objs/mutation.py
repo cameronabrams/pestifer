@@ -9,110 +9,162 @@ Mutations can be inferred directly from coordinate-file metadata or supplied by 
 user.
 """
 import logging
-logger=logging.getLogger(__name__)
-from functools import singledispatchmethod
 
+from pydantic import Field
+from typing import ClassVar
+
+from .resid import ResID
 from .seqadv import Seqadv
-
-from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
+from ..core.baseobj import BaseObj, BaseObjList
 from ..core.labels import Labels
-from ..core.stringthings import split_ri
 
-class Mutation(AncestorAwareObj):
+logger = logging.getLogger(__name__)
+
+class Mutation(BaseObj):
     """
     A class for handling single-residue mutations
     """
 
-    req_attr=AncestorAwareObj.req_attr+['chainID','origresname','resseqnum','insertion','newresname','typekey']
+    _required_fields = {'chainID', 'origresname', 'resid', 'newresname', 'typekey'}
     """
     Required attributes for a Mutation object.
     These attributes must be provided when creating a Mutation object.
-    
+
     - ``chainID``: The chain ID of the segment where the mutation occurs.
     - ``origresname``: The original residue name at the mutation site.
-    - ``resseqnum``: The residue number where the mutation is made.
-    - ``insertion``: The insertion code for the original residue.
+    - ``resid``: The residue ID where the mutation is made, represented by a `ResID` object.
     - ``newresname``: The new residue name to be mutated to.
     - ``typekey``: A key indicating the type of mutation (e.g., ``user``, ``author``, ``mmCIF``).
     """
 
-    opt_attr=AncestorAwareObj.opt_attr+['pdbx_auth_seq_num']
-    """ 
+    _optional_fields = {'pdbx_auth_seq_num'}
+    """
     Optional attributes for a Mutation object.
     These attributes may be present but are not required.
-    
+
     - ``pdbx_auth_seq_num``: The PDBx author sequence number, which is used in mmCIF files to indicate the residue number.
     """
 
-    yaml_header='mutations'
+    chainID: str = Field(..., description="Chain ID of the segment where the mutation occurs")
+    origresname: str = Field(..., description="Original residue name at the mutation site")
+    resid: ResID = Field(..., description="Residue ID where the mutation is made")
+    newresname: str = Field(..., description="New residue name to be mutated to")
+    typekey: str = Field(..., description="Key indicating the type of mutation (e.g., 'user', 'author', 'mmCIF')")
+    pdbx_auth_seq_num: int | None = Field(None, description="PDBx author sequence number, used in mmCIF files")
+
+    _yaml_header: ClassVar[str] = 'mutations'
     """
     YAML header for Mutation objects.
     This header is used to identify Mutation objects in YAML files.
     """
-    
-    objcat='seq'
+
+    _objcat: ClassVar[str] = 'seq'
     """
     Category of the Mutation object.
     This categorization is used to group Mutation objects in the object manager.
     """
 
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
-        if not hasattr(self,'insertion'):
-            self.insertion=''
-        if not hasattr(self,'typekey'):
-            self.typekey='unknown'
-
-    @__init__.register(Seqadv)
-    def _from_seqadv(self,sq):
-        input_dict={
-            'chainID':sq.chainID,
-            'origresname':sq.resname,
-            'newresname':sq.dbRes,
-            'resseqnum':sq.resseqnum,
-            'insertion':sq.insertion,
-            'typekey':sq.typekey
-        }
-        if hasattr(sq,'label_asym_id'):
-            input_dict['chainID']=sq.__dict__['label_aym_id']
-        super().__init__(input_dict)
-
-    @__init__.register(str)
-    def _from_shortcode(self,shortcode):
-        ### shortcode format: c:nnn,rrr,mmm or c:A###B
-        ### c: chainID
-        ### nnn: old resname, 1-byte rescode allowed
-        ### rrr: resseqnum
-        ### mmm: new resname, 1-byte rescode allowed
-        s1=shortcode.split(':')
-        chainID=s1[0]
-        s2=s1[1].split(',')
-        codetype='3' if len(s2)==3 else '1'
-        if codetype=='3':
-            ri=s2[1]
-            r,i=split_ri(ri)
-            orn=s2[0]
-            nrn=s2[2]
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
+        """
+        Adapts the input to a dictionary format suitable for Mutation instantiation.
+        This method is used to convert various input types into a dictionary of parameters.
+        """
+        if args and isinstance(args[0], str):
+            input_dict = Mutation._from_shortcode(args[0])
+            return input_dict
+        elif args and isinstance(args[0], Seqadv):
+            input_dict = Mutation._from_seqadv(args[0])
+            return input_dict
+        return super()._adapt(*args, **kwargs)
+    
+    @staticmethod
+    def _from_shortcode(raw: str) -> dict:
+        """
+        Converts a shortcode string to a dictionary of parameters for Mutation.
+        The shortcode format is: C:nnn,rrr,mmm
+        where:
+        - C is the chain ID
+        - nnn is the original residue name
+        - rrr is the residue sequence number plus optional insertion code
+        - mmm is the new residue name
+        """
+        s1 = raw.split(':')
+        chainID = s1[0]
+        mut_spec = s1[1]
+        # possible formats for mut_spec
+        #
+        # 1. nnn,rrr,mmm
+        # 2. nnnrrrmmm
+        # 3. n,rrr,m
+        # 4. nrrrm
+        #
+        # nnn, mmm are three-letter residue codes
+        # rrr is a resid with possible insertion code
+        # n, m are one-letter residue codes
+        if ',' not in mut_spec:
+            # we have a comma-less string
+            # if the string is using one-letter resid codes, then the second
+            # character will be a digit
+            if mut_spec[1].isdigit():
+                idx = 1
+            else:
+                idx = 3
+                # assume the first letter is a residue code
+            origresname = Labels.res_123.get(mut_spec[:idx],mut_spec[:idx])
+            # assume the last letter is a residue code
+            newresname = Labels.res_123.get(mut_spec[-idx:],mut_spec[-idx:])
+            # assume letters/numbers in the middle are a resid in string form
+            resid = ResID(mut_spec[idx:-idx])
         else:
-            s2=s2[0]
-            orn=Labels.res_123[s2[0]]
-            nrn=Labels.res_123[s2[-1]]
-            ri=s2[1:-1]
-            r,i=split_ri(ri)
-        input_dict={
-            'chainID':chainID, # assume author
-            'origresname':orn,
-            'resseqnum':int(r), # assume author!
-            'insertion':i,
-            'newresname':nrn,
-            'typekey':'user' # shortcodes are how users indicate mutations
-        }
-        logger.debug(f'user mutation {input_dict}')
-        super().__init__(input_dict)
+            s2 = s1[1].split(',')
+            origresname = Labels.res_123.get(s2[0], s2[0])
+            resid = ResID(s2[1])
+            newresname = Labels.res_123.get(s2[2], s2[2])
+        typekey = 'user'  # Default type key
+        return dict(
+            chainID=chainID,
+            origresname=origresname,
+            resid=resid,
+            newresname=newresname,
+            typekey=typekey
+        )
+    
+    @staticmethod
+    def _from_seqadv(seqadv: Seqadv) -> dict:
+        """
+        Converts a Seqadv object to a dictionary of parameters for Mutation.
+        
+        Parameters
+        ----------
+        seqadv : Seqadv
+            The Seqadv object containing mutation information.
+        
+        Returns
+        -------
+        dict
+            A dictionary with the attributes needed to create a Mutation object.
+        """
+        return dict(
+            chainID=seqadv.chainID,
+            origresname=seqadv.resname,
+            resid=ResID(seqadv.resid),
+            newresname=seqadv.dbRes,
+            typekey=seqadv.typekey,
+            pdbx_auth_seq_num=seqadv.pdbx_auth_seq_num
+        )
+    
+    def shortcode(self) -> str:
+        """
+        Returns a shortcode representation of the Mutation object.
 
-    def __str__(self):
-        return f'{self.chainID}:{self.origresname}{self.resseqnum}{self.insertion}{self.newresname}'
+        Returns
+        -------
+        str
+            A string in the format C:nnn,rrr,mmm where C is the chain ID, nnn is the original residue name,
+            rrr is the residue sequence number plus optional insertion code, and mmm is the new residue name.
+        """
+        return f"{self.chainID}:{self.origresname},{self.resid.resid},{self.newresname}"
 
     def write_TcL(self):
         """
@@ -123,11 +175,11 @@ class Mutation(AncestorAwareObj):
         str
             The Tcl command to mutate the residue at the specified position to the new residue name.
         """
-        if hasattr(self,'pdbx_auth_seq_num'): # mmCIF!
-            return f'    mutate {self.resseqnum} {self.newresname}'
-        else:
-            resseqnumi=f'{self.resseqnum}{self.insertion}'
-            return f'    mutate {resseqnumi} {self.newresname}'
+        # if hasattr(self,'pdbx_auth_seq_num'): # mmCIF, no insertion code
+        #     return f'    mutate {self.resid.resseqnum} {self.newresname}'
+        # else:
+        return f'    mutate {self.resid.resid} {self.newresname}'
 
-class MutationList(AncestorAwareObjList):
-    pass
+class MutationList(BaseObjList[Mutation]):
+    def describe(self):
+        return f'<MutationList with {len(self)} mutations>'

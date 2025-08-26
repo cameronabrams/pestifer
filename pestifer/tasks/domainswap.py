@@ -12,7 +12,10 @@ It uses the :ref:`tcl-domainswap` Tcl script.  Usage is described in the :ref:`c
 
 import logging
 
-from .md import MDTask
+from .mdtask import MDTask
+
+from ..core.artifacts import *
+from ..scripters import VMDScripter
 
 logger=logging.getLogger(__name__)
 
@@ -20,40 +23,37 @@ class DomainSwapTask(MDTask):
     """
     DomainSwapTask class for performing domain swaps in molecular dynamics simulations.
     """
-    
-    yaml_header='domainswap'
+
+    _yaml_header = 'domainswap'
 
     def do(self):
-        self.log_message('initiated')
-        self.inherit_state()
-        logger.debug(f'Generating inputs for domain swap')
         self.make_inputs()
-        logger.debug(f'Running NAMD to execute domain swap')
-        self.result=self.namdrun(baselabel='domainswap-run',extras={'colvars':'on','colvarsconfig':self.statevars['cv']},single_gpu_only=True)
-        if self.result!=0:
-            return self.result
-        self.save_state(exts=['vel','coor'])
-        self.log_message('complete')
+        self.result = self.namdrun(
+            baselabel = 'domainswap-run', 
+            extras = {'colvars': 'on', 'colvarsconfig': self.statevars['cv']}, 
+            single_gpu_only = True)
         return self.result
 
     def make_inputs(self):
-        specs=self.specs
+        specs = self.specs
         self.next_basename('domainswap-prep')
-        vm=self.scripters['vmd']
+        vm: VMDScripter = self.get_scripter('vmd')
         vm.newscript(self.basename)
-        psf=self.statevars['psf']
-        pdb=self.statevars['pdb']
+        state: StateArtifacts = self.get_current_artifact('state')
         vm.usescript('domainswap')
         vm.writescript()
         vm.runscript(
-            psf=psf,
-            pdb=pdb,
-            swap_domain_def=','.join(specs['swap_domain_def'].split()),
-            anchor_domain_def=','.join(specs['anchor_domain_def'].split()),
-            chain_swap_pairs=':'.join([','.join(x) for x in specs['chain_directional_swaps']]),
-            force_constant=specs['force_constant'],
-            target_numsteps=specs['target_numsteps'],
-            cv=f'{self.basename}-cv.inp',
-            refpdb=f'{self.basename}-ref.pdb')
-        self.update_statevars('cv',f'{self.basename}-cv.inp',vtype='file')
-        
+            psf = state.psf.name,
+            pdb = state.pdb.name,
+            swap_domain_def = ','.join(specs['swap_domain_def'].split()),
+            anchor_domain_def = ','.join(specs['anchor_domain_def'].split()),
+            chain_swap_pairs = ':'.join([','.join(x) for x in specs['chain_directional_swaps']]),
+            force_constant = specs['force_constant'],
+            target_numsteps = specs['target_numsteps'],
+            cv = f'{self.basename}-cv.in',
+            refpdb = f'{self.basename}-ref.pdb'
+        )
+        self.register(NAMDColvarsConfigArtifact(f'{self.basename}-cv'))
+        self.register(VMDScriptArtifact(self.basename))
+        self.register(PDBFileArtifact(f'{self.basename}-ref'), key='refpdb')
+        self.register(VMDLogFileArtifact(f'{self.basename}'))

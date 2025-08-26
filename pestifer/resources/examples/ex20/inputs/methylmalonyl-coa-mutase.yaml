@@ -1,0 +1,38 @@
+# Author: Cameron F. Abrams <cfa22@drexel.edu>
+
+title: Mitochondrial methylmalonyl-CoA mutase (Alphafold P22033)
+tasks:
+- fetch:
+    sourceID: P22033
+- psfgen:
+- md:
+    ensemble: minimize
+- pdb2pqr:
+    pH: 7.0
+- solvate:
+    salt_con: 0.15
+- md:
+    ensemble: minimize
+- md:
+    ensemble: nvt
+    nsteps: 1000
+- md:
+    ensemble: npt
+    nsteps: 1000
+- md:
+    ensemble: npt
+    nsteps: 10000
+- mdplot:
+    basename: solvated
+    timeseries:
+      - density
+    grid: True
+- terminate:
+    basename: my_mcm
+    archive_dir: arc
+    package:
+      basename: my_mcm
+      state_dir: r2r
+      ensemble: npt
+      nsteps: 1000000
+      firsttimestep: 0

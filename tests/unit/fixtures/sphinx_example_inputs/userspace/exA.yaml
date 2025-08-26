@@ -1,6 +1,0 @@
-# Author: Cameron F. Abrams, <cfa22@drexel.edu>
-title: "Use Pestifer to paint a masterpiece."
-tasks:
-  - psfgen:
-      source:
-        id: 1ccc

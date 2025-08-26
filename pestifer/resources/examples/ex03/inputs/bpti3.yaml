@@ -1,0 +1,92 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+# 
+# Simple build of solvated BPTI 
+#
+# Notes:
+#   - The phospate ion is excluded
+#   - All crystal waters are retained
+#   - Some selected mutations are performed, showcasing two 
+#     shortcode formats
+#   - A disulfide is reduced
+#   - A five-phase NPT equilibration is used to settle the density
+#   - A production tarball is generated: prod_6pti.tgz
+#
+title: BPTI, no phosphate, some random mutations plus deletion of one disulfide
+tasks:
+  - fetch:
+      sourceID: 6pti
+  - psfgen:
+      source:
+        exclude:
+          - resname == 'PO4'
+      mods:
+        mutations: # showcasing the two shortcode formats
+          - A:T11A # threonine to alanine at position 11
+          - A:PRO,13,ALA # proline to alanine at position 13
+          - A:K15R
+          - A:MET,52,LEU
+        ssbondsdelete:
+          - A_5-A_55
+  - validate:
+      tests:
+        - attribute_test:
+            name: point mutation
+            selection: protein and chain A and resid 11 and name CA
+            attribute: resname
+            value: ALA
+        - attribute_test:
+            name: reduced disulfide
+            selection: protein and chain A and resid 5 55
+            attribute: name
+            value: HG1 # name of proton on sulfur in a cysteine
+            value_count: 2 # both cysteines should be reduced
+        - connection_test:
+            name: reduced disulfide
+            selection: protein and chain A and resid 5 55
+            connection_type: interresidue
+            connection_count: 0
+        - residue_test:
+            name: phosphate ion excluded
+            selection: resname PO4
+            measure: residue_count
+            value: 0
+  - md:
+      ensemble: minimize
+  - solvate:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - md:
+      ensemble: NPT
+      nsteps: 13200
+  - mdplot:
+      timeseries:
+        - density
+        - - a_x
+          - b_y
+          - c_z
+      basename: solvated
+      grid: True
+  - terminate:
+      basename: my_6pti
+      archive_dir: my_archive
+      package:
+        state_dir: my_state
+        basename: prod_6pti
+        md:
+          ensemble: NPT

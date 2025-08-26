@@ -1,346 +1,332 @@
-# Author: Cameron F. Abrams <cfa22@drexel.edu>.
-""" Namespace objects with attribute controls
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+# with extensive contributions from ChatGPT 4o and 5
+"""
+Pydantic BaseModel objects with attribute controls
 
-The BaseObj class is a derivative of argparse's
-very nice Namespace class, and the ObjList class as a derivative
-of collection's UserList.
+The :class:`BaseObj` class is a Pydantic BaseModel that provides a framework for creating objects with controlled attributes.  It is an abstract class that requires subclasses to implement the `_adapt()` static method.  It also provides a number of utility methods for creating objects from various input types, validating attributes, and comparing objects.
 
-Attribute controls are enforced using class attributes that 
-allow specification of 
+Any subclass that defines Field objects will automatically have their attributes validated according to the rules specified in the BaseObj class.  Subclasses can also define their own ClassVar attributes that are outside the control logic of BaseObj.
 
-    * attributes that are "required" or "optional";
-    * pairs of attributes that are mutually exclusive;
-    * attributes whose values must be selected from
-      some predefined set of choices;
-    * attributes that depend on other attributes;
-    * attributes that are ignored for purposes of comparing
-      the overall "value" of any instances
+Two types of Fields are supported:
 
-A class with methods useful for manipulating lists of instances 
-of BaseObj's or their derivatives is also defined here.
+1. Required fields, which must be present in the input data and are validated by Pydantic.
+2. Optional fields, which are not required but can be included in the input data, and have default values defined.
+
+Pairs of optional fields can be defined as mutually exclusive, meaning that if one field is present, the other cannot be. This is useful for cases where only one of a set of related fields should be specified.
+
+Any field can also be constrained to a set of allowed values, and dependencies can be defined such that if one field is present, another must also be present.
+
+Any field can also be assigned a list of dependent fields depending on its value, which must also be present if the field value is set. This allows for complex relationships between fields to be defined.
+
+Any field can also be declared as ignored when comparing objects, meaning that it will not be included in the comparison logic.
 
 """
+from __future__ import annotations
+from argparse import Namespace
+from pydantic import BaseModel, model_validator, ConfigDict, model_serializer
+from typing import ClassVar, Any, Iterable, Iterator, Self, TypeVar, Generic, get_args, get_origin, Callable
+import hashlib
 import operator
 import yaml
 import logging
-import inspect
 from collections import UserList
-logger=logging.getLogger(__name__)
-from argparse import Namespace
-from functools import singledispatchmethod
 
-class BaseObj(Namespace):
-    """
-    A class defining a namespace with custom attribute controls.
+logger = logging.getLogger(__name__)
+from abc import abstractmethod, ABCMeta
 
-    Required attributes are those that must have a value assigned
-    upon instance creation.  Optional attributes *may* have a 
-    value assigned but need not.  Any pair of optional attributes
-    can be designated as "mutually exlusive", meaning that if one
-    is assigned a value at instance creation, the other is not
-    allowed to exist.  Values for any attribute can be restricted 
-    to one of given set of values.  Any optional attribute may
-    by assigned other optional attributes that must also have 
-    values in order to have a value.  Finally, any attribute may
-    be designated as silent when relative comparisons between
-    object instances are made.
-   
-    """
+class BaseObj(BaseModel):
+    _required_fields:    ClassVar[set[str]]                       = set()
+    _optional_fields:    ClassVar[set[str]]                       = set()
+    _mutually_exclusive: ClassVar[set[frozenset[str]]]            = set()
+    _attr_choices:       ClassVar[dict[str, set[Any]]]            = {}
+    _attr_dependencies:  ClassVar[dict[str, dict[Any, set[Any]]]] = {}
+    _ignore_fields:      ClassVar[set[str]]                       = set()
 
-    req_attr=[]
-    """
-    List of required attributes as strings. These attributes must have values assigned at instance creation time, otherwise an AssertionError is raised
-    """
+    _objcat: ClassVar[str] = ''
 
-    opt_attr=[]
-    """
-        List of optional attributes as strings. These attributes may have values assigned at instance creation time, but need not; if they do not have values, they are simply not present in the instance's __dict__.
-    """
+    model_config = ConfigDict(
+        arbitrary_types_allowed=True,
+        extra='forbid',
+        frozen=False,  # or True if you want immutability
+    )
 
-    alt_attr=[]
-    """
-        Lists of pairs of mutually exclusive attributes.
-        Each pair is a list of two strings, each of which is an attribute label. If one of the attributes in the pair has a value assigned at instance creation time, the other is not allowed to have a value. If neither attribute in the pair has a value, then both are simply
-        not present in the instance's __dict__.
-        e.g., [['is_edible','is_flavorable'], ...]
-        This means that if 'is_edible' has a value, 'is_flavorable'
-        cannot have a value, and vice versa.
-        If neither attribute in the pair has a value, then both are simply not present in the
-    """
+    def __init__(self, *args, **kwargs):
+        super().__init__(**self.__class__._adapt(*args, **kwargs))
 
-    attr_choices={}
-    """
-        Dictionary of attributes with limited set of possible values.
-        The keys are attribute labels, and the values are lists of possible
-        values for the respective attributes. If an attribute is present
-        in the instance's __dict__, its value must be one of the values in the
-        list. If the attribute is not present, it is simply not present
-        in the instance's __dict__.
-        e.g., {'flavor':['sweet','sour','bitter'], ...}
-        This means that if 'flavor' has a value, it must be one of the
-        values in the list, e.g., 'sweet', 'sour', or 'bitter'.
-        If 'flavor' is not present, it is simply not present in the instance's __dict__.
-    """
+    @property
+    def objcat(self):
+        return self._objcat
 
-    opt_attr_deps={}
-    """ 
-        Dictionary of optional attributes that have required attributes
-        that must also have values assigned at instance creation time.
-        The keys are optional attribute labels, and the values are lists of
-        required attribute labels that must also have values assigned
-        at instance creation time if the optional attribute has a value.
-        e.g., {'has_sauce':['sauce_type'], ...}
-        This means that if 'has_sauce' has a value, 'sauce_type'
-        must also have a value assigned at instance creation time.
-        If 'has_sauce' is not present, it is simply not present in the instance's __dict__.
-    """
-    
-    ignore_attr=[]
-    """
-        List of attributes that are ignored when comparing instances.
-        This is a list of attribute labels that are not considered when
-        comparing instances of this class. If an attribute is in this list,
-        its value is not considered when comparing instances of this class.
-        e.g., ['timestamp','id']
-        This means that if 'timestamp' or 'id' are present, their values
-        are not considered when comparing instances of this class.
-        If an attribute is not present, it is simply not present in the instance's __dict__.
-    """
-    
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        """
-        Default constructor fails; all constructions are argument-type dependent 
-        """
-        msg=f'Cannot initialize {self.__class__} from object type {type(input_obj)}'
-        logger.error(msg)
-        raise TypeError(msg)
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
+        """Default: supports dict, Namespace, or plain kwargs."""
+        if args:
+            arg = args[0]
+            if isinstance(arg, dict):
+                return arg
+            elif isinstance(arg, Namespace):
+                return vars(arg)
+        return kwargs
 
-    @__init__.register(Namespace)
-    def _from_namespace(self,ns):
-        super().__init__(**(ns.__dict__))
+    def __repr__(self) -> str:
+        cls_name = self.__class__.__name__
+        parts = []
 
-    @__init__.register(dict)
-    def _from_dict(self,input_dict):
-        """
-        BaseObj constructor when single positional argument is a dict
-        
-        Parameters
-        ----------
-        input_dict : dict
-            dictionary of input attribute:value pairs
-        """
-        # mutually exclusive attribute labels should not 
-        # appear in the list of required attributes
-        assert all([(not x in self.req_attr and not y in self.req_attr) for x,y in self.alt_attr]),"Mutually exclusive attributes should not appear in the required list"
-        prep_dict={}
-        for k,v in input_dict.items():
-            if not self.req_attr and not self.opt_attr:
-                # let's treat an undifferentiated BaseObj like a Namespace
-                prep_dict[k]=v
-            elif k in self.req_attr or k in self.opt_attr:
-                prep_dict[k]=v
-        # all required attributes have values
-        assert all([att in prep_dict.keys() for att in self.req_attr]),f"Not all required attributes have values\nRequired: {self.req_attr}\nProvided: {list(prep_dict.keys())}"
-        # all mutual-exclusivity requirements are met
-        assert all([
-            ((x[0] in prep_dict.keys() and not x[1] in prep_dict.keys()) or 
-             (x[1] in prep_dict.keys() and not x[0] in prep_dict.keys()) or not (x[0] in prep_dict.keys() or x[1] in prep_dict.keys()))
-            for x in self.alt_attr]),"Mutual exclusivity requirements unmet"
-        # all attributes with limited set of possible values have valid values
-        try:
-            assert all([prep_dict[x] in choices for x,choices in self.attr_choices.items()]),"Invalid choices in one or more attributes"
-        except:
-            raise AssertionError(f'Trouble initializing instance of {self.__class__}')
-        # for each optional attribute present, all required dependent attributes are also present
-        for oa,dp in self.opt_attr_deps.items():
-            if oa in prep_dict.keys():
-                assert all([x in prep_dict.keys() for x in dp]),"Dependent required attributes of optional attributes not present"
-        super().__init__(**prep_dict)
+        # Track fields required due to dependencies
+        dependency_required_fields = set()
 
-    def __eq__(self,other):
-        """
-        Defines the equality operator for BaseObj instances.
-        The two instances are considered equal if their attribute values are equal.
-        This includes all required attributes and any common optional attributes.
+        for field, conditions in self._attr_dependencies.items():
+            if field in self.__class__.__pydantic_fields__:
+                field_value = getattr(self, field, None)
+                if '*' in conditions:
+                    dependency_required_fields |= conditions['*']
+                if field_value in conditions:
+                    dependency_required_fields |= conditions[field_value]
 
-        Parameters
-        ----------
-        other : BaseObj
-            other BaseObj instance
-        """
-        if not other:
-            return False
-        if id(self)==id(other):
-            return True
-        if not self.__class__==other.__class__:
-            return False
-        attr_list=self.req_attr+[x for x in self.opt_attr if (x in other.__dict__ and x in self.__dict__)]
-        for x in self.ignore_attr:
-            if x in attr_list:
-                attr_list.remove(x)
-        test_list=[]
-        for k in attr_list:
-            test_list.append(self.__dict__[k]==other.__dict__[k])
-        return all(test_list)
-    
-    def __lt__(self,other):
-        """
-        Defines the less-than operator for BaseObj instances.
+        # Build output
+        for name, field in self.__class__.__pydantic_fields__.items():
+            value = getattr(self, name, None)
+            if name in self._required_fields:
+                parts.append(f"{name}={value!r}")
+            elif name in self._optional_fields:
+                if value is not None or name in dependency_required_fields:
+                    parts.append(f"{name}={value!r}")
 
-        Parameters
-        ----------
-        other : BaseObj
-            other BaseObj instance
-        """
-        if not other:
-            return False
-        if not self.__class__==other.__class__:
-            return False
-        attr_list=self.req_attr+[x for x in self.opt_attr if (x in other.__dict__ and x in self.__dict__)]
-        for x in self.ignore_attr:
-            if x in attr_list:
-                attr_list.remove(x)
-        lt_list=[self.__dict__[k]<other.__dict__[k] for k in attr_list if hasattr(self.__dict__[k],'__lt__')]
-        le_list=[self.__dict__[k]<=other.__dict__[k] for k in attr_list if hasattr(self.__dict__[k],'__lt__')]
-        return all(le_list) and any(lt_list)
-    
-    def __le__(self,other):
-        """
-        Defines the less-than-or-equal-to operator for BaseObj instances.
-        The two instances are considered less than or equal to each other if their attribute values are equal or if one is less than the other.
+        return f"{cls_name}({', '.join(parts)})"
 
-        Parameters
-        ----------
-        other : BaseObj
-            other BaseObj instance
-        """
-        if not other:
-            return False
-        if not self.__class__==other.__class__:
-            return False
-        attr_list=self.req_attr+[x for x in self.opt_attr if (x in other.__dict__ and x in self.__dict__)]
-        for x in self.ignore_attr:
-            if x in attr_list:
-                attr_list.remove(x)
-        le_list=[self.__dict__[k]<=other.__dict__[k] for k in attr_list if hasattr(self.__dict__[k],'__lt__')]
-        return all(le_list)
-    
-    def weak_lt(self,other,attr=[]):
-        """
-        Defines a weak less-than operator for BaseObj instances.  Only those attributes listed in the attr
-        parameter are considered in the comparison
+    def copy(self, deep=False) -> Self:
+        return self.model_copy(deep=deep)
 
-        Parameters
-        ----------
-        other : BaseObj
-            other BaseObj instance
-        attr : list, optional
-            attributes used for the less-than comparison
-        """
-        lt_list=[self.__dict__[k]<other.__dict__[k] for k in attr if hasattr(self.__dict__[k],'__lt__')]
-        le_list=[self.__dict__[k]<=other.__dict__[k] for k in attr if hasattr(self.__dict__[k],'__lt__')]
-        return all(le_list) and any(lt_list)
+    @model_validator(mode="before")
+    @classmethod
+    def _validate_schema(cls, values: dict[str, Any]) -> dict[str, Any]:
+        declared_fields = cls._required_fields | cls._optional_fields
+        received_fields = set(values)
 
-    def strhash(self,fields=[]):
-        """
-        Generates a string hash of the calling instance's attributes.
-        The hash is a string of the values of the attributes sorted by their names.
-        
-        Parameters
-        ----------
-        fields : list, optional
-            attributes to be included in the identifier
-        """
-        if fields:
-            items=sorted([(k,x) for k,x in self.__dict__.items() if k in fields], key=lambda it: it[0])
-        else:
-            items=sorted(self.__dict__.items(), key=lambda it: it[0])
-        result='-'.join([str(x[1]) for x in items if x!=[]])
-        return result
-    
-    def matches(self,**fields):
-        """
-        Defines a non-strict match operator for BaseObj instances.
-        The two instances are considered a match if all key:val pairs in fields
-        match the corresponding key:val pairs in the calling instance's attributes.
+        # Ensure all fields are explicitly declared
+        unexpected = received_fields - declared_fields
+        if unexpected:
+            raise ValueError(
+                f"Fields not declared in _required_fields or _optional_fields: {sorted(unexpected)}"
+            )
 
-        Parameters
-        ----------
-        field : dict, optional
-            attribute:value pairs that are checked against those of the object
-        
-        Returns
-        -------
-        bool :
-            True if calling instance attribute values match the fields input
-        """
-        for k,v in fields.items():
-            if not k in self.__dict__:
-                # logger.debug(f'missing key {k}')
-                return False
-            if v!=self.__dict__[k]:
-                # logger.debug(f'wrong value ({self.__dict__[k]}) for key {k}; wanted {v}')
-                return False
-        return True
-    
-    def allneg(self,**fields):
-        """ 
-        Determines if the calling instance has NO attributes
-        that match the key:val pairs in fields.
-        This is a strict no-match operator, meaning that if any
-        key:val pair in fields matches the corresponding key:val pair
-        in the calling instance's attributes, the method returns False.
-        
-        Parameters
-        ----------
-        field : dict, optional
-            attribute:value pairs that are checked against those of the object
-        
-        Returns
-        -------
-        bool :
-            True if EXACTLY NONE of the calling instance attribute values match 
-            the fields input
-        """
-        goodfields={}
-        for k,v in fields.items():
-            if k in self.__dict__:
-                goodfields[k]=v
-        if len(goodfields)==0: return True
-        return all([x!=y for x,y in [(goodfields[k],self.__dict__[k]) for k in goodfields.keys()]])
+        # Required field check
+        missing = [f for f in cls._required_fields if f not in values]
+        if missing:
+            raise ValueError(f"Missing required fields: {sorted(missing)}")
 
-    def wildmatch(self,**fields):
-        """ 
-        Defines a wildcard match operator for BaseObj instances.
-        The two instances are considered a match if all key:val pairs in fields
-        match the corresponding key:val pairs in the calling instance's attributes,
-        such that the keys in fields are substrings of the attribute names
+        # Mutual exclusivity
+        for pair in cls._mutually_exclusive:
+            present = [f for f in pair if f in values]
+            if len(present) > 1:
+                raise ValueError(f"Fields {pair} are mutually exclusive: got {present}")
 
-        Parameters
-        ----------
-        field : dict, optional
-            attribute:value pairs that are checked against those of the object, except
-            each attribute name here can match as a substring to any object attribute
-            name
-        
-        Returns
-        -------
-        bool :
-            True if calling instance attribute values match the fields input
-        """
-        for k,v in fields.items():
-            for tk in self.__dict__.keys():
-                if k in tk:  # passed in key is a substring of objects attribute name
-                    logger.debug(f'wildmatch matches key {k} to attr name {tk}')
-                    break
+        # Constrained choices
+        for field, allowed in cls._attr_choices.items():
+            if field in values and values[field] not in allowed:
+                raise ValueError(f"Field '{field}' must be one of {allowed}, got '{values[field]}'")
+
+        # Conditional dependencies
+        for field, value_dependencies in cls._attr_dependencies.items():
+            if field in values:
+                value = values[field]
+                # Handle wildcard '*' as a catch-all dependency
+                if '*' in value_dependencies:
+                    for dep in value_dependencies['*']:
+                        if dep not in values:
+                            raise ValueError(f"If '{field}' is set, '{dep}' must also be set.")
+                if value in value_dependencies:
+                    for dep in value_dependencies[value]:
+                        if dep not in values:
+                            raise ValueError(f"If '{field}' is set to '{value}', '{dep}' must also be set.")
+
+        return values
+
+    @model_validator(mode="after")
+    def validate_nested(self):
+        for name in self.__pydantic_fields__:
+            val = getattr(self, name)
+
+            if isinstance(val, BaseObj):
+                val.validate_nested()
+
+            elif isinstance(val, list):
+                for item in val:
+                    if isinstance(item, BaseObj):
+                        item.validate_nested()
+
+            elif isinstance(val, dict):
+                for item in val.values():
+                    if isinstance(item, BaseObj):
+                        item.validate_nested()
+
+        return self
+
+    @model_serializer(mode='plain')
+    def serialize(self) -> dict[str, Any]:
+        data = {}
+        for field_name, value in self.__dict__.items():
+            if isinstance(value, BaseObj):
+                # logger.debug(f"Serializing nested BaseObj field '{field_name}' in {self.__class__.__name__}")
+                data[field_name] = value  # preserve as BaseObj instance
             else:
-                return False
-            if v!=self.__dict__[tk]:
-                # logger.debug(f'wrong value ({self.__dict__[k]}) for key {k}; wanted {v}')
+                data[field_name] = value  # normal field
+        # logger.debug('Serialized data:')
+        # for k, v in data.items():
+        #     logger.debug(f"  {k}: {v} (type {type(v)})")
+        return data
+
+    def set(self, shallow=False, **fields):
+        """
+        Sets the values of the calling instance's attributes
+        to the values in fields. If shallow is False, and if there are
+        nested objects, their attributes will also be set.
+        If shallow is True, only the attributes of the calling instance
+        will be set.
+        """
+        # logger.debug(f"Setting fields {fields} on {self.__class__.__name__} instance; shallow={shallow}")
+        if not shallow:
+            self.set_nested(**fields)
+        else:
+            for key, value in fields.items():
+                setattr(self, key, value)  # will fail if key is not in annotations
+
+    def set_nested(self, **fields):
+        """
+        Recursively sets attributes of nested BaseObj instances.
+        This method is called by set() when shallow is False.
+        """
+        for key in self.__pydantic_fields__:
+            value = getattr(self, key)
+            # logger.debug(f"Processing field '{key}' with value-type '{type(value)}' in {self.__class__.__name__}")
+            if key in fields:
+                # logger.debug(f"Setting field '{key}' to '{fields[key]}' in {self.__class__.__name__}")
+                setattr(self, key, fields[key])  # will fail if key is not in annotations
+            elif isinstance(value, BaseObj):
+                # if the value is a BaseObj, set its attributes
+                value.set_nested(**fields)
+            elif isinstance(value, list):
+                # if the value is a list of BaseObj, set its items
+                for item in value:
+                    if isinstance(item, BaseObj):
+                        item.set_nested(**fields)
+            elif isinstance(value, dict):
+                # if the value is a dict of BaseObj, set its items
+                for item in value.values():
+                    if isinstance(item, BaseObj):
+                        item.set_nested(**fields)
+
+    # Comparison helpers
+    def dict_for_comparison(self) -> dict:
+        return {
+            k: v for k, v in self.model_dump().items()
+            if k not in self._ignore_fields
+        }
+
+    def __eq__(self, other: BaseObj | dict) -> bool:
+        if self is other: return True
+        if isinstance(other, dict):
+            return self.dict_for_comparison() == other
+        if not isinstance(other, self.__class__) and not isinstance(other, dict):
+            return False
+        return self.dict_for_comparison() == other.dict_for_comparison()
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        keys = self.dict_for_comparison().keys() & other.dict_for_comparison().keys()
+        return all(getattr(self, k) <= getattr(other, k) for k in keys) and any(
+            getattr(self, k) < getattr(other, k) for k in keys
+        )
+
+    def __le__(self, other: object) -> bool:
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        keys = self.dict_for_comparison().keys() & other.dict_for_comparison().keys()
+        return all(getattr(self, k) <= getattr(other, k) for k in keys)
+    
+    def __setattr__(self, name, value):
+        if name.startswith('_') and name not in self.__private_attributes__:
+            # This lets internal tools assign attributes like __class__ etc.
+            object.__setattr__(self, name, value)
+        else:
+            super().__setattr__(name, value)
+
+    # Utility matchers
+    def strhash(
+        self,
+        fields: list[str] | None = None,
+        sep: str = "-",
+        digest: str | None = None,  # e.g., "md5", "sha256"
+        exclude_none: bool = True,
+        exclude_ignored: bool = True,
+    ) -> str | bytes:
+        """
+        Generate a hash-like string from selected fields in the model.
+
+        Parameters
+        ----------
+        fields : list of field names to include; if None, include all.
+        sep : string separator for components (default: "-")
+        digest : optional name of hashlib algorithm to use ("md5", "sha1", "sha256", etc.)
+        exclude_none : if True, skip fields with value None
+        exclude_ignored : if True, exclude fields in _ignore_fields
+
+        Returns
+        -------
+        str or bytes:
+            Joined string or digest string (hex or binary, depending on digest)
+        """
+        data = self.model_dump()
+        keys = fields or sorted(data.keys())
+
+        if exclude_ignored:
+            keys = [k for k in keys if k not in self._ignore_fields]
+        if exclude_none:
+            keys = [k for k in keys if data[k] is not None]
+
+        parts = [f"{k}={data[k]}" for k in keys]
+        raw_string = sep.join(parts)
+
+        if digest:
+            h = hashlib.new(digest)
+            h.update(raw_string.encode("utf-8"))
+            return h.hexdigest()  # or h.digest() for raw bytes
+
+        return raw_string
+
+    def wildmatch(self, **fields) -> bool:
+        """
+        Check if the object matches any of the provided fields with wildcards.
+        This allows for substring matching in the field names.
+        """
+        for substr, target_val in fields.items():
+            logger.debug(f"Checking requested {substr}={target_val} of type {type(target_val)} in {self.__class__.__name__}")
+            match_found = False
+            for k, v in self.model_dump().items():
+                if substr in k and v == target_val:
+                    match_found = True
+                    break
+            if not match_found:
                 return False
         return True
-
+    
+    def weak_lt(self,other: object, attr=[]) -> bool:
+        """
+        Weak less than comparison that only checks fields listed in the attr parameter.
+        """
+        if not isinstance(other, self.__class__):
+            return NotImplemented
+        self_dict = self.dict_for_comparison()
+        other_dict = other.dict_for_comparison()
+        if not self_dict or not other_dict:
+            return False
+        for key in attr:
+            if key in self_dict and key in other_dict:
+                if operator.lt(self_dict[key], other_dict[key]):
+                    return True
+        return False
+    
     def dump(self):
         """
         Simple dump of this item's __dict__ in YAML format.
@@ -350,10 +336,7 @@ class BaseObj(Namespace):
         str :
             yaml-format dump of calling instance
         """
-        retdict={}
-        retdict['instanceOf']=type(self).__name__
-        retdict.update(self.__dict__)
-        return yaml.dump(retdict)
+        return yaml.dump(self.model_dump(), default_flow_style=False, sort_keys=False)
     
     def inlist(self,a_list):
         """
@@ -375,7 +358,7 @@ class BaseObj(Namespace):
             if s==self:
                 return True
         return False
-    
+
     def map_attr(self,mapped_attr,key_attr,map):
         """
         Simple cross-attribute mapper. 
@@ -389,12 +372,21 @@ class BaseObj(Namespace):
             name of attribute whose value is mapped
         map : dict
             the map
+
+        Returns
+        -------
+        None :
+            This method modifies the calling instance in place.
+            It sets the mapped_attr to the value from the map
+            corresponding to the key_attr's value.
+            If the key_attr's value is not in the map, it does nothing.
         """
-        if map:
-            key=self.__dict__[key_attr]
-            if key in map:
-                val=map[key]
-                self.__dict__[mapped_attr]=val
+        if not hasattr(self, mapped_attr) or not hasattr(self, key_attr):
+            return
+
+        key_value = getattr(self, key_attr)
+        if key_value in map:
+            setattr(self, mapped_attr, map[key_value])
 
     def swap_attr(self,attr1,attr2):
         """
@@ -407,21 +399,16 @@ class BaseObj(Namespace):
         attr2 : str
             name of second attribute in pair to swap
         """
-        if hasattr(self,attr1) and hasattr(self,attr2):
-            val1=getattr(self,attr1)
-            val2=getattr(self,attr2)
-            setattr(self,attr2,val1)
-            setattr(self,attr1,val2)
-            if not hasattr(self,'swapped'):
-                self.swapped={}
-            self.swapped[attr1]=attr2
-        else:
-            if not hasattr(self,attr1):
-                raise AttributeError(f'attribute 1 {attr1} not found.')
-            if not hasattr(self,attr2):
-                raise AttributeError(f'attribute 2 {attr2} not found.')
+        if not hasattr(self, attr1) or not hasattr(self, attr2):
+            return
 
-    def copy_attr(self,recv_attr,src_attr):
+        value1 = getattr(self, attr1)
+        value2 = getattr(self, attr2)
+
+        setattr(self, attr1, value2)
+        setattr(self, attr2, value1)
+
+    def copy_attr(self, recv_attr, src_attr):
         """
         Simple attribute copier 
         
@@ -432,106 +419,48 @@ class BaseObj(Namespace):
         src_attr : str
             name of source attribute; must exist
         """
-        if hasattr(self,recv_attr) and hasattr(self,src_attr):
-            if not hasattr(self,'copied_over'):
-                self.copied_over={}
-            self.copied_over[recv_attr]=getattr(self,recv_attr)
-            setattr(self,recv_attr,getattr(self,src_attr))
-        else:
-            if not hasattr(self,recv_attr):
-                raise AttributeError(f'receiving attribute {recv_attr} not found.')
-            if not hasattr(self,src_attr):
-                raise AttributeError(f'source attribute {src_attr} not found.')
+        if not hasattr(self, recv_attr) or not hasattr(self, src_attr):
+            return
 
-    def set(self,shallow=False,**fields):
-        """
-        Sets the values of the calling instance's attributes
-        to the values in fields.  If shallow is False, and if there are
-        nested objects, their attributes will also be set.
-        If shallow is True, only the attributes of the calling instance
-        will be set.
+        value = getattr(self, src_attr)
+        setattr(self, recv_attr, value)
 
-        Parameters
-        ----------
-        fields : dict, optional
-            dictionary of attribute-name:value pairs used to set 
-            object attribute values respectively
+    def assign_obj_to_attr(self, attr, objList, **matchattr):
         """
-        for k,v in fields.items():
-            # first if k is an attribute, set its value
-            if k in self.__dict__:
-                self.__dict__[k]=v
-            # if k is an attr of any object of self
-            if not shallow:
-                for sk,sv in self.__dict__.items():
-                    if hasattr(sv,'req_attr') and hasattr(sv,k):
-                        sv.set(**fields)
-                    elif hasattr(sv,'objliststamp'):
-                        for subitem in sv:
-                            if hasattr(subitem,'req_attr') and hasattr(subitem,k):
-                                subitem.set(**fields)
-
-    def assign_obj_to_attr(self,attr,objList,**matchattr):
-        """
-        Assigns the single object from objList whose
-        attributes match the matchattr dict to the 
-        calling instances attr attribute, but only if
-        the result of the match-search is valid,
-        otherwise assign None to attr
+        Given the dictionary matchattr that maps attribute names in self to corresponding attribute names in the objects in objList, pluck out the element in objList that matches self and assign it to the attr attribute of self.
 
         Parameters
         ----------
         attr : str
-            attribute name
+            attribute name that will receive the matched object from objList
         objList : list
             list of objects that is searched
         matchattr : dict
-            attribute:values used in searching the 
-            list of objects
+            attribute_in_searched_objects:attribute_in_self
         """
-        # assert getattr(self,attr)==None
-        adict={k:getattr(self,v) for k,v in matchattr.items()}
-        myObj=objList.get(**adict)
-        if myObj!=None and myObj!=[]:
-            setattr(self,attr,myObj)
-        else:
-            logger.debug(f'Unable assign attribute \'{attr}\' of \'{type(self).__name__}\'')
-            logger.debug(f'   \'{type(self).__name__}\' instance attributes:')
-            for k,v in self.__dict__.items():
-                logger.debug(f'        {k}: {v} ({type(v).__name__})')
-            logger.debug(f'   matchattr:')
-            for k,v in matchattr.items():
-                logger.debug(f'        {k}: {v} ({type(v).__name__})')
-            logger.debug(f'   adict:')
-            for k,v in adict.items():
-                logger.debug(f'        {k}: {v} ({type(v).__name__})')
-            logger.debug(f'from list of type {type(objList).__name__}')
-            tmp=objList[1]
-            logger.debug(f'    Attributes of type {type(tmp).__name__}:')
-            for k,v in tmp.__dict__.items():
-                logger.debug(f'        {k} ({type(v).__name__})')
-            # raise ValueError(f'stop')
-    
-    def update_attr_from_obj_attr(self,attr,obj,obj_attr):
+        adict = {k:getattr(self, v) for k, v in matchattr.items()}
+        pluckedObj = objList.get(objList.dict_to_condition(adict)) # get returns None, a list of matches, or a single match
+        # the only case where we assign is when we get a single match
+        if pluckedObj is not None and type(pluckedObj) != objList:
+            setattr(self, attr, pluckedObj)
+
+    def update_attr_from_obj_attr(self, attr, obj_attr, attr_of_obj_attr):
         """
-        Set value of caller's attribute from another
-        attribute of a separate object
+        Update an attribute of self from an attribute of one of self's object attributes.
 
         Parameters
         ----------
         attr : str
-            attribute name
-        obj : str
-            name of object from which the attribute value is taken
+            attribute name of self that will be set to value of self.obj_attr.attr_of_obj_attr
         obj_attr : str
-            name of attribute in obj that is set to 
+            name of object attribute from which the attribute value is taken
+        attr_of_obj_attr : str
+            name of attribute in obj_attr that is set to
             attr of caller
         """
-        # attr_obj=getattr(self,obj)
-        # logger.debug(f'accepting {obj_attr} from {obj} {str(attr_obj)} into {type(self)}({id(self)})')
-        setattr(self,attr,getattr(getattr(self,obj),obj_attr))
-    
-    def update_attr_from_objlist_elem_attr(self,attr,objlist,index,obj_attr):
+        setattr(self, attr, getattr(getattr(self, obj_attr), attr_of_obj_attr))
+
+    def update_attr_from_objlist_elem_attr(self, attr, objlist_attr, index_of_obj_in_objlist_attr, attr_of_obj_attr):
         """
         Set value of caller's attribute from an attribute
         of an object in a list of objects
@@ -539,324 +468,270 @@ class BaseObj(Namespace):
         Parameters
         ----------
         attr : str
-            attribute name
-        objlist : list
-            list of objects
-        index : int
-            index of object in list
-        obj_attr : str
-            attribute name in object
+            attribute name of self that will be set to value of self.objlist_attr[index_of_obj_in_objlist_attr].attr_of_obj_attr
+        objlist_attr : str
+            name of the caller's attribute that is a list of objects
+        index_of_obj_in_objlist_attr : int
+            index of the object in the list
+        attr_of_obj_attr : str
+            name of the attribute in the object that is set to
+            attr of caller
         """
-        setattr(self,attr,getattr(getattr(self,objlist)[index],obj_attr))
+        setattr(self, attr, getattr(getattr(self, objlist_attr)[index_of_obj_in_objlist_attr], attr_of_obj_attr))
 
-class CloneableObj(BaseObj):
-    """
-    A class defining a custom namespace that can be cloned 
+class GenericListMeta(ABCMeta):
+    """ 
+    Metaclass for abstract :class:`BaseObjList` to handle generic type arguments.
     
-    This BaseObj specialization gives instances the ability to
-    be cloned and to remember their source object.  Attribute
-    values can optionally be changed during the cloning
-    operation.  The attribute ``clone_of`` is added as an optional
-    attribute; any BaseObj instance with an attribute named
-    ``clone_of`` is interpreted as a clone.
+    A subclass of :class:`BaseObjList` must be declared as class MyList(BaseObjList[MyType])
+    where MyType is a subclass of :class:`BaseObj`.
 
+    Ultimately, this enables subclasses of :class:`BaseObj` to have Fields that are subclasses of :class:`BaseObjList`.
+    We need this because certain objects when put into lists acquire new attributes that are not present in the original object.
     """
-    opt_attr=BaseObj.opt_attr+['clone_of']
-    def clone(self,**options):
-        """
-        Generates and returns a clone of the calling instance
-        
-        Parameters
-        ----------
-        options : dict
-            dictionary of attribute-name:value pairs that are 
-            explicitly assigned in the clone
-        
-        Returns
-        -------
-        obj :
-            The new cloned object
-        """
-        input_dict={k:v for k,v in self.__dict__.items() if k in self.req_attr}
-        input_dict.update({k:v for k,v in self.__dict__.items() if k in self.opt_attr})
-        input_dict.update(options)
-        input_dict['clone_of']=self
-        x=self.__class__(input_dict)
-        return x
-    
-    def is_clone(self):
-        """
-        Determines if the calling instance is a clone
-        A clone is defined as an instance that has a 'clone_of' attribute
-
-        Returns
-        -------
-        bool :
-            True if calling instance is a clone
-        """
-        return 'clone_of' in self.__dict__
-    def get_original(self):
-        """
-        Returns identifier of object the calling instance is a clone of 
-        or None if calling instance is not a clone 
-        
-        Returns
-        -------
-        obj :
-            identifier of object the calling instance is a clone of
-        None :
-            calling instance is not a clone
-        """
-        if self.is_clone():
-            return self.clone_of
+    def __new__(mcls, name, bases, namespace, **kwargs):
+        cls = super().__new__(mcls, name, bases, namespace, **kwargs)
+        # Use __orig_bases__ to introspect generic base with type args
+        orig_bases = namespace.get('__orig_bases__', ())
+        for base in orig_bases:
+            origin = get_origin(base)
+            args = get_args(base)
+            if origin and args: # and not isinstance(args[0], TypeVar):
+                cls._item_type = args[0]
+                return cls
         else:
-            return None
+            # Fallback: walk MRO and look for _item_type
+            for base in cls.__mro__[1:]:
+                inherited_type = getattr(base, "_item_type", None)
+                if inherited_type is not None and not isinstance(inherited_type, TypeVar):
+                    cls._item_type = inherited_type
+                    return cls
+        if getattr(cls, "_item_type", None) is None or isinstance(cls._item_type, TypeVar):
+            raise TypeError(
+                f"{name} must subclass BaseObjList with a concrete Pydantic model type parameter, "
+                f"e.g., `class {name}(BaseObjList[MyModel])` or subclass something that does."
+            )
+
+T = TypeVar("T", bound=BaseObj)
+
+class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
+    def __init__(self, initlist: Iterable[T] = ()):
+        self.data = []
+        for item in initlist:
+            self.data.append(self._validate_item(item))
+
+    def _validate_item(self, item: T):
+        if isinstance(item, dict):
+            item = self._item_type(**item)
+        elif not isinstance(item, self._item_type):
+            raise TypeError(f"{item} is not an instance of {self._item_type}")
+        return item
+
+    @classmethod
+    def validate(cls, v):
+        if isinstance(v, cls):
+            return v
+        elif isinstance(v, Iterable):
+            return cls(v)
+        else:
+            raise TypeError(f"Expected {cls.__name__} or iterable of {cls.__args__[0].__name__}")
+
+    def append(self, item: BaseObj) -> None:
+        self._validate_item(item)
+        self.data.append(item)
+
+    def extend(self, other: Iterable[BaseObj]) -> None:
+        for item in other:
+            self._validate_item(item)
+            self.append(item)
+
+    def insert(self, index: int, item: BaseObj) -> None:
+        self._validate_item(item)
+        self.data.insert(index, item)
+
+    def remove_instance(self, obj_to_remove: BaseObj):
+        """
+        Remove the exact instance `obj_to_remove` from the list,
+        by checking identity (not equality), avoiding __eq__ overhead.
+        Raises ValueError if not found.
+        """
+        for i, item in enumerate(self.data):
+            if item is obj_to_remove:
+                del self.data[i]
+                return
+        raise ValueError("Object not found in list")
+
+    def __add__(self, other: Iterable[BaseObj]) -> BaseObjList:
+        new = self.__class__(self)
+        new.extend(other)
+        return new
+
+    def __getitem__(self, index: int) -> BaseObj | BaseObjList:
+        result = super().__getitem__(index)
+        if isinstance(index, slice):
+            return type(self)(result)
+        return result
+    
+    def __iter__(self) -> Iterator[BaseObj]:
+        return iter(self.data)
+
+    def __setitem__(self, index: int, item: BaseObj) -> None:
+        self._validate_item(item)
+        self.data[index] = item
+
+    def __iadd__(self, other: Iterable[BaseObj]) -> BaseObjList:
+        self.extend(other)
+        return self
         
-class AncestorAwareObj(CloneableObj):
-    """
-    A class defining custom, cloneable namespaces that can exists in a hierarchy 
-    
-    In cases where an object instance attribute is *another* object, like a BaseObj or
-    any derivative thereof, one often would like to allow the "child" object to have
-    direct knowledge of its "ancestry".  This class introduces the optional
-    attribute 'ancestor_obj' to the CloneableObj class, and defines methods that
-    allow calling instances to set this attribute.
-    
-    """
-    opt_attr=CloneableObj.req_attr+['ancestor_obj']
-    ignore_attr=CloneableObj.ignore_attr+['ancestor_obj']
-    
-    def claim_self(self,stamp):
+    @abstractmethod
+    def describe(self) -> str:
         """
-        Applies the stamp to the calling instance's ``ancestor_obj``
-        attribute 
-        
-        Parameters
-        ----------
-        stamp : obj
-            object assigned to the ancestor_obj attribute
+        Abstract method to describe the contents of the BaseObjList.
+        Subclasses should implement this method to provide a meaningful description.
         """
-        self.ancestor_obj=stamp
-        # self.__dict__['ancestor_obj']=stamp
+        raise NotImplementedError("Subclasses must implement the describe method.")
 
-    def claim_descendants(self,stamp):
+    def filter(self, func: Callable[[BaseObj], bool]) -> BaseObjList:
         """
-        Recursively instructs calling instance to stamp all of 
-        its descendant objects 
-        
-        Parameters
-        ----------
-        stamp : obj
-            object assigned to all ancestor_obj attributes of any
-            ancestor-aware attributes
-        """
-        self.claim_self(stamp)
-        for attr_name,obj in self.__dict__.items():
-            if not attr_name=='ancestor_obj': # very important! or, could stamp self last?
-                classes=inspect.getmro(type(obj))
-                if AncestorAwareObj in classes or AncestorAwareObjList in classes:
-                    obj.claim_descendants(stamp)
-
-class StateInterval(AncestorAwareObj):
-    """
-    A class defining a custom, ancestor-aware namespace that encodes the 
-    state between two bounding values
-    
-    In reference to an arbitrary list, this class defines a construction
-    that assigns a value for ``state`` to items in the list inclusively between
-    two indices.  This is an ancestor-aware namespace with the additional
-    attributes ``state`` and ``bounds``
-
-    """
-    req_attr=AncestorAwareObj.req_attr+['state','bounds']
-    opt_attr=AncestorAwareObj.opt_attr+['build']
-    def __init__(self,input_dict):
-        if not 'build' in input_dict:
-            input_dict['build']=False
-        super().__init__(input_dict)
-    
-    def declare_buildable(self):
-        """
-        Sets the build attribute to True
-        """
-        self.build=True
-
-    def increment_rightbound(self):
-        """
-        Increments the position-1 element of the bounds attribute
-        of the calling instance
-        """
-        self.bounds[1]+=1
-    
-    def num_items(self):
-        """
-        Returns a calculated value of the number of items inclusively
-        between the two bounds, assuming we are referring to a container
-        object with sequential indicies 
-        
-        Returns
-        -------
-        int :
-           rightbound minus leftbound plus 1
-        """
-        return self.bounds[1]-self.bounds[0]+1
-    
-    def pstr(self):
-        """
-        Returns a pretty string version
-        """
-        return f'{self.state}({self.bounds[1]-self.bounds[0]+1})'
-
-class ObjList(UserList):
-    """
-    List of BaseObjs or derivatives thereof
-    
-    When collected into lists, BaseObj instances can acquire collective
-    importance that needs to be handled.  This class allows for filtering,
-    sorting, and other functionalities on such lists.
-
-    """
-    objliststamp=True
-    def __init__(self,data):
-        """
-        Standard initialization of the UserList
-        """
-        super().__init__(data)
-
-    def filter(self,**fields):
-        """
-        Creates a returns a new list containing objects
-        whose attributes match the fields dictionary
-
-        This method uses the ``matches()`` instance method
-        of the BaseObj class
+        Filters the list of BaseObj instances based on a provided function.
 
         Parameters
         ----------
-        fields : dict
-            attribute-name:value pairs used to search for
-            hits in the calling instance
-        
-        Returns
-        -------
-        list :
-             list of elements matching fields
-        """
-        retlist=self.__class__([])
-        for r in self:
-            if r.matches(**fields): retlist.append(r)
-        return retlist
-    
-    def negfilter(self,**fields):
-        """
-        Applies a negated filter to the calling instance
-        Creates a returns a new list containing objects
-        whose attributes do NOT match the fields dictionary
-        This method uses the ``allneg()`` instance method
-        of the BaseObj class
-        
-        Parameters
-        ----------
-        fields : dict
-            attribute-name:value pairs used to search for
-            hits in the calling instance
+        func : Callable[[BaseObj], bool]
+            A function that takes a BaseObj instance and returns True if it should be included in the filtered list.
 
         Returns
         -------
-        list :
-            list of elements whose attributes do NOT match fields
+        BaseObjList
+            A new BaseObjList containing only the objects for which func returned True.
         """
-        retlist=self.__class__([])
-        for r in self:
-            if r.allneg(**fields): retlist.append(r)
-        return retlist
-        
+        return self.__class__(list(filter(func, self.data)))
 
-    def ifilter(self,**fields):
+    def ifilter(self, func: Callable[[BaseObj], bool]) -> list[int]:
         """
-        Creates a returns a new list containing indices
-        of objects whose attributes match the fields dictionary
-        This method uses the ``matches()`` instance method
-        of the BaseObj class
-        
+        Filters the list of BaseObj instances based on a provided function and returns the list of indices for items passing the filter
+
         Parameters
         ----------
-        fields : dict
-            attribute-name:value pairs used to search for
-            'hits' in the calling instance
-        
+        func : Callable[[BaseObj], bool]
+            A function that takes a BaseObj instance and returns True if it should be included in the filtered list.
+
         Returns
         -------
-        list
-            list of indices matching fields
+        BaseObjList
+            A new BaseObjList containing only the objects for which func returned True.
         """
-        retlist=[]
-        for i,r in enumerate(self):
-            if r.matches(**fields): retlist.append(i)
-        return retlist
-    
-    def get(self,**fields):
+        return [i for i, item in enumerate(self.data) if func(item)]
+
+    def get(self, func: Callable[[BaseObj], bool]) -> BaseObj | BaseObjList | None:
         """
-        Special implementation of filter
-        
-        get returns a single object if there is only one match;
+        Special implementation of filter that returns a single object if there is only one match;
         if there are multiple matches, all are returned in a list;
-        if there are no matches, an empty list is returned.
-        
-        Parameters
-        ----------
-        fields : dict
-            attribute-name:value pairs used to search for
-            'hits' in the calling instance
-
-        Returns
-        -------
-        None :
-            if no elements matching fields are found in calling instance
-        obj :
-            if one element matching fields is found, this is it
-        list :
-            list of all elements matching fields if more than one matches
-        """
-        R=self.filter(**fields)
-        if len(R)==0:
-            return type(self)([])
-        elif len(R)==1:
-            return R[0]
-        else:
-            return R
-        
-    def iget(self,**fields):
-        """
-        Special implementation of ifilter
-        iget returns a single index if there is only one match;
-        if there are multiple matches, all indices are returned in a list;
         if there are no matches, None is returned.
+        """
+        matches = self.filter(func=func)
+        if not matches:
+            return None
+        if len(matches) == 1:
+            return matches[0]
+        return matches
+
+    def iget(self, func: Callable[[BaseObj], bool]) -> int | list[int] | None:
+        """
+        Special implementation of ifilter that returns the index of a single index if there is only one match;
+        if there are multiple matching indices, all are returned in a list;
+        if there are no matches, None is returned.
+        """
+        matches = self.ifilter(func=func)
+        if not matches:
+            return None
+        if len(matches) == 1:
+            return matches[0]
+        return matches
+
+    @staticmethod
+    def dict_to_condition(condition_dict: dict[str, Callable[[BaseObj], bool]], conjunction: str = 'and') -> Callable[[BaseObj], bool]:
+        """
+        Converts a dictionary of conditions into a lambda function.
+        The dictionary keys are attribute names, and the values are the conditions.
+        
+        Returns a callable function that can be used in the filter method.
+        """
+        # Create a lambda function that checks each key-value condition
+        if conjunction == 'or':
+            return lambda obj: any(
+                (getattr(obj, key) in value if isinstance(value, list) else (getattr(obj, key) == value if callable(value) is False else value(getattr(obj, key))))
+                for key, value in condition_dict.items()
+            )
+        return lambda obj: all(
+            # Check if the value is a list and perform an "in" check if it is
+            (getattr(obj, key) in value if isinstance(value, list) else (getattr(obj, key) == value if callable(value) is False else value(getattr(obj, key))))
+            for key, value in condition_dict.items()
+        )
+
+    def remove_and_return(self, item: BaseObj) -> BaseObj | None:
+        """
+        Remove an item from the list and return it.
 
         Parameters
         ----------
-        fields : dict
-            attribute-name:value pairs used to search for
-            hits in the calling instance
+        item : BaseObj
+            The item to remove from the list.
 
         Returns
         -------
-        None :
-            if no elements matching fields are found in calling instance
-        int :
-            if one element matching fields is found, this is its index
-        list :
-            list of all indices matching fields if more than one matches
+        BaseObj | None :
+            The removed item if it was found, otherwise None.
         """
-        I=self.ifilter(**fields)
-        if len(I)==0:
-            return None
-        elif len(I)==1:
-            return I[0]
-        else:
-            return I
+        if item in self.data:
+            self.data.remove(item)
+            return item
+        
+    def give_item(self, item: BaseObj, target_list: BaseObjList) -> bool:
+        """
+        Transfer an item from this list to another BaseObjList.
 
-    def set(self,shallow=False,**fields):
+        Parameters
+        ----------
+        item : BaseObj
+            The item to transfer.
+        target_list : BaseObjList
+            The list to transfer the item to.
+
+        Returns
+        -------
+        bool
+            True if the transfer was successful, False otherwise.
+        """
+        if item in self.data:
+            self.remove(item)
+            target_list.append(item)
+            return True
+        return False
+    
+    def take_item(self, item: BaseObj, source_list: BaseObjList) -> bool:
+        """
+        Take an item from another BaseObjList and add it to this list.
+
+        Parameters
+        ----------
+        item : BaseObj
+            The item to take.
+        source_list : BaseObjList
+            The list to take the item from.
+
+        Returns
+        -------
+        bool
+            True if the transfer was successful, False otherwise.
+        """
+        if item in source_list:
+            source_list.remove(item)
+            self.append(item)
+            return True
+        return False
+
+    def set(self, shallow=False, **fields):
         """
         Element attribute-setter
         
@@ -866,101 +741,33 @@ class ObjList(UserList):
             attribute-name:value pairs used to set the attributes
             of the calling instance
         """
-        for item in self:
-            item.set(shallow=shallow,**fields)
+        for item in self.data:
+            item.set(shallow=shallow, **fields)
 
-    def prune(self,objlist=[],attr_maps=[]):
+    def prune_exclusions(self, exclude_func: Callable[[BaseObj], bool]) -> BaseObjList:
         """
-        Attribute-based pruning by referencing and mapping another list
+        Prune elements from the calling instance based on a custom exclusion function.
 
         Parameters
         ----------
-        objlist : list
-            "reference" list of objects whose attributes are consulted to 
-            decide what to prune out of the calling instance
-        attr_maps : list
-            dictionaries used independently to map attribute values of 
-            elements of the reference list to those of the calling instance
-        
+        exclude_func : Callable[[BaseObj], bool]
+            A function that takes a BaseObj and returns True if it should be excluded.
+
         Returns
         -------
-
-        list :
+        BaseObjList :
             items removed from calling instance
         """
-        acc_list=self.__class__([])
-        for ref_obj in objlist:
-            for m in attr_maps:
-                # each map is *independently* used to gather hits
-                thru_dict={}
-                for myattrlabel,objattrlabel in m.items():
-                    thru_dict[myattrlabel]=ref_obj.__dict__[objattrlabel]
-                acc_list.extend(self.filter(**thru_dict))
-        for item in acc_list:
+        remove_us = self.filter(exclude_func)
+        for item in remove_us:
             self.remove(item)
-        return acc_list
-    
-    def prune_exclusions(self,**kwargs):
-        """
-        Attribute-based list pruning
+        logger.debug(f"Pruning {len(remove_us)} items from {self.__class__.__name__} with custom criteria")
+        return remove_us
 
-        Parameters
-        ----------
-        kwargs : dict
-            dictionary of attribute-name:value pairs that define elements
-            to be pruned from the calling instance
-        
-        Returns
-        -------
+    def sort(self, by=None, reverse=False):
+        """
+        ObjList sort function, a simple override of UserList.sort()
 
-        list :
-            items removed from calling instance
-        """
-        acc_list=self.__class__([])
-        for k,v in kwargs.items():
-            for item in v:
-                thru_dict={k:item}
-                acc_list.extend(self.filter(**thru_dict))
-        logger.debug(f'pruning out {len(acc_list)} items')
-        for item in acc_list:
-            if item in self:
-                self.remove(item)
-        return acc_list
-    
-    def get_attr(self,S:tuple,**fields):
-        """
-        Return list of S-matching attributes from among elements matching fields
-         
-        Parameters
-        ----------
-        S : tuple
-            the name of an object-list attribute and dictionary of attribute-name:value
-            pairs used to filter that object-list attribute
-        fields : dict
-            attribute-name:value pairs used to find attributes
-            of the calling instance to which the S-filter is applied
-
-        Returns
-        -------
-        obj, list :
-            result of applying get() to object-list attributes
-        """
-        for r in self:
-            if r.matches(**fields): break
-        else:
-            return self.__class__([])
-        attr,subfields=S
-        assert type(attr)==str
-        assert type(subfields)==dict
-        if not attr in r.__dict__:
-            return self.__class__([])
-        L=r.__dict__[attr]
-        return L.get(**subfields)
-    
-    def sort(self,by=None,reverse=False):
-        """ 
-        ObjList sort function, a simple override of UserList.sort() 
-        
         Parameters
         ----------
         by : list, optional
@@ -972,10 +779,10 @@ class ObjList(UserList):
         if not by:
             self.data.sort(reverse=reverse)
         else:
-            key=operator.attrgetter(*by)
-            self.data.sort(key=key,reverse=reverse)
+            key = operator.attrgetter(*by)
+            self.data.sort(key=key, reverse=reverse)
 
-    def uniqattrs(self,attrs=[],with_counts=False):
+    def uniqattrs(self, attrs: list[str] = [], with_counts: bool = False) -> dict[str, list]:
         """
         Generates a dictionary of list of unique values for each 
         attribute 
@@ -995,25 +802,25 @@ class ObjList(UserList):
         -------
         dict :
             lists of unique values for each attribute key, or, 
-            if with_counts ins true, list of (value,count)
+            if with_counts is true, list of (value,count)
         """
-        uattrs={k:[] for k in attrs}
+        uattrs = {k: [] for k in attrs}
         for item in self:
             for a in attrs:
-                v=getattr(item,a)
+                v = getattr(item, a)
                 if with_counts:
                     try:
-                        idx=[x[0] for x in uattrs[a]].index(v)
+                        idx = [x[0] for x in uattrs[a]].index(v)
                     except:
-                        uattrs[a].append([v,0])
-                        idx=-1
-                    uattrs[a][idx][1]+=1
+                        uattrs[a].append([v, 0])
+                        idx = -1
+                    uattrs[a][idx][1] += 1
                 else:
                     if not v in uattrs[a]:
                         uattrs[a].append(v)
         return uattrs
-    
-    def binnify(self,fields=[]):
+
+    def binnify(self, fields: list[str] = []) -> dict[str, BaseObjList]:
         """
         Simple binning of all elements by unique hashes of values of fields
 
@@ -1028,18 +835,18 @@ class ObjList(UserList):
             lists of items for each unique key
 
         """
-        bins={}
+        bins: dict[str, BaseObjList] = {}
         for item in self:
-            key=item.strhash(fields=fields)
+            key = item.strhash(fields=fields)
             if not key in bins:
-                bins[key]=[]
+                bins[key] = self.__class__([])
             bins[key].append(item)
-        for k,v in bins.items():
-            if len(v)>1:
-                logger.debug(f'binnify: bin {k} has {len(v)} items: {v}')
+        # for k,v in bins.items():
+        #     if len(v)>1:
+        #         logger.debug(f'binnify: bin {k} has {len(v)} items: {v}')
         return bins
-    
-    def puniq(self,fields=[]):
+
+    def puniq(self, fields: list[str] = []) -> bool:
         """
         Simple test that all elements of self are unique among fields 
         
@@ -1053,17 +860,17 @@ class ObjList(UserList):
         bool : True if all elements are unique
         
         """
-        bins=self.binnify(fields=fields)
-        return len(bins)==len(self)
-    
-    def puniquify(self,fields=[],new_attr_name='_ORIGINAL_',make_common=[]):
+        bins = self.binnify(fields=fields)
+        return len(bins) == len(self)
+
+    def puniquify(self, attrs: list[str] = [], stash_attr_name: str = 'ORIGINAL_ATTRIBUTES') -> None:
         """
         Systematic attribute altering to make all elements unique
         
         There may be a set of attributes for which no two elements may
         have the exact same set of respective values.  This method 
         scans the calling instance for such collisions and, if any
-        is found, it adds one to the value of the attributed named
+        is found, it adds one to the value of the attribute named
         in the first element of the 'fields' list (assumes this
         attribute is numeric!).  This could lead to other collisions
         so multiple passes through the calling instance are made
@@ -1076,79 +883,54 @@ class ObjList(UserList):
         fields : list, optional
             attribute names used to build the hash to test for uniqueness;
             if unset, all attributes are used
-        new_attr_name : str, optional
-            name given to a new attribute used to store all original 
+        stash_attr_name : str, optional
+            name given to a new dict attribute used to store all original 
             attribute name:value pairs
-        make_common : list
-            list of attribute names that are set to a single set
-            of common values *after* uniquifying
 
         """
-        assert not any([x in fields for x in make_common])
-        bins=self.binnify(fields=fields)
-        tmp_fields=fields
-        if not fields:
-            tmp_fields=[x for x in __dict__.keys()]
-        stillworking=True
-        while stillworking:
-            stillworking=False
-            for k,v in bins.items():
-                if len(v)>1:
-                    stillworking=True
-                    for d in v[1:]:
-                        if not new_attr_name in d.__dict__:
-                            d.__dict__[new_attr_name]={k:d.__dict__[k] for k in tmp_fields}
-                        while d.strhash(tmp_fields) in bins:
-                            d.__dict__[tmp_fields[0]]+=1
-            if stillworking: 
-                bins=self.binnify(fields=tmp_fields)
-        assert(self.puniq(fields=tmp_fields))
-        use_common={k:self[0].__dict__[k] for k in make_common}
-        if use_common:
-            for s in self:
-                # check to see if any updates are needed
-                valcheck=all([s.__dict__[k]==v for k,v in use_common.items()])
-                if not valcheck:
-                    if not new_attr_name in s.__dict__:
-                        s.__dict__[new_attr_name]={}
-                    s.__dict__[new_attr_name].update({k:s.__dict__[k] for k in make_common})
-                    s.__dict__.update(use_common)
-    
-    def state_bounds(self,state_func):
-        """
-        Reduces calling instance to a list of state intervals 
-        
-        Parameters
-        ----------
-        state_func : method
-            A function that returns the state value of a single 
-            element of the calling instance
+        local_attr_copy = attrs.copy() if attrs else []
+        logger.debug(f'puniquify: Checking uniqueness for {local_attr_copy}; first binning:')
+        bins = self.binnify(fields=local_attr_copy)
+        logger.debug(f' # bins {len(bins)} vs # items {len(self.data)}')
+        if len(bins) == len(self.data):
+            # all items are unique, nothing to do
+            return
+        stillworking = True
+        num_iter = 0
+        while stillworking and num_iter < 10:
+            stillworking = False
+            num_iter += 1
+            for v in bins.values():
+                if len(v) > 1:  # this key has more than one item
+                    stillworking = True
+                    for d in v[1:]:  # skip the first one, it is the original
+                        # stash the original attribute values in a dict under stash_attr_name
+                        # but only do this ONCE per object so we are only saving its original values
+                        if not hasattr(d, stash_attr_name):
+                            logger.debug(f'puniquify: Stashing original attributes {local_attr_copy} for {str(d)} under {stash_attr_name}')
+                            setattr(d, stash_attr_name, {k: getattr(d, k) for k in local_attr_copy})
+                        while d.strhash(local_attr_copy) in bins:
+                            logger.debug(f'puniquify: Collision detected for {d.strhash(local_attr_copy)}; incrementing {repr(local_attr_copy[0])}')
+                            # increment the first value until the hash is unique
+                            # this assumes the first field in local_attr_copy is numeric
+                            value_to_increment = getattr(d, local_attr_copy[0])
+                            try:
+                                value_to_increment = operator.add(value_to_increment, 1)
+                                setattr(d, local_attr_copy[0], value_to_increment)
+                            except TypeError:
+                                raise TypeError(f"Field '{local_attr_copy[0]}' must be addable to int for uniquification.")
+            if stillworking:
+                # re-bin the items
+                logger.debug(f'Rebinning at iteration {num_iter}')
+                bins = self.binnify(fields=local_attr_copy)
+        if num_iter == 10:
+            raise RuntimeError(f"puniquify: Unable to uniquify after {num_iter} iterations; giving up.")
+        assert(self.puniq(fields=local_attr_copy))
 
-        Returns
-        -------
-        list : state intervals
-        
+    def map_attr(self, mapped_attr: str, key_attr: str, map: dict) -> None:
         """
-        slices=StateIntervalList([])
-        if len(self)==0:
-            return slices
-        for i,item in enumerate(self):
-            if not slices:
-                slices.append(StateInterval({'state':state_func(item),'bounds':[i,i]}))
-                continue
-            state=state_func(item)
-            last_state=slices[-1].state
-            if state==last_state:
-                slices[-1].increment_rightbound()
-            else:
-                slices.append(StateInterval({'state':state_func(item),'bounds':[i,i]}))
-        return slices
-    
-    def map_attr(self,mapped_attr,key_attr,map):
-        """
-        Simple cross-attribute mapper, applied to each element
-        of the calling instance
-        
+        Simple cross-attribute mapper. 
+
         Parameters
         ----------
         mapped_attr : str
@@ -1158,106 +940,19 @@ class ObjList(UserList):
             name of attribute whose value is mapped
         map : dict
             the map
-        """
-        if map:
-            for item in self:
-                item.map_attr(mapped_attr,key_attr,map)
-    
-    def swap_attr(self,attr1,attr2):
-        """
-        Simple attribute value swapper, applied to each element
-        of caller
-        
-        Parameters
-        ----------
-        attr1 : str
-            name of first attribute in pair to swap
-        attr2 : str
-            name of second attribute in pair to swap
-        """        
-        for item in self.data:
-            item.swap_attr(attr1,attr2)
 
-    def copy_attr(self,recv_attr,src_attr):
+        Returns
+        -------
+        None :
+            This method modifies the calling instance in place.
+            It sets the mapped_attr to the value from the map
+            corresponding to the key_attr's value.
+            If the key_attr's value is not in the map, it does nothing.
         """
-        Simple attribute copier, applied to each element of caller
-        
-        Parameters
-        ----------
-        recv_attr : str
-            name of receiver attribute; must exist
-        src_attr : str
-            name of source attribute; must exist
-        """
-        for item in self.data:
-            item.copy_attr(recv_attr,src_attr)
-
-    def assign_objs_to_attr(self,attr,objList,**matchattr):
-        """
-        Assigns the single object from objList whose
-        attributes match the matchattr dict to the 
-        attr attribute of every element in the calling
-        instance; any elements that 
-         
-        Parameters
-        ----------
-        attr : str
-            attribute name
-        objList : list
-            list of objects that is searched
-        matchattr : dict
-            attribute:values used in searching the 
-            list of objects
-        """
-        for s in self:
-            s.assign_obj_to_attr(attr,objList,**matchattr)
-        delete_us=[s for s in self if getattr(s,attr)==None]
-        for s in delete_us:
-            self.remove(s)
-        return self.__class__(delete_us)
-    
-    def update_attr_from_obj_attr(self,attr,obj,obj_attr):
-        """
-        Set value of attribues of all elements of caller
-        from another attribute of a separate object
-
-        Parameters
-        ----------
-        attr : str
-            attribute name
-        obj : object
-            object from which the attribute value is taken
-        obj_attr : str
-            name of attribute in obj that is set to 
-            attr of caller
-        """
-        # logger.debug(f'update_attr_from_obj_attr considers type {type(self)} ({len(self)}) attr {attr} obj {obj} obj_attr {obj_attr}')
         for item in self:
-            # logger.debug(f'-> item {item}')
-            item.update_attr_from_obj_attr(attr,obj,obj_attr)
+            item.map_attr(mapped_attr, key_attr, map)
 
-    def update_attr_from_objlist_elem_attr(self,attr,objlist,index,obj_attr):
-        """
-        Set value of attribues of all elements of caller
-        from another attribute of index'th element objectlist
-
-        Parameters
-        ----------
-        attr : str
-            attribute name
-        objlist : str
-            name of list of objects from which the attribute value of the 
-            index'th element is taken
-        index : int
-            index of element in objlist from which attribute value is taken
-        obj_attr : str
-            name of attribute in objlist[index] that is set to 
-            attr of caller
-        """
-        for item in self: 
-            item.update_attr_from_objlist_elem_attr(attr,objlist,index,obj_attr)
-
-    def remove_duplicates(self,fields=[]):
+    def remove_duplicates(self, fields: list[str] = []) -> None:
         """
         Removes duplicates from the calling instance
         The duplicates are determined by the hash of the values
@@ -1279,81 +974,65 @@ class ObjList(UserList):
             # for c in b[1:]:
             #     logger.debug(f'discarding {str(c)}')
 
-class CloneableObjList(ObjList):
-    """
-    A class for lists of cloneable objs 
-    
-    """
-    def clone(self,**options):
+    def assign_objs_to_attr(self, attr: str, objList: BaseObjList, **matchattr) -> BaseObjList:
         """
-        List cloner
+        Assigns the single object from objList whose
+        attributes match the matchattr dict to the 
+        calling instances attr attribute, but only if
+        the result of the match-search is valid,
+        otherwise assign None to attr
 
         Parameters
         ----------
-        options : dict
-            dictionary of attribute-name:value pairs that are 
-            explicitly assigned in the clones
-        
-        Returns
-        -------
-        list :
-            The new list of new cloned objects   
+        attr : str
+            attribute name
+        objList : list
+            list of objects that is searched
+        matchattr : dict
+            attribute:values used in searching the 
+            list of objects
         """
-        R=self.__class__([])
         for item in self:
-            R.append(item.clone(**options))
-        return R
+            item.assign_obj_to_attr(attr, objList, **matchattr)
+        delete_us = [item for item in self if getattr(item, attr) is None]
+        for item in delete_us:
+            self.remove(item)
+        return self.__class__(delete_us)
 
-class AncestorAwareObjList(CloneableObjList):
-    """
-    A class for lists of ancestor-aware objs 
-
-    """
-    def claim_descendants(self,stamp):
+    def update_attr_from_obj_attr(self, attr: str, obj_attr: str, attr_of_obj_attr: str) -> None:
         """
-        Instructs caller to stamp all elements' descendant objects 
+        Set value of attributes of all elements of caller
+        from another attribute of a separate object
+
+        Parameters
+        ----------
+        attr : str
+            attribute name
+        obj_attr : str
+            name of object attribute from which the attribute value is taken
+        attr_of_obj_attr : str
+            name of attribute in obj_attr that is set to
+            attr of caller
+        """
+        for item in self:
+            item.update_attr_from_obj_attr(attr, obj_attr, attr_of_obj_attr)
+
+    def update_attr_from_objlist_elem_attr(self, attr: str, objlist_attr: str, index_of_obj_in_objlist_attr: int, attr_of_obj_attr: str) -> None:
+        """
+        Set value of caller's attribute from an attribute
+        of an object in a list of objects
         
         Parameters
         ----------
-        stamp : obj
-            object assigned to all ancestor_obj attributes of any
-            ancestor-aware attributes
+        attr : str
+            attribute name to be updated
+        objlist_attr : str
+            name of the caller's attribute that is a list of objects
+        index_of_obj_in_objlist_attr : int
+            index of the object in the list
+        attr_of_obj_attr : str
+            name of the attribute in the object that is set to
+            attr of caller
         """
-        for obj in self:
-            obj.claim_descendants(stamp)
-
-class StateIntervalList(AncestorAwareObjList):
-    """
-    A class for lists of StateIntervals
-    """
-
-    def insert(self,alien:StateInterval):
-        """
-        Inserts a StateInterval into the calling instance
-        The insertion is done in such a way that the calling instance
-        remains sorted by the bounds of the intervals, and that
-        the new interval is inserted in such a way that it does not
-        overlap with any existing intervals.  If the new interval
-        is completely contained within an existing interval, it is
-        not inserted.  If the new interval overlaps with an existing
-        interval, the existing interval is split into two intervals
-        to accommodate the new interval.
-
-        Parameters
-        ----------
-        alien : StateInterval
-            the StateInterval to be inserted into the calling instance
-
-        """
-        for cont in self:
-            if alien.bounds[0]>cont.bounds[0] and alien.bounds[1]<cont.bounds[1]:
-                break
-        else:
-            cont=None
-        if cont:
-            i=self.index(cont)+1
-            self.insert(i,alien)
-            self.insert(i+1,StateInterval({'bounds':[alien.bounds[1]+1,cont.bounds[1]],'state':cont.state,'build':cont.build}))
-            cont.bounds[1]=alien.bounds[0]-1
-        else:
-            logger.debug(f'No compatible insertion point for alien interval {str(alien)}')
+        for item in self:
+            item.update_attr_from_objlist_elem_attr(attr, objlist_attr, index_of_obj_in_objlist_attr, attr_of_obj_attr)

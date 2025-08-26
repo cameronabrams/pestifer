@@ -1,69 +1,88 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
-Definea the :class:`PSFAtom` and :class:`PSFAtomList` classes for handling atoms in PSF topology files.
+Defines the :class:`PSFAtom` and :class:`PSFAtomList` classes for handling atoms in PSF topology files.
 These classes are used to represent individual atoms and collections of atoms in a PSF file.
 The :class:`PSFAtom` class represents a single atom, while the :class:`PSFAtomList` class is a collection of such atoms.
-These classes provide methods for parsing atom lines and managing atom properties."""
+These classes provide methods for parsing atom lines and managing atom properties.
+"""
 
+from __future__ import annotations
 import logging
 import networkx as nx
 
-from .psftopoelement import PSFTopoElement,PSFTopoElementList
+from pestifer.util.stringthings import parse_filter_expression
+
+from ..core.baseobj import BaseObj, BaseObjList
+from pydantic import Field
 
 from ..core.labels import Labels
-from ..core.stringthings import split_ri
+from ..objs.resid import ResID
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
-class PSFAtom(PSFTopoElement):
+class PSFAtom(BaseObj):
     """
     A class representing an atom in a PSF topology file.
     An atom is defined by its serial number, chain ID, residue sequence number, insertion code, residue name, atom name, type, charge, atomic weight, and segment type.
     The class provides methods for parsing atom lines, checking if the atom is a hydrogen atom,
     adding ligands, and checking if the atom is part of a peptide bond.
-
-    Parameters
-    ----------
-    atomline : str
-        A string representing a line from a PSF file that contains information about the atom.
-        The line should contain the following fields in order: serial number, chain ID, residue sequence number, insertion code, residue name, atom name, type, charge, and atomic weight.
-        The line is expected to have exactly 9 tokens when split by whitespace.
     """
-    def __init__(self,atomline):
-        tokens=[x.strip() for x in atomline.split()]
-        assert len(tokens)==9,f'cannot parse psf atomline: {atomline}'
-        idx=int(tokens[0])
-        super().__init__([idx])
-        r,i=split_ri(tokens[2])
-        self.serial=idx
-        self.chainID=tokens[1]
-        self.resseqnum=r
-        self.insertion=i
-        self.resname=tokens[3]
-        self.name=tokens[4]
-        self.type=tokens[5]
-        self.charge=float(tokens[6])
-        self.atomicwt=float(tokens[7])
-        self.segtype=Labels.segtype_of_resname[self.resname]
-        self.ligands=[]
+
+    _required_fields = { 'serial', 'resid', 'segname', 'resname', 'atomname', 'atomtype', 'charge', 'atomicwt', 'segtype' }
+    _optional_fields = { 'ligands' }
+
+    serial: int = Field(..., description="The serial number of the atom.")
+    resid: ResID = Field(..., description="The residue ID of the atom, including residue number and insertion code.")
+    segname: str = Field(..., description="The segment name of the atom.")
+    resname: str = Field(..., description="The residue name of the atom.")
+    atomname: str = Field(..., description="The name of the atom.")
+    atomtype: str = Field(..., description="The type of the atom.")
+    charge: float = Field(..., description="The charge of the atom.")
+    atomicwt: float = Field(..., description="The atomic weight of the atom.")
+    segtype: str = Field(..., description="The segment type of the atom.")
+    ligands: list[PSFAtom] = Field(default_factory=list, description="A list of ligands associated with the atom.")
+
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
+        if args and isinstance(args[0], str):
+            atomline = args[0]
+            return cls._from_psf_atomline(atomline)
+        return super()._adapt(*args, **kwargs)
+
+    @staticmethod
+    def _from_psf_atomline(atomline: str):
+        # logger.debug(f'Parsing psf atom line: {atomline}')
+        tokens = [x.strip() for x in atomline.split()]
+        assert len(tokens) == 9, f'Cannot parse psf atomline: {atomline}'
+        return dict(
+            serial=int(tokens[0]),
+            resid=ResID(tokens[2]),
+            segname=tokens[1],
+            resname=tokens[3],
+            atomname=tokens[4],
+            atomtype=tokens[5],
+            charge=float(tokens[6]),
+            atomicwt=float(tokens[7]),
+            segtype=Labels.segtype_of_resname[tokens[3]],
+        )
     
     def __hash__(self):
         return self.serial
-    
-    def __eq__(self,other):
-        return self.serial==other.serial
+
+    def __eq__(self, other: PSFAtom):
+        return self.serial == other.serial
 
     def __str__(self):
-        return f'{self.chainID}_{self.resname}_{self.resseqnum}{self.insertion}-{self.name}({self.serial})'
+        return f'{self.segname}_{self.resname}_{self.resid.resid}-{self.atomname}({self.serial})'
 
     def isH(self):
         """
         Check if the atom is a hydrogen atom.
         Returns True if the atom's type is 'H', otherwise False.
         """
-        return self.atomicwt<1.1
-    
-    def add_ligand(self,other):
+        return self.atomicwt < 1.1
+
+    def add_ligand(self, other: PSFAtom):
         """
         Add a ligand to the atom's list of ligands.
 
@@ -75,7 +94,7 @@ class PSFAtom(PSFTopoElement):
         if not other in self.ligands:
             self.ligands.append(other)
 
-    def is_pep(self,other):
+    def is_pep(self, other: PSFAtom):
         """
         Check if the atom is part of a peptide bond with another atom.
         A peptide bond is defined as a bond between a carbon atom (C) and a nitrogen atom (NH1).
@@ -85,22 +104,17 @@ class PSFAtom(PSFTopoElement):
         other : PSFAtom
             The other atom to check for a peptide bond.
         """
-        return (self.type=='C' and other.type=='NH1') or (self.type=='NH1' and other.type=='C')
+        return (self.atomtype == 'C' and other.atomtype == 'NH1') or (self.atomtype == 'NH1' and other.atomtype == 'C')
 
-class PSFAtomList(PSFTopoElementList):
+class PSFAtomList(BaseObjList[PSFAtom]):
     """
     A class representing a list of :class:`PSFAtom` objects.
     This class inherits from :class:`PSFTopoElementList <.psftopoelement.PSFTopoElementList>` and provides methods for managing a collection of atoms in a PSF topology file.
-
-    Parameters
-    ----------
-    atoms : list of PSFAtom
-        A list of `PSFAtom` objects representing the atoms in the PSF file.
-
     """
-    def __init__(self,atoms):
-        super().__init__(atoms)
 
+    def describe(self) -> str:
+        return f'PSFAtomList with {len(self.data)} atoms'
+    
     def graph(self):
         """
         Create a :class:`networkx.Graph` representation of the atom list, where atoms are nodes and bonds are edges.
@@ -111,9 +125,65 @@ class PSFAtomList(PSFTopoElementList):
         networkx.Graph
             A networkx graph representing the atom list, with atoms as nodes and bonds as edges
         """
-        g=nx.Graph()
-        for a in self:
+        g = nx.Graph()
+        for a in self.data:
             for l in a.ligands:
-                g.add_edge(a,l)
+                g.add_edge(a, l)
         logger.debug(f'atomlist graph has {len(g)} nodes')
         return g
+    
+    def apply_inclusion_logics(self, inclusion_logics: list[str] = []) -> int:
+        """
+        Apply inclusion logic expressions to filter the atom list.
+        This method filters the atom list based on a list of inclusion logic expressions.
+        Atoms that match any of the expressions are retained in the list.
+
+        Parameters
+        ----------
+        inclusion_logics : list[str], optional
+            A list of inclusion logic expressions to apply, by default []
+
+        Returns
+        -------
+        int
+            The number of atoms that were ignored (removed) from the list.
+        """
+        if len(inclusion_logics) == 0:
+            return 0
+        kept_atom_count = 0
+        total_atom_count = len(self.data)
+        keep_atoms = PSFAtomList([])
+        for expression in inclusion_logics:
+            filter_func = parse_filter_expression(expression)
+            keep_atoms.extend(filter(filter_func, self.data))
+        kept_atom_count = len(keep_atoms)
+        if kept_atom_count > 0:
+            self.data = keep_atoms
+        return total_atom_count - kept_atom_count
+
+    def apply_exclusion_logics(self, exclusion_logics: list[str] = []) -> int:
+        """
+        Apply exclusion logic expressions to filter the atom list.
+        This method filters the atom list based on a list of exclusion logic expressions.
+        Atoms that match any of the expressions are removed from the list.
+
+        Parameters
+        ----------
+        exclusion_logics : list[str], optional
+            A list of exclusion logic expressions to apply, by default []
+
+        Returns
+        -------
+        int
+            The number of atoms that were ignored (removed) from the list.
+        """
+        if len(exclusion_logics) == 0:
+            return 0
+        all_ignored_atoms = PSFAtomList([])
+        for expression in exclusion_logics:
+            filter_func = parse_filter_expression(expression)
+            ignored_atoms = filter(filter_func, self.data)
+            all_ignored_atoms.extend(ignored_atoms)
+        for atom in all_ignored_atoms:
+            self.data.remove(atom)
+        return len(all_ignored_atoms)

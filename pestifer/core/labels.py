@@ -6,9 +6,10 @@ CHARMM and PDB files, along with their mappings. It also provides
 a class for managing these labels and mappings.
 """
 import logging
-logger=logging.getLogger(__name__)
 
-_segtypes= {
+logger = logging.getLogger(__name__)
+
+_segtypes = {
     'protein': {
         'macro': False,
         'resnames': [
@@ -33,7 +34,7 @@ _segtypes= {
         'resnames': [
             'LIT', 'SOD', 'MG' , 'POT', 'CAL', 'RUB', 'CES',
             'BAR', 'ZN' , 'CAD', 'CL',  'SO4', 'PO4', 'H2PO',
-            'ZN2', 'CLA', 'FE']},
+            'ZN2', 'CLA', 'FE', 'H2PO4']},
     'ligand': {
         'macro': True,
         'resnames' : [
@@ -175,14 +176,14 @@ _residue_aliases = [
     "H2PO H2PO4",
     "MAN AMAN",
     "BMA BMAN",
+    "BGLC BGLCNA",
     "NAG BGLCNA",
     "NDG AGLCNA",
-    "BGLC BGLCNA",
     "FUC AFUC",
     "FUL BFUC",
     "GAL BGAL",
-    "ANE5 ANE5AC",
     "SIA ANE5AC",
+    "ANE5 ANE5AC",
     "EIC LIN",
     "HOH TIP3",
     "ZN ZN2",
@@ -209,11 +210,11 @@ class LabelMappers:
     """
     def __init__(self):
         # process _data to initialize the label mappers
-        self.aliases={}
+        self.aliases = {}
         self.aliases['atom'] = _atom_aliases
         self.aliases['residue'] = _residue_aliases
         self.residue_fullnames = _residue_fullnames
-        self.segtypes=_segtypes
+        self.segtypes = _segtypes
         self.segtype_of_resname = {}
         self.charmm_resname_of_pdb_resname = {}
         self.pdb_resname_of_charmm_resname = {}
@@ -226,7 +227,7 @@ class LabelMappers:
             parts = alias.split()
             resname, alias1 = parts
             self.charmm_resname_of_pdb_resname[resname] = alias1
-            if len(resname)<=3:
+            if len(resname) >= 3:
                 self.pdb_resname_of_charmm_resname[alias1] = resname
     
     def update_segtypes(self, new_segtypes):
@@ -251,7 +252,7 @@ class LabelMappers:
                 if resname not in self.segtype_of_resname:
                     self.segtype_of_resname[resname] = segtype
 
-    def update_atomselect_macros(self,fp):
+    def update_atomselect_macros(self, fp):
         """
         Update the atomselect macros in the file ``fp`` based on the ``segtypes`` dict.
         This is a developer-only feature.  Access to this method is provided by the ``pestifer modify-package`` command (see :func:`pestifer.core.pestifer.modify_package`).
@@ -262,7 +263,7 @@ class LabelMappers:
                 macro_content = ' '.join(resnames)
                 fp.write(f"update_atomselect_macro {segtype} \"resname {macro_content}\" 0\n")
 
-Labels=LabelMappers()
+Labels = LabelMappers()
 """ 
 Global instance of :class:`LabelMappers` class to access segment types and residue names.
 This instance provides access to the segment types and residue names used in CHARMM and PDB files.

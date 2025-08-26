@@ -5,63 +5,57 @@ more contiguous residues are deleted.
 """
 import logging
 logger=logging.getLogger(__name__)
-from functools import singledispatchmethod
 
-from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..core.stringthings import split_ri
+from pydantic import Field
+from typing import ClassVar
+from ..core.baseobj import BaseObj, BaseObjList
+from .resid import ResID
 
-class Deletion(AncestorAwareObj):
+class Deletion(BaseObj):
     """
     A class for handling deletions in a molecular sequence.
     """
+    _required_fields = {'chainID', 'resid1', 'resid2'}
 
-    req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
-    """
-    Required attributes for a Deletion object.
-    These attributes must be provided when creating a Deletion object.
+    chainID: str = Field(..., description="Chain ID of the segment from which residues are deleted")
+    resid1: ResID = Field(..., description="N-terminal residue of the deletion")
+    resid2: ResID = Field(..., description="C-terminal residue of the deletion")
 
-    - ``chainID``: The chain ID of the segment from which residues are deleted.
-    - ``resseqnum1``: The N-terminal residue number of the deletion.
-    - ``insertion1``: The insertion code of the N-terminal residue.
-    - ``resseqnum2``: The C-terminal residue number of the deletion.
-    - ``insertion2``: The insertion code of the C-terminal residue.
-    """
+    _yaml_header: ClassVar[str] = 'deletions'
+    _objcat: ClassVar[str] = 'seq'
 
-    yaml_header='deletions'
-    """
-    YAML header for Deletion objects.
-    This header is used to identify Deletion objects in YAML files.
-    """
-    
-    objcat='seq'
-    """
-    Category of the Deletion object.
-    This categorization is used to group Deletion objects in the object manager.
-    """
-    
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
+        """
+        Override the _adapt classmethod to handle initialization from a shortcode.
+        """
+        if args and isinstance(args[0], str):
+            input_dict = Deletion._from_shortcode(args[0])
+            return input_dict
+        return super()._adapt(*args, **kwargs)
 
-    @__init__.register(str)
-    def _from_shortcode(self,shortcode):
-        # shortcode format: C:nnn-ccc
-        # C -- chainID
-        # nnn -- N-terminal resid of sequence to be deleted
-        # ccc -- C-terminal resid of sequence to be deleted
-        p1=shortcode.split(':')
-        chainID=p1[0]
-        seq=p1[1].split('-')
-        r1,i1=split_ri(seq[0])
-        r2,i2=split_ri(seq[1])          
-        input_dict={
-            'chainID':chainID,
-            'resseqnum1':int(r1),
-            'insertion1':i1,
-            'resseqnum2':int(r2),
-            'insertion2':i2
-        }
-        super().__init__(input_dict)
+    @staticmethod
+    def _from_shortcode(raw: str) -> dict:
+        """
+        Converts a shortcode string to a dictionary of parameters for Deletion.
+        The shortcode format is: C:nnn-ccc
+        where:
+        - C is the chain ID
+        - nnn is the N-terminal residue number of the deletion
+        - ccc is the C-terminal residue number of the deletion
+        """
+        chainID, res_range = raw.split(":")
+        resid1 = ResID(res_range.split("-")[0])
+        resid2 = ResID(res_range.split("-")[1])
+        return dict(
+            chainID = chainID,
+            resid1 = resid1,
+            resid2 = resid2
+        )
 
-class DeletionList(AncestorAwareObjList):
-    pass
+    def shortcode(self) -> str:
+        return f"{self.chainID}:{self.resid1.resid}-{self.resid2.resid}"
+
+class DeletionList(BaseObjList[Deletion]):
+    def describe(self):
+        return f'DeletionList with {len(self)} deletions'

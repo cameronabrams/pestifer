@@ -3,16 +3,21 @@
 Defines the :class:`ResourceManager` class for managing access to :mod:`pestifer.resources`.
 """
 
-import os
 import logging
-logger = logging.getLogger(__name__)
+import os
+
 from pathlib import Path
-from importlib.resources import files
-from ..charmmff.charmmffcontent import CHARMMFFContent
+from typing import Callable
+
 from .examplemanager import ExampleManager
 from .labels import Labels
+
 from .. import resources
+
+from ..charmmff.charmmffcontent import CHARMMFFContent
 from ..util.gitutil import get_git_origin_url
+
+logger = logging.getLogger(__name__)
 
 class ResourceManager:
     """
@@ -21,62 +26,64 @@ class ResourceManager:
     It also manages the ``ycleptic`` configuration file used for user-specific configurations.
     The resources are organized into directories, and the class provides methods to access these resources.
     """
-    
-    _base_resources=['charmmff','examples','tcl','ycleptic']
+
+    _base_resources = ('charmmff', 'examples', 'tcl', 'ycleptic')
     """
     A list of base resources that are managed by the ResourceManager.
     These resources include CHARMM force fields, example input files, TcL scripts, and the ycleptic configuration file.
     """
 
     def __init__(self):
-        self.resources_path=os.path.dirname(resources.__file__)
-        self.package_path=Path(self.resources_path).parent.parent
-        resources_subfolders=os.listdir(self.resources_path)
-        is_source_package_with_git=os.path.isdir(os.path.join(self.package_path,'.git'))
+        self.resources_path = os.path.dirname(resources.__file__)
+        self.package_path = Path(self.resources_path).parent.parent
+        is_source_package_with_git = os.path.isdir(os.path.join(self.package_path, '.git'))
         if is_source_package_with_git:
-            remote=get_git_origin_url()
+            remote = get_git_origin_url()
             if remote:
                 logger.debug(f'This is a source package installed from {remote} installed in {self.package_path}')
             else:
                 logger.debug(f'This is a source package installed in {self.package_path} but the remote origin URL could not be determined.')
-        self.resource_dirs=[x for x in resources_subfolders if os.path.isdir(os.path.join(self.resources_path, x)) 
-                            and x in ResourceManager._base_resources]
-        assert all([x in [os.path.basename(_) for _ in self.resource_dirs] for x in ResourceManager._base_resources]),f'some resources seem to be missing; found {self.resource_dirs}, expected {ResourceManager._base_resources}'
-        self.ycleptic_configdir=os.path.join(self.resources_path,'ycleptic')
-        ycleptic_files=os.listdir(self.ycleptic_configdir)
-        assert len(ycleptic_files)==1,f'Too many config files in {self.ycleptic_configdir}: {ycleptic_files}'
-        self.ycleptic_config=ycleptic_files[0]
-        self.ycleptic_config=os.path.join(self.ycleptic_configdir,self.ycleptic_config)
-        self.resource_path={}
+
+        resources_subfolders = os.listdir(self.resources_path)
+        self.resource_dirs = [x for x in resources_subfolders if os.path.isdir(os.path.join(self.resources_path, x)) and x in ResourceManager._base_resources]
+        assert all([x in [os.path.basename(_) for _ in self.resource_dirs] for x in ResourceManager._base_resources]), f'some resources seem to be missing; found {self.resource_dirs}, expected {ResourceManager._base_resources}'
+
+        self.resource_path = {}
         for r in self._base_resources:
-            self.resource_path[r]=os.path.join(self.resources_path,r)
+            self.resource_path[r] = os.path.join(self.resources_path, r)
             if not os.path.isdir(self.resource_path[r]):
                 raise FileNotFoundError(f'Resource {r} not found at {self.resource_path[r]} -- your installation is likely incomplete')
-        self.charmmff_content=CHARMMFFContent(self.resource_path['charmmff'])
-        self.pdbrepository=self.charmmff_content.pdbrepository
-        # check for a docs path, only if this is a source package
-        # self.__file__ is pestifer/core/resourcemanager.py
-        # docs is in same parent directory as pestifer
-        docs_source_path=None
+
+        self.ycleptic_configdir = self.resource_path['ycleptic']
+        ycleptic_files = os.listdir(self.ycleptic_configdir)
+        assert len(ycleptic_files) == 1, f'Too many config files in {self.ycleptic_configdir}: {ycleptic_files}'
+        self.ycleptic_config = ycleptic_files[0]
+        self.ycleptic_config = os.path.join(self.ycleptic_configdir, self.ycleptic_config)
+        
+        self.charmmff_content = CHARMMFFContent(self.resource_path['charmmff'])
+
+        docs_source_path = None
         if is_source_package_with_git:
-            docs_source_path=os.path.join(self.package_path,'docs','source')
+            docs_source_path = os.path.join(self.package_path, 'docs', 'source')
             if os.path.isdir(docs_source_path):
                 logger.debug(f'Docs path {docs_source_path} exists; using it for example documentation')
             else:
                 logger.debug(f'Error: This is a source package but docs path {docs_source_path} does not exist')
-                docs_source_path=None
-        self.example_manager=ExampleManager(resources_path=self.resources_path,docs_source_path=docs_source_path,
-                                            example_resource_folder_name='examples')
-        self.labels=Labels
+                docs_source_path = None
+
+        self.examples_path = self.resource_path['examples']
+        self.example_manager = ExampleManager(examples_path=self.examples_path, docs_source_path=docs_source_path)
+        
+        self.labels = Labels
 
     def __str__(self):
-        cp=os.path.commonpath(list(self.resource_path.values()))
-        retstr=f'Pestifer resources are found under\n    {cp}\n'
-        for r,p in self.resource_path.items():
-            retstr+=f'        {p.replace(cp+os.sep,"")+os.sep}\n'
+        cp = os.path.commonpath(list(self.resource_path.values()))
+        retstr = f'Resources are found under\n    {cp}\n'
+        for r, p in self.resource_path.items():
+            retstr += f'        {p.replace(cp + os.sep, "") + os.sep}\n'
         return retstr
 
-    def show(self,out_stream=print,components={},fullnames=False,missing_fullnames={}):
+    def show(self, out_stream: Callable = print, components: dict = {}, fullnames=False, missing_fullnames={}):
         """
         Show a summary of the specified components.
         
@@ -92,26 +99,27 @@ class ResourceManager:
         missing_fullnames : dict, optional
             A dictionary of missing full names for the components. Default is an empty dictionary.
         """
-        for c,spec in components.items():
+        for c, spec in components.items():
             if not c in self._base_resources:
                 logger.warning(f'{c} is not a base resource; expected one of {", ".join(self._base_resources)}')
-            path=self.get_resource_path(c)
-            if c=='examples':
-                out_stream(f'\nExamples:\n\n{self.example_manager.report_examples_list(header=True)}')
-            elif c=='charmmff':
-                if 'toppar' in spec:
+            path = self.get_resource_path(c)
+            if c == 'examples':
+                out_stream(f'\nExamples:\n\n{self.example_manager.report_examples(header=True)}')
+            elif c == 'charmmff':
+                if 'tarball' in spec:
                     out_stream(f'{self.charmmff_content.tarfilename}')
                 if 'pdb' in spec:
-                    self.pdbrepository.show(out_stream,fullnames=fullnames,missing_fullnames=missing_fullnames)
+                    self.charmmff_content.provision_pdbrepository()
+                    self.charmmff_content.pdbrepository.show(out_stream, fullnames=fullnames, missing_fullnames=missing_fullnames)
                 if 'custom' in spec:
-                    path=self.get_charmmff_customdir()
-                    with open(os.path.join(path,'00PESTIFER-README.txt'),'r') as f:
-                        msg=f.read()
+                    path = self.get_charmmff_customdir()
+                    with open(os.path.join(path, '00PESTIFER-README.txt'), 'r') as f:
+                        msg = f.read()
                     out_stream(msg)
-            elif c=='tcl':
-                path=self.get_tcldir()
-                with open(os.path.join(path,'00PESTIFER-README.txt'),'r') as f:
-                    msg=f.read()
+            elif c == 'tcl':
+                path = self.get_tcldir()
+                with open(os.path.join(path, '00PESTIFER-README.txt'), 'r') as f:
+                    msg = f.read()
                 out_stream(msg)
 
     def get_ycleptic_config(self):
@@ -199,22 +207,9 @@ class ResourceManager:
         """
         return os.path.join(self.resource_path['tcl'],'scripts')
     
-    def update_pdbrepository(self,user_pdbrepository=[]):
-        """
-        Update the PDB repository with user-defined paths.
 
-        Parameters
-        ----------
-        user_pdbrepository : list, optional
-            A list of paths to user-defined PDB collections. These paths will be added to the PDB repository.
-            If not provided, an empty list is used, meaning no user-defined paths will be added.
-        """
-        for path in user_pdbrepository:
-            logger.info(f'Adding user PDB collection {path} to PDB repository')
-            self.charmmff_content.pdbrepository.add_path(path)
-
-    def update_charmmff(self,tarball='',user_custom_directory=None):
-        """
+    def update_charmmff(self, tarball: str | Path ='', user_custom_directory: str | Path | None =None, user_pdbrepository_paths: list[str | Path]=[]):
+        """ 
         Update the CHARMM force field content with a tarball and/or a user-defined custom directory
 
         Parameters
@@ -230,45 +225,62 @@ class ResourceManager:
             self.charmmff_content.load_charmmff(tarball)
         if user_custom_directory:
             self.charmmff_content.add_custom_directory(user_custom_directory)
+        for path in user_pdbrepository_paths:
+            logger.info(f'Adding user PDB collection {path} to PDB repository')
+            self.charmmff_content.pdbrepository.add_path(path)
 
-    def add_example(self,example_yaml,author_name='',author_email='',description='',companion_files=[]):
+    def append_example(self, scriptname: str, example_id: int = 0, author_name='', author_email='', title='', db_id='', auxiliary_inputs=[], outputs=[]):
         """
-        Add an example to the pestifer examples directory.
+        Add an example to the pestifer package.  Minimally, the name of the example's YAML input file must be specified.
 
         Parameters
         ----------
-        example_yaml : str
-            The path to a YAML file containing the example data. It may or may not end with '.yaml'.  It should have a 'title' field and either the field 'id' or 'alphafold' under tasks->psfgen->source.
+        scriptname : str
+            The name of the example's YAML input file (with or without the .yaml extension).
+        example_id : int
+            The unique identifier for the example. If not provided, a new ID will be assigned.
+        author_name : str
+            The name of the author.
+        author_email : str
+            The email address of the author.
+        title : str
+            The title of the example.
+        db_id : str
+            The database ID of the example.
+        auxiliary_inputs : list
+            A list of auxiliary input files for the example.
+        outputs : list
+            A list of output files for the example.
         """
-        self.example_manager.add_example(example_yaml,description=description,author_name=author_name,author_email=author_email,companion_files=companion_files)
+        example_id = len(self.example_manager.examples) + 1 if example_id == 0 else example_id
+        self.example_manager.append_example(example_id, scriptname, title=title, author_name=author_name, author_email=author_email, auxiliary_inputs=auxiliary_inputs, outputs=outputs, db_id=db_id)
 
-    def insert_example(self,example_index,example_yaml,author_name='',author_email='',description='',companion_files=[]):
-        """
-        Insert an example into the pestifer examples directory.
-
-        Parameters
-        ----------
-        example_index : int
-            The index at which to insert the example. This should be a positive integer indicating the position in the examples list (1-based).
-        example_yaml : str
-            The path to a YAML file containing the example data. It may or may not end with '.yaml'.  It should have a 'title' field and either the field 'id' or 'alphafold' under tasks->psfgen->source.
-        """
-        self.example_manager.insert_example(example_index, example_yaml,author_name=author_name,author_email=author_email,description=description,companion_files=companion_files)
-
-    def update_example(self,example_index,example_yaml):
+    def update_example(self, example_id: int, shortname: str = '', title: str = '', db_id: str = '', author_name: str = '', author_email: str = '', auxiliary_inputs: list = [], outputs: list = []):
         """
         Update an existing example in the pestifer examples directory.
 
         Parameters
         ----------
-        example_index : int
-            The index of the example to update. This should be a positive integer indicating the position in the examples list (1-based).
-        example_yaml : str
-            The path to a YAML file containing the updated example data. It may or may not end with '.yaml'.  It should have a 'title' field and either the field 'id' or 'alphafold' under tasks->psfgen->source.
+        example_id : int
+            The unique identifier for the example to update.
+        shortname : str
+            The short name of the example.
+        title : str
+            The title of the example.
+        db_id : str
+            The database ID of the example.
+        author_name : str
+            The name of the author.
+        author_email : str
+            The email address of the author.
+        auxiliary_inputs : list
+            A list of auxiliary input files for the example.
+        outputs : list
+            A list of output files for the example.
         """
-        self.example_manager.update_example(example_index, example_yaml)
+        self.example_manager.update_example(example_id, shortname=shortname, title=title, db_id=db_id, author_name=author_name, author_email=author_email, auxiliary_inputs=auxiliary_inputs, outputs=outputs)
 
-    def delete_example(self,example_index):
+    def delete_example(self, example_id: int):
         """
         Delete an example from the pestifer examples directory.
 
@@ -277,32 +289,32 @@ class ResourceManager:
         example_index : int
             The index of the example to delete. This should be a positive integer indicating the position in the examples list (1-based).
         """
-        self.example_manager.delete_example(example_index)
+        self.example_manager.delete_example(example_id)
 
-    def rename_example(self,example_index,new_name):
+    def rename_example(self, example_id: int, new_name: str):
         """
         Rename an existing example in the pestifer examples directory.
 
         Parameters
         ----------
-        example_index : int
-            The index of the example to rename. This should be a positive integer indicating the position in the examples list (1-based).
+        example_id : int
+            The unique identifier for the example to rename.
         new_name : str
             The new name for the example. This should be a valid filename without any path components.
         """
-        self.example_manager.rename_example(example_index, new_name)
+        self.example_manager.rename_example(example_id, new_name)
 
-    def set_example_author(self,example_index,author_name,author_email):
+    def set_example_author(self, example_id: int, author_name: str, author_email: str):
         """
         Set the author information for an example in the pestifer examples directory.
 
         Parameters
         ----------
-        example_index : int
-            The index of the example to set the author for. This should be a positive integer indicating the position in the examples list (1-based).
+        example_id : int
+            The unique identifier for the example to set the author for.
         author_name : str
             The name of the author.
         author_email : str
             The email address of the author.
         """
-        self.example_manager.set_example_author(example_index, author_name, author_email)
+        self.example_manager.set_example_author(example_id, author_name, author_email)

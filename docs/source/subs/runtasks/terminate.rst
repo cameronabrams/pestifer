@@ -24,10 +24,24 @@ then pestifer will generate the output files
 * ``my_system.coor`` -- the binary NAMD coordinate file equivalent to the PDB file
 * ``my_system.xsc``  -- the XSC file that specifies the system box size and shape
 
-It will also generate the tarball ``prod_system.tgz`` that contains
+It will also generate the tarball package ``prod_system.tgz`` that contains
 
 1. The above listed output files;
-2. All necessary charmmff parameter files copied from the default toppar directory and gently edited to allow them to be used by NAMD; and
+2. All necessary charmmff parameter/stream files copied from the default toppar directory and gently edited to allow them to be used by NAMD; and
 3. An example NAMD config file that you should review and edit.
 
-Transferring the tarball to your production machine is easy, of course.  You may also be building on your production machine (I do), so moving these files and only these files to a clean production directory is a nice thing to do.
+Transferring the tarball to your production machine is easy, of course.  You may also be building on your production machine (I do), so moving these files **and only these files** to a clean production directory is a nice thing to do.
+
+By default, if your yaml input file does not specify a ``terminate`` task, Pesifer will automatically append one to the list of tasks.  This default ``terminate`` task will not create a package nor and archive.
+
+The seven directives you can specify in a ``terminate`` task are:
+
+1. ``basename``: The basename of the output files and package.  Default is ``my_system``.
+2. ``cleanup``: A boolean.  If true, the task will delete all intermediate files generated during the run, **after** they are stored in an archive tarball.  Default is **true**.  If false, the intermediate files will be left in place.
+3. ``archive_dir``: This is the directory name prepended to each file name that is included in the archive tarball.  The archive contains all intermediate files generated during the run.  This option is useful so that you can untar the archive an all it will do is create this directory and populated it with the contents, rather than spewing them all over your current working directory.  Default is **archive**.
+4. ``chainmapfile``:  If specified, the ``terminate`` task will write a small YAML file that contains a dictionary mapping chainIDs in the PSF file to their corresponding chainIDs from the author's specifications in the original structure file. This can be useful for tracking changes to chainIDs during the build process.  By default it is not set.
+5. ``package``: A dictionary of directives for creating the tarball package. If populated, the tarball will be created.  By default it is **not populated**.  The following fields are available:
+
+   - ``basename``: The basename of all entries in the tarball file.  Default is ``prod_system``.
+   - ``state_dir``: Like ``archive_dir``, this is the directory name prepended to each file name that is included in the tarball package.  Default is **state**.
+   - Any parameters you would include in an ``md`` task -- these are only made available so that a sample NAMD configuration file can be included in the package tarball.

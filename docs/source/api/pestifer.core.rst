@@ -12,8 +12,8 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
+   pestifer.core.artifacts
    pestifer.core.baseobj
-   pestifer.core.basetask
    pestifer.core.command
    pestifer.core.config
    pestifer.core.controller
@@ -21,8 +21,6 @@ Submodules
    pestifer.core.examplemanager
    pestifer.core.labels
    pestifer.core.objmanager
-   pestifer.core.pdbrepository
    pestifer.core.pestifer
+   pestifer.core.pipeline
    pestifer.core.resourcemanager
-   pestifer.core.scripters
-   pestifer.core.stringthings

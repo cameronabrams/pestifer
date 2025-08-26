@@ -2,70 +2,52 @@
 """
 CleavageSite is a class for handling chain cleavage in molecular structures.
 It represents a user-specified modification that cleaves a segment of a chain
-between two specified residues, creating a new segment."""
+between two specified residues, creating a new segment.
+"""
 import logging
 logger=logging.getLogger(__name__)
 
-from functools import singledispatchmethod
+from pydantic import Field
+from typing import ClassVar
 
-from ..core.baseobj import AncestorAwareObj, AncestorAwareObjList
-from ..core.stringthings import split_ri
+from ..core.baseobj import BaseObj, BaseObjList
+from .resid import ResID
 
-class CleavageSite(AncestorAwareObj):
+class CleavageSite(BaseObj):
     """
     A class for handling chain cleavage.  Note that this mod is not expected to be part of an 
     ObjManager so the yaml_header and objcat attributes are irrelevant.  It is instead handled
     as a run task.
     """
+    _required_fields = {'chainID', 'resid1', 'resid2'}
 
-    req_attr=AncestorAwareObj.req_attr+['chainID','resseqnum1','insertion1','resseqnum2','insertion2']
-    """
-    Required attributes for a CleavageSite object.
-    These attributes must be provided when creating a CleavageSite object.
+    chainID: str = Field(..., description="Chain ID of the segment to be cleaved")
+    resid1: ResID = Field(..., description="N-terminal residue information of the cleavage site")
+    resid2: ResID = Field(..., description="C-terminal residue information of the cleavage site")
 
-    - ``chainID``: The chain ID of the segment to be cleaved.
-    - ``resseqnum1``: The N-terminal residue number of the cleavage site.
-    - ``insertion1``: The insertion code of the N-terminal residue.
-    - ``resseqnum2``: The C-terminal residue number of the cleavage site.
-    - ``insertion2``: The insertion code of the C-terminal residue.
-    """
-    
-    yaml_header='cleavages'
-    """
-    YAML header for CleavageSite objects.
-    This header is used to identify CleavageSite objects in YAML files.
-    """
+    _yaml_header: ClassVar[str] = 'cleavages'
+    _objcat: ClassVar[str] = 'seq'
 
-    objcat='seq'
-    """
-    Category of the CleavageSite object.
-    This categorization is used to group CleavageSite objects in the object manager.
-    """
+    @classmethod
+    def _adapt(cls, *args, **kwargs) -> dict:
+        if args and isinstance(args[0], str):
+            return CleavageSite._from_shortcode(args[0])
+        return super()._adapt(*args, **kwargs)
 
-    @singledispatchmethod
-    def __init__(self,input_obj):
-        super().__init__(input_obj)
-    @__init__.register(str)
-    def _from_shortcode(self,shortcode):
-        # C:R1-R2
-        # C: chain ID
-        # R1: resid+insertioncode of N-terminal partner in peptide bond
-        # R2: resid+insertioncode of C-terminal partner in peptide bond
-        items=shortcode.split(':')
-        assert len(items)==2,f'Bad cleavage site shortcode: {shortcode}'
-        chainID=items[0]
-        resrange=items[1]
-        ri1,ri2=resrange.split('-')
-        r1,i1=split_ri(ri1)
-        r2,i2=split_ri(ri2)
-        input_dict={
-            'chainID':chainID,
-            'resseqnum1':r1,
-            'insertion1':i1,
-            'resseqnum2':r2,
-            'insertion2':i2
-        }
-        super().__init__(input_dict)
+    @staticmethod
+    def _from_shortcode(raw: str) -> dict:
+        chainID, res_range = raw.split(":")
+        resid1 = ResID(res_range.split("-")[0])
+        resid2 = ResID(res_range.split("-")[1])
+        return dict(
+            chainID=chainID,
+            resid1=resid1,
+            resid2=resid2
+        )
 
-class CleavageSiteList(AncestorAwareObjList):
-    pass
+    def shortcode(self) -> str:
+        return f"{self.chainID}:{self.resid1.resid}-{self.resid2.resid}"
+
+class CleavageSiteList(BaseObjList[CleavageSite]):
+    def describe(self):
+        return f"CleavageSiteList with {len(self)} cleavage sites"

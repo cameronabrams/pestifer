@@ -5,7 +5,7 @@ make_membrane_system
 
 As an *alternative* to a ``solvate`` task, you can use a ``make_membrane_system`` task to build a lipid bilayer and *optionally* embed the protein into it.  Pestifer uses ``packmol`` to build a small bilayer "patch" of specified composition, and then replicates it in x and y to generate a sufficiently large bilayer "quilt".
 
-``Pestifer`` comes prepackaged with a set of lipids you can use to build a bilayer.  These lipids are defined in the ``pestifer`` package, and you can see the full list of available lipids by running:
+``Pestifer`` comes prepackaged with a set of lipid PDB files you can use to build a bilayer.  You can see the full list of available lipids witht this command:
 
 .. code-block:: console
 
@@ -18,12 +18,12 @@ All ``make_membrane_system`` options are documented in the Config Reference page
 Subtasks
 ========
 
-There are two main subtask directives in a ``make_membrane_system`` task: ``bilayer`` and ``embed``.  The ``bilayer`` subtask is used to specify the composition of the bilayer, while the (optional) ``embed`` subtask is used to specify how the protein should be embedded in the bilayer.
+There are two main subtask directives in a ``make_membrane_system`` task: ``bilayer`` and ``embed``.  The ``bilayer`` subtask requires specification of the composition (and optionally the size) of the bilayer, while the (optional) ``embed`` subtask requires specification of how the protein should be embedded in the bilayer.
 
 bilayer
 +++++++
 
-This subtask minimally specifies the desired *composition* of the bilayer.  This can be done either using a single ``composition`` directive or by setting packmol-memgen-style string values to the ``lipids`` and ``mole_fractions`` keys.
+Bilayer composition is specified either using a single ``composition`` directive or by setting ``packmol-memgen``-style string values to the ``lipids`` and ``mole_fractions`` keys.
    
    - **Composition-specification options**
 
@@ -67,7 +67,7 @@ This subtask minimally specifies the desired *composition* of the bilayer.  This
 
        Using a variety of conformers is useful for generating a more realistic bilayer structure, as it allows for different lipid conformations to be sampled during the packing process.
 
-      - ``lipids`` and ``mole_fractions``: These strings specify the lipid composition in the bilayer.  Each is a packmol-memgen-style string, where each lipid (or mole fraction) is separated by a comma.  For example, to specify a symmetric bilayer with POPE and POPC, you would use:
+      - ``lipids`` and ``mole_fractions``: These strings specify the lipid composition in the bilayer.  Each is a ``packmol-memgen``-style string, where each lipid (or mole fraction) is separated by a comma.  For example, to specify a symmetric bilayer with POPE and POPC, you would use:
 
         .. code-block:: yaml
 
@@ -176,7 +176,7 @@ Task Flow
 As mentioned above, pestifer first uses packmol to make a minimal patch (of, say, 100 lipids per leaflet) of the desired composition.  If the system is to have a symmetric bilayer (same composition in each leaflet), then this patch is first relaxed and then replicated to form the final quilt, into which the protein is embedded (if there is one).  If the system is to have an asymmetric bilayer (different composition in each leaflet), then pestifer first makes *two symmetric* patches, where in the first the two leaflets have the same composition as the upper leaflet of the final system, and the second has the composition of the lower leaflet.  These two patches are relaxed independently.  Then a hybrid asymmetric patch is constructed by combining the upper leaflet of the first and the lower leaflet of the second.  The lateral box size is set as that of the larger of the two leaflets (laterally).  If there is a difference in lateral area of the two patches, this means the larger one has *excess lipids*.  However, we will not delete excess lipids until the quilt is made.  At this point, this fresh asymmetric patch is replicated to form the quilt.  The number of excess lipids in the larger patch is computed assuming that the equilibrated symmetric patch reports an accurate SAPL for that composition, and that the two leaflets in the quilt must have the *same* area, which is assumed at the outset to reflect a laterally equilibrated *smaller* leaflet.  The determined number of excess lipids is then deleted from the larger leaflet by random selection, and the system is relaxed again.  This is done to ensure the lateral pressure in the two leaflets is the same, minimizing any spontaneous curvature that would cause spurious "ripples" in the fully periodic system.
 
 .. mermaid::
-  :caption: Pestifer Make Membrane System Task Bilayer Task Flowchart
+  :caption: Pestifer's algorithm for making a bilayer.
 
   graph TD;
     A{Is bilayer asymmetric?};
@@ -200,6 +200,6 @@ As mentioned above, pestifer first uses packmol to make a minimal patch (of, say
 Other Notes
 ===========
 
-Pestifer's ``make_membrane_system`` task is inspired by the `packmol-memgen package <https://ambermd.org/tutorials/advanced/tutorial38/index.php>`_.  For instance, we borrow ``packmol-memgen`` syntax for specifying composition (optionally; the preferred syntax is to use a ``composition`` dictionary in the yaml input).  However, we do not use any precomputed surface-area per lipid.  Instead, we allow the user to specify a single value for SAPL and then a relaxation protocol to achieve a laterally equilibrated bilayer system prior to any embedding.  Packmol-memgen allows for generation of asymmetric bilayers but does not provide a way to guarantee lack of spontaneous curvature that might result, beyond assuming its pre-computed SAPL's are correct.
+Pestifer's ``make_membrane_system`` task is inspired by the `packmol-memgen package <https://ambermd.org/tutorials/advanced/tutorial38/index.php>`_.  For instance, we borrow ``packmol-memgen`` syntax for specifying composition (optionally; the preferred syntax is to use a ``composition`` dictionary in the yaml input).  However, we do not use any precomputed surface-areas per lipid.  Instead, we allow the user to specify a single value for SAPL and then use an MD-based relaxation protocol to achieve a laterally equilibrated bilayer system prior to any embedding.  Packmol-memgen allows for generation of asymmetric bilayers but does not provide a way to guarantee lack of spontaneous curvature that might result, beyond assuming its pre-computed SAPL's are correct.
 
-A moderately sized bilayer system can take *several hours* to pack.  A typical bilayer patch of 100 lipids per leaflet with 32 waters per lipid will take between 15 and 30 minutes for ``packmol`` to pack; the remainder of the time is relaxation.  The relaxation protocols can take anywhere from a few minutes to several hours, depending on the size of the system and the number of steps specified in each protocol.  See :ref:`example mper-tm viral bilayer` for an example of a protein-embedded, heterogeneous asymmetric bilayer system built using the ``make_membrane_system`` task.
+A moderately sized bilayer system can take *several hours* to pack and relax.  A typical bilayer patch of 100 lipids per leaflet with 32 waters per lipid will take between 15 and 30 minutes for ``packmol`` to pack; the remainder of the time is relaxation.  The relaxation protocols can take anywhere from a few minutes to several hours, depending on the size of the system and the number of steps specified in each protocol.  See :ref:`example mper-tm viral bilayer` for an example of a protein-embedded, heterogeneous asymmetric bilayer system built using the ``make_membrane_system`` task.
