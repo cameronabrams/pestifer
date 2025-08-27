@@ -26,21 +26,23 @@ class PytestTerminateTask(BaseTask):
         """
         assert running_under_pytest()
         # Determine all testable file artifacts
-        task_results = self.pipeline.get_artifact_collection_as_lists()
-        testable_file_artifacts = FileArtifactList(list(filter(lambda a: a.pytestable, task_results['files']))).unique_paths()
+        artifact_collection = self.pipeline.get_all_file_artifacts()
+        testable_file_artifacts = FileArtifactList(list(filter(lambda a: a.pytestable, artifact_collection)))
         # delete any non-testable file artifacts
-        for file_artifact in task_results['files']:
+        for file_artifact in artifact_collection:
             if not file_artifact in testable_file_artifacts:
-                logger.debug(f'PytestTerminateTask deleting non-testable file artifact {file_artifact.name} {str(file_artifact.produced_by)}')
+                logger.debug(f'PytestTerminateTask deleting non-testable file artifact {file_artifact.name}')
                 file_artifact.path.unlink(missing_ok=True)
-        for file_artifact_list in task_results['filelists']:
-            for file_artifact in file_artifact_list:
-                if not file_artifact in testable_file_artifacts:
-                    if file_artifact.pytestable:
-                        testable_file_artifacts.append(file_artifact)
-                    else:
-                        logger.debug(f'PytestTerminateTask deleting non-testable file artifact {file_artifact.name} {str(file_artifact.produced_by)}')
-                        file_artifact.path.unlink(missing_ok=True)
+
+        all_files = os.listdir('.')
+        logger.debug('All files:')
+        for f in all_files:
+            if not f in artifact_collection:
+                logger.debug(f'  Not an artifact -> {f}')
+
+        logger.debug('Testable artifacts:')
+        for f in testable_file_artifacts:
+            logger.debug(f'  {f.name}')
 
         # if we are generating new standards, simply copy the remaining
         # file artifacts to the standards directory for this test.  It

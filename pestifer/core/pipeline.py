@@ -5,7 +5,7 @@ Pipeline context for managing passing of information from one task to another vi
 from __future__ import annotations
 import logging
 
-from .artifacts import Artifact, FileArtifact, ArtifactDict, ArtifactList, FileArtifactList, StateArtifacts
+from .artifacts import Artifact, FileArtifact, ArtifactDict, ArtifactList, FileArtifactDict, FileArtifactList, StateArtifacts
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class PipelineContext:
     def __repr__(self):
         return f"PipelineContext(controller_index={self.controller_index})"
 
-    def register(self, artifact: Artifact | ArtifactList | ArtifactDict, key: str = None, requesting_object: object | None = None):
+    def register(self, artifact: Artifact | ArtifactList | ArtifactDict, key: str = None):
         """ 
         Create and register an artifact in the pipeline context.
 
@@ -31,25 +31,20 @@ class PipelineContext:
         requesting_object : object, optional
             The object that is requesting the registration of the artifact. This can be used for logging or tracking purposes.
         """
-        if key: # If a key is provide, override the artifact's key
+        if key and hasattr(artifact, 'key'): # If a key is provide, override the artifact's key
             artifact.key = key
         else:
             if hasattr(artifact, 'key'):
                 key = artifact.key
         if not key:
-            raise ValueError("Key must be provided for the artifact.")
+            raise ValueError(f"{type(artifact).__name__} has no key attribute; key must be provided for the artifact as a keyword argument to register().")
         if key in self.head:
             """ move to history if already exists """
             self.history.append(self.head[key])
-        logger.debug(f'Registering artifact {type(artifact)}')
-        # stamp the arifact if it isn't already stamped
-        if not artifact.has_stamp():
-            # logger.debug(f'Stamping artifact {key} with requesting object {requesting_object}')
-            if requesting_object:
-                artifact.stamp(requesting_object)
-            else:
-                artifact.stamp(self)
+        # stamp the artifact if it isn't already stamped
+        # logger.debug(f'Stamping artifact {key} with requesting object {requesting_object}')
         self.head[key] = artifact
+        logger.debug(f'Registered artifact {repr(artifact)} at key {key}')
     
     def bury(self, artifact: Artifact):
         """
@@ -108,7 +103,7 @@ class PipelineContext:
             return FileArtifactList(series)
         return series
 
-    def get_artifact_collection_as_lists(self, produced_by: object | None = None) -> dict[str, ArtifactList | ArtifactList | FileArtifactList]:
+    def get_all_file_artifacts(self, produced_by: object | None = None) -> FileArtifactList:
         """
         Retrieve a collection of artifacts produced by a specific task or object.
         
@@ -119,20 +114,10 @@ class PipelineContext:
 
         Returns
         -------
-        dict[str, ArtifactList | ArtifactList | FileArtifactList]
-            A dict containing:
-            - A list of all data artifacts.
-            - A list of all ArtifactFileList artifacts.
-            - A list of file artifacts not in ArtifactFileList artifacts.
+        FileArtifactList
+            A list of all file artifacts produced by the specified task.
         """
-        data_artifacts = ArtifactList()
-        filelist_artifacts = ArtifactList()
         file_artifacts = FileArtifactList()
-        # logger.debug(f'Getting artifact collection for produced_by={repr(produced_by)} from history of {len(self.history)} artifacts and current head of {len(self.head)} artifacts.')
-        # for h in self.history:
-        #     logger.debug(f'History artifact: {repr(h)}')
-        # for a in self.head.values():
-        #     logger.debug(f'Current artifact: {repr(a)}')
         if produced_by is None:
             # If no produced_by is specified, use all artifacts in history and head
             my_history = self.history
@@ -140,25 +125,17 @@ class PipelineContext:
         else:
             my_history = self.history.filter_by_produced_by(produced_by=produced_by)
             my_current = self.head.filter_by_produced_by(produced_by=produced_by)
-        # logger.debug(f'Filtered history artifacts: {len(my_history)}')
-        # logger.debug(f'Filtered current artifacts: {len(my_current)}')
-        # history = [h for h in self.history if (not produced_by or h.produced_by == produced_by)]
-        # current = [a for a in self.head.values() if (not produced_by or a.produced_by == produced_by)]
         all_artifacts = my_history + my_current.to_list()
-        # logger.debug(f'Found {len(all_artifacts)} artifacts in the pipeline context for produced_by={repr(produced_by)}.')
         for artifact in all_artifacts:
-            if isinstance(artifact, FileArtifactList):
-                filelist_artifacts.append(artifact)
-            elif isinstance(artifact, FileArtifact):
+            if isinstance(artifact, FileArtifact):
                 file_artifacts.append(artifact)
-            elif isinstance(artifact, StateArtifacts):
-                file_artifacts.extend(artifact.to_list())
-            else:
-                data_artifacts.append(artifact)
+            elif isinstance(artifact, FileArtifactList):
+                file_artifacts.extend(artifact)
+            elif isinstance(artifact, FileArtifactDict):
+                file_artifacts.extend(artifact.values())
+        file_artifacts = file_artifacts.unique_paths()
 
-        # logger.debug(f'Found {len(data_artifacts)} data artifacts, {len(filelist_artifacts)} file list artifacts, and {len(file_artifacts)} file artifacts.')
-
-        return {'data': data_artifacts, 'filelists': filelist_artifacts, 'files': file_artifacts}
+        return FileArtifactList(x for x in file_artifacts if x.exists())
 
     def context_to_string(self) -> str:
         """ 

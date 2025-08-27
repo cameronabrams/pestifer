@@ -159,7 +159,7 @@ class Atom(BaseObj):
                 "segname": args[0].residue.chainID,
                 "empty": False
             }
-        elif args and isinstance(args[0],CIFdict):
+        elif args and isinstance(args[0], CIFdict):
             cifdict = args[0]
             input_dict = dict(
                 serial=int(cifdict['id']),

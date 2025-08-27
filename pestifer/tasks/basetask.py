@@ -20,6 +20,7 @@ from abc import ABC, abstractmethod
 from typing import TYPE_CHECKING
 
 from ..core.artifacts import *
+from ..core.command import Command
 from ..core.resourcemanager import ResourceManager
 from ..core.pipeline import PipelineContext
 
@@ -249,9 +250,9 @@ class BaseTask(ABC):
             A list of artifact files associated with the current task.
         """
         logger.debug(f'Getting artifact file collection for task {repr(self)}')
-        all_my_artifacts = self.pipeline.get_artifact_collection_as_lists(produced_by=self)
-        logger.debug(f'Found {len(all_my_artifacts)} artifacts for task {repr(self)}.')
-        return all_my_artifacts['files']
+        all_my_artifact_files = self.pipeline.get_all_file_artifacts(produced_by=self)
+        logger.debug(f'Found {len(all_my_artifact_files)} artifacts for task {repr(self)}.')
+        return all_my_artifact_files
 
     def register(self, artifact: Artifact | ArtifactList, key: str = None):
         """
@@ -332,40 +333,29 @@ class VMDTask(BaseTask, ABC):
     """
     A base class for tasks that require VMD scripting.
     This class extends the BaseTask class and provides additional functionality for tasks that involve VMD scripting.
-    It includes methods for converting coordinate files to PDB files, converting PDB files to coordinate files, and creating constraint PDB files.
-    The VMDTask class is intended to be subclassed.
+    It includes methods for converting coordinate files to PDB files, converting PDB files to coordinate files, and creating constraint PDB files. The VMDTask class is intended to be subclassed.
     """
 
     def coor_to_pdb(self, coorfilename: str, psffilename: str) -> str:
         """
-        Converts the coordinate file to a PDB file using VMD.
-        This method creates a new VMD script to perform the conversion.
-        It uses the ``namdbin2pdb`` Tcl proc to convert the coordinate file to a PDB file.
-        The resulting PDB file is named based on the task's basename.
+        Converts a namdbin coordinate file to a PDB file using catdcd.
         """
-        vm: VMDScripter = self.get_scripter('vmd')
-        vm.newscript(f'{self.basename}-coor2pdb')
-        vm.addline(f'namdbin2pdb {psffilename} {coorfilename} {self.basename}.pdb')
-        vm.writescript()
-        vm.runscript()
-        self.register(TclScriptArtifact(f'{self.basename}-coor2pdb'))
-        self.register(VMDLogFileArtifact(f'{self.basename}-coor2pdb'))
+        c = Command(f'catdcd -o {self.basename}.pdb -otype pdb -s {psffilename} -stype psf -namdbin {coorfilename}')
+        c.run()
+        with open(f'{self.basename}.pdb', 'r') as f:
+            pdb_lines = f.readlines()
+        with open(f'{self.basename}.pdb', 'w') as f:
+            for line in pdb_lines:
+                if not line.startswith('REMARK') and not line.startswith('CRYST'):
+                    f.write(line)
         return f'{self.basename}.pdb'
 
     def pdb_to_coor(self, pdbfilename: str) -> str:
         """
-        Converts the PDB file to a coordinate file using VMD.
-        This method creates a new VMD script to perform the conversion.
-        It uses the ``pdb2namdbin`` Tcl proc to convert the PDB file to a coordinate file.
-        The resulting coordinate file is named based on the task's basename.
+        Converts a PDB file to a namdbin coordinate file using catdcd.
         """
-        vm: VMDScripter = self.scripters['vmd']
-        vm.newscript(f'{self.basename}-pdb2coor')
-        vm.addline(f'pdb2namdbin {pdbfilename} {self.basename}.coor')
-        vm.writescript()
-        vm.runscript()
-        self.register(TclScriptArtifact(f'{self.basename}-pdb2coor'))
-        self.register(VMDLogFileArtifact(f'{self.basename}-pdb2coor'))
+        c = Command(f'catdcd -o {self.basename}.coor -otype namdbin -stype psf -pdb {pdbfilename}')
+        c.run()
         return f'{self.basename}.coor'
 
     def make_constraint_pdb(self, specs: dict, statekey: str = 'consref'):

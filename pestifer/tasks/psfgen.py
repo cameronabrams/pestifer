@@ -100,7 +100,10 @@ class PsfgenTask(VMDTask):
                     vm.write_pdb(self.basename, 'mCM')
                     vm.writescript()
                     vm.runscript()
-                    self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename), psf=state.psf, xsc=state.xsc))
+                    self.register(StateArtifacts(
+                        pdb=PDBFileArtifact(self.basename), 
+                        psf=state.psf, 
+                        xsc=state.xsc), key='state')
                     for artifact_type in [VMDScriptArtifact, VMDLogFileArtifact]:
                         self.register(artifact_type(self.basename))
 
@@ -175,7 +178,9 @@ class PsfgenTask(VMDTask):
         # register PSF, PDB, log, and all charmmff files in the pipeline context
         for artifact_type in [PsfgenInputScriptArtifact, PsfgenLogFileArtifact]:
             self.register(artifact_type(self.basename))
-        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename, pytestable=True), psf=PSFFileArtifact(self.basename, pytestable=True)))
+        self.register(StateArtifacts(
+            pdb=PDBFileArtifact(self.basename, pytestable=True), 
+            psf=PSFFileArtifact(self.basename, pytestable=True)), key='state')
         self.register(CharmmffTopFileArtifacts([CharmmffTopFileArtifact(x) for x in pg.topologies if x.endswith('.rtf')]), key='charmmff_topfiles')
         self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x) for x in pg.topologies if x.endswith('.str')]), key='charmmff_streamfiles')
         temp_pdb_artifacts = PDBFileArtifactList([PDBFileArtifact(x) for x in pg.F if x.endswith('.pdb')])
@@ -203,7 +208,9 @@ class PsfgenTask(VMDTask):
             for line in lines:
                 if not line.startswith('REMARK'):
                     outfile.write(line)
-        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename, pytestable=True), psf=state.psf))
+        self.register(StateArtifacts(
+            pdb=PDBFileArtifact(self.basename, pytestable=True), 
+            psf=state.psf), key='state')
 
     def declash_segtype(self, specs: dict, segtype='protein'):
         """
@@ -242,7 +249,9 @@ class PsfgenTask(VMDTask):
         vt.write_pdb(self.basename, 'mLL')
         vt.writescript()
         vt.runscript()
-        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename), psf=state.psf))
+        self.register(StateArtifacts(
+            pdb=PDBFileArtifact(self.basename), 
+            psf=state.psf), key='state')
         for artifact_type in [VMDScriptArtifact,  VMDLogFileArtifact]:
             self.register(artifact_type(self.basename))
 
@@ -277,7 +286,9 @@ class PsfgenTask(VMDTask):
         vt.writescript()
         logger.debug(f'Declashing {nna} nucleic acid loops')
         vt.runscript(progress_title='declash-nucleic-acid-loops')
-        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename), psf=state.psf))
+        self.register(StateArtifacts(
+            pdb=PDBFileArtifact(self.basename), 
+            psf=state.psf), key='state')
         for artifact_type in [VMDScriptArtifact, VMDLogFileArtifact]:
             self.register(artifact_type(self.basename))
 
@@ -388,7 +399,9 @@ class PsfgenTask(VMDTask):
         vt.writescript()
         logger.debug(f'Declashing {nglycan} glycans')
         vt.runscript(progress_title='declash-glycans')
-        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename), psf=state.psf))
+        self.register(StateArtifacts(
+            pdb=PDBFileArtifact(self.basename), 
+            psf=state.psf), key='state')
         for artifact_type in [VMDScriptArtifact, VMDLogFileArtifact]:
             self.register(artifact_type(self.basename))
 

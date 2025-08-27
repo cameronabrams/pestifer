@@ -24,7 +24,6 @@ class ContinuationTask(PsfgenTask):
         self.next_basename()
         # must have psf, either coor or pdb
         psf: str = self.specs.get('psf', '')
-        # self.register(PSFFileArtifact(psf.replace('.psf','')))
         # must have either coor or pdb
         coor: str = self.specs.get('coor','')
         pdb: str = self.specs.get('pdb','')
@@ -67,7 +66,8 @@ class ContinuationTask(PsfgenTask):
                                      pdb=PDBFileArtifact(pdb),
                                      coor=NAMDCoorFileArtifact(coor),
                                      xsc=NAMDXscFileArtifact(xsc) if xsc else None,
-                                     vel=NAMDVelFileArtifact(vel) if vel else None))
+                                     vel=NAMDVelFileArtifact(vel) if vel else None), 
+                                     key='state')
         self.update_molecule()
         self.result = 0
         return self.result

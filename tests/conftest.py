@@ -10,12 +10,16 @@ logging.getLogger("pidibble").setLevel(logging.WARNING)
 logging.getLogger("ycleptic").setLevel(logging.WARNING)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
-from logging import FileHandler, Formatter
+from logging import FileHandler, Formatter, StreamHandler
 from pathlib import Path
 
 # Keep a reference so we can clean up
 _FILE_HANDLER: FileHandler | None = None
+_CONSOLE_HANDLER: StreamHandler | None = None
 _LOGFILE: Path | None = None
+
+pytest_plugins = ["pestifer.util.pytest_plugin"]
+
 
 @pytest.fixture(autouse=True)
 def change_test_dir(request, monkeypatch):
@@ -45,7 +49,7 @@ def pytest_addoption(parser):
 
 def pytest_configure(config):
     """Runs very early; attach our FileHandler to the root logger."""
-    global _FILE_HANDLER, _LOGFILE
+    global _FILE_HANDLER, _LOGFILE, _CONSOLE_HANDLER
 
     # repo root; adjust if your conftest.py lives elsewhere
     root = Path(config.rootpath)
@@ -57,14 +61,23 @@ def pytest_configure(config):
     _LOGFILE = logdir / f"tests-{worker}.log"
 
     fh = FileHandler(_LOGFILE, mode="w", encoding="utf-8", delay=False)
+    fh.setLevel(logging.DEBUG)
     fh.setFormatter(Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s",
                               "%Y-%m-%d %H:%M:%S"))
     fh._pytest_added = True  # tag for cleanup
     _FILE_HANDLER = fh
 
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.DEBUG)   # adjust to taste
+    root_logger.setLevel(logging.INFO)   # adjust to taste
     root_logger.addHandler(fh)
+
+    ch = StreamHandler()
+    ch.setLevel(logging.INFO)
+    ch.setFormatter(Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s",
+                              "%Y-%m-%d %H:%M:%S"))
+    ch._pytest_added = True  # tag for cleanup
+    _CONSOLE_HANDLER = ch
+    root_logger.addHandler(ch)
 
     # Optional: announce path at start
     config._logfile_path = str(_LOGFILE)
@@ -73,7 +86,7 @@ def pytest_configure(config):
 
 def pytest_unconfigure(config):
     """Remove and close our handler cleanly."""
-    global _FILE_HANDLER
+    global _FILE_HANDLER, _CONSOLE_HANDLER
     if _FILE_HANDLER:
         root_logger = logging.getLogger()
         try:
@@ -84,6 +97,10 @@ def pytest_unconfigure(config):
             except Exception:
                 pass
         _FILE_HANDLER = None
+    if _CONSOLE_HANDLER:
+        root_logger = logging.getLogger()
+        root_logger.removeHandler(_CONSOLE_HANDLER)
+        _CONSOLE_HANDLER = None
 
 def pytest_report_header(config):
     p = getattr(config, "_logfile_path", None)

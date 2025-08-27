@@ -45,6 +45,26 @@ tasks:
       steer:
         force_constant: 10
         nsteps: 6000
+  - validate:
+      tests:
+        - attribute_test:
+            name: point mutation
+            selection: protein and chain A C E and resid 469 and name CA
+            attribute: resname
+            value: ALA
+            value_count: 3
+        - attribute_test:
+            name: point mutation
+            selection: protein and chain B D F and resid 48 and name CA
+            attribute: resname
+            value: ILE
+            value_count: 3
+        - attribute_test:
+            name: point mutation
+            selection: protein and chain B D F and resid 94 and name CA
+            attribute: resname
+            value: THR
+            value_count: 3
   - md:
       ensemble: minimize
       nsteps: 3000

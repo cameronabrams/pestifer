@@ -58,8 +58,7 @@ class MDPlotSubcommand(Subcommand):
         )
         C.tasks[0].taskname = args.basename
         report = C.do_tasks()
-        all_artifacts = C.pipeline.get_artifact_collection_as_lists()
-        all_fileartifacts = all_artifacts['files']
+        all_fileartifacts = C.pipeline.get_all_file_artifacts()
         logger.debug(f'{len(all_fileartifacts)} file artifacts found:')
         artifact_keys = set([art.key for art in all_fileartifacts])
         chk=0

@@ -861,6 +861,9 @@ class BaseObjList(UserList[T], Generic[T], metaclass=GenericListMeta):
         
         """
         bins = self.binnify(fields=fields)
+        for b, v in bins.items():
+            if len(v) > 1:
+                logger.debug(f'puniquify: bin {b} has {len(v)} items: {v}')
         return len(bins) == len(self)
 
     def puniquify(self, attrs: list[str] = [], stash_attr_name: str = 'ORIGINAL_ATTRIBUTES') -> None:

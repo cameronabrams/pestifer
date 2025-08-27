@@ -105,7 +105,7 @@ class SolvateTask(VMDTask):
             return self.result
         psf1 = PSFFileArtifact(f'{self.basename}_solv.psf')
         pdb1 = PDBFileArtifact(f'{self.basename}_solv.pdb')
-        self.register(StateArtifacts(psf=psf1, pdb=pdb1, xsc=xsc))
+        self.register(StateArtifacts(psf=psf1, pdb=pdb1, xsc=xsc), key='state')
         self.pdb_to_coor(f'{self.basename}.pdb')
-        self.register(StateArtifacts(pdb=PDBFileArtifact(f'{self.basename}', pytestable=True), coor=NAMDCoorFileArtifact(f'{self.basename}'), psf=PSFFileArtifact(f'{self.basename}', pytestable=True), xsc=xsc))
+        self.register(StateArtifacts(pdb=PDBFileArtifact(f'{self.basename}', pytestable=True), coor=NAMDCoorFileArtifact(f'{self.basename}'), psf=PSFFileArtifact(f'{self.basename}', pytestable=True), xsc=xsc), key='state')
         return self.result

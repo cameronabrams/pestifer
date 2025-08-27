@@ -4,6 +4,41 @@
 A class for handling artifacts in the Pestifer core. Artifacts are files or 
 data generated during the execution of tasks and are managed by the 
 :class:`~pestifer.core.pipeline.PipelineContext`.
+
+Tasks are the primary creators of Artifacts, and the pipeline context is responsible for managing their lifecycles.
+Any task may create and register an Artifact.  All tasks have a ``register`` method that interfaces with the pipeline to register an Artifact, and a ``get_current_artifact`` method to retrieve an Artifact by its key. 
+
+All Artifacts must have a "key" that the pipeline uses to track them.  A key value is normally created when an Artifact is created:
+
+.. code-block::python
+
+  artifact = Artifact(data=my_data, key="my_artifact_key")
+  self.register(artifact)
+
+Any artifact can be retrieved from the pipeline context, in a later task, say, using its key:
+
+.. code-block::python
+
+  retrieved_artifact = self.get_current_artifact("my_artifact_key")
+
+Containers of Artifacts can also be registered and retrieved.  However, importantly, Artifact containers do not have a single ``key`` attribute.  A key is associated with an Artifact container when a task calls its register method:
+
+.. code-block::python
+
+  artifact_container = ArtifactDict(a1=Artifact(data=my_data, key="my_artifact_key"), a2=Artifact(data=my_data2, key="my_artifact_key2"))
+  self.register(artifact_container, key='my_artifact_container_key')
+
+Artifact containers allow for groups of artifacts to be associated with a single key, making it easier to manage related artifacts, and to separate them from other artifacts in the pipeline.
+
+The data in an artifact can be any object, but most useful are Paths.  Artifacts with data that are Paths are called FileArtifacts.  When a task creates a file, it is a good idea to create a FileArtifact and register it.
+
+.. code-block::python
+
+  file_artifact = FileArtifact(data=file_path, key="my_file_artifact_key")
+  self.register(file_artifact)
+
+This is how the pipeline is used to "pass" files from one task to any other.  Because each Artifact's registration associates it with a specific task instance, later tasks can query the pipeline for artifacts created by previous tasks using their keys and task ids.
+
 """
 from __future__ import annotations
 from abc import ABC, abstractmethod
@@ -36,9 +71,18 @@ class Artifact():
     key: str | None = None
     """ A unique identifier for the artifact. """
     produced_by: object | None = None
-    """ The task or process that generated the artifact. """    
+    """ The task that generated the artifact. """    
     provenance: list[object] = field(default_factory=list)
-    """ A list of objects that contributed to the creation of the artifact, ordered chronologically. """
+    """ A list of tasks that registered the artifact, ordered chronologically. """
+
+    def __repr__(self) -> str:
+        retstr = f'Artifact(key=\'{self.key}\', produced_by=\'{self.produced_by}\', type(data)={type(self.data)})'
+        return retstr
+    
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Artifact):
+            return False
+        return self.key == other.key and self.data == other.data
 
     def has_stamp(self) -> bool:        
         """
@@ -62,19 +106,15 @@ class Artifact():
             The owner of the artifact, which can be any object that produced this artifact.
         """
         if owner is None:
-            raise ValueError("Owner must not be None.")
-    
+            raise ValueError(f"Owner of {repr(self)} (type {type(self)}) must not be None.")
+
         if self.has_stamp():
             if self.produced_by is owner:
-                logger.debug(f"Artifact {self.key} is already stamped by {repr(self.produced_by)}. No need to override.")
                 return self
-            logger.debug(f"Artifact {self.key} is already stamped by {repr(self.produced_by)}. Overriding with new owner {repr(owner)}.")
-        self.provenance.append(self.produced_by)
+            logger.debug(f"Stamping {repr(self)} (type {type(self)}) with {repr(owner)}.")
+        if self.produced_by is not None:
+            self.provenance.append(self.produced_by)
         self.produced_by = owner
-        for attr_name, attr_value in self.__dict__.items():
-            if isinstance(attr_value, Artifact):
-                logger.debug(f"Stamping member Artifact {attr_name} {type(attr_value)} of artifact {self.key} ")
-                attr_value.stamp(owner)
         return self
 
 @dataclass
@@ -84,12 +124,11 @@ class DataArtifact(Artifact):
     """
     description: str | None = None
 
-@dataclass
-class ArtifactList(UserList, Artifact):
+class ArtifactList(UserList[Artifact]):
     """
     A list of Artifacts.
     """
-    data: list[Artifact] = field(default_factory=list)
+    # data: UserList[Artifact] = []
 
     @classmethod
     def from_dict(cls, artifact_dict: ArtifactDict) -> ArtifactList:
@@ -99,8 +138,6 @@ class ArtifactList(UserList, Artifact):
         artifact_list = cls()
         for artifact in artifact_dict.values():
             artifact_list.append(artifact)
-        artifact_list.produced_by = artifact_dict.produced_by
-        artifact_list.key = artifact_dict.key
         return artifact_list
     
     def to_dict(self) -> ArtifactDict:
@@ -123,13 +160,8 @@ class ArtifactList(UserList, Artifact):
         ArtifactList
             The artifact list with all artifacts stamped with the owner information.
         """
-        if owner is None:
-            raise ValueError("Owner must not be None.")
-        self.produced_by = owner
         for artifact in self.data:
-            if not isinstance(artifact, Artifact):
-                raise TypeError(f'Expected Artifact, got {type(artifact)}')
-            artifact.stamp(owner)
+           artifact.stamp(owner)
         return self
 
     def filter_by_produced_by(self, produced_by: object) -> ArtifactList:
@@ -147,12 +179,8 @@ class ArtifactList(UserList, Artifact):
             A new ArtifactList containing only the artifacts produced by the specified task.
 
         """
-        filtered_list = ArtifactList()
-        filtered_list.key = self.key
-        filtered_list.produced_by = produced_by
-        filtered_list.data = [artifact for artifact in self.data if artifact.produced_by == produced_by]
-        return filtered_list
-    
+        return ArtifactList([artifact for artifact in self.data if artifact.produced_by == produced_by])
+
     def filter_by_artifact_type(self, artifact_type: type[Artifact]) -> ArtifactList:
         """
         Filter the artifact list by the type of artifacts.
@@ -168,12 +196,8 @@ class ArtifactList(UserList, Artifact):
             A new ArtifactList containing only the artifacts of the specified type.
 
         """
-        filtered_list = ArtifactList()
-        filtered_list.key = self.key
-        filtered_list.produced_by = self.produced_by
-        filtered_list.data = [artifact for artifact in self.data if isinstance(artifact, artifact_type)]
-        return filtered_list
-
+        return ArtifactList([artifact for artifact in self.data if isinstance(artifact, artifact_type)])
+    
     def filter_by_key(self, key: str) -> ArtifactList:
         """
         Filter the artifact list by the key of artifacts.
@@ -189,18 +213,20 @@ class ArtifactList(UserList, Artifact):
             A new ArtifactList containing only the artifacts with the specified key.
 
         """
-        filtered_list = ArtifactList()
-        filtered_list.key = self.key
-        filtered_list.produced_by = self.produced_by
-        filtered_list.data = [artifact for artifact in self.data if artifact.key == key]
-        return filtered_list
+        return ArtifactList([artifact for artifact in self.data if artifact.key == key])
 
-@dataclass
-class ArtifactDict(UserDict, Artifact):
+    @property
+    def produced_by(self) -> object | None:
+        """ The object that produced the artifact. Take it from the produced_by attribute of the first artifact in the data."""
+        if len(self.data) == 0:
+            return None
+        else:
+            return self.data[0].produced_by
+
+class ArtifactDict(UserDict[str, Artifact]):
     """
     Dictionary of Artifacts.
     """
-    data: dict[str, Artifact] = field(default_factory=dict)
 
     @classmethod
     def from_list(cls, artifact_list: ArtifactList) -> ArtifactDict:
@@ -210,8 +236,6 @@ class ArtifactDict(UserDict, Artifact):
         artifact_dict = cls()
         for artifact in artifact_list:
             artifact_dict[artifact.key] = artifact
-        artifact_dict.produced_by = artifact_list.produced_by
-        artifact_dict.key = artifact_list.key
         return artifact_dict
     
     def to_list(self) -> ArtifactList:
@@ -234,12 +258,9 @@ class ArtifactDict(UserDict, Artifact):
         ArtifactDict
             The artifact dictionary with all artifacts stamped with the owner information.
         """
-        if owner is None:
-            raise ValueError("Owner must not be None.")
-        self.produced_by = owner
+        # if owner is None:
+        #     raise ValueError("Owner must not be None.")
         for artifact in self.data.values():
-            if not isinstance(artifact, Artifact):
-                raise TypeError(f'Expected Artifact, got {type(artifact)}')
             artifact.stamp(owner)
         return self
     
@@ -266,13 +287,15 @@ class ArtifactDict(UserDict, Artifact):
         ArtifactDict
             A new ArtifactDict containing only the artifacts produced by the specified producer.
         """
-        filtered_dict = ArtifactDict()
-        filtered_dict.key = self.key
-        filtered_dict.produced_by = produced_by
-        for key, artifact in self.data.items():
-            if artifact.produced_by == produced_by:
-                filtered_dict[key] = artifact
-        return filtered_dict
+        return ArtifactDict({key: artifact for key, artifact in self.data.items() if artifact.produced_by == produced_by})
+    
+    @property
+    def produced_by(self) -> object | None:
+        """ The object that produced the artifact. Take it from the produced_by attribute of the first artifact in the data."""
+        if len(self.data) == 0:
+            return None
+        else:
+            return list(self.data.values())[0].produced_by
 
 @dataclass
 class FileArtifact(Artifact, ABC):
@@ -315,11 +338,25 @@ class FileArtifact(Artifact, ABC):
         """ The file path of the file artifact. """
         return Path(self.name)
 
+    def __repr__(self) -> str:
+        restr = f"FileArtifact(name={self.name}, produced_by={self.produced_by}"
+        if self.pytestable:
+            restr += f" *pytestable*"
+        restr += ")"
+        return restr
+
     def exists(self) -> bool:
         """
         Check if the file artifact exists.
         """
         return self.path.exists()
+
+    def remove(self) -> None:
+        """
+        Remove the file artifact.
+        """
+        if self.exists():
+            self.path.unlink()
 
     def validate(self):
         """
@@ -358,11 +395,9 @@ class FileArtifact(Artifact, ABC):
                 return f'other (type {type(other)}) is not pytestable'
             if other.mime_type == 'application/octet-stream':
                 return f'Cannot compare binary files' # only compare text files
-
-        if isinstance(other, Path):
-            other_path = other
-        else:
             other_path = other.path
+        else:
+            other_path = other
 
         a = self.path.read_text().splitlines(keepends=True)
         b = other_path.read_text().splitlines(keepends=True)
@@ -374,26 +409,14 @@ class FileArtifact(Artifact, ABC):
     def compare(self, other: FileArtifact | Path) -> bool:
         return self.diff(other) == ''
 
-@dataclass
-class FileArtifactDict(ArtifactDict):
-    data: dict[str, FileArtifact] = field(default_factory=dict)
+class FileArtifactDict(ArtifactDict[str, FileArtifact]):
+    
+    data: dict[str, FileArtifact] = {}
 
-@dataclass
-class FileArtifactList(ArtifactList):
-    data: list[FileArtifact] = field(default_factory=list)
 
-    def append(self, item: FileArtifact) -> None:
-        """
-        Append a FileArtifact to the list.
+class FileArtifactList(ArtifactList[FileArtifact]):
 
-        Raises
-        ------
-        TypeError
-            If the item is not a FileArtifact.
-        """
-        if not isinstance(item, FileArtifact):
-            raise TypeError(f"Expected FileArtifact, got {type(item)}")
-        super().append(item)
+    data: list[FileArtifact] = []
 
     def all_exist(self) -> bool:
         """
@@ -407,9 +430,9 @@ class FileArtifactList(ArtifactList):
         """
         return [artifact.path for artifact in self.data]
 
-    def unique_paths(self) -> list[Path]:
+    def unique_paths(self) -> FileArtifactList:
         """
-        Get a list of unique file paths from the artifact files.  If two matching artifacts are found, the one that is kept is the one with pytestable set, if any.
+        Reduce the list so that all paths are unique.
         """
         unique = FileArtifactList()
         for artifact in self.data:
@@ -424,6 +447,7 @@ class FileArtifactList(ArtifactList):
                         if artifact.pytestable:
                             unique.remove(matching[0])
                             unique.append(artifact)
+                            logger.debug(f"Uniquify: {matching[0]} -> {artifact}")
         return unique
 
     def make_tarball(self, basename: str, remove: bool = False, arcname_prefix: str = None, unique: bool = False):
@@ -465,8 +489,8 @@ class FileArtifactList(ArtifactList):
             for a in remove_artifacts:
                 self.remove(a)
 
-@dataclass
-class StateArtifacts(Artifact):
+# @dataclass
+class StateArtifacts(FileArtifactDict):
     """
     Compound artifact holding congruent PSF/COOR/PDB/VEL files and XSC files 
     corresponding to the same state.
@@ -475,27 +499,51 @@ class StateArtifacts(Artifact):
     """ The key identifying the state artifacts; 'state' by default. """
     description: str = "Set of congruent topology/coordinate/system files"
     """ A brief description of the state artifacts. """
-    psf: PSFFileArtifact | None = None
-    """ The PSF file artifact. """
-    pdb: PDBFileArtifact | None = None
-    """ The PDB file artifact. """
-    coor: NAMDCoorFileArtifact | None = None
-    """ The coordinate file artifact. """
-    vel: NAMDVelFileArtifact | None = None
-    """ The velocity file artifact. """
-    xsc: NAMDXscFileArtifact | None = None
-    """ The XSC file artifact. """
 
-    def to_list(self) -> list[FileArtifact]:
+    def __init__(self, *args, **kwargs):
+        self.data.clear()
+        for key, value in kwargs.items():
+            if not key in ['pdb', 'psf', 'coor', 'vel', 'xsc']:
+                raise ValueError(f"Invalid key '{key}' for StateArtifacts; expected one of ['pdb', 'psf', 'coor', 'vel', 'xsc']")
+            if value is not None:
+                if not type(value) in [PDBFileArtifact, PSFFileArtifact, NAMDCoorFileArtifact, NAMDVelFileArtifact, NAMDXscFileArtifact]:
+                    raise TypeError(f"Invalid value '{value}' for StateArtifacts; expected one of [PDBFileArtifact, PSFFileArtifact, NAMDCoorFileArtifact, NAMDVelFileArtifact, NAMDXscFileArtifact]")
+                self.data[key] = value
+
+    @property
+    def psf(self) -> PSFFileArtifact | None:
         """
-        Convert the state artifacts to a list of file artifacts, excluding
-        any None's.
+        Get the PSF file artifact.
         """
-        return_me = []
-        for artifact in [self.psf, self.pdb, self.coor, self.vel, self.xsc]:
-            if artifact is not None:
-                return_me.append(artifact)
-        return return_me
+        return self.data.get("psf", None)
+
+    @property
+    def pdb(self) -> PDBFileArtifact | None:
+        """
+        Get the PDB file artifact.
+        """
+        return self.data.get("pdb", None)
+
+    @property
+    def coor(self) -> NAMDCoorFileArtifact | None:
+        """
+        Get the coordinate file artifact.
+        """
+        return self.data.get("coor", None)
+
+    @property
+    def vel(self) -> NAMDVelFileArtifact | None:
+        """
+        Get the velocity file artifact.
+        """
+        return self.data.get("vel", None)
+
+    @property
+    def xsc(self) -> NAMDXscFileArtifact | None:
+        """
+        Get the XSC file artifact.
+        """
+        return self.data.get("xsc", None)
 
 @dataclass
 class TXTFileArtifact(FileArtifact):
@@ -531,50 +579,47 @@ class CharmmffStreamFileArtifact(TXTFileArtifact):
     ext: str = 'str'
     # stream: str = ''
 
-@dataclass
 class CharmmffTopFileArtifacts(FileArtifactList):
     """
     A collection of CHARMM force field topology file artifacts.
     """
     description: str = "CHARMM force field topology files"
     
-    def append(self, item: CharmmffTopFileArtifact) -> None:
-        """
-        Append a CHARMM force field topology file artifact to the collection.
-        """
-        if not isinstance(item, CharmmffTopFileArtifact):
-            raise TypeError(f"Expected CharmmffTopFileArtifact, got {type(item)}")
-        super().append(item)
+    # def append(self, item: CharmmffTopFileArtifact) -> None:
+    #     """
+    #     Append a CHARMM force field topology file artifact to the collection.
+    #     """
+    #     if not isinstance(item, CharmmffTopFileArtifact):
+    #         raise TypeError(f"Expected CharmmffTopFileArtifact, got {type(item)}")
+    #     super().append(item)
 
-@dataclass
 class CharmmffParFileArtifacts(FileArtifactList):
     """
     A collection of CHARMM force field parameter file artifacts.
     """
     description: str = "CHARMM force field parameter files"
 
-    def append(self, item: CharmmffParFileArtifact) -> None:
-        """
-        Append a CHARMM force field parameter file artifact to the collection.
-        """
-        if not isinstance(item, CharmmffParFileArtifact):
-            raise TypeError(f"Expected CharmmffParFileArtifact, got {type(item)}")
-        super().append(item)
+    # def append(self, item: CharmmffParFileArtifact) -> None:
+    #     """
+    #     Append a CHARMM force field parameter file artifact to the collection.
+    #     """
+    #     if not isinstance(item, CharmmffParFileArtifact):
+    #         raise TypeError(f"Expected CharmmffParFileArtifact, got {type(item)}")
+    #     super().append(item)
 
-@dataclass
 class CharmmffStreamFileArtifacts(FileArtifactList):
     """
     A collection of CHARMM force field stream file artifacts.
     """
     description: str = "CHARMM force field stream files"
 
-    def append(self, item: CharmmffStreamFileArtifact) -> None:
-        """
-        Append a CHARMM force field stream file artifact to the collection.
-        """
-        if not isinstance(item, CharmmffStreamFileArtifact):
-            raise TypeError(f"Expected CharmmffStreamFileArtifact, got {type(item)}")
-        super().append(item)
+    # def append(self, item: CharmmffStreamFileArtifact) -> None:
+    #     """
+    #     Append a CHARMM force field stream file artifact to the collection.
+    #     """
+    #     if not isinstance(item, CharmmffStreamFileArtifact):
+    #         raise TypeError(f"Expected CharmmffStreamFileArtifact, got {type(item)}")
+    #     super().append(item)
 
 @dataclass
 class YAMLFileArtifact(TXTFileArtifact):
@@ -626,6 +671,7 @@ class NAMDLogFileArtifact(LogFileArtifact):
     """
     description: str = "Log file for NAMD execution"
 
+@dataclass
 class VMDLogFileArtifact(LogFileArtifact):
     """
     A VMD log file artifact.
@@ -696,15 +742,15 @@ class PDBFileArtifact(TXTFileArtifact):
     ext: str = 'pdb'
     
     def compare(self, other: PDBFileArtifact | Path):
+        """ A specific comparison method for pairs of PDB files.  Name-by-name
+        congruency of atom list is checked, excluding all waters.
+        """
         if not isinstance(other, PDBFileArtifact | Path) or not self.pytestable:
-            raise TypeError(f"Expected PDBFileArtifact, got {type(other)}")
-        if isinstance(other, Path):
-            other_name = other.name
-        else:
-            other_name = other.name
+            raise TypeError(f"Expected PDBFileArtifact or Path, got {type(other)}")
+        
         # Compare the two PDB file artifacts
         my_struct = PDBParser(filepath=self.name).parse().parsed
-        other_struct = PDBParser(filepath=other_name).parse().parsed
+        other_struct = PDBParser(filepath=other.name).parse().parsed
         my_atoms = AtomList.from_pdb(my_struct)
         other_atoms = AtomList.from_pdb(other_struct)
         # check congrency by atoms, allow for variance in number of waters
@@ -713,20 +759,19 @@ class PDBFileArtifact(TXTFileArtifact):
         by_names = all(x.name==y.name for x,y in zip(my_non_waters, other_non_waters))
         return by_names
 
-@dataclass
 class PDBFileArtifactList(FileArtifactList):
     """
     A list of PDB file artifacts.
     """
     description: str = "List of PDB files"
 
-    def append(self, item: PDBFileArtifact) -> None:
-        """
-        Append a PDB file artifact to the list.
-        """
-        if not isinstance(item, PDBFileArtifact):
-            raise TypeError(f"Expected PDBFileArtifact, got {type(item)}")
-        super().append(item)
+    # def append(self, item: PDBFileArtifact) -> None:
+    #     """
+    #     Append a PDB file artifact to the list.
+    #     """
+    #     if not isinstance(item, PDBFileArtifact):
+    #         raise TypeError(f"Expected PDBFileArtifact, got {type(item)}")
+    #     super().append(item)
 
 @dataclass
 class CIFFileArtifact(TXTFileArtifact):
@@ -751,9 +796,11 @@ class PSFFileArtifact(TXTFileArtifact):
     """
     description: str = "PSF file"
     ext: str = 'psf'
-    
 
     def compare(self, other: PSFFileArtifact | Path) -> bool:
+        """
+        A specific comparison method for pairs of PSF files.  Waters are ignored.
+        """
         if not isinstance(other, PSFFileArtifact | Path):
             raise TypeError(f"Expected PSFFileArtifact, got {type(other)}")
         # Compare the two PSF file artifacts
@@ -786,6 +833,10 @@ class NAMDConfigFileArtifact(TclScriptArtifact):
     ext: str = 'namd'
 
     def compare(self, other: NAMDConfigFileArtifact | Path) -> bool:
+        """
+        A specific comparison method for NAMD Config files created by Pestifer.
+        Creation time-stamps are ignored.
+        """
         patchlist = PatchSet(self.diff(other).splitlines())
         if len(patchlist) == 0:
             return True

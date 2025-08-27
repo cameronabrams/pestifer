@@ -16,7 +16,7 @@ class Case:
 PKG_NAME = "pestifer"                   # your package import name
 CASES_DIR = ("resources", "examples")  # default discovery root: pkg/testdata/cases/
 
-pytest_plugins = ["pestifer.util.pytest_plugin"]
+# pytest_plugins = ["pestifer.util.pytest_plugin"]
 
 def _default_cases_root() -> Path:
     base = ir.files(PKG_NAME)

@@ -96,31 +96,17 @@ class TerminateTask(MDTask):
             logger.debug('Cleanup disabled; skipping cleanup step.')
             return 0
         archive_dir = self.specs.get('archive_dir', 'archive')  
-        ArtifactContents = FileArtifactList()
 
-        all_my_artifacts = self.pipeline.get_artifact_collection_as_lists()
-        file_artifacts = all_my_artifacts['files']
-        filelist_artifacts = all_my_artifacts['filelists']
+        ArtifactContents = self.pipeline.get_all_file_artifacts()
 
-        all_artifact_files = []
-        for file_artifact in file_artifacts:
-            if not file_artifact.name in all_artifact_files and file_artifact.exists():
-                all_artifact_files.append(file_artifact.name)
-                ArtifactContents.append(file_artifact)
-        for artifact in filelist_artifacts:
-            for file_artifact in artifact:
-                if not file_artifact.name in all_artifact_files and file_artifact.exists():
-                    all_artifact_files.append(file_artifact.name)
-                    ArtifactContents.append(file_artifact)
-
-        all_artifact_files.sort()
+        ArtifactContents.sort(key=lambda x: x.name)
         # logger.debug(f'All artifact files: {all_artifact_files}')
 
         non_artifact_files = []
         cwd_files = os.listdir('.')
         # logger.debug(f'Current working directory files: {cwd_files}')
         for f in cwd_files:
-            if f not in all_artifact_files:
+            if f not in ArtifactContents:
                 non_artifact_files.append(f)
 
         logger.debug(f'Non-artifact files in current working directory: {non_artifact_files}')

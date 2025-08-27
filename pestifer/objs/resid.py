@@ -134,9 +134,9 @@ class ResID(BaseObj):
         If the other object is a ResID, it adds the residue sequence numbers.
         """
         if isinstance(other, ResID):
-            return ResID(resseqnum=self.resseqnum + other.resseqnum, insertion=None)
+            return ResID(resseqnum=self.resseqnum + other.resseqnum, insertion=self.insertion)
         elif isinstance(other, int):
-            return ResID(resseqnum=self.resseqnum + other)
+            return ResID(resseqnum=self.resseqnum + other, insertion=self.insertion)
 
     def increment(self, by_seqnum: bool = False) -> ResID:
         """

@@ -456,6 +456,7 @@ class Residue(ResiduePlaceholder):
             return input_dict
         elif args and isinstance(args[0], Atom | Hetatm):
             a = args[0]
+            # logger.debug(f'Adapting Atom {str(a)} to Residue (resid={a.resid})')
             input_dict = dict(resname=a.resname,
                               resid=a.resid, chainID=a.chainID,
                               asym_chainID=a.chainID,

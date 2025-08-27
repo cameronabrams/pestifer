@@ -71,19 +71,6 @@ class MDPlotTask(BaseTask):
             logger.debug(f'Extracting data from prior tasks: {[pt.index for pt in self.priortasklist]}')
             for pt in self.priortasklist:
                 logger.debug(f'Extracting data from prior task {pt.taskname}-{pt.index}')
-                # namdlog_artifacts = pt.get_my_artifactfile_collection().filter_by_artifact_type(NAMDLogFileArtifact)
-                # for na in namdlog_artifacts.data:
-                #     if not na.exists():
-                #         raise FileNotFoundError(f'NAMD log file {na.path} does not exist.')
-                #     logger.debug(f'Extracting data from {na.name}')
-                #     the_log = NAMDLogParser.from_file(na.name)
-                #     csvs_generated = the_log.write_csv()
-                #     logger.debug(f'CSV keys generated: {csvs_generated}')
-                #     for key in csvs_generated:
-                #         artifact = CSVDataFileArtifact(csvs_generated[key])
-                #         if artifact.exists():
-                #             pt.register(artifact, key=f'{key}-csv')
-
                 artifactfile_collection = pt.get_my_artifactfile_collection().filter_by_artifact_type(CSVDataFileArtifact)
                 for pt_artifact in artifactfile_collection:
                     self.csvartifacts.append(pt_artifact)

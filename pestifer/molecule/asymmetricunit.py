@@ -206,6 +206,8 @@ class AsymmetricUnit:
         if sourcespecs.get('cif_residue_map_file', ''):
             write_residue_map(residues.cif_residue_map(), sourcespecs['cif_residue_map_file'])
         residues.apply_segtypes()
+        # for r in residues:
+        #     logger.debug(str(r))
         # apply seqmods
         if 'deletions' in seqmods:
             residues.deletion(seqmods['deletions'])

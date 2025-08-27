@@ -315,7 +315,7 @@ class PsfgenScripter(VMDScripter):
                 if b.num_items() >= min_loop_length and not b in [segment.subsegments[0], segment.subsegments[-1]]:
                     lrr = segment.residues[b.bounds[1]]
                     sac_resid = lrr.resid.increment()
-                    b.sacres = Residue({'resname': sac_rn, 'resid': sac_resid, 'chainID': seglabel, 'segtype': segtype, 'resolved': False, 'atoms': AtomList([])})
+                    b.sacres = Residue({'resname': sac_rn, 'resid': sac_resid, 'chainID': seglabel, 'segtype': segtype, 'segname': seglabel, 'resolved': False, 'atoms': AtomList([])})
                     logger.debug(f'Adding sac residue {str(b.sacres)}')
                     self.addline(f'residue {sac_resid.resid} {sac_rn} {image_seglabel}', indents=1)
         for cf in seg_Cfusions.data:

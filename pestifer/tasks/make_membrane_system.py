@@ -219,8 +219,8 @@ class MakeMembraneSystemTask(BaseTask):
         cell_to_xsc(patch.box, patch.origin, f'{self.basename}.xsc')
         patch.area = patch.box[0][0] * patch.box[1][1]
         self.register(StateArtifacts(
-                        psf=PSFFileArtifact(self.basename), 
-                        pdb=PDBFileArtifact(self.basename), 
+                        psf=PSFFileArtifact(self.basename, pytestable=True), 
+                        pdb=PDBFileArtifact(self.basename, pytestable=True), 
                         xsc=NAMDXscFileArtifact(self.basename)), 
                         key=f'{bilayer_name}_state')
         for at in [PsfgenInputScriptArtifact, PsfgenLogFileArtifact]:
@@ -262,7 +262,7 @@ class MakeMembraneSystemTask(BaseTask):
         logger.debug(f'{self.basename} packmol result {result}')
         if result != 0:
             raise Exception(f'Packmol failed with result {result}')
-        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename)), key=f'{patch_name}_state')
+        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename, pytestable=True)), key=f'{patch_name}_state')
         for at in [PackmolInputScriptArtifact, PackmolLogFileArtifact]:
             self.register(at(self.basename))
 
@@ -415,7 +415,10 @@ class MakeMembraneSystemTask(BaseTask):
         if result != 0:
             raise RuntimeError(f'psfgen failed with result {result} for {self.basename}')
         self.register(PsfgenLogFileArtifact(self.basename))
-        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename), psf=PSFFileArtifact(self.basename), xsc = NAMDXscFileArtifact(self.basename)), key='quilt_state')
+        self.register(StateArtifacts(
+            pdb=PDBFileArtifact(self.basename, pytestable=True), 
+            psf=PSFFileArtifact(self.basename, pytestable=True), 
+            xsc=NAMDXscFileArtifact(self.basename)), key='quilt_state')
         self.quilt = Bilayer()
         self.quilt.addl_streamfiles = additional_topologies
         self.quilt.box, self.quilt.origin = cell_from_xsc(f'{self.basename}.xsc')
@@ -469,7 +472,10 @@ class MakeMembraneSystemTask(BaseTask):
         if result != 0:
             raise RuntimeError(f'psfgen failed with result {result} for {self.basename}')
         self.register(PsfgenLogFileArtifact(self.basename))
-        self.register(StateArtifacts(psf=PSFFileArtifact(self.basename), pdb=PDBFileArtifact(self.basename), xsc=NAMDXscFileArtifact(self.basename)), key='state')
+        self.register(StateArtifacts(
+            psf=PSFFileArtifact(self.basename, pytestable=True), 
+            pdb=PDBFileArtifact(self.basename, pytestable=True), 
+            xsc=NAMDXscFileArtifact(self.basename)), key='state')
         logger.debug(f'Embedding completed with result {result}')
         return result
 

@@ -195,11 +195,11 @@ class MDTask(VMDTask):
             result = na.runscript(single_molecule=local_execution_only, local_execution_only=local_execution_only, single_gpu_only=single_gpu_only, cpu_override=cpu_override)
         self.coor_to_pdb(f'{self.basename}.coor', state.psf.name)
         xsc=NAMDXscFileArtifact(self.basename)
-        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename),
+        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename, pytestable=True),
                                      coor=NAMDCoorFileArtifact(self.basename),
                                      vel=NAMDVelFileArtifact(self.basename),
                                      xsc=xsc if xsc.exists() else None, 
-                                     psf=state.psf))  # an md run cannot change the PSF file
+                                     psf=state.psf), key='state')  # an md run cannot change the PSF file
         for at in [NAMDDcdFileArtifact, NAMDXstFileArtifact, NAMDLogFileArtifact, NAMDColvarsTrajectoryArtifact, NAMDColvarsStateArtifact]:
             artifact: FileArtifact = at(self.basename)
             if artifact.exists():

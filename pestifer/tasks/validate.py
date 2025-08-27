@@ -266,6 +266,4 @@ class ValidateTask(VMDTask):
             logger.debug(f'Validation results: \x1b[32m\x1b[1m{npass} passing\x1b[0m, \x1b[31m\x1b[1m{nfail} failing\x1b[0m>')
             self.extra_message = f"\x1b[32m\x1b[1mpass: {npass}\x1b[0m, \x1b[31m\x1b[1mfail: {nfail}\x1b[0m"
         # here we would parse the resulting log file
-        # state has not changed, but if all validations pass, we can stamp it
-        self.register(state)
         return nfail
