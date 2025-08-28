@@ -41,6 +41,13 @@ class TestArtifacts(unittest.TestCase):
         self.assertTrue(artifact.has_stamp())
         self.assertEqual(artifact.produced_by, stamper)
 
+    def test_artifact_equality(self):
+        artifact1 = DataArtifact('Same data')
+        artifact2 = DataArtifact('Same data')
+        artifact3 = DataArtifact('Different data')
+        self.assertEqual(artifact1, artifact2)
+        self.assertNotEqual(artifact1, artifact3)
+
 class TestArtifactList(unittest.TestCase):
     
     def test_artifact_list(self):
@@ -54,6 +61,20 @@ class TestArtifactList(unittest.TestCase):
         self.assertIn(data1, al)
         self.assertIn(data2, al)
 
+    def test_artifact_list_equality(self):
+        al1 = ArtifactList()
+        al2 = ArtifactList()
+        data1 = DataArtifact('Data 1')
+        data2 = DataArtifact('Data 2')
+        al1.append(data1)
+        al1.append(data2)
+        al2.append(DataArtifact('Data 1'))
+        al2.append(DataArtifact('Data 2'))
+        self.assertEqual(al1, al2)
+        al2.append(DataArtifact('Data 3'))
+        self.assertNotEqual(al1, al2)
+
+
     def test_charmmff_files(self):
         Path('p1.prm').write_text('CHARMM parameter file content.')
         Path('p1.rtf').write_text('CHARMM topology file content.')
@@ -64,7 +85,8 @@ class TestArtifactList(unittest.TestCase):
         Path('p3.prm').write_text('CHARMM parameter file content.')
         Path('p3.rtf').write_text('CHARMM topology file content.')
         Path('p3.str').write_text('CHARMM stream file content.')
-        p=CharmmffParFileArtifacts([CharmmffParFileArtifact(x) for x in ['p1','p2']])
+        p=CharmmffParFileArtifacts()
+        p.extend([CharmmffParFileArtifact(x) for x in ['p1','p2']])
         self.assertEqual(len(p), 2)
         self.assertTrue(p.all_exist(), "All CHARMM parameter files should exist.")
         p.append(CharmmffParFileArtifact('p3'))
@@ -82,6 +104,7 @@ class TestArtifactList(unittest.TestCase):
         ss=[CharmmffStreamFileArtifact(x) for x in ['p2','p3']]
         s.extend(ss)
         self.assertEqual(len(s), 3)
+        self.assertTrue(CharmmffParFileArtifact('p2') in p)
         for L in [p,t,s]:
             for f in L:
                 self.assertTrue(f.exists())
@@ -101,15 +124,6 @@ class TestArtifactList(unittest.TestCase):
         filtered: ArtifactList = al.filter_by_produced_by(stamper1)
         self.assertEqual(len(filtered), 2)
         self.assertTrue(all(a.produced_by == stamper1 for a in filtered))
-
-    def test_stateartifacts(self):
-        s = StateArtifacts(pdb='abc.pdb',psf='abc.psf', coor='abc.coor', xsc='abc.xsc', vel='abc.vel')
-        self.assertEqual(len(s.to_list()), 5)
-        self.assertIn('abc.pdb', s.to_list())
-        self.assertIn('abc.psf', s.to_list())
-        self.assertIn('abc.coor', s.to_list())
-        self.assertIn('abc.xsc', s.to_list())
-        self.assertIn('abc.vel', s.to_list())
 
 class TestArtifactDict(unittest.TestCase):
     
@@ -150,3 +164,122 @@ class TestArtifactDict(unittest.TestCase):
         ad.update_item(data2, key='key2')
         self.assertEqual(ad['key2'], data2)
 
+class TestStateArtifacts(unittest.TestCase):
+    
+    def test_state_artifacts_from_artifacts(self):
+        Path('test.psf').write_text('PSF file content.\nREMARKS topology test.str\n!NATOM\n')
+        Path('test.pdb').write_text('PDB file content.')
+        Path('test.coor').write_text('COOR file content.')
+        Path('test.xsc').write_text('XSC file content.')
+        Path('test.vel').write_text('VEL file content.')
+        
+        state = StateArtifacts(
+            psf=PSFFileArtifact('test.psf'),
+            pdb=PDBFileArtifact('test.pdb'),
+            coor=NAMDCoorFileArtifact('test.coor'),
+            xsc=NAMDXscFileArtifact('test.xsc'),
+            vel=NAMDVelFileArtifact('test.vel')
+        )
+        
+        self.assertIn('psf', state.data)
+        self.assertIn('pdb', state.data)
+        self.assertIn('coor', state.data)
+        self.assertIn('xsc', state.data)
+        self.assertIn('vel', state.data)
+        
+        self.assertTrue(state.data['psf'].exists())
+        self.assertTrue(state.data['pdb'].exists())
+        self.assertTrue(state.data['coor'].exists())
+        self.assertTrue(state.data['xsc'].exists())
+        self.assertTrue(state.data['vel'].exists())
+        
+        for f in state.data.values():
+            os.remove(f.path)  # Clean up the test files
+            self.assertFalse(f.exists(), "All state files should be removed after test.")
+
+    def test_state_artifacts_from_strings(self):
+        Path('test.psf').write_text('PSF file content.\nREMARKS topology test.str\n!NATOM\n')
+        Path('test.pdb').write_text('PDB file content.')
+        Path('test.coor').write_text('COOR file content.')
+        
+        state = StateArtifacts(
+            psf='test.psf',
+            pdb='test.pdb',
+            coor='test.coor'
+        )
+        
+        self.assertIn('psf', state.data)
+        self.assertIn('pdb', state.data)
+        self.assertIn('coor', state.data)
+        self.assertNotIn('xsc', state.data)
+        self.assertNotIn('vel', state.data)
+        
+        self.assertTrue(state.data['psf'].exists())
+        self.assertTrue(state.data['pdb'].exists())
+        self.assertTrue(state.data['coor'].exists())
+        
+        self.assertTrue(state.psf.exists())
+        self.assertTrue(state.pdb.exists())
+        self.assertTrue(state.coor.exists())
+        
+        for f in state.data.values():
+            os.remove(f.path)  # Clean up the test files
+            self.assertFalse(f.exists(), "All state files should be removed after test.")
+
+    def test_state_artifacts_from_dict_of_strings(self):
+        Path('test.psf').write_text('PSF file content.\nREMARKS topology test.str\n!NATOM\n')
+        Path('test.pdb').write_text('PDB file content.')
+        Path('test.coor').write_text('COOR file content.')
+        
+        state = StateArtifacts({
+            'psf': 'test.psf',
+            'pdb': 'test.pdb',
+            'coor': 'test.coor'
+        })
+        
+        self.assertIn('psf', state.data)
+        self.assertIn('pdb', state.data)
+        self.assertIn('coor', state.data)
+        self.assertNotIn('xsc', state.data)
+        self.assertNotIn('vel', state.data)
+        
+        self.assertTrue(state.data['psf'].exists())
+        self.assertTrue(state.data['pdb'].exists())
+        self.assertTrue(state.data['coor'].exists())
+        
+        self.assertTrue(state.psf.exists())
+        self.assertTrue(state.pdb.exists())
+        self.assertTrue(state.coor.exists())
+        
+        for f in state.data.values():
+            os.remove(f.path)  # Clean up the test files
+            self.assertFalse(f.exists(), "All state files should be removed after test.")
+
+    def test_state_artifacts_from_dict_of_artifacts(self):
+        Path('test.psf').write_text('PSF file content.\nREMARKS topology test.str\n!NATOM\n')
+        Path('test.pdb').write_text('PDB file content.')
+        Path('test.coor').write_text('COOR file content.')
+        
+        state = StateArtifacts({
+            'psf': PSFFileArtifact('test.psf'),
+            'pdb': PDBFileArtifact('test.pdb'),
+            'coor': NAMDCoorFileArtifact('test.coor')
+        })
+        
+        self.assertIn('psf', state.data)
+        self.assertIn('pdb', state.data)
+        self.assertIn('coor', state.data)
+        self.assertNotIn('xsc', state.data)
+        self.assertNotIn('vel', state.data)
+        
+        self.assertTrue(state.data['psf'].exists())
+        self.assertTrue(state.data['pdb'].exists())
+        self.assertTrue(state.data['coor'].exists())
+        
+        self.assertTrue(state.psf.exists())
+        self.assertTrue(state.pdb.exists())
+        self.assertTrue(state.coor.exists())
+        
+        for f in state.data.values():
+            os.remove(f.path)  # Clean up the test files
+            self.assertFalse(f.exists(), "All state files should be removed after test.")

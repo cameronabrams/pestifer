@@ -33,11 +33,6 @@ tasks:
         crotations:
           - psi,B,546,568,-180.0
           - phi,B,547,568,-60.0
-  - md:
-      ensemble: minimize
-  - ligate:
-      steer:
-        nsteps: 4200
   - validate:
       tests:
         - attribute_test:
@@ -58,6 +53,13 @@ tasks:
             attribute: resname
             value: THR
             value_count: 3
+  - md:
+      ensemble: minimize
+  - ligate:
+      steer:
+        nsteps: 4200
+  - validate:
+      tests:
         - connection_test:
             name: gp120 gaps ligation
             selection: protein and chain G H J and ((resid 185 and insertion I) or resid 187 410 411)

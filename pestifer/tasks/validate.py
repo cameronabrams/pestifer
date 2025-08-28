@@ -248,10 +248,9 @@ class ValidateTask(VMDTask):
             residue_test.write(vt)
         # here we insert the commands to extract values of desired variables
         vt.writescript()
-        self.register(VMDScriptArtifact(self.basename))
+        self.register(self.basename, key = 'tcl', artifact_type=VMDScriptArtifact)
         vt.runscript()
-        log_artifact = VMDLogFileArtifact(self.basename)
-        self.register(log_artifact)
+        log_artifact = self.register(self.basename, key='log', artifact_type=VMDLogFileArtifact)
         self.log = VMDLogParser.from_file(log_artifact.name)
         results = self.log.collect_validation_results()
         npass = 0
@@ -262,7 +261,7 @@ class ValidateTask(VMDTask):
         else:
             npass = sum(1 for r in results if 'PASS' in r)
             nfail = sum(1 for r in results if 'FAIL' in r)
-            self.register(DataArtifact(dict(npass=npass, nfail=nfail)), key='validation_results')
+            self.register(dict(npass=npass, nfail=nfail), key='validation_results')
             logger.debug(f'Validation results: \x1b[32m\x1b[1m{npass} passing\x1b[0m, \x1b[31m\x1b[1m{nfail} failing\x1b[0m>')
             self.extra_message = f"\x1b[32m\x1b[1mpass: {npass}\x1b[0m, \x1b[31m\x1b[1mfail: {nfail}\x1b[0m"
         # here we would parse the resulting log file

@@ -35,40 +35,40 @@ class FetchTask(BaseTask):
                 # parse the PDB file and register it in the pipeline context
                 pdb_file = PDBParser(PDBcode=sourceID).fetch()
                 if pdb_file:
-                    self.register(PDBFileArtifact(sourceID, key=self._artifact_name))
+                    self.register(sourceID, key=self._artifact_name, artifact_type=PDBFileArtifact)
                 else:
                     raise ValueError(f"Could not fetch PDB file for sourceID: {sourceID}")
             else:
                 cif_file = PDBParser(PDBcode=sourceID, input_format='mmCIF').fetch()
                 if cif_file:
-                    self.register(CIFFileArtifact(sourceID, key=self._artifact_name))
+                    self.register(sourceID, key=self._artifact_name, artifact_type=CIFFileArtifact)
                 else:
                     raise ValueError(f"Could not fetch CIF file for sourceID: {sourceID}")
         elif source == 'alphafold':
             pdb_file = PDBParser(alphafold=sourceID).fetch()
             if pdb_file:
-                self.register(PDBFileArtifact(sourceID, key=self._artifact_name))
+                self.register(sourceID, key=self._artifact_name, artifact_type=PDBFileArtifact)
             else:
                 raise ValueError(f"Could not fetch CIF file for sourceID: {sourceID}")
         elif source == 'alphafold':
             pdb_file = PDBParser(alphafold=sourceID).fetch()
             if pdb_file:
-                self.register(PDBFileArtifact(sourceID, key=self._artifact_name))
+                self.register(sourceID, key=self._artifact_name, artifact_type=PDBFileArtifact)
             else:
                 raise ValueError(f"Could not fetch CIF file for sourceID: {sourceID}")
         elif source == 'alphafold':
             pdb_file = PDBParser(alphafold=sourceID).fetch()
             if pdb_file:
-                self.register(PDBFileArtifact(sourceID, key=self._artifact_name))
+                self.register(sourceID, key=self._artifact_name, artifact_type=PDBFileArtifact)
             else:
                 raise ValueError(f"Could not fetch AlphaFold PDB file for sourceID: {sourceID}")
         elif source == 'local':  # expect <sourceID>.pdb or <sourceID>.cif
             local_pdb = f'{sourceID}.pdb'
             local_cif = f'{sourceID}.cif'
             if source_format == 'pdb' and os.path.exists(local_pdb):
-                self.register(PDBFileArtifact(sourceID, key=self._artifact_name))
+                self.register(sourceID, key=self._artifact_name, artifact_type=PDBFileArtifact)
             elif os.path.exists(local_cif):
-                self.register(CIFFileArtifact(sourceID, key=self._artifact_name))
+                self.register(sourceID, key=self._artifact_name, artifact_type=CIFFileArtifact)
             else:
                 raise FileNotFoundError(f"Neither {local_pdb} nor {local_cif} found.")
         else:

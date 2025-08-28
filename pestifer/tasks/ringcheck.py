@@ -50,9 +50,11 @@ class RingCheckTask(BaseTask):
                     pg.addline(f'delatom {r[delete_these]["segname"]} {r[delete_these]["resid"]}')
                 pg.writescript(self.basename)
                 pg.runscript()
-                self.register(StateArtifacts(psf=PSFFileArtifact(self.basename), pdb=PDBFileArtifact(self.basename), xsc=state.xsc), key='state')
-                for at in [PsfgenInputScriptArtifact, PsfgenLogFileArtifact]:
-                    self.register(at(self.basename))
+                self.register(dict(psf=PSFFileArtifact(self.basename), pdb=PDBFileArtifact(self.basename), xsc=state.xsc), key='state', artifact_type=StateArtifacts)
+                # for at in [PsfgenInputScriptArtifact, PsfgenLogFileArtifact]:
+                #     self.register(at(self.basename))
+                self.register(self.basename, key='tcl', artifact_type=PsfgenInputScriptArtifact)
+                self.register(self.basename, key='log', artifact_type=PsfgenLogFileArtifact)
         self.log_message('complete')
         self.result = 0
         return self.result

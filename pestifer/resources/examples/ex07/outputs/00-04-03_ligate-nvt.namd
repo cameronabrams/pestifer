@@ -1,5 +1,5 @@
-# pestifer.scripters: 00-02-00_md-minimize.namd
-####################### Created Wed Aug 27 15:42:05 2025 #######################
+# pestifer.scripters: 00-04-03_ligate-nvt.namd
+####################### Created Wed Aug 27 16:55:58 2025 #######################
 ################################# NAMD script ##################################
 parameters par_all36m_prot.prm
 parameters par_all36_lipid.prm
@@ -28,15 +28,26 @@ switchdist 9.0
 pairlistdist 11.5
 outputenergies 100
 structure 00-01-00_psfgen-build.psf
-coordinates 00-01-01_psfgen-crotations.pdb
-temperature $temperature
+coordinates 00-03-00_md-minimize.pdb
+bincoordinates 00-03-00_md-minimize.coor
+binvelocities 00-03-00_md-minimize.vel
+extendedSystem 00-03-00_md-minimize.xsc
 nonbondedFreq 1
 fullElectFrequency 2
 stepspercycle 4
 dielectric 80
 timestep 1.0
 rigidbonds none
-outputName 00-02-00_md-minimize
+langevin True
+langevinDamping 5
+langevinTemp $temperature
+langevinHydrogen False
+outputName 00-04-03_ligate-nvt
 dcdfreq 100
-firsttimestep 0
-minimize 1000
+fixedatoms on
+fixedatomsfile 00-04-01_ligate-measure.pdb
+fixedatomscol O
+colvars on
+colvarsconfig 00-04-02_ligate-steer-cv.in
+firsttimestep 1000
+run 4200

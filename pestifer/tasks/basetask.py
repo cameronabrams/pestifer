@@ -221,7 +221,7 @@ class BaseTask(ABC):
             logger.debug(f'Artifact {key} not found')
         return default
     
-    def get_current_artifact(self, key):
+    def get_current_artifact(self, key, **kwargs):
         """
         Get the current artifact with the specified key from the context.
         This method retrieves the artifact from the context that matches the specified key.
@@ -236,7 +236,7 @@ class BaseTask(ABC):
         Artifact
             The artifact associated with the specified key, or None if not found.
         """
-        return self.pipeline.get_current_artifact(key)
+        return self.pipeline.get_current_artifact(key, **kwargs)
 
     def get_my_artifactfile_collection(self) -> FileArtifactList:
         """
@@ -250,22 +250,28 @@ class BaseTask(ABC):
             A list of artifact files associated with the current task.
         """
         logger.debug(f'Getting artifact file collection for task {repr(self)}')
-        all_my_artifact_files = self.pipeline.get_all_file_artifacts(produced_by=self)
-        logger.debug(f'Found {len(all_my_artifact_files)} artifacts for task {repr(self)}.')
+        all_my_artifact_files = FileArtifactList(self.pipeline.get_all_file_artifacts(produced_by=self))
+        logger.debug(f'Found {len(list(all_my_artifact_files))} artifacts for task {repr(self)}.')
         return all_my_artifact_files
 
-    def register(self, artifact: Artifact | ArtifactList, key: str = None):
+    def register(self, data: object, key: str, artifact_type = DataArtifact, **kwargs):
         """
-        Set the current artifact with the specified key in the context.
+        Register data as an artifact in the pipeline context.
 
         Parameters
         ----------
-        artifact : Artifact
-            The artifact to register.
-
+        data : object
+            The data to be registered as an artifact.
+        key : str
+            The key under which the artifact will be registered.
+        **kwargs : dict
+            Additional keyword arguments that may include metadata or other information
         """
-        self.pipeline.register(artifact.stamp(self), key=key)
+        return self.pipeline.register(data, key, self, artifact_type=artifact_type, **kwargs)
 
+    def register_if_exists(self, data: object, requestor: object, artifact_type: type = FileArtifact, **kwargs) -> FileArtifact | None:
+        return self.pipeline.register_if_exists(data, requestor, artifact_type=artifact_type, **kwargs)
+    
     def override_taskname(self, taskname):
         """
         Override the task name with a new name.  Certain situations may require a Controller to override the task name.

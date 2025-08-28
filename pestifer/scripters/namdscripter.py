@@ -57,8 +57,9 @@ class NAMDScripter(TcLScripter):
         # logger.debug('Fetching standard CHARMMFF parameters')
         parameters_local = []
         for t in self.charmmff_config['standard']['prm'] + self.charmmff_config['standard']['str']:
-            self.charmmff.copy_charmmfile_local(t)
-            parameters_local.append(t)
+            if not t in parameters_local:
+                self.charmmff.copy_charmmfile_local(t)
+                parameters_local.append(t)
         for t in self.charmmff_config['custom']['prm'] + self.charmmff_config['custom']['str']:
             if t not in parameters_local:
                 self.charmmff.copy_charmmfile_local(t)

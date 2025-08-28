@@ -67,6 +67,6 @@ class PytestTerminateTask(BaseTask):
             results = {}
             for file_artifact in testable_file_artifacts:
                 results[file_artifact.name] = "pass" if file_artifact.compare(golden_folder / file_artifact.name) else "fail"
-            self.register(DataArtifact(key='test_results', data=results))
+            self.register(results, key='test_results')
             logger.debug(f'Registered all test results at "test_results"')
         return 0

@@ -58,10 +58,10 @@ class PDB2PQRTask(PsfgenTask):
         self.update_molecule()
         self.psfgen()
         self.pdb_to_coor(f'{self.basename}.pdb')
-        self.register(StateArtifacts(
+        self.register(dict(
             pdb=PDBFileArtifact(self.basename, pytestable=True), 
             psf=PSFFileArtifact(self.basename, pytestable=True), 
-            coor=NAMDCoorFileArtifact(self.basename)), key='state')
+            coor=NAMDCoorFileArtifact(self.basename)), key='state', artifact_type=StateArtifacts)
         return prep_result
     
     def prep_input(self):
@@ -93,10 +93,10 @@ class PDB2PQRTask(PsfgenTask):
         vt.addline('$z set resname ZN')
         vt.addline(f'$a writepdb {self.basename}_pprep.pdb')
         vt.writescript()
-        self.register(VMDScriptArtifact(self.basename))
+        self.register(self.basename, key='tcl', artifact_type=VMDScriptArtifact)
         result = vt.runscript()
-        self.register(PDBFileArtifact(f'{self.basename}_pprep'))
-        self.register(VMDLogFileArtifact(self.basename))
+        self.register(f'{self.basename}_pprep', key='prepped_pdb', artifact_type=PDBFileArtifact)
+        self.register(self.basename, key='log', artifact_type=VMDLogFileArtifact)
         return result
     
     def run_pdb2pqr(self, pH=7.0):
@@ -120,9 +120,9 @@ class PDB2PQRTask(PsfgenTask):
 
         c.run(logfile=f'{self.basename}_run.log', log_stderr=True, logparser=self.log_parser)
         self.log_parser.metadata['pka_table']['protonated'] = self.log_parser.metadata['pka_table']['respka'] > pH
-        self.register(LogFileArtifact(f'{self.basename}_run'))
-        self.register(PDBFileArtifact(f'{self.basename}_pqr'))
-        self.register(PQRFileArtifact(f'{self.basename}'))
+        self.register(f'{self.basename}_run', key='pdb2pqr_log', artifact_type=LogFileArtifact)
+        self.register(f'{self.basename}_pqr', key='pqr-pdb', artifact_type=PDBFileArtifact)
+        self.register({self.basename}, key='pqr', artifact_type=PQRFileArtifact)
         logger.debug(f'PDB2PQR run completed; pka_table:\n{self.log_parser.metadata['pka_table'].to_string()}')
 
         self.log_parser.metadata['histidines'] = {k:[] for k in ['HSD', 'HSE', 'HSP']}

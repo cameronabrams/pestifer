@@ -60,18 +60,17 @@ class MDPlotTask(BaseTask):
                     the_log = NAMDLogParser.from_file(f)
                     csvs_generated = the_log.write_csv()
                     for key in csvs_generated:
-                        artifact = CSVDataFileArtifact(csvs_generated[key])
-                        if artifact.exists():
-                            self.register(artifact, key=f'{key}-csv')
-                        else:
+                        artifact = self.register(csvs_generated[key], key=f'{key}-csv', artifact_type=CSVDataFileArtifact) 
+                        if artifact is None:
                             raise FileNotFoundError(f'CSV file {csvs_generated[key]} does not exist.')
+                        else:
+                            self.csvartifacts.append(artifact)
                     namdlog_objs.append(the_log)
-                    self.csvartifacts.append(artifact)
         elif len(self.priortasklist) > 0:
             logger.debug(f'Extracting data from prior tasks: {[pt.index for pt in self.priortasklist]}')
             for pt in self.priortasklist:
                 logger.debug(f'Extracting data from prior task {pt.taskname}-{pt.index}')
-                artifactfile_collection = pt.get_my_artifactfile_collection().filter_by_artifact_type(CSVDataFileArtifact)
+                artifactfile_collection = list(pt.get_my_artifactfile_collection().filter_by_artifact_type(CSVDataFileArtifact))
                 for pt_artifact in artifactfile_collection:
                     self.csvartifacts.append(pt_artifact)
         else:
@@ -87,7 +86,7 @@ class MDPlotTask(BaseTask):
         for tst in self.all_time_series_names:
             if not tst in self.dataframes:
                 self.dataframes[tst] = pd.DataFrame()
-            csv_artifact_collection = self.csvartifacts.filter_by_key(tst + '-csv')
+            csv_artifact_collection = list(self.csvartifacts.filter_by_key(tst + '-csv'))
             if len(csv_artifact_collection) == 0:
                 logger.debug(f'No CSV artifact found for {tst}. Skipping...')
                 continue
@@ -119,7 +118,7 @@ class MDPlotTask(BaseTask):
             if not df.empty:
                 csvname=f'{self.basename}-{key}.csv'
                 df.to_csv(csvname,index=False)
-                self.register(CSVDataFileArtifact(f'{self.basename}-{key}'),key=f'{key}-csv')
+                self.register(f'{self.basename}-{key}', key=f'{key}-csv', artifact_type=CSVDataFileArtifact)
 
         # build a dictionary of column headings:dataframe pairs
         df_of_column = {}
@@ -187,7 +186,7 @@ class MDPlotTask(BaseTask):
                 ax.grid(True)
             tracename = '-'.join(tracelist)
             plt.savefig(f'{self.basename}-{tracename}.png', bbox_inches='tight')
-            self.register(PNGImageFileArtifact(f'{self.basename}-{tracename}'), key=f'{tracename}-timeseries-plot')
+            self.register(f'{self.basename}-{tracename}', key=f'{tracename}-timeseries-plot', artifact_type=PNGImageFileArtifact)
             plt.clf()
         for profile in profiles:
             if profile == 'pressureprofile':
@@ -258,7 +257,7 @@ class MDPlotTask(BaseTask):
                     if grid:
                         ax.grid(True)
                     plt.savefig(f'{self.basename}-pressureprofile.png', bbox_inches='tight')
-                    self.register(PNGImageFileArtifact(f'{self.basename}-pressureprofile.png'), key='pressureprofile-plot')
+                    self.register(f'{self.basename}-pressureprofile.png', key='pressureprofile-plot', artifact_type=PNGImageFileArtifact)
                     plt.clf()
                 else:
                     logger.debug(f'No pressure profile data.  Skipping...')

@@ -97,15 +97,15 @@ class SolvateTask(VMDTask):
             ai_args.append(f'-anion {anion}')
         vt.addline(f'autoionize -psf {self.basename}_solv.psf -pdb {self.basename}_solv.pdb {" ".join(ai_args)} -o {self.basename}')
         vt.writescript()
-        self.register(VMDScriptArtifact(self.basename))
+        self.register(self.basename, key='tcl', artifact_type=VMDScriptArtifact)
         self.result = vt.runscript(progress_title='solvate')
-        self.register(VMDLogFileArtifact(f'{self.basename}_solv'))
-        self.register(VMDLogFileArtifact(self.basename))
+        self.register(self.basename, key='log', artifact_type=VMDLogFileArtifact)
+        self.register(self.basename+'_solv', key='log', artifact_type=VMDLogFileArtifact)
         if self.result != 0:
             return self.result
         psf1 = PSFFileArtifact(f'{self.basename}_solv.psf')
         pdb1 = PDBFileArtifact(f'{self.basename}_solv.pdb')
-        self.register(StateArtifacts(psf=psf1, pdb=pdb1, xsc=xsc), key='state')
+        self.register(dict(psf=psf1, pdb=pdb1, xsc=xsc), key='state', artifact_type=StateArtifacts)
         self.pdb_to_coor(f'{self.basename}.pdb')
-        self.register(StateArtifacts(pdb=PDBFileArtifact(f'{self.basename}', pytestable=True), coor=NAMDCoorFileArtifact(f'{self.basename}'), psf=PSFFileArtifact(f'{self.basename}', pytestable=True), xsc=xsc), key='state')
+        self.register(dict(pdb=PDBFileArtifact(f'{self.basename}', pytestable=True), coor=NAMDCoorFileArtifact(f'{self.basename}'), psf=PSFFileArtifact(f'{self.basename}', pytestable=True), xsc=xsc), key='state', artifact_type=StateArtifacts)
         return self.result

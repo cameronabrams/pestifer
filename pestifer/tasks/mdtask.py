@@ -72,7 +72,7 @@ class MDTask(VMDTask):
         **kwargs : dict, optional
             Additional keyword arguments that may include execution options such as `single_gpu_only`.
         """
-        logger.debug(f'namdrun called with baselabel {baselabel} and extras {extras}, script_only={script_only}')
+        # logger.debug(f'namdrun called with baselabel {baselabel} and extras {extras}, script_only={script_only}')
         specs = self.specs
         addl_paramfiles: list[str] = specs.get('addl_paramfiles', [])
         logger.debug(f'md task specs {specs}')
@@ -88,20 +88,21 @@ class MDTask(VMDTask):
         state: StateArtifacts = self.get_current_artifact('state')
         if not state.psf or not state.pdb:
             raise RuntimeError(f'No PSF or PDB file found for task {self.taskname}')
-        prior_charmmff_parfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_parfiles')
-        prior_charmmff_streamfiles: CharmmffStreamFileArtifacts = self.get_current_artifact('charmmff_streamfiles')
-        prior_paramfiles = []
-        if prior_charmmff_parfiles:
-            prior_paramfiles = [x.name for x in prior_charmmff_parfiles]
-        if prior_charmmff_streamfiles:
-            prior_paramfiles.extend([x.name for x in prior_charmmff_streamfiles])
+        charmmff_parfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_parfiles')
+        if charmmff_parfiles is None:
+            charmmff_parfiles = self.register([], key='charmmff_parfiles', artifact_type=CharmmffParFileArtifacts)
+        charmmff_streamfiles: CharmmffStreamFileArtifacts = self.get_current_artifact('charmmff_streamfiles')
+        if charmmff_streamfiles is None:
+            charmmff_streamfiles = self.register([], key='charmmff_streamfiles', artifact_type=CharmmffStreamFileArtifacts)
+        paramfilenames = [x.name for x in charmmff_parfiles] if charmmff_parfiles else []
+        paramfilenames.extend([x.name for x in charmmff_streamfiles] if charmmff_streamfiles else [])
         firsttimestep = self.get_current_artifact_data('firsttimestep')
         if not firsttimestep:
             firsttimestep = 0
         if specs.get('firsttimestep', None) is not None:
             firsttimestep = specs['firsttimestep']
         if state.xsc is not None:
-            self.register(DataArtifact(is_periodic(state.xsc.name), key='periodic'))
+            self.register(is_periodic(state.xsc.name), key='periodic', artifact_type=DataArtifact)
 
         temperature = specs['temperature']
         if ensemble.casefold() == 'NPT'.casefold() or ensemble.casefold() == 'NPAT'.casefold():
@@ -166,7 +167,7 @@ class MDTask(VMDTask):
             writer.newfile(f'{self.basename}-cv.in')
             writer.construct_on_pdb(specs=colvars, pdb=state.pdb)
             writer.writefile()
-            self.register(NAMDColvarsConfigArtifact(f'{self.basename}-cv'))
+            self.register('{self.basename}-cv', key='in', artifact_type=NAMDColvarsConfigArtifact)
             params['colvars'] = 'on'
             params['colvarsconfig'] = self.get_current_artifact_path('in')
 
@@ -181,13 +182,15 @@ class MDTask(VMDTask):
             params['run'] = nsteps
 
         na: NAMDScripter = self.get_scripter('namd')
-        na.newscript(self.basename, addl_paramfiles=list(set(addl_paramfiles + prior_paramfiles)))
-        self.register(CharmmffParFileArtifacts([CharmmffParFileArtifact(x) for x in na.parameters if x.endswith('.prm')]), key='charmmff_parfiles')
-        self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x) for x in na.parameters if x.endswith('.str')]), key='charmmff_streamfiles')
+        na.newscript(self.basename, addl_paramfiles=list(set(addl_paramfiles + paramfilenames)))
+        # update the list of parfiles and streamfiles in the pipeline
+        charmmff_parfiles.extend(x for x in addl_paramfiles if x.endswith('.prm') and x not in paramfilenames)
+        charmmff_streamfiles.extend(x for x in addl_paramfiles if x.endswith('.str') and x not in paramfilenames)
+
         cpu_override = specs.get('cpu-override', False)
         logger.debug(f'CPU-override is {cpu_override}')
         na.writescript(params, cpu_override=cpu_override)
-        self.register(NAMDConfigFileArtifact(self.basename, pytestable=True))
+        self.register(self.basename, key='namd', artifact_type=NAMDConfigFileArtifact, pytestable=True)
         result = 0  # anticipate success
         if not script_only:
             local_execution_only = not self.get_current_artifact_data('periodic')
@@ -195,30 +198,31 @@ class MDTask(VMDTask):
             result = na.runscript(single_molecule=local_execution_only, local_execution_only=local_execution_only, single_gpu_only=single_gpu_only, cpu_override=cpu_override)
         self.coor_to_pdb(f'{self.basename}.coor', state.psf.name)
         xsc=NAMDXscFileArtifact(self.basename)
-        self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename, pytestable=True),
-                                     coor=NAMDCoorFileArtifact(self.basename),
-                                     vel=NAMDVelFileArtifact(self.basename),
-                                     xsc=xsc if xsc.exists() else None, 
-                                     psf=state.psf), key='state')  # an md run cannot change the PSF file
-        for at in [NAMDDcdFileArtifact, NAMDXstFileArtifact, NAMDLogFileArtifact, NAMDColvarsTrajectoryArtifact, NAMDColvarsStateArtifact]:
-            artifact: FileArtifact = at(self.basename)
-            if artifact.exists():
-                self.register(artifact)
+        self.register(dict(pdb=PDBFileArtifact(self.basename, pytestable=True),
+                           coor=NAMDCoorFileArtifact(self.basename),
+                           vel=NAMDVelFileArtifact(self.basename),
+                           xsc=xsc if xsc.exists() else None, 
+                           psf=state.psf), key='state', artifact_type=StateArtifacts)  # an md run cannot change the PSF file
+        dcd = NAMDDcdFileArtifact(self.basename)
+        xst = NAMDXstFileArtifact(self.basename)
+        log = NAMDLogFileArtifact(self.basename)
+        cvtraj = NAMDColvarsTrajectoryArtifact(self.basename)
+        cvstate = NAMDColvarsStateArtifact(self.basename)
+        falist = [x for x in [dcd, xst, log, cvtraj, cvstate] if x and x.exists()]
+        self.register(falist, artifact_type=FileArtifactList, key='md_output_files')
         other_files = glob.glob(f'FFTW*txt')
         for f in other_files:
-            if os.path.isfile(f):
-                self.register(TXTFileArtifact(f, key='NAMD FFTW warmup'))
+            self.register(f, artifact_type=TXTFileArtifact, key='NAMD FFTW warmup')
         if hasattr(na.logparser, 'dataframes'):
             for key in na.logparser.dataframes:
-                artifact = CSVDataFileArtifact(f'{self.basename}-{key}')
-                if artifact.exists():
-                    self.register(artifact, key=f'{key}-csv')
+                self.register(f'{self.basename}-{key}', artifact_type=CSVDataFileArtifact, key=f'{key}-csv')
+        self.pipeline.show_artifacts()
         if result != 0:
             return -1
 
         if ensemble.casefold() != 'minimize'.casefold():
-            self.register(DataArtifact(firsttimestep+nsteps), key='firsttimestep')
+            self.register(firsttimestep+nsteps, key='firsttimestep')
         else:
-            self.register(DataArtifact(firsttimestep+specs['minimize']), key='firsttimestep')
+            self.register(firsttimestep+specs['minimize'], key='firsttimestep')
 
         return 0

@@ -68,7 +68,10 @@ class ManipulateTask(BaseTask):
             result = vm.runscript()
             if result != 0:
                 return result
-            self.register(StateArtifacts(pdb=PDBFileArtifact(self.basename), psf=state.psf), key='state')
-            for at in [VMDScriptArtifact, VMDLogFileArtifact]:
-                self.register(at(self.basename))
+            self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf), key='state', artifact_type=StateArtifacts)
+            # for at in [VMDScriptArtifact, VMDLogFileArtifact]:
+            #     self.register(at(self.basename))
+            self.register(self.basename, key='tcl', artifact_type=VMDScriptArtifact)
+            self.register(self.basename, key='log', artifact_type=VMDLogFileArtifact)
         return 0
+

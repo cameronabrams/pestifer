@@ -53,7 +53,7 @@ class DomainSwapTask(MDTask):
             cv = f'{self.basename}-cv.in',
             refpdb = f'{self.basename}-ref.pdb'
         )
-        self.register(NAMDColvarsConfigArtifact(f'{self.basename}-cv'))
-        self.register(VMDScriptArtifact(self.basename))
-        self.register(PDBFileArtifact(f'{self.basename}-ref'), key='refpdb')
-        self.register(VMDLogFileArtifact(f'{self.basename}'))
+        self.register(f'{self.basename}-cv', key='in', artifact_type=NAMDColvarsConfigArtifact)
+        self.register(self.basename, key='tcl', artifact_type=VMDScriptArtifact)
+        self.register(f'{self.basename}-ref', key='refpdb', artifact_type=PDBFileArtifact)
+        self.register({self.basename}, key='log', artifact_type=LogFileArtifact)

@@ -73,8 +73,9 @@ class PsfgenScripter(VMDScripter):
         topology_local = []
         # topologies are assumed correctly ordered in config file
         for t in self.charmmff_config['standard']['rtf'] + self.charmmff_config['custom']['rtf'] + self.charmmff_config['standard']['str'] + self.charmmff_config['custom']['str']:
-            self.charmmff.copy_charmmfile_local(t)
-            topology_local.append(t)
+            if not t in topology_local:
+                self.charmmff.copy_charmmfile_local(t)
+                topology_local.append(t)
         # the order of the topologies is imporant, and the top_all35_ethers.rtf should be last
         if 'top_all35_ethers.rtf' in topology_local:
             topology_local.remove('top_all35_ethers.rtf')

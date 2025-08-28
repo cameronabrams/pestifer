@@ -60,14 +60,16 @@ class ContinuationTask(PsfgenTask):
         CC = self.resource_manager.charmmff_content
         for streamfile in streamfiles:
             CC.copy_charmmfile_local(streamfile)
-        self.register(CharmmffStreamFileArtifacts([CharmmffStreamFileArtifact(x) for x in streamfiles]), key='charmmff_streamfiles')
+    
+        self.register([CharmmffStreamFileArtifact(x) for x in streamfiles], key='charmmff_streamfiles', artifact_type=CharmmffStreamFileArtifacts)
 
-        self.register(StateArtifacts(psf=PSFFileArtifact(psf),
-                                     pdb=PDBFileArtifact(pdb),
-                                     coor=NAMDCoorFileArtifact(coor),
-                                     xsc=NAMDXscFileArtifact(xsc) if xsc else None,
-                                     vel=NAMDVelFileArtifact(vel) if vel else None), 
-                                     key='state')
+        self.register(dict(
+                        psf=PSFFileArtifact(psf),
+                        pdb=PDBFileArtifact(pdb),
+                        coor=NAMDCoorFileArtifact(coor),
+                        xsc=NAMDXscFileArtifact(xsc) if xsc else None,
+                        vel=NAMDVelFileArtifact(vel) if vel else None), 
+                        key='state', artifact_type=StateArtifacts)
         self.update_molecule()
         self.result = 0
         return self.result
