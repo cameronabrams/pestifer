@@ -56,6 +56,8 @@ class TerminateTask(MDTask):
         Create a package for a production NAMD run starting from the end of the build.
         """
         package_specs = self.specs.get('package', {})
+        if not package_specs:
+            return
         md_specs = package_specs.get('md', {})
         state_dir = package_specs.get('state_dir', '.')
         if not package_specs:
