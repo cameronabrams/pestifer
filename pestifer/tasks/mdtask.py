@@ -184,8 +184,8 @@ class MDTask(VMDTask):
         na: NAMDScripter = self.get_scripter('namd')
         na.newscript(self.basename, addl_paramfiles=list(set(addl_paramfiles + paramfilenames)))
         # update the list of parfiles and streamfiles in the pipeline
-        charmmff_parfiles.extend(x for x in addl_paramfiles if x.endswith('.prm') and x not in paramfilenames)
-        charmmff_streamfiles.extend(x for x in addl_paramfiles if x.endswith('.str') and x not in paramfilenames)
+        charmmff_parfiles.extend(x for x in na.parameters if x.endswith('.prm') and x not in paramfilenames)
+        charmmff_streamfiles.extend(x for x in na.parameters if x.endswith('.str') and x not in paramfilenames)
 
         cpu_override = specs.get('cpu-override', False)
         logger.debug(f'CPU-override is {cpu_override}')

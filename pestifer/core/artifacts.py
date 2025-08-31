@@ -5,8 +5,10 @@ A class for handling artifacts in the Pestifer core. Artifacts are files or
 data generated during the execution of tasks and are managed by the 
 :class:`~pestifer.core.pipeline.PipelineContext`.
 
-Tasks are the primary creators of Artifacts, and the pipeline context is responsible for managing their lifecycles.
-Any task may create and register an Artifact.  All tasks have a ``register`` method that interfaces with the pipeline to register an Artifact, and a ``get_current_artifact`` method to retrieve an Artifact by its key. 
+Tasks are the primary creators of Artifacts, and the pipeline context is responsible 
+for managing their lifecycles. Any task may create and register an Artifact.  All 
+tasks have a ``register`` method that interfaces with the pipeline to register an 
+Artifact, and a ``get_current_artifact`` method to retrieve an Artifact by its key. 
 
 All Artifacts must have a "key" that the pipeline uses to track them.  A key value is normally created when an Artifact is created:
 
@@ -42,7 +44,6 @@ This is how the pipeline is used to "pass" files from one task to any other.  Be
 """
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from collections import UserList, UserDict
 from dataclasses import dataclass, field
 from pathlib import Path
 import difflib
@@ -76,11 +77,13 @@ class Artifact():
     """ A list of tasks that registered the artifact, ordered chronologically. """
 
     def __repr__(self) -> str:
-        retstr = f'Artifact(key=\'{self.key}\', produced_by=\'{self.produced_by}\', type(data)={type(self.data)})'
+        retstr = f'{self.__class__.__name__}(key=\'{self.key}\', produced_by=\'{self.produced_by}\', type(data)={type(self.data)})'
         return retstr
     
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Artifact):
+            return False
+        if not self.__class__.__name__ == other.__class__.__name__:
             return False
         return self.key == other.key and self.data == other.data
 
@@ -494,7 +497,7 @@ class FileArtifact(Artifact, ABC):
         return self.diff(other) == ''
 
 @dataclass
-class FileArtifactDict(Artifact):
+class FileArtifactDict(ArtifactDict):
     
     data: dict[str, FileArtifact] = field(default_factory=dict)
 
@@ -596,6 +599,16 @@ class StateArtifacts(FileArtifactDict):
     xsc: str | Path | NAMDXscFileArtifact | None = None
     """ The XSC file name, Path, or NAMDXscFileArtifact. """
 
+    def to_list(self):
+        return [getattr(self, attr) for attr in ['pdb', 'psf', 'coor', 'vel', 'xsc'] if getattr(self, attr) is not None]
+
+    def stamp(self, owner: object) -> StateArtifacts:
+        self.produced_by = owner
+        for attr in ['pdb', 'psf', 'coor', 'vel', 'xsc']:
+            if artifact := getattr(self, attr):
+                artifact.stamp(owner)
+        return self
+
     def __post_init__(self):
         for attr, artifact_type in [('pdb', PDBFileArtifact), ('psf', PSFFileArtifact), ('coor', NAMDCoorFileArtifact), ('vel', NAMDVelFileArtifact), ('xsc', NAMDXscFileArtifact)]:
             my_attr = getattr(self, attr)
@@ -631,7 +644,37 @@ class TXTFileArtifact(FileArtifact):
     mime_type: str = 'text/plain'
 
 @dataclass
-class CharmmffTopFileArtifact(TXTFileArtifact):
+class CharmmffFileArtifact(FileArtifact):
+    """
+    A CHARMM force field file artifact.
+    """
+    description: str = "CHARMM force field file"
+
+@dataclass
+class CharmmffFileArtifactList(FileArtifactList):
+    """
+    A collection of CHARMM file artifacts.
+    """
+    description: str = "CHARMM file artifacts"
+    key: str = 'charmm_files'
+
+    def append(self, item: CharmmffFileArtifact) -> None:
+        """
+        Append a CHARMM file artifact to the collection.
+        """
+        if not item.exists() or not isinstance(item, CharmmffFileArtifact):
+            raise TypeError(f"Expected CharmmffFileArtifact, got {type(item)}")
+        super().append(item)
+
+    def extend(self, items: list[CharmmffFileArtifact]) -> None:
+        """
+        Extend the collection by appending elements from the iterable.
+        """
+        for item in items:
+            self.append(item)
+
+@dataclass
+class CharmmffTopFileArtifact(CharmmffFileArtifact):
     """
     A toplevel CHARMM force field topology file artifact.
     """
@@ -639,7 +682,7 @@ class CharmmffTopFileArtifact(TXTFileArtifact):
     ext: str = 'rtf'
     
 @dataclass
-class CharmmffParFileArtifact(TXTFileArtifact):
+class CharmmffParFileArtifact(CharmmffFileArtifact):
     """
     A toplevel CHARMM force field parameter file artifact.
     """
@@ -647,7 +690,7 @@ class CharmmffParFileArtifact(TXTFileArtifact):
     ext: str = 'prm'
 
 @dataclass
-class CharmmffStreamFileArtifact(TXTFileArtifact):
+class CharmmffStreamFileArtifact(CharmmffFileArtifact):
     """
     A CHARMM force field stream file artifact.
     """
@@ -655,48 +698,57 @@ class CharmmffStreamFileArtifact(TXTFileArtifact):
     ext: str = 'str'
     # stream: str = ''
 
-class CharmmffTopFileArtifacts(FileArtifactList):
+@dataclass
+class CharmmffTopFileArtifacts(CharmmffFileArtifactList):
     """
     A collection of CHARMM force field topology file artifacts.
     """
     description: str = "CHARMM force field topology files"
     key: str = 'charmmff_topfiles'
-    
-    # def append(self, item: CharmmffTopFileArtifact) -> None:
-    #     """
-    #     Append a CHARMM force field topology file artifact to the collection.
-    #     """
-    #     if not isinstance(item, CharmmffTopFileArtifact):
-    #         raise TypeError(f"Expected CharmmffTopFileArtifact, got {type(item)}")
-    #     super().append(item)
 
-class CharmmffParFileArtifacts(FileArtifactList):
+    def append(self, item: CharmmffTopFileArtifact | str | Path) -> None:
+        """
+        Append a CHARMM force field topology file artifact to the collection.
+        """
+        if isinstance(item, (str, Path)):
+            item = CharmmffTopFileArtifact(data=str(item))
+        if not isinstance(item, CharmmffTopFileArtifact):
+            raise TypeError(f"Expected CharmmffTopFileArtifact, got {type(item)}")
+        super().append(item)
+
+@dataclass
+class CharmmffParFileArtifacts(CharmmffFileArtifactList):
     """
     A collection of CHARMM force field parameter file artifacts.
     """
     description: str = "CHARMM force field parameter files"
 
-    # def append(self, item: CharmmffParFileArtifact) -> None:
-    #     """
-    #     Append a CHARMM force field parameter file artifact to the collection.
-    #     """
-    #     if not isinstance(item, CharmmffParFileArtifact):
-    #         raise TypeError(f"Expected CharmmffParFileArtifact, got {type(item)}")
-    #     super().append(item)
+    def append(self, item: CharmmffParFileArtifact | str | Path) -> None:
+        """
+        Append a CHARMM force field parameter file artifact to the collection.
+        """
+        if isinstance(item, (str, Path)):
+            item = CharmmffParFileArtifact(data=str(item))
+        if not isinstance(item, CharmmffParFileArtifact):
+            raise TypeError(f"Expected CharmmffParFileArtifact, got {type(item)}")
+        super().append(item)
 
-class CharmmffStreamFileArtifacts(FileArtifactList):
+@dataclass
+class CharmmffStreamFileArtifacts(CharmmffFileArtifactList):
     """
     A collection of CHARMM force field stream file artifacts.
     """
     description: str = "CHARMM force field stream files"
 
-    # def append(self, item: CharmmffStreamFileArtifact) -> None:
-    #     """
-    #     Append a CHARMM force field stream file artifact to the collection.
-    #     """
-    #     if not isinstance(item, CharmmffStreamFileArtifact):
-    #         raise TypeError(f"Expected CharmmffStreamFileArtifact, got {type(item)}")
-    #     super().append(item)
+    def append(self, item: CharmmffStreamFileArtifact | str | Path) -> None:
+        """
+        Append a CHARMM force field stream file artifact to the collection.
+        """
+        if isinstance(item, (str, Path)):
+            item = CharmmffStreamFileArtifact(data=str(item))
+        if not isinstance(item, CharmmffStreamFileArtifact):
+            raise TypeError(f"Expected CharmmffStreamFileArtifact, got {type(item)}")
+        super().append(item)
 
 @dataclass
 class YAMLFileArtifact(TXTFileArtifact):

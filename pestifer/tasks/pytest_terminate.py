@@ -26,20 +26,22 @@ class PytestTerminateTask(BaseTask):
         """
         assert running_under_pytest()
         # Determine all testable file artifacts
-        artifact_collection = self.pipeline.get_all_file_artifacts()
-        testable_file_artifacts = FileArtifactList(list(filter(lambda a: a.pytestable, artifact_collection)))
+        artifact_file_collection = self.pipeline.get_all_file_artifacts()
+        testable_file_artifacts = FileArtifactList(list(filter(lambda a: a.pytestable, artifact_file_collection)))
         # delete any non-testable file artifacts
-        for file_artifact in artifact_collection:
+        for file_artifact in artifact_file_collection:
             if not file_artifact in testable_file_artifacts:
                 logger.debug(f'PytestTerminateTask deleting non-testable file artifact {file_artifact.name}')
                 file_artifact.path.unlink(missing_ok=True)
 
+        artifact_file_names = [f.name for f in artifact_file_collection]
         all_files = os.listdir('.')
-        logger.debug('All files:')
         for f in all_files:
-            if not f in artifact_collection:
+            if not f in artifact_file_names:
                 logger.debug(f'  Not an artifact -> {f}')
-
+            else:
+                logger.debug(f'  Is an artifact -> {f}')
+                
         logger.debug('Testable artifacts:')
         for f in testable_file_artifacts:
             logger.debug(f'  {f.name}')

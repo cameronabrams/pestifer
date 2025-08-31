@@ -102,39 +102,6 @@ class PipelineContext:
         self.head[new_key] = artifact
         logger.debug(f'Rekeyed artifact from {old_key} to {new_key}.')
 
-    # def register(self, artifact: Artifact | ArtifactList | ArtifactDict, key: str = None, requesting_object: object = None):
-    #     """ 
-    #     Register an artifact in the pipeline context.  If a key is provided, overwrite the artifact's key.
-    #     If 'living' is True, and an artifact with the same key already exists, the exising artifact is
-    #     updated with the contents of the new artifact.  Otherise, the existing artifact is moved to history
-    #     and the new artifact is registered as the current artifact.
-
-    #     Parameters
-    #     ----------
-    #     artifact : Artifact
-    #         The artifact to register.
-    #     key : str
-    #         Unique identifier for the artifact; if not provided, it will be derived from the artifact's key attribute.
-    #     requesting_object : object, optional
-    #         The object that is requesting the registration of the artifact. This can be used for logging or tracking purposes.
-    #     """
-    #     if key and hasattr(artifact, 'key'): # If a key is provide, override the artifact's key
-    #         artifact.key = key
-    #     else:
-    #         if hasattr(artifact, 'key'):
-    #             key = artifact.key
-    #     if not key:
-    #         raise ValueError(f"{type(artifact).__name__} has no key attribute; key must be provided for the artifact as a keyword argument to register().")
-        
-    #     if key in self.head:
-    #         """ move to history if already exists """
-    #         logger.debug(f'Stashed artifact {key} in history')
-    #         self.history.append(self.head[key])
-    #     # stamp the artifact if it isn't already stamped
-    #     # logger.debug(f'Stamping artifact {key} with requesting object {requesting_object}')
-    #     self.head[key] = artifact
-    #     logger.debug(f'Registered artifact {repr(artifact)} at key {key}')
-
     def show_artifacts(self, header: str = 'Current Artifacts'):
         """
         Debugging utility to show current and historical artifacts.
@@ -153,6 +120,11 @@ class PipelineContext:
             logger.debug(f'{"    "*depth}- "{artifact.key}" ({id(artifact)}) List with {len(artifact)} items:')
             for item in artifact:
                 self.show_artifact(item, depth + 1)
+        elif isinstance(artifact, StateArtifacts):
+            logger.debug(f'{"    "*depth}- "{artifact.key}" ({id(artifact)}) StateArtifacts with {len(artifact)} items:')
+            for key, item in artifact.items():
+                if item is not None:
+                    self.show_artifact(item, depth + 1)
         elif isinstance(artifact, ArtifactDict):
             logger.debug(f'{"    "*depth}- "{artifact.key}" ({id(artifact)}) Dict with {len(artifact)} items:')
             for key, item in artifact.items():
@@ -161,9 +133,9 @@ class PipelineContext:
             pytestable_str = ''
             if hasattr(artifact, 'pytestable') and artifact.pytestable:
                 pytestable_str = ' (pytestable)'
-            logger.debug(f'{"    "*depth}- {artifact.key} ({id(artifact)}): data={artifact.data}{pytestable_str}')
+            logger.debug(f'{"    "*depth}- "{artifact.key}" ({id(artifact)}): data={artifact.data}{pytestable_str}')
         else:
-            logger.debug(f'{"    "*depth}- ***Unknown artifact type: {type(artifact)}***')
+            logger.debug(f'{"    "*depth}- "{artifact.key}" ({id(artifact)}): ***Unknown artifact type: {type(artifact)}***')
 
     def bury(self, artifact: Artifact):
         """
@@ -251,7 +223,7 @@ class PipelineContext:
             elif isinstance(artifact, FileArtifactList):
                 file_artifacts.extend(artifact.data)
             elif isinstance(artifact, FileArtifactDict):
-                file_artifacts.extend(artifact.data.values())
+                file_artifacts.extend(artifact.to_list())
             else:
                 logger.debug(f'Ignoring non-file artifact "{artifact.key}" of type {type(artifact)}')
         file_artifacts = file_artifacts.unique_paths()

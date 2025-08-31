@@ -58,7 +58,7 @@ class LigateTask(MDTask):
         if self.result != 0:
             return self.result
         # stash the vel file
-        self.stash_current_artifact('vel')
+        # self.stash_current_artifact('vel')
         logger.debug('Connecting loop C-termini to their partner N-termini')
         connect_specs = self.specs.get('connect', {})
         self.result = self.connect(connect_specs)
