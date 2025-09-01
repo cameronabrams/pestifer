@@ -442,7 +442,6 @@ class AtomList(BaseObjList[Atom]):
             myatom.resname = psfatom.resname
             myatom.serial = psfatom.serial
             myatom.resid = psfatom.resid.copy(deep=True)
-            myatom.chainID = psfatom.segname
             myatom.segname = psfatom.segname
 
     def apply_inclusion_logics(self, inclusion_logics: list[str] = []) -> int:
