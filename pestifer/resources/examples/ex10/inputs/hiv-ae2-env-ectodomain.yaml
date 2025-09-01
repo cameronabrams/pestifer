@@ -26,11 +26,25 @@ tasks:
           E: I
           A: B
           F: D
+  - validate:
+      tests:
+        - residue_test:
+            name: 83G ligands are present
+            selection: resname 83G
+            measure: residue_count
+            value: 3
   - md:
       ensemble: minimize
   - ligate:
       steer:
         nsteps: 4000
+  - validate:
+      tests:
+        - connection_test:
+            name: gp120 gap ligations
+            selection: protein and chain G H I and resid 112 113
+            connection_type: interresidue
+            connection_count: 3
   - md:
       ensemble: minimize
   - md:

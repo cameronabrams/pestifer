@@ -453,25 +453,26 @@ class Molecule:
         clv_list : list
             A list of cleavage specifications to apply to the asymmetric unit.
         """
-        au=self.asymmetric_unit
-        cm=self.chainIDmanager
-        topomods=self.objmanager.get('topol',{})
+        au = self.asymmetric_unit
+        cm = self.chainIDmanager
+        topomods = self.objmanager.get('topol', {})
         for clv in clv_list:
-            S=au.segments.get(lambda x: x.chainID == clv.chainID)
+            S = au.segments.get(lambda x: x.chainID == clv.chainID)
             if S:
-                DchainID=cm.next_unused_chainID()
-                D=S.cleave(clv,DchainID)
+                DchainID = cm.next_unused_chainID()
+                logger.debug(f'Cleaving segment {S.segname} at {clv} to make new segment with chainID {DchainID}')
+                D = S.cleave(clv, DchainID)
                 au.add_segment(D)
 
-                ssbonds=topomods.get('ssbonds',[])
+                ssbonds = topomods.get('ssbonds', [])
                 if ssbonds:
                     for c in ssbonds.filter(lambda x: x.chainID1 == S.segname):
                         for d in D.residues.filter(lambda x: x.resid == c.resid1):
-                            c.chainID1=d.chainID
+                            c.chainID1 = d.chainID
                     for c in ssbonds.filter(lambda x: x.chainID2 == S.segname):
                         for d in D.residues.filter(lambda x: x.resid == c.resid2):
-                            c.chainID2=d.chainID
-                links=topomods.get('links',[])
+                            c.chainID2 = d.chainID
+                links = topomods.get('links', [])
                 if links:
                     logger.debug(f'Examining {len(links)} links for ones needing chainID update from {S.segname} to {DchainID} due to cleavage')
                     for c in links.filter(lambda x: x.chainID1 == S.segname):

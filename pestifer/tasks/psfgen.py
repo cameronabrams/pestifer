@@ -410,23 +410,25 @@ class PsfgenTask(VMDTask):
         logger.debug(f'ingesting {psf}')
         struct = PSFContents(psf, parse_topology=['bonds'])
         logger.debug(f'Making graph structure of glycan atoms...')
-        glycanatoms = struct.atoms.get(segtype='glycan')
+        glycanatoms = struct.atoms.get(lambda x: x.segtype == 'glycan')
         logger.debug(f'{len(glycanatoms)} total glycan atoms')
         glycangraph = glycanatoms.graph()
         G = [glycangraph.subgraph(c).copy() for c in nx.connected_components(glycangraph)]
         logger.debug(f'Preparing declash input for {len(G)} glycans')
         fw.addline(f'set nglycans {len(G)}')
-        for i,g in enumerate(G):
+        for i, g in enumerate(G):
             logger.debug(f'Glycan {i} has {len(g)} atoms')
-            serials=[x.serial for x in g]
-            for at in g:
+            serials = [x.serial for x in g]
+            for j, at in enumerate(g):
                 lig_ser = [x.serial for x in at.ligands]
+                # logger.debug(f'Atom {at.serial} ({j}) has {len(lig_ser)} ligands')
                 for k, ls in enumerate(lig_ser):
                     if not ls in serials:
                         at.is_root = True
                         rp = at.ligands[k]
-                        logger.debug(f'-> Atom {str(at)} is the root, bound to atom {str(rp)}')
+                        # logger.debug(f'-> Atom {at.serial} ({j}) is the root, bound to atom {rp.serial}')
             indices = ' '.join([str(x.serial-1) for x in g])
+            # logger.debug(f'indices {indices}')
             fw.comment(f'Glycan {i}:')
             fw.addline(f'set glycan_idx({i}) [list {indices}]')
             fw.addline(f'set rbonds({i}) [list]')

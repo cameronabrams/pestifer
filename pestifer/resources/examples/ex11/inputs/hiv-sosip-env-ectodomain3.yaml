@@ -56,6 +56,37 @@ tasks:
           - A:100-162,GGG
           - C:100-162,GGG
           - E:100-162,GGG
+  - validate:
+      tests:
+        - attribute_test:
+            name: undo sos mutation on gp120
+            selection: protein and chain A C E and resid 469 and name CA
+            attribute: resname
+            value: ALA
+            value_count: 3
+        - attribute_test:
+            name: undo ip mutation on gp41
+            selection: protein and chain B D F and resid 48 and name CA
+            attribute: resname
+            value: ILE
+            value_count: 3
+        - attribute_test:
+            name: undo sos mutation on gp41
+            selection: protein and chain B D F and resid 94 and name CA
+            attribute: resname
+            value: THR
+            value_count: 3
+        - connection_test:
+            name: loop substitutions on gp120
+            selection: protein and chain A C E and resid 99 100 102 163
+            connection_type: interresidue
+            connection_count: 6
+        - attribute_test:
+            name: loop substitutions on gp120 (placeholder)
+            selection: protein and chain A C E and resid 100 101 102 and name CA
+            attribute: resname
+            value: GLY
+            value_count: 9
   - md:
       cpu-override: True
       ensemble: minimize
@@ -63,6 +94,19 @@ tasks:
       steer:
         temperature: 600
         nsteps: 3000
+  - validate:
+      tests:
+
+        - connection_test:
+            name: gp120 gaps ligation
+            selection: protein and chain A C E and resid 378 379
+            connection_type: interresidue
+            connection_count: 3
+        - connection_test:
+            name: gp41 gaps ligation
+            selection: protein and chain B D F and resid 50 51
+            connection_type: interresidue
+            connection_count: 3
   - md:
       cpu-override: True
       ensemble: minimize

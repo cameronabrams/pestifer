@@ -187,12 +187,24 @@ class AsymmetricUnit:
         patches.extend(userpatches)
 
         # Build the list of residues
-        ignored_atom_count  = atoms.apply_inclusion_logics(atom_include_logic)
-        ignored_atom_count += atoms.apply_exclusion_logics(atom_exclude_logic)
-        logger.debug(f'Ignored {ignored_atom_count} atoms from PDB by inclusion/exclusion logic')
-        ignored_missing_residue_count  = missings.apply_inclusion_logics(atom_include_logic)
-        ignored_missing_residue_count += missings.apply_exclusion_logics(atom_exclude_logic)
-        logger.debug(f'Ignored {ignored_missing_residue_count} missing residues from PDB by inclusion/exclusion logic')
+        ignored_atom_count = 0
+        ignored_missing_residue_count = 0
+        if atom_include_logic or atom_exclude_logic:
+            logger.debug(f'Applying atom logics')
+            if atom_include_logic:
+                logger.debug(f'Atoms: Applying atom inclusion logic: {atom_include_logic}')
+                ignored_atom_count += atoms.apply_inclusion_logics(atom_include_logic)
+            elif atom_exclude_logic:
+                logger.debug(f'Atoms: Applying atom exclusion logic: {atom_exclude_logic}')
+                ignored_atom_count += atoms.apply_exclusion_logics(atom_exclude_logic)
+            logger.debug(f'Ignored {ignored_atom_count} atoms from PDB by inclusion/exclusion logic')
+            if atom_include_logic:
+                logger.debug(f'Missing residues: Applying atom inclusion logic: {atom_include_logic}')
+                ignored_missing_residue_count += missings.apply_inclusion_logics(atom_include_logic)
+            elif atom_exclude_logic:
+                logger.debug(f'Missing residues: Applying atom exclusion logic: {atom_exclude_logic}')
+                ignored_missing_residue_count += missings.apply_exclusion_logics(atom_exclude_logic)
+            logger.debug(f'Ignored {ignored_missing_residue_count} missing residues from PDB by inclusion/exclusion logic')
         if self.psfcontents is not None:
             ignored_psfatom_count = self.psfcontents.apply_atom_logics(atom_include_logic, atom_exclude_logic)
             assert len(atoms) == len(self.psfcontents.atoms), f'Atom logic is not consistent between PDB and PSF'
@@ -242,21 +254,21 @@ class AsymmetricUnit:
 
         ignored_seqadvs = seqadvs.assign_residues(residues)
         logger.debug(f'{len(seqadvs)} seqadvs after assign_residues')
-        for s in seqadvs:
-            logger.debug(f'{str(s)}')
+        # for s in seqadvs:
+        #     logger.debug(f'{str(s)}')
         ignored_ssbonds = ssbonds.assign_residues(residues)
         logger.debug(f'{len(patches)} patches before assign_residues')
         ignored_patches = patches.assign_residues(residues)
         logger.debug(f'{len(ssbonds)} ssbonds after assign_residues')
-        for b in ssbonds:
-            logger.debug(f'{str(b)}')
+        # for b in ssbonds:
+        #     logger.debug(f'{str(b)}')
         logger.debug(f'{len(patches)} patches after assign_residues')
-        for p in patches:
-            logger.debug(f'{str(p)}')
+        # for p in patches:
+        #     logger.debug(f'{str(p)}')
         more_ignored_residues, ignored_links = links.assign_residues(residues)
         logger.debug(f'{len(links)} links after assign_residues')
-        for l in links:
-            logger.debug(f'{str(l)}')
+        # for l in links:
+        #     logger.debug(f'{str(l)}')
         ignored_residues = ResidueList([])
         ignored_residues.extend(more_ignored_residues)
         ignored_grafts = grafts.assign_residues(residues, links)

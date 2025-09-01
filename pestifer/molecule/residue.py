@@ -321,9 +321,12 @@ class ResiduePlaceholderList(BaseObjList[ResiduePlaceholder]):
             return 0
         keep_missing_residues = ResiduePlaceholderList([])
         for expression in inclusion_logics:
+            logger.debug(f'Applying inclusion logic: {expression}')
             filter_func = parse_filter_expression(expression)
-            keep_missing_residues.extend(filter(filter_func, self.data))
-        if keep_missing_residues > 0:
+            keep_missing_residues.extend(list(filter(filter_func, self.data)))
+        logger.debug(f'Keeping {len(keep_missing_residues)} missing residues.')
+        num_kept_missing_residues = len(keep_missing_residues)
+        if num_kept_missing_residues > 0:
             self.data = keep_missing_residues
         return ignored_missing_residue_count
 
@@ -334,10 +337,11 @@ class ResiduePlaceholderList(BaseObjList[ResiduePlaceholder]):
         for expression in exclusion_logics:
             logger.debug(f'Excluding missing residues with expression: {expression}')
             filter_func = parse_filter_expression(expression)
-            ignored_missing_residues = filter(filter_func, self.data)
+            ignored_missing_residues = list(filter(filter_func, self.data))
             all_ignored_missing_residues.extend(ignored_missing_residues)
+        logger.debug(f'Removing {len(all_ignored_missing_residues)} ignored missing residues.')
         for residue in all_ignored_missing_residues:
-            self.data.remove(residue)
+            self.remove_instance(residue)
         return len(all_ignored_missing_residues)
     
 class Residue(ResiduePlaceholder):

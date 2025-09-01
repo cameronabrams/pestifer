@@ -150,7 +150,7 @@ class ConnectionTest:
                 vt.addline(f'set extsel [atomselect top "index $external_partners"]')
                 vt.addline(f'set names [$extsel get name]')
                 vt.addline(f'set count [llength [lsearch -nocase -exact -all $names C1]]')
-                vt.addline(f'if {{$count != 1}} {{')
+                vt.addline(f'if {{$count != {self.connection_count}}} {{')
                 vt.addline(f'    vmdcon "FAIL Selection {self.selection} has no atoms bound to an external C1 atom"')
                 vt.addline(f'}} else {{')
                 vt.addline(f'    vmdcon "PASS Selection {self.selection} has $count atoms bound to an external C1 atom"')

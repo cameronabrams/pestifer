@@ -29,7 +29,7 @@ class PSFAtom(BaseObj):
     """
 
     _required_fields = { 'serial', 'resid', 'segname', 'resname', 'atomname', 'atomtype', 'charge', 'atomicwt', 'segtype' }
-    _optional_fields = { 'ligands' }
+    _optional_fields = { 'ligands', 'is_root' }
 
     serial: int = Field(..., description="The serial number of the atom.")
     resid: ResID = Field(..., description="The residue ID of the atom, including residue number and insertion code.")
@@ -41,6 +41,7 @@ class PSFAtom(BaseObj):
     atomicwt: float = Field(..., description="The atomic weight of the atom.")
     segtype: str = Field(..., description="The segment type of the atom.")
     ligands: list[PSFAtom] = Field(default_factory=list, description="A list of ligands associated with the atom.")
+    is_root: bool = Field(default=False, description="Whether the atom is a root atom.")
 
     @classmethod
     def _adapt(cls, *args, **kwargs) -> dict:
@@ -155,7 +156,7 @@ class PSFAtomList(BaseObjList[PSFAtom]):
         keep_atoms = PSFAtomList([])
         for expression in inclusion_logics:
             filter_func = parse_filter_expression(expression)
-            keep_atoms.extend(filter(filter_func, self.data))
+            keep_atoms.extend(list(filter(filter_func, self.data)))
         kept_atom_count = len(keep_atoms)
         if kept_atom_count > 0:
             self.data = keep_atoms
@@ -183,7 +184,7 @@ class PSFAtomList(BaseObjList[PSFAtom]):
         for expression in exclusion_logics:
             filter_func = parse_filter_expression(expression)
             ignored_atoms = filter(filter_func, self.data)
-            all_ignored_atoms.extend(ignored_atoms)
+            all_ignored_atoms.extend(list(ignored_atoms))
         for atom in all_ignored_atoms:
-            self.data.remove(atom)
+            self.remove_object(atom)
         return len(all_ignored_atoms)

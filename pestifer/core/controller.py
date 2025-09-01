@@ -66,7 +66,7 @@ class Controller:
             logger.debug('Adding default terminate task')
             self.tasks.append(TerminateTask(specs=specs, index=len(self.tasks)))
 
-        if running_under_pytest():
+        if running_under_pytest() and terminate:
             # truncate task list after latest ValidateTask, if one exists
             # remove the TerminateTask and put on a custom one so that 
             # desired outputs are retained

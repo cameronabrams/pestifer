@@ -108,7 +108,7 @@ class ChainIDManager:
             hold_chainID = self.next_unused_chainID()
             logger.debug(f'counter-proposed chainID is {hold_chainID}')
         else:
-            logger.debug(f'registering chainID {hold_chainID}')
+            logger.debug(f'({id(self)}) registering chainID {hold_chainID}')
             self.Unused.remove(hold_chainID)
             self.Used.add(hold_chainID)
 
@@ -123,6 +123,7 @@ class ChainIDManager:
         chainID : str
            1- or 2-byte chainID to unregister
         """
+        logger.debug(f'Unregistering chainID {chainID}')
         self.Used.remove(chainID)
         is_reserved = any([chainID in v for v in self.transform_reserves.values()])
         if is_reserved:
@@ -137,6 +138,7 @@ class ChainIDManager:
         """
         p = self.Unused.pop(0)
         self.Used.add(p)
+        logger.debug(f'({id(self)}) registering next unused chainID {p}')
         return p
 
     def next_reserved_chainID(self, key: str) -> str | None:

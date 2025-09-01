@@ -24,11 +24,25 @@ tasks:
         crotations:
           - phi,F,29,43,-90.0
           - psi,F,29,43,-120.0
+  - validate:
+      tests:
+        - residue_test:
+            name: 83G ligands are present
+            selection: resname 83G
+            measure: residue_count
+            value: 3
   - md:
       ensemble: minimize
   - ligate:
       steer:
         nsteps: 4000
+  - validate:
+      tests:
+        - connection_test:
+            name: chain F gap ligation
+            selection: protein and chain F and resid 43 44
+            connection_type: interresidue
+            connection_count: 1
   - md:
       ensemble: minimize
   - md:

@@ -25,6 +25,24 @@ tasks:
         patches:
           - HS2:B:10
           - HS2:D:10
+  - validate:
+      tests:
+        - residue_test:
+            name: no waters
+            selection: resname HOH
+            measure: residue_count
+            value: 0
+        - attribute_test:
+            name: check his patching
+            selection: protein and chain B D H P N J resid 10 and name CA
+            attribute: resname
+            value: HSD
+            value_count: 6
+        - connection_test:
+            name: check his-zinc ligation
+            selection: (protein and chain B D H P N J and resid 10) or (chain E F K L Q R and resid 1 31)
+            connection_type: interresidue
+            connection_count: 6
   - md:
       cpu-override: True
       ensemble: minimize

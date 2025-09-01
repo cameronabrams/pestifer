@@ -231,7 +231,7 @@ class Bilayer:
 
         solvent_names = [x['name'] for x in composition_dict['upper_chamber']]
         solvent_names += [x['name'] for x in composition_dict['lower_chamber']]
-        self.solvent_names = list(set(solvent_names))
+        self.solvent_names = list(set(solvent_names + neutralizing_salt))
         self.species_names = self.lipid_names + self.solvent_names
 
         # Tell the CHARMMFFContent object to expose required PDBs and residue topologies
@@ -281,8 +281,8 @@ class Bilayer:
                     cation, anion = self.charmmffcontent.get_resi(cation_name), self.charmmffcontent.get_resi(anion_name)
                     n_cation = int(np.round(Npm / np.abs(cation.charge), 0))
                     n_anion = int(np.round(Npm / np.abs(anion.charge), 0))
-                    composition_dict[c].append({'name': cation_name, 'patn': n_cation, 'charge': cation.charge, 'MW': cation.mass()})
-                    composition_dict[c].append({'name': anion_name, 'patn': n_anion, 'charge': anion.charge, 'MW': anion.mass()})
+                    composition_dict[c].append({'name': cation_name, 'patn': n_cation, 'charge': cation.charge, 'MW': cation.mass})
+                    composition_dict[c].append({'name': anion_name, 'patn': n_anion, 'charge': anion.charge, 'MW': anion.mass})
         # set up some short-cut object labes
         self.slices = {'lower_chamber': {}, 'lower_leaflet': {}, 'upper_leaflet': {}, 'upper_chamber': {}}
         self.LC = self.slices['lower_chamber']

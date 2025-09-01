@@ -1337,6 +1337,10 @@ attributes:
                   choices: [minimize, NVT, NPT, NPAT]
                   default: NVT
                   case_sensitive: False
+                - name: firsttimestep
+                  text: First timestep number for the run (used in the 'run' command)
+                  type: int
+                  default: 0
                 - name: minimize
                   text: Number of minimization steps; ignored if ensemble is not 'minimize' (used with the 'minimize' command)
                   type: int
@@ -1345,14 +1349,18 @@ attributes:
                   text: Number of MD time steps; ingored if ensemble is 'minimize' (used with the 'run' command)
                   type: int
                   default: 2000
+                - name: outputenergies
+                  text: number of time steps between energy output to log file
+                  type: int
+                  default: 1000
                 - name: dcdfreq
                   text: number of time steps between configuration output to DCD file
                   type: int
-                  default: 100
+                  default: 1000
                 - name: xstfreq
                   text: number of time steps between cell size output to DCD file
                   type: int
-                  default: 100
+                  default: 1000
                 - name: temperature
                   text: Temperature (K) for NVT or NPT
                   type: float

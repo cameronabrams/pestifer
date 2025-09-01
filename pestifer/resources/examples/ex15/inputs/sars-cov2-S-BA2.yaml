@@ -85,20 +85,22 @@ tasks:
   - validate:
       tests:
         - connection_test:
-            name: graft 61 chain A
-            selection: protein and chain A and resid 61 
+            name: glycans
+            selection: protein and chain A B C and resid 61 122 165 234 282 331 343 603 616 657 709 717 801 1074 1098 1134
             connection_type: glycosylation
-            connection_count: 1
-        - connection_test:
-            name: graft 61 chain B
-            selection: protein and chain B and resid 61
-            connection_type: glycosylation
-            connection_count: 1
-        - connection_test:
-            name: graft 61 chain C
-            selection: protein and chain C and resid 61 
-            connection_type: glycosylation
-            connection_count: 1
+            connection_count: 48
+        - attribute_test:
+            name: point mutation 986
+            selection: protein and chain A B C and resid 986 and name CA
+            attribute: resname
+            value: LYS
+            value_count: 3
+        - attribute_test:
+            name: point mutation 987
+            selection: protein and chain A B C and resid 987 and name CA
+            attribute: resname
+            value: VAL
+            value_count: 3
   - md:
       cpu-override: True
       ensemble: minimize
@@ -113,6 +115,13 @@ tasks:
         - A:685-686
         - B:685-686
         - C:685-686
+  - validate:
+     tests:
+       - connection_test:
+           name: cleavages
+           selection: protein and chain A B C and resid 685 686
+           connection_type: interresidue
+           connection_count: 0
   - md:
       cpu-override: True
       ensemble: minimize

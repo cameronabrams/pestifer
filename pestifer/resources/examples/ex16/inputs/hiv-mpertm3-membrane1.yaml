@@ -97,6 +97,14 @@ tasks:
         z_ref_group: 
           text: "protein and resid 696"
           z_value: 0.0
+  - validate:
+      tests:
+        - residue_test:
+            name: test of protein presence
+            selection: protein
+            measure: residue_count
+            relation: '>='
+            value: 1
   - md:
       ensemble: minimize
       minimize: 1000
@@ -143,9 +151,9 @@ tasks:
       archive_dir: arc
       package:
         state_dir: r2r
+        basename: prod_6e8w
         md:
           ensemble: NPAT
-          basename: prod_6e8w
           firsttimestep: 0
           dcdfreq: 10000
           xstfreq: 10000

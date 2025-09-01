@@ -26,12 +26,12 @@ tasks:
           - G:CYS,501,ALA
           - I:CYS,501,ALA
           - J:CYS,501,ALA
+          - A:PRO,559,ILE
           - B:PRO,559,ILE
           - D:PRO,559,ILE
-          - F:PRO,559,ILE
+          - A:CYS,605,THR
           - B:CYS,605,THR
           - D:CYS,605,THR
-          - F:CYS,605,THR
         substitutions: # stub out missing V1/2
           - G:131A-133T,GGG
           - I:131A-133T,GGG
@@ -40,12 +40,50 @@ tasks:
           - phi,G,309,324,-60
           - phi,I,309,324,-60
           - phi,J,309,324,-60
+  - validate:
+      tests:
+        - attribute_test:
+            name: undo sos mutation on gp120
+            selection: protein and chain G I J and resid 501 and name CA
+            attribute: resname
+            value: ALA
+            value_count: 3
+        - attribute_test:
+            name: undo ip mutation on gp41
+            selection: protein and chain A B D and resid 559 and name CA
+            attribute: resname
+            value: ILE
+            value_count: 3
+        - attribute_test:
+            name: undo sos mutation on gp41
+            selection: protein and chain A B D and resid 605 and name CA
+            attribute: resname
+            value: THR
+            value_count: 3
+        - attribute_test:
+            name: g120 v1/2 stubs
+            selection: protein and chain G I J and resid 131A 131B 131C and name CA
+            attribute: resname
+            value: GLY
+            value_count: 9
   - md:
       cpu-override: True
       ensemble: minimize
   - ligate:
       steer:
         nsteps: 3000
+  - validate:
+      tests:
+        - connection_test:
+            name: g120 gap ligations
+            selection: protein and chain G I J and resid 324 325 411 412
+            connection_type: interresidue
+            connection_count: 6
+        - connection_test:
+            name: gp41 gap ligations
+            selection: protein and chain A B D and resid 562 563
+            connection_type: interresidue
+            connection_count: 3
   - md:
       cpu-override: True
       ensemble: minimize

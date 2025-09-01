@@ -300,8 +300,9 @@ class SegmentList(BaseObjList[Segment]):
             matching_residues = ResidueList(list(filter(lambda x: x.segname == seg.segname, self.residues.data)))
             if not matching_residues:
                 raise ValueError(f'No matching residues found for segment {seg.segname}')
-
-            self.append(Segment(matching_residues, segname=seg.segname, specs=self.seq_spec, skip_uniquify=True))
+            apparent_segname = self.chainIDmanager.check(seg.segname)
+            assert apparent_segname == seg.segname, f'Segment name {seg.segname} was changed by chainIDmanager'
+            self.append(Segment(matching_residues, segname=apparent_segname, specs=self.seq_spec, skip_uniquify=True))
 
     def collect_residues(self):
         """

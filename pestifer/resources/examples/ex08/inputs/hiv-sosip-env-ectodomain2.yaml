@@ -35,16 +35,6 @@ tasks:
           - psi,B,35,57,-180
           - phi,B,35,57,-60
           - phi,B,39,57,-30
-  - md:
-      ensemble: minimize
-      nsteps: 3000
-  - md:
-      ensemble: NVT
-      nsteps: 2000
-  - ligate:
-      steer:
-        force_constant: 10
-        nsteps: 6000
   - validate:
       tests:
         - attribute_test:
@@ -65,6 +55,28 @@ tasks:
             attribute: resname
             value: THR
             value_count: 3
+  - md:
+      ensemble: minimize
+      nsteps: 3000
+  - md:
+      ensemble: NVT
+      nsteps: 2000
+  - ligate:
+      steer:
+        force_constant: 10
+        nsteps: 6000
+  - validate:
+      tests:
+        - connection_test:
+            name: gp120 gaps ligation
+            selection: protein and chain A C E and ((resid 156 and insertion I) or resid 157 378 379)
+            connection_type: interresidue
+            connection_count: 6
+        - connection_test:
+            name: gp41 gaps ligation
+            selection: protein and chain B D F and resid 57 58
+            connection_type: interresidue
+            connection_count: 3
   - md:
       ensemble: minimize
       nsteps: 3000

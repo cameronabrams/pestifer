@@ -452,9 +452,11 @@ class AtomList(BaseObjList[Atom]):
         total_atom_count = len(self.data)
         keep_atoms = AtomList([])
         for expression in inclusion_logics:
+            logger.debug(f'Applying atom inclusion logic: {expression}')
             filter_func = parse_filter_expression(expression)
             keep_atoms.extend(filter(filter_func, self.data))
         kept_atom_count = len(keep_atoms)
+        logger.debug(f'Keeping {kept_atom_count} atoms.')
         if kept_atom_count > 0:
             self.data = keep_atoms
         return total_atom_count - kept_atom_count
@@ -464,11 +466,14 @@ class AtomList(BaseObjList[Atom]):
             return 0
         all_ignored_atoms = AtomList([])
         for expression in exclusion_logics:
+            logger.debug(f'Applying atom exclusion logic: {expression}')
             filter_func = parse_filter_expression(expression)
             ignored_atoms = list(filter(filter_func, self.data))
+            logger.debug(f'  -> {len(ignored_atoms)} ignored atoms.')
             all_ignored_atoms.extend(ignored_atoms)
+        logger.debug(f'Removing {len(all_ignored_atoms)} ignored atoms out of {len(self.data)} total atoms.')
         for atom in all_ignored_atoms:
-            self.data.remove(atom)
+            self.remove_instance(atom)
         return len(all_ignored_atoms)
 
 class Hetatm(Atom):

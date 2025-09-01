@@ -1,0 +1,34 @@
+# pestifer.scripters: 00-02-00_md-minimize.namd
+####################### Created Sun Aug 31 14:32:51 2025 #######################
+################################# NAMD script ##################################
+parameters par_all36m_prot.prm
+parameters par_all36_lipid.prm
+parameters par_all36_carb.prm
+parameters par_all36_na.prm
+parameters par_all36_cgenff.prm
+parameters toppar_water_ions.str
+parameters toppar_all36_carb_glycopeptide.str
+parameters toppar_all36_prot_modify_res.str
+parameters toppar_all36_moreions.str
+set temperature 300
+paraTypeCharmm True
+exclude scaled1-4
+oneFourScaling 1.0
+cutoff 10.0
+switching True
+switchdist 9.0
+pairlistdist 11.5
+outputenergies 100
+structure 00-01-00_psfgen-build.psf
+coordinates 00-01-01_psfgen-crotations.pdb
+temperature $temperature
+nonbondedFreq 1
+fullElectFrequency 2
+stepspercycle 4
+dielectric 80
+timestep 1.0
+rigidbonds none
+outputName 00-02-00_md-minimize
+dcdfreq 100
+firsttimestep 0
+minimize 1000
