@@ -35,7 +35,7 @@ task_classes: dict[str, type] = {
     'mdplot': MDPlotTask,
     'pdb2pqr': PDB2PQRTask,
     'psfgen': PsfgenTask,
-    'ringcheck': RingCheckTask,
+    'ring_check': RingCheckTask,
     'solvate': SolvateTask,
     'terminate': TerminateTask,
     'validate': ValidateTask,

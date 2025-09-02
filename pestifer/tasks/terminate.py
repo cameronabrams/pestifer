@@ -100,19 +100,19 @@ class TerminateTask(MDTask):
             return 0
         archive_dir = self.specs.get('archive_dir', 'archive')  
 
-        ArtifactContents = self.pipeline.get_all_file_artifacts()
+        file_artifacts = list(filter(lambda x: not x.nonstate_results, self.pipeline.get_all_file_artifacts()))
 
-        ArtifactContents.sort(key=lambda x: x.name)
+        file_artifacts.sort(key=lambda x: x.name)
         # logger.debug(f'All artifact files: {all_artifact_files}')
 
         non_artifact_files = []
         cwd_files = os.listdir('.')
         # logger.debug(f'Current working directory files: {cwd_files}')
         for f in cwd_files:
-            if f not in ArtifactContents:
+            if f not in file_artifacts:
                 non_artifact_files.append(f)
 
         logger.debug(f'Non-artifact files in current working directory: {non_artifact_files}')
 
-        ArtifactContents.make_tarball('artifacts', remove=True, arcname_prefix=archive_dir, unique=True)
+        file_artifacts.make_tarball('artifacts', remove=True, arcname_prefix=archive_dir, unique=True)
         return 0

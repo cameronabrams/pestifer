@@ -16,6 +16,13 @@ tasks:
   - fetch:
       sourceID: 1mob
   - psfgen:
+  - validate:
+      tests:
+        - residue_test:
+            name: HEM residue present
+            selection: resname HEM
+            measure: residue_count
+            value: 1
   - md:
       ensemble: minimize
   - solvate:

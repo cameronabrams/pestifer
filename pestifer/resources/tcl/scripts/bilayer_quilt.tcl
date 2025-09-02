@@ -114,6 +114,8 @@ if { $propdb != "" } {
    exit
 }
 
+set tmp_files [list]
+
 # read in the two source bilayer systems, measure lateral areas and determine the common patch area
 mol new $psfA
 mol addfile $pdbA waitfor all
@@ -152,9 +154,17 @@ vmdcon -info "quilt areaB: $quilt_areaB"
 
 # extract upper leaflet of system A and lower leaflet of system B
 catch {set sliced_upper [leaflet_apportionment $source_upper]}
-split_psf $psfA $pdbA $sliced_upper "sliceA"
+set tmpfilesA [split_psf $psfA $pdbA $sliced_upper "sliceA"]
 catch {set sliced_lower [leaflet_apportionment $source_lower]}
-split_psf $psfB $pdbB $sliced_lower "sliceB"
+set tmpfilesB [split_psf $psfB $pdbB $sliced_lower "sliceB"]
+
+foreach tA $tmpfilesA {
+   lappend tmp_files $tA
+}
+
+foreach tB $tmpfilesB {
+   lappend tmp_files $tB
+}
 
 set upper_patch "sliceA1"
 set lower_patch "sliceB2"
@@ -236,13 +246,26 @@ for {set nx 0} { $nx < $npatchx } { incr nx } {
       set unmovevec [vecscale -1 $movevec]
       vmdcon -info "moving upper patch by $movevec"
       $upper_patch_sel moveby $movevec
-      set segidx [write_psfgen $umolid $segtypes $seglabels $segidx $maxres_per_seg]
+      set segidx_tmpfiles [write_psfgen $umolid $segtypes $seglabels $segidx $maxres_per_seg]
+      set segidx [lindex $segidx_tmpfiles 0]
+      set tmpfiles [lindex $segidx_tmpfiles 1]
+      foreach tf $tmpfiles {
+         lappend tmp_files $tf
+      }
       vmdcon -info "segidx: $segidx"
+      vmdcon -info "tmpfiles: $tmpfiles"
       vmdcon -info "moving upper patch by $unmovevec"
       $upper_patch_sel moveby $unmovevec
       vmdcon -info "moving lower patch by $movevec"
       $lower_patch_sel moveby $movevec
-      set segidx [write_psfgen $lmolid $segtypes $seglabels $segidx $maxres_per_seg]
+      set segidx_tmpfiles [write_psfgen $lmolid $segtypes $seglabels $segidx $maxres_per_seg]
+      set segidx [lindex $segidx_tmpfiles 0]
+      set tmpfiles [lindex $segidx_tmpfiles 1]
+      foreach tf $tmpfiles {
+         lappend tmp_files $tf
+      }
+      vmdcon -info "segidx: $segidx"
+      vmdcon -info "tmpfiles: $tmpfiles"
       vmdcon -info "moving lower patch by $unmovevec"
       $lower_patch_sel moveby $unmovevec
    }
@@ -255,11 +278,14 @@ if { [verify_no_mols] != 1} {
    exit
 }
 
+
 # write the first quilt psf and pdb files
 regenerate angles dihedrals
 set firstname  "${outbasename}_first_quilting"
 writepsf "${firstname}.psf"
 writepdb "${firstname}.pdb"
+lappend tmp_files "${firstname}.psf"
+lappend tmp_files "${firstname}.pdb"
 
 # determine final box size and set the origin to be the center of the quilt in all three dimensions
 set quilt_boxX [expr $Lx * $npatchx]
@@ -270,7 +296,7 @@ set origin_x [expr $quilt_boxX / 2]
 set origin_y [expr $quilt_boxY / 2]
 set origin_z [expr $quilt_boxZ / 2]
 
-# write the box dimensions and origin to an xsc file
+# write the box dimensions and origin to an xsc file; will be registered by caller
 set fp [open "${outbasename}.xsc" "w"]
 puts $fp "# PESTIFER generated xsc"
 puts $fp "#\$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w"
@@ -327,6 +353,8 @@ if { [llength $badseg] > 0 } {
 
 writepsf "${outbasename}_prelabel.psf"
 writepdb "${outbasename}_prelabel.pdb"
+lappend tmp_files "${outbasename}_prelabel.psf"
+lappend tmp_files "${outbasename}_prelabel.pdb"
 resetpsf
 
 # relabel all segments
@@ -335,7 +363,15 @@ mol addfile ${outbasename}_prelabel.pdb waitfor all
 set molid [molinfo top get id]
 
 set segidx {1 1 1}
-write_psfgen $molid $segtypes $seglabels $segidx $maxres_per_seg
+set segidx_tmpfiles [write_psfgen $molid $segtypes $seglabels $segidx $maxres_per_seg]
+set tmps [lindex $segidx_tmpfiles 1]
+foreach tf $tmps {
+   lappend tmp_files $tf
+}
 regenerate angles dihedrals
+# below will be registered by caller
 writepsf "${outbasename}.psf"
 writepdb "${outbasename}.pdb"
+foreach tf $tmp_files {
+   vmdcon -info "register_as_artifact $tf"
+}

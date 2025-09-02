@@ -1,3 +1,7 @@
+"""
+Pytest configuration for integration tests
+"""
+
 from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
@@ -25,6 +29,9 @@ def _default_cases_root() -> Path:
     return Path(str(base)).resolve()
 
 def pytest_addoption(parser: pytest.Parser) -> None:
+    """
+    Adds the ``--examples`` and ``--cases-root`` options to pytest CLI.
+    """
     g = parser.getgroup("integration-examples")
     g.addoption(
         "--examples",
@@ -57,6 +64,9 @@ def _cases_root(config: pytest.Config) -> Path:
     return Path(cr).resolve() if cr else _default_cases_root()
 
 def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
+    """
+    Generates the test cases based on the available examples.
+    """
     if "case" not in metafunc.fixturenames:
         return
     _example_manager = ExampleManager(examples_path=_cases_root(metafunc.config))
@@ -71,7 +81,8 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
 @pytest.fixture
 def per_case_dir(case: Case, request: pytest.FixtureRequest) -> Path:
     """
-    Make a subdirectory under the test module's directory (works with your change_test_dir).
+    Makes a subdirectory under the test module's directory (works with change_test_dir in the top-level conf.py).
+    
     Example: pkg/tests/integration/test_cli_cases/ex01/
     """
     test_module_dir = Path(request.node.fspath).parent.resolve()
@@ -83,7 +94,7 @@ def per_case_dir(case: Case, request: pytest.FixtureRequest) -> Path:
 @pytest.fixture
 def make_namespace():
     """
-    Build the argparse.Namespace expected by run_example, mirroring your current runner.
+    Build the argparse.Namespace expected by run_example.
     """
     def _make(example_id: int, outdir: Path) -> argparse.Namespace:
         return argparse.Namespace(

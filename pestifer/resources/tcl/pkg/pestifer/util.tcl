@@ -9,6 +9,7 @@ namespace eval ::PestiferUtil:: {
 }
 
 proc PestiferUtil::split_psf {psf pdb residues {prefix "section"}} {
+   set tmp_files [list]
    set nsections [llength $residues]
    for {set i 0} {$i < $nsections} {incr i} {
       vmdcon -info "split_psf: section $i has [llength [lindex $residues $i]] residues"
@@ -29,6 +30,8 @@ proc PestiferUtil::split_psf {psf pdb residues {prefix "section"}} {
       }} rv
       writepsf "${prefix}${section}.psf"
       writepdb "${prefix}${section}.pdb"
+      lappend tmp_files "${prefix}${section}.psf"
+      lappend tmp_files "${prefix}${section}.pdb"
       vmdcon -info "split_psf: wrote ${prefix}${section}.psf and ${prefix}${section}.pdb"
       mol new "${prefix}${section}.psf"
       mol addfile "${prefix}${section}.pdb" waitfor all
@@ -46,6 +49,7 @@ proc PestiferUtil::split_psf {psf pdb residues {prefix "section"}} {
    }
    resetpsf
    mol delete $tmpmolid
+   return $tmp_files
 }
 
 proc PestiferUtil::verify_no_mols {} {

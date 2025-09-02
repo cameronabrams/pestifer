@@ -1422,6 +1422,15 @@ attributes:
               - name: connection_test
                 text: Query the number of interatomic connections in a selection
                 type: dict
+                docs: 
+                  text: |
+                    This test queries for the presence or absence of covalent bonds. 
+                    The general ``interresidue`` test type will count the number of
+                    covalent bonds between atoms on different residues within the
+                    stipulated selection.  The ``disulfide`` test specifically tests
+                    for interresidue bonds between atoms named SG in residues named CYS.
+                    The ``glycosylation`` test will count the number of bonds between
+                    ND2 atoms in the selection and C1 atoms *outside* the selection.
                 attributes:
                   - name: name
                     text: User-selected name of this connection test
@@ -1430,7 +1439,7 @@ attributes:
                     text: VMD atomselection string defining the selection to be tested
                     type: string
                   - name: connection_type
-                    text: The type of connection to validate (e.g. "interresidue")
+                    text: The type of connection to validate; interresidue, disulfide, or glycosylation
                     type: string
                     choices: [interresidue, disulfide, glycosylation]
                   - name: connection_count
@@ -1447,8 +1456,9 @@ attributes:
                     text: VMD atomselection string defining the selection to be tested
                     type: string
                   - name: measure
-                    text: Measure to apply to the selection (e.g. "count")
+                    text: Measure to apply to the selection; atom_count or residue_count
                     type: string
+                    options: ['atom_count', 'residue_count']
                   - name: relation 
                     type: string
                     text: binary relational operator to relate measured value and expected value (defaults to ==)

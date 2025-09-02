@@ -44,9 +44,13 @@ set seglabels {L I WT}
 set segidx {1 1 1}
 set maxres_per_seg 9999
 
-write_psfgen $environ_molid $segtypes $seglabels $segidx $maxres_per_seg
+set segid_tmpfiles [write_psfgen $environ_molid $segtypes $seglabels $segidx $maxres_per_seg]
+set tmp_files [lindex $segid_tmpfiles 1]
 
 mol delete $environ_molid
 regenerate angles dihedrals
+foreach tf $tmp_files {
+   vmdcon -info "register_as_artifact $tf"
+}
 
 # pestifer takes over to write the psf and pdb

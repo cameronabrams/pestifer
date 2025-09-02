@@ -46,6 +46,12 @@ Each of ``chains`` and ``resnames`` are lists, and in the configuration file abo
 
 We have also modified the ``solvate`` task to allow for a 0.154 M NaCl solution, which is a common salt concentration in biological systems.
 
+.. _digression-validate-task:
+
+Digression:  The Validate Task
+==============================
+
+This example also introduces the `validate <_subs_runtasks_validate>`_ task, which is a useful way to check that your configuration file is doing what you expect by directly interrogating the PSF and PDB file of the current state.  This particular test validates the exclusion of the phosphate ion.  Other types of tests can check for presence or absence of other residues, interresidue bonds (disulfides and glycosylations), and more.
 
 .. raw:: html
 

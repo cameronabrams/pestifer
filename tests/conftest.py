@@ -1,14 +1,21 @@
 #Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+Toplevel pytest configuration for Pestifer
+"""
+
 from __future__ import annotations
 
 import pytest
 import os
-# conftest.py
 import logging
 
 logging.getLogger("pidibble").setLevel(logging.WARNING)
 logging.getLogger("ycleptic").setLevel(logging.WARNING)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
+try:
+    logging.getLogger("numexp").setLevel(logging.WARNING)
+except:
+    pass
 
 from logging import FileHandler, Formatter, StreamHandler
 from pathlib import Path
@@ -18,7 +25,7 @@ _FILE_HANDLER: FileHandler | None = None
 _CONSOLE_HANDLER: StreamHandler | None = None
 _LOGFILE: Path | None = None
 
-# pytest_plugins = ["pestifer.util.pytest_plugin"]
+pytest_plugins = ["pestifer.util.pytest_plugin"]
 
 
 @pytest.fixture(autouse=True)
@@ -43,12 +50,18 @@ def change_test_dir(request, monkeypatch):
         monkeypatch.chdir(test_dir)
 
 def pytest_addoption(parser):
+    """
+    Adds the ``--runslow`` option to the ``pytest`` command to allow for 
+    tests marked as "slow" to run
+    """
     parser.addoption(
         "--runslow", action="store_true", default=False, help="run slow tests"
     )
 
 def pytest_configure(config):
-    """Runs very early; attach our FileHandler to the root logger."""
+    """
+    Adds a file handler and console handler to pytest's logging
+    """
     global _FILE_HANDLER, _LOGFILE, _CONSOLE_HANDLER
 
     # repo root; adjust if your conftest.py lives elsewhere

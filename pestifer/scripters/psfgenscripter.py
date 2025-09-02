@@ -702,22 +702,22 @@ class PsfgenScripter(VMDScripter):
         Command
             The command object that was constructed to run the psfgen script, after it has been executed.
         """
-        assert hasattr(self,'scriptname'),f'No scriptname set.'
-        self.logname=f'{self.basename}.log'
-        self.logparser=PsfgenLogParser(basename=self.basename)
+        assert hasattr(self, 'scriptname'), f'No scriptname set.'
+        self.logname = f'{self.basename}.log'
+        self.logparser = PsfgenLogParser(basename=self.basename)
         logger.debug(f'Log file: {self.logname}')
-        clean_options=options.copy()
-        for k,v in options.items():
-            if v=='':
+        clean_options = options.copy()
+        for k, v in options.items():
+            if v == '':
                 clean_options.pop(k)
-        c=Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}',**clean_options)
-        progress_struct=None
+        c = Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}', **clean_options)
+        progress_struct = None
         if self.progress:
-            progress_struct=PsfgenProgress()
+            progress_struct = PsfgenProgress()
             self.logparser.enable_progress_bar(progress_struct)
         else:
             logger.debug('Progress bar is disabled for psfgen script')
-        result = c.run(logfile=self.logname,logparser=self.logparser)
+        result = c.run(logfile=self.logname, logparser=self.logparser)
         logger.debug(f'FileCollector {self.F}')
         if not options.get('keep_tempfiles', False):
             self.F.flush()

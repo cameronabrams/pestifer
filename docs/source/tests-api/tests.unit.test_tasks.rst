@@ -10,6 +10,7 @@ Submodules
    :maxdepth: 4
 
    tests.unit.test_tasks.test_basetask
+   tests.unit.test_tasks.test_cleave
    tests.unit.test_tasks.test_continuation
    tests.unit.test_tasks.test_fetch
    tests.unit.test_tasks.test_make_membrane_system

@@ -20,6 +20,13 @@ tasks:
             min_loop_length: 2
             declash:
               maxcycles: 40
+  - validate:
+      tests:
+        - residue_test:
+            name: resids 9, 10, and 11 of chain T present
+            selection: chain T and resid 9 10 11
+            measure: residue_count
+            value: 3
   - md:
       ensemble: minimize
   - ligate:

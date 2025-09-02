@@ -6,6 +6,13 @@ tasks:
 - psfgen:
     source:
       biological_assembly: 1
+- validate:
+    tests:
+    - residue_test:
+        name: ADPs are present
+        selection: resname ADP
+        measure: residue_count
+        value: 14
 - md:
     ensemble: minimize
 - solvate:

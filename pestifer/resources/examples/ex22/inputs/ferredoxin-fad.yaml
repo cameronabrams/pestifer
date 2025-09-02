@@ -7,6 +7,13 @@ tasks:
     source:
       exclude:
         - chainID in ['B', 'C', 'D']  # remove other protein chains
+- validate:
+    tests:
+    - residue_test:
+        name: no chains B, C, or D
+        selection: protein and chain B C D
+        measure: atom_count
+        value: 0
 - md:
     ensemble: minimize
 - solvate:

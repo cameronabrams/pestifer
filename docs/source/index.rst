@@ -27,6 +27,6 @@ Contents
    examples
    config_ref
    API <api/API>
-   tcl/source
-   testing api <tests-api/TESTSAPI>
+   Tcl sources <tcl/source>
+   Tests API <tests-api/TESTSAPI>
    changelog

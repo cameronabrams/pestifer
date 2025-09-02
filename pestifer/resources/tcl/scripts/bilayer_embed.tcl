@@ -131,6 +131,8 @@ if { $z_tail_group == "" && !$no_orient } {
    exit
 }
 
+set tmp_files [list]
+
 # load the protein system
 mol new $psf
 mol addfile $pdb waitfor all
@@ -189,6 +191,7 @@ set pro_y_shift [expr $bilayer_mid_y - $pro_y]
 set pro_z_shift [expr $bilayer_com_z - $pro_embed_mid_z - $z_value]
 $pro_sel moveby [list $pro_x_shift $pro_y_shift $pro_z_shift]
 $pro_sel writepdb "${outbasename}_embedded.pdb"
+lappend tmp_files "${outbasename}_embedded.pdb"
 
 set pro_minmax [measure minmax $pro_sel]
 set pro_min [lindex $pro_minmax 0]
@@ -217,6 +220,8 @@ regenerate angles dihedrals
 
 writepsf cmap ${outbasename}_prefill.psf
 writepdb ${outbasename}_prefill.pdb
+lappend tmp_files ${outbasename}_prefill.psf
+lappend tmp_files ${outbasename}_prefill.pdb
 
 # add water slabs to fill gaps above and below the protein
 resetpsf
@@ -227,6 +232,7 @@ mol addfile ${outbasename}_prefill.pdb waitfor all
 set raw_embedded_system [molinfo top get id]
 set allatoms [atomselect $raw_embedded_system "all"]
 $allatoms writenamdbin ${outbasename}.coor
+lappend tmp_files ${outbasename}.coor
 set segnames [lsort -unique [$allatoms get segname]]
 set solsegnums [list]
 foreach sg $segnames {
@@ -261,13 +267,18 @@ if { $box_min_z < $bilayer_min_z } {
    vmdcon -info "solvating into {{0 0 $box_min_z} {$bilayer_box_Lx $bilayer_box_Ly $bilayer_min_z}}"
    vmdcon -info "Running solvate [list [list 0 0 $box_min_z] [list $bilayer_box_Lx $bilayer_box_Ly $bilayer_min_z]] -o ${outbasename}_water_lower"
    solvate -minmax [list [list 0 0 $box_min_z] [list $bilayer_box_Lx $bilayer_box_Ly $bilayer_min_z]] -o ${outbasename}_water_lower
+   lappend tmp_files ${outbasename}_water_lower.psf
+   lappend tmp_files ${outbasename}_water_lower.pdb
+   lappend tmp_files ${outbasename}_water_lower.log
    if { $sc > 0.0 } {
       vmdcon -info "Adding $sc M salt (cation $cation, anion $anion) to lower water slab"
       autoionize -psf ${outbasename}_water_lower.psf -pdb ${outbasename}_water_lower.pdb -o ${outbasename}_solution_lower -sc $sc -cation $cation -anion $anion
-   } {
+   } else {
       file copy ${outbasename}_water_lower.psf ${outbasename}_solution_lower.psf
       file copy ${outbasename}_water_lower.pdb ${outbasename}_solution_lower.pdb
    }
+   lappend tmp_files ${outbasename}_solution_lower.psf
+   lappend tmp_files ${outbasename}_solution_lower.pdb
    lappend addl_solution ${outbasename}_solution_lower
 } else {
    set box_min_z $bilayer_min_z
@@ -282,6 +293,9 @@ if { $box_max_z > $bilayer_max_z } {
    }
    vmdcon -info "Running solvate -minmax [list [list 0 0 $bilayer_max_z] [list $bilayer_box_Lx $bilayer_box_Ly $box_max_z]] -o ${outbasename}_water_upper"
    solvate -minmax [list [list 0 0 $bilayer_max_z] [list $bilayer_box_Lx $bilayer_box_Ly $box_max_z]] -o ${outbasename}_water_upper
+   lappend tmp_files ${outbasename}_water_upper.psf
+   lappend tmp_files ${outbasename}_water_upper.pdb
+   lappend tmp_files ${outbasename}_water_upper.log
    if { $sc > 0.0 } {
       vmdcon -info "Adding $sc M salt (cation $cation, anion $anion) to upper water slab"
       autoionize -psf ${outbasename}_water_upper.psf -pdb ${outbasename}_water_upper.pdb -o ${outbasename}_solution_upper -sc $sc -cation $cation -anion $anion
@@ -289,6 +303,8 @@ if { $box_max_z > $bilayer_max_z } {
       file copy ${outbasename}_water_upper.psf ${outbasename}_solution_upper.psf
       file copy ${outbasename}_water_upper.pdb ${outbasename}_solution_upper.pdb
    }
+   lappend tmp_files ${outbasename}_solution_upper.psf
+   lappend tmp_files ${outbasename}_solution_upper.pdb
    lappend addl_solution ${outbasename}_solution_upper
 } else {
    set box_max_z $bilayer_max_z
@@ -308,6 +324,7 @@ foreach aw $addl_solution {
    foreach ns $new_segids {
       set pdbfrag [atomselect $solution "segname $ns"]
       $pdbfrag writepdb ${aw}_${ns}.pdb
+      lappend tmp_files ${aw}_${ns}.pdb
       segment WT${nextsolsegnum} {
          pdb ${aw}_${ns}.pdb
          first none
@@ -323,6 +340,7 @@ foreach aw $addl_solution {
    foreach is $ion_segs {
       set ion_frag [atomselect $solution "segname $is"]
       $ion_frag writepdb ${aw}_${is}.pdb
+      lappend tmp_files ${aw}_${is}.pdb
       segment $is {
          pdb ${aw}_${is}.pdb
          first none
@@ -342,6 +360,8 @@ foreach aw $addl_solution {
 
 writepsf cmap ${outbasename}_solvent_appended.psf
 writepdb ${outbasename}_solvent_appended.pdb
+lappend tmp_files ${outbasename}_solvent_appended.psf
+lappend tmp_files ${outbasename}_solvent_appended.pdb
 
 # delete any waters that conflict with the protein after the slab addition
 mol new ${outbasename}_solvent_appended.psf
@@ -362,6 +382,8 @@ catch {foreach seg [$bad_water_sel get segname] resid [$bad_water_sel get resid]
 regenerate angles dihedrals
 writepsf cmap ${outbasename}_filled.psf
 writepdb ${outbasename}_filled.pdb
+lappend tmp_files ${outbasename}_filled.psf
+lappend tmp_files ${outbasename}_filled.pdb
 
 # write the resulting box dimensions to an xsc file
 set fp [open "${outbasename}.xsc" "w"]
@@ -389,3 +411,6 @@ mol addfile ${outbasename}.pdb waitfor all
 [atomselect top "all"] writenamdbin ${outbasename}.coor
 
 vmdcon -info "Final embedded system: ${outbasename}.psf ${outbasename}.pdb ${outbasename}.coor ${outbasename}.xsc"
+foreach tf $tmp_files {
+   vmdcon -info "register_as_artifact $tf"
+}

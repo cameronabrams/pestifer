@@ -5,11 +5,12 @@ Definition of the :class:`MakeMembraneSystemTask` class for handling embedding p
 Usage is described in the :ref:`subs_runtasks_make_membrane_system` documentation.
 """
 
+import glob
 import logging
 from pathlib import Path
 
 from .basetask import BaseTask
-from .terminate import TerminateTask
+# from .terminate import TerminateTask
 
 from ..charmmff.charmmffcontent import CHARMMFFContent
 
@@ -201,6 +202,27 @@ class MakeMembraneSystemTask(BaseTask):
         self.register([CharmmffTopFileArtifact(x) for x in filelist if x.endswith('rtf')], key='charmmff_topfiles', artifact_type=CharmmffTopFileArtifacts)
         self.register([CharmmffStreamFileArtifact(x) for x in filelist if x.endswith('str')], key='charmmff_streamfiles', artifact_type=CharmmffStreamFileArtifacts)
 
+    def register_tmpfiles_from_tcl(self, logname: str):
+        tmp_files = {}
+        with open(logname, 'r') as f:
+            lines = f.readlines()
+            for line in lines:
+                if 'register_as_artifact' in line:
+                    artifactname = line.split()[-1]
+                    ext = os.path.splitext(artifactname)[1].replace('.','')
+                    if not ext in tmp_files:
+                        tmp_files[ext] = []
+                    tmp_files[ext].append(artifactname)
+        logger.debug(f'tmp_files: {tmp_files}')
+        if 'pdb' in tmp_files:
+            self.register([PDBFileArtifact(x) for x in tmp_files['pdb']], key='tmp_patch_pdbs', artifact_type=PDBFileArtifactList)
+        if 'psf' in tmp_files:
+            self.register([PSFFileArtifact(x) for x in tmp_files['psf']], key='tmp_patch_psfs', artifact_type=PSFFileArtifactList)
+        if 'coor' in tmp_files:
+            self.register([NAMDCoorFileArtifact(x) for x in tmp_files['coor']], key='tmp_patch_coors', artifact_type=NAMDCoorFileArtifactList)
+        if 'log' in tmp_files:
+            self.register([NAMDLogFileArtifact(x) for x in tmp_files['log']], key='tmp_patch_logs', artifact_type=NAMDLogFileArtifactList)
+
     def do_psfgen(self, patch: Bilayer, bilayer_name: str):
         """
         Perform the psfgen operation to generate the PSF and PDB files for the bilayer patch from the packmol output.
@@ -223,6 +245,7 @@ class MakeMembraneSystemTask(BaseTask):
                         key=f'{bilayer_name}_state', artifact_type=StateArtifacts)
         self.register(self.basename, key='tcl', artifact_type=PsfgenInputScriptArtifact)
         self.register(self.basename, key='log', artifact_type=PsfgenLogFileArtifact)
+        self.register_tmpfiles_from_tcl(f'{self.basename}.log')
 
     def pack_patch(self, patch: Bilayer, patch_name: str = None, seed=None, tolerance=None, nloop_all=200, nloop=200, half_mid_zgap=1.0, rotation_pm=20):
         """
@@ -261,8 +284,20 @@ class MakeMembraneSystemTask(BaseTask):
         if result != 0:
             raise Exception(f'Packmol failed with result {result}')
         self.register(dict(pdb=PDBFileArtifact(self.basename, pytestable=True)), key=f'{patch_name}_state', artifact_type=StateArtifacts)
+        if os.path.exists(f'{self.basename}.pdb_FORCED'):
+            self.register(f'{self.basename}.pdb_FORCED', key=f'{patch_name}_packmol_forced', artifact_type=PackMolPDBForcedFileArtifact)
         self.register(self.basename, key='packmol_tcl', artifact_type=PackmolInputScriptArtifact)
         self.register(self.basename, key='packmol_log', artifact_type=PackmolLogFileArtifact)
+        if os.path.exists(f'{self.basename}_packmol-results.yaml'):
+            self.register(f'{self.basename}_packmol-results.yaml', key=f'{patch_name}_packmol_results', artifact_type=YAMLFileArtifact)
+        csvs = glob.glob(f'{self.basename}*_packmol.csv')
+        logger.debug(f'csvs {csvs}')
+        if len(csvs) > 0:
+            self.register([CSVDataFileArtifact(x) for x in csvs], key=f'{patch_name}_packmol_csvs', artifact_type=CSVDataFileArtifactList)
+        pngs = glob.glob(f'{self.basename}*_packmol.png')
+        logger.debug(f'pngs {pngs}')
+        if len(pngs) > 0:
+            self.register([PNGImageFileArtifact(x) for x in pngs], key=f'{patch_name}_packmol_pngs', artifact_type=PNGImageFileArtifactList)
 
     def equilibrate_bilayer(self, bilayer: Bilayer, bilayer_name: str, relaxation_protocol: list[dict] = None):
         """
@@ -414,6 +449,7 @@ class MakeMembraneSystemTask(BaseTask):
         if result != 0:
             raise RuntimeError(f'psfgen failed with result {result} for {self.basename}')
         self.register(self.basename, key='log', artifact_type=PsfgenLogFileArtifact)
+        self.register_tmpfiles_from_tcl(f'{self.basename}.log')
         self.register(dict(
             pdb=PDBFileArtifact(self.basename, pytestable=True), 
             psf=PSFFileArtifact(self.basename, pytestable=True), 
@@ -475,6 +511,7 @@ class MakeMembraneSystemTask(BaseTask):
             psf=PSFFileArtifact(self.basename, pytestable=True), 
             pdb=PDBFileArtifact(self.basename, pytestable=True), 
             xsc=NAMDXscFileArtifact(self.basename)), key='state', artifact_type=StateArtifacts)
+        self.register_tmpfiles_from_tcl(f'{self.basename}.log')
         logger.debug(f'Embedding completed with result {result}')
         return result
 

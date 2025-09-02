@@ -60,6 +60,7 @@ proc PestiferEnviron::write_psfgen { molid {segtypes {lipid ion water}}
                                     {maxr_per_seg 9999}} {
     # execute segment and coordpdb stanzas for all atoms in the molid
     set new_segidx [list]
+    set tmp_files [list]
     vmdcon -info "Writing psfgen segments for molid $molid, 
                  segment types $segtypes, labels $seglabels, segidx $segidx, and max residues per segment $maxr_per_seg"
     foreach segtype $segtypes seglabel $seglabels idx $segidx {
@@ -98,6 +99,7 @@ proc PestiferEnviron::write_psfgen { molid {segtypes {lipid ion water}}
                 }
                 $segsel set resid $rser
                 $segsel writepdb "${segname}_tmp.pdb"
+                lappend tmp_files "${segname}_tmp.pdb"
                 segment $segname {
                     auto none
                     first none
@@ -113,5 +115,5 @@ proc PestiferEnviron::write_psfgen { molid {segtypes {lipid ion water}}
         }
     }
     vmdcon -info "All segments processed, new segment indices: $new_segidx"
-    return $new_segidx
+    return [list $new_segidx $tmp_files]
 }
