@@ -18,7 +18,7 @@ class MakePDBCollectionSubcommand(Subcommand):
     long_help: str = "Generate a PDB collection from a list of PDB files or IDs."
 
     @staticmethod
-    def func(args, **kwargs):
+    def func(args: ap.Namespace, **kwargs):
         """
         Create a PDB collection from a set of input files.
         """

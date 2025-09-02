@@ -26,7 +26,7 @@ class ConfigHelpSubcommand(Subcommand):
     long_help: str = "Display help information for all available configuration options."
 
     @staticmethod
-    def func(args, **kwargs):
+    def func(args: ap.Namespace, **kwargs):
         config = Config().configure_new()
         directives = args.directives
         iprompt='pestifer-help: ' if args.interactive else ''
@@ -48,7 +48,7 @@ class ConfigDefaultSubcommand(Subcommand):
     long_help: str = "Display default values for all available configuration options."
 
     @staticmethod
-    def func(args, **kwargs):
+    def func(args: ap.Namespace, **kwargs):
         config = Config().configure_new()
         directives = args.directives
         specs=config.make_default_specs(*directives)
@@ -71,7 +71,7 @@ class NewSystemSubcommand(Subcommand):
     long_help: str = 'Generate a new system script with a basic template.'
 
     @staticmethod
-    def func(args, **kwargs):
+    def func(args: ap.Namespace, **kwargs):
         r = ResourceManager()
         build_type = 'full' if args.full else 'minimal'
         r.example_manager.new_example_yaml(id=args.id, build_type=build_type)
@@ -107,7 +107,7 @@ class ShowResourcesSubcommand(Subcommand):
     long_help: str = 'Display a list of all available resources for the current configuration.'
 
     @staticmethod
-    def func(args, **kwargs):
+    def func(args: ap.Namespace, **kwargs):
         r = ResourceManager()
         resource_type = args.resource_type
         specs = {resource_type: []}
@@ -138,7 +138,7 @@ class WhereTCLSubcommand(Subcommand):
     long_help: str = "Display the path of TcL scripts for sourcing in interactive VMD."
 
     @staticmethod
-    def func(args, **kwargs):
+    def func(args: ap.Namespace, **kwargs):
         r = ResourceManager()
         tcl_root = r.get_tcldir()
         script_dir = r.get_tcl_scriptsdir()

@@ -4,7 +4,7 @@ Subcommand that allows for real-time following and parsing of NAMD log files act
 """
 from dataclasses import dataclass
 import logging
-
+import argparse as ap
 from ..logparsers.namdlogparser import subcommand_follow_namd_log
 from ..util.namdrestart import make_namd_restart_subcommand
 
@@ -17,7 +17,7 @@ class FollowNAMDLogSubcommand(Subcommand):
     long_help: str = "Monitor a NAMD log file for changes and display relevant information."
 
     @staticmethod
-    def func(args, **kwargs):
+    def func(args: ap.Namespace, **kwargs):
         log=args.log
         basename=args.basename
         console=logging.StreamHandler()
@@ -46,7 +46,7 @@ class MakeNAMDRestartSubcommand(Subcommand):
     long_help: str = 'This command generates a NAMD configuration file for restarting a simulation from the current checkpoint.'
 
     @staticmethod
-    def func(args, **kwargs):
+    def func(args: ap.Namespace, **kwargs):
         make_namd_restart_subcommand(args)
         return True
     

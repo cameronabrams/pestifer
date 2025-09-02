@@ -4,6 +4,8 @@ The mdplot subcommand.  This subcommand exposes the ``mdplot`` task standalone i
 """
 import logging
 
+import argparse as ap
+
 from dataclasses import dataclass
 
 from pestifer.core.artifacts import FileArtifactList
@@ -23,7 +25,7 @@ class MDPlotSubcommand(Subcommand):
     func_returns_type: type = FileArtifactList
 
     @staticmethod
-    def func(args, **kwargs):
+    def func(args: ap.Namespace, **kwargs):
         logging.basicConfig(filename='mdplot.log', filemode='w', format='%(asctime)s %(name)s %(message)s', level=logging.DEBUG)
 
         console = logging.StreamHandler()

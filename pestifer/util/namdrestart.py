@@ -7,13 +7,15 @@ import logging
 import os
 import shutil
 
+import argparse as ap
+
 from pathlib import Path
 
 from ..logparsers.namdlogparser import NAMDLogParser
 from ..scripters.genericscripter import GenericScripter
 from .stringthings import ByteCollector
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 class NAMDConfig:
     """
@@ -148,7 +150,7 @@ class NAMDConfig:
                 newargs.append(n)
         commandline['commandargs'] = newargs
 
-def make_namd_restart_subcommand(args):
+def make_namd_restart_subcommand(args: ap.Namespace):
     """
     Create a NAMD restart configuration file based on an existing NAMD log file and configuration file.
     
@@ -157,7 +159,7 @@ def make_namd_restart_subcommand(args):
     args : argparse.Namespace
         The command-line arguments parsed by argparse. It should contain the following attributes:
 
-        - ``log``: The path to the NAMD log file.
+        - ``namd_log``: The path to the NAMD log file.
         - ``config``: The path to the NAMD configuration file.
         - ``new_base``: The new base name for the output files.
         - ``run``: The number of time steps to run. If ``run`` is 0, the script will not run any new time steps.

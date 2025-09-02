@@ -5,7 +5,7 @@ A chain ID manager makes sure all chains have unique IDs and ID maps are tracked
 """
 
 import logging
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 class ChainIDManager:
     """
@@ -74,6 +74,15 @@ class ChainIDManager:
                 self.Unused.append(c)
             # else:
             #     logger.debug(f'Not sandbagging chainID {c} since it is reserved for a transform')
+
+    def touch(self, chainID: str):
+        """ Mark chainID as used if it is not already """
+        if chainID not in self.Used:
+            logger.debug(f'Marking chainID {chainID} as used')
+            self.Unused.remove(chainID)
+            self.Used.add(chainID)
+        else:
+            logger.debug(f'ChainID {chainID} is already marked as used; touching it.')
 
     def check(self, proposed_chainID: str) -> str:
         """

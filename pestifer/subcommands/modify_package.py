@@ -10,6 +10,8 @@ from dataclasses import dataclass
 
 import logging
 
+import argparse as ap
+
 from . import Subcommand
 
 from ..core.resourcemanager import ResourceManager
@@ -23,7 +25,7 @@ class ModifyPackageSubcommand(Subcommand):
     long_help: str = "Modify the pestifer package by adding, updating, or deleting examples."
 
     @staticmethod
-    def func(args, **kwargs):
+    def func(args: ap.Namespace, **kwargs):
         """
         Modify the pestifer source package.  Current modifications allowed involve example addition/update/deletion, and
         updating atomselect macros based on globals defined in :mod:`core/labels.py <pestifer.core.labels>`.

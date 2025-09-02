@@ -169,7 +169,6 @@ class Segment(BaseObj):
         """
         assert clv.chainID == self.segname
         assert self.segtype == 'protein'
-        # r2i = self.residues.iget(resid=clv.resid2, chainID=clv.chainID)
         r2i = self.residues.iget(lambda x: x.resid == clv.resid2 and x.chainID == clv.chainID)
         # These two slice operations create *copies* of lists of residues
         # The original list of residues contains elements that are referenced
@@ -188,7 +187,6 @@ class Segment(BaseObj):
         assert isinstance(Dseg, Segment)
         Dseg.objmanager = self.objmanager.expel(daughter_residues)
         Dseg.set_parent_molecule(self.parent_molecule)
-        # Dseg.ancestor_obj=self.ancestor_obj
         return Dseg
 
 class SegmentList(BaseObjList[Segment]):
@@ -213,7 +211,8 @@ class SegmentList(BaseObjList[Segment]):
     def describe(self) -> str:
         return f'<SegmentList with {len(self)} segments>'
 
-    def generate_from_residues(self, seq_spec: dict = {}, residues: ResidueList = [], chainIDmanager: ChainIDManager = None, psfcompanion: PSFSegmentList = None):
+    def generate_from_residues(self, seq_spec: dict = {}, residues: ResidueList = [], 
+                               chainIDmanager: ChainIDManager = None, psfcompanion: PSFSegmentList = None):
         """
         Generate a SegmentList from a sequence specification and a list of residues extracted from a structure file.
 
@@ -233,7 +232,8 @@ class SegmentList(BaseObjList[Segment]):
         SegmentList
             A new SegmentList instance containing the generated segments.
         """
-        assert all([x.segtype != 'UNSET' for x in residues]), f'There are residues with UNSET segtype: {[(x.resname, x.chainID, x.resid.resid) for x in residues.data if x.segtype == "UNSET"]}'
+        if not all([x.segtype != 'UNSET' for x in residues.data]):
+            raise ValueError(f'There are residues with UNSET segtype: {[(x.resname, x.chainID, x.resid.resid) for x in residues.data if x.segtype == "UNSET"]}')
         self.residues = residues
         self.seq_spec = seq_spec
         self.chainIDmanager = chainIDmanager
@@ -244,6 +244,7 @@ class SegmentList(BaseObjList[Segment]):
             self.build_from_psf_and_pdb_data()
 
     def build_from_only_pdb_data(self):
+        """ Build the segment list given residues that were populated only from PDB data """
         for r in self.residues.data:
             if not r.chainID in self.segtype_of_segname:
                 self.segtype_of_segname[r.chainID] = r.segtype
@@ -290,9 +291,10 @@ class SegmentList(BaseObjList[Segment]):
         return self
 
     def build_from_psf_and_pdb_data(self):
-        if not self.psfcompanion.num_residues() == len(self.residues):
+        """ Build the segment list using the pre-populated PSF segment list and PDB-derived residues """
+        if not self.psfcompanion.num_residues() == len(self.residues.data):
             raise ValueError(f'Number of residues in PSF ({self.psfcompanion.num_residues()}) does not match number of residues in PDB ({len(self.residues)})!')
-        if not self.psfcompanion.num_atoms() == sum(len(x.atoms) for x in self.residues):
+        if not self.psfcompanion.num_atoms() == sum(len(x.atoms) for x in self.residues.data):
             raise ValueError(f'Number of atoms in PSF ({self.psfcompanion.num_atoms()}) does not match number of atoms in PDB ({sum(len(x.atoms) for x in self.residues)})!')
         # for each segment in the psfcompanion, build a list of actual residues extracted from self.residues for which atom serials match those in the PSFResidues
 
@@ -303,8 +305,9 @@ class SegmentList(BaseObjList[Segment]):
             chainIDs = list(set([x.chainID for x in matching_residues.data]))
             assert len(chainIDs) == 1, f'Multiple chainIDs found for segment {seg.segname}: {chainIDs}'
             my_chainID = chainIDs[0]
-            apparent_chainID = self.chainIDmanager.check(my_chainID)
-            assert apparent_chainID == my_chainID, f'Chain ID {my_chainID} was changed by chainIDmanager'
+            """ Since we are building from a complete psf/pdb set, there should be no
+            chainID collisions, but each segment should represent only one chainID. """
+            self.chainIDmanager.touch(my_chainID)
             self.append(Segment(matching_residues, segname=seg.segname, specs=self.seq_spec, skip_uniquify=True))
 
     def collect_residues(self):
@@ -319,22 +322,6 @@ class SegmentList(BaseObjList[Segment]):
         for seg in self.data:
             residues.extend(seg.residues)
         return residues
-
-    def collect_working_files(self):
-        """
-        Collect all working files (PDB files) from the segments in the list.
-
-        Returns
-        -------
-        list
-            A list of PDB files associated with the segments."""
-        working_files = []
-        for seg in self.data:
-            for subseg in seg.subsegments:
-                if hasattr(subseg, 'pdb'):
-                    logger.debug(f'wf: {subseg.pdb}')
-                    working_files.append(subseg.pdb)
-        return working_files
 
     def get_segment_of_residue(self, residue: Residue) -> Segment | None:
         """
@@ -353,8 +340,6 @@ class SegmentList(BaseObjList[Segment]):
         logger.debug(f'Looking for {residue.chainID}_{residue.resid.resid} in all segments {", ".join([S.segname for S in self.data])}')
         for S in self.data:
             logger.debug(f'   -> {residue.chainID}_{residue.resid.resid} in segment {S.segname}')
-            # for r in S.residues:
-            #     logger.debug(f'     {r.chainID}_{r.resid.resid}')
             if residue in S.residues:
                 logger.debug(f' found it!')
                 return S
@@ -427,49 +412,6 @@ class SegmentList(BaseObjList[Segment]):
                     links.remove(l)
                     pruned_objects['links'].append(l)
         return pruned_objects
-            # llist, rlist = [], []
-
-            # left = ssbonds.get(chainID1=mutation.chainID, resid1=mutation.resid) # ssbonds for which partner 1 is the mutation
-            # right = ssbonds.get(chainID2=mutation.chainID, resid2=mutation.resid) # ssbonds for which partner 2 is the mutation
-            # if left:
-            #     ssbonds.remove(left)
-            #     pruned_objects['ssbonds'].append(left)
-            # if right:
-            #     ssbonds.remove(right)
-            #     pruned_objects['ssbonds'].append(right)
-            # left = links.get(chainID1=mutation.chainID, resid1=mutation.resid) # links for which partner 1 is the mutation
-            # right = links.get(chainID2=mutation.chainID, resid2=mutation.resid) # links for which partner 2 is the mutation
-            # ### it is assumed that a residue can be represented as a partner in only two shared links
-            # assert isinstance(left, Link) or left is None, f'Left link for mutation {mutation} is not a Link: {type(left)}'
-            # assert isinstance(right, Link) or right is None, f'Right link for mutation {mutation} is not a Link: {type(right)}'
-            # if left:  # this is a link in which this mutation is partner 1
-            #     links.remove(left) # get rid of this link
-            #     # we need to remove residue2 and everything downstream
-            #     # remove downstream residues!
-            #     rlist, llist = left.residue2.get_down_group()
-            #     rlist.insert(0, left.residue2)
-            # elif right: # this is a link in which this mutation is the right member (should be very rare)
-            #     links.remove(right)
-            #     rlist, llist = right.residue2.get_down_group()
-            #     rlist.insert(0, right.residue2)
-            # logger.debug(f'Found upstream residues for mutation {mutation}: {[repr(r) for r in llist]}')
-        #     logger.debug(f'Found downstream residues for mutation {mutation}: {[f"{r.chainID}:{r.resname}_{r.resid.resid}" for r in rlist]}')
-        #     if rlist and llist:
-        #         logger.debug(f'Deleting residues down from and including {str(rlist[0])} due to a mutation')
-        #         S = self.get_segment_of_residue(rlist[0])
-        #         logger.debug(f'Segment {S.segname} contains residues that must be deleted because they are downstream (right) of a deleted link.')
-        #         for r in rlist:
-        #             logger.debug(f'...{str(r)}')
-        #             S.residues.remove(r)
-        #             pruned_objects['residues'].append(r)
-        #         if len(S.residues) == 0:
-        #             logger.debug(f'All residues of {S.segname} are deleted; {S.segname} is deleted')
-        #             self.remove(S)
-        #             pruned_objects['segments'].append(S)
-        #         for l in llist:
-        #             links.remove(l)
-        #             pruned_objects['links'].append(l)
-        # return pruned_objects
 
     def inherit_objs(self, objmanager: ObjManager):
         """

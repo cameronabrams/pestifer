@@ -23,6 +23,9 @@ and ``catdcd`` to process the trajectory files.  The atom index file name will b
 by default, but can be specified using the --idx-outfile option.
 
 """
+
+import argparse as ap
+
 from dataclasses import dataclass
 
 from . import Subcommand
@@ -37,7 +40,7 @@ class DesolvateSubcommand(Subcommand):
     func_returns_type: type = dict
 
     @staticmethod
-    def func(args, **kwargs):
+    def func(args: ap.Namespace, **kwargs):
         config = Config().configure_new()
         C = Controller(
             config, userspecs={

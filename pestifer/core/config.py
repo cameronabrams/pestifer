@@ -36,6 +36,10 @@ class Config(Yclept):
         A dictionary of user-specific configuration options. If not provided, the default configuration is used.
     quiet : bool, optional
         If True, suppresses output to the console. Default is False.
+    RM : ResourceManager
+        An instance of the ResourceManager class, which manages access to the contents of Pestifer's resources.
+    basefile : str
+        Optional name of the Ycleptic-format base file
     """
     def __init__(self, userfile='', userdict={}, quiet=False, RM: ResourceManager = None, basefile: str = ''):
         self.userfile = userfile
@@ -48,7 +52,7 @@ class Config(Yclept):
 
     def configure_new(self):
         if not self.quiet:
-            vrep = f'ycleptic v. {version("ycleptic")}\npidibble v. {version("pidibble")}'
+            vrep = f'pestifer v. {version("pestifer")}\n  ycleptic v. {version("ycleptic")}\n  pidibble v. {version("pidibble")}'
             my_logger(vrep, logger.info, just='<', frame='*', fill='', no_indent=True)
             # my_logger(str(self.RM), logger.debug, just='<', frame='*', fill='', no_indent=True)
         # resolve full pathname of YCleptic base config for this application
@@ -57,7 +61,8 @@ class Config(Yclept):
         return self.configure()
     
     def configure(self):
-        self.basefile = self.RM.get_ycleptic_config()
+        if not self.basefile:
+            self.basefile = self.RM.get_ycleptic_config()
         assert os.path.exists(self.basefile), f'Base config file {self.basefile} does not exist.'
         # ycleptic's init:
         super().__init__(self.basefile, userfile=self.userfile, userdict=self.userdict)
@@ -73,8 +78,6 @@ class Config(Yclept):
             user_pdbrepository_paths=self['user']['charmmff'].get('pdbrepository', [])
         )
         self._set_kwargs_to_scripters()
-
-        # logger.debug(f'{self.kwargs_to_scripters}')
         self.scripters = {
             'psfgen': PsfgenScripter(**self.kwargs_to_scripters),
             'namd': NAMDScripter(**self.kwargs_to_scripters),
@@ -87,12 +90,12 @@ class Config(Yclept):
         return self
 
     def taskless_subconfig(self) -> 'Config':
-        """Create a taskless subconfiguration from the progenitor configuration."""
+        """ Create a taskless subconfiguration from the progenitor configuration. """
         subconfig = self.__class__(quiet=True, RM=self.RM).configure()
         subconfig['user']['tasks'] = TaskList([])
         return subconfig
 
-    def get_scripter(self, scripter_name):
+    def get_scripter(self, scripter_name: str):
         """ 
         Get a scripter instance by name.
 
@@ -112,6 +115,9 @@ class Config(Yclept):
             raise ValueError(f'Scripter {scripter_name} not found.')
 
     def _set_kwargs_to_scripters(self):
+        """
+        Defines a collection of resources sent to all scripters
+        """
         assert self.RM.charmmff_content is not None, 'ResourceManager must have charmmff_content set.'
         self.kwargs_to_scripters = dict(
             charmmff = self.RM.charmmff_content,
@@ -186,6 +192,7 @@ class Config(Yclept):
         return retstr
 
     def _set_shell_commands(self, verify_access=True):
+        """ Defines all shell commands used by Pestifer """
         required_commands = ['charmrun', 'namd3', 'vmd', 'catdcd', 'packmol']
         command_alternates = {'namd3': 'namd2'}
         self.shell_commands = {}

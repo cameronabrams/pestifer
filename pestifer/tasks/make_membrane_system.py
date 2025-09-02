@@ -325,7 +325,7 @@ class MakeMembraneSystemTask(BaseTask):
         tasklist_user.extend(relaxation_protocol)
         tasklist_user.extend([
             {'mdplot': dict(timeseries=timeseries, profiles=profiles, legend=True, grid=True, basename=self.basename)},
-            {'terminate': dict(basename=self.basename, cleanup=False, chainmapfile=f'{self.basename}-chainmap.yaml', statefile=f'{self.basename}-state.yaml')}
+            # {'terminate': dict(basename=self.basename, cleanup=False, chainmapfile=f'{self.basename}-chainmap.yaml', statefile=f'{self.basename}-state.yaml')}
         ])
         subcontroller = self.subcontroller
         subcontroller.config['user']['title'] = f'Bilayer equilibration from {self.basename}'
@@ -336,7 +336,7 @@ class MakeMembraneSystemTask(BaseTask):
             task.override_taskname(task_name)
             logger.debug(f'Subcontroller overrides task name {save_task_name} with {task.taskname}')
         subcontroller.do_tasks()
-        last_task: TerminateTask = subcontroller.tasks[-1]
+        last_task = subcontroller.tasks[-1]
         bilayer_state: StateArtifacts = last_task.get_current_artifact('state')
         assert bilayer_state is not None
         assert bilayer_state.psf.exists()
@@ -344,7 +344,7 @@ class MakeMembraneSystemTask(BaseTask):
         assert bilayer_state.vel.exists()
         assert bilayer_state.xsc.exists()
         assert bilayer_state.coor.exists()
-        self.pipeline.rekey('state', key=f'{bilayer_name}_state')
+        self.subcontroller.pipeline.rekey('state', f'{bilayer_name}_state')
         self.import_artifacts(subcontroller.pipeline)
         bilayer.box, bilayer.origin = cell_from_xsc(bilayer_state.xsc.name)
         bilayer.area = bilayer.box[0][0] * bilayer.box[1][1]
@@ -378,7 +378,8 @@ class MakeMembraneSystemTask(BaseTask):
             psfB = patchB_state.psf.name
             pdbB = patchB_state.pdb.name
             xscB = patchB_state.xsc.name
-
+        else:
+            raise ValueError("No valid patch state found.")
         for patch in [self.patch, self.patchA, self.patchB]:
             if patch is None:
                 continue

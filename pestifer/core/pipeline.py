@@ -1,6 +1,10 @@
 # Author: ChatGPT with modifications by Cameron F. Abrams, <cfa22@drexel.edu>
 """
-Pipeline context for managing passing of information from one task to another via artifacts.
+Pipeline context for managing passing of information from one task to another via artifacts.  All Artifact
+types are defined in `~pestifer.core.artifacts`.  
+
+The main task of the pipeline is the _registration_ of Artifacts.  This is done primarily via :meth:`PipelineContext.register`.
+This method requires an object, a key, the id of the object requesting the registration, and the type of the Artifact.
 """
 from __future__ import annotations
 import logging
@@ -10,6 +14,18 @@ from .artifacts import Artifact, FileArtifact, ArtifactDict, ArtifactList, FileA
 logger = logging.getLogger(__name__)
 
 class PipelineContext:
+    """ Context for managing the pipeline of artifacts by which tasks communicate. 
+    
+    Attributes
+    ----------
+
+    head : ArtifactDict
+        Current artifacts organized into to a dict by their keys
+    history : ArtifactList
+        All non-current artifacts in chronological order by their creation
+    controller_index : int
+        Index of the controller that owns this pipeline
+    """
     def __init__(self, controller_index: int = 0):
         self.head: ArtifactDict = ArtifactDict(key='Head')
         self.history: ArtifactList = ArtifactList(key='History')
@@ -91,12 +107,13 @@ class PipelineContext:
         Raises
         ------
         ValueError
-            If the old_key does not exist in the head or if the new_key already exists in the head.
+            If the old_key does not exist in the head.
         """
         if old_key not in self.head:
             raise ValueError(f"Cannot rekey artifact: old key '{old_key}' does not exist.")
         if new_key in self.head:
-            raise ValueError(f"Cannot rekey artifact: new key '{new_key}' already exists.")
+            existing_artifact = self.head.pop(new_key)
+            self.history.append(existing_artifact)
         artifact = self.head.pop(old_key)
         artifact.key = new_key
         self.head[new_key] = artifact
@@ -107,7 +124,7 @@ class PipelineContext:
         Debugging utility to show current and historical artifacts.
         """
         logger.debug('*'*72)
-        logger.debug(header)
+        logger.debug(header + f" Controller {self.controller_index}")
         logger.debug('*'*72)
         logger.debug(f'Head:')
         self.show_artifact(self.head)
@@ -183,8 +200,10 @@ class PipelineContext:
 
         Returns
         -------
-        ArtifactList
-            A list of artifacts associated with the given key, in reverse registration order.
+        ArtifactList | FileArtifactList
+            A list of artifacts associated with the given key, in reverse 
+            registration order.  If all artifacts filtered are FileArtifacts, 
+            returns a FileArtifactList.
         """
         series = ArtifactList([h for h in self.history if h.key == key])
         current = self.get_current_artifact(key)
@@ -276,3 +295,4 @@ class PipelineContext:
             else:
                 self.history.append(other_artifact)
         self.history.extend(other.history)
+        self.show_artifacts()
