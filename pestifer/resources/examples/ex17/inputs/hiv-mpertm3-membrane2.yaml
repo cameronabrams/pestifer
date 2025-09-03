@@ -93,6 +93,13 @@ tasks:
         z_ref_group: 
           text: "protein and resid 696"
           z_value: 0.0
+  - md:
+      ensemble: minimize
+      minimize: 1000
+      constraints:
+        k: 10
+        atoms: protein and name CA
+  - ring_check:  # there are sterols!
   - validate:
       tests:
         - residue_test:
@@ -101,13 +108,6 @@ tasks:
             measure: residue_count
             relation: '>='
             value: 1
-  - md:
-      ensemble: minimize
-      minimize: 1000
-      constraints:
-        k: 10
-        atoms: protein and name CA
-  - ring_check:  # there are sterols!
   - md:
       ensemble: NVT
       nsteps: 1000

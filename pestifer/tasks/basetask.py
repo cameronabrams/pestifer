@@ -390,7 +390,8 @@ class VMDTask(BaseTask, ABC):
             The key under which the resulting PDB file will be stored in the state variables. Default is ``consref``.
         """
         vm: VMDScripter = self.get_scripter('vmd')
-        pdb: Path = self.get_current_artifact_path('pdb')
+        state: StateArtifacts = self.get_current_artifact('state')
+        pdb: Path = state.pdb
         # 'namd_global_config': self.config['user']['namd'],
         force_constant = specs.get('k', self.namd_global_config['harmonic']['spring_constant'])
         constrained_atoms_def = specs.get('atoms', 'all')
@@ -406,8 +407,8 @@ class VMDTask(BaseTask, ABC):
         vm.addline(f'$c set occupancy {force_constant}')
         vm.addline(f'$a writepdb {c_pdb}')
         vm.writescript()
-        self.register(TclScriptArtifact(f'{self.basename}-make-constraint-pdb'))
+        self.register(f'{self.basename}-make-constraint-pdb', key='tcl', artifact_type=TclScriptArtifact)
         vm.runscript()
-        self.register(VMDLogFileArtifact(f'{self.basename}-make-constraint-pdb'))
-        self.register(PDBFileArtifact(c_pdb), key=statekey)
+        self.register(f'{self.basename}-make-constraint-pdb', key='log', artifact_type=VMDLogFileArtifact)
+        self.register(c_pdb, key=statekey, artifact_type=PDBFileArtifact)
 
