@@ -1,0 +1,57 @@
+# pestifer.scripters: 01-05-00_make_membrane_system-md-patchB-npt.namd
+####################### Created Tue Sep  2 20:26:55 2025 #######################
+################################# NAMD script ##################################
+parameters par_all36m_prot.prm
+parameters par_all36_lipid.prm
+parameters par_all36_carb.prm
+parameters par_all36_na.prm
+parameters par_all36_cgenff.prm
+parameters toppar_water_ions.str
+parameters toppar_all36_carb_glycopeptide.str
+parameters toppar_all36_prot_modify_res.str
+parameters toppar_all36_moreions.str
+parameters toppar_all36_lipid_cholesterol.str
+parameters toppar_all36_lipid_miscellaneous.str
+set temperature 310
+set pressure 10.0
+paraTypeCharmm True
+exclude scaled1-4
+oneFourScaling 1.0
+cutoff 10.0
+switching True
+switchdist 9.0
+pairlistdist 11.5
+outputenergies 100
+structure 00-03-04_make_membrane_system-psfgen-patchB.psf
+coordinates 01-04-00_make_membrane_system-md-patchB-npt.pdb
+bincoordinates 01-04-00_make_membrane_system-md-patchB-npt.coor
+binvelocities 01-04-00_make_membrane_system-md-patchB-npt.vel
+extendedSystem 01-04-00_make_membrane_system-md-patchB-npt.xsc
+xstfreq 100
+timestep 2.0
+rigidbonds all
+nonbondedFreq 1
+fullElectFrequency 2
+stepspercycle 10
+PME True
+pmegridspacing 1.0
+wrapAll True
+langevin True
+langevinDamping 5
+langevinTemp $temperature
+langevinHydrogen False
+langevinpiston True
+langevinpistontarget $pressure
+langevinpistonperiod 200
+langevinpistondecay 100
+langevinpistontemp $temperature
+usegrouppressure True
+useflexiblecell True
+outputName 01-05-00_make_membrane_system-md-patchB-npt
+dcdfreq 100
+useconstantratio True
+pressureProfile on
+pressureProfileSlabs 30
+pressureProfileFreq 100
+firsttimestep 38000
+run 4000

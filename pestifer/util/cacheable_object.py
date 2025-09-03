@@ -94,9 +94,11 @@ class CacheableObject:
     to populate `self` from files in resource_root.
 
     Behavior:
+
       - On __init__, compare cache mtime to newest file mtime under `resource_root`.
       - If cache is fresh, hydrate `self` from cache and set `self.from_cache = True`.
       - Else, call `_build_from_resources(...)`, ensure `self.from_cache = False`, and write cache.
+
     """
 
     APP_NAME = "pestifer"          # for per-user cache dir

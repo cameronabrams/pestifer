@@ -1,0 +1,44 @@
+# pestifer.scripters: 01-01-00_make_membrane_system-md-patchA-minimize.namd
+####################### Created Tue Sep  2 19:48:12 2025 #######################
+################################# NAMD script ##################################
+parameters par_all36m_prot.prm
+parameters par_all36_lipid.prm
+parameters par_all36_carb.prm
+parameters par_all36_na.prm
+parameters par_all36_cgenff.prm
+parameters toppar_water_ions.str
+parameters toppar_all36_carb_glycopeptide.str
+parameters toppar_all36_prot_modify_res.str
+parameters toppar_all36_moreions.str
+parameters toppar_all36_carb_imlab.str
+parameters toppar_all36_lipid_cholesterol.str
+parameters toppar_all36_lipid_lps.str
+parameters toppar_all36_lipid_sphingo.str
+set temperature 300
+paraTypeCharmm True
+exclude scaled1-4
+oneFourScaling 1.0
+cutoff 10.0
+switching True
+switchdist 9.0
+pairlistdist 11.5
+outputenergies 100
+structure 00-03-01_make_membrane_system-psfgen-patchA.psf
+coordinates 00-03-01_make_membrane_system-psfgen-patchA.pdb
+temperature $temperature
+bincoordinates 01-00-00_make_membrane_system-continuation-patchA.coor
+extendedSystem 00-03-01_make_membrane_system-psfgen-patchA.xsc
+timestep 2.0
+rigidbonds all
+nonbondedFreq 1
+fullElectFrequency 2
+stepspercycle 10
+PME True
+pmegridspacing 1.0
+wrapAll True
+outputName 01-01-00_make_membrane_system-md-patchA-minimize
+dcdfreq 100
+useflexiblecell True
+useconstantratio True
+firsttimestep 0
+minimize 1000

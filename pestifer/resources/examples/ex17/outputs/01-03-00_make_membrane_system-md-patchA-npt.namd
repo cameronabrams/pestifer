@@ -1,0 +1,59 @@
+# pestifer.scripters: 01-03-00_make_membrane_system-md-patchA-npt.namd
+####################### Created Tue Sep  2 19:49:41 2025 #######################
+################################# NAMD script ##################################
+parameters par_all36m_prot.prm
+parameters par_all36_lipid.prm
+parameters par_all36_carb.prm
+parameters par_all36_na.prm
+parameters par_all36_cgenff.prm
+parameters toppar_water_ions.str
+parameters toppar_all36_carb_glycopeptide.str
+parameters toppar_all36_prot_modify_res.str
+parameters toppar_all36_moreions.str
+parameters toppar_all36_carb_imlab.str
+parameters toppar_all36_lipid_cholesterol.str
+parameters toppar_all36_lipid_lps.str
+parameters toppar_all36_lipid_sphingo.str
+set temperature 310
+set pressure 10.0
+paraTypeCharmm True
+exclude scaled1-4
+oneFourScaling 1.0
+cutoff 10.0
+switching True
+switchdist 9.0
+pairlistdist 11.5
+outputenergies 100
+structure 00-03-01_make_membrane_system-psfgen-patchA.psf
+coordinates 01-02-00_make_membrane_system-md-patchA-nvt.pdb
+bincoordinates 01-02-00_make_membrane_system-md-patchA-nvt.coor
+binvelocities 01-02-00_make_membrane_system-md-patchA-nvt.vel
+extendedSystem 01-02-00_make_membrane_system-md-patchA-nvt.xsc
+xstfreq 100
+timestep 2.0
+rigidbonds all
+nonbondedFreq 1
+fullElectFrequency 2
+stepspercycle 10
+PME True
+pmegridspacing 1.0
+wrapAll True
+langevin True
+langevinDamping 5
+langevinTemp $temperature
+langevinHydrogen False
+langevinpiston True
+langevinpistontarget $pressure
+langevinpistonperiod 200
+langevinpistondecay 100
+langevinpistontemp $temperature
+usegrouppressure True
+useflexiblecell True
+outputName 01-03-00_make_membrane_system-md-patchA-npt
+dcdfreq 100
+useconstantratio True
+pressureProfile on
+pressureProfileSlabs 30
+pressureProfileFreq 100
+firsttimestep 2000
+run 1000

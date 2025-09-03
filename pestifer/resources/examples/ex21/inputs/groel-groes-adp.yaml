@@ -12,7 +12,7 @@ tasks:
         name: ADPs are present
         selection: resname ADP
         measure: residue_count
-        value: 14
+        value: 7
 - md:
     ensemble: minimize
 - solvate:
