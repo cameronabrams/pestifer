@@ -254,4 +254,6 @@ class Config(Yclept):
             if residue_alias not in self['user']['psfgen']['aliases']['residue']:
                 # add the residue alias to the user config
                 self['user']['psfgen']['aliases']['residue'].append(residue_alias)
+        RM.labels.update_aliases(residue_aliases=self['user']['psfgen']['aliases']['residue'],
+                                 atom_aliases=self['user']['psfgen']['aliases']['atom'])
         # logger.debug(f'psfgen aliases: {self["user"]["psfgen"]["aliases"]}')

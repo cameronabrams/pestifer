@@ -223,6 +223,12 @@ class LabelMappers:
         for segtype in self.segtypes:
             for resname in self.segtypes[segtype]['resnames']:
                 self.segtype_of_resname[resname] = segtype
+        self.update_alias_mappings()
+
+    def update_alias_mappings(self):
+        """
+        Update the alias mappings for residues based on the current aliases.
+        """
         for alias in self.aliases['residue']:
             parts = alias.split()
             resname, alias1 = parts
@@ -230,6 +236,23 @@ class LabelMappers:
             if len(resname) >= 3:
                 self.pdb_resname_of_charmm_resname[alias1] = resname
     
+    def update_aliases(self, residue_aliases=[], atom_aliases=[]):
+        """
+        Update the aliases with new residue and atom aliases.
+
+        Parameters
+        ----------
+        residue_aliases : list
+            A list of strings containing new residue aliases to be added. Each string should be in the format "RESNAME ALIAS".
+        atom_aliases : list
+            A list of strings containing new atom aliases to be added. Each string should be in the format "RESNAME ATOMNAME ALIAS".
+        """
+        logger.debug(f'Updating residue aliases with {residue_aliases}')
+        logger.debug(f'Updating atom aliases with {atom_aliases}')
+        self.aliases['residue'].extend(residue_aliases)
+        self.aliases['atom'].extend(atom_aliases)
+        self.update_alias_mappings()
+
     def update_segtypes(self, new_segtypes):
         """
         Update the segment types with new resnames.
