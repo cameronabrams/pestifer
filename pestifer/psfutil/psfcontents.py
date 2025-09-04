@@ -294,7 +294,7 @@ class PSFContents:
             if topology_segtypes:
                 self.included_atoms = PSFAtomList([])
                 for segtype in topology_segtypes:
-                    sublist = self.atoms.get(segtype=segtype)
+                    sublist = self.atoms.get(lambda x: x.segtype == segtype)
                     logger.debug(f'{len(sublist)} atoms of segtype {segtype}...')
                     self.included_atoms.extend(sublist)
                 include_serials = [x.segtype in topology_segtypes for x in self.atoms.data]

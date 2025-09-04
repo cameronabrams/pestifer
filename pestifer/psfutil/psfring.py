@@ -173,7 +173,7 @@ def ring_check(psf,pdb,xsc,cutoff=10.0,segtypes=['lipid']):
     LC=Linkcell(np.array([ll,ur]),cutoff)
     topol=PSFContents(psf,parse_topology=['bonds'],topology_segtypes=segtypes)
     assert coorddf.shape[0]==len(topol.atoms),f'{psf} and {pdb} are incongruent'
-    coorddf['segname']=[a.chainID for a in topol.atoms]
+    coorddf['segname']=[a.segname for a in topol.atoms.data]
     logger.debug(f'ingesting coords into bonds...(could take a while)')
     topol.bonds.ingest_coordinates(coorddf,pos_key=['x','y','z'],meta_key=['segname','resid'])
     logger.debug(f'Assiging link-cell indices to each bond')

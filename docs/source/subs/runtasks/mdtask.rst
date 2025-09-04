@@ -1,7 +1,7 @@
 .. _subs_runtasks_mdtask:
 
-mdtask
-------
+md
+--
 
 An ``mdtask`` performs a NAMD simulation on the current state files; for example, those produced by the immediately previous ``psfgen`` task.
 

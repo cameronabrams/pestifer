@@ -1,5 +1,5 @@
 # pestifer.scripters: 01-03-00_make_membrane_system-md-quilt-npat.namd
-####################### Created Tue Sep  2 20:53:11 2025 #######################
+####################### Created Wed Sep  3 19:30:12 2025 #######################
 ################################# NAMD script ##################################
 parameters par_all36m_prot.prm
 parameters par_all36_lipid.prm

@@ -25,7 +25,7 @@ _FILE_HANDLER: FileHandler | None = None
 _CONSOLE_HANDLER: StreamHandler | None = None
 _LOGFILE: Path | None = None
 
-pytest_plugins = ["pestifer.util.pytest_plugin"]
+# pytest_plugins = ["pestifer.util.pytest_plugin"]
 
 
 @pytest.fixture(autouse=True)

@@ -14,7 +14,7 @@ In addition to enhancing reproducibilty in system preparation, Pestifer also pro
 
 Why YAML?
 ---------
-YAML is a human-readable data format that is easy to write and read.  Like JSON, it maps neatly to Python containers, but 
+`YAML <https://yaml.org/>`_ is a human-readable data format.  Like JSON, it maps neatly to Python containers, but 
 unlike JSON, it has support for comments, making it an ideal format for input configuration files for simulations.  It also has a more flexible structure, allowing for complex data representations without the need for extensive punctuation.  I like YAML so much I wrote `Ycleptic <https://ycleptic.readthedocs.io/en/latest/>`_, a Python package that provides a YAML-based configuration system for Python applications.  Pestifer uses Ycleptic to parse its YAML input files.
 
 A partial list of things Pestifer can do
@@ -46,3 +46,8 @@ Who is Pestifer *not* for?
 ----------------------------
 
 If you are an experienced CHARMM user, then Pestifer is likely not much use to you, since you think in terms of writing a CHARMM input script (or if you hate writing CHARMM scripts, you use ``pyCHARMM``).   If you are unlikely or just unwilling to use NAMD or the CHARMM36 force field, then Pestifer is not for you.  If you are a Charmm-GUI user, then Pestifer may not be for you, since Charmm-GUI has many system-building features that Pestifer does not (yet) have.
+
+Why "Pestifer"?
+---------------
+
+The name "Pestifer" is an easy-to-say three-syllable word that includes the letters "P", "S", and "F" exactly once and in that order; since I wanted a reliable way to generate PSF files, I thought that was clever. "Pestifer" comes from the Latin word for "plague-bearing"; you may also adopt the idea that Pestifer is a tool that can help you spread your MD simulations far and wide, like a plague.  Coincidentally, `"Pestifer" <http://pestifer.be/>`_ is also a Belgian technical death-metal band formed in 2004.

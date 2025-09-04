@@ -7,7 +7,8 @@ build:
   jobs:
     pre_build:
       - sphinx-apidoc -f -M -e --implicit-namespaces --tocfile API -o docs/source/api pestifer/
-      - cd docs/source && yclept  make-doc ../../pestifer/resources/ycleptic/base.yaml --root config_ref --footer-style raw-html
+      - sphinx-apidoc -f -M -e --implicit-namespaces --tocfile TESTSAPI -o docs/source/tests-api tests/
+      - cd docs/source && yclept make-doc ../../pestifer/resources/ycleptic/base.yaml --root config_ref --footer-style raw-html
     post_install:
       - pip install pdb2pqr --no-deps
 

@@ -25,7 +25,12 @@ from typing import Iterable
 
 logger = logging.getLogger(__name__)
 
+from .stringthings import __pestifer_version__
+
 class TarBytesFS:
+    """
+    A class for handling tarred bytes as a filesystem.
+    """
     __slots__ = ("tar_bytes", "compression", "_fs")
 
     def __init__(self, tar_bytes: bytes, compression: str | None = None):
@@ -35,9 +40,15 @@ class TarBytesFS:
 
     @classmethod
     def from_file(cls, path: str | Path, compression: str | None = None):
+        """
+        Initializes a TarBytesFS instance from a file.
+        """
         return cls(Path(path).read_bytes(), compression=compression)
 
     def fs(self):
+        """
+        Returns a FileSystem handle for the TarBytesFS object 
+        """
         if self._fs is None:
             bio = io.BytesIO(self.tar_bytes)
             if self.compression is None and not hasattr(bio, "name"):
@@ -47,9 +58,15 @@ class TarBytesFS:
         return self._fs
 
     def ls(self, path: str = ""):
+        """
+        Lists the contents of a directory in the tarred filesystem.
+        """
         return self.fs().ls(path)
 
     def open(self, path: str, mode: str = "rb"):
+        """
+        Opens a file in the tarred filesystem and returns a context handle to that file.
+        """
         return self.fs().open(path, mode)
 
     # --- Pickle hooks: drop the ephemeral filesystem
@@ -60,7 +77,6 @@ class TarBytesFS:
         self.tar_bytes = state["tar_bytes"]
         self.compression = state.get("compression")
         self._fs = None
-
 
 def _latest_mtime(root: Path,
                   *,
@@ -89,20 +105,19 @@ class CacheableObject:
     """
     Base/mixin providing native cache/de-cache behavior controlled by resource mtimes.
 
-    Subclasses must implement:
-        _build_from_resources(self, resource_root: Path) -> None
+    Subclasses must implement: ``_build_from_resources(self, resource_root: Path) -> None``
     to populate `self` from files in resource_root.
 
     Behavior:
 
-      - On __init__, compare cache mtime to newest file mtime under `resource_root`.
-      - If cache is fresh, hydrate `self` from cache and set `self.from_cache = True`.
-      - Else, call `_build_from_resources(...)`, ensure `self.from_cache = False`, and write cache.
+      - On __init__, compare cache mtime to newest file mtime under ``resource_root``.
+      - If cache is fresh, hydrate ``self`` from cache and set ``self.from_cache = True``.
+      - Else, call ``_build_from_resources(...)``, ensure ``self.from_cache = False``, and write cache.
 
     """
 
     APP_NAME = "pestifer"          # for per-user cache dir
-    APP_VERSION = importlib.metadata.version(APP_NAME)
+    APP_VERSION = __pestifer_version__
     CACHE_PREFIX = "cacheobj"      # file prefix; class & path hash appended
     CACHE_COMPRESS = ("gzip", 3)   # joblib compression
 

@@ -1,5 +1,5 @@
 # pestifer.scripters: 01-05-00_make_membrane_system-md-patchA-npt.namd
-####################### Created Tue Sep  2 19:52:04 2025 #######################
+####################### Created Wed Sep  3 18:25:17 2025 #######################
 ################################# NAMD script ##################################
 parameters par_all36m_prot.prm
 parameters par_all36_lipid.prm
