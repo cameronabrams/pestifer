@@ -6,10 +6,29 @@ tasks:
     sourceID: P22033
     source: alphafold
 - psfgen:
+- validate:
+    tests:
+      - residue_test:
+          name: 750 residues present
+          selection: protein
+          measure: residue_count
+          value: 750
 - md:
     ensemble: minimize
 - pdb2pqr:
     pH: 7.0
+- validate:
+    tests:
+      - residue_test:
+          name: protonated ASP
+          selection: protein and chain A and resid 156 165 283 437 and name HD2
+          measure: atom_count
+          value: 4
+      - residue_test:
+          name: protonated GLU
+          selection: protein and chain A and resid 65 276 373 392 and name HE2
+          measure: atom_count
+          value: 4
 - solvate:
     salt_con: 0.15
 - md:

@@ -109,10 +109,10 @@ class TestCharmmffContent(unittest.TestCase):
     def test_charmffcontent_get_topfile_of_patchname(self):
         """Test that the topfile of a patchname is returned correctly."""
         patchname = 'NNEU'
-        topfile = self.C.resi_to_file_map[patchname]
+        topfile = self.C.resi_to_topfile_map[patchname]
         self.assertEqual(topfile, 'top_all36_prot.rtf')
         patchname = 'TYRO'
-        topfile = self.C.resi_to_file_map[patchname]
+        topfile = self.C.resi_to_topfile_map[patchname]
         self.assertEqual(topfile, 'pestifer.top')
 
     def test_charmmffcontent_get_charge(self):

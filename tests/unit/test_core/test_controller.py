@@ -11,16 +11,16 @@ logger = logging.getLogger(__name__)
 class TestController(unittest.TestCase):
 
     def test_controller_base(self):
-        RM=ResourceManager()
-        EM=RM.example_manager
+        RM = ResourceManager()
+        EM = RM.example_manager
         # read in config file directly from the example in the package
-        configfile=os.path.join(EM.path,EM.examples[0].scriptpath)
-        config=Config(userfile=configfile).configure_new()
-        C=Controller().configure(config, userspecs={'title': 'Bovine Pancreatic Trypsin Inhibitor (BPTI)'}, index=1)
+        e1 = EM.checkout_example(1)
+        config = Config(userfile=e1.scriptname).configure_new()
+        C = Controller().configure(config, userspecs={'title': 'Bovine Pancreatic Trypsin Inhibitor (BPTI)'}, index=1)
 
         self.assertEqual(C.config['user']['title'],'Bovine Pancreatic Trypsin Inhibitor (BPTI)')
-        self.assertEqual(len(C.tasks),13)
-        self.assertEqual(C.index,1)
+        self.assertEqual(len(C.tasks), 4) # under pytest, controller truncates at latest validate task
+        self.assertEqual(C.index, 1)
         task1 = C.tasks[0]
         self.assertEqual(task1.taskname, 'fetch')
         self.assertTrue('sourceID' in task1.specs)
@@ -28,7 +28,7 @@ class TestController(unittest.TestCase):
         task2 = C.tasks[1]
         self.assertEqual(task2.taskname, 'psfgen')
         task3 = C.tasks[2]
-        self.assertEqual(task3.taskname, 'md')
+        self.assertEqual(task3.taskname, 'validate')
         self.assertTrue(all([x.is_provisioned for x in C.tasks]))
 
     def test_controller_spawn_subcontroller(self):
@@ -37,6 +37,9 @@ class TestController(unittest.TestCase):
         config['user']['tasks'] = [{'fetch': {'sourceID': '6pti'}}]
         C = Controller().configure(config, userspecs={'title': 'Test Controller'}, index=0)
         self.assertTrue(C.tasks[0].is_provisioned)
+        subC = Controller.spawn_subcontroller(C)
+        self.assertEqual(subC.index, 1)
+        C.tasks[0].subcontroller = subC
         subcontroller = C.tasks[0].subcontroller
         self.assertIsInstance(subcontroller, Controller)
         self.assertEqual(subcontroller.index, 1)

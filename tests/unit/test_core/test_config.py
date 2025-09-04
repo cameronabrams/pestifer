@@ -38,8 +38,8 @@ class TestConfig(unittest.TestCase):
         os.mkdir(tmpdir)
         os.chdir(tmpdir)
         EM = self.RM.example_manager
-        configfile = EM.checkout_example(1)
-        c = Config(userfile=configfile).configure_new()
+        e1 = EM.checkout_example(1)
+        c = Config(userfile=e1.scriptname).configure_new()
         self.assertTrue('user' in c)
         self.assertTrue('tasks' in c['user'])
         self.assertEqual(len(c['user']['tasks'][0].keys()), 1)
@@ -53,7 +53,7 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(name, 'psfgen')
         task3 = c['user']['tasks'][2]
         name, specs = [(x, y) for x, y in task3.items()][0]
-        self.assertEqual(name, 'md')
+        self.assertEqual(name, 'validate')
         os.chdir('..')
 
     def test_config_task_source(self):
@@ -63,8 +63,8 @@ class TestConfig(unittest.TestCase):
         os.mkdir(tmpdir)
         os.chdir(tmpdir)
         EM = self.RM.example_manager
-        configfile = EM.checkout_example(7)
-        c = Config(userfile=configfile).configure_new()
+        e7 = EM.checkout_example(7)
+        c = Config(userfile=e7.scriptname).configure_new()
         self.assertTrue('user' in c)
         self.assertTrue('tasks' in c['user'])
         self.assertEqual(len(c['user']['tasks'][0].keys()), 1)
@@ -98,7 +98,7 @@ class TestConfig(unittest.TestCase):
             c = Config(userfile=configfile_path).configure_new()
             self.assertTrue('base' in c)
             self.assertTrue('user' in c)
-            D = c['base']['directives']
+            D = c['base']['attributes']
             self.assertEqual(len(D), 6)
             tld = [x['name'] for x in D]
             self.assertEqual(tld, ['charmmff', 'psfgen', 'namd', 'title', 'paths', 'tasks'])

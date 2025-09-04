@@ -30,8 +30,8 @@ class Example(BaseObj):
     auxiliary_inputs: list[str | Path] | None = Field(None, title='A list of auxiliary inputs for the example.')
     outputs: list[str | Path] | None = Field(None, title='A list of outputs for the example.')
 
-    inputs_subdir: str = "inputs"
-    outputs_subdir: str = "outputs"
+    inputs_subdir: ClassVar[str] = "inputs"
+    outputs_subdir: ClassVar[str] = "outputs"
 
     folder_name_format: ClassVar[str] = 'ex{example_id:02d}'
     """ format for the name of the root folder of each example """

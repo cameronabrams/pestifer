@@ -47,51 +47,48 @@ class ExampleManager:
             logger.debug(f'Directory "{examples_path}" does not exist; creating it')
             os.makedirs(examples_path)
         self.root_folder_format_validator = FormatValidator(Example.folder_name_format, greedy=True, flexible_ws=True)
-        self.path = os.path.abspath(examples_path)
-        self._read_dirtree()
+        self.path = Path(examples_path).absolute()
+        self.examples: ExampleList = ExampleList([])
+        for efolder in self.path.iterdir():
+            if efolder.is_dir() and self.root_folder_format_validator.fullmatch(efolder.name):
+                example_id = self.root_folder_format_validator.extract(efolder.name).get("example_id")
+                inputsfolder = efolder / Example.inputs_subdir
+                yaml_inputs = list(inputsfolder.glob('*.yaml')) if inputsfolder.is_dir() else []
+                title = 'No title provided'
+                db_id = None
+                shortname = None
+                if len(yaml_inputs) == 0:
+                    logger.warning(f'No YAML files found in {inputsfolder}')
+                elif len(yaml_inputs) > 1:
+                    logger.warning(f'Multiple YAML files found in {inputsfolder}: {yaml_inputs}')
+                else:
+                    main_input_script = yaml_inputs[0]
+                    shortname = main_input_script.name.replace('.yaml', '')
+                    title, db_id = Example._get_implied_metadata(main_input_script)
+                if shortname:
+                    self.examples.append(Example(
+                        example_id=example_id,
+                        title=title,
+                        shortname=shortname,
+                        db_id=db_id
+                    ))
         if docs_source_path:
             # create the SphinxExampleManager instance if docs_source_path is provided
-            self.sphinx_example_manager = SphinxExampleManager(docs_source_path=os.path.abspath(docs_source_path))
+            self.sphinx_example_manager = SphinxExampleManager(docs_source_path=Path(docs_source_path).absolute())
         else:
             self.sphinx_example_manager = None
 
-    def _read_dirtree(self):
-        """
-        Read the directory tree to populate the examples list.
-        """
-        savedir = os.getcwd()
-        os.chdir(self.path)
-        # do stuff
-        self.examples = ExampleList([])
-        exdirs = [d for d in os.listdir('.') if os.path.isdir(d) if self.root_folder_format_validator.fullmatch(d)]
-        exdirs.sort()
-        for exdir in exdirs:
-            example_id = self.root_folder_format_validator.extract(exdir).get("example_id")
-            inputdir = os.path.join(exdir, 'inputs')
-            yaml_inputs = glob(os.path.join(inputdir, '*.yaml'))
-            title = 'No title provided'
-            db_id = None
-            shortname = None
-            if len(yaml_inputs) == 0:
-                logger.warning(f'No YAML files found in {inputdir}')
-            elif len(yaml_inputs) > 1:
-                logger.warning(f'Multiple YAML files found in {inputdir}: {yaml_inputs}')
-            else:
-                main_input_script = yaml_inputs[0]
-                shortname = os.path.basename(main_input_script).replace('.yaml', '')
-                title, db_id = Example._get_implied_metadata(main_input_script)
-            if shortname:
-                self.examples.append(Example(
-                    example_id=example_id,
-                    title=title,
-                    shortname=shortname,
-                    db_id=db_id
-                ))
-
-        os.chdir(savedir)
+    def examplefolderpath(self, example: Example) -> Path:
+        return self.path / example.rootfolderpath
 
     def scriptpath(self, example: Example) -> Path:
         return self.path / example.scriptpath
+    
+    def inputspath(self, example: Example) -> Path:
+        return self.path / example.inputspath
+    
+    def outputspath(self, example: Example) -> Path:
+        return self.path / example.outputspath
 
     def checkout_example(self, example_id: int) -> Example:
         """
@@ -104,8 +101,8 @@ class ExampleManager:
 
         Returns
         -------
-        str
-            The name of the example YAML file that was checked out.
+        Example
+            The example that was checked out.
 
         Raises
         ------
@@ -117,27 +114,12 @@ class ExampleManager:
         example = self.examples.get_example_by_example_id(example_id)
         if not example:
             raise IndexError(f'Example with ID {example_id} not found')
-        example_folder = f'ex{example_id:02d}'
-        example_folder_path = os.path.join(self.path, example_folder)
-        if not os.path.isdir(example_folder_path):
-            raise FileNotFoundError(f'Example folder {example_folder} does not exist in {self.path}')
-        example_inputs_path = os.path.join(example_folder_path, example.inputs_subdir)
-        example_yaml = example.shortname + '.yaml'
-        example_yaml_path = os.path.join(example_inputs_path, example_yaml)
-        all_example_inputs = os.listdir(example_inputs_path)
-        auxiliary_example_inputs = [f for f in all_example_inputs if f != example_yaml]
-        if not os.path.isfile(example_yaml_path):
-            raise FileNotFoundError(f'Example YAML file {example_yaml_path} does not exist')
-        # copy all files in the example_yaml_path directory to the current working directory
-        shutil.copy(example_yaml_path, os.getcwd())
-        # copy all companion files to the current working directory
-        for companion_file in auxiliary_example_inputs:
-            companion_file_path = os.path.join(self.path, example_folder, companion_file)
-            if os.path.isfile(companion_file_path):
-                shutil.copy(companion_file_path, os.getcwd())
-            else:
-                logger.warning(f'Declared companion file "{companion_file}" does not exist in {os.path.join(self.path,example_folder)}')
-        logger.info(f'Checked out example {example_id} from {self.path} to current working directory {os.getcwd()}')
+        with open(example.scriptname, 'w') as f:
+            f.write(self.scriptpath(example).read_text())
+        for aux_path in self.inputspath(example).glob('*'):
+            if aux_path.name != example.scriptname and aux_path.is_file():
+                shutil.copy(aux_path, os.getcwd())
+        logger.info(f'Checked out example {example_id} from {self.path.name} to current working directory {os.getcwd()}')
         return example
 
     def new_example_yaml(self, db_id='ABCD', build_type='minimal'):
@@ -244,7 +226,7 @@ class ExampleManager:
         logger.info(f'Deleted example {example_id}: {example.shortname}')
         return example
 
-    def checkin_example(self, example: Example):
+    def checkin_example(self, example: Example, overwrite: bool = False):
         """
         Check in an Example instance by copying its YAML file and companion files to the appropriate example folder, which is created if it doesn't already exist.  This will overwrite the existing files.  If any file referenced by the example does not exist in the current working directory, a warning is logged but no action taken.
 
@@ -253,37 +235,46 @@ class ExampleManager:
         example : Example
             The Example instance to check in.
         """
-        example_folder = os.path.join(self.path, example.rootfolderpath)
-        example_inputs_subfolder = os.path.join(example_folder, example.inputs_subdir)
-        example_outputs_subfolder = os.path.join(example_folder, example.outputs_subdir) 
-        user_yaml_file_path = example.shortname + '.yaml'  # correct; the name attribute should never have an extension
-        if not os.path.isdir(example_folder): # we are checking in a new example
+        example_folder = self.examplefolderpath(example)
+        example_inputs_subfolder = self.inputspath(example)
+        example_outputs_subfolder = self.outputspath(example)
+        user_yaml_file_path = Path(example.shortname + '.yaml')  # correct; the name attribute should never have an extension
+        if not example_folder.is_dir(): # we are checking in a new example
             logger.debug(f'Creating example folder "{example_folder}"')
-            if not os.path.isfile(user_yaml_file_path):
-                raise FileNotFoundError(f'Example YAML file {user_yaml_file_path} does not exist in your current working directory {os.getcwd()}')
-            os.makedirs(example_inputs_subfolder)
-            os.makedirs(example_outputs_subfolder)
+            example_folder.mkdir()
+            example_inputs_subfolder.mkdir()
+            example_outputs_subfolder.mkdir()
+            if not user_yaml_file_path.is_file():
+                raise FileNotFoundError(f'Example YAML file {user_yaml_file_path.name} does not exist in your current working directory {os.getcwd()}')
             shutil.copy(user_yaml_file_path, example_inputs_subfolder)
+            for f in example.auxiliary_inputs:
+                if os.path.isfile(f):
+                    shutil.copy(f, example_inputs_subfolder)
+                else:
+                    logger.warning(f'Declared auxiliary input file {f} does not exist in {os.getcwd()}')
+            for f in example.outputs:
+                if os.path.isfile(f):
+                    shutil.copy(f, example_outputs_subfolder)
+                else:
+                    logger.warning(f'Declared output file {f} does not exist in {os.getcwd()}')
         else:
-            if not os.path.isfile(user_yaml_file_path):
-                logger.debug(f'Example YAML file {user_yaml_file_path} does not exist in your current working directory {os.getcwd()}')
-                logger.debug(f'Pestifer will now check that this YAML file is already in the example folder {example_folder}')
-                existing_yaml_file_path = os.path.join(example_inputs_subfolder, user_yaml_file_path)
-                if not os.path.isfile(existing_yaml_file_path):
-                    raise FileNotFoundError(f'Example YAML file {existing_yaml_file_path} does not exist in the example folder {example_folder}')
-            else:
-                logger.debug(f'Copying example YAML file "{user_yaml_file_path}" to example inputs subfolder "{example_inputs_subfolder}"')
+            existing_yaml_file_path = self.scriptpath(example)
+            if overwrite and user_yaml_file_path.is_file():
                 shutil.copy(user_yaml_file_path, example_inputs_subfolder)
-        for f in example.auxiliary_inputs:
-            if os.path.isfile(f):
-                shutil.copy(f, example_inputs_subfolder)
-            else:
-                logger.warning(f'Declared auxiliary input file {f} does not exist in {os.getcwd()}')
-        for f in example.outputs:
-            if os.path.isfile(f):
-                shutil.copy(f, example_outputs_subfolder)
-            else:
-                logger.warning(f'Declared output file {f} does not exist in {os.getcwd()}')
+            for f in example.auxiliary_inputs:
+                existing_aux_path = example_inputs_subfolder / f
+                if overwrite and existing_aux_path.is_file():
+                    os.remove(existing_aux_path)
+                    shutil.copy(f, example_inputs_subfolder)
+                elif not existing_yaml_file_path.exists():
+                    shutil.copy(f, example_inputs_subfolder)
+            for f in example.outputs:
+                existing_output_path = example_outputs_subfolder / f
+                if overwrite and existing_output_path.is_file():
+                    os.remove(existing_output_path)
+                    shutil.copy(f, example_outputs_subfolder)
+                elif not existing_output_path.exists():
+                    shutil.copy(f, example_outputs_subfolder)
 
     def append_example(self, example_id: int, scriptname: str, title: str = '', db_id: str = '', author_name: str = '', author_email: str = '', auxiliary_inputs: list = [], outputs: list = []):
         """
@@ -322,7 +313,16 @@ class ExampleManager:
         if not os.path.isfile(scriptname):
             raise FileNotFoundError(f'Example scriptfile {scriptname} does not exist in the CWD.')
 
-        new_example = Example(example_id=example_id,shortname=os.path.splitext(scriptname)[0],title=title,db_id=db_id,author_name=author_name,author_email=author_email,auxiliary_inputs=auxiliary_inputs,outputs=outputs)
+        new_example = Example(
+            example_id=example_id,
+            shortname=os.path.splitext(scriptname)[0],
+            title=title,
+            db_id=db_id,
+            author_name=author_name,
+            author_email=author_email,
+            auxiliary_inputs=auxiliary_inputs,
+            outputs=outputs
+        )
         self.checkin_example(new_example)  # check in the new example by copying its YAML file and companion files to the appropriate example folder
         self.examples.append(new_example)
         if self.sphinx_example_manager:
@@ -364,28 +364,22 @@ class ExampleManager:
         FileNotFoundError
             If the example file does not exist at the specified path.
         """
-        current_example = self.examples.get_example_by_example_id(example_id)
+        current_example: Example = self.examples.get_example_by_example_id(example_id)
         if not current_example:
             logger.warning(f'No example found with ID {example_id}')
             return None
-        current_example_folder = os.path.join(self.path, current_example.folder_name_format.format(example_id=current_example.example_id))
-        current_example_inputs_subfolder = os.path.join(current_example_folder, current_example.inputs_subdir)
-        current_example_outputs_subfolder = os.path.join(current_example_folder, current_example.outputs_subdir)
-        current_example_scriptpath = os.path.join(current_example_inputs_subfolder, f'{current_example.shortname}.yaml')
-        assert os.path.isfile(current_example_scriptpath), f'Example script file {current_example_scriptpath} does not exist in the current example folder {current_example_folder}'
-
         if shortname:
-            user_script = f'{shortname}.yaml' # in cwd
-            if os.path.isfile(user_script):
+            user_script = Path(f'{shortname}.yaml')  # in cwd
+            if user_script.is_file():
                 # user is providing a new script for this example
-                shutil.copy(user_script, current_example_scriptpath)
+                self.scriptpath(current_example).unlink()  # remove the old script
+                shutil.copy(user_script, self.inputspath(current_example))
                 user_implied_title, user_implied_db_id = Example._get_implied_metadata(user_script)
                 current_example.title = user_implied_title
                 current_example.db_id = user_implied_db_id
             else:
                 # user is not providing a new script, they just want to change the shortname
-                new_example_scriptpath = os.path.join(current_example_inputs_subfolder, f'{shortname}.yaml')
-                os.rename(current_example_scriptpath, new_example_scriptpath)
+                self.scriptpath(current_example).rename(self.inputspath(current_example) / f'{shortname}.yaml')
             current_example.shortname = shortname
 
         if title:
@@ -398,21 +392,18 @@ class ExampleManager:
             current_example.author_email = author_email
         if auxiliary_inputs:
             for f in current_example.auxiliary_inputs:
-                f_path = os.path.join(current_example_inputs_subfolder, f)
-                if os.path.isfile(f_path):
-                    os.remove(f_path)  # remove old auxiliary inputs
+                Path(f).unlink(missing_ok=True)  # remove old auxiliary inputs
             current_example.auxiliary_inputs = auxiliary_inputs
             for f in auxiliary_inputs:
                 if os.path.isfile(f):
-                    shutil.copy(f, current_example_inputs_subfolder)
+                    shutil.copy(f, self.inputspath(current_example))
         if outputs:
-            current_outputs = os.listdir(current_example_outputs_subfolder)
-            for co in current_outputs:
-                os.remove(os.path.join(current_example_outputs_subfolder, co))
+            for f in current_example.outputs:
+                Path(f).unlink(missing_ok=True)
             current_example.outputs = outputs
             for f in outputs:
                 if os.path.isfile(f):
-                    shutil.copy(f, current_example_outputs_subfolder)
+                    shutil.copy(f, self.outputspath(current_example))
         if self.sphinx_example_manager and not skip_sphinx:
             self.sphinx_example_manager.update_example(example_id, current_example)
         logger.info(f'Updated example {example_id}: {current_example.shortname}')

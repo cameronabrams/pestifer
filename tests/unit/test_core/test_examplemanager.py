@@ -30,7 +30,7 @@ class TestExampleManager(unittest.TestCase):
     def test_example_manager_init(self):
         self.assertIsNotNone(self.manager)
         self.assertEqual(len(self.manager.examples), 0)
-        self.assertEqual(self.manager.path, os.path.join(os.getcwd(), 'project', 'package', 'resources', 'examples'))
+        self.assertEqual(self.manager.path, Path(os.path.join(os.getcwd(), 'project', 'package', 'resources', 'examples')))
         self.assertTrue(os.path.isdir(self.manager.path))
 
     def _build_example_set(self):

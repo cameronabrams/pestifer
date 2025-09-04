@@ -15,10 +15,10 @@ class TestResourceManager(unittest.TestCase):
             self.assertTrue(os.path.exists(self.RM.resource_path[r]))
     
     def test_resource_get_example_yaml(self):
-        c=self.RM.example_manager.checkout_example(1)
-        self.assertEqual(os.path.basename(c),'bpti1.yaml')
-        self.assertTrue(os.path.exists(c))
-        os.remove(c)
+        e1 = self.RM.example_manager.checkout_example(1)
+        self.assertEqual(os.path.basename(e1.scriptname),'bpti1.yaml')
+        self.assertTrue(os.path.exists(e1.scriptname))
+        os.remove(e1.scriptname)
 
     def test_resource_ycleptic(self):
         self.assertEqual(os.path.basename(self.RM.ycleptic_config),"base.yaml")
