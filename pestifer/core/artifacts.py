@@ -182,6 +182,12 @@ class ArtifactList(Artifact):
             self.produced_by = None
         else:
             logger.debug(f"ArtifactList: not removing non-existent {item}")
+    
+    def sort(self, *, key=None, reverse: bool = False) -> None:
+        """
+        Sort the list in place.
+        """
+        self.data.sort(key=key, reverse=reverse)
 
     @classmethod
     def from_dict(cls, artifact_dict: ArtifactDict) -> ArtifactList:

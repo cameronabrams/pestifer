@@ -107,11 +107,15 @@ def _md_to_rst(app):
     if not md.exists():
         logger.warning(f"CHANGELOG.md not found at project root {root}")
         return
-    if not rst.exists():
-        logger.warning(f"No rst file found at {rst}")
+    # Skip if up-to-date (unless forced)
+    force = os.environ.get("SPHINX_FORCE_CHANGELOG", "") == "1"
+    if rst.exists() and not force:
+        if rst.stat().st_mtime >= md.stat().st_mtime:
+            logger.info("CHANGELOG.rst is up to date; skipping conversion.")
+            return
     text = md.read_text(encoding="utf-8")
     try:
-        import pypandoc  # requires pandoc installed
+        import pypandoc
         rst_text = pypandoc.convert_text(text, "rst", format="gfm")
     except Exception as e:
         logger.warning(f"Could not convert CHANGELOG.md -> .rst: {e}")

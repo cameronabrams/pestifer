@@ -1,7 +1,7 @@
 Changelog
 =========
 
-This project follows `Semantic Versioning <https://semver.org/>`__ and
+Pestifer follows `Semantic Versioning <https://semver.org/>`__ and
 documents changes below.
 
 [UNRELEASED]
@@ -16,10 +16,10 @@ Changed
 - ``mdplot`` now correctly treats ``cpu_time`` and ``wall_time`` as
   running sums over chained MD runs
 
-.. _201:
+.. _201---2025-09-04:
 
-[2.0.1]
--------
+[2.0.1] - 2025-09-04
+--------------------
 
 - ``validate`` task introduced to allow for validation of
   psfgen-produced PSF and PDB files
@@ -32,6 +32,7 @@ Changed
   given state (PSF/PDB/COOR/XSC)
 - ``mdplot`` now correctly treats ``cpu_time`` and ``wall_time`` as
   running sums over chained MD runs
+- complete refactoring to use pydantic's BaseModel
 
 .. _1212---2025-07-17:
 
