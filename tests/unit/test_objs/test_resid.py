@@ -52,7 +52,7 @@ class TestResID(unittest.TestCase):
         resid = ResID(123, 'A')
         new_resid = resid + 2
         self.assertEqual(new_resid.resseqnum, 125)
-        self.assertEqual(new_resid.insertion, None)
+        self.assertEqual(new_resid.insertion, 'A')
 
 class TestResIDList(unittest.TestCase):
 

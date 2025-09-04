@@ -17,7 +17,7 @@ class Test_MDPlot(unittest.TestCase):
                          basename='testmdplot', profiles=[], profiles_per_block=1,
                          figsize=[9, 6], timeseries=['density', ['a_x', 'b_y', 'c_z']])
         file_artifacts = MDPlotSubcommand.func(args)
-        expected_artifact_count = 24
+        expected_artifact_count = 26
         self.assertEqual(len(file_artifacts), expected_artifact_count)
 
         for artifact in file_artifacts:

@@ -75,12 +75,14 @@ class TestGraft(unittest.TestCase):
                         resid=ResID(1),
                         atoms=AtomList([]),
                         segtype='glycan',
+                        segname='G',
                         resolved=True),
                 Residue(chainID='G', 
                         resname='NAG', 
                         resid=ResID(2),
                         atoms=AtomList([]),
                         segtype='glycan',
+                        segname='G',
                         resolved=True)
             ])
         s = Segment(
@@ -109,8 +111,8 @@ class TestGraft(unittest.TestCase):
         self.assertEqual(g.source_root, ResID(1))
         self.assertEqual(len(g.index_residues), 1)
         self.assertEqual(g.index_residues[0], r[0])
-        self.assertEqual(len(g.mover_residues), 1)
-        self.assertEqual(g.mover_residues[0], r[1])
+        self.assertEqual(len(g.donor_residues), 1)
+        self.assertEqual(g.donor_residues[0], r[1])
 
         recv = Molecule()  # receiver molecule
         # make a receiver segment
@@ -120,12 +122,14 @@ class TestGraft(unittest.TestCase):
                         resid=ResID(666),
                         atoms=AtomList([]),
                         segtype='protein',
+                        segname='A',
                         resolved=True),
                 Residue(chainID='A', 
                         resname='SER', 
                         resid=ResID(667),
                         atoms=AtomList([]),
                         segtype='protein',
+                        segname='A',
                         resolved=True)
             ])
         test_res = r.get(lambda x: x.chainID == 'A' and x.resid == ResID(666))

@@ -3,8 +3,10 @@ import logging
 from pestifer.molecule.molecule import Molecule
 from pestifer.core.config import Config
 from pestifer.core.labels import Labels #segtype_of_resname
-from pestifer.molecule.chainidmanager import ChainIDManager
-from pestifer.core.objmanager import ObjManager
+
+from pestifer.core.pipeline import PipelineContext
+from pestifer.tasks.fetch import FetchTask
+from pestifer.tasks.continuation import ContinuationTask
 from pestifer.objs.resid import ResID
 from pestifer.objs.ssbond import SSBondList
 from pestifer.objs.link import LinkList
@@ -15,6 +17,11 @@ import yaml
 logger=logging.getLogger(__name__)
 
 class TestMolecule(unittest.TestCase):
+
+    def setUp(self):
+        self.config = Config().configure_new()
+        self.segtypes = list(Labels.segtypes.keys())
+
     def get_source_dict(self,pdbid):
         source=f"""
 source:
@@ -30,6 +37,7 @@ source:
         f=StringIO(source)
         directive=yaml.safe_load(f)
         return directive
+    
     def get_source_dict_alphafold(self,ac):
         source=f"""
 source:
@@ -47,9 +55,20 @@ source:
         return directive
     
     def test_molecule_au(self):
-        c=Config().configure_new()
-        directive=self.get_source_dict('1gc1')
-        m=Molecule(source=directive["source"])
+        pipeline = PipelineContext()
+        task = FetchTask(specs={'source': 'pdb', 'sourceID': '1gc1'})
+        task.provision(packet=dict(pipeline=pipeline))
+        self.assertIsInstance(task, FetchTask)
+        task.execute()
+        m=Molecule(source={
+                        'id': '1gc1',
+                        'file_format': 'PDB',
+                        'sequence': {
+                            'fix_conflicts': True,
+                            'fix_engineered_mutations': True,
+                            'include_terminal_loops': False
+                        }
+                    }, molid=0)
         au=m.asymmetric_unit
         objs=au.objmanager
         topol=objs.get('topol',{})
@@ -67,7 +86,7 @@ source:
         r0=au.residues[0]
         self.assertEqual(r0.resname,'THR')
         self.assertEqual(r0.segtype,'protein')
-        for st in c.segtypes:
+        for st in self.segtypes:
             res=[r for r in au.residues if r.segtype==st]
             cbs=0
             for x in au.segments:
@@ -80,8 +99,20 @@ source:
 
     def test_molecule_alphafold(self):
         ac='O46077'
-        directive=self.get_source_dict_alphafold(ac)
-        m=Molecule(source=directive["source"])
+        pipeline = PipelineContext()
+        task = FetchTask(specs={'source': 'alphafold', 'sourceID': ac})
+        task.provision(packet=dict(pipeline=pipeline))
+        self.assertIsInstance(task, FetchTask)
+        task.execute()
+        m=Molecule(source={
+                        'id': ac,
+                        'file_format': 'PDB',
+                        'sequence': {
+                            'fix_conflicts': True,
+                            'fix_engineered_mutations': True,
+                            'include_terminal_loops': False
+                        }
+                    }, molid=0)
         au=m.asymmetric_unit
         self.assertEqual(len(au.atoms),3230)
         self.assertEqual(len(au.residues),397)
@@ -90,16 +121,28 @@ source:
         seq=objs.get('seq',{})
         os.remove(f'{ac}.pdb')
         os.remove(f'{ac}.json')
-        self.assertEqual(len(topol),0)
-        self.assertEqual(len(seq),1)
+        self.assertEqual(len(topol),2)
+        self.assertEqual(len(seq),4)
         self.assertTrue('terminals' in seq)
         self.assertEqual(len(seq['terminals']),1)
 
 
     def test_molecule_links(self):
-        c=Config().configure_new()
-        directive=self.get_source_dict('4zmj')
-        m=Molecule(source=directive["source"])
+        ac='4zmj'
+        pipeline = PipelineContext()
+        task = FetchTask(specs={'source': 'pdb', 'sourceID': ac})
+        task.provision(packet=dict(pipeline=pipeline))
+        self.assertIsInstance(task, FetchTask)
+        task.execute()
+        m=Molecule(source={
+                        'id': ac,
+                        'file_format': 'PDB',
+                        'sequence': {
+                            'fix_conflicts': True,
+                            'fix_engineered_mutations': True,
+                            'include_terminal_loops': False
+                        }
+                    }, molid=0)
         au=m.asymmetric_unit
         self.assertEqual(len(au.residues),659)
 
@@ -121,13 +164,23 @@ source:
         self.assertTrue(l.residue1 in l.residue2.up)
 
     def test_molecule_bioassemb_4zmj(self):
-        c=Config().configure_new()
-        cidm=ChainIDManager()
-        directive=self.get_source_dict('4zmj')
-        directive["source"]["biological_assembly"]=1
-        m=Molecule(source=directive["source"],chainIDmanager=cidm)
-        self.assertEqual(1,len(m.biological_assemblies))
-        m.activate_biological_assembly(directive["source"]["biological_assembly"])
+        ac='4zmj'
+        pipeline = PipelineContext()
+        task = FetchTask(specs={'source': 'pdb', 'sourceID': ac})
+        task.provision(packet=dict(pipeline=pipeline))
+        self.assertIsInstance(task, FetchTask)
+        task.execute()
+        m=Molecule(source={
+                        'id': ac,
+                        'file_format': 'PDB',
+                        'biological_assembly': 1,
+                        'sequence': {
+                            'fix_conflicts': True,
+                            'fix_engineered_mutations': True,
+                            'include_terminal_loops': False
+                        }
+                    }, molid=0)
+        m.activate_biological_assembly(1)
         ba=m.active_biological_assembly
         self.assertEqual(len(ba.transforms),3)
         cm=ba.transforms[0].chainIDmap
@@ -139,10 +192,22 @@ source:
         self.assertEqual(cm['G'],'N')
 
     def test_molecule_ancestry(self):
-        c=Config().configure_new()
-        directive=self.get_source_dict('4zmj')
-        directive["source"]["biological_assembly"]=1
-        m=Molecule(source=directive["source"],modmanager=ObjManager(),reset_counter=True)
+        ac='4zmj'
+        pipeline = PipelineContext()
+        task = FetchTask(specs={'source': 'pdb', 'sourceID': ac})
+        task.provision(packet=dict(pipeline=pipeline))
+        self.assertIsInstance(task, FetchTask)
+        task.execute()
+        m=Molecule(source={
+                        'id': ac,
+                        'file_format': 'PDB',
+                        'biological_assembly': 1,
+                        'sequence': {
+                            'fix_conflicts': True,
+                            'fix_engineered_mutations': True,
+                            'include_terminal_loops': False
+                        }
+                    }, molid=0)
         au=m.asymmetric_unit
         auao=au.parent_molecule
         self.assertEqual(auao,m)
@@ -152,10 +217,22 @@ source:
             self.assertEqual(sao.molid,0)
 
     def test_molecule_adjust_serials(self):
-        c=Config().configure_new()
-        directive=self.get_source_dict('4zmj')
-        directive["source"]["biological_assembly"]=1
-        m=Molecule(source=directive["source"],reset_counter=True)
+        ac='4zmj'
+        pipeline = PipelineContext()
+        task = FetchTask(specs={'source': 'pdb', 'sourceID': ac})
+        task.provision(packet=dict(pipeline=pipeline))
+        self.assertIsInstance(task, FetchTask)
+        task.execute()
+        m=Molecule(source={
+                        'id': ac,
+                        'file_format': 'PDB',
+                        'biological_assembly': 1,
+                        'sequence': {
+                            'fix_conflicts': True,
+                            'fix_engineered_mutations': True,
+                            'include_terminal_loops': False
+                        }
+                    }, molid=0)
         au=m.asymmetric_unit
         ters=au.objmanager.get('seq',{}).get('terminals',[])
         self.assertEqual(len(ters),2)
@@ -180,32 +257,46 @@ source:
         au={}
         atoms={}
         segts={}
-        for fmt in ['PDB','mmCIF']:
-            directive["source"]["file_format"]=fmt
-            mol[fmt]=Molecule(source=directive["source"],chainIDmanager=ChainIDManager(format=directive["source"]["file_format"]))
+        for fmt in ['pdb','cif']:
+            ac='4zmj'
+            pipeline = PipelineContext()
+            task = FetchTask(specs={'source': 'pdb', 'sourceID': ac, 'source_format': fmt})
+            task.provision(packet=dict(pipeline=pipeline))
+            self.assertIsInstance(task, FetchTask)
+            task.execute()
+            mol[fmt]=Molecule(source={
+                        'id': ac,
+                        'file_format': fmt,
+                        'biological_assembly': 1,
+                        'sequence': {
+                            'fix_conflicts': True,
+                            'fix_engineered_mutations': True,
+                            'include_terminal_loops': False
+                        }
+                    }, molid=0)
             au[fmt]=mol[fmt].asymmetric_unit
             mol[fmt].activate_biological_assembly(directive["source"]["biological_assembly"])
             atoms[fmt]=au[fmt].atoms
             segts[fmt]=set([x.segtype for x in au[fmt].residues])
-        self.assertEqual(len(atoms['PDB']),len(atoms['mmCIF']))
+        self.assertEqual(len(atoms['pdb']),len(atoms['cif']))
         atom_mismatches=[]
         eps=1.e-5
-        for pa,ca in zip(atoms['PDB'],atoms['mmCIF']):
+        for pa,ca in zip(atoms['pdb'], atoms['cif']):
             if abs(pa.x-ca.x)>eps or abs(pa.y-ca.y)>eps or abs(pa.z-ca.z)>eps:
                 atom_mismatches.append([pa,ca])
         self.assertEqual(len(atom_mismatches),0)
-        for pa,ca in zip(atoms['PDB'],atoms['mmCIF']):
+        for pa,ca in zip(atoms['pdb'], atoms['cif']):
             if pa.name!=ca.name:
                 atom_mismatches.append([pa,ca])
         self.assertEqual(len(atom_mismatches),0)
-        for pa,ca in zip(atoms['PDB'],atoms['mmCIF']):
+        for pa,ca in zip(atoms['pdb'], atoms['cif']):
             if pa.resname!=ca.resname:
                 atom_mismatches.append([pa,ca])
-        for pa,ca in zip(atoms['PDB'],atoms['mmCIF']):
+        for pa,ca in zip(atoms['pdb'], atoms['cif']):
             if pa.resid!=ResID(ca.auth_seq_id) and pa.resid!=ResID(ca.auth_seq_id,ca.pdbx_pdb_ins_code):
                 atom_mismatches.append([pa,ca])
         self.assertEqual(len(atom_mismatches),0)
-        for pa,ca in zip(atoms['PDB'],atoms['mmCIF']):
+        for pa,ca in zip(atoms['pdb'], atoms['cif']):
             if pa.chainID!=ca.chainID and pa.chainID!=ca.auth_asym_id:
                 atom_mismatches.append([pa,ca])
         # msg=''
@@ -215,11 +306,11 @@ source:
         # self.assertEqual(len(atom_mismatches),0,msg=msg)
 
 
-        self.assertEqual(segts['PDB'],segts['mmCIF'])
+        self.assertEqual(segts['pdb'],segts['cif'])
         res_pdb={}
         res_count_pdb={}
-        for st in segts['PDB']:
-            res_pdb[st]=[x for x in au['PDB'].residues if x.segtype==st]
+        for st in segts['pdb']:
+            res_pdb[st]=[x for x in au['pdb'].residues if x.segtype==st]
             res_count_pdb[st]=len(res_pdb[st])
         self.assertEqual(res_count_pdb['protein'],634)
         self.assertEqual(res_count_pdb['glycan'],25)
@@ -227,13 +318,13 @@ source:
         res_cif={}
         res_count_cif={}
         for st in ['protein','glycan']:
-            res_cif[st]=[x for x in au['mmCIF'].residues if x.segtype==st]
+            res_cif[st]=[x for x in au['cif'].residues if x.segtype==st]
             res_count_cif[st]=len(res_cif[st])
             res_count_checks[st]={}
             res_count_checks[st]['check']=res_count_cif[st]==res_count_pdb[st]
             res_count_checks[st]['msg']=f'mismatch {st} residues PDB({res_count_pdb[st]}) mmCIF({res_count_cif[st]})'
-        check_good=all([res_count_checks[st]['check'] for st in segts['PDB']])
-        check_msg='; '.join(res_count_checks[st]['msg'] for st in segts['PDB'] if not res_count_checks[st]['check'])
+        check_good=all([res_count_checks[st]['check'] for st in segts['pdb']])
+        check_msg='; '.join(res_count_checks[st]['msg'] for st in segts['pdb'] if not res_count_checks[st]['check'])
         if not check_good:
             for pr in res_pdb['protein']:
                 logger.debug(f'PDB PROTEIN RESIDUE {pr.chainID}_{pr.resname}{pr.resseqnum}{pr.insertion} resolved {pr.resolved}')
@@ -242,14 +333,14 @@ source:
         self.assertTrue(check_good,msg=check_msg)
 
     def test_molecule_existing(self):
-        c=Config().configure_new()
-        source={
+
+        m=Molecule(source={
             'prebuilt':{
                 'psf':'existing.psf',
                 'pdb':'existing.pdb'
             }
-        }
-        m=Molecule(source=source).activate_biological_assembly(0)
+            }, molid=0)
+
         au=m.asymmetric_unit
         ssbonds=au.objmanager.get('topol',{}).get('ssbonds',SSBondList([]))
         self.assertEqual(len(ssbonds),27)

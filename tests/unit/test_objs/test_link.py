@@ -81,7 +81,7 @@ class TestLinkList(unittest.TestCase):
             
     def test_link_list_assign_residues(self):
         # make a list of 10 mock residues
-        residues = ResidueList([Residue(chainID='A' if i%2==1 else 'B', resid=ResID(i), resname='ALA', atoms=AtomList([]),segtype='protein', resolved=True) for i in range(1, 11)])
+        residues = ResidueList([Residue(chainID='A' if i%2==1 else 'B', segname='A' if i%2==1 else 'B', resid=ResID(i), resname='ALA', atoms=AtomList([]),segtype='protein', resolved=True) for i in range(1, 11)])
 
         # create a LinkList with 6 links
         links = LinkList([

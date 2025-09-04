@@ -5,11 +5,11 @@ from pestifer.core.config import Config
 from pestifer.tasks.continuation import ContinuationTask
 from pestifer.tasks.terminate import TerminateTask
 from pestifer.molecule.molecule import Molecule
-from pestifer.core.artifacts import StateArtifacts, PSFFileArtifact, PDBFileArtifact, NAMDCoorFileArtifact, NAMDXscFileArtifact, NAMDVelFileArtifact, YAMLFileArtifact
+from pestifer.core.artifacts import StateArtifacts, YAMLFileArtifact
 class TestContinuationTask(unittest.TestCase):
 
     def setUp(self):
-        self.controller=Controller().configure(Config().configure_new())    
+        self.controller=Controller().configure(Config().configure_new(), terminate=False)    
 
     def test_continuation_task(self):
         task_list = [{'continuation': dict(pdb='my_6pti.pdb', psf='my_6pti.psf', xsc='my_6pti.xsc', coor='my_6pti.coor',vel='my_6pti.vel')}]
@@ -25,7 +25,10 @@ class TestContinuationTask(unittest.TestCase):
         self.assertIsInstance(base_molecule, Molecule)
 
     def test_termination_task(self):
-        task_list = [{'continuation': dict(pdb='my_6pti.pdb', psf='my_6pti.psf', xsc='my_6pti.xsc', coor='my_6pti.coor', vel='my_6pti.vel')}, {'terminate':dict(cleanup=False)}]
+        task_list = [
+            {'continuation':
+              dict(pdb='my_6pti.pdb', psf='my_6pti.psf', xsc='my_6pti.xsc', coor='my_6pti.coor', vel='my_6pti.vel')}, 
+            {'terminate':dict(cleanup=False,chainmapfile='chainmap.yaml')}]
         self.controller.reconfigure_tasks(task_list)
         self.assertEqual(len(self.controller.tasks), 2)
         self.assertIsInstance(self.controller.tasks[0], ContinuationTask)

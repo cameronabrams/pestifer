@@ -33,6 +33,8 @@ SOURCE  20 EXPRESSION_SYSTEM_PLASMID: PVRC8400
 KEYWDS    HIV-1, ENV TRIMER, UNLIGANDED, BG505 SOSIP, VIRAL PROTEIN             
 EXPDTA    X-RAY DIFFRACTION                                                     
 AUTHOR    Y.D.KWON,P.D.KWONG                                                    
+REVDAT   8   16-OCT-24 4ZMJ    1       REMARK                                   
+REVDAT   7   27-SEP-23 4ZMJ    1       HETSYN LINK                              
 REVDAT   6   29-JUL-20 4ZMJ    1       COMPND REMARK HETNAM LINK                
 REVDAT   6 2                   1       SITE   ATOM                              
 REVDAT   5   11-DEC-19 4ZMJ    1       REMARK                                   
@@ -794,6 +796,11 @@ HET    NAG  B 703      14
 HETNAM     NAG 2-ACETAMIDO-2-DEOXY-BETA-D-GLUCOPYRANOSE                         
 HETNAM     BMA BETA-D-MANNOPYRANOSE                                             
 HETNAM     MAN ALPHA-D-MANNOPYRANOSE                                            
+HETSYN     NAG N-ACETYL-BETA-D-GLUCOSAMINE; 2-ACETAMIDO-2-DEOXY-BETA-           
+HETSYN   2 NAG  D-GLUCOSE; 2-ACETAMIDO-2-DEOXY-D-GLUCOSE; 2-ACETAMIDO-          
+HETSYN   3 NAG  2-DEOXY-GLUCOSE; N-ACETYL-D-GLUCOSAMINE                         
+HETSYN     BMA BETA-D-MANNOSE; D-MANNOSE; MANNOSE                               
+HETSYN     MAN ALPHA-D-MANNOSE; D-MANNOSE; MANNOSE                              
 FORMUL   3  NAG    21(C8 H15 N O6)                                              
 FORMUL   3  BMA    C6 H12 O6                                                    
 FORMUL   3  MAN    3(C6 H12 O6)                                                 

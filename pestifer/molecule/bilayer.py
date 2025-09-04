@@ -244,6 +244,8 @@ class Bilayer:
             logger.debug(f'Leaflet {l} composition: {L}')
             for d in L:
                 resi = self.charmmffcontent.get_resi(d['name'])
+                if resi is None:
+                    raise ValueError(f'Cannot find residue {d["name"]} in CHARMMFFContent')
                 if not 'patn' in d:
                     d['patn'] = int(d['frac'] * leaflet_nlipids[adjective])
                 if not 'charge' in d:

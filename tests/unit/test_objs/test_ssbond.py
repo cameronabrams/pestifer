@@ -82,18 +82,18 @@ class TestSSBondList(unittest.TestCase):
     def test_ssbond_list_set_residues(self):
         # make a mock list of 10 residues with sequential resids all in chain A
         residues = ResidueList([
-            Residue(chainID="A", resid=ResID(10), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
-            Residue(chainID="A", resid=ResID(11), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
-            Residue(chainID="A", resid=ResID(12), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
-            Residue(chainID="A", resid=ResID(13), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
-            Residue(chainID="A", resid=ResID(14), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
-            Residue(chainID="A", resid=ResID(15), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
-            Residue(chainID="A", resid=ResID(16), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
-            Residue(chainID="A", resid=ResID(17), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
-            Residue(chainID="A", resid=ResID(18), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
-            Residue(chainID="A", resid=ResID(19), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
-            Residue(chainID="A", resid=ResID(20), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
-            Residue(chainID="A", resid=ResID(21), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein')
+            Residue(chainID="A", segname='A', resid=ResID(10), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
+            Residue(chainID="A", segname='A', resid=ResID(11), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
+            Residue(chainID="A", segname='A', resid=ResID(12), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
+            Residue(chainID="A", segname='A', resid=ResID(13), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
+            Residue(chainID="A", segname='A', resid=ResID(14), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
+            Residue(chainID="A", segname='A', resid=ResID(15), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
+            Residue(chainID="A", segname='A', resid=ResID(16), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
+            Residue(chainID="A", segname='A', resid=ResID(17), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
+            Residue(chainID="A", segname='A', resid=ResID(18), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
+            Residue(chainID="A", segname='A', resid=ResID(19), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
+            Residue(chainID="A", segname='A', resid=ResID(20), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein'),
+            Residue(chainID="A", segname='A', resid=ResID(21), resname="CYS", atoms=AtomList([]), resolved=True, segtype='protein')
         ])
         # make a mock list of ssbonds
         ssbond_list = SSBondList([

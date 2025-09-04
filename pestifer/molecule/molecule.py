@@ -91,9 +91,9 @@ class Molecule:
             if source.get('id', {}) or source.get('prebuilt', {}) or source.get('alphafold', {}):
                 if source.get('id', {}):
                     logger.debug(f'Molecule initialization from file {source["id"]}.{source["file_format"].lower()}')
-                    if file_format == 'PDB':
+                    if file_format in ['PDB', 'pdb']:
                         p_struct = PDBParser(PDBcode=source['id']).parse().parsed
-                    elif file_format == 'mmCIF':
+                    elif file_format in ['mmCIF', 'cif']:
                         logger.debug(f'CIF source {source["id"]}')
                         p_struct = CIFload(source['id'])
                 elif source.get('prebuilt', {}):
@@ -119,7 +119,7 @@ class Molecule:
         self.objmanager = objmanager
         self.chainIDmanager = chainIDmanager
         self.rcsb_file_format = file_format
-        self.molid = Molecule._molcounter
+        self.molid = kwargs.get('molid', Molecule._molcounter)
         self.parsed_struct = p_struct
         self.asymmetric_unit = AsymmetricUnit(parsed=p_struct, 
                                               sourcespecs=source, 

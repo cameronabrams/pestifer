@@ -7,7 +7,9 @@ from pestifer.util.cifutil import CIFdict, CIFload
 from pestifer.psfutil.psfatom import PSFAtom, PSFAtomList
 from pathlib import Path
 from pestifer.objs.resid import ResID
+
 class TestAtom(unittest.TestCase):
+
     def test_atom_create(self):
         atom = Atom(
             serial=1,
@@ -206,6 +208,7 @@ class TestAtom(unittest.TestCase):
         self.assertEqual(atom.z, 4.0)
 
 class TestAtomList(unittest.TestCase):
+
     def test_atom_list_create(self):
         atom1 = Atom(
             serial=1,
@@ -385,6 +388,6 @@ class TestAtomList(unittest.TestCase):
         psf_atom1 = PSFAtom('1 C 3A ARG C C 0.00 12.01 dum')
         psf_atom2 = PSFAtom('2 C 4  ARG O O 0.00 16.00 dum')
         psf_atom_list = PSFAtomList([psf_atom1, psf_atom2])
-        atom_list.apply_psf_resnames(psf_atom_list)
+        atom_list.apply_psf_attributes(psf_atom_list)
         self.assertEqual(atom_list[0].resname, 'ARG')
         self.assertEqual(atom_list[1].resname, 'ARG')

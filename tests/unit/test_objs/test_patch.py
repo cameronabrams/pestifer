@@ -68,6 +68,7 @@ class TestPatch(unittest.TestCase):
             atoms=AtomList([]),
             resolved=True,
             segtype='protein',
+            segname='A',
             resid=ResID(10)
         )
         patch.assign_residue(residue)
@@ -77,7 +78,10 @@ class TestPatch(unittest.TestCase):
         patch_list = PatchList([Patch(chainID="A", resid=ResID(10), patchname="patch1"), Patch(chainID="B", resid=ResID(20), patchname="patch2")])
         self.assertIsInstance(patch_list, PatchList)
         self.assertEqual(len(patch_list), 2)
-        residues = ResidueList([Residue(chainID="A", resname="FAKEY", atoms=AtomList([]), resolved=True, segtype='protein', resid=ResID(10)), Residue(chainID="B", resname="FAKEY", atoms=AtomList([]), resolved=True, segtype='protein', resid=ResID(20))])
+        residues = ResidueList([
+            Residue(chainID="A", segname='A', resname="FAKEY", atoms=AtomList([]), resolved=True, segtype='protein', resid=ResID(10)),
+            Residue(chainID="B", segname='B', resname="FAKEY", atoms=AtomList([]), resolved=True, segtype='protein', resid=ResID(20))
+        ])
         patch_list.assign_residues(residues)
         self.assertEqual(patch_list[0].residue, residues[0])
         self.assertEqual(patch_list[1].residue, residues[1])

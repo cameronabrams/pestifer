@@ -18,7 +18,7 @@ class TestMakeMembraneSystem(unittest.TestCase):
     
     @classmethod
     def setUpClass(cls):
-        cls.controller = Controller().configure(Config().configure_new())
+        cls.controller = Controller().configure(Config().configure_new(), terminate=False)
         cls.scripters = cls.controller.config.scripters # shortcut
         cls.common_patch_relaxation_protocols = [
             {'md': {'ensemble': 'minimize', 'nsteps': 1000}},

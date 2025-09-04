@@ -36,7 +36,7 @@ class TestSegment(unittest.TestCase):
         self.assertEqual(segment.specs, {})
 
     def test_segment_creation_from_residue(self):
-        residue = Residue(ResiduePlaceholder(chainID='A', resid=ResID(100), resname='ALA', segtype='protein', resolved=True))
+        residue = Residue(ResiduePlaceholder(chainID='A', resid=ResID(100), resname='ALA', segtype='protein', segname='A', resolved=True))
         segment = Segment(residue)
         self.assertIsInstance(segment, Segment)
         self.assertEqual(segment.segtype, 'protein')
@@ -47,10 +47,10 @@ class TestSegment(unittest.TestCase):
 
     def test_segment_creation_from_residue_list(self):
         residues = ResidueList([
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(100), resname='ALA', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(101), resname='GLY', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(102), resname='SER', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(103), resname='THR', segtype='protein', resolved=True))
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(100), resname='ALA', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(101), resname='GLY', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(102), resname='SER', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(103), resname='THR', segtype='protein', segname='A', resolved=True))
         ])
         segment = Segment(residues)
         self.assertIsInstance(segment, Segment)
@@ -62,10 +62,10 @@ class TestSegment(unittest.TestCase):
 
     def test_segment_cleave(self):
         residues = ResidueList([
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(100), resname='ALA', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(101), resname='GLY', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(102), resname='SER', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(103), resname='THR', segtype='protein', resolved=True))
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(100), resname='ALA', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(101), resname='GLY', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(102), resname='SER', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(103), resname='THR', segtype='protein', segname='A', resolved=True))
         ])
         clv = CleavageSite('A:101-102')
         segment = Segment(residues)
@@ -81,7 +81,7 @@ class TestSegment(unittest.TestCase):
 class TestSegmentList(unittest.TestCase):
     
     def test_segment_list_creation(self):
-        segment_list = SegmentList()
+        segment_list = SegmentList([])
         self.assertIsInstance(segment_list, SegmentList)
         self.assertEqual(len(segment_list), 0)
 
@@ -96,27 +96,28 @@ class TestSegmentList(unittest.TestCase):
             'specs': {}
         }
         segment = Segment(**input_dict)
-        segment_list = SegmentList()
+        segment_list = SegmentList([])
         segment_list.append(segment)
         self.assertEqual(len(segment_list), 1)
         self.assertEqual(segment_list[0].segname, 'A')
 
     def test_segment_list_generate(self):
         residue_list = [
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(1), resname='ALA', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(2), resname='GLY', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(3), resname='SER', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(4), resname='THR', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(1), resname='ALA', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(2), resname='GLY', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(3), resname='SER', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(4), resname='THR', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='S', resid=ResID(404), resname='BMA', segtype='glycan', resolved=True))
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(1), resname='ALA', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(2), resname='GLY', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(3), resname='SER', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(4), resname='THR', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(1), resname='ALA', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(2), resname='GLY', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(3), resname='SER', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(4), resname='THR', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='S', resid=ResID(404), resname='BMA', segtype='glycan', segname='S', resolved=True))
         ]
         chainIDmanager = ChainIDManager()
         seq_spec={}
 
-        segment_list = SegmentList.generate(seq_spec=seq_spec,residues=ResidueList(residue_list), chainIDmanager=chainIDmanager)
+        segment_list = SegmentList([])
+        segment_list.generate_from_residues(seq_spec=seq_spec,residues=ResidueList(residue_list), chainIDmanager=chainIDmanager)
         self.assertIsInstance(segment_list, SegmentList)
         self.assertEqual(len(segment_list), 3)
         self.assertEqual(segment_list[0].segname, 'A')
@@ -143,20 +144,21 @@ class TestSegmentList(unittest.TestCase):
 
     def test_segment_list_inherit_objs(self):
         residue_list = [
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(1), resname='ALA', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(2), resname='GLY', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(3), resname='SER', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(4), resname='THR', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(1), resname='ALA', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(2), resname='GLY', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(3), resname='SER', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(4), resname='THR', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='S', resid=ResID(404), resname='BMA', segtype='glycan', resolved=True))
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(1), resname='ALA', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(2), resname='GLY', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(3), resname='SER', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(4), resname='THR', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(1), resname='ALA', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(2), resname='GLY', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(3), resname='SER', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(4), resname='THR', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='S', resid=ResID(404), resname='BMA', segtype='glycan', segname='S', resolved=True))
         ]
         chainIDmanager = ChainIDManager()
         seq_spec={}
 
-        segment_list = SegmentList.generate(seq_spec=seq_spec,residues=ResidueList(residue_list), chainIDmanager=chainIDmanager)
+        segment_list = SegmentList([])
+        segment_list.generate_from_residues(seq_spec=seq_spec,residues=ResidueList(residue_list), chainIDmanager=chainIDmanager)
 
         O = ObjManager()
         mut = Mutation('A:ALA,1,GLY')
@@ -188,20 +190,21 @@ class TestSegmentList(unittest.TestCase):
 
     def test_segment_list_collect_residues(self):
         residue_list = [
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(1), resname='ALA', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(2), resname='GLY', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(3), resname='SER', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(4), resname='THR', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(1), resname='ALA', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(2), resname='GLY', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(3), resname='SER', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(4), resname='THR', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='S', resid=ResID(404), resname='BMA', segtype='glycan', resolved=True))
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(1), resname='ALA', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(2), resname='GLY', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(3), resname='SER', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(4), resname='THR', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(1), resname='ALA', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(2), resname='GLY', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(3), resname='SER', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(4), resname='THR', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='S', resid=ResID(404), resname='BMA', segtype='glycan', segname='S', resolved=True))
         ]
         chainIDmanager = ChainIDManager()
         seq_spec={}
 
-        segment_list = SegmentList.generate(seq_spec=seq_spec,residues=ResidueList(residue_list), chainIDmanager=chainIDmanager)
+        segment_list = SegmentList([])
+        segment_list.generate_from_residues(seq_spec=seq_spec,residues=ResidueList(residue_list), chainIDmanager=chainIDmanager)
 
         collected_residues = segment_list.collect_residues()
         self.assertIsInstance(collected_residues, ResidueList)
@@ -212,19 +215,20 @@ class TestSegmentList(unittest.TestCase):
     def test_segment_list_prune_topology(self):
         # make a list of residues
         residue_list = ResidueList([
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(1), resname='ALA', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(2), resname='GLY', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(3), resname='SER', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='A', resid=ResID(4), resname='THR', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(1), resname='ALA', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(2), resname='GLY', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(3), resname='SER', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='B', resid=ResID(4), resname='THR', segtype='protein', resolved=True)),
-            Residue(ResiduePlaceholder(chainID='S', resid=ResID(404), resname='BMA', segtype='glycan', resolved=True))
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(1), resname='ALA', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(2), resname='GLY', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(3), resname='SER', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='A', resid=ResID(4), resname='THR', segtype='protein', segname='A', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(1), resname='ALA', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(2), resname='GLY', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(3), resname='SER', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='B', resid=ResID(4), resname='THR', segtype='protein', segname='B', resolved=True)),
+            Residue(ResiduePlaceholder(chainID='S', resid=ResID(404), resname='BMA', segtype='glycan', segname='S', resolved=True))
         ])
         # make a segment list
         chainIDmanager = ChainIDManager()
-        segment_list = SegmentList.generate(residues=ResidueList(residue_list), chainIDmanager=chainIDmanager)
+        segment_list = SegmentList([])
+        segment_list.generate_from_residues(residues=ResidueList(residue_list), chainIDmanager=chainIDmanager)
         self.assertEqual(len(segment_list), 3)
         # make a list of ssbonds, one element, bonding chain A resid 2 to chain B resid 3, shortcode C_RRR-D_SSS
         ssb1 = SSBond('A_2-B_3')

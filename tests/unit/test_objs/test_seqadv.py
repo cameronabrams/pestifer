@@ -65,8 +65,8 @@ class TestSeqadvList(unittest.TestCase):
     def test_seqadv_list_assign_residues(self):
         S = SeqadvList([Seqadv(idCode="1ABC", resname="ALA", chainID="A", resid=ResID(1), typekey="engineered mutation", dbRes="GLY"), 
                         Seqadv(idCode="2DEF", resname="GLY", chainID="B", resid=ResID(2), typekey="conflict", dbRes="ALA")])
-        R = ResidueList([Residue(resname="ALA", chainID="A", resid=ResID(1), segtype='protein', atoms=AtomList([]), resolved=True),
-                         Residue(resname="GLY", chainID="B", resid=ResID(2), segtype='protein', atoms=AtomList([]), resolved=True)])
+        R = ResidueList([Residue(resname="ALA", chainID="A", segname='A', resid=ResID(1), segtype='protein', atoms=AtomList([]), resolved=True),
+                         Residue(resname="GLY", chainID="B", segname='B',resid=ResID(2), segtype='protein', atoms=AtomList([]), resolved=True)])
         S.assign_residues(R)
         self.assertEqual(len(S), 2)
         self.assertEqual(S[0].residue, R[0])

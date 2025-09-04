@@ -13,8 +13,6 @@ PSF EXT CMAP
  REMARKS topology toppar_all36_prot_modify_res.str 
  REMARKS topology toppar_all36_moreions.str 
  REMARKS topology top_all35_ethers.rtf 
- REMARKS topology /usr/local/lib/vmd/plugins/noarch/tcl/solvate1.7/wat.top 
- REMARKS topology /usr/local/lib/vmd/plugins/noarch/tcl/readcharmmtop1.2/toppar_water_ions_namd.str 
  REMARKS segment A { first NTER; last CTER; auto angles dihedrals }
  REMARKS segment B { first none; last none; auto angles dihedrals }
  REMARKS segment C { first none; last none; auto angles dihedrals }

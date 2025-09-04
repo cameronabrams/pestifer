@@ -71,6 +71,8 @@ KEYWDS   3 HUMAN IMMUNOGLOBULIN 17B, GLYCOSYLATED PROTEIN, VIRAL PROTEIN-
 KEYWDS   4 RECEPTOR-IMMUNE SYSTEM COMPLEX                                       
 EXPDTA    X-RAY DIFFRACTION                                                     
 AUTHOR    P.D.KWONG,R.WYATT,J.ROBINSON,R.W.SWEET,J.SODROSKI,W.A.HENDRICKSON     
+REVDAT   9   16-OCT-24 1GC1    1       REMARK                                   
+REVDAT   8   09-AUG-23 1GC1    1       REMARK HETSYN SHEET                      
 REVDAT   7   29-JUL-20 1GC1    1       CAVEAT COMPND REMARK HET                 
 REVDAT   7 2                   1       HETNAM FORMUL LINK   SITE                
 REVDAT   7 3                   1       ATOM                                     
@@ -542,6 +544,11 @@ HET    NAG  G 839      14
 HET    NAG  G 886      14                                                       
 HETNAM     NAG 2-ACETAMIDO-2-DEOXY-BETA-D-GLUCOPYRANOSE                         
 HETNAM     FUC ALPHA-L-FUCOPYRANOSE                                             
+HETSYN     NAG N-ACETYL-BETA-D-GLUCOSAMINE; 2-ACETAMIDO-2-DEOXY-BETA-           
+HETSYN   2 NAG  D-GLUCOSE; 2-ACETAMIDO-2-DEOXY-D-GLUCOSE; 2-ACETAMIDO-          
+HETSYN   3 NAG  2-DEOXY-GLUCOSE; N-ACETYL-D-GLUCOSAMINE                         
+HETSYN     FUC ALPHA-L-FUCOSE; 6-DEOXY-ALPHA-L-GALACTOPYRANOSE; L-              
+HETSYN   2 FUC  FUCOSE; FUCOSE                                                  
 FORMUL   5  NAG    11(C8 H15 N O6)                                              
 FORMUL   5  FUC    4(C6 H12 O5)                                                 
 FORMUL  16  HOH   *603(H2 O)                                                    
@@ -564,8 +571,8 @@ SHEET    1   B 4 SER G 199  ILE G 201  0
 SHEET    2   B 4 CYS G 119  THR G 123 -1                                        
 SHEET    3   B 4 VAL G 430  TYR G 435 -1                                        
 SHEET    4   B 4 GLN G 422  MET G 426 -1                                        
-SHEET    1   C 1 PRO G 214  ALA G 219  0                                        
-SHEET    2   C 1 GLN G 246  ILE G 251 -1                                        
+SHEET    1   C 2 PRO G 214  ALA G 219  0                                        
+SHEET    2   C 2 GLN G 246  ILE G 251 -1                                        
 SHEET    1   D 3 ASN G 241  VAL G 245  0                                        
 SHEET    2   D 3 GLY G 222  ASN G 229 -1                                        
 SHEET    3   D 3 LYS G 485  ILE G 491 -1                                        

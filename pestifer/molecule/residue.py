@@ -451,12 +451,14 @@ class Residue(ResiduePlaceholder):
             input_dict['atoms'] = AtomList()
             input_dict['resolved'] = False
             input_dict['recordname'] = 'UNSET'
+            input_dict['segname'] = input_dict.get('chainID','UNSET')
             return input_dict
         elif args and isinstance(args[0], CIFdict):
             input_dict = ResiduePlaceholder._adapt(args[0])
             input_dict['atoms'] = AtomList()
             input_dict['resolved'] = False
             input_dict['recordname'] = 'UNSET'
+            input_dict['segname'] = input_dict.get('chainID','UNSET')
             return input_dict
         elif args and isinstance(args[0], Atom | Hetatm):
             a = args[0]

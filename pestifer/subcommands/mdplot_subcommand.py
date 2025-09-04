@@ -43,7 +43,7 @@ class MDPlotSubcommand(Subcommand):
                         'figsize': args.figsize,
                         'timeseries': args.timeseries,
                         'profiles': args.profiles,
-                        'profiles_per_block': args.profiles_per_block,
+                        'profiles-per-block': args.profiles_per_block,
                         'legend': True,
                         'grid': True,
                         'units': {

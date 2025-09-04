@@ -165,80 +165,80 @@ def ring_check(psf,pdb,xsc,cutoff=10.0,segtypes=['lipid']):
     segtypes : list
         List of segment types to include in the analysis. Default is ['lipid'].
     """
-    box,orig=cell_from_xsc(xsc)
-    coorddf=coorddf_from_pdb(pdb)
-    sidelengths=np.diagonal(box)
-    ll=orig-0.5*sidelengths
-    ur=orig+0.5*sidelengths
-    LC=Linkcell(np.array([ll,ur]),cutoff)
-    topol=PSFContents(psf,parse_topology=['bonds'],topology_segtypes=segtypes)
-    assert coorddf.shape[0]==len(topol.atoms),f'{psf} and {pdb} are incongruent'
-    coorddf['segname']=[a.segname for a in topol.atoms.data]
+    box, orig = cell_from_xsc(xsc)
+    coorddf = coorddf_from_pdb(pdb)
+    sidelengths = np.diagonal(box)
+    ll = orig - 0.5 * sidelengths
+    ur = orig + 0.5 * sidelengths
+    LC = Linkcell(np.array([ll, ur]), cutoff)
+    topol = PSFContents(psf, parse_topology=['bonds'], topology_segtypes=segtypes)
+    assert coorddf.shape[0] == len(topol.atoms), f'{psf} and {pdb} are incongruent'
+    coorddf['segname'] = [a.segname for a in topol.atoms.data]
     logger.debug(f'ingesting coords into bonds...(could take a while)')
-    topol.bonds.ingest_coordinates(coorddf,pos_key=['x','y','z'],meta_key=['segname','resid'])
+    topol.bonds.ingest_coordinates(coorddf, pos_key=['x', 'y', 'z'], meta_key=['segname', 'resid'])
     logger.debug(f'Assiging link-cell indices to each bond')
     topol.bonds.assign_cell_indexes(LC)
     logger.debug(f'Sorting bonds by link-cell index')
-    bondlist_per_cell={}
+    bondlist_per_cell = {}
     for b in topol.bonds:
         if not b.linkcell_idx in bondlist_per_cell:
-            bondlist_per_cell[b.linkcell_idx]=PSFBondList([])
+            bondlist_per_cell[b.linkcell_idx] = PSFBondList([])
         bondlist_per_cell[b.linkcell_idx].append(b)
-    Rings=RingList(topol.G)
+    Rings = RingList(topol.G)
     logger.debug(f'{len(Rings)} rings to be analyzed for piercings')
     logger.debug(f'ingesting coords into rings...')
-    Rings.ingest_coordinates(coorddf,pos_key=['x','y','z'],meta_key=['segname','resid'])
-    piercespecs=[]
-    rdict={}
-    dtsum=0.0
-    nr=0
+    Rings.ingest_coordinates(coorddf, pos_key=['x', 'y', 'z'], meta_key=['segname', 'resid'])
+    piercespecs = []
+    rdict = {}
+    dtsum = 0.0
+    nr = 0
     logger.debug(f'Examining {len(Rings)} rings...')
-    for iring,ring in enumerate(Rings):
-        t1=time.time()
+    for iring, ring in enumerate(Rings):
+        t1 = time.time()
         # logger.debug(f'Ring {iring} {ring.segname} {ring.resid}...')
-        oc=LC.ldx_of_cellndx(LC.cellndx_of_point(ring.COM))
+        oc = LC.ldx_of_cellndx(LC.cellndx_of_point(ring.COM))
         # logger.debug(f'ring {str(ring)} center in cell {oc} -- members in {ring.M["linkcell_idx"]}')
-        searchcells=LC.ldx_searchlist_of_ldx(oc)
-        search_bonds=PSFBondList([])
+        searchcells = LC.ldx_searchlist_of_ldx(oc)
+        search_bonds = PSFBondList([])
         # logger.debug(f'searchcells {searchcells}')
         for sc in searchcells:
-            search_bonds.extend(bondlist_per_cell.get(sc,PSFBondList([])))
+            search_bonds.extend(bondlist_per_cell.get(sc, PSFBondList([])))
         # logger.debug(f'Ring {iring+1}/{len(Rings)} in c {oc} searching c {searchcells} captures {len(search_bonds)} bonds')
-        piercing_bonds=PSFBondList([])
+        piercing_bonds = PSFBondList([])
         for bond in search_bonds:
             if any([x in ring.idx_list for x in bond.idx_list]):
                 continue
-            test_bond=bond.mic_shift(ring.COM,box)
-            pdict=ring.pierced_by(test_bond)
+            test_bond = bond.mic_shift(ring.COM, box)
+            pdict = ring.pierced_by(test_bond)
             if pdict['pierced']: piercing_bonds.append(test_bond)
             if 'reason' in pdict:
                 if not pdict['reason'] in rdict:
-                    rdict[pdict['reason']]=0
-                rdict[pdict['reason']]+=1
+                    rdict[pdict['reason']] = 0
+                rdict[pdict['reason']] += 1
                 if 'error' in pdict:
                     if not 'error' in rdict:
-                        rdict['error']=[]
-                    if pdict['error']<1.0:
-                        rdict['error'].append(dict(pdict=pdict,bond=bond.idx_list,ring=ring.idx_list))
-        t2=time.time()
-        dt=t2-t1
-        dtsum+=dt
-        nr+=1
-        dtav=dtsum/nr
-        if len(Rings)<10 or iring%10==0: logger.debug(f'{dtav:.3f} s per ring, {nr}/{len(Rings)} rings, {dtav*(len(Rings)-nr):.3f} s remaining...')
-        if len(piercing_bonds)>0:
-            ringname='-|- '+ ' -- '.join([str(topol.included_atoms.get(serial=x)[0]) for x in ring.idx_list]) + ' -|-'
+                        rdict['error'] = []
+                    if pdict['error'] < 1.0:
+                        rdict['error'].append(dict(pdict=pdict, bond=bond.idx_list, ring=ring.idx_list))
+        t2 = time.time()
+        dt = t2 - t1
+        dtsum += dt
+        nr += 1
+        dtav = dtsum / nr
+        if len(Rings) < 10 or iring % 10 == 0: logger.debug(f'{dtav:.3f} s per ring, {nr}/{len(Rings)} rings, {dtav * (len(Rings) - nr):.3f} s remaining...')
+        if len(piercing_bonds) > 0:
+            ringname = '-|- ' + ' -- '.join([str(topol.included_atoms.get((lambda a: a.serial == x))) for x in ring.idx_list]) + ' -|-'
             logger.debug(f'ring {ringname}:')
             for bond in piercing_bonds:
-                piercespecs.append(dict(piercer=dict(segname=bond.segname,resid=bond.resid),piercee=dict(segname=ring.segname,resid=ring.resid)))
-                bondname=' -- '.join([str(topol.included_atoms.get(serial=x)[0]) for x in bond.idx_list])
+                piercespecs.append(dict(piercer=dict(segname=bond.segname, resid=bond.resid), piercee=dict(segname=ring.segname, resid=ring.resid)))
+                bondname = ' -- '.join([str(topol.included_atoms.get((lambda a: a.serial == x))) for x in bond.idx_list])
                 logger.debug(f'  pierced by bond [ {bondname} ]')
-    for k,v in rdict.items():
+    for k, v in rdict.items():
         if v:
-            if type(v)==list:
+            if type(v) == list:
                 for e in v:
-                    if type(e)==dict:
-                       for kk,vv in e.items():
+                    if type(e) == dict:
+                       for kk, vv in e.items():
                             logger.debug(f'    {kk}: {vv}')
                     else:
                        logger.debug(f'{k}: {v}')

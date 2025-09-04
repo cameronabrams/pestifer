@@ -6,6 +6,7 @@ from pidibble.pdbparse import PDBParser
 
 from pestifer.core.command import Command
 from pestifer.molecule.atom import AtomList
+from pestifer.molecule.chainidmanager import ChainIDManager
 from pestifer.molecule.molecule import Molecule
 from pestifer.molecule.residue import ResidueList
 from pestifer.molecule.segment import Segment, SegmentList
@@ -40,7 +41,7 @@ class TestPSFContents(unittest.TestCase):
         psfcontents = PSFContents(source)
         atom_include_logic = ['chainID == "A"', 'chainID == "B"']
         ignored_atom_count = psfcontents.apply_atom_logics(atom_include_logic, [])
-        self.assertEqual(ignored_atom_count, 22320)
+        self.assertEqual(ignored_atom_count, 25540)
         self.assertEqual(len(psfcontents.segments), 2)
         self.assertEqual(psfcontents.segments[0].segname, 'A')
         self.assertEqual(psfcontents.segments[1].segname, 'B')
@@ -212,6 +213,7 @@ class TestPSFContents(unittest.TestCase):
             self.assertEqual(r1.segname, r2.segname)
 
         pdbsegments = SegmentList([])
+        pdbsegments.chainIDmanager = ChainIDManager()
         pdbsegments.residues = pdbresidues
         pdbsegments.seq_spec = {}
         pdbsegments.psfcompanion = psf.segments

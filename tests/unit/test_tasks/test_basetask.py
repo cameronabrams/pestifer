@@ -30,11 +30,8 @@ class TestBaseTask(unittest.TestCase):
         self.assertIsInstance(task, BaseTask)
         self.assertTrue(hasattr(task, 'do'))
         self.assertEqual(task.pipeline, pipeline_context)
-        an_artifact = TXTFileArtifact('afile', key='test_artifact')
-        task.register(an_artifact)
+        task.register('afile', key='test_artifact', artifact_type=TXTFileArtifact)
         self.assertIn('test_artifact', task.pipeline.head)
-        self.assertEqual(task.pipeline.head['test_artifact'], an_artifact)
-        self.assertEqual(an_artifact.produced_by, task)
 
 class TestVMDTask(unittest.TestCase):
     

@@ -21,7 +21,8 @@ class TestResiduePlaceholder(unittest.TestCase):
             resid=ResID(1),
             chainID='A',
             resolved=False,
-            segtype='UNSET'
+            segtype='UNSET',
+            segname='A'
         )
         self.assertEqual(e.resname, 'ALA')
         self.assertEqual(e.resid.resseqnum, 1)
@@ -70,6 +71,7 @@ class TestResidue(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         self.assertIsInstance(r, Residue)
@@ -86,6 +88,7 @@ class TestResidue(unittest.TestCase):
             resid=ResID(1),
             chainID='A',
             resolved=False,
+            segname='A',
             segtype='UNSET'
         )
         r = Residue(e)
@@ -104,6 +107,7 @@ class TestResidue(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r2 = Residue(
@@ -112,6 +116,7 @@ class TestResidue(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r1.down.append(r2)
@@ -136,6 +141,7 @@ class TestResidue(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r2 = Residue(
@@ -144,6 +150,7 @@ class TestResidue(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         link1 = Link('A_1_C-G_2_N')
@@ -165,6 +172,7 @@ class TestResidue(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r2 = Residue(
@@ -173,6 +181,7 @@ class TestResidue(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         self.assertTrue(r1<r2)
@@ -182,6 +191,7 @@ class TestResidue(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r4 = Residue(
@@ -190,6 +200,7 @@ class TestResidue(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         self.assertTrue(r2<r3)
@@ -203,6 +214,7 @@ class TestResidue(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         atom = Atom(
@@ -218,7 +230,8 @@ class TestResidue(unittest.TestCase):
             occ=1.0,
             beta=0.0,
             elem='C',
-            charge=' '
+            charge=' ',
+            segname='A'
         )
         self.assertTrue(r.add_atom(atom))
         self.assertIn(atom, r.atoms)
@@ -236,7 +249,8 @@ class TestResidue(unittest.TestCase):
             occ=1.0,
             beta=0.0,
             elem='O',
-            charge=' '
+            charge=' ',
+            segname='A'
         )
         self.assertFalse(r.add_atom(another_atom))
 
@@ -251,6 +265,7 @@ class TestResidue(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r2 = Residue(
@@ -259,6 +274,7 @@ class TestResidue(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         link1=  Link('A_1_C-G_2_N')
@@ -282,6 +298,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         rl = ResidueList()
@@ -303,7 +320,8 @@ class TestResidueList(unittest.TestCase):
             occ=1.0,
             beta=0.0,
             elem='C',
-            charge=' '
+            charge=' ',
+            segname='A'
         )
         atom2 = Atom(
             serial=2,
@@ -318,10 +336,11 @@ class TestResidueList(unittest.TestCase):
             occ=1.0,
             beta=0.0,
             elem='O',
-            charge=' '
+            charge=' ',
+            segname='A'
         )
         atom_list = AtomList([atom1, atom2])
-        residue_list = ResidueList.from_atomlist(atom_list)
+        residue_list = ResidueList.from_residuegrouped_atomlist(atom_list)
         self.assertEqual(len(residue_list), 2)
         self.assertIsInstance(residue_list[0], Residue)
         self.assertIsInstance(residue_list[1], Residue)
@@ -333,6 +352,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r2 = Residue(
@@ -341,6 +361,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r3 = Residue(
@@ -349,6 +370,7 @@ class TestResidueList(unittest.TestCase):
             chainID='B',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         rl = ResidueList([r1, r2, r3])
@@ -365,6 +387,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r2 = Residue(
@@ -373,6 +396,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r3 = Residue(
@@ -381,6 +405,7 @@ class TestResidueList(unittest.TestCase):
             chainID='B',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         rl = ResidueList([r1, r2, r3])
@@ -397,6 +422,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r2 = Residue(
@@ -405,6 +431,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r3 = Residue(
@@ -413,6 +440,7 @@ class TestResidueList(unittest.TestCase):
             chainID='B',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         rl = ResidueList([r1, r2, r3])
@@ -427,6 +455,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r2 = Residue(
@@ -435,6 +464,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         rl = ResidueList([r1, r2])
@@ -449,6 +479,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r2 = Residue(
@@ -457,6 +488,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r3 = Residue(
@@ -465,6 +497,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r4 = Residue(
@@ -473,6 +506,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         rl = ResidueList([r1, r2, r3, r4])
@@ -498,6 +532,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r2 = Residue(
@@ -506,6 +541,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r3 = Residue(
@@ -514,6 +550,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r4 = Residue(
@@ -522,6 +559,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         rl = ResidueList([r1, r2, r3, r4])
@@ -546,6 +584,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r2 = Residue(
@@ -554,6 +593,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r3 = Residue(
@@ -562,6 +602,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         r4 = Residue(
@@ -570,6 +611,7 @@ class TestResidueList(unittest.TestCase):
             chainID='A',
             resolved=True,
             segtype='UNSET',
+            segname='A',
             atoms=AtomList([])  # Empty list for atoms
         )
         rl = ResidueList([r1, r2, r3, r4])

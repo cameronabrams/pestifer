@@ -207,6 +207,7 @@ class CHARMMFFContent(CacheableObject):
     @countTime
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.deprovision()
 
     @with_spinner('No cache yet -- building all CHARMMFF content from package resources...')
     def _build_from_resources(self, charmmff_path: str = '.', **kwargs):
@@ -374,6 +375,7 @@ class CHARMMFFContent(CacheableObject):
 
     def provision(self, force_rebuild: bool = False, resnames: list[str] = []):
         if self.provisioned:
+            raise RuntimeError('CHARMMFFContent is already provisioned; call deprovision() first')
             return
         self.provision_pdbrepository(force_rebuild=force_rebuild, resnames=resnames)
         self.provision_residueobjects(force_rebuild=force_rebuild, resnames=resnames)
