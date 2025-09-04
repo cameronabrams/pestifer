@@ -61,11 +61,11 @@ class TestCIF(unittest.TestCase):
         obj=p_struct.getObj('atom_site')
         atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
         self.assertEqual(len(atoms),17693)
-        residues=ResidueList.from_atomlist(atoms)
+        residues=ResidueList.from_residuegrouped_atomlist(atoms)
         self.assertEqual(len(residues),2082)
         uCIDs=residues.uniqattrs(['chainID'])['chainID']
         print(uCIDs)
-        self.assertEqual(len(uCIDs),76)
+        self.assertEqual(len(uCIDs),82)
         nres=0
         for c in uCIDs:
             chain=residues.filter(lambda x: x.chainID == c)
@@ -82,7 +82,7 @@ class TestCIF(unittest.TestCase):
         p_struct=CIFload(source)
         obj=p_struct.getObj('atom_site')
         atoms=AtomList([Atom(CIFdict(obj,i)) for i in range(len(obj))])
-        raw_residues=ResidueList.from_atomlist(atoms)
+        raw_residues=ResidueList.from_residuegrouped_atomlist(atoms)
         raw_residues.apply_segtypes()
         residues=raw_residues.get(lambda x: x.segtype == 'protein')  # 8fae has some glycan residues with resid 0
         uCIDs=residues.uniqattrs(['chainID'])['chainID']
@@ -182,7 +182,7 @@ class TestCIF(unittest.TestCase):
         Seqadvs=SeqadvList([Seqadv(CIFdict(obj,i)) for i in range(len(obj))])
         obj=pr.getObj('pdbx_unobs_or_zero_occ_residues')
         EmptyResidues=ResiduePlaceholderList([ResiduePlaceholder(CIFdict(obj,i)) for i in range(len(obj))])
-        fromAtoms=ResidueList.from_atomlist(Atoms)
+        fromAtoms=ResidueList.from_residuegrouped_atomlist(Atoms)
         fromEmptyResidues=ResidueList.from_ResiduePlaceholderlist(EmptyResidues)
         Residues=fromAtoms+fromEmptyResidues
         Seqadvs.assign_residues(Residues)

@@ -28,7 +28,7 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
    }
 }
 set a_arg [deprotect_str_arg $a]
-abc $a_arg
+vmdcon -info $a_arg
 exit
 """
                     )

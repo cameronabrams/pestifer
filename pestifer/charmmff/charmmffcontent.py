@@ -375,7 +375,6 @@ class CHARMMFFContent(CacheableObject):
 
     def provision(self, force_rebuild: bool = False, resnames: list[str] = []):
         if self.provisioned:
-            raise RuntimeError('CHARMMFFContent is already provisioned; call deprovision() first')
             return
         self.provision_pdbrepository(force_rebuild=force_rebuild, resnames=resnames)
         self.provision_residueobjects(force_rebuild=force_rebuild, resnames=resnames)

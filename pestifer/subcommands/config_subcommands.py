@@ -133,7 +133,7 @@ class WhereTCLSubcommand(Subcommand):
     Subcommand that exposes true locations of various TcL resources in the pestifer installation.
     This is useful for custom VMD scripts that the user may want to create.
     """
-    name: str = 'where-tcl'
+    name: str = 'wheretcl'
     short_help: str = "provides path of TcL scripts for sourcing in interactive VMD"
     long_help: str = "Display the path of TcL scripts for sourcing in interactive VMD."
 
