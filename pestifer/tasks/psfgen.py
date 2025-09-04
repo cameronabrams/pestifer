@@ -127,12 +127,15 @@ class PsfgenTask(VMDTask):
         Collect the topology files that are needed for the residues in the base molecule.
         """
         resis = set([x.resname for x in self.base_molecule.asymmetric_unit.residues.data])
+        logger.debug(f'Residue names in base molecule: {resis}')
         CC = self.resource_manager.charmmff_content
         new_topfiles = set()
         for resname in resis:
             topfile = CC.get_topfile_of_resname(resname)
             if topfile:
                 new_topfiles.add(topfile)
+            else:
+                raise ValueError(f'No topology file found for residue name {resname}')
         return list(new_topfiles)
 
     def patch_topologies(self):

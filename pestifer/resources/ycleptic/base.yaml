@@ -3,10 +3,10 @@
 #
 # Ycleptic-format specification for a user's YAML-format pestifer configuration file
 #
-# The "name" of any directive may appear as a key whose value is specified by "type"
+# The "name" of any attribute may appear as a key whose value is specified by "type"
 # and any dependent "attributes".  Values with scalar types should only appear
-# once in any directive set.  Values with list types may have multiple instances
-# of each dependent directive.
+# once in any attribute set.  Values with list types may have multiple instances
+# of each dependent attribute.
 #
 # use "required: True" for scalar values that have no defaults but must be specified
 # use "required: False" for any values that should not be assigned defaults
@@ -18,7 +18,7 @@ docs:
     that can be included in a config file.  You can also use the ``pestifer config-help`` subcommand to step through
     this documentation on interactively on the command line.
 
-    Each item below is a top-level directive in a pestifer configuration file.
+    Each item below is a top-level attribute in a pestifer configuration file.
 attributes:
   - name: charmmff
     type: dict
@@ -26,10 +26,11 @@ attributes:
     required: True
     docs:
       text: |
-        The ``charmff`` directive informs pestifer which CHARMM force-field parameter and topology files are to be 
+        The ``charmff`` attribute informs pestifer which CHARMM force-field parameter and topology files are to be 
         used for all psfgen/namd3 executions.  ``standard`` refers to files that are found in the official CHARMMFF 
         release, and are referred to by their base filenames, regardless of whether they live in the topmost ``toppar`` 
-        directory or one of the stream subdirectories.  ``custom`` refers to files that are not part of the official CHARMMFF release.
+        directory or one of the stream subdirectories.  ``custom`` refers to files that are not part of the official 
+        CHARMMFF release.
     attributes:
       - name: tarball
         type: str
@@ -115,7 +116,7 @@ attributes:
             default: []
         docs:
           text: |
-            This directive allows you to specify user-defined custom charmmff files that are not included in the standard CHARMMFF release.  You can use this to provide your own custom files for use with pestifer.
+            This attribute allows you to specify user-defined custom charmmff files that are not included in the standard CHARMMFF release.  You can use this to provide your own custom files for use with pestifer.
           example:
             charmff:
               user_custom:
@@ -132,7 +133,7 @@ attributes:
         text: Paths to user's collections of PDB files for custom lipids or ligands
         docs:
           text: |
-            This directive allows you to specify user-defined collections of PDB files that can be used for custom lipids or ligands in your simulations.
+            This attribute allows you to specify user-defined collections of PDB files that can be used for custom lipids or ligands in your simulations.
             Here you can list one or more paths to PDB collections that you have built using the ``make-pdbcollection`` subcommand.  
             These collections can be used to provide custom lipids or ligands for your simulations.  
             The paths should point to directories that contain subdirectories for each RESI in the collection, 
@@ -147,7 +148,7 @@ attributes:
     type: dict
     text: Specifications for the psfgen plugin of VMD
     docs:
-      text: This directive defines common settings for the ``psfgen`` VMD plugin, including standard atom and residue aliases.
+      text: This attribute defines common settings for the ``psfgen`` VMD plugin, including standard atom and residue aliases.
     required: True
     attributes:
       - name: segtypes
@@ -156,7 +157,7 @@ attributes:
         docs:
           text: |
             This is a dictionary that holds segment types as keys and lists of residue names as values.  The segment types are used to define the segments in the PSF file, and the residue names are used to define the residues in each segment.
-            The segment types are defined in the ``pestifer/core/labels.py`` file, and can be modified/appended to by the user using this directive.
+            The segment types are defined in the ``pestifer/core/labels.py`` file, and can be modified/appended to by the user using this attribute.
       - name: aliases
         type: dict
         text: additional atom and residue aliases for psfgen not already defined in pestifer/core/labels.py
@@ -299,7 +300,7 @@ attributes:
     docs:
       text: |
         Allows user to specify paths for certain resources, including external applications.  By default, ``pestifer``
-        expects that all external applications are already in the user's PATH.  If not, this directive should be used
+        expects that all external applications are already in the user's PATH.  If not, this attribute should be used
         to specify the paths to these applications.
     attributes:
       - name: namd2
@@ -899,11 +900,11 @@ attributes:
                 type: str
                 default: POPC
               - name: lipid_conformers
-                text: declaration of which conformer index to use for each lipid in memgen format C1:C2//C3 (defaults to 0); must be congruent with the lipids directive
+                text: declaration of which conformer index to use for each lipid in memgen format C1:C2//C3 (defaults to 0); must be congruent with the lipids attribute
                 type: str
                 default: '0'
               - name: mole_fractions
-                text: declaration of mole fractions of each lipid in each leaflet in memgen format R1:R2//R3; must be congruent with the lipids directive
+                text: declaration of mole fractions of each lipid in each leaflet in memgen format R1:R2//R3; must be congruent with the lipids attribute
                 type: str
                 default: '1.0'
               - name: patch_nlipids
@@ -1212,7 +1213,7 @@ attributes:
               - name: z_ref_group
                 text: VMD atomselect string defining a center of mass at a specific z
                 type: dict
-                directive:
+                attribute:
                   - name: z_value
                     type: float
                     text: value of z at COM of this group relative to apparent bilayer midplane z-value (Å) (default 0)

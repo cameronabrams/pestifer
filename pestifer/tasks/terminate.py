@@ -70,10 +70,10 @@ class TerminateTask(MDTask):
         for ext in ['psf', 'pdb', 'coor', 'xsc', 'vel']:
             fa: FileArtifact = getattr(state, ext, None)
             if fa and fa.exists():
+                logger.debug(f'Including {fa.name} in package as {self.basename}.{ext}')
                 shutil.copy(fa.name, self.basename + '.' + ext)
-                fa.data = self.basename
-                assert fa.exists()
-                TarballContents.append(fa)
+                new_fa = fa.copy(data=self.basename + '.' + ext)
+                TarballContents.append(new_fa)
         result = 0
         if md_specs:
             logger.debug(f'Packaging for namd using basename {self.basename}')
@@ -91,7 +91,7 @@ class TerminateTask(MDTask):
             logger.debug(f'No NAMD configuration is included in the package.')
         TarballContents.extend(self.get_current_artifact_data('charmmff_parfiles'))
         TarballContents.extend(self.get_current_artifact_data('charmmff_streamfiles'))
-        TarballContents.make_tarball(self.basename, arcname_prefix=state_dir, unique=True)
+        TarballContents.make_tarball(self.basename, arcname_prefix=state_dir, unique=True, remove=True)
         return result
 
     def cleanup(self):
@@ -101,20 +101,19 @@ class TerminateTask(MDTask):
             return 0
         archive_dir = self.specs.get('archive_dir', 'archive')  
 
-        file_artifacts = FileArtifactList(list(filter(lambda x: not x.nonstate_results, self.pipeline.get_all_file_artifacts())))
-
+        file_artifacts: FileArtifactList = self.pipeline.get_all_file_artifacts()
         file_artifacts.sort(key=lambda x: x.name)
-        # logger.debug(f'All artifact files: {all_artifact_files}')
-
+        logger.debug(f'{len(file_artifacts)} file artifacts to be included in archive:')
+        my_logger([fa.name for fa in file_artifacts.data], logger.debug, depth=1)
+        file_artifact_names = [fa.name for fa in file_artifacts.data]
         non_artifact_files = []
         cwd_files = os.listdir('.')
-        # logger.debug(f'Current working directory files: {cwd_files}')
         for f in cwd_files:
-            if f not in file_artifacts:
+            if f not in file_artifact_names:
                 non_artifact_files.append(f)
-
-        logger.debug(f'Non-artifact files in current working directory:')
-        my_logger(non_artifact_files)
+        if len(non_artifact_files) > 0:
+            logger.debug(f'Non-artifact files in current working directory:')
+            my_logger(non_artifact_files, logger.debug, depth=1)
 
         file_artifacts.make_tarball('artifacts', remove=True, arcname_prefix=archive_dir, unique=True)
         return 0

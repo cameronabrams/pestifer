@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 
 from .artifacts import Artifact, FileArtifact, ArtifactDict, ArtifactList, FileArtifactDict, FileArtifactList, StateArtifacts
+from ..util.stringthings import my_logger
 
 logger = logging.getLogger(__name__)
 
@@ -246,7 +247,8 @@ class PipelineContext:
             else:
                 logger.debug(f'Ignoring non-file artifact "{artifact.key}" of type {type(artifact)}')
         file_artifacts = file_artifacts.unique_paths()
-
+        logger.debug(f'Found {len(file_artifacts)} file artifacts produced by {produced_by if produced_by else "all tasks"}.')
+        my_logger([x.name for x in file_artifacts], logger.debug, depth=1)
         return FileArtifactList([x for x in file_artifacts if x.exists()])
 
     def context_to_string(self) -> str:

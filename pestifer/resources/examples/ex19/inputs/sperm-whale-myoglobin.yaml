@@ -19,8 +19,8 @@ tasks:
   - validate:
       tests:
         - residue_test:
-            name: HEM residue present
-            selection: resname HEM
+            name: HEME residue present
+            selection: resname HEME
             measure: residue_count
             value: 1
   - md:

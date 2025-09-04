@@ -10,7 +10,7 @@ from pathlib import Path
 
 from .charmmfftop import CharmmMassDict, CharmmMassList, CharmmResiDict, CharmmResi
 from .pdbrepository import PDBRepository, PDBInput
-
+from ..core.labels import Labels
 from ..util.cacheable_object import CacheableObject, TarBytesFS
 from ..util.util import countTime
 from ..util.spinner_wrapper import with_spinner
@@ -425,7 +425,11 @@ class CHARMMFFContent(CacheableObject):
         """
         Given a residue name, return the name of the CHARMMFF topo or stream file that defines it
         """
-        return self.resi_to_topfile_map[resname] if resname in self.resi_to_topfile_map else None
+        first_try = self.resi_to_topfile_map[resname] if resname in self.resi_to_topfile_map else None
+        if first_try is None:
+            resname = Labels.charmm_resname_of_pdb_resname.get(resname, resname)
+            return self.resi_to_topfile_map[resname] if resname in self.resi_to_topfile_map else None
+        return first_try
 
     def copy_charmmfile_local(self, basename):
         """

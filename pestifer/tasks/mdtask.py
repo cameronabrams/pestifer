@@ -195,6 +195,7 @@ class MDTask(VMDTask):
         result = 0  # anticipate success
         if script_only:
             logger.debug(f'namdrun script_only is True; skipping execution')
+            # self.pipeline.show_artifacts(header=f'Current artifacts after preparing NAMD run script only for {self.basename}')
             return result
         local_execution_only = not self.get_current_artifact_data('periodic')
         single_gpu_only = kwargs.get('single_gpu_only', False) or constraints
@@ -220,7 +221,6 @@ class MDTask(VMDTask):
         if hasattr(na.logparser, 'dataframes'):
             for key in na.logparser.dataframes:
                 self.register(f'{self.basename}-{key}', artifact_type=CSVDataFileArtifact, key=f'{key}-csv')
-        self.pipeline.show_artifacts()
         if result != 0:
             return -1
 
@@ -229,4 +229,5 @@ class MDTask(VMDTask):
         else:
             self.register(firsttimestep+specs['minimize'], key='firsttimestep')
 
+        self.pipeline.show_artifacts(header=f'Current artifacts after completing NAMD run {self.basename}')
         return 0

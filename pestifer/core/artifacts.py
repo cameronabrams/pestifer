@@ -57,6 +57,7 @@ from pestifer.core.labels import Labels
 
 from ..molecule.atom import AtomList
 from ..psfutil.psfcontents import PSFContents
+from ..util.stringthings import my_logger
 
 from pidibble.pdbparse import PDBParser
 
@@ -86,6 +87,29 @@ class Artifact():
         if not self.__class__.__name__ == other.__class__.__name__:
             return False
         return self.key == other.key and self.data == other.data
+
+    def copy(self, **kwargs) -> Artifact:
+        """
+        Create a copy of the artifact, optionally overriding attributes with keyword arguments.
+
+        Parameters
+        ----------
+        **kwargs : dict
+            Attributes to override in the copied artifact.
+
+        Returns
+        -------
+        Artifact
+            A new Artifact instance with the same attributes as the original, except for any overridden by kwargs.
+        """
+        attrs = {
+            'data': self.data,
+            'key': self.key,
+            'produced_by': self.produced_by,
+            'provenance': self.provenance.copy()
+        }
+        attrs.update(kwargs)
+        return self.__class__(**attrs)
 
     def has_stamp(self) -> bool:        
         """
@@ -585,7 +609,8 @@ class FileArtifactList(ArtifactList):
                         remove_files.append(artifact.path)
                         remove_artifacts.append(artifact)
         if remove:
-            logger.debug(f"Removing files: {remove_files}")
+            logger.debug(f"Removing files:")
+            my_logger([str(f) for f in remove_files], logger.debug, depth=1)
             for f in remove_files:
                 try:
                     os.remove(f)

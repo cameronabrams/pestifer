@@ -78,9 +78,11 @@ jobs:
           CONCEPT_DOI="${{ secrets.ZENODO_CONCEPT_DOI }}"
 
           echo "Fetching latest record DOI from Zenodo..."
-          LATEST_RECORD_DOI=$(curl -s "https://zenodo.org/api/records/?q=conceptdoi:\"$CONCEPT_DOI\"&sort=mostrecent" | jq -r '.hits.hits[0].doi')
-
-          if [[ -z "$LATEST_RECORD_DOI" ]]; then
+          LATEST_RECORD_DOI=$(curl -sG 'https://zenodo.org/api/records' \
+            --data-urlencode "q=conceptdoi:\"$CONCEPT_DOI\"" \
+            --data 'size=1' \
+          | jq -r '.hits.hits[0] | (.doi // .pids.doi.identifier // .metadata.doi)')
+                    if [[ -z "$LATEST_RECORD_DOI" ]]; then
             echo "ERROR: Could not retrieve latest record DOI."
             exit 1
           fi
@@ -90,9 +92,6 @@ jobs:
 
           # Replace DOI badge in README.md
           sed -i -E "s|\[!\[DOI\]\(https://zenodo.org/badge/DOI/.*\.svg\)\]\(https://doi.org/.*\)|$BADGE_MD|" README.md
-
-          # add the Markdown DOI badge to this release's entry in CHANGELOG.md
-          echo -e "\n## [${{ github.ref_name }}](${{ github.server_url }}/${{ github.repository }}/releases/tag/${{ github.ref_name }}})\n\n$BADGE_MD" >> CHANGELOG.md
 
           # Commit and push if there are changes
           if git diff --quiet; then

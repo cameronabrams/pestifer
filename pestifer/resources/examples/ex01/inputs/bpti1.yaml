@@ -14,6 +14,13 @@ tasks:
   - fetch:
       sourceID: 6pti
   - psfgen:
+  - validate:
+      tests:
+        - residue_test:
+            name: CYS residues present
+            selection: resname CYS
+            measure: residue_count
+            value: 6
   - md:
       ensemble: minimize
   - solvate:

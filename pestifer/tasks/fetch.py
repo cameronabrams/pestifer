@@ -48,6 +48,8 @@ class FetchTask(BaseTask):
             pdb_file = PDBParser(alphafold=sourceID).fetch()
             if pdb_file:
                 self.register(sourceID, key=self._artifact_name, artifact_type=PDBFileArtifact)
+                if Path(f'{sourceID}.json').exists():
+                    self.register(sourceID, key='json', artifact_type=JSONFileArtifact)
             else:
                 raise ValueError(f"Could not fetch CIF file for sourceID: {sourceID}")
         elif source == 'alphafold':

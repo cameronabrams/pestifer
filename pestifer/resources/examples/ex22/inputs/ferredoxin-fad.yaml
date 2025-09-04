@@ -14,6 +14,11 @@ tasks:
         selection: protein and chain B C D
         measure: atom_count
         value: 0
+    - residue_test:
+        name: has FAD
+        selection: resname FAD
+        measure: residue_count
+        value: 1
 - md:
     ensemble: minimize
 - solvate:
