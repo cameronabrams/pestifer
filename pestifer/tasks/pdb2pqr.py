@@ -122,7 +122,7 @@ class PDB2PQRTask(PsfgenTask):
         self.log_parser.metadata['pka_table']['protonated'] = self.log_parser.metadata['pka_table']['respka'] > pH
         self.register(f'{self.basename}_run', key='pdb2pqr_log', artifact_type=LogFileArtifact)
         self.register(f'{self.basename}_pqr', key='pqr-pdb', artifact_type=PDBFileArtifact)
-        self.register({self.basename}, key='pqr', artifact_type=PQRFileArtifact)
+        self.register(self.basename, key='pqr', artifact_type=PQRFileArtifact)
         logger.debug(f'PDB2PQR run completed; pka_table:\n{self.log_parser.metadata['pka_table'].to_string()}')
 
         self.log_parser.metadata['histidines'] = {k:[] for k in ['HSD', 'HSE', 'HSP']}

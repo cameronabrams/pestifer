@@ -194,6 +194,7 @@ class MDTask(VMDTask):
         self.register(self.basename, key='namd', artifact_type=NAMDConfigFileArtifact, pytestable=True)
         result = 0  # anticipate success
         if script_only:
+            logger.debug(f'namdrun script_only is True; skipping execution')
             return result
         local_execution_only = not self.get_current_artifact_data('periodic')
         single_gpu_only = kwargs.get('single_gpu_only', False) or constraints

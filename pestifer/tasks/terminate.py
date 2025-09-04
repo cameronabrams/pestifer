@@ -15,6 +15,7 @@ import os
 from .mdtask import MDTask
 from ..core.artifacts import *
 from ..molecule.molecule import Molecule
+from ..util.stringthings import my_logger
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +113,8 @@ class TerminateTask(MDTask):
             if f not in file_artifacts:
                 non_artifact_files.append(f)
 
-        logger.debug(f'Non-artifact files in current working directory: {non_artifact_files}')
+        logger.debug(f'Non-artifact files in current working directory:')
+        my_logger(non_artifact_files)
 
         file_artifacts.make_tarball('artifacts', remove=True, arcname_prefix=archive_dir, unique=True)
         return 0
