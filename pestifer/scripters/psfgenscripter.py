@@ -240,7 +240,7 @@ class PsfgenScripter(VMDScripter):
         segtype: str = segment.segtype
         objmanager: ObjManager = segment.objmanager
         seqmods: dict = objmanager.get('seq', {})
-        logger.debug(f'polymer_stanza {segtype} {seglabel}->{image_seglabel} seqmods: {seqmods}')
+        logger.debug(f'polymer_stanza {segtype} {seglabel}->{image_seglabel}')
 
         transform.register_mapping(segtype, image_seglabel, seglabel)
 

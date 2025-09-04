@@ -4,6 +4,7 @@ title: Mitochondrial methylmalonyl-CoA mutase (Alphafold P22033)
 tasks:
 - fetch:
     sourceID: P22033
+    source: alphafold
 - psfgen:
 - md:
     ensemble: minimize

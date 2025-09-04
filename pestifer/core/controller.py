@@ -8,16 +8,13 @@ import logging
 
 from dataclasses import dataclass
 
-from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
-from pestifer.tasks.mdtask import MDTask
-from pestifer.tasks.psfgen import PsfgenTask
 from pestifer.tasks.validate import ValidateTask
 
 from .config import Config
 from .pipeline import PipelineContext
 from ..tasks.taskcollections import TaskList
 from ..tasks import TerminateTask
-from ..util.stringthings import plu
+from ..util.stringthings import plu, my_logger
 from ..util.util import running_under_pytest
 
 logger = logging.getLogger(__name__)
@@ -82,7 +79,7 @@ class Controller:
             # add the special pytest terminate task
             self.tasks.append(PytestTerminateTask(specs={'prior': self.tasks[-1]}, index=len(self.tasks)))
 
-        self.pipeline = PipelineContext(controller_index = self.index)
+        self.pipeline = PipelineContext(controller_index=self.index)
         self.provision_tasks()
 
         logger.info(f'Running "{self.config["user"]["title"]}"')
@@ -116,7 +113,8 @@ class Controller:
             'progress-flag': self.config.use_terminal_progress,
             'namd_global_config': self.config['user']['namd'],
         }
-        logger.debug(f'Provisioning tasks with packet: {packet}')
+        logger.debug(f'Provisioning tasks with packet:')
+        my_logger(packet, logger.debug)
         for task in self.tasks:
             logger.debug(f'  -> task {task.index} {task.taskname}')
             task.provision(packet)
@@ -152,7 +150,7 @@ class Controller:
                 break
         return task_report
 
-    def write_complete_config(self,filename='complete-user.yaml'):
+    def write_complete_config(self, filename='complete-user.yaml'):
         """ 
         Write the complete user configuration to a YAML file.
         This method dumps the user configuration, including all modifications made during the execution of tasks,

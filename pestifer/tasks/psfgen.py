@@ -298,36 +298,40 @@ class PsfgenTask(VMDTask):
         psf = state.psf.name
         logger.debug(f'ingesting {psf}')
         struct = PSFContents(psf, parse_topology=['bonds'])
-        na_atoms = struct.atoms.get(lambda x: x.segtype == 'nucleicacid')
-        my_rep = list(set([(x.chainID, x.resseqnum) for x in na_atoms]))
-        my_rep.sort(key=lambda x: (x[0], x[1]))
+        logger.debug(f'PSF has {len(struct.atoms)} atoms; extracting nucleic acid atoms...')
+        na_atoms: PSFAtomList = struct.atoms.get(lambda x: x.segtype == 'nucleicacid')
+        logger.debug(f'PSF has {len(na_atoms)} nucleic acid atoms')
+        # my_rep = list(set([(x.chainID, x.resid) for x in na_atoms.data]))
+        # my_rep.sort(key=lambda x: (x[0], x[1]))
         logger.debug(f'Getting loops from {len(na_atoms)} nucleic acid atoms in PSF file {psf}')
-        logger.debug(f'{my_rep}')
+        # logger.debug(f'{my_rep}')
         min_length = self.min_loop_length
         include_c_termini = options.get('include_c_termini', False)
         i = 0
         SL = [S for S in au.segments.data if S.segtype == 'nucleicacid']
+        logger.debug(f'Asymmetric unit has {len(SL)} nucleic acid segments')
         for S in SL:
             asymm_segname = S.segname
+            logger.debug(f'Processing segment {asymm_segname} for nucleic acid loops')
             n_subsegs = len(S.subsegments)
             for b in S.subsegments.data:
                 lr_resid = S.residues[b.bounds[0]].resid
                 rr_resid = S.residues[b.bounds[1]].resid
-                logger.debug(f'Processing subsegment {b.pstr()} for segname {asymm_segname} with bounds {lr_resid}-{rr_resid}')
+                logger.debug(f'Processing subsegment {b.state} for segname {asymm_segname} with bounds {lr_resid}-{rr_resid}')
                 is_c_terminus = (S.subsegments.index(b) == (n_subsegs - 1))
                 is_processible = b.state == 'MISSING' and b.num_items() >= min_length
                 if is_processible and (not include_c_termini) and is_c_terminus:
-                    logger.debug(f'A.U. C-terminal loop {b.pstr()} declashing is skipped')
+                    logger.debug(f'A.U. C-terminal loop {b.state} declashing is skipped')
                     is_processible = False
                 if is_processible:
-                    logger.debug(f'Processing loop {b.pstr()} {b.bounds} for segname {asymm_segname}')
-                    loop_atoms = PSFAtomList([x for x in na_atoms if x.chainID == asymm_segname and x.resid >= lr_resid and x.resid <= rr_resid])
-                    logger.debug(f'Loop {b.pstr()} has {len(loop_atoms)} atoms from PSFAtomList')
+                    logger.debug(f'Processing loop {b.state} {b.bounds} for segname {asymm_segname}')
+                    loop_atoms = PSFAtomList([x for x in na_atoms.data if x.segname == asymm_segname and x.resid >= lr_resid and x.resid <= rr_resid])
+                    logger.debug(f'Loop {b.state} has {len(loop_atoms)} atoms from PSFAtomList')
                     na_graph = loop_atoms.graph()
                     logger.debug(f'{na_graph}')
                     G = [na_graph.subgraph(c).copy() for c in nx.connected_components(na_graph)]
-                    assert len(G) == 1, f'NA loop {b.pstr()} has more than one connected component'
-                    logger.debug(f'Loop {b.pstr()} has {len(loop_atoms)} atoms')
+                    assert len(G) == 1, f'NA loop {b.state} has more than one connected component'
+                    logger.debug(f'Loop {b.state} has {len(loop_atoms)} atoms')
                     g = G[0]
                     serials = [x.serial for x in g]
                     for at in g:
