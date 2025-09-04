@@ -100,7 +100,7 @@ class TerminateTask(MDTask):
             return 0
         archive_dir = self.specs.get('archive_dir', 'archive')  
 
-        file_artifacts = list(filter(lambda x: not x.nonstate_results, self.pipeline.get_all_file_artifacts()))
+        file_artifacts = FileArtifactList(list(filter(lambda x: not x.nonstate_results, self.pipeline.get_all_file_artifacts())))
 
         file_artifacts.sort(key=lambda x: x.name)
         # logger.debug(f'All artifact files: {all_artifact_files}')

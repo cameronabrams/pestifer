@@ -29,4 +29,4 @@ Contents
    API <api/API>
    Tcl sources <tcl/source>
    Tests API <tests-api/TESTSAPI>
-   changelog
+   changelog <CHANGELOG>

@@ -101,12 +101,14 @@ def setup(app):
     app.connect("builder-inited", _md_to_rst)
 
 def _md_to_rst(app):
-    root = Path(__file__).resolve().parents[1]
+    root = Path(__file__).resolve().parents[2]
     md = root / "CHANGELOG.md"
     rst = Path(__file__).resolve().parent / "CHANGELOG.rst"
     if not md.exists():
-        logger.warning("CHANGELOG.md not found at project root")
+        logger.warning(f"CHANGELOG.md not found at project root {root}")
         return
+    if not rst.exists():
+        logger.warning(f"No rst file found at {rst}")
     text = md.read_text(encoding="utf-8")
     try:
         import pypandoc  # requires pandoc installed

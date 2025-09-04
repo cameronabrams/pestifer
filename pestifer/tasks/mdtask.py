@@ -103,7 +103,8 @@ class MDTask(VMDTask):
             firsttimestep = specs['firsttimestep']
         if state.xsc is not None:
             self.register(is_periodic(state.xsc.name), key='periodic', artifact_type=DataArtifact)
-
+        xsc = state.xsc
+        coor = state.coor
         temperature = specs['temperature']
         if ensemble.casefold() == 'NPT'.casefold() or ensemble.casefold() == 'NPAT'.casefold():
             pressure = specs['pressure']
@@ -192,14 +193,16 @@ class MDTask(VMDTask):
         na.writescript(params, cpu_override=cpu_override)
         self.register(self.basename, key='namd', artifact_type=NAMDConfigFileArtifact, pytestable=True)
         result = 0  # anticipate success
-        if not script_only:
-            local_execution_only = not self.get_current_artifact_data('periodic')
-            single_gpu_only = kwargs.get('single_gpu_only', False) or constraints
-            result = na.runscript(single_molecule=local_execution_only, local_execution_only=local_execution_only, single_gpu_only=single_gpu_only, cpu_override=cpu_override)
+        if script_only:
+            return result
+        local_execution_only = not self.get_current_artifact_data('periodic')
+        single_gpu_only = kwargs.get('single_gpu_only', False) or constraints
+        result = na.runscript(single_molecule=local_execution_only, local_execution_only=local_execution_only, single_gpu_only=single_gpu_only, cpu_override=cpu_override)
         self.coor_to_pdb(f'{self.basename}.coor', state.psf.name)
+        coor=NAMDCoorFileArtifact(self.basename)
         xsc=NAMDXscFileArtifact(self.basename)
         self.register(dict(pdb=PDBFileArtifact(self.basename, pytestable=True),
-                           coor=NAMDCoorFileArtifact(self.basename),
+                           coor=coor if coor.exists() else None,
                            vel=NAMDVelFileArtifact(self.basename),
                            xsc=xsc if xsc.exists() else None, 
                            psf=state.psf), key='state', artifact_type=StateArtifacts)  # an md run cannot change the PSF file
