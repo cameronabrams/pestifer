@@ -21,10 +21,10 @@ tasks:
         biological_assembly: 1
         exclude:
           - resname == 'HOH'
-    #   mods:
-    #     patches:
-    #       - HS2:B:10
-    #       - HS2:D:10
+      mods:
+        patches:
+          - HS2:B:10
+          - HS2:D:10
   - validate:
       tests:
         - residue_test:
