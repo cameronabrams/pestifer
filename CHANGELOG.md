@@ -8,6 +8,7 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 - `mdplot` now correctly treats `cpu_time` and `wall_time` as running sums over chained MD runs
 
 ## [2.0.1] - 2025-09-04
+- on-the-fly patching `toppar_all36_prot_modify_res.str` so that `PRES ZNHD` and `PRES ZNHE` are correct
 - `validate` task introduced to allow for validation of psfgen-produced PSF and PDB files
 - `include` and `exclude` now allow full logical expressions for better control of inclusion and exclusion of atoms and residues from source structures
 - `fetch` task now separately responsible for downloading necessary pdb files

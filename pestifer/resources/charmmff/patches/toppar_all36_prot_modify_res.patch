@@ -1,0 +1,16 @@
+--- toppar_all36_prot_modify_res.str	2024-07-27 14:49:47.000000000 -0400
++++ toppar_all36_prot_modify_res_corrected_cfa.str	2025-09-05 13:20:28.894141906 -0400
+@@ -864,11 +864,11 @@
+ 
+ PRES ZNHD         0.00 ! patch to covalently link HSD to Zn
+                        ! Patch is 1-HSD and 2-Zn
+-BOND 1NE2 2ZN
++BOND 1ND1 2ZN
+ 
+ PRES ZNHE         0.00 ! patch to covalently link HSE to Zn
+                        ! Patch is 1-Hse and 2-Zn
+-BOND 1ND1 2ZN
++BOND 1NE2 2ZN
+ 
+ !Following is an example to create covalent bonds between 4 Cys residues and
+ !a Zn ion.  The Cys residues are initially converted to the anionic ionization

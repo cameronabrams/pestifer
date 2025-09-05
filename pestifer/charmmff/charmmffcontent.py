@@ -12,8 +12,10 @@ from .charmmfftop import CharmmMassDict, CharmmMassList, CharmmResiDict, CharmmR
 from .pdbrepository import PDBRepository, PDBInput
 from ..core.labels import Labels
 from ..util.cacheable_object import CacheableObject, TarBytesFS
+from ..util.patch import apply_unified_diff
 from ..util.util import countTime
 from ..util.spinner_wrapper import with_spinner
+from ..util.stringthings import my_logger
 
 logger = logging.getLogger(__name__)
 
@@ -210,18 +212,20 @@ class CHARMMFFContent(CacheableObject):
         self.deprovision()
 
     @with_spinner('No cache yet -- building all CHARMMFF content from package resources...')
-    def _build_from_resources(self, charmmff_path: str = '.', **kwargs):
+    def _build_from_resources(self, charmmff_path: Path, **kwargs):
         """ Method to build the CHARMMFFContent object from resources, if the cache is stale. """
         self.filenamemap = {}
-        if not os.path.isdir(charmmff_path):
+        if not charmmff_path.is_dir():
             raise NotADirectoryError(f'Expected a directory at {charmmff_path}, but it is not a directory')
-        self.charmmff_path = os.path.abspath(charmmff_path)
-        self.basename = os.path.basename(self.charmmff_path)
-        self.parent_path = os.path.dirname(self.charmmff_path)
-        self.charmm_elements = os.listdir(self.charmmff_path)
+        self.charmmff_path = charmmff_path.absolute()
+        self.basename = self.charmmff_path.name
+        self.parent_path = self.charmmff_path.parent
+        self.charmm_elements = [x.name for x in list(self.charmmff_path.glob('*'))]
         tarfilename = kwargs.get('tarfilename', 'toppar_c36_jul24.tgz')
         skip_streams = kwargs.get('skip_streams', ['misc', 'cphmd'])
+        self.file_patches: dict[str, str] = {}
         self._load_charmmff(tarfilename=tarfilename, skip_streams=skip_streams)
+        # self._report()
         self._initialize_resi_to_topfile_map()
         self.provisioned = False
         """ Items below are created by provisioning at run-time """
@@ -250,12 +254,12 @@ class CHARMMFFContent(CacheableObject):
             extension_whitelist = ['.rtf', '.prm', '.str']
             name_blacklist = ['history', 'all22', 'ljpme']
             return not any(blacklist in name for blacklist in name_blacklist) and any(name.endswith(ext) for ext in extension_whitelist)
-
-        if not os.path.exists(os.path.join(self.charmmff_path, tarfilename)):
-            raise FileNotFoundError(f'CHARMM force field tarball {self.tarfilename} not found in {self.charmmff_path}')
+        tar_path = self.charmmff_path / tarfilename
+        if not tar_path.exists():
+            raise FileNotFoundError(f'CHARMM force field tarball {self.tarfilename} not found in {self.charmmff_path.name}')
         self.tarfilename = tarfilename  
-        logger.debug(f'Loading CHARMM force field tarball {self.tarfilename} from {self.charmmff_path}')
-        self.toppar_fs = TarBytesFS.from_file(os.path.join(self.charmmff_path, self.tarfilename), compression='gzip')
+        logger.debug(f'Loading CHARMM force field tarball {self.tarfilename} from {self.charmmff_path.name}...')
+        self.toppar_fs = TarBytesFS.from_file(tar_path, compression='gzip')
         root_listing = [x['name'] for x in self.toppar_fs.ls('toppar') if okfilename(x['name'])]
         # self.contents = {}
         par    = {os.path.basename(x): x for x in root_listing if okfilename(x) and CHARMMFFContent.charmmff_filetype(x) == 'par'}
@@ -282,16 +286,16 @@ class CHARMMFFContent(CacheableObject):
         self.all_parameter_files = {x: v for x, v in self.filenamemap['par'].items()}
         self.all_parameter_files.update({x: v for x, v in self.filenamemap['toppar'].items()})
         self.custom_files = []
-        if 'custom' in self.charmm_elements and os.path.exists(os.path.join(self.charmmff_path, 'custom')):
-            self.custom_folder = os.path.join(self.charmmff_path, 'custom')
-            self.load_custom_files(self.custom_folder)
-
+        self.custom_folder = self.charmmff_path / 'custom'
+        if 'custom' in self.charmm_elements and self.custom_folder.exists():
+            self._load_custom_files()
+        self.patch_folder = self.charmmff_path / 'patches'
+        if 'patches' in self.charmm_elements and self.patch_folder.exists():
+            self._load_unified_patches(self.patch_folder)
         self.charmmstreamid = {f: CHARMMFFStreamID(f) for f in self.filenamemap['top'].keys()}
         self.charmmstreamid.update({f: CHARMMFFStreamID(f) for f in self.filenamemap['toppar'].keys()})
 
-        check_basenames = list(self.filenamemap.keys())
-        assert len(check_basenames) == len(set(check_basenames)), f'found duplicate basenames in charmmff tarball: {check_basenames}'
-        logger.debug(f'Loaded {len(self.filenamemap)} files from CHARMM force field tarball {tarfilename}; subdir-streams: {self.streams}')
+        logger.debug(f'Loaded {sum(len(v) for v in self.filenamemap.values())} files from CHARMM force field tarball {tarfilename}; subdir-streams: {self.streams}')
 
         for filetype in ['par', 'top', 'toppar']:
             logger.debug(f'  {filetype}: {len(self.filenamemap[filetype])} files:')
@@ -310,25 +314,32 @@ class CHARMMFFContent(CacheableObject):
             masses = CharmmMassList.from_cardlist(extract_mass_lines(contents)).to_dict()
             self.massdict.update(masses)
 
-    def load_custom_files(self, custom_folder: str):
-        for f in os.listdir(custom_folder):
-            ext = CHARMMFFContent.charmmff_filetype(f)
+    def _load_custom_files(self):
+        for f in self.custom_folder.iterdir():
+            ext = CHARMMFFContent.charmmff_filetype(f.name)
             match ext:
                 case 'par':
-                    self.filenamemap['par'][f] = os.path.join(custom_folder, f)
-                    self.custom_files.append(f)
-                    self.all_parameter_files[f] = os.path.join(custom_folder, f)
+                    self.filenamemap['par'][f.name] = str(f)
+                    self.custom_files.append(f.name)
+                    self.all_parameter_files[f.name] = str(f)
                 case 'top':
-                    self.filenamemap['top'][f] = os.path.join(custom_folder, f)
-                    self.all_topology_files[f] = os.path.join(custom_folder, f)
-                    self.custom_files.append(f)
+                    self.filenamemap['top'][f.name] = str(f)
+                    self.all_topology_files[f.name] = str(f)
+                    self.custom_files.append(f.name)
                 case 'toppar':
-                    self.filenamemap['toppar'][f] = os.path.join(custom_folder, f)
-                    self.all_topology_files[f] = os.path.join(custom_folder, f)
-                    self.all_parameter_files[f] = os.path.join(custom_folder, f)
-                    self.custom_files.append(f)
+                    self.filenamemap['toppar'][f.name] = str(f)
+                    self.all_topology_files[f.name] = str(f)
+                    self.all_parameter_files[f.name] = str(f)
+                    self.custom_files.append(f.name)
                 case _:
-                    logger.debug(f'I do not recognize custom CHARMM file {f} in {custom_folder}')
+                    logger.debug(f'I do not recognize custom CHARMM file {f} in {self.custom_folder.name}')
+
+    def _load_unified_patches(self, patch_folder: Path):
+        for f in patch_folder.iterdir():
+            if f.suffix in ['.patch', '.diff']:
+                with open(f, 'r') as pf:
+                    patchtext = pf.read()
+                self.file_patches[f.stem] = patchtext
 
     def _initialize_resi_to_topfile_map(self):
         self.resi_to_topfile_map = {}
@@ -346,6 +357,12 @@ class CHARMMFFContent(CacheableObject):
                 if line.startswith('RESI') or line.startswith('PRES'):
                     resi_name = line.split()[1]
                     self.resi_to_topfile_map[resi_name] = shortname
+
+    def _report(self):
+        logger.debug(f'Filename map:')
+        my_logger(self.filenamemap, logger.debug)
+        logger.debug(f'Unified patches:')
+        my_logger(self.file_patches, logger.debug)
 
     @staticmethod
     def charmmff_filetype(filename: str) -> str | None:
@@ -432,7 +449,7 @@ class CHARMMFFContent(CacheableObject):
             return self.resi_to_topfile_map[resname] if resname in self.resi_to_topfile_map else None
         return first_try
 
-    def copy_charmmfile_local(self, basename):
+    def copy_charmmfile_local(self, basename: str) -> str:
         """
         Copy a NAMD-friendly version of a CHARMMFF file to the local directory.
         This function checks if the file already exists in the current working directory.
@@ -476,6 +493,7 @@ class CHARMMFFContent(CacheableObject):
                             f.write(f'! {l}' + '\n')
         elif basename in self.filenamemap[ext]:
             logger.debug(f'found {basename} in at {self.filenamemap[ext][basename]} in tarball')
+            stem, dum = os.path.splitext(basename)
             longname = self.filenamemap[ext][basename]
             with self.toppar_fs.open(self.fs_resolver[basename]) as f:
                 # logger.debug(f'Opening {longname} in tarball')
@@ -485,6 +503,10 @@ class CHARMMFFContent(CacheableObject):
                     parsed_content_dict = parse_conditional_script(content)
                     parsed_content = parsed_content_dict['parsed']
                     content = parsed_content
+                if stem in self.file_patches:
+                    patchtext = self.file_patches[stem]
+                    logger.debug(f'Applying unified patch {stem} to {basename}')
+                    content = apply_unified_diff(content, patchtext)
             lines = content.splitlines()
             # logger.debug(f'type of lines is {type(lines)}')
             # logger.debug(f'found {len(lines)} lines in {basename} in tarfile')

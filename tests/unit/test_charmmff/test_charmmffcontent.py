@@ -6,17 +6,16 @@ from pestifer.charmmff.charmmffcontent import CHARMMFFContent
 
 import logging
 logger = logging.getLogger(__name__)
-
+from pathlib import Path
 
 class TestCharmmffContent(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         logging.debug("Setting up TestCharmmffContent class...")
-        resource_path = os.path.dirname(resources.__file__)
-        charmmff_path = os.path.join(resource_path, 'charmmff')
+        resource_path = Path(resources.__file__).parent
+        charmmff_path = resource_path / 'charmmff'
         cls.C = CHARMMFFContent(charmmff_path)
-        # Ensure the resource manager is initialized before any tests run
         logging.debug("Done setting up TestCharmmffContent class...")
 
     def test_charmmffcontent_full_provisioning(self):

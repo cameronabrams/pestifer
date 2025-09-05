@@ -21,10 +21,13 @@ tasks:
         biological_assembly: 1
         exclude:
           - resname == 'HOH'
-      mods:
-        patches:
-          - HS2:B:10
-          - HS2:D:10
+    #   mods:
+    #     patches:
+    #       - HS2:B:10
+    #       - HS2:D:10
+  - md:
+      cpu-override: True
+      ensemble: minimize
   - validate:
       tests:
         - residue_test:
@@ -43,9 +46,6 @@ tasks:
             selection: (protein and chain B D H P N J and resid 10) or (chain E F K L Q R and resid 1 31)
             connection_type: interresidue
             connection_count: 6
-  - md:
-      cpu-override: True
-      ensemble: minimize
   - solvate:
   - md:
       ensemble: minimize
