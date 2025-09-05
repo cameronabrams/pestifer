@@ -391,15 +391,17 @@ class ExampleManager:
         if author_email:
             current_example.author_email = author_email
         if auxiliary_inputs:
-            for f in current_example.auxiliary_inputs:
-                Path(f).unlink(missing_ok=True)  # remove old auxiliary inputs
+            if current_example.auxiliary_inputs is not None:
+                for f in current_example.auxiliary_inputs:
+                    Path(f).unlink(missing_ok=True)  # remove old auxiliary inputs
             current_example.auxiliary_inputs = auxiliary_inputs
             for f in auxiliary_inputs:
                 if os.path.isfile(f):
                     shutil.copy(f, self.inputspath(current_example))
         if outputs:
-            for f in current_example.outputs:
-                Path(f).unlink(missing_ok=True)
+            if current_example.outputs is not None:
+                for f in current_example.outputs:
+                    Path(f).unlink(missing_ok=True)
             current_example.outputs = outputs
             for f in outputs:
                 if os.path.isfile(f):
