@@ -20,6 +20,7 @@ Submodules
    pestifer.util.gitutil
    pestifer.util.linkcell
    pestifer.util.namdrestart
+   pestifer.util.patch
    pestifer.util.progress
    pestifer.util.pytest_plugin
    pestifer.util.readme_to_changelog_with_dates

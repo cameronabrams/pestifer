@@ -32,9 +32,16 @@ tasks:
         exclude:
           - chainID == 'P'
       mods:
+        mutations: # undoing engineered mutations; could also use 'fix_engineered_mutations: True' under source->sequence
+          - A:LYS,7,GLN
+          - B:LYS,7,GLN
+          - A:ASN,25,ASP
+          - B:ASN,25,ASP         
         patches:
           - ASPP:A:29
           - ASPP:B:29
+  - md:
+      ensemble: minimize
   - validate:
       tests:
         - residue_test:
@@ -43,31 +50,23 @@ tasks:
             measure: residue_count
             value: 0
         - attribute_test:
-            name: ASP29 is an ASP on chain A
-            selection: protein and chain A and resid 29 and name CA
+            name: residue 7 is an GLN on chain A B
+            selection: protein and chain A B and resid 7 and name CA
+            attribute: resname
+            value: GLN
+            value_count: 2
+        - attribute_test:
+            name: residue 25 is an ASP on chain A B
+            selection: protein and chain A B and resid 25 and name CA
             attribute: resname
             value: ASP
-            value_count: 1
+            value_count: 2
         - attribute_test:
             name: ASP29 protonated on chain A
-            selection: protein and chain A and resid 29
+            selection: protein and chain A B and resid 29
             attribute: name
             value: HD2
-            value_count: 1
-        - attribute_test:
-            name: ASP29 is an ASP on chain B
-            selection: protein and chain B and resid 29 and name CA
-            attribute: resname
-            value: ASP
-            value_count: 1
-        - attribute_test:
-            name: ASP29 protonated on chain B
-            selection: protein and chain B and resid 29
-            attribute: name
-            value: HD2
-            value_count: 1
-  - md:
-      ensemble: minimize
+            value_count: 2
   - solvate:
   - md:
       ensemble: minimize

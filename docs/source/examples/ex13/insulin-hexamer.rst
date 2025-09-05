@@ -8,7 +8,13 @@ Example 13: DES-PHE B1 Bovine Insulin Hexamer
 .. literalinclude:: ../../../../pestifer/resources/examples/ex13/inputs/insulin-hexamer.yaml
     :language: yaml
 
-Incidentally, the CHARMMFF patches for creating bonds between histidines and zinc ions are defined in the stream file `toppar_all36_prot_modify_res.str` but they are misnamed.  In the original file, they appear assembly
+.. figure:: ins6.png
+    :width: 400px
+    :alt: Insulin Hexamer
+
+    Insulin hexamer (PDB ID 2ins) with zinc ions shown as yellow spheres and the six histidines that coordinate them shown in stick representation.
+
+Incidentally, the CHARMMFF patches for creating bonds between histidines and zinc ions are defined in the stream file ``toppar_all36_prot_modify_res.str``, but they are misnamed.  In the original file, they appear as:
 
 .. verbatim::
 
