@@ -1,3 +1,5 @@
+.. _sub_make_pdb_collection:
+
 make-pdb-collection
 -------------------
 

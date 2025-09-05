@@ -1298,7 +1298,7 @@ attributes:
                 text: global translations and rotations
                 type: list
       - name: terminate
-        text: Task that signals end of task list
+        text: Final task in a system preparation; performs clean-up and packaging
         type: dict
         attributes:
           - name: archive_dir
@@ -1319,7 +1319,7 @@ attributes:
             text: Desired name of the file describing the current state
             type: str
           - name: package
-            text: Task that packages all CHARMM parameter files and pdb/psf/coor/vel/xsc files for a production run
+            text: Subtask that packages all CHARMM parameter files and pdb/psf/coor/vel/xsc files for a production run
             type: dict
             attributes:
               - name: state_dir

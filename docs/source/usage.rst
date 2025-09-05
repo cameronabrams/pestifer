@@ -38,7 +38,6 @@ Subcommands
    subs/run
    subs/run-example
    subs/new-system
-   subs/fetch-example
    subs/wheretcl
    subs/make-pdb-collection
    subs/desolvate

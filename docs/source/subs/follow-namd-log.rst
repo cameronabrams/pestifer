@@ -1,3 +1,5 @@
+.. _sub_follow_namd_log:
+
 follow-namd-log
 ---------------
 

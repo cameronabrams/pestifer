@@ -3,9 +3,9 @@
 desolvate
 ---------
 
-Pestifer provides a subcommand called ``desolvate`` to generate DCD files that are stripped of solvent (usually water).
+`` pestifer desolvate`` generates DCD files that are stripped of solvent (usually water).
 
-``pestifer desolvate`` requires the name of a PSF file and any number of congruent DCD files (which you will want to be sure are listed in chronological order).  It assumes you want to strip out anything that is not protein or lipid, unless you specify a different VMD atomselect string to define the part of ths system you want to keep.  It will generate a new PSF file and a single DCD that is the stripped version of concatenation of the input DCD files.
+``pestifer desolvate`` requires the name of a PSF file and any number of congruent DCD files (listed in chronological order).  It assumes you want to strip out anything that is not protein or lipid, unless you specify a different VMD atomselect string to define the part of ths system you want to keep.  It will generate a new PSF file and a single DCD that is the stripped version of concatenation of the input DCD files.
 
 ``pestifer desolvate`` is really just a convenient wrapper for the ``catdcd`` command that comes with VMD.
 

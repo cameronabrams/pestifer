@@ -1,9 +1,9 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 # with extensive contributions from ChatGPT 4o and 5
 """
-Pydantic BaseModel objects with attribute controls
+:class:`pydantic.BaseModel` objects with attribute controls
 
-The :class:`BaseObj` class is a Pydantic BaseModel that provides a framework for creating objects with controlled attributes.  It is an abstract class that requires subclasses to implement the `_adapt()` static method.  It also provides a number of utility methods for creating objects from various input types, validating attributes, and comparing objects.
+The :class:`BaseObj` class provides a framework for creating objects with controlled attributes.  It is an abstract class that requires subclasses to implement the `_adapt()` static method that returns a dict that sets attribute values.  It also provides a number of utility methods for creating objects from various input types, validating attributes, and comparing objects.
 
 Any subclass that defines Field objects will automatically have their attributes validated according to the rules specified in the BaseObj class.  Subclasses can also define their own ClassVar attributes that are outside the control logic of BaseObj.
 
@@ -47,8 +47,11 @@ class BaseObj(BaseModel):
     model_config = ConfigDict(
         arbitrary_types_allowed=True,
         extra='forbid',
-        frozen=False,  # or True if you want immutability
+        frozen=False,
     )
+    """
+    Configuration for :class:`pydantic.BaseModel`.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(**self.__class__._adapt(*args, **kwargs))
@@ -95,6 +98,10 @@ class BaseObj(BaseModel):
         return f"{cls_name}({', '.join(parts)})"
 
     def copy(self, deep=False) -> Self:
+        """
+        Uses :meth:`pydantic.BaseModel.model_copy` to create a copy of the instance.
+        If deep is True, performs a deep copy of nested objects.
+        """
         return self.model_copy(deep=deep)
 
     @model_validator(mode="before")
@@ -143,22 +150,22 @@ class BaseObj(BaseModel):
         return values
 
     @model_validator(mode="after")
-    def validate_nested(self):
+    def _validate_nested(self):
         for name in self.__pydantic_fields__:
             val = getattr(self, name)
 
             if isinstance(val, BaseObj):
-                val.validate_nested()
+                val._validate_nested()
 
             elif isinstance(val, list):
                 for item in val:
                     if isinstance(item, BaseObj):
-                        item.validate_nested()
+                        item._validate_nested()
 
             elif isinstance(val, dict):
                 for item in val.values():
                     if isinstance(item, BaseObj):
-                        item.validate_nested()
+                        item._validate_nested()
 
         return self
 
@@ -217,7 +224,7 @@ class BaseObj(BaseModel):
                         item.set_nested(**fields)
 
     # Comparison helpers
-    def dict_for_comparison(self) -> dict:
+    def _dict_for_comparison(self) -> dict:
         return {
             k: v for k, v in self.model_dump().items()
             if k not in self._ignore_fields
@@ -226,15 +233,15 @@ class BaseObj(BaseModel):
     def __eq__(self, other: BaseObj | dict) -> bool:
         if self is other: return True
         if isinstance(other, dict):
-            return self.dict_for_comparison() == other
+            return self._dict_for_comparison() == other
         if not isinstance(other, self.__class__) and not isinstance(other, dict):
             return False
-        return self.dict_for_comparison() == other.dict_for_comparison()
+        return self._dict_for_comparison() == other._dict_for_comparison()
 
     def __lt__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
             return NotImplemented
-        keys = self.dict_for_comparison().keys() & other.dict_for_comparison().keys()
+        keys = self._dict_for_comparison().keys() & other._dict_for_comparison().keys()
         return all(getattr(self, k) <= getattr(other, k) for k in keys) and any(
             getattr(self, k) < getattr(other, k) for k in keys
         )
@@ -242,7 +249,7 @@ class BaseObj(BaseModel):
     def __le__(self, other: object) -> bool:
         if not isinstance(other, self.__class__):
             return NotImplemented
-        keys = self.dict_for_comparison().keys() & other.dict_for_comparison().keys()
+        keys = self._dict_for_comparison().keys() & other._dict_for_comparison().keys()
         return all(getattr(self, k) <= getattr(other, k) for k in keys)
     
     def __setattr__(self, name, value):

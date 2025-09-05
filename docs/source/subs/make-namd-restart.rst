@@ -1,7 +1,9 @@
+.. _sub_make_namd_restart:
+
 make-namd-restart
 -----------------
 
-Pestifer provides a subcommand ``make-namd-restart`` as a convenient way to generate inputs for sequential NAMD runs, or to complete NAMD runs that terminated early.
+``pestifer make-namd-restart`` is a convenient way to generate inputs for sequential NAMD runs, or to complete NAMD runs that terminated early.
 
 For example, say you have a run whose config file was ``my_run_01.namd`` and which generated successful output files ``my_run_01.coor``, ``my_run_01.vel``, ``my_run_01.xsc``, etc.  Suppose the log file is ``my_run_01.log``.  In such a case, we refer to the string ``my_run_01`` as the "basename" of this run; it is also the argument of ``outputname`` in a NAMD config.  ``pestifer make-namd-restart`` can be used to generate the next config file like this:
 
