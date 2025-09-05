@@ -6,8 +6,6 @@
 #
 # Notes:
 #   - All waters are removed from the input PDB file
-#   - The Zn-bound histidines are patched to HSE from default HSD
-#     based on content of LINK records in the PDB file
 #   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_2ins.tgz
 #
@@ -21,10 +19,6 @@ tasks:
         biological_assembly: 1
         exclude:
           - resname == 'HOH'
-    #   mods:
-    #     patches:
-    #       - HS2:B:10
-    #       - HS2:D:10
   - md:
       cpu-override: True
       ensemble: minimize
@@ -35,12 +29,6 @@ tasks:
             selection: resname HOH
             measure: residue_count
             value: 0
-        # - attribute_test:
-        #     name: check his patching
-        #     selection: protein and chain B D H P N J resid 10 and name CA
-        #     attribute: resname
-        #     value: HSD
-        #     value_count: 6
         - connection_test:
             name: check his-zinc ligation
             selection: (protein and chain B D H P N J and resid 10) or (chain E F K L Q R and resid 1 31)
@@ -63,9 +51,9 @@ tasks:
   - md:
       ensemble: NPT
       nsteps: 1600
-#   - md:
-#       ensemble: NPT
-#       nsteps: 13200
+  - md:
+      ensemble: NPT
+      nsteps: 13200
   - mdplot:
       timeseries:
         - density

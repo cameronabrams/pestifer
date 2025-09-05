@@ -5,7 +5,7 @@
 # Membrane-embedded build of HIV-1 gp41 MPER-TM trimer (6e8w)
 #
 #
-title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in DMPC/DHPC bilayer
+title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in DMPC bilayer
 tasks:
   - fetch:
       sourceID: 6e8w
