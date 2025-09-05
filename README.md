@@ -22,8 +22,6 @@ Pestifer also requires access to the following executables:
 2. `vmd` and `catdcd`
 3. `packmol`
 
-By default, pestifer looks for these commands in your path.  Specific paths for these can be stipulated in the `paths` directive of your input file.
-
 Pestifer **includes a copy of** the [July 2024 Charmm36 force field](https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_jul24.tgz).
 
 ## Documentation
