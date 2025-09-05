@@ -21,7 +21,7 @@ tasks:
         cation: POT
         anion: CLA
         half_mid_zgap: 0.0
-        SAPL: 75.0
+        SAPL: 60.0
         composition:
           lower_leaflet:
             - name: DMPC
