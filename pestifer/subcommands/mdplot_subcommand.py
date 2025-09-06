@@ -33,6 +33,11 @@ class MDPlotSubcommand(Subcommand):
         formatter = logging.Formatter('%(levelname)s> %(message)s')
         console.setFormatter(formatter)
         config = Config().configure_new()
+        timeseries = []
+        if args.timeseries:
+            timeseries += args.timeseries
+        if args.timecoseries:
+            timeseries += [args.timecoseries]
         C = Controller().configure(
             config, userspecs={
                 'tasks': [{
@@ -78,6 +83,7 @@ class MDPlotSubcommand(Subcommand):
         self.parser.add_argument('--logs', type=str, default=[], nargs='+', help='list of one more NAMD logs in chronological order')
         self.parser.add_argument('--basename', type=str, default='mdplot', help='basename of output files')
         self.parser.add_argument('--figsize', type=int, nargs=2, default=(9,6), help='figsize')
+        self.parser.add_argument('--timecoseries', type=str, default=[], nargs='+', help='timeseries to plot on same axes')
         self.parser.add_argument('--timeseries', type=str, default=['density'], nargs='+', help='timeseries to plot')
         self.parser.add_argument('--profiles', type=str, default=['pressure'], nargs='+', help='profiles (along z) to plot')
         self.parser.add_argument('--profiles-per-block', type=int, default=100, help='number of profiles to plot per block (default: %(default)s)')
