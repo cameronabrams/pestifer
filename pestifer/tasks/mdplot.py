@@ -113,7 +113,6 @@ class MDPlotTask(BaseTask):
 
 
         # save each new dataframe to a csv file
-        # TODO: make sure accumulating quantities increment
         for key,df in self.dataframes.items():
             if not df.empty:
                 csvname=f'{self.basename}-{key}.csv'
@@ -176,7 +175,7 @@ class MDPlotTask(BaseTask):
                 if time_step_column is None:
                     logger.debug(f'No time step column found for trace {t_i}. Skipping...')
                     continue
-                ax.plot(df[time_step_column], df[key] * units, label=key.title())
+                ax.plot(df[time_step_column], df[key] * units, label=key.title() if '_' not in key else key)
             ax.set_xlabel('time step')
             axis_labels = self.specs.get('axis-labels', {})
             ax.set_ylabel(', '.join([to_latex_math(axis_labels.get(n, n)) + ' (' + u + ')' for n, u in zip(tracelist, unitspecs)]))
@@ -189,8 +188,8 @@ class MDPlotTask(BaseTask):
             self.register(f'{self.basename}-{tracename}', key=f'{tracename}-timeseries-plot', artifact_type=PNGImageFileArtifact)
             plt.clf()
         for profile in profiles:
-            if profile == 'pressureprofile':
-                df = self.dataframes.get('pressureprofile', None)
+            if profile == 'pressure':
+                df = self.dataframes.get('pressure', None)
                 if df is None:
                     logger.debug(f'No pressure profile data found. Skipping...')
                     continue
@@ -241,16 +240,6 @@ class MDPlotTask(BaseTask):
                                              pressure_profile_mean * units - pressure_profile_stdev * units, 
                                              pressure_profile_mean * units + pressure_profile_stdev * units, 
                                              alpha=0.2)
-                    # # average all columns of pprofiles
-                    # pprofiles['pressure']=pprofiles.mean(axis=1)
-                    # pprofiles['stdev']=pprofiles.std(axis=1)
-                    # # plot pressure and stdev along x-axis with shaded region and slab index on y axis in reverse numerical order
-                    # ax.plot(pprofiles['pressure']*units,pprofiles.index,label='Pressure')
-                    # ax.fill_betweenx(pprofiles.index, 
-                    #                  pprofiles['pressure']*units-pprofiles['stdev']*units, 
-                    #                  pprofiles['pressure']*units+pprofiles['stdev']*units, 
-                    #                  alpha=0.2, label='Stdev')
-                    # place a vertical line at x=0
                     ax.axvline(x=0, color='k', linestyle='--')
                     if legend:
                         ax.legend()
