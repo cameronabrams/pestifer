@@ -9,6 +9,10 @@ tasks:
 - fetch:
     sourceID: 1fas
 - psfgen:
+- md:
+    ensemble: minimize
+- pdb2pqr:
+    pH: 7.0
 - validate:
     tests:
       - residue_test:
@@ -16,10 +20,6 @@ tasks:
           selection: altloc B
           measure: atom_count
           value: 0
-- md:
-    ensemble: minimize
-- pdb2pqr:
-    pH: 7.0
 - solvate:
     anion: CLA
     cation: SOD

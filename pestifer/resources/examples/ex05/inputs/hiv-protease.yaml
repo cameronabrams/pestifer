@@ -50,7 +50,7 @@ tasks:
             measure: residue_count
             value: 0
         - attribute_test:
-            name: residue 7 is an GLN on chain A B
+            name: residue 7 is a GLN on chain A B
             selection: protein and chain A B and resid 7 and name CA
             attribute: resname
             value: GLN
