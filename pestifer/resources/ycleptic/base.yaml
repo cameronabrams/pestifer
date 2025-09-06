@@ -411,7 +411,7 @@ attributes:
                    - resname == 'GLY'
                    - chainID in ['A', 'B']
               - name: exclude
-                text: Logical expressions involving atom attributess used in parallel to specify those atoms to be excluded
+                text: List of logical expressions involving atom attributes used in parallel to specify those atoms to be excluded
                 type: list
                 required: False
               - name: sequence

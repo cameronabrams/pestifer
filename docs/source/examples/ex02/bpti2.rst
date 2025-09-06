@@ -13,36 +13,45 @@ Note the ``exclude`` subdirective under ``source``.  You remember how you can le
 .. code-block:: bash
 
   $ pestifer --no-banner config-help tasks psfgen source exclude
-  Help on user-provided configuration file format
 
-  exclude:
-      Specifies any residues or atoms present in the PDB source to exclude
-        from the system
+    exclude:
+        Logical expressions involving atom attributess used in parallel to
+        specify those atoms to be excluded
 
-  base|tasks->psfgen->source->exclude
-      chains
-      resnames
-      resseqnums
-      .. up
-      ! quit
-  pestifer-help: resnames
+    All subattributes at the same level as 'exclude':
 
-  resnames:
-      Specify list of resnames to ignore; good for excluding waters or ions
-        or small molecules.  Resnames must reference your chosen
-        coordinate input file.
+    base|tasks->psfgen->source
+        biological_assembly
+        transform_reserves
+        remap_chainIDs
+        reserialize
+        model
+        cif_residue_map_file
+        include
+        exclude
+        sequence ->
+        .. up
+        ! quit
+    pestifer-help:
 
-  All subdirectives at the same level as 'resnames':
+The logical expressions are expected to by Pythonic, not VMD/Tcl-like.  In this case, we exclude any residue with the name "PO4".  You can use any atom attributes in the expression, such as ``resid``, ``chain``, ``name``, etc.  You can also combine multiple expressions using Python's logical operators ``and``, ``or``, and ``not``.  If you list multiple expressions under ``exclude``, they are combined with ``or`` logic.  So, for example, to exclude both phosphate ions and water molecules, you could use:
 
-  base|tasks->psfgen->source->exclude
-      chains
-      resnames
-      resseqnums
-      .. up
-      ! quit
-  pestifer-help:
+.. code-block:: yaml
 
-Each of ``chains`` and ``resnames`` are lists, and in the configuration file above, we have a single-element list for ``resnames`` that indicates the resname ``PO4``, which is how the phosphate ion is labelled in the original PDB file.
+    psfgen:
+      source:
+        exclude:
+          - name == "PO4"
+          - resname == "HOH"
+
+Because the expressions can be compound, this would be equivalent to the single expression:
+
+.. code-block:: yaml
+
+    psfgen:
+      source:
+        exclude:
+          - name == "PO4" or resname == "HOH"
 
 We have also modified the ``solvate`` task to allow for a 0.154 M NaCl solution, which is a common salt concentration in biological systems.
 
@@ -51,7 +60,7 @@ We have also modified the ``solvate`` task to allow for a 0.154 M NaCl solution,
 Digression:  The Validate Task
 ==============================
 
-This example also introduces the `validate <_subs_runtasks_validate>`_ task, which is a useful way to check that your configuration file is doing what you expect by directly interrogating the PSF and PDB file of the current state.  This particular test validates the exclusion of the phosphate ion.  Other types of tests can check for presence or absence of other residues, interresidue bonds (disulfides and glycosylations), and more.
+This example also uses the `validate <_subs_runtasks_validate>`_ task, which is a useful way to check that your configuration file is doing what you expect by directly interrogating the PSF and PDB file of the current state.  This particular test validates the exclusion of the phosphate ion.  Other types of tests can check for presence or absence of other residues, interresidue bonds (disulfides and glycosylations), and more.
 
 .. raw:: html
 
