@@ -189,7 +189,7 @@ class MDPlotTask(BaseTask):
             plt.clf()
         for profile in profiles:
             if profile == 'pressure':
-                df = self.dataframes.get('pressure', None)
+                df = self.dataframes.get('pressureprofile', None)
                 if df is None:
                     logger.debug(f'No pressure profile data found. Skipping...')
                     continue

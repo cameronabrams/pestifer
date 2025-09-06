@@ -17,7 +17,7 @@ tasks:
       ensemble: minimize
   - make_membrane_system:
       bilayer:
-        SAPL: 75.0
+        SAPL: 60.0
         composition:
           lower_leaflet:
             - name: POPE
