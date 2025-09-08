@@ -8,6 +8,10 @@ Example 18: E. coli Replicative DNA Polymerase Complex Bound to DNA
 .. literalinclude:: ../../../../pestifer/resources/examples/ex18/inputs/ecoli-polymerase.yaml
     :language: yaml
 
+.. figure:: ecoli-polymerase.png
+
+        E coli polymerase complex (PDB ID 5fkw) with DNA shown in yellow and brown cartoon.  The orange chain (chainID D) has a 20-residue loop that pestifer built.
+
 Reference
 +++++++++
 
