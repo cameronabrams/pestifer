@@ -232,8 +232,7 @@ class MDPlotTask(BaseTask):
                             # average all rows of pprofile
                             pressure_profile_mean = pprofile.mean(axis=0)
                             pressure_profile_stdev = pprofile.std(axis=0)
-                            # make sure slab_index are integers of the column headings
-                            pprofile.columns = pprofile.columns.astype(int)
+                            pprofile.columns = pprofile.columns.astype(float)
                             # plot pressure and stdev along x-axis with shaded region and slab index on y axis in reverse numerical order
                             ax.plot(pressure_profile_mean * units, pprofile.columns, label=f'TS {df.iloc[start, 0]}-{df.iloc[end - 1, 0]}')
                             ax.fill_betweenx(pprofile.columns, 

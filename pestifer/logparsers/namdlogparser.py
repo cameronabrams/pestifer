@@ -16,6 +16,7 @@ from pathlib import Path
 from .logparser import LogParser, get_single, get_toflag, get_values
 
 from ..util.progress import NAMDProgress
+from ..util.stringthings import my_logger
 
 logger = logging.getLogger(__name__)
 
@@ -610,6 +611,8 @@ class NAMDLogParser(LogParser):
         Finalize the log parsing by creating dataframes for each time series.
         """
         # parse the XST file
+        logger.debug('finalize namdlog parser metadata:')
+        my_logger(self.metadata, logger.debug)
         self.auxlogparser = NAMDxstParser.from_file(basename=os.path.splitext(self.filename)[0])
         for key in self.time_series_data:
             self.dataframes[key] = pd.DataFrame(self.time_series_data[key])
