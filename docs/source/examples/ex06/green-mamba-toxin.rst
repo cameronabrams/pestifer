@@ -10,6 +10,10 @@ Example 6: Fasciculin 1 at pH 7.0
 
 Note that the ``pdb2pqr`` task is invoked immediately after the ``psfgen`` task but *before* the ``solvate`` task. The ``pdb2pqr`` task is documented at :ref:`subs_runtasks_pdb2pqr`.
 
+.. figure:: 1fas.png
+
+        Fasciculin 1 (PDB ID 1fas).
+
 Reference
 +++++++++
 
