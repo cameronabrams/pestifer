@@ -58,6 +58,10 @@ In contrast, this indicates that the glycan from PDB ID 4byh chain C, residues 1
 
 A future release of pestifer will allow for more transparent specification of glycans.
 
+.. figure:: 7xix.png
+
+        Fully glycosylated BA-2 SARS-CoV-2 Spike protein (PDB ID 7xix) in closed conformation with glycans shown in white licorice.  Protein chains are colored uniquely.
+
 The prototypical glycans in the same PDB structure but not used here are:
 
 - PDB ID 2wah chain D; beta-D-mannopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose
