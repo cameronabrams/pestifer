@@ -20,6 +20,9 @@ tasks:
             min_loop_length: 2
             declash:
               maxcycles: 40
+      mods:
+        crotations:
+          - PHI,D,187,207,90.0
   - validate:
       tests:
         - residue_test:
