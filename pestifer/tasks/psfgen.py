@@ -495,17 +495,19 @@ class PsfgenTask(VMDTask):
         self.source_specs = specs['source']
         assert not 'id' in self.source_specs, f'Version 2.0+ of Pestifer does not support "id" in source specs.  Psfgen task must inherit "base_coordinates" artifact or continuation artifacts from a prior task (fetch or continuation).'
         self.source_specs.update(this_source)
-        logger.debug(f'User-input modspecs {self.specs["mods"]}')
+        logger.debug(f'User-input modspecs:')
+        my_logger(self.specs["mods"], logger.debug, depth=1)
         self.objmanager = ObjManager(self.specs['mods'])
         seqmods = self.objmanager.get('seq', {})
-        logger.debug(f'ingesting seqmods {seqmods}')
+        logger.debug(f'Ingesting seqmods:')
+        my_logger(seqmods, logger.debug, depth=1)
         if 'grafts' in seqmods:
             # logger.debug(f'looking for graft sources to ingest')
             Grafts: GraftList = seqmods['grafts']
             graft_artifacts = []
             for g in Grafts.data:
                 if not g.source_pdbid in self.molecules:
-                    logger.debug(f'ingesting graft source {g.source_pdbid}')
+                    logger.debug(f'Ingesting graft source {g.source_pdbid}')
                     this_source = {
                         'id': g.source_pdbid,
                         'file_format': 'PDB'

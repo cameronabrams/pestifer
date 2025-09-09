@@ -167,9 +167,10 @@ class AsymmetricUnit:
         seqmods = objmanager.get('seq', {})
         for k,v in seqmods.items():
             if k != 'grafts':
-                logger.debug(f'Seqmod {k}')
-                for mod in v:
-                    logger.debug(f'  {str(mod)}')
+                if len(v) > 0:
+                    logger.debug(f'Seqmod {k}')
+                    for mod in v:
+                        logger.debug(f'  {str(mod)}')
         topomods = objmanager.get('topol', {})
         grafts: GraftList = seqmods.get('grafts', GraftList([]))
 
@@ -223,7 +224,7 @@ class AsymmetricUnit:
         # apply seqmods
         if 'deletions' in seqmods:
             residues.deletion(seqmods['deletions'])
-        if 'substitutions' in seqmods:
+        if 'substitutions' in seqmods and len(seqmods['substitutions']) > 0:
             logger.debug(f'Applying {len(seqmods["substitutions"])} substitutions...')
             new_seqadv, wearegone = residues.substitutions(seqmods['substitutions'])
             seqadvs.extend(new_seqadv)
@@ -233,11 +234,11 @@ class AsymmetricUnit:
         nResolved = sum([1 for x in residues if x.resolved])
         nUnresolved = sum([1 for x in residues if not x.resolved])
         logger.debug(f'{len(residues)} total residues: {nResolved} resolved and {nUnresolved} unresolved')
-        if 'deletions' in seqmods:
+        if 'deletions' in seqmods and len(seqmods['deletions']) > 0:
             nResolvedDelete = len(fromAtoms) - nResolved
             nUnresolvedDelete = len(fromResiduePlaceholders) - nUnresolved
             logger.debug(f'Deletions removed {nResolvedDelete} resolved and {nUnresolvedDelete} unresolved residues')
-        if 'insertions' in seqmods:
+        if 'insertions' in seqmods and len(seqmods['insertions']) > 0:
             residues.apply_insertions(seqmods['insertions'])
         logger.debug(f'Renumbering residues')
         residues.renumber(links)
@@ -315,7 +316,7 @@ class AsymmetricUnit:
         links.update_attr_from_obj_attr('chainID1', 'residue1', 'chainID')
         links.update_attr_from_obj_attr('chainID2', 'residue2', 'chainID')
         grafts.update_attr_from_objlist_elem_attr('chainID', 'residues', 0, 'chainID')
-        logger.debug(f'Segnames in A.U.: {",".join(self.segments.segnames)}')
+        logger.debug(f'Segnames in A.U.: {", ".join(self.segments.segnames)}')
         if self.segments.daughters:
             logger.debug(f'Daughter chains generated: {self.segments.daughters}')
         logger.debug(f'Used chainIDs {chainIDmanager.Used}')
@@ -342,10 +343,11 @@ class AsymmetricUnit:
         # Now append these to the objmanager's mutations
         objmanager.ingest(mutations)
         mutations = objmanager.get('seq', {}).get('mutations', MutationList([]))
-        logger.debug(f'All mutations')
-        mutations.sort(by=['typekey'])
-        for m in mutations:
-            logger.debug(str(m) + ' ' + m.typekey)
+        if len(mutations) > 0:
+            logger.debug(f'All mutations')
+            mutations.sort(by=['typekey'])
+            for m in mutations:
+                logger.debug(str(m) + ' ' + m.typekey)
         pruned_objects = self.segments.prune_topology(mutations, links, ssbonds)
                 # pruned_ssbonds = ssbonds.prune_mutations(mutations)
                 # pruned = pruned_by_links = links.prune_mutations(mutations, segments)
@@ -357,7 +359,7 @@ class AsymmetricUnit:
 
         # Now any explicitly deleted ssbonds
         topomods = objmanager.get('topol', {})
-        if 'ssbondsdelete' in topomods:
+        if 'ssbondsdelete' in topomods and len(topomods['ssbondsdelete']) > 0:
             logger.debug(f'SSBonds to delete: {topomods["ssbondsdelete"]} ')
             for s in ssbonds:
                 logger.debug(f'Examining ssbond {s}')

@@ -151,7 +151,8 @@ class ObjManager(UserDict[str, UserDict[str, BaseObjList]]):
         if type(input_obj) in [tup[0] for tup in self._obj_classes]:  # an obj class
             self._ingest_obj(input_obj)
         elif type(input_obj) in [tup[1] for tup in self._obj_classes]:  # a list class
-            logger.debug(f'Ingesting {type(input_obj)} of length {len(input_obj)}')
+            if len(input_obj) > 0:
+                logger.debug(f'Ingesting {type(input_obj)} of length {len(input_obj)}')
             self._ingest_objlist(input_obj, overwrite=overwrite)
         elif type(input_obj) == dict:
             self._ingest_objdict(input_obj, overwrite=overwrite)

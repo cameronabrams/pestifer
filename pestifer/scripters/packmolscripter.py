@@ -11,6 +11,7 @@ from ..logparsers.packmollogparser import PackmolLogParser
 from ..util.progress import PackmolProgress
 
 logger = logging.getLogger(__name__)
+
 class PackmolScripter(GenericScripter):
     """
     This class extends the GenericScripter class to provide functionality for creating and managing Packmol scripts.

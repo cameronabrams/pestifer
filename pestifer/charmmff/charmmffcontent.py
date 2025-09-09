@@ -381,7 +381,8 @@ class CHARMMFFContent(CacheableObject):
     def provision_residueobjects(self, force_rebuild: bool = False, resnames: list[str] = []):
         is_custom = len(resnames) > 0
         if is_custom:
-            logger.debug(f'Provisioning CHARMMFFContent with custom residues/patches: {resnames}')
+            logger.debug(f'Provisioning CHARMMFFContent with selected residues/patches:')
+            my_logger(resnames, logger.debug)
             self.find_resis_and_patches(resnames=resnames)
         else:
             logger.debug(f'Provisioning CHARMMFFContent with all residues/patches')
@@ -428,14 +429,14 @@ class CHARMMFFContent(CacheableObject):
             except KeyError: # shortname is not in fs_resolver
                 with open(fullname, 'r') as f:
                     contents = f.read()
-            logger.debug(f'Processing topology file {shortname} ({len(contents)} bytes) for residue and patch objects...')
+            # logger.debug(f'Processing topology file {shortname} ({len(contents)} bytes) for residue and patch objects...')
             charmmstreamid = CHARMMFFStreamID(shortname)
             blocks = extract_resi_pres_blocks(contents)
             resi, pres = CharmmResiDict.from_blockstring_list(blocks, metadata=dict(streamID=charmmstreamid.streamID, substreamID=charmmstreamid.substreamID, charmmfftopfile=shortname), resnames=resnames).to_resi_pres()
             self.residues.update(resi)
             self.patches.update(pres)
-            logger.debug(f' -> resis ({len(resi)}) {[r for r in resi.keys()]}')
-            logger.debug(f' -> pres ({len(pres)}) {[p for p in pres.keys()]}')
+            # logger.debug(f' -> resis ({len(resi)}) {[r for r in resi.keys()]}')
+            # logger.debug(f' -> pres ({len(pres)}) {[p for p in pres.keys()]}')
         self.residues.tally_masses(self.massdict)
         logger.debug(f'Processed {len(self.residues)} residues and {len(self.patches)} patches in CHARMM force field content')
 

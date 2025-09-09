@@ -130,7 +130,7 @@ class PackmolLogParser(LogParser):
             idx = i + len('Structure')
             eol = bytes[idx:].index('\n') + idx
             substr = bytes[idx:eol]
-            logger.debug(f'Found structure: {substr} {idx} {eol}')
+            # logger.debug(f'Found structure: {substr} {idx} {eol}')
             tokens = substr.replace('(', '').replace(')', '').replace(':', '').split()
             idx = int(tokens[0])
             fl = tokens[1]

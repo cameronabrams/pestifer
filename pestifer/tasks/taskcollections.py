@@ -1,10 +1,12 @@
 import logging
+from collections import UserList, UserDict
+
+
+from . import task_classes
+from .basetask import BaseTask
+from ..util.stringthings import my_logger
 
 logger = logging.getLogger(__name__)
-
-from .basetask import BaseTask
-from collections import UserList, UserDict
-from . import task_classes
 
 class TaskList(UserList[BaseTask]):
     """ 
@@ -19,9 +21,10 @@ class TaskList(UserList[BaseTask]):
         data = []
         prior: BaseTask = None
         index: int = 0
-        for task_unidict in task_list:
-            logger.debug(f'Processing task specification: {task_unidict}')
-            assert len(task_unidict) == 1, f"Task dictionary {task_unidict} must have a single key-value pair"
+        for idx, task_unidict in enumerate(task_list):
+            logger.debug(f'Processing specification for task {idx:02d}:')
+            my_logger(task_unidict, logger.debug)
+            assert len(task_unidict) == 1, f"Task dictionary must have a single key-value pair"
             taskname = list(task_unidict.keys())[0]
             task_specs = task_unidict[taskname]
             # Ensure the name of the task is among the implemented Tasks
@@ -37,7 +40,7 @@ class TaskList(UserList[BaseTask]):
             index += 1
         return cls(data)
 
-class TaskDict(UserDict[str, dict]):
+class TaskDict(UserDict[str, BaseTask]):
     """
     A dictionary of task specifications.
     """

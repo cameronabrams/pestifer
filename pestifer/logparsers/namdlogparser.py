@@ -344,7 +344,7 @@ class NAMDLogParser(LogParser):
         """
         tokens = [x.strip() for x in line.split()]
         TS = int(tokens[0])
-        # logger.debug(f'process_pressureprofile_line: TS {tokens[0]}')
+        logger.debug(f'process_pressureprofile_line: TS {tokens[0]}')
         for i in range(1, len(tokens)):
             tokens[i] = float(tokens[i])
         this_col = tokens[1:]

@@ -113,13 +113,15 @@ class Controller:
             'progress-flag': self.config.use_terminal_progress,
             'namd_global_config': self.config['user']['namd'],
         }
-        logger.debug(f'Provisioning tasks with packet:')
+        logger.debug(f'Controller {self.index:02d} provisioning {len(self.tasks)} task{plu(len(self.tasks))} with packet:')
         my_logger(packet, logger.debug)
         for task in self.tasks:
-            logger.debug(f'  -> task {task.index} {task.taskname}')
+            logger.debug('*'*70)
+            logger.debug(f'Task {self.index:02d}:{task.index:02d} ** {task.taskname:>20s} **')
             task.provision(packet)
             if task.specs.get('requires_subcontroller', False):
-                logger.debug(f'    -> spawning subcontroller for task {task.index} {task.taskname}')
+                logger.debug('*'*70)
+                logger.debug(f'Controller {self.index:02d} spawning subcontroller for Task {task.index:02d} ** {task.taskname:>20s} **')
                 task.subcontroller = Controller.spawn_subcontroller(self)
 
     def do_tasks(self) -> dict:

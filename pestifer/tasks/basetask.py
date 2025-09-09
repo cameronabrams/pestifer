@@ -282,7 +282,7 @@ class BaseTask(ABC):
         taskname : str
             The new task name to set.
         """
-        logger.debug(f'Overriding task name {self.taskname} to {taskname}')
+        # logger.debug(f'Overriding task name {self.taskname} to {taskname}')
         self.taskname = taskname
 
     def __str__(self):

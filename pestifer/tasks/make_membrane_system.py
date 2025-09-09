@@ -41,7 +41,8 @@ class MakeMembraneSystemTask(BaseTask):
     """
 
     def provision(self, packet: dict):
-        logger.debug(f'Provisioning MakeMembraneSystemTask with packet: {packet}')
+        logger.debug(f'Provisioning MakeMembraneSystemTask with packet:')
+        my_logger(packet, logger.debug)
         super().provision(packet)
         self.patchA: Bilayer = None
         self.patchB: Bilayer = None
@@ -50,9 +51,7 @@ class MakeMembraneSystemTask(BaseTask):
         self.embed_specs: dict = self.specs.get('embed', {})
         self.using_prebuilt_bilayer: bool = False
         self.progress = self.provisions.get('progress-flag', True)
-        self.resource_manager: ResourceManager = self.provisions.get('resource_manager', ResourceManager())
         self.charmmff_content: CHARMMFFContent = self.resource_manager.charmmff_content
-        # self.charmmff_content.provision() # loads PDBRepository and CHARMMFFResiTopCollection
     
         if 'prebuilt' in self.bilayer_specs and 'pdb' in self.bilayer_specs['prebuilt']:
             logger.debug('Using prebuilt bilayer')
@@ -96,7 +95,8 @@ class MakeMembraneSystemTask(BaseTask):
                                                      conformers_specstring,
                                                      solvent_specstring,
                                                      solvent_ratio_specstring)
-        logger.debug(f'Main composition dict {composition_dict}')
+        logger.debug(f'Naive main composition dict:')
+        my_logger(composition_dict, logger.debug)
         self.patch = Bilayer(composition_dict,
                              neutralizing_salt = neutralizing_salt,
                              salt_concentration = salt_con,
@@ -107,7 +107,8 @@ class MakeMembraneSystemTask(BaseTask):
                              charmmffcontent = self.charmmff_content)
         for spdb in self.patch.register_species_pdbs:
             self.register(spdb, key='species_pdb_for_packmol', artifact_type=PDBFileArtifact)
-        logger.debug(f'Main composition dict after call {composition_dict}')
+        logger.debug(f'Mature main composition dict:')
+        my_logger(composition_dict, logger.debug)
         if self.patch.asymmetric:
             logger.debug(f'Requested patch is asymmetric; generating two symmetric patches')
             logger.debug(f'Symmetrizing bilayer to upper leaflet')
@@ -169,7 +170,8 @@ class MakeMembraneSystemTask(BaseTask):
         and other relevant settings.
         It then constructs the patch or patches, packs them using Packmol, generates the PSF file, and then does a short series of equilibration MD simulations.
         """
-        logger.debug(f'Bilayer specs: {self.bilayer_specs}')
+        logger.debug(f'Bilayer specs:')
+        my_logger(self.bilayer_specs, logger.debug)
         solution_gcc: float = self.bilayer_specs.get('solution_gcc',1.0)
         rotation_pm: float = self.bilayer_specs.get('rotation_pm',10.)
         half_mid_zgap: float = self.bilayer_specs.get('half_mid_zgap',1.0)
@@ -181,7 +183,8 @@ class MakeMembraneSystemTask(BaseTask):
         nloop_all: int = self.bilayer_specs.get('nloop_all',100)
         relaxation_protocols: dict = self.bilayer_specs.get('relaxation_protocols',{})
         relaxation_protocol: dict = relaxation_protocols.get('patch',{})
-        logger.debug(f'relaxation protocols: {relaxation_protocols}')
+        logger.debug('Relaxation protocols:')
+        my_logger(relaxation_protocols, logger.debug)
         # we now build the patch, or if asymmetric, two patches
         for patch, specbyte in zip([self.patch, self.patchA, self.patchB], ['', 'A', 'B']):
             if patch is None:
@@ -291,12 +294,14 @@ class MakeMembraneSystemTask(BaseTask):
         if os.path.exists(f'{self.basename}_packmol-results.yaml'):
             self.register(f'{self.basename}_packmol-results.yaml', key=f'{patch_name}_packmol_results', artifact_type=YAMLFileArtifact)
         csvs = glob.glob(f'{self.basename}*_packmol.csv')
-        logger.debug(f'csvs {csvs}')
         if len(csvs) > 0:
+            logger.debug(f'CSVs:')
+            my_logger(csvs, logger.debug)
             self.register([CSVDataFileArtifact(x) for x in csvs], key=f'{patch_name}_packmol_csvs', artifact_type=CSVDataFileArtifactList)
         pngs = glob.glob(f'{self.basename}*_packmol.png')
-        logger.debug(f'pngs {pngs}')
         if len(pngs) > 0:
+            logger.debug(f'PNGs:')
+            my_logger(pngs, logger.debug)
             self.register([PNGImageFileArtifact(x) for x in pngs], key=f'{patch_name}_packmol_pngs', artifact_type=PNGImageFileArtifactList)
 
     def equilibrate_bilayer(self, bilayer: Bilayer, bilayer_name: str, relaxation_protocol: list[dict] = None):
@@ -331,7 +336,8 @@ class MakeMembraneSystemTask(BaseTask):
                 {'md': dict(ensemble='NPAT', nsteps=12800)},
                 {'md': dict(ensemble='NPAT', nsteps=25600)}]
         else:
-            logger.debug(f'Using user-specified relaxation protocol: {relaxation_protocol}')
+            logger.debug(f'Using user-specified relaxation protocol:')
+            my_logger(relaxation_protocol, logger.debug)
         for stage in relaxation_protocol:
             specs = stage['md']
             specs['addl_paramfiles'] = bilayer.addl_streamfiles
@@ -369,7 +375,7 @@ class MakeMembraneSystemTask(BaseTask):
             save_task_name = task.taskname
             task_name = f'{self.taskname}-{task.taskname}-{bilayer_name}'
             task.override_taskname(task_name)
-            logger.debug(f'Subcontroller overrides task name {save_task_name} with {task.taskname}')
+            # logger.debug(f'Subcontroller overrides task name {save_task_name} with {task.taskname}')
         subcontroller.do_tasks()
         last_task = subcontroller.tasks[-1]
         bilayer_state: StateArtifacts = last_task.get_current_artifact('state')

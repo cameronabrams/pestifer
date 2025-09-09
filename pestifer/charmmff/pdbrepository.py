@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from ..util.cacheable_object import TarBytesFS, CacheableObject
 from ..util.util import countTime
 from ..util.spinner_wrapper import with_spinner
+from ..util.stringthings import my_logger, plu 
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +204,6 @@ class PDBCollection:
     """ The registration place of the collection in the repository indicating when it registered. """
 
     @classmethod
-    # def build_from_resources(cls, path_or_tarball: str = '', streamID_override: str = ''):
     def build_from_resources(cls, path_or_tarball: str, resnames: list[str] = [], streamID_override: str = None):
         if not path_or_tarball:
             return cls()
@@ -215,7 +215,7 @@ class PDBCollection:
             logger.debug(f'Initializing PDBCollection from tarball {path_or_tarball}')
             pdbrepo_fs = TarBytesFS.from_file(path_or_tarball, compression='gzip')
             root_dir = pdbrepo_fs.ls()[0].get('name', None)
-            logger.debug(f'Tarball {path_or_tarball} fs {type(pdbrepo_fs)} root directory: {root_dir}')
+            logger.debug(f'Tarball {path_or_tarball} root directory: {root_dir}')
             if not root_dir or root_dir != streamID:
                 raise ValueError(f'Tarball {path_or_tarball}\'s top-level directory does not match stream name {streamID} (root_dir {root_dir}).')
             toplevel_solos = [x['name'] for x in pdbrepo_fs.ls(root_dir) if x['type'] != 'directory']
@@ -348,10 +348,10 @@ class PDBCollection:
 
         """
         if resname in self.contents:
-            logger.debug(f'Found {resname} in collection {self.streamID}')
+            # logger.debug(f'Found {resname} in collection {self.streamID}')
             return self.contents[resname]
         else:
-            logger.debug(f'{resname} not found in collection {self.streamID}')
+            # logger.debug(f'{resname} not found in collection {self.streamID}')
             return None
 
 class PDBCollectionDict(UserDict[str, PDBCollection]):
@@ -448,7 +448,7 @@ class PDBRepository(CacheableObject):
         self.registration_order.append(collection_key)
         # logger.debug(f' -> registration_order \'{self.registration_order}\' streamID {collection.streamID}')
         self.collections[collection_key].registration_place = len(self.registration_order)
-        logger.debug(f'Added collection {collection_key} with {len(collection.info)} residues.')
+        logger.debug(f'Added collection {collection_key} with {len(collection.info)} residue{plu(len(collection.info))}.')
 
     def show(self, out_stream: Callable = print, fullnames: bool = False, missing_fullnames: dict = {}):
         """ 

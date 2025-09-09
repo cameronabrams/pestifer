@@ -28,6 +28,7 @@ from ..objs.ssbond import SSBond, SSBondList
 
 from ..logparsers import PsfgenLogParser
 from ..util.progress import PsfgenProgress
+from ..util.stringthings import my_logger
 from ..util.util import reduce_intlist
 
 logger = logging.getLogger(__name__)
@@ -80,7 +81,8 @@ class PsfgenScripter(VMDScripter):
         if 'top_all35_ethers.rtf' in topology_local:
             topology_local.remove('top_all35_ethers.rtf')
             topology_local.append('top_all35_ethers.rtf')
-        logger.debug(f'local topologies: {topology_local}')
+        logger.debug(f'Local CHARMMFF topologies:')
+        my_logger(topology_local, logger.debug)
         return topology_local
 
     def newscript(self, basename: str = '', packages: list[str] = [], additional_topologies: list[str] = []):
@@ -718,7 +720,8 @@ class PsfgenScripter(VMDScripter):
         else:
             logger.debug('Progress bar is disabled for psfgen script')
         result = c.run(logfile=self.logname, logparser=self.logparser)
-        logger.debug(f'FileCollector {self.F}')
+        logger.debug(f'FileCollector:')
+        my_logger(self.F, logger.debug)
         if not options.get('keep_tempfiles', False):
             self.F.flush()
         return result

@@ -9,6 +9,7 @@ import numpy as np
 
 from ..charmmff.charmmffcontent import CHARMMFFContent
 from ..core.artifacts import ArtifactDict
+from ..util.stringthings import my_logger
 from ..util.units import _UNITS_, _SYMBOLS_, cuA_of_nmolec
 from ..scripters import PackmolScripter
 
@@ -313,7 +314,8 @@ class Bilayer:
                 for p in self.species_data[l].get_parameters():
                     if p.endswith('.str') and not p in self.addl_streamfiles:
                         self.addl_streamfiles.append(p)
-        logger.debug(f'Additional stream files: {self.addl_streamfiles}')
+        logger.debug(f'Additional stream files:')
+        my_logger(self.addl_streamfiles, logger.debug)
 
         self.total_charge = 0.0
         for layer, data in self.slices.items():
@@ -468,7 +470,8 @@ class Bilayer:
         ll = self.patch_ll_corner
         ur = self.patch_ur_corner
         for leaflet in [self.LL, self.UL]:
-            logger.debug(f'Leaflet species to pack :{leaflet["composition"]}')
+            logger.debug(f'Leaflet species to pack:')
+            my_logger(leaflet["composition"], logger.debug)
             for specs in leaflet['composition']:
                 name = specs['name']
                 logger.debug(f'Packing {name}')
@@ -527,7 +530,8 @@ class Bilayer:
                 pm.addline(f'nloop {nloop}', indents=1)
                 pm.addline(f'end structure')
         for chamber in [self.LC, self.UC]:
-            logger.debug(f'Chamber species to pack :{chamber["composition"]}')
+            logger.debug(f'Chamber species to pack:')
+            my_logger(chamber["composition"], logger.debug)
             for specs in chamber['composition']:
                 name = specs['name']
                 n = specs['patn']

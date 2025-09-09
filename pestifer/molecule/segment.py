@@ -5,6 +5,7 @@ Defines the Segment class for generating and managing segments declared for psfg
 from typing import ClassVar, List, TYPE_CHECKING
 from pydantic import Field
 import logging
+
 logger=logging.getLogger(__name__)
 
 from .chainidmanager import ChainIDManager
@@ -17,12 +18,14 @@ from ..core.objmanager import ObjManager
 from ..objs.cleavagesite import CleavageSite
 from ..objs.deletion import DeletionList
 from ..objs.graft import GraftList
-from ..objs.link import Link, LinkList
-from ..objs.mutation import Mutation, MutationList
+from ..objs.link import LinkList
+from ..objs.mutation import MutationList
 from ..objs.patch import PatchList
-from ..objs.ssbond import SSBond, SSBondList
+from ..objs.ssbond import SSBondList
 
 from ..psfutil.psfcontents import PSFSegmentList
+
+from ..util.stringthings import my_logger
 
 if TYPE_CHECKING:
     from ..molecule.molecule import Molecule
@@ -284,7 +287,8 @@ class SegmentList(BaseObjList[Segment]):
                         # seq_spec['build_zero_occupancy_C_termini'].remove(chainID)
                 num_mis = sum([1 for x in c_res if len(x.atoms) == 0])
                 thisSeg = Segment(c_res, segname=this_chainID, specs=self.seq_spec)
-                logger.debug(f'Made segment: stype {stype} chainID {this_chainID} segname {thisSeg.segname} ({num_mis} missing) (seq_spec {self.seq_spec})')
+                logger.debug(f'Made segment: stype {stype} chainID {this_chainID} segname {thisSeg.segname} ({num_mis} missing)')
+                my_logger(self.seq_spec, logger.debug)
                 self.append(thisSeg)
                 self.segnames.append(thisSeg.segname)
                 self.counters_by_segtype[stype] += 1
@@ -427,4 +431,5 @@ class SegmentList(BaseObjList[Segment]):
         for item in self.data:
             item.objmanager = objmanager.filter_copy(lambda x: x.chainID == item.segname, objnames=item._inheritable_objs)
             counts = item.objmanager.counts_by_header()
-            logger.debug(f'Inherit objs: seg {item.segname} has {counts}')
+            logger.debug(f'Segment {item.segname} inherits:')
+            my_logger(counts, logger.debug, depth=1)

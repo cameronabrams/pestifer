@@ -9,9 +9,7 @@ updating artifacts, and handling the results of the simulation.
 """
 import glob
 import logging
-import os
 
-logger = logging.getLogger(__name__)
 
 from .basetask import VMDTask
 from ..core.artifacts import *
@@ -19,6 +17,8 @@ from ..core.artifacts import *
 from ..scripters.namdscripter import NAMDScripter
 from ..scripters.namdcolvarinputscripter import NAMDColvarInputScripter
 from ..util.util import is_periodic
+
+logger = logging.getLogger(__name__)
 
 class MDTask(VMDTask):
     """ 
@@ -75,7 +75,8 @@ class MDTask(VMDTask):
         # logger.debug(f'namdrun called with baselabel {baselabel} and extras {extras}, script_only={script_only}')
         specs = self.specs
         addl_paramfiles: list[str] = specs.get('addl_paramfiles', [])
-        logger.debug(f'md task specs {specs}')
+        logger.debug(f'MD task specs:')
+        my_logger(specs, logger.debug)
         ensemble: str = specs['ensemble']
         if ensemble.casefold() not in ['NPAT'.casefold(), 'NPT'.casefold(), 'NVT'.casefold(), 'minimize'.casefold()]:
             raise Exception(f'Error: {ensemble} is not a valid ensemble type. Must be \'NPAT\', \'NPT\', \'NVT\', or \'minimize\'')
@@ -200,19 +201,27 @@ class MDTask(VMDTask):
         local_execution_only = not self.get_current_artifact_data('periodic')
         single_gpu_only = kwargs.get('single_gpu_only', False) or constraints
         result = na.runscript(single_molecule=local_execution_only, local_execution_only=local_execution_only, single_gpu_only=single_gpu_only, cpu_override=cpu_override)
-        self.coor_to_pdb(f'{self.basename}.coor', state.psf.name)
-        coor=NAMDCoorFileArtifact(self.basename)
-        xsc=NAMDXscFileArtifact(self.basename)
-        self.register(dict(pdb=PDBFileArtifact(self.basename, pytestable=True),
-                           coor=coor if coor.exists() else None,
-                           vel=NAMDVelFileArtifact(self.basename),
-                           xsc=xsc if xsc.exists() else None, 
-                           psf=state.psf), key='state', artifact_type=StateArtifacts)  # an md run cannot change the PSF file
+        coor = NAMDCoorFileArtifact(self.basename)
+        vel = NAMDVelFileArtifact(self.basename)
         dcd = NAMDDcdFileArtifact(self.basename)
+        if not coor.exists() and not vel.exists() and not dcd.exists():
+            raise RuntimeError(f'NAMD run {self.basename} failed: no .coor, .vel, or .dcd files produced')
+        xsc = NAMDXscFileArtifact(self.basename)
         xst = NAMDXstFileArtifact(self.basename)
         log = NAMDLogFileArtifact(self.basename)
         cvtraj = NAMDColvarsTrajectoryArtifact(self.basename)
         cvstate = NAMDColvarsStateArtifact(self.basename)
+        
+        self.coor_to_pdb(f'{self.basename}.coor', state.psf.name)
+        pdb = PDBFileArtifact(f'{self.basename}.pdb', pytestable=True)
+        psf = state.psf
+        if not pdb.exists():
+            raise RuntimeError(f'NAMD run {self.basename} failed: no .pdb file produced from .coor')
+        self.register(dict(pdb=pdb,
+                           coor=coor,
+                           vel=vel,
+                           xsc=xsc if xsc.exists() else None,
+                           psf=psf), key='state', artifact_type=StateArtifacts)  # an md run cannot change the PSF file
         falist = [x for x in [dcd, xst, log, cvtraj, cvstate] if x and x.exists()]
         self.register(falist, artifact_type=FileArtifactList, key='md_output_files')
         other_files = glob.glob(f'FFTW*txt')

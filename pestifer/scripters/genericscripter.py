@@ -107,3 +107,6 @@ class GenericScripter:
             self.is_written = True
         else:
             logger.debug(f'{self.filename} has already been written')
+
+    def __repr__(self):
+        return f"{self.__class__.__name__}"

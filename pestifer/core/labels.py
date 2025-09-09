@@ -247,8 +247,8 @@ class LabelMappers:
         atom_aliases : list
             A list of strings containing new atom aliases to be added. Each string should be in the format "RESNAME ATOMNAME ALIAS".
         """
-        logger.debug(f'Updating residue aliases with {residue_aliases}')
-        logger.debug(f'Updating atom aliases with {atom_aliases}')
+        # logger.debug(f'Updating residue aliases with {residue_aliases}')
+        # logger.debug(f'Updating atom aliases with {atom_aliases}')
         self.aliases['residue'].extend(residue_aliases)
         self.aliases['atom'].extend(atom_aliases)
         self.update_alias_mappings()

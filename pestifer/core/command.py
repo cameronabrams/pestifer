@@ -77,7 +77,7 @@ class Command:
         if not quiet:
             logger.debug(f'{self.c}')
         log = None
-        if not logfile:
+        if not logfile and not quiet:
             logger.debug(f'No logfile specified for {self.c}')
         else:
             if os.path.exists(logfile) and not kwargs.get('overwrite_logs', False):

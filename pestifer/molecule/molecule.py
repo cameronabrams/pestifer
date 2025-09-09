@@ -4,15 +4,22 @@ A class for handling molecules
 """
 import logging
 import os
-from ..core.objmanager import ObjManager
+
 from pidibble.pdbparse import PDBParser
-from ..util.cifutil import CIFload
+
 from .asymmetricunit import AsymmetricUnit
-from .segment import Segment
 from .bioassemb import BioAssembList, BioAssemb
+from .chainidmanager import ChainIDManager
+from .segment import Segment
+
+from ..core.objmanager import ObjManager
+
 from ..objs.cleavagesite import CleavageSiteList
 from ..objs.graft import Graft
-from .chainidmanager import ChainIDManager
+
+from ..util.cifutil import CIFload
+from ..util.stringthings import my_logger
+
 logger=logging.getLogger(__name__)
 
 class Molecule:
@@ -97,7 +104,8 @@ class Molecule:
                         logger.debug(f'CIF source {source["id"]}')
                         p_struct = CIFload(source['id'])
                 elif source.get('prebuilt', {}):
-                    logger.debug(f'prebuilt rec [{source["prebuilt"]}]')
+                    logger.debug(f'Prebuilt record:')
+                    my_logger(source["prebuilt"], logger.debug)
                     psf = source['prebuilt']['psf']
                     pdb = source['prebuilt']['pdb']
                     xsc = source['prebuilt'].get('xsc', '')

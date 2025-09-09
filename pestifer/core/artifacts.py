@@ -305,9 +305,6 @@ class ArtifactDict(Artifact):
     Dictionary of Artifacts.
     """
     data: dict[str, Artifact] = field(default_factory=dict)
-    # def __init__(self, *args, **kwargs):
-    #     super().__init__(*args, **kwargs)
-    #     self.key: str | None = None
 
     def __getitem__(self, key: str) -> Artifact:
         return self.data[key]

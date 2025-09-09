@@ -56,7 +56,10 @@ class PipelineContext:
         # create new artifact
         new_aritifact = artifact_type(data=data, key=key, **kwargs).stamp(requestor)
         self.head[key] = new_aritifact
-        logger.debug(f'Registered new artifact with key {key} produced by {requestor}; optional parameters: {kwargs}.')
+        msg = f'Registered \'{key}\' (type {type(new_aritifact)}) from {requestor.__class__.__name__}'
+        if len(kwargs) > 0:
+            msg += f' with options {kwargs}'
+        logger.debug(msg)
         return new_aritifact
     
     def register_if_exists(self, data: object, requestor: object, artifact_type: type = FileArtifact, **kwargs) -> FileArtifact | None:
@@ -125,7 +128,7 @@ class PipelineContext:
         Debugging utility to show current and historical artifacts.
         """
         logger.debug('*'*72)
-        logger.debug(header + f" Controller {self.controller_index}")
+        logger.debug(header + f" Controller {self.controller_index:02d}")
         logger.debug('*'*72)
         logger.debug(f'Head:')
         self.show_artifact(self.head)
@@ -133,27 +136,30 @@ class PipelineContext:
         self.show_artifact(self.history)
         logger.debug('*'*72)
 
-    def show_artifact(self, artifact: Artifact, depth = 1):
+    def show_artifact(self, artifact: Artifact, depth = 1, include_id: bool = False):
+        my_id_str = ''
+        if include_id:
+            my_id_str = f' ({id(artifact)})'
         if isinstance(artifact, ArtifactList):
-            logger.debug(f'{"    "*depth}- "{artifact.key}" ({id(artifact)}) List with {len(artifact)} items:')
+            logger.debug(f'{"    "*depth}- "{artifact.key}" {my_id_str} List with {len(artifact)} items:')
             for item in artifact:
                 self.show_artifact(item, depth + 1)
         elif isinstance(artifact, StateArtifacts):
-            logger.debug(f'{"    "*depth}- "{artifact.key}" ({id(artifact)}) StateArtifacts with {len(artifact)} items:')
+            logger.debug(f'{"    "*depth}- "{artifact.key}" {my_id_str} StateArtifacts with {len(artifact)} items:')
             for key, item in artifact.items():
                 if item is not None:
                     self.show_artifact(item, depth + 1)
         elif isinstance(artifact, ArtifactDict):
-            logger.debug(f'{"    "*depth}- "{artifact.key}" ({id(artifact)}) Dict with {len(artifact)} items:')
+            logger.debug(f'{"    "*depth}- "{artifact.key}" {my_id_str} Dict with {len(artifact)} items:')
             for key, item in artifact.items():
                 self.show_artifact(item, depth + 1)
         elif isinstance(artifact, Artifact):
             pytestable_str = ''
             if hasattr(artifact, 'pytestable') and artifact.pytestable:
                 pytestable_str = ' (pytestable)'
-            logger.debug(f'{"    "*depth}- "{artifact.key}" ({id(artifact)}): data={artifact.data}{pytestable_str}')
+            logger.debug(f'{"    "*depth}- "{artifact.key}" {my_id_str}: data=\'{artifact.data}\' {pytestable_str}')
         else:
-            logger.debug(f'{"    "*depth}- "{artifact.key}" ({id(artifact)}): ***Unknown artifact type: {type(artifact)}***')
+            logger.debug(f'{"    "*depth}- "{artifact.key}" {my_id_str}: ***Unknown artifact type: {type(artifact)}***')
 
     def bury(self, artifact: Artifact):
         """

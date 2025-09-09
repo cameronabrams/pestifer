@@ -65,7 +65,7 @@ class ChainIDManager:
             List of chainIDs to sandbag. These chainIDs will be moved to the end of the Unused list, ensuring they are not used until explicitly requested.
         """
         i_chainIDs = i_chainIDs or []
-        logger.debug(f'Sandbagging: unused chains: {self.Unused}')
+        # logger.debug(f'Sandbagging: unused chains: {self.Unused}')
         assert all([(x in self.Unused) or (x in self.ReservedUnused) for x in i_chainIDs]), f'Cannot sandbag since at least one initial chainID is not found in Unused or ReservedUnused -- possibly because you are using a PDB-format ChainIDManager and trying to sandbag a 2-byte (from mmCIF) chainID?'
         for c in i_chainIDs:
             if c in self.Unused:
@@ -117,7 +117,7 @@ class ChainIDManager:
             hold_chainID = self.next_unused_chainID()
             logger.debug(f'counter-proposed chainID is {hold_chainID}')
         else:
-            logger.debug(f'({id(self)}) registering chainID {hold_chainID}')
+            logger.debug(f'Registering chainID {hold_chainID}')
             self.Unused.remove(hold_chainID)
             self.Used.add(hold_chainID)
 
