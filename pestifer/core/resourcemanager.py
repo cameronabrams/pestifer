@@ -40,9 +40,9 @@ class ResourceManager:
         if is_source_package_with_git:
             remote = get_git_origin_url()
             if remote:
-                logger.debug(f'This is a source package installed from {remote} installed in {self.package_path}')
+                logger.debug(f'Installed as source from {remote} into {self.package_path}')
             else:
-                logger.debug(f'This is a source package installed in {self.package_path} but the remote origin URL could not be determined.')
+                logger.debug(f'Installed as source into {self.package_path} but the remote origin URL could not be determined.')
 
         resources_subfolders = os.listdir(self.resources_path)
         self.resource_dirs = [x for x in resources_subfolders if os.path.isdir(os.path.join(self.resources_path, x)) and x in ResourceManager._base_resources]

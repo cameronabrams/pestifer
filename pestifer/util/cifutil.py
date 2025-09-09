@@ -42,10 +42,11 @@ def CIFload(input_obj) -> DataContainer:
         filepath=input_obj
     # strip out the pdbx_audit_revision_item that confuses
     # vmd
-    logger.debug(f'Stripping the offensive \'pdbx_audit_revision_item\' block from {filepath} and resaving')
-    dataList=IoAdapterCore().readFile(filepath)
-    dataList[0].remove('pdbx_audit_revision_item')
-    IoAdapterCore().writeFile(filepath, dataList)
+    for sb in _stripped_blocks:
+        logger.debug(f'Stripping the offensive \'{sb}\' block from {filepath} and resaving')
+        dataList=IoAdapterCore().readFile(filepath)
+        dataList[0].remove(sb)
+        IoAdapterCore().writeFile(filepath, dataList)
     # return the first DataContainer in the list that .readFile() returns
     return IoAdapterCore().readFile(filepath)[0]
 

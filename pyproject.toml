@@ -18,23 +18,25 @@ classifiers = [
   "Operating System :: POSIX :: Linux",
 ]
 dependencies = [
-  "docutils>=0.20,<0.22",  # Required for sphinx
-  "numpy>=1.24",
-  "pyyaml>=6",
-  "pidibble>=1.4.2",
-  "pandas",
-  "ycleptic>=2.0.1",
-  "mmcif",
-  "progressbar2",
-  "networkx",
   "colorist",
+  "docutils>=0.20,<0.22",  # Required for sphinx
+  "filelock",
+  "fsspec",
   "gputil",
+  "matplotlib",
+  "mmcif",
+  "networkx",
+  "numpy>=1.24",
+  "pandas",
+  "pidibble>=1.4.2",
+  "platformdirs",
+  "progressbar2",
+  "pydantic",
+  "pyyaml>=6",
   "sphinx>=8.2.3",
   "scipy",
-  "pydantic",
-  "matplotlib",
-  "fsspec",
-  "unidiff"
+  "unidiff",
+  "ycleptic>=2.0.1",
 ]
 
 [project.scripts]

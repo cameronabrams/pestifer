@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import fsspec
 import hashlib
-import importlib
 import io
 import joblib
 import logging
@@ -167,10 +166,10 @@ class CacheableObject:
         # logger.debug("Resource mtime: %s", resources_mtime)
         # logger.debug("Cache mtime: %s", cpath.stat().st_mtime if cpath.exists() else None)
         with lock:
-            logger.debug(f'Acquired lock for {cpath}')
-            logger.debug(f'cache exists: {cpath.exists()} x force_rebuild: {force_rebuild} => load cache? {"yes" if cpath.exists() and not force_rebuild else "no"}')
+            # logger.debug(f'Acquired lock for {cpath}')
+            # logger.debug(f'cache exists: {cpath.exists()} x force_rebuild: {force_rebuild} => load cache? {"yes" if cpath.exists() and not force_rebuild else "no"}')
             if cpath.exists() and not force_rebuild:
-                logger.debug(f"{cpath.stat().st_mtime} >=? {resources_mtime} -> {cpath.stat().st_mtime >= resources_mtime}")
+                # logger.debug(f"{cpath.stat().st_mtime} >=? {resources_mtime} -> {cpath.stat().st_mtime >= resources_mtime}")
                 try:
                     if cpath.stat().st_mtime >= resources_mtime:
                         # logger.info(f'Loading {self.__class__.__name__} from cache: {cpath}')

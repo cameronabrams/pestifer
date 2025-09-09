@@ -26,7 +26,7 @@ import importlib.metadata
 __pestifer_version__ = importlib.metadata.version("pestifer")
 
 _banner_message="""
-    pestifer v. {}
+    Pestifer v. {}
     https://pestifer.readthedocs.io/en/latest/
 
     Cameron F. Abrams <cfa22@drexel.edu>

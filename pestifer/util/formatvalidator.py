@@ -2,13 +2,7 @@
 
 import re
 import string
-from functools import lru_cache
 from typing import Dict, Optional
-
-# _NUMBER_INT = r"[+-]?\d+"
-# _NUMBER_FLOAT = r"[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?"
-
-# import re
 
 def _infer_pattern_from_format_spec(spec: str) -> str | None:
     """

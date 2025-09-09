@@ -15,6 +15,7 @@ logger = logging.getLogger(__name__)
 logging.getLogger("pidibble").setLevel(logging.WARNING)
 logging.getLogger("ycleptic").setLevel(logging.WARNING)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
+logging.getLogger("filelock").setLevel(logging.WARNING)
 
 class NiceHelpFormatter(ap.HelpFormatter):
     """
