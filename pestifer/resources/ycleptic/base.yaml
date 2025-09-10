@@ -696,8 +696,7 @@ attributes:
           - name: timeseries
             type: list
             text: List of (possibly sublists of) quantities to plot vs timestep
-            default:
-              - density
+            default: []
             docs:
               text: |
                 The list of energy-like quantities to plot vs timestep.  These quantities are extracted from the NAMD log files and plotted against timestep.  To combine traces onto a single plot, the list element itself can be a list. The default is to plot density, but you can specify any quantity in an ENERGY: output line or an XST file, including:
@@ -736,6 +735,14 @@ attributes:
               c_z: Å
               pressure: bar
               temperature: K
+          - name: colormap
+            type: str
+            text: matplotlib colormap for multiple traces on a single plot
+            default: viridis
+          - name: colormap-direction
+            type: int
+            text: direction of colormap; 1 for normal, -1 for reversed
+            default: 1
           - name: axis-labels
             type: dict
             text: user-specified axis labels for plots

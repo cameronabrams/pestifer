@@ -257,6 +257,8 @@ class NAMDLogParser(LogParser):
             self.metadata['periodic_cell_basis_3'] = get_values('PERIODIC CELL BASIS 3', line, dtype=float)
         elif 'SLAB THICKNESS:' in line:
             self.metadata['slab_thickness'] = float(get_single('SLAB THICKNESS:', line))
+        elif 'NUMBER OF SLABS:' in line:
+            self.metadata['number_of_pressure_slabs'] = int(get_single('NUMBER OF SLABS:', line))
 
     def process_tcl_line(self, line: str):
         """
@@ -342,19 +344,28 @@ class NAMDLogParser(LogParser):
         line : str
             A line from the NAMD log file that contains pressure profile data.
         """
+        slab_thickness = self.metadata.get('slab_thickness', None)
+        if slab_thickness is None:
+            logger.debug('process_pressureprofile_line: slab_thickness is not defined in metadata')
+            return
         tokens = [x.strip() for x in line.split()]
         TS = int(tokens[0])
-        logger.debug(f'process_pressureprofile_line: TS {tokens[0]}')
+        # logger.debug(f'process_pressureprofile_line: TS {tokens[0]}')
         for i in range(1, len(tokens)):
             tokens[i] = float(tokens[i])
         this_col = tokens[1:]
-        new_line = {'TS': TS}
-        new_line.update({k: v for k, v in zip([str(x) for x in np.arange(len(this_col))], this_col)})
+        pressure_series = {'TS': TS}
+        # depth_series = {'TS': TS}
+        pressure_series.update({k: v for k, v in zip([f"{'xyz'[i % 3]}_{(i//3)}" for i in range(len(this_col))], this_col)})
+        # depth_series.update(   {k: v for k, v in zip(range(len(this_col)//3), [(i+0.5)*slab_thickness for i in range(len(this_col)//3)])})
         if 'number_of_pressure_slabs' not in self.metadata:
             self.metadata['number_of_pressure_slabs'] = len(this_col)
         if 'pressureprofile' not in self.time_series_data:
             self.time_series_data['pressureprofile'] = []
-        self.time_series_data['pressureprofile'].append(new_line)
+        # if 'depthprofile' not in self.time_series_data:
+        #     self.time_series_data['depthprofile'] = []
+        # self.time_series_data['depthprofile'].append(depth_series)
+        self.time_series_data['pressureprofile'].append(pressure_series)
 
     def process_wallclock_line(self, line: str):
         """
@@ -623,12 +634,11 @@ class NAMDLogParser(LogParser):
             if 'total_mass' in self.metadata and 'VOLUME' in self.dataframes['energy'].columns:
                 self.dataframes['energy']['DENSITY'] = self.metadata['total_mass'] / self.dataframes['energy']['VOLUME']
         # convert the integer slab index column headings in the pressure profile dataframe to floating point z-coordinates using metadata['slab_thickness']
-        if 'pressureprofile' in self.dataframes:
-            if 'number_of_pressure_slabs' in self.metadata and 'slab_thickness' in self.metadata:
-                slab_thickness = self.metadata['slab_thickness']
-                number_of_pressure_slabs = self.metadata['number_of_pressure_slabs']
-                z_coords = [(i + 0.5) * slab_thickness for i in range(number_of_pressure_slabs)]
-                self.dataframes['pressureprofile'].columns = ['TS'] + z_coords
+        # if 'pressureprofile' in self.dataframes:
+        #     if 'number_of_pressure_slabs' in self.metadata and 'slab_thickness' in self.metadata:
+        #         slab_thickness = self.metadata['slab_thickness']
+        #         number_of_pressure_slabs = self.metadata['number_of_pressure_slabs']
+        #         z_coords = [(i + 0.5) * slab_thickness for i in range(number_of_pressure_slabs)]
         # If we did not find the first time step, infer it from the energy log
         if 'first_timestep' not in self.metadata:
             if 'energy' in self.dataframes:

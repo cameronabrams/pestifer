@@ -114,21 +114,25 @@ tasks:
   - md:
       ensemble: NVT
       nsteps: 1000
+      temperature: 410
       constraints:
         k: 10
         atoms: protein and name CA
   - md:
       ensemble: NVT
       nsteps: 1000
+      temperature: 410
       constraints:
         k: 1
         atoms: protein and name CA
   - md:
       ensemble: NPT
       nsteps: 6400
+      temperature: 410
   - md:
       ensemble: NPAT
-      nsteps: 25600  # this is (probably) way too short!!
+      nsteps: 51200  # this is (probably) way too short!!
+      temperature: 310
       other_parameters:
         pressureProfile: on
         pressureProfileFreq: 100
@@ -161,5 +165,5 @@ tasks:
           nsteps: 10000000
           other_parameters:
             pressureProfile: on
-            pressureProfileFreq: 10000
+            pressureProfileFreq: 10000 # must equal xstfreq!
             pressureProfileSlabs: 20
