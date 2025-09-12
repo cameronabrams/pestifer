@@ -204,6 +204,8 @@ class MDPlotTask(BaseTask):
                 color = self.colormap(idx / max(1, len(tracelist)-1))
                 if self.colormap_direction == -1 and len(tracelist) > 1:
                     color = self.colormap(1.0 - idx / max(1, len(tracelist)-1))
+                    if key.endswith('_time'):
+                        key = key.replace('_time', ' time')
                 ax.plot(df[time_step_column], df[key] * units, label=key.title() if '_' not in key else r'$'+key+r'$', color=color)
             ax.set_xlabel('time step')
             axis_labels = self.specs.get('axis-labels', {})

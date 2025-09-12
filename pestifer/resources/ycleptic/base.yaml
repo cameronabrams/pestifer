@@ -735,6 +735,8 @@ attributes:
               c_z: Å
               pressure: bar
               temperature: K
+              cpu_time: s
+              wall_time: s
           - name: colormap
             type: str
             text: matplotlib colormap for multiple traces on a single plot
