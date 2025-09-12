@@ -18,7 +18,7 @@ import glob
 class TestCIF(unittest.TestCase):
 
     def setUp(self):
-        input_dir = Path('../fixtures/cif_inputs')
+        input_dir = Path(__file__).parents[2] / "inputs"
         zmj = input_dir / '4zmj.cif'
         fae = input_dir / '8fae.cif'
         # copy to cwd
@@ -152,7 +152,7 @@ class TestCIF(unittest.TestCase):
                 for i,j in zip(rvmd,rcif):
                     self.assertEqual(i,str(ResID.split_ri(j)[0]))  # CIF files do not have insertion codes on their native residue sequence numbers
         Path('testcif.tcl').unlink()
-        
+
     def test_biomolassemb_cif(self):
         source='8fae'
         p_struct=CIFload(source)

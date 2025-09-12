@@ -60,5 +60,8 @@ post-install = [
 
 [tool.hatch.build]
 exclude = [
-  "pestifer/resources/_archive/**"
+  "pestifer/resources/_archive/**",
+  "tests/__*/",        # immediate subdirs like tests/__pycache__/
+  "tests/**/__*/",     # any nested __* directories under tests/
+  "tests/logs/",
 ]

@@ -47,18 +47,21 @@ class TestResiduePlaceholder(unittest.TestCase):
 
 class TestResiduePlaceholderList(unittest.TestCase):
 
+    inputs_dir = Path(__file__).parents[2] / "inputs"
+
+
     def test_empty_residue_list(self):
         rl = ResidueList()
         self.assertIsInstance(rl, ResidueList)
         self.assertEqual(len(rl), 0)
 
     def test_empty_residue_list_from_pdb(self):
-        p = PDBParser(filepath='fixtures/data/4zmj.pdb').parse().parsed
+        p = PDBParser(filepath=self.inputs_dir / '4zmj.pdb').parse().parsed
         empty_residue_list = ResiduePlaceholderList.from_pdb(p)
         self.assertGreater(len(empty_residue_list), 0)
 
     def test_empty_residue_list_from_cif(self):
-        p = CIFload(Path('fixtures/data/4zmj.cif'))
+        p = CIFload(Path(self.inputs_dir / '4zmj.cif'))
         empty_residue_list = ResiduePlaceholderList.from_cif(p)
         self.assertGreater(len(empty_residue_list), 0)
 

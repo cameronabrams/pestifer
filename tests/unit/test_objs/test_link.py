@@ -65,15 +65,19 @@ class TestLink(unittest.TestCase):
 
 class TestLinkList(unittest.TestCase):
 
+    def setUp(self):
+        # set the inputs path to PACKAGE/tests/inputs
+        self.inputs_path = Path(__file__).parent.parent.parent / 'inputs'
+
     def test_link_list_from_pdb(self):
-        p = PDBParser(filepath='data/4zmj.pdb').parse().parsed
+        p = PDBParser(filepath=self.inputs_path / "4zmj.pdb").parse().parsed
         self.assertIsInstance(p, PDBRecordDict)
         L = LinkList.from_pdb(p)
         self.assertIsInstance(L, LinkList)
         self.assertGreater(len(L), 0)
 
     def test_link_list_from_cif(self):
-        cif_data = CIFload(Path('data/4zmj.cif'))
+        cif_data = CIFload(self.inputs_path / '4zmj.cif')
         self.assertIsInstance(cif_data, DataContainer)
         L = LinkList.from_cif(cif_data)
         self.assertIsInstance(L, LinkList)

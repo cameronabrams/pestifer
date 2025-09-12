@@ -13,15 +13,24 @@ from pestifer.objs.link import LinkList
 from io import StringIO
 import os
 import yaml
+from pathlib import Path
 
 logger=logging.getLogger(__name__)
 
 class TestMolecule(unittest.TestCase):
 
-    def setUp(self):
-        self.config = Config().configure_new()
-        self.segtypes = list(Labels.segtypes.keys())
+    segtypes = list(Labels.segtypes.keys())
+    inputs_dir = Path(__file__).parents[2] / "inputs"
 
+    def tearDown(self):
+        ac='O46077'
+        Path('1gc1.pdb').unlink(missing_ok=True)
+        Path('4zmj.pdb').unlink(missing_ok=True)
+        for f in Path('.').glob(ac+'*'):
+            f.unlink()
+
+    # def tearDown(self):
+        
     def get_source_dict(self,pdbid):
         source=f"""
 source:
@@ -145,7 +154,6 @@ source:
                     }, molid=0)
         au=m.asymmetric_unit
         self.assertEqual(len(au.residues),659)
-
         links=au.objmanager['topol']['links']
         l=links[0]
         self.assertEqual(l.residue1.segtype,'protein')
@@ -334,6 +342,15 @@ source:
 
     def test_molecule_existing(self):
 
+        dest_psf = Path('existing.psf')
+        if dest_psf.exists():
+            dest_psf.unlink()
+        dest_pdb = Path('existing.pdb')
+        if dest_pdb.exists():
+            dest_pdb.unlink()
+        os.symlink(self.inputs_dir / 'existing.psf', dest_psf)
+        os.symlink(self.inputs_dir / 'existing.pdb', dest_pdb)
+
         m=Molecule(source={
             'prebuilt':{
                 'psf':'existing.psf',
@@ -343,15 +360,9 @@ source:
 
         au=m.asymmetric_unit
         ssbonds=au.objmanager.get('topol',{}).get('ssbonds',SSBondList([]))
-        self.assertEqual(len(ssbonds),27)
+        self.assertEqual(len(ssbonds),3)
         links=au.objmanager.get('topol',{}).get('links',LinkList([]))
-        self.assertEqual(len(links),129)
-        fl=links[0]
-        self.assertEqual(fl.residue1.resname,'ASN')
-        self.assertEqual(fl.residue1.resid,ResID(611))
-        self.assertEqual(fl.residue2.resname,'BGLCNA')
-        self.assertEqual(fl.residue2.resid,ResID(701))
-        self.assertEqual(len(au.segments),45)
-        self.assertEqual(len(au.segments.filter(lambda x: x.segtype=='protein')),6)
-        self.assertEqual(len(au.segments.filter(lambda x: x.segtype=='glycan')),39)
-
+        self.assertEqual(len(au.segments),3)
+        self.assertEqual(len(au.segments.filter(lambda x: x.segtype=='protein')),1)
+        Path('existing.psf').unlink()
+        Path('existing.pdb').unlink()

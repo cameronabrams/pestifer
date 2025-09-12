@@ -10,6 +10,8 @@ from pestifer.objs.resid import ResID
 
 class TestAtom(unittest.TestCase):
 
+    inputs_dir = Path(__file__).parents[2] / "inputs"
+
     def test_atom_create(self):
         atom = Atom(
             serial=1,
@@ -84,7 +86,7 @@ class TestAtom(unittest.TestCase):
         self.assertEqual(atom2.charge, atom1.charge)
 
     def test_atom_from_pdbrecord(self):
-        p=PDBParser(filepath='fixtures/data/4zmj.pdb').parse()
+        p=PDBParser(filepath=self.inputs_dir / '4zmj.pdb').parse()
         atom_record = p.parsed[Atom._PDB_keyword][0]
         atom = Atom(atom_record)
         self.assertEqual(atom.serial, atom_record.serial)
@@ -102,7 +104,7 @@ class TestAtom(unittest.TestCase):
         self.assertEqual(atom.charge, atom_record.charge)
 
     def test_atom_from_cifdict(self):
-        p=CIFload(Path('fixtures/data/4zmj.cif'))
+        p=CIFload(Path(self.inputs_dir / '4zmj.cif'))
         obj=p.getObj(Atom._CIF_CategoryName)
         d=CIFdict(obj, 0)
         atom = Atom(d)
@@ -209,6 +211,12 @@ class TestAtom(unittest.TestCase):
 
 class TestAtomList(unittest.TestCase):
 
+    inputs_dir = Path(__file__).parents[2] / "inputs"
+
+    def tearDown(self):
+        for f in Path('.').glob("*.log"):
+            f.unlink()
+
     def test_atom_list_create(self):
         atom1 = Atom(
             serial=1,
@@ -287,7 +295,7 @@ class TestAtomList(unittest.TestCase):
         self.assertFalse(atom_list[0].ORIGINAL_ATTRIBUTES is atom_list[1].ORIGINAL_ATTRIBUTES)
 
     def test_atom_list_from_pdb(self):
-        p = PDBParser(filepath='fixtures/data/4zmj.pdb').parse().parsed
+        p = PDBParser(filepath=self.inputs_dir / '4zmj.pdb').parse().parsed
         self.assertIsInstance(p, PDBRecordDict)
         atom_list = AtomList.from_pdb(p)
         self.assertEqual(len(atom_list), 4856)
@@ -302,7 +310,7 @@ class TestAtomList(unittest.TestCase):
         self.assertEqual(atom_list[0].z, 57.967)
 
     def test_atom_list_from_cif(self):
-        p = CIFload(Path('fixtures/data/4zmj.cif'))
+        p = CIFload(Path(self.inputs_dir / '4zmj.cif'))
         atom_list = AtomList.from_cif(p)
         self.assertEqual(len(atom_list), 4856)
         self.assertIsInstance(atom_list[0], Atom)

@@ -1,5 +1,6 @@
 import unittest
 from pestifer.core.objmanager import ObjManager
+from pestifer.molecule.molecule import Molecule
 from pestifer.molecule.segment import Segment, SegmentList
 from pestifer.molecule.chainidmanager import ChainIDManager
 from pestifer.molecule.asymmetricunit import AsymmetricUnit
@@ -13,7 +14,10 @@ import logging
 logger = logging.getLogger(__name__)
 
 class TestAsymmetricUnit(unittest.TestCase):
-    
+
+    def setUp(self):
+        self.inputs_path = Path(__file__).parents[2] / "inputs"        
+
     def test_asymmetric_unit_initialization_empty(self):
         AU = AsymmetricUnit()
         self.assertIsInstance(AU, AsymmetricUnit)
@@ -22,10 +26,11 @@ class TestAsymmetricUnit(unittest.TestCase):
         self.assertIsInstance(segmentlist, SegmentList)
         self.assertEqual(len(segmentlist), 0)
 
+
     def test_asymmetric_unit_initialization_from_pdb_downloads(self):
         downloads = {
-            'PDB': 'fixtures/data/6pti.pdb', 
-            'mmCIF': 'fixtures/data/6pti.cif'
+            'PDB': self.inputs_path / '6pti.pdb', 
+            'mmCIF': self.inputs_path / '6pti.cif'
         }
         for fmt, filepath in downloads.items():
             logger.debug(f'Testing asymmetric unit initialization from {fmt} file: {filepath}')

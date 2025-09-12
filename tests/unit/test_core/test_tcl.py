@@ -9,12 +9,13 @@ class TestTCL(unittest.TestCase):
     def setUp(self):
         self.config = Config().configure_new()
         self.vmd = self.config.scripters['vmd']
-        input_dir = Path('../fixtures/tcl_inputs')
-        pti = input_dir / '6pti.pdb'
+        inputs_dir = Path(__file__).parent.parent.parent / 'inputs'
+        pti = inputs_dir / '6pti.pdb'
         dest_pti = Path('6pti.pdb')
         if dest_pti.exists():
             dest_pti.unlink()
         os.symlink(pti.resolve(), dest_pti)
+        input_dir = Path('../fixtures/tcl_inputs')
         bad = input_dir / 'bad.pdb'
         dest_bad = Path('bad.pdb')
         if dest_bad.exists():
