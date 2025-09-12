@@ -61,6 +61,8 @@ class TestSSBond(unittest.TestCase):
 
 class TestSSBondList(unittest.TestCase):
 
+    inputs_dir = Path(__file__).parents[2] / "inputs"
+
     def test_ssbond_list_creation(self):
         ssbond_list = SSBondList()
         self.assertIsInstance(ssbond_list, SSBondList)
