@@ -15,7 +15,8 @@ class Test_MDPlot(unittest.TestCase):
         xsts.sort()
         args = Namespace(logs=logs, xsts=xsts,
                          basename='testmdplot', profiles=[], profiles_per_block=1,
-                         figsize=[9, 6], timeseries=['density', ['a_x', 'b_y', 'c_z']])
+                         figsize=[9, 6], timeseries=['density'], timecoseries=['a_x', 'b_y', 'c_z'],
+                         colormap='viridis', colormap_direction=-1)
         file_artifacts = MDPlotSubcommand.func(args)
         expected_artifact_count = 26
         self.assertEqual(len(file_artifacts), expected_artifact_count)

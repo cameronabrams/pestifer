@@ -10,6 +10,9 @@ class TestPsfgenScripter(unittest.TestCase):
         self.c = Config().configure_new()
         self.p: PsfgenScripter = self.c.get_scripter('psfgen')
 
+    def tearDown(self):
+        self.c.RM.charmmff_content.clean_local_charmmff_files()
+
     def test_header(self):
         self.assertIsInstance(self.p, PsfgenScripter)
         self.p.newscript()
@@ -28,5 +31,4 @@ class TestPsfgenScripter(unittest.TestCase):
         self.p.fetch_standard_charmm_topologies()
         self.assertTrue(os.path.isfile('top_all36_prot.rtf'))
         self.assertTrue(os.path.isfile('toppar_water_ions.str'))
-        self.c.RM.charmmff_content.clean_local_charmmff_files()
 

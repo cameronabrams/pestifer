@@ -37,9 +37,7 @@ class MDPlotSubcommand(Subcommand):
         if args.timeseries:
             timeseries += args.timeseries
         if args.timecoseries:
-            print(args.timecoseries)
             timeseries += [args.timecoseries]
-            print(timeseries)
         C = Controller().configure(
             config, userspecs={
                 'tasks': [{

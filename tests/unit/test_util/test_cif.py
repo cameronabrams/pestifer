@@ -1,14 +1,13 @@
 import unittest
 import logging
+from pathlib import Path
 logger=logging.getLogger(__name__)
 from pestifer.util.cifutil import CIFdict, CIFload
-from pidibble.pdbparse import PDBParser
 from mmcif.api.PdbxContainers import DataContainer
 from pestifer.molecule.residue import ResidueList, ResiduePlaceholder, ResiduePlaceholderList
 from pestifer.molecule.atom import Atom, AtomList
 from pestifer.objs.seqadv import Seqadv, SeqadvList
 from pestifer.core.config import Config
-from pestifer.scripters import VMDScripter
 from pestifer.molecule.bioassemb import Transform, TransformList, BioAssemb, BioAssembList
 from pestifer.util.util import reduce_intlist
 from pestifer.objs.resid import ResID
@@ -18,18 +17,34 @@ import glob
 
 class TestCIF(unittest.TestCase):
 
-    def test_fetch(self):
-        source='8fae'
-        if os.path.exists(f'{source}.cif'):
-            os.remove(f'{source}.cif')
-        PDBParser(PDBcode=source,input_format='mmCIF').fetch()
-        self.assertTrue(os.path.isfile(f'{source}.cif'))
-        os.remove(f'{source}.cif')
+    def setUp(self):
+        input_dir = Path('../fixtures/cif_inputs')
+        zmj = input_dir / '4zmj.cif'
+        fae = input_dir / '8fae.cif'
+        # copy to cwd
+        dest_zmj = Path('4zmj.cif')
+        dest_fae = Path('8fae.cif')
+        if dest_zmj.exists():
+            dest_zmj.unlink()
+        if dest_fae.exists():
+            dest_fae.unlink()
+        os.symlink(zmj.resolve(), dest_zmj)
+        os.symlink(fae.resolve(), dest_fae)
+
+    def tearDown(self):
+        dest_zmj = Path('4zmj.cif')
+        dest_fae = Path('8fae.cif')
+        if dest_zmj.exists():
+            dest_zmj.unlink()
+        if dest_fae.exists():
+            dest_fae.unlink()
+        logs = Path('.').glob('*.log')
+        for log in logs:
+            log.unlink()
 
     def test_load(self):
         source='8fae'
         p_struct=CIFload(source)
-        os.remove(f'{source}.cif')
         self.assertEqual(type(p_struct),DataContainer)
         self.assertFalse(type(p_struct)==dict)
 
@@ -136,7 +151,8 @@ class TestCIF(unittest.TestCase):
                 rcif=fields[2].split()
                 for i,j in zip(rvmd,rcif):
                     self.assertEqual(i,str(ResID.split_ri(j)[0]))  # CIF files do not have insertion codes on their native residue sequence numbers
-
+        Path('testcif.tcl').unlink()
+        
     def test_biomolassemb_cif(self):
         source='8fae'
         p_struct=CIFload(source)

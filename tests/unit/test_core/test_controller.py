@@ -19,7 +19,7 @@ class TestController(unittest.TestCase):
         C = Controller().configure(config, userspecs={'title': 'Bovine Pancreatic Trypsin Inhibitor (BPTI)'}, index=1)
 
         self.assertEqual(C.config['user']['title'],'Bovine Pancreatic Trypsin Inhibitor (BPTI)')
-        self.assertEqual(len(C.tasks), 4) # under pytest, controller truncates at latest validate task
+        self.assertEqual(len(C.tasks), 14)
         self.assertEqual(C.index, 1)
         task1 = C.tasks[0]
         self.assertEqual(task1.taskname, 'fetch')

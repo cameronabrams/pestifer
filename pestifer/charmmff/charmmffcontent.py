@@ -549,12 +549,10 @@ class CHARMMFFContent(CacheableObject):
 
     def clean_local_charmmff_files(self):
         """ 
-        Remove all local CHARMM force field files that start with ``par``, ``top_``, ``toppar``, ``charmm``, or end with ``.str``, ``.prm``, or ``.rtf``.
-        This function is useful for cleaning up the local directory where CHARMM files are stored.
-        It will remove files that match the specified patterns, ensuring that only relevant CHARMM files are kept.
+        Remove all local CHARMM force field files.
         """
         for f in os.listdir('.'):
-            # logger.debug(f'Checking file {f} for removal')
+            logger.debug(f'Checking file {f} for removal')
             if CHARMMFFContent.charmmff_filetype(f):
                 os.remove(f)
     

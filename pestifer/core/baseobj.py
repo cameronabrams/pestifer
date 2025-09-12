@@ -324,8 +324,8 @@ class BaseObj(BaseModel):
         """
         if not isinstance(other, self.__class__):
             return NotImplemented
-        self_dict = self.dict_for_comparison()
-        other_dict = other.dict_for_comparison()
+        self_dict = self._dict_for_comparison()
+        other_dict = other._dict_for_comparison()
         if not self_dict or not other_dict:
             return False
         for key in attr:

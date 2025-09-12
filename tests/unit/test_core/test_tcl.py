@@ -1,12 +1,50 @@
+import os
 import unittest
 from pidibble.pdbparse import PDBParser
 from pestifer.core.config import Config
+from pathlib import Path
 
 class TestTCL(unittest.TestCase):
 
     def setUp(self):
         self.config = Config().configure_new()
         self.vmd = self.config.scripters['vmd']
+        input_dir = Path('../fixtures/tcl_inputs')
+        pti = input_dir / '6pti.pdb'
+        dest_pti = Path('6pti.pdb')
+        if dest_pti.exists():
+            dest_pti.unlink()
+        os.symlink(pti.resolve(), dest_pti)
+        bad = input_dir / 'bad.pdb'
+        dest_bad = Path('bad.pdb')
+        if dest_bad.exists():
+            dest_bad.unlink()
+        os.symlink(bad.resolve(), dest_bad)
+        good = input_dir / 'good.pdb'
+        dest_good = Path('good.pdb')
+        if dest_good.exists():
+            dest_good.unlink()
+        os.symlink(good.resolve(), dest_good)
+
+    def tearDown(self):
+        dest_pti = Path('6pti.pdb')
+        if dest_pti.exists():
+            dest_pti.unlink()
+        dest_bad = Path('bad.pdb')
+        if dest_bad.exists():
+            dest_bad.unlink()
+        dest_good = Path('good.pdb')
+        if dest_good.exists():
+            dest_good.unlink()
+        scripts = Path('.').glob('*.tcl')
+        for script in scripts:
+            script.unlink()
+        logs = Path('.').glob('*.log')
+        for log in logs:
+            log.unlink()
+        cycled_logs = Path('.').glob('%*%')
+        for log in cycled_logs:
+            log.unlink()
 
     def test_backup(self):
         # test backup and restor procs in saverestore.tcl
