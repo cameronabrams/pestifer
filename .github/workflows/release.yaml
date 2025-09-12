@@ -67,44 +67,44 @@ jobs:
       - name: Install pandoc
         run: sudo apt-get update && sudo apt-get install -y pandoc
 
-      - name: Wait for Zenodo to update
-        run: |
-            echo "Waiting 45 seconds to give Zenodo time to register the new release..."
-            sleep 45
+      # - name: Wait for Zenodo to update
+      #   run: |
+      #       echo "Waiting 45 seconds to give Zenodo time to register the new release..."
+      #       sleep 45
     
-      - name: Update DOI badge from Zenodo
-        run: |
-          set -e
-          CONCEPT_DOI="${{ secrets.ZENODO_CONCEPT_DOI }}"
+      # - name: Update DOI badge from Zenodo
+      #   run: |
+      #     set -e
+      #     CONCEPT_DOI="${{ secrets.ZENODO_CONCEPT_DOI }}"
 
-          echo "Fetching latest record DOI from Zenodo..."
-          LATEST_RECORD_DOI=$(curl -sG 'https://zenodo.org/api/records' \
-            --data-urlencode "q=conceptdoi:\"$CONCEPT_DOI\"" \
-            --data 'size=1' \
-          | jq -r '.hits.hits[0] | (.doi // .pids.doi.identifier // .metadata.doi)')
-                    if [[ -z "$LATEST_RECORD_DOI" ]]; then
-            echo "ERROR: Could not retrieve latest record DOI."
-            exit 1
-          fi
+      #     echo "Fetching latest record DOI from Zenodo..."
+      #     LATEST_RECORD_DOI=$(curl -sG 'https://zenodo.org/api/records' \
+      #       --data-urlencode "q=conceptdoi:\"$CONCEPT_DOI\"" \
+      #       --data 'size=1' \
+      #     | jq -r '.hits.hits[0] | (.doi // .pids.doi.identifier // .metadata.doi)')
+      #               if [[ -z "$LATEST_RECORD_DOI" ]]; then
+      #       echo "ERROR: Could not retrieve latest record DOI."
+      #       exit 1
+      #     fi
 
-          echo "Latest DOI: $LATEST_RECORD_DOI"
-          BADGE_MD="[![DOI](https://zenodo.org/badge/DOI/${LATEST_RECORD_DOI}.svg)](https://doi.org/${LATEST_RECORD_DOI})"
+      #     echo "Latest DOI: $LATEST_RECORD_DOI"
+      #     BADGE_MD="[![DOI](https://zenodo.org/badge/DOI/${LATEST_RECORD_DOI}.svg)](https://doi.org/${LATEST_RECORD_DOI})"
 
-          # Replace DOI badge in README.md
-          sed -i -E "s|\[!\[DOI\]\(https://zenodo.org/badge/DOI/.*\.svg\)\]\(https://doi.org/.*\)|$BADGE_MD|" README.md
+      #     # Replace DOI badge in README.md
+      #     sed -i -E "s|\[!\[DOI\]\(https://zenodo.org/badge/DOI/.*\.svg\)\]\(https://doi.org/.*\)|$BADGE_MD|" README.md
 
-          # Commit and push if there are changes
-          if git diff --quiet; then
-            echo "No changes to commit."
-          else
-            git config user.name "github-actions"
-            git config user.email "github-actions@github.com"
-            git add README.md docs/source/index.rst
-            git commit -m "Update DOI badge to $LATEST_RECORD_DOI"
-            git push origin HEAD:${GITHUB_REF_NAME}
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      #     # Commit and push if there are changes
+      #     if git diff --quiet; then
+      #       echo "No changes to commit."
+      #     else
+      #       git config user.name "github-actions"
+      #       git config user.email "github-actions@github.com"
+      #       git add README.md docs/source/index.rst
+      #       git commit -m "Update DOI badge to $LATEST_RECORD_DOI"
+      #       git push origin HEAD:${GITHUB_REF_NAME}
+      #     fi
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Install pandoc
         run: sudo apt-get update && sudo apt-get install -y pandoc
