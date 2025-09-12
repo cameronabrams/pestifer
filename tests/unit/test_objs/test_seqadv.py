@@ -16,6 +16,8 @@ from pestifer.util.cifutil import CIFdict, CIFload
 
 class TestSeqadv(unittest.TestCase):
 
+    inputs_dir = Path(__file__).parents[2] / "inputs"
+
     def test_seqadv_creation(self):
         seqadv = Seqadv(
             idCode="1ABC",
@@ -29,13 +31,13 @@ class TestSeqadv(unittest.TestCase):
         self.assertEqual(repr(seqadv), "Seqadv(idCode='1ABC', resname='ALA', chainID='A', resid=ResID(resseqnum=1), dbRes='GLY', typekey='engineered mutation')")
 
     def test_seqadv_from_pdbrecord(self):
-        p=PDBParser(filepath='data/4zmj.pdb').parse()
+        p=PDBParser(filepath=self.inputs_dir / '4zmj.pdb').parse()
         pr=p.parsed[Seqadv._PDB_keyword][0]
         seqadv = Seqadv(pr)
         self.assertIsInstance(seqadv, Seqadv)
 
     def test_seqadv_from_cifdict(self):
-        p=CIFload(Path('data/4zmj.cif'))
+        p=CIFload(self.inputs_dir / '4zmj.cif')
         obj=p.getObj(Seqadv._CIF_CategoryName)
         d=CIFdict(obj, 0)
         seqadv = Seqadv(d)
@@ -43,20 +45,26 @@ class TestSeqadv(unittest.TestCase):
 
 class TestSeqadvList(unittest.TestCase):
 
+    inputs_dir = Path(__file__).parents[2] / "inputs"
+
+    def tearDown(self):
+        for f in Path('.').glob('*.log'):
+            f.unlink()
+
     def test_seqadv_list_creation(self):
         seqadv_list = SeqadvList()
         self.assertIsInstance(seqadv_list, SeqadvList)
         self.assertEqual(len(seqadv_list), 0)
 
     def test_seqadv_list_from_pdb(self):
-        p = PDBParser(filepath='data/4zmj.pdb').parse().parsed
+        p = PDBParser(filepath=self.inputs_dir / '4zmj.pdb').parse().parsed
         self.assertIsInstance(p, PDBRecordDict)
         seqadv_list = SeqadvList.from_pdb(p)
         self.assertIsInstance(seqadv_list, SeqadvList)
         self.assertGreater(len(seqadv_list), 0)
 
     def test_seqadv_list_from_cif(self):
-        cif_data = CIFload(Path('data/4zmj.cif'))
+        cif_data = CIFload(self.inputs_dir / '4zmj.cif')
         self.assertIsInstance(cif_data, DataContainer)
         seqadv_list = SeqadvList.from_cif(cif_data)
         self.assertIsInstance(seqadv_list, SeqadvList)

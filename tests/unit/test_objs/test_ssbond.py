@@ -7,7 +7,6 @@ from pathlib import Path
 
 from mmcif.api.PdbxContainers import DataContainer
 
-from pestifer.objs.mutation import Mutation, MutationList
 from pestifer.objs.resid import ResID
 from pestifer.objs.ssbond import SSBond, SSBondList
 
@@ -19,6 +18,8 @@ from pestifer.psfutil.psfpatch import PSFDISUPatch
 from pestifer.util.cifutil import CIFload
 
 class TestSSBond(unittest.TestCase):
+
+    inputs_dir = Path(__file__).parents[2] / "inputs"
 
     def test_ssbond_creation(self):
         ssbond = SSBond(
@@ -44,7 +45,7 @@ class TestSSBond(unittest.TestCase):
         self.assertEqual(ssbond.resid2, ResID(20))
 
     def test_ssbond_from_pdbrecord(self):
-        p = PDBParser(filepath='data/4zmj.pdb').parse()
+        p = PDBParser(filepath=self.inputs_dir / '4zmj.pdb').parse()
         pr = p.parsed[SSBond._PDB_keyword][0]
         ssbond = SSBond(pr)
         self.assertIsInstance(ssbond, SSBond)
@@ -66,14 +67,14 @@ class TestSSBondList(unittest.TestCase):
         self.assertEqual(len(ssbond_list), 0)
 
     def test_ssbond_list_from_pdbrecords(self):
-        p = PDBParser(filepath='data/4zmj.pdb').parse().parsed
+        p = PDBParser(filepath=self.inputs_dir / '4zmj.pdb').parse().parsed
         self.assertIsInstance(p, PDBRecordDict)
         ssbond_list = SSBondList.from_pdb(p)
         self.assertIsInstance(ssbond_list, SSBondList)
         self.assertGreater(len(ssbond_list), 0)
 
     def test_ssbond_list_from_cif(self):
-        cif_data = CIFload(Path('data/4zmj.cif'))
+        cif_data = CIFload(Path(self.inputs_dir / '4zmj.cif'))
         self.assertIsInstance(cif_data, DataContainer)
         ssbond_list = SSBondList.from_cif(cif_data)
         self.assertIsInstance(ssbond_list, SSBondList)

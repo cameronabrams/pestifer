@@ -5,6 +5,8 @@ from pestifer.molecule.residue import Residue
 from pestifer.objs.seqadv import Seqadv
 from pestifer.objs.resid import ResID
 
+from pathlib import Path
+
 class TestMutation(unittest.TestCase):
     def test_mutation_creation(self):
         mutation = Mutation(
@@ -61,7 +63,8 @@ class TestMutation(unittest.TestCase):
         self.assertEqual(mutation4.pdbx_auth_seq_num, None)
 
     def test_mutation_from_seqadv(self):
-        p=PDBParser(filepath='data/4zmj.pdb').parse()
+        inputs_dir = Path(__file__).parents[2] / "inputs"
+        p=PDBParser(filepath=inputs_dir / '4zmj.pdb').parse()
         pr=p.parsed[Seqadv._PDB_keyword][0]
         seqadv = Seqadv(pr)
         self.assertIsInstance(seqadv, Seqadv)

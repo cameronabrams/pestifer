@@ -2,8 +2,12 @@ import unittest
 from pestifer.objs.ter import Ter, TerList
 from pidibble.pdbparse import PDBParser
 from pestifer.objs.resid import ResID
+from pathlib import Path
 
 class TestTer(unittest.TestCase):
+
+    inputs_dir = Path(__file__).parents[2] / "inputs"
+
     def test_ter_creation(self):
         ter = Ter(
             serial=-1,
@@ -21,7 +25,7 @@ class TestTer(unittest.TestCase):
         self.assertEqual(repr(ter), "Ter(serial=-1, resname='ABC', chainID='A', resid=ResID(resseqnum=1))")
 
     def test_ter_from_pdbrecord(self):
-        p = PDBParser(filepath='data/4zmj.pdb').parse()
+        p = PDBParser(filepath=self.inputs_dir / '4zmj.pdb').parse()
         pr = p.parsed[Ter._PDB_keyword][0]
         ter = Ter(pr)
         self.assertIsInstance(ter, Ter)
