@@ -1,8 +1,8 @@
 pestifer
 ========
 
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.16051499.svg
-  :target: https://doi.org/10.5281/zenodo.16051499
+.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.16051498.svg
+  :target: https://doi.org/10.5281/zenodo.16051498
 
 .. image:: https://static.pepy.tech/badge/pestifer
    :target: https://pepy.tech/projects/pestifer
