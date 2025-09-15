@@ -28,7 +28,7 @@ dependencies = [
   "networkx",
   "numpy>=1.24",
   "pandas",
-  "pidibble>=1.5.0",
+  "pidibble>=1.5.1",
   "platformdirs",
   "progressbar2",
   "pydantic",

@@ -6,10 +6,11 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 ### Added
 ### Changed
 
-## [2.0.2] - 2025-09-15
+## [2.0.3] - 2025-09-15
 
 - `mdplot` now correctly treats `cpu_time` and `wall_time` as running sums over chained MD runs
 - bugfixes in `new-system` subcommand and `terminate` task
+- updated `pidibble` dependency to allow for downloading structures from OPM
 
 ## [2.0.1] - 2025-09-04
 - on-the-fly patching `toppar_all36_prot_modify_res.str` so that `PRES ZNHD` and `PRES ZNHE` are correct
