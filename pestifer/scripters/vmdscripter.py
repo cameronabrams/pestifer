@@ -115,16 +115,13 @@ class VMDScripter(TcLScripter):
         """
         self.molid_varname = f'm{mol.molid}'
         ext = '.pdb' if mol.rcsb_file_format == 'PDB' else '.cif'
-        if mol.sourcespecs.get('id', {}):
-            self.addline(f'mol new {mol.sourcespecs["id"]}{ext} waitfor all')
+        if mol.sourcespecs.get('source_id', {}):
+            self.addline(f'mol new {mol.sourcespecs["source_id"]}{ext} waitfor all')
         elif mol.sourcespecs.get('prebuilt', {}):
             pdb = mol.sourcespecs['prebuilt']['pdb']
             self.addline(f'mol new {pdb} waitfor all autobonds off')
-        elif mol.sourcespecs.get('alphafold', {}):
-            pdb = f'{mol.sourcespecs["alphafold"]}.pdb'
-            self.addline(f'mol new {pdb} waitfor all')
         else:
-            raise ValueError(f'Molecule specs has none of "id", "prebuilt", or "alphafold"')
+            raise ValueError(f'Molecule specs has neither "source_id" nor "prebuilt" specified')
         self.addline(f'set {self.molid_varname} [molinfo top get id]')
         self.addline(f'set nf [molinfo ${self.molid_varname} get numframes]')
         self.addline(r'if { $nf > 1 } { animate delete beg 0 end [expr $nf - 2] $'+self.molid_varname+r' }')

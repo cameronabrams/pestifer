@@ -36,7 +36,7 @@ class TerminateTask(MDTask):
         self.next_basename()
         if 'chainmapfile' in self.specs:
             self.write_chainmaps()
-        self.result = self.make_package() | self.cleanup()
+        self.result = self.make_package() + self.cleanup()
         return self.result
 
     def write_chainmaps(self):
@@ -58,7 +58,7 @@ class TerminateTask(MDTask):
         """
         package_specs = self.specs.get('package', {})
         if not package_specs:
-            return
+            return 0
         md_specs = package_specs.get('md', {})
         state_dir = package_specs.get('state_dir', '.')
         if not package_specs:

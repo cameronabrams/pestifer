@@ -5,6 +5,7 @@ A class for handling molecules
 import logging
 import os
 
+from pathlib import Path
 from pidibble.pdbparse import PDBParser
 
 from .asymmetricunit import AsymmetricUnit
@@ -95,27 +96,32 @@ class Molecule:
             p_struct = None
         else:
             # logger.debug('Molecule initialization')
-            if source.get('id', {}) or source.get('prebuilt', {}) or source.get('alphafold', {}):
-                if source.get('id', {}):
-                    logger.debug(f'Molecule initialization from file {source["id"]}.{source["file_format"].lower()}')
+            if 'source_id' in source and 'source_db' in source:
+                ext = '.pdb' if file_format in ['PDB', 'pdb'] else '.cif'
+                source_name = source['source_id'] + ext
+                source_path = Path(source_name)
+                if source_path.exists():
                     if file_format in ['PDB', 'pdb']:
-                        p_struct = PDBParser(PDBcode=source['id']).parse().parsed
+                        p_struct = PDBParser(filepath=source_path).parse().parsed
                     elif file_format in ['mmCIF', 'cif']:
                         logger.debug(f'CIF source {source["id"]}')
-                        p_struct = CIFload(source['id'])
-                elif source.get('prebuilt', {}):
-                    logger.debug(f'Prebuilt record:')
-                    my_logger(source["prebuilt"], logger.debug)
-                    psf = source['prebuilt']['psf']
-                    pdb = source['prebuilt']['pdb']
-                    xsc = source['prebuilt'].get('xsc', '')
-                    logger.debug(f'Using prebuilt psf {psf} and pdb {pdb}')
-                    p_struct = PDBParser(filepath=pdb).parse().parsed
-                elif source.get('alphafold', {}):
-                    ac = source['alphafold']
-                    p_struct = PDBParser(alphafold=ac).parse().parsed
+                        p_struct = CIFload(source_path)
+                else:
+                    if file_format in ['PDB', 'pdb']:
+                        p_struct = PDBParser(source_id=source['source_id'], source_db=source['source_db']).parse().parsed
+                    elif file_format in ['mmCIF', 'cif']:
+                        logger.debug(f'CIF source {source["id"]}')
+                        p_struct = CIFload(source['source_id'], source_db=source['source_db'])
+            elif 'prebuilt' in source:
+                logger.debug(f'Prebuilt record:')
+                my_logger(source["prebuilt"], logger.debug)
+                psf = source['prebuilt']['psf']
+                pdb = source['prebuilt']['pdb']
+                xsc = source['prebuilt'].get('xsc', '')
+                logger.debug(f'Using prebuilt psf {psf} and pdb {pdb}')
+                p_struct = PDBParser(filepath=pdb).parse().parsed
             else:
-                logger.debug(f'None of "id", "prebuilt", or "alphafold" specified; initializing an empty molecule')
+                logger.debug(f'Neither "source_id/source_db" or "prebuilt" specified; initializing an empty molecule')
                 p_struct = None
         if objmanager is None:
             logger.debug(f'Making an empty ObjManager')

@@ -122,13 +122,13 @@ class ExampleManager:
         logger.info(f'Checked out example {example_id} from {self.path.name} to current working directory {os.getcwd()}')
         return example
 
-    def new_example_yaml(self, db_id='ABCD', build_type='minimal'):
+    def new_example_yaml(self, db_id: str = 'ABCD', build_type: str = 'minimal'):
         """
         Generate a new example YAML file based on an existing example template.  The id can be a 4-letter PDB ID or an Alphafold/UNIPROT ID starting with "P".  The build_type can be either 'minimal' or 'full', which determines whether the generated YAML file contains only the psfgen task or all tasks including termination.
 
         Parameters
         ----------
-        id : str, optional
+        db_id : str, optional
             The ID for the new example YAML file. It can be a 4-letter PDB ID or an Alphafold/UNIPROT ID starting with "P". Default is 'ABCD'.
         build_type : str, optional
             The type of build for the new example YAML file. It can be either 'minimal' or 'full'. Default is 'minimal'.
@@ -140,8 +140,7 @@ class ExampleManager:
             idtype = 'Alphafold'
         else:
             raise ValueError(f'Invalid id {db_id} for new example YAML; must be a 4-letter PDB ID or an Alphafold/UNIPROT ID starting with "P"')
-        example_yaml = self.examples[0].shortname + '.yaml'
-        example_yaml_path = os.path.join(self.path, self.examples[0].shortname, example_yaml)
+        example_yaml_path = self.scriptpath(self.examples[0])
         with open(example_yaml_path, 'r') as f:
             try:
                 example_config = yaml.safe_load(f)
@@ -150,13 +149,13 @@ class ExampleManager:
         if build_type == 'minimal':
             fetch_task = example_config['tasks'][0]
             example_config['tasks'] = [fetch_task, example_config['tasks'][1]]  # keep only the fetch task
-        example_config['title'] = f'New template pestifer config for id {id} ({idtype})'
+        example_config['title'] = f'New template pestifer config for id {db_id} ({idtype})'
         if idtype == 'PDB' or idtype == 'Alphafold':
             example_config['tasks'][0]['fetch']['sourceID'] = db_id
         if build_type == 'full':
             example_config['tasks'][-1]['terminate']['basename'] = f'my_{db_id.lower()}'
             example_config['tasks'][-1]['terminate']['package']['basename'] = f'my_{db_id.lower()}'
-        output_yaml = os.path.join(os.getcwd(), f'{db_id.lower()}.yaml')
+        output_yaml = f'{db_id.lower()}.yaml'
         with open(output_yaml, 'w') as f:
             yaml.dump(example_config, f, default_flow_style=False)
         logger.info(f'Generated new example YAML file {output_yaml} for id {db_id} ({idtype})')

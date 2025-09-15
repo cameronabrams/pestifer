@@ -201,6 +201,8 @@ class MDTask(VMDTask):
         local_execution_only = not self.get_current_artifact_data('periodic')
         single_gpu_only = kwargs.get('single_gpu_only', False) or constraints
         result = na.runscript(single_molecule=local_execution_only, local_execution_only=local_execution_only, single_gpu_only=single_gpu_only, cpu_override=cpu_override)
+        if result != 0:
+            raise RuntimeError(f'md task {self.taskname} failed.')
         coor = NAMDCoorFileArtifact(self.basename)
         vel = NAMDVelFileArtifact(self.basename)
         dcd = NAMDDcdFileArtifact(self.basename)

@@ -28,7 +28,7 @@ class CIFdict(UserDict):
                 data[k]=''
         super().__init__(data)
 
-def CIFload(input_obj) -> DataContainer:
+def CIFload(input_obj, **kwargs) -> DataContainer:
     """
     Downloads (if necessary) and reads in a mmCIF file into an mmcif DataContainer object
     """
@@ -36,12 +36,11 @@ def CIFload(input_obj) -> DataContainer:
     if type(input_obj) is str and '.pdb' not in input_obj:
         filepath=f'{input_obj}.cif'
         # fetch the cif file if not already present
-        PDBParser(PDBcode=input_obj,input_format='mmCIF').fetch()
+        PDBParser(source_id=input_obj, source_db='rcsb' if 'source_db' not in kwargs else kwargs['source_db'], input_format='mmCIF').fetch()
     elif type(input_obj) is Path:
         PDBParser(filepath=input_obj, input_format='mmCIF').fetch()
-        filepath=input_obj
-    # strip out the pdbx_audit_revision_item that confuses
-    # vmd
+        filepath=input_obj.name
+    # strip out the pdbx_audit_revision_item that confuses vmd
     for sb in _stripped_blocks:
         logger.debug(f'Stripping the offensive \'{sb}\' block from {filepath} and resaving')
         dataList=IoAdapterCore().readFile(filepath)

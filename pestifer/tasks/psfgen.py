@@ -466,11 +466,14 @@ class PsfgenTask(VMDTask):
     def ingest_molecules(self):
         """
         Ingests the base molecule from the specifications provided in the task.
-        This method initializes the base molecule based on the source specifications,
-        which can be a PDB file, a prebuilt PSF/PDB pair, or an AlphaFold model.
+        This molecule is initialized from either base coordinates fetched in a prior fetch task,
+        or a state defined by a previous continuation task.
         It also handles any graft sources specified in the sequence modifications and
         activates the biological assembly of the base molecule.
         """
+        specs = self.specs
+        self.source_specs = specs['source']
+        assert not 'id' in self.source_specs, f'Version 2.0+ of Pestifer does not support "id" in source specs.  Please begin your task list with either a `fetch` or `continuation` task.'
         this_source = {}
         base_coordinates: Path = self.get_current_artifact_path('base_coordinates')
         if not base_coordinates:
@@ -484,16 +487,14 @@ class PsfgenTask(VMDTask):
             }
         else:
             basename, ext = os.path.splitext(base_coordinates)
-            this_source['id'] = basename
+            this_source['source_id'] = basename
+            this_source['source_db'] = 'local'
             if ext.lower() == '.pdb':
                 this_source['file_format'] = 'PDB'
             elif ext.lower() == '.cif':
                 this_source['file_format'] = 'mmCIF'
             else:
                 raise RuntimeError(f'Unknown file format {ext} for base_coordinates artifact {base_coordinates.name}')
-        specs = self.specs
-        self.source_specs = specs['source']
-        assert not 'id' in self.source_specs, f'Version 2.0+ of Pestifer does not support "id" in source specs.  Psfgen task must inherit "base_coordinates" artifact or continuation artifacts from a prior task (fetch or continuation).'
         self.source_specs.update(this_source)
         logger.debug(f'User-input modspecs:')
         my_logger(self.specs["mods"], logger.debug, depth=1)
@@ -509,9 +510,11 @@ class PsfgenTask(VMDTask):
                 if not g.source_pdbid in self.molecules:
                     logger.debug(f'Ingesting graft source {g.source_pdbid}')
                     this_source = {
-                        'id': g.source_pdbid,
+                        'source_db': 'rscb',
+                        'source_id': g.source_pdbid,
                         'file_format': 'PDB'
                     }
+                    # the Molecule call below will fetch coordinates for graft pdbs
                     self.molecules[g.source_pdbid] = Molecule(source=this_source)
                     graft_artifacts.append(PDBFileArtifact(g.source_pdbid))
                 g.activate(deepcopy(self.molecules[g.source_pdbid]))

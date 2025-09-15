@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pestifer"
-version = "2.0.1"
+version = "2.0.2"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
 ]
@@ -28,7 +28,7 @@ dependencies = [
   "networkx",
   "numpy>=1.24",
   "pandas",
-  "pidibble>=1.4.2",
+  "pidibble>=1.5.0",
   "platformdirs",
   "progressbar2",
   "pydantic",

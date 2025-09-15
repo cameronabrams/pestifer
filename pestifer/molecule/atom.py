@@ -141,17 +141,23 @@ class Atom(BaseObj):
         Adapts the input to a dictionary format suitable for Atom instantiation.
         """
         if args and isinstance(args[0], PDBRecord):
+            resname = args[0].residue.resName
+            occ = args[0].occupancy
+            beta = args[0].tempFactor
+            if resname == 'DUM':
+                occ = 0.0
+                beta = 0.0
             return {
                 "serial": args[0].serial,
                 "name": args[0].name,
-                "resname": args[0].residue.resName,
+                "resname": resname,
                 "chainID": args[0].residue.chainID,
                 "resid": ResID(resseqnum=args[0].residue.seqNum, insertion=args[0].residue.iCode),
                 "x": args[0].x,
                 "y": args[0].y,
                 "z": args[0].z,
-                "occ": args[0].occupancy,
-                "beta": args[0].tempFactor,
+                "occ": occ,
+                "beta": beta,
                 "elem": args[0].element,
                 "charge": args[0].charge,
                 "altloc": args[0].altLoc,

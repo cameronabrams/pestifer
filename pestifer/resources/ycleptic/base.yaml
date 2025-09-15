@@ -1324,6 +1324,7 @@ attributes:
           - name: chainmapfile
             text: Desired name of the file describing all chain mapping
             type: str
+            default: chainmap.yaml
           - name: statefile
             text: Desired name of the file describing the current state
             type: str

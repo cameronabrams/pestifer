@@ -74,7 +74,7 @@ class NewSystemSubcommand(Subcommand):
     def func(args: ap.Namespace, **kwargs):
         r = ResourceManager()
         build_type = 'full' if args.full else 'minimal'
-        r.example_manager.new_example_yaml(id=args.id, build_type=build_type)
+        r.example_manager.new_example_yaml(db_id=args.id, build_type=build_type)
         return True
 
     def add_subparser(self, subparsers):
