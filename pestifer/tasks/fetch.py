@@ -45,8 +45,14 @@ class FetchTask(BaseTask):
                 cif_file = PDBParser(source_db=source, source_id=sourceID, input_format='mmCIF').fetch()
                 if cif_file:
                     self.register(sourceID, key=self._artifact_name, artifact_type=CIFFileArtifact)
+                    json_companion = Path(f'{sourceID}.json')
+                    if json_companion.exists():
+                        self.register(sourceID, key=f'{self._artifact_name}_json', artifact_type=JSONFileArtifact)
                 else:
                     raise ValueError(f"Could not fetch CIF file for sourceID: {sourceID}")
+            dum_companion = Path(f'{sourceID}-dum.pdb')
+            if dum_companion.exists():
+                self.register(f'{sourceID}-dum', key=f'{self._artifact_name}_dum', artifact_type=PDBFileArtifact)
             
         else:  # expect <sourceID>.pdb or <sourceID>.cif
             local_pdb = f'{sourceID}.pdb'

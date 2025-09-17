@@ -17,6 +17,7 @@ from ..core.controller import Controller
 from ..core.config import Config
 from .subcommand import Subcommand
 from ..util.stringthings import __pestifer_version__
+from ..util.util import hmsf
 
 @dataclass
 class RunSubcommand(Subcommand):
@@ -85,6 +86,9 @@ class RunSubcommand(Subcommand):
         end_time = time.time()
         elapsed_time_s = datetime.timedelta(seconds=(end_time - begin_time))
         logger.info(f'pestifer ends. Elapsed time {time.strftime("%H:%M:%S", time.gmtime(elapsed_time_s.seconds))}.')
+        logger.info(f'Task durations:')
+        for task in report.values():
+            logger.info(f' - {task["taskname"]:>20s}: {hmsf(task["duration"])} ({task["duration_frac"]:>5.1%})')
         if args.output_dir != './':
             os.chdir(exec_dir)
         return C

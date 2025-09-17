@@ -258,7 +258,7 @@ class VMDScripter(TcLScripter):
         progress_struct = None
         progress_title = options.get('progress_title', '')
         if self.progress and progress_title != '':
-            progress_struct = PestiferProgress(name=progress_title)
+            progress_struct = PestiferProgress(name=progress_title, color=options.get('progress_color','fuchsia'))
             self.logparser.enable_progress_bar(progress_struct)
         return c.run(logfile=self.logname, logparser=self.logparser)
 

@@ -127,7 +127,7 @@ class PDB2PQRTask(PsfgenTask):
 
         self.log_parser.metadata['histidines'] = {k:[] for k in ['HSD', 'HSE', 'HSP']}
         if os.path.exists(f'{self.basename}_pqr.pdb'):
-            pqr = PDBParser(PDBcode=f'{self.basename}_pqr').parse().parsed
+            pqr = PDBParser(filepath=f'{self.basename}_pqr.pdb').parse().parsed
             AL = AtomList([Atom(x) for x in pqr['ATOM']])
             self.prot_deprot_dict = {}
             for a in AL.data:

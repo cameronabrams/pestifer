@@ -50,7 +50,7 @@ class TestTCL(unittest.TestCase):
     def test_backup(self):
         # test backup and restor procs in saverestore.tcl
         source='6pti'
-        o=PDBParser(PDBcode=source).parse()
+        o=PDBParser(source_id=source, source_db='rcsb').parse()
         oatoms=o.parsed['ATOM']
         ox=[a.x for a in oatoms if a.name=='CA']
         self.assertEqual(len(ox),58)
@@ -65,12 +65,12 @@ class TestTCL(unittest.TestCase):
         self.vmd.addline(f'[atomselect top "name CA"] writepdb good.pdb')
         self.vmd.writescript()
         self.vmd.runscript()
-        p=PDBParser(PDBcode='bad').parse()
+        p=PDBParser(filepath='bad.pdb').parse()
         badatoms=p.parsed['ATOM']
         self.assertEqual(len(badatoms),58)
         badx=[a.x for a in badatoms]
         self.assertTrue(not any(badx))
-        g=PDBParser(PDBcode='good').parse()
+        g=PDBParser(filepath='good.pdb').parse()
         goodatoms=g.parsed['ATOM']
         goodx=[a.x for a in goodatoms]
         goodchk=all([x==y for x,y in zip(ox,goodx)])
@@ -79,7 +79,7 @@ class TestTCL(unittest.TestCase):
     def test_backup_scriptwriter(self):
         # test backup and restor procs in saverestore.tcl
         source='6pti'
-        o=PDBParser(PDBcode=source).parse()
+        o=PDBParser(source_id=source, source_db='rcsb').parse()
         oatoms=o.parsed['ATOM']
         ox=[a.x for a in oatoms if a.name=='CA']
         oy=[a.y for a in oatoms if a.name=='CA']
@@ -96,7 +96,7 @@ class TestTCL(unittest.TestCase):
         self.vmd.addline(f'[atomselect top "name CA"] writepdb good.pdb')
         self.vmd.writescript()
         self.vmd.runscript()
-        p=PDBParser(PDBcode='bad').parse()
+        p=PDBParser(filepath='bad.pdb').parse()
         badatoms=p.parsed['ATOM']
         self.assertEqual(len(badatoms),58)
         badx=[a.x for a in badatoms]
@@ -104,7 +104,7 @@ class TestTCL(unittest.TestCase):
         bady=[a.y for a in badatoms]
         ychk=all([y==-1 for y in bady])
         self.assertTrue(ychk)
-        g=PDBParser(PDBcode='good').parse()
+        g=PDBParser(filepath='good.pdb').parse()
         goodatoms=g.parsed['ATOM']
         goodx=[a.x for a in goodatoms]
         goodchk=all([x==y for x,y in zip(ox,goodx)])

@@ -7,6 +7,7 @@ Usage is described in the :ref:`subs_runtasks_make_membrane_system` documentatio
 
 import glob
 import logging
+import numpy as np
 from pathlib import Path
 
 from .basetask import BaseTask
@@ -481,11 +482,25 @@ class MakeMembraneSystemTask(BaseTask):
         if not self.embed_specs:
             logger.debug('No embed specs.')
             return
-        no_orient = self.embed_specs.get('no_orient', False)
-        z_head_group = self.embed_specs.get('z_head_group', None)
-        z_tail_group = self.embed_specs.get('z_tail_group', None)
-        z_ref_group = self.embed_specs.get('z_ref_group', {}).get('text', None)
-        z_value = self.embed_specs.get('z_ref_group', {}).get('z_value', 0.0)
+        zvals = np.zeros(2)
+        dum_pdb: PDBFileArtifact = self.get_current_artifact('base_coordinates_dum')
+        if dum_pdb.exists():
+            logger.debug(f'Using DUM pdb {dum_pdb.name} for embedding coordinates')
+            no_orient = True
+            z_head_group = ""
+            z_tail_group = ""
+            z_ref_group = ""
+            dum_struct = PDBParser(filepath=dum_pdb.path).parse().parsed
+            zvals = np.array(list(set(a.z for a in dum_struct['HETATM'])))
+            logger.debug(f'DUM z-values: {zvals}')
+            assert len(zvals) == 2, "DUM pdb must have exactly two distinct z-values for head and tail groups"
+            z_value = zvals.mean()
+        else:
+            no_orient = self.embed_specs.get('no_orient', False)
+            z_head_group = self.embed_specs.get('z_head_group', None)
+            z_tail_group = self.embed_specs.get('z_tail_group', None)
+            z_ref_group = self.embed_specs.get('z_ref_group', {}).get('text', None)
+            z_value = self.embed_specs.get('z_ref_group', {}).get('z_value', 0.0)
         self.next_basename('embed')
         pg: PsfgenScripter = self.scripters['psfgen']
         pg.newscript(self.basename, additional_topologies=self.quilt.addl_streamfiles)
@@ -507,6 +522,8 @@ class MakeMembraneSystemTask(BaseTask):
                               z_head_group=protect_str_arg(z_head_group),
                               z_tail_group=protect_str_arg(z_tail_group),
                               z_ref_group=protect_str_arg(z_ref_group),
+                              z_lo_dum=zvals[0],
+                              z_hi_dum=zvals[1],
                               z_value=z_value,
                               no_orient=no_orient,
                               o=self.basename)

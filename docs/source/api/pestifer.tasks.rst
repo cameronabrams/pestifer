@@ -25,7 +25,7 @@ Submodules
    pestifer.tasks.mdtask
    pestifer.tasks.pdb2pqr
    pestifer.tasks.psfgen
-   pestifer.tasks.pytest_terminate
+   pestifer.tasks.pytest_buildterminate
    pestifer.tasks.ringcheck
    pestifer.tasks.solvate
    pestifer.tasks.taskcollections

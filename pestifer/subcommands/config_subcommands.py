@@ -74,13 +74,19 @@ class NewSystemSubcommand(Subcommand):
     def func(args: ap.Namespace, **kwargs):
         r = ResourceManager()
         build_type = 'full' if args.full else 'minimal'
-        r.example_manager.new_example_yaml(db_id=args.id, build_type=build_type)
+        outputfilename = args.output if args.output else f'{args.id}.yaml'
+        title = args.title if args.title else ''
+        if os.path.exists(outputfilename):
+            raise FileExistsError(f'Output file {outputfilename} already exists; please remove it or choose a different name')
+        r.example_manager.new_example_yaml(db_id=args.id, build_type=build_type, outputfilename=outputfilename, title=title)
         return True
 
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
         self.parser.add_argument('id', type=str, default=None, help='PDB/UniProt ID  of the new system to create')
         self.parser.add_argument('--full', default=False, action=ap.BooleanOptionalAction, help='Enable/disable full set of tasks in the new system configuration (default: %(default)s)')
+        self.parser.add_argument('--output', type=str, default=None, help='Output filename for the new system configuration (default: <id>.yaml)')
+        self.parser.add_argument('--title', type=str, default=None, help='Title for the new system configuration (default: none)')
         return self.parser
 
 @dataclass

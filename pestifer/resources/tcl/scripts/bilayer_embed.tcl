@@ -24,6 +24,8 @@ set bilayer_xsc ""; # the membrane-only system
 set z_head_group ""; # atomselection whose center of mass defines one end of the protein axis
 set z_tail_group ""; # atomselection whose center of mass defines the other end of the protein axis
 set z_ref_group ""; # atomselection whose center of mass lies at the membrane midplane + z_value
+set z_lo_dum 0.0 ; # lower z of the dummy atoms from an OPM pdb file
+set z_hi_dum 0.0 ; # upper z of the dummy atoms from an OPM pdb file
 set z_value 0.0 ; # offset of the protein center of mass from the bilayer midplane
 set outbasename "embedded"
 set no_orient 0; # override the orientation of the protein axis to align with the bilayer normal
@@ -73,6 +75,14 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
    if { [lindex $argv $i] == "-z_ref_group"} {
       incr i
       set z_ref_group [deprotect_str_arg [lindex $argv $i]]
+   }
+   if { [lindex $argv $i] == "-z_lo_dum"} {
+      incr i
+      set z_lo_dum [lindex $argv $i]
+   }
+   if { [lindex $argv $i] == "-z_hi_dum"} {
+      incr i
+      set z_hi_dum [lindex $argv $i]
    }
    if { [lindex $argv $i] == "-z_value"} {
       incr i
@@ -181,8 +191,13 @@ if { !$no_orient } {
 }
 
 # perform a translation of the protein to the middle of the bilayer
-set pro_mid_z_ref_sel [atomselect $protein "$z_ref_group"]
-set pro_embed_mid_z [lindex [measure center $pro_mid_z_ref_sel weight mass] 2]
+if { $z_ref_group != ""} {
+   set pro_mid_z_ref_sel [atomselect $protein "$z_ref_group"]
+   set pro_embed_mid_z [lindex [measure center $pro_mid_z_ref_sel weight mass] 2]
+} else {
+   vmdcon -info "no z_ref_group specified; using z_lo_dum $z_lo_dum and z_hi_dum $z_hi_dum to define protein embedding depth"
+   set pro_embed_mid_z [expr 0.5*($z_lo_dum + $z_hi_dum)]
+}
 set pro_com [measure center $pro_sel weight mass]
 set pro_x [lindex $pro_com 0]
 set pro_y [lindex $pro_com 1]
@@ -368,7 +383,7 @@ mol new ${outbasename}_solvent_appended.psf
 mol addfile ${outbasename}_solvent_appended.pdb waitfor all
 set embedded_system [molinfo top get id]
 set all [atomselect $embedded_system "all"]
-$all moveby [list 0 0 expr (-1*$box_min_z)]
+$all moveby [list 0 0 [expr (-1*$box_min_z)]]
 set box_Lz [expr $box_max_z - $box_min_z]
 set pro_sel [atomselect $embedded_system "protein or glycan"]
 set segs_to_search [join $newsegids]

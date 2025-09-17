@@ -17,6 +17,7 @@ from __future__ import annotations
 import logging
 
 from abc import ABC, abstractmethod
+from time import perf_counter
 from typing import TYPE_CHECKING
 
 from ..core.artifacts import *
@@ -25,7 +26,7 @@ from ..core.resourcemanager import ResourceManager
 from ..core.pipeline import PipelineContext
 
 from ..scripters import GenericScripter, VMDScripter
-
+from ..util.util import hmsf
 
 if TYPE_CHECKING:
     from ..core.controller import Controller
@@ -159,17 +160,20 @@ class BaseTask(ABC):
         if self.extra_message:
             msg += f' ({self.extra_message})'
         self.log_message(msg)
+        t1 = perf_counter()
         self.result = self.do()
+        t2 = perf_counter()
         if self.result == 0:
-            msg = 'complete'
+            msg = 'completed'
         else:
             msg = 'failed'
         if self.extra_message:
             msg += f' ({self.extra_message})'
+        self.duration = t2 - t1
+        msg += f' in {hmsf(self.duration)}'
         self.log_message(msg)
         return self.result
         
-
     def stash_current_artifact(self, key):
         """
         Stash the current artifact with the specified key into the history.

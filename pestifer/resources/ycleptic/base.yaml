@@ -342,10 +342,10 @@ attributes:
         type: dict
         attributes:
           - name: source
-            text: Source for the initial coordinate file; one of 'pdb' (for the RCSB PDB), 'alphafold' (for the AlphaFold DB), or 'local' (for a local file)
+            text: Source for the initial coordinate file; one of 'rcsb' (for the RCSB PDB), 'alphafold' (for the AlphaFold DB), 'opm' (for the OPM database), or 'local' (for a local file)
             type: str
-            options: [pdb, alphafold, local]
-            default: pdb
+            options: [rcsb, alphafold, opm, local]
+            default: rcsb
           - name: sourceID
             text: ID of the source file; if source is 'local', a file 'sourceID.pdb' or 'sourceID.cif' must exist in the working directory
             type: str

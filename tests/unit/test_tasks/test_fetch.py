@@ -21,7 +21,7 @@ class TestFetchTask(unittest.TestCase):
 
     def test_fetch_task_do_fetch_pdb(self):
         pipeline = PipelineContext()
-        task = FetchTask(specs={'source': 'pdb', 'sourceID': '1A2B'})
+        task = FetchTask(specs={'source': 'rcsb', 'sourceID': '1A2B'})
         task.provision(packet=dict(pipeline=pipeline))
         self.assertIsInstance(task, FetchTask)
         task.execute()
@@ -37,7 +37,7 @@ class TestFetchTask(unittest.TestCase):
 
     def test_fetch_task_do_fetch_mmcif(self):
         pipeline = PipelineContext()
-        task = FetchTask(specs={'source': 'pdb', 'sourceID': '4tvp','source_format': 'cif'})
+        task = FetchTask(specs={'source': 'rcsb', 'sourceID': '4tvp','source_format': 'cif'})
         task.provision(packet=dict(pipeline=pipeline))
         self.assertIsInstance(task, FetchTask)
         task.execute()

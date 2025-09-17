@@ -104,13 +104,13 @@ class Molecule:
                     if file_format in ['PDB', 'pdb']:
                         p_struct = PDBParser(filepath=source_path).parse().parsed
                     elif file_format in ['mmCIF', 'cif']:
-                        logger.debug(f'CIF source {source["id"]}')
+                        logger.debug(f'CIF source {source['source_id']}')
                         p_struct = CIFload(source_path)
                 else:
                     if file_format in ['PDB', 'pdb']:
                         p_struct = PDBParser(source_id=source['source_id'], source_db=source['source_db']).parse().parsed
                     elif file_format in ['mmCIF', 'cif']:
-                        logger.debug(f'CIF source {source["id"]}')
+                        logger.debug(f'CIF source {source['source_id']}')
                         p_struct = CIFload(source['source_id'], source_db=source['source_db'])
             elif 'prebuilt' in source:
                 logger.debug(f'Prebuilt record:')
@@ -173,7 +173,7 @@ class Molecule:
         """
         nm, ext = os.path.splitext(altcoordsfile)
         assert ext == '.pdb', f'Alt-coords file must be PDB format'
-        altstruct = PDBParser(PDBcode=nm).parse().parsed
+        altstruct = PDBParser(filepath=altcoordsfile).parse().parsed
         self.asymmetric_unit.set_coords(altstruct)
 
     def activate_biological_assembly(self, index):

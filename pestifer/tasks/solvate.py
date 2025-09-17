@@ -12,9 +12,6 @@ The resulting solvated structure is saved with the specified basename, and the s
 Usage is described in the :ref:`subs_runtasks_solvate` documentation.
 """
 import numpy as np
-import os
-
-from pathlib import Path
 
 from pidibble.pdbparse import PDBParser
 
@@ -98,7 +95,7 @@ class SolvateTask(VMDTask):
         vt.addline(f'autoionize -psf {self.basename}_solv.psf -pdb {self.basename}_solv.pdb {" ".join(ai_args)} -o {self.basename}')
         vt.writescript()
         self.register(self.basename, key='tcl', artifact_type=VMDScriptArtifact)
-        self.result = vt.runscript(progress_title='solvate')
+        self.result = vt.runscript(progress_title='solvate', progress_color='fluorescent_blue')
         self.register(self.basename, key='log', artifact_type=VMDLogFileArtifact)
         self.register(self.basename+'_solv', key='log', artifact_type=VMDLogFileArtifact)
         if self.result != 0:

@@ -14,7 +14,7 @@ from argparse import ArgumentParser
 from functools import wraps
 from pathlib import Path
 
-logger=logging.getLogger(__name__)
+logger = logging.getLogger(__name__)
 
 _fntiminginfo = {}
 def countTime(fn):
@@ -38,16 +38,34 @@ def countTime(fn):
         if hasattr(fn, '__self__'):#.__class__.__name__=='method':
             keyname = f'{fn.__module__}.{type(fn.__self__).__name__}.{fn.__name__}'
         if not keyname in _fntiminginfo:
-            _fntiminginfo[keyname] = dict(ncalls=0, totaltime=0.0, avgtimepercall=0.0)
+            _fntiminginfo[keyname] = dict(ncalls=0, totaltime=0.0, avgtimepercall=0.0, calltimes=[])
         t1 = time.time()
         result = fn(*args, **kwargs)
         t2 = time.time()
         _fntiminginfo[keyname]['ncalls'] += 1
         _fntiminginfo[keyname]['totaltime'] += t2 - t1
         _fntiminginfo[keyname]['avgtimepercall'] = _fntiminginfo[keyname]['totaltime'] / _fntiminginfo[keyname]['ncalls']
+        _fntiminginfo[keyname]['calltimes'].append(t2 - t1)
         logger.debug(f'{keyname}: {(t2-t1)*1000:.6f} ms; avg {_fntiminginfo[keyname]["avgtimepercall"]*1000:.6f} ms/call; {_fntiminginfo[keyname]["ncalls"]} calls')
         return result
     return measure_time
+
+def hms(seconds: float) -> str:
+    seconds = int(round(seconds))
+    h, rem = divmod(seconds, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h:02d}:{m:02d}:{s:02d}"
+
+def hmsf(seconds: float, precision: int = 3) -> str:
+    """Return HH:MM:SS.sss with seconds as float (no 24h wrap)."""
+    sign = "-" if seconds < 0 else ""
+    sec = round(abs(float(seconds)), precision)  # round first to avoid carry bugs
+    h = int(sec // 3600)
+    sec -= h * 3600
+    m = int(sec // 60)
+    sec -= m * 60
+    # width for seconds: 2 digits + '.' + precision
+    return f"{sign}{h:02d}:{m:02d}:{sec:0{precision+3}.{precision}f}"
 
 def running_under_pytest() -> bool:
     return "pytest" in sys.modules or "PYTEST_CURRENT_TEST" in os.environ

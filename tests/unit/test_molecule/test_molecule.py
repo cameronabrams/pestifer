@@ -53,7 +53,8 @@ source:
     biological_assembly: 0
     exclude: {{}}
     file_format: PDB
-    alphafold: {ac}
+    source_id: {ac}
+    source_db: alphafold
     sequence:
         fix_conflicts: true
         fix_engineered_mutations: true
@@ -65,12 +66,13 @@ source:
     
     def test_molecule_au(self):
         pipeline = PipelineContext()
-        task = FetchTask(specs={'source': 'pdb', 'sourceID': '1gc1'})
+        task = FetchTask(specs={'source': 'rcsb', 'sourceID': '1gc1'})
         task.provision(packet=dict(pipeline=pipeline))
         self.assertIsInstance(task, FetchTask)
         task.execute()
         m=Molecule(source={
-                        'id': '1gc1',
+                        'source_id': '1gc1',
+                        'source_db': 'rcsb',
                         'file_format': 'PDB',
                         'sequence': {
                             'fix_conflicts': True,
@@ -85,7 +87,7 @@ source:
         ssbonds=topol.get('ssbonds',[])
         links=topol.get('links',[])
         mutations=seq.get('mutations',[])
-        self.assertEqual(m.sourcespecs['id'],'1gc1')
+        self.assertEqual(m.sourcespecs['source_id'],'1gc1')
         self.assertEqual(len(au.atoms),7877)
         self.assertEqual(len(ssbonds),14)
         self.assertEqual(len(mutations),3)
@@ -114,7 +116,8 @@ source:
         self.assertIsInstance(task, FetchTask)
         task.execute()
         m=Molecule(source={
-                        'id': ac,
+                        'source_id': ac,
+                        'source_db': 'alphafold',
                         'file_format': 'PDB',
                         'sequence': {
                             'fix_conflicts': True,
@@ -139,12 +142,13 @@ source:
     def test_molecule_links(self):
         ac='4zmj'
         pipeline = PipelineContext()
-        task = FetchTask(specs={'source': 'pdb', 'sourceID': ac})
+        task = FetchTask(specs={'source': 'rcsb', 'sourceID': ac})
         task.provision(packet=dict(pipeline=pipeline))
         self.assertIsInstance(task, FetchTask)
         task.execute()
         m=Molecule(source={
-                        'id': ac,
+                        'source_id': ac,
+                        'source_db': 'rcsb',
                         'file_format': 'PDB',
                         'sequence': {
                             'fix_conflicts': True,
@@ -174,12 +178,13 @@ source:
     def test_molecule_bioassemb_4zmj(self):
         ac='4zmj'
         pipeline = PipelineContext()
-        task = FetchTask(specs={'source': 'pdb', 'sourceID': ac})
+        task = FetchTask(specs={'source': 'rcsb', 'sourceID': ac})
         task.provision(packet=dict(pipeline=pipeline))
         self.assertIsInstance(task, FetchTask)
         task.execute()
         m=Molecule(source={
-                        'id': ac,
+                        'source_id': ac,
+                        'source_db': 'rcsb',
                         'file_format': 'PDB',
                         'biological_assembly': 1,
                         'sequence': {
@@ -202,12 +207,13 @@ source:
     def test_molecule_ancestry(self):
         ac='4zmj'
         pipeline = PipelineContext()
-        task = FetchTask(specs={'source': 'pdb', 'sourceID': ac})
+        task = FetchTask(specs={'source': 'rcsb', 'sourceID': ac})
         task.provision(packet=dict(pipeline=pipeline))
         self.assertIsInstance(task, FetchTask)
         task.execute()
         m=Molecule(source={
-                        'id': ac,
+                        'source_id': ac,
+                        'source_db': 'rcsb',
                         'file_format': 'PDB',
                         'biological_assembly': 1,
                         'sequence': {
@@ -227,12 +233,13 @@ source:
     def test_molecule_adjust_serials(self):
         ac='4zmj'
         pipeline = PipelineContext()
-        task = FetchTask(specs={'source': 'pdb', 'sourceID': ac})
+        task = FetchTask(specs={'source': 'rcsb', 'sourceID': ac})
         task.provision(packet=dict(pipeline=pipeline))
         self.assertIsInstance(task, FetchTask)
         task.execute()
         m=Molecule(source={
-                        'id': ac,
+                        'source_id': ac,
+                        'source_db': 'rcsb',
                         'file_format': 'PDB',
                         'biological_assembly': 1,
                         'sequence': {
@@ -268,12 +275,13 @@ source:
         for fmt in ['pdb','cif']:
             ac='4zmj'
             pipeline = PipelineContext()
-            task = FetchTask(specs={'source': 'pdb', 'sourceID': ac, 'source_format': fmt})
+            task = FetchTask(specs={'source': 'rcsb', 'sourceID': ac, 'source_format': fmt})
             task.provision(packet=dict(pipeline=pipeline))
             self.assertIsInstance(task, FetchTask)
             task.execute()
             mol[fmt]=Molecule(source={
-                        'id': ac,
+                        'source_id': ac,
+                        'source_db': 'rcsb',
                         'file_format': fmt,
                         'biological_assembly': 1,
                         'sequence': {
@@ -325,7 +333,7 @@ source:
         res_count_checks={}
         res_cif={}
         res_count_cif={}
-        for st in ['protein','glycan']:
+        for st in ['protein', 'glycan']:
             res_cif[st]=[x for x in au['cif'].residues if x.segtype==st]
             res_count_cif[st]=len(res_cif[st])
             res_count_checks[st]={}

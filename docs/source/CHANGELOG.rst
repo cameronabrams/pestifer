@@ -13,8 +13,16 @@ Added
 Changed
 ~~~~~~~
 
+.. _203---2025-09-15:
+
+[2.0.3] - 2025-09-15
+--------------------
+
 - ``mdplot`` now correctly treats ``cpu_time`` and ``wall_time`` as
   running sums over chained MD runs
+- bugfixes in ``new-system`` subcommand and ``terminate`` task
+- updated ``pidibble`` dependency to allow for downloading structures
+  from OPM
 
 .. _201---2025-09-04:
 

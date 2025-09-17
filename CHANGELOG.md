@@ -10,6 +10,7 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 - `mdplot` now correctly treats `cpu_time` and `wall_time` as running sums over chained MD runs
 - bugfixes in `new-system` subcommand and `terminate` task
+- bugfix in `bilayer_embed.tcl` for z-translation
 - updated `pidibble` dependency to allow for downloading structures from OPM
 
 ## [2.0.1] - 2025-09-04

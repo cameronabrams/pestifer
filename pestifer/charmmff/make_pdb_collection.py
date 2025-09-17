@@ -296,7 +296,7 @@ def do_psfgen(resid: str, DB: CHARMMFFContent,
     logger.debug(f'found {len(pdbs)} pdbs')
     for pdb in pdbs:
         entry = {}
-        p = PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()
+        p = PDBParser(filepath=pdb).parse()
         pdbatoms = p.parsed['ATOM']
         entry['pdb'] = pdb
         head_z = np.array([x.z for x in pdbatoms if x.name in heads])

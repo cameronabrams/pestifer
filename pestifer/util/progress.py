@@ -7,7 +7,7 @@ import progressbar
 
 from typing import Callable
 
-from .colors import __plasma__
+from .colors import PestiferColors
 
 logger = logging.getLogger(__name__)
 
@@ -16,7 +16,7 @@ class PestiferProgress:
     def __init__(self, **kwargs):  # Elapsed Time: %(elapsed)s\x1b[33mColorful example\x1b[39m
 
         self.name = kwargs.get('name', 'Elapsed')
-        self.color = __plasma__[kwargs.get('colorno', 100)]
+        self.color = PestiferColors[kwargs.get('color', 'fuchsia')]
         self.max_value = kwargs.get('max_value', progressbar.UnknownLength)
         self.timer_format = kwargs.get('timer_format', 'time: %(elapsed)s')
         if self.max_value == progressbar.UnknownLength:
@@ -71,22 +71,20 @@ class PestiferProgress:
 
 class NAMDProgress(PestiferProgress):
     def __init__(self, **kwargs):
-        super().__init__(max_value=200, name='namd', colorno=50, **kwargs)
+        super().__init__(max_value=200, name='namd', color='turquoise', **kwargs)
 
 class PackmolProgress(PestiferProgress):
     def __init__(self, **kwargs):
-        super().__init__(max_value=200, name='packmol', colorno=150, **kwargs)
+        super().__init__(max_value=200, name='packmol', color='orange', **kwargs)
 
 class PsfgenProgress(PestiferProgress):
     def __init__(self, **kwargs):
-        super().__init__(name='psfgen', colorno=125, **kwargs)
+        super().__init__(name='psfgen', color='seafoam', **kwargs)
 
 class PDB2PQRProgress(PestiferProgress):
     def __init__(self, **kwargs):
-        super().__init__(name='pdb2pqr', colorno=150, **kwargs)
+        super().__init__(name='pdb2pqr', color='ruby', **kwargs)
 
-class RingCheckProgress(PestiferProgress):
-    def __init__(self,**kwargs):
-        super().__init__(**kwargs)
+
 
 

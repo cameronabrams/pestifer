@@ -140,7 +140,7 @@ def coorddf_from_pdb(pdb, segtypes=False):
     pd.DataFrame
         DataFrame with atom coordinates and other information.
     """
-    p=PDBParser(PDBcode=os.path.splitext(pdb)[0]).parse()
+    p=PDBParser(filepath=pdb).parse()
     atlist=p.parsed['ATOM']+p.parsed.get('HETATM',[])
     serial = [x.serial for x in atlist]
     name = [x.name for x in atlist]
