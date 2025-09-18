@@ -5,13 +5,14 @@ Subcommands providing access to the examples included in Pestifer.
 
 from dataclasses import dataclass
 
-from rdkit import logger
+import logging
+logger = logging.getLogger(__name__)
 
-from pestifer.core.artifacts import FileArtifactList
-from pestifer.core.examplemanager import ExampleManager
+# from pestifer.core.artifacts import FileArtifactList
+# from pestifer.core.examplemanager import ExampleManager
 from . import Subcommand, RunSubcommand
 from ..core.resourcemanager import ResourceManager
-from ..core.example import Example
+# from ..core.example import Example
 from ..util.util import remove_argument
 from argparse import Namespace
 
