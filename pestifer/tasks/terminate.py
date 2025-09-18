@@ -122,9 +122,9 @@ class TerminateTask(MDTask):
         return 0
     
     def test_standard(self):
-        standard_specs = self.specs.get('test_standard', {})
+        standard_specs = self.specs.get('test_standards', {})
         if not standard_specs:
-            logger.debug('No test_standard specifications provided; skipping test_standard step.')
+            logger.debug('No test_standards specifications provided; skipping test_standards step.')
             return 0
         standards_path = standard_specs.get('standards_path', None)
         if standards_path is None:
