@@ -9,7 +9,6 @@ ExampleManager does not directly manage the example documentation, but it relies
 class to handle the documentation side of things.
 """
 
-from glob import glob
 import logging
 import os
 import shutil
@@ -235,7 +234,9 @@ class ExampleManager:
         Parameters
         ----------
         example : Example
-            The Example instance to check in.
+            The Example instance defining the destination folder and files to copy.
+        overwrite : bool, optional
+            If True, overwrite existing files in the example folder. Default is False.
         """
         example_folder = self.examplefolderpath(example)
         example_inputs_subfolder = self.inputspath(example)
@@ -451,3 +452,54 @@ class ExampleManager:
             The updated Example object with the new author information.
         """
         return self.update_example(example_id, author_name=author_name, author_email=author_email)
+
+    def clone(self, newpath: str | Path) -> 'ExampleManager':
+        """
+        Spawn a new ExampleManager instance rooted at a directory different from the current ExampleManager's path (newpath).  The new ExampleManager instance will contain copies of all examples in the current ExampleManager's examples list.
+
+        Parameters
+        ----------
+        subpath : str or Path
+            The subdirectory path relative to the current ExampleManager's path.
+
+        Returns
+        -------
+        ExampleManager
+            A new ExampleManager instance rooted at the specified subdirectory.
+        """
+        new_manager = ExampleManager(examples_path=newpath, docs_source_path=None)
+        for example in self.examples:
+            new_manager.copy_from(self, example)
+        return new_manager
+
+    def copy_from(self, other: 'ExampleManager', example: Example):
+        """
+        Copy an example from another ExampleManager instance to this instance.
+
+        Parameters
+        ----------
+        other : ExampleManager
+            The other ExampleManager instance to copy the example from.
+        example : Example
+            The Example instance to copy.
+        overwrite : bool, optional
+            If True, overwrite existing files in the example folder. Default is False.
+        """
+        current_ids = [ex.example_id for ex in self.examples.data]
+        if example.example_id in current_ids:
+            raise ValueError(f'Example ID {example.example_id} already exists in the destination ExampleManager')
+        source_example_folder = other.examplefolderpath(example)
+        dest_example_folder = self.examplefolderpath(example)
+        shutil.copytree(source_example_folder, dest_example_folder, dirs_exist_ok=True)
+        # create the outputs subfolder regardless of whether there are any outputs to copy
+        dest_outputs_path = self.outputspath(example)
+        dest_outputs_path.mkdir(parents=True, exist_ok=True)
+        if example.outputs:
+            source_outputs_path = other.outputspath(example)
+            for output_file in example.outputs:
+                source_file_path = source_outputs_path / output_file
+                if source_file_path.is_file():
+                    shutil.copy(source_file_path, dest_outputs_path)
+                else:
+                    logger.warning(f'Output file {output_file} does not exist in source ExampleManager; skipping copy')
+        self.examples.append(example)

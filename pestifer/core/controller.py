@@ -64,21 +64,21 @@ class Controller:
             logger.debug('Adding default terminate task')
             self.tasks.append(TerminateTask(specs=specs, index=len(self.tasks)))
 
-        if report_example_id() and running_under_pytest() and terminate:
-            # truncate task list after latest ValidateTask, if one exists
-            # remove the TerminateTask and put on a custom one so that 
-            # desired outputs are retained
-            from ..tasks.pytest_buildterminate import Pytest_BuildTerminateTask
-            validate_task_idx = None
-            for i, task in enumerate(self.tasks):
-                if isinstance(task, ValidateTask):
-                    validate_task_idx = i
-            if validate_task_idx is not None:
-                self.tasks = self.tasks[:validate_task_idx+1]
-            else:
-                self.tasks = self.tasks[:-1] # remove the original terminate task
-            # add the special pytest terminate task
-            self.tasks.append(Pytest_BuildTerminateTask(specs={'prior': self.tasks[-1]}, index=len(self.tasks)))
+        # if report_example_id() and running_under_pytest() and terminate:
+        #     # truncate task list after latest ValidateTask, if one exists
+        #     # remove the TerminateTask and put on a custom one so that 
+        #     # desired outputs are retained
+        #     from ..tasks.pytest_buildterminate import Pytest_BuildTerminateTask
+        #     validate_task_idx = None
+        #     for i, task in enumerate(self.tasks):
+        #         if isinstance(task, ValidateTask):
+        #             validate_task_idx = i
+        #     if validate_task_idx is not None:
+        #         self.tasks = self.tasks[:validate_task_idx+1]
+        #     else:
+        #         self.tasks = self.tasks[:-1] # remove the original terminate task
+        #     # add the special pytest terminate task
+        #     self.tasks.append(Pytest_BuildTerminateTask(specs={'prior': self.tasks[-1]}, index=len(self.tasks)))
 
         self.pipeline = PipelineContext(controller_index=self.index)
         self.provision_tasks()

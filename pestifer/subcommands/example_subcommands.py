@@ -4,6 +4,11 @@ Subcommands providing access to the examples included in Pestifer.
 """
 
 from dataclasses import dataclass
+
+from rdkit import logger
+
+from pestifer.core.artifacts import FileArtifactList
+from pestifer.core.examplemanager import ExampleManager
 from . import Subcommand, RunSubcommand
 from ..core.resourcemanager import ResourceManager
 from ..core.example import Example
@@ -52,4 +57,6 @@ class RunExampleSubcommand(RunSubcommand):
     def func(args: Namespace, **kwargs):
         config = FetchExampleSubcommand.func(args, **kwargs)
         args.config = config
-        return RunSubcommand.func(args, **kwargs)
+        controller = RunSubcommand.func(args, **kwargs)
+        # test the testable artifacts against gold standards if they exist
+        return controller

@@ -15,6 +15,7 @@ import os
 from .mdtask import MDTask
 from ..core.artifacts import *
 from ..molecule.molecule import Molecule
+from ..util.colors import PestiferColors
 from ..util.stringthings import my_logger
 
 logger = logging.getLogger(__name__)
@@ -36,7 +37,9 @@ class TerminateTask(MDTask):
         self.next_basename()
         if 'chainmapfile' in self.specs:
             self.write_chainmaps()
-        self.result = self.make_package() + self.cleanup()
+        self.result = self.test_standard()
+        self.result += self.make_package() 
+        self.result += self.cleanup()
         return self.result
 
     def write_chainmaps(self):
@@ -116,4 +119,61 @@ class TerminateTask(MDTask):
             my_logger(non_artifact_files, logger.debug, depth=1)
 
         file_artifacts.make_tarball('artifacts', remove=True, arcname_prefix=archive_dir, unique=True)
+        return 0
+    
+    def test_standard(self):
+        standard_specs = self.specs.get('test_standard', {})
+        if not standard_specs:
+            logger.debug('No test_standard specifications provided; skipping test_standard step.')
+            return 0
+        standards_path = standard_specs.get('standards_path', None)
+        if standards_path is None:
+            logger.debug('No standards_path provided; skipping test_standard step.')
+            return 0
+        if not os.path.isdir(standards_path):
+            logger.debug(f'standards_path {standards_path} is not a directory; skipping test_standard step.')
+            return 0
+        # standards path cannot be CWD
+        if os.path.abspath(standards_path) == os.path.abspath('.'):
+            logger.debug('standards_path cannot be the current working directory; skipping test_standard step.')
+            return 0
+        logger.debug(f'Using standards_path: {standards_path}')
+        # determine all pytestable file artifacts
+        artifact_file_collection = self.pipeline.get_all_file_artifacts()
+        testable_file_artifacts = FileArtifactList(list(filter(lambda a: a.pytestable, artifact_file_collection)))
+        if len(testable_file_artifacts) == 0:
+            logger.debug('No pytestable artifacts found; skipping test_standard step.')
+            return 0
+        # now we decide if we are populating the standards witht the current results or testing against them.  If the stipulated standards path is empty or DNE, we assume we are populating it.
+        all_files = os.listdir(standards_path) if os.path.isdir(standards_path) else []
+        if len(all_files) == 0 and os.path.isdir(standards_path):
+            logger.debug(f'standards_path {standards_path} is empty; populating it with current testable artifacts.')
+            for f in testable_file_artifacts:
+                logger.debug(f'  Populating standard with {f.name}')
+                shutil.copy(f.name, os.path.join(standards_path, f.name))
+            return 0
+        elif not os.path.isdir(standards_path):
+            logger.debug(f'standards_path {standards_path} does not exist; creating it and populating with current testable artifacts.')
+            os.makedirs(standards_path)
+            for f in testable_file_artifacts:
+                logger.debug(f'  Populating standard with {f.name}')
+                shutil.copy(f.name, os.path.join(standards_path, f.name))
+            return 0
+        else:
+            logger.debug('Testable artifacts:')
+            results = {}
+            for f in testable_file_artifacts:
+                logger.debug(f'  {f.name}')
+                results[f.name] = "pass" if f.compare(os.path.join(standards_path, f.name)) else "fail"
+            self.register(results, key='test_results')
+            logger.debug(f'Registered all test results at "test_results"')
+            logger.info('**** Standards Test Results ****')
+            logger.info(f'    Standards in {standards_path}')
+            logger.info('*'*70)
+            for name, result in results.items():
+                if result == 'pass':
+                    color = PestiferColors['emerald']
+                else:
+                    color = PestiferColors['alizarin']
+                logger.info(f'  {name:>40s}: {color.ON}{result}{color.OFF}')
         return 0

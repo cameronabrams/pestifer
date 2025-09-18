@@ -1328,6 +1328,13 @@ attributes:
           - name: statefile
             text: Desired name of the file describing the current state
             type: str
+          - name: test_standards
+            text: Directives regarding generating or testing against standard files
+            type: dict
+            attributes:
+              - name: standards_path
+                text: path to directory containing standard files
+                type: str
           - name: package
             text: Subtask that packages all CHARMM parameter files and pdb/psf/coor/vel/xsc files for a production run
             type: dict

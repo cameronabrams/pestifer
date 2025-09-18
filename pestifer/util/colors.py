@@ -49,6 +49,7 @@ __plasma__ = PestiferColorMap('plasma')
 PestiferColors = dict(
     adobe = ColorHex("#c04737"),
     alabaster = ColorHex("#f2f0e6"),
+    alizarin = ColorHex("#e74c3c"),
     aluminum = ColorHex("#b2b2b2"),
     amber = ColorHex("#ffbf00"),
     apricot = ColorHex("#fbceb1"),

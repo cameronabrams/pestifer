@@ -21,6 +21,7 @@ Changed
 - ``mdplot`` now correctly treats ``cpu_time`` and ``wall_time`` as
   running sums over chained MD runs
 - bugfixes in ``new-system`` subcommand and ``terminate`` task
+- bugfix in ``bilayer_embed.tcl`` for z-translation
 - updated ``pidibble`` dependency to allow for downloading structures
   from OPM
 
