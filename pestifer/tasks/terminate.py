@@ -130,7 +130,11 @@ class TerminateTask(MDTask):
         if standards_path is None:
             logger.debug('No standards_path provided; skipping test_standard step.')
             return 0
-        if not os.path.isdir(standards_path):
+        standard_path = Path(standards_path)
+        if not standard_path.exists():
+            # create it
+            os.makedirs(standards_path)
+        elif not standard_path.is_dir():
             logger.debug(f'standards_path {standards_path} is not a directory; skipping test_standard step.')
             return 0
         # standards path cannot be CWD
