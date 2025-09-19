@@ -1332,7 +1332,7 @@ attributes:
             text: Directives regarding generating or testing against standard files
             type: dict
             attributes:
-              - name: standards_path
+              - name: standard_path
                 text: path to directory containing standard files
                 type: str
           - name: package

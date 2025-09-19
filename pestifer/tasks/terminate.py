@@ -134,47 +134,47 @@ class TerminateTask(MDTask):
         if len(testable_file_artifacts) == 0:
             logger.debug('No pytestable artifacts found; skipping test_standard step.')
             return 0
-        standards_path = standard_specs.get('standards_path', None)
-        if standards_path is None:
-            logger.debug('No standards_path provided; skipping test_standard step.')
+        standard_path = standard_specs.get('standard_path', None)
+        if standard_path is None:
+            logger.debug('No standard_path provided; skipping test_standard step.')
             return 0
-        standard_path = Path(standards_path)
+        standard_path = Path(standard_path)
         if not standard_path.exists():
             # create it
-            standards_path.mkdir(parents=True, exist_ok=True)
+            standard_path.mkdir(parents=True, exist_ok=True)
         elif not standard_path.is_dir():
-            logger.debug(f'standards_path {standards_path} is not a directory; skipping test_standard step.')
+            logger.debug(f'standard_path {standard_path} is not a directory; skipping test_standard step.')
             return 0
         # standards path cannot be CWD
         if standard_path.absolute() == Path.cwd().absolute():
-            logger.debug('standards_path cannot be the current working directory; skipping test_standard step.')
+            logger.debug('standard_path cannot be the current working directory; skipping test_standard step.')
             return 0
-        logger.debug(f'Using standards_path: {standards_path.name}')
+        logger.debug(f'Using standard_path: {standard_path.name}')
 
-        all_files = [x for x in standards_path.iterdir() if x.is_file()]
-        if len(all_files) == 0 and standards_path.is_dir():
-            logger.debug(f'standards_path {standards_path} is empty; populating it with current testable artifacts.')
+        all_files = [x for x in standard_path.iterdir() if x.is_file()]
+        if len(all_files) == 0 and standard_path.is_dir():
+            logger.debug(f'standard_path {standard_path} is empty; populating it with current testable artifacts.')
             for f in testable_file_artifacts:
                 logger.debug(f'  Populating standard with {f.name}')
-                shutil.copy(f.name, standards_path / f.name)
+                shutil.copy(f.name, standard_path / f.name)
             return 0
-        elif not standards_path.is_dir():
-            logger.debug(f'standards_path {standards_path} does not exist; creating it and populating with current testable artifacts.')
-            standards_path.mkdir(parents=True, exist_ok=True)
-            for f in testable_file_artifacts:
+        elif not standard_path.is_dir():
+            logger.debug(f'standard_path {standard_path} does not exist; creating it and populating with current testable artifacts.')
+            standard_path.mkdir(parents=True, exist_ok=True)
+            for f in testable_file_artifacts.data:
                 logger.debug(f'  Populating standard with {f.name}')
-                shutil.copy(f.name, standards_path / f.name)
+                shutil.copy(f.name, standard_path / f.name)
             return 0
         else:
             logger.debug('Testable artifacts:')
             results = {}
-            for f in testable_file_artifacts:
+            for f in testable_file_artifacts.data:
                 logger.debug(f'  {f.name}')
-                results[f.name] = "pass" if f.compare(standards_path / f.name) else "fail"
+                results[f.name] = "pass" if f.compare(standard_path / f.name) else "fail"
             self.register(results, key='test_results')
             logger.debug(f'Registered all test results at "test_results"')
             logger.info('**** Standards Test Results ****')
-            logger.info(f'    Standards in {standards_path}')
+            logger.info(f'    Standards in {standard_path}')
             logger.info('*'*70)
             for name, result in results.items():
                 if result == 'pass':
