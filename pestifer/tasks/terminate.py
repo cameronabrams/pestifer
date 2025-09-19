@@ -138,7 +138,7 @@ class TerminateTask(MDTask):
         if standard_path is None:
             logger.debug('No standard_path provided; skipping test_standard step.')
             return 0
-        standard_path = Path(standard_path)
+        standard_path = Path(standard_path).resolve()
         if not standard_path.exists():
             # create it
             standard_path.mkdir(parents=True, exist_ok=True)

@@ -57,8 +57,8 @@ tasks:
   - terminate:
       basename: my_6pti
       archive_dir: my_archive
-    #   test_standards:
-    #     standards_path: standards
+      test_standards:
+        standard_path: standards
       package:
         state_dir: my_state
         basename: prod_6pti
