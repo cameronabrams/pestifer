@@ -173,13 +173,12 @@ class TerminateTask(MDTask):
                 results[f.name] = "pass" if f.compare(standard_path / f.name) else "fail"
             self.register(results, key='test_results')
             logger.debug(f'Registered all test results at "test_results"')
-            logger.info('**** Standards Test Results ****')
-            logger.info(f'    Standards in {standard_path}')
-            logger.info('*'*70)
+            logger.info('\n**** Standard Test Results ****')
             for name, result in results.items():
                 if result == 'pass':
                     color = PestiferColors['emerald']
                 else:
                     color = PestiferColors['alizarin']
-                logger.info(f'  {name:>40s}: {color.ON}{result}{color.OFF}')
+                logger.info(f'  {name:>40s}: {color}{result}{color.OFF}')
+            logger.info('*'*70)
         return 0
