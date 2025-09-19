@@ -126,6 +126,11 @@ class TerminateTask(MDTask):
         if not standard_specs:
             logger.debug('No test_standards specifications provided; skipping test_standards step.')
             return 0
+        artifact_file_collection = self.pipeline.get_all_file_artifacts()
+        testable_file_artifacts = FileArtifactList(list(filter(lambda a: a.pytestable, artifact_file_collection)))
+        if len(testable_file_artifacts) == 0:
+            logger.debug('No pytestable artifacts found; skipping test_standard step.')
+            return 0
         standards_path = standard_specs.get('standards_path', None)
         if standards_path is None:
             logger.debug('No standards_path provided; skipping test_standard step.')
@@ -133,42 +138,36 @@ class TerminateTask(MDTask):
         standard_path = Path(standards_path)
         if not standard_path.exists():
             # create it
-            os.makedirs(standards_path)
+            standards_path.mkdir(parents=True, exist_ok=True)
         elif not standard_path.is_dir():
             logger.debug(f'standards_path {standards_path} is not a directory; skipping test_standard step.')
             return 0
         # standards path cannot be CWD
-        if os.path.abspath(standards_path) == os.path.abspath('.'):
+        if standard_path.absolute() == Path.cwd().absolute():
             logger.debug('standards_path cannot be the current working directory; skipping test_standard step.')
             return 0
-        logger.debug(f'Using standards_path: {standards_path}')
-        # determine all pytestable file artifacts
-        artifact_file_collection = self.pipeline.get_all_file_artifacts()
-        testable_file_artifacts = FileArtifactList(list(filter(lambda a: a.pytestable, artifact_file_collection)))
-        if len(testable_file_artifacts) == 0:
-            logger.debug('No pytestable artifacts found; skipping test_standard step.')
-            return 0
-        # now we decide if we are populating the standards witht the current results or testing against them.  If the stipulated standards path is empty or DNE, we assume we are populating it.
-        all_files = os.listdir(standards_path) if os.path.isdir(standards_path) else []
-        if len(all_files) == 0 and os.path.isdir(standards_path):
+        logger.debug(f'Using standards_path: {standards_path.name}')
+
+        all_files = [x for x in standards_path.iterdir() if x.is_file()]
+        if len(all_files) == 0 and standards_path.is_dir():
             logger.debug(f'standards_path {standards_path} is empty; populating it with current testable artifacts.')
             for f in testable_file_artifacts:
                 logger.debug(f'  Populating standard with {f.name}')
-                shutil.copy(f.name, os.path.join(standards_path, f.name))
+                shutil.copy(f.name, standards_path / f.name)
             return 0
-        elif not os.path.isdir(standards_path):
+        elif not standards_path.is_dir():
             logger.debug(f'standards_path {standards_path} does not exist; creating it and populating with current testable artifacts.')
-            os.makedirs(standards_path)
+            standards_path.mkdir(parents=True, exist_ok=True)
             for f in testable_file_artifacts:
                 logger.debug(f'  Populating standard with {f.name}')
-                shutil.copy(f.name, os.path.join(standards_path, f.name))
+                shutil.copy(f.name, standards_path / f.name)
             return 0
         else:
             logger.debug('Testable artifacts:')
             results = {}
             for f in testable_file_artifacts:
                 logger.debug(f'  {f.name}')
-                results[f.name] = "pass" if f.compare(os.path.join(standards_path, f.name)) else "fail"
+                results[f.name] = "pass" if f.compare(standards_path / f.name) else "fail"
             self.register(results, key='test_results')
             logger.debug(f'Registered all test results at "test_results"')
             logger.info('**** Standards Test Results ****')
