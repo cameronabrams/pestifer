@@ -13,6 +13,16 @@ Added
 Changed
 ~~~~~~~
 
+.. _210---2025-09-19:
+
+[2.1.0] - 2025-09-19
+--------------------
+
+- bugfixes in cif-to-pdb resid mapping output and production NAMD script
+  writer
+- ``test_standards`` optional subtask added to ``terminate`` task to
+  enable generation of gold standard results and comparisons to them
+
 .. _203---2025-09-15:
 
 [2.0.3] - 2025-09-15
