@@ -87,8 +87,10 @@ class RunSubcommand(Subcommand):
         elapsed_time_s = datetime.timedelta(seconds=(end_time - begin_time))
         logger.info(f'pestifer ends. Elapsed time {time.strftime("%H:%M:%S", time.gmtime(elapsed_time_s.seconds))}.')
         logger.info(f'Task durations:')
+        maxnamelen = max([len(t.taskname) for t in C.tasks]) if len(C.tasks) > 0 else 0
+        name_format = f'{{:>{maxnamelen}s}}'
         for task in report.values():
-            logger.info(f' - {task["taskname"]:>20s}: {hmsf(task["duration"])} ({task["duration_frac"]:>5.1%})')
+            logger.info(f' - {name_format.format(task["taskname"])}: {hmsf(task["duration"])} ({task["duration_frac"]:>5.1%})')
         if args.output_dir != './':
             os.chdir(exec_dir)
         return C
