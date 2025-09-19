@@ -70,6 +70,7 @@ class TerminateTask(MDTask):
         TarballContents = FileArtifactList()
         self.basename = self.specs.get('basename', 'my_system')
         state: StateArtifacts = self.get_current_artifact('state')
+        new_state = {}
         for ext in ['psf', 'pdb', 'coor', 'xsc', 'vel']:
             fa: FileArtifact = getattr(state, ext, None)
             if fa and fa.exists():
@@ -77,6 +78,8 @@ class TerminateTask(MDTask):
                 shutil.copy(fa.name, self.basename + '.' + ext)
                 new_fa = fa.copy(data=self.basename + '.' + ext)
                 TarballContents.append(new_fa)
+                new_state[ext] = new_fa
+        self.register(new_state, key='state', artifact_type=StateArtifacts)
         result = 0
         if md_specs:
             logger.debug(f'Packaging for namd using basename {self.basename}')

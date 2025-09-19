@@ -13,6 +13,7 @@ from copy import deepcopy
 from pathlib import Path
 from typing import ClassVar
 
+
 from .basetask import VMDTask
 from ..molecule.chainidmanager import ChainIDManager
 from ..molecule.molecule import Molecule
@@ -22,6 +23,7 @@ from ..objs.graft import GraftList
 from ..psfutil.psfatom import PSFAtomList
 from ..psfutil.psfcontents import PSFContents
 from ..scripters import VMDScripter, PsfgenScripter
+from ..util.util import write_residue_map
 
 logger = logging.getLogger(__name__)
 
@@ -533,6 +535,11 @@ class PsfgenTask(VMDTask):
         self.register(self.base_molecule, key='base_molecule')
         for molid, molecule in self.molecules.items():
             logger.debug(f'Molecule "{molid}": {molecule.num_atoms()} atoms in {molecule.num_residues()} residues; {molecule.num_segments()} segments.')
+        if 'cif' in self.source_specs.get('file_format', '').lower():
+            if self.source_specs.get('cif_residue_map_file', ''):
+                write_residue_map(self.base_molecule.asymmetric_unit.residues.cif_residue_map(), self.source_specs['cif_residue_map_file'])
+                self.register(Path(self.source_specs['cif_residue_map_file']), key='cif_residue_map', artifact_type=CSVDataFileArtifact)
+            logger.debug(f'Base molecule has {self.base_molecule.num_atoms()} atoms in {self.base_molecule.num_residues()} residues; {self.base_molecule.num_segments()} segments.')
 
     def update_molecule(self):
         """

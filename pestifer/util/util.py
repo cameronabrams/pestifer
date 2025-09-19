@@ -372,7 +372,7 @@ def flatten(current: dict, key: str, result: dict) -> dict:
         result[key] = current
     return result
 
-def write_residue_map(the_map: dict, filename: str, valkeys: list[str] = ['chainID', 'resseqnum', 'insertion']) -> None:
+def write_residue_map(the_map: dict, filename: str) -> None:
     """
     Writes a flattened map of residue objects to a file.
     The map is flattened such that each key is a dot-separated string representing the path to the value,
@@ -381,18 +381,15 @@ def write_residue_map(the_map: dict, filename: str, valkeys: list[str] = ['chain
     Parameters
     ----------
     the_map : dict
-        A dictionary where keys are strings representing the path to the residue objects, and values are the residue objects themselves.
+        A dictionary where keys are strings of the form <chainID>:<resid> as labelled in a CIF file, and values are strings of the form <chainID>:<resid> as labelled by the "auth" attributes.
     filename : str
         The name of the file to which the flattened map will be written.
     valkeys : list of str, optional
-        A list of attribute names to be extracted from the residue objects. Default is [``chainID``, ``resseqnum``, ``insertion``].
+        A list of attribute names to be extracted from the residue objects. Default is [``chainID``, ``resid``].
     """
-    flat_map = flatten(the_map, '', {})
     with open(filename, 'w') as f:
-        for k, v in flat_map.items():
-            kl = ' '.join(k.split('.'))
-            vl = ' '.join([str(v.__dict__[x]) for x in valkeys])
-            f.write(f'{kl} {vl}\n')
+        for k, v in the_map.items():
+            f.write(f'{k},{v}\n')
 
 def tarball_walk(tar):
     """

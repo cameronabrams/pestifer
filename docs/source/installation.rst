@@ -6,7 +6,7 @@ Installation
 Software Prequisites
 --------------------
 
-The commands ``vmd``, ``charmrun``, ``catdcd``, and ``namd3`` should be in your path.  By default, Pestifer expects your GPU-enabled ``namd3`` to be in your path as ``namd3gpu``.  To build membrane systems using Pestifer's ``packmol`` integration, you must have ``packmol`` (v. 20.14.3 or better) in your path too.
+The commands ``vmd`` (v. 1.9.4 or better), ``charmrun``, ``catdcd``, and ``namd3`` (v. 3.0.2 recommended) should be in your path.  By default, Pestifer expects your GPU-enabled ``namd3`` to be in your path as ``namd3gpu``.  To build membrane systems using Pestifer's ``packmol`` integration, you must have ``packmol`` (v. 20.14.3 or better) in your path too.
 
 Installation
 ------------

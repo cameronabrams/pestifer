@@ -216,8 +216,7 @@ class AsymmetricUnit:
         if self.psfcontents is not None:
             assert len(fromResiduePlaceholders) == 0, f'Expected no missing residues because you specified a companion PSF, but found {len(fromResiduePlaceholders)}'
         residues: ResidueList = fromAtoms + fromResiduePlaceholders
-        if sourcespecs.get('cif_residue_map_file', ''):
-            write_residue_map(residues.cif_residue_map(), sourcespecs['cif_residue_map_file'])
+            
         residues.apply_segtypes()
         # for r in residues:
         #     logger.debug(str(r))

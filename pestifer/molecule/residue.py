@@ -68,7 +68,7 @@ class ResiduePlaceholder(BaseObj):
         The segment type.
     """
 
-    _optional_fields = {'model', 'obj_id', 'auth_asym_id', 'auth_comp_id', 
+    _optional_fields = {'model', 'obj_id', 'auth_asym_id', 'auth_comp_id', 'pdb_ins_code',
                         'auth_seq_id', 'empty', 'recordname', 'asym_chainID', 'ORIGINAL_ATTRIBUTES'}
     """
     Optional attributes for ResiduePlaceholder.
@@ -109,6 +109,7 @@ class ResiduePlaceholder(BaseObj):
     auth_asym_id: str | None = Field(None, description="The author asymmetry ID, if applicable.")
     auth_comp_id: str | None = Field(None, description="The author component ID, if applicable.")
     auth_seq_id: int | None = Field(None, description="The author sequence ID, if applicable.")
+    pdb_ins_code: str | None = Field(None, description="The PDB insertion code, if applicable.")
 
     empty: bool = Field(False, description="Indicates whether the residue is empty (True) or not (False).")
     recordname: str = Field('REMARK.465', description="The PDB record name for the residue.")
@@ -228,13 +229,14 @@ class ResiduePlaceholder(BaseObj):
             'resname': cifdict['label_comp_id'],
             'chainID': cifdict['label_asym_id'],
             'asym_chainID': cifdict['label_asym_id'],
-            'resid': ResID(int(cifdict['label_seq_id']), cifdict['pdb_ins_code']),
+            'resid': ResID(int(cifdict['label_seq_id'])),
             'resolved': False,
             'segtype': 'UNSET',
             'segname': 'UNSET',
             'auth_asym_id': cifdict['auth_asym_id'],
             'auth_comp_id': cifdict['auth_comp_id'],
             'auth_seq_id': int(cifdict['auth_seq_id']),
+            'pdb_ins_code': cifdict['pdb_ins_code'],
         }
         return input_dict
 
@@ -1029,14 +1031,16 @@ class ResidueList(BaseObjList[Residue]):
         This method iterates through the residue list and creates a dictionary where the keys are chain IDs
         and the values are dictionaries mapping residue sequence numbers to Namespace objects containing
         the residue information.
-        """
+            'auth_asym_id': cifdict['auth_asym_id'],
+            'auth_comp_id': cifdict['auth_comp_id'],
+            'auth_seq_id': int(cifdict['auth_seq_id']),
+                            """
         result = {}
-        for r in self:
-            if hasattr(r, 'label_asym_id'):
-                if not r.chainID in result:
-                    result[r.chainID] = {}
-                if not r.resid in result[r.chainID]:
-                    result[r.chainID][r.resid] = Namespace(ResID(resseqnum=r.label_seq_id, insertion=r.insertion), chainID=r.label_asym_id)
+        for r in self.data:
+            if hasattr(r, 'auth_asym_id'):  # this was constructed from atoms in a CIF file
+                key = f'{r.chainID}:{r.resid.resid}'
+                val = f'{r.auth_asym_id}:{r.auth_seq_id}{r.pdb_ins_code}'
+                result[key] = val
         return result
     
     def apply_insertions(self, insertions: InsertionList):
