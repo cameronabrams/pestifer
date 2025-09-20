@@ -512,7 +512,7 @@ class PsfgenTask(VMDTask):
                 if not g.source_pdbid in self.molecules:
                     logger.debug(f'Ingesting graft source {g.source_pdbid}')
                     this_source = {
-                        'source_db': 'rscb',
+                        'source_db': 'rcsb',
                         'source_id': g.source_pdbid,
                         'file_format': 'PDB'
                     }
