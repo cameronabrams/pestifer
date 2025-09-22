@@ -203,31 +203,31 @@ class Config(Yclept):
             if not rq_resolved and not rq_alt:
                 raise FileNotFoundError(f'Cannot find required command {self.shell_commands[rq]} in your path.')
             
-            if not fullpath:
+            if not rq_resolved:
                 if rq in command_alternates:
                     rqalt = command_alternates[rq]
                     self.shell_commands[rq] = self['user']['paths'][rqalt]
-                    altfullpath = shutil.which(self.shell_commands[rq])
-                    if altfullpath:
+                    altrq_resolved = shutil.which(self.shell_commands[rq])
+                    if altrq_resolved:
                         logger.info(f'Using alternate command {self.shell_commands[rq]} for {rq}.')
-                        fullpath = altfullpath
+                        rq_resolved = altrq_resolved
                     else:
                         raise FileNotFoundError(f'Cannot find required command {self.shell_commands[rq]} or alternate {self.shell_commands[rqalt]} in your path.')
                 else:
                     raise FileNotFoundError(f'Cannot find required command {self.shell_commands[rq]} in your path.')
-            if fullpath is not None and verify_access:
-                assert os.access(fullpath, os.X_OK), f'You do not have permission to execute {fullpath}'
+            if rq_resolved is not None and verify_access:
+                assert os.access(rq_resolved, os.X_OK), f'You do not have permission to execute {rq_resolved}'
         self.namd_type = self['user']['namd']['processor-type']
         cn = 'namd3gpu'
         self.shell_commands[cn] = self['user']['paths'][cn]
-        fullpath = shutil.which(self.shell_commands[cn])
-        if not fullpath:
+        rq_resolved = shutil.which(self.shell_commands[cn])
+        if not rq_resolved:
             logger.warning(f'{self.shell_commands[cn]}: not found')
         if self.shell_commands['namd3gpu'] == self.shell_commands['namd3']:
             logger.warning(f'CPU and GPU namd3 have the same path: {self.shell_commands["namd3gpu"]}')
         if self.namd_type == 'gpu': # make sure we can run the GPUResident namd3
             if verify_access:
-                assert os.access(fullpath, os.X_OK), f'You do not have permission to execute {fullpath}'
+                assert os.access(rq_resolved, os.X_OK), f'You do not have permission to execute {rq_resolved}'
         self.namd_deprecates = self['user']['namd']['deprecated3']
 
     def _set_internal_shortcuts(self):

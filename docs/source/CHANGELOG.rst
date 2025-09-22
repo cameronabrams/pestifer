@@ -18,8 +18,8 @@ Changed
 [2.1.0] - 2025-09-19
 --------------------
 
-- bugfixes in cif-to-pdb resid mapping output and production NAMD script
-  writer
+- bugfixes in cif-to-pdb resid mapping output, production NAMD script
+  writer, and mispelling of rcsb
 - ``test_standards`` optional subtask added to ``terminate`` task to
   enable generation of gold standard results and comparisons to them
 
