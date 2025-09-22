@@ -198,15 +198,24 @@ class Config(Yclept):
         self.shell_commands = {}
         for rq in required_commands:
             self.shell_commands[rq] = self['user']['paths'][rq]
-            fullpath = shutil.which(self.shell_commands[rq])
+            rq_resolved = shutil.which(self.shell_commands[rq])
+            rq_alt = command_alternates.get(rq, None)
+            if not rq_resolved and not rq_alt:
+                raise FileNotFoundError(f'Cannot find required command {self.shell_commands[rq]} in your path.')
+            
             if not fullpath:
-                logger.warning(f'{self.shell_commands[rq]}: not found.')
                 if rq in command_alternates:
                     rqalt = command_alternates[rq]
                     self.shell_commands[rq] = self['user']['paths'][rqalt]
-                    if verify_access:
-                        assert shutil.which(self.shell_commands[rq]), f'Alternate command {self.shell_commands[rq]} not found.'
-            if verify_access:
+                    altfullpath = shutil.which(self.shell_commands[rq])
+                    if altfullpath:
+                        logger.info(f'Using alternate command {self.shell_commands[rq]} for {rq}.')
+                        fullpath = altfullpath
+                    else:
+                        raise FileNotFoundError(f'Cannot find required command {self.shell_commands[rq]} or alternate {self.shell_commands[rqalt]} in your path.')
+                else:
+                    raise FileNotFoundError(f'Cannot find required command {self.shell_commands[rq]} in your path.')
+            if fullpath is not None and verify_access:
                 assert os.access(fullpath, os.X_OK), f'You do not have permission to execute {fullpath}'
         self.namd_type = self['user']['namd']['processor-type']
         cn = 'namd3gpu'
