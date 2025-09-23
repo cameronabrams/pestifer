@@ -18,6 +18,9 @@ tasks:
   - make_membrane_system:
       bilayer:
         SAPL: 60.0
+        salt_con: 0.154
+        cation: POT
+        anion: CLA
         composition:
           lower_leaflet:
             - name: POPE
@@ -117,15 +120,18 @@ tasks:
   - md:
       ensemble: NVT
       nsteps: 1000
+      temperature: 410
       constraints:
         k: 1
         atoms: protein and name CA
   - md:
       ensemble: NPT
       nsteps: 6400
+      temperature: 410
   - md:
       ensemble: NPAT
-      nsteps: 25600  # this is way too short!!
+      nsteps: 51200  # this is way too short!!
+      temperature: 310
       other_parameters:
         pressureProfile: on
         pressureProfileFreq: 100

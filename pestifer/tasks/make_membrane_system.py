@@ -484,7 +484,7 @@ class MakeMembraneSystemTask(BaseTask):
             return
         zvals = np.zeros(2)
         dum_pdb: PDBFileArtifact = self.get_current_artifact('base_coordinates_dum')
-        if dum_pdb.exists():
+        if dum_pdb and dum_pdb.exists():
             logger.debug(f'Using DUM pdb {dum_pdb.name} for embedding coordinates')
             no_orient = True
             z_head_group = ""

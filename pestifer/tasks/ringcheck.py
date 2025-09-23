@@ -55,6 +55,5 @@ class RingCheckTask(BaseTask):
                 #     self.register(at(self.basename))
                 self.register(self.basename, key='tcl', artifact_type=PsfgenInputScriptArtifact)
                 self.register(self.basename, key='log', artifact_type=PsfgenLogFileArtifact)
-        self.log_message('complete')
         self.result = 0
         return self.result

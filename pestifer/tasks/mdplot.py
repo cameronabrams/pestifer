@@ -172,6 +172,7 @@ class MDPlotTask(BaseTask):
             else:
                 tracelist = trace
             for idx, t_i in enumerate(tracelist):
+                units = 1.0
                 unitspec = self.specs.get('units', {}).get(t_i, '*')
                 if unitspec == '*':
                     units = 1.0

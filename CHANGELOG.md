@@ -6,10 +6,15 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 ### Added
 ### Changed
 
+## [2.1.1] - 2025-09-23
+
+- bugfixes in `mdplot` (pressure profiles) and `make_membrane_system` (`dum_pdb`)
+- updated input configs for examples 16 and 17
+
 ## [2.1.0] - 2025-09-19
 
 - bugfixes in cif-to-pdb resid mapping output, production NAMD script writer, and mispelling of rcsb
-- `test_standards` optional subtask added to `terminate` task to enable generation of gold standard results and comparisons to them
+- new feature: `test_standards` optional subtask added to `terminate` task to enable generation of gold standard results and comparisons to them
 
 ## [2.0.3] - 2025-09-15
 
