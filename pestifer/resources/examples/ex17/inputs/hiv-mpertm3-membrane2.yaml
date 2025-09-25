@@ -19,6 +19,7 @@ tasks:
       bilayer:
         SAPL: 60.0
         salt_con: 0.154
+        half_mid_zgap: 0.0
         cation: POT
         anion: CLA
         composition:
@@ -53,23 +54,28 @@ tasks:
             - md:
                 ensemble: NPT
                 nsteps: 1000
-                temperature: 310
+                temperature: 410
                 pressure: 10.0
             - md:
                 ensemble: NPT
                 nsteps: 2000
-                temperature: 310
+                temperature: 410
                 pressure: 10.0
             - md:
                 ensemble: NPT
                 nsteps: 4000
-                temperature: 310
+                temperature: 360
                 pressure: 10.0
             - md:
                 ensemble: NPT
                 nsteps: 8000
                 temperature: 310
                 pressure: 10.0
+            - md:
+                ensemble: NPT
+                nsteps: 16000
+                temperature: 310
+                pressure: 4.0
             - md:
                 ensemble: NPAT
                 nsteps: 16000  # this is probably too short!
@@ -84,8 +90,18 @@ tasks:
                 temperature: 310
                 pressure: 1.0
             - md:
-                ensemble: NPAT
+                ensemble: NPT
                 nsteps: 2000
+                temperature: 310
+                pressure: 1.0
+            - md:
+                ensemble: NPT
+                nsteps: 4000
+                temperature: 310
+                pressure: 1.0
+            - md:
+                ensemble: NPAT
+                nsteps: 8000
                 temperature: 310
                 pressure: 1.0
       embed:
@@ -119,15 +135,35 @@ tasks:
         atoms: protein and name CA
   - md:
       ensemble: NVT
-      nsteps: 1000
-      temperature: 410
+      nsteps: 6400
+      temperature: 310
       constraints:
         k: 1
         atoms: protein and name CA
   - md:
       ensemble: NPT
-      nsteps: 6400
-      temperature: 410
+      nsteps: 1000
+      temperature: 360
+  - md:
+      ensemble: NPT
+      nsteps: 2000
+      temperature: 310
+  - md:
+      ensemble: NPT
+      nsteps: 4000
+      temperature: 310
+  - md:
+      ensemble: NPT
+      nsteps: 8000
+      temperature: 310
+  - md:
+      ensemble: NPT
+      nsteps: 16000
+      temperature: 310
+  - md:
+      ensemble: NPT
+      nsteps: 32000
+      temperature: 310
   - md:
       ensemble: NPAT
       nsteps: 51200  # this is way too short!!
