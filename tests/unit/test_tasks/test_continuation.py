@@ -24,6 +24,12 @@ class TestContinuationTask(unittest.TestCase):
         dest_xsc = Path('my_6pti.xsc')
         dest_coor = Path('my_6pti.coor')
         dest_vel = Path('my_6pti.vel')
+        dest_chainmap = Path('chainmap.yaml')
+        if dest_chainmap.exists():
+            dest_chainmap.unlink()
+        dest_tarball = Path('my_system.tar.gz')
+        if dest_tarball.exists():
+            dest_tarball.unlink()
         if dest_psf.exists():
             dest_psf.unlink()
         if dest_pdb.exists():
@@ -64,7 +70,8 @@ class TestContinuationTask(unittest.TestCase):
         self.assertIsInstance(self.controller.tasks[1], TerminateTask)
         self.controller.do_tasks()
         task = self.controller.tasks[0]
-        state: StateArtifacts = task.get_current_artifact('state')
+        state = self.controller.pipeline.get_state_artifact(produced_by=task)
+        # state: StateArtifacts = task.get_current_artifact('state')
         psf = state.psf
         self.assertEqual(psf.name, 'my_6pti.psf')
         pdb = state.pdb

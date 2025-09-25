@@ -220,6 +220,33 @@ class PipelineContext:
             return FileArtifactList(series)
         return series
 
+    def get_state_artifact(self, produced_by: object | None = None) -> StateArtifacts | None:
+        """
+        Retrieve the most recent StateArtifacts produced by a specific task or object.
+        
+        Parameters
+        ----------
+        produced_by : object | None
+            The task or object that produced the artifacts to retrieve.
+
+        Returns
+        -------
+        StateArtifacts | None
+            The most recent StateArtifacts produced by the specified task, or None if not found.
+        """
+        my_history = self.history
+        my_current = self.head
+        if produced_by is not None:
+            my_history = self.history.filter_by_produced_by(produced_by=produced_by)
+            my_current = self.head.filter_by_produced_by(produced_by=produced_by)
+        all_artifacts = my_history + my_current.to_list()
+        for artifact in reversed(all_artifacts):
+            if isinstance(artifact, StateArtifacts):
+                logger.debug(f'Found StateArtifacts produced by {produced_by if produced_by else "any task"}.')
+                return artifact
+        logger.debug(f'No StateArtifacts found produced by {produced_by if produced_by else "any task"}.')
+        return None
+
     def get_all_file_artifacts(self, produced_by: object | None = None) -> FileArtifactList:
         """
         Retrieve a collection of artifacts produced by a specific task or object.
