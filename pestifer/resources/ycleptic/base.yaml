@@ -342,36 +342,36 @@ attributes:
         type: dict
         attributes:
           - name: source
-            text: Source for the initial coordinate file; one of 'rcsb' (for the RCSB PDB), 'alphafold' (for the AlphaFold DB), 'opm' (for the OPM database), or 'local' (for a local file)
+            text: Source for the initial coordinate file; one of ``rcsb`` (for the RCSB PDB), ``alphafold`` (for the AlphaFold DB), ``opm`` (for the OPM database), or ``local`` (for a local file)
             type: str
             options: [rcsb, alphafold, opm, local]
             default: rcsb
           - name: sourceID
-            text: ID of the source file; if source is 'local', a file 'sourceID.pdb' or 'sourceID.cif' must exist in the working directory
+            text: ID of the source file; if source is ``local``, a file ``sourceID.pdb`` or ``sourceID.cif`` must exist in the working directory
             type: str
           - name: source_format
-            text: Format of the source file; this should be 'pdb' or 'cif'
+            text: Format of the source file; this should be ``pdb`` or ``cif``
             type: str
             choices: [pdb, cif]
             default: pdb
       - name: continuation
-        text: Continue from specified pdb, psf, and (optionally) xsc files without any further modifications (suitable for directly feeding to md tasks)
+        text: Continue from specified pdb, psf, and (optionally) xsc, vel, and coor files
         type: dict
         attributes:
           - name: psf
-            text: name of psf file (w/optional psf extension)
+            text: name of psf file (w/optional .psf extension)
             type: str
           - name: pdb
-            text: name of pdb file (w/optional pdb extension)
+            text: name of pdb file (w/optional .pdb extension)
             type: str
           - name: xsc
-            text: name of xsc file (w/optional xsc extension)
+            text: name of xsc file (w/optional .xsc extension)
             type: str
           - name: coor
-            text: name of coor file (w/optional coor extension)
+            text: name of coor file (w/optional .coor extension)
             type: str
           - name: vel
-            text: name of vel file (w/optional vel extension)
+            text: name of vel file (w/optional .vel extension)
             type: str
       - name: psfgen
         text: Parameters controlling a specific psfgen run on an input molecule
