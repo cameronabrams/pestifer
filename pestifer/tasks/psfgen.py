@@ -487,6 +487,7 @@ class PsfgenTask(VMDTask):
                 'psf': state.psf.name,
                 'xsc': state.xsc.name if state.xsc else None
             }
+            this_source['file_format'] = 'PDB'
         else:
             basename, ext = os.path.splitext(base_coordinates)
             this_source['source_id'] = basename

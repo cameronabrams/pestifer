@@ -340,13 +340,19 @@ def my_logger(msg: str | list | dict | pd.DataFrame, logf: Callable, width=None,
     if frame:
         ffmt = r'{'+r':'+frame+just+f'{width}'+r'}'
         logf(ffmt.format(frame))
+    # logger.debug(f'Logging message of type {type(msg)} at depth {depth}; is list? {isinstance(msg, list)}; is dict? {isinstance(msg, dict)}; is DataFrame? {isinstance(msg, pd.DataFrame)}')
     if isinstance(msg, list):
         for tok in msg:
             my_logger(tok, logf, width=width, fill=fill, just=just, frame=False, depth=depth, kwargs=kwargs)
     elif isinstance(msg, dict):
+        # logger.debug(f'logging dict of length {len(msg)}')
         for key, value in msg.items():
             if isinstance(value, str) or not hasattr(value, "__len__"):
                 my_logger(f'{key}: {value}', logf, width=width, fill=fill, just=just, frame=False, depth=depth, kwargs=kwargs)
+            elif isinstance(value, list):
+                # logger.debug(f'key {key} is a list of length {len(value)}')
+                for tok in value:
+                    my_logger(tok, logf, width=width, fill=fill, just=just, frame=False, depth=depth+1, kwargs=kwargs)
             else:
                 my_logger(f'{key}:', logf, width=width, fill=fill, just=just, frame=False, depth=depth, kwargs=kwargs)
                 my_logger(value, logf, width=width, fill=fill, just=just, frame=False, depth=depth+1, kwargs=kwargs)

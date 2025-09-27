@@ -6,12 +6,8 @@ Usage is described in the :ref:`config_ref tasks continuation` documentation.
 """
 import logging
 
-from ..psfutil.psfcontents import PSFContents
 from .psfgen import PsfgenTask
-# from .basetask import VMDTask
 from ..core.artifacts import *
-from ..molecule.atom import AtomList
-from ..molecule.residue import ResidueList
 logger = logging.getLogger(__name__)
 
 class ContinuationTask(PsfgenTask):

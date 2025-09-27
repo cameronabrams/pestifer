@@ -301,8 +301,10 @@ class Graft(BaseObj):
                 target_addl_residue = Residues.get(lambda x: x.chainID == self.chainID and x.resid == self.target_partner)
                 if target_addl_residue is not None:
                     self.residues.append(target_addl_residue)
+        else:
+            raise ValueError(f'Graft {self.obj_id} target residue ({self.chainID} {self.target_root}) not found in receiver residues ({len(Residues)} total)')
         if len(self.residues) != len(self.index_residues):
-            raise ValueError(f'Graft {self.obj_id} ({self.chainID} {self.target_root.resid}) has {len(self.index_residues)} index residues but only {len(self.residues)} receiver residues assigned')
+            raise ValueError(f'Graft {self.obj_id} ({self.chainID} {self.target_root}) has {len(self.index_residues)} index residues but only {len(self.residues)} receiver residues assigned')
         logger.debug(f'Graft {self.obj_id} assigned {len(self.residues)} receiver residues')
 
 class GraftList(BaseObjList[Graft]):
