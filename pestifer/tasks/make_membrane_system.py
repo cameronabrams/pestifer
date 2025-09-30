@@ -16,14 +16,13 @@ from .basetask import BaseTask
 from ..charmmff.charmmffcontent import CHARMMFFContent
 
 from ..core.artifacts import *
-from ..core.resourcemanager import ResourceManager
 from ..util.stringthings import __pestifer_version__
 
 from ..molecule.bilayer import Bilayer, specstrings_builddict
 
 from ..psfutil.psfcontents import get_toppar_from_psf
 
-from ..scripters import PsfgenScripter, PackmolScripter
+from ..scripters import PsfgenScripter, PackmolScripter, VMDScripter
 
 from ..util.util import cell_to_xsc,cell_from_xsc, protect_str_arg
 from ..util.units import _UNITS_
@@ -155,6 +154,8 @@ class MakeMembraneSystemTask(BaseTask):
             self.embedding = True
             logger.debug(f'Using psf {protein_state.psf.name} and pdb {protein_state.pdb.name} as inputs')
 
+        if self.embedding:
+            self.orient_protein()
         if not self.using_prebuilt_bilayer:
             self.build_patch()
             self.make_quilt_from_patch()
@@ -163,6 +164,45 @@ class MakeMembraneSystemTask(BaseTask):
         else:
             self.pipeline.rekey('quilt_state', 'state')
         return 0
+
+    def orient_protein(self):
+        """
+        Orient the protein so that its principal axis is aligned with the z-axis (membrane normal).
+        This method uses the Orient package in VMD to perform the orientation based on specified atom selections.
+        The oriented protein structure is then saved as a new PDB file and registered as an artifact.
+        """
+        if self.embed_specs.get('no_orient', True):
+            logger.debug('Skipping orientation of protein as per embed specs')
+            return
+        
+        z_head_group = self.embed_specs.get('z_head_group', None)
+        z_tail_group = self.embed_specs.get('z_tail_group', None)
+        if z_head_group is None or z_tail_group is None:
+            logger.debug('No z_head_group or z_tail_group specified; skipping orientation of protein')
+            return
+        
+        self.next_basename('orient')
+        logger.debug(f'Orienting protein')
+        vm: VMDScripter = self.scripters['vmd']
+        vm.newscript(self.basename)
+        vm.usescript('bilayer_orient')
+        vm.writescript(self.basename)
+        self.register(self.basename, key='tcl', artifact_type=VMDScriptArtifact)
+        protein_state: StateArtifacts = self.get_current_artifact('state')
+        protein_psf: str = protein_state.psf.name
+        protein_pdb: str = protein_state.pdb.name
+        result = vm.runscript(psf=protein_psf,
+                              pdb=protein_pdb,
+                              z_head_group=protect_str_arg(z_head_group),
+                              z_tail_group=protect_str_arg(z_tail_group),
+                              o=self.basename)
+        if result != 0:
+            raise RuntimeError(f'vmd failed with result {result} for {self.basename}')
+        self.register(self.basename, key='log', artifact_type=VMDLogFileArtifact)
+        self.register(dict(
+            psf=protein_psf, 
+            pdb=PDBFileArtifact(self.basename, pytestable=True)), 
+            key='state', artifact_type=StateArtifacts)
 
     def build_patch(self):
         """
@@ -486,9 +526,6 @@ class MakeMembraneSystemTask(BaseTask):
         dum_pdb: PDBFileArtifact = self.get_current_artifact('base_coordinates_dum')
         if dum_pdb and dum_pdb.exists():
             logger.debug(f'Using DUM pdb {dum_pdb.name} for embedding coordinates')
-            no_orient = True
-            z_head_group = ""
-            z_tail_group = ""
             z_ref_group = ""
             dum_struct = PDBParser(filepath=dum_pdb.path).parse().parsed
             zvals = np.array(list(set(a.z for a in dum_struct['HETATM'])))
@@ -496,9 +533,6 @@ class MakeMembraneSystemTask(BaseTask):
             assert len(zvals) == 2, "DUM pdb must have exactly two distinct z-values for head and tail groups"
             z_value = zvals.mean()
         else:
-            no_orient = self.embed_specs.get('no_orient', False)
-            z_head_group = self.embed_specs.get('z_head_group', None)
-            z_tail_group = self.embed_specs.get('z_tail_group', None)
             z_ref_group = self.embed_specs.get('z_ref_group', {}).get('text', None)
             z_value = self.embed_specs.get('z_ref_group', {}).get('z_value', 0.0)
         self.next_basename('embed')
@@ -514,18 +548,16 @@ class MakeMembraneSystemTask(BaseTask):
         protein_state: StateArtifacts = self.get_current_artifact('state')
         protein_psf: str = protein_state.psf.name
         protein_pdb: str = protein_state.pdb.name
+        logger.debug(f'Embedding {protein_pdb} with z_ref_group {z_ref_group} at z={z_value:.3f} into bilayer {bilayer_pdb}')
         result = pg.runscript(psf=protein_psf,
                               pdb=protein_pdb,
                               bilayer_psf=bilayer_psf,
                               bilayer_pdb=bilayer_pdb,
                               bilayer_xsc=bilayer_xsc,
-                              z_head_group=protect_str_arg(z_head_group),
-                              z_tail_group=protect_str_arg(z_tail_group),
                               z_ref_group=protect_str_arg(z_ref_group),
                               z_lo_dum=zvals[0],
                               z_hi_dum=zvals[1],
                               z_value=z_value,
-                              no_orient=no_orient,
                               o=self.basename)
         if result != 0:
             raise RuntimeError(f'psfgen failed with result {result} for {self.basename}')

@@ -8,27 +8,22 @@
 # pre-build commands are invoked automatically
 # and the script is run in the context of the psfgen package
 
-package require Orient
-namespace import ::Orient::*
 package require pbctools
 package require solvate
 package require autoionize
 
 set scriptname bilayer_embed
 
-set pdb "";  # psf of protein-only system
-set psf "";  # pdb of protein-only system
+set pdb "";  # pdb coordinates of protein-only system; must be oriented such that z is membrane normal
+set psf "";  # psf of protein-only system
 set bilayer_pdb ""; # the membrane-only system
 set bilayer_psf ""; # the membrane-only system
 set bilayer_xsc ""; # the membrane-only system
-set z_head_group ""; # atomselection whose center of mass defines one end of the protein axis
-set z_tail_group ""; # atomselection whose center of mass defines the other end of the protein axis
 set z_ref_group ""; # atomselection whose center of mass lies at the membrane midplane + z_value
 set z_lo_dum 0.0 ; # lower z of the dummy atoms from an OPM pdb file
 set z_hi_dum 0.0 ; # upper z of the dummy atoms from an OPM pdb file
 set z_value 0.0 ; # offset of the protein center of mass from the bilayer midplane
 set outbasename "embedded"
-set no_orient 0; # override the orientation of the protein axis to align with the bilayer normal
 set zdist 10.0; # distance between z-extremal protein atoms and z-boundaries of box
 set sc 0.0
 set cation POT
@@ -54,23 +49,6 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
    if { [lindex $argv $i] == "-bilayer_xsc"} {
       incr i
       set bilayer_xsc [lindex $argv $i]
-   }
-   if { [lindex $argv $i] == "-no_orient"} {
-      incr i
-      set no_orient_val [lindex $argv $i]
-      if { $no_orient_val == "1" || $no_orient_val == "True" || $no_orient_val == "true" || $no_orient_val == "yes" || $no_orient_val == "Yes" } {
-         set no_orient 1
-      } else {
-         set no_orient 0
-      }
-   }
-   if { [lindex $argv $i] == "-z_head_group"} {
-      incr i
-      set z_head_group [deprotect_str_arg [lindex $argv $i]]
-   }
-   if { [lindex $argv $i] == "-z_tail_group"} {
-      incr i
-      set z_tail_group [deprotect_str_arg [lindex $argv $i]]
    }
    if { [lindex $argv $i] == "-z_ref_group"} {
       incr i
@@ -131,15 +109,6 @@ if { $bilayer_xsc == "" } {
    puts "Error: -bilayer_xsc argument required"
    exit
 }
-# check for optional arguments
-if { $z_head_group == "" && !$no_orient } {
-   puts "Error: -z_head_group argument required if -no_orient is not indicated"
-   exit
-}
-if { $z_tail_group == "" && !$no_orient } {
-   puts "Error: -z_tail_group argument required if -no_orient is not indicated"
-   exit
-}
 
 set tmp_files [list]
 
@@ -176,19 +145,6 @@ vmdcon -info "bilayer z-span [lindex $bilayer_box 2]; by apparent atom measureme
 
 set bilayer_com [measure center $bilayer_sel weight mass]
 set bilayer_com_z [lindex $bilayer_com 2]
-
-if { !$no_orient } {
-   vmdcon -info "orienting protein axis to bilayer normal"
-   set head [atomselect $protein "$z_head_group"]
-   set tail [atomselect $protein "$z_tail_group"]
-   set head_com [measure center $head weight mass]
-   set tail_com [measure center $tail weight mass]
-   set pro_axis [vecnorm [vecsub $head_com $tail_com]]
-   set A [orient $pro_sel $pro_axis {0 0 1}]
-   $pro_sel move $A
-} else {
-   vmdcon -info "not orienting protein axis to bilayer normal"
-}
 
 # perform a translation of the protein to the middle of the bilayer
 if { $z_ref_group != ""} {
@@ -272,6 +228,7 @@ mol delete $raw_embedded_system
 
 set addl_water [list]
 
+vmdcon -info "required box min z $box_min_z, current bilayer min z $bilayer_min_z"
 if { $box_min_z < $bilayer_min_z } {
    # make a slab of water thick enough to fill this gap
    set gapsize [expr $bilayer_min_z - $box_min_z]
@@ -366,11 +323,6 @@ foreach aw $addl_solution {
       lappend newsegids $is
    }
    mol delete $solution
-   file delete $apdb
-   file delete $apsf
-   foreach ns $new_segids {
-      file delete ${aw}_${ns}.pdb
-   }
 }
 
 writepsf cmap ${outbasename}_solvent_appended.psf
@@ -400,11 +352,14 @@ writepdb ${outbasename}_filled.pdb
 lappend tmp_files ${outbasename}_filled.psf
 lappend tmp_files ${outbasename}_filled.pdb
 
+set origin_x [expr $bilayer_box_Lx / 2]
+set origin_y [expr $bilayer_box_Ly / 2]
+set origin_z [expr ($box_max_z + $box_min_z) / 2]
 # write the resulting box dimensions to an xsc file
 set fp [open "${outbasename}.xsc" "w"]
 puts $fp "# PESTIFER generated xst file"
 puts $fp "#\$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w"
-puts $fp "0 $bilayer_box_Lx 0 0  0 $bilayer_box_Ly 0  0 0 $box_Lz  [expr ($bilayer_box_Lx / 2)] [expr ($bilayer_box_Ly / 2)] [expr ($box_Lz / 2)] 0 0 0 0 0 0"
+puts $fp "0 $bilayer_box_Lx 0 0  0 $bilayer_box_Ly 0  0 0 $box_Lz  $origin_x $origin_y $origin_z 0 0 0 0 0 0"
 close $fp
 
 resetpsf

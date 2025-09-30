@@ -9,6 +9,7 @@ from pestifer.core.controller import Controller
 
 from pestifer.scripters import PsfgenScripter
 
+from pestifer.scripters.vmdscripter import VMDScripter
 from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
 
 from pestifer.tasks.validate import ValidateTask
@@ -253,30 +254,40 @@ class TestMakeMembraneSystem(unittest.TestCase):
             shutil.rmtree(test_dir)
         os.mkdir(test_dir)
         os.chdir(test_dir)
-        basename = 'test_bilayer_embed'
-        psf = '5e8w-proteinonly.psf'
-        pdb = '5e8w-proteinonly.pdb'
+        # psf = '5e8w-proteinonly.psf'
+        # pdb = '5e8w-proteinonly.pdb'
+        psf = 'van3.psf'
+        pdb = 'van3.pdb'
         bilayer_psf = 'equilibrate.psf'
         bilayer_pdb = 'equilibrate.pdb'
         bilayer_xsc = 'equilibrate.xsc'
         input_data_dir = '../../fixtures/embed_inputs'
         for ftype in [psf, pdb, bilayer_psf, bilayer_pdb, bilayer_xsc]:
             shutil.copy(os.path.join(input_data_dir, ftype), '.')
-        pg: PsfgenScripter = self.scripters['psfgen']
-        pg.newscript(basename)
-        pg.usescript('bilayer_embed')
-        pg.writescript(basename, guesscoord=False, regenerate=True, force_exit=True, writepsf=False, writepdb=False)
-        result = pg.runscript(psf=psf,
+
+        vm: VMDScripter = self.scripters['vmd']
+        vm.newscript('orient')
+        vm.usescript('bilayer_orient')
+        vm.writescript('orient')
+        result = vm.runscript(psf=psf,
                               pdb=pdb,
+                              z_head_group=protect_str_arg("protein and resid 126"),
+                              z_tail_group=protect_str_arg("protein and resid 158"),
+                              o='oriented')
+        opdb = 'oriented.pdb'
+        pg: PsfgenScripter = self.scripters['psfgen']
+        pg.newscript('embedded')
+        pg.usescript('bilayer_embed')
+        pg.writescript('embedded', guesscoord=False, regenerate=True, force_exit=True, writepsf=False, writepdb=False)
+        result = pg.runscript(psf=psf,
+                              pdb=opdb,
                               bilayer_psf=bilayer_psf,
                               bilayer_pdb=bilayer_pdb,
                               bilayer_xsc=bilayer_xsc,
-                              z_head_group=protect_str_arg("protein and resid 667"),
-                              z_tail_group=protect_str_arg("protein and resid 710"),
-                              z_ref_group=protect_str_arg("protein and resid 696"),
+                              z_ref_group=protect_str_arg("protein and resid 142"),
                               z_value=0.0,
                               z_dist=10.0,
-                              o=basename)
+                              o='embedded')
         os.chdir('..')
         assert result == 0
 

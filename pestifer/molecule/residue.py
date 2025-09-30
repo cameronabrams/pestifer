@@ -1031,10 +1031,7 @@ class ResidueList(BaseObjList[Residue]):
         This method iterates through the residue list and creates a dictionary where the keys are chain IDs
         and the values are dictionaries mapping residue sequence numbers to Namespace objects containing
         the residue information.
-            'auth_asym_id': cifdict['auth_asym_id'],
-            'auth_comp_id': cifdict['auth_comp_id'],
-            'auth_seq_id': int(cifdict['auth_seq_id']),
-                            """
+        """
         result = {}
         for r in self.data:
             if hasattr(r, 'auth_asym_id'):  # this was constructed from atoms in a CIF file

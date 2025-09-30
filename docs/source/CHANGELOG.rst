@@ -13,6 +13,23 @@ Added
 Changed
 ~~~~~~~
 
+.. _212---2025-09-29:
+
+[2.1.2] - 2025-09-29
+--------------------
+
+- bugfix for orienting transmembrane proteins before calculating
+  membrane x,y dimensions
+
+.. _211---2025-09-23:
+
+[2.1.1] - 2025-09-23
+--------------------
+
+- bugfixes in ``mdplot`` (pressure profiles) and
+  ``make_membrane_system`` (``dum_pdb``)
+- updated input configs for examples 16 and 17
+
 .. _210---2025-09-19:
 
 [2.1.0] - 2025-09-19
@@ -20,8 +37,9 @@ Changed
 
 - bugfixes in cif-to-pdb resid mapping output, production NAMD script
   writer, and mispelling of rcsb
-- ``test_standards`` optional subtask added to ``terminate`` task to
-  enable generation of gold standard results and comparisons to them
+- new feature: ``test_standards`` optional subtask added to
+  ``terminate`` task to enable generation of gold standard results and
+  comparisons to them
 
 .. _203---2025-09-15:
 

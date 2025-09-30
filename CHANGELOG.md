@@ -6,6 +6,11 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 ### Added
 ### Changed
 
+## [2.1.2] - 2025-09-30
+
+- bugfix for orienting transmembrane proteins before calculating membrane x,y dimensions
+- bugfix for grafts onto targets that have H's from sources that do not
+
 ## [2.1.1] - 2025-09-23
 
 - bugfixes in `mdplot` (pressure profiles) and `make_membrane_system` (`dum_pdb`)
