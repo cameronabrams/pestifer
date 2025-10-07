@@ -86,7 +86,7 @@ class ModifyPackageSubcommand(Subcommand):
                 else:
                     raise ValueError(f'Invalid parameters for set-author example action: example_id={example_id}, author_name={author_name}, author_email={author_email}. Must be positive integer and non-empty strings.')
             case _:
-                raise ValueError(f'Invalid example action: {args.example_action}.')
+                pass
         if args.update_atomselect_macros:
             RM.update_atomselect_macros()
         return True

@@ -33,16 +33,14 @@ class ResourceManager:
     These resources include CHARMM force fields, example input files, TcL scripts, and the ycleptic configuration file.
     """
 
-    def __init__(self):
+    def __init__(self, basic_only: bool = False, *args, **kwargs):
+        self.basic_init()
+        if not basic_only:
+            self.full_init()
+
+    def basic_init(self):
         self.resources_path = os.path.dirname(resources.__file__)
         self.package_path = Path(self.resources_path).parent.parent
-        is_source_package_with_git = os.path.isdir(os.path.join(self.package_path, '.git'))
-        if is_source_package_with_git:
-            remote = get_git_origin_url()
-            if remote:
-                logger.debug(f'Installed as source from {remote} into {self.package_path}')
-            else:
-                logger.debug(f'Installed as source into {self.package_path} but the remote origin URL could not be determined.')
 
         resources_subfolders = os.listdir(self.resources_path)
         self.resource_dirs = [x for x in resources_subfolders if os.path.isdir(os.path.join(self.resources_path, x)) and x in ResourceManager._base_resources]
@@ -60,8 +58,15 @@ class ResourceManager:
         self.ycleptic_config = ycleptic_files[0]
         self.ycleptic_config = os.path.join(self.ycleptic_configdir, self.ycleptic_config)
         
+    def full_init(self):
         self.charmmff_content = CHARMMFFContent(self.resource_path['charmmff'])
-
+        is_source_package_with_git = os.path.isdir(os.path.join(self.package_path, '.git'))
+        if is_source_package_with_git:
+            remote = get_git_origin_url()
+            if remote:
+                logger.debug(f'Installed as source from {remote} into {self.package_path}')
+            else:
+                logger.debug(f'Installed as source into {self.package_path} but the remote origin URL could not be determined.')
         docs_source_path = None
         if is_source_package_with_git:
             docs_source_path = os.path.join(self.package_path, 'docs', 'source')

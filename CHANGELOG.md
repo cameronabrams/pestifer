@@ -3,8 +3,9 @@
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
 ## [UNRELEASED]
-### Added
-### Changed
+
+- multiple bugfixes in `make-pdbrepository`
+- patched `toppar_all36_lipid_cardiolipin.str` to correct bad IC's
 
 ## [2.1.2] - 2025-09-30
 

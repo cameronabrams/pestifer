@@ -7,7 +7,7 @@ from .namd_subcommands import FollowNAMDLogSubcommand, MakeNAMDRestartSubcommand
 from .config_subcommands import ConfigHelpSubcommand, ConfigDefaultSubcommand, ShowResourcesSubcommand, NewSystemSubcommand, WhereTCLSubcommand
 from .desolvate_subcommand import DesolvateSubcommand
 from .modify_package import ModifyPackageSubcommand
-from .make_pdbcollection import MakePDBCollectionSubcommand
+from .make_pdbcollection import MakePDBCollectionSubcommand, RebuildCHARMFFCache
 from .mdplot_subcommand import MDPlotSubcommand
 
 package_path = Path(__file__).resolve().parent.parent.parent
@@ -26,6 +26,7 @@ _subcommands: list[Subcommand] = [
     WhereTCLSubcommand(),
     MDPlotSubcommand(),
     MakeNAMDRestartSubcommand(),
+    RebuildCHARMFFCache(),
     FollowNAMDLogSubcommand(),
     ]
 

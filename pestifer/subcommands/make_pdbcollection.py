@@ -5,11 +5,35 @@ sample PDB files for residues defined in the CHARMM force field (or in files tha
 CHARMM-format RESI blocks). These sample PDB's are specifically used as inputs to 
 packmol.
 """
+import argparse as ap
+
 from dataclasses import dataclass
 
 from . import Subcommand
 from ..charmmff.make_pdb_collection import make_pdb_collection
-import argparse as ap
+from ..charmmff.charmmffcontent import CHARMMFFContent
+
+@dataclass
+class RebuildCHARMFFCache(Subcommand):
+    name: str = 'rebuild-charmmff-cache'
+    short_help: str = "Rebuild the CHARMM force field cache"
+    long_help: str = "Rebuild the CHARMM force field cache from the current topology and parameter files."
+
+    @staticmethod
+    def func(args: ap.Namespace, **kwargs):
+        """
+        Rebuild the CHARMM force field cache.
+        """
+        from ..core.resourcemanager import ResourceManager
+        rm = ResourceManager(basic_only=True)
+        CC = CHARMMFFContent(rm.resource_path['charmmff'], force_rebuild=True)
+        CC.provision(force_rebuild=True)
+        return True
+
+    def add_subparser(self, subparsers):
+        super().add_subparser(subparsers)
+        self.parser.add_argument('--log-level', type=str, default='debug', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
+        return self.parser
 
 @dataclass
 class MakePDBCollectionSubcommand(Subcommand):

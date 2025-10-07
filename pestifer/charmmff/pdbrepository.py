@@ -370,7 +370,7 @@ class PDBRepository(CacheableObject):
         else:
             super().__init__(*args, **kwargs)
 
-    @with_spinner('No cache yet -- building PDBRepository from package resources...')
+    @with_spinner('Building PDBRepository cache..')
     def _build_from_resources(self, charmmff_pdbrepository_path: str = '', **kwargs):
         """
         Build a full collection that represents the complete resource set.

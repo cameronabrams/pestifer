@@ -1292,6 +1292,9 @@ attributes:
               - name: consfile
                 text: Name of constraints PDB file (defaults to basename-constraints.pdb)
                 type: string
+          - name: colvar_specs
+            type: dict
+            text: colvar specifications; dict with keys 'groups', 'distances', and 'harmonics'
       - name: manipulate
         text: Direct manipulation of atom positions
         type: dict
@@ -1306,6 +1309,9 @@ attributes:
               - name: transrot
                 text: global translations and rotations
                 type: list
+              - name: orient
+                text: orient structure along principal axes
+                type: text
       - name: terminate
         text: Final task in a system preparation; performs clean-up and packaging
         type: dict

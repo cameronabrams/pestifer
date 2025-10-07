@@ -11,8 +11,9 @@ import numpy as np
 from collections import UserDict, UserList
 from itertools import compress, batched
 
+from .graphhelpers import mark_cc_doubles_by_degree, label_lipid_chains_heavy_aware, head_tail_pairs
 from ..scripters import PsfgenScripter
-from ..util.stringthings import linesplit #, my_logger
+from ..util.stringthings import linesplit, my_logger
 
 logger=logging.getLogger(__name__)
 
@@ -667,6 +668,8 @@ class CharmmResi:
     """ A dictionary containing metadata associated with the residue. """
     atoms: CharmmAtomList = field(default_factory=CharmmAtomList)
     """ A list of CharmmAtom objects representing the atoms in the residue. """
+    atomdict: CharmmAtomDict = field(default_factory=CharmmAtomDict)
+    """ A dictionary mapping atom names to their corresponding CharmmAtom objects. """
     atoms_in_group: dict[str, CharmmAtomList] = field(default_factory=dict)
     """ A dictionary mapping atom group indices to lists of CharmmAtom objects. """
     bonds: CharmmBondList = field(default_factory=CharmmBondList)
@@ -766,6 +769,9 @@ class CharmmResi:
             else:
                 ic_atom_names.extend(IC.atoms)
                 ICs.append(IC)
+        logger.debug(f'{resname}: {len(ICs)} ICs processed')
+        for i in ICs:
+            logger.debug(f'  IC: {i}')
         isDelete = [d.startswith('DELETE') for d in datacards]
         deletecards = compress(datacards, isDelete)
         Delete = CharmmDeleteList([])
@@ -773,7 +779,7 @@ class CharmmResi:
             D = CharmmDelete.from_card(card)
             Delete.append(D)
 
-        return cls(key=key, blockstring=blockstring, resname=resname, charge=charge, synonym=synonym, metadata=metadata, atoms=atoms,atoms_in_group=atoms_in_group, bonds=bonds, ICs=ICs, Delete=Delete, error_code=error_code, ispatch=ispatch)
+        return cls(key=key, blockstring=blockstring, resname=resname, charge=charge, synonym=synonym, metadata=metadata, atoms=atoms, atomdict=atomdict, atoms_in_group=atoms_in_group, bonds=bonds, ICs=ICs, Delete=Delete, error_code=error_code, ispatch=ispatch)
 
     def copy_ICs_from(self, other: CharmmResi):
         """ 
@@ -885,6 +891,7 @@ class CharmmResi:
                 g.add_edge(node1, node2)
                 g.nodes[node1]['element'] = element1
                 g.nodes[node2]['element'] = element2
+
         return g
     
     def lipid_annotate(self):
@@ -899,9 +906,10 @@ class CharmmResi:
         - `generic_lipid_annotate`: for generic lipids
         The method initializes the `annotation` attribute with heads, tails, and shortest paths based on the lipid type.
         """
-        self.annotation = {}
         m = self.metadata
-        logger.debug(f'metadata {m}')
+        if not m['streamID'] == 'lipid':
+            return
+        self.annotation = {}
         if m['streamID'] == 'lipid' and m['substreamID'] == 'cholesterol':
             self.sterol_annotate()
         elif m['streamID'] == 'lipid' and m['substreamID'] == 'detergent':
@@ -913,7 +921,7 @@ class CharmmResi:
     
     def model_annotate(self):
         """ 
-        This method initializes the `annotation` attribute with empty heads, tails, and shortest paths.
+        This method initializes the ``annotation`` attribute with empty heads, tails, and shortest paths.
         It is a placeholder and does not perform any specific operations.
         """
         self.annotation = {}
@@ -1022,102 +1030,18 @@ class CharmmResi:
         It handles cases where there are two tails (as in standard lipids) or multiple chains (as in complex lipids).
         """
         self.annotation = {}
-        G = self.to_graph(includeH=False)
-        WG = G.copy()
-
-        # find all carbon chains
-        ctails = []
-        cbonds = []
-        hastails = True
-        while hastails:
-            hastails = False
-            maxtailsize = -1
-            result = {}
-            for f in nx.bridges(WG):
-                g = WG.copy()
-                g.remove_edge(*f)
-                S = [g.subgraph(c).copy() for c in nx.connected_components(g)]
-                c = list(nx.connected_components(g))
-                if len(c) != 2: continue
-                e = [[G.nodes[x]['element'] for x in y] for y in c]
-                # logger.debug(f'e {e}')
-                allc = [all([x == 'C' for x in y]) for y in e]
-                # haso=[any([x=='O' for x in y]) for y in e]
-                # logger.debug(f'allc {allc}')
-                # logger.debug(f'haso {haso}')
-                if any(allc):
-                    tail = c[allc.index(True)]
-                    tailsize = len(tail)
-                    # logger.debug(f'tail {tail} tailsize {tailsize}')
-                    if tailsize > maxtailsize:
-                        result = dict(tail=tail, nontailg=S[allc.index(False)], bond=f)
-                        tailatoms = list(tail)
-                        maxtailsize = tailsize
-            if result:
-                hastails = True
-                # ignore methyls
-                if len(tailatoms) > 1:
-                    ctails.append(tailatoms)
-                    cbonds.append(result['bond'])
-                    logger.debug(f'tailatoms {tailatoms}')
-                WG = result['nontailg']
-
-        logger.debug(f'ctails {ctails}')
-        logger.debug(f'cbonds {cbonds}')
-        WG = G.copy()
-
-        # find the ends of all the carbon tails
-        tails = [tail[[len(list(nx.neighbors(G, n))) for n in tail].index(1)] for tail in ctails]
-        logger.debug(f'tailn {tails}')
-        if len(tails) == 2:  # this is a "standard" lipid with two fatty acid tails
-            queryheads = [k for k, n in WG.nodes.items() if n['element'] != 'C' and n['element'] != 'O']
-            logger.debug(f'queryheads {queryheads}')
-            if len(queryheads) == 0:  # only non-carbons in head are O's
-                queryheads = [k for k, n in WG.nodes.items() if n['element'] == 'O']
-            maxpathlen = [-1] * len(cbonds)
-            claimedhead = [''] * len(cbonds)
-            for nc in queryheads:
-                for i, b in enumerate(cbonds):
-                    path = nx.shortest_path(WG, source=b[0], target=nc)
-                    pathlen = len(path)
-                    if pathlen > maxpathlen[i]:
-                        maxpathlen[i] = pathlen
-                        claimedhead[i] = nc
-            logger.debug(f'claimedhead {claimedhead}')
-            headcontenders = list(set(claimedhead))
-            headvotes = np.array([claimedhead.count(x) for x in headcontenders])
-            heads = [headcontenders[np.argmax(headvotes)]]
-            logger.debug(f'heads {heads}')
-        else:
-            # this could be a wacky multiple-chain lipid with an extended head group
-            # like cardiolipin or one of those bacterial glycolipids
-            OG = WG.copy()
-            for tail in ctails:
-                for atom in tail:
-                    OG.remove_node(atom)
-            mins = len(OG) ** 2
-            headatom = None
-            for atom in OG:
-                g = OG.copy()
-                g.remove_node(atom)
-                c = [len(x) for x in list(nx.connected_components(g))]
-                while 1 in c:
-                    c.remove(1)
-                c = np.array(c)
-                # logger.debug(f'testing atom {atom} -> {c}')
-                if len(c) > 1:
-                    s = c.std()
-                    if s < mins:
-                        # logger.debug(f'c {c} {atom} {s}<{mins}')
-                        headatom = atom
-                        mins = s
-            assert headatom != None
-            logger.debug(f'headatom {headatom}')
-            heads = [headatom]
-
-        self.annotation['heads'] = heads
-        self.annotation['tails'] = tails
-        self.annotation['shortest_paths'] = {head: {tail: len(nx.shortest_path(WG, source=head, target=tail)) for tail in tails} for head in heads}
+        G = self.to_graph(includeH=True)
+        mark_cc_doubles_by_degree(G)
+        node_to_chain, chains = label_lipid_chains_heavy_aware(G)
+        my_logger(chains, logger.debug)
+        head_tails = head_tail_pairs(G, chains)
+        for src, dest in zip(chains, head_tails):
+            src.update(dest)
+        self.annotation['chain_info'] = chains
+        # self.annotation['tails'] = tails
+        # # only one path per head-tail pair
+        # self.annotation['shortest_paths'] = {head: {tail: len(nx.shortest_path(G, source=head, target=tail))} for head, tail in zip(heads, tails)}
+        my_logger(self.annotation, logger.debug)
 
     def to_file(self, f):
         """ 
@@ -1169,19 +1093,21 @@ class CharmmResi:
         refatom = None
         refic = None
         logger.debug(f'trying to find a reference atom from {len(self.atoms)} atoms in this resi')
+        for i in self.ICs:
+            logger.debug(f'IC {str(i)}')
         try:
-            is_proper = [((not x.empty) and (x.dihedral_type == 'proper') and (not any([self.atomdict[a].element == 'H' for a in x.atoms]))) for x in self.IC]
-        except:
-            logger.warning(f'Could not parse IC\'s')
+            is_proper = [((not x.empty) and (x.dihedral_type == 'proper') and (not any([self.atomdict[a].element == 'H' for a in x.atoms]))) for x in self.ICs]
+        except Exception as e:
+            logger.warning(f'Could not parse IC\'s: {e}')
             return -1
-        workingIC = list(compress(self.IC, is_proper))
+        workingIC = list(compress(self.ICs, is_proper))
         for ic in workingIC:
             logger.debug(f'{str(ic)}')
         if not workingIC:
             logger.warning(f'No valid IC for {self.resname}')
             return -1
         nWorkingIC = len(workingIC)
-        logger.debug(f'{nWorkingIC}/{len(self.IC)} IC\'s with proper dihedrals and no hydrogens')
+        logger.debug(f'{nWorkingIC}/{len(self.ICs)} IC\'s with proper dihedrals and no hydrogens')
         refic = workingIC[refic_idx]
         refatom = self.atomdict[refic.atoms[1]]
         if refatom is None:
@@ -1193,7 +1119,7 @@ class CharmmResi:
         W.addline(r'segment A {')
         W.addline(r'    first none')
         W.addline(r'    last none')
-        W.addline(f'    resid 1 {self.resname}')
+        W.addline(f'    resid 1 {self.resname} A')
         W.addline(r'}')
         # put reference atom at origin
         W.addline(f'psfset coord A 1 {refatom.name} '+r'{0 0 0}')

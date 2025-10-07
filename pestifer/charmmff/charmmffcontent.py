@@ -154,7 +154,7 @@ class CHARMMFFResiTopCollection(CacheableObject):
         else:
             super().__init__(*args, **kwargs)
 
-    @with_spinner('Building residue topology collection from package resources...')
+    @with_spinner('Building CHARMMFF residue topology collection cache...')
     def _build_from_resources(self, charmmff_path: str = '', **kwargs):
         """
         Build the collection from the specified resources.
@@ -211,7 +211,7 @@ class CHARMMFFContent(CacheableObject):
         super().__init__(*args, **kwargs)
         self.deprovision()
 
-    @with_spinner('No cache yet -- building all CHARMMFF content from package resources...')
+    @with_spinner('Building CHARMMFF cache from package resources...')
     def _build_from_resources(self, charmmff_path: Path, **kwargs):
         """ Method to build the CHARMMFFContent object from resources, if the cache is stale. """
         self.filenamemap = {}
@@ -411,6 +411,13 @@ class CHARMMFFContent(CacheableObject):
         if ext is not None:
             return self.filenamemap[ext].get(shortname, None)
         return None
+
+    def get_resnames_of_streamID(self, streamID: str, substreamID: str = '') -> list[str]:
+        """ 
+        Given a streamID and optional substreamID, return a list of all residue names defined in that stream.
+        """
+        resnames = [r for r, resi in self.residues.items() if resi.metadata.get('streamID', '') == streamID and resi.metadata.get('substreamID', '') == substreamID]
+        return resnames
 
     def find_resis_and_patches(self, resnames: list[str] = []):
         """ 

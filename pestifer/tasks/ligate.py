@@ -144,7 +144,7 @@ class LigateTask(MDTask):
             'fixedatomsfile': self.get_current_artifact_path('measure_distances_fixedref'),
             'fixedatomscol': 'O',
             'colvars': 'on',
-            'colvarsconfig': self.get_current_artifact_path('steer_colvars')
+            'cv configfile': self.get_current_artifact_path('steer_colvars')
             }, single_gpu_only=True)
         # MDTask.namdrun registers the state and all output files
         self.specs = savespecs

@@ -167,9 +167,9 @@ class MDTask(VMDTask):
         if colvars:
             writer: NAMDColvarInputScripter = self.scripters['namd_colvar']
             writer.newfile(f'{self.basename}-cv.in')
-            writer.construct_on_pdb(specs=colvars, pdb=state.pdb)
+            writer.construct_on_pdb(specs=colvars, pdb=state.pdb.path)
             writer.writefile()
-            self.register('{self.basename}-cv', key='in', artifact_type=NAMDColvarsConfigArtifact)
+            self.register(f'{self.basename}-cv', key='in', artifact_type=NAMDColvarsConfigArtifact)
             params['colvars'] = 'on'
             params['colvarsconfig'] = self.get_current_artifact_path('in')
 

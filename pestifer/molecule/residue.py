@@ -9,8 +9,6 @@ import logging
 
 import numpy as np
 
-from argparse import Namespace
-
 from pydantic import Field
 from typing import ClassVar, Callable
 

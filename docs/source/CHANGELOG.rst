@@ -13,13 +13,14 @@ Added
 Changed
 ~~~~~~~
 
-.. _212---2025-09-29:
+.. _212---2025-09-30:
 
-[2.1.2] - 2025-09-29
+[2.1.2] - 2025-09-30
 --------------------
 
 - bugfix for orienting transmembrane proteins before calculating
   membrane x,y dimensions
+- bugfix for grafts onto targets that have H's from sources that do not
 
 .. _211---2025-09-23:
 

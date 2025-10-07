@@ -2,6 +2,7 @@
 """
 This module implements the ``make-pdb-collection`` subcommand.  It generates a PDB collection from the CHARMM force field residue database.  The purpose is to generate 3D structures for all standalone (small-molecule) residues defined in the CHARMM force field, which can be used for molecular dynamics simulations and system preparation.
 """
+from copy import deepcopy
 import glob
 import logging
 import os
@@ -72,15 +73,15 @@ def do_psfgen(resid: str, DB: CHARMMFFContent,
         logger.debug(f'borrowing ICs from {borrow_ic_from}')
         take_my_ics = DB.get_resi(borrow_ic_from)
         topo.copy_ICs_from(take_my_ics)
-    charmm_topfile, stream, substream = meta['charmmtopfile'], meta['streamID'], meta['substreamID']
+    charmm_topfile, stream, substream = meta['charmmfftopfile'], meta['streamID'], meta['substreamID']
     charmm_topfile = os.path.basename(charmm_topfile)
     logger.debug(f'charmm_topfile: {charmm_topfile}, stream: {stream}, substream: {substream}')
-    substream_overrides = DB.overrides.get('substreams', {})
-    ss_override = substream_overrides.get(resid, None)
-    if ss_override is not None:
-        substream = ss_override
-        logger.debug(f'Overriding substream for {resid} from {meta["substreamID"]} to {substream}')
-        meta['substreamID'] = substream
+    # substream_overrides = DB.overrides.get('substreams', {})
+    # ss_override = substream_overrides.get(resid, None)
+    # if ss_override is not None:
+    #     substream = ss_override
+    #     logger.debug(f'Overriding substream for {resid} from {meta["substreamID"]} to {substream}')
+    #     meta['substreamID'] = substream
     if charmm_topfile is None:
         return -2
     if topo.error_code != 0:
@@ -95,53 +96,62 @@ def do_psfgen(resid: str, DB: CHARMMFFContent,
     my_logger(f'{os.path.basename(charmm_topfile)}', logger.info, just='^', frame='*', fill='*')
 
     tasklist = [
-        {'restart': {'psf': f'{resid}-init.psf', 'pdb': f'{resid}-init.pdb'}},
+        {'continuation': {'psf': f'{resid}-init.psf', 'pdb': f'{resid}-init.pdb'}},
          {'md': {'ensemble': 'minimize', 'nsteps': 0, 'minimize': minimize_steps, 'dcdfreq': 0, 'xstfreq': 0, 'temperature': 100}},
     ]
     heads = []
     if stream == 'lipid':
         topo.lipid_annotate()
         ano = topo.annotation
-        heads, tails, shortest_paths = ano.get('heads', []), ano.get('tails', []), ano.get('shortest_paths', {})
+        heads, tails, shortest_paths, chain_info = ano.get('heads', []), ano.get('tails', []), ano.get('shortest_paths', {}), ano.get('chain_info', [])
         if substream == 'cholesterol' or substream == 'model':
             pass
         elif substream == 'detergent':
             logger.debug('detergent')
-            logger.debug(f'heads: {heads}. tails: {tails}, shortest_paths: {shortest_paths}')
+            logger.debug(f'heads: {heads}. tails: {tails}, shortest_paths: {shortest_paths}, chain_info: {chain_info}')
             pass
         else:
-            if shortest_paths and any([len(v) > 0 for v in shortest_paths.values()]) and heads and tails: # and len(tails)==2:
-                # run a non-equilibrium MD simulation to bring the tails together to make a 'standard' conformation
-                base_md = {'ensemble': 'NVT', 'nsteps': 15000, 'dcdfreq': 100, 'xstfreq': 100, 'temperature': 100}
-                groups = {'repeller': {'atomnames': [heads[0]]}}
-                distances = {}
-                harmonics = {}
-                for i in range(len(tails)):
-                    groups[f'tail{i+1}'] = {'atomnames': [tails[i]]}
-                    # if len(tails)<4:
-                    distances[f'repeller_tail{i+1}'] = {'groups': ['repeller', f'tail{i+1}']}
-                dists = {}
-                for i in range(len(tails)):
-                    dists[i] = shortest_paths[heads[0]][tails[i]] * lenfac
-                for i in range(len(tails)):
-                    for j in range(i+1, len(tails)):
-                        distances[f'tail{i+1}_tail{j+1}'] = {'groups': [f'tail{i+1}', f'tail{j+1}']}
-                        harmonics[f'tail{i+1}_tail{j+1}_attract']={
-                                'colvars': [f'tail{i+1}_tail{j+1}'],
-                                'forceConstant': force_constant,
-                                'distance':[4.0]}
-                name = 'repeller_tail' + ''.join(f'{i+1}' for i in range(len(tails)))
-                colvars = []
-                distance = []
-                for i in range(len(tails)):
-                    colvars.append(f'repeller_tail{i+1}')
-                    distance.append(dists[i])
-                harmonics[name] = {'colvars': colvars, 'distance': distance, 'forceConstant': force_constant}
-                colvar_specs = {'groups': groups, 'distances': distances, 'harmonics': harmonics}
-                base_md['colvar_specs'] = colvar_specs.copy()
-                assert 'minimize' not in base_md
-                logger.debug(f'base_md {base_md}')
-                tasklist.append({'md': base_md})
+            logger.debug(f'heads: {heads}. tails: {tails}, shortest_paths: {shortest_paths}, chain_info: {chain_info}')
+            groups = {}
+            distances = {}
+            dvalue = {}
+            harmonics = {}
+            colvars = []
+            distance = []
+            for chain in chain_info:
+                logger.debug(f'chain: {chain}')
+                head = chain.get('head', None)
+                heads.append(head)
+                tail = chain.get('tail', None)
+                tails.append(tail)
+                groups[f'head_{head}'] = {'atomnames': [head]}
+                groups[f'tail_{tail}'] = {'atomnames': [tail]}
+                distances[f'head_{head}_tail_{tail}'] = {'groups': [f'head_{head}', f'tail_{tail}']}
+                dvalue[f'head_{head}_tail_{tail}'] = chain.get('tail_distance',-1) * lenfac
+                colvars.append(f'head_{head}_tail_{tail}')
+                distance.append(dvalue[f'head_{head}_tail_{tail}'])
+                harmonics[f'head_{head}_tail_{tail}_stretch'] = {
+                    'colvars': [f'head_{head}_tail_{tail}'],
+                    'forceConstant': force_constant,
+                    'distance':[dvalue[f'head_{head}_tail_{tail}']]}
+            for i_chain in chain_info:
+                for j_chain in chain_info:
+                    if i_chain == j_chain or j_chain['chain_id'] < i_chain['chain_id']:
+                        continue
+                    i_tail = i_chain.get('tail', None)
+                    j_tail = j_chain.get('tail', None)
+                    distances[f'tail_{i_tail}_tail_{j_tail}'] = {'groups': [f'tail_{i_tail}', f'tail_{j_tail}']}
+                    harmonics[f'tail_{i_tail}_tail_{j_tail}_attract'] = {
+                        'colvars': [f'tail_{i_tail}_tail_{j_tail}'],
+                        'forceConstant': force_constant,
+                        'distance':[4.0]}
+            # run a non-equilibrium MD simulation to bring the tails together to make a 'standard' conformation
+            base_md = {'ensemble': 'NVT', 'nsteps': 15000, 'dcdfreq': 100, 'xstfreq': 100, 'temperature': 100}
+            colvar_specs = {'groups': groups, 'distances': distances, 'harmonics': harmonics}
+            base_md['colvar_specs'] = deepcopy(colvar_specs)
+            assert 'minimize' not in base_md
+            logger.debug(f'base_md {base_md}')
+            tasklist.append({'md': base_md})
     else:
         my_logger(f'{resid} is from stream {stream}', logger.debug, just='^', frame='!', fill='!')
         with open(f'{resid}-topo.rtf', 'w') as f:
@@ -156,10 +166,11 @@ def do_psfgen(resid: str, DB: CHARMMFFContent,
         for cv, spec in colvar_specs['harmonics'].items():
             if 'forceConstant' in spec:
                 spec['forceConstant'] *= 0.1
-        base_md['colvar_specs'] = colvar_specs.copy()
+        base_md['colvar_specs'] = deepcopy(colvar_specs)
     tasklist.append({'md': base_md})
+    logger.debug(f'base_md (2): {base_md}')
     userspecs = {'title': f'Build PDBCollection entry for {resid}', 'tasks': tasklist}
-    config = Config(quiet=True)
+    config = Config(quiet=True).configure_new()
     C = Controller().configure(config=config, userspecs=userspecs, terminate=False)
     # First we de-novo generate a pdb/psf file using seeded internal coordinates
     W: PsfgenScripter = C.tasks[0].scripters['psfgen']
@@ -199,9 +210,9 @@ def do_psfgen(resid: str, DB: CHARMMFFContent,
     for task in tasks:
         if task.taskname == 'md':
             needed = []
+            na: NAMDScripter = C.tasks[0].scripters['namd']
             if extension == 'str':
                 # this is a stream file (combined topology/parameter file); charmm_topfile is ABSOLUTE, so we need to add its RELATIVE path to the list of parameter files
-                na: NAMDScripter = C.tasks[0].scripters['namd']
                 if not charmm_topfile in na.charmmff_config['standard'][extension]:
                     na.charmmff_config['standard'][extension].append(charmm_topfile)
             if charmm_topfile.endswith('sphingo.str'):
@@ -284,8 +295,8 @@ def do_psfgen(resid: str, DB: CHARMMFFContent,
         'defined-in': charmm_topfile,
         'parameters': list(set(par)),
         'reference-atoms': {
-            'heads': [dict(serial=p.serial, name=p.name) for p in psfatoms if p.name in heads],
-            'tails': [dict(serial=p.serial, name=p.name) for p in psfatoms if p.name in tails],
+            'heads': [dict(serial=p.serial, name=p.atomname) for p in psfatoms.data if p.atomname in heads],
+            'tails': [dict(serial=p.serial, name=p.atomname) for p in psfatoms.data if p.atomname in tails],
         },
         'charge': qstr,
         'conformers': []
@@ -293,7 +304,7 @@ def do_psfgen(resid: str, DB: CHARMMFFContent,
 
     q = '?' * digits
     pdbs = [os.path.basename(x) for x in glob.glob(f'{resid}-{q}.pdb')]
-    logger.debug(f'found {len(pdbs)} pdbs')
+    logger.debug(f'found {len(pdbs)} pdbs: {pdbs}')
     for pdb in pdbs:
         entry = {}
         p = PDBParser(filepath=pdb).parse()
@@ -301,7 +312,8 @@ def do_psfgen(resid: str, DB: CHARMMFFContent,
         entry['pdb'] = pdb
         head_z = np.array([x.z for x in pdbatoms if x.name in heads])
         tail_z = np.array([x.z for x in pdbatoms if x.name in tails])
-        length = np.array([np.abs(x-y) for x,y in product(head_z,tail_z)]).min()
+        logger.debug(f'head_z: {head_z}, tail_z: {tail_z}')
+        length = np.array([np.abs(x-y) for x,y in product(head_z, tail_z)]).min()
         entry['head-tail-length'] = float(f'{length:.3f}')
         max_internal_length = 0.0
         for i,j in product(pdbatoms,pdbatoms):
@@ -316,7 +328,7 @@ def do_psfgen(resid: str, DB: CHARMMFFContent,
         f.write(yaml.dump(info))
     return 0
 
-def do_cleanup(resname,dirname):
+def do_cleanup(resname, dirname):
     """ 
     Remove all files in the directory except for the ``init.tcl``, ``info.yaml``, and ``*.psf`` files.
     """
@@ -381,7 +393,8 @@ def do_resi(resi: str, DB: CHARMMFFContent,
                             borrow_ic_from=borrow_ic_from)
         os.chdir(cwd)
         if result == 0:
-            if cleanup: do_cleanup(resi, 'tmp')
+            if cleanup: 
+                do_cleanup(resi, 'tmp')
             shutil.move('tmp', os.path.join(outdir, resi))
         elif result == -2:
             my_logger(f'RESI {resi} is not found', logger.warning, just='^', frame='*', fill='*')
@@ -424,6 +437,7 @@ def make_pdb_collection(args):
     logging.getLogger('').addHandler(console)
 
     CC = ResourceManager().charmmff_content
+    CC.provision()
     
     if topfile is not None:
         if not os.path.exists(topfile):
@@ -458,7 +472,7 @@ def make_pdb_collection(args):
                  borrow_ic_from=args.take_ic_from)
     else:
         active_resnames = CC.get_resnames_of_streamID(streamID, substreamID=substreamID)
-        logger.debug(f'active_resnames: {active_resnames}')
+        logger.debug(f'stream {streamID} substream {substreamID} active_resnames: {active_resnames}')
         nresi = len(active_resnames)
         for i, r in enumerate(active_resnames):
             my_logger(f'RESI {r} ({i+1}/{nresi})', logger.info, just='^', frame='*', fill='*')

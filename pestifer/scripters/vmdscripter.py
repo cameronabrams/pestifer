@@ -98,8 +98,8 @@ class VMDScripter(TcLScripter):
         """
         if not self.has_statement('exit') or force_exit:
             self.addline('exit')
-        self.banner(f'END {__package__.upper()} VMD SCRIPT')
-        self.banner(f'Thank you for using {__package__}!')
+        self.banner(f'END PESTIFER VMD SCRIPT')
+        self.banner(f'Thank you for using Pestifer!')
         super().writescript()
 
     def set_molecule(self, mol: Molecule, altcoords=None):
@@ -335,7 +335,7 @@ class VMDScripter(TcLScripter):
             self.addline('set rterm [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,crot.resid3.resid))
             self.addline('fold_alpha $r1 $r2 $rterm {}'.format(molid))
 
-    def write_orient(self, orient: Orient):
+    def write_orient(self, orient: Orient, molid: str = None):
         """
         Write a VMD Orient object to the script.
         This method generates the Tcl commands to orient a coordinate set in VMD based on the provided Orient object.
@@ -345,7 +345,8 @@ class VMDScripter(TcLScripter):
         orient : Orient
             The Orient object containing the orientation data.
         """
-        self.addline('set a [atomselect top all]')
+        molid = 'top' if not molid else f'${molid}'
+        self.addline(f'set a [atomselect {molid} all]')
         self.addline('set I [draw principalaxes $a]')
         adict=dict(x=r'{1 0 0}',y=r'{0 1 0}',z=r'{0 0 1}')
         self.addline(f'set A [orient $a [lindex $I 2] {adict[orient.axis]}]')
@@ -353,7 +354,7 @@ class VMDScripter(TcLScripter):
         if hasattr(orient,'refatom'):
             self.addline(r'set com [measure center $a]')
             self.addline(r'$a moveby [vecscale $com -1]')
-            self.addline(f'set z [[atomselect top "name {orient.refatom}"] get z]')
+            self.addline(f'set z [[atomselect {molid} "name {orient.refatom}"] get z]')
             self.addline(r'if { $z < 0.0 } {')
             self.addline(r'   $a move [transaxis x 180 degrees]')
             self.addline(r'}')

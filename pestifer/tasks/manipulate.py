@@ -51,6 +51,8 @@ class ManipulateTask(BaseTask):
             return 0
         logger.debug(f'performing coormods')
         for objtype, objlist in coord.items():
+            if not objlist:
+                continue
             self.next_basename(objtype)
             vm: VMDScripter = self.get_scripter('vmd')
             vm.newscript(self.basename, packages=['Orient'])
@@ -63,10 +65,11 @@ class ManipulateTask(BaseTask):
                     vm.write_orient(obj, molid='mCM')
                 elif objtype == 'rottrans':
                     vm.write_rottrans(obj, molid='mCM')
-            vm.write_pdb(self.basename,'mCM')
+            vm.write_pdb(self.basename, 'mCM')
             vm.writescript()
             result = vm.runscript()
             if result != 0:
+                logger.error(f'Error running VMD script {self.basename}.tcl: result {result}')
                 return result
             self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf), key='state', artifact_type=StateArtifacts)
             # for at in [VMDScriptArtifact, VMDLogFileArtifact]:

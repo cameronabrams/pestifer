@@ -137,7 +137,7 @@ _segtypes = {
             'TRIPAO', 'TRPAOP', 'TSPC'  , 'TTA'   , 'TTAP'  , 'TYCL1' , 'TYCL2' ,
             'UDAO'  , 'UDAOP' , 'UFOS10', 'VCLIPA', 'VCLIPB', 'VCLIPC', 'VCLIPD',
             'VCLIPE', 'YOPA'  , 'YOPC'  , 'YOPE'  , 'YOPG'  , 'YOPS'  , 'YPLIPA',
-            'YPLIPB']},
+            'YPLIPB', 'TOCL']},
         'water': {
             'macro': False,
             'resnames': ['HOH', 'TIP3', 'WAT']},
@@ -195,10 +195,11 @@ _residue_aliases = [
     "DC CYT",
     "DG GUA",
     "DU URA",
-    "HEM HEME"
+    "HEM HEME",
+    "TOCL TOCL1",
 ]
 
-_residue_fullnames = {
+_residue_fullnames = { # these are included because the CHARMMFF topology file does not include them
     "DIPA": "di-alpha-linoleoyl phosphatidic acid",
     "DTPA": "di-hexadecatrienoyl phosphatidic acid",
     "TIPA": "di-palmitoleoyl-2-linoleoyl phosphatidic acid"
