@@ -5,7 +5,7 @@ Example 16: HIV-1 Env MPER-TM Trimer in a DMPC Symmetric Bilayer
 
 .. figure:: my_6e8w_pc.png
 
-           HIV-1 gp41 (MPER-TM) trimer embedded in a DMPC lipid bilayer.  Bilayer is clipped to show the protein, and each protein chain is colored uniquely.  DMPC lipids are brown.
+           HIV-1 gp41 (MPER-TM) trimer embedded in a DMPC lipid bilayer. Each protein chain is colored uniquely, and a transparent isodensity surface is shown.  Waters and counterions are not shown.
 
 
 `PDB ID 6e8w <https://www.rcsb.org/structure/6e8w>`_ is a trimeric HIV-1 Env gp41 construct embedded in a DMPC lipid bilayer (the authors also mention DHPC, but these are detergents that don't readily form bilayers). The structure was determined by NMR, and the structure file contains 15 models, and no lipids are included in the file.  This example shows how to use ``pestifer`` to generate a membrane-embedded protein system from this structure.
@@ -47,3 +47,9 @@ The ``mdplot`` task generated the following plots for the membrane-embedded syst
 .. figure:: 15-bilayer-pressureprofile.png
 
            Pressure profiles for selected time intervals during the protein-embedded membrane relaxation.
+
+.. raw:: html
+
+    <div class="autogen-footer">
+        <p>Example author: Cameron F. Abrams &nbsp;&nbsp;&nbsp; Contact: <a href="mailto:cfa22@drexel.edu">cfa22@drexel.edu</a></p>
+    </div>

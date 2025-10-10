@@ -16,7 +16,7 @@ Example 13: DES-PHE B1 Bovine Insulin Hexamer
 
 Incidentally, the CHARMMFF patches for creating bonds between histidines and zinc ions are defined in the stream file ``toppar_all36_prot_modify_res.str``, but they are misnamed.  In the original file, they appear as:
 
-.. verbatim::
+.. code-block:: text
 
     PRES ZNHD         0.00 ! patch to covalently link HSD to Zn
                            ! Patch is 1-HSD and 2-Zn
