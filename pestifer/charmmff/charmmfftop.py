@@ -758,6 +758,7 @@ class CharmmResi:
         triplecards = compress(datacards, istriple) 
         for card in triplecards:
             bonds.extend(CharmmBondList.from_card(card, degree=3))
+            
         isIC = [d.startswith('IC') for d in datacards]
         ICcards = compress(datacards, isIC)
         ICs = CharmmICList([])

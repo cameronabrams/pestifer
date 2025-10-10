@@ -156,6 +156,7 @@ class BaseTask(ABC):
         if not self.is_provisioned:
             logger.warning(f'Task {self.taskname} is not provisioned.')
             return -1
+        self.duration = 0.0
         msg = 'initiated'
         if self.extra_message:
             msg += f' ({self.extra_message})'

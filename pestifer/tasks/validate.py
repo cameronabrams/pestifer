@@ -140,7 +140,6 @@ class ConnectionTest:
                 vt.addline(f'set external_partners [list]')
                 vt.addline(f'foreach index $indexes resid $resids bondlist $bondlists {{')
                 vt.addline(f'   foreach partner $bondlist {{')
-                vt.addline(f'      if {{$partner < $index}} {{ continue }}') # no double-counting!
                 vt.addline(f'      set idx [lsearch $indexes $partner]')
                 vt.addline(f'      if {{$idx == -1}} {{')
                 vt.addline(f'         lappend external_partners $partner')
