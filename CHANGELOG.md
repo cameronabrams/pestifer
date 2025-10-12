@@ -4,6 +4,10 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [UNRELEASED]
 
+## [2.1.4] - 2025-10-12
+
+- multiple bugfixes in `desolvate` and `make-namd-restart` subcommands
+
 ## [2.1.3] - 2025-10-10
 
 - multiple bugfixes in `make-pdbrepository`

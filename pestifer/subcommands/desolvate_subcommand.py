@@ -42,11 +42,10 @@ class DesolvateSubcommand(Subcommand):
     @staticmethod
     def func(args: ap.Namespace, **kwargs):
         config = Config().configure_new()
-        C = Controller(
+        C = Controller().configure(
             config, userspecs={
                 'tasks': [{
                     'desolvate': {
-                        'basename': 'desolvate',
                         'keepatselstr': args.keepatselstr,
                         'psf':args.psf,
                         'pdb':args.pdb,
@@ -57,7 +56,8 @@ class DesolvateSubcommand(Subcommand):
                         'dcd_stride':args.dcd_stride
                     }
                 }]
-            }
+            },
+            terminate=False
         )
         return C.do_tasks()
 

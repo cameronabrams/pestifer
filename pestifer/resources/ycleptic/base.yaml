@@ -843,6 +843,9 @@ attributes:
           - name: psf
             type: str
             text: name of input PSF file
+          - name: pdb
+            type: str
+            text: name of input PDB file (optional)
           - name: keepatselstr
             type: str
             text: VMD atomselect string for atoms you want to keep
@@ -851,7 +854,7 @@ attributes:
             type: str
             text: name of output index file for catdcd
             default: dry.idx
-          - name: psf_oufile
+          - name: psf_outfile
             type: str
             text: name of output PSF file
             default: dry.psf
@@ -862,6 +865,10 @@ attributes:
           - name: dcd_infiles
             type: list
             text: ordered list of names of input DCD files
+          - name: dcd_stride
+            type: int
+            text: stride for output DCD file
+            default: 1
       - name: ring_check
         text: Parameters controlling pierced-ring checks
         type: dict

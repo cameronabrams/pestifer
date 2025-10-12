@@ -27,7 +27,7 @@ class DesolvateTask(VMDTask):
     part of a ``tasks`` list.  This is not the normal use case for Desolvate.
     """
     def do(self) -> int:
-        self.catdcd = self.provisions.shell_commands['catdcd']
+        self.catdcd = self.provisions['shell-commands']['catdcd']
         self.do_idx_psf_gen()
         self.do_dcd_prune()
         return 0
@@ -83,7 +83,7 @@ class DesolvateTask(VMDTask):
         """
         Prune a DCD file based on the generated index file.
         This method uses the `catdcd` command to create a new DCD file that
-        contains only the frames corresponding to the indices specified in the index file.
+        contains only the atoms corresponding to the indices specified in the index file.
         The new DCD file is created with a specified stride, and the original DCD files
         are concatenated into the new DCD file.
         """
