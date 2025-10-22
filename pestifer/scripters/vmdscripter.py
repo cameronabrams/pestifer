@@ -334,7 +334,11 @@ class VMDScripter(TcLScripter):
             self.addline('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,crot.resid2.resid))
             self.addline('set rterm [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,crot.resid3.resid))
             self.addline('fold_alpha $r1 $r2 $rterm {}'.format(molid))
-
+        elif crot.angle=='GLYCAN_PENDANT':
+            self.addline('glycan_pendant_rotate {} {} {} {} {} {} {}'.format(molid,the_chainID,crot.residi.resid,crot.residj.resid,crot.atomi,crot.atomj,crot.degrees))
+        else:
+            raise ValueError(f'Unknown CROT angle type: {crot.angle}')
+        
     def write_orient(self, orient: Orient, molid: str = None):
         """
         Write a VMD Orient object to the script.

@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [UNRELEASED]
 
+- testing `GLYCAN_PENDANT` crotation
+
 ## [2.1.4] - 2025-10-12
 
 - multiple bugfixes in `desolvate` and `make-namd-restart` subcommands

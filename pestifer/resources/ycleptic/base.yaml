@@ -559,7 +559,7 @@ attributes:
                 type: list
                 docs:
                   text: |
-                    crotations are a set of dihedral angle rotations.  Allowable crotations are PHI, PSI, OMEGA for backbones, CHI1 and CHI2 for sidechains, ANGLEIJK for generic angles, and ALPHA for folding backbones into alpha helices.
+                    crotations are a set of dihedral angle rotations.  Allowable crotations are PHI, PSI, OMEGA for backbones, CHI1 and CHI2 for sidechains, ANGLEIJK for generic angles, ALPHA for folding backbones into alpha helices, and GLYCAN_PENDANT for glycan pendant rotations.
                   example:
                     crotations:
                       - psi,E,661,693,60

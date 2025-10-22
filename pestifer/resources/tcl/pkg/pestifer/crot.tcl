@@ -254,10 +254,92 @@ proc PestiferCRot::brot { molid r0 r1 angle_name rot deg} {
    }
 }
 
-# Chain rotation procedures
+# Glycan pendant rotator
+# Rotates all atoms "downstream" of atom_j around the bond between atom_i and atom_j
+# by deg degrees in molecule with id molid.
+# Parameters:
+# -----------
+# - molid: molecule id
+# - chainID: chain identifier
+# - resid_i: residue id of first atom in bond
+# - resid_j: residue id of second atom in bond
+# - atom_i: atom name of first atom in bond
+# - atom_j: atom name of second atom in bond
+# - deg: degrees of rotation
+proc PestiferCRot::glycan_pendant_rotate { molid chainID resid_i resid_j atom_i atom_j deg } {
+   set sel_i [atomselect $molid "chain $chainID and resid $resid_i and name $atom_i"]
+   set sel_j [atomselect $molid "chain $chainID and resid $resid_j and name $atom_j"]
+   if { [$sel_i num] == 0 || [$sel_j num] == 0 } {
+      vmdcon -error "glycan_pendant_rotate: could not find specified atoms"
+      return
+   }
+   set index_i [lindex [$sel_i get index] 0]
+   set index_j [lindex [$sel_j get index] 0]
+   PestiferCRot::rotate_pendant $molid $index_i $index_j $deg 1000
+   $sel_i delete
+   $sel_j delete
+}
 
-
-
+# Generic pendant group rotator
+# Rotates all atoms "downstream" of index_j around the bond between index_i and index_j
+# by deg degrees in molecule with id molid.
+# Parameters:
+# -----------
+# - molid: molecule id
+# - index_i: atom index of first atom in bond
+# - index_j: atom index of second atom in bond
+# - deg: degrees of rotation
+# - maxsize: maximum number of atoms in pendant group to be rotated (default 1000)
+# This procedure first builds the list of atom indices in the pendant group
+# by recursively finding bonded partners, then performs the rotation.
+# If the pendant group exceeds maxsize atoms, the rotation is aborted (we assume
+# atom j is not the root of a pendant group in that case).
+proc PestiferCRot::rotate_pendant { molid index_i index_j deg {maxsize 1000} } {
+   set ai [atomselect $molid "index $index_i"]
+   set aj [atomselect $molid "index $index_j"]
+   set ai_partners [lindex [$ai getbonds] 0]
+   set aj_partners [lindex [$aj getbonds] 0]
+   set i_check [lsearch -exact $aj_partners $index_i]
+   set j_check [lsearch -exact $ai_partners $index_j]
+   if { $i_check == -1 || $j_check == -1 } {
+      vmdcon -error "indices $index_i and $index_j are not bonded"
+      return
+   }
+   if { [llength $aj_partners] < 2 } {
+      vmdcon -error "index $index_j has no pendant group to rotate"
+      return
+   }
+   # build the list of indices in the pendant group
+   set building 1
+   # remove index_i from aj_partners to avoid looping back
+   set pendant_indices [list]
+   foreach idx $aj_partners {
+      if { $idx != $index_i } {
+         lappend pendant_indices $idx
+      }
+   }
+   while { $building } {
+      set building 0
+      # collect the new partners of all current pendant indices
+      set provisional_partner_indices [[atomselect $molid "index [join $pendant_indices]"] getbonds]
+      foreach pplist $provisional_partner_indices {
+         foreach pidx $pplist {
+            if { [lsearch -exact $pendant_indices $pidx] == -1 && $pidx != $index_i && $pidx != $index_j } {
+               lappend pendant_indices $pidx
+               set building 1
+            }
+         }
+      }
+      # kill if too big
+      if { [llength $pendant_indices] > $maxsize } {
+         vmdcon -error "pendant group too large (> $maxsize atoms); aborting rotation"
+         return
+      }
+   }
+   set rotators [atomselect $molid "index [join $pendant_indices]"]
+   set tmat [trans bond $index_i $index_j $deg degrees]
+   $rotators move $tmat
+}
 
 # rotates all atoms in chain c-terminal to residue r up to and 
 # including residue rend in chain c around residue r's phi angle 

@@ -48,7 +48,7 @@ class Crot(BaseObj):
     - ``atomk``: The name of the third atom in the ANGLEIJK rotation.
     - ``degrees``: The angle in degrees by which the atoms will be rotated.
     """
-    _attr_choices = {'angle': ['PHI', 'PSI', 'OMEGA', 'CHI1', 'CHI2', 'ANGLEIJK', 'ALPHA']}
+    _attr_choices = {'angle': ['PHI', 'PSI', 'OMEGA', 'CHI1', 'CHI2', 'ANGLEIJK', 'ALPHA', 'GLYCAN_PENDANT']}
     """
     Optional attribute dependencies for the Crot object.
     This dictionary defines the dependencies for optional attributes based on the value of the ``angle`` attribute.
@@ -63,6 +63,7 @@ class Crot(BaseObj):
     - ``CHI2``: Requires ``chainID`` and ``resid1``.
     - ``ANGLEIJK``: Requires ``segnamei``, ``residi``, ``atomi``, ``segnamejk``, ``residj``, ``atomj``, ``residk``, and ``atomk``.
     - ``ALPHA``: Requires ``chainID``, ``resid1``, ``resid2``, and ``resid3``.
+    - ``GLYCAN_PENDANT``: Requires ``chainID``, ``residi``, ``residj``, ``atomi``, and ``atomj``.
     """
     _attr_dependencies = {'angle': {
                             'PHI':      {'chainID', 'resid1', 'resid2', 'degrees'},
@@ -72,7 +73,8 @@ class Crot(BaseObj):
                             'CHI2':     {'chainID', 'resid1', 'degrees'},
                             'ANGLEIJK': {'segnamei', 'residi', 'atomi',
                                          'segnamejk', 'residj', 'atomj', 'residk', 'atomk', 'degrees'},
-                            'ALPHA':    {'chainID', 'resid1', 'resid2', 'resid3'}}
+                            'ALPHA':    {'chainID', 'resid1', 'resid2', 'resid3'},
+                            'GLYCAN_PENDANT': {'chainID', 'residi', 'residj', 'atomi', 'atomj', 'degrees'}}
                         }
     
     angle: str = Field(..., description="Type of angle to be rotated (e.g., PHI, PSI, OMEGA, CHI1, CHI2, ANGLEIJK, ALPHA)")
@@ -164,6 +166,14 @@ class Crot(BaseObj):
                 else:
                     resid3 = ResID(data[4])
                 return dict(angle=angle, chainID=chainID, resid1=resid1, resid2=resid2, resid3=resid3)
+            case 'GLYCAN_PENDANT':
+                chainID = data[1]
+                residi = ResID(data[2])
+                residj = ResID(data[3])
+                atomi = data[4]
+                atomj = data[5]
+                degrees = float(data[6])
+                return dict(angle=angle, chainID=chainID, residi=residi, residj=residj, atomi=atomi, atomj=atomj, degrees=degrees)
             case _:
                 raise ValueError(f"Unknown angle type: {angle}")
 
@@ -177,7 +187,11 @@ class Crot(BaseObj):
                 return f'{self.angle},{self.segnamei},{self.resid1.resid},{self.atomi},{self.segnamejk},{self.residj.resid},{self.atomj},{self.residk.resid},{self.atomk},{self.degrees:.4f}'
             case 'ALPHA' | 'alpha':
                 return f'{self.angle},{self.chainID},{self.resid1.resid},{self.resid2.resid},{self.resid3.resid}'
-            
+            case 'GLYCAN_PENDANT' | 'glycan_pendant':
+                return f'{self.angle},{self.chainID},{self.residi.resid},{self.residj.resid},{self.atomi},{self.atomj},{self.degrees:.4f}'
+            case _:
+                raise ValueError(f"Unknown angle type: {self.angle}")
+
 class CrotList(BaseObjList[Crot]):
     """
     A class for managing lists of Crot objects.
