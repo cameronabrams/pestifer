@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pestifer"
-version = "2.1.5a0"
+version = "2.1.5"
 authors = [
   { name="Cameron F Abrams", email="cfa22@drexel.edu" },
 ]
