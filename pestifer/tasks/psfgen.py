@@ -398,14 +398,14 @@ class PsfgenTask(VMDTask):
         vt.addline(f'mol addfile {pdb} waitfor all')
         vt.addline(f'set a [atomselect top all]')
         vt.addline(f'set molid [molinfo top get id]')
-        nglycan = self._write_glycans(vt)
-        vt.addline(f'vmdcon -info "Declashing $nglycan glycans; clashdist {clashdist}; maxcycles {cycles}"')
-        vt.addline(r'for {set i 0} {$i<$nglycan} {incr i} {')
+        nglycans = self._write_glycans(vt)
+        vt.addline(f'vmdcon -info "Declashing $nglycans glycans; clashdist {clashdist}; maxcycles {cycles}"')
+        vt.addline(r'for {set i 0} {$i<$nglycans} {incr i} {')
         vt.addline(f'   declash_pendant $molid $glycan_idx($i) $rbonds($i) $movers($i) {cycles} {clashdist}')
         vt.addline(r'}')
         vt.addline(f'$a writepdb {outpdb}')
         vt.writescript()
-        logger.debug(f'Declashing {nglycan} glycans')
+        logger.debug(f'Declashing {nglycans} glycans')
         vt.runscript(progress_title='declash-glycans')
         self.register(dict(
             pdb=PDBFileArtifact(self.basename), 

@@ -4,6 +4,9 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [UNRELEASED]
 
+## [2.1.5] - 2025-10-22
+
+- bugfix: glycan declashing
 - testing `GLYCAN_PENDANT` crotation
 
 ## [2.1.4] - 2025-10-12
