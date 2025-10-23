@@ -7,13 +7,19 @@ documents changes below.
 [UNRELEASED]
 ------------
 
-[2.1.5] - 2025-10-22
+[2.1.6] - 2025-10-22
 --------------------
 
 -  bugfix: glycan declashing
--  testing ``GLYCAN_PENDANT`` crotation
 
 .. _section-1:
+
+[2.1.5] - 2025-10-22
+--------------------
+
+-  testing ``GLYCAN_PENDANT`` crotation
+
+.. _section-2:
 
 [2.1.4] - 2025-10-12
 --------------------
@@ -21,7 +27,7 @@ documents changes below.
 -  multiple bugfixes in ``desolvate`` and ``make-namd-restart``
    subcommands
 
-.. _section-2:
+.. _section-3:
 
 [2.1.3] - 2025-10-10
 --------------------
@@ -33,7 +39,7 @@ documents changes below.
    validation
 -  added cardiolipin substream to built-in pdbrepository
 
-.. _section-3:
+.. _section-4:
 
 [2.1.2] - 2025-09-30
 --------------------
@@ -42,7 +48,7 @@ documents changes below.
    membrane x,y dimensions
 -  bugfix for grafts onto targets that have H’s from sources that do not
 
-.. _section-4:
+.. _section-5:
 
 [2.1.1] - 2025-09-23
 --------------------
@@ -51,7 +57,7 @@ documents changes below.
    ``make_membrane_system`` (``dum_pdb``)
 -  updated input configs for examples 16 and 17
 
-.. _section-5:
+.. _section-6:
 
 [2.1.0] - 2025-09-19
 --------------------
@@ -62,7 +68,7 @@ documents changes below.
    ``terminate`` task to enable generation of gold standard results and
    comparisons to them
 
-.. _section-6:
+.. _section-7:
 
 [2.0.3] - 2025-09-15
 --------------------
@@ -74,7 +80,7 @@ documents changes below.
 -  updated ``pidibble`` dependency to allow for downloading structures
    from OPM
 
-.. _section-7:
+.. _section-8:
 
 [2.0.1] - 2025-09-04
 --------------------
@@ -94,7 +100,7 @@ documents changes below.
    running sums over chained MD runs
 -  complete refactoring to use pydantic’s BaseModel
 
-.. _section-8:
+.. _section-9:
 
 [1.21.2] - 2025-07-17
 ---------------------
@@ -102,14 +108,14 @@ documents changes below.
 -  first official Zenodo release |DOI|
 -  fixed bug in user-modifiable segtype handling
 
-.. _section-9:
+.. _section-10:
 
 [1.21.1] - 2025-07-15
 ---------------------
 
 -  Parameterized BMS-806 (resname 83G) from PDB ID 8fad now included
 
-.. _section-10:
+.. _section-11:
 
 [1.20.3] - 2025-07-14
 ---------------------
@@ -117,7 +123,7 @@ documents changes below.
 -  more examples
 -  upgraded example support
 
-.. _section-11:
+.. _section-12:
 
 [1.19.1] - 2025-07-11
 ---------------------
@@ -127,7 +133,7 @@ documents changes below.
 -  support for adding, renaming, inserting, assigning authorship to, and
    deleting examples
 
-.. _section-12:
+.. _section-13:
 
 [1.18.1] - 2025-07-08
 ---------------------
@@ -136,14 +142,14 @@ documents changes below.
    by ``pdb2pqr``
 -  developer support for adding examples
 
-.. _section-13:
+.. _section-14:
 
 [1.17.0] - 2025-07-05
 ---------------------
 
 -  support for simple nucleic acids added
 
-.. _section-14:
+.. _section-15:
 
 [1.16.3] - 2025-07-03
 ---------------------
@@ -155,7 +161,7 @@ documents changes below.
 -  new ``pdb2pqr`` task to assign protonation states based on
    ``propka3``
 
-.. _section-15:
+.. _section-16:
 
 [1.15.1] - 2025-06-22
 ---------------------
@@ -165,7 +171,7 @@ documents changes below.
 -  removed spurious dependence on ``parmed``
 -  added pressure profile calculation capabilities to ``mdplot`` task
 
-.. _section-16:
+.. _section-17:
 
 [1.14.1] - 2025-06-18
 ---------------------
@@ -173,14 +179,14 @@ documents changes below.
 -  Implemented standard CHARMM36 patches as mods
 -  Added HIV-1 protease 1f7a as a new example (now there are 16!)
 
-.. _section-17:
+.. _section-18:
 
 [1.13.3] - 2025-06-17
 ---------------------
 
 -  Allow config to contain names of otherwise unnamed lipids in CHARMMFF
 
-.. _section-18:
+.. _section-19:
 
 [1.13.2] - 2025-06-16
 ---------------------
@@ -190,7 +196,7 @@ documents changes below.
 -  updated PDB repository to work with a gzipped folder (all lipids)
 -  converted charmmff contents back into an as-downloaded tarball
 
-.. _section-19:
+.. _section-20:
 
 [1.12.1] - 2025-06-04
 ---------------------
@@ -202,7 +208,7 @@ documents changes below.
    per leaflet in a patch
 -  misspelled “paramfiles” in ycleptic basefile (one time)
 
-.. _section-20:
+.. _section-21:
 
 [1.12.0] - 2025-06-03
 ---------------------
@@ -212,7 +218,7 @@ documents changes below.
 -  fixed residue misnumbering for large membranes
 -  fixed large membrane embedding errors
 
-.. _section-21:
+.. _section-22:
 
 [1.11.2] - 2025-05-27
 ---------------------
@@ -223,7 +229,7 @@ documents changes below.
 -  New NAMD and packmol on-the-fly log parsing, including in standalone
    mode with the ``follow-namd-log`` subcommand
 
-.. _section-22:
+.. _section-23:
 
 [1.10.0] - 2025-03-27
 ---------------------
@@ -233,7 +239,7 @@ documents changes below.
    ``source [pestifer_init]``
 -  ``cleanup`` subcommand added for cleaning up after an aborted run
 
-.. _section-23:
+.. _section-24:
 
 [1.9.0] - 2025-03-27
 --------------------
@@ -241,7 +247,7 @@ documents changes below.
 -  ``transrot`` mod enabled for global translations and rotations
 -  ``desolvate`` subcommand now can output a single pdb file
 
-.. _section-24:
+.. _section-25:
 
 [1.8.3] - 2025-03-19
 --------------------
@@ -249,7 +255,7 @@ documents changes below.
 -  fixed bug for growing alpha helices in the N-terminal direction in
    ``crot.tcl``
 
-.. _section-25:
+.. _section-26:
 
 [1.8.2] - 2025-03-11
 --------------------
@@ -260,7 +266,7 @@ documents changes below.
 -  added ``--gpu`` option for the ``run`` and ``run-example``
    subcommands
 
-.. _section-26:
+.. _section-27:
 
 [1.8.1] - 2025-03-10
 --------------------
@@ -268,7 +274,7 @@ documents changes below.
 -  removal of tcllib from resources (I never used it anyway)
 -  bugfix in slow build tests
 
-.. _section-27:
+.. _section-28:
 
 [1.8.0] - 2025-03-07
 --------------------
@@ -277,14 +283,14 @@ documents changes below.
 -  mmCIF convention updated
 -  ``mdplot`` subcommand added
 
-.. _section-28:
+.. _section-29:
 
 [1.7.4] - 2025-02-23
 --------------------
 
 -  bugfix: xst trace for ``mdplot`` fails if empty
 
-.. _section-29:
+.. _section-30:
 
 [1.7.2] - 2025-02-12
 --------------------
@@ -293,7 +299,7 @@ documents changes below.
    file based on the first two Info: records
 -  bugfix: correct the problem with restarts interfering with mdplot
 
-.. _section-30:
+.. _section-31:
 
 [1.7.1] - 2025-02-10
 --------------------
@@ -307,7 +313,7 @@ documents changes below.
 -  ``make-namd-restart`` subcommand enabled
 -  ``ycleptic`` dependency updated to 1.1.0
 
-.. _section-31:
+.. _section-32:
 
 [1.6.1] - 2025-06-29
 --------------------
@@ -315,14 +321,14 @@ documents changes below.
 -  now able to use namd2 or namd3
 -  can optionally use GPU-resident namd3
 
-.. _section-32:
+.. _section-33:
 
 [1.5.9] - 2025-01-22
 --------------------
 
 -  bugfix: log write suppressed inadvertently if progress bars not used
 
-.. _section-33:
+.. _section-34:
 
 [1.5.6] - 2025-01-03
 --------------------
@@ -331,21 +337,21 @@ documents changes below.
 -  wildcard allowed in pdbalias commands for atom renaming
 -  temporary fix for dbRes HIS in any mutations to be named HSD
 
-.. _section-34:
+.. _section-35:
 
 [1.5.4] - 2024-11-05
 --------------------
 
 -  bugfix: incorrect deletion of image seqmods
 
-.. _section-35:
+.. _section-36:
 
 [1.5.3] - 2024-09-30
 --------------------
 
 -  bugfix: ``custom_pdb_path`` bug in ``bilayer`` fixed
 
-.. _section-36:
+.. _section-37:
 
 [1.5.2] - 2024-09-24
 --------------------
@@ -354,7 +360,7 @@ documents changes below.
 -  python dependency updated to >=3.12
 -  ``ycleptic`` dependency updated to 1.0.7
 
-.. _section-37:
+.. _section-38:
 
 [1.4.8] - 2024-09-24
 --------------------
@@ -363,7 +369,7 @@ documents changes below.
 -  updated ``ycleptic`` to 1.0.6 to enable interactive help and
    automatic config documentation
 
-.. _section-38:
+.. _section-39:
 
 [1.4.7] - 2024-09-18
 --------------------
@@ -391,7 +397,7 @@ documents changes below.
 -  since packmol-memgen sometimes translates the insert, cannot use
    packmol’s input coordinates to psfgen the resulting embedded system
 
-.. _section-39:
+.. _section-40:
 
 [1.4.4] - 2024-07-10
 --------------------
@@ -401,7 +407,7 @@ documents changes below.
 -  fixed incorrect charges on the C-terminal CA and HB in the ``HEAL``
    patch
 
-.. _section-40:
+.. _section-41:
 
 [1.4.3] - 2024-07-02
 --------------------
@@ -413,28 +419,28 @@ documents changes below.
 -  allow for N-atom position calculation for residues added to a
    C-terminus (atom name OT1 vs O)
 
-.. _section-41:
+.. _section-42:
 
 [1.4.2] - 2024-06-27
 --------------------
 
 -  explicit chain mapping in config file
 
-.. _section-42:
+.. _section-43:
 
 [1.4.1] - 2024-05-16
 --------------------
 
 -  support for empty TER records
 
-.. _section-43:
+.. _section-44:
 
 [1.4.0] - 2024-04-01
 --------------------
 
 -  initial ``packmol-memgen`` integration
 
-.. _section-44:
+.. _section-45:
 
 [1.3.9] - 2024-03-04
 --------------------
@@ -443,14 +449,14 @@ documents changes below.
    ``False`` to prevent C-terminal insertions from undergoing automatic
    declashing
 
-.. _section-45:
+.. _section-46:
 
 [1.3.8] - 2024-02-29
 --------------------
 
 -  bugfix: spurious code in ``pestifer-vmd.tcl``
 
-.. _section-46:
+.. _section-47:
 
 [1.3.7] - 2024-02-29
 --------------------
@@ -461,7 +467,7 @@ documents changes below.
 -  ``alphafold`` source directive added to permit download of models
    from the AlphaFold database by accession code
 
-.. _section-47:
+.. _section-48:
 
 [1.3.5] - 2024-02-26
 --------------------
@@ -472,7 +478,7 @@ documents changes below.
 -  ``inittcl`` subcommand makes this transfer; needs only to be run one
    time post-installation
 
-.. _section-48:
+.. _section-49:
 
 [1.3.4] - 2024-02-06
 --------------------
@@ -484,7 +490,7 @@ documents changes below.
 -  ``script`` subcommand removed
 -  syntax of ``wheretcl`` subcommand expanded
 
-.. _section-49:
+.. _section-50:
 
 [1.3.3] - 2024-01-31
 --------------------
@@ -493,7 +499,7 @@ documents changes below.
 -  ``mdplot`` task for generating plots of various energy-like
    quantities vs timestep
 
-.. _section-50:
+.. _section-51:
 
 [1.3.2] - 2024-01-24
 --------------------
@@ -501,28 +507,28 @@ documents changes below.
 -  allow for user-defined links in the config file
 -  all example builds now have tests in the test suite
 
-.. _section-51:
+.. _section-52:
 
 [1.3.1] - 2024-01-12
 --------------------
 
 -  bug fixes for cleaving
 
-.. _section-52:
+.. _section-53:
 
 [1.3.0] - 2024-01-11
 --------------------
 
 -  Support for reading from already-built PSF/PDB systems
 
-.. _section-53:
+.. _section-54:
 
 [1.2.9] - 2023-12-19
 --------------------
 
 -  improved declashing and domain-swapping
 
-.. _section-54:
+.. _section-55:
 
 [1.2.8] - 2023-12-05
 --------------------
@@ -531,14 +537,14 @@ documents changes below.
 -  ``cleave`` task and ``CleavageMod``
 -  ``ModManager`` replaces ``ModContainer``
 
-.. _section-55:
+.. _section-56:
 
 [1.2.5] - 2023-11-28
 --------------------
 
 -  ``insertion`` mod; corrected bug in ``brot`` tcl procedure
 
-.. _section-56:
+.. _section-57:
 
 [1.2.3] - 2023-11-20
 --------------------
@@ -547,7 +553,7 @@ documents changes below.
 -  added ``wheretcl`` subcommand
 -  added ``script`` subcommand (since removed)
 
-.. _section-57:
+.. _section-58:
 
 [1.2.0] - 2023-11-16
 --------------------
@@ -555,7 +561,7 @@ documents changes below.
 -  split all namd subtasks out; now they are level-1 tasks
 -  added ``manipulate`` task
 
-.. _section-58:
+.. _section-59:
 
 [1.1.2] - 2023-11-09
 --------------------
@@ -565,7 +571,7 @@ documents changes below.
 -  position restraints control in minimization and relaxation
 -  ``other_parameters`` for any NAMD2 relaxation task
 
-.. _section-59:
+.. _section-60:
 
 [1.0.9] - 2023-11-07
 --------------------
@@ -576,7 +582,7 @@ documents changes below.
 -  ``alpha`` crotation for folding a span of residues into an alpha
    helix
 
-.. _section-60:
+.. _section-61:
 
 [1.0.6] - 2023-10-31
 --------------------
@@ -586,7 +592,7 @@ documents changes below.
 -  enhancements to packaging task
 -  support for topogromacs added
 
-.. _section-61:
+.. _section-62:
 
 [1.0.1] - 2023-09-20
 --------------------
