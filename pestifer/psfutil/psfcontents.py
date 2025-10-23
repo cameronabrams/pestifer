@@ -301,12 +301,12 @@ class PSFContents:
                 logger.debug(f'Including {include_serials.count(True)}/{len(include_serials)} topologically active atoms ({len(self.included_atoms)}) from segtypes {topology_segtypes}')
             if 'bonds' in parse_topology:
                 self.bonds = PSFBondList(LineList(self.token_lines['BOND']),include_serials=include_serials)
-                # logger.debug(f'Creating graph from {len(self.bonds)} bonds...')
+                logger.debug(f'Creating graph from {len(self.bonds)} bonds...')
                 self.G = self.bonds.to_graph()
                 logger.debug(f'extending atom instances with ligands...')
                 self.add_ligands()
                 logger.debug(f'done')
-                # logger.debug(f'Parsed {len(self.bonds)} bonds.')
+                logger.debug(f'Parsed {len(self.bonds)} bonds.')
             if 'angles' in parse_topology:
                 self.angles = PSFAngleList(LineList(self.token_lines['THETA']),include_serials=include_serials)
             if 'dihedrals' in parse_topology:
@@ -381,13 +381,13 @@ class PSFContents:
         AssertionError
             If the `bonds` attribute is not set or if the atom serial numbers do not match the expected indices.
         """
-        assert hasattr(self,'bonds')
-        for i,a in enumerate(self.atoms):
+        assert hasattr(self, 'bonds')
+        for i, a in enumerate(self.atoms.data):
             a.ligands = []
-            assert a.serial == i+1
+            assert a.serial == i + 1
         for b in self.bonds.data:
             i, j = b.serial1, b.serial2
-            aix, ajx = i-1, j-1#self.atomserials.index(i),self.atomserials.index(j)
+            aix, ajx = i - 1, j - 1
             ai, aj = self.atoms[aix], self.atoms[ajx]
             ai.add_ligand(aj)
             aj.add_ligand(ai)

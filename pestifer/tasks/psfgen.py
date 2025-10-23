@@ -426,42 +426,51 @@ class PsfgenTask(VMDTask):
         logger.debug(f'Preparing declash input for {len(G)} glycans')
         fw.addline(f'set nglycans {len(G)}')
         for i, g in enumerate(G):
+            rooted = False
             logger.debug(f'Glycan {i} has {len(g)} atoms')
-            serials = [x.serial for x in g]
+            serials = [x.serial for x in g] # list of atoms in glycan by serial
             for j, at in enumerate(g):
-                lig_ser = [x.serial for x in at.ligands]
-                # logger.debug(f'Atom {at.serial} ({j}) has {len(lig_ser)} ligands')
+                lig_ser = [x.serial for x in at.ligands] # list of ligands of this atom by serial
+                logger.debug(f'    {j}: {str(at)} {len(lig_ser)} ligands')
                 for k, ls in enumerate(lig_ser):
-                    if not ls in serials:
+                    if not ls in serials: # this atom has a ligand that is not in the glycan
                         at.is_root = True
+                        rooted = True
                         rp = at.ligands[k]
-                        # logger.debug(f'-> Atom {at.serial} ({j}) is the root, bound to atom {rp.serial}')
+                        logger.debug(f'        -> {str(at)} ({at.resname} {at.segtype}) is the root, bound to outside atom {rp.serial}')
+                        break
+                if rooted:
+                    break
+            assert rooted, f'    Could not find a root atom for glycan {i} -- this is a bug'
             indices = ' '.join([str(x.serial-1) for x in g])
             # logger.debug(f'indices {indices}')
             fw.comment(f'Glycan {i}:')
             fw.addline(f'set glycan_idx({i}) [list {indices}]')
             fw.addline(f'set rbonds({i}) [list]')
             fw.addline(f'set movers({i}) [list]')
+            # for each rotatable bond, define the two atoms in the bond by INDICES 
+            # and identify movers when pendant is rotated around this bond
+            # a rotatable bond is one that is a bridge, is not a peptide bond, and is not a bond to an H
             for bond in nx.bridges(g):
                 ai, aj = bond
                 if not (ai.isH() or aj.isH()) and not ai.is_pep(aj):
                     g.remove_edge(ai, aj)
                     S = [g.subgraph(c).copy() for c in nx.connected_components(g)]
-                    assert len(S) == 2, f'Bond {ai.serial-1}-{aj.serial-1} when cut makes more than 2 components'
-                    for sg in S:
-                        is_root = any([hasattr(x, 'is_root') for x in sg])
-                        if not is_root:
-                            if ai in sg:
-                                sg.remove_node(ai)
-                            if aj in sg:
-                                sg.remove_node(aj)
-                            if len(sg) > 1 or (len(sg) == 1 and not [x for x in sg.nodes][0].isH()):
-                                mover_serials = [x.serial for x in sg]
-                                mover_indices = " ".join([str(x-1) for x in mover_serials])
-                                logger.debug(f'{str(ai)}--{str(aj)} is a rotatable bridging bond')
-                                fw.addline(f'lappend rbonds({i}) [list {ai.serial-1} {aj.serial-1}]')
-                                logger.debug(f'  -> movers: {" ".join([str(x) for x in sg])}')
-                                fw.addline(f'lappend movers({i}) [list {mover_indices}]')
+                    assert len(S) == 2, f'Bond {str(ai)}-{str(aj)} when cut makes more than 2 components (not a bridge)'
+                    is_root = [any([getattr(x, 'is_root', False) for x in sg]) for sg in S]
+                    assert any(is_root), f'No root atom found in either half split by bond {str(ai)}-{str(aj)}'
+                    unrooted_subgraph = S[is_root.index(False)]
+                    if ai in unrooted_subgraph:
+                        unrooted_subgraph.remove_node(ai)
+                    if aj in unrooted_subgraph:
+                        unrooted_subgraph.remove_node(aj)
+                    if len(unrooted_subgraph) > 1 or (len(unrooted_subgraph) == 1 and not list(unrooted_subgraph.nodes)[0].isH()):
+                        mover_serials = [x.serial for x in unrooted_subgraph]
+                        mover_indices = " ".join([str(x-1) for x in mover_serials])
+                        logger.debug(f'{str(ai)}--{str(aj)} is a rotatable bridging bond')
+                        fw.addline(f'lappend rbonds({i}) [list {ai.serial-1} {aj.serial-1}]')
+                        logger.debug(f'  -> movers: {",".join([str(x) for x in unrooted_subgraph])}')
+                        fw.addline(f'lappend movers({i}) [list {mover_indices}]')
                     g.add_edge(ai, aj)
         return len(G)
 
