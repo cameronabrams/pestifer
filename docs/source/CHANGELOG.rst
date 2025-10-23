@@ -7,6 +7,22 @@ documents changes below.
 [UNRELEASED]
 ------------
 
+.. _215---2025-10-22:
+
+[2.1.5] - 2025-10-22
+--------------------
+
+- bugfix: glycan declashing
+- testing ``GLYCAN_PENDANT`` crotation
+
+.. _214---2025-10-12:
+
+[2.1.4] - 2025-10-12
+--------------------
+
+- multiple bugfixes in ``desolvate`` and ``make-namd-restart``
+  subcommands
+
 .. _213---2025-10-10:
 
 [2.1.3] - 2025-10-10
