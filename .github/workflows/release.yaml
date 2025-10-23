@@ -67,8 +67,14 @@ jobs:
       - name: Install pandoc
         run: sudo apt-get update && sudo apt-get install -y pandoc
 
-      - name: Convert CHANGELOG.md to changelog.rst
-        run: pandoc CHANGELOG.md -f markdown -t rst -o docs/source/changelog.rst
+      - name: Convert CHANGELOG.md to changelog.rst and commit
+        run: |
+          pandoc CHANGELOG.md -f markdown -t rst -o docs/source/changelog.rst
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add docs/source/changelog.rst
+          git commit -m "Update changelog.rst"
+          git push
 
       - name: Trigger ReadTheDocs build
         run: |
