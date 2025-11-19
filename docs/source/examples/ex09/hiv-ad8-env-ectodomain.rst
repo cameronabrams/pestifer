@@ -24,15 +24,15 @@ The following procedure was used to parameterize 83G.
 
 1. Use VMD to generate a PDB file of a single copy of the 83G ligand from the 8fad structure.  The PDB file has no H atoms.
 
-    .. console::tcl
+    .. code-block:: bash
 
-        mol new 8fad
-        set lig [atomselect top "chain C and resname 83G"]
-        $lig writepdb 83G_8fad_C.pdb
+        vmd > mol new 8fad
+        vmd > set lig [atomselect top "chain C and resname 83G"]
+        vmd > $lig writepdb 83G_8fad_C.pdb
 
 2. Use Open Babel to add hydrogens first, and then to create the mol2 file needed for cgenff.
 
-    .. console::bash
+    .. code-block:: bash
 
         $ obabel -ipdb 83G_8fad_C.pdb -h --minimize -opdb -O tmp.pdb
         $ obabel -ipdb tmp.pdb -h -omol2 -O 83G-1.mol2

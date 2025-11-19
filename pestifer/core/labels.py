@@ -38,7 +38,7 @@ _segtypes = {
     'ligand': {
         'macro': True,
         'resnames' : [
-            'EIC', 'VCG', 'HEM', 'ADP', 'ATP', '83G']},
+            'EIC', 'VCG', 'HEM', 'ADP', 'ATP', '83G', 'LF0']},
     'cofactor': {
         'macro': True,
         'resnames': [
@@ -143,7 +143,7 @@ _segtypes = {
             'resnames': ['HOH', 'TIP3', 'WAT']},
         'other': {
             'macro': False,
-            'resnames': []}
+            'resnames': ['CAF']}
     }
 
 _atom_aliases = [

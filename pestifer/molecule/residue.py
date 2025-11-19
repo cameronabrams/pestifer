@@ -1048,21 +1048,22 @@ class ResidueList(BaseObjList[Residue]):
             A list of insertions to apply. Each insertion should contain the chain ID, residue sequence numbers,
             insertion codes, and the sequence of residues to insert.
         """
-        for ins in insertions:
+        for ins in insertions.data:
             chainID, resid = ins.chainID, ins.resid
             idx = self.iget(lambda x: x.chainID == chainID and x.resid == resid)
-            segtype = self[idx].segtype
-            logger.debug(f'insertion begins after {resid.resid} which is index {idx} in reslist, chain {chainID}')
+            segtype = self.data[idx].segtype
+            logger.debug(f'insertion {ins.shortcode()} begins after {resid.resid} which is index {idx} in reslist, chain {chainID} segtype {segtype}')
             # add residues to residue list
             for olc in ins.sequence:
-                resid.increment(by_seqnum=ins.integer_increment)
-                shortcode = f'{chainID}:{olc}{resid.resid}'
+                new_resid = resid.increment(by_seqnum=ins.integer_increment)
+                shortcode = f'{chainID}:{olc}{new_resid.resid}'
                 new_empty_residue = ResiduePlaceholder(shortcode)
                 new_residue = Residue(new_empty_residue)
                 new_residue.atoms = AtomList([])
                 new_residue.segtype = segtype
                 self.insert(idx, new_residue)
                 logger.debug(f'insertion of new residue placeholder {shortcode}')
+                resid = new_resid
 
     def renumber(self, links: LinkList):
         """

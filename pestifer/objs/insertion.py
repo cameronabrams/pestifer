@@ -92,9 +92,10 @@ class Insertion(BaseObj):
         - R is the residue number and insertion code
         - SSS is the one-letter amino acid sequence to insert after R
         """
+        rescode = f"{self.resid.resid}"
         if self.integer_increment:
             rescode += '+'
-        return f"{self.chainID},{self.resid.resid},{self.sequence}"
+        return f"{self.chainID},{rescode},{self.sequence}"
 
 class InsertionList(BaseObjList[Insertion]):
     def describe(self) -> str:

@@ -4,6 +4,10 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [UNRELEASED]
 
+## [2.1.7] - 2025-11-19
+
+- bugfix: insertion resid incrementation bug fixed
+
 ## [2.1.6] - 2025-10-22
 
 - bugfix: glycan declashing
