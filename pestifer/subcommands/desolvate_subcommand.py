@@ -35,7 +35,7 @@ from ..core.config import Config
 @dataclass
 class DesolvateSubcommand(Subcommand):
     name: str = 'desolvate'
-    short_help: str = "Desolvate a system"
+    short_help: str = "desolvate a system"
     long_help: str = "Remove solvent molecules from a solvated system."
     func_returns_type: type = dict
 

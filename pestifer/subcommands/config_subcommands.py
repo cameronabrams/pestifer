@@ -22,7 +22,7 @@ class ConfigHelpSubcommand(Subcommand):
     ``directives`` argument, and can disable interactivity using the ``--no-interactive`` flag.
     """
     name: str = 'config-help'
-    short_help: str = "Show help for configuration options"
+    short_help: str = "show help for configuration options"
     long_help: str = "Display help information for all available configuration options."
 
     @staticmethod
@@ -36,7 +36,8 @@ class ConfigHelpSubcommand(Subcommand):
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
         self.parser.add_argument('directives', type=str, nargs='*', default=[], help='specific directives at which the help system begins (default is at the root)')
-        self.parser.add_argument('--interactive', default=True, action=ap.BooleanOptionalAction, help='Enable/disable interactive mode to query config options (default: %(default)s)')
+        self.parser.add_argument('--interactive', default=True, 
+            action=ap.BooleanOptionalAction, help='enable/disable interactive mode to query config options (default: %(default)s)')
 
 @dataclass
 class ConfigDefaultSubcommand(Subcommand):
@@ -44,7 +45,7 @@ class ConfigDefaultSubcommand(Subcommand):
     Subcommand that echoes all or part of a configuration script with default values, depending on the ``directives`` entry point.
     """
     name: str = 'config-default'
-    short_help: str = "Show default configuration options"
+    short_help: str = "show default configuration options"
     long_help: str = "Display default values for all available configuration options."
 
     @staticmethod
@@ -84,9 +85,9 @@ class NewSystemSubcommand(Subcommand):
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
         self.parser.add_argument('id', type=str, default=None, help='PDB/UniProt ID  of the new system to create')
-        self.parser.add_argument('--full', default=False, action=ap.BooleanOptionalAction, help='Enable/disable full set of tasks in the new system configuration (default: %(default)s)')
-        self.parser.add_argument('--output', type=str, default=None, help='Output filename for the new system configuration (default: <id>.yaml)')
-        self.parser.add_argument('--title', type=str, default=None, help='Title for the new system configuration (default: none)')
+        self.parser.add_argument('--full', default=False, action=ap.BooleanOptionalAction, help='enable/disable full set of tasks in the new system configuration (default: %(default)s)')
+        self.parser.add_argument('--output', type=str, default=None, help='output filename for the new system configuration (default: <id>.yaml)')
+        self.parser.add_argument('--title', type=str, default=None, help='title for the new system configuration (default: none)')
         return self.parser
 
 @dataclass
@@ -127,7 +128,7 @@ class ShowResourcesSubcommand(Subcommand):
     
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
-        self.parser.add_argument('resource_type', type=str, default='examples', help='Type of resource to show; [tcl|examples|charmmff]')
+        self.parser.add_argument('resource_type', type=str, default='examples', help='type of resource to show; [tcl|examples|charmmff]')
         self.parser.add_argument('--charmmff', type=str, nargs='+', default=[], help='show sub-resources of charmmff resources (\'toppar\', \'custom\', \'pdb\')')
         self.parser.add_argument('--fullnames', default=False, action='store_true', help='show full names of any residues shown with --charmmff pdb')
         self.parser.add_argument('--user-pdbcollection', type=str, nargs='+', default=[], help='additional collections of PDB files outside pestifer installation')

@@ -22,4 +22,3 @@ colorist
 gputil
 scipy
 matplotlib
-pypandoc_binary

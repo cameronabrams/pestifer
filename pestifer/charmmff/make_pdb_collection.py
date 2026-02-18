@@ -425,17 +425,6 @@ def make_pdb_collection(args):
     substreamID = args.substreamID
     resname = args.resname # if provided, we will only make a collection member for this RESI
     topfile = args.topfile
-    loglevel_numeric = getattr(logging, args.log_level.upper())
-    if args.log_file:
-        if os.path.exists(args.log_file):
-            shutil.copyfile(args.log_file, args.log_file+'.bak')
-        logging.basicConfig(filename=args.log_file, filemode='w', format='%(asctime)s %(name)s %(message)s', level=loglevel_numeric)
-    console = logging.StreamHandler()
-    console.setLevel(logging.INFO)
-    formatter = logging.Formatter('%(levelname)s> %(message)s')
-    console.setFormatter(formatter)
-    logging.getLogger('').addHandler(console)
-
     CC = ResourceManager().charmmff_content
     CC.provision()
     

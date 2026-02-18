@@ -1,13 +1,17 @@
 .. _sub_run_example:
 
-run-example
------------
+build-example
+-------------
 
 There are 22 example systems; to run number four, for example:
 
 .. code-block:: bash
-   
-   $ pestifer run-example 4
+
+   $ pestifer build-example 4
+
+.. note::
+
+   ``run-example`` is accepted as a synonym for ``build-example`` for backwards compatibility.
 
 (Best to do that in a clean directory.)  
 
@@ -48,5 +52,5 @@ You can use ``pestifer show-resources`` to list the examples:
 fetch-example
 -------------
 
-This subcommand is like ``run-example``, except it only copies the YAML input file needed to run the example to the CWD.  It can be edited, if desired, and then run using the ``run`` subcommand. 
+This subcommand is like ``build-example``, except it only copies the YAML input file needed to run the example to the CWD.  It can be edited, if desired, and then run using the ``build`` subcommand.
 

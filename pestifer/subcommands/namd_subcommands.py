@@ -13,19 +13,13 @@ from . import Subcommand
 @dataclass
 class FollowNAMDLogSubcommand(Subcommand):
     name: str = "follow-namd-log"
-    short_help: str = "Follow an actively updating NAMD log file"
+    short_help: str = "follow and parse an actively updating NAMD log file"
     long_help: str = "Monitor a NAMD log file for changes and display relevant information."
 
     @staticmethod
     def func(args: ap.Namespace, **kwargs):
         log=args.log
         basename=args.basename
-        console=logging.StreamHandler()
-        loglevel_numeric=getattr(logging,args.log_level.upper())
-        console.setLevel(loglevel_numeric)
-        formatter=logging.Formatter('%(levelname)s> %(message)s')
-        console.setFormatter(formatter)
-        logging.getLogger('').addHandler(console)
         subcommand_follow_namd_log(log, basename=basename)
         print()
         return True
@@ -33,7 +27,7 @@ class FollowNAMDLogSubcommand(Subcommand):
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
         self.parser.add_argument('log', type=str, help='NAMD log file to follow')
-        self.parser.add_argument('--basename', type=str, default=None, help='Base name for output files (default: derived from log file name)')
+        self.parser.add_argument('--basename', type=str, default=None, help='base name for output files (default: derived from log file name)')
         return self.parser
 
 @dataclass

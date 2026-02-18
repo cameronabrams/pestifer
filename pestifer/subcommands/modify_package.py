@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ModifyPackageSubcommand(Subcommand):
     name: str = 'modify-package'
-    short_help: str = "Modify the pestifer package"
+    short_help: str = "modify the pestifer package"
     long_help: str = "Modify the pestifer package by adding, updating, or deleting examples."
 
     @staticmethod
@@ -35,7 +35,6 @@ class ModifyPackageSubcommand(Subcommand):
             The command ``pestifer modify-package`` can only be invoked if ``pestifer`` is installed as an editable source tree, i.e. the directory containing the ``pestifer`` package.  A simple pip installation of the pestifer package will not allow this command to run, as the pestifer package will not have a full source tree available.  If you want to modify the package, you must clone the repository from GitHub and then execute ``pip install -e .`` from the package root.  Before modifying, it would also be a good idea to create a new branch, rather than modifying in the main branch.
         """
         # First, verify that the user has a full source tree by verifying the existence of the docs directory.  If not, raise an error.
-        logging.basicConfig(level=getattr(logging, args.log_level.upper()))
         RM = ResourceManager()
         match args.example_action:
             case 'add':
@@ -97,12 +96,11 @@ class ModifyPackageSubcommand(Subcommand):
         self.parser.add_argument('--example-id', type=int, default=0, help='integer ID of example to modify; developer use only')
         self.parser.add_argument('--example-action', type=str, default=None, choices=[None, 'add', 'update', 'delete', 'rename', 'author'], help='action to perform on the example; choices are [add|update|delete|rename|author]; developer use only')
         self.parser.add_argument('--example-scriptname', type=str, default='', help='yaml file of example; developer use only')
-        self.parser.add_argument('--example-name', type=str, default='', help='new name for the example for action \'rename\'; Default is basename of the script file (without extension); developer use only')
-        self.parser.add_argument('--log-level', type=str, default='info', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
-        self.parser.add_argument('--example-author-name', type=str, default='', help='Name of the author; if not given, pestifer attempts to extract it from the script header')
-        self.parser.add_argument('--example-author-email', type=str, default='', help='Email of the author; if not given, pestifer attempts to extract it from the script header')
-        self.parser.add_argument('--example-title', type=str, default='', help='Descriptive 1-line title of the example (default: extract from \'title\' directive in the script)')
-        self.parser.add_argument('--example-db-id', type=str, default='', help='Database ID of the example; if not given, pestifer attempts to extract it from the script\'s "fetch" task')
-        self.parser.add_argument('--example-auxiliary-inputs', type=str, nargs='*', default=[], help='List of auxiliary input files for the example')
-        self.parser.add_argument('--example-outputs', type=str, nargs='*', default=[], help='List of output files for the example')
+        self.parser.add_argument('--example-name', type=str, default='', help='new name for the example for action \'rename\'; default is basename of the script file (without extension); developer use only')
+        self.parser.add_argument('--example-author-name', type=str, default='', help='name of the author; if not given, pestifer attempts to extract it from the script header')
+        self.parser.add_argument('--example-author-email', type=str, default='', help='email of the author; if not given, pestifer attempts to extract it from the script header')
+        self.parser.add_argument('--example-title', type=str, default='', help='descriptive 1-line title of the example (default: extract from \'title\' directive in the script)')
+        self.parser.add_argument('--example-db-id', type=str, default='', help='database ID of the example; if not given, pestifer attempts to extract it from the script\'s "fetch" task')
+        self.parser.add_argument('--example-auxiliary-inputs', type=str, nargs='*', default=[], help='list of auxiliary input files for the example')
+        self.parser.add_argument('--example-outputs', type=str, nargs='*', default=[], help='list of output files for the example')
         return self.parser

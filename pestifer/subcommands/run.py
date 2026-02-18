@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
 """
-Implementation of the ``run`` subcommand for launching system preparations.
+Implementation of the ``build`` subcommand for launching system preparations.
 """
 
 import datetime
@@ -9,7 +9,7 @@ import logging
 import os
 import shutil
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
@@ -21,16 +21,16 @@ from ..util.util import hmsf
 
 @dataclass
 class RunSubcommand(Subcommand):
-    name: str = 'run'
+    name: str = 'build'
+    aliases: list = field(default_factory=lambda: ['run'])
     long_help: str = 'Prepare a system according to instructions in the config file.'
-    short_help: str = 'Prepare a system'
+    short_help: str = 'prepare a system'
     func_returns_type: type = Controller
 
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
         self.parser.add_argument('config', type=str, default=None, help='input configuration file in YAML format')
         self.parser.add_argument('--output-dir', type=str, default='./', help='name of output directory relative to CWD (default: %(default)s)')
-        self.parser.add_argument('--log-level', type=str, default='debug', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
         self.parser.add_argument('--gpu', default=False, action='store_true', help='force run on GPU')
         self.parser.add_argument('--complete-config', default=False, action='store_true', help='write complete config file')
         return self.parser
@@ -38,7 +38,7 @@ class RunSubcommand(Subcommand):
     @staticmethod
     def func(args, **kwargs):
         """
-        Run the ``pestifer run`` command with the specified configuration file.
+        Run the ``pestifer build`` command with the specified configuration file.
         """
         if args.output_dir != './':
             exec_dir = os.getcwd()
@@ -47,17 +47,6 @@ class RunSubcommand(Subcommand):
             if not os.path.exists(os.path.join(args.output_dir, args.config)):
                 shutil.copy(args.config, args.output_dir)
             os.chdir(args.output_dir)
-        loglevel_numeric = getattr(logging, args.log_level.upper())
-        if args.log_file:
-            if os.path.exists(args.log_file):
-                shutil.copyfile(args.log_file, args.log_file+'.bak')
-            logging.basicConfig(filename=args.log_file, filemode='w', format='%(asctime)s %(name)s %(message)s', level=loglevel_numeric)
-        console = logging.StreamHandler()
-        console.setLevel(logging.INFO)
-        formatter = logging.Formatter('%(levelname)s> %(message)s')
-        console.setFormatter(formatter)
-        logging.getLogger('').addHandler(console)
-
         # Set up the Controller and execute tasks
         begin_time = time.time()
         configname = args.config

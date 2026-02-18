@@ -17,13 +17,13 @@ This build can be performed (preferably in a clean directory) using this command
 
 .. code-block:: bash
 
-   $ pestifer run-example 1
+   $ pestifer build-example 1
 
-The first thing ``pestifer`` does with ``run-example`` is to copy the YAML config file for that example into the local directory.  In this case, the file copied is named ``bpti1.yaml``, and contains what you see above.  Or, alternatively, pasting that content into a local file ``myconfig.yaml``:
+The first thing ``pestifer`` does with ``build-example`` is to copy the YAML config file for that example into the local directory.  In this case, the file copied is named ``bpti1.yaml``, and contains what you see above.  Or, alternatively, pasting that content into a local file ``myconfig.yaml``:
 
 .. code-block:: bash
 
-   $ pestifer run myconfig.yaml
+   $ pestifer build myconfig.yaml
 
 You could also use ``fetch-example`` to get the config file and then run it:
 
@@ -33,9 +33,9 @@ You could also use ``fetch-example`` to get the config file and then run it:
   $ pestifer fetch-example 1
   $ ls
   bpti.yaml
-  $ pestifer run bpti1
+  $ pestifer build bpti1
 
-(If there is no extension on the argument of run, pestifer assumes one of ``.yaml``, ``.yml``, or ``.ym``.)
+(If there is no extension on the argument of build, pestifer assumes one of ``.yaml``, ``.yml``, or ``.ym``.)
 
 ``bpti1.yaml`` is a YAML-format text file, and the keywords (of course) have particular meanings.  This is also an example of a "minimal" configuration file; ``pestifer`` has many more controls that can be set in a configuration file than are shown here.  Here, this configuration file contains two topmost directives: ``title`` and :ref:`config_ref tasks`.  The value of ``title`` is the string ``Bovine Pancreatic Trypsin Inhibitor (BPTI)`` and the value of ``tasks`` is a *list*.  Each element in the list of tasks is itself a directive describing a task, and ``pestifer`` in general executes tasks in the order they appear in the ``tasks`` list.
 

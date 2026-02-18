@@ -4,6 +4,10 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [UNRELEASED]
 
+## [2.1.8] - 2026-02-18
+
+- bugfix: desolvate no longer assumes solvent and non-solvent atoms must have different segnames (but they should)
+
 ## [2.1.7] - 2025-11-19
 
 - bugfix: insertion resid incrementation bug fixed

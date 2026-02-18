@@ -3,13 +3,17 @@
 Base class for all pestifer subcommands.
 """
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from argparse import Namespace, ArgumentParser
 
 @dataclass
 class Subcommand(ABC):
     name: str
     """ subcommand name """
+    aliases: list = field(default_factory=list)
+    """ alternative names for this subcommand """
+    log_file: str = 'pestifer_diagnostics.log'
+    """ default log file for this subcommand """
     short_help: str = ''
     """ help string """
     long_help: str = ''
@@ -38,6 +42,6 @@ class Subcommand(ABC):
         Adds the subcommand parser to the given subparsers.  Subclasses declare
         arguments here, after a super().add_subparser() call.
         """
-        self.parser = subparsers.add_parser(self.name, help=self.short_help, description=self.long_help)
-        self.parser.set_defaults(func=self.func, func_returns_type=self.func_returns_type)
+        self.parser = subparsers.add_parser(self.name, aliases=self.aliases, help=self.short_help, description=self.long_help)
+        self.parser.set_defaults(func=self.func, func_returns_type=self.func_returns_type, subcommand_log_file=self.log_file)
 

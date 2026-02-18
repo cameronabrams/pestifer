@@ -16,7 +16,7 @@ from ..charmmff.charmmffcontent import CHARMMFFContent
 @dataclass
 class RebuildCHARMFFCache(Subcommand):
     name: str = 'rebuild-charmmff-cache'
-    short_help: str = "Rebuild the CHARMM force field cache"
+    short_help: str = "rebuild the CHARMM force field cache"
     long_help: str = "Rebuild the CHARMM force field cache from the current topology and parameter files."
 
     @staticmethod
@@ -32,13 +32,12 @@ class RebuildCHARMFFCache(Subcommand):
 
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
-        self.parser.add_argument('--log-level', type=str, default='debug', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
         return self.parser
 
 @dataclass
 class MakePDBCollectionSubcommand(Subcommand):
     name: str = 'make-pdbcollection'
-    short_help: str = "Create a PDB collection from a set of input files"
+    short_help: str = "create a PDB collection from a set of input files"
     long_help: str = "Generate a PDB collection from a list of PDB files or IDs."
 
     @staticmethod
@@ -58,7 +57,6 @@ class MakePDBCollectionSubcommand(Subcommand):
         self.parser.add_argument('--cleanup', default=True, action=ap.BooleanOptionalAction, help='clean up all working files (default: %(default)s)')
         self.parser.add_argument('--resname', type=str, default='', help='single resname to generate')
         self.parser.add_argument('--take-ic-from', type=str, default='', help='alternate resname to take ICs from if this resname has bad ICs')
-        self.parser.add_argument('--log-level', type=str, default='debug', choices=['info', 'debug', 'warning'], help='Logging level (default: %(default)s)')
         self.parser.add_argument('--force-constant', type=float, default=1.0, help='harmonic force constant used in non-equilibrium MD to stretch a molecule (default: %(default)s)')
         self.parser.add_argument('--lenfac', type=float, default=1.4, help='this factor times topological distance is the cartesian distance to which you want to stretch a molecule (default: %(default)s)')
         self.parser.add_argument('--minimize-steps', type=int, default=500, help='number of minimization steps immediately after each build (default: %(default)s)')

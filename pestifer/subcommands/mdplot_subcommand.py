@@ -20,18 +20,13 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MDPlotSubcommand(Subcommand):
     name: str = 'mdplot'
-    short_help: str = "Generate plots from MD simulation data"
+    log_file: str = 'mdplot.log'
+    short_help: str = "generate plots from MD simulation data"
     long_help: str = "Generates plots from all combined MD simulations"
     func_returns_type: type = FileArtifactList
 
     @staticmethod
     def func(args: ap.Namespace, **kwargs):
-        logging.basicConfig(filename='mdplot.log', filemode='w', format='%(asctime)s %(name)s %(message)s', level=logging.DEBUG)
-
-        console = logging.StreamHandler()
-        console.setLevel(logging.DEBUG)
-        formatter = logging.Formatter('%(levelname)s> %(message)s')
-        console.setFormatter(formatter)
         config = Config().configure_new()
         timeseries = []
         if args.timeseries:

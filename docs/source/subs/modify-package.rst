@@ -32,19 +32,19 @@ I developed most of the examples by iteration, so I would start with a simple YA
     $ mkdir ~/1mob_working_directory # create a working directory
     $ cd ~/1mob_working_directory
     $ pestifer new-system --id 1mob # this is the PDB ID for sperm whale myoglobin
-    $ pestifer run 1mob.yaml # this will run the psfgen task and generate a PSF file for the system
+    $ pestifer build 1mob.yaml # this will run the psfgen task and generate a PSF file for the system
 
 This run built successfully.  So I rebuilt a full template config:
 
 .. code-block:: bash
 
-    $ pestifer run 1mob.yaml --full
+    $ pestifer build 1mob.yaml --full
 
 Then I edited ``1mob.yaml`` to add a salt concentration specification to the ``solvate`` task.  Then I ran it again:
 
 .. code-block:: bash
 
-    $ pestifer run 1mob.yaml
+    $ pestifer build 1mob.yaml
 
 That also built successfully, so I added a new example to the pestifer package **after** switching to a new branch:
 

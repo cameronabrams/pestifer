@@ -12,4 +12,4 @@ It is particularly useful for analyzing the results of molecular dynamics simula
             [--basename BASENAME] [--figsize FIGSIZE FIGSIZE]
             [--traces TRACES [TRACES ...]] [--profiles PROFILES [PROFILES ...]]
 
-The ``mdplot`` subcommand mimics the ``mdplot`` task in the ``pestifer run`` command, but it does not require a configuration file. Instead, it allows you to specify the NAMD log and xst files directly on the command line.
+The ``mdplot`` subcommand mimics the ``mdplot`` task in the ``pestifer build`` command, but it does not require a configuration file. Instead, it allows you to specify the NAMD log and xst files directly on the command line.

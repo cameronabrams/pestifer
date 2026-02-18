@@ -1,9 +1,6 @@
 import os
 import sys
 import importlib.metadata
-from pathlib import Path
-from sphinx.util import logging
-logger = logging.getLogger(__name__)
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 project = 'pestifer'
@@ -30,6 +27,7 @@ extensions = [
     'sphinxcontrib.mermaid',
     'sphinx.ext.napoleon',
     'sphinx.ext.viewcode',
+    'myst_parser',
 ]
 
 autosummary_generate = True  # Enable autosummary tables
@@ -94,32 +92,7 @@ epub_show_urls = 'footnote'
 mermaid_params = ['--theme', 'dark', '--width', '600']
 
 def setup(app):
-    print("✅ Setting up custom directives...") 
+    print("✅ Setting up custom directives...")
     app.add_css_file("css/custom.css")
     from pestifer.sphinxext.tclscript import TclScriptDirective
     app.add_directive("tclscript", TclScriptDirective)
-    app.connect("builder-inited", _md_to_rst)
-
-def _md_to_rst(app):
-    root = Path(__file__).resolve().parents[2]
-    md = root / "CHANGELOG.md"
-    rst = Path(__file__).resolve().parent / "CHANGELOG.rst"
-    if not md.exists():
-        logger.warning(f"CHANGELOG.md not found at project root {root}")
-        return
-    # Skip if up-to-date (unless forced)
-    force = os.environ.get("SPHINX_FORCE_CHANGELOG", "") == "1"
-    if rst.exists() and not force:
-        if rst.stat().st_mtime >= md.stat().st_mtime:
-            logger.info("CHANGELOG.rst is up to date; skipping conversion.")
-            return
-    text = md.read_text(encoding="utf-8")
-    try:
-        import pypandoc
-        rst_text = pypandoc.convert_text(text, "rst", format="gfm")
-    except Exception as e:
-        logger.warning(f"Could not convert CHANGELOG.md -> .rst: {e}")
-        return
-    rst.write_text(rst_text, encoding="utf-8")
-
-    

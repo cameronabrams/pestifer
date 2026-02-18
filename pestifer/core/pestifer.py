@@ -5,6 +5,8 @@ Defines the command-line interface for pestifer
 import argparse as ap
 import importlib.metadata
 import logging
+import os
+import shutil
 
 __pestifer_version__ = importlib.metadata.version("pestifer")
 from ..util.stringthings import banner
@@ -35,7 +37,7 @@ def cli():
         "--banner",
         default=True,
         action=ap.BooleanOptionalAction,
-        help="Enable or disable the banner"
+        help="enable or disable the banner"
     )
     parser.add_argument(
         '--kick-ass', 
@@ -43,16 +45,21 @@ def cli():
         action=ap.BooleanOptionalAction, 
         help=ap.SUPPRESS)
     parser.add_argument(
-        '--log-level', 
-        type=str, 
-        default=None, 
-        choices=['info', 'debug', 'warning'], 
-        help='Logging level (default: %(default)s)')
+        '--log-level',
+        type=str,
+        default='debug',
+        choices=['info', 'debug', 'warning'],
+        help='logging level (default: %(default)s)')
     parser.add_argument(
-        '--log-file', 
-        type=str, 
-        default='pestifer_diagnostics.log', 
-        help='Log file (default: %(default)s)')
+        '--log-file',
+        type=str,
+        default=None,
+        help='log file (default: subcommand-specific)')
+    parser.add_argument(
+        '--version',
+        action='version',
+        version=f'%(prog)s {__pestifer_version__}'
+    )
     subparsers = parser.add_subparsers(
         title="Available commands (use \"pestifer <command> --help\" for help with any command)",
         dest="command",
@@ -64,5 +71,15 @@ def cli():
         subcommand.add_subparser(subparsers)
 
     args = parser.parse_args()
+    loglevel_numeric = getattr(logging, args.log_level.upper())
+    log_file = args.log_file or getattr(args, 'subcommand_log_file', None)
+    if log_file:
+        if os.path.exists(log_file):
+            shutil.copyfile(log_file, log_file + '.bak')
+        logging.basicConfig(filename=log_file, filemode='w', format='%(asctime)s %(name)s %(message)s', level=loglevel_numeric)
+    console = logging.StreamHandler()
+    console.setLevel(logging.INFO)
+    console.setFormatter(logging.Formatter('%(levelname)s> %(message)s'))
+    logging.getLogger('').addHandler(console)
     banner(print, args)
     args.func(args)
