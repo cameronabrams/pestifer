@@ -1,5 +1,5 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
-""" 
+"""
 Defines the command-line interface for pestifer
 """
 import argparse as ap
@@ -40,9 +40,9 @@ def cli():
         help="enable or disable the banner"
     )
     parser.add_argument(
-        '--kick-ass', 
-        default=False, 
-        action=ap.BooleanOptionalAction, 
+        '--kick-ass',
+        default=False,
+        action=ap.BooleanOptionalAction,
         help=ap.SUPPRESS)
     parser.add_argument(
         '--log-level',

@@ -279,7 +279,7 @@ class LabelMappers:
     def update_atomselect_macros(self, fp):
         """
         Update the atomselect macros in the file ``fp`` based on the ``segtypes`` dict.
-        This is a developer-only feature.  Access to this method is provided by the ``pestifer modify-package`` command (see :func:`pestifer.core.pestifer.modify_package`).
+        This is a developer-only feature.  Access to this method is provided by the ``pestifer modify-package`` command (see :func:`pestifer.cli.pestifer.modify_package`).
         """
         for segtype, data in self.segtypes.items():
             if data['macro']:

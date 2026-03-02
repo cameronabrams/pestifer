@@ -44,4 +44,3 @@ class Subcommand(ABC):
         """
         self.parser = subparsers.add_parser(self.name, aliases=self.aliases, help=self.short_help, description=self.long_help)
         self.parser.set_defaults(func=self.func, func_returns_type=self.func_returns_type, subcommand_log_file=self.log_file)
-

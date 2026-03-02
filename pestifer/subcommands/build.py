@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 from ..core.controller import Controller
 from ..core.config import Config
-from .subcommand import Subcommand
+from ..cli.subcommand import Subcommand
 from ..util.stringthings import __pestifer_version__
 from ..util.util import hmsf
 

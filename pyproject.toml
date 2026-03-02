@@ -41,7 +41,7 @@ dependencies = [
 ]
 
 [project.scripts]
-pestifer = "pestifer.core.pestifer:cli"
+pestifer = "pestifer.cli.pestifer:cli"
 
 [project.urls]
 "Source" = "https://github.com/cameronabrams/pestifer"
