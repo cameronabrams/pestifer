@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import ClassVar
 from pestifer.core.artifacts import StateArtifacts, VMDLogFileArtifact, VMDScriptArtifact, DataArtifact
 from pestifer.logparsers.logparser import VMDLogParser
-from pestifer.scripters.vmdscripter import VMDScripter
+from pestifer.scripters.vmd import VMDScripter
 from pestifer.tasks.basetask import VMDTask
 
 logger = logging.getLogger(__name__)

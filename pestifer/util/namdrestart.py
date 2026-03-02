@@ -12,7 +12,7 @@ import argparse as ap
 from pathlib import Path
 
 from ..logparsers.namdlogparser import NAMDLogParser
-from ..scripters.genericscripter import GenericScripter
+from ..scripters.generic import GenericScripter
 from .stringthings import ByteCollector
 
 logger = logging.getLogger(__name__)

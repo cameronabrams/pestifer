@@ -18,7 +18,7 @@ from .resourcemanager import ResourceManager
 from ..tasks.taskcollections import TaskList
 from ..util.stringthings import my_logger
 from ..scripters import PsfgenScripter, NAMDColvarInputScripter, PackmolScripter, VMDScripter, GenericScripter
-from ..scripters.namdscripter import NAMDScripter
+from ..scripters.namd import NAMDScripter
 
 logger = logging.getLogger(__name__)
 

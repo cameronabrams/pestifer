@@ -4,7 +4,7 @@ import datetime
 import logging
 import os
 
-from .genericscripter import GenericScripter
+from .generic import GenericScripter
 from ..core.command import Command
 from ..util.stringthings import FileCollector
 from ..logparsers.packmollogparser import PackmolLogParser

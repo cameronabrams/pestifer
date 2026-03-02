@@ -3,7 +3,7 @@
 import logging
 import os
 
-from .vmdscripter import VMDScripter
+from .vmd import VMDScripter
 
 from ..core.command import Command
 from ..core.labels import Labels

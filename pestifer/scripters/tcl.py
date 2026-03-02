@@ -4,7 +4,7 @@ import datetime
 import logging
 import os
 
-from .genericscripter import GenericScripter
+from .generic import GenericScripter
 from ..util.stringthings import FileCollector
 
 logger = logging.getLogger(__name__)

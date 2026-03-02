@@ -1,0 +1,32 @@
+PSF EXT CMAP
+
+         2 !NTITLE
+ REMARKS segment S1 { first NONE; last NONE; auto angles dihedrals }
+ REMARKS segment S2 { first NONE; last NONE; auto angles dihedrals }
+
+         8 !NATOM
+         1 S1           1 GLY      N        NH3     -0.300000       14.0070           0
+         2 S1           1 GLY      CA       CT2     -0.180000       12.0110           0
+         3 S1           1 GLY      C        C        0.510000       12.0110           0
+         4 S1           1 GLY      O        O       -0.510000       15.9990           0
+         5 S2           1 GLY      N        NH3     -0.300000       14.0070           0
+         6 S2           1 GLY      CA       CT2     -0.180000       12.0110           0
+         7 S2           1 GLY      C        C        0.510000       12.0110           0
+         8 S2           1 GLY      O        O       -0.510000       15.9990           0
+
+         6 !NBOND: bonds
+         1         2         2         3         3         4         5         6
+         6         7         7         8
+
+         0 !NTHETA: angles
+
+         0 !NPHI: dihedrals
+
+         0 !NIMPHI: impropers
+
+         0 !NDON: donors
+
+         0 !NACC: acceptors
+
+         4 !NNB
+         1         5         2         6         3         7         4         8

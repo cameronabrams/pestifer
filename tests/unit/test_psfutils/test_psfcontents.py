@@ -145,6 +145,22 @@ class TestPSFContents(unittest.TestCase):
         self.assertEqual(psf.angles[2].serial2,firstangleline[7])
         self.assertEqual(psf.angles[2].serial3,firstangleline[8])
 
+    def test_psf_pairexcount(self):
+        source='pairex.psf'
+        psf=PSFContents(source,parse_topology=['pairex'])
+        c=Command(r'grep "\!NNB" '+f'{source}')
+        c.run()
+        expected_npairex=int(c.stdout.strip().split()[0])
+        self.assertTrue(expected_npairex>0)
+        self.assertEqual(len(psf.pairex),expected_npairex)
+        c=Command(r'grep -A1 "\!NNB" '+f'{source} | tail -1')
+        c.run()
+        firstpairexline=[int(_) for _ in c.stdout.strip().split()]
+        self.assertEqual(psf.pairex[0].serial1,firstpairexline[0])
+        self.assertEqual(psf.pairex[0].serial2,firstpairexline[1])
+        self.assertEqual(psf.pairex[1].serial1,firstpairexline[2])
+        self.assertEqual(psf.pairex[1].serial2,firstpairexline[3])
+
     def test_psf_dihedralcount(self):
         source='test.psf'
         psf=PSFContents(source,parse_topology=['dihedrals'])

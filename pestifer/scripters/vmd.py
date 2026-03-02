@@ -4,7 +4,7 @@ import datetime
 import logging
 import os
 
-from .tclscripter import TcLScripter
+from .tcl import TcLScripter
 
 from ..core.command import Command
 

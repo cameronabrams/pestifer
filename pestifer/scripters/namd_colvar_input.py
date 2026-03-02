@@ -5,7 +5,7 @@ from copy import deepcopy
 from pathlib import Path
 from pidibble.pdbparse import PDBParser
 
-from .genericscripter import GenericScripter
+from .generic import GenericScripter
 
 from ..molecule.atom import AtomList
 

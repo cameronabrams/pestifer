@@ -17,6 +17,7 @@ from pestifer.core.labels import Labels
 from .psfangle import PSFAngleList
 from .psfatom import PSFAtom, PSFAtomList
 from .psfbond import PSFBondList
+from .psfpairex import PSFPairExList
 from .psfdihedral import PSFDihedralList
 from .psfremark import PSFRemark, PSFRemarkList, PSFSegmentRemark, PSFSegmentRemarkList
 from .psftopoelement import LineList
@@ -232,6 +233,10 @@ class PSFContents:
     dihedrals : PSFDihedralList, optional
         A list of dihedrals parsed from the PSF file, represented as instances of the :class:`PSFDihedral <.psfdihedral.PSFDihedral>` class.
         This attribute is only set if the ``parse_topology`` parameter includes ``dihedrals``.
+    pairex : PSFPairExList, optional
+        A list of cross-topology non-bonded pair exclusions parsed from the PSF file, represented as instances of the :class:`PSFPairEx <.psfpairex.PSFPairEx>` class.
+        Used in the dual-topology alchemical free energy paradigm to suppress interactions between atoms belonging to opposite end-states.
+        This attribute is only set if the ``parse_topology`` parameter includes ``pairex``.
 
     Parameters
     ----------
@@ -241,7 +246,7 @@ class PSFContents:
         A list of segment types to include in the topology parsing. If provided, only atoms of these segment types will be included in the topology.
         Default is an empty list, which means all atoms will be included.
     parse_topology : list, optional
-        A list of topology elements to parse from the PSF file. Possible values are 'bonds', 'angles', 'dihedrals', and 'impropers'.
+        A list of topology elements to parse from the PSF file. Possible values are 'bonds', 'angles', 'dihedrals', 'impropers', and 'pairex'.
         If provided, the class will parse the specified topology elements from the PSF file.
         Default is an empty list, which means no topology elements will be parsed.
     """
@@ -313,6 +318,12 @@ class PSFContents:
                 self.dihedrals = PSFDihedralList(LineList(self.token_lines['PHI']),include_serials=include_serials)
             if 'impropers' in parse_topology:
                 self.dihedrals = PSFDihedralList(LineList(self.token_lines['IMPHI']),include_serials=include_serials)
+            if 'pairex' in parse_topology:
+                if self.token_count.get('NB', 0) > 0:
+                    self.pairex = PSFPairExList(LineList(self.token_lines['NB']), include_serials=include_serials)
+                else:
+                    self.pairex = PSFPairExList([])
+                logger.debug(f'Parsed {len(self.pairex)} non-bonded pair exclusions.')
     
     def apply_atom_logics(self, inclusion_logics: list[str] = [], exclusion_logics: list[str] = []):
         """

@@ -1023,7 +1023,7 @@ class CharmmResi:
         logger.debug(f'annotation {self.annotation}')
 
     def generic_lipid_annotate(self):
-        """ 
+        """
         This method identifies the heads and tails of the lipid based on the carbon atoms in the residue.
         It constructs a graph representation of the residue and finds carbon chains (tails) by removing edges
         that, when removed, produce two fragments: one containing only carbons (tail) and the other containing at least one oxygen (head).
@@ -1039,9 +1039,90 @@ class CharmmResi:
         for src, dest in zip(chains, head_tails):
             src.update(dest)
         self.annotation['chain_info'] = chains
-        # self.annotation['tails'] = tails
-        # # only one path per head-tail pair
-        # self.annotation['shortest_paths'] = {head: {tail: len(nx.shortest_path(G, source=head, target=tail))} for head, tail in zip(heads, tails)}
+
+        # Compute backward-compatible heads, tails, and shortest_paths
+        # using bridge-finding on the heavy-atom graph
+        Gh = self.to_graph(includeH=False)
+        WG = Gh.copy()
+        ctails = []
+        cbonds = []
+        hastails = True
+        while hastails:
+            hastails = False
+            maxtailsize = -1
+            result = {}
+            for f in nx.bridges(WG):
+                g = WG.copy()
+                g.remove_edge(*f)
+                S = [g.subgraph(c).copy() for c in nx.connected_components(g)]
+                c = list(nx.connected_components(g))
+                if len(c) != 2:
+                    continue
+                e = [[Gh.nodes[x]['element'] for x in y] for y in c]
+                allc = [all([x == 'C' for x in y]) for y in e]
+                if any(allc):
+                    tail = c[allc.index(True)]
+                    tailsize = len(tail)
+                    if tailsize > maxtailsize:
+                        result = dict(tail=tail, nontailg=S[allc.index(False)], bond=f)
+                        tailatoms = list(tail)
+                        maxtailsize = tailsize
+            if result:
+                hastails = True
+                if len(tailatoms) > 1:
+                    ctails.append(tailatoms)
+                    cbonds.append(result['bond'])
+                    logger.debug(f'tailatoms {tailatoms}')
+                WG = result['nontailg']
+        logger.debug(f'ctails {ctails}')
+        logger.debug(f'cbonds {cbonds}')
+        WG = Gh.copy()
+        tails = [tail[[len(list(nx.neighbors(Gh, n))) for n in tail].index(1)] for tail in ctails]
+        logger.debug(f'tailn {tails}')
+        if len(tails) == 2:
+            queryheads = [k for k, n in WG.nodes.items() if n['element'] != 'C' and n['element'] != 'O']
+            logger.debug(f'queryheads {queryheads}')
+            if len(queryheads) == 0:
+                queryheads = [k for k, n in WG.nodes.items() if n['element'] == 'O']
+            maxpathlen = [-1] * len(cbonds)
+            claimedhead = [''] * len(cbonds)
+            for nc in queryheads:
+                for i, b in enumerate(cbonds):
+                    path = nx.shortest_path(WG, source=b[0], target=nc)
+                    pathlen = len(path)
+                    if pathlen > maxpathlen[i]:
+                        maxpathlen[i] = pathlen
+                        claimedhead[i] = nc
+            logger.debug(f'claimedhead {claimedhead}')
+            headcontenders = list(set(claimedhead))
+            headvotes = np.array([claimedhead.count(x) for x in headcontenders])
+            heads = [headcontenders[np.argmax(headvotes)]]
+            logger.debug(f'heads {heads}')
+        else:
+            OG = WG.copy()
+            for taill in ctails:
+                for atom in taill:
+                    OG.remove_node(atom)
+            mins = len(OG) ** 2
+            headatom = None
+            for atom in OG:
+                g = OG.copy()
+                g.remove_node(atom)
+                c = [len(x) for x in list(nx.connected_components(g))]
+                while 1 in c:
+                    c.remove(1)
+                c = np.array(c)
+                if len(c) > 1:
+                    s = c.std()
+                    if s < mins:
+                        headatom = atom
+                        mins = s
+            assert headatom is not None
+            logger.debug(f'headatom {headatom}')
+            heads = [headatom]
+        self.annotation['heads'] = heads
+        self.annotation['tails'] = tails
+        self.annotation['shortest_paths'] = {head: {tail: len(nx.shortest_path(WG, source=head, target=tail)) for tail in tails} for head in heads}
         my_logger(self.annotation, logger.debug)
 
     def to_file(self, f):

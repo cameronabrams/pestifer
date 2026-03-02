@@ -3,7 +3,7 @@
 import unittest
 import os
 
-from pestifer.subcommands.mdplot_subcommand import MDPlotSubcommand
+from pestifer.subcommands.mdplot import MDPlotSubcommand
 from argparse import Namespace
 
 class Test_MDPlot(unittest.TestCase):

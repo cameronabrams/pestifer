@@ -23,10 +23,12 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertEqual(len(self.C.residues), 0)
         self.assertEqual(len(self.C.patches), 0)
         self.C.provision()
-        self.assertEqual(len(self.C.residues), 2474)
+        self.assertEqual(len(self.C.residues), 2475)
         self.assertEqual(len(self.C.patches), 790)
         self.assertEqual(len(self.C.pdbrepository.collections), 2)
-        self.assertEqual(len(self.C.pdbrepository.collections['lipid'].info), 130)
+        # logger.debug(f"Collections: {self.C.pdbrepository.collections.keys()}")
+        # logger.debug(f"Info in lipid collection: {self.C.pdbrepository.collections['lipid'].info.keys()}")
+        self.assertEqual(len(self.C.pdbrepository.collections['lipid'].info), 152)
         self.assertEqual(len(self.C.pdbrepository.collections['water_ions'].info), 12)
 
     def test_charmmffcontent_restricted_provisioning(self):
@@ -53,7 +55,7 @@ class TestCharmmffContent(unittest.TestCase):
         basenames = [k for k in self.C.filenamemap['top'].keys()]
         basenames.extend([k for k in self.C.filenamemap['toppar'].keys()])
         basenames.extend([k for k in self.C.filenamemap['par'].keys()])
-        self.assertEqual(len(basenames), 54)
+        self.assertEqual(len(basenames), 55)
         self.assertEqual(len(set(basenames)), len(basenames))  # check for duplicates
         self.assertTrue(len(self.C.streams) > 0)
         self.assertEqual(self.C.streams.sort(), ['prot', 'carb', 'na', 'lipid'].sort())
@@ -134,7 +136,7 @@ class TestCharmmffContent(unittest.TestCase):
 
     def test_charmmffcontent_get_resi(self):
         self.C.provision()
-        self.assertEqual(len(self.C.residues),2474)
+        self.assertEqual(len(self.C.residues),2475)
         self.assertEqual(len(self.C.patches),790)
         self.assertTrue('ALA' in self.C.residues)
         self.assertTrue('TIP3' in self.C.residues)

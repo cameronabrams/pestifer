@@ -9,7 +9,7 @@ from pestifer.core.controller import Controller
 
 from pestifer.scripters import PsfgenScripter
 
-from pestifer.scripters.vmdscripter import VMDScripter
+from pestifer.scripters.vmd import VMDScripter
 from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
 
 from pestifer.tasks.validate import ValidateTask

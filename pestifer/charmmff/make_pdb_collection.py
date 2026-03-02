@@ -14,8 +14,8 @@ from   itertools            import product
 from   pidibble.pdbparse    import PDBParser
 
 from pestifer.objs import resid
-from pestifer.scripters.namdscripter import NAMDScripter
-from pestifer.scripters.psfgenscripter import PsfgenScripter
+from pestifer.scripters.namd import NAMDScripter
+from pestifer.scripters.psfgen import PsfgenScripter
 
 from  .charmmffcontent      import CHARMMFFContent
 from ..core.config          import Config

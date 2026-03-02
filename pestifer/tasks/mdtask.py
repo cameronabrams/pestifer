@@ -14,8 +14,8 @@ import logging
 from .basetask import VMDTask
 from ..core.artifacts import *
 
-from ..scripters.namdscripter import NAMDScripter
-from ..scripters.namdcolvarinputscripter import NAMDColvarInputScripter
+from ..scripters.namd import NAMDScripter
+from ..scripters.namd_colvar_input import NAMDColvarInputScripter
 from ..util.util import is_periodic
 
 logger = logging.getLogger(__name__)
