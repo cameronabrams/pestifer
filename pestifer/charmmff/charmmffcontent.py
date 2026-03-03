@@ -222,6 +222,7 @@ class CHARMMFFContent(CacheableObject):
         self.parent_path = self.charmmff_path.parent
         self.charmm_elements = [x.name for x in list(self.charmmff_path.glob('*'))]
         tarfilename = kwargs.get('tarfilename', 'toppar_c36_jul24.tgz')
+        # tarfilename = kwargs.get('tarfilename', 'toppar_c36_feb26.tgz')
         skip_streams = kwargs.get('skip_streams', ['misc', 'cphmd'])
         self.file_patches: dict[str, str] = {}
         self._load_charmmff(tarfilename=tarfilename, skip_streams=skip_streams)

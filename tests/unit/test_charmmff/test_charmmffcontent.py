@@ -12,11 +12,12 @@ class TestCharmmffContent(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        logging.debug("Setting up TestCharmmffContent class...")
+        logger.debug("Setting up TestCharmmffContent class...")
         resource_path = Path(resources.__file__).parent
         charmmff_path = resource_path / 'charmmff'
-        cls.C = CHARMMFFContent(charmmff_path)
-        logging.debug("Done setting up TestCharmmffContent class...")
+        cls.C = CHARMMFFContent(charmmff_path, force_rebuild=True)
+        logger.debug("tarfilename: " + cls.C.tarfilename)
+        logger.debug("Done setting up TestCharmmffContent class...")
 
     def test_charmmffcontent_full_provisioning(self):
         self.C.deprovision()
