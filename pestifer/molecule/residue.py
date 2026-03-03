@@ -1052,6 +1052,7 @@ class ResidueList(BaseObjList[Residue]):
             chainID, resid = ins.chainID, ins.resid
             idx = self.iget(lambda x: x.chainID == chainID and x.resid == resid)
             segtype = self.data[idx].segtype
+            segname = self.data[idx].segname
             logger.debug(f'insertion {ins.shortcode()} begins after {resid.resid} which is index {idx} in reslist, chain {chainID} segtype {segtype}')
             # add residues to residue list
             for olc in ins.sequence:
@@ -1061,8 +1062,9 @@ class ResidueList(BaseObjList[Residue]):
                 new_residue = Residue(new_empty_residue)
                 new_residue.atoms = AtomList([])
                 new_residue.segtype = segtype
+                new_residue.segname = segname
                 self.insert(idx, new_residue)
-                logger.debug(f'insertion of new residue placeholder {shortcode}')
+                logger.debug(f'insertion of new residue placeholder {shortcode} segtype {new_residue.segtype} segname {new_residue.segname} at index {idx}')
                 resid = new_resid
 
     def renumber(self, links: LinkList):

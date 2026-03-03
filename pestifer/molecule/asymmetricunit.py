@@ -241,6 +241,7 @@ class AsymmetricUnit:
             residues.apply_insertions(seqmods['insertions'])
         logger.debug(f'Renumbering residues')
         residues.renumber(links)
+        uniques = residues.uniqattrs(['segtype'], with_counts=True)
 
         logger.debug(f'Segtypes present: {uniques["segtype"]}')
         # Delete any residues dictated by user-specified exclusions
@@ -288,6 +289,7 @@ class AsymmetricUnit:
         logger.debug(f'{len(residues)} residues survived parsing')
 
         if self.psfcontents is not None:
+            logger.debug(f'Removing {len(ignored_residues)} residues from PSFContents because they were ignored by inclusion/exclusion logic')
             self.psfcontents.remove_ignored_residues(ignored_residues)
 
         if len(grafts)>0:

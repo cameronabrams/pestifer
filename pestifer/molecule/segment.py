@@ -297,15 +297,18 @@ class SegmentList(BaseObjList[Segment]):
     def build_from_psf_and_pdb_data(self):
         """ Build the segment list using the pre-populated PSF segment list and PDB-derived residues """
         if not self.psfcompanion.num_residues() == len(self.residues.data):
-            raise ValueError(f'Number of residues in PSF ({self.psfcompanion.num_residues()}) does not match number of residues in PDB ({len(self.residues)})!')
+            logger.debug(f'Number of residues in PSF: {self.psfcompanion.num_residues()}')
+            logger.debug(f'Number of residues in working molecule: {len(self.residues.data)}')
         if not self.psfcompanion.num_atoms() == sum(len(x.atoms) for x in self.residues.data):
-            raise ValueError(f'Number of atoms in PSF ({self.psfcompanion.num_atoms()}) does not match number of atoms in PDB ({sum(len(x.atoms) for x in self.residues)})!')
+            logger.debug(f'Number of atoms in PSF: {self.psfcompanion.num_atoms()}')
+            logger.debug(f'Number of atoms in working molecule: {sum(len(x.atoms) for x in self.residues.data)}')
         # for each segment in the psfcompanion, build a list of actual residues extracted from self.residues for which atom serials match those in the PSFResidues
 
         for seg in self.psfcompanion.data:
             matching_residues = ResidueList(list(filter(lambda x: x.segname == seg.segname, self.residues.data)))
             if not matching_residues:
                 raise ValueError(f'No matching residues found for segment {seg.segname}')
+            logger.debug(f'For segment {seg.segname} in PSF, found {len(matching_residues)} matching residues in PDB data, from resid {matching_residues.data[0].resid.resid} to resid {matching_residues.data[-1].resid.resid}')
             chainIDs = list(set([x.chainID for x in matching_residues.data]))
             assert len(chainIDs) == 1, f'Multiple chainIDs found for segment {seg.segname}: {chainIDs}'
             my_chainID = chainIDs[0]

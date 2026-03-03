@@ -4,6 +4,11 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [UNRELEASED]
 
+## [2.1.9] - 2026-03-03
+
+- bugfix: placeholder residues (insertions) now inherit correct segnames
+- bugfix: psfgen task can now follow a continuation task and add atoms and residues successfully
+
 ## [2.1.8] - 2026-02-18
 
 - bugfix: desolvate no longer assumes solvent and non-solvent atoms must have different segnames (but they should)
