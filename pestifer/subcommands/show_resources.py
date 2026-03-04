@@ -19,14 +19,13 @@ class ShowResourcesSubcommand(Subcommand):
 
     @staticmethod
     def func(args: ap.Namespace, **kwargs):
-        r = ResourceManager()
+        charmmff_config = {'pdbrepository': args.user_pdbcollection} if args.user_pdbcollection else {}
+        r = ResourceManager(charmmff_config=charmmff_config)
         resource_type = args.resource_type
         specs = {resource_type: []}
         if hasattr(args, resource_type):
             for subresource in getattr(args, resource_type):
                 specs[resource_type].append(subresource)
-        if args.user_pdbcollection:
-            r.update_charmmff(user_pdbrepository_paths=args.user_pdbcollection)
         r.show(out_stream=print, components=specs, fullnames=args.fullnames, missing_fullnames=r.labels.residue_fullnames)
         return True
 

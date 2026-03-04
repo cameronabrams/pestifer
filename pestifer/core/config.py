@@ -12,6 +12,7 @@ import logging
 import shutil
 from GPUtil import getGPUs
 from importlib.metadata import version
+from importlib.resources import files as pkg_files
 from ycleptic.yclept import Yclept
 
 from .resourcemanager import ResourceManager
@@ -54,15 +55,11 @@ class Config(Yclept):
         if not self.quiet:
             vrep = f'pestifer v. {version("pestifer")}\n  ycleptic v. {version("ycleptic")}\n  pidibble v. {version("pidibble")}'
             my_logger(vrep, logger.info, just='<', frame='*', fill='', no_indent=True)
-            # my_logger(str(self.RM), logger.debug, just='<', frame='*', fill='', no_indent=True)
-        # resolve full pathname of YCleptic base config for this application
-
-        self.RM = ResourceManager()
         return self.configure()
-    
+
     def configure(self):
         if not self.basefile:
-            self.basefile = self.RM.get_ycleptic_config()
+            self.basefile = str(pkg_files('pestifer.schema').joinpath('base.yaml'))
         assert os.path.exists(self.basefile), f'Base config file {self.basefile} does not exist.'
         # ycleptic's init:
         super().__init__(self.basefile, userfile=self.userfile, userdict=self.userdict)
@@ -70,13 +67,10 @@ class Config(Yclept):
         self.my_processor_info = self._set_processor_info()
         if not self.quiet:
             my_logger(self.my_processor_info, logger.info, just='<', frame='*', fill='')
+        if self.RM is None:
+            self.RM = ResourceManager(charmmff_config=self['user']['charmmff'])
         self._set_internal_shortcuts()
         self._set_shell_commands(verify_access=(self.userfile != ''))
-        self.RM.update_charmmff(
-            tarball=self['user']['charmmff'].get('tarball', ''),
-            user_custom_directory=self['user']['charmmff'].get('custom_directory', ''),
-            user_pdbrepository_paths=self['user']['charmmff'].get('pdbrepository', [])
-        )
         self._set_kwargs_to_scripters()
         self.scripters = {
             'psfgen': PsfgenScripter(**self.kwargs_to_scripters),
@@ -241,14 +235,6 @@ class Config(Yclept):
         assert os.path.exists(self.tcl_script_path)
         self.vmd_startup_script = os.path.join(self.tcl_root, 'vmdrc.tcl')
         assert os.path.exists(self.vmd_startup_script)
-        # self.charmmff_toppar_path=RM.get_charmmff_toppardir()
-        # assert os.path.exists(self.charmmff_toppar_path)
-        self.charmmff_custom_path = RM.get_charmmff_customdir()
-        assert os.path.exists(self.charmmff_custom_path)
-        self.user_charmmff_toppar_path = ''
-        if hasattr(self, 'user'):
-            self.user_charmmff_toppar_path = os.path.join(self['user']['charmmff'], 'toppar')
-            assert os.path.exists(self.user_charmmff_toppar_path)
         self.namd_config_defaults = self['user']['namd']
 
         self.segtypes = RM.labels.segtypes

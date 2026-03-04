@@ -26,11 +26,11 @@ from ..psfutil.psfcontents  import PSFContents
 
 logger = logging.getLogger(__name__)
 
-def do_psfgen(resid: str, DB: CHARMMFFContent, 
-              lenfac: float = 1.2, minimize_steps: int = 500, 
-              sample_steps: int = 5000, nsamples: int = 10, 
-              sample_temperature: float = 300, 
-              refic_idx: int = 0, force_constant: float = 1.0, 
+def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
+              lenfac: float = 1.2, minimize_steps: int = 500,
+              sample_steps: int = 5000, nsamples: int = 10,
+              sample_temperature: float = 300,
+              refic_idx: int = 0, force_constant: float = 1.0,
               borrow_ic_from: str = None):
     """ 
     Generate a PDB file for a residue defined by the CHARMM force field using psfgen, and sample it using NAMD.  Also generate the ``info.yaml`` file for this residue.
@@ -170,7 +170,7 @@ def do_psfgen(resid: str, DB: CHARMMFFContent,
     tasklist.append({'md': base_md})
     logger.debug(f'base_md (2): {base_md}')
     userspecs = {'title': f'Build PDBCollection entry for {resid}', 'tasks': tasklist}
-    config = Config(quiet=True).configure_new()
+    config = Config(quiet=True, RM=RM).configure_new()
     C = Controller().configure(config=config, userspecs=userspecs, terminate=False)
     # First we de-novo generate a pdb/psf file using seeded internal coordinates
     W: PsfgenScripter = C.tasks[0].scripters['psfgen']
@@ -344,11 +344,11 @@ def do_cleanup(resname, dirname):
         os.remove(f)
     os.chdir(cwd)
 
-def do_resi(resi: str, DB: CHARMMFFContent, 
-            outdir: str = 'data', faildir: str = 'fails', force: bool = False, 
-            lenfac: float = 1.2, cleanup: bool = True, minimize_steps: int = 500, 
-            sample_steps: int = 5000, nsamples: int = 10, 
-            sample_temperature: float = 300, refic_idx: int = 0, 
+def do_resi(resi: str, DB: CHARMMFFContent, RM: ResourceManager = None,
+            outdir: str = 'data', faildir: str = 'fails', force: bool = False,
+            lenfac: float = 1.2, cleanup: bool = True, minimize_steps: int = 500,
+            sample_steps: int = 5000, nsamples: int = 10,
+            sample_temperature: float = 300, refic_idx: int = 0,
             force_constant: float = 1.0, borrow_ic_from: str = None):
     """
     Manager function for :func:`do_psfgen`.  Makes sure it operates in the correct subdirectories and handles success/failure cases.
@@ -386,10 +386,10 @@ def do_resi(resi: str, DB: CHARMMFFContent,
         if os.path.exists('tmp'): shutil.rmtree('tmp')
         os.mkdir('tmp')
         os.chdir('tmp')
-        result = do_psfgen(resi, DB, lenfac=lenfac, minimize_steps=minimize_steps,
-                            sample_steps=sample_steps, nsamples=nsamples, 
-                            sample_temperature=sample_temperature, 
-                            refic_idx=refic_idx, force_constant=force_constant, 
+        result = do_psfgen(resi, DB, RM=RM, lenfac=lenfac, minimize_steps=minimize_steps,
+                            sample_steps=sample_steps, nsamples=nsamples,
+                            sample_temperature=sample_temperature,
+                            refic_idx=refic_idx, force_constant=force_constant,
                             borrow_ic_from=borrow_ic_from)
         os.chdir(cwd)
         if result == 0:
@@ -425,7 +425,9 @@ def make_pdb_collection(args):
     substreamID = args.substreamID
     resname = args.resname # if provided, we will only make a collection member for this RESI
     topfile = args.topfile
-    CC = ResourceManager().charmmff_content
+    charmmff_config = {'release': args.charmmff_release} if getattr(args, 'charmmff_release', '') else {}
+    RM = ResourceManager(charmmff_config=charmmff_config)
+    CC = RM.charmmff_content
     CC.provision()
     
     if topfile is not None:
@@ -453,11 +455,11 @@ def make_pdb_collection(args):
     
     if resname is not None and resname != '':
         my_logger(f'RESI {resname}', logger.info, just='^', frame='*', fill='*')
-        do_resi(resname, CC, outdir=outdir, faildir=faildir, force=args.force,
-                 cleanup=args.cleanup, lenfac=args.lenfac, 
-                 minimize_steps=args.minimize_steps, sample_steps=args.sample_steps, 
-                 nsamples=args.nsamples, sample_temperature=args.sample_temperature, 
-                 refic_idx=args.refic_idx, force_constant=args.force_constant, 
+        do_resi(resname, CC, RM=RM, outdir=outdir, faildir=faildir, force=args.force,
+                 cleanup=args.cleanup, lenfac=args.lenfac,
+                 minimize_steps=args.minimize_steps, sample_steps=args.sample_steps,
+                 nsamples=args.nsamples, sample_temperature=args.sample_temperature,
+                 refic_idx=args.refic_idx, force_constant=args.force_constant,
                  borrow_ic_from=args.take_ic_from)
     else:
         active_resnames = CC.get_resnames_of_streamID(streamID, substreamID=substreamID)
@@ -465,10 +467,10 @@ def make_pdb_collection(args):
         nresi = len(active_resnames)
         for i, r in enumerate(active_resnames):
             my_logger(f'RESI {r} ({i+1}/{nresi})', logger.info, just='^', frame='*', fill='*')
-            do_resi(r, CC, outdir=outdir, faildir=faildir, force=args.force,
-                    cleanup=args.cleanup, lenfac=args.lenfac, 
-                    minimize_steps=args.minimize_steps, sample_steps=args.sample_steps, 
-                    nsamples=args.nsamples, sample_temperature=args.sample_temperature, 
+            do_resi(r, CC, RM=RM, outdir=outdir, faildir=faildir, force=args.force,
+                    cleanup=args.cleanup, lenfac=args.lenfac,
+                    minimize_steps=args.minimize_steps, sample_steps=args.sample_steps,
+                    nsamples=args.nsamples, sample_temperature=args.sample_temperature,
                     refic_idx=args.refic_idx, force_constant=args.force_constant)
 
     # if the faildir is empty, remove it

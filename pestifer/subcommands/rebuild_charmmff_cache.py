@@ -20,9 +20,10 @@ class RebuildCHARMMFFCache(Subcommand):
     @staticmethod
     def func(args: ap.Namespace, **kwargs):
         from ..core.resourcemanager import ResourceManager
-        rm = ResourceManager(basic_only=True)
-        CC = CHARMMFFContent(rm.resource_path['charmmff'], force_rebuild=True)
-        CC.provision(force_rebuild=True)
+        rm = ResourceManager()
+        for version_dir in rm.charmmff_version_dirs():
+            CC = CHARMMFFContent(version_dir, force_rebuild=True)
+            CC.provision(force_rebuild=True)
         return True
 
     def add_subparser(self, subparsers):

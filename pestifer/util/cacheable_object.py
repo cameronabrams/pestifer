@@ -150,11 +150,13 @@ class CacheableObject:
                  cache_dir: str | Path | object | None = None,
                  force_rebuild: bool = False,
                  ignore_suffixes: Iterable[str] = (),
+                 resource_label: str | None = None,
                  **kwargs):
         if isinstance(resource_root, str):
             resource_root = Path(resource_root)
         self.resource_root = resource_root
-        base_key = f"{self.__class__.__name__.lower()}-{_hash_resource(resource_root)}"
+        label = resource_label if resource_label else _hash_resource(resource_root)
+        base_key = f"{self.__class__.__name__.lower()}-{label}"
         vtag = self._version_tag()
         key = f"{base_key}-{vtag}" if vtag else base_key
         cdir = Path(cache_dir) if cache_dir else Path(user_cache_dir(self.APP_NAME))

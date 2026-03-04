@@ -368,6 +368,8 @@ class PDBRepository(CacheableObject):
         if is_custom:
             self.build_custom(*args, **kwargs)
         else:
+            if args and 'resource_label' not in kwargs:
+                kwargs['resource_label'] = Path(args[0]).parent.name
             super().__init__(*args, **kwargs)
 
     @with_spinner('Building PDBRepository cache..')
@@ -418,7 +420,9 @@ class PDBRepository(CacheableObject):
             An optional list of resnames that the collection should minimally include.  This is for building custom, right-sized collections for any particular build.
         """
         c = PDBCollection.build_from_resources(path_or_tarball=path_or_tarball, streamID_override=streamID_override, resnames=resnames)
-        # logger.debug(c.streamID)
+        if c is None:
+            logger.debug(f'Skipping {path_or_tarball}: not a recognized PDB collection format.')
+            return
         self.add_collection(c, collection_key=c.streamID)
 
     def add_collection(self, collection: PDBCollection, collection_key='generic'):

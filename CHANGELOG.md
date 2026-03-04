@@ -4,6 +4,10 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [UNRELEASED]
 
+## [2.2.0] - 2026-03-04
+
+- Now uses Feb 26 CHARMMFF release (Jul 24 is still available as an option)
+
 ## [2.1.9] - 2026-03-03
 
 - bugfix: placeholder residues (insertions) now inherit correct segnames

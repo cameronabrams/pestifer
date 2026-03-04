@@ -26,17 +26,17 @@ import importlib.metadata
 __pestifer_version__ = importlib.metadata.version("pestifer")
 
 _banner_message="""
-    Pestifer v. {}
+    Pestifer v. {pestifer_version}
     https://pestifer.readthedocs.io/en/latest/
 
     Cameron F. Abrams <cfa22@drexel.edu>
 
-    Supported in part by Grants GM100472, AI154071, 
+    Supported in part by Grants GM100472, AI154071,
     and AI178833 from the NIH
 
-    CHARMM force field files (July 24) from the 
+    CHARMM force field files ({charmmff_version}) from the
     MacKerell Lab
-    """.format(__pestifer_version__)
+    """
 
 _enhanced_banner_message="""
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
@@ -76,6 +76,42 @@ _enhanced_banner_message="""
 ░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░
 """
 
+def _discover_charmmff_version() -> str:
+    """Return a human-readable string describing the available CHARMMFF version(s)."""
+    try:
+        import datetime
+        from .. import resources as _resources
+        charmmff_dir = Path(os.path.dirname(_resources.__file__)) / 'charmmff'
+        _month_num = {
+            'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+            'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+        }
+        def _key_to_date(d: Path) -> datetime.date:
+            mon = _month_num.get(d.name[:3], 0)
+            yr = 2000 + int(d.name[3:])
+            return datetime.date(yr, mon, 1)
+        version_dirs = sorted(
+            [d for d in charmmff_dir.iterdir() if d.is_dir() and re.match(r'^[a-z]{3}\d{2}$', d.name)],
+            key=_key_to_date
+        )
+        if not version_dirs:
+            return 'unknown'
+        # Convert keys like 'jul24' -> 'July 2024', 'feb26' -> 'Feb 2026'
+        month_map = {
+            'jan': 'January', 'feb': 'February', 'mar': 'March', 'apr': 'April',
+            'may': 'May', 'jun': 'June', 'jul': 'July', 'aug': 'August',
+            'sep': 'September', 'oct': 'October', 'nov': 'November', 'dec': 'December',
+        }
+        def key_to_label(key: str) -> str:
+            mon = month_map.get(key[:3], key[:3].capitalize())
+            yr = '20' + key[3:]
+            return f'{mon} {yr}'
+        labels = [key_to_label(d.name) for d in version_dirs]
+        return ', '.join(labels)
+    except Exception:
+        return 'unknown'
+
+
 def banner(logf: Callable, args: Namespace):
     """
     Writes a banner message to the log file
@@ -89,7 +125,12 @@ def banner(logf: Callable, args: Namespace):
         if args.kick_ass:
             my_logger(_enhanced_banner_message, logf, fill=' ', just='<')
         else:
-            my_logger(_banner_message, logf, fill=' ', just='<')
+            charmmff_version = _discover_charmmff_version()
+            msg = _banner_message.format(
+                pestifer_version=__pestifer_version__,
+                charmmff_version=charmmff_version,
+            )
+            my_logger(msg, logf, fill=' ', just='<')
 
 class ByteCollector:
     """

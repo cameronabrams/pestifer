@@ -19,6 +19,14 @@ from ..util.stringthings import my_logger
 
 logger = logging.getLogger(__name__)
 
+def charmmff_version_key(version_str: str) -> str:
+    """ Parse a CHARMMFF version string in the format 'MonthYEAR' and return the version key (e.g. 'jul24', 'feb26'). """
+    match = re.match(r'([A-Za-z]+)(\d{4})', version_str)
+    if not match:
+        raise ValueError(f'Invalid CHARMMFF version string: {version_str}')
+    month_str, year_str = match.groups()
+    return f'{month_str.lower()[:3]}{year_str[-2:]}'
+
 def parse_conditional_script(script_text):
     """
     Parse a conditional script text and return a dictionary with parsed lines and variables.
@@ -152,6 +160,8 @@ class CHARMMFFResiTopCollection(CacheableObject):
         if is_custom:
             self.build_custom(*args, **kwargs)
         else:
+            if args and 'resource_label' not in kwargs:
+                kwargs['resource_label'] = Path(args[0]).name
             super().__init__(*args, **kwargs)
 
     @with_spinner('Building CHARMMFF residue topology collection cache...')
@@ -186,15 +196,17 @@ class CHARMMFFContent(CacheableObject):
 
     The CHARMM force field is downloadable directly from the
     MacKerell lab at the University of Maryland:
-    https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_jul24.tgz
-    Pestifer uses its own local copy of this tarball.    
+    https://mackerell.umaryland.edu/charmm_ff_params.html
+    Pestifer uses its own local copies of release tarballs, one per version directory.
 
     Parameters
     ----------
-    charmmff_path : str, optional
-        Path to the directory containing the CHARMM force field files. Default is current directory.
+    charmmff_path : str or Path
+        Path to the version-specific directory (e.g. ``resources/charmmff/jul24/``) containing
+        the release tarball, ``custom/``, ``patches/``, and ``pdbrepository/`` subdirectories.
     tarfilename : str, optional
-        Name of the tarball file containing the CHARMM force field files. Default is 'toppar_c36_jul24.tgz'.
+        Override for the tarball name.  If omitted, derived from the directory name as
+        ``toppar_c36_{version_key}.tgz``.
 
     Attributes
     ----------
@@ -208,8 +220,15 @@ class CHARMMFFContent(CacheableObject):
 
     @countTime
     def __init__(self, *args, **kwargs):
+        user_custom_directories = kwargs.pop('user_custom_directories', [])
+        user_pdbrepository_paths = kwargs.pop('user_pdbrepository_paths', [])
+        if args and 'resource_label' not in kwargs:
+            kwargs['resource_label'] = Path(args[0]).name
         super().__init__(*args, **kwargs)
         self.deprovision()
+        self.user_pdbrepository_paths = user_pdbrepository_paths
+        for d in user_custom_directories:
+            self.add_custom_directory(d)
 
     @with_spinner('Building CHARMMFF cache from package resources...')
     def _build_from_resources(self, charmmff_path: Path, **kwargs):
@@ -221,8 +240,8 @@ class CHARMMFFContent(CacheableObject):
         self.basename = self.charmmff_path.name
         self.parent_path = self.charmmff_path.parent
         self.charmm_elements = [x.name for x in list(self.charmmff_path.glob('*'))]
-        tarfilename = kwargs.get('tarfilename', 'toppar_c36_jul24.tgz')
-        # tarfilename = kwargs.get('tarfilename', 'toppar_c36_feb26.tgz')
+        version_key = self.charmmff_path.name  # e.g. 'jul24', 'feb26'
+        tarfilename = kwargs.get('tarfilename', f'toppar_c36_{version_key}.tgz')
         skip_streams = kwargs.get('skip_streams', ['misc', 'cphmd'])
         self.file_patches: dict[str, str] = {}
         self._load_charmmff(tarfilename=tarfilename, skip_streams=skip_streams)
@@ -234,14 +253,15 @@ class CHARMMFFContent(CacheableObject):
         self.patches = CharmmResiDict({})
         self.pdbrepository = None
 
-    def _load_charmmff(self, tarfilename='toppar_c36_jul24.tgz', skip_streams=['misc', 'cphmd']):
+    def _load_charmmff(self, tarfilename='', skip_streams=['misc', 'cphmd']):
         """ 
         Load the CHARMM force field tarball from the specified path.
 
         Parameters
         ----------
         tarfilename : str, optional
-            The name of the tarball file containing the CHARMM force field files. Default is 'toppar_c36_jul24.tgz'.
+            The name of the tarball file containing the CHARMM force field files.
+            Derived from the version directory name if not specified.
         skip_streams : list of str, optional
             A list of stream names to skip when loading the CHARMM force field content. Default is ['misc', 'cphmd'].
 
@@ -378,6 +398,9 @@ class CHARMMFFContent(CacheableObject):
 
     def provision_pdbrepository(self, force_rebuild: bool = False, resnames: list[str] = []):
         self.pdbrepository = PDBRepository(os.path.join(self.charmmff_path, 'pdbrepository'), resnames=resnames, force_rebuild=force_rebuild)
+        for path in getattr(self, 'user_pdbrepository_paths', []):
+            logger.info(f'Adding user PDB collection {path} to PDB repository')
+            self.pdbrepository.add_resource(path)
 
     def provision_residueobjects(self, force_rebuild: bool = False, resnames: list[str] = []):
         is_custom = len(resnames) > 0
@@ -532,7 +555,7 @@ class CHARMMFFContent(CacheableObject):
         return basename
 
     def add_custom_directory(self, user_custom_directory: str | Path):
-        """ 
+        """
         Add a user custom directory to the :class:`CHARMMFFContent`.
         This directory should contain custom files that can be used in addition to the standard CHARMM force field files.
 
@@ -549,11 +572,12 @@ class CHARMMFFContent(CacheableObject):
         if not os.path.isdir(user_custom_directory):
             raise NotADirectoryError(f'Expected a directory at {user_custom_directory}, but it is not a directory')
         logger.debug(f'Adding user custom directory {user_custom_directory} to CHARMMFFContent')
-        self.custom_files.extend(os.listdir(user_custom_directory))
-        for f in self.custom_files:
-            assert f not in self.filenamemap, f'user custom file {f} already exists in filenamemap'
+        new_files = [f for f in os.listdir(user_custom_directory) if CHARMMFFContent.charmmff_filetype(f)]
+        for f in new_files:
             ext = CHARMMFFContent.charmmff_filetype(f)
+            assert f not in self.filenamemap[ext], f'user custom file {f} already exists in filenamemap'
             self.filenamemap[ext][f] = os.path.join(user_custom_directory, f)
+        self.custom_files.extend(new_files)
 
     def clean_local_charmmff_files(self):
         """ 

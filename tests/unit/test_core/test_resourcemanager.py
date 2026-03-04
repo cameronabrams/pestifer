@@ -20,10 +20,6 @@ class TestResourceManager(unittest.TestCase):
         self.assertTrue(os.path.exists(e1.scriptname))
         os.remove(e1.scriptname)
 
-    def test_resource_ycleptic(self):
-        self.assertEqual(os.path.basename(self.RM.ycleptic_config),"base.yaml")
-        self.assertEqual(os.path.basename(self.RM.get_ycleptic_config()),"base.yaml")
-
     def test_resource_tcl(self):
         self.assertTrue(os.path.exists(self.RM.get_tcldir()))
         self.assertTrue(os.path.exists(self.RM.get_tcl_pkgdir()))

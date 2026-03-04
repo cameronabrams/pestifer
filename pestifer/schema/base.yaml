@@ -1,5 +1,5 @@
 # Pestifer v 1.19
-# (c) 2023-2025 Cameron F. Abrams, cfa22@drexel.edu
+# (c) 2023-2026 Cameron F. Abrams, cfa22@drexel.edu
 #
 # Ycleptic-format specification for a user's YAML-format pestifer configuration file
 #
@@ -32,9 +32,10 @@ attributes:
         directory or one of the stream subdirectories.  ``custom`` refers to files that are not part of the official 
         CHARMMFF release.
     attributes:
-      - name: tarball
+      - name: release
         type: str
-        text: Path to a tarball containing the charmmff files; this is used to override the default set of charmmff files
+        text: CHARMMFF release in MonthYEAR format (e.g., "July2024", "February2026", etc.)
+        default: February2026
       - name: standard
         type: dict
         text: CHARMM force-field files used by default in all system preparations

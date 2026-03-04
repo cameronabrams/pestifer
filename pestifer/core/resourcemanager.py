@@ -14,7 +14,7 @@ from .labels import Labels
 
 from .. import resources
 
-from ..charmmff.charmmffcontent import CHARMMFFContent
+from ..charmmff.charmmffcontent import CHARMMFFContent, charmmff_version_key
 from ..util.gitutil import get_git_origin_url
 
 logger = logging.getLogger(__name__)
@@ -23,22 +23,16 @@ class ResourceManager:
     """
     A class for managing pestifer's built-in resources.
     This class provides access to various resources such as CHARMM force fields, example input files, and TcL scripts.
-    It also manages the ``ycleptic`` configuration file used for user-specific configurations.
     The resources are organized into directories, and the class provides methods to access these resources.
     """
 
-    _base_resources = ('charmmff', 'examples', 'tcl', 'ycleptic')
+    _base_resources = ('charmmff', 'examples', 'tcl')
     """
     A list of base resources that are managed by the ResourceManager.
-    These resources include CHARMM force fields, example input files, TcL scripts, and the ycleptic configuration file.
+    These resources include CHARMM force fields, example input files, and TcL scripts.
     """
 
-    def __init__(self, basic_only: bool = False, *args, **kwargs):
-        self.basic_init()
-        if not basic_only:
-            self.full_init()
-
-    def basic_init(self):
+    def __init__(self, charmmff_config: dict = {}):
         self.resources_path = os.path.dirname(resources.__file__)
         self.package_path = Path(self.resources_path).parent.parent
 
@@ -52,34 +46,83 @@ class ResourceManager:
             if not os.path.isdir(self.resource_path[r]):
                 raise FileNotFoundError(f'Resource {r} not found at {self.resource_path[r]} -- your installation is likely incomplete')
 
-        self.ycleptic_configdir = self.resource_path['ycleptic']
-        ycleptic_files = os.listdir(self.ycleptic_configdir)
-        assert len(ycleptic_files) == 1, f'Too many config files in {self.ycleptic_configdir}: {ycleptic_files}'
-        self.ycleptic_config = ycleptic_files[0]
-        self.ycleptic_config = os.path.join(self.ycleptic_configdir, self.ycleptic_config)
-        
-    def full_init(self):
-        self.charmmff_content = CHARMMFFContent(self.resource_path['charmmff'])
-        is_source_package_with_git = os.path.isdir(os.path.join(self.package_path, '.git'))
-        if is_source_package_with_git:
-            remote = get_git_origin_url()
-            if remote:
-                logger.debug(f'Installed as source from {remote} into {self.package_path}')
-            else:
-                logger.debug(f'Installed as source into {self.package_path} but the remote origin URL could not be determined.')
-        docs_source_path = None
-        if is_source_package_with_git:
-            docs_source_path = os.path.join(self.package_path, 'docs', 'source')
-            if os.path.isdir(docs_source_path):
-                logger.debug(f'Docs path {docs_source_path} exists; using it for example documentation')
-            else:
-                logger.debug(f'Error: This is a source package but docs path {docs_source_path} does not exist')
-                docs_source_path = None
-
-        self.examples_path = self.resource_path['examples']
-        self.example_manager = ExampleManager(examples_path=self.examples_path, docs_source_path=docs_source_path)
-        
+        self._charmmff_config = charmmff_config
+        self._charmmff_content = None
+        self._example_manager = None
         self.labels = Labels
+
+    def charmmff_version_dirs(self) -> list[Path]:
+        """Return all available charmmff version directories, sorted by release date (oldest first)."""
+        import re
+        import datetime
+        _month_num = {
+            'jan': 1, 'feb': 2, 'mar': 3, 'apr': 4, 'may': 5, 'jun': 6,
+            'jul': 7, 'aug': 8, 'sep': 9, 'oct': 10, 'nov': 11, 'dec': 12,
+        }
+        def _key_to_date(d: Path) -> datetime.date:
+            mon = _month_num.get(d.name[:3], 0)
+            yr = 2000 + int(d.name[3:])
+            return datetime.date(yr, mon, 1)
+        charmmff_dir = Path(self.resource_path['charmmff'])
+        return sorted(
+            [d for d in charmmff_dir.iterdir() if d.is_dir() and re.match(r'^[a-z]{3}\d{2}$', d.name)],
+            key=_key_to_date
+        )
+
+    def charmmff_version_path(self, version_str: str = '') -> Path:
+        """Return the version-specific charmmff directory path.
+
+        If *version_str* is given (e.g. ``'July2024'``), the corresponding
+        subdirectory is returned.  Otherwise the most-recently-modified
+        version directory is used as the default.
+        """
+        if version_str:
+            key = charmmff_version_key(version_str)
+            path = Path(self.resource_path['charmmff']) / key
+            if not path.is_dir():
+                raise FileNotFoundError(f'CHARMMFF version directory for {version_str!r} not found at {path}')
+            return path
+        version_dirs = self.charmmff_version_dirs()
+        if not version_dirs:
+            raise FileNotFoundError(f'No CHARMMFF version directories found in {self.resource_path["charmmff"]}')
+        return version_dirs[-1]  # newest by mtime
+
+    @property
+    def charmmff_content(self):
+        if self._charmmff_content is None:
+            charmmff_path = self.charmmff_version_path(self._charmmff_config.get('release', ''))
+            logger.info(f'Using CHARMMFF version: {charmmff_path.name}')
+            self._charmmff_content = CHARMMFFContent(
+                charmmff_path,
+                user_custom_directories=self._charmmff_config.get('user_custom', {}).get('searchpath', []),
+                user_pdbrepository_paths=self._charmmff_config.get('pdbrepository', []),
+            )
+        return self._charmmff_content
+
+    @charmmff_content.setter
+    def charmmff_content(self, value):
+        self._charmmff_content = value
+
+    @property
+    def example_manager(self):
+        if self._example_manager is None:
+            is_source_package_with_git = os.path.isdir(os.path.join(self.package_path, '.git'))
+            if is_source_package_with_git:
+                remote = get_git_origin_url()
+                if remote:
+                    logger.debug(f'Installed as source from {remote} into {self.package_path}')
+                else:
+                    logger.debug(f'Installed as source into {self.package_path} but the remote origin URL could not be determined.')
+            docs_source_path = None
+            if is_source_package_with_git:
+                docs_source_path = os.path.join(self.package_path, 'docs', 'source')
+                if os.path.isdir(docs_source_path):
+                    logger.debug(f'Docs path {docs_source_path} exists; using it for example documentation')
+                else:
+                    logger.debug(f'Error: This is a source package but docs path {docs_source_path} does not exist')
+                    docs_source_path = None
+            self._example_manager = ExampleManager(examples_path=self.resource_path['examples'], docs_source_path=docs_source_path)
+        return self._example_manager
 
     def __str__(self):
         cp = os.path.commonpath(list(self.resource_path.values()))
@@ -127,18 +170,6 @@ class ResourceManager:
                     msg = f.read()
                 out_stream(msg)
 
-    def get_ycleptic_config(self):
-        """
-        Get the path to the ``ycleptic`` configuration file.
-        This file is used for defining the formats of user-specific configurations and is located in the resources directory.
-        
-        Returns
-        -------
-        str
-            The path to the ``ycleptic`` configuration file.
-        """
-        return self.ycleptic_config
-    
     def get_resource_path(self,r):
         """
         Get the path to a specific resource.
@@ -160,7 +191,7 @@ class ResourceManager:
         str
             The path to the custom CHARMM force field directory.
         """
-        return os.path.join(self.resource_path['charmmff'],'custom')
+        return str(self.charmmff_content.charmmff_path / 'custom')
 
     def get_tcldir(self):
         """
@@ -198,7 +229,7 @@ class ResourceManager:
         str
             The path to the TcL package directory.
         """
-        return os.path.join(self.resource_path['tcl'],'pkg')
+        return os.path.join(self.resource_path['tcl'], 'pkg')
     
     def get_tcl_scriptsdir(self):
         """
@@ -210,29 +241,8 @@ class ResourceManager:
         str
             The path to the TcL scripts directory.
         """
-        return os.path.join(self.resource_path['tcl'],'scripts')
+        return os.path.join(self.resource_path['tcl'], 'scripts')
     
-
-    def update_charmmff(self, tarball: str | Path ='', user_custom_directory: str | Path | None =None, user_pdbrepository_paths: list[str | Path]=[]):
-        """ 
-        Update the CHARMM force field content with a tarball and/or a user-defined custom directory
-
-        Parameters
-        ----------
-        tarball : str, optional
-            The path to a tarball containing CHARMM force field files. If provided, the tarball will be loaded into the CHARMM force field content.
-            If not provided, no tarball will be loaded beyond the default CHARMM force field files.
-        user_custom_directory : str, optional
-            The path to a user-defined custom directory containing CHARMM force field files. If provided, this directory will be added to the CHARMM force field content.
-            If not provided, no custom directory will be added. 
-        """
-        if tarball:
-            self.charmmff_content.load_charmmff(tarball)
-        if user_custom_directory:
-            self.charmmff_content.add_custom_directory(user_custom_directory)
-        for path in user_pdbrepository_paths:
-            logger.info(f'Adding user PDB collection {path} to PDB repository')
-            self.charmmff_content.pdbrepository.add_path(path)
 
     def append_example(self, scriptname: str, example_id: int = 0, author_name='', author_email='', title='', db_id='', auxiliary_inputs=[], outputs=[]):
         """

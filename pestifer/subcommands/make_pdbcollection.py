@@ -1,6 +1,6 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
 """
-The make-pdbcollection subcommand.  This allows a user to generate their own collection of
+The make-pdb-collection subcommand.  This allows a user to generate their own collection of
 sample PDB files for residues defined in the CHARMM force field (or in files that have
 CHARMM-format RESI blocks). These sample PDB's are specifically used as inputs to
 packmol.
@@ -14,7 +14,7 @@ from ..charmmff.make_pdb_collection import make_pdb_collection
 
 @dataclass
 class MakePDBCollectionSubcommand(Subcommand):
-    name: str = 'make-pdbcollection'
+    name: str = 'make-pdb-collection'
     short_help: str = "create a PDB collection from a set of input files"
     long_help: str = "Generate a PDB collection from a list of PDB files or IDs."
 
@@ -44,4 +44,5 @@ class MakePDBCollectionSubcommand(Subcommand):
         self.parser.add_argument('--output-dir', type=str, default=None, help='name of output directory relative to CWD; defaults to streamID')
         self.parser.add_argument('--fail-dir', type=str, default='fails', help='name of output directory for failed runs relative to CWD (default: %(default)s)')
         self.parser.add_argument('--refic-idx', type=int, default=0, help='index of reference IC to use to build a single molecule (default: %(default)s)')
+        self.parser.add_argument('--charmmff-release', type=str, default='', help='CHARMMFF release to use (e.g. "February2026"); defaults to the newest available')
         return self.parser
