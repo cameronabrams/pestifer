@@ -5,5 +5,5 @@ Resources package for Pestifer.  Included are the following:
 - ``examples``: Provides example files for testing and demonstration purposes; see :ref:`examples`.
 - ``tcl``: Contains Tcl scripts and custom packages used by the Pestifer framework; see :ref:`tcl_scripts_and_packages`.
 
-The ycleptic configuration schema (``base.yaml``) lives in :mod:`pestifer.schema`, not here.
+The ``ycleptic`` configuration schema (``base.yaml``) lives in :mod:`pestifer.schema`, not here.
 """

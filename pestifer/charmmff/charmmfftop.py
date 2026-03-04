@@ -585,7 +585,7 @@ class CharmmIC:
             a1 = CharmmAngle(name1=atoms[0], name2=atoms[2], name3=atoms[3], degrees=float(toks[6]))
             a2 = CharmmAngle(name1=atoms[1], name2=atoms[2], name3=atoms[3], degrees=float(toks[8]))
             angles = CharmmAngleList([a1, a2])
-        return cls(atoms=atoms, bonds=bonds, angles=angles, dihedral=dihedral, dihedral_type=dihedral_type, empty=empty)
+        return cls(card=card, atoms=atoms, bonds=bonds, angles=angles, dihedral=dihedral, dihedral_type=dihedral_type, empty=empty)
 
     def __str__(self):
         ans = ','.join([f'{i+1}{self.atoms[i]}' for i in range(len(self.atoms))])
@@ -765,7 +765,9 @@ class CharmmResi:
         ic_atom_names = []
         for card in ICcards:
             IC = CharmmIC.from_card(card)
-            if any([x not in atomdict.keys() for x in IC.atoms]):
+            # For PRES (patches), ICs may reference atoms from the base residue
+            # that aren't defined in the patch itself; skip the atomdict check.
+            if atomdict and any([x not in atomdict.keys() for x in IC.atoms]):
                 error_code = -5
             else:
                 ic_atom_names.extend(IC.atoms)
@@ -793,15 +795,14 @@ class CharmmResi:
         other : CharmmResi
             Another CharmmResi object from which to copy the internal coordinates.
         """
-        self.IC = []
-        for ic in other.IC.data:
-            ic_card = ic.card
-            IC = CharmmIC(ic_card)
-            if any([x not in self.atomdict.keys() for x in IC.atoms]):
-                logger.error(f'IC {ic_card} has atoms not in {self.resname}: {IC.atoms}')
+        from copy import deepcopy
+        self.ICs = CharmmICList([])
+        for ic in other.ICs:
+            if any([x not in self.atomdict.keys() for x in ic.atoms]):
+                logger.error(f'IC has atoms not in {self.resname}: {ic.atoms}')
                 self.error_code = -5
             else:
-                self.IC.append(IC)
+                self.ICs.append(deepcopy(ic))
 
     def set_mass(self, massdict: CharmmMassDict):
         """ 
@@ -1126,18 +1127,56 @@ class CharmmResi:
         my_logger(self.annotation, logger.debug)
 
     def to_file(self, f):
-        """ 
-        This method writes the residue record to a file object.
-        It writes the title card with the residue name, charge, and synonym,
-        followed by the atom, bond, internal coordinate, and delete atom records.
-        If there are no atoms, bonds, ICs, or delete records, it writes an empty line for that section.
-        
+        """
+        Write the RESI/PRES block to *f*, reconstructed from the instance's
+        parsed data.
+
+        .. note::
+            Records not captured during parsing — ``IMPR``, ``CMAP``,
+            ``DONOR``, and ``ACCEPTOR`` — are omitted from the output.
+            These appear in standard CHARMM force-field topology files but
+            not in the custom patch files (e.g. ``pestifer.top``) that this
+            method is primarily intended to produce.
+
         Parameters
         ----------
         f : file-like object
-            A file-like object to which the residue record will be written.
+            Destination stream.
         """
-        f.write(self.blockstring)
+        # Header line
+        header = f'{self.key} {self.resname}  {self.charge:.2f}'
+        if self.synonym:
+            header += f'  ! {self.synonym}'
+        f.write(header + '\n')
+
+        # Atom groups (GROUP card precedes each group's ATOM cards)
+        for g_idx in sorted(self.atoms_in_group.keys()):
+            f.write('GROUP\n')
+            for atom in self.atoms_in_group[g_idx]:
+                f.write(f'ATOM {atom.name:<6s} {atom.type:<6s} {atom.charge:8.4f}\n')
+
+        # Bonds grouped by degree (BOND / DOUBLE / TRIPLE), 4 pairs per line
+        for degree, kw in ((1, 'BOND'), (2, 'DOUBLE'), (3, 'TRIPLE')):
+            pairs = [(b.name1, b.name2) for b in self.bonds if b.degree == degree]
+            if pairs:
+                flat = [n for p in pairs for n in p]
+                for i in range(0, len(flat), 8):
+                    f.write(kw + ' ' + ' '.join(flat[i:i+8]) + '\n')
+
+        # Internal coordinates
+        for ic in self.ICs:
+            a = ic.atoms
+            a2 = f'*{a[2]}' if ic.dihedral_type == 'improper' else a[2]
+            f.write(
+                f'IC   {a[0]:<6s} {a[1]:<6s} {a2:<7s} {a[3]:<6s}'
+                f' {ic.bonds[0].length:8.4f} {ic.angles[0].degrees:9.4f}'
+                f' {ic.dihedral.degrees:9.4f} {ic.angles[1].degrees:9.4f}'
+                f' {ic.bonds[1].length:8.4f}\n'
+            )
+
+        # Delete records (use raw_string to preserve DELETE ATOM vs DELETE BOND)
+        for d in self.Delete:
+            f.write(d.raw_string + '\n')
 
     def show_error(self, buf):
         """ 

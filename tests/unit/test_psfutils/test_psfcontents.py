@@ -239,3 +239,21 @@ class TestPSFContents(unittest.TestCase):
         for seg1, seg2 in zip(pdbsegments, psf.segments):
             self.assertEqual(seg1.segname, seg2.segname)
             self.assertEqual(len(seg1.residues), len(seg2.residues))
+
+    def test_psf_write(self):
+        source = 'test.psf'
+        output = 'test_written.psf'
+        psf = PSFContents(source)
+        psf.write(output)
+        psf2 = PSFContents(output)
+        self.assertEqual(len(psf.atoms), len(psf2.atoms))
+        self.assertEqual(len(psf.segments), len(psf2.segments))
+        for a1, a2 in zip(psf.atoms, psf2.atoms):
+            self.assertEqual(a1.serial, a2.serial)
+            self.assertEqual(a1.segname, a2.segname)
+            self.assertEqual(str(a1.resid), str(a2.resid))
+            self.assertEqual(a1.resname, a2.resname)
+            self.assertEqual(a1.atomname, a2.atomname)
+            self.assertEqual(a1.atomtype, a2.atomtype)
+            self.assertAlmostEqual(a1.charge, a2.charge, places=6)
+            self.assertAlmostEqual(a1.atomicwt, a2.atomicwt, places=4)

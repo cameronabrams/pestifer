@@ -266,6 +266,8 @@ class PSFContents:
                     token_name = token_name[:-1]
                 self.token_idx[token_name] = i
                 self.token_count[token_name] = int(toktst[0])
+        self._psf_header = psflines[0]
+        self._section_headers = {k: psflines[v] for k, v in self.token_idx.items()}
         self.token_lines = {}
         for (k, l0), l1 in zip(self.token_idx.items(), list(self.token_idx.values())[1:] + [len(psflines)]):
             fl = l0 + 1
@@ -406,10 +408,45 @@ class PSFContents:
     def get_charge(self):
         """
         Calculate the total charge of the system by summing the charges of all atoms.
-        
+
         Returns
         -------
         float
             The total charge of the system, calculated as the sum of the charges of all atoms in the PSF file.
         """
         return np.sum([x.charge for x in self.atoms])
+
+    @staticmethod
+    def _atom_to_psf_line(a: 'PSFAtom') -> str:
+        """Format a PSFAtom as an EXT PSF atom line."""
+        resid_str = str(a.resid)
+        return (f'{a.serial:10d} {a.segname:<8s} {resid_str:<8s} '
+                f'{a.resname:<8s} {a.atomname:<8s} {a.atomtype:<8s}'
+                f'{a.charge:9.6f}{a.atomicwt:14.4f}{0:12d}')
+
+    def write(self, filename: str):
+        """
+        Write the PSF contents to a file in EXT PSF format.
+
+        The ATOM section is rebuilt from the current :attr:`atoms` list; all other
+        sections are written verbatim from the lines read at parse time.
+
+        Parameters
+        ----------
+        filename : str
+            Path of the output PSF file.
+        """
+        with open(filename, 'w') as f:
+            f.write(self._psf_header + '\n')
+            f.write('\n')
+            for token_name in self.token_idx:
+                if token_name == 'ATOM':
+                    header = f'{len(self.atoms):10d} !NATOM'
+                    content = [self._atom_to_psf_line(a) for a in self.atoms.data]
+                else:
+                    header = self._section_headers[token_name]
+                    content = self.token_lines.get(token_name, [])
+                f.write(header + '\n')
+                for line in content:
+                    f.write(line + '\n')
+                f.write('\n')

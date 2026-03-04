@@ -19,7 +19,11 @@ class ShowResourcesSubcommand(Subcommand):
 
     @staticmethod
     def func(args: ap.Namespace, **kwargs):
-        charmmff_config = {'pdbrepository': args.user_pdbcollection} if args.user_pdbcollection else {}
+        charmmff_config = {}
+        if args.user_pdbcollection:
+            charmmff_config['pdbrepository'] = args.user_pdbcollection
+        if args.charmmff_release:
+            charmmff_config['release'] = args.charmmff_release
         r = ResourceManager(charmmff_config=charmmff_config)
         resource_type = args.resource_type
         specs = {resource_type: []}
@@ -35,4 +39,5 @@ class ShowResourcesSubcommand(Subcommand):
         self.parser.add_argument('--charmmff', type=str, nargs='+', default=[], help='show sub-resources of charmmff resources (\'toppar\', \'custom\', \'pdb\')')
         self.parser.add_argument('--fullnames', default=False, action='store_true', help='show full names of any residues shown with --charmmff pdb')
         self.parser.add_argument('--user-pdbcollection', type=str, nargs='+', default=[], help='additional collections of PDB files outside pestifer installation')
+        self.parser.add_argument('--charmmff-release', type=str, default='', help='CHARMMFF release to use (e.g. "February2026"); defaults to the newest available')
         return self.parser
