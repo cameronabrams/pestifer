@@ -183,8 +183,10 @@ class MDTask(VMDTask):
             assert nsteps > 0, f'Error: you must specify how many time steps to run'
             params['run'] = nsteps
 
+        skip_standard_params = kwargs.pop('skip_standard_params', False)
         na: NAMDScripter = self.get_scripter('namd')
-        na.newscript(self.basename, addl_paramfiles=list(set(addl_paramfiles + paramfilenames)))
+        na.newscript(self.basename, addl_paramfiles=list(set(addl_paramfiles + paramfilenames)),
+                     skip_standard_params=skip_standard_params)
         # update the list of parfiles and streamfiles in the pipeline
         charmmff_parfiles.extend(x for x in na.parameters if x.endswith('.prm') and x not in paramfilenames)
         charmmff_streamfiles.extend(x for x in na.parameters if x.endswith('.str') and x not in paramfilenames)
@@ -200,7 +202,8 @@ class MDTask(VMDTask):
             return result
         local_execution_only = not self.get_current_artifact_data('periodic')
         single_gpu_only = kwargs.get('single_gpu_only', False) or constraints
-        result = na.runscript(single_molecule=local_execution_only, local_execution_only=local_execution_only, single_gpu_only=single_gpu_only, cpu_override=cpu_override)
+        single_cpu_only = specs.get('single-core', False)
+        result = na.runscript(single_molecule=local_execution_only, local_execution_only=local_execution_only, single_gpu_only=single_gpu_only, cpu_override=cpu_override, single_cpu_only=single_cpu_only)
         if result != 0:
             raise RuntimeError(f'md task {self.taskname} failed.')
         coor = NAMDCoorFileArtifact(self.basename)

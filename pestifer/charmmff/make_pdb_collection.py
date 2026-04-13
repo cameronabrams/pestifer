@@ -169,6 +169,10 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
         base_md['colvar_specs'] = deepcopy(colvar_specs)
     tasklist.append({'md': base_md})
     logger.debug(f'base_md (2): {base_md}')
+    # All NAMD runs for PDB collection are single-molecule vacuum runs; restrict to 1 core.
+    for task_dict in tasklist:
+        if 'md' in task_dict:
+            task_dict['md']['single-core'] = True
     userspecs = {'title': f'Build PDBCollection entry for {resid}', 'tasks': tasklist}
     config = Config(quiet=True, RM=RM).configure_new()
     C = Controller().configure(config=config, userspecs=userspecs, terminate=False)

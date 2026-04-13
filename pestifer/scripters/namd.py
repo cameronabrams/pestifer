@@ -67,7 +67,7 @@ class NAMDScripter(TcLScripter):
         # logger.debug(f'local parameters: {parameters_local}')
         return parameters_local
 
-    def newscript(self, basename=None, addl_paramfiles=[]):
+    def newscript(self, basename=None, addl_paramfiles=[], skip_standard_params=False):
         """
         Initialize a new NAMD script with a specified basename and additional parameter files.
         If no basename is provided, a default script name is used.
@@ -80,14 +80,22 @@ class NAMDScripter(TcLScripter):
             A list of additional parameter files to be included in the script. These files should not contain
             a path, but they should be recognizable .prm or .str files within the CHARMM force field or
             the custom CHARMM-format directories.
+        skip_standard_params : bool, optional
+            If True, skip fetching the standard CHARMM parameter files and treat ``addl_paramfiles``
+            as the complete parameter file list.  Use this when generating a self-contained package
+            that includes a pre-consolidated minimal ``.prm`` file.
         """
         super().newscript(basename)
         self.scriptname = f'{basename}{self.default_ext}'
         self.banner('NAMD script')
-        self.parameters = self.fetch_standard_charmm_parameters()
+        if skip_standard_params:
+            self.parameters = []
+        else:
+            self.parameters = self.fetch_standard_charmm_parameters()
         for at in sorted(addl_paramfiles):
             if not at in self.parameters:
-                self.charmmff.copy_charmmfile_local(at)
+                if not skip_standard_params:
+                    self.charmmff.copy_charmmfile_local(at)
                 self.parameters.append(at)
         for p in self.parameters:
             assert os.sep not in p
@@ -143,7 +151,9 @@ class NAMDScripter(TcLScripter):
             - ``cpu_override``: If True, force the use of CPU settings even if the NAMD type is ``gpu``.
         """
         assert hasattr(self, 'scriptname'), f'No scriptname set.'
-        if kwargs.get('local_execution_only', False):
+        if kwargs.get('single_cpu_only', False):
+            use_cpu_count = 1
+        elif kwargs.get('local_execution_only', False):
             use_cpu_count = self.local_ncpus
         else:
             use_cpu_count = self.ncpus

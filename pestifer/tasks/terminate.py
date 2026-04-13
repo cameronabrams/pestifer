@@ -13,8 +13,10 @@ import yaml
 import os
 
 from .mdtask import MDTask
+from ..charmmff.charmmffprm import CharmmParamFile
 from ..core.artifacts import *
 from ..molecule.molecule import Molecule
+from ..psfutil.psfcontents import PSFContents
 from ..util.colors import PestiferColors
 from ..util.stringthings import my_logger
 
@@ -80,13 +82,22 @@ class TerminateTask(MDTask):
                 TarballContents.append(new_fa)
                 new_state[ext] = new_fa
         self.register(new_state, key='state', artifact_type=StateArtifacts)
+        # Generate minimal parameter file first; it becomes the sole parameter file
+        # referenced in the NAMD config and included in the tarball.
+        minimal_prm = self.generate_minimal_params()
+        if minimal_prm:
+            min_artifact = self.register(minimal_prm, key='charmmff_minimal_prm', artifact_type=CharmmffParFileArtifact)
+            # Replace pipeline par/stream file artifacts with just the minimal prm so
+            # that namdrun() writes only one "parameters" line in the NAMD config.
+            self.register([min_artifact], key='charmmff_parfiles', artifact_type=CharmmffParFileArtifacts)
+            self.register([], key='charmmff_streamfiles', artifact_type=CharmmffStreamFileArtifacts)
         result = 0
         if md_specs:
             logger.debug(f'Packaging for namd using basename {self.basename}')
             save_specs = self.specs
             self.specs = md_specs
             self.specs['basename'] = package_specs.get('basename', self.basename)
-            result = self.namdrun(script_only=True)
+            result = self.namdrun(script_only=True, skip_standard_params=(minimal_prm is not None))
             self.specs = save_specs
             TarballContents.append(self.get_current_artifact('namd'))
             constraints = self.specs.get('constraints', {})
@@ -95,10 +106,56 @@ class TerminateTask(MDTask):
                 TarballContents.append(self.get_current_artifact('consref'))
         else:
             logger.debug(f'No NAMD configuration is included in the package.')
-        TarballContents.extend(self.get_current_artifact_data('charmmff_parfiles'))
-        TarballContents.extend(self.get_current_artifact_data('charmmff_streamfiles'))
+        if minimal_prm:
+            TarballContents.append(min_artifact)
         TarballContents.make_tarball(self.basename, arcname_prefix=state_dir, unique=True, remove=True)
         return result
+
+    def generate_minimal_params(self) -> str | None:
+        """Generate a minimal consolidated CHARMM parameter file for the current PSF.
+
+        Collects all parameter files (.prm and .str) registered in the pipeline,
+        merges them, and extracts only the records needed for the atom types
+        present in the current PSF.  Writes a single ``.prm`` file and returns
+        its name.  Returns ``None`` if no parameter files are available.
+        """
+        state: StateArtifacts = self.get_current_artifact('state')
+        if not state or not state.psf or not state.psf.exists():
+            logger.debug('generate_minimal_params: no PSF available, skipping')
+            return None
+
+        charmmff_parfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_parfiles')
+        charmmff_streamfiles: CharmmffStreamFileArtifacts = self.get_current_artifact('charmmff_streamfiles')
+
+        param_files = []
+        if charmmff_parfiles:
+            param_files.extend(fa.name for fa in charmmff_parfiles if os.path.exists(fa.name))
+        if charmmff_streamfiles:
+            param_files.extend(fa.name for fa in charmmff_streamfiles if os.path.exists(fa.name))
+
+        if not param_files:
+            logger.debug('generate_minimal_params: no parameter files available, skipping')
+            return None
+
+        psf = PSFContents(state.psf.name)
+        atomtypes = set(a.atomtype for a in psf.atoms)
+        logger.debug(f'generate_minimal_params: {len(atomtypes)} unique atom types in PSF')
+
+        combined = CharmmParamFile()
+        for fname in param_files:
+            try:
+                combined.merge(CharmmParamFile.from_file(fname))
+                logger.debug(f'generate_minimal_params: parsed {fname}')
+            except Exception as exc:
+                logger.warning(f'generate_minimal_params: failed to parse {fname}: {exc}')
+
+        minimal = combined.extract_for_atomtypes(atomtypes)
+        logger.debug(f'generate_minimal_params: {minimal.summary()}')
+
+        outname = f'{self.basename}_minimal.prm'
+        minimal.write(outname, title=f'Minimal CHARMM parameter file for {self.basename}')
+        logger.info(f'Wrote minimal parameter file: {outname}')
+        return outname
 
     def cleanup(self):
 

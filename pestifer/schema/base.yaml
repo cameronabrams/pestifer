@@ -1242,6 +1242,10 @@ attributes:
         text: Parameters controlling a NAMD run
         type: dict
         attributes:
+          - name: single-core
+            text: whether or not to run namd on a single core; if false, namd3 will be used if available and appropriate for the system size
+            type: bool
+            default: False
           - name: cpu-override
             text: revert to cpu version of namd3
             type: bool

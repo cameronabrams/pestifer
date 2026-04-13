@@ -1,0 +1,44 @@
+* Test CHARMM stream file with topology and parameter sections
+*
+
+! Topology section (should be ignored by parameter parser)
+read rtf card append
+* Test topology
+*
+31 1
+
+MASS  -1  OT   15.999 O ! water oxygen
+MASS  -1  HT    1.008 H ! water hydrogen
+
+RESI TIP3  0.000
+GROUP
+ATOM OH2  OT  -0.834
+ATOM H1   HT   0.417
+ATOM H2   HT   0.417
+BOND OH2 H1 OH2 H2 H1 H2
+END
+
+! Parameter section
+read para card flex append
+*
+
+BONDS
+OT  HT   450.000     0.9572 ! water O-H
+HT  HT   0.000       1.5139 ! water H-H (SHAKE)
+
+ANGLES
+HT  OT  HT   55.000   104.520 ! water angle
+
+DIHEDRALS
+X   OT  HT  X   0.0     1   0.0
+
+NONBONDED nbxmod  5 atom cdiel fshift vatom vdistance vfswitch -
+cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
+!
+OT     0.000000  -0.152100     1.768200 ! TIP3P oxygen
+HT     0.000000  -0.046000     0.224500 ! TIP3P hydrogen
+
+NBFIX
+OT  CT1  -0.120000   3.500000 ! test nbfix from stream
+
+END

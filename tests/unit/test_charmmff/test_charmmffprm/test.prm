@@ -1,0 +1,63 @@
+* Test CHARMM parameter file
+*
+
+ATOMS
+MASS  -1  CT1       12.011 ! aliphatic sp3 C for CH
+MASS  -1  CT2       12.011 ! aliphatic sp3 C for CH2
+MASS  -1  NH1       14.007 ! peptide nitrogen
+MASS  -1  C         12.011 ! carbonyl C
+MASS  -1  O         15.999 ! carbonyl oxygen
+MASS  -1  H          1.008 ! polar H
+
+BONDS
+!
+!atom type Kb          b0
+!
+CT1  CT2   222.500     1.5380 ! alkane
+CT1  NH1   320.000     1.4300 ! peptide
+NH1  H     405.000     1.0200 ! NH-H
+C    O     620.000     1.2300 ! carbonyl
+C    NH1   370.000     1.3450 ! peptide bond
+
+ANGLES
+!
+!atom types     Ktheta    Theta0   Kub     S0
+!
+CT2  CT1  NH1   67.700   110.000 ! simple angle
+H    NH1  C     35.000   120.000 ! amide
+O    C    NH1   80.000   122.520 ! carbonyl-amide
+CT1  C    O     70.000   121.400 ! backbone
+NH1  CT1  CT2   70.000   110.000  22.530   2.179 ! UB angle
+
+DIHEDRALS
+!
+!atom types             Kchi    n   delta
+!
+C    NH1  CT1  CT2      0.2000  1     0.00
+C    NH1  CT1  CT2      0.3000  3     0.00
+X    C    NH1  X        2.5000  2   180.00 ! wildcard
+
+IMPROPER
+!
+!atom types           Kpsi                   psi0
+!
+O    C    NH1  CT1   10.5000  0     0.00
+
+NONBONDED nbxmod  5 atom cdiel fshift vatom vdistance vfswitch -
+cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
+!
+!atom  ignored    epsilon      Rmin/2
+!
+CT1    0.000000  -0.020000     2.275000   0.000000  -0.010000     1.900000 ! with 1-4
+CT2    0.000000  -0.055000     2.175000 ! no 1-4
+NH1    0.000000  -0.200000     1.850000
+C      0.000000  -0.110000     2.000000
+O      0.000000  -0.120000     1.700000
+H      0.000000  -0.046000     0.224500
+
+NBFIX
+!              Emin         Rmin
+!            (kcal/mol)     (A)
+NH1    O       -0.154919   3.637 ! test nbfix
+
+END
