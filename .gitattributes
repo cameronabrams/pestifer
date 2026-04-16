@@ -66,3 +66,4 @@ scratch/*.coor filter=lfs diff=lfs merge=lfs -text
 scratch/*.vel filter=lfs diff=lfs merge=lfs -text
 scratch/*.tgz filter=lfs diff=lfs merge=lfs -text
 scratch/*.tar.gz filter=lfs diff=lfs merge=lfs -text
+scratch/*.str filter=lfs diff=lfs merge=lfs -text
