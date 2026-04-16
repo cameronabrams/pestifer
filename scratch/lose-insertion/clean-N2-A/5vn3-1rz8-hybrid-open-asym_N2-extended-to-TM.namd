@@ -1,0 +1,30 @@
+# pestifer.scripters: 5vn3-1rz8-hybrid-open-asym_N2-extended-to-TM.namd
+####################### Created Thu Apr 16 16:02:34 2026 #######################
+################################# NAMD script ##################################
+parameters 5vn3-1rz8-hybrid-open-asym_N2-extended-to-TM_minimal.prm
+set temperature 300
+paraTypeCharmm True
+exclude scaled1-4
+oneFourScaling 1.0
+cutoff 10.0
+switching True
+switchdist 9.0
+pairlistdist 11.5
+outputenergies 100
+structure 5vn3-1rz8-hybrid-open-asym_N2-extended-to-TM.psf
+coordinates 5vn3-1rz8-hybrid-open-asym_N2-extended-to-TM.pdb
+temperature $temperature
+nonbondedFreq 1
+fullElectFrequency 2
+stepspercycle 4
+dielectric 80
+timestep 1.0
+rigidbonds none
+langevin True
+langevinDamping 5
+langevinTemp $temperature
+langevinHydrogen False
+outputName 5vn3-1rz8-hybrid-open-asym_N2-extended-to-TM
+dcdfreq 1000
+firsttimestep 0
+run 2000

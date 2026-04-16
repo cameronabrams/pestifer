@@ -1,0 +1,31 @@
+## Extending MPERs to TM continue from a prebuilt system using Pestifer-2.1.8
+
+title: Extending a pre-built system 5vn3-1rz8-hybrid-N2-asym from mper 685 to TM 710 in vaccum
+tasks:
+- continuation:
+    pdb: TMD-N2-open-asym-last_frame-dry.pdb
+    psf: TMD-N1-mdff-5vn3-1rz8-hybrid-open-asym-dry_glycan_segids_parent_based.psf
+- psfgen:
+    source:
+      biological_assembly: 1
+      sequence:
+        build_zero_occupancy_C_termini:
+          - A
+          - B
+          - D
+        loops:
+          declash:
+            maxcycles: 0
+            include_C_termini: False
+    mods:
+      insertions: # extending mper to TM inserting residues after 685 to 710
+        - A,685+,IIIVGSLIGLRIVFAVLSLVNRVRQ
+        - B,685+,IIIVGSLIGLRIVFAVLSLVNRVRQ
+        - D,685+,IIIVGSLIGLRIVFAVLSLVNRVRQ
+      crotations: # making sure that inserted residues are helical through TM 710
+        - alpha,A,682,710
+        - alpha,B,682,710
+        - alpha,D,682,710
+- terminate:
+    basename: 5vn3-1rz8-hybrid-open-asym_N2-extended-to-TM
+
