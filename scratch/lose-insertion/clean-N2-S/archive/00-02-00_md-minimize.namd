@@ -1,5 +1,5 @@
 # pestifer.scripters: 00-02-00_md-minimize.namd
-####################### Created Thu Apr 16 16:05:28 2026 #######################
+####################### Created Thu Apr 16 16:18:38 2026 #######################
 ################################# NAMD script ##################################
 parameters par_all36m_prot.prm
 parameters par_all36_lipid.prm

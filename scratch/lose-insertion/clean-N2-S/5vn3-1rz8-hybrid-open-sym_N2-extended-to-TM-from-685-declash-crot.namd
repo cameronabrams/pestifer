@@ -1,6 +1,6 @@
 # pestifer.scripters:
 # 5vn3-1rz8-hybrid-open-sym_N2-extended-to-TM-from-685-declash-crot.namd
-####################### Created Thu Apr 16 16:08:20 2026 #######################
+####################### Created Thu Apr 16 16:21:26 2026 #######################
 ################################# NAMD script ##################################
 parameters 5vn3-1rz8-hybrid-open-sym_N2-extended-to-TM-from-685-declash-crot_minimal.prm
 set temperature 300
