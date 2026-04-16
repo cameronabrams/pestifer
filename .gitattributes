@@ -1,13 +1,10 @@
 #common settings that generally should always be used with your language specific settings
-
 # Auto detect text files and perform LF normalization
 # http://davidlaing.com/2012/09/19/customise-your-gitattributes-to-become-a-git-ninja/
 * text=auto
-
 #
 # The above will handle all files NOT found below
 #
-
 # Documents
 *.pdb diff=astextplain
 *.psf diff=astextplain
@@ -29,7 +26,6 @@
 *.tab text
 *.tsv text
 *.sql text
-
 # Graphics
 *.png binary
 *.jpg binary
@@ -44,7 +40,6 @@
 #*.svg text
 *.eps binary
 # Basic .gitattributes for a python repo.
-
 # Source files
 # ============
 *.pxd		text
@@ -52,7 +47,6 @@
 *.py3 		text
 *.pyw 		text
 *.pyx  		text
-
 # Binary files
 # ============
 *.db		binary
@@ -61,8 +55,10 @@
 *.pyc 		binary
 *.pyd		binary
 *.pyo 		binary
-
 # Note: .db, .p, and .pkl files are associated
 # with the python modules ``pickle``, ``dbm.*``,
 # ``shelve``, ``marshal``, ``anydbm``, & ``bsddb``
 # (among others).
+scratch/*.pdb filter=lfs diff=lfs merge=lfs -text
+scratch/*.psf filter=lfs diff=lfs merge=lfs -text
+scratch/*.dcd filter=lfs diff=lfs merge=lfs -text
