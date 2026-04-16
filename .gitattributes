@@ -62,3 +62,5 @@
 scratch/*.pdb filter=lfs diff=lfs merge=lfs -text
 scratch/*.psf filter=lfs diff=lfs merge=lfs -text
 scratch/*.dcd filter=lfs diff=lfs merge=lfs -text
+scratch/*.coor filter=lfs diff=lfs merge=lfs -text
+scratch/*.vel filter=lfs diff=lfs merge=lfs -text
