@@ -22,7 +22,7 @@ Pestifer also requires access to the following executables:
 2. `vmd` and `catdcd`
 3. `packmol`
 
-Pestifer **includes a copy of** the [July 2024 Charmm36 force field](https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_jul24.tgz).
+Pestifer **includes a copy of** the [Feb 2026 Charmm36 force field](https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_feb26.tgz).
 
 ## Documentation
 

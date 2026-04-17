@@ -2,9 +2,7 @@
 
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
-## [UNRELEASED]
-
-## [2.2.1] - 2026-04-17
+## [2.2.3] - 2026-04-17
 
 - Now generates a custom "minimal" CHARMM parameter file customized for every system
 - New `merge` task for merging independent PSF/PDBs into a single system (no coordinate transformations!)
