@@ -374,6 +374,18 @@ attributes:
           - name: vel
             text: name of vel file (w/optional .vel extension)
             type: str
+      - name: merge
+        text: Merge two or more pre-built PSF/PDB systems into a single PSF/PDB system
+        type: dict
+        attributes:
+          - name: systems
+            text: List of systems to merge; each entry must have 'psf' and either 'pdb' or 'coor'; an optional 'segname_map' dict provides explicit segment renames for that system
+            type: list
+          - name: collision_strategy
+            text: How to resolve segment name collisions across systems
+            type: str
+            default: enumerate
+            options: ['enumerate', 'error']
       - name: psfgen
         text: Parameters controlling a specific psfgen run on an input molecule
         type: dict

@@ -136,6 +136,18 @@ class MergeTask(PsfgenTask):
         for sys in resolved:
             pg.load_project(sys['_use_psf'], sys['_use_pdb'])
 
+        # Carry forward patch remarks from all input PSFs, applying any
+        # segment renames so the provenance stays consistent.
+        seen_patch_remarks: set[str] = set()
+        for sys in resolved:
+            rename_map = sys['effective_segname_map']
+            for remark in self._patch_remarks_from_psf(sys['psf']):
+                if rename_map:
+                    remark = self._rename_patch_remark(remark, rename_map)
+                if remark not in seen_patch_remarks:
+                    pg.addline(f'remarks {remark}')
+                    seen_patch_remarks.add(remark)
+
         pg.writescript(self.basename, guesscoord=False, regenerate=False)
         self.result = pg.runscript(keep_tempfiles=False)
         if self.result != 0:
@@ -260,6 +272,39 @@ class MergeTask(PsfgenTask):
     # ------------------------------------------------------------------
     # PSF REMARKS parsing
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _patch_remarks_from_psf(psf_filename: str) -> list[str]:
+        """Return patch remark texts (without the leading 'REMARKS ' prefix) from
+        a PSF's REMARKS section.  Each entry looks like 'patch DISU A:5 A:55'."""
+        remarks = []
+        with open(psf_filename, 'r') as f:
+            for line in f:
+                line = line.strip()
+                if '!NATOM' in line:
+                    break
+                if line.startswith('REMARKS patch'):
+                    # Normalise whitespace while preserving seg:resid tokens.
+                    remarks.append(' '.join(line[len('REMARKS '):].split()))
+        return remarks
+
+    @staticmethod
+    def _rename_patch_remark(remark: str, rename_map: dict) -> str:
+        """Apply a segment rename map to a patch remark text.
+
+        Handles the psfgen colon format where segment and residue are joined
+        as ``seg:resid`` (e.g. ``patch DISU A:5 A:55``).
+        """
+        tokens = remark.split()
+        # tokens[0] == 'patch', tokens[1] == patchname, rest are seg:resid pairs
+        result = tokens[:2]
+        for token in tokens[2:]:
+            if ':' in token:
+                seg, resid = token.split(':', 1)
+                result.append(f'{rename_map.get(seg, seg)}:{resid}')
+            else:
+                result.append(rename_map.get(token, token))
+        return ' '.join(result)
 
     @staticmethod
     def _stream_files_from_psf(psf_filename: str) -> list[str]:

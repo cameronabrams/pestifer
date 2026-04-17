@@ -5,10 +5,22 @@ Unit tests for MergeTask.
 Only the pure-Python logic is tested here (no VMD/psfgen required):
   - _unique_name():          static name-enumeration helper
   - _resolve_collisions():   full collision-detection pipeline (PSFContents is mocked)
+
+Integration tests (require VMD/psfgen, marked slow):
+  - TestMergeTaskIntegration
 """
+import os
+import shutil
 import unittest
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+from pestifer.core.artifacts import StateArtifacts
+from pestifer.core.config import Config
+from pestifer.core.controller import Controller
+from pestifer.psfutil.psfcontents import PSFContents
 from pestifer.tasks.merge import MergeTask
 
 
@@ -217,3 +229,117 @@ class TestResolveErrorStrategy(unittest.TestCase):
             strategy='error',
         )
         self.assertEqual(resolved[1]['effective_segname_map'].get('PROA'), 'PROB')
+
+
+# ---------------------------------------------------------------------------
+# Integration tests  (require VMD/psfgen; run with --runslow)
+# ---------------------------------------------------------------------------
+
+# BPTI vacuum build (scratch/builds/1): 1108 atoms, segments A (protein) + B, C
+# (glycan/ion); three DISU patches on segment A.
+_FIXTURES = (Path(__file__).parents[3] / 'scratch' / 'builds' / '1').resolve()
+_PSF = '00-01-00_psfgen-build.psf'
+_PDB = '00-01-00_psfgen-build.pdb'
+_N_ATOMS = 1108
+_SEGMENTS = ('A', 'B', 'C')
+_DISU_REMARKS = {'patch DISU A:5 A:55', 'patch DISU A:14 A:38', 'patch DISU A:30 A:51'}
+
+
+def _translate_pdb(src: Path, dst: Path, dx: float = 0.0, dy: float = 0.0, dz: float = 100.0):
+    """Write a copy of a PDB with all ATOM/HETATM coordinates shifted by (dx, dy, dz)."""
+    with open(src) as fh:
+        lines = fh.readlines()
+    with open(dst, 'w') as fh:
+        for line in lines:
+            if line[:6] in ('ATOM  ', 'HETATM'):
+                x = float(line[30:38]) + dx
+                y = float(line[38:46]) + dy
+                z = float(line[46:54]) + dz
+                line = f'{line[:30]}{x:8.3f}{y:8.3f}{z:8.3f}{line[54:]}'
+            fh.write(line)
+
+
+def _psf_patch_remarks(psf_path: str) -> set[str]:
+    """Return the set of normalised patch remark texts from a PSF header."""
+    remarks = set()
+    with open(psf_path) as fh:
+        for line in fh:
+            line = line.strip()
+            if '!NATOM' in line:
+                break
+            if line.startswith('REMARKS patch'):
+                remarks.add(' '.join(line[len('REMARKS '):].split()))
+    return remarks
+
+
+class TestMergeTaskIntegration(unittest.TestCase):
+
+    def setUp(self):
+        self.controller = Controller().configure(Config().configure_new(), terminate=False)
+
+    def _setup_subdir(self, name: str):
+        """Create a clean working subdirectory, symlink the base fixture, write a
+        translated copy, and chdir into it."""
+        if os.path.exists(name):
+            shutil.rmtree(name)
+        os.makedirs(name)
+        os.symlink(_FIXTURES / _PSF, Path(name) / _PSF)
+        os.symlink(_FIXTURES / _PDB, Path(name) / _PDB)
+        _translate_pdb(_FIXTURES / _PDB, Path(name) / 'bpti-shifted.pdb')
+        os.chdir(name)
+
+    @pytest.mark.slow
+    def test_merge_two_copies_enumerate(self):
+        """Merging BPTI with a translated copy; enumerate resolves collisions and DISU
+        remarks from both copies appear in the merged PSF."""
+        self._setup_subdir('__test_merge_enumerate')
+        task_list = [{'merge': {
+            'systems': [
+                {'psf': _PSF, 'pdb': _PDB},
+                {'psf': _PSF, 'pdb': 'bpti-shifted.pdb'},
+            ],
+            'collision_strategy': 'enumerate',
+        }}]
+        self.controller.reconfigure_tasks(task_list)
+        self.controller.do_tasks()
+        state: StateArtifacts = self.controller.tasks[0].get_current_artifact('state')
+        self.assertTrue(state.psf.exists())
+        self.assertTrue(state.pdb.exists())
+        merged = PSFContents(state.psf.name)
+        self.assertEqual(len(merged.atoms), 2 * _N_ATOMS)
+        seg_names = [s.segname for s in merged.segments]
+        self.assertEqual(len(set(seg_names)), 6, f'duplicate segment names: {seg_names}')
+        # DISU remarks from system 1 (unchanged names) must be in merged PSF
+        merged_remarks = _psf_patch_remarks(state.psf.name)
+        for r in _DISU_REMARKS:
+            self.assertIn(r, merged_remarks, f'patch remark {r!r} missing from merged PSF')
+
+    @pytest.mark.slow
+    def test_merge_two_copies_explicit_map(self):
+        """Merging BPTI with a translated copy via explicit segname_map; DISU remarks
+        for the renamed copy must appear with updated segment names."""
+        self._setup_subdir('__test_merge_explicit')
+        task_list = [{'merge': {
+            'systems': [
+                {'psf': _PSF, 'pdb': _PDB},
+                {'psf': _PSF, 'pdb': 'bpti-shifted.pdb',
+                 'segname_map': {'A': 'AA', 'B': 'BB', 'C': 'CC'}},
+            ],
+        }}]
+        self.controller.reconfigure_tasks(task_list)
+        self.controller.do_tasks()
+        state: StateArtifacts = self.controller.tasks[0].get_current_artifact('state')
+        self.assertTrue(state.psf.exists())
+        merged = PSFContents(state.psf.name)
+        self.assertEqual(len(merged.atoms), 2 * _N_ATOMS)
+        seg_names = {s.segname for s in merged.segments}
+        for expected in ('A', 'B', 'C', 'AA', 'BB', 'CC'):
+            self.assertIn(expected, seg_names, f'segment {expected!r} missing from merged PSF')
+        merged_remarks = _psf_patch_remarks(state.psf.name)
+        # Original DISU remarks (segment A) must be present
+        for r in _DISU_REMARKS:
+            self.assertIn(r, merged_remarks, f'original patch remark {r!r} missing')
+        # Renamed DISU remarks (segment AA) must also be present
+        for r in _DISU_REMARKS:
+            renamed = r.replace('A:', 'AA:')
+            self.assertIn(renamed, merged_remarks, f'renamed patch remark {renamed!r} missing')
