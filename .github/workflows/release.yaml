@@ -37,7 +37,7 @@ jobs:
           echo "Tag version: $TAG"
           echo "Project version: $VER"
           test "$TAG" = "$VER"
-          
+
       - name: Build the package with Hatch
         run: hatch build
 
@@ -76,7 +76,7 @@ jobs:
         env:
           HATCH_INDEX_USER: __token__
           HATCH_INDEX_AUTH: ${{ secrets.PYPI_API_TOKEN }}
-        run: hatch publish -v
+        run: hatch publish
 
       - name: Trigger ReadTheDocs build
         run: |
