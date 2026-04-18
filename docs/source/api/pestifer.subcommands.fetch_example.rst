@@ -1,7 +1,7 @@
-pestifer.scripters.packmolscripter module
+pestifer.subcommands.fetch_example module
 =========================================
 
-.. automodule:: pestifer.scripters.packmolscripter
+.. automodule:: pestifer.subcommands.fetch_example
    :members:
    :show-inheritance:
    :undoc-members:

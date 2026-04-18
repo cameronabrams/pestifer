@@ -45,5 +45,5 @@ class TestCleaveTask(unittest.TestCase):
        ]
        self.controller.reconfigure_tasks(tasklist)
        result = self.controller.do_tasks()
-       Path('my_system.tar.gz').unlink()
-       Path('artifacts.tar.gz').unlink()
+       Path('my_system.tar.gz').unlink(missing_ok=True)
+       Path('artifacts.tar.gz').unlink(missing_ok=True)

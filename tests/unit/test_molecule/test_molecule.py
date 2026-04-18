@@ -202,7 +202,7 @@ source:
         cm=ba.transforms[1].chainIDmap
         self.assertEqual(cm['G'],'H')
         cm=ba.transforms[2].chainIDmap
-        self.assertEqual(cm['G'],'N')
+        self.assertEqual(cm['G'],'L')
 
     def test_molecule_ancestry(self):
         ac='4zmj'

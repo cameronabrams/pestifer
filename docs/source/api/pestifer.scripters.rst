@@ -12,10 +12,10 @@ Submodules
 .. toctree::
    :maxdepth: 4
 
-   pestifer.scripters.genericscripter
-   pestifer.scripters.namdcolvarinputscripter
-   pestifer.scripters.namdscripter
-   pestifer.scripters.packmolscripter
-   pestifer.scripters.psfgenscripter
-   pestifer.scripters.tclscripter
-   pestifer.scripters.vmdscripter
+   pestifer.scripters.generic
+   pestifer.scripters.namd
+   pestifer.scripters.namd_colvar_input
+   pestifer.scripters.packmol
+   pestifer.scripters.psfgen
+   pestifer.scripters.tcl
+   pestifer.scripters.vmd

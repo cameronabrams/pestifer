@@ -1,7 +1,7 @@
-pestifer.subcommands.namd\_subcommands module
+pestifer.subcommands.make_namd_restart module
 =============================================
 
-.. automodule:: pestifer.subcommands.namd_subcommands
+.. automodule:: pestifer.subcommands.make_namd_restart
    :members:
    :show-inheritance:
    :undoc-members:

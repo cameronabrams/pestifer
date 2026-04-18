@@ -21,6 +21,5 @@ Submodules
    pestifer.core.examplemanager
    pestifer.core.labels
    pestifer.core.objmanager
-   pestifer.core.pestifer
    pestifer.core.pipeline
    pestifer.core.resourcemanager

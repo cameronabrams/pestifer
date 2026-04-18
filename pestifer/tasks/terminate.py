@@ -40,7 +40,9 @@ class TerminateTask(MDTask):
         if 'chainmapfile' in self.specs:
             self.write_chainmaps()
         self.result = self.test_standard()
-        self.result += self.make_package() 
+        if self.specs.get('basename'):
+            self.copy_state_to_basename()
+        self.result += self.make_package()
         self.result += self.cleanup()
         return self.result
 
@@ -57,31 +59,47 @@ class TerminateTask(MDTask):
                 yaml.dump(maps, f)
             self.register(self.specs['chainmapfile'].replace('.yaml', ''), key='chainmapfile', artifact_type=YAMLFileArtifact)
 
+    def copy_state_to_basename(self):
+        """Copy current state files (psf, pdb, coor, xsc, vel) to the user-specified basename and re-register state."""
+        basename = self.specs.get('basename')
+        state: StateArtifacts = self.get_current_artifact('state')
+        if not state:
+            return
+        new_state = {}
+        for ext in ['psf', 'pdb', 'coor', 'xsc', 'vel']:
+            fa: FileArtifact = getattr(state, ext, None)
+            if fa and fa.exists():
+                dest = f'{basename}.{ext}'
+                if fa.name != dest:
+                    shutil.copy(fa.name, dest)
+                new_fa = fa.copy(data=dest)
+                new_fa.keep = True
+                new_state[ext] = new_fa
+        if new_state:
+            self.register(new_state, key='state', artifact_type=StateArtifacts)
+
     def make_package(self):
         """
         Create a package for a production NAMD run starting from the end of the build.
         """
         package_specs = self.specs.get('package', {})
-        if not package_specs:
+        if not package_specs or not package_specs.get('basename'):
+            logger.debug('No package basename provided; packaging will not be performed.')
             return 0
         md_specs = package_specs.get('md', {})
         state_dir = package_specs.get('state_dir', '.')
-        if not package_specs:
-            logger.debug('No package specifications provided; packaging will not be performed.')
-            return 0
+        pkg_basename = package_specs.get('basename')
         TarballContents = FileArtifactList()
-        self.basename = self.specs.get('basename', 'my_system')
+        # State files were already copied to terminate.basename by copy_state_to_basename().
+        # Collect them for the tarball, optionally re-copying to package.basename if different.
         state: StateArtifacts = self.get_current_artifact('state')
-        new_state = {}
         for ext in ['psf', 'pdb', 'coor', 'xsc', 'vel']:
             fa: FileArtifact = getattr(state, ext, None)
             if fa and fa.exists():
-                logger.debug(f'Including {fa.name} in package as {self.basename}.{ext}')
-                shutil.copy(fa.name, self.basename + '.' + ext)
-                new_fa = fa.copy(data=self.basename + '.' + ext)
-                TarballContents.append(new_fa)
-                new_state[ext] = new_fa
-        self.register(new_state, key='state', artifact_type=StateArtifacts)
+                if pkg_basename and f'{pkg_basename}.{ext}' != fa.name:
+                    shutil.copy(fa.name, f'{pkg_basename}.{ext}')
+                    fa = fa.copy(data=f'{pkg_basename}.{ext}')
+                TarballContents.append(fa)
         # Generate minimal parameter file first; it becomes the sole parameter file
         # referenced in the NAMD config and included in the tarball.
         minimal_prm = self.generate_minimal_params()
@@ -93,10 +111,10 @@ class TerminateTask(MDTask):
             self.register([], key='charmmff_streamfiles', artifact_type=CharmmffStreamFileArtifacts)
         result = 0
         if md_specs:
-            logger.debug(f'Packaging for namd using basename {self.basename}')
+            logger.debug(f'Packaging for namd using basename {pkg_basename}')
             save_specs = self.specs
             self.specs = md_specs
-            self.specs['basename'] = package_specs.get('basename', self.basename)
+            self.specs['basename'] = pkg_basename
             result = self.namdrun(script_only=True, skip_standard_params=(minimal_prm is not None))
             self.specs = save_specs
             TarballContents.append(self.get_current_artifact('namd'))
@@ -108,7 +126,7 @@ class TerminateTask(MDTask):
             logger.debug(f'No NAMD configuration is included in the package.')
         if minimal_prm:
             TarballContents.append(min_artifact)
-        TarballContents.make_tarball(self.basename, arcname_prefix=state_dir, unique=True, remove=True)
+        TarballContents.make_tarball(pkg_basename, arcname_prefix=state_dir, unique=True, remove=True)
         return result
 
     def generate_minimal_params(self) -> str | None:
@@ -164,7 +182,8 @@ class TerminateTask(MDTask):
             return 0
         archive_dir = self.specs.get('archive_dir', 'archive')  
 
-        file_artifacts: FileArtifactList = self.pipeline.get_all_file_artifacts()
+        all_file_artifacts: FileArtifactList = self.pipeline.get_all_file_artifacts()
+        file_artifacts = FileArtifactList([fa for fa in all_file_artifacts if not fa.keep])
         file_artifacts.sort(key=lambda x: x.name)
         logger.debug(f'{len(file_artifacts)} file artifacts to be included in archive:')
         my_logger([fa.name for fa in file_artifacts.data], logger.debug, depth=1)

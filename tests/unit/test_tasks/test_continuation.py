@@ -63,7 +63,7 @@ class TestContinuationTask(unittest.TestCase):
         task_list = [
             {'continuation':
               dict(pdb='my_6pti.pdb', psf='my_6pti.psf', xsc='my_6pti.xsc', coor='my_6pti.coor', vel='my_6pti.vel')}, 
-            {'terminate':dict(cleanup=False,chainmapfile='chainmap.yaml')}]
+            {'terminate':dict(cleanup=False,chainmapfile='chainmap.yaml',package=dict(basename='my_system'))}]
         self.controller.reconfigure_tasks(task_list)
         self.assertEqual(len(self.controller.tasks), 2)
         self.assertIsInstance(self.controller.tasks[0], ContinuationTask)

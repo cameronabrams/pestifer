@@ -1,7 +1,7 @@
-pestifer.scripters.namdscripter module
+pestifer.subcommands.new_system module
 ======================================
 
-.. automodule:: pestifer.scripters.namdscripter
+.. automodule:: pestifer.subcommands.new_system
    :members:
    :show-inheritance:
    :undoc-members:

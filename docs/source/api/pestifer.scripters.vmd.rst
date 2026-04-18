@@ -1,7 +1,7 @@
-pestifer.core.pestifer module
+pestifer.scripters.vmd module
 =============================
 
-.. automodule:: pestifer.core.pestifer
+.. automodule:: pestifer.scripters.vmd
    :members:
    :show-inheritance:
    :undoc-members:

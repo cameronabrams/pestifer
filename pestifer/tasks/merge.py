@@ -108,6 +108,8 @@ class MergeTask(PsfgenTask):
         pg.newscript(self.basename, additional_topologies=all_streamfiles)
 
         # Step A: rename segments in each system that requires it.
+        tmp_psfs = []
+        tmp_pdbs = []
         for i, sys in enumerate(resolved):
             rename_map = sys['effective_segname_map']
             if rename_map:
@@ -126,6 +128,8 @@ class MergeTask(PsfgenTask):
                 pg.addline(f'mol delete top')
                 sys['_use_psf'] = tmp_psf
                 sys['_use_pdb'] = tmp_pdb
+                tmp_psfs.append(tmp_psf)
+                tmp_pdbs.append(tmp_pdb)
             else:
                 sys['_use_psf'] = sys['psf']
                 sys['_use_pdb'] = sys['pdb']
@@ -157,6 +161,12 @@ class MergeTask(PsfgenTask):
         if expected_remarks:
             self._inject_patch_remarks(f'{self.basename}.psf', expected_remarks)
 
+        # Register temporary segment-rename intermediates (written by VMD in Step A).
+        if tmp_psfs:
+            self.register([PSFFileArtifact(p) for p in tmp_psfs], key='merge_tmp_psfs', artifact_type=PSFFileArtifactList)
+        if tmp_pdbs:
+            self.register([PDBFileArtifact(p) for p in tmp_pdbs], key='merge_tmp_pdbs', artifact_type=PDBFileArtifactList)
+
         # Register pipeline artifacts.
         self.register(self.basename, key='tcl', artifact_type=PsfgenInputScriptArtifact)
         self.register(self.basename, key='log', artifact_type=PsfgenLogFileArtifact)
@@ -167,6 +177,11 @@ class MergeTask(PsfgenTask):
             ),
             key='state',
             artifact_type=StateArtifacts,
+        )
+        self.register(
+            [CharmmffTopFileArtifact(x) for x in pg.topologies if x.endswith('.rtf')],
+            key='charmmff_topfiles',
+            artifact_type=CharmmffTopFileArtifacts,
         )
         self.register(
             [CharmmffStreamFileArtifact(sf) for sf in all_streamfiles],

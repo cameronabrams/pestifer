@@ -1,7 +1,7 @@
-pestifer.scripters.genericscripter module
+pestifer.subcommands.build_example module
 =========================================
 
-.. automodule:: pestifer.scripters.genericscripter
+.. automodule:: pestifer.subcommands.build_example
    :members:
    :show-inheritance:
    :undoc-members:

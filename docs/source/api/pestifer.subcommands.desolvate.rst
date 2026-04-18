@@ -1,7 +1,7 @@
-pestifer.scripters.vmdscripter module
+pestifer.subcommands.desolvate module
 =====================================
 
-.. automodule:: pestifer.scripters.vmdscripter
+.. automodule:: pestifer.subcommands.desolvate
    :members:
    :show-inheritance:
    :undoc-members:
