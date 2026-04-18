@@ -2,6 +2,10 @@
 
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
+## [2.2.5] - 2026-04-18
+
+- bugfix: `merge` task now writes injected PSF REMARKS with a leading space, consistent with psfgen's own output format
+
 ## [2.2.4] - 2026-04-18
 
 - Exclusion logic expressions now tolerate atom-only attributes (e.g., `altloc`) on objects that lack them, returning `False` rather than raising an error — so `altloc == 'B'` can be used safely in a `psfgen` source `exclude` list
